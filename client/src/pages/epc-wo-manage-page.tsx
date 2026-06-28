@@ -50,16 +50,23 @@ const ROLE_GROUP: Record<string, string> = {
 };
 
 function StatusPill({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    released: "bg-green-100 text-green-800", approved: "bg-blue-100 text-blue-800",
-    draft: "bg-gray-100 text-gray-600", cancelled: "bg-red-100 text-red-700",
-    under_review: "bg-amber-100 text-amber-800", active: "bg-green-100 text-green-800",
-    cleared: "bg-green-100 text-green-800", pending_inspection: "bg-yellow-100 text-yellow-800",
-    failed: "bg-red-100 text-red-700", submitted: "bg-blue-100 text-blue-800",
-    open: "bg-red-100 text-red-700", resolved: "bg-green-100 text-green-800",
+  const map: Record<string, { bg: string; border: string }> = {
+    released:            { bg: "bg-green-100 text-green-800",   border: "border border-green-300" },
+    approved:            { bg: "bg-blue-100 text-blue-800",     border: "border border-blue-300" },
+    draft:               { bg: "bg-gray-100 text-gray-600",     border: "border border-gray-300" },
+    cancelled:           { bg: "bg-red-100 text-red-700",       border: "border border-red-300" },
+    under_review:        { bg: "bg-amber-100 text-amber-800",   border: "border border-amber-300" },
+    active:              { bg: "bg-green-100 text-green-800",   border: "border border-green-300" },
+    cleared:             { bg: "bg-emerald-100 text-emerald-800", border: "border border-emerald-300" },
+    pending_inspection:  { bg: "bg-yellow-100 text-yellow-800", border: "border border-yellow-300" },
+    failed:              { bg: "bg-red-100 text-red-700",       border: "border border-red-300" },
+    submitted:           { bg: "bg-blue-100 text-blue-800",     border: "border border-blue-300" },
+    open:                { bg: "bg-red-100 text-red-800",       border: "border border-red-400" },
+    resolved:            { bg: "bg-green-100 text-green-800",   border: "border border-green-300" },
   };
+  const style = map[status] || { bg: "bg-gray-100 text-gray-600", border: "border border-gray-300" };
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold capitalize ${map[status] || "bg-gray-100 text-gray-600"}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold capitalize tracking-wide ${style.bg} ${style.border}`}>
       {status?.replace(/_/g, " ")}
     </span>
   );
@@ -77,14 +84,27 @@ function DetailRow({ label, value }: { label: string; value?: any }) {
 function SectionToggle({ label, icon: Icon, children }: { label: string; icon: any; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
-    <Card>
-      <button className="w-full flex items-center justify-between p-3 text-left" onClick={() => setOpen(!open)}>
-        <span className="flex items-center gap-1.5 text-xs font-semibold">
-          <Icon className="h-3.5 w-3.5" /> {label}
+    <Card className="border border-border shadow-sm overflow-hidden">
+      <button
+        className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${open ? "bg-muted/40" : "hover:bg-muted/20"}`}
+        onClick={() => setOpen(!open)}
+      >
+        <span className="flex items-center gap-2 text-xs font-bold text-foreground">
+          <span className="flex items-center justify-center h-5 w-5 rounded bg-muted">
+            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+          </span>
+          {label}
         </span>
-        {open ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+        {open
+          ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
       </button>
-      {open && <CardContent className="pt-0 pb-3">{children}</CardContent>}
+      {open && (
+        <>
+          <div className="h-px bg-border" />
+          <CardContent className="pt-3 pb-4 px-4">{children}</CardContent>
+        </>
+      )}
     </Card>
   );
 }
@@ -184,363 +204,397 @@ export default function EpcWoManagePage() {
 
   return (
     <Layout>
-      <div className="p-4 space-y-3 max-w-7xl mx-auto">
+      <div className="p-5 space-y-4 max-w-7xl mx-auto">
 
         {/* Back */}
-        <button onClick={() => navigate("/epc/work-orders")} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-1">
-          <ArrowLeft className="h-3.5 w-3.5" /> Work Orders
+        <button onClick={() => navigate("/epc/work-orders")} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to Work Orders
         </button>
 
         {/* ── WO Identity Header ── */}
-        <div className="rounded-lg border bg-card p-3 space-y-1.5">
+        <div className="rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50/60 to-slate-50/40 p-4 shadow-sm space-y-3">
           <div className="flex flex-wrap items-start gap-3 justify-between">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-mono font-bold text-sm">{wo.wo_number}</span>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="font-mono font-bold text-base tracking-tight">{wo.wo_number}</span>
                 <StatusPill status={wo.status} />
                 <StatusPill status={wo.quality_status || "pending_inspection"} />
               </div>
-              <div className="text-xs text-muted-foreground">{wo.item_code} — {wo.item_description}</div>
-              {productIdentity && <div className="text-xs font-bold text-blue-600">{productIdentity}</div>}
-              <div className="text-[10px] text-muted-foreground">Qty: {wo.quantity} {wo.uom}</div>
+              <div className="text-xs text-muted-foreground font-medium">{wo.item_code} — {wo.item_description}</div>
+              {productIdentity && <div className="text-xs font-bold text-blue-700">{productIdentity}</div>}
+              <div className="text-[10px] text-muted-foreground">Qty: <span className="font-semibold text-foreground">{wo.quantity} {wo.uom}</span></div>
             </div>
             <div className="text-right text-[10px] text-muted-foreground space-y-0.5">
-              <div>Released by {wo.released_by_name || "—"} on {fmtDate(wo.released_at)}</div>
-              {wo.approved_by_name && <div>Approved by {wo.approved_by_name}</div>}
+              <div>Released by <span className="font-medium text-foreground">{wo.released_by_name || "—"}</span> on {fmtDate(wo.released_at)}</div>
+              {wo.approved_by_name && <div>Approved by <span className="font-medium text-foreground">{wo.approved_by_name}</span></div>}
             </div>
           </div>
-
-          {/* Progress bar */}
-          <div className="space-y-0.5">
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>Production Progress</span><span className="font-semibold">{latestPct}%</span>
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-[10px]">
+              <span className="font-medium text-muted-foreground">Production Progress</span>
+              <span className="font-bold text-blue-700">{latestPct}%</span>
             </div>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${latestPct}%` }} />
+            <div className="h-2.5 bg-blue-100 rounded-full overflow-hidden border border-blue-200">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: `${latestPct}%`, background: latestPct === 100 ? "#16a34a" : latestPct >= 60 ? "#2563eb" : "#60a5fa" }}
+              />
             </div>
           </div>
         </div>
 
         {/* ── Open Hold Banner ── */}
         {openHoldCount > 0 && (
-          <div className="flex items-start gap-2 rounded-lg border border-red-300 bg-red-50 p-3">
-            <AlertOctagon className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
-            <div className="text-xs text-red-800">
-              <span className="font-bold">{openHoldCount} open hold{openHoldCount > 1 ? "s" : ""}.</span>{" "}
-              {wo.open_hold_type && <span className="font-medium">[{HOLD_TYPE_LABELS[wo.open_hold_type] || wo.open_hold_type}]</span>}{" "}
-              {wo.open_hold_reason}
-              {wo.oldest_open_held_at && <span className="ml-1 text-red-600">Since {fmtDate(wo.oldest_open_held_at)}</span>}
+          <div className="flex items-start gap-3 rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3 shadow-sm">
+            <AlertOctagon className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+            <div className="text-xs text-red-900 space-y-0.5">
+              <div className="font-bold">{openHoldCount} open hold{openHoldCount > 1 ? "s" : ""}</div>
+              <div>
+                {wo.open_hold_type && <span className="font-semibold">[{HOLD_TYPE_LABELS[wo.open_hold_type] || wo.open_hold_type}]</span>}{" "}
+                {wo.open_hold_reason}
+                {wo.oldest_open_held_at && <span className="ml-1 text-red-700">· Since {fmtDate(wo.oldest_open_held_at)}</span>}
+              </div>
             </div>
           </div>
         )}
 
         {/* ── Row A: Schedule + Drawing ── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
           {/* Schedule */}
-          <Card className="p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <h4 className="text-[11px] font-semibold flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" /> Schedule</h4>
+          <Card className="border border-blue-200 border-l-4 border-l-blue-400 bg-blue-50/20 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-blue-100 bg-blue-50/40">
+              <h4 className="text-xs font-bold flex items-center gap-2 text-blue-900">
+                <CalendarDays className="h-4 w-4 text-blue-500" /> Schedule
+              </h4>
               {isManager && <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={openScheduleEdit}><Edit className="h-3 w-3 mr-0.5" /> Edit</Button>}
             </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              <div className="space-y-1">
-                <div className="text-[9px] font-semibold text-muted-foreground uppercase">Target</div>
-                <DetailRow label="Start" value={fmtDate(schedule?.target_start_date)} />
-                <DetailRow label="Completion" value={fmtDate(schedule?.target_completion_date)} />
-              </div>
-              <div className="space-y-1">
-                <div className="text-[9px] font-semibold text-muted-foreground uppercase">Actual</div>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1"><DetailRow label="Start" value={fmtDate(schedule?.actual_start_date)} /></div>
-                  {varianceBadge(schedule?.target_start_date, schedule?.actual_start_date)}
+            <div className="p-4 space-y-2">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                <div className="space-y-1">
+                  <div className="text-[9px] font-bold text-blue-700 uppercase tracking-wide">Target</div>
+                  <DetailRow label="Start" value={fmtDate(schedule?.target_start_date)} />
+                  <DetailRow label="Completion" value={fmtDate(schedule?.target_completion_date)} />
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1"><DetailRow label="Completion" value={fmtDate(schedule?.actual_completion_date)} /></div>
-                  {varianceBadge(schedule?.target_completion_date, schedule?.actual_completion_date)}
+                <div className="space-y-1">
+                  <div className="text-[9px] font-bold text-blue-700 uppercase tracking-wide">Actual</div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1"><DetailRow label="Start" value={fmtDate(schedule?.actual_start_date)} /></div>
+                    {varianceBadge(schedule?.target_start_date, schedule?.actual_start_date)}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1"><DetailRow label="Completion" value={fmtDate(schedule?.actual_completion_date)} /></div>
+                    {varianceBadge(schedule?.target_completion_date, schedule?.actual_completion_date)}
+                  </div>
                 </div>
               </div>
+              {holds.filter((h: any) => h.resolved_at).length > 0 && (
+                <div className="text-[10px] text-muted-foreground pt-1 border-t border-blue-100">
+                  Total hold days: <span className="font-semibold">{holds.filter((h: any) => h.resolved_at).reduce((acc: number, h: any) => acc + Math.round(parseFloat(h.impact_days) || 0), 0)}d</span>
+                </div>
+              )}
             </div>
-            {holds.filter((h: any) => h.resolved_at).length > 0 && (
-              <div className="text-[10px] text-muted-foreground">
-                Total hold days: {holds.filter((h: any) => h.resolved_at).reduce((acc: number, h: any) => acc + Math.round(parseFloat(h.impact_days) || 0), 0)}d
-              </div>
-            )}
           </Card>
 
           {/* Drawing & Mfg */}
-          <Card className="p-3 space-y-1.5">
-            <h4 className="text-[11px] font-semibold flex items-center gap-1"><FileText className="h-3.5 w-3.5" /> Drawing & Manufacturing</h4>
-            <DetailRow label="Drawing No" value={wo.drawing_no ? <span className="font-bold text-blue-600">{wo.drawing_no}</span> : "—"} />
-            <DetailRow label="Revision" value={wo.drawing_revision_text} />
-            <DetailRow label="Drawing Status" value={wo.drawing_control_status ? <StatusPill status={wo.drawing_control_status} /> : "—"} />
-            <DetailRow label="Released for Mfg" value={wo.released_for_manufacturing ? <span className="text-green-600 font-semibold">✓ Yes</span> : <span className="text-amber-600 font-semibold">✗ Not yet</span>} />
-            {wo.dds_id && <DetailRow label="DDS" value={<a href={`/epc/drawing-controls`} className="text-blue-600 underline text-[10px]">View DDS</a>} />}
-            {wo.source_bom_header_id && <DetailRow label="BOM" value={<a href={`/epc/bom-controls`} className="text-blue-600 underline text-[10px]">View BOM</a>} />}
-            <DetailRow label="Classification" value={wo.make_classification} />
-            {wo.manufacturing_notes && (
-              <div className="mt-1 p-2 bg-muted/40 rounded text-[10px]">
-                <div className="text-[9px] font-semibold text-muted-foreground mb-0.5">Mfg Notes</div>
-                {wo.manufacturing_notes}
-              </div>
-            )}
-            {wo.wo_notes && (
-              <div className="mt-1 p-2 bg-muted/40 rounded text-[10px]">
-                <div className="text-[9px] font-semibold text-muted-foreground mb-0.5">WO Notes</div>
-                {wo.wo_notes}
-              </div>
-            )}
-            {!wo.released_for_manufacturing && (
-              <div className="flex items-center gap-1 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-1.5">
-                <AlertTriangle className="h-3 w-3 shrink-0" /> Drawing not yet released for manufacturing.
-              </div>
-            )}
+          <Card className="border border-emerald-200 border-l-4 border-l-emerald-400 bg-emerald-50/20 shadow-sm overflow-hidden">
+            <div className="px-4 pt-3 pb-2.5 border-b border-emerald-100 bg-emerald-50/40">
+              <h4 className="text-xs font-bold flex items-center gap-2 text-emerald-900">
+                <FileText className="h-4 w-4 text-emerald-500" /> Drawing & Manufacturing
+              </h4>
+            </div>
+            <div className="p-4 space-y-1.5">
+              <DetailRow label="Drawing No" value={wo.drawing_no ? <span className="font-bold text-blue-600">{wo.drawing_no}</span> : "—"} />
+              <DetailRow label="Revision" value={wo.drawing_revision_text} />
+              <DetailRow label="Drawing Status" value={wo.drawing_control_status ? <StatusPill status={wo.drawing_control_status} /> : "—"} />
+              <DetailRow label="Released for Mfg" value={wo.released_for_manufacturing ? <span className="text-green-600 font-semibold">✓ Yes</span> : <span className="text-amber-600 font-semibold">✗ Not yet</span>} />
+              {wo.dds_id && <DetailRow label="DDS" value={<a href={`/epc/drawing-controls`} className="text-blue-600 underline text-[10px]">View DDS</a>} />}
+              {wo.source_bom_header_id && <DetailRow label="BOM" value={<a href={`/epc/bom-controls`} className="text-blue-600 underline text-[10px]">View BOM</a>} />}
+              <DetailRow label="Classification" value={wo.make_classification} />
+              {wo.manufacturing_notes && (
+                <div className="mt-1.5 p-2 bg-emerald-50 border border-emerald-100 rounded text-[10px]">
+                  <div className="text-[9px] font-bold text-emerald-700 uppercase mb-0.5">Mfg Notes</div>
+                  {wo.manufacturing_notes}
+                </div>
+              )}
+              {wo.wo_notes && (
+                <div className="mt-1.5 p-2 bg-muted/40 rounded text-[10px]">
+                  <div className="text-[9px] font-bold text-muted-foreground uppercase mb-0.5">WO Notes</div>
+                  {wo.wo_notes}
+                </div>
+              )}
+              {!wo.released_for_manufacturing && (
+                <div className="flex items-center gap-1.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mt-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> Drawing not yet released for manufacturing.
+                </div>
+              )}
+            </div>
           </Card>
         </div>
 
         {/* ── Crew Assignment ── */}
-        <Card className="p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <h4 className="text-[11px] font-semibold flex items-center gap-1"><HardHat className="h-3.5 w-3.5" /> Crew Assignment</h4>
+        <Card className="border border-indigo-200 border-l-4 border-l-indigo-400 bg-indigo-50/10 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-indigo-100 bg-indigo-50/30">
+            <h4 className="text-xs font-bold flex items-center gap-2 text-indigo-900">
+              <HardHat className="h-4 w-4 text-indigo-500" /> Crew Assignment
+            </h4>
             {isManager && (
               <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={() => setCrewDialogOpen(true)}>
                 <Plus className="h-3 w-3 mr-0.5" /> Add Member
               </Button>
             )}
           </div>
-
-          {crew.length === 0 ? (
-            <div className="text-[11px] text-muted-foreground py-4 text-center">No crew assigned yet.</div>
-          ) : (
-            <div className="space-y-2">
-              {crewProduction.length > 0 && (
-                <div>
-                  <div className="text-[9px] font-semibold text-muted-foreground uppercase mb-1 flex items-center gap-1"><Wrench className="h-3 w-3" /> Production</div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="h-6">
-                        <TableHead className="text-[9px] py-0.5">Slot</TableHead>
-                        <TableHead className="text-[9px] py-0.5">Assigned To</TableHead>
-                        <TableHead className="text-[9px] py-0.5">Added By</TableHead>
-                        {isManager && <TableHead className="text-[9px] py-0.5 text-right">Actions</TableHead>}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {crewProduction.map((slot: any) => (
-                        <TableRow key={slot.id} className="h-7">
-                          <TableCell className="text-[10px] py-0.5 font-medium">{slot.slot_label}</TableCell>
-                          <TableCell className="text-[10px] py-0.5">{slot.assigned_name || <span className="text-muted-foreground italic">—</span>}</TableCell>
-                          <TableCell className="text-[10px] py-0.5 text-muted-foreground">{slot.added_by_name}</TableCell>
-                          {isManager && (
-                            <TableCell className="py-0.5 text-right">
-                              <div className="flex justify-end gap-1">
-                                <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px]" onClick={() => { setEditSlotId(slot.id); setEditSlotName(slot.assigned_name || ""); setEditSlotOpen(true); }}><Edit className="h-2.5 w-2.5" /></Button>
-                                <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px] text-red-500" onClick={() => removeCrewMutation.mutate(slot.id)}><Trash2 className="h-2.5 w-2.5" /></Button>
-                              </div>
-                            </TableCell>
-                          )}
+          <div className="p-4">
+            {crew.length === 0 ? (
+              <div className="text-[11px] text-muted-foreground py-4 text-center">No crew assigned yet.</div>
+            ) : (
+              <div className="space-y-3">
+                {crewProduction.length > 0 && (
+                  <div>
+                    <div className="text-[9px] font-bold text-indigo-700 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                      <Wrench className="h-3 w-3" /> Production
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="h-6 bg-indigo-50/40">
+                          <TableHead className="text-[9px] py-0.5">Slot</TableHead>
+                          <TableHead className="text-[9px] py-0.5">Assigned To</TableHead>
+                          <TableHead className="text-[9px] py-0.5">Added By</TableHead>
+                          {isManager && <TableHead className="text-[9px] py-0.5 text-right">Actions</TableHead>}
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-
-              {crewQuality.length > 0 && (
-                <div>
-                  <div className="text-[9px] font-semibold text-muted-foreground uppercase mb-1 flex items-center gap-1"><Shield className="h-3 w-3" /> Quality</div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="h-6">
-                        <TableHead className="text-[9px] py-0.5">Slot</TableHead>
-                        <TableHead className="text-[9px] py-0.5">Assigned To</TableHead>
-                        <TableHead className="text-[9px] py-0.5">Added By</TableHead>
-                        {isManager && <TableHead className="text-[9px] py-0.5 text-right">Actions</TableHead>}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {crewQuality.map((slot: any) => (
-                        <TableRow key={slot.id} className="h-7">
-                          <TableCell className="text-[10px] py-0.5 font-medium">{slot.slot_label}</TableCell>
-                          <TableCell className="text-[10px] py-0.5">{slot.assigned_name || <span className="text-muted-foreground italic">—</span>}</TableCell>
-                          <TableCell className="text-[10px] py-0.5 text-muted-foreground">{slot.added_by_name}</TableCell>
-                          {isManager && (
-                            <TableCell className="py-0.5 text-right">
-                              <div className="flex justify-end gap-1">
-                                <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px]" onClick={() => { setEditSlotId(slot.id); setEditSlotName(slot.assigned_name || ""); setEditSlotOpen(true); }}><Edit className="h-2.5 w-2.5" /></Button>
-                                <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px] text-red-500" onClick={() => removeCrewMutation.mutate(slot.id)}><Trash2 className="h-2.5 w-2.5" /></Button>
-                              </div>
-                            </TableCell>
-                          )}
+                      </TableHeader>
+                      <TableBody>
+                        {crewProduction.map((slot: any) => (
+                          <TableRow key={slot.id} className="h-7">
+                            <TableCell className="text-[10px] py-0.5 font-medium">{slot.slot_label}</TableCell>
+                            <TableCell className="text-[10px] py-0.5">{slot.assigned_name || <span className="text-muted-foreground italic">—</span>}</TableCell>
+                            <TableCell className="text-[10px] py-0.5 text-muted-foreground">{slot.added_by_name}</TableCell>
+                            {isManager && (
+                              <TableCell className="py-0.5 text-right">
+                                <div className="flex justify-end gap-1">
+                                  <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px]" onClick={() => { setEditSlotId(slot.id); setEditSlotName(slot.assigned_name || ""); setEditSlotOpen(true); }}><Edit className="h-2.5 w-2.5" /></Button>
+                                  <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px] text-red-500" onClick={() => removeCrewMutation.mutate(slot.id)}><Trash2 className="h-2.5 w-2.5" /></Button>
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                {crewQuality.length > 0 && (
+                  <div>
+                    <div className="text-[9px] font-bold text-purple-700 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+                      <Shield className="h-3 w-3" /> Quality
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="h-6 bg-purple-50/40">
+                          <TableHead className="text-[9px] py-0.5">Slot</TableHead>
+                          <TableHead className="text-[9px] py-0.5">Assigned To</TableHead>
+                          <TableHead className="text-[9px] py-0.5">Added By</TableHead>
+                          {isManager && <TableHead className="text-[9px] py-0.5 text-right">Actions</TableHead>}
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </div>
-          )}
+                      </TableHeader>
+                      <TableBody>
+                        {crewQuality.map((slot: any) => (
+                          <TableRow key={slot.id} className="h-7">
+                            <TableCell className="text-[10px] py-0.5 font-medium">{slot.slot_label}</TableCell>
+                            <TableCell className="text-[10px] py-0.5">{slot.assigned_name || <span className="text-muted-foreground italic">—</span>}</TableCell>
+                            <TableCell className="text-[10px] py-0.5 text-muted-foreground">{slot.added_by_name}</TableCell>
+                            {isManager && (
+                              <TableCell className="py-0.5 text-right">
+                                <div className="flex justify-end gap-1">
+                                  <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px]" onClick={() => { setEditSlotId(slot.id); setEditSlotName(slot.assigned_name || ""); setEditSlotOpen(true); }}><Edit className="h-2.5 w-2.5" /></Button>
+                                  <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px] text-red-500" onClick={() => removeCrewMutation.mutate(slot.id)}><Trash2 className="h-2.5 w-2.5" /></Button>
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </Card>
 
         {/* ── Quality Plan & Inspection ── */}
-        <Card className="p-3 space-y-2">
-          <h4 className="text-[11px] font-semibold flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" /> Quality Plan & Inspection</h4>
-          {wo.quality_plan ? (
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <DetailRow label="Plan No" value={wo.quality_plan.quality_plan_number} />
-                <DetailRow label="Status" value={<StatusPill status={wo.quality_plan.status} />} />
-                <DetailRow label="Type" value={wo.quality_plan.quality_requirement_type} />
-                <DetailRow label="QC Inspector" value={<span className="font-semibold text-blue-700">{wo.quality_plan.assigned_to_name || "—"}</span>} />
-              </div>
-              {inspections.length > 0 && (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="h-6">
-                      <TableHead className="text-[9px] py-0.5">Inspection No</TableHead>
-                      <TableHead className="text-[9px] py-0.5">Type</TableHead>
-                      <TableHead className="text-[9px] py-0.5">Status</TableHead>
-                      <TableHead className="text-[9px] py-0.5">Scheduled</TableHead>
-                      <TableHead className="text-[9px] py-0.5">Completed</TableHead>
-                      <TableHead className="text-[9px] py-0.5">Inspector</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {inspections.map((ins: any) => (
-                      <TableRow key={ins.id} className="h-7">
-                        <TableCell className="text-[10px] py-0.5 font-mono">{ins.inspection_number}</TableCell>
-                        <TableCell className="text-[10px] py-0.5">{ins.inspection_type}</TableCell>
-                        <TableCell className="text-[10px] py-0.5"><StatusPill status={ins.status} /></TableCell>
-                        <TableCell className="text-[10px] py-0.5">{fmtDate(ins.scheduled_at)}</TableCell>
-                        <TableCell className="text-[10px] py-0.5">{fmtDate(ins.completed_at || ins.failed_at)}</TableCell>
-                        <TableCell className="text-[10px] py-0.5">{ins.assigned_to_name || "—"}</TableCell>
+        <Card className="border border-purple-200 border-l-4 border-l-purple-400 bg-purple-50/10 shadow-sm overflow-hidden">
+          <div className="px-4 pt-3 pb-2.5 border-b border-purple-100 bg-purple-50/30">
+            <h4 className="text-xs font-bold flex items-center gap-2 text-purple-900">
+              <CheckCircle2 className="h-4 w-4 text-purple-500" /> Quality Plan & Inspection
+            </h4>
+          </div>
+          <div className="p-4">
+            {wo.quality_plan ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-purple-50/40 rounded-lg border border-purple-100">
+                  <DetailRow label="Plan No" value={wo.quality_plan.quality_plan_number} />
+                  <DetailRow label="Status" value={<StatusPill status={wo.quality_plan.status} />} />
+                  <DetailRow label="Type" value={wo.quality_plan.quality_requirement_type} />
+                  <DetailRow label="QC Inspector" value={<span className="font-semibold text-purple-700">{wo.quality_plan.assigned_to_name || "—"}</span>} />
+                </div>
+                {inspections.length > 0 && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="h-6 bg-purple-50/40">
+                        <TableHead className="text-[9px] py-0.5">Inspection No</TableHead>
+                        <TableHead className="text-[9px] py-0.5">Type</TableHead>
+                        <TableHead className="text-[9px] py-0.5">Status</TableHead>
+                        <TableHead className="text-[9px] py-0.5">Scheduled</TableHead>
+                        <TableHead className="text-[9px] py-0.5">Completed</TableHead>
+                        <TableHead className="text-[9px] py-0.5">Inspector</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </div>
-          ) : (
-            <div className="text-[11px] text-muted-foreground py-2">No quality plan linked to this WO.</div>
-          )}
+                    </TableHeader>
+                    <TableBody>
+                      {inspections.map((ins: any) => (
+                        <TableRow key={ins.id} className="h-7">
+                          <TableCell className="text-[10px] py-0.5 font-mono">{ins.inspection_number}</TableCell>
+                          <TableCell className="text-[10px] py-0.5">{ins.inspection_type}</TableCell>
+                          <TableCell className="text-[10px] py-0.5"><StatusPill status={ins.status} /></TableCell>
+                          <TableCell className="text-[10px] py-0.5">{fmtDate(ins.scheduled_at)}</TableCell>
+                          <TableCell className="text-[10px] py-0.5">{fmtDate(ins.completed_at || ins.failed_at)}</TableCell>
+                          <TableCell className="text-[10px] py-0.5">{ins.assigned_to_name || "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            ) : (
+              <div className="text-[11px] text-muted-foreground py-3">No quality plan linked to this WO.</div>
+            )}
+          </div>
         </Card>
 
         {/* ── Daily Production Log ── */}
-        <Card className="p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <h4 className="text-[11px] font-semibold flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Daily Production Log</h4>
+        <Card className="border border-sky-200 border-l-4 border-l-sky-400 bg-sky-50/10 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-sky-100 bg-sky-50/30">
+            <h4 className="text-xs font-bold flex items-center gap-2 text-sky-900">
+              <Clock className="h-4 w-4 text-sky-500" /> Daily Production Log
+            </h4>
             {isSeniorExec && (
               <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={openNewLog} disabled={todayLogExists} title={todayLogExists ? "Already logged today" : ""}>
                 <Plus className="h-3 w-3 mr-0.5" /> {todayLogExists ? "Already logged today" : "Add Today's Log"}
               </Button>
             )}
           </div>
-
-          {dailyLogs.length === 0 ? (
-            <div className="text-[11px] text-muted-foreground py-4 text-center">No production logs yet.</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="h-6">
-                  <TableHead className="text-[9px] py-0.5">Date</TableHead>
-                  <TableHead className="text-[9px] py-0.5">Progress</TableHead>
-                  <TableHead className="text-[9px] py-0.5">Work Done</TableHead>
-                  <TableHead className="text-[9px] py-0.5">Manpower</TableHead>
-                  <TableHead className="text-[9px] py-0.5">Hours</TableHead>
-                  <TableHead className="text-[9px] py-0.5">Issues</TableHead>
-                  <TableHead className="text-[9px] py-0.5">By</TableHead>
-                  <TableHead className="text-[9px] py-0.5">Status</TableHead>
-                  {isSeniorExec && <TableHead className="text-[9px] py-0.5 text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dailyLogs.map((log: any) => (
-                  <TableRow key={log.id} className="h-7">
-                    <TableCell className="text-[10px] py-0.5 font-mono">{fmtDate(log.log_date)}</TableCell>
-                    <TableCell className="text-[10px] py-0.5">
-                      <div className="flex items-center gap-1">
-                        <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${log.progress_percent}%` }} /></div>
-                        <span>{log.progress_percent}%</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-[10px] py-0.5 max-w-[140px] truncate" title={log.work_done_today}>{log.work_done_today || "—"}</TableCell>
-                    <TableCell className="text-[10px] py-0.5">{log.manpower_count}</TableCell>
-                    <TableCell className="text-[10px] py-0.5">{log.hours_worked}</TableCell>
-                    <TableCell className="text-[10px] py-0.5 max-w-[120px] truncate" title={log.issues_encountered}>{log.issues_encountered || "—"}</TableCell>
-                    <TableCell className="text-[10px] py-0.5 text-muted-foreground">{log.reported_by_name}</TableCell>
-                    <TableCell className="text-[10px] py-0.5"><StatusPill status={log.status} /></TableCell>
-                    {isSeniorExec && (
-                      <TableCell className="py-0.5 text-right">
-                        <div className="flex justify-end gap-1">
-                          {log.status === "draft" && <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px]" onClick={() => openEditLog(log)}><Edit className="h-2.5 w-2.5" /></Button>}
-                          {log.status === "draft" && <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px] text-green-600" onClick={() => submitLogMutation.mutate(log.id)}>Submit</Button>}
+          <div className="p-4">
+            {dailyLogs.length === 0 ? (
+              <div className="text-[11px] text-muted-foreground py-4 text-center">No production logs yet.</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="h-6 bg-sky-50/40">
+                    <TableHead className="text-[9px] py-0.5">Date</TableHead>
+                    <TableHead className="text-[9px] py-0.5">Progress</TableHead>
+                    <TableHead className="text-[9px] py-0.5">Work Done</TableHead>
+                    <TableHead className="text-[9px] py-0.5">Manpower</TableHead>
+                    <TableHead className="text-[9px] py-0.5">Hours</TableHead>
+                    <TableHead className="text-[9px] py-0.5">Issues</TableHead>
+                    <TableHead className="text-[9px] py-0.5">By</TableHead>
+                    <TableHead className="text-[9px] py-0.5">Status</TableHead>
+                    {isSeniorExec && <TableHead className="text-[9px] py-0.5 text-right">Actions</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dailyLogs.map((log: any) => (
+                    <TableRow key={log.id} className="h-7">
+                      <TableCell className="text-[10px] py-0.5 font-mono">{fmtDate(log.log_date)}</TableCell>
+                      <TableCell className="text-[10px] py-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-14 h-1.5 bg-sky-100 rounded-full overflow-hidden border border-sky-200">
+                            <div className="h-full bg-sky-500 rounded-full" style={{ width: `${log.progress_percent}%` }} />
+                          </div>
+                          <span className="font-semibold">{log.progress_percent}%</span>
                         </div>
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+                      <TableCell className="text-[10px] py-0.5 max-w-[140px] truncate" title={log.work_done_today}>{log.work_done_today || "—"}</TableCell>
+                      <TableCell className="text-[10px] py-0.5">{log.manpower_count}</TableCell>
+                      <TableCell className="text-[10px] py-0.5">{log.hours_worked}</TableCell>
+                      <TableCell className="text-[10px] py-0.5 max-w-[120px] truncate" title={log.issues_encountered}>{log.issues_encountered || "—"}</TableCell>
+                      <TableCell className="text-[10px] py-0.5 text-muted-foreground">{log.reported_by_name}</TableCell>
+                      <TableCell className="text-[10px] py-0.5"><StatusPill status={log.status} /></TableCell>
+                      {isSeniorExec && (
+                        <TableCell className="py-0.5 text-right">
+                          <div className="flex justify-end gap-1">
+                            {log.status === "draft" && <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px]" onClick={() => openEditLog(log)}><Edit className="h-2.5 w-2.5" /></Button>}
+                            {log.status === "draft" && <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px] text-green-600" onClick={() => submitLogMutation.mutate(log.id)}>Submit</Button>}
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
         </Card>
 
         {/* ── Hold & Delay Records ── */}
-        <Card className="p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <h4 className="text-[11px] font-semibold flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Hold & Delay Records</h4>
+        <Card className="border border-orange-200 border-l-4 border-l-orange-400 bg-orange-50/10 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-4 pt-3 pb-2.5 border-b border-orange-100 bg-orange-50/30">
+            <h4 className="text-xs font-bold flex items-center gap-2 text-orange-900">
+              <AlertTriangle className="h-4 w-4 text-orange-500" /> Hold & Delay Records
+            </h4>
             {isManager && (
               <Button size="sm" variant="outline" className="h-6 px-2 text-[10px]" onClick={() => setHoldDialogOpen(true)}>
                 <Plus className="h-3 w-3 mr-0.5" /> Raise Hold
               </Button>
             )}
           </div>
-
-          {holds.length === 0 ? (
-            <div className="text-[11px] text-muted-foreground py-4 text-center">No holds or delays recorded.</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="h-6">
-                  <TableHead className="text-[9px] py-0.5">#</TableHead>
-                  <TableHead className="text-[9px] py-0.5">Type</TableHead>
-                  <TableHead className="text-[9px] py-0.5">Reason</TableHead>
-                  <TableHead className="text-[9px] py-0.5">Raised By</TableHead>
-                  <TableHead className="text-[9px] py-0.5">Held Since</TableHead>
-                  <TableHead className="text-[9px] py-0.5">Status</TableHead>
-                  <TableHead className="text-[9px] py-0.5">Impact</TableHead>
-                  {isManager && <TableHead className="text-[9px] py-0.5 text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {holds.map((h: any, i: number) => (
-                  <TableRow key={h.id} className="h-7">
-                    <TableCell className="text-[10px] py-0.5">{i + 1}</TableCell>
-                    <TableCell className="text-[10px] py-0.5">
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold ${HOLD_TYPE_COLORS[h.hold_type] || "bg-gray-100 text-gray-600"}`}>{HOLD_TYPE_LABELS[h.hold_type] || h.hold_type}</span>
-                    </TableCell>
-                    <TableCell className="text-[10px] py-0.5 max-w-[140px] truncate" title={h.hold_reason}>{h.hold_reason}</TableCell>
-                    <TableCell className="text-[10px] py-0.5 text-muted-foreground">{h.held_by_name}</TableCell>
-                    <TableCell className="text-[10px] py-0.5">{fmtDate(h.held_at)}</TableCell>
-                    <TableCell className="text-[10px] py-0.5"><StatusPill status={h.resolved_at ? "resolved" : "open"} /></TableCell>
-                    <TableCell className="text-[10px] py-0.5">{Math.round(parseFloat(h.impact_days) || 0)}d</TableCell>
-                    {isManager && (
-                      <TableCell className="py-0.5 text-right">
-                        {!h.resolved_at && (
-                          <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[9px] text-green-600" onClick={() => { setResolveHoldId(h.id); setResolveNotes(""); setResolveOpen(true); }}>Resolve</Button>
-                        )}
-                      </TableCell>
-                    )}
+          <div className="p-4">
+            {holds.length === 0 ? (
+              <div className="text-[11px] text-muted-foreground py-4 text-center">No holds or delays recorded.</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="h-6 bg-orange-50/40">
+                    <TableHead className="text-[9px] py-0.5">#</TableHead>
+                    <TableHead className="text-[9px] py-0.5">Type</TableHead>
+                    <TableHead className="text-[9px] py-0.5">Reason</TableHead>
+                    <TableHead className="text-[9px] py-0.5">Raised By</TableHead>
+                    <TableHead className="text-[9px] py-0.5">Held Since</TableHead>
+                    <TableHead className="text-[9px] py-0.5">Status</TableHead>
+                    <TableHead className="text-[9px] py-0.5">Impact</TableHead>
+                    {isManager && <TableHead className="text-[9px] py-0.5 text-right">Actions</TableHead>}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+                </TableHeader>
+                <TableBody>
+                  {holds.map((h: any, i: number) => (
+                    <TableRow key={h.id} className="h-7">
+                      <TableCell className="text-[10px] py-0.5">{i + 1}</TableCell>
+                      <TableCell className="text-[10px] py-0.5">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-bold border ${HOLD_TYPE_COLORS[h.hold_type] || "bg-gray-100 text-gray-600 border-gray-300"}`}>{HOLD_TYPE_LABELS[h.hold_type] || h.hold_type}</span>
+                      </TableCell>
+                      <TableCell className="text-[10px] py-0.5 max-w-[140px] truncate" title={h.hold_reason}>{h.hold_reason}</TableCell>
+                      <TableCell className="text-[10px] py-0.5 text-muted-foreground">{h.held_by_name}</TableCell>
+                      <TableCell className="text-[10px] py-0.5">{fmtDate(h.held_at)}</TableCell>
+                      <TableCell className="text-[10px] py-0.5"><StatusPill status={h.resolved_at ? "resolved" : "open"} /></TableCell>
+                      <TableCell className="text-[10px] py-0.5 font-semibold">{Math.round(parseFloat(h.impact_days) || 0)}d</TableCell>
+                      {isManager && (
+                        <TableCell className="py-0.5 text-right">
+                          {!h.resolved_at && (
+                            <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[9px] text-green-600" onClick={() => { setResolveHoldId(h.id); setResolveNotes(""); setResolveOpen(true); }}>Resolve</Button>
+                          )}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
         </Card>
 
         {/* ── Manpower Utilization ── */}
         <SectionToggle label="Manpower Utilization" icon={BarChart3}>
           {manpower && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-1">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
                 { label: "Days Logged", val: manpower.days_logged || 0 },
                 { label: "Total Man-Days", val: manpower.total_man_days || 0 },
@@ -553,9 +607,9 @@ export default function EpcWoManagePage() {
                 { label: "Helpers", val: manpower.total_helpers || 0 },
                 { label: "QC Persons", val: manpower.total_qc_persons || 0 },
               ].map(({ label, val }) => (
-                <div key={label} className="bg-muted/30 rounded p-2">
-                  <div className="text-[9px] text-muted-foreground">{label}</div>
-                  <div className="text-sm font-bold">{val}</div>
+                <div key={label} className="bg-muted/40 border border-border rounded-lg p-2.5">
+                  <div className="text-[9px] text-muted-foreground font-medium uppercase tracking-wide">{label}</div>
+                  <div className="text-sm font-bold mt-0.5">{val}</div>
                 </div>
               ))}
             </div>
