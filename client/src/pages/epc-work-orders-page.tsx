@@ -437,7 +437,7 @@ export default function EpcWorkOrdersPage() {
                                       </h4>
                                       <div className="space-y-1">
                                         <DetailRow label="Classification" value={expandedDetail.make_classification} />
-                                        <DetailRow label="Drawing No" value={expandedDetail.drawing_no} mono />
+                                        <DetailRow label="Drawing No" value={expandedDetail.drawing_no ? <span className="font-bold text-blue-600">{expandedDetail.drawing_no}</span> : undefined} />
                                         <DetailRow label="Drawing Rev" value={expandedDetail.drawing_revision_text || (expandedDetail.drawing_revision != null ? String(expandedDetail.drawing_revision) : undefined)} />
                                         <DetailRow label="Est. Unit Cost" value={formatAmount(expandedDetail.estimated_unit_cost)} />
                                         <DetailRow label="Est. Total Cost" value={formatAmount(expandedDetail.estimated_total_cost)} />
