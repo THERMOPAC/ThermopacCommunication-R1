@@ -320,6 +320,7 @@ export default function EpcWorkOrdersPage() {
                   <TableHead className="text-[10px] text-center">Classification</TableHead>
                   <TableHead className="text-[10px] text-right">Qty</TableHead>
                   <TableHead className="text-[10px] text-center">Status</TableHead>
+                  <TableHead className="text-[10px] text-center">Drawing</TableHead>
                   <TableHead className="text-[10px] text-center">Quality</TableHead>
                   <TableHead className="text-[10px]">Created By</TableHead>
                   <TableHead className="text-[10px]">Created</TableHead>
@@ -359,6 +360,30 @@ export default function EpcWorkOrdersPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="py-1.5 text-center">
+                          {(() => {
+                            const rev = wo.drawing_revision_text;
+                            const st = wo.drawing_control_status;
+                            if (!rev && !st) return <span className="text-muted-foreground text-[10px]">—</span>;
+                            const colors: Record<string, string> = {
+                              released: 'bg-green-100 text-green-800',
+                              approved: 'bg-blue-100 text-blue-800',
+                              under_review: 'bg-amber-100 text-amber-800',
+                              draft: 'bg-gray-100 text-gray-600',
+                              cancelled: 'bg-red-100 text-red-700',
+                            };
+                            return (
+                              <div className="flex items-center justify-center gap-1">
+                                {st && (
+                                  <span className={`text-[8px] px-1 py-0 rounded font-medium ${colors[st] || 'bg-gray-100 text-gray-600'}`}>
+                                    {st.replace(/_/g, ' ')}
+                                  </span>
+                                )}
+                                {rev && <span className="text-[10px] font-bold text-foreground">{rev}</span>}
+                              </div>
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell className="py-1.5 text-center">
                           {wo.quality_status && (
                             <Badge variant="outline" className={`text-[8px] px-1 py-0 border ${QUALITY_STATUS_COLORS[wo.quality_status] || ""}`}>
                               {(wo.quality_status || "").replace(/_/g, " ")}
@@ -384,7 +409,7 @@ export default function EpcWorkOrdersPage() {
                       </TableRow>,
                       isExpanded ? (
                         <TableRow key={`${wo.id}-detail`}>
-                          <TableCell colSpan={10} className="p-0 bg-muted/10">
+                          <TableCell colSpan={11} className="p-0 bg-muted/10">
                             <div className="p-3 space-y-3">
                               {detailLoading ? (
                                 <div className="py-4 text-center"><Loader2 className="h-5 w-5 mx-auto animate-spin text-muted-foreground" /></div>

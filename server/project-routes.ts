@@ -8156,6 +8156,7 @@ export function setupProjectRoutes(app: express.Express) {
                              prod.item_property_1_label AS product_p1_label,
                              prod.item_property_2_label AS product_p2_label,
                              prod.item_property_3       AS product_p3,
+                             dc.status                  AS drawing_control_status,
                              u1.username as created_by_name, u2.username as approved_by_name,
                              u3.username as released_by_name
                       FROM epc_work_orders ewo
@@ -8208,6 +8209,7 @@ export function setupProjectRoutes(app: express.Express) {
                    prod.item_property_1_label AS product_p1_label,
                    prod.item_property_2_label AS product_p2_label,
                    prod.item_property_3       AS product_p3,
+                   dc.status                  AS drawing_control_status,
                    u1.username as created_by_name, u2.username as approved_by_name,
                    u3.username as released_by_name
             FROM epc_work_orders ewo
