@@ -337,7 +337,14 @@ export default function EpcWorkOrdersPage() {
                           {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                         </TableCell>
                         <TableCell className="py-1.5 font-mono text-[10px] font-medium">{wo.wo_number}</TableCell>
-                        <TableCell className="py-1.5 max-w-[180px]"><ItemCodeBadge code={wo.item_code} prop1Label={wo.item_property_1_label} /></TableCell>
+                        <TableCell className="py-1.5 max-w-[240px]">
+                          <ItemCodeBadge code={wo.item_code} prop1Label={wo.item_property_1_label} />
+                          {(wo.product_p1_label || wo.product_p2_label || wo.product_p3) && (
+                            <div className="text-[10px] font-semibold text-blue-600 leading-tight mt-0.5 truncate" title={[wo.product_p1_label, wo.product_p2_label, wo.product_p3].filter(Boolean).join(' ')}>
+                              {[wo.product_p1_label, wo.product_p2_label, wo.product_p3].filter(Boolean).join(' ')}
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell className="py-1.5 text-center">
                           {wo.make_classification && (
                             <Badge variant="secondary" className={`text-[8px] px-1 py-0 ${MAKE_CLASSIFICATION_COLORS[wo.make_classification] || "bg-gray-100 text-gray-700"}`}>

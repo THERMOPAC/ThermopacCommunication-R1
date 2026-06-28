@@ -8153,6 +8153,9 @@ export function setupProjectRoutes(app: express.Express) {
                                  ELSE UPPER(dc.revision_code)
                                END
                              ) AS drawing_revision_text,
+                             prod.item_property_1_label AS product_p1_label,
+                             prod.item_property_2_label AS product_p2_label,
+                             prod.item_property_3       AS product_p3,
                              u1.username as created_by_name, u2.username as approved_by_name,
                              u3.username as released_by_name
                       FROM epc_work_orders ewo
@@ -8164,6 +8167,8 @@ export function setupProjectRoutes(app: express.Express) {
                         WHERE eda.parent_entity_id = dc.id AND eda.doc_type = 'DWG' AND eda.is_current = true
                         LIMIT 1
                       ) dwg_att ON true
+                      LEFT JOIN project_items pi ON pi.id = ewo.project_item_id
+                      LEFT JOIN products prod ON prod.product_code = pi.product_code
                       LEFT JOIN users u1 ON ewo.created_by = u1.id
                       LEFT JOIN users u2 ON ewo.approved_by = u2.id
                       LEFT JOIN users u3 ON ewo.released_by = u3.id`;
@@ -8200,6 +8205,9 @@ export function setupProjectRoutes(app: express.Express) {
                        ELSE UPPER(dc.revision_code)
                      END
                    ) AS drawing_revision_text,
+                   prod.item_property_1_label AS product_p1_label,
+                   prod.item_property_2_label AS product_p2_label,
+                   prod.item_property_3       AS product_p3,
                    u1.username as created_by_name, u2.username as approved_by_name,
                    u3.username as released_by_name
             FROM epc_work_orders ewo
@@ -8211,6 +8219,8 @@ export function setupProjectRoutes(app: express.Express) {
               WHERE eda.parent_entity_id = dc.id AND eda.doc_type = 'DWG' AND eda.is_current = true
               LIMIT 1
             ) dwg_att ON true
+            LEFT JOIN project_items pi ON pi.id = ewo.project_item_id
+            LEFT JOIN products prod ON prod.product_code = pi.product_code
             LEFT JOIN users u1 ON ewo.created_by = u1.id
             LEFT JOIN users u2 ON ewo.approved_by = u2.id
             LEFT JOIN users u3 ON ewo.released_by = u3.id
