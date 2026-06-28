@@ -62,7 +62,10 @@ router.get('/api/epc/work-orders/:id/manage', ensureAuthenticated, async (req: R
                prod.item_property_3 AS product_p3,
                u1.username AS created_by_name,
                u2.username AS approved_by_name,
-               u3.username AS released_by_name
+               u3.username AS released_by_name,
+               p.start_date AS project_start_date,
+               p.target_end_date AS project_target_end_date,
+               p.actual_end_date AS project_actual_end_date
         FROM epc_work_orders ewo
         LEFT JOIN master_items mi ON mi.id = ewo.master_item_id
         LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = ewo.project_item_id AND dc.is_current = true
@@ -74,6 +77,7 @@ router.get('/api/epc/work-orders/:id/manage', ensureAuthenticated, async (req: R
         ) dwg_att ON true
         LEFT JOIN project_items pi ON pi.id = ewo.project_item_id
         LEFT JOIN products prod ON prod.product_code = pi.product_code
+        LEFT JOIN projects p ON p.id = ewo.project_id
         LEFT JOIN users u1 ON ewo.created_by = u1.id
         LEFT JOIN users u2 ON ewo.approved_by = u2.id
         LEFT JOIN users u3 ON ewo.released_by = u3.id

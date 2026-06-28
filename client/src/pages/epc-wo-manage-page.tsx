@@ -185,7 +185,12 @@ export default function EpcWoManagePage() {
   }
 
   function openScheduleEdit() {
-    setSchedForm({ target_start_date: schedule?.target_start_date || "", target_completion_date: schedule?.target_completion_date || "", actual_start_date: schedule?.actual_start_date || "", actual_completion_date: schedule?.actual_completion_date || "" });
+    setSchedForm({
+      target_start_date: schedule?.target_start_date || wo?.project_start_date?.slice(0, 10) || "",
+      target_completion_date: schedule?.target_completion_date || wo?.project_target_end_date?.slice(0, 10) || "",
+      actual_start_date: schedule?.actual_start_date || "",
+      actual_completion_date: schedule?.actual_completion_date || "",
+    });
     setSchedOpen(true);
   }
 
@@ -270,21 +275,57 @@ export default function EpcWoManagePage() {
               {isManager && <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={openScheduleEdit}><Edit className="h-3 w-3 mr-0.5" /> Edit</Button>}
             </div>
             <div className="p-4 space-y-2">
+              {/* Project timeline reference */}
+              {(wo?.project_start_date || wo?.project_target_end_date) && (
+                <div className="flex items-center gap-2 px-2 py-1.5 bg-blue-50 border border-blue-100 rounded text-[10px] text-blue-700">
+                  <CalendarDays className="h-3 w-3 shrink-0 text-blue-400" />
+                  <span className="font-semibold">Project timeline:</span>
+                  <span>{fmtDate(wo.project_start_date)}</span>
+                  <span className="text-blue-400">→</span>
+                  <span>{fmtDate(wo.project_target_end_date)}</span>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                 <div className="space-y-1">
-                  <div className="text-[9px] font-bold text-blue-700 uppercase tracking-wide">Target</div>
-                  <DetailRow label="Start" value={fmtDate(schedule?.target_start_date)} />
-                  <DetailRow label="Completion" value={fmtDate(schedule?.target_completion_date)} />
+                  <div className="text-[9px] font-bold text-blue-700 uppercase tracking-wide">Target (WO)</div>
+                  {(() => {
+                    const tStart = schedule?.target_start_date;
+                    const fromProj = !tStart && !!wo?.project_start_date;
+                    return (
+                      <div>
+                        <DetailRow label="Start" value={
+                          <span className={fromProj ? "text-blue-500 italic" : ""}>
+                            {fmtDate(tStart || wo?.project_start_date)}
+                            {fromProj && <span className="ml-1 text-[9px] text-blue-400">(project)</span>}
+                          </span>
+                        } />
+                      </div>
+                    );
+                  })()}
+                  {(() => {
+                    const tEnd = schedule?.target_completion_date;
+                    const fromProj = !tEnd && !!wo?.project_target_end_date;
+                    return (
+                      <div>
+                        <DetailRow label="Completion" value={
+                          <span className={fromProj ? "text-blue-500 italic" : ""}>
+                            {fmtDate(tEnd || wo?.project_target_end_date)}
+                            {fromProj && <span className="ml-1 text-[9px] text-blue-400">(project)</span>}
+                          </span>
+                        } />
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="space-y-1">
                   <div className="text-[9px] font-bold text-blue-700 uppercase tracking-wide">Actual</div>
                   <div className="flex items-center gap-2">
                     <div className="flex-1"><DetailRow label="Start" value={fmtDate(schedule?.actual_start_date)} /></div>
-                    {varianceBadge(schedule?.target_start_date, schedule?.actual_start_date)}
+                    {varianceBadge(schedule?.target_start_date || wo?.project_start_date, schedule?.actual_start_date)}
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex-1"><DetailRow label="Completion" value={fmtDate(schedule?.actual_completion_date)} /></div>
-                    {varianceBadge(schedule?.target_completion_date, schedule?.actual_completion_date)}
+                    {varianceBadge(schedule?.target_completion_date || wo?.project_target_end_date, schedule?.actual_completion_date)}
                   </div>
                 </div>
               </div>
@@ -671,15 +712,41 @@ export default function EpcWoManagePage() {
       {/* ── Schedule Dialog ── */}
       <Dialog open={schedOpen} onOpenChange={setSchedOpen}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle className="text-sm">Edit Schedule</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-sm">Edit WO Schedule</DialogTitle></DialogHeader>
           {schedForm && (
-            <div className="space-y-3">
-              {[["target_start_date", "Target Start Date"], ["target_completion_date", "Target Completion Date"], ["actual_start_date", "Actual Start Date"], ["actual_completion_date", "Actual Completion Date"]].map(([key, label]) => (
-                <div key={key} className="space-y-1">
-                  <Label className="text-xs">{label}</Label>
-                  <Input type="date" className="h-8 text-xs" value={schedForm[key] || ""} onChange={e => setSchedForm({ ...schedForm, [key]: e.target.value })} />
+            <div className="space-y-4">
+              {/* Project reference banner */}
+              {(wo?.project_start_date || wo?.project_target_end_date) && (
+                <div className="flex items-center gap-2 px-2.5 py-2 bg-blue-50 border border-blue-100 rounded text-[10px] text-blue-700">
+                  <CalendarDays className="h-3 w-3 shrink-0 text-blue-400" />
+                  <span><span className="font-semibold">Project:</span> {fmtDate(wo.project_start_date)} → {fmtDate(wo.project_target_end_date)}</span>
                 </div>
-              ))}
+              )}
+              {/* Target dates */}
+              <div className="space-y-2">
+                <div className="text-[9px] font-bold uppercase tracking-wide text-blue-700">Target Dates</div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Target Start</Label>
+                  <Input type="date" className="h-8 text-xs" value={schedForm.target_start_date || ""} onChange={e => setSchedForm({ ...schedForm, target_start_date: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Target Completion</Label>
+                  <Input type="date" className="h-8 text-xs" value={schedForm.target_completion_date || ""} onChange={e => setSchedForm({ ...schedForm, target_completion_date: e.target.value })} />
+                </div>
+              </div>
+              <Separator />
+              {/* Actual dates */}
+              <div className="space-y-2">
+                <div className="text-[9px] font-bold uppercase tracking-wide text-green-700">Actual Dates <span className="text-muted-foreground font-normal normal-case">(fill when work occurs)</span></div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Actual Start</Label>
+                  <Input type="date" className="h-8 text-xs" value={schedForm.actual_start_date || ""} onChange={e => setSchedForm({ ...schedForm, actual_start_date: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Actual Completion</Label>
+                  <Input type="date" className="h-8 text-xs" value={schedForm.actual_completion_date || ""} onChange={e => setSchedForm({ ...schedForm, actual_completion_date: e.target.value })} />
+                </div>
+              </div>
             </div>
           )}
           <DialogFooter>
