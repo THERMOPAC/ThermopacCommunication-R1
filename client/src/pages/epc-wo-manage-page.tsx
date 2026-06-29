@@ -62,6 +62,8 @@ function StatusPill({ status }: { status: string }) {
     active:              { bg: "bg-green-100 text-green-800",   border: "border border-green-300" },
     cleared:             { bg: "bg-emerald-100 text-emerald-800", border: "border border-emerald-300" },
     pending_inspection:  { bg: "bg-yellow-100 text-yellow-800", border: "border border-yellow-300" },
+    in_progress:         { bg: "bg-blue-100 text-blue-700",     border: "border border-blue-300" },
+    inspection_cleared:  { bg: "bg-emerald-100 text-emerald-800", border: "border border-emerald-300" },
     failed:              { bg: "bg-red-100 text-red-700",       border: "border border-red-300" },
     submitted:           { bg: "bg-blue-100 text-blue-800",     border: "border border-blue-300" },
     open:                { bg: "bg-red-100 text-red-800",       border: "border border-red-400" },
@@ -123,7 +125,7 @@ export default function EpcWoManagePage() {
 
   const woId = parseInt(id || "0");
 
-  const { data: wo, isLoading: woLoading } = useQuery<any>({ queryKey: ["/api/epc/work-orders", woId, "manage"], queryFn: () => fetch(`/api/epc/work-orders/${woId}/manage`).then(r => r.json()) });
+  const { data: wo, isLoading: woLoading, refetch: refetchWo } = useQuery<any>({ queryKey: ["/api/epc/work-orders", woId, "manage"], queryFn: () => fetch(`/api/epc/work-orders/${woId}/manage`).then(r => r.json()) });
   const { data: crew = [], refetch: refetchCrew } = useQuery<any[]>({ queryKey: ["/api/epc/work-orders", woId, "crew"], queryFn: () => fetch(`/api/epc/work-orders/${woId}/crew`).then(r => r.json()) });
   const { data: crewMasters = [] } = useQuery<any[]>({ queryKey: ["/api/crew-members"], queryFn: () => fetch("/api/crew-members?active=true").then(r => r.json()) });
   const { data: schedule, refetch: refetchSchedule } = useQuery<any>({ queryKey: ["/api/epc/work-orders", woId, "schedule"], queryFn: () => fetch(`/api/epc/work-orders/${woId}/schedule`).then(r => r.json()) });
@@ -131,6 +133,7 @@ export default function EpcWoManagePage() {
   const { data: holds = [], refetch: refetchHolds } = useQuery<any[]>({ queryKey: ["/api/epc/work-orders", woId, "holds"], queryFn: () => fetch(`/api/epc/work-orders/${woId}/holds`).then(r => r.json()) });
   const { data: inspections = [] } = useQuery<any[]>({ queryKey: ["/api/epc/work-orders", woId, "inspections"], queryFn: () => fetch(`/api/epc/work-orders/${woId}/inspections`).then(r => r.json()) });
   const { data: manpower } = useQuery<any>({ queryKey: ["/api/epc/work-orders", woId, "manpower-summary"], queryFn: () => fetch(`/api/epc/work-orders/${woId}/manpower-summary`).then(r => r.json()) });
+  const { data: linkedIO, refetch: refetchLinkedIO } = useQuery<any>({ queryKey: ["/api/epc/work-orders", woId, "inspection-order"], queryFn: () => fetch(`/api/epc/work-orders/${woId}/inspection-order`).then(r => r.json()), retry: false });
 
   // ── Schedule mutation ──
   const [schedForm, setSchedForm] = useState<any>(null);
@@ -165,6 +168,7 @@ export default function EpcWoManagePage() {
   const [resolveOpen, setResolveOpen] = useState(false);
   const addHoldMutation = useMutation({ mutationFn: (body: any) => apiRequest("POST", `/api/epc/work-orders/${woId}/holds`, body), onSuccess: () => { refetchHolds(); queryClient.invalidateQueries({ queryKey: ["/api/epc/work-orders", woId, "manage"] }); setHoldDialogOpen(false); setHoldForm({ hold_type: "material_shortage", hold_reason: "" }); toast({ title: "Hold raised" }); }, onError: () => toast({ title: "Failed", variant: "destructive" }) });
   const resolveHoldMutation = useMutation({ mutationFn: ({ holdId, notes }: any) => apiRequest("POST", `/api/epc/work-orders/${woId}/holds/${holdId}/resolve`, { resolution_notes: notes }), onSuccess: () => { refetchHolds(); queryClient.invalidateQueries({ queryKey: ["/api/epc/work-orders", woId, "manage"] }); setResolveOpen(false); toast({ title: "Hold resolved" }); } });
+  const requestInspectionMutation = useMutation({ mutationFn: () => apiRequest("POST", `/api/epc/work-orders/${woId}/request-inspection`), onSuccess: (data: any) => { refetchWo(); refetchLinkedIO(); toast({ title: "Inspection order created", description: data?.inspectionOrderNumber }); }, onError: (e: any) => toast({ title: e?.message || "Failed to request inspection", variant: "destructive" }) });
 
   if (woLoading) return <Layout><div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div></Layout>;
   if (!wo || wo.error) return <Layout><div className="p-6 text-sm text-muted-foreground">Work order not found.</div></Layout>;
@@ -269,6 +273,57 @@ export default function EpcWoManagePage() {
             </div>
           </div>
         )}
+
+        {/* ── Quality Inspection Status Panel ── */}
+        {(() => {
+          const qStatus = wo.quality_status || "pending_inspection";
+          const isCleared = qStatus === "inspection_cleared";
+          const isInProgress = qStatus === "in_progress";
+          const canRequest = isManager && wo.status === "released" && !isCleared && !linkedIO;
+          const borderColor = isCleared ? "border-emerald-300" : isInProgress ? "border-blue-200" : "border-amber-200";
+          const bgColor = isCleared ? "bg-emerald-50/40" : isInProgress ? "bg-blue-50/30" : "bg-amber-50/20";
+          const iconColor = isCleared ? "text-emerald-600" : isInProgress ? "text-blue-500" : "text-amber-500";
+          const Icon = isCleared ? CheckCircle2 : isInProgress ? Clock : Shield;
+          return (
+            <Card className={`border ${borderColor} border-l-4 border-l-current ${bgColor} shadow-sm overflow-hidden`} style={{ borderLeftColor: isCleared ? "#059669" : isInProgress ? "#3b82f6" : "#f59e0b" }}>
+              <div className={`flex items-center justify-between px-4 pt-3 pb-2.5 border-b ${isCleared ? "border-emerald-100 bg-emerald-50/40" : isInProgress ? "border-blue-100 bg-blue-50/30" : "border-amber-100 bg-amber-50/30"}`}>
+                <h4 className={`text-xs font-bold flex items-center gap-2 ${isCleared ? "text-emerald-900" : isInProgress ? "text-blue-900" : "text-amber-900"}`}>
+                  <Icon className={`h-4 w-4 ${iconColor}`} /> Quality Inspection
+                </h4>
+                {canRequest && (
+                  <Button size="sm" variant="outline" className="h-6 px-2 text-[10px] border-amber-300 text-amber-800 hover:bg-amber-50" onClick={() => requestInspectionMutation.mutate()} disabled={requestInspectionMutation.isPending}>
+                    {requestInspectionMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-0.5" /> : <Plus className="h-3 w-3 mr-0.5" />} Request Inspection
+                  </Button>
+                )}
+              </div>
+              <div className="p-4 space-y-2">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <StatusPill status={qStatus} />
+                  {isCleared && wo.quality_cleared_at && (
+                    <span className="text-[10px] text-muted-foreground">Cleared on {fmtDate(wo.quality_cleared_at)}</span>
+                  )}
+                </div>
+                {linkedIO && (
+                  <div className="flex items-center gap-2 text-[10px] mt-1">
+                    <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <span className="text-muted-foreground">Inspection Order:</span>
+                    <span className="font-mono font-semibold text-foreground">{linkedIO.inspection_order_number}</span>
+                    <StatusPill status={linkedIO.status} />
+                    <span className="text-muted-foreground ml-1">· Raised {fmtDate(linkedIO.created_at)}</span>
+                  </div>
+                )}
+                {!linkedIO && !isCleared && (
+                  <div className="text-[10px] text-muted-foreground">
+                    {isInProgress ? "Inspection order requested — awaiting Quality team." : "No inspection order raised yet. Use 'Request Inspection' when manufacturing is complete."}
+                  </div>
+                )}
+                {isCleared && wo.quality_cleared_inspection_id && !linkedIO && (
+                  <div className="text-[10px] text-muted-foreground">Cleared via Inspection Execution #{wo.quality_cleared_inspection_id}.</div>
+                )}
+              </div>
+            </Card>
+          );
+        })()}
 
         {/* ── Row A: Schedule + Drawing ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

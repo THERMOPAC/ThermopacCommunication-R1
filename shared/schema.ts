@@ -5220,6 +5220,7 @@ export const inspectionOrders = pgTable('inspection_orders', {
   description: text('description').notNull(),
   drawingNo: text('drawing_no'), // Added drawing number field
   workOrderId: integer('work_order_id').references(() => workOrders.id, { onDelete: 'set null' }),
+  epcWorkOrderId: integer('epc_work_order_id').references(() => epcWorkOrders.id as any, { onDelete: 'set null' }),
   
   // Order details
   status: text('status').notNull().default('pending'), // pending, in_progress, completed, cancelled

@@ -420,6 +420,16 @@ router.patch('/inspection-orders/:id', ensureAuthenticated, async (req: Request,
       })
       .where(eq(inspectionOrders.id, orderId))
       .returning();
+
+    // EPC Handover write-back: if IO linked to an EPC WO is now completed, mark WO inspection_cleared
+    if (orderData.status === 'completed' && existingOrder.epcWorkOrderId) {
+      try {
+        const { writeBackWOQualityStatus } = await import('./quality/epc-io-handover');
+        await writeBackWOQualityStatus(orderId);
+      } catch (wbErr) {
+        console.error('[IO-Handover] Write-back error (non-fatal):', wbErr);
+      }
+    }
     
     // If materials are provided, update material links
     if (materials && Array.isArray(materials)) {

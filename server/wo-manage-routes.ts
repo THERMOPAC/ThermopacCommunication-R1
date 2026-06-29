@@ -551,6 +551,40 @@ router.get('/api/epc/work-orders/:id/inspections', ensureAuthenticated, async (r
   } catch (e) { sendError(res, e); }
 });
 
+// ── GET /api/epc/work-orders/:id/inspection-order ────────────────────────────
+router.get('/api/epc/work-orders/:id/inspection-order', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return sendValidationError(res, 'Invalid WO ID');
+    const r = await db.execute(sql`
+      SELECT io.id, io.inspection_order_number, io.status, io.title, io.created_at
+      FROM inspection_orders io
+      WHERE io.epc_work_order_id = ${id}
+      ORDER BY io.created_at DESC
+      LIMIT 1
+    `);
+    res.json(r.rows[0] || null);
+  } catch (e) { sendError(res, e); }
+});
+
+// ── POST /api/epc/work-orders/:id/request-inspection ─────────────────────────
+router.post('/api/epc/work-orders/:id/request-inspection', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    if (!minRole(req, res, 'Manager')) return;
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return sendValidationError(res, 'Invalid WO ID');
+    const userId = getUserId(req);
+    const wo = await getWo(id);
+    if (!wo) return sendNotFound(res, 'Work order not found');
+    if (wo.status !== 'released') {
+      return res.status(409).json({ error: `Cannot request inspection: WO status is '${wo.status}'. Must be released.` });
+    }
+    const { createInspectionOrderFromEpcWO } = await import('./quality/epc-io-handover');
+    const io = await createInspectionOrderFromEpcWO(id, userId);
+    res.status(201).json({ success: true, ...io });
+  } catch (e: any) { sendError(res, e); }
+});
+
 export function setupWoManageRoutes(app: Router) {
   app.use(router);
 }
