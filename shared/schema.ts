@@ -16379,6 +16379,21 @@ export const insertEmployeeCodeAuditLogSchema = createInsertSchema(employeeCodeA
 export type EmployeeCodeAuditLog = typeof employeeCodeAuditLog.$inferSelect;
 
 // ── WO Manage: Crew Slots ─────────────────────────────────────────────────────
+// ── Crew Members Master ───────────────────────────────────────────────────────
+export const crewMembers = pgTable('crew_members', {
+  id:           serial('id').primaryKey(),
+  name:         varchar('name', { length: 200 }).notNull(),
+  roleTypes:    text('role_types').array().notNull().default([]),
+  employeeCode: varchar('employee_code', { length: 50 }),
+  isActive:     boolean('is_active').notNull().default(true),
+  createdBy:    integer('created_by').references(() => users.id),
+  createdAt:    timestamp('created_at').notNull().defaultNow(),
+  updatedAt:    timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertCrewMemberSchema = createInsertSchema(crewMembers).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCrewMember = z.infer<typeof insertCrewMemberSchema>;
+export type CrewMember = typeof crewMembers.$inferSelect;
+
 export const woCrewSlots = pgTable('wo_crew_slots', {
   id:               serial('id').primaryKey(),
   epcWorkOrderId:   integer('epc_work_order_id').notNull().references(() => epcWorkOrders.id, { onDelete: 'cascade' }),
@@ -16386,6 +16401,7 @@ export const woCrewSlots = pgTable('wo_crew_slots', {
   slotNumber:       smallint('slot_number').notNull(),
   slotLabel:        varchar('slot_label', { length: 40 }).notNull(),  // e.g. "Fitter-2"
   assignedName:     varchar('assigned_name', { length: 200 }),
+  crewMemberId:     integer('crew_member_id').references(() => crewMembers.id, { onDelete: 'set null' }),
   isActive:         boolean('is_active').notNull().default(true),
   addedBy:          integer('added_by').notNull().references(() => users.id),
   addedAt:          timestamp('added_at').notNull().defaultNow(),

@@ -4006,6 +4006,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await setupHazopRoutes(app);
   console.log('✅ HAZOP routes registered');
 
+  // ── Crew Members Master ────────────────────────────────────────────────────
+  const { default: crewMembersRoutes } = await import('./crew-members-routes');
+  app.use(crewMembersRoutes);
+  console.log('✅ Crew Members routes registered');
+
   // ── HAZOP Deviation Library seed (idempotent) ─────────────────────────────
   const { seedHazopDeviationLibrary } = await import('./scripts/seed-hazop-library');
   seedHazopDeviationLibrary().catch((e) => console.error('[HAZOP Seed] Deviation library seed failed:', e));

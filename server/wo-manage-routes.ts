@@ -222,7 +222,7 @@ router.post('/api/epc/work-orders/:id/crew/slots', ensureAuthenticated, async (r
     const wo = await getWo(id);
     if (!wo) return sendNotFound(res, 'Work order not found');
 
-    const { role_type, assigned_name } = req.body;
+    const { role_type, assigned_name, crew_member_id } = req.body;
     const validRoles = ['team_leader', 'fitter', 'welder', 'helper', 'qc_person'];
     if (!validRoles.includes(role_type)) return sendValidationError(res, 'Invalid role_type');
 
@@ -239,11 +239,12 @@ router.post('/api/epc/work-orders/:id/crew/slots', ensureAuthenticated, async (r
     const slotNumber = (nextNum.rows[0] as any).next_num;
     const roleLabel: Record<string, string> = { team_leader: 'Team Leader', fitter: 'Fitter', welder: 'Welder', helper: 'Helper', qc_person: 'QC Person' };
     const slotLabel = `${roleLabel[role_type]}-${slotNumber}`;
+    const crewMemberId = crew_member_id ? Number(crew_member_id) : null;
 
     const userId = getUserId(req);
     const r = await db.execute(sql`
-      INSERT INTO wo_crew_slots (epc_work_order_id, role_type, slot_number, slot_label, assigned_name, is_active, added_by, added_at)
-      VALUES (${id}, ${role_type}, ${slotNumber}, ${slotLabel}, ${assigned_name || null}, true, ${userId}, NOW())
+      INSERT INTO wo_crew_slots (epc_work_order_id, role_type, slot_number, slot_label, assigned_name, crew_member_id, is_active, added_by, added_at)
+      VALUES (${id}, ${role_type}, ${slotNumber}, ${slotLabel}, ${assigned_name || null}, ${crewMemberId}, true, ${userId}, NOW())
       RETURNING *
     `);
     res.status(201).json(r.rows[0]);
@@ -262,8 +263,9 @@ router.put('/api/epc/work-orders/:id/crew/slots/:slotId', ensureAuthenticated, a
     if (existing.rows.length === 0) return sendNotFound(res, 'Slot not found');
     const slot = existing.rows[0] as any;
 
-    const { assigned_name } = req.body;
+    const { assigned_name, crew_member_id } = req.body;
     const userId = getUserId(req);
+    const crewMemberId = crew_member_id !== undefined ? (crew_member_id ? Number(crew_member_id) : null) : slot.crew_member_id ?? null;
 
     if (assigned_name !== slot.assigned_name) {
       await db.execute(sql`
@@ -273,7 +275,7 @@ router.put('/api/epc/work-orders/:id/crew/slots/:slotId', ensureAuthenticated, a
     }
 
     await db.execute(sql`
-      UPDATE wo_crew_slots SET assigned_name = ${assigned_name || null}, updated_at = NOW() WHERE id = ${slotId}
+      UPDATE wo_crew_slots SET assigned_name = ${assigned_name || null}, crew_member_id = ${crewMemberId}, updated_at = NOW() WHERE id = ${slotId}
     `);
     const updated = await db.execute(sql`SELECT * FROM wo_crew_slots WHERE id = ${slotId}`);
     res.json(updated.rows[0]);

@@ -20,7 +20,10 @@ import {
   Loader2, ArrowLeft, AlertTriangle, CheckCircle2, Clock, Users, CalendarDays,
   FileText, Package, Wrench, Plus, Edit, Trash2, ChevronDown, ChevronRight,
   Shield, HardHat, History, AlertOctagon, CheckCircle, XCircle, BarChart3,
+  ChevronsUpDown, Check,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 
 const roleHierarchy: Record<string, number> = {
   Superuser: 0, "General Manager": 1, "Senior Manager": 2,
@@ -122,6 +125,7 @@ export default function EpcWoManagePage() {
 
   const { data: wo, isLoading: woLoading } = useQuery<any>({ queryKey: ["/api/epc/work-orders", woId, "manage"], queryFn: () => fetch(`/api/epc/work-orders/${woId}/manage`).then(r => r.json()) });
   const { data: crew = [], refetch: refetchCrew } = useQuery<any[]>({ queryKey: ["/api/epc/work-orders", woId, "crew"], queryFn: () => fetch(`/api/epc/work-orders/${woId}/crew`).then(r => r.json()) });
+  const { data: crewMasters = [] } = useQuery<any[]>({ queryKey: ["/api/crew-members"], queryFn: () => fetch("/api/crew-members?active=true").then(r => r.json()) });
   const { data: schedule, refetch: refetchSchedule } = useQuery<any>({ queryKey: ["/api/epc/work-orders", woId, "schedule"], queryFn: () => fetch(`/api/epc/work-orders/${woId}/schedule`).then(r => r.json()) });
   const { data: dailyLogs = [], refetch: refetchLogs } = useQuery<any[]>({ queryKey: ["/api/epc/work-orders", woId, "daily-logs"], queryFn: () => fetch(`/api/epc/work-orders/${woId}/daily-logs`).then(r => r.json()) });
   const { data: holds = [], refetch: refetchHolds } = useQuery<any[]>({ queryKey: ["/api/epc/work-orders", woId, "holds"], queryFn: () => fetch(`/api/epc/work-orders/${woId}/holds`).then(r => r.json()) });
@@ -135,12 +139,15 @@ export default function EpcWoManagePage() {
 
   // ── Crew mutations ──
   const [crewDialogOpen, setCrewDialogOpen] = useState(false);
-  const [crewForm, setCrewForm] = useState({ role_type: "fitter", assigned_name: "" });
+  const [crewForm, setCrewForm] = useState({ role_type: "fitter", assigned_name: "", crew_member_id: null as number | null });
+  const [crewPopoverOpen, setCrewPopoverOpen] = useState(false);
   const [editSlotId, setEditSlotId] = useState<number | null>(null);
   const [editSlotName, setEditSlotName] = useState("");
+  const [editSlotCrewMemberId, setEditSlotCrewMemberId] = useState<number | null>(null);
   const [editSlotOpen, setEditSlotOpen] = useState(false);
-  const addCrewMutation = useMutation({ mutationFn: (body: any) => apiRequest("POST", `/api/epc/work-orders/${woId}/crew/slots`, body), onSuccess: () => { refetchCrew(); setCrewDialogOpen(false); setCrewForm({ role_type: "fitter", assigned_name: "" }); toast({ title: "Crew slot added" }); }, onError: (e: any) => toast({ title: e?.message || "Failed", variant: "destructive" }) });
-  const editCrewMutation = useMutation({ mutationFn: ({ slotId, name }: any) => apiRequest("PUT", `/api/epc/work-orders/${woId}/crew/slots/${slotId}`, { assigned_name: name }), onSuccess: () => { refetchCrew(); setEditSlotOpen(false); toast({ title: "Name updated" }); }, onError: () => toast({ title: "Update failed", variant: "destructive" }) });
+  const [editCrewPopoverOpen, setEditCrewPopoverOpen] = useState(false);
+  const addCrewMutation = useMutation({ mutationFn: (body: any) => apiRequest("POST", `/api/epc/work-orders/${woId}/crew/slots`, body), onSuccess: () => { refetchCrew(); setCrewDialogOpen(false); setCrewForm({ role_type: "fitter", assigned_name: "", crew_member_id: null }); toast({ title: "Crew slot added" }); }, onError: (e: any) => toast({ title: e?.message || "Failed", variant: "destructive" }) });
+  const editCrewMutation = useMutation({ mutationFn: ({ slotId, name, crewMemberId }: any) => apiRequest("PUT", `/api/epc/work-orders/${woId}/crew/slots/${slotId}`, { assigned_name: name, crew_member_id: crewMemberId }), onSuccess: () => { refetchCrew(); setEditSlotOpen(false); toast({ title: "Name updated" }); }, onError: () => toast({ title: "Update failed", variant: "destructive" }) });
   const removeCrewMutation = useMutation({ mutationFn: (slotId: number) => apiRequest("DELETE", `/api/epc/work-orders/${woId}/crew/slots/${slotId}`), onSuccess: () => { refetchCrew(); toast({ title: "Slot removed" }); } });
 
   // ── Daily log mutations ──
@@ -413,7 +420,7 @@ export default function EpcWoManagePage() {
                             {isManager && (
                               <TableCell className="py-0.5 text-right">
                                 <div className="flex justify-end gap-1">
-                                  <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px]" onClick={() => { setEditSlotId(slot.id); setEditSlotName(slot.assigned_name || ""); setEditSlotOpen(true); }}><Edit className="h-2.5 w-2.5" /></Button>
+                                  <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px]" onClick={() => { setEditSlotId(slot.id); setEditSlotName(slot.assigned_name || ""); setEditSlotCrewMemberId(slot.crew_member_id ?? null); setEditSlotOpen(true); }}><Edit className="h-2.5 w-2.5" /></Button>
                                   <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px] text-red-500" onClick={() => removeCrewMutation.mutate(slot.id)}><Trash2 className="h-2.5 w-2.5" /></Button>
                                 </div>
                               </TableCell>
@@ -447,7 +454,7 @@ export default function EpcWoManagePage() {
                             {isManager && (
                               <TableCell className="py-0.5 text-right">
                                 <div className="flex justify-end gap-1">
-                                  <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px]" onClick={() => { setEditSlotId(slot.id); setEditSlotName(slot.assigned_name || ""); setEditSlotOpen(true); }}><Edit className="h-2.5 w-2.5" /></Button>
+                                  <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px]" onClick={() => { setEditSlotId(slot.id); setEditSlotName(slot.assigned_name || ""); setEditSlotCrewMemberId(slot.crew_member_id ?? null); setEditSlotOpen(true); }}><Edit className="h-2.5 w-2.5" /></Button>
                                   <Button size="sm" variant="ghost" className="h-5 px-1 text-[9px] text-red-500" onClick={() => removeCrewMutation.mutate(slot.id)}><Trash2 className="h-2.5 w-2.5" /></Button>
                                 </div>
                               </TableCell>
@@ -759,13 +766,13 @@ export default function EpcWoManagePage() {
       </Dialog>
 
       {/* ── Add Crew Dialog ── */}
-      <Dialog open={crewDialogOpen} onOpenChange={setCrewDialogOpen}>
+      <Dialog open={crewDialogOpen} onOpenChange={open => { setCrewDialogOpen(open); if (!open) { setCrewPopoverOpen(false); setCrewForm({ role_type: "fitter", assigned_name: "", crew_member_id: null }); } }}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle className="text-sm">Add Crew Member</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-sm">Add Crew Slot</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
               <Label className="text-xs">Role</Label>
-              <Select value={crewForm.role_type} onValueChange={v => setCrewForm({ ...crewForm, role_type: v })}>
+              <Select value={crewForm.role_type} onValueChange={v => { setCrewForm({ role_type: v, assigned_name: "", crew_member_id: null }); setCrewPopoverOpen(false); }}>
                 <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(ROLE_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>)}
@@ -773,30 +780,136 @@ export default function EpcWoManagePage() {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Person Name (optional)</Label>
-              <Input className="h-8 text-xs" placeholder="Enter name" value={crewForm.assigned_name} onChange={e => setCrewForm({ ...crewForm, assigned_name: e.target.value })} />
+              <Label className="text-xs">Person Name <span className="text-muted-foreground">(optional)</span></Label>
+              {(() => {
+                const roleMatch = crewMasters.filter(m => (m.role_types ?? []).includes(crewForm.role_type));
+                const otherMatch = crewMasters.filter(m => !(m.role_types ?? []).includes(crewForm.role_type));
+                return (
+                  <Popover open={crewPopoverOpen} onOpenChange={setCrewPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full h-8 text-xs justify-between font-normal">
+                        <span className={crewForm.assigned_name ? "" : "text-muted-foreground"}>{crewForm.assigned_name || "Search or type a name…"}</span>
+                        <ChevronsUpDown className="h-3 w-3 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[260px] p-0" align="start">
+                      <Command>
+                        <CommandInput
+                          placeholder="Search crew master…"
+                          className="h-8 text-xs"
+                          value={crewForm.crew_member_id ? "" : crewForm.assigned_name}
+                          onValueChange={v => setCrewForm(f => ({ ...f, assigned_name: v, crew_member_id: null }))}
+                        />
+                        <CommandList>
+                          <CommandEmpty>
+                            <div className="py-2 text-center space-y-1">
+                              <p className="text-[10px] text-muted-foreground">Not in master.</p>
+                              {crewForm.assigned_name.trim() && (
+                                <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => setCrewPopoverOpen(false)}>
+                                  Assign "{crewForm.assigned_name}" (free-text)
+                                </Button>
+                              )}
+                            </div>
+                          </CommandEmpty>
+                          {roleMatch.length > 0 && (
+                            <CommandGroup heading={`${ROLE_TYPE_LABELS[crewForm.role_type] ?? crewForm.role_type}s`}>
+                              {roleMatch.map((m: any) => (
+                                <CommandItem key={m.id} value={m.name} className="text-xs" onSelect={() => { setCrewForm(f => ({ ...f, assigned_name: m.name, crew_member_id: m.id })); setCrewPopoverOpen(false); }}>
+                                  <Check className={`h-3 w-3 mr-2 ${crewForm.crew_member_id === m.id ? "opacity-100" : "opacity-0"}`} />
+                                  {m.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          )}
+                          {otherMatch.length > 0 && (
+                            <>
+                              <CommandSeparator />
+                              <CommandGroup heading="Other roles">
+                                {otherMatch.map((m: any) => (
+                                  <CommandItem key={m.id} value={m.name} className="text-xs" onSelect={() => { setCrewForm(f => ({ ...f, assigned_name: m.name, crew_member_id: m.id })); setCrewPopoverOpen(false); }}>
+                                    <Check className={`h-3 w-3 mr-2 ${crewForm.crew_member_id === m.id ? "opacity-100" : "opacity-0"}`} />
+                                    <span>{m.name}</span>
+                                    <span className="ml-1 text-[9px] text-muted-foreground">({(m.role_types as string[]).map((r: string) => ROLE_TYPE_LABELS[r] ?? r).join(", ")})</span>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </>
+                          )}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                );
+              })()}
+              {crewForm.crew_member_id && (
+                <p className="text-[10px] text-muted-foreground">From master · <button className="underline" onClick={() => setCrewForm(f => ({ ...f, assigned_name: "", crew_member_id: null }))}>clear</button></p>
+              )}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setCrewDialogOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={() => addCrewMutation.mutate(crewForm)} disabled={addCrewMutation.isPending}>
-              {addCrewMutation.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />} Add
+            <Button size="sm" onClick={() => addCrewMutation.mutate({ role_type: crewForm.role_type, assigned_name: crewForm.assigned_name || null, crew_member_id: crewForm.crew_member_id })} disabled={addCrewMutation.isPending}>
+              {addCrewMutation.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />} Add Slot
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* ── Edit Crew Name Dialog ── */}
-      <Dialog open={editSlotOpen} onOpenChange={setEditSlotOpen}>
+      <Dialog open={editSlotOpen} onOpenChange={open => { setEditSlotOpen(open); if (!open) setEditCrewPopoverOpen(false); }}>
         <DialogContent className="max-w-xs">
           <DialogHeader><DialogTitle className="text-sm">Edit Assigned Name</DialogTitle></DialogHeader>
           <div className="space-y-1">
             <Label className="text-xs">Person Name</Label>
-            <Input className="h-8 text-xs" value={editSlotName} onChange={e => setEditSlotName(e.target.value)} />
+            {(() => {
+              const allMasters = crewMasters;
+              return (
+                <Popover open={editCrewPopoverOpen} onOpenChange={setEditCrewPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="w-full h-8 text-xs justify-between font-normal">
+                      <span className={editSlotName ? "" : "text-muted-foreground"}>{editSlotName || "Search or type a name…"}</span>
+                      <ChevronsUpDown className="h-3 w-3 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[240px] p-0" align="start">
+                    <Command>
+                      <CommandInput
+                        placeholder="Search crew master…"
+                        className="h-8 text-xs"
+                        value={editSlotCrewMemberId ? "" : editSlotName}
+                        onValueChange={v => { setEditSlotName(v); setEditSlotCrewMemberId(null); }}
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          <div className="py-2 text-center">
+                            {editSlotName.trim() && (
+                              <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => setEditCrewPopoverOpen(false)}>
+                                Use "{editSlotName}" (free-text)
+                              </Button>
+                            )}
+                          </div>
+                        </CommandEmpty>
+                        <CommandGroup heading="Crew Master">
+                          {allMasters.map((m: any) => (
+                            <CommandItem key={m.id} value={m.name} className="text-xs" onSelect={() => { setEditSlotName(m.name); setEditSlotCrewMemberId(m.id); setEditCrewPopoverOpen(false); }}>
+                              <Check className={`h-3 w-3 mr-2 ${editSlotCrewMemberId === m.id ? "opacity-100" : "opacity-0"}`} />
+                              {m.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              );
+            })()}
+            {editSlotCrewMemberId && (
+              <p className="text-[10px] text-muted-foreground">From master · <button className="underline" onClick={() => { setEditSlotName(""); setEditSlotCrewMemberId(null); }}>clear</button></p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setEditSlotOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={() => editCrewMutation.mutate({ slotId: editSlotId, name: editSlotName })} disabled={editCrewMutation.isPending}>
+            <Button size="sm" onClick={() => editCrewMutation.mutate({ slotId: editSlotId, name: editSlotName, crewMemberId: editSlotCrewMemberId })} disabled={editCrewMutation.isPending}>
               {editCrewMutation.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />} Save
             </Button>
           </DialogFooter>
