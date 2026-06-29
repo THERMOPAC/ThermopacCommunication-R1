@@ -96,7 +96,11 @@ export default function EpcDprPage() {
   const totalHolds = rows.reduce((s, r) => s + (r.active_holds || 0), 0);
 
   const handleGenerate = () => {
-    setCommittedDate(selectedDate);
+    if (selectedDate === committedDate) {
+      refetch();
+    } else {
+      setCommittedDate(selectedDate);
+    }
   };
 
   const exportCsv = () => {
