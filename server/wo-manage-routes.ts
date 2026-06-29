@@ -478,6 +478,59 @@ router.get('/api/epc/work-orders/:id/manpower-summary', ensureAuthenticated, asy
   } catch (e) { sendError(res, e); }
 });
 
+// ── GET /api/epc/work-orders/daily-report ────────────────────────────────────
+router.get('/api/epc/work-orders/daily-report', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const date = req.query.date as string;
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return sendValidationError(res, 'date query param required (YYYY-MM-DD)');
+    }
+    const rows = await db.execute(sql`
+      SELECT
+        wo.id,
+        wo.wo_number,
+        wo.item_code,
+        wo.item_description,
+        wo.quantity,
+        wo.uom,
+        wo.status,
+        wo.quality_status,
+        p.code AS project_code,
+        p.customer_name,
+        dl.id AS log_id,
+        dl.log_date,
+        dl.status AS log_status,
+        dl.progress_percent,
+        dl.work_done_today,
+        dl.manpower_count,
+        dl.manpower_breakdown,
+        dl.hours_worked,
+        dl.issues_encountered,
+        dl.next_day_plan,
+        dl.crew_note,
+        dl.reported_by,
+        u.username AS reported_by_name,
+        (
+          SELECT COUNT(*)::int FROM wo_hold_records h
+          WHERE h.epc_work_order_id = wo.id AND h.resolved_at IS NULL
+        ) AS active_holds,
+        (
+          SELECT progress_percent FROM wo_daily_logs lp
+          WHERE lp.epc_work_order_id = wo.id AND lp.status = 'submitted'
+          ORDER BY lp.log_date DESC LIMIT 1
+        ) AS latest_progress
+      FROM epc_work_orders wo
+      LEFT JOIN projects p ON wo.project_id = p.id
+      LEFT JOIN wo_daily_logs dl
+        ON dl.epc_work_order_id = wo.id AND dl.log_date = ${date}::date
+      LEFT JOIN users u ON dl.reported_by = u.id
+      WHERE wo.status = 'released'
+      ORDER BY wo.wo_number
+    `);
+    res.json(rows.rows);
+  } catch (e) { sendError(res, e); }
+});
+
 // ── GET /api/epc/work-orders/:id/inspections ─────────────────────────────────
 router.get('/api/epc/work-orders/:id/inspections', ensureAuthenticated, async (req: Request, res: Response) => {
   try {

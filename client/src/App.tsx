@@ -211,7 +211,7 @@ function Router() {
       <ProtectedRoute path="/production/work-orders/edit/:id" component={() => <ProjectsProduction.WorkOrderEditPage />} />
       <ProtectedRoute path="/production/work-orders/:id" component={() => <ProjectsProduction.WorkOrderDetailPage />} />
       <ProtectedRoute path="/shop-floor" component={() => <ProjectsProduction.ShopFloorPage />} />
-      <ProtectedRoute path="/daily-production-report" component={() => <ProjectsProduction.DailyProductionReportPage />} />
+      <ProtectedRoute path="/production/daily-report" component={() => <ProjectsProduction.EpcDailyProductionReportPage />} />
       <ProtectedRoute path="/production-team-management" component={() => <ProjectsProduction.ProductionTeamManagement />} />
       <ProtectedRoute path="/production/crew-members" component={() => <ProjectsProduction.CrewMembersPage />} />
       <ProtectedRoute path="/production/drawings" component={() => <ProjectsProduction.ProductionDrawingsPage />} />
