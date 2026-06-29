@@ -55,20 +55,20 @@ router.get('/inspection-orders/project/:projectId', ensureAuthenticated, async (
       return res.status(400).json({ error: 'Invalid project ID' });
     }
     
-    // Fetch inspection orders for this project, sorted by inspection order number ascending
-    // Use natural sorting to handle alphanumeric sequences properly (IO-2025-1-M-1, IO-2025-1-M-2, etc.)
+    // Fetch inspection orders for this project, sorted by inspection order number ascending.
+    // IO numbers follow the format IO-{year}-{project_code}-{type}-{seq} where project_code
+    // may contain dashes (e.g. IO-2026-2627-018-M-1). Regex extracts type and seq from the
+    // END of the string so this works regardless of how many segments the project code has.
     const orders = await db.execute(sql`
       SELECT * FROM inspection_orders 
       WHERE project_id = ${projectId}
       ORDER BY 
-        -- Split by year (2025)
+        -- Extract year from position 2 (always stable)
         CAST(SPLIT_PART(inspection_order_number, '-', 2) AS INTEGER),
-        -- Split by project number (1)
-        CAST(SPLIT_PART(inspection_order_number, '-', 3) AS INTEGER),
-        -- Sort by sequence number first (lowest numbers first)
-        CAST(SPLIT_PART(inspection_order_number, '-', 5) AS INTEGER),
-        -- Then sort by M/B category
-        SPLIT_PART(inspection_order_number, '-', 4)
+        -- Extract sequence number from the trailing -<TYPE>-<SEQ> suffix
+        CAST(regexp_replace(inspection_order_number, '^.*-([A-Z]+)-([0-9]+)$', '\\2') AS INTEGER),
+        -- Then sort by type letter (M before B, etc.)
+        regexp_replace(inspection_order_number, '^.*-([A-Z]+)-([0-9]+)$', '\\1')
     `);
     
     // Return the rows array from the query result
