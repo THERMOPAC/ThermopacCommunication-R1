@@ -16399,7 +16399,7 @@ export type WoCrewSlot = typeof woCrewSlots.$inferSelect;
 // ── WO Manage: Crew Slot History ─────────────────────────────────────────────
 export const woCrewSlotHistory = pgTable('wo_crew_slot_history', {
   id:           serial('id').primaryKey(),
-  slotId:       integer('slot_id').notNull().references(() => woCrewSlots.id, { onDelete: 'cascade' }),
+  slotId:       integer('slot_id').notNull(),
   previousName: varchar('previous_name', { length: 200 }),
   newName:      varchar('new_name', { length: 200 }),
   changedBy:    integer('changed_by').notNull().references(() => users.id),
