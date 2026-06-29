@@ -26,6 +26,7 @@ import {
   Loader2, Search, Filter, Wrench, Edit, CheckCircle2, ShieldCheck,
   XCircle, RotateCcw, ChevronDown, ChevronRight,
   RefreshCw, AlertTriangle, FileText, Package, Hammer, Ruler, Settings2,
+  SlidersHorizontal, X,
 } from "lucide-react";
 
 const roleHierarchy: Record<string, number> = {
@@ -103,6 +104,11 @@ export default function EpcWorkOrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [drawingNoFilter, setDrawingNoFilter] = useState("");
+  const [drawingRevFilter, setDrawingRevFilter] = useState("");
+  const [partNoFilter, setPartNoFilter] = useState("");
+  const advancedActiveCount = [drawingNoFilter, drawingRevFilter, partNoFilter].filter(Boolean).length;
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<any>(null);
@@ -135,11 +141,27 @@ export default function EpcWorkOrdersPage() {
         (wo.wo_number || "").toLowerCase().includes(s) ||
         (wo.item_code || "").toLowerCase().includes(s) ||
         (wo.item_description || "").toLowerCase().includes(s) ||
+        (wo.item_specification || "").toLowerCase().includes(s) ||
+        (wo.product_p1_label || "").toLowerCase().includes(s) ||
+        (wo.product_p2_label || "").toLowerCase().includes(s) ||
+        (wo.product_p3 || "").toLowerCase().includes(s) ||
         (wo.make_classification || "").toLowerCase().includes(s)
       );
     }
+    if (drawingNoFilter) {
+      const d = drawingNoFilter.toLowerCase();
+      list = list.filter((wo: any) => (wo.drawing_no || "").toLowerCase().includes(d));
+    }
+    if (drawingRevFilter) {
+      const r = drawingRevFilter.toLowerCase();
+      list = list.filter((wo: any) => (wo.drawing_revision_text || "").toLowerCase().includes(r));
+    }
+    if (partNoFilter) {
+      const p = partNoFilter.toLowerCase();
+      list = list.filter((wo: any) => (wo.item_specification || "").toLowerCase().includes(p));
+    }
     return list;
-  }, [workOrders, statusFilter, searchTerm]);
+  }, [workOrders, statusFilter, searchTerm, drawingNoFilter, drawingRevFilter, partNoFilter]);
 
   const stats = useMemo(() => ({
     total: workOrders.length,
@@ -247,8 +269,9 @@ export default function EpcWorkOrdersPage() {
           </Button>
         </div>
 
+        {/* ── Top-level filters ── */}
         <div className="flex flex-wrap gap-3 items-end">
-          <div className="w-[600px]">
+          <div className="w-[520px]">
             <Label className="text-[10px]">Project</Label>
             <Select value={selectedProjectId ? String(selectedProjectId) : ""} onValueChange={(v) => { setSelectedProjectId(parseInt(v)); setExpandedRow(null); }}>
               <SelectTrigger className="h-8 text-xs">
@@ -256,8 +279,8 @@ export default function EpcWorkOrdersPage() {
               </SelectTrigger>
               <SelectContent>
                 {filteredProjects.map((p: any) => (
-                    <SelectItem key={p.id} value={String(p.id)} className="text-xs">{getProjectDisplayName(p)}</SelectItem>
-                  ))}
+                  <SelectItem key={p.id} value={String(p.id)} className="text-xs">{getProjectDisplayName(p)}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -265,10 +288,20 @@ export default function EpcWorkOrdersPage() {
             <Checkbox id="showAllProjects" checked={showAllProjects} onCheckedChange={(v) => setShowAllProjects(!!v)} className="h-3.5 w-3.5" />
             <label htmlFor="showAllProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All</label>
           </div>
-          <div className="w-[350px] relative">
+          <div className="flex-1 min-w-[260px] relative">
             <Label className="text-[10px]">Search</Label>
             <Search className="absolute left-2 top-[22px] h-3.5 w-3.5 text-muted-foreground" />
-            <Input className="h-8 text-xs pl-7" placeholder="WO number, item, classification…" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <Input
+              className="h-8 text-xs pl-7 pr-7"
+              placeholder="WO No., Item Code, Item Name, Equipment, BOM Code, Description…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button className="absolute right-2 top-[22px] text-muted-foreground hover:text-foreground" onClick={() => setSearchTerm("")}>
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
           <div className="w-36">
             <Label className="text-[10px]">Status</Label>
@@ -284,7 +317,57 @@ export default function EpcWorkOrdersPage() {
               </SelectContent>
             </Select>
           </div>
+          <div className="pb-1">
+            <Button
+              size="sm"
+              variant={advancedActiveCount > 0 ? "default" : "outline"}
+              className="h-8 text-xs gap-1.5"
+              onClick={() => setAdvancedOpen(o => !o)}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Advanced Filters
+              {advancedActiveCount > 0 && (
+                <span className="bg-white text-primary rounded-full px-1.5 text-[10px] font-bold leading-none py-0.5">{advancedActiveCount}</span>
+              )}
+              {advancedOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            </Button>
+          </div>
         </div>
+
+        {/* ── Advanced Filters (collapsible) ── */}
+        {advancedOpen && (
+          <div className="flex flex-wrap gap-3 items-end p-3 bg-muted/30 border rounded-md">
+            <div className="text-[10px] font-semibold text-muted-foreground w-full -mb-1 flex items-center justify-between">
+              <span>Advanced Filters</span>
+              {advancedActiveCount > 0 && (
+                <button className="text-[10px] text-red-500 hover:underline" onClick={() => { setDrawingNoFilter(""); setDrawingRevFilter(""); setPartNoFilter(""); }}>
+                  Clear all
+                </button>
+              )}
+            </div>
+            <div className="w-52">
+              <Label className="text-[10px]">Drawing Number</Label>
+              <div className="relative">
+                <Input className="h-8 text-xs pr-6" placeholder="e.g. DWG-001" value={drawingNoFilter} onChange={(e) => setDrawingNoFilter(e.target.value)} />
+                {drawingNoFilter && <button className="absolute right-2 top-2 text-muted-foreground hover:text-foreground" onClick={() => setDrawingNoFilter("")}><X className="h-3.5 w-3.5" /></button>}
+              </div>
+            </div>
+            <div className="w-40">
+              <Label className="text-[10px]">Drawing Revision</Label>
+              <div className="relative">
+                <Input className="h-8 text-xs pr-6" placeholder="e.g. A, B, 01" value={drawingRevFilter} onChange={(e) => setDrawingRevFilter(e.target.value)} />
+                {drawingRevFilter && <button className="absolute right-2 top-2 text-muted-foreground hover:text-foreground" onClick={() => setDrawingRevFilter("")}><X className="h-3.5 w-3.5" /></button>}
+              </div>
+            </div>
+            <div className="w-52">
+              <Label className="text-[10px]">Part Number</Label>
+              <div className="relative">
+                <Input className="h-8 text-xs pr-6" placeholder="Search specification / part no." value={partNoFilter} onChange={(e) => setPartNoFilter(e.target.value)} />
+                {partNoFilter && <button className="absolute right-2 top-2 text-muted-foreground hover:text-foreground" onClick={() => setPartNoFilter("")}><X className="h-3.5 w-3.5" /></button>}
+              </div>
+            </div>
+          </div>
+        )}
 
         {selectedProjectId && workOrders.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
