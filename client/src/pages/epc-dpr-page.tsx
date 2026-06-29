@@ -75,7 +75,7 @@ export default function EpcDprPage() {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [committedDate, setCommittedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
-  const { data: rows = [], isLoading, refetch } = useQuery<DprRow[]>({
+  const { data: rows = [], isLoading, isFetching, refetch } = useQuery<DprRow[]>({
     queryKey: ['/api/epc/work-orders/daily-report', committedDate],
     queryFn: async () => {
       const res = await fetch(`/api/epc/work-orders/daily-report?date=${committedDate}`);
@@ -184,8 +184,8 @@ export default function EpcDprPage() {
                     className="mt-1"
                   />
                 </div>
-                <Button onClick={handleGenerate} disabled={isLoading}>
-                  {isLoading
+                <Button onClick={handleGenerate} disabled={isFetching}>
+                  {isFetching
                     ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Loading…</>
                     : <><FileText className="h-4 w-4 mr-2" />Generate Report</>
                   }
@@ -307,7 +307,7 @@ export default function EpcDprPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
+              {isFetching ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
                   Loading report…
