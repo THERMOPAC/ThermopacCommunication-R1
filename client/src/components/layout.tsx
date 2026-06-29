@@ -179,7 +179,6 @@ function Layout({ children }: LayoutProps) {
   // Check if we're on any production-related page
   const isOnProductionPage = location === '/production-planning' ||
                            location === '/shop-floor' ||
-                           location === '/production-team-management' ||
                            location.startsWith('/epc/work-orders');
                            
   // Check if we're on any quality-related page
@@ -538,7 +537,6 @@ function Layout({ children }: LayoutProps) {
         { icon: PenTool, label: "Production Drawings", href: "/production/drawings" },
         { icon: Wrench, label: "Work Orders", href: "/epc/work-orders" },
         { icon: FileText, label: "Daily Production Report", href: "/daily-production-report" },
-        { icon: Users, label: "Production Team", href: "/production-team-management" }
       ]
     }] : []),
     ...(hasViewPermission("Quality Management") ? [{ 
