@@ -60,15 +60,25 @@ router.get('/inspection-orders/project/:projectId', ensureAuthenticated, async (
     // may contain dashes (e.g. IO-2026-2627-018-M-1). Regex extracts type and seq from the
     // END of the string so this works regardless of how many segments the project code has.
     const orders = await db.execute(sql`
-      SELECT * FROM inspection_orders 
-      WHERE project_id = ${projectId}
+      SELECT io.*,
+             edc.drawing_number AS epc_drawing_number,
+             edc.revision_code  AS epc_revision_code
+      FROM inspection_orders io
+      LEFT JOIN LATERAL (
+        SELECT drawing_number, revision_code
+        FROM epc_drawing_controls
+        WHERE project_item_id = io.item_id
+        ORDER BY id DESC
+        LIMIT 1
+      ) edc ON true
+      WHERE io.project_id = ${projectId}
       ORDER BY 
         -- Extract year from position 2 (always stable)
-        CAST(SPLIT_PART(inspection_order_number, '-', 2) AS INTEGER),
+        CAST(SPLIT_PART(io.inspection_order_number, '-', 2) AS INTEGER),
         -- Extract sequence number from the trailing -<TYPE>-<SEQ> suffix
-        CAST(regexp_replace(inspection_order_number, '^.*-([A-Z]+)-([0-9]+)$', '\\2') AS INTEGER),
+        CAST(regexp_replace(io.inspection_order_number, '^.*-([A-Z]+)-([0-9]+)$', '\\2') AS INTEGER),
         -- Then sort by type letter (M before B, etc.)
-        regexp_replace(inspection_order_number, '^.*-([A-Z]+)-([0-9]+)$', '\\1')
+        regexp_replace(io.inspection_order_number, '^.*-([A-Z]+)-([0-9]+)$', '\\1')
     `);
     
     // Return the rows array from the query result
@@ -318,7 +328,7 @@ router.get('/inspection-orders/:id/epc-drawing', ensureAuthenticated, async (req
     if (!io) return res.status(404).json({ error: 'Inspection order not found' });
     if (!io.itemId) return res.json([]);
 
-    // Fetch ALL drawing controls for this item — no release-status filter
+    // Fetch only drawings released for manufacturing (the approved drawing for Quality)
     const drawings = await db.select({
       dwgControlNumber: epcDrawingControls.dwgControlNumber,
       drawingTitle: epcDrawingControls.drawingTitle,
@@ -330,7 +340,10 @@ router.get('/inspection-orders/:id/epc-drawing', ensureAuthenticated, async (req
       status: epcDrawingControls.status,
     })
       .from(epcDrawingControls)
-      .where(eq(epcDrawingControls.projectItemId, io.itemId));
+      .where(and(
+        eq(epcDrawingControls.projectItemId, io.itemId),
+        eq(epcDrawingControls.releasedForManufacturing, true)
+      ));
 
     if (drawings.length === 0) return res.json([]);
 

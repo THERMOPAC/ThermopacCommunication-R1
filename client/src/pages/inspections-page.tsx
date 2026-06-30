@@ -6455,9 +6455,10 @@ export default function InspectionsPage() {
                               <TableHead className="w-[300px]">Order #</TableHead>
                               <TableHead className="w-[600px]">Description</TableHead>
                               <TableHead>Drawing No</TableHead>
+                              <TableHead>Revision</TableHead>
                               <TableHead>Status</TableHead>
                               <TableHead>Quantity</TableHead>
-                              <TableHead className="w-[150px]">Actions</TableHead>
+                              <TableHead className="w-[80px]">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -6472,6 +6473,7 @@ export default function InspectionsPage() {
                                   (order.title && order.title.toLowerCase().includes(query)) ||
                                   (order.drawing_no && order.drawing_no.toLowerCase().includes(query)) ||
                                   (order.drawingNo && order.drawingNo.toLowerCase().includes(query)) ||
+                                  (order.epc_drawing_number && order.epc_drawing_number.toLowerCase().includes(query)) ||
                                   (order.status && order.status.toLowerCase().includes(query))
                                 );
                               })
@@ -6479,7 +6481,8 @@ export default function InspectionsPage() {
                               <TableRow key={order.id}>
                                 <TableCell className="font-medium">{order.inspection_order_number || order.inspectionOrderNumber}</TableCell>
                                 <TableCell>{order.description || order.title}</TableCell>
-                                <TableCell>{order.drawing_no || order.drawingNo || 'N/A'}</TableCell>
+                                <TableCell>{order.epc_drawing_number || order.drawing_no || order.drawingNo || '—'}</TableCell>
+                                <TableCell>{order.epc_revision_code || order.drawing_revision || '—'}</TableCell>
                                 <TableCell>{getStatusBadge(order.status)}</TableCell>
                                 <TableCell>{order.quantity} {order.unit}</TableCell>
                                 <TableCell>
@@ -6495,27 +6498,6 @@ export default function InspectionsPage() {
                                       }}
                                     >
                                       <Eye className="h-4 w-4" />
-                                    </Button>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      title="Edit"
-                                      onClick={() => {
-                                        setEditingInspectionOrder(order.id);
-                                        setIsEditDialogOpen(true);
-                                      }}
-                                    >
-                                      <Edit2 className="h-4 w-4" />
-                                    </Button>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon"
-                                      className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                      title="Delete"
-                                      onClick={() => handleDeleteInspectionOrder(order.id)}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </div>
                                 </TableCell>
@@ -6571,18 +6553,6 @@ export default function InspectionsPage() {
                               >
                                 <Eye className="w-4 h-4 mr-1" />
                                 View
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-gray-600 hover:text-gray-800"
-                                onClick={() => {
-                                  setEditingInspectionOrder(order.id);
-                                  setIsEditDialogOpen(true);
-                                }}
-                              >
-                                <Edit className="w-4 h-4 mr-1" />
-                                Edit
                               </Button>
                             </div>
                           </div>
