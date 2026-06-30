@@ -177,7 +177,7 @@ export function setupProcurementRoutes(app: Router) {
         
         return {
           id: item.id,
-          itemCode: masterItem?.itemCode || 'Unknown',
+          itemCode: item.itemCode || 'Unknown',
           description: masterItem ? masterItem.description : 'Unknown Item',
           quantity: Number(item.quantity),
           unit: masterItem?.unit || 'EA',

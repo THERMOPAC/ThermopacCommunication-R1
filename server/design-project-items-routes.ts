@@ -180,7 +180,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
             id: `${masterItem.id}_v${index}`, // Unique ID for each version
             originalId: masterItem.id,
             projectItemId: projectItem.id,
-            itemCode: masterItem.itemCode,
+            itemCode: projectItem.itemCode,
             description: masterItem.description,
             makeOrBuy: masterItem.makeOrBuy,
             specification: masterItem.specification,
@@ -232,7 +232,7 @@ router.get('/', ensureAuthenticated, async (req, res) => {
       const itemData = {
         id: masterItem.id,
         projectItemId: projectItem.id,
-        itemCode: masterItem.itemCode,
+        itemCode: projectItem.itemCode,
         description: masterItem.description,
         makeOrBuy: masterItem.makeOrBuy,
         specification: masterItem.specification,

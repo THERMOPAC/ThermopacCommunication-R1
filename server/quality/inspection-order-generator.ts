@@ -113,7 +113,7 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
           const masterItem = masterItemsMap.get(item.itemId);
           return {
             sequenceNumber: index + 1,
-            itemCode: masterItem?.itemCode || 'Unknown',
+            itemCode: item.itemCode || 'Unknown',
             description: masterItem?.description || 'No description',
             quantity: Number(item.quantity),
             unit: masterItem?.uom || 'EA',
@@ -418,7 +418,7 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
         const masterItem = masterItemsMap.get(item.itemId);
         return {
           sequenceNumber: index + 1,
-          itemCode: masterItem?.itemCode || 'Unknown',
+          itemCode: item.itemCode || 'Unknown',
           description: masterItem?.description || 'No description',
           quantity: Number(item.quantity),
           unit: masterItem?.uom || 'EA',
@@ -729,7 +729,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           unit: masterItem?.uom || 'Nos',
           makeOrBuy: 'Make',
           itemId: item.id,
-          itemCode: masterItem?.itemCode || 'Unknown',
+          itemCode: item.itemCode || 'Unknown',
           drawingNo: drawingNumber, // Add drawing number field
           sequenceNumber: nextSeqNumber + index,
           createdBy: req.user?.id || 0
@@ -741,7 +741,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
         const orderItem = await db.insert(inspectionOrderItems).values({
           inspectionOrderId: makeItemOrder[0].id,
           itemId: item.id,
-          itemCode: masterItem?.itemCode || 'Unknown',
+          itemCode: item.itemCode || 'Unknown',
           description: masterItem?.description || 'No description',
           quantity: parseInt(String(item.quantity)),
           unit: masterItem?.uom || 'Nos',
@@ -802,7 +802,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           unit: masterItem?.uom || 'Nos',
           makeOrBuy: 'Buy',
           itemId: item.id,
-          itemCode: masterItem?.itemCode || 'Unknown',
+          itemCode: item.itemCode || 'Unknown',
           drawingNo: drawingNumber,
           sequenceNumber: nextSeqNumber + filteredMakeItems.length + index,
           createdBy: req.user?.id || 0
@@ -814,7 +814,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
         const orderItem = await db.insert(inspectionOrderItems).values({
           inspectionOrderId: buyItemOrder[0].id,
           itemId: item.id,
-          itemCode: masterItem?.itemCode || 'Unknown',
+          itemCode: item.itemCode || 'Unknown',
           description: masterItem?.description || 'No description',
           quantity: parseInt(String(item.quantity)),
           unit: masterItem?.uom || 'Nos',
@@ -886,9 +886,9 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           unit: masterItem?.uom || 'Nos',
           makeOrBuy: masterItem?.makeOrBuy || 'Make',
           itemId: item.id,
-          itemCode: masterItem?.itemCode || 'Unknown',
+          itemCode: item.itemCode || 'Unknown',
           drawingNo: drawingNumber,
-          parentItemCode: parentMasterItem?.itemCode || null,
+          parentItemCode: parentProjectItem?.itemCode || null,
           sequenceNumber: nextSeqNumber + filteredMakeItems.length + filteredBuyItems.length + index,
           createdBy: req.user?.id || 0
         }).returning();
@@ -899,13 +899,13 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
         const orderItem = await db.insert(inspectionOrderItems).values({
           inspectionOrderId: componentItemOrder[0].id,
           itemId: item.id,
-          itemCode: masterItem?.itemCode || 'Unknown',
+          itemCode: item.itemCode || 'Unknown',
           description: masterItem?.description || 'No description',
           quantity: parseInt(String(item.quantity)),
           unit: masterItem?.uom || 'Nos',
           makeOrBuy: masterItem?.makeOrBuy || 'Make',
           sequenceNumber: 1, // Only one item per order
-          parentItemCode: parentMasterItem?.itemCode || null
+          parentItemCode: parentProjectItem?.itemCode || null
         }).returning();
         
         createdInspectionOrderItems.push(orderItem[0]);

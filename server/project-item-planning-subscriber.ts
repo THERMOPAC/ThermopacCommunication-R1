@@ -54,7 +54,7 @@ async function getMasterItemClassification(masterItemId: number): Promise<string
 
 async function getItemDescription(projectItemId: number): Promise<string> {
   const result = await db.execute(
-    sql`SELECT mi.item_code, mi.description FROM project_items pi JOIN master_items mi ON pi.item_id = mi.id WHERE pi.id = ${projectItemId}`
+    sql`SELECT pi.item_code, mi.description FROM project_items pi JOIN master_items mi ON pi.item_id = mi.id WHERE pi.id = ${projectItemId}`
   );
   const row = result.rows[0] as any;
   if (row) return `${row.item_code} - ${row.description || ''}`.trim();

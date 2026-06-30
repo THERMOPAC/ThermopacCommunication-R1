@@ -174,7 +174,7 @@ export const generateInspectionOrdersForProject5 = async (req: Request, res: Res
           unit: masterItem.uom || 'EA',
           makeOrBuy: 'Make',
           itemId: item.id,
-          itemCode: masterItem.itemCode || 'Unknown',
+          itemCode: item.itemCode || 'Unknown',
           drawingNo: drawingNumber,
           sequenceNumber: nextSeqNumber + index,
           createdBy: userId
@@ -187,7 +187,7 @@ export const generateInspectionOrdersForProject5 = async (req: Request, res: Res
           const orderItem = await db.insert(inspectionOrderItems).values({
             inspectionOrderId: makeOrder[0].id,
             itemId: item.id,
-            itemCode: masterItem.itemCode || 'Unknown',
+            itemCode: item.itemCode || 'Unknown',
             description: masterItem.description || 'No description',
             quantity: parsedQuantity,
             unit: masterItem.uom || 'EA',
@@ -253,7 +253,7 @@ export const generateInspectionOrdersForProject5 = async (req: Request, res: Res
           unit: masterItem.uom || 'EA',
           makeOrBuy: 'Buy',
           itemId: item.id,
-          itemCode: masterItem.itemCode || 'Unknown',
+          itemCode: item.itemCode || 'Unknown',
           drawingNo: drawingNumber,
           sequenceNumber: nextSeqNumber + makeItems.length + index,
           createdBy: userId
@@ -266,7 +266,7 @@ export const generateInspectionOrdersForProject5 = async (req: Request, res: Res
           const orderItem = await db.insert(inspectionOrderItems).values({
             inspectionOrderId: buyOrder[0].id,
             itemId: item.id,
-            itemCode: masterItem.itemCode || 'Unknown',
+            itemCode: item.itemCode || 'Unknown',
             description: masterItem.description || 'No description',
             quantity: parsedQuantity,
             unit: masterItem.uom || 'EA',

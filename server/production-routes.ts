@@ -591,7 +591,7 @@ export function setupProductionRoutes(app: Router) {
         const masterItem = masterItemsMap.get(item.itemId);
         return {
           sequenceNumber: index + 1,
-          itemCode: masterItem?.itemCode || 'Unknown',
+          itemCode: item.itemCode || 'Unknown',
           description: masterItem?.description || 'No description',
           quantity: Number(item.quantity),
           unit: masterItem?.unit || 'EA',
@@ -1056,7 +1056,7 @@ export function setupProductionRoutes(app: Router) {
           tempWorkOrderIndex: workOrdersToCreate.length - 1, // Store index to map later
           projectItemId: parentItem.id,
           itemId: parentItem.itemId,
-          itemCode: masterItem.itemCode,
+          itemCode: parentItem.itemCode || null,
           description: masterItem.description || 'No description',
           quantity: validQuantity,
           unit,
@@ -1148,7 +1148,7 @@ export function setupProductionRoutes(app: Router) {
           tempWorkOrderIndex: workOrdersToCreate.length - 1, // Store index to map later
           projectItemId,
           itemId: childItem.itemId,
-          itemCode: masterItem.itemCode,
+          itemCode: isVirtual ? null : ((childItem as any).itemCode || null),
           description: masterItem.description || 'No description',
           quantity: validQuantity,
           unit,

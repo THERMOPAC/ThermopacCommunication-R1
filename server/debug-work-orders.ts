@@ -116,7 +116,7 @@ export function setupDebugWorkOrderRoutes(app: Router) {
           return {
             projectItemId: item.id,
             itemId: item.itemId,
-            itemCode: masterItem?.itemCode,
+            itemCode: (item as any).itemCode,
             description: masterItem?.description,
             quantity: item.quantity
           };

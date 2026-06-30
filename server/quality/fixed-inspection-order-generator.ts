@@ -229,7 +229,7 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
       const masterItem = masterItemsMap.get(item.itemId);
       previewItems.push({
         sequenceNumber: index + 1,
-        itemCode: masterItem?.itemCode || 'Unknown',
+        itemCode: item.itemCode || 'Unknown',
         description: masterItem?.description || 'No description',
         quantity: parseInt(String(item.quantity)),
         unit: masterItem?.uom || 'Nos',
@@ -244,7 +244,7 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
       const masterItem = masterItemsMap.get(item.itemId);
       previewItems.push({
         sequenceNumber: filteredMakeParentItems.length + index + 1,
-        itemCode: masterItem?.itemCode || 'Unknown',
+        itemCode: item.itemCode || 'Unknown',
         description: masterItem?.description || 'No description',
         quantity: parseInt(String(item.quantity)),
         unit: masterItem?.uom || 'Nos',
@@ -259,17 +259,16 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
       const masterItem = masterItemsMap.get(item.itemId);
       const parentProjectItemId = projectItemParentMap.get(item.id);
       const parentItem = parentProjectItemId ? projectItemsList.find(pi => pi.id === parentProjectItemId) : null;
-      const parentMasterItem = parentItem ? masterItemsMap.get(parentItem.itemId) : null;
       
       previewItems.push({
         sequenceNumber: filteredMakeParentItems.length + filteredBuyParentItems.length + index + 1,
-        itemCode: masterItem?.itemCode || 'Unknown',
+        itemCode: item.itemCode || 'Unknown',
         description: masterItem?.description || 'No description',
         quantity: parseInt(String(item.quantity)),
         unit: masterItem?.uom || 'Nos',
         makeOrBuy: masterItem?.makeOrBuy || 'Unknown',
         itemType: 'Child',
-        parentItemCode: parentMasterItem?.itemCode || null
+        parentItemCode: parentItem?.itemCode || null
       });
     });
     
@@ -540,7 +539,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           unit: masterItem?.uom || 'Nos',
           makeOrBuy: 'Make',
           itemId: item.id,
-          itemCode: masterItem?.itemCode || 'Unknown',
+          itemCode: item.itemCode || 'Unknown',
           sequenceNumber: makeOrderNumber,
           createdBy: req.user!.id
         }).returning();
@@ -551,7 +550,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
         const orderItem = await db.insert(inspectionOrderItems).values({
           inspectionOrderId: makeItemOrder[0].id,
           itemId: item.id,
-          itemCode: masterItem?.itemCode || 'Unknown',
+          itemCode: item.itemCode || 'Unknown',
           description: masterItem?.description || 'No description',
           quantity: parseInt(String(item.quantity)),
           unit: masterItem?.uom || 'Nos',
@@ -613,7 +612,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           unit: masterItem?.uom || 'Nos',
           makeOrBuy: 'Buy',
           itemId: item.id,
-          itemCode: masterItem?.itemCode || 'Unknown',
+          itemCode: item.itemCode || 'Unknown',
           sequenceNumber: buyOrderNumber,
           createdBy: req.user!.id
         }).returning();
@@ -624,7 +623,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
         const orderItem = await db.insert(inspectionOrderItems).values({
           inspectionOrderId: buyItemOrder[0].id,
           itemId: item.id,
-          itemCode: masterItem?.itemCode || 'Unknown',
+          itemCode: item.itemCode || 'Unknown',
           description: masterItem?.description || 'No description',
           quantity: parseInt(String(item.quantity)),
           unit: masterItem?.uom || 'Nos',
@@ -718,7 +717,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
             unit: masterItem?.uom || 'Nos',
             makeOrBuy: masterItem?.makeOrBuy || 'Unknown',
             itemId: item.id,
-            itemCode: masterItem?.itemCode || 'Unknown',
+            itemCode: item.itemCode || 'Unknown',
             sequenceNumber: componentNumber,
             createdBy: req.user!.id
           }).returning();
@@ -729,7 +728,7 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
           const orderItem = await db.insert(inspectionOrderItems).values({
             inspectionOrderId: componentItemOrder[0].id,
             itemId: item.id,
-            itemCode: masterItem?.itemCode || 'Unknown',
+            itemCode: item.itemCode || 'Unknown',
             description: `${masterItem?.description || 'No description'} (for ${parentMasterItem?.itemCode || 'Unknown'})`,
             quantity: parseInt(String(item.quantity)),
             unit: masterItem?.uom || 'Nos',

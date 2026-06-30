@@ -7721,7 +7721,7 @@ export function setupProjectRoutes(app: express.Express) {
         if (bomLineMatch.rows.length > 0) bomLineId = (bomLineMatch.rows[0] as any).id;
       } else {
         if (strictMode) {
-          const piResult = await db.execute(sql`SELECT pi.item_number, mi.item_code FROM project_items pi LEFT JOIN master_items mi ON mi.id = pi.master_item_id WHERE pi.id = ${prep.project_item_id}`);
+          const piResult = await db.execute(sql`SELECT pi.item_number, pi.item_code FROM project_items pi WHERE pi.id = ${prep.project_item_id}`);
           const piInfo = piResult.rows[0] as any;
           return sendBusinessError(res, `Cannot create PO: No BOM exists for project item ${piInfo?.item_number || prep.project_item_id} (${piInfo?.item_code || 'unknown'}). Create and Release a BOM for this project item before creating a Purchase Order. [Strict EPC mode is ON]`);
         }
@@ -8252,7 +8252,7 @@ export function setupProjectRoutes(app: express.Express) {
         if (bomLineMatch.rows.length > 0) bomLineId = (bomLineMatch.rows[0] as any).id;
       } else {
         if (strictMode) {
-          const piResult = await db.execute(sql`SELECT pi.item_number, mi.item_code FROM project_items pi LEFT JOIN master_items mi ON mi.id = pi.master_item_id WHERE pi.id = ${prep.project_item_id}`);
+          const piResult = await db.execute(sql`SELECT pi.item_number, pi.item_code FROM project_items pi WHERE pi.id = ${prep.project_item_id}`);
           const piInfo = piResult.rows[0] as any;
           return sendBusinessError(res, `Cannot create WO: No BOM exists for project item ${piInfo?.item_number || prep.project_item_id} (${piInfo?.item_code || 'unknown'}). Create and Release a BOM for this project item before creating a Work Order. [Strict EPC mode is ON]`);
         }
@@ -13143,7 +13143,7 @@ export function setupProjectRoutes(app: express.Express) {
           const computedQty = parentQty * lineQty;
           const classification = line.component_make_or_buy || line.master_make_or_buy || null;
           const planningType = classification === 'Buy' ? 'procurement' : classification === 'Make' ? 'production' : 'review';
-          const componentCode = line.component_item_code || line.master_item_code || '';
+          let componentCode = line.component_item_code || line.master_item_code || '';
           const componentDesc = line.component_description || line.master_description || '';
           const componentUom = line.component_uom || line.master_uom || '';
 
@@ -13201,6 +13201,9 @@ export function setupProjectRoutes(app: express.Express) {
               }
             }
           }
+
+          const childPiResult = await tx.execute(sql`SELECT item_code FROM project_items WHERE id = ${childProjectItemId}`);
+          componentCode = (childPiResult.rows[0] as any)?.item_code || componentCode;
 
           const existingPlanning = await tx.execute(sql`
             SELECT id, status FROM item_planning_records

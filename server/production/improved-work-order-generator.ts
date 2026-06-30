@@ -438,7 +438,7 @@ export async function generateImprovedWorkOrders(req: Request, res: Response) {
         tempWorkOrderIndex: workOrdersToCreate.length - 1, // Store index to map later
         projectItemId: parentItem.id,
         itemId: parentItem.itemId,
-        itemCode: masterItem.itemCode,
+        itemCode: parentItem.itemCode || null,
         description: masterItem.description || 'No description',
         quantity: validQuantity,
         unit,
@@ -529,7 +529,7 @@ export async function generateImprovedWorkOrders(req: Request, res: Response) {
         tempWorkOrderIndex: workOrdersToCreate.length - 1, // Store index to map later
         projectItemId,
         itemId: childItem.itemId,
-        itemCode: masterItem.itemCode,
+        itemCode: isVirtual ? null : ((childItem as any).itemCode || null),
         description: masterItem.description || 'No description',
         quantity: validQuantity,
         unit,

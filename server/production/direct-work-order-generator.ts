@@ -676,7 +676,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         const masterItem = masterItemsMap.get(item.itemId);
         return {
           sequenceNumber: index + 1,
-          itemCode: masterItem?.itemCode || 'Unknown',
+          itemCode: item.itemCode || 'Unknown',
           description: masterItem?.description || 'No description',
           quantity: item.quantity,
           unit: masterItem?.uom || 'EA',
@@ -703,7 +703,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         const parentMasterItem = item.parentItemId ? masterItemsMap.get(item.parentItemId) : null;
         return {
           sequenceNumber: index + 1,
-          itemCode: masterItem?.itemCode || 'Unknown',
+          itemCode: (item as any).itemCode || masterItem?.itemCode || 'Unknown',
           description: masterItem?.description || 'No description',
           quantity: item.quantity,
           unit: masterItem?.uom || 'EA',
@@ -887,7 +887,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         status: 'pending',
         sequenceNumber: 1,
         notes: `Auto-generated for project ${project.code}`,
-        itemCode: masterItem.itemCode || null,
+        itemCode: parentItem.itemCode || null,
         createdAt: today,
         updatedAt: today
       };
@@ -1129,7 +1129,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         status: 'pending',
         sequenceNumber: 1,
         notes: `Sub-assembly of ${masterItemsMap.get(componentParentItemId)?.itemCode}`,
-        itemCode: masterItem.itemCode || null,
+        itemCode: parentProjectItem?.itemCode || null,
         createdAt: today,
         updatedAt: today
       };

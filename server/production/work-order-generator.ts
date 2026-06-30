@@ -310,7 +310,7 @@ export async function generateWorkOrders(req: Request, res: Response) {
         status: 'pending',
         sequenceNumber: 1,
         notes: `Auto-generated for project ${project.code}`,
-        itemCode: masterItem.itemCode || null,
+        itemCode: parentItem.itemCode || null,
         createdAt: today,
         updatedAt: today
       };
@@ -392,7 +392,7 @@ export async function generateWorkOrders(req: Request, res: Response) {
         status: 'pending',
         sequenceNumber: 1,
         notes: itemNotes,
-        itemCode: masterItem.itemCode || null,
+        itemCode: isVirtual ? null : ((childItem as any).itemCode || null),
         createdAt: today,
         updatedAt: today
       };
