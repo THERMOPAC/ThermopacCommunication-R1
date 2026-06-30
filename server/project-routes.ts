@@ -7791,6 +7791,8 @@ export function setupProjectRoutes(app: express.Express) {
           })}::jsonb, 'lifecycle_action', NOW())`);
 
         if (bomBypass) {
+          const _poBypassPi = await tx.execute(sql`SELECT item_code FROM project_items WHERE id = ${prep.project_item_id} LIMIT 1`);
+          const _poBypassItemCode = (_poBypassPi.rows[0] as any)?.item_code || null;
           await tx.insert(bomGatingBypassLog).values({
             documentType: 'PO',
             documentId: newPO.id,
@@ -7798,6 +7800,7 @@ export function setupProjectRoutes(app: express.Express) {
             projectId: prep.project_id,
             projectItemId: prep.project_item_id,
             reason: 'no_bom_exists',
+            itemCode: _poBypassItemCode,
             createdBy: userId,
           });
           console.log(`[BOM-GATE] BYPASS: PO ${poNumber} created without BOM for project item ${prep.project_item_id} (Transitional mode)`);
@@ -8335,6 +8338,8 @@ export function setupProjectRoutes(app: express.Express) {
           })}::jsonb, 'lifecycle_action', NOW())`);
 
         if (bomBypass) {
+          const _woBypassPi = await tx.execute(sql`SELECT item_code FROM project_items WHERE id = ${prep.project_item_id} LIMIT 1`);
+          const _woBypassItemCode = (_woBypassPi.rows[0] as any)?.item_code || null;
           await tx.insert(bomGatingBypassLog).values({
             documentType: 'WO',
             documentId: newWO.id,
@@ -8342,6 +8347,7 @@ export function setupProjectRoutes(app: express.Express) {
             projectId: prep.project_id,
             projectItemId: prep.project_item_id,
             reason: 'no_bom_exists',
+            itemCode: _woBypassItemCode,
             createdBy: userId,
           });
           console.log(`[BOM-GATE] BYPASS: WO ${woNumber} created without BOM for project item ${prep.project_item_id} (Transitional mode)`);
@@ -13227,9 +13233,9 @@ export function setupProjectRoutes(app: express.Express) {
 
           await tx.execute(sql`
             INSERT INTO bom_explosion_logs (bom_header_id, bom_line_id, project_item_id, planning_record_id,
-              component_item_id, classification_used, quantity_computed, status, exploded_by, exploded_at)
+              component_item_id, classification_used, quantity_computed, status, exploded_by, exploded_at, item_code)
             VALUES (${id}, ${line.id}, ${childProjectItemId}, ${planningRecordId},
-              ${line.component_item_id}, ${classification}, ${computedQty.toString()}, 'created', ${userId}, NOW())
+              ${line.component_item_id}, ${classification}, ${computedQty.toString()}, 'created', ${userId}, NOW(), ${componentCode || null})
           `);
 
           await tx.execute(sql`

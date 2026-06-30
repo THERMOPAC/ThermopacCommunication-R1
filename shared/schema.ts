@@ -12340,6 +12340,7 @@ export const bomExplosionLogs = pgTable('bom_explosion_logs', {
   explodedAt: timestamp("exploded_at").notNull().defaultNow(),
   supersededAt: timestamp("superseded_at"),
   notes: text("notes"),
+  itemCode: varchar('item_code', { length: 100 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -12365,6 +12366,7 @@ export const epcAgentFindings = pgTable('epc_agent_findings', {
   resolvedAt: timestamp("resolved_at"),
   cooldownHours: integer("cooldown_hours").notNull().default(24),
   metadata: jsonb("metadata"),
+  itemCode: varchar('item_code', { length: 100 }),
 });
 
 export const insertEpcAgentFindingSchema = createInsertSchema(epcAgentFindings).omit({ id: true, firstDetectedAt: true, lastDetectedAt: true });
@@ -12506,6 +12508,7 @@ export const bomGatingBypassLog = pgTable('bom_gating_bypass_log', {
   projectId: integer('project_id').notNull(),
   projectItemId: integer('project_item_id').notNull(),
   reason: varchar('reason', { length: 50 }).notNull().default('no_bom_exists'),
+  itemCode: varchar('item_code', { length: 100 }),
   createdBy: integer('created_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

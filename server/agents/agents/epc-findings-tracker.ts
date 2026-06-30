@@ -64,6 +64,7 @@ export async function trackFinding(opts: {
   severity: string;
   projectId?: number | null;
   projectItemId?: number | null;
+  itemCode?: string | null;
   entityType?: string;
   entityId?: number;
   cooldownHours: number;
@@ -100,8 +101,8 @@ export async function trackFinding(opts: {
   }
 
   const inserted = await db.execute(sql`
-    INSERT INTO epc_agent_findings (fingerprint, project_id, project_item_id, finding_code, agent_key, status, severity, entity_type, entity_id, cooldown_hours, metadata)
-    VALUES (${opts.fingerprint}, ${opts.projectId || null}, ${opts.projectItemId || null}, ${opts.findingCode}, ${opts.agentKey}, 'active', ${opts.severity}, ${opts.entityType || null}, ${opts.entityId || null}, ${opts.cooldownHours}, ${JSON.stringify(opts.metadata || {})}::jsonb)
+    INSERT INTO epc_agent_findings (fingerprint, project_id, project_item_id, finding_code, agent_key, status, severity, entity_type, entity_id, cooldown_hours, metadata, item_code)
+    VALUES (${opts.fingerprint}, ${opts.projectId || null}, ${opts.projectItemId || null}, ${opts.findingCode}, ${opts.agentKey}, 'active', ${opts.severity}, ${opts.entityType || null}, ${opts.entityId || null}, ${opts.cooldownHours}, ${JSON.stringify(opts.metadata || {})}::jsonb, ${opts.itemCode || null})
     RETURNING id
   `);
   const newId = Number((inserted.rows as any[])[0]?.id || 0);

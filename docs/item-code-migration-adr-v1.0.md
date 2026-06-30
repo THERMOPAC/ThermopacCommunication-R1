@@ -1,7 +1,7 @@
 # Item Code as Canonical Engineering Identity — Migration ADR v1.0
 
 **Date:** 2026-06-30  
-**Status:** APPROVED — Tiers 1, 2, 3 Implemented  
+**Status:** APPROVED — Tiers 1, 2, 3, 4 Implemented — MIGRATION COMPLETE  
 **Author:** THERMOPAC QMS Architecture Review  
 
 ---
