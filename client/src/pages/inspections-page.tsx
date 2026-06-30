@@ -2123,21 +2123,22 @@ export default function InspectionsPage() {
     enabled: !!editingInspectionOrder,
   });
 
-  // Fetch released EPC drawing control for the Drawing tab (auto-populated, read-only)
-  const { data: epcDrawingRecord, isLoading: isLoadingEpcDrawing } = useQuery<{
+  // Fetch EPC drawing controls for the Drawing tab (auto-populated, read-only)
+  const { data: epcDrawingRecords = [], isLoading: isLoadingEpcDrawing } = useQuery<{
     id: string;
     drawingTitle: string;
     drawingNumber: string;
     revision: string;
-    approvedBy: string;
-    approvalDate: string;
+    releasedByName: string;
+    releaseDate: string;
+    releasedForManufacturing: boolean;
     status: string;
-  } | null>({
+  }[]>({
     queryKey: ['/api/quality/inspection-orders', editingInspectionOrder, 'epc-drawing'],
     queryFn: async () => {
-      if (!editingInspectionOrder) return null;
+      if (!editingInspectionOrder) return [];
       const response = await fetch(`/api/quality/inspection-orders/${editingInspectionOrder}/epc-drawing`);
-      if (!response.ok) return null;
+      if (!response.ok) return [];
       return response.json();
     },
     enabled: !!editingInspectionOrder,
@@ -7553,24 +7554,38 @@ export default function InspectionsPage() {
                                   Loading drawing control data…
                                 </TableCell>
                               </TableRow>
-                            ) : epcDrawingRecord ? (
-                              <TableRow>
-                                <TableCell className="font-medium text-xs">{epcDrawingRecord.id}</TableCell>
-                                <TableCell>{epcDrawingRecord.drawingTitle}</TableCell>
-                                <TableCell>{epcDrawingRecord.drawingNumber}</TableCell>
-                                <TableCell>{epcDrawingRecord.revision}</TableCell>
-                                <TableCell>{epcDrawingRecord.approvedBy}</TableCell>
-                                <TableCell>{epcDrawingRecord.approvalDate}</TableCell>
-                                <TableCell>
-                                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                    {epcDrawingRecord.status}
-                                  </span>
-                                </TableCell>
-                              </TableRow>
+                            ) : epcDrawingRecords.length > 0 ? (
+                              epcDrawingRecords.map((rec) => (
+                                <TableRow key={rec.id}>
+                                  <TableCell className="font-medium text-xs">{rec.id}</TableCell>
+                                  <TableCell>{rec.drawingTitle}</TableCell>
+                                  <TableCell>{rec.drawingNumber}</TableCell>
+                                  <TableCell>{rec.revision}</TableCell>
+                                  <TableCell>{rec.releasedByName}</TableCell>
+                                  <TableCell>{rec.releaseDate}</TableCell>
+                                  <TableCell>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      rec.releasedForManufacturing
+                                        ? 'bg-green-100 text-green-800'
+                                        : rec.status === 'cancelled'
+                                        ? 'bg-red-100 text-red-800'
+                                        : rec.status === 'released'
+                                        ? 'bg-blue-100 text-blue-800'
+                                        : 'bg-gray-100 text-gray-700'
+                                    }`}>
+                                      {rec.releasedForManufacturing
+                                        ? 'Released for Mfg'
+                                        : rec.status
+                                            ? rec.status.charAt(0).toUpperCase() + rec.status.slice(1)
+                                            : 'Draft'}
+                                    </span>
+                                  </TableCell>
+                                </TableRow>
+                              ))
                             ) : (
                               <TableRow>
                                 <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                                  No released drawing control found for this item. The EPC team must release the drawing for manufacturing first.
+                                  No drawing control found for this item.
                                 </TableCell>
                               </TableRow>
                             )}

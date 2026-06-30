@@ -316,46 +316,61 @@ router.get('/inspection-orders/:id/epc-drawing', ensureAuthenticated, async (req
       .limit(1);
 
     if (!io) return res.status(404).json({ error: 'Inspection order not found' });
-    if (!io.itemId) return res.json(null);
+    if (!io.itemId) return res.json([]);
 
-    const [drawing] = await db.select({
+    // Fetch ALL drawing controls for this item — no release-status filter
+    const drawings = await db.select({
       dwgControlNumber: epcDrawingControls.dwgControlNumber,
       drawingTitle: epcDrawingControls.drawingTitle,
       drawingNumber: epcDrawingControls.drawingNumber,
       revisionCode: epcDrawingControls.revisionCode,
+      releasedForManufacturing: epcDrawingControls.releasedForManufacturing,
       releasedForManufacturingAt: epcDrawingControls.releasedForManufacturingAt,
       releasedForManufacturingBy: epcDrawingControls.releasedForManufacturingBy,
       status: epcDrawingControls.status,
     })
       .from(epcDrawingControls)
-      .where(and(
-        eq(epcDrawingControls.projectItemId, io.itemId),
-        eq(epcDrawingControls.releasedForManufacturing, true)
-      ))
-      .limit(1);
+      .where(eq(epcDrawingControls.projectItemId, io.itemId));
 
-    if (!drawing) return res.json(null);
+    if (drawings.length === 0) return res.json([]);
 
-    let releasedByName = 'N/A';
-    if (drawing.releasedForManufacturingBy) {
-      const [releaser] = await db.select({ fullName: users.fullName })
+    // Resolve releaser names for drawings that have been released
+    const releaseUserIds = [...new Set(
+      drawings
+        .filter(d => d.releasedForManufacturingBy != null)
+        .map(d => d.releasedForManufacturingBy as number)
+    )];
+
+    const releaserMap: Record<number, string> = {};
+    if (releaseUserIds.length > 0) {
+      const releasers = await db.select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+      })
         .from(users)
-        .where(eq(users.id, drawing.releasedForManufacturingBy))
-        .limit(1);
-      if (releaser?.fullName) releasedByName = releaser.fullName;
+        .where(sql`${users.id} = ANY(${releaseUserIds})`);
+      for (const r of releasers) {
+        releaserMap[r.id] = [r.firstName, r.lastName].filter(Boolean).join(' ') || 'N/A';
+      }
     }
 
-    return res.json({
-      id: drawing.dwgControlNumber,
-      drawingTitle: drawing.drawingTitle ?? '',
-      drawingNumber: drawing.drawingNumber ?? '',
-      revision: drawing.revisionCode,
-      approvedBy: releasedByName,
-      approvalDate: drawing.releasedForManufacturingAt
-        ? new Date(drawing.releasedForManufacturingAt).toISOString().split('T')[0]
-        : '',
-      status: 'Released for Manufacturing',
-    });
+    const result = drawings.map(d => ({
+      id: d.dwgControlNumber,
+      drawingTitle: d.drawingTitle ?? '',
+      drawingNumber: d.drawingNumber ?? '',
+      revision: d.revisionCode,
+      releasedByName: d.releasedForManufacturingBy
+        ? (releaserMap[d.releasedForManufacturingBy] ?? 'N/A')
+        : '—',
+      releaseDate: d.releasedForManufacturingAt
+        ? new Date(d.releasedForManufacturingAt).toISOString().split('T')[0]
+        : '—',
+      releasedForManufacturing: d.releasedForManufacturing,
+      status: d.status,
+    }));
+
+    return res.json(result);
   } catch (err) {
     console.error('[epc-drawing] Error:', err);
     res.status(500).json({ error: 'Failed to fetch EPC drawing control' });
