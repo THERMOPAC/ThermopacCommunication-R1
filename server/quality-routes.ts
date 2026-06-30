@@ -9,7 +9,7 @@ import finalDossierRoutes from './quality/final-dossier-routes';
 import calibrationRoutes from './quality/calibration-routes';
 import { previewInspectionOrders, generateInspectionOrders } from './quality/fixed-inspection-order-generator';
 import { db } from './db';
-import { inspectionOrders, inspectionOrderItems, materialInspectionLinks, epcDrawingControls, users } from '@shared/schema';
+import { inspectionOrders, inspectionOrderItems, materialInspectionLinks } from '@shared/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { registerWelderRoutes } from './quality/welder-routes';
 import { registerWelderCertificateRoutes } from './quality/welder-certificate-routes';
@@ -60,25 +60,15 @@ router.get('/inspection-orders/project/:projectId', ensureAuthenticated, async (
     // may contain dashes (e.g. IO-2026-2627-018-M-1). Regex extracts type and seq from the
     // END of the string so this works regardless of how many segments the project code has.
     const orders = await db.execute(sql`
-      SELECT io.*,
-             edc.drawing_number AS epc_drawing_number,
-             edc.revision_code  AS epc_revision_code
-      FROM inspection_orders io
-      LEFT JOIN LATERAL (
-        SELECT drawing_number, revision_code
-        FROM epc_drawing_controls
-        WHERE project_item_id = io.item_id
-        ORDER BY id DESC
-        LIMIT 1
-      ) edc ON true
-      WHERE io.project_id = ${projectId}
+      SELECT * FROM inspection_orders 
+      WHERE project_id = ${projectId}
       ORDER BY 
         -- Extract year from position 2 (always stable)
-        CAST(SPLIT_PART(io.inspection_order_number, '-', 2) AS INTEGER),
+        CAST(SPLIT_PART(inspection_order_number, '-', 2) AS INTEGER),
         -- Extract sequence number from the trailing -<TYPE>-<SEQ> suffix
-        CAST(regexp_replace(io.inspection_order_number, '^.*-([A-Z]+)-([0-9]+)$', '\\2') AS INTEGER),
+        CAST(regexp_replace(inspection_order_number, '^.*-([A-Z]+)-([0-9]+)$', '\\2') AS INTEGER),
         -- Then sort by type letter (M before B, etc.)
-        regexp_replace(io.inspection_order_number, '^.*-([A-Z]+)-([0-9]+)$', '\\1')
+        regexp_replace(inspection_order_number, '^.*-([A-Z]+)-([0-9]+)$', '\\1')
     `);
     
     // Return the rows array from the query result
@@ -311,82 +301,6 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       error: 'Failed to fetch inspection order details',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
-  }
-});
-
-// GET released EPC drawing control for an inspection order (auto-populated Drawing tab)
-router.get('/inspection-orders/:id/epc-drawing', ensureAuthenticated, async (req: Request, res: Response) => {
-  try {
-    const orderId = parseInt(req.params.id);
-    if (isNaN(orderId)) return res.status(400).json({ error: 'Invalid inspection order ID' });
-
-    const [io] = await db.select({ id: inspectionOrders.id, itemId: inspectionOrders.itemId })
-      .from(inspectionOrders)
-      .where(eq(inspectionOrders.id, orderId))
-      .limit(1);
-
-    if (!io) return res.status(404).json({ error: 'Inspection order not found' });
-    if (!io.itemId) return res.json([]);
-
-    // Fetch only drawings released for manufacturing (the approved drawing for Quality)
-    const drawings = await db.select({
-      dwgControlNumber: epcDrawingControls.dwgControlNumber,
-      drawingTitle: epcDrawingControls.drawingTitle,
-      drawingNumber: epcDrawingControls.drawingNumber,
-      revisionCode: epcDrawingControls.revisionCode,
-      releasedForManufacturing: epcDrawingControls.releasedForManufacturing,
-      releasedForManufacturingAt: epcDrawingControls.releasedForManufacturingAt,
-      releasedForManufacturingBy: epcDrawingControls.releasedForManufacturingBy,
-      status: epcDrawingControls.status,
-    })
-      .from(epcDrawingControls)
-      .where(and(
-        eq(epcDrawingControls.projectItemId, io.itemId),
-        eq(epcDrawingControls.releasedForManufacturing, true)
-      ));
-
-    if (drawings.length === 0) return res.json([]);
-
-    // Resolve releaser names for drawings that have been released
-    const releaseUserIds = [...new Set(
-      drawings
-        .filter(d => d.releasedForManufacturingBy != null)
-        .map(d => d.releasedForManufacturingBy as number)
-    )];
-
-    const releaserMap: Record<number, string> = {};
-    if (releaseUserIds.length > 0) {
-      const releasers = await db.select({
-        id: users.id,
-        firstName: users.firstName,
-        lastName: users.lastName,
-      })
-        .from(users)
-        .where(sql`${users.id} = ANY(${releaseUserIds})`);
-      for (const r of releasers) {
-        releaserMap[r.id] = [r.firstName, r.lastName].filter(Boolean).join(' ') || 'N/A';
-      }
-    }
-
-    const result = drawings.map(d => ({
-      id: d.dwgControlNumber,
-      drawingTitle: d.drawingTitle ?? '',
-      drawingNumber: d.drawingNumber ?? '',
-      revision: d.revisionCode,
-      releasedByName: d.releasedForManufacturingBy
-        ? (releaserMap[d.releasedForManufacturingBy] ?? 'N/A')
-        : '—',
-      releaseDate: d.releasedForManufacturingAt
-        ? new Date(d.releasedForManufacturingAt).toISOString().split('T')[0]
-        : '—',
-      releasedForManufacturing: d.releasedForManufacturing,
-      status: d.status,
-    }));
-
-    return res.json(result);
-  } catch (err) {
-    console.error('[epc-drawing] Error:', err);
-    res.status(500).json({ error: 'Failed to fetch EPC drawing control' });
   }
 });
 

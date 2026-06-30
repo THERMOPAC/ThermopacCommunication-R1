@@ -2122,28 +2122,7 @@ export default function InspectionsPage() {
     },
     enabled: !!editingInspectionOrder,
   });
-
-  // Fetch EPC drawing controls for the Drawing tab (auto-populated, read-only)
-  const { data: epcDrawingRecords = [], isLoading: isLoadingEpcDrawing } = useQuery<{
-    id: string;
-    drawingTitle: string;
-    drawingNumber: string;
-    revision: string;
-    releasedByName: string;
-    releaseDate: string;
-    releasedForManufacturing: boolean;
-    status: string;
-  }[]>({
-    queryKey: ['/api/quality/inspection-orders', editingInspectionOrder, 'epc-drawing'],
-    queryFn: async () => {
-      if (!editingInspectionOrder) return [];
-      const response = await fetch(`/api/quality/inspection-orders/${editingInspectionOrder}/epc-drawing`);
-      if (!response.ok) return [];
-      return response.json();
-    },
-    enabled: !!editingInspectionOrder,
-  });
-
+  
   // Fetch material identification records for the project of the inspection order being edited
   const {
     data: availableMaterials = [],
@@ -6455,10 +6434,9 @@ export default function InspectionsPage() {
                               <TableHead className="w-[300px]">Order #</TableHead>
                               <TableHead className="w-[600px]">Description</TableHead>
                               <TableHead>Drawing No</TableHead>
-                              <TableHead>Revision</TableHead>
                               <TableHead>Status</TableHead>
                               <TableHead>Quantity</TableHead>
-                              <TableHead className="w-[80px]">Actions</TableHead>
+                              <TableHead className="w-[150px]">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -6473,7 +6451,6 @@ export default function InspectionsPage() {
                                   (order.title && order.title.toLowerCase().includes(query)) ||
                                   (order.drawing_no && order.drawing_no.toLowerCase().includes(query)) ||
                                   (order.drawingNo && order.drawingNo.toLowerCase().includes(query)) ||
-                                  (order.epc_drawing_number && order.epc_drawing_number.toLowerCase().includes(query)) ||
                                   (order.status && order.status.toLowerCase().includes(query))
                                 );
                               })
@@ -6481,8 +6458,7 @@ export default function InspectionsPage() {
                               <TableRow key={order.id}>
                                 <TableCell className="font-medium">{order.inspection_order_number || order.inspectionOrderNumber}</TableCell>
                                 <TableCell>{order.description || order.title}</TableCell>
-                                <TableCell>{order.epc_drawing_number || order.drawing_no || order.drawingNo || '—'}</TableCell>
-                                <TableCell>{order.epc_revision_code || order.drawing_revision || '—'}</TableCell>
+                                <TableCell>{order.drawing_no || order.drawingNo || 'N/A'}</TableCell>
                                 <TableCell>{getStatusBadge(order.status)}</TableCell>
                                 <TableCell>{order.quantity} {order.unit}</TableCell>
                                 <TableCell>
@@ -6498,6 +6474,27 @@ export default function InspectionsPage() {
                                       }}
                                     >
                                       <Eye className="h-4 w-4" />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      title="Edit"
+                                      onClick={() => {
+                                        setEditingInspectionOrder(order.id);
+                                        setIsEditDialogOpen(true);
+                                      }}
+                                    >
+                                      <Edit2 className="h-4 w-4" />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon"
+                                      className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                      title="Delete"
+                                      onClick={() => handleDeleteInspectionOrder(order.id)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
                                     </Button>
                                   </div>
                                 </TableCell>
@@ -6553,6 +6550,18 @@ export default function InspectionsPage() {
                               >
                                 <Eye className="w-4 h-4 mr-1" />
                                 View
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-gray-600 hover:text-gray-800"
+                                onClick={() => {
+                                  setEditingInspectionOrder(order.id);
+                                  setIsEditDialogOpen(true);
+                                }}
+                              >
+                                <Edit className="w-4 h-4 mr-1" />
+                                Edit
                               </Button>
                             </div>
                           </div>
@@ -7493,76 +7502,179 @@ export default function InspectionsPage() {
                     </TabsList>
                   </ScrollArea>
                   
-                  {/* Approved Drawing Tab — auto-populated from EPC Drawing Control (read-only) */}
+                  {/* Approved Drawing Tab */}
                   <TabsContent value="approved-drawing" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-medium">Approved Drawing</h3>
-                        <span className="text-xs text-muted-foreground italic">
-                          Auto-populated from EPC Drawing Control — read-only
-                        </span>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          className="flex items-center text-xs"
+                          disabled={approvedDrawingRecords.length >= 1}
+                          onClick={() => {
+                            // Check if we have valid project code before opening dialog
+                            if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
+                              toast({
+                                title: "Cannot Create Record",
+                                description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            setIsApprovedDrawingDialogOpen(true);
+                          }}
+                          title={approvedDrawingRecords.length >= 1 ? "Only one Drawing record is allowed per inspection order" : "Add Approved Drawing Record"}
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> 
+                          {approvedDrawingRecords.length >= 1 ? "Drawing Record Added" : "Add Approved Drawing Record"}
+                        </Button>
                       </div>
-
+                      
                       {/* Approved Drawing Records Table */}
                       <div className="border rounded-md shadow-sm overflow-hidden">
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-[120px]">Record ID</TableHead>
+                              <TableHead className="w-[100px]">Record ID</TableHead>
                               <TableHead className="w-[200px]">Drawing Title</TableHead>
                               <TableHead className="w-[150px]">Drawing Number</TableHead>
                               <TableHead className="w-[100px]">Revision</TableHead>
-                              <TableHead className="w-[140px]">Released By</TableHead>
-                              <TableHead className="w-[120px]">Release Date</TableHead>
-                              <TableHead className="w-[180px]">Status</TableHead>
+                              <TableHead className="w-[120px]">Approved By</TableHead>
+                              <TableHead className="w-[120px]">Approval Date</TableHead>
+                              <TableHead className="w-[100px]">Status</TableHead>
+                              <TableHead className="w-[140px]">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {isLoadingEpcDrawing ? (
-                              <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                                  Loading drawing control data…
-                                </TableCell>
-                              </TableRow>
-                            ) : epcDrawingRecords.length > 0 ? (
-                              epcDrawingRecords.map((rec) => (
-                                <TableRow key={rec.id}>
-                                  <TableCell className="font-medium text-xs">{rec.id}</TableCell>
-                                  <TableCell>{rec.drawingTitle}</TableCell>
-                                  <TableCell>{rec.drawingNumber}</TableCell>
-                                  <TableCell>{rec.revision}</TableCell>
-                                  <TableCell>{rec.releasedByName}</TableCell>
-                                  <TableCell>{rec.releaseDate}</TableCell>
+                            {approvedDrawingRecords.length > 0 ? (
+                              approvedDrawingRecords.map((record) => (
+                                <TableRow key={record.id}>
+                                  <TableCell className="font-medium">{record.id}</TableCell>
+                                  <TableCell>{record.drawingTitle}</TableCell>
+                                  <TableCell>{record.drawingNumber}</TableCell>
+                                  <TableCell>{record.revision}</TableCell>
+                                  <TableCell>{record.approvedBy}</TableCell>
+                                  <TableCell>{record.approvalDate}</TableCell>
                                   <TableCell>
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                      rec.releasedForManufacturing
-                                        ? 'bg-green-100 text-green-800'
-                                        : rec.status === 'cancelled'
-                                        ? 'bg-red-100 text-red-800'
-                                        : rec.status === 'released'
-                                        ? 'bg-blue-100 text-blue-800'
-                                        : 'bg-gray-100 text-gray-700'
+                                      record.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                                      record.status === 'Under Review' ? 'bg-yellow-100 text-yellow-800' :
+                                      record.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                                      'bg-gray-100 text-gray-800'
                                     }`}>
-                                      {rec.releasedForManufacturing
-                                        ? 'Released for Mfg'
-                                        : rec.status
-                                            ? rec.status.charAt(0).toUpperCase() + rec.status.slice(1)
-                                            : 'Draft'}
+                                      {record.status}
                                     </span>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center space-x-1">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
+                                        title="View"
+                                        onClick={() => {
+                                          setDocumentViewerConfig({
+                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
+                                            tabName: "Approved Drawing",
+                                            recordId: record.id
+                                          });
+                                          setShowDocumentViewer(true);
+                                        }}
+                                      >
+                                        <Eye className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
+                                        title="Edit"
+                                        onClick={() => {
+                                          setEditingApprovedDrawingRecord(record);
+                                          setIsApprovedDrawingDialogOpen(true);
+                                        }}
+                                      >
+                                        <Edit2 className="h-3 w-3" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
+                                        title="File Download"
+                                        onClick={async () => {
+                                          try {
+                                            // Fetch documents for this record
+                                            const response = await fetch(
+                                              `/api/quality/inspection-documents/${editInspectionOrderDetails?.inspectionOrderNumber}/Approved Drawing/${record.id}/documents`
+                                            );
+                                            
+                                            if (response.ok) {
+                                              const documents = await response.json();
+                                              if (documents.length > 0) {
+                                                // Download the first document
+                                                const downloadResponse = await fetch(`/api/quality/inspection-documents/download/${documents[0].id}`);
+                                                if (downloadResponse.ok) {
+                                                  const blob = await downloadResponse.blob();
+                                                  const url = window.URL.createObjectURL(blob);
+                                                  const a = document.createElement('a');
+                                                  a.href = url;
+                                                  a.download = documents[0].originalFileName;
+                                                  document.body.appendChild(a);
+                                                  a.click();
+                                                  document.body.removeChild(a);
+                                                  window.URL.revokeObjectURL(url);
+                                                } else {
+                                                  toast({
+                                                    title: "Download Failed",
+                                                    description: "Failed to download the document",
+                                                    variant: "destructive"
+                                                  });
+                                                }
+                                              } else {
+                                                toast({
+                                                  title: "No Documents",
+                                                  description: "No documents found for this record",
+                                                  variant: "destructive"
+                                                });
+                                              }
+                                            } else {
+                                              toast({
+                                                title: "Error",
+                                                description: "Failed to fetch documents",
+                                                variant: "destructive"
+                                              });
+                                            }
+                                          } catch (error) {
+                                            console.error('Download error:', error);
+                                            toast({
+                                              title: "Download Error",
+                                              description: "An error occurred while downloading the document",
+                                              variant: "destructive"
+                                            });
+                                          }
+                                        }}
+                                      >
+                                        <Download className="h-3 w-3" />
+                                      </Button>
+                                    </div>
                                   </TableCell>
                                 </TableRow>
                               ))
                             ) : (
                               <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                                  No drawing control found for this item.
+                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                  No approved drawing records available. Click "Add Approved Drawing Record" to create a new record.
                                 </TableCell>
                               </TableRow>
                             )}
                           </TableBody>
                         </Table>
                       </div>
-
+                      
                       {/* Uploaded Files Display Section */}
                       {editInspectionOrderDetails?.inspectionOrderNumber && (
                         <div className="mt-6 border-t pt-4">
