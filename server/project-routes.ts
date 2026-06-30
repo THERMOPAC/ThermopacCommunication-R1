@@ -7761,6 +7761,7 @@ export function setupProjectRoutes(app: express.Express) {
           status: 'draft',
           sourceBomHeaderId: bomHeaderId,
           sourceBomLineId: bomLineId,
+          itemCode: prep.item_code || null,
           createdBy: userId,
         }).returning();
         newPoId = newPO.id;

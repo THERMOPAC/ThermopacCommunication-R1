@@ -307,6 +307,7 @@ export async function generateExecutionDrafts(
         await insertDraft(executor, {
           projectId,
           projectItemId: item.id,
+          itemCode: item.itemCode,
           docType,
           applicable: false,
           docNumber: null,
@@ -347,6 +348,7 @@ export async function generateExecutionDrafts(
       const draftResult = await insertDraft(executor, {
         projectId,
         projectItemId: item.id,
+        itemCode: item.itemCode,
         docType,
         applicable: true,
         docNumber,
@@ -447,6 +449,7 @@ function buildSourceData(item: ProjectItemRecord, docType: DraftDocType, isMake:
 async function insertDraft(executor: any, params: {
   projectId: number;
   projectItemId: number;
+  itemCode: string | null;
   docType: string;
   applicable: boolean;
   docNumber: string | null;
@@ -459,11 +462,11 @@ async function insertDraft(executor: any, params: {
 }): Promise<number> {
   const result = await executor.execute(
     sql`INSERT INTO execution_drafts
-        (project_id, project_item_id, doc_type, applicable, doc_number,
+        (project_id, project_item_id, item_code, doc_type, applicable, doc_number,
          approval_status, activation_status, generated_by, generated_by_user_id,
          dependency_doc_type, dependency_status, source_data)
-        VALUES (${params.projectId}, ${params.projectItemId}, ${params.docType},
-                ${params.applicable}, ${params.docNumber},
+        VALUES (${params.projectId}, ${params.projectItemId}, ${params.itemCode},
+                ${params.docType}, ${params.applicable}, ${params.docNumber},
                 ${params.approvalStatus}, ${params.activationStatus},
                 'system', ${params.generatedByUserId},
                 ${params.dependencyDocType}, ${params.dependencyStatus},

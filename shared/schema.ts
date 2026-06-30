@@ -2305,6 +2305,7 @@ export const itemPlanningRecords = pgTable('item_planning_records', {
   sourceBuyListLineId: integer('source_buy_list_line_id'),
   parentProjectItemId: integer('parent_project_item_id'),
   quantity: decimal('quantity', { precision: 12, scale: 2 }),
+  itemCode: varchar('item_code', { length: 100 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -11724,6 +11725,7 @@ export const epcPurchaseOrders = pgTable('epc_purchase_orders', {
   automationRunId: uuid("automation_run_id"),
   poGroupId: integer("po_group_id"), // FK to epc_po_groups — no .references() to avoid forward ref; constraint enforced at application layer
   amendmentCount: integer("amendment_count").default(0),
+  itemCode: varchar("item_code", { length: 100 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -12671,6 +12673,7 @@ export const executionDrafts = pgTable('execution_drafts', {
   createdSourceType: varchar('created_source_type', { length: 20 }).default('manual'),
   createdSourceRef: varchar('created_source_ref', { length: 100 }),
   automationRunId: uuid('automation_run_id'),
+  itemCode: varchar('item_code', { length: 100 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

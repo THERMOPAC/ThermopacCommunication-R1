@@ -194,6 +194,11 @@ async function upsertPlanningRecord(params: {
     return { id: record.id, wasCreated: false };
   }
 
+  const piCodeResult = await db.execute(
+    sql`SELECT item_code FROM project_items WHERE id = ${projectItemId}`
+  );
+  const projectItemCode = (piCodeResult.rows[0] as any)?.item_code || null;
+
   const [newRecord] = await db.insert(itemPlanningRecords).values({
     projectId,
     projectItemId,
@@ -204,6 +209,7 @@ async function upsertPlanningRecord(params: {
     linkedTaskId,
     assignedTo: assignTo,
     createdBy: changedBy,
+    itemCode: projectItemCode,
     notes: `Auto-created ${planningType} planning record`,
   }).returning();
 
