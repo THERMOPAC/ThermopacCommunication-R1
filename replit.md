@@ -95,6 +95,7 @@ Read it before starting any discussion or implementation.
 - **Dual-Storage Policy v1.0 (Superseded proposal)**: `docs/dual-storage-policy-proposal-v1.0.md`
 - **GCS-to-Doc Governance Sync v1.0**: `docs/gcs-doc-governance-sync-v1.0.md`
 - **EPC ↔ Quality Management Handover ADR v1.0 (APPROVED)**: `docs/epc-quality-handover-adr-v1.0.md`
+- **Item Code as Canonical Engineering Identity ADR v1.0 (APPROVED)**: `docs/item-code-migration-adr-v1.0.md`
 - **Drizzle ORM Docs**: `https://orm.drizzle.team/`
 - **Radix UI Docs**: `https://www.radix-ui.com/`
 - **TanStack Query Docs**: `https://tanstack.com/query/latest`
