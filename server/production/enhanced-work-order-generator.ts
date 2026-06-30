@@ -229,7 +229,8 @@ export async function generateWorkOrdersForNewComponents(req: Request, res: Resp
       await db.insert(workOrderItems).values({
         workOrderId: newWorkOrder.id,
         projectItemId: projectItemId,
-        quantity: component.quantity
+        quantity: component.quantity,
+        itemCode: component.componentItemCode || null,
       });
       
       createdWorkOrders.push({

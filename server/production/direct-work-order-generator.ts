@@ -887,6 +887,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         status: 'pending',
         sequenceNumber: 1,
         notes: `Auto-generated for project ${project.code}`,
+        itemCode: masterItem.itemCode || null,
         createdAt: today,
         updatedAt: today
       };
@@ -1128,6 +1129,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         status: 'pending',
         sequenceNumber: 1,
         notes: `Sub-assembly of ${masterItemsMap.get(componentParentItemId)?.itemCode}`,
+        itemCode: masterItem.itemCode || null,
         createdAt: today,
         updatedAt: today
       };

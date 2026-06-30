@@ -196,6 +196,7 @@ router.post("/upload", ensureAuthenticated, upload.single('file'), async (req: R
         fileType: uploadResult.file_type || 'application/pdf',
         fileSize: uploadResult.file_size || 0,
         uploadedBy: userId || null,
+        itemCode: (inspection as any).itemCode || null,
         createdAt: new Date(),
         updatedAt: new Date()
       }).returning();

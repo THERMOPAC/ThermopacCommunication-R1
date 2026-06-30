@@ -243,6 +243,7 @@ export function setupProjectItemDetailRoutes(app: Router) {
         scale: req.body.scale || null,
         notes: req.body.notes || null,
         uploadedBy: user.id,
+        itemCode: pi.itemCode || null,
         gcsObjectPath,
         checksumSha256,
         fileSize,

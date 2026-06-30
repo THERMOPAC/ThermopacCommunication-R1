@@ -1,7 +1,7 @@
 # Item Code as Canonical Engineering Identity — Migration ADR v1.0
 
 **Date:** 2026-06-30  
-**Status:** APPROVED — Tier 1 Implemented  
+**Status:** APPROVED — Tiers 1, 2, 3 Implemented  
 **Author:** THERMOPAC QMS Architecture Review  
 
 ---
@@ -38,7 +38,7 @@ The following architectural principle is approved and binding:
 | `item_planning_records` | 250 | `project_items.item_code` via `project_item_id` |
 | `execution_drafts` | 704 | `project_items.item_code` via `project_item_id` |
 
-### Tier 2 — Approved, Pending Implementation
+### Tier 2 — Implemented (2026-06-30)
 
 | Table | Current Rows | Notes |
 |---|---|---|
@@ -47,7 +47,7 @@ The following architectural principle is approved and binding:
 | `project_buy_list_headers` | 2 | Buy list for MAKE item's BOM |
 | `epc_document_attachments` | 315 | Partial — item-specific entity types only (inspection_order, epc_drawing_controls) |
 
-### Tier 3 — Approved, Pending Implementation (All Zero Rows)
+### Tier 3 — Implemented (2026-06-30)
 
 | Table | Notes |
 |---|---|

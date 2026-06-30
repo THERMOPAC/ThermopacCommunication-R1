@@ -2271,6 +2271,7 @@ export const projectItemDrawings = pgTable('project_item_drawings', {
   supersededById: integer('superseded_by_id'),
   notes: text('notes'),
   uploadedBy: integer('uploaded_by').references(() => users.id),
+  itemCode: varchar('item_code', { length: 100 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -2885,6 +2886,7 @@ export const workOrderItems = pgTable('work_order_items', {
   sequenceNumber: integer('sequence_number').notNull(), // order of production
   notes: text('notes'),
   unit: text('unit'), // Unit of measurement (e.g., EA, KG, LTR)
+  itemCode: varchar('item_code', { length: 100 }),
   
   // Tracking
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -6556,6 +6558,7 @@ export const inspectionDocuments = pgTable('inspection_documents', {
   fileType: text('file_type'),
   fileSize: integer('file_size'),
   uploadedBy: integer('uploaded_by').references(() => users.id),
+  itemCode: varchar('item_code', { length: 100 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
