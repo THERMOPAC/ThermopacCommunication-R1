@@ -78,7 +78,6 @@ type ActionDef = {
 const QP_ACTIONS: ActionDef[] = [
   { key: "mark-ready", label: "Mark Ready for Inspection", icon: CircleCheck, variant: "default", minRoleLevel: 3, statusRequired: ["in_progress", "under_preparation"], needsNote: true, noteLabel: "Preparation Note", noteKey: "preparationNote" },
   { key: "revert-to-preparation", label: "Revert to Preparation", icon: Undo2, variant: "outline", minRoleLevel: 3, statusRequired: ["ready_for_inspection_setup"] },
-  { key: "cancel", label: "Cancel Quality Plan", icon: XCircle, variant: "destructive", minRoleLevel: 3, statusRequired: ["draft", "in_progress", "under_preparation", "ready_for_inspection_setup"], needsNote: true, noteLabel: "Cancellation Reason", noteKey: "cancelReason", noteRequired: true, kebabOnly: true },
 ];
 
 const IE_ACTIONS: ActionDef[] = [
@@ -87,7 +86,6 @@ const IE_ACTIONS: ActionDef[] = [
   { key: "fail", label: "Mark Failed", icon: XCircle, variant: "destructive", minRoleLevel: 3, statusRequired: ["in_progress"], needsNote: true, noteLabel: "Failure Reason", noteKey: "failureReason", noteRequired: true },
   { key: "mark-rework-required", label: "Require Rework", icon: Wrench, variant: "outline", minRoleLevel: 3, statusRequired: ["failed"], needsNote: true, noteLabel: "Rework Notes", noteKey: "reworkNotes" },
   { key: "close", label: "Close", icon: Lock, variant: "secondary", minRoleLevel: 2, statusRequired: ["completed", "rework_required"], needsNote: true, noteLabel: "Closing Notes", noteKey: "closingNotes" },
-  { key: "cancel", label: "Cancel Inspection", icon: XCircle, variant: "destructive", minRoleLevel: 3, statusRequired: ["draft", "scheduled", "in_progress"], needsNote: true, noteLabel: "Cancellation Reason", noteKey: "cancelReason", noteRequired: true, kebabOnly: true },
 ];
 
 function DetailRow({ label, value, mono }: { label: string; value: any; mono?: boolean }) {
