@@ -6424,15 +6424,6 @@ export default function InspectionsPage() {
                 Manage and track inspection orders for quality checks during production.
               </CardDescription>
             </div>
-            {selectedProject && (
-              <Button
-                onClick={handleGenerateInspectionOrdersClick}
-                disabled={isGeneratingOrders || isLoadingPreview}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700"
-              >
-                <Plus className="mr-2 h-4 w-4" /> Generate Inspection Orders
-              </Button>
-            )}
           </CardHeader>
           <CardContent>
             {!selectedProject ? (
@@ -6440,7 +6431,7 @@ export default function InspectionsPage() {
                 <ClipboardCheck className="h-16 w-16 text-gray-400 mb-2" />
                 <h3 className="text-lg font-medium">No Project Selected</h3>
                 <p className="text-muted-foreground mt-2">
-                  Please select a project to view or generate inspection orders.
+                  Please select a project to view inspection orders.
                 </p>
               </div>
             ) : isLoadingInspectionOrders ? (
@@ -6452,7 +6443,7 @@ export default function InspectionsPage() {
                 <ClipboardCheck className="h-16 w-16 text-gray-400 mb-2" />
                 <h3 className="text-lg font-medium">No Inspection Orders Found</h3>
                 <p className="text-muted-foreground mt-2">
-                  There are no inspection orders for this project yet. Generate inspection orders using the button above.
+                  There are no inspection orders for this project yet.
                 </p>
               </div>
             ) : (
