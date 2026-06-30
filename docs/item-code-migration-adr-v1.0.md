@@ -76,12 +76,30 @@ The following architectural principle is approved and binding:
 
 ---
 
+## Canonical Business Key
+
+| Identifier | Role | Rule |
+|---|---|---|
+| `project_item_id` | Internal database foreign key | Used for SQL JOINs and integrity constraints only |
+| `project_items.item_code` | Canonical engineering/business continuity key | Single source of truth for all EPC/QMS business records |
+| `master_items.item_code` | Catalogue/master data identifier | Used within master data management only — never propagated to business records |
+
+**Binding rules (non-negotiable):**
+
+- **No EPC/QMS business record shall populate `item_code` from `master_items.item_code`.**
+- **All new business records shall populate `item_code` exclusively from `project_items.item_code`**, read at the time of record creation via the `project_item_id` foreign key.
+- `master_items.item_code` may appear in display strings, BOM line definition fields (`epc_bom_lines.component_item_code`), and catalogue UI — never in a business record `item_code` column.
+- Virtual sub-assembly WO items with no corresponding `project_items` row shall receive `item_code = null`. This is the only permitted null case; it is not a bug.
+
+---
+
 ## Rules for New Development
 
 1. **Any new table representing a business record for a MAKE item must include `item_code VARCHAR(100)` from the outset.**
 2. **`item_code` must be populated at INSERT time** — never left null for Make items unless the source `project_items.item_code` is genuinely null (a data quality issue to be resolved separately).
 3. **`item_code` must never be overwritten** — it is frozen at creation. If an item code changes in `project_items`, the downstream records preserve the original engineering identity.
 4. **`project_item_id` remains the JOIN key** — application code joins on `project_item_id`, not on `item_code`. `item_code` is for human traceability and reporting, not for enforcing FK relationships.
+5. **Source check before every new creation route** — before writing `item_code` to any new table, confirm the value originates from `project_items.item_code`, not from any `masterItem` variable or `master_items` query result.
 
 ---
 
