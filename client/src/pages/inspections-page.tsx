@@ -2122,7 +2122,27 @@ export default function InspectionsPage() {
     },
     enabled: !!editingInspectionOrder,
   });
-  
+
+  // Fetch released EPC drawing control for the Drawing tab (auto-populated, read-only)
+  const { data: epcDrawingRecord, isLoading: isLoadingEpcDrawing } = useQuery<{
+    id: string;
+    drawingTitle: string;
+    drawingNumber: string;
+    revision: string;
+    approvedBy: string;
+    approvalDate: string;
+    status: string;
+  } | null>({
+    queryKey: ['/api/quality/inspection-orders', editingInspectionOrder, 'epc-drawing'],
+    queryFn: async () => {
+      if (!editingInspectionOrder) return null;
+      const response = await fetch(`/api/quality/inspection-orders/${editingInspectionOrder}/epc-drawing`);
+      if (!response.ok) return null;
+      return response.json();
+    },
+    enabled: !!editingInspectionOrder,
+  });
+
   // Fetch material identification records for the project of the inspection order being edited
   const {
     data: availableMaterials = [],
@@ -7502,179 +7522,62 @@ export default function InspectionsPage() {
                     </TabsList>
                   </ScrollArea>
                   
-                  {/* Approved Drawing Tab */}
+                  {/* Approved Drawing Tab — auto-populated from EPC Drawing Control (read-only) */}
                   <TabsContent value="approved-drawing" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-medium">Approved Drawing</h3>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="sm"
-                          className="flex items-center text-xs"
-                          disabled={approvedDrawingRecords.length >= 1}
-                          onClick={() => {
-                            // Check if we have valid project code before opening dialog
-                            if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
-                              toast({
-                                title: "Cannot Create Record",
-                                description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
-                                variant: "destructive",
-                              });
-                              return;
-                            }
-                            setIsApprovedDrawingDialogOpen(true);
-                          }}
-                          title={approvedDrawingRecords.length >= 1 ? "Only one Drawing record is allowed per inspection order" : "Add Approved Drawing Record"}
-                        >
-                          <Plus className="h-3.5 w-3.5 mr-1" /> 
-                          {approvedDrawingRecords.length >= 1 ? "Drawing Record Added" : "Add Approved Drawing Record"}
-                        </Button>
+                        <span className="text-xs text-muted-foreground italic">
+                          Auto-populated from EPC Drawing Control — read-only
+                        </span>
                       </div>
-                      
+
                       {/* Approved Drawing Records Table */}
                       <div className="border rounded-md shadow-sm overflow-hidden">
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-[100px]">Record ID</TableHead>
+                              <TableHead className="w-[120px]">Record ID</TableHead>
                               <TableHead className="w-[200px]">Drawing Title</TableHead>
                               <TableHead className="w-[150px]">Drawing Number</TableHead>
                               <TableHead className="w-[100px]">Revision</TableHead>
-                              <TableHead className="w-[120px]">Approved By</TableHead>
-                              <TableHead className="w-[120px]">Approval Date</TableHead>
-                              <TableHead className="w-[100px]">Status</TableHead>
-                              <TableHead className="w-[140px]">Actions</TableHead>
+                              <TableHead className="w-[140px]">Released By</TableHead>
+                              <TableHead className="w-[120px]">Release Date</TableHead>
+                              <TableHead className="w-[180px]">Status</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {approvedDrawingRecords.length > 0 ? (
-                              approvedDrawingRecords.map((record) => (
-                                <TableRow key={record.id}>
-                                  <TableCell className="font-medium">{record.id}</TableCell>
-                                  <TableCell>{record.drawingTitle}</TableCell>
-                                  <TableCell>{record.drawingNumber}</TableCell>
-                                  <TableCell>{record.revision}</TableCell>
-                                  <TableCell>{record.approvedBy}</TableCell>
-                                  <TableCell>{record.approvalDate}</TableCell>
-                                  <TableCell>
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                      record.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                                      record.status === 'Under Review' ? 'bg-yellow-100 text-yellow-800' :
-                                      record.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                                      'bg-gray-100 text-gray-800'
-                                    }`}>
-                                      {record.status}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center space-x-1">
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
-                                        title="View"
-                                        onClick={() => {
-                                          setDocumentViewerConfig({
-                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                                            tabName: "Approved Drawing",
-                                            recordId: record.id
-                                          });
-                                          setShowDocumentViewer(true);
-                                        }}
-                                      >
-                                        <Eye className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
-                                        title="Edit"
-                                        onClick={() => {
-                                          setEditingApprovedDrawingRecord(record);
-                                          setIsApprovedDrawingDialogOpen(true);
-                                        }}
-                                      >
-                                        <Edit2 className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
-                                        title="File Download"
-                                        onClick={async () => {
-                                          try {
-                                            // Fetch documents for this record
-                                            const response = await fetch(
-                                              `/api/quality/inspection-documents/${editInspectionOrderDetails?.inspectionOrderNumber}/Approved Drawing/${record.id}/documents`
-                                            );
-                                            
-                                            if (response.ok) {
-                                              const documents = await response.json();
-                                              if (documents.length > 0) {
-                                                // Download the first document
-                                                const downloadResponse = await fetch(`/api/quality/inspection-documents/download/${documents[0].id}`);
-                                                if (downloadResponse.ok) {
-                                                  const blob = await downloadResponse.blob();
-                                                  const url = window.URL.createObjectURL(blob);
-                                                  const a = document.createElement('a');
-                                                  a.href = url;
-                                                  a.download = documents[0].originalFileName;
-                                                  document.body.appendChild(a);
-                                                  a.click();
-                                                  document.body.removeChild(a);
-                                                  window.URL.revokeObjectURL(url);
-                                                } else {
-                                                  toast({
-                                                    title: "Download Failed",
-                                                    description: "Failed to download the document",
-                                                    variant: "destructive"
-                                                  });
-                                                }
-                                              } else {
-                                                toast({
-                                                  title: "No Documents",
-                                                  description: "No documents found for this record",
-                                                  variant: "destructive"
-                                                });
-                                              }
-                                            } else {
-                                              toast({
-                                                title: "Error",
-                                                description: "Failed to fetch documents",
-                                                variant: "destructive"
-                                              });
-                                            }
-                                          } catch (error) {
-                                            console.error('Download error:', error);
-                                            toast({
-                                              title: "Download Error",
-                                              description: "An error occurred while downloading the document",
-                                              variant: "destructive"
-                                            });
-                                          }
-                                        }}
-                                      >
-                                        <Download className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))
+                            {isLoadingEpcDrawing ? (
+                              <TableRow>
+                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                  Loading drawing control data…
+                                </TableCell>
+                              </TableRow>
+                            ) : epcDrawingRecord ? (
+                              <TableRow>
+                                <TableCell className="font-medium text-xs">{epcDrawingRecord.id}</TableCell>
+                                <TableCell>{epcDrawingRecord.drawingTitle}</TableCell>
+                                <TableCell>{epcDrawingRecord.drawingNumber}</TableCell>
+                                <TableCell>{epcDrawingRecord.revision}</TableCell>
+                                <TableCell>{epcDrawingRecord.approvedBy}</TableCell>
+                                <TableCell>{epcDrawingRecord.approvalDate}</TableCell>
+                                <TableCell>
+                                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    {epcDrawingRecord.status}
+                                  </span>
+                                </TableCell>
+                              </TableRow>
                             ) : (
                               <TableRow>
-                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                                  No approved drawing records available. Click "Add Approved Drawing Record" to create a new record.
+                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                  No released drawing control found for this item. The EPC team must release the drawing for manufacturing first.
                                 </TableCell>
                               </TableRow>
                             )}
                           </TableBody>
                         </Table>
                       </div>
-                      
+
                       {/* Uploaded Files Display Section */}
                       {editInspectionOrderDetails?.inspectionOrderNumber && (
                         <div className="mt-6 border-t pt-4">

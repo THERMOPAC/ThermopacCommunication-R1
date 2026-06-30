@@ -9,7 +9,7 @@ import finalDossierRoutes from './quality/final-dossier-routes';
 import calibrationRoutes from './quality/calibration-routes';
 import { previewInspectionOrders, generateInspectionOrders } from './quality/fixed-inspection-order-generator';
 import { db } from './db';
-import { inspectionOrders, inspectionOrderItems, materialInspectionLinks } from '@shared/schema';
+import { inspectionOrders, inspectionOrderItems, materialInspectionLinks, epcDrawingControls, users } from '@shared/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { registerWelderRoutes } from './quality/welder-routes';
 import { registerWelderCertificateRoutes } from './quality/welder-certificate-routes';
@@ -301,6 +301,64 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       error: 'Failed to fetch inspection order details',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
+  }
+});
+
+// GET released EPC drawing control for an inspection order (auto-populated Drawing tab)
+router.get('/inspection-orders/:id/epc-drawing', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    if (isNaN(orderId)) return res.status(400).json({ error: 'Invalid inspection order ID' });
+
+    const [io] = await db.select({ id: inspectionOrders.id, itemId: inspectionOrders.itemId })
+      .from(inspectionOrders)
+      .where(eq(inspectionOrders.id, orderId))
+      .limit(1);
+
+    if (!io) return res.status(404).json({ error: 'Inspection order not found' });
+    if (!io.itemId) return res.json(null);
+
+    const [drawing] = await db.select({
+      dwgControlNumber: epcDrawingControls.dwgControlNumber,
+      drawingTitle: epcDrawingControls.drawingTitle,
+      drawingNumber: epcDrawingControls.drawingNumber,
+      revisionCode: epcDrawingControls.revisionCode,
+      releasedForManufacturingAt: epcDrawingControls.releasedForManufacturingAt,
+      releasedForManufacturingBy: epcDrawingControls.releasedForManufacturingBy,
+      status: epcDrawingControls.status,
+    })
+      .from(epcDrawingControls)
+      .where(and(
+        eq(epcDrawingControls.projectItemId, io.itemId),
+        eq(epcDrawingControls.releasedForManufacturing, true)
+      ))
+      .limit(1);
+
+    if (!drawing) return res.json(null);
+
+    let releasedByName = 'N/A';
+    if (drawing.releasedForManufacturingBy) {
+      const [releaser] = await db.select({ fullName: users.fullName })
+        .from(users)
+        .where(eq(users.id, drawing.releasedForManufacturingBy))
+        .limit(1);
+      if (releaser?.fullName) releasedByName = releaser.fullName;
+    }
+
+    return res.json({
+      id: drawing.dwgControlNumber,
+      drawingTitle: drawing.drawingTitle ?? '',
+      drawingNumber: drawing.drawingNumber ?? '',
+      revision: drawing.revisionCode,
+      approvedBy: releasedByName,
+      approvalDate: drawing.releasedForManufacturingAt
+        ? new Date(drawing.releasedForManufacturingAt).toISOString().split('T')[0]
+        : '',
+      status: 'Released for Manufacturing',
+    });
+  } catch (err) {
+    console.error('[epc-drawing] Error:', err);
+    res.status(500).json({ error: 'Failed to fetch EPC drawing control' });
   }
 });
 
