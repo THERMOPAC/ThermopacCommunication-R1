@@ -6191,44 +6191,6 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/quality-plans/:id/start-preparation', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
-    try {
-      if (!requireMinRole(req, res, 'Manager')) return;
-      const id = parseInt(req.params.id);
-      if (!(await guardRecordProjectNotFrozen('quality_planning_records', id, res))) return;
-      if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
-      const userId = (req.user as any)?.id;
-
-      const existing = await db.execute(sql`SELECT * FROM quality_planning_records WHERE id = ${id}`);
-      if (existing.rows.length === 0) return sendNotFound(res, 'Quality planning record not found');
-      const record = existing.rows[0] as any;
-
-      if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
-
-      if (record.status !== 'draft') {
-        return sendBusinessError(res, `Cannot start preparation: record is in '${record.status}' status. Only 'draft' records can start preparation.`);
-      }
-
-      await db.transaction(async (tx) => {
-        await tx.update(qualityPlanningRecords)
-          .set({ status: 'under_preparation', preparedBy: userId, preparedAt: new Date(), updatedAt: new Date() })
-          .where(eq(qualityPlanningRecords.id, id));
-
-        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${record.project_id}, 'quality_planning.preparation_started', ${JSON.stringify({
-            qualityPlanId: id, sourceContext: record.source_context,
-            qualityRequirementType: record.quality_requirement_type,
-            projectItemId: record.project_item_id, startedBy: userId,
-          })}::jsonb, 'lifecycle_action', NOW())`);
-      });
-
-      console.log(`[QualityPlan] Record ${id} preparation started by user ${userId}`);
-      res.json({ success: true, message: 'Quality preparation started', id, newStatus: 'under_preparation' });
-    } catch (error) {
-      sendError(res, error);
-    }
-  });
-
   app.post('/api/quality-plans/:id/mark-ready', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
@@ -6244,8 +6206,8 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
 
-      if (record.status !== 'under_preparation') {
-        return sendBusinessError(res, `Cannot mark ready: record is in '${record.status}' status. Only 'under_preparation' records can be marked ready.`);
+      if (!['in_progress', 'under_preparation'].includes(record.status)) {
+        return sendBusinessError(res, `Cannot mark ready: record is in '${record.status}' status. Must be in 'in_progress' status.`);
       }
 
       let inspExecId: number | null = null;
@@ -6552,45 +6514,6 @@ export function setupProjectRoutes(app: express.Express) {
 
       console.log(`[InspectionExec] Record ${id} scheduled for ${scheduledDate} by user ${userId}`);
       res.json({ success: true, message: 'Inspection execution record scheduled', id, newStatus: 'scheduled' });
-    } catch (error) {
-      sendError(res, error);
-    }
-  });
-
-  app.post('/api/inspection-executions/:id/start', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
-    try {
-      if (!requireMinRole(req, res, 'Manager')) return;
-      const id = parseInt(req.params.id);
-      if (!(await guardRecordProjectNotFrozen('inspection_execution_records', id, res))) return;
-      if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
-      const userId = (req.user as any)?.id;
-
-      const existing = await db.execute(sql`SELECT * FROM inspection_execution_records WHERE id = ${id}`);
-      if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
-      const record = existing.rows[0] as any;
-
-      if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
-
-      if (record.status !== 'scheduled') {
-        return sendBusinessError(res, `Cannot start: record status is '${record.status}', expected 'scheduled'.`);
-      }
-
-      await db.transaction(async (tx) => {
-        await tx.execute(
-          sql`UPDATE inspection_execution_records 
-              SET status = 'in_progress', started_at = NOW(), updated_at = NOW()
-              WHERE id = ${id}`
-        );
-
-        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${record.project_id}, 'inspection_execution.started', ${JSON.stringify({
-            inspectionExecId: id, qualityPlanId: record.quality_plan_id,
-            projectItemId: record.project_item_id, startedBy: userId,
-          })}::jsonb, 'lifecycle_action', NOW())`);
-      });
-
-      console.log(`[InspectionExec] Record ${id} started by user ${userId}`);
-      res.json({ success: true, message: 'Inspection execution started', id, newStatus: 'in_progress' });
     } catch (error) {
       sendError(res, error);
     }
@@ -11832,6 +11755,29 @@ export function setupProjectRoutes(app: express.Express) {
               assignedTo: mfgAssigneeResult.userId, createdBy: userId, priority: 'High', dueDays: 3, tx,
             });
           }
+        }
+
+        if (mfgReleased && rec.project_item_id) {
+          await tx.execute(sql`
+            UPDATE quality_planning_records
+            SET status = 'in_progress', updated_at = NOW()
+            WHERE project_item_id = ${rec.project_item_id}
+              AND status = 'draft'
+              AND source_context = 'work_order'
+          `);
+          await tx.execute(sql`
+            UPDATE inspection_execution_records
+            SET status = 'in_progress', started_at = NOW(), updated_at = NOW()
+            WHERE project_item_id = ${rec.project_item_id}
+              AND status = 'scheduled'
+              AND source_context = 'work_order'
+          `);
+          await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+            VALUES (${rec.project_id}, 'drawing_control.quality_handover_triggered', ${JSON.stringify({
+              dwgId: id, dwgControlNumber: rec.dwg_control_number,
+              projectItemId: rec.project_item_id, triggeredBy: userId,
+            })}::jsonb, 'drawing_control', NOW())`);
+          console.log(`[DWG-CTRL] Quality handover triggered for project_item_id ${rec.project_item_id} on drawing ${rec.dwg_control_number}`);
         }
       });
 

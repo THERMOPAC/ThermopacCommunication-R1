@@ -24,7 +24,7 @@ import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project
 import {
   Loader2, Search, Filter, ClipboardCheck, ShieldCheck, CheckCircle2,
   XCircle, ChevronDown, ChevronRight, RefreshCw, AlertTriangle,
-  Play, CircleCheck, Undo2, Calendar, Eye, Wrench, Lock, MoreVertical,
+  CircleCheck, Undo2, Calendar, Eye, Wrench, Lock, MoreVertical,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -36,13 +36,15 @@ const roleHierarchy: Record<string, number> = {
 
 const QP_STATUS_COLORS: Record<string, string> = {
   draft: "bg-slate-100 text-slate-700",
+  in_progress: "bg-amber-100 text-amber-800",
   under_preparation: "bg-amber-100 text-amber-800",
   ready_for_inspection_setup: "bg-emerald-100 text-emerald-800",
   cancelled: "bg-red-100 text-red-700",
   superseded: "bg-orange-100 text-orange-800",
 };
 const QP_STATUS_LABELS: Record<string, string> = {
-  draft: "Draft", under_preparation: "Under Preparation", ready_for_inspection_setup: "Ready for Inspection",
+  draft: "Draft", in_progress: "In Progress", under_preparation: "In Progress",
+  ready_for_inspection_setup: "Ready for Inspection",
   cancelled: "Cancelled", superseded: "Superseded",
 };
 
@@ -74,15 +76,13 @@ type ActionDef = {
 };
 
 const QP_ACTIONS: ActionDef[] = [
-  { key: "start-preparation", label: "Start Preparation", icon: Play, variant: "default", minRoleLevel: 3, statusRequired: ["draft"] },
-  { key: "mark-ready", label: "Mark Ready for Inspection", icon: CircleCheck, variant: "default", minRoleLevel: 3, statusRequired: ["under_preparation"], needsNote: true, noteLabel: "Preparation Note", noteKey: "preparationNote" },
+  { key: "mark-ready", label: "Mark Ready for Inspection", icon: CircleCheck, variant: "default", minRoleLevel: 3, statusRequired: ["in_progress", "under_preparation"], needsNote: true, noteLabel: "Preparation Note", noteKey: "preparationNote" },
   { key: "revert-to-preparation", label: "Revert to Preparation", icon: Undo2, variant: "outline", minRoleLevel: 3, statusRequired: ["ready_for_inspection_setup"] },
-  { key: "cancel", label: "Cancel Quality Plan", icon: XCircle, variant: "destructive", minRoleLevel: 3, statusRequired: ["draft", "under_preparation", "ready_for_inspection_setup"], needsNote: true, noteLabel: "Cancellation Reason", noteKey: "cancelReason", noteRequired: true, kebabOnly: true },
+  { key: "cancel", label: "Cancel Quality Plan", icon: XCircle, variant: "destructive", minRoleLevel: 3, statusRequired: ["draft", "in_progress", "under_preparation", "ready_for_inspection_setup"], needsNote: true, noteLabel: "Cancellation Reason", noteKey: "cancelReason", noteRequired: true, kebabOnly: true },
 ];
 
 const IE_ACTIONS: ActionDef[] = [
   { key: "schedule", label: "Schedule", icon: Calendar, variant: "default", minRoleLevel: 3, statusRequired: ["draft"], needsDate: true },
-  { key: "start", label: "Start Inspection", icon: Play, variant: "default", minRoleLevel: 3, statusRequired: ["scheduled"] },
   { key: "complete", label: "Record Result", icon: CircleCheck, variant: "default", minRoleLevel: 3, statusRequired: ["in_progress"], needsResult: true, needsNote: true, noteLabel: "Findings", noteKey: "findings" },
   { key: "fail", label: "Mark Failed", icon: XCircle, variant: "destructive", minRoleLevel: 3, statusRequired: ["in_progress"], needsNote: true, noteLabel: "Failure Reason", noteKey: "failureReason", noteRequired: true },
   { key: "mark-rework-required", label: "Require Rework", icon: Wrench, variant: "outline", minRoleLevel: 3, statusRequired: ["failed"], needsNote: true, noteLabel: "Rework Notes", noteKey: "reworkNotes" },
@@ -169,7 +169,7 @@ export default function EpcQualityInspectionPage() {
   const qpStats = useMemo(() => ({
     total: qpRecords.length,
     draft: qpRecords.filter((r: any) => r.status === "draft").length,
-    underPrep: qpRecords.filter((r: any) => r.status === "under_preparation").length,
+    inProgress: qpRecords.filter((r: any) => r.status === "in_progress" || r.status === "under_preparation").length,
     ready: qpRecords.filter((r: any) => r.status === "ready_for_inspection_setup").length,
     cancelled: qpRecords.filter((r: any) => r.status === "canceled").length,
   }), [qpRecords]);
@@ -640,7 +640,7 @@ export default function EpcQualityInspectionPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
               <Card className="p-2"><CardContent className="p-0 text-center"><p className="text-xl font-bold">{qpStats.total}</p><p className="text-[9px] text-muted-foreground">Total Plans</p></CardContent></Card>
               <Card className="p-2"><CardContent className="p-0 text-center"><p className="text-xl font-bold text-slate-600">{qpStats.draft}</p><p className="text-[9px] text-muted-foreground">Draft</p></CardContent></Card>
-              <Card className="p-2"><CardContent className="p-0 text-center"><p className="text-xl font-bold text-amber-600">{qpStats.underPrep}</p><p className="text-[9px] text-muted-foreground">Under Prep</p></CardContent></Card>
+              <Card className="p-2"><CardContent className="p-0 text-center"><p className="text-xl font-bold text-amber-600">{qpStats.inProgress}</p><p className="text-[9px] text-muted-foreground">In Progress</p></CardContent></Card>
               <Card className="p-2"><CardContent className="p-0 text-center"><p className="text-xl font-bold text-emerald-600">{qpStats.ready}</p><p className="text-[9px] text-muted-foreground">Ready</p></CardContent></Card>
             </div>
           )}
