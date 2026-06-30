@@ -259,6 +259,7 @@ export default function InspectionsPage() {
   
   // Search functionality state
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [globalSearch, setGlobalSearch] = useState<string>("");
   
   // Shop inspection state
   const [isShopInspectionDialogOpen, setIsShopInspectionDialogOpen] = useState(false);
@@ -6203,6 +6204,24 @@ export default function InspectionsPage() {
           </DialogContent>
         </Dialog>
 
+        {/* Global Page Search */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 max-w-lg">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by inspection order #, report #, item code, drawing number, drawing title, description, or status…"
+              className="pl-9"
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+            />
+          </div>
+          {globalSearch && (
+            <Button variant="ghost" size="sm" onClick={() => setGlobalSearch("")}>
+              <X className="h-4 w-4 mr-1" /> Clear
+            </Button>
+          )}
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle>Inspection Reports</CardTitle>
@@ -6329,6 +6348,21 @@ export default function InspectionsPage() {
                           (inspection.reportType && inspection.reportType.toLowerCase().includes(query))
                         );
                       })
+                      .filter((inspection: any) => {
+                        if (!globalSearch) return true;
+                        const gs = globalSearch.toLowerCase();
+                        return (
+                          (inspection.reportNumber && inspection.reportNumber.toLowerCase().includes(gs)) ||
+                          (inspection.title && inspection.title.toLowerCase().includes(gs)) ||
+                          (inspection.status && inspection.status.toLowerCase().includes(gs)) ||
+                          (inspection.drawingNo && inspection.drawingNo.toLowerCase().includes(gs)) ||
+                          (inspection.drawing_no && inspection.drawing_no.toLowerCase().includes(gs)) ||
+                          (inspection.itemCode && inspection.itemCode.toLowerCase().includes(gs)) ||
+                          (inspection.item_code && inspection.item_code.toLowerCase().includes(gs)) ||
+                          (inspection.drawingTitle && inspection.drawingTitle.toLowerCase().includes(gs)) ||
+                          (inspection.drawing_title && inspection.drawing_title.toLowerCase().includes(gs))
+                        );
+                      })
                       .map((inspection: any) => (
                         <TableRow key={inspection.id}>
                           <TableCell className="font-medium">
@@ -6427,6 +6461,22 @@ export default function InspectionsPage() {
                                 (order.drawingNo && order.drawingNo.toLowerCase().includes(query)) ||
                                 (order.status && order.status.toLowerCase().includes(query))
                               );
+                            }).filter((order: any) => {
+                              if (!globalSearch) return true;
+                              const gs = globalSearch.toLowerCase();
+                              return (
+                                (order.inspection_order_number && order.inspection_order_number.toLowerCase().includes(gs)) ||
+                                (order.inspectionOrderNumber && order.inspectionOrderNumber.toLowerCase().includes(gs)) ||
+                                (order.description && order.description.toLowerCase().includes(gs)) ||
+                                (order.title && order.title.toLowerCase().includes(gs)) ||
+                                (order.drawing_no && order.drawing_no.toLowerCase().includes(gs)) ||
+                                (order.drawingNo && order.drawingNo.toLowerCase().includes(gs)) ||
+                                (order.drawing_title && order.drawing_title.toLowerCase().includes(gs)) ||
+                                (order.drawingTitle && order.drawingTitle.toLowerCase().includes(gs)) ||
+                                (order.item_code && order.item_code.toLowerCase().includes(gs)) ||
+                                (order.itemCode && order.itemCode.toLowerCase().includes(gs)) ||
+                                (order.status && order.status.toLowerCase().includes(gs))
+                              );
                             }).length} of ${inspectionOrders.length} inspection orders`}
                           </TableCaption>
                           <TableHeader>
@@ -6452,6 +6502,23 @@ export default function InspectionsPage() {
                                   (order.drawing_no && order.drawing_no.toLowerCase().includes(query)) ||
                                   (order.drawingNo && order.drawingNo.toLowerCase().includes(query)) ||
                                   (order.status && order.status.toLowerCase().includes(query))
+                                );
+                              })
+                              .filter((order: any) => {
+                                if (!globalSearch) return true;
+                                const gs = globalSearch.toLowerCase();
+                                return (
+                                  (order.inspection_order_number && order.inspection_order_number.toLowerCase().includes(gs)) ||
+                                  (order.inspectionOrderNumber && order.inspectionOrderNumber.toLowerCase().includes(gs)) ||
+                                  (order.description && order.description.toLowerCase().includes(gs)) ||
+                                  (order.title && order.title.toLowerCase().includes(gs)) ||
+                                  (order.drawing_no && order.drawing_no.toLowerCase().includes(gs)) ||
+                                  (order.drawingNo && order.drawingNo.toLowerCase().includes(gs)) ||
+                                  (order.drawing_title && order.drawing_title.toLowerCase().includes(gs)) ||
+                                  (order.drawingTitle && order.drawingTitle.toLowerCase().includes(gs)) ||
+                                  (order.item_code && order.item_code.toLowerCase().includes(gs)) ||
+                                  (order.itemCode && order.itemCode.toLowerCase().includes(gs)) ||
+                                  (order.status && order.status.toLowerCase().includes(gs))
                                 );
                               })
                               .map((order: any) => (
