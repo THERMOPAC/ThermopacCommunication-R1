@@ -1090,8 +1090,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
 
           const hdr = await convClient.query(
             `INSERT INTO project_buy_list_headers
-               (project_id, project_item_id, source_package_id, list_number, created_by)
-             VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+               (project_id, project_item_id, source_package_id, list_number, created_by, item_code)
+             VALUES ($1,$2,$3,$4,$5, (SELECT item_code FROM project_items WHERE id = $2)) RETURNING id`,
             [projectId, projectItemId, sourcePackageId, listNumber, userId],
           );
           insertId = hdr.rows[0].id;
@@ -1143,8 +1143,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       } else {
         const hdr = await pool.query(
           `INSERT INTO project_buy_list_headers
-             (project_id, project_item_id, list_number, created_by)
-           VALUES ($1,$2,$3,$4) RETURNING id`,
+             (project_id, project_item_id, list_number, created_by, item_code)
+           VALUES ($1,$2,$3,$4, (SELECT item_code FROM project_items WHERE id = $2)) RETURNING id`,
           [projectId, projectItemId, listNumber, userId],
         );
         insertId = hdr.rows[0].id;
@@ -1393,8 +1393,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const newHdr = await pool.query(
         `INSERT INTO project_buy_list_headers
            (project_id, project_item_id, source_package_id, list_number, revision_code,
-            is_current, status, supersedes_id, created_by)
-         VALUES ($1,$2,$3,$4,$5,true,'draft',$6,$7) RETURNING id`,
+            is_current, status, supersedes_id, created_by, item_code)
+         VALUES ($1,$2,$3,$4,$5,true,'draft',$6,$7, (SELECT item_code FROM project_items WHERE id = $2)) RETURNING id`,
         [old.project_id, old.project_item_id, old.source_package_id, listNumber,
          nextRevCode, id, userId],
       );
@@ -1810,8 +1810,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       // Create buy list header
       const hdr = await pool.query(
         `INSERT INTO project_buy_list_headers
-           (project_id, project_item_id, source_package_id, list_number)
-         VALUES ($1,$2,$3,$4) RETURNING id`,
+           (project_id, project_item_id, source_package_id, list_number, item_code)
+         VALUES ($1,$2,$3,$4, (SELECT item_code FROM project_items WHERE id = $2)) RETURNING id`,
         [projectId, projectItemId, pkgRow.id, listNumber],
       );
       const newId = hdr.rows[0].id;
@@ -3250,8 +3250,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
 
           const hdrRes = await client.query(
             `INSERT INTO project_buy_list_headers
-               (project_id, project_item_id, source_package_id, list_number, created_by)
-             VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+               (project_id, project_item_id, source_package_id, list_number, created_by, item_code)
+             VALUES ($1,$2,$3,$4,$5, (SELECT item_code FROM project_items WHERE id = $2)) RETURNING id`,
             [projectId, item.project_item_id, item.pkg_id, listNumber, userId],
           );
           const headerId = hdrRes.rows[0].id;

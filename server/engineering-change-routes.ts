@@ -184,10 +184,17 @@ export function setupEngineeringChangeRoutes(app: Router) {
         created_at: new Date(),
         updated_at: new Date()
       });
+
+      // Resolve item_code from project_item_id if provided
+      let resolvedItemCode: string | null = null;
+      if (validatedData.project_item_id) {
+        const piRes = await db.execute(sql`SELECT item_code FROM project_items WHERE id = ${validatedData.project_item_id}`);
+        resolvedItemCode = (piRes.rows[0] as any)?.item_code || null;
+      }
       
       // Insert the ECR
       const [createdEcr] = await db.insert(engineeringChangeRequests)
-        .values(validatedData)
+        .values({ ...validatedData, item_code: resolvedItemCode })
         .returning();
       
       res.status(201).json(createdEcr);
@@ -222,10 +229,17 @@ export function setupEngineeringChangeRoutes(app: Router) {
         created_at: new Date(),
         updated_at: new Date()
       });
+
+      // Resolve item_code from project_item_id if provided
+      let resolvedItemCode: string | null = null;
+      if (validatedData.project_item_id) {
+        const piRes = await db.execute(sql`SELECT item_code FROM project_items WHERE id = ${validatedData.project_item_id}`);
+        resolvedItemCode = (piRes.rows[0] as any)?.item_code || null;
+      }
       
       // Insert the ECN
       const [createdEcn] = await db.insert(engineeringChangeNotices)
-        .values(validatedData)
+        .values({ ...validatedData, item_code: resolvedItemCode })
         .returning();
       
       res.status(201).json(createdEcn);

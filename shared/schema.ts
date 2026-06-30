@@ -1417,6 +1417,7 @@ export const engineeringChangeRequests = pgTable('engineering_change_requests', 
   project_id: integer('project_id').references(() => projects.id),
   project_item_id: integer('project_item_id').references(() => projectItems.id),
   drawing_control_id: integer('drawing_control_id').references(() => epcDrawingControls.id, { onDelete: 'set null' }),
+  item_code: text('item_code'),
   created_at: timestamp('created_at').defaultNow().notNull(),
   updated_at: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -1438,6 +1439,7 @@ export const engineeringChangeNotices = pgTable('engineering_change_notices', {
   project_item_id: integer('project_item_id').references(() => projectItems.id),
   drawing_control_id: integer('drawing_control_id').references(() => epcDrawingControls.id, { onDelete: 'set null' }),
   resulting_revision: text('resulting_revision'),
+  item_code: text('item_code'),
   created_at: timestamp('created_at').defaultNow().notNull(),
   updated_at: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -12392,6 +12394,7 @@ export const epcDocumentAttachments = pgTable('epc_document_attachments', {
   withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
   withdrawnBy: integer('withdrawn_by').references(() => users.id),
   withdrawReason: text('withdraw_reason'),
+  itemCode: varchar('item_code', { length: 100 }),
 });
 
 export const insertEpcDocumentAttachmentSchema = createInsertSchema(epcDocumentAttachments).omit({ id: true, uploadedAt: true });
@@ -13337,6 +13340,7 @@ export const projectBuyListHeaders = pgTable('project_buy_list_headers', {
   cancelledAt:          timestamp('cancelled_at'),
   cancelReason:         text('cancel_reason'),
   createdBy:            integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  itemCode:             varchar('item_code', { length: 100 }),
   createdAt:            timestamp('created_at').notNull().defaultNow(),
   updatedAt:            timestamp('updated_at').notNull().defaultNow(),
 });

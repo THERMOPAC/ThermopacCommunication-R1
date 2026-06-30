@@ -163,6 +163,7 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
         project_id: dwg.project_id,
         project_item_id: dwg.project_item_id,
         drawing_control_id: drawingControlId,
+        item_code: dwg.item_code || null,
         notes: req.body.notes?.trim() || null,
       }).returning();
 
@@ -394,6 +395,7 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
         project_id: dwg.project_id,
         project_item_id: dwg.project_item_id,
         drawing_control_id: drawingControlId,
+        item_code: dwg.item_code || null,
         notes: req.body.notes?.trim() || null,
       }).returning();
 

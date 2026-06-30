@@ -309,6 +309,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
           status: 'active',
           isCurrent: true,
           uploadedBy: userId,
+          itemCode: parent.item_code || null,
         }).returning();
 
         await tx.execute(sql`

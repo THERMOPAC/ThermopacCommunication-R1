@@ -381,6 +381,7 @@ export function setupProjectItemDetailRoutes(app: Router) {
           requested_by: user.id,
           project_id: pi.projectId,
           project_item_id: projectItemId,
+          item_code: pi.itemCode || null,
           notes: req.body.notes || null,
         }).returning();
 
@@ -422,6 +423,7 @@ export function setupProjectItemDetailRoutes(app: Router) {
           project_item_id: projectItemId,
           ecr_id: req.body.ecrId || null,
           resulting_revision: req.body.resultingRevision || null,
+          item_code: pi.itemCode || null,
           notes: req.body.notes || null,
         }).returning();
 
