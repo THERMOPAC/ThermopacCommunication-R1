@@ -6415,12 +6415,18 @@ export function setupProjectRoutes(app: express.Express) {
 
       const result = await db.execute(
         sql`SELECT ie.*, u1.username as assigned_to_name, u2.username as created_by_name,
-                   u3.username as scheduled_by_name, u4.username as completed_by_name
+                   u3.username as scheduled_by_name, u4.username as completed_by_name,
+                   edc.drawing_number as epc_drawing_number,
+                   edc.revision_code as epc_revision_code,
+                   edc.drawing_title as epc_drawing_title,
+                   edc.status as epc_drawing_status
             FROM inspection_execution_records ie
             LEFT JOIN users u1 ON ie.assigned_to = u1.id
             LEFT JOIN users u2 ON ie.created_by = u2.id
             LEFT JOIN users u3 ON ie.scheduled_by = u3.id
             LEFT JOIN users u4 ON ie.completed_by = u4.id
+            LEFT JOIN epc_drawing_controls edc ON edc.project_item_id = ie.project_item_id
+              AND edc.is_current = true
             WHERE ie.id = ${id}`
       );
       if (result.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');

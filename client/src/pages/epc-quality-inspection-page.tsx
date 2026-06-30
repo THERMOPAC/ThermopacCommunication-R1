@@ -346,7 +346,10 @@ export default function EpcQualityInspectionPage() {
               <DetailRow label="Specification" value={d.item_specification} />
               <DetailRow label="UOM" value={d.uom} />
               <DetailRow label="Quantity" value={d.quantity} />
-              <DetailRow label="Drawing No" value={d.drawing_no} mono />
+              <DetailRow label="Drawing No" value={d.drawing_no || d.epc_drawing_number} mono />
+              {d.epc_drawing_number && (
+                <DetailRow label="Drawing Rev" value={d.epc_revision_code} mono />
+              )}
               {d.result && (
                 <>
                   <Separator className="my-1" />
