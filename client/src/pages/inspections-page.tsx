@@ -207,32 +207,11 @@ const inspectionOrderEditSchema = z.object({
 
 type InspectionOrderEditFormValues = z.infer<typeof inspectionOrderEditSchema>;
 
-// Placeholder schema for Inspection Reports
-const inspectionReportSchema = z.object({
-  projectId: z.number().positive({ message: "Please select a project" }),
-  projectCode: z.string().min(1, { message: "Project code is required" }),
-  workOrderId: z.number().optional(),
-  reportNumber: z.string().min(1, { message: "Report number is required" }),
-  reportType: z.string().min(1, { message: "Report type is required" }),
-  title: z.string().min(1, { message: "Title is required" }),
-  inspectionDate: z.date({ required_error: "Inspection date is required" }),
-  location: z.string().min(1, { message: "Location is required" }),
-  inspectorId: z.number(),
-  findings: z.string().optional(),
-  recommendations: z.string().optional(),
-  status: z.string().default("pending"),
-  quantityInspected: z.number().min(1, { message: "Quantity inspected is required" }),
-  quantityAccepted: z.number().min(0).default(0),
-  quantityRejected: z.number().min(0).default(0),
-});
-
-type InspectionReportFormValues = z.infer<typeof inspectionReportSchema>;
 
 export default function InspectionsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
   const [showAllInspProjects, setShowAllInspProjects] = useState(false);
   const [keepProjectVisible, setKeepProjectVisible] = useState(false);
@@ -2517,16 +2496,6 @@ export default function InspectionsPage() {
     }
   }, [editInspectionOrderDetails?.inspectionOrderNumber, fetchDocumentationCounts]);
 
-  // Form for creating new inspection report
-  const form = useForm<InspectionReportFormValues>({
-    resolver: zodResolver(inspectionReportSchema),
-    defaultValues: {
-      status: "pending",
-      inspectorId: user?.id,
-      quantityAccepted: 0,
-      quantityRejected: 0,
-    },
-  });
 
   // Get preview data before generating inspection orders
   const handleGenerateInspectionOrdersClick = async () => {
@@ -5921,29 +5890,6 @@ export default function InspectionsPage() {
     }
   };
 
-  const onSubmit = async (data: InspectionReportFormValues) => {
-    try {
-      // This would call the API
-      console.log("Would submit inspection report:", data);
-      
-      toast({
-        title: "Inspection Report Created",
-        description: "Inspection report has been created successfully.",
-      });
-      
-      setIsCreateDialogOpen(false);
-      if (selectedProject) {
-        refetchInspections();
-      }
-    } catch (error) {
-      console.error("Error creating inspection report:", error);
-      toast({
-        title: "Error Creating Inspection Report",
-        description: "There was an error creating the inspection report. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
 
   // Helper function to render status badge
   // Filter reports by status
@@ -6061,12 +6007,6 @@ export default function InspectionsPage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold tracking-tight pl-4">Quality Inspections</h1>
-          <Button 
-            onClick={() => setIsCreateDialogOpen(true)} 
-            className="bg-gradient-to-r from-green-600 to-teal-600"
-          >
-            <Plus className="mr-2 h-4 w-4" /> Create Inspection Report
-          </Button>
         </div>
         
         {/* Inspection Orders Preview Dialog */}
@@ -9836,86 +9776,6 @@ export default function InspectionsPage() {
         </DialogContent>
       </Dialog>
       
-      {/* Create Inspection Report Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Create New Inspection Report</DialogTitle>
-            <DialogDescription>
-              Create a new quality inspection report for tracking and analysis.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <Tabs defaultValue="basic" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="basic">Basic Information</TabsTrigger>
-                  <TabsTrigger value="details">Inspection Details</TabsTrigger>
-                  <TabsTrigger value="findings">Findings & Results</TabsTrigger>
-                </TabsList>
-                
-                {/* Basic Information Tab */}
-                <TabsContent value="basic" className="space-y-6 pt-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="projectId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Project</FormLabel>
-                          <Select 
-                            onValueChange={(value) => field.onChange(parseInt(value))}
-                            defaultValue={selectedProject?.toString()}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a project" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {Array.isArray(projects) && (showAllInspProjects ? projects : projects.filter((p: any) => p.status === 'active')).map((project: any) => (
-                                <SelectItem key={project.id} value={project.id.toString()}>
-                                  {getProjectDisplayName(project)}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </TabsContent>
-                
-                {/* Other tabs would go here */}
-                <TabsContent value="details" className="pt-6">
-                  <div className="p-6 text-center text-muted-foreground border rounded-md">
-                    This section is under development.
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="findings" className="pt-6">
-                  <div className="p-6 text-center text-muted-foreground border rounded-md">
-                    This section is under development.
-                  </div>
-                </TabsContent>
-              </Tabs>
-              
-              <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setIsCreateDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit">Create Inspection Report</Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
       
       {/* Document Viewer Modal */}
       <Dialog open={showDocumentViewer} onOpenChange={setShowDocumentViewer}>
