@@ -93,7 +93,9 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
   // GroupName also cause a 400 when listed in $select on this SAP version.
   // Strategy: paginate all cSupplier BPs with only $filter, collect in memory,
   // then filter excluded groups (105/106) locally.
-  const PAGE_SIZE = 500;
+  // PAGE_SIZE=20 matches the confirmed working Test SAP full scan.
+  // SAP without $select hard-caps results at 20 per request regardless of $top.
+  const PAGE_SIZE = 20;
   const allSuppliers: SapVendorRecord[] = [];
   let skip = 0;
 
