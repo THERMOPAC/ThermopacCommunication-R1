@@ -5958,9 +5958,10 @@ export default function InspectionsPage() {
                   
                   {/* List View Tab - Hierarchical Card View */}
                   <TabsContent value="list" className="mt-4">
-                    <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center gap-3 mb-4 p-3 bg-muted/40 rounded-lg border">
+                      <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Filter by Status:</span>
                       <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-[180px] bg-background border shadow-sm">
                           <SelectValue placeholder="All Statuses" />
                         </SelectTrigger>
                         <SelectContent>
@@ -5973,10 +5974,10 @@ export default function InspectionsPage() {
                       </Select>
                       {statusFilter !== 'all' && (
                         <button
-                          className="text-xs text-muted-foreground underline"
+                          className="text-xs text-primary underline"
                           onClick={() => setStatusFilter('all')}
                         >
-                          Clear
+                          Clear filter
                         </button>
                       )}
                     </div>
