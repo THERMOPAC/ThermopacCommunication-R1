@@ -340,18 +340,6 @@ export default function InspectionsPage() {
     notes: string;
   } | null>(null);
 
-  // Approved Drawing dialog states
-  const [isApprovedDrawingDialogOpen, setIsApprovedDrawingDialogOpen] = useState(false);
-  const [editingApprovedDrawingRecord, setEditingApprovedDrawingRecord] = useState<{
-    id: string;
-    drawingTitle: string;
-    drawingNumber: string;
-    revision: string;
-    approvedBy: string;
-    approvalDate: string;
-    status: string;
-    remarks: string;
-  } | null>(null);
 
   // PMA dialog states
   const [isPmaDialogOpen, setIsPmaDialogOpen] = useState(false);
@@ -418,11 +406,6 @@ export default function InspectionsPage() {
   const [hasExistingNcrFiles, setHasExistingNcrFiles] = useState(false);
   const [isCheckingExistingNcrFiles, setIsCheckingExistingNcrFiles] = useState(false);
   
-  // Approved Drawing file upload states
-  const [approvedDrawingFiles, setApprovedDrawingFiles] = useState<File[]>([]);
-  const [isUploadingApprovedDrawingFiles, setIsUploadingApprovedDrawingFiles] = useState(false);
-  const [hasExistingApprovedDrawingFiles, setHasExistingApprovedDrawingFiles] = useState(false);
-  const [isCheckingExistingFiles, setIsCheckingExistingFiles] = useState(false);
   
   // DVR file upload states
   const [dvrFiles, setDvrFiles] = useState<File[]>([]);
@@ -430,16 +413,14 @@ export default function InspectionsPage() {
   const [hasExistingDvrFiles, setHasExistingDvrFiles] = useState(false);
   const [isCheckingExistingDvrFiles, setIsCheckingExistingDvrFiles] = useState(false);
   
-  const [approvedDrawingRecords, setApprovedDrawingRecords] = useState<{
-    id: string;
-    drawingTitle: string;
+  const [currentDrawing, setCurrentDrawing] = useState<{
     drawingNumber: string;
+    drawingTitle: string;
     revision: string;
     approvedBy: string;
     approvalDate: string;
     status: string;
-    remarks: string;
-  }[]>([]);
+  } | null>(null);
 
   // PMA Records state
   const [pmaRecords, setPmaRecords] = useState<{
@@ -2989,46 +2970,8 @@ export default function InspectionsPage() {
   // Load Approved Drawing records from the inspection order data
   useEffect(() => {
     if (editInspectionOrderDetails) {
-      // Check if the response has Approved Drawing data in the expected format
-      console.log("Checking for Approved Drawing data:", editInspectionOrderDetails);
-      
-      const approvedDrawingData = (editInspectionOrderDetails as any).approvedDrawingData || (editInspectionOrderDetails as any).approved_drawing_data;
-      
-      if (approvedDrawingData) {
-        try {
-          // If the data is already parsed as an object, use it directly
-          // Otherwise, try to parse it from JSON string
-          const parsedApprovedDrawingRecords = Array.isArray(approvedDrawingData) 
-            ? approvedDrawingData 
-            : typeof approvedDrawingData === 'string' 
-              ? JSON.parse(approvedDrawingData) 
-              : null;
-          
-          if (parsedApprovedDrawingRecords && Array.isArray(parsedApprovedDrawingRecords) && parsedApprovedDrawingRecords.length > 0) {
-            console.log("Found Approved Drawing records:", parsedApprovedDrawingRecords);
-            
-            // Map the Approved Drawing records to match our state format
-            const formattedRecords = parsedApprovedDrawingRecords.map((record, index) => ({
-              id: record.id || `AD-${index + 1}`,
-              drawingNumber: record.drawingNumber || '',
-              drawingTitle: record.drawingTitle || '',
-              revision: record.revision || 'A',
-              approvalDate: record.approvalDate || '',
-              approvedBy: record.approvedBy || '',
-              notes: record.notes || ''
-            }));
-            
-            setApprovedDrawingRecords(formattedRecords);
-            return;
-          }
-        } catch (error) {
-          console.error("Error parsing Approved Drawing records:", error);
-        }
-      }
-      
-      // If no valid Approved Drawing records were found, initialize with empty array
-      console.log("No Approved Drawing records found, initializing with empty array");
-      setApprovedDrawingRecords([]);
+      const drawing = (editInspectionOrderDetails as any).currentDrawing ?? null;
+      setCurrentDrawing(drawing);
     }
   }, [editInspectionOrderDetails]);
 
@@ -3524,97 +3467,6 @@ export default function InspectionsPage() {
     setIsShopInspectionDialogOpen(true);
   };
 
-  // Function to delete a drawing record with GCS cleanup
-  const deleteDrawingRecord = async (recordId: string) => {
-    try {
-      console.log(`Starting deletion of Drawing record: ${recordId}`);
-      console.log(`Inspection Order Number: ${editInspectionOrderDetails?.inspectionOrderNumber}`);
-      
-      // First, fetch all documents associated with this record for cleanup
-      const documentsUrl = `/api/quality/inspection-documents?inspectionOrderNumber=${editInspectionOrderDetails?.inspectionOrderNumber}&tabName=Approved Drawing&recordId=${recordId}`;
-      console.log(`Fetching documents from: ${documentsUrl}`);
-      
-      const response = await fetch(documentsUrl, {
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const documents = await response.json();
-        console.log(`Found ${documents.length} documents to delete:`, documents);
-        
-        let deletedCount = 0;
-        let failedCount = 0;
-        
-        // Delete all associated GCS files
-        for (const document of documents) {
-          try {
-            console.log(`Attempting to delete document ${document.id}: ${document.fileName}`);
-            
-            const deleteResponse = await fetch(`/api/quality/inspection-documents/${document.id}`, {
-              method: 'DELETE',
-              credentials: 'include'
-            });
-            
-            if (deleteResponse.ok) {
-              deletedCount++;
-              console.log(`✅ Document ${document.fileName} deleted successfully`);
-            } else {
-              failedCount++;
-              console.warn(`❌ Failed to delete document ${document.fileName}`);
-            }
-          } catch (docError) {
-            failedCount++;
-            console.warn(`❌ Exception deleting document ${document.fileName}:`, docError);
-          }
-        }
-        
-        console.log(`Document deletion summary: ${deletedCount} successful, ${failedCount} failed`);
-        
-        // Remove the record from frontend state
-        setApprovedDrawingRecords(prev => 
-          prev.filter(record => record.id !== recordId)
-        );
-        
-        if (failedCount === 0) {
-          toast({
-            title: "Success",
-            description: `Drawing record and ${deletedCount} associated documents deleted successfully`,
-          });
-        } else {
-          toast({
-            title: "Partial Success",
-            description: `Drawing record deleted. ${deletedCount} documents removed, ${failedCount} documents may remain in storage`,
-            variant: "destructive"
-          });
-        }
-      } else {
-        // Still remove the record even if we can't fetch documents
-        setApprovedDrawingRecords(prev => 
-          prev.filter(record => record.id !== recordId)
-        );
-        
-        toast({
-          title: "Partial Success",
-          description: "Drawing record deleted, but document cleanup could not be performed",
-          variant: "destructive"
-        });
-      }
-      
-    } catch (error) {
-      console.error('Error deleting drawing record:', error);
-      
-      // Still remove from frontend even if everything fails
-      setApprovedDrawingRecords(prev => 
-        prev.filter(record => record.id !== recordId)
-      );
-      
-      toast({
-        title: "Error",
-        description: "Error occurred during deletion. Record removed from frontend only.",
-        variant: "destructive"
-      });
-    }
-  };
 
 
 
@@ -4305,262 +4157,6 @@ export default function InspectionsPage() {
     }
   };
 
-  // Helper function to generate approved drawing record ID
-  const generateApprovedDrawingId = () => {
-    const existingIds = approvedDrawingRecords.map(record => record.id);
-    let newIdNumber = 1;
-    let newId = `AD-${newIdNumber}`;
-    
-    while (existingIds.includes(newId)) {
-      newIdNumber++;
-      newId = `AD-${newIdNumber}`;
-    }
-    
-    return newId;
-  };
-
-  // Function to add a new approved drawing record
-  const addApprovedDrawingRecord = async (recordData: {
-    drawingTitle: string;
-    drawingNumber: string;
-    revision: string;
-    approvedBy: string;
-    approvalDate: string;
-    status: string;
-    remarks: string;
-  }) => {
-    // Check if we have valid inspection order details with project code
-    if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
-      toast({
-        title: "Cannot Create Record",
-        description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate that files are selected (mandatory for new records)
-    if (approvedDrawingFiles.length === 0) {
-      toast({
-        title: "Files Required",
-        description: "Please select at least one file to upload for this Approved Drawing record.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const newRecordId = generateApprovedDrawingId();
-    const newRecord = {
-      id: newRecordId,
-      ...recordData
-    };
-
-    // Handle file uploads if any files are selected
-    if (approvedDrawingFiles.length > 0) {
-      setIsUploadingApprovedDrawingFiles(true);
-      
-      try {
-        // Upload files for this specific record
-        for (const file of approvedDrawingFiles) {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('inspectionOrderNumber', editInspectionOrderDetails.inspectionOrderNumber);
-          formData.append('tabName', 'Approved Drawing');
-          formData.append('recordId', newRecordId);
-          formData.append('projectCode', editInspectionOrderDetails.projectCode);
-
-          const uploadResponse = await fetch('/api/quality/inspection-documents/upload', {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (!uploadResponse.ok) {
-            const errorData = await uploadResponse.json();
-            throw new Error(errorData.error || `Failed to upload ${file.name}`);
-          }
-        }
-
-        toast({
-          title: "Files Uploaded Successfully",
-          description: `${approvedDrawingFiles.length} file(s) uploaded for Approved Drawing record ${newRecordId}`,
-        });
-      } catch (error: any) {
-        console.error("Error uploading files:", error);
-        toast({
-          title: "File Upload Error",
-          description: error.message || "Some files could not be uploaded. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsUploadingApprovedDrawingFiles(false);
-        setApprovedDrawingFiles([]); // Clear files after upload
-      }
-    }
-
-    setApprovedDrawingRecords(prev => [...prev, newRecord]);
-    setIsApprovedDrawingDialogOpen(false);
-    setEditingApprovedDrawingRecord(null);
-    toast({
-      title: "Success",
-      description: "Approved drawing record added successfully" + (approvedDrawingFiles.length > 0 ? " with uploaded files" : ""),
-    });
-  };
-
-  // Function to edit an approved drawing record
-  const editApprovedDrawingRecord = async (recordData: {
-    drawingTitle: string;
-    drawingNumber: string;
-    revision: string;
-    approvedBy: string;
-    approvalDate: string;
-    status: string;
-    remarks: string;
-  }) => {
-    if (!editingApprovedDrawingRecord) return;
-
-    // Check if we have valid inspection order details with project code
-    if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
-      toast({
-        title: "Cannot Update Record",
-        description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate that replacement files are selected (mandatory for edit)
-    if (approvedDrawingFiles.length === 0) {
-      toast({
-        title: "Files Required",
-        description: "Please select at least one file to replace the existing files for this Approved Drawing record.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Handle file replacement if any files are selected
-    if (approvedDrawingFiles.length > 0) {
-      setIsUploadingApprovedDrawingFiles(true);
-      
-      try {
-        // First, delete all existing files for this record
-        console.log(`🗑️ Deleting existing files for Approved Drawing record ${editingApprovedDrawingRecord.id}...`);
-        
-        // Get existing documents to delete them
-        const existingDocsResponse = await fetch(
-          `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/Approved%20Drawing/${editingApprovedDrawingRecord.id}/documents`
-        );
-        
-        if (existingDocsResponse.ok) {
-          const existingDocs = await existingDocsResponse.json();
-          console.log(`🗑️ Found ${existingDocs.length} existing documents to delete`);
-          
-          // Delete each existing document
-          for (const doc of existingDocs) {
-            try {
-              const deleteResponse = await fetch(`/api/quality/inspection-documents/delete/${doc.id}`, {
-                method: 'DELETE',
-              });
-              
-              if (deleteResponse.ok) {
-                console.log(`✅ Deleted existing document ${doc.id}`);
-              } else {
-                console.warn(`⚠️ Failed to delete document ${doc.id}, continuing with replacement...`);
-              }
-            } catch (deleteError) {
-              console.warn(`⚠️ Error deleting document ${doc.id}:`, deleteError);
-            }
-          }
-        }
-        
-        // Now upload the new replacement files
-        console.log(`📤 Uploading ${approvedDrawingFiles.length} replacement files...`);
-        for (const file of approvedDrawingFiles) {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('inspectionOrderNumber', editInspectionOrderDetails.inspectionOrderNumber);
-          formData.append('tabName', 'Approved Drawing');
-          formData.append('recordId', editingApprovedDrawingRecord.id);
-          formData.append('projectCode', editInspectionOrderDetails.projectCode);
-
-          const uploadResponse = await fetch('/api/quality/inspection-documents/upload', {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (!uploadResponse.ok) {
-            const errorData = await uploadResponse.json();
-            throw new Error(errorData.error || `Failed to upload ${file.name}`);
-          }
-        }
-
-        toast({
-          title: "Files Replaced Successfully",
-          description: `${approvedDrawingFiles.length} replacement file(s) uploaded for Approved Drawing record ${editingApprovedDrawingRecord.id}`,
-        });
-      } catch (error: any) {
-        console.error("Error uploading files:", error);
-        toast({
-          title: "File Upload Error",
-          description: error.message || "Some files could not be uploaded. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsUploadingApprovedDrawingFiles(false);
-        setApprovedDrawingFiles([]); // Clear files after upload
-      }
-    }
-    
-    setApprovedDrawingRecords(prev => 
-      prev.map(record => 
-        record.id === editingApprovedDrawingRecord.id 
-          ? { ...record, ...recordData }
-          : record
-      )
-    );
-    
-    setIsApprovedDrawingDialogOpen(false);
-    setEditingApprovedDrawingRecord(null);
-    
-    toast({
-      title: "Success", 
-      description: "Approved drawing record updated successfully" + (approvedDrawingFiles.length > 0 ? " with replacement files" : ""),
-    });
-  };
-
-  // Function to check existing files for approved drawing record
-  const checkExistingApprovedDrawingFiles = async (recordId: string) => {
-    if (!editInspectionOrderDetails?.inspectionOrderNumber) return false;
-    
-    setIsCheckingExistingFiles(true);
-    try {
-      const response = await fetch(
-        `/api/quality/inspection-documents/${editInspectionOrderDetails.inspectionOrderNumber}/Approved%20Drawing/${recordId}/documents`
-      );
-      
-      if (response.ok) {
-        const documents = await response.json();
-        return documents.length > 0;
-      }
-      return false;
-    } catch (error) {
-      console.error("Error checking existing files:", error);
-      return false;
-    } finally {
-      setIsCheckingExistingFiles(false);
-    }
-  };
-
-  // Function to start editing an approved drawing record
-  const startEditingApprovedDrawingRecord = async (record: typeof approvedDrawingRecords[0]) => {
-    setEditingApprovedDrawingRecord(record);
-    
-    // Check if files already exist for this record
-    const hasFiles = await checkExistingApprovedDrawingFiles(record.id);
-    setHasExistingApprovedDrawingFiles(hasFiles);
-    
-    setIsApprovedDrawingDialogOpen(true);
-  };
 
   // Function to check existing files for DVR record
   const checkExistingDvrFiles = async (recordId: string) => {
@@ -5844,7 +5440,6 @@ export default function InspectionsPage() {
         hydrotestRecords: hydrotestRecords,
         welds: welds,
         ncrRecords: ncrRecords,
-        approvedDrawingRecords: approvedDrawingRecords,
         dvrRecords: dvrRecords,
         itpRecords: itpRecords,
         pmaRecords: pmaRecords,
@@ -7569,205 +7164,55 @@ export default function InspectionsPage() {
                     </TabsList>
                   </ScrollArea>
                   
-                  {/* Approved Drawing Tab */}
+                  {/* Approved Drawing Tab — read-only view from EPC Drawing Controls */}
                   <TabsContent value="approved-drawing" className="p-4 border rounded-md mt-4">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-medium">Approved Drawing</h3>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="sm"
-                          className="flex items-center text-xs"
-                          disabled={approvedDrawingRecords.length >= 1}
-                          onClick={() => {
-                            // Check if we have valid project code before opening dialog
-                            if (!editInspectionOrderDetails?.projectCode || editInspectionOrderDetails.projectCode === 'UNKNOWN') {
-                              toast({
-                                title: "Cannot Create Record",
-                                description: "Project code is not available or is UNKNOWN. Please ensure the inspection order has a valid project code assigned.",
-                                variant: "destructive",
-                              });
-                              return;
-                            }
-                            setIsApprovedDrawingDialogOpen(true);
-                          }}
-                          title={approvedDrawingRecords.length >= 1 ? "Only one Drawing record is allowed per inspection order" : "Add Approved Drawing Record"}
-                        >
-                          <Plus className="h-3.5 w-3.5 mr-1" /> 
-                          {approvedDrawingRecords.length >= 1 ? "Drawing Record Added" : "Add Approved Drawing Record"}
-                        </Button>
+                        <span className="text-xs text-muted-foreground italic">Sourced from EPC Drawing Controls — read only</span>
                       </div>
-                      
-                      {/* Approved Drawing Records Table */}
                       <div className="border rounded-md shadow-sm overflow-hidden">
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-[100px]">Record ID</TableHead>
-                              <TableHead className="w-[200px]">Drawing Title</TableHead>
-                              <TableHead className="w-[150px]">Drawing Number</TableHead>
-                              <TableHead className="w-[100px]">Revision</TableHead>
-                              <TableHead className="w-[120px]">Approved By</TableHead>
+                              <TableHead className="w-[220px]">Drawing Title</TableHead>
+                              <TableHead className="w-[160px]">Drawing Number</TableHead>
+                              <TableHead className="w-[90px]">Revision</TableHead>
+                              <TableHead className="w-[130px]">Approved By</TableHead>
                               <TableHead className="w-[120px]">Approval Date</TableHead>
                               <TableHead className="w-[100px]">Status</TableHead>
-                              <TableHead className="w-[140px]">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {approvedDrawingRecords.length > 0 ? (
-                              approvedDrawingRecords.map((record) => (
-                                <TableRow key={record.id}>
-                                  <TableCell className="font-medium">{record.id}</TableCell>
-                                  <TableCell>{record.drawingTitle}</TableCell>
-                                  <TableCell>{record.drawingNumber}</TableCell>
-                                  <TableCell>{record.revision}</TableCell>
-                                  <TableCell>{record.approvedBy}</TableCell>
-                                  <TableCell>{record.approvalDate}</TableCell>
-                                  <TableCell>
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                      record.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                                      record.status === 'Under Review' ? 'bg-yellow-100 text-yellow-800' :
-                                      record.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                                      'bg-gray-100 text-gray-800'
-                                    }`}>
-                                      {record.status}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center space-x-1">
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-blue-500 hover:text-blue-700 hover:bg-blue-100"
-                                        title="View"
-                                        onClick={() => {
-                                          setDocumentViewerConfig({
-                                            inspectionOrderNumber: editInspectionOrderDetails?.inspectionOrderNumber || "N/A",
-                                            tabName: "Approved Drawing",
-                                            recordId: record.id
-                                          });
-                                          setShowDocumentViewer(true);
-                                        }}
-                                      >
-                                        <Eye className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-green-500 hover:text-green-700 hover:bg-green-100"
-                                        title="Edit"
-                                        onClick={() => {
-                                          setEditingApprovedDrawingRecord(record);
-                                          setIsApprovedDrawingDialogOpen(true);
-                                        }}
-                                      >
-                                        <Edit2 className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-purple-500 hover:text-purple-700 hover:bg-purple-100"
-                                        title="File Download"
-                                        onClick={async () => {
-                                          try {
-                                            // Fetch documents for this record
-                                            const response = await fetch(
-                                              `/api/quality/inspection-documents/${editInspectionOrderDetails?.inspectionOrderNumber}/Approved Drawing/${record.id}/documents`
-                                            );
-                                            
-                                            if (response.ok) {
-                                              const documents = await response.json();
-                                              if (documents.length > 0) {
-                                                // Download the first document
-                                                const downloadResponse = await fetch(`/api/quality/inspection-documents/download/${documents[0].id}`);
-                                                if (downloadResponse.ok) {
-                                                  const blob = await downloadResponse.blob();
-                                                  const url = window.URL.createObjectURL(blob);
-                                                  const a = document.createElement('a');
-                                                  a.href = url;
-                                                  a.download = documents[0].originalFileName;
-                                                  document.body.appendChild(a);
-                                                  a.click();
-                                                  document.body.removeChild(a);
-                                                  window.URL.revokeObjectURL(url);
-                                                } else {
-                                                  toast({
-                                                    title: "Download Failed",
-                                                    description: "Failed to download the document",
-                                                    variant: "destructive"
-                                                  });
-                                                }
-                                              } else {
-                                                toast({
-                                                  title: "No Documents",
-                                                  description: "No documents found for this record",
-                                                  variant: "destructive"
-                                                });
-                                              }
-                                            } else {
-                                              toast({
-                                                title: "Error",
-                                                description: "Failed to fetch documents",
-                                                variant: "destructive"
-                                              });
-                                            }
-                                          } catch (error) {
-                                            console.error('Download error:', error);
-                                            toast({
-                                              title: "Download Error",
-                                              description: "An error occurred while downloading the document",
-                                              variant: "destructive"
-                                            });
-                                          }
-                                        }}
-                                      >
-                                        <Download className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))
+                            {currentDrawing ? (
+                              <TableRow>
+                                <TableCell className="text-sm">{currentDrawing.drawingTitle || '—'}</TableCell>
+                                <TableCell className="font-mono text-sm">{currentDrawing.drawingNumber || '—'}</TableCell>
+                                <TableCell className="font-mono text-sm">{currentDrawing.revision || '—'}</TableCell>
+                                <TableCell className="text-sm">{currentDrawing.approvedBy || '—'}</TableCell>
+                                <TableCell className="text-sm">{currentDrawing.approvalDate || '—'}</TableCell>
+                                <TableCell>
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    currentDrawing.status === 'released'      ? 'bg-green-100 text-green-800' :
+                                    currentDrawing.status === 'approved'      ? 'bg-blue-100 text-blue-800' :
+                                    currentDrawing.status === 'under_review'  ? 'bg-yellow-100 text-yellow-800' :
+                                    currentDrawing.status === 'draft'         ? 'bg-gray-100 text-gray-700' :
+                                    'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {currentDrawing.status}
+                                  </span>
+                                </TableCell>
+                              </TableRow>
                             ) : (
                               <TableRow>
-                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                                  No approved drawing records available. Click "Add Approved Drawing Record" to create a new record.
+                                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                  No active drawing found for this Project Item.
                                 </TableCell>
                               </TableRow>
                             )}
                           </TableBody>
                         </Table>
                       </div>
-                      
-                      {/* Uploaded Files Display Section */}
-                      {editInspectionOrderDetails?.inspectionOrderNumber && (
-                        <div className="mt-6 border-t pt-4">
-                          <h4 className="text-sm font-medium text-gray-700 mb-3">Uploaded Files</h4>
-                          <div className="space-y-2">
-                            {approvedDrawingRecords.length > 0 ? (
-                              approvedDrawingRecords.map((record) => (
-                                <DrawingFilesDisplay
-                                  key={record.id}
-                                  inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
-                                  recordId={record.id}
-                                  recordTitle={record.drawingTitle || `Drawing ${record.id}`}
-                                  tabName="Approved Drawing"
-                                />
-                              ))
-                            ) : (
-                              <DrawingFilesDisplay
-                                inspectionOrderNumber={editInspectionOrderDetails?.inspectionOrderNumber || ''}
-                                recordId="ALL"
-                                recordTitle="All Drawing Files"
-                                tabName="Approved Drawing"
-                              />
-                            )}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </TabsContent>
                   
@@ -11369,257 +10814,6 @@ export default function InspectionsPage() {
                   'Update & Replace Files'
                 ) : (
                   'Add Record'
-                )}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Approved Drawing Dialog */}
-      <Dialog open={isApprovedDrawingDialogOpen} onOpenChange={(open) => {
-        setIsApprovedDrawingDialogOpen(open);
-        if (!open) {
-          setEditingApprovedDrawingRecord(null);
-          setApprovedDrawingFiles([]); // Clear selected files
-        }
-      }}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingApprovedDrawingRecord ? 'Edit Approved Drawing Record' : 'Add Approved Drawing Record'}
-            </DialogTitle>
-            <DialogDescription>
-              {editingApprovedDrawingRecord 
-                ? `Edit approved drawing record ${editingApprovedDrawingRecord.id} for this inspection order.`
-                : 'Add a new approved drawing record for this inspection order.'
-              }
-            </DialogDescription>
-          </DialogHeader>
-          
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            const formData = new FormData(e.currentTarget);
-            const recordData = {
-              drawingTitle: formData.get('drawingTitle') as string,
-              drawingNumber: formData.get('drawingNumber') as string,
-              revision: formData.get('revision') as string,
-              approvedBy: formData.get('approvedBy') as string,
-              approvalDate: formData.get('approvalDate') as string,
-              status: formData.get('status') as string,
-              remarks: formData.get('remarks') as string,
-            };
-            if (editingApprovedDrawingRecord) {
-              editApprovedDrawingRecord(recordData);
-            } else {
-              addApprovedDrawingRecord(recordData);
-            }
-          }} className="space-y-4">
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label htmlFor="drawingTitle" className="text-sm font-medium">Drawing Title *</label>
-                <input
-                  type="text"
-                  id="drawingTitle"
-                  name="drawingTitle"
-                  required
-                  defaultValue={editingApprovedDrawingRecord?.drawingTitle || 
-                    (editInspectionOrderDetails?.description || 
-                     (editInspectionOrderDetails?.items && editInspectionOrderDetails.items.length > 0 ? 
-                      editInspectionOrderDetails.items[0].description : ""))}
-                  readOnly={!editingApprovedDrawingRecord && (editInspectionOrderDetails?.description || 
-                    (editInspectionOrderDetails?.items && editInspectionOrderDetails.items.length > 0 && 
-                     editInspectionOrderDetails.items[0].description))}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    !editingApprovedDrawingRecord && (editInspectionOrderDetails?.description || 
-                    (editInspectionOrderDetails?.items && editInspectionOrderDetails.items.length > 0 && 
-                     editInspectionOrderDetails.items[0].description)) ? 'bg-gray-50 text-gray-700' : ''
-                  }`}
-                  placeholder="Enter drawing title"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="drawingNumber" className="text-sm font-medium">Drawing Number *</label>
-                <input
-                  type="text"
-                  id="drawingNumber"
-                  name="drawingNumber"
-                  required
-                  defaultValue={editingApprovedDrawingRecord?.drawingNumber || 
-                    (editInspectionOrderDetails?.drawingNo || 
-                     editInspectionOrderDetails?.drawingNumber || "")}
-                  readOnly={!editingApprovedDrawingRecord && (editInspectionOrderDetails?.drawingNo || 
-                    editInspectionOrderDetails?.drawingNumber)}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    !editingApprovedDrawingRecord && (editInspectionOrderDetails?.drawingNo || 
-                    editInspectionOrderDetails?.drawingNumber) ? 'bg-gray-50 text-gray-700' : ''
-                  }`}
-                  placeholder="Enter drawing number"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="revision" className="text-sm font-medium">Revision *</label>
-                <input
-                  type="text"
-                  id="revision"
-                  name="revision"
-                  required
-                  defaultValue={editingApprovedDrawingRecord?.revision || "R0"}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="R0"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="approvedBy" className="text-sm font-medium">Approved By *</label>
-                <input
-                  type="text"
-                  id="approvedBy"
-                  name="approvedBy"
-                  required
-                  defaultValue={editingApprovedDrawingRecord?.approvedBy || ""}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter approver name"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="approvalDate" className="text-sm font-medium">Approval Date *</label>
-                <input
-                  type="date"
-                  id="approvalDate"
-                  name="approvalDate"
-                  required
-                  defaultValue={editingApprovedDrawingRecord?.approvalDate || ""}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="status" className="text-sm font-medium">Status *</label>
-                <select
-                  id="status"
-                  name="status"
-                  required
-                  defaultValue={editingApprovedDrawingRecord?.status || "approved"}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="approved">Approved</option>
-                  <option value="conditional">Conditionally Approved</option>
-                  <option value="review">Under Review</option>
-                  <option value="superseded">Superseded</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="remarks" className="text-sm font-medium">Remarks</label>
-              <textarea
-                id="remarks"
-                name="remarks"
-                rows={3}
-                defaultValue={editingApprovedDrawingRecord?.remarks || ""}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter any additional remarks..."
-              />
-            </div>
-
-            {/* Uploaded Files Information Card */}
-            <ApprovedDrawingFileInfoSection 
-              inspectionOrderNumber={editingApprovedDrawingRecord ? editInspectionOrderDetails?.inspectionOrderNumber || null : null}
-              recordId={editingApprovedDrawingRecord?.id || null}
-              showTitle={true}
-              className="mt-4"
-            />
-
-            {/* File Upload Section - Available for both new and edit */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                {editingApprovedDrawingRecord ? 'Upload Replacement Files *' : 'Upload Files *'}
-              </label>
-              {editingApprovedDrawingRecord && (
-                <div className="text-sm">
-                  {isCheckingExistingFiles ? (
-                    <div className="flex items-center text-blue-600">
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Checking for existing files...
-                    </div>
-                  ) : hasExistingApprovedDrawingFiles ? (
-                    <div className="text-orange-600">
-                      ⚠️ Existing files found on GCS. New files will replace existing ones.
-                    </div>
-                  ) : (
-                    <div className="text-red-600">
-                      ⚠️ No existing files found. Please add files to proceed.
-                    </div>
-                  )}
-                </div>
-              )}
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                <input
-                  type="file"
-                  multiple
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files || []);
-                    setApprovedDrawingFiles(files);
-                  }}
-                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  Select PDF, DOC, DOCX, JPG, JPEG, or PNG files
-                </p>
-                {approvedDrawingFiles.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-sm text-green-600">
-                      {approvedDrawingFiles.length} file(s) selected
-                    </p>
-                    <ul className="text-xs text-gray-600 mt-1">
-                      {approvedDrawingFiles.map((file, index) => (
-                        <li key={index} className="truncate">
-                          {file.name} ({Math.round(file.size / 1024)} KB)
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => {
-                  setIsApprovedDrawingDialogOpen(false);
-                  setEditingApprovedDrawingRecord(null);
-                  setApprovedDrawingFiles([]);
-                  setHasExistingApprovedDrawingFiles(false);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={isUploadingApprovedDrawingFiles || isCheckingExistingFiles || approvedDrawingFiles.length === 0}
-              >
-                {isUploadingApprovedDrawingFiles ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {editingApprovedDrawingRecord ? 'Updating & Replacing...' : 'Creating & Uploading...'}
-                  </>
-                ) : isCheckingExistingFiles ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Checking existing files...
-                  </>
-                ) : approvedDrawingFiles.length === 0 ? (
-                  editingApprovedDrawingRecord ? 'Select Files to Continue' : 'Select Files to Continue'
-                ) : (
-                  editingApprovedDrawingRecord ? 'Update & Replace Files' : 'Add & Upload Files'
                 )}
               </Button>
             </div>

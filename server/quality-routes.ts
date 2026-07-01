@@ -179,18 +179,33 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       console.log('No NCR data found in inspection order.');
     }
     
-    // Parse Approved Drawing data if it exists
-    let approvedDrawingRecords = [];
-    console.log('Checking for Approved Drawing data in inspection order:', inspectionOrder.approvedDrawingData);
-    if (inspectionOrder.approvedDrawingData) {
-      try {
-        approvedDrawingRecords = JSON.parse(inspectionOrder.approvedDrawingData);
-        console.log('Successfully parsed Approved Drawing data:', approvedDrawingRecords);
-      } catch (e) {
-        console.error('Error parsing Approved Drawing data:', e);
+    // Fetch current drawing from epc_drawing_controls via project_item_id (live — not JSON column)
+    let currentDrawing: {
+      drawingNumber: string; drawingTitle: string; revision: string;
+      approvedBy: string; approvalDate: string; status: string;
+    } | null = null;
+    if (inspectionOrder.itemId) {
+      const dcResult = await db.execute(sql`
+        SELECT dc.drawing_number, dc.drawing_title, dc.drawing_revision, dc.revision_code,
+               dc.status, dc.approved_at,
+               (u.first_name || ' ' || u.last_name) AS approved_by_name
+        FROM epc_drawing_controls dc
+        LEFT JOIN users u ON u.id = dc.approved_by
+        WHERE dc.project_item_id = ${inspectionOrder.itemId}
+          AND dc.is_current = true
+        LIMIT 1
+      `);
+      if (dcResult.rows.length > 0) {
+        const r = dcResult.rows[0] as any;
+        currentDrawing = {
+          drawingNumber: r.drawing_number || '',
+          drawingTitle:  r.drawing_title  || '',
+          revision:      r.drawing_revision ? `${r.drawing_revision}${r.revision_code ? ' / ' + r.revision_code : ''}` : '',
+          approvedBy:    r.approved_by_name || '',
+          approvalDate:  r.approved_at ? new Date(r.approved_at).toLocaleDateString('en-GB') : '',
+          status:        r.status || '',
+        };
       }
-    } else {
-      console.log('No Approved Drawing data found in inspection order.');
     }
     
     // Parse DVR data if it exists
@@ -288,7 +303,7 @@ router.get('/inspection-orders/:id', ensureAuthenticated, async (req: Request, r
       welds: weldRecords,
       hydrotestRecords: hydrotestRecords,
       ncrRecords: ncrRecords,
-      approvedDrawingRecords: approvedDrawingRecords,
+      currentDrawing: currentDrawing,
       dvrRecords: dvrRecords,
       itpRecords: itpRecords,
       pmaRecords: pmaRecords,
