@@ -1959,11 +1959,16 @@ export default function InspectionsPage() {
       }
     });
 
-    // Sort both categories in descending order by inspection order number
+    // Sort both categories in ascending order by type then numeric sequence
     const sortByOrderNumber = (a: any, b: any) => {
       const numA = a.inspection_order_number || a.inspectionOrderNumber || '';
       const numB = b.inspection_order_number || b.inspectionOrderNumber || '';
-      return numB.localeCompare(numA); // Descending order
+      const typeA = (numA.match(/-([A-Z]+)-\d+$/) || [])[1] || '';
+      const typeB = (numB.match(/-([A-Z]+)-\d+$/) || [])[1] || '';
+      if (typeA !== typeB) return typeA.localeCompare(typeB);
+      const seqA = parseInt((numA.match(/-(\d+)$/) || [])[1] || '0', 10);
+      const seqB = parseInt((numB.match(/-(\d+)$/) || [])[1] || '0', 10);
+      return seqA - seqB; // Ascending numeric order
     };
 
     parentAssemblies.sort(sortByOrderNumber);
