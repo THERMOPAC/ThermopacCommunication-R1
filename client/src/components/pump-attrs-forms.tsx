@@ -493,12 +493,12 @@ export function CentrifugalPumpAttrsForm({
             <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Configuration</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
-            {renderFreeText("pump_model",  "Pump Model",        "e.g. 3×2×6")}
             {renderField("mounting",       "Mounting",          CENTRIFUGAL_COMMON_OPTS.mounting,       true)}
             {renderField("drive_type",     "Drive Type",        CENTRIFUGAL_COMMON_OPTS.drive_type,     true)}
             {renderField("service_type",   "Service Type",      CENTRIFUGAL_COMMON_OPTS.service_type,   true)}
             {renderField("seal_type",      "Seal Type",         CENTRIFUGAL_COMMON_OPTS.seal_type,      true)}
             {renderField("material_class", "Material Class",    CENTRIFUGAL_COMMON_OPTS.material_class, true)}
+            <div />
           </div>
         </div>
 
@@ -950,12 +950,12 @@ export function GearPumpAttrsForm({
             <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Configuration</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
-            {renderFreeText("pump_model",  "Pump Model",            "e.g. GX-150")}
             {renderField("mounting",       "Mounting",              GEAR_COMMON_OPTS.mounting,       true)}
             {renderField("drive_type",     "Drive Type",            GEAR_COMMON_OPTS.drive_type,     true)}
             {renderField("service_type",   "Service Type",          GEAR_COMMON_OPTS.service_type,   true)}
             {renderField("material_class", "Material Class",        GEAR_COMMON_OPTS.material_class, true)}
             {renderField("seal_type",      "Seal Type",             GEAR_COMMON_OPTS.seal_type,      true)}
+            <div />
           </div>
         </div>
 
@@ -1389,12 +1389,12 @@ export function ScrewPumpAttrsForm({
             <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest">Pump Configuration</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
-            {renderFreeText("pump_model",  "Pump Model",     "e.g. SX-220")}
             {renderField("mounting",       "Mounting",       SCREW_COMMON_OPTS.mounting,       true)}
             {renderField("drive_type",     "Drive Type",     SCREW_COMMON_OPTS.drive_type,     true)}
             {renderField("service_type",   "Service Type",   SCREW_COMMON_OPTS.service_type,   true)}
             {renderField("material_class", "Material Class", SCREW_COMMON_OPTS.material_class, true)}
             {renderField("seal_type",      "Seal Type",      SCREW_COMMON_OPTS.seal_type,      true)}
+            <div />
           </div>
         </div>
 
