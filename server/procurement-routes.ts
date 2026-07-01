@@ -491,6 +491,22 @@ export function setupProcurementRoutes(app: Router) {
   });
 
   /**
+   * POST /api/vendors/sap/test-connection
+   * Read-only connectivity check — forces a fresh SAP login and returns ok/error.
+   * Does NOT fetch vendors, insert, update, or upsert any DB records.
+   */
+  app.post('/api/vendors/sap/test-connection', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      await sapSession.forceLogin(2000);
+      res.status(200).json({ ok: true, message: 'SAP Service Layer connection verified.' });
+    } catch (err: any) {
+      const msg = err?.message ?? 'unknown error';
+      console.error('[vendors/test-connection] Error:', msg);
+      res.status(502).json({ ok: false, error: `Connection test failed: ${msg}` });
+    }
+  });
+
+  /**
    * POST /api/vendors/sync/test
    * Lightweight SAP test run — fetches a small sample (default 20), verifies
    * session, U_ERP_Group UDF availability, exclusion logic, and upserts the sample.

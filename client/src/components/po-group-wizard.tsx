@@ -17,7 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertTriangle, ChevronRight, ChevronLeft, Check, X, Loader2, Package, RefreshCw, FlaskConical, CheckCircle2, XCircle, HelpCircle, BarChart2 } from "lucide-react";
+import { AlertTriangle, ChevronRight, ChevronLeft, Check, X, Loader2, Package, RefreshCw, Wifi } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -73,10 +73,6 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
   const [avlIssues,      setAvlIssues]      = useState<{ subgroupCode: string; status: string }[]>([]);
   const [submitting,     setSubmitting]     = useState(false);
   const [syncMessage,    setSyncMessage]    = useState<string | null>(null);
-  const [testResult,     setTestResult]     = useState<any | null>(null);
-  const [showTestPanel,  setShowTestPanel]  = useState(false);
-  const [udfDist,        setUdfDist]        = useState<any | null>(null);
-  const [showUdfDialog,  setShowUdfDialog]  = useState(false);
   const [vendorSearch,   setVendorSearch]   = useState("");
   const [vendorOpen,     setVendorOpen]     = useState(false);
   const vendorRef = useRef<HTMLDivElement>(null);
@@ -86,19 +82,17 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
     defaultValues: { deliveryTerms: "", paymentTerms: "", groupNotes: "" },
   });
 
-  // ── SAP Vendor Test Run ───────────────────────────────────────────────────
-  const testMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/vendors/sync/test?limit=20"),
+  // ── SAP Test Connection (read-only, no DB writes) ────────────────────────
+  const connTestMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/vendors/sap/test-connection"),
     onSuccess: (data: any) => {
-      setTestResult(data);
-      setShowTestPanel(true);
-      qc.invalidateQueries({ queryKey: ["/api/vendors"] });
+      setSyncMessage(`✓ ${data?.message ?? "SAP connection verified."}`);
+      setTimeout(() => setSyncMessage(null), 5000);
     },
     onError: (err: any) => {
       const raw: string = err?.message ?? "unknown error";
-      const isConflict = raw.includes("session") || raw.includes("Wait");
       setSyncMessage(`✗ ${raw}`);
-      setTimeout(() => setSyncMessage(null), isConflict ? 20000 : 8000);
+      setTimeout(() => setSyncMessage(null), 12000);
     },
   });
 
@@ -107,29 +101,12 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
     mutationFn: () => apiRequest("POST", "/api/vendors/sync"),
     onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ["/api/vendors"] });
-      setTestResult(null);
-      setShowTestPanel(false);
       setSyncMessage(`✓ ${data?.message ?? `Synced ${data?.synced ?? 0} vendors`}`);
       setTimeout(() => setSyncMessage(null), 5000);
     },
     onError: (err: any) => {
       const raw: string = err?.message ?? "unknown error";
       const isConflict = err?.status === 503 || err?.status === 409 || raw.includes("session") || raw.includes("Wait");
-      setSyncMessage(`✗ ${raw}`);
-      setTimeout(() => setSyncMessage(null), isConflict ? 20000 : 8000);
-    },
-  });
-
-  // ── SAP UDF Distribution Query ────────────────────────────────────────────
-  const udfMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/vendors/sap/udf-distribution"),
-    onSuccess: (data: any) => {
-      setUdfDist(data);
-      setShowUdfDialog(true);
-    },
-    onError: (err: any) => {
-      const raw: string = err?.message ?? "unknown error";
-      const isConflict = raw.includes("session") || raw.includes("Wait");
       setSyncMessage(`✗ ${raw}`);
       setTimeout(() => setSyncMessage(null), isConflict ? 20000 : 8000);
     },
@@ -341,7 +318,7 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                     <span className={cn("flex-1 truncate", !selectedVendorId && "text-muted-foreground")}>
                       {selectedVendorId
                         ? (vendors.find((v) => v.id === selectedVendorId)?.name ?? selectedVendorName)
-                        : (vendors.length === 0 ? "Run Test SAP first to load vendors…" : "Choose vendor…")}
+                        : (vendors.length === 0 ? "Run Full Sync to load vendors…" : "Choose vendor…")}
                     </span>
                   )}
                   <svg className="h-4 w-4 text-muted-foreground shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -350,7 +327,7 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                 {vendorOpen && (
                   <div className="absolute z-50 w-full mt-1 rounded-md border bg-popover shadow-lg max-h-60 overflow-y-auto">
                     {vendors.length === 0 ? (
-                      <div className="px-3 py-2 text-xs text-muted-foreground">No vendors — run Test SAP to verify, then Full Sync</div>
+                      <div className="px-3 py-2 text-xs text-muted-foreground">No vendors — run Full Sync to import from SAP</div>
                     ) : filteredVendors.length === 0 ? (
                       <div className="px-3 py-2 text-xs text-muted-foreground">No vendor found</div>
                     ) : (
@@ -382,44 +359,30 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                 )}
               </div>
 
-              {/* Row 2: Test + UDF Check + Full Sync buttons */}
+              {/* Row 2: Test Connection + Full Sync buttons */}
               <div className="flex gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="flex-1 gap-1.5 text-xs h-9 border-amber-300 text-amber-800 hover:bg-amber-50"
-                  disabled={testMutation.isPending || syncMutation.isPending || udfMutation.isPending}
-                  onClick={() => { setShowTestPanel(false); testMutation.mutate(); }}
-                  title="Fetch 20 vendors from SAP and verify UDF + exclusion logic before full sync"
+                  disabled={connTestMutation.isPending || syncMutation.isPending}
+                  onClick={() => connTestMutation.mutate()}
+                  title="Verify SAP Service Layer connectivity — no DB changes"
                 >
-                  {testMutation.isPending
+                  {connTestMutation.isPending
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : <FlaskConical className="h-3.5 w-3.5" />}
-                  {testMutation.isPending ? "Testing…" : "Test SAP"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 gap-1.5 text-xs h-9 border-blue-300 text-blue-800 hover:bg-blue-50"
-                  disabled={testMutation.isPending || syncMutation.isPending || udfMutation.isPending}
-                  onClick={() => udfMutation.mutate()}
-                  title="Query SAP for U_ERP_Group distribution across all vendor codes"
-                >
-                  {udfMutation.isPending
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : <BarChart2 className="h-3.5 w-3.5" />}
-                  {udfMutation.isPending ? "Querying…" : "UDF Check"}
+                    : <Wifi className="h-3.5 w-3.5" />}
+                  {connTestMutation.isPending ? "Testing…" : "Test Connection"}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="flex-1 gap-1.5 text-xs h-9"
-                  disabled={syncMutation.isPending || testMutation.isPending || udfMutation.isPending}
+                  disabled={syncMutation.isPending || connTestMutation.isPending}
                   onClick={() => syncMutation.mutate()}
-                  title="Pull full vendor list from SAP (run test first)"
+                  title="Pull full vendor list from SAP and update DB"
                 >
                   {syncMutation.isPending
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -445,169 +408,6 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                 </p>
               )}
 
-              {/* Test results panel */}
-              {showTestPanel && testResult && (
-                <div className={cn(
-                  "rounded-lg border p-3 space-y-2 text-xs",
-                  testResult.sessionConflict
-                    ? "border-orange-300 bg-orange-50"
-                    : testResult.udfAvailable
-                      ? "border-green-300 bg-green-50"
-                      : "border-amber-300 bg-amber-50"
-                )}>
-                  {/* Header */}
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm">SAP Test Run Results</span>
-                    <button
-                      className="text-muted-foreground hover:text-foreground"
-                      onClick={() => setShowTestPanel(false)}
-                    ><X className="h-3.5 w-3.5" /></button>
-                  </div>
-
-                  {/* Session conflict panel */}
-                  {testResult.sessionConflict && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-orange-800 font-semibold">
-                          SAP session conflict (-1102) — a competing session is blocking login.
-                        </p>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="shrink-0 text-xs border-orange-400 text-orange-700 hover:bg-orange-100 h-7 px-2"
-                          onClick={() => resetMutation.mutate()}
-                          disabled={resetMutation.isPending}
-                        >
-                          {resetMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Force Reset"}
-                        </Button>
-                      </div>
-
-                      {testResult.diagnostics && (
-                        <div className="rounded bg-orange-100 border border-orange-200 p-2 space-y-1 text-xs font-mono">
-                          <div className="flex gap-4 flex-wrap">
-                            <span>
-                              <span className="text-orange-600">integration user:</span>{" "}
-                              <strong className={testResult.diagnostics.isManagerUser ? "text-red-700" : "text-orange-900"}>
-                                {testResult.diagnostics.username}
-                              </strong>
-                            </span>
-                            <span>
-                              <span className="text-orange-600">server session alive:</span>{" "}
-                              <strong>{testResult.diagnostics.sessionAlive ? `yes (${testResult.diagnostics.sessionTtlSeconds}s)` : "no"}</strong>
-                            </span>
-                            <span>
-                              <span className="text-orange-600">retry_on_1102:</span>{" "}
-                              <strong>{testResult.diagnostics.retryOn1102}</strong>
-                            </span>
-                          </div>
-                          <div className="flex gap-4 flex-wrap text-orange-700">
-                            <span>last_invalidate: {testResult.diagnostics.lastInvalidateAt ?? "—"}</span>
-                            <span>last_force_reset: {testResult.diagnostics.lastForceResetAt ?? "—"}</span>
-                          </div>
-                          {testResult.diagnostics.isManagerUser && (
-                            <p className="text-red-700 font-semibold pt-1">
-                              ⚠ Integration user is "Manager" — SAP B1 "Manager" is a shared superuser account. Any active SAP desktop or Web Client session will block this login. Use a dedicated service account.
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      <p className="text-orange-700 text-xs">
-                        Likely cause: SAP desktop client or Web Client is open with the same integration user, or a parallel sync is in flight.
-                        Click <strong>Force Reset</strong> to invalidate the server session and retry.
-                      </p>
-                    </div>
-                  )}
-
-                  {!testResult.sessionConflict && (
-                    <>
-                      {/* Summary row */}
-                      <div className="grid grid-cols-3 gap-2">
-                        {[
-                          { label: "SAP login",        ok: testResult.login },
-                          { label: "U_ERP_Group field", ok: testResult.udfAvailable },
-                          { label: "Saved to DB",       ok: testResult.upserted > 0 },
-                        ].map(({ label, ok }) => (
-                          <div key={label} className="flex items-center gap-1">
-                            {ok
-                              ? <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                              : <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />}
-                            <span className={ok ? "text-green-800" : "text-red-700"}>{label}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Counts */}
-                      <div className="flex gap-4 text-muted-foreground">
-                        <span>Fetched from SAP: <strong className="text-foreground">{testResult.fetched}</strong></span>
-                        <span>Classified (U_ERP_Group set): <strong className="text-green-700">{testResult.eligible}</strong></span>
-                        <span>Saved to DB: <strong className="text-foreground">{testResult.upserted}</strong></span>
-                      </div>
-
-                      {/* Result table — mirrors SAP SQL output */}
-                      {testResult.sample.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-xs border-collapse">
-                            <thead>
-                              <tr className="border-b border-gray-300 bg-gray-100">
-                                <th className="text-left py-1 px-2 font-semibold text-muted-foreground">BP Code</th>
-                                <th className="text-left py-1 px-2 font-semibold text-muted-foreground">BP Name</th>
-                                <th className="text-left py-1 px-2 font-semibold text-muted-foreground">ERP Group</th>
-                                <th className="text-left py-1 px-2 font-semibold text-muted-foreground">DB Status</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {testResult.sample.map((row: any) => (
-                                <tr key={row.cardCode} className="border-b border-gray-100 hover:bg-gray-50">
-                                  <td className="py-0.5 px-2 font-mono text-blue-700">{row.cardCode}</td>
-                                  <td className="py-0.5 px-2 max-w-[180px] truncate">{row.cardName}</td>
-                                  <td className="py-0.5 px-2">
-                                    <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-mono font-semibold">
-                                      {row.udfRaw}
-                                    </span>
-                                  </td>
-                                  <td className="py-0.5 px-2">
-                                    {row.upsertedToDb
-                                      ? <span className="text-green-600 font-medium">✓ saved</span>
-                                      : <span className="text-muted-foreground">—</span>}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : testResult.udfAvailable ? (
-                        <p className="text-muted-foreground italic text-center py-2">
-                          No vendors with U_ERP_Group set found in the first {testResult.fetched} scanned.
-                        </p>
-                      ) : null}
-
-                      {/* Recommendation */}
-                      {testResult.udfAvailable && testResult.eligible > 0 && (
-                        <p className="text-green-800 font-medium">
-                          ✓ Found {testResult.eligible} classified vendor{testResult.eligible !== 1 ? "s" : ""} — U_ERP_Group is readable. Safe to run Full Sync.
-                        </p>
-                      )}
-                      {testResult.udfAvailable && testResult.eligible === 0 && (
-                        <p className="text-amber-800 font-medium">
-                          ⚠ U_ERP_Group field is present but no vendors have it set in the first {testResult.fetched} scanned.
-                        </p>
-                      )}
-                      {!testResult.udfAvailable && (
-                        <div className="space-y-1">
-                          <p className="text-red-700 font-medium">
-                            ✗ U_ERP_Group field missing from SAP response — no vendors were saved.
-                          </p>
-                          <p className="text-amber-800 text-xs">
-                            This usually means the SAP session was contaminated by a prior operation that used <code>$select</code>. Click <strong>Test SAP</strong> again — the session is now reset and a 4 s cooldown has been applied so the next run should return UDF fields correctly.
-                          </p>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
             </div>
 
             {/* AVL issues */}
@@ -900,171 +700,6 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
       </DialogContent>
     </Dialog>
 
-    {/* ── UDF Distribution Dialog ────────────────────────────────────────── */}
-    <Dialog open={showUdfDialog} onOpenChange={setShowUdfDialog}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <BarChart2 className="h-4 w-4 text-blue-600" />
-            SAP U_ERP_Group Distribution
-          </DialogTitle>
-        </DialogHeader>
-
-        {udfDist && (
-          <div className="space-y-4 text-sm">
-
-            {/* Session conflict */}
-            {udfDist.sessionConflict && (
-              <div className="bg-orange-50 border border-orange-200 rounded p-3 space-y-2 text-sm">
-                <p className="text-orange-800 font-semibold">
-                  SAP session conflict (-1102) — a competing session is blocking the UDF query.
-                </p>
-                {udfDist.diagnostics && (
-                  <div className="text-xs font-mono text-orange-700 space-y-1">
-                    <div className="flex gap-4 flex-wrap">
-                      <span>
-                        integration user:{" "}
-                        <strong className={udfDist.diagnostics.isManagerUser ? "text-red-700" : ""}>
-                          {udfDist.diagnostics.username}
-                        </strong>
-                      </span>
-                      <span>server session alive: <strong>{udfDist.diagnostics.sessionAlive ? `yes (${udfDist.diagnostics.sessionTtlSeconds}s)` : "no"}</strong></span>
-                      <span>retry_on_1102: <strong>{udfDist.diagnostics.retryOn1102}</strong></span>
-                    </div>
-                    {udfDist.diagnostics.isManagerUser && (
-                      <p className="text-red-700 font-semibold">⚠ Integration user is "Manager" — likely conflicts with active SAP desktop sessions.</p>
-                    )}
-                  </div>
-                )}
-                <p className="text-orange-700 text-xs">Likely cause: SAP desktop or Web Client open with same user. Close the SAP session and retry UDF Check.</p>
-              </div>
-            )}
-
-            {/* Query error (UDF filter unsupported) */}
-            {udfDist.queryError && (
-              <p className="text-red-700 bg-red-50 border border-red-200 rounded p-3 text-xs font-mono break-all">
-                ⚠ {udfDist.queryError}
-              </p>
-            )}
-
-            {!udfDist.sessionConflict && (
-              <>
-                {/* Method note */}
-                <div className="flex items-start gap-2 text-xs text-muted-foreground bg-blue-50 border border-blue-200 rounded p-2.5">
-                  <HelpCircle className="h-3.5 w-3.5 mt-0.5 text-blue-500 shrink-0" />
-                  <span>
-                    SAP OData does not support filtering by UDF fields — counts below are from the first{" "}
-                    <strong>{udfDist.sampledTotal ?? 300}</strong> vendors sampled (no {"`"}$select{"`"}, UDFs included in full record).
-                    Counts reflect the sample window, not the full 1,458-vendor population.
-                  </span>
-                </div>
-
-                {/* Summary bar */}
-                <div className="flex gap-6 bg-gray-50 border rounded p-3">
-                  <div>
-                    <div className="text-xs text-muted-foreground">Sampled vendors</div>
-                    <div className="text-2xl font-bold text-blue-700">{udfDist.sampledTotal ?? "—"}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">Classified (in sample)</div>
-                    <div className="text-2xl font-bold text-green-700">{udfDist.totalClassified}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">Blank / unclassified</div>
-                    <div className="text-2xl font-bold text-amber-600">
-                      {udfDist.nullOrEmpty === -1 ? "—" : udfDist.nullOrEmpty}
-                    </div>
-                  </div>
-                  <div className="ml-auto text-right">
-                    <div className="text-xs text-muted-foreground">Codes found</div>
-                    <div className="text-2xl font-bold text-indigo-700">
-                      {(udfDist.groups ?? []).filter((g: any) => g.count > 0).length} / 7
-                    </div>
-                  </div>
-                </div>
-
-                {/* Per-code breakdown */}
-                {(udfDist.groups ?? []).map((grp: any) => (
-                  <div key={grp.code} className="border rounded-lg overflow-hidden">
-                    {/* Group header */}
-                    <div className={cn(
-                      "flex items-center justify-between px-3 py-2",
-                      grp.count === 0 ? "bg-gray-50" : "bg-blue-50"
-                    )}>
-                      <div className="flex items-center gap-2">
-                        <span className={cn(
-                          "inline-flex items-center justify-center w-7 h-7 rounded font-mono font-bold text-sm",
-                          grp.count > 0 ? "bg-blue-600 text-white" : "bg-gray-300 text-gray-600"
-                        )}>
-                          {grp.code}
-                        </span>
-                        <div>
-                          <div className="font-medium text-sm">{grp.label}</div>
-                          <div className="text-xs text-muted-foreground">U_ERP_Group = '{grp.code}'</div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className={cn("text-xl font-bold", grp.count > 0 ? "text-blue-700" : "text-gray-400")}>
-                          {grp.count}{grp.capped ? "+" : ""}
-                        </div>
-                        <div className="text-xs text-muted-foreground">vendors</div>
-                      </div>
-                    </div>
-
-                    {/* Sample rows */}
-                    {grp.samples.length > 0 ? (
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="border-t bg-gray-50">
-                            <th className="text-left px-3 py-1 font-medium text-muted-foreground w-28">CardCode</th>
-                            <th className="text-left px-3 py-1 font-medium text-muted-foreground">CardName</th>
-                            <th className="text-left px-3 py-1 font-medium text-muted-foreground w-24">U_ERP_Group</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {grp.samples.map((s: any) => (
-                            <tr key={s.cardCode} className="border-t">
-                              <td className="px-3 py-1.5 font-mono text-indigo-700">{s.cardCode}</td>
-                              <td className="px-3 py-1.5 truncate max-w-[300px]">{s.cardName}</td>
-                              <td className="px-3 py-1.5 font-mono">
-                                <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">{s.udfRaw || "—"}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <p className="px-3 py-2 text-xs text-muted-foreground italic">
-                        No vendors with U_ERP_Group = '{grp.code}' found in SAP
-                      </p>
-                    )}
-                  </div>
-                ))}
-
-                {/* Unclassified note */}
-                {udfDist.nullOrEmpty > 0 && (
-                  <div className="border border-amber-200 rounded-lg p-3 bg-amber-50 text-xs text-amber-800">
-                    <strong>{udfDist.nullOrEmpty} vendors</strong> have a blank U_ERP_Group in SAP.
-                    These will sync with <code className="bg-amber-100 px-1 rounded">vendor_type = null</code> until
-                    the field is populated in the SAP Business Partner master record.
-                  </div>
-                )}
-
-                {udfDist.totalClassified === 0 && !udfDist.queryError && (
-                  <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded p-3">
-                    No vendors found for any U_ERP_Group code. The UDF may not be populated in SAP yet.
-                  </p>
-                )}
-              </>
-            )}
-
-            <div className="flex justify-end pt-2 border-t">
-              <Button variant="outline" size="sm" onClick={() => setShowUdfDialog(false)}>Close</Button>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
     </>
   );
 }
