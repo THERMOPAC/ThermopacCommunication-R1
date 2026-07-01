@@ -258,7 +258,6 @@ export default function InspectionsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   
   // Search functionality state
-  const [searchQuery, setSearchQuery] = useState<string>("");
   const [globalSearch, setGlobalSearch] = useState<string>("");
   
   // Shop inspection state
@@ -5835,21 +5834,6 @@ export default function InspectionsPage() {
                 </Label>
               </div>
               
-              {selectedProject && (
-                <div>
-                  <Label htmlFor="search-filter">Search Inspections</Label>
-                  <div className="relative">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="search-filter"
-                      placeholder="Search by report number, title, or type..."
-                      className="pl-8 w-full md:w-[300px]"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
             </div>
 
             {!selectedProject ? (
@@ -5870,25 +5854,9 @@ export default function InspectionsPage() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableCaption>
-                    {searchQuery 
-                      ? `Showing ${Array.isArray(inspections) 
-                          ? inspections
-                              .filter((i: any) => i.reportType !== 'work_order')
-                              .filter((inspection: any) => {
-                                const query = searchQuery.toLowerCase();
-                                return (
-                                  (inspection.reportNumber && inspection.reportNumber.toLowerCase().includes(query)) ||
-                                  (inspection.title && inspection.title.toLowerCase().includes(query)) ||
-                                  (inspection.reportType && inspection.reportType.toLowerCase().includes(query))
-                                );
-                              }).length
-                          : 0} of ${Array.isArray(inspections) 
-                          ? inspections.filter((i: any) => i.reportType !== 'work_order').length 
-                          : 0} inspection reports`
-                      : `Showing ${Array.isArray(inspections) 
-                          ? inspections.filter((i: any) => i.reportType !== 'work_order').length 
-                          : 0} inspection reports`
-                    }
+                    {`Showing ${Array.isArray(inspections) 
+                        ? inspections.filter((i: any) => i.reportType !== 'work_order').length 
+                        : 0} inspection reports`}
                   </TableCaption>
                   <TableHeader>
                     <TableRow>
@@ -5903,15 +5871,6 @@ export default function InspectionsPage() {
                   <TableBody>
                     {Array.isArray(inspections) && inspections
                       .filter((inspection: any) => inspection.reportType !== 'work_order')
-                      .filter((inspection: any) => {
-                        if (!searchQuery) return true;
-                        const query = searchQuery.toLowerCase();
-                        return (
-                          (inspection.reportNumber && inspection.reportNumber.toLowerCase().includes(query)) ||
-                          (inspection.title && inspection.title.toLowerCase().includes(query)) ||
-                          (inspection.reportType && inspection.reportType.toLowerCase().includes(query))
-                        );
-                      })
                       .filter((inspection: any) => {
                         if (!globalSearch) return true;
                         const gs = globalSearch.toLowerCase();
@@ -5997,139 +5956,26 @@ export default function InspectionsPage() {
                   
                   {/* List View Tab - Hierarchical Card View */}
                   <TabsContent value="list" className="mt-4">
-                    <div className="mb-4">
-                      <div className="relative w-full md:w-[300px]">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Search inspection orders..."
-                          className="pl-8"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    
-                    {searchQuery.trim() !== '' ? (
-                      // Show filtered table view for search results
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableCaption>
-                            {`Showing ${inspectionOrders.filter((order: any) => {
-                              const query = searchQuery.toLowerCase();
-                              return (
-                                (order.inspection_order_number && order.inspection_order_number.toLowerCase().includes(query)) ||
-                                (order.inspectionOrderNumber && order.inspectionOrderNumber.toLowerCase().includes(query)) ||
-                                (order.description && order.description.toLowerCase().includes(query)) ||
-                                (order.title && order.title.toLowerCase().includes(query)) ||
-                                (order.drawing_no && order.drawing_no.toLowerCase().includes(query)) ||
-                                (order.drawingNo && order.drawingNo.toLowerCase().includes(query)) ||
-                                (order.status && order.status.toLowerCase().includes(query))
-                              );
-                            }).filter((order: any) => {
-                              if (!globalSearch) return true;
-                              const gs = globalSearch.toLowerCase();
-                              return (
-                                (order.inspection_order_number && order.inspection_order_number.toLowerCase().includes(gs)) ||
-                                (order.inspectionOrderNumber && order.inspectionOrderNumber.toLowerCase().includes(gs)) ||
-                                (order.description && order.description.toLowerCase().includes(gs)) ||
-                                (order.title && order.title.toLowerCase().includes(gs)) ||
-                                (order.drawing_no && order.drawing_no.toLowerCase().includes(gs)) ||
-                                (order.drawingNo && order.drawingNo.toLowerCase().includes(gs)) ||
-                                (order.drawing_title && order.drawing_title.toLowerCase().includes(gs)) ||
-                                (order.drawingTitle && order.drawingTitle.toLowerCase().includes(gs)) ||
-                                (order.item_code && order.item_code.toLowerCase().includes(gs)) ||
-                                (order.itemCode && order.itemCode.toLowerCase().includes(gs)) ||
-                                (order.status && order.status.toLowerCase().includes(gs))
-                              );
-                            }).length} of ${inspectionOrders.length} inspection orders`}
-                          </TableCaption>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-[300px]">Order #</TableHead>
-                              <TableHead className="w-[600px]">Description</TableHead>
-                              <TableHead>Drawing No</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Quantity</TableHead>
-                              <TableHead className="w-[150px]">Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {inspectionOrders
-                              .filter((order: any) => {
-                                if (!searchQuery) return true;
-                                const query = searchQuery.toLowerCase();
-                                return (
-                                  (order.inspection_order_number && order.inspection_order_number.toLowerCase().includes(query)) ||
-                                  (order.inspectionOrderNumber && order.inspectionOrderNumber.toLowerCase().includes(query)) ||
-                                  (order.description && order.description.toLowerCase().includes(query)) ||
-                                  (order.title && order.title.toLowerCase().includes(query)) ||
-                                  (order.drawing_no && order.drawing_no.toLowerCase().includes(query)) ||
-                                  (order.drawingNo && order.drawingNo.toLowerCase().includes(query)) ||
-                                  (order.status && order.status.toLowerCase().includes(query))
-                                );
-                              })
-                              .filter((order: any) => {
-                                if (!globalSearch) return true;
-                                const gs = globalSearch.toLowerCase();
-                                return (
-                                  (order.inspection_order_number && order.inspection_order_number.toLowerCase().includes(gs)) ||
-                                  (order.inspectionOrderNumber && order.inspectionOrderNumber.toLowerCase().includes(gs)) ||
-                                  (order.description && order.description.toLowerCase().includes(gs)) ||
-                                  (order.title && order.title.toLowerCase().includes(gs)) ||
-                                  (order.drawing_no && order.drawing_no.toLowerCase().includes(gs)) ||
-                                  (order.drawingNo && order.drawingNo.toLowerCase().includes(gs)) ||
-                                  (order.drawing_title && order.drawing_title.toLowerCase().includes(gs)) ||
-                                  (order.drawingTitle && order.drawingTitle.toLowerCase().includes(gs)) ||
-                                  (order.item_code && order.item_code.toLowerCase().includes(gs)) ||
-                                  (order.itemCode && order.itemCode.toLowerCase().includes(gs)) ||
-                                  (order.status && order.status.toLowerCase().includes(gs))
-                                );
-                              })
-                              .map((order: any) => (
-                              <TableRow key={order.id}>
-                                <TableCell className="font-medium">{order.inspection_order_number || order.inspectionOrderNumber}</TableCell>
-                                <TableCell>{order.description || order.title}</TableCell>
-                                <TableCell>{order.drawing_no || order.drawingNo || 'N/A'}</TableCell>
-                                <TableCell>{getStatusBadge(order.status)}</TableCell>
-                                <TableCell>{order.quantity} {order.unit}</TableCell>
-                                <TableCell>
-                                  <div className="flex gap-1 justify-center">
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      title="View"
-                                      onClick={() => {
-                                        setSelectedInspectionOrder(order.id);
-                                        setIsDetailsDialogOpen(true);
-                                      }}
-                                    >
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      title="Edit"
-                                      onClick={() => {
-                                        setEditingInspectionOrder(order.id);
-                                        setIsEditDialogOpen(true);
-                                      }}
-                                    >
-                                      <Edit2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    ) : (
-                      // Show hierarchical card view for normal display
-                      <div className="space-y-2">
-                        {/* Hierarchical Inspection Orders */}
-                        {organizedInspectionOrders.map((order: any) => (
+                    <div className="space-y-2">
+                      {organizedInspectionOrders
+                        .filter((order: any) => {
+                          if (!globalSearch) return true;
+                          const gs = globalSearch.toLowerCase();
+                          return (
+                            (order.inspection_order_number && order.inspection_order_number.toLowerCase().includes(gs)) ||
+                            (order.inspectionOrderNumber && order.inspectionOrderNumber.toLowerCase().includes(gs)) ||
+                            (order.description && order.description.toLowerCase().includes(gs)) ||
+                            (order.title && order.title.toLowerCase().includes(gs)) ||
+                            (order.drawing_no && order.drawing_no.toLowerCase().includes(gs)) ||
+                            (order.drawingNo && order.drawingNo.toLowerCase().includes(gs)) ||
+                            (order.drawing_title && order.drawing_title.toLowerCase().includes(gs)) ||
+                            (order.drawingTitle && order.drawingTitle.toLowerCase().includes(gs)) ||
+                            (order.item_code && order.item_code.toLowerCase().includes(gs)) ||
+                            (order.itemCode && order.itemCode.toLowerCase().includes(gs)) ||
+                            (order.status && order.status.toLowerCase().includes(gs))
+                          );
+                        })
+                        .map((order: any) => (
                           <div 
                             key={`${order.type}-${order.id}`} 
                             className={`flex items-center justify-between p-4 rounded border ${
@@ -6188,8 +6034,7 @@ export default function InspectionsPage() {
                             </div>
                           </div>
                         ))}
-                      </div>
-                    )}
+                    </div>
                   </TabsContent>
                   
                   {/* Dashboard Tab - Analytics View */}
