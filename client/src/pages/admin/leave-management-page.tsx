@@ -128,6 +128,7 @@ export default function LeaveManagementPage() {
   const [balancesYear, setBalancesYear] = useState(new Date().getFullYear());
   const [balancesSearch, setBalancesSearch] = useState('');
   const [balancesEmployee, setBalancesEmployee] = useState('all');
+  const [balancesDepartment, setBalancesDepartment] = useState('all');
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1379,46 +1380,88 @@ export default function LeaveManagementPage() {
 
           {/* Leave Balances Tab */}
           <TabsContent value="balances" className="space-y-4">
-            {/* Year Selector, Employee Filter, and Search */}
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between flex-wrap">
-              <div className="flex items-center gap-3 flex-wrap">
-                <Select value={balancesYear.toString()} onValueChange={(v) => setBalancesYear(parseInt(v))}>
-                  <SelectTrigger className="w-[120px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[2024, 2025, 2026, 2027].map(y => (
-                      <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={balancesEmployee} onValueChange={setBalancesEmployee}>
-                  <SelectTrigger className="w-[220px]">
-                    <SelectValue placeholder="All Employees" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Employees</SelectItem>
-                    {(allBalancesData?.employees || []).map((emp: any) => (
-                      <SelectItem key={emp.userId} value={emp.userId.toString()}>
-                        {emp.name} {emp.employeeCode ? `(${emp.employeeCode})` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <span className="text-sm text-muted-foreground">
-                  {allBalancesData?.employees?.length || 0} employees
-                </span>
-              </div>
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name or employee code..."
-                  value={balancesSearch}
-                  onChange={(e) => setBalancesSearch(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </div>
+            {/* Filters */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Filters</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <Label>Year</Label>
+                    <Select value={balancesYear.toString()} onValueChange={(v) => { setBalancesYear(parseInt(v)); setBalancesEmployee('all'); setBalancesDepartment('all'); }}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[2024, 2025, 2026, 2027].map(y => (
+                          <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Department</Label>
+                    <Select value={balancesDepartment} onValueChange={(v) => { setBalancesDepartment(v); setBalancesEmployee('all'); }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Departments" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Departments</SelectItem>
+                        {Array.from(new Set((allBalancesData?.employees || []).map((e: any) => e.department).filter(Boolean))).sort().map((dept: any) => (
+                          <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Employee</Label>
+                    <Select value={balancesEmployee} onValueChange={setBalancesEmployee}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Employees" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Employees</SelectItem>
+                        {(allBalancesData?.employees || [])
+                          .filter((emp: any) => balancesDepartment === 'all' || emp.department === balancesDepartment)
+                          .map((emp: any) => (
+                            <SelectItem key={emp.userId} value={emp.userId.toString()}>
+                              {emp.name} {emp.employeeCode ? `(${emp.employeeCode})` : ''}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Search</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Name or employee code..."
+                        value={balancesSearch}
+                        onChange={(e) => setBalancesSearch(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center gap-3 text-sm text-muted-foreground">
+                  <span>
+                    {(allBalancesData?.employees || []).filter((emp: any) => {
+                      if (balancesEmployee !== 'all' && emp.userId.toString() !== balancesEmployee) return false;
+                      if (balancesDepartment !== 'all' && emp.department !== balancesDepartment) return false;
+                      if (balancesSearch && !emp.name?.toLowerCase().includes(balancesSearch.toLowerCase()) && !emp.employeeCode?.toLowerCase().includes(balancesSearch.toLowerCase())) return false;
+                      return true;
+                    }).length} of {allBalancesData?.employees?.length || 0} employees
+                  </span>
+                  {(balancesEmployee !== 'all' || balancesDepartment !== 'all' || balancesSearch) && (
+                    <button className="text-primary underline text-xs" onClick={() => { setBalancesEmployee('all'); setBalancesDepartment('all'); setBalancesSearch(''); }}>
+                      Clear all filters
+                    </button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Leave Type Summary Cards from DB */}
             {allBalancesData?.leaveTypes && (
@@ -1481,6 +1524,7 @@ export default function LeaveManagementPage() {
                     {allBalancesData.employees
                       .filter((emp: any) => {
                         if (balancesEmployee !== 'all' && emp.userId.toString() !== balancesEmployee) return false;
+                        if (balancesDepartment !== 'all' && emp.department !== balancesDepartment) return false;
                         if (!balancesSearch) return true;
                         const s = balancesSearch.toLowerCase();
                         return emp.name.toLowerCase().includes(s) || (emp.employeeCode || '').toLowerCase().includes(s);
