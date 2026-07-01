@@ -5958,8 +5958,34 @@ export default function InspectionsPage() {
                   
                   {/* List View Tab - Hierarchical Card View */}
                   <TabsContent value="list" className="mt-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="All Statuses" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Statuses</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {statusFilter !== 'all' && (
+                        <button
+                          className="text-xs text-muted-foreground underline"
+                          onClick={() => setStatusFilter('all')}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
                     <div className="space-y-2">
                       {organizedInspectionOrders
+                        .filter((order: any) => {
+                          if (statusFilter === 'all') return true;
+                          return (order.status || '') === statusFilter;
+                        })
                         .filter((order: any) => {
                           if (!globalSearch) return true;
                           const gs = globalSearch.toLowerCase();
