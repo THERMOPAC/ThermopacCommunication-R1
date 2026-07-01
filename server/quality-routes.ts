@@ -71,7 +71,6 @@ router.get('/inspection-orders/project/:projectId', ensureAuthenticated, async (
       WHERE io.project_id = ${projectId}
       ORDER BY 
         CAST(SPLIT_PART(io.inspection_order_number, '-', 2) AS INTEGER),
-        regexp_replace(io.inspection_order_number, '^.*-([A-Z]+)-([0-9]+)$', '\\1'),
         CAST(regexp_replace(io.inspection_order_number, '^.*-([A-Z]+)-([0-9]+)$', '\\2') AS INTEGER)
     `);
     
