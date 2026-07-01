@@ -136,8 +136,11 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
     if (allSuppliers.length >= 10000) { console.warn('[vendors/sync] SAP supplier count capped at 10000'); break; }
   }
 
-  const eligible = allSuppliers.filter((s) => !EXCLUDED_GROUP_CODES.has(s.GroupCode));
-  console.log(`[vendors/sync] full fetch: ${allSuppliers.length} total SAP suppliers → ${eligible.length} eligible`);
+  // Only sync vendors with a recognised ERP group (R/P/M/I/V/E/B).
+  // Vendors with null or unknown U_ERP_Group are excluded — they will be
+  // marked is_active=false by the deactivation step in the sync route.
+  const eligible = allSuppliers.filter((s) => VALID_VENDOR_TYPES.has(s.U_ERP_Group?.trim() ?? ''));
+  console.log(`[vendors/sync] full fetch: ${allSuppliers.length} total SAP suppliers → ${eligible.length} with valid ERP group`);
   return eligible;
 }
 
