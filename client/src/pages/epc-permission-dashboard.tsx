@@ -660,6 +660,8 @@ const PAGE_LABELS: Record<string, string> = {
   "execution-control": "Execution Control",
   "drawing-controls": "Drawing Controls",
   "bom-controls": "BOM Controls",
+  "buy-list-control": "Buy List Control",
+  "procurement-list-control": "Procurement List Control",
   "purchase-orders": "Purchase Orders",
   "work-orders": "Work Orders",
   "planning-control": "Planning Control",
