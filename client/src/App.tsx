@@ -95,8 +95,8 @@ function Router() {
       <ProtectedRoute path="/radar" component={() => <SalesMarketing.RadarPage />} />
       <ProtectedRoute path="/lead-generation" component={() => <SalesMarketing.LeadGenerationPage />} />
       <ProtectedRoute path="/leads" component={() => <SalesMarketing.LeadsPage />} />
-      <ProtectedRoute path="/products/buy-packages" component={() => <SalesMarketing.BuyPackagesPage />} />
-      <ProtectedRoute path="/products" component={() => <SalesMarketing.ProductsPage />} />
+      <PageProtectedRoute path="/products/buy-packages" pageKey="buy-packages" component={() => <SalesMarketing.BuyPackagesPage />} />
+      <PageProtectedRoute path="/products" pageKey="products" component={() => <SalesMarketing.ProductsPage />} />
       <ProtectedRoute path="/offer-templates" component={() => <SalesMarketing.OfferTemplatesPage />} />
       <ProtectedRoute path="/offers" component={() => <SalesMarketing.OffersPage />} />
       <ProtectedRoute path="/campaigns" component={() => <SalesMarketing.CampaignsPage />} />
@@ -178,7 +178,7 @@ function Router() {
       <ProtectedRoute path="/google-calendar-settings" component={() => <Employee.GoogleCalendarSettingsPage />} />
       
       {/* Projects & Production Routes */}
-      <ProtectedRoute path="/project-dashboard" component={() => <ProjectsProduction.ProjectDashboardPage />} />
+      <PageProtectedRoute path="/project-dashboard" pageKey="project-dashboard" component={() => <ProjectsProduction.ProjectDashboardPage />} />
       <PageProtectedRoute path="/epc/buy-list-control" pageKey="buy-list-control" component={() => <ProjectsProduction.EpcBuyListControlPage />} />
       <PageProtectedRoute path="/epc/procurement-list-control" pageKey="procurement-list-control" component={() => <ProjectsProduction.EpcProcurementListControlPage />} />
       <PageProtectedRoute path="/epc/bom-controls" pageKey="bom-controls" component={() => <ProjectsProduction.EpcBomControlPage />} />
@@ -194,15 +194,15 @@ function Router() {
       <PageProtectedRoute path="/epc/commissioning-handover" pageKey="commissioning-handover" component={() => <ProjectsProduction.EpcCommissioningHandoverPage />} />
       <ProtectedRoute path="/epc/assignment-control" component={() => <ProjectsProduction.EpcAssignmentControlPage />} />
       <ProtectedRoute path="/epc/permission-control" component={() => <ProjectsProduction.EpcPermissionDashboard />} />
-      <ProtectedRoute path="/epc/cutover-dashboard" component={() => <ProjectsProduction.EpcCutoverDashboard />} />
-      <ProtectedRoute path="/epc/control-tower" component={() => <ProjectsProduction.EpcControlTower />} />
+      <PageProtectedRoute path="/epc/cutover-dashboard" pageKey="cutover-dashboard" component={() => <ProjectsProduction.EpcCutoverDashboard />} />
+      <PageProtectedRoute path="/epc/control-tower" pageKey="control-tower" component={() => <ProjectsProduction.EpcControlTower />} />
       <ProtectedRoute path="/gcs-dashboard" component={() => <ProjectsProduction.GcsDashboardPage />} />
-      <ProtectedRoute path="/projects" component={() => <ProjectsProduction.ProjectsPage />} />
+      <PageProtectedRoute path="/projects" pageKey="projects" component={() => <ProjectsProduction.ProjectsPage />} />
       <ProtectedRoute path="/projects/:id" component={(props: any) => <ProjectsProduction.ProjectDetailPage {...props} />} />
       <ProtectedRoute path="/customers" component={() => <ProjectsProduction.CustomersPage />} />
       <ProtectedRoute path="/vendors" component={() => <ProjectsProduction.VendorsPage />} />
-      <ProtectedRoute path="/item-master" component={() => <ProjectsProduction.ItemMasterPage />} />
-      <ProtectedRoute path="/design-tools" component={() => <Design.DesignToolsPage />} />
+      <PageProtectedRoute path="/item-master" pageKey="item-master" component={() => <ProjectsProduction.ItemMasterPage />} />
+      <PageProtectedRoute path="/design-tools" pageKey="design-tools" component={() => <Design.DesignToolsPage />} />
       
 
 
