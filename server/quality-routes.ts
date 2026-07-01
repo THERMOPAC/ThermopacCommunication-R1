@@ -60,15 +60,19 @@ router.get('/inspection-orders/project/:projectId', ensureAuthenticated, async (
     // may contain dashes (e.g. IO-2026-2627-018-M-1). Regex extracts type and seq from the
     // END of the string so this works regardless of how many segments the project code has.
     const orders = await db.execute(sql`
-      SELECT * FROM inspection_orders 
-      WHERE project_id = ${projectId}
+      SELECT io.*,
+             dc.drawing_number AS drawing_no,
+             dc.drawing_title,
+             pi.item_code AS item_code,
+             pi.description AS item_description
+      FROM inspection_orders io
+      LEFT JOIN project_items pi ON pi.id = io.item_id
+      LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = io.item_id AND dc.is_current = true
+      WHERE io.project_id = ${projectId}
       ORDER BY 
-        -- Extract year from position 2 (always stable)
-        CAST(SPLIT_PART(inspection_order_number, '-', 2) AS INTEGER),
-        -- Extract sequence number from the trailing -<TYPE>-<SEQ> suffix
-        CAST(regexp_replace(inspection_order_number, '^.*-([A-Z]+)-([0-9]+)$', '\\2') AS INTEGER),
-        -- Then sort by type letter (M before B, etc.)
-        regexp_replace(inspection_order_number, '^.*-([A-Z]+)-([0-9]+)$', '\\1')
+        CAST(SPLIT_PART(io.inspection_order_number, '-', 2) AS INTEGER),
+        CAST(regexp_replace(io.inspection_order_number, '^.*-([A-Z]+)-([0-9]+)$', '\\2') AS INTEGER),
+        regexp_replace(io.inspection_order_number, '^.*-([A-Z]+)-([0-9]+)$', '\\1')
     `);
     
     // Return the rows array from the query result
