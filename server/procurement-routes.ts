@@ -88,69 +88,57 @@ function isSapSessionConflict(raw: string): boolean {
 // See: server/sap-b1-integration/sap-central-session.ts
 
 async function fetchSapVendors(): Promise<SapVendorRecord[]> {
-  // Phase 1: $select pagination — gets ALL vendors (proven to return all 1,458).
-  // SAP B1 Service Layer caps full-record (no $select) OData fetches at 500 rows
-  // server-side. With $select the limit does not apply so we get everything.
-  // NOTE: GroupName is intentionally excluded from $select — SAP rejects it as
-  // an invalid property on BusinessPartners (400). GroupCode alone is sufficient
-  // for filtering excluded groups (105/106). GroupName is stored as null.
-  {
-    const PAGE_SIZE = 20;
-    const allSuppliers: Array<{ CardCode: string; CardName: string; GroupCode: number; GroupName: string | null }> = [];
-    let skip = 0;
+  // No $select, no $orderby — required to receive UDF fields (U_ERP_Group) from SAP.
+  // $select causes SAP to strip UDF columns silently; some standard fields like
+  // GroupName also cause a 400 when listed in $select on this SAP version.
+  // Strategy: paginate all cSupplier BPs with only $filter, collect in memory,
+  // then filter excluded groups (105/106) locally.
+  const PAGE_SIZE = 500;
+  const allSuppliers: SapVendorRecord[] = [];
+  let skip = 0;
 
-    while (true) {
-      const qs = new URLSearchParams({
-        '$select': 'CardCode,CardName,GroupCode',
-        '$filter': "CardType eq 'cSupplier'",
-        '$top':    String(PAGE_SIZE),
-        '$skip':   String(skip),
-      }).toString();
+  while (true) {
+    const qs = new URLSearchParams({
+      '$filter': "CardType eq 'cSupplier'",
+      '$top':    String(PAGE_SIZE),
+      '$skip':   String(skip),
+    }).toString();
 
-      const resp = await sapSession.request({
-        method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}`,
-      });
+    const resp = await sapSession.request({
+      method: 'GET', path: `/b1s/v1/BusinessPartners?${qs}`,
+    });
 
-      if (!resp.ok) {
-        const body = resp.body?.substring(0, 400) ?? '';
-        if (isSapSessionConflict(body)) {
-          await sapSession.invalidate();
-          throw new Error(
-            'SAP_SESSION_CONFLICT: A previous sync session is still active in SAP B1. ' +
-            'Wait 1–2 minutes for it to expire, then try again.',
-          );
-        }
-        throw new Error(`SAP returned ${resp.statusCode}: ${body}`);
+    if (!resp.ok) {
+      const body = resp.body?.substring(0, 400) ?? '';
+      if (isSapSessionConflict(body)) {
+        await sapSession.invalidate();
+        throw new Error(
+          'SAP_SESSION_CONFLICT: A previous sync session is still active in SAP B1. ' +
+          'Wait 1–2 minutes for it to expire, then try again.',
+        );
       }
-
-      const page = JSON.parse(resp.body).value || [];
-      for (const bp of page) {
-        allSuppliers.push({
-          CardCode:  String(bp.CardCode  ?? ''),
-          CardName:  String(bp.CardName  ?? ''),
-          GroupCode: Number(bp.GroupCode ?? 0),
-          GroupName: bp.GroupName ? String(bp.GroupName) : null,
-        });
-      }
-      if (page.length < PAGE_SIZE) break;
-      skip += PAGE_SIZE;
-      if (allSuppliers.length >= 5000) { console.warn('[vendors/sync] SAP supplier count capped at 5000'); break; }
+      throw new Error(`SAP returned ${resp.statusCode}: ${body}`);
     }
 
-    const eligible = allSuppliers.filter((s) => !EXCLUDED_GROUP_CODES.has(s.GroupCode));
-    console.log(`[vendors/sync] $select fetch: ${allSuppliers.length} total SAP suppliers → ${eligible.length} eligible`);
-
-    // Return without U_ERP_Group — the Full Sync upsert preserves existing
-    // vendor_type values already set by Test SAP. To classify vendors use
-    // Test SAP (which individually fetches all records to find U_ERP_Group).
-    return eligible.map((s) => ({
-      CardCode:    s.CardCode,
-      CardName:    s.CardName,
-      GroupCode:   s.GroupCode,
-      GroupName:   s.GroupName,
-      U_ERP_Group: null,
-    }));
+    const page = JSON.parse(resp.body).value || [];
+    for (const bp of page) {
+      const raw = bp['U_ERP_Group'];
+      allSuppliers.push({
+        CardCode:    String(bp.CardCode  ?? ''),
+        CardName:    String(bp.CardName  ?? ''),
+        GroupCode:   Number(bp.GroupCode ?? 0),
+        GroupName:   null,
+        U_ERP_Group: raw ? String(raw).trim() || null : null,
+      });
+    }
+    if (page.length < PAGE_SIZE) break;
+    skip += PAGE_SIZE;
+    if (allSuppliers.length >= 10000) { console.warn('[vendors/sync] SAP supplier count capped at 10000'); break; }
   }
+
+  const eligible = allSuppliers.filter((s) => !EXCLUDED_GROUP_CODES.has(s.GroupCode));
+  console.log(`[vendors/sync] full fetch: ${allSuppliers.length} total SAP suppliers → ${eligible.length} eligible`);
+  return eligible;
 }
 
 
