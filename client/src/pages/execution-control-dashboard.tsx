@@ -958,7 +958,7 @@ export default function ExecutionControlDashboard() {
       const engWarnings = getEngineeringWarnings(dc, bom, classification);
       const applicability = getStepApplicability(classification);
 
-      const itemCode = plan?.item_code || exec?.item_code || item.masterItem?.item_code || `Item #${itemId}`;
+      const itemCode = plan?.item_code || exec?.item_code || "⚠ Project Item Code missing";
       const itemDesc = plan?.item_description || exec?.item_description || item.masterItem?.description || "";
 
       const row = {

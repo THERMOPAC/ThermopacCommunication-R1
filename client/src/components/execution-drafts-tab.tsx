@@ -195,7 +195,8 @@ export default function ExecutionDraftsTab({ projectId }: ExecutionDraftsTabProp
       ) : (
         Object.entries(grouped).map(([itemKey, itemDrafts]) => {
           const first = itemDrafts[0];
-          const itemLabel = first.item_code || first.master_item_code || `Item #${first.project_item_id}`;
+          const itemLabel = first.item_code || "";
+          const itemCodeMissing = !first.item_code;
           const itemDesc = first.item_description || first.master_item_description || "";
           const makeOrBuy = first.make_or_buy || "N/A";
 
@@ -204,7 +205,11 @@ export default function ExecutionDraftsTab({ projectId }: ExecutionDraftsTabProp
               <CardHeader className="py-3 px-4 bg-muted/30">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-sm font-medium">{itemLabel}</CardTitle>
+                    <CardTitle className="text-sm font-medium">
+                      {itemCodeMissing
+                        ? <span className="text-amber-600 flex items-center gap-1">⚠ Project Item Code missing</span>
+                        : itemLabel}
+                    </CardTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {itemDesc} — <span className="font-medium">{makeOrBuy}</span>
                     </p>
