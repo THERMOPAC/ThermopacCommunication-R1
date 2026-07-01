@@ -552,6 +552,10 @@ export function setupProcurementRoutes(app: Router) {
     syncInProgress = true;
     const client = await pool.connect();
     try {
+      // Force a fresh SAP login before fetching — required so SAP returns UDF
+      // fields (U_ERP_Group) in the response. A reused session primed by any
+      // prior $select request will silently strip UDF columns.
+      await sapSession.forceLogin(4000);
       const suppliers = await fetchSapVendors();
       if (suppliers.length === 0) {
         return res.status(200).json({ synced: 0, deactivated: 0, message: 'SAP returned no eligible suppliers' });
