@@ -91,6 +91,9 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
   // Phase 1: $select pagination — gets ALL vendors (proven to return all 1,458).
   // SAP B1 Service Layer caps full-record (no $select) OData fetches at 500 rows
   // server-side. With $select the limit does not apply so we get everything.
+  // NOTE: GroupName is intentionally excluded from $select — SAP rejects it as
+  // an invalid property on BusinessPartners (400). GroupCode alone is sufficient
+  // for filtering excluded groups (105/106). GroupName is stored as null.
   {
     const PAGE_SIZE = 20;
     const allSuppliers: Array<{ CardCode: string; CardName: string; GroupCode: number; GroupName: string | null }> = [];
@@ -98,7 +101,7 @@ async function fetchSapVendors(): Promise<SapVendorRecord[]> {
 
     while (true) {
       const qs = new URLSearchParams({
-        '$select': 'CardCode,CardName,GroupCode,GroupName',
+        '$select': 'CardCode,CardName,GroupCode',
         '$filter': "CardType eq 'cSupplier'",
         '$top':    String(PAGE_SIZE),
         '$skip':   String(skip),
