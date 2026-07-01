@@ -5332,45 +5332,14 @@ export default function InspectionsPage() {
       // Use the database UOM field for unit
       const unitValue = editInspectionOrderDetails.uom || editInspectionOrderDetails.unit || (firstItem ? firstItem.unit : "");
       
-      // Use drawingNumber from the details or first item
-      console.log("First Item:", firstItem);
-      
-      // For items in the inspection order, we need to look for the drawing number field
-      // If no drawing number is found, derive it from the item code (based on convention)
-      let drawingNumber = (editInspectionOrderDetails as any).drawingNumber || 
-                         editInspectionOrderDetails.drawingNo || 
-                         (firstItem && (firstItem as any).drawingNumber) || 
-                         (firstItem && firstItem.drawingNo) || 
-                         "";
-                           
-      // If we still don't have a drawing number, try to extract it from item code or use a numeric format
-      // Drawing numbers come in two formats:
-      // 1. Alpha-numeric with hyphens like "C10165x-WPC-WRS-3000" → extract "C10165x-WPC-WRS"
-      // 2. Numeric like "482300200100100"
-      if (!drawingNumber && firstItem && firstItem.itemCode) {
-        const itemCode = firstItem.itemCode;
-        
-        // Check if the item code might be numeric-style (just digits)
-        if (/^\d+$/.test(itemCode)) {
-          // For numeric drawing numbers, use as-is
-          drawingNumber = itemCode;
-        } 
-        // For alpha-numeric with hyphens, extract the part before the last segment
-        else if (itemCode.includes('-')) {
-          const parts = itemCode.split('-');
-          if (parts.length >= 2) {
-            drawingNumber = parts.slice(0, -1).join('-');
-          } else {
-            drawingNumber = itemCode;
-          }
-        } 
-        // If no hyphen but has letters and numbers, use as-is
-        else {
-          drawingNumber = itemCode;
-        }
-      }
-                           
-      console.log("Drawing Number Value:", drawingNumber);
+      // Use drawingNumber — authoritative source is epc_drawing_controls via currentDrawing
+      const drawingNumber =
+        (editInspectionOrderDetails as any).currentDrawing?.drawingNumber ||
+        (editInspectionOrderDetails as any).drawingNumber ||
+        editInspectionOrderDetails.drawingNo ||
+        (firstItem && (firstItem as any).drawingNumber) ||
+        (firstItem && firstItem.drawingNo) ||
+        "";
         
       editForm.reset({
         inspectionOrderNumber: editInspectionOrderDetails.inspectionOrderNumber || "",
@@ -7053,7 +7022,7 @@ export default function InspectionsPage() {
                           <FormLabel>Status</FormLabel>
                           <Select 
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -7104,7 +7073,7 @@ export default function InspectionsPage() {
                           <FormLabel>Inspection Type</FormLabel>
                           <Select 
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
