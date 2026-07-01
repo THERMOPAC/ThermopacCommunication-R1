@@ -114,7 +114,7 @@ export async function activateDraft(
 
 async function activateDrawingOrder(draft: any, userId: number): Promise<{ entityId: number; entityType: string }> {
   const sd = draft.source_data || {};
-  const itemCode = sd.item_code || sd.master_item_code || null;
+  let itemCode: string | null = sd.item_code || null;
   const itemDesc = sd.master_item_description || sd.item_description || null;
   const classification = sd.make_or_buy || sd.classification || null;
 
@@ -138,14 +138,20 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
   let liveMasterItemId: number | null = sd.master_item_id || null;
   if (draft.project_item_id) {
     const piResult = await db.execute(
-      sql`SELECT code_bars, item_id FROM project_items WHERE id = ${draft.project_item_id}`
+      sql`SELECT code_bars, item_id, item_code FROM project_items WHERE id = ${draft.project_item_id}`
     );
     if (piResult.rows.length > 0) {
-      itemBarcode = (piResult.rows[0] as any).code_bars || null;
-      if (!liveMasterItemId) {
-        liveMasterItemId = (piResult.rows[0] as any).item_id || null;
-      }
+      const piRow = piResult.rows[0] as any;
+      itemBarcode = piRow.code_bars || null;
+      if (!liveMasterItemId) liveMasterItemId = piRow.item_id || null;
+      if (piRow.item_code) itemCode = piRow.item_code;
     }
+  }
+  if (!itemCode) {
+    throw new Error(
+      `[DraftActivation] BLOCKED: project_items.item_code is null for project_item_id=${draft.project_item_id}, ` +
+      `doc=${draft.doc_number}. Assign item_code on the project item before activating this Drawing Order.`
+    );
   }
 
   const result = await db.execute(
@@ -333,7 +339,7 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
 
 async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId: number; entityType: string }> {
   const sd = draft.source_data || {};
-  const itemCode = sd.item_code || sd.master_item_code || '';
+  let itemCode: string = sd.item_code || '';
   let itemDesc = sd.master_item_description || sd.item_description || '';
   const quantity = parseFloat(sd.quantity) || 1;
   const uom = sd.uom || 'set';
@@ -341,16 +347,24 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
   const projectItemId = draft.project_item_id;
   const isService = classification.toLowerCase() === 'service';
 
-  // Resolve master_item_id live from project_items when source_data is stale/null
+  // Resolve item_code and master_item_id live from project_items (always — snapshot may be stale)
   let masterItemId: number | null = sd.master_item_id ? Number(sd.master_item_id) : null;
-  if (!masterItemId) {
+  {
     const piRow = await db.execute(
-      sql`SELECT item_id FROM project_items WHERE id = ${projectItemId} LIMIT 1`
+      sql`SELECT item_id, item_code FROM project_items WHERE id = ${projectItemId} LIMIT 1`
     );
-    masterItemId = (piRow.rows[0] as any)?.item_id || null;
-    if (masterItemId) {
+    const piData = piRow.rows[0] as any;
+    if (piData?.item_code) itemCode = piData.item_code;
+    if (!masterItemId && piData?.item_id) {
+      masterItemId = piData.item_id;
       console.log(`[DraftActivation] WO draft ${draft.id}: resolved live master_item_id=${masterItemId} for project_item_id=${projectItemId}`);
     }
+  }
+  if (!itemCode) {
+    throw new Error(
+      `[DraftActivation] BLOCKED: project_items.item_code is null for project_item_id=${projectItemId}, ` +
+      `WO draft=${draft.doc_number}. Assign item_code on the project item before activating this Work Order.`
+    );
   }
 
   // Live lookup: inject description, specification, drawing_no from master_items + epc_drawing_controls
@@ -537,23 +551,31 @@ export async function linkEntityToDraft(
 
 async function activatePurchaseOrder(draft: any, userId: number): Promise<{ entityId: number; entityType: string }> {
   const sd = draft.source_data || {};
-  const itemCode = sd.item_code || sd.master_item_code || '';
+  let itemCode: string = sd.item_code || '';
   const itemDesc = sd.master_item_description || sd.item_description || '';
   const quantity = parseFloat(sd.quantity) || 1;
   const uom = sd.uom || 'set';
   const classification = sd.make_or_buy || 'Buy';
   const projectItemId = draft.project_item_id;
 
-  // Resolve master_item_id live from project_items when source_data is stale/null
+  // Resolve item_code and master_item_id live from project_items (always — snapshot may be stale)
   let masterItemId: number | null = sd.master_item_id ? Number(sd.master_item_id) : null;
-  if (!masterItemId) {
+  {
     const piRow = await db.execute(
-      sql`SELECT item_id FROM project_items WHERE id = ${projectItemId} LIMIT 1`
+      sql`SELECT item_id, item_code FROM project_items WHERE id = ${projectItemId} LIMIT 1`
     );
-    masterItemId = (piRow.rows[0] as any)?.item_id || null;
-    if (masterItemId) {
+    const piData = piRow.rows[0] as any;
+    if (piData?.item_code) itemCode = piData.item_code;
+    if (!masterItemId && piData?.item_id) {
+      masterItemId = piData.item_id;
       console.log(`[DraftActivation] PO draft ${draft.id}: resolved live master_item_id=${masterItemId} for project_item_id=${projectItemId}`);
     }
+  }
+  if (!itemCode) {
+    throw new Error(
+      `[DraftActivation] BLOCKED: project_items.item_code is null for project_item_id=${projectItemId}, ` +
+      `PO draft=${draft.doc_number}. Assign item_code on the project item before activating this Purchase Order.`
+    );
   }
 
   const purchaseAssigneeResult = await requireEpcAssignee('PO_prepare', draft.project_id, 'full_auto');
