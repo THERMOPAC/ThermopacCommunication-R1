@@ -441,6 +441,27 @@ export default function BuyPackagesPage() {
     enabled: !!lf.buyGroupId,
   });
 
+  // Live SAP Item Code preview — fires when make + model are set in the form
+  const lfMake  = (() => { const a = lf.technicalAttributes?.approved_makes; return Array.isArray(a) && a.length === 1 ? String(a[0]).trim() : ""; })();
+  const lfModel = (() => { const s = lf.technicalAttributes?.preferred_series; return typeof s === "string" ? s.trim() : ""; })();
+  const sapPreviewEnabled =
+    lineDialog.open &&
+    !!lf.buyGroupId && !!lf.buySubgroupId &&
+    !!lfMake && lfMake.toUpperCase() !== "TBN" &&
+    !!lfModel && lfModel.toUpperCase() !== "TBN";
+  const { data: sapPreview, isFetching: sapPreviewLoading } = useQuery<{
+    code: string | null; isNew: boolean; isRawMaterials: boolean;
+  }>({
+    queryKey: ["/api/buy-catalog/preview-code", lf.buyGroupId, lf.buySubgroupId, lfMake, lfModel],
+    queryFn: () =>
+      fetch(
+        `/api/buy-catalog/preview-code?groupId=${lf.buyGroupId}&subgroupId=${lf.buySubgroupId}&make=${encodeURIComponent(lfMake)}&model=${encodeURIComponent(lfModel)}`,
+        { credentials: "include" },
+      ).then((r) => r.json()),
+    enabled: sapPreviewEnabled,
+    staleTime: 30_000,
+  });
+
   const { data: allSubgroups = [] } = useQuery<BuySubgroup[]>({
     queryKey: ["/api/buy-subgroups-all", groups.map((g) => g.id).join(",")],
     queryFn: async () => {
@@ -2042,19 +2063,47 @@ export default function BuyPackagesPage() {
                     Auto-generated
                   </span>
                 </Label>
-                {lineDialog.editLine?.sap_item_code ? (
-                  <div className="h-9 px-3 flex items-center gap-2 rounded-md border border-emerald-300 bg-emerald-50 select-none">
-                    <span className="font-mono font-semibold tracking-wide text-emerald-800 text-sm">
-                      {lineDialog.editLine.sap_item_code}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
-                    <span className="font-mono tracking-wide">
-                      {lineDialog.editLine ? "—" : "Generated on save (once Make & Model are set)"}
-                    </span>
-                  </div>
-                )}
+                {(() => {
+                  // Priority 1 — live preview from server (make+model set in form)
+                  if (sapPreviewLoading) {
+                    return (
+                      <div className="h-9 px-3 flex items-center gap-2 rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span className="font-mono tracking-wide">Resolving…</span>
+                      </div>
+                    );
+                  }
+                  if (sapPreviewEnabled && sapPreview?.code) {
+                    return (
+                      <div className="h-9 px-3 flex items-center justify-between rounded-md border border-emerald-300 bg-emerald-50 select-none">
+                        <span className="font-mono font-semibold tracking-wide text-emerald-800 text-sm">
+                          {sapPreview.code}
+                        </span>
+                        {sapPreview.isNew && (
+                          <span className="text-[10px] text-emerald-600 font-medium uppercase tracking-wide">New</span>
+                        )}
+                      </div>
+                    );
+                  }
+                  // Priority 2 — already-saved code on the line being edited
+                  if (lineDialog.editLine?.sap_item_code) {
+                    return (
+                      <div className="h-9 px-3 flex items-center gap-2 rounded-md border border-emerald-300 bg-emerald-50 select-none">
+                        <span className="font-mono font-semibold tracking-wide text-emerald-800 text-sm">
+                          {lineDialog.editLine.sap_item_code}
+                        </span>
+                      </div>
+                    );
+                  }
+                  // Priority 3 — waiting for make+model to be set
+                  return (
+                    <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                      <span className="font-mono tracking-wide text-xs">
+                        Set Make &amp; Model above to preview the code
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Installed On (Skid) */}

@@ -743,6 +743,58 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
   // PHASE 1 — BUY PACKAGE LINES
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // GET /api/buy-catalog/preview-code — read-only preview of what SAP Item Code will be assigned
+  // Used by the Add/Edit Line form for live feedback before the user saves.
+  // Query params: groupId, subgroupId, make, model
+  app.get('/api/buy-catalog/preview-code', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      const groupId    = parseInt(req.query.groupId    as string);
+      const subgroupId = parseInt(req.query.subgroupId as string);
+      const make       = (req.query.make  as string | undefined)?.trim() ?? '';
+      const model      = (req.query.model as string | undefined)?.trim() ?? '';
+
+      if (isNaN(groupId) || isNaN(subgroupId) || !make || !model)
+        return sendValidationError(res, 'groupId, subgroupId, make, and model are required');
+
+      // Check raw_materials group — no code for RM
+      const grpRow = await pool.query<{ code: string }>(`SELECT code FROM buy_groups WHERE id = $1`, [groupId]);
+      if (!grpRow.rowCount || grpRow.rows[0].code === 'raw_materials')
+        return res.json({ code: null, isNew: false, isRawMaterials: true });
+
+      // Check if this identity already has a catalog record
+      const existing = await pool.query<{ item_code: string }>(
+        `SELECT item_code FROM master_items
+         WHERE item_type = 'catalog'
+           AND buy_group_id    = $1
+           AND buy_subgroup_id = $2
+           AND catalog_make    = $3
+           AND catalog_model   = $4
+         LIMIT 1`,
+        [groupId, subgroupId, make, model],
+      );
+
+      if (existing.rowCount && existing.rowCount > 0) {
+        return res.json({ code: existing.rows[0].item_code, isNew: false, isRawMaterials: false });
+      }
+
+      // Not found — compute what the next code would be (read-only, no INSERT)
+      const PREFIX_MAP: Record<string, string> = {
+        pumps: 'PMP', motors: 'MOT', instruments: 'INS',
+        valves: 'VLV', electrical_control: 'ELC', packages: 'PKG',
+      };
+      const grpCode  = grpRow.rows[0].code;
+      const prefix   = PREFIX_MAP[grpCode] ?? grpCode.slice(0, 3).toUpperCase();
+      const countRow = await pool.query<{ cnt: string }>(
+        `SELECT COUNT(*) AS cnt FROM master_items WHERE item_type = 'catalog' AND buy_group_id = $1`,
+        [groupId],
+      );
+      const seq  = (parseInt(countRow.rows[0].cnt, 10) + 1).toString().padStart(4, '0');
+      const code = `CAT-${prefix}-${seq}`;
+
+      res.json({ code, isNew: true, isRawMaterials: false });
+    } catch (err) { sendError(res, err); }
+  });
+
   // GET /api/buy-packages/:id/lines — lines with group/subgroup/UOM labels
   app.get('/api/buy-packages/:id/lines', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
     try {
