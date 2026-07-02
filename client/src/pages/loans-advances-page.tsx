@@ -544,9 +544,16 @@ export default function LoansAdvancesPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button size="sm" variant="ghost" onClick={() => setSelectedLoan(loan)}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button size="sm" variant="ghost" onClick={() => setSelectedLoan(loan)}>
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>View Loan Details</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -554,7 +561,7 @@ export default function LoansAdvancesPage() {
                                     <FileText className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Print Memo</TooltipContent>
+                                <TooltipContent>Print Payment Memo</TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                             {loan.sapPostingStatus !== 'posted' && (
@@ -571,19 +578,33 @@ export default function LoansAdvancesPage() {
                                       {transferLoanMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent>Transfer to SAP</TooltipContent>
+                                  <TooltipContent>Transfer Disbursement JE to SAP</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             )}
                             {loan.status === 'active' && (
-                              <Button size="sm" variant="ghost" onClick={() => updateLoanMutation.mutate({ id: loan.id, data: { status: 'paused' } })}>
-                                <Pause className="h-4 w-4" />
-                              </Button>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="sm" variant="ghost" onClick={() => updateLoanMutation.mutate({ id: loan.id, data: { status: 'paused' } })}>
+                                      <Pause className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Pause Recovery</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             )}
                             {loan.status === 'paused' && (
-                              <Button size="sm" variant="ghost" onClick={() => updateLoanMutation.mutate({ id: loan.id, data: { status: 'active' } })}>
-                                <Play className="h-4 w-4" />
-                              </Button>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="sm" variant="ghost" onClick={() => updateLoanMutation.mutate({ id: loan.id, data: { status: 'active' } })}>
+                                      <Play className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Resume Recovery</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             )}
                           </div>
                         </TableCell>
@@ -661,9 +682,16 @@ export default function LoansAdvancesPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button size="sm" variant="ghost" onClick={() => setSelectedAdvance(adv)}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button size="sm" variant="ghost" onClick={() => setSelectedAdvance(adv)}>
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>View Advance Details</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -671,7 +699,7 @@ export default function LoansAdvancesPage() {
                                     <FileText className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Print Memo</TooltipContent>
+                                <TooltipContent>Print Payment Memo</TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                             {adv.sapPostingStatus !== 'posted' && (
@@ -688,19 +716,33 @@ export default function LoansAdvancesPage() {
                                       {transferAdvanceMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent>Transfer to SAP</TooltipContent>
+                                  <TooltipContent>Transfer Disbursement JE to SAP</TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
                             )}
                             {adv.status === 'active' && (
-                              <Button size="sm" variant="ghost" onClick={() => updateAdvanceMutation.mutate({ id: adv.id, data: { status: 'paused' } })}>
-                                <Pause className="h-4 w-4" />
-                              </Button>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="sm" variant="ghost" onClick={() => updateAdvanceMutation.mutate({ id: adv.id, data: { status: 'paused' } })}>
+                                      <Pause className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Pause Recovery</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             )}
                             {adv.status === 'paused' && (
-                              <Button size="sm" variant="ghost" onClick={() => updateAdvanceMutation.mutate({ id: adv.id, data: { status: 'active' } })}>
-                                <Play className="h-4 w-4" />
-                              </Button>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="sm" variant="ghost" onClick={() => updateAdvanceMutation.mutate({ id: adv.id, data: { status: 'active' } })}>
+                                      <Play className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Resume Recovery</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             )}
                           </div>
                         </TableCell>
