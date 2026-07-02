@@ -1370,6 +1370,17 @@ function GeneratedSalariesView() {
                         </Badge>
                       )}
 
+                      {!isLocked && !isVoided && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { setVoidRecordId(record.id); setShowVoidRecordConfirm(true); }}
+                          className="text-gray-600 hover:text-red-700 hover:border-red-300 h-7 px-2 text-xs"
+                        >
+                          <Ban className="h-3 w-3 mr-1" /> Void
+                        </Button>
+                      )}
+
                       {Array.isArray(record.statusHistory) && record.statusHistory.length > 0 && (
                         <Button
                           variant="ghost"
