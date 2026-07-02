@@ -479,12 +479,13 @@ export async function buildSalarySlipData(recordId: number): Promise<BuiltSalary
 
     const allocated = parseFloat(bal.allocatedDays?.toString() || '0');
     const carryover = parseFloat(bal.carryoverDays?.toString() || '0');
+    const adjustment = parseFloat(bal.adjustmentDays?.toString() || '0');
     // Remove future-month accruals so allocated reflects state at period end
     const futureAccrued = futureAccrualMap.get(lt.id) || 0;
     const allocatedAsOfPeriod = Math.max(0, allocated - futureAccrued);
     // Use transaction-derived YTD instead of live used_days
     const usedYTD = ytdUsedMap.get(lt.id) || 0;
-    const currentClosing = Math.max(0, allocatedAsOfPeriod + carryover - usedYTD);
+    const currentClosing = Math.max(0, allocatedAsOfPeriod + carryover + adjustment - usedYTD);
 
     const usedInMonth = usedInMonthMap.get(lt.id) || 0;
     const accruedInMonth = accruedInMonthMap.get(lt.id) || 0;

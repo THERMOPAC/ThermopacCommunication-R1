@@ -563,6 +563,7 @@ async function stepLeaveConsolidation(
               usedDays: leaveBalances.usedDays,
               pendingDays: leaveBalances.pendingDays,
               carryoverDays: leaveBalances.carryoverDays,
+              adjustmentDays: leaveBalances.adjustmentDays,
               leaveTypeId: leaveBalances.leaveTypeId,
             }).from(leaveBalances)
               .where(and(
@@ -575,7 +576,8 @@ async function stepLeaveConsolidation(
               if (!paidLeaveTypeIds.has(bal.leaveTypeId)) continue;
               const remaining =
                 parseFloat(bal.allocatedDays) +
-                parseFloat(bal.carryoverDays as string || '0') -
+                parseFloat(bal.carryoverDays as string || '0') +
+                parseFloat(bal.adjustmentDays as string || '0') -
                 parseFloat(bal.usedDays) -
                 parseFloat(bal.pendingDays);
               if (remaining > 0) availablePaidBalance += remaining;
@@ -619,6 +621,7 @@ async function stepLeaveConsolidation(
               usedDays: leaveBalances.usedDays,
               pendingDays: leaveBalances.pendingDays,
               carryoverDays: leaveBalances.carryoverDays,
+              adjustmentDays: leaveBalances.adjustmentDays,
               leaveTypeId: leaveBalances.leaveTypeId,
             }).from(leaveBalances)
               .where(and(
@@ -631,7 +634,8 @@ async function stepLeaveConsolidation(
               if (!paidTypeIds.has(bal.leaveTypeId)) continue;
               const remaining =
                 parseFloat(bal.allocatedDays) +
-                parseFloat(bal.carryoverDays as string || '0') -
+                parseFloat(bal.carryoverDays as string || '0') +
+                parseFloat(bal.adjustmentDays as string || '0') -
                 parseFloat(bal.usedDays) -
                 parseFloat(bal.pendingDays);
               if (remaining > 0) availablePaidBalance += remaining;
