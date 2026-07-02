@@ -218,6 +218,7 @@ router.post('/trial/run', async (req: Request, res: Response) => {
           usedDays: leaveBalances.usedDays,
           pendingDays: leaveBalances.pendingDays,
           carryoverDays: leaveBalances.carryoverDays,
+          adjustmentDays: leaveBalances.adjustmentDays,
           leaveTypeId: leaveBalances.leaveTypeId,
         }).from(leaveBalances)
           .where(and(
@@ -230,7 +231,8 @@ router.post('/trial/run', async (req: Request, res: Response) => {
           if (!paidLeaveTypeIds.has(bal.leaveTypeId)) continue;
           const remaining =
             parseFloat(bal.allocatedDays) +
-            parseFloat(bal.carryoverDays as string || '0') -
+            parseFloat(bal.carryoverDays as string || '0') +
+            parseFloat(bal.adjustmentDays as string || '0') -
             parseFloat(bal.usedDays) -
             parseFloat(bal.pendingDays);
           if (remaining > 0) availablePaidBalance += remaining;
@@ -263,6 +265,7 @@ router.post('/trial/run', async (req: Request, res: Response) => {
           usedDays: leaveBalances.usedDays,
           pendingDays: leaveBalances.pendingDays,
           carryoverDays: leaveBalances.carryoverDays,
+          adjustmentDays: leaveBalances.adjustmentDays,
           leaveTypeId: leaveBalances.leaveTypeId,
         }).from(leaveBalances)
           .where(and(
@@ -276,7 +279,8 @@ router.post('/trial/run', async (req: Request, res: Response) => {
           if (!paidLeaveTypeIds.has(bal.leaveTypeId)) continue;
           const remaining =
             parseFloat(bal.allocatedDays) +
-            parseFloat(bal.carryoverDays as string || '0') -
+            parseFloat(bal.carryoverDays as string || '0') +
+            parseFloat(bal.adjustmentDays as string || '0') -
             parseFloat(bal.usedDays) -
             parseFloat(bal.pendingDays);
           if (remaining > 0) availablePaidBalance += remaining;
@@ -612,6 +616,7 @@ router.post('/trial/run', async (req: Request, res: Response) => {
           usedDays: leaveBalances.usedDays,
           allocatedDays: leaveBalances.allocatedDays,
           carryoverDays: leaveBalances.carryoverDays,
+          adjustmentDays: leaveBalances.adjustmentDays,
           pendingDays: leaveBalances.pendingDays,
         })
         .from(leaveBalances)
@@ -623,7 +628,8 @@ router.post('/trial/run', async (req: Request, res: Response) => {
         if (remaining <= 0) break;
         const available =
           parseFloat(bal.allocatedDays) +
-          parseFloat((bal.carryoverDays as string) || '0') -
+          parseFloat((bal.carryoverDays as string) || '0') +
+          parseFloat((bal.adjustmentDays as string) || '0') -
           parseFloat(bal.usedDays) -
           parseFloat(bal.pendingDays);
         if (available <= 0) continue;
