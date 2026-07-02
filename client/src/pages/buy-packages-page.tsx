@@ -865,7 +865,7 @@ export default function BuyPackagesPage() {
         if (!(ta.impeller_type as string)?.trim()) { toast({ title: "Impeller Type is required for Vertical Inline", variant: "destructive" }); return; }
         if (!(ta.coupling_type_vi as string)?.trim()) { toast({ title: "Coupling Type is required for Vertical Inline", variant: "destructive" }); return; }
       }
-      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
+
     } else if (isGearPumpMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.gear_type as string)?.trim()) { toast({ title: "Gear Type is required", variant: "destructive" }); return; }
@@ -886,7 +886,7 @@ export default function BuyPackagesPage() {
         if (!(ta.bearing_type as string)?.trim()) { toast({ title: "Bearing Type is required for Bi-Helical pump", variant: "destructive" }); return; }
         if (!(ta.max_diff_pressure as string)?.trim()) { toast({ title: "Max Diff. Pressure is required for Bi-Helical pump", variant: "destructive" }); return; }
       }
-      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
+
     } else if (isScrewPumpMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.screw_type as string)?.trim()) { toast({ title: "Screw Type is required", variant: "destructive" }); return; }
@@ -904,7 +904,7 @@ export default function BuyPackagesPage() {
         if (!(ta.rotor_material as string)?.trim()) { toast({ title: "Rotor Material is required for Progressive Cavity", variant: "destructive" }); return; }
         if (!(ta.stator_elastomer as string)?.trim()) { toast({ title: "Stator Elastomer is required for Progressive Cavity", variant: "destructive" }); return; }
       }
-      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
+
     } else if (isMultistagePumpMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.multistage_type as string)?.trim()) { toast({ title: "Multistage Type is required", variant: "destructive" }); return; }
@@ -926,7 +926,7 @@ export default function BuyPackagesPage() {
       } else if (msTL.includes("barrel")) {
         if (!(ta.inner_casing_type as string)?.trim()) { toast({ title: "Inner Casing Type is required for Barrel Type", variant: "destructive" }); return; }
       }
-      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
+
     } else if (isDosingPumpMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.pump_type as string)?.trim()) { toast({ title: "Pump Type is required", variant: "destructive" }); return; }
@@ -951,7 +951,7 @@ export default function BuyPackagesPage() {
       } else if (dTL.includes("peristaltic")) {
         if (!(ta.hose_material as string)?.trim()) { toast({ title: "Hose Material is required for Peristaltic pump", variant: "destructive" }); return; }
       }
-      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
+
     } else if (isVacuumBoosterMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.booster_type as string)?.trim()) { toast({ title: "Booster Type is required", variant: "destructive" }); return; }
@@ -960,7 +960,7 @@ export default function BuyPackagesPage() {
       if (!(ta.gas_type as string)?.trim()) { toast({ title: "Gas Type is required", variant: "destructive" }); return; }
       if (!(ta.material_class as string)?.trim()) { toast({ title: "Material Class is required", variant: "destructive" }); return; }
       if (!(ta.cooling_type as string)?.trim()) { toast({ title: "Cooling Type is required", variant: "destructive" }); return; }
-      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
+
     } else if (isVacuumPumpMode) {
       const ta = lf.technicalAttributes;
       const vpType = (ta.vacuum_pump_type as string)?.trim() ?? "";
@@ -1001,7 +1001,7 @@ export default function BuyPackagesPage() {
         if (!(ta.num_stages_ejector      as string)?.trim()) { toast({ title: "Number of Stages is required",       variant: "destructive" }); return; }
         if (!(ta.motive_steam_pressure   as string)?.trim()) { toast({ title: "Motive Steam Pressure is required",  variant: "destructive" }); return; }
       }
-      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
+
     } else if (isPumpSkidMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.package_type as string)?.trim()) { toast({ title: "Package Type is required", variant: "destructive" }); return; }
@@ -1020,7 +1020,7 @@ export default function BuyPackagesPage() {
       if (!(ta.ip_rating as string)?.trim()) { toast({ title: "IP Rating is required", variant: "destructive" }); return; }
       if (!(ta.efficiency_class as string)?.trim()) { toast({ title: "Efficiency Class is required", variant: "destructive" }); return; }
       if (!(ta.vfd_compatible as string)?.trim()) { toast({ title: "VFD Compatible is required", variant: "destructive" }); return; }
-      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
+
     } else if (isPressureMode) {
       const ta    = lf.technicalAttributes;
       const iType = (ta.instrument_type as string)?.trim();
@@ -1036,7 +1036,7 @@ export default function BuyPackagesPage() {
       if (!(ta.wetted_material     as string)?.trim()) { toast({ title: "Wetted Parts Material is required", variant: "destructive" }); return; }
       if (!(ta.ip_rating           as string)?.trim()) { toast({ title: "IP Rating is required",             variant: "destructive" }); return; }
       if (!(ta.area_classification as string)?.trim()) { toast({ title: "Area Classification is required",   variant: "destructive" }); return; }
-      if (!((ta.approved_makes as string[]) ?? []).length) { toast({ title: "At least one Approved Make is required", variant: "destructive" }); return; }
+
       // PG-specific mandatory
       if (isPG_v) {
         if (!(ta.measurement_type as string)?.trim()) { toast({ title: "Measurement Type is required", variant: "destructive" }); return; }
@@ -1462,6 +1462,32 @@ export default function BuyPackagesPage() {
     } else if (lf.genericRequirement.trim().length > ITEM_DESC_LIMIT) {
       toast({ title: `Item Description exceeds ${ITEM_DESC_LIMIT} characters — shorten manually before saving.`, variant: "destructive" }); return;
     }
+
+    if (selectedGroupCode !== 'raw_materials') {
+      const ta    = lf.technicalAttributes ?? {};
+      const makes = Array.isArray(ta.approved_makes) ? (ta.approved_makes as string[]) : [];
+      const series = typeof ta.preferred_series === 'string' ? ta.preferred_series.trim() : '';
+      if (makes.length === 0) {
+        toast({ title: "Approved Make is required", description: "Enter one finalized make before saving.", variant: "destructive" }); return;
+      }
+      if (makes.length > 1) {
+        toast({ title: "Only one Approved Make is allowed", description: "Remove extra makes and keep one finalized make.", variant: "destructive" }); return;
+      }
+      const make = String(makes[0]).trim();
+      if (!make) {
+        toast({ title: "Approved Make cannot be blank", variant: "destructive" }); return;
+      }
+      if (make.toUpperCase() === 'TBN') {
+        toast({ title: "Approved Make is still TBN", description: "Replace TBN with the finalized make name.", variant: "destructive" }); return;
+      }
+      if (!series) {
+        toast({ title: "Model / Series is required", description: "Enter the finalized model or series before saving.", variant: "destructive" }); return;
+      }
+      if (series.toUpperCase() === 'TBN') {
+        toast({ title: "Model / Series is still TBN", description: "Replace TBN with the finalized model name.", variant: "destructive" }); return;
+      }
+    }
+
     if (!lf.model.trim()) {
       toast({ title: "Model is required", variant: "destructive" }); return;
     }

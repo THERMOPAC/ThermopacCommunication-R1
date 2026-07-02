@@ -794,6 +794,22 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const valid = await validateSubgroupBelongsToGroup(pool, buyGroupId, buySubgroupId);
       if (!valid) return sendValidationError(res, 'buySubgroupId does not belong to the specified buyGroupId');
 
+      // Validate Make + Model for non-raw-material groups
+      const grpCodeRow = await pool.query(`SELECT code FROM buy_groups WHERE id = $1`, [buyGroupId]);
+      const groupCode = grpCodeRow.rows[0]?.code as string | undefined;
+      if (groupCode && groupCode !== 'raw_materials') {
+        const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
+        const makes = Array.isArray(attrs.approved_makes) ? (attrs.approved_makes as unknown[]) : [];
+        const series = typeof attrs.preferred_series === 'string' ? attrs.preferred_series.trim() : '';
+        if (makes.length === 0) return sendValidationError(res, 'Approved Make is required for non-Raw-Material lines');
+        if (makes.length > 1) return sendValidationError(res, 'Only one Approved Make is allowed — reduce to a single finalized make');
+        const make = String(makes[0]).trim();
+        if (!make) return sendValidationError(res, 'Approved Make cannot be blank');
+        if (make.toUpperCase() === 'TBN') return sendValidationError(res, 'Approved Make is still TBN — finalize the make first');
+        if (!series) return sendValidationError(res, 'Model / Series is required for non-Raw-Material lines');
+        if (series.toUpperCase() === 'TBN') return sendValidationError(res, 'Model / Series is still TBN — finalize the model first');
+      }
+
       // Validate UOM exists
       const uomCheck = await pool.query(`SELECT id FROM uom_master WHERE id = $1`, [uomId]);
       if (uomCheck.rowCount === 0) return sendNotFound(res, 'UOM', uomId);
@@ -878,6 +894,24 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       if (b.sortOrder !== undefined)             { fields.push(`sort_order = $${idx++}`);            values.push(parseInt(b.sortOrder)); }
       if (b.installedOn !== undefined)           { fields.push(`installed_on = $${idx++}`);          values.push(b.installedOn?.trim() || null); }
       if (b.model !== undefined)                 { fields.push(`model = $${idx++}`);                 values.push((b.model as string)?.trim() || 'TBN'); }
+
+      // Validate Make + Model for non-raw-material groups (when technicalAttributes is being updated)
+      if (b.technicalAttributes !== undefined) {
+        const grpCodeRow2 = await pool.query(`SELECT code FROM buy_groups WHERE id = $1`, [newGroupId]);
+        const groupCode2 = grpCodeRow2.rows[0]?.code as string | undefined;
+        if (groupCode2 && groupCode2 !== 'raw_materials') {
+          const attrs2 = (b.technicalAttributes ?? {}) as Record<string, unknown>;
+          const makes2 = Array.isArray(attrs2.approved_makes) ? (attrs2.approved_makes as unknown[]) : [];
+          const series2 = typeof attrs2.preferred_series === 'string' ? attrs2.preferred_series.trim() : '';
+          if (makes2.length === 0) return sendValidationError(res, 'Approved Make is required for non-Raw-Material lines');
+          if (makes2.length > 1) return sendValidationError(res, 'Only one Approved Make is allowed — reduce to a single finalized make');
+          const make2 = String(makes2[0]).trim();
+          if (!make2) return sendValidationError(res, 'Approved Make cannot be blank');
+          if (make2.toUpperCase() === 'TBN') return sendValidationError(res, 'Approved Make is still TBN — finalize the make first');
+          if (!series2) return sendValidationError(res, 'Model / Series is required for non-Raw-Material lines');
+          if (series2.toUpperCase() === 'TBN') return sendValidationError(res, 'Model / Series is still TBN — finalize the model first');
+        }
+      }
 
       if (fields.length === 0) return sendValidationError(res, 'No updatable fields provided');
       fields.push(`updated_at = NOW()`); values.push(id);
