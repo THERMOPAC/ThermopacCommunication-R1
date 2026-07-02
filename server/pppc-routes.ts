@@ -19,7 +19,7 @@ import crypto from 'crypto';
 import { pool } from './db';
 import { ensureAuthenticated } from './auth-middleware';
 import { applyProjectElectricalStandards, stripElectricalOverridesMeta } from './utils/electrical-override';
-import { resolveCatalogSapItemCode } from './buy-catalog-sap-service';
+import { resolveCatalogSapItemCode, groupPrefix, buildCatalogItemCode } from './buy-catalog-sap-service';
 import { requirePageAccess } from './utils/permission-utils';
 import {
   sendError, sendValidationError, sendNotFound,
@@ -777,19 +777,11 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         return res.json({ code: existing.rows[0].item_code, isNew: false, isRawMaterials: false });
       }
 
-      // Not found — compute what the next code would be (read-only, no INSERT)
-      const PREFIX_MAP: Record<string, string> = {
-        pumps: 'PMP', motors: 'MOT', instruments: 'INS',
-        valves: 'VLV', electrical_control: 'ELC', packages: 'PKG',
-      };
-      const grpCode  = grpRow.rows[0].code;
-      const prefix   = PREFIX_MAP[grpCode] ?? grpCode.slice(0, 3).toUpperCase();
-      const countRow = await pool.query<{ cnt: string }>(
-        `SELECT COUNT(*) AS cnt FROM master_items WHERE item_type = 'catalog' AND buy_group_id = $1`,
-        [groupId],
-      );
-      const seq  = (parseInt(countRow.rows[0].cnt, 10) + 1).toString().padStart(4, '0');
-      const code = `CAT-${prefix}-${seq}`;
+      // Not found — compute the deterministic code (read-only, no INSERT)
+      // Format: {PREFIX}-CAT-{MAKE}-{MODEL}  e.g. PMP-CAT-KSB-CPKEY 65-200
+      const grpCode = grpRow.rows[0].code;
+      const prefix  = groupPrefix(grpCode);
+      const code    = buildCatalogItemCode(prefix, make, model);
 
       res.json({ code, isNew: true, isRawMaterials: false });
     } catch (err) { sendError(res, err); }

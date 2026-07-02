@@ -1,13 +1,16 @@
 /**
  * Buy Catalog SAP Item Code Service
  *
- * Resolves or generates a compact SAP-compatible Item Code for a non-Raw-Material
+ * Resolves or generates an SAP-compatible Item Code for a non-Raw-Material
  * Buy Package Catalog line using the 4-field identity:
- *   Group + Sub Group + Make + Model
+ *   Group + Sub Group + Make + Model → unique SAP Item Code
  *
- * Generated code format: CAT-{GRP}-{0001}  (max 50 chars, SAP B1 compliant)
- * Full identity stored as separate columns: catalog_make, catalog_model,
- * buy_group_id, buy_subgroup_id — never embedded in the item code itself.
+ * Generated code format: {GRP}-CAT-{MAKE}-{MODEL}  (max 50 chars, SAP B1 compliant)
+ * Example: PMP-CAT-KSB-CPKEY 65-200
+ *
+ * The code is deterministic — the same identity always produces the same code.
+ * Full identity also stored as separate columns: catalog_make, catalog_model,
+ * buy_group_id, buy_subgroup_id.
  */
 
 import { Pool } from 'pg';
@@ -31,21 +34,30 @@ const GROUP_PREFIX: Record<string, string> = {
   packages:           'PKG',
 };
 
-function groupPrefix(code: string): string {
+export function groupPrefix(code: string): string {
   return GROUP_PREFIX[code.toLowerCase()] ?? code.slice(0, 3).toUpperCase();
 }
 
 /**
+ * Build the deterministic SAP Item Code from the 4-field identity.
+ * Format: {PREFIX}-CAT-{MAKE}-{MODEL}  truncated to 50 chars.
+ * Example: PMP-CAT-KSB-CPKEY 65-200
+ */
+export function buildCatalogItemCode(prefix: string, make: string, model: string): string {
+  return `${prefix}-CAT-${make}-${model}`.slice(0, 50);
+}
+
+/**
  * Find or create a master_items catalog record for the given 4-field identity.
- * Runs inside a serialisable transaction with a row-level lock to prevent
- * duplicate generation under concurrent requests.
+ * The item code is deterministic (no counter), so concurrent requests for the
+ * same identity are safe — only one INSERT wins; the other reuses via SELECT.
  *
- * @param pool       - pg Pool
- * @param groupId    - buy_groups.id
- * @param subgroupId - buy_subgroups.id
- * @param make       - trimmed, finalized make string
- * @param model      - trimmed, finalized model/series string
- * @param uomCode    - uom label/code string for the master_items.uom field
+ * @param pool        - pg Pool
+ * @param groupId     - buy_groups.id
+ * @param subgroupId  - buy_subgroups.id
+ * @param make        - trimmed, finalized make string
+ * @param model       - trimmed, finalized model/series string
+ * @param uomCode     - uom code string for the master_items.uom field
  * @param description - human-readable description for the new record
  */
 export async function resolveCatalogSapItemCode(
@@ -84,28 +96,15 @@ export async function resolveCatalogSapItemCode(
       };
     }
 
-    // 2 — No match — generate a new code.
-    //     Fetch the group code for prefix derivation.
+    // 2 — No match — build the deterministic code.
     const grpRow = await client.query<{ code: string }>(
       `SELECT code FROM buy_groups WHERE id = $1`,
       [groupId],
     );
-    const prefix = grpRow.rowCount && grpRow.rowCount > 0
+    const prefix   = grpRow.rowCount && grpRow.rowCount > 0
       ? groupPrefix(grpRow.rows[0].code)
-      : 'CAT';
-
-    // Count existing catalog items in this group to determine next sequence.
-    // Lock the count with pg_advisory_xact_lock to prevent race conditions.
-    await client.query(`SELECT pg_advisory_xact_lock($1)`, [groupId + 900000]);
-
-    const countRow = await client.query<{ cnt: string }>(
-      `SELECT COUNT(*) AS cnt
-       FROM master_items
-       WHERE item_type = 'catalog' AND buy_group_id = $1`,
-      [groupId],
-    );
-    const seq = (parseInt(countRow.rows[0].cnt, 10) + 1).toString().padStart(4, '0');
-    const itemCode = `CAT-${prefix}-${seq}`; // e.g. CAT-PMP-0001  (max ~12 chars, well within SAP 50-char limit)
+      : 'GEN';
+    const itemCode = buildCatalogItemCode(prefix, make, model);
 
     // 3 — Insert the new master_items record.
     const inserted = await client.query<{ id: number; item_code: string }>(
