@@ -58,7 +58,9 @@ import {
   Plane,
   User,
   Download,
-  Search
+  Search,
+  RefreshCcw,
+  Loader2
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -129,6 +131,9 @@ export default function LeaveManagementPage() {
   const [balancesSearch, setBalancesSearch] = useState('');
   const [balancesEmployee, setBalancesEmployee] = useState('all');
   const [balancesDepartment, setBalancesDepartment] = useState('all');
+  const [showAccrualDialog, setShowAccrualDialog] = useState(false);
+  const [accrualMonth, setAccrualMonth] = useState('');
+  const [accrualResult, setAccrualResult] = useState<any>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -258,6 +263,15 @@ export default function LeaveManagementPage() {
     onError: () => {
       toast({ title: 'Failed to delete holiday', variant: 'destructive' });
     }
+  });
+
+  const runAccrualMutation = useMutation({
+    mutationFn: (month: string) => apiRequest('POST', `/api/leave/admin/accrual/monthly?month=${month}`),
+    onSuccess: (data: any) => {
+      setAccrualResult(data);
+      queryClient.invalidateQueries({ queryKey: ['/api/leave/admin/all-balances'] });
+    },
+    onError: (err: any) => toast({ title: 'Accrual failed', description: err.message, variant: 'destructive' }),
   });
 
   const updateAllocationMutation = useMutation({
@@ -1380,6 +1394,56 @@ export default function LeaveManagementPage() {
 
           {/* Leave Balances Tab */}
           <TabsContent value="balances" className="space-y-4">
+            {/* Accrual Admin */}
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" onClick={() => { setAccrualResult(null); setAccrualMonth(''); setShowAccrualDialog(true); }}>
+                <RefreshCcw className="h-4 w-4 mr-2" />
+                Run Missed Accruals
+              </Button>
+            </div>
+
+            {/* Run Missed Accruals Dialog */}
+            <Dialog open={showAccrualDialog} onOpenChange={(o) => { setShowAccrualDialog(o); if (!o) setAccrualResult(null); }}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Run Missed Monthly Accrual</DialogTitle>
+                  <DialogDescription>
+                    Re-runs the monthly CL accrual for a past month. Already-processed employees are skipped automatically — safe to run multiple times.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div>
+                    <Label>Month (YYYY-MM)</Label>
+                    <Input
+                      type="month"
+                      value={accrualMonth}
+                      onChange={e => setAccrualMonth(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  {accrualResult && (
+                    <div className="rounded-md border p-3 space-y-1 bg-muted text-sm">
+                      <p><span className="font-medium">Processed:</span> {accrualResult.processed} employee{accrualResult.processed !== 1 ? 's' : ''}</p>
+                      <p><span className="font-medium">Skipped (already done):</span> {accrualResult.skipped}</p>
+                      {accrualResult.errors?.length > 0 && (
+                        <p className="text-destructive"><span className="font-medium">Errors:</span> {accrualResult.errors.length}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setShowAccrualDialog(false)}>Close</Button>
+                  <Button
+                    onClick={() => { setAccrualResult(null); runAccrualMutation.mutate(accrualMonth); }}
+                    disabled={!accrualMonth || runAccrualMutation.isPending}
+                  >
+                    {runAccrualMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCcw className="h-4 w-4 mr-2" />}
+                    Run Accrual
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             {/* Filters */}
             <Card>
               <CardHeader>
