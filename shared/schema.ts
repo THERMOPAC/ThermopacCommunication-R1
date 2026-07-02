@@ -492,6 +492,7 @@ export const leaveBalances = pgTable('leave_balances', {
   usedDays: decimal('used_days', { precision: 5, scale: 2 }).notNull().default('0'),
   pendingDays: decimal('pending_days', { precision: 5, scale: 2 }).notNull().default('0'),
   carryoverDays: decimal('carryover_days', { precision: 5, scale: 2 }).notNull().default('0'),
+  adjustmentDays: decimal('adjustment_days', { precision: 6, scale: 2 }).notNull().default('0'),
   lastUpdated: timestamp('last_updated').notNull().defaultNow(),
   updatedBy: integer('updated_by').references(() => users.id),
 });
@@ -607,6 +608,20 @@ export const leaveAccrualLog = pgTable('leave_accrual_log', {
   notes: text('notes'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
+
+// Manual leave balance adjustment ledger (audit trail for all direct balance corrections)
+export const leaveBalanceAdjustments = pgTable('leave_balance_adjustments', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  leaveTypeId: integer('leave_type_id').notNull().references(() => leaveTypes.id, { onDelete: 'cascade' }),
+  year: integer('year').notNull(),
+  adjustmentDays: decimal('adjustment_days', { precision: 6, scale: 2 }).notNull(),
+  reason: text('reason').notNull(),
+  adjustedBy: integer('adjusted_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+export const insertLeaveBalanceAdjustmentSchema = createInsertSchema(leaveBalanceAdjustments).omit({ id: true, createdAt: true });
+export type LeaveBalanceAdjustment = typeof leaveBalanceAdjustments.$inferSelect;
 
 // LWP / LOP exemption audit log
 export const lwpExemptionAuditLog = pgTable('lwp_exemption_audit_log', {

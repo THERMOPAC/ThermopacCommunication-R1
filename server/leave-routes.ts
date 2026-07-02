@@ -2,7 +2,7 @@ import { sendError, sendValidationError, sendNotFound, sendPermissionError, send
 import { Router, Request, Response } from "express";
 import { ensureAuthenticated } from "./auth-middleware";
 import { db } from "./db";
-import { leaveTypes, leaveBalances, leaveRequests, companyHolidays, users, attendanceRecords, leaveDeductions, leaveAccrualLog } from "@shared/schema";
+import { leaveTypes, leaveBalances, leaveRequests, companyHolidays, users, attendanceRecords, leaveDeductions, leaveAccrualLog, leaveBalanceAdjustments } from "@shared/schema";
 import { eq, and, desc, gte, lte, sql, inArray } from "drizzle-orm";
 import { checkModulePermission } from "./utils/permission-utils";
 import { checkPayrollLock } from './payroll-lock-service';
@@ -150,6 +150,7 @@ router.get('/admin/all-balances', ensureAuthenticated, async (req: Request, res:
         usedDays: leaveBalances.usedDays,
         pendingDays: leaveBalances.pendingDays,
         carryoverDays: leaveBalances.carryoverDays,
+        adjustmentDays: leaveBalances.adjustmentDays,
       })
       .from(leaveBalances)
       .where(eq(leaveBalances.year, year));
@@ -170,17 +171,20 @@ router.get('/admin/all-balances', ensureAuthenticated, async (req: Request, res:
           const used = parseFloat(bal?.usedDays || '0');
           const pending = parseFloat(bal?.pendingDays || '0');
           const carryover = parseFloat(bal?.carryoverDays || '0');
+          const adjustment = parseFloat(bal?.adjustmentDays || '0');
           return {
             leaveTypeId: lt.id,
             leaveTypeName: lt.name,
             leaveTypeCode: lt.code,
             colorCode: lt.colorCode,
             isPaid: lt.isPaid,
+            balanceId: bal?.id ?? null,
             allocated,
             used,
             pending,
             carryover,
-            remaining: allocated + carryover - used - pending,
+            adjustment,
+            remaining: allocated + carryover + adjustment - used - pending,
           };
         });
 
@@ -1147,6 +1151,97 @@ router.get('/admin/accrual-log', ensureAuthenticated, async (req: Request, res: 
     res.json(rows);
   } catch (error) {
     console.error('Error fetching accrual log:', error);
+    sendError(res, error);
+  }
+});
+
+// POST /api/leave/admin/balance-adjustment
+// Manually adjust a leave balance (adds to adjustment_days, inserts ledger row)
+router.post('/admin/balance-adjustment', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req.user as any);
+    if (!['admin', 'hr', 'Superuser'].includes(currentUser.role)) {
+      return sendPermissionError(res);
+    }
+    const { userId, leaveTypeId, year, adjustmentDays, reason } = req.body;
+    if (!userId || !leaveTypeId || !year || adjustmentDays === undefined || !reason?.trim()) {
+      return res.status(400).json({ error: 'userId, leaveTypeId, year, adjustmentDays, and reason are required' });
+    }
+    const delta = parseFloat(adjustmentDays);
+    if (isNaN(delta) || delta === 0) return res.status(400).json({ error: 'adjustmentDays must be a non-zero number' });
+
+    await db.transaction(async (tx) => {
+      // Upsert the leave_balances row if needed, then increment adjustment_days
+      const [existing] = await tx
+        .select({ id: leaveBalances.id, adjustmentDays: leaveBalances.adjustmentDays })
+        .from(leaveBalances)
+        .where(and(eq(leaveBalances.userId, userId), eq(leaveBalances.leaveTypeId, leaveTypeId), eq(leaveBalances.year, year)));
+
+      if (existing) {
+        const newAdj = parseFloat(existing.adjustmentDays || '0') + delta;
+        await tx.update(leaveBalances)
+          .set({ adjustmentDays: newAdj.toFixed(2), lastUpdated: new Date(), updatedBy: currentUser.id })
+          .where(eq(leaveBalances.id, existing.id));
+      } else {
+        // Create a new balance row with zero allocated/used, just the adjustment
+        await tx.insert(leaveBalances).values({
+          userId, leaveTypeId, year,
+          allocatedDays: '0', usedDays: '0', pendingDays: '0', carryoverDays: '0',
+          adjustmentDays: delta.toFixed(2),
+          updatedBy: currentUser.id,
+        });
+      }
+
+      // Insert ledger entry
+      await tx.insert(leaveBalanceAdjustments).values({
+        userId, leaveTypeId, year,
+        adjustmentDays: delta.toFixed(2),
+        reason: reason.trim(),
+        adjustedBy: currentUser.id,
+      });
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error applying leave balance adjustment:', error);
+    sendError(res, error);
+  }
+});
+
+// GET /api/leave/admin/balance-adjustments?userId=&leaveTypeId=&year=
+// Fetch adjustment ledger for an employee/leave type
+router.get('/admin/balance-adjustments', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req.user as any);
+    if (!['admin', 'hr', 'Superuser'].includes(currentUser.role)) {
+      return sendPermissionError(res);
+    }
+    const userId = parseInt(req.query.userId as string);
+    const leaveTypeId = parseInt(req.query.leaveTypeId as string);
+    const year = parseInt(req.query.year as string);
+    if (!userId || !leaveTypeId || !year) {
+      return res.status(400).json({ error: 'userId, leaveTypeId, and year are required' });
+    }
+    const rows = await db
+      .select({
+        id: leaveBalanceAdjustments.id,
+        adjustmentDays: leaveBalanceAdjustments.adjustmentDays,
+        reason: leaveBalanceAdjustments.reason,
+        createdAt: leaveBalanceAdjustments.createdAt,
+        adjustedByName: users.cardName,
+        adjustedByCode: users.employeeCode,
+      })
+      .from(leaveBalanceAdjustments)
+      .leftJoin(users, eq(leaveBalanceAdjustments.adjustedBy, users.id))
+      .where(and(
+        eq(leaveBalanceAdjustments.userId, userId),
+        eq(leaveBalanceAdjustments.leaveTypeId, leaveTypeId),
+        eq(leaveBalanceAdjustments.year, year),
+      ))
+      .orderBy(desc(leaveBalanceAdjustments.createdAt));
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching balance adjustments:', error);
     sendError(res, error);
   }
 });

@@ -60,7 +60,11 @@ import {
   Download,
   Search,
   RefreshCcw,
-  Loader2
+  Loader2,
+  SlidersHorizontal,
+  Plus,
+  Minus,
+  History
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -134,6 +138,9 @@ export default function LeaveManagementPage() {
   const [showAccrualDialog, setShowAccrualDialog] = useState(false);
   const [accrualMonth, setAccrualMonth] = useState('');
   const [accrualResult, setAccrualResult] = useState<any>(null);
+  const [adjustTarget, setAdjustTarget] = useState<{ userId: number; userName: string; leaveTypeId: number; leaveTypeName: string; leaveTypeCode: string; year: number } | null>(null);
+  const [adjustDays, setAdjustDays] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -272,6 +279,29 @@ export default function LeaveManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/leave/admin/all-balances'] });
     },
     onError: (err: any) => toast({ title: 'Accrual failed', description: err.message, variant: 'destructive' }),
+  });
+
+  const adjustBalanceMutation = useMutation({
+    mutationFn: (data: { userId: number; leaveTypeId: number; year: number; adjustmentDays: number; reason: string }) =>
+      apiRequest('POST', '/api/leave/admin/balance-adjustment', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/leave/admin/all-balances'] });
+      if (adjustTarget) {
+        queryClient.invalidateQueries({ queryKey: ['/api/leave/admin/balance-adjustments', adjustTarget.userId, adjustTarget.leaveTypeId, adjustTarget.year] });
+      }
+      setAdjustDays('');
+      setAdjustReason('');
+      toast({ title: 'Balance adjusted successfully' });
+    },
+    onError: (err: any) => toast({ title: 'Adjustment failed', description: err.message, variant: 'destructive' }),
+  });
+
+  const { data: adjustHistory = [], isLoading: adjustHistoryLoading } = useQuery({
+    queryKey: ['/api/leave/admin/balance-adjustments', adjustTarget?.userId, adjustTarget?.leaveTypeId, adjustTarget?.year],
+    queryFn: () => adjustTarget
+      ? apiRequest('GET', `/api/leave/admin/balance-adjustments?userId=${adjustTarget.userId}&leaveTypeId=${adjustTarget.leaveTypeId}&year=${adjustTarget.year}`)
+      : Promise.resolve([]),
+    enabled: !!adjustTarget,
   });
 
   const updateAllocationMutation = useMutation({
@@ -1444,6 +1474,84 @@ export default function LeaveManagementPage() {
               </DialogContent>
             </Dialog>
 
+            {/* Adjust Balance Dialog */}
+            <Dialog open={!!adjustTarget} onOpenChange={(o) => { if (!o) setAdjustTarget(null); }}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Adjust Leave Balance</DialogTitle>
+                  <DialogDescription>
+                    {adjustTarget && (
+                      <span><strong>{adjustTarget.userName}</strong> — {adjustTarget.leaveTypeName} ({adjustTarget.leaveTypeCode}) · {adjustTarget.year}</span>
+                    )}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-1">
+                  <div>
+                    <Label>Adjustment Days</Label>
+                    <p className="text-xs text-muted-foreground mb-1">Positive to add, negative to deduct (e.g. 2.5 or -1)</p>
+                    <Input
+                      type="number"
+                      step="0.25"
+                      placeholder="e.g. 2.5 or -1"
+                      value={adjustDays}
+                      onChange={e => setAdjustDays(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Reason <span className="text-destructive">*</span></Label>
+                    <Textarea
+                      placeholder="e.g. Opening balance correction for 2026"
+                      value={adjustReason}
+                      onChange={e => setAdjustReason(e.target.value)}
+                      rows={2}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1 mb-2">
+                      <History className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium text-muted-foreground">Adjustment History</span>
+                    </div>
+                    {adjustHistoryLoading ? (
+                      <div className="text-xs text-muted-foreground">Loading...</div>
+                    ) : (adjustHistory as any[]).length === 0 ? (
+                      <div className="text-xs text-muted-foreground italic">No adjustments yet.</div>
+                    ) : (
+                      <div className="space-y-1 max-h-40 overflow-y-auto">
+                        {(adjustHistory as any[]).map((row: any) => (
+                          <div key={row.id} className="flex items-start justify-between text-xs border rounded px-2 py-1.5 bg-muted/40">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{row.reason}</p>
+                              <p className="text-muted-foreground">{row.adjustedByName || 'Admin'} · {new Date(row.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                            </div>
+                            <span className={`ml-3 font-semibold shrink-0 ${parseFloat(row.adjustmentDays) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {parseFloat(row.adjustmentDays) > 0 ? '+' : ''}{parseFloat(row.adjustmentDays).toFixed(2)}d
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setAdjustTarget(null)}>Cancel</Button>
+                  <Button
+                    onClick={() => {
+                      if (!adjustTarget) return;
+                      const delta = parseFloat(adjustDays);
+                      if (isNaN(delta) || delta === 0) { toast({ title: 'Enter a non-zero adjustment value', variant: 'destructive' }); return; }
+                      if (!adjustReason.trim()) { toast({ title: 'Reason is required', variant: 'destructive' }); return; }
+                      adjustBalanceMutation.mutate({ userId: adjustTarget.userId, leaveTypeId: adjustTarget.leaveTypeId, year: adjustTarget.year, adjustmentDays: delta, reason: adjustReason.trim() });
+                    }}
+                    disabled={adjustBalanceMutation.isPending}
+                  >
+                    {adjustBalanceMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <SlidersHorizontal className="h-4 w-4 mr-2" />}
+                    Save Adjustment
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             {/* Filters */}
             <Card>
               <CardHeader>
@@ -1657,7 +1765,24 @@ export default function LeaveManagementPage() {
                                           <span className="font-medium">Remaining:</span>
                                           <span className={`font-medium ${colors.text}`}>{bal.remaining.toFixed(1)} days</span>
                                         </div>
+                                        {bal.adjustment !== 0 && (
+                                          <div className="flex justify-between text-xs text-muted-foreground">
+                                            <span>Adjustment:</span>
+                                            <span className={bal.adjustment > 0 ? 'text-green-600' : 'text-red-600'}>{bal.adjustment > 0 ? '+' : ''}{bal.adjustment.toFixed(1)}</span>
+                                          </div>
+                                        )}
                                       </div>
+                                      <button
+                                        className={`mt-2 w-full text-xs flex items-center justify-center gap-1 py-1 rounded border ${colors.border} ${colors.text} hover:opacity-80 transition-opacity`}
+                                        onClick={() => {
+                                          setAdjustDays('');
+                                          setAdjustReason('');
+                                          setAdjustTarget({ userId: emp.userId, userName: emp.name, leaveTypeId: bal.leaveTypeId, leaveTypeName: bal.leaveTypeName, leaveTypeCode: bal.leaveTypeCode, year: balancesYear });
+                                        }}
+                                      >
+                                        <SlidersHorizontal className="h-3 w-3" />
+                                        Adjust Balance
+                                      </button>
                                     </div>
                                   );
                                 })}
