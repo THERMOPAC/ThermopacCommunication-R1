@@ -1100,16 +1100,14 @@ export default function LoansAdvancesPage() {
                     <SelectValue placeholder="Select period to backfill…" />
                   </SelectTrigger>
                   <SelectContent>
-                    {payrollPeriods
-                      .filter((p: any) => ['sap_posted', 'transferred', 'verified', 'finalized'].includes(p.status))
-                      .map((p: any) => (
-                        <SelectItem key={p.id} value={String(p.id)}>
-                          {p.periodName} — {p.status}
-                        </SelectItem>
-                      ))}
+                    {payrollPeriods.map((p: any) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        {p.periodName} — {p.status}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-gray-500">Only SAP-posted / finalized periods are shown — backfill applies to employees whose payroll was posted to SAP.</p>
+                <p className="text-xs text-gray-500">Select the period where the SAP JE was posted but the recovery row was never recorded.</p>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setShowBackfillDialog(false)}>Cancel</Button>
