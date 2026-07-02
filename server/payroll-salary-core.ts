@@ -199,7 +199,10 @@ export function computeEmployeeSalaryNumbers(inputs: SalaryInputs): SalaryResult
 
   const professionalTax = computeProfessionalTax(grossPay, isPTApplicable, ptMonthly, ptFebruary, isFebruary);
 
-  const gratuity = r2((basicSalary * GRATUITY_NUMERATOR / GRATUITY_DENOMINATOR) / GRATUITY_MONTHS);
+  // For daily employees basicSalary is the daily rate; convert to monthly equivalent
+  // using 26 working days before applying the gratuity formula.
+  const gratuityMonthlyBase = salaryType === 'daily' ? basicSalary * 26 : basicSalary;
+  const gratuity = r2((gratuityMonthlyBase * GRATUITY_NUMERATOR / GRATUITY_DENOMINATOR) / GRATUITY_MONTHS);
 
   const groupInsurance = groupInsuranceConfig;
 
