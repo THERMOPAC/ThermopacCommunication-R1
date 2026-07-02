@@ -19,6 +19,7 @@ import crypto from 'crypto';
 import { pool } from './db';
 import { ensureAuthenticated } from './auth-middleware';
 import { applyProjectElectricalStandards, stripElectricalOverridesMeta } from './utils/electrical-override';
+import { resolveCatalogSapItemCode } from './buy-catalog-sap-service';
 import { requirePageAccess } from './utils/permission-utils';
 import {
   sendError, sendValidationError, sendNotFound,
@@ -810,9 +811,33 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         if (series.toUpperCase() === 'TBN') return sendValidationError(res, 'Model / Series is still TBN — finalize the model first');
       }
 
-      // Validate UOM exists
-      const uomCheck = await pool.query(`SELECT id FROM uom_master WHERE id = $1`, [uomId]);
+      // Validate UOM exists (also fetch code for SAP item description)
+      const uomCheck = await pool.query(`SELECT id, code FROM uom_master WHERE id = $1`, [uomId]);
       if (uomCheck.rowCount === 0) return sendNotFound(res, 'UOM', uomId);
+      const uomCode = uomCheck.rows[0].code as string;
+
+      // Resolve SAP Item Code for non-raw-material lines
+      let sapMasterItemId: number | null = null;
+      let sapItemCodeValue: string | null = null;
+      if (groupCode && groupCode !== 'raw_materials') {
+        const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
+        const make  = String((attrs.approved_makes as string[])[0]).trim();
+        const model2 = String(attrs.preferred_series as string).trim();
+        const lblRow = await pool.query(
+          `SELECT bg.label AS g, bs.label AS s
+           FROM buy_groups bg, buy_subgroups bs
+           WHERE bg.id = $1 AND bs.id = $2`,
+          [buyGroupId, buySubgroupId],
+        );
+        const gLabel = (lblRow.rows[0]?.g as string) ?? '';
+        const sLabel = (lblRow.rows[0]?.s as string) ?? '';
+        const desc   = `${gLabel} — ${sLabel} — ${make} — ${model2}`.slice(0, 255);
+        const sapRes = await resolveCatalogSapItemCode(
+          pool, buyGroupId, buySubgroupId, make, model2, uomCode, desc,
+        );
+        sapMasterItemId  = sapRes.masterItemId;
+        sapItemCodeValue = sapRes.sapItemCode;
+      }
 
       // Auto line_number: max + 1 for this package
       const lineNumResult = await pool.query(
@@ -826,8 +851,9 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
            buy_package_header_id, line_number, buy_group_id, buy_subgroup_id, uom_id,
            generic_requirement, default_quantity, default_specification, technical_attributes,
            selection_required, datasheet_required, inspection_required,
-           certificate_required, compliance_required, notes, sort_order, installed_on, model, updated_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,NOW())
+           certificate_required, compliance_required, notes, sort_order, installed_on, model,
+           master_item_id, sap_item_code, updated_at
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW())
          RETURNING *`,
         [
           headerId, lineNumber, buyGroupId, buySubgroupId, uomId,
@@ -844,6 +870,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           parseInt(sortOrder) || 0,
           installedOn?.trim() || null,
           (model as string | undefined)?.trim() || 'TBN',
+          sapMasterItemId,
+          sapItemCodeValue,
         ],
       );
       res.status(201).json(result.rows[0]);
@@ -910,6 +938,36 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           if (make2.toUpperCase() === 'TBN') return sendValidationError(res, 'Approved Make is still TBN — finalize the make first');
           if (!series2) return sendValidationError(res, 'Model / Series is required for non-Raw-Material lines');
           if (series2.toUpperCase() === 'TBN') return sendValidationError(res, 'Model / Series is still TBN — finalize the model first');
+        }
+      }
+
+      // Resolve SAP Item Code when technical attributes are being updated (Make/Model may have changed)
+      if (b.technicalAttributes !== undefined) {
+        const grpCodeRow3 = await pool.query(`SELECT code FROM buy_groups WHERE id = $1`, [newGroupId]);
+        const groupCode3 = grpCodeRow3.rows[0]?.code as string | undefined;
+        if (groupCode3 && groupCode3 !== 'raw_materials') {
+          const attrs3  = (b.technicalAttributes ?? {}) as Record<string, unknown>;
+          const make3   = String((attrs3.approved_makes as string[])[0]).trim();
+          const model3  = String(attrs3.preferred_series as string).trim();
+          const uomRow3 = await pool.query(
+            `SELECT u.code FROM uom_master u
+             JOIN buy_package_lines bpl ON bpl.uom_id = u.id
+             WHERE bpl.id = $1`,
+            [id],
+          );
+          const uomCode3 = (uomRow3.rows[0]?.code as string) ?? 'Nos';
+          const lblRow3  = await pool.query(
+            `SELECT bg.label AS g, bs.label AS s
+             FROM buy_groups bg, buy_subgroups bs
+             WHERE bg.id = $1 AND bs.id = $2`,
+            [newGroupId, newSubgroupId],
+          );
+          const desc3  = `${(lblRow3.rows[0]?.g as string) ?? ''} — ${(lblRow3.rows[0]?.s as string) ?? ''} — ${make3} — ${model3}`.slice(0, 255);
+          const sapRes3 = await resolveCatalogSapItemCode(
+            pool, newGroupId, newSubgroupId, make3, model3, uomCode3, desc3,
+          );
+          fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
+          fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
         }
       }
 

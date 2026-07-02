@@ -2199,7 +2199,15 @@ export const masterItems = pgTable('master_items', {
   
   // Drawing revision tracking
   latestRevision: integer('latest_revision').default(0), // Track the latest drawing revision
-  
+
+  // Catalog BUY item identity (used for SAP Item Code generation)
+  // item_type: 'project' (default, existing) | 'catalog' (BUY catalog items)
+  itemType:       text('item_type').default('project'),
+  buyGroupId:     integer('buy_group_id'),     // FK → buy_groups.id (no Drizzle ref — buyGroups defined later in file)
+  buySubgroupId:  integer('buy_subgroup_id'),  // FK → buy_subgroups.id
+  catalogMake:    text('catalog_make'),
+  catalogModel:   text('catalog_model'),
+
   // Additional details
   standardCost: decimal('standard_cost', { precision: 12, scale: 2 }),
   supplier: text('supplier'),
@@ -13319,6 +13327,8 @@ export const buyPackageLines = pgTable('buy_package_lines', {
   complianceRequired:   boolean('compliance_required').notNull().default(false),
   notes:                text('notes'),
   sortOrder:            integer('sort_order').notNull().default(0),
+  masterItemId:         integer('master_item_id').references(() => masterItems.id, { onDelete: 'set null' }),
+  sapItemCode:          text('sap_item_code'),
   createdAt:            timestamp('created_at').notNull().defaultNow(),
   updatedAt:            timestamp('updated_at').notNull().defaultNow(),
 });

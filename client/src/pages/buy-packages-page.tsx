@@ -167,6 +167,7 @@ interface PackageLine {
   selection_required: boolean; datasheet_required: boolean;
   inspection_required: boolean; certificate_required: boolean; compliance_required: boolean;
   notes: string | null; sort_order: number;
+  master_item_id: number | null; sap_item_code: string | null;
 }
 interface BuyGroup    { id: number; code: string; label: string; sortOrder: number; }
 interface BuySubgroup { id: number; buy_group_id: number; code: string; label: string; }
@@ -1966,6 +1967,12 @@ export default function BuyPackagesPage() {
                   : lineDialog.editLine ? "Modify this procurement line." : "Define a procurement requirement for this package."}
               </DialogDescription>
             </DialogHeader>
+            {lineDialog.editLine?.sap_item_code && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-emerald-50 border border-emerald-200 text-sm">
+                <span className="text-muted-foreground">SAP Item Code:</span>
+                <span className="font-mono font-semibold text-emerald-800">{lineDialog.editLine.sap_item_code}</span>
+              </div>
+            )}
             <div className="space-y-4 py-2">
 
               {/* Group / Subgroup / UOM */}
@@ -2814,6 +2821,7 @@ export default function BuyPackagesPage() {
                           <TableHead className="w-8">#</TableHead>
                           <TableHead>Requirement</TableHead>
                           <TableHead className="w-28">Model</TableHead>
+                          <TableHead className="w-28">SAP Item Code</TableHead>
                           <TableHead className="w-16 text-right">Qty</TableHead>
                           <TableHead className="w-16">UOM</TableHead>
                           <TableHead className="w-36">Flags</TableHead>
@@ -2858,6 +2866,15 @@ export default function BuyPackagesPage() {
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-violet-100 text-violet-800">
                                 {(line as any).model || "TBN"}
                               </span>
+                            </TableCell>
+                            <TableCell className="pt-3">
+                              {line.sap_item_code ? (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                  {line.sap_item_code}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-[11px]">—</span>
+                              )}
                             </TableCell>
                             <TableCell className="text-right font-mono pt-3">{line.default_quantity}</TableCell>
                             <TableCell className="pt-3">{line.uom_code}</TableCell>
