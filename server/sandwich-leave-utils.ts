@@ -6,6 +6,11 @@
  * leave day (deducted from balance).
  *
  * Per-user weekly_off_days are respected.
+ *
+ * computeSandwichFromAttendance: attendance-calendar variant.
+ * Used for non-system users whose absences are entered via the admin
+ * attendance calendar (no leave request). An off-day is sandwiched when
+ * BOTH its adjacent working days (within the same month) are absent.
  */
 
 export interface SandwichBreakdown {
@@ -63,4 +68,78 @@ export function computeSandwichLeave(
     totalDays: baseDays + offDates.length,
     offDates,
   };
+}
+
+/**
+ * Compute sandwich days from attendance-calendar data (non-system users).
+ *
+ * An off-day (weekly off or company holiday) within the month is sandwiched
+ * when ALL of the following are true:
+ *   1. The closest previous working day within the month is absent.
+ *   2. The closest next working day within the month is absent.
+ *
+ * Cross-month boundaries are intentionally excluded — only days within
+ * [monthStart, monthEnd] are considered as adjacent working days.
+ *
+ * @param absentWorkingDates  Set of YYYY-MM-DD strings for absent working days
+ * @param weeklyOffDays       Array of getDay() numbers that are weekly off (e.g. [0,6])
+ * @param holidayDates        Set of YYYY-MM-DD strings for company holidays
+ * @param monthStart          First day of month as YYYY-MM-DD
+ * @param monthEnd            Last day of month as YYYY-MM-DD
+ */
+export function computeSandwichFromAttendance(
+  absentWorkingDates: Set<string>,
+  weeklyOffDays: number[],
+  holidayDates: Set<string>,
+  monthStart: string,
+  monthEnd: string,
+): { date: string; reason: 'weekend' | 'holiday' }[] {
+  const result: { date: string; reason: 'weekend' | 'holiday' }[] = [];
+
+  function isWorkingDay(ds: string, dow: number): boolean {
+    return !weeklyOffDays.includes(dow) && !holidayDates.has(ds);
+  }
+
+  function prevWorkingDay(from: Date): string | null {
+    const cur = new Date(from);
+    for (let i = 0; i < 14; i++) {
+      cur.setUTCDate(cur.getUTCDate() - 1);
+      const ds = cur.toISOString().split('T')[0];
+      if (ds < monthStart) return null;
+      if (isWorkingDay(ds, cur.getUTCDay())) return ds;
+    }
+    return null;
+  }
+
+  function nextWorkingDay(from: Date): string | null {
+    const cur = new Date(from);
+    for (let i = 0; i < 14; i++) {
+      cur.setUTCDate(cur.getUTCDate() + 1);
+      const ds = cur.toISOString().split('T')[0];
+      if (ds > monthEnd) return null;
+      if (isWorkingDay(ds, cur.getUTCDay())) return ds;
+    }
+    return null;
+  }
+
+  const cursor = new Date(monthStart + 'T00:00:00Z');
+  const end = new Date(monthEnd + 'T00:00:00Z');
+
+  while (cursor <= end) {
+    const ds = cursor.toISOString().split('T')[0];
+    const dow = cursor.getUTCDay();
+    const isOff = weeklyOffDays.includes(dow) || holidayDates.has(ds);
+
+    if (isOff) {
+      const prev = prevWorkingDay(cursor);
+      const next = nextWorkingDay(cursor);
+      if (prev && next && absentWorkingDates.has(prev) && absentWorkingDates.has(next)) {
+        result.push({ date: ds, reason: holidayDates.has(ds) ? 'holiday' : 'weekend' });
+      }
+    }
+
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return result;
 }

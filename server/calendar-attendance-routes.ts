@@ -13,6 +13,7 @@ import {
 } from '@shared/schema';
 import { eq, and, gte, lte, sql, inArray } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
+import { computeSandwichFromAttendance } from './sandwich-leave-utils';
 
 const router = Router();
 router.use(ensureAuthenticated);
@@ -145,7 +146,7 @@ router.get('/calendar-data/:userId/:year/:month', ensurePayrollAdmin, async (req
         eq(attendanceRecords.userId, userId),
         gte(attendanceRecords.date, monthStart),
         lte(attendanceRecords.date, monthEnd),
-        eq(attendanceRecords.source, 'manual_calendar'),
+        inArray(attendanceRecords.source, ['manual_calendar', 'sandwich_auto']),
       ));
 
     const existingPayroll = await db.select({
@@ -198,7 +199,8 @@ router.get('/calendar-data/:userId/:year/:month', ensurePayrollAdmin, async (req
       let editable = false;
 
       if (isWeeklyHoliday) {
-        dayType = 'weekly_holiday';
+        const att = attendanceMap.get(dateStr);
+        dayType = att?.source === 'sandwich_auto' ? 'sandwich_auto' : 'weekly_holiday';
       } else if (holiday && !holiday.isOptional) {
         dayType = 'company_holiday';
       } else if (leave) {
@@ -230,9 +232,11 @@ router.get('/calendar-data/:userId/:year/:month', ensurePayrollAdmin, async (req
     let companyHolidayCount = 0;
     let approvedLeaves = 0;
     let pendingLeaves = 0;
+    let sandwichDays = 0;
 
     calendarDays.forEach(d => {
-      if (d.dayType === 'weekly_holiday') weeklyHolidays++;
+      if (d.dayType === 'sandwich_auto') sandwichDays++;
+      else if (d.dayType === 'weekly_holiday') weeklyHolidays++;
       else if (d.dayType === 'company_holiday') companyHolidayCount++;
       else if (d.dayType === 'approved_leave') approvedLeaves++;
       else if (d.dayType === 'pending_leave') pendingLeaves++;
@@ -262,6 +266,7 @@ router.get('/calendar-data/:userId/:year/:month', ensurePayrollAdmin, async (req
         companyHolidays: companyHolidayCount,
         approvedLeaves,
         pendingLeaves,
+        sandwichDays,
         netWorkingDays: workingDays,
         presentDays: markedPresent,
         halfDays: markedHalfDay,
@@ -380,10 +385,77 @@ router.post('/save-attendance', ensurePayrollAdmin, async (req: Request, res: Re
       }
     }
 
+    // --- Sandwich auto-calculation ---
+    // Determine absent working days (working days not marked present or half_day).
+    const [userInfo] = await db.select({ weeklyOffDays: users.weeklyOffDays })
+      .from(users).where(eq(users.id, userId));
+    const weeklyOffDays: number[] = ((userInfo?.weeklyOffDays as number[] | null) ?? [0, 6]);
+
+    const holidayRows = await db.select({ date: companyHolidays.date })
+      .from(companyHolidays)
+      .where(and(
+        gte(companyHolidays.date, monthStart),
+        lte(companyHolidays.date, monthEnd),
+      ));
+    const holidayDates = new Set<string>(holidayRows.map((h: any) => {
+      const d = h.date;
+      return typeof d === 'string' ? d : new Date(d).toISOString().split('T')[0];
+    }));
+
+    const presentAndHalfDayDates = new Set<string>(
+      attendance
+        .filter((e: any) => e.status === 'present' || e.status === 'half_day')
+        .map((e: any) => e.date as string),
+    );
+
+    const absentWorkingDates = new Set<string>();
+    for (const d of getDaysInMonth(year, month)) {
+      const ds = formatDate(d);
+      const dow = d.getDay();
+      if (!weeklyOffDays.includes(dow) && !holidayDates.has(ds) && !presentAndHalfDayDates.has(ds)) {
+        absentWorkingDates.add(ds);
+      }
+    }
+
+    const sandwichDays = computeSandwichFromAttendance(
+      absentWorkingDates, weeklyOffDays, holidayDates, monthStart, monthEnd,
+    );
+
+    if (sandwichDays.length > 0) {
+      for (const sw of sandwichDays) {
+        await db.insert(attendanceRecords)
+          .values({
+            userId,
+            date: sw.date,
+            status: 'absent',
+            source: 'sandwich_auto',
+            statusSource: 'sandwich_auto',
+            workingHours: '0',
+            adminNotes: `Sandwich leave (${sw.reason}): adjacent working days are absent`,
+            adjustedBy: adminUser.id,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .onConflictDoUpdate({
+            target: [attendanceRecords.userId, attendanceRecords.date],
+            set: {
+              status: 'absent',
+              source: 'sandwich_auto',
+              statusSource: 'sandwich_auto',
+              workingHours: '0',
+              adminNotes: `Sandwich leave (${sw.reason}): adjacent working days are absent`,
+              adjustedBy: adminUser.id,
+              updatedAt: new Date(),
+            },
+          });
+      }
+    }
+
     res.json({ 
       success: true, 
-      message: `Attendance saved for ${records.length} days`,
+      message: `Attendance saved for ${records.length} days${sandwichDays.length > 0 ? ` — ${sandwichDays.length} sandwich LOP day(s) auto-computed` : ''}`,
       recordCount: records.length,
+      sandwichCount: sandwichDays.length,
     });
   } catch (error) {
     console.error('Error saving calendar attendance:', error);

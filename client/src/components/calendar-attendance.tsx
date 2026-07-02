@@ -34,6 +34,7 @@ interface CalendarData {
     companyHolidays: number;
     approvedLeaves: number;
     pendingLeaves: number;
+    sandwichDays: number;
     netWorkingDays: number;
     presentDays: number;
     halfDays: number;
@@ -69,7 +70,9 @@ export function CalendarAttendanceTab() {
     if (calendarData?.calendarDays) {
       const existing: Record<string, string> = {};
       calendarData.calendarDays.forEach(d => {
-        if (d.status) existing[d.date] = d.status;
+        // Only load manually-editable working days into local state.
+        // sandwich_auto days are server-computed and must not be sent back on save.
+        if (d.status && d.dayType === 'working_day') existing[d.date] = d.status;
       });
       setLocalStatuses(existing);
       setHasChanges(false);
@@ -135,11 +138,13 @@ export function CalendarAttendanceTab() {
     const present = workingDays.filter(d => localStatuses[d.date] === 'present').length;
     const halfDay = workingDays.filter(d => localStatuses[d.date] === 'half_day').length;
     const unmarked = workingDays.filter(d => !localStatuses[d.date]).length;
+    const sandwichDays = days.filter(d => d.dayType === 'sandwich_auto').length;
     return {
       ...calendarData.summary,
       presentDays: present,
       halfDays: halfDay,
       absentDays: unmarked,
+      sandwichDays,
       effectiveWorking: present + (halfDay * 0.5),
     };
   }, [calendarData, localStatuses]);
@@ -148,6 +153,7 @@ export function CalendarAttendanceTab() {
 
   function getDayCellStyle(day: CalendarDay) {
     const status = localStatuses[day.date];
+    if (day.dayType === 'sandwich_auto') return 'bg-red-100 text-red-700 cursor-not-allowed border-red-300';
     if (day.dayType === 'weekly_holiday') return 'bg-gray-100 text-gray-400 cursor-not-allowed';
     if (day.dayType === 'company_holiday') return 'bg-gray-200 text-gray-500 cursor-not-allowed border-gray-300';
     if (day.dayType === 'approved_leave') return 'bg-purple-100 text-purple-700 cursor-not-allowed border-purple-300';
@@ -160,6 +166,7 @@ export function CalendarAttendanceTab() {
 
   function getDayLabel(day: CalendarDay) {
     const status = localStatuses[day.date];
+    if (day.dayType === 'sandwich_auto') return 'Sandwich';
     if (day.dayType === 'weekly_holiday') return 'Off';
     if (day.dayType === 'company_holiday') return day.holiday?.name || 'Holiday';
     if (day.dayType === 'approved_leave') return day.leave?.leaveTypeCode || 'Leave';
@@ -276,6 +283,7 @@ export function CalendarAttendanceTab() {
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-200 border border-gray-400 inline-block"></span> Holiday</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-purple-200 border border-purple-400 inline-block"></span> Approved Leave</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-200 border border-orange-400 inline-block"></span> Pending Leave</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-100 border border-red-300 inline-block"></span> Sandwich LOP</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-white border border-gray-200 inline-block"></span> Unmarked (Absent)</span>
               </div>
 
@@ -311,6 +319,9 @@ export function CalendarAttendanceTab() {
                   <SummaryCard label="Present" value={summary.presentDays} color="green" />
                   <SummaryCard label="Half Days" value={summary.halfDays} color="yellow" />
                   <SummaryCard label="Absent / LOP" value={summary.absentDays} color="red" />
+                  {summary.sandwichDays > 0 && (
+                    <SummaryCard label="Sandwich LOP" value={summary.sandwichDays} color="red" />
+                  )}
                   <SummaryCard label="Approved Leave" value={summary.approvedLeaves} color="purple" />
                   <SummaryCard label="Effective Working" value={summary.effectiveWorking} color="blue" />
                   <SummaryCard label="Weekly Holidays" value={summary.weeklyHolidays} color="gray" />
