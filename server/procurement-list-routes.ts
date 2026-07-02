@@ -453,14 +453,18 @@ export function setupProcurementListRoutes(app: Express): void {
           `SELECT g.*, v.name AS vendor_display_name,
              us.username AS submitted_by_name, ua.username AS approved_by_name,
              uj.username AS issued_by_name, uc.username AS created_by_name,
-             po.po_number AS epc_po_number_actual
+             ur.username AS rejected_by_name,
+             po.po_number AS epc_po_number_actual,
+             p.code AS project_code, p.name AS project_name
            FROM epc_po_groups g
            LEFT JOIN vendors v ON v.id = g.vendor_id
            LEFT JOIN users us ON us.id = g.submitted_by
            LEFT JOIN users ua ON ua.id = g.approved_by
            LEFT JOIN users uj ON uj.id = g.issued_by
            LEFT JOIN users uc ON uc.id = g.created_by
+           LEFT JOIN users ur ON ur.id = g.rejected_by
            LEFT JOIN epc_purchase_orders po ON po.id = g.epc_po_id
+           LEFT JOIN projects p ON p.id = g.project_id
            WHERE g.id = $1`,
           [id],
         ),
@@ -641,9 +645,9 @@ export function setupProcurementListRoutes(app: Express): void {
           const qty = parseFloat(ld.qty) || 0;
           const rate = parseFloat(ld.unitRate) || 0;
           await pool.query(
-            `UPDATE epc_po_group_lines SET line_qty=$1, line_unit_rate=$2, line_amount=$3, updated_at=NOW()
-             WHERE po_group_id=$4 AND plc_line_id=$5 AND is_active=true`,
-            [qty, rate, qty * rate, id, ld.plcLineId],
+            `UPDATE epc_po_group_lines SET line_qty=$1, line_unit_rate=$2, line_amount=$3, line_notes=$4, updated_at=NOW()
+             WHERE po_group_id=$5 AND plc_line_id=$6 AND is_active=true`,
+            [qty, rate, qty * rate, ld.lineNotes ?? null, id, ld.plcLineId],
           );
         }
         // Recalculate total amount
@@ -1021,6 +1025,131 @@ export function setupProcurementListRoutes(app: Express): void {
         [id],
       );
       res.json(r.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // GET /api/epc-po-groups/:id/available-lines — PLC lines eligible to add to a draft POG
+  app.get('/api/epc-po-groups/:id/available-lines', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return badRequest(res, 'Invalid id');
+      const grp = await pool.query<{ project_id: number; status: string }>(
+        `SELECT project_id, status FROM epc_po_groups WHERE id = $1`, [id],
+      );
+      if (!grp.rows[0]) return notFound(res, 'PO Group', id);
+      if (grp.rows[0].status !== 'draft') return res.status(409).json({ error: 'Only draft PO Groups can be modified' });
+      const projectId = grp.rows[0].project_id;
+      const POG_ELIGIBLE_STATUSES = ['pr_raised', 'vendor_selected'];
+      const r = await pool.query(
+        `SELECT p.id, p.plc_number, p.tag_no, p.service_description, p.subgroup_code, p.qty_required, p.status,
+           mi.item_code, mi.description AS item_description, mi.uom
+         FROM procurement_list_lines p
+         LEFT JOIN master_items mi ON mi.id = p.master_item_id
+         WHERE p.project_id = $1
+           AND p.status = ANY($2::text[])
+           AND (p.active_po_group_id IS NULL OR p.active_po_group_id = $3)
+           AND p.is_active = true
+         ORDER BY p.plc_number`,
+        [projectId, POG_ELIGIBLE_STATUSES, id],
+      );
+      res.json(r.rows);
+    } catch (err) { sendError(res, err); }
+  });
+
+  // POST /api/epc-po-groups/:id/lines — add a PLC line to an existing draft POG
+  app.post('/api/epc-po-groups/:id/lines', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return badRequest(res, 'Invalid id');
+      const { plcLineId, qty, unitRate } = req.body;
+      if (!plcLineId) return badRequest(res, 'plcLineId is required');
+
+      const grp = await pool.query<{ project_id: number; status: string }>(
+        `SELECT project_id, status FROM epc_po_groups WHERE id = $1`, [id],
+      );
+      if (!grp.rows[0]) return notFound(res, 'PO Group', id);
+      if (grp.rows[0].status !== 'draft') return res.status(409).json({ error: 'Only draft PO Groups can be modified' });
+
+      const lineCheck = await pool.query(
+        `SELECT id, qty_required, status, active_po_group_id FROM procurement_list_lines WHERE id = $1 AND project_id = $2`,
+        [plcLineId, grp.rows[0].project_id],
+      );
+      if (!lineCheck.rows[0]) return notFound(res, 'PLC Line', plcLineId);
+      const POG_ELIGIBLE_STATUSES = ['pr_raised', 'vendor_selected'];
+      if (!POG_ELIGIBLE_STATUSES.includes(lineCheck.rows[0].status)) {
+        return res.status(409).json({ error: `Line is in status '${lineCheck.rows[0].status}' and cannot be added to a PO Group` });
+      }
+      if (lineCheck.rows[0].active_po_group_id && lineCheck.rows[0].active_po_group_id !== id) {
+        return res.status(409).json({ error: 'Line already belongs to another active PO Group' });
+      }
+
+      const existingLine = await pool.query(
+        `SELECT id FROM epc_po_group_lines WHERE po_group_id = $1 AND plc_line_id = $2 AND is_active = true`, [id, plcLineId],
+      );
+      if (existingLine.rows[0]) return res.status(409).json({ error: 'This line is already in the PO Group' });
+
+      const lineQty = parseFloat(qty) || parseFloat(lineCheck.rows[0].qty_required) || 1;
+      const lineRate = parseFloat(unitRate) || 0;
+      const lineAmount = lineQty * lineRate;
+
+      const maxLineNum = await pool.query(
+        `SELECT COALESCE(MAX(line_number), 0) AS max_ln FROM epc_po_group_lines WHERE po_group_id = $1`, [id],
+      );
+      const lineNumber = (maxLineNum.rows[0].max_ln as number) + 1;
+
+      await pool.query(
+        `INSERT INTO epc_po_group_lines (po_group_id, plc_line_id, line_number, line_qty, line_unit_rate, line_amount)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [id, plcLineId, lineNumber, lineQty, lineRate, lineAmount],
+      );
+      await pool.query(
+        `UPDATE procurement_list_lines SET active_po_group_id = $1, active_po_group_number = (SELECT pog_number FROM epc_po_groups WHERE id = $1) WHERE id = $2`,
+        [id, plcLineId],
+      );
+      await pool.query(
+        `UPDATE epc_po_groups SET
+           total_lines = (SELECT COUNT(*) FROM epc_po_group_lines WHERE po_group_id = $1 AND is_active = true),
+           total_amount = (SELECT COALESCE(SUM(line_amount), 0) FROM epc_po_group_lines WHERE po_group_id = $1 AND is_active = true),
+           updated_at = NOW()
+         WHERE id = $1`, [id],
+      );
+      res.status(201).json({ ok: true });
+    } catch (err) { sendError(res, err); }
+  });
+
+  // DELETE /api/epc-po-groups/:id/lines/:lineId — remove a line from a draft POG
+  app.delete('/api/epc-po-groups/:id/lines/:lineId', ensureAuthenticated, PAGE, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const lineId = parseInt(req.params.lineId);
+      if (isNaN(id) || isNaN(lineId)) return badRequest(res, 'Invalid id');
+
+      const grp = await pool.query<{ status: string }>(
+        `SELECT status FROM epc_po_groups WHERE id = $1`, [id],
+      );
+      if (!grp.rows[0]) return notFound(res, 'PO Group', id);
+      if (grp.rows[0].status !== 'draft') return res.status(409).json({ error: 'Only draft PO Groups can be modified' });
+
+      const line = await pool.query<{ plc_line_id: number }>(
+        `SELECT plc_line_id FROM epc_po_group_lines WHERE id = $1 AND po_group_id = $2 AND is_active = true`, [lineId, id],
+      );
+      if (!line.rows[0]) return notFound(res, 'Line', lineId);
+      const plcLineId = line.rows[0].plc_line_id;
+
+      await pool.query(`UPDATE epc_po_group_lines SET is_active = false, updated_at = NOW() WHERE id = $1`, [lineId]);
+      await pool.query(
+        `UPDATE procurement_list_lines SET active_po_group_id = NULL, active_po_group_number = NULL WHERE id = $1`,
+        [plcLineId],
+      );
+      await pool.query(
+        `UPDATE epc_po_groups SET
+           total_lines = (SELECT COUNT(*) FROM epc_po_group_lines WHERE po_group_id = $1 AND is_active = true),
+           total_amount = (SELECT COALESCE(SUM(line_amount), 0) FROM epc_po_group_lines WHERE po_group_id = $1 AND is_active = true),
+           updated_at = NOW()
+         WHERE id = $1`, [id],
+      );
+      res.json({ ok: true });
     } catch (err) { sendError(res, err); }
   });
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/layout";
@@ -27,7 +28,6 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PoGroupWizard } from "@/components/po-group-wizard";
-import { PoGroupDetail } from "@/components/po-group-detail";
 import { PlcLineDetailDrawer } from "@/components/plc-line-detail-drawer";
 import { RfqCreateDialog } from "@/components/rfq-create-dialog";
 import { VendorQuoteDialog } from "@/components/vendor-quote-dialog";
@@ -147,6 +147,7 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: s
 export default function ProcurementListControlPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -155,7 +156,6 @@ export default function ProcurementListControlPage() {
   const [subgroupFilter, setSubgroupFilter] = useState<number | "all">("all");
   const [activeTab, setActiveTab] = useState("lines");
   const [selectedLineId, setSelectedLineId] = useState<number | null>(null);
-  const [selectedPogId, setSelectedPogId] = useState<number | null>(null);
   const [showPogWizard, setShowPogWizard] = useState(false);
   const [selectedLineIds, setSelectedLineIds] = useState<number[]>([]);
 
@@ -718,7 +718,7 @@ export default function ProcurementListControlPage() {
                           </TableCell>
                           <TableCell
                             className="text-xs font-mono text-blue-700 cursor-pointer"
-                            onClick={() => line.activePoGroupId && setSelectedPogId(line.activePoGroupId)}
+                            onClick={() => line.activePoGroupId && navigate(`/epc/po-groups/${line.activePoGroupId}`)}
                           >
                             {line.activePoGroupNumber ?? <span className="text-muted-foreground">—</span>}
                           </TableCell>
@@ -838,7 +838,7 @@ export default function ProcurementListControlPage() {
                         <TableRow
                           key={pog.id}
                           className="cursor-pointer hover:bg-gray-50"
-                          onClick={() => setSelectedPogId(pog.id)}
+                          onClick={() => navigate(`/epc/po-groups/${pog.id}`)}
                         >
                           <TableCell className="font-mono text-xs text-blue-700 font-medium">
                             {pog.pogNumber}
@@ -1825,14 +1825,6 @@ export default function ProcurementListControlPage() {
             invalidateAll();
             toast({ title: "PO Group created", description: "The PO Group has been saved as a draft." });
           }}
-        />
-      )}
-
-      {selectedPogId && (
-        <PoGroupDetail
-          pogId={selectedPogId}
-          onClose={() => setSelectedPogId(null)}
-          onMutated={invalidateAll}
         />
       )}
 

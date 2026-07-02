@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertTriangle, ChevronRight, ChevronLeft, Check, X, Loader2, Package, RefreshCw, Wifi } from "lucide-react";
+import { PAYMENT_TERMS_OPTIONS, DELIVERY_TERMS_OPTIONS } from "@/pages/po-group-detail-page";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -570,14 +571,36 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
                 <FormField control={form.control} name="deliveryTerms" render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-xs">Delivery Terms</FormLabel>
-                    <FormControl><Input {...field} placeholder="e.g. Ex-Works, CIF" /></FormControl>
+                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                      <FormControl>
+                        <SelectTrigger className="h-9 text-xs">
+                          <SelectValue placeholder="Select delivery terms…" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {DELIVERY_TERMS_OPTIONS.map((o) => (
+                          <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="paymentTerms" render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-xs">Payment Terms</FormLabel>
-                    <FormControl><Input {...field} placeholder="e.g. 30 days from invoice" /></FormControl>
+                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                      <FormControl>
+                        <SelectTrigger className="h-9 text-xs">
+                          <SelectValue placeholder="Select payment terms…" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {PAYMENT_TERMS_OPTIONS.map((o) => (
+                          <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )} />
