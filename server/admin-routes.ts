@@ -5341,6 +5341,76 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
           updatedAt: new Date(),
         }).where(eq(payrollRecords.id, recordId));
 
+        // --- Advance Recovery Record Creation ---
+        // The salary JE above already includes the ADVANCE_DEDUCTION line.
+        // We must now mirror that deduction into QMS tracking tables so that
+        // employee_advances.outstanding_balance reflects the recovery.
+        const advDeductionAmount = parseFloat(record.advanceDeductions || '0');
+        if (advDeductionAmount > 0) {
+          try {
+            const [payPeriod] = await db.select().from(payrollPeriods).where(eq(payrollPeriods.id, record.periodId));
+            const periodEndDate = payPeriod?.endDate || payPeriod?.startDate || new Date().toISOString().split('T')[0];
+
+            const eligibleAdvances = await db.select().from(employeeAdvances)
+              .where(and(
+                eq(employeeAdvances.employeeId, record.userId),
+                eq(employeeAdvances.status, 'active'),
+                lte(employeeAdvances.startRecoveryDate, periodEndDate)
+              ))
+              .orderBy(asc(employeeAdvances.startRecoveryDate));
+
+            let remaining = advDeductionAmount;
+            for (const adv of eligibleAdvances) {
+              if (remaining <= 0) break;
+              const outstanding = parseFloat(adv.outstandingBalance || '0');
+              if (outstanding <= 0) continue;
+
+              // Idempotency: skip if a recovery record already exists for this advance + payroll record
+              const [existingRecovery] = await db.select({ id: employeeAdvanceRecoveries.id })
+                .from(employeeAdvanceRecoveries)
+                .where(and(
+                  eq(employeeAdvanceRecoveries.advanceId, adv.id),
+                  eq(employeeAdvanceRecoveries.payrollRecordId, recordId)
+                ));
+              if (existingRecovery) continue;
+
+              const actualDeduction = Math.min(remaining, outstanding);
+              const newBalance = outstanding - actualDeduction;
+              const newRecovered = parseFloat(adv.totalRecovered || '0') + actualDeduction;
+              const newInstRec = (adv.installmentsRecovered || 0) + 1;
+              const repaymentStatus = newBalance <= 0.01 ? 'closed' : 'deducted';
+              const advStatus = newBalance <= 0.01 ? 'closed' : 'active';
+
+              await db.insert(employeeAdvanceRecoveries).values({
+                advanceId: adv.id,
+                employeeId: record.userId,
+                installmentNumber: newInstRec,
+                amount: actualDeduction.toFixed(2),
+                recoveryDate: periodEndDate,
+                payrollRecordId: recordId,
+                payrollPeriodId: record.periodId,
+                runNumber: 1,
+                balanceAfter: newBalance.toFixed(2),
+                status: repaymentStatus,
+              });
+
+              await db.update(employeeAdvances).set({
+                totalRecovered: newRecovered.toFixed(2),
+                outstandingBalance: newBalance.toFixed(2),
+                installmentsRecovered: newInstRec,
+                status: advStatus,
+                updatedAt: new Date(),
+              }).where(eq(employeeAdvances.id, adv.id));
+
+              console.log(`[SalaryJE] Advance recovery created: advance ${adv.advanceReference} ₹${actualDeduction.toFixed(2)} for record ${recordId}`);
+              remaining -= actualDeduction;
+            }
+          } catch (advErr: any) {
+            // Non-fatal — SAP posting already succeeded; log and continue
+            console.error(`[SalaryJE] Advance recovery record creation failed for payroll record ${recordId}:`, advErr.message);
+          }
+        }
+
         // Fire-and-forget salary slip email — does not block the API response
         emailSalarySlipAfterPost(recordId, empName).catch(e =>
           console.error('[SalarySlipEmail] Dispatch failed:', e?.message || e)
@@ -5369,6 +5439,119 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
     }
   } catch (error: any) {
     console.error('Error posting salary JE to SAP:', error);
+    sendError(res, error);
+  }
+});
+
+/**
+ * POST /admin/payroll/backfill-advance-recoveries/:periodId
+ *
+ * Idempotent backfill: for every SAP-posted payroll record in the period that
+ * has advance_deductions > 0, creates the missing employee_advance_recoveries
+ * rows and updates employee_advances balances.
+ *
+ * Safe to run multiple times — existing recovery rows for the same
+ * (advance_id, payroll_record_id) pair are skipped.
+ */
+router.post('/payroll/backfill-advance-recoveries/:periodId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const periodId = parseInt(req.params.periodId);
+    if (isNaN(periodId)) return res.status(400).json({ error: 'Invalid period ID' });
+
+    const [period] = await db.select().from(payrollPeriods).where(eq(payrollPeriods.id, periodId));
+    if (!period) return res.status(404).json({ error: 'Payroll period not found' });
+    const periodEndDate = period.endDate;
+
+    const records = await db.select().from(payrollRecords)
+      .where(and(
+        eq(payrollRecords.periodId, periodId),
+        eq(payrollRecords.sapPostingStatus, 'posted')
+      ));
+
+    const results: { userId: number; recordId: number; advancesProcessed: number; skipped: number; error?: string }[] = [];
+
+    for (const record of records) {
+      const advDeductionAmount = parseFloat(record.advanceDeductions || '0');
+      if (advDeductionAmount <= 0) continue;
+
+      const entry = { userId: record.userId, recordId: record.id, advancesProcessed: 0, skipped: 0 };
+      try {
+        const eligibleAdvances = await db.select().from(employeeAdvances)
+          .where(and(
+            eq(employeeAdvances.employeeId, record.userId),
+            lte(employeeAdvances.startRecoveryDate, periodEndDate)
+          ))
+          .orderBy(asc(employeeAdvances.startRecoveryDate));
+
+        let remaining = advDeductionAmount;
+        for (const adv of eligibleAdvances) {
+          if (remaining <= 0) break;
+
+          const [existingRecovery] = await db.select({ id: employeeAdvanceRecoveries.id })
+            .from(employeeAdvanceRecoveries)
+            .where(and(
+              eq(employeeAdvanceRecoveries.advanceId, adv.id),
+              eq(employeeAdvanceRecoveries.payrollRecordId, record.id)
+            ));
+          if (existingRecovery) { entry.skipped++; continue; }
+
+          const outstanding = parseFloat(adv.outstandingBalance || '0');
+          if (outstanding <= 0) continue;
+
+          const actualDeduction = Math.min(remaining, outstanding);
+          const newBalance = outstanding - actualDeduction;
+          const newRecovered = parseFloat(adv.totalRecovered || '0') + actualDeduction;
+          const newInstRec = (adv.installmentsRecovered || 0) + 1;
+          const repaymentStatus = newBalance <= 0.01 ? 'closed' : 'deducted';
+          const advStatus = newBalance <= 0.01 ? 'closed' : 'active';
+
+          await db.insert(employeeAdvanceRecoveries).values({
+            advanceId: adv.id,
+            employeeId: record.userId,
+            installmentNumber: newInstRec,
+            amount: actualDeduction.toFixed(2),
+            recoveryDate: periodEndDate,
+            payrollRecordId: record.id,
+            payrollPeriodId: periodId,
+            runNumber: 1,
+            balanceAfter: newBalance.toFixed(2),
+            status: repaymentStatus,
+          });
+
+          await db.update(employeeAdvances).set({
+            totalRecovered: newRecovered.toFixed(2),
+            outstandingBalance: newBalance.toFixed(2),
+            installmentsRecovered: newInstRec,
+            status: advStatus,
+            updatedAt: new Date(),
+          }).where(eq(employeeAdvances.id, adv.id));
+
+          console.log(`[Backfill] Advance recovery: advance ${adv.advanceReference} ₹${actualDeduction.toFixed(2)} → record ${record.id}`);
+          remaining -= actualDeduction;
+          entry.advancesProcessed++;
+        }
+      } catch (err: any) {
+        entry.error = err.message;
+      }
+      results.push(entry);
+    }
+
+    const totalProcessed = results.reduce((s, r) => s + r.advancesProcessed, 0);
+    const totalSkipped = results.reduce((s, r) => s + r.skipped, 0);
+    const errors = results.filter(r => r.error);
+
+    res.json({
+      success: true,
+      periodId,
+      periodName: period.periodName,
+      recordsWithAdvanceDeductions: results.length,
+      advanceRecoveriesCreated: totalProcessed,
+      alreadyExisted: totalSkipped,
+      errors: errors.length,
+      details: results,
+    });
+  } catch (error: any) {
+    console.error('Error in advance recovery backfill:', error);
     sendError(res, error);
   }
 });
