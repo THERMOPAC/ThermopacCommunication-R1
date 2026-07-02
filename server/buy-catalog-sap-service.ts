@@ -38,13 +38,34 @@ export function groupPrefix(code: string): string {
   return GROUP_PREFIX[code.toLowerCase()] ?? code.slice(0, 3).toUpperCase();
 }
 
+/** SAP B1 hard limit for Item Codes */
+export const SAP_ITEM_CODE_MAX_LEN = 50;
+
 /**
  * Build the deterministic SAP Item Code from the 4-field identity.
- * Format: {PREFIX}-CAT-{MAKE}-{MODEL}  truncated to 50 chars.
- * Example: PMP-CAT-KSB-CPKEY 65-200
+ * Format: {PREFIX}-CAT-{MAKE}-{MODEL}  e.g. PMP-CAT-KSB-CPKEY 65-200
+ *
+ * Returns the code string (may exceed SAP_ITEM_CODE_MAX_LEN — callers must
+ * check `.length` and reject if > 50 chars; never truncate silently).
  */
 export function buildCatalogItemCode(prefix: string, make: string, model: string): string {
-  return `${prefix}-CAT-${make}-${model}`.slice(0, 50);
+  return `${prefix}-CAT-${make}-${model}`;
+}
+
+/**
+ * Throw a user-friendly error if the code would exceed the SAP B1 50-char limit.
+ * Call this before any INSERT.
+ */
+export function assertSapCodeLength(code: string): void {
+  if (code.length > SAP_ITEM_CODE_MAX_LEN) {
+    throw Object.assign(
+      new Error(
+        `SAP Item Code "${code}" is ${code.length} characters — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}. ` +
+        `Shorten the Make or Model so the combined code fits within 50 characters.`,
+      ),
+      { sapCodeTooLong: true, generatedCode: code, codeLength: code.length },
+    );
+  }
 }
 
 /**
@@ -105,6 +126,9 @@ export async function resolveCatalogSapItemCode(
       ? groupPrefix(grpRow.rows[0].code)
       : 'GEN';
     const itemCode = buildCatalogItemCode(prefix, make, model);
+
+    // Hard-block: never insert a code that exceeds SAP B1's 50-char limit.
+    assertSapCodeLength(itemCode);
 
     // 3 — Insert the new master_items record.
     const inserted = await client.query<{ id: number; item_code: string }>(

@@ -19,7 +19,7 @@ import crypto from 'crypto';
 import { pool } from './db';
 import { ensureAuthenticated } from './auth-middleware';
 import { applyProjectElectricalStandards, stripElectricalOverridesMeta } from './utils/electrical-override';
-import { resolveCatalogSapItemCode, groupPrefix, buildCatalogItemCode } from './buy-catalog-sap-service';
+import { resolveCatalogSapItemCode, groupPrefix, buildCatalogItemCode, SAP_ITEM_CODE_MAX_LEN } from './buy-catalog-sap-service';
 import { requirePageAccess } from './utils/permission-utils';
 import {
   sendError, sendValidationError, sendNotFound,
@@ -779,11 +779,12 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
 
       // Not found — compute the deterministic code (read-only, no INSERT)
       // Format: {PREFIX}-CAT-{MAKE}-{MODEL}  e.g. PMP-CAT-KSB-CPKEY 65-200
-      const grpCode = grpRow.rows[0].code;
-      const prefix  = groupPrefix(grpCode);
-      const code    = buildCatalogItemCode(prefix, make, model);
+      const grpCode  = grpRow.rows[0].code;
+      const prefix   = groupPrefix(grpCode);
+      const code     = buildCatalogItemCode(prefix, make, model);
+      const tooLong  = code.length > SAP_ITEM_CODE_MAX_LEN;
 
-      res.json({ code, isNew: true, isRawMaterials: false });
+      res.json({ code, isNew: true, isRawMaterials: false, isTooLong: tooLong, codeLength: code.length });
     } catch (err) { sendError(res, err); }
   });
 

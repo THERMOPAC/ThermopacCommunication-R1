@@ -451,6 +451,7 @@ export default function BuyPackagesPage() {
     !!lfModel && lfModel.toUpperCase() !== "TBN";
   const { data: sapPreview, isFetching: sapPreviewLoading } = useQuery<{
     code: string | null; isNew: boolean; isRawMaterials: boolean;
+    isTooLong?: boolean; codeLength?: number;
   }>({
     queryKey: ["/api/buy-catalog/preview-code", lf.buyGroupId, lf.buySubgroupId, lfMake, lfModel],
     queryFn: () =>
@@ -2074,6 +2075,16 @@ export default function BuyPackagesPage() {
                     );
                   }
                   if (sapPreviewEnabled && sapPreview?.code) {
+                    if (sapPreview.isTooLong) {
+                      return (
+                        <div className="px-3 py-1.5 flex flex-col gap-0.5 rounded-md border border-red-400 bg-red-50 select-none">
+                          <span className="font-mono text-xs text-red-700 break-all">{sapPreview.code}</span>
+                          <span className="text-[11px] text-red-600 font-medium">
+                            ⚠ {sapPreview.codeLength} chars — exceeds SAP B1 limit of 50. Shorten Make or Model before saving.
+                          </span>
+                        </div>
+                      );
+                    }
                     return (
                       <div className="h-9 px-3 flex items-center justify-between rounded-md border border-emerald-300 bg-emerald-50 select-none">
                         <span className="font-mono font-semibold tracking-wide text-emerald-800 text-sm">
