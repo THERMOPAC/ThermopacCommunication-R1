@@ -257,6 +257,17 @@ export default function LoansAdvancesPage() {
   });
   const [lastCreatedLoan, setLastCreatedLoan] = useState<any>(null);
   const [lastCreatedAdvance, setLastCreatedAdvance] = useState<any>(null);
+  const [showBackfillDialog, setShowBackfillDialog] = useState(false);
+  const [backfillPeriodId, setBackfillPeriodId] = useState('');
+  const [backfillResult, setBackfillResult] = useState<any>(null);
+
+  const { data: currentUser } = useQuery<any>({ queryKey: ['/api/user'] });
+  const isSuperuser = currentUser?.role === 'Superuser' || currentUser?.role === 'Admin';
+
+  const { data: payrollPeriods = [] } = useQuery<any[]>({
+    queryKey: ['/api/payroll/payroll-periods'],
+    enabled: showBackfillDialog,
+  });
 
   const { data: users = [] } = useQuery<any[]>({ queryKey: ['/api/users/selection'] });
   const { data: loans = [], isLoading: loansLoading } = useQuery<any[]>({ queryKey: ['/api/loan-advance/loans'] });
@@ -334,6 +345,17 @@ export default function LoansAdvancesPage() {
       toast({ title: 'Advance JE posted to SAP', description: `JE Number: ${data.sapJeNumber}` });
     },
     onError: (err: any) => toast({ title: 'SAP Transfer Failed', description: err.message, variant: 'destructive' }),
+  });
+
+  const backfillMutation = useMutation({
+    mutationFn: async (periodId: number) => {
+      return await apiRequest('POST', `/api/admin/payroll/backfill-advance-recoveries/${periodId}`);
+    },
+    onSuccess: (data: any) => {
+      setBackfillResult(data);
+      queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/advances'] });
+    },
+    onError: (err: any) => toast({ title: 'Backfill Failed', description: err.message, variant: 'destructive' }),
   });
 
   function getToday() {
@@ -470,9 +492,16 @@ export default function LoansAdvancesPage() {
               </Button>
             )}
             {activeTab === 'advances' && (
-              <Button onClick={() => { resetAdvanceForm(); setShowAdvanceDialog(true); }}>
-                <Plus className="h-4 w-4 mr-2" /> New Advance
-              </Button>
+              <div className="flex gap-2">
+                {isSuperuser && (
+                  <Button variant="outline" onClick={() => { setBackfillResult(null); setBackfillPeriodId(''); setShowBackfillDialog(true); }}>
+                    <RefreshCcw className="h-4 w-4 mr-2" /> Backfill Recovery
+                  </Button>
+                )}
+                <Button onClick={() => { resetAdvanceForm(); setShowAdvanceDialog(true); }}>
+                  <Plus className="h-4 w-4 mr-2" /> New Advance
+                </Button>
+              </div>
             )}
           </div>
         </div>
@@ -1048,6 +1077,79 @@ export default function LoansAdvancesPage() {
 
       {/* Advance Detail Dialog */}
       <AdvanceDetailDialog advance={selectedAdvance} onClose={() => setSelectedAdvance(null)} onStatusChange={(id: number, status: string) => updateAdvanceMutation.mutate({ id, data: { status } })} />
+
+      {/* Backfill Recovery Dialog */}
+      <Dialog open={showBackfillDialog} onOpenChange={(open) => { if (!open) { setShowBackfillDialog(false); setBackfillResult(null); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCcw className="h-5 w-5 text-blue-600" />
+              Backfill Advance Recoveries
+            </DialogTitle>
+          </DialogHeader>
+
+          {!backfillResult ? (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Use this to fix advances where the SAP JE was posted during payroll but the recovery row was never recorded — the advance still shows the full outstanding balance.
+              </p>
+              <div className="space-y-2">
+                <Label>Payroll Period</Label>
+                <Select value={backfillPeriodId} onValueChange={setBackfillPeriodId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select period to backfill…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {payrollPeriods
+                      .filter((p: any) => ['sap_posted', 'transferred', 'verified', 'finalized'].includes(p.status))
+                      .map((p: any) => (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          {p.periodName} — {p.status}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">Only SAP-posted / finalized periods are shown — backfill applies to employees whose payroll was posted to SAP.</p>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowBackfillDialog(false)}>Cancel</Button>
+                <Button
+                  disabled={!backfillPeriodId || backfillMutation.isPending}
+                  onClick={() => backfillMutation.mutate(parseInt(backfillPeriodId))}
+                >
+                  {backfillMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Running…</> : <><RefreshCcw className="h-4 w-4 mr-2" />Run Backfill</>}
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-md bg-green-50 border border-green-200 p-4 space-y-2">
+                <p className="font-semibold text-green-800 flex items-center gap-2"><CheckCircle2 className="h-4 w-4" />Backfill Complete — {backfillResult.periodName}</p>
+                <div className="grid grid-cols-2 gap-2 text-sm text-green-700">
+                  <span>Records with advance deductions:</span><span className="font-semibold">{backfillResult.recordsWithAdvanceDeductions}</span>
+                  <span>Recovery rows created:</span><span className="font-semibold">{backfillResult.advanceRecoveriesCreated}</span>
+                  <span>Already existed (skipped):</span><span className="font-semibold">{backfillResult.alreadyExisted}</span>
+                  {backfillResult.errors > 0 && <><span className="text-red-600">Errors:</span><span className="font-semibold text-red-600">{backfillResult.errors}</span></>}
+                </div>
+              </div>
+              {backfillResult.details?.length > 0 && (
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {backfillResult.details.filter((d: any) => d.advancesProcessed > 0 || d.error).map((d: any, i: number) => (
+                    <div key={i} className={`text-xs rounded px-2 py-1 ${d.error ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-700'}`}>
+                      {d.error
+                        ? `User ${d.userId}: Error — ${d.error}`
+                        : `User ${d.userId}: ${d.advancesProcessed} recovery row(s) created`}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <DialogFooter>
+                <Button onClick={() => { setShowBackfillDialog(false); setBackfillResult(null); }}>Close</Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
