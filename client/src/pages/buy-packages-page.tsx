@@ -1967,12 +1967,6 @@ export default function BuyPackagesPage() {
                   : lineDialog.editLine ? "Modify this procurement line." : "Define a procurement requirement for this package."}
               </DialogDescription>
             </DialogHeader>
-            {lineDialog.editLine?.sap_item_code && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-emerald-50 border border-emerald-200 text-sm">
-                <span className="text-muted-foreground">SAP Item Code:</span>
-                <span className="font-mono font-semibold text-emerald-800">{lineDialog.editLine.sap_item_code}</span>
-              </div>
-            )}
             <div className="space-y-4 py-2">
 
               {/* Group / Subgroup / UOM */}
@@ -2039,18 +2033,28 @@ export default function BuyPackagesPage() {
                 </div>
               </div>
 
-              {/* SAP ItemCode — reserved position; auto-generated after approval */}
+              {/* SAP ItemCode — generated on save for non-RM lines with finalised Make/Model */}
               <div className="space-y-1.5">
                 <Label className="flex items-center gap-1.5 text-sm font-medium">
-                  SAP ItemCode
+                  SAP Item Code
                   <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-normal">
                     <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     Auto-generated
                   </span>
                 </Label>
-                <div className="h-9 px-3 flex items-center justify-between rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
-                  <span className="font-mono tracking-wide">Auto-generated after approval</span>
-                </div>
+                {lineDialog.editLine?.sap_item_code ? (
+                  <div className="h-9 px-3 flex items-center gap-2 rounded-md border border-emerald-300 bg-emerald-50 select-none">
+                    <span className="font-mono font-semibold tracking-wide text-emerald-800 text-sm">
+                      {lineDialog.editLine.sap_item_code}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                    <span className="font-mono tracking-wide">
+                      {lineDialog.editLine ? "—" : "Generated on save (once Make & Model are set)"}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Installed On (Skid) */}
