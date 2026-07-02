@@ -1095,19 +1095,30 @@ export default function LoansAdvancesPage() {
               </p>
               <div className="space-y-2">
                 <Label>Payroll Period</Label>
-                <Select value={backfillPeriodId} onValueChange={setBackfillPeriodId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select period to backfill…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {payrollPeriods.map((p: any) => (
-                      <SelectItem key={p.id} value={String(p.id)}>
-                        {p.periodName} — {p.status}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-gray-500">Select the period where the SAP JE was posted but the recovery row was never recorded.</p>
+                <div className="border rounded-md max-h-52 overflow-y-auto divide-y">
+                  {payrollPeriods.length === 0 && (
+                    <p className="text-sm text-gray-500 px-3 py-2">Loading periods…</p>
+                  )}
+                  {payrollPeriods.map((p: any) => {
+                    const selected = backfillPeriodId === String(p.id);
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => setBackfillPeriodId(String(p.id))}
+                        className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-blue-50 transition-colors ${selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}`}
+                      >
+                        <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${selected ? 'border-blue-500 bg-blue-500' : 'border-gray-300'}`}>
+                          {selected && <div className="w-2 h-2 rounded-full bg-white" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="font-medium text-sm">{p.periodName}</span>
+                          <span className="ml-2 text-xs text-gray-500 capitalize">{p.status?.replace(/_/g, ' ')}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-gray-500">Click the period where the SAP JE was posted but the recovery row was never recorded.</p>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setShowBackfillDialog(false)}>Cancel</Button>
