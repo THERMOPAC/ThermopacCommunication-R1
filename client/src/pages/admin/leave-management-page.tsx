@@ -62,7 +62,6 @@ import {
   RefreshCcw,
   Loader2,
   SlidersHorizontal,
-  Plus,
   Minus,
   History
 } from 'lucide-react';
