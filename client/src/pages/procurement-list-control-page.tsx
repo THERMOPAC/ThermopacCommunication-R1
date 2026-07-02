@@ -1819,11 +1819,11 @@ export default function ProcurementListControlPage() {
           projectId={selectedProjectId}
           preselectedLineIds={selectedLineIds}
           onClose={() => { setShowPogWizard(false); clearSelection(); }}
-          onSuccess={() => {
+          onSuccess={(pogId) => {
             setShowPogWizard(false);
             clearSelection();
             invalidateAll();
-            toast({ title: "PO Group created", description: "The PO Group has been saved as a draft." });
+            navigate(`/epc/po-groups/${pogId}`);
           }}
         />
       )}

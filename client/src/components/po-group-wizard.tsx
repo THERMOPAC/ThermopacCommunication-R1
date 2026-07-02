@@ -41,7 +41,7 @@ interface WizardProps {
   projectId: number;
   preselectedLineIds: number[];
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (pogId: number) => void;
 }
 
 // ─── Steps: 3-step flow ──────────────────────────────────────────────────────
@@ -217,7 +217,7 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
     setSubmitting(true);
     try {
       const vals = form.getValues();
-      await apiRequest("POST", "/api/epc-po-groups", {
+      const created = await apiRequest<{ id: number }>("POST", "/api/epc-po-groups", {
         projectId,
         vendorId: selectedVendorId,
         vendorName: selectedVendorName,
@@ -231,7 +231,7 @@ export function PoGroupWizard({ projectId, preselectedLineIds, onClose, onSucces
         paymentTerms:  vals.paymentTerms,
         groupNotes:    vals.groupNotes,
       });
-      onSuccess();
+      onSuccess((created as any).id);
     } catch (e: any) {
       alert(e.message);
     } finally {
