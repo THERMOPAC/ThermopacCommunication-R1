@@ -2055,8 +2055,8 @@ export default function BuyPackagesPage() {
                 </div>
               </div>
 
-              {/* SAP ItemCode — generated on save for non-RM lines with finalised Make/Model */}
-              <div className="space-y-1.5">
+              {/* SAP ItemCode — sticky so it stays visible while scrolling through pump/motor specs */}
+              <div className="space-y-1.5 sticky top-0 z-10 bg-background pb-1 pt-0.5 -mx-1 px-1 border-b border-transparent" style={{ backdropFilter: "blur(4px)" }}>
                 <Label className="flex items-center gap-1.5 text-sm font-medium">
                   SAP Item Code
                   <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-normal">
