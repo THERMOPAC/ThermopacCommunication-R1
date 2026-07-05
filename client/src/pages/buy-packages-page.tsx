@@ -1,4 +1,4 @@
-import { useState, Fragment, useCallback } from "react";
+import { useState, useEffect, Fragment, useCallback } from "react";
 import { DatasheetPreviewDialog, downloadDatasheetPdf } from "@/components/buy-datasheet-dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -28,7 +28,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Plus, ChevronRight, ChevronUp, ChevronDown, Package, Layers,
   CheckCircle2, Archive, Edit2, Trash2, Loader2, Search, AlertCircle, List,
-  ChevronsUpDown, Check, X, FileSpreadsheet, FileDown, Copy, GitBranch,
+  ChevronsUpDown, Check, X, FileSpreadsheet, FileDown, Copy, GitBranch, Pencil,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -341,8 +341,32 @@ function GenericReqField({
 }: {
   value: string; placeholder?: string; onChange: (v: string) => void; required?: boolean;
 }) {
-  const len = value.length;
+  const [editing, setEditing] = useState(!value);
+  const len  = value.length;
   const over = len > ITEM_DESC_LIMIT;
+
+  // Auto-open edit mode if value overflows so the user can fix it.
+  useEffect(() => { if (over) setEditing(true); }, [over]);
+
+  if (!editing && value) {
+    return (
+      <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-2.5 py-1.5">
+        <span className="flex-1 text-xs text-muted-foreground truncate" title={value}>{value}</span>
+        <span className={`shrink-0 text-[10px] font-mono tabular-nums ${len > 85 ? "text-amber-600" : "text-muted-foreground"}`}>
+          {len}/{ITEM_DESC_LIMIT}
+        </span>
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+          title="Edit Generic Requirement"
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between gap-2">
@@ -352,15 +376,23 @@ function GenericReqField({
             ? <span className="text-red-500">*</span>
             : <span className="text-[10px] font-normal">(Item Description / SAP ItemName)</span>}
         </Label>
-        <span className={`shrink-0 text-[10px] font-mono tabular-nums ${over ? "text-red-600 font-bold" : len > 85 ? "text-amber-600 font-semibold" : "text-muted-foreground"}`}>
-          {len}/{ITEM_DESC_LIMIT}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`shrink-0 text-[10px] font-mono tabular-nums ${over ? "text-red-600 font-bold" : len > 85 ? "text-amber-600 font-semibold" : "text-muted-foreground"}`}>
+            {len}/{ITEM_DESC_LIMIT}
+          </span>
+          {value && (
+            <button type="button" onClick={() => setEditing(false)} className="text-[10px] text-muted-foreground hover:text-foreground">
+              Collapse
+            </button>
+          )}
+        </div>
       </div>
       <Input
         className={`h-9 text-sm${over ? " border-red-500 focus-visible:ring-red-500" : ""}`}
         value={value}
         placeholder={placeholder || "Fill attributes above to generate…"}
         onChange={(e) => onChange(e.target.value)}
+        autoFocus={!!value}
       />
       {over && (
         <p className="text-[10px] text-red-600 font-medium">
@@ -2117,34 +2149,33 @@ export default function BuyPackagesPage() {
                 })()}
               </div>
 
-              {/* Installed On (Skid) */}
-              <div className="rounded-md border border-blue-200 bg-blue-50 p-3 space-y-1.5">
-                <Label className="text-blue-800 font-semibold text-xs uppercase tracking-wide">Installed On</Label>
-                <Select
-                  value={lf.installedOn || "_none"}
-                  onValueChange={(v) => setLf((f) => ({ ...f, installedOn: v === "_none" ? "" : v }))}
-                >
-                  <SelectTrigger className="bg-white border-blue-200">
-                    <SelectValue placeholder="None / Not specified" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">None / Not specified</SelectItem>
-                    {SKID_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Model */}
-              <div className="rounded-md border border-violet-200 bg-violet-50 p-3 space-y-1.5">
-                <Label className="text-violet-800 font-semibold text-xs uppercase tracking-wide">
-                  Model <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  value={lf.model}
-                  onChange={(e) => setLf((f) => ({ ...f, model: e.target.value }))}
-                  placeholder="e.g. TBN, 3100, NHM-50…"
-                  className="bg-white border-violet-200"
-                />
+              {/* Installed On + Model — same row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Installed On</Label>
+                  <Select
+                    value={lf.installedOn || "_none"}
+                    onValueChange={(v) => setLf((f) => ({ ...f, installedOn: v === "_none" ? "" : v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="None / Not specified" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">None / Not specified</SelectItem>
+                      {SKID_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">
+                    Model <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    value={lf.model}
+                    onChange={(e) => setLf((f) => ({ ...f, model: e.target.value }))}
+                    placeholder="e.g. TBN, 3100, NHM-50…"
+                  />
+                </div>
               </div>
 
               {/* Structured forms: Plates / Pipes / generic */}
@@ -2746,39 +2777,33 @@ export default function BuyPackagesPage() {
                 return warns.length > 0 ? <WarningPanel warnings={warns} /> : null;
               })()}
 
-              {/* Required Flags */}
-              <div className="space-y-2 rounded-md border p-3 bg-muted/30">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Required Flags</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {[
-                    { key: "selectionRequired",   label: "Selection Required" },
-                    { key: "datasheetRequired",   label: "Datasheet Required" },
-                    { key: "inspectionRequired",  label: "Inspection Required" },
-                    { key: "certificateRequired", label: "Certificate Required" },
-                    { key: "complianceRequired",  label: "Compliance Required" },
-                  ].map((flag) => (
-                    <div key={flag.key} className="flex items-center gap-2">
-                      <Checkbox
-                        id={`fl-${flag.key}`}
-                        checked={lf[flag.key as keyof typeof lf] as boolean}
-                        onCheckedChange={(v) => setLf((f) => ({ ...f, [flag.key]: Boolean(v) }))}
-                      />
-                      <Label htmlFor={`fl-${flag.key}`} className="text-sm">{flag.label}</Label>
-                    </div>
-                  ))}
-                </div>
+              {/* Required Flags — inline strip */}
+              <div className="flex flex-wrap gap-x-5 gap-y-1.5 py-1">
+                {[
+                  { key: "selectionRequired",   label: "Selection Required" },
+                  { key: "datasheetRequired",   label: "Datasheet Required" },
+                  { key: "inspectionRequired",  label: "Inspection Required" },
+                  { key: "certificateRequired", label: "Certificate Required" },
+                  { key: "complianceRequired",  label: "Compliance Required" },
+                ].map((flag) => (
+                  <div key={flag.key} className="flex items-center gap-1.5">
+                    <Checkbox
+                      id={`fl-${flag.key}`}
+                      checked={lf[flag.key as keyof typeof lf] as boolean}
+                      onCheckedChange={(v) => setLf((f) => ({ ...f, [flag.key]: Boolean(v) }))}
+                    />
+                    <Label htmlFor={`fl-${flag.key}`} className="text-xs font-normal cursor-pointer">{flag.label}</Label>
+                  </div>
+                ))}
               </div>
 
               {/* Notes */}
-              <div className="space-y-1.5">
-                <Label>Notes</Label>
-                <Textarea
-                  placeholder="Optional notes…"
-                  value={lf.notes}
-                  onChange={(e) => setLf((f) => ({ ...f, notes: e.target.value }))}
-                  rows={2}
-                />
-              </div>
+              <Textarea
+                placeholder="Notes (optional)…"
+                value={lf.notes}
+                onChange={(e) => setLf((f) => ({ ...f, notes: e.target.value }))}
+                rows={2}
+              />
             </div>
             <DialogFooter>
               {lineDialog.editLine &&
