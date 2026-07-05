@@ -495,23 +495,6 @@ export function CentrifugalPumpAttrsForm({
           </div>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2">
-          {renderField("make", "Make", makeOpts, true)}
-          {seriesOpts.length > 0 && (
-            <div className="space-y-1.5 pt-1">
-              <Label className="text-xs">Preferred Series <span className="text-[10px] font-normal text-muted-foreground">(optional)</span></Label>
-              <SearchableSelect value={seriesSelectVal} options={seriesOpts} placeholder="Select series…"
-                onSelect={(v) => {
-                  if (v === "__other__") { setCustom((c) => ({ ...c, preferred_series: true })); set("preferred_series", ""); }
-                  else { setCustom((c) => ({ ...c, preferred_series: false })); set("preferred_series", v); }
-                }} />
-              {isSeriesCustom && (
-                <Input className="h-8 text-sm" placeholder="Enter custom series…"
-                  value={preferredSeries} onChange={(e) => set("preferred_series", e.target.value)} autoFocus />
-              )}
-            </div>
-          )}
-        </div>
       </>)}
 
       {qty !== undefined && onQtyChange && (
@@ -873,7 +856,6 @@ export function GearPumpAttrsForm({
           </div>
         </div>
 
-          {renderField("make", "Make", makeOpts, true)}
       </>)}
     </div>
   );
@@ -1219,7 +1201,6 @@ export function ScrewPumpAttrsForm({
           </div>
         </div>
 
-          {renderField("make", "Make", makeOpts, true)}
       </>)}
     </div>
   );
@@ -1580,7 +1561,6 @@ export function MultistagePumpAttrsForm({
           </div>
         </div>
 
-          {renderField("make", "Make", makeOpts, true)}
       </>)}
     </div>
   );
@@ -1936,7 +1916,6 @@ export function DosingPumpAttrsForm({
           </div>
         </div>
 
-          {renderField("make", "Make", makeOpts, true)}
       </>)}
     </div>
   );
@@ -2194,7 +2173,6 @@ export function VacuumBoosterAttrsForm({
           </div>
         </div>
 
-          {renderField("make", "Make", makeOpts, true)}
       </>)}
     </div>
   );
@@ -2572,7 +2550,6 @@ export function VacuumPumpAttrsForm({
           </div>
         )}
 
-          {renderField("make", "Make", makeOpts, true)}
       </>)}
     </div>
   );
@@ -2839,7 +2816,6 @@ export function PumpSkidAttrsForm({
           </div>
         </div>
 
-          {renderField("make", "Make", makeOpts, true)}
       </>)}
     </div>
   );
