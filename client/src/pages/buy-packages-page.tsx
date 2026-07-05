@@ -481,7 +481,13 @@ export default function BuyPackagesPage() {
     const a = lf.technicalAttributes?.approved_makes;
     return Array.isArray(a) && a.length > 0 ? String(a[0]).trim() : '';
   })();
-  const lfModel = (() => { const s = lf.technicalAttributes?.preferred_series; return typeof s === "string" ? s.trim() : ""; })();
+  const lfModel = (() => {
+    // Primary: standalone Model field
+    if (lf.model && lf.model.trim() && lf.model.trim().toUpperCase() !== "TBN") return lf.model.trim();
+    // Fallback: preferred_series from technical attrs (legacy)
+    const s = lf.technicalAttributes?.preferred_series;
+    return typeof s === "string" ? s.trim() : "";
+  })();
   const sapPreviewEnabled =
     lineDialog.open &&
     !!lf.buyGroupId && !!lf.buySubgroupId &&

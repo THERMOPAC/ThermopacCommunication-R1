@@ -423,6 +423,37 @@ export default function EpcBuyListControlPage() {
     retry: false,
   });
 
+  // Live SAP Item Code preview — fires when make + model are set in the line dialog
+  const lfMake = (() => {
+    const m = lf.technicalAttributes?.make;
+    if (typeof m === 'string' && m.trim()) return m.trim();
+    const a = lf.technicalAttributes?.approved_makes;
+    return Array.isArray(a) && a.length > 0 ? String(a[0]).trim() : '';
+  })();
+  const lfModel = (() => {
+    if (lf.model && lf.model.trim() && lf.model.trim().toUpperCase() !== "TBN") return lf.model.trim();
+    const s = lf.technicalAttributes?.preferred_series;
+    return typeof s === "string" ? s.trim() : "";
+  })();
+  const sapPreviewEnabled =
+    !!lineDialog?.open &&
+    !!lf.buyGroupId && !!lf.buySubgroupId &&
+    !!lfMake && lfMake.toUpperCase() !== "TBN" &&
+    !!lfModel && lfModel.toUpperCase() !== "TBN";
+  const { data: sapPreview, isFetching: sapPreviewLoading } = useQuery<{
+    code: string | null; isNew: boolean; isRawMaterials: boolean;
+    isTooLong?: boolean; codeLength?: number;
+  }>({
+    queryKey: ["/api/buy-catalog/preview-code", lf.buyGroupId, lf.buySubgroupId, lfMake, lfModel],
+    queryFn: () =>
+      fetch(
+        `/api/buy-catalog/preview-code?groupId=${lf.buyGroupId}&subgroupId=${lf.buySubgroupId}&make=${encodeURIComponent(lfMake)}&model=${encodeURIComponent(lfModel)}`,
+        { credentials: "include" },
+      ).then(r => r.json()),
+    enabled: sapPreviewEnabled,
+    staleTime: 30_000,
+  });
+
   // ── Derived ──────────────────────────────────────────────────────────────────
   // Status, group, subgroup are filtered server-side; only search is client-side
   const filtered = useMemo(() => {
@@ -2469,6 +2500,61 @@ export default function EpcBuyListControlPage() {
                   ))}
                 </div>
               </div>
+              {/* SAP Item Code preview */}
+              <div className="col-span-2 space-y-1.5">
+                <Label className="flex items-center gap-1.5 text-sm font-medium">
+                  SAP Item Code
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-normal">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Auto-generated
+                  </span>
+                </Label>
+                {(() => {
+                  if (sapPreviewLoading) {
+                    return (
+                      <div className="h-9 px-3 flex items-center gap-2 rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span className="font-mono tracking-wide">Resolving…</span>
+                      </div>
+                    );
+                  }
+                  if (sapPreviewEnabled && sapPreview?.code) {
+                    if (sapPreview.isTooLong) {
+                      return (
+                        <div className="px-3 py-1.5 flex flex-col gap-0.5 rounded-md border border-red-400 bg-red-50 select-none">
+                          <span className="font-mono text-xs text-red-700 break-all">{sapPreview.code}</span>
+                          <span className="text-[11px] text-red-600 font-medium">
+                            ⚠ {sapPreview.codeLength} chars — exceeds SAP B1 limit of 50. Shorten Make or Model before saving.
+                          </span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center justify-between rounded-md border border-emerald-300 bg-emerald-50 select-none">
+                        <span className="font-mono font-semibold tracking-wide text-emerald-800 text-sm">{sapPreview.code}</span>
+                        {sapPreview.isNew && (
+                          <span className="text-[10px] text-emerald-600 font-medium uppercase tracking-wide">New</span>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (lineDialog?.editLine?.sap_item_code) {
+                    return (
+                      <div className="h-9 px-3 flex items-center gap-2 rounded-md border border-emerald-300 bg-emerald-50 select-none">
+                        <span className="font-mono font-semibold tracking-wide text-emerald-800 text-sm">
+                          {lineDialog.editLine.sap_item_code}
+                        </span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                      <span className="font-mono tracking-wide text-xs">Set Make &amp; Model above to preview the code</span>
+                    </div>
+                  );
+                })()}
+              </div>
+
               <div className={`rounded-md border p-3 space-y-1.5 ${isTaggable && !isRawMaterials ? 'border-blue-400 bg-blue-50' : 'border-blue-200 bg-blue-50'}`}>
                 <Label className="text-blue-800 font-semibold text-xs uppercase tracking-wide">
                   Installed On {isTaggable && !isRawMaterials && <span className="text-red-500">*</span>}
