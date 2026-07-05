@@ -350,19 +350,27 @@ function GenericReqField({
 
   if (!editing && value) {
     return (
-      <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-2.5 py-1.5">
-        <span className="flex-1 text-xs text-muted-foreground truncate" title={value}>{value}</span>
-        <span className={`shrink-0 text-[10px] font-mono tabular-nums ${len > 85 ? "text-amber-600" : "text-muted-foreground"}`}>
-          {len}/{ITEM_DESC_LIMIT}
-        </span>
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-          title="Edit Generic Requirement"
-        >
-          <Pencil className="h-3 w-3" />
-        </button>
+      <div className="space-y-1">
+        <Label className="text-xs font-medium text-muted-foreground">
+          Generic Requirement{" "}
+          {required
+            ? <span className="text-red-500">*</span>
+            : <span className="text-[10px] font-normal">(Item Description / SAP ItemName)</span>}
+        </Label>
+        <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-2.5 py-1.5">
+          <span className="flex-1 text-xs text-muted-foreground truncate" title={value}>{value}</span>
+          <span className={`shrink-0 text-[10px] font-mono tabular-nums ${len > 85 ? "text-amber-600" : "text-muted-foreground"}`}>
+            {len}/{ITEM_DESC_LIMIT}
+          </span>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+            title="Edit Generic Requirement"
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
+        </div>
       </div>
     );
   }

@@ -2186,7 +2186,10 @@ export default function EpcBuyListControlPage() {
                   onChange={e => { const v = e.target.value; setLf(f => ({ ...f, quantity: v === "" ? "" : String(Math.max(1, Math.trunc(Number(v)))) })); }} />
               </div>
               <div className="col-span-2 space-y-1.5">
-                <Label>Generic Requirement <span className="text-red-500">*</span></Label>
+                <Label className="text-xs font-medium text-muted-foreground">
+                  Generic Requirement <span className="text-red-500">*</span>{" "}
+                  <span className="text-[10px] font-normal">(Item Description / SAP ItemName)</span>
+                </Label>
                 <Input placeholder="e.g. Feed Pump, Suction Strainer"
                   value={lf.genericRequirement} onChange={e => setLf(f => ({ ...f, genericRequirement: e.target.value }))} />
               </div>
