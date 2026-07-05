@@ -874,6 +874,8 @@ export function GearPumpAttrsForm({
         </div>
 
           {renderField("make", "Make", makeOpts, true)}
+      </>)}
+    </div>
   );
 }
 
@@ -1218,6 +1220,8 @@ export function ScrewPumpAttrsForm({
         </div>
 
           {renderField("make", "Make", makeOpts, true)}
+      </>)}
+    </div>
   );
 }
 
@@ -1577,6 +1581,8 @@ export function MultistagePumpAttrsForm({
         </div>
 
           {renderField("make", "Make", makeOpts, true)}
+      </>)}
+    </div>
   );
 }
 
@@ -1931,6 +1937,8 @@ export function DosingPumpAttrsForm({
         </div>
 
           {renderField("make", "Make", makeOpts, true)}
+      </>)}
+    </div>
   );
 }
 
@@ -2187,6 +2195,8 @@ export function VacuumBoosterAttrsForm({
         </div>
 
           {renderField("make", "Make", makeOpts, true)}
+      </>)}
+    </div>
   );
 }
 
@@ -2563,6 +2573,8 @@ export function VacuumPumpAttrsForm({
         )}
 
           {renderField("make", "Make", makeOpts, true)}
+      </>)}
+    </div>
   );
 }
 
@@ -2828,6 +2840,8 @@ export function PumpSkidAttrsForm({
         </div>
 
           {renderField("make", "Make", makeOpts, true)}
+      </>)}
+    </div>
   );
 }
 
