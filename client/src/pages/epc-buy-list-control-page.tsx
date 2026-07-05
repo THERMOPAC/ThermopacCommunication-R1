@@ -2489,6 +2489,17 @@ export default function EpcBuyListControlPage() {
                   <p className="text-[11px] text-red-600">Required — determines tag number range (101=Skid-1, 201=Skid-2 …)</p>
                 )}
               </div>
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 space-y-1.5">
+                <Label className="text-emerald-800 font-semibold text-xs uppercase tracking-wide">
+                  Make <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  value={(lf.technicalAttributes?.make as string) ?? ""}
+                  onChange={e => setLf(f => ({ ...f, technicalAttributes: { ...f.technicalAttributes, make: e.target.value } }))}
+                  placeholder="e.g. TBN, Grundfos, ABB…"
+                  className="bg-white border-emerald-200"
+                />
+              </div>
               <div className="rounded-md border border-violet-200 bg-violet-50 p-3 space-y-1.5">
                 <Label className="text-violet-800 font-semibold text-xs uppercase tracking-wide">
                   Model <span className="text-red-500">*</span>

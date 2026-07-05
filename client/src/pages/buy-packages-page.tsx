@@ -2155,8 +2155,8 @@ export default function BuyPackagesPage() {
                 })()}
               </div>
 
-              {/* Installed On + Model — same row */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Installed On + Make + Model — same row */}
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Installed On</Label>
                   <Select
@@ -2171,6 +2171,16 @@ export default function BuyPackagesPage() {
                       {SKID_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">
+                    Make <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    value={(lf.technicalAttributes?.make as string) ?? ""}
+                    onChange={(e) => setLf((f) => ({ ...f, technicalAttributes: { ...f.technicalAttributes, make: e.target.value } }))}
+                    placeholder="e.g. TBN, Grundfos, ABB…"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">
