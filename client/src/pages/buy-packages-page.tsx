@@ -474,7 +474,13 @@ export default function BuyPackagesPage() {
   });
 
   // Live SAP Item Code preview — fires when make + model are set in the form
-  const lfMake  = (() => { const a = lf.technicalAttributes?.approved_makes; return Array.isArray(a) && a.length === 1 ? String(a[0]).trim() : ""; })();
+  const lfMake  = (() => {
+    const m = lf.technicalAttributes?.make;
+    if (typeof m === 'string' && m.trim()) return m.trim();
+    // compat shim: legacy rows still have approved_makes array
+    const a = lf.technicalAttributes?.approved_makes;
+    return Array.isArray(a) && a.length > 0 ? String(a[0]).trim() : '';
+  })();
   const lfModel = (() => { const s = lf.technicalAttributes?.preferred_series; return typeof s === "string" ? s.trim() : ""; })();
   const sapPreviewEnabled =
     lineDialog.open &&

@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { ChevronsUpDown, Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command, CommandInput, CommandList, CommandEmpty,
   CommandGroup, CommandItem,
 } from "@/components/ui/command";
-import { ChevronUp, ChevronDown, X, Plus, ChevronsUpDown, Check } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { getMakesList, addMakeToList } from "@/lib/approved-makes";
+import { Button } from "@/components/ui/button";
+import { getMakesList } from "@/lib/approved-makes";
 
 // ── Shared SearchableSelect ───────────────────────────────────────────────────
 function SearchableSelect({
@@ -249,27 +247,7 @@ export function MotorAttrsForm({
     );
   }
 
-  const [makesOpen, setMakesOpen] = useState(false);
-  const [makesQuery, setMakesQuery] = useState("");
-  const [showCustomMake, setShowCustomMake] = useState(false);
-  const [customMakeVal, setCustomMakeVal] = useState("");
-  const [masterMakes, setMasterMakes] = useState(() => getMakesList("motor", MOTOR_MAKES));
-  const approvedMakes = (attrs.approved_makes as string[]) ?? [];
-
-  function toggleMake(make: string) {
-    onChange({ ...attrs, approved_makes: approvedMakes.includes(make)
-      ? approvedMakes.filter((m) => m !== make)
-      : [...approvedMakes, make] });
-  }
-  function addCustomMake() {
-    const t = customMakeVal.trim();
-    if (t && !approvedMakes.some(m => m.toLowerCase() === t.toLowerCase())) {
-      const isNew = addMakeToList(t, "motor", MOTOR_MAKES); if (isNew) setMasterMakes(getMakesList("motor", MOTOR_MAKES));
-      onChange({ ...attrs, approved_makes: [...approvedMakes, t] });
-    }
-    setCustomMakeVal(""); setShowCustomMake(false);
-  }
-  const filteredMakes = masterMakes.filter((o) => o.toLowerCase().includes(makesQuery.toLowerCase()));
+  const makeOpts = getMakesList("motor", MOTOR_MAKES);
 
   function sectionHeader(label: string) {
     return (
@@ -374,69 +352,10 @@ export function MotorAttrsForm({
         </SectionCard>
       )}
 
-      {/* 5 — Construction / Approved Makes */}
-      <SectionCard title="Construction / Approved Makes" color="bg-slate-50/80 border-slate-200">
+      {/* 5 — Construction */}
+      <SectionCard title="Construction" color="bg-slate-50/80 border-slate-200">
         {renderField("material", "Material", MOTOR_OPTS.material)}
-        <div />
-        <div className="space-y-1.5 col-span-2">
-          <Label className="text-xs">Approved Makes <span className="text-red-500"> *</span></Label>
-          <Popover open={makesOpen} onOpenChange={setMakesOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
-                {approvedMakes.length > 0
-                  ? `${approvedMakes.length} make${approvedMakes.length > 1 ? "s" : ""} selected`
-                  : "Select approved makes…"}
-                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
-                <CommandList>
-                  <CommandEmpty>No results.</CommandEmpty>
-                  <CommandGroup>
-                    {filteredMakes.map((opt) => (
-                      <CommandItem key={opt} value={opt} onSelect={() => toggleMake(opt)}>
-                        <Check className={cn("mr-2 h-4 w-4", approvedMakes.includes(opt) ? "opacity-100" : "opacity-0")} />
-                        {opt}
-                      </CommandItem>
-                    ))}
-                    <CommandItem value="__add_custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
-                      <Plus className="mr-2 h-4 w-4" />Add custom make…
-                    </CommandItem>
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-          {approvedMakes.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1">
-              {approvedMakes.map((make) => (
-                <Badge key={make} variant="secondary" className="text-xs pr-1 gap-1">
-                  {make}
-                  <button type="button"
-                    onClick={() => onChange({ ...attrs, approved_makes: approvedMakes.filter((m) => m !== make) })}
-                    className="hover:text-destructive">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-          {showCustomMake && (
-            <div className="flex gap-2 mt-1">
-              <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
-                value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMake(); } }}
-                autoFocus />
-              <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMake}>Add</Button>
-              <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
-                onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-        </div>
+        {renderField("make", "Make", makeOpts, true)}
 
         {qty !== undefined && (
           <div className="space-y-1.5 col-span-2">

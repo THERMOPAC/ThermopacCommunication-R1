@@ -5,8 +5,8 @@
  * Buy Package Catalog line using the 4-field identity:
  *   Group + Sub Group + Make + Model → unique SAP Item Code
  *
- * Generated code format: {GRP}-CAT-{MAKE}-{MODEL}  (max 50 chars, SAP B1 compliant)
- * Example: PMP-CAT-KSB-CPKEY 65-200
+ * Generated code format: {GRP}-{SUB}-{MAKE}-{MODEL}  (max 50 chars, SAP B1 compliant)
+ * Example: PMP-CEN-KSB-CPKEY 65-200
  *
  * The code is deterministic — the same identity always produces the same code.
  * Full identity also stored as separate columns: catalog_make, catalog_model,
@@ -38,18 +38,70 @@ export function groupPrefix(code: string): string {
   return GROUP_PREFIX[code.toLowerCase()] ?? code.slice(0, 3).toUpperCase();
 }
 
+/**
+ * Subgroup code → 2–3-char SAP abbreviation mapping.
+ * Replaces the old literal "-CAT-" segment so each subgroup produces a unique code.
+ * Fallback: first 3 chars of code, uppercased.
+ */
+const SUBGROUP_PREFIX: Record<string, string> = {
+  centrifugal:      'CEN',
+  gear:             'GER',
+  screw:            'SCW',
+  multistage:       'MTS',
+  dosing_metering:  'DOS',
+  vacuum_boosters:  'VCB',
+  vacuum_pump:      'VCP',
+  hand_pump:        'HND',
+  pump_skid:        'PSK',
+  control:          'CTL',
+  safety:           'SFT',
+  isolation:        'ISO',
+  needle:           'NDL',
+  nrv:              'NRV',
+  on_off:           'ONF',
+  pressure:         'PRE',
+  temperature:      'TMP',
+  flow:             'FLW',
+  level:            'LVL',
+  flameproof:       'FLP',
+  non_flameproof:   'NFP',
+  junction_box:     'JBX',
+  panels:           'PNL',
+  cabling:          'CBL',
+  field_items:      'FLD',
+  components:       'CMP',
+  general:          'GEN',
+  cooling_tower:    'CTW',
+  pipes:            'PIP',
+  fittings:         'FIT',
+  flanges:          'FLN',
+  gaskets:          'GSK',
+  fasteners:        'FST',
+  plates:           'PLT',
+  structural_steel: 'STR',
+};
+
+export function subgroupPrefix(code: string): string {
+  return SUBGROUP_PREFIX[code.toLowerCase()] ?? code.slice(0, 3).toUpperCase();
+}
+
 /** SAP B1 hard limit for Item Codes */
 export const SAP_ITEM_CODE_MAX_LEN = 50;
 
 /**
  * Build the deterministic SAP Item Code from the 4-field identity.
- * Format: {PREFIX}-CAT-{MAKE}-{MODEL}  e.g. PMP-CAT-KSB-CPKEY 65-200
+ * Format: {GRP_PREFIX}-{SUB_PREFIX}-{MAKE}-{MODEL}  e.g. PMP-CEN-KSB-CPKEY 65-200
  *
  * Returns the code string (may exceed SAP_ITEM_CODE_MAX_LEN — callers must
  * check `.length` and reject if > 50 chars; never truncate silently).
  */
-export function buildCatalogItemCode(prefix: string, make: string, model: string): string {
-  return `${prefix}-CAT-${make}-${model}`;
+export function buildCatalogItemCode(
+  grpPrefix: string,
+  subPrefix: string,
+  make: string,
+  model: string,
+): string {
+  return `${grpPrefix}-${subPrefix}-${make}-${model}`;
 }
 
 /**
@@ -117,15 +169,18 @@ export async function resolveCatalogSapItemCode(
       };
     }
 
-    // 2 — No match — build the deterministic code.
+    // 2 — No match — build the deterministic code from group + subgroup + make + model.
     const grpRow = await client.query<{ code: string }>(
       `SELECT code FROM buy_groups WHERE id = $1`,
       [groupId],
     );
-    const prefix   = grpRow.rowCount && grpRow.rowCount > 0
-      ? groupPrefix(grpRow.rows[0].code)
-      : 'GEN';
-    const itemCode = buildCatalogItemCode(prefix, make, model);
+    const sgRow = await client.query<{ code: string }>(
+      `SELECT code FROM buy_subgroups WHERE id = $1`,
+      [subgroupId],
+    );
+    const grpPfx  = grpRow.rowCount && grpRow.rowCount > 0 ? groupPrefix(grpRow.rows[0].code)   : 'GEN';
+    const sgPfx   = sgRow.rowCount  && sgRow.rowCount  > 0 ? subgroupPrefix(sgRow.rows[0].code) : 'GEN';
+    const itemCode = buildCatalogItemCode(grpPfx, sgPfx, make, model);
 
     // Hard-block: never insert a code that exceeds SAP B1's 50-char limit.
     assertSapCodeLength(itemCode);

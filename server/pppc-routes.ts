@@ -19,7 +19,26 @@ import crypto from 'crypto';
 import { pool } from './db';
 import { ensureAuthenticated } from './auth-middleware';
 import { applyProjectElectricalStandards, stripElectricalOverridesMeta } from './utils/electrical-override';
-import { resolveCatalogSapItemCode, groupPrefix, buildCatalogItemCode, SAP_ITEM_CODE_MAX_LEN } from './buy-catalog-sap-service';
+import { resolveCatalogSapItemCode, groupPrefix, subgroupPrefix, buildCatalogItemCode, SAP_ITEM_CODE_MAX_LEN } from './buy-catalog-sap-service';
+
+/**
+ * Compat shim: read the single make value from technical_attributes.
+ * Supports new scalar `make` field and legacy `approved_makes` array/string.
+ * Remove this shim after the T006 JSONB migration has run on all rows.
+ */
+function readMakeScalar(attrs: Record<string, unknown>): string {
+  if (typeof attrs.make === 'string' && attrs.make.trim()) return attrs.make.trim();
+  // legacy: pump/motor/instrument forms stored approved_makes array
+  if (Array.isArray(attrs.approved_makes) && attrs.approved_makes.length > 0)
+    return String(attrs.approved_makes[0] ?? '').trim();
+  // legacy: electrical forms stored approved_makes as CSV string
+  if (typeof attrs.approved_makes === 'string')
+    return (attrs.approved_makes as string).split(',')[0]?.trim() ?? '';
+  // legacy: valve forms stored 'makes' array (not 'approved_makes')
+  if (Array.isArray(attrs.makes) && (attrs.makes as unknown[]).length > 0)
+    return String((attrs.makes as unknown[])[0] ?? '').trim();
+  return '';
+}
 import { requirePageAccess } from './utils/permission-utils';
 import {
   sendError, sendValidationError, sendNotFound,
@@ -778,10 +797,12 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       }
 
       // Not found — compute the deterministic code (read-only, no INSERT)
-      // Format: {PREFIX}-CAT-{MAKE}-{MODEL}  e.g. PMP-CAT-KSB-CPKEY 65-200
+      // Format: {GRP}-{SUB}-{MAKE}-{MODEL}  e.g. PMP-CEN-KSB-CPKEY 65-200
       const grpCode  = grpRow.rows[0].code;
-      const prefix   = groupPrefix(grpCode);
-      const code     = buildCatalogItemCode(prefix, make, model);
+      const sgRow    = await pool.query<{ code: string }>(`SELECT code FROM buy_subgroups WHERE id = $1`, [subgroupId]);
+      const grpPfx   = groupPrefix(grpCode);
+      const sgPfx    = sgRow.rowCount && sgRow.rowCount > 0 ? subgroupPrefix(sgRow.rows[0].code) : 'GEN';
+      const code     = buildCatalogItemCode(grpPfx, sgPfx, make, model);
       const tooLong  = code.length > SAP_ITEM_CODE_MAX_LEN;
 
       res.json({ code, isNew: true, isRawMaterials: false, isTooLong: tooLong, codeLength: code.length });
@@ -845,13 +866,10 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const groupCode = grpCodeRow.rows[0]?.code as string | undefined;
       if (groupCode && groupCode !== 'raw_materials') {
         const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
-        const makes = Array.isArray(attrs.approved_makes) ? (attrs.approved_makes as unknown[]) : [];
+        const make = readMakeScalar(attrs);
         const series = typeof attrs.preferred_series === 'string' ? attrs.preferred_series.trim() : '';
-        if (makes.length === 0) return sendValidationError(res, 'Approved Make is required for non-Raw-Material lines');
-        if (makes.length > 1) return sendValidationError(res, 'Only one Approved Make is allowed — reduce to a single finalized make');
-        const make = String(makes[0]).trim();
-        if (!make) return sendValidationError(res, 'Approved Make cannot be blank');
-        if (make.toUpperCase() === 'TBN') return sendValidationError(res, 'Approved Make is still TBN — finalize the make first');
+        if (!make) return sendValidationError(res, 'Make is required for non-Raw-Material lines');
+        if (make.toUpperCase() === 'TBN') return sendValidationError(res, 'Make is still TBN — finalize the make first');
         if (!series) return sendValidationError(res, 'Model / Series is required for non-Raw-Material lines');
         if (series.toUpperCase() === 'TBN') return sendValidationError(res, 'Model / Series is still TBN — finalize the model first');
       }
@@ -866,7 +884,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       let sapItemCodeValue: string | null = null;
       if (groupCode && groupCode !== 'raw_materials') {
         const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
-        const make  = String((attrs.approved_makes as string[])[0]).trim();
+        const make  = readMakeScalar(attrs);
         const model2 = String(attrs.preferred_series as string).trim();
         const lblRow = await pool.query(
           `SELECT bg.label AS g, bs.label AS s
@@ -974,13 +992,10 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const groupCode2 = grpCodeRow2.rows[0]?.code as string | undefined;
         if (groupCode2 && groupCode2 !== 'raw_materials') {
           const attrs2 = (b.technicalAttributes ?? {}) as Record<string, unknown>;
-          const makes2 = Array.isArray(attrs2.approved_makes) ? (attrs2.approved_makes as unknown[]) : [];
+          const make2 = readMakeScalar(attrs2);
           const series2 = typeof attrs2.preferred_series === 'string' ? attrs2.preferred_series.trim() : '';
-          if (makes2.length === 0) return sendValidationError(res, 'Approved Make is required for non-Raw-Material lines');
-          if (makes2.length > 1) return sendValidationError(res, 'Only one Approved Make is allowed — reduce to a single finalized make');
-          const make2 = String(makes2[0]).trim();
-          if (!make2) return sendValidationError(res, 'Approved Make cannot be blank');
-          if (make2.toUpperCase() === 'TBN') return sendValidationError(res, 'Approved Make is still TBN — finalize the make first');
+          if (!make2) return sendValidationError(res, 'Make is required for non-Raw-Material lines');
+          if (make2.toUpperCase() === 'TBN') return sendValidationError(res, 'Make is still TBN — finalize the make first');
           if (!series2) return sendValidationError(res, 'Model / Series is required for non-Raw-Material lines');
           if (series2.toUpperCase() === 'TBN') return sendValidationError(res, 'Model / Series is still TBN — finalize the model first');
         }
@@ -992,7 +1007,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const groupCode3 = grpCodeRow3.rows[0]?.code as string | undefined;
         if (groupCode3 && groupCode3 !== 'raw_materials') {
           const attrs3  = (b.technicalAttributes ?? {}) as Record<string, unknown>;
-          const make3   = String((attrs3.approved_makes as string[])[0]).trim();
+          const make3   = readMakeScalar(attrs3);
           const model3  = String(attrs3.preferred_series as string).trim();
           const uomRow3 = await pool.query(
             `SELECT u.code FROM uom_master u

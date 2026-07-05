@@ -591,7 +591,6 @@ export function JunctionBoxAttrsForm({
   });
 
   const selectedAcc     = ((attrs.accessories    as string) ?? "").split(",").map(s => s.trim()).filter(Boolean);
-  const selectedVendors = ((attrs.approved_makes  as string) ?? "").split(",").map(s => s.trim()).filter(Boolean);
   const encType         = (attrs.enclosure_type as string) ?? "";
 
   function toggleAcc(chip: string) {
@@ -600,13 +599,6 @@ export function JunctionBoxAttrsForm({
       : [...selectedAcc, chip];
     set("accessories", next.join(", "));
   }
-  function toggleVendor(chip: string) {
-    const next = selectedVendors.includes(chip)
-      ? selectedVendors.filter(v => v !== chip)
-      : [...selectedVendors, chip];
-    set("approved_makes", next.join(", "));
-  }
-
   function handleSelect(key: string, val: string) {
     if (val === "__other__") {
       setCustom((c) => ({ ...c, [key]: true }));
@@ -696,26 +688,8 @@ export function JunctionBoxAttrsForm({
           )}
         </div>
 
-        {sec("Approved Makes")}
-        <div className="col-span-3 space-y-1.5">
-          <Label className="text-xs">Approved Makes</Label>
-          <div className="flex flex-wrap gap-1.5">
-            {JB_VENDOR_CHIPS.map(chip => (
-              <button key={chip} type="button" onClick={() => toggleVendor(chip)}
-                className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
-                  selectedVendors.includes(chip)
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background text-muted-foreground border-border hover:border-primary"
-                }`}>{chip}</button>
-            ))}
-          </div>
-          {selectedVendors.length > 0 && (
-            <p className="text-[11px] text-muted-foreground">Selected: {selectedVendors.join(", ")}</p>
-          )}
-          <Input className="h-8 text-sm" placeholder="Other makes (comma-separated)…"
-            value={(attrs.approved_makes_other as string) ?? ""}
-            onChange={(e) => set("approved_makes_other", e.target.value)} />
-        </div>
+        {sec("Make")}
+        <div className="col-span-3">{ss("make", "Make", JB_VENDOR_CHIPS, true)}</div>
 
         {qty !== undefined && (
           <div className="space-y-1.5 col-span-3">
@@ -784,14 +758,6 @@ export function CoolingTowerAttrsForm({
   const range   = (!isNaN(inletT) && !isNaN(outletT)) ? (inletT - outletT).toFixed(1) : "—";
   const approach = (!isNaN(outletT) && !isNaN(wbt))   ? (outletT - wbt).toFixed(1)    : "—";
 
-  const selectedVendors: string[] = ((attrs.approved_makes as string) ?? "")
-    .split(",").map(s => s.trim()).filter(Boolean);
-  const toggleVendor = (chip: string) => {
-    const next = selectedVendors.includes(chip)
-      ? selectedVendors.filter(v => v !== chip)
-      : [...selectedVendors, chip];
-    set("approved_makes", next.join(", "));
-  };
 
   const sec = (title: string) => (
     <p className="text-[11px] font-semibold text-primary uppercase tracking-wide col-span-3 border-b pb-1 mt-1">{title}</p>
@@ -861,26 +827,8 @@ export function CoolingTowerAttrsForm({
         {renderSS("water_type", "Water Type", CT_WATER_TYPE_OPTS)}
         <div />
 
-        {sec("Approved Makes")}
-        <div className="col-span-3 space-y-1.5">
-          <Label className="text-xs">Approved Makes</Label>
-          <div className="flex flex-wrap gap-1.5">
-            {CT_VENDOR_CHIPS.map(chip => (
-              <button key={chip} type="button" onClick={() => toggleVendor(chip)}
-                className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
-                  selectedVendors.includes(chip)
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background text-muted-foreground border-border hover:border-primary"
-                }`}>{chip}</button>
-            ))}
-          </div>
-          {selectedVendors.length > 0 && (
-            <p className="text-[11px] text-muted-foreground">Selected: {selectedVendors.join(", ")}</p>
-          )}
-          <Input className="h-8 text-sm" placeholder="Other makes (comma-separated)…"
-            value={(attrs.approved_makes_other as string) ?? ""}
-            onChange={(e) => set("approved_makes_other", e.target.value)} />
-        </div>
+        {sec("Make")}
+        <div className="col-span-3">{renderSS("make", "Make", CT_VENDOR_CHIPS, true)}</div>
 
         {qty !== undefined && (
           <div className="space-y-1.5 col-span-3">
@@ -1338,15 +1286,6 @@ export function ComponentsAttrsForm({
   const ctSelectVal = ctIsCustom ? "__other__" : (COMP_TYPE_OPTS.includes(compType) ? compType : "");
   const vendors     = getCompVendors(compType);
 
-  const selectedVendors: string[] = ((attrs.approved_makes as string) ?? "")
-    .split(",").map(s => s.trim()).filter(Boolean);
-  function toggleVendor(chip: string) {
-    const next = selectedVendors.includes(chip)
-      ? selectedVendors.filter(v => v !== chip)
-      : [...selectedVendors, chip];
-    set("approved_makes", next.join(", "));
-  }
-
   function handleTypeSelect(v: string) {
     if (v === "__other__") {
       setCustom(c => ({ ...c, component_type: true }));
@@ -1638,28 +1577,10 @@ export function ComponentsAttrsForm({
         {renderField("ip_rating",     "IP Rating",     COMP_IP_OPTS)}
       </SectionCard>
 
-      {/* 5 — Approved Makes */}
+      {/* 5 — Make */}
       {compType && (
-        <SectionCard title="Approved Makes" color="bg-teal-50/60 border-teal-200">
-          <div className="col-span-3 space-y-1.5">
-            <Label className="text-xs">Approved Makes</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {vendors.map(chip => (
-                <button key={chip} type="button" onClick={() => toggleVendor(chip)}
-                  className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
-                    selectedVendors.includes(chip)
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background text-muted-foreground border-border hover:border-primary"
-                  }`}>{chip}</button>
-              ))}
-            </div>
-            {selectedVendors.length > 0 && (
-              <p className="text-[11px] text-muted-foreground">Selected: {selectedVendors.join(", ")}</p>
-            )}
-            <Input className="h-8 text-sm" placeholder="Other makes (comma-separated)…"
-              value={(attrs.approved_makes_other as string) ?? ""}
-              onChange={e => set("approved_makes_other", e.target.value)} />
-          </div>
+        <SectionCard title="Make" color="bg-teal-50/60 border-teal-200">
+          <div className="col-span-3">{renderField("make", "Make", vendors, true)}</div>
         </SectionCard>
       )}
 
@@ -1726,15 +1647,6 @@ export function BoughtOutAttrsForm({
       ? selectedComps.filter(c => c !== chip)
       : [...selectedComps, chip];
     set("package_components", next.join(", "));
-  };
-
-  const selectedVendors: string[] = ((attrs.approved_vendors as string) ?? "")
-    .split(",").map(s => s.trim()).filter(Boolean);
-  const toggleVendor = (chip: string) => {
-    const next = selectedVendors.includes(chip)
-      ? selectedVendors.filter(v => v !== chip)
-      : [...selectedVendors, chip];
-    set("approved_vendors", next.join(", "));
   };
 
   const sec = (title: string) => (
@@ -1812,26 +1724,8 @@ export function BoughtOutAttrsForm({
         {renderSS("area_classification", "Area Classification", BOUGHT_OUT_AREA_OPTS)}
         {renderSS("certification",       "Certification",       BOUGHT_OUT_CERT_OPTS)}
 
-        {sec("Approved Package Vendors")}
-        <div className="col-span-3 space-y-1.5">
-          <Label className="text-xs">Approved Vendors</Label>
-          <div className="flex flex-wrap gap-1.5">
-            {BOUGHT_OUT_VENDOR_CHIPS.map(chip => (
-              <button key={chip} type="button" onClick={() => toggleVendor(chip)}
-                className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
-                  selectedVendors.includes(chip)
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background text-muted-foreground border-border hover:border-primary"
-                }`}>{chip}</button>
-            ))}
-          </div>
-          {selectedVendors.length > 0 && (
-            <p className="text-[11px] text-muted-foreground">Selected: {selectedVendors.join(", ")}</p>
-          )}
-          <Input className="h-8 text-sm" placeholder="Other vendors (comma-separated)…"
-            value={(attrs.approved_vendors_other as string) ?? ""}
-            onChange={(e) => set("approved_vendors_other", e.target.value)} />
-        </div>
+        {sec("Make")}
+        <div className="col-span-3">{renderSS("make", "Make", BOUGHT_OUT_VENDOR_CHIPS, true)}</div>
 
         {qty !== undefined && (
           <div className="space-y-1.5 col-span-3">

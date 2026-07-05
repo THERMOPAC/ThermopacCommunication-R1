@@ -30,7 +30,7 @@ const MOTOR_FIELDS: SubgroupField[] = [
   { key: "gas_group",           label: "Gas Group",           type: "select", opts: ["IIA","IIB","IIC"] },
   { key: "temperature_class",   label: "Temperature Class",   type: "select", opts: ["T1","T2","T3","T4","T5","T6"] },
   { key: "vfd_compatible",      label: "VFD Compatible",      type: "select", opts: ["Yes","No"] },
-  { key: "approved_makes",      label: "Approved Makes",      type: "text", colSpan: true },
+  { key: "make", label: "Make", type: "text", colSpan: true },
 ];
 
 const PRESSURE_INSTR_FIELDS: SubgroupField[] = [
@@ -79,7 +79,7 @@ const ISOLATION_FIELDS: SubgroupField[] = [
   { key: "operating_temperature", label: "Oper. Temp (°C)",       type: "text" },
   { key: "process_fluid",         label: "Process Fluid",         type: "text" },
   { key: "area_classification",   label: "Area Classification",   type: "select", opts: ["Zone 0","Zone 1","Zone 2","Safe Area"] },
-  { key: "approved_makes",        label: "Approved Makes",        type: "text", colSpan: true },
+  { key: "make", label: "Make", type: "text", colSpan: true },
 ];
 
 // ── Main registry ─────────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "coupling_type",       label: "Coupling Type",       type: "text" },
     { key: "area_classification", label: "Area Classification", type: "text" },
     { key: "design_standard",     label: "Design Standard",     type: "text" },
-    { key: "approved_makes",      label: "Approved Makes",      type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
   gear: [
     { key: "gear_type",      label: "Gear Type",       type: "select", opts: ["External Gear","Internal Gear"] },
@@ -120,7 +120,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "fluid",          label: "Fluid",           type: "text" },
     { key: "operating_temp", label: "Operating Temp",  type: "text" },
     { key: "area_classification", label: "Area Classification", type: "text" },
-    { key: "approved_makes", label: "Approved Makes",  type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
   screw: [
     { key: "screw_type",     label: "Screw Type",      type: "text" },
@@ -133,7 +133,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "fluid",          label: "Fluid",           type: "text" },
     { key: "operating_temp", label: "Operating Temp",  type: "text" },
     { key: "area_classification", label: "Area Classification", type: "text" },
-    { key: "approved_makes", label: "Approved Makes",  type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
   vacuum_boosters: [
     { key: "vacuum_type",        label: "Vacuum Type",        type: "text" },
@@ -145,7 +145,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "operating_temp",     label: "Operating Temp",     type: "text" },
     { key: "seal_type",          label: "Seal Type",          type: "text" },
     { key: "area_classification",label: "Area Classification",type: "text" },
-    { key: "approved_makes",     label: "Approved Makes",     type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
   vacuum_pump: [
     { key: "vacuum_type",        label: "Vacuum Type",        type: "text" },
@@ -155,7 +155,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "fluid",              label: "Process Gas",        type: "text" },
     { key: "material_class",     label: "Material Class",     type: "text" },
     { key: "operating_temp",     label: "Operating Temp",     type: "text" },
-    { key: "approved_makes",     label: "Approved Makes",     type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
   multistage: [
     { key: "multistage_type",     label: "Multistage Type",    type: "text" },
@@ -168,7 +168,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "operating_temp",      label: "Operating Temp",     type: "text" },
     { key: "seal_type",           label: "Seal Type",          type: "text" },
     { key: "area_classification", label: "Area Classification",type: "text" },
-    { key: "approved_makes",      label: "Approved Makes",     type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
   dosing_metering: [
     { key: "pump_type",      label: "Pump Type",      type: "text" },
@@ -179,7 +179,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "material_class", label: "Material Class", type: "text" },
     { key: "seal_type",      label: "Seal Type",      type: "text" },
     { key: "area_classification", label: "Area Classification", type: "text" },
-    { key: "approved_makes", label: "Approved Makes", type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
   pump_skid: [
     { key: "description",         label: "Description",        type: "text", colSpan: true },
@@ -187,7 +187,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "capacity",            label: "Capacity",           type: "text" },
     { key: "configuration",       label: "Configuration",      type: "text" },
     { key: "area_classification", label: "Area Classification",type: "text" },
-    { key: "approved_makes",      label: "Approved Makes",     type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
 
   // ── MOTORS ──────────────────────────────────────────────────────────────────
@@ -277,7 +277,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "explosion_protection",  label: "Explosion Protection",  type: "text" },
     { key: "gas_group",             label: "Gas Group",             type: "text" },
     { key: "temperature_class",     label: "Temperature Class",     type: "text" },
-    { key: "approved_makes",        label: "Approved Makes",        type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
   on_off: [
     { key: "valve_type",            label: "Valve Type",            type: "text" },
@@ -302,7 +302,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "certification",         label: "Certification",         type: "text" },
     { key: "explosion_protection",  label: "Explosion Protection",  type: "text" },
     { key: "valve_standard",        label: "Valve Standard",        type: "text" },
-    { key: "approved_makes",        label: "Approved Makes",        type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
   safety: [
     { key: "valve_type",          label: "Valve Type",           type: "select", opts: ["Safety Relief Valve (SRV)","Pressure Safety Valve (PSV)","Rupture Disc","Breather Valve (Conservation Vent)","Vacuum Breaker"] },
@@ -327,7 +327,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "design_standard",     label: "Design Standard",      type: "text" },
     { key: "certification",       label: "Certification",        type: "text" },
     { key: "operation_type",      label: "Operation Type",       type: "text" },
-    { key: "approved_makes",      label: "Approved Makes",       type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
   nrv: [
     { key: "valve_type",          label: "Valve Type",         type: "text" },
@@ -346,7 +346,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "operating_pressure",  label: "Oper. Pressure (bar)",  type: "text" },
     { key: "process_fluid",       label: "Process Fluid",      type: "text" },
     { key: "area_classification", label: "Area Classification",type: "text" },
-    { key: "approved_makes",      label: "Approved Makes",     type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
   needle: [
     { key: "valve_type",       label: "Valve Type",         type: "text" },
@@ -361,7 +361,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "bonnet_type",      label: "Bonnet Type",        type: "text" },
     { key: "vent_type",        label: "Vent Type",          type: "text" },
     { key: "design_standard",  label: "Design Standard",    type: "text" },
-    { key: "approved_makes",   label: "Approved Makes",     type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
 
   // ── RAW MATERIALS / PIPING ───────────────────────────────────────────────────
@@ -499,7 +499,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "certification",       label: "Certification",          type: "text" },
     { key: "earthing",            label: "Earthing",               type: "text" },
     { key: "accessories",         label: "Accessories",            type: "text", colSpan: true },
-    { key: "approved_makes",      label: "Approved Makes",         type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
   cooling_tower: [
     { key: "cooling_tower_type", label: "Cooling Tower Type",       type: "text" },
@@ -518,7 +518,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "casing_material",    label: "Casing Material",          type: "text" },
     { key: "basin_material",     label: "Basin Material",           type: "text" },
     { key: "water_type",         label: "Water Type",               type: "text" },
-    { key: "approved_makes",     label: "Approved Makes",           type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
   bought_out: [
     { key: "package_type",        label: "Package Type",        type: "text" },
@@ -531,7 +531,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "material_class",      label: "Material Class",      type: "text" },
     { key: "area_classification", label: "Area Classification", type: "text" },
     { key: "certification",       label: "Certification",       type: "text" },
-    { key: "approved_makes",      label: "Approved Makes",      type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
   components: [
     { key: "component_type",      label: "Component Type",      type: "text" },
@@ -548,7 +548,7 @@ export const SUBGROUP_TA_FIELDS: Record<string, SubgroupField[]> = {
     { key: "explosion_protection",label: "Explosion Protection",type: "text" },
     { key: "certification",       label: "Certification",       type: "text" },
     { key: "design_standard",     label: "Design Standard",     type: "text" },
-    { key: "approved_makes",      label: "Approved Makes",      type: "text", colSpan: true },
+    { key: "make", label: "Make", type: "text", colSpan: true },
   ],
 };
 

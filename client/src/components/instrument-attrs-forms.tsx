@@ -2,16 +2,14 @@ import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command, CommandInput, CommandList, CommandEmpty,
   CommandGroup, CommandItem,
 } from "@/components/ui/command";
-import { ChevronUp, ChevronDown, X, Plus, ChevronsUpDown, Check } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { getMakesList, addMakeToList } from "@/lib/approved-makes";
+import { ChevronsUpDown, Check } from "lucide-react";
+import { getMakesList } from "@/lib/approved-makes";
 
 // ── Cable Gland constants ──────────────────────────────────────────────────────
 const CABLE_GLAND_TYPES = ["PG", "Metric", "NPT", "BSP", "BSPT"] as const;
@@ -298,11 +296,6 @@ export function PressureAttrsForm({
     }
     return c;
   });
-  const [makesOpen,      setMakesOpen]      = useState(false);
-  const [makesQuery,     setMakesQuery]     = useState("");
-  const [showCustomMake, setShowCustomMake] = useState(false);
-  const [customMakeVal,  setCustomMakeVal]  = useState("");
-
   const instrType     = (attrs.instrument_type as string) ?? "";
   const t             = instrType.toLowerCase();
   const isPG          = t.includes("gauge");
@@ -311,10 +304,9 @@ export function PressureAttrsForm({
   const isPS          = t.includes("switch");
   const areaClass     = (attrs.area_classification as string) ?? "";
   const isZone        = areaClass === "Zone 1" || areaClass === "Zone 2";
-  const approvedMakes   = (attrs.approved_makes as string[]) ?? [];
   const _instrMakeKey   = isPG ? "pressure_pg" : isPS ? "pressure_ps" : "pressure_pt_dpt";
   const _instrBaseMakes = isPG ? PRESSURE_PG_MAKES : isPS ? PRESSURE_PS_MAKES : PRESSURE_PT_DPT_MAKES;
-  const filteredMakes   = getMakesList(_instrMakeKey, _instrBaseMakes).filter(o => o.toLowerCase().includes(makesQuery.toLowerCase()));
+  const makeOpts        = getMakesList(_instrMakeKey, _instrBaseMakes);
   const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
 
   function handleSelect(key: string, val: string) {
@@ -341,7 +333,7 @@ export function PressureAttrsForm({
     const base: Record<string, unknown> = {
       instrument_type:     newType,
       area_classification: (attrs.area_classification as string) || "Safe Area",
-      approved_makes:      attrs.approved_makes ?? [],
+      make:                attrs.make ?? "",
       connection_size:     '1/2"',
       connection_type:     "BSP",
       conn_orientation:    "Bottom Entry",
@@ -431,31 +423,6 @@ export function PressureAttrsForm({
     );
   }
 
-  function toggleMake(make: string) {
-    onChange({ ...attrs, approved_makes: approvedMakes.includes(make)
-      ? approvedMakes.filter(m => m !== make)
-      : [...approvedMakes, make] });
-  }
-  function addCustomMake() {
-    const v = customMakeVal.trim();
-    if (v && !approvedMakes.some(m => m.toLowerCase() === v.toLowerCase())) {
-      addMakeToList(v, _instrMakeKey, _instrBaseMakes);
-      onChange({ ...attrs, approved_makes: [...approvedMakes, v] });
-    }
-    setCustomMakeVal(""); setShowCustomMake(false);
-  }
-  function moveMakeUp(idx: number) {
-    if (idx <= 0) return;
-    const arr = [...approvedMakes];
-    [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
-    onChange({ ...attrs, approved_makes: arr });
-  }
-  function moveMakeDown(idx: number) {
-    if (idx >= approvedMakes.length - 1) return;
-    const arr = [...approvedMakes];
-    [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
-    onChange({ ...attrs, approved_makes: arr });
-  }
 
   function renderHazardousBlock() {
     return (
@@ -485,86 +452,42 @@ export function PressureAttrsForm({
     );
   }
 
-  const RANK_LABELS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
-
   function renderMakesBlock() {
+    const curMake     = (attrs.make as string) ?? "";
+    const isCustomMake = curMake !== "" && !makeOpts.includes(curMake);
     return (
       <>
-        <div className="col-span-3 space-y-2">
-          <Label className="text-xs">
-            Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(ranked — 1st = most preferred)</span>
-            <span className="text-red-500"> *</span>
-          </Label>
-          <Popover open={makesOpen} onOpenChange={setMakesOpen}>
+        <div className="col-span-3 space-y-1.5">
+          <Label className="text-xs">Make <span className="text-red-500">*</span></Label>
+          <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
-                {approvedMakes.length > 0
-                  ? `${approvedMakes.length} make${approvedMakes.length > 1 ? "s" : ""} selected`
-                  : "Select approved makes…"}
+                <span className={curMake ? "truncate" : "text-muted-foreground"}>
+                  {isCustomMake ? curMake : (curMake || "Select make…")}
+                </span>
                 <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-64 p-0" align="start">
               <Command>
-                <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
+                <CommandInput placeholder="Search makes…" />
                 <CommandList>
                   <CommandEmpty>No results.</CommandEmpty>
                   <CommandGroup>
-                    {filteredMakes.map(opt => (
-                      <CommandItem key={opt} value={opt} onSelect={() => toggleMake(opt)}>
-                        <Check className={cn("mr-2 h-4 w-4", approvedMakes.includes(opt) ? "opacity-100" : "opacity-0")} />
+                    {makeOpts.map(opt => (
+                      <CommandItem key={opt} value={opt} onSelect={() => set("make", opt)}>
+                        <Check className={`mr-2 h-4 w-4 ${curMake === opt ? "opacity-100" : "opacity-0"}`} />
                         {opt}
                       </CommandItem>
                     ))}
-                    <CommandItem value="__add_custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
-                      <Plus className="mr-2 h-4 w-4" />Add custom make…
-                    </CommandItem>
                   </CommandGroup>
                 </CommandList>
               </Command>
             </PopoverContent>
           </Popover>
-          {approvedMakes.length > 0 && (
-            <div className="flex flex-col gap-1">
-              {approvedMakes.map((make, idx) => (
-                <div key={make} className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-medium text-muted-foreground w-7 shrink-0 text-right">
-                    {RANK_LABELS[idx] ?? `${idx + 1}.`}
-                  </span>
-                  <Badge variant="secondary" className="text-xs flex-1 flex items-center justify-between pr-1 gap-1">
-                    <span className="truncate">{make}</span>
-                    <span className="flex items-center gap-0.5 shrink-0">
-                      <button type="button" onClick={() => moveMakeUp(idx)} disabled={idx === 0}
-                        className="disabled:opacity-30 hover:text-foreground transition-opacity">
-                        <ChevronUp className="h-3 w-3" />
-                      </button>
-                      <button type="button" onClick={() => moveMakeDown(idx)} disabled={idx === approvedMakes.length - 1}
-                        className="disabled:opacity-30 hover:text-foreground transition-opacity">
-                        <ChevronDown className="h-3 w-3" />
-                      </button>
-                      <button type="button"
-                        onClick={() => onChange({ ...attrs, approved_makes: approvedMakes.filter(m => m !== make) })}
-                        className="hover:text-destructive">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
-          {showCustomMake && (
-            <div className="flex gap-2">
-              <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
-                value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMake(); } }}
-                autoFocus />
-              <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMake}>Add</Button>
-              <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
-                onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+          {isCustomMake && (
+            <Input className="h-8 text-sm mt-1" placeholder="Enter make name…"
+              value={curMake} onChange={(e) => set("make", e.target.value)} autoFocus />
           )}
         </div>
       </>

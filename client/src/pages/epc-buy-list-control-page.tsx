@@ -130,13 +130,7 @@ function TechnicalAttrsSection({
             value={strVal}
             placeholder={f.type === "select" ? "Custom value…" : `Enter ${f.label.toLowerCase()}…`}
             onChange={e => {
-              const v = e.target.value;
-              // Restore array for approved_makes
-              if (f.key === "approved_makes") {
-                set(f.key, v.split(",").map(s => s.trim()).filter(Boolean));
-              } else {
-                set(f.key, v);
-              }
+              set(f.key, e.target.value);
             }}
           />
         )}

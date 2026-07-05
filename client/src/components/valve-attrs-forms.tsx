@@ -9,10 +9,10 @@ import {
   Command, CommandInput, CommandList, CommandEmpty,
   CommandGroup, CommandItem,
 } from "@/components/ui/command";
-import { ChevronUp, ChevronDown, X, Plus, ChevronsUpDown, Check } from "lucide-react";
+import { X, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { shortenToSapItemName } from "@/lib/sap-item-name";
-import { getMakesList, addMakeToList } from "@/lib/approved-makes";
+import { getMakesList } from "@/lib/approved-makes";
 
 // ── Shared SearchableSelect ───────────────────────────────────────────────────
 function SearchableSelect({
@@ -247,7 +247,7 @@ function buildControlValveDefaults(type: string): Record<string, unknown> {
     body_material: "WCB (CS)", actuator_type: "Pneumatic Diaphragm",
     fail_action: "Fail Close (FC)", input_signal: "4–20 mA + HART",
     positioner: "With Positioner", handwheel: "No", bypass_valve: "No",
-    area_classification: "Safe Area", makes: [],
+    area_classification: "Safe Area", make: "",
     valve_config: "", trim_style: "", flow_characteristic: "", trim_material: "",
     seat_material: "", leakage_class: "", bonnet_type: "", packing_material: "", noise_cavitation: "",
     ball_type: "", ball_trim_material: "",
@@ -298,15 +298,6 @@ export function ControlValveAttrsForm({
     }
     return c;
   });
-  const [makesOpen, setMakesOpen]           = useState(false);
-  const [makesQuery, setMakesQuery]         = useState("");
-  const [customMakeVal, setCustomMakeVal]   = useState("");
-  const [showCustomMake, setShowCustomMake] = useState(false);
-  const [makes, setMakes] = useState<string[]>(() => {
-    const m = attrs.makes;
-    return Array.isArray(m) ? (m as string[]) : [];
-  });
-
   function handleTypeChange(type: string) {
     const defaults = buildControlValveDefaults(type);
     const c: Record<string, boolean> = {};
@@ -314,7 +305,7 @@ export function ControlValveAttrsForm({
       const val = (defaults[key] as string) ?? "";
       c[key] = val !== "" && !opts.includes(val);
     }
-    setCustom(c); setMakes([]); onChange({ ...defaults, makes: [] });
+    setCustom(c); onChange({ ...defaults, make: "" });
   }
 
   function handleSelect(key: string, val: string) {
@@ -353,23 +344,7 @@ export function ControlValveAttrsForm({
     );
   }
 
-  const [masterMakes, setMasterMakes] = useState(() => getMakesList("control_valve", CONTROL_VALVE_MAKES));
-  function addMake(make: string) {
-    const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addMakeToList(t, "control_valve", CONTROL_VALVE_MAKES); if (isNew) setMasterMakes(getMakesList("control_valve", CONTROL_VALVE_MAKES));
-    const next = [...makes, t];
-    setMakes(next); onChange({ ...attrs, makes: next }); setMakesQuery("");
-  }
-  function removeMake(m: string) {
-    const next = makes.filter((x) => x !== m);
-    setMakes(next); onChange({ ...attrs, makes: next });
-  }
-  function moveMake(i: number, dir: -1 | 1) {
-    const next = [...makes]; const j = i + dir;
-    if (j < 0 || j >= next.length) return;
-    [next[i], next[j]] = [next[j], next[i]];
-    setMakes(next); onChange({ ...attrs, makes: next });
-  }
+  const makeOpts = getMakesList("control_valve", CONTROL_VALVE_MAKES);
 
   const valveType = (attrs.valve_type as string) ?? "";
   const areaClass = (attrs.area_classification as string) ?? "";
@@ -380,9 +355,6 @@ export function ControlValveAttrsForm({
   const isAngle   = valveType === "Angle Control Valve";
   const hasType   = isGlobe || isBall || isBfly || isPlug || isAngle;
 
-  const filteredMakes = masterMakes.filter(
-    (m) => m.toLowerCase().includes(makesQuery.toLowerCase()) && !makes.some(x => x.toLowerCase() === m.toLowerCase())
-  );
 
   function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
     return (
@@ -521,72 +493,10 @@ export function ControlValveAttrsForm({
         </SectionCard>
       )}
 
-      {/* 7 — Vendor / Approved Makes */}
+      {/* 7 — Vendor / Make */}
       {hasType && (
-        <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
-          <div className="col-span-3 space-y-2">
-            <div className="flex gap-2">
-              <Popover open={makesOpen} onOpenChange={setMakesOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
-                    <Plus className="h-3.5 w-3.5" />Add Make
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
-                    <CommandList>
-                      <CommandEmpty>No results.</CommandEmpty>
-                      <CommandGroup>
-                        {filteredMakes.map((m) => (
-                          <CommandItem key={m} value={m} onSelect={() => { addMake(m); setMakesOpen(false); setMakesQuery(""); }}>
-                            {m}
-                          </CommandItem>
-                        ))}
-                        <CommandItem value="__custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
-                          <Plus className="mr-2 h-4 w-4" />Add custom make…
-                        </CommandItem>
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-              {makes.length === 0 && (
-                <span className="text-[11px] text-muted-foreground self-center">No makes added yet</span>
-              )}
-            </div>
-            {showCustomMake && (
-              <div className="flex gap-2">
-                <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
-                  value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); } }}
-                  autoFocus />
-                <Button size="sm" className="h-8 px-3" type="button" onClick={() => { addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); }}>Add</Button>
-                <Button size="sm" variant="ghost" className="h-8 px-2" type="button" onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-            {makes.length > 0 && (
-              <div className="space-y-1">
-                {makes.map((m, i) => (
-                  <div key={m} className="flex items-center gap-2 rounded-md border px-2 py-1 bg-background">
-                    <span className="text-[10px] text-muted-foreground w-4 text-right">{i + 1}.</span>
-                    <span className="flex-1 text-xs">{m}</span>
-                    <button type="button" onClick={() => moveMake(i, -1)} disabled={i === 0}
-                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
-                      <ChevronUp className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => moveMake(i, 1)} disabled={i === makes.length - 1}
-                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
-                      <ChevronDown className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => removeMake(m)}
-                      className="text-muted-foreground hover:text-destructive">
-                      <X className="h-3 w-3" /></button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        <SectionCard title="Vendor / Make" color="bg-slate-50/80 border-slate-200">
+          {renderField("make", "Make", makeOpts, true)}
         </SectionCard>
       )}
 
@@ -719,7 +629,7 @@ export function buildSafetyValveRequirement(attrs: Record<string, unknown>): str
 
 function buildSafetyValveDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
-    valve_type: type, body_material: "WCB (CS)", end_connection: "Flanged", makes: [],
+    valve_type: type, body_material: "WCB (CS)", end_connection: "Flanged", make: "",
     inlet_size: "", outlet_size: "", pressure_rating: "", set_pressure: "",
     api_orifice: "", bonnet_type: "", back_pressure_type: "", overpressure: "",
     discharge_type: "", design_standard: "", certification: "", service_fluid: "",
@@ -770,14 +680,6 @@ export function SafetyValveAttrsForm({
     }
     return c;
   });
-  const [makesOpen, setMakesOpen]           = useState(false);
-  const [makesQuery, setMakesQuery]         = useState("");
-  const [customMakeVal, setCustomMakeVal]   = useState("");
-  const [showCustomMake, setShowCustomMake] = useState(false);
-  const [makes, setMakes] = useState<string[]>(() => {
-    const m = attrs.makes;
-    return Array.isArray(m) ? (m as string[]) : [];
-  });
 
   function handleTypeChange(type: string) {
     const defaults = buildSafetyValveDefaults(type);
@@ -786,7 +688,7 @@ export function SafetyValveAttrsForm({
       const val = (defaults[key] as string) ?? "";
       c[key] = val !== "" && !opts.includes(val);
     }
-    setCustom(c); setMakes([]); onChange({ ...defaults, makes: [] });
+    setCustom(c); onChange({ ...defaults, make: "" });
   }
 
   function handleSelect(key: string, val: string) {
@@ -835,23 +737,7 @@ export function SafetyValveAttrsForm({
     );
   }
 
-  const [masterMakes, setMasterMakes] = useState(() => getMakesList("safety_valve", SAFETY_VALVE_MAKES));
-  function addMake(make: string) {
-    const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addMakeToList(t, "safety_valve", SAFETY_VALVE_MAKES); if (isNew) setMasterMakes(getMakesList("safety_valve", SAFETY_VALVE_MAKES));
-    const next = [...makes, t];
-    setMakes(next); onChange({ ...attrs, makes: next }); setMakesQuery("");
-  }
-  function removeMake(m: string) {
-    const next = makes.filter((x) => x !== m);
-    setMakes(next); onChange({ ...attrs, makes: next });
-  }
-  function moveMake(i: number, dir: -1 | 1) {
-    const next = [...makes]; const j = i + dir;
-    if (j < 0 || j >= next.length) return;
-    [next[i], next[j]] = [next[j], next[i]];
-    setMakes(next); onChange({ ...attrs, makes: next });
-  }
+  const makeOpts = getMakesList("safety_valve", SAFETY_VALVE_MAKES);
 
   const valveType     = (attrs.valve_type as string) ?? "";
   const isPSV         = valveType === "Pressure Safety Valve (PSV)";
@@ -862,9 +748,6 @@ export function SafetyValveAttrsForm({
   const hasType       = isPSV || isPRV || isSRV || isVRV || isBV;
   const isSpringBased = isPSV || isPRV || isSRV;
 
-  const filteredMakes = masterMakes.filter(
-    (m) => m.toLowerCase().includes(makesQuery.toLowerCase()) && !makes.some(x => x.toLowerCase() === m.toLowerCase())
-  );
 
   function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
     return (
@@ -1011,72 +894,10 @@ export function SafetyValveAttrsForm({
         </SectionCard>
       )}
 
-      {/* 8 — Vendor / Approved Makes */}
+      {/* 8 — Vendor / Make */}
       {hasType && (
-        <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
-          <div className="col-span-3 space-y-2">
-            <div className="flex gap-2">
-              <Popover open={makesOpen} onOpenChange={setMakesOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
-                    <Plus className="h-3.5 w-3.5" />Add Make
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
-                    <CommandList>
-                      <CommandEmpty>No results.</CommandEmpty>
-                      <CommandGroup>
-                        {filteredMakes.map((m) => (
-                          <CommandItem key={m} value={m} onSelect={() => { addMake(m); setMakesOpen(false); setMakesQuery(""); }}>
-                            {m}
-                          </CommandItem>
-                        ))}
-                        <CommandItem value="__custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
-                          <Plus className="mr-2 h-4 w-4" />Add custom make…
-                        </CommandItem>
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-              {makes.length === 0 && (
-                <span className="text-[11px] text-muted-foreground self-center">No makes added yet</span>
-              )}
-            </div>
-            {showCustomMake && (
-              <div className="flex gap-2">
-                <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
-                  value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); } }}
-                  autoFocus />
-                <Button size="sm" className="h-8 px-3" type="button" onClick={() => { addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); }}>Add</Button>
-                <Button size="sm" variant="ghost" className="h-8 px-2" type="button" onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-            {makes.length > 0 && (
-              <div className="space-y-1">
-                {makes.map((m, i) => (
-                  <div key={m} className="flex items-center gap-2 rounded-md border px-2 py-1 bg-background">
-                    <span className="text-[10px] text-muted-foreground w-4 text-right">{i + 1}.</span>
-                    <span className="flex-1 text-xs">{m}</span>
-                    <button type="button" onClick={() => moveMake(i, -1)} disabled={i === 0}
-                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
-                      <ChevronUp className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => moveMake(i, 1)} disabled={i === makes.length - 1}
-                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
-                      <ChevronDown className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => removeMake(m)}
-                      className="text-muted-foreground hover:text-destructive">
-                      <X className="h-3 w-3" /></button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        <SectionCard title="Vendor / Make" color="bg-slate-50/80 border-slate-200">
+          {renderField("make", "Make", makeOpts, true)}
         </SectionCard>
       )}
 
@@ -1283,7 +1104,7 @@ export function buildOnOffValveRequirement(attrs: Record<string, unknown>): stri
 
 function buildOnOffValveDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
-    valve_type: type, makes: [],
+    valve_type: type, make: "",
     size_nb: "", pressure_rating: "", actuation_type: "", fail_action: "",
     end_connection: "Flanged", body_material: "WCB (CS)", service_type: "",
     valve_standard: "",
@@ -1349,14 +1170,6 @@ export function OnOffValveAttrsForm({
     }
     return c;
   });
-  const [makesOpen, setMakesOpen]           = useState(false);
-  const [makesQuery, setMakesQuery]         = useState("");
-  const [customMakeVal, setCustomMakeVal]   = useState("");
-  const [showCustomMake, setShowCustomMake] = useState(false);
-  const [makes, setMakes] = useState<string[]>(() => {
-    const m = attrs.makes;
-    return Array.isArray(m) ? (m as string[]) : [];
-  });
 
   function handleTypeChange(type: string) {
     const defaults = buildOnOffValveDefaults(type);
@@ -1365,7 +1178,7 @@ export function OnOffValveAttrsForm({
       const val = (defaults[key] as string) ?? "";
       c[key] = val !== "" && !opts.includes(val);
     }
-    setCustom(c); setMakes([]); onChange({ ...defaults, makes: [] });
+    setCustom(c); onChange({ ...defaults, make: "" });
   }
 
   function handleSelect(key: string, val: string) {
@@ -1405,23 +1218,7 @@ export function OnOffValveAttrsForm({
     );
   }
 
-  const [masterMakes, setMasterMakes] = useState(() => getMakesList("onoff_valve", OO_VALVE_MAKES));
-  function addMake(make: string) {
-    const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addMakeToList(t, "onoff_valve", OO_VALVE_MAKES); if (isNew) setMasterMakes(getMakesList("onoff_valve", OO_VALVE_MAKES));
-    const next = [...makes, t];
-    setMakes(next); onChange({ ...attrs, makes: next }); setMakesQuery("");
-  }
-  function removeMake(m: string) {
-    const next = makes.filter((x) => x !== m);
-    setMakes(next); onChange({ ...attrs, makes: next });
-  }
-  function moveMake(i: number, dir: -1 | 1) {
-    const next = [...makes]; const j = i + dir;
-    if (j < 0 || j >= next.length) return;
-    [next[i], next[j]] = [next[j], next[i]];
-    setMakes(next); onChange({ ...attrs, makes: next });
-  }
+  const makeOpts = getMakesList("onoff_valve", OO_VALVE_MAKES);
 
   const valveType   = (attrs.valve_type as string) ?? "";
   const isBall      = valveType === "Ball Valve";
@@ -1448,9 +1245,6 @@ export function OnOffValveAttrsForm({
     : isDiaphragm ? OO_COMMON_OPTS.valve_std_diaphragm
     : [];
 
-  const filteredMakes = masterMakes.filter(
-    (m) => m.toLowerCase().includes(makesQuery.toLowerCase()) && !makes.some(x => x.toLowerCase() === m.toLowerCase())
-  );
 
   function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
     return (
@@ -1591,72 +1385,10 @@ export function OnOffValveAttrsForm({
         </SectionCard>
       )}
 
-      {/* 7 — Vendor / Approved Makes */}
+      {/* 7 — Vendor / Make */}
       {hasType && (
-        <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
-          <div className="col-span-3 space-y-2">
-            <div className="flex gap-2">
-              <Popover open={makesOpen} onOpenChange={setMakesOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
-                    <Plus className="h-3.5 w-3.5" />Add Make
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
-                    <CommandList>
-                      <CommandEmpty>No results.</CommandEmpty>
-                      <CommandGroup>
-                        {filteredMakes.map((m) => (
-                          <CommandItem key={m} value={m} onSelect={() => { addMake(m); setMakesOpen(false); setMakesQuery(""); }}>
-                            {m}
-                          </CommandItem>
-                        ))}
-                        <CommandItem value="__custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
-                          <Plus className="mr-2 h-4 w-4" />Add custom make…
-                        </CommandItem>
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-              {makes.length === 0 && (
-                <span className="text-[11px] text-muted-foreground self-center">No makes added yet</span>
-              )}
-            </div>
-            {showCustomMake && (
-              <div className="flex gap-2">
-                <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
-                  value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); } }}
-                  autoFocus />
-                <Button size="sm" className="h-8 px-3" type="button" onClick={() => { addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); }}>Add</Button>
-                <Button size="sm" variant="ghost" className="h-8 px-2" type="button" onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-            {makes.length > 0 && (
-              <div className="space-y-1">
-                {makes.map((m, i) => (
-                  <div key={m} className="flex items-center gap-2 rounded-md border px-2 py-1 bg-background">
-                    <span className="text-[10px] text-muted-foreground w-4 text-right">{i + 1}.</span>
-                    <span className="flex-1 text-xs">{m}</span>
-                    <button type="button" onClick={() => moveMake(i, -1)} disabled={i === 0}
-                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
-                      <ChevronUp className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => moveMake(i, 1)} disabled={i === makes.length - 1}
-                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
-                      <ChevronDown className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => removeMake(m)}
-                      className="text-muted-foreground hover:text-destructive">
-                      <X className="h-3 w-3" /></button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        <SectionCard title="Vendor / Make" color="bg-slate-50/80 border-slate-200">
+          {renderField("make", "Make", makeOpts, true)}
         </SectionCard>
       )}
 
@@ -1860,7 +1592,7 @@ function buildIsolationDefaults(valveType: string, prev: Record<string, unknown>
   const base: Record<string, unknown> = {
     valve_type:          valveType,
     area_classification: (prev.area_classification as string) || "Safe Area",
-    approved_makes:      prev.approved_makes ?? [],
+    make:                (prev.make as string) ?? "",
   };
   const vt = valveType.toLowerCase();
   if (vt.includes("ball")) {
@@ -1922,13 +1654,7 @@ export function IsolationValveAttrsForm({
     return c;
   });
 
-  const [makesOpen,      setMakesOpen]      = useState(false);
-  const [makesQuery,     setMakesQuery]     = useState("");
-  const [showCustomMake, setShowCustomMake] = useState(false);
-  const [customMakeVal,  setCustomMakeVal]  = useState("");
-  const [masterMakes,    setMasterMakes]    = useState(() => getMakesList("isolation_valve", ISOLATION_VALVE_MAKES));
-  const approvedMakes  = (attrs.approved_makes as string[]) ?? [];
-  const filteredMakes  = masterMakes.filter(o => o.toLowerCase().includes(makesQuery.toLowerCase()));
+  const makeOpts = getMakesList("isolation_valve", ISOLATION_VALVE_MAKES);
 
   function handleSelect(key: string, val: string) {
     if (val === "__other__") {
@@ -1970,33 +1696,6 @@ export function IsolationValveAttrsForm({
     );
   }
 
-  function toggleMake(make: string) {
-    onChange({ ...attrs, approved_makes: approvedMakes.includes(make)
-      ? approvedMakes.filter(m => m !== make)
-      : [...approvedMakes, make] });
-  }
-  function addCustomMake() {
-    const v = customMakeVal.trim();
-    if (v && !approvedMakes.some(m => m.toLowerCase() === v.toLowerCase())) {
-      const isNew = addMakeToList(v, "isolation_valve", ISOLATION_VALVE_MAKES); if (isNew) setMasterMakes(getMakesList("isolation_valve", ISOLATION_VALVE_MAKES));
-      onChange({ ...attrs, approved_makes: [...approvedMakes, v] });
-    }
-    setCustomMakeVal(""); setShowCustomMake(false);
-  }
-  function moveMakeUp(idx: number) {
-    if (idx <= 0) return;
-    const arr = [...approvedMakes];
-    [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
-    onChange({ ...attrs, approved_makes: arr });
-  }
-  function moveMakeDown(idx: number) {
-    if (idx >= approvedMakes.length - 1) return;
-    const arr = [...approvedMakes];
-    [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
-    onChange({ ...attrs, approved_makes: arr });
-  }
-
-  const RANK_LABELS_ISO = ["1st","2nd","3rd","4th","5th","6th","7th","8th"];
 
   function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
     return (
@@ -2128,85 +1827,10 @@ export function IsolationValveAttrsForm({
         </SectionCard>
       )}
 
-      {/* 6 — Vendor / Approved Makes */}
+      {/* 6 — Vendor / Make */}
       {valveType && (
-        <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
-          <div className="col-span-3 space-y-2">
-            <Label className="text-xs">
-              Approved Makes <span className="text-[10px] font-normal text-muted-foreground">(ranked — 1st = most preferred)</span>
-            </Label>
-            <Popover open={makesOpen} onOpenChange={setMakesOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="h-8 w-full justify-between text-sm font-normal">
-                  {approvedMakes.length > 0
-                    ? `${approvedMakes.length} make${approvedMakes.length > 1 ? "s" : ""} selected`
-                    : "Select approved makes…"}
-                  <ChevronsUpDown className="ml-2 h-3.5 w-3.5 opacity-50 shrink-0" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
-                  <CommandList>
-                    <CommandEmpty>No results.</CommandEmpty>
-                    <CommandGroup>
-                      {filteredMakes.map(opt => (
-                        <CommandItem key={opt} value={opt} onSelect={() => toggleMake(opt)}>
-                          <Check className={cn("mr-2 h-4 w-4", approvedMakes.includes(opt) ? "opacity-100" : "opacity-0")} />
-                          {opt}
-                        </CommandItem>
-                      ))}
-                      <CommandItem value="__add_custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
-                        <Plus className="mr-2 h-4 w-4" />Add custom make…
-                      </CommandItem>
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-            {approvedMakes.length > 0 && (
-              <div className="flex flex-col gap-1">
-                {approvedMakes.map((make, idx) => (
-                  <div key={make} className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-medium text-muted-foreground w-7 shrink-0 text-right">
-                      {RANK_LABELS_ISO[idx] ?? `${idx + 1}.`}
-                    </span>
-                    <Badge variant="secondary" className="text-xs flex-1 flex items-center justify-between pr-1 gap-1">
-                      <span className="truncate">{make}</span>
-                      <span className="flex items-center gap-0.5 shrink-0">
-                        <button type="button" onClick={() => moveMakeUp(idx)} disabled={idx === 0}
-                          className="disabled:opacity-30 hover:text-foreground transition-opacity">
-                          <ChevronUp className="h-3 w-3" />
-                        </button>
-                        <button type="button" onClick={() => moveMakeDown(idx)} disabled={idx === approvedMakes.length - 1}
-                          className="disabled:opacity-30 hover:text-foreground transition-opacity">
-                          <ChevronDown className="h-3 w-3" />
-                        </button>
-                        <button type="button"
-                          onClick={() => onChange({ ...attrs, approved_makes: approvedMakes.filter(m => m !== make) })}
-                          className="hover:text-destructive">
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            )}
-            {showCustomMake && (
-              <div className="flex gap-2">
-                <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
-                  value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomMake(); } }}
-                  autoFocus />
-                <Button size="sm" className="h-8 px-3" type="button" onClick={addCustomMake}>Add</Button>
-                <Button size="sm" variant="ghost" className="h-8 px-2" type="button"
-                  onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
+        <SectionCard title="Vendor / Make" color="bg-slate-50/80 border-slate-200">
+          {renderField("make", "Make", makeOpts, true)}
         </SectionCard>
       )}
 
@@ -2322,7 +1946,7 @@ export function buildNrvValveRequirement(attrs: Record<string, unknown>): string
 
 function buildNrvValveDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
-    valve_type: type, makes: [],
+    valve_type: type, make: "",
     size_nb: "50 NB", pressure_rating: "", end_connection: "Flanged",
     body_material: "WCB (CS)", disc_material: "SS316", seat_material: "Metal Seat (SS316)",
     design_standard: "",
@@ -2381,14 +2005,6 @@ export function NrvValveAttrsForm({
     }
     return c;
   });
-  const [makesOpen, setMakesOpen]           = useState(false);
-  const [makesQuery, setMakesQuery]         = useState("");
-  const [customMakeVal, setCustomMakeVal]   = useState("");
-  const [showCustomMake, setShowCustomMake] = useState(false);
-  const [makes, setMakes] = useState<string[]>(() => {
-    const m = attrs.makes;
-    return Array.isArray(m) ? (m as string[]) : [];
-  });
 
   function handleTypeChange(type: string) {
     const defaults = buildNrvValveDefaults(type);
@@ -2397,7 +2013,7 @@ export function NrvValveAttrsForm({
       const val = (defaults[key] as string) ?? "";
       c[key] = val !== "" && !opts.includes(val);
     }
-    setCustom(c); setMakes([]); onChange({ ...defaults, makes: [] });
+    setCustom(c); onChange({ ...defaults, make: "" });
   }
 
   function handleSelect(key: string, val: string) {
@@ -2437,23 +2053,7 @@ export function NrvValveAttrsForm({
     );
   }
 
-  const [masterMakes, setMasterMakes] = useState(() => getMakesList("nrv_valve", NRV_VALVE_MAKES));
-  function addMake(make: string) {
-    const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addMakeToList(t, "nrv_valve", NRV_VALVE_MAKES); if (isNew) setMasterMakes(getMakesList("nrv_valve", NRV_VALVE_MAKES));
-    const next = [...makes, t];
-    setMakes(next); onChange({ ...attrs, makes: next }); setMakesQuery("");
-  }
-  function removeMake(m: string) {
-    const next = makes.filter((x) => x !== m);
-    setMakes(next); onChange({ ...attrs, makes: next });
-  }
-  function moveMake(i: number, dir: -1 | 1) {
-    const next = [...makes]; const j = i + dir;
-    if (j < 0 || j >= next.length) return;
-    [next[i], next[j]] = [next[j], next[i]];
-    setMakes(next); onChange({ ...attrs, makes: next });
-  }
+  const makeOpts = getMakesList("nrv_valve", NRV_VALVE_MAKES);
 
   const valveType  = (attrs.valve_type as string) ?? "";
   const isSwing    = valveType === "Swing Check Valve";
@@ -2478,9 +2078,6 @@ export function NrvValveAttrsForm({
     : isFoot    ? NRV_COMMON_OPTS.std_foot
     : [];
 
-  const filteredMakes = masterMakes.filter(
-    (m) => m.toLowerCase().includes(makesQuery.toLowerCase()) && !makes.some(x => x.toLowerCase() === m.toLowerCase())
-  );
 
   function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
     return (
@@ -2597,72 +2194,10 @@ export function NrvValveAttrsForm({
         </SectionCard>
       )}
 
-      {/* 6 — Vendor / Approved Makes */}
+      {/* 6 — Vendor / Make */}
       {hasType && (
-        <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
-          <div className="col-span-3 space-y-2">
-            <div className="flex gap-2">
-              <Popover open={makesOpen} onOpenChange={setMakesOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
-                    <Plus className="h-3.5 w-3.5" />Add Make
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
-                    <CommandList>
-                      <CommandEmpty>No results.</CommandEmpty>
-                      <CommandGroup>
-                        {filteredMakes.map((m) => (
-                          <CommandItem key={m} value={m} onSelect={() => { addMake(m); setMakesOpen(false); setMakesQuery(""); }}>
-                            {m}
-                          </CommandItem>
-                        ))}
-                        <CommandItem value="__custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
-                          <Plus className="mr-2 h-4 w-4" />Add custom make…
-                        </CommandItem>
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-              {makes.length === 0 && (
-                <span className="text-[11px] text-muted-foreground self-center">No makes added yet</span>
-              )}
-            </div>
-            {showCustomMake && (
-              <div className="flex gap-2">
-                <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
-                  value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); } }}
-                  autoFocus />
-                <Button size="sm" className="h-8 px-3" type="button" onClick={() => { addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); }}>Add</Button>
-                <Button size="sm" variant="ghost" className="h-8 px-2" type="button" onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-            {makes.length > 0 && (
-              <div className="space-y-1">
-                {makes.map((m, i) => (
-                  <div key={m} className="flex items-center gap-2 rounded-md border px-2 py-1 bg-background">
-                    <span className="text-[10px] text-muted-foreground w-4 text-right">{i + 1}.</span>
-                    <span className="flex-1 text-xs">{m}</span>
-                    <button type="button" onClick={() => moveMake(i, -1)} disabled={i === 0}
-                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
-                      <ChevronUp className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => moveMake(i, 1)} disabled={i === makes.length - 1}
-                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
-                      <ChevronDown className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => removeMake(m)}
-                      className="text-muted-foreground hover:text-destructive">
-                      <X className="h-3 w-3" /></button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        <SectionCard title="Vendor / Make" color="bg-slate-50/80 border-slate-200">
+          {renderField("make", "Make", makeOpts, true)}
         </SectionCard>
       )}
 
@@ -2770,7 +2305,7 @@ export function buildNeedleValveRequirement(attrs: Record<string, unknown>): str
 
 function buildNeedleValveDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
-    valve_type: type, makes: [],
+    valve_type: type, make: "",
     size: '1/2" OD', pressure_rating: "3000 PSI (207 bar)",
     design_standard: "ASME B16.34",
     end_connection: "Double Ferrule (Swagelok / Ham-Let Type)",
@@ -2809,14 +2344,6 @@ export function NeedleValveAttrsForm({
     }
     return c;
   });
-  const [makesOpen, setMakesOpen]           = useState(false);
-  const [makesQuery, setMakesQuery]         = useState("");
-  const [customMakeVal, setCustomMakeVal]   = useState("");
-  const [showCustomMake, setShowCustomMake] = useState(false);
-  const [makes, setMakes] = useState<string[]>(() => {
-    const m = attrs.makes;
-    return Array.isArray(m) ? (m as string[]) : [];
-  });
 
   function handleTypeChange(type: string) {
     const defaults = buildNeedleValveDefaults(type);
@@ -2825,7 +2352,7 @@ export function NeedleValveAttrsForm({
       const val = (defaults[key] as string) ?? "";
       c[key] = val !== "" && !opts.includes(val);
     }
-    setCustom(c); setMakes([]); onChange({ ...defaults, makes: [] });
+    setCustom(c); onChange({ ...defaults, make: "" });
   }
 
   function handleSelect(key: string, val: string) {
@@ -2865,32 +2392,13 @@ export function NeedleValveAttrsForm({
     );
   }
 
-  const [masterMakes, setMasterMakes] = useState(() => getMakesList("needle_valve", NEEDLE_VALVE_MAKES));
-  function addMake(make: string) {
-    const t = make.trim(); if (!t || makes.some(m => m.toLowerCase() === t.toLowerCase())) return;
-    const isNew = addMakeToList(t, "needle_valve", NEEDLE_VALVE_MAKES); if (isNew) setMasterMakes(getMakesList("needle_valve", NEEDLE_VALVE_MAKES));
-    const next = [...makes, t];
-    setMakes(next); onChange({ ...attrs, makes: next }); setMakesQuery("");
-  }
-  function removeMake(m: string) {
-    const next = makes.filter((x) => x !== m);
-    setMakes(next); onChange({ ...attrs, makes: next });
-  }
-  function moveMake(i: number, dir: -1 | 1) {
-    const next = [...makes]; const j = i + dir;
-    if (j < 0 || j >= next.length) return;
-    [next[i], next[j]] = [next[j], next[i]];
-    setMakes(next); onChange({ ...attrs, makes: next });
-  }
+  const makeOpts = getMakesList("needle_valve", NEEDLE_VALVE_MAKES);
 
   const valveType = (attrs.valve_type as string) ?? "";
   const isBleed   = valveType === "Bleed / Vent Needle Valve";
   const hasType   = NEEDLE_VALVE_TYPES.includes(valveType);
   const stdOpts   = isBleed ? NEEDLE_COMMON_OPTS.std_bleed : NEEDLE_COMMON_OPTS.std_general;
 
-  const filteredMakes = masterMakes.filter(
-    (m) => m.toLowerCase().includes(makesQuery.toLowerCase()) && !makes.some(x => x.toLowerCase() === m.toLowerCase())
-  );
 
   function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
     return (
@@ -2960,72 +2468,10 @@ export function NeedleValveAttrsForm({
         </SectionCard>
       )}
 
-      {/* 6 — Vendor / Approved Makes */}
+      {/* 6 — Vendor / Make */}
       {hasType && (
-        <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
-          <div className="col-span-3 space-y-2">
-            <div className="flex gap-2">
-              <Popover open={makesOpen} onOpenChange={setMakesOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
-                    <Plus className="h-3.5 w-3.5" />Add Make
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search makes…" value={makesQuery} onValueChange={setMakesQuery} />
-                    <CommandList>
-                      <CommandEmpty>No results.</CommandEmpty>
-                      <CommandGroup>
-                        {filteredMakes.map((m) => (
-                          <CommandItem key={m} value={m} onSelect={() => { addMake(m); setMakesOpen(false); setMakesQuery(""); }}>
-                            {m}
-                          </CommandItem>
-                        ))}
-                        <CommandItem value="__custom__" onSelect={() => { setShowCustomMake(true); setMakesOpen(false); }}>
-                          <Plus className="mr-2 h-4 w-4" />Add custom make…
-                        </CommandItem>
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-              {makes.length === 0 && (
-                <span className="text-[11px] text-muted-foreground self-center">No makes added yet</span>
-              )}
-            </div>
-            {showCustomMake && (
-              <div className="flex gap-2">
-                <Input className="h-8 text-sm flex-1" placeholder="Enter make name…"
-                  value={customMakeVal} onChange={(e) => setCustomMakeVal(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); } }}
-                  autoFocus />
-                <Button size="sm" className="h-8 px-3" type="button" onClick={() => { addMake(customMakeVal); setCustomMakeVal(""); setShowCustomMake(false); }}>Add</Button>
-                <Button size="sm" variant="ghost" className="h-8 px-2" type="button" onClick={() => { setShowCustomMake(false); setCustomMakeVal(""); }}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-            {makes.length > 0 && (
-              <div className="space-y-1">
-                {makes.map((m, i) => (
-                  <div key={m} className="flex items-center gap-2 rounded-md border px-2 py-1 bg-background">
-                    <span className="text-[10px] text-muted-foreground w-4 text-right">{i + 1}.</span>
-                    <span className="flex-1 text-xs">{m}</span>
-                    <button type="button" onClick={() => moveMake(i, -1)} disabled={i === 0}
-                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
-                      <ChevronUp className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => moveMake(i, 1)} disabled={i === makes.length - 1}
-                      className="text-muted-foreground hover:text-foreground disabled:opacity-30">
-                      <ChevronDown className="h-3 w-3" /></button>
-                    <button type="button" onClick={() => removeMake(m)}
-                      className="text-muted-foreground hover:text-destructive">
-                      <X className="h-3 w-3" /></button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+        <SectionCard title="Vendor / Make" color="bg-slate-50/80 border-slate-200">
+          {renderField("make", "Make", makeOpts, true)}
         </SectionCard>
       )}
 
