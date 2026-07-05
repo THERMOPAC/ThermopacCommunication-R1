@@ -493,13 +493,6 @@ export function ControlValveAttrsForm({
         </SectionCard>
       )}
 
-      {/* 7 — Vendor / Make */}
-      {hasType && (
-        <SectionCard title="Vendor / Make" color="bg-slate-50/80 border-slate-200">
-          {renderField("make", "Make", makeOpts, true)}
-        </SectionCard>
-      )}
-
       {/* Quantity */}
       {qty !== undefined && (
         <div className="space-y-1.5">
@@ -891,13 +884,6 @@ export function SafetyValveAttrsForm({
         <SectionCard title="Standard & Certification" color="bg-teal-50/60 border-teal-200">
           {renderField("design_standard","Design Standard", SAFETY_COMMON_OPTS.design_std_psv, true)}
           {renderField("certification",  "Certification",  SAFETY_COMMON_OPTS.certification)}
-        </SectionCard>
-      )}
-
-      {/* 8 — Vendor / Make */}
-      {hasType && (
-        <SectionCard title="Vendor / Make" color="bg-slate-50/80 border-slate-200">
-          {renderField("make", "Make", makeOpts, true)}
         </SectionCard>
       )}
 
@@ -1385,13 +1371,6 @@ export function OnOffValveAttrsForm({
         </SectionCard>
       )}
 
-      {/* 7 — Vendor / Make */}
-      {hasType && (
-        <SectionCard title="Vendor / Make" color="bg-slate-50/80 border-slate-200">
-          {renderField("make", "Make", makeOpts, true)}
-        </SectionCard>
-      )}
-
       {/* Quantity */}
       {qty !== undefined && (
         <div className="space-y-1.5">
@@ -1827,13 +1806,6 @@ export function IsolationValveAttrsForm({
         </SectionCard>
       )}
 
-      {/* 6 — Vendor / Make */}
-      {valveType && (
-        <SectionCard title="Vendor / Make" color="bg-slate-50/80 border-slate-200">
-          {renderField("make", "Make", makeOpts, true)}
-        </SectionCard>
-      )}
-
       {/* Quantity */}
       {qty !== undefined && (
         <div className="space-y-1.5">
@@ -2194,12 +2166,6 @@ export function NrvValveAttrsForm({
         </SectionCard>
       )}
 
-      {/* 6 — Vendor / Make */}
-      {hasType && (
-        <SectionCard title="Vendor / Make" color="bg-slate-50/80 border-slate-200">
-          {renderField("make", "Make", makeOpts, true)}
-        </SectionCard>
-      )}
 
       {/* Quantity */}
       {qty !== undefined && (
@@ -2468,12 +2434,6 @@ export function NeedleValveAttrsForm({
         </SectionCard>
       )}
 
-      {/* 6 — Vendor / Make */}
-      {hasType && (
-        <SectionCard title="Vendor / Make" color="bg-slate-50/80 border-slate-200">
-          {renderField("make", "Make", makeOpts, true)}
-        </SectionCard>
-      )}
 
       {/* Quantity */}
       {qty !== undefined && (

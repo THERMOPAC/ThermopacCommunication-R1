@@ -1539,27 +1539,10 @@ export default function BuyPackagesPage() {
     }
 
     if (selectedGroupCode !== 'raw_materials') {
-      const ta    = lf.technicalAttributes ?? {};
-      const makes = Array.isArray(ta.approved_makes) ? (ta.approved_makes as string[]) : [];
-      const series = typeof ta.preferred_series === 'string' ? ta.preferred_series.trim() : '';
-      if (makes.length === 0) {
-        toast({ title: "Approved Make is required", description: "Enter one finalized make before saving.", variant: "destructive" }); return;
-      }
-      if (makes.length > 1) {
-        toast({ title: "Only one Approved Make is allowed", description: "Remove extra makes and keep one finalized make.", variant: "destructive" }); return;
-      }
-      const make = String(makes[0]).trim();
-      if (!make) {
-        toast({ title: "Approved Make cannot be blank", variant: "destructive" }); return;
-      }
-      if (make.toUpperCase() === 'TBN') {
-        toast({ title: "Approved Make is still TBN", description: "Replace TBN with the finalized make name.", variant: "destructive" }); return;
-      }
-      if (!series) {
-        toast({ title: "Model / Series is required", description: "Enter the finalized model or series before saving.", variant: "destructive" }); return;
-      }
-      if (series.toUpperCase() === 'TBN') {
-        toast({ title: "Model / Series is still TBN", description: "Replace TBN with the finalized model name.", variant: "destructive" }); return;
+      const ta   = lf.technicalAttributes ?? {};
+      const make = typeof ta.make === 'string' ? ta.make.trim() : '';
+      if (!make || make.toUpperCase() === 'TBN') {
+        toast({ title: "Make is required", description: "Enter the finalized make before saving.", variant: "destructive" }); return;
       }
     }
 

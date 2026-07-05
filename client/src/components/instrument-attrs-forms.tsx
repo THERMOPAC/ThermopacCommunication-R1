@@ -695,9 +695,8 @@ export function PressureAttrsForm({
         <SectionCard title="Hazardous Area / Classification" color="bg-amber-50/60 border-amber-300">
           {renderHazardousBlock()}
         </SectionCard>
-        <SectionCard title="Vendor / Approved Makes" color="bg-slate-50/80 border-slate-200">
-          {renderMakesBlock()}
-          {qty !== undefined && (
+        {qty !== undefined && (
+          <SectionCard title="Quantity" color="bg-slate-50/80 border-slate-200">
             <div className="space-y-1.5 col-span-3">
               <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
               <Input className="h-8 text-sm" type="number" min="1" step="1"
@@ -705,8 +704,8 @@ export function PressureAttrsForm({
                 onWheel={(e) => e.currentTarget.blur()}
                 onChange={(e) => { const v = e.target.value; onQtyChange?.(v === "" ? "" : String(Math.max(1, Math.trunc(Number(v))))); }} />
             </div>
-          )}
-        </SectionCard>
+          </SectionCard>
+        )}
       </>)}
 
     </div>
