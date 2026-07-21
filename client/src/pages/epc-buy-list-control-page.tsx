@@ -224,7 +224,7 @@ const EMPTY_LINE = {
   inspectionRequired: false, certificateRequired: false, complianceRequired: false,
   notes: "",
   technicalAttributes: {} as Record<string, unknown>,
-  installedOn: "", model: "TBN",
+  installedOn: "", model: "",
 };
 
 // ── Main page ─────────────────────────────────────────────────────────────────

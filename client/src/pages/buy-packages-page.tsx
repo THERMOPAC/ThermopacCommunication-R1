@@ -331,7 +331,7 @@ const EMPTY_LINE = {
   selectionRequired: true, datasheetRequired: false, inspectionRequired: false,
   certificateRequired: false, complianceRequired: false,
   notes: "", technicalAttributes: {} as Record<string, unknown>,
-  installedOn: "", model: "TBN",
+  installedOn: "", model: "",
 };
 
 // ── Generic Requirement field — live char count, 100-char hard limit ──────────
