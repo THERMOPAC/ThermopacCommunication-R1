@@ -26,6 +26,7 @@ import {
   ArrowUp, ArrowDown,
 } from "lucide-react";
 import { DatasheetPreviewDialog, downloadDatasheetPdf } from "@/components/buy-datasheet-dialog";
+import { MakeCombobox } from "@/components/make-combobox";
 import { SUBGROUP_TA_FIELDS, type SubgroupField } from "@/lib/buy-subgroup-fields";
 import {
   PUMP_SUBGROUP_CODES,
@@ -2582,11 +2583,10 @@ export default function EpcBuyListControlPage() {
                 <Label className="text-emerald-800 font-semibold text-xs uppercase tracking-wide">
                   Make <span className="text-red-500">*</span>
                 </Label>
-                <Input
+                <MakeCombobox
                   value={(lf.technicalAttributes?.make as string) ?? ""}
-                  onChange={e => setLf(f => ({ ...f, technicalAttributes: { ...f.technicalAttributes, make: e.target.value } }))}
-                  placeholder="e.g. TBN, Grundfos, ABB…"
-                  className="bg-white border-emerald-200"
+                  onChange={val => setLf(f => ({ ...f, technicalAttributes: { ...f.technicalAttributes, make: val } }))}
+                  triggerClassName="bg-white border-emerald-200"
                 />
               </div>
               <div className="rounded-md border border-violet-200 bg-violet-50 p-3 space-y-1.5">

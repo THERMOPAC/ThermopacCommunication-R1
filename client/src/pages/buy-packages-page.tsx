@@ -31,6 +31,7 @@ import {
   ChevronsUpDown, Check, X, FileSpreadsheet, FileDown, Copy, GitBranch, Pencil,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { MakeCombobox } from "@/components/make-combobox";
 import { cn } from "@/lib/utils";
 import {
   CentrifugalPumpAttrsForm,
@@ -2173,10 +2174,9 @@ export default function BuyPackagesPage() {
                   <Label className="text-xs font-medium">
                     Make <span className="text-red-500">*</span>
                   </Label>
-                  <Input
+                  <MakeCombobox
                     value={(lf.technicalAttributes?.make as string) ?? ""}
-                    onChange={(e) => setLf((f) => ({ ...f, technicalAttributes: { ...f.technicalAttributes, make: e.target.value } }))}
-                    placeholder="e.g. TBN, Grundfos, ABB…"
+                    onChange={(val) => setLf((f) => ({ ...f, technicalAttributes: { ...f.technicalAttributes, make: val } }))}
                   />
                 </div>
                 <div className="space-y-1.5">

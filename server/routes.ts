@@ -4015,6 +4015,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { seedHazopDeviationLibrary } = await import('./scripts/seed-hazop-library');
   seedHazopDeviationLibrary().catch((e) => console.error('[HAZOP Seed] Deviation library seed failed:', e));
 
+  const { default: makesRouter } = await import('./makes-routes');
+  app.use('/api/makes', makesRouter);
+
   const httpServer = createServer(app);
   
   // Extend timeout for SAP B1 integration routes - default is 2 minutes, extend to 6 minutes

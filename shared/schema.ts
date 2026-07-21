@@ -16524,3 +16524,15 @@ export const woHoldRecords = pgTable('wo_hold_records', {
 export const insertWoHoldRecordSchema = createInsertSchema(woHoldRecords).omit({ id: true, createdAt: true });
 export type InsertWoHoldRecord = z.infer<typeof insertWoHoldRecordSchema>;
 export type WoHoldRecord = typeof woHoldRecords.$inferSelect;
+
+// ── Makes catalog ─────────────────────────────────────────────────────────────
+export const makes = pgTable('makes', {
+  id:           serial('id').primaryKey(),
+  name:         text('name').notNull(),
+  normalized:   text('normalized').notNull().unique(),
+  createdBy:    integer('created_by').references(() => users.id),
+  createdAt:    timestamp('created_at').notNull().defaultNow(),
+});
+export const insertMakeSchema = createInsertSchema(makes).omit({ id: true, createdAt: true });
+export type InsertMake = z.infer<typeof insertMakeSchema>;
+export type Make = typeof makes.$inferSelect;
