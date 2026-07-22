@@ -320,12 +320,12 @@ export function ControlValveAttrsForm({
 
   function set(key: string, val: unknown) { onChange({ ...attrs, [key]: val }); }
 
-  function renderField(key: string, label: string, opts: string[], required?: boolean) {
+  function renderField(key: string, label: string, opts: string[], required?: boolean, wrapClass?: string) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
-      <div className="space-y-1.5">
+      <div className={`space-y-1.5 ${wrapClass ?? ""}`}>
         <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
         <SearchableSelect value={selectVal} options={opts} placeholder="Select…" onSelect={(v) => handleSelect(key, v)} />
         {isCustom && (
@@ -338,7 +338,7 @@ export function ControlValveAttrsForm({
 
   function sec(label: string) {
     return (
-      <div className="col-span-3 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 md:col-span-5 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -362,7 +362,7 @@ export function ControlValveAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
           {children}
         </div>
       </div>
@@ -374,7 +374,7 @@ export function ControlValveAttrsForm({
 
       {/* 1 — Valve Type */}
       <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-3 space-y-1.5">
+        <div className="col-span-3 md:col-span-5 space-y-1.5">
           <Label className="text-xs">Control Valve Type <span className="text-red-500">*</span></Label>
           <SearchableSelect
             value={CONTROL_VALVE_TYPES.includes(valveType) ? valveType : ""}
@@ -383,7 +383,7 @@ export function ControlValveAttrsForm({
           />
         </div>
         {!hasType && (
-          <div className="col-span-3 flex items-center justify-center py-3 text-sm text-muted-foreground">
+          <div className="col-span-3 md:col-span-5 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications
           </div>
         )}
@@ -394,7 +394,7 @@ export function ControlValveAttrsForm({
         <SectionCard title="Globe Valve Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("valve_config",        "Valve Configuration",  GLOBE_CV_OPTS.valve_config,        true)}
           {renderField("trim_style",          "Trim Style",           GLOBE_CV_OPTS.trim_style,          true)}
-          {renderField("flow_characteristic", "Flow Characteristic",  GLOBE_CV_OPTS.flow_characteristic, true)}
+          {renderField("flow_characteristic", "Flow Characteristic",  GLOBE_CV_OPTS.flow_characteristic, true, "col-span-2")}
           {renderField("trim_material",       "Trim Material",        GLOBE_CV_OPTS.trim_material,       true)}
           {renderField("seat_material",       "Seat Material",        GLOBE_CV_OPTS.seat_material,       true)}
           {renderField("leakage_class",       "Leakage Class",        GLOBE_CV_OPTS.leakage_class,       true)}
@@ -408,7 +408,7 @@ export function ControlValveAttrsForm({
       {isBall && (
         <SectionCard title="Ball Valve Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("ball_type",           "Ball Type",            BALL_CV_OPTS.ball_type,            true)}
-          {renderField("flow_characteristic", "Flow Characteristic",  BALL_CV_OPTS.flow_characteristic,  true)}
+          {renderField("flow_characteristic", "Flow Characteristic",  BALL_CV_OPTS.flow_characteristic,  true, "col-span-2")}
           {renderField("ball_trim_material",  "Ball / Trim Material", BALL_CV_OPTS.ball_trim_material,   true)}
           {renderField("seat_material",       "Seat Material",        BALL_CV_OPTS.seat_material,        true)}
           {renderField("leakage_class",       "Leakage Class",        BALL_CV_OPTS.leakage_class)}
@@ -420,9 +420,9 @@ export function ControlValveAttrsForm({
         <SectionCard title="Butterfly Valve Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("disc_mounting",       "Disc Mounting",         BFLY_CV_OPTS.disc_mounting,       true)}
           {renderField("disc_material",       "Disc Material",         BFLY_CV_OPTS.disc_material,       true)}
-          {renderField("seat_liner_material", "Seat / Liner Material", BFLY_CV_OPTS.seat_liner_material, true)}
+          {renderField("seat_liner_material", "Seat / Liner Material", BFLY_CV_OPTS.seat_liner_material, true, "col-span-2")}
           {renderField("leakage_class",       "Leakage Class",         BFLY_CV_OPTS.leakage_class)}
-          {renderField("flow_characteristic", "Flow Characteristic",   BFLY_CV_OPTS.flow_characteristic)}
+          {renderField("flow_characteristic", "Flow Characteristic",   BFLY_CV_OPTS.flow_characteristic, undefined, "col-span-2")}
           <div />
         </SectionCard>
       )}
@@ -483,10 +483,10 @@ export function ControlValveAttrsForm({
       {/* 6 — Area Classification (Optional) */}
       {hasType && (
         <SectionCard title="Area Classification (Optional)" color="bg-rose-50/60 border-rose-200">
-          {renderField("area_classification", "Area Classification", CONTROL_COMMON_OPTS.area_classification)}
+          {renderField("area_classification", "Area Classification", CONTROL_COMMON_OPTS.area_classification, undefined, "col-span-2")}
           {(areaClass === "Zone 1" || areaClass === "Zone 2") ? (<>
             {renderField("certification",        "Certification",        CONTROL_COMMON_OPTS.certification,        true)}
-            {renderField("explosion_protection", "Explosion Protection", CONTROL_COMMON_OPTS.explosion_protection, true)}
+            {renderField("explosion_protection", "Explosion Protection", CONTROL_COMMON_OPTS.explosion_protection, true, "col-span-2")}
             {renderField("gas_group",            "Gas Group",            CONTROL_COMMON_OPTS.gas_group,            true)}
             {renderField("temperature_class",    "Temperature Class",    CONTROL_COMMON_OPTS.temperature_class,    true)}
           </>) : <div />}
@@ -696,12 +696,12 @@ export function SafetyValveAttrsForm({
 
   function set(key: string, val: unknown) { onChange({ ...attrs, [key]: val }); }
 
-  function renderField(key: string, label: string, opts: string[], required?: boolean) {
+  function renderField(key: string, label: string, opts: string[], required?: boolean, wrapClass?: string) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
-      <div className="space-y-1.5">
+      <div className={`space-y-1.5 ${wrapClass ?? ""}`}>
         <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
         <SearchableSelect value={selectVal} options={opts} placeholder="Select…" onSelect={(v) => handleSelect(key, v)} />
         {isCustom && (
@@ -712,9 +712,9 @@ export function SafetyValveAttrsForm({
     );
   }
 
-  function renderText(key: string, label: string, placeholder: string, required?: boolean) {
+  function renderText(key: string, label: string, placeholder: string, required?: boolean, wrapClass?: string) {
     return (
-      <div className="space-y-1.5">
+      <div className={`space-y-1.5 ${wrapClass ?? ""}`}>
         <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
         <Input className="h-8 text-sm" placeholder={placeholder}
           value={(attrs[key] as string) ?? ""} onChange={(e) => set(key, e.target.value)} />
@@ -724,7 +724,7 @@ export function SafetyValveAttrsForm({
 
   function sec(label: string) {
     return (
-      <div className="col-span-3 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 md:col-span-5 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -748,7 +748,7 @@ export function SafetyValveAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
           {children}
         </div>
       </div>
@@ -760,7 +760,7 @@ export function SafetyValveAttrsForm({
 
       {/* 1 — Valve Type */}
       <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-3 space-y-1.5">
+        <div className="col-span-3 md:col-span-5 space-y-1.5">
           <Label className="text-xs">Safety Valve Type <span className="text-red-500">*</span></Label>
           <SearchableSelect
             value={SAFETY_VALVE_TYPES.includes(valveType) ? valveType : ""}
@@ -769,7 +769,7 @@ export function SafetyValveAttrsForm({
           />
         </div>
         {!hasType && (
-          <div className="col-span-3 flex items-center justify-center py-3 text-sm text-muted-foreground">
+          <div className="col-span-3 md:col-span-5 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications
           </div>
         )}
@@ -780,7 +780,7 @@ export function SafetyValveAttrsForm({
         <SectionCard title="Size & Pressure Rating" color="bg-violet-50/60 border-violet-200">
           {renderField("inlet_size",  "Inlet Size (NB)",  SAFETY_COMMON_OPTS.inlet_outlet_size, true)}
           {renderField("outlet_size", "Outlet Size (NB)", SAFETY_COMMON_OPTS.inlet_outlet_size, true)}
-          <div className="col-span-3">
+          <div className="col-span-3 md:col-span-5">
             {renderField("pressure_rating","Pressure Rating",SAFETY_COMMON_OPTS.pressure_rating, true)}
           </div>
         </SectionCard>
@@ -789,7 +789,7 @@ export function SafetyValveAttrsForm({
       {/* 3 — Pressure Settings (spring-based) */}
       {isSpringBased && (
         <SectionCard title="Pressure Settings" color="bg-amber-50/60 border-amber-300">
-          <div className="col-span-3">{renderText("set_pressure","Set Pressure","e.g. 10 barg", true)}</div>
+          <div className="col-span-3 md:col-span-5">{renderText("set_pressure","Set Pressure","e.g. 10 barg", true)}</div>
           {renderField("overpressure",       "Overpressure (%)",   SAFETY_COMMON_OPTS.overpressure)}
           {renderText( "relieving_capacity", "Relieving Capacity", "e.g. 500 kg/h")}
         </SectionCard>
@@ -801,18 +801,18 @@ export function SafetyValveAttrsForm({
           {renderField("operation_type",    "Operation Type",    SAFETY_COMMON_OPTS.operation_type,    true)}
           {renderField("api_orifice",       "API Orifice",       API_ORIFICE_OPTS,                     true)}
           {renderField("bonnet_type",       "Bonnet Type",       SAFETY_COMMON_OPTS.bonnet_type,       true)}
-          {renderField("discharge_type",    "Discharge Type",    SAFETY_COMMON_OPTS.discharge_type,    true)}
-          {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type)}
+          {renderField("discharge_type",    "Discharge Type",    SAFETY_COMMON_OPTS.discharge_type,    true, "col-span-2")}
+          {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type, undefined, "col-span-2")}
           <div />
         </SectionCard>
       )}
 
       {isPRV && (
         <SectionCard title="PRV Configuration" color="bg-amber-50/60 border-amber-300">
-          {renderField("discharge_type",    "Discharge Type",    SAFETY_COMMON_OPTS.discharge_type,    true)}
+          {renderField("discharge_type",    "Discharge Type",    SAFETY_COMMON_OPTS.discharge_type,    true, "col-span-2")}
           {renderField("bonnet_type",       "Bonnet Type",       SAFETY_COMMON_OPTS.bonnet_type)}
           {renderField("api_orifice",       "API Orifice",       API_ORIFICE_OPTS)}
-          {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type)}
+          {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type, undefined, "col-span-2")}
         </SectionCard>
       )}
 
@@ -822,8 +822,8 @@ export function SafetyValveAttrsForm({
           {renderField("api_orifice",       "API Orifice",       API_ORIFICE_OPTS,                     true)}
           {renderField("service_phase",     "Service Phase",     SAFETY_COMMON_OPTS.service_phase,     true)}
           {renderField("bonnet_type",       "Bonnet Type",       SAFETY_COMMON_OPTS.bonnet_type,       true)}
-          {renderField("discharge_type",    "Discharge Type",    SAFETY_COMMON_OPTS.discharge_type,    true)}
-          {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type)}
+          {renderField("discharge_type",    "Discharge Type",    SAFETY_COMMON_OPTS.discharge_type,    true, "col-span-2")}
+          {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type, undefined, "col-span-2")}
         </SectionCard>
       )}
 
@@ -838,14 +838,14 @@ export function SafetyValveAttrsForm({
           {renderField("body_material",  "Body Material",          SAFETY_COMMON_OPTS.body_material)}
           {renderField("end_connection", "End Connection",         SAFETY_COMMON_OPTS.end_connection)}
           {renderField("certification",  "Certification",          SAFETY_COMMON_OPTS.certification)}
-          {renderField("design_standard","Design Standard",        SAFETY_COMMON_OPTS.design_std_tank,  true)}
+          {renderField("design_standard","Design Standard",        SAFETY_COMMON_OPTS.design_std_tank,  true, "col-span-2")}
           <div />
         </SectionCard>
       )}
 
       {isBV && (
         <SectionCard title="Breather Valve Configuration" color="bg-amber-50/60 border-amber-300">
-          {renderField("connection_size",       "Connection Size (NB)",    SAFETY_COMMON_OPTS.connection_size,  true)}
+          {renderField("connection_size",       "Connection Size (NB)",    SAFETY_COMMON_OPTS.connection_size,  true, "col-span-2")}
           {renderText( "pressure_setting_mbar", "Pressure Setting (mbar)", "e.g. 14 mbar",                      true)}
           {renderText( "vacuum_setting_mbar",   "Vacuum Setting (mbar)",   "e.g. 3.5 mbar",                     true)}
           {renderField("flame_arrestor",        "Flame Arrestor",          SAFETY_COMMON_OPTS.flame_arrestor,   true)}
@@ -855,7 +855,7 @@ export function SafetyValveAttrsForm({
           {renderField("body_material",         "Body Material",           SAFETY_COMMON_OPTS.body_material_bv)}
           {renderField("end_connection",        "End Connection",          SAFETY_COMMON_OPTS.end_conn_bv)}
           {renderField("certification",         "Certification",           SAFETY_COMMON_OPTS.certification)}
-          {renderField("design_standard",       "Design Standard",         SAFETY_COMMON_OPTS.design_std_tank, true)}
+          {renderField("design_standard",       "Design Standard",         SAFETY_COMMON_OPTS.design_std_tank, true, "col-span-2")}
           <div />
         </SectionCard>
       )}
@@ -882,7 +882,7 @@ export function SafetyValveAttrsForm({
       {/* 7 — Standard & Certification (spring-based) */}
       {isSpringBased && (
         <SectionCard title="Standard & Certification" color="bg-teal-50/60 border-teal-200">
-          {renderField("design_standard","Design Standard", SAFETY_COMMON_OPTS.design_std_psv, true)}
+          {renderField("design_standard","Design Standard", SAFETY_COMMON_OPTS.design_std_psv, true, "col-span-2")}
           {renderField("certification",  "Certification",  SAFETY_COMMON_OPTS.certification)}
         </SectionCard>
       )}
@@ -1179,12 +1179,12 @@ export function OnOffValveAttrsForm({
 
   function set(key: string, val: unknown) { onChange({ ...attrs, [key]: val }); }
 
-  function renderField(key: string, label: string, opts: string[], required?: boolean) {
+  function renderField(key: string, label: string, opts: string[], required?: boolean, wrapClass?: string) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
-      <div className="space-y-1.5">
+      <div className={`space-y-1.5 ${wrapClass ?? ""}`}>
         <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
         <SearchableSelect value={selectVal} options={opts} placeholder="Select…"
           onSelect={(v) => handleSelect(key, v)} />
@@ -1198,7 +1198,7 @@ export function OnOffValveAttrsForm({
 
   function sec(label: string) {
     return (
-      <div className="col-span-3 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 md:col-span-5 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -1238,7 +1238,7 @@ export function OnOffValveAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
           {children}
         </div>
       </div>
@@ -1250,7 +1250,7 @@ export function OnOffValveAttrsForm({
 
       {/* 1 — Valve Type */}
       <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-3 space-y-1.5">
+        <div className="col-span-3 md:col-span-5 space-y-1.5">
           <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
           <SearchableSelect
             value={OO_VALVE_TYPES.includes(valveType) ? valveType : ""}
@@ -1259,7 +1259,7 @@ export function OnOffValveAttrsForm({
           />
         </div>
         {!hasType && (
-          <div className="col-span-3 flex items-center justify-center py-3 text-sm text-muted-foreground">
+          <div className="col-span-3 md:col-span-5 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications
           </div>
         )}
@@ -1362,9 +1362,9 @@ export function OnOffValveAttrsForm({
       {/* 6 — Hazardous Area (Optional) */}
       {hasType && (
         <SectionCard title="Hazardous Area (Optional)" color="bg-rose-50/60 border-rose-200">
-          {renderField("area_classification","Area Classification",OO_COMMON_OPTS.area_class)}
+          {renderField("area_classification","Area Classification",OO_COMMON_OPTS.area_class, undefined, "col-span-2")}
           {renderField("certification",      "Certification",      OO_COMMON_OPTS.certification)}
-          {isHazardous && renderField("explosion_protection","Explosion Protection",OO_COMMON_OPTS.explosion_protection, true)}
+          {isHazardous && renderField("explosion_protection","Explosion Protection",OO_COMMON_OPTS.explosion_protection, true, "col-span-2")}
           {isHazardous && renderField("gas_group",           "Gas Group",           OO_COMMON_OPTS.gas_group,           true)}
           {isHazardous && renderField("temperature_class",   "Temperature Class",   OO_COMMON_OPTS.temperature_class,   true)}
           {isHazardous && <div />}
@@ -1658,12 +1658,12 @@ export function IsolationValveAttrsForm({
     onChange(next);
   }
 
-  function renderField(key: string, label: string, opts: string[], required?: boolean) {
+  function renderField(key: string, label: string, opts: string[], required?: boolean, wrapClass?: string) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
-      <div className="space-y-1.5">
+      <div className={`space-y-1.5 ${wrapClass ?? ""}`}>
         <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
         <SearchableSelect value={selectVal} options={opts} placeholder="Select…"
           onSelect={(v) => handleSelect(key, v)} />
@@ -1682,7 +1682,7 @@ export function IsolationValveAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
           {children}
         </div>
       </div>
@@ -1694,7 +1694,7 @@ export function IsolationValveAttrsForm({
 
       {/* 1 — Valve Type */}
       <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-3 space-y-1.5">
+        <div className="col-span-3 md:col-span-5 space-y-1.5">
           <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
           <Select value={valveType} onValueChange={(v) => { if (v !== valveType) handleTypeChange(v); }}>
             <SelectTrigger className="h-8 text-sm">
@@ -1708,7 +1708,7 @@ export function IsolationValveAttrsForm({
           </Select>
         </div>
         {!valveType && (
-          <div className="col-span-3 flex items-center justify-center py-3 text-sm text-muted-foreground">
+          <div className="col-span-3 md:col-span-5 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications.
           </div>
         )}
@@ -1801,7 +1801,7 @@ export function IsolationValveAttrsForm({
       {/* 5 — Area Classification */}
       {valveType && (
         <SectionCard title="Area Classification" color="bg-orange-50/60 border-orange-200">
-          {renderField("area_classification","Area Classification",ISOLATION_COMMON_OPTS.area_classification)}
+          {renderField("area_classification","Area Classification",ISOLATION_COMMON_OPTS.area_classification, undefined, "col-span-2")}
           <div />
         </SectionCard>
       )}
@@ -2000,12 +2000,12 @@ export function NrvValveAttrsForm({
 
   function set(key: string, val: unknown) { onChange({ ...attrs, [key]: val }); }
 
-  function renderField(key: string, label: string, opts: string[], required?: boolean) {
+  function renderField(key: string, label: string, opts: string[], required?: boolean, wrapClass?: string) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
-      <div className="space-y-1.5">
+      <div className={`space-y-1.5 ${wrapClass ?? ""}`}>
         <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
         <SearchableSelect value={selectVal} options={opts} placeholder="Select…"
           onSelect={(v) => handleSelect(key, v)} />
@@ -2019,7 +2019,7 @@ export function NrvValveAttrsForm({
 
   function sec(label: string) {
     return (
-      <div className="col-span-3 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 md:col-span-5 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -2057,7 +2057,7 @@ export function NrvValveAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
           {children}
         </div>
       </div>
@@ -2069,7 +2069,7 @@ export function NrvValveAttrsForm({
 
       {/* 1 — Valve Type */}
       <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-3 space-y-1.5">
+        <div className="col-span-3 md:col-span-5 space-y-1.5">
           <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
           <SearchableSelect
             value={NRV_VALVE_TYPES.includes(valveType) ? valveType : ""}
@@ -2078,7 +2078,7 @@ export function NrvValveAttrsForm({
           />
         </div>
         {!hasType && (
-          <div className="col-span-3 flex items-center justify-center py-3 text-sm text-muted-foreground">
+          <div className="col-span-3 md:col-span-5 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications
           </div>
         )}
@@ -2333,12 +2333,12 @@ export function NeedleValveAttrsForm({
 
   function set(key: string, val: unknown) { onChange({ ...attrs, [key]: val }); }
 
-  function renderField(key: string, label: string, opts: string[], required?: boolean) {
+  function renderField(key: string, label: string, opts: string[], required?: boolean, wrapClass?: string) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
-      <div className="space-y-1.5">
+      <div className={`space-y-1.5 ${wrapClass ?? ""}`}>
         <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
         <SearchableSelect value={selectVal} options={opts} placeholder="Select..."
           onSelect={(v) => handleSelect(key, v)} />
@@ -2352,7 +2352,7 @@ export function NeedleValveAttrsForm({
 
   function sec(label: string) {
     return (
-      <div className="col-span-3 mt-1 pb-0.5 border-b">
+      <div className="col-span-3 md:col-span-5 mt-1 pb-0.5 border-b">
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
       </div>
     );
@@ -2372,7 +2372,7 @@ export function NeedleValveAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
           {children}
         </div>
       </div>
@@ -2384,13 +2384,13 @@ export function NeedleValveAttrsForm({
 
       {/* 1 — Valve Type */}
       <SectionCard title="Valve Type" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-3 space-y-1.5">
+        <div className="col-span-3 md:col-span-5 space-y-1.5">
           <Label className="text-xs">Valve Type <span className="text-red-500">*</span></Label>
           <SearchableSelect value={valveType} options={NEEDLE_VALVE_TYPES} placeholder="Select valve type..."
             onSelect={handleTypeChange} />
         </div>
         {!hasType && (
-          <div className="col-span-3 flex items-center justify-center py-3 text-sm text-muted-foreground">
+          <div className="col-span-3 md:col-span-5 flex items-center justify-center py-3 text-sm text-muted-foreground">
             Select a valve type above to configure specifications
           </div>
         )}

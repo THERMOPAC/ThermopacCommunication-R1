@@ -212,13 +212,14 @@ export function PanelAttrsForm({
     opts: string[],
     required?: boolean,
     projDefault?: string,
+    wrapClass?: string,
   ) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
     const fromProj  = !!projDefault && curVal === projDefault;
     return (
-      <div className="space-y-1.5">
+      <div className={`space-y-1.5 ${wrapClass ?? ""}`}>
         <Label className="text-xs flex items-center gap-1.5">
           {label}{required && <span className="text-red-500">*</span>}
           {fromProj && (
@@ -252,7 +253,7 @@ export function PanelAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
           {children}
         </div>
       </div>
@@ -270,7 +271,7 @@ export function PanelAttrsForm({
 
       {/* 1 — Panel Identity */}
       <SectionCard title="Panel Identity" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-3 space-y-1.5">
+        <div className="col-span-3 md:col-span-5 space-y-1.5">
           <Label className="text-xs">Panel Type <span className="text-red-500">*</span></Label>
           <SearchableSelect value={ptSelectVal} options={PANEL_OPTS.panel_type}
             placeholder="Select panel type…" onSelect={handleTypeSelect} />
@@ -288,7 +289,7 @@ export function PanelAttrsForm({
         {renderField("voltage",              "Voltage",               PANEL_OPTS.voltage,              true, resolvedProjVolt)}
         {renderField("frequency",            "Frequency",             PANEL_OPTS.frequency,            true, resolvedProjFreq)}
         {renderField("bus_rating",           "Bus Rating",            PANEL_OPTS.bus_rating,           true)}
-        {renderField("short_circuit_rating", "Short Circuit Rating",  PANEL_OPTS.short_circuit_rating, true)}
+        {renderField("short_circuit_rating", "Short Circuit Rating",  PANEL_OPTS.short_circuit_rating, true, undefined, "col-span-2")}
       </SectionCard>
 
       {/* 3 — Incoming / Feeder */}
@@ -324,18 +325,18 @@ export function PanelAttrsForm({
 
       {/* 6 — Accessories & Auxiliary */}
       <SectionCard title="Accessories & Auxiliary" color="bg-orange-50/60 border-orange-200">
-        {renderField("anti_condensation", "Anti-condensation Heater", PANEL_OPTS.anti_condensation)}
-        {renderField("aux_power_supply",  "Auxiliary Power Supply",   PANEL_OPTS.aux_power_supply)}
+        {renderField("anti_condensation", "Anti-condensation Heater", PANEL_OPTS.anti_condensation, undefined, undefined, "col-span-2")}
+        {renderField("aux_power_supply",  "Auxiliary Power Supply",   PANEL_OPTS.aux_power_supply,  undefined, undefined, "col-span-2")}
       </SectionCard>
 
       {/* 7 — Area Classification */}
       <SectionCard title="Area Classification" color="bg-rose-50/60 border-rose-200">
-        <div className="col-span-3">
+        <div className="col-span-3 md:col-span-5">
           {renderField("area_classification", "Area Classification", PANEL_OPTS.area_classification)}
         </div>
         {isHazardous && (
           <>
-            {renderField("explosion_protection", "Explosion Protection", PANEL_OPTS.explosion_protection, true)}
+            {renderField("explosion_protection", "Explosion Protection", PANEL_OPTS.explosion_protection, true, undefined, "col-span-2")}
             {renderField("gas_group",            "Gas Group",            PANEL_OPTS.gas_group,            true)}
             {renderField("temperature_class",    "Temperature Class",    PANEL_OPTS.temperature_class,    true)}
             <div />
@@ -347,13 +348,13 @@ export function PanelAttrsForm({
       <SectionCard title="Standards & Testing" color="bg-slate-50/80 border-slate-200">
         {renderField("testing_std", "Testing Standard", PANEL_OPTS.testing_std)}
         <div />
-        <div className="col-span-3 space-y-1.5">
+        <div className="col-span-3 md:col-span-5 space-y-1.5">
           <Label className="text-xs">Additional Notes</Label>
           <Input className="h-8 text-sm" placeholder="Any additional requirements…"
             value={(attrs.notes as string) ?? ""} onChange={(e) => set("notes", e.target.value)} />
         </div>
         {qty !== undefined && (
-          <div className="space-y-1.5 col-span-3">
+          <div className="space-y-1.5 col-span-3 md:col-span-5">
             <Label className="text-xs">Quantity (Panels) <span className="text-red-500">*</span></Label>
             <Input className="h-8 text-sm" type="number" min="1" step="1"
               value={qty}
@@ -448,13 +449,13 @@ export function CablingAttrsForm({
     }
   }
 
-  function renderField(key: string, label: string, required?: boolean) {
+  function renderField(key: string, label: string, required?: boolean, wrapClass?: string) {
     const opts      = CABLE_ALL_OPTS[key] ?? [];
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
-      <div className="space-y-1.5">
+      <div className={`space-y-1.5 ${wrapClass ?? ""}`}>
         <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
         <SearchableSelect value={selectVal} options={opts} placeholder="Select…" onSelect={(v) => handleSelect(key, v)} />
         {isCustom && (
@@ -466,16 +467,16 @@ export function CablingAttrsForm({
 
   function sec(label: string) {
     return (
-      <p className="text-[11px] font-semibold text-primary uppercase tracking-wide col-span-3 border-b pb-1 mt-1">{label}</p>
+      <p className="text-[11px] font-semibold text-primary uppercase tracking-wide col-span-3 md:col-span-5 border-b pb-1 mt-1">{label}</p>
     );
   }
 
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cabling Specifications</p>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
         {sec("Cable Type")}
-        <div className="col-span-3">{renderField("cable_type",  "Cable Type",    true)}</div>
+        <div className="col-span-3 md:col-span-5">{renderField("cable_type",  "Cable Type",    true)}</div>
 
         {sec("Core & Size")}
         {renderField("core_config",   "Core Configuration", true)}
@@ -500,7 +501,7 @@ export function CablingAttrsForm({
         <div />
 
         {qty !== undefined && (
-          <div className="space-y-1.5 col-span-3">
+          <div className="space-y-1.5 col-span-3 md:col-span-5">
             <Label className="text-xs">Length (m) <span className="text-red-500">*</span></Label>
             <Input className="h-8 text-sm" type="number" min="1" step="1"
               value={qty}
@@ -637,16 +638,16 @@ export function JunctionBoxAttrsForm({
 
   function sec(label: string) {
     return (
-      <p className="text-[11px] font-semibold text-primary uppercase tracking-wide col-span-3 border-b pb-1 mt-1">{label}</p>
+      <p className="text-[11px] font-semibold text-primary uppercase tracking-wide col-span-3 md:col-span-5 border-b pb-1 mt-1">{label}</p>
     );
   }
 
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Junction Box Specifications</p>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
         {sec("JB Type & Construction")}
-        <div className="col-span-3">{ss("jb_type", "JB Type", JB_TYPE_OPTS, true)}</div>
+        <div className="col-span-3 md:col-span-5">{ss("jb_type", "JB Type", JB_TYPE_OPTS, true)}</div>
         {ss("body_material",  "Body Material",   JB_MATERIAL_OPTS, true)}
         {ss("mounting",       "Mounting",        JB_MOUNTING_OPTS)}
         {ss("enclosure_type", "Enclosure (IP Rating)", JB_ENCLOSURE_OPTS, true)}
@@ -671,7 +672,7 @@ export function JunctionBoxAttrsForm({
         {sec("Earthing / Accessories")}
         {ss("earthing", "Earthing", JB_EARTHING_OPTS)}
         <div />
-        <div className="col-span-3 space-y-1.5">
+        <div className="col-span-3 md:col-span-5 space-y-1.5">
           <Label className="text-xs">Accessories</Label>
           <div className="flex flex-wrap gap-1.5">
             {JB_ACCESSORIES.map(chip => (
@@ -689,10 +690,10 @@ export function JunctionBoxAttrsForm({
         </div>
 
         {sec("Make")}
-        <div className="col-span-3">{ss("make", "Make", JB_VENDOR_CHIPS, true)}</div>
+        <div className="col-span-3 md:col-span-5">{ss("make", "Make", JB_VENDOR_CHIPS, true)}</div>
 
         {qty !== undefined && (
-          <div className="space-y-1.5 col-span-3">
+          <div className="space-y-1.5 col-span-3 md:col-span-5">
             <Label className="text-xs">Quantity (Units) <span className="text-red-500">*</span></Label>
             <Input className="h-8 text-sm" type="number" min="1" step="1"
               value={qty}
@@ -760,7 +761,7 @@ export function CoolingTowerAttrsForm({
 
 
   const sec = (title: string) => (
-    <p className="text-[11px] font-semibold text-primary uppercase tracking-wide col-span-3 border-b pb-1 mt-1">{title}</p>
+    <p className="text-[11px] font-semibold text-primary uppercase tracking-wide col-span-3 md:col-span-5 border-b pb-1 mt-1">{title}</p>
   );
   const renderSS = (key: string, label: string, opts: string[], required = false) => (
     <div className="space-y-1.5">
@@ -784,7 +785,7 @@ export function CoolingTowerAttrsForm({
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cooling Tower Specifications</p>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
         {sec("Type")}
         {renderSS("cooling_tower_type", "Cooling Tower Type", CT_TYPE_OPTS, true)}
         {renderSS("construction_type",  "Construction Type",  CT_CONSTRUCTION_OPTS)}
@@ -828,10 +829,10 @@ export function CoolingTowerAttrsForm({
         <div />
 
         {sec("Make")}
-        <div className="col-span-3">{renderSS("make", "Make", CT_VENDOR_CHIPS, true)}</div>
+        <div className="col-span-3 md:col-span-5">{renderSS("make", "Make", CT_VENDOR_CHIPS, true)}</div>
 
         {qty !== undefined && (
-          <div className="space-y-1.5 col-span-3">
+          <div className="space-y-1.5 col-span-3 md:col-span-5">
             <Label className="text-xs">Quantity (Units) <span className="text-red-500">*</span></Label>
             <Input className="h-8 text-sm" type="number" min="1" step="1"
               value={qty}
@@ -1232,13 +1233,13 @@ export function ComponentsAttrsForm({
     }
   }
 
-  function renderField(key: string, label: string, opts: string[], required?: boolean, projDefault?: string) {
+  function renderField(key: string, label: string, opts: string[], required?: boolean, projDefault?: string, wrapClass?: string) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
     const fromProj  = !!projDefault && curVal === projDefault;
     return (
-      <div className="space-y-1.5">
+      <div className={`space-y-1.5 ${wrapClass ?? ""}`}>
         <Label className="text-xs flex items-center gap-1.5">
           {label}{required && <span className="text-red-500">*</span>}
           {fromProj && (
@@ -1272,7 +1273,7 @@ export function ComponentsAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
           {children}
         </div>
       </div>
@@ -1349,7 +1350,7 @@ export function ComponentsAttrsForm({
     );
     if (t === "Overload Relay") return (
       <>
-        <div className="col-span-3">{renderField("current_range", "Current Setting Range", OL_RANGE, true)}</div>
+        <div className="col-span-3 md:col-span-5">{renderField("current_range", "Current Setting Range", OL_RANGE, true)}</div>
         {renderField("trip_class", "Trip Class", OL_TRIP_CLASS, true)}
         {renderField("relay_type", "Relay Type", OL_TYPE)}
       </>
@@ -1504,7 +1505,7 @@ export function ComponentsAttrsForm({
     if (t === "PLC / DCS Module") return (
       <>
         {renderField("plc_module_type", "Module Type", PLC_MODULE,   true)}
-        <div className="col-span-3">{renderField("plc_platform", "Platform / Series", PLC_PLATFORM, true)}</div>
+        <div className="col-span-3 md:col-span-5">{renderField("plc_platform", "Platform / Series", PLC_PLATFORM, true)}</div>
         {renderField("communication",   "Communication",             PLC_COMM)}
         {renderText( "io_count",        "I/O Count",                 "e.g. 16 DI / 16 DO")}
       </>
@@ -1513,7 +1514,7 @@ export function ComponentsAttrsForm({
       <>
         {renderField("screen_size",   "Screen Size (inch)", HMI_SIZE,     true)}
         {renderField("display_type",  "Display Type",       HMI_DISPLAY,  true)}
-        <div className="col-span-3">{renderField("hmi_platform", "Platform", HMI_PLATFORM)}</div>
+        <div className="col-span-3 md:col-span-5">{renderField("hmi_platform", "Platform", HMI_PLATFORM)}</div>
         {renderField("communication", "Communication",      HMI_COMM)}
         <div />
       </>
@@ -1533,7 +1534,7 @@ export function ComponentsAttrsForm({
 
       {/* 1 — Component Identity */}
       <SectionCard title="Component Identity" color="bg-sky-50/60 border-sky-200">
-        <div className="col-span-3 space-y-1.5">
+        <div className="col-span-3 md:col-span-5 space-y-1.5">
           <Label className="text-xs">Component Type <span className="text-red-500">*</span></Label>
           <SearchableSelect value={ctSelectVal} options={COMP_TYPE_OPTS}
             placeholder="Select component type…" onSelect={handleTypeSelect} />
@@ -1557,7 +1558,7 @@ export function ComponentsAttrsForm({
           {showPowerKW   && renderField("power_kw",      "Power (kW)",             COMP_POWER_KW_OPTS, true)}
           {showCoilVolt  && renderField("coil_voltage",  "Coil / Control Voltage", COMP_COIL_V_OPTS,   true)}
           {!showVoltage && !showFrequency && !showCurrentA && !showPowerKW && !showCoilVolt && (
-            <div className="col-span-3 text-xs text-muted-foreground italic py-1">
+            <div className="col-span-3 md:col-span-5 text-xs text-muted-foreground italic py-1">
               No electrical rating fields applicable for this component type.
             </div>
           )}
@@ -1580,13 +1581,13 @@ export function ComponentsAttrsForm({
       {/* 5 — Make */}
       {compType && (
         <SectionCard title="Make" color="bg-teal-50/60 border-teal-200">
-          <div className="col-span-3">{renderField("make", "Make", vendors, true)}</div>
+          <div className="col-span-3 md:col-span-5">{renderField("make", "Make", vendors, true)}</div>
         </SectionCard>
       )}
 
       {/* 6 — Area Classification */}
       <SectionCard title="Area Classification" color="bg-rose-50/60 border-rose-200">
-        <div className="col-span-3">
+        <div className="col-span-3 md:col-span-5">
           {renderField("area_classification", "Area Classification", COMP_AREA_OPTS)}
         </div>
         {isHazardous && (
@@ -1607,13 +1608,13 @@ export function ComponentsAttrsForm({
             <div />
           </>
         )}
-        <div className="col-span-3 space-y-1.5">
+        <div className="col-span-3 md:col-span-5 space-y-1.5">
           <Label className="text-xs">Additional Notes</Label>
           <Input className="h-8 text-sm" placeholder="Any additional requirements…"
             value={(attrs.notes as string) ?? ""} onChange={e => set("notes", e.target.value)} />
         </div>
         {qty !== undefined && (
-          <div className="space-y-1.5 col-span-3">
+          <div className="space-y-1.5 col-span-3 md:col-span-5">
             <Label className="text-xs">Quantity (Nos.) <span className="text-red-500">*</span></Label>
             <Input className="h-8 text-sm" type="number" min="1" step="1"
               value={qty}
@@ -1650,7 +1651,7 @@ export function BoughtOutAttrsForm({
   };
 
   const sec = (title: string) => (
-    <p className="text-[11px] font-semibold text-primary uppercase tracking-wide col-span-3 border-b pb-1 mt-1">{title}</p>
+    <p className="text-[11px] font-semibold text-primary uppercase tracking-wide col-span-3 md:col-span-5 border-b pb-1 mt-1">{title}</p>
   );
   const renderSS = (key: string, label: string, opts: string[], required = false) => (
     <div className="space-y-1.5">
@@ -1681,7 +1682,7 @@ export function BoughtOutAttrsForm({
   return (
     <div className="space-y-3 rounded-md border p-3 bg-muted/30">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bought-out Package Specifications</p>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
         {sec("Package Type")}
         {renderSS("package_type", "Package Type", BOUGHT_OUT_PKG_TYPE_OPTS, true)}
         <div />
@@ -1695,7 +1696,7 @@ export function BoughtOutAttrsForm({
         {renderSS("configuration",   "Configuration",   BOUGHT_OUT_CONFIG_OPTS)}
 
         {sec("Major Components")}
-        <div className="col-span-3 space-y-1.5">
+        <div className="col-span-3 md:col-span-5 space-y-1.5">
           <Label className="text-xs">Package Components <span className="text-red-500">*</span></Label>
           <div className="flex flex-wrap gap-1.5">
             {BOUGHT_OUT_COMPONENTS.map(chip => (
@@ -1725,10 +1726,10 @@ export function BoughtOutAttrsForm({
         {renderSS("certification",       "Certification",       BOUGHT_OUT_CERT_OPTS)}
 
         {sec("Make")}
-        <div className="col-span-3">{renderSS("make", "Make", BOUGHT_OUT_VENDOR_CHIPS, true)}</div>
+        <div className="col-span-3 md:col-span-5">{renderSS("make", "Make", BOUGHT_OUT_VENDOR_CHIPS, true)}</div>
 
         {qty !== undefined && (
-          <div className="space-y-1.5 col-span-3">
+          <div className="space-y-1.5 col-span-3 md:col-span-5">
             <Label className="text-xs">Quantity (Systems) <span className="text-red-500">*</span></Label>
             <Input className="h-8 text-sm" type="number" min="1" step="1"
               value={qty}

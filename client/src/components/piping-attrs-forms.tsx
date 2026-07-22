@@ -66,7 +66,7 @@ function SectionCard({ title, color, children }: {
       <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
         {title}
       </h4>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
         {children}
       </div>
     </div>
@@ -154,7 +154,7 @@ function deriveStructuralStandard(grade: string): string {
 function QtyField({ qty, onQtyChange }: { qty?: string; onQtyChange?: (q: string) => void }) {
   if (qty === undefined) return null;
   return (
-    <div className="space-y-1.5 col-span-3">
+    <div className="space-y-1.5 col-span-3 md:col-span-5">
       <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
       <Input className="h-8 text-sm" type="number" min="1" step="1"
         value={qty}

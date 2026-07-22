@@ -230,12 +230,12 @@ export function MotorAttrsForm({
     }
   }
 
-  function renderField(key: string, label: string, opts: string[], required?: boolean, hideOther?: boolean) {
+  function renderField(key: string, label: string, opts: string[], required?: boolean, hideOther?: boolean, wrapClass?: string) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
     const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
     return (
-      <div className="space-y-1.5">
+      <div className={`space-y-1.5 ${wrapClass ?? ""}`}>
         <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
         <SearchableSelect value={selectVal} options={opts} placeholder="Select…"
           onSelect={(v) => handleSelect(key, v)} hideOther={hideOther} />
@@ -263,7 +263,7 @@ export function MotorAttrsForm({
         <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 pb-1 border-b border-border/60">
           {title}
         </h4>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
           {children}
         </div>
       </div>
@@ -315,10 +315,10 @@ export function MotorAttrsForm({
       {/* 3 — Operating Conditions */}
       <SectionCard title="Operating Conditions" color="bg-emerald-50/60 border-emerald-200">
         {renderField("duty",                "Duty",                MOTOR_OPTS.duty,             true)}
-        {renderField("area_classification", "Area Classification", areaOpts,                    true, true)}
+        {renderField("area_classification", "Area Classification", areaOpts,                    true, true, "col-span-2")}
         {renderField("ip_rating",           "IP Rating",           MOTOR_OPTS.ip_rating,        true)}
-        {renderField("efficiency_class",    "Efficiency Class",    MOTOR_OPTS.efficiency_class, true)}
-        {renderField("vfd_compatible",      "VFD Compatible",      MOTOR_OPTS.vfd_compatible,   true)}
+        {renderField("efficiency_class",    "Efficiency Class",    MOTOR_OPTS.efficiency_class, true, undefined, "col-span-2")}
+        {renderField("vfd_compatible",      "VFD Compatible",      MOTOR_OPTS.vfd_compatible,   true, undefined, "col-span-2")}
         <div />
       </SectionCard>
 
@@ -358,7 +358,7 @@ export function MotorAttrsForm({
         {renderField("make", "Make", makeOpts, true)}
 
         {qty !== undefined && (
-          <div className="space-y-1.5 col-span-2">
+          <div className="space-y-1.5 col-span-3 md:col-span-5">
             <Label className="text-xs">Quantity <span className="text-red-500">*</span></Label>
             <Input className="h-8 text-sm" type="number" min="1" step="1"
               value={qty}
