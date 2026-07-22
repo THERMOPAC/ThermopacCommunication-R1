@@ -90,12 +90,86 @@ export function buildMotorRequirement(attrs: Record<string, unknown>): string {
   return parts.join(", ");
 }
 
+// ── NFP Motor — controlled vocabulary ────────────────────────────────────────
+
+/**
+ * Approved Motor Type vocabulary for Non-Flameproof motors.
+ * Display name is stored in technical_attributes; the server maps it to the
+ * 3–4 char short code when building the SAP Item Code.
+ */
+export const NFP_MOTOR_TYPES = [
+  { code: 'IND', label: 'Induction' },
+  { code: 'BRK', label: 'Brake Motor' },
+  { code: 'VFD', label: 'VFD Duty' },
+  { code: 'SYN', label: 'Synchronous' },
+  { code: 'PMS', label: 'Permanent Magnet Synchronous' },
+  { code: 'WRM', label: 'Wound Rotor Motor' },
+] as const;
+
+const NFP_MOTOR_TYPE_LABELS = NFP_MOTOR_TYPES.map((t) => t.label);
+
+/** Full IEC 60034-1 standard power rating list (kW). Stored as-is in attrs. */
+const IEC_POWER_RATINGS = [
+  "0.09", "0.12", "0.18", "0.25", "0.37", "0.55", "0.75",
+  "1.1", "1.5", "2.2", "3", "3.7", "4", "5.5", "7.5",
+  "11", "15", "18.5", "22", "30", "37", "45", "55", "75",
+  "90", "110", "132", "160", "200", "250", "315", "400", "500",
+];
+
+/** IEC 60034-7 mounting codes. Stored as bare IEC codes in attrs. */
+const IEC_MOUNTING_CODES = ["B3", "B5", "B14", "B35", "V1", "V3", "V5", "V6"];
+
+/**
+ * Client-side NFP Motor SAP Item Code preview.
+ * Mirrors the server logic in buy-catalog-sap-service.ts.
+ * Returns the generated code string, or null if any required field is missing/unrecognised.
+ *
+ * Power P-notation rules (same as server):
+ *   Whole kW  → 3-digit zero-padded integer        e.g. "015"
+ *   Sub-1 kW  → "000P{centesimal fraction}"         e.g. "000P37"
+ *   Fractional ≥1 kW → "{3d}P{decimal}"             e.g. "001P1", "018P5"
+ */
+export function buildNfpMotorPreviewCode(attrs: Record<string, unknown>): string | null {
+  const MTYPE: Record<string, string> = {
+    'Induction': 'IND', 'Brake Motor': 'BRK', 'VFD Duty': 'VFD',
+    'Synchronous': 'SYN', 'Permanent Magnet Synchronous': 'PMS', 'Wound Rotor Motor': 'WRM',
+  };
+  const VOLT: Record<string, string> = {
+    '230 V': '230', '415 V': '415', '440 V': '440',
+    '525 V': '525', '690 V': '690', '3300 V': '3300',
+    '6600 V': '6600', '11000 V': '11000',
+  };
+  const FREQ: Record<string, string> = { '50 Hz': '50', '60 Hz': '60' };
+
+  function encodeKw(kw: string): string | null {
+    const num = parseFloat(kw);
+    if (isNaN(num) || num <= 0) return null;
+    if (Number.isInteger(num)) return String(num).padStart(3, '0');
+    const s = num.toString();
+    const d = s.indexOf('.');
+    return `${s.slice(0, d).padStart(3, '0')}P${s.slice(d + 1)}`;
+  }
+
+  const motorType = MTYPE[(attrs.motor_type as string)?.trim() ?? ''];
+  const mounting  = (attrs.mounting as string)?.trim() ?? '';
+  const power     = encodeKw((attrs.power as string)?.trim() ?? '');
+  const voltage   = VOLT[(attrs.voltage as string)?.trim() ?? ''];
+  const frequency = FREQ[(attrs.frequency as string)?.trim() ?? ''];
+  const poles     = ((attrs.num_poles ?? attrs.poles) as string | undefined)?.trim() ?? '';
+  const efficiency = (attrs.efficiency_class as string)?.trim() ?? '';
+
+  if (!motorType || !mounting || !power || !voltage || !frequency || !poles || !efficiency)
+    return null;
+
+  return `MOT-NFP-${motorType}-${mounting}-${power}-${voltage}-${frequency}-${poles}-${efficiency}`;
+}
+
 const MOTOR_OPTS: Record<string, string[]> = {
-  motor_type:       ["Induction", "Brake Motor", "VFD Duty"],
-  mounting:         ["Horizontal (B3)", "Vertical (V1)", "Flange Mounted (B5)", "Foot + Flange (B35)"],
+  motor_type:       NFP_MOTOR_TYPE_LABELS,
+  mounting:         IEC_MOUNTING_CODES,
   cooling_type:     ["TEFC", "ODP", "TENV"],
-  power:            ["0.37", "0.75", "1.1", "2.2", "3.7", "5.5", "7.5", "11", "15", "22", "30"],
-  voltage:          ["380 V", "400 V", "415 V", "440 V", "690 V"],
+  power:            IEC_POWER_RATINGS,
+  voltage:          ["230 V", "415 V", "440 V", "525 V", "690 V", "3300 V", "6600 V", "11000 V"],
   frequency:        ["50 Hz", "60 Hz"],
   speed:            ["750", "1000", "1500", "3000"],
   duty:             ["S1 (Continuous)", "S2", "S3", "Intermittent", "Standby"],
@@ -124,7 +198,7 @@ const MOTOR_AREA_HAZARDOUS = ["Zone 1", "Zone 2"];
 
 export const NON_FLAMEPROOF_MOTOR_DEFAULTS: Record<string, unknown> = {
   motor_type:          "Induction",
-  mounting:            "Horizontal (B3)",
+  mounting:            "B3",
   cooling_type:        "TEFC",
   voltage:             "415 V",
   phase:               "Three Phase",
@@ -134,7 +208,7 @@ export const NON_FLAMEPROOF_MOTOR_DEFAULTS: Record<string, unknown> = {
   duty:                "S1 (Continuous)",
   area_classification: "Other",
   ip_rating:           "IP55",
-  efficiency_class:    "IE4",
+  efficiency_class:    "IE3",
   vfd_compatible:      "Yes",
   material:            "Cast Iron",
 };
@@ -270,8 +344,25 @@ export function MotorAttrsForm({
     );
   }
 
+  const nfpPreviewCode = !isFlameproof ? buildNfpMotorPreviewCode(attrs) : null;
+
   return (
     <div className="space-y-3">
+
+      {/* SAP Item Code preview — NFP only */}
+      {!isFlameproof && (
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-mono ${
+          nfpPreviewCode
+            ? "bg-green-50 border-green-200 text-green-800"
+            : "bg-muted/50 border-border text-muted-foreground"
+        }`}>
+          <span className="font-semibold font-sans shrink-0">SAP Item Code:</span>
+          {nfpPreviewCode
+            ? <span className="tracking-wide">{nfpPreviewCode}</span>
+            : <span className="font-sans italic">Complete all required fields to preview</span>
+          }
+        </div>
+      )}
 
       {/* 1 — Motor Specifications */}
       <SectionCard title="Motor Specifications" color="bg-sky-50/60 border-sky-200">

@@ -88,6 +88,161 @@ export function subgroupPrefix(code: string): string {
 /** SAP B1 hard limit for Item Codes */
 export const SAP_ITEM_CODE_MAX_LEN = 50;
 
+// ── NFP Motor Spec-Based Item Code ───────────────────────────────────────────
+
+/** Motor Type display name → 3–4 char short code for NFP item code */
+const MOTOR_TYPE_CODE: Record<string, string> = {
+  'Induction':                    'IND',
+  'Brake Motor':                  'BRK',
+  'VFD Duty':                     'VFD',
+  'Synchronous':                  'SYN',
+  'Permanent Magnet Synchronous': 'PMS',
+  'Wound Rotor Motor':            'WRM',
+};
+
+/** Mounting display label OR bare IEC code → canonical IEC code */
+const MOUNTING_CODE: Record<string, string> = {
+  'Horizontal (B3)':    'B3',
+  'Flange Mounted (B5)':'B5',
+  'Foot + Flange (B35)':'B35',
+  'Vertical (V1)':      'V1',
+  'Vertical (V3)':      'V3',
+  'Vertical (V5)':      'V5',
+  'Vertical (V6)':      'V6',
+  // bare IEC codes accepted directly
+  'B3': 'B3', 'B5': 'B5', 'B14': 'B14', 'B35': 'B35',
+  'V1': 'V1', 'V3': 'V3', 'V5': 'V5',   'V6': 'V6',
+};
+
+/** Voltage display label OR bare numeric → numeric string for item code */
+const VOLTAGE_CODE: Record<string, string> = {
+  '230 V': '230',   '415 V': '415',   '440 V': '440',
+  '525 V': '525',   '690 V': '690',   '3300 V': '3300',
+  '6600 V': '6600', '11000 V': '11000',
+  '230': '230', '415': '415', '440': '440',
+  '525': '525', '690': '690', '3300': '3300',
+  '6600': '6600', '11000': '11000',
+};
+
+/** Frequency display label OR bare numeric → numeric string for item code */
+const FREQUENCY_CODE: Record<string, string> = {
+  '50 Hz': '50', '60 Hz': '60', '50': '50', '60': '60',
+};
+
+/**
+ * Encode an IEC motor power rating (kW) as a sort-safe P-notation string.
+ *
+ * Rules:
+ *   Whole kW  → 3-digit zero-padded integer      e.g. 15   → "015"
+ *   Sub-1 kW  → "000P{2-digit centesimal}"        e.g. 0.37 → "000P37"
+ *   Fractional ≥1 kW → "{3d}P{decimal, no trailing zeros}"
+ *                                                  e.g. 1.1  → "001P1"
+ *                                                       18.5 → "018P5"
+ *
+ * Lexicographic order equals numeric order for all standard IEC ratings.
+ */
+export function encodePowerRating(kw: string): string {
+  const num = parseFloat(kw);
+  if (isNaN(num) || num <= 0) throw new Error(`Invalid power rating: "${kw}"`);
+  if (Number.isInteger(num)) return String(num).padStart(3, '0');
+  const str    = num.toString();
+  const dotIdx = str.indexOf('.');
+  const intPart = str.slice(0, dotIdx);
+  const decPart = str.slice(dotIdx + 1);
+  return `${intPart.padStart(3, '0')}P${decPart}`;
+}
+
+/**
+ * Build the deterministic NFP Motor SAP Item Code from technical_attributes.
+ * Format: MOT-NFP-{MotorType}-{Mounting}-{Power}-{Voltage}-{Freq}-{Poles}-{Efficiency}
+ * Example: MOT-NFP-IND-B3-015-415-50-4-IE3   (32 chars)
+ *
+ * Throws a descriptive error if any required attribute is missing or unrecognised.
+ */
+export function buildNfpMotorItemCode(attrs: Record<string, unknown>): string {
+  const motorTypeRaw = (attrs.motor_type       as string | undefined)?.trim() ?? '';
+  const mountingRaw  = (attrs.mounting          as string | undefined)?.trim() ?? '';
+  const powerRaw     = (attrs.power             as string | undefined)?.trim() ?? '';
+  const voltageRaw   = (attrs.voltage           as string | undefined)?.trim() ?? '';
+  const freqRaw      = (attrs.frequency         as string | undefined)?.trim() ?? '';
+  const polesRaw     = ((attrs.num_poles ?? attrs.poles) as string | undefined)?.trim() ?? '';
+  const effRaw       = (attrs.efficiency_class  as string | undefined)?.trim() ?? '';
+
+  const motorType = MOTOR_TYPE_CODE[motorTypeRaw];
+  const mounting  = MOUNTING_CODE[mountingRaw];
+  const voltage   = VOLTAGE_CODE[voltageRaw];
+  const frequency = FREQUENCY_CODE[freqRaw];
+  const poles     = polesRaw.replace(/[^0-9]/g, '');
+  const efficiency = effRaw;
+
+  let powerCode: string | undefined;
+  try { powerCode = powerRaw ? encodePowerRating(powerRaw) : undefined; } catch { /* leave undefined */ }
+
+  const missing: string[] = [];
+  if (!motorType)  missing.push(`Motor Type ("${motorTypeRaw}" — must be one of: Induction, Brake Motor, VFD Duty, Synchronous, Permanent Magnet Synchronous, Wound Rotor Motor)`);
+  if (!mounting)   missing.push(`Mounting ("${mountingRaw}")`);
+  if (!powerCode)  missing.push(`Power Rating ("${powerRaw}")`);
+  if (!voltage)    missing.push(`Voltage ("${voltageRaw}")`);
+  if (!frequency)  missing.push(`Frequency ("${freqRaw}")`);
+  if (!poles)      missing.push('Number of Poles');
+  if (!efficiency) missing.push('Efficiency Class');
+
+  if (missing.length > 0)
+    throw new Error(`Cannot generate NFP Motor SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+
+  return `MOT-NFP-${motorType}-${mounting}-${powerCode}-${voltage}-${frequency}-${poles}-${efficiency}`;
+}
+
+/**
+ * Find or create a master_items catalog record for an NFP Motor specification.
+ * The item_code is the unique lookup key (spec-based, deterministic — no make/model).
+ */
+export async function resolveNfpMotorSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<CatalogSapResult> {
+  const itemCode = buildNfpMotorItemCode(attrs);
+  assertSapCodeLength(itemCode);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const existing = await client.query<{ id: number; item_code: string }>(
+      `SELECT id, item_code FROM master_items
+       WHERE item_type = 'catalog' AND item_code = $1
+       FOR UPDATE`,
+      [itemCode],
+    );
+
+    if (existing.rowCount && existing.rowCount > 0) {
+      await client.query('COMMIT');
+      return { masterItemId: existing.rows[0].id, sapItemCode: itemCode, reused: true };
+    }
+
+    const inserted = await client.query<{ id: number; item_code: string }>(
+      `INSERT INTO master_items
+         (item_code, description, uom, make_or_buy,
+          item_type, buy_group_id, buy_subgroup_id, created_at, updated_at)
+       VALUES ($1, $2, $3, 'Buy', 'catalog', $4, $5, NOW(), NOW())
+       RETURNING id, item_code`,
+      [itemCode, description, uomCode, groupId, subgroupId],
+    );
+
+    await client.query('COMMIT');
+    return { masterItemId: inserted.rows[0].id, sapItemCode: itemCode, reused: false };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 /**
  * Build the deterministic SAP Item Code from the 4-field identity.
  * Format: {GRP_PREFIX}-{SUB_PREFIX}-{MAKE}-{MODEL}  e.g. PMP-CEN-KSB-CPKEY 65-200

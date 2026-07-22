@@ -19,7 +19,10 @@ import crypto from 'crypto';
 import { pool } from './db';
 import { ensureAuthenticated } from './auth-middleware';
 import { applyProjectElectricalStandards, stripElectricalOverridesMeta } from './utils/electrical-override';
-import { resolveCatalogSapItemCode, groupPrefix, subgroupPrefix, buildCatalogItemCode, SAP_ITEM_CODE_MAX_LEN } from './buy-catalog-sap-service';
+import {
+  resolveCatalogSapItemCode, groupPrefix, subgroupPrefix, buildCatalogItemCode, SAP_ITEM_CODE_MAX_LEN,
+  resolveNfpMotorSapItemCode, buildNfpMotorItemCode,
+} from './buy-catalog-sap-service';
 
 /**
  * Compat shim: read the single make value from technical_attributes.
@@ -864,7 +867,10 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       // Validate Make + Model for non-raw-material groups
       const grpCodeRow = await pool.query(`SELECT code FROM buy_groups WHERE id = $1`, [buyGroupId]);
       const groupCode = grpCodeRow.rows[0]?.code as string | undefined;
-      if (groupCode && groupCode !== 'raw_materials') {
+      const sgCodeRow = await pool.query(`SELECT code FROM buy_subgroups WHERE id = $1`, [buySubgroupId]);
+      const subgroupCode = sgCodeRow.rows[0]?.code as string | undefined;
+      const isNfpMotor = groupCode === 'motors' && subgroupCode === 'non_flameproof';
+      if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor) {
         const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
         const make = readMakeScalar(attrs);
         const series = typeof attrs.preferred_series === 'string' ? attrs.preferred_series.trim() : '';
@@ -884,22 +890,31 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       let sapItemCodeValue: string | null = null;
       if (groupCode && groupCode !== 'raw_materials') {
         const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
-        const make  = readMakeScalar(attrs);
-        const model2 = String(attrs.preferred_series as string).trim();
-        const lblRow = await pool.query(
-          `SELECT bg.label AS g, bs.label AS s
-           FROM buy_groups bg, buy_subgroups bs
-           WHERE bg.id = $1 AND bs.id = $2`,
-          [buyGroupId, buySubgroupId],
-        );
-        const gLabel = (lblRow.rows[0]?.g as string) ?? '';
-        const sLabel = (lblRow.rows[0]?.s as string) ?? '';
-        const desc   = `${gLabel} — ${sLabel} — ${make} — ${model2}`.slice(0, 255);
-        const sapRes = await resolveCatalogSapItemCode(
-          pool, buyGroupId, buySubgroupId, make, model2, uomCode, desc,
-        );
-        sapMasterItemId  = sapRes.masterItemId;
-        sapItemCodeValue = sapRes.sapItemCode;
+        if (isNfpMotor) {
+          const motorTypeLabel = (attrs.motor_type as string | undefined)?.trim() ?? '';
+          const powerKw        = (attrs.power      as string | undefined)?.trim() ?? '';
+          const desc = `Non-Flameproof Motor — ${motorTypeLabel} — ${powerKw} kW`.slice(0, 255);
+          const sapRes = await resolveNfpMotorSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
+          sapMasterItemId  = sapRes.masterItemId;
+          sapItemCodeValue = sapRes.sapItemCode;
+        } else {
+          const make  = readMakeScalar(attrs);
+          const model2 = String(attrs.preferred_series as string).trim();
+          const lblRow = await pool.query(
+            `SELECT bg.label AS g, bs.label AS s
+             FROM buy_groups bg, buy_subgroups bs
+             WHERE bg.id = $1 AND bs.id = $2`,
+            [buyGroupId, buySubgroupId],
+          );
+          const gLabel = (lblRow.rows[0]?.g as string) ?? '';
+          const sLabel = (lblRow.rows[0]?.s as string) ?? '';
+          const desc   = `${gLabel} — ${sLabel} — ${make} — ${model2}`.slice(0, 255);
+          const sapRes = await resolveCatalogSapItemCode(
+            pool, buyGroupId, buySubgroupId, make, model2, uomCode, desc,
+          );
+          sapMasterItemId  = sapRes.masterItemId;
+          sapItemCodeValue = sapRes.sapItemCode;
+        }
       }
 
       // Auto line_number: max + 1 for this package
@@ -988,9 +1003,12 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
 
       // Validate Make + Model for non-raw-material groups (when technicalAttributes is being updated)
       if (b.technicalAttributes !== undefined) {
-        const grpCodeRow2 = await pool.query(`SELECT code FROM buy_groups WHERE id = $1`, [newGroupId]);
-        const groupCode2 = grpCodeRow2.rows[0]?.code as string | undefined;
-        if (groupCode2 && groupCode2 !== 'raw_materials') {
+        const grpCodeRow2  = await pool.query(`SELECT code FROM buy_groups    WHERE id = $1`, [newGroupId]);
+        const sgCodeRow2   = await pool.query(`SELECT code FROM buy_subgroups WHERE id = $1`, [newSubgroupId]);
+        const groupCode2   = grpCodeRow2.rows[0]?.code as string | undefined;
+        const subgroupCode2 = sgCodeRow2.rows[0]?.code as string | undefined;
+        const isNfpMotor2  = groupCode2 === 'motors' && subgroupCode2 === 'non_flameproof';
+        if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2) {
           const attrs2 = (b.technicalAttributes ?? {}) as Record<string, unknown>;
           const make2 = readMakeScalar(attrs2);
           const series2 = typeof attrs2.preferred_series === 'string' ? attrs2.preferred_series.trim() : '';
@@ -999,16 +1017,10 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           if (!series2) return sendValidationError(res, 'Model / Series is required for non-Raw-Material lines');
           if (series2.toUpperCase() === 'TBN') return sendValidationError(res, 'Model / Series is still TBN — finalize the model first');
         }
-      }
 
-      // Resolve SAP Item Code when technical attributes are being updated (Make/Model may have changed)
-      if (b.technicalAttributes !== undefined) {
-        const grpCodeRow3 = await pool.query(`SELECT code FROM buy_groups WHERE id = $1`, [newGroupId]);
-        const groupCode3 = grpCodeRow3.rows[0]?.code as string | undefined;
-        if (groupCode3 && groupCode3 !== 'raw_materials') {
+        // Resolve SAP Item Code (Make/Model or spec may have changed)
+        if (groupCode2 && groupCode2 !== 'raw_materials') {
           const attrs3  = (b.technicalAttributes ?? {}) as Record<string, unknown>;
-          const make3   = readMakeScalar(attrs3);
-          const model3  = String(attrs3.preferred_series as string).trim();
           const uomRow3 = await pool.query(
             `SELECT u.code FROM uom_master u
              JOIN buy_package_lines bpl ON bpl.uom_id = u.id
@@ -1016,18 +1028,29 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             [id],
           );
           const uomCode3 = (uomRow3.rows[0]?.code as string) ?? 'Nos';
-          const lblRow3  = await pool.query(
-            `SELECT bg.label AS g, bs.label AS s
-             FROM buy_groups bg, buy_subgroups bs
-             WHERE bg.id = $1 AND bs.id = $2`,
-            [newGroupId, newSubgroupId],
-          );
-          const desc3  = `${(lblRow3.rows[0]?.g as string) ?? ''} — ${(lblRow3.rows[0]?.s as string) ?? ''} — ${make3} — ${model3}`.slice(0, 255);
-          const sapRes3 = await resolveCatalogSapItemCode(
-            pool, newGroupId, newSubgroupId, make3, model3, uomCode3, desc3,
-          );
-          fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
-          fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
+          if (isNfpMotor2) {
+            const motorTypeLabel = (attrs3.motor_type as string | undefined)?.trim() ?? '';
+            const powerKw        = (attrs3.power      as string | undefined)?.trim() ?? '';
+            const desc3 = `Non-Flameproof Motor — ${motorTypeLabel} — ${powerKw} kW`.slice(0, 255);
+            const sapRes3 = await resolveNfpMotorSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+            fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
+            fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
+          } else {
+            const make3  = readMakeScalar(attrs3);
+            const model3 = String(attrs3.preferred_series as string).trim();
+            const lblRow3 = await pool.query(
+              `SELECT bg.label AS g, bs.label AS s
+               FROM buy_groups bg, buy_subgroups bs
+               WHERE bg.id = $1 AND bs.id = $2`,
+              [newGroupId, newSubgroupId],
+            );
+            const desc3  = `${(lblRow3.rows[0]?.g as string) ?? ''} — ${(lblRow3.rows[0]?.s as string) ?? ''} — ${make3} — ${model3}`.slice(0, 255);
+            const sapRes3 = await resolveCatalogSapItemCode(
+              pool, newGroupId, newSubgroupId, make3, model3, uomCode3, desc3,
+            );
+            fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
+            fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
+          }
         }
       }
 
