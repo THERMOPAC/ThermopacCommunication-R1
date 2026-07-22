@@ -2016,7 +2016,7 @@ export default function BuyPackagesPage() {
           open={lineDialog.open}
           onOpenChange={(o) => !o && setLineDialog({ open: false, pkgId: 0, pkgStatus: "", editLine: null, lock: null })}
         >
-          <DialogContent className={cn("max-h-[90vh] overflow-y-auto", (isPlatesMode || isPipesMode || isFittingsMode || isFlangesMode || isFastenersMode || isGasketsMode || isStructuralSteelMode || isCentrifugalPumpMode || isGearPumpMode || isScrewPumpMode || isMultistagePumpMode || isDosingPumpMode || isVacuumBoosterMode || isPumpSkidMode || isVacuumPumpMode || isPressureMode || isTemperatureMode || isFlowMode || isLevelMode || isControlValveMode || isSafetyValveMode || isIsolationValveMode || isOnOffValveMode || isNrvValveMode || isNeedleValveMode || isPanelMode || isCablingMode || isJunctionBoxMode || isComponentsMode || isBoughtOutMode || isCoolingTowerMode) ? "max-w-5xl" : "max-w-2xl")}>
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{lineDialog.editLine ? "Edit Line" : "Add Line"}</DialogTitle>
               <DialogDescription>
@@ -2027,9 +2027,9 @@ export default function BuyPackagesPage() {
             </DialogHeader>
             <div className="space-y-4 py-2">
 
-              {/* Group / Subgroup / UOM */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5">
+              {/* Row 1 — Group / Subgroup / UOM / Qty */}
+              <div className="grid grid-cols-6 gap-3">
+                <div className="col-span-2 space-y-1.5">
                   <Label>Group <span className="text-red-500">*</span></Label>
                   {lineDialog.lock ? (
                     <div className="h-9 px-3 flex items-center text-sm bg-muted rounded-md border font-medium">
@@ -2047,7 +2047,7 @@ export default function BuyPackagesPage() {
                     </Select>
                   )}
                 </div>
-                <div className="space-y-1.5">
+                <div className="col-span-2 space-y-1.5">
                   <Label>Subgroup <span className="text-red-500">*</span></Label>
                   {lineDialog.lock ? (
                     <div className="h-9 px-3 flex items-center text-sm bg-muted rounded-md border">
@@ -2088,6 +2088,15 @@ export default function BuyPackagesPage() {
                       {uoms.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.code} — {u.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Default Qty</Label>
+                  <Input
+                    type="number" min="1" step="1"
+                    value={lf.defaultQuantity}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    onChange={(e) => { const v = e.target.value; setLf((f) => ({ ...f, defaultQuantity: v === "" ? "" : String(Math.max(1, Math.trunc(Number(v)))) })); }}
+                  />
                 </div>
               </div>
 
@@ -2153,9 +2162,9 @@ export default function BuyPackagesPage() {
                 })()}
               </div>
 
-              {/* Installed On + Make + Model — same row */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5">
+              {/* Row 2 — Installed On / Make / Model */}
+              <div className="grid grid-cols-6 gap-3">
+                <div className="col-span-2 space-y-1.5">
                   <Label className="text-xs font-medium">Installed On</Label>
                   <Select
                     value={lf.installedOn || "_none"}
@@ -2170,7 +2179,7 @@ export default function BuyPackagesPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
+                <div className="col-span-2 space-y-1.5">
                   <Label className="text-xs font-medium">
                     Make <span className="text-red-500">*</span>
                   </Label>
@@ -2179,7 +2188,7 @@ export default function BuyPackagesPage() {
                     onChange={(val) => setLf((f) => ({ ...f, technicalAttributes: { ...f.technicalAttributes, make: val } }))}
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="col-span-2 space-y-1.5">
                   <Label className="text-xs font-medium">
                     Model <span className="text-red-500">*</span>
                   </Label>
@@ -2739,26 +2748,13 @@ export default function BuyPackagesPage() {
                 </>
               ) : (
                 <>
-                  {/* Requirement + Qty */}
-                  <div className="grid grid-cols-4 gap-3">
-                    <div className="col-span-3">
-                      <GenericReqField
-                        required
-                        value={lf.genericRequirement}
-                        placeholder="e.g. Feed Pump, Suction Strainer"
-                        onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Default Qty</Label>
-                      <Input
-                        type="number" min="1" step="1"
-                        value={lf.defaultQuantity}
-                        onWheel={(e) => e.currentTarget.blur()}
-                        onChange={(e) => { const v = e.target.value; setLf((f) => ({ ...f, defaultQuantity: v === "" ? "" : String(Math.max(1, Math.trunc(Number(v)))) })); }}
-                      />
-                    </div>
-                  </div>
+                  {/* Requirement — full width (Qty is in Row 1) */}
+                  <GenericReqField
+                    required
+                    value={lf.genericRequirement}
+                    placeholder="e.g. Feed Pump, Suction Strainer"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
 
                   {/* Default Specification */}
                   <div className="space-y-1.5">
@@ -2790,33 +2786,39 @@ export default function BuyPackagesPage() {
                 return warns.length > 0 ? <WarningPanel warnings={warns} /> : null;
               })()}
 
-              {/* Required Flags — inline strip */}
-              <div className="flex flex-wrap gap-x-5 gap-y-1.5 py-1">
-                {[
-                  { key: "selectionRequired",   label: "Selection Required" },
-                  { key: "datasheetRequired",   label: "Datasheet Required" },
-                  { key: "inspectionRequired",  label: "Inspection Required" },
-                  { key: "certificateRequired", label: "Certificate Required" },
-                  { key: "complianceRequired",  label: "Compliance Required" },
-                ].map((flag) => (
-                  <div key={flag.key} className="flex items-center gap-1.5">
-                    <Checkbox
-                      id={`fl-${flag.key}`}
-                      checked={lf[flag.key as keyof typeof lf] as boolean}
-                      onCheckedChange={(v) => setLf((f) => ({ ...f, [flag.key]: Boolean(v) }))}
-                    />
-                    <Label htmlFor={`fl-${flag.key}`} className="text-xs font-normal cursor-pointer">{flag.label}</Label>
+              {/* Row — Required Flags + Notes side by side */}
+              <div className="grid grid-cols-6 gap-3">
+                <div className="col-span-2 rounded-md border p-3 bg-muted/30 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Required Flags</p>
+                  <div className="space-y-1.5">
+                    {[
+                      { key: "selectionRequired",   label: "Selection Required" },
+                      { key: "datasheetRequired",   label: "Datasheet Required" },
+                      { key: "inspectionRequired",  label: "Inspection Required" },
+                      { key: "certificateRequired", label: "Certificate Required" },
+                      { key: "complianceRequired",  label: "Compliance Required" },
+                    ].map((flag) => (
+                      <div key={flag.key} className="flex items-center gap-1.5">
+                        <Checkbox
+                          id={`fl-${flag.key}`}
+                          checked={lf[flag.key as keyof typeof lf] as boolean}
+                          onCheckedChange={(v) => setLf((f) => ({ ...f, [flag.key]: Boolean(v) }))}
+                        />
+                        <Label htmlFor={`fl-${flag.key}`} className="text-xs font-normal cursor-pointer">{flag.label}</Label>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+                <div className="col-span-4 space-y-1.5">
+                  <Label className="text-xs font-medium">Notes</Label>
+                  <Textarea
+                    placeholder="Notes (optional)…"
+                    value={lf.notes}
+                    onChange={(e) => setLf((f) => ({ ...f, notes: e.target.value }))}
+                    rows={5}
+                  />
+                </div>
               </div>
-
-              {/* Notes */}
-              <Textarea
-                placeholder="Notes (optional)…"
-                value={lf.notes}
-                onChange={(e) => setLf((f) => ({ ...f, notes: e.target.value }))}
-                rows={2}
-              />
             </div>
             <DialogFooter>
               {lineDialog.editLine &&

@@ -2108,7 +2108,7 @@ export default function EpcBuyListControlPage() {
       {/* ── Line Add/Edit Dialog ────────────────────────────────────────────────── */}
       {lineDialog && (
         <Dialog open={lineDialog.open} onOpenChange={() => setLineDialog(null)}>
-          <DialogContent className="max-w-2xl flex flex-col gap-0 p-0 max-h-[90vh] overflow-hidden">
+          <DialogContent className="max-w-5xl flex flex-col gap-0 p-0 max-h-[90vh] overflow-hidden">
             <div className="px-6 pt-6 pb-4 border-b shrink-0">
               <DialogHeader>
                 <DialogTitle>{lineDialog.editLine ? "Edit Line" : "Add Line"}</DialogTitle>
@@ -2130,63 +2130,68 @@ export default function EpcBuyListControlPage() {
                 </span>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Buy Group <span className="text-red-500">*</span></Label>
-                <Select value={lf.buyGroupId} onValueChange={v => {
-                  const NOS_GROUPS = new Set(["pumps", "motors", "instruments", "valves"]);
-                  const grpCode = (groups as any[]).find((g: any) => String(g.id) === v)?.code ?? "";
-                  const nosUom  = (uoms   as any[]).find((u: any) => u.code?.toUpperCase() === "NOS");
-                  setLf(f => ({
-                    ...f, buyGroupId: v, buySubgroupId: "",
-                    ...(NOS_GROUPS.has(grpCode) && nosUom ? { uomId: String(nosUom.id) } : { uomId: "" }),
-                  }));
-                }}>
-                  <SelectTrigger><SelectValue placeholder="Select group…" /></SelectTrigger>
-                  <SelectContent>
-                    {(groups as any[]).map((g: any) => (
-                      <SelectItem key={g.id} value={String(g.id)}>{g.code} — {g.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="space-y-4">
+              {/* Row 1 — Classification */}
+              <div className="grid grid-cols-6 gap-3">
+                <div className="col-span-2 space-y-1.5">
+                  <Label>Buy Group <span className="text-red-500">*</span></Label>
+                  <Select value={lf.buyGroupId} onValueChange={v => {
+                    const NOS_GROUPS = new Set(["pumps", "motors", "instruments", "valves"]);
+                    const grpCode = (groups as any[]).find((g: any) => String(g.id) === v)?.code ?? "";
+                    const nosUom  = (uoms   as any[]).find((u: any) => u.code?.toUpperCase() === "NOS");
+                    setLf(f => ({
+                      ...f, buyGroupId: v, buySubgroupId: "",
+                      ...(NOS_GROUPS.has(grpCode) && nosUom ? { uomId: String(nosUom.id) } : { uomId: "" }),
+                    }));
+                  }}>
+                    <SelectTrigger><SelectValue placeholder="Select group…" /></SelectTrigger>
+                    <SelectContent>
+                      {(groups as any[]).map((g: any) => (
+                        <SelectItem key={g.id} value={String(g.id)}>{g.code} — {g.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label>Buy Subgroup <span className="text-red-500">*</span></Label>
+                  <Select value={lf.buySubgroupId} onValueChange={v => {
+                    const NOS_GROUPS = new Set(["pumps", "motors", "instruments", "valves"]);
+                    const nosUom = (uoms as any[]).find((u: any) => u.code?.toUpperCase() === "NOS");
+                    setLf(f => ({
+                      ...f, buySubgroupId: v,
+                      technicalAttributes: currentGroupCode === "instruments" ? { ...INSTRUMENT_CABLE_GLAND_DEFAULTS } : {},
+                      ...(NOS_GROUPS.has(currentGroupCode ?? "") && nosUom ? { uomId: String(nosUom.id) } : {}),
+                    }));
+                  }} disabled={!lf.buyGroupId}>
+                    <SelectTrigger><SelectValue placeholder="Select subgroup…" /></SelectTrigger>
+                    <SelectContent>
+                      {(subgroups as any[]).map((s: any) => (
+                        <SelectItem key={s.id} value={String(s.id)}>{s.code} — {s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>UOM <span className="text-red-500">*</span></Label>
+                  <Select value={lf.uomId} onValueChange={v => setLf(f => ({ ...f, uomId: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select UOM…" /></SelectTrigger>
+                    <SelectContent>
+                      {(uoms as any[]).map((u: any) => (
+                        <SelectItem key={u.id} value={String(u.id)}>{u.code} — {u.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Quantity</Label>
+                  <Input type="number" min="1" step="1" value={lf.quantity}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    onChange={e => { const v = e.target.value; setLf(f => ({ ...f, quantity: v === "" ? "" : String(Math.max(1, Math.trunc(Number(v)))) })); }} />
+                </div>
               </div>
+
+              {/* Row 2 — Generic Requirement */}
               <div className="space-y-1.5">
-                <Label>Buy Subgroup <span className="text-red-500">*</span></Label>
-                <Select value={lf.buySubgroupId} onValueChange={v => {
-                  const NOS_GROUPS = new Set(["pumps", "motors", "instruments", "valves"]);
-                  const nosUom = (uoms as any[]).find((u: any) => u.code?.toUpperCase() === "NOS");
-                  setLf(f => ({
-                    ...f, buySubgroupId: v,
-                    technicalAttributes: currentGroupCode === "instruments" ? { ...INSTRUMENT_CABLE_GLAND_DEFAULTS } : {},
-                    ...(NOS_GROUPS.has(currentGroupCode ?? "") && nosUom ? { uomId: String(nosUom.id) } : {}),
-                  }));
-                }} disabled={!lf.buyGroupId}>
-                  <SelectTrigger><SelectValue placeholder="Select subgroup…" /></SelectTrigger>
-                  <SelectContent>
-                    {(subgroups as any[]).map((s: any) => (
-                      <SelectItem key={s.id} value={String(s.id)}>{s.code} — {s.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>UOM <span className="text-red-500">*</span></Label>
-                <Select value={lf.uomId} onValueChange={v => setLf(f => ({ ...f, uomId: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select UOM…" /></SelectTrigger>
-                  <SelectContent>
-                    {(uoms as any[]).map((u: any) => (
-                      <SelectItem key={u.id} value={String(u.id)}>{u.code} — {u.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Quantity</Label>
-                <Input type="number" min="1" step="1" value={lf.quantity}
-                  onWheel={(e) => e.currentTarget.blur()}
-                  onChange={e => { const v = e.target.value; setLf(f => ({ ...f, quantity: v === "" ? "" : String(Math.max(1, Math.trunc(Number(v)))) })); }} />
-              </div>
-              <div className="col-span-2 space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground">
                   Generic Requirement <span className="text-red-500">*</span>{" "}
                   <span className="text-[10px] font-normal">(Item Description / SAP ItemName)</span>
@@ -2194,318 +2199,102 @@ export default function EpcBuyListControlPage() {
                 <Input placeholder="e.g. Feed Pump, Suction Strainer"
                   value={lf.genericRequirement} onChange={e => setLf(f => ({ ...f, genericRequirement: e.target.value }))} />
               </div>
-              {currentSubgroupCode && PUMP_SUBGROUP_CODES.has(currentSubgroupCode) ? (
-                <div className="col-span-2">
-                  {currentSubgroupCode === "centrifugal" && (
-                    <CentrifugalPumpAttrsForm
-                      attrs={lf.technicalAttributes}
-                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                    />
-                  )}
-                  {currentSubgroupCode === "gear" && (
-                    <GearPumpAttrsForm
-                      attrs={lf.technicalAttributes}
-                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                    />
-                  )}
-                  {currentSubgroupCode === "screw" && (
-                    <ScrewPumpAttrsForm
-                      attrs={lf.technicalAttributes}
-                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                    />
-                  )}
-                  {currentSubgroupCode === "multistage" && (
-                    <MultistagePumpAttrsForm
-                      attrs={lf.technicalAttributes}
-                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                    />
-                  )}
-                  {currentSubgroupCode === "dosing_metering" && (
-                    <DosingPumpAttrsForm
-                      attrs={lf.technicalAttributes}
-                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                    />
-                  )}
-                  {currentSubgroupCode === "vacuum_boosters" && (
-                    <VacuumBoosterAttrsForm
-                      attrs={lf.technicalAttributes}
-                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                    />
-                  )}
-                  {currentSubgroupCode === "pump_skid" && (
-                    <PumpSkidAttrsForm
-                      attrs={lf.technicalAttributes}
-                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                    />
-                  )}
-                </div>
-              ) : (currentSubgroupCode === "non_flameproof" || currentSubgroupCode === "flameproof") ? (
-                <div className="col-span-2">
-                  <MotorAttrsForm
-                    attrs={lf.technicalAttributes}
-                    isFlameproof={currentSubgroupCode === "flameproof"}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "pressure" ? (
-                <div className="col-span-2">
-                  <PressureAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "temperature" ? (
-                <div className="col-span-2">
-                  <TemperatureAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "flow" ? (
-                <div className="col-span-2">
-                  <FlowAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "level" ? (
-                <div className="col-span-2">
-                  <LevelAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "control" ? (
-                <div className="col-span-2">
-                  <ControlValveAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "safety" ? (
-                <div className="col-span-2">
-                  <SafetyValveAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "on_off" ? (
-                <div className="col-span-2">
-                  <OnOffValveAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "nrv" ? (
-                <div className="col-span-2">
-                  <NrvValveAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "needle" ? (
-                <div className="col-span-2">
-                  <NeedleValveAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "isolation" ? (
-                <div className="col-span-2">
-                  <IsolationValveAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "components" ? (
-                <div className="col-span-2">
-                  <ComponentsAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                    projectVoltage={selectedProject?.electrical_voltage ?? undefined}
-                    projectFrequency={selectedProject?.electrical_frequency ?? undefined}
-                  />
-                </div>
-              ) : currentSubgroupCode === "panels" ? (
-                <div className="col-span-2">
-                  <PanelAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                    projectVoltage={selectedProject?.electrical_voltage ?? undefined}
-                    projectFrequency={selectedProject?.electrical_frequency ?? undefined}
-                  />
-                </div>
-              ) : currentSubgroupCode === "cabling" ? (
-                <div className="col-span-2">
-                  <CablingAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "junction_box" ? (
-                <div className="col-span-2">
-                  <JunctionBoxAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "cooling_tower" ? (
-                <div className="col-span-2">
-                  <CoolingTowerAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : (currentSubgroupCode === "general" && currentGroupCode === "bought_out_packages") ? (
-                <div className="col-span-2">
-                  <BoughtOutAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "plates" ? (
-                <div className="col-span-2">
-                  <PlatesAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "pipes" ? (
-                <div className="col-span-2">
-                  <PipesAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "fittings" ? (
-                <div className="col-span-2">
-                  <FittingsAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "flanges" ? (
-                <div className="col-span-2">
-                  <FlangesAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "fasteners" ? (
-                <div className="col-span-2">
-                  <FastenersAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "gaskets" ? (
-                <div className="col-span-2">
-                  <GasketsAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : currentSubgroupCode === "structural_steel" ? (
-                <div className="col-span-2">
-                  <StructuralSteelAttrsForm
-                    attrs={lf.technicalAttributes}
-                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                  />
-                </div>
-              ) : (
-                <TechnicalAttrsSection
-                  subgroupCode={currentSubgroupCode}
-                  attrs={lf.technicalAttributes}
-                  onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
-                />
-              )}
-              {/* Tag No — hidden for Raw Materials, info box when qty-split */}
-              {!isRawMaterials && !isQtySplit && (
-                <div className="space-y-1.5">
-                  <Label className="flex items-center gap-1.5">
-                    Tag No
-                    {tagAutoFilled && (
-                      <span className="text-[10px] font-normal text-blue-600 bg-blue-50 border border-blue-200 px-1 py-0.5 rounded">
-                        auto
-                      </span>
-                    )}
-                    {tagFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+              {/* Row 3 — Identity: Installed On / Make / Model */}
+              <div className="grid grid-cols-6 gap-3">
+                <div className="col-span-2 space-y-1.5">
+                  <Label className="text-xs font-medium">
+                    Installed On {isTaggable && !isRawMaterials && <span className="text-red-500">*</span>}
                   </Label>
-                  <Input
-                    placeholder="e.g. P-101A"
-                    value={lf.tagNo}
-                    onChange={e => { setTagAutoFilled(false); setLf(f => ({ ...f, tagNo: e.target.value })); }}
-                    className={tagDuplicateWarning ? "border-amber-400 focus-visible:ring-amber-400" : ""}
-                  />
-                  {tagDuplicateWarning && (
-                    <p className="text-xs text-amber-600 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3 flex-shrink-0" />
-                      {tagDuplicateWarning}
-                    </p>
+                  <Select
+                    value={lf.installedOn || "_none"}
+                    onValueChange={v => setLf(f => ({ ...f, installedOn: v === "_none" ? "" : v }))}
+                  >
+                    <SelectTrigger className={isTaggable && !isRawMaterials && !lf.installedOn ? 'border-red-300' : ''}>
+                      <SelectValue placeholder="None / Not specified" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {!(isTaggable && !isRawMaterials) && <SelectItem value="_none">None / Not specified</SelectItem>}
+                      {SKID_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  {isTaggable && !isRawMaterials && !lf.installedOn && (
+                    <p className="text-[11px] text-red-600">Required — determines tag number range (101=Skid-1, 201=Skid-2 …)</p>
                   )}
                 </div>
-              )}
-              {!isRawMaterials && isQtySplit && (
-                <div className="space-y-1.5">
-                  <Label>Tag Numbers</Label>
-                  <div className="rounded-md border bg-blue-50 border-blue-200 p-3">
-                    {tagFetching ? (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Loader2 className="h-3 w-3 animate-spin" /> Generating preview…
-                      </div>
-                    ) : tagPreview.length > 0 ? (
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-blue-800">{lineQty} tagged lines will be created:</p>
-                        <p className="text-xs font-mono text-blue-700">{tagPreview.join(' · ')}</p>
-                        <p className="text-xs text-blue-600 mt-1">Each unit becomes 1 separate line with its own tag, datasheet, and procurement record.</p>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">Tags will be auto-generated for each unit.</p>
-                    )}
-                  </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label className="text-xs font-medium">Make <span className="text-red-500">*</span></Label>
+                  <MakeCombobox
+                    value={(lf.technicalAttributes?.make as string) ?? ""}
+                    onChange={val => setLf(f => ({ ...f, technicalAttributes: { ...f.technicalAttributes, make: val } }))}
+                  />
                 </div>
-              )}
-              {isRawMaterials && <div />}
-              <div className="space-y-1.5">
-                <Label>Equipment Reference</Label>
-                <Input placeholder="e.g. EQ-2024-001" value={lf.equipmentReference} onChange={e => setLf(f => ({ ...f, equipmentReference: e.target.value }))} />
+                <div className="col-span-2 space-y-1.5">
+                  <Label className="text-xs font-medium">Model <span className="text-red-500">*</span></Label>
+                  <Input
+                    value={lf.model}
+                    onChange={e => setLf(f => ({ ...f, model: e.target.value }))}
+                    placeholder="e.g. TBN, 3100, NHM-50…"
+                  />
+                </div>
               </div>
-              <div className="col-span-2 space-y-1.5">
-                <Label>Service Description</Label>
-                <Input placeholder="e.g. Cooling Water Pump"
-                  value={lf.serviceDescription} onChange={e => setLf(f => ({ ...f, serviceDescription: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Required Date</Label>
-                <Input type="date" value={lf.requiredDate} onChange={e => setLf(f => ({ ...f, requiredDate: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Specification</Label>
-                <Input value={lf.specification} onChange={e => setLf(f => ({ ...f, specification: e.target.value }))} />
-              </div>
-              <div className="col-span-2 space-y-2 rounded-md border p-3 bg-muted/30">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Required Flags</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { key: "selectionRequired",   label: "Selection Required" },
-                    { key: "datasheetRequired",   label: "Datasheet Required" },
-                    { key: "inspectionRequired",  label: "Inspection Required" },
-                    { key: "certificateRequired", label: "Certificate Required" },
-                    { key: "complianceRequired",  label: "Compliance Required" },
-                  ].map(flag => (
-                    <div key={flag.key} className="flex items-center gap-2">
-                      <Checkbox
-                        id={`lflag-${flag.key}`}
-                        checked={lf[flag.key as keyof typeof lf] as boolean}
-                        onCheckedChange={v => setLf(f => ({ ...f, [flag.key]: Boolean(v) }))}
+
+              {/* Row 3B — Tagging & Scheduling */}
+              <div className="grid grid-cols-6 gap-3">
+                <div className="col-span-2 space-y-1.5">
+                  {!isRawMaterials && !isQtySplit && (
+                    <>
+                      <Label className="flex items-center gap-1.5">
+                        Tag No
+                        {tagAutoFilled && (
+                          <span className="text-[10px] font-normal text-blue-600 bg-blue-50 border border-blue-200 px-1 py-0.5 rounded">auto</span>
+                        )}
+                        {tagFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                      </Label>
+                      <Input
+                        placeholder="e.g. P-101A"
+                        value={lf.tagNo}
+                        onChange={e => { setTagAutoFilled(false); setLf(f => ({ ...f, tagNo: e.target.value })); }}
+                        className={tagDuplicateWarning ? "border-amber-400 focus-visible:ring-amber-400" : ""}
                       />
-                      <Label htmlFor={`lflag-${flag.key}`} className="text-xs">{flag.label}</Label>
-                    </div>
-                  ))}
+                      {tagDuplicateWarning && (
+                        <p className="text-xs text-amber-600 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3 flex-shrink-0" />{tagDuplicateWarning}
+                        </p>
+                      )}
+                    </>
+                  )}
+                  {!isRawMaterials && isQtySplit && (
+                    <>
+                      <Label>Tag Numbers</Label>
+                      <div className="rounded-md border bg-blue-50 border-blue-200 p-2">
+                        {tagFetching ? (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Generating preview…
+                          </div>
+                        ) : tagPreview.length > 0 ? (
+                          <div className="space-y-0.5">
+                            <p className="text-xs font-medium text-blue-800">{lineQty} tagged lines:</p>
+                            <p className="text-xs font-mono text-blue-700 break-all">{tagPreview.join(' · ')}</p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Tags auto-generated per unit.</p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label>Equipment Reference</Label>
+                  <Input placeholder="e.g. EQ-2024-001" value={lf.equipmentReference} onChange={e => setLf(f => ({ ...f, equipmentReference: e.target.value }))} />
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label>Required Date</Label>
+                  <Input type="date" value={lf.requiredDate} onChange={e => setLf(f => ({ ...f, requiredDate: e.target.value }))} />
                 </div>
               </div>
-              {/* SAP Item Code preview */}
-              <div className="col-span-2 space-y-1.5">
+
+              {/* SAP Item Code — sticky */}
+              <div className="sticky top-0 z-10 bg-background pb-1 pt-0.5 -mx-1 px-1 border-b border-transparent space-y-1.5" style={{ backdropFilter: "blur(4px)" }}>
                 <Label className="flex items-center gap-1.5 text-sm font-medium">
                   SAP Item Code
                   <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-normal">
@@ -2559,50 +2348,272 @@ export default function EpcBuyListControlPage() {
                 })()}
               </div>
 
-              <div className={`rounded-md border p-3 space-y-1.5 ${isTaggable && !isRawMaterials ? 'border-blue-400 bg-blue-50' : 'border-blue-200 bg-blue-50'}`}>
-                <Label className="text-blue-800 font-semibold text-xs uppercase tracking-wide">
-                  Installed On {isTaggable && !isRawMaterials && <span className="text-red-500">*</span>}
-                </Label>
-                <Select
-                  value={lf.installedOn || "_none"}
-                  onValueChange={v => setLf(f => ({ ...f, installedOn: v === "_none" ? "" : v }))}
-                >
-                  <SelectTrigger className={`bg-white ${isTaggable && !isRawMaterials && !lf.installedOn ? 'border-red-300' : 'border-blue-200'}`}>
-                    <SelectValue placeholder="None / Not specified" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {!(isTaggable && !isRawMaterials) && <SelectItem value="_none">None / Not specified</SelectItem>}
-                    {SKID_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                {isTaggable && !isRawMaterials && !lf.installedOn && (
-                  <p className="text-[11px] text-red-600">Required — determines tag number range (101=Skid-1, 201=Skid-2 …)</p>
-                )}
-              </div>
-              <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 space-y-1.5">
-                <Label className="text-emerald-800 font-semibold text-xs uppercase tracking-wide">
-                  Make <span className="text-red-500">*</span>
-                </Label>
-                <MakeCombobox
-                  value={(lf.technicalAttributes?.make as string) ?? ""}
-                  onChange={val => setLf(f => ({ ...f, technicalAttributes: { ...f.technicalAttributes, make: val } }))}
-                  triggerClassName="bg-white border-emerald-200"
+              {/* Technical Attrs — full width */}
+              {currentSubgroupCode && PUMP_SUBGROUP_CODES.has(currentSubgroupCode) ? (
+                <div>
+                  {currentSubgroupCode === "centrifugal" && (
+                    <CentrifugalPumpAttrsForm
+                      attrs={lf.technicalAttributes}
+                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    />
+                  )}
+                  {currentSubgroupCode === "gear" && (
+                    <GearPumpAttrsForm
+                      attrs={lf.technicalAttributes}
+                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    />
+                  )}
+                  {currentSubgroupCode === "screw" && (
+                    <ScrewPumpAttrsForm
+                      attrs={lf.technicalAttributes}
+                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    />
+                  )}
+                  {currentSubgroupCode === "multistage" && (
+                    <MultistagePumpAttrsForm
+                      attrs={lf.technicalAttributes}
+                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    />
+                  )}
+                  {currentSubgroupCode === "dosing_metering" && (
+                    <DosingPumpAttrsForm
+                      attrs={lf.technicalAttributes}
+                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    />
+                  )}
+                  {currentSubgroupCode === "vacuum_boosters" && (
+                    <VacuumBoosterAttrsForm
+                      attrs={lf.technicalAttributes}
+                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    />
+                  )}
+                  {currentSubgroupCode === "pump_skid" && (
+                    <PumpSkidAttrsForm
+                      attrs={lf.technicalAttributes}
+                      onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    />
+                  )}
+                </div>
+              ) : (currentSubgroupCode === "non_flameproof" || currentSubgroupCode === "flameproof") ? (
+                <div>
+                  <MotorAttrsForm
+                    attrs={lf.technicalAttributes}
+                    isFlameproof={currentSubgroupCode === "flameproof"}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "pressure" ? (
+                <div>
+                  <PressureAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "temperature" ? (
+                <div>
+                  <TemperatureAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "flow" ? (
+                <div>
+                  <FlowAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "level" ? (
+                <div>
+                  <LevelAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "control" ? (
+                <div>
+                  <ControlValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "safety" ? (
+                <div>
+                  <SafetyValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "on_off" ? (
+                <div>
+                  <OnOffValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "nrv" ? (
+                <div>
+                  <NrvValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "needle" ? (
+                <div>
+                  <NeedleValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "isolation" ? (
+                <div>
+                  <IsolationValveAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "components" ? (
+                <div>
+                  <ComponentsAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    projectVoltage={selectedProject?.electrical_voltage ?? undefined}
+                    projectFrequency={selectedProject?.electrical_frequency ?? undefined}
+                  />
+                </div>
+              ) : currentSubgroupCode === "panels" ? (
+                <div>
+                  <PanelAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                    projectVoltage={selectedProject?.electrical_voltage ?? undefined}
+                    projectFrequency={selectedProject?.electrical_frequency ?? undefined}
+                  />
+                </div>
+              ) : currentSubgroupCode === "cabling" ? (
+                <div>
+                  <CablingAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "junction_box" ? (
+                <div>
+                  <JunctionBoxAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "cooling_tower" ? (
+                <div>
+                  <CoolingTowerAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : (currentSubgroupCode === "general" && currentGroupCode === "bought_out_packages") ? (
+                <div>
+                  <BoughtOutAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "plates" ? (
+                <div>
+                  <PlatesAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "pipes" ? (
+                <div>
+                  <PipesAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "fittings" ? (
+                <div>
+                  <FittingsAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "flanges" ? (
+                <div>
+                  <FlangesAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "fasteners" ? (
+                <div>
+                  <FastenersAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "gaskets" ? (
+                <div>
+                  <GasketsAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : currentSubgroupCode === "structural_steel" ? (
+                <div>
+                  <StructuralSteelAttrsForm
+                    attrs={lf.technicalAttributes}
+                    onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
+                  />
+                </div>
+              ) : (
+                <TechnicalAttrsSection
+                  subgroupCode={currentSubgroupCode}
+                  attrs={lf.technicalAttributes}
+                  onChange={ta => setLf(f => ({ ...f, technicalAttributes: ta }))}
                 />
+              )}
+              {/* Row 6 — Service Description + Specification */}
+              <div className="grid grid-cols-6 gap-3">
+                <div className="col-span-4 space-y-1.5">
+                  <Label>Service Description</Label>
+                  <Input placeholder="e.g. Cooling Water Pump"
+                    value={lf.serviceDescription} onChange={e => setLf(f => ({ ...f, serviceDescription: e.target.value }))} />
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label>Specification</Label>
+                  <Input value={lf.specification} onChange={e => setLf(f => ({ ...f, specification: e.target.value }))} />
+                </div>
               </div>
-              <div className="rounded-md border border-violet-200 bg-violet-50 p-3 space-y-1.5">
-                <Label className="text-violet-800 font-semibold text-xs uppercase tracking-wide">
-                  Model <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  value={lf.model}
-                  onChange={e => setLf(f => ({ ...f, model: e.target.value }))}
-                  placeholder="e.g. TBN, 3100, NHM-50…"
-                  className="bg-white border-violet-200"
-                />
-              </div>
-              <div className="col-span-2 space-y-1.5">
-                <Label>Notes</Label>
-                <Textarea value={lf.notes} onChange={e => setLf(f => ({ ...f, notes: e.target.value }))} rows={2} />
+
+              {/* Row 7 — Required Flags + Notes */}
+              <div className="grid grid-cols-6 gap-3">
+                <div className="col-span-3 rounded-md border p-3 bg-muted/30 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Required Flags</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { key: "selectionRequired",   label: "Selection Required" },
+                      { key: "datasheetRequired",   label: "Datasheet Required" },
+                      { key: "inspectionRequired",  label: "Inspection Required" },
+                      { key: "certificateRequired", label: "Certificate Required" },
+                      { key: "complianceRequired",  label: "Compliance Required" },
+                    ].map(flag => (
+                      <div key={flag.key} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`lflag-${flag.key}`}
+                          checked={lf[flag.key as keyof typeof lf] as boolean}
+                          onCheckedChange={v => setLf(f => ({ ...f, [flag.key]: Boolean(v) }))}
+                        />
+                        <Label htmlFor={`lflag-${flag.key}`} className="text-xs">{flag.label}</Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="col-span-3 space-y-1.5">
+                  <Label>Notes</Label>
+                  <Textarea value={lf.notes} onChange={e => setLf(f => ({ ...f, notes: e.target.value }))} rows={5} />
+                </div>
               </div>
             </div>
             </div>
