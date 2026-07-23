@@ -1145,7 +1145,7 @@ const OO_COMMON_OPTS = {
   bonnet_type_globe:   ["Standard","Bellows Sealed","Extended Bonnet"],
   flow_direction:      ["Flow to Open","Flow to Close"],
   packing:             ["PTFE","Graphite"],
-  valve_design:        ["Concentric (Centric)","Double Eccentric (High Performance)","Triple Eccentric"],
+  valve_design:        ["Concentric","Double Eccentric","Triple Eccentric"],
   disc_material:       ["CI","CS","SS304","SS316","Ni-Al Bronze","Hastelloy C"],
   seat_liner:          ["EPDM","NBR","PTFE","Viton (FKM)","Silicone"],
   stem_material:       ["SS304","SS316","Duplex SS"],
@@ -1154,7 +1154,8 @@ const OO_COMMON_OPTS = {
   plug_port_config:    ["2-Way","3-Way"],
   sleeve_material:     ["PTFE","RPTFE","Neoprene","Kel-F"],
   diaphragm_material:  ["EPDM","Natural Rubber","PTFE","Butyl Rubber","Neoprene"],
-  body_design:         ["Weir Type","Straight-Through"],
+  body_design:         ["Weir Type","Straight Through"],
+  solenoid_voltage:    ["24 VDC","48 VDC","110 VAC","220 VAC"],
   body_lining:         ["Unlined","PTFE Lined","Rubber Lined","Glass Lined"],
   valve_std_ball:      ["API 6D","API 608","ISO 17292","EN 1983","ASME B16.34","ISO 5208"],
   valve_std_gate:      ["API 600","ASME B16.34","EN 13709","ISO 5208"],
@@ -1336,7 +1337,7 @@ const _OOV_SGLB: Record<string, string> = {
   'SS316': 'SS316', 'SS304': 'SS304', 'Stellite Faced': 'STLT', 'Hardened': 'HSS', 'PTFE Insert': 'PTFE',
 };
 const _OOV_DES: Record<string, string> = {
-  'Concentric (Centric)': 'C', 'Double Eccentric (High Performance)': 'D', 'Triple Eccentric': 'T',
+  'Concentric': 'C', 'Double Eccentric': 'D', 'Triple Eccentric': 'T',
 };
 const _OOV_DISC: Record<string, string> = {
   'CI': 'CI', 'CS': 'CS', 'SS304': 'SS304', 'SS316': 'SS316', 'Ni-Al Bronze': 'NAB', 'Hastelloy C': 'HC276',
@@ -1353,7 +1354,7 @@ const _OOV_SLV: Record<string, string> = {
 const _OOV_DPH: Record<string, string> = {
   'EPDM': 'EPDM', 'Natural Rubber': 'NR', 'PTFE': 'PTFE', 'Butyl Rubber': 'BUT', 'Neoprene': 'NEO',
 };
-const _OOV_BDS: Record<string, string> = { 'Weir Type': 'WR', 'Straight-Through': 'ST' };
+const _OOV_BDS: Record<string, string> = { 'Weir Type': 'WT', 'Straight Through': 'ST' };
 
 function _oovAct(actR: string, failR: string): string {
   const a = _OOV_ACT[actR]; const f = _OOV_FAIL[failR];
@@ -1701,15 +1702,8 @@ export function OnOffValveAttrsForm({
           {isActuated ? renderField("fail_action","Fail Action",OO_COMMON_OPTS.fail_action, true) : <div />}
           {renderField("end_connection","End Connection", OO_COMMON_OPTS.end_connection,  true)}
           {renderField("body_material", "Body Material",  OO_COMMON_OPTS.body_material,   true)}
-          {isActuated ? renderField("limit_switch",     "Limit Switch",     OO_COMMON_OPTS.yes_no) : <div />}
-          {isActuated ? (
-            <div className="space-y-1.5">
-              <Label className="text-xs">Solenoid Voltage</Label>
-              <Input className="h-8 text-sm" placeholder="e.g. 24V DC"
-                value={(attrs.solenoid_voltage as string) ?? ""}
-                onChange={(e) => set("solenoid_voltage", e.target.value)} />
-            </div>
-          ) : <div />}
+          {isActuated ? renderField("limit_switch",      "Limit Switch",     OO_COMMON_OPTS.yes_no) : <div />}
+          {isActuated ? renderField("solenoid_voltage", "Solenoid Voltage", OO_COMMON_OPTS.solenoid_voltage) : <div />}
         </SectionCard>
       )}
 

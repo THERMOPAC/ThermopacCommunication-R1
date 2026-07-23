@@ -1063,9 +1063,9 @@ const OOV_SEAT_GLOBE_CODE: Record<string, string> = {
 };
 
 const OOV_DESIGN_CODE: Record<string, string> = {
-  'Concentric (Centric)':               'C',
-  'Double Eccentric (High Performance)': 'D',
-  'Triple Eccentric':                    'T',
+  'Concentric':       'C',
+  'Double Eccentric': 'D',
+  'Triple Eccentric': 'T',
 };
 
 const OOV_DISC_CODE: Record<string, string> = {
@@ -1107,8 +1107,8 @@ const OOV_DIAPHRAGM_CODE: Record<string, string> = {
 };
 
 const OOV_BODY_DESIGN_CODE: Record<string, string> = {
-  'Weir Type':        'WR',
-  'Straight-Through': 'ST',
+  'Weir Type':       'WT',
+  'Straight Through': 'ST',
 };
 
 function oovActSuffix(actuationRaw: string, failRaw: string): string {
