@@ -83,6 +83,7 @@ import {
   buildOnOffValveRequirement, buildIsolationValveRequirement,
   buildNrvValveRequirement, buildNeedleValveRequirement,
   buildIsoValvePreviewCode, buildCtrlValvePreviewCode, buildSafetyValvePreviewCode,
+  buildOnOffValvePreviewCode,
 } from "@/components/valve-attrs-forms";
 
 // ── Role helpers ──────────────────────────────────────────────────────────────
@@ -1399,6 +1400,8 @@ export default function BuyPackagesPage() {
           { toast({ title: "Stem Type is required for Gate Valve", variant: "destructive" }); return; }
         if (!(ta.wedge_type as string)?.trim())
           { toast({ title: "Wedge Type is required for Gate Valve", variant: "destructive" }); return; }
+        if (!(ta.gate_material as string)?.trim())
+          { toast({ title: "Gate/Wedge Material is required for Gate Valve", variant: "destructive" }); return; }
       } else if (ooType.includes("globe")) {
         if (!(ta.port_type as string)?.trim())
           { toast({ title: "Port Type is required for Globe Valve", variant: "destructive" }); return; }
@@ -1418,6 +1421,8 @@ export default function BuyPackagesPage() {
           { toast({ title: "Plug Type is required for Plug Valve", variant: "destructive" }); return; }
         if (!(ta.plug_port_config as string)?.trim())
           { toast({ title: "Port Configuration is required for Plug Valve", variant: "destructive" }); return; }
+        if ((ta.plug_type as string)?.trim() === "Non-Lubricated (Sleeved)" && !(ta.sleeve_material as string)?.trim())
+          { toast({ title: "Sleeve Material is required for Non-Lubricated (Sleeved) Plug Valve", variant: "destructive" }); return; }
       } else if (ooType.includes("diaphragm")) {
         if (!(ta.diaphragm_material as string)?.trim())
           { toast({ title: "Diaphragm Material is required", variant: "destructive" }); return; }
@@ -2186,6 +2191,27 @@ export default function BuyPackagesPage() {
                         <span className="font-mono tracking-wide text-xs">
                           Complete Valve Type, End Connection, Size, Pressure, Body Material &amp; Trim to preview
                         </span>
+                      </div>
+                    );
+                  }
+                  // Priority 0 — ON/OFF Valve: client-side spec-based preview
+                  if (isOnOffValveMode) {
+                    const ooCode = buildOnOffValvePreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (ooCode) {
+                      const savedCode = lineDialog.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== ooCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-orange-300 bg-orange-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-orange-900 text-sm">{ooCode}</span>
+                          {isNew && <span className="text-[10px] text-orange-700 font-medium uppercase tracking-wide">New</span>}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">Complete Valve Type, Size, Pressure, Body, Type-specific fields &amp; Actuation to preview</span>
                       </div>
                     );
                   }

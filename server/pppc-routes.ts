@@ -26,6 +26,7 @@ import {
   resolveIsoValveSapItemCode, buildIsoValveItemCode,
   resolveCtrlValveSapItemCode, buildCtrlValveItemCode,
   resolveSafetyValveSapItemCode, buildSafetyValveItemCode,
+  resolveOnOffValveSapItemCode, buildOnOffValveItemCode,
 } from './buy-catalog-sap-service';
 
 /**
@@ -878,7 +879,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const isIsoValve    = groupCode === 'valves' && subgroupCode === 'isolation';
       const isCtrlValve   = groupCode === 'valves' && subgroupCode === 'control';
       const isSafetyValve = groupCode === 'valves' && subgroupCode === 'safety';
-      if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor && !isIsoValve && !isCtrlValve && !isSafetyValve) {
+      const isOnOffValve  = groupCode === 'valves' && subgroupCode === 'on_off';
+      if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor && !isIsoValve && !isCtrlValve && !isSafetyValve && !isOnOffValve) {
         const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
         const make = readMakeScalar(attrs);
         const series = typeof attrs.preferred_series === 'string' ? attrs.preferred_series.trim() : '';
@@ -930,6 +932,13 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           const valveTypeLabel = (attrs.valve_type as string | undefined)?.trim() ?? '';
           const desc = `Safety Valve — ${valveTypeLabel}`.slice(0, 255);
           const sapRes = await resolveSafetyValveSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
+          sapMasterItemId  = sapRes.masterItemId;
+          sapItemCodeValue = sapRes.sapItemCode;
+        } else if (isOnOffValve) {
+          const valveTypeLabel = (attrs.valve_type as string | undefined)?.trim() ?? '';
+          const sizeLabel      = (attrs.size_nb    as string | undefined)?.trim() ?? '';
+          const desc = `ON/OFF Valve — ${valveTypeLabel} — ${sizeLabel}`.slice(0, 255);
+          const sapRes = await resolveOnOffValveSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
           sapMasterItemId  = sapRes.masterItemId;
           sapItemCodeValue = sapRes.sapItemCode;
         } else {
@@ -1047,7 +1056,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const isIsoValve2     = groupCode2 === 'valves' && subgroupCode2 === 'isolation';
         const isCtrlValve2    = groupCode2 === 'valves' && subgroupCode2 === 'control';
         const isSafetyValve2  = groupCode2 === 'valves' && subgroupCode2 === 'safety';
-        if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2 && !isIsoValve2 && !isCtrlValve2 && !isSafetyValve2) {
+        const isOnOffValve2   = groupCode2 === 'valves' && subgroupCode2 === 'on_off';
+        if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2 && !isIsoValve2 && !isCtrlValve2 && !isSafetyValve2 && !isOnOffValve2) {
           const attrs2 = (b.technicalAttributes ?? {}) as Record<string, unknown>;
           const make2 = readMakeScalar(attrs2);
           const series2 = typeof attrs2.preferred_series === 'string' ? attrs2.preferred_series.trim() : '';
@@ -1099,6 +1109,13 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             const valveTypeLabel = (attrs3.valve_type as string | undefined)?.trim() ?? '';
             const desc3 = `Safety Valve — ${valveTypeLabel}`.slice(0, 255);
             const sapRes3 = await resolveSafetyValveSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+            fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
+            fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
+          } else if (isOnOffValve2) {
+            const valveTypeLabel = (attrs3.valve_type as string | undefined)?.trim() ?? '';
+            const sizeLabel      = (attrs3.size_nb    as string | undefined)?.trim() ?? '';
+            const desc3 = `ON/OFF Valve — ${valveTypeLabel} — ${sizeLabel}`.slice(0, 255);
+            const sapRes3 = await resolveOnOffValveSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
             fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
             fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
           } else {

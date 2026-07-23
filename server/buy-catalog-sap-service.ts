@@ -960,6 +960,353 @@ export async function resolveSafetyValveSapItemCode(
   }
 }
 
+// ── ON/OFF Valve Spec-Based Item Codes ───────────────────────────────────────
+
+const OOV_END_CONN_CODE: Record<string, string> = {
+  'Flanged':               'RF',
+  'Threaded':              'NP',
+  'Butt Weld':             'BW',
+  'Socket Weld':           'SW',
+  'Wafer':                 'WF',
+  'Lug Type':              'LG',
+  'Grooved':               'GV',
+  'Clamp End (Tri-Clamp)': 'TC',
+};
+
+const OOV_PRESSURE_CODE: Record<string, string> = {
+  'Class 150': 'CL150', 'Class 300': 'CL300', 'Class 600': 'CL600',
+  'Class 900': 'CL900', 'Class 1500': 'CL1500',
+  'PN6': 'PN6', 'PN10': 'PN10', 'PN16': 'PN16', 'PN25': 'PN25',
+  'PN40': 'PN40', 'PN64': 'PN64', 'PN100': 'PN100', 'PN160': 'PN160',
+};
+
+const OOV_BODY_MAT_CODE: Record<string, string> = {
+  'WCB (CS)':          'WCB',
+  'LCB (Low Temp CS)': 'LCB',
+  'SS304':             'SS304',
+  'SS316':             'SS316',
+  'SS316L':            'SS316L',
+  'CF8':               'CF8',
+  'CF8M':              'CF8M',
+  'Duplex SS':         'DSS',
+  'CI (Cast Iron)':    'CI',
+  'Ductile Iron':      'DI',
+  'Hastelloy C':       'HC276',
+};
+
+const OOV_ACT_CODE: Record<string, string> = {
+  'Manual Lever':       'LVR',
+  'Manual Handwheel':   'HWH',
+  'Manual Gear':        'GBX',
+  'Pneumatic Actuator': 'PNE',
+  'Electric Actuator':  'ELE',
+  'Hydraulic Actuator': 'HYD',
+};
+
+const OOV_FAIL_CODE: Record<string, string> = {
+  'Fail Open (FO)':  'FO',
+  'Fail Close (FC)': 'FC',
+  'Fail Last (FL)':  'FL',
+};
+
+const OOV_ACTUATED = new Set(['Pneumatic Actuator', 'Electric Actuator', 'Hydraulic Actuator']);
+
+const OOV_SEAT_MAT_CODE: Record<string, string> = {
+  'PTFE':               'PTFE',
+  'PEEK':               'PEEK',
+  'Metal Seat (SS316)': 'SS316',
+  'Graphite':           'GRPH',
+  'Devlon':             'DVL',
+};
+
+const OOV_BORE_CODE: Record<string, string> = {
+  'Full Bore':    'FB',
+  'Reduced Bore': 'RB',
+};
+
+const OOV_STYLE_CODE: Record<string, string> = {
+  'Floating Ball':    'FLT',
+  'Trunnion Mounted': 'TRN',
+};
+
+const OOV_PORT_CODE: Record<string, string> = {
+  '3-Way (L-Port)': '3L',
+  '3-Way (T-Port)': '3T',
+};
+
+const OOV_WEDGE_CODE: Record<string, string> = {
+  'Solid Wedge':    'SW',
+  'Flexible Wedge': 'FW',
+  'Split Wedge':    'SPW',
+};
+
+const OOV_GATE_MAT_CODE: Record<string, string> = {
+  'WCB (CS)':       'WCB',
+  'SS316':          'SS316',
+  'Hardened Steel': 'HSS',
+  'Stellite Faced': 'STLT',
+};
+
+const OOV_TRIM_CODE: Record<string, string> = {
+  'SS316':          'SS316',
+  'SS304':          'SS304',
+  'Stellite Faced': 'STLT',
+  'Hardened':       'HSS',
+};
+
+const OOV_SEAT_GLOBE_CODE: Record<string, string> = {
+  'SS316':          'SS316',
+  'SS304':          'SS304',
+  'Stellite Faced': 'STLT',
+  'Hardened':       'HSS',
+  'PTFE Insert':    'PTFE',
+};
+
+const OOV_DESIGN_CODE: Record<string, string> = {
+  'Concentric (Centric)':               'C',
+  'Double Eccentric (High Performance)': 'D',
+  'Triple Eccentric':                    'T',
+};
+
+const OOV_DISC_CODE: Record<string, string> = {
+  'CI':           'CI',
+  'CS':           'CS',
+  'SS304':        'SS304',
+  'SS316':        'SS316',
+  'Ni-Al Bronze': 'NAB',
+  'Hastelloy C':  'HC276',
+};
+
+const OOV_LINER_CODE: Record<string, string> = {
+  'EPDM':        'EPDM',
+  'NBR':         'NBR',
+  'PTFE':        'PTFE',
+  'Viton (FKM)': 'VTN',
+  'Silicone':    'SLC',
+};
+
+const OOV_PLUG_TYPE_CODE: Record<string, string> = {
+  'Non-Lubricated (Sleeved)': 'NLS',
+  'Lubricated':               'LUB',
+  'Eccentric':                'ECC',
+};
+
+const OOV_SLEEVE_CODE: Record<string, string> = {
+  'PTFE':     'PTFE',
+  'RPTFE':    'RPTFE',
+  'Neoprene': 'NEO',
+  'Kel-F':    'KLF',
+};
+
+const OOV_DIAPHRAGM_CODE: Record<string, string> = {
+  'EPDM':           'EPDM',
+  'Natural Rubber':  'NR',
+  'PTFE':            'PTFE',
+  'Butyl Rubber':    'BUT',
+  'Neoprene':        'NEO',
+};
+
+const OOV_BODY_DESIGN_CODE: Record<string, string> = {
+  'Weir Type':        'WR',
+  'Straight-Through': 'ST',
+};
+
+function oovActSuffix(actuationRaw: string, failRaw: string): string {
+  const act  = OOV_ACT_CODE[actuationRaw];
+  const fail = OOV_FAIL_CODE[failRaw];
+  if (!act) return '';
+  return OOV_ACTUATED.has(actuationRaw) && fail ? `${act}-${fail}` : act;
+}
+
+/**
+ * Build the deterministic ON/OFF Valve SAP Item Code.
+ *
+ * Formats by valve type:
+ *   Ball (2W):  VLV-ONF-BLV-{EC}-{NB}-{CL}-{Body}-{Seat}-{Bore}-{Style}-{Act}[-{Fail}]
+ *   Ball (3L/T):VLV-ONF-BLV-{EC}-{NB}-{CL}-{Body}-{Seat}-{Style}-{Port}-{Act}[-{Fail}]
+ *   Ball (DBB): VLV-ONF-BLV-{EC}-{NB}-{CL}-{Body}-{Seat}-{Bore}-DBB-{Act}[-{Fail}]
+ *   Gate:       VLV-ONF-GTV-{EC}-{NB}-{CL}-{Body}-{Wedge}-{GateMat}-{Act}[-{Fail}]
+ *   Globe:      VLV-ONF-GLV-{EC}-{NB}-{CL}-{Body}-{Trim}[-{Seat}]-{Act}[-{Fail}]
+ *   Butterfly:  VLV-ONF-BF-{EC}-{NB}-{CL}-{Body}-{Design}-{Disc}-{SeatLiner}-{Act}[-{Fail}]
+ *   Plug(NLS):  VLV-ONF-PLV-{EC}-{NB}-{CL}-{Body}-NLS-{Sleeve}-{Act}[-{Fail}]
+ *   Plug(LUB/ECC): VLV-ONF-PLV-{EC}-{NB}-{CL}-{Body}-{PlugType}-{Act}[-{Fail}]
+ *   Diaphragm:  VLV-ONF-DPV-{EC}-{NB}-{CL}-{Body}-{Diaphragm}-{Design}-{Act}[-{Fail}]
+ *
+ * Throws a descriptive error if any required field is missing or unrecognised.
+ */
+export function buildOnOffValveItemCode(attrs: Record<string, unknown>): string {
+  const valveTypeRaw = (attrs.valve_type     as string | undefined)?.trim() ?? '';
+  const endConnRaw   = (attrs.end_connection  as string | undefined)?.trim() ?? '';
+  const sizeRaw      = (attrs.size_nb         as string | undefined)?.trim() ?? '';
+  const pressureRaw  = (attrs.pressure_rating as string | undefined)?.trim() ?? '';
+  const bodyMatRaw   = (attrs.body_material   as string | undefined)?.trim() ?? '';
+  const actuationRaw = (attrs.actuation_type  as string | undefined)?.trim() ?? '';
+  const failRaw      = (attrs.fail_action     as string | undefined)?.trim() ?? '';
+
+  const endConn  = OOV_END_CONN_CODE[endConnRaw];
+  const sizeM    = sizeRaw.match(/^(\d+)\s*NB$/i);
+  const nb       = sizeM ? sizeM[1] : undefined;
+  const pressure = OOV_PRESSURE_CODE[pressureRaw];
+  const bodyMat  = OOV_BODY_MAT_CODE[bodyMatRaw];
+  const act      = OOV_ACT_CODE[actuationRaw];
+
+  const commonMissing: string[] = [];
+  if (!valveTypeRaw) commonMissing.push('Valve Type');
+  if (!endConn)      commonMissing.push(`End Connection ("${endConnRaw}")`);
+  if (!nb)           commonMissing.push(`Size ("${sizeRaw}" — must be format "XX NB")`);
+  if (!pressure)     commonMissing.push(`Pressure Rating ("${pressureRaw}")`);
+  if (!bodyMat)      commonMissing.push(`Body Material ("${bodyMatRaw}")`);
+  if (!act)          commonMissing.push(`Actuation Type ("${actuationRaw}")`);
+  if (OOV_ACTUATED.has(actuationRaw) && !OOV_FAIL_CODE[failRaw])
+    commonMissing.push(`Fail Action ("${failRaw}")`);
+  if (commonMissing.length > 0)
+    throw new Error(`Cannot generate ON/OFF Valve SAP Item Code — missing or unrecognised: ${commonMissing.join('; ')}`);
+
+  const actSuffix = oovActSuffix(actuationRaw, failRaw);
+  const vt = valveTypeRaw.toLowerCase();
+
+  if (vt.includes('ball')) {
+    const portRaw  = (attrs.port_configuration as string | undefined)?.trim() ?? '';
+    const seatRaw  = (attrs.seat_material      as string | undefined)?.trim() ?? '';
+    const boreRaw  = (attrs.bore_type          as string | undefined)?.trim() ?? '';
+    const styleRaw = (attrs.body_style         as string | undefined)?.trim() ?? '';
+    const seat     = OOV_SEAT_MAT_CODE[seatRaw];
+    const bore     = OOV_BORE_CODE[boreRaw];
+    const style    = OOV_STYLE_CODE[styleRaw];
+    const bMissing: string[] = [];
+    if (!seat) bMissing.push(`Seat Material ("${seatRaw}")`);
+    if (portRaw === 'DBB (Double Block & Bleed)') {
+      if (!bore) bMissing.push(`Bore Type ("${boreRaw}")`);
+    } else if (portRaw === '3-Way (L-Port)' || portRaw === '3-Way (T-Port)') {
+      if (!style) bMissing.push(`Body Style ("${styleRaw}")`);
+    } else {
+      if (!bore)  bMissing.push(`Bore Type ("${boreRaw}")`);
+      if (!style) bMissing.push(`Body Style ("${styleRaw}")`);
+    }
+    if (bMissing.length > 0)
+      throw new Error(`Cannot generate ON/OFF Valve SAP Item Code — missing or unrecognised: ${bMissing.join('; ')}`);
+    if (portRaw === 'DBB (Double Block & Bleed)')
+      return `VLV-ONF-BLV-${endConn}-${nb}-${pressure}-${bodyMat}-${seat}-${bore!}-DBB-${actSuffix}`;
+    if (portRaw === '3-Way (L-Port)' || portRaw === '3-Way (T-Port)')
+      return `VLV-ONF-BLV-${endConn}-${nb}-${pressure}-${bodyMat}-${seat}-${style!}-${OOV_PORT_CODE[portRaw]}-${actSuffix}`;
+    return `VLV-ONF-BLV-${endConn}-${nb}-${pressure}-${bodyMat}-${seat}-${bore!}-${style!}-${actSuffix}`;
+  }
+
+  if (vt.includes('gate')) {
+    const wedgeRaw   = (attrs.wedge_type    as string | undefined)?.trim() ?? '';
+    const gateMatRaw = (attrs.gate_material as string | undefined)?.trim() ?? '';
+    const wedge   = OOV_WEDGE_CODE[wedgeRaw];
+    const gateMat = OOV_GATE_MAT_CODE[gateMatRaw];
+    const gMissing: string[] = [];
+    if (!wedge)   gMissing.push(`Wedge Type ("${wedgeRaw}")`);
+    if (!gateMat) gMissing.push(`Gate/Wedge Material ("${gateMatRaw}")`);
+    if (gMissing.length > 0)
+      throw new Error(`Cannot generate ON/OFF Valve SAP Item Code — missing or unrecognised: ${gMissing.join('; ')}`);
+    return `VLV-ONF-GTV-${endConn}-${nb}-${pressure}-${bodyMat}-${wedge!}-${gateMat!}-${actSuffix}`;
+  }
+
+  if (vt.includes('globe')) {
+    const trimRaw = (attrs.plug_trim_material  as string | undefined)?.trim() ?? '';
+    const seatRaw = (attrs.seat_material_globe as string | undefined)?.trim() ?? '';
+    const trim = OOV_TRIM_CODE[trimRaw];
+    const seat = OOV_SEAT_GLOBE_CODE[seatRaw];
+    const glMissing: string[] = [];
+    if (!trim) glMissing.push(`Plug/Trim Material ("${trimRaw}")`);
+    if (!seat) glMissing.push(`Seat Material ("${seatRaw}")`);
+    if (glMissing.length > 0)
+      throw new Error(`Cannot generate ON/OFF Valve SAP Item Code — missing or unrecognised: ${glMissing.join('; ')}`);
+    const trimSeat = trim === seat ? trim! : `${trim!}-${seat!}`;
+    return `VLV-ONF-GLV-${endConn}-${nb}-${pressure}-${bodyMat}-${trimSeat}-${actSuffix}`;
+  }
+
+  if (vt.includes('butterfly')) {
+    const designRaw = (attrs.valve_design  as string | undefined)?.trim() ?? '';
+    const discRaw   = (attrs.disc_material as string | undefined)?.trim() ?? '';
+    const linerRaw  = (attrs.seat_liner    as string | undefined)?.trim() ?? '';
+    const design = OOV_DESIGN_CODE[designRaw];
+    const disc   = OOV_DISC_CODE[discRaw];
+    const liner  = OOV_LINER_CODE[linerRaw];
+    const bfMissing: string[] = [];
+    if (!design) bfMissing.push(`Valve Design ("${designRaw}")`);
+    if (!disc)   bfMissing.push(`Disc Material ("${discRaw}")`);
+    if (!liner)  bfMissing.push(`Seat Liner ("${linerRaw}")`);
+    if (bfMissing.length > 0)
+      throw new Error(`Cannot generate ON/OFF Valve SAP Item Code — missing or unrecognised: ${bfMissing.join('; ')}`);
+    return `VLV-ONF-BF-${endConn}-${nb}-${pressure}-${bodyMat}-${design!}-${disc!}-${liner!}-${actSuffix}`;
+  }
+
+  if (vt.includes('plug')) {
+    const plugTypeRaw = (attrs.plug_type       as string | undefined)?.trim() ?? '';
+    const sleeveRaw   = (attrs.sleeve_material as string | undefined)?.trim() ?? '';
+    const plugTypeCode = OOV_PLUG_TYPE_CODE[plugTypeRaw];
+    if (!plugTypeCode)
+      throw new Error(`Cannot generate ON/OFF Valve SAP Item Code — missing or unrecognised: Plug Type ("${plugTypeRaw}")`);
+    if (plugTypeRaw === 'Non-Lubricated (Sleeved)') {
+      const sleeve = OOV_SLEEVE_CODE[sleeveRaw];
+      if (!sleeve)
+        throw new Error(`Cannot generate ON/OFF Valve SAP Item Code — missing or unrecognised: Sleeve Material ("${sleeveRaw}")`);
+      return `VLV-ONF-PLV-${endConn}-${nb}-${pressure}-${bodyMat}-NLS-${sleeve}-${actSuffix}`;
+    }
+    return `VLV-ONF-PLV-${endConn}-${nb}-${pressure}-${bodyMat}-${plugTypeCode}-${actSuffix}`;
+  }
+
+  if (vt.includes('diaphragm')) {
+    const diaphRaw   = (attrs.diaphragm_material as string | undefined)?.trim() ?? '';
+    const designRaw2 = (attrs.body_design        as string | undefined)?.trim() ?? '';
+    const diaph   = OOV_DIAPHRAGM_CODE[diaphRaw];
+    const design2 = OOV_BODY_DESIGN_CODE[designRaw2];
+    const dpMissing: string[] = [];
+    if (!diaph)   dpMissing.push(`Diaphragm Material ("${diaphRaw}")`);
+    if (!design2) dpMissing.push(`Body Design ("${designRaw2}")`);
+    if (dpMissing.length > 0)
+      throw new Error(`Cannot generate ON/OFF Valve SAP Item Code — missing or unrecognised: ${dpMissing.join('; ')}`);
+    return `VLV-ONF-DPV-${endConn}-${nb}-${pressure}-${bodyMat}-${diaph!}-${design2!}-${actSuffix}`;
+  }
+
+  throw new Error(`Cannot generate ON/OFF Valve SAP Item Code — unrecognised Valve Type: "${valveTypeRaw}"`);
+}
+
+/**
+ * Find or create a master_items catalog record for an ON/OFF Valve specification.
+ */
+export async function resolveOnOffValveSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<CatalogSapResult> {
+  const itemCode = buildOnOffValveItemCode(attrs);
+  assertSapCodeLength(itemCode);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const existing = await client.query<{ id: number }>(
+      `SELECT id FROM master_items WHERE item_type = 'catalog' AND item_code = $1 FOR UPDATE`,
+      [itemCode],
+    );
+    if (existing.rowCount && existing.rowCount > 0) {
+      await client.query('COMMIT');
+      return { masterItemId: existing.rows[0].id, sapItemCode: itemCode, reused: true };
+    }
+    const inserted = await client.query<{ id: number }>(
+      `INSERT INTO master_items
+         (item_code, description, uom, make_or_buy, item_type, buy_group_id, buy_subgroup_id, created_at, updated_at)
+       VALUES ($1,$2,$3,'Buy','catalog',$4,$5,NOW(),NOW()) RETURNING id`,
+      [itemCode, description, uomCode, groupId, subgroupId],
+    );
+    await client.query('COMMIT');
+    return { masterItemId: inserted.rows[0].id, sapItemCode: itemCode, reused: false };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 /**
  * Build the deterministic SAP Item Code from the 4-field identity.
  * Format: {GRP_PREFIX}-{SUB_PREFIX}-{MAKE}-{MODEL}  e.g. PMP-CEN-KSB-CPKEY 65-200

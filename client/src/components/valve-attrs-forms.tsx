@@ -1212,6 +1212,7 @@ const OO_ALL_FIELD_OPTS: Record<string, string[]> = {
   sleeve_material:     OO_COMMON_OPTS.sleeve_material,
   diaphragm_material:  OO_COMMON_OPTS.diaphragm_material,
   body_design:         OO_COMMON_OPTS.body_design,
+  limit_switch:        OO_COMMON_OPTS.yes_no,
   body_lining:         OO_COMMON_OPTS.body_lining,
 };
 
@@ -1294,6 +1295,151 @@ export function buildOnOffValveRequirement(attrs: Record<string, unknown>): stri
   return shortenToSapItemName(parts.join(", "));
 }
 
+// ── ON/OFF Valve client-side SAP Item Code preview ───────────────────────────
+const _OOV_EC: Record<string, string> = {
+  'Flanged': 'RF', 'Threaded': 'NP', 'Butt Weld': 'BW', 'Socket Weld': 'SW',
+  'Wafer': 'WF', 'Lug Type': 'LG', 'Grooved': 'GV', 'Clamp End (Tri-Clamp)': 'TC',
+};
+const _OOV_PR: Record<string, string> = {
+  'Class 150': 'CL150', 'Class 300': 'CL300', 'Class 600': 'CL600',
+  'Class 900': 'CL900', 'Class 1500': 'CL1500',
+  'PN6': 'PN6', 'PN10': 'PN10', 'PN16': 'PN16', 'PN25': 'PN25',
+  'PN40': 'PN40', 'PN64': 'PN64', 'PN100': 'PN100', 'PN160': 'PN160',
+};
+const _OOV_BM: Record<string, string> = {
+  'WCB (CS)': 'WCB', 'LCB (Low Temp CS)': 'LCB', 'SS304': 'SS304',
+  'SS316': 'SS316', 'SS316L': 'SS316L', 'CF8': 'CF8', 'CF8M': 'CF8M',
+  'Duplex SS': 'DSS', 'CI (Cast Iron)': 'CI', 'Ductile Iron': 'DI', 'Hastelloy C': 'HC276',
+};
+const _OOV_ACT: Record<string, string> = {
+  'Manual Lever': 'LVR', 'Manual Handwheel': 'HWH', 'Manual Gear': 'GBX',
+  'Pneumatic Actuator': 'PNE', 'Electric Actuator': 'ELE', 'Hydraulic Actuator': 'HYD',
+};
+const _OOV_FAIL: Record<string, string> = {
+  'Fail Open (FO)': 'FO', 'Fail Close (FC)': 'FC', 'Fail Last (FL)': 'FL',
+};
+const _OOV_ACTUATED = new Set(['Pneumatic Actuator', 'Electric Actuator', 'Hydraulic Actuator']);
+const _OOV_SEAT: Record<string, string> = {
+  'PTFE': 'PTFE', 'PEEK': 'PEEK', 'Metal Seat (SS316)': 'SS316', 'Graphite': 'GRPH', 'Devlon': 'DVL',
+};
+const _OOV_BORE: Record<string, string> = { 'Full Bore': 'FB', 'Reduced Bore': 'RB' };
+const _OOV_STY: Record<string, string> = { 'Floating Ball': 'FLT', 'Trunnion Mounted': 'TRN' };
+const _OOV_PORT: Record<string, string> = { '3-Way (L-Port)': '3L', '3-Way (T-Port)': '3T' };
+const _OOV_WEDGE: Record<string, string> = { 'Solid Wedge': 'SW', 'Flexible Wedge': 'FW', 'Split Wedge': 'SPW' };
+const _OOV_GMAT: Record<string, string> = {
+  'WCB (CS)': 'WCB', 'SS316': 'SS316', 'Hardened Steel': 'HSS', 'Stellite Faced': 'STLT',
+};
+const _OOV_TRIM: Record<string, string> = {
+  'SS316': 'SS316', 'SS304': 'SS304', 'Stellite Faced': 'STLT', 'Hardened': 'HSS',
+};
+const _OOV_SGLB: Record<string, string> = {
+  'SS316': 'SS316', 'SS304': 'SS304', 'Stellite Faced': 'STLT', 'Hardened': 'HSS', 'PTFE Insert': 'PTFE',
+};
+const _OOV_DES: Record<string, string> = {
+  'Concentric (Centric)': 'C', 'Double Eccentric (High Performance)': 'D', 'Triple Eccentric': 'T',
+};
+const _OOV_DISC: Record<string, string> = {
+  'CI': 'CI', 'CS': 'CS', 'SS304': 'SS304', 'SS316': 'SS316', 'Ni-Al Bronze': 'NAB', 'Hastelloy C': 'HC276',
+};
+const _OOV_LNR: Record<string, string> = {
+  'EPDM': 'EPDM', 'NBR': 'NBR', 'PTFE': 'PTFE', 'Viton (FKM)': 'VTN', 'Silicone': 'SLC',
+};
+const _OOV_PLG: Record<string, string> = {
+  'Non-Lubricated (Sleeved)': 'NLS', 'Lubricated': 'LUB', 'Eccentric': 'ECC',
+};
+const _OOV_SLV: Record<string, string> = {
+  'PTFE': 'PTFE', 'RPTFE': 'RPTFE', 'Neoprene': 'NEO', 'Kel-F': 'KLF',
+};
+const _OOV_DPH: Record<string, string> = {
+  'EPDM': 'EPDM', 'Natural Rubber': 'NR', 'PTFE': 'PTFE', 'Butyl Rubber': 'BUT', 'Neoprene': 'NEO',
+};
+const _OOV_BDS: Record<string, string> = { 'Weir Type': 'WR', 'Straight-Through': 'ST' };
+
+function _oovAct(actR: string, failR: string): string {
+  const a = _OOV_ACT[actR]; const f = _OOV_FAIL[failR];
+  if (!a) return '';
+  return _OOV_ACTUATED.has(actR) && f ? `${a}-${f}` : a;
+}
+
+export function buildOnOffValvePreviewCode(attrs: Record<string, unknown>): string | null {
+  try {
+    const vtR = (attrs.valve_type as string)?.trim() ?? '';
+    const ecR = (attrs.end_connection as string)?.trim() ?? '';
+    const szR = (attrs.size_nb as string)?.trim() ?? '';
+    const prR = (attrs.pressure_rating as string)?.trim() ?? '';
+    const bmR = (attrs.body_material as string)?.trim() ?? '';
+    const acR = (attrs.actuation_type as string)?.trim() ?? '';
+    const flR = (attrs.fail_action as string)?.trim() ?? '';
+    const ec  = _OOV_EC[ecR]; const szM = szR.match(/^(\d+)\s*NB$/i);
+    const nb  = szM ? szM[1] : undefined; const pr = _OOV_PR[prR]; const bm = _OOV_BM[bmR];
+    const act = _OOV_ACT[acR];
+    if (!vtR || !ec || !nb || !pr || !bm || !act) return null;
+    if (_OOV_ACTUATED.has(acR) && !_OOV_FAIL[flR]) return null;
+    const sfx = _oovAct(acR, flR);
+    const vt = vtR.toLowerCase();
+
+    if (vt.includes('ball')) {
+      const portR = (attrs.port_configuration as string)?.trim() ?? '';
+      const seatR = (attrs.seat_material as string)?.trim() ?? '';
+      const boreR = (attrs.bore_type as string)?.trim() ?? '';
+      const styR  = (attrs.body_style as string)?.trim() ?? '';
+      const seat  = _OOV_SEAT[seatR]; if (!seat) return null;
+      if (portR === 'DBB (Double Block & Bleed)') {
+        const bore = _OOV_BORE[boreR]; if (!bore) return null;
+        return `VLV-ONF-BLV-${ec}-${nb}-${pr}-${bm}-${seat}-${bore}-DBB-${sfx}`;
+      }
+      if (portR === '3-Way (L-Port)' || portR === '3-Way (T-Port)') {
+        const sty = _OOV_STY[styR]; if (!sty) return null;
+        return `VLV-ONF-BLV-${ec}-${nb}-${pr}-${bm}-${seat}-${sty}-${_OOV_PORT[portR]}-${sfx}`;
+      }
+      const bore = _OOV_BORE[boreR]; const sty = _OOV_STY[styR];
+      if (!bore || !sty) return null;
+      return `VLV-ONF-BLV-${ec}-${nb}-${pr}-${bm}-${seat}-${bore}-${sty}-${sfx}`;
+    }
+    if (vt.includes('gate')) {
+      const wdgR = (attrs.wedge_type as string)?.trim() ?? '';
+      const gmR  = (attrs.gate_material as string)?.trim() ?? '';
+      const wdg = _OOV_WEDGE[wdgR]; const gm = _OOV_GMAT[gmR];
+      if (!wdg || !gm) return null;
+      return `VLV-ONF-GTV-${ec}-${nb}-${pr}-${bm}-${wdg}-${gm}-${sfx}`;
+    }
+    if (vt.includes('globe')) {
+      const trR = (attrs.plug_trim_material as string)?.trim() ?? '';
+      const stR = (attrs.seat_material_globe as string)?.trim() ?? '';
+      const tr = _OOV_TRIM[trR]; const st = _OOV_SGLB[stR];
+      if (!tr || !st) return null;
+      const ts = tr === st ? tr : `${tr}-${st}`;
+      return `VLV-ONF-GLV-${ec}-${nb}-${pr}-${bm}-${ts}-${sfx}`;
+    }
+    if (vt.includes('butterfly')) {
+      const desR = (attrs.valve_design as string)?.trim() ?? '';
+      const dcR  = (attrs.disc_material as string)?.trim() ?? '';
+      const lnR  = (attrs.seat_liner as string)?.trim() ?? '';
+      const des = _OOV_DES[desR]; const dc = _OOV_DISC[dcR]; const ln = _OOV_LNR[lnR];
+      if (!des || !dc || !ln) return null;
+      return `VLV-ONF-BF-${ec}-${nb}-${pr}-${bm}-${des}-${dc}-${ln}-${sfx}`;
+    }
+    if (vt.includes('plug')) {
+      const ptR = (attrs.plug_type as string)?.trim() ?? '';
+      const pt  = _OOV_PLG[ptR]; if (!pt) return null;
+      if (ptR === 'Non-Lubricated (Sleeved)') {
+        const slR = (attrs.sleeve_material as string)?.trim() ?? '';
+        const sl  = _OOV_SLV[slR]; if (!sl) return null;
+        return `VLV-ONF-PLV-${ec}-${nb}-${pr}-${bm}-NLS-${sl}-${sfx}`;
+      }
+      return `VLV-ONF-PLV-${ec}-${nb}-${pr}-${bm}-${pt}-${sfx}`;
+    }
+    if (vt.includes('diaphragm')) {
+      const dpR  = (attrs.diaphragm_material as string)?.trim() ?? '';
+      const bdR  = (attrs.body_design as string)?.trim() ?? '';
+      const dp = _OOV_DPH[dpR]; const bd = _OOV_BDS[bdR];
+      if (!dp || !bd) return null;
+      return `VLV-ONF-DPV-${ec}-${nb}-${pr}-${bm}-${dp}-${bd}-${sfx}`;
+    }
+    return null;
+  } catch { return null; }
+}
+
 function buildOnOffValveDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
     valve_type: type, make: "",
@@ -1310,6 +1456,7 @@ function buildOnOffValveDefaults(type: string): Record<string, unknown> {
     valve_design: "", disc_material: "", seat_liner: "", stem_material: "", face_to_face_std: "",
     plug_type: "", plug_port_config: "", sleeve_material: "",
     diaphragm_material: "", body_design: "", body_lining: "",
+    solenoid_voltage: "", limit_switch: "",
   };
   switch (type) {
     case "Ball Valve":
@@ -1554,6 +1701,15 @@ export function OnOffValveAttrsForm({
           {isActuated ? renderField("fail_action","Fail Action",OO_COMMON_OPTS.fail_action, true) : <div />}
           {renderField("end_connection","End Connection", OO_COMMON_OPTS.end_connection,  true)}
           {renderField("body_material", "Body Material",  OO_COMMON_OPTS.body_material,   true)}
+          {isActuated ? renderField("limit_switch",     "Limit Switch",     OO_COMMON_OPTS.yes_no) : <div />}
+          {isActuated ? (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Solenoid Voltage</Label>
+              <Input className="h-8 text-sm" placeholder="e.g. 24V DC"
+                value={(attrs.solenoid_voltage as string) ?? ""}
+                onChange={(e) => set("solenoid_voltage", e.target.value)} />
+            </div>
+          ) : <div />}
         </SectionCard>
       )}
 
