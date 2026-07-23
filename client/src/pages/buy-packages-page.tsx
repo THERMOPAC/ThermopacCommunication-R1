@@ -2894,7 +2894,7 @@ export default function BuyPackagesPage() {
               open={detailsDrawer.open}
               onOpenChange={(o) => !o && setDetailsDrawer((s) => ({ ...s, open: false }))}
             >
-              <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col gap-0 p-0">
+              <DialogContent className="w-[95vw] max-w-7xl max-h-[85vh] flex flex-col gap-0 p-0">
                 {/* Header */}
                 <DialogHeader className="px-6 pt-5 pb-4 border-b shrink-0">
                   <div className="flex items-start justify-between gap-4">
@@ -2950,26 +2950,26 @@ export default function BuyPackagesPage() {
                     <Table>
                       <TableHeader>
                         <TableRow className="text-xs">
-                          <TableHead className="w-8">#</TableHead>
-                          <TableHead>Requirement</TableHead>
-                          <TableHead className="w-28">Model</TableHead>
-                          <TableHead className="w-28">SAP Item Code</TableHead>
-                          <TableHead className="w-16 text-right">Qty</TableHead>
-                          <TableHead className="w-16">UOM</TableHead>
-                          <TableHead className="w-36">Flags</TableHead>
-                          {canWriteLine && isDraft && <TableHead className="w-16 text-center">Actions</TableHead>}
+                          <TableHead className="w-8 shrink-0">#</TableHead>
+                          <TableHead className="min-w-0">Requirement</TableHead>
+                          <TableHead className="w-40 shrink-0">Model</TableHead>
+                          <TableHead className="w-52 shrink-0">SAP Item Code</TableHead>
+                          <TableHead className="w-12 text-right shrink-0">Qty</TableHead>
+                          <TableHead className="w-14 shrink-0">UOM</TableHead>
+                          <TableHead className="w-28 shrink-0">Flags</TableHead>
+                          {canWriteLine && isDraft && <TableHead className="w-16 text-center shrink-0">Actions</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {dlines.map((line, idx) => (
                           <TableRow key={line.id} className="text-xs align-top">
-                            <TableCell className="text-muted-foreground font-mono pt-3">{idx + 1}</TableCell>
-                            <TableCell className="max-w-xs pt-3">
+                            <TableCell className="text-muted-foreground font-mono pt-3 shrink-0">{idx + 1}</TableCell>
+                            <TableCell className="pt-3 min-w-0 max-w-0">
                               <div className="flex items-start gap-1">
                                 <div className="flex-1 min-w-0">
-                                  <p className="leading-snug">{line.generic_requirement}</p>
+                                  <p className="leading-snug truncate" title={line.generic_requirement}>{line.generic_requirement}</p>
                                   {line.default_specification && (
-                                    <p className="text-muted-foreground text-[11px] mt-0.5 leading-snug">{line.default_specification}</p>
+                                    <p className="text-muted-foreground text-[11px] mt-0.5 leading-snug truncate" title={line.default_specification}>{line.default_specification}</p>
                                   )}
                                 </div>
                                 {line.technical_attributes && Object.keys(line.technical_attributes).length > 0 && (
@@ -2999,9 +2999,9 @@ export default function BuyPackagesPage() {
                                 {(line as any).model || "TBN"}
                               </span>
                             </TableCell>
-                            <TableCell className="pt-3">
+                            <TableCell className="pt-3 max-w-[13rem]">
                               {line.sap_item_code ? (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                <span className="flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 truncate min-w-0" title={line.sap_item_code}>
                                   {line.sap_item_code}
                                 </span>
                               ) : (
