@@ -344,25 +344,8 @@ export function MotorAttrsForm({
     );
   }
 
-  const nfpPreviewCode = !isFlameproof ? buildNfpMotorPreviewCode(attrs) : null;
-
   return (
     <div className="space-y-3">
-
-      {/* SAP Item Code preview — NFP only */}
-      {!isFlameproof && (
-        <div className={`flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-mono ${
-          nfpPreviewCode
-            ? "bg-green-50 border-green-200 text-green-800"
-            : "bg-muted/50 border-border text-muted-foreground"
-        }`}>
-          <span className="font-semibold font-sans shrink-0">SAP Item Code:</span>
-          {nfpPreviewCode
-            ? <span className="tracking-wide">{nfpPreviewCode}</span>
-            : <span className="font-sans italic">Complete all required fields to preview</span>
-          }
-        </div>
-      )}
 
       {/* 1 — Motor Specifications */}
       <SectionCard title="Motor Specifications" color="bg-sky-50/60 border-sky-200">

@@ -67,6 +67,7 @@ import {
   MotorAttrsForm, buildMotorRequirement,
   NON_FLAMEPROOF_MOTOR_DEFAULTS, FLAMEPROOF_MOTOR_DEFAULTS,
   applyNonFlameproofMotorDefaults, applyFlameproofMotorDefaults,
+  buildNfpMotorPreviewCode,
 } from "@/components/motor-attrs-forms";
 import {
   PanelAttrsForm, CablingAttrsForm, JunctionBoxAttrsForm,
@@ -2110,6 +2111,33 @@ export default function BuyPackagesPage() {
                   </span>
                 </Label>
                 {(() => {
+                  // Priority 0 — NFP motor: client-side spec-based preview (no server call needed)
+                  if (isNonFlameproofMotorMode) {
+                    const nfpCode = buildNfpMotorPreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (nfpCode) {
+                      const savedCode = lineDialog.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== nfpCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-emerald-300 bg-emerald-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-emerald-800 text-sm">
+                            {nfpCode}
+                          </span>
+                          {isNew && (
+                            <span className="text-[10px] text-emerald-600 font-medium uppercase tracking-wide">New</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">
+                          Complete Motor Type, Mounting, Power, Voltage, Frequency, Poles &amp; Efficiency to preview
+                        </span>
+                      </div>
+                    );
+                  }
                   // Priority 1 — live preview from server (make+model set in form)
                   if (sapPreviewLoading) {
                     return (
