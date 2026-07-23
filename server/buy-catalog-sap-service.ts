@@ -740,6 +740,226 @@ export async function resolveCtrlValveSapItemCode(
   }
 }
 
+// ── Safety Valve Spec-Based Item Codes ───────────────────────────────────────
+
+const SV_END_CONN_CODE: Record<string, string> = {
+  'Flanged': 'RF', 'Threaded': 'THD',
+};
+const SV_BV_END_CONN_CODE: Record<string, string> = {
+  'Flanged': 'FLG', 'NPT': 'NPT', 'BSP': 'BSP',
+};
+const SV_PRESSURE_CODE: Record<string, string> = {
+  'Class 150': 'CL150', 'Class 300': 'CL300', 'Class 600': 'CL600',
+  'Class 900': 'CL900', 'Class 1500': 'CL1500',
+};
+const SV_BODY_MAT_CODE: Record<string, string> = {
+  'WCB (CS)': 'WCB', 'LCB (Low Temp CS)': 'LCB',
+  'SS304': 'SS304', 'SS316': 'SS316', 'SS316L': 'SS316L',
+  'CF8': 'CF8', 'CF8M': 'CF8M', 'Duplex SS': 'DSS', 'Hastelloy C': 'HC276',
+};
+const SV_TRIM_CODE: Record<string, string> = {
+  'SS304': 'SS304', 'SS316': 'SS316', 'Hardened Trim': 'HSS', 'Stellite': 'STLT',
+};
+const SV_BACK_PRESS_CODE: Record<string, string> = {
+  'Conventional': 'CONV', 'Balanced Bellows': 'BLW', 'Pilot-Operated': 'PLT',
+};
+const SV_BV_BODY_CODE: Record<string, string> = {
+  'Al Alloy': 'ALAY', 'CS': 'CS', 'SS304': 'SS304', 'SS316': 'SS316', 'FRP': 'FRP',
+};
+const SV_FLAME_CODE: Record<string, string> = {
+  'Integrated': 'INT', 'Separate': 'SEP', 'None': 'NON',
+};
+
+/** Encode set pressure value to normalized compact form.
+ *  10 barg → "10B", 10.5 barg → "10P5B", 258.5 barg → "258P5B".
+ *  psig is converted to barg (1 dp) before encoding. */
+function encodeSetPressure(valueRaw: string, unit: string): string | undefined {
+  const num = parseFloat(valueRaw);
+  if (isNaN(num) || num <= 0) return undefined;
+  let barg = num;
+  if (unit.toLowerCase() === 'psig') barg = Math.round(num * 0.0689476 * 10) / 10;
+  const normalized = parseFloat(barg.toPrecision(10)); // eliminate floating-point noise
+  return normalized.toString().replace('.', 'P') + 'B';
+}
+
+/** Convert vacuum magnitude to normalized integer mbar.
+ *  kPa×10, mmWC×0.09807, mmHg×1.33322, inH2O×2.49089. */
+function normalizeVacuumToMbar(value: number, unit: string): number {
+  switch (unit.toLowerCase()) {
+    case 'kpa':   return Math.round(value * 10);
+    case 'mmwc':  return Math.round(value * 0.09807);
+    case 'mmhg':  return Math.round(value * 1.33322);
+    case 'inh2o': return Math.round(value * 2.49089);
+    default:      return Math.round(value); // mbar
+  }
+}
+
+/** Resolve PSV/PRV/SRV type code from valve_type label. */
+function svPressureTypeCode(valveTypeRaw: string): string | undefined {
+  const vt = valveTypeRaw.toLowerCase();
+  if (vt.includes('(psv)') || (vt.includes('safety') && vt.includes('valve') && !vt.includes('relief'))) return 'PSV';
+  if (vt.includes('(prv)') || (vt.includes('pressure') && vt.includes('relief') && !vt.includes('safety'))) return 'PRV';
+  if (vt.includes('(srv)') || vt.includes('safety relief')) return 'SRV';
+  return undefined;
+}
+
+/**
+ * Build SAP Item Code for PSV / PRV / SRV (API 526 Pressure Relief family).
+ * Format: VLV-SV-{Type}-{EndConn}-{Size}-{PressClass}-{BodyMat}-{Trim}-{Orifice}-{SetPressure}-{BackPress}
+ * Worst case: VLV-SV-PSV-RF-300-CL1500-SS316L-STLT-J-258P5B-BLW = 49 chars ≤ 50.
+ */
+export function buildPressureRelievingItemCode(attrs: Record<string, unknown>): string {
+  const valveTypeRaw  = (attrs.valve_type          as string | undefined)?.trim() ?? '';
+  const endConnRaw    = (attrs.end_connection       as string | undefined)?.trim() ?? '';
+  const inletSizeRaw  = (attrs.inlet_size           as string | undefined)?.trim() ?? '';
+  const pressureRaw   = (attrs.pressure_rating      as string | undefined)?.trim() ?? '';
+  const bodyMatRaw    = (attrs.body_material        as string | undefined)?.trim() ?? '';
+  const trimRaw       = (attrs.trim_material        as string | undefined)?.trim() ?? '';
+  const orificeRaw    = (attrs.api_orifice          as string | undefined)?.trim() ?? '';
+  const setPressVal   = (attrs.set_pressure_value   as string | undefined)?.trim() ?? '';
+  const setPressUnit  = (attrs.set_pressure_unit    as string | undefined)?.trim() || 'barg';
+  const backPressRaw  = (attrs.back_pressure_type   as string | undefined)?.trim() ?? '';
+
+  const typeCode  = svPressureTypeCode(valveTypeRaw);
+  const endConn   = SV_END_CONN_CODE[endConnRaw];
+  const sizeMatch = inletSizeRaw.match(/^(\d+)\s*NB$/i);
+  const size      = sizeMatch ? sizeMatch[1] : undefined;
+  const pressure  = SV_PRESSURE_CODE[pressureRaw];
+  const bodyMat   = SV_BODY_MAT_CODE[bodyMatRaw];
+  const trim      = SV_TRIM_CODE[trimRaw];
+  const orifice   = /^[A-T]$/i.test(orificeRaw) ? orificeRaw.toUpperCase() : undefined;
+  const setPress  = encodeSetPressure(setPressVal, setPressUnit);
+  const backPress = SV_BACK_PRESS_CODE[backPressRaw];
+
+  const missing: string[] = [];
+  if (!typeCode)  missing.push(`Valve Type ("${valveTypeRaw}")`);
+  if (!endConn)   missing.push(`End Connection ("${endConnRaw}")`);
+  if (!size)      missing.push(`Inlet Size ("${inletSizeRaw}")`);
+  if (!pressure)  missing.push(`Pressure Rating ("${pressureRaw}")`);
+  if (!bodyMat)   missing.push(`Body Material ("${bodyMatRaw}")`);
+  if (!trim)      missing.push(`Trim Material ("${trimRaw}")`);
+  if (!orifice)   missing.push(`API Orifice ("${orificeRaw}")`);
+  if (!setPress)  missing.push(`Set Pressure ("${setPressVal}" ${setPressUnit})`);
+  if (!backPress) missing.push(`Back Pressure Type ("${backPressRaw}")`);
+  if (missing.length > 0)
+    throw new Error(`Cannot generate Pressure Relief Valve SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+
+  return `VLV-SV-${typeCode}-${endConn}-${size}-${pressure}-${bodyMat}-${trim}-${orifice}-${setPress}-${backPress}`;
+}
+
+/**
+ * Build SAP Item Code for VRV (Spring-loaded Vacuum Relief Valve).
+ * Format: VLV-SV-VRV-{EndConn}-{Size}-{PressClass}-{BodyMat}-{Trim}-{VacuumSet}
+ * Vacuum encoded as positive magnitude in mbar, e.g. 250M.
+ */
+export function buildVrvItemCode(attrs: Record<string, unknown>): string {
+  const endConnRaw  = (attrs.end_connection  as string | undefined)?.trim() ?? '';
+  const sizeRaw     = (attrs.connection_size as string | undefined)?.trim() ?? '';
+  const pressureRaw = (attrs.pressure_rating as string | undefined)?.trim() ?? '';
+  const bodyMatRaw  = (attrs.body_material   as string | undefined)?.trim() ?? '';
+  const trimRaw     = (attrs.trim_material   as string | undefined)?.trim() ?? '';
+  const vacValRaw   = (attrs.set_vacuum_value as string | undefined)?.trim() ?? '';
+  const vacUnit     = (attrs.set_vacuum_unit  as string | undefined)?.trim() || 'mbar';
+
+  const endConn   = SV_END_CONN_CODE[endConnRaw];
+  const sizeMatch = sizeRaw.match(/^(\d+)\s*NB$/i);
+  const size      = sizeMatch ? sizeMatch[1] : undefined;
+  const pressure  = SV_PRESSURE_CODE[pressureRaw];
+  const bodyMat   = SV_BODY_MAT_CODE[bodyMatRaw];
+  const trim      = SV_TRIM_CODE[trimRaw];
+  const vacNum    = parseFloat(vacValRaw);
+  const vacMbar   = !isNaN(vacNum) && vacNum > 0 ? normalizeVacuumToMbar(vacNum, vacUnit) : undefined;
+  const vacCode   = vacMbar ? `${vacMbar}M` : undefined;
+
+  const missing: string[] = [];
+  if (!endConn)  missing.push(`End Connection ("${endConnRaw}")`);
+  if (!size)     missing.push(`Inlet Size ("${sizeRaw}")`);
+  if (!pressure) missing.push(`Pressure Rating ("${pressureRaw}")`);
+  if (!bodyMat)  missing.push(`Body Material ("${bodyMatRaw}")`);
+  if (!trim)     missing.push(`Trim Material ("${trimRaw}")`);
+  if (!vacCode)  missing.push(`Vacuum Set Point ("${vacValRaw}" ${vacUnit})`);
+  if (missing.length > 0)
+    throw new Error(`Cannot generate VRV SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+
+  return `VLV-SV-VRV-${endConn}-${size}-${pressure}-${bodyMat}-${trim}-${vacCode}`;
+}
+
+/**
+ * Build SAP Item Code for BV (Breather Valve / Conservation Vent).
+ * Format: VLV-SV-BV-{EndConn}-{ConnSize}-{BodyMat}-{FlameArrestor}
+ */
+export function buildBvItemCode(attrs: Record<string, unknown>): string {
+  const endConnRaw = (attrs.end_connection  as string | undefined)?.trim() ?? '';
+  const sizeRaw    = (attrs.connection_size as string | undefined)?.trim() ?? '';
+  const bodyMatRaw = (attrs.body_material   as string | undefined)?.trim() ?? '';
+  const flameRaw   = (attrs.flame_arrestor  as string | undefined)?.trim() ?? '';
+
+  const endConn   = SV_BV_END_CONN_CODE[endConnRaw];
+  const sizeMatch = sizeRaw.match(/^(\d+)\s*NB$/i);
+  const size      = sizeMatch ? sizeMatch[1] : undefined;
+  const bodyMat   = SV_BV_BODY_CODE[bodyMatRaw];
+  const flame     = SV_FLAME_CODE[flameRaw];
+
+  const missing: string[] = [];
+  if (!endConn) missing.push(`End Connection ("${endConnRaw}")`);
+  if (!size)    missing.push(`Connection Size ("${sizeRaw}")`);
+  if (!bodyMat) missing.push(`Body Material ("${bodyMatRaw}")`);
+  if (!flame)   missing.push(`Flame Arrestor ("${flameRaw}")`);
+  if (missing.length > 0)
+    throw new Error(`Cannot generate Breather Valve SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+
+  return `VLV-SV-BV-${endConn}-${size}-${bodyMat}-${flame}`;
+}
+
+/** Dispatch to the correct builder based on valve_type. */
+export function buildSafetyValveItemCode(attrs: Record<string, unknown>): string {
+  const vt = ((attrs.valve_type as string | undefined) ?? '').toLowerCase();
+  if (vt.includes('breather'))        return buildBvItemCode(attrs);
+  if (vt.includes('vacuum'))          return buildVrvItemCode(attrs);
+  return buildPressureRelievingItemCode(attrs); // PSV / PRV / SRV
+}
+
+/**
+ * Find or create a master_items catalog record for a Safety Valve specification.
+ */
+export async function resolveSafetyValveSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<CatalogSapResult> {
+  const itemCode = buildSafetyValveItemCode(attrs);
+  assertSapCodeLength(itemCode);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const existing = await client.query<{ id: number }>(
+      `SELECT id FROM master_items WHERE item_type = 'catalog' AND item_code = $1 FOR UPDATE`,
+      [itemCode],
+    );
+    if (existing.rowCount && existing.rowCount > 0) {
+      await client.query('COMMIT');
+      return { masterItemId: existing.rows[0].id, sapItemCode: itemCode, reused: true };
+    }
+    const inserted = await client.query<{ id: number }>(
+      `INSERT INTO master_items
+         (item_code, description, uom, make_or_buy, item_type, buy_group_id, buy_subgroup_id, created_at, updated_at)
+       VALUES ($1,$2,$3,'Buy','catalog',$4,$5,NOW(),NOW()) RETURNING id`,
+      [itemCode, description, uomCode, groupId, subgroupId],
+    );
+    await client.query('COMMIT');
+    return { masterItemId: inserted.rows[0].id, sapItemCode: itemCode, reused: false };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 /**
  * Build the deterministic SAP Item Code from the 4-field identity.
  * Format: {GRP_PREFIX}-{SUB_PREFIX}-{MAKE}-{MODEL}  e.g. PMP-CEN-KSB-CPKEY 65-200

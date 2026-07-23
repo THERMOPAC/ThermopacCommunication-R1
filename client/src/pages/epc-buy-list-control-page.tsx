@@ -63,7 +63,7 @@ import {
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
   NrvValveAttrsForm, NeedleValveAttrsForm,
-  buildIsoValvePreviewCode, buildCtrlValvePreviewCode,
+  buildIsoValvePreviewCode, buildCtrlValvePreviewCode, buildSafetyValvePreviewCode,
 } from "@/components/valve-attrs-forms";
 import {
   PlatesAttrsForm, PipesAttrsForm, FittingsAttrsForm, FlangesAttrsForm,
@@ -942,7 +942,7 @@ export default function EpcBuyListControlPage() {
       if (pumpErr) { toast({ title: "Pump specification incomplete", description: pumpErr, variant: "destructive" }); return; }
     }
     const isMotorSpecBased = currentSubgroupCode === 'non_flameproof' || currentSubgroupCode === 'flameproof';
-    const isSpecBasedItem  = isMotorSpecBased || currentSubgroupCode === 'isolation' || currentSubgroupCode === 'control';
+    const isSpecBasedItem  = isMotorSpecBased || currentSubgroupCode === 'isolation' || currentSubgroupCode === 'control' || currentSubgroupCode === 'safety';
     if (!isSpecBasedItem && !lf.model.trim()) {
       toast({ title: "Model is required", variant: "destructive" }); return;
     }
@@ -2325,6 +2325,27 @@ export default function EpcBuyListControlPage() {
                     return (
                       <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
                         <span className="font-mono tracking-wide text-xs">Complete Motor Type, Mounting, Power, Voltage, Frequency, Poles &amp; Efficiency to preview</span>
+                      </div>
+                    );
+                  }
+                  // Priority 0 — Safety Valve: client-side spec-based preview (no make/model required)
+                  if (currentSubgroupCode === 'safety') {
+                    const svCode = buildSafetyValvePreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (svCode) {
+                      const savedCode = lineDialog?.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== svCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-rose-300 bg-rose-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-rose-900 text-sm">{svCode}</span>
+                          {isNew && <span className="text-[10px] text-rose-700 font-medium uppercase tracking-wide">New</span>}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">Complete Valve Type, Size, Pressure, Body, Trim &amp; Set Point to preview</span>
                       </div>
                     );
                   }

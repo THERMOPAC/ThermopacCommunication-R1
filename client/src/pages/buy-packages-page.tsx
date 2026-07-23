@@ -82,7 +82,7 @@ import {
   buildControlValveRequirement, buildSafetyValveRequirement,
   buildOnOffValveRequirement, buildIsolationValveRequirement,
   buildNrvValveRequirement, buildNeedleValveRequirement,
-  buildIsoValvePreviewCode, buildCtrlValvePreviewCode,
+  buildIsoValvePreviewCode, buildCtrlValvePreviewCode, buildSafetyValvePreviewCode,
 } from "@/components/valve-attrs-forms";
 
 // ── Role helpers ──────────────────────────────────────────────────────────────
@@ -1212,55 +1212,58 @@ export default function BuyPackagesPage() {
         toast({ title: "Area Classification is required for Flameproof enclosure", variant: "destructive" }); return;
       }
     } else if (isSafetyValveMode) {
-      const ta    = lf.technicalAttributes;
+      const ta     = lf.technicalAttributes;
       const svType = ((ta.valve_type as string) ?? "").trim().toLowerCase();
       if (!svType) {
         toast({ title: "Safety Valve Type is required", variant: "destructive" }); return;
       }
-      if (!(ta.design_standard as string)?.trim()) {
-        toast({ title: "Design Standard is required", variant: "destructive" }); return;
-      }
       if (svType.includes("breather")) {
         if (!(ta.connection_size as string)?.trim())
-          { toast({ title: "Connection Size is required", variant: "destructive" }); return; }
-        if (!(ta.pressure_setting_mbar as string)?.trim())
-          { toast({ title: "Pressure Setting (mbar) is required", variant: "destructive" }); return; }
-        if (!(ta.vacuum_setting_mbar as string)?.trim())
-          { toast({ title: "Vacuum Setting (mbar) is required", variant: "destructive" }); return; }
+          { toast({ title: "Connection Size is required for BV", variant: "destructive" }); return; }
+        if (!(ta.end_connection as string)?.trim())
+          { toast({ title: "End Connection is required for BV", variant: "destructive" }); return; }
+        if (!(ta.body_material as string)?.trim())
+          { toast({ title: "Body Material is required for BV", variant: "destructive" }); return; }
         if (!(ta.flame_arrestor as string)?.trim())
           { toast({ title: "Flame Arrestor is required", variant: "destructive" }); return; }
       } else if (svType.includes("vacuum")) {
         if (!(ta.connection_size as string)?.trim())
-          { toast({ title: "Connection Size is required for VRV", variant: "destructive" }); return; }
-        if (!(ta.set_vacuum as string)?.trim())
-          { toast({ title: "Set Vacuum (mbar) is required", variant: "destructive" }); return; }
+          { toast({ title: "Inlet Size is required for VRV", variant: "destructive" }); return; }
+        if (!(ta.pressure_rating as string)?.trim())
+          { toast({ title: "Pressure Rating is required for VRV", variant: "destructive" }); return; }
+        if (!(ta.end_connection as string)?.trim())
+          { toast({ title: "End Connection is required for VRV", variant: "destructive" }); return; }
+        if (!(ta.body_material as string)?.trim())
+          { toast({ title: "Body Material is required for VRV", variant: "destructive" }); return; }
+        if (!(ta.trim_material as string)?.trim())
+          { toast({ title: "Trim Material is required for VRV", variant: "destructive" }); return; }
+        if (!(ta.set_vacuum_value as string)?.trim())
+          { toast({ title: "Vacuum Set Point is required for VRV", variant: "destructive" }); return; }
       } else {
         if (!(ta.inlet_size as string)?.trim())
           { toast({ title: "Inlet Size is required", variant: "destructive" }); return; }
-        if (!(ta.outlet_size as string)?.trim())
-          { toast({ title: "Outlet Size is required", variant: "destructive" }); return; }
         if (!(ta.pressure_rating as string)?.trim())
           { toast({ title: "Pressure Rating is required", variant: "destructive" }); return; }
-        if (!(ta.set_pressure as string)?.trim())
-          { toast({ title: "Set Pressure is required", variant: "destructive" }); return; }
         if (!(ta.body_material as string)?.trim())
           { toast({ title: "Body Material is required", variant: "destructive" }); return; }
+        if (!(ta.trim_material as string)?.trim())
+          { toast({ title: "Trim Material is required", variant: "destructive" }); return; }
         if (!(ta.end_connection as string)?.trim())
           { toast({ title: "End Connection is required", variant: "destructive" }); return; }
-        if (!(ta.discharge_type as string)?.trim())
-          { toast({ title: "Discharge Type is required", variant: "destructive" }); return; }
+        if (!(ta.set_pressure_value as string)?.trim())
+          { toast({ title: "Set Pressure Value is required", variant: "destructive" }); return; }
+        if (!(ta.api_orifice as string)?.trim())
+          { toast({ title: "API Orifice is required", variant: "destructive" }); return; }
+        if (!(ta.back_pressure_type as string)?.trim())
+          { toast({ title: "Back Pressure Type is required", variant: "destructive" }); return; }
         if (svType.includes("psv") || svType.includes("pressure safety")) {
           if (!(ta.operation_type as string)?.trim())
             { toast({ title: "Operation Type is required for PSV", variant: "destructive" }); return; }
-          if (!(ta.api_orifice as string)?.trim())
-            { toast({ title: "API Orifice is required for PSV", variant: "destructive" }); return; }
           if (!(ta.bonnet_type as string)?.trim())
             { toast({ title: "Bonnet Type is required for PSV", variant: "destructive" }); return; }
         } else if (svType.includes("srv") || svType.includes("safety relief")) {
           if (!(ta.operation_type as string)?.trim())
             { toast({ title: "Operation Type is required for SRV", variant: "destructive" }); return; }
-          if (!(ta.api_orifice as string)?.trim())
-            { toast({ title: "API Orifice is required for SRV", variant: "destructive" }); return; }
           if (!(ta.service_phase as string)?.trim())
             { toast({ title: "Service Phase is required for SRV", variant: "destructive" }); return; }
           if (!(ta.bonnet_type as string)?.trim())
@@ -1540,7 +1543,7 @@ export default function BuyPackagesPage() {
       toast({ title: `Item Description exceeds ${ITEM_DESC_LIMIT} characters — shorten manually before saving.`, variant: "destructive" }); return;
     }
 
-    if (selectedGroupCode !== 'raw_materials' && !isNonFlameproofMotorMode && !isFlameproofMotorMode && !isIsolationValveMode && !isControlValveMode) {
+    if (selectedGroupCode !== 'raw_materials' && !isNonFlameproofMotorMode && !isFlameproofMotorMode && !isIsolationValveMode && !isControlValveMode && !isSafetyValveMode) {
       const ta   = lf.technicalAttributes ?? {};
       const make = typeof ta.make === 'string' ? ta.make.trim() : '';
       if (!make || make.toUpperCase() === 'TBN') {
@@ -1548,7 +1551,7 @@ export default function BuyPackagesPage() {
       }
     }
 
-    if (!isNonFlameproofMotorMode && !isFlameproofMotorMode && !isIsolationValveMode && !isControlValveMode && !lf.model.trim()) {
+    if (!isNonFlameproofMotorMode && !isFlameproofMotorMode && !isIsolationValveMode && !isControlValveMode && !isSafetyValveMode && !lf.model.trim()) {
       toast({ title: "Model is required", variant: "destructive" }); return;
     }
     const body = {
@@ -2111,6 +2114,27 @@ export default function BuyPackagesPage() {
                   </span>
                 </Label>
                 {(() => {
+                  // Priority 0 — Safety Valve: client-side spec-based preview
+                  if (isSafetyValveMode) {
+                    const svCode = buildSafetyValvePreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (svCode) {
+                      const savedCode = lineDialog.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== svCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-rose-300 bg-rose-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-rose-900 text-sm">{svCode}</span>
+                          {isNew && <span className="text-[10px] text-rose-700 font-medium uppercase tracking-wide">New</span>}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">Complete Valve Type, Size, Pressure, Body, Trim &amp; Set Point to preview</span>
+                      </div>
+                    );
+                  }
                   // Priority 0 — Control Valve: client-side spec-based preview
                   if (isControlValveMode) {
                     const cvCode = buildCtrlValvePreviewCode(

@@ -624,6 +624,8 @@ const SAFETY_COMMON_OPTS = {
   service_fluid_tank: ["Hydrocarbons","Inert Gas (N₂)","Chemical Vapour","LPG","Air"],
   connection_size:    ["25 NB","50 NB","80 NB","100 NB","150 NB","200 NB","250 NB","300 NB"],
   flame_arrestor:     ["Integrated","Separate","None"],
+  set_pressure_unit:  ["barg","psig"],
+  set_vacuum_unit:    ["mbar","kPa","mmWC","mmHg","inH2O"],
 };
 
 const SAFETY_ALL_FIELD_OPTS: Record<string, string[]> = {
@@ -645,9 +647,117 @@ const SAFETY_ALL_FIELD_OPTS: Record<string, string[]> = {
   connection_size:   SAFETY_COMMON_OPTS.connection_size,
   flame_arrestor:    SAFETY_COMMON_OPTS.flame_arrestor,
   api_orifice:       API_ORIFICE_OPTS,
+  set_pressure_unit: SAFETY_COMMON_OPTS.set_pressure_unit,
+  set_vacuum_unit:   SAFETY_COMMON_OPTS.set_vacuum_unit,
 };
 
 const SAFETY_VALVE_MAKES: string[] = [];
+
+// ── Client-side SAP Item Code Preview (mirrors server builders) ───────────────
+const _SV_END_CONN: Record<string, string> = { Flanged: 'RF', Threaded: 'THD' };
+const _SV_BV_CONN:  Record<string, string> = { Flanged: 'FLG', NPT: 'NPT', BSP: 'BSP' };
+const _SV_PRESS:    Record<string, string> = {
+  'Class 150': 'CL150', 'Class 300': 'CL300', 'Class 600': 'CL600',
+  'Class 900': 'CL900', 'Class 1500': 'CL1500',
+};
+const _SV_BODY: Record<string, string> = {
+  'WCB (CS)': 'WCB', 'LCB (Low Temp CS)': 'LCB', 'SS304': 'SS304',
+  'SS316': 'SS316', 'SS316L': 'SS316L', 'CF8': 'CF8', 'CF8M': 'CF8M',
+  'Duplex SS': 'DSS', 'Hastelloy C': 'HC276',
+};
+const _SV_TRIM: Record<string, string> = {
+  'SS304': 'SS304', 'SS316': 'SS316', 'Hardened Trim': 'HSS', 'Stellite': 'STLT',
+};
+const _SV_BP: Record<string, string> = {
+  'Conventional': 'CONV', 'Balanced Bellows': 'BLW', 'Pilot-Operated': 'PLT',
+};
+const _SV_BV_BODY: Record<string, string> = {
+  'Al Alloy': 'ALAY', 'CS': 'CS', 'SS304': 'SS304', 'SS316': 'SS316', 'FRP': 'FRP',
+};
+const _SV_FLAME: Record<string, string> = {
+  'Integrated': 'INT', 'Separate': 'SEP', 'None': 'NON',
+};
+
+function _svTypeCode(vt: string): string | undefined {
+  const v = vt.toLowerCase();
+  if (v.includes('(psv)') || (v.includes('safety') && v.includes('valve') && !v.includes('relief'))) return 'PSV';
+  if (v.includes('(prv)') || (v.includes('pressure') && v.includes('relief') && !v.includes('safety'))) return 'PRV';
+  if (v.includes('(srv)') || v.includes('safety relief')) return 'SRV';
+  return undefined;
+}
+function _svEncodePress(val: string, unit: string): string | undefined {
+  const n = parseFloat(val);
+  if (isNaN(n) || n <= 0) return undefined;
+  let barg = n;
+  if (unit.toLowerCase() === 'psig') barg = Math.round(n * 0.0689476 * 10) / 10;
+  return parseFloat(barg.toPrecision(10)).toString().replace('.', 'P') + 'B';
+}
+function _svVacuumMbar(val: number, unit: string): number {
+  switch (unit.toLowerCase()) {
+    case 'kpa':   return Math.round(val * 10);
+    case 'mmwc':  return Math.round(val * 0.09807);
+    case 'mmhg':  return Math.round(val * 1.33322);
+    case 'inh2o': return Math.round(val * 2.49089);
+    default:      return Math.round(val);
+  }
+}
+
+/** Returns the live SAP Item Code preview for a safety valve, or null if any required segment is missing. */
+export function buildSafetyValvePreviewCode(attrs: Record<string, unknown>): string | null {
+  try {
+    const vt = ((attrs.valve_type as string) ?? '').trim();
+    if (!vt) return null;
+    const vtL = vt.toLowerCase();
+
+    if (vtL.includes('breather')) {
+      const ec  = _SV_BV_CONN[(attrs.end_connection  as string)?.trim() ?? ''];
+      const sm  = (attrs.connection_size as string)?.trim() ?? '';
+      const szM = sm.match(/^(\d+)\s*NB$/i);
+      const sz  = szM ? szM[1] : undefined;
+      const bm  = _SV_BV_BODY[(attrs.body_material as string)?.trim() ?? ''];
+      const fl  = _SV_FLAME[(attrs.flame_arrestor  as string)?.trim() ?? ''];
+      if (!ec || !sz || !bm || !fl) return null;
+      return `VLV-SV-BV-${ec}-${sz}-${bm}-${fl}`;
+    }
+
+    if (vtL.includes('vacuum')) {
+      const ec  = _SV_END_CONN[(attrs.end_connection  as string)?.trim() ?? ''];
+      const sm  = (attrs.connection_size as string)?.trim() ?? '';
+      const szM = sm.match(/^(\d+)\s*NB$/i);
+      const sz  = szM ? szM[1] : undefined;
+      const pr  = _SV_PRESS[(attrs.pressure_rating   as string)?.trim() ?? ''];
+      const bm  = _SV_BODY[(attrs.body_material       as string)?.trim() ?? ''];
+      const tr  = _SV_TRIM[(attrs.trim_material       as string)?.trim() ?? ''];
+      const vvR = (attrs.set_vacuum_value as string)?.trim() ?? '';
+      const vu  = (attrs.set_vacuum_unit  as string)?.trim() || 'mbar';
+      const vn  = parseFloat(vvR);
+      const mb  = !isNaN(vn) && vn > 0 ? _svVacuumMbar(vn, vu) : undefined;
+      const vc  = mb ? `${mb}M` : undefined;
+      if (!ec || !sz || !pr || !bm || !tr || !vc) return null;
+      return `VLV-SV-VRV-${ec}-${sz}-${pr}-${bm}-${tr}-${vc}`;
+    }
+
+    const tc  = _svTypeCode(vt);
+    const ec  = _SV_END_CONN[(attrs.end_connection    as string)?.trim() ?? ''];
+    const sm  = (attrs.inlet_size as string)?.trim() ?? '';
+    const szM = sm.match(/^(\d+)\s*NB$/i);
+    const sz  = szM ? szM[1] : undefined;
+    const pr  = _SV_PRESS[(attrs.pressure_rating      as string)?.trim() ?? ''];
+    const bm  = _SV_BODY[(attrs.body_material         as string)?.trim() ?? ''];
+    const tr  = _SV_TRIM[(attrs.trim_material         as string)?.trim() ?? ''];
+    const or_ = (attrs.api_orifice as string)?.trim() ?? '';
+    const ori = /^[A-T]$/i.test(or_) ? or_.toUpperCase() : undefined;
+    const sp  = _svEncodePress(
+      (attrs.set_pressure_value as string)?.trim() ?? '',
+      (attrs.set_pressure_unit  as string)?.trim() || 'barg',
+    );
+    const bp  = _SV_BP[(attrs.back_pressure_type as string)?.trim() ?? ''];
+    if (!tc || !ec || !sz || !pr || !bm || !tr || !ori || !sp || !bp) return null;
+    return `VLV-SV-${tc}-${ec}-${sz}-${pr}-${bm}-${tr}-${ori}-${sp}-${bp}`;
+  } catch {
+    return null;
+  }
+}
 
 export function buildSafetyValveRequirement(attrs: Record<string, unknown>): string {
   const type     = (attrs.valve_type as string)?.trim() || "";
@@ -674,14 +784,20 @@ export function buildSafetyValveRequirement(attrs: Record<string, unknown>): str
     if (flame && flame !== "None") p2.push(`${flame} Arrestor`);
     typeSpecific = p2.join(", ");
   } else if (typeLC.includes("vacuum")) {
-    const connSize = (attrs.connection_size as string)?.trim() || "";
-    const setVac   = (attrs.set_vacuum as string)?.trim() || "";
+    const connSize   = (attrs.connection_size   as string)?.trim() || "";
+    const vvRaw      = (attrs.set_vacuum_value  as string)?.trim() || "";
+    const vuRaw      = (attrs.set_vacuum_unit   as string)?.trim() || "mbar";
+    const legacyVac  = (attrs.set_vacuum        as string)?.trim() || "";
+    const setVac     = vvRaw ? `${vvRaw} ${vuRaw}` : legacyVac;
     sizeStr  = connSize;
-    pressStr = setVac ? `Set Vacuum: ${setVac} mbar` : "";
+    pressStr = setVac ? `Set Vacuum: ${setVac}` : "";
   } else {
     const inletSize   = (attrs.inlet_size as string)?.trim() || "";
     const outletSize  = (attrs.outlet_size as string)?.trim() || "";
-    const setPressure = (attrs.set_pressure as string)?.trim() || "";
+    const spVal       = (attrs.set_pressure_value as string)?.trim() || "";
+    const spUnit      = (attrs.set_pressure_unit  as string)?.trim() || "barg";
+    const legacySP    = (attrs.set_pressure       as string)?.trim() || "";
+    const setPressure = spVal ? `${spVal} ${spUnit}` : legacySP;
     const orifice     = (attrs.api_orifice as string)?.trim() || "";
     const opType      = (attrs.operation_type as string)?.trim() || "";
     sizeStr  = inletSize && outletSize ? `${inletSize} x ${outletSize}` : inletSize || outletSize;
@@ -706,10 +822,12 @@ function buildSafetyValveDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
     valve_type: type, body_material: "WCB (CS)", end_connection: "Flanged", make: "",
     inlet_size: "", outlet_size: "", pressure_rating: "", set_pressure: "",
+    set_pressure_value: "", set_pressure_unit: "barg",
     api_orifice: "", bonnet_type: "", back_pressure_type: "", overpressure: "",
     discharge_type: "", design_standard: "", certification: "", service_fluid: "",
     operating_temp: "", trim_material: "", operation_type: "", service_phase: "",
-    set_vacuum: "", flow_capacity: "", reseal_pressure: "",
+    set_vacuum: "", set_vacuum_value: "", set_vacuum_unit: "mbar",
+    flow_capacity: "", reseal_pressure: "",
     connection_size: "", pressure_setting_mbar: "", vacuum_setting_mbar: "",
     flame_arrestor: "", relieving_capacity: "",
   };
@@ -730,8 +848,10 @@ function buildSafetyValveDefaults(type: string): Record<string, unknown> {
         service_phase: "Gas / Vapour", bonnet_type: "Open Bonnet",
         discharge_type: "Open Discharge", back_pressure_type: "Conventional", overpressure: "10%" };
     case "Vacuum Relief Valve (VRV)":
-      return { ...base, design_standard: "API 2000", body_material: "CS",
-        connection_size: "50 NB", service_fluid: "Air" };
+      return { ...base, design_standard: "API 2000", body_material: "WCB (CS)",
+        pressure_rating: "Class 150", trim_material: "SS316",
+        connection_size: "50 NB", service_fluid: "Air",
+        set_vacuum_unit: "mbar" };
     case "Breather Valve (Conservation Vent)":
       return { ...base, design_standard: "API 2000", body_material: "Al Alloy",
         connection_size: "80 NB", flame_arrestor: "Integrated" };
@@ -871,7 +991,8 @@ export function SafetyValveAttrsForm({
       {/* 3 — Pressure Settings (spring-based) */}
       {isSpringBased && (
         <SectionCard title="Pressure Settings" color="bg-amber-50/60 border-amber-300">
-          <div className="col-span-3 md:col-span-5">{renderText("set_pressure","Set Pressure","e.g. 10 barg", true)}</div>
+          {renderText( "set_pressure_value", "Set Pressure Value", "e.g. 10.5",   true)}
+          {renderField("set_pressure_unit",  "Pressure Unit",      SAFETY_COMMON_OPTS.set_pressure_unit, true)}
           {renderField("overpressure",       "Overpressure (%)",   SAFETY_COMMON_OPTS.overpressure)}
           {renderText( "relieving_capacity", "Relieving Capacity", "e.g. 500 kg/h")}
         </SectionCard>
@@ -893,8 +1014,8 @@ export function SafetyValveAttrsForm({
         <SectionCard title="PRV Configuration" color="bg-amber-50/60 border-amber-300">
           {renderField("discharge_type",    "Discharge Type",    SAFETY_COMMON_OPTS.discharge_type,    true, "col-span-2")}
           {renderField("bonnet_type",       "Bonnet Type",       SAFETY_COMMON_OPTS.bonnet_type)}
-          {renderField("api_orifice",       "API Orifice",       API_ORIFICE_OPTS)}
-          {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type, undefined, "col-span-2")}
+          {renderField("api_orifice",       "API Orifice",       API_ORIFICE_OPTS,                      true)}
+          {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type, true, "col-span-2")}
         </SectionCard>
       )}
 
@@ -911,16 +1032,19 @@ export function SafetyValveAttrsForm({
 
       {isVRV && (
         <SectionCard title="VRV Configuration" color="bg-amber-50/60 border-amber-300">
-          {renderField("connection_size","Connection Size (NB)",   SAFETY_COMMON_OPTS.connection_size,  true)}
-          {renderText( "set_vacuum",     "Set Vacuum (mbar)",      "e.g. 10 mbar",                      true)}
-          {renderText( "flow_capacity",  "Flow Capacity (m³/h)",   "e.g. 200 m³/h")}
-          {renderText( "reseal_pressure","Re-seal Pressure (mbar)","e.g. 5 mbar")}
-          {renderField("service_fluid",  "Service Fluid",          SAFETY_COMMON_OPTS.service_fluid_tank)}
-          {renderText( "operating_temp", "Operating Temperature",  "e.g. 65°C")}
-          {renderField("body_material",  "Body Material",          SAFETY_COMMON_OPTS.body_material)}
-          {renderField("end_connection", "End Connection",         SAFETY_COMMON_OPTS.end_connection)}
-          {renderField("certification",  "Certification",          SAFETY_COMMON_OPTS.certification)}
-          {renderField("design_standard","Design Standard",        SAFETY_COMMON_OPTS.design_std_tank,  true, "col-span-2")}
+          {renderField("connection_size", "Inlet Size (NB)",        SAFETY_COMMON_OPTS.connection_size,  true)}
+          {renderField("pressure_rating", "Pressure Rating",        SAFETY_COMMON_OPTS.pressure_rating,  true)}
+          {renderField("end_connection",  "End Connection",         SAFETY_COMMON_OPTS.end_connection,   true)}
+          {renderField("body_material",   "Body Material",          SAFETY_COMMON_OPTS.body_material,    true)}
+          {renderField("trim_material",   "Trim Material",          SAFETY_COMMON_OPTS.trim_material,    true)}
+          {renderText( "set_vacuum_value","Vacuum Set Value",       "e.g. 250",                          true)}
+          {renderField("set_vacuum_unit", "Vacuum Unit",            SAFETY_COMMON_OPTS.set_vacuum_unit,  true)}
+          {renderText( "flow_capacity",   "Flow Capacity (m³/h)",   "e.g. 200 m³/h")}
+          {renderText( "reseal_pressure", "Re-seal Pressure (mbar)","e.g. 5 mbar")}
+          {renderField("service_fluid",   "Service Fluid",          SAFETY_COMMON_OPTS.service_fluid_tank)}
+          {renderText( "operating_temp",  "Operating Temperature",  "e.g. 65°C")}
+          {renderField("certification",   "Certification",          SAFETY_COMMON_OPTS.certification)}
+          {renderField("design_standard", "Design Standard",        SAFETY_COMMON_OPTS.design_std_tank,  true, "col-span-2")}
           <div />
         </SectionCard>
       )}
@@ -955,7 +1079,7 @@ export function SafetyValveAttrsForm({
       {isSpringBased && (
         <SectionCard title="Material & Connection" color="bg-emerald-50/60 border-emerald-200">
           {renderField("body_material",  "Body Material",  SAFETY_COMMON_OPTS.body_material,  true)}
-          {renderField("trim_material",  "Trim Material",  SAFETY_COMMON_OPTS.trim_material)}
+          {renderField("trim_material",  "Trim Material",  SAFETY_COMMON_OPTS.trim_material,  true)}
           {renderField("end_connection", "End Connection", SAFETY_COMMON_OPTS.end_connection, true)}
           <div />
         </SectionCard>
