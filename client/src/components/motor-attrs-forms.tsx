@@ -232,7 +232,7 @@ export function applyNonFlameproofMotorDefaults(existing: Record<string, unknown
 
 export const FLAMEPROOF_MOTOR_DEFAULTS: Record<string, unknown> = {
   motor_type:           "Induction",
-  mounting:             "Horizontal (B3)",
+  mounting:             "B3",
   cooling_type:         "TEFC",
   voltage:              "415 V",
   phase:                "Three Phase",
@@ -242,11 +242,12 @@ export const FLAMEPROOF_MOTOR_DEFAULTS: Record<string, unknown> = {
   duty:                 "S1 (Continuous)",
   area_classification:  "Zone 1",
   ip_rating:            "IP55",
-  efficiency_class:     "IE4",
-  vfd_compatible:       "Yes",
+  efficiency_class:     "IE3",
+  vfd_compatible:       "No",
   material:             "Cast Iron",
   explosion_protection: "Ex d",
-  gas_group:            "IIA",
+  gas_group:            "IIB",
+  temperature_class:    "T3",
 };
 
 export function applyFlameproofMotorDefaults(existing: Record<string, unknown>): Record<string, unknown> {
@@ -258,6 +259,62 @@ export function applyFlameproofMotorDefaults(existing: Record<string, unknown>):
     }
   }
   return result;
+}
+
+/**
+ * Client-side FLP Motor SAP Item Code preview.
+ * Mirrors buildFlpMotorItemCode in buy-catalog-sap-service.ts.
+ * Returns the generated code string, or null if any required field is missing/unrecognised.
+ */
+export function buildFlpMotorPreviewCode(attrs: Record<string, unknown>): string | null {
+  const MTYPE: Record<string, string> = {
+    'Induction': 'IND', 'Brake Motor': 'BRK', 'VFD Duty': 'VFD',
+    'Synchronous': 'SYN', 'Permanent Magnet Synchronous': 'PMS', 'Wound Rotor Motor': 'WRM',
+  };
+  const MOUNT: Record<string, string> = {
+    'Horizontal (B3)': 'B3', 'Flange Mounted (B5)': 'B5', 'Foot + Flange (B35)': 'B35',
+    'Vertical (V1)': 'V1', 'Vertical (V3)': 'V3', 'Vertical (V5)': 'V5', 'Vertical (V6)': 'V6',
+    'B3': 'B3', 'B5': 'B5', 'B14': 'B14', 'B35': 'B35',
+    'V1': 'V1', 'V3': 'V3', 'V5': 'V5', 'V6': 'V6',
+  };
+  const VOLT: Record<string, string> = {
+    '230 V': '230', '380 V': '380', '400 V': '400', '415 V': '415', '440 V': '440',
+    '525 V': '525', '690 V': '690', '3300 V': '3300', '6600 V': '6600', '11000 V': '11000',
+  };
+  const FREQ: Record<string, string> = { '50 Hz': '50', '60 Hz': '60' };
+  const EXPROT: Record<string, string> = {
+    'Ex d': 'EXD', 'Ex e': 'EXE', 'Ex de': 'EXDE', 'Ex n': 'EXN', 'Ex p': 'EXP',
+  };
+  const GASGRP: Record<string, string> = { 'IIA': 'IIA', 'IIB': 'IIB', 'IIC': 'IIC' };
+  const TCLS: Record<string, string> = {
+    'T1': 'T1', 'T2': 'T2', 'T3': 'T3', 'T4': 'T4', 'T5': 'T5', 'T6': 'T6',
+  };
+
+  function encodeKw(kw: string): string | null {
+    const num = parseFloat(kw);
+    if (isNaN(num) || num <= 0) return null;
+    if (Number.isInteger(num)) return String(num).padStart(3, '0');
+    const s = num.toString();
+    const d = s.indexOf('.');
+    return `${s.slice(0, d).padStart(3, '0')}P${s.slice(d + 1)}`;
+  }
+
+  const motorType    = MTYPE[(attrs.motor_type as string)?.trim() ?? ''];
+  const mounting     = MOUNT[(attrs.mounting   as string)?.trim() ?? ''];
+  const power        = encodeKw((attrs.power   as string)?.trim() ?? '');
+  const voltage      = VOLT[(attrs.voltage     as string)?.trim() ?? ''];
+  const frequency    = FREQ[(attrs.frequency   as string)?.trim() ?? ''];
+  const poles        = ((attrs.num_poles ?? attrs.poles) as string | undefined)?.trim() ?? '';
+  const efficiency   = (attrs.efficiency_class     as string)?.trim() ?? '';
+  const exProtection = EXPROT[(attrs.explosion_protection as string)?.trim() ?? ''];
+  const gasGroup     = GASGRP[(attrs.gas_group        as string)?.trim() ?? ''];
+  const tClass       = TCLS[(attrs.temperature_class  as string)?.trim() ?? ''];
+
+  if (!motorType || !mounting || !power || !voltage || !frequency || !poles || !efficiency ||
+      !exProtection || !gasGroup || !tClass)
+    return null;
+
+  return `MOT-FLP-${motorType}-${mounting}-${power}-${voltage}-${frequency}-${poles}-${efficiency}-${exProtection}-${gasGroup}-${tClass}`;
 }
 
 const MOTOR_MAKES: string[] = [];
@@ -412,21 +469,38 @@ export function MotorAttrsForm({
               value={(attrs.explosion_protection as string) ?? "Ex d"}
               onChange={(e) => set("explosion_protection", e.target.value)}
             >
-              <option value="Ex d">Ex d</option>
-              <option value="IECEx d">IECEx d</option>
-              <option value="ATEX">ATEX</option>
+              <option value="Ex d">Ex d — Flameproof enclosure</option>
+              <option value="Ex e">Ex e — Increased safety</option>
+              <option value="Ex de">Ex de — Combined (d+e)</option>
+              <option value="Ex n">Ex n — Non-sparking</option>
+              <option value="Ex p">Ex p — Pressurised</option>
             </select>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Gas Group <span className="text-red-500">*</span></Label>
             <select
               className="h-8 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              value={(attrs.gas_group as string) ?? "IIA"}
+              value={(attrs.gas_group as string) ?? "IIB"}
               onChange={(e) => set("gas_group", e.target.value)}
             >
-              <option value="IIA">IIA</option>
-              <option value="IIB">IIB</option>
-              <option value="IIC">IIC</option>
+              <option value="IIA">IIA — Propane / Methane</option>
+              <option value="IIB">IIB — Ethylene</option>
+              <option value="IIC">IIC — Hydrogen / Acetylene</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Temperature Class <span className="text-red-500">*</span></Label>
+            <select
+              className="h-8 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              value={(attrs.temperature_class as string) ?? "T3"}
+              onChange={(e) => set("temperature_class", e.target.value)}
+            >
+              <option value="T1">T1 — Max 450°C</option>
+              <option value="T2">T2 — Max 300°C</option>
+              <option value="T3">T3 — Max 200°C</option>
+              <option value="T4">T4 — Max 135°C</option>
+              <option value="T5">T5 — Max 100°C</option>
+              <option value="T6">T6 — Max 85°C</option>
             </select>
           </div>
         </SectionCard>

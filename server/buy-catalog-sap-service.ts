@@ -242,6 +242,128 @@ export async function resolveNfpMotorSapItemCode(
   }
 }
 
+// ── FLP Motor Spec-Based Item Code ───────────────────────────────────────────
+
+/** Explosion protection designation → short code for FLP item code */
+const EX_PROTECTION_CODE: Record<string, string> = {
+  'Ex d':  'EXD',
+  'Ex e':  'EXE',
+  'Ex de': 'EXDE',
+  'Ex n':  'EXN',
+  'Ex p':  'EXP',
+};
+
+/** ATEX/IECEx gas group → code (stored as-is; identity is the group itself) */
+const GAS_GROUP_CODE: Record<string, string> = {
+  'IIA': 'IIA', 'IIB': 'IIB', 'IIC': 'IIC',
+};
+
+/** Surface temperature class → code (T1–T6) */
+const T_CLASS_CODE: Record<string, string> = {
+  'T1': 'T1', 'T2': 'T2', 'T3': 'T3', 'T4': 'T4', 'T5': 'T5', 'T6': 'T6',
+};
+
+/**
+ * Build the deterministic FLP Motor SAP Item Code from technical_attributes.
+ * Format: MOT-FLP-{MotorType}-{Mounting}-{Power}-{Voltage}-{Freq}-{Poles}-{Efficiency}-{ExProtection}-{GasGroup}-{TClass}
+ * Example: MOT-FLP-IND-B3-015-415-50-4-IE3-EXD-IIB-T4   (44 chars)
+ * Worst case: MOT-FLP-PMSM-B35-018P5-11000-60-12-IE4-EXDE-IIC-T6  (50 chars — within SAP B1 limit)
+ *
+ * Throws a descriptive error if any required attribute is missing or unrecognised.
+ */
+export function buildFlpMotorItemCode(attrs: Record<string, unknown>): string {
+  const motorTypeRaw  = (attrs.motor_type          as string | undefined)?.trim() ?? '';
+  const mountingRaw   = (attrs.mounting             as string | undefined)?.trim() ?? '';
+  const powerRaw      = (attrs.power                as string | undefined)?.trim() ?? '';
+  const voltageRaw    = (attrs.voltage              as string | undefined)?.trim() ?? '';
+  const freqRaw       = (attrs.frequency            as string | undefined)?.trim() ?? '';
+  const polesRaw      = ((attrs.num_poles ?? attrs.poles) as string | undefined)?.trim() ?? '';
+  const effRaw        = (attrs.efficiency_class     as string | undefined)?.trim() ?? '';
+  const exProtRaw     = (attrs.explosion_protection as string | undefined)?.trim() ?? '';
+  const gasGroupRaw   = (attrs.gas_group            as string | undefined)?.trim() ?? '';
+  const tClassRaw     = (attrs.temperature_class    as string | undefined)?.trim() ?? '';
+
+  const motorType    = MOTOR_TYPE_CODE[motorTypeRaw];
+  const mounting     = MOUNTING_CODE[mountingRaw];
+  const voltage      = VOLTAGE_CODE[voltageRaw];
+  const frequency    = FREQUENCY_CODE[freqRaw];
+  const poles        = polesRaw.replace(/[^0-9]/g, '');
+  const efficiency   = effRaw;
+  const exProtection = EX_PROTECTION_CODE[exProtRaw];
+  const gasGroup     = GAS_GROUP_CODE[gasGroupRaw];
+  const tClass       = T_CLASS_CODE[tClassRaw];
+
+  let powerCode: string | undefined;
+  try { powerCode = powerRaw ? encodePowerRating(powerRaw) : undefined; } catch { /* leave undefined */ }
+
+  const missing: string[] = [];
+  if (!motorType)    missing.push(`Motor Type ("${motorTypeRaw}")`);
+  if (!mounting)     missing.push(`Mounting ("${mountingRaw}")`);
+  if (!powerCode)    missing.push(`Power Rating ("${powerRaw}")`);
+  if (!voltage)      missing.push(`Voltage ("${voltageRaw}")`);
+  if (!frequency)    missing.push(`Frequency ("${freqRaw}")`);
+  if (!poles)        missing.push('Number of Poles');
+  if (!efficiency)   missing.push('Efficiency Class');
+  if (!exProtection) missing.push(`Explosion Protection ("${exProtRaw}" — must be one of: Ex d, Ex e, Ex de, Ex n, Ex p)`);
+  if (!gasGroup)     missing.push(`Gas Group ("${gasGroupRaw}" — must be IIA, IIB, or IIC)`);
+  if (!tClass)       missing.push(`Temperature Class ("${tClassRaw}" — must be T1–T6)`);
+
+  if (missing.length > 0)
+    throw new Error(`Cannot generate FLP Motor SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+
+  return `MOT-FLP-${motorType}-${mounting}-${powerCode}-${voltage}-${frequency}-${poles}-${efficiency}-${exProtection}-${gasGroup}-${tClass}`;
+}
+
+/**
+ * Find or create a master_items catalog record for a Flameproof Motor specification.
+ * The item_code is the unique lookup key (spec-based, deterministic — no make/model).
+ */
+export async function resolveFlpMotorSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<CatalogSapResult> {
+  const itemCode = buildFlpMotorItemCode(attrs);
+  assertSapCodeLength(itemCode);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const existing = await client.query<{ id: number; item_code: string }>(
+      `SELECT id, item_code FROM master_items
+       WHERE item_type = 'catalog' AND item_code = $1
+       FOR UPDATE`,
+      [itemCode],
+    );
+
+    if (existing.rowCount && existing.rowCount > 0) {
+      await client.query('COMMIT');
+      return { masterItemId: existing.rows[0].id, sapItemCode: itemCode, reused: true };
+    }
+
+    const inserted = await client.query<{ id: number; item_code: string }>(
+      `INSERT INTO master_items
+         (item_code, description, uom, make_or_buy,
+          item_type, buy_group_id, buy_subgroup_id, created_at, updated_at)
+       VALUES ($1, $2, $3, 'Buy', 'catalog', $4, $5, NOW(), NOW())
+       RETURNING id, item_code`,
+      [itemCode, description, uomCode, groupId, subgroupId],
+    );
+
+    await client.query('COMMIT');
+    return { masterItemId: inserted.rows[0].id, sapItemCode: itemCode, reused: false };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 /**
  * Build the deterministic SAP Item Code from the 4-field identity.
  * Format: {GRP_PREFIX}-{SUB_PREFIX}-{MAKE}-{MODEL}  e.g. PMP-CEN-KSB-CPKEY 65-200

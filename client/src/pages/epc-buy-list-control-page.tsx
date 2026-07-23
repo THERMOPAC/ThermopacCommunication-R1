@@ -54,6 +54,7 @@ import {
   MotorAttrsForm,
   NON_FLAMEPROOF_MOTOR_DEFAULTS, FLAMEPROOF_MOTOR_DEFAULTS,
   applyNonFlameproofMotorDefaults, applyFlameproofMotorDefaults,
+  buildNfpMotorPreviewCode, buildFlpMotorPreviewCode,
 } from "@/components/motor-attrs-forms";
 import {
   PanelAttrsForm, CablingAttrsForm, JunctionBoxAttrsForm,
@@ -939,7 +940,8 @@ export default function EpcBuyListControlPage() {
       const pumpErr = validatePumpAttrs(currentSubgroupCode, lf.technicalAttributes);
       if (pumpErr) { toast({ title: "Pump specification incomplete", description: pumpErr, variant: "destructive" }); return; }
     }
-    if (!lf.model.trim()) {
+    const isMotorSpecBased = currentSubgroupCode === 'non_flameproof' || currentSubgroupCode === 'flameproof';
+    if (!isMotorSpecBased && !lf.model.trim()) {
       toast({ title: "Model is required", variant: "destructive" }); return;
     }
     const isTaggableForValidation = !!currentSubgroupCode && isTaggable && !isRawMaterials;
@@ -2303,6 +2305,48 @@ export default function EpcBuyListControlPage() {
                   </span>
                 </Label>
                 {(() => {
+                  // Priority 0 — NFP motor: client-side spec-based preview (no make/model required)
+                  if (currentSubgroupCode === 'non_flameproof') {
+                    const nfpCode = buildNfpMotorPreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (nfpCode) {
+                      const savedCode = lineDialog?.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== nfpCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-emerald-300 bg-emerald-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-emerald-800 text-sm">{nfpCode}</span>
+                          {isNew && <span className="text-[10px] text-emerald-600 font-medium uppercase tracking-wide">New</span>}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">Complete Motor Type, Mounting, Power, Voltage, Frequency, Poles &amp; Efficiency to preview</span>
+                      </div>
+                    );
+                  }
+                  // Priority 0 — FLP motor: client-side spec-based preview (no make/model required)
+                  if (currentSubgroupCode === 'flameproof') {
+                    const flpCode = buildFlpMotorPreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (flpCode) {
+                      const savedCode = lineDialog?.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== flpCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-amber-300 bg-amber-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-amber-900 text-sm">{flpCode}</span>
+                          {isNew && <span className="text-[10px] text-amber-700 font-medium uppercase tracking-wide">New</span>}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">Complete Motor Type, Mounting, Power, Voltage, Frequency, Poles, Efficiency, Ex Protection, Gas Group &amp; T-class to preview</span>
+                      </div>
+                    );
+                  }
                   if (sapPreviewLoading) {
                     return (
                       <div className="h-9 px-3 flex items-center gap-2 rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">

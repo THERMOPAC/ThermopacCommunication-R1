@@ -22,6 +22,7 @@ import { applyProjectElectricalStandards, stripElectricalOverridesMeta } from '.
 import {
   resolveCatalogSapItemCode, groupPrefix, subgroupPrefix, buildCatalogItemCode, SAP_ITEM_CODE_MAX_LEN,
   resolveNfpMotorSapItemCode, buildNfpMotorItemCode,
+  resolveFlpMotorSapItemCode, buildFlpMotorItemCode,
 } from './buy-catalog-sap-service';
 
 /**
@@ -870,7 +871,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const sgCodeRow = await pool.query(`SELECT code FROM buy_subgroups WHERE id = $1`, [buySubgroupId]);
       const subgroupCode = sgCodeRow.rows[0]?.code as string | undefined;
       const isNfpMotor = groupCode === 'motors' && subgroupCode === 'non_flameproof';
-      if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor) {
+      const isFlpMotor = groupCode === 'motors' && subgroupCode === 'flameproof';
+      if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor) {
         const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
         const make = readMakeScalar(attrs);
         const series = typeof attrs.preferred_series === 'string' ? attrs.preferred_series.trim() : '';
@@ -895,6 +897,13 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           const powerKw        = (attrs.power      as string | undefined)?.trim() ?? '';
           const desc = `Non-Flameproof Motor — ${motorTypeLabel} — ${powerKw} kW`.slice(0, 255);
           const sapRes = await resolveNfpMotorSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
+          sapMasterItemId  = sapRes.masterItemId;
+          sapItemCodeValue = sapRes.sapItemCode;
+        } else if (isFlpMotor) {
+          const motorTypeLabel = (attrs.motor_type as string | undefined)?.trim() ?? '';
+          const powerKw        = (attrs.power      as string | undefined)?.trim() ?? '';
+          const desc = `Flameproof Motor — ${motorTypeLabel} — ${powerKw} kW`.slice(0, 255);
+          const sapRes = await resolveFlpMotorSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
           sapMasterItemId  = sapRes.masterItemId;
           sapItemCodeValue = sapRes.sapItemCode;
         } else {
@@ -1008,7 +1017,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const groupCode2   = grpCodeRow2.rows[0]?.code as string | undefined;
         const subgroupCode2 = sgCodeRow2.rows[0]?.code as string | undefined;
         const isNfpMotor2  = groupCode2 === 'motors' && subgroupCode2 === 'non_flameproof';
-        if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2) {
+        const isFlpMotor2  = groupCode2 === 'motors' && subgroupCode2 === 'flameproof';
+        if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2) {
           const attrs2 = (b.technicalAttributes ?? {}) as Record<string, unknown>;
           const make2 = readMakeScalar(attrs2);
           const series2 = typeof attrs2.preferred_series === 'string' ? attrs2.preferred_series.trim() : '';
@@ -1033,6 +1043,13 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             const powerKw        = (attrs3.power      as string | undefined)?.trim() ?? '';
             const desc3 = `Non-Flameproof Motor — ${motorTypeLabel} — ${powerKw} kW`.slice(0, 255);
             const sapRes3 = await resolveNfpMotorSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+            fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
+            fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
+          } else if (isFlpMotor2) {
+            const motorTypeLabel = (attrs3.motor_type as string | undefined)?.trim() ?? '';
+            const powerKw        = (attrs3.power      as string | undefined)?.trim() ?? '';
+            const desc3 = `Flameproof Motor — ${motorTypeLabel} — ${powerKw} kW`.slice(0, 255);
+            const sapRes3 = await resolveFlpMotorSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
             fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
             fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
           } else {

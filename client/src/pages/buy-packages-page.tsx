@@ -68,6 +68,7 @@ import {
   NON_FLAMEPROOF_MOTOR_DEFAULTS, FLAMEPROOF_MOTOR_DEFAULTS,
   applyNonFlameproofMotorDefaults, applyFlameproofMotorDefaults,
   buildNfpMotorPreviewCode,
+  buildFlpMotorPreviewCode,
 } from "@/components/motor-attrs-forms";
 import {
   PanelAttrsForm, CablingAttrsForm, JunctionBoxAttrsForm,
@@ -1540,7 +1541,7 @@ export default function BuyPackagesPage() {
       toast({ title: `Item Description exceeds ${ITEM_DESC_LIMIT} characters — shorten manually before saving.`, variant: "destructive" }); return;
     }
 
-    if (selectedGroupCode !== 'raw_materials' && !isNonFlameproofMotorMode) {
+    if (selectedGroupCode !== 'raw_materials' && !isNonFlameproofMotorMode && !isFlameproofMotorMode) {
       const ta   = lf.technicalAttributes ?? {};
       const make = typeof ta.make === 'string' ? ta.make.trim() : '';
       if (!make || make.toUpperCase() === 'TBN') {
@@ -1548,7 +1549,7 @@ export default function BuyPackagesPage() {
       }
     }
 
-    if (!isNonFlameproofMotorMode && !lf.model.trim()) {
+    if (!isNonFlameproofMotorMode && !isFlameproofMotorMode && !lf.model.trim()) {
       toast({ title: "Model is required", variant: "destructive" }); return;
     }
     const body = {
@@ -2111,7 +2112,7 @@ export default function BuyPackagesPage() {
                   </span>
                 </Label>
                 {(() => {
-                  // Priority 0 — NFP motor: client-side spec-based preview (no server call needed)
+                  // Priority 0 — NFP motor: client-side spec-based preview
                   if (isNonFlameproofMotorMode) {
                     const nfpCode = buildNfpMotorPreviewCode(
                       (lf.technicalAttributes ?? {}) as Record<string, unknown>,
@@ -2134,6 +2135,33 @@ export default function BuyPackagesPage() {
                       <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
                         <span className="font-mono tracking-wide text-xs">
                           Complete Motor Type, Mounting, Power, Voltage, Frequency, Poles &amp; Efficiency to preview
+                        </span>
+                      </div>
+                    );
+                  }
+                  // Priority 0 — FLP motor: client-side spec-based preview
+                  if (isFlameproofMotorMode) {
+                    const flpCode = buildFlpMotorPreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (flpCode) {
+                      const savedCode = lineDialog.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== flpCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-amber-300 bg-amber-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-amber-900 text-sm">
+                            {flpCode}
+                          </span>
+                          {isNew && (
+                            <span className="text-[10px] text-amber-700 font-medium uppercase tracking-wide">New</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">
+                          Complete Motor Type, Mounting, Power, Voltage, Frequency, Poles, Efficiency, Ex Protection, Gas Group &amp; T-class to preview
                         </span>
                       </div>
                     );
