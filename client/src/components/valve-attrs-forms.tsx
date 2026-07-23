@@ -170,6 +170,88 @@ const CONTROL_ALL_FIELD_OPTS: Record<string, string[]> = {
 
 const CONTROL_VALVE_MAKES: string[] = [];
 
+/**
+ * Client-side Control Valve SAP Item Code preview.
+ * Mirrors buildCtrlValveItemCode in buy-catalog-sap-service.ts.
+ * Returns the generated code, or null if any required field is missing/unrecognised.
+ */
+export function buildCtrlValvePreviewCode(attrs: Record<string, unknown>): string | null {
+  const VTYPE = (valveTypeRaw: string, valveConfigRaw: string): string | undefined => {
+    const vt = valveTypeRaw.toLowerCase();
+    if (vt.includes('globe')) {
+      const cfg = valveConfigRaw.toLowerCase();
+      if (cfg.includes('mixing'))    return 'G3MX';
+      if (cfg.includes('diverting')) return 'G3DV';
+      return 'GLBE';
+    }
+    if (vt.includes('ball'))      return 'BALL';
+    if (vt.includes('butterfly')) return 'BFLY';
+    if (vt.includes('eccentric') || vt.includes('rotary')) return 'PLUG';
+    if (vt.includes('angle'))     return 'ANGL';
+    return undefined;
+  };
+
+  const ECONN: Record<string, string> = {
+    'Flanged': 'RF', 'Threaded': 'THD', 'Butt Weld': 'BW', 'Socket Weld': 'SW',
+    'Wafer': 'WFR', 'Lug': 'LUG',
+  };
+  const PRES: Record<string, string> = {
+    'Class 150': 'CL150', 'Class 300': 'CL300', 'Class 600': 'CL600',
+    'Class 900': 'CL900', 'Class 1500': 'CL1500', 'Class 2500': 'CL2500',
+    'PN10': 'PN10', 'PN16': 'PN16', 'PN25': 'PN25', 'PN40': 'PN40',
+    'PN64': 'PN64', 'PN100': 'PN100', 'PN160': 'PN160',
+  };
+  const BMAT: Record<string, string> = {
+    'WCB (CS)': 'WCB', 'LCB (Low Temp CS)': 'LCB',
+    'SS304': 'SS304', 'SS316': 'SS316', 'SS316L': 'SS316L',
+    'CF8': 'CF8', 'CF8M': 'CF8M', 'Duplex SS': 'DSS', 'Hastelloy C': 'HC276',
+  };
+  const TRIM: Record<string, string> = {
+    'SS304': 'SS304', 'SS316': 'SS316', 'SS316L': 'S316L',
+    'Hardened SS': 'HSS', 'Hardened Trim': 'HSS',
+    'Stellite Overlay': 'STLT', 'Stellite': 'STLT',
+    'SS316 + Stellite': 'S3ST', 'Duplex SS': 'DSS',
+    'EPDM': 'EPDM', 'PTFE': 'PTFE', 'Metal (SS316)': 'SS316', 'Graphite': 'GRPH',
+    'Tungsten Carbide': 'TC',
+  };
+  const ACT: Record<string, string> = {
+    'Pneumatic Diaphragm': 'PNEU', 'Pneumatic Piston': 'PNUP',
+    'Electric Actuator': 'ELEC', 'Hydraulic Actuator': 'HYD',
+  };
+  const FAIL: Record<string, string> = {
+    'Fail Open (FO)': 'FO', 'Fail Close (FC)': 'FC', 'Fail Last (FL)': 'FL',
+  };
+
+  const valveTypeRaw  = (attrs.valve_type     as string)?.trim() ?? '';
+  const valveConfigRaw= (attrs.valve_config   as string)?.trim() ?? '';
+  const endConnRaw    = (attrs.end_connection  as string)?.trim() ?? '';
+  const sizeRaw       = (attrs.size_nb         as string)?.trim() ?? '';
+  const pressureRaw   = (attrs.pressure_rating as string)?.trim() ?? '';
+  const bodyMatRaw    = (attrs.body_material   as string)?.trim() ?? '';
+  const actuatorRaw   = (attrs.actuator_type   as string)?.trim() ?? '';
+  const failRaw       = (attrs.fail_action     as string)?.trim() ?? '';
+  const vt            = valveTypeRaw.toLowerCase();
+
+  const valveType = VTYPE(valveTypeRaw, valveConfigRaw);
+  const endConn   = ECONN[endConnRaw];
+  const sizeMatch = sizeRaw.match(/^(\d+)\s*NB$/i);
+  const size      = sizeMatch ? `DN${sizeMatch[1]}` : undefined;
+  const pressure  = PRES[pressureRaw];
+  const bodyMat   = BMAT[bodyMatRaw];
+  const actuator  = ACT[actuatorRaw];
+  const failAction= FAIL[failRaw];
+
+  let trimRaw = '';
+  if (vt.includes('globe') || vt.includes('angle'))              trimRaw = (attrs.trim_material       as string)?.trim() ?? '';
+  else if (vt.includes('ball'))                                  trimRaw = (attrs.ball_trim_material  as string)?.trim() ?? '';
+  else if (vt.includes('butterfly'))                             trimRaw = (attrs.seat_liner_material as string)?.trim() ?? '';
+  else if (vt.includes('eccentric') || vt.includes('rotary'))   trimRaw = (attrs.plug_trim_material  as string)?.trim() ?? '';
+  const trim = TRIM[trimRaw];
+
+  if (!valveType || !endConn || !size || !pressure || !bodyMat || !trim || !actuator || !failAction) return null;
+  return `VLV-CV-${valveType}-${endConn}-${size}-${pressure}-${bodyMat}-${trim}-${actuator}-${failAction}`;
+}
+
 export function buildControlValveRequirement(attrs: Record<string, unknown>): string {
   const type     = (attrs.valve_type      as string)?.trim() || "";
   const sizeNb   = (attrs.size_nb         as string)?.trim() || "";

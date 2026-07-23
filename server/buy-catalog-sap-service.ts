@@ -542,6 +542,204 @@ export async function resolveIsoValveSapItemCode(
   }
 }
 
+// ── Control Valve Spec-Based Item Code ───────────────────────────────────────
+
+/**
+ * Resolve the Valve Type code for a Control Valve.
+ * Globe variants encode the valve_config (Two Way / Three Way Mixing / Three Way Diverting).
+ */
+function resolveCtrlValveTypeCode(
+  valveTypeRaw: string,
+  valveConfigRaw: string,
+): string | undefined {
+  const vt = valveTypeRaw.toLowerCase();
+  if (vt.includes('globe')) {
+    const cfg = valveConfigRaw.toLowerCase();
+    if (cfg.includes('mixing'))    return 'G3MX';
+    if (cfg.includes('diverting')) return 'G3DV';
+    return 'GLBE'; // Two Way or not specified
+  }
+  if (vt.includes('ball'))      return 'BALL';
+  if (vt.includes('butterfly')) return 'BFLY';
+  if (vt.includes('eccentric') || vt.includes('rotary')) return 'PLUG';
+  if (vt.includes('angle'))     return 'ANGL';
+  return undefined;
+}
+
+const CV_END_CONN_CODE: Record<string, string> = {
+  'Flanged':    'RF',
+  'Threaded':   'THD',
+  'Butt Weld':  'BW',
+  'Socket Weld':'SW',
+  'Wafer':      'WFR',
+  'Lug':        'LUG',
+};
+
+const CV_PRESSURE_CODE: Record<string, string> = {
+  'Class 150': 'CL150', 'Class 300': 'CL300', 'Class 600': 'CL600',
+  'Class 900': 'CL900', 'Class 1500': 'CL1500', 'Class 2500': 'CL2500',
+  'PN10': 'PN10', 'PN16': 'PN16', 'PN25': 'PN25', 'PN40': 'PN40',
+  'PN64': 'PN64', 'PN100': 'PN100', 'PN160': 'PN160',
+};
+
+const CV_BODY_MAT_CODE: Record<string, string> = {
+  'WCB (CS)':       'WCB',
+  'LCB (Low Temp CS)': 'LCB',
+  'SS304':   'SS304', 'SS316':   'SS316', 'SS316L': 'SS316L',
+  'CF8':     'CF8',   'CF8M':    'CF8M',
+  'Duplex SS':  'DSS',
+  'Hastelloy C':'HC276',
+};
+
+/** Union of all trim codes across all control valve types */
+const CV_TRIM_CODE: Record<string, string> = {
+  // Globe / Angle trim_material
+  'SS304': 'SS304', 'SS316': 'SS316', 'SS316L': 'S316L',
+  'Hardened SS': 'HSS', 'Hardened Trim': 'HSS',
+  'Stellite Overlay': 'STLT', 'Stellite': 'STLT',
+  'SS316 + Stellite': 'S3ST',
+  // Ball ball_trim_material
+  'Duplex SS': 'DSS',
+  // Butterfly seat_liner_material
+  'EPDM': 'EPDM', 'PTFE': 'PTFE',
+  'Metal (SS316)': 'SS316', 'Graphite': 'GRPH',
+  // Plug plug_trim_material (SS304/SS316/HSS/STLT already covered above)
+  // Angle
+  'Tungsten Carbide': 'TC',
+};
+
+const CV_ACTUATOR_CODE: Record<string, string> = {
+  'Pneumatic Diaphragm': 'PNEU',
+  'Pneumatic Piston':    'PNUP',
+  'Electric Actuator':   'ELEC',
+  'Hydraulic Actuator':  'HYD',
+};
+
+const CV_FAIL_ACTION_CODE: Record<string, string> = {
+  'Fail Open (FO)':  'FO',
+  'Fail Close (FC)': 'FC',
+  'Fail Last (FL)':  'FL',
+};
+
+/** Derive the trim field key and raw value for a control valve. */
+function resolveCtrlValveTrim(
+  attrs: Record<string, unknown>,
+  vt: string,
+): { field: string; raw: string; code: string | undefined } {
+  let field = '';
+  let raw   = '';
+  if (vt.includes('globe') || vt.includes('angle')) {
+    field = 'trim_material';
+    raw   = (attrs.trim_material      as string | undefined)?.trim() ?? '';
+  } else if (vt.includes('ball')) {
+    field = 'ball_trim_material';
+    raw   = (attrs.ball_trim_material as string | undefined)?.trim() ?? '';
+  } else if (vt.includes('butterfly')) {
+    field = 'seat_liner_material';
+    raw   = (attrs.seat_liner_material as string | undefined)?.trim() ?? '';
+  } else if (vt.includes('eccentric') || vt.includes('rotary')) {
+    field = 'plug_trim_material';
+    raw   = (attrs.plug_trim_material as string | undefined)?.trim() ?? '';
+  }
+  return { field, raw, code: CV_TRIM_CODE[raw] };
+}
+
+/**
+ * Build the deterministic Control Valve SAP Item Code.
+ * Format: VLV-CV-{ValveType}-{EndConn}-{Size}-{PressureClass}-{BodyMat}-{Trim}-{ActuatorType}-{FailAction}
+ * Examples:
+ *   VLV-CV-GLBE-RF-DN50-CL300-WCB-STLT-PNEU-FC   (40 chars)
+ *   VLV-CV-G3MX-WFR-DN300-CL2500-SS316L-SS304-PNEU-FC  (49 chars ≤ 50 SAP B1 limit)
+ *
+ * Throws a descriptive error if any required field is missing or unrecognised.
+ */
+export function buildCtrlValveItemCode(attrs: Record<string, unknown>): string {
+  const valveTypeRaw  = (attrs.valve_type     as string | undefined)?.trim() ?? '';
+  const valveConfigRaw= (attrs.valve_config   as string | undefined)?.trim() ?? '';
+  const endConnRaw    = (attrs.end_connection  as string | undefined)?.trim() ?? '';
+  const sizeRaw       = (attrs.size_nb         as string | undefined)?.trim() ?? '';
+  const pressureRaw   = (attrs.pressure_rating as string | undefined)?.trim() ?? '';
+  const bodyMatRaw    = (attrs.body_material   as string | undefined)?.trim() ?? '';
+  const actuatorRaw   = (attrs.actuator_type   as string | undefined)?.trim() ?? '';
+  const failActionRaw = (attrs.fail_action     as string | undefined)?.trim() ?? '';
+  const vt            = valveTypeRaw.toLowerCase();
+
+  const valveType = resolveCtrlValveTypeCode(valveTypeRaw, valveConfigRaw);
+  const endConn   = CV_END_CONN_CODE[endConnRaw];
+  const sizeMatch = sizeRaw.match(/^(\d+)\s*NB$/i);
+  const size      = sizeMatch ? `DN${sizeMatch[1]}` : undefined;
+  const pressure  = CV_PRESSURE_CODE[pressureRaw];
+  const bodyMat   = CV_BODY_MAT_CODE[bodyMatRaw];
+  const trim      = resolveCtrlValveTrim(attrs, vt);
+  const actuator  = CV_ACTUATOR_CODE[actuatorRaw];
+  const failAction= CV_FAIL_ACTION_CODE[failActionRaw];
+
+  const missing: string[] = [];
+  if (!valveType)    missing.push(`Valve Type ("${valveTypeRaw}")`);
+  if (!endConn)      missing.push(`End Connection ("${endConnRaw}")`);
+  if (!size)         missing.push(`Size ("${sizeRaw}" — must be format "XX NB")`);
+  if (!pressure)     missing.push(`Pressure Rating ("${pressureRaw}")`);
+  if (!bodyMat)      missing.push(`Body Material ("${bodyMatRaw}")`);
+  if (!trim.code)    missing.push(`Trim ("${trim.raw}" — unrecognised for ${valveTypeRaw || 'this valve type'})`);
+  if (!actuator)     missing.push(`Actuator Type ("${actuatorRaw}")`);
+  if (!failAction)   missing.push(`Fail Action ("${failActionRaw}")`);
+
+  if (missing.length > 0)
+    throw new Error(`Cannot generate Control Valve SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+
+  return `VLV-CV-${valveType}-${endConn}-${size}-${pressure}-${bodyMat}-${trim.code!}-${actuator}-${failAction}`;
+}
+
+/**
+ * Find or create a master_items catalog record for a Control Valve specification.
+ * The item_code (spec-based, deterministic) is the unique lookup key.
+ */
+export async function resolveCtrlValveSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<CatalogSapResult> {
+  const itemCode = buildCtrlValveItemCode(attrs);
+  assertSapCodeLength(itemCode);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const existing = await client.query<{ id: number; item_code: string }>(
+      `SELECT id, item_code FROM master_items
+       WHERE item_type = 'catalog' AND item_code = $1
+       FOR UPDATE`,
+      [itemCode],
+    );
+
+    if (existing.rowCount && existing.rowCount > 0) {
+      await client.query('COMMIT');
+      return { masterItemId: existing.rows[0].id, sapItemCode: itemCode, reused: true };
+    }
+
+    const inserted = await client.query<{ id: number; item_code: string }>(
+      `INSERT INTO master_items
+         (item_code, description, uom, make_or_buy,
+          item_type, buy_group_id, buy_subgroup_id, created_at, updated_at)
+       VALUES ($1, $2, $3, 'Buy', 'catalog', $4, $5, NOW(), NOW())
+       RETURNING id, item_code`,
+      [itemCode, description, uomCode, groupId, subgroupId],
+    );
+
+    await client.query('COMMIT');
+    return { masterItemId: inserted.rows[0].id, sapItemCode: itemCode, reused: false };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 /**
  * Build the deterministic SAP Item Code from the 4-field identity.
  * Format: {GRP_PREFIX}-{SUB_PREFIX}-{MAKE}-{MODEL}  e.g. PMP-CEN-KSB-CPKEY 65-200

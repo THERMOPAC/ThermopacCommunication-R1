@@ -63,7 +63,7 @@ import {
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
   NrvValveAttrsForm, NeedleValveAttrsForm,
-  buildIsoValvePreviewCode,
+  buildIsoValvePreviewCode, buildCtrlValvePreviewCode,
 } from "@/components/valve-attrs-forms";
 import {
   PlatesAttrsForm, PipesAttrsForm, FittingsAttrsForm, FlangesAttrsForm,
@@ -942,7 +942,7 @@ export default function EpcBuyListControlPage() {
       if (pumpErr) { toast({ title: "Pump specification incomplete", description: pumpErr, variant: "destructive" }); return; }
     }
     const isMotorSpecBased = currentSubgroupCode === 'non_flameproof' || currentSubgroupCode === 'flameproof';
-    const isSpecBasedItem  = isMotorSpecBased || currentSubgroupCode === 'isolation';
+    const isSpecBasedItem  = isMotorSpecBased || currentSubgroupCode === 'isolation' || currentSubgroupCode === 'control';
     if (!isSpecBasedItem && !lf.model.trim()) {
       toast({ title: "Model is required", variant: "destructive" }); return;
     }
@@ -2325,6 +2325,27 @@ export default function EpcBuyListControlPage() {
                     return (
                       <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
                         <span className="font-mono tracking-wide text-xs">Complete Motor Type, Mounting, Power, Voltage, Frequency, Poles &amp; Efficiency to preview</span>
+                      </div>
+                    );
+                  }
+                  // Priority 0 — Control Valve: client-side spec-based preview (no make/model required)
+                  if (currentSubgroupCode === 'control') {
+                    const cvCode = buildCtrlValvePreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (cvCode) {
+                      const savedCode = lineDialog?.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== cvCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-teal-300 bg-teal-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-teal-900 text-sm">{cvCode}</span>
+                          {isNew && <span className="text-[10px] text-teal-700 font-medium uppercase tracking-wide">New</span>}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">Complete Valve Type, Config, End Conn, Size, Pressure, Body, Trim, Actuator &amp; Fail Action to preview</span>
                       </div>
                     );
                   }

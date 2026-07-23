@@ -82,7 +82,7 @@ import {
   buildControlValveRequirement, buildSafetyValveRequirement,
   buildOnOffValveRequirement, buildIsolationValveRequirement,
   buildNrvValveRequirement, buildNeedleValveRequirement,
-  buildIsoValvePreviewCode,
+  buildIsoValvePreviewCode, buildCtrlValvePreviewCode,
 } from "@/components/valve-attrs-forms";
 
 // ── Role helpers ──────────────────────────────────────────────────────────────
@@ -1292,11 +1292,8 @@ export default function BuyPackagesPage() {
         toast({ title: "Fail Action is required", variant: "destructive" }); return;
       }
       if (cvType.includes("globe")) {
-        if (!(ta.trim_style as string)?.trim())          { toast({ title: "Trim Style is required for Globe CV",          variant: "destructive" }); return; }
-        if (!(ta.flow_characteristic as string)?.trim()) { toast({ title: "Flow Characteristic is required for Globe CV", variant: "destructive" }); return; }
+        if (!(ta.valve_config as string)?.trim())        { toast({ title: "Valve Configuration (Two Way / Three Way) is required for Globe CV", variant: "destructive" }); return; }
         if (!(ta.trim_material as string)?.trim())       { toast({ title: "Trim Material is required for Globe CV",       variant: "destructive" }); return; }
-        if (!(ta.seat_material as string)?.trim())       { toast({ title: "Seat Material is required for Globe CV",       variant: "destructive" }); return; }
-        if (!(ta.leakage_class as string)?.trim())       { toast({ title: "Leakage Class is required for Globe CV",       variant: "destructive" }); return; }
       } else if (cvType.includes("ball")) {
         if (!(ta.ball_type as string)?.trim())           { toast({ title: "Ball Type is required for Ball CV",            variant: "destructive" }); return; }
         if (!(ta.ball_trim_material as string)?.trim())  { toast({ title: "Ball/Trim Material is required for Ball CV",  variant: "destructive" }); return; }
@@ -1543,7 +1540,7 @@ export default function BuyPackagesPage() {
       toast({ title: `Item Description exceeds ${ITEM_DESC_LIMIT} characters — shorten manually before saving.`, variant: "destructive" }); return;
     }
 
-    if (selectedGroupCode !== 'raw_materials' && !isNonFlameproofMotorMode && !isFlameproofMotorMode && !isIsolationValveMode) {
+    if (selectedGroupCode !== 'raw_materials' && !isNonFlameproofMotorMode && !isFlameproofMotorMode && !isIsolationValveMode && !isControlValveMode) {
       const ta   = lf.technicalAttributes ?? {};
       const make = typeof ta.make === 'string' ? ta.make.trim() : '';
       if (!make || make.toUpperCase() === 'TBN') {
@@ -1551,7 +1548,7 @@ export default function BuyPackagesPage() {
       }
     }
 
-    if (!isNonFlameproofMotorMode && !isFlameproofMotorMode && !isIsolationValveMode && !lf.model.trim()) {
+    if (!isNonFlameproofMotorMode && !isFlameproofMotorMode && !isIsolationValveMode && !isControlValveMode && !lf.model.trim()) {
       toast({ title: "Model is required", variant: "destructive" }); return;
     }
     const body = {
@@ -2114,6 +2111,33 @@ export default function BuyPackagesPage() {
                   </span>
                 </Label>
                 {(() => {
+                  // Priority 0 — Control Valve: client-side spec-based preview
+                  if (isControlValveMode) {
+                    const cvCode = buildCtrlValvePreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (cvCode) {
+                      const savedCode = lineDialog.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== cvCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-teal-300 bg-teal-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-teal-900 text-sm">
+                            {cvCode}
+                          </span>
+                          {isNew && (
+                            <span className="text-[10px] text-teal-700 font-medium uppercase tracking-wide">New</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">
+                          Complete Valve Type, Config, End Conn, Size, Pressure, Body, Trim, Actuator &amp; Fail Action to preview
+                        </span>
+                      </div>
+                    );
+                  }
                   // Priority 0 — Isolation Valve: client-side spec-based preview
                   if (isIsolationValveMode) {
                     const isoCode = buildIsoValvePreviewCode(
