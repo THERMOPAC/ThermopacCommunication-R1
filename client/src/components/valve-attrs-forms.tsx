@@ -9,7 +9,7 @@ import {
   Command, CommandInput, CommandList, CommandEmpty,
   CommandGroup, CommandItem,
 } from "@/components/ui/command";
-import { X, ChevronsUpDown, Check } from "lucide-react";
+import { X, ChevronsUpDown, Check, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { shortenToSapItemName } from "@/lib/sap-item-name";
 import { getMakesList } from "@/lib/approved-makes";
@@ -2250,7 +2250,7 @@ const NRV_COMMON_OPTS = {
   size_nb:             ["15 NB","25 NB","40 NB","50 NB","65 NB","80 NB","100 NB","150 NB","200 NB","250 NB","300 NB","350 NB","400 NB","450 NB","500 NB","600 NB"],
   pressure_rating_std: ["Class 150","Class 300","Class 600","Class 900","Class 1500"],
   pressure_rating_pn:  ["PN6","PN10","PN16","PN25","PN40","PN64","PN100","PN160"],
-  end_connection:      ["Flanged","Threaded","Butt Weld","Socket Weld","Wafer","Lug Type","Grooved"],
+  end_connection:      ["Flanged","BSP Threaded","Threaded","Butt Weld","Socket Weld","Wafer","Lug Type","Grooved","Clamp End (Tri-Clamp)"],
   end_conn_dual:       ["Wafer","Lug Type","Flanged"],
   body_material:       ["WCB (CS)","LCB (Low Temp CS)","SS304","SS316","SS316L","CF8","CF8M","Duplex SS","CI (Cast Iron)","Ductile Iron","Bronze","Hastelloy C"],
   disc_material:       ["WCB (CS)","SS304","SS316","SS316L","Duplex SS","Bronze","Hardened Steel","Stellite Faced","NBR","EPDM"],
@@ -2265,6 +2265,7 @@ const NRV_COMMON_OPTS = {
   face_to_face:        ["API 594","ASME B16.10","EN 558-1"],
   strainer:            ["Integral","Separate","None"],
   foot_seat_material:  ["Rubber","Brass","SS316"],
+  lever_arrangement:   ["Standard (No Lever)","Lever Only","Lever + Counterweight","Lever + Counterweight + Dashpot"],
   std_swing:    ["API 594","API 6D","ASME B16.34","EN 12334","BS 5153","ISO 5208"],
   std_lift:     ["API 594","ASME B16.34","EN 12334","BS 5153","ISO 5208"],
   std_dual:     ["API 594","ASME B16.34","EN 12334","ISO 5208"],
@@ -2303,6 +2304,7 @@ const NRV_ALL_FIELD_OPTS: Record<string, string[]> = {
   ball_material:        NRV_COMMON_OPTS.ball_material,
   strainer:             NRV_COMMON_OPTS.strainer,
   foot_seat_material:   NRV_COMMON_OPTS.foot_seat_material,
+  lever_arrangement:    NRV_COMMON_OPTS.lever_arrangement,
 };
 
 const NRV_VALVE_MAKES: string[] = [];
@@ -2334,6 +2336,142 @@ export function buildNrvValveRequirement(attrs: Record<string, unknown>): string
   return shortenToSapItemName(parts.join(", "));
 }
 
+// ── Client-side NRV SAP Item Code preview maps (mirror of server lookup maps) ──
+
+const NRV_PRV_EC: Record<string, string> = {
+  'Flanged': 'RF', 'BSP Threaded': 'BS', 'Threaded': 'NP',
+  'Butt Weld': 'BW', 'Socket Weld': 'SW', 'Wafer': 'WF',
+  'Lug Type': 'LG', 'Grooved': 'GV', 'Clamp End (Tri-Clamp)': 'TC',
+};
+const NRV_PRV_PR: Record<string, string> = {
+  'Class 150': 'CL150', 'Class 300': 'CL300', 'Class 600': 'CL600',
+  'Class 900': 'CL900', 'Class 1500': 'CL1500',
+  'PN6': 'PN6', 'PN10': 'PN10', 'PN16': 'PN16', 'PN25': 'PN25',
+  'PN40': 'PN40', 'PN64': 'PN64', 'PN100': 'PN100', 'PN160': 'PN160',
+};
+const NRV_PRV_BODY: Record<string, string> = {
+  'WCB (CS)': 'WCB', 'LCB (Low Temp CS)': 'LCB',
+  'SS304': 'SS304', 'SS316': 'SS316', 'SS316L': 'SS316L',
+  'CF8': 'CF8', 'CF8M': 'CF8M', 'Duplex SS': 'DSS',
+  'CI (Cast Iron)': 'CI', 'Ductile Iron': 'DI',
+  'Bronze': 'BRZ', 'Hastelloy C': 'HC276',
+};
+const NRV_PRV_DISC: Record<string, string> = {
+  'WCB (CS)': 'WCB', 'SS304': 'SS304', 'SS316': 'SS316', 'SS316L': 'SS316L',
+  'Duplex SS': 'DSS', 'Bronze': 'BRZ', 'Hardened Steel': 'HSS',
+  'Stellite Faced': 'STLT', 'NBR': 'NBR', 'EPDM': 'EPDM',
+};
+const NRV_PRV_SEAT: Record<string, string> = {
+  'Soft Seat (NBR)': 'NBR', 'Soft Seat (EPDM)': 'EPDM',
+  'Soft Seat (PTFE)': 'PTFE', 'Metal Seat (SS316)': 'SS316',
+  'Stellite': 'STLT',
+};
+const NRV_PRV_BALL: Record<string, string> = {
+  'SS316': 'SS316', 'PTFE Coated': 'PTFE', 'Rubber Coated': 'RUB', 'Buna-N': 'BN',
+};
+const NRV_PRV_PISTON: Record<string, string> = {
+  'SS316': 'SS316', 'PTFE Coated': 'PTFE', 'Teflon Coated': 'TFLN',
+};
+const NRV_PRV_DISC_TILT: Record<string, string> = {
+  'WCB (CS)': 'WCB', 'SS316': 'SS316', 'Duplex SS': 'DSS', 'Stellite Faced': 'STLT',
+};
+const NRV_PRV_DSPRING: Record<string, string> = {
+  'SS316': 'SS316', 'Inconel': 'INC', 'Hastelloy C': 'HC276',
+};
+const NRV_PRV_STRAINER: Record<string, string> = {
+  'Integral': 'INT', 'Separate': 'SEP', 'None': 'NIL',
+};
+const NRV_PRV_FTSEAT: Record<string, string> = {
+  'Rubber': 'RUB', 'Brass': 'BRS', 'SS316': 'SS316',
+};
+const NRV_PRV_LEVER: Record<string, string> = {
+  'Standard (No Lever)':             '',
+  'Lever Only':                      'LVR',
+  'Lever + Counterweight':           'CWT',
+  'Lever + Counterweight + Dashpot': 'DSH',
+};
+
+/**
+ * Client-side NRV SAP Item Code live preview.
+ * Returns null when required fields are missing; returns the full code when complete.
+ * Must remain in sync with server/buy-catalog-sap-service.ts buildNrvValveItemCode().
+ */
+export function buildNrvValvePreviewCode(attrs: Record<string, unknown>): string | null {
+  const vtRaw   = (attrs.valve_type      as string | undefined)?.trim() ?? '';
+  const ecRaw   = (attrs.end_connection  as string | undefined)?.trim() ?? '';
+  const sizeRaw = (attrs.size_nb         as string | undefined)?.trim() ?? '';
+  const prRaw   = (attrs.pressure_rating as string | undefined)?.trim() ?? '';
+  const bodyRaw = (attrs.body_material   as string | undefined)?.trim() ?? '';
+
+  const ec   = NRV_PRV_EC[ecRaw];
+  const nbM  = sizeRaw.match(/^(\d+)\s*NB$/i);
+  const nb   = nbM ? nbM[1] : undefined;
+  const pr   = NRV_PRV_PR[prRaw];
+  const body = NRV_PRV_BODY[bodyRaw];
+
+  if (!vtRaw || !ec || !nb || !pr || !body) return null;
+  const vtLC = vtRaw.toLowerCase();
+
+  if (vtLC.includes('swing')) {
+    const disc = NRV_PRV_DISC[(attrs.disc_material     as string | undefined)?.trim() ?? ''];
+    const seat = NRV_PRV_SEAT[(attrs.seat_material     as string | undefined)?.trim() ?? ''];
+    if (!disc || !seat) return null;
+    const spring      = (attrs.spring            as string | undefined)?.trim() ?? '';
+    const lever       = (attrs.lever_arrangement as string | undefined)?.trim() ?? '';
+    const sa          = spring === 'Spring Assisted' ? '-SA' : '';
+    const leverCode   = NRV_PRV_LEVER[lever];
+    const leverSuffix = (leverCode !== undefined && leverCode !== '') ? `-${leverCode}` : '';
+    return `VLV-NRV-SWG-${ec}-${nb}-${pr}-${body}-${disc}-${seat}${sa}${leverSuffix}`;
+  }
+  if (vtLC.includes('lift')) {
+    const disc = NRV_PRV_DISC[(attrs.disc_material as string | undefined)?.trim() ?? ''];
+    const seat = NRV_PRV_SEAT[(attrs.seat_material as string | undefined)?.trim() ?? ''];
+    if (!disc || !seat) return null;
+    const spring = (attrs.spring  as string | undefined)?.trim() ?? '';
+    const guided = (attrs.guided  as string | undefined)?.trim() ?? '';
+    const sa = spring === 'Spring Assisted' ? '-SA' : '';
+    const gd = guided === 'Yes' ? '-GD' : '';
+    return `VLV-NRV-LFT-${ec}-${nb}-${pr}-${body}-${disc}-${seat}${sa}${gd}`;
+  }
+  if (vtLC.includes('dual')) {
+    const disc   = NRV_PRV_DISC[(attrs.disc_material        as string | undefined)?.trim() ?? ''];
+    const seat   = NRV_PRV_SEAT[(attrs.seat_material        as string | undefined)?.trim() ?? ''];
+    const spring = NRV_PRV_DSPRING[(attrs.dual_spring_material as string | undefined)?.trim() ?? ''];
+    if (!disc || !seat || !spring) return null;
+    return `VLV-NRV-DPL-${ec}-${nb}-${pr}-${body}-${disc}-${seat}-${spring}`;
+  }
+  if (vtLC.includes('ball')) {
+    const ball = NRV_PRV_BALL[(attrs.ball_material as string | undefined)?.trim() ?? ''];
+    const seat = NRV_PRV_SEAT[(attrs.seat_material as string | undefined)?.trim() ?? ''];
+    if (!ball || !seat) return null;
+    return `VLV-NRV-BLC-${ec}-${nb}-${pr}-${body}-${ball}-${seat}`;
+  }
+  if (vtLC.includes('tilting')) {
+    const disc = NRV_PRV_DISC_TILT[(attrs.disc_tilt_material as string | undefined)?.trim() ?? ''];
+    const seat = NRV_PRV_SEAT[(attrs.seat_material           as string | undefined)?.trim() ?? ''];
+    if (!disc || !seat) return null;
+    const spring = (attrs.spring as string | undefined)?.trim() ?? '';
+    const sa = spring === 'Spring Assisted' ? '-SA' : '';
+    return `VLV-NRV-TLD-${ec}-${nb}-${pr}-${body}-${disc}-${seat}${sa}`;
+  }
+  if (vtLC.includes('piston')) {
+    const piston = NRV_PRV_PISTON[(attrs.piston_material as string | undefined)?.trim() ?? ''];
+    const seat   = NRV_PRV_SEAT[(attrs.seat_material     as string | undefined)?.trim() ?? ''];
+    if (!piston || !seat) return null;
+    const dashpot = (attrs.dashpot as string | undefined)?.trim() ?? '';
+    const dp = dashpot === 'Yes' ? '-DP' : '';
+    return `VLV-NRV-PST-${ec}-${nb}-${pr}-${body}-${piston}-${seat}${dp}`;
+  }
+  if (vtLC.includes('foot')) {
+    const disc     = NRV_PRV_DISC[(attrs.disc_material      as string | undefined)?.trim() ?? ''];
+    const strainer = NRV_PRV_STRAINER[(attrs.strainer       as string | undefined)?.trim() ?? ''];
+    const ftSeat   = NRV_PRV_FTSEAT[(attrs.foot_seat_material as string | undefined)?.trim() ?? ''];
+    if (!disc || !strainer || !ftSeat) return null;
+    return `VLV-NRV-FTV-${ec}-${nb}-${pr}-${body}-${disc}-${strainer}-${ftSeat}`;
+  }
+  return null;
+}
+
 function buildNrvValveDefaults(type: string): Record<string, unknown> {
   const base: Record<string, unknown> = {
     valve_type: type, make: "",
@@ -2348,11 +2486,13 @@ function buildNrvValveDefaults(type: string): Record<string, unknown> {
     disc_tilt_material: "", counterweight: "",
     ball_material: "",
     strainer: "", foot_seat_material: "",
+    lever_arrangement: "", cracking_pressure: "",
   };
   switch (type) {
     case "Swing Check Valve":
       return { ...base, pressure_rating: "Class 150", design_standard: "API 594",
-        spring: "Spring Assisted", spring_material: "SS316" };
+        spring: "Spring Assisted", spring_material: "SS316",
+        lever_arrangement: "Standard (No Lever)" };
     case "Lift Check Valve":
       return { ...base, pressure_rating: "Class 150", design_standard: "API 594",
         spring: "Spring Assisted", spring_material: "SS316" };
@@ -2519,16 +2659,17 @@ export function NrvValveAttrsForm({
           {renderField("end_connection", "End Connection",
             isDual ? NRV_COMMON_OPTS.end_conn_dual : NRV_COMMON_OPTS.end_connection, true)}
           {renderField("body_material",  "Body Material",           NRV_COMMON_OPTS.body_material, true)}
-          {renderField("disc_material",  "Disc / Closure Material", NRV_COMMON_OPTS.disc_material, true)}
-          {renderField("seat_material",  "Seat Material",           NRV_COMMON_OPTS.seat_material)}
+          {!isBallChk && !isTilting && !isPiston && renderField("disc_material", "Disc / Closure Material", NRV_COMMON_OPTS.disc_material, true)}
+          {!isFoot && renderField("seat_material", "Seat Material", NRV_COMMON_OPTS.seat_material, true)}
         </SectionCard>
       )}
 
       {/* 4 — Type-specific configuration */}
       {isSwing && (
         <SectionCard title="Swing Check Configuration" color="bg-amber-50/60 border-amber-300">
-          {renderField("hinge_pin_material","Hinge / Pin Material",NRV_COMMON_OPTS.hinge_pin_material)}
-          {renderField("renewable_seat",    "Renewable Seat",      NRV_COMMON_OPTS.yes_no)}
+          {renderField("lever_arrangement", "Lever Arrangement",    NRV_COMMON_OPTS.lever_arrangement, true)}
+          {renderField("hinge_pin_material","Hinge / Pin Material", NRV_COMMON_OPTS.hinge_pin_material)}
+          {renderField("renewable_seat",    "Renewable Seat",       NRV_COMMON_OPTS.yes_no)}
         </SectionCard>
       )}
 
@@ -2548,29 +2689,37 @@ export function NrvValveAttrsForm({
 
       {isTilting && (
         <SectionCard title="Tilting Disc Configuration" color="bg-amber-50/60 border-amber-300">
-          {renderField("disc_tilt_material","Disc Material", NRV_COMMON_OPTS.disc_tilt_material)}
+          {renderField("disc_tilt_material","Disc Material", NRV_COMMON_OPTS.disc_tilt_material, true)}
           {renderField("counterweight",     "Counterweight", NRV_COMMON_OPTS.yes_no)}
         </SectionCard>
       )}
 
       {isPiston && (
         <SectionCard title="Piston Check Configuration" color="bg-amber-50/60 border-amber-300">
-          {renderField("piston_material","Piston Material",    NRV_COMMON_OPTS.piston_material)}
+          {renderField("piston_material","Piston Material",    NRV_COMMON_OPTS.piston_material, true)}
           {renderField("dashpot",        "Dashpot / Dampener", NRV_COMMON_OPTS.yes_no)}
         </SectionCard>
       )}
 
       {isBallChk && (
         <SectionCard title="Ball Check Configuration" color="bg-amber-50/60 border-amber-300">
-          {renderField("ball_material","Ball Material",NRV_COMMON_OPTS.ball_material)}
+          {renderField("ball_material","Ball Material",NRV_COMMON_OPTS.ball_material, true)}
           <div />
         </SectionCard>
       )}
 
       {isFoot && (
         <SectionCard title="Foot Valve Configuration" color="bg-amber-50/60 border-amber-300">
-          {renderField("strainer",          "Strainer",     NRV_COMMON_OPTS.strainer,         true)}
-          {renderField("foot_seat_material","Seat Material",NRV_COMMON_OPTS.foot_seat_material)}
+          {renderField("strainer",          "Strainer",     NRV_COMMON_OPTS.strainer,          true)}
+          {renderField("foot_seat_material","Seat Material",NRV_COMMON_OPTS.foot_seat_material, true)}
+          {(custom.strainer === "None" || custom.strainer === "NIL") && (
+            <div className="col-span-2 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+              <span>
+                <strong>Special-order configuration:</strong> No strainer fitted. Verify this is intentional — foot valves without strainers require downstream filtration.
+              </span>
+            </div>
+          )}
         </SectionCard>
       )}
 
@@ -2581,6 +2730,15 @@ export function NrvValveAttrsForm({
           {isSpringAssisted
             ? renderField("spring_material","Spring Material",NRV_COMMON_OPTS.spring_material)
             : <div />}
+          <div className="col-span-2 space-y-1.5">
+            <Label className="text-xs">Cracking Pressure <span className="text-muted-foreground font-normal">(informational — not in SAP code)</span></Label>
+            <Input
+              className="h-8 text-sm"
+              placeholder="e.g. 0.035 bar"
+              value={String(custom.cracking_pressure ?? "")}
+              onChange={e => onChange({ ...custom, cracking_pressure: e.target.value })}
+            />
+          </div>
         </SectionCard>
       )}
 

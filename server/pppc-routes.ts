@@ -27,6 +27,7 @@ import {
   resolveCtrlValveSapItemCode, buildCtrlValveItemCode,
   resolveSafetyValveSapItemCode, buildSafetyValveItemCode,
   resolveOnOffValveSapItemCode, buildOnOffValveItemCode,
+  resolveNrvValveSapItemCode, buildNrvValveItemCode,
 } from './buy-catalog-sap-service';
 
 /**
@@ -880,7 +881,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const isCtrlValve   = groupCode === 'valves' && subgroupCode === 'control';
       const isSafetyValve = groupCode === 'valves' && subgroupCode === 'safety';
       const isOnOffValve  = groupCode === 'valves' && subgroupCode === 'on_off';
-      if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor && !isIsoValve && !isCtrlValve && !isSafetyValve && !isOnOffValve) {
+      const isNrvValve    = groupCode === 'valves' && subgroupCode === 'nrv';
+      if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor && !isIsoValve && !isCtrlValve && !isSafetyValve && !isOnOffValve && !isNrvValve) {
         const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
         const make = readMakeScalar(attrs);
         const series = typeof attrs.preferred_series === 'string' ? attrs.preferred_series.trim() : '';
@@ -939,6 +941,13 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           const sizeLabel      = (attrs.size_nb    as string | undefined)?.trim() ?? '';
           const desc = `ON/OFF Valve — ${valveTypeLabel} — ${sizeLabel}`.slice(0, 255);
           const sapRes = await resolveOnOffValveSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
+          sapMasterItemId  = sapRes.masterItemId;
+          sapItemCodeValue = sapRes.sapItemCode;
+        } else if (isNrvValve) {
+          const valveTypeLabel = (attrs.valve_type as string | undefined)?.trim() ?? '';
+          const sizeLabel      = (attrs.size_nb    as string | undefined)?.trim() ?? '';
+          const desc = `NRV Check Valve — ${valveTypeLabel} — ${sizeLabel}`.slice(0, 255);
+          const sapRes = await resolveNrvValveSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
           sapMasterItemId  = sapRes.masterItemId;
           sapItemCodeValue = sapRes.sapItemCode;
         } else {
@@ -1057,7 +1066,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const isCtrlValve2    = groupCode2 === 'valves' && subgroupCode2 === 'control';
         const isSafetyValve2  = groupCode2 === 'valves' && subgroupCode2 === 'safety';
         const isOnOffValve2   = groupCode2 === 'valves' && subgroupCode2 === 'on_off';
-        if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2 && !isIsoValve2 && !isCtrlValve2 && !isSafetyValve2 && !isOnOffValve2) {
+        const isNrvValve2     = groupCode2 === 'valves' && subgroupCode2 === 'nrv';
+        if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2 && !isIsoValve2 && !isCtrlValve2 && !isSafetyValve2 && !isOnOffValve2 && !isNrvValve2) {
           const attrs2 = (b.technicalAttributes ?? {}) as Record<string, unknown>;
           const make2 = readMakeScalar(attrs2);
           const series2 = typeof attrs2.preferred_series === 'string' ? attrs2.preferred_series.trim() : '';
@@ -1116,6 +1126,13 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             const sizeLabel      = (attrs3.size_nb    as string | undefined)?.trim() ?? '';
             const desc3 = `ON/OFF Valve — ${valveTypeLabel} — ${sizeLabel}`.slice(0, 255);
             const sapRes3 = await resolveOnOffValveSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+            fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
+            fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
+          } else if (isNrvValve2) {
+            const valveTypeLabel = (attrs3.valve_type as string | undefined)?.trim() ?? '';
+            const sizeLabel      = (attrs3.size_nb    as string | undefined)?.trim() ?? '';
+            const desc3 = `NRV Check Valve — ${valveTypeLabel} — ${sizeLabel}`.slice(0, 255);
+            const sapRes3 = await resolveNrvValveSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
             fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
             fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
           } else {

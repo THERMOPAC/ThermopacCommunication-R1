@@ -1307,6 +1307,244 @@ export async function resolveOnOffValveSapItemCode(
   }
 }
 
+// ── NRV Check Valve SAP Item Code ─────────────────────────────────────────────
+
+const NRV_EC_CODE: Record<string, string> = {
+  'Flanged': 'RF', 'BSP Threaded': 'BS', 'Threaded': 'NP',
+  'Butt Weld': 'BW', 'Socket Weld': 'SW', 'Wafer': 'WF',
+  'Lug Type': 'LG', 'Grooved': 'GV', 'Clamp End (Tri-Clamp)': 'TC',
+};
+const NRV_PRESSURE_CODE: Record<string, string> = {
+  'Class 150': 'CL150', 'Class 300': 'CL300', 'Class 600': 'CL600',
+  'Class 900': 'CL900', 'Class 1500': 'CL1500',
+  'PN6': 'PN6', 'PN10': 'PN10', 'PN16': 'PN16', 'PN25': 'PN25',
+  'PN40': 'PN40', 'PN64': 'PN64', 'PN100': 'PN100', 'PN160': 'PN160',
+};
+const NRV_BODY_CODE: Record<string, string> = {
+  'WCB (CS)': 'WCB', 'LCB (Low Temp CS)': 'LCB',
+  'SS304': 'SS304', 'SS316': 'SS316', 'SS316L': 'SS316L',
+  'CF8': 'CF8', 'CF8M': 'CF8M', 'Duplex SS': 'DSS',
+  'CI (Cast Iron)': 'CI', 'Ductile Iron': 'DI',
+  'Bronze': 'BRZ', 'Hastelloy C': 'HC276',
+};
+const NRV_DISC_CODE: Record<string, string> = {
+  'WCB (CS)': 'WCB', 'SS304': 'SS304', 'SS316': 'SS316', 'SS316L': 'SS316L',
+  'Duplex SS': 'DSS', 'Bronze': 'BRZ', 'Hardened Steel': 'HSS',
+  'Stellite Faced': 'STLT', 'NBR': 'NBR', 'EPDM': 'EPDM',
+};
+const NRV_SEAT_CODE: Record<string, string> = {
+  'Soft Seat (NBR)': 'NBR', 'Soft Seat (EPDM)': 'EPDM',
+  'Soft Seat (PTFE)': 'PTFE', 'Metal Seat (SS316)': 'SS316',
+  'Stellite': 'STLT',
+};
+const NRV_BALL_CODE: Record<string, string> = {
+  'SS316': 'SS316', 'PTFE Coated': 'PTFE', 'Rubber Coated': 'RUB', 'Buna-N': 'BN',
+};
+const NRV_PISTON_CODE: Record<string, string> = {
+  'SS316': 'SS316', 'PTFE Coated': 'PTFE', 'Teflon Coated': 'TFLN',
+};
+const NRV_DISC_TILT_CODE: Record<string, string> = {
+  'WCB (CS)': 'WCB', 'SS316': 'SS316', 'Duplex SS': 'DSS', 'Stellite Faced': 'STLT',
+};
+const NRV_DUAL_SPRING_CODE: Record<string, string> = {
+  'SS316': 'SS316', 'Inconel': 'INC', 'Hastelloy C': 'HC276',
+};
+const NRV_STRAINER_CODE: Record<string, string> = {
+  'Integral': 'INT', 'Separate': 'SEP', 'None': 'NIL',
+};
+const NRV_FOOT_SEAT_CODE: Record<string, string> = {
+  'Rubber': 'RUB', 'Brass': 'BRS', 'SS316': 'SS316',
+};
+const NRV_LEVER_CODE: Record<string, string> = {
+  'Standard (No Lever)':             '',
+  'Lever Only':                      'LVR',
+  'Lever + Counterweight':           'CWT',
+  'Lever + Counterweight + Dashpot': 'DSH',
+};
+
+/**
+ * Build the deterministic SAP Item Code for an NRV (Non-Return Valve).
+ *
+ * Formats:
+ *  Swing:   VLV-NRV-SWG-{EC}-{NB}-{CL}-{Body}-{Disc}-{Seat}[-SA][-{Lever}]
+ *  Lift:    VLV-NRV-LFT-{EC}-{NB}-{CL}-{Body}-{Disc}-{Seat}[-SA][-GD]
+ *  Dual:    VLV-NRV-DPL-{EC}-{NB}-{CL}-{Body}-{Disc}-{Seat}-{Spring}
+ *  Ball:    VLV-NRV-BLC-{EC}-{NB}-{CL}-{Body}-{Ball}-{Seat}
+ *  Tilting: VLV-NRV-TLD-{EC}-{NB}-{CL}-{Body}-{Disc}-{Seat}[-SA]
+ *  Piston:  VLV-NRV-PST-{EC}-{NB}-{CL}-{Body}-{Piston}-{Seat}[-DP]
+ *  Foot:    VLV-NRV-FTV-{EC}-{NB}-{CL}-{Body}-{Disc}-{Strainer}-{FtSeat}
+ */
+export function buildNrvValveItemCode(attrs: Record<string, unknown>): string {
+  const vtRaw   = (attrs.valve_type      as string | undefined)?.trim() ?? '';
+  const ecRaw   = (attrs.end_connection  as string | undefined)?.trim() ?? '';
+  const sizeRaw = (attrs.size_nb         as string | undefined)?.trim() ?? '';
+  const prRaw   = (attrs.pressure_rating as string | undefined)?.trim() ?? '';
+  const bodyRaw = (attrs.body_material   as string | undefined)?.trim() ?? '';
+
+  const ec   = NRV_EC_CODE[ecRaw];
+  const nbM  = sizeRaw.match(/^(\d+)\s*NB$/i);
+  const nb   = nbM ? nbM[1] : undefined;
+  const pr   = NRV_PRESSURE_CODE[prRaw];
+  const body = NRV_BODY_CODE[bodyRaw];
+
+  const missing: string[] = [];
+  if (!vtRaw) missing.push('Valve Type');
+  if (!ec)    missing.push(`End Connection ("${ecRaw}")`);
+  if (!nb)    missing.push(`Size ("${sizeRaw}" — must be "XX NB")`);
+  if (!pr)    missing.push(`Pressure Rating ("${prRaw}")`);
+  if (!body)  missing.push(`Body Material ("${bodyRaw}")`);
+  if (missing.length > 0)
+    throw new Error(`Cannot generate NRV SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+
+  const vtLC = vtRaw.toLowerCase();
+
+  if (vtLC.includes('swing')) {
+    const discRaw   = (attrs.disc_material     as string | undefined)?.trim() ?? '';
+    const seatRaw   = (attrs.seat_material     as string | undefined)?.trim() ?? '';
+    const springRaw = (attrs.spring            as string | undefined)?.trim() ?? '';
+    const leverRaw  = (attrs.lever_arrangement as string | undefined)?.trim() ?? '';
+    const disc = NRV_DISC_CODE[discRaw];
+    const seat = NRV_SEAT_CODE[seatRaw];
+    const m: string[] = [];
+    if (!disc) m.push(`Disc Material ("${discRaw}")`);
+    if (!seat) m.push(`Seat Material ("${seatRaw}")`);
+    if (m.length > 0) throw new Error(`Cannot generate NRV SAP Item Code — missing or unrecognised: ${m.join('; ')}`);
+    const sa          = springRaw === 'Spring Assisted' ? '-SA' : '';
+    const leverCode   = NRV_LEVER_CODE[leverRaw];
+    const leverSuffix = (leverCode !== undefined && leverCode !== '') ? `-${leverCode}` : '';
+    return `VLV-NRV-SWG-${ec}-${nb}-${pr}-${body}-${disc}-${seat}${sa}${leverSuffix}`;
+  }
+
+  if (vtLC.includes('lift')) {
+    const discRaw   = (attrs.disc_material as string | undefined)?.trim() ?? '';
+    const seatRaw   = (attrs.seat_material as string | undefined)?.trim() ?? '';
+    const springRaw = (attrs.spring        as string | undefined)?.trim() ?? '';
+    const guidedRaw = (attrs.guided        as string | undefined)?.trim() ?? '';
+    const disc = NRV_DISC_CODE[discRaw];
+    const seat = NRV_SEAT_CODE[seatRaw];
+    const m: string[] = [];
+    if (!disc) m.push(`Disc Material ("${discRaw}")`);
+    if (!seat) m.push(`Seat Material ("${seatRaw}")`);
+    if (m.length > 0) throw new Error(`Cannot generate NRV SAP Item Code — missing or unrecognised: ${m.join('; ')}`);
+    const sa = springRaw === 'Spring Assisted' ? '-SA' : '';
+    const gd = guidedRaw === 'Yes' ? '-GD' : '';
+    return `VLV-NRV-LFT-${ec}-${nb}-${pr}-${body}-${disc}-${seat}${sa}${gd}`;
+  }
+
+  if (vtLC.includes('dual')) {
+    const discRaw   = (attrs.disc_material        as string | undefined)?.trim() ?? '';
+    const seatRaw   = (attrs.seat_material        as string | undefined)?.trim() ?? '';
+    const springRaw = (attrs.dual_spring_material as string | undefined)?.trim() ?? '';
+    const disc   = NRV_DISC_CODE[discRaw];
+    const seat   = NRV_SEAT_CODE[seatRaw];
+    const spring = NRV_DUAL_SPRING_CODE[springRaw];
+    const m: string[] = [];
+    if (!disc)   m.push(`Disc Material ("${discRaw}")`);
+    if (!seat)   m.push(`Seat Material ("${seatRaw}")`);
+    if (!spring) m.push(`Spring Material ("${springRaw}")`);
+    if (m.length > 0) throw new Error(`Cannot generate NRV SAP Item Code — missing or unrecognised: ${m.join('; ')}`);
+    return `VLV-NRV-DPL-${ec}-${nb}-${pr}-${body}-${disc}-${seat}-${spring}`;
+  }
+
+  if (vtLC.includes('ball')) {
+    const ballRaw = (attrs.ball_material as string | undefined)?.trim() ?? '';
+    const seatRaw = (attrs.seat_material as string | undefined)?.trim() ?? '';
+    const ball = NRV_BALL_CODE[ballRaw];
+    const seat = NRV_SEAT_CODE[seatRaw];
+    const m: string[] = [];
+    if (!ball) m.push(`Ball Material ("${ballRaw}")`);
+    if (!seat) m.push(`Seat Material ("${seatRaw}")`);
+    if (m.length > 0) throw new Error(`Cannot generate NRV SAP Item Code — missing or unrecognised: ${m.join('; ')}`);
+    return `VLV-NRV-BLC-${ec}-${nb}-${pr}-${body}-${ball}-${seat}`;
+  }
+
+  if (vtLC.includes('tilting')) {
+    const discRaw   = (attrs.disc_tilt_material as string | undefined)?.trim() ?? '';
+    const seatRaw   = (attrs.seat_material      as string | undefined)?.trim() ?? '';
+    const springRaw = (attrs.spring             as string | undefined)?.trim() ?? '';
+    const disc = NRV_DISC_TILT_CODE[discRaw];
+    const seat = NRV_SEAT_CODE[seatRaw];
+    const m: string[] = [];
+    if (!disc) m.push(`Disc Material ("${discRaw}")`);
+    if (!seat) m.push(`Seat Material ("${seatRaw}")`);
+    if (m.length > 0) throw new Error(`Cannot generate NRV SAP Item Code — missing or unrecognised: ${m.join('; ')}`);
+    const sa = springRaw === 'Spring Assisted' ? '-SA' : '';
+    return `VLV-NRV-TLD-${ec}-${nb}-${pr}-${body}-${disc}-${seat}${sa}`;
+  }
+
+  if (vtLC.includes('piston')) {
+    const pistonRaw  = (attrs.piston_material as string | undefined)?.trim() ?? '';
+    const seatRaw    = (attrs.seat_material   as string | undefined)?.trim() ?? '';
+    const dashpotRaw = (attrs.dashpot         as string | undefined)?.trim() ?? '';
+    const piston = NRV_PISTON_CODE[pistonRaw];
+    const seat   = NRV_SEAT_CODE[seatRaw];
+    const m: string[] = [];
+    if (!piston) m.push(`Piston Material ("${pistonRaw}")`);
+    if (!seat)   m.push(`Seat Material ("${seatRaw}")`);
+    if (m.length > 0) throw new Error(`Cannot generate NRV SAP Item Code — missing or unrecognised: ${m.join('; ')}`);
+    const dp = dashpotRaw === 'Yes' ? '-DP' : '';
+    return `VLV-NRV-PST-${ec}-${nb}-${pr}-${body}-${piston}-${seat}${dp}`;
+  }
+
+  if (vtLC.includes('foot')) {
+    const discRaw     = (attrs.disc_material      as string | undefined)?.trim() ?? '';
+    const strainerRaw = (attrs.strainer           as string | undefined)?.trim() ?? '';
+    const ftSeatRaw   = (attrs.foot_seat_material as string | undefined)?.trim() ?? '';
+    const disc     = NRV_DISC_CODE[discRaw];
+    const strainer = NRV_STRAINER_CODE[strainerRaw];
+    const ftSeat   = NRV_FOOT_SEAT_CODE[ftSeatRaw];
+    const m: string[] = [];
+    if (!disc)     m.push(`Disc Material ("${discRaw}")`);
+    if (!strainer) m.push(`Strainer ("${strainerRaw}")`);
+    if (!ftSeat)   m.push(`Seat Material ("${ftSeatRaw}")`);
+    if (m.length > 0) throw new Error(`Cannot generate NRV SAP Item Code — missing or unrecognised: ${m.join('; ')}`);
+    return `VLV-NRV-FTV-${ec}-${nb}-${pr}-${body}-${disc}-${strainer}-${ftSeat}`;
+  }
+
+  throw new Error(`Cannot generate NRV SAP Item Code — unrecognised Valve Type: "${vtRaw}"`);
+}
+
+/**
+ * Find or create a master_items catalog record for an NRV specification.
+ */
+export async function resolveNrvValveSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<CatalogSapResult> {
+  const itemCode = buildNrvValveItemCode(attrs);
+  assertSapCodeLength(itemCode);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const existing = await client.query<{ id: number }>(
+      `SELECT id FROM master_items WHERE item_type = 'catalog' AND item_code = $1 FOR UPDATE`,
+      [itemCode],
+    );
+    if (existing.rowCount && existing.rowCount > 0) {
+      await client.query('COMMIT');
+      return { masterItemId: existing.rows[0].id, sapItemCode: itemCode, reused: true };
+    }
+    const inserted = await client.query<{ id: number }>(
+      `INSERT INTO master_items
+         (item_code, description, uom, make_or_buy, item_type, buy_group_id, buy_subgroup_id, created_at, updated_at)
+       VALUES ($1,$2,$3,'Buy','catalog',$4,$5,NOW(),NOW()) RETURNING id`,
+      [itemCode, description, uomCode, groupId, subgroupId],
+    );
+    await client.query('COMMIT');
+    return { masterItemId: inserted.rows[0].id, sapItemCode: itemCode, reused: false };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 /**
  * Build the deterministic SAP Item Code from the 4-field identity.
  * Format: {GRP_PREFIX}-{SUB_PREFIX}-{MAKE}-{MODEL}  e.g. PMP-CEN-KSB-CPKEY 65-200

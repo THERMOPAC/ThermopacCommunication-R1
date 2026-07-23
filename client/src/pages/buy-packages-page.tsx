@@ -83,7 +83,7 @@ import {
   buildOnOffValveRequirement, buildIsolationValveRequirement,
   buildNrvValveRequirement, buildNeedleValveRequirement,
   buildIsoValvePreviewCode, buildCtrlValvePreviewCode, buildSafetyValvePreviewCode,
-  buildOnOffValvePreviewCode,
+  buildOnOffValvePreviewCode, buildNrvValvePreviewCode,
 } from "@/components/valve-attrs-forms";
 
 // ── Role helpers ──────────────────────────────────────────────────────────────
@@ -1465,6 +1465,7 @@ export default function BuyPackagesPage() {
     } else if (isNrvValveMode) {
       const ta      = lf.technicalAttributes;
       const nrvType = ((ta.valve_type as string) ?? "").trim();
+      const nrvLC   = nrvType.toLowerCase();
       if (!nrvType) {
         toast({ title: "Valve Type is required", variant: "destructive" }); return;
       }
@@ -1483,14 +1484,33 @@ export default function BuyPackagesPage() {
       if (!(ta.body_material as string)?.trim()) {
         toast({ title: "Body Material is required", variant: "destructive" }); return;
       }
-      if (!(ta.disc_material as string)?.trim()) {
+      const needsDisc = !nrvLC.includes('ball') && !nrvLC.includes('tilting') && !nrvLC.includes('piston');
+      if (needsDisc && !(ta.disc_material as string)?.trim()) {
         toast({ title: "Disc / Closure Material is required", variant: "destructive" }); return;
       }
-      if (nrvType === "Dual Plate (Wafer) Check Valve" && !(ta.dual_spring_material as string)?.trim()) {
+      if (nrvLC.includes('ball') && !(ta.ball_material as string)?.trim()) {
+        toast({ title: "Ball Material is required", variant: "destructive" }); return;
+      }
+      if (nrvLC.includes('tilting') && !(ta.disc_tilt_material as string)?.trim()) {
+        toast({ title: "Disc Material is required for Tilting Disc Check Valve", variant: "destructive" }); return;
+      }
+      if (nrvLC.includes('piston') && !(ta.piston_material as string)?.trim()) {
+        toast({ title: "Piston Material is required", variant: "destructive" }); return;
+      }
+      if (!nrvLC.includes('foot') && !(ta.seat_material as string)?.trim()) {
+        toast({ title: "Seat Material is required", variant: "destructive" }); return;
+      }
+      if (nrvLC.includes('dual') && !(ta.dual_spring_material as string)?.trim()) {
         toast({ title: "Spring Material is required for Dual Plate Check Valve", variant: "destructive" }); return;
       }
-      if (nrvType === "Foot Valve" && !(ta.strainer as string)?.trim()) {
+      if (nrvLC.includes('foot') && !(ta.strainer as string)?.trim()) {
         toast({ title: "Strainer is required for Foot Valve", variant: "destructive" }); return;
+      }
+      if (nrvLC.includes('foot') && !(ta.foot_seat_material as string)?.trim()) {
+        toast({ title: "Seat Material (foot_seat_material) is required for Foot Valve", variant: "destructive" }); return;
+      }
+      if (nrvLC.includes('swing') && !(ta.lever_arrangement as string)?.trim()) {
+        toast({ title: "Lever Arrangement is required for Swing Check Valve", variant: "destructive" }); return;
       }
     } else if (isBoughtOutMode) {
       const ta = lf.technicalAttributes;
@@ -2265,6 +2285,33 @@ export default function BuyPackagesPage() {
                       <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
                         <span className="font-mono tracking-wide text-xs">
                           Complete Motor Type, Mounting, Power, Voltage, Frequency, Poles, Efficiency, Ex Protection, Gas Group &amp; T-class to preview
+                        </span>
+                      </div>
+                    );
+                  }
+                  // Priority 0 — NRV valve: client-side spec-based preview
+                  if (isNrvValveMode) {
+                    const nrvCode = buildNrvValvePreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (nrvCode) {
+                      const savedCode = lineDialog.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== nrvCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-violet-300 bg-violet-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-violet-900 text-sm">
+                            {nrvCode}
+                          </span>
+                          {isNew && (
+                            <span className="text-[10px] text-violet-600 font-medium uppercase tracking-wide">New</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">
+                          Complete Valve Type, Size, Pressure Rating, End Connection, Body &amp; type-specific materials to preview
                         </span>
                       </div>
                     );
