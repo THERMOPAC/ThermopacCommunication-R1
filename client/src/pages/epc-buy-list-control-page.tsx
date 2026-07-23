@@ -63,6 +63,7 @@ import {
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
   NrvValveAttrsForm, NeedleValveAttrsForm,
+  buildIsoValvePreviewCode,
 } from "@/components/valve-attrs-forms";
 import {
   PlatesAttrsForm, PipesAttrsForm, FittingsAttrsForm, FlangesAttrsForm,
@@ -941,7 +942,8 @@ export default function EpcBuyListControlPage() {
       if (pumpErr) { toast({ title: "Pump specification incomplete", description: pumpErr, variant: "destructive" }); return; }
     }
     const isMotorSpecBased = currentSubgroupCode === 'non_flameproof' || currentSubgroupCode === 'flameproof';
-    if (!isMotorSpecBased && !lf.model.trim()) {
+    const isSpecBasedItem  = isMotorSpecBased || currentSubgroupCode === 'isolation';
+    if (!isSpecBasedItem && !lf.model.trim()) {
       toast({ title: "Model is required", variant: "destructive" }); return;
     }
     const isTaggableForValidation = !!currentSubgroupCode && isTaggable && !isRawMaterials;
@@ -2323,6 +2325,27 @@ export default function EpcBuyListControlPage() {
                     return (
                       <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
                         <span className="font-mono tracking-wide text-xs">Complete Motor Type, Mounting, Power, Voltage, Frequency, Poles &amp; Efficiency to preview</span>
+                      </div>
+                    );
+                  }
+                  // Priority 0 — Isolation Valve: client-side spec-based preview (no make/model required)
+                  if (currentSubgroupCode === 'isolation') {
+                    const isoCode = buildIsoValvePreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (isoCode) {
+                      const savedCode = lineDialog?.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== isoCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-sky-300 bg-sky-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-sky-900 text-sm">{isoCode}</span>
+                          {isNew && <span className="text-[10px] text-sky-700 font-medium uppercase tracking-wide">New</span>}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">Complete Valve Type, End Connection, Size, Pressure, Body Material &amp; Trim to preview</span>
                       </div>
                     );
                   }

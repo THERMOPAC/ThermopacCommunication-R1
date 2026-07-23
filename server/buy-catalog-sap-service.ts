@@ -364,6 +364,184 @@ export async function resolveFlpMotorSapItemCode(
   }
 }
 
+// ── Isolation Valve Spec-Based Item Code ─────────────────────────────────────
+
+const ISO_VALVE_TYPE_CODE: Record<string, string> = {
+  'Ball Valve':       'BALL',
+  'Gate Valve':       'GATE',
+  'Globe Valve':      'GLBE',
+  'Butterfly Valve':  'BFLY',
+  'Plug Valve':       'PLUG',
+  'Knife Gate Valve': 'KGATE',
+  'Diaphragm Valve':  'DIAPH',
+};
+
+const ISO_END_CONN_CODE: Record<string, string> = {
+  'Flanged':              'RF',
+  'Butt Weld':            'BW',
+  'Socket Weld':          'SW',
+  'Threaded (BSP)':       'THDB',
+  'Threaded (NPT)':       'THDN',
+  'Wafer':                'WFR',
+  'Lug Type':             'LUG',
+  'Grooved':              'GRV',
+  'Clamp End (Tri-Clamp)':'TC',
+};
+
+const ISO_PRESSURE_CODE: Record<string, string> = {
+  'Class 150': 'CL150', 'Class 300': 'CL300', 'Class 600': 'CL600',
+  'Class 900': 'CL900', 'Class 1500': 'CL1500', 'Class 2500': 'CL2500',
+  'PN6': 'PN6', 'PN10': 'PN10', 'PN16': 'PN16', 'PN25': 'PN25',
+  'PN40': 'PN40', 'PN64': 'PN64', 'PN100': 'PN100', 'PN160': 'PN160',
+};
+
+const ISO_BODY_MAT_CODE: Record<string, string> = {
+  'CI': 'CI', 'DI': 'DI', 'CS (WCB)': 'WCB', 'LCB': 'LCB',
+  'SS304': 'SS304', 'SS316': 'SS316', 'SS316L': 'SS316L',
+  'CF8': 'CF8', 'CF8M': 'CF8M', 'Duplex SS': 'DSS',
+  'Hastelloy C': 'HC276', 'Bronze': 'BRZ', 'Monel': 'MNL', 'Titanium': 'TI',
+};
+
+/** All recognised trim values → short code (union across all valve types) */
+const ISO_TRIM_CODE: Record<string, string> = {
+  // Ball / Butterfly seats
+  'PTFE': 'PTFE', 'PEEK': 'PEEK', 'Metal (SS316)': 'SS316', 'Nylon': 'NYLON',
+  'EPDM': 'EPDM', 'NBR': 'NBR',
+  // Gate / Globe trim materials
+  'SS304': 'SS304', '13Cr': '13CR', 'Hard Facing (Stellite)': 'STLT', 'Alloy Steel': 'AYST',
+  // Plug sleeve
+  'Metal': 'MTL',
+  // Knife gate
+  'Hardened SS': 'HSS',
+  // Diaphragm
+  'Butyl': 'BUTYL',
+};
+
+/** Derive the trim field key and raw value from attrs based on valve type. */
+function resolveIsoValveTrim(
+  attrs: Record<string, unknown>,
+  vt: string,  // lowercase valve_type
+): { field: string; raw: string; code: string | undefined } {
+  let field = '';
+  let raw   = '';
+  if (vt.includes('ball')) {
+    field = 'seat_material';
+    raw   = (attrs.seat_material   as string | undefined)?.trim() ?? '';
+  } else if (vt.includes('gate') && !vt.includes('knife')) {
+    field = 'trim_material';
+    raw   = (attrs.trim_material   as string | undefined)?.trim() ?? '';
+  } else if (vt.includes('globe')) {
+    field = 'trim_material';
+    raw   = (attrs.trim_material   as string | undefined)?.trim() ?? '';
+  } else if (vt.includes('butterfly')) {
+    field = 'seat_material';
+    raw   = (attrs.seat_material   as string | undefined)?.trim() ?? '';
+  } else if (vt.includes('plug')) {
+    field = 'sleeve_material';
+    raw   = (attrs.sleeve_material as string | undefined)?.trim() ?? '';
+  } else if (vt.includes('knife')) {
+    field = 'gate_material';
+    raw   = (attrs.gate_material   as string | undefined)?.trim() ?? '';
+  } else if (vt.includes('diaphragm')) {
+    field = 'diaphragm_material';
+    raw   = (attrs.diaphragm_material as string | undefined)?.trim() ?? '';
+  }
+  return { field, raw, code: ISO_TRIM_CODE[raw] };
+}
+
+/** Convert "50 NB" → "DN50", "100 NB" → "DN100", etc. */
+function encodeValveSize(raw: string): string | undefined {
+  const m = raw.match(/^(\d+)\s*NB$/i);
+  return m ? `DN${m[1]}` : undefined;
+}
+
+/**
+ * Build the deterministic Isolation Valve SAP Item Code.
+ * Format: VLV-ISO-{ValveType}-{EndConn}-{Size}-{PressureClass}-{BodyMat}-{Trim}
+ * Example: VLV-ISO-BALL-RF-DN50-CL150-WCB-PTFE   (30 chars)
+ * Worst case: VLV-ISO-DIAPH-THDB-DN400-CL2500-SS316L-BUTYL  (44 chars ≤ 50 SAP B1 limit)
+ *
+ * Throws a descriptive error if any required field is missing or unrecognised.
+ */
+export function buildIsoValveItemCode(attrs: Record<string, unknown>): string {
+  const valveTypeRaw = (attrs.valve_type     as string | undefined)?.trim() ?? '';
+  const endConnRaw   = (attrs.end_connection  as string | undefined)?.trim() ?? '';
+  const sizeRaw      = (attrs.size_nb         as string | undefined)?.trim() ?? '';
+  const pressureRaw  = (attrs.pressure_rating as string | undefined)?.trim() ?? '';
+  const bodyMatRaw   = (attrs.body_material   as string | undefined)?.trim() ?? '';
+
+  const valveType = ISO_VALVE_TYPE_CODE[valveTypeRaw];
+  const endConn   = ISO_END_CONN_CODE[endConnRaw];
+  const size      = encodeValveSize(sizeRaw);
+  const pressure  = ISO_PRESSURE_CODE[pressureRaw];
+  const bodyMat   = ISO_BODY_MAT_CODE[bodyMatRaw];
+  const vt        = valveTypeRaw.toLowerCase();
+  const trim      = resolveIsoValveTrim(attrs, vt);
+
+  const missing: string[] = [];
+  if (!valveType) missing.push(`Valve Type ("${valveTypeRaw}")`);
+  if (!endConn)   missing.push(`End Connection ("${endConnRaw}")`);
+  if (!size)      missing.push(`Size ("${sizeRaw}" — must be format "XX NB")`);
+  if (!pressure)  missing.push(`Pressure Rating ("${pressureRaw}")`);
+  if (!bodyMat)   missing.push(`Body Material ("${bodyMatRaw}")`);
+  if (!trim.code) missing.push(`Trim/Seat ("${trim.raw}" — unrecognised for ${valveTypeRaw || 'this valve type'})`);
+
+  if (missing.length > 0)
+    throw new Error(`Cannot generate Isolation Valve SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+
+  return `VLV-ISO-${valveType}-${endConn}-${size}-${pressure}-${bodyMat}-${trim.code!}`;
+}
+
+/**
+ * Find or create a master_items catalog record for an Isolation Valve specification.
+ * The item_code (spec-based, deterministic) is the unique lookup key.
+ */
+export async function resolveIsoValveSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<CatalogSapResult> {
+  const itemCode = buildIsoValveItemCode(attrs);
+  assertSapCodeLength(itemCode);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const existing = await client.query<{ id: number; item_code: string }>(
+      `SELECT id, item_code FROM master_items
+       WHERE item_type = 'catalog' AND item_code = $1
+       FOR UPDATE`,
+      [itemCode],
+    );
+
+    if (existing.rowCount && existing.rowCount > 0) {
+      await client.query('COMMIT');
+      return { masterItemId: existing.rows[0].id, sapItemCode: itemCode, reused: true };
+    }
+
+    const inserted = await client.query<{ id: number; item_code: string }>(
+      `INSERT INTO master_items
+         (item_code, description, uom, make_or_buy,
+          item_type, buy_group_id, buy_subgroup_id, created_at, updated_at)
+       VALUES ($1, $2, $3, 'Buy', 'catalog', $4, $5, NOW(), NOW())
+       RETURNING id, item_code`,
+      [itemCode, description, uomCode, groupId, subgroupId],
+    );
+
+    await client.query('COMMIT');
+    return { masterItemId: inserted.rows[0].id, sapItemCode: itemCode, reused: false };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 /**
  * Build the deterministic SAP Item Code from the 4-field identity.
  * Format: {GRP_PREFIX}-{SUB_PREFIX}-{MAKE}-{MODEL}  e.g. PMP-CEN-KSB-CPKEY 65-200

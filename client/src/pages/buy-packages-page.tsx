@@ -82,6 +82,7 @@ import {
   buildControlValveRequirement, buildSafetyValveRequirement,
   buildOnOffValveRequirement, buildIsolationValveRequirement,
   buildNrvValveRequirement, buildNeedleValveRequirement,
+  buildIsoValvePreviewCode,
 } from "@/components/valve-attrs-forms";
 
 // ── Role helpers ──────────────────────────────────────────────────────────────
@@ -1350,8 +1351,9 @@ export default function BuyPackagesPage() {
         if (!(ta.seat_material as string)?.trim()) { toast({ title: "Seat/Liner Material is required for Butterfly Valve", variant: "destructive" }); return; }
         if (!(ta.disc_mounting as string)?.trim()) { toast({ title: "Disc Mounting is required for Butterfly Valve",       variant: "destructive" }); return; }
       } else if (vt2.includes("plug")) {
-        if (!(ta.port_pattern  as string)?.trim()) { toast({ title: "Port Pattern is required for Plug Valve",  variant: "destructive" }); return; }
-        if (!(ta.lubrication   as string)?.trim()) { toast({ title: "Lubrication is required for Plug Valve",   variant: "destructive" }); return; }
+        if (!(ta.port_pattern    as string)?.trim()) { toast({ title: "Port Pattern is required for Plug Valve",    variant: "destructive" }); return; }
+        if (!(ta.lubrication     as string)?.trim()) { toast({ title: "Lubrication is required for Plug Valve",     variant: "destructive" }); return; }
+        if (!(ta.sleeve_material as string)?.trim()) { toast({ title: "Sleeve Material is required for Plug Valve", variant: "destructive" }); return; }
       } else if (vt2.includes("knife")) {
         if (!(ta.gate_material as string)?.trim()) { toast({ title: "Gate Material is required for Knife Gate Valve",  variant: "destructive" }); return; }
         if (!(ta.packing_type  as string)?.trim()) { toast({ title: "Packing Type is required for Knife Gate Valve",   variant: "destructive" }); return; }
@@ -1541,7 +1543,7 @@ export default function BuyPackagesPage() {
       toast({ title: `Item Description exceeds ${ITEM_DESC_LIMIT} characters — shorten manually before saving.`, variant: "destructive" }); return;
     }
 
-    if (selectedGroupCode !== 'raw_materials' && !isNonFlameproofMotorMode && !isFlameproofMotorMode) {
+    if (selectedGroupCode !== 'raw_materials' && !isNonFlameproofMotorMode && !isFlameproofMotorMode && !isIsolationValveMode) {
       const ta   = lf.technicalAttributes ?? {};
       const make = typeof ta.make === 'string' ? ta.make.trim() : '';
       if (!make || make.toUpperCase() === 'TBN') {
@@ -1549,7 +1551,7 @@ export default function BuyPackagesPage() {
       }
     }
 
-    if (!isNonFlameproofMotorMode && !isFlameproofMotorMode && !lf.model.trim()) {
+    if (!isNonFlameproofMotorMode && !isFlameproofMotorMode && !isIsolationValveMode && !lf.model.trim()) {
       toast({ title: "Model is required", variant: "destructive" }); return;
     }
     const body = {
@@ -2112,6 +2114,33 @@ export default function BuyPackagesPage() {
                   </span>
                 </Label>
                 {(() => {
+                  // Priority 0 — Isolation Valve: client-side spec-based preview
+                  if (isIsolationValveMode) {
+                    const isoCode = buildIsoValvePreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (isoCode) {
+                      const savedCode = lineDialog.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== isoCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-sky-300 bg-sky-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-sky-900 text-sm">
+                            {isoCode}
+                          </span>
+                          {isNew && (
+                            <span className="text-[10px] text-sky-700 font-medium uppercase tracking-wide">New</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">
+                          Complete Valve Type, End Connection, Size, Pressure, Body Material &amp; Trim to preview
+                        </span>
+                      </div>
+                    );
+                  }
                   // Priority 0 — NFP motor: client-side spec-based preview
                   if (isNonFlameproofMotorMode) {
                     const nfpCode = buildNfpMotorPreviewCode(

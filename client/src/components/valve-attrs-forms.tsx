@@ -1491,6 +1491,68 @@ const ISOLATION_ALL_FIELD_OPTS: Record<string, string[]> = {
   weir_type:          ISOLATION_DIAPHRAGM_OPTS.weir_type,
 };
 
+/**
+ * Client-side Isolation Valve SAP Item Code preview.
+ * Mirrors buildIsoValveItemCode in buy-catalog-sap-service.ts.
+ * Returns the generated code, or null if any required field is missing/unrecognised.
+ */
+export function buildIsoValvePreviewCode(attrs: Record<string, unknown>): string | null {
+  const VTYPE: Record<string, string> = {
+    'Ball Valve': 'BALL', 'Gate Valve': 'GATE', 'Globe Valve': 'GLBE',
+    'Butterfly Valve': 'BFLY', 'Plug Valve': 'PLUG',
+    'Knife Gate Valve': 'KGATE', 'Diaphragm Valve': 'DIAPH',
+  };
+  const ECONN: Record<string, string> = {
+    'Flanged': 'RF', 'Butt Weld': 'BW', 'Socket Weld': 'SW',
+    'Threaded (BSP)': 'THDB', 'Threaded (NPT)': 'THDN',
+    'Wafer': 'WFR', 'Lug Type': 'LUG', 'Grooved': 'GRV',
+    'Clamp End (Tri-Clamp)': 'TC',
+  };
+  const PRES: Record<string, string> = {
+    'Class 150': 'CL150', 'Class 300': 'CL300', 'Class 600': 'CL600',
+    'Class 900': 'CL900', 'Class 1500': 'CL1500', 'Class 2500': 'CL2500',
+    'PN6': 'PN6', 'PN10': 'PN10', 'PN16': 'PN16', 'PN25': 'PN25',
+    'PN40': 'PN40', 'PN64': 'PN64', 'PN100': 'PN100', 'PN160': 'PN160',
+  };
+  const BMAT: Record<string, string> = {
+    'CI': 'CI', 'DI': 'DI', 'CS (WCB)': 'WCB', 'LCB': 'LCB',
+    'SS304': 'SS304', 'SS316': 'SS316', 'SS316L': 'SS316L',
+    'CF8': 'CF8', 'CF8M': 'CF8M', 'Duplex SS': 'DSS',
+    'Hastelloy C': 'HC276', 'Bronze': 'BRZ', 'Monel': 'MNL', 'Titanium': 'TI',
+  };
+  const TRIM: Record<string, string> = {
+    'PTFE': 'PTFE', 'PEEK': 'PEEK', 'Metal (SS316)': 'SS316', 'Nylon': 'NYLON',
+    'EPDM': 'EPDM', 'NBR': 'NBR', 'SS304': 'SS304', '13Cr': '13CR',
+    'Hard Facing (Stellite)': 'STLT', 'Alloy Steel': 'AYST',
+    'Metal': 'MTL', 'Hardened SS': 'HSS', 'Butyl': 'BUTYL',
+  };
+
+  const valveTypeRaw = (attrs.valve_type     as string)?.trim() ?? '';
+  const endConnRaw   = (attrs.end_connection  as string)?.trim() ?? '';
+  const sizeRaw      = (attrs.size_nb         as string)?.trim() ?? '';
+  const pressureRaw  = (attrs.pressure_rating as string)?.trim() ?? '';
+  const bodyMatRaw   = (attrs.body_material   as string)?.trim() ?? '';
+  const vt           = valveTypeRaw.toLowerCase();
+
+  const valveType = VTYPE[valveTypeRaw];
+  const endConn   = ECONN[endConnRaw];
+  const pressure  = PRES[pressureRaw];
+  const bodyMat   = BMAT[bodyMatRaw];
+  const sizeMatch = sizeRaw.match(/^(\d+)\s*NB$/i);
+  const size      = sizeMatch ? `DN${sizeMatch[1]}` : undefined;
+
+  let trimRaw = '';
+  if (vt.includes('ball') || vt.includes('butterfly'))      trimRaw = (attrs.seat_material       as string)?.trim() ?? '';
+  else if (vt.includes('gate') || vt.includes('globe'))     trimRaw = (attrs.trim_material        as string)?.trim() ?? '';
+  else if (vt.includes('plug'))                             trimRaw = (attrs.sleeve_material      as string)?.trim() ?? '';
+  else if (vt.includes('knife'))                            trimRaw = (attrs.gate_material        as string)?.trim() ?? '';
+  else if (vt.includes('diaphragm'))                        trimRaw = (attrs.diaphragm_material   as string)?.trim() ?? '';
+  const trim = TRIM[trimRaw];
+
+  if (!valveType || !endConn || !size || !pressure || !bodyMat || !trim) return null;
+  return `VLV-ISO-${valveType}-${endConn}-${size}-${pressure}-${bodyMat}-${trim}`;
+}
+
 export function buildIsolationValveRequirement(attrs: Record<string, unknown>): string {
   const valveType = (attrs.valve_type      as string)?.trim() || "";
   const sizeNb    = (attrs.size_nb         as string)?.trim() || "";
@@ -1774,7 +1836,7 @@ export function IsolationValveAttrsForm({
           {renderField("port_pattern",    "Port Pattern",    ISOLATION_PLUG_OPTS.port_pattern,    true)}
           {renderField("lubrication",     "Lubrication",     ISOLATION_PLUG_OPTS.lubrication,     true)}
           {renderField("plug_material",   "Plug Material",   ISOLATION_PLUG_OPTS.plug_material)}
-          {renderField("sleeve_material", "Sleeve Material", ISOLATION_PLUG_OPTS.sleeve_material)}
+          {renderField("sleeve_material", "Sleeve Material", ISOLATION_PLUG_OPTS.sleeve_material, true)}
         </SectionCard>
       )}
 
