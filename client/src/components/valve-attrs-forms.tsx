@@ -1005,7 +1005,7 @@ export function SafetyValveAttrsForm({
           {renderField("api_orifice",       "API Orifice",       API_ORIFICE_OPTS,                     true)}
           {renderField("bonnet_type",       "Bonnet Type",       SAFETY_COMMON_OPTS.bonnet_type,       true)}
           {renderField("discharge_type",    "Discharge Type",    SAFETY_COMMON_OPTS.discharge_type,    true, "col-span-2")}
-          {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type, undefined, "col-span-2")}
+          {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type, true, "col-span-2")}
           <div />
         </SectionCard>
       )}
@@ -1026,7 +1026,7 @@ export function SafetyValveAttrsForm({
           {renderField("service_phase",     "Service Phase",     SAFETY_COMMON_OPTS.service_phase,     true)}
           {renderField("bonnet_type",       "Bonnet Type",       SAFETY_COMMON_OPTS.bonnet_type,       true)}
           {renderField("discharge_type",    "Discharge Type",    SAFETY_COMMON_OPTS.discharge_type,    true, "col-span-2")}
-          {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type, undefined, "col-span-2")}
+          {renderField("back_pressure_type","Back Pressure Type",SAFETY_COMMON_OPTS.back_pressure_type, true, "col-span-2")}
         </SectionCard>
       )}
 
