@@ -1540,7 +1540,7 @@ export default function BuyPackagesPage() {
       toast({ title: `Item Description exceeds ${ITEM_DESC_LIMIT} characters — shorten manually before saving.`, variant: "destructive" }); return;
     }
 
-    if (selectedGroupCode !== 'raw_materials') {
+    if (selectedGroupCode !== 'raw_materials' && !isNonFlameproofMotorMode) {
       const ta   = lf.technicalAttributes ?? {};
       const make = typeof ta.make === 'string' ? ta.make.trim() : '';
       if (!make || make.toUpperCase() === 'TBN') {
@@ -1548,7 +1548,7 @@ export default function BuyPackagesPage() {
       }
     }
 
-    if (!lf.model.trim()) {
+    if (!isNonFlameproofMotorMode && !lf.model.trim()) {
       toast({ title: "Model is required", variant: "destructive" }); return;
     }
     const body = {
