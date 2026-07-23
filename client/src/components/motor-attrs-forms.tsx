@@ -134,10 +134,16 @@ export function buildNfpMotorPreviewCode(attrs: Record<string, unknown>): string
     'Induction': 'IND', 'Brake Motor': 'BRK', 'VFD Duty': 'VFD',
     'Synchronous': 'SYN', 'Permanent Magnet Synchronous': 'PMS', 'Wound Rotor Motor': 'WRM',
   };
+  // Accepts both legacy display strings and bare IEC codes
+  const MOUNT: Record<string, string> = {
+    'Horizontal (B3)': 'B3', 'Flange Mounted (B5)': 'B5', 'Foot + Flange (B35)': 'B35',
+    'Vertical (V1)': 'V1', 'Vertical (V3)': 'V3', 'Vertical (V5)': 'V5', 'Vertical (V6)': 'V6',
+    'B3': 'B3', 'B5': 'B5', 'B14': 'B14', 'B35': 'B35',
+    'V1': 'V1', 'V3': 'V3', 'V5': 'V5', 'V6': 'V6',
+  };
   const VOLT: Record<string, string> = {
-    '230 V': '230', '415 V': '415', '440 V': '440',
-    '525 V': '525', '690 V': '690', '3300 V': '3300',
-    '6600 V': '6600', '11000 V': '11000',
+    '230 V': '230', '380 V': '380', '400 V': '400', '415 V': '415', '440 V': '440',
+    '525 V': '525', '690 V': '690', '3300 V': '3300', '6600 V': '6600', '11000 V': '11000',
   };
   const FREQ: Record<string, string> = { '50 Hz': '50', '60 Hz': '60' };
 
@@ -150,12 +156,12 @@ export function buildNfpMotorPreviewCode(attrs: Record<string, unknown>): string
     return `${s.slice(0, d).padStart(3, '0')}P${s.slice(d + 1)}`;
   }
 
-  const motorType = MTYPE[(attrs.motor_type as string)?.trim() ?? ''];
-  const mounting  = (attrs.mounting as string)?.trim() ?? '';
-  const power     = encodeKw((attrs.power as string)?.trim() ?? '');
-  const voltage   = VOLT[(attrs.voltage as string)?.trim() ?? ''];
-  const frequency = FREQ[(attrs.frequency as string)?.trim() ?? ''];
-  const poles     = ((attrs.num_poles ?? attrs.poles) as string | undefined)?.trim() ?? '';
+  const motorType  = MTYPE[(attrs.motor_type as string)?.trim() ?? ''];
+  const mounting   = MOUNT[(attrs.mounting   as string)?.trim() ?? ''];
+  const power      = encodeKw((attrs.power   as string)?.trim() ?? '');
+  const voltage    = VOLT[(attrs.voltage     as string)?.trim() ?? ''];
+  const frequency  = FREQ[(attrs.frequency   as string)?.trim() ?? ''];
+  const poles      = ((attrs.num_poles ?? attrs.poles) as string | undefined)?.trim() ?? '';
   const efficiency = (attrs.efficiency_class as string)?.trim() ?? '';
 
   if (!motorType || !mounting || !power || !voltage || !frequency || !poles || !efficiency)
@@ -169,7 +175,7 @@ const MOTOR_OPTS: Record<string, string[]> = {
   mounting:         IEC_MOUNTING_CODES,
   cooling_type:     ["TEFC", "ODP", "TENV"],
   power:            IEC_POWER_RATINGS,
-  voltage:          ["230 V", "415 V", "440 V", "525 V", "690 V", "3300 V", "6600 V", "11000 V"],
+  voltage:          ["230 V", "380 V", "400 V", "415 V", "440 V", "525 V", "690 V", "3300 V", "6600 V", "11000 V"],
   frequency:        ["50 Hz", "60 Hz"],
   speed:            ["750", "1000", "1500", "3000"],
   duty:             ["S1 (Continuous)", "S2", "S3", "Intermittent", "Standby"],
