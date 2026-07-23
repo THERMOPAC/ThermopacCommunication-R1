@@ -1398,6 +1398,31 @@ export function buildNrvValveItemCode(attrs: Record<string, unknown>): string {
 
   const vtLC = vtRaw.toLowerCase();
 
+  // Per-family End Connection applicability (server-side enforcement)
+  const NRV_FAMILY_ALLOWED_EC: Record<string, string[]> = {
+    swing:   ['RF','BS','NP','BW','SW'],
+    lift:    ['RF','BS','NP','BW','SW','TC'],
+    dual:    ['WF','LG','RF'],
+    ball:    ['RF','BS','NP','BW','SW'],
+    tilting: ['RF','BW','SW'],
+    piston:  ['RF','BS','NP','BW','SW','TC'],
+    foot:    ['RF','BS','NP'],
+  };
+  const familyKey =
+    vtLC.includes('swing')   ? 'swing'   :
+    vtLC.includes('lift')    ? 'lift'    :
+    vtLC.includes('dual')    ? 'dual'    :
+    vtLC.includes('ball')    ? 'ball'    :
+    vtLC.includes('tilting') ? 'tilting' :
+    vtLC.includes('piston')  ? 'piston'  :
+    vtLC.includes('foot')    ? 'foot'    : null;
+  if (familyKey && !NRV_FAMILY_ALLOWED_EC[familyKey].includes(ec!)) {
+    throw new Error(
+      `Cannot generate NRV SAP Item Code — End Connection "${ecRaw}" is not applicable for ${vtRaw}. ` +
+      `Allowed: ${NRV_FAMILY_ALLOWED_EC[familyKey].join(', ')}`,
+    );
+  }
+
   if (vtLC.includes('swing')) {
     const discRaw   = (attrs.disc_material     as string | undefined)?.trim() ?? '';
     const seatRaw   = (attrs.seat_material     as string | undefined)?.trim() ?? '';

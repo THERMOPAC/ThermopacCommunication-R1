@@ -2250,8 +2250,13 @@ const NRV_COMMON_OPTS = {
   size_nb:             ["15 NB","25 NB","40 NB","50 NB","65 NB","80 NB","100 NB","150 NB","200 NB","250 NB","300 NB","350 NB","400 NB","450 NB","500 NB","600 NB"],
   pressure_rating_std: ["Class 150","Class 300","Class 600","Class 900","Class 1500"],
   pressure_rating_pn:  ["PN6","PN10","PN16","PN25","PN40","PN64","PN100","PN160"],
-  end_connection:      ["Flanged","BSP Threaded","Threaded","Butt Weld","Socket Weld","Wafer","Lug Type","Grooved","Clamp End (Tri-Clamp)"],
+  end_conn_swing:      ["Flanged","BSP Threaded","Threaded","Butt Weld","Socket Weld"],
+  end_conn_lift:       ["Flanged","BSP Threaded","Threaded","Butt Weld","Socket Weld","Clamp End (Tri-Clamp)"],
   end_conn_dual:       ["Wafer","Lug Type","Flanged"],
+  end_conn_ball:       ["Flanged","BSP Threaded","Threaded","Butt Weld","Socket Weld"],
+  end_conn_tilting:    ["Flanged","Butt Weld","Socket Weld"],
+  end_conn_piston:     ["Flanged","BSP Threaded","Threaded","Butt Weld","Socket Weld","Clamp End (Tri-Clamp)"],
+  end_conn_foot:       ["Flanged","BSP Threaded","Threaded"],
   body_material:       ["WCB (CS)","LCB (Low Temp CS)","SS304","SS316","SS316L","CF8","CF8M","Duplex SS","CI (Cast Iron)","Ductile Iron","Bronze","Hastelloy C"],
   disc_material:       ["WCB (CS)","SS304","SS316","SS316L","Duplex SS","Bronze","Hardened Steel","Stellite Faced","NBR","EPDM"],
   seat_material:       ["Soft Seat (NBR)","Soft Seat (EPDM)","Soft Seat (PTFE)","Metal Seat (SS316)","Stellite"],
@@ -2285,7 +2290,12 @@ const NRV_ALL_DESIGN_STDS = [
 const NRV_ALL_FIELD_OPTS: Record<string, string[]> = {
   size_nb:              NRV_COMMON_OPTS.size_nb,
   pressure_rating:      [...NRV_COMMON_OPTS.pressure_rating_std, ...NRV_COMMON_OPTS.pressure_rating_pn],
-  end_connection:       [...NRV_COMMON_OPTS.end_connection, ...NRV_COMMON_OPTS.end_conn_dual].filter((v,i,a)=>a.indexOf(v)===i),
+  end_connection:       [
+    ...NRV_COMMON_OPTS.end_conn_swing,
+    ...NRV_COMMON_OPTS.end_conn_lift,
+    ...NRV_COMMON_OPTS.end_conn_dual,
+    ...NRV_COMMON_OPTS.end_conn_tilting,
+  ].filter((v, i, a) => a.indexOf(v) === i),
   body_material:        NRV_COMMON_OPTS.body_material,
   disc_material:        NRV_COMMON_OPTS.disc_material,
   seat_material:        NRV_COMMON_OPTS.seat_material,
@@ -2657,7 +2667,14 @@ export function NrvValveAttrsForm({
       {hasType && (
         <SectionCard title="Connection & Material" color="bg-emerald-50/60 border-emerald-200">
           {renderField("end_connection", "End Connection",
-            isDual ? NRV_COMMON_OPTS.end_conn_dual : NRV_COMMON_OPTS.end_connection, true)}
+            isSwing   ? NRV_COMMON_OPTS.end_conn_swing
+            : isLift  ? NRV_COMMON_OPTS.end_conn_lift
+            : isDual  ? NRV_COMMON_OPTS.end_conn_dual
+            : isBallChk ? NRV_COMMON_OPTS.end_conn_ball
+            : isTilting ? NRV_COMMON_OPTS.end_conn_tilting
+            : isPiston  ? NRV_COMMON_OPTS.end_conn_piston
+            : isFoot    ? NRV_COMMON_OPTS.end_conn_foot
+            : NRV_COMMON_OPTS.end_conn_swing, true)}
           {renderField("body_material",  "Body Material",           NRV_COMMON_OPTS.body_material, true)}
           {!isBallChk && !isTilting && !isPiston && renderField("disc_material", "Disc / Closure Material", NRV_COMMON_OPTS.disc_material, true)}
           {!isFoot && renderField("seat_material", "Seat Material", NRV_COMMON_OPTS.seat_material, true)}
