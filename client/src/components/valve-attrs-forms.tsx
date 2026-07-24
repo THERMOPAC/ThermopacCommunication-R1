@@ -2785,70 +2785,139 @@ const NEEDLE_VALVE_TYPES = [
   "Bleed / Vent Needle Valve",
 ];
 
+// EC group helpers (mirrors server NDL_EC_GROUP)
+const NEEDLE_FERRULE_EC = new Set([
+  "Double Ferrule (Swagelok / Ham-Let Type)",
+  "Single Ferrule (Parker Type)",
+]);
+const NEEDLE_PROCESS_EC = new Set(["Socket Weld", "Butt Weld", "Flanged (ASME B16.5)"]);
+
+function getNeedleEcGroup(ec: string): "ferrule" | "threaded" | "process" | null {
+  if (!ec) return null;
+  if (NEEDLE_FERRULE_EC.has(ec)) return "ferrule";
+  if (NEEDLE_PROCESS_EC.has(ec)) return "process";
+  return "threaded";
+}
+
 const NEEDLE_COMMON_OPTS = {
-  size: [
-    '1/4" OD','3/8" OD','1/2" OD','3/4" OD','1" OD',
-    "8 NB (DN8)","10 NB (DN10)","15 NB (DN15)","20 NB (DN20)","25 NB (DN25)",
-  ],
-  pressure_rating: [
-    "Class 300","Class 600","Class 900","Class 1500",
-    "3000 PSI (207 bar)","6000 PSI (414 bar)","10000 PSI (689 bar)",
-    "PN40","PN64","PN100",
-  ],
-  std_general: ["ASME B16.34","BS 5793 Part 2","Manufacturer's Standard"],
-  std_bleed:   ["ASME B16.34","BS 5793 Part 2","Manufacturer's Standard"],
-  end_connection: [
-    "Double Ferrule (Swagelok / Ham-Let Type)",
-    "Single Ferrule (Parker Type)",
-    "NPT (F) - Female Threaded",
-    "NPT (M) - Male Threaded",
-    "SW (Socket Weld)",
-    "BW (Butt Weld)",
-    "Compression Fitting",
-    "Flanged (ASME B16.5)",
-  ],
-  body_material: [
-    "SS316","SS316L","SS304",
-    "Carbon Steel (A105)","Duplex SS (A182 F51)",
-    "Monel 400 (B564)","Hastelloy C-276","Inconel 625",
-  ],
-  stem_material: ["SS316","SS316L","17-4 PH SS","Monel 400","Hastelloy C-276"],
-  seat_type:     ["Metal Seat (Integral)","PTFE Soft Seat"],
-  packing:       ["PTFE","Graphite","FKM (Viton)"],
-  flow_pattern:  ["Straight-Through","Angle (L-Pattern)"],
-  bonnet_type:   ["Packed Bonnet","Welded Bonnet","Capped Bonnet"],
-  vent_type:     ["Manual Bleed","Auto Vent","Self-Closing Vent"],
+  ec_ferrule:        ["Double Ferrule (Swagelok / Ham-Let Type)", "Single Ferrule (Parker Type)"],
+  ec_threaded:       ["NPT Male", "NPT Female", "BSP Male", "BSP Female"],
+  ec_process:        ["Socket Weld", "Butt Weld", "Flanged (ASME B16.5)"],
+  size_ferrule:      ['1/4" OD', '3/8" OD', '1/2" OD', '3/4" OD', '1" OD'],
+  size_nb:           ["8 NB (DN8)", "10 NB (DN10)", "15 NB (DN15)", "20 NB (DN20)", "25 NB (DN25)"],
+  pressure_psi:      ["3000 PSI (207 bar)", "6000 PSI (414 bar)", "10000 PSI (689 bar)"],
+  pressure_class_pn: ["Class 300", "Class 600", "Class 900", "Class 1500", "PN40", "PN64", "PN100"],
+  design_standard:   ["MSS SP-99", "MSS SP-105", "ASME B16.34", "Manufacturer Standard"],
+  body_material:     ["SS316", "SS316L", "SS304", "Carbon Steel (A105)", "Duplex SS (A182 F51)", "Monel 400 (B564)", "Hastelloy C-276", "Inconel 625"],
+  stem_material:     ["SS316", "SS316L", "17-4 PH SS", "Monel 400", "Hastelloy C-276"],
+  seat_type:         ["Metal Seat (Integral)", "PTFE Soft Seat", "PEEK Seat"],
+  packing:           ["PTFE", "Graphite", "FKM (Viton)"],
+  bonnet_type:       ["Packed Bonnet", "Welded Bonnet", "Capped Bonnet", "Extended Bonnet"],
+  vent_type:         ["Manual Bleed", "Auto Vent", "Self-Closing Vent"],
+  flow_pattern:      ["Straight-Through", "Angle (L-Pattern)"],
 };
 
-const NEEDLE_ALL_DESIGN_STDS = [
-  ...NEEDLE_COMMON_OPTS.std_general,
-  ...NEEDLE_COMMON_OPTS.std_bleed,
-].filter((v, i, a) => a.indexOf(v) === i);
-
 const NEEDLE_ALL_FIELD_OPTS: Record<string, string[]> = {
-  size:            NEEDLE_COMMON_OPTS.size,
-  pressure_rating: NEEDLE_COMMON_OPTS.pressure_rating,
-  design_standard: NEEDLE_ALL_DESIGN_STDS,
-  end_connection:  NEEDLE_COMMON_OPTS.end_connection,
+  end_connection:  [...NEEDLE_COMMON_OPTS.ec_ferrule, ...NEEDLE_COMMON_OPTS.ec_threaded, ...NEEDLE_COMMON_OPTS.ec_process],
+  size:            [...NEEDLE_COMMON_OPTS.size_ferrule, ...NEEDLE_COMMON_OPTS.size_nb],
+  pressure_rating: [...NEEDLE_COMMON_OPTS.pressure_psi, ...NEEDLE_COMMON_OPTS.pressure_class_pn],
+  design_standard: NEEDLE_COMMON_OPTS.design_standard,
   body_material:   NEEDLE_COMMON_OPTS.body_material,
   stem_material:   NEEDLE_COMMON_OPTS.stem_material,
   seat_type:       NEEDLE_COMMON_OPTS.seat_type,
   packing:         NEEDLE_COMMON_OPTS.packing,
-  flow_pattern:    NEEDLE_COMMON_OPTS.flow_pattern,
   bonnet_type:     NEEDLE_COMMON_OPTS.bonnet_type,
   vent_type:       NEEDLE_COMMON_OPTS.vent_type,
+  flow_pattern:    NEEDLE_COMMON_OPTS.flow_pattern,
 };
+
+// Client-side code lookup maps (mirrors server NDL_* constants)
+const NDL_TYPE_CODE_C: Record<string, string> = {
+  'Straight Needle Valve': 'ST', 'Angle Needle Valve (L-Pattern)': 'AN',
+  'Multi-Turn Needle Valve': 'MT', 'Bleed / Vent Needle Valve': 'BL',
+};
+const NDL_EC_CODE_C: Record<string, string> = {
+  'Double Ferrule (Swagelok / Ham-Let Type)': 'DF', 'Single Ferrule (Parker Type)': 'SF',
+  'NPT Male': 'NM', 'NPT Female': 'NF', 'BSP Male': 'BM', 'BSP Female': 'BF',
+  'Socket Weld': 'SW', 'Butt Weld': 'BW', 'Flanged (ASME B16.5)': 'FL',
+};
+const NDL_SIZE_CODE_C: Record<string, string> = {
+  '1/4" OD': 'T025', '3/8" OD': 'T038', '1/2" OD': 'T050', '3/4" OD': 'T075', '1" OD': 'T100',
+  '8 NB (DN8)': '8', '10 NB (DN10)': '10', '15 NB (DN15)': '15', '20 NB (DN20)': '20', '25 NB (DN25)': '25',
+};
+const NDL_PR_CODE_C: Record<string, string> = {
+  '3000 PSI (207 bar)': '3K', '6000 PSI (414 bar)': '6K', '10000 PSI (689 bar)': '10K',
+  'Class 300': 'CL300', 'Class 600': 'CL600', 'Class 900': 'CL900', 'Class 1500': 'CL1500',
+  'PN40': 'PN40', 'PN64': 'PN64', 'PN100': 'PN100',
+};
+const NDL_BODY_CODE_C: Record<string, string> = {
+  'SS316': 'SS316', 'SS316L': 'SS316L', 'SS304': 'SS304',
+  'Carbon Steel (A105)': 'A105', 'Duplex SS (A182 F51)': 'DSS',
+  'Monel 400 (B564)': 'M400', 'Hastelloy C-276': 'HC276', 'Inconel 625': 'INC625',
+};
+const NDL_STEM_CODE_C: Record<string, string> = {
+  'SS316': 'SS316', 'SS316L': 'SS316L', '17-4 PH SS': '174PH', 'Monel 400': 'M400', 'Hastelloy C-276': 'HC276',
+};
+const NDL_SEAT_CODE_C: Record<string, string> = {
+  'Metal Seat (Integral)': 'MET', 'PTFE Soft Seat': 'PTFE', 'PEEK Seat': 'PEEK',
+};
+const NDL_PACK_CODE_C: Record<string, string> = { 'PTFE': 'PTFE', 'Graphite': 'GRP', 'FKM (Viton)': 'FKM' };
+const NDL_BONNET_CODE_C: Record<string, string> = {
+  'Packed Bonnet': 'PKD', 'Welded Bonnet': 'WLD', 'Capped Bonnet': 'CAP', 'Extended Bonnet': 'EXT',
+};
+const NDL_VENT_CODE_C: Record<string, string> = {
+  'Manual Bleed': 'MBL', 'Auto Vent': 'AVT', 'Self-Closing Vent': 'SCV',
+};
+const NDL_PSI_SET = new Set(['3K', '6K', '10K']);
+const NDL_FERRULE_SZ = new Set(['T025', 'T038', 'T050', 'T075', 'T100']);
+const NDL_NB_SZ      = new Set(['8', '10', '15', '20', '25']);
+
+export function buildNeedleValvePreviewCode(attrs: Record<string, unknown>): string | null {
+  try {
+    const vtRaw   = (attrs.valve_type      as string | undefined)?.trim() ?? '';
+    const ecRaw   = (attrs.end_connection  as string | undefined)?.trim() ?? '';
+    const sizeRaw = (attrs.size            as string | undefined)?.trim() ?? '';
+    const prRaw   = (attrs.pressure_rating as string | undefined)?.trim() ?? '';
+    const bodyRaw = (attrs.body_material   as string | undefined)?.trim() ?? '';
+    const stemRaw = (attrs.stem_material   as string | undefined)?.trim() ?? '';
+    const seatRaw = (attrs.seat_type       as string | undefined)?.trim() ?? '';
+    const packRaw = (attrs.packing         as string | undefined)?.trim() ?? '';
+    const vt   = NDL_TYPE_CODE_C[vtRaw];
+    const ec   = NDL_EC_CODE_C[ecRaw];
+    const sz   = NDL_SIZE_CODE_C[sizeRaw];
+    const pr   = NDL_PR_CODE_C[prRaw];
+    const body = NDL_BODY_CODE_C[bodyRaw];
+    const stem = NDL_STEM_CODE_C[stemRaw];
+    const seat = NDL_SEAT_CODE_C[seatRaw];
+    const pack = NDL_PACK_CODE_C[packRaw];
+    if (!vt || !ec || !sz || !pr || !body || !stem || !seat || !pack) return null;
+    const isBleed = vt === 'BL';
+    const ecGroup = getNeedleEcGroup(ecRaw);
+    if (isBleed && ecGroup === 'process') return null;
+    if (ecGroup === 'ferrule' && !NDL_FERRULE_SZ.has(sz)) return null;
+    if (ecGroup !== 'ferrule' && !NDL_NB_SZ.has(sz)) return null;
+    if ((ecGroup === 'ferrule' || ecGroup === 'threaded') && !NDL_PSI_SET.has(pr)) return null;
+    if (ecGroup === 'process' && NDL_PSI_SET.has(pr)) return null;
+    if (isBleed) {
+      const vent = NDL_VENT_CODE_C[(attrs.vent_type as string | undefined)?.trim() ?? ''];
+      if (!vent) return null;
+      return `VLV-NDL-BL-${ec}-${sz}-${pr}-${body}-${stem}-${seat}-${pack}-${vent}`;
+    }
+    const bonnet = NDL_BONNET_CODE_C[(attrs.bonnet_type as string | undefined)?.trim() ?? ''];
+    if (!bonnet) return null;
+    return `VLV-NDL-${vt}-${ec}-${sz}-${pr}-${body}-${stem}-${seat}-${pack}-${bonnet}`;
+  } catch { return null; }
+}
 
 const NEEDLE_VALVE_MAKES: string[] = [];
 
 export function buildNeedleValveRequirement(attrs: Record<string, unknown>): string {
-  const type      = (attrs.valve_type     as string)?.trim() || "";
-  const size      = (attrs.size           as string)?.trim() || "";
-  const pr        = (attrs.pressure_rating as string)?.trim() || "";
-  const bodyMat   = (attrs.body_material  as string)?.trim() || "";
-  const endConn   = (attrs.end_connection as string)?.trim() || "";
-  const stemMat   = (attrs.stem_material  as string)?.trim() || "";
-  const flowPat   = (attrs.flow_pattern   as string)?.trim() || "";
+  const type    = (attrs.valve_type      as string)?.trim() || "";
+  const size    = (attrs.size            as string)?.trim() || "";
+  const pr      = (attrs.pressure_rating as string)?.trim() || "";
+  const bodyMat = (attrs.body_material   as string)?.trim() || "";
+  const endConn = (attrs.end_connection  as string)?.trim() || "";
+  const stemMat = (attrs.stem_material   as string)?.trim() || "";
   const parts: string[] = [];
   if (type)    parts.push(type);
   if (size)    parts.push(size);
@@ -2856,33 +2925,31 @@ export function buildNeedleValveRequirement(attrs: Record<string, unknown>): str
   if (bodyMat) parts.push(`${bodyMat} Body`);
   if (endConn) parts.push(endConn);
   if (stemMat && stemMat !== bodyMat) parts.push(`${stemMat} Stem`);
-  // Suppress flow pattern if already encoded in the type name (e.g. "Angle Needle Valve (L-Pattern)" + "Angle (L-Pattern)")
-  const patternInType = flowPat && type.includes("(L-Pattern)") && flowPat.includes("L-Pattern");
-  if (flowPat && flowPat !== "Straight-Through" && !patternInType) parts.push(flowPat);
   return shortenToSapItemName(parts.join(", "));
 }
 
 function buildNeedleValveDefaults(type: string): Record<string, unknown> {
+  const isBleed = type === "Bleed / Vent Needle Valve";
   const base: Record<string, unknown> = {
-    valve_type: type, make: "",
-    size: '1/2" OD', pressure_rating: "3000 PSI (207 bar)",
-    design_standard: "ASME B16.34",
-    end_connection: "Double Ferrule (Swagelok / Ham-Let Type)",
-    body_material: "SS316", stem_material: "SS316",
-    seat_type: "Metal Seat (Integral)", packing: "PTFE",
-    flow_pattern: "Straight-Through",
-    bonnet_type: "Packed Bonnet", vent_type: "",
+    valve_type:      type,
+    make:            "",
+    end_connection:  "Double Ferrule (Swagelok / Ham-Let Type)",
+    size:            '1/2" OD',
+    pressure_rating: "3000 PSI (207 bar)",
+    design_standard: "MSS SP-99",
+    body_material:   "SS316",
+    stem_material:   "SS316",
+    seat_type:       "Metal Seat (Integral)",
+    packing:         "PTFE",
+    flow_pattern:    "Straight-Through",
+    bonnet_type:     isBleed ? "" : "Packed Bonnet",
+    vent_type:       isBleed ? "Manual Bleed" : "",
   };
   switch (type) {
-    case "Straight Needle Valve":
-      return { ...base, design_standard: "ASME B16.34", flow_pattern: "Straight-Through" };
     case "Angle Needle Valve (L-Pattern)":
-      return { ...base, design_standard: "ASME B16.34", flow_pattern: "Angle (L-Pattern)" };
+      return { ...base, flow_pattern: "Angle (L-Pattern)" };
     case "Multi-Turn Needle Valve":
-      return { ...base, design_standard: "BS 5793 Part 2", flow_pattern: "Straight-Through" };
-    case "Bleed / Vent Needle Valve":
-      return { ...base, design_standard: "ASME B16.34",
-        bonnet_type: "Packed Bonnet", vent_type: "Manual Bleed" };
+      return { ...base, design_standard: "MSS SP-99" };
     default: return base;
   }
 }
@@ -2904,24 +2971,99 @@ export function NeedleValveAttrsForm({
     return c;
   });
 
+  const valveType = (attrs.valve_type as string) ?? "";
+  const isBleed   = valveType === "Bleed / Vent Needle Valve";
+  const hasType   = NEEDLE_VALVE_TYPES.includes(valveType);
+
+  // Derive EC group for dynamic filtering
+  const currentEc  = (attrs.end_connection as string) ?? "";
+  const ecGroup    = getNeedleEcGroup(currentEc);
+
+  // EC options available for the current family
+  const ecOpts = isBleed
+    ? [...NEEDLE_COMMON_OPTS.ec_ferrule, ...NEEDLE_COMMON_OPTS.ec_threaded]
+    : [...NEEDLE_COMMON_OPTS.ec_ferrule, ...NEEDLE_COMMON_OPTS.ec_threaded, ...NEEDLE_COMMON_OPTS.ec_process];
+
+  // Size options filtered by EC group (show all if no EC yet)
+  const sizeOpts = ecGroup === "ferrule"
+    ? NEEDLE_COMMON_OPTS.size_ferrule
+    : ecGroup !== null
+      ? NEEDLE_COMMON_OPTS.size_nb
+      : [...NEEDLE_COMMON_OPTS.size_ferrule, ...NEEDLE_COMMON_OPTS.size_nb];
+
+  // Pressure options filtered by EC group
+  const prOpts = ecGroup === "ferrule" || ecGroup === "threaded"
+    ? NEEDLE_COMMON_OPTS.pressure_psi
+    : ecGroup === "process"
+      ? NEEDLE_COMMON_OPTS.pressure_class_pn
+      : [...NEEDLE_COMMON_OPTS.pressure_psi, ...NEEDLE_COMMON_OPTS.pressure_class_pn];
+
   function handleTypeChange(type: string) {
+    const goingToBleed   = type === "Bleed / Vent Needle Valve";
+    const comingFromBleed = isBleed;
     const defaults = buildNeedleValveDefaults(type);
+
+    // If switching to BL and current EC is a process connection — clear it (BL forbids process)
+    const existingEc = (attrs.end_connection as string) ?? "";
+    if (goingToBleed && NEEDLE_PROCESS_EC.has(existingEc)) {
+      defaults.end_connection = "";
+      defaults.size           = "";
+      defaults.pressure_rating = "";
+    } else if (!goingToBleed && !comingFromBleed) {
+      // Preserve compatible EC/size/pressure if staying in non-BL families
+      defaults.end_connection  = (attrs.end_connection  as string) ?? defaults.end_connection;
+      defaults.size            = (attrs.size            as string) ?? defaults.size;
+      defaults.pressure_rating = (attrs.pressure_rating as string) ?? defaults.pressure_rating;
+    }
+
+    // Bonnet/vent clearing on family switch
+    if (goingToBleed) {
+      defaults.bonnet_type = "";      // hide + clear bonnet for BL
+      defaults.vent_type   = (attrs.vent_type as string) || "Manual Bleed";
+    } else if (comingFromBleed) {
+      defaults.vent_type   = "";      // hide + clear vent for non-BL
+      defaults.bonnet_type = (attrs.bonnet_type as string) || "Packed Bonnet";
+    }
+
     const c: Record<string, boolean> = {};
     for (const [key, opts] of Object.entries(NEEDLE_ALL_FIELD_OPTS)) {
       const val = (defaults[key] as string) ?? "";
       c[key] = val !== "" && !opts.includes(val);
     }
-    setCustom(c); onChange({ ...defaults, make: "" });
+    setCustom(c);
+    onChange({ ...defaults, make: "" });
   }
 
   function handleSelect(key: string, val: string) {
     if (val === "__other__") {
       setCustom((c) => ({ ...c, [key]: true }));
       onChange({ ...attrs, [key]: "" });
-    } else {
-      setCustom((c) => ({ ...c, [key]: false }));
-      onChange({ ...attrs, [key]: val });
+      return;
     }
+    setCustom((c) => ({ ...c, [key]: false }));
+
+    // When EC changes, clear incompatible size and pressure_rating
+    if (key === "end_connection") {
+      const newEcGroup = getNeedleEcGroup(val);
+      const curSize    = (attrs.size            as string) ?? "";
+      const curPr      = (attrs.pressure_rating as string) ?? "";
+      let newSize = curSize;
+      let newPr   = curPr;
+      if (newEcGroup === "ferrule") {
+        if (!NEEDLE_COMMON_OPTS.size_ferrule.includes(curSize)) newSize = "";
+        if (!NEEDLE_COMMON_OPTS.pressure_psi.includes(curPr))   newPr   = "";
+      } else if (newEcGroup === "threaded") {
+        if (!NEEDLE_COMMON_OPTS.size_nb.includes(curSize))      newSize = "";
+        if (!NEEDLE_COMMON_OPTS.pressure_psi.includes(curPr))   newPr   = "";
+      } else if (newEcGroup === "process") {
+        if (!NEEDLE_COMMON_OPTS.size_nb.includes(curSize))          newSize = "";
+        if (!NEEDLE_COMMON_OPTS.pressure_class_pn.includes(curPr)) newPr   = "";
+      }
+      onChange({ ...attrs, end_connection: val, size: newSize, pressure_rating: newPr });
+      return;
+    }
+
+    onChange({ ...attrs, [key]: val });
   }
 
   function set(key: string, val: unknown) { onChange({ ...attrs, [key]: val }); }
@@ -2929,7 +3071,8 @@ export function NeedleValveAttrsForm({
   function renderField(key: string, label: string, opts: string[], required?: boolean, wrapClass?: string) {
     const curVal    = (attrs[key] as string) ?? "";
     const isCustom  = custom[key] ?? false;
-    const selectVal = isCustom ? "__other__" : (opts.includes(curVal) ? curVal : "");
+    const inList    = opts.includes(curVal);
+    const selectVal = isCustom ? "__other__" : (inList ? curVal : "");
     return (
       <div className={`space-y-1.5 ${wrapClass ?? ""}`}>
         <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
@@ -2942,22 +3085,6 @@ export function NeedleValveAttrsForm({
       </div>
     );
   }
-
-  function sec(label: string) {
-    return (
-      <div className="col-span-3 md:col-span-5 mt-1 pb-0.5 border-b">
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
-      </div>
-    );
-  }
-
-  const makeOpts = getMakesList("needle_valve", NEEDLE_VALVE_MAKES);
-
-  const valveType = (attrs.valve_type as string) ?? "";
-  const isBleed   = valveType === "Bleed / Vent Needle Valve";
-  const hasType   = NEEDLE_VALVE_TYPES.includes(valveType);
-  const stdOpts   = isBleed ? NEEDLE_COMMON_OPTS.std_bleed : NEEDLE_COMMON_OPTS.std_general;
-
 
   function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
     return (
@@ -2989,44 +3116,71 @@ export function NeedleValveAttrsForm({
         )}
       </SectionCard>
 
-      {/* 2 — Size, Pressure Rating & Design Standard */}
+      {/* 2 — End Connection (selected first to drive size/pressure filtering) */}
+      {hasType && (
+        <SectionCard title="End Connection" color="bg-emerald-50/60 border-emerald-200">
+          <div className="col-span-3 md:col-span-5 space-y-1.5">
+            <Label className="text-xs">End Connection <span className="text-red-500">*</span></Label>
+            {isBleed && (
+              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                Bleed / Vent: Ferrule and Threaded connections only — process connections (SW / BW / FL) not permitted.
+              </p>
+            )}
+            <SearchableSelect
+              value={ecOpts.includes(currentEc) ? currentEc : ""}
+              options={ecOpts}
+              placeholder="Select end connection..."
+              onSelect={(v) => handleSelect("end_connection", v)}
+            />
+          </div>
+          {ecGroup && (
+            <div className="col-span-3 md:col-span-5">
+              <p className="text-[11px] text-muted-foreground">
+                {ecGroup === "ferrule"  && "Ferrule connection — Tube OD sizes available · PSI pressure ratings"}
+                {ecGroup === "threaded" && "Threaded connection — NB sizes available · PSI pressure ratings"}
+                {ecGroup === "process"  && "Process connection — NB sizes available · Class / PN pressure ratings"}
+              </p>
+            </div>
+          )}
+        </SectionCard>
+      )}
+
+      {/* 3 — Size, Pressure Rating & Design Standard (filtered by EC) */}
       {hasType && (
         <SectionCard title="Size, Pressure Rating & Design Standard" color="bg-violet-50/60 border-violet-200">
-          {renderField("size",            "Size / Tube OD",  NEEDLE_COMMON_OPTS.size,            true)}
-          {renderField("pressure_rating", "Pressure Rating", NEEDLE_COMMON_OPTS.pressure_rating, true)}
-          {renderField("design_standard", "Design Standard", stdOpts,                            true)}
-          <div />
+          {renderField("size",            ecGroup === "ferrule" ? "Tube OD Size" : "Size (NB)", sizeOpts,                             true)}
+          {renderField("pressure_rating", "Pressure Rating",                                    prOpts,                               true)}
+          {renderField("design_standard", "Design Standard",                                    NEEDLE_COMMON_OPTS.design_standard,   true)}
         </SectionCard>
       )}
 
-      {/* 3 — End Connection & Body */}
+      {/* 4 — Body & Stem Material */}
       {hasType && (
-        <SectionCard title="End Connection & Body Material" color="bg-emerald-50/60 border-emerald-200">
-          {renderField("end_connection", "End Connection", NEEDLE_COMMON_OPTS.end_connection, true)}
-          {renderField("body_material",  "Body Material",  NEEDLE_COMMON_OPTS.body_material,  true)}
+        <SectionCard title="Body & Stem Material" color="bg-sky-50/60 border-sky-200">
+          {renderField("body_material", "Body Material", NEEDLE_COMMON_OPTS.body_material, true)}
+          {renderField("stem_material", "Stem Material", NEEDLE_COMMON_OPTS.stem_material, true)}
         </SectionCard>
       )}
 
-      {/* 4 — Trim & Internals */}
+      {/* 5 — Trim & Internals */}
       {hasType && (
         <SectionCard title="Trim & Internals" color="bg-amber-50/60 border-amber-300">
-          {renderField("stem_material", "Stem Material",    NEEDLE_COMMON_OPTS.stem_material, true)}
-          {renderField("seat_type",     "Seat Type",        NEEDLE_COMMON_OPTS.seat_type,     true)}
-          {renderField("packing",       "Packing Material", NEEDLE_COMMON_OPTS.packing,       true)}
-          {renderField("flow_pattern",  "Flow Pattern",     NEEDLE_COMMON_OPTS.flow_pattern)}
+          {renderField("seat_type",    "Seat Type",        NEEDLE_COMMON_OPTS.seat_type,  true)}
+          {renderField("packing",      "Packing Material", NEEDLE_COMMON_OPTS.packing,    true)}
+          {renderField("flow_pattern", "Flow Pattern",     NEEDLE_COMMON_OPTS.flow_pattern)}
         </SectionCard>
       )}
 
-      {/* 5 — Bonnet & Vent */}
+      {/* 6 — Bonnet (ST/AN/MT only) OR Vent (BL only) */}
       {hasType && (
-        <SectionCard title={isBleed ? "Bonnet & Vent Configuration" : "Bonnet"} color="bg-orange-50/60 border-orange-200">
-          {renderField("bonnet_type", "Bonnet Type", NEEDLE_COMMON_OPTS.bonnet_type)}
-          {isBleed
-            ? renderField("vent_type", "Vent Type", NEEDLE_COMMON_OPTS.vent_type, true)
-            : <div />}
+        <SectionCard title={isBleed ? "Vent Configuration" : "Bonnet"} color="bg-orange-50/60 border-orange-200">
+          {isBleed ? (
+            renderField("vent_type", "Vent Type", NEEDLE_COMMON_OPTS.vent_type, true)
+          ) : (
+            renderField("bonnet_type", "Bonnet Type", NEEDLE_COMMON_OPTS.bonnet_type, true)
+          )}
         </SectionCard>
       )}
-
 
       {/* Quantity */}
       {qty !== undefined && (

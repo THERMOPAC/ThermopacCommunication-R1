@@ -83,7 +83,7 @@ import {
   buildOnOffValveRequirement, buildIsolationValveRequirement,
   buildNrvValveRequirement, buildNeedleValveRequirement,
   buildIsoValvePreviewCode, buildCtrlValvePreviewCode, buildSafetyValvePreviewCode,
-  buildOnOffValvePreviewCode, buildNrvValvePreviewCode,
+  buildOnOffValvePreviewCode, buildNrvValvePreviewCode, buildNeedleValvePreviewCode,
 } from "@/components/valve-attrs-forms";
 
 // ── Role helpers ──────────────────────────────────────────────────────────────
@@ -1459,8 +1459,14 @@ export default function BuyPackagesPage() {
       if (!(ta.packing as string)?.trim()) {
         toast({ title: "Packing Material is required", variant: "destructive" }); return;
       }
-      if (needleType === "Bleed / Vent Needle Valve" && !(ta.vent_type as string)?.trim()) {
-        toast({ title: "Vent Type is required for Bleed / Vent Needle Valve", variant: "destructive" }); return;
+      if (needleType === "Bleed / Vent Needle Valve") {
+        if (!(ta.vent_type as string)?.trim()) {
+          toast({ title: "Vent Type is required for Bleed / Vent Needle Valve", variant: "destructive" }); return;
+        }
+      } else {
+        if (!(ta.bonnet_type as string)?.trim()) {
+          toast({ title: "Bonnet Type is required for Straight / Angle / Multi-Turn Needle Valve", variant: "destructive" }); return;
+        }
       }
     } else if (isNrvValveMode) {
       const ta      = lf.technicalAttributes;
@@ -2289,7 +2295,34 @@ export default function BuyPackagesPage() {
                       </div>
                     );
                   }
-                  // Priority 0 — NRV valve: client-side spec-based preview
+                  // Priority 0a — Needle Valve: client-side spec-based preview
+                  if (isNeedleValveMode) {
+                    const ndlCode = buildNeedleValvePreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (ndlCode) {
+                      const savedCode = lineDialog.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== ndlCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-amber-300 bg-amber-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-amber-900 text-sm">
+                            {ndlCode}
+                          </span>
+                          {isNew && (
+                            <span className="text-[10px] text-amber-600 font-medium uppercase tracking-wide">New</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">
+                          Complete End Connection, Size, Pressure Rating, Body, Stem, Seat, Packing &amp; Bonnet/Vent to preview
+                        </span>
+                      </div>
+                    );
+                  }
+                  // Priority 0b — NRV valve: client-side spec-based preview
                   if (isNrvValveMode) {
                     const nrvCode = buildNrvValvePreviewCode(
                       (lf.technicalAttributes ?? {}) as Record<string, unknown>,

@@ -1693,3 +1693,209 @@ export async function resolveCatalogSapItemCode(
     client.release();
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NEEDLE VALVE SAP ITEM CODE BUILDER
+// ─────────────────────────────────────────────────────────────────────────────
+/*
+ * Formats:
+ *  ST/AN/MT: VLV-NDL-{TYPE}-{EC}-{SIZE}-{PR}-{BODY}-{STEM}-{SEAT}-{PACK}-{BONNET}
+ *  BL:       VLV-NDL-BL-{EC}-{SIZE}-{PR}-{BODY}-{STEM}-{SEAT}-{PACK}-{VENT}
+ *
+ * EC groups:
+ *  Ferrule  (DF/SF)         → Tube OD sizes (T025–T100) + PSI ratings (3K/6K/10K)
+ *  Threaded (NM/NF/BM/BF)  → NB sizes (8–25) + PSI ratings (3K/6K/10K)
+ *  Process  (SW/BW/FL)      → NB sizes (8–25) + Class/PN ratings
+ *  BL family: Ferrule or Threaded ONLY — process connections not permitted.
+ */
+
+const NDL_TYPE_CODE: Record<string, string> = {
+  'Straight Needle Valve':          'ST',
+  'Angle Needle Valve (L-Pattern)': 'AN',
+  'Multi-Turn Needle Valve':        'MT',
+  'Bleed / Vent Needle Valve':      'BL',
+};
+
+const NDL_EC_CODE: Record<string, string> = {
+  'Double Ferrule (Swagelok / Ham-Let Type)': 'DF',
+  'Single Ferrule (Parker Type)':             'SF',
+  'NPT Male':                                 'NM',
+  'NPT Female':                               'NF',
+  'BSP Male':                                 'BM',
+  'BSP Female':                               'BF',
+  'Socket Weld':                              'SW',
+  'Butt Weld':                                'BW',
+  'Flanged (ASME B16.5)':                     'FL',
+};
+
+const NDL_EC_GROUP: Record<string, 'ferrule' | 'threaded' | 'process'> = {
+  DF: 'ferrule', SF: 'ferrule',
+  NM: 'threaded', NF: 'threaded', BM: 'threaded', BF: 'threaded',
+  SW: 'process',  BW: 'process',  FL: 'process',
+};
+
+const NDL_FERRULE_SIZES = new Set(['T025', 'T038', 'T050', 'T075', 'T100']);
+const NDL_NB_SIZES      = new Set(['8', '10', '15', '20', '25']);
+const NDL_PSI_PR        = new Set(['3K', '6K', '10K']);
+
+const NDL_SIZE_CODE: Record<string, string> = {
+  '1/4" OD':      'T025',
+  '3/8" OD':      'T038',
+  '1/2" OD':      'T050',
+  '3/4" OD':      'T075',
+  '1" OD':        'T100',
+  '8 NB (DN8)':   '8',
+  '10 NB (DN10)': '10',
+  '15 NB (DN15)': '15',
+  '20 NB (DN20)': '20',
+  '25 NB (DN25)': '25',
+};
+
+const NDL_PR_CODE: Record<string, string> = {
+  '3000 PSI (207 bar)':  '3K',
+  '6000 PSI (414 bar)':  '6K',
+  '10000 PSI (689 bar)': '10K',
+  'Class 300':  'CL300',
+  'Class 600':  'CL600',
+  'Class 900':  'CL900',
+  'Class 1500': 'CL1500',
+  'PN40':  'PN40',
+  'PN64':  'PN64',
+  'PN100': 'PN100',
+};
+
+const NDL_BODY_CODE: Record<string, string> = {
+  'SS316':               'SS316',
+  'SS316L':              'SS316L',
+  'SS304':               'SS304',
+  'Carbon Steel (A105)': 'A105',
+  'Duplex SS (A182 F51)':'DSS',
+  'Monel 400 (B564)':    'M400',
+  'Hastelloy C-276':     'HC276',
+  'Inconel 625':         'INC625',
+};
+
+const NDL_STEM_CODE: Record<string, string> = {
+  'SS316':           'SS316',
+  'SS316L':          'SS316L',
+  '17-4 PH SS':      '174PH',
+  'Monel 400':       'M400',
+  'Hastelloy C-276': 'HC276',
+};
+
+const NDL_SEAT_CODE: Record<string, string> = {
+  'Metal Seat (Integral)': 'MET',
+  'PTFE Soft Seat':        'PTFE',
+  'PEEK Seat':             'PEEK',
+};
+
+const NDL_PACK_CODE: Record<string, string> = {
+  'PTFE':        'PTFE',
+  'Graphite':    'GRP',
+  'FKM (Viton)': 'FKM',
+};
+
+const NDL_BONNET_CODE: Record<string, string> = {
+  'Packed Bonnet':   'PKD',
+  'Welded Bonnet':   'WLD',
+  'Capped Bonnet':   'CAP',
+  'Extended Bonnet': 'EXT',
+};
+
+const NDL_VENT_CODE: Record<string, string> = {
+  'Manual Bleed':      'MBL',
+  'Auto Vent':         'AVT',
+  'Self-Closing Vent': 'SCV',
+};
+
+export function buildNeedleValveItemCode(attrs: Record<string, unknown>): string {
+  const vtRaw   = (attrs.valve_type      as string | undefined)?.trim() ?? '';
+  const ecRaw   = (attrs.end_connection  as string | undefined)?.trim() ?? '';
+  const sizeRaw = (attrs.size            as string | undefined)?.trim() ?? '';
+  const prRaw   = (attrs.pressure_rating as string | undefined)?.trim() ?? '';
+  const bodyRaw = (attrs.body_material   as string | undefined)?.trim() ?? '';
+  const stemRaw = (attrs.stem_material   as string | undefined)?.trim() ?? '';
+  const seatRaw = (attrs.seat_type       as string | undefined)?.trim() ?? '';
+  const packRaw = (attrs.packing         as string | undefined)?.trim() ?? '';
+
+  const vt   = NDL_TYPE_CODE[vtRaw];
+  const ec   = NDL_EC_CODE[ecRaw];
+  const sz   = NDL_SIZE_CODE[sizeRaw];
+  const pr   = NDL_PR_CODE[prRaw];
+  const body = NDL_BODY_CODE[bodyRaw];
+  const stem = NDL_STEM_CODE[stemRaw];
+  const seat = NDL_SEAT_CODE[seatRaw];
+  const pack = NDL_PACK_CODE[packRaw];
+
+  const isBleed = vt === 'BL';
+
+  const bonnetRaw = isBleed ? '' : ((attrs.bonnet_type as string | undefined)?.trim() ?? '');
+  const ventRaw   = isBleed ? ((attrs.vent_type as string | undefined)?.trim() ?? '') : '';
+  const bonnet    = isBleed ? undefined : NDL_BONNET_CODE[bonnetRaw];
+  const vent      = isBleed ? NDL_VENT_CODE[ventRaw] : undefined;
+
+  const missing: string[] = [];
+  if (!vt)   missing.push(`Valve Type ("${vtRaw}")`);
+  if (!ec)   missing.push(`End Connection ("${ecRaw}")`);
+  if (!sz)   missing.push(`Size ("${sizeRaw}")`);
+  if (!pr)   missing.push(`Pressure Rating ("${prRaw}")`);
+  if (!body) missing.push(`Body Material ("${bodyRaw}")`);
+  if (!stem) missing.push(`Stem Material ("${stemRaw}")`);
+  if (!seat) missing.push(`Seat Type ("${seatRaw}")`);
+  if (!pack) missing.push(`Packing ("${packRaw}")`);
+  if (!isBleed && !bonnet) missing.push(`Bonnet Type ("${bonnetRaw}")`);
+  if (isBleed  && !vent)   missing.push(`Vent Type ("${ventRaw}")`);
+
+  if (missing.length > 0)
+    throw new Error(`Cannot generate Needle Valve SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+
+  const ecGroup = NDL_EC_GROUP[ec!];
+
+  // BL restriction: no process connections
+  if (isBleed && ecGroup === 'process') {
+    throw new Error(
+      `Cannot generate Needle Valve SAP Item Code — Bleed/Vent Needle Valve does not permit process connections (${ecRaw}). Allowed: Double Ferrule, Single Ferrule, NPT Male/Female, BSP Male/Female.`,
+    );
+  }
+
+  // EC × Size validation
+  if (ecGroup === 'ferrule' && !NDL_FERRULE_SIZES.has(sz!)) {
+    throw new Error(
+      `Cannot generate Needle Valve SAP Item Code — Ferrule connection (${ecRaw}) requires a tube OD size (T025–T100). "${sizeRaw}" is not valid.`,
+    );
+  }
+  if ((ecGroup === 'threaded' || ecGroup === 'process') && !NDL_NB_SIZES.has(sz!)) {
+    throw new Error(
+      `Cannot generate Needle Valve SAP Item Code — ${ecGroup === 'threaded' ? 'Threaded' : 'Process'} connection (${ecRaw}) requires an NB size (8–25). "${sizeRaw}" is not valid.`,
+    );
+  }
+
+  // EC × Pressure validation
+  if ((ecGroup === 'ferrule' || ecGroup === 'threaded') && !NDL_PSI_PR.has(pr!)) {
+    throw new Error(
+      `Cannot generate Needle Valve SAP Item Code — ${ecGroup === 'ferrule' ? 'Ferrule' : 'Threaded'} connection (${ecRaw}) requires a PSI pressure rating (3K / 6K / 10K). "${prRaw}" is not valid.`,
+    );
+  }
+  if (ecGroup === 'process' && NDL_PSI_PR.has(pr!)) {
+    throw new Error(
+      `Cannot generate Needle Valve SAP Item Code — Process connection (${ecRaw}) requires a Class or PN pressure rating. "${prRaw}" is not valid.`,
+    );
+  }
+
+  if (isBleed) {
+    return `VLV-NDL-BL-${ec}-${sz}-${pr}-${body}-${stem}-${seat}-${pack}-${vent}`;
+  }
+  return `VLV-NDL-${vt}-${ec}-${sz}-${pr}-${body}-${stem}-${seat}-${pack}-${bonnet}`;
+}
+
+export async function resolveNeedleValveSapItemCode(
+  pool:       Pool,
+  groupId:    number,
+  subgroupId: number,
+  attrs:      Record<string, unknown>,
+  uomCode:    string,
+  description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  const itemCode = buildNeedleValveItemCode(attrs);
+  return resolveOrCreateSapMasterItem(pool, itemCode, description, uomCode, groupId, subgroupId, null, null);
+}

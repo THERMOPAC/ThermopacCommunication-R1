@@ -942,7 +942,7 @@ export default function EpcBuyListControlPage() {
       if (pumpErr) { toast({ title: "Pump specification incomplete", description: pumpErr, variant: "destructive" }); return; }
     }
     const isMotorSpecBased = currentSubgroupCode === 'non_flameproof' || currentSubgroupCode === 'flameproof';
-    const isSpecBasedItem  = isMotorSpecBased || currentSubgroupCode === 'isolation' || currentSubgroupCode === 'control' || currentSubgroupCode === 'safety' || currentSubgroupCode === 'on_off' || currentSubgroupCode === 'nrv';
+    const isSpecBasedItem  = isMotorSpecBased || currentSubgroupCode === 'isolation' || currentSubgroupCode === 'control' || currentSubgroupCode === 'safety' || currentSubgroupCode === 'on_off' || currentSubgroupCode === 'nrv' || currentSubgroupCode === 'needle';
     if (!isSpecBasedItem && !lf.model.trim()) {
       toast({ title: "Model is required", variant: "destructive" }); return;
     }
