@@ -2349,3 +2349,152 @@ export async function resolveCablingSapItemCode(
     pool, buildCablingItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
   );
 }
+
+// ── Junction Box SAP Item Code ────────────────────────────────────────────────
+// Skeleton : ELC-JBX-{TYPE}-{TERMS}T-{MAT}-{IP}[-{AREA}]
+//
+// Procurement Identity (encoded in the SAP Item Code):
+//   JB Type · Number of Terminals · Body Material · IP Rating
+//   Area Classification (omitted for Safe Area on standard types;
+//                        mandatory and always hazardous for IS and FLP types)
+//
+// Engineering Specification (NOT in the code):
+//   Terminal Type · Mounting · Cable Entry / Gland details
+//   Certification · Earthing · Accessories · Make (optional vendor preference)
+
+const JBX_TYPE: Record<string, string> = {
+  'General Purpose JB':     'GP',
+  'Marshalling JB':         'MRS',
+  'Thermocouple JB':        'TC',
+  'RTD JB':                 'RTD',
+  'Field JB':               'FLD',
+  'Panel JB':               'PNL',
+  'Signal Distribution JB': 'SIG',
+  'Intrinsically Safe JB':  'IS',
+  'Flameproof JB':          'FLP',
+};
+
+const JBX_MAT: Record<string, string> = {
+  'GRP/FRP':             'GRP',
+  'SS316':               'S316',
+  'SS304':               'S304',
+  'Carbon Steel':        'CS',
+  'Polycarbonate':       'PC',
+  'Die-Cast Aluminium':  'ALU',
+  'Mild Steel (Painted)': 'MS',
+};
+
+// Area options that may appear in the SAP code (Safe Area is omitted, not encoded)
+const JBX_AREA: Record<string, string> = {
+  'Zone 1 (Gas Groups IIA/IIB)': 'Z1A',
+  'Zone 1 (Gas Group IIC)':      'Z1C',
+  'Zone 2':                       'Z2',
+  'Division 1':                   'D1',
+  'Division 2':                   'D2',
+  'Non-classified':               'NC',
+};
+
+// IS and FLP JBs exist specifically for hazardous areas — Safe Area is not valid
+const JBX_ALWAYS_HAZ = new Set(['Intrinsically Safe JB', 'Flameproof JB']);
+
+/**
+ * Build a deterministic SAP Item Code for a Junction Box line.
+ *
+ * Required attrs : jb_type, num_terminals (or "Other" + custom_terminal_count),
+ *                  body_material, enclosure_type (IP rating)
+ * Conditional    : area_classification — mandatory and must be hazardous for IS/FLP;
+ *                  included when hazardous for all other types; omitted for Safe Area
+ * Throws a user-friendly error for missing or unrecognised values.
+ */
+export function buildJunctionBoxItemCode(attrs: Record<string, unknown>): string {
+  const jbTypeRaw  = ((attrs.jb_type       as string) ?? '').trim();
+  const numTermRaw = ((attrs.num_terminals  as string) ?? '').trim();
+  const customRaw  = ((attrs.custom_terminal_count as string) ?? '').trim();
+  const matRaw     = ((attrs.body_material  as string) ?? '').trim();
+  const ipRaw      = ((attrs.enclosure_type as string) ?? '').trim();
+  const areaRaw    = ((attrs.area_classification as string) ?? '').trim();
+
+  const missing: string[] = [];
+
+  const type = JBX_TYPE[jbTypeRaw];
+  if (!type) missing.push(`JB Type ("${jbTypeRaw}")`);
+
+  // Resolve terminal count — "Other" delegates to custom_terminal_count
+  let termsNum: number | undefined;
+  if (!numTermRaw) {
+    missing.push('Number of Terminals');
+  } else if (numTermRaw === 'Other') {
+    const n = parseInt(customRaw, 10);
+    if (!customRaw || isNaN(n) || n <= 0 || !Number.isInteger(n)) {
+      missing.push('Custom Terminal Count (must be a positive whole number)');
+    } else {
+      termsNum = n;
+    }
+  } else {
+    const n = parseInt(numTermRaw, 10);
+    if (isNaN(n) || n <= 0) {
+      missing.push(`Number of Terminals ("${numTermRaw}")`);
+    } else {
+      termsNum = n;
+    }
+  }
+
+  const mat = JBX_MAT[matRaw];
+  if (!mat) missing.push(`Body Material ("${matRaw}")`);
+
+  const validIp = ['IP65', 'IP66', 'IP67', 'IP68'];
+  if (!validIp.includes(ipRaw)) missing.push(`IP Rating ("${ipRaw}")`);
+
+  // Area classification
+  const isAlwaysHaz = JBX_ALWAYS_HAZ.has(jbTypeRaw);
+  let areaSeg: string | undefined;
+  if (isAlwaysHaz) {
+    // IS and FLP must have a hazardous area — Safe Area and Non-classified are rejected
+    if (!areaRaw || areaRaw === 'Safe Area' || areaRaw === 'Non-classified') {
+      missing.push(
+        `Area Classification — ${jbTypeRaw} requires a hazardous zone (Zone 1/Zone 2/Division); ` +
+        `"${areaRaw || 'blank'}" is not accepted`,
+      );
+    } else {
+      const seg = JBX_AREA[areaRaw];
+      if (!seg) missing.push(`Area Classification ("${areaRaw}")`);
+      else areaSeg = seg;
+    }
+  } else if (areaRaw && areaRaw !== 'Safe Area') {
+    // Non-IS/FLP in hazardous area: include area segment
+    const seg = JBX_AREA[areaRaw];
+    if (!seg) missing.push(`Area Classification ("${areaRaw}")`);
+    else areaSeg = seg;
+    // Safe Area: area segment omitted (default assumption)
+  }
+
+  if (missing.length) {
+    throw new Error(
+      `Cannot generate Junction Box SAP Item Code — missing or unrecognised: ${missing.join('; ')}`,
+    );
+  }
+
+  const parts = [`ELC-JBX-${type}-${termsNum}T-${mat}-${ipRaw}`];
+  if (areaSeg) parts.push(areaSeg);
+
+  const code = parts.join('-');
+  if (code.length > SAP_ITEM_CODE_MAX_LEN) {
+    throw new Error(
+      `SAP Item Code "${code}" is ${code.length} characters — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`,
+    );
+  }
+  return code;
+}
+
+export async function resolveJunctionBoxSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  return resolveOrCreateSapMasterItem(
+    pool, buildJunctionBoxItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
+  );
+}

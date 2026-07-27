@@ -75,7 +75,7 @@ import {
   CoolingTowerAttrsForm, BoughtOutAttrsForm, ComponentsAttrsForm,
   buildPanelRequirement, buildCablingRequirement, buildJunctionBoxRequirement,
   buildCoolingTowerRequirement, buildBoughtOutRequirement, buildComponentsRequirement,
-  buildPanelPreviewCode, buildCablingPreviewCode,
+  buildPanelPreviewCode, buildCablingPreviewCode, buildJunctionBoxPreviewCode,
 } from "@/components/electrical-attrs-forms";
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
@@ -1598,25 +1598,27 @@ export default function BuyPackagesPage() {
       }
     } else if (isJunctionBoxMode) {
       const ta = lf.technicalAttributes;
-      if (!(ta.jb_type as string)?.trim()) {
-        toast({ title: "Junction Box Type is required", variant: "destructive" }); return;
+      if (!(ta.jb_type as string)?.trim())
+        { toast({ title: "JB Type is required", variant: "destructive" }); return; }
+      const _numT = (ta.num_terminals as string)?.trim() ?? "";
+      if (!_numT)
+        { toast({ title: "Number of Terminals is required", variant: "destructive" }); return; }
+      if (_numT === "Other") {
+        const _custom = (ta.custom_terminal_count as string)?.trim() ?? "";
+        const _n = parseInt(_custom, 10);
+        if (!_custom || isNaN(_n) || _n <= 0 || !Number.isInteger(_n))
+          { toast({ title: "Custom Terminal Count must be a positive whole number", variant: "destructive" }); return; }
       }
-      if (!(ta.enclosure_material as string)?.trim()) {
-        toast({ title: "Enclosure Material is required", variant: "destructive" }); return;
-      }
-      if (!((ta.length_mm as string) ?? "").trim() || !((ta.width_mm as string) ?? "").trim() || !((ta.depth_mm as string) ?? "").trim()) {
-        toast({ title: "All dimensions (L/W/D) are required", variant: "destructive" }); return;
-      }
-      const enc = (ta.enclosure_type as string)?.trim();
-      if ((enc === "Outdoor" || enc === "Weatherproof") && !(ta.ip_rating as string)?.trim()) {
-        toast({ title: "IP Rating is required for Outdoor/Weatherproof enclosure", variant: "destructive" }); return;
-      }
-      if (enc === "Flameproof" && !(ta.area_classification as string)?.trim()) {
-        toast({ title: "Area Classification is required for Flameproof enclosure", variant: "destructive" }); return;
-      }
-      const ng = parseFloat((ta.num_glands as string) ?? "0");
-      if (ng > 0 && !(ta.gland_size as string)?.trim()) {
-        toast({ title: "Gland Size is required when Number of Glands > 0", variant: "destructive" }); return;
+      if (!(ta.body_material as string)?.trim())
+        { toast({ title: "Body Material is required", variant: "destructive" }); return; }
+      if (!(ta.enclosure_type as string)?.trim())
+        { toast({ title: "IP Rating is required", variant: "destructive" }); return; }
+      const _jbT = (ta.jb_type as string)?.trim() ?? "";
+      const _jbAlwaysHaz = _jbT === "Flameproof JB" || _jbT === "Intrinsically Safe JB";
+      if (_jbAlwaysHaz) {
+        const _area = (ta.area_classification as string)?.trim() ?? "";
+        if (!_area || _area === "Safe Area" || _area === "Non-classified")
+          { toast({ title: `Area Classification is mandatory for ${_jbT} — must be a hazardous zone`, variant: "destructive" }); return; }
       }
     } else if (!lf.genericRequirement.trim()) {
       toast({ title: "Generic Requirement is required", variant: "destructive" }); return;
@@ -1624,7 +1626,7 @@ export default function BuyPackagesPage() {
       toast({ title: `Item Description exceeds ${ITEM_DESC_LIMIT} characters — shorten manually before saving.`, variant: "destructive" }); return;
     }
 
-    if (selectedGroupCode !== 'raw_materials' && !isNonFlameproofMotorMode && !isFlameproofMotorMode && !isIsolationValveMode && !isControlValveMode && !isSafetyValveMode) {
+    if (selectedGroupCode !== 'raw_materials' && !isNonFlameproofMotorMode && !isFlameproofMotorMode && !isIsolationValveMode && !isControlValveMode && !isSafetyValveMode && !isPanelMode && !isCablingMode && !isJunctionBoxMode) {
       const ta   = lf.technicalAttributes ?? {};
       const make = typeof ta.make === 'string' ? ta.make.trim() : '';
       if (!make || make.toUpperCase() === 'TBN') {
@@ -1632,7 +1634,7 @@ export default function BuyPackagesPage() {
       }
     }
 
-    if (!isNonFlameproofMotorMode && !isFlameproofMotorMode && !isIsolationValveMode && !isControlValveMode && !isSafetyValveMode && !lf.model.trim()) {
+    if (!isNonFlameproofMotorMode && !isFlameproofMotorMode && !isIsolationValveMode && !isControlValveMode && !isSafetyValveMode && !isPanelMode && !isCablingMode && !isJunctionBoxMode && !lf.model.trim()) {
       toast({ title: "Model is required", variant: "destructive" }); return;
     }
     const body = {
@@ -2341,6 +2343,33 @@ export default function BuyPackagesPage() {
                       <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
                         <span className="font-mono tracking-wide text-xs">
                           Complete Motor Type, Mounting, Power, Voltage, Frequency, Poles, Efficiency, Ex Protection, Gas Group &amp; T-class to preview
+                        </span>
+                      </div>
+                    );
+                  }
+                  // Priority 0a — Junction Box: spec-based preview
+                  if (isJunctionBoxMode) {
+                    const jbCode = buildJunctionBoxPreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (jbCode) {
+                      const savedCode = lineDialog.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== jbCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-sky-300 bg-sky-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-sky-900 text-sm">
+                            {jbCode}
+                          </span>
+                          {isNew && (
+                            <span className="text-[10px] text-sky-700 font-medium uppercase tracking-wide">New</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">
+                          Complete JB Type, Terminals, Material &amp; IP Rating to preview SAP code
                         </span>
                       </div>
                     );

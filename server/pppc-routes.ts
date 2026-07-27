@@ -37,6 +37,7 @@ import {
   resolveApfcPanelSapItemCode,
   resolveVfdPanelSapItemCode,
   resolveCablingSapItemCode,
+  resolveJunctionBoxSapItemCode,
 } from './buy-catalog-sap-service';
 
 /**
@@ -896,7 +897,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const _panelTypeStr = (groupCode === 'electrical_control' && subgroupCode === 'panels') ? String(((technicalAttributes ?? {}) as Record<string, unknown>).panel_type ?? '').trim() : '';
       const isSpecPanel   = _SPEC_PANELS.has(_panelTypeStr);
       const isCabling     = groupCode === 'electrical_control' && subgroupCode === 'cabling';
-      if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor && !isIsoValve && !isCtrlValve && !isSafetyValve && !isOnOffValve && !isNrvValve && !isNeedleValve && !isSpecPanel && !isCabling) {
+      const isJunctionBox = groupCode === 'electrical_control' && subgroupCode === 'junction_box';
+      if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor && !isIsoValve && !isCtrlValve && !isSafetyValve && !isOnOffValve && !isNrvValve && !isNeedleValve && !isSpecPanel && !isCabling && !isJunctionBox) {
         const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
         const make = readMakeScalar(attrs);
         const series = typeof attrs.preferred_series === 'string' ? attrs.preferred_series.trim() : '';
@@ -1026,6 +1028,17 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           const sapRes = await resolveCablingSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
           sapMasterItemId  = sapRes.masterItemId;
           sapItemCodeValue = sapRes.sapItemCode;
+        } else if (isJunctionBox) {
+          const _jg = (k: string) => ((attrs[k] as string | undefined) ?? '').trim();
+          const _numT    = _jg('num_terminals') === 'Other' ? _jg('custom_terminal_count') : _jg('num_terminals');
+          const _area    = _jg('area_classification');
+          const _areaPart = _area && _area !== 'Safe Area' ? `, ${_area}` : '';
+          const _cert     = _jg('certification');
+          const _certPart = _cert && _cert !== 'No Certification Required' ? `, ${_cert}` : '';
+          const desc = `${_jg('jb_type')} — ${_jg('body_material')} — ${_jg('enclosure_type')} — ${_numT} Terminals${_areaPart}${_certPart}`.slice(0, 255);
+          const sapRes = await resolveJunctionBoxSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
+          sapMasterItemId  = sapRes.masterItemId;
+          sapItemCodeValue = sapRes.sapItemCode;
         } else {
           const make  = readMakeScalar(attrs);
           const model2 = String(attrs.preferred_series as string).trim();
@@ -1148,7 +1161,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const _panelTypeStr2  = (groupCode2 === 'electrical_control' && subgroupCode2 === 'panels') ? String(((b.technicalAttributes ?? {}) as Record<string, unknown>).panel_type ?? '').trim() : '';
         const isSpecPanel2    = _SPEC_PANELS2.has(_panelTypeStr2);
         const isCabling2      = groupCode2 === 'electrical_control' && subgroupCode2 === 'cabling';
-        if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2 && !isIsoValve2 && !isCtrlValve2 && !isSafetyValve2 && !isOnOffValve2 && !isNrvValve2 && !isNeedleValve2 && !isSpecPanel2 && !isCabling2) {
+        const isJunctionBox2  = groupCode2 === 'electrical_control' && subgroupCode2 === 'junction_box';
+        if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2 && !isIsoValve2 && !isCtrlValve2 && !isSafetyValve2 && !isOnOffValve2 && !isNrvValve2 && !isNeedleValve2 && !isSpecPanel2 && !isCabling2 && !isJunctionBox2) {
           const attrs2 = (b.technicalAttributes ?? {}) as Record<string, unknown>;
           const make2 = readMakeScalar(attrs2);
           const series2 = typeof attrs2.preferred_series === 'string' ? attrs2.preferred_series.trim() : '';
@@ -1276,6 +1290,17 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             const scrPart3 = _cg3('screening') && _cg3('screening') !== 'Unscreened' ? `, ${_cg3('screening')}` : '';
             const desc3 = `${_cg3('cable_type')} — ${_cg3('core_config')} x ${_cg3('cable_size')} — ${_cg3('voltage')} — ${_cg3('insulation')}${armPart3}${scrPart3}`.slice(0, 255);
             const sapRes3 = await resolveCablingSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+            fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
+            fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
+          } else if (isJunctionBox2) {
+            const _jg3 = (k: string) => ((attrs3[k] as string | undefined) ?? '').trim();
+            const _numT3     = _jg3('num_terminals') === 'Other' ? _jg3('custom_terminal_count') : _jg3('num_terminals');
+            const _area3     = _jg3('area_classification');
+            const _areaPart3 = _area3 && _area3 !== 'Safe Area' ? `, ${_area3}` : '';
+            const _cert3     = _jg3('certification');
+            const _certPart3 = _cert3 && _cert3 !== 'No Certification Required' ? `, ${_cert3}` : '';
+            const desc3 = `${_jg3('jb_type')} — ${_jg3('body_material')} — ${_jg3('enclosure_type')} — ${_numT3} Terminals${_areaPart3}${_certPart3}`.slice(0, 255);
+            const sapRes3 = await resolveJunctionBoxSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
             fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
             fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
           } else {

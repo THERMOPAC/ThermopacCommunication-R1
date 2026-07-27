@@ -1022,6 +1022,82 @@ const JB_EARTHING_OPTS     = ["External Earthing Boss (M8)", "Internal Earth Bar
 const JB_ACCESSORIES       = ["Nameplate", "Tag Plate", "Anti-condensation Heater", "Thermostat", "Din Rail", "Tamper-proof Screws", "Padlocking Facility", "Window (Inspection)"];
 const JB_VENDOR_CHIPS      = ["Pepperl+Fuchs", "R.Stahl", "Weidmuller", "Rittal", "Polycab", "Egar", "CG Power", "ABB", "Hawke International", "Woerner"];
 
+// ── Junction Box procurement identity maps (mirrors server JBX_* maps) ────────
+const _JBX_TYPE: Record<string, string> = {
+  'General Purpose JB':     'GP',
+  'Marshalling JB':         'MRS',
+  'Thermocouple JB':        'TC',
+  'RTD JB':                 'RTD',
+  'Field JB':               'FLD',
+  'Panel JB':               'PNL',
+  'Signal Distribution JB': 'SIG',
+  'Intrinsically Safe JB':  'IS',
+  'Flameproof JB':          'FLP',
+};
+const _JBX_MAT: Record<string, string> = {
+  'GRP/FRP': 'GRP', 'SS316': 'S316', 'SS304': 'S304',
+  'Carbon Steel': 'CS', 'Polycarbonate': 'PC',
+  'Die-Cast Aluminium': 'ALU', 'Mild Steel (Painted)': 'MS',
+};
+const _JBX_AREA: Record<string, string> = {
+  'Zone 1 (Gas Groups IIA/IIB)': 'Z1A', 'Zone 1 (Gas Group IIC)': 'Z1C',
+  'Zone 2': 'Z2', 'Division 1': 'D1', 'Division 2': 'D2', 'Non-classified': 'NC',
+};
+const _JBX_ALWAYS_HAZ = new Set(['Intrinsically Safe JB', 'Flameproof JB']);
+
+/** Client-side preview of the Junction Box SAP Item Code. Returns null when any required field is missing. */
+export function buildJunctionBoxPreviewCode(attrs: Record<string, unknown>): string | null {
+  const jbTypeRaw  = ((attrs.jb_type       as string) ?? '').trim();
+  const numTermRaw = ((attrs.num_terminals  as string) ?? '').trim();
+  const customRaw  = ((attrs.custom_terminal_count as string) ?? '').trim();
+  const matRaw     = ((attrs.body_material  as string) ?? '').trim();
+  const ipRaw      = ((attrs.enclosure_type as string) ?? '').trim();
+  const areaRaw    = ((attrs.area_classification as string) ?? '').trim();
+
+  const type = _JBX_TYPE[jbTypeRaw];
+  const mat  = _JBX_MAT[matRaw];
+  const validIp = ['IP65', 'IP66', 'IP67', 'IP68'];
+  if (!type || !mat || !validIp.includes(ipRaw)) return null;
+
+  // Resolve terminal count
+  let termsNum: number | undefined;
+  if (numTermRaw === 'Other') {
+    const n = parseInt(customRaw, 10);
+    if (!customRaw || isNaN(n) || n <= 0) return null;
+    termsNum = n;
+  } else if (numTermRaw) {
+    const n = parseInt(numTermRaw, 10);
+    if (isNaN(n) || n <= 0) return null;
+    termsNum = n;
+  } else {
+    return null;
+  }
+
+  // Area classification
+  const isAlwaysHaz = _JBX_ALWAYS_HAZ.has(jbTypeRaw);
+  let areaSeg: string | undefined;
+  if (isAlwaysHaz) {
+    if (!areaRaw || areaRaw === 'Safe Area' || areaRaw === 'Non-classified') return null;
+    areaSeg = _JBX_AREA[areaRaw];
+    if (!areaSeg) return null;
+  } else if (areaRaw && areaRaw !== 'Safe Area') {
+    areaSeg = _JBX_AREA[areaRaw];
+    if (!areaSeg) return null;
+  }
+
+  const parts = [`ELC-JBX-${type}-${termsNum}T-${mat}-${ipRaw}`];
+  if (areaSeg) parts.push(areaSeg);
+  return parts.join('-');
+}
+
+export const JUNCTION_BOX_DEFAULTS: Record<string, unknown> = {
+  jb_type:              "General Purpose JB",
+  body_material:        "GRP/FRP",
+  enclosure_type:       "IP65",
+  num_terminals:        "12",
+  area_classification:  "Safe Area",
+};
+
 export function buildJunctionBoxRequirement(attrs: Record<string, unknown>): string {
   const jbType     = (attrs.jb_type          as string)?.trim() || "";
   const encType    = (attrs.enclosure_type   as string)?.trim() || "";
@@ -1082,7 +1158,12 @@ export function JunctionBoxAttrsForm({
   });
 
   const selectedAcc     = ((attrs.accessories    as string) ?? "").split(",").map(s => s.trim()).filter(Boolean);
-  const encType         = (attrs.enclosure_type as string) ?? "";
+  const jbType          = (attrs.jb_type        as string) ?? "";
+  const isAlwaysHaz     = jbType === "Flameproof JB" || jbType === "Intrinsically Safe JB";
+  const filteredAreaOpts = isAlwaysHaz
+    ? JB_AREA_OPTS.filter(a => a !== 'Safe Area' && a !== 'Non-classified')
+    : JB_AREA_OPTS;
+  const numTermsVal     = (attrs.num_terminals  as string) ?? "";
 
   function toggleAcc(chip: string) {
     const next = selectedAcc.includes(chip)
@@ -1144,7 +1225,17 @@ export function JunctionBoxAttrsForm({
         <div />
 
         {sec("Terminals")}
-        {ss("num_terminals",  "Number of Terminals", JB_TERMINALS_OPTS)}
+        {ss("num_terminals",  "Number of Terminals", JB_TERMINALS_OPTS, true)}
+        {numTermsVal === "Other" && (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Custom Terminal Count <span className="text-red-500">*</span></Label>
+            <Input className="h-8 text-sm" type="number" min="1" step="1"
+              placeholder="e.g. 36"
+              value={(attrs.custom_terminal_count as string) ?? ""}
+              onWheel={(e) => e.currentTarget.blur()}
+              onChange={(e) => set("custom_terminal_count", e.target.value)} />
+          </div>
+        )}
         {ss("terminal_type",  "Terminal Type",       JB_TERMINAL_TYPE)}
 
         {sec("Cable Entry & Glands")}
@@ -1156,7 +1247,7 @@ export function JunctionBoxAttrsForm({
         <div />
 
         {sec("Area / Certification")}
-        {ss("area_classification", "Area Classification", JB_AREA_OPTS, encType === "Flameproof")}
+        {ss("area_classification", "Area Classification", filteredAreaOpts, isAlwaysHaz)}
         {ss("certification",       "Certification",       JB_CERT_OPTS)}
 
         {sec("Earthing / Accessories")}

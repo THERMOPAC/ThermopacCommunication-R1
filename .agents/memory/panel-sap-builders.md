@@ -70,3 +70,34 @@ const hasBusBars = isMcc || isStarter || isPowerBus;
 ## Tests
 
 `tests/panel-builders.test.ts` — 49 tests, all passing. Covers all 6 builder families.
+
+---
+
+# Cabling SAP Item Code Builder
+
+Skeleton: `ELC-CBL-{TYPE}-{CORES}Cx{SIZE}-{VOLT}[-{ARM}][-{SCR}]`
+
+Code fields: cable_type, core_config, cable_size, voltage, armour (if not Unarmoured), screening (if not Unscreened)
+Spec fields (not in code, but insulation is mandatory gate): insulation, outer_sheath, laying_type, standard
+
+`tests/cable-builder.test.ts` — 26 tests, all passing.
+
+---
+
+# Junction Box SAP Item Code Builder
+
+Skeleton: `ELC-JBX-{TYPE}-{TERMS}T-{MAT}-{IP}[-{AREA}]`
+
+Code fields: jb_type, num_terminals (or "Other"→custom_terminal_count), body_material, enclosure_type (IP)
+Area: omitted for Safe Area on standard types; mandatory + hazardous-only for IS and FLP types
+Spec fields (not in code): terminal_type, mounting, gland details, certification, earthing, accessories, make
+
+IS/FLP area rule: "Intrinsically Safe JB" and "Flameproof JB" must have a hazardous zone — Safe Area and Non-classified are rejected server-side and filtered out of the form options.
+
+Custom terminal count: when num_terminals === "Other", read custom_terminal_count (positive integer); encode as {n}T.
+
+Form bug fixed: area_classification required condition was `encType === "Flameproof"` (checked IP rating — always false); corrected to `jbType === "Flameproof JB" || jbType === "Intrinsically Safe JB"`.
+
+Make/model gate fix: buy-packages-page.tsx make gate (line ~1627) and model gate (line ~1635) were missing !isPanelMode, !isCablingMode, !isJunctionBoxMode — all three added.
+
+`tests/junction-box-builder.test.ts` — 33 tests, all passing.
