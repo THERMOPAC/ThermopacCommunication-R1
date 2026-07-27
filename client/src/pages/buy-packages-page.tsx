@@ -404,6 +404,7 @@ function GenericReqField({
       <Input
         className={`h-9 text-sm${over ? " border-red-500 focus-visible:ring-red-500" : ""}`}
         value={value}
+        maxLength={ITEM_DESC_LIMIT}
         placeholder={placeholder || "Fill attributes above to generate…"}
         onChange={(e) => onChange(e.target.value)}
         autoFocus={!!value}
