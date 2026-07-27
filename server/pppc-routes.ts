@@ -30,6 +30,12 @@ import {
   resolveNrvValveSapItemCode, buildNrvValveItemCode,
   resolveNeedleValveSapItemCode, buildNeedleValveItemCode,
   resolveMccPanelSapItemCode,
+  resolveStarterPanelSapItemCode,
+  resolveDbPanelSapItemCode,
+  resolvePdpPanelSapItemCode,
+  resolveAutomationPanelSapItemCode,
+  resolveApfcPanelSapItemCode,
+  resolveVfdPanelSapItemCode,
 } from './buy-catalog-sap-service';
 
 /**
@@ -885,9 +891,10 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const isOnOffValve  = groupCode === 'valves' && subgroupCode === 'on_off';
       const isNrvValve    = groupCode === 'valves' && subgroupCode === 'nrv';
       const isNeedleValve = groupCode === 'valves' && subgroupCode === 'needle';
-      const isMccPanel    = groupCode === 'electrical_control' && subgroupCode === 'panels'
-        && String(((technicalAttributes ?? {}) as Record<string, unknown>).panel_type ?? '').trim() === 'MCC (Motor Control Centre)';
-      if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor && !isIsoValve && !isCtrlValve && !isSafetyValve && !isOnOffValve && !isNrvValve && !isNeedleValve && !isMccPanel) {
+      const _SPEC_PANELS  = new Set(['MCC (Motor Control Centre)','Starter Panel','Distribution Board (DB)','Power Distribution Panel','PLC Panel','DCS Panel','SCADA Panel','Relay / Protection Panel','APFC Panel','VFD Panel']);
+      const _panelTypeStr = (groupCode === 'electrical_control' && subgroupCode === 'panels') ? String(((technicalAttributes ?? {}) as Record<string, unknown>).panel_type ?? '').trim() : '';
+      const isSpecPanel   = _SPEC_PANELS.has(_panelTypeStr);
+      if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor && !isIsoValve && !isCtrlValve && !isSafetyValve && !isOnOffValve && !isNrvValve && !isNeedleValve && !isSpecPanel) {
         const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
         const make = readMakeScalar(attrs);
         const series = typeof attrs.preferred_series === 'string' ? attrs.preferred_series.trim() : '';
@@ -962,11 +969,51 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           const sapRes = await resolveNeedleValveSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
           sapMasterItemId  = sapRes.masterItemId;
           sapItemCodeValue = sapRes.sapItemCode;
-        } else if (isMccPanel) {
-          const voltLabel = (attrs.voltage         as string | undefined)?.trim() ?? '';
-          const busLabel  = (attrs.main_bus_rating as string | undefined)?.trim() ?? '';
-          const desc = `MCC Panel — ${voltLabel} — ${busLabel} Bus`.slice(0, 255);
-          const sapRes = await resolveMccPanelSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
+        } else if (isSpecPanel) {
+          const _g = (k: string) => ((attrs[k] as string | undefined) ?? '').trim();
+          const _expSh = _g('explosion_protection').replace(/\s*\(.*?\)/, '');
+          const _tmpSh = _g('temperature_class').split(' ')[0];
+          const _area  = _g('area_classification');
+          const _haz   = (_area === 'Zone 1' || _area === 'Zone 2') && _expSh && _g('gas_group') && _tmpSh ? `, ${_expSh}, ${_g('gas_group')}, ${_tmpSh}` : '';
+          let desc = '';
+          if (_panelTypeStr === 'MCC (Motor Control Centre)')
+            desc = `MCC, ${_g('voltage')}, ${_g('main_bus_rating')} Bus, ${_g('fault_level_icw')} Icw, ${_g('ip_rating')}, ${_g('enclosure_material')}, ${_area}${_haz}`;
+          else if (_panelTypeStr === 'Starter Panel')
+            desc = `Starter Panel ${_g('starter_type')}, ${_g('voltage')}, ${_g('fault_level_icw')} Icw, ${_g('ip_rating')}, ${_g('enclosure_material')}, ${_area}${_haz}`;
+          else if (_panelTypeStr === 'Distribution Board (DB)')
+            desc = `DB, ${_g('voltage')}, ${_g('main_bus_rating')} Bus, ${_g('fault_level_icw')} Icw, ${_g('ip_rating')}, ${_g('enclosure_material')}, ${_area}${_haz}`;
+          else if (_panelTypeStr === 'Power Distribution Panel')
+            desc = `PDP, ${_g('voltage')}, ${_g('main_bus_rating')} Bus, ${_g('fault_level_icw')} Icw, ${_g('ip_rating')}, ${_g('enclosure_material')}, ${_area}${_haz}`;
+          else if (_panelTypeStr === 'PLC Panel')
+            desc = `PLC Panel, ${_g('voltage')}, ${_g('ip_rating')}, ${_g('enclosure_type')}, ${_g('enclosure_material')}, ${_area}${_haz}`;
+          else if (_panelTypeStr === 'DCS Panel')
+            desc = `DCS Panel, ${_g('voltage')}, ${_g('ip_rating')}, ${_g('enclosure_type')}, ${_g('enclosure_material')}, ${_area}${_haz}`;
+          else if (_panelTypeStr === 'SCADA Panel')
+            desc = `SCADA Panel, ${_g('voltage')}, ${_g('ip_rating')}, ${_g('enclosure_type')}, ${_g('enclosure_material')}, ${_area}${_haz}`;
+          else if (_panelTypeStr === 'Relay / Protection Panel')
+            desc = `Relay Panel, ${_g('voltage')}, ${_g('ip_rating')}, ${_g('enclosure_type')}, ${_g('enclosure_material')}, ${_area}${_haz}`;
+          else if (_panelTypeStr === 'APFC Panel')
+            desc = `APFC Panel, ${_g('voltage')}, ${_g('kvar_rating')}, ${_g('ip_rating')}, ${_g('enclosure_material')}, ${_area}${_haz}`;
+          else { // VFD Panel
+            const _bypL = _g('bypass_arrangement') === 'Mechanical Bypass' ? 'Mech. Bypass' : _g('bypass_arrangement') === 'Electronic Bypass' ? 'Elec. Bypass' : 'No Bypass';
+            desc = `VFD Panel, ${_g('voltage')}, ${_g('drive_power_kw')} Drive, ${_bypL}, ${_g('ip_rating')}, ${_g('enclosure_material')}, ${_area}${_haz}`;
+          }
+          desc = desc.slice(0, 255);
+          let sapRes: { masterItemId: number; sapItemCode: string; reused: boolean };
+          if (_panelTypeStr === 'MCC (Motor Control Centre)')
+            sapRes = await resolveMccPanelSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
+          else if (_panelTypeStr === 'Starter Panel')
+            sapRes = await resolveStarterPanelSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
+          else if (_panelTypeStr === 'Distribution Board (DB)')
+            sapRes = await resolveDbPanelSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
+          else if (_panelTypeStr === 'Power Distribution Panel')
+            sapRes = await resolvePdpPanelSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
+          else if (['PLC Panel','DCS Panel','SCADA Panel','Relay / Protection Panel'].includes(_panelTypeStr))
+            sapRes = await resolveAutomationPanelSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
+          else if (_panelTypeStr === 'APFC Panel')
+            sapRes = await resolveApfcPanelSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
+          else
+            sapRes = await resolveVfdPanelSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
           sapMasterItemId  = sapRes.masterItemId;
           sapItemCodeValue = sapRes.sapItemCode;
         } else {
@@ -1087,9 +1134,10 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const isOnOffValve2   = groupCode2 === 'valves' && subgroupCode2 === 'on_off';
         const isNrvValve2     = groupCode2 === 'valves' && subgroupCode2 === 'nrv';
         const isNeedleValve2  = groupCode2 === 'valves' && subgroupCode2 === 'needle';
-        const isMccPanel2     = groupCode2 === 'electrical_control' && subgroupCode2 === 'panels'
-          && String(((b.technicalAttributes ?? {}) as Record<string, unknown>).panel_type ?? '').trim() === 'MCC (Motor Control Centre)';
-        if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2 && !isIsoValve2 && !isCtrlValve2 && !isSafetyValve2 && !isOnOffValve2 && !isNrvValve2 && !isNeedleValve2 && !isMccPanel2) {
+        const _SPEC_PANELS2   = new Set(['MCC (Motor Control Centre)','Starter Panel','Distribution Board (DB)','Power Distribution Panel','PLC Panel','DCS Panel','SCADA Panel','Relay / Protection Panel','APFC Panel','VFD Panel']);
+        const _panelTypeStr2  = (groupCode2 === 'electrical_control' && subgroupCode2 === 'panels') ? String(((b.technicalAttributes ?? {}) as Record<string, unknown>).panel_type ?? '').trim() : '';
+        const isSpecPanel2    = _SPEC_PANELS2.has(_panelTypeStr2);
+        if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2 && !isIsoValve2 && !isCtrlValve2 && !isSafetyValve2 && !isOnOffValve2 && !isNrvValve2 && !isNeedleValve2 && !isSpecPanel2) {
           const attrs2 = (b.technicalAttributes ?? {}) as Record<string, unknown>;
           const make2 = readMakeScalar(attrs2);
           const series2 = typeof attrs2.preferred_series === 'string' ? attrs2.preferred_series.trim() : '';
@@ -1164,11 +1212,51 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             const sapRes3 = await resolveNeedleValveSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
             fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
             fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
-          } else if (isMccPanel2) {
-            const voltLabel = (attrs3.voltage         as string | undefined)?.trim() ?? '';
-            const busLabel  = (attrs3.main_bus_rating as string | undefined)?.trim() ?? '';
-            const desc3 = `MCC Panel — ${voltLabel} — ${busLabel} Bus`.slice(0, 255);
-            const sapRes3 = await resolveMccPanelSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+          } else if (isSpecPanel2) {
+            const _g3 = (k: string) => ((attrs3[k] as string | undefined) ?? '').trim();
+            const _expSh3 = _g3('explosion_protection').replace(/\s*\(.*?\)/, '');
+            const _tmpSh3 = _g3('temperature_class').split(' ')[0];
+            const _area3  = _g3('area_classification');
+            const _haz3   = (_area3 === 'Zone 1' || _area3 === 'Zone 2') && _expSh3 && _g3('gas_group') && _tmpSh3 ? `, ${_expSh3}, ${_g3('gas_group')}, ${_tmpSh3}` : '';
+            let desc3 = '';
+            if (_panelTypeStr2 === 'MCC (Motor Control Centre)')
+              desc3 = `MCC, ${_g3('voltage')}, ${_g3('main_bus_rating')} Bus, ${_g3('fault_level_icw')} Icw, ${_g3('ip_rating')}, ${_g3('enclosure_material')}, ${_area3}${_haz3}`;
+            else if (_panelTypeStr2 === 'Starter Panel')
+              desc3 = `Starter Panel ${_g3('starter_type')}, ${_g3('voltage')}, ${_g3('fault_level_icw')} Icw, ${_g3('ip_rating')}, ${_g3('enclosure_material')}, ${_area3}${_haz3}`;
+            else if (_panelTypeStr2 === 'Distribution Board (DB)')
+              desc3 = `DB, ${_g3('voltage')}, ${_g3('main_bus_rating')} Bus, ${_g3('fault_level_icw')} Icw, ${_g3('ip_rating')}, ${_g3('enclosure_material')}, ${_area3}${_haz3}`;
+            else if (_panelTypeStr2 === 'Power Distribution Panel')
+              desc3 = `PDP, ${_g3('voltage')}, ${_g3('main_bus_rating')} Bus, ${_g3('fault_level_icw')} Icw, ${_g3('ip_rating')}, ${_g3('enclosure_material')}, ${_area3}${_haz3}`;
+            else if (_panelTypeStr2 === 'PLC Panel')
+              desc3 = `PLC Panel, ${_g3('voltage')}, ${_g3('ip_rating')}, ${_g3('enclosure_type')}, ${_g3('enclosure_material')}, ${_area3}${_haz3}`;
+            else if (_panelTypeStr2 === 'DCS Panel')
+              desc3 = `DCS Panel, ${_g3('voltage')}, ${_g3('ip_rating')}, ${_g3('enclosure_type')}, ${_g3('enclosure_material')}, ${_area3}${_haz3}`;
+            else if (_panelTypeStr2 === 'SCADA Panel')
+              desc3 = `SCADA Panel, ${_g3('voltage')}, ${_g3('ip_rating')}, ${_g3('enclosure_type')}, ${_g3('enclosure_material')}, ${_area3}${_haz3}`;
+            else if (_panelTypeStr2 === 'Relay / Protection Panel')
+              desc3 = `Relay Panel, ${_g3('voltage')}, ${_g3('ip_rating')}, ${_g3('enclosure_type')}, ${_g3('enclosure_material')}, ${_area3}${_haz3}`;
+            else if (_panelTypeStr2 === 'APFC Panel')
+              desc3 = `APFC Panel, ${_g3('voltage')}, ${_g3('kvar_rating')}, ${_g3('ip_rating')}, ${_g3('enclosure_material')}, ${_area3}${_haz3}`;
+            else {
+              const _bypL3 = _g3('bypass_arrangement') === 'Mechanical Bypass' ? 'Mech. Bypass' : _g3('bypass_arrangement') === 'Electronic Bypass' ? 'Elec. Bypass' : 'No Bypass';
+              desc3 = `VFD Panel, ${_g3('voltage')}, ${_g3('drive_power_kw')} Drive, ${_bypL3}, ${_g3('ip_rating')}, ${_g3('enclosure_material')}, ${_area3}${_haz3}`;
+            }
+            desc3 = desc3.slice(0, 255);
+            let sapRes3: { masterItemId: number; sapItemCode: string; reused: boolean };
+            if (_panelTypeStr2 === 'MCC (Motor Control Centre)')
+              sapRes3 = await resolveMccPanelSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+            else if (_panelTypeStr2 === 'Starter Panel')
+              sapRes3 = await resolveStarterPanelSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+            else if (_panelTypeStr2 === 'Distribution Board (DB)')
+              sapRes3 = await resolveDbPanelSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+            else if (_panelTypeStr2 === 'Power Distribution Panel')
+              sapRes3 = await resolvePdpPanelSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+            else if (['PLC Panel','DCS Panel','SCADA Panel','Relay / Protection Panel'].includes(_panelTypeStr2))
+              sapRes3 = await resolveAutomationPanelSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+            else if (_panelTypeStr2 === 'APFC Panel')
+              sapRes3 = await resolveApfcPanelSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+            else
+              sapRes3 = await resolveVfdPanelSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
             fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
             fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
           } else {

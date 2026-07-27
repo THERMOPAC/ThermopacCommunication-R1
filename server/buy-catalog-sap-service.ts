@@ -1994,3 +1994,250 @@ export async function resolveMccPanelSapItemCode(
   const itemCode = buildMccPanelItemCode(attrs);
   return resolveOrCreateSapMasterItem(pool, itemCode, description, uomCode, groupId, subgroupId, null, null);
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// NON-MCC PANEL BUILDERS
+// Shared maps — extended voltage set + common lookups
+// ══════════════════════════════════════════════════════════════════════════════
+const P_VOLT3: Record<string, string> = {
+  '415V AC (3Ph)': '415V', '380V AC (3Ph)': '380V', '440V AC (3Ph)': '440V',
+  '480V AC (3Ph)': '480V', '690V AC (3Ph)': '690V',
+};
+const P_VOLT_ALL: Record<string, string> = {
+  ...P_VOLT3,
+  '240V AC (1Ph)': '240V', '110V AC (1Ph)': '110V',
+  '110V DC': '110VDC', '48V DC': '48VDC', '24V DC': '24VDC',
+};
+const P_ICW: Record<string, string> = {
+  '6 kA':'6KA','10 kA':'10KA','25 kA':'25KA','36 kA':'36KA',
+  '50 kA':'50KA','65 kA':'65KA','85 kA':'85KA',
+};
+const P_MAT: Record<string, string> = {
+  'CRCA Steel':'CRCA','SS304':'SS304','SS316':'SS316','Aluminium':'ALU','GRP/FRP':'GRP',
+};
+const P_EXP: Record<string, string> = {
+  'Ex e (Increased Safety)':'EXE','Ex d (Flameproof)':'EXD',
+  'Ex n (Non-sparking)':'EXN','Ex p (Pressurized)':'EXP',
+  'Ex ia (Intrinsically Safe)':'EXIA',
+};
+const P_IP  = new Set(['IP20','IP42','IP54','IP55','IP65','IP66']);
+const P_BUS = new Set([
+  '100A','125A','160A','200A','250A','315A','400A','500A',
+  '630A','800A','1000A','1250A','1600A','2000A','2500A','3200A',
+]);
+const P_ENCTYPE: Record<string, string> = {
+  'Floor Standing':'FS','Wall Mounted':'WM','Desktop':'DSK','Rack Mounted':'RM',
+};
+const P_STARTER: Record<string, string> = { 'DOL':'DOL','Star-Delta':'SD','Soft Starter':'SS' };
+const P_BYPASS:  Record<string, string> = { 'None':'NBY','Mechanical Bypass':'MBY','Electronic Bypass':'EBY' };
+const P_VFD_KW  = new Set(['11','15','22','30','37','45','55','75','90','110','132','160','200','250','315','400','500','630','800','1000']);
+const P_APFC_KV = new Set(['25','50','75','100','150','200','250','300','400','500','750','1000']);
+
+/** Shared helper: resolve area segment or accumulate missing. */
+function panelAreaSeg(attrs: Record<string, unknown>, missing: string[]): string {
+  const area = ((attrs.area_classification as string) ?? '').trim();
+  if (!area) { missing.push('Area Classification'); return ''; }
+  if (area === 'Safe Area') return 'SA';
+  if (area !== 'Zone 1' && area !== 'Zone 2') {
+    missing.push(`Area Classification — must be Safe Area, Zone 1 or Zone 2 ("${area}")`); return '';
+  }
+  const expRaw = ((attrs.explosion_protection as string) ?? '').trim();
+  const gasRaw = ((attrs.gas_group            as string) ?? '').trim();
+  const tmpRaw = ((attrs.temperature_class    as string) ?? '').trim();
+  const exp = P_EXP[expRaw] ?? '';
+  const gas = ['IIA','IIB','IIC'].includes(gasRaw) ? gasRaw : '';
+  const tmp = /^T[1-6]/.test(tmpRaw) ? tmpRaw.split(' ')[0] : '';
+  if (!exp) missing.push(`Explosion Protection ("${expRaw}")`);
+  if (!gas) missing.push(`Gas Group ("${gasRaw}")`);
+  if (!tmp) missing.push(`Temperature Class ("${tmpRaw}")`);
+  return `${area === 'Zone 1' ? 'Z1' : 'Z2'}-${exp}-${gas}-${tmp}`;
+}
+
+function checkPanelCode(code: string, label: string): string {
+  if (code.length > 50)
+    throw new Error(`${label} SAP Item Code exceeds 50 characters: "${code}" (${code.length} chars)`);
+  return code;
+}
+
+// ── Starter Panel ─────────────────────────────────────────────────────────────
+// PNL-STR-{STARTER}-{VOLT}-{ICW}-{IP}-{MAT}-{AREA}
+export function buildStarterPanelItemCode(attrs: Record<string, unknown>): string {
+  const starterRaw = ((attrs.starter_type      as string) ?? '').trim();
+  const voltRaw    = ((attrs.voltage           as string) ?? '').trim();
+  const icwRaw     = ((attrs.fault_level_icw   as string) ?? '').trim();
+  const ipRaw      = ((attrs.ip_rating         as string) ?? '').trim();
+  const matRaw     = ((attrs.enclosure_material as string) ?? '').trim();
+  const starter = P_STARTER[starterRaw];
+  const volt    = P_VOLT3[voltRaw];
+  const icw     = P_ICW[icwRaw];
+  const ip      = P_IP.has(ipRaw) ? ipRaw : undefined;
+  const mat     = P_MAT[matRaw];
+  const missing: string[] = [];
+  if (!starter) missing.push(`Starter Type ("${starterRaw}")`);
+  if (!volt)    missing.push(`System Voltage ("${voltRaw}")`);
+  if (!icw)     missing.push(`Panel Fault Level Icw ("${icwRaw}")`);
+  if (!ip)      missing.push(`IP Rating ("${ipRaw}")`);
+  if (!mat)     missing.push(`Enclosure Material ("${matRaw}")`);
+  const area = panelAreaSeg(attrs, missing);
+  if (missing.length) throw new Error(`Cannot generate Starter Panel SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+  return checkPanelCode(`PNL-STR-${starter}-${volt}-${icw}-${ip}-${mat}-${area}`, 'Starter Panel');
+}
+export async function resolveStarterPanelSapItemCode(
+  pool: Pool, groupId: number, subgroupId: number,
+  attrs: Record<string, unknown>, uomCode: string, description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  return resolveOrCreateSapMasterItem(pool, buildStarterPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
+}
+
+// ── Distribution Board ────────────────────────────────────────────────────────
+// PNL-DB-{VOLT}-{BUS}-{ICW}-{IP}-{MAT}-{AREA}
+export function buildDbPanelItemCode(attrs: Record<string, unknown>): string {
+  const voltRaw = ((attrs.voltage            as string) ?? '').trim();
+  const busRaw  = ((attrs.main_bus_rating    as string) ?? '').trim();
+  const icwRaw  = ((attrs.fault_level_icw   as string) ?? '').trim();
+  const ipRaw   = ((attrs.ip_rating         as string) ?? '').trim();
+  const matRaw  = ((attrs.enclosure_material as string) ?? '').trim();
+  const volt = P_VOLT_ALL[voltRaw]; // includes 1Ph AC
+  const bus  = P_BUS.has(busRaw) ? busRaw : undefined;
+  const icw  = P_ICW[icwRaw];
+  const ip   = P_IP.has(ipRaw) ? ipRaw : undefined;
+  const mat  = P_MAT[matRaw];
+  const missing: string[] = [];
+  if (!volt) missing.push(`System Voltage ("${voltRaw}")`);
+  if (!bus)  missing.push(`Main Bus Rating ("${busRaw}")`);
+  if (!icw)  missing.push(`Panel Fault Level Icw ("${icwRaw}")`);
+  if (!ip)   missing.push(`IP Rating ("${ipRaw}")`);
+  if (!mat)  missing.push(`Enclosure Material ("${matRaw}")`);
+  const area = panelAreaSeg(attrs, missing);
+  if (missing.length) throw new Error(`Cannot generate DB SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+  return checkPanelCode(`PNL-DB-${volt}-${bus}-${icw}-${ip}-${mat}-${area}`, 'Distribution Board');
+}
+export async function resolveDbPanelSapItemCode(
+  pool: Pool, groupId: number, subgroupId: number,
+  attrs: Record<string, unknown>, uomCode: string, description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  return resolveOrCreateSapMasterItem(pool, buildDbPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
+}
+
+// ── Power Distribution Panel ──────────────────────────────────────────────────
+// PNL-PDP-{VOLT}-{BUS}-{ICW}-{IP}-{MAT}-{AREA}
+export function buildPdpPanelItemCode(attrs: Record<string, unknown>): string {
+  const voltRaw = ((attrs.voltage            as string) ?? '').trim();
+  const busRaw  = ((attrs.main_bus_rating    as string) ?? '').trim();
+  const icwRaw  = ((attrs.fault_level_icw   as string) ?? '').trim();
+  const ipRaw   = ((attrs.ip_rating         as string) ?? '').trim();
+  const matRaw  = ((attrs.enclosure_material as string) ?? '').trim();
+  const volt = P_VOLT3[voltRaw]; // 3-phase only
+  const bus  = P_BUS.has(busRaw) ? busRaw : undefined;
+  const icw  = P_ICW[icwRaw];
+  const ip   = P_IP.has(ipRaw) ? ipRaw : undefined;
+  const mat  = P_MAT[matRaw];
+  const missing: string[] = [];
+  if (!volt) missing.push(`System Voltage ("${voltRaw}")`);
+  if (!bus)  missing.push(`Main Bus Rating ("${busRaw}")`);
+  if (!icw)  missing.push(`Panel Fault Level Icw ("${icwRaw}")`);
+  if (!ip)   missing.push(`IP Rating ("${ipRaw}")`);
+  if (!mat)  missing.push(`Enclosure Material ("${matRaw}")`);
+  const area = panelAreaSeg(attrs, missing);
+  if (missing.length) throw new Error(`Cannot generate PDP SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+  return checkPanelCode(`PNL-PDP-${volt}-${bus}-${icw}-${ip}-${mat}-${area}`, 'Power Distribution Panel');
+}
+export async function resolvePdpPanelSapItemCode(
+  pool: Pool, groupId: number, subgroupId: number,
+  attrs: Record<string, unknown>, uomCode: string, description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  return resolveOrCreateSapMasterItem(pool, buildPdpPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
+}
+
+// ── Automation Panels (PLC / DCS / SCADA / REL) ───────────────────────────────
+// PNL-{TYPE}-{VOLT}-{IP}-{ENCTYPE}-{MAT}-{AREA}
+const AUTO_TYPE_CODES: Record<string, string> = {
+  'PLC Panel': 'PLC', 'DCS Panel': 'DCS', 'SCADA Panel': 'SCADA',
+  'Relay / Protection Panel': 'REL',
+};
+export function buildAutomationPanelItemCode(attrs: Record<string, unknown>): string {
+  const panelType = ((attrs.panel_type        as string) ?? '').trim();
+  const voltRaw   = ((attrs.voltage           as string) ?? '').trim();
+  const ipRaw     = ((attrs.ip_rating         as string) ?? '').trim();
+  const encRaw    = ((attrs.enclosure_type    as string) ?? '').trim();
+  const matRaw    = ((attrs.enclosure_material as string) ?? '').trim();
+  const typeCode  = AUTO_TYPE_CODES[panelType];
+  const volt      = P_VOLT_ALL[voltRaw]; // includes DC for REL
+  const ip        = P_IP.has(ipRaw) ? ipRaw : undefined;
+  const enc       = P_ENCTYPE[encRaw];
+  const mat       = P_MAT[matRaw];
+  const missing: string[] = [];
+  if (!typeCode) missing.push(`Panel Type ("${panelType}")`);
+  if (!volt)     missing.push(`System Voltage ("${voltRaw}")`);
+  if (!ip)       missing.push(`IP Rating ("${ipRaw}")`);
+  if (!enc)      missing.push(`Enclosure Type ("${encRaw}")`);
+  if (!mat)      missing.push(`Enclosure Material ("${matRaw}")`);
+  const area = panelAreaSeg(attrs, missing);
+  if (missing.length) throw new Error(`Cannot generate ${typeCode ?? 'Automation Panel'} SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+  return checkPanelCode(`PNL-${typeCode}-${volt}-${ip}-${enc}-${mat}-${area}`, typeCode ?? 'Automation Panel');
+}
+export async function resolveAutomationPanelSapItemCode(
+  pool: Pool, groupId: number, subgroupId: number,
+  attrs: Record<string, unknown>, uomCode: string, description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  return resolveOrCreateSapMasterItem(pool, buildAutomationPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
+}
+
+// ── APFC Panel ────────────────────────────────────────────────────────────────
+// PNL-APFC-{VOLT}-{KVAR}KVAR-{IP}-{MAT}-{AREA}
+export function buildApfcPanelItemCode(attrs: Record<string, unknown>): string {
+  const voltRaw = ((attrs.voltage            as string) ?? '').trim();
+  const kvarRaw = ((attrs.kvar_rating        as string) ?? '').trim();
+  const ipRaw   = ((attrs.ip_rating         as string) ?? '').trim();
+  const matRaw  = ((attrs.enclosure_material as string) ?? '').trim();
+  const volt    = P_VOLT3[voltRaw];
+  const kvarNum = kvarRaw.split(' ')[0];
+  const kvar    = P_APFC_KV.has(kvarNum) ? `${kvarNum}KVAR` : undefined;
+  const ip      = P_IP.has(ipRaw) ? ipRaw : undefined;
+  const mat     = P_MAT[matRaw];
+  const missing: string[] = [];
+  if (!volt) missing.push(`System Voltage ("${voltRaw}")`);
+  if (!kvar) missing.push(`kVAr Rating ("${kvarRaw}")`);
+  if (!ip)   missing.push(`IP Rating ("${ipRaw}")`);
+  if (!mat)  missing.push(`Enclosure Material ("${matRaw}")`);
+  const area = panelAreaSeg(attrs, missing);
+  if (missing.length) throw new Error(`Cannot generate APFC Panel SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+  return checkPanelCode(`PNL-APFC-${volt}-${kvar}-${ip}-${mat}-${area}`, 'APFC Panel');
+}
+export async function resolveApfcPanelSapItemCode(
+  pool: Pool, groupId: number, subgroupId: number,
+  attrs: Record<string, unknown>, uomCode: string, description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  return resolveOrCreateSapMasterItem(pool, buildApfcPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
+}
+
+// ── VFD Panel ─────────────────────────────────────────────────────────────────
+// PNL-VFD-{VOLT}-{DRVKW}KW-{IP}-{MAT}-{BYPASS}-{AREA}
+export function buildVfdPanelItemCode(attrs: Record<string, unknown>): string {
+  const voltRaw   = ((attrs.voltage            as string) ?? '').trim();
+  const driveRaw  = ((attrs.drive_power_kw     as string) ?? '').trim();
+  const ipRaw     = ((attrs.ip_rating          as string) ?? '').trim();
+  const matRaw    = ((attrs.enclosure_material as string) ?? '').trim();
+  const bypassRaw = ((attrs.bypass_arrangement as string) ?? '').trim();
+  const volt      = P_VOLT3[voltRaw];
+  const driveNum  = driveRaw.split(' ')[0];
+  const drive     = P_VFD_KW.has(driveNum) ? `${driveNum}KW` : undefined;
+  const ip        = P_IP.has(ipRaw) ? ipRaw : undefined;
+  const mat       = P_MAT[matRaw];
+  const bypass    = P_BYPASS[bypassRaw];
+  const missing: string[] = [];
+  if (!volt)   missing.push(`System Voltage ("${voltRaw}")`);
+  if (!drive)  missing.push(`Drive Power kW ("${driveRaw}")`);
+  if (!ip)     missing.push(`IP Rating ("${ipRaw}")`);
+  if (!mat)    missing.push(`Enclosure Material ("${matRaw}")`);
+  if (!bypass) missing.push(`Bypass Arrangement ("${bypassRaw}")`);
+  const area = panelAreaSeg(attrs, missing);
+  if (missing.length) throw new Error(`Cannot generate VFD Panel SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+  return checkPanelCode(`PNL-VFD-${volt}-${drive}-${ip}-${mat}-${bypass}-${area}`, 'VFD Panel');
+}
+export async function resolveVfdPanelSapItemCode(
+  pool: Pool, groupId: number, subgroupId: number,
+  attrs: Record<string, unknown>, uomCode: string, description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  return resolveOrCreateSapMasterItem(pool, buildVfdPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
+}

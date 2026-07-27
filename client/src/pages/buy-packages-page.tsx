@@ -75,7 +75,7 @@ import {
   CoolingTowerAttrsForm, BoughtOutAttrsForm, ComponentsAttrsForm,
   buildPanelRequirement, buildCablingRequirement, buildJunctionBoxRequirement,
   buildCoolingTowerRequirement, buildBoughtOutRequirement, buildComponentsRequirement,
-  buildMccPanelPreviewCode,
+  buildPanelPreviewCode,
 } from "@/components/electrical-attrs-forms";
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
@@ -1203,15 +1203,41 @@ export default function BuyPackagesPage() {
       if (!(ta.panel_type as string)?.trim()) {
         toast({ title: "Panel Type is required", variant: "destructive" }); return;
       }
-      const isMccLine = (ta.panel_type as string)?.trim() === "MCC (Motor Control Centre)";
-      if (isMccLine) {
-        // MCC: all Level-A fields are mandatory
+      const _ptype = (ta.panel_type as string)?.trim() ?? "";
+      const SPEC_PNL_TYPES = new Set(["MCC (Motor Control Centre)","Starter Panel","Distribution Board (DB)","Power Distribution Panel","PLC Panel","DCS Panel","SCADA Panel","Relay / Protection Panel","APFC Panel","VFD Panel"]);
+      if (SPEC_PNL_TYPES.has(_ptype)) {
+        // Shared voltage check
         if (!(ta.voltage as string)?.trim())
           { toast({ title: "System Voltage is required", variant: "destructive" }); return; }
-        if (!(ta.main_bus_rating as string)?.trim())
-          { toast({ title: "Main Bus Rating is required", variant: "destructive" }); return; }
-        if (!(ta.fault_level_icw as string)?.trim())
-          { toast({ title: "Panel Fault Level (Icw) is required", variant: "destructive" }); return; }
+        // Per-family Level-A field checks
+        if (_ptype === "MCC (Motor Control Centre)" || _ptype === "Distribution Board (DB)" || _ptype === "Power Distribution Panel") {
+          if (!(ta.main_bus_rating as string)?.trim())
+            { toast({ title: "Main Bus Rating is required", variant: "destructive" }); return; }
+          if (!(ta.fault_level_icw as string)?.trim())
+            { toast({ title: "Panel Fault Level (Icw) is required", variant: "destructive" }); return; }
+        }
+        if (_ptype === "Starter Panel") {
+          if (!(ta.starter_type as string)?.trim())
+            { toast({ title: "Starter Type is required", variant: "destructive" }); return; }
+          if (!(ta.fault_level_icw as string)?.trim())
+            { toast({ title: "Panel Fault Level (Icw) is required", variant: "destructive" }); return; }
+        }
+        if (_ptype === "APFC Panel") {
+          if (!(ta.kvar_rating as string)?.trim())
+            { toast({ title: "Capacitor Bank Rating (kVAr) is required", variant: "destructive" }); return; }
+        }
+        if (_ptype === "VFD Panel") {
+          if (!(ta.drive_power_kw as string)?.trim())
+            { toast({ title: "Drive Power Rating is required", variant: "destructive" }); return; }
+          if (!(ta.bypass_arrangement as string)?.trim())
+            { toast({ title: "Bypass Arrangement is required", variant: "destructive" }); return; }
+        }
+        const _isAutoType = ["PLC Panel","DCS Panel","SCADA Panel","Relay / Protection Panel"].includes(_ptype);
+        if (_isAutoType) {
+          if (!(ta.enclosure_type as string)?.trim())
+            { toast({ title: "Enclosure Type is required", variant: "destructive" }); return; }
+        }
+        // Shared checks for all spec types
         if (!(ta.ip_rating as string)?.trim())
           { toast({ title: "IP Rating is required", variant: "destructive" }); return; }
         if (!(ta.enclosure_material as string)?.trim())
@@ -1228,7 +1254,7 @@ export default function BuyPackagesPage() {
             { toast({ title: "Temperature Class is required for hazardous area", variant: "destructive" }); return; }
         }
       } else {
-        // Non-MCC panels: minimal validation (generic make+model path)
+        // Generic panel type: minimal validation (make+model path)
         if (!(ta.voltage as string)?.trim())
           { toast({ title: "Voltage is required", variant: "destructive" }); return; }
       }
@@ -2315,32 +2341,46 @@ export default function BuyPackagesPage() {
                       </div>
                     );
                   }
-                  // Priority 0a — MCC Panel: client-side spec-based preview
-                  if (isPanelMode && (lf.technicalAttributes?.panel_type as string) === "MCC (Motor Control Centre)") {
-                    const mccCode = buildMccPanelPreviewCode(
-                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
-                    );
-                    if (mccCode) {
-                      const savedCode = lineDialog.editLine?.sap_item_code;
-                      const isNew = !savedCode || savedCode !== mccCode;
+                  // Priority 0a — Spec Panel: unified client-side preview for all 10 spec-based panel types
+                  if (isPanelMode) {
+                    const _pta = (lf.technicalAttributes?.panel_type as string) ?? "";
+                    const _SPEC_PREVIEW_TYPES = new Set(["MCC (Motor Control Centre)","Starter Panel","Distribution Board (DB)","Power Distribution Panel","PLC Panel","DCS Panel","SCADA Panel","Relay / Protection Panel","APFC Panel","VFD Panel"]);
+                    if (_SPEC_PREVIEW_TYPES.has(_pta)) {
+                      const pnlCode = buildPanelPreviewCode(
+                        (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                      );
+                      if (pnlCode) {
+                        const savedCode = lineDialog.editLine?.sap_item_code;
+                        const isNew = !savedCode || savedCode !== pnlCode;
+                        // Pick colour by panel family
+                        const _isMccPrev   = _pta === "MCC (Motor Control Centre)";
+                        const _isStrPrev   = _pta === "Starter Panel";
+                        const _isPowerPrev = _pta === "Distribution Board (DB)" || _pta === "Power Distribution Panel";
+                        const _isVfdPrev   = _pta === "VFD Panel";
+                        const _isApfcPrev  = _pta === "APFC Panel";
+                        const borderCls  = _isMccPrev ? "border-cyan-300"    : _isStrPrev ? "border-amber-300"   : _isPowerPrev ? "border-lime-300"    : _isVfdPrev ? "border-rose-300"    : _isApfcPrev ? "border-teal-300"    : "border-violet-300";
+                        const bgCls      = _isMccPrev ? "bg-cyan-50"         : _isStrPrev ? "bg-amber-50"        : _isPowerPrev ? "bg-lime-50"          : _isVfdPrev ? "bg-rose-50"          : _isApfcPrev ? "bg-teal-50"          : "bg-violet-50";
+                        const textCls    = _isMccPrev ? "text-cyan-900"      : _isStrPrev ? "text-amber-900"     : _isPowerPrev ? "text-lime-900"        : _isVfdPrev ? "text-rose-900"        : _isApfcPrev ? "text-teal-900"        : "text-violet-900";
+                        const badgeCls   = _isMccPrev ? "text-cyan-600"      : _isStrPrev ? "text-amber-600"     : _isPowerPrev ? "text-lime-700"        : _isVfdPrev ? "text-rose-600"        : _isApfcPrev ? "text-teal-600"        : "text-violet-600";
+                        return (
+                          <div className={`h-9 px-3 flex items-center justify-between rounded-md border ${borderCls} ${bgCls} select-none`}>
+                            <span className={`font-mono font-semibold tracking-wide ${textCls} text-sm`}>
+                              {pnlCode}
+                            </span>
+                            {isNew && (
+                              <span className={`text-[10px] ${badgeCls} font-medium uppercase tracking-wide`}>New</span>
+                            )}
+                          </div>
+                        );
+                      }
                       return (
-                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-cyan-300 bg-cyan-50 select-none">
-                          <span className="font-mono font-semibold tracking-wide text-cyan-900 text-sm">
-                            {mccCode}
+                        <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                          <span className="font-mono tracking-wide text-xs">
+                            Complete all required fields to preview SAP code
                           </span>
-                          {isNew && (
-                            <span className="text-[10px] text-cyan-600 font-medium uppercase tracking-wide">New</span>
-                          )}
                         </div>
                       );
                     }
-                    return (
-                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
-                        <span className="font-mono tracking-wide text-xs">
-                          Complete Voltage, Bus Rating, Fault Level, IP Rating, Enclosure Material &amp; Area to preview
-                        </span>
-                      </div>
-                    );
                   }
                   // Priority 0b — Needle Valve: client-side spec-based preview
                   if (isNeedleValveMode) {

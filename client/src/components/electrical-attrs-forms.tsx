@@ -92,7 +92,7 @@ const MCC_SPECIFIC_OPTS = {
 const PANEL_OPTS = {
   panel_type:           PANEL_TYPES,
   panel_standard:       ["IEC 61439-1", "IEC 61439-2", "IEC 60439", "IS 8623", "UL 508A"],
-  voltage:              ["415V AC (3Ph)", "380V AC (3Ph)", "440V AC (3Ph)", "480V AC (3Ph)", "690V AC (3Ph)", "240V AC (1Ph)", "110V AC (1Ph)", "48V DC", "24V DC"],
+  voltage:              ["415V AC (3Ph)", "380V AC (3Ph)", "440V AC (3Ph)", "480V AC (3Ph)", "690V AC (3Ph)", "240V AC (1Ph)", "110V AC (1Ph)", "110V DC", "48V DC", "24V DC"],
   frequency:            ["50 Hz", "60 Hz"],
   bus_rating:           ["100A", "200A", "400A", "630A", "800A", "1000A", "1600A", "2000A"],
   short_circuit_rating: ["10 kA", "25 kA", "36 kA", "50 kA", "65 kA"],
@@ -111,17 +111,26 @@ const PANEL_OPTS = {
   testing_std:          ["IEC 61439-1", "IEC 61439-2", "IEC 60439", "IS 8623", "UL 508A"],
 };
 
+// ── Additional panel option constants ─────────────────────────────────────────
+const STARTER_TYPE_OPTS   = ["DOL", "Star-Delta", "Soft Starter"];
+const DB_VOLTAGE_OPTS     = ["415V AC (3Ph)", "380V AC (3Ph)", "440V AC (3Ph)", "480V AC (3Ph)", "690V AC (3Ph)", "240V AC (1Ph)", "110V AC (1Ph)"];
+const AUTO_VOLT_OPTS      = ["415V AC (3Ph)", "380V AC (3Ph)", "240V AC (1Ph)", "110V AC (1Ph)"];
+const REL_VOLT_OPTS       = ["415V AC (3Ph)", "240V AC (1Ph)", "110V AC (1Ph)", "110V DC", "48V DC", "24V DC"];
+const APFC_KVAR_OPTS      = ["25 kVAr","50 kVAr","75 kVAr","100 kVAr","150 kVAr","200 kVAr","250 kVAr","300 kVAr","400 kVAr","500 kVAr","750 kVAr","1000 kVAr"];
+const VFD_KW_OPTS         = ["11 kW","15 kW","22 kW","30 kW","37 kW","45 kW","55 kW","75 kW","90 kW","110 kW","132 kW","160 kW","200 kW","250 kW","315 kW","400 kW","500 kW","630 kW","800 kW","1000 kW"];
+const VFD_BYPASS_OPTS     = ["None", "Mechanical Bypass", "Electronic Bypass"];
+
 const PANEL_TYPE_DEFAULTS: Record<string, Record<string, string>> = {
   "MCC (Motor Control Centre)":   { enclosure_type: "Floor Standing", busbar_material: "Copper", ip_rating: "IP54", interlocking: "Electrical Interlocking", incomer_arrangement: "Single Incomer" },
+  "Starter Panel":                { enclosure_type: "Floor Standing", busbar_material: "Copper", ip_rating: "IP54" },
+  "Distribution Board (DB)":      { enclosure_type: "Wall Mounted", ip_rating: "IP42" },
+  "Power Distribution Panel":     { enclosure_type: "Floor Standing", busbar_material: "Copper", ip_rating: "IP54" },
   "PLC Panel":                    { enclosure_type: "Floor Standing", ip_rating: "IP54", aux_power_supply: "24V DC" },
   "DCS Panel":                    { enclosure_type: "Floor Standing", ip_rating: "IP54", aux_power_supply: "24V DC" },
-  "Starter Panel":                { enclosure_type: "Floor Standing", busbar_material: "Copper" },
-  "Distribution Board (DB)":      { enclosure_type: "Wall Mounted" },
-  "APFC Panel":                   { enclosure_type: "Floor Standing", busbar_material: "Copper" },
-  "VFD Panel":                    { enclosure_type: "Floor Standing", ip_rating: "IP54" },
   "SCADA Panel":                  { enclosure_type: "Floor Standing", ip_rating: "IP54" },
-  "Relay / Protection Panel":     { enclosure_type: "Floor Standing" },
-  "Power Distribution Panel":     { enclosure_type: "Floor Standing", busbar_material: "Copper" },
+  "Relay / Protection Panel":     { enclosure_type: "Floor Standing", ip_rating: "IP54" },
+  "APFC Panel":                   { enclosure_type: "Floor Standing", busbar_material: "Copper", ip_rating: "IP54" },
+  "VFD Panel":                    { enclosure_type: "Floor Standing", ip_rating: "IP54", bypass_arrangement: "None" },
 };
 
 // ── MCC preview maps (client-side — mirrors server buildMccPanelItemCode) ────
@@ -170,6 +179,115 @@ export function buildMccPanelPreviewCode(attrs: Record<string, unknown>): string
   } catch { return null; }
 }
 
+// ── Shared client-side preview maps (mirrors server non-MCC panel builders) ──
+const _P_VOLT3: Record<string, string> = {
+  "415V AC (3Ph)": "415V", "380V AC (3Ph)": "380V", "440V AC (3Ph)": "440V",
+  "480V AC (3Ph)": "480V", "690V AC (3Ph)": "690V",
+};
+const _P_VOLT_ALL: Record<string, string> = {
+  ..._P_VOLT3,
+  "240V AC (1Ph)": "240V", "110V AC (1Ph)": "110V",
+  "110V DC": "110VDC", "48V DC": "48VDC", "24V DC": "24VDC",
+};
+const _P_ICW: Record<string, string> = {
+  "6 kA":"6KA","10 kA":"10KA","25 kA":"25KA","36 kA":"36KA",
+  "50 kA":"50KA","65 kA":"65KA","85 kA":"85KA",
+};
+const _P_MAT: Record<string, string> = {
+  "CRCA Steel":"CRCA","SS304":"SS304","SS316":"SS316","Aluminium":"ALU","GRP/FRP":"GRP",
+};
+const _P_EXP: Record<string, string> = {
+  "Ex e (Increased Safety)":"EXE","Ex d (Flameproof)":"EXD",
+  "Ex n (Non-sparking)":"EXN","Ex p (Pressurized)":"EXP",
+  "Ex ia (Intrinsically Safe)":"EXIA",
+};
+const _P_IP  = new Set(["IP20","IP42","IP54","IP55","IP65","IP66"]);
+const _P_BUS = new Set(["100A","125A","160A","200A","250A","315A","400A","500A","630A","800A","1000A","1250A","1600A","2000A","2500A","3200A"]);
+const _P_ENC: Record<string, string> = { "Floor Standing":"FS","Wall Mounted":"WM","Desktop":"DSK","Rack Mounted":"RM" };
+const _P_STR: Record<string, string> = { "DOL":"DOL","Star-Delta":"SD","Soft Starter":"SS" };
+const _P_BYP: Record<string, string> = { "None":"NBY","Mechanical Bypass":"MBY","Electronic Bypass":"EBY" };
+const _P_VFD = new Set(["11","15","22","30","37","45","55","75","90","110","132","160","200","250","315","400","500","630","800","1000"]);
+const _P_KV  = new Set(["25","50","75","100","150","200","250","300","400","500","750","1000"]);
+
+function _areaPreview(a: Record<string, unknown>): string | null {
+  const area = ((a.area_classification as string) ?? "").trim();
+  if (area === "Safe Area") return "SA";
+  if (area !== "Zone 1" && area !== "Zone 2") return null;
+  const exp = _P_EXP[((a.explosion_protection as string) ?? "").trim()];
+  const gas = ((a.gas_group as string) ?? "").trim();
+  const tmp = ((a.temperature_class as string) ?? "").trim().split(" ")[0];
+  if (!exp || !["IIA","IIB","IIC"].includes(gas) || !/^T[1-6]$/.test(tmp)) return null;
+  return `${area === "Zone 1" ? "Z1" : "Z2"}-${exp}-${gas}-${tmp}`;
+}
+function _g(a: Record<string, unknown>, k: string): string { return ((a[k] as string) ?? "").trim(); }
+
+/** Returns the complete SAP Item Code preview for any spec-based panel type, or null if incomplete. */
+export function buildPanelPreviewCode(attrs: Record<string, unknown>): string | null {
+  try {
+    const pt = _g(attrs, "panel_type");
+    const ar = _areaPreview(attrs);
+    if (!ar) return null;
+    if (pt === "MCC (Motor Control Centre)") return buildMccPanelPreviewCode(attrs);
+    if (pt === "Starter Panel") {
+      const str = _P_STR[_g(attrs,"starter_type")];
+      const v   = _P_VOLT3[_g(attrs,"voltage")];
+      const i   = _P_ICW[_g(attrs,"fault_level_icw")];
+      const p   = _P_IP.has(_g(attrs,"ip_rating")) ? _g(attrs,"ip_rating") : undefined;
+      const m   = _P_MAT[_g(attrs,"enclosure_material")];
+      if (!str||!v||!i||!p||!m) return null;
+      const c = `PNL-STR-${str}-${v}-${i}-${p}-${m}-${ar}`; return c.length<=50?c:null;
+    }
+    if (pt === "Distribution Board (DB)") {
+      const v = _P_VOLT_ALL[_g(attrs,"voltage")];
+      const b = _P_BUS.has(_g(attrs,"main_bus_rating")) ? _g(attrs,"main_bus_rating") : undefined;
+      const i = _P_ICW[_g(attrs,"fault_level_icw")];
+      const p = _P_IP.has(_g(attrs,"ip_rating")) ? _g(attrs,"ip_rating") : undefined;
+      const m = _P_MAT[_g(attrs,"enclosure_material")];
+      if (!v||!b||!i||!p||!m) return null;
+      const c = `PNL-DB-${v}-${b}-${i}-${p}-${m}-${ar}`; return c.length<=50?c:null;
+    }
+    if (pt === "Power Distribution Panel") {
+      const v = _P_VOLT3[_g(attrs,"voltage")];
+      const b = _P_BUS.has(_g(attrs,"main_bus_rating")) ? _g(attrs,"main_bus_rating") : undefined;
+      const i = _P_ICW[_g(attrs,"fault_level_icw")];
+      const p = _P_IP.has(_g(attrs,"ip_rating")) ? _g(attrs,"ip_rating") : undefined;
+      const m = _P_MAT[_g(attrs,"enclosure_material")];
+      if (!v||!b||!i||!p||!m) return null;
+      const c = `PNL-PDP-${v}-${b}-${i}-${p}-${m}-${ar}`; return c.length<=50?c:null;
+    }
+    const autoTypes: Record<string,string> = { "PLC Panel":"PLC","DCS Panel":"DCS","SCADA Panel":"SCADA","Relay / Protection Panel":"REL" };
+    if (autoTypes[pt]) {
+      const tc = autoTypes[pt];
+      const v  = _P_VOLT_ALL[_g(attrs,"voltage")];
+      const p  = _P_IP.has(_g(attrs,"ip_rating")) ? _g(attrs,"ip_rating") : undefined;
+      const e  = _P_ENC[_g(attrs,"enclosure_type")];
+      const m  = _P_MAT[_g(attrs,"enclosure_material")];
+      if (!v||!p||!e||!m) return null;
+      const c = `PNL-${tc}-${v}-${p}-${e}-${m}-${ar}`; return c.length<=50?c:null;
+    }
+    if (pt === "APFC Panel") {
+      const v    = _P_VOLT3[_g(attrs,"voltage")];
+      const kNum = _g(attrs,"kvar_rating").split(" ")[0];
+      const kv   = _P_KV.has(kNum) ? `${kNum}KVAR` : undefined;
+      const p    = _P_IP.has(_g(attrs,"ip_rating")) ? _g(attrs,"ip_rating") : undefined;
+      const m    = _P_MAT[_g(attrs,"enclosure_material")];
+      if (!v||!kv||!p||!m) return null;
+      const c = `PNL-APFC-${v}-${kv}-${p}-${m}-${ar}`; return c.length<=50?c:null;
+    }
+    if (pt === "VFD Panel") {
+      const v    = _P_VOLT3[_g(attrs,"voltage")];
+      const dNum = _g(attrs,"drive_power_kw").split(" ")[0];
+      const drv  = _P_VFD.has(dNum) ? `${dNum}KW` : undefined;
+      const p    = _P_IP.has(_g(attrs,"ip_rating")) ? _g(attrs,"ip_rating") : undefined;
+      const m    = _P_MAT[_g(attrs,"enclosure_material")];
+      const byp  = _P_BYP[_g(attrs,"bypass_arrangement")];
+      if (!v||!drv||!p||!m||!byp) return null;
+      const c = `PNL-VFD-${v}-${drv}-${p}-${m}-${byp}-${ar}`; return c.length<=50?c:null;
+    }
+  } catch { return null; }
+  return null;
+}
+
 function resolveProjectVoltage(projectVoltage?: string): string {
   if (!projectVoltage) return "";
   const num = String(projectVoltage).trim();
@@ -211,43 +329,101 @@ export function applyPanelTypeDefaults(
 }
 
 export function buildPanelRequirement(attrs: Record<string, unknown>): string {
-  const panelType  = (attrs.panel_type            as string)?.trim() || "";
-  const voltage    = (attrs.voltage               as string)?.trim() || "";
-  const busRating  = ((attrs.main_bus_rating || attrs.bus_rating) as string)?.trim() || "";
-  const icw        = ((attrs.fault_level_icw || attrs.short_circuit_rating) as string)?.trim() || "";
-  const ipRating   = (attrs.ip_rating             as string)?.trim() || "";
-  const encType    = (attrs.enclosure_type        as string)?.trim() || "";
-  const encMat     = (attrs.enclosure_material    as string)?.trim() || "";
-  const areaClass  = (attrs.area_classification   as string)?.trim() || "";
-  const incoArr    = (attrs.incomer_arrangement   as string)?.trim() || "";
-  const incoRating = (attrs.incomer_current_rating as string)?.trim() || "";
-  const incoDevice = (attrs.incomer_device_type   as string)?.trim() || "";
-  const numFeeders = (attrs.num_feeders           as string)?.trim() || "";
-  const expProt    = (attrs.explosion_protection  as string)?.trim() || "";
-  const gasGroup   = (attrs.gas_group             as string)?.trim() || "";
-  const tempClass  = (attrs.temperature_class     as string)?.trim() || "";
+  const r = (k: string) => ((attrs[k] as string) ?? "").trim();
+  const panelType  = r("panel_type");
+  const voltage    = r("voltage");
+  const busRating  = (r("main_bus_rating") || r("bus_rating"));
+  const icw        = (r("fault_level_icw") || r("short_circuit_rating"));
+  const ipRating   = r("ip_rating");
+  const encType    = r("enclosure_type");
+  const encMat     = r("enclosure_material");
+  const areaClass  = r("area_classification");
+  const expProt    = r("explosion_protection");
+  const gasGroup   = r("gas_group");
+  const tempClass  = r("temperature_class");
+  const expShort   = expProt ? expProt.replace(/\s*\(.*?\)/, "") : "";
+  const tmpShort   = tempClass ? tempClass.split(" ")[0] : "";
+  const isHaz      = areaClass === "Zone 1" || areaClass === "Zone 2";
+  const hazSuffix  = isHaz && expShort && gasGroup && tmpShort ? `, ${expShort}, ${gasGroup}, ${tmpShort}` : "";
 
-  // ── MCC: compact Level-A-only description to stay within 100 chars ──────────
-  if (panelType === "MCC (Motor Control Centre)") {
-    // Shorten explosion protection to bare Ex code: "Ex d (Flameproof)" → "Ex d"
-    const expShort = expProt ? expProt.replace(/\s*\(.*?\)/, "") : "";
-    // Shorten temperature class to T-class only: "T4 (135°C)" → "T4"
-    const tmpShort = tempClass ? tempClass.split(" ")[0] : "";
-    const isHaz    = areaClass === "Zone 1" || areaClass === "Zone 2";
-    const parts: string[] = ["MCC"];
-    if (voltage)   parts.push(voltage);
-    if (busRating) parts.push(`${busRating} Bus`);
-    if (icw)       parts.push(`${icw} Icw`);
-    if (ipRating)  parts.push(ipRating);
-    if (encMat)    parts.push(encMat);
-    if (areaClass) parts.push(areaClass);
-    if (isHaz && expShort && gasGroup && tmpShort)
-      parts.push(`${expShort}, ${gasGroup}, ${tmpShort}`);
-    return parts.join(", ");
-    // Worst case: "MCC, 415V AC (3Ph), 3200A Bus, 85 kA Icw, IP65, GRP/FRP, Zone 2, Ex ia, IIC, T6" = 84 chars ✅
+  const SPEC_TYPES = new Set(["MCC (Motor Control Centre)","Starter Panel","Distribution Board (DB)","Power Distribution Panel","PLC Panel","DCS Panel","SCADA Panel","Relay / Protection Panel","APFC Panel","VFD Panel"]);
+
+  if (SPEC_TYPES.has(panelType)) {
+    // All spec types use compact Level-A format to stay within 100 chars
+    const base: string[] = [];
+    if (panelType === "MCC (Motor Control Centre)") {
+      base.push("MCC");
+      if (voltage)   base.push(voltage);
+      if (busRating) base.push(`${busRating} Bus`);
+      if (icw)       base.push(`${icw} Icw`);
+      if (ipRating)  base.push(ipRating);
+      if (encMat)    base.push(encMat);
+      if (areaClass) base.push(areaClass);
+    } else if (panelType === "Starter Panel") {
+      base.push("Starter Panel");
+      if (r("starter_type")) base.push(r("starter_type"));
+      if (voltage)   base.push(voltage);
+      if (icw)       base.push(`${icw} Icw`);
+      if (ipRating)  base.push(ipRating);
+      if (encMat)    base.push(encMat);
+      if (areaClass) base.push(areaClass);
+    } else if (panelType === "Distribution Board (DB)") {
+      base.push("DB");
+      if (voltage)   base.push(voltage);
+      if (busRating) base.push(`${busRating} Bus`);
+      if (icw)       base.push(`${icw} Icw`);
+      if (ipRating)  base.push(ipRating);
+      if (encMat)    base.push(encMat);
+      if (areaClass) base.push(areaClass);
+    } else if (panelType === "Power Distribution Panel") {
+      base.push("PDP");
+      if (voltage)   base.push(voltage);
+      if (busRating) base.push(`${busRating} Bus`);
+      if (icw)       base.push(`${icw} Icw`);
+      if (ipRating)  base.push(ipRating);
+      if (encMat)    base.push(encMat);
+      if (areaClass) base.push(areaClass);
+    } else if (["PLC Panel","DCS Panel","SCADA Panel"].includes(panelType)) {
+      base.push(panelType.replace(" Panel",""));
+      if (voltage)  base.push(voltage);
+      if (ipRating) base.push(ipRating);
+      if (encType)  base.push(encType);
+      if (encMat)   base.push(encMat);
+      if (areaClass) base.push(areaClass);
+    } else if (panelType === "Relay / Protection Panel") {
+      base.push("Relay Panel");
+      if (voltage)  base.push(voltage);
+      if (ipRating) base.push(ipRating);
+      if (encType)  base.push(encType);
+      if (encMat)   base.push(encMat);
+      if (areaClass) base.push(areaClass);
+    } else if (panelType === "APFC Panel") {
+      base.push("APFC Panel");
+      if (voltage)          base.push(voltage);
+      if (r("kvar_rating")) base.push(r("kvar_rating"));
+      if (ipRating)         base.push(ipRating);
+      if (encMat)           base.push(encMat);
+      if (areaClass)        base.push(areaClass);
+    } else if (panelType === "VFD Panel") {
+      const driveKw = r("drive_power_kw");
+      const bypLabel = r("bypass_arrangement") === "Mechanical Bypass" ? "Mech. Bypass"
+                     : r("bypass_arrangement") === "Electronic Bypass" ? "Elec. Bypass" : "No Bypass";
+      base.push("VFD Panel");
+      if (voltage)  base.push(voltage);
+      if (driveKw)  base.push(`${driveKw} Drive`);
+      if (r("bypass_arrangement")) base.push(bypLabel);
+      if (ipRating) base.push(ipRating);
+      if (encMat)   base.push(encMat);
+      if (areaClass) base.push(areaClass);
+    }
+    return base.join(", ") + hazSuffix;
   }
 
-  // ── All other panel types: full description ──────────────────────────────────
+  // ── Generic non-spec panel types: full description ───────────────────────────
+  const incoArr    = r("incomer_arrangement");
+  const incoRating = r("incomer_current_rating");
+  const incoDevice = r("incomer_device_type");
+  const numFeeders = r("num_feeders");
   const parts: string[] = [];
   if (panelType)  parts.push(panelType);
   if (voltage)    parts.push(voltage);
@@ -390,7 +566,18 @@ export function PanelAttrsForm({
   const areaClass   = (attrs.area_classification as string) ?? "";
   const incoArr     = (attrs.incomer_arrangement as string) ?? "";
   const isHazardous = areaClass === "Zone 1" || areaClass === "Zone 2";
+  // Panel family helpers
   const isMcc       = panelType === "MCC (Motor Control Centre)";
+  const isStarter   = panelType === "Starter Panel";
+  const isDb        = panelType === "Distribution Board (DB)";
+  const isPdp       = panelType === "Power Distribution Panel";
+  const isPowerBus  = isDb || isPdp;           // DB and PDP: bus+ICW, simpler incomer
+  const isAutoType  = ["PLC Panel","DCS Panel","SCADA Panel","Relay / Protection Panel"].includes(panelType);
+  const isRel       = panelType === "Relay / Protection Panel";
+  const isApfc      = panelType === "APFC Panel";
+  const isVfd       = panelType === "VFD Panel";
+  const isSpecType  = isMcc || isStarter || isPowerBus || isAutoType || isApfc || isVfd;
+  const hasBusBars  = isMcc || isStarter || isPowerBus;
   const ptIsCustom  = custom.panel_type ?? false;
   const ptSelectVal = ptIsCustom ? "__other__" : (PANEL_OPTS.panel_type.includes(panelType) ? panelType : "");
 
@@ -416,10 +603,52 @@ export function PanelAttrsForm({
       <SectionCard title="Electrical Rating" color="bg-violet-50/60 border-violet-200">
         {isMcc ? (
           <>
-            {renderField("voltage",         "System Voltage",          MCC_VOLTAGE_OPTS,                      true, resolvedProjVolt)}
-            {renderField("frequency",       "Frequency",               PANEL_OPTS.frequency,                  true, resolvedProjFreq)}
-            {renderField("main_bus_rating", "Main Bus Rating",         MCC_SPECIFIC_OPTS.main_bus_rating,     true)}
-            {renderField("fault_level_icw", "Panel Fault Level (Icw)", MCC_SPECIFIC_OPTS.fault_level_icw,     true, undefined, "col-span-2")}
+            {renderField("voltage",         "System Voltage",          MCC_VOLTAGE_OPTS,                   true, resolvedProjVolt)}
+            {renderField("frequency",       "Frequency",               PANEL_OPTS.frequency,               true, resolvedProjFreq)}
+            {renderField("main_bus_rating", "Main Bus Rating",         MCC_SPECIFIC_OPTS.main_bus_rating,  true)}
+            {renderField("fault_level_icw", "Panel Fault Level (Icw)", MCC_SPECIFIC_OPTS.fault_level_icw,  true, undefined, "col-span-2")}
+          </>
+        ) : isStarter ? (
+          <>
+            {renderField("voltage",         "System Voltage",          MCC_VOLTAGE_OPTS,                   true, resolvedProjVolt)}
+            {renderField("frequency",       "Frequency",               PANEL_OPTS.frequency,               true, resolvedProjFreq)}
+            {renderField("starter_type",    "Starter Type",            STARTER_TYPE_OPTS,                  true)}
+            {renderField("fault_level_icw", "Panel Fault Level (Icw)", MCC_SPECIFIC_OPTS.fault_level_icw,  true, undefined, "col-span-2")}
+          </>
+        ) : isDb ? (
+          <>
+            {renderField("voltage",         "System Voltage",          DB_VOLTAGE_OPTS,                    true, resolvedProjVolt)}
+            {renderField("frequency",       "Frequency",               PANEL_OPTS.frequency,               true, resolvedProjFreq)}
+            {renderField("main_bus_rating", "Main Bus Rating",         MCC_SPECIFIC_OPTS.main_bus_rating,  true)}
+            {renderField("fault_level_icw", "Panel Fault Level (Icw)", MCC_SPECIFIC_OPTS.fault_level_icw,  true, undefined, "col-span-2")}
+          </>
+        ) : isPdp ? (
+          <>
+            {renderField("voltage",         "System Voltage",          MCC_VOLTAGE_OPTS,                   true, resolvedProjVolt)}
+            {renderField("frequency",       "Frequency",               PANEL_OPTS.frequency,               true, resolvedProjFreq)}
+            {renderField("main_bus_rating", "Main Bus Rating",         MCC_SPECIFIC_OPTS.main_bus_rating,  true)}
+            {renderField("fault_level_icw", "Panel Fault Level (Icw)", MCC_SPECIFIC_OPTS.fault_level_icw,  true, undefined, "col-span-2")}
+          </>
+        ) : isAutoType ? (
+          <>
+            {renderField("voltage",         "Supply Voltage",          isRel ? REL_VOLT_OPTS : AUTO_VOLT_OPTS, true, resolvedProjVolt)}
+            {!isRel && renderField("frequency","Frequency",            PANEL_OPTS.frequency,               true, resolvedProjFreq)}
+            {renderField("enclosure_type",  "Enclosure Type",          PANEL_OPTS.enclosure_type,          true)}
+            {isRel && <div />}
+          </>
+        ) : isApfc ? (
+          <>
+            {renderField("voltage",         "System Voltage",          MCC_VOLTAGE_OPTS,                   true, resolvedProjVolt)}
+            {renderField("frequency",       "Frequency",               PANEL_OPTS.frequency,               true, resolvedProjFreq)}
+            {renderField("kvar_rating",     "Capacitor Bank Rating",   APFC_KVAR_OPTS,                     true)}
+            <div />
+          </>
+        ) : isVfd ? (
+          <>
+            {renderField("voltage",              "System Voltage",     MCC_VOLTAGE_OPTS,                   true, resolvedProjVolt)}
+            {renderField("frequency",            "Frequency",          PANEL_OPTS.frequency,               true, resolvedProjFreq)}
+            {renderField("drive_power_kw",       "Drive Power Rating", VFD_KW_OPTS,                        true)}
+            {renderField("bypass_arrangement",   "Bypass Arrangement", VFD_BYPASS_OPTS,                    true)}
           </>
         ) : (
           <>
@@ -431,55 +660,84 @@ export function PanelAttrsForm({
         )}
       </SectionCard>
 
-      {/* 3 — Incoming / Feeder */}
-      <SectionCard title="Incoming / Feeder" color="bg-amber-50/60 border-amber-200">
-        {isMcc ? (
+      {/* 3 — Incoming / Feeder (power panels only; hidden for automation/APFC/VFD) */}
+      {(hasBusBars || !isSpecType) && (
+        <SectionCard title="Incoming / Feeder" color="bg-amber-50/60 border-amber-200">
+          {isMcc ? (
+            <>
+              <div className="col-span-3 md:col-span-5">
+                {renderField("incomer_arrangement", "Incomer Arrangement", MCC_SPECIFIC_OPTS.incomer_arrangement, true)}
+              </div>
+              {renderField("incomer_current_rating", "Incomer Current Rating", MCC_SPECIFIC_OPTS.incomer_current_rating)}
+              {renderField("incomer_device_type",    "Incomer Device Type",    MCC_SPECIFIC_OPTS.incomer_device_type)}
+              {incoArr === "Dual Incomer with Bus Coupler" && (
+                renderField("bus_coupler_rating", "Bus Coupler Rating", MCC_SPECIFIC_OPTS.bus_coupler_rating)
+              )}
+              {(incoArr === "Dual Incomer" || incoArr === "Dual Incomer with Bus Coupler") && (
+                renderField("changeover_arrangement", "Changeover Arrangement", MCC_SPECIFIC_OPTS.changeover_arrangement)
+              )}
+              {renderText("num_feeders", "Number of Feeders", "e.g. 12")}
+            </>
+          ) : (isStarter || isPowerBus) ? (
+            <>
+              {renderField("incomer_current_rating", "Incomer Current Rating", MCC_SPECIFIC_OPTS.incomer_current_rating)}
+              {renderField("incomer_device_type",    "Incomer Device Type",    MCC_SPECIFIC_OPTS.incomer_device_type)}
+              {renderText("num_feeders", "Number of Feeders", "e.g. 12")}
+              <div />
+            </>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <Label className="text-xs">No. of Incomer Units</Label>
+                <Input className="h-8 text-sm" type="number" min="1" step="1" placeholder="e.g. 1"
+                  value={(attrs.num_incomer_units as string) ?? ""}
+                  onWheel={(e) => e.currentTarget.blur()}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    set("num_incomer_units", v === "" ? "" : String(Math.max(1, Math.trunc(Number(v)))));
+                  }} />
+              </div>
+              {renderText("incomer_rating", "Incomer Rating",    "e.g. 630A ACB")}
+              {renderText("num_feeders",    "Number of Feeders", "e.g. 12")}
+              <div />
+            </>
+          )}
+        </SectionCard>
+      )}
+
+      {/* 4 — Enclosure */}
+      <SectionCard title="Enclosure" color="bg-emerald-50/60 border-emerald-200">
+        {isAutoType ? (
+          // For automation panels, enclosure_type is already in Electrical Rating section (in code)
           <>
-            <div className="col-span-3 md:col-span-5">
-              {renderField("incomer_arrangement", "Incomer Arrangement", MCC_SPECIFIC_OPTS.incomer_arrangement, true)}
-            </div>
-            {renderField("incomer_current_rating", "Incomer Current Rating", MCC_SPECIFIC_OPTS.incomer_current_rating)}
-            {renderField("incomer_device_type",    "Incomer Device Type",    MCC_SPECIFIC_OPTS.incomer_device_type)}
-            {incoArr === "Dual Incomer with Bus Coupler" && (
-              renderField("bus_coupler_rating", "Bus Coupler Rating", MCC_SPECIFIC_OPTS.bus_coupler_rating)
-            )}
-            {(incoArr === "Dual Incomer" || incoArr === "Dual Incomer with Bus Coupler") && (
-              renderField("changeover_arrangement", "Changeover Arrangement", MCC_SPECIFIC_OPTS.changeover_arrangement)
-            )}
-            {renderText("num_feeders", "Number of Feeders", "e.g. 12")}
+            {renderField("enclosure_material", "Enclosure Material", PANEL_OPTS.enclosure_material, true)}
+            {renderField("ip_rating",          "IP Rating",          PANEL_OPTS.ip_rating,          true)}
+            {renderField("form_of_separation", "Form of Separation", PANEL_OPTS.form_of_separation)}
+            <div /><div />
           </>
         ) : (
           <>
-            <div className="space-y-1.5">
-              <Label className="text-xs">No. of Incomer Units</Label>
-              <Input className="h-8 text-sm" type="number" min="1" step="1" placeholder="e.g. 1"
-                value={(attrs.num_incomer_units as string) ?? ""}
-                onWheel={(e) => e.currentTarget.blur()}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  set("num_incomer_units", v === "" ? "" : String(Math.max(1, Math.trunc(Number(v)))));
-                }} />
-            </div>
-            {renderText("incomer_rating", "Incomer Rating",    "e.g. 630A ACB")}
-            {renderText("num_feeders",    "Number of Feeders", "e.g. 12")}
-            <div />
+            {renderField("enclosure_type",     "Enclosure Type",     PANEL_OPTS.enclosure_type,     true)}
+            {renderField("enclosure_material", "Enclosure Material", PANEL_OPTS.enclosure_material, isSpecType)}
+            {renderField("ip_rating",          "IP Rating",          PANEL_OPTS.ip_rating,          isSpecType)}
+            {renderField("form_of_separation", "Form of Separation", PANEL_OPTS.form_of_separation)}
           </>
         )}
       </SectionCard>
 
-      {/* 4 — Enclosure */}
-      <SectionCard title="Enclosure" color="bg-emerald-50/60 border-emerald-200">
-        {renderField("enclosure_type",     "Enclosure Type",     PANEL_OPTS.enclosure_type,     true)}
-        {renderField("enclosure_material", "Enclosure Material", PANEL_OPTS.enclosure_material, isMcc)}
-        {renderField("ip_rating",          "IP Rating",          PANEL_OPTS.ip_rating,          isMcc)}
-        {renderField("form_of_separation", "Form of Separation", PANEL_OPTS.form_of_separation)}
-      </SectionCard>
-
-      {/* 5 — Busbars & Construction */}
-      <SectionCard title="Busbars & Construction" color="bg-teal-50/60 border-teal-200">
-        {renderField("busbar_material", "Busbar Material", PANEL_OPTS.busbar_material, true)}
-        {renderField("interlocking",    "Interlocking",    PANEL_OPTS.interlocking)}
-      </SectionCard>
+      {/* 5 — Busbars & Construction (power panels only) */}
+      {hasBusBars && (
+        <SectionCard title="Busbars & Construction" color="bg-teal-50/60 border-teal-200">
+          {renderField("busbar_material", "Busbar Material", PANEL_OPTS.busbar_material, true)}
+          {renderField("interlocking",    "Interlocking",    PANEL_OPTS.interlocking)}
+        </SectionCard>
+      )}
+      {!hasBusBars && !isSpecType && (
+        <SectionCard title="Busbars & Construction" color="bg-teal-50/60 border-teal-200">
+          {renderField("busbar_material", "Busbar Material", PANEL_OPTS.busbar_material)}
+          {renderField("interlocking",    "Interlocking",    PANEL_OPTS.interlocking)}
+        </SectionCard>
+      )}
 
       {/* 6 — Accessories & Auxiliary */}
       <SectionCard title="Accessories & Auxiliary" color="bg-orange-50/60 border-orange-200">
@@ -487,10 +745,10 @@ export function PanelAttrsForm({
         {renderField("aux_power_supply",  "Auxiliary Power Supply",   PANEL_OPTS.aux_power_supply,  undefined, undefined, "col-span-2")}
       </SectionCard>
 
-      {/* 7 — Area Classification */}
+      {/* 7 — Area Classification (required for all spec types) */}
       <SectionCard title="Area Classification" color="bg-rose-50/60 border-rose-200">
         <div className="col-span-3 md:col-span-5">
-          {isMcc ? (
+          {isSpecType ? (
             <div className="space-y-1.5">
               <Label className="text-xs">Area Classification <span className="text-red-500">*</span></Label>
               <SearchableSelect
