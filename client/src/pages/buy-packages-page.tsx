@@ -351,6 +351,12 @@ function GenericReqField({
   const len  = value.length;
   const over = len > ITEM_DESC_LIMIT;
 
+  // Auto-clamp: if a builder generates a string longer than the SAP ItemName limit,
+  // immediately truncate it in state so saving is never blocked by generated text.
+  useEffect(() => {
+    if (value.length > ITEM_DESC_LIMIT) onChange(value.slice(0, ITEM_DESC_LIMIT));
+  }, [value]);
+
   // Auto-open edit mode if value overflows so the user can fix it.
   useEffect(() => { if (over) setEditing(true); }, [over]);
 
