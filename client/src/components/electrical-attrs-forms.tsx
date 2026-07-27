@@ -213,9 +213,7 @@ export function applyPanelTypeDefaults(
 export function buildPanelRequirement(attrs: Record<string, unknown>): string {
   const panelType  = (attrs.panel_type            as string)?.trim() || "";
   const voltage    = (attrs.voltage               as string)?.trim() || "";
-  // main_bus_rating (MCC) or bus_rating (other panels)
   const busRating  = ((attrs.main_bus_rating || attrs.bus_rating) as string)?.trim() || "";
-  // fault_level_icw (MCC) or short_circuit_rating (other panels)
   const icw        = ((attrs.fault_level_icw || attrs.short_circuit_rating) as string)?.trim() || "";
   const ipRating   = (attrs.ip_rating             as string)?.trim() || "";
   const encType    = (attrs.enclosure_type        as string)?.trim() || "";
@@ -229,6 +227,27 @@ export function buildPanelRequirement(attrs: Record<string, unknown>): string {
   const gasGroup   = (attrs.gas_group             as string)?.trim() || "";
   const tempClass  = (attrs.temperature_class     as string)?.trim() || "";
 
+  // ── MCC: compact Level-A-only description to stay within 100 chars ──────────
+  if (panelType === "MCC (Motor Control Centre)") {
+    // Shorten explosion protection to bare Ex code: "Ex d (Flameproof)" → "Ex d"
+    const expShort = expProt ? expProt.replace(/\s*\(.*?\)/, "") : "";
+    // Shorten temperature class to T-class only: "T4 (135°C)" → "T4"
+    const tmpShort = tempClass ? tempClass.split(" ")[0] : "";
+    const isHaz    = areaClass === "Zone 1" || areaClass === "Zone 2";
+    const parts: string[] = ["MCC"];
+    if (voltage)   parts.push(voltage);
+    if (busRating) parts.push(`${busRating} Bus`);
+    if (icw)       parts.push(`${icw} Icw`);
+    if (ipRating)  parts.push(ipRating);
+    if (encMat)    parts.push(encMat);
+    if (areaClass) parts.push(areaClass);
+    if (isHaz && expShort && gasGroup && tmpShort)
+      parts.push(`${expShort}, ${gasGroup}, ${tmpShort}`);
+    return parts.join(", ");
+    // Worst case: "MCC, 415V AC (3Ph), 3200A Bus, 85 kA Icw, IP65, GRP/FRP, Zone 2, Ex ia, IIC, T6" = 84 chars ✅
+  }
+
+  // ── All other panel types: full description ──────────────────────────────────
   const parts: string[] = [];
   if (panelType)  parts.push(panelType);
   if (voltage)    parts.push(voltage);
