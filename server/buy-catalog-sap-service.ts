@@ -2241,3 +2241,111 @@ export async function resolveVfdPanelSapItemCode(
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
   return resolveOrCreateSapMasterItem(pool, buildVfdPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
 }
+
+// ── Cabling SAP Item Code ─────────────────────────────────────────────────────
+// Skeleton : ELC-CBL-{TYPE}-{CORES}Cx{SIZE}-{VOLT}[-{ARM}][-{SCR}]
+//
+// Procurement Identity (encoded in the SAP Item Code):
+//   Cable Type · Core Configuration · Conductor Size · Voltage Grade
+//   Armour (omitted when Unarmoured) · Screening (omitted when Unscreened)
+//
+// Engineering Specification (mandatory fields, NOT in the code):
+//   Insulation · Outer Sheath · Laying Type · Standard
+//
+// Two cables with the same SAP Item Code belong to the same procurement family;
+// the engineering spec document defines the exact construction and standard.
+
+const CBL_TYPE: Record<string, string> = {
+  'Power Cable':           'PWR',
+  'Control Cable':         'CTL',
+  'Instrumentation Cable': 'INS',
+  'Data / Comm Cable':     'DAT',
+  'Earthing Cable':        'ETH',
+  'Fire Resistant Cable':  'FRS',
+};
+
+const CBL_VOLT: Record<string, string> = {
+  '300/500V':  '0.5kV',
+  '450/750V':  '0.75kV',
+  '600/1000V': '1kV',
+  '1.1kV':     '1.1kV',
+  '3.3kV':     '3.3kV',
+  '6.6kV':     '6.6kV',
+  '11kV':      '11kV',
+};
+
+const CBL_ARM: Record<string, string> = {
+  'SWA (Steel Wire Armour)': 'SWA',
+  'STA (Steel Tape Armour)': 'STA',
+  'Braided Wire Armour':     'BWA',
+};
+
+const CBL_SCR: Record<string, string> = {
+  'Individual + Overall Screened': 'IOS',
+  'Overall Screened':              'OS',
+  'Individually Screened':         'IS',
+};
+
+/**
+ * Build a deterministic SAP Item Code for a cabling line.
+ * Required attrs: cable_type, core_config, cable_size, voltage
+ * Optional attrs: armour (omitted when Unarmoured), screening (omitted when Unscreened)
+ * Throws a user-friendly error if any required field is missing or unrecognised.
+ */
+export function buildCablingItemCode(attrs: Record<string, unknown>): string {
+  const typeRaw = ((attrs.cable_type  as string) ?? '').trim();
+  const coreRaw = ((attrs.core_config as string) ?? '').trim();
+  const sizeRaw = ((attrs.cable_size  as string) ?? '').trim();
+  const voltRaw = ((attrs.voltage     as string) ?? '').trim();
+  const armRaw  = ((attrs.armour      as string) ?? '').trim();
+  const scrRaw  = ((attrs.screening   as string) ?? '').trim();
+
+  const missing: string[] = [];
+
+  const type = CBL_TYPE[typeRaw];
+  if (!type) missing.push(`Cable Type ("${typeRaw}")`);
+
+  // "4 Core" → "4",  "3.5 Core" → "3.5"
+  const coreNum = coreRaw.replace(/\s*Core$/i, '').trim();
+  if (!coreNum) missing.push(`Core Configuration ("${coreRaw}")`);
+
+  // "10 mm²" → "10",  "1.0 mm²" → "1.0"
+  const sizeNum = sizeRaw.replace(/\s*mm²$/i, '').trim();
+  if (!sizeNum) missing.push(`Conductor Size ("${sizeRaw}")`);
+
+  const volt = CBL_VOLT[voltRaw];
+  if (!volt) missing.push(`Voltage Grade ("${voltRaw}")`);
+
+  if (missing.length) {
+    throw new Error(
+      `Cannot generate Cabling SAP Item Code — missing or unrecognised: ${missing.join('; ')}`,
+    );
+  }
+
+  const parts = [`ELC-CBL-${type}-${coreNum}Cx${sizeNum}-${volt}`];
+  const armSeg = CBL_ARM[armRaw];
+  const scrSeg = CBL_SCR[scrRaw];
+  if (armSeg) parts.push(armSeg);
+  if (scrSeg) parts.push(scrSeg);
+
+  const code = parts.join('-');
+  if (code.length > SAP_ITEM_CODE_MAX_LEN) {
+    throw new Error(
+      `SAP Item Code "${code}" is ${code.length} characters — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`,
+    );
+  }
+  return code;
+}
+
+export async function resolveCablingSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  return resolveOrCreateSapMasterItem(
+    pool, buildCablingItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
+  );
+}

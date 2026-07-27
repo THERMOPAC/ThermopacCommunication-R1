@@ -36,6 +36,7 @@ import {
   resolveAutomationPanelSapItemCode,
   resolveApfcPanelSapItemCode,
   resolveVfdPanelSapItemCode,
+  resolveCablingSapItemCode,
 } from './buy-catalog-sap-service';
 
 /**
@@ -894,7 +895,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const _SPEC_PANELS  = new Set(['MCC (Motor Control Centre)','Starter Panel','Distribution Board (DB)','Power Distribution Panel','PLC Panel','DCS Panel','SCADA Panel','Relay / Protection Panel','APFC Panel','VFD Panel']);
       const _panelTypeStr = (groupCode === 'electrical_control' && subgroupCode === 'panels') ? String(((technicalAttributes ?? {}) as Record<string, unknown>).panel_type ?? '').trim() : '';
       const isSpecPanel   = _SPEC_PANELS.has(_panelTypeStr);
-      if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor && !isIsoValve && !isCtrlValve && !isSafetyValve && !isOnOffValve && !isNrvValve && !isNeedleValve && !isSpecPanel) {
+      const isCabling     = groupCode === 'electrical_control' && subgroupCode === 'cabling';
+      if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor && !isIsoValve && !isCtrlValve && !isSafetyValve && !isOnOffValve && !isNrvValve && !isNeedleValve && !isSpecPanel && !isCabling) {
         const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
         const make = readMakeScalar(attrs);
         const series = typeof attrs.preferred_series === 'string' ? attrs.preferred_series.trim() : '';
@@ -1014,6 +1016,14 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             sapRes = await resolveApfcPanelSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
           else
             sapRes = await resolveVfdPanelSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
+          sapMasterItemId  = sapRes.masterItemId;
+          sapItemCodeValue = sapRes.sapItemCode;
+        } else if (isCabling) {
+          const _cg = (k: string) => ((attrs[k] as string | undefined) ?? '').trim();
+          const armPart = _cg('armour')    && _cg('armour')    !== 'Unarmoured' ? `, ${_cg('armour')}`    : '';
+          const scrPart = _cg('screening') && _cg('screening') !== 'Unscreened' ? `, ${_cg('screening')}` : '';
+          const desc = `${_cg('cable_type')} — ${_cg('core_config')} x ${_cg('cable_size')} — ${_cg('voltage')} — ${_cg('insulation')}${armPart}${scrPart}`.slice(0, 255);
+          const sapRes = await resolveCablingSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
           sapMasterItemId  = sapRes.masterItemId;
           sapItemCodeValue = sapRes.sapItemCode;
         } else {
@@ -1137,7 +1147,8 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const _SPEC_PANELS2   = new Set(['MCC (Motor Control Centre)','Starter Panel','Distribution Board (DB)','Power Distribution Panel','PLC Panel','DCS Panel','SCADA Panel','Relay / Protection Panel','APFC Panel','VFD Panel']);
         const _panelTypeStr2  = (groupCode2 === 'electrical_control' && subgroupCode2 === 'panels') ? String(((b.technicalAttributes ?? {}) as Record<string, unknown>).panel_type ?? '').trim() : '';
         const isSpecPanel2    = _SPEC_PANELS2.has(_panelTypeStr2);
-        if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2 && !isIsoValve2 && !isCtrlValve2 && !isSafetyValve2 && !isOnOffValve2 && !isNrvValve2 && !isNeedleValve2 && !isSpecPanel2) {
+        const isCabling2      = groupCode2 === 'electrical_control' && subgroupCode2 === 'cabling';
+        if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2 && !isIsoValve2 && !isCtrlValve2 && !isSafetyValve2 && !isOnOffValve2 && !isNrvValve2 && !isNeedleValve2 && !isSpecPanel2 && !isCabling2) {
           const attrs2 = (b.technicalAttributes ?? {}) as Record<string, unknown>;
           const make2 = readMakeScalar(attrs2);
           const series2 = typeof attrs2.preferred_series === 'string' ? attrs2.preferred_series.trim() : '';
@@ -1257,6 +1268,14 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
               sapRes3 = await resolveApfcPanelSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
             else
               sapRes3 = await resolveVfdPanelSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+            fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
+            fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
+          } else if (isCabling2) {
+            const _cg3 = (k: string) => ((attrs3[k] as string | undefined) ?? '').trim();
+            const armPart3 = _cg3('armour')    && _cg3('armour')    !== 'Unarmoured' ? `, ${_cg3('armour')}`    : '';
+            const scrPart3 = _cg3('screening') && _cg3('screening') !== 'Unscreened' ? `, ${_cg3('screening')}` : '';
+            const desc3 = `${_cg3('cable_type')} — ${_cg3('core_config')} x ${_cg3('cable_size')} — ${_cg3('voltage')} — ${_cg3('insulation')}${armPart3}${scrPart3}`.slice(0, 255);
+            const sapRes3 = await resolveCablingSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
             fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
             fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
           } else {

@@ -75,7 +75,7 @@ import {
   CoolingTowerAttrsForm, BoughtOutAttrsForm, ComponentsAttrsForm,
   buildPanelRequirement, buildCablingRequirement, buildJunctionBoxRequirement,
   buildCoolingTowerRequirement, buildBoughtOutRequirement, buildComponentsRequirement,
-  buildPanelPreviewCode,
+  buildPanelPreviewCode, buildCablingPreviewCode,
 } from "@/components/electrical-attrs-forms";
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
@@ -1192,12 +1192,16 @@ export default function BuyPackagesPage() {
       }
     } else if (isCablingMode) {
       const ta = lf.technicalAttributes;
-      if (!(ta.cable_type as string)?.trim()) {
-        toast({ title: "Cable Type is required", variant: "destructive" }); return;
-      }
-      if (!(ta.cable_size as string)?.trim()) {
-        toast({ title: "Cable Size is required", variant: "destructive" }); return;
-      }
+      if (!(ta.cable_type as string)?.trim())
+        { toast({ title: "Cable Type is required", variant: "destructive" }); return; }
+      if (!(ta.core_config as string)?.trim())
+        { toast({ title: "Core Configuration is required", variant: "destructive" }); return; }
+      if (!(ta.cable_size as string)?.trim())
+        { toast({ title: "Conductor Size is required", variant: "destructive" }); return; }
+      if (!(ta.voltage as string)?.trim())
+        { toast({ title: "Voltage Grade is required", variant: "destructive" }); return; }
+      if (!(ta.insulation as string)?.trim())
+        { toast({ title: "Insulation is required (engineering specification)", variant: "destructive" }); return; }
     } else if (isPanelMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.panel_type as string)?.trim()) {
@@ -2341,7 +2345,34 @@ export default function BuyPackagesPage() {
                       </div>
                     );
                   }
-                  // Priority 0a — Spec Panel: unified client-side preview for all 10 spec-based panel types
+                  // Priority 0a — Cabling: spec-based preview (procurement identity only)
+                  if (isCablingMode) {
+                    const cblCode = buildCablingPreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (cblCode) {
+                      const savedCode = lineDialog.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== cblCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-orange-300 bg-orange-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-orange-900 text-sm">
+                            {cblCode}
+                          </span>
+                          {isNew && (
+                            <span className="text-[10px] text-orange-700 font-medium uppercase tracking-wide">New</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">
+                          Complete Cable Type, Core Config, Size &amp; Voltage to preview SAP code
+                        </span>
+                      </div>
+                    );
+                  }
+                  // Priority 0b — Spec Panel: unified client-side preview for all 10 spec-based panel types
                   if (isPanelMode) {
                     const _pta = (lf.technicalAttributes?.panel_type as string) ?? "";
                     const _SPEC_PREVIEW_TYPES = new Set(["MCC (Motor Control Centre)","Starter Panel","Distribution Board (DB)","Power Distribution Panel","PLC Panel","DCS Panel","SCADA Panel","Relay / Protection Panel","APFC Panel","VFD Panel"]);

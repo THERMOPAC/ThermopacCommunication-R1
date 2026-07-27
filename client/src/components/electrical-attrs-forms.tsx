@@ -813,6 +813,68 @@ const CABLE_SCREEN_OPTS  = ["Unscreened", "Individual + Overall Screened", "Over
 const CABLE_LAYING_OPTS  = ["Cable Tray", "Conduit", "Direct Burial", "Duct / Raceway", "Surface Mounted", "Other"];
 const CABLE_STD_OPTS     = ["IS 1554", "IS 7098", "BS 5308", "BS 6724", "IEC 60502", "IEC 60228", "BS EN 50525", "Other"];
 
+// ── Cabling procurement identity maps (mirrors server CBL_* maps) ─────────────
+const _CBL_TYPE: Record<string, string> = {
+  'Power Cable':           'PWR',
+  'Control Cable':         'CTL',
+  'Instrumentation Cable': 'INS',
+  'Data / Comm Cable':     'DAT',
+  'Earthing Cable':        'ETH',
+  'Fire Resistant Cable':  'FRS',
+};
+const _CBL_VOLT: Record<string, string> = {
+  '300/500V': '0.5kV', '450/750V': '0.75kV', '600/1000V': '1kV',
+  '1.1kV': '1.1kV', '3.3kV': '3.3kV', '6.6kV': '6.6kV', '11kV': '11kV',
+};
+const _CBL_ARM: Record<string, string> = {
+  'SWA (Steel Wire Armour)': 'SWA',
+  'STA (Steel Tape Armour)': 'STA',
+  'Braided Wire Armour':     'BWA',
+};
+const _CBL_SCR: Record<string, string> = {
+  'Individual + Overall Screened': 'IOS',
+  'Overall Screened':              'OS',
+  'Individually Screened':         'IS',
+};
+
+/**
+ * Client-side preview of the cabling SAP Item Code.
+ * Returns null when any required procurement-identity field is missing.
+ */
+export function buildCablingPreviewCode(attrs: Record<string, unknown>): string | null {
+  const typeRaw = ((attrs.cable_type  as string) ?? '').trim();
+  const coreRaw = ((attrs.core_config as string) ?? '').trim();
+  const sizeRaw = ((attrs.cable_size  as string) ?? '').trim();
+  const voltRaw = ((attrs.voltage     as string) ?? '').trim();
+  const armRaw  = ((attrs.armour      as string) ?? '').trim();
+  const scrRaw  = ((attrs.screening   as string) ?? '').trim();
+
+  const type    = _CBL_TYPE[typeRaw];
+  const coreNum = coreRaw.replace(/\s*Core$/i, '').trim();
+  const sizeNum = sizeRaw.replace(/\s*mm²$/i, '').trim();
+  const volt    = _CBL_VOLT[voltRaw];
+
+  if (!type || !coreNum || !sizeNum || !volt) return null;
+
+  const parts = [`ELC-CBL-${type}-${coreNum}Cx${sizeNum}-${volt}`];
+  const armSeg = _CBL_ARM[armRaw];
+  const scrSeg = _CBL_SCR[scrRaw];
+  if (armSeg) parts.push(armSeg);
+  if (scrSeg) parts.push(scrSeg);
+  return parts.join('-');
+}
+
+export const CABLING_DEFAULTS: Record<string, unknown> = {
+  cable_type:   "Power Cable",
+  core_config:  "4 Core",
+  cable_size:   "10 mm²",
+  voltage:      "1.1kV",
+  insulation:   "XLPE",
+  outer_sheath: "PVC",
+  armour:       "Unarmoured",
+  screening:    "Unscreened",
+};
+
 export function buildCablingRequirement(attrs: Record<string, unknown>): string {
   const cableType   = (attrs.cable_type   as string)?.trim() || "";
   const coreConf    = (attrs.core_config  as string)?.trim() || "";
