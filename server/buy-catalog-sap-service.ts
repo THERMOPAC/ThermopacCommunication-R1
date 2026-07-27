@@ -1899,3 +1899,98 @@ export async function resolveNeedleValveSapItemCode(
   const itemCode = buildNeedleValveItemCode(attrs);
   return resolveOrCreateSapMasterItem(pool, itemCode, description, uomCode, groupId, subgroupId, null, null);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MCC PANEL
+// Skeleton: PNL-MCC-{VOLT}-{BUS}-{ICW}-{IP}-{MAT}-{AREA}
+// Safe:      PNL-MCC-415V-800A-50KA-IP54-CRCA-SA           (34 chars)
+// Hazardous: PNL-MCC-415V-3200A-85KA-IP65-SS316-Z2-EXIA-IIC-T6 (49 chars)
+// ─────────────────────────────────────────────────────────────────────────────
+const MCC_VOLT_MAP: Record<string, string> = {
+  '415V AC (3Ph)': '415V',
+  '380V AC (3Ph)': '380V',
+  '440V AC (3Ph)': '440V',
+  '480V AC (3Ph)': '480V',
+  '690V AC (3Ph)': '690V',
+};
+const MCC_BUS_SET = new Set([
+  '100A','125A','160A','200A','250A','315A','400A','500A',
+  '630A','800A','1000A','1250A','1600A','2000A','2500A','3200A',
+]);
+const MCC_ICW_MAP: Record<string, string> = {
+  '6 kA':'6KA','10 kA':'10KA','25 kA':'25KA','36 kA':'36KA',
+  '50 kA':'50KA','65 kA':'65KA','85 kA':'85KA',
+};
+const MCC_IP_SET = new Set(['IP20','IP42','IP54','IP55','IP65','IP66']);
+const MCC_MAT_MAP: Record<string, string> = {
+  'CRCA Steel':'CRCA','SS304':'SS304','SS316':'SS316','Aluminium':'ALU','GRP/FRP':'GRP',
+};
+const MCC_EXP_MAP: Record<string, string> = {
+  'Ex e (Increased Safety)':   'EXE',
+  'Ex d (Flameproof)':         'EXD',
+  'Ex n (Non-sparking)':       'EXN',
+  'Ex p (Pressurized)':        'EXP',
+  'Ex ia (Intrinsically Safe)':'EXIA',
+};
+
+export function buildMccPanelItemCode(attrs: Record<string, unknown>): string {
+  const voltRaw  = ((attrs.voltage           as string) ?? '').trim();
+  const busRaw   = ((attrs.main_bus_rating   as string) ?? '').trim();
+  const icwRaw   = ((attrs.fault_level_icw   as string) ?? '').trim();
+  const ipRaw    = ((attrs.ip_rating         as string) ?? '').trim();
+  const matRaw   = ((attrs.enclosure_material as string) ?? '').trim();
+  const areaRaw  = ((attrs.area_classification as string) ?? '').trim();
+
+  const volt = MCC_VOLT_MAP[voltRaw];
+  const bus  = MCC_BUS_SET.has(busRaw) ? busRaw : undefined;
+  const icw  = MCC_ICW_MAP[icwRaw];
+  const ip   = MCC_IP_SET.has(ipRaw) ? ipRaw : undefined;
+  const mat  = MCC_MAT_MAP[matRaw];
+
+  const missing: string[] = [];
+  if (!volt) missing.push(`Voltage ("${voltRaw}")`);
+  if (!bus)  missing.push(`Main Bus Rating ("${busRaw}")`);
+  if (!icw)  missing.push(`Panel Fault Level Icw ("${icwRaw}")`);
+  if (!ip)   missing.push(`IP Rating ("${ipRaw}")`);
+  if (!mat)  missing.push(`Enclosure Material ("${matRaw}")`);
+  if (!areaRaw) missing.push('Area Classification');
+
+  const isHazardous = areaRaw === 'Zone 1' || areaRaw === 'Zone 2';
+  let expCode = '', gasCode = '', tmpCode = '';
+  if (isHazardous) {
+    const expRaw = ((attrs.explosion_protection as string) ?? '').trim();
+    const gasRaw = ((attrs.gas_group            as string) ?? '').trim();
+    const tmpRaw = ((attrs.temperature_class    as string) ?? '').trim();
+    expCode = MCC_EXP_MAP[expRaw] ?? '';
+    gasCode = ['IIA','IIB','IIC'].includes(gasRaw) ? gasRaw : '';
+    tmpCode = /^T[1-6]/.test(tmpRaw) ? tmpRaw.split(' ')[0] : '';
+    if (!expCode) missing.push(`Explosion Protection ("${expRaw}")`);
+    if (!gasCode) missing.push(`Gas Group ("${gasRaw}")`);
+    if (!tmpCode) missing.push(`Temperature Class ("${tmpRaw}")`);
+  } else if (areaRaw !== 'Safe Area') {
+    missing.push(`Area Classification — must be Safe Area, Zone 1 or Zone 2 ("${areaRaw}")`);
+  }
+
+  if (missing.length > 0)
+    throw new Error(`Cannot generate MCC SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+
+  const zone    = areaRaw === 'Zone 1' ? 'Z1' : 'Z2';
+  const areaSeg = isHazardous ? `${zone}-${expCode}-${gasCode}-${tmpCode}` : 'SA';
+  const code    = `PNL-MCC-${volt}-${bus}-${icw}-${ip}-${mat}-${areaSeg}`;
+
+  if (code.length > 50)
+    throw new Error(`MCC SAP Item Code exceeds 50 characters: "${code}" (${code.length} chars)`);
+  return code;
+}
+
+export async function resolveMccPanelSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  const itemCode = buildMccPanelItemCode(attrs);
+  return resolveOrCreateSapMasterItem(pool, itemCode, description, uomCode, groupId, subgroupId, null, null);
+}

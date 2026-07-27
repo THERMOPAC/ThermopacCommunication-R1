@@ -29,6 +29,7 @@ import {
   resolveOnOffValveSapItemCode, buildOnOffValveItemCode,
   resolveNrvValveSapItemCode, buildNrvValveItemCode,
   resolveNeedleValveSapItemCode, buildNeedleValveItemCode,
+  resolveMccPanelSapItemCode,
 } from './buy-catalog-sap-service';
 
 /**
@@ -884,7 +885,9 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const isOnOffValve  = groupCode === 'valves' && subgroupCode === 'on_off';
       const isNrvValve    = groupCode === 'valves' && subgroupCode === 'nrv';
       const isNeedleValve = groupCode === 'valves' && subgroupCode === 'needle';
-      if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor && !isIsoValve && !isCtrlValve && !isSafetyValve && !isOnOffValve && !isNrvValve && !isNeedleValve) {
+      const isMccPanel    = groupCode === 'electrical_control' && subgroupCode === 'panels'
+        && String(((technicalAttributes ?? {}) as Record<string, unknown>).panel_type ?? '').trim() === 'MCC (Motor Control Centre)';
+      if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor && !isIsoValve && !isCtrlValve && !isSafetyValve && !isOnOffValve && !isNrvValve && !isNeedleValve && !isMccPanel) {
         const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
         const make = readMakeScalar(attrs);
         const series = typeof attrs.preferred_series === 'string' ? attrs.preferred_series.trim() : '';
@@ -957,6 +960,13 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           const sizeLabel      = (attrs.size        as string | undefined)?.trim() ?? '';
           const desc = `Needle Valve — ${valveTypeLabel} — ${sizeLabel}`.slice(0, 255);
           const sapRes = await resolveNeedleValveSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
+          sapMasterItemId  = sapRes.masterItemId;
+          sapItemCodeValue = sapRes.sapItemCode;
+        } else if (isMccPanel) {
+          const voltLabel = (attrs.voltage         as string | undefined)?.trim() ?? '';
+          const busLabel  = (attrs.main_bus_rating as string | undefined)?.trim() ?? '';
+          const desc = `MCC Panel — ${voltLabel} — ${busLabel} Bus`.slice(0, 255);
+          const sapRes = await resolveMccPanelSapItemCode(pool, buyGroupId, buySubgroupId, attrs, uomCode, desc);
           sapMasterItemId  = sapRes.masterItemId;
           sapItemCodeValue = sapRes.sapItemCode;
         } else {
@@ -1077,7 +1087,9 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const isOnOffValve2   = groupCode2 === 'valves' && subgroupCode2 === 'on_off';
         const isNrvValve2     = groupCode2 === 'valves' && subgroupCode2 === 'nrv';
         const isNeedleValve2  = groupCode2 === 'valves' && subgroupCode2 === 'needle';
-        if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2 && !isIsoValve2 && !isCtrlValve2 && !isSafetyValve2 && !isOnOffValve2 && !isNrvValve2 && !isNeedleValve2) {
+        const isMccPanel2     = groupCode2 === 'electrical_control' && subgroupCode2 === 'panels'
+          && String(((b.technicalAttributes ?? {}) as Record<string, unknown>).panel_type ?? '').trim() === 'MCC (Motor Control Centre)';
+        if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2 && !isIsoValve2 && !isCtrlValve2 && !isSafetyValve2 && !isOnOffValve2 && !isNrvValve2 && !isNeedleValve2 && !isMccPanel2) {
           const attrs2 = (b.technicalAttributes ?? {}) as Record<string, unknown>;
           const make2 = readMakeScalar(attrs2);
           const series2 = typeof attrs2.preferred_series === 'string' ? attrs2.preferred_series.trim() : '';
@@ -1150,6 +1162,13 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             const sizeLabel      = (attrs3.size        as string | undefined)?.trim() ?? '';
             const desc3 = `Needle Valve — ${valveTypeLabel} — ${sizeLabel}`.slice(0, 255);
             const sapRes3 = await resolveNeedleValveSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+            fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
+            fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
+          } else if (isMccPanel2) {
+            const voltLabel = (attrs3.voltage         as string | undefined)?.trim() ?? '';
+            const busLabel  = (attrs3.main_bus_rating as string | undefined)?.trim() ?? '';
+            const desc3 = `MCC Panel — ${voltLabel} — ${busLabel} Bus`.slice(0, 255);
+            const sapRes3 = await resolveMccPanelSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
             fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
             fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
           } else {

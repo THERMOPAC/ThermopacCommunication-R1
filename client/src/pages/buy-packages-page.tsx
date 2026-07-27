@@ -75,6 +75,7 @@ import {
   CoolingTowerAttrsForm, BoughtOutAttrsForm, ComponentsAttrsForm,
   buildPanelRequirement, buildCablingRequirement, buildJunctionBoxRequirement,
   buildCoolingTowerRequirement, buildBoughtOutRequirement, buildComponentsRequirement,
+  buildMccPanelPreviewCode,
 } from "@/components/electrical-attrs-forms";
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
@@ -1202,15 +1203,34 @@ export default function BuyPackagesPage() {
       if (!(ta.panel_type as string)?.trim()) {
         toast({ title: "Panel Type is required", variant: "destructive" }); return;
       }
-      if (!(ta.voltage as string)?.trim()) {
-        toast({ title: "Voltage is required", variant: "destructive" }); return;
-      }
-      const enc = (ta.enclosure_type as string)?.trim();
-      if (enc === "Outdoor" && !(ta.ip_rating as string)?.trim()) {
-        toast({ title: "IP Rating is required for Outdoor enclosure", variant: "destructive" }); return;
-      }
-      if (enc === "Flameproof" && !(ta.area_classification as string)?.trim()) {
-        toast({ title: "Area Classification is required for Flameproof enclosure", variant: "destructive" }); return;
+      const isMccLine = (ta.panel_type as string)?.trim() === "MCC (Motor Control Centre)";
+      if (isMccLine) {
+        // MCC: all Level-A fields are mandatory
+        if (!(ta.voltage as string)?.trim())
+          { toast({ title: "System Voltage is required", variant: "destructive" }); return; }
+        if (!(ta.main_bus_rating as string)?.trim())
+          { toast({ title: "Main Bus Rating is required", variant: "destructive" }); return; }
+        if (!(ta.fault_level_icw as string)?.trim())
+          { toast({ title: "Panel Fault Level (Icw) is required", variant: "destructive" }); return; }
+        if (!(ta.ip_rating as string)?.trim())
+          { toast({ title: "IP Rating is required", variant: "destructive" }); return; }
+        if (!(ta.enclosure_material as string)?.trim())
+          { toast({ title: "Enclosure Material is required", variant: "destructive" }); return; }
+        const area = (ta.area_classification as string)?.trim();
+        if (!area)
+          { toast({ title: "Area Classification is required", variant: "destructive" }); return; }
+        if (area === "Zone 1" || area === "Zone 2") {
+          if (!(ta.explosion_protection as string)?.trim())
+            { toast({ title: "Explosion Protection is required for hazardous area", variant: "destructive" }); return; }
+          if (!(ta.gas_group as string)?.trim())
+            { toast({ title: "Gas Group is required for hazardous area", variant: "destructive" }); return; }
+          if (!(ta.temperature_class as string)?.trim())
+            { toast({ title: "Temperature Class is required for hazardous area", variant: "destructive" }); return; }
+        }
+      } else {
+        // Non-MCC panels: minimal validation (generic make+model path)
+        if (!(ta.voltage as string)?.trim())
+          { toast({ title: "Voltage is required", variant: "destructive" }); return; }
       }
     } else if (isSafetyValveMode) {
       const ta     = lf.technicalAttributes;
@@ -2295,7 +2315,34 @@ export default function BuyPackagesPage() {
                       </div>
                     );
                   }
-                  // Priority 0a — Needle Valve: client-side spec-based preview
+                  // Priority 0a — MCC Panel: client-side spec-based preview
+                  if (isPanelMode && (lf.technicalAttributes?.panel_type as string) === "MCC (Motor Control Centre)") {
+                    const mccCode = buildMccPanelPreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (mccCode) {
+                      const savedCode = lineDialog.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== mccCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-cyan-300 bg-cyan-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-cyan-900 text-sm">
+                            {mccCode}
+                          </span>
+                          {isNew && (
+                            <span className="text-[10px] text-cyan-600 font-medium uppercase tracking-wide">New</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">
+                          Complete Voltage, Bus Rating, Fault Level, IP Rating, Enclosure Material &amp; Area to preview
+                        </span>
+                      </div>
+                    );
+                  }
+                  // Priority 0b — Needle Valve: client-side spec-based preview
                   if (isNeedleValveMode) {
                     const ndlCode = buildNeedleValvePreviewCode(
                       (lf.technicalAttributes ?? {}) as Record<string, unknown>,
