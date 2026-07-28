@@ -2392,6 +2392,33 @@ export default function BuyPackagesPage() {
                       </div>
                     );
                   }
+                  // Priority 0a — Pipes: spec-based preview
+                  if (isPipesMode) {
+                    const pipCode = buildPipesPreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (pipCode) {
+                      const savedCode = lineDialog.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== pipCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-slate-400 bg-slate-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-slate-800 text-sm">
+                            {pipCode}
+                          </span>
+                          {isNew && (
+                            <span className="text-[10px] text-slate-600 font-medium uppercase tracking-wide">New</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">
+                          Select Grade, NB &amp; Schedule to preview SAP code
+                        </span>
+                      </div>
+                    );
+                  }
                   // Priority 0a — Profiles: spec-based preview
                   if (isProfilesMode) {
                     const prfCode = buildProfilesPreviewCode(
