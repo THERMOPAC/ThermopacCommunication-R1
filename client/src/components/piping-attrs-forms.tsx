@@ -478,6 +478,35 @@ export function ProfilesAttrsForm({
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. PIPES
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ── Pipes SAP Item Code helpers (client mirror of server builder) ─────────────
+const _PIPES_GRADE_CODE: Record<string, string> = {
+  'IS 1239 Class A': 'IS1239A',  'IS 1239 Class B': 'IS1239B',  'IS 1239 Class C': 'IS1239C',
+  'IS 3589 Fe 330':  'IS3589-330', 'IS 3589 Fe 410': 'IS3589-410',
+  'SA-106 Gr B': 'SA106B', 'SA-53 Gr B': 'SA53B',
+  'SS304 Pipe': 'SS304', 'SS304L Pipe': 'SS304L', 'SS316 Pipe': 'SS316', 'SS316L Pipe': 'SS316L',
+  'SA-312 TP304': 'SA312-304', 'SA-312 TP304L': 'SA312-304L',
+  'SA-312 TP316': 'SA312-316', 'SA-312 TP316L': 'SA312-316L',
+  'Copper Pipe': 'CU', 'Aluminium Pipe': 'AL',
+};
+const _PIPES_SCHEDULE_CODE: Record<string, string> = {
+  'SCH 5': 'SCH5', 'SCH 5S': 'SCH5S', 'SCH 10': 'SCH10', 'SCH 10S': 'SCH10S',
+  'SCH 20': 'SCH20', 'SCH 40': 'SCH40', 'SCH 40S': 'SCH40S',
+  'SCH 80': 'SCH80', 'SCH 80S': 'SCH80S', 'SCH 160': 'SCH160',
+  'XXS': 'XXS', 'STD': 'STD', 'XS': 'XS',
+};
+
+/** Client-side preview of the Pipes SAP Item Code. Returns null when any required field is missing/invalid. */
+export function buildPipesPreviewCode(attrs: Record<string, unknown>): string | null {
+  const gradeRaw = ((attrs.material_grade as string) ?? '').trim();
+  const nbRaw    = ((attrs.nominal_bore   as string) ?? '').trim();
+  const schRaw   = ((attrs.schedule       as string) ?? '').trim();
+  const grade = _PIPES_GRADE_CODE[gradeRaw];
+  const sch   = _PIPES_SCHEDULE_CODE[schRaw];
+  if (!grade || !nbRaw || !sch) return null;
+  return `RM-PIP-${grade}-${nbRaw}-${sch}`;
+}
+
 const PIPES_MATERIAL_GRADES = [
   "IS 1239 Class A","IS 1239 Class B","IS 1239 Class C",
   "IS 3589 Fe 330","IS 3589 Fe 410",

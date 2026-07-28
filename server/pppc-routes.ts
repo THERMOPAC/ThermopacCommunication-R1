@@ -38,6 +38,7 @@ import {
   resolveVfdPanelSapItemCode,
   resolveCablingSapItemCode,
   resolveJunctionBoxSapItemCode,
+  resolvePipesSapItemCode,
   resolvePlatesSapItemCode,
   resolveProfilesSapItemCode,
 } from './buy-catalog-sap-service';
@@ -902,6 +903,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const isJunctionBox = groupCode === 'electrical_control' && subgroupCode === 'junction_box';
       const isPlates      = groupCode === 'raw_materials'      && subgroupCode === 'plates';
       const isProfiles    = groupCode === 'raw_materials'      && subgroupCode === 'profiles';
+      const isPipes       = groupCode === 'raw_materials'      && subgroupCode === 'pipes';
       if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor && !isIsoValve && !isCtrlValve && !isSafetyValve && !isOnOffValve && !isNrvValve && !isNeedleValve && !isSpecPanel && !isCabling && !isJunctionBox) {
         const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
         const make = readMakeScalar(attrs);
@@ -933,6 +935,12 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           ? `${_pp('profile_type')} Profile — ${_pp('material_grade')} — ${_pp('thickness_mm')}T × OD${_pp('od_mm')} × ID${_pp('id_mm')} mm`.slice(0, 255)
           : `${_pp('profile_type')} Profile — ${_pp('material_grade')} — ${_pp('thickness_mm')}T × OD${_pp('od_mm')} mm`.slice(0, 255);
         const sapRes = await resolveProfilesSapItemCode(pool, buyGroupId, buySubgroupId, (technicalAttributes ?? {}) as Record<string, unknown>, uomCode, desc);
+        sapMasterItemId  = sapRes.masterItemId;
+        sapItemCodeValue = sapRes.sapItemCode;
+      } else if (isPipes && technicalAttributes !== undefined) {
+        const _pi = (k: string) => (((technicalAttributes ?? {}) as Record<string, unknown>)[k] as string | undefined ?? '').trim();
+        const desc = `${_pi('material_grade')} Pipe — ${_pi('nominal_bore')} — ${_pi('schedule')} — ${_pi('end_condition')}`.slice(0, 255);
+        const sapRes = await resolvePipesSapItemCode(pool, buyGroupId, buySubgroupId, (technicalAttributes ?? {}) as Record<string, unknown>, uomCode, desc);
         sapMasterItemId  = sapRes.masterItemId;
         sapItemCodeValue = sapRes.sapItemCode;
       } else if (groupCode && groupCode !== 'raw_materials') {
@@ -1183,6 +1191,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const isJunctionBox2  = groupCode2 === 'electrical_control' && subgroupCode2 === 'junction_box';
         const isPlates2       = groupCode2 === 'raw_materials'      && subgroupCode2 === 'plates';
         const isProfiles2     = groupCode2 === 'raw_materials'      && subgroupCode2 === 'profiles';
+        const isPipes2        = groupCode2 === 'raw_materials'      && subgroupCode2 === 'pipes';
         if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2 && !isIsoValve2 && !isCtrlValve2 && !isSafetyValve2 && !isOnOffValve2 && !isNrvValve2 && !isNeedleValve2 && !isSpecPanel2 && !isCabling2 && !isJunctionBox2) {
           const attrs2 = (b.technicalAttributes ?? {}) as Record<string, unknown>;
           const make2 = readMakeScalar(attrs2);
@@ -1225,6 +1234,20 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
             ? `${_pp3('profile_type')} Profile — ${_pp3('material_grade')} — ${_pp3('thickness_mm')}T × OD${_pp3('od_mm')} × ID${_pp3('id_mm')} mm`.slice(0, 255)
             : `${_pp3('profile_type')} Profile — ${_pp3('material_grade')} — ${_pp3('thickness_mm')}T × OD${_pp3('od_mm')} mm`.slice(0, 255);
           const sapRes3 = await resolveProfilesSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+          fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
+          fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
+        } else if (isPipes2 && b.technicalAttributes !== undefined) {
+          const attrs3  = (b.technicalAttributes ?? {}) as Record<string, unknown>;
+          const uomRow3 = await pool.query(
+            `SELECT u.code FROM uom_master u
+             JOIN buy_package_lines bpl ON bpl.uom_id = u.id
+             WHERE bpl.id = $1`,
+            [id],
+          );
+          const uomCode3 = (uomRow3.rows[0]?.code as string) ?? 'Nos';
+          const _pi3 = (k: string) => ((attrs3[k] as string | undefined) ?? '').trim();
+          const desc3 = `${_pi3('material_grade')} Pipe — ${_pi3('nominal_bore')} — ${_pi3('schedule')} — ${_pi3('end_condition')}`.slice(0, 255);
+          const sapRes3 = await resolvePipesSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
           fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
           fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
         } else if (groupCode2 && groupCode2 !== 'raw_materials') {

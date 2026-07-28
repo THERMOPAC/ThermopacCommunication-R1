@@ -78,7 +78,7 @@ import {
   buildCoolingTowerRequirement, buildBoughtOutRequirement, buildComponentsRequirement,
   buildPanelPreviewCode, buildCablingPreviewCode, buildJunctionBoxPreviewCode,
 } from "@/components/electrical-attrs-forms";
-import { buildPlatesPreviewCode, buildProfilesPreviewCode } from "@/components/piping-attrs-forms";
+import { buildPlatesPreviewCode, buildProfilesPreviewCode, buildPipesPreviewCode } from "@/components/piping-attrs-forms";
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
   NrvValveAttrsForm, NeedleValveAttrsForm,
@@ -926,9 +926,12 @@ export default function BuyPackagesPage() {
       }
     } else if (isPipesMode) {
       const ta = lf.technicalAttributes;
-      if (!(ta.section_type as string)?.trim()) {
-        toast({ title: "Section / Pipe Type is required", variant: "destructive" }); return;
-      }
+      if (!(ta.material_grade as string)?.trim())
+        { toast({ title: "Material Grade is required", variant: "destructive" }); return; }
+      if (!(ta.nominal_bore as string)?.trim())
+        { toast({ title: "Nominal Bore (NB) is required", variant: "destructive" }); return; }
+      if (!(ta.schedule as string)?.trim())
+        { toast({ title: "Schedule is required", variant: "destructive" }); return; }
     } else if (isFittingsMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.fitting_type as string)?.trim() || !(ta.size_nb as string)?.trim()) {

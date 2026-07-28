@@ -2460,6 +2460,104 @@ export async function resolvePlatesSapItemCode(
   );
 }
 
+// ── Pipes SAP Item Code ───────────────────────────────────────────────────────
+// Skeleton : RM-PIP-{GRADE}-{NB}-{SCH}
+//
+// Procurement Identity (encoded in the SAP Item Code):
+//   Material Grade · Nominal Bore (NB) · Schedule
+//
+// Engineering Specification (NOT in the code):
+//   End Condition · Length · Pipe Standard · MTR/MTC
+//   Surface Finish · Hydro Test / Additional Testing
+
+const PIPES_GRADE_CODE: Record<string, string> = {
+  'IS 1239 Class A': 'IS1239A',
+  'IS 1239 Class B': 'IS1239B',
+  'IS 1239 Class C': 'IS1239C',
+  'IS 3589 Fe 330':  'IS3589-330',
+  'IS 3589 Fe 410':  'IS3589-410',
+  'SA-106 Gr B':     'SA106B',
+  'SA-53 Gr B':      'SA53B',
+  'SS304 Pipe':      'SS304',
+  'SS304L Pipe':     'SS304L',
+  'SS316 Pipe':      'SS316',
+  'SS316L Pipe':     'SS316L',
+  'SA-312 TP304':    'SA312-304',
+  'SA-312 TP304L':   'SA312-304L',
+  'SA-312 TP316':    'SA312-316',
+  'SA-312 TP316L':   'SA312-316L',
+  'Copper Pipe':     'CU',
+  'Aluminium Pipe':  'AL',
+};
+
+const PIPES_SCHEDULE_CODE: Record<string, string> = {
+  'SCH 5':   'SCH5',
+  'SCH 5S':  'SCH5S',
+  'SCH 10':  'SCH10',
+  'SCH 10S': 'SCH10S',
+  'SCH 20':  'SCH20',
+  'SCH 40':  'SCH40',
+  'SCH 40S': 'SCH40S',
+  'SCH 80':  'SCH80',
+  'SCH 80S': 'SCH80S',
+  'SCH 160': 'SCH160',
+  'XXS':     'XXS',
+  'STD':     'STD',
+  'XS':      'XS',
+};
+
+export function buildPipesItemCode(attrs: Record<string, unknown>): string {
+  const gradeRaw = ((attrs.material_grade as string) ?? '').trim();
+  const nbRaw    = ((attrs.nominal_bore   as string) ?? '').trim();
+  const schRaw   = ((attrs.schedule       as string) ?? '').trim();
+
+  const missing: string[] = [];
+
+  const grade = PIPES_GRADE_CODE[gradeRaw];
+  if (!grade) {
+    missing.push(gradeRaw
+      ? `Material Grade "${gradeRaw}" is not in the recognised grade list`
+      : 'Material Grade');
+  }
+
+  if (!nbRaw) missing.push('Nominal Bore (NB)');
+
+  const sch = PIPES_SCHEDULE_CODE[schRaw];
+  if (!sch) {
+    missing.push(schRaw
+      ? `Schedule "${schRaw}" is not in the recognised schedule list`
+      : 'Schedule');
+  }
+
+  if (missing.length) {
+    throw new Error(
+      `Cannot generate Pipe SAP Item Code — missing or unrecognised: ${missing.join('; ')}`,
+    );
+  }
+
+  const code = `RM-PIP-${grade}-${nbRaw}-${sch}`;
+
+  if (code.length > SAP_ITEM_CODE_MAX_LEN) {
+    throw new Error(
+      `SAP Item Code "${code}" is ${code.length} characters — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`,
+    );
+  }
+  return code;
+}
+
+export async function resolvePipesSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  return resolveOrCreateSapMasterItem(
+    pool, buildPipesItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
+  );
+}
+
 // ── Profiles SAP Item Code ────────────────────────────────────────────────────
 // Skeleton — Solid Circular  : RM-PRF-CIR-{GRADE}-{THICK}XOD{OD}
 // Skeleton — Hollow Circular : RM-PRF-CIRH-{GRADE}-{THICK}XOD{OD}XID{ID}
