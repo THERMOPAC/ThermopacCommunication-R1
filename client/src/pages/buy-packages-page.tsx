@@ -2458,7 +2458,7 @@ export default function BuyPackagesPage() {
                     return (
                       <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
                         <span className="font-mono tracking-wide text-xs">
-                          Select Fitting Type, Grade, NB, Schedule / Pressure Class &amp; End Type to preview SAP code
+                          Select Fitting Type, Grade, NB, Schedule / Pressure Class &amp; End Type to preview SAP code (Nipples also require Length)
                         </span>
                       </div>
                     );

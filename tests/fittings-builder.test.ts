@@ -65,8 +65,8 @@ describe('buildFittingsItemCode — all 20 type codes', () => {
   it('Half Coupling (BW)', () => expect(buildFittingsItemCode(ftg({ fitting_type: 'Half Coupling'      }))).toBe('RM-FTG-HCPL-A234-WPB-50NB-SCH40-BW'));
   it('Union (BW)',         () => expect(buildFittingsItemCode(ftg({ fitting_type: 'Union'              }))).toBe('RM-FTG-UNI-A234-WPB-50NB-SCH40-BW'));
   it('Boss (BW)',          () => expect(buildFittingsItemCode(ftg({ fitting_type: 'Boss'               }))).toBe('RM-FTG-BOSS-A234-WPB-50NB-SCH40-BW'));
-  it('Barrel Nipple',      () => expect(buildFittingsItemCode(ftg({ fitting_type: 'Barrel Nipple',      end_type: 'Screwed NPT' }))).toBe('RM-FTG-BNIP-A234-WPB-50NB-SCH40-NPT'));
-  it('Pipe Nipple',        () => expect(buildFittingsItemCode(ftg({ fitting_type: 'Pipe Nipple',        end_type: 'Screwed NPT' }))).toBe('RM-FTG-PNIP-A234-WPB-50NB-SCH40-NPT'));
+  it('Barrel Nipple',      () => expect(buildFittingsItemCode(ftg({ fitting_type: 'Barrel Nipple', end_type: 'Screwed NPT', length_mm: '100' }))).toBe('RM-FTG-BNIP-A234-WPB-50NB-100MM-SCH40-NPT'));
+  it('Pipe Nipple',        () => expect(buildFittingsItemCode(ftg({ fitting_type: 'Pipe Nipple',   end_type: 'Screwed NPT', length_mm: '100' }))).toBe('RM-FTG-PNIP-A234-WPB-50NB-100MM-SCH40-NPT'));
 });
 
 // ── Suite 2: All 16 material grade codes ─────────────────────────────────────
@@ -256,6 +256,47 @@ describe('buildFittingsItemCode — required field errors', () => {
   it('collects multiple missing fields in one error', () =>
     expect(() => buildFittingsItemCode({ fitting_type: '', material_grade: '', nominal_bore: '', schedule: '', end_type: '' }))
       .toThrow('Cannot generate Fitting SAP Item Code'));
+});
+
+// ── Suite 8b: Nipple length ──────────────────────────────────────────────────
+describe('buildFittingsItemCode — nipple length mandatory', () => {
+  function bnip(overrides: Record<string, unknown> = {}) {
+    return ftg({ fitting_type: 'Barrel Nipple', end_type: 'Screwed NPT', length_mm: '100', ...overrides });
+  }
+  function pnip(overrides: Record<string, unknown> = {}) {
+    return ftg({ fitting_type: 'Pipe Nipple', end_type: 'Screwed NPT', length_mm: '100', ...overrides });
+  }
+
+  // Different lengths produce distinct codes — core procurement identity
+  it('Barrel Nipple 40NB × 50 mm',  () =>
+    expect(buildFittingsItemCode(bnip({ nominal_bore: '40NB', length_mm: '50'  }))).toBe('RM-FTG-BNIP-A234-WPB-40NB-50MM-SCH40-NPT'));
+  it('Barrel Nipple 40NB × 100 mm', () =>
+    expect(buildFittingsItemCode(bnip({ nominal_bore: '40NB', length_mm: '100' }))).toBe('RM-FTG-BNIP-A234-WPB-40NB-100MM-SCH40-NPT'));
+  it('Barrel Nipple 40NB × 150 mm', () =>
+    expect(buildFittingsItemCode(bnip({ nominal_bore: '40NB', length_mm: '150' }))).toBe('RM-FTG-BNIP-A234-WPB-40NB-150MM-SCH40-NPT'));
+
+  it('Pipe Nipple 25NB × 75 mm',    () =>
+    expect(buildFittingsItemCode(pnip({ nominal_bore: '25NB', length_mm: '75'  }))).toBe('RM-FTG-PNIP-A234-WPB-25NB-75MM-SCH40-NPT'));
+  it('Pipe Nipple 25NB × 200 mm',   () =>
+    expect(buildFittingsItemCode(pnip({ nominal_bore: '25NB', length_mm: '200' }))).toBe('RM-FTG-PNIP-A234-WPB-25NB-200MM-SCH40-NPT'));
+
+  // Custom mm value (user types "300mm" — trailing suffix stripped)
+  it('Barrel Nipple custom length "300mm" normalised to 300MM', () =>
+    expect(buildFittingsItemCode(bnip({ length_mm: '300mm' }))).toBe('RM-FTG-BNIP-A234-WPB-50NB-300MM-SCH40-NPT'));
+  it('Barrel Nipple custom length "300MM" normalised to 300MM', () =>
+    expect(buildFittingsItemCode(bnip({ length_mm: '300MM' }))).toBe('RM-FTG-BNIP-A234-WPB-50NB-300MM-SCH40-NPT'));
+
+  // Missing length must throw
+  it('Barrel Nipple missing length throws', () =>
+    expect(() => buildFittingsItemCode(ftg({ fitting_type: 'Barrel Nipple', end_type: 'Screwed NPT' })))
+      .toThrow('Length (mm)'));
+  it('Pipe Nipple missing length throws', () =>
+    expect(() => buildFittingsItemCode(ftg({ fitting_type: 'Pipe Nipple', end_type: 'Screwed NPT' })))
+      .toThrow('Length (mm)'));
+
+  // Non-nipple types must NOT include a length segment even if length_mm is present
+  it('Equal Tee ignores length_mm', () =>
+    expect(buildFittingsItemCode(ftg({ length_mm: '100' }))).toBe('RM-FTG-E90-1.5D-A234-WPB-50NB-SCH40-BW'));
 });
 
 // ── Suite 9: User examples and worst-case length ──────────────────────────────

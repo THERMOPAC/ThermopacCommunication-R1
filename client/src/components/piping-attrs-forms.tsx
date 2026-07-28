@@ -674,6 +674,7 @@ function fittingEndTypeOpts(nb: string): string[] {
 }
 const FITTINGS_STANDARD = ["ASME B16.9","ASME B16.11","MSS SP-43","MSS SP-75"];
 const ELBOW_RADIUS_OPTS = ["Long Radius (LR)","Short Radius (SR)"];
+const NIPPLE_LENGTHS    = ["50","75","100","125","150","200","250","300"];
 const FITTINGS_ALL_OPTS: Record<string, string[]> = {
   fitting_type:     FITTINGS_TYPES,
   material_grade:   FITTINGS_MATERIAL,
@@ -685,6 +686,7 @@ const FITTINGS_ALL_OPTS: Record<string, string[]> = {
   mtr_required:     YES_NO,
   elbow_radius:     ELBOW_RADIUS_OPTS,
   reducing_bore:    COMMON_NB,
+  length_mm:        NIPPLE_LENGTHS,
 };
 
 export function buildFittingsRequirement(attrs: Record<string, unknown>): string {
@@ -744,6 +746,7 @@ export function FittingsAttrsForm({
   const ftLower  = ftype.toLowerCase();
   const isLRElbow = ftype.includes("Elbow");
   const isReduce  = ftLower.includes("reducer") || ftype === "Reducing Tee" || ftype === "Swage Nipple";
+  const isNipple  = ftype === "Barrel Nipple" || ftype === "Pipe Nipple";
   const endType   = (attrs.end_type as string) ?? "";
   // Coupling / Half Coupling / Union / Boss + SW or Screwed → Pressure Class replaces Schedule
   const isPCType        = ["Coupling","Half Coupling","Union","Boss"].includes(ftype);
@@ -783,11 +786,12 @@ export function FittingsAttrsForm({
           );
         })()}
       </SectionCard>
-      {(isLRElbow || isReduce) && (
+      {(isLRElbow || isReduce || isNipple) && (
         <SectionCard title="Conditional Details" color="bg-violet-50/60 border-violet-200">
           {isLRElbow && rf("elbow_radius",  "Elbow Radius",       ELBOW_RADIUS_OPTS, true)}
           {isReduce  && rf("reducing_bore", "Reducing Size (NB)", COMMON_NB,         true)}
-          {(isLRElbow && !isReduce) && <div />}
+          {isNipple  && rf("length_mm",     "Length (mm) *",      NIPPLE_LENGTHS,    true)}
+          {((isLRElbow || isNipple) && !isReduce) && <div />}
         </SectionCard>
       )}
       <SectionCard title="Quality" color="bg-slate-50/80 border-slate-200">
@@ -828,6 +832,8 @@ const _FTG_PC_TYPES  = new Set(['Coupling','Half Coupling','Union','Boss']);
 const _FTG_SW_ENDS   = new Set(['Socket Weld (SW)','Screwed NPT','Screwed BSP']);
 const _FTG_REDUCING  = new Set(['Concentric Reducer','Eccentric Reducer','Reducing Tee','Swage Nipple']);
 
+const _FTG_NIPPLES = new Set(['Barrel Nipple', 'Pipe Nipple']);
+
 /** Client-side preview of the Fittings SAP Item Code. Returns null when any required field is missing/invalid. */
 export function buildFittingsPreviewCode(attrs: Record<string, unknown>): string | null {
   const ftype   = ((attrs.fitting_type   as string) ?? '').trim();
@@ -837,6 +843,7 @@ export function buildFittingsPreviewCode(attrs: Record<string, unknown>): string
   const endRaw  = ((attrs.end_type       as string) ?? '').trim();
   const pcRaw   = ((attrs.pressure_class as string) ?? '').trim();
   const rbRaw   = ((attrs.reducing_bore  as string) ?? '').trim();
+  const lenRaw  = ((attrs.length_mm      as string) ?? '').trim().replace(/mm$/i, '');
 
   const typeCode = _FTG_TYPE_CODE[ftype];
   const grade    = _FTG_GRADE_CODE[gradeRaw];
@@ -857,8 +864,14 @@ export function buildFittingsPreviewCode(attrs: Record<string, unknown>): string
   const isReducing = _FTG_REDUCING.has(ftype);
   if (isReducing && !rbRaw) return null;
 
-  const nbPart = isReducing ? `${nbRaw}X${rbRaw}` : nbRaw;
-  const code   = `RM-FTG-${typeCode}-${grade}-${nbPart}-${sizeDim}-${endCode}`;
+  const isNipple = _FTG_NIPPLES.has(ftype);
+  if (isNipple && !lenRaw) return null;
+
+  const nbPart   = isReducing ? `${nbRaw}X${rbRaw}` : nbRaw;
+  const segments = ['RM-FTG', typeCode, grade, nbPart];
+  if (isNipple) segments.push(`${lenRaw}MM`);
+  segments.push(sizeDim, endCode);
+  const code = segments.join('-');
   return code.length <= 50 ? code : null;
 }
 

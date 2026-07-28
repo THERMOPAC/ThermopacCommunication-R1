@@ -2539,6 +2539,9 @@ const REDUCING_FITTINGS = new Set([
   'Concentric Reducer', 'Eccentric Reducer', 'Reducing Tee', 'Swage Nipple',
 ]);
 
+// Nipples require a mandatory length (mm) — two nipples of different length are different stock items
+const NIPPLE_FITTINGS = new Set(['Barrel Nipple', 'Pipe Nipple']);
+
 export function buildFittingsItemCode(attrs: Record<string, unknown>): string {
   const ftype    = ((attrs.fitting_type   as string) ?? '').trim();
   const gradeRaw = ((attrs.material_grade as string) ?? '').trim();
@@ -2547,6 +2550,8 @@ export function buildFittingsItemCode(attrs: Record<string, unknown>): string {
   const endRaw   = ((attrs.end_type       as string) ?? '').trim();
   const pcRaw    = ((attrs.pressure_class as string) ?? '').trim();
   const rbRaw    = ((attrs.reducing_bore  as string) ?? '').trim();
+  // Nipple length: stored as plain mm number ("100") or with suffix ("100mm") — normalise by stripping suffix
+  const lenRaw   = ((attrs.length_mm      as string) ?? '').trim().replace(/mm$/i, '');
 
   const missing: string[] = [];
 
@@ -2577,14 +2582,21 @@ export function buildFittingsItemCode(attrs: Record<string, unknown>): string {
   const isReducing = REDUCING_FITTINGS.has(ftype);
   if (isReducing && !rbRaw) missing.push('Reducing Bore (second NB)');
 
+  // Nipple length is mandatory — without it identical-NB nipples of different lengths get the same code
+  const isNipple = NIPPLE_FITTINGS.has(ftype);
+  if (isNipple && !lenRaw) missing.push('Length (mm)');
+
   if (missing.length) {
     throw new Error(
       `Cannot generate Fitting SAP Item Code — missing or unrecognised: ${missing.join('; ')}`,
     );
   }
 
-  const nbPart = isReducing ? `${nbRaw}X${rbRaw}` : nbRaw;
-  const code   = `RM-FTG-${typeCode}-${grade}-${nbPart}-${sizeDim}-${endCode}`;
+  const nbPart   = isReducing ? `${nbRaw}X${rbRaw}` : nbRaw;
+  const segments = ['RM-FTG', typeCode, grade, nbPart];
+  if (isNipple) segments.push(`${lenRaw}MM`);
+  segments.push(sizeDim, endCode);
+  const code = segments.join('-');
 
   if (code.length > SAP_ITEM_CODE_MAX_LEN) {
     throw new Error(
