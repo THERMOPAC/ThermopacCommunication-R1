@@ -744,12 +744,12 @@ export function FittingsAttrsForm({
   const ftLower  = ftype.toLowerCase();
   const isLRElbow = ftype.includes("Elbow");
   const isReduce  = ftLower.includes("reducer") || ftype === "Reducing Tee" || ftype === "Swage Nipple";
+  const endType   = (attrs.end_type as string) ?? "";
   // Coupling / Half Coupling / Union / Boss + SW or Screwed → Pressure Class replaces Schedule
   const isPCType        = ["Coupling","Half Coupling","Union","Boss"].includes(ftype);
   const usePressureClass = isPCType && (endType.includes("Socket Weld") || endType.toLowerCase().includes("screwed") || endType.toLowerCase().includes("npt") || endType.toLowerCase().includes("bsp"));
   const nb        = (attrs.nominal_bore as string) ?? "";
   const nbNum     = parseInt((nb.match(/^(\d+)NB$/i)?.[1]) ?? "999");
-  const endType   = (attrs.end_type as string) ?? "";
   const isSW      = endType.includes("Socket Weld") || endType.toLowerCase().includes("screwed");
   const stdHint   = isSW ? "ASME B16.11" : "ASME B16.9";
   const endOpts   = fittingEndTypeOpts(nb);
