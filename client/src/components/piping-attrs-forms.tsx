@@ -1852,11 +1852,12 @@ export function GasketsAttrsForm({
 // 7. STRUCTURAL STEEL
 // ─────────────────────────────────────────────────────────────────────────────
 const STRUCTURAL_SECTION_TYPES = [
-  "Plate (Plain)","Plate (Chequered)","Angle (Equal Leg)","Angle (Unequal Leg)",
-  "Channel (ISMC)","I-Beam (ISMB)","H-Beam (ISHB)",
-  "Round Bar","Flat Bar","Square Bar",
-  "RHS (Round Hollow Section)","SHS (Square Hollow Section)","Rectangular Hollow Section",
-  "Grating (GI)","Grating (SS)","Expanded Metal",
+  "Plate (Chequered)",
+  "Angle (Equal Leg)", "Angle (Unequal Leg)",
+  "Channel (ISMC)", "I-Beam (ISMB)", "H-Beam (ISHB)",
+  "Round Bar", "Flat Bar", "Square Bar",
+  "SHS (Square Hollow Section)",
+  "Grating (GI)", "Grating (SS)",
 ];
 const STRUCTURAL_MATERIAL = [
   "IS 2062 E250A","IS 2062 E250 BR","IS 2062 E250 C","IS 2062 E250BO",
@@ -1865,39 +1866,239 @@ const STRUCTURAL_MATERIAL = [
   "ASTM A36","ASTM A500","ASTM A572 Gr 50",
   "EN S275","EN S355",
 ];
-const STRUCTURAL_LENGTH   = ["Mill Length","2m","3m","4m","6m","9m","12m","Cut to Size"];
-const STRUCTURAL_STANDARD = ["IS 2062","IS 1161","IS 1239","EN 10025","ASTM A36","IS 808"];
+const STRUCTURAL_STANDARD = ["IS 2062","IS 808","IS 1161","IS 1239","EN 10025","ASTM A36","ASTM A500","ASTM A572"];
 const STRUCTURAL_SURFACE  = [
   "Mill Finish (Unpainted)","Shot Blasted SA 2.5 + Primer",
   "Hot-Dip Galvanized","Epoxy Primer Coated","Zinc-Rich Primer",
 ];
-const GRATING_BAR_TYPES   = ["Flat Bar","I-Bar","Serrated Flat Bar"];
-const GRATING_MESH_SIZES  = ["30×3","30×5","33×5","38×5","40×5","40×6"];
+const STR_SUPPLY_FORM    = ["Standard Stock","Cut-to-Size"];
+const STR_PLATE_THICK    = ["3","4","5","6","8","10","12","16","20","25","32","40","50"];
+const STR_PLATE_WIDTH    = ["1000","1250","1500","2000","2500"];
+const STR_CHQ_LENGTH     = ["Mill Length","2000","2500","3000","4000","5000","6000"];
+const STR_LEG_OPTS       = ["20","25","30","35","40","45","50","55","60","65","70","75","80","90","100","110","120","130","150","200"];
+const STR_ANG_THICK      = ["3","4","5","6","8","10","12","15"];
+const STR_ISMC_DESIG     = ["ISMC 75","ISMC 100","ISMC 125","ISMC 150","ISMC 175","ISMC 200","ISMC 225","ISMC 250","ISMC 300","ISMC 350","ISMC 400"];
+const STR_ISMB_DESIG     = ["ISMB 100","ISMB 125","ISMB 150","ISMB 175","ISMB 200","ISMB 225","ISMB 250","ISMB 300","ISMB 350","ISMB 400","ISMB 450","ISMB 500","ISMB 550","ISMB 600"];
+const STR_ISHB_DESIG     = ["ISHB 150","ISHB 200","ISHB 225","ISHB 250","ISHB 300","ISHB 350","ISHB 400"];
+const _STR_ALL_DESIG     = [...STR_ISMC_DESIG, ...STR_ISMB_DESIG, ...STR_ISHB_DESIG];
+const STR_DIA_OPTS       = ["8","10","12","16","20","25","32","40","50","60","65","70","80","90","100","110","120","125","150","160","180","200"];
+const STR_FB_WIDTH       = ["20","25","30","32","40","50","60","65","75","80","90","100","125","150","200"];
+const STR_FB_THICK       = ["3","4","5","6","8","10","12","16","20","25"];
+const STR_SB_SIDE        = ["10","12","16","20","25","32","40","50","60","65","80","100"];
+const STR_SHS_SIDE       = ["20","25","40","50","60","75","80","90","100","120","150","200"];
+const STR_SHS_WALL       = ["2","2.5","3","3.5","4","4.5","5","6","8","10","12"];
+const STR_BB_WIDTH       = ["20","25","30","32","38","40"];
+const STR_BB_THICK       = ["3","4","5","6"];
+const STR_BB_PITCH       = ["30","40","50","60"];
+const STR_CB_PITCH       = ["50","100","150"];
+const STR_PANEL_WIDTH    = ["200","250","305","500","610","1000"];
+const STR_PANEL_LEN      = ["1000","1200","2000","3000","6000"];
+const STR_GRATING_MAT    = ["SS 304","SS 316"];
+const _strThickUnion = Array.from(new Set([...STR_PLATE_THICK,...STR_ANG_THICK,...STR_FB_THICK])).sort((a,b)=>parseFloat(a)-parseFloat(b));
+const _strWidthUnion  = Array.from(new Set([...STR_PLATE_WIDTH,...STR_FB_WIDTH])).sort((a,b)=>parseFloat(a)-parseFloat(b));
 const STRUCTURAL_ALL_OPTS: Record<string, string[]> = {
-  section_type:      STRUCTURAL_SECTION_TYPES,
-  material_grade:    STRUCTURAL_MATERIAL,
-  length:            STRUCTURAL_LENGTH,
-  steel_standard:    STRUCTURAL_STANDARD,
-  mtr_required:      YES_NO,
-  surface_treatment: STRUCTURAL_SURFACE,
-  grating_bar_type:  GRATING_BAR_TYPES,
-  grating_mesh_size: GRATING_MESH_SIZES,
+  section_type:        STRUCTURAL_SECTION_TYPES,
+  material_grade:      STRUCTURAL_MATERIAL,
+  supply_form:         STR_SUPPLY_FORM,
+  thickness_mm:        _strThickUnion,
+  width_mm:            _strWidthUnion,
+  chq_length:          STR_CHQ_LENGTH,
+  leg_mm:              STR_LEG_OPTS,
+  leg1_mm:             STR_LEG_OPTS,
+  leg2_mm:             STR_LEG_OPTS,
+  section_designation: _STR_ALL_DESIG,
+  diameter_mm:         STR_DIA_OPTS,
+  side_mm:             STR_SB_SIDE,
+  shs_side_mm:         STR_SHS_SIDE,
+  wall_thickness_mm:   STR_SHS_WALL,
+  bb_width_mm:         STR_BB_WIDTH,
+  bb_thickness_mm:     STR_BB_THICK,
+  bb_pitch_mm:         STR_BB_PITCH,
+  cb_pitch_mm:         STR_CB_PITCH,
+  panel_width_mm:      STR_PANEL_WIDTH,
+  panel_length_mm:     STR_PANEL_LEN,
+  grating_material:    STR_GRATING_MAT,
+  mtr_required:        YES_NO,
+  surface_treatment:   STRUCTURAL_SURFACE,
+  steel_standard:      STRUCTURAL_STANDARD,
 };
 
-export function buildStructuralSteelRequirement(attrs: Record<string, unknown>): string {
-  const stype  = (attrs.section_type   as string)?.trim() || "";
-  const grade  = (attrs.material_grade as string)?.trim() || "";
-  const size   = (attrs.section_size   as string)?.trim() || "";
-  const length = (attrs.length         as string)?.trim() || "";
-  const std    = (attrs.steel_standard as string)?.trim() || "";
-  if (!stype) return "";
-  const parts: string[] = [stype];
-  if (size)   parts.push(size);
-  if (grade)  parts.push(grade);
-  if (length) parts.push(length);
-  if (std)    parts.push(std);
-  return parts.join(", ");
+// ── Client-side SAP code builder (mirrors server buildStructuralSteelItemCode) ─
+const _STR_GRADE_CODE: Record<string, string> = {
+  'IS 2062 E250A': 'E250A',  'IS 2062 E250 BR': 'E250BR',
+  'IS 2062 E250 C': 'E250C', 'IS 2062 E250BO': 'E250BO',
+  'IS 2062 E300': 'E300',    'IS 2062 E350': 'E350',
+  'IS 2062 E350BO': 'E350BO','IS 2062 E410': 'E410',
+  'SS 304': 'SS304',         'SS 304L': 'SS304L',
+  'SS 316': 'SS316',         'SS 316L': 'SS316L',
+  'ASTM A36': 'A36',         'ASTM A500': 'A500',
+  'ASTM A572 Gr 50': 'A572-50',
+  'EN S275': 'S275',         'EN S355': 'S355',
+};
+const _STR_TYPE_CODE: Record<string, string> = {
+  'Plate (Chequered)':           'PLTC',
+  'Angle (Equal Leg)':           'ANG',
+  'Angle (Unequal Leg)':         'ANGU',
+  'Channel (ISMC)':              'CHN',
+  'I-Beam (ISMB)':               'IBM',
+  'H-Beam (ISHB)':               'HBM',
+  'Round Bar':                   'RB',
+  'Flat Bar':                    'FB',
+  'Square Bar':                  'SB',
+  'SHS (Square Hollow Section)': 'SHS',
+  'Grating (GI)':                'GRTGI',
+  'Grating (SS)':                'GRTSS',
+};
+function _strDim(raw: string | undefined): string | null {
+  const s = (raw ?? '').trim();
+  if (!s) return null;
+  const n = parseFloat(s);
+  if (isNaN(n) || n <= 0) return null;
+  return Number.isInteger(n) ? String(Math.round(n)) : String(n);
 }
+
+export function buildStructuralSteelPreviewCode(attrs: Record<string, unknown>): string {
+  try {
+    const g = (k: string) => ((attrs[k] as string | undefined) ?? '').trim();
+    const stype    = g('section_type');
+    const typeCode = _STR_TYPE_CODE[stype];
+    if (!typeCode) return '';
+    const isCTS = g('supply_form') === 'Cut-to-Size';
+    function ctsSuffix(): string {
+      if (!isCTS) return '';
+      const cl = _strDim(g('cut_length_mm'));
+      return cl ? `-CTS-${cl}MM` : '';
+    }
+    if (stype === 'Grating (GI)') {
+      const bbw = _strDim(g('bb_width_mm')), bbt = _strDim(g('bb_thickness_mm'));
+      const bbp = _strDim(g('bb_pitch_mm')), cbp = _strDim(g('cb_pitch_mm'));
+      const pw  = _strDim(g('panel_width_mm')), pl = _strDim(g('panel_length_mm'));
+      if (!bbw||!bbt||!bbp||!cbp||!pw||!pl) return '';
+      return `RM-STR-GRTGI-${bbw}X${bbt}-P${bbp}-C${cbp}-${pw}X${pl}`;
+    }
+    if (stype === 'Grating (SS)') {
+      const gmatRaw = g('grating_material');
+      const gmat = gmatRaw === 'SS 304' ? 'SS304' : gmatRaw === 'SS 316' ? 'SS316' : null;
+      if (!gmat) return '';
+      const bbw = _strDim(g('bb_width_mm')), bbt = _strDim(g('bb_thickness_mm'));
+      const bbp = _strDim(g('bb_pitch_mm')), cbp = _strDim(g('cb_pitch_mm'));
+      const pw  = _strDim(g('panel_width_mm')), pl = _strDim(g('panel_length_mm'));
+      if (!bbw||!bbt||!bbp||!cbp||!pw||!pl) return '';
+      return `RM-STR-GRTSS-${gmat}-${bbw}X${bbt}-P${bbp}-C${cbp}-${pw}X${pl}`;
+    }
+    const grade = _STR_GRADE_CODE[g('material_grade')];
+    if (!grade) return '';
+    if (stype === 'Plate (Chequered)') {
+      const t = _strDim(g('thickness_mm')), w = _strDim(g('width_mm'));
+      const lRaw = g('chq_length');
+      if (!lRaw || lRaw === 'Mill Length') return '';
+      const l = _strDim(lRaw);
+      if (!t||!w||!l) return '';
+      return `RM-STR-PLTC-${grade}-${t}X${w}X${l}`;
+    }
+    if (stype === 'Angle (Equal Leg)') {
+      const leg = _strDim(g('leg_mm')), thk = _strDim(g('thickness_mm'));
+      if (!leg||!thk) return '';
+      const cts = ctsSuffix(); if (isCTS && !cts) return '';
+      return `RM-STR-ANG-${grade}-${leg}X${thk}${cts}`;
+    }
+    if (stype === 'Angle (Unequal Leg)') {
+      const l1 = _strDim(g('leg1_mm')), l2 = _strDim(g('leg2_mm')), thk = _strDim(g('thickness_mm'));
+      if (!l1||!l2||!thk) return '';
+      const cts = ctsSuffix(); if (isCTS && !cts) return '';
+      return `RM-STR-ANGU-${grade}-${l1}X${l2}X${thk}${cts}`;
+    }
+    if (stype === 'Channel (ISMC)' || stype === 'I-Beam (ISMB)' || stype === 'H-Beam (ISHB)') {
+      const desig = g('section_designation').replace(/\s+/g, '');
+      if (!desig) return '';
+      const cts = ctsSuffix(); if (isCTS && !cts) return '';
+      return `RM-STR-${typeCode}-${grade}-${desig}${cts}`;
+    }
+    if (stype === 'Round Bar') {
+      const dia = _strDim(g('diameter_mm'));
+      if (!dia) return '';
+      const cts = ctsSuffix(); if (isCTS && !cts) return '';
+      return `RM-STR-RB-${grade}-DIA${dia}${cts}`;
+    }
+    if (stype === 'Flat Bar') {
+      const w = _strDim(g('width_mm')), t = _strDim(g('thickness_mm'));
+      if (!w||!t) return '';
+      const cts = ctsSuffix(); if (isCTS && !cts) return '';
+      return `RM-STR-FB-${grade}-${w}X${t}${cts}`;
+    }
+    if (stype === 'Square Bar') {
+      const s = _strDim(g('side_mm'));
+      if (!s) return '';
+      const cts = ctsSuffix(); if (isCTS && !cts) return '';
+      return `RM-STR-SB-${grade}-${s}${cts}`;
+    }
+    if (stype === 'SHS (Square Hollow Section)') {
+      const s = _strDim(g('shs_side_mm')), wt = _strDim(g('wall_thickness_mm'));
+      if (!s||!wt) return '';
+      const cts = ctsSuffix(); if (isCTS && !cts) return '';
+      return `RM-STR-SHS-${grade}-${s}X${wt}${cts}`;
+    }
+    return '';
+  } catch { return ''; }
+}
+
+export function buildStructuralSteelRequirement(attrs: Record<string, unknown>): string {
+  const g = (k: string) => ((attrs[k] as string | undefined) ?? '').trim();
+  const stype = g('section_type');
+  if (!stype) return '';
+  const grade = g('material_grade');
+  const sf    = g('supply_form');
+  const parts: string[] = [stype];
+  if (stype === 'Plate (Chequered)') {
+    const t = g('thickness_mm'), w = g('width_mm'), l = g('chq_length');
+    if (t && w) parts.push(`${t}×${w}mm`);
+    if (l) parts.push(l === 'Mill Length' ? 'Mill Length' : `L=${l}mm`);
+  } else if (stype === 'Angle (Equal Leg)') {
+    const leg = g('leg_mm'), thk = g('thickness_mm');
+    if (leg && thk) parts.push(`${leg}×${leg}×${thk}mm`);
+  } else if (stype === 'Angle (Unequal Leg)') {
+    const l1 = g('leg1_mm'), l2 = g('leg2_mm'), thk = g('thickness_mm');
+    if (l1 && l2 && thk) parts.push(`${l1}×${l2}×${thk}mm`);
+  } else if (stype === 'Channel (ISMC)' || stype === 'I-Beam (ISMB)' || stype === 'H-Beam (ISHB)') {
+    const desig = g('section_designation');
+    if (desig) parts.push(desig);
+  } else if (stype === 'Round Bar') {
+    const dia = g('diameter_mm');
+    if (dia) parts.push(`Ø${dia}mm`);
+  } else if (stype === 'Flat Bar') {
+    const w = g('width_mm'), t = g('thickness_mm');
+    if (w && t) parts.push(`${w}×${t}mm`);
+  } else if (stype === 'Square Bar') {
+    const s = g('side_mm');
+    if (s) parts.push(`${s}×${s}mm`);
+  } else if (stype === 'SHS (Square Hollow Section)') {
+    const s = g('shs_side_mm'), wt = g('wall_thickness_mm');
+    if (s && wt) parts.push(`${s}×${s}×${wt}mm`);
+  } else if (stype === 'Grating (GI)') {
+    const bbw = g('bb_width_mm'), bbt = g('bb_thickness_mm');
+    const pw = g('panel_width_mm'), pl = g('panel_length_mm');
+    if (bbw && bbt) parts.push(`BB ${bbw}×${bbt}mm`);
+    if (pw && pl) parts.push(`Panel ${pw}×${pl}mm`);
+  } else if (stype === 'Grating (SS)') {
+    const mat = g('grating_material');
+    const bbw = g('bb_width_mm'), bbt = g('bb_thickness_mm');
+    const pw = g('panel_width_mm'), pl = g('panel_length_mm');
+    if (mat) parts.push(mat);
+    if (bbw && bbt) parts.push(`BB ${bbw}×${bbt}mm`);
+    if (pw && pl) parts.push(`Panel ${pw}×${pl}mm`);
+  }
+  if (grade) parts.push(grade);
+  if (sf) parts.push(sf);
+  return parts.join(', ');
+}
+
+const _STR_DIM_KEYS = [
+  "thickness_mm","width_mm","chq_length","leg_mm","leg1_mm","leg2_mm",
+  "section_designation","diameter_mm","side_mm","shs_side_mm","wall_thickness_mm",
+  "bb_width_mm","bb_thickness_mm","bb_pitch_mm","cb_pitch_mm",
+  "panel_width_mm","panel_length_mm","grating_material",
+  "supply_form","cut_length_mm",
+];
 
 export function StructuralSteelAttrsForm({
   attrs, qty, onChange, onQtyChange,
@@ -1918,10 +2119,22 @@ export function StructuralSteelAttrsForm({
   const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
 
   function handleSelect(key: string, val: string) {
-    if (val === "__other__") { setCustom(c => ({ ...c, [key]: true }));  set(key, ""); }
-    else {
+    if (val === "__other__") {
+      setCustom(c => ({ ...c, [key]: true }));
+      set(key, "");
+    } else {
       setCustom(c => ({ ...c, [key]: false }));
-      if (key === "material_grade") {
+      if (key === "section_type") {
+        const cleared: Record<string, unknown> = { ...attrs, section_type: val };
+        for (const dk of _STR_DIM_KEYS) delete cleared[dk];
+        if (val === "Grating (GI)") cleared.surface_treatment = "Hot-Dip Galvanized";
+        setCustom(c => {
+          const nc = { ...c, section_type: false };
+          for (const dk of _STR_DIM_KEYS) nc[dk] = false;
+          return nc;
+        });
+        onChange(cleared);
+      } else if (key === "material_grade") {
         const existingMtr = (attrs.mtr_required  as string) ?? "";
         const existingStd = (attrs.steel_standard as string) ?? "";
         onChange({
@@ -1935,6 +2148,7 @@ export function StructuralSteelAttrsForm({
       }
     }
   }
+
   function rf(key: string, label: string, opts: string[], required?: boolean) {
     const curVal = (attrs[key] as string) ?? "";
     const isCust = custom[key] ?? false;
@@ -1949,44 +2163,87 @@ export function StructuralSteelAttrsForm({
     );
   }
 
-  const stype      = (attrs.section_type as string) ?? "";
-  const grade      = (attrs.material_grade as string) ?? "";
-  const length     = (attrs.length as string) ?? "";
-  const isGrating  = stype.toLowerCase().includes("grating");
-  const isHollow   = stype.toLowerCase().includes("hollow");
-  const isCutToSz  = length === "Cut to Size";
+  const stype    = (attrs.section_type as string) ?? "";
+  const grade    = (attrs.material_grade as string) ?? "";
+  const sf       = (attrs.supply_form as string) ?? "";
+  const isCTS    = sf === "Cut-to-Size";
+  const isGrtGI  = stype === "Grating (GI)";
+  const isGrtSS  = stype === "Grating (SS)";
+  const isGrt    = isGrtGI || isGrtSS;
+  const isCTSCap = !isGrt && stype !== "" && stype !== "Plate (Chequered)";
   const mtrDefault = getStructuralMtrDefault(grade);
   const curMtr     = (attrs.mtr_required as string) ?? "";
+  const designOpts = stype === "Channel (ISMC)" ? STR_ISMC_DESIG
+                   : stype === "I-Beam (ISMB)"  ? STR_ISMB_DESIG
+                   : stype === "H-Beam (ISHB)"  ? STR_ISHB_DESIG
+                   : _STR_ALL_DESIG;
 
   return (
     <div className="space-y-3">
       <SectionCard title="Section Specification" color="bg-sky-50/60 border-sky-200">
-        {rf("section_type",   "Section Type",              STRUCTURAL_SECTION_TYPES, true)}
-        {rf("material_grade", "Material Grade",            STRUCTURAL_MATERIAL,      true)}
-        <div className="space-y-1.5">
-          <Label className="text-xs">Section Size / Designation <span className="text-red-500">*</span></Label>
-          <Input className="h-8 text-sm" placeholder="e.g. 75×75×8, ISMC 100, ISMB 200"
-            value={(attrs.section_size as string) ?? ""} onChange={e => set("section_size", e.target.value)} />
-        </div>
-        {rf("length",         "Length",                    STRUCTURAL_LENGTH,        true)}
-        {rf("steel_standard", "Steel Standard",            STRUCTURAL_STANDARD,      true)}
-        <div />
+        {rf("section_type", "Section Type", STRUCTURAL_SECTION_TYPES, true)}
+        {!isGrt && rf("material_grade", "Material Grade", STRUCTURAL_MATERIAL, true)}
+        {isGrtSS && rf("grating_material", "Grating Material (SS Grade)", STR_GRATING_MAT, true)}
+
+        {stype === "Plate (Chequered)" && (
+          <>
+            {rf("thickness_mm", "Thickness (mm)", STR_PLATE_THICK, true)}
+            {rf("width_mm",     "Width (mm)",     STR_PLATE_WIDTH, true)}
+            {rf("chq_length",   "Plate Length",   STR_CHQ_LENGTH,  true)}
+            {(attrs.chq_length as string) === "Mill Length" && (
+              <p className="text-[10px] text-amber-600 col-span-3 md:col-span-5 -mt-1">
+                Mill Length — SAP code cannot be auto-generated; enter code manually.
+              </p>
+            )}
+          </>
+        )}
+        {stype === "Angle (Equal Leg)" && (
+          <>
+            {rf("leg_mm",       "Leg Size (mm)",  STR_LEG_OPTS,  true)}
+            {rf("thickness_mm", "Thickness (mm)", STR_ANG_THICK, true)}
+          </>
+        )}
+        {stype === "Angle (Unequal Leg)" && (
+          <>
+            {rf("leg1_mm",      "Leg 1 (mm)",     STR_LEG_OPTS,  true)}
+            {rf("leg2_mm",      "Leg 2 (mm)",     STR_LEG_OPTS,  true)}
+            {rf("thickness_mm", "Thickness (mm)", STR_ANG_THICK, true)}
+          </>
+        )}
+        {(stype === "Channel (ISMC)" || stype === "I-Beam (ISMB)" || stype === "H-Beam (ISHB)") &&
+          rf("section_designation", "Section Designation", designOpts, true)}
+        {stype === "Round Bar" &&
+          rf("diameter_mm", "Diameter (mm)", STR_DIA_OPTS, true)}
+        {stype === "Flat Bar" && (
+          <>
+            {rf("width_mm",     "Width (mm)",     STR_FB_WIDTH, true)}
+            {rf("thickness_mm", "Thickness (mm)", STR_FB_THICK, true)}
+          </>
+        )}
+        {stype === "Square Bar" &&
+          rf("side_mm", "Side (mm)", STR_SB_SIDE, true)}
+        {stype === "SHS (Square Hollow Section)" && (
+          <>
+            {rf("shs_side_mm",      "Side (mm)",          STR_SHS_SIDE, true)}
+            {rf("wall_thickness_mm","Wall Thickness (mm)", STR_SHS_WALL, true)}
+          </>
+        )}
+        {isGrt && (
+          <>
+            {rf("bb_width_mm",     "Bearing Bar Width (mm)",     STR_BB_WIDTH,    true)}
+            {rf("bb_thickness_mm", "Bearing Bar Thickness (mm)", STR_BB_THICK,    true)}
+            {rf("bb_pitch_mm",     "Bearing Bar Pitch (mm)",     STR_BB_PITCH,    true)}
+            {rf("cb_pitch_mm",     "Cross Bar Pitch (mm)",       STR_CB_PITCH,    true)}
+            {rf("panel_width_mm",  "Panel Width (mm)",           STR_PANEL_WIDTH, true)}
+            {rf("panel_length_mm", "Panel Length (mm)",          STR_PANEL_LEN,   true)}
+          </>
+        )}
       </SectionCard>
 
-      {(isGrating || isHollow || isCutToSz) && (
-        <SectionCard title="Conditional Details" color="bg-violet-50/60 border-violet-200">
-          {isGrating && rf("grating_bar_type",  "Grating Bar Type",  GRATING_BAR_TYPES,  true)}
-          {isGrating && rf("grating_mesh_size", "Grating Mesh Size", GRATING_MESH_SIZES, true)}
-          {isHollow && (
-            <div className="space-y-1.5">
-              <Label className="text-xs">Wall Thickness (mm) <span className="text-red-500">*</span></Label>
-              <Input className="h-8 text-sm" type="number" min="1" step="1" placeholder="e.g. 5"
-                value={(attrs.hollow_wall_thickness as string) ?? ""}
-                onWheel={e => e.currentTarget.blur()}
-                onChange={e => set("hollow_wall_thickness", e.target.value)} />
-            </div>
-          )}
-          {isCutToSz && (
+      {isCTSCap && (
+        <SectionCard title="Supply & Length" color="bg-emerald-50/60 border-emerald-200">
+          {rf("supply_form", "Supply Form", STR_SUPPLY_FORM, true)}
+          {isCTS && (
             <div className="space-y-1.5">
               <Label className="text-xs">Cut Length (mm) <span className="text-red-500">*</span></Label>
               <Input className="h-8 text-sm" type="number" min="1" step="1" placeholder="e.g. 1500"
@@ -1995,35 +2252,41 @@ export function StructuralSteelAttrsForm({
                 onChange={e => set("cut_length_mm", e.target.value)} />
             </div>
           )}
-          {isGrating && !isHollow && !isCutToSz && null}
-          {!isGrating && (isHollow || isCutToSz) && <div />}
         </SectionCard>
       )}
 
       <SectionCard title="Quality & Construction" color="bg-slate-50/80 border-slate-200">
-        <div className="space-y-1.5">
-          <Label className="text-xs">MTR Required</Label>
-          {(() => {
-            const isCust = custom["mtr_required"] ?? false;
-            const effective = curMtr || mtrDefault;
-            const selVal = isCust ? "__other__" : (YES_NO.includes(effective) ? effective : "");
-            return (
-              <>
-                <SearchableSelect value={selVal} options={YES_NO} placeholder="Select…"
-                  onSelect={v => handleSelect("mtr_required", v)} />
-                {grade && !curMtr && (
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    Default: {mtrDefault} ({
-                      grade.toUpperCase().startsWith("SS") || grade.toUpperCase().includes("DUPLEX")
-                        ? "SS / Duplex material" : "Carbon Steel material"
-                    })
-                  </p>
-                )}
-              </>
-            );
-          })()}
-        </div>
+        {!isGrt && (
+          <div className="space-y-1.5">
+            <Label className="text-xs">MTR Required</Label>
+            {(() => {
+              const isCust = custom["mtr_required"] ?? false;
+              const effective = curMtr || mtrDefault;
+              const selVal = isCust ? "__other__" : (YES_NO.includes(effective) ? effective : "");
+              return (
+                <>
+                  <SearchableSelect value={selVal} options={YES_NO} placeholder="Select…"
+                    onSelect={v => handleSelect("mtr_required", v)} />
+                  {grade && !curMtr && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      Default: {mtrDefault} ({
+                        grade.toUpperCase().startsWith("SS") || grade.toUpperCase().includes("DUPLEX")
+                          ? "SS / Duplex material" : "Carbon Steel material"
+                      })
+                    </p>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        )}
+        {!isGrt && rf("steel_standard", "Steel Standard", STRUCTURAL_STANDARD)}
         {rf("surface_treatment", "Surface Treatment", STRUCTURAL_SURFACE)}
+        {isGrtGI && (
+          <p className="text-[10px] text-muted-foreground col-span-3 md:col-span-5 -mt-1">
+            Auto-set to Hot-Dip Galvanized for GI Grating
+          </p>
+        )}
         <QtyField qty={qty} onQtyChange={onQtyChange} />
       </SectionCard>
     </div>

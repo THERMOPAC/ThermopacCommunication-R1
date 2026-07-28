@@ -78,7 +78,7 @@ import {
   buildCoolingTowerRequirement, buildBoughtOutRequirement, buildComponentsRequirement,
   buildPanelPreviewCode, buildCablingPreviewCode, buildJunctionBoxPreviewCode,
 } from "@/components/electrical-attrs-forms";
-import { buildPlatesPreviewCode, buildProfilesPreviewCode, buildPipesPreviewCode, buildFittingsPreviewCode, buildFastenersPreviewCode, buildGasketsPreviewCode } from "@/components/piping-attrs-forms";
+import { buildPlatesPreviewCode, buildProfilesPreviewCode, buildPipesPreviewCode, buildFittingsPreviewCode, buildFastenersPreviewCode, buildGasketsPreviewCode, buildStructuralSteelPreviewCode } from "@/components/piping-attrs-forms";
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
   NrvValveAttrsForm, NeedleValveAttrsForm,
@@ -676,6 +676,10 @@ export default function BuyPackagesPage() {
   const isComponentsMode =
     (lineDialog.lock?.subgroupCode === "components") ||
     (selectedGroupCode === "electrical_control" && selectedSubgroupCode === "components");
+  // Raw materials group — Make & Model are not part of procurement identity
+  const isRawMaterialsMode =
+    (lineDialog.lock?.groupCode === "raw_materials") ||
+    (selectedGroupCode === "raw_materials");
 
   // ── Invalidation helpers ──────────────────────────────────────────────────────
   const invalidatePkgs  = () => queryClient.invalidateQueries({ queryKey: ["/api/buy-packages"] });
@@ -1696,7 +1700,7 @@ export default function BuyPackagesPage() {
       }
     }
 
-    if (!isNonFlameproofMotorMode && !isFlameproofMotorMode && !isIsolationValveMode && !isControlValveMode && !isSafetyValveMode && !isPanelMode && !isCablingMode && !isJunctionBoxMode && !lf.model.trim()) {
+    if (!isRawMaterialsMode && !isNonFlameproofMotorMode && !isFlameproofMotorMode && !isIsolationValveMode && !isControlValveMode && !isSafetyValveMode && !isPanelMode && !isCablingMode && !isJunctionBoxMode && !lf.model.trim()) {
       toast({ title: "Model is required", variant: "destructive" }); return;
     }
     const body = {
@@ -2517,6 +2521,33 @@ export default function BuyPackagesPage() {
                       </div>
                     );
                   }
+                  // Priority 0a — Structural Steel: spec-based preview
+                  if (isStructuralSteelMode) {
+                    const strCode = buildStructuralSteelPreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (strCode) {
+                      const savedCode = lineDialog.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== strCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-slate-400 bg-slate-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-slate-800 text-sm">
+                            {strCode}
+                          </span>
+                          {isNew && (
+                            <span className="text-[10px] text-slate-600 font-medium uppercase tracking-wide">New</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">
+                          Fill all required fields to preview SAP code
+                        </span>
+                      </div>
+                    );
+                  }
                   // Priority 0a — Profiles: spec-based preview
                   if (isProfilesMode) {
                     const prfCode = buildProfilesPreviewCode(
@@ -2763,11 +2794,13 @@ export default function BuyPackagesPage() {
                       </div>
                     );
                   }
-                  // Priority 3 — waiting for make+model to be set
+                  // Priority 3 — fallback hint
                   return (
                     <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
                       <span className="font-mono tracking-wide text-xs">
-                        Set Make &amp; Model above to preview the code
+                        {(isRawMaterialsMode || isMotorMode)
+                          ? "Fill required fields above to preview the SAP code"
+                          : "Set Make \u0026 Model above to preview the code"}
                       </span>
                     </div>
                   );
@@ -2776,7 +2809,7 @@ export default function BuyPackagesPage() {
 
               {/* Row 2 — Installed On / Make / Model */}
               <div className="grid grid-cols-6 gap-3">
-                <div className="col-span-2 space-y-1.5">
+                <div className={(isRawMaterialsMode || isMotorMode) ? "col-span-6 space-y-1.5" : "col-span-2 space-y-1.5"}>
                   <Label className="text-xs font-medium">Installed On</Label>
                   <Select
                     value={lf.installedOn || "_none"}
@@ -2791,25 +2824,29 @@ export default function BuyPackagesPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="col-span-2 space-y-1.5">
-                  <Label className="text-xs font-medium">
-                    Make <span className="text-red-500">*</span>
-                  </Label>
-                  <MakeCombobox
-                    value={(lf.technicalAttributes?.make as string) ?? ""}
-                    onChange={(val) => setLf((f) => ({ ...f, technicalAttributes: { ...f.technicalAttributes, make: val } }))}
-                  />
-                </div>
-                <div className="col-span-2 space-y-1.5">
-                  <Label className="text-xs font-medium">
-                    Model <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    value={lf.model}
-                    onChange={(e) => setLf((f) => ({ ...f, model: e.target.value }))}
-                    placeholder="e.g. TBN, 3100, NHM-50…"
-                  />
-                </div>
+                {!isRawMaterialsMode && !isMotorMode && (
+                  <>
+                    <div className="col-span-2 space-y-1.5">
+                      <Label className="text-xs font-medium">
+                        Make <span className="text-red-500">*</span>
+                      </Label>
+                      <MakeCombobox
+                        value={(lf.technicalAttributes?.make as string) ?? ""}
+                        onChange={(val) => setLf((f) => ({ ...f, technicalAttributes: { ...f.technicalAttributes, make: val } }))}
+                      />
+                    </div>
+                    <div className="col-span-2 space-y-1.5">
+                      <Label className="text-xs font-medium">
+                        Model <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        value={lf.model}
+                        onChange={(e) => setLf((f) => ({ ...f, model: e.target.value }))}
+                        placeholder="e.g. TBN, 3100, NHM-50…"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Structured forms: Plates / Pipes / generic */}

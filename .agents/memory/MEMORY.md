@@ -1,4 +1,5 @@
 - [SAP ChartOfAccounts Code dash format](sap-coa-code-dash.md) — SAP Code field uses dashes (e.g. `50207350600-ARL`); FormatCode omits them. Always strip dashes when matching user input against SAP account codes.
+- [Buy Catalog SAP Item Persistence](buy-catalog-sap-persistence.md) — Phase 1 complete: getOrCreateCatalogMasterItem helper, ON CONFLICT DO NOTHING pattern, two-DB migration, all 26 resolvers standardised.
 - [Payroll guard raw SQL pattern](payroll-guard-raw-sql.md) — Drizzle ORM isNull()+and() guards on payroll_records silently failed; raw db.execute(sql`...`) with Number() casts is required for critical blocking checks.
 - [Payroll leave auto-cover deduction](payroll-leave-autocover.md) — Official payroll actually deducts leave balance via payroll_leave_autocover table; trial does not; reversal restores it.
 - [Trial vs official payroll separate code paths](payroll-trial-vs-official-paths.md) — Trial runs use payroll-trial-routes.ts (own balance queries); official runs use payroll-run-engine.ts. Any balance fix must be applied to BOTH files independently.

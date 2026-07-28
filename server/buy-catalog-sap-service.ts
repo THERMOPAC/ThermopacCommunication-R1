@@ -205,41 +205,7 @@ export async function resolveNfpMotorSapItemCode(
   description: string,
 ): Promise<CatalogSapResult> {
   const itemCode = buildNfpMotorItemCode(attrs);
-  assertSapCodeLength(itemCode);
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    const existing = await client.query<{ id: number; item_code: string }>(
-      `SELECT id, item_code FROM master_items
-       WHERE item_type = 'catalog' AND item_code = $1
-       FOR UPDATE`,
-      [itemCode],
-    );
-
-    if (existing.rowCount && existing.rowCount > 0) {
-      await client.query('COMMIT');
-      return { masterItemId: existing.rows[0].id, sapItemCode: itemCode, reused: true };
-    }
-
-    const inserted = await client.query<{ id: number; item_code: string }>(
-      `INSERT INTO master_items
-         (item_code, description, uom, make_or_buy,
-          item_type, buy_group_id, buy_subgroup_id, created_at, updated_at)
-       VALUES ($1, $2, $3, 'Buy', 'catalog', $4, $5, NOW(), NOW())
-       RETURNING id, item_code`,
-      [itemCode, description, uomCode, groupId, subgroupId],
-    );
-
-    await client.query('COMMIT');
-    return { masterItemId: inserted.rows[0].id, sapItemCode: itemCode, reused: false };
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  return getOrCreateCatalogMasterItem(pool, itemCode, description, uomCode, groupId, subgroupId, null, null);
 }
 
 // ── FLP Motor Spec-Based Item Code ───────────────────────────────────────────
@@ -327,41 +293,7 @@ export async function resolveFlpMotorSapItemCode(
   description: string,
 ): Promise<CatalogSapResult> {
   const itemCode = buildFlpMotorItemCode(attrs);
-  assertSapCodeLength(itemCode);
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    const existing = await client.query<{ id: number; item_code: string }>(
-      `SELECT id, item_code FROM master_items
-       WHERE item_type = 'catalog' AND item_code = $1
-       FOR UPDATE`,
-      [itemCode],
-    );
-
-    if (existing.rowCount && existing.rowCount > 0) {
-      await client.query('COMMIT');
-      return { masterItemId: existing.rows[0].id, sapItemCode: itemCode, reused: true };
-    }
-
-    const inserted = await client.query<{ id: number; item_code: string }>(
-      `INSERT INTO master_items
-         (item_code, description, uom, make_or_buy,
-          item_type, buy_group_id, buy_subgroup_id, created_at, updated_at)
-       VALUES ($1, $2, $3, 'Buy', 'catalog', $4, $5, NOW(), NOW())
-       RETURNING id, item_code`,
-      [itemCode, description, uomCode, groupId, subgroupId],
-    );
-
-    await client.query('COMMIT');
-    return { masterItemId: inserted.rows[0].id, sapItemCode: itemCode, reused: false };
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  return getOrCreateCatalogMasterItem(pool, itemCode, description, uomCode, groupId, subgroupId, null, null);
 }
 
 // ── Isolation Valve Spec-Based Item Code ─────────────────────────────────────
@@ -505,41 +437,7 @@ export async function resolveIsoValveSapItemCode(
   description: string,
 ): Promise<CatalogSapResult> {
   const itemCode = buildIsoValveItemCode(attrs);
-  assertSapCodeLength(itemCode);
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    const existing = await client.query<{ id: number; item_code: string }>(
-      `SELECT id, item_code FROM master_items
-       WHERE item_type = 'catalog' AND item_code = $1
-       FOR UPDATE`,
-      [itemCode],
-    );
-
-    if (existing.rowCount && existing.rowCount > 0) {
-      await client.query('COMMIT');
-      return { masterItemId: existing.rows[0].id, sapItemCode: itemCode, reused: true };
-    }
-
-    const inserted = await client.query<{ id: number; item_code: string }>(
-      `INSERT INTO master_items
-         (item_code, description, uom, make_or_buy,
-          item_type, buy_group_id, buy_subgroup_id, created_at, updated_at)
-       VALUES ($1, $2, $3, 'Buy', 'catalog', $4, $5, NOW(), NOW())
-       RETURNING id, item_code`,
-      [itemCode, description, uomCode, groupId, subgroupId],
-    );
-
-    await client.query('COMMIT');
-    return { masterItemId: inserted.rows[0].id, sapItemCode: itemCode, reused: false };
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  return getOrCreateCatalogMasterItem(pool, itemCode, description, uomCode, groupId, subgroupId, null, null);
 }
 
 // ── Control Valve Spec-Based Item Code ───────────────────────────────────────
@@ -703,41 +601,7 @@ export async function resolveCtrlValveSapItemCode(
   description: string,
 ): Promise<CatalogSapResult> {
   const itemCode = buildCtrlValveItemCode(attrs);
-  assertSapCodeLength(itemCode);
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    const existing = await client.query<{ id: number; item_code: string }>(
-      `SELECT id, item_code FROM master_items
-       WHERE item_type = 'catalog' AND item_code = $1
-       FOR UPDATE`,
-      [itemCode],
-    );
-
-    if (existing.rowCount && existing.rowCount > 0) {
-      await client.query('COMMIT');
-      return { masterItemId: existing.rows[0].id, sapItemCode: itemCode, reused: true };
-    }
-
-    const inserted = await client.query<{ id: number; item_code: string }>(
-      `INSERT INTO master_items
-         (item_code, description, uom, make_or_buy,
-          item_type, buy_group_id, buy_subgroup_id, created_at, updated_at)
-       VALUES ($1, $2, $3, 'Buy', 'catalog', $4, $5, NOW(), NOW())
-       RETURNING id, item_code`,
-      [itemCode, description, uomCode, groupId, subgroupId],
-    );
-
-    await client.query('COMMIT');
-    return { masterItemId: inserted.rows[0].id, sapItemCode: itemCode, reused: false };
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  return getOrCreateCatalogMasterItem(pool, itemCode, description, uomCode, groupId, subgroupId, null, null);
 }
 
 // ── Safety Valve Spec-Based Item Codes ───────────────────────────────────────
@@ -931,33 +795,7 @@ export async function resolveSafetyValveSapItemCode(
   description: string,
 ): Promise<CatalogSapResult> {
   const itemCode = buildSafetyValveItemCode(attrs);
-  assertSapCodeLength(itemCode);
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const existing = await client.query<{ id: number }>(
-      `SELECT id FROM master_items WHERE item_type = 'catalog' AND item_code = $1 FOR UPDATE`,
-      [itemCode],
-    );
-    if (existing.rowCount && existing.rowCount > 0) {
-      await client.query('COMMIT');
-      return { masterItemId: existing.rows[0].id, sapItemCode: itemCode, reused: true };
-    }
-    const inserted = await client.query<{ id: number }>(
-      `INSERT INTO master_items
-         (item_code, description, uom, make_or_buy, item_type, buy_group_id, buy_subgroup_id, created_at, updated_at)
-       VALUES ($1,$2,$3,'Buy','catalog',$4,$5,NOW(),NOW()) RETURNING id`,
-      [itemCode, description, uomCode, groupId, subgroupId],
-    );
-    await client.query('COMMIT');
-    return { masterItemId: inserted.rows[0].id, sapItemCode: itemCode, reused: false };
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  return getOrCreateCatalogMasterItem(pool, itemCode, description, uomCode, groupId, subgroupId, null, null);
 }
 
 // ── ON/OFF Valve Spec-Based Item Codes ───────────────────────────────────────
@@ -1278,33 +1116,7 @@ export async function resolveOnOffValveSapItemCode(
   description: string,
 ): Promise<CatalogSapResult> {
   const itemCode = buildOnOffValveItemCode(attrs);
-  assertSapCodeLength(itemCode);
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const existing = await client.query<{ id: number }>(
-      `SELECT id FROM master_items WHERE item_type = 'catalog' AND item_code = $1 FOR UPDATE`,
-      [itemCode],
-    );
-    if (existing.rowCount && existing.rowCount > 0) {
-      await client.query('COMMIT');
-      return { masterItemId: existing.rows[0].id, sapItemCode: itemCode, reused: true };
-    }
-    const inserted = await client.query<{ id: number }>(
-      `INSERT INTO master_items
-         (item_code, description, uom, make_or_buy, item_type, buy_group_id, buy_subgroup_id, created_at, updated_at)
-       VALUES ($1,$2,$3,'Buy','catalog',$4,$5,NOW(),NOW()) RETURNING id`,
-      [itemCode, description, uomCode, groupId, subgroupId],
-    );
-    await client.query('COMMIT');
-    return { masterItemId: inserted.rows[0].id, sapItemCode: itemCode, reused: false };
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  return getOrCreateCatalogMasterItem(pool, itemCode, description, uomCode, groupId, subgroupId, null, null);
 }
 
 // ── NRV Check Valve SAP Item Code ─────────────────────────────────────────────
@@ -1541,33 +1353,7 @@ export async function resolveNrvValveSapItemCode(
   description: string,
 ): Promise<CatalogSapResult> {
   const itemCode = buildNrvValveItemCode(attrs);
-  assertSapCodeLength(itemCode);
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const existing = await client.query<{ id: number }>(
-      `SELECT id FROM master_items WHERE item_type = 'catalog' AND item_code = $1 FOR UPDATE`,
-      [itemCode],
-    );
-    if (existing.rowCount && existing.rowCount > 0) {
-      await client.query('COMMIT');
-      return { masterItemId: existing.rows[0].id, sapItemCode: itemCode, reused: true };
-    }
-    const inserted = await client.query<{ id: number }>(
-      `INSERT INTO master_items
-         (item_code, description, uom, make_or_buy, item_type, buy_group_id, buy_subgroup_id, created_at, updated_at)
-       VALUES ($1,$2,$3,'Buy','catalog',$4,$5,NOW(),NOW()) RETURNING id`,
-      [itemCode, description, uomCode, groupId, subgroupId],
-    );
-    await client.query('COMMIT');
-    return { masterItemId: inserted.rows[0].id, sapItemCode: itemCode, reused: false };
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  return getOrCreateCatalogMasterItem(pool, itemCode, description, uomCode, groupId, subgroupId, null, null);
 }
 
 /**
@@ -1603,6 +1389,79 @@ export function assertSapCodeLength(code: string): void {
 }
 
 /**
+ * Atomically find or create a catalog master item keyed by SAP Item Code.
+ *
+ * Concurrency guarantee:
+ *   INSERT … ON CONFLICT (item_code) DO NOTHING is a single atomic statement.
+ *   Concurrent requests for the same code never produce duplicate rows and
+ *   never return HTTP 500 due to a unique violation.
+ *
+ * Collision guard:
+ *   If the conflicting row has item_type != 'catalog', throws immediately
+ *   rather than silently returning a project item as a catalog master item.
+ *
+ * Retry:
+ *   If the fallback SELECT finds no row (extremely tight race window), retries
+ *   once before throwing an internal consistency error.
+ */
+export async function getOrCreateCatalogMasterItem(
+  pool:        Pool,
+  itemCode:    string,
+  description: string,
+  uomCode:     string,
+  groupId:     number,
+  subgroupId:  number,
+  make:        string | null,
+  model:       string | null,
+): Promise<CatalogSapResult> {
+  assertSapCodeLength(itemCode);
+
+  // Attempt atomic insert. If item_code already exists, DO NOTHING returns 0 rows.
+  const inserted = await pool.query<{ id: number; item_code: string; item_type: string }>(
+    `INSERT INTO master_items
+       (item_code, description, uom, make_or_buy,
+        item_type, buy_group_id, buy_subgroup_id, catalog_make, catalog_model,
+        created_at, updated_at)
+     VALUES ($1, $2, $3, 'Buy', 'catalog', $4, $5, $6, $7, NOW(), NOW())
+     ON CONFLICT (item_code) DO NOTHING
+     RETURNING id, item_code, item_type`,
+    [itemCode, description, uomCode, groupId, subgroupId, make, model],
+  );
+
+  if (inserted.rowCount && inserted.rowCount > 0) {
+    return { masterItemId: inserted.rows[0].id, sapItemCode: itemCode, reused: false };
+  }
+
+  // DO NOTHING fired — a concurrent insert already committed this item_code.
+  // Fetch the existing row. Retry once in case of an extremely tight race window.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const existing = await pool.query<{ id: number; item_code: string; item_type: string }>(
+      `SELECT id, item_code, item_type FROM master_items WHERE item_code = $1`,
+      [itemCode],
+    );
+    if (existing.rowCount && existing.rowCount > 0) {
+      const row = existing.rows[0];
+      if (row.item_type !== 'catalog') {
+        throw Object.assign(
+          new Error(
+            `SAP Item Code "${itemCode}" conflicts with an existing ${row.item_type} master item. ` +
+            `This code cannot be used as a catalog item. Contact the system administrator.`,
+          ),
+          { sapCodeCollision: true, itemCode, existingItemType: row.item_type },
+        );
+      }
+      return { masterItemId: row.id, sapItemCode: itemCode, reused: true };
+    }
+  }
+
+  // Should never reach here — UNIQUE constraint guarantees the row exists after DO NOTHING.
+  throw new Error(
+    `Internal consistency error: SAP Item Code "${itemCode}" could not be found after ` +
+    `a concurrent insert conflict. Please retry the operation.`,
+  );
+}
+
+/**
  * Find or create a master_items catalog record for the given 4-field identity.
  * The item code is deterministic (no counter), so concurrent requests for the
  * same identity are safe — only one INSERT wins; the other reuses via SELECT.
@@ -1624,74 +1483,15 @@ export async function resolveCatalogSapItemCode(
   uomCode:     string,
   description: string,
 ): Promise<CatalogSapResult> {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    // 1 — Try to find an existing catalog record for this exact identity.
-    //     Use FOR UPDATE to lock the row and prevent concurrent duplicates.
-    const existing = await client.query<{ id: number; item_code: string }>(
-      `SELECT id, item_code
-       FROM master_items
-       WHERE item_type       = 'catalog'
-         AND buy_group_id    = $1
-         AND buy_subgroup_id = $2
-         AND catalog_make    = $3
-         AND catalog_model   = $4
-       FOR UPDATE`,
-      [groupId, subgroupId, make, model],
-    );
-
-    if (existing.rowCount && existing.rowCount > 0) {
-      await client.query('COMMIT');
-      return {
-        masterItemId: existing.rows[0].id,
-        sapItemCode:  existing.rows[0].item_code,
-        reused:       true,
-      };
-    }
-
-    // 2 — No match — build the deterministic code from group + subgroup + make + model.
-    const grpRow = await client.query<{ code: string }>(
-      `SELECT code FROM buy_groups WHERE id = $1`,
-      [groupId],
-    );
-    const sgRow = await client.query<{ code: string }>(
-      `SELECT code FROM buy_subgroups WHERE id = $1`,
-      [subgroupId],
-    );
-    const grpPfx  = grpRow.rowCount && grpRow.rowCount > 0 ? groupPrefix(grpRow.rows[0].code)   : 'GEN';
-    const sgPfx   = sgRow.rowCount  && sgRow.rowCount  > 0 ? subgroupPrefix(sgRow.rows[0].code) : 'GEN';
-    const itemCode = buildCatalogItemCode(grpPfx, sgPfx, make, model);
-
-    // Hard-block: never insert a code that exceeds SAP B1's 50-char limit.
-    assertSapCodeLength(itemCode);
-
-    // 3 — Insert the new master_items record.
-    const inserted = await client.query<{ id: number; item_code: string }>(
-      `INSERT INTO master_items
-         (item_code, description, uom, make_or_buy,
-          item_type, buy_group_id, buy_subgroup_id, catalog_make, catalog_model,
-          created_at, updated_at)
-       VALUES ($1, $2, $3, 'Buy',
-               'catalog', $4, $5, $6, $7,
-               NOW(), NOW())
-       RETURNING id, item_code`,
-      [itemCode, description, uomCode, groupId, subgroupId, make, model],
-    );
-
-    await client.query('COMMIT');
-    return {
-      masterItemId: inserted.rows[0].id,
-      sapItemCode:  inserted.rows[0].item_code,
-      reused:       false,
-    };
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  // Fetch group/subgroup prefix codes to build the deterministic SAP Item Code.
+  const [grpRow, sgRow] = await Promise.all([
+    pool.query<{ code: string }>(`SELECT code FROM buy_groups    WHERE id = $1`, [groupId]),
+    pool.query<{ code: string }>(`SELECT code FROM buy_subgroups WHERE id = $1`, [subgroupId]),
+  ]);
+  const grpPfx   = grpRow.rowCount  && grpRow.rowCount  > 0 ? groupPrefix(grpRow.rows[0].code)    : 'GEN';
+  const sgPfx    = sgRow.rowCount   && sgRow.rowCount   > 0 ? subgroupPrefix(sgRow.rows[0].code)  : 'GEN';
+  const itemCode = buildCatalogItemCode(grpPfx, sgPfx, make, model);
+  return getOrCreateCatalogMasterItem(pool, itemCode, description, uomCode, groupId, subgroupId, make, model);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1897,7 +1697,7 @@ export async function resolveNeedleValveSapItemCode(
   description: string,
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
   const itemCode = buildNeedleValveItemCode(attrs);
-  return resolveOrCreateSapMasterItem(pool, itemCode, description, uomCode, groupId, subgroupId, null, null);
+  return getOrCreateCatalogMasterItem(pool, itemCode, description, uomCode, groupId, subgroupId, null, null);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1992,7 +1792,7 @@ export async function resolveMccPanelSapItemCode(
   description: string,
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
   const itemCode = buildMccPanelItemCode(attrs);
-  return resolveOrCreateSapMasterItem(pool, itemCode, description, uomCode, groupId, subgroupId, null, null);
+  return getOrCreateCatalogMasterItem(pool, itemCode, description, uomCode, groupId, subgroupId, null, null);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -2086,7 +1886,7 @@ export async function resolveStarterPanelSapItemCode(
   pool: Pool, groupId: number, subgroupId: number,
   attrs: Record<string, unknown>, uomCode: string, description: string,
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
-  return resolveOrCreateSapMasterItem(pool, buildStarterPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
+  return getOrCreateCatalogMasterItem(pool, buildStarterPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
 }
 
 // ── Distribution Board ────────────────────────────────────────────────────────
@@ -2116,7 +1916,7 @@ export async function resolveDbPanelSapItemCode(
   pool: Pool, groupId: number, subgroupId: number,
   attrs: Record<string, unknown>, uomCode: string, description: string,
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
-  return resolveOrCreateSapMasterItem(pool, buildDbPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
+  return getOrCreateCatalogMasterItem(pool, buildDbPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
 }
 
 // ── Power Distribution Panel ──────────────────────────────────────────────────
@@ -2146,7 +1946,7 @@ export async function resolvePdpPanelSapItemCode(
   pool: Pool, groupId: number, subgroupId: number,
   attrs: Record<string, unknown>, uomCode: string, description: string,
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
-  return resolveOrCreateSapMasterItem(pool, buildPdpPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
+  return getOrCreateCatalogMasterItem(pool, buildPdpPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
 }
 
 // ── Automation Panels (PLC / DCS / SCADA / REL) ───────────────────────────────
@@ -2180,7 +1980,7 @@ export async function resolveAutomationPanelSapItemCode(
   pool: Pool, groupId: number, subgroupId: number,
   attrs: Record<string, unknown>, uomCode: string, description: string,
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
-  return resolveOrCreateSapMasterItem(pool, buildAutomationPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
+  return getOrCreateCatalogMasterItem(pool, buildAutomationPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
 }
 
 // ── APFC Panel ────────────────────────────────────────────────────────────────
@@ -2208,7 +2008,7 @@ export async function resolveApfcPanelSapItemCode(
   pool: Pool, groupId: number, subgroupId: number,
   attrs: Record<string, unknown>, uomCode: string, description: string,
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
-  return resolveOrCreateSapMasterItem(pool, buildApfcPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
+  return getOrCreateCatalogMasterItem(pool, buildApfcPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
 }
 
 // ── VFD Panel ─────────────────────────────────────────────────────────────────
@@ -2239,7 +2039,7 @@ export async function resolveVfdPanelSapItemCode(
   pool: Pool, groupId: number, subgroupId: number,
   attrs: Record<string, unknown>, uomCode: string, description: string,
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
-  return resolveOrCreateSapMasterItem(pool, buildVfdPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
+  return getOrCreateCatalogMasterItem(pool, buildVfdPanelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null);
 }
 
 // ── Cabling SAP Item Code ─────────────────────────────────────────────────────
@@ -2345,7 +2145,7 @@ export async function resolveCablingSapItemCode(
   uomCode:     string,
   description: string,
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
-  return resolveOrCreateSapMasterItem(
+  return getOrCreateCatalogMasterItem(
     pool, buildCablingItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
   );
 }
@@ -2455,7 +2255,7 @@ export async function resolvePlatesSapItemCode(
   uomCode:     string,
   description: string,
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
-  return resolveOrCreateSapMasterItem(
+  return getOrCreateCatalogMasterItem(
     pool, buildPlatesItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
   );
 }
@@ -2614,7 +2414,7 @@ export async function resolveFittingsSapItemCode(
   uomCode:     string,
   description: string,
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
-  return resolveOrCreateSapMasterItem(
+  return getOrCreateCatalogMasterItem(
     pool, buildFittingsItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
   );
 }
@@ -2712,7 +2512,7 @@ export async function resolvePipesSapItemCode(
   uomCode:     string,
   description: string,
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
-  return resolveOrCreateSapMasterItem(
+  return getOrCreateCatalogMasterItem(
     pool, buildPipesItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
   );
 }
@@ -2813,7 +2613,7 @@ export async function resolveProfilesSapItemCode(
   uomCode:     string,
   description: string,
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
-  return resolveOrCreateSapMasterItem(
+  return getOrCreateCatalogMasterItem(
     pool, buildProfilesItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
   );
 }
@@ -2962,7 +2762,7 @@ export async function resolveJunctionBoxSapItemCode(
   uomCode:     string,
   description: string,
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
-  return resolveOrCreateSapMasterItem(
+  return getOrCreateCatalogMasterItem(
     pool, buildJunctionBoxItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
   );
 }
@@ -3293,7 +3093,7 @@ export async function resolveFastenersSapItemCode(
   uomCode:     string,
   description: string,
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
-  return resolveOrCreateSapMasterItem(
+  return getOrCreateCatalogMasterItem(
     pool, buildFastenersItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
   );
 }
@@ -3523,7 +3323,190 @@ export async function resolveGasketsSapItemCode(
   uomCode:     string,
   description: string,
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
-  return resolveOrCreateSapMasterItem(
+  return getOrCreateCatalogMasterItem(
     pool, buildGasketsItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
+  );
+}
+
+// ── Structural Steel Spec-Based Item Code ─────────────────────────────────────
+
+const STR_GRADE_CODE: Record<string, string> = {
+  'IS 2062 E250A':   'E250A',  'IS 2062 E250 BR': 'E250BR',
+  'IS 2062 E250 C':  'E250C',  'IS 2062 E250BO':  'E250BO',
+  'IS 2062 E300':    'E300',   'IS 2062 E350':    'E350',
+  'IS 2062 E350BO':  'E350BO', 'IS 2062 E410':    'E410',
+  'SS 304':  'SS304',  'SS 304L': 'SS304L',
+  'SS 316':  'SS316',  'SS 316L': 'SS316L',
+  'ASTM A36': 'A36',   'ASTM A500': 'A500',  'ASTM A572 Gr 50': 'A572-50',
+  'EN S275': 'S275',   'EN S355': 'S355',
+};
+
+const STR_GRATING_MAT_CODE: Record<string, string> = {
+  'SS304': 'SS304', 'SS316': 'SS316',
+};
+
+const STR_TYPE_CODE: Record<string, string> = {
+  'Plate (Chequered)':          'PLTC',
+  'Angle (Equal Leg)':          'ANG',
+  'Angle (Unequal Leg)':        'ANGU',
+  'Channel (ISMC)':             'CHN',
+  'I-Beam (ISMB)':              'IBM',
+  'H-Beam (ISHB)':              'HBM',
+  'Round Bar':                  'RB',
+  'Flat Bar':                   'FB',
+  'Square Bar':                 'SB',
+  'SHS (Square Hollow Section)':'SHS',
+  'Grating (GI)':               'GRTGI',
+  'Grating (SS)':               'GRTSS',
+};
+
+function strFmtDim(raw: string | undefined): string | null {
+  const s = (raw ?? '').trim();
+  if (!s) return null;
+  const n = parseFloat(s);
+  if (isNaN(n) || n <= 0) return null;
+  return Number.isInteger(n) ? String(Math.round(n)) : String(n);
+}
+
+export function buildStructuralSteelItemCode(attrs: Record<string, unknown>): string {
+  const g = (k: string) => ((attrs[k] as string | undefined) ?? '').trim();
+
+  const stype    = g('section_type');
+  const typeCode = STR_TYPE_CODE[stype];
+  if (!typeCode) throw new Error(`Cannot generate Structural Steel SAP Item Code — Section Type "${stype}" not recognised`);
+
+  const isCTS = g('supply_form') === 'Cut-to-Size';
+  function ctsSuffix(): string {
+    if (!isCTS) return '';
+    const cl = strFmtDim(g('cut_length_mm'));
+    if (!cl) throw new Error(`Cannot generate Structural Steel SAP Item Code — Cut Length is required when Supply Form is Cut-to-Size`);
+    return `-CTS-${cl}MM`;
+  }
+
+  // ── Grating (GI) ──────────────────────────────────────────────────────────
+  if (stype === 'Grating (GI)') {
+    const bbw = strFmtDim(g('bb_width_mm')), bbt = strFmtDim(g('bb_thickness_mm'));
+    const bbp = strFmtDim(g('bb_pitch_mm')), cbp = strFmtDim(g('cb_pitch_mm'));
+    const pw  = strFmtDim(g('panel_width_mm')), pl = strFmtDim(g('panel_length_mm'));
+    const miss = [!bbw&&'Bearing Bar Width',!bbt&&'Bearing Bar Thickness',!bbp&&'Bearing Bar Pitch',
+                  !cbp&&'Cross Bar Pitch',!pw&&'Panel Width',!pl&&'Panel Length'].filter(Boolean);
+    if (miss.length) throw new Error(`Cannot generate Structural Steel SAP Item Code — missing: ${miss.join('; ')}`);
+    const code = `RM-STR-GRTGI-${bbw}X${bbt}-P${bbp}-C${cbp}-${pw}X${pl}`;
+    if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
+    return code;
+  }
+
+  // ── Grating (SS) ──────────────────────────────────────────────────────────
+  if (stype === 'Grating (SS)') {
+    const gmatRaw = g('grating_material');
+    const gmat = STR_GRATING_MAT_CODE[gmatRaw];
+    const bbw = strFmtDim(g('bb_width_mm')), bbt = strFmtDim(g('bb_thickness_mm'));
+    const bbp = strFmtDim(g('bb_pitch_mm')), cbp = strFmtDim(g('cb_pitch_mm'));
+    const pw  = strFmtDim(g('panel_width_mm')), pl = strFmtDim(g('panel_length_mm'));
+    const miss = [!gmat&&`Material "${gmatRaw}" not recognised`,!bbw&&'Bearing Bar Width',
+                  !bbt&&'Bearing Bar Thickness',!bbp&&'Bearing Bar Pitch',!cbp&&'Cross Bar Pitch',
+                  !pw&&'Panel Width',!pl&&'Panel Length'].filter(Boolean);
+    if (miss.length) throw new Error(`Cannot generate Structural Steel SAP Item Code — missing or unrecognised: ${miss.join('; ')}`);
+    const code = `RM-STR-GRTSS-${gmat}-${bbw}X${bbt}-P${bbp}-C${cbp}-${pw}X${pl}`;
+    if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
+    return code;
+  }
+
+  // ── All other families — require material grade ────────────────────────────
+  const gradeRaw = g('material_grade');
+  const grade    = STR_GRADE_CODE[gradeRaw];
+  if (!grade) throw new Error(`Cannot generate Structural Steel SAP Item Code — Material Grade "${gradeRaw}" not recognised`);
+
+  // Plate (Chequered)
+  if (stype === 'Plate (Chequered)') {
+    const t = strFmtDim(g('thickness_mm')), w = strFmtDim(g('width_mm'));
+    const lRaw = g('chq_length');
+    if (!lRaw || lRaw === 'Mill Length')
+      throw new Error(`Cannot generate Structural Steel SAP Item Code — specify an exact Length (Mill Length requires manual SAP code entry)`);
+    const l = strFmtDim(lRaw);
+    const miss = [!t&&'Thickness',!w&&'Width',!l&&'Length (invalid)'].filter(Boolean);
+    if (miss.length) throw new Error(`Cannot generate Structural Steel SAP Item Code — missing: ${miss.join('; ')}`);
+    const code = `RM-STR-PLTC-${grade}-${t}X${w}X${l}`;
+    if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
+    return code;
+  }
+
+  // Angle (Equal Leg)
+  if (stype === 'Angle (Equal Leg)') {
+    const leg = strFmtDim(g('leg_mm')), thk = strFmtDim(g('thickness_mm'));
+    if (!leg || !thk) throw new Error(`Cannot generate Structural Steel SAP Item Code — Leg and Thickness are required`);
+    const code = `RM-STR-ANG-${grade}-${leg}X${thk}${ctsSuffix()}`;
+    if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
+    return code;
+  }
+
+  // Angle (Unequal Leg)
+  if (stype === 'Angle (Unequal Leg)') {
+    const l1 = strFmtDim(g('leg1_mm')), l2 = strFmtDim(g('leg2_mm')), thk = strFmtDim(g('thickness_mm'));
+    const miss = [!l1&&'Leg 1',!l2&&'Leg 2',!thk&&'Thickness'].filter(Boolean);
+    if (miss.length) throw new Error(`Cannot generate Structural Steel SAP Item Code — missing: ${miss.join('; ')}`);
+    const code = `RM-STR-ANGU-${grade}-${l1}X${l2}X${thk}${ctsSuffix()}`;
+    if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
+    return code;
+  }
+
+  // Channel / I-Beam / H-Beam
+  if (stype === 'Channel (ISMC)' || stype === 'I-Beam (ISMB)' || stype === 'H-Beam (ISHB)') {
+    const desig = g('section_designation').replace(/\s+/g, '');
+    if (!desig) throw new Error(`Cannot generate Structural Steel SAP Item Code — Section Designation is required`);
+    const code = `RM-STR-${typeCode}-${grade}-${desig}${ctsSuffix()}`;
+    if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
+    return code;
+  }
+
+  // Round Bar
+  if (stype === 'Round Bar') {
+    const dia = strFmtDim(g('diameter_mm'));
+    if (!dia) throw new Error(`Cannot generate Structural Steel SAP Item Code — Diameter is required`);
+    const code = `RM-STR-RB-${grade}-DIA${dia}${ctsSuffix()}`;
+    if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
+    return code;
+  }
+
+  // Flat Bar
+  if (stype === 'Flat Bar') {
+    const w = strFmtDim(g('width_mm')), t = strFmtDim(g('thickness_mm'));
+    if (!w || !t) throw new Error(`Cannot generate Structural Steel SAP Item Code — Width and Thickness are required`);
+    const code = `RM-STR-FB-${grade}-${w}X${t}${ctsSuffix()}`;
+    if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
+    return code;
+  }
+
+  // Square Bar
+  if (stype === 'Square Bar') {
+    const s = strFmtDim(g('side_mm'));
+    if (!s) throw new Error(`Cannot generate Structural Steel SAP Item Code — Side is required`);
+    const code = `RM-STR-SB-${grade}-${s}${ctsSuffix()}`;
+    if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
+    return code;
+  }
+
+  // SHS (Square Hollow Section)
+  if (stype === 'SHS (Square Hollow Section)') {
+    const s = strFmtDim(g('shs_side_mm')), wt = strFmtDim(g('wall_thickness_mm'));
+    if (!s || !wt) throw new Error(`Cannot generate Structural Steel SAP Item Code — Side and Wall Thickness are required`);
+    const code = `RM-STR-SHS-${grade}-${s}X${wt}${ctsSuffix()}`;
+    if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
+    return code;
+  }
+
+  throw new Error(`Cannot generate Structural Steel SAP Item Code — Section Type "${stype}" not handled`);
+}
+
+export async function resolveStructuralSteelSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  return getOrCreateCatalogMasterItem(
+    pool, buildStructuralSteelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
   );
 }
