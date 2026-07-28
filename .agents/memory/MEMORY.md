@@ -10,3 +10,5 @@
 - [EPC ↔ Quality handover architecture](epc-quality-handover.md) — Two-handover model: IO is the handover object. Dispatch gate + IER write-back already existed. Only new pieces: epc_work_order_id FK on inspection_orders, POST request-inspection route, and write-back hook in quality-routes.ts PATCH handler.
 - [All 10 panel SAP Item Code builders](panel-sap-builders.md) — All panel types spec-based; detection uses `isSpecPanel` set (not per-type booleans); single `buildPanelPreviewCode` dispatcher on client; `panelAreaSeg` shared helper in service file.
 - [SAP Vendor Sync Rules](sap-vendor-sync-rules.md) — No $select/no $orderby; forceLogin() before every Full Sync; PAGE_SIZE=20 hard cap; filter by U_ERP_Group IN (R/P/M/I/V/E/B) not GroupCode.
+- [Fittings form field order](fittings-form-field-order.md) — End Type must appear directly above Schedule/Pressure Class in the same card; placing it in a lower card made the toggle invisible to the user.
+- [Nipple SAP code requires length](nipple-sap-length.md) — Barrel Nipple and Pipe Nipple must include length_mm as a mandatory segment ({N}MM) or different-length nipples of same NB get identical codes.
