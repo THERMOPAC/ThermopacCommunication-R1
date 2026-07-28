@@ -38,6 +38,7 @@ import {
   resolveVfdPanelSapItemCode,
   resolveCablingSapItemCode,
   resolveJunctionBoxSapItemCode,
+  resolveFittingsSapItemCode,
   resolvePipesSapItemCode,
   resolvePlatesSapItemCode,
   resolveProfilesSapItemCode,
@@ -904,6 +905,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const isPlates      = groupCode === 'raw_materials'      && subgroupCode === 'plates';
       const isProfiles    = groupCode === 'raw_materials'      && subgroupCode === 'profiles';
       const isPipes       = groupCode === 'raw_materials'      && subgroupCode === 'pipes';
+      const isFittings    = groupCode === 'raw_materials'      && subgroupCode === 'fittings';
       if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor && !isIsoValve && !isCtrlValve && !isSafetyValve && !isOnOffValve && !isNrvValve && !isNeedleValve && !isSpecPanel && !isCabling && !isJunctionBox) {
         const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
         const make = readMakeScalar(attrs);
@@ -941,6 +943,21 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const _pi = (k: string) => (((technicalAttributes ?? {}) as Record<string, unknown>)[k] as string | undefined ?? '').trim();
         const desc = `${_pi('material_grade')} Pipe — ${_pi('nominal_bore')} — ${_pi('schedule')} — ${_pi('end_condition')}`.slice(0, 255);
         const sapRes = await resolvePipesSapItemCode(pool, buyGroupId, buySubgroupId, (technicalAttributes ?? {}) as Record<string, unknown>, uomCode, desc);
+        sapMasterItemId  = sapRes.masterItemId;
+        sapItemCodeValue = sapRes.sapItemCode;
+      } else if (isFittings && technicalAttributes !== undefined) {
+        const _ft = (k: string) => (((technicalAttributes ?? {}) as Record<string, unknown>)[k] as string | undefined ?? '').trim();
+        const ftType = _ft('fitting_type');
+        const rbStr  = _ft('reducing_bore');
+        const isRed  = ['Concentric Reducer','Eccentric Reducer','Reducing Tee','Swage Nipple'].includes(ftType);
+        const nbPart = isRed && rbStr ? `${_ft('nominal_bore')}×${rbStr}` : _ft('nominal_bore');
+        const pcFtgs = new Set(['Coupling','Half Coupling','Union','Boss']);
+        const swEnds = new Set(['Socket Weld (SW)','Screwed NPT','Screwed BSP']);
+        const sizePart = pcFtgs.has(ftType) && swEnds.has(_ft('end_type'))
+          ? _ft('pressure_class')
+          : _ft('schedule');
+        const desc = `${ftType} — ${_ft('material_grade')} — ${nbPart} — ${sizePart} — ${_ft('end_type')}`.slice(0, 255);
+        const sapRes = await resolveFittingsSapItemCode(pool, buyGroupId, buySubgroupId, (technicalAttributes ?? {}) as Record<string, unknown>, uomCode, desc);
         sapMasterItemId  = sapRes.masterItemId;
         sapItemCodeValue = sapRes.sapItemCode;
       } else if (groupCode && groupCode !== 'raw_materials') {
@@ -1192,6 +1209,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const isPlates2       = groupCode2 === 'raw_materials'      && subgroupCode2 === 'plates';
         const isProfiles2     = groupCode2 === 'raw_materials'      && subgroupCode2 === 'profiles';
         const isPipes2        = groupCode2 === 'raw_materials'      && subgroupCode2 === 'pipes';
+        const isFittings2     = groupCode2 === 'raw_materials'      && subgroupCode2 === 'fittings';
         if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2 && !isIsoValve2 && !isCtrlValve2 && !isSafetyValve2 && !isOnOffValve2 && !isNrvValve2 && !isNeedleValve2 && !isSpecPanel2 && !isCabling2 && !isJunctionBox2) {
           const attrs2 = (b.technicalAttributes ?? {}) as Record<string, unknown>;
           const make2 = readMakeScalar(attrs2);
@@ -1248,6 +1266,29 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           const _pi3 = (k: string) => ((attrs3[k] as string | undefined) ?? '').trim();
           const desc3 = `${_pi3('material_grade')} Pipe — ${_pi3('nominal_bore')} — ${_pi3('schedule')} — ${_pi3('end_condition')}`.slice(0, 255);
           const sapRes3 = await resolvePipesSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+          fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
+          fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
+        } else if (isFittings2 && b.technicalAttributes !== undefined) {
+          const attrs3  = (b.technicalAttributes ?? {}) as Record<string, unknown>;
+          const uomRow3 = await pool.query(
+            `SELECT u.code FROM uom_master u
+             JOIN buy_package_lines bpl ON bpl.uom_id = u.id
+             WHERE bpl.id = $1`,
+            [id],
+          );
+          const uomCode3 = (uomRow3.rows[0]?.code as string) ?? 'Nos';
+          const _ft3 = (k: string) => ((attrs3[k] as string | undefined) ?? '').trim();
+          const ftType3 = _ft3('fitting_type');
+          const rbStr3  = _ft3('reducing_bore');
+          const isRed3  = ['Concentric Reducer','Eccentric Reducer','Reducing Tee','Swage Nipple'].includes(ftType3);
+          const nbPart3 = isRed3 && rbStr3 ? `${_ft3('nominal_bore')}×${rbStr3}` : _ft3('nominal_bore');
+          const pcFtgs3 = new Set(['Coupling','Half Coupling','Union','Boss']);
+          const swEnds3 = new Set(['Socket Weld (SW)','Screwed NPT','Screwed BSP']);
+          const sizePart3 = pcFtgs3.has(ftType3) && swEnds3.has(_ft3('end_type'))
+            ? _ft3('pressure_class')
+            : _ft3('schedule');
+          const desc3 = `${ftType3} — ${_ft3('material_grade')} — ${nbPart3} — ${sizePart3} — ${_ft3('end_type')}`.slice(0, 255);
+          const sapRes3 = await resolveFittingsSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
           fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
           fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
         } else if (groupCode2 && groupCode2 !== 'raw_materials') {

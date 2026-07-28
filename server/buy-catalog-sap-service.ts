@@ -2460,6 +2460,153 @@ export async function resolvePlatesSapItemCode(
   );
 }
 
+// ── Fittings SAP Item Code ────────────────────────────────────────────────────
+// Skeleton (BW / reducing):    RM-FTG-{TYPE}-{GRADE}-{NB}-{SCH}-{END}
+// Skeleton (BW / reducing):    RM-FTG-{TYPE}-{GRADE}-{NB}X{RNB}-{SCH}-{END}
+// Skeleton (SW/Screwed / std): RM-FTG-{TYPE}-{GRADE}-{NB}-{PC}-{END}
+// Skeleton (SW/Screwed / red): RM-FTG-{TYPE}-{GRADE}-{NB}X{RNB}-{PC}-{END}
+//
+// Procurement Identity:
+//   All types : Fitting Type · Material Grade · Nominal Bore · Schedule or Pressure Class · End Type
+//   Reducing  : + Reducing Bore (Concentric/Eccentric Reducer · Reducing Tee · Swage Nipple)
+//   SW/Screwed for Coupling/Half Coupling/Union/Boss : Pressure Class (3000LB/6000LB/9000LB)
+//     replaces Schedule — these fittings are manufactured and catalogued to B16.11 Pressure Class,
+//     not to pipe schedule designations.
+//
+// Outside the code: Fitting Standard · MTR · Elbow Radius (already in type name) · Eccentric orientation
+
+const FITTINGS_TYPE_CODE: Record<string, string> = {
+  '90° 1D Elbow':       'E90-1D',
+  '90° 1.5D Elbow':     'E90-1.5D',
+  '90° 2D Elbow':       'E90-2D',
+  '45° 1D Elbow':       'E45-1D',
+  '45° 1.5D Elbow':     'E45-1.5D',
+  '45° 2D Elbow':       'E45-2D',
+  'Equal Tee':          'TEE',
+  'Reducing Tee':       'TEER',
+  'Cross':              'CRS',
+  'Concentric Reducer': 'REDC',
+  'Eccentric Reducer':  'REDE',
+  'End Cap':            'CAP',
+  'Stub End':           'STUB',
+  'Swage Nipple':       'SWAG',
+  'Coupling':           'CPLG',
+  'Half Coupling':      'HCPL',
+  'Union':              'UNI',
+  'Boss':               'BOSS',
+  'Barrel Nipple':      'BNIP',
+  'Pipe Nipple':        'PNIP',
+};
+
+const FITTINGS_GRADE_CODE: Record<string, string> = {
+  'A 105':            'A105',
+  'A 182 F304':       'A182-F304',
+  'A 182 F316':       'A182-F316',
+  'A234 WPB':         'A234-WPB',
+  'A234 WPC':         'A234-WPC',
+  'A234 WP11':        'A234-WP11',
+  'A234 WP22':        'A234-WP22',
+  'A403 WP304':       'A403-304',
+  'A403 WP304L':      'A403-304L',
+  'A403 WP316':       'A403-316',
+  'A403 WP316L':      'A403-316L',
+  'A403 WP321':       'A403-321',
+  'A403 WP347':       'A403-347',
+  'A860 WPHY 60':     'A860-60',
+  'Duplex F51':       'F51',
+  'Super Duplex F53': 'F53',
+};
+
+const FITTINGS_SCHEDULE_CODE: Record<string, string> = {
+  'SCH 5':   'SCH5',  'SCH 5S':  'SCH5S',  'SCH 10': 'SCH10',  'SCH 10S': 'SCH10S',
+  'SCH 20':  'SCH20', 'SCH 40':  'SCH40',  'SCH 40S':'SCH40S', 'SCH 80':  'SCH80',
+  'SCH 80S': 'SCH80S','SCH 160': 'SCH160', 'XXS':    'XXS',    'STD':     'STD',    'XS': 'XS',
+};
+
+const FITTINGS_END_CODE: Record<string, string> = {
+  'Butt Weld (BW)': 'BW',
+  'Socket Weld (SW)': 'SW',
+  'Screwed NPT': 'NPT',
+  'Screwed BSP': 'BSP',
+};
+
+// Coupling, Half Coupling, Union, Boss + SW/Screwed end types → Pressure Class replaces Schedule
+const PRESSURE_CLASS_FITTINGS = new Set(['Coupling', 'Half Coupling', 'Union', 'Boss']);
+const SW_SCREWED_ENDS          = new Set(['Socket Weld (SW)', 'Screwed NPT', 'Screwed BSP']);
+
+// Reducers and Swage Nipple always require a second (reducing) bore
+const REDUCING_FITTINGS = new Set([
+  'Concentric Reducer', 'Eccentric Reducer', 'Reducing Tee', 'Swage Nipple',
+]);
+
+export function buildFittingsItemCode(attrs: Record<string, unknown>): string {
+  const ftype    = ((attrs.fitting_type   as string) ?? '').trim();
+  const gradeRaw = ((attrs.material_grade as string) ?? '').trim();
+  const nbRaw    = ((attrs.nominal_bore   as string) ?? '').trim();
+  const schRaw   = ((attrs.schedule       as string) ?? '').trim();
+  const endRaw   = ((attrs.end_type       as string) ?? '').trim();
+  const pcRaw    = ((attrs.pressure_class as string) ?? '').trim();
+  const rbRaw    = ((attrs.reducing_bore  as string) ?? '').trim();
+
+  const missing: string[] = [];
+
+  const typeCode = FITTINGS_TYPE_CODE[ftype];
+  if (!typeCode) missing.push(ftype ? `Fitting Type "${ftype}" not recognised` : 'Fitting Type');
+
+  const grade = FITTINGS_GRADE_CODE[gradeRaw];
+  if (!grade) missing.push(gradeRaw ? `Material Grade "${gradeRaw}" not recognised` : 'Material Grade');
+
+  if (!nbRaw) missing.push('Nominal Bore (NB)');
+
+  const endCode = FITTINGS_END_CODE[endRaw];
+  if (!endCode) missing.push(endRaw ? `End Type "${endRaw}" not recognised` : 'End Type');
+
+  // Size dimension: Pressure Class for SW/Screwed on Coupling/Half Coupling/Union/Boss, Schedule otherwise
+  const needsPC = PRESSURE_CLASS_FITTINGS.has(ftype) && SW_SCREWED_ENDS.has(endRaw);
+  let sizeDim = '';
+  if (needsPC) {
+    if (!pcRaw) missing.push('Pressure Class');
+    sizeDim = pcRaw; // e.g. "3000LB"
+  } else {
+    const sch = FITTINGS_SCHEDULE_CODE[schRaw];
+    if (!sch) missing.push(schRaw ? `Schedule "${schRaw}" not recognised` : 'Schedule');
+    sizeDim = sch ?? '';
+  }
+
+  // Reducing bore required for REDC / REDE / TEER / SWAG
+  const isReducing = REDUCING_FITTINGS.has(ftype);
+  if (isReducing && !rbRaw) missing.push('Reducing Bore (second NB)');
+
+  if (missing.length) {
+    throw new Error(
+      `Cannot generate Fitting SAP Item Code — missing or unrecognised: ${missing.join('; ')}`,
+    );
+  }
+
+  const nbPart = isReducing ? `${nbRaw}X${rbRaw}` : nbRaw;
+  const code   = `RM-FTG-${typeCode}-${grade}-${nbPart}-${sizeDim}-${endCode}`;
+
+  if (code.length > SAP_ITEM_CODE_MAX_LEN) {
+    throw new Error(
+      `SAP Item Code "${code}" is ${code.length} chars — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`,
+    );
+  }
+  return code;
+}
+
+export async function resolveFittingsSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  return resolveOrCreateSapMasterItem(
+    pool, buildFittingsItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
+  );
+}
+
 // ── Pipes SAP Item Code ───────────────────────────────────────────────────────
 // Skeleton : RM-PIP-{GRADE}-{NB}-{SCH}
 //

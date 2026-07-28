@@ -78,7 +78,7 @@ import {
   buildCoolingTowerRequirement, buildBoughtOutRequirement, buildComponentsRequirement,
   buildPanelPreviewCode, buildCablingPreviewCode, buildJunctionBoxPreviewCode,
 } from "@/components/electrical-attrs-forms";
-import { buildPlatesPreviewCode, buildProfilesPreviewCode, buildPipesPreviewCode } from "@/components/piping-attrs-forms";
+import { buildPlatesPreviewCode, buildProfilesPreviewCode, buildPipesPreviewCode, buildFittingsPreviewCode } from "@/components/piping-attrs-forms";
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
   NrvValveAttrsForm, NeedleValveAttrsForm,
@@ -934,9 +934,26 @@ export default function BuyPackagesPage() {
         { toast({ title: "Schedule is required", variant: "destructive" }); return; }
     } else if (isFittingsMode) {
       const ta = lf.technicalAttributes;
-      if (!(ta.fitting_type as string)?.trim() || !(ta.size_nb as string)?.trim()) {
-        toast({ title: "Fitting Type and Size (NB) are required", variant: "destructive" }); return;
+      if (!(ta.fitting_type as string)?.trim())
+        { toast({ title: "Fitting Type is required", variant: "destructive" }); return; }
+      if (!(ta.material_grade as string)?.trim())
+        { toast({ title: "Material Grade is required", variant: "destructive" }); return; }
+      if (!(ta.nominal_bore as string)?.trim())
+        { toast({ title: "Nominal Bore (NB) is required", variant: "destructive" }); return; }
+      if (!(ta.end_type as string)?.trim())
+        { toast({ title: "End Type is required", variant: "destructive" }); return; }
+      const _ftPC = ["Coupling","Half Coupling","Union","Boss"].includes((ta.fitting_type as string)?.trim() ?? "");
+      const _ftSW = ["Socket Weld (SW)","Screwed NPT","Screwed BSP"].includes((ta.end_type as string)?.trim() ?? "");
+      if (_ftPC && _ftSW) {
+        if (!(ta.pressure_class as string)?.trim())
+          { toast({ title: "Pressure Class is required for SW / Screwed fittings", variant: "destructive" }); return; }
+      } else {
+        if (!(ta.schedule as string)?.trim())
+          { toast({ title: "Schedule is required", variant: "destructive" }); return; }
       }
+      const _ftRed = ["Concentric Reducer","Eccentric Reducer","Reducing Tee","Swage Nipple"].includes((ta.fitting_type as string)?.trim() ?? "");
+      if (_ftRed && !(ta.reducing_bore as string)?.trim())
+        { toast({ title: "Reducing Bore (second NB) is required for this fitting type", variant: "destructive" }); return; }
     } else if (isFlangesMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.flange_type as string)?.trim() || !(ta.size_nb as string)?.trim()) {
@@ -2415,6 +2432,33 @@ export default function BuyPackagesPage() {
                       <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
                         <span className="font-mono tracking-wide text-xs">
                           Select Grade, NB &amp; Schedule to preview SAP code
+                        </span>
+                      </div>
+                    );
+                  }
+                  // Priority 0a — Fittings: spec-based preview
+                  if (isFittingsMode) {
+                    const ftgCode = buildFittingsPreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (ftgCode) {
+                      const savedCode = lineDialog.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== ftgCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-slate-400 bg-slate-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-slate-800 text-sm">
+                            {ftgCode}
+                          </span>
+                          {isNew && (
+                            <span className="text-[10px] text-slate-600 font-medium uppercase tracking-wide">New</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">
+                          Select Fitting Type, Grade, NB, Schedule / Pressure Class &amp; End Type to preview SAP code
                         </span>
                       </div>
                     );

@@ -643,6 +643,8 @@ export function PipesAttrsForm({
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. FITTINGS
 // ─────────────────────────────────────────────────────────────────────────────
+const FITTINGS_PRESSURE_CLASS = ['3000LB', '6000LB', '9000LB'];
+
 const FITTINGS_TYPES = [
   "90° 1D Elbow","90° 1.5D Elbow","90° 2D Elbow",
   "45° 1D Elbow","45° 1.5D Elbow","45° 2D Elbow",
@@ -677,6 +679,7 @@ const FITTINGS_ALL_OPTS: Record<string, string[]> = {
   material_grade:   FITTINGS_MATERIAL,
   nominal_bore:     COMMON_NB,
   schedule:         FITTINGS_SCHEDULE,
+  pressure_class:   FITTINGS_PRESSURE_CLASS,
   end_type:         FITTINGS_END_TYPE_FULL,
   fitting_standard: FITTINGS_STANDARD,
   mtr_required:     YES_NO,
@@ -740,7 +743,10 @@ export function FittingsAttrsForm({
   const ftype    = (attrs.fitting_type as string) ?? "";
   const ftLower  = ftype.toLowerCase();
   const isLRElbow = ftype.includes("Elbow");
-  const isReduce  = ftLower.includes("reducer") || ftype === "Reducing Tee";
+  const isReduce  = ftLower.includes("reducer") || ftype === "Reducing Tee" || ftype === "Swage Nipple";
+  // Coupling / Half Coupling / Union / Boss + SW or Screwed → Pressure Class replaces Schedule
+  const isPCType        = ["Coupling","Half Coupling","Union","Boss"].includes(ftype);
+  const usePressureClass = isPCType && (endType.includes("Socket Weld") || endType.toLowerCase().includes("screwed") || endType.toLowerCase().includes("npt") || endType.toLowerCase().includes("bsp"));
   const nb        = (attrs.nominal_bore as string) ?? "";
   const nbNum     = parseInt((nb.match(/^(\d+)NB$/i)?.[1]) ?? "999");
   const endType   = (attrs.end_type as string) ?? "";
@@ -752,9 +758,12 @@ export function FittingsAttrsForm({
     <div className="space-y-3">
       <SectionCard title="Fitting Specification" color="bg-sky-50/60 border-sky-200">
         {rf("fitting_type",   "Fitting Type",   FITTINGS_TYPES,    true)}
-        {rf("material_grade", "Material Grade", FITTINGS_MATERIAL, true)}
-        {rf("nominal_bore",   "Nominal Bore",   COMMON_NB,         true)}
-        {rf("schedule",       "Schedule",       FITTINGS_SCHEDULE, true)}
+        {rf("material_grade", "Material Grade", FITTINGS_MATERIAL,     true)}
+        {rf("nominal_bore",   "Nominal Bore",   COMMON_NB,             true)}
+        {usePressureClass
+          ? rf("pressure_class", "Pressure Class (3000LB / 6000LB / 9000LB)", FITTINGS_PRESSURE_CLASS, true)
+          : rf("schedule",       "Schedule",                                   FITTINGS_SCHEDULE,        true)
+        }
       </SectionCard>
       <SectionCard title="Connection & Standards" color="bg-emerald-50/60 border-emerald-200">
         {rf("end_type", "End Type", endOpts, true)}
@@ -788,6 +797,69 @@ export function FittingsAttrsForm({
       </SectionCard>
     </div>
   );
+}
+
+// ── Fittings SAP Item Code helpers (client mirror of server builder) ──────────
+const _FTG_TYPE_CODE: Record<string, string> = {
+  '90° 1D Elbow':'E90-1D','90° 1.5D Elbow':'E90-1.5D','90° 2D Elbow':'E90-2D',
+  '45° 1D Elbow':'E45-1D','45° 1.5D Elbow':'E45-1.5D','45° 2D Elbow':'E45-2D',
+  'Equal Tee':'TEE','Reducing Tee':'TEER','Cross':'CRS',
+  'Concentric Reducer':'REDC','Eccentric Reducer':'REDE',
+  'End Cap':'CAP','Stub End':'STUB','Swage Nipple':'SWAG',
+  'Coupling':'CPLG','Half Coupling':'HCPL','Union':'UNI','Boss':'BOSS',
+  'Barrel Nipple':'BNIP','Pipe Nipple':'PNIP',
+};
+const _FTG_GRADE_CODE: Record<string, string> = {
+  'A 105':'A105','A 182 F304':'A182-F304','A 182 F316':'A182-F316',
+  'A234 WPB':'A234-WPB','A234 WPC':'A234-WPC','A234 WP11':'A234-WP11','A234 WP22':'A234-WP22',
+  'A403 WP304':'A403-304','A403 WP304L':'A403-304L','A403 WP316':'A403-316',
+  'A403 WP316L':'A403-316L','A403 WP321':'A403-321','A403 WP347':'A403-347',
+  'A860 WPHY 60':'A860-60','Duplex F51':'F51','Super Duplex F53':'F53',
+};
+const _FTG_SCH_CODE: Record<string, string> = {
+  'SCH 5':'SCH5','SCH 5S':'SCH5S','SCH 10':'SCH10','SCH 10S':'SCH10S','SCH 20':'SCH20',
+  'SCH 40':'SCH40','SCH 40S':'SCH40S','SCH 80':'SCH80','SCH 80S':'SCH80S',
+  'SCH 160':'SCH160','XXS':'XXS','STD':'STD','XS':'XS',
+};
+const _FTG_END_CODE: Record<string, string> = {
+  'Butt Weld (BW)':'BW','Socket Weld (SW)':'SW','Screwed NPT':'NPT','Screwed BSP':'BSP',
+};
+const _FTG_PC_TYPES  = new Set(['Coupling','Half Coupling','Union','Boss']);
+const _FTG_SW_ENDS   = new Set(['Socket Weld (SW)','Screwed NPT','Screwed BSP']);
+const _FTG_REDUCING  = new Set(['Concentric Reducer','Eccentric Reducer','Reducing Tee','Swage Nipple']);
+
+/** Client-side preview of the Fittings SAP Item Code. Returns null when any required field is missing/invalid. */
+export function buildFittingsPreviewCode(attrs: Record<string, unknown>): string | null {
+  const ftype   = ((attrs.fitting_type   as string) ?? '').trim();
+  const gradeRaw= ((attrs.material_grade as string) ?? '').trim();
+  const nbRaw   = ((attrs.nominal_bore   as string) ?? '').trim();
+  const schRaw  = ((attrs.schedule       as string) ?? '').trim();
+  const endRaw  = ((attrs.end_type       as string) ?? '').trim();
+  const pcRaw   = ((attrs.pressure_class as string) ?? '').trim();
+  const rbRaw   = ((attrs.reducing_bore  as string) ?? '').trim();
+
+  const typeCode = _FTG_TYPE_CODE[ftype];
+  const grade    = _FTG_GRADE_CODE[gradeRaw];
+  const endCode  = _FTG_END_CODE[endRaw];
+  if (!typeCode || !grade || !nbRaw || !endCode) return null;
+
+  const needsPC = _FTG_PC_TYPES.has(ftype) && _FTG_SW_ENDS.has(endRaw);
+  let sizeDim: string;
+  if (needsPC) {
+    if (!pcRaw) return null;
+    sizeDim = pcRaw;
+  } else {
+    const sch = _FTG_SCH_CODE[schRaw];
+    if (!sch) return null;
+    sizeDim = sch;
+  }
+
+  const isReducing = _FTG_REDUCING.has(ftype);
+  if (isReducing && !rbRaw) return null;
+
+  const nbPart = isReducing ? `${nbRaw}X${rbRaw}` : nbRaw;
+  const code   = `RM-FTG-${typeCode}-${grade}-${nbPart}-${sizeDim}-${endCode}`;
+  return code.length <= 50 ? code : null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
