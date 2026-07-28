@@ -2460,6 +2460,107 @@ export async function resolvePlatesSapItemCode(
   );
 }
 
+// ── Profiles SAP Item Code ────────────────────────────────────────────────────
+// Skeleton — Solid Circular  : RM-PRF-CIR-{GRADE}-{THICK}XOD{OD}
+// Skeleton — Hollow Circular : RM-PRF-CIRH-{GRADE}-{THICK}XOD{OD}XID{ID}
+//
+// Procurement Identity (encoded in the SAP Item Code):
+//   Profile Type · Material Grade · Thickness (mm) · Outside Diameter (mm)
+//   Inside Diameter (mm) — Hollow Circular only
+//
+// Thickness is an independent axial dimension. It is NOT derived from OD and ID.
+// For Hollow Circular the only geometric constraint is OD > ID.
+//
+// Engineering Specification (NOT in the code):
+//   Material Standard · Dimensional Tolerance · MTR/MTC · Heat Treatment
+//   Surface Finish · Additional Testing
+
+const PROFILE_TYPES = new Set(['Solid Circular', 'Hollow Circular']);
+
+function normalizeProfileDim(raw: string, label: string): string {
+  const n = parseFloat(raw.trim());
+  if (isNaN(n) || n <= 0) {
+    throw new Error(`Cannot generate Profile SAP Item Code — ${label} "${raw}" is not a positive number`);
+  }
+  return Number.isInteger(n) ? String(Math.round(n)) : String(n);
+}
+
+export function buildProfilesItemCode(attrs: Record<string, unknown>): string {
+  const profileTypeRaw = ((attrs.profile_type   as string) ?? '').trim();
+  const gradeRaw       = ((attrs.material_grade as string) ?? '').trim();
+  const thickRaw       = ((attrs.thickness_mm   as string) ?? '').trim();
+  const odRaw          = ((attrs.od_mm          as string) ?? '').trim();
+  const idRaw          = ((attrs.id_mm          as string) ?? '').trim();
+
+  const missing: string[] = [];
+
+  if (!PROFILE_TYPES.has(profileTypeRaw)) {
+    missing.push(profileTypeRaw
+      ? `Profile Type "${profileTypeRaw}" is not recognised — must be "Solid Circular" or "Hollow Circular"`
+      : 'Profile Type');
+  }
+
+  const grade = PLATES_GRADE_CODE[gradeRaw];
+  if (!grade) {
+    missing.push(gradeRaw
+      ? `Material Grade "${gradeRaw}" is not in the recognised grade list`
+      : 'Material Grade');
+  }
+
+  if (!thickRaw) missing.push('Thickness');
+  if (!odRaw)    missing.push('Outside Diameter (OD)');
+
+  const isHollow = profileTypeRaw === 'Hollow Circular';
+  if (isHollow && !idRaw) missing.push('Inside Diameter (ID)');
+
+  if (missing.length) {
+    throw new Error(
+      `Cannot generate Profile SAP Item Code — missing or unrecognised: ${missing.join('; ')}`,
+    );
+  }
+
+  const thick = normalizeProfileDim(thickRaw, 'Thickness');
+  const od    = normalizeProfileDim(odRaw,    'Outside Diameter (OD)');
+
+  if (isHollow) {
+    const id    = normalizeProfileDim(idRaw, 'Inside Diameter (ID)');
+    if (parseFloat(id) >= parseFloat(od)) {
+      throw new Error(
+        `Cannot generate Profile SAP Item Code — Inside Diameter (${id} mm) must be less than Outside Diameter (${od} mm)`,
+      );
+    }
+    const code = `RM-PRF-CIRH-${grade}-${thick}XOD${od}XID${id}`;
+    if (code.length > SAP_ITEM_CODE_MAX_LEN) {
+      throw new Error(
+        `SAP Item Code "${code}" is ${code.length} characters — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`,
+      );
+    }
+    return code;
+  }
+
+  // Solid Circular — id_mm is completely ignored
+  const code = `RM-PRF-CIR-${grade}-${thick}XOD${od}`;
+  if (code.length > SAP_ITEM_CODE_MAX_LEN) {
+    throw new Error(
+      `SAP Item Code "${code}" is ${code.length} characters — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`,
+    );
+  }
+  return code;
+}
+
+export async function resolveProfilesSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  return resolveOrCreateSapMasterItem(
+    pool, buildProfilesItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
+  );
+}
+
 // ── Junction Box SAP Item Code ────────────────────────────────────────────────
 // Skeleton : ELC-JBX-{TYPE}-{TERMS}T-{MAT}-{IP}[-{AREA}]
 //

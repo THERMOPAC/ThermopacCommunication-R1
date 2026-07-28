@@ -52,11 +52,12 @@ import {
   buildPumpSkidRequirement,
 } from "@/components/pump-attrs-forms";
 import {
-  PlatesAttrsForm, PipesAttrsForm, FittingsAttrsForm, FlangesAttrsForm,
+  PlatesAttrsForm, ProfilesAttrsForm, PipesAttrsForm, FittingsAttrsForm, FlangesAttrsForm,
   FastenersAttrsForm, GasketsAttrsForm, StructuralSteelAttrsForm,
-  buildPlatesRequirement, buildPipesRequirement, buildFittingsRequirement,
-  buildFlangesRequirement, buildFastenersRequirement, buildGasketsRequirement,
-  buildStructuralSteelRequirement,
+  buildPlatesRequirement, buildProfilesRequirement, buildPipesRequirement,
+  buildFittingsRequirement, buildFlangesRequirement, buildFastenersRequirement,
+  buildGasketsRequirement, buildStructuralSteelRequirement,
+  PROFILES_DEFAULTS,
 } from "@/components/piping-attrs-forms";
 import {
   PressureAttrsForm, TemperatureAttrsForm, FlowAttrsForm, LevelAttrsForm,
@@ -77,7 +78,7 @@ import {
   buildCoolingTowerRequirement, buildBoughtOutRequirement, buildComponentsRequirement,
   buildPanelPreviewCode, buildCablingPreviewCode, buildJunctionBoxPreviewCode,
 } from "@/components/electrical-attrs-forms";
-import { buildPlatesPreviewCode } from "@/components/piping-attrs-forms";
+import { buildPlatesPreviewCode, buildProfilesPreviewCode } from "@/components/piping-attrs-forms";
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
   NrvValveAttrsForm, NeedleValveAttrsForm,
@@ -572,6 +573,9 @@ export default function BuyPackagesPage() {
   const isPlatesMode =
     (lineDialog.lock?.subgroupCode === "plates") ||
     (selectedGroupCode === "raw_materials" && selectedSubgroupCode === "plates");
+  const isProfilesMode =
+    (lineDialog.lock?.subgroupCode === "profiles") ||
+    (selectedGroupCode === "raw_materials" && selectedSubgroupCode === "profiles");
   const isPipesMode =
     (lineDialog.lock?.subgroupCode === "pipes") ||
     (selectedGroupCode === "raw_materials" && selectedSubgroupCode === "pipes");
@@ -900,6 +904,26 @@ export default function BuyPackagesPage() {
         { toast({ title: "Length is required — specify the actual plate length in mm (Mill Length is not accepted for stock plates)", variant: "destructive" }); return; }
       if (isNaN(parseFloat(_length)) || parseFloat(_length) <= 0)
         { toast({ title: "Length must be a positive number", variant: "destructive" }); return; }
+    } else if (isProfilesMode) {
+      const ta  = lf.technicalAttributes;
+      const _pt = (ta.profile_type   as string)?.trim() ?? "";
+      if (!_pt || !['Solid Circular', 'Hollow Circular'].includes(_pt))
+        { toast({ title: "Profile Type is required (Solid Circular or Hollow Circular)", variant: "destructive" }); return; }
+      if (!(ta.material_grade as string)?.trim())
+        { toast({ title: "Material Grade is required", variant: "destructive" }); return; }
+      const _thick = (ta.thickness_mm as string)?.trim() ?? "";
+      if (!_thick || isNaN(parseFloat(_thick)) || parseFloat(_thick) <= 0)
+        { toast({ title: "Thickness must be a positive number", variant: "destructive" }); return; }
+      const _od = (ta.od_mm as string)?.trim() ?? "";
+      if (!_od || isNaN(parseFloat(_od)) || parseFloat(_od) <= 0)
+        { toast({ title: "Outside Diameter (OD) must be a positive number", variant: "destructive" }); return; }
+      if (_pt === 'Hollow Circular') {
+        const _id = (ta.id_mm as string)?.trim() ?? "";
+        if (!_id || isNaN(parseFloat(_id)) || parseFloat(_id) <= 0)
+          { toast({ title: "Inside Diameter (ID) must be a positive number for Hollow Circular profiles", variant: "destructive" }); return; }
+        if (parseFloat(_id) >= parseFloat(_od))
+          { toast({ title: `Inside Diameter (${_id} mm) must be less than Outside Diameter (${_od} mm)`, variant: "destructive" }); return; }
+      }
     } else if (isPipesMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.section_type as string)?.trim()) {
@@ -2365,6 +2389,35 @@ export default function BuyPackagesPage() {
                       </div>
                     );
                   }
+                  // Priority 0a — Profiles: spec-based preview
+                  if (isProfilesMode) {
+                    const prfCode = buildProfilesPreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (prfCode) {
+                      const savedCode = lineDialog.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== prfCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-slate-400 bg-slate-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-slate-800 text-sm">
+                            {prfCode}
+                          </span>
+                          {isNew && (
+                            <span className="text-[10px] text-slate-600 font-medium uppercase tracking-wide">New</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    const _pt = ((lf.technicalAttributes ?? {}) as Record<string,unknown>).profile_type as string ?? '';
+                    const hint = _pt === 'Hollow Circular'
+                      ? 'Select Grade, Thickness, OD & ID to preview SAP code'
+                      : 'Select Profile Type, Grade, Thickness & OD to preview SAP code';
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">{hint}</span>
+                      </div>
+                    );
+                  }
                   // Priority 0a — Plates: spec-based preview (stock inventory identity)
                   if (isPlatesMode) {
                     const pltCode = buildPlatesPreviewCode(
@@ -2632,7 +2685,24 @@ export default function BuyPackagesPage() {
               </div>
 
               {/* Structured forms: Plates / Pipes / generic */}
-              {isPlatesMode ? (
+              {isProfilesMode ? (
+                <>
+                  <ProfilesAttrsForm
+                    attrs={lf.technicalAttributes}
+                    qty={lf.defaultQuantity}
+                    onChange={(attrs) => {
+                      const req = buildProfilesRequirement(attrs);
+                      setLf((f) => ({ ...f, technicalAttributes: attrs, genericRequirement: req }));
+                    }}
+                    onQtyChange={(q) => setLf((f) => ({ ...f, defaultQuantity: q }))}
+                  />
+                  <GenericReqField
+                    value={lf.genericRequirement}
+                    placeholder="Select Profile Type and fill dimensions to generate…"
+                    onChange={(v) => setLf((f) => ({ ...f, genericRequirement: v }))}
+                  />
+                </>
+              ) : isPlatesMode ? (
                 <>
                   <PlatesAttrsForm
                     attrs={lf.technicalAttributes}

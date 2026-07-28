@@ -320,7 +320,163 @@ export function PlatesAttrsForm({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. PIPES
+// 2. PROFILES (Solid Circular · Hollow Circular)
+// ─────────────────────────────────────────────────────────────────────────────
+const PROFILES_MATERIAL_GRADES = PLATES_MATERIAL_GRADES; // same 13-grade list
+const PROFILES_THICKNESS = ["6","8","10","12","16","20","25","32","40","50","63","75","100"];
+const PROFILES_OD_OPTS   = ["50","63","75","100","120","150","200","250","300","350","400","450","500","600","750","1000"];
+const PROFILES_ID_OPTS   = ["44","56","68","88","106","138","188","238","288","338","388","438","476","548"];
+const PROFILES_DIM_TOL   = ["h9","h10","h11","h12","JS9","JS11","±0.5 mm","±1 mm","±1.5 mm","±2 mm","Per IS 1732","Per ASTM A484","Per EN 10060"];
+const PROFILES_SURFACE   = ["No.1 (HR)","No.2B (CR)","Pickled & Passivated","Black (As-rolled)","Bright Drawn"];
+const PROFILES_TESTING   = ["UT (Ultrasonic)","Hydrotest","Impact Test","Charpy Test","NACE MR-0175","HIC Test"];
+const PROFILES_ALL_OPTS: Record<string, string[]> = {
+  profile_type:        ['Solid Circular', 'Hollow Circular'],
+  material_grade:      PROFILES_MATERIAL_GRADES,
+  thickness_mm:        PROFILES_THICKNESS,
+  od_mm:               PROFILES_OD_OPTS,
+  id_mm:               PROFILES_ID_OPTS,
+  mtr_required:        YES_NO,
+  heat_treatment:      HEAT_TREATMENT_OPTS,
+  surface_finish:      PROFILES_SURFACE,
+  additional_testing:  PROFILES_TESTING,
+  dimensional_tolerance: PROFILES_DIM_TOL,
+};
+
+// ── Profiles SAP Item Code helpers (client mirror of server builder) ──────────
+const _PROFILES_GRADE_CODE: Record<string, string> = {
+  'IS 2062 E250': 'E250', 'IS 2062 E350': 'E350',
+  'SS304': 'SS304', 'SS304L': 'SS304L', 'SS316': 'SS316', 'SS316L': 'SS316L',
+  'SA 516 Gr 60': 'SA516-60', 'SA 516 Gr 70': 'SA516-70',
+  'ASTM A36': 'A36',
+  'SA-240 Gr 304': 'SA240-304', 'SA-240 Gr 304L': 'SA240-304L',
+  'SA-240 Gr 316': 'SA240-316', 'SA-240 Gr 316L': 'SA240-316L',
+};
+
+/** Client-side preview of the Profiles SAP Item Code. Returns null when any required field is missing/invalid. */
+export function buildProfilesPreviewCode(attrs: Record<string, unknown>): string | null {
+  const profileType = ((attrs.profile_type   as string) ?? '').trim();
+  const gradeRaw    = ((attrs.material_grade as string) ?? '').trim();
+  const thickRaw    = ((attrs.thickness_mm   as string) ?? '').trim();
+  const odRaw       = ((attrs.od_mm          as string) ?? '').trim();
+  const idRaw       = ((attrs.id_mm          as string) ?? '').trim();
+
+  const grade = _PROFILES_GRADE_CODE[gradeRaw];
+  if (!grade) return null;
+
+  const thick = _normDim(thickRaw);
+  const od    = _normDim(odRaw);
+  if (!thick || !od) return null;
+
+  if (profileType === 'Hollow Circular') {
+    const id = _normDim(idRaw);
+    if (!id) return null;
+    if (parseFloat(id) >= parseFloat(od)) return null;
+    return `RM-PRF-CIRH-${grade}-${thick}XOD${od}XID${id}`;
+  }
+
+  if (profileType === 'Solid Circular') {
+    return `RM-PRF-CIR-${grade}-${thick}XOD${od}`;
+  }
+
+  return null;
+}
+
+export const PROFILES_DEFAULTS: Record<string, unknown> = {
+  profile_type:   'Solid Circular',
+  material_grade: 'IS 2062 E250',
+  thickness_mm:   '12',
+  od_mm:          '500',
+  id_mm:          '',
+  mtr_required:   'No',
+};
+
+export function buildProfilesRequirement(attrs: Record<string, unknown>): string {
+  const type  = (attrs.profile_type   as string)?.trim() || '';
+  const grade = (attrs.material_grade as string)?.trim() || '';
+  const thick = (attrs.thickness_mm   as string)?.trim() || '';
+  const od    = (attrs.od_mm          as string)?.trim() || '';
+  const id    = (attrs.id_mm          as string)?.trim() || '';
+  if (!grade) return '';
+  const parts: string[] = [grade, type || 'Profile'];
+  if (thick)         parts.push(`${thick} mm thk`);
+  if (od)            parts.push(`OD ${od} mm`);
+  if (id && type === 'Hollow Circular') parts.push(`ID ${id} mm`);
+  return parts.join(', ');
+}
+
+export function ProfilesAttrsForm({
+  attrs, qty, onChange, onQtyChange,
+}: {
+  attrs: Record<string, unknown>;
+  qty?: string;
+  onChange: (a: Record<string, unknown>) => void;
+  onQtyChange?: (q: string) => void;
+}) {
+  const [custom, setCustom] = useState<Record<string, boolean>>(() => {
+    const c: Record<string, boolean> = {};
+    for (const [key, opts] of Object.entries(PROFILES_ALL_OPTS)) {
+      const val = (attrs[key] as string) ?? '';
+      c[key] = val !== '' && !opts.includes(val);
+    }
+    return c;
+  });
+  const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
+
+  function handleSelect(key: string, val: string) {
+    if (val === '__other__') { setCustom(c => ({ ...c, [key]: true })); set(key, ''); }
+    else { setCustom(c => ({ ...c, [key]: false })); set(key, val); }
+  }
+
+  function rf(key: string, label: string, opts: string[], required?: boolean, numericCustom?: boolean) {
+    const curVal = (attrs[key] as string) ?? '';
+    const isCust = custom[key] ?? false;
+    const selVal = isCust ? '__other__' : (opts.includes(curVal) ? curVal : '');
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <SearchableSelect value={selVal} options={opts} placeholder="Select…" onSelect={v => handleSelect(key, v)} />
+        {isCust && (
+          <Input className="h-8 text-sm"
+            type={numericCustom ? 'number' : 'text'}
+            placeholder={numericCustom ? 'Enter mm…' : 'Enter custom…'}
+            value={curVal}
+            onWheel={numericCustom ? (e) => e.currentTarget.blur() : undefined}
+            onChange={e => set(key, e.target.value)}
+            autoFocus />
+        )}
+      </div>
+    );
+  }
+
+  const profileType = (attrs.profile_type as string) ?? '';
+  const isHollow    = profileType === 'Hollow Circular';
+
+  return (
+    <div className="space-y-3">
+      <SectionCard title="Profile Type & Dimensions" color="bg-sky-50/60 border-sky-200">
+        {rf('profile_type',   'Profile Type',             ['Solid Circular', 'Hollow Circular'], true)}
+        {rf('material_grade', 'Material Grade',           PROFILES_MATERIAL_GRADES,              true)}
+        {rf('thickness_mm',   'Thickness (mm)',           PROFILES_THICKNESS,                    true, true)}
+        {rf('od_mm',          'Outside Diameter — OD (mm)', PROFILES_OD_OPTS,                   true, true)}
+        {isHollow
+          ? rf('id_mm', 'Inside Diameter — ID (mm)', PROFILES_ID_OPTS, true, true)
+          : <div />}
+        <div />
+      </SectionCard>
+      <SectionCard title="Quality & Testing" color="bg-slate-50/80 border-slate-200">
+        {rf('mtr_required',          'MTR Required',          YES_NO)}
+        {rf('dimensional_tolerance', 'Dimensional Tolerance', PROFILES_DIM_TOL)}
+        {rf('heat_treatment',        'Heat Treatment',        HEAT_TREATMENT_OPTS)}
+        {rf('surface_finish',        'Surface Finish',        PROFILES_SURFACE)}
+        {rf('additional_testing',    'Additional Testing',    PROFILES_TESTING)}
+        <QtyField qty={qty} onQtyChange={onQtyChange} />
+      </SectionCard>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. PIPES
 // ─────────────────────────────────────────────────────────────────────────────
 const PIPES_MATERIAL_GRADES = [
   "IS 1239 Class A","IS 1239 Class B","IS 1239 Class C",
