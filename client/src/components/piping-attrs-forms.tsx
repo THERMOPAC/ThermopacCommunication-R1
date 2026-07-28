@@ -763,13 +763,13 @@ export function FittingsAttrsForm({
         {rf("fitting_type",   "Fitting Type",   FITTINGS_TYPES,    true)}
         {rf("material_grade", "Material Grade", FITTINGS_MATERIAL,     true)}
         {rf("nominal_bore",   "Nominal Bore",   COMMON_NB,             true)}
+        {rf("end_type", "End Type", endOpts, true)}
         {usePressureClass
           ? rf("pressure_class", "Pressure Class (3000LB / 6000LB / 9000LB)", FITTINGS_PRESSURE_CLASS, true)
           : rf("schedule",       "Schedule",                                   FITTINGS_SCHEDULE,        true)
         }
       </SectionCard>
       <SectionCard title="Connection & Standards" color="bg-emerald-50/60 border-emerald-200">
-        {rf("end_type", "End Type", endOpts, true)}
         {(() => {
           const curVal = (attrs.fitting_standard as string) ?? "";
           const isCust = custom["fitting_standard"] ?? false;
