@@ -2966,3 +2966,334 @@ export async function resolveJunctionBoxSapItemCode(
     pool, buildJunctionBoxItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
   );
 }
+
+// ── Fasteners SAP Item Code ───────────────────────────────────────────────────
+//
+// Procurement Identity skeletons by family:
+//
+//   Stud Bolts (FT/2ET) : RM-FST-{TYPE}-{MATL}-{DIA}-{LEN}MM-{THREAD}-{COAT}
+//   Stud Set            : RM-FST-STDS-{BMATL}-{NMATL}-{WMATL}-{DIA}-{LEN}MM-{THREAD}-{COAT}
+//   Hex Bolt (inch)     : RM-FST-HXBT-{MATL}-{DIA}-{LEN}MM-{THREAD}-{COAT}
+//   Hex Bolt (metric,FT): RM-FST-HXBT-FT-{MATL}-{DIA}-{LEN}MM-{THREAD}-{COAT}
+//   Hex Bolt (metric,PT): RM-FST-HXBT-PT-{MATL}-{DIA}-{LEN}MM-{THREAD}-{COAT}
+//   Anchor Bolt         : RM-FST-ANBT-{SUBTYPE}-{MATL}-{DIA}-{TOTLEN}MM-{THRDLEN}MM-{COAT}
+//   Eye Bolt            : RM-FST-EYBT-{SUBTYPE}-{MATL}-{DIA}-{SHANKLEN}MM-{COAT}
+//   U-Bolt              : RM-FST-UBLT-{MATL}-{RODDIA}-{NB}-{LEGLEN}MM-{COAT}
+//   Nuts                : RM-FST-{TYPE}-{MATL}-{DIA}-{THREAD}-{COAT}
+//   Washers             : RM-FST-{TYPE}-{MATL}-{DIA}-{COAT}
+//
+// Engineering-only (NOT in the code):
+//   Fastener Standard · Thread Protection · Washer Series
+//   Anchor Bolt threading · Eye Bolt threading · U-Bolt threading
+//   Bend shape · Thread length for U-Bolt
+
+const FST_TYPE_CODE: Record<string, string> = {
+  'Fully Threaded Stud':         'STDBF',
+  'Double-End Stud':             'STDBT',
+  'Stud + 2 Nut + 2 Washer Set': 'STDS',
+  'Hex Bolt':                    'HXBT',
+  'Anchor Bolt':                 'ANBT',
+  'Eye Bolt':                    'EYBT',
+  'U-Bolt':                      'UBLT',
+  'Hex Nut':                     'HXNT',
+  'Heavy Hex Nut':               'HHNT',
+  'Flat Washer':                 'FLWSH',
+  'Spring Washer':               'SPWSH',
+};
+
+const FST_BOLT_MATL_CODE: Record<string, string> = {
+  'ASTM A193 B7':          'B7',
+  'ASTM A193 B7M':         'B7M',
+  'ASTM A193 B8 (SS304)':  'B8',
+  'ASTM A193 B8 Class 2':  'B8C2',
+  'ASTM A193 B8M (SS316)': 'B8M',
+  'ASTM A193 B8M Class 2': 'B8MC2',
+  'ASTM A193 B16':         'B16',
+  'ASTM A320 L7':          'L7',
+  'IS 1367 Cl.8.8':        'IS88',
+  'IS 1367 Cl.10.9':       'IS109',
+  'A307':                  'A307',
+  'A325':                  'A325',
+  'A490':                  'A490',
+};
+
+const FST_NUT_MATL_CODE: Record<string, string> = {
+  'ASTM A194 2H':         '2H',
+  'ASTM A194 2HM':        '2HM',
+  'ASTM A194 8 (SS304)':  '8',
+  'ASTM A194 8M (SS316)': '8M',
+  'ASTM A194 4':          '4',
+  'ASTM A194 7':          '7',
+  'ASTM A194 7M':         '7M',
+  'IS 1367 Cl.8':         'IS8',
+};
+
+const FST_WSHR_MATL_CODE: Record<string, string> = {
+  'Carbon Steel (IS 2062)': 'CS',
+  'SS 304':                 'SS304',
+  'SS 316':                 'SS316',
+  'Alloy Steel':            'AS',
+};
+
+const FST_DIA_CODE: Record<string, string> = {
+  'M8':     'M8',   'M10':  'M10',  'M12':    'M12',  'M14':    'M14',
+  'M16':    'M16',  'M18':  'M18',  'M20':    'M20',  'M22':    'M22',
+  'M24':    'M24',  'M27':  'M27',  'M30':    'M30',  'M36':    'M36',
+  'M42':    'M42',  'M48':  'M48',
+  '1/4"':   '14IN', '3/8"': '38IN', '1/2"':   '12IN', '5/8"':   '58IN',
+  '3/4"':   '34IN', '7/8"': '78IN', '1"':     '1IN',  '1-1/4"': '114IN',
+  '1-1/2"': '112IN','1-3/4"':'134IN','2"':    '2IN',
+};
+
+const FST_THREAD_CODE: Record<string, string> = {
+  'ASME B1.1 (UNC)':   'UNC',
+  'ASME B1.1 (UNF)':   'UNF',
+  'ISO Metric Coarse': 'MC',
+  'ISO Metric Fine':   'MF',
+};
+
+const FST_COATING_CODE: Record<string, string> = {
+  'Plain (Uncoated)':      'PLN',
+  'Hot-Dip Galvanized':    'HDG',
+  'Zinc Electroplated':    'ZEP',
+  'Xylan / Fluoropolymer': 'XYL',
+  'PTFE Coated':           'PTFE',
+  'Black Oxide':           'BOX',
+};
+
+const FST_ANCHOR_SUBTYPE_CODE: Record<string, string> = {
+  'L-Bolt':   'LBLT',
+  'J-Bolt':   'JBLT',
+  'Straight': 'STR',
+  'Headed':   'HDR',
+};
+
+const FST_EYE_SUBTYPE_CODE: Record<string, string> = {
+  'Shoulder (Machinery)': 'SHD',
+  'Plain (Nut Eye)':      'PNE',
+};
+
+const FST_BOLT_PROFILE_CODE: Record<string, string> = {
+  'Full Thread':    'FT',
+  'Partial Thread': 'PT',
+};
+
+const FST_STUD_TYPES   = new Set(['Fully Threaded Stud', 'Double-End Stud']);
+const FST_NUT_TYPES    = new Set(['Hex Nut', 'Heavy Hex Nut']);
+const FST_WASHER_TYPES = new Set(['Flat Washer', 'Spring Washer']);
+export const FST_METRIC_DIAS  = new Set([
+  'M8','M10','M12','M14','M16','M18','M20','M22','M24','M27','M30','M36','M42','M48',
+]);
+
+/** Validates metric/inch diameter ↔ threading family compatibility. */
+function fstCheckDiaThread(diaRaw: string, threadRaw: string, miss: string[]): void {
+  if (!diaRaw || !threadRaw) return;
+  const isMetricDia    = FST_METRIC_DIAS.has(diaRaw);
+  const isMetricThread = threadRaw === 'ISO Metric Coarse' || threadRaw === 'ISO Metric Fine';
+  if (isMetricDia && !isMetricThread)
+    miss.push(`Metric diameter "${diaRaw}" requires ISO Metric threading (Coarse or Fine)`);
+  else if (!isMetricDia && isMetricThread)
+    miss.push(`Inch diameter "${diaRaw}" requires UNC or UNF threading`);
+}
+
+/** Validates a length string is a positive integer ≤ 2000 mm. */
+function fstCheckLen(raw: string, label: string, miss: string[]): void {
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1)
+    miss.push(`${label} must be a positive whole number (mm)`);
+  else if (n > 2000)
+    miss.push(`${label} exceeds 2000 mm — check the value`);
+}
+
+export function buildFastenersItemCode(attrs: Record<string, unknown>): string {
+  const g = (k: string) => ((attrs[k] as string) ?? '').trim();
+
+  const ftype       = g('fastener_type');
+  const bmatRaw     = g('bolt_material');
+  const nmatRaw     = g('nut_material');
+  const wmatRaw     = g('washer_material');
+  const diaRaw      = g('diameter');
+  const lenRaw      = g('length_mm').replace(/mm$/i, '');
+  const threadRaw   = g('threading_standard');
+  const coatRaw     = g('coating');
+  const profileRaw  = g('bolt_profile');
+  const anchorSub   = g('anchor_type');
+  const eyeSub      = g('eye_bolt_type');
+  const rodDiaRaw   = g('rod_diameter');
+  const pipeSzRaw   = g('pipe_size');
+  const legLenRaw   = g('leg_length').replace(/mm$/i, '');
+  const totLenRaw   = g('overall_length').replace(/mm$/i, '');
+  const thrdLenRaw  = g('thread_length').replace(/mm$/i, '');
+  const shankLenRaw = g('shank_length').replace(/mm$/i, '');
+
+  const typeCode = FST_TYPE_CODE[ftype];
+  if (!typeCode) {
+    throw new Error(
+      `Cannot generate Fastener SAP Item Code — missing or unrecognised: ${
+        ftype ? `Fastener Type "${ftype}" not recognised` : 'Fastener Type'}`);
+  }
+
+  const coat = FST_COATING_CODE[coatRaw];
+  if (!coat) {
+    throw new Error(
+      `Cannot generate Fastener SAP Item Code — missing or unrecognised: ${
+        coatRaw ? `Coating "${coatRaw}" not recognised` : 'Coating (mandatory — must be explicitly selected)'}`);
+  }
+
+  const miss: string[] = [];
+  let code: string;
+
+  // ── Stud Bolts (Fully Threaded Stud / Double-End Stud) ────────────────────
+  if (FST_STUD_TYPES.has(ftype)) {
+    const bmat   = FST_BOLT_MATL_CODE[bmatRaw];
+    const dia    = FST_DIA_CODE[diaRaw];
+    const thread = FST_THREAD_CODE[threadRaw];
+    if (!bmat)   miss.push(bmatRaw   ? `Stud Material "${bmatRaw}" not recognised`  : 'Stud Material');
+    if (!dia)    miss.push(diaRaw    ? `Diameter "${diaRaw}" not recognised`         : 'Diameter');
+    if (!lenRaw) miss.push('Length (mm)');
+    else         fstCheckLen(lenRaw, 'Length', miss);
+    if (!thread) miss.push(threadRaw ? `Threading "${threadRaw}" not recognised`     : 'Threading Standard');
+    fstCheckDiaThread(diaRaw, threadRaw, miss);
+    if (miss.length) throw new Error(`Cannot generate Fastener SAP Item Code — missing or unrecognised: ${miss.join('; ')}`);
+    code = `RM-FST-${typeCode}-${bmat}-${dia}-${lenRaw}MM-${thread}-${coat}`;
+  }
+
+  // ── Stud + 2 Nut + 2 Washer Set ──────────────────────────────────────────
+  else if (ftype === 'Stud + 2 Nut + 2 Washer Set') {
+    const bmat   = FST_BOLT_MATL_CODE[bmatRaw];
+    const nmat   = FST_NUT_MATL_CODE[nmatRaw];
+    const wmat   = FST_WSHR_MATL_CODE[wmatRaw];
+    const dia    = FST_DIA_CODE[diaRaw];
+    const thread = FST_THREAD_CODE[threadRaw];
+    if (!bmat)   miss.push(bmatRaw   ? `Stud Material "${bmatRaw}" not recognised`   : 'Stud Material');
+    if (!nmat)   miss.push(nmatRaw   ? `Nut Material "${nmatRaw}" not recognised`     : 'Nut Material');
+    if (!wmat)   miss.push(wmatRaw   ? `Washer Material "${wmatRaw}" not recognised`  : 'Washer Material');
+    if (!dia)    miss.push(diaRaw    ? `Diameter "${diaRaw}" not recognised`          : 'Diameter');
+    if (!lenRaw) miss.push('Length (mm)');
+    else         fstCheckLen(lenRaw, 'Length', miss);
+    if (!thread) miss.push(threadRaw ? `Threading "${threadRaw}" not recognised`      : 'Threading Standard');
+    fstCheckDiaThread(diaRaw, threadRaw, miss);
+    if (miss.length) throw new Error(`Cannot generate Fastener SAP Item Code — missing or unrecognised: ${miss.join('; ')}`);
+    code = `RM-FST-STDS-${bmat}-${nmat}-${wmat}-${dia}-${lenRaw}MM-${thread}-${coat}`;
+  }
+
+  // ── Hex Bolt ──────────────────────────────────────────────────────────────
+  else if (ftype === 'Hex Bolt') {
+    const bmat   = FST_BOLT_MATL_CODE[bmatRaw];
+    const dia    = FST_DIA_CODE[diaRaw];
+    const thread = FST_THREAD_CODE[threadRaw];
+    if (!bmat)   miss.push(bmatRaw   ? `Bolt Material "${bmatRaw}" not recognised`    : 'Bolt Material');
+    if (!dia)    miss.push(diaRaw    ? `Diameter "${diaRaw}" not recognised`           : 'Diameter');
+    if (!lenRaw) miss.push('Length (mm)');
+    else         fstCheckLen(lenRaw, 'Length', miss);
+    if (!thread) miss.push(threadRaw ? `Threading "${threadRaw}" not recognised`       : 'Threading Standard');
+    fstCheckDiaThread(diaRaw, threadRaw, miss);
+    const isMetric = FST_METRIC_DIAS.has(diaRaw);
+    let profileSeg = '';
+    if (isMetric) {
+      const prof = FST_BOLT_PROFILE_CODE[profileRaw];
+      if (!prof) miss.push(profileRaw ? `Bolt Profile "${profileRaw}" not recognised` : 'Bolt Profile (Full Thread / Partial Thread)');
+      else profileSeg = prof;
+    }
+    if (miss.length) throw new Error(`Cannot generate Fastener SAP Item Code — missing or unrecognised: ${miss.join('; ')}`);
+    code = profileSeg
+      ? `RM-FST-HXBT-${profileSeg}-${bmat}-${dia}-${lenRaw}MM-${thread}-${coat}`
+      : `RM-FST-HXBT-${bmat}-${dia}-${lenRaw}MM-${thread}-${coat}`;
+  }
+
+  // ── Anchor Bolt ───────────────────────────────────────────────────────────
+  else if (ftype === 'Anchor Bolt') {
+    const subCode = FST_ANCHOR_SUBTYPE_CODE[anchorSub];
+    const bmat    = FST_BOLT_MATL_CODE[bmatRaw];
+    const dia     = FST_DIA_CODE[diaRaw];
+    if (!subCode)    miss.push(anchorSub  ? `Anchor Type "${anchorSub}" not recognised`  : 'Anchor Type');
+    if (!bmat)       miss.push(bmatRaw    ? `Bolt Material "${bmatRaw}" not recognised`   : 'Bolt Material');
+    if (!dia)        miss.push(diaRaw     ? `Diameter "${diaRaw}" not recognised`          : 'Diameter');
+    if (!totLenRaw)  miss.push('Overall Length (mm)');
+    else             fstCheckLen(totLenRaw, 'Overall Length', miss);
+    if (!thrdLenRaw) miss.push('Thread Length (mm)');
+    else             fstCheckLen(thrdLenRaw, 'Thread Length', miss);
+    // Thread length must be less than overall length when both are present
+    if (totLenRaw && thrdLenRaw) {
+      const tot = Number(totLenRaw); const thr = Number(thrdLenRaw);
+      if (!Number.isNaN(tot) && !Number.isNaN(thr) && thr >= tot)
+        miss.push('Thread Length must be less than Overall Length');
+    }
+    if (miss.length) throw new Error(`Cannot generate Fastener SAP Item Code — missing or unrecognised: ${miss.join('; ')}`);
+    code = `RM-FST-ANBT-${subCode}-${bmat}-${dia}-${totLenRaw}MM-${thrdLenRaw}MM-${coat}`;
+  }
+
+  // ── Eye Bolt ──────────────────────────────────────────────────────────────
+  else if (ftype === 'Eye Bolt') {
+    const subCode    = FST_EYE_SUBTYPE_CODE[eyeSub];
+    const bmat       = FST_BOLT_MATL_CODE[bmatRaw];
+    const dia        = FST_DIA_CODE[diaRaw];
+    if (!subCode)     miss.push(eyeSub     ? `Eye Bolt Type "${eyeSub}" not recognised`   : 'Eye Bolt Type');
+    if (!bmat)        miss.push(bmatRaw    ? `Bolt Material "${bmatRaw}" not recognised`   : 'Bolt Material');
+    if (!dia)         miss.push(diaRaw     ? `Diameter "${diaRaw}" not recognised`          : 'Diameter');
+    if (!shankLenRaw) miss.push('Shank Length (mm)');
+    else              fstCheckLen(shankLenRaw, 'Shank Length', miss);
+    if (miss.length) throw new Error(`Cannot generate Fastener SAP Item Code — missing or unrecognised: ${miss.join('; ')}`);
+    code = `RM-FST-EYBT-${subCode}-${bmat}-${dia}-${shankLenRaw}MM-${coat}`;
+  }
+
+  // ── U-Bolt ────────────────────────────────────────────────────────────────
+  else if (ftype === 'U-Bolt') {
+    const bmat  = FST_BOLT_MATL_CODE[bmatRaw];
+    const rdDia = FST_DIA_CODE[rodDiaRaw];
+    if (!bmat)      miss.push(bmatRaw   ? `Material "${bmatRaw}" not recognised`       : 'Material');
+    if (!rdDia)     miss.push(rodDiaRaw ? `Rod Diameter "${rodDiaRaw}" not recognised`  : 'Rod Diameter');
+    if (!pipeSzRaw) miss.push('Pipe Size (NB)');
+    if (!legLenRaw) miss.push('Leg Length (mm)');
+    else            fstCheckLen(legLenRaw, 'Leg Length', miss);
+    if (miss.length) throw new Error(`Cannot generate Fastener SAP Item Code — missing or unrecognised: ${miss.join('; ')}`);
+    code = `RM-FST-UBLT-${bmat}-${rdDia}-${pipeSzRaw}-${legLenRaw}MM-${coat}`;
+  }
+
+  // ── Nuts ──────────────────────────────────────────────────────────────────
+  else if (FST_NUT_TYPES.has(ftype)) {
+    const nmat   = FST_NUT_MATL_CODE[nmatRaw];
+    const dia    = FST_DIA_CODE[diaRaw];
+    const thread = FST_THREAD_CODE[threadRaw];
+    if (!nmat)   miss.push(nmatRaw   ? `Nut Material "${nmatRaw}" not recognised`     : 'Nut Material');
+    if (!dia)    miss.push(diaRaw    ? `Diameter "${diaRaw}" not recognised`           : 'Diameter');
+    if (!thread) miss.push(threadRaw ? `Threading "${threadRaw}" not recognised`       : 'Threading Standard');
+    fstCheckDiaThread(diaRaw, threadRaw, miss);
+    if (miss.length) throw new Error(`Cannot generate Fastener SAP Item Code — missing or unrecognised: ${miss.join('; ')}`);
+    code = `RM-FST-${typeCode}-${nmat}-${dia}-${thread}-${coat}`;
+  }
+
+  // ── Washers ───────────────────────────────────────────────────────────────
+  else if (FST_WASHER_TYPES.has(ftype)) {
+    const wmat = FST_WSHR_MATL_CODE[wmatRaw];
+    const dia  = FST_DIA_CODE[diaRaw];
+    if (!wmat) miss.push(wmatRaw ? `Washer Material "${wmatRaw}" not recognised` : 'Washer Material');
+    if (!dia)  miss.push(diaRaw  ? `Diameter "${diaRaw}" not recognised`          : 'Diameter');
+    if (miss.length) throw new Error(`Cannot generate Fastener SAP Item Code — missing or unrecognised: ${miss.join('; ')}`);
+    code = `RM-FST-${typeCode}-${wmat}-${dia}-${coat}`;
+  }
+
+  else {
+    throw new Error(`Cannot generate Fastener SAP Item Code — Fastener Type "${ftype}" is not handled`);
+  }
+
+  if (code.length > SAP_ITEM_CODE_MAX_LEN) {
+    throw new Error(
+      `SAP Item Code "${code}" is ${code.length} chars — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`,
+    );
+  }
+  return code;
+}
+
+export async function resolveFastenersSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  return resolveOrCreateSapMasterItem(
+    pool, buildFastenersItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
+  );
+}

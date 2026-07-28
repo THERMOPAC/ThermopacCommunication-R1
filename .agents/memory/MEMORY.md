@@ -12,3 +12,4 @@
 - [SAP Vendor Sync Rules](sap-vendor-sync-rules.md) — No $select/no $orderby; forceLogin() before every Full Sync; PAGE_SIZE=20 hard cap; filter by U_ERP_Group IN (R/P/M/I/V/E/B) not GroupCode.
 - [Fittings form field order](fittings-form-field-order.md) — End Type must appear directly above Schedule/Pressure Class in the same card; placing it in a lower card made the toggle invisible to the user.
 - [Nipple SAP code requires length](nipple-sap-length.md) — Barrel Nipple and Pipe Nipple must include length_mm as a mandatory segment ({N}MM) or different-length nipples of same NB get identical codes.
+- [Fasteners procurement model](fasteners-procurement-model.md) — 8-family model; inch dia uses concatenated fraction codes (14IN/38IN…); coating is mandatory with no silent default; U-Bolt uses NB not OD; washer_series is engineering-only.

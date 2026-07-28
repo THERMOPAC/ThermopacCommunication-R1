@@ -1041,8 +1041,9 @@ export function FlangesAttrsForm({
 // ─────────────────────────────────────────────────────────────────────────────
 // 5. FASTENERS
 // ─────────────────────────────────────────────────────────────────────────────
+// UI labels: "Fully Threaded Stud" and "Double-End Stud" (SAP codes: STDBF / STDBT)
 const FASTENER_TYPES = [
-  "Stud Bolt (Full Thread)","Stud Bolt (2-end Thread)",
+  "Fully Threaded Stud","Double-End Stud",
   "Stud + 2 Nut + 2 Washer Set",
   "Hex Bolt","Anchor Bolt",
   "Hex Nut","Heavy Hex Nut",
@@ -1061,6 +1062,9 @@ const FASTENER_NUT_MATERIAL = [
   "ASTM A194 4","ASTM A194 7","ASTM A194 7M",
   "IS 1367 Cl.8",
 ];
+const FASTENER_WASHER_MATERIAL = [
+  "Carbon Steel (IS 2062)","SS 304","SS 316","Alloy Steel",
+];
 const FASTENER_DIAMETER = [
   "M8","M10","M12","M14","M16","M18","M20","M22","M24","M27","M30","M36","M42","M48",
   '1/4"','3/8"','1/2"','5/8"','3/4"','7/8"','1"','1-1/4"','1-1/2"','1-3/4"','2"',
@@ -1074,44 +1078,74 @@ const FASTENER_COATING = [
 ];
 const FASTENER_THREAD_PROTECTION = ["None","Plastic Cap","Thread Protector"];
 const FASTENER_STANDARD = [
-  "ASME B18.2.1",
-  "ASME B18.2.2",
-  "ASME B18.22.1",
-  "DIN 931",
-  "DIN 933",
-  "DIN 934",
-  "DIN 125",
-  "IS 1364",
-  "IS 1367",
-  "ASTM F436",
+  "ASME B18.2.1","ASME B18.2.2","ASME B18.22.1",
+  "DIN 931","DIN 933","DIN 934","DIN 125",
+  "IS 1364","IS 1367","ASTM F436",
 ];
+const FASTENER_ANCHOR_SUBTYPES = ["L-Bolt","J-Bolt","Straight","Headed"];
+const FASTENER_EYE_SUBTYPES    = ["Shoulder (Machinery)","Plain (Nut Eye)"];
+const FASTENER_BOLT_PROFILES   = ["Full Thread","Partial Thread"];
+const FASTENER_WASHER_SERIES   = [
+  "DIN 125 A","DIN 125 B","ASME B18.22.1 Type A","ASME B18.22.1 Type B","ASME B18.22.1 Type C",
+  "IS 2016","DIN 127 B","DIN 128 A","ASME B27.1","IS 3063",
+];
+
+// Diameter families — used for threading compatibility filtering
+const _FST_METRIC_DIAS = new Set([
+  "M8","M10","M12","M14","M16","M18","M20","M22","M24","M27","M30","M36","M42","M48",
+]);
+
 const FASTENERS_ALL_OPTS: Record<string, string[]> = {
-  fastener_type:       FASTENER_TYPES,
-  bolt_material:       FASTENER_BOLT_MATERIAL,
-  nut_material:        FASTENER_NUT_MATERIAL,
-  diameter:            FASTENER_DIAMETER,
-  threading_standard:  FASTENER_THREADING,
-  fastener_standard:   FASTENER_STANDARD,
-  coating:             FASTENER_COATING,
-  thread_protection:   FASTENER_THREAD_PROTECTION,
+  fastener_type:      FASTENER_TYPES,
+  bolt_material:      FASTENER_BOLT_MATERIAL,
+  nut_material:       FASTENER_NUT_MATERIAL,
+  washer_material:    FASTENER_WASHER_MATERIAL,
+  diameter:           FASTENER_DIAMETER,
+  rod_diameter:       FASTENER_DIAMETER,
+  threading_standard: FASTENER_THREADING,
+  fastener_standard:  FASTENER_STANDARD,
+  coating:            FASTENER_COATING,
+  thread_protection:  FASTENER_THREAD_PROTECTION,
+  anchor_type:        FASTENER_ANCHOR_SUBTYPES,
+  eye_bolt_type:      FASTENER_EYE_SUBTYPES,
+  bolt_profile:       FASTENER_BOLT_PROFILES,
+  washer_series:      FASTENER_WASHER_SERIES,
+  pipe_size:          COMMON_NB,
 };
 
 export function buildFastenersRequirement(attrs: Record<string, unknown>): string {
-  const ftype   = (attrs.fastener_type      as string)?.trim() || "";
-  const bmat    = (attrs.bolt_material      as string)?.trim() || "";
-  const nmat    = (attrs.nut_material       as string)?.trim() || "";
-  const dia     = (attrs.diameter           as string)?.trim() || "";
-  const length  = (attrs.length_mm          as string)?.trim() || "";
-  const thdStd  = (attrs.threading_standard as string)?.trim() || "";
-  const fstdStr = (attrs.fastener_standard  as string)?.trim() || "";
+  const g   = (k: string) => ((attrs[k] as string)?.trim() || "");
+  const ftype = g("fastener_type");
   if (!ftype) return "";
   const parts: string[] = [ftype];
-  if (bmat && nmat) parts.push(`${bmat} / ${nmat}`);
-  else if (bmat)    parts.push(bmat);
-  if (dia)     parts.push(dia);
-  if (length)  parts.push(`L=${length}mm`);
-  if (thdStd)  parts.push(thdStd);
-  if (fstdStr) parts.push(fstdStr);
+  if (ftype === "U-Bolt") {
+    const bmat = g("bolt_material"); if (bmat) parts.push(bmat);
+    const rd = g("rod_diameter");   if (rd) parts.push(`${rd} rod`);
+    const nb = g("pipe_size");      if (nb) parts.push(nb);
+    const ll = g("leg_length");     if (ll) parts.push(`leg=${ll}mm`);
+  } else if (ftype === "Anchor Bolt") {
+    const sub = g("anchor_type");   if (sub) parts.push(`(${sub})`);
+    const bmat = g("bolt_material"); if (bmat) parts.push(bmat);
+    const dia = g("diameter");      if (dia) parts.push(dia);
+    const ol = g("overall_length"); if (ol) parts.push(`OL=${ol}mm`);
+    const tl = g("thread_length"); if (tl) parts.push(`TL=${tl}mm`);
+  } else if (ftype === "Eye Bolt") {
+    const sub = g("eye_bolt_type"); if (sub) parts.push(`(${sub})`);
+    const bmat = g("bolt_material"); if (bmat) parts.push(bmat);
+    const dia = g("diameter");      if (dia) parts.push(dia);
+    const sl = g("shank_length");   if (sl) parts.push(`SL=${sl}mm`);
+  } else {
+    const bmat = g("bolt_material"); const nmat = g("nut_material"); const wmat = g("washer_material");
+    if (bmat && nmat && wmat) parts.push(`${bmat} / ${nmat} / ${wmat}`);
+    else if (bmat && nmat)    parts.push(`${bmat} / ${nmat}`);
+    else if (nmat)            parts.push(nmat);
+    else if (wmat)            parts.push(wmat);
+    else if (bmat)            parts.push(bmat);
+    const dia = g("diameter"); if (dia) parts.push(dia);
+    const len = g("length_mm"); if (len) parts.push(`L=${len}mm`);
+    const thr = g("threading_standard"); if (thr) parts.push(thr);
+  }
+  const coat = g("coating"); if (coat) parts.push(coat);
   return parts.join(", ");
 }
 
@@ -1126,7 +1160,7 @@ function deriveFastenerStandard(ftype: string, threading: string): string {
   if (isBoltOrStud && isInch)   return "ASME B18.2.1";
   if (isNut        && isInch)   return "ASME B18.2.2";
   if (isWasher     && isInch)   return "ASME B18.22.1";
-  // Metric bolts/studs: DIN 931 vs DIN 933 requires thread-length knowledge — leave blank
+  // Metric bolts/studs: DIN 931 vs DIN 933 ambiguous — leave blank
   if (isNut        && isMetric) return "DIN 934";
   if (isWasher     && isMetric) return "DIN 125";
   return "";
@@ -1167,15 +1201,66 @@ export function FastenersAttrsForm({
       </div>
     );
   }
+  function numField(key: string, label: string, required?: boolean) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs">{label}{required && <span className="text-red-500"> *</span>}</Label>
+        <Input className="h-8 text-sm" type="number" min="1" max="2000" step="1" placeholder="mm"
+          value={(attrs[key] as string) ?? ""}
+          onWheel={e => e.currentTarget.blur()}
+          onChange={e => set(key, e.target.value)} />
+      </div>
+    );
+  }
 
-  const ftype       = (attrs.fastener_type      as string) ?? "";
-  const threading   = (attrs.threading_standard as string) ?? "";
-  const ftLower     = ftype.toLowerCase();
-  const needsLength = ftLower.includes("bolt") || ftLower.includes("stud");
-  const needsNut    = ftLower.includes("bolt") || ftLower.includes("stud") || ftype === "Stud + 2 Nut + 2 Washer Set";
+  // ── Type family ──────────────────────────────────────────────────────────
+  const ftype        = (attrs.fastener_type      as string) ?? "";
+  const isStudBolt   = ftype === "Fully Threaded Stud" || ftype === "Double-End Stud";
+  const isSet        = ftype === "Stud + 2 Nut + 2 Washer Set";
+  const isHexBolt    = ftype === "Hex Bolt";
+  const isAnchorBolt = ftype === "Anchor Bolt";
+  const isEyeBolt    = ftype === "Eye Bolt";
+  const isUBolt      = ftype === "U-Bolt";
+  const isNut        = ftype === "Hex Nut" || ftype === "Heavy Hex Nut";
+  const isWasher     = ftype === "Flat Washer" || ftype === "Spring Washer";
 
-  // Auto-derive fastener standard (fill-if-blank)
-  const derivedFStd = deriveFastenerStandard(ftype, threading);
+  // ── Diameter family (drives threading filter) ────────────────────────────
+  const currDia     = (attrs.diameter as string) ?? "";
+  const diaIsMetric = _FST_METRIC_DIAS.has(currDia);
+  const diaIsInch   = !diaIsMetric && currDia !== "";
+
+  // Threading options filtered by diameter family
+  const allowedThreading = diaIsMetric
+    ? ["ISO Metric Coarse","ISO Metric Fine"]
+    : diaIsInch
+    ? ["ASME B1.1 (UNC)","ASME B1.1 (UNF)"]
+    : FASTENER_THREADING;
+
+  // Auto-clear threading if incompatible with selected diameter
+  const threadRaw = (attrs.threading_standard as string) ?? "";
+  if (currDia && threadRaw) {
+    const isMT = threadRaw === "ISO Metric Coarse" || threadRaw === "ISO Metric Fine";
+    const ok   = diaIsMetric ? isMT : !isMT;
+    if (!ok) Promise.resolve().then(() => onChange({ ...attrs, threading_standard: "" }));
+  }
+  // Auto-clear bolt_profile when diameter changes to inch
+  const profRaw = (attrs.bolt_profile as string) ?? "";
+  if (isHexBolt && diaIsInch && profRaw) {
+    Promise.resolve().then(() => onChange({ ...attrs, bolt_profile: "" }));
+  }
+
+  // ── Field visibility ──────────────────────────────────────────────────────
+  const showBoltProfile  = isHexBolt && diaIsMetric;
+  const showStdLen       = isStudBolt || isSet || isHexBolt;
+  const showBoltMat      = isStudBolt || isSet || isHexBolt || isAnchorBolt || isEyeBolt || isUBolt;
+  const showNutMat       = isSet || isNut;
+  const showWasherMat    = isSet || isWasher;
+  const showThread       = isStudBolt || isSet || isHexBolt || isAnchorBolt || isNut;
+  const showFastenerStd  = !isUBolt && !isWasher;
+  const bmatLabel        = (isStudBolt || isSet) ? "Stud Material" : isUBolt ? "Material" : "Bolt Material";
+
+  // Auto-derive fastener standard
+  const derivedFStd = deriveFastenerStandard(ftype, threadRaw);
   if (derivedFStd && !((attrs.fastener_standard as string) ?? "")) {
     Promise.resolve().then(() => onChange({ ...attrs, fastener_standard: derivedFStd }));
   }
@@ -1187,7 +1272,7 @@ export function FastenersAttrsForm({
     const hint   = derivedFStd && !curVal ? `Suggested: ${derivedFStd}` : "";
     return (
       <div className="space-y-1.5">
-        <Label className="text-xs">Fastener Standard</Label>
+        <Label className="text-xs">Fastener Standard <span className="text-muted-foreground text-[10px]">(engineering)</span></Label>
         <SearchableSelect value={selVal} options={FASTENER_STANDARD} placeholder="Select…"
           onSelect={v => {
             if (v === "__other__") { setCustom(c => ({ ...c, fastener_standard: true }));  set("fastener_standard", ""); }
@@ -1202,32 +1287,168 @@ export function FastenersAttrsForm({
 
   return (
     <div className="space-y-3">
+      {/* ── Card 1: Specification & Dimensions ─────────────────────────────── */}
       <SectionCard title="Fastener Specification" color="bg-sky-50/60 border-sky-200">
-        {rf("fastener_type", "Fastener Type", FASTENER_TYPES,    true)}
-        {rf("diameter",      "Diameter",      FASTENER_DIAMETER, true)}
-        {needsLength ? (
-          <div className="space-y-1.5">
-            <Label className="text-xs">Length (mm) <span className="text-red-500">*</span></Label>
-            <Input className="h-8 text-sm" type="number" min="1" step="1" placeholder="e.g. 100"
-              value={(attrs.length_mm as string) ?? ""}
-              onWheel={e => e.currentTarget.blur()}
-              onChange={e => set("length_mm", e.target.value)} />
-          </div>
-        ) : <div />}
-        {rfFStd()}
+        {rf("fastener_type", "Fastener Type", FASTENER_TYPES, true)}
+
+        {/* Sub-type selectors */}
+        {isAnchorBolt && rf("anchor_type",   "Anchor Type",     FASTENER_ANCHOR_SUBTYPES, true)}
+        {isEyeBolt    && rf("eye_bolt_type",  "Eye Bolt Type",   FASTENER_EYE_SUBTYPES,    true)}
+
+        {/* Bolt profile — Hex Bolt + metric diameter only */}
+        {showBoltProfile && rf("bolt_profile", "Bolt Profile", FASTENER_BOLT_PROFILES, true)}
+
+        {/* Diameter — standard types (not U-Bolt) */}
+        {!isUBolt && rf("diameter", "Diameter", FASTENER_DIAMETER, true)}
+
+        {/* U-Bolt geometry */}
+        {isUBolt && rf("rod_diameter", "Rod Diameter",   FASTENER_DIAMETER, true)}
+        {isUBolt && rf("pipe_size",    "Pipe Size (NB)", COMMON_NB,         true)}
+
+        {/* Lengths by family */}
+        {showStdLen    && numField("length_mm",      "Length (mm)",          true)}
+        {isAnchorBolt  && numField("overall_length", "Overall Length (mm)",  true)}
+        {isAnchorBolt  && numField("thread_length",  "Thread Length (mm)",   true)}
+        {isEyeBolt     && numField("shank_length",   "Shank Length (mm)",    true)}
+        {isUBolt       && numField("leg_length",     "Leg Length (mm)",      true)}
+
+        {/* Fastener standard (engineering-only) */}
+        {showFastenerStd && rfFStd()}
       </SectionCard>
-      <SectionCard title="Materials & Threading" color="bg-violet-50/60 border-violet-200">
-        {rf("bolt_material",      "Bolt / Stud Material", FASTENER_BOLT_MATERIAL, true)}
-        {needsNut
-          ? rf("nut_material",    "Nut Material",         FASTENER_NUT_MATERIAL,  true)
-          : <div />}
-        {rf("threading_standard", "Threading Standard",   FASTENER_THREADING,     true)}
-        {rf("coating",            "Coating / Finish",     FASTENER_COATING)}
-        {rf("thread_protection",  "Thread Protection",    FASTENER_THREAD_PROTECTION)}
+
+      {/* ── Card 2: Materials & Finishing ──────────────────────────────────── */}
+      <SectionCard title="Materials & Finishing" color="bg-violet-50/60 border-violet-200">
+        {showBoltMat   && rf("bolt_material",    bmatLabel,                    FASTENER_BOLT_MATERIAL,    true)}
+        {showNutMat    && rf("nut_material",     "Nut Material",               FASTENER_NUT_MATERIAL,     true)}
+        {showWasherMat && rf("washer_material",  "Washer Material",            FASTENER_WASHER_MATERIAL,  true)}
+        {isWasher      && rf("washer_series",    "Washer Series (engineering)", FASTENER_WASHER_SERIES)}
+        {showThread    && rf("threading_standard","Threading Standard",         allowedThreading,          true)}
+        {rf("coating",           "Coating / Finish",    FASTENER_COATING,          true)}
+        {!isWasher     && rf("thread_protection", "Thread Protection",         FASTENER_THREAD_PROTECTION)}
         <QtyField qty={qty} onQtyChange={onQtyChange} />
       </SectionCard>
     </div>
   );
+}
+
+// ── Client-side SAP code preview builder ─────────────────────────────────────
+const _P_FST_TYPE: Record<string, string> = {
+  "Fully Threaded Stud":"STDBF","Double-End Stud":"STDBT",
+  "Stud + 2 Nut + 2 Washer Set":"STDS","Hex Bolt":"HXBT",
+  "Anchor Bolt":"ANBT","Eye Bolt":"EYBT","U-Bolt":"UBLT",
+  "Hex Nut":"HXNT","Heavy Hex Nut":"HHNT",
+  "Flat Washer":"FLWSH","Spring Washer":"SPWSH",
+};
+const _P_FST_BMAT: Record<string, string> = {
+  "ASTM A193 B7":"B7","ASTM A193 B7M":"B7M",
+  "ASTM A193 B8 (SS304)":"B8","ASTM A193 B8 Class 2":"B8C2",
+  "ASTM A193 B8M (SS316)":"B8M","ASTM A193 B8M Class 2":"B8MC2",
+  "ASTM A193 B16":"B16","ASTM A320 L7":"L7",
+  "IS 1367 Cl.8.8":"IS88","IS 1367 Cl.10.9":"IS109",
+  "A307":"A307","A325":"A325","A490":"A490",
+};
+const _P_FST_NMAT: Record<string, string> = {
+  "ASTM A194 2H":"2H","ASTM A194 2HM":"2HM",
+  "ASTM A194 8 (SS304)":"8","ASTM A194 8M (SS316)":"8M",
+  "ASTM A194 4":"4","ASTM A194 7":"7","ASTM A194 7M":"7M",
+  "IS 1367 Cl.8":"IS8",
+};
+const _P_FST_WMAT: Record<string, string> = {
+  "Carbon Steel (IS 2062)":"CS","SS 304":"SS304","SS 316":"SS316","Alloy Steel":"AS",
+};
+const _P_FST_DIA: Record<string, string> = {
+  "M8":"M8","M10":"M10","M12":"M12","M14":"M14","M16":"M16","M18":"M18",
+  "M20":"M20","M22":"M22","M24":"M24","M27":"M27","M30":"M30",
+  "M36":"M36","M42":"M42","M48":"M48",
+  '1/4"':"14IN",'3/8"':"38IN",'1/2"':"12IN",'5/8"':"58IN",
+  '3/4"':"34IN",'7/8"':"78IN",'1"':"1IN",
+  '1-1/4"':"114IN",'1-1/2"':"112IN",'1-3/4"':"134IN",'2"':"2IN",
+};
+const _P_FST_THR: Record<string, string> = {
+  "ASME B1.1 (UNC)":"UNC","ASME B1.1 (UNF)":"UNF",
+  "ISO Metric Coarse":"MC","ISO Metric Fine":"MF",
+};
+const _P_FST_COAT: Record<string, string> = {
+  "Plain (Uncoated)":"PLN","Hot-Dip Galvanized":"HDG",
+  "Zinc Electroplated":"ZEP","Xylan / Fluoropolymer":"XYL",
+  "PTFE Coated":"PTFE","Black Oxide":"BOX",
+};
+const _P_FST_ANCH: Record<string, string> = {
+  "L-Bolt":"LBLT","J-Bolt":"JBLT","Straight":"STR","Headed":"HDR",
+};
+const _P_FST_EYE: Record<string, string> = {
+  "Shoulder (Machinery)":"SHD","Plain (Nut Eye)":"PNE",
+};
+const _P_FST_PROF: Record<string, string> = {
+  "Full Thread":"FT","Partial Thread":"PT",
+};
+const _P_FST_STUD = new Set(["Fully Threaded Stud","Double-End Stud"]);
+const _P_FST_NUT  = new Set(["Hex Nut","Heavy Hex Nut"]);
+const _P_FST_WSHR = new Set(["Flat Washer","Spring Washer"]);
+
+export function buildFastenersPreviewCode(attrs: Record<string, unknown>): string {
+  try {
+    const g = (k: string) => ((attrs[k] as string) ?? "").trim();
+    const ftype       = g("fastener_type");
+    const typeCode    = _P_FST_TYPE[ftype]; if (!typeCode) return "";
+    const coat        = _P_FST_COAT[g("coating")]; if (!coat) return "";
+
+    const bmat        = _P_FST_BMAT[g("bolt_material")];
+    const nmat        = _P_FST_NMAT[g("nut_material")];
+    const wmat        = _P_FST_WMAT[g("washer_material")];
+    const dia         = _P_FST_DIA[g("diameter")];
+    const thr         = _P_FST_THR[g("threading_standard")];
+    const lenRaw      = g("length_mm").replace(/mm$/i, "");
+    const totLenRaw   = g("overall_length").replace(/mm$/i, "");
+    const thrdLenRaw  = g("thread_length").replace(/mm$/i, "");
+    const shankLenRaw = g("shank_length").replace(/mm$/i, "");
+    const legLenRaw   = g("leg_length").replace(/mm$/i, "");
+    const rdDia       = _P_FST_DIA[g("rod_diameter")];
+    const pipeSz      = g("pipe_size");
+
+    if (_P_FST_STUD.has(ftype)) {
+      if (!bmat || !dia || !lenRaw || !thr) return "";
+      return `RM-FST-${typeCode}-${bmat}-${dia}-${lenRaw}MM-${thr}-${coat}`;
+    }
+    if (ftype === "Stud + 2 Nut + 2 Washer Set") {
+      if (!bmat || !nmat || !wmat || !dia || !lenRaw || !thr) return "";
+      return `RM-FST-STDS-${bmat}-${nmat}-${wmat}-${dia}-${lenRaw}MM-${thr}-${coat}`;
+    }
+    if (ftype === "Hex Bolt") {
+      if (!bmat || !dia || !lenRaw || !thr) return "";
+      const isMetric = _FST_METRIC_DIAS.has(g("diameter"));
+      if (isMetric) {
+        const prof = _P_FST_PROF[g("bolt_profile")]; if (!prof) return "";
+        return `RM-FST-HXBT-${prof}-${bmat}-${dia}-${lenRaw}MM-${thr}-${coat}`;
+      }
+      return `RM-FST-HXBT-${bmat}-${dia}-${lenRaw}MM-${thr}-${coat}`;
+    }
+    if (ftype === "Anchor Bolt") {
+      const sub = _P_FST_ANCH[g("anchor_type")];
+      if (!sub || !bmat || !dia || !totLenRaw || !thrdLenRaw) return "";
+      return `RM-FST-ANBT-${sub}-${bmat}-${dia}-${totLenRaw}MM-${thrdLenRaw}MM-${coat}`;
+    }
+    if (ftype === "Eye Bolt") {
+      const sub = _P_FST_EYE[g("eye_bolt_type")];
+      if (!sub || !bmat || !dia || !shankLenRaw) return "";
+      return `RM-FST-EYBT-${sub}-${bmat}-${dia}-${shankLenRaw}MM-${coat}`;
+    }
+    if (ftype === "U-Bolt") {
+      if (!bmat || !rdDia || !pipeSz || !legLenRaw) return "";
+      return `RM-FST-UBLT-${bmat}-${rdDia}-${pipeSz}-${legLenRaw}MM-${coat}`;
+    }
+    if (_P_FST_NUT.has(ftype)) {
+      if (!nmat || !dia || !thr) return "";
+      return `RM-FST-${typeCode}-${nmat}-${dia}-${thr}-${coat}`;
+    }
+    if (_P_FST_WSHR.has(ftype)) {
+      if (!wmat || !dia) return "";
+      return `RM-FST-${typeCode}-${wmat}-${dia}-${coat}`;
+    }
+    return "";
+  } catch {
+    return "";
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
