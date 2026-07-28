@@ -3297,3 +3297,233 @@ export async function resolveFastenersSapItemCode(
     pool, buildFastenersItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. GASKETS
+// ─────────────────────────────────────────────────────────────────────────────
+
+const GSK_WINDING_CODE: Record<string, string> = {
+  'SS316 / Graphite':        '316G',
+  'SS304 / Graphite':        '304G',
+  'SS316 / PTFE':            '316T',
+  'SS304 / PTFE':            '304T',
+  'Inconel 625 / Graphite':  'IC625G',
+  'CS / Graphite':           'CSG',
+  'SS316 / Ceramic':         '316C',
+};
+
+// Used for inner ring, outer ring, and CMG core (same set of materials)
+const GSK_RING_METAL_CODE: Record<string, string> = {
+  'SS316':        '316',
+  'SS304':        '304',
+  'Carbon Steel': 'CS',
+  'Inconel 625':  'IC625',
+  'Monel 400':    'MNL400',
+};
+
+const GSK_CMG_SURFACE_CODE: Record<string, string> = {
+  'Graphite': 'GRPH',
+  'PTFE':     'PTFE',
+};
+
+const GSK_SHEET_MATERIAL_CODE: Record<string, string> = {
+  'CAF-Free (Non-asbestos)': 'CNAF',
+  'PTFE':                    'PTFE',
+  'Expanded Graphite':       'EXGRPH',
+  'EPDM':                    'EPDM',
+  'Neoprene':                'NEOP',
+  'Silicone':                'SIL',
+  'NBR':                     'NBR',
+  'Compressed Fibre':        'CFB',
+};
+
+const GSK_ORING_MATERIAL_CODE: Record<string, string> = {
+  'NBR':         'NBR',
+  'EPDM':        'EPDM',
+  'Viton (FKM)': 'VITON',
+  'PTFE':        'PTFE',
+  'Silicone':    'SIL',
+  'Neoprene':    'NEOP',
+};
+
+const GSK_PRESSURE_CLASS_CODE: Record<string, string> = {
+  '150#':  '150',
+  '300#':  '300',
+  '600#':  '600',
+  '900#':  '900',
+  '1500#': '1500',
+  '2500#': '2500',
+  'PN 10': 'PN10',
+  'PN 16': 'PN16',
+  'PN 20': 'PN20',
+  'PN 25': 'PN25',
+};
+
+const GSK_SHAPE_CODE: Record<string, string> = {
+  'Ring':           'RNG',
+  'Full Face Ring': 'FF',
+  'Rectangular':    'RECT',
+};
+
+/** Format a numeric dimension string — strip trailing decimal zeros (50.0 → 50, 5.33 → 5.33). */
+function gskFmtDim(raw: string): string {
+  const n = parseFloat(raw);
+  return isNaN(n) ? raw.trim() : n.toString();
+}
+
+export function buildGasketsItemCode(attrs: Record<string, unknown>): string {
+  const g = (k: string) => ((attrs[k] as string) ?? '').trim();
+  const gtype = g('gasket_type');
+  if (!gtype) throw new Error('Cannot generate Gasket SAP Item Code — Gasket Type is required');
+
+  const missing: string[] = [];
+
+  // ── Spiral Wound – Inner + Outer Ring ──────────────────────────────────────
+  if (gtype === 'Spiral Wound – Inner + Outer Ring') {
+    const wind  = GSK_WINDING_CODE[g('winding_material')];
+    const inner = GSK_RING_METAL_CODE[g('inner_ring_material')];
+    const outer = GSK_RING_METAL_CODE[g('outer_ring_material')];
+    const nb    = g('nominal_bore');
+    const pc    = GSK_PRESSURE_CLASS_CODE[g('pressure_class')];
+    const face  = g('facing');
+    if (!wind)  missing.push(!g('winding_material')    ? 'Winding Material'    : `Winding Material "${g('winding_material')}" not recognised`);
+    if (!inner) missing.push(!g('inner_ring_material') ? 'Inner Ring Material' : `Inner Ring Material "${g('inner_ring_material')}" not recognised`);
+    if (!outer) missing.push(!g('outer_ring_material') ? 'Outer Ring Material' : `Outer Ring Material "${g('outer_ring_material')}" not recognised`);
+    if (!nb)    missing.push('Nominal Bore');
+    if (!pc)    missing.push(!g('pressure_class') ? 'Pressure Class' : `Pressure Class "${g('pressure_class')}" not recognised`);
+    if (!face)  missing.push('Flange Facing');
+    if (missing.length) throw new Error(`Cannot generate Gasket SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+    const code = `RM-GSK-SWIO-${wind}-${inner}-${outer}-${nb}-${pc}-${face}`;
+    if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
+    return code;
+  }
+
+  // ── Corrugated Metal Gasket ────────────────────────────────────────────────
+  if (gtype === 'Corrugated Metal Gasket') {
+    const core    = GSK_RING_METAL_CODE[g('cmg_material')];
+    const surfRaw = g('cmg_surface');
+    const surf    = surfRaw ? (GSK_CMG_SURFACE_CODE[surfRaw] ?? null) : null;
+    const nb      = g('nominal_bore');
+    const pc      = GSK_PRESSURE_CLASS_CODE[g('pressure_class')];
+    const face    = g('facing');
+    if (!core)            missing.push(!g('cmg_material') ? 'Core Material' : `Core Material "${g('cmg_material')}" not recognised`);
+    if (surfRaw && !surf) missing.push(`Surface Layer "${surfRaw}" not recognised`);
+    if (!nb)              missing.push('Nominal Bore');
+    if (!pc)              missing.push(!g('pressure_class') ? 'Pressure Class' : `Pressure Class "${g('pressure_class')}" not recognised`);
+    if (!face)            missing.push('Flange Facing');
+    if (missing.length) throw new Error(`Cannot generate Gasket SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+    const segs = ['RM-GSK-CMG', core!];
+    if (surf) segs.push(surf);
+    segs.push(nb, pc!, face);
+    const code = segs.join('-');
+    if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
+    return code;
+  }
+
+  // ── Flat Sheet Gasket ──────────────────────────────────────────────────────
+  if (gtype === 'Flat Sheet Gasket') {
+    const mat    = GSK_SHEET_MATERIAL_CODE[g('sheet_material')];
+    const thkRaw = g('sheet_thickness').replace(/mm$/i, '').trim();
+    const nb     = g('nominal_bore');
+    const pc     = GSK_PRESSURE_CLASS_CODE[g('pressure_class')];
+    const face   = g('facing');
+    if (!mat)    missing.push(!g('sheet_material')  ? 'Sheet Material'  : `Sheet Material "${g('sheet_material')}" not recognised`);
+    if (!thkRaw) missing.push('Thickness (mm)');
+    if (!nb)     missing.push('Nominal Bore');
+    if (!pc)     missing.push(!g('pressure_class') ? 'Pressure Class' : `Pressure Class "${g('pressure_class')}" not recognised`);
+    if (!face)   missing.push('Flange Facing');
+    if (missing.length) throw new Error(`Cannot generate Gasket SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+    const code = `RM-GSK-FSG-${mat}-${thkRaw}MM-${nb}-${pc}-${face}`;
+    if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
+    return code;
+  }
+
+  // ── Soft Cut Gasket ────────────────────────────────────────────────────────
+  if (gtype === 'Soft Cut Gasket') {
+    const mat     = GSK_SHEET_MATERIAL_CODE[g('sheet_material')];
+    const thkRaw  = g('sheet_thickness').replace(/mm$/i, '').trim();
+    const shape   = g('scg_shape');
+    const shapeCode = shape ? (GSK_SHAPE_CODE[shape] ?? null) : null;
+    if (!mat)    missing.push(!g('sheet_material') ? 'Sheet Material' : `Sheet Material "${g('sheet_material')}" not recognised`);
+    if (!thkRaw) missing.push('Thickness (mm)');
+    if (!shape)  missing.push('Shape');
+    if (shape && !shapeCode) {
+      throw new Error(`Soft Cut Gasket — Shape "${shape}" requires manual SAP code entry (no automatic code for Custom/Oval shapes)`);
+    }
+    if (missing.length) throw new Error(`Cannot generate Gasket SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+    if (shapeCode === 'RNG' || shapeCode === 'FF') {
+      const idRaw = g('scg_id');
+      const odRaw = g('scg_od');
+      if (!idRaw) missing.push('Inner Diameter (ID)');
+      if (!odRaw) missing.push('Outer Diameter (OD)');
+      if (missing.length) throw new Error(`Cannot generate Gasket SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+      const code = `RM-GSK-SCG-${mat}-${thkRaw}MM-${shapeCode}-${idRaw}X${odRaw}`;
+      if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
+      return code;
+    }
+    if (shapeCode === 'RECT') {
+      const lRaw = g('scg_length');
+      const wRaw = g('scg_width');
+      if (!lRaw) missing.push('Length (mm)');
+      if (!wRaw) missing.push('Width (mm)');
+      if (missing.length) throw new Error(`Cannot generate Gasket SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+      const code = `RM-GSK-SCG-${mat}-${thkRaw}MM-RECT-${lRaw}X${wRaw}`;
+      if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
+      return code;
+    }
+    throw new Error('Cannot generate Gasket SAP Item Code — unrecognised shape');
+  }
+
+  // ── O-Ring ─────────────────────────────────────────────────────────────────
+  if (gtype === 'O-Ring') {
+    const mat     = GSK_ORING_MATERIAL_CODE[g('oring_material')];
+    const idRaw   = g('oring_id');
+    const odRaw   = g('oring_od');
+    const csRaw   = g('oring_cs');
+    const hardRaw = g('oring_hardness').replace(/\s+/g, '');
+    const isPTFE  = g('oring_material') === 'PTFE';
+    if (!mat)    missing.push(!g('oring_material') ? 'Ring Material'         : `Ring Material "${g('oring_material')}" not recognised`);
+    if (!idRaw)  missing.push('Inside Diameter (ID)');
+    if (!odRaw)  missing.push('Outside Diameter (OD)');
+    if (!csRaw)  missing.push('Cross-Section (CS)');
+    if (!isPTFE && !hardRaw) missing.push('Hardness (Shore A) — mandatory for rubber/elastomeric O-rings');
+    if (missing.length) throw new Error(`Cannot generate Gasket SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+    // Geometric check: OD ≈ ID + 2×CS  (tolerance: 3% of expected or 1 mm, whichever is larger)
+    const id = parseFloat(idRaw);
+    const od = parseFloat(odRaw);
+    const cs = parseFloat(csRaw);
+    if (!isNaN(id) && !isNaN(od) && !isNaN(cs)) {
+      const expected  = id + 2 * cs;
+      const tolerance = Math.max(1.0, expected * 0.03);
+      if (Math.abs(od - expected) > tolerance) {
+        throw new Error(
+          `O-Ring dimension check failed: OD (${od}) should equal ID + 2×CS = ` +
+          `${id} + 2×${cs} = ${expected.toFixed(2)} mm ` +
+          `(allowed tolerance ±${tolerance.toFixed(2)} mm). ` +
+          `Please verify your caliper measurements.`,
+        );
+      }
+    }
+    const dimSeg = `${gskFmtDim(idRaw)}X${gskFmtDim(odRaw)}X${gskFmtDim(csRaw)}`;
+    const code   = hardRaw
+      ? `RM-GSK-ORING-${mat}-${dimSeg}-${hardRaw}`
+      : `RM-GSK-ORING-${mat}-${dimSeg}`;
+    if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
+    return code;
+  }
+
+  throw new Error(`Cannot generate Gasket SAP Item Code — Gasket Type "${gtype}" not recognised`);
+}
+
+export async function resolveGasketsSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  return resolveOrCreateSapMasterItem(
+    pool, buildGasketsItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
+  );
+}

@@ -1455,71 +1455,192 @@ export function buildFastenersPreviewCode(attrs: Record<string, unknown>): strin
 // 6. GASKETS
 // ─────────────────────────────────────────────────────────────────────────────
 const GASKET_TYPES = [
-  "Spiral Wound (Inner + Outer Ring)",
-  "Spiral Wound (Outer Ring only)",
-  "Spiral Wound",
+  "Spiral Wound – Inner + Outer Ring",
   "Corrugated Metal Gasket",
-  "RTJ — Oval",
-  "RTJ — Octagonal",
-  "Flat Sheet — Full Face",
-  "Flat Sheet — Raised Face",
-  "Camprofile (Grooved)",
-  "Kammprofile",
-  "PTFE Gasket",
-  "CAF Gasket",
-  "Rubber Gasket",
-  "Graphite Gasket",
+  "Flat Sheet Gasket",
+  "Soft Cut Gasket",
   "O-Ring",
-  "CNAF Gasket",
-  "EPDM Gasket",
-  "Neoprene Gasket",
-  "Silicon Gasket",
 ];
 const GASKET_WINDING_MATERIAL    = [
   "SS316 / Graphite","SS304 / Graphite","SS316 / PTFE","SS304 / PTFE",
   "Inconel 625 / Graphite","CS / Graphite","SS316 / Ceramic",
 ];
-const GASKET_INNER_RING_MATERIAL = ["SS316","SS304","CS","Inconel 625","Monel 400"];
-const GASKET_RTJ_RING_MATERIAL   = ["Soft Iron","Low Carbon Steel","SS316","SS304","Monel","Inconel 625"];
+const GASKET_RING_METAL_OPTS     = ["SS316","SS304","Carbon Steel","Inconel 625","Monel 400"];
+const GASKET_CMG_SURFACE_OPTS    = ["Graphite","PTFE"];
 const GASKET_SHEET_MATERIAL      = [
-  "CAF-Free (Non-asbestos)","PTFE","EPDM","Neoprene","Graphite Sheet","Compressed Fibre",
+  "CAF-Free (Non-asbestos)","PTFE","Expanded Graphite",
+  "EPDM","Neoprene","Silicone","NBR","Compressed Fibre",
 ];
+const GASKET_ORING_MATERIAL      = ["NBR","EPDM","Viton (FKM)","PTFE","Silicone","Neoprene"];
+const GASKET_THICKNESS_OPTS      = ["1.5","2","3","4.5","6"];
+const GASKET_FACING_OPTS         = ["RF","FF"];
+const GASKET_SCG_SHAPES          = ["Ring","Full Face Ring","Rectangular","Custom"];
+const GASKET_HARDNESS_OPTS       = ["50A","60A","70A","80A","90A"];
 const GASKET_STANDARD            = ["ASME B16.20","ASME B16.21","API 601"];
-const GASKETS_FACING_OPTS        = ["RF","FF","RTJ"];
-const GASKET_CAMPROFILE_CORE     = ["SS316","SS304","CS","Inconel 625"];
-const GASKET_CAMPROFILE_FACING   = ["Graphite","PTFE"];
-const GASKET_SHEET_GRADES        = [
-  "Grade 20","Grade 25","Grade 30","Grade 40","Grade 45",
-  "Grade 50","Grade 59","Grade 60","Grade 65","Grade 80",
-];
+
 const GASKETS_ALL_OPTS: Record<string, string[]> = {
-  gasket_type:            GASKET_TYPES,
-  nominal_bore:           COMMON_NB,
-  pressure_class:         PRESSURE_CLASS_OPTS,
-  facing:                 GASKETS_FACING_OPTS,
-  gasket_standard:        GASKET_STANDARD,
-  sheet_grade:            GASKET_SHEET_GRADES,
-  winding_material:       GASKET_WINDING_MATERIAL,
-  inner_ring_material:    GASKET_INNER_RING_MATERIAL,
-  rtj_ring_material:      GASKET_RTJ_RING_MATERIAL,
-  sheet_material:         GASKET_SHEET_MATERIAL,
-  camprofile_core:        GASKET_CAMPROFILE_CORE,
-  camprofile_facing:      GASKET_CAMPROFILE_FACING,
+  gasket_type:          GASKET_TYPES,
+  nominal_bore:         COMMON_NB,
+  pressure_class:       PRESSURE_CLASS_OPTS,
+  facing:               GASKET_FACING_OPTS,
+  gasket_standard:      GASKET_STANDARD,
+  winding_material:     GASKET_WINDING_MATERIAL,
+  inner_ring_material:  GASKET_RING_METAL_OPTS,
+  outer_ring_material:  GASKET_RING_METAL_OPTS,
+  cmg_material:         GASKET_RING_METAL_OPTS,
+  cmg_surface:          GASKET_CMG_SURFACE_OPTS,
+  sheet_material:       GASKET_SHEET_MATERIAL,
+  sheet_thickness:      GASKET_THICKNESS_OPTS,
+  scg_shape:            GASKET_SCG_SHAPES,
+  oring_material:       GASKET_ORING_MATERIAL,
+  oring_hardness:       GASKET_HARDNESS_OPTS,
 };
 
 export function buildGasketsRequirement(attrs: Record<string, unknown>): string {
-  const gtype  = (attrs.gasket_type    as string)?.trim() || "";
-  const nb     = (attrs.nominal_bore   as string)?.trim() || "";
-  const cls    = (attrs.pressure_class as string)?.trim() || "";
-  const facing = (attrs.facing         as string)?.trim() || "";
-  const std    = (attrs.gasket_standard as string)?.trim() || "";
+  const g = (k: string) => ((attrs[k] as string) ?? "").trim();
+  const gtype = g("gasket_type");
   if (!gtype) return "";
-  const parts: string[] = [`${gtype} Gasket`];
-  if (nb)     parts.push(nb);
-  if (cls)    parts.push(cls);
-  if (facing) parts.push(facing);
-  if (std)    parts.push(std);
-  return parts.join(", ");
+  if (gtype === "Spiral Wound – Inner + Outer Ring") {
+    const parts: string[] = [gtype];
+    if (g("nominal_bore"))     parts.push(g("nominal_bore"));
+    if (g("pressure_class"))   parts.push(g("pressure_class"));
+    if (g("winding_material")) parts.push(g("winding_material"));
+    if (g("facing"))           parts.push(g("facing"));
+    return parts.join(", ");
+  }
+  if (gtype === "Corrugated Metal Gasket") {
+    const parts: string[] = [gtype];
+    if (g("cmg_material"))   parts.push(g("cmg_material"));
+    if (g("nominal_bore"))   parts.push(g("nominal_bore"));
+    if (g("pressure_class")) parts.push(g("pressure_class"));
+    if (g("facing"))         parts.push(g("facing"));
+    return parts.join(", ");
+  }
+  if (gtype === "Flat Sheet Gasket") {
+    const parts: string[] = [gtype];
+    if (g("sheet_material"))  parts.push(g("sheet_material"));
+    if (g("sheet_thickness")) parts.push(`${g("sheet_thickness")}mm thk`);
+    if (g("nominal_bore"))    parts.push(g("nominal_bore"));
+    if (g("pressure_class"))  parts.push(g("pressure_class"));
+    if (g("facing"))          parts.push(g("facing"));
+    return parts.join(", ");
+  }
+  if (gtype === "Soft Cut Gasket") {
+    const parts: string[] = [gtype];
+    if (g("sheet_material"))  parts.push(g("sheet_material"));
+    if (g("sheet_thickness")) parts.push(`${g("sheet_thickness")}mm thk`);
+    if (g("scg_shape"))       parts.push(g("scg_shape"));
+    const id = g("scg_id"), od = g("scg_od");
+    const l = g("scg_length"), w = g("scg_width");
+    if (id && od)  parts.push(`ID${id}×OD${od}mm`);
+    else if (l && w) parts.push(`${l}×${w}mm`);
+    return parts.join(", ");
+  }
+  if (gtype === "O-Ring") {
+    const parts: string[] = [gtype];
+    if (g("oring_material")) parts.push(g("oring_material"));
+    const id = g("oring_id"), od = g("oring_od"), cs = g("oring_cs");
+    if (id && od && cs) parts.push(`ID${id}×OD${od}×CS${cs}mm`);
+    if (g("oring_hardness")) parts.push(`Shore ${g("oring_hardness")}`);
+    return parts.join(", ");
+  }
+  return gtype;
+}
+
+// ── Client-side encoding maps (mirrors server/buy-catalog-sap-service.ts) ───
+const _GSK_WINDING: Record<string, string> = {
+  "SS316 / Graphite": "316G",  "SS304 / Graphite": "304G",
+  "SS316 / PTFE": "316T",      "SS304 / PTFE": "304T",
+  "Inconel 625 / Graphite": "IC625G", "CS / Graphite": "CSG",
+  "SS316 / Ceramic": "316C",
+};
+const _GSK_RING_METAL: Record<string, string> = {
+  "SS316": "316", "SS304": "304", "Carbon Steel": "CS",
+  "Inconel 625": "IC625", "Monel 400": "MNL400",
+};
+const _GSK_CMG_SURF: Record<string, string> = { "Graphite": "GRPH", "PTFE": "PTFE" };
+const _GSK_SHEET_MAT: Record<string, string> = {
+  "CAF-Free (Non-asbestos)": "CNAF", "PTFE": "PTFE", "Expanded Graphite": "EXGRPH",
+  "EPDM": "EPDM", "Neoprene": "NEOP", "Silicone": "SIL", "NBR": "NBR",
+  "Compressed Fibre": "CFB",
+};
+const _GSK_ORING_MAT: Record<string, string> = {
+  "NBR": "NBR", "EPDM": "EPDM", "Viton (FKM)": "VITON",
+  "PTFE": "PTFE", "Silicone": "SIL", "Neoprene": "NEOP",
+};
+const _GSK_PC: Record<string, string> = {
+  "150#": "150", "300#": "300", "600#": "600", "900#": "900",
+  "1500#": "1500", "2500#": "2500",
+  "PN 10": "PN10", "PN 16": "PN16", "PN 20": "PN20", "PN 25": "PN25",
+};
+const _GSK_SHAPE: Record<string, string> = {
+  "Ring": "RNG", "Full Face Ring": "FF", "Rectangular": "RECT",
+};
+function _gskFmt(v: string): string { const n = parseFloat(v); return isNaN(n) ? v : n.toString(); }
+
+export function buildGasketsPreviewCode(attrs: Record<string, unknown>): string {
+  try {
+    const g  = (k: string) => ((attrs[k] as string) ?? "").trim();
+    const gtype = g("gasket_type");
+    if (!gtype) return "";
+    const nb     = g("nominal_bore");
+    const pc     = _GSK_PC[g("pressure_class")] ?? "";
+    const facing = g("facing");
+
+    if (gtype === "Spiral Wound – Inner + Outer Ring") {
+      const wind  = _GSK_WINDING[g("winding_material")];
+      const inner = _GSK_RING_METAL[g("inner_ring_material")];
+      const outer = _GSK_RING_METAL[g("outer_ring_material")];
+      if (!wind || !inner || !outer || !nb || !pc || !facing) return "";
+      return `RM-GSK-SWIO-${wind}-${inner}-${outer}-${nb}-${pc}-${facing}`;
+    }
+    if (gtype === "Corrugated Metal Gasket") {
+      const core = _GSK_RING_METAL[g("cmg_material")];
+      const surfRaw = g("cmg_surface");
+      const surf = surfRaw ? (_GSK_CMG_SURF[surfRaw] ?? null) : null;
+      if (!core || !nb || !pc || !facing) return "";
+      if (surfRaw && !surf) return "";
+      const segs = ["RM-GSK-CMG", core];
+      if (surf) segs.push(surf);
+      segs.push(nb, pc, facing);
+      return segs.join("-");
+    }
+    if (gtype === "Flat Sheet Gasket") {
+      const mat = _GSK_SHEET_MAT[g("sheet_material")];
+      const thk = g("sheet_thickness").replace(/mm$/i, "");
+      if (!mat || !thk || !nb || !pc || !facing) return "";
+      return `RM-GSK-FSG-${mat}-${thk}MM-${nb}-${pc}-${facing}`;
+    }
+    if (gtype === "Soft Cut Gasket") {
+      const mat = _GSK_SHEET_MAT[g("sheet_material")];
+      const thk = g("sheet_thickness").replace(/mm$/i, "");
+      const shape = g("scg_shape");
+      const shapeCode = _GSK_SHAPE[shape];
+      if (!mat || !thk || !shape || !shapeCode) return "";
+      if (shapeCode === "RNG" || shapeCode === "FF") {
+        const id = g("scg_id"), od = g("scg_od");
+        if (!id || !od) return "";
+        return `RM-GSK-SCG-${mat}-${thk}MM-${shapeCode}-${id}X${od}`;
+      }
+      if (shapeCode === "RECT") {
+        const l = g("scg_length"), w = g("scg_width");
+        if (!l || !w) return "";
+        return `RM-GSK-SCG-${mat}-${thk}MM-RECT-${l}X${w}`;
+      }
+      return "";
+    }
+    if (gtype === "O-Ring") {
+      const mat    = _GSK_ORING_MAT[g("oring_material")];
+      const id     = g("oring_id"), od = g("oring_od"), cs = g("oring_cs");
+      const hard   = g("oring_hardness").replace(/\s+/g, "");
+      const isPTFE = g("oring_material") === "PTFE";
+      if (!mat || !id || !od || !cs) return "";
+      if (!isPTFE && !hard) return "";
+      const dimSeg = `${_gskFmt(id)}X${_gskFmt(od)}X${_gskFmt(cs)}`;
+      return hard ? `RM-GSK-ORING-${mat}-${dimSeg}-${hard}` : `RM-GSK-ORING-${mat}-${dimSeg}`;
+    }
+    return "";
+  } catch { return ""; }
 }
 
 export function GasketsAttrsForm({
@@ -1541,21 +1662,27 @@ export function GasketsAttrsForm({
   const set = (key: string, val: unknown) => onChange({ ...attrs, [key]: val });
 
   function handleSelect(key: string, val: string) {
-    if (val === "__other__") { setCustom(c => ({ ...c, [key]: true }));  set(key, ""); }
+    if (val === "__other__") { setCustom(c => ({ ...c, [key]: true })); set(key, ""); }
     else {
       setCustom(c => ({ ...c, [key]: false }));
+      // Clear all type-specific fields when the gasket family changes
       if (key === "gasket_type") {
-        const isSwType = val.toLowerCase().startsWith("spiral");
-        if (isSwType && !(attrs.winding_material as string)) {
-          onChange({ ...attrs, gasket_type: val, winding_material: "SS316 / Graphite" });
-        } else {
-          set(key, val);
-        }
+        onChange({
+          ...attrs,
+          gasket_type: val,
+          winding_material: "", inner_ring_material: "", outer_ring_material: "",
+          cmg_material: "", cmg_surface: "",
+          sheet_material: "", sheet_thickness: "",
+          scg_shape: "", scg_id: "", scg_od: "", scg_length: "", scg_width: "",
+          oring_material: "", oring_id: "", oring_od: "", oring_cs: "", oring_hardness: "",
+          nominal_bore: "", pressure_class: "", facing: "",
+        });
       } else {
         set(key, val);
       }
     }
   }
+
   function rf(key: string, label: string, opts: string[], required?: boolean) {
     const curVal = (attrs[key] as string) ?? "";
     const isCust = custom[key] ?? false;
@@ -1580,34 +1707,140 @@ export function GasketsAttrsForm({
   }
 
   const gtype  = (attrs.gasket_type as string) ?? "";
-  const gLower = gtype.toLowerCase();
-  const isSW   = gLower.startsWith("spiral");
-  const isRTJ  = gLower.startsWith("rtj");
-  const isFlat = gLower.startsWith("flat sheet");
-  const isCamp = gLower.startsWith("camprofile") || gLower.startsWith("kammprofile");
+  const isSW   = gtype === "Spiral Wound – Inner + Outer Ring";
+  const isCMG  = gtype === "Corrugated Metal Gasket";
+  const isFSG  = gtype === "Flat Sheet Gasket";
+  const isSCG  = gtype === "Soft Cut Gasket";
+  const isOR   = gtype === "O-Ring";
+
+  const scgShape  = (attrs.scg_shape as string) ?? "";
+  const scgIsRing = scgShape === "Ring" || scgShape === "Full Face Ring";
+  const scgIsRect = scgShape === "Rectangular";
+
+  // O-Ring: live dimension check OD ≈ ID + 2×CS
+  const oMatRaw = (attrs.oring_material as string) ?? "";
+  const isPTFE  = oMatRaw === "PTFE";
+  const oId = parseFloat((attrs.oring_id as string) ?? "");
+  const oOd = parseFloat((attrs.oring_od as string) ?? "");
+  const oCs = parseFloat((attrs.oring_cs as string) ?? "");
+  let oringWarn = "";
+  if (!isNaN(oId) && !isNaN(oOd) && !isNaN(oCs)) {
+    const expected = oId + 2 * oCs;
+    const tol = Math.max(1.0, expected * 0.03);
+    if (Math.abs(oOd - expected) > tol) {
+      oringWarn = `OD should equal ID + 2×CS = ${oId} + 2×${oCs} = ${expected.toFixed(2)} mm  (tolerance ±${tol.toFixed(2)} mm)`;
+    }
+  }
 
   return (
     <div className="space-y-3">
-      <SectionCard title="Gasket Specification" color="bg-sky-50/60 border-sky-200">
-        {rf("gasket_type",    "Gasket Type",          GASKET_TYPES,        true)}
-        {rf("nominal_bore",   "Nominal Bore",         COMMON_NB,           true)}
-        {rf("pressure_class", "Pressure Class",       PRESSURE_CLASS_OPTS, true)}
-        {rf("facing",         "Facing",               GASKETS_FACING_OPTS, true)}
-        {rf("gasket_standard","Standard",             GASKET_STANDARD,     true)}
-        {rf("sheet_grade",    "Gasket Sheet Grade",   GASKET_SHEET_GRADES)}
+      {/* Type selector — always visible */}
+      <SectionCard title="Gasket Type" color="bg-sky-50/60 border-sky-200">
+        {rf("gasket_type",    "Gasket Type",               GASKET_TYPES,    true)}
+        {rf("gasket_standard","Standard (engineering ref.)", GASKET_STANDARD)}
       </SectionCard>
-      {(isSW || isRTJ || isFlat || isCamp) && (
-        <SectionCard title="Materials" color="bg-violet-50/60 border-violet-200">
-          {isSW   && rf("winding_material",    "Winding / Filler Material", GASKET_WINDING_MATERIAL,    true)}
-          {isSW   && rf("inner_ring_material", "Inner Ring Material",       GASKET_INNER_RING_MATERIAL, true)}
-          {isRTJ  && rf("rtj_ring_material",   "RTJ Ring Material",         GASKET_RTJ_RING_MATERIAL,   true)}
-          {isRTJ  && rt("rtj_ring_number",     "RTJ Ring Number",           true, "e.g. R-24, RX-24, BX-169")}
-          {isFlat && rf("sheet_material",      "Sheet Material",            GASKET_SHEET_MATERIAL,      true)}
-          {isFlat && <div />}
-          {isCamp && rf("camprofile_core",     "Core Material",             GASKET_CAMPROFILE_CORE,     true)}
-          {isCamp && rf("camprofile_facing",   "Facing Material",           GASKET_CAMPROFILE_FACING,   true)}
+
+      {/* ── Spiral Wound – Inner + Outer Ring ── */}
+      {isSW && (
+        <>
+          <SectionCard title="Winding & Ring Materials" color="bg-violet-50/60 border-violet-200">
+            {rf("winding_material",    "Winding / Filler Material",              GASKET_WINDING_MATERIAL,  true)}
+            {rf("inner_ring_material", "Inner Ring (Compression-Stop) Material", GASKET_RING_METAL_OPTS,   true)}
+            {rf("outer_ring_material", "Outer Ring (Centering) Material",        GASKET_RING_METAL_OPTS,   true)}
+          </SectionCard>
+          <SectionCard title="Flange Specification" color="bg-amber-50/60 border-amber-200">
+            {rf("nominal_bore",   "Nominal Bore (NB)", COMMON_NB,           true)}
+            {rf("pressure_class", "Pressure Class",   PRESSURE_CLASS_OPTS, true)}
+            {rf("facing",         "Flange Facing",    GASKET_FACING_OPTS,  true)}
+          </SectionCard>
+        </>
+      )}
+
+      {/* ── Corrugated Metal Gasket ── */}
+      {isCMG && (
+        <>
+          <SectionCard title="Material" color="bg-violet-50/60 border-violet-200">
+            {rf("cmg_material", "Core Material", GASKET_RING_METAL_OPTS, true)}
+            <div className="space-y-1.5">
+              <Label className="text-xs">
+                Surface Layer <span className="text-slate-400 font-normal">(optional — leave blank for bare CMG)</span>
+              </Label>
+              <SearchableSelect
+                value={GASKET_CMG_SURFACE_OPTS.includes((attrs.cmg_surface as string) ?? "") ? (attrs.cmg_surface as string) : ""}
+                options={GASKET_CMG_SURFACE_OPTS}
+                placeholder="None (bare metal)"
+                onSelect={v => set("cmg_surface", v)}
+              />
+            </div>
+          </SectionCard>
+          <SectionCard title="Flange Specification" color="bg-amber-50/60 border-amber-200">
+            {rf("nominal_bore",   "Nominal Bore (NB)", COMMON_NB,           true)}
+            {rf("pressure_class", "Pressure Class",   PRESSURE_CLASS_OPTS, true)}
+            {rf("facing",         "Flange Facing",    GASKET_FACING_OPTS,  true)}
+          </SectionCard>
+        </>
+      )}
+
+      {/* ── Flat Sheet Gasket ── */}
+      {isFSG && (
+        <>
+          <SectionCard title="Sheet Specification" color="bg-violet-50/60 border-violet-200">
+            {rf("sheet_material",  "Sheet Material",  GASKET_SHEET_MATERIAL, true)}
+            {rf("sheet_thickness", "Thickness (mm)",  GASKET_THICKNESS_OPTS, true)}
+          </SectionCard>
+          <SectionCard title="Flange Specification" color="bg-amber-50/60 border-amber-200">
+            {rf("nominal_bore",   "Nominal Bore (NB)", COMMON_NB,           true)}
+            {rf("pressure_class", "Pressure Class",   PRESSURE_CLASS_OPTS, true)}
+            {rf("facing",         "Flange Facing",    GASKET_FACING_OPTS,  true)}
+          </SectionCard>
+        </>
+      )}
+
+      {/* ── Soft Cut Gasket ── */}
+      {isSCG && (
+        <SectionCard title="Material & Dimensions" color="bg-violet-50/60 border-violet-200">
+          {rf("sheet_material",  "Sheet Material",  GASKET_SHEET_MATERIAL, true)}
+          {rf("sheet_thickness", "Thickness (mm)",  GASKET_THICKNESS_OPTS, true)}
+          {rf("scg_shape",       "Shape",           GASKET_SCG_SHAPES,     true)}
+          {scgIsRing && rt("scg_id", "Inner Diameter — ID (mm)", true, "e.g. 50")}
+          {scgIsRing && rt("scg_od", "Outer Diameter — OD (mm)", true, "e.g. 100")}
+          {scgIsRect && rt("scg_length", "Length (mm)", true, "e.g. 300")}
+          {scgIsRect && rt("scg_width",  "Width (mm)",  true, "e.g. 200")}
+          {scgShape === "Custom" && (
+            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              Custom shape — SAP code must be entered manually after saving.
+            </div>
+          )}
         </SectionCard>
       )}
+
+      {/* ── O-Ring ── */}
+      {isOR && (
+        <>
+          <SectionCard title="Ring Material" color="bg-violet-50/60 border-violet-200">
+            {rf("oring_material", "Ring Material", GASKET_ORING_MATERIAL, true)}
+          </SectionCard>
+          <SectionCard title="Dimensions (measured with caliper)" color="bg-amber-50/60 border-amber-200">
+            {rt("oring_id", "Inside Diameter — ID (mm)",  true, "e.g. 50")}
+            {rt("oring_od", "Outside Diameter — OD (mm)", true, "e.g. 60.66")}
+            {rt("oring_cs", "Cross-Section — CS (mm)",    true, "e.g. 5.33")}
+            {oringWarn && (
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                ⚠ {oringWarn}
+              </div>
+            )}
+          </SectionCard>
+          <SectionCard title="Hardness" color="bg-slate-50/80 border-slate-200">
+            {rf(
+              "oring_hardness",
+              isPTFE ? "Hardness (optional for PTFE)" : "Hardness (Shore A)",
+              GASKET_HARDNESS_OPTS,
+              !isPTFE,
+            )}
+          </SectionCard>
+        </>
+      )}
+
       <SectionCard title="Quantity" color="bg-slate-50/80 border-slate-200">
         <QtyField qty={qty} onQtyChange={onQtyChange} />
       </SectionCard>

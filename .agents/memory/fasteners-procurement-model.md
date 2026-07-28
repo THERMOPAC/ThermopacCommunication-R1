@@ -1,5 +1,5 @@
 ---
-name: Fasteners procurement model
+name: Fasteners procurement model (see also gaskets-procurement-model.md)
 description: 8-family SAP Item Code model for Raw Materials → Fasteners, including form field rules and key design decisions.
 ---
 
