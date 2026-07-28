@@ -77,6 +77,7 @@ import {
   buildCoolingTowerRequirement, buildBoughtOutRequirement, buildComponentsRequirement,
   buildPanelPreviewCode, buildCablingPreviewCode, buildJunctionBoxPreviewCode,
 } from "@/components/electrical-attrs-forms";
+import { buildPlatesPreviewCode } from "@/components/piping-attrs-forms";
 import {
   ControlValveAttrsForm, SafetyValveAttrsForm, OnOffValveAttrsForm, IsolationValveAttrsForm,
   NrvValveAttrsForm, NeedleValveAttrsForm,
@@ -886,9 +887,19 @@ export default function BuyPackagesPage() {
     }
     if (isPlatesMode) {
       const ta = lf.technicalAttributes;
-      if (!(ta.plate_type as string)?.trim() || !(ta.thickness_mm)) {
-        toast({ title: "Plate Type and Thickness are required", variant: "destructive" }); return;
-      }
+      if (!(ta.material_grade as string)?.trim())
+        { toast({ title: "Material Grade is required", variant: "destructive" }); return; }
+      const _thick = (ta.thickness_mm as string)?.trim() ?? "";
+      if (!_thick || isNaN(parseFloat(_thick)) || parseFloat(_thick) <= 0)
+        { toast({ title: "Thickness must be a positive number", variant: "destructive" }); return; }
+      const _width = (ta.width_mm as string)?.trim() ?? "";
+      if (!_width || isNaN(parseFloat(_width)) || parseFloat(_width) <= 0)
+        { toast({ title: "Width must be a positive number", variant: "destructive" }); return; }
+      const _length = (ta.length_mm as string)?.trim() ?? "";
+      if (!_length || _length === "Mill Length")
+        { toast({ title: "Length is required — specify the actual plate length in mm (Mill Length is not accepted for stock plates)", variant: "destructive" }); return; }
+      if (isNaN(parseFloat(_length)) || parseFloat(_length) <= 0)
+        { toast({ title: "Length must be a positive number", variant: "destructive" }); return; }
     } else if (isPipesMode) {
       const ta = lf.technicalAttributes;
       if (!(ta.section_type as string)?.trim()) {
@@ -2350,6 +2361,33 @@ export default function BuyPackagesPage() {
                       <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
                         <span className="font-mono tracking-wide text-xs">
                           Complete Motor Type, Mounting, Power, Voltage, Frequency, Poles, Efficiency, Ex Protection, Gas Group &amp; T-class to preview
+                        </span>
+                      </div>
+                    );
+                  }
+                  // Priority 0a — Plates: spec-based preview (stock inventory identity)
+                  if (isPlatesMode) {
+                    const pltCode = buildPlatesPreviewCode(
+                      (lf.technicalAttributes ?? {}) as Record<string, unknown>,
+                    );
+                    if (pltCode) {
+                      const savedCode = lineDialog.editLine?.sap_item_code;
+                      const isNew = !savedCode || savedCode !== pltCode;
+                      return (
+                        <div className="h-9 px-3 flex items-center justify-between rounded-md border border-slate-400 bg-slate-50 select-none">
+                          <span className="font-mono font-semibold tracking-wide text-slate-800 text-sm">
+                            {pltCode}
+                          </span>
+                          {isNew && (
+                            <span className="text-[10px] text-slate-600 font-medium uppercase tracking-wide">New</span>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="h-9 px-3 flex items-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground select-none">
+                        <span className="font-mono tracking-wide text-xs">
+                          Select Grade, Thickness, Width &amp; Length to preview SAP code
                         </span>
                       </div>
                     );

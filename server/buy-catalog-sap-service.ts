@@ -2350,6 +2350,116 @@ export async function resolveCablingSapItemCode(
   );
 }
 
+// ── Plates SAP Item Code ──────────────────────────────────────────────────────
+// Skeleton : RM-PLT-{GRADE}-{THICK}X{WIDTH}X{LENGTH}
+//
+// Procurement Identity (encoded — defines a stocked plate):
+//   Material Grade · Thickness (mm) · Width (mm) · Length (mm)
+//
+// Two plates with the same code are physically interchangeable as inventory.
+// "Mill Length" is explicitly rejected — stock plates must have a defined length.
+//
+// Engineering Specification (NOT in the code):
+//   Plate Standard · MTR/MTC · Heat Treatment · Surface Finish · Additional Testing
+
+const PLATES_GRADE_CODE: Record<string, string> = {
+  'IS 2062 E250':   'E250',
+  'IS 2062 E350':   'E350',
+  'SS304':          'SS304',
+  'SS304L':         'SS304L',
+  'SS316':          'SS316',
+  'SS316L':         'SS316L',
+  'SA 516 Gr 60':   'SA516-60',
+  'SA 516 Gr 70':   'SA516-70',
+  'ASTM A36':       'A36',
+  'SA-240 Gr 304':  'SA240-304',
+  'SA-240 Gr 304L': 'SA240-304L',
+  'SA-240 Gr 316':  'SA240-316',
+  'SA-240 Gr 316L': 'SA240-316L',
+};
+
+/**
+ * Normalise a dimension string to a deterministic representation.
+ * Strips leading zeros and trailing decimal zeros.
+ *   "01500"   → "1500"
+ *   "1500.0"  → "1500"
+ *   "12.5"    → "12.5"
+ * Throws on non-positive or non-numeric input.
+ */
+function normalizePlateDim(raw: string, label: string): string {
+  const n = parseFloat(raw.trim());
+  if (isNaN(n) || n <= 0) {
+    throw new Error(`Cannot generate Plate SAP Item Code — ${label} "${raw}" is not a positive number`);
+  }
+  return Number.isInteger(n) ? String(Math.round(n)) : String(n);
+}
+
+/**
+ * Build a deterministic SAP Item Code for a stock/inventory Plate line.
+ *
+ * Required attrs : material_grade, thickness_mm, width_mm, length_mm
+ * Throws a user-friendly error for missing, unrecognised, or non-numeric values.
+ * "Mill Length" as length is explicitly rejected.
+ */
+export function buildPlatesItemCode(attrs: Record<string, unknown>): string {
+  const gradeRaw  = ((attrs.material_grade as string) ?? '').trim();
+  const thickRaw  = ((attrs.thickness_mm   as string) ?? '').trim();
+  const widthRaw  = ((attrs.width_mm       as string) ?? '').trim();
+  const lengthRaw = ((attrs.length_mm      as string) ?? '').trim();
+
+  const missing: string[] = [];
+
+  const grade = PLATES_GRADE_CODE[gradeRaw];
+  if (!grade) {
+    missing.push(
+      gradeRaw
+        ? `Material Grade "${gradeRaw}" is not in the recognised grade list`
+        : 'Material Grade',
+    );
+  }
+  if (!thickRaw)  missing.push('Thickness');
+  if (!widthRaw)  missing.push('Width');
+  if (!lengthRaw) missing.push('Length');
+
+  if (lengthRaw === 'Mill Length') {
+    missing.push(
+      'Length — "Mill Length" is not accepted for stock/inventory plates; specify the actual length in mm',
+    );
+  }
+
+  if (missing.length) {
+    throw new Error(
+      `Cannot generate Plate SAP Item Code — missing or unrecognised: ${missing.join('; ')}`,
+    );
+  }
+
+  const thick  = normalizePlateDim(thickRaw,  'Thickness');
+  const width  = normalizePlateDim(widthRaw,  'Width');
+  const length = normalizePlateDim(lengthRaw, 'Length');
+
+  const code = `RM-PLT-${grade}-${thick}X${width}X${length}`;
+
+  if (code.length > SAP_ITEM_CODE_MAX_LEN) {
+    throw new Error(
+      `SAP Item Code "${code}" is ${code.length} characters — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`,
+    );
+  }
+  return code;
+}
+
+export async function resolvePlatesSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  return resolveOrCreateSapMasterItem(
+    pool, buildPlatesItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
+  );
+}
+
 // ── Junction Box SAP Item Code ────────────────────────────────────────────────
 // Skeleton : ELC-JBX-{TYPE}-{TERMS}T-{MAT}-{IP}[-{AREA}]
 //

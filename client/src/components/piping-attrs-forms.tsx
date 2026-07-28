@@ -196,6 +196,48 @@ const PLATES_ALL_OPTS: Record<string, string[]> = {
   additional_testing: PLATES_TESTING,
 };
 
+// ── Plates SAP Item Code helpers (client mirror of server builder) ────────────
+const _PLATES_GRADE_CODE: Record<string, string> = {
+  'IS 2062 E250': 'E250', 'IS 2062 E350': 'E350',
+  'SS304': 'SS304', 'SS304L': 'SS304L', 'SS316': 'SS316', 'SS316L': 'SS316L',
+  'SA 516 Gr 60': 'SA516-60', 'SA 516 Gr 70': 'SA516-70',
+  'ASTM A36': 'A36',
+  'SA-240 Gr 304': 'SA240-304', 'SA-240 Gr 304L': 'SA240-304L',
+  'SA-240 Gr 316': 'SA240-316', 'SA-240 Gr 316L': 'SA240-316L',
+};
+function _normDim(raw: string): string | null {
+  const n = parseFloat(raw.trim());
+  if (isNaN(n) || n <= 0) return null;
+  return Number.isInteger(n) ? String(Math.round(n)) : String(n);
+}
+
+/** Client-side preview of the Plates SAP Item Code. Returns null when any required field is missing/invalid. */
+export function buildPlatesPreviewCode(attrs: Record<string, unknown>): string | null {
+  const gradeRaw  = ((attrs.material_grade as string) ?? '').trim();
+  const thickRaw  = ((attrs.thickness_mm   as string) ?? '').trim();
+  const widthRaw  = ((attrs.width_mm       as string) ?? '').trim();
+  const lengthRaw = ((attrs.length_mm      as string) ?? '').trim();
+
+  const grade  = _PLATES_GRADE_CODE[gradeRaw];
+  if (!grade) return null;
+  if (lengthRaw === 'Mill Length' || !lengthRaw) return null;
+
+  const thick  = _normDim(thickRaw);
+  const width  = _normDim(widthRaw);
+  const length = _normDim(lengthRaw);
+  if (!thick || !width || !length) return null;
+
+  return `RM-PLT-${grade}-${thick}X${width}X${length}`;
+}
+
+export const PLATES_DEFAULTS: Record<string, unknown> = {
+  material_grade: 'IS 2062 E250',
+  thickness_mm:   '6',
+  width_mm:       '1500',
+  length_mm:      '6000',
+  mtr_required:   'No',
+};
+
 export function buildPlatesRequirement(attrs: Record<string, unknown>): string {
   const grade  = (attrs.material_grade as string)?.trim() || "";
   const thick  = (attrs.thickness_mm   as string)?.trim() || "";

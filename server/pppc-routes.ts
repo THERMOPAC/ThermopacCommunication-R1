@@ -38,6 +38,7 @@ import {
   resolveVfdPanelSapItemCode,
   resolveCablingSapItemCode,
   resolveJunctionBoxSapItemCode,
+  resolvePlatesSapItemCode,
 } from './buy-catalog-sap-service';
 
 /**
@@ -898,6 +899,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const isSpecPanel   = _SPEC_PANELS.has(_panelTypeStr);
       const isCabling     = groupCode === 'electrical_control' && subgroupCode === 'cabling';
       const isJunctionBox = groupCode === 'electrical_control' && subgroupCode === 'junction_box';
+      const isPlates      = groupCode === 'raw_materials'      && subgroupCode === 'plates';
       if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor && !isIsoValve && !isCtrlValve && !isSafetyValve && !isOnOffValve && !isNrvValve && !isNeedleValve && !isSpecPanel && !isCabling && !isJunctionBox) {
         const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
         const make = readMakeScalar(attrs);
@@ -913,10 +915,16 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       if (uomCheck.rowCount === 0) return sendNotFound(res, 'UOM', uomId);
       const uomCode = uomCheck.rows[0].code as string;
 
-      // Resolve SAP Item Code for non-raw-material lines
+      // Resolve SAP Item Code for non-raw-material lines, plus plates (spec-based RM)
       let sapMasterItemId: number | null = null;
       let sapItemCodeValue: string | null = null;
-      if (groupCode && groupCode !== 'raw_materials') {
+      if (isPlates) {
+        const _gp = (k: string) => ((  (technicalAttributes ?? {}) as Record<string, unknown>)[k] as string | undefined ?? '').trim();
+        const desc = `${_gp('material_grade')} Plate — ${_gp('thickness_mm')} × ${_gp('width_mm')} × ${_gp('length_mm')} mm`.slice(0, 100);
+        const sapRes = await resolvePlatesSapItemCode(pool, buyGroupId, buySubgroupId, (technicalAttributes ?? {}) as Record<string, unknown>, uomCode, desc);
+        sapMasterItemId  = sapRes.masterItemId;
+        sapItemCodeValue = sapRes.sapItemCode;
+      } else if (groupCode && groupCode !== 'raw_materials') {
         const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
         if (isNfpMotor) {
           const motorTypeLabel = (attrs.motor_type as string | undefined)?.trim() ?? '';
@@ -1162,6 +1170,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const isSpecPanel2    = _SPEC_PANELS2.has(_panelTypeStr2);
         const isCabling2      = groupCode2 === 'electrical_control' && subgroupCode2 === 'cabling';
         const isJunctionBox2  = groupCode2 === 'electrical_control' && subgroupCode2 === 'junction_box';
+        const isPlates2       = groupCode2 === 'raw_materials'      && subgroupCode2 === 'plates';
         if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2 && !isIsoValve2 && !isCtrlValve2 && !isSafetyValve2 && !isOnOffValve2 && !isNrvValve2 && !isNeedleValve2 && !isSpecPanel2 && !isCabling2 && !isJunctionBox2) {
           const attrs2 = (b.technicalAttributes ?? {}) as Record<string, unknown>;
           const make2 = readMakeScalar(attrs2);
@@ -1173,7 +1182,22 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         }
 
         // Resolve SAP Item Code (Make/Model or spec may have changed)
-        if (groupCode2 && groupCode2 !== 'raw_materials') {
+        // Plates is a special case inside raw_materials — resolved first.
+        if (isPlates2 && b.technicalAttributes !== undefined) {
+          const attrs3  = (b.technicalAttributes ?? {}) as Record<string, unknown>;
+          const uomRow3 = await pool.query(
+            `SELECT u.code FROM uom_master u
+             JOIN buy_package_lines bpl ON bpl.uom_id = u.id
+             WHERE bpl.id = $1`,
+            [id],
+          );
+          const uomCode3 = (uomRow3.rows[0]?.code as string) ?? 'Nos';
+          const _gp3 = (k: string) => ((attrs3[k] as string | undefined) ?? '').trim();
+          const desc3 = `${_gp3('material_grade')} Plate — ${_gp3('thickness_mm')} × ${_gp3('width_mm')} × ${_gp3('length_mm')} mm`.slice(0, 100);
+          const sapRes3 = await resolvePlatesSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+          fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
+          fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
+        } else if (groupCode2 && groupCode2 !== 'raw_materials') {
           const attrs3  = (b.technicalAttributes ?? {}) as Record<string, unknown>;
           const uomRow3 = await pool.query(
             `SELECT u.code FROM uom_master u
