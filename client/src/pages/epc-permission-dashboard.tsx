@@ -736,9 +736,8 @@ function PageAccessControlTab() {
         body.emergencyOverride = true;
         body.emergencyReason = "Superuser direct override";
       }
-      const res = await apiRequest("POST", "/api/epc-permissions/change-requests", body);
-      const data = await res.json();
-      if (isSuperuser && data.changeIds?.length) {
+      const data = await apiRequest("POST", "/api/epc-permissions/change-requests", body);
+      if (isSuperuser && (data as any).changeIds?.length) {
         await apiRequest("POST", `/api/epc-permissions/change-requests/${data.changeIds[0]}/apply`, {});
       }
     },

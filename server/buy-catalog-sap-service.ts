@@ -2260,6 +2260,64 @@ export async function resolvePlatesSapItemCode(
   );
 }
 
+// ── Shared Raw Materials normalisation helpers ────────────────────────────────
+
+/**
+ * Normalise a nominal-bore string to a compact, space-free SAP segment.
+ *
+ * Canonical forms:
+ *   Metric  : "<digits>"     e.g. "50", "100", "6"
+ *   Inch    : "<digits>IN"   e.g. "2IN", "34IN" (¾"), "112IN" (1½")
+ *
+ * Accepted input variants (all map to the same canonical output):
+ *   "50"        → "50"     Plain number
+ *   "50 NB"     → "50"     Strip " NB" suffix (case-insensitive)
+ *   "50NB"      → "50"     Strip "NB" suffix
+ *   "DN50"      → "50"     Strip "DN" prefix
+ *   "DN 50"     → "50"     Strip "DN " prefix
+ *   "2 IN"      → "2IN"    Collapse space before IN
+ *   '2"'        → "2IN"    Convert inch-symbol to IN
+ *   '1/2"'      → "12IN"   Fraction: remove "/", convert inch-symbol
+ *   '1-1/2"'    → "112IN"  Mixed fraction: remove "-" and "/", convert inch-symbol
+ *   "2IN"       → "2IN"    Already canonical
+ */
+export function normalizeNominalBore(raw: string): string {
+  let s = raw.trim();
+  if (!s) return s;
+
+  // Convert inch-symbol (") to " IN" for unified inch detection below
+  if (s.endsWith('"')) {
+    s = s.slice(0, -1).trim() + ' IN';
+  }
+
+  const upper = s.toUpperCase();
+
+  // Inch sizes — ends with "IN" optionally preceded by a space
+  if (/\s*IN$/.test(upper)) {
+    // Numeric part before IN: remove dashes, slashes, spaces (fraction normalisation)
+    const numeric = upper.replace(/\s*IN$/, '').replace(/[-/\s]/g, '');
+    return numeric ? `${numeric}IN` : s.replace(/\s+/g, '');
+  }
+
+  // Strip "DN" prefix (e.g. "DN50", "DN 50")
+  if (upper.startsWith('DN')) {
+    return s.slice(2).trim();
+  }
+
+  // Strip " NB" suffix (with space)
+  if (upper.endsWith(' NB')) {
+    return s.slice(0, -3).trim();
+  }
+
+  // Strip "NB" suffix (no space)
+  if (upper.endsWith('NB')) {
+    return s.slice(0, -2).trim();
+  }
+
+  // Plain number or already clean — remove any stray spaces
+  return s.replace(/\s+/g, '');
+}
+
 // ── Fittings SAP Item Code ────────────────────────────────────────────────────
 // Skeleton (BW / reducing):    RM-FTG-{TYPE}-{GRADE}-{NB}-{SCH}-{END}
 // Skeleton (BW / reducing):    RM-FTG-{TYPE}-{GRADE}-{NB}X{RNB}-{SCH}-{END}
@@ -2392,7 +2450,9 @@ export function buildFittingsItemCode(attrs: Record<string, unknown>): string {
     );
   }
 
-  const nbPart   = isReducing ? `${nbRaw}X${rbRaw}` : nbRaw;
+  const nb       = normalizeNominalBore(nbRaw);
+  const rb       = rbRaw ? normalizeNominalBore(rbRaw) : '';
+  const nbPart   = isReducing ? `${nb}X${rb}` : nb;
   const segments = ['RM-FTG', typeCode, grade, nbPart];
   if (isNipple) segments.push(`${lenRaw}MM`);
   segments.push(sizeDim, endCode);
@@ -2494,7 +2554,8 @@ export function buildPipesItemCode(attrs: Record<string, unknown>): string {
     );
   }
 
-  const code = `RM-PIP-${grade}-${nbRaw}-${sch}`;
+  const nb   = normalizeNominalBore(nbRaw);
+  const code = `RM-PIP-${grade}-${nb}-${sch}`;
 
   if (code.length > SAP_ITEM_CODE_MAX_LEN) {
     throw new Error(
@@ -3165,6 +3226,31 @@ const GSK_SHAPE_CODE: Record<string, string> = {
   'Rectangular':    'RECT',
 };
 
+/**
+ * Flange facing codes for gasket SAP Item Code segments.
+ * All gasket types that include a facing segment use this map.
+ */
+const GSK_FACING_CODE: Record<string, string> = {
+  'Raised Face (RF)':      'RF',
+  'Flat Face (FF)':        'FF',
+  'Ring Type Joint (RTJ)': 'RTJ',
+};
+
+/**
+ * Normalise a flange facing string to its short SAP code segment.
+ * Throws if the value is not in the approved facing list.
+ */
+export function normalizeFacingCode(raw: string): string {
+  const code = GSK_FACING_CODE[raw.trim()];
+  if (!code) {
+    throw new Error(
+      `Cannot generate Gasket SAP Item Code — Flange Facing "${raw}" is not recognised. ` +
+      `Accepted values: ${Object.keys(GSK_FACING_CODE).join(', ')}`,
+    );
+  }
+  return code;
+}
+
 /** Format a numeric dimension string — strip trailing decimal zeros (50.0 → 50, 5.33 → 5.33). */
 function gskFmtDim(raw: string): string {
   const n = parseFloat(raw);
@@ -3180,41 +3266,45 @@ export function buildGasketsItemCode(attrs: Record<string, unknown>): string {
 
   // ── Spiral Wound – Inner + Outer Ring ──────────────────────────────────────
   if (gtype === 'Spiral Wound – Inner + Outer Ring') {
-    const wind  = GSK_WINDING_CODE[g('winding_material')];
-    const inner = GSK_RING_METAL_CODE[g('inner_ring_material')];
-    const outer = GSK_RING_METAL_CODE[g('outer_ring_material')];
-    const nb    = g('nominal_bore');
-    const pc    = GSK_PRESSURE_CLASS_CODE[g('pressure_class')];
-    const face  = g('facing');
-    if (!wind)  missing.push(!g('winding_material')    ? 'Winding Material'    : `Winding Material "${g('winding_material')}" not recognised`);
-    if (!inner) missing.push(!g('inner_ring_material') ? 'Inner Ring Material' : `Inner Ring Material "${g('inner_ring_material')}" not recognised`);
-    if (!outer) missing.push(!g('outer_ring_material') ? 'Outer Ring Material' : `Outer Ring Material "${g('outer_ring_material')}" not recognised`);
-    if (!nb)    missing.push('Nominal Bore');
-    if (!pc)    missing.push(!g('pressure_class') ? 'Pressure Class' : `Pressure Class "${g('pressure_class')}" not recognised`);
-    if (!face)  missing.push('Flange Facing');
+    const wind     = GSK_WINDING_CODE[g('winding_material')];
+    const inner    = GSK_RING_METAL_CODE[g('inner_ring_material')];
+    const outer    = GSK_RING_METAL_CODE[g('outer_ring_material')];
+    const nbRaw    = g('nominal_bore');
+    const pc       = GSK_PRESSURE_CLASS_CODE[g('pressure_class')];
+    const faceRaw  = g('facing');
+    const faceCode = faceRaw ? (GSK_FACING_CODE[faceRaw] ?? null) : null;
+    if (!wind)       missing.push(!g('winding_material')    ? 'Winding Material'    : `Winding Material "${g('winding_material')}" not recognised`);
+    if (!inner)      missing.push(!g('inner_ring_material') ? 'Inner Ring Material' : `Inner Ring Material "${g('inner_ring_material')}" not recognised`);
+    if (!outer)      missing.push(!g('outer_ring_material') ? 'Outer Ring Material' : `Outer Ring Material "${g('outer_ring_material')}" not recognised`);
+    if (!nbRaw)      missing.push('Nominal Bore');
+    if (!pc)         missing.push(!g('pressure_class') ? 'Pressure Class' : `Pressure Class "${g('pressure_class')}" not recognised`);
+    if (!faceCode)   missing.push(!faceRaw ? 'Flange Facing' : `Flange Facing "${faceRaw}" not recognised — accepted: ${Object.keys(GSK_FACING_CODE).join(', ')}`);
     if (missing.length) throw new Error(`Cannot generate Gasket SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
-    const code = `RM-GSK-SWIO-${wind}-${inner}-${outer}-${nb}-${pc}-${face}`;
+    const nb   = normalizeNominalBore(nbRaw);
+    const code = `RM-GSK-SWIO-${wind}-${inner}-${outer}-${nb}-${pc}-${faceCode}`;
     if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
     return code;
   }
 
   // ── Corrugated Metal Gasket ────────────────────────────────────────────────
   if (gtype === 'Corrugated Metal Gasket') {
-    const core    = GSK_RING_METAL_CODE[g('cmg_material')];
-    const surfRaw = g('cmg_surface');
-    const surf    = surfRaw ? (GSK_CMG_SURFACE_CODE[surfRaw] ?? null) : null;
-    const nb      = g('nominal_bore');
-    const pc      = GSK_PRESSURE_CLASS_CODE[g('pressure_class')];
-    const face    = g('facing');
-    if (!core)            missing.push(!g('cmg_material') ? 'Core Material' : `Core Material "${g('cmg_material')}" not recognised`);
+    const core     = GSK_RING_METAL_CODE[g('cmg_material')];
+    const surfRaw  = g('cmg_surface');
+    const surf     = surfRaw ? (GSK_CMG_SURFACE_CODE[surfRaw] ?? null) : null;
+    const nbRaw    = g('nominal_bore');
+    const pc       = GSK_PRESSURE_CLASS_CODE[g('pressure_class')];
+    const faceRaw  = g('facing');
+    const faceCode = faceRaw ? (GSK_FACING_CODE[faceRaw] ?? null) : null;
+    if (!core)       missing.push(!g('cmg_material') ? 'Core Material' : `Core Material "${g('cmg_material')}" not recognised`);
     if (surfRaw && !surf) missing.push(`Surface Layer "${surfRaw}" not recognised`);
-    if (!nb)              missing.push('Nominal Bore');
-    if (!pc)              missing.push(!g('pressure_class') ? 'Pressure Class' : `Pressure Class "${g('pressure_class')}" not recognised`);
-    if (!face)            missing.push('Flange Facing');
+    if (!nbRaw)      missing.push('Nominal Bore');
+    if (!pc)         missing.push(!g('pressure_class') ? 'Pressure Class' : `Pressure Class "${g('pressure_class')}" not recognised`);
+    if (!faceCode)   missing.push(!faceRaw ? 'Flange Facing' : `Flange Facing "${faceRaw}" not recognised — accepted: ${Object.keys(GSK_FACING_CODE).join(', ')}`);
     if (missing.length) throw new Error(`Cannot generate Gasket SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
+    const nb   = normalizeNominalBore(nbRaw);
     const segs = ['RM-GSK-CMG', core!];
     if (surf) segs.push(surf);
-    segs.push(nb, pc!, face);
+    segs.push(nb, pc!, faceCode!);
     const code = segs.join('-');
     if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
     return code;
@@ -3222,18 +3312,20 @@ export function buildGasketsItemCode(attrs: Record<string, unknown>): string {
 
   // ── Flat Sheet Gasket ──────────────────────────────────────────────────────
   if (gtype === 'Flat Sheet Gasket') {
-    const mat    = GSK_SHEET_MATERIAL_CODE[g('sheet_material')];
-    const thkRaw = g('sheet_thickness').replace(/mm$/i, '').trim();
-    const nb     = g('nominal_bore');
-    const pc     = GSK_PRESSURE_CLASS_CODE[g('pressure_class')];
-    const face   = g('facing');
-    if (!mat)    missing.push(!g('sheet_material')  ? 'Sheet Material'  : `Sheet Material "${g('sheet_material')}" not recognised`);
-    if (!thkRaw) missing.push('Thickness (mm)');
-    if (!nb)     missing.push('Nominal Bore');
-    if (!pc)     missing.push(!g('pressure_class') ? 'Pressure Class' : `Pressure Class "${g('pressure_class')}" not recognised`);
-    if (!face)   missing.push('Flange Facing');
+    const mat      = GSK_SHEET_MATERIAL_CODE[g('sheet_material')];
+    const thkRaw   = g('sheet_thickness').replace(/mm$/i, '').trim();
+    const nbRaw    = g('nominal_bore');
+    const pc       = GSK_PRESSURE_CLASS_CODE[g('pressure_class')];
+    const faceRaw  = g('facing');
+    const faceCode = faceRaw ? (GSK_FACING_CODE[faceRaw] ?? null) : null;
+    if (!mat)        missing.push(!g('sheet_material')  ? 'Sheet Material'  : `Sheet Material "${g('sheet_material')}" not recognised`);
+    if (!thkRaw)     missing.push('Thickness (mm)');
+    if (!nbRaw)      missing.push('Nominal Bore');
+    if (!pc)         missing.push(!g('pressure_class') ? 'Pressure Class' : `Pressure Class "${g('pressure_class')}" not recognised`);
+    if (!faceCode)   missing.push(!faceRaw ? 'Flange Facing' : `Flange Facing "${faceRaw}" not recognised — accepted: ${Object.keys(GSK_FACING_CODE).join(', ')}`);
     if (missing.length) throw new Error(`Cannot generate Gasket SAP Item Code — missing or unrecognised: ${missing.join('; ')}`);
-    const code = `RM-GSK-FSG-${mat}-${thkRaw}MM-${nb}-${pc}-${face}`;
+    const nb   = normalizeNominalBore(nbRaw);
+    const code = `RM-GSK-FSG-${mat}-${thkRaw}MM-${nb}-${pc}-${faceCode}`;
     if (code.length > SAP_ITEM_CODE_MAX_LEN) throw new Error(`SAP Item Code "${code}" is ${code.length} chars — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`);
     return code;
   }
@@ -3508,5 +3600,337 @@ export async function resolveStructuralSteelSapItemCode(
 ): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
   return getOrCreateCatalogMasterItem(
     pool, buildStructuralSteelItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
+  );
+}
+
+// ── Flanges SAP Item Code ─────────────────────────────────────────────────────
+// Skeleton : RM-FLG-{STD}-{TYPE}-{SIZE}-{RATING}-{MAT}-{FACE}
+//
+// Procurement Identity (encoded in the SAP Item Code):
+//   Flange Standard · Flange Type · Nominal Size · Pressure Rating
+//   Material · Facing
+//
+// For Reducing flanges the size segment is {SIZE}X{REDUCED_SIZE}
+//   e.g. DN100XDN50.
+// Blind and Orifice flanges carry a nominal mating size (not an open bore);
+// size_nb is mandatory for every flange type without exception.
+//
+// Standard / Rating compatibility (enforced):
+//   ASME B16.5, B16.47 Series A/B, MSS SP-44  →  Class ratings ONLY
+//   BS EN 1092-1, DIN 2573/2576, IS 6392       →  PN ratings ONLY
+//
+// Engineering Specification (NOT in the code):
+//   Wall thickness / Schedule · Drilling template · MTR/MTC
+//   Additional testing · Bolting · Gasket
+
+// ── Standard / Rating compatibility sets ─────────────────────────────────────
+
+const FLG_CLASS_ONLY_STANDARDS = new Set([
+  'ASME B16.5', 'ASME B16.47 Series A', 'ASME B16.47 Series B', 'MSS SP-44',
+]);
+const FLG_PN_ONLY_STANDARDS = new Set([
+  'BS EN 1092-1', 'DIN 2573 / 2576', 'IS 6392',
+]);
+const FLG_CLASS_RATINGS = new Set([
+  'Class 150', 'Class 300', 'Class 600', 'Class 900', 'Class 1500', 'Class 2500',
+]);
+const FLG_PN_RATINGS = new Set([
+  'PN 6', 'PN 10', 'PN 16', 'PN 20', 'PN 25', 'PN 40', 'PN 63', 'PN 100',
+]);
+
+// ── Lookup maps ───────────────────────────────────────────────────────────────
+
+const FLG_STANDARD_CODE: Record<string, string> = {
+  'ASME B16.5':           'B165',
+  'ASME B16.47 Series A': 'B1647A',
+  'ASME B16.47 Series B': 'B1647B',
+  'MSS SP-44':            'SP44',
+  'BS EN 1092-1':         'EN1092',
+  'DIN 2573 / 2576':      'DIN',
+  'IS 6392':              'IS6392',
+};
+
+const FLG_TYPE_CODE: Record<string, string> = {
+  'Weld Neck (WN)':        'WN',
+  'Slip-On (SO)':          'SO',
+  'Blind (BL)':            'BL',
+  'Socket Weld (SW)':      'SW',
+  'Threaded (TH)':         'TH',
+  'Lap Joint (LJ)':        'LJ',
+  'Reducing (RED)':        'RED',
+  'Long Weld Neck (LWN)':  'LWN',
+  'Orifice (ORF)':         'ORF',
+};
+
+const FLG_RATING_CODE: Record<string, string> = {
+  // ASME class ratings
+  'Class 150':  'CL150',
+  'Class 300':  'CL300',
+  'Class 600':  'CL600',
+  'Class 900':  'CL900',
+  'Class 1500': 'CL1500',
+  'Class 2500': 'CL2500',
+  // PN ratings (EN / DIN / IS)
+  'PN 6':   'PN6',
+  'PN 10':  'PN10',
+  'PN 16':  'PN16',
+  'PN 20':  'PN20',
+  'PN 25':  'PN25',
+  'PN 40':  'PN40',
+  'PN 63':  'PN63',
+  'PN 100': 'PN100',
+};
+
+const FLG_MATERIAL_CODE: Record<string, string> = {
+  'ASTM A105':                    'A105',
+  'ASTM A105N':                   'A105N',
+  'ASTM A350 LF2':                'LF2',
+  'ASTM A182 F11':                'F11',
+  'ASTM A182 F22':                'F22',
+  'ASTM A182 F304':               'F304',
+  'ASTM A182 F304L':              'F304L',
+  'ASTM A182 F316':               'F316',
+  'ASTM A182 F316L':              'F316L',
+  'ASTM A182 F321':               'F321',
+  'ASTM A182 F347':               'F347',
+  'ASTM A182 F51 (Duplex)':       'F51',
+  'ASTM A182 F53 (Super Duplex)': 'F53',
+  'ASTM A694 F52':                'F52',
+  'ASTM A694 F60':                'F60',
+  'ASTM A694 F65':                'F65',
+  'ASTM A694 F70':                'F70',
+};
+
+/**
+ * Flange facing codes.
+ *
+ * Primary format: code first — "RF (Raised Face)"  — matches the live flange UI.
+ * Legacy aliases: name first — "Raised Face (RF)"  — matches the gasket UI format.
+ * Aliases are explicitly listed here; any other value is rejected.
+ */
+const FLG_FACING_CODE: Record<string, string> = {
+  // Controlled flange form values (code-first format)
+  'RF (Raised Face)':      'RF',
+  'FF (Flat Face)':        'FF',
+  'RTJ (Ring Type Joint)': 'RTJ',
+  'TG (Tongue & Groove)':  'TG',
+  'SM (Small Male)':       'SM',
+  'SF (Small Female)':     'SF',
+  'LG (Large Groove)':     'LG',
+  // Known legacy aliases (gasket form format — name-first)
+  'Raised Face (RF)':      'RF',
+  'Flat Face (FF)':        'FF',
+  'Ring Type Joint (RTJ)': 'RTJ',
+};
+
+// ── Inch-to-DN lookup (ISO 6708 / ASME equivalences) ─────────────────────────
+
+/**
+ * Maps nominal inch values (as exact rational numbers) to their DN equivalents.
+ * Used by normalizeFlangeSizeCode for inch-format inputs.
+ * Inch sizes are resolved via rational arithmetic to avoid digit-concatenation
+ * ambiguity (e.g. "1/2" = 0.5 → DN15, not "12IN" which could mean 12 inches).
+ */
+const INCH_TO_DN_MAP: Map<number, string> = new Map([
+  [0.125, 'DN6'],    // 1/8"
+  [0.25,  'DN8'],    // 1/4"
+  [0.375, 'DN10'],   // 3/8"
+  [0.5,   'DN15'],   // 1/2"
+  [0.75,  'DN20'],   // 3/4"
+  [1.0,   'DN25'],   // 1"
+  [1.25,  'DN32'],   // 1-1/4"
+  [1.5,   'DN40'],   // 1-1/2"
+  [2.0,   'DN50'],   // 2"
+  [2.5,   'DN65'],   // 2-1/2"
+  [3.0,   'DN80'],   // 3"
+  [3.5,   'DN90'],   // 3-1/2"
+  [4.0,   'DN100'],  // 4"
+  [5.0,   'DN125'],  // 5"
+  [6.0,   'DN150'],  // 6"
+  [8.0,   'DN200'],  // 8"
+  [10.0,  'DN250'],  // 10"
+  [12.0,  'DN300'],  // 12"
+  [14.0,  'DN350'],  // 14"
+  [16.0,  'DN400'],  // 16"
+  [18.0,  'DN450'],  // 18"
+  [20.0,  'DN500'],  // 20"
+  [24.0,  'DN600'],  // 24"
+  [28.0,  'DN700'],  // 28"
+  [30.0,  'DN750'],  // 30"
+  [32.0,  'DN800'],  // 32"
+  [36.0,  'DN900'],  // 36"
+  [40.0,  'DN1000'], // 40"
+  [42.0,  'DN1050'], // 42"
+  [48.0,  'DN1200'], // 48"
+  [56.0,  'DN1400'], // 56"
+  [60.0,  'DN1500'], // 60"
+]);
+
+/** Parse "2", "1/2", or "1-1/2" to a rational number. Returns null if unrecognised. */
+function parseInchRational(s: string): number | null {
+  const t = s.trim();
+  const mixed = /^(\d+)-(\d+)\/(\d+)$/.exec(t);
+  if (mixed) {
+    const den = parseInt(mixed[3], 10);
+    return den === 0 ? null : parseInt(mixed[1], 10) + parseInt(mixed[2], 10) / den;
+  }
+  const frac = /^(\d+)\/(\d+)$/.exec(t);
+  if (frac) {
+    const den = parseInt(frac[2], 10);
+    return den === 0 ? null : parseInt(frac[1], 10) / den;
+  }
+  if (/^\d+(\.\d+)?$/.test(t)) return parseFloat(t);
+  return null;
+}
+
+/**
+ * Normalise a nominal flange size to a DN-prefixed SAP segment.
+ *
+ * Canonical output: "DN{n}"  e.g. "DN15", "DN50", "DN100"
+ *
+ * Accepted input variants:
+ *   "15"        → "DN15"   Plain metric number (treated as DN/NB value)
+ *   "15 NB"     → "DN15"   Strip NB suffix
+ *   "15NB"      → "DN15"   Strip NB suffix (no space)
+ *   "DN15"      → "DN15"   Already in DN format
+ *   "DN 15"     → "DN15"   DN prefix with space
+ *   '1/2"'      → "DN15"   Inch fraction → ISO 6708 DN via lookup table
+ *   '2"'        → "DN50"   Inch whole number → DN via lookup table
+ *   '1-1/2"'    → "DN40"   Mixed inch fraction → DN via lookup table
+ *   "2 IN"      → "DN50"   IN suffix (treated identically to inch symbol)
+ *   "2IN"       → "DN50"   IN suffix without space
+ *
+ * Inch sizes are resolved through rational arithmetic and a fixed lookup table,
+ * NOT by concatenating fraction digits, to avoid the "12IN" ambiguity (half-inch
+ * vs twelve inches).
+ *
+ * Throws a descriptive error if the value is empty, unparseable, or has no
+ * standard DN equivalent for inch inputs.
+ */
+export function normalizeFlangeSizeCode(raw: string): string {
+  const s = raw.trim();
+  if (!s) throw new Error('Flange nominal size is empty');
+
+  const upper = s.toUpperCase();
+
+  // Already DN: "DN15", "DN 15", "dn50"
+  if (upper.startsWith('DN')) {
+    const num = s.slice(2).trim();
+    if (!num) throw new Error(`Flange nominal size "${raw}" has no number after "DN"`);
+    return `DN${num}`;
+  }
+
+  // NB suffix: "15 NB", "15NB"
+  if (upper.endsWith(' NB')) return `DN${s.slice(0, -3).trim()}`;
+  if (upper.endsWith('NB'))  return `DN${s.slice(0, -2).trim()}`;
+
+  // Inch notation: trailing `"`, ` IN`, or `IN`
+  const isInch = s.endsWith('"') || upper.endsWith(' IN') || upper.endsWith('IN');
+  if (isInch) {
+    let numPart: string;
+    if (s.endsWith('"'))           numPart = s.slice(0, -1).trim();
+    else if (upper.endsWith(' IN')) numPart = s.slice(0, -3).trim();
+    else                            numPart = s.slice(0, -2).trim();
+
+    const rational = parseInchRational(numPart);
+    if (rational === null) {
+      throw new Error(`Flange nominal size "${raw}" — could not parse inch fraction "${numPart}"`);
+    }
+    const dn = INCH_TO_DN_MAP.get(rational);
+    if (!dn) {
+      throw new Error(
+        `Flange nominal size "${raw}" (${rational}") has no standard DN equivalent. ` +
+        `Use the DN metric value directly (e.g. "DN50" or "50 NB").`,
+      );
+    }
+    return dn;
+  }
+
+  // Plain metric number: "15", "50", "100"
+  if (/^\d+(\.\d+)?$/.test(s)) return `DN${s}`;
+
+  throw new Error(
+    `Flange nominal size "${raw}" is not in a recognised format. ` +
+    `Use DN notation ("DN50"), NB notation ("50 NB"), or inch notation ('2"').`,
+  );
+}
+
+// ── Builder ───────────────────────────────────────────────────────────────────
+
+export function buildFlangesItemCode(attrs: Record<string, unknown>): string {
+  const g = (k: string) => ((attrs[k] as string | undefined) ?? '').trim();
+
+  const standardRaw = g('standard');
+  const typeRaw     = g('flange_type');
+  const sizeRaw     = g('size_nb');
+  const pressureRaw = g('pressure');
+  const materialRaw = g('material');
+  const facingRaw   = g('facing');
+  const redBoreRaw  = g('reducing_bore');
+
+  const missing: string[] = [];
+
+  const std    = FLG_STANDARD_CODE[standardRaw];
+  const type   = FLG_TYPE_CODE[typeRaw];
+  const rating = FLG_RATING_CODE[pressureRaw];
+  const mat    = FLG_MATERIAL_CODE[materialRaw];
+  const face   = FLG_FACING_CODE[facingRaw];
+
+  if (!std)     missing.push(standardRaw  ? `Flange Standard "${standardRaw}" not recognised` : 'Flange Standard');
+  if (!type)    missing.push(typeRaw      ? `Flange Type "${typeRaw}" not recognised` : 'Flange Type');
+  if (!sizeRaw) missing.push('Nominal Size (size_nb)');
+  if (!rating)  missing.push(pressureRaw  ? `Pressure Rating "${pressureRaw}" not recognised` : 'Pressure Rating');
+  if (!mat)     missing.push(materialRaw  ? `Material "${materialRaw}" not recognised` : 'Material');
+  if (!face)    missing.push(facingRaw    ? `Facing "${facingRaw}" not recognised` : 'Facing');
+
+  const isReducing = typeRaw === 'Reducing (RED)';
+  if (isReducing && !redBoreRaw) missing.push('Reducing Bore (reducing_bore) — required for Reducing flanges');
+
+  if (missing.length) {
+    throw new Error(
+      `Cannot generate Flange SAP Item Code — missing or unrecognised: ${missing.join('; ')}`,
+    );
+  }
+
+  // ── Standard / Rating compatibility ──────────────────────────────────────
+  if (FLG_CLASS_ONLY_STANDARDS.has(standardRaw) && !FLG_CLASS_RATINGS.has(pressureRaw)) {
+    throw new Error(
+      `Cannot generate Flange SAP Item Code — ${standardRaw} only supports Class ratings ` +
+      `(${[...FLG_CLASS_RATINGS].join(', ')}), but "${pressureRaw}" was given.`,
+    );
+  }
+  if (FLG_PN_ONLY_STANDARDS.has(standardRaw) && !FLG_PN_RATINGS.has(pressureRaw)) {
+    throw new Error(
+      `Cannot generate Flange SAP Item Code — ${standardRaw} only supports PN ratings ` +
+      `(${[...FLG_PN_RATINGS].join(', ')}), but "${pressureRaw}" was given.`,
+    );
+  }
+
+  // ── Size segment ──────────────────────────────────────────────────────────
+  const sizeCode = normalizeFlangeSizeCode(sizeRaw);
+  const sizePart = isReducing
+    ? `${sizeCode}X${normalizeFlangeSizeCode(redBoreRaw)}`
+    : sizeCode;
+
+  const code = `RM-FLG-${std}-${type}-${sizePart}-${rating}-${mat}-${face}`;
+
+  if (code.length > SAP_ITEM_CODE_MAX_LEN) {
+    throw new Error(
+      `SAP Item Code "${code}" is ${code.length} chars — exceeds the SAP B1 limit of ${SAP_ITEM_CODE_MAX_LEN}.`,
+    );
+  }
+  return code;
+}
+
+export async function resolveFlangesSapItemCode(
+  pool:        Pool,
+  groupId:     number,
+  subgroupId:  number,
+  attrs:       Record<string, unknown>,
+  uomCode:     string,
+  description: string,
+): Promise<{ masterItemId: number; sapItemCode: string; reused: boolean }> {
+  return getOrCreateCatalogMasterItem(
+    pool, buildFlangesItemCode(attrs), description, uomCode, groupId, subgroupId, null, null,
   );
 }

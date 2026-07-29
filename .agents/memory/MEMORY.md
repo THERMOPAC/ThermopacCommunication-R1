@@ -1,4 +1,5 @@
 - [SAP ChartOfAccounts Code dash format](sap-coa-code-dash.md) — SAP Code field uses dashes (e.g. `50207350600-ARL`); FormatCode omits them. Always strip dashes when matching user input against SAP account codes.
+- [Flanges SAP builder](flanges-sap-builder.md) — RM-FLG-{STD}-{TYPE}-{SIZE}-{RATING}-{MAT}-{FACE}; size uses DN-prefix via normalizeFlangeSizeCode(); Standard/Rating compatibility enforced; field names differ from pipes/fittings.
 - [Buy Catalog SAP Item Persistence](buy-catalog-sap-persistence.md) — Phase 1 complete: getOrCreateCatalogMasterItem helper, ON CONFLICT DO NOTHING pattern, two-DB migration, all 26 resolvers standardised.
 - [Payroll guard raw SQL pattern](payroll-guard-raw-sql.md) — Drizzle ORM isNull()+and() guards on payroll_records silently failed; raw db.execute(sql`...`) with Number() casts is required for critical blocking checks.
 - [Payroll leave auto-cover deduction](payroll-leave-autocover.md) — Official payroll actually deducts leave balance via payroll_leave_autocover table; trial does not; reversal restores it.

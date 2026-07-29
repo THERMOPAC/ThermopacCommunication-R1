@@ -42,6 +42,7 @@ import {
   resolveFastenersSapItemCode,
   resolveGasketsSapItemCode,
   resolveStructuralSteelSapItemCode,
+  resolveFlangesSapItemCode,
   resolvePipesSapItemCode,
   resolvePlatesSapItemCode,
   resolveProfilesSapItemCode,
@@ -912,6 +913,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
       const isFasteners   = groupCode === 'raw_materials'      && subgroupCode === 'fasteners';
       const isGaskets          = groupCode === 'raw_materials' && subgroupCode === 'gaskets';
       const isStructuralSteel  = groupCode === 'raw_materials' && subgroupCode === 'structural_steel';
+      const isFlanges          = groupCode === 'raw_materials' && subgroupCode === 'flanges';
       if (groupCode && groupCode !== 'raw_materials' && !isNfpMotor && !isFlpMotor && !isIsoValve && !isCtrlValve && !isSafetyValve && !isOnOffValve && !isNrvValve && !isNeedleValve && !isSpecPanel && !isCabling && !isJunctionBox) {
         const attrs = (technicalAttributes ?? {}) as Record<string, unknown>;
         const make = readMakeScalar(attrs);
@@ -990,6 +992,12 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const strGrade = _str('material_grade') || _str('grating_material');
         const desc = `${strType}${strGrade ? ` — ${strGrade}` : ''}`.slice(0, 255);
         const sapRes = await resolveStructuralSteelSapItemCode(pool, buyGroupId, buySubgroupId, (technicalAttributes ?? {}) as Record<string, unknown>, uomCode, desc);
+        sapMasterItemId  = sapRes.masterItemId;
+        sapItemCodeValue = sapRes.sapItemCode;
+      } else if (isFlanges && technicalAttributes !== undefined) {
+        const _fl = (k: string) => (((technicalAttributes ?? {}) as Record<string, unknown>)[k] as string | undefined ?? '').trim();
+        const desc = `${_fl('flange_type')} — ${_fl('standard')} — ${_fl('size_nb')} — ${_fl('pressure')} — ${_fl('material')}`.replace(/ —\s*$/, '').slice(0, 255);
+        const sapRes = await resolveFlangesSapItemCode(pool, buyGroupId, buySubgroupId, (technicalAttributes ?? {}) as Record<string, unknown>, uomCode, desc);
         sapMasterItemId  = sapRes.masterItemId;
         sapItemCodeValue = sapRes.sapItemCode;
       } else if (groupCode && groupCode !== 'raw_materials') {
@@ -1245,6 +1253,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
         const isFasteners2    = groupCode2 === 'raw_materials'      && subgroupCode2 === 'fasteners';
         const isGaskets2           = groupCode2 === 'raw_materials' && subgroupCode2 === 'gaskets';
         const isStructuralSteel2   = groupCode2 === 'raw_materials' && subgroupCode2 === 'structural_steel';
+        const isFlanges2           = groupCode2 === 'raw_materials' && subgroupCode2 === 'flanges';
         if (groupCode2 && groupCode2 !== 'raw_materials' && !isNfpMotor2 && !isFlpMotor2 && !isIsoValve2 && !isCtrlValve2 && !isSafetyValve2 && !isOnOffValve2 && !isNrvValve2 && !isNeedleValve2 && !isSpecPanel2 && !isCabling2 && !isJunctionBox2) {
           const attrs2 = (b.technicalAttributes ?? {}) as Record<string, unknown>;
           const make2 = readMakeScalar(attrs2);
@@ -1375,6 +1384,20 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
           const sDesig3 = _str3('section_designation') || _str3('diameter_mm') || _str3('shs_side_mm');
           const desc3 = `${sType3} — ${sGrade3}${sDesig3 ? ` — ${sDesig3}` : ''}`.replace(/ —\s*$/, '').slice(0, 255);
           const sapRes3 = await resolveStructuralSteelSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
+          fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
+          fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
+        } else if (isFlanges2 && b.technicalAttributes !== undefined) {
+          const attrs3  = (b.technicalAttributes ?? {}) as Record<string, unknown>;
+          const uomRow3 = await pool.query(
+            `SELECT u.code FROM uom_master u
+             JOIN buy_package_lines bpl ON bpl.uom_id = u.id
+             WHERE bpl.id = $1`,
+            [id],
+          );
+          const uomCode3 = (uomRow3.rows[0]?.code as string) ?? 'Nos';
+          const _fl3 = (k: string) => ((attrs3[k] as string | undefined) ?? '').trim();
+          const desc3 = `${_fl3('flange_type')} — ${_fl3('standard')} — ${_fl3('size_nb')} — ${_fl3('pressure')} — ${_fl3('material')}`.replace(/ —\s*$/, '').slice(0, 255);
+          const sapRes3 = await resolveFlangesSapItemCode(pool, newGroupId, newSubgroupId, attrs3, uomCode3, desc3);
           fields.push(`master_item_id = $${idx++}`); values.push(sapRes3.masterItemId);
           fields.push(`sap_item_code  = $${idx++}`); values.push(sapRes3.sapItemCode);
         } else if (groupCode2 && groupCode2 !== 'raw_materials') {
