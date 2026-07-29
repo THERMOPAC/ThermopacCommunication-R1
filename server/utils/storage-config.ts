@@ -87,6 +87,13 @@ console.log(`Using GCS bucket name: ${bucketName} (from env: ${envBucketName || 
 // Function to create storage client
 function createStorageClient() {
   try {
+    // In production (Replit autoscale), ADC via the metadata server must be used.
+    // Explicit service-account credentials fail with invalid_grant in that environment.
+    if (process.env.NODE_ENV === 'production') {
+      console.log('Environment: production - Creating GCS client with ADC (metadata server)');
+      return new Storage({ projectId: process.env.GOOGLE_CLOUD_PROJECT_ID });
+    }
+
     // Check if we have explicit credentials in the environment
     if (process.env.GOOGLE_CLOUD_CREDENTIALS) {
       try {
