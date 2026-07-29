@@ -4285,11 +4285,10 @@ export class DatabaseStorage implements IStorage {
 
   async getOfferItems(offerId: number): Promise<any[]> {
     // Only return active items — 'removed' items are soft-deleted for ID stability
-    return await db.execute(sql`
-      SELECT * FROM offer_items
-      WHERE offer_id = ${offerId} AND status = 'active'
-      ORDER BY sort_order
-    `).then(r => r.rows as any[]);
+    // Uses Drizzle ORM (not raw SQL) so columns come back camelCase (unitPrice, discountPercent, etc.)
+    return await db.select().from(offerItemsTable)
+      .where(and(eq(offerItemsTable.offerId, offerId), eq(offerItemsTable.status, 'active')))
+      .orderBy(offerItemsTable.sortOrder);
   }
 
   async createOfferItem(data: any): Promise<any> {
