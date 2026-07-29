@@ -327,6 +327,13 @@ app.use((req, res, next) => {
       console.error('❌ Failed to load CAPA escalation scheduler:', err);
     });
 
+    // Start document agent job recovery scheduler (stuck reset + auto-retry)
+    import('./document-agent-scheduler').then(({ startDocumentAgentScheduler }) => {
+      startDocumentAgentScheduler();
+    }).catch((err: unknown) => {
+      console.error('❌ Failed to load document agent scheduler:', err);
+    });
+
     // Start the attendance midnight processor (IST midnight cron + startup catch-up)
     import('./attendance-midnight-processor').then(({ attendanceMidnightProcessor }) => {
       attendanceMidnightProcessor.startSchedulerWithCatchup()

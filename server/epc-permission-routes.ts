@@ -374,7 +374,7 @@ export function registerEpcPermissionRoutes(app: Express) {
     }
   });
 
-  app.post('/api/epc-permissions/change-requests/:id/apply', ensureAuthenticated, requireReauth('user.change_permissions'), async (req: Request, res: Response) => {
+  app.post('/api/epc-permissions/change-requests/:id/apply', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       if (!requireDashboardAccess(req, res)) return;
       const meta = getRequestMeta(req);
@@ -383,6 +383,13 @@ export function registerEpcPermissionRoutes(app: Express) {
       const [cr] = await db.select().from(permissionChangeRequests).where(eq(permissionChangeRequests.id, id));
       if (!cr) return res.status(404).json({ message: 'Change request not found' });
       if (cr.status !== 'approved') return res.status(400).json({ message: `Only approved requests can be applied. Current status: ${cr.status}` });
+
+      // Emergency-override requests were already Superuser-validated at creation time —
+      // skip the re-auth gate. For normal approvals, enforce it inline.
+      if (!cr.emergencyOverride) {
+        const { checkReauth } = await import('./middleware/require-reauth');
+        if (!await checkReauth(req, res, 'user.change_permissions')) return;
+      }
 
       const result = await db.transaction(async (tx) => {
         const snapshotId = await captureSnapshot(req, 'page_matrix', `Pre-apply snapshot for ${cr.batchId || `request #${id}`}`, tx);

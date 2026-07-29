@@ -492,3 +492,9 @@ id = "RPEXITcUdnr0QQDMT2qLz"
 uri = "file://uploads/offer-templates/template_1773215624237_Automatic_Lubricant_Blending_Plant.pdf"
 type = "pdf"
 title = "Automatic Lubricant Blending Plant — Automatic_Lubricant_Blending_Plant.pdf (1.4 MB, 37 pages)"
+
+[[outputs]]
+id = "wvqiVkYlkgRei1ns2JOOH"
+uri = "file://local-document-agent/ThermopacLocalDocumentAgent-v1.0.7-windows.zip"
+type = "unspecified"
+title = "ThermopacLocalDocumentAgent v1.0.7 — Windows Package"

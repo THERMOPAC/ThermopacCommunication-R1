@@ -1,5 +1,5 @@
 import { IStorage, UserUpdate } from "./types";
-import { desc, sql, inArray } from 'drizzle-orm';
+import { desc, sql, inArray, notInArray, and, eq } from 'drizzle-orm';
 import type { 
   User, Task, InsertUser, InsertTask,
   TaskHistory, InsertTaskHistory,
@@ -4238,11 +4238,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getOffers(showTest: boolean = false): Promise<any[]> {
-    return await db
-      .select()
-      .from(offersTable)
-      .where(showTest ? undefined : eq(offersTable.isTest, false))
+    // Exclude workflow-internal statuses from normal lists.
+    // 'archiving' = save in progress; 'archive_failed' = visible only to admins via retry UI.
+    // Use Drizzle select so column names are returned as camelCase (snake_case → camelCase mapping is automatic).
+    const rows = await db.select().from(offersTable)
+      .where(
+        showTest
+          ? notInArray(offersTable.status, ['archiving', 'archive_failed'])
+          : and(
+              eq(offersTable.isTest, false),
+              notInArray(offersTable.status, ['archiving', 'archive_failed'])
+            )
+      )
       .orderBy(desc(offersTable.createdAt));
+    return rows;
   }
 
   async setOfferTestFlag(id: number, isTest: boolean): Promise<void> {
@@ -4275,7 +4284,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getOfferItems(offerId: number): Promise<any[]> {
-    return await db.select().from(offerItemsTable).where(eq(offerItemsTable.offerId, offerId)).orderBy(offerItemsTable.sortOrder);
+    // Only return active items — 'removed' items are soft-deleted for ID stability
+    return await db.execute(sql`
+      SELECT * FROM offer_items
+      WHERE offer_id = ${offerId} AND status = 'active'
+      ORDER BY sort_order
+    `).then(r => r.rows as any[]);
   }
 
   async createOfferItem(data: any): Promise<any> {

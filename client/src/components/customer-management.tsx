@@ -282,6 +282,7 @@ function CustomerFormBody({
   sapSyncFailureAlert,
   onRetryBpCode,
   isRetryingBpCode,
+  geoReadOnly,
 }: {
   form: UseFormReturn<CustomerFormValues>;
   onSubmit: (data: CustomerFormValues) => void;
@@ -301,6 +302,7 @@ function CustomerFormBody({
   sapSyncFailureAlert?: string | null;
   onRetryBpCode?: () => void;
   isRetryingBpCode?: boolean;
+  geoReadOnly?: boolean;
 }) {
   const handleCountryChange = (val: string, fieldOnChange: (v: string) => void) => {
     fieldOnChange(val);
@@ -761,21 +763,32 @@ function CustomerFormBody({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Country *</FormLabel>
-                  <Select
-                    onValueChange={(val) => handleCountryChange(val, field.onChange)}
-                    value={field.value || ""}
-                  >
+                  {geoReadOnly ? (
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select country" />
-                      </SelectTrigger>
+                      <Input
+                        {...field}
+                        value={field.value || ""}
+                        readOnly
+                        className="bg-muted text-muted-foreground cursor-not-allowed"
+                      />
                     </FormControl>
-                    <SelectContent className="max-h-60">
-                      {countries.map((c) => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  ) : (
+                    <Select
+                      onValueChange={(val) => handleCountryChange(val, field.onChange)}
+                      value={field.value || ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="max-h-60">
+                        {countries.map((c) => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -1499,6 +1512,7 @@ export default function CustomerManagement({ customers }: { customers: Customer[
             isPending={updateMutation.isPending}
             submitLabel="Update Customer"
             bpCodeReadOnly={true}
+            geoReadOnly={true}
             contact2Open={contact2Open}
             setContact2Open={setContact2Open}
             contact3Open={contact3Open}

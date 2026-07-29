@@ -143,7 +143,7 @@ export async function setupPppcRoutes(app: express.Express): Promise<void> {
 
   await seedPppcMasterData(pool);
 
-  const PAGE = requirePageAccess('buy-list-control');
+  const PAGE = requirePageAccess('buy-packages');
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PHASE 0 — BUY GROUPS

@@ -930,6 +930,7 @@ export const epcPageKeys = [
   "item-master",
   "execution-control",
   "drawing-controls",
+  "buy-packages",
   "buy-list-control",
   "bom-controls",
   "purchase-orders",
@@ -10395,6 +10396,7 @@ export const offerItems = pgTable('offer_items', {
   isSubItem: boolean('is_sub_item').default(false),
   parentItemId: integer('parent_item_id'),
   sortOrder: integer('sort_order').default(0),
+  status: varchar('status', { length: 20 }).notNull().default('active'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -12573,6 +12575,25 @@ export const insertOfferConversionSnapshotSchema = createInsertSchema(offerConve
 export type OfferConversionSnapshot = typeof offerConversionSnapshots.$inferSelect;
 export type InsertOfferConversionSnapshot = z.infer<typeof insertOfferConversionSnapshotSchema>;
 
+// ── Offer Archive Revisions ────────────────────────────────────────────────────
+// One row per archive transaction (create or update). Three quotation_pdf_artifacts
+// rows are children of each revision (combined / breakup / technical).
+export const offerArchiveRevisions = pgTable('offer_archive_revisions', {
+  id:          serial('id').primaryKey(),
+  offerId:     integer('offer_id').notNull().references(() => offers.id),
+  revision:    integer('revision').notNull(),
+  actionType:  varchar('action_type', { length: 10 }).notNull(),
+  status:      varchar('status', { length: 20 }).notNull().default('archiving'),
+  archivedBy:  integer('archived_by').references(() => users.id),
+  archivedAt:  timestamp('archived_at', { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  errorDetail: text('error_detail'),
+});
+
+export const insertOfferArchiveRevisionSchema = createInsertSchema(offerArchiveRevisions).omit({ id: true, archivedAt: true });
+export type OfferArchiveRevision = typeof offerArchiveRevisions.$inferSelect;
+export type InsertOfferArchiveRevision = z.infer<typeof insertOfferArchiveRevisionSchema>;
+
 export const quotationPdfArtifacts = pgTable('quotation_pdf_artifacts', {
   id: serial('id').primaryKey(),
   offerId: integer('offer_id').notNull().references(() => offers.id),
@@ -12588,6 +12609,8 @@ export const quotationPdfArtifacts = pgTable('quotation_pdf_artifacts', {
   epcAttachmentStatus: varchar('epc_attachment_status', { length: 20 }),
   epcAttachmentId: integer('epc_attachment_id').references(() => epcDocumentAttachments.id),
   epcAttachmentError: text('epc_attachment_error'),
+  archiveRevisionId: integer('archive_revision_id').references(() => offerArchiveRevisions.id),
+  actionType: varchar('action_type', { length: 10 }),
   generatedBy: integer('generated_by').notNull().references(() => users.id),
   generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
 });

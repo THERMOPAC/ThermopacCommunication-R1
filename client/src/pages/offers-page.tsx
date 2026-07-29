@@ -85,7 +85,7 @@ const offerFormSchema = z.object({
   customerId: z.number().nullable().optional(),
   customerName: z.string().min(1, "Customer name is required"),
   customerEmail: z.string().optional(),
-  customerAddress: z.string().optional(),
+  customerAddress: z.string().min(1, "Address is required"),
   contactPerson: z.string().optional(),
   subject: z.string().min(1, "Subject is required"),
   language: z.string().min(1, "Language is required"),
@@ -449,12 +449,23 @@ export function OffersContent() {
       return await apiRequest('POST', '/api/sales-marketing/offers', data);
     },
     onSuccess: (savedOffer: any) => {
-      toast({ title: "Offer created", description: "Offer has been created successfully. You can now download the PDF." });
+      toast({
+        title: "Offer saved — Revision 00",
+        description: "Combined, Breakup and Technical PDFs archived to GCS and queued for Windows Server mirroring.",
+      });
       setEditingOffer(savedOffer);
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      if ((error as any).status === 409) {
+        toast({
+          title: "Save conflict",
+          description: "Another user is currently saving this quotation. Please wait a few seconds and try again.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      }
     },
   });
 
@@ -462,12 +473,24 @@ export function OffersContent() {
     mutationFn: async ({ id, data }: { id: number; data: any }) =>
       apiRequest('PATCH', `/api/sales-marketing/offers/${id}`, data),
     onSuccess: (updatedOffer: any) => {
-      toast({ title: "Offer updated", description: "Offer has been updated successfully" });
+      const rev = String(updatedOffer?.archivedRevision ?? updatedOffer?.revision ?? 0).padStart(2, '0');
+      toast({
+        title: `Offer saved — Revision ${rev}`,
+        description: "Combined, Breakup and Technical PDFs archived to GCS and queued for Windows Server mirroring.",
+      });
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
       form.reset(form.getValues());
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      if ((error as any).status === 409) {
+        toast({
+          title: "Save conflict",
+          description: "Another user is currently saving this quotation. Please wait a few seconds and try again.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      }
     },
   });
 
@@ -1979,8 +2002,9 @@ export function OffersContent() {
                       </div>
                       <FormField control={form.control} name="customerAddress" render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs font-medium text-slate-600">Address</FormLabel>
+                          <FormLabel className="text-xs font-medium text-slate-600">Address *</FormLabel>
                           <FormControl><Textarea {...field} rows={1} className="text-sm resize-none" /></FormControl>
+                          <FormMessage />
                         </FormItem>
                       )} />
                     </div>
@@ -2362,7 +2386,7 @@ export function OffersContent() {
                         (!!editingOffer && !form.formState.isDirty)
                       }>
                       {(createMutation.isPending || updateMutation.isPending)
-                        ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Saving…</>
+                        ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Archiving PDFs…</>
                         : editingOffer ? "Update Offer" : "Save Offer"
                       }
                     </Button>

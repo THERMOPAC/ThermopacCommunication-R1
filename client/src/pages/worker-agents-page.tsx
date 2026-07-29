@@ -50,6 +50,7 @@ import {
   Hash,
   Trash2,
   ServerOff,
+  RotateCcw,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -1098,6 +1099,7 @@ export default function WorkerAgentsPage() {
   const [workerFilter, setWorkerFilter] = useState("all");
   const [expandedEventId, setExpandedEventId] = useState<number | null>(null);
   const [confirmPurge, setConfirmPurge] = useState<AgentJobRow | null>(null);
+  const [confirmRetry, setConfirmRetry] = useState<AgentJobRow | null>(null);
   const [expandedWorkerId, setExpandedWorkerId] = useState<number | null>(null);
 
   const isAdmin = user?.role === "Superuser";
@@ -1145,6 +1147,19 @@ export default function WorkerAgentsPage() {
     },
     onError: (err: any) => {
       toast({ title: "Purge failed", description: err?.message ?? "Unknown error", variant: "destructive" });
+    },
+  });
+
+  const retryJobMutation = useMutation({
+    mutationFn: async (job: AgentJobRow) =>
+      apiRequest("POST", `/api/admin/agent-jobs/${job.agent}/${job.id}/retry`),
+    onSuccess: (_data, job) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/agent-jobs"] });
+      toast({ title: "Job requeued", description: `Job #${job.id} reset to pending — agent will pick it up on next poll.` });
+      setConfirmRetry(null);
+    },
+    onError: (err: any) => {
+      toast({ title: "Retry failed", description: err?.message ?? "Unknown error", variant: "destructive" });
     },
   });
 
@@ -1989,15 +2004,28 @@ export default function WorkerAgentsPage() {
                             </td>
                             {isAdmin && (
                               <td className="py-3 px-3 text-center">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 text-xs text-destructive hover:bg-destructive/10"
-                                  onClick={() => setConfirmPurge(job)}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5 mr-1" />
-                                  Purge
-                                </Button>
+                                <div className="flex items-center justify-center gap-1">
+                                  {job.status !== 'completed' && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 text-xs text-blue-600 hover:bg-blue-50"
+                                      onClick={() => setConfirmRetry(job)}
+                                    >
+                                      <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                                      Retry
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs text-destructive hover:bg-destructive/10"
+                                    onClick={() => setConfirmPurge(job)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                    Purge
+                                  </Button>
+                                </div>
                               </td>
                             )}
                           </tr>
@@ -2048,6 +2076,45 @@ export default function WorkerAgentsPage() {
 
         </Tabs>
       </div>
+
+      {/* Retry confirmation dialog */}
+      <Dialog open={!!confirmRetry} onOpenChange={(open) => { if (!open) setConfirmRetry(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-blue-600">
+              <RotateCcw className="h-5 w-5" />
+              Retry Job
+            </DialogTitle>
+          </DialogHeader>
+          {confirmRetry && (
+            <div className="space-y-3 text-sm">
+              <p>This will reset the job back to <span className="font-semibold">pending</span> so the agent picks it up on its next poll cycle.</p>
+              <div className="rounded-md border bg-muted/30 p-3 space-y-1.5">
+                <div className="flex gap-2"><span className="font-medium w-24">Agent:</span><span>{confirmRetry.agent_name}</span></div>
+                <div className="flex gap-2"><span className="font-medium w-24">Job ID:</span><span className="font-mono">#{confirmRetry.id}</span></div>
+                <div className="flex gap-2"><span className="font-medium w-24">Job Type:</span><span className="font-mono">{confirmRetry.job_type ?? '—'}</span></div>
+                <div className="flex gap-2"><span className="font-medium w-24">Reference:</span><span>{confirmRetry.reference ?? '—'}</span></div>
+                <div className="flex gap-2"><span className="font-medium w-24">Current:</span>{agentJobStatusBadge(confirmRetry.status, Boolean(confirmRetry.is_stuck))}</div>
+                {confirmRetry.error_message && (
+                  <div className="flex gap-2"><span className="font-medium w-24">Error:</span><span className="text-destructive text-xs">{confirmRetry.error_message}</span></div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Retry count will be incremented. If the job continues to fail, consider purging it and investigating the root cause.</p>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setConfirmRetry(null)}>Cancel</Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => confirmRetry && retryJobMutation.mutate(confirmRetry)}
+              disabled={retryJobMutation.isPending}
+            >
+              {retryJobMutation.isPending ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+              Retry Job
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Purge confirmation dialog */}
       <Dialog open={!!confirmPurge} onOpenChange={(open) => { if (!open) setConfirmPurge(null); }}>

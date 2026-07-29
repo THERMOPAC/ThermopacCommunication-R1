@@ -459,7 +459,7 @@ function Layout({ children }: LayoutProps) {
         { icon: BarChart4, label: "Project Dashboard", href: "/project-dashboard" },
         { icon: Briefcase, label: "Projects", href: "/projects" },
         { icon: Package, label: "Products", href: "/products" },
-        ...(hasPageAccess("buy-list-control") ? [{ icon: ShoppingCart, label: "BUY Package Catalog", href: "/products/buy-packages" }] : []),
+        ...(hasPageAccess("buy-packages") ? [{ icon: ShoppingCart, label: "BUY Package Catalog", href: "/products/buy-packages" }] : []),
         ...(hasPageAccess("planning-control") ? [{ icon: ClipboardList, label: "Planning Control", href: "/epc/planning-control" }] : []),
         ...(hasPageAccess("procurement-production") ? [{ icon: Package, label: "Procurement & Production", href: "/epc/execution-control" }] : []),
         ...(hasPageAccess("buy-list-control") ? [{ icon: ShoppingCart, label: "BUY List Control", href: "/epc/buy-list-control" }] : []),

@@ -9,6 +9,8 @@ import multer from 'multer';
 import * as fs from 'fs';
 import * as path from 'path';
 import { storeQuotationPdfArtifact, storeQuotationPdfArtifactTwoPhase, getActiveArtifact, downloadArtifactBuffer, freezeConfirmedArtifact, listArtifactsForOffer, getArtifactById, attachConfirmedArtifactToEpc } from './utils/quotation-pdf-artifact';
+import { runDocumentArchive, rollbackDocumentArchive, QuotationArchiveStrategy } from './utils/document-archive-engine';
+import { pool } from './db';
 import crypto from 'crypto';
 import gcsClient, { bucketName as gcsBucketName } from './utils/storage-config';
 import { validateLabel } from '../shared/gcs-label-vocabulary';
@@ -1554,6 +1556,171 @@ export function setupSalesMarketingRoutes(app: Express) {
     }
   });
 
+  // ── Template resolver helper ────────────────────────────────────────────────
+  async function resolveOfferTemplate(offer: any): Promise<{
+    templatePath: string | null;
+    templateRange: { startPage?: number | null; endPage?: number | null };
+  }> {
+    let templatePath = offer.templatePdfPath || null;
+    let templateRange: { startPage?: number | null; endPage?: number | null } = {};
+    if (!templatePath || !fs.existsSync(templatePath)) {
+      const offerLang = offer.language || 'English';
+      const [autoTemplate] = await db.select().from(offerTemplates).where(
+        and(
+          eq(offerTemplates.subject, offer.subject),
+          eq(offerTemplates.language, offerLang),
+          eq(offerTemplates.isActive, true),
+        ),
+      ).limit(1);
+      if (autoTemplate && fs.existsSync(autoTemplate.filePath)) {
+        templatePath = autoTemplate.filePath;
+        templateRange = { startPage: autoTemplate.startPage, endPage: autoTemplate.endPage };
+      }
+    }
+    return { templatePath, templateRange };
+  }
+
+  // ── Upsert offer items (stable IDs) ────────────────────────────────────────
+  // Submitted items whose tempKey is a numeric string matching an existing DB row
+  // are UPDATED in place (IDs preserved). New items are INSERTed. Items present in
+  // the DB but absent from the submission are soft-deleted (status = 'removed').
+  //
+  // Pass a pg PoolClient to run within an existing transaction (e.g. alongside
+  // an advisory lock held by that client). When client is omitted, queries use
+  // the shared pool (correct for calls outside a transaction context).
+  async function upsertOfferItemsWithHierarchy(
+    offerId: number,
+    submittedItems: any[],
+    existingItems: any[],
+    client?: any,
+  ): Promise<void> {
+    const run = (text: string, params: any[]) =>
+      client ? client.query(text, params) : pool.query(text, params);
+    const existingIds = new Set(existingItems.map((i: any) => i.id));
+
+    // Build tempKey → dbId for items that are updates of existing rows
+    const tempKeyToId = new Map<string, number>();
+    for (const item of submittedItems) {
+      const parsed = parseInt(item.tempKey, 10);
+      if (!isNaN(parsed) && String(parsed) === item.tempKey && existingIds.has(parsed)) {
+        tempKeyToId.set(item.tempKey, parsed);
+      }
+    }
+
+    // Topological sort — parents before children, supports unlimited depth
+    const tempKeyToItem = new Map<string, any>(
+      submittedItems.filter((i: any) => i.tempKey).map((i: any) => [i.tempKey, i]),
+    );
+    const visited = new Set<string>();
+    const ordered: any[] = [];
+    function visit(item: any) {
+      if (!item.tempKey || visited.has(item.tempKey)) return;
+      if (item.parentTempKey && tempKeyToItem.has(item.parentTempKey)) {
+        visit(tempKeyToItem.get(item.parentTempKey)!);
+      }
+      visited.add(item.tempKey);
+      ordered.push(item);
+    }
+    for (const item of submittedItems) {
+      if (item.tempKey) visit(item);
+      else ordered.push(item);
+    }
+
+    const submittedExistingIds = new Set<number>();
+
+    for (let i = 0; i < ordered.length; i++) {
+      const item = ordered[i];
+      const parentId = item.parentTempKey ? (tempKeyToId.get(item.parentTempKey) ?? null) : null;
+      const sortOrder = submittedItems.indexOf(item) >= 0 ? submittedItems.indexOf(item) : i;
+      const isSubItem = !!(item.parentTempKey && parentId !== null);
+
+      if (tempKeyToId.has(item.tempKey)) {
+        // UPDATE existing row
+        const dbId = tempKeyToId.get(item.tempKey)!;
+        submittedExistingIds.add(dbId);
+        await run(
+          `UPDATE offer_items SET
+             product_id = $1, product_code = $2, description = $3, unit = $4,
+             quantity = $5, unit_price = $6, discount_percent = $7, total_price = $8,
+             hsn_sac_code = $9, is_sub_item = $10, parent_item_id = $11,
+             sort_order = $12, status = 'active'
+           WHERE id = $13 AND offer_id = $14`,
+          [
+            item.productId ?? null, item.productCode ?? null, item.description,
+            item.unit, item.quantity, item.unitPrice, item.discountPercent ?? '0',
+            item.totalPrice, item.hsnSacCode ?? null, isSubItem, parentId,
+            sortOrder, dbId, offerId,
+          ],
+        );
+        if (item.tempKey) tempKeyToId.set(item.tempKey, dbId);
+      } else {
+        // INSERT new row
+        const res = await run(
+          `INSERT INTO offer_items
+             (offer_id, product_id, product_code, description, unit, quantity, unit_price,
+              discount_percent, total_price, hsn_sac_code, is_sub_item, parent_item_id,
+              sort_order, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'active')
+           RETURNING id`,
+          [
+            offerId, item.productId ?? null, item.productCode ?? null, item.description,
+            item.unit, item.quantity, item.unitPrice, item.discountPercent ?? '0',
+            item.totalPrice, item.hsnSacCode ?? null, isSubItem, parentId, sortOrder,
+          ],
+        );
+        const newId: number = res.rows[0].id;
+        if (item.tempKey) tempKeyToId.set(item.tempKey, newId);
+      }
+    }
+
+    // Soft-delete items in DB that were not in the submission
+    const toRemove = existingItems.filter((i: any) => !submittedExistingIds.has(i.id));
+    if (toRemove.length > 0) {
+      const removeIds = toRemove.map((i: any) => i.id);
+      await run(
+        `UPDATE offer_items SET status = 'removed' WHERE id = ANY($1)`,
+        [removeIds],
+      );
+    }
+  }
+
+  // ── Restore offer items from a snapshot (rollback helper) ──────────────────
+  async function restoreOfferItemsFromSnapshot(
+    offerId: number,
+    snapshot: any[],
+    currentItems: any[],
+  ): Promise<void> {
+    const snapshotIds = new Set(snapshot.map((i: any) => i.id));
+    const currentIds  = new Set(currentItems.map((i: any) => i.id));
+
+    // Delete items that were newly inserted (not in snapshot)
+    const newlyInserted = currentItems.filter((i: any) => !snapshotIds.has(i.id));
+    if (newlyInserted.length > 0) {
+      await pool.query(
+        `DELETE FROM offer_items WHERE id = ANY($1)`,
+        [newlyInserted.map((i: any) => i.id)],
+      );
+    }
+
+    // Restore each snapshot item to its previous values
+    for (const snap of snapshot) {
+      await pool.query(
+        `UPDATE offer_items SET
+           product_id = $1, product_code = $2, description = $3, unit = $4,
+           quantity = $5, unit_price = $6, discount_percent = $7, total_price = $8,
+           hsn_sac_code = $9, is_sub_item = $10, parent_item_id = $11,
+           sort_order = $12, status = 'active'
+         WHERE id = $13 AND offer_id = $14`,
+        [
+          snap.product_id, snap.product_code, snap.description, snap.unit,
+          snap.quantity, snap.unit_price, snap.discount_percent, snap.total_price,
+          snap.hsn_sac_code, snap.is_sub_item, snap.parent_item_id,
+          snap.sort_order, snap.id, offerId,
+        ],
+      );
+    }
+  }
+
   function validateOfferItemHierarchy(items: any[]): string | null {
     const tempKeySet = new Set(items.map((i: any) => i.tempKey).filter(Boolean));
     for (const item of items) {
@@ -1643,38 +1810,77 @@ export function setupSalesMarketingRoutes(app: Express) {
       } else {
         delete offerData.validUntil;
       }
+      // Step 1 — Create offer in 'archiving' status to obtain an offer_id
       const offer = await storage.createOffer({
         offerNumber,
-        customerId: offerData.customerId || null,
-        customerName: offerData.customerName,
-        customerEmail: offerData.customerEmail || null,
-        customerAddress: offerData.customerAddress || null,
-        contactPerson: offerData.contactPerson || null,
-        subject: offerData.subject,
-        currency: offerData.currency || 'USD',
-        subtotal: offerData.subtotal || '0',
-        discountPercent: offerData.discountPercent || '0',
-        discountAmount: offerData.discountAmount || '0',
-        taxPercent: offerData.taxPercent || '0',
-        taxAmount: offerData.taxAmount || '0',
-        totalAmount: offerData.totalAmount || '0',
-        revision: 0,
-        status: 'Draft',
-        validUntil: offerData.validUntil || null,
-        paymentTerms: offerData.paymentTerms || null,
-        deliveryTerms: offerData.deliveryTerms || null,
-        notes: offerData.notes || null,
+        customerId:         offerData.customerId         || null,
+        customerName:       offerData.customerName,
+        customerEmail:      offerData.customerEmail      || null,
+        customerAddress:    offerData.customerAddress    || null,
+        contactPerson:      offerData.contactPerson      || null,
+        subject:            offerData.subject,
+        currency:           offerData.currency           || 'USD',
+        subtotal:           offerData.subtotal           || '0',
+        discountPercent:    offerData.discountPercent    || '0',
+        discountAmount:     offerData.discountAmount     || '0',
+        taxPercent:         offerData.taxPercent         || '0',
+        taxAmount:          offerData.taxAmount          || '0',
+        totalAmount:        offerData.totalAmount        || '0',
+        revision:           0,
+        status:             'archiving',
+        validUntil:         offerData.validUntil         || null,
+        paymentTerms:       offerData.paymentTerms       || null,
+        deliveryTerms:      offerData.deliveryTerms      || null,
+        notes:              offerData.notes              || null,
         termsAndConditions: offerData.termsAndConditions || null,
-        language: offerData.language || 'English',
-        createdBy: user.id,
+        language:           offerData.language           || 'English',
+        offerType:          offerData.offerType          || 'standalone',
+        createdBy:          user.id,
       });
 
+      // Step 2 — Insert items
       if (items && Array.isArray(items)) {
         await insertOfferItemsWithHierarchy(offer.id, items);
       }
 
-      const savedItems = await storage.getOfferItems(offer.id);
-      res.status(201).json({ ...offer, items: savedItems });
+      // Step 3 — Load saved items and resolve template for PDF generation
+      const savedItemsRes = await pool.query(
+        `SELECT * FROM offer_items WHERE offer_id = $1 AND status = 'active' ORDER BY sort_order`,
+        [offer.id],
+      );
+      const { templatePath, templateRange } = await resolveOfferTemplate(offer);
+
+      // Step 4 — Run archive (3 PDFs → GCS → mirror jobs)
+      try {
+        await runDocumentArchive({
+          offerId:     offer.id,
+          offerNumber: offer.offerNumber,
+          revision:    0,
+          actionType:  'CREATED',
+          userId:      user.id,
+          strategy:    new QuotationArchiveStrategy(offer, savedItemsRes.rows, templatePath, templateRange),
+        });
+      } catch (archiveErr: any) {
+        // Archive failed — preserve offer record for admin retry
+        await pool.query(`UPDATE offers SET status = 'archive_failed' WHERE id = $1`, [offer.id])
+          .catch((e) => console.error('[POST /offers] Failed to mark archive_failed:', e));
+        console.error(`[POST /offers] Archive failed for new offer ${offer.id}:`, archiveErr.message);
+        return res.status(500).json({
+          error:   'Offer could not be created: PDF archiving failed. The offer record has been preserved — an administrator can retry.',
+          detail:  archiveErr.message,
+          offerId: offer.id,
+        });
+      }
+
+      // Step 5 — Activate offer
+      const activatedOffer = await storage.updateOffer(offer.id, { status: 'Draft' });
+      const finalItems     = await storage.getOfferItems(offer.id);
+
+      return res.status(201).json({
+        ...activatedOffer,
+        items:            finalItems,
+        archivedRevision: 0,
+      });
     } catch (error) {
       console.error('Error creating offer:', error);
       const errMsg = error instanceof Error ? error.message : 'Failed to create offer';
@@ -1702,30 +1908,242 @@ export function setupSalesMarketingRoutes(app: Express) {
         delete offerData.customerId;
       }
 
-      const existingOffer = await storage.getOfferById(id);
-      if (existingOffer && existingOffer.status === 'Sent') {
-        offerData.revision = (existingOffer.revision || 0) + 1;
-        offerData.status = 'Draft';
-      }
+      // Step 1 — Load current offer as full snapshot (for rollback)
+      const currentOffer = await storage.getOfferById(id);
+      if (!currentOffer) return res.status(404).json({ error: 'Offer not found' });
 
-      const offer = await storage.updateOffer(id, offerData);
+      // Reject concurrent saves
+      if (currentOffer.status === 'archiving') {
+        return res.status(409).json({
+          error: 'Another user is currently saving this quotation. Please wait a few seconds and try again.',
+        });
+      }
 
       if (items && Array.isArray(items)) {
         const hierarchyError = validateOfferItemHierarchy(items);
         if (hierarchyError) return res.status(400).json({ error: hierarchyError });
-        const existingItems = await storage.getOfferItems(id);
-        for (const existing of existingItems) {
-          await storage.deleteOfferItem(existing.id);
-        }
-        await insertOfferItemsWithHierarchy(id, items);
       }
 
-      const savedItems = await storage.getOfferItems(id);
-      res.json({ ...offer, items: savedItems });
+      // Step 2 — Take item snapshot for rollback
+      const itemSnapshot = await pool.query(
+        `SELECT * FROM offer_items WHERE offer_id = $1 AND status = 'active' ORDER BY sort_order`,
+        [id],
+      );
+      const itemSnapRows = itemSnapshot.rows;
+
+      // Step 3 — Compute next revision (NOT written to offers yet)
+      const nextRevision = (currentOffer.revision || 0) + 1;
+
+      // Determine target status after archive succeeds
+      const targetStatus = currentOffer.status === 'Sent' ? 'Draft' : currentOffer.status;
+
+      // Step 4 — Lock offer + update data + upsert items (short transaction)
+      // A dedicated client is required so that pg_advisory_xact_lock, the offer
+      // UPDATE, item upserts, and COMMIT all happen on the same session.
+      const pgClient = await pool.connect();
+      try {
+        await pgClient.query('BEGIN');
+        // Advisory lock scoped to this transaction — auto-released on COMMIT/ROLLBACK
+        await pgClient.query(`SELECT pg_advisory_xact_lock($1)`, [id]);
+
+        // Re-check status after acquiring lock (double-check for concurrent saves)
+        const recheck = await pgClient.query(`SELECT status FROM offers WHERE id = $1`, [id]);
+        if (recheck.rows[0]?.status === 'archiving') {
+          await pgClient.query('ROLLBACK');
+          pgClient.release();
+          return res.status(409).json({
+            error: 'Another user is currently saving this quotation. Please wait a few seconds and try again.',
+          });
+        }
+
+        // UPDATE offer fields + set status='archiving' (revision NOT incremented yet)
+        const updateFields: Record<string, any> = {};
+        if (offerData.customerId !== null && offerData.customerId !== undefined) updateFields.customerId = offerData.customerId;
+        if (offerData.customerName       !== undefined) updateFields.customerName       = offerData.customerName;
+        if (offerData.customerEmail      !== undefined) updateFields.customerEmail      = offerData.customerEmail;
+        if (offerData.customerAddress    !== undefined) updateFields.customerAddress    = offerData.customerAddress;
+        if (offerData.contactPerson      !== undefined) updateFields.contactPerson      = offerData.contactPerson;
+        if (offerData.subject            !== undefined) updateFields.subject            = offerData.subject;
+        if (offerData.currency           !== undefined) updateFields.currency           = offerData.currency;
+        if (offerData.subtotal           !== undefined) updateFields.subtotal           = offerData.subtotal;
+        if (offerData.discountPercent    !== undefined) updateFields.discountPercent    = offerData.discountPercent;
+        if (offerData.discountAmount     !== undefined) updateFields.discountAmount     = offerData.discountAmount;
+        if (offerData.taxPercent         !== undefined) updateFields.taxPercent         = offerData.taxPercent;
+        if (offerData.taxAmount          !== undefined) updateFields.taxAmount          = offerData.taxAmount;
+        if (offerData.totalAmount        !== undefined) updateFields.totalAmount        = offerData.totalAmount;
+        if (offerData.validUntil         !== undefined) updateFields.validUntil         = offerData.validUntil;
+        if (offerData.paymentTerms       !== undefined) updateFields.paymentTerms       = offerData.paymentTerms;
+        if (offerData.deliveryTerms      !== undefined) updateFields.deliveryTerms      = offerData.deliveryTerms;
+        if (offerData.notes              !== undefined) updateFields.notes              = offerData.notes;
+        if (offerData.termsAndConditions !== undefined) updateFields.termsAndConditions = offerData.termsAndConditions;
+        if (offerData.language           !== undefined) updateFields.language           = offerData.language;
+        if (offerData.offerType          !== undefined) updateFields.offerType          = offerData.offerType;
+
+        // Build the UPDATE SQL manually (Drizzle ORM uses the pool; we need the locked client)
+        const setClauses: string[] = ['status = \'archiving\'', 'updated_at = NOW()'];
+        const setValues: any[]     = [];
+        let   paramIdx             = 1;
+        const fieldMap: Record<string, string> = {
+          customerId: 'customer_id', customerName: 'customer_name',
+          customerEmail: 'customer_email', customerAddress: 'customer_address',
+          contactPerson: 'contact_person', subject: 'subject', currency: 'currency',
+          subtotal: 'subtotal', discountPercent: 'discount_percent',
+          discountAmount: 'discount_amount', taxPercent: 'tax_percent',
+          taxAmount: 'tax_amount', totalAmount: 'total_amount', validUntil: 'valid_until',
+          paymentTerms: 'payment_terms', deliveryTerms: 'delivery_terms',
+          notes: 'notes', termsAndConditions: 'terms_and_conditions',
+          language: 'language', offerType: 'offer_type',
+        };
+        for (const [jsKey, sqlCol] of Object.entries(fieldMap)) {
+          if (updateFields[jsKey] !== undefined) {
+            setClauses.push(`${sqlCol} = $${paramIdx++}`);
+            setValues.push(updateFields[jsKey]);
+          }
+        }
+        setValues.push(id);
+        await pgClient.query(
+          `UPDATE offers SET ${setClauses.join(', ')} WHERE id = $${paramIdx}`,
+          setValues,
+        );
+
+        // Upsert items on the same locked client
+        if (items && Array.isArray(items)) {
+          await upsertOfferItemsWithHierarchy(id, items, itemSnapRows, pgClient);
+        }
+
+        await pgClient.query('COMMIT');
+      } catch (txErr) {
+        await pgClient.query('ROLLBACK').catch(() => {});
+        pgClient.release();
+        throw txErr;
+      }
+      pgClient.release();
+
+      // Step 5 — Reload updated offer + active items for PDF generation
+      const updatedOffer = await storage.getOfferById(id);
+      const updatedItemsRes = await pool.query(
+        `SELECT * FROM offer_items WHERE offer_id = $1 AND status = 'active' ORDER BY sort_order`,
+        [id],
+      );
+      const { templatePath, templateRange } = await resolveOfferTemplate(updatedOffer);
+
+      // Step 6 — Run archive for nextRevision
+      try {
+        await runDocumentArchive({
+          offerId:     id,
+          offerNumber: currentOffer.offerNumber,
+          revision:    nextRevision,
+          actionType:  'UPDATED',
+          userId:      (req.user as any)?.id || 0,
+          strategy:    new QuotationArchiveStrategy(updatedOffer, updatedItemsRes.rows, templatePath, templateRange),
+        });
+      } catch (archiveErr: any) {
+        // Rollback offer data and items to previous snapshot
+        console.error(`[PATCH /offers/${id}] Archive failed (rev ${nextRevision}):`, archiveErr.message);
+        try {
+          // Restore item snapshot
+          const currentItemsRes = await pool.query(
+            `SELECT * FROM offer_items WHERE offer_id = $1 ORDER BY sort_order`,
+            [id],
+          );
+          await restoreOfferItemsFromSnapshot(id, itemSnapRows, currentItemsRes.rows);
+          // Restore offer fields and status (revision stays unchanged — not yet incremented)
+          await storage.updateOffer(id, {
+            ...currentOffer,
+            status:    'archive_failed',
+            updatedAt: new Date(),
+          });
+        } catch (restoreErr) {
+          console.error(`[PATCH /offers/${id}] Snapshot restore also failed:`, restoreErr);
+        }
+        return res.status(500).json({
+          error:  'Offer could not be saved: PDF archiving failed. Your previous version is restored.',
+          detail: archiveErr.message,
+        });
+      }
+
+      // Step 7 — Activate: write incremented revision + final status
+      const finalOffer = await storage.updateOffer(id, {
+        revision: nextRevision,
+        status:   targetStatus,
+      });
+      const finalItems = await storage.getOfferItems(id);
+
+      return res.json({
+        ...finalOffer,
+        items:            finalItems,
+        archivedRevision: nextRevision,
+      });
     } catch (error) {
       console.error('Error updating offer:', error);
       const errMsg = error instanceof Error ? error.message : 'Failed to update offer';
       res.status(500).json({ error: errMsg });
+    }
+  });
+
+  // ── Retry archive for archive_failed offers (Manager+) ────────────────────
+  router.post('/offers/:id/retry-archive', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id   = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const user = req.user as any;
+      if (!['Superuser', 'General Manager', 'Senior Manager', 'Manager'].includes(user.role)) {
+        return res.status(403).json({ error: 'Access denied — only Manager or above can retry archive' });
+      }
+
+      const offer = await storage.getOfferById(id);
+      if (!offer) return res.status(404).json({ error: 'Offer not found' });
+      if (offer.status !== 'archive_failed') {
+        return res.status(400).json({ error: `Offer is not in archive_failed state (current: ${offer.status})` });
+      }
+
+      // Determine the revision this offer should archive as
+      // If no archive_revision exists for current revision, use current revision (CREATED)
+      // If an archive_revision already exists for current revision (failed CREATED), use that revision
+      // If this was a failed UPDATE, the revision was pre-computed but not written — read from offer_archive_revisions
+      const archRevRes = await pool.query(
+        `SELECT revision, action_type FROM offer_archive_revisions
+         WHERE offer_id = $1 AND status = 'failed'
+         ORDER BY archived_at DESC LIMIT 1`,
+        [id],
+      );
+      const targetRevision  = archRevRes.rows.length > 0 ? archRevRes.rows[0].revision : offer.revision ?? 0;
+      const actionType      = archRevRes.rows.length > 0 ? archRevRes.rows[0].action_type : 'CREATED';
+
+      // Mark offer as archiving again
+      await storage.updateOffer(id, { status: 'archiving' });
+
+      const itemsRes = await pool.query(
+        `SELECT * FROM offer_items WHERE offer_id = $1 AND status = 'active' ORDER BY sort_order`,
+        [id],
+      );
+      const { templatePath, templateRange } = await resolveOfferTemplate(offer);
+
+      try {
+        await runDocumentArchive({
+          offerId:     id,
+          offerNumber: offer.offerNumber,
+          revision:    targetRevision,
+          actionType:  actionType as 'CREATED' | 'UPDATED',
+          userId:      user.id,
+          strategy:    new QuotationArchiveStrategy(offer, itemsRes.rows, templatePath, templateRange),
+        });
+      } catch (archiveErr: any) {
+        await storage.updateOffer(id, { status: 'archive_failed' });
+        return res.status(500).json({
+          error:  'Retry archive failed',
+          detail: archiveErr.message,
+        });
+      }
+
+      // Success — write revision and activate
+      const targetStatus = offer.status === 'Sent' ? 'Draft' : (offer.status === 'archive_failed' ? 'Draft' : offer.status);
+      const finalOffer   = await storage.updateOffer(id, { revision: targetRevision, status: targetStatus });
+      return res.json({ ...finalOffer, archivedRevision: targetRevision });
+
+    } catch (error: any) {
+      console.error('[retry-archive] Error:', error);
+      res.status(500).json({ error: error.message || 'Retry archive failed' });
     }
   });
 

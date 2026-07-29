@@ -615,25 +615,13 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Continent</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select continent" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Asia">Asia</SelectItem>
-                          <SelectItem value="Africa">Africa</SelectItem>
-                          <SelectItem value="Europe">Europe</SelectItem>
-                          <SelectItem value="North America">North America</SelectItem>
-                          <SelectItem value="South America">South America</SelectItem>
-                          <SelectItem value="Australia">Australia</SelectItem>
-                          <SelectItem value="Antarctica">Antarctica</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          readOnly
+                          className="bg-muted text-muted-foreground cursor-not-allowed"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -645,7 +633,11 @@ export default function CustomerManagement({ customers }: { customers: Customer[
                     <FormItem>
                       <FormLabel>Country</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., India" {...field} />
+                        <Input
+                          {...field}
+                          readOnly
+                          className="bg-muted text-muted-foreground cursor-not-allowed"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

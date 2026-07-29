@@ -16,3 +16,4 @@
 - [Nipple SAP code requires length](nipple-sap-length.md) — Barrel Nipple and Pipe Nipple must include length_mm as a mandatory segment ({N}MM) or different-length nipples of same NB get identical codes.
 - [Fasteners procurement model](fasteners-procurement-model.md) — 8-family model; inch dia uses concatenated fraction codes (14IN/38IN…); coating is mandatory with no silent default; U-Bolt uses NB not OD; washer_series is engineering-only.
 - [Gaskets procurement model](gaskets-procurement-model.md) — 5-family model (SWIO/CMG/FSG/SCG/ORING); O-Ring uses caliper dims not NB+class; OD≈ID+2×CS enforced; hardness mandatory for elastomers; SCG Custom shape = manual entry.
+- [Offer Archive Workflow](offer-archive-workflow.md) — Every offer save auto-archives 3 PDFs; advisory lock needs dedicated pg client; tempKey numeric=existing/UUID=new; run migrations via Node.js pool not psql.

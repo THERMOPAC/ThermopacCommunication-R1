@@ -36,18 +36,46 @@ export interface JobResultPayload {
   failedReason?:    string;
 }
 
+const REQUEST_TIMEOUT_MS = 20_000; // 20 s — abort if ERP doesn't respond
+
+function withTimeout(ms: number): { signal: AbortSignal; clear: () => void } {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return { signal: controller.signal, clear: () => clearTimeout(timer) };
+}
+
+function networkError(endpoint: string, err: unknown): Error {
+  if (err instanceof Error) {
+    // Node native fetch wraps the real network error in err.cause
+    const cause = (err as any).cause;
+    const detail = cause instanceof Error ? ` (${cause.message})` : '';
+    const label  = err.name === 'AbortError' ? 'timed out' : err.message;
+    return new Error(`${label}${detail} — ${endpoint}`);
+  }
+  return new Error(`fetch error — ${endpoint}: ${String(err)}`);
+}
+
 async function post(config: AgentConfig, endpoint: string, body: unknown): Promise<unknown> {
   const url = `${config.erpBaseUrl}/api/local-agent${endpoint}`;
+  const { signal, clear } = withTimeout(REQUEST_TIMEOUT_MS);
 
-  const response = await fetch(url, {
-    method:  'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-agent-code': config.agentCode,
-      'x-api-key':    config.apiKey,
-    },
-    body: JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method:  'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-agent-code': config.agentCode,
+        'x-api-key':    config.apiKey,
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (err) {
+    throw networkError(endpoint, err);
+  } finally {
+    clear();
+  }
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
@@ -59,13 +87,22 @@ async function post(config: AgentConfig, endpoint: string, body: unknown): Promi
 
 async function get(config: AgentConfig, endpoint: string): Promise<unknown> {
   const url = `${config.erpBaseUrl}/api/local-agent${endpoint}`;
+  const { signal, clear } = withTimeout(REQUEST_TIMEOUT_MS);
 
-  const response = await fetch(url, {
-    headers: {
-      'x-agent-code': config.agentCode,
-      'x-api-key':    config.apiKey,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        'x-agent-code': config.agentCode,
+        'x-api-key':    config.apiKey,
+      },
+      signal,
+    });
+  } catch (err) {
+    throw networkError(endpoint, err);
+  } finally {
+    clear();
+  }
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');

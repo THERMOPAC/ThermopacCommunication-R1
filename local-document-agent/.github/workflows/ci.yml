@@ -216,10 +216,10 @@ jobs:
         timeout-minutes: 5
         shell: pwsh
         run: |
-          $out = "$env:TEMP\innosetup.exe"
-          Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" `
-            -OutFile $out -UseBasicParsing -TimeoutSec 120
-          Start-Process -FilePath $out -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" -Wait
+          # Chocolatey is pre-installed on all GitHub Actions Windows runners.
+          # This avoids the jrsoftware.org redirect which returns HTML/corrupted bytes.
+          choco install innosetup --yes --no-progress 2>&1
+          if ($LASTEXITCODE -ne 0) { Write-Error "choco install innosetup failed (exit $LASTEXITCODE)"; exit 1 }
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { $iscc = "C:\Program Files\Inno Setup 6\ISCC.exe" }
           if (-not (Test-Path $iscc)) { Write-Error "ISCC.exe not found after install"; exit 1 }

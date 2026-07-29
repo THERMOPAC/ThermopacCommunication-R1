@@ -3,8 +3,9 @@
  *
  * Admin-only API for the Agent Jobs Monitor UI.
  *
- * GET  /api/admin/agent-jobs          — list pending/failed/stuck jobs across all 3 agents
- * DELETE /api/admin/agent-jobs/:agent/:id — purge a single job (Superuser only), audit-logged
+ * GET    /api/admin/agent-jobs              — list pending/failed/stuck jobs across all 3 agents
+ * POST   /api/admin/agent-jobs/:agent/:id/retry — reset failed/stuck job back to pending (Superuser only)
+ * DELETE /api/admin/agent-jobs/:agent/:id   — purge a single job (Superuser only), audit-logged
  *
  * Agents:
  *   extraction  → epc_slddrw_extraction_jobs
@@ -101,7 +102,7 @@ router.get('/', async (req, res) => {
         j.failed_reason                           AS error_message,
         (j.status = 'claimed' AND j.claimed_at < NOW() - INTERVAL '${sql.raw(STUCK_MINUTES.toString())} minutes') AS is_stuck
       FROM document_agent_jobs j
-      WHERE j.status IN ('pending', 'failed')
+      WHERE j.status IN ('pending', 'failed', 'permanently_failed')
          OR (j.status = 'claimed' AND j.claimed_at < NOW() - INTERVAL '${sql.raw(STUCK_MINUTES.toString())} minutes')
 
       ORDER BY created_at DESC
@@ -187,6 +188,89 @@ router.delete('/:agent/:id', async (req, res) => {
   } catch (err: any) {
     console.error('[agent-jobs-monitor] DELETE error:', err);
     res.status(500).json({ error: 'Failed to purge job' });
+  }
+});
+
+// ── POST /api/admin/agent-jobs/:agent/:id/retry — reset to pending (Superuser) ─
+router.post('/:agent/:id/retry', async (req, res) => {
+  if (!requireSuperuser(req, res)) return;
+
+  const user = req.user as any;
+  const agentKey = req.params.agent as 'extraction' | 'structuring' | 'document';
+  const jobId = parseInt(req.params.id, 10);
+
+  if (isNaN(jobId)) return res.status(400).json({ error: 'Invalid job ID' });
+  if (!['extraction', 'structuring', 'document'].includes(agentKey)) {
+    return res.status(400).json({ error: 'Invalid agent key' });
+  }
+
+  try {
+    let oldStatus: string | null = null;
+    let reference: string | null = null;
+
+    if (agentKey === 'extraction') {
+      const [job] = await db
+        .select({ status: epcSlddrwExtractionJobs.status, ref: epcSlddrwExtractionJobs.slddrwFilename })
+        .from(epcSlddrwExtractionJobs)
+        .where(eq(epcSlddrwExtractionJobs.id, jobId));
+      if (!job) return res.status(404).json({ error: 'Job not found' });
+      if (job.status === 'completed') return res.status(400).json({ error: 'Cannot retry a completed job' });
+      oldStatus = job.status; reference = job.ref;
+      await db.execute(sql`
+        UPDATE epc_slddrw_extraction_jobs
+        SET status = 'pending', claimed_at = NULL, failed_reason = NULL,
+            retry_count = retry_count + 1, updated_at = NOW()
+        WHERE id = ${jobId}
+      `);
+
+    } else if (agentKey === 'structuring') {
+      const [job] = await db
+        .select({ status: epcStructureJobs.status, ref: epcStructureJobs.drawingNumber })
+        .from(epcStructureJobs)
+        .where(eq(epcStructureJobs.id, jobId));
+      if (!job) return res.status(404).json({ error: 'Job not found' });
+      if (job.status === 'completed') return res.status(400).json({ error: 'Cannot retry a completed job' });
+      oldStatus = job.status; reference = job.ref;
+      await db.execute(sql`
+        UPDATE epc_structure_jobs
+        SET status = 'pending', claimed_at = NULL, failed_reason = NULL,
+            retry_count = retry_count + 1, updated_at = NOW()
+        WHERE id = ${jobId}
+      `);
+
+    } else {
+      const [job] = await db
+        .select({ status: documentAgentJobs.status, ref: documentAgentJobs.fileName })
+        .from(documentAgentJobs)
+        .where(eq(documentAgentJobs.id, jobId));
+      if (!job) return res.status(404).json({ error: 'Job not found' });
+      if (job.status === 'completed') return res.status(400).json({ error: 'Cannot retry a completed job' });
+      oldStatus = job.status; reference = job.ref;
+      await db.execute(sql`
+        UPDATE document_agent_jobs
+        SET status = 'pending', agent_code = NULL, claimed_at = NULL, failed_reason = NULL,
+            retry_count = retry_count + 1, updated_at = NOW()
+        WHERE id = ${jobId}
+      `);
+    }
+
+    await db.insert(agentAuditLog).values({
+      agentKey,
+      eventType: 'job_retried',
+      actorType: 'user',
+      actorId: String(user.id ?? user.username ?? 'unknown'),
+      entityType: 'agent_job',
+      entityId: String(jobId),
+      details: JSON.stringify({
+        agent: agentKey, jobId, oldStatus, reference,
+        retriedBy: user.username, retriedAt: new Date().toISOString(),
+      }),
+    });
+
+    res.json({ ok: true, retried: { agent: agentKey, id: jobId, wasStatus: oldStatus } });
+  } catch (err: any) {
+    console.error('[agent-jobs-monitor] retry error:', err);
+    res.status(500).json({ error: 'Failed to retry job' });
   }
 });
 
