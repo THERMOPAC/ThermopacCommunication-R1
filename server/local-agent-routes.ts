@@ -266,7 +266,7 @@ router.get('/local-agent/files/:jobId/download', async (req: Request, res: Respo
 
     const [job] = await db.select().from(documentAgentJobs).where(eq(documentAgentJobs.id, jobId)).limit(1);
     if (!job) return res.status(404).json({ error: 'Job not found' });
-    if (job.status !== 'processing') return res.status(409).json({ error: 'Job not in processing state' });
+    if (job.status !== 'claimed' && job.status !== 'processing') return res.status(409).json({ error: 'Job not in processing state' });
 
     const { Storage } = await import('@google-cloud/storage');
 
