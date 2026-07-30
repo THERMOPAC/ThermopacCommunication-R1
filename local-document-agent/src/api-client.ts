@@ -10,13 +10,19 @@ import { AgentConfig } from './config';
 import { info, warn, error } from './logger';
 
 export interface AgentJob {
-  id:             number;
-  jobType:        string;
-  relativePath:   string;
-  fileUrl?:       string;
-  fileName?:      string;
-  expectedSha256?:string;
-  sourceRef?:     string;
+  id:              number;
+  jobType:         string;
+  relativePath:    string;
+  fileUrl?:        string;
+  fileName?:       string;
+  expectedSha256?: string;
+  sourceRef?:      string;
+  /** Populated for CREATE_PROJECT_STRUCTURE jobs — folder snapshot from the template. */
+  inputPayload?:   {
+    templateCode:    string;
+    templateVersion: number;
+    folders:         string[];
+  };
 }
 
 export interface HeartbeatPayload {

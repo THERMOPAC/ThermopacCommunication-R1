@@ -3,6 +3,7 @@ import { pool } from './db';
 import { sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import * as epcCoding from './epc-coding';
+import { enqueueProjectStructureJob } from './services/project-structure-job-service';
 import { VALID_PROJECT_ITEM_SOURCES, PROJECT_ITEM_SOURCES, type ProjectItemSource } from '@shared/schema';
 import { freezeConfirmedArtifact, attachConfirmedArtifactToEpc, storeQuotationPdfArtifact, storeFinalOfferPdfToGcs, storeConfirmationDocToGcs } from './utils/quotation-pdf-artifact';
 import { generateExecutionDrafts } from './pipeline/generate-execution-drafts';
@@ -912,6 +913,14 @@ export async function executeOfferConversion(
     }
 
     await client.query('COMMIT');
+
+    // Enqueue Windows Agent job to create standard project folder structure on network share.
+    // Runs after COMMIT so the project row is durable. Non-blocking — never throws.
+    try {
+      await enqueueProjectStructureJob(project.id, userId);
+    } catch (structErr: any) {
+      console.error(`[offer-conversion] enqueueProjectStructureJob failed for project ${project.id}:`, structErr.message);
+    }
 
     try {
       const { syncProjectItemsToSapBatch } = await import('./project-item-detail-routes');

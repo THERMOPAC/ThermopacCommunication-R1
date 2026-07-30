@@ -18,7 +18,7 @@ import {
   ArrowRight, Plus, ChevronDown, ChevronRight, Briefcase,
   Clock, CheckCircle2, CheckCircle, PauseCircle, XCircle, AlertTriangle,
   FolderKanban, Hash, Wrench, ShoppingCart, BarChart3, ExternalLink,
-  FlaskConical, EyeOff, Pencil, FolderSearch, Upload,
+  FlaskConical, EyeOff, Pencil, FolderSearch, Upload, FolderPlus,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Layout from "@/components/layout";
@@ -215,6 +215,35 @@ export default function ProjectsPage() {
     },
     onError: (err: any) => {
       toast({ title: 'Failed to update test flag', description: err?.message || 'Unknown error', variant: 'destructive' });
+    },
+  });
+
+  const createFoldersMutation = useMutation({
+    mutationFn: async (projectId: number) => {
+      const res = await apiRequest('POST', `/api/projects/${projectId}/create-folders`, {});
+      return res as { ok: boolean; message?: string; job?: { id: number; status: string; relativePath: string } };
+    },
+    onSuccess: (data) => {
+      if (!data.ok) {
+        toast({
+          title: 'Cannot create folders',
+          description: data.message ?? 'Project is not eligible for folder creation.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const { job } = data;
+      if (!job) return;
+      const alreadyActive = job.status === 'claimed';
+      toast({
+        title: alreadyActive ? 'Job already active' : 'Folder creation job queued',
+        description: alreadyActive
+          ? `Job #${job.id} is already being processed by the agent.`
+          : `Job #${job.id} queued — ${job.relativePath}`,
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Failed to enqueue job', description: err?.message ?? 'Unknown error', variant: 'destructive' });
     },
   });
 
@@ -584,6 +613,21 @@ export default function ProjectsPage() {
                                       </Button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="text-[10px]">Test GCS Path</TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost" size="icon"
+                                        className="h-6 w-6 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50"
+                                        onClick={() => createFoldersMutation.mutate(project.id)}
+                                        disabled={createFoldersMutation.isPending && createFoldersMutation.variables === project.id}
+                                      >
+                                        {createFoldersMutation.isPending && createFoldersMutation.variables === project.id
+                                          ? <Loader2 className="h-3 w-3 animate-spin" />
+                                          : <FolderPlus className="h-3 w-3" />}
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-[10px]">Create Project Folders</TooltipContent>
                                   </Tooltip>
                                   {isSuperuser && (
                                     <Tooltip>

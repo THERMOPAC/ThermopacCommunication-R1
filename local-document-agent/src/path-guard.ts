@@ -6,6 +6,7 @@
  * - Reject absolute paths (C:\ D:\ \\Server\ etc.)
  * - Reject unresolved tokens ({...})
  * - Reject dangerous file extensions
+ * - Reject Windows-invalid characters (: * ? " < > |)
  * - Resolve final path strictly under allowedRootPath
  * - Verify resolved path still starts with allowedRootPath
  */
@@ -65,6 +66,55 @@ export function validateRelativePath(relativePath: string, allowedRootPath: stri
   }
 
   return { ok: true, fullPath };
+}
+
+// Windows path characters that are never valid in file or folder names
+const WINDOWS_INVALID_CHARS = /[:"*?<>|]/;
+
+/**
+ * Validates a folder sub-path supplied by the server in input_payload.folders.
+ * These paths are relative to the already-validated project root — they are NOT
+ * checked against allowedRootPath here. The caller must verify the fully-joined
+ * path still sits within allowedRootPath before calling mkdirSync.
+ *
+ * Checks:
+ *   - Not empty
+ *   - No traversal (..)
+ *   - No absolute path (drive letter, UNC, Unix /)
+ *   - No unresolved tokens ({...})
+ *   - No Windows-invalid characters
+ *   - No empty segments (duplicate slashes)
+ */
+export function validateFolderSegment(folderPath: string): { ok: boolean; error?: string } {
+  if (!folderPath || folderPath.trim().length === 0) {
+    return { ok: false, error: 'Folder path is empty' };
+  }
+  if (/\.\./.test(folderPath)) {
+    return { ok: false, error: 'Path traversal sequence (..) detected' };
+  }
+  if (/^[a-zA-Z]:/.test(folderPath)) {
+    return { ok: false, error: 'Drive-letter absolute paths not allowed' };
+  }
+  if (/^\\\\/.test(folderPath)) {
+    return { ok: false, error: 'UNC paths not allowed' };
+  }
+  if (/^[/\\]/.test(folderPath)) {
+    return { ok: false, error: 'Unix/root absolute paths not allowed' };
+  }
+  if (/\{[^}]+\}/.test(folderPath)) {
+    return { ok: false, error: 'Unresolved token(s) detected in folder path' };
+  }
+  if (WINDOWS_INVALID_CHARS.test(folderPath)) {
+    return { ok: false, error: 'Invalid Windows path character detected (: * ? " < > |)' };
+  }
+  // Reject empty segments from duplicate slashes e.g. "a//b"
+  const segments = folderPath.split(/[/\\]/);
+  for (const seg of segments) {
+    if (seg.length === 0) {
+      return { ok: false, error: 'Empty path segment (duplicate slash) detected' };
+    }
+  }
+  return { ok: true };
 }
 
 export function validateExtension(fileName: string): { ok: boolean; error?: string } {

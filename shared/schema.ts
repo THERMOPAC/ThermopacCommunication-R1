@@ -14410,9 +14410,9 @@ export type VendorComplianceDoc = typeof vendorComplianceDocs.$inferSelect;
 export const documentAgentJobs = pgTable('document_agent_jobs', {
   id:               serial('id').primaryKey(),
   jobType:          varchar('job_type', { length: 50 }).notNull(),
-  // CREATE_FOLDER | SAVE_FILE | SAVE_PDF | VERIFY_FILE_EXISTS | VERIFY_FOLDER_EXISTS | HASH_VALIDATE | LIST_DIRECTORY | SAVE_TEST_FILE
+  // CREATE_FOLDER | SAVE_FILE | SAVE_PDF | VERIFY_FILE_EXISTS | VERIFY_FOLDER_EXISTS | HASH_VALIDATE | LIST_DIRECTORY | SAVE_TEST_FILE | CREATE_PROJECT_STRUCTURE
   status:           varchar('status', { length: 50 }).notNull().default('pending'),
-  // pending | processing | completed | failed
+  // pending | claimed | completed | failed
   agentCode:        varchar('agent_code', { length: 100 }),
   relativePath:     text('relative_path').notNull(),
   fileUrl:          text('file_url'),
@@ -14420,6 +14420,7 @@ export const documentAgentJobs = pgTable('document_agent_jobs', {
   expectedSha256:   varchar('expected_sha256', { length: 64 }),
   actualSha256:     varchar('actual_sha256', { length: 64 }),
   resultLocalPath:  text('result_local_path'),
+  inputPayload:     jsonb('input_payload'),
   resultPayload:    jsonb('result_payload'),
   failedReason:     text('failed_reason'),
   retryCount:       integer('retry_count').notNull().default(0),
@@ -14433,6 +14434,37 @@ export const documentAgentJobs = pgTable('document_agent_jobs', {
   updatedAt:        timestamp('updated_at').notNull().defaultNow(),
 });
 export type DocumentAgentJob = typeof documentAgentJobs.$inferSelect;
+
+// ── Project Folder Templates ───────────────────────────────────────────────────
+// Manages the standard folder structures created on the Windows network share
+// when a new SOR project is confirmed. Folder lists are snapshotted into
+// document_agent_jobs.input_payload at enqueue time so retries are stable.
+
+export const projectFolderTemplates = pgTable('project_folder_templates', {
+  id:           serial('id').primaryKey(),
+  templateCode: varchar('template_code', { length: 50 }).notNull().unique(),
+  templateName: varchar('template_name', { length: 200 }).notNull(),
+  description:  text('description'),
+  projectType:  varchar('project_type', { length: 50 }),   // null = all types
+  version:      integer('version').notNull().default(1),
+  isActive:     boolean('is_active').notNull().default(true),
+  createdAt:    timestamp('created_at').notNull().defaultNow(),
+  updatedAt:    timestamp('updated_at').notNull().defaultNow(),
+  createdBy:    integer('created_by'),
+  updatedBy:    integer('updated_by'),
+});
+export type ProjectFolderTemplate = typeof projectFolderTemplates.$inferSelect;
+
+export const projectFolderTemplateItems = pgTable('project_folder_template_items', {
+  id:           serial('id').primaryKey(),
+  templateId:   integer('template_id').notNull().references(() => projectFolderTemplates.id, { onDelete: 'cascade' }),
+  relativePath: text('relative_path').notNull(),  // relative to SOR root, forward slashes, no trailing slash
+  sortOrder:    integer('sort_order').notNull().default(0),
+  isActive:     boolean('is_active').notNull().default(true),
+  createdAt:    timestamp('created_at').notNull().defaultNow(),
+  updatedAt:    timestamp('updated_at').notNull().defaultNow(),
+});
+export type ProjectFolderTemplateItem = typeof projectFolderTemplateItems.$inferSelect;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Company Information Master — 8 tables

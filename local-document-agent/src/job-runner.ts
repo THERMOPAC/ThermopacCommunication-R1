@@ -14,7 +14,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { AgentConfig } from './config';
 import { AgentJob, submitResult } from './api-client';
-import { validateRelativePath, validateExtension } from './path-guard';
+import { validateRelativePath, validateExtension, validateFolderSegment } from './path-guard';
 import { downloadAndSave, createFolder, fileExists, folderExists } from './file-service';
 import { sha256OfFile, verifyHash } from './hash-service';
 import { ServiceHealth } from './service-health';
@@ -316,6 +316,114 @@ export async function runJob(
           failedReason: match ? undefined : `Hash mismatch: ${actual} vs ${job.expectedSha256}`,
         });
         if (match) health.recordSuccess();
+        break;
+      }
+
+      case 'CREATE_PROJECT_STRUCTURE': {
+        // fullPath = resolved project root (e.g. C:\THERMOPAC\TPEL\IND\IN\ACI-ACINFRA\2526\SOR_018)
+        // input_payload contains the folder list snapshot from the server-side template.
+        const payload = job.inputPayload;
+        if (!payload || !Array.isArray(payload.folders) || payload.folders.length === 0) {
+          await submitResult(config, {
+            jobId:        job.id,
+            success:      false,
+            failedReason: 'CREATE_PROJECT_STRUCTURE: input_payload.folders is missing or empty',
+          });
+          return;
+        }
+
+        const folders: string[]  = payload.folders as string[];
+        const created:  string[] = [];
+        const existing: string[] = [];
+        const errors:   string[] = [];
+        const now = new Date().toISOString();
+        const resolvedRoot = path.resolve(config.allowedRootPath);
+
+        // ── Create project root ───────────────────────────────────────────
+        const rootAlreadyExisted = fs.existsSync(fullPath);
+        try {
+          fs.mkdirSync(fullPath, { recursive: true });
+          if (rootAlreadyExisted) existing.push('.');
+          else created.push('.');
+          info(`Project root ${rootAlreadyExisted ? 'already exists' : 'created'}: ${fullPath}`);
+        } catch (mkErr: any) {
+          await submitResult(config, {
+            jobId:        job.id,
+            success:      false,
+            failedReason: `Failed to create project root: ${mkErr.message}`,
+            resultPayload: {
+              templateCode:    payload.templateCode ?? null,
+              templateVersion: payload.templateVersion ?? null,
+              rootPath:        fullPath,
+              requestedTemplatePaths: folders.length,
+              totalResolvedFolders: 0,
+              createdFolders:  0,
+              existingFolders: 0,
+              failedFolders:   1,
+              created:  [],
+              existing: [],
+              errors:   [`ROOT: ${mkErr.message}`],
+              completedAt: now,
+            },
+          });
+          return;
+        }
+
+        // ── Create each subfolder from the template snapshot ──────────────
+        for (const folder of folders) {
+          // Per-folder segment validation
+          const segGuard = validateFolderSegment(folder);
+          if (!segGuard.ok) {
+            errors.push(`${folder}: ${segGuard.error}`);
+            warn(`Folder segment rejected — ${folder}: ${segGuard.error}`);
+            continue;
+          }
+
+          const normalised  = folder.replace(/\//g, path.sep);
+          const folderFull  = path.join(fullPath, normalised);
+
+          // Confirm combined path still sits within allowedRootPath
+          if (!folderFull.startsWith(resolvedRoot + path.sep) && folderFull !== resolvedRoot) {
+            errors.push(`${folder}: resolved path escapes allowedRootPath`);
+            warn(`Folder escapes root — ${folder}`);
+            continue;
+          }
+
+          const alreadyExisted = fs.existsSync(folderFull);
+          try {
+            fs.mkdirSync(folderFull, { recursive: true });
+            if (alreadyExisted) existing.push(folder);
+            else created.push(folder);
+          } catch (mkErr: any) {
+            errors.push(`${folder}: ${mkErr.message}`);
+            warn(`mkdir failed — ${folder}: ${mkErr.message}`);
+          }
+        }
+
+        const success = errors.length === 0;
+        if (success) health.recordSuccess();
+        else health.recordFailure(`${errors.length} folder(s) failed`);
+
+        await submitResult(config, {
+          jobId:           job.id,
+          success,
+          resultLocalPath: fullPath,
+          failedReason:    success ? undefined : `${errors.length} folder(s) failed to create`,
+          resultPayload: {
+            templateCode:           payload.templateCode   ?? null,
+            templateVersion:        payload.templateVersion ?? null,
+            rootPath:               fullPath,
+            requestedTemplatePaths: folders.length,
+            totalResolvedFolders:   created.length + existing.length,
+            createdFolders:         created.length,
+            existingFolders:        existing.length,
+            failedFolders:          errors.length,
+            created,
+            existing,
+            errors,
+            completedAt:            now,
+          },
+        });
         break;
       }
 

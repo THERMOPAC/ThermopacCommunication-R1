@@ -1,6 +1,6 @@
 {
   "name": "thermopac-local-document-agent",
-  "version": "1.0.7",
+  "version": "1.0.72",
   "description": "THERMOPAC Local Windows Document Agent — saves ERP files to local file server",
   "main": "dist/index.js",
   "scripts": {

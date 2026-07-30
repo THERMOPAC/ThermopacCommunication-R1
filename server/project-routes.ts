@@ -41,7 +41,7 @@ import {
   projectCommercialSnapshots,
 } from '@shared/schema';
 import { canManage, roleHierarchy } from '@shared/roles';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, desc, and } from 'drizzle-orm';
 import { db, pool } from './db';
 import { checkModulePermissionMiddleware } from './middlewares/auth';
 import { createEpcTask, createEpcAlert, createEpcAlertMulti, markTasksObsolete, resolveAssignee, resolveProjectCode, resolveManagerId } from './epc-task-helpers';
@@ -55,6 +55,8 @@ import { executeProjectCancellationCascade, executeProjectRestorationCascade, is
 import { reconcileBomSupersession } from './utils/epc-bom-reconciliation';
 import { isDwgGateRequired } from './utils/epc-dwg-linking';
 import { triggerInspectionOnPoIssuance, triggerInspectionOnWoRelease } from './utils/epc-inspection-trigger';
+import { enqueueProjectStructureJob } from './services/project-structure-job-service';
+import { documentAgentJobs } from '@shared/schema';
 
 function requireMinRole(req: Request, res: Response, minRole: string): boolean {
   const userRole = (req.user as any)?.role;
@@ -423,10 +425,69 @@ export function setupProjectRoutes(app: express.Express) {
       }, 'project-routes');
       console.log(`[EventBus] project.created emitted — projectId=${project.id}, code=${project.code}, createdBy=${userId}`);
 
+      // Enqueue Windows Agent job to create standard project folder structure on network share.
+      // Non-blocking: failure is logged but never propagates to the caller.
+      enqueueProjectStructureJob(project.id, userId).catch(err =>
+        console.error(`[project-routes] enqueueProjectStructureJob error for project #${project.id}:`, err.message)
+      );
+
       res.status(201).json(project);
     } catch (error) {
       console.error('Error creating project:', error);
       res.status(400).json({ error: 'Failed to create project', details: error.message });
+    }
+  });
+
+  // ── POST /api/projects/:id/create-folders ─────────────────────────────────
+  // Manually enqueues a CREATE_PROJECT_STRUCTURE Windows Agent job for a project.
+  // Reuses all eligibility and duplicate-job checks from enqueueProjectStructureJob().
+  app.post('/api/projects/:id/create-folders', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      const userId    = req.user!.id;
+
+      if (isNaN(projectId)) {
+        return res.status(400).json({ error: 'Invalid project id' });
+      }
+
+      // Delegate to the shared service — eligibility + duplicate checks happen inside
+      await enqueueProjectStructureJob(projectId, userId);
+
+      // Query the most recent CREATE_PROJECT_STRUCTURE job for this project to
+      // return meaningful status back to the UI (enqueued vs already-active vs ineligible)
+      const jobs = await db
+        .select({
+          id:          documentAgentJobs.id,
+          status:      documentAgentJobs.status,
+          relativePath: documentAgentJobs.relativePath,
+          createdAt:   documentAgentJobs.createdAt,
+          claimedAt:   documentAgentJobs.claimedAt,
+          completedAt: documentAgentJobs.completedAt,
+          failedReason: documentAgentJobs.failedReason,
+        })
+        .from(documentAgentJobs)
+        .where(
+          and(
+            eq(documentAgentJobs.jobType,       'CREATE_PROJECT_STRUCTURE'),
+            eq(documentAgentJobs.sourceModule,  'epc'),
+            eq(documentAgentJobs.sourceRecordId, projectId),
+          )
+        )
+        .orderBy(desc(documentAgentJobs.createdAt))
+        .limit(1);
+
+      if (jobs.length === 0) {
+        return res.json({
+          ok:      false,
+          message: 'Project is not eligible for folder creation. Check: project_type = SOR, valid status, all path tokens (CC/CO/FY/Seq) present, active STANDARD_EPC template exists.',
+        });
+      }
+
+      const job = jobs[0];
+      return res.json({ ok: true, job });
+    } catch (error: any) {
+      console.error('[project-routes] create-folders error:', error.message);
+      res.status(500).json({ error: 'Failed to enqueue folder creation job', details: error.message });
     }
   });
 

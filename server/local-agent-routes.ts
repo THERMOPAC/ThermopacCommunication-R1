@@ -36,7 +36,7 @@ function verifyDownloadToken(jobId: number, token: string): boolean {
   return token === makeDownloadToken(jobId);
 }
 
-const AGENT_VERSION = '1.0.7';
+const AGENT_VERSION = '1.0.72';
 const AGENT_DIR = path.join(process.cwd(), 'local-document-agent');
 
 const router = Router();
