@@ -153,13 +153,10 @@ export async function enqueueProjectStructureJob(
     }
 
     // ── 7. Resolve project root relative_path (no trailing slash) ─────────
-    // Format: TPEL/PROJECTS/{CC}/{CO}/{Cust}/{FY}/{TYPE_NNN}
-    // project_seq stores just the numeric portion e.g. "018"; projectType e.g. "SOR"
-    // Combined: "SOR_018"
-    const seqSegment = row.projectType
-      ? `${row.projectType}_${row.projectSeq}`
-      : row.projectSeq;
-    const relativePath = `TPEL/PROJECTS/${row.continentCode}/${row.countryCode}/${custToken}/${row.fyCode}/${seqSegment}`;
+    // Format: TPEL/PROJECTS/{CC}/{CO}/{Cust}/{FY}/SOR_{NNN}
+    // project_seq stores just the numeric portion e.g. "018"; "SOR_" is a fixed prefix
+    // for all projects — project_type stores a label ("Re-refining Plant") not a code.
+    const relativePath = `TPEL/PROJECTS/${row.continentCode}/${row.countryCode}/${custToken}/${row.fyCode}/SOR_${row.projectSeq}`;
 
     // ── 8. Snapshot into input_payload ────────────────────────────────────
     const inputPayload = {
