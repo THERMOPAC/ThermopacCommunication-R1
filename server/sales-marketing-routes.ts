@@ -1810,7 +1810,7 @@ export function setupSalesMarketingRoutes(app: Express) {
       } else {
         delete offerData.validUntil;
       }
-      // Step 1 — Create offer in 'archiving' status to obtain an offer_id
+      // Step 1 — Create offer in Draft status
       const offer = await storage.createOffer({
         offerNumber,
         customerId:         offerData.customerId         || null,
@@ -1827,7 +1827,7 @@ export function setupSalesMarketingRoutes(app: Express) {
         taxAmount:          offerData.taxAmount          || '0',
         totalAmount:        offerData.totalAmount        || '0',
         revision:           0,
-        status:             'archiving',
+        status:             'Draft',
         validUntil:         offerData.validUntil         || null,
         paymentTerms:       offerData.paymentTerms       || null,
         deliveryTerms:      offerData.deliveryTerms      || null,
@@ -1843,43 +1843,12 @@ export function setupSalesMarketingRoutes(app: Express) {
         await insertOfferItemsWithHierarchy(offer.id, items);
       }
 
-      // Step 3 — Load saved items and resolve template for PDF generation
-      const savedItemsRes = await pool.query(
-        `SELECT * FROM offer_items WHERE offer_id = $1 AND status = 'active' ORDER BY sort_order`,
-        [offer.id],
-      );
-      const { templatePath, templateRange } = await resolveOfferTemplate(offer);
-
-      // Step 4 — Run archive (3 PDFs → GCS → mirror jobs)
-      try {
-        await runDocumentArchive({
-          offerId:     offer.id,
-          offerNumber: offer.offerNumber,
-          revision:    0,
-          actionType:  'CREATED',
-          userId:      user.id,
-          strategy:    new QuotationArchiveStrategy(offer, savedItemsRes.rows, templatePath, templateRange),
-        });
-      } catch (archiveErr: any) {
-        // Archive failed — preserve offer record for admin retry
-        await pool.query(`UPDATE offers SET status = 'archive_failed' WHERE id = $1`, [offer.id])
-          .catch((e) => console.error('[POST /offers] Failed to mark archive_failed:', e));
-        console.error(`[POST /offers] Archive failed for new offer ${offer.id}:`, archiveErr.message);
-        return res.status(500).json({
-          error:   'Offer could not be created: PDF archiving failed. The offer record has been preserved — an administrator can retry.',
-          detail:  archiveErr.message,
-          offerId: offer.id,
-        });
-      }
-
-      // Step 5 — Activate offer
-      const activatedOffer = await storage.updateOffer(offer.id, { status: 'Draft' });
-      const finalItems     = await storage.getOfferItems(offer.id);
+      // Step 3 — Return saved offer (PDF archiving is user-triggered via Download PDF)
+      const finalItems = await storage.getOfferItems(offer.id);
 
       return res.status(201).json({
-        ...activatedOffer,
-        items:            finalItems,
-        archivedRevision: 0,
+        ...offer,
+        items: finalItems,
       });
     } catch (error) {
       console.error('Error creating offer:', error);
@@ -1956,7 +1925,7 @@ export function setupSalesMarketingRoutes(app: Express) {
           });
         }
 
-        // UPDATE offer fields + set status='archiving' (revision NOT incremented yet)
+        // UPDATE offer fields + set status and revision immediately (no archive intermediate)
         const updateFields: Record<string, any> = {};
         if (offerData.customerId !== null && offerData.customerId !== undefined) updateFields.customerId = offerData.customerId;
         if (offerData.customerName       !== undefined) updateFields.customerName       = offerData.customerName;
@@ -1980,9 +1949,10 @@ export function setupSalesMarketingRoutes(app: Express) {
         if (offerData.offerType          !== undefined) updateFields.offerType          = offerData.offerType;
 
         // Build the UPDATE SQL manually (Drizzle ORM uses the pool; we need the locked client)
-        const setClauses: string[] = ['status = \'archiving\'', 'updated_at = NOW()'];
-        const setValues: any[]     = [];
-        let   paramIdx             = 1;
+        // $1 = targetStatus, $2 = nextRevision; dynamic fields start at $3
+        const setClauses: string[] = ['updated_at = NOW()', 'status = $1', 'revision = $2'];
+        const setValues: any[]     = [targetStatus, nextRevision];
+        let   paramIdx             = 3;
         const fieldMap: Record<string, string> = {
           customerId: 'customer_id', customerName: 'customer_name',
           customerEmail: 'customer_email', customerAddress: 'customer_address',
@@ -2019,60 +1989,13 @@ export function setupSalesMarketingRoutes(app: Express) {
       }
       pgClient.release();
 
-      // Step 5 — Reload updated offer + active items for PDF generation
-      const updatedOffer = await storage.getOfferById(id);
-      const updatedItemsRes = await pool.query(
-        `SELECT * FROM offer_items WHERE offer_id = $1 AND status = 'active' ORDER BY sort_order`,
-        [id],
-      );
-      const { templatePath, templateRange } = await resolveOfferTemplate(updatedOffer);
-
-      // Step 6 — Run archive for nextRevision
-      try {
-        await runDocumentArchive({
-          offerId:     id,
-          offerNumber: currentOffer.offerNumber,
-          revision:    nextRevision,
-          actionType:  'UPDATED',
-          userId:      (req.user as any)?.id || 0,
-          strategy:    new QuotationArchiveStrategy(updatedOffer, updatedItemsRes.rows, templatePath, templateRange),
-        });
-      } catch (archiveErr: any) {
-        // Rollback offer data and items to previous snapshot
-        console.error(`[PATCH /offers/${id}] Archive failed (rev ${nextRevision}):`, archiveErr.message);
-        try {
-          // Restore item snapshot
-          const currentItemsRes = await pool.query(
-            `SELECT * FROM offer_items WHERE offer_id = $1 ORDER BY sort_order`,
-            [id],
-          );
-          await restoreOfferItemsFromSnapshot(id, itemSnapRows, currentItemsRes.rows);
-          // Restore offer fields and status (revision stays unchanged — not yet incremented)
-          await storage.updateOffer(id, {
-            ...currentOffer,
-            status:    'archive_failed',
-            updatedAt: new Date(),
-          });
-        } catch (restoreErr) {
-          console.error(`[PATCH /offers/${id}] Snapshot restore also failed:`, restoreErr);
-        }
-        return res.status(500).json({
-          error:  'Offer could not be saved: PDF archiving failed. Your previous version is restored.',
-          detail: archiveErr.message,
-        });
-      }
-
-      // Step 7 — Activate: write incremented revision + final status
-      const finalOffer = await storage.updateOffer(id, {
-        revision: nextRevision,
-        status:   targetStatus,
-      });
+      // Step 5 — Reload and return (revision + status already written in transaction)
+      const finalOffer = await storage.getOfferById(id);
       const finalItems = await storage.getOfferItems(id);
 
       return res.json({
         ...finalOffer,
-        items:            finalItems,
-        archivedRevision: nextRevision,
+        items: finalItems,
       });
     } catch (error) {
       console.error('Error updating offer:', error);
@@ -2144,6 +2067,94 @@ export function setupSalesMarketingRoutes(app: Express) {
     } catch (error: any) {
       console.error('[retry-archive] Error:', error);
       res.status(500).json({ error: error.message || 'Retry archive failed' });
+    }
+  });
+
+  // ── Archive selected PDF mode on user demand (triggered from Download PDF dialog) ──
+  router.post('/offers/:id/archive-pdf', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+
+      const { priceMode } = req.body;
+      if (!['combined', 'breakup', 'technical'].includes(priceMode)) {
+        return res.status(400).json({ error: 'Invalid priceMode — must be combined, breakup, or technical' });
+      }
+
+      const offer = await storage.getOfferById(id);
+      if (!offer) return res.status(404).json({ error: 'Offer not found' });
+
+      const userId   = (req.user as any)?.id || 0;
+      const revision = offer.revision ?? 0;
+
+      // Transition Draft → Sent on first PDF generation (same as GET /pdf)
+      if (offer.status === 'Draft') {
+        await storage.updateOffer(id, { status: 'Sent' });
+      }
+
+      const items = await storage.getOfferItems(id);
+      const { templatePath, templateRange } = await resolveOfferTemplate(offer);
+
+      // Archive: GCS upload + artifact row + SAVE_FILE mirror job (single mode)
+      await runDocumentArchive({
+        offerId:     id,
+        offerNumber: offer.offerNumber,
+        revision,
+        actionType:  'UPDATED',
+        userId,
+        strategy:    new QuotationArchiveStrategy(offer, items, templatePath, templateRange, priceMode as 'combined' | 'breakup' | 'technical'),
+      });
+
+      // Generate PDF buffer to return to client for immediate viewing/download
+      const generator = new OfferPdfGenerator({
+        offerNumber:         offer.offerNumber,
+        revision,
+        createdAt:           offer.createdAt?.toISOString() || new Date().toISOString(),
+        customerName:        offer.customerName,
+        customerEmail:       offer.customerEmail       || '',
+        customerAddress:     offer.customerAddress     || '',
+        contactPerson:       offer.contactPerson       || '',
+        subject:             offer.subject,
+        currency:            offer.currency,
+        subtotal:            offer.subtotal,
+        discountPercent:     offer.discountPercent     || '0',
+        discountAmount:      offer.discountAmount      || '0',
+        taxPercent:          offer.taxPercent          || '0',
+        taxAmount:           offer.taxAmount           || '0',
+        totalAmount:         offer.totalAmount,
+        validUntil:          offer.validUntil?.toISOString() || '',
+        paymentTerms:        offer.paymentTerms        || '',
+        deliveryTerms:       offer.deliveryTerms       || '',
+        notes:               offer.notes               || '',
+        termsAndConditions:  offer.termsAndConditions  || '',
+        items: (items as any[]).map((item) => ({
+          description:     item.description,
+          productCode:     item.productCode     || '',
+          unit:            item.unit,
+          quantity:        item.quantity,
+          unitPrice:       item.unitPrice,
+          discountPercent: item.discountPercent  || '0',
+          totalPrice:      item.totalPrice,
+          hsnSacCode:      item.hsnSacCode      || '',
+          isSubItem:       item.isSubItem        || false,
+        })),
+      }, { priceMode: priceMode as 'combined' | 'breakup' | 'technical' });
+
+      let pdfBuffer: Buffer;
+      if (templatePath && fs.existsSync(templatePath)) {
+        pdfBuffer = await generator.generateWithTemplateToBuffer(templatePath, templateRange);
+      } else {
+        pdfBuffer = await generator.generateToBuffer();
+      }
+
+      const safeName = offer.offerNumber.replace(/\//g, '-');
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${safeName}_${priceMode}_Quotation.pdf"`);
+      res.end(pdfBuffer);
+
+    } catch (error: any) {
+      console.error('[archive-pdf] Error:', error);
+      res.status(500).json({ error: error.message || 'Failed to archive and generate PDF' });
     }
   });
 

@@ -60,10 +60,13 @@ export class QuotationArchiveStrategy implements DocumentArchiveStrategy {
     private items: any[],
     private templatePath: string | null,
     private templateRange: { startPage?: number | null; endPage?: number | null },
+    private mode?: 'combined' | 'breakup' | 'technical',
   ) {}
 
   async generateBuffers(revision: number): Promise<{ mode: string; buffer: Buffer }[]> {
-    const modes = ['combined', 'breakup', 'technical'] as const;
+    const modes = this.mode
+      ? [this.mode]
+      : (['combined', 'breakup', 'technical'] as const);
     return Promise.all(
       modes.map(async (mode) => {
         const generator = new OfferPdfGenerator(

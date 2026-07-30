@@ -21,7 +21,7 @@ import { apiRequest, queryClient, getErrorMessage } from "@/lib/queryClient";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   FileText, Plus, Pencil, Trash2, Loader2, Search, Eye, Package, Download,
-  CheckCircle, XCircle, Circle, Send, Copy, Calendar, ChevronDown, ChevronRight, GitBranch, X, Paperclip,
+  CheckCircle, XCircle, Circle, Send, Calendar, ChevronDown, ChevronRight, GitBranch, X, Paperclip,
   Rocket, ExternalLink, Lock, AlertTriangle, Archive, Shield, RefreshCw, FlaskConical, EyeOff,
   FileSpreadsheet, UploadCloud, ShoppingCart, FileSignature, FolderSearch, CloudLightning
 } from "lucide-react";
@@ -128,17 +128,47 @@ interface PdfArtifact {
   generated_at: string;
 }
 
-function PdfDownloadDialog({ offerId, onClose, onDownload }: {
+function PdfDownloadDialog({ offerId, onClose }: {
   offerId: number | null;
   onClose: () => void;
-  onDownload: (id: number, mode: 'combined' | 'breakup' | 'technical') => void;
 }) {
   const { toast } = useToast();
+  const [downloadingMode, setDownloadingMode] = useState<'combined' | 'breakup' | 'technical' | null>(null);
+
   const { data: artifacts, isLoading: artifactsLoading } = useQuery<PdfArtifact[]>({
     queryKey: ['/api/sales-marketing/offers', offerId, 'artifacts'],
     queryFn: () => fetch(`/api/sales-marketing/offers/${offerId}/artifacts`, { credentials: 'include' }).then(r => r.json()),
     enabled: offerId !== null,
   });
+
+  const handleModeClick = async (mode: 'combined' | 'breakup' | 'technical') => {
+    if (!offerId || downloadingMode) return;
+    setDownloadingMode(mode);
+    try {
+      const res = await fetch(`/api/sales-marketing/offers/${offerId}/archive-pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ priceMode: mode }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to generate PDF' }));
+        toast({ title: 'PDF generation failed', description: err.error || 'Failed to generate PDF', variant: 'destructive' });
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers', offerId, 'artifacts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
+      onClose();
+    } catch (err: any) {
+      toast({ title: 'PDF generation failed', description: err.message || 'Failed to generate PDF', variant: 'destructive' });
+    } finally {
+      setDownloadingMode(null);
+    }
+  };
 
   const repairMutation = useMutation({
     mutationFn: async (artifactId: number) => {
@@ -178,22 +208,31 @@ function PdfDownloadDialog({ offerId, onClose, onDownload }: {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="generate" className="space-y-3 pt-2">
-            <Button variant="outline" className="w-full justify-start h-auto py-3 px-4" onClick={() => offerId && onDownload(offerId, 'combined')}>
-              <div className="text-left">
-                <div className="font-medium">Combined Price</div>
-                <div className="text-xs text-muted-foreground">List all sub-products but show only the main product total price</div>
+            <Button variant="outline" className="w-full justify-start h-auto py-3 px-4" onClick={() => handleModeClick('combined')} disabled={!!downloadingMode}>
+              <div className="flex items-center gap-2 w-full">
+                {downloadingMode === 'combined' ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : null}
+                <div className="text-left">
+                  <div className="font-medium">Combined Price</div>
+                  <div className="text-xs text-muted-foreground">List all sub-products but show only the main product total price</div>
+                </div>
               </div>
             </Button>
-            <Button variant="outline" className="w-full justify-start h-auto py-3 px-4" onClick={() => offerId && onDownload(offerId, 'breakup')}>
-              <div className="text-left">
-                <div className="font-medium">Breakup Price</div>
-                <div className="text-xs text-muted-foreground">Show main product with sub-product details and individual prices</div>
+            <Button variant="outline" className="w-full justify-start h-auto py-3 px-4" onClick={() => handleModeClick('breakup')} disabled={!!downloadingMode}>
+              <div className="flex items-center gap-2 w-full">
+                {downloadingMode === 'breakup' ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : null}
+                <div className="text-left">
+                  <div className="font-medium">Breakup Price</div>
+                  <div className="text-xs text-muted-foreground">Show main product with sub-product details and individual prices</div>
+                </div>
               </div>
             </Button>
-            <Button variant="outline" className="w-full justify-start h-auto py-3 px-4" onClick={() => offerId && onDownload(offerId, 'technical')}>
-              <div className="text-left">
-                <div className="font-medium">Technical Offer</div>
-                <div className="text-xs text-muted-foreground">Same as Combined Price but without any pricing - technical specification only</div>
+            <Button variant="outline" className="w-full justify-start h-auto py-3 px-4" onClick={() => handleModeClick('technical')} disabled={!!downloadingMode}>
+              <div className="flex items-center gap-2 w-full">
+                {downloadingMode === 'technical' ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : null}
+                <div className="text-left">
+                  <div className="font-medium">Technical Offer</div>
+                  <div className="text-xs text-muted-foreground">Same as Combined Price but without any pricing - technical specification only</div>
+                </div>
               </div>
             </Button>
           </TabsContent>
@@ -303,6 +342,7 @@ export function OffersContent() {
   const [gcsPathTestOffer, setGcsPathTestOffer] = useState<any>(null);
   const [gcsGenerating, setGcsGenerating] = useState<Record<string, boolean>>({});
   const [gcsLastResult, setGcsLastResult] = useState<{ mode: string; gcsObjectPath: string; attachmentSeq: number } | null>(null);
+  const [deleteConfirmOffer, setDeleteConfirmOffer] = useState<any>(null);
   const [confirmOrderOffer, setConfirmOrderOffer] = useState<any>(null);
   const [conversionResult, setConversionResult] = useState<any>(null);
   const [conversionPhase0, setConversionPhase0] = useState<any>(null);
@@ -451,7 +491,7 @@ export function OffersContent() {
     onSuccess: (savedOffer: any) => {
       toast({
         title: "Offer saved — Revision 00",
-        description: "Combined, Breakup and Technical PDFs archived to GCS and queued for Windows Server mirroring.",
+        description: "Click Download PDF to generate and archive the quotation.",
       });
       setEditingOffer(savedOffer);
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
@@ -473,10 +513,10 @@ export function OffersContent() {
     mutationFn: async ({ id, data }: { id: number; data: any }) =>
       apiRequest('PATCH', `/api/sales-marketing/offers/${id}`, data),
     onSuccess: (updatedOffer: any) => {
-      const rev = String(updatedOffer?.archivedRevision ?? updatedOffer?.revision ?? 0).padStart(2, '0');
+      const rev = String(updatedOffer?.revision ?? 0).padStart(2, '0');
       toast({
         title: `Offer saved — Revision ${rev}`,
-        description: "Combined, Breakup and Technical PDFs archived to GCS and queued for Windows Server mirroring.",
+        description: "Click Download PDF to generate and archive the quotation.",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
       form.reset(form.getValues());
@@ -538,7 +578,11 @@ export function OffersContent() {
     mutationFn: async (id: number) => apiRequest('DELETE', `/api/sales-marketing/offers/${id}`),
     onSuccess: () => {
       toast({ title: "Offer deleted" });
+      setDeleteConfirmOffer(null);
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Delete failed", description: getErrorMessage(error), variant: "destructive" });
     },
   });
 
@@ -826,58 +870,6 @@ export function OffersContent() {
     } else {
       createMutation.mutate(payload);
     }
-  };
-
-  const handleDuplicate = async (offer: any) => {
-    try {
-      const res = await fetch(`/api/sales-marketing/offers/${offer.id}`, { credentials: 'include' });
-      const data = await res.json();
-      setEditingOffer(null);
-      form.reset({
-        customerId: data.customerId,
-        customerName: data.customerName || "",
-        customerEmail: data.customerEmail || "",
-        customerAddress: data.customerAddress || "",
-        contactPerson: data.contactPerson || "",
-        subject: data.subject || "",
-        language: data.language || "English",
-        currency: data.currency || "USD",
-        discountPercent: data.discountPercent || "0",
-        taxPercent: data.taxPercent || "0",
-        validUntil: "",
-        paymentTerms: data.paymentTerms || "",
-        deliveryTerms: data.deliveryTerms || "",
-        notes: data.notes || "",
-        termsAndConditions: data.termsAndConditions || "",
-        items: (() => {
-          const idToNewTempKey = new Map<string, string>(
-            (data.items || []).map((item: any) => [String(item.id), crypto.randomUUID()])
-          );
-          return (data.items || []).map((item: any) => ({
-            tempKey: idToNewTempKey.get(String(item.id)) || crypto.randomUUID(),
-            productId: item.productId,
-            productCode: item.productCode || "",
-            description: item.description || "",
-            unit: item.unit || "",
-            quantity: item.quantity || "0",
-            unitPrice: item.unitPrice || "0",
-            discountPercent: item.discountPercent || "0",
-            hsnSacCode: item.hsnSacCode || "",
-            isSubItem: item.isSubItem || false,
-            parentTempKey: item.parentItemId ? (idToNewTempKey.get(String(item.parentItemId)) || null) : null,
-          }));
-        })(),
-      });
-      setIsFormOpen(true);
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to duplicate offer", variant: "destructive" });
-    }
-  };
-
-  const handleDownloadPdf = (offerId: number, priceMode: 'combined' | 'breakup' | 'technical') => {
-    window.open(`/api/sales-marketing/offers/${offerId}/pdf?priceMode=${priceMode}`, '_blank');
-    queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
-    setPdfDownloadOfferId(null);
   };
 
   const handleExportExcel = async () => {
@@ -1221,9 +1213,6 @@ export function OffersContent() {
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => setPdfDownloadOfferId(offer.id)} title="Download PDF">
                             <Download className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => handleDuplicate(offer)} title={offer.status === "Order Confirmed" ? "Duplicate to create a revision" : "Duplicate"}>
-                            <Copy className="h-4 w-4" />
-                          </Button>
                           {offer.status === "Draft" && (
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600" onClick={() => statusMutation.mutate({ id: offer.id, status: "Sent" })} title="Mark as Sent">
                               <Send className="h-4 w-4" />
@@ -1298,7 +1287,7 @@ export function OffersContent() {
                           {offer.status === "Draft" && (
                             <Button
                               variant="ghost" size="icon" className="h-8 w-8 text-destructive"
-                              onClick={() => { if (confirm(`Delete offer ${offer.offerNumber}?`)) deleteMutation.mutate(offer.id); }}
+                              onClick={() => setDeleteConfirmOffer(offer)}
                               title="Delete"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -2893,10 +2882,46 @@ export function OffersContent() {
           </DialogContent>
         </Dialog>
 
+        {/* ── Delete confirmation dialog ───────────────────────────────── */}
+        <Dialog open={!!deleteConfirmOffer} onOpenChange={(open) => { if (!open) setDeleteConfirmOffer(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-destructive">Delete Draft Offer</DialogTitle>
+              <DialogDescription>This action cannot be undone.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-2 text-sm">
+              <p>
+                Are you sure you want to permanently delete Offer{' '}
+                <span className="font-semibold">"{deleteConfirmOffer?.offerNumber}"</span>?
+              </p>
+              <div className="rounded-md border bg-muted/50 px-4 py-3 space-y-1 text-muted-foreground">
+                <div><span className="font-medium text-foreground">Customer:</span> {deleteConfirmOffer?.customerName || '—'}</div>
+                <div><span className="font-medium text-foreground">Subject:</span> {deleteConfirmOffer?.subject || '—'}</div>
+                <div><span className="font-medium text-foreground">Status:</span> Draft</div>
+              </div>
+              <p className="text-muted-foreground">
+                This will permanently delete the Offer and its line items.
+              </p>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setDeleteConfirmOffer(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteConfirmOffer && deleteMutation.mutate(deleteConfirmOffer.id)}
+              >
+                {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Delete Offer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <PdfDownloadDialog
           offerId={pdfDownloadOfferId}
           onClose={() => setPdfDownloadOfferId(null)}
-          onDownload={handleDownloadPdf}
         />
       </div>
   );
