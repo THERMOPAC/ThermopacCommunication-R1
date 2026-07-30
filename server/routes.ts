@@ -4015,6 +4015,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { seedHazopDeviationLibrary } = await import('./scripts/seed-hazop-library');
   seedHazopDeviationLibrary().catch((e) => console.error('[HAZOP Seed] Deviation library seed failed:', e));
 
+  // ── Project Folder Templates seed (idempotent) ────────────────────────────
+  const { seedFolderTemplates } = await import('./seed-folder-templates');
+  seedFolderTemplates().catch((e: Error) => console.error('[FolderTemplateSeed] Failed:', e));
+
   const { default: makesRouter } = await import('./makes-routes');
   app.use('/api/makes', makesRouter);
 
