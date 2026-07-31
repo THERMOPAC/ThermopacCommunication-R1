@@ -4019,6 +4019,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { seedFolderTemplates } = await import('./seed-folder-templates');
   seedFolderTemplates().catch((e: Error) => console.error('[FolderTemplateSeed] Failed:', e));
 
+  // ── Offer Subjects seed (idempotent) ──────────────────────────────────────
+  const { seedOfferSubjects } = await import('./seed-offer-subjects');
+  seedOfferSubjects().catch((e: Error) => console.error('[OfferSubjectSeed] Failed:', e));
+
   const { default: makesRouter } = await import('./makes-routes');
   app.use('/api/makes', makesRouter);
 

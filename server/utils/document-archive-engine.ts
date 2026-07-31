@@ -138,10 +138,20 @@ export async function runDocumentArchive(params: {
 }): Promise<ArchiveEngineResult> {
   const { offerId, offerNumber, revision, actionType, userId, strategy } = params;
 
-  // Step 1 — Create archive revision record
+  // Step 1 — Create (or reset) archive revision record.
+  // ON CONFLICT handles retries: a previous 'failed' row for the same
+  // (offer_id, revision) is reset to 'archiving' so the attempt can proceed.
   const archRevRes = await pool.query(
     `INSERT INTO offer_archive_revisions (offer_id, revision, action_type, status, archived_by)
-     VALUES ($1, $2, $3, 'archiving', $4) RETURNING id`,
+     VALUES ($1, $2, $3, 'archiving', $4)
+     ON CONFLICT (offer_id, revision) DO UPDATE
+       SET status       = 'archiving',
+           action_type  = EXCLUDED.action_type,
+           archived_by  = EXCLUDED.archived_by,
+           archived_at  = NOW(),
+           completed_at = NULL,
+           error_detail = NULL
+     RETURNING id`,
     [offerId, revision, actionType, userId],
   );
   const archiveRevisionId: number = archRevRes.rows[0].id;

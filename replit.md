@@ -74,9 +74,45 @@ Preferred communication style: Simple, everyday language.
 - **Mirror Health Dashboard vs Worker Agents Dashboard**: Mirror Health Dashboard lives under Document Control and shows GCS↔Windows mirror job status (pending/failed/retry). Worker Agents Dashboard is Agent Management only (health, heartbeat, connectivity, version, job processing). Do NOT merge these two dashboards or move mirror status into Worker Agents.
 - **GCS-Managed Doc Path Templates**: `document_path_templates` rows with `gcs_rule_id IS NOT NULL` are auto-managed by GCS Doc Governance. Never edit them directly in the Doc Governance UI — all path/revision changes go through GCS Doc Governance only. `fileExtension` and `fileNameTemplate` are the only fields users may fill in manually on a GCS-managed template (supplementary, not derivable from GCS).
 
+## Documentation Standards
+
+The following rules apply to all governance and engineering documents in this repository:
+
+1. **Document Status**
+   - Documents shall accurately reflect their review status.
+   - Approved status shall only be used after explicit Project Owner approval.
+
+2. **Evidence Integrity**
+   - The AI Agent shall never overstate the evidentiary status of any document.
+   - Terms such as "Recorded Verbatim" shall only be used when supported by recorded evidence.
+   - Where exact wording cannot be substantiated, use wording such as:
+     - Recorded in the Current Session
+     - Based on the Recorded Discussion
+     - Reconstructed from Recorded Evidence
+     - Project Owner Approved Statement
+
+3. **Separation of Information Types**
+   Every governance or engineering document shall clearly distinguish between:
+   - Facts
+   - Project Owner Determinations
+   - AI Technical Analysis
+   - Proposed Actions
+
+   These categories shall never be mixed.
+
+4. **Traceability**
+   Every governance document shall be traceable to its supporting evidence.
+
+   Where a statement cannot be substantiated from recorded evidence, explicitly state:
+
+   > "Not Supported by Recorded Evidence."
+
+   The AI Agent shall never invent chronology, approvals, or evidence.
+
 ## Operating Protocol
 All discussion and implementation work follows **`docs/operating-protocol-v1.0.md`**.  
-Read it before starting any discussion or implementation.
+Read it before starting any discussion or implementation.  
+Note: Operating Protocol v2.0 has been approved by the Project Owner and is pending creation in the repository.
 
 ## Pointers
 - **Document Path & Folder Template Baseline v1.0**: `docs/document-path-folder-template-baseline-v1.md`

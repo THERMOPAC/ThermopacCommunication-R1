@@ -24,6 +24,35 @@ async function getTemplateSignedUrl(gcsObjectPath: string): Promise<string> {
   return url;
 }
 
+// Download a template PDF from GCS to a local temp file for PDF generation.
+// Returns the local path. Caller is responsible for cleanup if desired.
+const templateTmpDir = path.join(process.cwd(), 'uploads', 'offer-templates', 'tmp');
+async function downloadTemplateFromGcs(gcsObjectPath: string): Promise<string> {
+  if (!fs.existsSync(templateTmpDir)) fs.mkdirSync(templateTmpDir, { recursive: true });
+  const bucket = gcsClient.bucket(gcsBucketName);
+  const tmpName = `tpl_${Date.now()}_${path.basename(gcsObjectPath)}`;
+  const tmpPath = path.join(templateTmpDir, tmpName);
+  await bucket.file(gcsObjectPath).download({ destination: tmpPath });
+  return tmpPath;
+}
+
+// Resolve a local path for an offer template, falling back to GCS download when
+// the stored filePath is absent. Returns null when no template is available.
+async function resolveTemplatePath(
+  filePath: string | null | undefined,
+  gcsObjectPath: string | null | undefined,
+): Promise<string | null> {
+  if (filePath && fs.existsSync(filePath)) return filePath;
+  if (gcsObjectPath) {
+    try {
+      return await downloadTemplateFromGcs(gcsObjectPath);
+    } catch (e) {
+      console.warn('[offer-template] GCS download failed for', gcsObjectPath, e);
+    }
+  }
+  return null;
+}
+
 async function uploadOfferTemplateToGcs(
   buffer: Buffer,
   templateSlug: string,
@@ -1561,9 +1590,11 @@ export function setupSalesMarketingRoutes(app: Express) {
     templatePath: string | null;
     templateRange: { startPage?: number | null; endPage?: number | null };
   }> {
-    let templatePath = offer.templatePdfPath || null;
+    let templatePath: string | null = offer.templatePdfPath && fs.existsSync(offer.templatePdfPath)
+      ? offer.templatePdfPath
+      : null;
     let templateRange: { startPage?: number | null; endPage?: number | null } = {};
-    if (!templatePath || !fs.existsSync(templatePath)) {
+    if (!templatePath) {
       const offerLang = offer.language || 'English';
       const [autoTemplate] = await db.select().from(offerTemplates).where(
         and(
@@ -1572,9 +1603,12 @@ export function setupSalesMarketingRoutes(app: Express) {
           eq(offerTemplates.isActive, true),
         ),
       ).limit(1);
-      if (autoTemplate && fs.existsSync(autoTemplate.filePath)) {
-        templatePath = autoTemplate.filePath;
-        templateRange = { startPage: autoTemplate.startPage, endPage: autoTemplate.endPage };
+      if (autoTemplate) {
+        const resolved = await resolveTemplatePath(autoTemplate.filePath, autoTemplate.gcsObjectPath);
+        if (resolved) {
+          templatePath = resolved;
+          templateRange = { startPage: autoTemplate.startPage, endPage: autoTemplate.endPage };
+        }
       }
     }
     return { templatePath, templateRange };
@@ -2314,10 +2348,11 @@ export function setupSalesMarketingRoutes(app: Express) {
         })),
       }, { priceMode: priceMode as 'combined' | 'breakup' | 'technical' });
 
-      let templatePath = offer.templatePdfPath;
+      let templatePath: string | null = offer.templatePdfPath && fs.existsSync(offer.templatePdfPath)
+        ? offer.templatePdfPath : null;
       let templatePageRange: { startPage?: number | null; endPage?: number | null } = {};
 
-      if (!templatePath || !fs.existsSync(templatePath)) {
+      if (!templatePath) {
         const offerLang = (offer as any).language || 'English';
         const [autoTemplate] = await db.select().from(offerTemplates).where(
           and(
@@ -2326,14 +2361,17 @@ export function setupSalesMarketingRoutes(app: Express) {
             eq(offerTemplates.isActive, true)
           )
         ).limit(1);
-        if (autoTemplate && fs.existsSync(autoTemplate.filePath)) {
-          templatePath = autoTemplate.filePath;
-          templatePageRange = { startPage: autoTemplate.startPage, endPage: autoTemplate.endPage };
+        if (autoTemplate) {
+          const resolved = await resolveTemplatePath(autoTemplate.filePath, autoTemplate.gcsObjectPath);
+          if (resolved) {
+            templatePath = resolved;
+            templatePageRange = { startPage: autoTemplate.startPage, endPage: autoTemplate.endPage };
+          }
         }
       }
 
       let pdfBuffer: Buffer;
-      if (templatePath && fs.existsSync(templatePath)) {
+      if (templatePath) {
         pdfBuffer = await generator.generateWithTemplateToBuffer(templatePath, templatePageRange);
       } else {
         pdfBuffer = await generator.generateToBuffer();
@@ -2416,9 +2454,10 @@ export function setupSalesMarketingRoutes(app: Express) {
         })),
       }, { priceMode: priceMode as 'combined' | 'breakup' | 'technical' });
 
-      let templatePath = offer.templatePdfPath;
+      let templatePath: string | null = offer.templatePdfPath && fs.existsSync(offer.templatePdfPath)
+        ? offer.templatePdfPath : null;
       let templatePageRange: { startPage?: number | null; endPage?: number | null } = {};
-      if (!templatePath || !fs.existsSync(templatePath)) {
+      if (!templatePath) {
         const offerLang = (offer as any).language || 'English';
         const [autoTemplate] = await db.select().from(offerTemplates).where(
           and(
@@ -2427,14 +2466,17 @@ export function setupSalesMarketingRoutes(app: Express) {
             eq(offerTemplates.isActive, true)
           )
         ).limit(1);
-        if (autoTemplate && fs.existsSync(autoTemplate.filePath)) {
-          templatePath = autoTemplate.filePath;
-          templatePageRange = { startPage: autoTemplate.startPage, endPage: autoTemplate.endPage };
+        if (autoTemplate) {
+          const resolved = await resolveTemplatePath(autoTemplate.filePath, autoTemplate.gcsObjectPath);
+          if (resolved) {
+            templatePath = resolved;
+            templatePageRange = { startPage: autoTemplate.startPage, endPage: autoTemplate.endPage };
+          }
         }
       }
 
       let pdfBuffer: Buffer;
-      if (templatePath && fs.existsSync(templatePath)) {
+      if (templatePath) {
         pdfBuffer = await generator.generateWithTemplateToBuffer(templatePath, templatePageRange);
       } else {
         pdfBuffer = await generator.generateToBuffer();

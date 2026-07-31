@@ -479,7 +479,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (jobs.length === 0) {
         return res.json({
           ok:      false,
-          message: 'Project is not eligible for folder creation. Check: valid status (not draft/cancelled/on_hold), all path tokens (CC/CO/FY/Seq) present, customer BP code set, active STANDARD_EPC template exists.',
+          message: 'Project is not eligible for folder creation. Check: valid status (not draft/cancelled/on_hold), all path tokens (CC/CO/FY/Seq) present, customer BP code set, active EPC_STANDARD_V1 template exists.',
         });
       }
 

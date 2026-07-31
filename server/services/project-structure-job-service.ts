@@ -100,20 +100,20 @@ export async function enqueueProjectStructureJob(
       return;
     }
 
-    // ── 4. Load active STANDARD_EPC template ──────────────────────────────
+    // ── 4. Load active EPC_STANDARD_V1 template ───────────────────────────
     const [template] = await db
       .select()
       .from(projectFolderTemplates)
       .where(
         and(
-          eq(projectFolderTemplates.templateCode, 'STANDARD_EPC'),
+          eq(projectFolderTemplates.templateCode, 'EPC_STANDARD_V1'),
           eq(projectFolderTemplates.isActive, true),
         )
       )
       .limit(1);
 
     if (!template) {
-      console.warn(`${SERVICE} No active STANDARD_EPC template found — skipping project #${projectId}`);
+      console.warn(`${SERVICE} No active EPC_STANDARD_V1 template found — skipping project #${projectId}`);
       return;
     }
 
@@ -130,7 +130,7 @@ export async function enqueueProjectStructureJob(
       .orderBy(projectFolderTemplateItems.sortOrder);
 
     if (items.length === 0) {
-      console.warn(`${SERVICE} Template STANDARD_EPC has no active folder items — skipping project #${projectId}`);
+      console.warn(`${SERVICE} Template EPC_STANDARD_V1 has no active folder items — skipping project #${projectId}`);
       return;
     }
 

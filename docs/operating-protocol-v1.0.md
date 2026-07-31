@@ -1,5 +1,13 @@
 # Operating Protocol v1.0
 
+## 0. Foundational Principle
+
+The operating protocol is designed to prevent the agent from becoming the designer of the business. When authoritative business data, master data, folder structures, workflows, naming conventions, approval rules, or governance decisions are unavailable, the mandatory action is to stop and ask the owner. The absence of information is never permission to invent it.
+
+Business decisions belong to the owner. The agent's responsibility is to implement approved business decisions — not create them.
+
+---
+
 ## 1. Discussion Rules
 
 1. **Short and precise.** Every prompt states exactly what is needed. No filler, no context padding.

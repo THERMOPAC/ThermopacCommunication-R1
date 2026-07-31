@@ -209,6 +209,78 @@ A Folder Template defines a **named, versioned tree of folders** that should exi
 
 ---
 
+## 7A. Initial Project Folder Template — Approved Mandatory Path List
+
+**Every listed path shall be included in the initial project folder template.**
+
+Paths are relative to:
+
+```
+TPEL/PROJECTS/{CC}/{CO}/{Cust}/{FY}/SOR_{NNN}/
+```
+
+No additional folders or subfolders shall be created unless explicitly approved by the
+Project Owner. No listed folder shall be omitted.
+
+Intermediate parent directories not listed below (e.g. `2_Design`, `3_Purchase`,
+`4_Production`, `5_Accounts`, `6_After_Sales`, `2_Design/11_Progress_Report`,
+`2_Design/15_Design_Calculation`, `6_After_Sales/PLC`, `6_After_Sales/Scada`) shall be
+created by the agent as required to satisfy the listed paths. They are not themselves
+mandatory template entries.
+
+### Mandatory Paths (41 total — Project Owner approved 2026-07-30)
+
+```
+ 1  1_Sales
+ 2  1_Sales/1_Pre_Order_Communication
+ 3  1_Sales/2_Final_Offer
+ 4  1_Sales/3_Contract_PO
+ 5  1_Sales/4_LC_or_Bank
+ 6  1_Sales/5_Order_Conformation
+ 7  1_Sales/6_DP_Proforma_Invoice
+ 8  1_Sales/7_Minutes_of_meeting
+ 9  1_Sales/8_Document_Submission
+10  1_Sales/9_Non_Compliance_Report
+11  1_Sales/10_Sales_Internal_Memo
+
+12  2_Design/0_3D_Model_Assembly
+13  2_Design/1_BEDD
+14  2_Design/2_Relevant_Standards
+15  2_Design/3_P_ID
+16  2_Design/4_Material_and_heat_balance
+17  2_Design/5_Hazop
+18  2_Design/6_QAP
+19  2_Design/7_Tiein_points
+20  2_Design/8_GA
+21  2_Design/9_Foundation
+22  2_Design/10_Electrical
+23  2_Design/11_Progress_Report/Snaps
+24  2_Design/12_Cause_Effect
+25  2_Design/13_Data_sheet_for_approval
+26  2_Design/14_Inspection_Reports
+27  2_Design/15_Design_Calculation/Structural_Design
+28  2_Design/16_Operation_Maintenance_Manual
+
+29  3_Purchase/Purchase_Orders
+
+30  4_Production/1_Project_Scheduling
+31  4_Production/2_CNC_Cutting
+32  4_Production/3_Production_Drawings
+33  4_Production/4_Asbuilt
+34  4_Production/5_MDR
+
+35  5_Accounts/Invoice
+36  5_Accounts/Packing_List
+37  5_Accounts/Airway_Bill_BL
+38  5_Accounts/Payment_Receipt
+
+39  6_After_Sales/PLC/PLC_program
+40  6_After_Sales/Scada/Scada_program
+41  6_After_Sales/Test_Run_Commissioning
+```
+
+---
+
 ## 8. Dynamic Assembly Rule
 
 - Assembly folders (`{Assembly}`) are **not hardcoded**
