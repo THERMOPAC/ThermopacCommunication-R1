@@ -1,13 +1,166 @@
 import { db } from './db';
 import { pool } from './db';
-import { sql } from 'drizzle-orm';
+import { sql, eq, and } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import * as epcCoding from './epc-coding';
 import { enqueueProjectStructureJob } from './services/project-structure-job-service';
+import { buildCustToken } from './utils/cust-token';
+import { enqueueMirrorJob } from './utils/mirror-job-service';
+import { resolveGcsPathWithMeta, GcsGovernanceError } from './utils/gcs-path-resolver';
+import { logUploadEvent } from './services/gcs-governance-service';
+import { offerCommDocuments, offerCommunications, offerCommCategories, offerCommDocConversions } from '@shared/schema';
+import gcsClient, { bucketName as gcsBucketName } from './utils/storage-config';
 import { VALID_PROJECT_ITEM_SOURCES, PROJECT_ITEM_SOURCES, type ProjectItemSource } from '@shared/schema';
 import { freezeConfirmedArtifact, attachConfirmedArtifactToEpc, storeQuotationPdfArtifact, storeFinalOfferPdfToGcs, storeConfirmationDocToGcs } from './utils/quotation-pdf-artifact';
 import { generateExecutionDrafts } from './pipeline/generate-execution-drafts';
 import { executeFullAutoPipeline } from './pipeline/full-auto-orchestrator';
+
+// ── copyCommDocsToSorProject ─────────────────────────────────────────────────
+// Post-commit, non-blocking. Called after the main conversion transaction
+// commits. Failures are logged per-document and never roll back the conversion.
+async function copyCommDocsToSorProject(params: {
+  offerId: number;
+  projectId: number;
+  snapshotId: number;
+  projectSeq: string;
+  offer: any;
+  userId: number;
+}): Promise<void> {
+  const { offerId, projectId, snapshotId, projectSeq, offer, userId } = params;
+
+  // Resolve customer GCS params
+  const custResult = await pool.query(
+    `SELECT c.bp_code, c.bp_name, c.short_code, c.continent_code, c.country_code
+       FROM customers c WHERE c.id = $1`,
+    [offer.customer_id]
+  );
+  if (!custResult.rows.length) {
+    console.warn(`[offer-conversion/comm-docs] Customer not found for offer ${offerId}, skipping comm doc copy`);
+    return;
+  }
+  const custRow = custResult.rows[0];
+  const customerToken = buildCustToken(custRow.bp_code || custRow.short_code || '', custRow.bp_name || '');
+  const continentCode = custRow.continent_code || 'AS';
+  const countryCode   = custRow.country_code  || 'IN';
+
+  const fyMatch = /OFR-(\d{4})-/.exec(offer.offer_number || '');
+  const fyCode  = fyMatch ? fyMatch[1] : 'XXXX';
+
+  const projectRoot = `SOR_${projectSeq}`;
+
+  // Fetch all is_current=true documents with their category path
+  const docsResult = await pool.query(
+    `SELECT ocd.id, ocd.file_name, ocd.gcs_path, ocd.sha256, ocd.mime_type,
+            occ.category_path
+       FROM offer_comm_documents ocd
+       JOIN offer_communications oc  ON oc.id  = ocd.communication_id
+       JOIN offer_comm_categories occ ON occ.id = oc.communication_category_id
+      WHERE oc.offer_id = $1 AND ocd.is_current = true`,
+    [offerId]
+  );
+
+  if (docsResult.rows.length === 0) {
+    console.log(`[offer-conversion/comm-docs] No current comm docs found for offer ${offerId}`);
+    return;
+  }
+
+  const bucket = gcsClient.bucket(gcsBucketName);
+
+  for (const doc of docsResult.rows) {
+    // Resolve SOR copy path via governance rule COMM_SOR_COPY
+    let sorResolved: Awaited<ReturnType<typeof resolveGcsPathWithMeta>>;
+    try {
+      sorResolved = await resolveGcsPathWithMeta('COMM_SOR_COPY', {
+        CC: continentCode, CO: countryCode,
+        Cust: customerToken, FY: fyCode,
+        NNN: projectSeq,
+        CategoryPath: doc.category_path,
+        OriginalFileName: doc.file_name,
+      });
+    } catch (govErr: any) {
+      console.error(`[offer-conversion/comm-docs] Governance path error for doc ${doc.id}: ${govErr.message}`);
+      continue; // skip this doc; do not fail the whole conversion
+    }
+    const destGcsPath = sorResolved.path;
+
+    // Step A — idempotent insert
+    const insertResult = await pool.query(
+      `INSERT INTO offer_comm_doc_conversions
+         (source_doc_id, snapshot_id, project_id,
+          source_gcs_path, dest_gcs_path,
+          gcs_copy_status, mirror_status,
+          gcs_rule_id,
+          converted_by, converted_at)
+       VALUES ($1, $2, $3, $4, $5, 'pending', 'not_started', $6, $7, NOW())
+       ON CONFLICT (source_doc_id, project_id) DO NOTHING
+       RETURNING id`,
+      [doc.id, snapshotId, projectId, doc.gcs_path, destGcsPath, sorResolved.ruleId, userId]
+    );
+
+    if (!insertResult.rows.length) {
+      console.log(`[offer-conversion/comm-docs] Doc ${doc.id} already converted for project ${projectId}, skipping`);
+      continue;
+    }
+    const convRowId = insertResult.rows[0].id;
+
+    // Step B — GCS server-side copy
+    try {
+      await bucket.file(doc.gcs_path).copy(bucket.file(destGcsPath));
+      await pool.query(
+        `UPDATE offer_comm_doc_conversions SET gcs_copy_status = 'copied' WHERE id = $1`,
+        [convRowId]
+      );
+      await pool.query(
+        `INSERT INTO user_activity_logs (user_id, action, module, resource_type, resource_id, created_at)
+         VALUES ($1, 'COMM_DOC_GCS_COPIED', 'offer_communications', 'offer_comm_doc_conversion', $2, NOW())`,
+        [userId, convRowId]
+      );
+      // Non-blocking governance monitor log
+      void logUploadEvent({
+        gcsPath: destGcsPath, moduleKey: 'sales', documentType: 'COMM_SOR_COPY',
+        uploadedBy: userId, routeFile: 'offer-conversion.ts',
+      });
+      console.log(`[offer-conversion/comm-docs] Copied ${doc.gcs_path} → ${destGcsPath}`);
+    } catch (copyErr: any) {
+      await pool.query(
+        `UPDATE offer_comm_doc_conversions SET gcs_copy_status = 'failed', error_detail = $1 WHERE id = $2`,
+        [copyErr.message, convRowId]
+      );
+      await pool.query(
+        `INSERT INTO user_activity_logs (user_id, action, module, resource_type, resource_id, meta, created_at)
+         VALUES ($1, 'COMM_DOC_GCS_FAILED', 'offer_communications', 'offer_comm_doc_conversion', $2, $3, NOW())`,
+        [userId, convRowId, JSON.stringify({ error: copyErr.message })]
+      );
+      console.error(`[offer-conversion/comm-docs] GCS copy failed for doc ${doc.id}: ${copyErr.message}`);
+      continue; // do not enqueue mirror; leave mirror_status = 'not_started'
+    }
+
+    // Step C — enqueue Windows mirror (only after successful GCS copy)
+    try {
+      const jobId = await enqueueMirrorJob({
+        gcsPath:        destGcsPath,
+        sourceModule:   'offer_comm_doc_conversions',
+        sourceRecordId: convRowId,
+        sha256:         doc.sha256,
+        fileName:       doc.file_name,
+        createdBy:      userId,
+      });
+      await pool.query(
+        `UPDATE offer_comm_doc_conversions SET mirror_job_id = $1, mirror_status = 'pending' WHERE id = $2`,
+        [jobId, convRowId]
+      );
+      await pool.query(
+        `INSERT INTO user_activity_logs (user_id, action, module, resource_type, resource_id, meta, created_at)
+         VALUES ($1, 'COMM_DOC_MIRROR_ENQUEUED', 'offer_communications', 'offer_comm_doc_conversion', $2, $3, NOW())`,
+        [userId, convRowId, JSON.stringify({ jobId, destGcsPath })]
+      );
+    } catch (mirrorErr: any) {
+      console.warn(`[offer-conversion/comm-docs] Mirror enqueue failed for conversion row ${convRowId} (non-blocking): ${mirrorErr.message}`);
+    }
+  }
+
+  console.log(`[offer-conversion/comm-docs] Comm doc copy complete for offer ${offerId} → project ${projectId}`);
+}
 
 export interface EpcParams {
   continentCode: string;
@@ -368,6 +521,11 @@ export async function executeOfferConversion(
       taxPercent: offer.tax_percent,
       taxAmount: offer.tax_amount,
       totalAmount: offer.total_amount,
+      // OFFER-FREIGHT-001
+      offerScope:       offer.offer_scope       || null,
+      freightAmount:    offer.freight_amount     || '0',
+      freightTaxAmount: offer.freight_tax_amount || '0',
+      finalValue:       offer.final_value        || '0',
       paymentTerms: offer.payment_terms,
       deliveryTerms: offer.delivery_terms,
       notes: offer.notes,
@@ -470,7 +628,9 @@ export async function executeOfferConversion(
       [
         projectName, projectDescription, projectCode, projectType, priority, financialYear,
         offer.customer_id, customerName, epcParams.startDate, epcParams.targetEndDate,
-        offer.total_amount, projectCurrency, epcParams.managerId, userId,
+        // OFFER-FREIGHT-001: use final_value (includes freight) when > 0; fall back to total_amount
+        (parseFloat(offer.final_value || '0') > 0 ? offer.final_value : offer.total_amount),
+        projectCurrency, epcParams.managerId, userId,
         continentCode, countryCode, fyCode, projectSeq,
         offerId, offer.revision || 0, orderNumber, conversionId,
         epcParams.automationMode || 'full_auto',
@@ -1021,6 +1181,18 @@ export async function executeOfferConversion(
       }
     }).catch(err => {
       console.error('[offer-conversion] CO/PO snapshot unexpected error:', err);
+    });
+
+    // 3. Comm doc copy: Open_Quotations → SOR project (non-blocking, failure-safe)
+    copyCommDocsToSorProject({
+      offerId,
+      projectId: project.id,
+      snapshotId,
+      projectSeq: project.project_seq || String(project.id).padStart(3, '0'),
+      offer,
+      userId,
+    }).catch(err => {
+      console.error('[offer-conversion] Comm doc copy unexpected error (non-blocking):', err.message);
     });
 
     return {

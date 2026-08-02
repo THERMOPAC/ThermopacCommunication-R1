@@ -10370,6 +10370,14 @@ export const offers = pgTable('offers', {
   finalOfferGcsPath:      text('final_offer_gcs_path'),
   finalOfferMirrorStatus: varchar('final_offer_mirror_status', { length: 20 }),
   finalOfferMirrorJobId:  integer('final_offer_mirror_job_id'),
+
+  // Commercial summary — OFFER-FREIGHT-001
+  // offer_scope: server-derived from customers.country_code at save time ('DOMESTIC'|'EXPORT'|NULL=legacy)
+  // freight_amount: accepted from client; freight_tax_amount + final_value: server-calculated
+  offerScope:       varchar('offer_scope', { length: 10 }),
+  freightAmount:    numeric('freight_amount',     { precision: 15, scale: 2 }).default('0').notNull(),
+  freightTaxAmount: numeric('freight_tax_amount', { precision: 15, scale: 2 }).default('0').notNull(),
+  finalValue:       numeric('final_value',        { precision: 15, scale: 2 }).default('0').notNull(),
 });
 
 export const insertOfferSchema = createInsertSchema(offers).omit({
@@ -16591,3 +16599,141 @@ export const makes = pgTable('makes', {
 export const insertMakeSchema = createInsertSchema(makes).omit({ id: true, createdAt: true });
 export type InsertMake = z.infer<typeof insertMakeSchema>;
 export type Make = typeof makes.$inferSelect;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// OFFER COMMUNICATION REGISTER — V1
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── offer_comm_categories ──────────────────────────────────────────────────────
+// Reference table — exactly 20 approved categories.
+// Populated by scripts/migrate-offer-comm-categories.ts ONLY.
+// No runtime insert. No startup seed.
+export const offerCommCategories = pgTable('offer_comm_categories', {
+  id:            serial('id').primaryKey(),
+  categoryCode:  varchar('category_code', { length: 60 }).notNull().unique(),
+  categoryPath:  varchar('category_path', { length: 120 }).notNull().unique(),
+  displayLabel:  text('display_label').notNull(),
+  section:       varchar('section', { length: 20 }).notNull(), // Sales | Design
+  sortOrder:     integer('sort_order').notNull(),
+  isActive:      boolean('is_active').notNull().default(true),
+});
+export type OfferCommCategory = typeof offerCommCategories.$inferSelect;
+
+// ── offer_communications ───────────────────────────────────────────────────────
+// Primary business object — one row per communication event on an Offer.
+export const offerCommunications = pgTable('offer_communications', {
+  id:                       serial('id').primaryKey(),
+  offerId:                  integer('offer_id').notNull().references(() => offers.id, { onDelete: 'cascade' }),
+  communicationCategoryId:  integer('communication_category_id').notNull().references(() => offerCommCategories.id),
+  commDate:                 date('comm_date').notNull(),
+  title:                    text('title').notNull(),
+  direction:                varchar('direction', { length: 20 }).notNull(),
+                            // Incoming | Outgoing | Internal
+  channel:                  varchar('channel', { length: 30 }).notNull(),
+                            // Email | Meeting | Phone | WhatsApp | Letter | Internal Note
+  customerContact:          text('customer_contact'),
+  fromParty:                text('from_party'),
+  toParty:                  text('to_party'),
+  ccParty:                  text('cc_party'),
+  customerQuestion:         text('customer_question'),
+  summary:                  text('summary'),
+  actionRequired:           boolean('action_required').notNull().default(false),
+  responsibleUserId:        integer('responsible_user_id').references(() => users.id),
+  dueDate:                  date('due_date'),
+  status:                   varchar('status', { length: 30 }).notNull().default('Open'),
+                            // Open | Closed | For Information | Awaiting Customer | Awaiting Thermopac
+  responseType:             text('response_type'),
+                            // note_text | upload_existing | drawing_image | other_document
+                            // | create_word | create_excel | create_ppt | create_pdf
+  createdBy:                integer('created_by').notNull().references(() => users.id),
+  createdAt:                timestamp('created_at').notNull().defaultNow(),
+  updatedAt:                timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertOfferCommunicationSchema = createInsertSchema(offerCommunications).omit({ id: true, createdAt: true, updatedAt: true });
+export type OfferCommunication = typeof offerCommunications.$inferSelect;
+export type InsertOfferCommunication = z.infer<typeof insertOfferCommunicationSchema>;
+
+// ── offer_comm_documents ───────────────────────────────────────────────────────
+// Files (uploaded or generated) attached to a Communication Record.
+// Category is inherited via: communication_id → offer_communications → communication_category_id
+export const offerCommDocuments = pgTable('offer_comm_documents', {
+  id:              serial('id').primaryKey(),
+  communicationId: integer('communication_id').notNull().references(() => offerCommunications.id, { onDelete: 'cascade' }),
+  documentType:    varchar('document_type', { length: 40 }).notNull(),
+                   // PDF | Word | Excel | PPT | Image | Drawing | Email_File | Other
+  fileName:        text('file_name').notNull(),
+  gcsPath:         text('gcs_path').notNull().unique(),
+  sha256:          text('sha256').notNull(),
+  revision:        varchar('revision', { length: 10 }).notNull().default('00'),
+  isCurrent:       boolean('is_current').notNull().default(true),
+  fileSizeBytes:   integer('file_size_bytes'),
+  mimeType:        varchar('mime_type', { length: 100 }),
+  mirrorStatus:    varchar('mirror_status', { length: 20 }).notNull().default('pending'),
+                   // pending | mirrored | failed  (Open_Quotations mirror)
+  mirrorJobId:     integer('mirror_job_id').references(() => documentAgentJobs.id),
+  gcsRuleId:       integer('gcs_rule_id'),
+                   // FK to gcs_governance_rules.id — the active rule that governed this path
+  templateId:      integer('template_id').references(() => offerCommTemplates.id),
+                   // FK to offer_comm_templates.id — set when document was generated from a template
+  uploadedBy:      integer('uploaded_by').notNull().references(() => users.id),
+  uploadedAt:      timestamp('uploaded_at').notNull().defaultNow(),
+});
+export const insertOfferCommDocumentSchema = createInsertSchema(offerCommDocuments).omit({ id: true, uploadedAt: true });
+export type OfferCommDocument = typeof offerCommDocuments.$inferSelect;
+export type InsertOfferCommDocument = z.infer<typeof insertOfferCommDocumentSchema>;
+
+// ── offer_comm_doc_conversions ─────────────────────────────────────────────────
+// Traceability record for each document copied from Open_Quotations → SOR project
+// on Order Confirmation. Two UNIQUE constraints prevent duplicate copies.
+export const offerCommDocConversions = pgTable('offer_comm_doc_conversions', {
+  id:              serial('id').primaryKey(),
+  sourceDocId:     integer('source_doc_id').notNull().references(() => offerCommDocuments.id),
+  snapshotId:      integer('snapshot_id').notNull().references(() => offerConversionSnapshots.id),
+  projectId:       integer('project_id').notNull().references(() => projects.id),
+  sourceGcsPath:   text('source_gcs_path').notNull(),
+  destGcsPath:     text('dest_gcs_path').notNull(),
+  gcsCopyStatus:   varchar('gcs_copy_status', { length: 20 }).notNull().default('pending'),
+                   // pending | copied | failed
+  mirrorJobId:     integer('mirror_job_id').references(() => documentAgentJobs.id),
+  mirrorStatus:    varchar('mirror_status', { length: 20 }).notNull().default('not_started'),
+                   // not_started | pending | mirrored | failed
+  errorDetail:     text('error_detail'),
+  gcsRuleId:       integer('gcs_rule_id'),
+                   // FK to gcs_governance_rules.id — the active rule that governed this SOR copy path
+  convertedBy:     integer('converted_by').notNull().references(() => users.id),
+  convertedAt:     timestamp('converted_at').notNull().defaultNow(),
+}, (table) => ({
+  uqSourceProject: uniqueIndex('uq_occ_source_project').on(table.sourceDocId, table.projectId),
+  uqDestGcsPath:   uniqueIndex('uq_occ_dest_gcs_path').on(table.destGcsPath),
+}));
+export type OfferCommDocConversion = typeof offerCommDocConversions.$inferSelect;
+
+// ── offer_comm_templates ───────────────────────────────────────────────────────
+// Templates for generated communication documents (Word / Excel / PDF).
+// Each Communication Category may have one default template per type.
+// Separate from offer_templates (quotation PDF insertion system).
+export const offerCommTemplates = pgTable('offer_comm_templates', {
+  id:               serial('id').primaryKey(),
+  name:             text('name').notNull(),
+  description:      text('description'),
+  templateType:     varchar('template_type', { length: 10 }).notNull(),
+                    // WORD | EXCEL | PDF | PPT
+  commCategoryId:   integer('comm_category_id').references(() => offerCommCategories.id),
+                    // NULL = applies to all categories as a fallback
+  isDefault:        boolean('is_default').notNull().default(false),
+  gcsObjectPath:    text('gcs_object_path'),
+  gcsBucket:        text('gcs_bucket'),
+  fileName:         text('file_name').notNull(),
+  fileSize:         integer('file_size'),
+  checksumSha256:   text('checksum_sha256'),
+  versionSeq:       integer('version_seq').notNull().default(1),
+  isActive:         boolean('is_active').notNull().default(true),
+  mirrorStatus:     varchar('mirror_status', { length: 20 }).notNull().default('pending'),
+  mirrorJobId:      integer('mirror_job_id').references(() => documentAgentJobs.id),
+  uploadedBy:       integer('uploaded_by').references(() => users.id),
+  uploadedAt:       timestamp('uploaded_at').notNull().defaultNow(),
+  updatedAt:        timestamp('updated_at').notNull().defaultNow(),
+});
+export const insertOfferCommTemplateSchema = createInsertSchema(offerCommTemplates).omit({ id: true, uploadedAt: true, updatedAt: true });
+export type OfferCommTemplate = typeof offerCommTemplates.$inferSelect;
+export type InsertOfferCommTemplate = z.infer<typeof insertOfferCommTemplateSchema>;

@@ -34,6 +34,11 @@ interface OfferPdfData {
   taxPercent: string;
   taxAmount: string;
   totalAmount: string;
+  // OFFER-FREIGHT-001 fields
+  offerScope:       string | null;   // 'DOMESTIC' | 'EXPORT' | null (legacy)
+  freightAmount:    string;           // '0' for historical / EXW
+  freightTaxAmount: string;           // server-calculated; '0' for export
+  finalValue:       string;           // grand total; falls back to totalAmount when '0'
   validUntil: string;
   paymentTerms: string;
   deliveryTerms: string;
@@ -490,55 +495,82 @@ export class OfferPdfGenerator {
   }
 
   private drawTotals(): void {
-    this.checkPageBreak(120);
+    this.checkPageBreak(200);
 
-    const totalsX = this.pageWidth - this.margin - 250;
-    const labelX = totalsX;
-    const valueX = totalsX + 150;
+    const totalsX    = this.pageWidth - this.margin - 250;
+    const labelX     = totalsX;
+    const valueX     = totalsX + 150;
     const totalWidth = 250;
 
-    this.doc
-      .rect(totalsX, this.currentY, totalWidth, 2)
-      .fill('#003366');
-
+    this.doc.rect(totalsX, this.currentY, totalWidth, 2).fill('#003366');
     this.currentY += 8;
 
-    const taxPct = parseFloat(this.data.taxPercent || '0');
-    if (taxPct > 0) {
+    const cur         = this.data.currency;
+    const discPct     = parseFloat(this.data.discountPercent  || '0');
+    const taxPct      = parseFloat(this.data.taxPercent       || '0');
+    const freightAmt  = parseFloat(this.data.freightAmount    || '0');
+    const subtotalNum = parseFloat(this.data.subtotal         || '0');
+    const discAmt     = parseFloat(this.data.discountAmount   || '0');
+    const taxAmt      = parseFloat(this.data.taxAmount        || '0');
+    const netExw      = subtotalNum - discAmt;
+    const totalExw    = netExw + taxAmt;                               // = totalAmount
+    const freightTax  = parseFloat(this.data.freightTaxAmount || '0');
+    const storedFinal = parseFloat(this.data.finalValue       || '0');
+    const finalVal    = storedFinal > 0 ? storedFinal : totalExw;     // fallback for legacy offers
+
+    // EXPORT: never show tax rows. Legacy null scope: show tax when taxPct > 0.
+    const isExport = this.data.offerScope === 'EXPORT';
+    const showTax  = !isExport && taxPct > 0;
+
+    // helper: render one plain row
+    const row = (label: string, value: string, color = '#333333', bold = false) => {
       this.doc
-        .fillColor('#333333')
+        .fillColor(color)
         .fontSize(9)
-        .font('Helvetica')
-        .text(`Tax (${taxPct}%):`, labelX, this.currentY, { width: 140, align: 'right' });
+        .font(bold ? 'Helvetica-Bold' : 'Helvetica')
+        .text(label, labelX, this.currentY, { width: 140, align: 'right' });
       this.doc
-        .font('Helvetica')
-        .text(`+${this.data.currency} ${this.formatNumber(this.data.taxAmount)}`, valueX, this.currentY, { width: 100, align: 'right' });
+        .font(bold ? 'Helvetica-Bold' : 'Helvetica')
+        .text(value, valueX, this.currentY, { width: 100, align: 'right' });
       this.currentY += 16;
-    }
+    };
 
-    this.doc
-      .fillColor('#333333')
-      .fontSize(9)
-      .font('Helvetica')
-      .text(this.strings.subtotal, labelX, this.currentY, { width: 140, align: 'right' });
-    this.doc
-      .font('Helvetica-Bold')
-      .text(`${this.data.currency} ${this.formatNumber(this.data.subtotal)}`, valueX, this.currentY, { width: 100, align: 'right' });
+    const fmt = (n: number) => this.formatNumber(String(n));
 
-    this.currentY += 16;
+    // ── Subtotal ────────────────────────────────────────────────────────────
+    row(this.strings.subtotal, `${cur} ${fmt(subtotalNum)}`);
 
-    const discPct = parseFloat(this.data.discountPercent || '0');
+    // ── Discount (conditional) ──────────────────────────────────────────────
     if (discPct > 0) {
-      this.doc
-        .font('Helvetica')
-        .text(`${this.strings.discount} (${discPct}%):`, labelX, this.currentY, { width: 140, align: 'right' });
-      this.doc
-        .fillColor('#CC0000')
-        .font('Helvetica')
-        .text(`-${this.data.currency} ${this.formatNumber(this.data.discountAmount)}`, valueX, this.currentY, { width: 100, align: 'right' });
-      this.currentY += 16;
+      row(`${this.strings.discount} (${discPct}%):`, `-${cur} ${fmt(discAmt)}`, '#CC0000');
     }
 
+    this.drawLine(this.currentY - 2, '#CCCCCC');
+
+    // ── Net Ex-Works Value ──────────────────────────────────────────────────
+    row('Net Ex-Works Value:', `${cur} ${fmt(netExw)}`, '#333333');
+
+    // ── Tax (domestic only) ─────────────────────────────────────────────────
+    if (showTax) {
+      row(`${this.strings.tax} (${taxPct}%):`, `+${cur} ${fmt(taxAmt)}`, '#1a6e3c');
+    }
+
+    this.drawLine(this.currentY - 2, '#CCCCCC');
+
+    // ── Total Ex-Works Value ────────────────────────────────────────────────
+    row('Total Ex-Works Value:', `${cur} ${fmt(totalExw)}`, '#333333', true);
+
+    // ── Freight Amount (conditional) ────────────────────────────────────────
+    if (freightAmt > 0) {
+      row('Freight Amount:', `+${cur} ${fmt(freightAmt)}`, '#333333');
+    }
+
+    // ── Tax on Freight (domestic + freight > 0) ──────────────────────────────
+    if (freightAmt > 0 && showTax && freightTax > 0) {
+      row(`Tax on Freight (${taxPct}%):`, `+${cur} ${fmt(freightTax)}`, '#1a6e3c');
+    }
+
+    // ── Final Value ─────────────────────────────────────────────────────────
     this.drawLine(this.currentY, '#003366');
     this.currentY += 8;
 
@@ -550,11 +582,20 @@ export class OfferPdfGenerator {
       .fillColor('#FFFFFF')
       .fontSize(10)
       .font('Helvetica-Bold')
-      .text(this.strings.total, labelX + 5, this.currentY, { width: 135, align: 'right' });
+      .text(this.getFinalValueLabel(), labelX + 5, this.currentY, { width: 135, align: 'right' });
     this.doc
-      .text(`${this.data.currency} ${this.formatNumber(this.data.totalAmount)}`, valueX, this.currentY, { width: 100, align: 'right' });
+      .text(`${cur} ${fmt(finalVal)}`, valueX, this.currentY, { width: 100, align: 'right' });
 
     this.currentY += 20;
+  }
+
+  private getFinalValueLabel(): string {
+    const t = (this.data.deliveryTerms || '').toLowerCase();
+    if (t.includes('ex-works') || t.includes('exw')) return 'Ex-Works Value:';
+    if (t.includes('fob'))                            return 'FOB Value:';
+    if (t.includes('cif'))                            return 'CIF Value:';
+    if (t.includes('ddp'))                            return 'DDP Value:';
+    return this.strings.total;
   }
 
   private drawTermsSectionHeader(text: string): void {

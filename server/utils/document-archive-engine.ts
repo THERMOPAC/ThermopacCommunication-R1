@@ -86,6 +86,11 @@ export class QuotationArchiveStrategy implements DocumentArchiveStrategy {
             taxPercent:        this.offerData.taxPercent       || '0',
             taxAmount:         this.offerData.taxAmount        || '0',
             totalAmount:       this.offerData.totalAmount,
+            // OFFER-FREIGHT-001
+            offerScope:        this.offerData.offerScope       || null,
+            freightAmount:     this.offerData.freightAmount    || '0',
+            freightTaxAmount:  this.offerData.freightTaxAmount || '0',
+            finalValue:        this.offerData.finalValue       || '0',
             validUntil:        this.offerData.validUntil?.toISOString() || '',
             paymentTerms:      this.offerData.paymentTerms    || '',
             deliveryTerms:     this.offerData.deliveryTerms   || '',

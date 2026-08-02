@@ -16,6 +16,7 @@ import gcsClient, { bucketName as gcsBucketName } from './utils/storage-config';
 import { validateLabel } from '../shared/gcs-label-vocabulary';
 import { resolveGcsPath, GcsGovernanceError } from './utils/gcs-path-resolver';
 import { enqueueMirrorJob } from './utils/mirror-job-service';
+import { registerOfferCommRoutes } from './offer-comm-routes';
 
 async function getTemplateSignedUrl(gcsObjectPath: string): Promise<string> {
   const bucket = gcsClient.bucket(gcsBucketName);
@@ -1844,6 +1845,36 @@ export function setupSalesMarketingRoutes(app: Express) {
       } else {
         delete offerData.validUntil;
       }
+
+      // OFFER-FREIGHT-001: derive offer scope + server-calculate freight fields
+      if (!offerData.customerId) {
+        return res.status(400).json({ error: 'Customer is required.' });
+      }
+      const _scopeCustRow = await pool.query(
+        `SELECT country_code FROM customers WHERE id = $1`,
+        [offerData.customerId]
+      );
+      if (!_scopeCustRow.rows.length) {
+        return res.status(400).json({ error: 'Customer not found.' });
+      }
+      const _countryCode = (_scopeCustRow.rows[0].country_code || '').trim().toUpperCase();
+      if (!_countryCode) {
+        return res.status(400).json({
+          error: 'Country code is not set on this customer. Update the customer record before saving this offer.'
+        });
+      }
+      const _offerScope      = _countryCode === 'IN' ? 'DOMESTIC' : 'EXPORT';
+      const _taxPct          = parseFloat(offerData.taxPercent || '0');
+      if (_offerScope === 'EXPORT' && _taxPct > 0) {
+        return res.status(400).json({ error: 'Tax must be 0 for export offers.' });
+      }
+      const _freightAmount    = parseFloat(offerData.freightAmount || '0');
+      const _totalAmount      = parseFloat(offerData.totalAmount   || '0');
+      const _freightTaxAmount = _offerScope === 'DOMESTIC' && _taxPct > 0
+        ? parseFloat((_freightAmount * _taxPct / 100).toFixed(2))
+        : 0;
+      const _finalValue       = parseFloat((_totalAmount + _freightAmount + _freightTaxAmount).toFixed(2));
+
       // Step 1 — Create offer in Draft status
       const offer = await storage.createOffer({
         offerNumber,
@@ -1860,6 +1891,11 @@ export function setupSalesMarketingRoutes(app: Express) {
         taxPercent:         offerData.taxPercent         || '0',
         taxAmount:          offerData.taxAmount          || '0',
         totalAmount:        offerData.totalAmount        || '0',
+        // OFFER-FREIGHT-001 — server-derived/calculated
+        offerScope:         _offerScope,
+        freightAmount:      String(_freightAmount),
+        freightTaxAmount:   String(_freightTaxAmount),
+        finalValue:         String(_finalValue),
         revision:           0,
         status:             'Draft',
         validUntil:         offerData.validUntil         || null,
@@ -1909,6 +1945,39 @@ export function setupSalesMarketingRoutes(app: Express) {
       }
       if (offerData.customerId === null || offerData.customerId === undefined) {
         delete offerData.customerId;
+      }
+
+      // OFFER-FREIGHT-001: derive offer scope + server-calculate freight fields
+      // Use submitted customerId if present; otherwise keep current offer's customer
+      const _patchCustId = offerData.customerId ?? existingCheck?.customerId;
+      let _patchScope: string | null = null;
+      let _patchFreightTax = 0;
+      let _patchFinalValue = 0;
+      if (_patchCustId) {
+        const _patchCustRow = await pool.query(
+          `SELECT country_code FROM customers WHERE id = $1`,
+          [_patchCustId]
+        );
+        if (!_patchCustRow.rows.length) {
+          return res.status(400).json({ error: 'Customer not found.' });
+        }
+        const _patchCC = (_patchCustRow.rows[0].country_code || '').trim().toUpperCase();
+        if (!_patchCC) {
+          return res.status(400).json({
+            error: 'Country code is not set on this customer. Update the customer record before saving this offer.'
+          });
+        }
+        _patchScope = _patchCC === 'IN' ? 'DOMESTIC' : 'EXPORT';
+        const _patchTaxPct = parseFloat(offerData.taxPercent ?? existingCheck?.taxPercent ?? '0');
+        if (_patchScope === 'EXPORT' && _patchTaxPct > 0) {
+          return res.status(400).json({ error: 'Tax must be 0 for export offers.' });
+        }
+        const _patchFreight    = parseFloat(offerData.freightAmount ?? existingCheck?.freightAmount ?? '0');
+        const _patchTotalAmt   = parseFloat(offerData.totalAmount   ?? existingCheck?.totalAmount   ?? '0');
+        _patchFreightTax = _patchScope === 'DOMESTIC' && _patchTaxPct > 0
+          ? parseFloat((_patchFreight * _patchTaxPct / 100).toFixed(2))
+          : 0;
+        _patchFinalValue = parseFloat((_patchTotalAmt + _patchFreight + _patchFreightTax).toFixed(2));
       }
 
       // Step 1 — Load current offer as full snapshot (for rollback)
@@ -1981,6 +2050,13 @@ export function setupSalesMarketingRoutes(app: Express) {
         if (offerData.termsAndConditions !== undefined) updateFields.termsAndConditions = offerData.termsAndConditions;
         if (offerData.language           !== undefined) updateFields.language           = offerData.language;
         if (offerData.offerType          !== undefined) updateFields.offerType          = offerData.offerType;
+        // OFFER-FREIGHT-001 — always set server-derived/calculated values when scope resolved
+        if (_patchScope !== null) {
+          updateFields.offerScope        = _patchScope;
+          updateFields.freightAmount     = String(parseFloat(offerData.freightAmount ?? existingCheck?.freightAmount ?? '0'));
+          updateFields.freightTaxAmount  = String(_patchFreightTax);
+          updateFields.finalValue        = String(_patchFinalValue);
+        }
 
         // Build the UPDATE SQL manually (Drizzle ORM uses the pool; we need the locked client)
         // $1 = targetStatus, $2 = nextRevision; dynamic fields start at $3
@@ -1997,6 +2073,9 @@ export function setupSalesMarketingRoutes(app: Express) {
           paymentTerms: 'payment_terms', deliveryTerms: 'delivery_terms',
           notes: 'notes', termsAndConditions: 'terms_and_conditions',
           language: 'language', offerType: 'offer_type',
+          // OFFER-FREIGHT-001
+          offerScope: 'offer_scope', freightAmount: 'freight_amount',
+          freightTaxAmount: 'freight_tax_amount', finalValue: 'final_value',
         };
         for (const [jsKey, sqlCol] of Object.entries(fieldMap)) {
           if (updateFields[jsKey] !== undefined) {
@@ -2677,6 +2756,9 @@ export function setupSalesMarketingRoutes(app: Express) {
       res.status(500).json({ error: 'Failed to generate download URL' });
     }
   });
+
+  // ── Offer Communication Register routes ────────────────────────────────────
+  registerOfferCommRoutes(router);
 
   console.log('Sales and marketing routes registered with tank prices');
 }

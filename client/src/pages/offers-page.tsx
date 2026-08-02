@@ -28,6 +28,7 @@ import {
 import { ExcelJS } from "@/lib/excel-client-utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Product } from "@shared/schema";
+import { OfferCommRegister } from "@/components/offer-comm-register";
 
 const CONTINENT_NAME_TO_CODE: Record<string, string> = {
   'Africa': 'AF', 'Asia': 'AS', 'Europe': 'EU',
@@ -92,6 +93,9 @@ const offerFormSchema = z.object({
   currency: z.string().min(1, "Currency is required"),
   discountPercent: z.string().optional(),
   taxPercent: z.string().optional(),
+  // OFFER-FREIGHT-001 — derived/computed fields
+  offerScope:    z.string().nullable().optional(), // 'DOMESTIC'|'EXPORT'|null — set by handleSelectCustomer
+  freightAmount: z.string().optional(),            // user-entered; EXW=0; server re-calculates tax+final
   validUntil: z.string().optional(),
   paymentTerms: z.string().optional(),
   deliveryTerms: z.string().optional(),
@@ -435,7 +439,8 @@ export function OffersContent() {
     defaultValues: {
       customerId: null, customerName: "", customerEmail: "", customerAddress: "",
       contactPerson: "", subject: "", language: "English", currency: "USD", discountPercent: "0",
-      taxPercent: "0", validUntil: "", paymentTerms: "", deliveryTerms: "",
+      taxPercent: "0", offerScope: null, freightAmount: "0",
+      validUntil: "", paymentTerms: "", deliveryTerms: "",
       notes: "", termsAndConditions: "", offerType: "standalone" as const, items: [],
     },
   });
@@ -445,6 +450,9 @@ export function OffersContent() {
   const watchItems = useWatch({ control: form.control, name: "items" });
   const watchDiscountPercent = useWatch({ control: form.control, name: "discountPercent" });
   const watchTaxPercent = useWatch({ control: form.control, name: "taxPercent" });
+  const watchOfferScope   = useWatch({ control: form.control, name: "offerScope" });
+  const watchFreightAmount = useWatch({ control: form.control, name: "freightAmount" });
+  const watchDeliveryTerms = useWatch({ control: form.control, name: "deliveryTerms" });
 
   const subtotal = (watchItems || []).reduce((sum, item) => {
     if (item.isSubItem) return sum;
@@ -460,7 +468,18 @@ export function OffersContent() {
   const taxPct = parseFloat(watchTaxPercent || "0");
   const taxAmount = afterDiscount * (taxPct / 100);
   const totalAmount = afterDiscount + taxAmount;
-  const calculations = { subtotal, discountAmount, taxAmount, totalAmount };
+  // OFFER-FREIGHT-001 — client-side display calculations (server recalculates authoritatively on save)
+  const freightAmt     = parseFloat(watchFreightAmount || "0");
+  const isDomestic     = watchOfferScope === 'DOMESTIC';
+  const freightTaxAmt  = isDomestic && taxPct > 0
+    ? parseFloat((freightAmt * taxPct / 100).toFixed(2)) : 0;
+  const finalValue     = totalAmount + freightAmt + freightTaxAmt;
+  const isExportScope  = watchOfferScope === 'EXPORT';
+  // Show freight field for FOB, CIF, DDP; hide for EXW
+  const showFreightField = !!watchDeliveryTerms &&
+    !watchDeliveryTerms.toLowerCase().includes('ex-works');
+  const calculations = { subtotal, discountAmount, taxAmount, totalAmount,
+                         freightTaxAmt, finalValue };
 
   // Extract 4-char FY code from offer number e.g. "OFR-2627-0001" → "2627"
   const fyOptions = useMemo(() => {
@@ -623,7 +642,8 @@ export function OffersContent() {
     form.reset({
       customerId: null, customerName: "", customerEmail: "", customerAddress: "",
       contactPerson: "", subject: "", language: "English", currency: "USD", discountPercent: "0",
-      taxPercent: "0", validUntil: "", paymentTerms: "", deliveryTerms: "",
+      taxPercent: "0", offerScope: null, freightAmount: "0",
+      validUntil: "", paymentTerms: "", deliveryTerms: "",
       notes: "", termsAndConditions: "", offerType: "standalone" as const, items: [],
     });
   };
@@ -656,6 +676,9 @@ export function OffersContent() {
         currency: data.currency || "USD",
         discountPercent: data.discountPercent || "0",
         taxPercent: data.taxPercent || "0",
+        // OFFER-FREIGHT-001
+        offerScope:    data.offerScope    || null,
+        freightAmount: String(data.freightAmount ?? 0),
         validUntil: data.validUntil ? new Date(data.validUntil).toISOString().split('T')[0] : "",
         paymentTerms: data.paymentTerms || "",
         deliveryTerms: data.deliveryTerms || "",
@@ -701,6 +724,17 @@ export function OffersContent() {
       form.setValue("customerEmail", customer.email || customer.sapEmail || "");
       form.setValue("customerAddress", customer.billToAddress || customer.sapMailAddress || "");
       form.setValue("contactPerson", customer.contactPerson || "");
+      // OFFER-FREIGHT-001 — derive scope from country_code only (single authoritative source)
+      const code = (customer.countryCode || "").trim().toUpperCase();
+      if (!code) {
+        form.setValue("offerScope", null);
+      } else {
+        const scope = code === 'IN' ? 'DOMESTIC' : 'EXPORT';
+        form.setValue("offerScope", scope);
+        if (scope === 'EXPORT') {
+          form.setValue("taxPercent", "0");
+        }
+      }
     }
   };
 
@@ -841,6 +875,8 @@ export function OffersContent() {
       discountAmount: calculations.discountAmount.toFixed(2),
       taxAmount: calculations.taxAmount.toFixed(2),
       totalAmount: calculations.totalAmount.toFixed(2),
+      // OFFER-FREIGHT-001 — send freightAmount; server ignores freightTaxAmount + finalValue from client
+      freightAmount: parseFloat(data.freightAmount || "0").toFixed(2),
       validUntil: data.validUntil ? new Date(data.validUntil) : null,
       items: data.items.map((item, idx) => {
         const qty = parseFloat(item.quantity || "0");
@@ -889,6 +925,20 @@ export function OffersContent() {
     const afterDiscount = subtotal - discountAmount;
     const taxAmount = afterDiscount * (taxPct / 100);
     const totalAmount = afterDiscount + taxAmount;
+    // OFFER-FREIGHT-001 Excel calculations
+    const excelFreight    = parseFloat(data.freightAmount || "0");
+    const excelScope      = data.offerScope;
+    const excelIsDomestic = excelScope === 'DOMESTIC';
+    const excelFreightTax = excelIsDomestic && taxPct > 0
+      ? parseFloat((excelFreight * taxPct / 100).toFixed(2)) : 0;
+    const excelFinalValue = totalAmount + excelFreight + excelFreightTax;
+    // Final Value label
+    const dt = (data.deliveryTerms || '').toLowerCase();
+    const finalLabel = dt.includes('ex-works') ? 'Ex-Works Value'
+      : dt.includes('fob') ? 'FOB Value'
+      : dt.includes('cif') ? 'CIF Value'
+      : dt.includes('ddp') ? 'DDP Value'
+      : 'Final Value';
     const cur = data.currency || "USD";
 
     const workbook = new ExcelJS.Workbook();
@@ -1014,12 +1064,16 @@ export function OffersContent() {
 
     addRow([]);
 
-    const totals: [string, number][] = [
+    // OFFER-FREIGHT-001 — revised totals structure
+    const excelSubtotals: [string, number][] = [
       ["Subtotal", subtotal],
       ...(discountAmount > 0 ? [[`Discount (${discPct}%)`, -discountAmount] as [string, number]] : []),
-      ...(taxAmount > 0 ? [[`Tax / GST (${taxPct}%)`, taxAmount] as [string, number]] : []),
+      ["Net Ex-Works Value", afterDiscount],
+      ...(!excelScope || excelScope === 'DOMESTIC'
+        ? (taxAmount > 0 ? [[`Tax / GST (${taxPct}%)`, taxAmount] as [string, number]] : [])
+        : []),
     ];
-    for (const [lbl, val] of totals) {
+    for (const [lbl, val] of excelSubtotals) {
       const tRow = ws.addRow(["", "", "", "", "", lbl, val]);
       tRow.height = 16;
       tRow.getCell(6).font = { size: 9, color: { argb: "FF475569" } };
@@ -1033,7 +1087,49 @@ export function OffersContent() {
       merge(tRow.number, 6, tRow.number, 6);
     }
 
-    const totRow = ws.addRow(["", "", "", "", "", `TOTAL (${cur})`, totalAmount]);
+    // Total Ex-Works Value row
+    const exwRow = ws.addRow(["", "", "", "", "", `Total Ex-Works Value (${cur})`, totalAmount]);
+    exwRow.height = 18;
+    exwRow.getCell(6).font = { bold: true, size: 9, color: { argb: "FF1E3A5F" } };
+    exwRow.getCell(6).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE8F0FE" } };
+    exwRow.getCell(6).alignment = { horizontal: "right", vertical: "middle" };
+    exwRow.getCell(7).font = { bold: true, size: 9, color: { argb: "FF1E3A5F" } };
+    exwRow.getCell(7).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE8F0FE" } };
+    exwRow.getCell(7).numFmt = "#,##0.00";
+    exwRow.getCell(7).alignment = { horizontal: "right", vertical: "middle" };
+    [6, 7].forEach(c => exwRow.getCell(c).border = allBorders);
+
+    // Freight + Tax on Freight rows (conditional)
+    if (excelFreight > 0) {
+      const fRow = ws.addRow(["", "", "", "", "", "Freight Amount", excelFreight]);
+      fRow.height = 16;
+      fRow.getCell(6).font = { size: 9, color: { argb: "FF475569" } };
+      fRow.getCell(6).alignment = { horizontal: "right", vertical: "middle" };
+      fRow.getCell(7).font = { size: 9 };
+      fRow.getCell(7).numFmt = "#,##0.00";
+      fRow.getCell(7).alignment = { horizontal: "right", vertical: "middle" };
+      fRow.getCell(7).fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_BG } };
+      fRow.getCell(6).fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_BG } };
+      [6, 7].forEach(c => fRow.getCell(c).border = allBorders);
+      merge(fRow.number, 6, fRow.number, 6);
+
+      if (excelFreightTax > 0) {
+        const ftRow = ws.addRow(["", "", "", "", "", `Tax on Freight (${taxPct}%)`, excelFreightTax]);
+        ftRow.height = 16;
+        ftRow.getCell(6).font = { size: 9, color: { argb: "FF475569" } };
+        ftRow.getCell(6).alignment = { horizontal: "right", vertical: "middle" };
+        ftRow.getCell(7).font = { size: 9 };
+        ftRow.getCell(7).numFmt = "#,##0.00";
+        ftRow.getCell(7).alignment = { horizontal: "right", vertical: "middle" };
+        ftRow.getCell(7).fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_BG } };
+        ftRow.getCell(6).fill = { type: "pattern", pattern: "solid", fgColor: { argb: TOTAL_BG } };
+        [6, 7].forEach(c => ftRow.getCell(c).border = allBorders);
+        merge(ftRow.number, 6, ftRow.number, 6);
+      }
+    }
+
+    // Final Value grand total row
+    const totRow = ws.addRow(["", "", "", "", "", `${finalLabel} (${cur})`, excelFinalValue]);
     totRow.height = 20;
     totRow.getCell(6).font = { bold: true, size: 10, color: { argb: "FFFFFFFF" } };
     totRow.getCell(6).fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND_BLUE } };
@@ -1919,12 +2015,12 @@ export function OffersContent() {
                       <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">Customer Details</h3>
                     </div>
                     <div className="p-4 space-y-3">
-                      <div className="grid grid-cols-4 gap-3">
-                        <div ref={customerComboRef} className="relative">
+                      <div className="grid grid-cols-12 gap-3">
+                        <div ref={customerComboRef} className="relative col-span-4">
                           <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Select Customer</Label>
                           <div
-                            className="flex items-center h-9 w-full rounded-md border border-input bg-background px-3 text-sm cursor-pointer gap-2"
-                            onClick={() => setCustomerComboOpen(o => !o)}
+                            className={`flex items-center h-9 w-full rounded-md border border-input px-3 text-sm gap-2 ${editingOffer ? 'bg-muted text-muted-foreground cursor-default pointer-events-none' : 'bg-background cursor-pointer'}`}
+                            onClick={() => !editingOffer && setCustomerComboOpen(o => !o)}
                           >
                             <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                             <span className="truncate text-muted-foreground">
@@ -1970,20 +2066,20 @@ export function OffersContent() {
                           )}
                         </div>
                         <FormField control={form.control} name="customerName" render={({ field }) => (
-                          <FormItem>
+                          <FormItem className="col-span-4">
                             <FormLabel className="text-xs font-medium text-slate-600">Customer Name *</FormLabel>
-                            <FormControl><Input {...field} className="h-9 text-sm" /></FormControl>
+                            <FormControl><Input {...field} className="h-9 text-sm" readOnly={!!editingOffer} disabled={!!editingOffer} /></FormControl>
                             <FormMessage />
                           </FormItem>
                         )} />
                         <FormField control={form.control} name="contactPerson" render={({ field }) => (
-                          <FormItem>
+                          <FormItem className="col-span-2">
                             <FormLabel className="text-xs font-medium text-slate-600">Contact Person</FormLabel>
                             <FormControl><Input {...field} className="h-9 text-sm" /></FormControl>
                           </FormItem>
                         )} />
                         <FormField control={form.control} name="customerEmail" render={({ field }) => (
-                          <FormItem>
+                          <FormItem className="col-span-2">
                             <FormLabel className="text-xs font-medium text-slate-600">Email</FormLabel>
                             <FormControl><Input {...field} type="email" className="h-9 text-sm" /></FormControl>
                           </FormItem>
@@ -2051,6 +2147,7 @@ export function OffersContent() {
                         )} />
                       </div>
                       <div className="grid grid-cols-[80px_140px_1fr_1fr] gap-3">
+                        {/* OFFER-FREIGHT-001 — Freight Amount (shown for FOB/CIF/DDP, hidden for EXW) */}
                         <FormField control={form.control} name="currency" render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-xs font-medium text-slate-600">Currency *</FormLabel>
@@ -2092,14 +2189,22 @@ export function OffersContent() {
                         <FormField control={form.control} name="deliveryTerms" render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-xs font-medium text-slate-600">Delivery Terms</FormLabel>
-                            <Select value={field.value || ""} onValueChange={field.onChange}>
+                            <Select
+                              value={field.value || ""}
+                              onValueChange={(val) => {
+                                field.onChange(val);
+                                // OFFER-FREIGHT-001: EXW carries no freight — reset to 0 on switch
+                                if (val.toLowerCase().includes('ex-works')) {
+                                  form.setValue("freightAmount", "0");
+                                }
+                              }}
+                            >
                               <FormControl><SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select delivery terms" /></SelectTrigger></FormControl>
                               <SelectContent>
                                 <SelectItem value="Ex-Works Mumbai Factory">Ex-Works Mumbai Factory</SelectItem>
                                 <SelectItem value="FOB Mumbai Port">FOB Mumbai Port</SelectItem>
                                 <SelectItem value="CIF Destination Port">CIF Destination Port</SelectItem>
                                 <SelectItem value="DDP Destination">DDP Destination</SelectItem>
-                                <SelectItem value="5-6 Months for shipment, 1.5 Months shipping, 1 Month commissioning">5-6 Months shipment + 1.5 Months shipping + 1 Month commissioning</SelectItem>
                               </SelectContent>
                             </Select>
                           </FormItem>
@@ -2285,40 +2390,109 @@ export function OffersContent() {
                     )}
                   </div>
 
-                  {/* Totals Panel */}
+                  {/* Totals Panel — OFFER-FREIGHT-001 */}
                   {fields.length > 0 && (
                     <div className="flex justify-end">
-                      <div className="w-80 rounded-xl border bg-slate-50/60 shadow-sm overflow-hidden">
-                        <div className="px-4 py-3 space-y-2.5">
+                      <div className="w-[460px] rounded-xl border bg-slate-50/60 shadow-sm overflow-hidden">
+                        <div className="px-4 py-3 space-y-2">
+                          {/* Subtotal */}
                           <div className="flex justify-between text-sm">
                             <span className="text-slate-500">Subtotal</span>
                             <span className="font-medium tabular-nums">
                               {form.watch("currency")} {calculations.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </span>
                           </div>
+                          {/* Discount % */}
                           <div className="flex items-center justify-between gap-3">
                             <span className="text-sm text-slate-500 whitespace-nowrap">Discount %</span>
                             <div className="flex items-center gap-2">
                               <Input {...form.register("discountPercent")} className="h-7 w-20 text-right text-sm" type="number" step="0.01" />
-                              <span className="text-sm text-red-500 tabular-nums w-28 text-right">
+                              <span className="text-sm text-red-500 tabular-nums w-32 text-right">
                                 −{calculations.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                               </span>
                             </div>
                           </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-sm text-slate-500 whitespace-nowrap">Tax %</span>
-                            <div className="flex items-center gap-2">
-                              <Input {...form.register("taxPercent")} className="h-7 w-20 text-right text-sm" type="number" step="0.01" />
-                              <span className="text-sm text-emerald-600 tabular-nums w-28 text-right">
-                                +{calculations.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {/* Net Ex-Works Value */}
+                          <div className="flex justify-between text-sm border-t pt-2">
+                            <span className="text-slate-600 font-medium">Net Ex-Works Value</span>
+                            <span className="font-medium tabular-nums">
+                              {form.watch("currency")} {(calculations.subtotal - calculations.discountAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          {/* Tax % — hidden for EXPORT; GST slab dropdown */}
+                          {!isExportScope && (
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-sm text-slate-500 whitespace-nowrap">GST %</span>
+                              <div className="flex items-center gap-2">
+                                <Select
+                                  value={form.watch("taxPercent") ?? "0"}
+                                  onValueChange={(v) => form.setValue("taxPercent", v, { shouldValidate: true })}
+                                >
+                                  <SelectTrigger className="h-7 w-28 text-sm text-right">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="0">0% — Exempt</SelectItem>
+                                    <SelectItem value="5">5%</SelectItem>
+                                    <SelectItem value="18">18%</SelectItem>
+                                    <SelectItem value="40">40%</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <span className="text-sm text-emerald-600 tabular-nums w-32 text-right">
+                                  +{calculations.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          {/* Total Ex-Works Value */}
+                          <div className="flex justify-between text-sm border-t pt-2">
+                            <span className="text-slate-600 font-semibold">Total Ex-Works Value</span>
+                            <span className="font-semibold tabular-nums">
+                              {form.watch("currency")} {calculations.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          {/* Freight Amount input — shown for FOB/CIF/DDP, hidden for EXW */}
+                          {showFreightField && (
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-sm text-slate-500 whitespace-nowrap">Freight Amount</span>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  {...form.register("freightAmount")}
+                                  className="h-7 w-20 text-right text-sm"
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  placeholder="0.00"
+                                />
+                                <span className="text-sm tabular-nums w-32 text-right">
+                                  {freightAmt > 0
+                                    ? `+${form.watch("currency")} ${freightAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                                    : <span className="text-slate-300">—</span>}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          {/* GST on Freight — shown when DOMESTIC + freight > 0, regardless of current taxPct */}
+                          {showFreightField && isDomestic && freightAmt > 0 && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-slate-500">GST on Freight ({taxPct}%)</span>
+                              <span className="text-emerald-600 tabular-nums">
+                                +{form.watch("currency")} {calculations.freightTaxAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                               </span>
                             </div>
-                          </div>
+                          )}
                         </div>
-                        <div className="flex justify-between items-center px-4 py-3 border-t bg-white font-bold text-base">
-                          <span className="text-slate-700">Total</span>
-                          <span className="tabular-nums text-primary">
-                            {form.watch("currency")} {calculations.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {/* Final Value grand total */}
+                        <div className="flex justify-between items-center px-4 py-3 border-t bg-[#003366] font-bold text-base">
+                          <span className="text-white text-sm">
+                            {watchDeliveryTerms?.toLowerCase().includes('ex-works') ? 'Ex-Works Value'
+                              : watchDeliveryTerms?.toLowerCase().includes('fob') ? 'FOB Value'
+                              : watchDeliveryTerms?.toLowerCase().includes('cif') ? 'CIF Value'
+                              : watchDeliveryTerms?.toLowerCase().includes('ddp') ? 'DDP Value'
+                              : 'Final Value'}
+                          </span>
+                          <span className="tabular-nums text-white">
+                            {form.watch("currency")} {calculations.finalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </span>
                         </div>
                       </div>
@@ -2347,13 +2521,31 @@ export function OffersContent() {
                     </div>
                   </div>
 
+                  {/* Communication Register — visible when editing an existing offer */}
+                  {editingOffer && (
+                    <OfferCommRegister
+                      offerId={editingOffer.id}
+                      offerStatus={editingOffer.status}
+                      offerContactPerson={editingOffer.contactPerson ?? ''}
+                      customerContacts={(() => {
+                        const cust = customers.find((c: any) => c.id === editingOffer.customerId);
+                        if (!cust) return [];
+                        return [
+                          cust.contactPerson   ? { name: cust.contactPerson,  email: cust.email      || undefined, phone: cust.phone1         || undefined } : null,
+                          cust.contact2Name    ? { name: cust.contact2Name,   email: cust.contact2Email || undefined, phone: cust.contact2Phone || undefined } : null,
+                          cust.contact3Name    ? { name: cust.contact3Name,   email: cust.contact3Email || undefined, phone: cust.contact3Phone || undefined } : null,
+                        ].filter(Boolean) as { name: string; email?: string; phone?: string }[];
+                      })()}
+                    />
+                  )}
+
                 </div>
 
                 {/* ── Sticky Footer ── */}
                 <div className="flex items-center justify-between px-6 py-3 border-t bg-slate-50/90 backdrop-blur-sm shrink-0">
                   <p className="text-xs text-muted-foreground tabular-nums">
                     {fields.length > 0
-                      ? `${fields.filter((_f, i) => !(watchItems?.[i]?.isSubItem)).length} item(s) · ${form.watch("currency")} ${calculations.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                      ? `${fields.filter((_f, i) => !(watchItems?.[i]?.isSubItem)).length} item(s) · ${form.watch("currency")} ${calculations.finalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                       : "No items added yet"}
                   </p>
                   <div className="flex items-center gap-2">

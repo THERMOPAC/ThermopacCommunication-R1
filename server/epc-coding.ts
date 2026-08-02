@@ -307,6 +307,60 @@ export function buildEpcQtnGcsPath(
   return `TPEL/${continentCode}/${countryCode}/${customerCustToken}/${fyCode}/Open_Quotations/${safeName}/${seq}-${label}-${rev}.pdf`;
 }
 
+// ── Offer Communication Register path builders ────────────────────────────────
+// Two independent functions. Neither calls the other.
+// buildOfferCommDocPath  → Open_Quotations path (pre-order, uploaded/generated docs)
+// buildProjectDocPath    → SOR project path (post-conversion copies only)
+
+/**
+ * Open Quotations document path for Communication Register files.
+ * Used when uploading or generating documents against an open Offer.
+ *
+ * Example:
+ *   TPEL/PROJECTS/AS/IN/C10147-AFRO/2526/Open_Quotations/OFR-2526-0031/2_Design/3_P_ID/001-PID-rev-00.pdf
+ */
+export function buildOfferCommDocPath(
+  continentCode: string,
+  countryCode: string,
+  customerToken: string,
+  fyCode: string,
+  offerNumber: string,
+  categoryPath: string,
+  seq: number,
+  label: string,
+  revision: string, // e.g. '00', '01'
+  ext: string,      // without leading dot
+): string {
+  const safeOffer = offerNumber.replace(/\//g, '-');
+  const safeLabel = label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') || 'doc';
+  const seqPad = String(seq).padStart(3, '0');
+  return `TPEL/PROJECTS/${continentCode}/${countryCode}/${customerToken}/${fyCode}/Open_Quotations/${safeOffer}/${categoryPath}/${seqPad}-${safeLabel}-rev-${revision}.${ext}`;
+}
+
+/**
+ * SOR project document path. Used ONLY when copying communication documents
+ * from Open_Quotations to the SOR project at Order Confirmation.
+ * Original filename is preserved exactly — no rename.
+ *
+ * Example:
+ *   TPEL/PROJECTS/AS/IN/C10147-AFRO/2526/SOR_031/2_Design/3_P_ID/001-PID-rev-00.pdf
+ */
+export function buildProjectDocPath(
+  continentCode: string,
+  countryCode: string,
+  customerToken: string,
+  fyCode: string,
+  projectRoot: string, // e.g. 'SOR_031'
+  categoryPath: string,
+  fileName: string,    // original filename — preserved exactly
+): string {
+  return `TPEL/PROJECTS/${continentCode}/${countryCode}/${customerToken}/${fyCode}/${projectRoot}/${categoryPath}/${fileName}`;
+}
+
 export async function resolveContextualRevision(
   documentNumber: string,
   docType: 'DWG' | 'BOM',
