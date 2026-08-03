@@ -1,9 +1,9 @@
 /**
  * OfferCommRegister — Offer Communication Register
  *
- * Renders the Communications section on the Offer detail view.
- * Primary business object: Communication Record.
- * Communication Category is a mandatory attribute on each record.
+ * Flat table. Row actions via dropdown: Download, Edit, Upload New Revision, Delete.
+ * File upload for new records is in the New Communication Record form.
+ * File replacement / revision upload is in the Edit Communication Record form.
  */
 
 import { useState, useRef } from "react";
@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -41,14 +40,10 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  MessageSquare, Plus, ChevronDown, ChevronRight, Upload, Download,
-  RefreshCw, Loader2, FileText, FileSpreadsheet, File, AlertCircle,
-  CheckCircle2, Clock, UploadCloud, ChevronsUpDown, Check,
-  Wand2, FileImage, MonitorPlay, MoreVertical,
+  MessageSquare, Plus, Download, Loader2, FileText, FileSpreadsheet,
+  File, AlertCircle, CheckCircle2, Clock, UploadCloud, ChevronsUpDown,
+  Check, Wand2, FileImage, MonitorPlay, RefreshCw, Pencil, Trash2,
 } from "lucide-react";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
@@ -195,203 +190,6 @@ function fmtDate(d?: string) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Document panel — shown inside expanded row
-// ══════════════════════════════════════════════════════════════════════════════
-
-interface DocumentPanelProps {
-  offerId: number;
-  commId: number;
-  responseType?: string;
-  communicationCategoryId?: number;
-}
-
-function DocumentPanel({ offerId, commId, responseType, communicationCategoryId }: DocumentPanelProps) {
-  const { toast } = useToast();
-  const uploadRef   = useRef<HTMLInputElement>(null);
-  const reviseRef   = useRef<HTMLInputElement>(null);
-  const [revisingDocId, setRevisingDocId] = useState<number | null>(null);
-  const [labelInput, setLabelInput]       = useState('');
-  const [downloading, setDownloading]     = useState<number | null>(null);
-
-  const { data: comm, isLoading } = useQuery<{ documents: CommDoc[] }>({
-    queryKey: ['/api/sales-marketing/offers', offerId, 'communications', commId],
-    queryFn: () =>
-      fetch(`/api/sales-marketing/offers/${offerId}/communications/${commId}`, { credentials: 'include' })
-        .then(r => r.json()),
-  });
-
-  const documents  = comm?.documents ?? [];
-  const currentDocs = documents.filter(d => d.isCurrent);
-
-  // ── Mutations ────────────────────────────────────────────────────────────
-  const uploadMutation = useMutation({
-    mutationFn: async ({ file, label }: { file: File; label: string }) => {
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('label', label);
-      const res = await fetch(`/api/sales-marketing/offers/${offerId}/communications/${commId}/documents/upload`, {
-        method: 'POST', credentials: 'include', body: fd,
-      });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Upload failed'); }
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers', offerId, 'communications', commId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers', offerId, 'communications'] });
-      toast({ title: 'Document uploaded successfully' });
-      setLabelInput('');
-    },
-    onError: (err: Error) => toast({ title: 'Upload failed', description: err.message, variant: 'destructive' }),
-  });
-
-  const reviseMutation = useMutation({
-    mutationFn: async ({ file, docId, label }: { file: File; docId: number; label: string }) => {
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('label', label);
-      const res = await fetch(`/api/sales-marketing/offers/${offerId}/communications/${commId}/documents/${docId}/revise`, {
-        method: 'POST', credentials: 'include', body: fd,
-      });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Revision failed'); }
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers', offerId, 'communications', commId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers', offerId, 'communications'] });
-      toast({ title: 'New revision added' });
-      setRevisingDocId(null);
-    },
-    onError: (err: Error) => toast({ title: 'Revision failed', description: err.message, variant: 'destructive' }),
-  });
-
-  function handleUploadFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const label = labelInput.trim() || file.name.replace(/\.[^.]+$/, '');
-    uploadMutation.mutate({ file, label });
-    e.target.value = '';
-  }
-
-  function handleReviseFile(e: React.ChangeEvent<HTMLInputElement>, docId: number, currentLabel: string) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    reviseMutation.mutate({ file, docId, label: currentLabel });
-    e.target.value = '';
-  }
-
-  async function handleDownload(docId: number, fileName: string) {
-    setDownloading(docId);
-    try {
-      const res = await fetch(
-        `/api/sales-marketing/offers/${offerId}/communications/${commId}/documents/${docId}/download`,
-        { credentials: 'include' }
-      );
-      const { url } = await res.json();
-      const a = document.createElement('a');
-      a.href = url; a.download = fileName; a.click();
-    } catch {
-      toast({ title: 'Download failed', variant: 'destructive' });
-    } finally {
-      setDownloading(null);
-    }
-  }
-
-  if (isLoading) return <div className="p-3 text-xs text-muted-foreground">Loading documents…</div>;
-
-  return (
-    <div className="px-4 pb-4">
-      {/* ── Action bar ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 mb-3">
-        <Input
-          value={labelInput}
-          onChange={e => setLabelInput(e.target.value)}
-          placeholder="Document label (e.g. PID Clarification)"
-          className="h-7 text-xs max-w-xs"
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-7 text-xs gap-1"
-          onClick={() => uploadRef.current?.click()}
-          disabled={uploadMutation.isPending}
-        >
-          {uploadMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />}
-          Upload Document
-        </Button>
-        <input ref={uploadRef} type="file" className="hidden" onChange={handleUploadFile} />
-      </div>
-
-      {/* ── Document list ───────────────────────────────────────────────────── */}
-      {currentDocs.length === 0 ? (
-        <p className="text-xs text-muted-foreground italic">No documents uploaded yet.</p>
-      ) : (
-        <div className="space-y-1.5">
-          {currentDocs.map(doc => {
-            const docLabel = doc.fileName.replace(/^\d+-/, '').replace(/-rev-\d+\.\w+$/, '');
-            const isGenerated = !!doc.templateId;
-            return (
-              <div key={doc.id} className="flex items-center gap-2 rounded border bg-slate-50 px-3 py-1.5 text-xs">
-                {docTypeIcon(doc.documentType)}
-                <span className="flex-1 font-mono truncate max-w-[280px]" title={doc.fileName}>{doc.fileName}</span>
-                {doc.templateId && (
-                  <span title="Generated from template">
-                    <Wand2 className="h-2.5 w-2.5 text-indigo-400" />
-                  </span>
-                )}
-                <Badge variant="outline" className="text-[9px] px-1 py-0">rev-{doc.revision}</Badge>
-                <span className="text-muted-foreground hidden sm:inline">{fmtDate(doc.uploadedAt)}</span>
-                {mirrorIcon(doc.mirrorStatus)}
-
-                {/* Upload Revision */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 text-[10px] px-1.5"
-                  onClick={() => {
-                    setRevisingDocId(doc.id);
-                    setTimeout(() => reviseRef.current?.click(), 50);
-                  }}
-                  disabled={reviseMutation.isPending}
-                  title="Upload new revision"
-                >
-                  <RefreshCw className="h-2.5 w-2.5" />
-                </Button>
-
-                {/* Download */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 text-[10px] px-1.5"
-                  onClick={() => handleDownload(doc.id, doc.fileName)}
-                  disabled={downloading === doc.id}
-                >
-                  {downloading === doc.id ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Download className="h-2.5 w-2.5" />}
-                </Button>
-              </div>
-            );
-          })}
-          {/* Hidden file input for upload-revise */}
-          <input
-            type="file"
-            className="hidden"
-            ref={reviseRef}
-            onChange={e => {
-              if (revisingDocId == null) return;
-              const doc = currentDocs.find(d => d.id === revisingDocId);
-              const label = doc?.fileName.replace(/^\d+-/, '').replace(/-rev-\d+\.\w+$/, '') ?? 'doc';
-              handleReviseFile(e, revisingDocId, label);
-            }}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
 // Main component
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -410,23 +208,31 @@ interface OfferCommRegisterProps {
 
 export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, customerContacts = [] }: OfferCommRegisterProps) {
   const { toast } = useToast();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [contactOpen, setContactOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen]     = useState(false);
+  const [editingId, setEditingId]       = useState<number | null>(null);
+  const [contactOpen, setContactOpen]   = useState(false);
+
   // Tracks whether the user has manually edited the Subject field.
-  // When true, category changes no longer overwrite the subject.
   const subjectUserEdited = useRef(false);
-  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+
   const [filterCategory, setFilterCategory]   = useState('');
   const [filterStatus, setFilterStatus]       = useState('');
   const [filterDirection, setFilterDirection] = useState('');
-  // Pending file for "attach on create" flow
+
+  // Pending file for "attach on create" flow (new record only)
   const [pendingFile, setPendingFile]         = useState<File | null>(null);
   const formUploadRef                         = useRef<HTMLInputElement>(null);
+
+  // Pending file for revision in edit form
+  const [pendingRevisionFile, setPendingRevisionFile] = useState<File | null>(null);
+  const revisionUploadRef                             = useRef<HTMLInputElement>(null);
+
   // Delete confirmation
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
-  // Downloading docs from row-level button
+
+  // Download state
   const [downloadingComm, setDownloadingComm] = useState<number | null>(null);
+
   // ── Categories ────────────────────────────────────────────────────────────
   const { data: categories = [] } = useQuery<CommCategory[]>({
     queryKey: ['/api/sales-marketing/offer-comm-categories'],
@@ -447,6 +253,18 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
         .then(r => r.json()),
   });
 
+  // ── Current docs for the comm being edited ───────────────────────────────
+  const { data: editCommData } = useQuery<{ documents: CommDoc[] }>({
+    queryKey: ['/api/sales-marketing/offers', offerId, 'communications', editingId],
+    queryFn: () =>
+      fetch(`/api/sales-marketing/offers/${offerId}/communications/${editingId}`, { credentials: 'include' })
+        .then(r => r.json()),
+    enabled: !!editingId,
+  });
+  const editCurrentDocs = (editCommData?.documents ?? []).filter(
+    (d: any) => d.isCurrent === true || d.is_current === true
+  );
+
   // ── Form ──────────────────────────────────────────────────────────────────
   const form = useForm<CommFormValues>({
     resolver: zodResolver(commFormSchema),
@@ -458,23 +276,33 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
     },
   });
 
+  // ── Mutations ─────────────────────────────────────────────────────────────
+
   const createMutation = useMutation({
     mutationFn: (data: CommFormValues) =>
       apiRequest('POST', `/api/sales-marketing/offers/${offerId}/communications`, data),
     onSuccess: async (data: any) => {
-      // If user attached a file in the form, upload it now before closing
+      // If user attached a file in the form, upload it now
       if (data?.id && pendingFile) {
         try {
           const fd = new FormData();
           fd.append('file', pendingFile);
           fd.append('label', pendingFile.name.replace(/\.[^.]+$/, ''));
-          await fetch(
+          const uploadRes = await fetch(
             `/api/sales-marketing/offers/${offerId}/communications/${data.id}/documents/upload`,
             { method: 'POST', credentials: 'include', body: fd }
           );
+          if (!uploadRes.ok) {
+            const errBody = await uploadRes.json().catch(() => ({}));
+            throw new Error(errBody.error || `Upload failed (${uploadRes.status})`);
+          }
           toast({ title: 'Record created and document uploaded' });
-        } catch {
-          toast({ title: 'Record created', description: 'Document upload failed — you can retry from the row.', variant: 'destructive' });
+        } catch (uploadErr: any) {
+          toast({
+            title: 'Record created — document upload failed',
+            description: uploadErr.message || 'You can upload from the Edit form.',
+            variant: 'destructive',
+          });
         }
         setPendingFile(null);
       } else {
@@ -482,16 +310,6 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
       }
 
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers', offerId, 'communications'] });
-
-      // Auto-expand the new record and scroll it into view
-      if (data?.id) {
-        setExpandedIds(prev => { const n = new Set(prev); n.add(data.id); return n; });
-        setTimeout(() => {
-          const el = document.getElementById(`comm-expanded-${data.id}`);
-          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 600);
-      }
-
       setDrawerOpen(false);
       form.reset();
     },
@@ -501,9 +319,46 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: CommFormValues }) =>
       apiRequest('PATCH', `/api/sales-marketing/offers/${offerId}/communications/${id}`, data),
-    onSuccess: () => {
+    onSuccess: async (_, { id }) => {
+      // If user attached a revision file in the edit form, upload/revise it now
+      if (pendingRevisionFile) {
+        try {
+          const fd = new FormData();
+          fd.append('file', pendingRevisionFile);
+          fd.append('label', pendingRevisionFile.name.replace(/\.[^.]+$/, ''));
+
+          let uploadUrl: string;
+          let method = 'POST';
+
+          if (editCurrentDocs.length > 0) {
+            // Revise the first current document
+            const docId = editCurrentDocs[0].id;
+            uploadUrl = `/api/sales-marketing/offers/${offerId}/communications/${id}/documents/${docId}/revise`;
+          } else {
+            // No existing doc — upload as first document
+            uploadUrl = `/api/sales-marketing/offers/${offerId}/communications/${id}/documents/upload`;
+          }
+
+          const uploadRes = await fetch(uploadUrl, { method, credentials: 'include', body: fd });
+          if (!uploadRes.ok) {
+            const errBody = await uploadRes.json().catch(() => ({}));
+            throw new Error(errBody.error || `File upload failed (${uploadRes.status})`);
+          }
+          toast({ title: 'Record updated and document uploaded' });
+        } catch (uploadErr: any) {
+          toast({
+            title: 'Record updated — document upload failed',
+            description: (uploadErr as Error).message,
+            variant: 'destructive',
+          });
+        }
+        setPendingRevisionFile(null);
+      } else {
+        toast({ title: 'Communication updated' });
+      }
+
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers', offerId, 'communications'] });
-      toast({ title: 'Communication updated' });
+      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers', offerId, 'communications', id] });
       setDrawerOpen(false);
       setEditingId(null);
       form.reset();
@@ -514,19 +369,20 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
   const deleteMutation = useMutation({
     mutationFn: (commId: number) =>
       apiRequest('POST', `/api/sales-marketing/offers/${offerId}/communications/${commId}/delete`),
-    onSuccess: (_data, commId) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers', offerId, 'communications'] });
-      setExpandedIds(prev => { const n = new Set(prev); n.delete(commId); return n; });
       toast({ title: 'Communication record deleted' });
     },
     onError: (err: Error) => toast({ title: 'Failed to delete', description: err.message, variant: 'destructive' }),
   });
 
+  // ── Drawer open helpers ────────────────────────────────────────────────────
+
   function openNew() {
     setEditingId(null);
+    setPendingFile(null);
+    setPendingRevisionFile(null);
     subjectUserEdited.current = false;
-    // Default contact: match offer's contact person against known contacts,
-    // fall back to the customer's primary contact, then blank.
     const defaultContact = (() => {
       if (customerContacts.length === 0) return '';
       if (offerContactPerson) {
@@ -539,8 +395,7 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
       communicationCategoryId: '',
       responseType: '',
       commDate: new Date().toISOString().split('T')[0],
-      title: '',
-      direction: '', channel: '',
+      title: '', direction: '', channel: '',
       status: 'Open', actionRequired: false,
       customerContact: defaultContact,
     });
@@ -549,7 +404,8 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
 
   function openEdit(comm: CommRecord) {
     setEditingId(comm.id);
-    // Editing an existing record — subject is already user-controlled.
+    setPendingFile(null);
+    setPendingRevisionFile(null);
     subjectUserEdited.current = true;
     form.reset({
       communicationCategoryId: String(comm.communicationCategoryId),
@@ -569,18 +425,20 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
     setDrawerOpen(true);
   }
 
+  function closeDrawer() {
+    setDrawerOpen(false);
+    setEditingId(null);
+    setPendingFile(null);
+    setPendingRevisionFile(null);
+    form.reset();
+  }
+
   function onSubmit(data: CommFormValues) {
     if (editingId) updateMutation.mutate({ id: editingId, data });
     else createMutation.mutate(data);
   }
 
-  function toggleExpand(id: number) {
-    setExpandedIds(prev => {
-      const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
-      return n;
-    });
-  }
+  // ── Download helper ───────────────────────────────────────────────────────
 
   async function handleCommDocDownload(commId: number) {
     setDownloadingComm(commId);
@@ -590,7 +448,6 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
         { credentials: 'include' }
       );
       const data = await res.json();
-      // The single-comm endpoint returns raw pg rows (snake_case), so check both forms
       const currentDocs: CommDoc[] = (data.documents ?? []).filter(
         (d: any) => d.isCurrent === true || d.is_current === true
       );
@@ -598,7 +455,6 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
         toast({ title: 'No documents found', variant: 'destructive' });
         return;
       }
-      // Download each current doc via its signed GCS URL
       for (const doc of currentDocs) {
         const dlRes = await fetch(
           `/api/sales-marketing/offers/${offerId}/communications/${commId}/documents/${doc.id}/download`,
@@ -607,13 +463,8 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
         if (!dlRes.ok) { toast({ title: `Download failed for ${doc.fileName}`, variant: 'destructive' }); continue; }
         const { url, fileName } = await dlRes.json();
         const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        a.href = url; a.download = fileName; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
       }
     } catch {
       toast({ title: 'Download failed', variant: 'destructive' });
@@ -630,13 +481,15 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
     return true;
   });
 
-  const categoriesBySales = categories.filter(c => c.section === 'Sales');
+  const categoriesBySales  = categories.filter(c => c.section === 'Sales');
   const categoriesByDesign = categories.filter(c => c.section === 'Design');
-
   const watchActionRequired = form.watch('actionRequired');
+
+  // ──────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b bg-slate-50/70">
         <div className="flex items-center gap-2">
@@ -686,7 +539,8 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
             </SelectContent>
           </Select>
           {(filterCategory || filterStatus || filterDirection) && (
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setFilterCategory(''); setFilterStatus(''); setFilterDirection(''); }}>
+            <Button variant="ghost" size="sm" className="h-7 text-xs"
+              onClick={() => { setFilterCategory(''); setFilterStatus(''); setFilterDirection(''); }}>
               Clear
             </Button>
           )}
@@ -712,136 +566,116 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
         <Table>
           <TableHeader>
             <TableRow className="bg-slate-50/50">
-              <TableHead className="w-6 px-3" />
-              <TableHead className="text-[11px] font-semibold text-slate-500 py-2">Date</TableHead>
+              <TableHead className="text-[11px] font-semibold text-slate-500 py-2 pl-4">Date</TableHead>
               <TableHead className="text-[11px] font-semibold text-slate-500 py-2">Subject</TableHead>
               <TableHead className="text-[11px] font-semibold text-slate-500 py-2">Category</TableHead>
               <TableHead className="text-[11px] font-semibold text-slate-500 py-2">Direction</TableHead>
               <TableHead className="text-[11px] font-semibold text-slate-500 py-2">Channel</TableHead>
               <TableHead className="text-[11px] font-semibold text-slate-500 py-2">Status</TableHead>
-              <TableHead className="text-[11px] font-semibold text-slate-500 py-2">Docs</TableHead>
-              <TableHead className="text-[11px] font-semibold text-slate-500 py-2 w-36">Actions</TableHead>
+              <TableHead className="text-[11px] font-semibold text-slate-500 py-2 text-center w-14">Docs</TableHead>
+              <TableHead className="text-[11px] font-semibold text-slate-500 py-2 w-52">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map(comm => (
-              <>
-                <TableRow
-                  key={comm.id}
-                  className="cursor-pointer hover:bg-slate-50/80"
-                  onClick={() => toggleExpand(comm.id)}
-                >
-                  <TableCell className="px-3 py-2.5 w-6">
-                    {expandedIds.has(comm.id)
-                      ? <ChevronDown className="h-3 w-3 text-slate-400" />
-                      : <ChevronRight className="h-3 w-3 text-slate-400" />}
-                  </TableCell>
-                  <TableCell className="py-2.5 text-xs tabular-nums whitespace-nowrap">{fmtDate(comm.commDate)}</TableCell>
-                  <TableCell className="py-2.5 text-xs font-medium max-w-[200px] truncate" title={comm.title}>
-                    {comm.title}
-                    {comm.actionRequired && (
-                      <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-orange-400" title="Action required" />
-                    )}
-                  </TableCell>
-                  <TableCell className="py-2.5">
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
-                      {comm.categoryLabel}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="py-2.5">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${directionBadge(comm.direction)}`}>
-                      {comm.direction}
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-2.5 text-xs text-muted-foreground">{comm.channel}</TableCell>
-                  <TableCell className="py-2.5">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${statusBadge(comm.status)}`}>
-                      {comm.status}
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-2.5 text-xs text-muted-foreground tabular-nums">
-                    {comm.docCount > 0 ? comm.docCount : '—'}
-                  </TableCell>
-                  <TableCell className="py-2.5 w-36">
-                    <div className="flex items-center gap-1">
-                      {comm.docCount > 0 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-[10px] px-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                          title="Download attached document(s)"
-                          disabled={downloadingComm === comm.id}
-                          onClick={e => { e.stopPropagation(); handleCommDocDownload(comm.id); }}
-                        >
-                          {downloadingComm === comm.id
-                            ? <Loader2 className="h-3 w-3 mr-0.5 animate-spin" />
-                            : <Download className="h-3 w-3 mr-0.5" />}
-                          Docs
-                        </Button>
-                      )}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 text-[10px] px-1.5"
-                        onClick={e => { e.stopPropagation(); openEdit(comm); }}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 text-[10px] px-1.5 text-red-500 hover:text-red-700 hover:bg-red-50"
-                        onClick={e => {
-                          e.stopPropagation();
-                          setPendingDeleteId(comm.id);
-                        }}
-                        disabled={deleteMutation.isPending}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+              <TableRow key={comm.id} className="hover:bg-slate-50/60">
+                <TableCell className="py-2.5 text-xs tabular-nums whitespace-nowrap pl-4">{fmtDate(comm.commDate)}</TableCell>
+                <TableCell className="py-2.5 text-xs font-medium max-w-[200px] truncate" title={comm.title}>
+                  {comm.title}
+                  {comm.actionRequired && (
+                    <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-orange-400" title="Action required" />
+                  )}
+                </TableCell>
+                <TableCell className="py-2.5">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
+                    {comm.categoryLabel}
+                  </Badge>
+                </TableCell>
+                <TableCell className="py-2.5">
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${directionBadge(comm.direction)}`}>
+                    {comm.direction}
+                  </span>
+                </TableCell>
+                <TableCell className="py-2.5 text-xs text-muted-foreground">{comm.channel}</TableCell>
+                <TableCell className="py-2.5">
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${statusBadge(comm.status)}`}>
+                    {comm.status}
+                  </span>
+                </TableCell>
+                <TableCell className="py-2.5 text-xs text-center tabular-nums text-muted-foreground">
+                  {comm.docCount > 0 ? comm.docCount : '—'}
+                </TableCell>
+                <TableCell className="py-2 pr-3">
+                  <div className="flex items-center gap-0.5">
+                    {/* Docs / Download */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className={`h-7 px-1.5 text-[10px] gap-1 ${
+                        comm.docCount > 0
+                          ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50'
+                          : 'text-slate-300 cursor-not-allowed'
+                      }`}
+                      disabled={comm.docCount === 0 || downloadingComm === comm.id}
+                      title={comm.docCount === 0 ? 'No document attached' : `Download document (${comm.docCount})`}
+                      onClick={() => handleCommDocDownload(comm.id)}
+                    >
+                      {downloadingComm === comm.id
+                        ? <Loader2 className="h-3 w-3 animate-spin" />
+                        : <Download className="h-3 w-3" />}
+                      Docs
+                    </Button>
 
-                {/* Expanded panel */}
-                {expandedIds.has(comm.id) && (
-                  <TableRow key={`exp-${comm.id}`} id={`comm-expanded-${comm.id}`} className="bg-slate-50/40">
-                    <TableCell colSpan={9} className="p-0">
-                      <div className="px-4 pt-3 pb-1 text-xs text-slate-600 grid grid-cols-2 gap-x-8 gap-y-1">
-                        {comm.customerQuestion && (
-                          <div className="col-span-2">
-                            <span className="font-medium text-slate-500">Customer Question: </span>
-                            {comm.customerQuestion}
-                          </div>
-                        )}
-                        {(comm as any).summary && (
-                          <div className="col-span-2">
-                            <span className="font-medium text-slate-500">Response / Summary: </span>
-                            {(comm as any).summary}
-                          </div>
-                        )}
-                        {comm.responsibleName && (
-                          <div>
-                            <span className="font-medium text-slate-500">Responsible: </span>
-                            {comm.responsibleName}
-                            {comm.dueDate && <span className="ml-2 text-amber-700">Due: {fmtDate(comm.dueDate)}</span>}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </>
+                    {/* Edit */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-1.5 text-[10px] gap-1 text-slate-600 hover:text-slate-900"
+                      title="Edit communication record"
+                      onClick={() => openEdit(comm)}
+                    >
+                      <Pencil className="h-3 w-3" />
+                      Edit
+                    </Button>
+
+                    {/* Upload Revision */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-1.5 text-[10px] gap-1 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50"
+                      title={comm.docCount > 0 ? 'Upload new revision' : 'Attach document'}
+                      onClick={() => openEdit(comm)}
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      Revise
+                    </Button>
+
+                    {/* Delete */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-1.5 text-[10px] gap-1 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      title="Delete communication record"
+                      onClick={() => setPendingDeleteId(comm.id)}
+                      disabled={deleteMutation.isPending}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Delete
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
             ))}
           </TableBody>
         </Table>
       )}
 
       {/* ── New / Edit Communication Drawer ─────────────────────────────── */}
-      <Sheet open={drawerOpen} onOpenChange={open => { setDrawerOpen(open); if (!open) { setEditingId(null); form.reset(); } }}>
+      <Sheet open={drawerOpen} onOpenChange={open => { if (!open) closeDrawer(); }}>
         <SheetContent className="w-[520px] sm:max-w-[520px] overflow-y-auto">
           <SheetHeader className="mb-4">
             <SheetTitle className="text-base">
@@ -852,15 +686,13 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
 
-              {/* Communication Category — mandatory */}
+              {/* Communication Category */}
               <FormField control={form.control} name="communicationCategoryId" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-xs font-medium">Communication Category <span className="text-red-500">*</span></FormLabel>
                   <Select
                     onValueChange={(value) => {
                       field.onChange(value);
-                      // Auto-populate Subject only when creating a new record and the
-                      // user has not manually modified the Subject field yet.
                       if (!editingId && !subjectUserEdited.current) {
                         const cat = categories.find(c => String(c.id) === value);
                         const defaultSubject = cat ? (CATEGORY_SUBJECT_DEFAULTS[cat.categoryCode] ?? '') : '';
@@ -894,7 +726,7 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
                 </FormItem>
               )} />
 
-              {/* Response Type — mandatory */}
+              {/* Response Type */}
               <FormField control={form.control} name="responseType" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-xs font-medium">Response Type <span className="text-red-500">*</span></FormLabel>
@@ -911,12 +743,6 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
                       <SelectItem value="note_text">Note / Text Response</SelectItem>
                     </SelectContent>
                   </Select>
-                  {/* Contextual hints */}
-                  {(field.value === 'upload_existing' || field.value === 'drawing_image' || field.value === 'other_document') && (
-                    <p className="text-[11px] text-sky-700 bg-sky-50 border border-sky-200 rounded px-2 py-1 mt-1">
-                      After clicking <strong>Create Record</strong>, the new row will open automatically — click <strong>Upload Document</strong> there to attach your file.
-                    </p>
-                  )}
                   {field.value === 'note_text' && (
                     <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-1">
                       The Response / Summary field below is required for Note type records.
@@ -964,8 +790,6 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
                       className="text-sm"
                       onChange={(e) => {
                         field.onChange(e);
-                        // Mark as user-edited so subsequent category changes
-                        // no longer overwrite what the user typed.
                         subjectUserEdited.current = true;
                       }}
                     />
@@ -994,7 +818,7 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
                 {/* Channel */}
                 <FormField control={form.control} name="channel" render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-medium">Channel <span className="text-xs font-medium">*</span></FormLabel>
+                    <FormLabel className="text-xs font-medium">Channel <span className="text-red-500">*</span></FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl><SelectTrigger className="text-sm"><SelectValue placeholder="Select…" /></SelectTrigger></FormControl>
                       <SelectContent>
@@ -1044,10 +868,7 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
                               <CommandItem
                                 key={c.name}
                                 value={c.name}
-                                onSelect={() => {
-                                  field.onChange(c.name);
-                                  setContactOpen(false);
-                                }}
+                                onSelect={() => { field.onChange(c.name); setContactOpen(false); }}
                               >
                                 <Check className={cn("mr-2 h-3.5 w-3.5", field.value === c.name ? "opacity-100" : "opacity-0")} />
                                 <div className="flex flex-col">
@@ -1061,7 +882,6 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
                       </PopoverContent>
                     </Popover>
                   ) : (
-                    /* Fallback: free-text when no contacts are loaded */
                     <FormControl>
                       <Input {...field} placeholder="Contact name" className="text-sm" />
                     </FormControl>
@@ -1086,9 +906,7 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
                 return (
                   <FormItem>
                     <FormLabel className="text-xs font-medium">
-                      {isNote ? (
-                        <>Response / Note <span className="text-red-500">*</span></>
-                      ) : 'Response / Summary'}
+                      {isNote ? <>Response / Note <span className="text-red-500">*</span></> : 'Response / Summary'}
                     </FormLabel>
                     <FormControl>
                       <Textarea
@@ -1143,10 +961,13 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
                 </div>
               )}
 
-              {/* Attach document — only on create, not on edit */}
-              {!editingId && (
+              {/* ── Document section ─────────────────────────────────────── */}
+              {!editingId ? (
+                /* New record: optional initial attach */
                 <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-3">
-                  <p className="text-xs font-medium text-slate-600 mb-2">Attach Document <span className="text-slate-400 font-normal">(optional)</span></p>
+                  <p className="text-xs font-medium text-slate-600 mb-2">
+                    Attach Document <span className="text-slate-400 font-normal">(optional)</span>
+                  </p>
                   {pendingFile ? (
                     <div className="flex items-center gap-2">
                       <FileText className="h-3.5 w-3.5 text-slate-500 shrink-0" />
@@ -1180,18 +1001,79 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
                     onChange={e => { const f = e.target.files?.[0]; if (f) setPendingFile(f); }}
                   />
                 </div>
+              ) : (
+                /* Edit record: show current doc + upload revision */
+                <div className="rounded-md border border-dashed border-indigo-200 bg-indigo-50/40 px-3 py-3 space-y-2">
+                  <p className="text-xs font-medium text-slate-600">
+                    {editCurrentDocs.length > 0 ? 'Upload New Revision' : 'Attach Document'}{' '}
+                    <span className="text-slate-400 font-normal">(optional)</span>
+                  </p>
+
+                  {/* Current doc summary */}
+                  {editCurrentDocs.length > 0 && (
+                    <div className="flex items-center gap-2 rounded border bg-white px-2 py-1.5 text-xs">
+                      {docTypeIcon(editCurrentDocs[0].documentType)}
+                      <span className="flex-1 font-mono truncate text-slate-700" title={editCurrentDocs[0].fileName}>
+                        {editCurrentDocs[0].fileName}
+                      </span>
+                      {editCurrentDocs[0].templateId && (
+                        <Wand2 className="h-2.5 w-2.5 text-indigo-400 shrink-0" title="Generated from template" />
+                      )}
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 shrink-0">
+                        rev-{editCurrentDocs[0].revision}
+                      </Badge>
+                      {mirrorIcon(editCurrentDocs[0].mirrorStatus)}
+                    </div>
+                  )}
+
+                  {/* File picker */}
+                  {pendingRevisionFile ? (
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                      <span className="text-xs text-slate-700 truncate flex-1">{pendingRevisionFile.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-[10px] px-1.5 text-red-500 hover:text-red-700"
+                        onClick={() => { setPendingRevisionFile(null); if (revisionUploadRef.current) revisionUploadRef.current.value = ''; }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={() => revisionUploadRef.current?.click()}
+                    >
+                      <UploadCloud className="h-3 w-3" />
+                      {editCurrentDocs.length > 0 ? 'Choose New Revision' : 'Choose File'}
+                    </Button>
+                  )}
+                  <input
+                    ref={revisionUploadRef}
+                    type="file"
+                    className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) setPendingRevisionFile(f); }}
+                  />
+                </div>
               )}
 
               {/* Footer */}
               <div className="flex justify-end gap-2 pt-2 border-t">
-                <Button type="button" variant="outline" size="sm" onClick={() => { setDrawerOpen(false); setEditingId(null); setPendingFile(null); form.reset(); }}>
+                <Button type="button" variant="outline" size="sm" onClick={closeDrawer}>
                   Cancel
                 </Button>
                 <Button type="submit" size="sm" disabled={createMutation.isPending || updateMutation.isPending}>
-                  {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />}
+                  {(createMutation.isPending || updateMutation.isPending) && (
+                    <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                  )}
                   {editingId
-                    ? 'Save Changes'
-                    : createMutation.isPending ? 'Creating…' : 'Create Record'
+                    ? (updateMutation.isPending ? 'Saving…' : 'Save Changes')
+                    : (createMutation.isPending ? 'Creating…' : 'Create Record')
                   }
                 </Button>
               </div>
@@ -1200,7 +1082,7 @@ export function OfferCommRegister({ offerId, offerStatus, offerContactPerson, cu
         </SheetContent>
       </Sheet>
 
-      {/* ── Delete confirmation dialog ──────────────────────────────────────── */}
+      {/* ── Delete confirmation dialog ──────────────────────────────────── */}
       <AlertDialog open={pendingDeleteId !== null} onOpenChange={open => { if (!open) setPendingDeleteId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>

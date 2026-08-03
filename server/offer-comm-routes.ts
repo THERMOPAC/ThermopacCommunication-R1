@@ -58,19 +58,21 @@ async function resolveOfferGcsParams(offerId: number) {
             c.bp_code, c.bp_name, c.short_code,
             c.continent_code, c.country_code
        FROM offers o
-       JOIN customers c ON c.id = o.customer_id
+       LEFT JOIN customers c ON c.id = o.customer_id
       WHERE o.id = $1`,
     [offerId]
   );
+  // Return null only if the offer itself doesn't exist
   if (result.rows.length === 0) return null;
   const row = result.rows[0];
   const fyMatch = /OFR-(\d{4})-/.exec(row.offer_number);
   const fyCode = fyMatch ? fyMatch[1] : 'XXXX';
-  const customerToken = buildCustToken(row.bp_code || row.short_code || '', row.bp_name || '');
+  // Use fallback tokens when no customer is linked yet
+  const customerToken = buildCustToken(row.bp_code || row.short_code || 'NOCUST', row.bp_name || 'Unknown Customer');
   return {
     offerNumber: row.offer_number as string,
-    continentCode: (row.continent_code || 'AS') as string,
-    countryCode: (row.country_code || 'IN') as string,
+    continentCode: (row.continent_code || 'XX') as string,
+    countryCode: (row.country_code || 'XX') as string,
     customerToken,
     fyCode,
   };
