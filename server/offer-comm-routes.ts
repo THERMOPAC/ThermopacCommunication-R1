@@ -524,7 +524,12 @@ export function registerOfferCommRoutes(router: Router) {
           await logActivity(userId, 'UPLOAD', 'offer_communications', 'offer_comm_document', doc.id, { offerId, commId, gcsPath });
           await logActivity(userId, 'COMM_DOC_MIRROR_ENQUEUED', 'offer_communications', 'offer_comm_document', doc.id, { jobId });
         } catch (mirrorErr: any) {
-          console.warn('[offer-comm] Mirror enqueue failed (non-blocking):', mirrorErr.message);
+          console.error('[offer-comm] Mirror enqueue failed — marking doc as failed:', mirrorErr.message);
+          // Mark the row so it's visible in monitoring (GCS file is intact; job can be manually re-queued)
+          await db.update(offerCommDocuments)
+            .set({ mirrorStatus: 'failed' })
+            .where(eq(offerCommDocuments.id, doc.id))
+            .catch(() => {/* best-effort */});
         }
 
         res.status(201).json(doc);
@@ -658,7 +663,11 @@ export function registerOfferCommRoutes(router: Router) {
           await logActivity(userId, 'REVISION', 'offer_communications', 'offer_comm_document', newDoc.id, { offerId, commId, previousDocId: docId, revision: newRevStr });
           await logActivity(userId, 'COMM_DOC_MIRROR_ENQUEUED', 'offer_communications', 'offer_comm_document', newDoc.id, { jobId });
         } catch (mirrorErr: any) {
-          console.warn('[offer-comm] Mirror enqueue on revision failed (non-blocking):', mirrorErr.message);
+          console.error('[offer-comm] Mirror enqueue on revision failed — marking doc as failed:', mirrorErr.message);
+          await db.update(offerCommDocuments)
+            .set({ mirrorStatus: 'failed' })
+            .where(eq(offerCommDocuments.id, newDoc.id))
+            .catch(() => {/* best-effort */});
         }
 
         res.status(201).json(newDoc);

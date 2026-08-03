@@ -1908,7 +1908,7 @@ router.patch('/attendance/records/:id/override', ensureAuthenticated, requireRea
     const recordId = parseInt(req.params.id);
     if (isNaN(recordId)) return res.status(400).json({ error: 'Invalid record ID' });
 
-    const { status, checkInTime, checkOutTime, workingHours, netWorkingHours, reason } = req.body;
+    const { status, checkInTime, checkOutTime, workingHours, netWorkingHours, reason, userId: bodyUserId, date: bodyDate } = req.body;
 
     if (!reason || String(reason).trim().length < 10) {
       return res.status(400).json({ error: 'Reason is required and must be at least 10 characters' });
@@ -1920,11 +1920,46 @@ router.patch('/attendance/records/:id/override', ensureAuthenticated, requireRea
       });
     }
 
+    // Synthetic records have negative IDs (no DB row yet).
+    // Create a minimal attendance record so the override can be applied.
+    let resolvedRecordId = recordId;
+    if (recordId < 0) {
+      if (!bodyUserId || !bodyDate) {
+        return res.status(400).json({ error: 'userId and date are required when overriding a synthetic record' });
+      }
+      const dateOnly = String(bodyDate).substring(0, 10);
+      // Check if a real record was created between the synthetic snapshot and now
+      const [existing] = await db
+        .select({ id: attendanceRecords.id })
+        .from(attendanceRecords)
+        .where(and(
+          eq(attendanceRecords.userId, Number(bodyUserId)),
+          eq(attendanceRecords.date, dateOnly as any)
+        ))
+        .limit(1);
+      if (existing) {
+        resolvedRecordId = existing.id;
+      } else {
+        const [created] = await db
+          .insert(attendanceRecords)
+          .values({
+            userId: Number(bodyUserId),
+            date: dateOnly as any,
+            status: 'absent',
+            statusSource: 'system',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .returning({ id: attendanceRecords.id });
+        resolvedRecordId = created.id;
+      }
+    }
+
     // Fetch current record
     const [record] = await db
       .select()
       .from(attendanceRecords)
-      .where(eq(attendanceRecords.id, recordId));
+      .where(eq(attendanceRecords.id, resolvedRecordId));
 
     if (!record) return res.status(404).json({ error: 'Attendance record not found' });
 
@@ -1986,7 +2021,7 @@ router.patch('/attendance/records/:id/override', ensureAuthenticated, requireRea
     const [updated] = await db
       .update(attendanceRecords)
       .set(updatePayload)
-      .where(eq(attendanceRecords.id, recordId))
+      .where(eq(attendanceRecords.id, resolvedRecordId))
       .returning();
 
     // After values
@@ -2000,7 +2035,7 @@ router.patch('/attendance/records/:id/override', ensureAuthenticated, requireRea
 
     // Insert immutable audit log
     await db.insert(attendanceOverrideLog).values({
-      recordId,
+      recordId: resolvedRecordId,
       employeeId: record.userId,
       date: recordDateStr,
       action: 'apply',

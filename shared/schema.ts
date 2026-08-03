@@ -9927,6 +9927,7 @@ export const userActivityLogs = pgTable("user_activity_logs", {
   ipAddress: varchar("ip_address", { length: 45 }), // Support both IPv4 and IPv6
   userAgent: text("user_agent"),
   sessionDuration: integer("session_duration").default(0), // in minutes
+  meta: jsonb("meta"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

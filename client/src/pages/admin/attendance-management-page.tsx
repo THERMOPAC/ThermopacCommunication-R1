@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Calendar, Clock, User, Search, Filter, Download, Users, AlertCircle, CheckCircle, FileText, RefreshCw, Pencil, RotateCcw, ShieldAlert } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useReauthMutation } from '@/hooks/use-reauth';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -87,10 +88,10 @@ export default function AttendanceManagementPage() {
   }, [sessionUser]);
 
   // Apply override mutation
-  const applyOverrideMutation = useMutation({
-    mutationFn: async ({ recordId, payload }: { recordId: number; payload: any }) =>
+  const applyOverrideMutation = useReauthMutation<any, { recordId: number; payload: any }>({
+    mutationFn: async ({ recordId, payload }) =>
       apiRequest('PATCH', `/api/admin/attendance/records/${recordId}/override`, payload),
-    onSuccess: async (data: any) => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/attendance/records'] });
       setOverrideTarget(null);
       setOverrideStatus('');
@@ -105,7 +106,7 @@ export default function AttendanceManagementPage() {
           : 'Attendance record overridden successfully.',
       });
     },
-    onError: async (error: any) => {
+    onError: (error: any) => {
       const msg = error?.message || 'Failed to apply override';
       toast({ title: 'Override Failed', description: msg, variant: 'destructive' });
     },
@@ -149,6 +150,10 @@ export default function AttendanceManagementPage() {
         ...(overrideTimeIn && { checkInTime: toISO(dateStr, overrideTimeIn) }),
         ...(overrideTimeOut && { checkOutTime: toISO(dateStr, overrideTimeOut) }),
         reason: overrideReason,
+        // Always include userId + date so the server can create a real row for
+        // synthetic records (id < 0) which have no DB row yet.
+        userId: overrideTarget.userId,
+        date: dateStr,
       },
     });
   };
