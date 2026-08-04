@@ -140,6 +140,8 @@ export default function LeaveManagementPage() {
   const [adjustTarget, setAdjustTarget] = useState<{ userId: number; userName: string; leaveTypeId: number; leaveTypeName: string; leaveTypeCode: string; year: number } | null>(null);
   const [adjustDays, setAdjustDays] = useState('');
   const [adjustReason, setAdjustReason] = useState('');
+  const [revokeTarget, setRevokeTarget] = useState<any>(null);
+  const [revokeReason, setRevokeReason] = useState('');
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -229,6 +231,21 @@ export default function LeaveManagementPage() {
     },
     onError: () => {
       toast({ title: 'Failed to update request status', variant: 'destructive' });
+    }
+  });
+
+  const revokeLeaveRequestMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: number; reason: string }) =>
+      apiRequest('POST', `/api/admin/leave-requests/${id}/revoke`, { reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/leave-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/leave-dashboard'] });
+      setRevokeTarget(null);
+      setRevokeReason('');
+      toast({ title: 'Leave revoked — balance restored successfully' });
+    },
+    onError: (err: any) => {
+      toast({ title: err?.message || 'Failed to revoke leave', variant: 'destructive' });
     }
   });
 
@@ -1150,6 +1167,17 @@ export default function LeaveManagementPage() {
                                   <XCircle className="w-3 h-3" />
                                 </Button>
                               </>
+                            )}
+                            {request.status === 'approved' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-orange-600 hover:text-orange-700"
+                                title="Revoke approved leave (restores balance)"
+                                onClick={() => { setRevokeTarget(request); setRevokeReason(''); }}
+                              >
+                                <RefreshCcw className="w-3 h-3" />
+                              </Button>
                             )}
                           </div>
                         </TableCell>
@@ -2592,6 +2620,40 @@ export default function LeaveManagementPage() {
                   data-testid="button-apply-quick-alloc"
                 >
                   {bulkAllocationMutation.isPending ? 'Applying...' : 'Apply to All Employees'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Revoke approved leave dialog */}
+        <Dialog open={!!revokeTarget} onOpenChange={(o) => { if (!o) { setRevokeTarget(null); setRevokeReason(''); } }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Revoke Approved Leave</DialogTitle>
+              <DialogDescription>
+                This will cancel the approved leave for <strong>{revokeTarget?.employeeName}</strong> ({revokeTarget?.startDate}{revokeTarget?.startDate !== revokeTarget?.endDate ? ` to ${revokeTarget?.endDate}` : ''}, {revokeTarget?.totalDays} day{revokeTarget?.totalDays !== 1 ? 's' : ''} of {revokeTarget?.leaveTypeName}) and restore the balance.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 pt-2">
+              <Label htmlFor="revoke-reason">Reason for revocation <span className="text-red-500">*</span></Label>
+              <Textarea
+                id="revoke-reason"
+                placeholder="e.g. Leave was wrongly applied, employee was present"
+                value={revokeReason}
+                onChange={(e) => setRevokeReason(e.target.value)}
+                rows={3}
+              />
+              <div className="flex justify-end gap-2 pt-1">
+                <Button variant="outline" onClick={() => { setRevokeTarget(null); setRevokeReason(''); }}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={!revokeReason.trim() || revokeLeaveRequestMutation.isPending}
+                  onClick={() => revokeLeaveRequestMutation.mutate({ id: revokeTarget.id, reason: revokeReason.trim() })}
+                >
+                  {revokeLeaveRequestMutation.isPending ? 'Revoking…' : 'Revoke & Restore Balance'}
                 </Button>
               </div>
             </div>
