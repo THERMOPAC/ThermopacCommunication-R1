@@ -669,6 +669,9 @@ export default function DesignSoftwareWorkspacePage() {
     if (otV !== null && dtV !== null && dtV < otV) {
       overrideViolations.push("Design Temperature must be ≥ Operating Temperature");
     }
+    if (otV !== null && otV < 50 && dtV !== null && db.design_temperature_override !== "true") {
+      overrideViolations.push("Design Temperature is Not Calculable below 50 °C Operating Temperature — a stored value requires an engineer override with reason");
+    }
     const ambVv = vNum(db.ambient_temperature ?? "25"); const wbVv = vNum(db.wet_bulb_temperature);
     if (ambVv !== null && wbVv !== null && wbVv > ambVv) {
       overrideViolations.push("Wet Bulb Temperature must not exceed Ambient Temperature");
@@ -933,7 +936,9 @@ export default function DesignSoftwareWorkspacePage() {
       // Engineer override: audit entry carries Previous Value, New Value, Reason, User, Timestamp.
       const audits = auditList(key);
       const lastEntry = audits.length ? audits[audits.length - 1] : null;
-      const from = lastEntry ? lastEntry.to : (ruleVal ?? "");
+      // Previous Value: the value actually in force before this commit — the last
+      // override if one is active, otherwise the rule value (covers revert → re-override).
+      const from = db[`${key}_override`] === "true" && lastEntry ? lastEntry.to : (ruleVal ?? "");
       const reason = (db[reasonKey] ?? "").trim();
       let newAudits = audits;
       if (!lastEntry || lastEntry.to !== val) {
@@ -949,8 +954,16 @@ export default function DesignSoftwareWorkspacePage() {
         [`${key}_audit`]: JSON.stringify(newAudits),
       }));
     };
-    const clearDesignOverride = (key: string, reasonKey: string) => () =>
-      cs(auto({ [`${key}_override`]: "", [reasonKey]: "", [`${key}_status`]: "" }));
+    const clearDesignOverride = (key: string, reasonKey: string, ruleVal: string | null = null) => () => {
+      // Audit the revert too, so the transition history stays complete.
+      const audits = auditList(key);
+      const current = (db[key] ?? "").trim();
+      const revertEntry = { ts: new Date().toISOString(), user: user?.username ?? "", from: current, to: ruleVal ?? "", reason: "Reverted to rule" };
+      cs(auto({
+        [`${key}_override`]: "", [reasonKey]: "", [`${key}_status`]: "",
+        ...(current && ruleVal !== null && current !== ruleVal ? { [`${key}_audit`]: JSON.stringify([...audits, revertEntry]) } : {}),
+      }));
+    };
     const AuditTrail = ({ fieldKey }: { fieldKey: string }) => {
       const audits = auditList(fieldKey);
       if (audits.length === 0) return null;
@@ -1173,7 +1186,7 @@ export default function DesignSoftwareWorkspacePage() {
           />
           <FieldRow label="Change Reason" value={db.operating_pressure_change_reason ?? ""} onChange={v => f("operating_pressure_change_reason", v)} onBlur={s} placeholder="Reason for setting/overriding Operating Pressure" />
           <AuditTrail fieldKey="operating_pressure" />
-          <SelectRow label="Operating Temperature" value={db.operating_temperature ?? ""} onChange={v => f("operating_temperature", v)} onBlur={s} onCommit={v => csa({ operating_temperature: v })} options={["50", "55", "60", "65", "70", "75", "80"]} unit="°C" />
+          <SelectRow label="Operating Temperature" value={db.operating_temperature ?? ""} onChange={v => f("operating_temperature", v)} onBlur={s} onCommit={v => csa({ operating_temperature: v })} options={["50", "55", "60", "65", "70", "75", "80"]} unit="°C" allowOther note="Values above 80 °C may be entered directly — Design Temperature then follows OT + 20 °C" />
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Extraction Column Pressure Design — Thermopac Standard</p>
             <FieldRow label="Vessel Orientation" value={db.vessel_orientation ?? LLX_COL_ORIENTATION} onChange={() => {}} onBlur={() => {}} readOnly note="Thermopac standard — vertical extraction column" />
@@ -1197,7 +1210,7 @@ export default function DesignSoftwareWorkspacePage() {
                 <div className={`flex items-center gap-2 text-xs rounded px-2 py-1 border ${(db.llx_internal_dp_override_reason ?? "").trim() ? "bg-gray-50 border-gray-200" : "bg-amber-50 border-amber-300"}`}>
                   <span className={(db.llx_internal_dp_override_reason ?? "").trim() ? "text-gray-500" : "text-amber-700 font-medium"}>Override reason{(db.llx_internal_dp_override_reason ?? "").trim() ? "" : " required"}:</span>
                   <Input value={db.llx_internal_dp_override_reason ?? ""} onChange={e => f("llx_internal_dp_override_reason", e.target.value)} onBlur={commitDesignValue("llx_internal_design_pressure", "llx_internal_dp_override_reason", LLX_COL_INTERNAL_DP)} placeholder="Why does Internal Design Pressure deviate from the Thermopac standard 2.5 bar(g)?" className="h-6 text-xs flex-1" />
-                  <button type="button" onClick={clearDesignOverride("llx_internal_design_pressure", "llx_internal_dp_override_reason")} className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Revert to standard</button>
+                  <button type="button" onClick={clearDesignOverride("llx_internal_design_pressure", "llx_internal_dp_override_reason", LLX_COL_INTERNAL_DP)} className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Revert to standard</button>
                 </div>
               </div>
             )}
@@ -1256,7 +1269,7 @@ export default function DesignSoftwareWorkspacePage() {
                 <div className={`flex items-center gap-2 text-xs rounded px-2 py-1 border ${(db.dt_override_reason ?? "").trim() ? "bg-gray-50 border-gray-200" : "bg-amber-50 border-amber-300"}`}>
                   <span className={(db.dt_override_reason ?? "").trim() ? "text-gray-500" : "text-amber-700 font-medium"}>Override reason{(db.dt_override_reason ?? "").trim() ? "" : " required"}:</span>
                   <Input value={db.dt_override_reason ?? ""} onChange={e => f("dt_override_reason", e.target.value)} onBlur={commitDesignValue("design_temperature", "dt_override_reason", suggestedDT)} placeholder="Why does Design Temperature deviate from the Thermopac rule?" className="h-6 text-xs flex-1" />
-                  <button type="button" onClick={clearDesignOverride("design_temperature", "dt_override_reason")} className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Revert to rule</button>
+                  <button type="button" onClick={clearDesignOverride("design_temperature", "dt_override_reason", suggestedDT)} className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Revert to rule</button>
                 </div>
               </div>
             )}
