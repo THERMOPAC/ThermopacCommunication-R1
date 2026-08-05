@@ -277,6 +277,17 @@ const LLX_COL_EXTERNAL_CONDITION = "Full Vacuum";
 const LLX_COL_ORIENTATION = "Vertical";
 const LLX_COL_HEIGHT_M = "14";
 const LLX_COL_STANDARD_SOURCE = "Thermopac standard design condition — LLX vertical extraction column (~14 m)";
+// Design Temperature — Thermopac rule under ASME Section VIII Division 1:
+//   OT 50–80 °C → DT = 100 °C;  OT > 80 °C → DT = OT + 20 °C.
+// Below 50 °C the rule does not apply — explicitly Not Calculable, never zero.
+const DT_DESIGN_CODE = "ASME Section VIII Division 1";
+const DT_RULE_SOURCE = `Thermopac Design Temperature Rule (${DT_DESIGN_CODE})`;
+const dtRuleValue = (ot: number | null): number | null => {
+  if (ot === null) return null;
+  if (ot >= 50 && ot <= 80) return 100;
+  if (ot > 80) return ot + 20;
+  return null;
+};
 const THERMAL_RULE_ENGINE_VERSION = "Design Basis UI Rules v1.0";
 const MAX_FILM_RULE_SOURCE = "Thermopac default rule: Heater Outlet + 60 °C";
 
@@ -647,8 +658,9 @@ export default function DesignSoftwareWorkspacePage() {
     if (db.llx_external_design_condition_override === "true" && !(db.llx_external_override_reason ?? "").trim()) {
       overrideViolations.push("External design case override is active without a recorded reason");
     }
-    const otV = vNum(db.operating_temperature); const dtM = vNum(db.dt_margin_value); const dtV = vNum(db.design_temperature);
-    if (otV !== null && dtM !== null && dtV !== null && Math.abs(dtV - (otV + dtM)) > 0.05 && !(db.dt_override_reason ?? "").trim()) {
+    const otV = vNum(db.operating_temperature); const dtV = vNum(db.design_temperature);
+    const dtRuleV = dtRuleValue(otV);
+    if (dtRuleV !== null && dtV !== null && Math.abs(dtV - dtRuleV) > 0.05 && !(db.dt_override_reason ?? "").trim()) {
       overrideViolations.push("Design Temperature deviates from the Thermopac Design Temperature Rule without an override reason");
     }
     if (db.design_temperature_override === "true" && !(db.dt_override_reason ?? "").trim()) {
@@ -855,13 +867,14 @@ export default function DesignSoftwareWorkspacePage() {
       }
       if (!(m.vessel_orientation ?? "").trim()) updates = { ...updates, vessel_orientation: LLX_COL_ORIENTATION };
       if (!(m.column_height_m ?? "").trim()) updates = { ...updates, column_height_m: LLX_COL_HEIGHT_M };
-      const otA = num(m.operating_temperature); const dtMA = num(m.dt_margin_value);
+      // Design Temperature — Thermopac rule (ASME Sec. VIII Div. 1): OT 50–80 → 100 °C; OT > 80 → OT + 20 °C.
+      const dtRuleA = dtRuleValue(num(m.operating_temperature));
       if (m.design_temperature_override !== "true") {
-        if (otA !== null && dtMA !== null) {
-          m.design_temperature = (otA + dtMA).toFixed(1);
-          updates = { ...updates, design_temperature: m.design_temperature, design_temperature_status: "Auto-Calculated" };
+        if (dtRuleA !== null) {
+          m.design_temperature = dtRuleA.toFixed(1);
+          updates = { ...updates, design_temperature: m.design_temperature, design_temperature_status: "Auto-Calculated", design_temperature_source: DT_RULE_SOURCE };
         } else if ((m.design_temperature_status ?? "") === "Auto-Calculated") {
-          updates = { ...updates, design_temperature: "", design_temperature_status: "" };
+          updates = { ...updates, design_temperature: "", design_temperature_status: "", design_temperature_source: "" };
         }
       }
       // Thermal oil Max Film Temperature — Thermopac default rule: Heater Outlet + 60 °C,
@@ -955,8 +968,8 @@ export default function DesignSoftwareWorkspacePage() {
     // Governed suggestions — computed for display only, never auto-saved
     const op = num(db.operating_pressure);
     const ot = num(db.operating_temperature);
-    const dtMargin = num(db.dt_margin_value);
-    const suggestedDT = ot !== null && dtMargin !== null ? (ot + dtMargin).toFixed(1) : null;
+    const dtRuleN = dtRuleValue(ot);
+    const suggestedDT = dtRuleN !== null ? dtRuleN.toFixed(1) : null;
     const feedT = num(db.feed_temperature);
     const wb = num(db.wet_bulb_temperature);
     // Site Conditions — Thermopac defaults apply when nothing is selected yet
@@ -1220,8 +1233,7 @@ export default function DesignSoftwareWorkspacePage() {
           </div>
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Design Temperature — Thermopac Design Temperature Rule</p>
-            <FieldRow label="Rule Margin (°C)" value={db.dt_margin_value ?? ""} onChange={v => f("dt_margin_value", v)} onBlur={() => cs(auto({}))} unit="°C" note="Configurable Thermopac Design Temperature Rule: DT = OT + margin (recognized international practice)" />
-            <FieldRow label="Rule Source" value={db.dt_margin_source ?? ""} onChange={v => f("dt_margin_source", v)} onBlur={s} placeholder="e.g. Thermopac design guideline / ASME Sec. VIII practice ref." />
+            <FieldRow label="Design Code" value={DT_DESIGN_CODE} onChange={() => {}} onBlur={() => {}} readOnly note="Governing mechanical design code for the Design Temperature rule" />
             <FieldRow
               label="Design Temperature"
               value={db.design_temperature ?? ""}
@@ -1230,10 +1242,10 @@ export default function DesignSoftwareWorkspacePage() {
               unit="°C"
             />
             {suggestedDT === null && db.design_temperature_override !== "true" ? (
-              <p className="text-xs ml-[212px] -mt-1 text-amber-600 font-medium">Not Calculable — enter Operating Temperature and the Design Temperature Rule margin (a value is never defaulted to zero)</p>
+              <p className="text-xs ml-[212px] -mt-1 text-amber-600 font-medium">Not Calculable — Operating Temperature must be ≥ 50 °C for the Thermopac Design Temperature Rule (a value is never defaulted to zero)</p>
             ) : (
               <p className="text-xs ml-[212px] -mt-1 text-gray-500">
-                Applied rule: DT = OT {ot ?? "—"} + {dtMargin ?? "—"} °C{suggestedDT ? ` = ${suggestedDT} °C` : ""} · Source: {db.dt_margin_source || "rule source not entered"} · Status: {db.design_temperature_override === "true" ? "Engineer Override" : "Auto-Calculated (auto-saved)"}
+                Rule: OT 50–80 °C → DT = 100 °C; OT &gt; 80 °C → DT = OT + 20 °C{ot !== null && suggestedDT ? ` · Applied: OT ${ot} °C → DT ${suggestedDT} °C` : ""} · Source: {DT_RULE_SOURCE} · Status: {db.design_temperature_override === "true" ? "Engineer Override" : "Auto-Calculated (auto-saved)"}
               </p>
             )}
             {ot !== null && num(db.design_temperature) !== null && (num(db.design_temperature) as number) < ot && (
