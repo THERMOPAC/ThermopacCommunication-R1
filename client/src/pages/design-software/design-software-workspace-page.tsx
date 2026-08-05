@@ -321,22 +321,39 @@ function QualityRowsEditor({
   // UI-only custom-parameter mode per row index — the "Custom…" sentinel is
   // never written into the saved data.
   const [customIdx, setCustomIdx] = useState<Record<number, boolean>>({});
+  // Advanced engineering function — adding/removing/renaming parameters is
+  // hidden during normal operation; the standard master-data rows present a
+  // clean specification with target/unit/limit fully editable.
+  const [advanced, setAdvanced] = useState(false);
   let rows: QualityRow[] = [];
   try { const p = JSON.parse(jsonValue || "[]"); if (Array.isArray(p)) rows = p; } catch { /* treat as empty */ }
   const setRows = (r: QualityRow[]) => onChange(JSON.stringify(r));
   const commitRows = (r: QualityRow[]) => onCommit(JSON.stringify(r));
   const update = (i: number, k: keyof QualityRow, v: string) => setRows(rows.map((row, idx) => (idx === i ? { ...row, [k]: v } : row)));
+  const isBlankRow = (r: QualityRow) => (r.parameter ?? "").trim() === "" && (r.target ?? "").trim() === "" && (r.unit ?? "").trim() === "" && (r.notes ?? "").trim() === "";
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-gray-700">{title}</p>
-        <button
-          type="button"
-          onClick={() => { commitRows([...rows, { parameter: "", target: "", unit: "", limitType: "Max", notes: "" }]); }}
-          className="text-xs px-2 py-1 border rounded text-blue-700 border-blue-300 hover:bg-blue-50"
-        >
-          + Add parameter
-        </button>
+        <div className="flex items-center gap-2">
+          {advanced && (
+            <button
+              type="button"
+              onClick={() => { commitRows([...rows, { parameter: "", target: "", unit: "", limitType: "Max", notes: "" }]); }}
+              className="text-xs px-2 py-1 border rounded text-blue-700 border-blue-300 hover:bg-blue-50"
+            >
+              + Add parameter
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => { setCustomIdx({}); setAdvanced(a => !a); }}
+            className={`text-xs px-2 py-1 border rounded ${advanced ? "text-gray-700 border-gray-300 hover:bg-gray-50" : "text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+            title="Adding or removing parameters is an advanced engineering function"
+          >
+            {advanced ? "Done customizing" : "Customize Product Requirements"}
+          </button>
+        </div>
       </div>
       {legacyValue && (
         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
@@ -348,9 +365,15 @@ function QualityRowsEditor({
           <span>Parameter</span><span>Target Value</span><span>Unit</span><span>Limit Type</span><span>Notes</span><span />
         </div>
       )}
-      {rows.map((r, i) => (
+      {rows.map((r, i) => {
+        // Normal operation shows only the populated specification — blank
+        // placeholder rows are an advanced-mode concern.
+        if (!advanced && isBlankRow(r)) return null;
+        return (
         <div key={i} className="grid grid-cols-[1.4fr_0.8fr_0.6fr_0.7fr_1.2fr_auto] gap-2 items-center">
-          {(customIdx[i] || (r.parameter !== "" && !(r.parameter in PRODUCT_PARAMETER_MASTER))) ? (
+          {!advanced ? (
+            <span className="text-xs text-gray-800 font-medium px-1">{r.parameter || "—"}</span>
+          ) : (customIdx[i] || (r.parameter !== "" && !(r.parameter in PRODUCT_PARAMETER_MASTER))) ? (
             <Input
               autoFocus={customIdx[i] && r.parameter === ""}
               value={r.parameter}
@@ -392,16 +415,21 @@ function QualityRowsEditor({
             <SelectContent>{LIMIT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
           </Select>
           <Input value={r.notes} onChange={e => update(i, "notes", e.target.value)} onBlur={onBlur} placeholder="Notes" className="h-7 text-xs" />
-          <button
-            type="button"
-            onClick={() => { setCustomIdx({}); commitRows(rows.filter((_, idx) => idx !== i)); }}
-            className="text-xs text-red-500 hover:text-red-700 px-1"
-            title="Remove row"
-          >
-            ✕
-          </button>
+          {advanced ? (
+            <button
+              type="button"
+              onClick={() => { setCustomIdx({}); commitRows(rows.filter((_, idx) => idx !== i)); }}
+              className="text-xs text-red-500 hover:text-red-700 px-1"
+              title="Remove row"
+            >
+              ✕
+            </button>
+          ) : (
+            <span />
+          )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
