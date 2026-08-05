@@ -8,13 +8,20 @@
 //   - Unit conversion, formatting, validation guards      (cel/unit-conversion, cel/utilities)
 //   - Numerical solvers (bisection, Newton-Raphson, etc.) (cel/numerical)
 //   - Dimensionless numbers (Re, We, Fr, Eo, Mo)          (cel/dimensionless)
-//   - Hydraulic utilities (drag, terminal velocity,
-//     interfacial area, Thornton flooding)                (cel/hydraulics)
+//   - Hydraulic utilities (drag, rigid-sphere screening,
+//     interfacial area, generic slip/holdup/throughput)   (cel/hydraulics)
 //   - Engineering Property Database (water, NMP, RRBO)    (epd/*)
 //
 // Deferred (throw NotImplementedError until a future stage):
 //   heat transfer, mass-transfer coefficients, diffusivity, friction factors.
 // ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Release versions — calculation runs must record these alongside results.
+ * Bump on any change to implemented equations, coefficients, or data.
+ */
+export const CEL_VERSION = '1.0.0';
+export const EPD_VERSION = '1.0.0';
 
 export class NotImplementedError extends Error {
   constructor(fn: string) {

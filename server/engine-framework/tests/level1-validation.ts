@@ -11,7 +11,9 @@ import {
   terminalVelocitySphere, interfacialArea, slipVelocity,
   solveCounterCurrentHoldup, maximizeThroughputAtFixedFlowRatio, percentOfThroughputMaximum,
   getProperty, getInterfacialTension, listFluids, registerProjectFluid, unregisterProjectFluid,
-  EngineeringInputError,
+  containsAssumedData, EngineeringInputError, NotImplementedError,
+  CEL_VERSION, EPD_VERSION,
+  schmidt, nusseltDittusBoelter, moodyFrictionFactor,
 } from '../common-engineering-library';
 
 let pass = 0, fail = 0;
@@ -86,8 +88,14 @@ console.log('── Numerical solvers ──');
 console.log('── EPD: library fluids (water, NMP) ──');
 {
   console.log('  fluids:', listFluids().map((f) => `${f.id}(${f.kind})`).join(', '));
-  check('water ρ @25°C (Kell 1975)', getProperty('water', 'density', 25).value, 997.047, 0.0001);
-  check('water ρ @80°C', getProperty('water', 'density', 80).value, 971.79, 0.0001);
+  // Kell coefficient-transcription guards: tolerances tight enough that the
+  // erroneous denominator coefficient 16.897850e-3 (vs correct 16.879850e-3)
+  // fails every one of these (it gives 996.73 @25 °C, off by 0.32 kg/m³).
+  check('water ρ @3.98°C (density maximum)', getProperty('water', 'density', 3.98).value, 999.972, 0.00005);
+  check('water ρ @20°C (Kell 1975)', getProperty('water', 'density', 20).value, 998.204, 0.00005);
+  check('water ρ @25°C (Kell 1975)', getProperty('water', 'density', 25).value, 997.045, 0.00005);
+  check('water ρ @80°C', getProperty('water', 'density', 80).value, 971.798, 0.00005);
+  check('water ρ @100°C', getProperty('water', 'density', 100).value, 958.364, 0.00005);
   check('water μ @25°C (Vogel)', getProperty('water', 'dynamicViscosity', 25).value, 0.000890, 0.005);
   check('water μ @80°C', getProperty('water', 'dynamicViscosity', 80).value, 0.000355, 0.01);
   check('water σ @25°C (IAPWS R1-76)', getProperty('water', 'surfaceTension', 25).value, 0.07197, 0.001);
@@ -203,6 +211,27 @@ console.log('── Hydraulics ──');
   checkThrows('off-ratio comparison rejected', () => percentOfThroughputMaximum(0.002, 0.01, cap));
   const offRatio = percentOfThroughputMaximum(0.002, 0.01, cap, true);
   checkTrue('off-ratio with override ⇒ FLOW_RATIO_MISMATCH warning', offRatio.warnings.some((w) => w.code === 'FLOW_RATIO_MISMATCH'));
+}
+
+console.log('── Versioning & deferred-function behaviour ──');
+{
+  checkTrue('CEL_VERSION assigned', CEL_VERSION === '1.0.0');
+  checkTrue('EPD_VERSION assigned', EPD_VERSION === '1.0.0');
+  const nmpHot60 = getProperty('nmp', 'dynamicViscosity', 60);
+  checkTrue('containsAssumedData flags provisional NMP data', containsAssumedData(nmpHot60.warnings));
+  checkTrue('containsAssumedData false for clean water data', !containsAssumedData(getProperty('water', 'density', 25).warnings));
+  // Deferred functions must fail explicitly — never fabricate values
+  for (const [name, fn] of [
+    ['schmidt', () => schmidt(1000, 0.001, 1e-9)],
+    ['nusseltDittusBoelter', () => nusseltDittusBoelter(1e4, 5, true)],
+    ['moodyFrictionFactor', () => moodyFrictionFactor(1e5, 1e-4)],
+  ] as Array<[string, () => number]>) {
+    try { fn(); fail++; console.error(`  ❌ deferred ${name} did not throw`); }
+    catch (e) {
+      if (e instanceof NotImplementedError) { pass++; console.log(`  ✅ deferred ${name} throws NotImplementedError`); }
+      else { fail++; console.error(`  ❌ deferred ${name} threw wrong type: ${e}`); }
+    }
+  }
 }
 
 console.log(`\n═══ RESULT: ${pass} passed, ${fail} failed ═══`);

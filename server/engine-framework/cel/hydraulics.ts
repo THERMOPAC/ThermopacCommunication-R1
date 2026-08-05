@@ -2,7 +2,8 @@
 // CEL — Common Hydraulic Utilities (Level 1: LLX scope)
 //
 // Superficial velocity, drag coefficient, droplet terminal velocity,
-// interfacial area, slip-velocity flooding analysis (Thornton framework).
+// interfacial area, and GENERIC counter-current slip/holdup/throughput
+// utilities (engine-supplied models only — no technology-specific correlations).
 //
 // The characteristic (slip) velocity u₀ itself is COLUMN-SPECIFIC and must be
 // supplied by the calling engine — CEL provides the geometry- and
@@ -174,7 +175,7 @@ export function interfacialArea(holdup: number, sauterMeanDiameter: number): num
   return (6 * holdup) / sauterMeanDiameter;
 }
 
-// ── Slip velocity & flooding (Thornton framework) ─────────────────────────────
+// ── Generic counter-current slip / holdup / throughput utilities ─────────────
 
 /**
  * Slip velocity between phases at dispersed holdup φ:

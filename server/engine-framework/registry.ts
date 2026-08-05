@@ -47,7 +47,7 @@ class EngineRegistry {
 
   /** List all registered engine IDs. */
   listIds(): string[] {
-    return [...this.engines.values()].map((e) => e.getEngineId());
+    return Array.from(this.engines.values()).map((e) => e.getEngineId());
   }
 
   /** Full inventory of registered engines. */
@@ -57,7 +57,7 @@ class EngineRegistry {
     moduleType: string;
     calculationType: string;
   }> {
-    return [...this.engines.values()].map((e) => ({
+    return Array.from(this.engines.values()).map((e) => ({
       engineId: e.getEngineId(),
       engineVersion: e.getEngineVersion(),
       moduleType: e.getModuleType(),

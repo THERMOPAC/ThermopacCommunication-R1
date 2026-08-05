@@ -26,7 +26,7 @@ import { nmp } from './fluids/nmp';
 const ABSOLUTE_ZERO_C = -273.15;
 
 /** Properties that must be strictly positive to be physically meaningful. */
-const MUST_BE_POSITIVE: ReadonlySet<PropertyId> = new Set([
+const MUST_BE_POSITIVE: ReadonlySet<PropertyId> = new Set<PropertyId>([
   'density', 'dynamicViscosity', 'kinematicViscosity',
   'specificHeat', 'thermalConductivity', 'surfaceTension',
 ]);
@@ -113,7 +113,7 @@ export function listFluids(): Array<{ id: string; name: string; kind: 'library' 
 export function getFluid(fluidId: string): FluidDefinition | ProjectFluidDefinition {
   const f = libraryRegistry.get(fluidId) ?? projectRegistry.get(fluidId);
   if (!f) {
-    const available = [...libraryRegistry.keys(), ...projectRegistry.keys()].join(', ');
+    const available = Array.from(libraryRegistry.keys()).concat(Array.from(projectRegistry.keys())).join(', ');
     throw new EngineeringInputError(`Unknown fluid '${fluidId}'. Available: ${available}.`);
   }
   return f;
@@ -249,6 +249,16 @@ export function getProperty(fluidId: string, property: PropertyId, temperatureC:
   }
 
   return { value, unit: PROPERTY_UNITS[property], fluidId, property, temperatureC, source, warnings };
+}
+
+/**
+ * True if any warning indicates Assumed/provisional data.
+ * Design-validation checks (workspace Step 12) MUST treat results carrying
+ * assumed data as NOT satisfying mandatory validation — a design using them
+ * cannot be marked fully validated until the data is replaced/acknowledged.
+ */
+export function containsAssumedData(warnings: EngineeringWarning[]): boolean {
+  return warnings.some((w) => w.code === 'EPD_ASSUMED_VALUE');
 }
 
 /**
