@@ -277,7 +277,15 @@ const dtRuleValue = (ot: number | null): number | null => {
   return null;
 };
 const THERMAL_RULE_ENGINE_VERSION = "Design Basis UI Rules v1.0";
-const MAX_FILM_RULE_SOURCE = "Thermopac default rule: Heater Outlet + 60 °C";
+// Thermal Fluid Master Data — approved Thermopac values (seeded 2026-08-05).
+const THERMAL_FLUID_MASTER: Record<string, { maxBulk: string; maxFilm: string }> = {
+  "Therminol 66": { maxBulk: "345", maxFilm: "375" },
+  "Therminol 65": { maxBulk: "300", maxFilm: "360" },
+};
+// Thermopac design defaults — recommended heater temperatures (editable).
+const HEATER_INLET_DEFAULT = "200";
+const HEATER_OUTLET_DEFAULT = "230";
+const THERMAL_DEFAULT_SOURCE = "Thermopac design default — thermal-fluid master data";
 
 const LIMIT_TYPES = ["Max", "Min", "Target", "Range"];
 
@@ -852,21 +860,38 @@ export default function DesignSoftwareWorkspacePage() {
           updates = { ...updates, design_temperature: "", design_temperature_status: "", design_temperature_source: "" };
         }
       }
-      // Thermal oil Max Film Temperature — Thermopac default rule: Heater Outlet + 60 °C,
-      // auto-calculated and auto-saved unless the engineer has modified it.
-      const outletA = num(m.thermal_heater_outlet);
-      if (m.thermal_oil_max_film_override !== "true") {
-        if (outletA !== null) {
-          m.thermal_oil_max_film_temp = (outletA + 60).toFixed(1);
-          updates = {
-            ...updates,
-            thermal_oil_max_film_temp: m.thermal_oil_max_film_temp,
-            thermal_oil_max_film_status: "Auto-Populated",
-            thermal_oil_max_film_source: MAX_FILM_RULE_SOURCE,
-          };
-        } else if (["Auto-Calculated", "Auto-Populated"].includes(m.thermal_oil_max_film_status ?? "")) {
-          updates = { ...updates, thermal_oil_max_film_temp: "", thermal_oil_max_film_status: "" };
+      // Thermal Oil System — auto-populate from the Thermal Fluid Master Data on
+      // fluid selection; all values remain directly editable (Manual when edited).
+      const fluidM = THERMAL_FLUID_MASTER[(m.thermal_oil_type ?? "").trim()];
+      const fluidSource = `${(m.thermal_oil_type ?? "").trim()} — Thermopac thermal-fluid master data`;
+      if (fluidM) {
+        if (m.thermal_heater_inlet_override !== "true") {
+          m.thermal_heater_inlet = HEATER_INLET_DEFAULT;
+          updates = { ...updates, thermal_heater_inlet: HEATER_INLET_DEFAULT, thermal_heater_inlet_status: "Auto-Populated" };
         }
+        if (m.thermal_heater_outlet_override !== "true") {
+          m.thermal_heater_outlet = HEATER_OUTLET_DEFAULT;
+          updates = { ...updates, thermal_heater_outlet: HEATER_OUTLET_DEFAULT, thermal_heater_outlet_status: "Auto-Populated" };
+        }
+        if (m.thermal_oil_max_bulk_override !== "true") {
+          m.thermal_oil_max_bulk_temp = fluidM.maxBulk;
+          updates = { ...updates, thermal_oil_max_bulk_temp: fluidM.maxBulk, thermal_oil_max_bulk_status: "Auto-Populated" };
+        }
+        if (m.thermal_oil_max_film_override !== "true") {
+          m.thermal_oil_max_film_temp = fluidM.maxFilm;
+          updates = { ...updates, thermal_oil_max_film_temp: fluidM.maxFilm, thermal_oil_max_film_status: "Auto-Populated", thermal_oil_max_film_source: fluidSource };
+        }
+      } else {
+        // No fluid selected / unknown fluid: clear auto-populated values only.
+        const clr = (key: string, statusKey: string) => {
+          if (["Auto-Calculated", "Auto-Populated"].includes(m[statusKey] ?? "")) {
+            m[key] = ""; updates = { ...updates, [key]: "", [statusKey]: "" };
+          }
+        };
+        clr("thermal_heater_inlet", "thermal_heater_inlet_status");
+        clr("thermal_heater_outlet", "thermal_heater_outlet_status");
+        clr("thermal_oil_max_bulk_temp", "thermal_oil_max_bulk_status");
+        clr("thermal_oil_max_film_temp", "thermal_oil_max_film_status");
       }
       if (m.design_objective_manual !== "true") {
         m.design_objective = genObjective();
@@ -1168,63 +1193,71 @@ export default function DesignSoftwareWorkspacePage() {
           </div>
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Thermal Oil System</p>
-            <SearchSelectRow
-              label="Oil Type / Grade"
-              value={db.thermal_oil_type ?? ""}
-              options={THERMAL_OIL_OPTIONS}
-              onSelect={v => csa({ thermal_oil_type: v })}
-              placeholder="Search / select thermal oil…"
-              note="Searchable — initial options Therminol 65 / 66; list expands via master data"
-            />
-            <FieldRow
-              label="Heater Inlet Temp"
-              value={db.thermal_heater_inlet ?? ""}
-              onChange={v => f("thermal_heater_inlet", v)}
-              onBlur={() => cs(auto({}))}
-              unit="°C"
-            />
-            <p className="text-xs ml-[212px] -mt-1 text-gray-500">
-              Status: Manual · No recommended value yet — thermal-fluid master data pending; never defaulted to zero
-            </p>
-            <FieldRow
-              label="Heater Outlet Temp"
-              value={db.thermal_heater_outlet ?? ""}
-              onChange={v => f("thermal_heater_outlet", v)}
-              onBlur={() => cs(auto({}))}
-              unit="°C"
-            />
-            <p className="text-xs ml-[212px] -mt-1 text-gray-500">
-              Status: Manual · No recommended value yet — thermal-fluid master data pending; never defaulted to zero
-            </p>
-            <FieldRow
-              label="Max Film Temp"
-              value={db.thermal_oil_max_film_temp ?? ""}
-              onChange={v => { f("thermal_oil_max_film_temp", v); }}
-              onBlur={() => {
-                const v = (db.thermal_oil_max_film_temp ?? "").trim();
-                const outletV = num(db.thermal_heater_outlet);
-                const ruleV = outletV !== null ? (outletV + 60).toFixed(1) : null;
-                if (v === "" || (ruleV !== null && num(v) === num(ruleV))) {
-                  cs(auto({ thermal_oil_max_film_temp: "", thermal_oil_max_film_override: "" }));
+            {(() => {
+              const fluidName = (db.thermal_oil_type ?? "").trim();
+              const fluidM = THERMAL_FLUID_MASTER[fluidName];
+              const fluidSource = fluidM ? `${fluidName} — Thermopac thermal-fluid master data` : null;
+              const statusLine = (overrideKey: string, ruleVal: string | null, source: string) =>
+                fluidM || db[overrideKey] === "true" ? (
+                  <p className="text-xs ml-[212px] -mt-1 text-gray-500">
+                    Status: {db[overrideKey] === "true" ? "Manual" : "Auto-Populated"} · Source: {db[overrideKey] === "true" ? "Engineer entry" : source} · Fluid: {fluidName || "—"}{ruleVal && db[overrideKey] === "true" ? ` · Recommended: ${ruleVal} °C` : ""}
+                  </p>
+                ) : (
+                  <p className="text-xs ml-[212px] -mt-1 text-gray-500">Select a thermal fluid to auto-populate (never defaulted to zero)</p>
+                );
+              const commitThermal = (key: string, overrideKey: string, statusKey: string, ruleVal: string | null) => () => {
+                const v = (db[key] ?? "").trim();
+                if (v === "" || (ruleVal !== null && num(v) === num(ruleVal))) {
+                  cs(auto({ [key]: "", [overrideKey]: "", [statusKey]: "" }));
                 } else {
-                  cs(auto({ thermal_oil_max_film_temp: v, thermal_oil_max_film_override: "true", thermal_oil_max_film_status: "Manual", thermal_oil_max_film_source: db.thermal_oil_max_film_source_manual || "Engineer entry" }));
+                  cs(auto({ [key]: v, [overrideKey]: "true", [statusKey]: "Manual" }));
                 }
-              }}
-              unit="°C"
-            />
-            {num(db.thermal_heater_outlet) === null && db.thermal_oil_max_film_override !== "true" ? (
-              <p className="text-xs ml-[212px] -mt-1 text-gray-500">Awaiting Heater Outlet Temp — rule: Heater Outlet + 60 °C (never defaulted to zero)</p>
-            ) : (
-              <p className="text-xs ml-[212px] -mt-1 text-gray-500">
-                Status: {db.thermal_oil_max_film_override === "true" ? "Manual" : "Auto-Populated"} · Source: {db.thermal_oil_max_film_source || MAX_FILM_RULE_SOURCE} · Engine Version: {THERMAL_RULE_ENGINE_VERSION}
-              </p>
-            )}
-            {db.thermal_oil_max_film_override === "true" && (
-              <div className="ml-[212px] mt-1 flex items-center gap-2 text-xs">
-                <Input value={db.thermal_oil_max_film_source_manual ?? ""} onChange={e => f("thermal_oil_max_film_source_manual", e.target.value)} onBlur={s} placeholder="Source for the modified Max Film Temp (e.g. vendor datasheet ref.)" className="h-6 text-xs flex-1" />
-                <button type="button" onClick={() => cs(auto({ thermal_oil_max_film_temp: "", thermal_oil_max_film_override: "", thermal_oil_max_film_source_manual: "" }))} className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Revert to rule</button>
-              </div>
-            )}
+              };
+              return (
+                <>
+                  <SearchSelectRow
+                    label="Oil Type / Grade"
+                    value={db.thermal_oil_type ?? ""}
+                    options={THERMAL_OIL_OPTIONS}
+                    onSelect={v => csa({ thermal_oil_type: v })}
+                    placeholder="Search / select thermal oil…"
+                    note="Searchable — master data: Therminol 65 / 66"
+                  />
+                  <FieldRow
+                    label="Heater Inlet Temp"
+                    value={db.thermal_heater_inlet ?? ""}
+                    onChange={v => f("thermal_heater_inlet", v)}
+                    onBlur={commitThermal("thermal_heater_inlet", "thermal_heater_inlet_override", "thermal_heater_inlet_status", fluidM ? HEATER_INLET_DEFAULT : null)}
+                    unit="°C"
+                  />
+                  {statusLine("thermal_heater_inlet_override", HEATER_INLET_DEFAULT, THERMAL_DEFAULT_SOURCE)}
+                  <FieldRow
+                    label="Heater Outlet Temp"
+                    value={db.thermal_heater_outlet ?? ""}
+                    onChange={v => f("thermal_heater_outlet", v)}
+                    onBlur={commitThermal("thermal_heater_outlet", "thermal_heater_outlet_override", "thermal_heater_outlet_status", fluidM ? HEATER_OUTLET_DEFAULT : null)}
+                    unit="°C"
+                  />
+                  {statusLine("thermal_heater_outlet_override", HEATER_OUTLET_DEFAULT, THERMAL_DEFAULT_SOURCE)}
+                  <FieldRow
+                    label="Max Bulk Temp"
+                    value={db.thermal_oil_max_bulk_temp ?? ""}
+                    onChange={v => f("thermal_oil_max_bulk_temp", v)}
+                    onBlur={commitThermal("thermal_oil_max_bulk_temp", "thermal_oil_max_bulk_override", "thermal_oil_max_bulk_status", fluidM?.maxBulk ?? null)}
+                    unit="°C"
+                  />
+                  {statusLine("thermal_oil_max_bulk_override", fluidM?.maxBulk ?? null, fluidSource ?? THERMAL_DEFAULT_SOURCE)}
+                  <FieldRow
+                    label="Max Film Temp"
+                    value={db.thermal_oil_max_film_temp ?? ""}
+                    onChange={v => f("thermal_oil_max_film_temp", v)}
+                    onBlur={commitThermal("thermal_oil_max_film_temp", "thermal_oil_max_film_override", "thermal_oil_max_film_status", fluidM?.maxFilm ?? null)}
+                    unit="°C"
+                  />
+                  {statusLine("thermal_oil_max_film_override", fluidM?.maxFilm ?? null, fluidSource ?? THERMAL_DEFAULT_SOURCE)}
+                </>
+              );
+            })()}
           </div>
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Cooling Water</p>
