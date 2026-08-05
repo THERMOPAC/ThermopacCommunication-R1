@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { PRODUCT_REQUIREMENT_MASTER, PRODUCT_PARAMETER_MASTER } from "@shared/product-requirement-master";
 
 // ── Status helpers ────────────────────────────────────────────────────────────
 const STATUS_COLOURS: Record<string, string> = {
@@ -265,6 +266,8 @@ const CW_DELTA_T_DEFAULT = "8";
 const THERMAL_DEFAULT_SOURCE = "Thermopac design default — thermal-fluid master data";
 
 const LIMIT_TYPES = ["Max", "Min", "Target", "Range"];
+// Sentinel for the "Custom…" entry in the Product Requirement parameter dropdown.
+const CUSTOM_PARAM = "Custom…";
 
 const FEED_SERVICE_OPTIONS = [
   "Re-Refined Base Oil SN150",
@@ -292,6 +295,9 @@ function QualityRowsEditor({
   title: string; jsonValue: string; legacyValue?: string;
   onChange: (json: string) => void; onBlur: () => void; onCommit: (json: string) => void;
 }) {
+  // UI-only custom-parameter mode per row index — the "Custom…" sentinel is
+  // never written into the saved data.
+  const [customIdx, setCustomIdx] = useState<Record<number, boolean>>({});
   let rows: QualityRow[] = [];
   try { const p = JSON.parse(jsonValue || "[]"); if (Array.isArray(p)) rows = p; } catch { /* treat as empty */ }
   const setRows = (r: QualityRow[]) => onChange(JSON.stringify(r));
@@ -309,7 +315,7 @@ function QualityRowsEditor({
           + Add parameter
         </button>
       </div>
-      {legacyValue && rows.length === 0 && (
+      {legacyValue && (
         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
           Legacy free-text entry: “{legacyValue}” — re-enter as structured parameters below (legacy value is preserved).
         </p>
@@ -321,7 +327,41 @@ function QualityRowsEditor({
       )}
       {rows.map((r, i) => (
         <div key={i} className="grid grid-cols-[1.4fr_0.8fr_0.6fr_0.7fr_1.2fr_auto] gap-2 items-center">
-          <Input value={r.parameter} onChange={e => update(i, "parameter", e.target.value)} onBlur={onBlur} placeholder="e.g. KV @ 100 °C" className="h-7 text-xs" />
+          {(customIdx[i] || (r.parameter !== "" && !(r.parameter in PRODUCT_PARAMETER_MASTER))) ? (
+            <Input
+              autoFocus={customIdx[i] && r.parameter === ""}
+              value={r.parameter}
+              onChange={e => update(i, "parameter", e.target.value)}
+              onBlur={onBlur}
+              placeholder="Type parameter name"
+              className="h-7 text-xs"
+            />
+          ) : (
+            <Select
+              value={r.parameter in PRODUCT_PARAMETER_MASTER ? r.parameter : ""}
+              onValueChange={v => {
+                if (v === CUSTOM_PARAM) {
+                  setCustomIdx(c => ({ ...c, [i]: true }));
+                  return;
+                }
+                const m = PRODUCT_PARAMETER_MASTER[v];
+                commitRows(rows.map((row, idx) => (idx === i ? {
+                  ...row,
+                  parameter: v,
+                  unit: m?.unit ?? row.unit,
+                  limitType: (m?.limitType ?? row.limitType) as QualityRow["limitType"],
+                  target: row.target === "" ? (m?.defaultTarget ?? "") : row.target,
+                  notes: row.notes === "" ? (m?.notes ?? "") : row.notes,
+                } : row)));
+              }}
+            >
+              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Select parameter" /></SelectTrigger>
+              <SelectContent>
+                {Object.keys(PRODUCT_PARAMETER_MASTER).map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                <SelectItem value={CUSTOM_PARAM}>{CUSTOM_PARAM}</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <Input value={r.target} onChange={e => update(i, "target", e.target.value)} onBlur={onBlur} placeholder="Value" className="h-7 text-xs" />
           <Input value={r.unit} onChange={e => update(i, "unit", e.target.value)} onBlur={onBlur} placeholder="Unit" className="h-7 text-xs" />
           <Select value={r.limitType} onValueChange={v => { commitRows(rows.map((row, idx) => (idx === i ? { ...row, limitType: v } : row))); }}>
@@ -331,7 +371,7 @@ function QualityRowsEditor({
           <Input value={r.notes} onChange={e => update(i, "notes", e.target.value)} onBlur={onBlur} placeholder="Notes" className="h-7 text-xs" />
           <button
             type="button"
-            onClick={() => { commitRows(rows.filter((_, idx) => idx !== i)); }}
+            onClick={() => { setCustomIdx({}); commitRows(rows.filter((_, idx) => idx !== i)); }}
             className="text-xs text-red-500 hover:text-red-700 px-1"
             title="Remove row"
           >
@@ -904,6 +944,19 @@ export default function DesignSoftwareWorkspacePage() {
         clr("thermal_oil_max_bulk_temp", "thermal_oil_max_bulk_status");
         clr("thermal_oil_max_film_temp", "thermal_oil_max_film_status");
       }
+      // Product Requirements — seed defaults from Product Requirement Master Data
+      // once per design (seeded flag prevents re-seeding after deliberate removal).
+      const prMaster = PRODUCT_REQUIREMENT_MASTER[m.feed_service ?? ""];
+      if (prMaster) {
+        if ((m.raffinate_quality_rows ?? "").trim() === "" && m.raffinate_quality_rows_seeded !== "true") {
+          m.raffinate_quality_rows = JSON.stringify(prMaster.raffinate);
+          updates = { ...updates, raffinate_quality_rows: m.raffinate_quality_rows, raffinate_quality_rows_seeded: "true" };
+        }
+        if ((m.extract_quality_rows ?? "").trim() === "" && m.extract_quality_rows_seeded !== "true") {
+          m.extract_quality_rows = JSON.stringify(prMaster.extract);
+          updates = { ...updates, extract_quality_rows: m.extract_quality_rows, extract_quality_rows_seeded: "true" };
+        }
+      }
       if (m.design_objective_manual !== "true") {
         m.design_objective = genObjective();
         updates = { ...updates, design_objective: m.design_objective };
@@ -1350,20 +1403,24 @@ export default function DesignSoftwareWorkspacePage() {
         <SectionCard title="Product Requirements">
           <QualityRowsEditor
             title="Raffinate Quality"
-            jsonValue={db.raffinate_quality_rows ?? ""}
+            jsonValue={(db.raffinate_quality_rows ?? "").trim() !== "" || db.raffinate_quality_rows_seeded === "true"
+              ? (db.raffinate_quality_rows ?? "")
+              : JSON.stringify(PRODUCT_REQUIREMENT_MASTER[db.feed_service ?? ""]?.raffinate ?? [])}
             legacyValue={db.raffinate_quality}
-            onChange={v => f("raffinate_quality_rows", v)}
+            onChange={v => { f("raffinate_quality_rows", v); f("raffinate_quality_rows_seeded", "true"); }}
             onBlur={s}
-            onCommit={v => cs({ raffinate_quality_rows: v })}
+            onCommit={v => cs({ raffinate_quality_rows: v, raffinate_quality_rows_seeded: "true" })}
           />
           <div className="border-t pt-3">
             <QualityRowsEditor
               title="Extract Quality"
-              jsonValue={db.extract_quality_rows ?? ""}
+              jsonValue={(db.extract_quality_rows ?? "").trim() !== "" || db.extract_quality_rows_seeded === "true"
+                ? (db.extract_quality_rows ?? "")
+                : JSON.stringify(PRODUCT_REQUIREMENT_MASTER[db.feed_service ?? ""]?.extract ?? [])}
               legacyValue={db.extract_quality}
-              onChange={v => f("extract_quality_rows", v)}
+              onChange={v => { f("extract_quality_rows", v); f("extract_quality_rows_seeded", "true"); }}
               onBlur={s}
-              onCommit={v => cs({ extract_quality_rows: v })}
+              onCommit={v => cs({ extract_quality_rows: v, extract_quality_rows_seeded: "true" })}
             />
           </div>
           <div className="border-t pt-3 space-y-3">
