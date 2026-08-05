@@ -295,6 +295,16 @@ const INTERFACE_CONTROL_OPTIONS = [
   { value: "interphase_level_control", label: "Interphase Level Control" },
 ];
 const INTERFACE_CONTROL_DEFAULT = "interphase_level_control";
+// C2 component-balance assumptions — Thermopac Preliminary Screening Defaults.
+// Percent on the page; the server mapper converts to fractions for the engine.
+// These are component-balance assumptions, NOT the Raffinate/Extract Yield
+// design targets — the two must never substitute for each other.
+const COMPONENT_BALANCE_FIELDS = [
+  { key: "solute_mass_fraction_feed", label: "Extractable Solute Mass Fraction in RRBO Feed", def: "20", engineKey: "soluteMassFractionInFeed" },
+  { key: "solute_recovery_extract",   label: "Solute Recovery to Extract",                   def: "90", engineKey: "soluteRecoveryToExtract" },
+  { key: "solvent_carryover_raffinate", label: "NMP Carryover to Raffinate",                 def: "2",  engineKey: "solventCarryoverFraction" },
+  { key: "oil_loss_extract",          label: "Oil-Carrier Loss to Extract",                  def: "1",  engineKey: "oilLossToExtractFraction" },
+];
 
 const LIMIT_TYPES = ["Max", "Min", "Target", "Range"];
 // Sentinel for the "Custom…" entry in the Product Requirement parameter dropdown.
@@ -840,6 +850,9 @@ export default function DesignSoftwareWorkspacePage() {
     if (blank("stage_efficiency")) u.stage_efficiency = STAGE_EFFICIENCY_DEFAULT;
     if (blank("design_margin")) u.design_margin = DESIGN_MARGIN_DEFAULT;
     if (blank("interface_control")) u.interface_control = INTERFACE_CONTROL_DEFAULT;
+    for (const cb of COMPONENT_BALANCE_FIELDS) {
+      if (blank(cb.key)) u[cb.key] = cb.def;
+    }
     const otTrk = (dbx.operating_temperature ?? "").trim();
     if (otTrk !== "" && pd.extraction_temperature_manual !== "true" && (pd.extraction_temperature ?? "").trim() !== otTrk) {
       u.extraction_temperature = otTrk;
@@ -1955,6 +1968,26 @@ export default function DesignSoftwareWorkspacePage() {
             <span />
           </div>
           {statusLine(`Status: ${(pd.interface_control ?? "").trim() !== "" && pd.interface_control !== INTERFACE_CONTROL_DEFAULT ? "Manual" : "Auto-Populated"} · Default: Interphase Level Control · Stored with Process Design data for Instrumentation, Control and P&ID modules`)}
+        </SectionCard>
+
+        <SectionCard title="Component Balance Assumptions">
+          <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 mb-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>
+              Thermopac Preliminary Screening Defaults — Source Type: Assumed · Pending Laboratory Validation.
+              These are component-balance assumptions for the C2 engine; the Raffinate/Extract Yield product
+              requirements are design targets and are never substituted for these splits.
+            </span>
+          </div>
+          {COMPONENT_BALANCE_FIELDS.map(cb => {
+            const val = (pd[cb.key] ?? "").trim();
+            return (
+              <div key={cb.key}>
+                <FieldRow label={cb.label} value={val !== "" ? (pd[cb.key] as string) : cb.def} onChange={v => f(cb.key, v)} onBlur={s} unit="%" />
+                {statusLine(`Status: ${val !== "" && val !== cb.def ? "Manual" : "Auto-Populated"} · Default ${cb.def} % · Source: Thermopac Preliminary Screening Default (Assumed) · Engine input ${cb.engineKey}`)}
+              </div>
+            );
+          })}
         </SectionCard>
 
         <SectionCard title="Solvent Circulation Rate">

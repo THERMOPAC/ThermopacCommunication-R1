@@ -100,5 +100,29 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>)
   const phase = String(inputs.phase_configuration ?? '').trim();
   if (out.phaseConfiguration === undefined && phase !== '') out.phaseConfiguration = phase;
 
+  // Component-balance assumptions — Thermopac Preliminary Screening Defaults
+  // entered as percent in the workspace; the engine expects fractions.
+  // These are component-split assumptions, distinct from the Raffinate/Extract
+  // Yield product-requirement targets (never substituted for each other).
+  // Engine contract: TaggedValue { value (fraction), sourceType, sourceReference }.
+  const componentBalanceMap: Array<[string, string, number]> = [
+    ['solute_mass_fraction_feed', 'soluteMassFractionInFeed', 20],
+    ['solute_recovery_extract', 'soluteRecoveryToExtract', 90],
+    ['solvent_carryover_raffinate', 'solventCarryoverFraction', 2],
+    ['oil_loss_extract', 'oilLossToExtractFraction', 1],
+  ];
+  for (const [wsKey, engineKey, defPct] of componentBalanceMap) {
+    const pct = num(inputs[wsKey]);
+    if (out[engineKey] === undefined && pct !== undefined && pct >= 0 && pct <= 100) {
+      out[engineKey] = {
+        value: pct / 100,
+        sourceType: 'Assumed',
+        sourceReference: pct === defPct
+          ? 'Thermopac Preliminary Screening Default'
+          : 'Engineer-entered screening value (Process Design workspace) — pending laboratory validation',
+      };
+    }
+  }
+
   return out;
 }
