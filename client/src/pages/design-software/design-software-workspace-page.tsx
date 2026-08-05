@@ -16,8 +16,10 @@ import {
   ArrowLeft, Lock, GitBranch, ChevronRight, CheckCircle2, XCircle,
   AlertCircle, FileText, BookOpen, Droplets, Activity, Calculator,
   GitFork, Settings, BarChart2, Wrench, Zap, DollarSign, ShieldCheck,
-  FileDown, History, Play, Save, AlertTriangle, Info
+  FileDown, History, Play, Save, AlertTriangle, Info, Check, ChevronsUpDown
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 // ── Status helpers ────────────────────────────────────────────────────────────
 const STATUS_COLOURS: Record<string, string> = {
@@ -214,6 +216,55 @@ function SuggestionBlock({
     </div>
   );
 }
+
+/** Searchable dropdown (combobox) row — options list is master-data driven. */
+function SearchSelectRow({
+  label, value, options, onSelect, unit, note, placeholder,
+}: {
+  label: string; value: string; options: string[]; onSelect: (v: string) => void;
+  unit?: string; note?: string; placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
+      <label className="text-sm text-gray-600 pt-2 font-medium leading-tight">{label}</label>
+      <div className="space-y-1">
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" role="combobox" aria-expanded={open} className="h-8 w-full justify-between text-sm font-normal">
+              {value || placeholder || "Select…"}
+              <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="p-0 w-[320px]" align="start">
+            <Command>
+              <CommandInput placeholder={`Search ${label.toLowerCase()}…`} />
+              <CommandList>
+                <CommandEmpty>No match found — additional options via master data.</CommandEmpty>
+                <CommandGroup>
+                  {options.map(o => (
+                    <CommandItem key={o} value={o} onSelect={() => { onSelect(o); setOpen(false); }}>
+                      <Check className={`mr-2 h-3 w-3 ${value === o ? "opacity-100" : "opacity-0"}`} />
+                      {o}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+        {note && <p className="text-xs text-gray-400">{note}</p>}
+      </div>
+      <div className="pt-2 min-w-[60px]">{unit && <span className="text-xs text-gray-400">{unit}</span>}</div>
+    </div>
+  );
+}
+
+// Thermal oil master list — initial options only; future expansion via master data
+// (a governed thermal-fluid master table), not by hard-coding here.
+const THERMAL_OIL_OPTIONS = ["Therminol 65", "Therminol 66"];
+const THERMAL_RULE_ENGINE_VERSION = "Design Basis UI Rules v1.0";
+const MAX_FILM_RULE_SOURCE = "Thermopac default rule: Heater Outlet + 60 °C";
 
 const LIMIT_TYPES = ["Max", "Min", "Target", "Range"];
 
@@ -766,6 +817,22 @@ export default function DesignSoftwareWorkspacePage() {
           updates = { ...updates, design_temperature: "", design_temperature_status: "" };
         }
       }
+      // Thermal oil Max Film Temperature — Thermopac default rule: Heater Outlet + 60 °C,
+      // auto-calculated and auto-saved unless the engineer has modified it.
+      const outletA = num(m.thermal_heater_outlet);
+      if (m.thermal_oil_max_film_override !== "true") {
+        if (outletA !== null) {
+          m.thermal_oil_max_film_temp = (outletA + 60).toFixed(1);
+          updates = {
+            ...updates,
+            thermal_oil_max_film_temp: m.thermal_oil_max_film_temp,
+            thermal_oil_max_film_status: "Auto-Calculated",
+            thermal_oil_max_film_source: MAX_FILM_RULE_SOURCE,
+          };
+        } else if ((m.thermal_oil_max_film_status ?? "") === "Auto-Calculated") {
+          updates = { ...updates, thermal_oil_max_film_temp: "", thermal_oil_max_film_status: "" };
+        }
+      }
       if (m.design_objective_manual !== "true") {
         m.design_objective = genObjective();
         updates = { ...updates, design_objective: m.design_objective };
@@ -1058,11 +1125,67 @@ export default function DesignSoftwareWorkspacePage() {
           </div>
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Thermal Oil System</p>
-            <FieldRow label="Heater Inlet Temp" value={db.thermal_heater_inlet ?? ""} onChange={v => f("thermal_heater_inlet", v)} onBlur={s} unit="°C" />
-            <FieldRow label="Heater Outlet Temp" value={db.thermal_heater_outlet ?? ""} onChange={v => f("thermal_heater_outlet", v)} onBlur={s} unit="°C" />
-            <SelectRow label="Oil Type / Grade" value={db.thermal_oil_type ?? ""} onChange={v => f("thermal_oil_type", v)} onBlur={s} onCommit={v => cs({ thermal_oil_type: v })} options={["Therminol 66", "Dowtherm A", "Shell Heat Transfer S2"]} allowOther />
-            <FieldRow label="Max Film Temp" value={db.thermal_oil_max_film_temp ?? ""} onChange={v => f("thermal_oil_max_film_temp", v)} onBlur={s} unit="°C" note="Auto-fill only from a source-tagged thermal-fluid record — none configured; enter with source below" />
-            <FieldRow label="Max Film Temp Source" value={db.thermal_oil_max_film_source ?? ""} onChange={v => f("thermal_oil_max_film_source", v)} onBlur={s} placeholder="e.g. vendor datasheet ref." />
+            <SearchSelectRow
+              label="Oil Type / Grade"
+              value={db.thermal_oil_type ?? ""}
+              options={THERMAL_OIL_OPTIONS}
+              onSelect={v => csa({ thermal_oil_type: v })}
+              placeholder="Search / select thermal oil…"
+              note="Searchable — initial options Therminol 65 / 66; list expands via master data"
+            />
+            <FieldRow
+              label="Heater Inlet Temp"
+              value={db.thermal_heater_inlet ?? ""}
+              onChange={v => f("thermal_heater_inlet", v)}
+              onBlur={commitAudited("thermal_heater_inlet")}
+              unit="°C"
+            />
+            <p className="text-xs ml-[212px] -mt-1 text-amber-600 font-medium">
+              Recommended value: Not Calculable — requires process duty &amp; LMTD from the utilities calculation engine (not yet available). Engineer entry recorded with full audit; never defaulted to zero.
+            </p>
+            <FieldRow label="Change Reason" value={db.thermal_heater_inlet_change_reason ?? ""} onChange={v => f("thermal_heater_inlet_change_reason", v)} onBlur={s} placeholder="Reason for setting/overriding Heater Inlet Temp" />
+            <AuditTrail fieldKey="thermal_heater_inlet" />
+            <FieldRow
+              label="Heater Outlet Temp"
+              value={db.thermal_heater_outlet ?? ""}
+              onChange={v => f("thermal_heater_outlet", v)}
+              onBlur={commitAudited("thermal_heater_outlet")}
+              unit="°C"
+            />
+            <p className="text-xs ml-[212px] -mt-1 text-amber-600 font-medium">
+              Recommended value: Not Calculable — requires process duty &amp; LMTD from the utilities calculation engine (not yet available). Engineer entry recorded with full audit; never defaulted to zero.
+            </p>
+            <FieldRow label="Change Reason" value={db.thermal_heater_outlet_change_reason ?? ""} onChange={v => f("thermal_heater_outlet_change_reason", v)} onBlur={s} placeholder="Reason for setting/overriding Heater Outlet Temp" />
+            <AuditTrail fieldKey="thermal_heater_outlet" />
+            <FieldRow
+              label="Max Film Temp"
+              value={db.thermal_oil_max_film_temp ?? ""}
+              onChange={v => { f("thermal_oil_max_film_temp", v); }}
+              onBlur={() => {
+                const v = (db.thermal_oil_max_film_temp ?? "").trim();
+                const outletV = num(db.thermal_heater_outlet);
+                const ruleV = outletV !== null ? (outletV + 60).toFixed(1) : null;
+                if (v === "" || (ruleV !== null && num(v) === num(ruleV))) {
+                  cs(auto({ thermal_oil_max_film_temp: "", thermal_oil_max_film_override: "" }));
+                } else {
+                  cs(auto({ thermal_oil_max_film_temp: v, thermal_oil_max_film_override: "true", thermal_oil_max_film_status: "Engineer Modified", thermal_oil_max_film_source: db.thermal_oil_max_film_source_manual || "Engineer entry" }));
+                }
+              }}
+              unit="°C"
+            />
+            {num(db.thermal_heater_outlet) === null && db.thermal_oil_max_film_override !== "true" ? (
+              <p className="text-xs ml-[212px] -mt-1 text-amber-600 font-medium">Not Calculable — enter Heater Outlet Temp (default rule: Heater Outlet + 60 °C; never defaulted to zero)</p>
+            ) : (
+              <p className="text-xs ml-[212px] -mt-1 text-gray-500">
+                Status: {db.thermal_oil_max_film_override === "true" ? "Engineer Modified" : "Auto-Calculated (auto-saved)"} · Source: {db.thermal_oil_max_film_source || MAX_FILM_RULE_SOURCE} · Engine Version: {THERMAL_RULE_ENGINE_VERSION}
+              </p>
+            )}
+            {db.thermal_oil_max_film_override === "true" && (
+              <div className="ml-[212px] mt-1 flex items-center gap-2 text-xs">
+                <Input value={db.thermal_oil_max_film_source_manual ?? ""} onChange={e => f("thermal_oil_max_film_source_manual", e.target.value)} onBlur={s} placeholder="Source for the modified Max Film Temp (e.g. vendor datasheet ref.)" className="h-6 text-xs flex-1" />
+                <button type="button" onClick={() => cs(auto({ thermal_oil_max_film_temp: "", thermal_oil_max_film_override: "", thermal_oil_max_film_source_manual: "" }))} className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Revert to rule</button>
+              </div>
+            )}
           </div>
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Cooling Water</p>
