@@ -8,6 +8,7 @@ import * as svc from './design-software-service';
 
 // Register all LLX engines with the global registry at module load time
 import './engines/llx/index';
+import './engines/common/index';
 
 export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
 

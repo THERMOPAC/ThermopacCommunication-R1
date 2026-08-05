@@ -180,6 +180,33 @@ Applicability statement + 7 limitations on every result: no proprietary Kühni m
 
 ---
 
+## 11. Stage C6 — Common Mechanical Design Engine (`server/engines/common/mechanical-vessel-engine.ts`, engine `mech-vessel` v1.0.0)
+
+**PRELIMINARY MECHANICAL SCREENING — NOT A CODE CALCULATION AND NOT FOR FABRICATION.** Common downstream engine: consumes a technology-neutral `MechanicalGeometryInput` snapshot from C4 (ECP) / C5 (ECR) — and any future Thermopac module — and produces a preliminary mechanical vessel definition. No ASME VIII / EN 13445 / IS 2825 / PV Elite / FEA / wind / seismic / reinforcement / detailed support design; these register as future methods without workflow changes. Allowable stress is engineer-entered, never looked up from a material name. Approved refinements: R1 explicit mandatory orientation (never inferred); R2 Material Interface (name/spec/grade/S/ρ/CA/source — future ASME Section II hook); R3 five head types with type-driven head depth; R4 nozzle projection + flange class + flange standard; R5 complete weight breakdown incl. optional insulation and a future-platforms placeholder; R6 reserved wind/seismic/transportation/foundation/nozzle-load placeholders; R7 structured Mechanical Datasheet object (internal, not a PDF).
+
+| ID | Name | Formula & rules | Classification behaviour |
+|---|---|---|---|
+| MEC-001 | Design conditions | P/T design & operating all entered source-tagged; gates P_d ≥ P_op, T_d ≥ T_op (margins engineer-set, never invented). Material Interface mandatory; joint efficiency 0 < E ≤ 1; designCode is a declared placeholder label. Physicality gate S·E − 0.6·P > 0 | blocked if any missing |
+| MEC-002 | Geometry adoption | D, T/T, overall height adopted from the snapshot (source engine id/version/run echoed); orientation is an explicit input, never inferred; L_ss = T/T. Head depth from type: 2:1 ⇒ D/4; hemispherical ⇒ D/2; flat ⇒ 0; torispherical/custom ⇒ entered depth (+ entered head volume). Flat head under pressure ⇒ warning | blocked if snapshot incomplete |
+| MEC-003 | Shell thickness (screening) | t = P·R_i/(S·E − 0.6·P), P (MPa) = barg × 0.1; thin-wall validity gate t/R ≤ 0.10 else Not Calculable + `THIN_WALL_LIMIT_EXCEEDED` (thick-wall code method required). Method label `thin_wall_membrane_screening` — code methods are future ThicknessMethods | Calculated Screening Result |
+| MEC-004 | Head thickness (screening) | 2:1: t = P·D/(2·S·E − 0.2·P); hemispherical: t = P·R/(2·S·E − 0.2·P); torispherical: t = 0.885·P·L/(S·E − 0.1·P) (entered crown radius); flat ⇒ Not Calculable + `FLAT_HEAD_REQUIRES_CODE_METHOD`; custom ⇒ engineer-entered thickness or Not Calculable. Same thin-wall gate | data-gated |
+| MEC-005 | Thickness selection | t_req = t_calc + CA; selected = next plate ≥ t_req (and ≥ entered minimum floor) from an entered source-tagged plate series; no series ⇒ `NO_PLATE_SERIES_DATA`; series exceeded ⇒ Not Calculable | data-gated |
+| MEC-006 | Nozzle schedule | Mandatory services Feed, Solvent, Raffinate, Extract, Vent, Drain, ≥1 Instrument (Spare optional); exact word-match on normalized service (substrings forbidden). Per row: Tag (auto N1…), Service, Size, Rating, Facing, Projection, Flange Class, Flange Standard, Remarks. Size entered OR d = √(4·Q/(π·v)) with entered velocity, rounded up in the entered DN series; missing criteria ⇒ Not Calculable, row still emitted. Ratings/facings/flange data entered per nozzle or via entered project defaults — never invented (`NOT ENTERED` + warning). No reinforcement calculation (remark on every row) | data-gated |
+| MEC-007 | Support selection | Rule matrix: vertical ⇒ skirt (stated industry-practice basis); horizontal ⇒ 2 saddles; legs only by explicit selection WITH entered height/weight criteria (checked, exceedances warned); lug only by explicit selection. Selection + rationale + rejected alternatives reported. No structural calculation | Calculated Screening Result |
+| MEC-008 | Weights | Shell π·(D+t)·t·L_ss·ρ; heads 2·k_blank·D²·t·ρ (k_blank entered — never hard-coded); nozzles/internals/supports entered tagged; insulation optional (0 with explicit note if absent); future platforms = reserved null placeholder. Volume π/4·D²·L_ss + 2·V_head (2:1 πD³/24, hemi πD³/12, flat 0, tori/custom entered). Operating = empty + V × basis (liquid-full or entered holdup) × ρ_op; hydrotest = empty + V·ρ_w. Thickness unavailable ⇒ weights Not Calculable | Pending if any factor Assumed |
+| MEC-009 | Lifting (preliminary) | Vertical: 2 top lugs (tangent line, 0°/180°) + 1 tailing lug; horizontal: 2 lugs above saddles. Erection weight = empty + entered allowance. Always `LIFTING_NOT_VERIFIED` — no structural verification | Calculated Screening Result |
+| MEC-010 | Summary, datasheet & checklist | Mechanical summary (dimensions/thickness/weights/support/nozzles); structured Mechanical Datasheet object (R7, internal engineering object); 6-point checklist with evidence: geometry complete, thickness calculated, mandatory nozzles defined, support selected, weights calculated, assumptions acknowledged (true only when every Assumed input is registered and the run is pending_validation) | assembled |
+
+Benchmarks (asserted): D = 1.0 m, T/T = 6.55 m at 6 barg, S = 118 MPa, E = 0.85, CA = 3 mm ⇒ shell t_calc = 3.002 mm → 8 mm plate; 2:1 head t_calc = 2.993 mm → 6 mm plate (next ≥ 5.993 from series [6, 8, …]); shell 1302.6 kg; heads 102.1 kg; volume 5.406 m³; feed nozzle DN 80 from 12.5 m³/h at 1.5 m/s; vertical ⇒ skirt; 2 top + 1 tailing lug.
+
+Reserved placeholders (R6, no implementation): wind load, seismic load, transportation, foundation load, nozzle load.
+
+**Not implemented in Stage C6 (by direction):** ASME VIII / EN 13445 / IS 2825 calculations, PV Elite integration, FEA, wind analysis, seismic analysis, detailed nozzle reinforcement, detailed support design.
+
+**C6 validation suite:** `server/engine-framework/tests/c6-mechanical-vessel.ts`.
+
+---
+
 **Deferred (throw `NotImplementedError`, never fabricate values):** schmidt, sherwood, lookupDiffusivity, pressureDropDarcyWeisbach, moodyFrictionFactor, overallMassTransferCoefficient, numberOfTransferUnits, nusseltDittusBoelter.
 
 **Validation suite:** `server/engine-framework/tests/level1-validation.ts` (run `npx tsx server/engine-framework/tests/level1-validation.ts`).
