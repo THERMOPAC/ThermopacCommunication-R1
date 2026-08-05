@@ -289,6 +289,12 @@ const PHASE_CONFIG_OPTIONS = [
   { value: "nmp_continuous_rrbo_dispersed", label: "NMP continuous / RRBO dispersed" },
 ];
 const THERMAL_DEFAULT_SOURCE = "Thermopac design default — thermal-fluid master data";
+// Interface Control — stored with Process Design data for future
+// Instrumentation, Control and P&ID modules.
+const INTERFACE_CONTROL_OPTIONS = [
+  { value: "interphase_level_control", label: "Interphase Level Control" },
+];
+const INTERFACE_CONTROL_DEFAULT = "interphase_level_control";
 
 const LIMIT_TYPES = ["Max", "Min", "Target", "Range"];
 // Sentinel for the "Custom…" entry in the Product Requirement parameter dropdown.
@@ -833,6 +839,7 @@ export default function DesignSoftwareWorkspacePage() {
     if (blank("theoretical_stages")) u.theoretical_stages = THEORETICAL_STAGES_DEFAULT;
     if (blank("stage_efficiency")) u.stage_efficiency = STAGE_EFFICIENCY_DEFAULT;
     if (blank("design_margin")) u.design_margin = DESIGN_MARGIN_DEFAULT;
+    if (blank("interface_control")) u.interface_control = INTERFACE_CONTROL_DEFAULT;
     const otTrk = (dbx.operating_temperature ?? "").trim();
     if (otTrk !== "" && pd.extraction_temperature_manual !== "true" && (pd.extraction_temperature ?? "").trim() !== otTrk) {
       u.extraction_temperature = otTrk;
@@ -1934,6 +1941,20 @@ export default function DesignSoftwareWorkspacePage() {
             <span />
           </div>
           {statusLine("Status: Manual · Engineer selection required by the C2 engine — phase continuity is never assumed from density")}
+
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
+            <label className="text-sm text-gray-700 font-medium pt-1.5">Interface Control</label>
+            <select
+              value={pd.interface_control ?? INTERFACE_CONTROL_DEFAULT}
+              onChange={e => cs({ interface_control: e.target.value })}
+              disabled={isFrozen}
+              className="h-8 text-sm border rounded-md px-2 bg-white"
+            >
+              {INTERFACE_CONTROL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <span />
+          </div>
+          {statusLine(`Status: ${(pd.interface_control ?? "").trim() !== "" && pd.interface_control !== INTERFACE_CONTROL_DEFAULT ? "Manual" : "Auto-Populated"} · Default: Interphase Level Control · Stored with Process Design data for Instrumentation, Control and P&ID modules`)}
         </SectionCard>
 
         <SectionCard title="Solvent Circulation Rate">
