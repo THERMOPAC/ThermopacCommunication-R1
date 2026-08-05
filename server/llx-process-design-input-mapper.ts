@@ -131,7 +131,13 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>)
     if (r !== undefined) normal.soluteRecoveryToExtract = r;
     if (sL !== undefined) normal.solventCarryoverFraction = sL;
     if (oL !== undefined) normal.oilLossToExtractFraction = oL;
-    if (Object.keys(normal).length > 0) out.caseSplits = { normal };
+    if (Object.keys(normal).length > 0) {
+      out.caseSplits = { normal };
+      // The workspace carries one set of screening splits for both cases —
+      // the engine's explicit reuse flag applies them to the maximum case
+      // and records its documented reused-splits assumption.
+      if (out.applyNormalSplitsToMaximumCase === undefined) out.applyNormalSplitsToMaximumCase = true;
+    }
   }
 
   return out;
