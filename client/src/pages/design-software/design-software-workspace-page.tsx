@@ -615,6 +615,9 @@ export default function DesignSoftwareWorkspacePage() {
   // Thermopac value are left manual (no invented data).
   useEffect(() => {
     if (activeStep !== "fluid_properties" || isFrozen || !activeRevisionId || !inputsQ.data) return;
+    // Never auto-seed while a save is in flight — avoids posting a stale
+    // whole-section object over a concurrent engineer edit.
+    if (savingSection !== null || upsertMutation.isPending) return;
     const fp = localData["fluid_properties"] ?? {};
     const dbx = localData["design_basis"] ?? {};
     const u: Record<string, string> = {};
@@ -657,11 +660,11 @@ export default function DesignSoftwareWorkspacePage() {
     const epd = epdNmpQ.data;
     if (epd?.density?.value != null) {
       setIf("nmp_density", String(Math.round(epd.density.value * 10) / 10), "kg/m³", fpOtStr + " °C");
-      if (epd.density.pendingValidation && blank("nmp_density_source") && ("nmp_density_value" in u)) u.nmp_density_source = "Assumed";
+      if (blank("nmp_density_source") && ("nmp_density_value" in u)) u.nmp_density_source = epd.density.pendingValidation ? "Assumed" : "Literature";
     }
     if (epd?.dynamicViscosity?.value != null) {
       setIf("nmp_viscosity_dynamic", String(Math.round(epd.dynamicViscosity.value * 1000) / 1000), "mPa·s", fpOtStr + " °C");
-      if (epd.dynamicViscosity.pendingValidation && blank("nmp_viscosity_dynamic_source") && ("nmp_viscosity_dynamic_value" in u)) u.nmp_viscosity_dynamic_source = "Assumed";
+      if (blank("nmp_viscosity_dynamic_source") && ("nmp_viscosity_dynamic_value" in u)) u.nmp_viscosity_dynamic_source = epd.dynamicViscosity.pendingValidation ? "Assumed" : "Literature";
     }
     // NMP Master Data — purity / water spec limits
     setIf("nmp_purity", NMP_MASTER.purity.value, NMP_MASTER.purity.unit);
@@ -670,7 +673,7 @@ export default function DesignSoftwareWorkspacePage() {
     if (blank("emulsion_behaviour")) u.emulsion_behaviour = EMULSION_BEHAVIOUR_DEFAULT;
     if (Object.keys(u).length > 0) commitSection("fluid_properties", u);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeStep, isFrozen, activeRevisionId, inputsQ.data, epdNmpQ.data, localData]);
+  }, [activeStep, isFrozen, activeRevisionId, inputsQ.data, epdNmpQ.data, localData, savingSection, upsertMutation.isPending]);
 
   const newRevisionMutation = useMutation({
     mutationFn: () =>
