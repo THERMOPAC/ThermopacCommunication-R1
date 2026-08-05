@@ -268,6 +268,15 @@ const SITE_ELEVATION_OPTIONS = ["0", "50", "150", "250", "500", "1000", "2000"];
 const AMBIENT_DEFAULT = "25";
 const ELEVATION_DEFAULT = "0";
 const ISA_FORMULA = "P = 101.325 × (1 − 2.25577×10⁻⁵ × h)^5.25588 kPa";
+
+// Thermopac standard design conditions — LLX vertical extraction column (~14 m).
+// Internal pressure and external vacuum are SEPARATE design cases; Full Vacuum is
+// a designation, never represented as 0 bar(g).
+const LLX_COL_INTERNAL_DP = "2.5"; // bar(g)
+const LLX_COL_EXTERNAL_CONDITION = "Full Vacuum";
+const LLX_COL_ORIENTATION = "Vertical";
+const LLX_COL_HEIGHT_M = "14";
+const LLX_COL_STANDARD_SOURCE = "Thermopac standard design condition — LLX vertical extraction column (~14 m)";
 const THERMAL_RULE_ENGINE_VERSION = "Design Basis UI Rules v1.0";
 const MAX_FILM_RULE_SOURCE = "Thermopac default rule: Heater Outlet + 60 °C";
 
@@ -622,15 +631,21 @@ export default function DesignSoftwareWorkspacePage() {
   };
   const overrideViolations: string[] = [];
   {
-    const opV = vNum(db.operating_pressure); const dpM = vNum(db.dp_margin_value); const dpV = vNum(db.design_pressure);
-    if (opV !== null && dpM !== null && dpV !== null && Math.abs(dpV - (opV + dpM)) > 0.005 && !(db.dp_override_reason ?? "").trim()) {
-      overrideViolations.push("Design Pressure deviates from the Thermopac Design Pressure Rule without an override reason");
+    // Extraction column pressure design cases (internal + external kept separate)
+    const opV = vNum(db.operating_pressure);
+    const intDP = vNum(db.llx_internal_design_pressure ?? "2.5");
+    if (opV !== null && intDP !== null && intDP < opV) {
+      overrideViolations.push("Internal Design Pressure must not be below Maximum Operating Pressure");
     }
-    if (db.design_pressure_override === "true" && !(db.dp_override_reason ?? "").trim()) {
-      overrideViolations.push("Design Pressure override is active without a recorded reason");
+    if (db.llx_internal_design_pressure_override === "true" && !(db.llx_internal_dp_override_reason ?? "").trim()) {
+      overrideViolations.push("Internal Design Pressure override is active without a recorded reason");
     }
-    if (opV !== null && dpV !== null && dpV < opV) {
-      overrideViolations.push("Design Pressure must be ≥ Operating Pressure");
+    const extCond = (db.llx_external_design_condition ?? "Full Vacuum").trim();
+    if (vNum(extCond) !== null) {
+      overrideViolations.push("External design case must be a designation (e.g. Full Vacuum) — never a numeric bar(g) value such as 0");
+    }
+    if (db.llx_external_design_condition_override === "true" && !(db.llx_external_override_reason ?? "").trim()) {
+      overrideViolations.push("External design case override is active without a recorded reason");
     }
     const otV = vNum(db.operating_temperature); const dtM = vNum(db.dt_margin_value); const dtV = vNum(db.design_temperature);
     if (otV !== null && dtM !== null && dtV !== null && Math.abs(dtV - (otV + dtM)) > 0.05 && !(db.dt_override_reason ?? "").trim()) {
@@ -808,18 +823,34 @@ export default function DesignSoftwareWorkspacePage() {
         m.design_capacity_mtpa = ((lphM * 24 * daysM * (rhoM as number)) / 1e6).toFixed(0);
         updates = { ...updates, design_capacity_mtpa: m.design_capacity_mtpa };
       }
-      // Thermopac Design Pressure / Temperature Rules — auto-calculated and auto-saved
-      // unless an engineer override is active. Never defaults to zero: when the rule
-      // is not calculable, an auto-calculated value is cleared (shown as Not Calculable).
-      const opA = num(m.operating_pressure); const dpMA = num(m.dp_margin_value);
-      if (m.design_pressure_override !== "true") {
-        if (opA !== null && dpMA !== null) {
-          m.design_pressure = (opA + dpMA).toFixed(2);
-          updates = { ...updates, design_pressure: m.design_pressure, design_pressure_status: "Auto-Calculated" };
-        } else if ((m.design_pressure_status ?? "") === "Auto-Calculated") {
-          updates = { ...updates, design_pressure: "", design_pressure_status: "" };
-        }
+      // Extraction column pressure design — Thermopac standard values auto-populated
+      // (NOT calculated from Operating Pressure by a percentage margin for this equipment).
+      // Internal pressure and external vacuum are kept as separate design cases.
+      if (m.llx_internal_design_pressure_override !== "true") {
+        m.llx_internal_design_pressure = LLX_COL_INTERNAL_DP;
+        updates = {
+          ...updates,
+          llx_internal_design_pressure: LLX_COL_INTERNAL_DP,
+          llx_internal_design_pressure_status: "Auto-Populated",
+          // Backward-compat dual-write: legacy design_pressure mirrors the internal design case
+          design_pressure: LLX_COL_INTERNAL_DP,
+          design_pressure_status: "Auto-Populated",
+        };
+      } else {
+        updates = { ...updates, design_pressure: m.llx_internal_design_pressure ?? m.design_pressure };
       }
+      if (m.llx_external_design_condition_override !== "true") {
+        updates = {
+          ...updates,
+          llx_external_design_condition: LLX_COL_EXTERNAL_CONDITION,
+          llx_full_vacuum_required: "Yes",
+          llx_external_design_condition_status: "Auto-Populated",
+        };
+      } else {
+        updates = { ...updates, llx_full_vacuum_required: (m.llx_external_design_condition ?? "") === "Full Vacuum" ? "Yes" : "No" };
+      }
+      if (!(m.vessel_orientation ?? "").trim()) updates = { ...updates, vessel_orientation: LLX_COL_ORIENTATION };
+      if (!(m.column_height_m ?? "").trim()) updates = { ...updates, column_height_m: LLX_COL_HEIGHT_M };
       const otA = num(m.operating_temperature); const dtMA = num(m.dt_margin_value);
       if (m.design_temperature_override !== "true") {
         if (otA !== null && dtMA !== null) {
@@ -869,7 +900,7 @@ export default function DesignSoftwareWorkspacePage() {
     };
     // Engineer override of a rule-calculated design value: records Previous Value,
     // New Value, Reason, User and Timestamp; re-entering the rule value clears the override.
-    const commitDesignValue = (key: "design_pressure" | "design_temperature", reasonKey: string, ruleVal: string | null) => () => {
+    const commitDesignValue = (key: string, reasonKey: string, ruleVal: string | null) => () => {
       const val = (db[key] ?? "").trim();
       // Blank entry: never persist a blank/zero design value — restore the rule
       // result (auto() recomputes when calculable) and clear any override state.
@@ -901,7 +932,7 @@ export default function DesignSoftwareWorkspacePage() {
         [`${key}_audit`]: JSON.stringify(newAudits),
       }));
     };
-    const clearDesignOverride = (key: "design_pressure" | "design_temperature", reasonKey: string) => () =>
+    const clearDesignOverride = (key: string, reasonKey: string) => () =>
       cs(auto({ [`${key}_override`]: "", [reasonKey]: "", [`${key}_status`]: "" }));
     const AuditTrail = ({ fieldKey }: { fieldKey: string }) => {
       const audits = auditList(fieldKey);
@@ -919,8 +950,6 @@ export default function DesignSoftwareWorkspacePage() {
     };
     // Governed suggestions — computed for display only, never auto-saved
     const op = num(db.operating_pressure);
-    const dpMargin = num(db.dp_margin_value);
-    const suggestedDP = op !== null && dpMargin !== null ? (op + dpMargin).toFixed(2) : null;
     const ot = num(db.operating_temperature);
     const dtMargin = num(db.dt_margin_value);
     const suggestedDT = ot !== null && dtMargin !== null ? (ot + dtMargin).toFixed(1) : null;
@@ -1148,36 +1177,61 @@ export default function DesignSoftwareWorkspacePage() {
           <AuditTrail fieldKey="operating_pressure" />
           <SelectRow label="Operating Temperature" value={db.operating_temperature ?? ""} onChange={v => f("operating_temperature", v)} onBlur={s} onCommit={v => csa({ operating_temperature: v })} options={["50", "55", "60", "65", "70", "75", "80"]} unit="°C" />
           <div className="border-t pt-3 mt-1">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Design Pressure — Thermopac Design Pressure Rule</p>
-            <FieldRow label="Rule Margin (bar)" value={db.dp_margin_value ?? ""} onChange={v => f("dp_margin_value", v)} onBlur={() => cs(auto({}))} unit="bar" note="Configurable Thermopac Design Pressure Rule: DP = OP + margin (recognized international practice)" />
-            <FieldRow label="Rule Source" value={db.dp_margin_source ?? ""} onChange={v => f("dp_margin_source", v)} onBlur={s} placeholder="e.g. Thermopac design guideline / ASME Sec. VIII practice ref." />
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Extraction Column Pressure Design — Thermopac Standard</p>
+            <FieldRow label="Vessel Orientation" value={db.vessel_orientation ?? LLX_COL_ORIENTATION} onChange={() => {}} onBlur={() => {}} readOnly note="Thermopac standard — vertical extraction column" />
+            <FieldRow label="Approx. Column Height" value={db.column_height_m ?? LLX_COL_HEIGHT_M} onChange={v => f("column_height_m", v)} onBlur={commitAudited("column_height_m")} unit="m" note="Standard ≈ 14 m — changes are recorded" />
+            <AuditTrail fieldKey="column_height_m" />
             <FieldRow
-              label="Design Pressure"
-              value={db.design_pressure ?? ""}
-              onChange={v => f("design_pressure", v)}
-              onBlur={commitDesignValue("design_pressure", "dp_override_reason", suggestedDP)}
+              label="Internal Design Pressure"
+              value={db.llx_internal_design_pressure ?? LLX_COL_INTERNAL_DP}
+              onChange={v => f("llx_internal_design_pressure", v)}
+              onBlur={commitDesignValue("llx_internal_design_pressure", "llx_internal_dp_override_reason", LLX_COL_INTERNAL_DP)}
               unit="bar g"
             />
-            {suggestedDP === null && db.design_pressure_override !== "true" ? (
-              <p className="text-xs ml-[212px] -mt-1 text-amber-600 font-medium">Not Calculable — enter Operating Pressure and the Design Pressure Rule margin (a value is never defaulted to zero)</p>
-            ) : (
-              <p className="text-xs ml-[212px] -mt-1 text-gray-500">
-                Applied rule: DP = OP {op ?? "—"} + {dpMargin ?? "—"} bar{suggestedDP ? ` = ${suggestedDP} bar g` : ""} · Source: {db.dp_margin_source || "rule source not entered"} · Status: {db.design_pressure_override === "true" ? "Engineer Override" : "Auto-Calculated (auto-saved)"}
-              </p>
+            <p className="text-xs ml-[212px] -mt-1 text-gray-500">
+              Positive internal design case: <b>{db.llx_internal_design_pressure ?? LLX_COL_INTERNAL_DP} bar(g)</b> · Source: {LLX_COL_STANDARD_SOURCE} · Status: {db.llx_internal_design_pressure_override === "true" ? "Engineer Override" : "Auto-Populated (auto-saved)"} — not derived from Operating Pressure by a percentage margin
+            </p>
+            {op !== null && num(db.llx_internal_design_pressure ?? LLX_COL_INTERNAL_DP) !== null && (num(db.llx_internal_design_pressure ?? LLX_COL_INTERNAL_DP) as number) < op && (
+              <p className="text-xs ml-[212px] text-red-600 font-medium">Internal Design Pressure must not be below Maximum Operating Pressure ({op} bar g)</p>
             )}
-            {op !== null && num(db.design_pressure) !== null && (num(db.design_pressure) as number) < op && (
-              <p className="text-xs ml-[212px] text-red-600 font-medium">Design Pressure must be ≥ Operating Pressure ({op} bar g)</p>
-            )}
-            {db.design_pressure_override === "true" && (
+            {db.llx_internal_design_pressure_override === "true" && (
               <div className="ml-[212px] mt-1 space-y-1">
-                <div className={`flex items-center gap-2 text-xs rounded px-2 py-1 border ${(db.dp_override_reason ?? "").trim() ? "bg-gray-50 border-gray-200" : "bg-amber-50 border-amber-300"}`}>
-                  <span className={(db.dp_override_reason ?? "").trim() ? "text-gray-500" : "text-amber-700 font-medium"}>Override reason{(db.dp_override_reason ?? "").trim() ? "" : " required"}:</span>
-                  <Input value={db.dp_override_reason ?? ""} onChange={e => f("dp_override_reason", e.target.value)} onBlur={commitDesignValue("design_pressure", "dp_override_reason", suggestedDP)} placeholder="Why does Design Pressure deviate from the Thermopac rule?" className="h-6 text-xs flex-1" />
-                  <button type="button" onClick={clearDesignOverride("design_pressure", "dp_override_reason")} className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Revert to rule</button>
+                <div className={`flex items-center gap-2 text-xs rounded px-2 py-1 border ${(db.llx_internal_dp_override_reason ?? "").trim() ? "bg-gray-50 border-gray-200" : "bg-amber-50 border-amber-300"}`}>
+                  <span className={(db.llx_internal_dp_override_reason ?? "").trim() ? "text-gray-500" : "text-amber-700 font-medium"}>Override reason{(db.llx_internal_dp_override_reason ?? "").trim() ? "" : " required"}:</span>
+                  <Input value={db.llx_internal_dp_override_reason ?? ""} onChange={e => f("llx_internal_dp_override_reason", e.target.value)} onBlur={commitDesignValue("llx_internal_design_pressure", "llx_internal_dp_override_reason", LLX_COL_INTERNAL_DP)} placeholder="Why does Internal Design Pressure deviate from the Thermopac standard 2.5 bar(g)?" className="h-6 text-xs flex-1" />
+                  <button type="button" onClick={clearDesignOverride("llx_internal_design_pressure", "llx_internal_dp_override_reason")} className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Revert to standard</button>
                 </div>
               </div>
             )}
-            <AuditTrail fieldKey="design_pressure" />
+            <AuditTrail fieldKey="llx_internal_design_pressure" />
+            <SelectRow
+              label="External Design Pressure"
+              value={db.llx_external_design_condition ?? LLX_COL_EXTERNAL_CONDITION}
+              onChange={v => f("llx_external_design_condition", v)}
+              onBlur={s}
+              onCommit={v => {
+                const prev = db.llx_external_design_condition ?? LLX_COL_EXTERNAL_CONDITION;
+                if (v === prev) return;
+                const audits = auditList("llx_external_design_condition");
+                const entry = { ts: new Date().toISOString(), user: user?.username ?? "", from: prev, to: v, reason: (db.llx_external_override_reason ?? "").trim() };
+                cs(auto({
+                  llx_external_design_condition: v,
+                  llx_external_design_condition_override: v === LLX_COL_EXTERNAL_CONDITION ? "" : "true",
+                  llx_external_design_condition_audit: JSON.stringify([...audits, entry]),
+                }));
+              }}
+              options={["Full Vacuum"]}
+              allowOther
+              note="Separate external design case — never combined with the internal pressure rating and never represented as 0 bar(g)"
+            />
+            {db.llx_external_design_condition_override === "true" && (
+              <FieldRow label="Override Reason" value={db.llx_external_override_reason ?? ""} onChange={v => f("llx_external_override_reason", v)} onBlur={s} placeholder="Why does the external design case deviate from Full Vacuum?" note={!(db.llx_external_override_reason ?? "").trim() ? "Required while override is active" : undefined} />
+            )}
+            <AuditTrail fieldKey="llx_external_design_condition" />
+            <FieldRow label="Full Vacuum Design Required" value={db.llx_full_vacuum_required ?? "Yes"} onChange={() => {}} onBlur={() => {}} readOnly note="Derived from the external design case; stored in the Design Basis and consumed by the C6 mechanical design engine (engine unchanged)" />
+            <p className="text-xs ml-[212px] -mt-1 text-gray-500">
+              Source: {db.llx_external_design_condition_override === "true" ? "Engineer Override" : LLX_COL_STANDARD_SOURCE} · Status: {db.llx_external_design_condition_override === "true" ? "Engineer Override" : "Auto-Populated (auto-saved)"}
+            </p>
           </div>
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Design Temperature — Thermopac Design Temperature Rule</p>
