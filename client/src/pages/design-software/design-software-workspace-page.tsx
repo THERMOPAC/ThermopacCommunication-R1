@@ -1686,7 +1686,11 @@ export default function DesignSoftwareWorkspacePage() {
     const cs = (u: Record<string, string>) => commitSection("process_design", u);
     const pdRun = runs.find(r => r.calculation_type === "process_design");
     const pdResult = (resultsQ.data ?? []).find((r: any) => r.section === "process_design");
-    const rd: any = pdResult?.data ?? null;
+    // Never present a stale accepted result as current: if the LATEST run was
+    // blocked (error), the previous successful result is suppressed and only
+    // the blocking validation issues are shown.
+    const latestRunBlocked = pdRun?.calculation_status === "error";
+    const rd: any = latestRunBlocked ? null : (pdResult?.data ?? null);
 
     // Effective inputs — approved defaults shown immediately, everything editable
     const otStr = (dbx.operating_temperature ?? "").trim();

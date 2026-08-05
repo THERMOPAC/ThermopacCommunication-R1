@@ -25,39 +25,47 @@ const num = (v: unknown): number | undefined => {
 const SOURCE_TYPES = ['Measured', 'Vendor', 'Literature', 'Assumed'];
 
 export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>): Record<string, unknown> {
-  // Engine-ready payload already present → pass through untouched.
-  if (inputs.feedFlow !== undefined || inputs.operatingTemperature !== undefined) return inputs;
-
   const out: Record<string, unknown> = { ...inputs };
+  // Per-key pass-through: any engine-ready camelCase key already present wins
+  // untouched; only missing keys are mapped from the flat workspace fields.
 
-  const ot = num(inputs.operating_temperature);
-  if (ot !== undefined) out.operatingTemperature = ot;
+  const ot = out.operatingTemperature !== undefined ? num(out.operatingTemperature) : num(inputs.operating_temperature);
+  if (out.operatingTemperature === undefined && ot !== undefined) out.operatingTemperature = ot;
 
   // Feed flow — Design Basis capacity (LPH → m³/h, volumetric basis)
   const feedLph = num(inputs.design_capacity_lph) ?? num(inputs.design_capacity);
-  if (feedLph !== undefined && feedLph > 0) {
+  if (out.feedFlow === undefined && feedLph !== undefined && feedLph > 0) {
     out.feedFlow = { value: feedLph / 1000, basis: 'volumetric' };
   }
 
-  // Feed (RRBO) density — prefer the source-tagged Fluid Properties entry,
-  // fall back to the Design Basis feed density (Thermopac Feed Master).
-  const fpRho = num(inputs.rrbo_density_value);
-  const dbRho = num(inputs.feed_density);
-  const rho = fpRho ?? dbRho;
-  if (rho !== undefined && rho > 0) {
-    const refT = num(String(inputs.rrbo_density_ref_temp ?? inputs.feed_density_ref_temp ?? '15').replace(/°?C/gi, '')) ?? 15;
-    const srcRaw = String(inputs.rrbo_density_source ?? '').trim();
-    const sourceType = SOURCE_TYPES.includes(srcRaw) ? srcRaw : 'Vendor';
-    const sourceReference = SOURCE_TYPES.includes(srcRaw)
-      ? String(inputs.feed_density_source ?? 'Fluid Properties workspace entry')
-      : 'Thermopac Feed Master — Design Basis default density for selected feed grade';
-    out.feedDensity = { value: rho, referenceTemperatureC: refT, sourceType, sourceReference };
+  // Feed (RRBO) density — only the source-tagged Fluid Properties entry is
+  // mapped. Governance: provenance is NEVER invented here — if the engineer
+  // has not selected a controlled source type (Measured/Vendor/Literature/
+  // Assumed) in Fluid Properties, feedDensity is left unset and the engine's
+  // own validation blocks the run with an explicit missing-input message.
+  let rho: number | undefined;
+  const srcRaw = String(inputs.rrbo_density_source ?? '').trim();
+  if (out.feedDensity === undefined) {
+    const fpRho = num(inputs.rrbo_density_value);
+    if (fpRho !== undefined && fpRho > 0 && SOURCE_TYPES.includes(srcRaw)) {
+      rho = fpRho;
+      const refT = num(String(inputs.rrbo_density_ref_temp ?? '15').replace(/°?C/gi, '')) ?? 15;
+      const refRaw = String(inputs.rrbo_density_source_reference ?? '').trim();
+      out.feedDensity = {
+        value: fpRho,
+        referenceTemperatureC: refT,
+        sourceType: srcRaw,
+        sourceReference: refRaw !== '' ? refRaw : `Fluid Properties workspace entry (engineer source type: ${srcRaw})`,
+      };
+    }
+  } else {
+    rho = num((out.feedDensity as Record<string, unknown>)?.value);
   }
 
   // S/O ratio — workspace basis is VOLUME (NMP vol flow / RRBO vol flow).
   // Engine expects mass basis: multiply by ρNMP(OT)/ρRRBO.
   const soVol = num(inputs.so_ratio);
-  if (soVol !== undefined && soVol > 0 && ot !== undefined && rho !== undefined && rho > 0) {
+  if (out.solventToOilRatio === undefined && soVol !== undefined && soVol > 0 && ot !== undefined && rho !== undefined && rho > 0) {
     try {
       const rhoNmp = getProperty('nmp', 'density', ot).value; // kg/m³
       out.solventToOilRatio = soVol * (rhoNmp / rho);
@@ -69,16 +77,20 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>)
   }
 
   const stages = num(inputs.theoretical_stages);
-  if (stages !== undefined) out.theoreticalStages = stages;
+  if (out.theoreticalStages === undefined && stages !== undefined) out.theoreticalStages = stages;
 
   const eff = num(inputs.stage_efficiency);
-  if (eff !== undefined && eff > 0 && eff <= 100) out.compartmentOrStageEfficiency = eff / 100;
+  if (out.compartmentOrStageEfficiency === undefined && eff !== undefined && eff > 0 && eff <= 100) {
+    out.compartmentOrStageEfficiency = eff / 100;
+  }
 
   const margin = num(inputs.design_margin);
-  if (margin !== undefined && margin >= 0) out.maxCirculationFactor = 1 + margin / 100;
+  if (out.maxCirculationFactor === undefined && margin !== undefined && margin >= 0) {
+    out.maxCirculationFactor = 1 + margin / 100;
+  }
 
   const phase = String(inputs.phase_configuration ?? '').trim();
-  if (phase !== '') out.phaseConfiguration = phase;
+  if (out.phaseConfiguration === undefined && phase !== '') out.phaseConfiguration = phase;
 
   return out;
 }
