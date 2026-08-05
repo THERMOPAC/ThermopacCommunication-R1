@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { PRODUCT_REQUIREMENT_MASTER, PRODUCT_PARAMETER_MASTER } from "@shared/product-requirement-master";
+import { PRODUCT_REQUIREMENT_MASTER, PRODUCT_PARAMETER_MASTER, shouldSeedRequirementRows } from "@shared/product-requirement-master";
 import {
   RRBO_FEED_DENSITY_MASTER, RRBO_FEED_DENSITY_REF_TEMP, NMP_MASTER,
   EMULSION_BEHAVIOUR_DEFAULT, PENDING_VALIDATION, FLUID_PROPERTY_PROVENANCE,
@@ -1036,11 +1036,11 @@ export default function DesignSoftwareWorkspacePage() {
       // once per design (seeded flag prevents re-seeding after deliberate removal).
       const prMaster = PRODUCT_REQUIREMENT_MASTER[m.feed_service ?? ""];
       if (prMaster) {
-        if ((m.raffinate_quality_rows ?? "").trim() === "" && m.raffinate_quality_rows_seeded !== "true") {
+        if (shouldSeedRequirementRows(m.raffinate_quality_rows, m.raffinate_quality_rows_seeded)) {
           m.raffinate_quality_rows = JSON.stringify(prMaster.raffinate);
           updates = { ...updates, raffinate_quality_rows: m.raffinate_quality_rows, raffinate_quality_rows_seeded: "true" };
         }
-        if ((m.extract_quality_rows ?? "").trim() === "" && m.extract_quality_rows_seeded !== "true") {
+        if (shouldSeedRequirementRows(m.extract_quality_rows, m.extract_quality_rows_seeded)) {
           m.extract_quality_rows = JSON.stringify(prMaster.extract);
           updates = { ...updates, extract_quality_rows: m.extract_quality_rows, extract_quality_rows_seeded: "true" };
         }
@@ -1491,9 +1491,9 @@ export default function DesignSoftwareWorkspacePage() {
         <SectionCard title="Product Requirements">
           <QualityRowsEditor
             title="Raffinate Quality"
-            jsonValue={(db.raffinate_quality_rows ?? "").trim() !== "" || db.raffinate_quality_rows_seeded === "true"
+            jsonValue={!shouldSeedRequirementRows(db.raffinate_quality_rows, db.raffinate_quality_rows_seeded) || !PRODUCT_REQUIREMENT_MASTER[db.feed_service ?? ""]
               ? (db.raffinate_quality_rows ?? "")
-              : JSON.stringify(PRODUCT_REQUIREMENT_MASTER[db.feed_service ?? ""]?.raffinate ?? [])}
+              : JSON.stringify(PRODUCT_REQUIREMENT_MASTER[db.feed_service ?? ""].raffinate)}
             legacyValue={db.raffinate_quality}
             onChange={v => { f("raffinate_quality_rows", v); f("raffinate_quality_rows_seeded", "true"); }}
             onBlur={s}
@@ -1502,9 +1502,9 @@ export default function DesignSoftwareWorkspacePage() {
           <div className="border-t pt-3">
             <QualityRowsEditor
               title="Extract Quality"
-              jsonValue={(db.extract_quality_rows ?? "").trim() !== "" || db.extract_quality_rows_seeded === "true"
+              jsonValue={!shouldSeedRequirementRows(db.extract_quality_rows, db.extract_quality_rows_seeded) || !PRODUCT_REQUIREMENT_MASTER[db.feed_service ?? ""]
                 ? (db.extract_quality_rows ?? "")
-                : JSON.stringify(PRODUCT_REQUIREMENT_MASTER[db.feed_service ?? ""]?.extract ?? [])}
+                : JSON.stringify(PRODUCT_REQUIREMENT_MASTER[db.feed_service ?? ""].extract)}
               legacyValue={db.extract_quality}
               onChange={v => { f("extract_quality_rows", v); f("extract_quality_rows_seeded", "true"); }}
               onBlur={s}

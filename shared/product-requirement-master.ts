@@ -40,8 +40,7 @@ const RRBO_RAFFINATE_DEFAULTS: ProductRequirementRow[] = [
 ];
 
 const RRBO_EXTRACT_DEFAULTS: ProductRequirementRow[] = [
-  { parameter: "Aromatic-Rich Extract", target: "20", unit: "%", limitType: "Target", notes: "" },
-  { parameter: "Extract Yield",         target: "20", unit: "%", limitType: "Target", notes: "" },
+  { parameter: "Extract Yield", target: "20", unit: "%", limitType: "Target", notes: "" },
 ];
 
 /** Default Product Requirements per Feed Service. */
@@ -57,3 +56,29 @@ export const PRODUCT_REQUIREMENT_MASTER: Record<
 
 export const PRODUCT_REQUIREMENT_MASTER_SOURCE =
   "Thermopac Product Requirement Master Data — Design Basis defaults";
+
+/** Parse a stored rows JSON string safely. */
+export function parseRequirementRows(json: string | undefined | null): ProductRequirementRow[] {
+  try {
+    const p = JSON.parse((json ?? "").trim() || "[]");
+    return Array.isArray(p) ? p : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Whether default rows should be seeded over the stored value.
+ * True when the stored rows contain no real content (blank placeholder rows
+ * count as empty). A deliberately emptied list (seeded flag set AND zero rows)
+ * is respected and never re-seeded.
+ */
+export function shouldSeedRequirementRows(json: string | undefined | null, seededFlag: string | undefined | null): boolean {
+  const rows = parseRequirementRows(json);
+  const hasContent = rows.some(
+    r => ((r?.parameter ?? "").trim() !== "" && (r?.parameter ?? "").trim() !== "Custom…") || (r?.target ?? "").trim() !== "",
+  );
+  if (hasContent) return false;
+  if (seededFlag === "true" && rows.length === 0) return false; // deliberate removal
+  return true;
+}
