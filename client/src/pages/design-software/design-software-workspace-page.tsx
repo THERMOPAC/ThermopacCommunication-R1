@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -587,6 +587,11 @@ export default function DesignSoftwareWorkspacePage() {
     queryKey: [`/api/design-software/revisions/${activeRevisionId}/inputs`],
     queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/inputs`) as Promise<any>,
     enabled: !!activeRevisionId,
+    // Local edits are the source of truth between blur-saves; a focus refetch
+    // returning pre-save data must never roll back the working copy (which a
+    // subsequent whole-section save would then persist, silently losing values
+    // such as Operating Temperature / Pressure / Design Capacity).
+    refetchOnWindowFocus: false,
   });
   const runsQ = useQuery<CalcRun[]>({
     queryKey: [`/api/design-software/revisions/${activeRevisionId}/runs`],
@@ -604,15 +609,31 @@ export default function DesignSoftwareWorkspacePage() {
     enabled: !!activeRevisionId,
   });
 
-  // Populate local data from API whenever inputs load
+  // Populate local data from API. Full replace ONLY on first load of a
+  // revision; afterwards server data merges UNDER local values (local wins),
+  // because localData carries edits newer than any in-flight/stale response —
+  // replacing it would roll back values that the next whole-section save then
+  // silently erases from the server (root cause of lost Design Basis fields).
+  const hydratedRevisionRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!inputsQ.data) return;
-    const merged: Record<string, Record<string, string>> = {};
+    if (!inputsQ.data || !activeRevisionId) return;
+    const server: Record<string, Record<string, string>> = {};
     for (const inp of inputsQ.data as any[]) {
-      merged[inp.section] = inp.data ?? {};
+      server[inp.section] = inp.data ?? {};
     }
-    setLocalData(merged);
-  }, [inputsQ.data]);
+    if (hydratedRevisionRef.current !== activeRevisionId) {
+      hydratedRevisionRef.current = activeRevisionId;
+      setLocalData(server);
+      return;
+    }
+    setLocalData(prev => {
+      const next: Record<string, Record<string, string>> = { ...prev };
+      for (const [section, data] of Object.entries(server)) {
+        next[section] = { ...data, ...(prev[section] ?? {}) };
+      }
+      return next;
+    });
+  }, [inputsQ.data, activeRevisionId]);
 
   // ── Mutations ────────────────────────────────────────────────────────────────
   const upsertMutation = useMutation({
@@ -1778,7 +1799,7 @@ export default function DesignSoftwareWorkspacePage() {
     // Solvent circulation display — definitions only (volume ratio × feed flow,
     // mass = volume × EPD NMP density, max = normal × (1 + margin)); the C2
     // engine remains the authority for the material balance itself.
-    const feedLph = numOrNull(dbx.design_capacity_lph ?? dbx.design_capacity);
+    const feedLph = numOrNull(dbx.design_capacity_lph ?? dbx.design_capacity ?? dbx.feed_flow);
     const ratioN = numOrNull(ratioEff);
     const marginN = numOrNull(marginEff);
     const rhoNmp = numOrNull(fp.nmp_density_value) ?? (epdNmpQ.data?.density?.value != null ? Number(epdNmpQ.data.density.value) : null);
