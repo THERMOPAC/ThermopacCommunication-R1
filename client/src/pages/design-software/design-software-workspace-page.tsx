@@ -615,6 +615,13 @@ export default function DesignSoftwareWorkspacePage() {
   // replacing it would roll back values that the next whole-section save then
   // silently erases from the server (root cause of lost Design Basis fields).
   const hydratedRevisionRef = useRef<number | null>(null);
+  // Hydration barrier for ALL auto-seeding effects: seeders must not run until
+  // localData actually contains the first server snapshot for this revision.
+  // State (not the ref) is used so that, in the render pass where hydration is
+  // still pending, seeders observe the old value and skip — otherwise a seeder
+  // could commit a whole-section object built from pre-hydration empty state,
+  // overwriting an already-populated section on the server.
+  const [hydratedRevision, setHydratedRevision] = useState<number | null>(null);
   useEffect(() => {
     if (!inputsQ.data || !activeRevisionId) return;
     const server: Record<string, Record<string, string>> = {};
@@ -624,6 +631,7 @@ export default function DesignSoftwareWorkspacePage() {
     if (hydratedRevisionRef.current !== activeRevisionId) {
       hydratedRevisionRef.current = activeRevisionId;
       setLocalData(server);
+      setHydratedRevision(activeRevisionId);
       return;
     }
     setLocalData(prev => {
@@ -684,6 +692,7 @@ export default function DesignSoftwareWorkspacePage() {
   // Thermopac value are left manual (no invented data).
   useEffect(() => {
     if (activeStep !== "fluid_properties" || isFrozen || !activeRevisionId || !inputsQ.data) return;
+    if (hydratedRevision !== activeRevisionId) return; // never seed from pre-hydration empty state
     // Never auto-seed while a save is in flight — avoids posting a stale
     // whole-section object over a concurrent engineer edit.
     if (savingSection !== null || upsertMutation.isPending) return;
@@ -759,6 +768,8 @@ export default function DesignSoftwareWorkspacePage() {
     if (blank("phase_separation_time")) {
       u.phase_separation_time = TWO_PHASE_SCREENING_DEFAULTS.phase_separation_time.value;
       if (blank("phase_separation_time_unit")) u.phase_separation_time_unit = TWO_PHASE_SCREENING_DEFAULTS.phase_separation_time.unit;
+      if (blank("phase_separation_time_source")) u.phase_separation_time_source = "Assumed";
+      if (blank("phase_separation_time_ref_temp")) u.phase_separation_time_ref_temp = `${TWO_PHASE_SCREENING_REF_TEMP} °C`;
     }
     if (blank("emulsion_behaviour")) {
       u.emulsion_behaviour = EMULSION_BEHAVIOUR_DEFAULT;
@@ -768,7 +779,7 @@ export default function DesignSoftwareWorkspacePage() {
     }
     if (Object.keys(u).length > 0) commitSection("fluid_properties", u);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeStep, isFrozen, activeRevisionId, inputsQ.data, epdNmpQ.data, localData, savingSection, upsertMutation.isPending]);
+  }, [activeStep, isFrozen, activeRevisionId, hydratedRevision, inputsQ.data, epdNmpQ.data, localData, savingSection, upsertMutation.isPending]);
 
   // ── Cooling Water default initialization (Design Basis) ─────────────────────
   // A new Design Basis persists all four CW defaults together, without waiting
@@ -777,6 +788,7 @@ export default function DesignSoftwareWorkspacePage() {
   // overwrites engineer-entered or manual values.
   useEffect(() => {
     if (isFrozen || !activeRevisionId || !inputsQ.data) return;
+    if (hydratedRevision !== activeRevisionId) return; // never seed from pre-hydration empty state
     if (savingSection !== null || upsertMutation.isPending) return;
     const dbx = localData["design_basis"] ?? {};
     const blank = (k: string) => (dbx[k] ?? "").trim() === "";
@@ -802,7 +814,7 @@ export default function DesignSoftwareWorkspacePage() {
     }
     if (Object.keys(u).length > 0) commitSection("design_basis", u);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFrozen, activeRevisionId, inputsQ.data, localData, savingSection, upsertMutation.isPending]);
+  }, [isFrozen, activeRevisionId, hydratedRevision, inputsQ.data, localData, savingSection, upsertMutation.isPending]);
 
   // ── Process Design (Stage 4) default initialization ─────────────────────────
   // Consumes the approved Design Basis: S/O ratio 1.5 (vol/vol), 6 theoretical
@@ -811,6 +823,7 @@ export default function DesignSoftwareWorkspacePage() {
   // tracked fields never override a manual value.
   useEffect(() => {
     if (activeStep !== "process_design" || isFrozen || !activeRevisionId || !inputsQ.data) return;
+    if (hydratedRevision !== activeRevisionId) return; // never seed from pre-hydration empty state
     if (savingSection !== null || upsertMutation.isPending) return;
     const pd = localData["process_design"] ?? {};
     const dbx = localData["design_basis"] ?? {};
@@ -830,7 +843,7 @@ export default function DesignSoftwareWorkspacePage() {
     }
     if (Object.keys(u).length > 0) commitSection("process_design", u);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeStep, isFrozen, activeRevisionId, inputsQ.data, localData, savingSection, upsertMutation.isPending]);
+  }, [activeStep, isFrozen, activeRevisionId, hydratedRevision, inputsQ.data, localData, savingSection, upsertMutation.isPending]);
 
   const newRevisionMutation = useMutation({
     mutationFn: () =>
@@ -1758,7 +1771,11 @@ export default function DesignSoftwareWorkspacePage() {
               <Input value={fp.phase_separation_time_unit ?? ""} onChange={e => f("phase_separation_time_unit", e.target.value)} onBlur={s} placeholder="Unit" className="h-7 text-xs w-[90px]" />
             </div>
           </div>
-          <p className="text-[11px] text-gray-400 px-2 -mt-0.5">{FLUID_PROPERTY_PROVENANCE.phase_separation_time}</p>
+          <p className="text-[11px] text-gray-400 px-2 -mt-0.5">
+            {FLUID_PROPERTY_PROVENANCE.phase_separation_time}
+            {(fp.phase_separation_time_source ?? "").trim() !== "" &&
+              ` · Source: ${fp.phase_separation_time_source}${(fp.phase_separation_time_ref_temp ?? "").trim() !== "" ? ` @ ${fp.phase_separation_time_ref_temp}` : ""}`}
+          </p>
           <TextAreaRow label="Emulsion Behaviour" value={fp.emulsion_behaviour ?? ""} onChange={v => f("emulsion_behaviour", v)} onBlur={s} rows={2} />
           <p className="text-[11px] text-gray-400 px-2 -mt-0.5">{FLUID_PROPERTY_PROVENANCE.emulsion_behaviour}</p>
         </SectionCard>
