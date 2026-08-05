@@ -568,11 +568,23 @@ export default function DesignSoftwareWorkspacePage() {
   {
     const opV = vNum(db.operating_pressure); const dpM = vNum(db.dp_margin_value); const dpV = vNum(db.design_pressure);
     if (opV !== null && dpM !== null && dpV !== null && dpV !== opV + dpM && !(db.dp_override_reason ?? "").trim()) {
-      overrideViolations.push("Design Pressure differs from the suggested value without an override reason");
+      overrideViolations.push("Design Pressure deviates from the Thermopac Design Pressure Rule without an override reason");
+    }
+    if (db.design_pressure_override === "true" && !(db.dp_override_reason ?? "").trim()) {
+      overrideViolations.push("Design Pressure override is active without a recorded reason");
+    }
+    if (opV !== null && dpV !== null && dpV < opV) {
+      overrideViolations.push("Design Pressure must be ≥ Operating Pressure");
     }
     const otV = vNum(db.operating_temperature); const dtM = vNum(db.dt_margin_value); const dtV = vNum(db.design_temperature);
     if (otV !== null && dtM !== null && dtV !== null && dtV !== otV + dtM && !(db.dt_override_reason ?? "").trim()) {
-      overrideViolations.push("Design Temperature differs from the suggested value without an override reason");
+      overrideViolations.push("Design Temperature deviates from the Thermopac Design Temperature Rule without an override reason");
+    }
+    if (db.design_temperature_override === "true" && !(db.dt_override_reason ?? "").trim()) {
+      overrideViolations.push("Design Temperature override is active without a recorded reason");
+    }
+    if (otV !== null && dtV !== null && dtV < otV) {
+      overrideViolations.push("Design Temperature must be ≥ Operating Temperature");
     }
     if (db.cw_delta_t_override === "true" && !(db.cw_delta_t_override_reason ?? "").trim()) {
       overrideViolations.push("CW Design ΔT override is active without an authorization reason");
@@ -733,6 +745,27 @@ export default function DesignSoftwareWorkspacePage() {
         m.design_capacity_mtpa = ((lphM * 24 * daysM * (rhoM as number)) / 1e6).toFixed(0);
         updates = { ...updates, design_capacity_mtpa: m.design_capacity_mtpa };
       }
+      // Thermopac Design Pressure / Temperature Rules — auto-calculated and auto-saved
+      // unless an engineer override is active. Never defaults to zero: when the rule
+      // is not calculable, an auto-calculated value is cleared (shown as Not Calculable).
+      const opA = num(m.operating_pressure); const dpMA = num(m.dp_margin_value);
+      if (m.design_pressure_override !== "true") {
+        if (opA !== null && dpMA !== null) {
+          m.design_pressure = (opA + dpMA).toFixed(2);
+          updates = { ...updates, design_pressure: m.design_pressure, design_pressure_status: "Auto-Calculated" };
+        } else if ((m.design_pressure_status ?? "") === "Auto-Calculated") {
+          updates = { ...updates, design_pressure: "", design_pressure_status: "" };
+        }
+      }
+      const otA = num(m.operating_temperature); const dtMA = num(m.dt_margin_value);
+      if (m.design_temperature_override !== "true") {
+        if (otA !== null && dtMA !== null) {
+          m.design_temperature = (otA + dtMA).toFixed(1);
+          updates = { ...updates, design_temperature: m.design_temperature, design_temperature_status: "Auto-Calculated" };
+        } else if ((m.design_temperature_status ?? "") === "Auto-Calculated") {
+          updates = { ...updates, design_temperature: "", design_temperature_status: "" };
+        }
+      }
       if (m.design_objective_manual !== "true") {
         m.design_objective = genObjective();
         updates = { ...updates, design_objective: m.design_objective };
@@ -744,7 +777,7 @@ export default function DesignSoftwareWorkspacePage() {
     };
     const csa = (updates: Record<string, string>) => cs(auto(updates));
     // Audited override fields (items 12 & 13) — full change history in <key>_audit
-    const auditList = (key: string): { ts: string; from: string; to: string; reason: string }[] => {
+    const auditList = (key: string): { ts: string; from: string; to: string; reason: string; user?: string }[] => {
       try { const p = JSON.parse(db[`${key}_audit`] || "[]"); return Array.isArray(p) ? p : []; } catch { return []; }
     };
     const commitAudited = (key: string) => () => {
@@ -752,9 +785,31 @@ export default function DesignSoftwareWorkspacePage() {
       const audits = auditList(key);
       const last = audits.length ? audits[audits.length - 1].to : "";
       if (val === last) { s(); return; }
-      const entry = { ts: new Date().toISOString(), from: last, to: val, reason: (db[`${key}_change_reason`] ?? "").trim() };
+      const entry = { ts: new Date().toISOString(), user: user?.username ?? "", from: last, to: val, reason: (db[`${key}_change_reason`] ?? "").trim() };
       cs(auto({ [key]: val, [`${key}_audit`]: JSON.stringify([...audits, entry]) }));
     };
+    // Engineer override of a rule-calculated design value: records Previous Value,
+    // New Value, Reason, User and Timestamp; re-entering the rule value clears the override.
+    const commitDesignValue = (key: "design_pressure" | "design_temperature", reasonKey: string, ruleVal: string | null) => () => {
+      const val = (db[key] ?? "").trim();
+      if (ruleVal !== null && val !== "" && num(val) === num(ruleVal)) {
+        cs(auto({ [key]: ruleVal, [`${key}_override`]: "", [reasonKey]: "" }));
+        return;
+      }
+      const audits = auditList(key);
+      const last = audits.length ? audits[audits.length - 1].to : (ruleVal ?? "");
+      if (val === last && db[`${key}_override`] === "true") { s(); return; }
+      if (val === "" || (ruleVal !== null && num(val) === num(ruleVal))) { s(); return; }
+      const entry = { ts: new Date().toISOString(), user: user?.username ?? "", from: last, to: val, reason: (db[reasonKey] ?? "").trim() };
+      cs(auto({
+        [key]: val,
+        [`${key}_override`]: "true",
+        [`${key}_status`]: "Engineer Override",
+        [`${key}_audit`]: JSON.stringify([...audits, entry]),
+      }));
+    };
+    const clearDesignOverride = (key: "design_pressure" | "design_temperature", reasonKey: string) => () =>
+      cs(auto({ [`${key}_override`]: "", [reasonKey]: "", [`${key}_status`]: "" }));
     const AuditTrail = ({ fieldKey }: { fieldKey: string }) => {
       const audits = auditList(fieldKey);
       if (audits.length === 0) return null;
@@ -763,7 +818,7 @@ export default function DesignSoftwareWorkspacePage() {
           <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Change History</p>
           {audits.slice().reverse().map((a, i) => (
             <p key={i} className="text-[11px] text-gray-500">
-              {new Date(a.ts).toLocaleString()} — {a.from || "(blank)"} → {a.to || "(blank)"}{a.reason ? ` · ${a.reason}` : ""}
+              {new Date(a.ts).toLocaleString()} — {a.from || "(blank)"} → {a.to || "(blank)"}{a.reason ? ` · ${a.reason}` : ""}{a.user ? ` · by ${a.user}` : ""}
             </p>
           ))}
         </div>
@@ -924,36 +979,68 @@ export default function DesignSoftwareWorkspacePage() {
           <AuditTrail fieldKey="operating_pressure" />
           <SelectRow label="Operating Temperature" value={db.operating_temperature ?? ""} onChange={v => f("operating_temperature", v)} onBlur={s} onCommit={v => csa({ operating_temperature: v })} options={["50", "55", "60", "65", "70", "75", "80"]} unit="°C" />
           <div className="border-t pt-3 mt-1">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Design Pressure — Governed Suggestion</p>
-            <FieldRow label="Margin Rule (bar)" value={db.dp_margin_value ?? ""} onChange={v => f("dp_margin_value", v)} onBlur={s} unit="bar" note="Configurable Thermopac margin — no company rule hard-coded" />
-            <FieldRow label="Margin Rule Source" value={db.dp_margin_source ?? ""} onChange={v => f("dp_margin_source", v)} onBlur={s} placeholder="e.g. Thermopac design guideline ref." />
-            <FieldRow label="Design Pressure" value={db.design_pressure ?? ""} onChange={v => f("design_pressure", v)} onBlur={s} unit="bar g" />
-            <SuggestionBlock
-              suggested={suggestedDP}
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Design Pressure — Thermopac Design Pressure Rule</p>
+            <FieldRow label="Rule Margin (bar)" value={db.dp_margin_value ?? ""} onChange={v => f("dp_margin_value", v)} onBlur={() => cs(auto({}))} unit="bar" note="Configurable Thermopac Design Pressure Rule: DP = OP + margin (recognized international practice)" />
+            <FieldRow label="Rule Source" value={db.dp_margin_source ?? ""} onChange={v => f("dp_margin_source", v)} onBlur={s} placeholder="e.g. Thermopac design guideline / ASME Sec. VIII practice ref." />
+            <FieldRow
+              label="Design Pressure"
+              value={db.design_pressure ?? ""}
+              onChange={v => f("design_pressure", v)}
+              onBlur={commitDesignValue("design_pressure", "dp_override_reason", suggestedDP)}
               unit="bar g"
-              basis={suggestedDP ? `OP ${op} + margin ${dpMargin} bar (${db.dp_margin_source || "source not entered"})` : "enter Operating Pressure and Margin Rule"}
-              current={db.design_pressure ?? ""}
-              onApply={() => cs({ design_pressure: suggestedDP as string })}
-              overrideReason={db.dp_override_reason ?? ""}
-              onReasonChange={v => f("dp_override_reason", v)}
-              onBlur={s}
             />
+            {suggestedDP === null && db.design_pressure_override !== "true" ? (
+              <p className="text-xs ml-[212px] -mt-1 text-amber-600 font-medium">Not Calculable — enter Operating Pressure and the Design Pressure Rule margin (a value is never defaulted to zero)</p>
+            ) : (
+              <p className="text-xs ml-[212px] -mt-1 text-gray-500">
+                Applied rule: DP = OP {op ?? "—"} + {dpMargin ?? "—"} bar{suggestedDP ? ` = ${suggestedDP} bar g` : ""} · Source: {db.dp_margin_source || "rule source not entered"} · Status: {db.design_pressure_override === "true" ? "Engineer Override" : "Auto-Calculated (auto-saved)"}
+              </p>
+            )}
+            {op !== null && num(db.design_pressure) !== null && (num(db.design_pressure) as number) < op && (
+              <p className="text-xs ml-[212px] text-red-600 font-medium">Design Pressure must be ≥ Operating Pressure ({op} bar g)</p>
+            )}
+            {db.design_pressure_override === "true" && (
+              <div className="ml-[212px] mt-1 space-y-1">
+                <div className={`flex items-center gap-2 text-xs rounded px-2 py-1 border ${(db.dp_override_reason ?? "").trim() ? "bg-gray-50 border-gray-200" : "bg-amber-50 border-amber-300"}`}>
+                  <span className={(db.dp_override_reason ?? "").trim() ? "text-gray-500" : "text-amber-700 font-medium"}>Override reason{(db.dp_override_reason ?? "").trim() ? "" : " required"}:</span>
+                  <Input value={db.dp_override_reason ?? ""} onChange={e => f("dp_override_reason", e.target.value)} onBlur={s} placeholder="Why does Design Pressure deviate from the Thermopac rule?" className="h-6 text-xs flex-1" />
+                  <button type="button" onClick={clearDesignOverride("design_pressure", "dp_override_reason")} className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Revert to rule</button>
+                </div>
+              </div>
+            )}
+            <AuditTrail fieldKey="design_pressure" />
           </div>
           <div className="border-t pt-3 mt-1">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Design Temperature — Governed Suggestion</p>
-            <FieldRow label="Margin Rule (°C)" value={db.dt_margin_value ?? ""} onChange={v => f("dt_margin_value", v)} onBlur={s} unit="°C" note="Configurable Thermopac margin — no company rule hard-coded" />
-            <FieldRow label="Margin Rule Source" value={db.dt_margin_source ?? ""} onChange={v => f("dt_margin_source", v)} onBlur={s} placeholder="e.g. Thermopac design guideline ref." />
-            <FieldRow label="Design Temperature" value={db.design_temperature ?? ""} onChange={v => f("design_temperature", v)} onBlur={s} unit="°C" />
-            <SuggestionBlock
-              suggested={suggestedDT}
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Design Temperature — Thermopac Design Temperature Rule</p>
+            <FieldRow label="Rule Margin (°C)" value={db.dt_margin_value ?? ""} onChange={v => f("dt_margin_value", v)} onBlur={() => cs(auto({}))} unit="°C" note="Configurable Thermopac Design Temperature Rule: DT = OT + margin (recognized international practice)" />
+            <FieldRow label="Rule Source" value={db.dt_margin_source ?? ""} onChange={v => f("dt_margin_source", v)} onBlur={s} placeholder="e.g. Thermopac design guideline / ASME Sec. VIII practice ref." />
+            <FieldRow
+              label="Design Temperature"
+              value={db.design_temperature ?? ""}
+              onChange={v => f("design_temperature", v)}
+              onBlur={commitDesignValue("design_temperature", "dt_override_reason", suggestedDT)}
               unit="°C"
-              basis={suggestedDT ? `OT ${ot} + margin ${dtMargin} °C (${db.dt_margin_source || "source not entered"})` : "enter Operating Temperature and Margin Rule"}
-              current={db.design_temperature ?? ""}
-              onApply={() => cs({ design_temperature: suggestedDT as string })}
-              overrideReason={db.dt_override_reason ?? ""}
-              onReasonChange={v => f("dt_override_reason", v)}
-              onBlur={s}
             />
+            {suggestedDT === null && db.design_temperature_override !== "true" ? (
+              <p className="text-xs ml-[212px] -mt-1 text-amber-600 font-medium">Not Calculable — enter Operating Temperature and the Design Temperature Rule margin (a value is never defaulted to zero)</p>
+            ) : (
+              <p className="text-xs ml-[212px] -mt-1 text-gray-500">
+                Applied rule: DT = OT {ot ?? "—"} + {dtMargin ?? "—"} °C{suggestedDT ? ` = ${suggestedDT} °C` : ""} · Source: {db.dt_margin_source || "rule source not entered"} · Status: {db.design_temperature_override === "true" ? "Engineer Override" : "Auto-Calculated (auto-saved)"}
+              </p>
+            )}
+            {ot !== null && num(db.design_temperature) !== null && (num(db.design_temperature) as number) < ot && (
+              <p className="text-xs ml-[212px] text-red-600 font-medium">Design Temperature must be ≥ Operating Temperature ({ot} °C)</p>
+            )}
+            {db.design_temperature_override === "true" && (
+              <div className="ml-[212px] mt-1 space-y-1">
+                <div className={`flex items-center gap-2 text-xs rounded px-2 py-1 border ${(db.dt_override_reason ?? "").trim() ? "bg-gray-50 border-gray-200" : "bg-amber-50 border-amber-300"}`}>
+                  <span className={(db.dt_override_reason ?? "").trim() ? "text-gray-500" : "text-amber-700 font-medium"}>Override reason{(db.dt_override_reason ?? "").trim() ? "" : " required"}:</span>
+                  <Input value={db.dt_override_reason ?? ""} onChange={e => f("dt_override_reason", e.target.value)} onBlur={s} placeholder="Why does Design Temperature deviate from the Thermopac rule?" className="h-6 text-xs flex-1" />
+                  <button type="button" onClick={clearDesignOverride("design_temperature", "dt_override_reason")} className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Revert to rule</button>
+                </div>
+              </div>
+            )}
+            <AuditTrail fieldKey="design_temperature" />
           </div>
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Thermal Oil System</p>
