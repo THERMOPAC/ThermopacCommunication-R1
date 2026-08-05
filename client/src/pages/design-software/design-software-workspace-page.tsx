@@ -225,6 +225,16 @@ const FEED_SERVICE_OPTIONS = [
 ];
 
 const CAPACITY_OPTIONS = Array.from({ length: 15 }, (_, i) => String((i + 1) * 1000));
+
+// Thermopac Design Basis Default feed densities @ 15 °C (kg/m³) — preliminary
+// engineering defaults only; fully editable by the engineer.
+const FEED_SERVICE_DENSITY: Record<string, string> = {
+  "Re-Refined Base Oil SN150": "860",
+  "Re-Refined Base Oil SN200": "870",
+  "Re-Refined Base Oil SN300": "880",
+  "Re-Refined Base Oil SN500": "890",
+};
+const FEED_DENSITY_DEFAULT_SOURCE = "Thermopac Design Basis Default";
 interface QualityRow { parameter: string; target: string; unit: string; limitType: string; notes: string }
 
 function QualityRowsEditor({
@@ -713,8 +723,12 @@ export default function DesignSoftwareWorkspacePage() {
       const m = { ...db, ...updates };
       const lphM = num(m.design_capacity_lph);
       const daysM = num(m.operating_days);
-      const rhoM = num(fpData0.rrbo_density_value);
-      const rhoOk = rhoM !== null && (fpData0.rrbo_density_source ?? "").trim() !== "" && (fpData0.rrbo_density_ref_temp ?? "").trim() !== "";
+      // Prefer the Design Basis feed density (source-tagged by construction); fall back to Fluid Properties
+      const dbRho = num(m.feed_density);
+      const rhoM = dbRho !== null ? dbRho : num(fpData0.rrbo_density_value);
+      const rhoOk = dbRho !== null
+        ? true
+        : rhoM !== null && (fpData0.rrbo_density_source ?? "").trim() !== "" && (fpData0.rrbo_density_ref_temp ?? "").trim() !== "";
       if (lphM !== null && daysM !== null && rhoOk) {
         m.design_capacity_mtpa = ((lphM * 24 * daysM * (rhoM as number)) / 1e6).toFixed(0);
         updates = { ...updates, design_capacity_mtpa: m.design_capacity_mtpa };
@@ -773,13 +787,18 @@ export default function DesignSoftwareWorkspacePage() {
     // Design capacity cross-conversion (governed: only with annual hours + tagged density)
     const daysYr = num(db.operating_days);
     const fpData = d("fluid_properties");
-    const rho = num(fpData.rrbo_density_value);
-    const rhoTagged = rho !== null && (fpData.rrbo_density_source ?? "").trim() !== "" && (fpData.rrbo_density_ref_temp ?? "").trim() !== "";
+    const dbFeedRho = num(db.feed_density);
+    const rho = dbFeedRho !== null ? dbFeedRho : num(fpData.rrbo_density_value);
+    const rhoTagged = dbFeedRho !== null
+      ? true
+      : rho !== null && (fpData.rrbo_density_source ?? "").trim() !== "" && (fpData.rrbo_density_ref_temp ?? "").trim() !== "";
+    const rhoRefT = dbFeedRho !== null ? `${db.feed_density_ref_temp || "15"} °C` : fpData.rrbo_density_ref_temp;
+    const rhoSrc = dbFeedRho !== null ? (db.feed_density_source || FEED_DENSITY_DEFAULT_SOURCE) : fpData.rrbo_density_source;
     const annualHours = daysYr !== null ? 24 * daysYr : null; // Operating Hours fixed at 24 hr/day for this module
     const lph = num(db.design_capacity_lph);
     const capacityMissing = [
       annualHours === null ? "Operating Days (days/year)" : null,
-      !rhoTagged ? "feed density with source and reference temperature (Fluid Properties)" : null,
+      !rhoTagged ? "Feed Density (select a Feed Service or enter a source-tagged density in Fluid Properties)" : null,
       lph === null ? "capacity in LPH" : null,
     ].filter(Boolean);
     const tpa = lph !== null && annualHours !== null && rhoTagged ? (lph * annualHours * (rho as number)) / 1e6 : null;
@@ -810,8 +829,23 @@ export default function DesignSoftwareWorkspacePage() {
             value={db.feed_service ?? ""}
             onChange={v => f("feed_service", v)}
             onBlur={s}
-            onCommit={v => csa({ feed_service: v })}
+            onCommit={v => {
+              const rho = FEED_SERVICE_DENSITY[v];
+              csa(rho
+                ? { feed_service: v, feed_density: rho, feed_density_ref_temp: "15", feed_density_source: FEED_DENSITY_DEFAULT_SOURCE, feed_density_status: "Auto-Populated" }
+                : { feed_service: v });
+            }}
             options={db.feed_service && !FEED_SERVICE_OPTIONS.includes(db.feed_service) ? [...FEED_SERVICE_OPTIONS, db.feed_service] : FEED_SERVICE_OPTIONS}
+          />
+          <FieldRow
+            label="Feed Density"
+            value={db.feed_density ?? ""}
+            onChange={v => { f("feed_density", v); f("feed_density_status", "Engineer Modified"); }}
+            onBlur={s}
+            unit="kg/m³"
+            note={db.feed_density
+              ? `Reference Temperature: ${db.feed_density_ref_temp || "15"} °C · Source: ${db.feed_density_source || FEED_DENSITY_DEFAULT_SOURCE} · Status: ${db.feed_density_status || "Auto-Populated"}`
+              : "Auto-populated on Feed Service selection (Thermopac Design Basis Default @ 15 °C); fully editable"}
           />
           <SelectRow
             label="Solvent"
@@ -835,7 +869,7 @@ export default function DesignSoftwareWorkspacePage() {
           <FieldRow label="Design Capacity (TPA)" value={tpa !== null ? tpa.toFixed(0) : (db.design_capacity_mtpa ?? "")} onChange={() => {}} onBlur={() => {}} unit="t/yr" readOnly />
           <p className="text-xs ml-[212px] -mt-1 text-gray-500">
             {tpa !== null
-              ? <>Auto-calculated: {lph} LPH × 24 hr/day × {daysYr} days/yr × ρ {rho} kg/m³ (@ {fpData.rrbo_density_ref_temp}, source: {fpData.rrbo_density_source}) ÷ 10⁶ = <b>{tpa.toFixed(0)} t/yr</b></>
+              ? <>Auto-calculated: {lph} LPH × 24 hr/day × {daysYr} days/yr × ρ {rho} kg/m³ (@ {rhoRefT}, source: {rhoSrc}) ÷ 10⁶ = <b>{tpa.toFixed(0)} t/yr</b></>
               : <span className="text-amber-600">Not Calculable — missing: {capacityMissing.join("; ")}</span>}
           </p>
           <FieldRow label="Operating Hours" value="24" onChange={() => {}} onBlur={() => {}} unit="hr/day" readOnly note="Fixed for this module" />
