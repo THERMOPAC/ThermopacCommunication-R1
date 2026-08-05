@@ -45,3 +45,13 @@ Results read from `GET /api/design-software/revisions/:id/runs`
 design_identity, design_basis, fluid_properties, process_design, hydraulic_design,
 technology_selection, ecp_design, ecr_design, technology_comparison,
 mechanical_design, utilities, cost_estimation
+
+## Master-data auto-population pattern (Aug 2026)
+- Defaults live in `shared/` master modules (product-requirement-master.ts, fluid-properties-master.ts) — never hardcoded in the React component.
+- Seeding is blank-only + guarded (seeded flags for Product Requirement rows; skip while a save is in flight) so deliberate removal / concurrent edits aren't overwritten.
+- NMP density/viscosity come from the server EPD endpoint (`/api/design-software/epd/nmp?tc=`) at Operating Temperature; provisional (Assumed-point) results are source-tagged "Assumed", exact literature "Literature".
+- Governance: never invent values — asphaltenes, RRBO dynamic viscosity, interfacial tension, mutual solubility stay manual with "Pending Validation" markers.
+
+## Known pre-existing risks (flagged by review, NOT fixed — user decision pending)
+- Section saves POST whole objects with no lock-version; concurrent editors can silently overwrite each other.
+- Revision input routes check authentication only — no per-design authorization.
