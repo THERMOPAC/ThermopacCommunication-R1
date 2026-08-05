@@ -129,6 +129,31 @@ Applicability statement on every result: **PRELIMINARY GENERIC HYDRAULIC SCREENI
 
 ---
 
+## 9. Stage C4 — Common Packed-Column Engine, ECP-Type (`server/engines/llx/llx-ecp-engine.ts`, engine `llx-ecp` v1.0.0; Packing Database `server/engine-framework/packing/database.ts`; distributor modules `server/engine-framework/packing/distributors.ts`)
+
+**PRELIMINARY ECP-TYPE PACKED COLUMN SCREENING — NOT VENDOR RATING AND NOT FOR FABRICATION.** Vendor neutral: the engine consumes only "Vendor Packing Capacity", "Vendor Pressure Drop", "Vendor Packing Performance" through the Packing Database schema — vendor identity is data, not code. The engine CONSUMES packing data; it never owns packing data. Performance data are curves (tabulated / polynomial with stated valid range) or constants with a stated applicability note; interpolation only — extrapolation is refused. HETS is SYSTEM data (value, unit, operating temperature, solvent, feed, packing, source) — never packing data alone. Rate-based placeholders (HTU, NTU, Ka, interfacial area) and dry pressure drop are reserved architecture, not calculated. The C3 generic-throughput percentage is neither an input nor reused as ECP utilization.
+
+| ID | Name | Formula & rules | Classification behaviour |
+|---|---|---|---|
+| ECP-001 | Column loadings | A = π·D²/4; Q_i = m_i/ρ_i (RRBO ρ entered source-tagged via calculation-scoped context; NMP ρ from EPD at T); phase-specific loads L_c, L_d and total load L_tot = (Q_c+Q_d)/A in m³/(m²·h); flow ratio Q_d/Q_c stored. Normal and maximum cases fully independent | Always calculable once gated |
+| ECP-002 | ECP hydraulic utilization | U = L_tot / (Vendor Packing Capacity × system derating factor) × 100 %. Capacity from the packing record only (curve vs flow ratio, or constant with applicability note); derating vendor-advised only — absent ⇒ 1.0 with NO_SYSTEM_DERATING_DATA warning, never invented. NOT derived from the C3 generic percentage. Missing capacity ⇒ Pending Validation (not blocked); curve out of data range ⇒ Not Calculable + VENDOR_CAPACITY_OUT_OF_DATA_RANGE | Vendor data ⇒ Calculated Screening Result; Assumed anywhere ⇒ Pending Validation |
+| ECP-003 | Minimum wetting / recommended loading | L_c vs vendor minimumWettingRate (BELOW_MINIMUM_WETTING); L_tot vs vendor recommendedLoadingRange (ABOVE_MAXIMUM_LIQUID_LOAD). Data absent ⇒ Not Calculable — never assumed | data-gated |
+| ECP-004 | Distributor checks (modular) | IDistributorCheckModule interface — Stage C4 ships the generic open-area module: dispersed load Q_d/A, total load, open-area velocity v = Q_d/(A·freeArea) vs vendor window, total flow vs vendor max capacity. Each sub-check independently Not Calculable when its datum is missing. Future types (orifice pan, trough, ladder, pipe, spray, chimney tray) plug in without engine changes. No proprietary geometry designed | data-gated |
+| ECP-005 | Packing height (HETS path) | H_pack = theoreticalStages × HETS. HETS a full system record, mandatory, never defaulted; Assumed ⇒ Pending Validation; mismatch warnings when HETS system/temperature differ from the run. heightBasis 'HTU_NTU' reserved and rejected in C4 | blocked if HETS missing |
+| ECP-006 | Bed split & redistributors | H_pack > vendor maximumBedHeight ⇒ nBeds = ⌈H/maxBed⌉ equal beds, nBeds−1 redistributors, each consuming the mandatory source-tagged redistributorAllowance. No vendor limit ⇒ single bed + NO_BED_HEIGHT_LIMIT_DATA | data-gated |
+| ECP-007 | Pressure drop (WET only) | Δp/m from the packing record's WET basis only (table interpolation inside range, or polynomial inside stated valid range, or constant with applicability note); Δp_total = Δp/m × H_pack. Extrapolation refused (PRESSURE_DROP_OUT_OF_DATA_RANGE ⇒ Not Calculable). Missing basis ⇒ Not Calculable without blocking anything else. No universal Pa/m is ever invented. Dry Δp is reserved architecture | data-gated |
+| ECP-008 | Height breakdown & diameter rating | Lines: Top Head, Top Disengagement, Top Distributor, Packing Bed 1, Redistributor 1, …, Hold-Down, Packing Support, Bottom Distributor, Bottom Disengagement, Bottom Head; Total T/T (heads excluded) and Overall Vessel Height (T/T + heads). Every line source-tagged or explicitly Assumed. Per-diameter classification vs a configurable utilization band (default 40–80 %, stored, not a universal rule): hydraulically_infeasible (≥100 %) / above / within / below band. NO recommended diameter — selectedTrialDiameter echoed and rated only. Every calculated item is a rich result: result, units, source, status, validation, warnings, formula reference, engine version | assembled from above |
+
+Benchmarks (asserted in the suite): D = 1.0 m, C2/C3 flows ⇒ L_tot = 16.62 m³/(m²·h), U_normal = 55.4 %, U_max = 61.7 % (S = 9000); distributor v = 0.0988 m/s; H_pack = 6 × 0.45 = 2.70 m; Δp/m = 96.3 Pa/m interpolated, Δp = 260 Pa; T/T = 5.75 m; overall vessel = 6.75 m.
+
+Applicability statement + 7 limitations on every result: no proprietary packing model; no vendor hydraulic guarantee; HETS requires vendor/test confirmation; no droplet breakup/coalescence model; no axial-dispersion model; no rate-based mass-transfer model; no mechanical code design.
+
+**Not implemented in Stage C4 (by direction):** ECR engine, Sulzer proprietary correlations, HTU/NTU sizing, packing recommendation, mechanical shell design, cost estimation, report generation.
+
+**C4 validation suite:** `server/engine-framework/tests/c4-ecp-column.ts`.
+
+---
+
 **Deferred (throw `NotImplementedError`, never fabricate values):** schmidt, sherwood, lookupDiffusivity, pressureDropDarcyWeisbach, moodyFrictionFactor, overallMassTransferCoefficient, numberOfTransferUnits, nusseltDittusBoelter.
 
 **Validation suite:** `server/engine-framework/tests/level1-validation.ts` (run `npx tsx server/engine-framework/tests/level1-validation.ts`).
