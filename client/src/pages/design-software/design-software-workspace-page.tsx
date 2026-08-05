@@ -178,33 +178,6 @@ function SelectRow({
 
 /** Governed suggestion: shows basis + suggested value; engineer must Apply (never auto-copied).
  *  If the confirmed value differs from the suggestion, an override reason is required. */
-function SuggestionBlock({
-  suggested, unit, basis, current, onApply,
-}: {
-  suggested: string | null; unit: string; basis: string; current: string;
-  onApply: () => void;
-}) {
-  if (suggested === null) {
-    return <p className="text-xs text-gray-400 ml-[212px] -mt-1">Suggestion not available — {basis}</p>;
-  }
-  const differs = current !== "" && parseFloat(current) !== parseFloat(suggested);
-  return (
-    <div className="ml-[212px] -mt-1 space-y-1">
-      <div className="flex items-center gap-2 text-xs">
-        <span className="text-blue-700">Suggested: <b>{suggested} {unit}</b> <span className="text-gray-400">({basis})</span></span>
-        <button
-          type="button"
-          onClick={onApply}
-          className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50"
-        >
-          Apply
-        </button>
-        <span className="text-gray-400 italic">{differs ? "Manual value in force — suggestion shown for reference" : "Suggestion only — engineer must confirm"}</span>
-      </div>
-    </div>
-  );
-}
-
 /** Searchable dropdown (combobox) row — options list is master-data driven. */
 function SearchSelectRow({
   label, value, options, onSelect, unit, note, placeholder,
@@ -285,6 +258,10 @@ const THERMAL_FLUID_MASTER: Record<string, { maxBulk: string; maxFilm: string }>
 // Thermopac design defaults — recommended heater temperatures (editable).
 const HEATER_INLET_DEFAULT = "200";
 const HEATER_OUTLET_DEFAULT = "230";
+// Cooling Water — Thermopac defaults: CW Inlet tracks Ambient; ΔT default 8 °C.
+const CW_INLET_OPTIONS = ["10", "15", "20", "25", "30", "40", "45"];
+const CW_DELTA_T_OPTIONS = ["4", "6", "8"];
+const CW_DELTA_T_DEFAULT = "8";
 const THERMAL_DEFAULT_SOURCE = "Thermopac design default — thermal-fluid master data";
 
 const LIMIT_TYPES = ["Max", "Min", "Target", "Range"];
@@ -659,6 +636,16 @@ export default function DesignSoftwareWorkspacePage() {
     if (ambVv !== null && wbVv !== null && wbVv > ambVv) {
       overrideViolations.push("Wet Bulb Temperature must not exceed Ambient Temperature");
     }
+    const cwInV = vNum(db.cw_inlet_temperature); const cwOutV = vNum(db.cw_outlet_temperature); const cwDtV = vNum(db.cw_delta_t);
+    if (cwInV !== null && ambVv !== null && cwInV > ambVv && db.cw_inlet_manual !== "true") {
+      overrideViolations.push("CW Inlet Temperature exceeds Ambient Temperature without a manual engineer selection");
+    }
+    if (cwInV !== null && cwOutV !== null && cwOutV <= cwInV) {
+      overrideViolations.push("CW Outlet Temperature must be greater than CW Inlet Temperature");
+    }
+    if (cwDtV !== null && cwDtV <= 0) {
+      overrideViolations.push("CW Design ΔT must be positive");
+    }
   }
 
   const validationChecks = [
@@ -848,6 +835,30 @@ export default function DesignSoftwareWorkspacePage() {
         m.wet_bulb_temperature = String(ambM - 5);
         updates = { ...updates, wet_bulb_temperature: m.wet_bulb_temperature };
       }
+      // Cooling Water — inlet defaults to Ambient (tracks Ambient until manually changed);
+      // ΔT default 8 °C; Outlet = Inlet + ΔT; CT Approach = Inlet − Wet Bulb (read-only).
+      const ambCW = num(m.ambient_temperature ?? AMBIENT_DEFAULT);
+      if (m.cw_inlet_manual !== "true" && ambCW !== null) {
+        m.cw_inlet_temperature = String(ambCW);
+        updates = { ...updates, cw_inlet_temperature: m.cw_inlet_temperature };
+      }
+      if (num(m.cw_delta_t) === null || (num(m.cw_delta_t) as number) <= 0) {
+        m.cw_delta_t = CW_DELTA_T_DEFAULT;
+        updates = { ...updates, cw_delta_t: CW_DELTA_T_DEFAULT, cw_delta_t_manual: "" };
+      }
+      const cwInA = num(m.cw_inlet_temperature); const cwDtA = num(m.cw_delta_t);
+      if (cwInA !== null && cwDtA !== null) {
+        m.cw_outlet_temperature = String(Math.round((cwInA + cwDtA) * 10) / 10);
+        updates = { ...updates, cw_outlet_temperature: m.cw_outlet_temperature };
+      }
+      const wbCW = num(m.wet_bulb_temperature);
+      if (cwInA !== null && wbCW !== null) {
+        m.cw_approach = String(Math.round((cwInA - wbCW) * 10) / 10);
+        updates = { ...updates, cw_approach: m.cw_approach };
+      } else if ((m.cw_approach ?? "").trim()) {
+        m.cw_approach = "";
+        updates = { ...updates, cw_approach: "" };
+      }
       if (!(m.vessel_orientation ?? "").trim()) updates = { ...updates, vessel_orientation: LLX_COL_ORIENTATION };
       if (!(m.column_height_m ?? "").trim()) updates = { ...updates, column_height_m: LLX_COL_HEIGHT_M };
       // Design Temperature — Thermopac rule (ASME Sec. VIII Div. 1): OT 50–80 → 100 °C; OT > 80 → OT + 20 °C.
@@ -929,12 +940,8 @@ export default function DesignSoftwareWorkspacePage() {
     const elevEff = num(db.site_elevation ?? ELEVATION_DEFAULT);
     const atmCalc = elevEff !== null ? (101325 * Math.pow(1 - 0.0000225577 * elevEff, 5.25588) / 1000).toFixed(2) : null;
     const atmOverride = db.atm_pressure_override === "true";
-    const approach = num(db.cw_approach);
-    const suggestedCWIn = wb !== null && approach !== null && (db.cw_approach_source ?? "").trim() !== "" ? (wb + approach).toFixed(1) : null;
     const cwIn = num(db.cw_inlet_temperature);
     const cwOut = num(db.cw_outlet_temperature);
-    const cwDeltaCalc = cwIn !== null && cwOut !== null ? (cwOut - cwIn).toFixed(1) : null;
-    const cwOverride = db.cw_delta_t_override === "true";
     // Design capacity cross-conversion (governed: only with annual hours + tagged density)
     const daysYr = num(db.operating_days);
     const fpData = d("fluid_properties");
@@ -1261,36 +1268,75 @@ export default function DesignSoftwareWorkspacePage() {
           </div>
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Cooling Water</p>
-            <FieldRow label="CW Inlet Temp" value={db.cw_inlet_temperature ?? ""} onChange={v => f("cw_inlet_temperature", v)} onBlur={s} unit="°C" />
-            <SuggestionBlock
-              suggested={suggestedCWIn}
+            <SelectRow
+              label="CW Inlet Temp"
+              value={db.cw_inlet_temperature ?? ""}
+              onChange={v => f("cw_inlet_temperature", v)}
+              onBlur={s}
+              onCommit={v => cs(auto({
+                cw_inlet_temperature: v,
+                cw_inlet_manual: num(v) !== null && num(v) === num(db.ambient_temperature ?? AMBIENT_DEFAULT) ? "" : "true",
+              }))}
+              options={CW_INLET_OPTIONS}
               unit="°C"
-              basis={suggestedCWIn ? `Wet Bulb ${wb} + approach ${approach} °C (${db.cw_approach_source})` : "enter Wet Bulb Temperature, Cooling Tower Approach and its source"}
-              current={db.cw_inlet_temperature ?? ""}
-              onApply={() => cs({ cw_inlet_temperature: suggestedCWIn as string })}
             />
-            <FieldRow label="CT Approach" value={db.cw_approach ?? ""} onChange={v => f("cw_approach", v)} onBlur={s} unit="°C" />
-            <FieldRow label="CT Approach Source" value={db.cw_approach_source ?? ""} onChange={v => f("cw_approach_source", v)} onBlur={s} placeholder="e.g. CT vendor basis / site data" />
-            <FieldRow label="CW Outlet Temp" value={db.cw_outlet_temperature ?? ""} onChange={v => f("cw_outlet_temperature", v)} onBlur={s} unit="°C" />
-            <FieldRow
+            <p className="text-xs ml-[212px] -mt-1 text-gray-500">
+              Status: {db.cw_inlet_manual === "true" ? "Manual" : "Auto-Populated"} · Rule: defaults to Ambient Temperature ({db.ambient_temperature ?? AMBIENT_DEFAULT} °C) and follows it until manually changed
+            </p>
+            {db.cw_inlet_manual === "true" && (
+              <div className="ml-[212px] mt-1">
+                <button type="button" onClick={() => cs(auto({ cw_inlet_manual: "" }))} className="px-2 py-0.5 text-xs border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Reset to Default (Ambient {db.ambient_temperature ?? AMBIENT_DEFAULT} °C)</button>
+              </div>
+            )}
+            {cwIn !== null && num(db.ambient_temperature ?? AMBIENT_DEFAULT) !== null && cwIn > (num(db.ambient_temperature ?? AMBIENT_DEFAULT) as number) && db.cw_inlet_manual !== "true" && (
+              <p className="text-xs ml-[212px] text-red-600 font-medium">CW Inlet Temperature exceeds Ambient Temperature — requires a manual engineer selection</p>
+            )}
+            <SelectRow
               label="CW Design ΔT"
-              value={cwOverride ? db.cw_delta_t ?? "" : cwDeltaCalc ?? ""}
+              value={db.cw_delta_t ?? CW_DELTA_T_DEFAULT}
               onChange={v => f("cw_delta_t", v)}
               onBlur={s}
+              onCommit={v => cs(auto({ cw_delta_t: v, cw_delta_t_manual: v === CW_DELTA_T_DEFAULT ? "" : "true" }))}
+              options={CW_DELTA_T_OPTIONS}
+              allowOther
               unit="°C"
-              readOnly={!cwOverride}
-              note={cwOverride ? "Manual override active" : "Calculated: CW Outlet − CW Inlet (read-only)"}
             />
-            <div className="flex items-center gap-2 ml-[212px]">
-              <input
-                type="checkbox"
-                id="cw_dt_override"
-                checked={cwOverride}
-                onChange={e => cs({ cw_delta_t_override: String(e.target.checked) })}
-                className="h-4 w-4"
-              />
-              <label htmlFor="cw_dt_override" className="text-xs text-gray-500">Manual override of CW Design ΔT</label>
-            </div>
+            <p className="text-xs ml-[212px] -mt-1 text-gray-500">
+              Status: {db.cw_delta_t_manual === "true" ? "Manual" : "Auto-Populated"} · Rule: default {CW_DELTA_T_DEFAULT} °C · changing ΔT recalculates CW Outlet
+            </p>
+            {num(db.cw_delta_t) !== null && (num(db.cw_delta_t) as number) <= 0 && (
+              <p className="text-xs ml-[212px] text-red-600 font-medium">CW Design ΔT must be positive</p>
+            )}
+            <FieldRow
+              label="CW Outlet Temp"
+              value={db.cw_outlet_temperature ?? ""}
+              onChange={v => f("cw_outlet_temperature", v)}
+              onBlur={() => {
+                const o = num(db.cw_outlet_temperature); const i = num(db.cw_inlet_temperature);
+                if (o !== null && i !== null && o > i) {
+                  const dT = String(Math.round((o - i) * 10) / 10);
+                  cs(auto({ cw_delta_t: dT, cw_delta_t_manual: dT === CW_DELTA_T_DEFAULT ? "" : "true" }));
+                } else {
+                  cs(auto({}));
+                }
+              }}
+              unit="°C"
+            />
+            <p className="text-xs ml-[212px] -mt-1 text-gray-500">
+              Status: Auto-Populated · Rule: CW Inlet + CW Design ΔT · editing recalculates ΔT
+            </p>
+            {cwIn !== null && cwOut !== null && cwOut <= cwIn && (
+              <p className="text-xs ml-[212px] text-red-600 font-medium">CW Outlet Temperature must be greater than CW Inlet Temperature</p>
+            )}
+            <FieldRow
+              label="CT Approach"
+              value={db.cw_approach ?? ""}
+              onChange={() => {}}
+              onBlur={() => {}}
+              readOnly
+              unit="°C"
+              note="Calculated: CW Inlet − Wet Bulb Temperature (read-only)"
+            />
           </div>
         </SectionCard>
 
