@@ -173,6 +173,13 @@ function checkTagged(v: unknown, field: string, unit: string, issues: PackingVal
   if (typeof o.sourceReference !== 'string' || !o.sourceReference.trim()) issues.push({ field, message: `${field}.sourceReference is mandatory` });
 }
 
+/** Standalone validation of a PerformanceBasis (used by engines consuming vendor curves outside a PackingRecord). */
+export function validatePerformanceBasis(b: unknown, field: string): PackingValidationIssue[] {
+  const issues: PackingValidationIssue[] = [];
+  checkBasis(b, field, issues);
+  return issues;
+}
+
 function checkBasis(b: unknown, field: string, issues: PackingValidationIssue[]): void {
   const basis = b as PerformanceBasis;
   if (basis.kind === 'constant') {

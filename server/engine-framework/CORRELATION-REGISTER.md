@@ -154,6 +154,32 @@ Applicability statement + 7 limitations on every result: no proprietary packing 
 
 ---
 
+## 10. Stage C5 — ECR-Type Kühni Agitated Extraction Column Engine (`server/engines/llx/llx-ecr-engine.ts`, engine `llx-ecr` v1.0.0)
+
+**PRELIMINARY ECR-TYPE AGITATED COLUMN SCREENING — NOT VENDOR RATING AND NOT FOR FABRICATION.** Vendor neutral — no proprietary Kühni/Sulzer model; vendor data consumed via the C4 `PerformanceBasis` architecture (interpolation only, extrapolation refused). The C3 generic hydraulic percentage is never reused as ECR utilization. No droplet-size prediction from RPM. Approved refinements: R1 selectable power-density basis (recorded every run; `holdup_corrected` reserved and rejected); R2 rotor geometry via direct diameter and/or ratio with ±1 % consistency gate; R3 four-way tip-speed classification.
+
+| ID | Name | Formula & rules | Classification behaviour |
+|---|---|---|---|
+| ECR-001 | Loads & superficial velocities | A = π·D²/4; Q_i = m_i/ρ_i (RRBO ρ entered source-tagged via calculation-scoped context; NMP ρ from EPD at T); u_c, u_d (m/s), phase loads and total load (m³/(m²·h)); flow ratio Q_d/Q_c stored (capacity-curve variable). Normal/maximum cases independent | Pending if any fluid property Assumed |
+| ECR-002 | ECR hydraulic utilization | U = L_tot/(Vendor Hydraulic Capacity × derating) × 100 %. ECR-specific vendor data only (constant + applicabilityNote, or curve vs `flowRatioDispersedToContinuous`); derating never invented (absent ⇒ 1.0 + `NO_SYSTEM_DERATING_DATA`); missing capacity ⇒ Pending Validation + `NO_ECR_CAPACITY_DATA` (loads still reported); out of data range ⇒ Not Calculable + `VENDOR_CAPACITY_OUT_OF_DATA_RANGE` | data-gated |
+| ECR-003 | Stator & rotor-region checks | v_st = (Q_c+Q_d)/(A·f_stator) vs optional vendor limits; A_R = π·D_R²/4; swept loading (Q_c+Q_d)/A_R vs optional limit. Data absent ⇒ value reported / check Not Calculable — never assumed | data-gated |
+| ECR-004 | Rotor geometry & speed (R2) | D_R direct AND/OR ratio×D; both ⇒ agree within ±1 % else blocked; one ⇒ other calculated. N = rpm/60; single speed or range (both ends evaluated as atMinSpeed/atMaxSpeed). rotorType is a data label | blocked if neither geometry input |
+| ECR-005 | Dimensionless groups | Re = ρ_c·N·D_R²/μ_c (μ_c mandatory entered when NMP continuous — never silently taken); We = ρ_c·N²·D_R³/σ (σ absent ⇒ We Not Calculable, others unaffected); Fr = N²·D_R/g. No droplet size derived from any group | data-gated |
+| ECR-006 | Agitation power (R1) | P₁ = N_P·ρ_m·N³·D_R⁵ with SELECTED density basis: 'continuous_phase' (ρ_c) or 'volume_averaged' ((m_c+m_d)/(Q_c+Q_d)); basis + value recorded on every item; 'holdup_corrected' reserved/rejected. P_shaft = P₁ × nCompartments × rotorsPerCompartment (default 1 with explicit warning); P_motor = P_shaft/η_shaft × designMargin. N_P, η_shaft, margin mandatory tagged — never defaulted | blocked if N_P/η/margin missing |
+| ECR-007 | Compartments (efficiency path) | estimatedCompartments = ceil(theoreticalStages/compartmentEfficiency); efficiency mandatory tagged, 0 < η ≤ 1, never silently defaulted; Assumed ⇒ Pending Validation. Rate-based path (KoaV/Q, residence time, back-mixing) reserved null placeholders | blocked if efficiency missing |
+| ECR-008 | Heights | H_active = nCompartments × compartmentHeight; lines: Drive/Seal/Bearing, Top Head, Top Disengagement, Top Distributor, Active Agitated Section, Bottom Distributor, Bottom Disengagement, Bottom Head; T/T excludes heads and drive/seal; overall vessel = T/T + heads + drive/seal. All allowances mandatory source-tagged or explicitly Assumed | assembled |
+| ECR-009 | Mechanical screening (R3) | Tip speed v_tip = π·D_R·N classified: below_preferred_range / preferred_range / above_preferred_range / above_vendor_limit (`TIP_SPEED_LIMIT_EXCEEDED`); no preferred range ⇒ classification Not Calculable (limit still enforced); no criteria ⇒ no_limit_data. P_shaft vs maxAllowableShaftPower (`SHAFT_POWER_LIMIT_EXCEEDED`); overall-vessel proxy vs maxUnsupportedShaftLength (`SHAFT_SUPPORT_REQUIRED`); bearing/support requirements ALWAYS Pending Validation unless vendor/mechanical data. Screening only — no shaft/seal/bearing/code design | data-gated |
+
+Benchmarks (asserted): D = 1.0 m, D_R = 0.5 m, 120 rpm ⇒ v_tip = 3.142 m/s (preferred_range); Re = 6.28×10⁵; We = 20 094; Fr = 0.2039; ρ_m(vol-avg) = 957.7 kg/m³; P₁ = 838 W; 15 compartments; P_shaft = 12.57 kW; P_motor = 15.88 kW; U = 55.4 %/61.7 %; H_active = 3.75 m; T/T = 6.55 m; overall vessel = 8.15 m.
+
+Applicability statement + 7 limitations on every result: no proprietary Kühni model; no vendor hydraulic guarantee; no validated droplet breakup/coalescence model; no axial back-mixing model; no rate-based mass-transfer model; no final shaft/seal/bearing design; no mechanical code design.
+
+**Not implemented in Stage C5 (by direction):** proprietary Sulzer ECR correlations, droplet-size prediction from RPM, rate-based KoaV/Q design, shaft/seal/bearing mechanical design, technology comparison, cost estimation, report generation.
+
+**C5 validation suite:** `server/engine-framework/tests/c5-ecr-column.ts`.
+
+---
+
 **Deferred (throw `NotImplementedError`, never fabricate values):** schmidt, sherwood, lookupDiffusivity, pressureDropDarcyWeisbach, moodyFrictionFactor, overallMassTransferCoefficient, numberOfTransferUnits, nusseltDittusBoelter.
 
 **Validation suite:** `server/engine-framework/tests/level1-validation.ts` (run `npx tsx server/engine-framework/tests/level1-validation.ts`).
