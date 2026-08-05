@@ -1236,6 +1236,43 @@ export default function DesignSoftwareWorkspacePage() {
           updates = { ...updates, extract_quality_rows: m.extract_quality_rows, extract_quality_rows_seeded: "true" };
         }
       }
+      // One-time migration: legacy standalone Colour Scale / Colour Value /
+      // Raffinate Yield fields fold into the structured Product Requirement
+      // rows (the source of truth), then the legacy keys are cleared so this
+      // never runs again. Engineer-edited row targets are never overwritten —
+      // legacy values only fill rows whose target is blank or still at the
+      // master default.
+      const legacyColour = (m.product_colour ?? "").trim();
+      const legacyYield = (m.raffinate_yield ?? "").trim();
+      const legacyScale = (m.colour_scale ?? "").trim();
+      if (legacyColour !== "" || legacyYield !== "" || legacyScale !== "") {
+        let rows: Array<Record<string, string>> = [];
+        try { rows = JSON.parse(m.raffinate_quality_rows || "[]"); } catch { rows = []; }
+        if (!Array.isArray(rows)) rows = [];
+        const patch = (param: string, target: string, notes?: string) => {
+          if (target === "" && !notes) return;
+          const master = PRODUCT_PARAMETER_MASTER[param];
+          const row = rows.find(r => r.parameter === param);
+          if (row) {
+            const t = (row.target ?? "").trim();
+            if (target !== "" && (t === "" || t === (master?.defaultTarget ?? ""))) row.target = target;
+            if (notes && (row.notes ?? "").trim() === (param === "Product Colour" ? (master?.notes ?? "") : "")) row.notes = notes;
+          } else if (target !== "") {
+            rows.push({ parameter: param, target, unit: master?.unit ?? "", limitType: master?.limitType ?? "Max", notes: notes ?? master?.notes ?? "" });
+          }
+        };
+        patch("Product Colour", legacyColour, legacyScale !== "" ? `Scale: ${legacyScale}` : undefined);
+        patch("Raffinate Yield", legacyYield);
+        m.raffinate_quality_rows = JSON.stringify(rows);
+        updates = {
+          ...updates,
+          raffinate_quality_rows: m.raffinate_quality_rows,
+          raffinate_quality_rows_seeded: "true",
+          product_colour: "",
+          raffinate_yield: "",
+          colour_scale: "",
+        };
+      }
       if (m.design_objective_manual !== "true") {
         m.design_objective = genObjective();
         updates = { ...updates, design_objective: m.design_objective };
@@ -1701,11 +1738,6 @@ export default function DesignSoftwareWorkspacePage() {
               onBlur={s}
               onCommit={v => cs({ extract_quality_rows: v, extract_quality_rows_seeded: "true" })}
             />
-          </div>
-          <div className="border-t pt-3 space-y-3">
-            <SelectRow label="Colour Scale" value={db.colour_scale ?? ""} onChange={v => f("colour_scale", v)} onBlur={s} onCommit={v => cs({ colour_scale: v })} options={["ASTM D1500", "Saybolt"]} allowOther />
-            <FieldRow label="Colour Value" value={db.product_colour ?? ""} onChange={v => f("product_colour", v)} onBlur={s} />
-            <FieldRow label="Raffinate Yield" value={db.raffinate_yield ?? ""} onChange={v => f("raffinate_yield", v)} onBlur={s} unit="%" />
           </div>
         </SectionCard>
 
