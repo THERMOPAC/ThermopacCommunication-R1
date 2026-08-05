@@ -199,7 +199,7 @@ async function main() {
     i.maxCirculationFactor = 1.2;
     i.hindranceExponent = tag(1, 'Assumed', 'Analytic benchmark n = 1');
     i.holdupBounds = { min: 0.005, max: 0.6 };
-    i.diameterSweep = { min: 1.0, max: 1.0, step: 0.5 };
+    delete i.diameterSweep; i.diameterValues = [1.0];
     const res = await engine.calculate(i, ctx);
     const row = (res.data as any).normalCase.diameters[0];
     check('R = 1 exactly', row.flowRatio.value, 1, 1e-9);
@@ -212,7 +212,7 @@ async function main() {
   {
     // Tiny diameter → velocities far above the generic maximum → no root
     const i = baseInputs();
-    i.diameterSweep = { min: 0.1, max: 0.1, step: 0.1 };
+    delete i.diameterSweep; i.diameterValues = [0.1];
     const res = await engine.calculate(i, ctx);
     const row = (res.data as any).normalCase.diameters[0];
     checkTrue('no-root diameter → hydraulically_infeasible', row.genericHydraulicFeasibility === 'hydraulically_infeasible');
@@ -223,7 +223,7 @@ async function main() {
     let found = false;
     for (let D = 0.60; D <= 1.10 && !found; D += 0.01) {
       const j = baseInputs();
-      j.diameterSweep = { min: D, max: D, step: 0.1 };
+      delete j.diameterSweep; j.diameterValues = [Number(D.toFixed(4))];
       j.rootIsolationTolerance = 0.2;
       const r = await engine.calculate(j, ctx);
       const rw = (r.data as any).normalCase.diameters[0];
@@ -333,6 +333,10 @@ async function main() {
       ['negative IFT', (i) => { i.interfacialTension = { value: -0.01, referenceTemperatureC: T, sourceType: 'Vendor', sourceReference: 'x' }; }],
       ['n = 1 with Vendor tag (Assumed-only rule)', (i) => { i.hindranceExponent = tag(1, 'Vendor', 'VH-77'); }],
       ['n = 1 with Measured tag (Assumed-only rule)', (i) => { i.hindranceExponent = tag(1, 'Measured', 'LR-1'); }],
+      ['degenerate sweep min = max (single diameter must use diameterValues)', (i) => { i.diameterSweep = { min: 1, max: 1, step: 0.2 }; }],
+      ['both diameterSweep and diameterValues', (i) => { i.diameterValues = [1.0]; }],
+      ['empty diameterValues', (i) => { delete i.diameterSweep; i.diameterValues = []; }],
+      ['non-positive diameterValues entry', (i) => { delete i.diameterSweep; i.diameterValues = [1.0, -0.5]; }],
       ['sub-ULP diameter step', (i) => { i.diameterSweep = { min: 1, max: 2, step: 1e-18 }; }],
       ['oversized diameter sweep (> 200 points)', (i) => { i.diameterSweep = { min: 0.1, max: 5, step: 0.01 }; }],
     ];

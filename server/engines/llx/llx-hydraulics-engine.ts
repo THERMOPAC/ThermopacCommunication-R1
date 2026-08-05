@@ -222,16 +222,27 @@ export class LLXHydraulicsEngine implements IDesignEngine {
       if (sMin === undefined || sMax === undefined || !(sMin >= 0 && sMax <= 100 && sMin < sMax)) err('screeningBandPercent', 'screeningBandPercent must satisfy 0 ≤ min < max ≤ 100');
     }
 
-    // Diameter sweep
+    // Diameter basis — EITHER a range sweep (strictly min < max) OR an explicit
+    // list. A single diameter must be given explicitly via diameterValues: [D]
+    // (or evaluated as selectedTrialDiameter within a sweep) — never min = max.
     const sweep = inputs.diameterSweep as Record<string, unknown> | undefined;
-    const dMin = num(sweep?.min); const dMax = num(sweep?.max); const dStep = num(sweep?.step);
-    if (!sweep || dMin === undefined || dMax === undefined || dStep === undefined || dMin <= 0 || dMax < dMin || dStep <= 0) {
-      err('diameterSweep', 'diameterSweep { min > 0, max ≥ min, step > 0 } (m) is required');
+    const values = inputs.diameterValues as unknown;
+    if (sweep && values !== undefined) {
+      err('diameterValues', 'Provide EITHER diameterSweep OR diameterValues — not both');
+    } else if (values !== undefined) {
+      if (!Array.isArray(values) || values.length === 0 || values.length > 200 || values.some((v) => num(v) === undefined || num(v)! <= 0)) {
+        err('diameterValues', 'diameterValues must be a non-empty array of up to 200 diameters, each > 0 (m)');
+      }
     } else {
-      const points = Math.floor((dMax - dMin) / dStep) + 1;
-      if (dMin + dStep === dMin) err('diameterSweep.step', 'diameterSweep.step is too small to advance the sweep at floating-point precision');
-      else if (points > 200) err('diameterSweep', `diameterSweep would produce ${points} points — limit is 200; use a coarser step`);
-      else if (points > 100) warn('diameterSweep', `diameterSweep has ${points} points — consider a coarser step for screening`);
+      const dMin = num(sweep?.min); const dMax = num(sweep?.max); const dStep = num(sweep?.step);
+      if (!sweep || dMin === undefined || dMax === undefined || dStep === undefined || dMin <= 0 || dMax <= dMin || dStep <= 0) {
+        err('diameterSweep', 'diameterSweep { 0 < min < max, step > 0 } (m) is required (for a single diameter use diameterValues: [D])');
+      } else {
+        const points = Math.floor((dMax - dMin) / dStep) + 1;
+        if (dMin + dStep === dMin) err('diameterSweep.step', 'diameterSweep.step is too small to advance the sweep at floating-point precision');
+        else if (points > 200) err('diameterSweep', `diameterSweep would produce ${points} points — limit is 200; use a coarser step`);
+        else if (points > 100) warn('diameterSweep', `diameterSweep has ${points} points — consider a coarser step for screening`);
+      }
     }
 
     const trial = num(inputs.selectedTrialDiameter);
@@ -443,11 +454,16 @@ export class LLXHydraulicsEngine implements IDesignEngine {
       const rootTol = num(inputs.rootIsolationTolerance) ?? DEFAULT_ROOT_ISOLATION_TOLERANCE;
 
       // Diameter sweep per independent case (HYD-007 / HYD-008)
-      const sweep = inputs.diameterSweep as { min: number; max: number; step: number };
-      const sweepMin = num(sweep.min)!; const sweepMax = num(sweep.max)!; const sweepStep = num(sweep.step)!;
-      // Index-based generation — no additive float drift, bounded by validation (≤ 200 points)
-      const nPoints = Math.floor((sweepMax - sweepMin) / sweepStep + 1e-9) + 1;
-      const diameters: number[] = Array.from({ length: nPoints }, (_, i) => Number((sweepMin + i * sweepStep).toFixed(10)));
+      let diameters: number[];
+      if (inputs.diameterValues !== undefined) {
+        diameters = (inputs.diameterValues as unknown[]).map((v) => num(v)!);
+      } else {
+        const sweep = inputs.diameterSweep as { min: number; max: number; step: number };
+        const sweepMin = num(sweep.min)!; const sweepMax = num(sweep.max)!; const sweepStep = num(sweep.step)!;
+        // Index-based generation — no additive float drift, bounded by validation (≤ 200 points)
+        const nPoints = Math.floor((sweepMax - sweepMin) / sweepStep + 1e-9) + 1;
+        diameters = Array.from({ length: nPoints }, (_, i) => Number((sweepMin + i * sweepStep).toFixed(10)));
+      }
 
       const slipFn = holdupBasisAvailable ? (phi: number) => uK! * Math.pow(1 - phi, nExp!) : undefined;
 
