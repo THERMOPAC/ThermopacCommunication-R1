@@ -16916,7 +16916,7 @@ export const designSoftwareInputs = pgTable('design_software_inputs', {
 }, (table) => ({
   uniqRevisionSection: uniqueIndex('ds_inputs_revision_section_uniq').on(table.revisionId, table.section),
   idxRevisionId:       index('ds_inputs_revision_id_idx').on(table.revisionId),
-  chkSection:          check('ds_inputs_section_chk', sql`section IN ('design_basis', 'fluid_properties', 'technology_selection', 'ecp', 'ecr', 'comparison')`),
+  chkSection:          check('ds_inputs_section_chk', sql`section IN ('design_identity', 'design_basis', 'fluid_properties', 'process_design', 'hydraulic_design', 'technology_selection', 'equipment_design', 'technology_comparison', 'mechanical_design', 'utilities', 'cost_estimation', 'design_validation', 'reports', 'revision_control', 'ecp', 'ecr', 'comparison')`),
 }));
 
 // ── 5. design_software_results ────────────────────────────────────────────────
@@ -16937,7 +16937,7 @@ export const designSoftwareResults = pgTable('design_software_results', {
 }, (table) => ({
   uniqRevisionSection: uniqueIndex('ds_results_revision_section_uniq').on(table.revisionId, table.section),
   idxRevisionId:       index('ds_results_revision_id_idx').on(table.revisionId),
-  chkSection:          check('ds_results_section_chk', sql`section IN ('hydraulics_common', 'ecp', 'ecr', 'comparison', 'summary')`),
+  chkSection:          check('ds_results_section_chk', sql`section IN ('process_design', 'hydraulics_common', 'ecp', 'ecr', 'comparison', 'summary')`),
 }));
 
 // ── 6. design_software_calculation_runs ───────────────────────────────────────
@@ -16961,7 +16961,7 @@ export const designSoftwareCalculationRuns = pgTable('design_software_calculatio
   calculatedAt:     timestamp('calculated_at').notNull().defaultNow(),
 }, (table) => ({
   idxRevisionCalcAt: index('ds_calc_runs_revision_at_idx').on(table.revisionId, table.calculatedAt),
-  chkCalcType:       check('ds_calc_runs_type_chk',   sql`calculation_type IN ('hydraulics_common', 'ecp', 'ecr')`),
+  chkCalcType:       check('ds_calc_runs_type_chk',   sql`calculation_type IN ('process_design', 'hydraulics_common', 'ecp', 'ecr')`),
   chkCalcStatus:     check('ds_calc_runs_status_chk', sql`calculation_status IN ('success', 'warning', 'error')`),
 }));
 
