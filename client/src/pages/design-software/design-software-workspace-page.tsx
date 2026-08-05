@@ -21,6 +21,18 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { PRODUCT_REQUIREMENT_MASTER, PRODUCT_PARAMETER_MASTER } from "@shared/product-requirement-master";
+import {
+  RRBO_FEED_DENSITY_MASTER, RRBO_FEED_DENSITY_REF_TEMP, NMP_MASTER,
+  EMULSION_BEHAVIOUR_DEFAULT, PENDING_VALIDATION, FLUID_PROPERTY_PROVENANCE,
+} from "@shared/fluid-properties-master";
+
+// Module-level numeric parse helper (blank/invalid → null).
+const numOrNull = (v: string | undefined | null): number | null => {
+  const t = (v ?? "").trim();
+  if (t === "") return null;
+  const n = Number(t);
+  return isFinite(n) ? n : null;
+};
 
 // ── Status helpers ────────────────────────────────────────────────────────────
 const STATUS_COLOURS: Record<string, string> = {
@@ -586,6 +598,79 @@ export default function DesignSoftwareWorkspacePage() {
     setSavingSection(section);
     upsertMutation.mutate({ section, data: next });
   }, [isFrozen, activeRevisionId, localData, upsertMutation]);
+
+  // ── Fluid Properties auto-population (Step 3) ────────────────────────────────
+  // NMP density / dynamic viscosity from the server-side EPD (source-tagged
+  // tabular data) at the Design Basis Operating Temperature.
+  const fpOtStr = (localData["design_basis"]?.operating_temperature ?? "").trim();
+  const fpOt = numOrNull(fpOtStr);
+  const epdNmpQ = useQuery({
+    queryKey: [`/api/design-software/epd/nmp`, fpOtStr],
+    queryFn: () => apiRequest("GET", `/api/design-software/epd/nmp?tc=${encodeURIComponent(fpOtStr)}`) as Promise<any>,
+    enabled: activeStep === "fluid_properties" && fpOt !== null,
+  });
+
+  // Seed approved master-data defaults into blank Fluid Properties fields only.
+  // Never overwrites engineer-entered values; properties without an approved
+  // Thermopac value are left manual (no invented data).
+  useEffect(() => {
+    if (activeStep !== "fluid_properties" || isFrozen || !activeRevisionId || !inputsQ.data) return;
+    const fp = localData["fluid_properties"] ?? {};
+    const dbx = localData["design_basis"] ?? {};
+    const u: Record<string, string> = {};
+    const blank = (k: string) => (fp[k] ?? "").trim() === "";
+    const setIf = (key: string, val: string | null, unit: string, refTemp?: string) => {
+      if (val === null || val === "") return;
+      if (blank(`${key}_value`)) u[`${key}_value`] = val;
+      if (blank(`${key}_unit`) && (`${key}_value` in u || !blank(`${key}_value`))) {
+        if (blank(`${key}_unit`)) u[`${key}_unit`] = unit;
+      }
+      if (refTemp && blank(`${key}_ref_temp`) && (`${key}_value` in u)) u[`${key}_ref_temp`] = refTemp;
+    };
+    // RRBO — Thermopac Feed Master density for the selected grade
+    const grade = (dbx.feed_service ?? "").trim();
+    const rhoMaster = RRBO_FEED_DENSITY_MASTER[grade];
+    if (rhoMaster) setIf("rrbo_density", rhoMaster, "kg/m³", `${RRBO_FEED_DENSITY_REF_TEMP} °C`);
+    // RRBO / NMP temperature — Design Basis Operating Temperature
+    if (fpOt !== null) {
+      setIf("rrbo_temperature", fpOtStr, "°C", fpOtStr + " °C");
+      setIf("nmp_temperature", fpOtStr, "°C", fpOtStr + " °C");
+    }
+    // RRBO product-requirement targets (Water / Colour / Sulphur)
+    try {
+      const rows: any[] = JSON.parse(dbx.raffinate_quality_rows || "[]");
+      const target = (p: string) => rows.find(r => r?.parameter === p)?.target ?? null;
+      setIf("rrbo_water", target("Water"), "ppm");
+      setIf("rrbo_colour", target("Product Colour"), "ASTM D1500");
+      setIf("rrbo_sulphur", target("Sulphur"), "ppm");
+    } catch { /* ignore malformed rows */ }
+    // RRBO kinematic viscosity — calculated from dynamic viscosity ÷ density
+    const mu = numOrNull(fp.rrbo_viscosity_dynamic_value);
+    const rho = numOrNull(`${"rrbo_density_value" in u ? u.rrbo_density_value : fp.rrbo_density_value}`);
+    if (mu !== null && rho !== null && rho > 0 && blank("rrbo_viscosity_kinematic_value")) {
+      u.rrbo_viscosity_kinematic_value = String(Math.round((mu / rho) * 1000 * 1000) / 1000);
+      if (blank("rrbo_viscosity_kinematic_unit")) u.rrbo_viscosity_kinematic_unit = "mm²/s";
+      if (blank("rrbo_viscosity_kinematic_ref_temp") && (fp.rrbo_viscosity_dynamic_ref_temp ?? "").trim() !== "")
+        u.rrbo_viscosity_kinematic_ref_temp = fp.rrbo_viscosity_dynamic_ref_temp;
+    }
+    // NMP — EPD values at Operating Temperature
+    const epd = epdNmpQ.data;
+    if (epd?.density?.value != null) {
+      setIf("nmp_density", String(Math.round(epd.density.value * 10) / 10), "kg/m³", fpOtStr + " °C");
+      if (epd.density.pendingValidation && blank("nmp_density_source") && ("nmp_density_value" in u)) u.nmp_density_source = "Assumed";
+    }
+    if (epd?.dynamicViscosity?.value != null) {
+      setIf("nmp_viscosity_dynamic", String(Math.round(epd.dynamicViscosity.value * 1000) / 1000), "mPa·s", fpOtStr + " °C");
+      if (epd.dynamicViscosity.pendingValidation && blank("nmp_viscosity_dynamic_source") && ("nmp_viscosity_dynamic_value" in u)) u.nmp_viscosity_dynamic_source = "Assumed";
+    }
+    // NMP Master Data — purity / water spec limits
+    setIf("nmp_purity", NMP_MASTER.purity.value, NMP_MASTER.purity.unit);
+    setIf("nmp_water", NMP_MASTER.water.value, NMP_MASTER.water.unit);
+    // Emulsion behaviour default text
+    if (blank("emulsion_behaviour")) u.emulsion_behaviour = EMULSION_BEHAVIOUR_DEFAULT;
+    if (Object.keys(u).length > 0) commitSection("fluid_properties", u);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStep, isFrozen, activeRevisionId, inputsQ.data, epdNmpQ.data, localData]);
 
   const newRevisionMutation = useMutation({
     mutationFn: () =>
@@ -1444,7 +1529,17 @@ export default function DesignSoftwareWorkspacePage() {
     const f = field("fluid_properties");
     const s = save("fluid_properties");
     const prop = (label: string, key: string) => (
-      <PropertyRow key={key} label={label} propKey={key} data={fp} onChange={f} onBlur={s} />
+      <div key={key}>
+        <PropertyRow label={label} propKey={key} data={fp} onChange={f} onBlur={s} />
+        {FLUID_PROPERTY_PROVENANCE[key] && (
+          <p className="text-[11px] text-gray-400 px-2 -mt-0.5">{FLUID_PROPERTY_PROVENANCE[key]}</p>
+        )}
+        {["interfacial_tension", "mutual_solubility"].includes(key) && (fp[`${key}_value`] ?? "").trim() === "" && (
+          <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 mx-2 mt-0.5 inline-block">
+            {PENDING_VALIDATION} — no approved NMP/RRBO two-phase value; enter laboratory/vendor data
+          </p>
+        )}
+      </div>
     );
     const assumedCount = ["rrbo_density", "rrbo_viscosity_dynamic", "rrbo_viscosity_kinematic", "nmp_density", "nmp_viscosity_dynamic", "interfacial_tension", "mutual_solubility"]
       .filter(k => fp[`${k}_source`] === "Assumed").length;
@@ -1490,7 +1585,9 @@ export default function DesignSoftwareWorkspacePage() {
               <Input value={fp.phase_separation_time_unit ?? ""} onChange={e => f("phase_separation_time_unit", e.target.value)} onBlur={s} placeholder="Unit" className="h-7 text-xs w-[90px]" />
             </div>
           </div>
+          <p className="text-[11px] text-gray-400 px-2 -mt-0.5">{FLUID_PROPERTY_PROVENANCE.phase_separation_time}</p>
           <TextAreaRow label="Emulsion Behaviour" value={fp.emulsion_behaviour ?? ""} onChange={v => f("emulsion_behaviour", v)} onBlur={s} rows={2} />
+          <p className="text-[11px] text-gray-400 px-2 -mt-0.5">{FLUID_PROPERTY_PROVENANCE.emulsion_behaviour}</p>
         </SectionCard>
       </div>
     );

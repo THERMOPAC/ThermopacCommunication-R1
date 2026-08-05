@@ -5,6 +5,7 @@
 import { Express, Request, Response } from 'express';
 import { ensureAuthenticated } from './auth-middleware';
 import * as svc from './design-software-service';
+import { getProperty, containsAssumedData } from './engine-framework/epd/database';
 
 // Register all LLX engines with the global registry at module load time
 import './engines/llx/index';
@@ -15,6 +16,36 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
   // ── Engine registry info ────────────────────────────────────────────────────
   app.get('/api/design-software/engines', ensureAuthenticated, (_req: Request, res: Response) => {
     res.json(svc.listEngines());
+  });
+
+  // ── EPD lookup — NMP properties at a given temperature (read-only) ─────────
+  // Used by the Fluid Properties workspace step to auto-populate NMP density
+  // and dynamic viscosity from the source-tagged EPD tabular data. Values with
+  // Assumed points involved are flagged pendingValidation.
+  app.get('/api/design-software/epd/nmp', ensureAuthenticated, (req: Request, res: Response) => {
+    const tc = Number(req.query.tc);
+    if (!isFinite(tc)) return res.status(400).json({ message: 'Query parameter tc (temperature °C) is required' });
+    try {
+      const density = getProperty('nmp', 'density', tc);
+      const visc = getProperty('nmp', 'dynamicViscosity', tc);
+      res.json({
+        temperatureC: tc,
+        density: {
+          value: density.value, // kg/m³
+          unit: 'kg/m³',
+          source: density.source,
+          pendingValidation: containsAssumedData(density.warnings),
+        },
+        dynamicViscosity: {
+          value: visc.value * 1000, // Pa·s → mPa·s
+          unit: 'mPa·s',
+          source: visc.source,
+          pendingValidation: containsAssumedData(visc.warnings),
+        },
+      });
+    } catch (e: any) {
+      res.status(422).json({ message: e?.message ?? 'EPD lookup failed' });
+    }
   });
 
   // ── Designs ────────────────────────────────────────────────────────────────
