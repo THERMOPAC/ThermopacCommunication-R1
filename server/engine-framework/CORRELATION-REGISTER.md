@@ -80,6 +80,32 @@ SI-internal factor tables; dimensionally incompatible conversions throw; tempera
 
 ---
 
+## 7. Stage C2 — LLX Process Design Engine (`server/engines/llx/llx-process-design-engine.ts`, engine `llx-process-design` v1.0.0)
+
+Pseudo-components: Oil carrier / Extractable solute (aromatic fraction) / NMP solvent.
+Result-item classifications: `Calculated Screening Result` / `Pending Validation` / `Not Calculable`. Run status: `screening_complete` / `pending_validation` / `calculation_blocked`. All items classification **Generic — technology-independent** (no ECP/ECR assumptions).
+
+| ID | Name | Formula & rules | Units | Reference / basis | Benchmarks |
+|---|---|---|---|---|---|
+| PD-001 | Flow basis conversion | ṁ = Q·ρ(T); Q = ṁ/ρ(T) for feed and solvent (normal + maximum). ρ_NMP from EPD library; ρ_RRBO from mandatory source-tagged project-fluid entry (no default correlations) | kg/h, m³/h, kg/m³ | mass conservation identity | F = 5000 kg/h, ρ_RRBO = 895 kg/m³ (Measured) → 5.587 m³/h |
+| PD-002 | Solvent-to-oil ratio | R_SO = normalSolventMassFlow / feedMassFlow. **Basis: normal NMP mass flow / total RRBO feed mass flow** (`ratioBasis: total_feed_mass`; future alternative `de_solvated_oil_carrier_mass` reserved, never mixed) | kg/kg | definition | S = 7500, F = 5000 → 1.5 |
+| PD-003 | Solvent-flow consistency | relativeDifference = \|impliedRatio − enteredRatio\| / max(\|enteredRatio\|, 1e-12); reject > 0.001 (0.1 %). Stores entered flow, entered ratio, implied ratio, absolute & relative difference, acceptance tolerance | – | input governance | 7500 & 1.5 accepted; 7600 & 1.5 (1.33 %) → `calculation_blocked` |
+| PD-004 | Design cases | maximumSolventMassFlow = maxCirculationFactor × normalSolventMassFlow. maxCirculationFactor is a design-case multiplier (required; warn outside 1.1–1.5). Normal and maximum continuous cases are **fully independent balances** with separate split inputs; reuse only via explicit `applyNormalSplitsToMaximumCase` ⇒ `CASE_SPLIT_ASSUMPTIONS_REUSED` + maximum case Pending Validation | kg/h | design practice | 1.2 × 7500 = 9000 |
+| PD-005 | Phase configuration | Controlled inputs: `rrbo_continuous_nmp_dispersed` \| `nmp_continuous_rrbo_dispersed`. Continuity from engineer input ONLY; density gives buoyancy direction (lighter/heavier phase) and Δρ = \|ρ_NMP − ρ_RRBO\|. Δρ = 0 → Not Calculable; Δρ < 30 kg/m³ → `LOW_DENSITY_DIFFERENCE` | kg/m³ | governance rule | ρ_RRBO 895 vs ρ_NMP ≈ 1005 @60 °C → RRBO lighter; continuity honoured for both density orderings |
+| PD-006 | Three-pseudo-component balance | oilCarrier = F(1−x_F); solute = F·x_F; soluteToExtract = r·F·x_F; soluteToRaffinate = (1−r)·F·x_F; nmpToRaffinate = s_L·S; nmpToExtract = (1−s_L)·S; oilToExtract = o_L·F(1−x_F); oilToRaffinate = (1−o_L)·F(1−x_F); R and E by summation; verify F + S = R + E with absolute & relative closure error. **No zero defaults**: any of x_F, r, s_L, o_L missing ⇒ only gross inlet balance F + S calculated; outlet split Pending Validation with named missing inputs. Zero loss only as explicit source-tagged entry, stored in the assumptions register | kg/h | screening mass balance | Approved hand calc: F=5000, S=7500, x_F=0.30, r=0.90, s_L=0.02, o_L=0.01 → R = 3465+150+150 = 3765; E = 35+1350+7350 = 8735; closure 0.0 kg/h. Max case (S=9000, splits reused): R=3795, E=10205 |
+| PD-007 | Yield definitions | grossRaffinateToFeedRatio = R/F; grossExtractToFeedRatio = E/F; solventFreeRaffinateYield = (oilToRaffinate+soluteToRaffinate)/F; recoveredOilCarrierYield = oilToRaffinate/oilCarrierInFeed; extractedSoluteRecovery = soluteToExtract/soluteInFeed; solventRecoveryToExtract = nmpToExtract/S; nmpCarryoverToRaffinate = nmpToRaffinate/S. **Solvent-containing stream ratios are never presented as product yields** | – | definitions | 0.753 / 1.747 / 0.723 / 0.990 / 0.900 / 0.98 / 0.02 |
+| PD-008 | Extraction factor (definition only) | **A** = m·S/F (symbol A — never E or ε, to avoid confusion with the extract stream). m = engineer-supplied, source-tagged equilibrium solute distribution ratio with mandatory metadata: numerator phase, denominator phase, concentration basis, temperature, sourceType, sourceReference. Incomplete basis or Assumed source ⇒ Pending Validation. **Never used to predict recovery in Stage C2** | – | definition (Treybal, *Mass-Transfer Operations*, 3rd ed., for the group definition) | m=1.8, S/F=1.5 → A=2.70 |
+| ~~PD-009~~ | *Retired* | Kremser removed from Stage C2 (immiscibility, distribution ratio and solute-free basis unproven for NMP/RRBO). Reserved for a future equilibrium-analysis module after measured LLE data | – | — | — |
+| PD-010 | Preliminary Stage-Equivalent Estimate | estimatedPhysicalStages = ceil(theoreticalStages / compartmentOrStageEfficiency). Labelled **Preliminary Stage-Equivalent Estimate** — NOT an ECP packing-stage or ECR compartment count (those engines compute their own active height/compartment count) | – | screening practice | ceil(6/0.60) = 10 |
+
+Assumption register (stored in every result snapshot & calculation history): no accumulation; isothermal operation; negligible evaporation; complete phase disengagement; plus every explicit zero-loss entry (zero NMP loss to raffinate, zero oil loss to extract) and any case-split reuse. Every run records `celVersion`, `epdVersion`, `engineVersion`. Runs touching Assumed property or split data can never be `screening_complete`.
+
+**Not implemented in Stage C2 (by direction):** Kremser recovery prediction, equilibrium-stage calculation from LLE data, ternary phase equilibrium, mutual-solubility prediction, common hydraulics, ECP sizing, ECR sizing.
+
+**C2 validation suite:** `server/engine-framework/tests/c2-process-design.ts`.
+
+---
+
 **Deferred (throw `NotImplementedError`, never fabricate values):** schmidt, sherwood, lookupDiffusivity, pressureDropDarcyWeisbach, moodyFrictionFactor, overallMassTransferCoefficient, numberOfTransferUnits, nusseltDittusBoelter.
 
 **Validation suite:** `server/engine-framework/tests/level1-validation.ts` (run `npx tsx server/engine-framework/tests/level1-validation.ts`).

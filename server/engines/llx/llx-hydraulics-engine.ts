@@ -22,7 +22,7 @@ export class LLXHydraulicsEngine implements IDesignEngine {
   getCalculationType(): string { return 'hydraulics_common'; }
 
   validate(inputs: Record<string, unknown>): ValidationResult {
-    const errors = [];
+    const errors: ValidationResult["errors"] = [];
     // Stage B: minimal structural validation only
     const required = ['aqueous_flow_rate', 'organic_flow_rate', 'aqueous_density', 'organic_density'];
     for (const field of required) {

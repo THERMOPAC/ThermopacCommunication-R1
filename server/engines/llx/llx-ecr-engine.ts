@@ -22,7 +22,7 @@ export class LLXECREngine implements IDesignEngine {
   getCalculationType(): string { return 'ecr'; }
 
   validate(inputs: Record<string, unknown>): ValidationResult {
-    const errors = [];
+    const errors: ValidationResult["errors"] = [];
     const required = ['column_diameter', 'rotor_speed', 'aqueous_flow_rate', 'organic_flow_rate'];
     for (const field of required) {
       if (inputs[field] === undefined || inputs[field] === null || inputs[field] === '') {

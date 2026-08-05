@@ -22,7 +22,7 @@ export class LLXECPEngine implements IDesignEngine {
   getCalculationType(): string { return 'ecp'; }
 
   validate(inputs: Record<string, unknown>): ValidationResult {
-    const errors = [];
+    const errors: ValidationResult["errors"] = [];
     const required = ['column_diameter', 'pulse_frequency', 'pulse_amplitude', 'aqueous_flow_rate', 'organic_flow_rate'];
     for (const field of required) {
       if (inputs[field] === undefined || inputs[field] === null || inputs[field] === '') {
