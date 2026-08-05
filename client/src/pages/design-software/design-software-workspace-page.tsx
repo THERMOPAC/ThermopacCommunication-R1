@@ -675,6 +675,40 @@ export default function DesignSoftwareWorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeStep, isFrozen, activeRevisionId, inputsQ.data, epdNmpQ.data, localData, savingSection, upsertMutation.isPending]);
 
+  // ── Cooling Water default initialization (Design Basis) ─────────────────────
+  // A new Design Basis persists all four CW defaults together, without waiting
+  // for the engineer's first edit: Inlet = Ambient, ΔT = 8 °C (Auto-Populated),
+  // Outlet = Inlet + ΔT, CT Approach = Inlet − Wet Bulb. Blank-only — never
+  // overwrites engineer-entered or manual values.
+  useEffect(() => {
+    if (isFrozen || !activeRevisionId || !inputsQ.data) return;
+    if (savingSection !== null || upsertMutation.isPending) return;
+    const dbx = localData["design_basis"] ?? {};
+    const blank = (k: string) => (dbx[k] ?? "").trim() === "";
+    const u: Record<string, string> = {};
+    const amb = numOrNull(dbx.ambient_temperature ?? AMBIENT_DEFAULT);
+    const inlet = !blank("cw_inlet_temperature") ? numOrNull(dbx.cw_inlet_temperature) : amb;
+    if (blank("cw_inlet_temperature") && inlet !== null && dbx.cw_inlet_manual !== "true") {
+      u.cw_inlet_temperature = String(inlet);
+    }
+    const dt = numOrNull(dbx.cw_delta_t);
+    const dtEff = dt !== null && dt > 0 ? dt : Number(CW_DELTA_T_DEFAULT);
+    if (dt === null || dt <= 0) {
+      if (blank("cw_delta_t") || (dt !== null && dt <= 0)) u.cw_delta_t = CW_DELTA_T_DEFAULT;
+      if ((dbx.cw_delta_t_manual ?? "") !== "") u.cw_delta_t_manual = "";
+    }
+    if (inlet !== null && blank("cw_outlet_temperature")) {
+      u.cw_outlet_temperature = String(Math.round((inlet + dtEff) * 10) / 10);
+    }
+    // CT Approach — standard cooling-tower definition: Inlet − Wet Bulb (never outlet-based)
+    const wbSeed = numOrNull(dbx.wet_bulb_temperature) ?? (amb !== null ? amb - 5 : null);
+    if (inlet !== null && wbSeed !== null && blank("cw_approach")) {
+      u.cw_approach = String(Math.round((inlet - wbSeed) * 10) / 10);
+    }
+    if (Object.keys(u).length > 0) commitSection("design_basis", u);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFrozen, activeRevisionId, inputsQ.data, localData, savingSection, upsertMutation.isPending]);
+
   const newRevisionMutation = useMutation({
     mutationFn: () =>
       apiRequest("POST", `/api/design-software/designs/${designId}/revisions`, {
