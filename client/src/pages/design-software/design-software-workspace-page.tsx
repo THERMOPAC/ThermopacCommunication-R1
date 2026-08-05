@@ -131,6 +131,150 @@ function TextAreaRow({
   );
 }
 
+function SelectRow({
+  label, value, onChange, onBlur, onCommit, options, allowOther = false, unit, note,
+}: {
+  label: string; value: string; onChange: (v: string) => void; onBlur?: () => void;
+  onCommit?: (v: string) => void; options: string[]; allowOther?: boolean; unit?: string; note?: string;
+}) {
+  const inList = options.includes(value);
+  const [otherMode, setOtherMode] = useState(!!value && !inList);
+  const selectValue = otherMode ? "__other__" : (inList ? value : "");
+  return (
+    <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
+      <label className="text-sm text-gray-600 pt-2 font-medium leading-tight">{label}</label>
+      <div className="space-y-1">
+        <Select
+          value={selectValue}
+          onValueChange={v => {
+            if (v === "__other__") { setOtherMode(true); }
+            else if (onCommit) { setOtherMode(false); onCommit(v); }
+            else { setOtherMode(false); onChange(v); onBlur?.(); }
+          }}
+        >
+          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder={`Select ${label}`} /></SelectTrigger>
+          <SelectContent>
+            {options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+            {allowOther && <SelectItem value="__other__">Other…</SelectItem>}
+          </SelectContent>
+        </Select>
+        {otherMode && (
+          <Input
+            value={inList ? "" : value}
+            onChange={e => onChange(e.target.value)}
+            onBlur={onBlur}
+            placeholder={`Enter custom ${label.toLowerCase()}`}
+            className="h-8 text-sm"
+          />
+        )}
+        {note && <p className="text-xs text-gray-400">{note}</p>}
+      </div>
+      <div className="pt-2 min-w-[60px]">{unit && <span className="text-xs text-gray-400">{unit}</span>}</div>
+    </div>
+  );
+}
+
+/** Governed suggestion: shows basis + suggested value; engineer must Apply (never auto-copied).
+ *  If the confirmed value differs from the suggestion, an override reason is required. */
+function SuggestionBlock({
+  suggested, unit, basis, current, onApply, overrideReason, onReasonChange, onBlur,
+}: {
+  suggested: string | null; unit: string; basis: string; current: string;
+  onApply: () => void; overrideReason: string; onReasonChange: (v: string) => void; onBlur: () => void;
+}) {
+  if (suggested === null) {
+    return <p className="text-xs text-gray-400 ml-[212px] -mt-1">Suggestion not available — {basis}</p>;
+  }
+  const differs = current !== "" && parseFloat(current) !== parseFloat(suggested);
+  return (
+    <div className="ml-[212px] -mt-1 space-y-1">
+      <div className="flex items-center gap-2 text-xs">
+        <span className="text-blue-700">Suggested: <b>{suggested} {unit}</b> <span className="text-gray-400">({basis})</span></span>
+        <button
+          type="button"
+          onClick={onApply}
+          className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50"
+        >
+          Apply
+        </button>
+        <span className="text-gray-400 italic">Suggestion only — engineer must confirm</span>
+      </div>
+      {differs && (
+        <div className={`flex items-center gap-2 text-xs rounded px-2 py-1 border ${overrideReason ? "bg-gray-50 border-gray-200" : "bg-amber-50 border-amber-300"}`}>
+          <span className={overrideReason ? "text-gray-500" : "text-amber-700 font-medium"}>Override reason{overrideReason ? "" : " required"}:</span>
+          <Input
+            value={overrideReason}
+            onChange={e => onReasonChange(e.target.value)}
+            onBlur={onBlur}
+            placeholder="Why does the confirmed value differ from the suggestion?"
+            className="h-6 text-xs flex-1"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+const LIMIT_TYPES = ["Max", "Min", "Target", "Range"];
+interface QualityRow { parameter: string; target: string; unit: string; limitType: string; notes: string }
+
+function QualityRowsEditor({
+  title, jsonValue, legacyValue, onChange, onBlur, onCommit,
+}: {
+  title: string; jsonValue: string; legacyValue?: string;
+  onChange: (json: string) => void; onBlur: () => void; onCommit: (json: string) => void;
+}) {
+  let rows: QualityRow[] = [];
+  try { const p = JSON.parse(jsonValue || "[]"); if (Array.isArray(p)) rows = p; } catch { /* treat as empty */ }
+  const setRows = (r: QualityRow[]) => onChange(JSON.stringify(r));
+  const commitRows = (r: QualityRow[]) => onCommit(JSON.stringify(r));
+  const update = (i: number, k: keyof QualityRow, v: string) => setRows(rows.map((row, idx) => (idx === i ? { ...row, [k]: v } : row)));
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-gray-700">{title}</p>
+        <button
+          type="button"
+          onClick={() => { commitRows([...rows, { parameter: "", target: "", unit: "", limitType: "Max", notes: "" }]); }}
+          className="text-xs px-2 py-1 border rounded text-blue-700 border-blue-300 hover:bg-blue-50"
+        >
+          + Add parameter
+        </button>
+      </div>
+      {legacyValue && rows.length === 0 && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+          Legacy free-text entry: “{legacyValue}” — re-enter as structured parameters below (legacy value is preserved).
+        </p>
+      )}
+      {rows.length > 0 && (
+        <div className="grid grid-cols-[1.4fr_0.8fr_0.6fr_0.7fr_1.2fr_auto] gap-2 text-xs text-gray-400 px-1">
+          <span>Parameter</span><span>Target Value</span><span>Unit</span><span>Limit Type</span><span>Notes</span><span />
+        </div>
+      )}
+      {rows.map((r, i) => (
+        <div key={i} className="grid grid-cols-[1.4fr_0.8fr_0.6fr_0.7fr_1.2fr_auto] gap-2 items-center">
+          <Input value={r.parameter} onChange={e => update(i, "parameter", e.target.value)} onBlur={onBlur} placeholder="e.g. KV @ 100 °C" className="h-7 text-xs" />
+          <Input value={r.target} onChange={e => update(i, "target", e.target.value)} onBlur={onBlur} placeholder="Value" className="h-7 text-xs" />
+          <Input value={r.unit} onChange={e => update(i, "unit", e.target.value)} onBlur={onBlur} placeholder="Unit" className="h-7 text-xs" />
+          <Select value={r.limitType} onValueChange={v => { commitRows(rows.map((row, idx) => (idx === i ? { ...row, limitType: v } : row))); }}>
+            <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>{LIMIT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+          </Select>
+          <Input value={r.notes} onChange={e => update(i, "notes", e.target.value)} onBlur={onBlur} placeholder="Notes" className="h-7 text-xs" />
+          <button
+            type="button"
+            onClick={() => { commitRows(rows.filter((_, idx) => idx !== i)); }}
+            className="text-xs text-red-500 hover:text-red-700 px-1"
+            title="Remove row"
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const SOURCE_OPTIONS = ["Measured", "Vendor", "Literature", "Assumed"] as const;
 type Source = (typeof SOURCE_OPTIONS)[number];
 
@@ -324,6 +468,17 @@ export default function DesignSoftwareWorkspacePage() {
   // Save on blur helper
   const save = (section: string) => () => saveSection(section);
 
+  // Atomic commit — merges updates into local state AND posts the exact merged
+  // object, so immediate actions (Apply buttons, dropdown selections, checkboxes,
+  // row deletes) can never save from a stale closure.
+  const commitSection = useCallback((section: string, updates: Record<string, string>) => {
+    if (isFrozen || !activeRevisionId) return;
+    const next = { ...(localData[section] ?? {}), ...updates };
+    setLocalData(prev => ({ ...prev, [section]: { ...(prev[section] ?? {}), ...updates } }));
+    setSavingSection(section);
+    upsertMutation.mutate({ section, data: next });
+  }, [isFrozen, activeRevisionId, localData, upsertMutation]);
+
   const newRevisionMutation = useMutation({
     mutationFn: () =>
       apiRequest("POST", `/api/design-software/designs/${designId}/revisions`, {
@@ -382,9 +537,35 @@ export default function DesignSoftwareWorkspacePage() {
   const hasECPRun = runs.some(r => r.calculation_type === "ecp" && r.calculation_status === "success");
   const hasECRRun = runs.some(r => r.calculation_type === "ecr" && r.calculation_status === "success");
   const floodingMargin = parseFloat(hd.flooding_margin ?? "");
-  const mandatoryFields = [db.process_description, db.feed_service, db.solvent, db.design_capacity, ts.technology];
+  const mandatoryFields = [db.process_description, db.feed_service, db.solvent, db.design_capacity_lph ?? db.design_capacity, ts.technology];
+
+  // Override-traceability enforcement (Design Basis governed suggestions)
+  const vNum = (v: string | undefined) => {
+    if (v === undefined || v.trim() === "") return null;
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const overrideViolations: string[] = [];
+  {
+    const opV = vNum(db.operating_pressure); const dpM = vNum(db.dp_margin_value); const dpV = vNum(db.design_pressure);
+    if (opV !== null && dpM !== null && dpV !== null && dpV !== opV + dpM && !(db.dp_override_reason ?? "").trim()) {
+      overrideViolations.push("Design Pressure differs from the suggested value without an override reason");
+    }
+    const otV = vNum(db.operating_temperature); const dtM = vNum(db.dt_margin_value); const dtV = vNum(db.design_temperature);
+    if (otV !== null && dtM !== null && dtV !== null && dtV !== otV + dtM && !(db.dt_override_reason ?? "").trim()) {
+      overrideViolations.push("Design Temperature differs from the suggested value without an override reason");
+    }
+    if (db.cw_delta_t_override === "true" && !(db.cw_delta_t_override_reason ?? "").trim()) {
+      overrideViolations.push("CW Design ΔT override is active without an authorization reason");
+    }
+  }
 
   const validationChecks = [
+    {
+      label: "Design Basis — override traceability",
+      status: overrideViolations.length === 0 ? "pass" : "fail",
+      note: overrideViolations.length > 0 ? overrideViolations.join("; ") : undefined,
+    },
     {
       label: "Design Basis — mandatory fields completed",
       status: mandatoryFields.every(f => f?.trim()) ? "pass" : "fail",
@@ -488,15 +669,72 @@ export default function DesignSoftwareWorkspacePage() {
     const db = d("design_basis");
     const f = field("design_basis");
     const s = save("design_basis");
+    const cs = (updates: Record<string, string>) => commitSection("design_basis", updates);
+    const num = (v: string | undefined): number | null => {
+      if (v === undefined || v.trim() === "") return null;
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    // Governed suggestions — computed for display only, never auto-saved
+    const op = num(db.operating_pressure);
+    const dpMargin = num(db.dp_margin_value);
+    const suggestedDP = op !== null && dpMargin !== null ? (op + dpMargin).toFixed(2) : null;
+    const ot = num(db.operating_temperature);
+    const dtMargin = num(db.dt_margin_value);
+    const suggestedDT = ot !== null && dtMargin !== null ? (ot + dtMargin).toFixed(1) : null;
+    const feedT = num(db.feed_temperature);
+    const wb = num(db.wet_bulb_temperature);
+    const approach = num(db.cw_approach);
+    const suggestedCWIn = wb !== null && approach !== null && (db.cw_approach_source ?? "").trim() !== "" ? (wb + approach).toFixed(1) : null;
+    const cwIn = num(db.cw_inlet_temperature);
+    const cwOut = num(db.cw_outlet_temperature);
+    const cwDeltaCalc = cwIn !== null && cwOut !== null ? (cwOut - cwIn).toFixed(1) : null;
+    const cwOverride = db.cw_delta_t_override === "true";
+    // Design capacity cross-conversion (governed: only with annual hours + tagged density)
+    const hrDay = num(db.operating_hours);
+    const daysYr = num(db.operating_days);
+    const fpData = d("fluid_properties");
+    const rho = num(fpData.rrbo_density_value);
+    const rhoTagged = rho !== null && (fpData.rrbo_density_source ?? "").trim() !== "" && (fpData.rrbo_density_ref_temp ?? "").trim() !== "";
+    const annualHours = hrDay !== null && daysYr !== null ? hrDay * daysYr : null;
+    const lph = num(db.design_capacity_lph);
+    const capacityMissing = [
+      annualHours === null ? "annual operating basis (hours/day × days/year)" : null,
+      !rhoTagged ? "feed density with source and reference temperature (Fluid Properties)" : null,
+      lph === null ? "capacity in LPH" : null,
+    ].filter(Boolean);
+    const tpa = lph !== null && annualHours !== null && rhoTagged ? (lph * annualHours * (rho as number)) / 1e6 : null;
     return (
       <div className="max-w-3xl">
         <SectionCard title="General">
           <TextAreaRow label="Process Description" value={db.process_description ?? ""} onChange={v => f("process_description", v)} onBlur={s} rows={3} />
-          <FieldRow label="Feed Service" value={db.feed_service ?? ""} onChange={v => f("feed_service", v)} onBlur={s} />
-          <FieldRow label="Solvent" value={db.solvent ?? ""} onChange={v => f("solvent", v)} onBlur={s} />
-          <FieldRow label="Design Capacity" value={db.design_capacity ?? ""} onChange={v => f("design_capacity", v)} onBlur={s} unit="LPH / MTPA" />
-          <FieldRow label="Operating Hours" value={db.operating_hours ?? ""} onChange={v => f("operating_hours", v)} onBlur={s} unit="hr/yr" />
-          <FieldRow label="Design Life" value={db.design_life ?? ""} onChange={v => f("design_life", v)} onBlur={s} unit="years" />
+          <SelectRow label="Feed Service" value={db.feed_service ?? ""} onChange={v => f("feed_service", v)} onBlur={s} onCommit={v => cs({ feed_service: v })} options={["Re-Refined Base Oil"]} allowOther />
+          <SelectRow
+            label="Solvent"
+            value={db.solvent ?? ""}
+            onChange={v => f("solvent", v)}
+            onBlur={s}
+            onCommit={v => cs({ solvent: v })}
+            options={db.solvent && db.solvent !== "NMP" ? ["NMP", db.solvent] : ["NMP"]}
+            note="Controlled list — expanded via master data only. Drives the Fluid Properties section."
+          />
+          <FieldRow
+            label="Design Capacity (LPH)"
+            value={db.design_capacity_lph ?? db.design_capacity ?? ""}
+            onChange={v => { f("design_capacity_lph", v); f("design_capacity", v); }}
+            onBlur={s}
+            unit="LPH"
+            note="Also stored to the legacy capacity field for downstream compatibility"
+          />
+          <FieldRow label="Design Capacity (TPA)" value={db.design_capacity_mtpa ?? ""} onChange={v => f("design_capacity_mtpa", v)} onBlur={s} unit="t/yr" />
+          <p className="text-xs ml-[212px] -mt-1 text-gray-500">
+            {tpa !== null
+              ? <>Cross-check: {lph} LPH ≈ <b>{tpa.toFixed(0)} t/yr</b> (basis: {hrDay}×{daysYr} h/yr, ρ = {rho} kg/m³ @ {fpData.rrbo_density_ref_temp}, source: {fpData.rrbo_density_source})</>
+              : <span className="text-amber-600">Cross-conversion Not Calculable — missing: {capacityMissing.join("; ")}</span>}
+          </p>
+          <SelectRow label="Operating Hours" value={db.operating_hours ?? ""} onChange={v => f("operating_hours", v)} onBlur={s} onCommit={v => cs({ operating_hours: v })} options={["24"]} allowOther unit="hr/day" />
+          <FieldRow label="Operating Days" value={db.operating_days ?? ""} onChange={v => f("operating_days", v)} onBlur={s} unit="days/yr" note="Used only to derive annual hours for capacity cross-check" />
+          <SelectRow label="Design Life" value={db.design_life ?? ""} onChange={v => f("design_life", v)} onBlur={s} onCommit={v => cs({ design_life: v })} options={["20", "25", "30"]} unit="years" />
           <TextAreaRow label="Design Objective" value={db.design_objective ?? ""} onChange={v => f("design_objective", v)} onBlur={s} rows={2} />
         </SectionCard>
 
@@ -505,21 +743,95 @@ export default function DesignSoftwareWorkspacePage() {
           <FieldRow label="Feed Temperature" value={db.feed_temperature ?? ""} onChange={v => f("feed_temperature", v)} onBlur={s} unit="°C" />
           <FieldRow label="Feed Pressure" value={db.feed_pressure ?? ""} onChange={v => f("feed_pressure", v)} onBlur={s} unit="bar g" />
           <FieldRow label="Operating Pressure" value={db.operating_pressure ?? ""} onChange={v => f("operating_pressure", v)} onBlur={s} unit="bar g" />
-          <FieldRow label="Design Pressure" value={db.design_pressure ?? ""} onChange={v => f("design_pressure", v)} onBlur={s} unit="bar g" />
           <FieldRow label="Operating Temperature" value={db.operating_temperature ?? ""} onChange={v => f("operating_temperature", v)} onBlur={s} unit="°C" />
-          <FieldRow label="Design Temperature" value={db.design_temperature ?? ""} onChange={v => f("design_temperature", v)} onBlur={s} unit="°C" />
+          <SuggestionBlock
+            suggested={feedT !== null ? feedT.toFixed(1) : null}
+            unit="°C"
+            basis="= Feed Temperature; may be a different process condition"
+            current={db.operating_temperature ?? ""}
+            onApply={() => cs({ operating_temperature: (feedT as number).toFixed(1) })}
+            overrideReason={db.ot_override_reason ?? ""}
+            onReasonChange={v => f("ot_override_reason", v)}
+            onBlur={s}
+          />
+          <div className="border-t pt-3 mt-1">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Design Pressure — Governed Suggestion</p>
+            <FieldRow label="Margin Rule (bar)" value={db.dp_margin_value ?? ""} onChange={v => f("dp_margin_value", v)} onBlur={s} unit="bar" note="Configurable Thermopac margin — no company rule hard-coded" />
+            <FieldRow label="Margin Rule Source" value={db.dp_margin_source ?? ""} onChange={v => f("dp_margin_source", v)} onBlur={s} placeholder="e.g. Thermopac design guideline ref." />
+            <FieldRow label="Design Pressure" value={db.design_pressure ?? ""} onChange={v => f("design_pressure", v)} onBlur={s} unit="bar g" />
+            <SuggestionBlock
+              suggested={suggestedDP}
+              unit="bar g"
+              basis={suggestedDP ? `OP ${op} + margin ${dpMargin} bar (${db.dp_margin_source || "source not entered"})` : "enter Operating Pressure and Margin Rule"}
+              current={db.design_pressure ?? ""}
+              onApply={() => cs({ design_pressure: suggestedDP as string })}
+              overrideReason={db.dp_override_reason ?? ""}
+              onReasonChange={v => f("dp_override_reason", v)}
+              onBlur={s}
+            />
+          </div>
+          <div className="border-t pt-3 mt-1">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Design Temperature — Governed Suggestion</p>
+            <FieldRow label="Margin Rule (°C)" value={db.dt_margin_value ?? ""} onChange={v => f("dt_margin_value", v)} onBlur={s} unit="°C" note="Configurable Thermopac margin — no company rule hard-coded" />
+            <FieldRow label="Margin Rule Source" value={db.dt_margin_source ?? ""} onChange={v => f("dt_margin_source", v)} onBlur={s} placeholder="e.g. Thermopac design guideline ref." />
+            <FieldRow label="Design Temperature" value={db.design_temperature ?? ""} onChange={v => f("design_temperature", v)} onBlur={s} unit="°C" />
+            <SuggestionBlock
+              suggested={suggestedDT}
+              unit="°C"
+              basis={suggestedDT ? `OT ${ot} + margin ${dtMargin} °C (${db.dt_margin_source || "source not entered"})` : "enter Operating Temperature and Margin Rule"}
+              current={db.design_temperature ?? ""}
+              onApply={() => cs({ design_temperature: suggestedDT as string })}
+              overrideReason={db.dt_override_reason ?? ""}
+              onReasonChange={v => f("dt_override_reason", v)}
+              onBlur={s}
+            />
+          </div>
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Thermal Oil System</p>
             <FieldRow label="Heater Inlet Temp" value={db.thermal_heater_inlet ?? ""} onChange={v => f("thermal_heater_inlet", v)} onBlur={s} unit="°C" />
             <FieldRow label="Heater Outlet Temp" value={db.thermal_heater_outlet ?? ""} onChange={v => f("thermal_heater_outlet", v)} onBlur={s} unit="°C" />
-            <FieldRow label="Oil Type / Grade" value={db.thermal_oil_type ?? ""} onChange={v => f("thermal_oil_type", v)} onBlur={s} />
-            <FieldRow label="Max Film Temp" value={db.thermal_oil_max_film_temp ?? ""} onChange={v => f("thermal_oil_max_film_temp", v)} onBlur={s} unit="°C" />
+            <SelectRow label="Oil Type / Grade" value={db.thermal_oil_type ?? ""} onChange={v => f("thermal_oil_type", v)} onBlur={s} onCommit={v => cs({ thermal_oil_type: v })} options={["Therminol 66", "Dowtherm A", "Shell Heat Transfer S2"]} allowOther />
+            <FieldRow label="Max Film Temp" value={db.thermal_oil_max_film_temp ?? ""} onChange={v => f("thermal_oil_max_film_temp", v)} onBlur={s} unit="°C" note="Auto-fill only from a source-tagged thermal-fluid record — none configured; enter with source below" />
+            <FieldRow label="Max Film Temp Source" value={db.thermal_oil_max_film_source ?? ""} onChange={v => f("thermal_oil_max_film_source", v)} onBlur={s} placeholder="e.g. vendor datasheet ref." />
           </div>
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Cooling Water</p>
             <FieldRow label="CW Inlet Temp" value={db.cw_inlet_temperature ?? ""} onChange={v => f("cw_inlet_temperature", v)} onBlur={s} unit="°C" />
+            <SuggestionBlock
+              suggested={suggestedCWIn}
+              unit="°C"
+              basis={suggestedCWIn ? `Wet Bulb ${wb} + approach ${approach} °C (${db.cw_approach_source})` : "enter Wet Bulb Temperature, Cooling Tower Approach and its source"}
+              current={db.cw_inlet_temperature ?? ""}
+              onApply={() => cs({ cw_inlet_temperature: suggestedCWIn as string })}
+              overrideReason={db.cw_in_override_reason ?? ""}
+              onReasonChange={v => f("cw_in_override_reason", v)}
+              onBlur={s}
+            />
+            <FieldRow label="CT Approach" value={db.cw_approach ?? ""} onChange={v => f("cw_approach", v)} onBlur={s} unit="°C" />
+            <FieldRow label="CT Approach Source" value={db.cw_approach_source ?? ""} onChange={v => f("cw_approach_source", v)} onBlur={s} placeholder="e.g. CT vendor basis / site data" />
             <FieldRow label="CW Outlet Temp" value={db.cw_outlet_temperature ?? ""} onChange={v => f("cw_outlet_temperature", v)} onBlur={s} unit="°C" />
-            <FieldRow label="CW Design ΔT" value={db.cw_delta_t ?? ""} onChange={v => f("cw_delta_t", v)} onBlur={s} unit="°C" />
+            <FieldRow
+              label="CW Design ΔT"
+              value={cwOverride ? db.cw_delta_t ?? "" : cwDeltaCalc ?? ""}
+              onChange={v => f("cw_delta_t", v)}
+              onBlur={s}
+              unit="°C"
+              readOnly={!cwOverride}
+              note={cwOverride ? "Authorized override active — reason required below" : "Calculated: CW Outlet − CW Inlet (read-only)"}
+            />
+            <div className="flex items-center gap-2 ml-[212px]">
+              <input
+                type="checkbox"
+                id="cw_dt_override"
+                checked={cwOverride}
+                onChange={e => cs({ cw_delta_t_override: String(e.target.checked) })}
+                className="h-4 w-4"
+              />
+              <label htmlFor="cw_dt_override" className="text-xs text-gray-500">Authorized override of CW Design ΔT</label>
+            </div>
+            {cwOverride && (
+              <FieldRow label="Override Reason" value={db.cw_delta_t_override_reason ?? ""} onChange={v => f("cw_delta_t_override_reason", v)} onBlur={s} placeholder="Authorization / justification" note={!(db.cw_delta_t_override_reason ?? "").trim() ? "Required while override is active" : undefined} />
+            )}
           </div>
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Site Conditions</p>
@@ -553,10 +865,29 @@ export default function DesignSoftwareWorkspacePage() {
         </SectionCard>
 
         <SectionCard title="Product Requirements">
-          <FieldRow label="Raffinate Quality" value={db.raffinate_quality ?? ""} onChange={v => f("raffinate_quality", v)} onBlur={s} />
-          <FieldRow label="Extract Quality" value={db.extract_quality ?? ""} onChange={v => f("extract_quality", v)} onBlur={s} />
-          <FieldRow label="Product Colour" value={db.product_colour ?? ""} onChange={v => f("product_colour", v)} onBlur={s} />
-          <FieldRow label="Raffinate Yield" value={db.raffinate_yield ?? ""} onChange={v => f("raffinate_yield", v)} onBlur={s} unit="%" />
+          <QualityRowsEditor
+            title="Raffinate Quality"
+            jsonValue={db.raffinate_quality_rows ?? ""}
+            legacyValue={db.raffinate_quality}
+            onChange={v => f("raffinate_quality_rows", v)}
+            onBlur={s}
+            onCommit={v => cs({ raffinate_quality_rows: v })}
+          />
+          <div className="border-t pt-3">
+            <QualityRowsEditor
+              title="Extract Quality"
+              jsonValue={db.extract_quality_rows ?? ""}
+              legacyValue={db.extract_quality}
+              onChange={v => f("extract_quality_rows", v)}
+              onBlur={s}
+              onCommit={v => cs({ extract_quality_rows: v })}
+            />
+          </div>
+          <div className="border-t pt-3 space-y-3">
+            <SelectRow label="Colour Scale" value={db.colour_scale ?? ""} onChange={v => f("colour_scale", v)} onBlur={s} onCommit={v => cs({ colour_scale: v })} options={["ASTM D1500", "Saybolt"]} allowOther />
+            <FieldRow label="Colour Value" value={db.product_colour ?? ""} onChange={v => f("product_colour", v)} onBlur={s} />
+            <FieldRow label="Raffinate Yield" value={db.raffinate_yield ?? ""} onChange={v => f("raffinate_yield", v)} onBlur={s} unit="%" />
+          </div>
         </SectionCard>
 
         <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
