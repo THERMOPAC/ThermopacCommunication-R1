@@ -796,11 +796,6 @@ export default function DesignSoftwareWorkspacePage() {
     const rhoSrc = dbFeedRho !== null ? (db.feed_density_source || FEED_DENSITY_DEFAULT_SOURCE) : fpData.rrbo_density_source;
     const annualHours = daysYr !== null ? 24 * daysYr : null; // Operating Hours fixed at 24 hr/day for this module
     const lph = num(db.design_capacity_lph);
-    const capacityMissing = [
-      annualHours === null ? "Operating Days (days/year)" : null,
-      !rhoTagged ? "Feed Density (select a Feed Service or enter a source-tagged density in Fluid Properties)" : null,
-      lph === null ? "capacity in LPH" : null,
-    ].filter(Boolean);
     const tpa = lph !== null && annualHours !== null && rhoTagged ? (lph * annualHours * (rho as number)) / 1e6 : null;
     return (
       <div className="max-w-3xl">
@@ -841,7 +836,7 @@ export default function DesignSoftwareWorkspacePage() {
             label="Feed Density"
             value={db.feed_density ?? ""}
             onChange={v => { f("feed_density", v); f("feed_density_status", "Engineer Modified"); }}
-            onBlur={s}
+            onBlur={() => cs(auto({}))}
             unit="kg/m³"
             note={db.feed_density
               ? `Reference Temperature: ${db.feed_density_ref_temp || "15"} °C · Source: ${db.feed_density_source || FEED_DENSITY_DEFAULT_SOURCE} · Status: ${db.feed_density_status || "Auto-Populated"}`
@@ -867,11 +862,11 @@ export default function DesignSoftwareWorkspacePage() {
             note="Sets Feed Flow and the legacy capacity field"
           />
           <FieldRow label="Design Capacity (TPA)" value={tpa !== null ? tpa.toFixed(0) : (db.design_capacity_mtpa ?? "")} onChange={() => {}} onBlur={() => {}} unit="t/yr" readOnly />
-          <p className="text-xs ml-[212px] -mt-1 text-gray-500">
-            {tpa !== null
-              ? <>Auto-calculated: {lph} LPH × 24 hr/day × {daysYr} days/yr × ρ {rho} kg/m³ (@ {rhoRefT}, source: {rhoSrc}) ÷ 10⁶ = <b>{tpa.toFixed(0)} t/yr</b></>
-              : <span className="text-amber-600">Not Calculable — missing: {capacityMissing.join("; ")}</span>}
-          </p>
+          {tpa !== null && (
+            <p className="text-xs ml-[212px] -mt-1 text-gray-500">
+              Auto-calculated: {lph} LPH × 24 hr/day × {daysYr} days/yr × ρ {rho} kg/m³ (@ {rhoRefT}, source: {rhoSrc}) ÷ 10⁶ = <b>{tpa.toFixed(0)} t/yr</b>
+            </p>
+          )}
           <FieldRow label="Operating Hours" value="24" onChange={() => {}} onBlur={() => {}} unit="hr/day" readOnly note="Fixed for this module" />
           <SelectRow label="Operating Days" value={db.operating_days ?? ""} onChange={v => f("operating_days", v)} onBlur={s} onCommit={v => csa({ operating_days: v })} options={["300", "310", "320", "330"]} unit="days/yr" />
           <SelectRow
