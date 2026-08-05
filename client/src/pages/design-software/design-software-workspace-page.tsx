@@ -179,10 +179,10 @@ function SelectRow({
 /** Governed suggestion: shows basis + suggested value; engineer must Apply (never auto-copied).
  *  If the confirmed value differs from the suggestion, an override reason is required. */
 function SuggestionBlock({
-  suggested, unit, basis, current, onApply, overrideReason, onReasonChange, onBlur,
+  suggested, unit, basis, current, onApply,
 }: {
   suggested: string | null; unit: string; basis: string; current: string;
-  onApply: () => void; overrideReason: string; onReasonChange: (v: string) => void; onBlur: () => void;
+  onApply: () => void;
 }) {
   if (suggested === null) {
     return <p className="text-xs text-gray-400 ml-[212px] -mt-1">Suggestion not available — {basis}</p>;
@@ -199,20 +199,8 @@ function SuggestionBlock({
         >
           Apply
         </button>
-        <span className="text-gray-400 italic">Suggestion only — engineer must confirm</span>
+        <span className="text-gray-400 italic">{differs ? "Manual value in force — suggestion shown for reference" : "Suggestion only — engineer must confirm"}</span>
       </div>
-      {differs && (
-        <div className={`flex items-center gap-2 text-xs rounded px-2 py-1 border ${overrideReason ? "bg-gray-50 border-gray-200" : "bg-amber-50 border-amber-300"}`}>
-          <span className={overrideReason ? "text-gray-500" : "text-amber-700 font-medium"}>Override reason{overrideReason ? "" : " required"}:</span>
-          <Input
-            value={overrideReason}
-            onChange={e => onReasonChange(e.target.value)}
-            onBlur={onBlur}
-            placeholder="Why does the confirmed value differ from the suggestion?"
-            className="h-6 text-xs flex-1"
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -648,36 +636,20 @@ export default function DesignSoftwareWorkspacePage() {
     if (opV !== null && intDP !== null && intDP < opV) {
       overrideViolations.push("Internal Design Pressure must not be below Maximum Operating Pressure");
     }
-    if (db.llx_internal_design_pressure_override === "true" && !(db.llx_internal_dp_override_reason ?? "").trim()) {
-      overrideViolations.push("Internal Design Pressure override is active without a recorded reason");
-    }
     const extCond = (db.llx_external_design_condition ?? "Full Vacuum").trim();
     if (vNum(extCond) !== null) {
       overrideViolations.push("External design case must be a designation (e.g. Full Vacuum) — never a numeric bar(g) value such as 0");
     }
-    if (db.llx_external_design_condition_override === "true" && !(db.llx_external_override_reason ?? "").trim()) {
-      overrideViolations.push("External design case override is active without a recorded reason");
-    }
     const otV = vNum(db.operating_temperature); const dtV = vNum(db.design_temperature);
-    const dtRuleV = dtRuleValue(otV);
-    if (dtRuleV !== null && dtV !== null && Math.abs(dtV - dtRuleV) > 0.05 && !(db.dt_override_reason ?? "").trim()) {
-      overrideViolations.push("Design Temperature deviates from the Thermopac Design Temperature Rule without an override reason");
-    }
-    if (db.design_temperature_override === "true" && !(db.dt_override_reason ?? "").trim()) {
-      overrideViolations.push("Design Temperature override is active without a recorded reason");
-    }
     if (otV !== null && dtV !== null && dtV < otV) {
       overrideViolations.push("Design Temperature must be ≥ Operating Temperature");
     }
     if (otV !== null && otV < 50 && dtV !== null && db.design_temperature_override !== "true") {
-      overrideViolations.push("Design Temperature is Not Calculable below 50 °C Operating Temperature — a stored value requires an engineer override with reason");
+      overrideViolations.push("Design Temperature rule applies from 50 °C Operating Temperature — below that a stored value must be entered manually");
     }
     const ambVv = vNum(db.ambient_temperature ?? "25"); const wbVv = vNum(db.wet_bulb_temperature);
     if (ambVv !== null && wbVv !== null && wbVv > ambVv) {
       overrideViolations.push("Wet Bulb Temperature must not exceed Ambient Temperature");
-    }
-    if (db.cw_delta_t_override === "true" && !(db.cw_delta_t_override_reason ?? "").trim()) {
-      overrideViolations.push("CW Design ΔT override is active without an authorization reason");
     }
   }
 
@@ -875,8 +847,8 @@ export default function DesignSoftwareWorkspacePage() {
       if (m.design_temperature_override !== "true") {
         if (dtRuleA !== null) {
           m.design_temperature = dtRuleA.toFixed(1);
-          updates = { ...updates, design_temperature: m.design_temperature, design_temperature_status: "Auto-Calculated", design_temperature_source: DT_RULE_SOURCE };
-        } else if ((m.design_temperature_status ?? "") === "Auto-Calculated") {
+          updates = { ...updates, design_temperature: m.design_temperature, design_temperature_status: "Auto-Populated", design_temperature_source: DT_RULE_SOURCE };
+        } else if (["Auto-Calculated", "Auto-Populated"].includes(m.design_temperature_status ?? "")) {
           updates = { ...updates, design_temperature: "", design_temperature_status: "", design_temperature_source: "" };
         }
       }
@@ -889,10 +861,10 @@ export default function DesignSoftwareWorkspacePage() {
           updates = {
             ...updates,
             thermal_oil_max_film_temp: m.thermal_oil_max_film_temp,
-            thermal_oil_max_film_status: "Auto-Calculated",
+            thermal_oil_max_film_status: "Auto-Populated",
             thermal_oil_max_film_source: MAX_FILM_RULE_SOURCE,
           };
-        } else if ((m.thermal_oil_max_film_status ?? "") === "Auto-Calculated") {
+        } else if (["Auto-Calculated", "Auto-Populated"].includes(m.thermal_oil_max_film_status ?? "")) {
           updates = { ...updates, thermal_oil_max_film_temp: "", thermal_oil_max_film_status: "" };
         }
       }
@@ -906,78 +878,19 @@ export default function DesignSoftwareWorkspacePage() {
       return updates;
     };
     const csa = (updates: Record<string, string>) => cs(auto(updates));
-    // Audited override fields (items 12 & 13) — full change history in <key>_audit
-    const auditList = (key: string): { ts: string; from: string; to: string; reason: string; user?: string }[] => {
-      try { const p = JSON.parse(db[`${key}_audit`] || "[]"); return Array.isArray(p) ? p : []; } catch { return []; }
-    };
-    const commitAudited = (key: string) => () => {
+    // Rule-populated design values: edits switch the field to Manual (no change-control
+    // machinery — the workspace revision history tracks changes). Blank restores the rule;
+    // re-entering the rule value returns the field to Auto-Populated.
+    const commitDesignValue = (key: string, ruleVal: string | null) => () => {
       const val = (db[key] ?? "").trim();
-      const audits = auditList(key);
-      const last = audits.length ? audits[audits.length - 1].to : "";
-      if (val === last) { s(); return; }
-      const entry = { ts: new Date().toISOString(), user: user?.username ?? "", from: last, to: val, reason: (db[`${key}_change_reason`] ?? "").trim() };
-      cs(auto({ [key]: val, [`${key}_audit`]: JSON.stringify([...audits, entry]) }));
-    };
-    // Engineer override of a rule-calculated design value: records Previous Value,
-    // New Value, Reason, User and Timestamp; re-entering the rule value clears the override.
-    const commitDesignValue = (key: string, reasonKey: string, ruleVal: string | null) => () => {
-      const val = (db[key] ?? "").trim();
-      // Blank entry: never persist a blank/zero design value — restore the rule
-      // result (auto() recomputes when calculable) and clear any override state.
-      if (val === "") {
-        cs(auto({ [key]: "", [`${key}_status`]: "", [`${key}_override`]: "", [reasonKey]: "" }));
+      if (val === "" || (ruleVal !== null && num(val) === num(ruleVal))) {
+        cs(auto({ [key]: val === "" ? "" : (ruleVal as string), [`${key}_status`]: "", [`${key}_override`]: "" }));
         return;
       }
-      // Matches the rule → return to Auto-Calculated
-      if (ruleVal !== null && num(val) === num(ruleVal)) {
-        cs(auto({ [key]: ruleVal, [`${key}_override`]: "", [reasonKey]: "" }));
-        return;
-      }
-      // Engineer override: audit entry carries Previous Value, New Value, Reason, User, Timestamp.
-      const audits = auditList(key);
-      const lastEntry = audits.length ? audits[audits.length - 1] : null;
-      // Previous Value: the value actually in force before this commit — the last
-      // override if one is active, otherwise the rule value (covers revert → re-override).
-      const from = db[`${key}_override`] === "true" && lastEntry ? lastEntry.to : (ruleVal ?? "");
-      const reason = (db[reasonKey] ?? "").trim();
-      let newAudits = audits;
-      if (!lastEntry || lastEntry.to !== val) {
-        newAudits = [...audits, { ts: new Date().toISOString(), user: user?.username ?? "", from, to: val, reason }];
-      } else if (reason && !lastEntry.reason) {
-        // Reason supplied after the value commit — attach it to the existing entry.
-        newAudits = [...audits.slice(0, -1), { ...lastEntry, reason }];
-      } else { s(); return; }
-      cs(auto({
-        [key]: val,
-        [`${key}_override`]: "true",
-        [`${key}_status`]: "Engineer Override",
-        [`${key}_audit`]: JSON.stringify(newAudits),
-      }));
+      cs(auto({ [key]: val, [`${key}_override`]: "true", [`${key}_status`]: "Manual" }));
     };
-    const clearDesignOverride = (key: string, reasonKey: string, ruleVal: string | null = null) => () => {
-      // Audit the revert too, so the transition history stays complete.
-      const audits = auditList(key);
-      const current = (db[key] ?? "").trim();
-      const revertEntry = { ts: new Date().toISOString(), user: user?.username ?? "", from: current, to: ruleVal ?? "", reason: "Reverted to rule" };
-      cs(auto({
-        [`${key}_override`]: "", [reasonKey]: "", [`${key}_status`]: "",
-        ...(current && ruleVal !== null && current !== ruleVal ? { [`${key}_audit`]: JSON.stringify([...audits, revertEntry]) } : {}),
-      }));
-    };
-    const AuditTrail = ({ fieldKey }: { fieldKey: string }) => {
-      const audits = auditList(fieldKey);
-      if (audits.length === 0) return null;
-      return (
-        <div className="ml-[212px] mt-1 rounded border border-gray-200 bg-gray-50 p-2">
-          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Change History</p>
-          {audits.slice().reverse().map((a, i) => (
-            <p key={i} className="text-[11px] text-gray-500">
-              {new Date(a.ts).toLocaleString()} — {a.from || "(blank)"} → {a.to || "(blank)"}{a.reason ? ` · ${a.reason}` : ""}{a.user ? ` · by ${a.user}` : ""}
-            </p>
-          ))}
-        </div>
-      );
-    };
+    const clearDesignOverride = (key: string) => () =>
+      cs(auto({ [`${key}_override`]: "", [`${key}_status`]: "" }));
     // Governed suggestions — computed for display only, never auto-saved
     const op = num(db.operating_pressure);
     const ot = num(db.operating_temperature);
@@ -1048,7 +961,7 @@ export default function DesignSoftwareWorkspacePage() {
           <FieldRow
             label="Feed Density"
             value={db.feed_density ?? ""}
-            onChange={v => { f("feed_density", v); f("feed_density_status", "Engineer Modified"); }}
+            onChange={v => { f("feed_density", v); f("feed_density_status", "Manual"); }}
             onBlur={() => cs(auto({}))}
             unit="kg/m³"
             note={db.feed_density
@@ -1157,10 +1070,10 @@ export default function DesignSoftwareWorkspacePage() {
               readOnly
             />
             {atmCalc === null ? (
-              <p className="text-xs ml-[212px] -mt-1 text-amber-600 font-medium">Not Calculable — Site Elevation unavailable (a value is never defaulted to zero)</p>
+              <p className="text-xs ml-[212px] -mt-1 text-gray-500">Awaiting Site Elevation — ISA rule applies once elevation is set (a value is never defaulted to zero)</p>
             ) : (
               <p className="text-xs ml-[212px] -mt-1 text-gray-500">
-                {ISA_FORMULA} · h = {elevEff ?? "—"} m · Source: ISA Standard Atmosphere · Status: Auto-Calculated (read-only)
+                {ISA_FORMULA} · h = {elevEff ?? "—"} m · Source: ISA Standard Atmosphere · Status: Auto-Populated (read-only)
               </p>
             )}
           </div>
@@ -1170,51 +1083,41 @@ export default function DesignSoftwareWorkspacePage() {
             label="Feed Pressure"
             value={db.feed_pressure ?? ""}
             onChange={v => f("feed_pressure", v)}
-            onBlur={commitAudited("feed_pressure")}
+            onBlur={() => cs(auto({}))}
             unit="bar g"
-            note="No process-configuration record exists yet — auto-population disabled; every change is recorded below"
+            note="Manual — no process-configuration rule or master data available"
           />
-          <FieldRow label="Change Reason" value={db.feed_pressure_change_reason ?? ""} onChange={v => f("feed_pressure_change_reason", v)} onBlur={s} placeholder="Reason for setting/overriding Feed Pressure" />
-          <AuditTrail fieldKey="feed_pressure" />
           <FieldRow
             label="Operating Pressure"
             value={db.operating_pressure ?? ""}
             onChange={v => f("operating_pressure", v)}
-            onBlur={commitAudited("operating_pressure")}
+            onBlur={() => cs(auto({}))}
             unit="bar g"
-            note="No process-configuration record exists yet — auto-population disabled; every change is recorded below"
+            note="Manual — no process-configuration rule or master data available"
           />
-          <FieldRow label="Change Reason" value={db.operating_pressure_change_reason ?? ""} onChange={v => f("operating_pressure_change_reason", v)} onBlur={s} placeholder="Reason for setting/overriding Operating Pressure" />
-          <AuditTrail fieldKey="operating_pressure" />
           <SelectRow label="Operating Temperature" value={db.operating_temperature ?? ""} onChange={v => f("operating_temperature", v)} onBlur={s} onCommit={v => csa({ operating_temperature: v })} options={["50", "55", "60", "65", "70", "75", "80"]} unit="°C" allowOther note="Values above 80 °C may be entered directly — Design Temperature then follows OT + 20 °C" />
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Extraction Column Pressure Design — Thermopac Standard</p>
             <FieldRow label="Vessel Orientation" value={db.vessel_orientation ?? LLX_COL_ORIENTATION} onChange={() => {}} onBlur={() => {}} readOnly note="Thermopac standard — vertical extraction column" />
-            <FieldRow label="Approx. Column Height" value={db.column_height_m ?? LLX_COL_HEIGHT_M} onChange={v => f("column_height_m", v)} onBlur={commitAudited("column_height_m")} unit="m" note="Standard ≈ 14 m — changes are recorded" />
-            <AuditTrail fieldKey="column_height_m" />
+            <FieldRow label="Approx. Column Height" value={db.column_height_m ?? LLX_COL_HEIGHT_M} onChange={v => f("column_height_m", v)} onBlur={() => cs(auto({}))} unit="m" note="Thermopac standard ≈ 14 m — editable" />
             <FieldRow
               label="Internal Design Pressure"
               value={db.llx_internal_design_pressure ?? LLX_COL_INTERNAL_DP}
               onChange={v => f("llx_internal_design_pressure", v)}
-              onBlur={commitDesignValue("llx_internal_design_pressure", "llx_internal_dp_override_reason", LLX_COL_INTERNAL_DP)}
+              onBlur={commitDesignValue("llx_internal_design_pressure", LLX_COL_INTERNAL_DP)}
               unit="bar g"
             />
             <p className="text-xs ml-[212px] -mt-1 text-gray-500">
-              Positive internal design case: <b>{db.llx_internal_design_pressure ?? LLX_COL_INTERNAL_DP} bar(g)</b> · Source: {LLX_COL_STANDARD_SOURCE} · Status: {db.llx_internal_design_pressure_override === "true" ? "Engineer Override" : "Auto-Populated (auto-saved)"} — not derived from Operating Pressure by a percentage margin
+              Positive internal design case: <b>{db.llx_internal_design_pressure ?? LLX_COL_INTERNAL_DP} bar(g)</b> · Source: {LLX_COL_STANDARD_SOURCE} · Status: {db.llx_internal_design_pressure_override === "true" ? "Manual" : "Auto-Populated"} — not derived from Operating Pressure by a percentage margin
             </p>
             {op !== null && num(db.llx_internal_design_pressure ?? LLX_COL_INTERNAL_DP) !== null && (num(db.llx_internal_design_pressure ?? LLX_COL_INTERNAL_DP) as number) < op && (
               <p className="text-xs ml-[212px] text-red-600 font-medium">Internal Design Pressure must not be below Maximum Operating Pressure ({op} bar g)</p>
             )}
             {db.llx_internal_design_pressure_override === "true" && (
-              <div className="ml-[212px] mt-1 space-y-1">
-                <div className={`flex items-center gap-2 text-xs rounded px-2 py-1 border ${(db.llx_internal_dp_override_reason ?? "").trim() ? "bg-gray-50 border-gray-200" : "bg-amber-50 border-amber-300"}`}>
-                  <span className={(db.llx_internal_dp_override_reason ?? "").trim() ? "text-gray-500" : "text-amber-700 font-medium"}>Override reason{(db.llx_internal_dp_override_reason ?? "").trim() ? "" : " required"}:</span>
-                  <Input value={db.llx_internal_dp_override_reason ?? ""} onChange={e => f("llx_internal_dp_override_reason", e.target.value)} onBlur={commitDesignValue("llx_internal_design_pressure", "llx_internal_dp_override_reason", LLX_COL_INTERNAL_DP)} placeholder="Why does Internal Design Pressure deviate from the Thermopac standard 2.5 bar(g)?" className="h-6 text-xs flex-1" />
-                  <button type="button" onClick={clearDesignOverride("llx_internal_design_pressure", "llx_internal_dp_override_reason", LLX_COL_INTERNAL_DP)} className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Revert to standard</button>
-                </div>
+              <div className="ml-[212px] mt-1">
+                <button type="button" onClick={clearDesignOverride("llx_internal_design_pressure")} className="px-2 py-0.5 text-xs border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Revert to standard ({LLX_COL_INTERNAL_DP} bar g)</button>
               </div>
             )}
-            <AuditTrail fieldKey="llx_internal_design_pressure" />
             <SelectRow
               label="External Design Pressure"
               value={db.llx_external_design_condition ?? LLX_COL_EXTERNAL_CONDITION}
@@ -1223,25 +1126,18 @@ export default function DesignSoftwareWorkspacePage() {
               onCommit={v => {
                 const prev = db.llx_external_design_condition ?? LLX_COL_EXTERNAL_CONDITION;
                 if (v === prev) return;
-                const audits = auditList("llx_external_design_condition");
-                const entry = { ts: new Date().toISOString(), user: user?.username ?? "", from: prev, to: v, reason: (db.llx_external_override_reason ?? "").trim() };
                 cs(auto({
                   llx_external_design_condition: v,
                   llx_external_design_condition_override: v === LLX_COL_EXTERNAL_CONDITION ? "" : "true",
-                  llx_external_design_condition_audit: JSON.stringify([...audits, entry]),
                 }));
               }}
               options={["Full Vacuum"]}
               allowOther
               note="Separate external design case — never combined with the internal pressure rating and never represented as 0 bar(g)"
             />
-            {db.llx_external_design_condition_override === "true" && (
-              <FieldRow label="Override Reason" value={db.llx_external_override_reason ?? ""} onChange={v => f("llx_external_override_reason", v)} onBlur={s} placeholder="Why does the external design case deviate from Full Vacuum?" note={!(db.llx_external_override_reason ?? "").trim() ? "Required while override is active" : undefined} />
-            )}
-            <AuditTrail fieldKey="llx_external_design_condition" />
             <FieldRow label="Full Vacuum Design Required" value={db.llx_full_vacuum_required ?? "Yes"} onChange={() => {}} onBlur={() => {}} readOnly note="Derived from the external design case; stored in the Design Basis and consumed by the C6 mechanical design engine (engine unchanged)" />
             <p className="text-xs ml-[212px] -mt-1 text-gray-500">
-              Source: {db.llx_external_design_condition_override === "true" ? "Engineer Override" : LLX_COL_STANDARD_SOURCE} · Status: {db.llx_external_design_condition_override === "true" ? "Engineer Override" : "Auto-Populated (auto-saved)"}
+              Source: {db.llx_external_design_condition_override === "true" ? "Engineer selection" : LLX_COL_STANDARD_SOURCE} · Status: {db.llx_external_design_condition_override === "true" ? "Manual" : "Auto-Populated"}
             </p>
           </div>
           <div className="border-t pt-3 mt-1">
@@ -1251,29 +1147,24 @@ export default function DesignSoftwareWorkspacePage() {
               label="Design Temperature"
               value={db.design_temperature ?? ""}
               onChange={v => f("design_temperature", v)}
-              onBlur={commitDesignValue("design_temperature", "dt_override_reason", suggestedDT)}
+              onBlur={commitDesignValue("design_temperature", suggestedDT)}
               unit="°C"
             />
             {suggestedDT === null && db.design_temperature_override !== "true" ? (
-              <p className="text-xs ml-[212px] -mt-1 text-amber-600 font-medium">Not Calculable — Operating Temperature must be ≥ 50 °C for the Thermopac Design Temperature Rule (a value is never defaulted to zero)</p>
+              <p className="text-xs ml-[212px] -mt-1 text-gray-500">Rule applies from OT 50 °C — below that, enter Design Temperature manually (a value is never defaulted to zero)</p>
             ) : (
               <p className="text-xs ml-[212px] -mt-1 text-gray-500">
-                Rule: OT 50–80 °C → DT = 100 °C; OT &gt; 80 °C → DT = OT + 20 °C{ot !== null && suggestedDT ? ` · Applied: OT ${ot} °C → DT ${suggestedDT} °C` : ""} · Source: {DT_RULE_SOURCE} · Status: {db.design_temperature_override === "true" ? "Engineer Override" : "Auto-Calculated (auto-saved)"}
+                Rule: OT 50–80 °C → DT = 100 °C; OT &gt; 80 °C → DT = OT + 20 °C{ot !== null && suggestedDT ? ` · Applied: OT ${ot} °C → DT ${suggestedDT} °C` : ""} · Source: {DT_RULE_SOURCE} · Status: {db.design_temperature_override === "true" ? "Manual" : "Auto-Populated"}
               </p>
             )}
             {ot !== null && num(db.design_temperature) !== null && (num(db.design_temperature) as number) < ot && (
               <p className="text-xs ml-[212px] text-red-600 font-medium">Design Temperature must be ≥ Operating Temperature ({ot} °C)</p>
             )}
             {db.design_temperature_override === "true" && (
-              <div className="ml-[212px] mt-1 space-y-1">
-                <div className={`flex items-center gap-2 text-xs rounded px-2 py-1 border ${(db.dt_override_reason ?? "").trim() ? "bg-gray-50 border-gray-200" : "bg-amber-50 border-amber-300"}`}>
-                  <span className={(db.dt_override_reason ?? "").trim() ? "text-gray-500" : "text-amber-700 font-medium"}>Override reason{(db.dt_override_reason ?? "").trim() ? "" : " required"}:</span>
-                  <Input value={db.dt_override_reason ?? ""} onChange={e => f("dt_override_reason", e.target.value)} onBlur={commitDesignValue("design_temperature", "dt_override_reason", suggestedDT)} placeholder="Why does Design Temperature deviate from the Thermopac rule?" className="h-6 text-xs flex-1" />
-                  <button type="button" onClick={clearDesignOverride("design_temperature", "dt_override_reason", suggestedDT)} className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Revert to rule</button>
-                </div>
+              <div className="ml-[212px] mt-1">
+                <button type="button" onClick={clearDesignOverride("design_temperature")} className="px-2 py-0.5 text-xs border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Revert to rule{suggestedDT ? ` (${suggestedDT} °C)` : ""}</button>
               </div>
             )}
-            <AuditTrail fieldKey="design_temperature" />
           </div>
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Thermal Oil System</p>
@@ -1289,26 +1180,22 @@ export default function DesignSoftwareWorkspacePage() {
               label="Heater Inlet Temp"
               value={db.thermal_heater_inlet ?? ""}
               onChange={v => f("thermal_heater_inlet", v)}
-              onBlur={commitAudited("thermal_heater_inlet")}
+              onBlur={() => cs(auto({}))}
               unit="°C"
             />
-            <p className="text-xs ml-[212px] -mt-1 text-amber-600 font-medium">
-              Recommended value: Not Calculable — requires process duty &amp; LMTD from the utilities calculation engine (not yet available). Engineer entry recorded with full audit; never defaulted to zero.
+            <p className="text-xs ml-[212px] -mt-1 text-gray-500">
+              Status: Manual · No recommended value yet — thermal-fluid master data pending; never defaulted to zero
             </p>
-            <FieldRow label="Change Reason" value={db.thermal_heater_inlet_change_reason ?? ""} onChange={v => f("thermal_heater_inlet_change_reason", v)} onBlur={s} placeholder="Reason for setting/overriding Heater Inlet Temp" />
-            <AuditTrail fieldKey="thermal_heater_inlet" />
             <FieldRow
               label="Heater Outlet Temp"
               value={db.thermal_heater_outlet ?? ""}
               onChange={v => f("thermal_heater_outlet", v)}
-              onBlur={commitAudited("thermal_heater_outlet")}
+              onBlur={() => cs(auto({}))}
               unit="°C"
             />
-            <p className="text-xs ml-[212px] -mt-1 text-amber-600 font-medium">
-              Recommended value: Not Calculable — requires process duty &amp; LMTD from the utilities calculation engine (not yet available). Engineer entry recorded with full audit; never defaulted to zero.
+            <p className="text-xs ml-[212px] -mt-1 text-gray-500">
+              Status: Manual · No recommended value yet — thermal-fluid master data pending; never defaulted to zero
             </p>
-            <FieldRow label="Change Reason" value={db.thermal_heater_outlet_change_reason ?? ""} onChange={v => f("thermal_heater_outlet_change_reason", v)} onBlur={s} placeholder="Reason for setting/overriding Heater Outlet Temp" />
-            <AuditTrail fieldKey="thermal_heater_outlet" />
             <FieldRow
               label="Max Film Temp"
               value={db.thermal_oil_max_film_temp ?? ""}
@@ -1320,16 +1207,16 @@ export default function DesignSoftwareWorkspacePage() {
                 if (v === "" || (ruleV !== null && num(v) === num(ruleV))) {
                   cs(auto({ thermal_oil_max_film_temp: "", thermal_oil_max_film_override: "" }));
                 } else {
-                  cs(auto({ thermal_oil_max_film_temp: v, thermal_oil_max_film_override: "true", thermal_oil_max_film_status: "Engineer Modified", thermal_oil_max_film_source: db.thermal_oil_max_film_source_manual || "Engineer entry" }));
+                  cs(auto({ thermal_oil_max_film_temp: v, thermal_oil_max_film_override: "true", thermal_oil_max_film_status: "Manual", thermal_oil_max_film_source: db.thermal_oil_max_film_source_manual || "Engineer entry" }));
                 }
               }}
               unit="°C"
             />
             {num(db.thermal_heater_outlet) === null && db.thermal_oil_max_film_override !== "true" ? (
-              <p className="text-xs ml-[212px] -mt-1 text-amber-600 font-medium">Not Calculable — enter Heater Outlet Temp (default rule: Heater Outlet + 60 °C; never defaulted to zero)</p>
+              <p className="text-xs ml-[212px] -mt-1 text-gray-500">Awaiting Heater Outlet Temp — rule: Heater Outlet + 60 °C (never defaulted to zero)</p>
             ) : (
               <p className="text-xs ml-[212px] -mt-1 text-gray-500">
-                Status: {db.thermal_oil_max_film_override === "true" ? "Engineer Modified" : "Auto-Calculated (auto-saved)"} · Source: {db.thermal_oil_max_film_source || MAX_FILM_RULE_SOURCE} · Engine Version: {THERMAL_RULE_ENGINE_VERSION}
+                Status: {db.thermal_oil_max_film_override === "true" ? "Manual" : "Auto-Populated"} · Source: {db.thermal_oil_max_film_source || MAX_FILM_RULE_SOURCE} · Engine Version: {THERMAL_RULE_ENGINE_VERSION}
               </p>
             )}
             {db.thermal_oil_max_film_override === "true" && (
@@ -1348,9 +1235,6 @@ export default function DesignSoftwareWorkspacePage() {
               basis={suggestedCWIn ? `Wet Bulb ${wb} + approach ${approach} °C (${db.cw_approach_source})` : "enter Wet Bulb Temperature, Cooling Tower Approach and its source"}
               current={db.cw_inlet_temperature ?? ""}
               onApply={() => cs({ cw_inlet_temperature: suggestedCWIn as string })}
-              overrideReason={db.cw_in_override_reason ?? ""}
-              onReasonChange={v => f("cw_in_override_reason", v)}
-              onBlur={s}
             />
             <FieldRow label="CT Approach" value={db.cw_approach ?? ""} onChange={v => f("cw_approach", v)} onBlur={s} unit="°C" />
             <FieldRow label="CT Approach Source" value={db.cw_approach_source ?? ""} onChange={v => f("cw_approach_source", v)} onBlur={s} placeholder="e.g. CT vendor basis / site data" />
@@ -1362,7 +1246,7 @@ export default function DesignSoftwareWorkspacePage() {
               onBlur={s}
               unit="°C"
               readOnly={!cwOverride}
-              note={cwOverride ? "Authorized override active — reason required below" : "Calculated: CW Outlet − CW Inlet (read-only)"}
+              note={cwOverride ? "Manual override active" : "Calculated: CW Outlet − CW Inlet (read-only)"}
             />
             <div className="flex items-center gap-2 ml-[212px]">
               <input
@@ -1372,11 +1256,8 @@ export default function DesignSoftwareWorkspacePage() {
                 onChange={e => cs({ cw_delta_t_override: String(e.target.checked) })}
                 className="h-4 w-4"
               />
-              <label htmlFor="cw_dt_override" className="text-xs text-gray-500">Authorized override of CW Design ΔT</label>
+              <label htmlFor="cw_dt_override" className="text-xs text-gray-500">Manual override of CW Design ΔT</label>
             </div>
-            {cwOverride && (
-              <FieldRow label="Override Reason" value={db.cw_delta_t_override_reason ?? ""} onChange={v => f("cw_delta_t_override_reason", v)} onBlur={s} placeholder="Authorization / justification" note={!(db.cw_delta_t_override_reason ?? "").trim() ? "Required while override is active" : undefined} />
-            )}
           </div>
         </SectionCard>
 
