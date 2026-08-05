@@ -24,7 +24,8 @@ import { PRODUCT_REQUIREMENT_MASTER, PRODUCT_PARAMETER_MASTER, shouldSeedRequire
 import {
   RRBO_FEED_DENSITY_MASTER, RRBO_FEED_DENSITY_REF_TEMP, NMP_MASTER,
   RRBO_FEED_VISCOSITY_MASTER, RRBO_FEED_VISCOSITY_REF_TEMP,
-  EMULSION_BEHAVIOUR_DEFAULT, PENDING_VALIDATION, FLUID_PROPERTY_PROVENANCE,
+  EMULSION_BEHAVIOUR_DEFAULT, EMULSION_BEHAVIOUR_LEGACY_DEFAULT, PENDING_VALIDATION, FLUID_PROPERTY_PROVENANCE,
+  TWO_PHASE_SCREENING_DEFAULTS, TWO_PHASE_SCREENING_SOURCE, TWO_PHASE_SCREENING_REF_TEMP,
 } from "@shared/fluid-properties-master";
 
 // Module-level numeric parse helper (blank/invalid → null).
@@ -726,7 +727,24 @@ export default function DesignSoftwareWorkspacePage() {
     setIf("nmp_purity", NMP_MASTER.purity.value, NMP_MASTER.purity.unit);
     setIf("nmp_water", NMP_MASTER.water.value, NMP_MASTER.water.unit);
     // Emulsion behaviour default text
-    if (blank("emulsion_behaviour")) u.emulsion_behaviour = EMULSION_BEHAVIOUR_DEFAULT;
+    // Two-Phase Properties — Thermopac Preliminary Screening Defaults @ 70 °C
+    // (source-tagged Assumed; Pending Laboratory Validation; ref temp stays
+    // 70 °C and is never silently corrected to the Operating Temperature).
+    for (const k of ["interfacial_tension", "nmp_solubility_rrbo", "oil_solubility_nmp"]) {
+      const tp = TWO_PHASE_SCREENING_DEFAULTS[k];
+      setIf(k, tp.value, tp.unit, `${TWO_PHASE_SCREENING_REF_TEMP} °C`);
+      if ((`${k}_value` in u) && blank(`${k}_source`)) u[`${k}_source`] = "Assumed";
+    }
+    if (blank("phase_separation_time")) {
+      u.phase_separation_time = TWO_PHASE_SCREENING_DEFAULTS.phase_separation_time.value;
+      if (blank("phase_separation_time_unit")) u.phase_separation_time_unit = TWO_PHASE_SCREENING_DEFAULTS.phase_separation_time.unit;
+    }
+    if (blank("emulsion_behaviour")) {
+      u.emulsion_behaviour = EMULSION_BEHAVIOUR_DEFAULT;
+    } else if ((fp.emulsion_behaviour ?? "").trim() === EMULSION_BEHAVIOUR_LEGACY_DEFAULT) {
+      // Deterministic upgrade of the unchanged previous default text only.
+      u.emulsion_behaviour = EMULSION_BEHAVIOUR_DEFAULT;
+    }
     if (Object.keys(u).length > 0) commitSection("fluid_properties", u);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeStep, isFrozen, activeRevisionId, inputsQ.data, epdNmpQ.data, localData, savingSection, upsertMutation.isPending]);
@@ -1656,14 +1674,14 @@ export default function DesignSoftwareWorkspacePage() {
         {FLUID_PROPERTY_PROVENANCE[key] && (
           <p className="text-[11px] text-gray-400 px-2 -mt-0.5">{FLUID_PROPERTY_PROVENANCE[key]}</p>
         )}
-        {["interfacial_tension", "mutual_solubility"].includes(key) && (fp[`${key}_value`] ?? "").trim() === "" && (
+        {["interfacial_tension", "nmp_solubility_rrbo", "oil_solubility_nmp"].includes(key) && (fp[`${key}_value`] ?? "").trim() === "" && (
           <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 mx-2 mt-0.5 inline-block">
             {PENDING_VALIDATION} — no approved NMP/RRBO two-phase value; enter laboratory/vendor data
           </p>
         )}
       </div>
     );
-    const assumedCount = ["rrbo_density", "rrbo_viscosity_dynamic", "rrbo_viscosity_kinematic", "nmp_density", "nmp_viscosity_dynamic", "interfacial_tension", "mutual_solubility"]
+    const assumedCount = ["rrbo_density", "rrbo_viscosity_dynamic", "rrbo_viscosity_kinematic", "nmp_density", "nmp_viscosity_dynamic", "interfacial_tension", "nmp_solubility_rrbo", "oil_solubility_nmp"]
       .filter(k => fp[`${k}_source`] === "Assumed").length;
     return (
       <div className="max-w-4xl">
@@ -1698,8 +1716,20 @@ export default function DesignSoftwareWorkspacePage() {
           {prop("Water Content", "nmp_water")}
         </SectionCard>
         <SectionCard title="Two-Phase Properties">
+          <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 mb-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>
+              Thermopac Preliminary Screening Defaults @ {TWO_PHASE_SCREENING_REF_TEMP} °C — Source Type: Assumed · Source: {TWO_PHASE_SCREENING_SOURCE} · Status: Pending Laboratory Validation.
+              These are NOT measured equilibrium data. The reference temperature stays at {TWO_PHASE_SCREENING_REF_TEMP} °C and is not corrected when the Operating Temperature
+              {(d("design_basis").operating_temperature ?? "").trim() !== "" && (d("design_basis").operating_temperature ?? "").trim() !== TWO_PHASE_SCREENING_REF_TEMP
+                ? ` (currently ${(d("design_basis").operating_temperature ?? "").trim()} °C)`
+                : ""} changes — replace with temperature-dependent laboratory or vendor data.
+            </span>
+          </div>
           {prop("Interfacial Tension", "interfacial_tension")}
-          {prop("Mutual Solubility", "mutual_solubility")}
+          {prop("NMP in RRBO-Rich Phase", "nmp_solubility_rrbo")}
+          {prop("Oil/Extractables in NMP-Rich Phase", "oil_solubility_nmp")}
+          {(fp.mutual_solubility_value ?? "").trim() !== "" && prop("Mutual Solubility (legacy)", "mutual_solubility")}
           <div className="grid grid-cols-[180px_1fr] gap-3 py-1.5">
             <span className="text-sm text-gray-700 font-medium">Phase Separation Time</span>
             <div className="flex gap-2">

@@ -40,8 +40,26 @@ export const NMP_MASTER = {
   water:   { value: "0.05", unit: "wt.% max", source: "NMP Master Data" },
 };
 
+/**
+ * Two-Phase Properties — Thermopac Preliminary Screening Defaults @ 70 °C.
+ * Source-tagged Assumed; Pending Laboratory Validation. NEVER presented as
+ * measured equilibrium data; reference temperature stays at 70 °C and is NOT
+ * silently corrected when the Operating Temperature changes.
+ */
+export const TWO_PHASE_SCREENING_SOURCE = "Thermopac Preliminary Screening Default";
+export const TWO_PHASE_SCREENING_REF_TEMP = "70";
+export const TWO_PHASE_SCREENING_DEFAULTS: Record<string, { value: string; unit: string }> = {
+  interfacial_tension:   { value: "10",  unit: "mN/m" },
+  nmp_solubility_rrbo:   { value: "2",   unit: "wt.%" },
+  oil_solubility_nmp:    { value: "15",  unit: "wt.%" },
+  phase_separation_time: { value: "120", unit: "s" },
+};
+
 /** Default text for emulsion behaviour until laboratory data exists. */
 export const EMULSION_BEHAVIOUR_DEFAULT =
+  "Moderate — phases expected to separate without a stable emulsion";
+/** Previous default text — upgraded in place when still unchanged. */
+export const EMULSION_BEHAVIOUR_LEGACY_DEFAULT =
   "To be confirmed by laboratory phase-separation test";
 
 /** Marker text for two-phase properties without approved data. */
@@ -62,8 +80,10 @@ export const FLUID_PROPERTY_PROVENANCE: Record<string, string> = {
   nmp_temperature: "Design Basis — Operating Temperature",
   nmp_purity: "NMP Master Data",
   nmp_water: "NMP Master Data",
-  interfacial_tension: "NMP/RRBO two-phase data required — Pending Validation until laboratory/vendor data entered",
-  mutual_solubility: "Laboratory/vendor data required — Pending Validation until entered",
-  phase_separation_time: "Thermopac test data — manual entry",
-  emulsion_behaviour: "Default text until confirmed by laboratory phase-separation test",
+  interfacial_tension: "Thermopac Preliminary Screening Default @ 70 °C — Assumed; Pending Laboratory Validation",
+  nmp_solubility_rrbo: "Thermopac Preliminary Screening Default @ 70 °C — Assumed; Pending Laboratory Validation",
+  oil_solubility_nmp: "Thermopac Preliminary Screening Default @ 70 °C — Assumed; Pending Laboratory Validation",
+  mutual_solubility: "Legacy field — replaced by directional NMP-in-RRBO / Oil-in-NMP solubilities",
+  phase_separation_time: "Thermopac Preliminary Screening Default @ 70 °C — Assumed; Pending Laboratory Validation",
+  emulsion_behaviour: "Thermopac Preliminary Screening Default — Assumed; Pending Laboratory Validation",
 };
