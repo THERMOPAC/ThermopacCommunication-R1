@@ -263,6 +263,11 @@ function SearchSelectRow({
 // Thermal oil master list — initial options only; future expansion via master data
 // (a governed thermal-fluid master table), not by hard-coding here.
 const THERMAL_OIL_OPTIONS = ["Therminol 65", "Therminol 66"];
+const SITE_TEMP_OPTIONS = ["10", "15", "20", "25", "30", "40", "45"];
+const SITE_ELEVATION_OPTIONS = ["0", "50", "150", "250", "500", "1000", "2000"];
+const AMBIENT_DEFAULT = "25";
+const ELEVATION_DEFAULT = "0";
+const ISA_FORMULA = "P = 101.325 × (1 − 2.25577×10⁻⁵ × h)^5.25588 kPa";
 const THERMAL_RULE_ENGINE_VERSION = "Design Basis UI Rules v1.0";
 const MAX_FILM_RULE_SOURCE = "Thermopac default rule: Heater Outlet + 60 °C";
 
@@ -637,6 +642,13 @@ export default function DesignSoftwareWorkspacePage() {
     if (otV !== null && dtV !== null && dtV < otV) {
       overrideViolations.push("Design Temperature must be ≥ Operating Temperature");
     }
+    const ambVv = vNum(db.ambient_temperature ?? "25"); const wbVv = vNum(db.wet_bulb_temperature);
+    if (ambVv !== null && wbVv !== null && wbVv > ambVv) {
+      overrideViolations.push("Wet Bulb Temperature must not exceed Ambient Temperature");
+    }
+    if (db.atm_pressure_override === "true" && !(db.atm_pressure_manual_change_reason ?? "").trim()) {
+      overrideViolations.push("Atmospheric Pressure override is active without a recorded reason");
+    }
     if (db.cw_delta_t_override === "true" && !(db.cw_delta_t_override_reason ?? "").trim()) {
       overrideViolations.push("CW Design ΔT override is active without an authorization reason");
     }
@@ -914,6 +926,12 @@ export default function DesignSoftwareWorkspacePage() {
     const suggestedDT = ot !== null && dtMargin !== null ? (ot + dtMargin).toFixed(1) : null;
     const feedT = num(db.feed_temperature);
     const wb = num(db.wet_bulb_temperature);
+    // Site Conditions — Thermopac defaults apply when nothing is selected yet
+    const ambSite = num(db.ambient_temperature ?? AMBIENT_DEFAULT);
+    const wbSuggested = ambSite !== null ? String(ambSite - 5) : null;
+    const elevEff = num(db.site_elevation ?? ELEVATION_DEFAULT);
+    const atmCalc = elevEff !== null ? (101325 * Math.pow(1 - 0.0000225577 * elevEff, 5.25588) / 1000).toFixed(2) : null;
+    const atmOverride = db.atm_pressure_override === "true";
     const approach = num(db.cw_approach);
     const suggestedCWIn = wb !== null && approach !== null && (db.cw_approach_source ?? "").trim() !== "" ? (wb + approach).toFixed(1) : null;
     const cwIn = num(db.cw_inlet_temperature);
@@ -1038,32 +1056,73 @@ export default function DesignSoftwareWorkspacePage() {
         <SectionCard title="Operating Conditions">
           <div className="border-b pb-3 mb-2">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Site Conditions</p>
-            <FieldRow label="Ambient Temperature" value={db.ambient_temperature ?? ""} onChange={v => f("ambient_temperature", v)} onBlur={s} unit="°C" />
-            <FieldRow label="Wet Bulb Temperature" value={db.wet_bulb_temperature ?? ""} onChange={v => f("wet_bulb_temperature", v)} onBlur={s} unit="°C" />
-            <FieldRow label="Site Elevation" value={db.site_elevation ?? ""} onChange={v => f("site_elevation", v)} onBlur={s} unit="m above MSL" />
+            <SelectRow
+              label="Ambient Temperature"
+              value={db.ambient_temperature ?? AMBIENT_DEFAULT}
+              onChange={v => f("ambient_temperature", v)}
+              onBlur={s}
+              onCommit={v => cs({ ambient_temperature: v })}
+              options={SITE_TEMP_OPTIONS}
+              unit="°C"
+              note={db.ambient_temperature ? undefined : "Default: 25 °C (Thermopac default) — select to confirm/change"}
+            />
+            <SelectRow
+              label="Wet Bulb Temperature"
+              value={db.wet_bulb_temperature ?? ""}
+              onChange={v => f("wet_bulb_temperature", v)}
+              onBlur={s}
+              onCommit={v => cs({ wet_bulb_temperature: v })}
+              options={SITE_TEMP_OPTIONS}
+              unit="°C"
+            />
+            {wbSuggested !== null && (
+              <div className="flex items-center gap-2 text-xs ml-[212px] -mt-1">
+                <span className="text-blue-700">Suggested: <b>{wbSuggested} °C</b> <span className="text-gray-400">(Ambient − 5 °C — Thermopac default suggestion; engineer may override)</span></span>
+                <button type="button" onClick={() => cs({ wet_bulb_temperature: wbSuggested })} className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50">Apply</button>
+              </div>
+            )}
+            {wb !== null && ambSite !== null && wb > ambSite && (
+              <p className="text-xs ml-[212px] text-red-600 font-medium">Wet Bulb Temperature must not exceed Ambient Temperature ({ambSite} °C)</p>
+            )}
+            <SelectRow
+              label="Site Elevation"
+              value={db.site_elevation ?? ELEVATION_DEFAULT}
+              onChange={v => f("site_elevation", v)}
+              onBlur={s}
+              onCommit={v => cs({ site_elevation: v })}
+              options={SITE_ELEVATION_OPTIONS}
+              unit="m above MSL"
+              note={db.site_elevation ? undefined : "Default: 0 m (Thermopac default) — select to confirm/change"}
+            />
             <FieldRow
               label="Atmospheric Pressure"
-              value={db.atm_pressure_override
-                ? db.atm_pressure_manual ?? ""
-                : db.site_elevation
-                  ? (101325 * Math.pow(1 - 0.0000225577 * parseFloat(db.site_elevation), 5.25588) / 1000).toFixed(2)
-                  : "101.325"}
+              value={atmOverride ? db.atm_pressure_manual ?? "" : atmCalc ?? ""}
               onChange={v => f("atm_pressure_manual", v)}
-              onBlur={s}
+              onBlur={atmOverride ? commitAudited("atm_pressure_manual") : () => {}}
               unit="kPa"
-              readOnly={!db.atm_pressure_override}
-              note={!db.atm_pressure_override ? "Auto-calculated from elevation (ISA)" : "Manual override active"}
+              readOnly={!atmOverride}
             />
-            <div className="flex items-center gap-2 mt-1">
+            {!atmOverride && atmCalc === null ? (
+              <p className="text-xs ml-[212px] -mt-1 text-amber-600 font-medium">Not Calculable — Site Elevation unavailable (a value is never defaulted to zero)</p>
+            ) : (
+              <p className="text-xs ml-[212px] -mt-1 text-gray-500">
+                {ISA_FORMULA} · h = {elevEff ?? "—"} m · Source: ISA Standard Atmosphere · Status: {atmOverride ? "Engineer Override" : "Auto-Calculated (read-only)"}
+              </p>
+            )}
+            <div className="flex items-center gap-2 mt-1 ml-[212px]">
               <input
                 type="checkbox"
                 id="atm_override"
-                checked={db.atm_pressure_override === "true"}
-                onChange={e => { f("atm_pressure_override", String(e.target.checked)); s(); }}
+                checked={atmOverride}
+                onChange={e => cs({ atm_pressure_override: String(e.target.checked) })}
                 className="h-4 w-4"
               />
-              <label htmlFor="atm_override" className="text-xs text-gray-500">Override atmospheric pressure</label>
+              <label htmlFor="atm_override" className="text-xs text-gray-500">Override atmospheric pressure (reason required; every change is recorded)</label>
             </div>
+            {atmOverride && (
+              <FieldRow label="Change Reason" value={db.atm_pressure_manual_change_reason ?? ""} onChange={v => f("atm_pressure_manual_change_reason", v)} onBlur={s} placeholder="Reason for overriding Atmospheric Pressure" note={!(db.atm_pressure_manual_change_reason ?? "").trim() ? "Required while override is active" : undefined} />
+            )}
+            <AuditTrail fieldKey="atm_pressure_manual" />
           </div>
           <FieldRow label="Feed Flow" value={db.feed_flow ?? db.design_capacity_lph ?? ""} onChange={() => {}} onBlur={() => {}} unit="LPH" readOnly note="= Design Capacity (LPH)" />
           <SelectRow label="Feed Temperature" value={db.feed_temperature ?? ""} onChange={v => f("feed_temperature", v)} onBlur={s} onCommit={v => csa({ feed_temperature: v })} options={["10", "15", "20", "25", "30", "35", "40"]} unit="°C" />
