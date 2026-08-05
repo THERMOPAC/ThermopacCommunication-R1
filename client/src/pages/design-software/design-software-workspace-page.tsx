@@ -216,6 +216,15 @@ function SuggestionBlock({
 }
 
 const LIMIT_TYPES = ["Max", "Min", "Target", "Range"];
+
+const FEED_SERVICE_OPTIONS = [
+  "Re-Refined Base Oil SN150",
+  "Re-Refined Base Oil SN200",
+  "Re-Refined Base Oil SN300",
+  "Re-Refined Base Oil SN500",
+];
+
+const CAPACITY_OPTIONS = Array.from({ length: 15 }, (_, i) => String((i + 1) * 1000));
 interface QualityRow { parameter: string; target: string; unit: string; limitType: string; notes: string }
 
 function QualityRowsEditor({
@@ -675,6 +684,77 @@ export default function DesignSoftwareWorkspacePage() {
       const n = parseFloat(v);
       return Number.isFinite(n) ? n : null;
     };
+    const fpData0 = d("fluid_properties");
+    // Auto-generated Process Description (item 1) — built only from entered data
+    const genDesc = (m: Record<string, string>): string => {
+      const parts: string[] = [];
+      parts.push(`Liquid-liquid extraction unit using ${m.solvent?.trim() || "NMP"} solvent${m.feed_service ? ` for treatment of ${m.feed_service}` : ""}.`);
+      if (m.design_capacity_lph) {
+        let cap = `Design capacity ${m.design_capacity_lph} LPH`;
+        if (m.design_capacity_mtpa) cap += ` (≈ ${m.design_capacity_mtpa} TPA)`;
+        cap += ` at 24 hr/day${m.operating_days ? `, ${m.operating_days} days/yr` : ""}.`;
+        parts.push(cap);
+      }
+      const cond: string[] = [];
+      if (m.feed_temperature) cond.push(`feed at ${m.feed_temperature} °C`);
+      if (m.operating_temperature) cond.push(`operating temperature ${m.operating_temperature} °C`);
+      if (m.operating_pressure) cond.push(`operating pressure ${m.operating_pressure} bar g`);
+      if (cond.length) parts.push(`Operating conditions: ${cond.join(", ")}.`);
+      if (m.design_life) parts.push(`Design life ${m.design_life} years.`);
+      return parts.join(" ");
+    };
+    // Auto Design Objective from Design Type (item 9)
+    const genObjective = (): string =>
+      design?.design_type === "rnd"
+        ? "R&D / independent design study of an NMP liquid-liquid extraction unit for re-refined base oil, to establish and validate the process and equipment design basis."
+        : "Detailed process and equipment design of an NMP liquid-liquid extraction unit for re-refined base oil, for execution under the linked project.";
+    // Wraps updates: recomputes auto-generated fields + derived TPA atomically (no stale closures)
+    const auto = (updates: Record<string, string>): Record<string, string> => {
+      const m = { ...db, ...updates };
+      const lphM = num(m.design_capacity_lph);
+      const daysM = num(m.operating_days);
+      const rhoM = num(fpData0.rrbo_density_value);
+      const rhoOk = rhoM !== null && (fpData0.rrbo_density_source ?? "").trim() !== "" && (fpData0.rrbo_density_ref_temp ?? "").trim() !== "";
+      if (lphM !== null && daysM !== null && rhoOk) {
+        m.design_capacity_mtpa = ((lphM * 24 * daysM * (rhoM as number)) / 1e6).toFixed(0);
+        updates = { ...updates, design_capacity_mtpa: m.design_capacity_mtpa };
+      }
+      if (m.design_objective_manual !== "true") {
+        m.design_objective = genObjective();
+        updates = { ...updates, design_objective: m.design_objective };
+      }
+      if (m.process_description_manual !== "true") {
+        updates = { ...updates, process_description: genDesc(m) };
+      }
+      return updates;
+    };
+    const csa = (updates: Record<string, string>) => cs(auto(updates));
+    // Audited override fields (items 12 & 13) — full change history in <key>_audit
+    const auditList = (key: string): { ts: string; from: string; to: string; reason: string }[] => {
+      try { const p = JSON.parse(db[`${key}_audit`] || "[]"); return Array.isArray(p) ? p : []; } catch { return []; }
+    };
+    const commitAudited = (key: string) => () => {
+      const val = (db[key] ?? "").trim();
+      const audits = auditList(key);
+      const last = audits.length ? audits[audits.length - 1].to : "";
+      if (val === last) { s(); return; }
+      const entry = { ts: new Date().toISOString(), from: last, to: val, reason: (db[`${key}_change_reason`] ?? "").trim() };
+      cs(auto({ [key]: val, [`${key}_audit`]: JSON.stringify([...audits, entry]) }));
+    };
+    const AuditTrail = ({ fieldKey }: { fieldKey: string }) => {
+      const audits = auditList(fieldKey);
+      if (audits.length === 0) return null;
+      return (
+        <div className="ml-[212px] mt-1 rounded border border-gray-200 bg-gray-50 p-2">
+          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Change History</p>
+          {audits.slice().reverse().map((a, i) => (
+            <p key={i} className="text-[11px] text-gray-500">
+              {new Date(a.ts).toLocaleString()} — {a.from || "(blank)"} → {a.to || "(blank)"}{a.reason ? ` · ${a.reason}` : ""}
+            </p>
+          ))}
+        </div>
+      );
+    };
     // Governed suggestions — computed for display only, never auto-saved
     const op = num(db.operating_pressure);
     const dpMargin = num(db.dp_margin_value);
@@ -691,15 +771,14 @@ export default function DesignSoftwareWorkspacePage() {
     const cwDeltaCalc = cwIn !== null && cwOut !== null ? (cwOut - cwIn).toFixed(1) : null;
     const cwOverride = db.cw_delta_t_override === "true";
     // Design capacity cross-conversion (governed: only with annual hours + tagged density)
-    const hrDay = num(db.operating_hours);
     const daysYr = num(db.operating_days);
     const fpData = d("fluid_properties");
     const rho = num(fpData.rrbo_density_value);
     const rhoTagged = rho !== null && (fpData.rrbo_density_source ?? "").trim() !== "" && (fpData.rrbo_density_ref_temp ?? "").trim() !== "";
-    const annualHours = hrDay !== null && daysYr !== null ? hrDay * daysYr : null;
+    const annualHours = daysYr !== null ? 24 * daysYr : null; // Operating Hours fixed at 24 hr/day for this module
     const lph = num(db.design_capacity_lph);
     const capacityMissing = [
-      annualHours === null ? "annual operating basis (hours/day × days/year)" : null,
+      annualHours === null ? "Operating Days (days/year)" : null,
       !rhoTagged ? "feed density with source and reference temperature (Fluid Properties)" : null,
       lph === null ? "capacity in LPH" : null,
     ].filter(Boolean);
@@ -707,53 +786,114 @@ export default function DesignSoftwareWorkspacePage() {
     return (
       <div className="max-w-3xl">
         <SectionCard title="General">
-          <TextAreaRow label="Process Description" value={db.process_description ?? ""} onChange={v => f("process_description", v)} onBlur={s} rows={3} />
-          <SelectRow label="Feed Service" value={db.feed_service ?? ""} onChange={v => f("feed_service", v)} onBlur={s} onCommit={v => cs({ feed_service: v })} options={["Re-Refined Base Oil"]} allowOther />
+          <TextAreaRow
+            label="Process Description"
+            value={db.process_description ?? ""}
+            onChange={v => { f("process_description", v); f("process_description_manual", "true"); }}
+            onBlur={s}
+            rows={3}
+          />
+          <div className="ml-[212px] -mt-1 flex items-center gap-3">
+            <p className="text-xs text-gray-500">
+              {db.process_description_manual === "true"
+                ? "Manually edited — auto-update paused"
+                : "Auto-generated from the Design Basis; edits pause auto-update"}
+            </p>
+            {db.process_description_manual === "true" && (
+              <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => cs({ process_description: genDesc(db), process_description_manual: "false" })}>
+                Reset to auto-generated
+              </Button>
+            )}
+          </div>
+          <SelectRow
+            label="Feed Service"
+            value={db.feed_service ?? ""}
+            onChange={v => f("feed_service", v)}
+            onBlur={s}
+            onCommit={v => csa({ feed_service: v })}
+            options={db.feed_service && !FEED_SERVICE_OPTIONS.includes(db.feed_service) ? [...FEED_SERVICE_OPTIONS, db.feed_service] : FEED_SERVICE_OPTIONS}
+          />
           <SelectRow
             label="Solvent"
-            value={db.solvent ?? ""}
+            value={db.solvent || "NMP"}
             onChange={v => f("solvent", v)}
             onBlur={s}
-            onCommit={v => cs({ solvent: v })}
+            onCommit={v => csa({ solvent: v })}
             options={db.solvent && db.solvent !== "NMP" ? ["NMP", db.solvent] : ["NMP"]}
-            note="Controlled list — expanded via master data only. Drives the Fluid Properties section."
+            note="Default NMP. Controlled list — expanded via master data only. Drives the Fluid Properties section."
           />
-          <FieldRow
+          <SelectRow
             label="Design Capacity (LPH)"
             value={db.design_capacity_lph ?? db.design_capacity ?? ""}
-            onChange={v => { f("design_capacity_lph", v); f("design_capacity", v); }}
+            onChange={v => { f("design_capacity_lph", v); f("design_capacity", v); f("feed_flow", v); }}
             onBlur={s}
+            onCommit={v => csa({ design_capacity_lph: v, design_capacity: v, feed_flow: v })}
+            options={db.design_capacity_lph && !CAPACITY_OPTIONS.includes(db.design_capacity_lph) ? [...CAPACITY_OPTIONS, db.design_capacity_lph] : CAPACITY_OPTIONS}
             unit="LPH"
-            note="Also stored to the legacy capacity field for downstream compatibility"
+            note="Sets Feed Flow and the legacy capacity field"
           />
-          <FieldRow label="Design Capacity (TPA)" value={db.design_capacity_mtpa ?? ""} onChange={v => f("design_capacity_mtpa", v)} onBlur={s} unit="t/yr" />
+          <FieldRow label="Design Capacity (TPA)" value={tpa !== null ? tpa.toFixed(0) : (db.design_capacity_mtpa ?? "")} onChange={() => {}} onBlur={() => {}} unit="t/yr" readOnly />
           <p className="text-xs ml-[212px] -mt-1 text-gray-500">
             {tpa !== null
-              ? <>Cross-check: {lph} LPH ≈ <b>{tpa.toFixed(0)} t/yr</b> (basis: {hrDay}×{daysYr} h/yr, ρ = {rho} kg/m³ @ {fpData.rrbo_density_ref_temp}, source: {fpData.rrbo_density_source})</>
-              : <span className="text-amber-600">Cross-conversion Not Calculable — missing: {capacityMissing.join("; ")}</span>}
+              ? <>Auto-calculated: {lph} LPH × 24 hr/day × {daysYr} days/yr × ρ {rho} kg/m³ (@ {fpData.rrbo_density_ref_temp}, source: {fpData.rrbo_density_source}) ÷ 10⁶ = <b>{tpa.toFixed(0)} t/yr</b></>
+              : <span className="text-amber-600">Not Calculable — missing: {capacityMissing.join("; ")}</span>}
           </p>
-          <SelectRow label="Operating Hours" value={db.operating_hours ?? ""} onChange={v => f("operating_hours", v)} onBlur={s} onCommit={v => cs({ operating_hours: v })} options={["24"]} allowOther unit="hr/day" />
-          <FieldRow label="Operating Days" value={db.operating_days ?? ""} onChange={v => f("operating_days", v)} onBlur={s} unit="days/yr" note="Used only to derive annual hours for capacity cross-check" />
-          <SelectRow label="Design Life" value={db.design_life ?? ""} onChange={v => f("design_life", v)} onBlur={s} onCommit={v => cs({ design_life: v })} options={["20", "25", "30"]} unit="years" />
-          <TextAreaRow label="Design Objective" value={db.design_objective ?? ""} onChange={v => f("design_objective", v)} onBlur={s} rows={2} />
+          <FieldRow label="Operating Hours" value="24" onChange={() => {}} onBlur={() => {}} unit="hr/day" readOnly note="Fixed for this module" />
+          <SelectRow label="Operating Days" value={db.operating_days ?? ""} onChange={v => f("operating_days", v)} onBlur={s} onCommit={v => csa({ operating_days: v })} options={["300", "310", "320", "330"]} unit="days/yr" />
+          <SelectRow
+            label="Design Life"
+            value={db.design_life ?? ""}
+            onChange={v => f("design_life", v)}
+            onBlur={s}
+            onCommit={v => csa({ design_life: v })}
+            options={db.design_life && !["20", "30"].includes(db.design_life) ? ["20", "30", db.design_life] : ["20", "30"]}
+            unit="years"
+          />
+          <TextAreaRow
+            label="Design Objective"
+            value={db.design_objective || (db.design_objective_manual !== "true" ? genObjective() : "")}
+            onChange={v => { f("design_objective", v); f("design_objective_manual", "true"); }}
+            onBlur={s}
+            rows={2}
+          />
+          <div className="ml-[212px] -mt-1 flex items-center gap-3">
+            <p className="text-xs text-gray-500">
+              {db.design_objective_manual === "true"
+                ? "Manually edited"
+                : `Auto-populated from Design Type (${design?.design_type === "rnd" ? "R&D / Independent" : "Project"})`}
+            </p>
+            {db.design_objective_manual === "true" && (
+              <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => cs({ design_objective: genObjective(), design_objective_manual: "false" })}>
+                Reset to auto
+              </Button>
+            )}
+          </div>
         </SectionCard>
 
         <SectionCard title="Operating Conditions">
-          <FieldRow label="Feed Flow" value={db.feed_flow ?? ""} onChange={v => f("feed_flow", v)} onBlur={s} unit="LPH" />
-          <FieldRow label="Feed Temperature" value={db.feed_temperature ?? ""} onChange={v => f("feed_temperature", v)} onBlur={s} unit="°C" />
-          <FieldRow label="Feed Pressure" value={db.feed_pressure ?? ""} onChange={v => f("feed_pressure", v)} onBlur={s} unit="bar g" />
-          <FieldRow label="Operating Pressure" value={db.operating_pressure ?? ""} onChange={v => f("operating_pressure", v)} onBlur={s} unit="bar g" />
-          <FieldRow label="Operating Temperature" value={db.operating_temperature ?? ""} onChange={v => f("operating_temperature", v)} onBlur={s} unit="°C" />
-          <SuggestionBlock
-            suggested={feedT !== null ? feedT.toFixed(1) : null}
-            unit="°C"
-            basis="= Feed Temperature; may be a different process condition"
-            current={db.operating_temperature ?? ""}
-            onApply={() => cs({ operating_temperature: (feedT as number).toFixed(1) })}
-            overrideReason={db.ot_override_reason ?? ""}
-            onReasonChange={v => f("ot_override_reason", v)}
-            onBlur={s}
+          <FieldRow label="Feed Flow" value={db.feed_flow ?? db.design_capacity_lph ?? ""} onChange={() => {}} onBlur={() => {}} unit="LPH" readOnly note="= Design Capacity (LPH)" />
+          <SelectRow label="Feed Temperature" value={db.feed_temperature ?? ""} onChange={v => f("feed_temperature", v)} onBlur={s} onCommit={v => csa({ feed_temperature: v })} options={["10", "15", "20", "25", "30", "35", "40"]} unit="°C" />
+          <FieldRow
+            label="Feed Pressure"
+            value={db.feed_pressure ?? ""}
+            onChange={v => f("feed_pressure", v)}
+            onBlur={commitAudited("feed_pressure")}
+            unit="bar g"
+            note="No process-configuration record exists yet — auto-population disabled; every change is recorded below"
           />
+          <FieldRow label="Change Reason" value={db.feed_pressure_change_reason ?? ""} onChange={v => f("feed_pressure_change_reason", v)} onBlur={s} placeholder="Reason for setting/overriding Feed Pressure" />
+          <AuditTrail fieldKey="feed_pressure" />
+          <FieldRow
+            label="Operating Pressure"
+            value={db.operating_pressure ?? ""}
+            onChange={v => f("operating_pressure", v)}
+            onBlur={commitAudited("operating_pressure")}
+            unit="bar g"
+            note="No process-configuration record exists yet — auto-population disabled; every change is recorded below"
+          />
+          <FieldRow label="Change Reason" value={db.operating_pressure_change_reason ?? ""} onChange={v => f("operating_pressure_change_reason", v)} onBlur={s} placeholder="Reason for setting/overriding Operating Pressure" />
+          <AuditTrail fieldKey="operating_pressure" />
+          <SelectRow label="Operating Temperature" value={db.operating_temperature ?? ""} onChange={v => f("operating_temperature", v)} onBlur={s} onCommit={v => csa({ operating_temperature: v })} options={["50", "55", "60", "65", "70", "75", "80"]} unit="°C" />
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Design Pressure — Governed Suggestion</p>
             <FieldRow label="Margin Rule (bar)" value={db.dp_margin_value ?? ""} onChange={v => f("dp_margin_value", v)} onBlur={s} unit="bar" note="Configurable Thermopac margin — no company rule hard-coded" />
