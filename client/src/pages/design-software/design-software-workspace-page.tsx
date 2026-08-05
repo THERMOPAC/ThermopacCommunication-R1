@@ -23,6 +23,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { PRODUCT_REQUIREMENT_MASTER, PRODUCT_PARAMETER_MASTER, shouldSeedRequirementRows } from "@shared/product-requirement-master";
 import {
   RRBO_FEED_DENSITY_MASTER, RRBO_FEED_DENSITY_REF_TEMP, NMP_MASTER,
+  RRBO_FEED_VISCOSITY_MASTER, RRBO_FEED_VISCOSITY_REF_TEMP,
   EMULSION_BEHAVIOUR_DEFAULT, PENDING_VALIDATION, FLUID_PROPERTY_PROVENANCE,
 } from "@shared/fluid-properties-master";
 
@@ -680,6 +681,13 @@ export default function DesignSoftwareWorkspacePage() {
     const grade = (dbx.feed_service ?? "").trim();
     const rhoMaster = RRBO_FEED_DENSITY_MASTER[grade];
     if (rhoMaster) setIf("rrbo_density", rhoMaster, "kg/m³", `${RRBO_FEED_DENSITY_REF_TEMP} °C`);
+    // RRBO viscosities — Thermopac Master Data (Default) @ 40 °C, starting
+    // values until laboratory measurements; engineer may override.
+    const muMaster = RRBO_FEED_VISCOSITY_MASTER[grade];
+    if (muMaster) {
+      setIf("rrbo_viscosity_dynamic", muMaster.dynamic_mpas, "mPa·s", `${RRBO_FEED_VISCOSITY_REF_TEMP} °C`);
+      setIf("rrbo_viscosity_kinematic", muMaster.kinematic_cst, "cSt", `${RRBO_FEED_VISCOSITY_REF_TEMP} °C`);
+    }
     // RRBO / NMP temperature — Design Basis Operating Temperature
     if (fpOt !== null) {
       setIf("rrbo_temperature", fpOtStr, "°C", fpOtStr + " °C");
@@ -693,10 +701,12 @@ export default function DesignSoftwareWorkspacePage() {
       setIf("rrbo_colour", target("Product Colour"), "ASTM D1500");
       setIf("rrbo_sulphur", target("Sulphur"), "ppm");
     } catch { /* ignore malformed rows */ }
-    // RRBO kinematic viscosity — calculated from dynamic viscosity ÷ density
+    // RRBO kinematic viscosity — fallback calculation from an engineer-entered
+    // dynamic viscosity ÷ density, only when the viscosity master did not
+    // already seed a value for this grade.
     const mu = numOrNull(fp.rrbo_viscosity_dynamic_value);
     const rho = numOrNull(`${"rrbo_density_value" in u ? u.rrbo_density_value : fp.rrbo_density_value}`);
-    if (mu !== null && rho !== null && rho > 0 && blank("rrbo_viscosity_kinematic_value")) {
+    if (mu !== null && rho !== null && rho > 0 && blank("rrbo_viscosity_kinematic_value") && !("rrbo_viscosity_kinematic_value" in u)) {
       u.rrbo_viscosity_kinematic_value = String(Math.round((mu / rho) * 1000 * 1000) / 1000);
       if (blank("rrbo_viscosity_kinematic_unit")) u.rrbo_viscosity_kinematic_unit = "mm²/s";
       if (blank("rrbo_viscosity_kinematic_ref_temp") && (fp.rrbo_viscosity_dynamic_ref_temp ?? "").trim() !== "")
