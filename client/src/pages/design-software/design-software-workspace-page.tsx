@@ -940,8 +940,15 @@ export default function DesignSoftwareWorkspacePage() {
     const elevEff = num(db.site_elevation ?? ELEVATION_DEFAULT);
     const atmCalc = elevEff !== null ? (101325 * Math.pow(1 - 0.0000225577 * elevEff, 5.25588) / 1000).toFixed(2) : null;
     const atmOverride = db.atm_pressure_override === "true";
-    const cwIn = num(db.cw_inlet_temperature);
-    const cwOut = num(db.cw_outlet_temperature);
+    // Cooling Water — effective values: rules apply immediately in the display even
+    // before any commit has persisted them (never blank when defaults exist).
+    const cwInEff = (db.cw_inlet_temperature ?? "").trim() !== "" ? (db.cw_inlet_temperature as string) : (db.ambient_temperature ?? AMBIENT_DEFAULT);
+    const cwIn = num(cwInEff);
+    const cwDtEff = num(db.cw_delta_t) !== null && (num(db.cw_delta_t) as number) > 0 ? (db.cw_delta_t as string) : CW_DELTA_T_DEFAULT;
+    const cwOutEff = cwIn !== null ? String(Math.round((cwIn + (num(cwDtEff) as number)) * 10) / 10) : "";
+    const cwOut = num((db.cw_outlet_temperature ?? "").trim() !== "" ? (db.cw_outlet_temperature as string) : cwOutEff);
+    const wbEffN = wb !== null ? wb : (ambSite !== null ? ambSite - 5 : null);
+    const cwApprEff = cwIn !== null && wbEffN !== null ? String(Math.round((cwIn - wbEffN) * 10) / 10) : "";
     // Design capacity cross-conversion (governed: only with annual hours + tagged density)
     const daysYr = num(db.operating_days);
     const fpData = d("fluid_properties");
@@ -1270,7 +1277,7 @@ export default function DesignSoftwareWorkspacePage() {
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Cooling Water</p>
             <SelectRow
               label="CW Inlet Temp"
-              value={db.cw_inlet_temperature ?? ""}
+              value={cwInEff}
               onChange={v => f("cw_inlet_temperature", v)}
               onBlur={s}
               onCommit={v => cs(auto({
@@ -1293,7 +1300,7 @@ export default function DesignSoftwareWorkspacePage() {
             )}
             <SelectRow
               label="CW Design ΔT"
-              value={db.cw_delta_t ?? CW_DELTA_T_DEFAULT}
+              value={cwDtEff}
               onChange={v => f("cw_delta_t", v)}
               onBlur={s}
               onCommit={v => cs(auto({ cw_delta_t: v, cw_delta_t_manual: v === CW_DELTA_T_DEFAULT ? "" : "true" }))}
@@ -1309,10 +1316,10 @@ export default function DesignSoftwareWorkspacePage() {
             )}
             <FieldRow
               label="CW Outlet Temp"
-              value={db.cw_outlet_temperature ?? ""}
+              value={(db.cw_outlet_temperature ?? "").trim() !== "" ? (db.cw_outlet_temperature as string) : cwOutEff}
               onChange={v => f("cw_outlet_temperature", v)}
               onBlur={() => {
-                const o = num(db.cw_outlet_temperature); const i = num(db.cw_inlet_temperature);
+                const o = num(db.cw_outlet_temperature); const i = cwIn;
                 if (o !== null && i !== null && o > i) {
                   const dT = String(Math.round((o - i) * 10) / 10);
                   cs(auto({ cw_delta_t: dT, cw_delta_t_manual: dT === CW_DELTA_T_DEFAULT ? "" : "true" }));
@@ -1330,7 +1337,7 @@ export default function DesignSoftwareWorkspacePage() {
             )}
             <FieldRow
               label="CT Approach"
-              value={db.cw_approach ?? ""}
+              value={(db.cw_approach ?? "").trim() !== "" ? (db.cw_approach as string) : cwApprEff}
               onChange={() => {}}
               onBlur={() => {}}
               readOnly
