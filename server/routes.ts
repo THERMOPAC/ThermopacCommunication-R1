@@ -4026,6 +4026,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { default: makesRouter } = await import('./makes-routes');
   app.use('/api/makes', makesRouter);
 
+  // ── Design Software Module ─────────────────────────────────────────────────
+  try {
+    const { setupDesignSoftwareRoutes } = await import('./design-software-routes');
+    await setupDesignSoftwareRoutes(app);
+    console.log('✅ Design Software routes registered');
+  } catch (err: any) {
+    console.error('❌ Design Software routes FAILED to register:', err?.message, err?.stack?.split('\n').slice(0,5).join('\n'));
+  }
+
   const httpServer = createServer(app);
   
   // Extend timeout for SAP B1 integration routes - default is 2 minutes, extend to 6 minutes

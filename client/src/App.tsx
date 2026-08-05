@@ -31,6 +31,7 @@ import * as System from "@/loaders/system";
 
 import * as OI from "@/loaders/oi";
 import * as Hazop from "@/loaders/hazop";
+import * as DesignSoftware from "@/loaders/design-software";
 
 function SuperuserRoute({
   path,
@@ -317,6 +318,10 @@ function Router() {
       <ProtectedRoute path="/oi/lessons/:id" component={() => <OI.OiLessonDetailPage />} />
       <ProtectedRoute path="/oi/lessons" component={() => <OI.OiLessonRegisterPage />} />
       <ProtectedRoute path="/oi/config" component={() => <OI.OiConfigPage />} />
+
+      {/* ── Design Software ──────────────────────────────────────────────── */}
+      <ProtectedRoute path="/design-software/liquid-liquid-extraction" component={() => <DesignSoftware.DesignSoftwareListPage />} />
+      <ProtectedRoute path="/design-software/liquid-liquid-extraction/:designId" component={() => <DesignSoftware.DesignSoftwareWorkspacePage />} />
 
       <ProtectedRoute path="/hazop/dashboard" component={() => <Hazop.HazopDashboardPage />} />
       <ProtectedRoute path="/hazop/studies/:id/process-builder" component={() => <Hazop.HazopProcessBuilderPage />} />

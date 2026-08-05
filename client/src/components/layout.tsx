@@ -140,6 +140,7 @@ function Layout({ children }: LayoutProps) {
   const [isDocumentControlMenuOpen, setIsDocumentControlMenuOpen] = useState(false);
   const [isOIMenuOpen, setIsOIMenuOpen] = useState(false);
   const [isHazopMenuOpen, setIsHazopMenuOpen] = useState(false);
+  const [isDesignSoftwareMenuOpen, setIsDesignSoftwareMenuOpen] = useState(false);
   const [attendanceCheckCompleted, setAttendanceCheckCompleted] = useState(false);
 
   // Get all module permissions for the current user
@@ -231,6 +232,9 @@ function Layout({ children }: LayoutProps) {
   // Check if we're on any HAZOP page
   const isOnHazopPage = location.startsWith('/hazop');
 
+  // Check if we're on any Design Software page
+  const isOnDesignSoftwarePage = location.startsWith('/design-software');
+
   // Extract study ID from URL when inside a specific HAZOP study
   const hazopStudyIdMatch = location.match(/^\/hazop\/studies\/(\d+)/);
   const hazopStudyId = hazopStudyIdMatch ? hazopStudyIdMatch[1] : null;
@@ -286,7 +290,11 @@ function Layout({ children }: LayoutProps) {
     if (isOnHazopPage && !isHazopMenuOpen) {
       setIsHazopMenuOpen(true);
     }
-  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnSapPurchasingPage, isOnDocumentControlPage, isDocumentControlMenuOpen, isOnOIPage, isOIMenuOpen, isOnHazopPage, isHazopMenuOpen]);
+
+    if (isOnDesignSoftwarePage && !isDesignSoftwareMenuOpen) {
+      setIsDesignSoftwareMenuOpen(true);
+    }
+  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnSapPurchasingPage, isOnDocumentControlPage, isDocumentControlMenuOpen, isOnOIPage, isOIMenuOpen, isOnHazopPage, isHazopMenuOpen, isOnDesignSoftwarePage, isDesignSoftwareMenuOpen]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -481,6 +489,16 @@ function Layout({ children }: LayoutProps) {
         { icon: Palette, label: "Design Tools", href: "/design-tools" },
       ]
     }] : []),
+    ...(hasViewPermission("Design Software") ? [{
+      icon: Layers,
+      label: "Design Software",
+      isSubmenu: true,
+      isOpen: isDesignSoftwareMenuOpen,
+      toggle: () => setIsDesignSoftwareMenuOpen(!isDesignSoftwareMenuOpen),
+      children: [
+        { icon: Cpu, label: "Liquid-Liquid Extraction", href: "/design-software/liquid-liquid-extraction" },
+      ]
+    }] : []),
     ...(hasViewPermission("HAZOP") ? [{
       icon: ShieldAlert,
       label: "HAZOP",
@@ -657,6 +675,7 @@ function Layout({ children }: LayoutProps) {
                     { type: 'submenu', label: 'Administration' },
                     { type: 'submenu', label: 'Finance' },
                     { type: 'submenu', label: 'Digital Marketing' },
+                    { type: 'submenu', label: 'Design Software' },
                     { type: 'submenu', label: 'Sales and Marketing' },
                     { type: 'submenu', label: 'Project Management' },
                     { type: 'submenu', label: 'HAZOP' },

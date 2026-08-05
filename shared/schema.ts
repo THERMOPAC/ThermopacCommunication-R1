@@ -28,7 +28,8 @@ export const modules = [
   "GCS Dashboard",
   "Usage Tracker",
   "EPC Assignment Control",
-  "HAZOP"
+  "HAZOP",
+  "Design Software"
 ] as const;
 
 export type Module = typeof modules[number];
@@ -16738,3 +16739,285 @@ export const offerCommTemplates = pgTable('offer_comm_templates', {
 export const insertOfferCommTemplateSchema = createInsertSchema(offerCommTemplates).omit({ id: true, uploadedAt: true, updatedAt: true });
 export type OfferCommTemplate = typeof offerCommTemplates.$inferSelect;
 export type InsertOfferCommTemplate = z.infer<typeof insertOfferCommTemplateSchema>;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DESIGN SOFTWARE MODULE — Stage A Schema
+// Engineering design platform. Phase 1: Liquid-Liquid Extraction (LLX).
+// Future modules (Distillation, Heat Exchangers, etc.) plug into the same tables.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── 1. design_software_number_sequences ───────────────────────────────────────
+// Atomic sequence allocation for design numbers. Prevents MAX()+1 race conditions.
+//
+// Allocation pattern — atomic INSERT-or-INCREMENT (handles first-ever allocation):
+//
+//   INSERT INTO design_software_number_sequences(module_type, scope_key, last_seq)
+//   VALUES ($1, $2, 1)
+//   ON CONFLICT (module_type, scope_key)
+//   DO UPDATE SET last_seq = design_software_number_sequences.last_seq + 1
+//   RETURNING last_seq
+//
+// This is safe without an outer transaction because ON CONFLICT … DO UPDATE is
+// atomic and holds a row lock. A plain UPDATE would fail on first allocation
+// when no row exists; this pattern never requires a pre-seeded row.
+//
+// scope_key = project.code for project designs, 'RND-{YEAR}' for R&D designs.
+// ──────────────────────────────────────────────────────────────────────────────
+export const designSoftwareNumberSequences = pgTable('design_software_number_sequences', {
+  id:         serial('id').primaryKey(),
+  moduleType: varchar('module_type', { length: 20 }).notNull(),
+  scopeKey:   varchar('scope_key', { length: 100 }).notNull(),
+  lastSeq:    integer('last_seq').notNull().default(0),
+}, (table) => ({
+  uniqScope: uniqueIndex('dsn_seq_module_scope_uniq').on(table.moduleType, table.scopeKey),
+}));
+
+// ── 2. design_software_designs ────────────────────────────────────────────────
+// Master record, one row per design. Holds identity, project linkage, and
+// a denormalized current_status (mirror of current revision status, updated
+// only by the Design Software service — not an independent source of truth).
+//
+// CIRCULAR REFERENCE NOTE:
+//   current_revision_id references design_software_revisions.id, and
+//   design_software_revisions.design_id references this table.
+//   Drizzle ORM cannot express the FK on current_revision_id in the table()
+//   config because design_software_revisions is declared after this table and
+//   circular forward-references are not supported by Drizzle's type system.
+//
+//   Resolution: current_revision_id is declared here as a plain integer()
+//   column (no Drizzle .references() call). The REAL database-level FK —
+//   constraint ds_designs_current_revision_fk, DEFERRABLE INITIALLY DEFERRED,
+//   ON DELETE SET NULL — is added via ALTER TABLE after both tables exist.
+//   See the Stage A migration file for the exact DDL.
+//
+//   The DEFERRABLE flag allows the service to create a design row (current_revision_id
+//   = NULL), then create the revision row, then set current_revision_id, all
+//   within a single transaction without violating the FK during intermediate steps.
+//
+//   The column is nullable: NULL means no revision has been promoted yet.
+//
+// PROJECT / USER FK CONVENTION:
+//   References to projects and users carry NO ON DELETE action (default RESTRICT).
+//   Engineering history must be preserved even if a project or user is removed.
+//
+// LIFECYCLE RULES FOR project_id vs linked_project_id:
+//   project_id   = set at creation for project-type designs; NULL for R&D designs.
+//   linked_project_id = set later when an R&D design is formally promoted to a
+//                       project. Both fields may coexist on a promoted R&D design.
+//   Never set both on a project-type design; service enforces this rule.
+// ──────────────────────────────────────────────────────────────────────────────
+export const designSoftwareDesigns = pgTable('design_software_designs', {
+  id:               serial('id').primaryKey(),
+  designNumber:     varchar('design_number', { length: 60 }).notNull(),
+  designSequence:   integer('design_sequence').notNull(),
+  moduleType:       varchar('module_type', { length: 20 }).notNull(),
+  designType:       varchar('design_type', { length: 20 }).notNull(),
+  title:            text('title').notNull(),
+  // Project linkage — nullable, no cascade, preserves engineering history
+  projectId:        integer('project_id').references(() => projects.id),
+  linkedProjectId:  integer('linked_project_id').references(() => projects.id),
+  capacity:         varchar('capacity', { length: 100 }),
+  // R&D-specific fields (populated only when design_type = 'rnd')
+  rndReference:     varchar('rnd_reference', { length: 100 }),
+  rndCustomerName:  varchar('rnd_customer_name', { length: 200 }),
+  rndCapacity:      varchar('rnd_capacity', { length: 100 }),
+  rndLocation:      varchar('rnd_location', { length: 200 }),
+  rndNotes:         text('rnd_notes'),
+  // Current revision pointer — plain integer() here (see CIRCULAR REFERENCE NOTE above).
+  // DB-level FK ds_designs_current_revision_fk (DEFERRABLE, ON DELETE SET NULL)
+  // is applied via ALTER TABLE in the Stage A migration. Nullable.
+  currentRevisionId: integer('current_revision_id'),
+  // Denormalized status — mirrors current revision status. Updated only via service.
+  currentStatus:    varchar('current_status', { length: 30 }).notNull().default('draft'),
+  archivedAt:       timestamp('archived_at'),
+  createdBy:        integer('created_by').notNull().references(() => users.id),
+  createdAt:        timestamp('created_at').notNull().defaultNow(),
+  updatedAt:        timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqDesignNumber:    uniqueIndex('ds_designs_module_number_uniq').on(table.moduleType, table.designNumber),
+  idxProjectId:        index('ds_designs_project_id_idx').on(table.projectId),
+  idxLinkedProjectId:  index('ds_designs_linked_project_id_idx').on(table.linkedProjectId),
+  idxModuleStatus:     index('ds_designs_module_status_idx').on(table.moduleType, table.currentStatus),
+  idxCreatedBy:        index('ds_designs_created_by_idx').on(table.createdBy),
+  chkModuleType:              check('ds_designs_module_type_chk',              sql`module_type IN ('llx')`),
+  chkDesignType:              check('ds_designs_design_type_chk',              sql`design_type IN ('project', 'rnd')`),
+  chkCurrentStatus:           check('ds_designs_current_status_chk',           sql`current_status IN ('draft', 'under_review', 'checked', 'approved', 'issued_for_enquiry', 'superseded', 'archived')`),
+  // project-type design must have a project_id; R&D designs may leave it NULL.
+  // linked_project_id is always nullable (set during optional promotion workflow).
+  chkProjectTypeMustHaveProject: check('ds_designs_project_type_project_id_chk', sql`design_type != 'project' OR project_id IS NOT NULL`),
+  // NOTE: ds_designs_current_revision_fk (DEFERRABLE FK) is NOT listed here because
+  // Drizzle cannot express forward-referenced circular FKs. It is applied via ALTER TABLE
+  // in the Stage A migration file and exists in the database as a real constraint.
+}));
+
+// ── 3. design_software_revisions ──────────────────────────────────────────────
+// One row per revision per design. Only one revision may be current at a time
+// (enforced by the partial unique index below).
+//
+// FREEZE RULE:
+//   is_frozen is set to TRUE when status advances to 'checked' or higher.
+//   Frozen revisions are READ-ONLY for inputs and results.
+//   The service layer enforces this guard; no direct update/delete routes bypass it.
+//   Checked, Approved, Issued, Superseded, and Archived revisions are all read-only.
+//
+// OPTIMISTIC LOCKING:
+//   lock_version is incremented on every successful input write.
+//   PATCH operations must supply the current lock_version and will receive
+//   HTTP 409 Conflict if the value is stale.
+//
+// NEW REVISION SEMANTICS:
+//   Creating a new revision copies inputs, results, and assumptions from the previous
+//   revision. The previous revision's is_current is set to FALSE. The previous
+//   revision's status is NOT automatically changed to 'superseded' unless it was
+//   in 'issued_for_enquiry' state at the time.
+// ──────────────────────────────────────────────────────────────────────────────
+export const designSoftwareRevisions = pgTable('design_software_revisions', {
+  id:               serial('id').primaryKey(),
+  designId:         integer('design_id').notNull().references(() => designSoftwareDesigns.id, { onDelete: 'cascade' }),
+  revisionNumber:   integer('revision_number').notNull().default(0),
+  status:           varchar('status', { length: 30 }).notNull().default('draft'),
+  isCurrent:        boolean('is_current').notNull().default(true),
+  isFrozen:         boolean('is_frozen').notNull().default(false),
+  lockVersion:      integer('lock_version').notNull().default(0),
+  preparedById:     integer('prepared_by_id').references(() => users.id),
+  checkedById:      integer('checked_by_id').references(() => users.id),
+  approvedById:     integer('approved_by_id').references(() => users.id),
+  designDate:       date('design_date'),
+  changeDescription: text('change_description'),
+  frozenAt:         timestamp('frozen_at'),
+  frozenById:       integer('frozen_by_id').references(() => users.id),
+  createdAt:        timestamp('created_at').notNull().defaultNow(),
+  updatedAt:        timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  // Two revisions of the same design cannot share a revision number
+  uniqDesignRevNum:     uniqueIndex('ds_revisions_design_rev_uniq').on(table.designId, table.revisionNumber),
+  // Only one revision may be current for a design at any time
+  uniqOneCurrent:       uniqueIndex('ds_revisions_one_current_uniq').on(table.designId).where(sql`is_current = true`),
+  idxDesignRevNum:      index('ds_revisions_design_rev_idx').on(table.designId, table.revisionNumber),
+  chkStatus:            check('ds_revisions_status_chk', sql`status IN ('draft', 'under_review', 'checked', 'approved', 'issued_for_enquiry', 'superseded', 'archived')`),
+}));
+
+// ── 4. design_software_inputs ─────────────────────────────────────────────────
+// One row per section per revision. Stores all engineering inputs as JSONB.
+//
+// IMMUTABILITY NOTE:
+//   The service layer rejects writes when the parent revision's is_frozen = TRUE.
+//   No database trigger is used; the application guard is the enforcement point.
+//   A new revision must be created to change inputs on a frozen revision.
+// ──────────────────────────────────────────────────────────────────────────────
+export const designSoftwareInputs = pgTable('design_software_inputs', {
+  id:            serial('id').primaryKey(),
+  revisionId:    integer('revision_id').notNull().references(() => designSoftwareRevisions.id, { onDelete: 'cascade' }),
+  section:       varchar('section', { length: 50 }).notNull(),
+  data:          jsonb('data').notNull().default('{}'),
+  engineVersion: varchar('engine_version', { length: 20 }).notNull().default('1.0.0'),
+  updatedAt:     timestamp('updated_at').notNull().defaultNow(),
+  updatedBy:     integer('updated_by').notNull().references(() => users.id),
+}, (table) => ({
+  uniqRevisionSection: uniqueIndex('ds_inputs_revision_section_uniq').on(table.revisionId, table.section),
+  idxRevisionId:       index('ds_inputs_revision_id_idx').on(table.revisionId),
+  chkSection:          check('ds_inputs_section_chk', sql`section IN ('design_basis', 'fluid_properties', 'technology_selection', 'ecp', 'ecr', 'comparison')`),
+}));
+
+// ── 5. design_software_results ────────────────────────────────────────────────
+// Accepted/current result snapshot per section per revision.
+// calculation_runs table preserves every execution history independently.
+//
+// IMMUTABILITY NOTE: same frozen-guard rule as design_software_inputs.
+// ──────────────────────────────────────────────────────────────────────────────
+export const designSoftwareResults = pgTable('design_software_results', {
+  id:               serial('id').primaryKey(),
+  revisionId:       integer('revision_id').notNull().references(() => designSoftwareRevisions.id, { onDelete: 'cascade' }),
+  section:          varchar('section', { length: 50 }).notNull(),
+  data:             jsonb('data').notNull().default('{}'),
+  engineVersion:    varchar('engine_version', { length: 20 }).notNull().default('1.0.0'),
+  calculationClass: varchar('calculation_class', { length: 50 }).notNull().default('Preliminary Screening'),
+  computedAt:       timestamp('computed_at').notNull().defaultNow(),
+  computedBy:       integer('computed_by').notNull().references(() => users.id),
+}, (table) => ({
+  uniqRevisionSection: uniqueIndex('ds_results_revision_section_uniq').on(table.revisionId, table.section),
+  idxRevisionId:       index('ds_results_revision_id_idx').on(table.revisionId),
+  chkSection:          check('ds_results_section_chk', sql`section IN ('hydraulics_common', 'ecp', 'ecr', 'comparison', 'summary')`),
+}));
+
+// ── 6. design_software_calculation_runs ───────────────────────────────────────
+// Immutable execution log — every engine run is appended, never overwritten.
+// result_snapshot may contain an error payload when calculation_status = 'error'.
+// No application update or delete routes will be created for this table.
+// ──────────────────────────────────────────────────────────────────────────────
+export const designSoftwareCalculationRuns = pgTable('design_software_calculation_runs', {
+  id:               serial('id').primaryKey(),
+  revisionId:       integer('revision_id').notNull().references(() => designSoftwareRevisions.id, { onDelete: 'cascade' }),
+  calculationType:  varchar('calculation_type', { length: 50 }).notNull(),
+  engineName:       varchar('engine_name', { length: 100 }).notNull(),
+  engineVersion:    varchar('engine_version', { length: 20 }).notNull(),
+  calculationClass: varchar('calculation_class', { length: 50 }).notNull().default('Preliminary Screening'),
+  inputSnapshot:    jsonb('input_snapshot').notNull(),
+  resultSnapshot:   jsonb('result_snapshot').notNull(),
+  warnings:         jsonb('warnings').notNull().default('[]'),
+  validationIssues: jsonb('validation_issues').notNull().default('[]'),
+  calculationStatus: varchar('calculation_status', { length: 20 }).notNull().default('success'),
+  calculatedBy:     integer('calculated_by').notNull().references(() => users.id),
+  calculatedAt:     timestamp('calculated_at').notNull().defaultNow(),
+}, (table) => ({
+  idxRevisionCalcAt: index('ds_calc_runs_revision_at_idx').on(table.revisionId, table.calculatedAt),
+  chkCalcType:       check('ds_calc_runs_type_chk',   sql`calculation_type IN ('hydraulics_common', 'ecp', 'ecr')`),
+  chkCalcStatus:     check('ds_calc_runs_status_chk', sql`calculation_status IN ('success', 'warning', 'error')`),
+}));
+
+// ── 7. design_software_assumptions ────────────────────────────────────────────
+// Structured, source-tagged assumption tracking per revision section.
+// 'Assumed' source_type rows are highlighted in the UI as engineering assumptions.
+// Rows with source_type != 'Assumed' document measured, vendor, or literature data.
+// ──────────────────────────────────────────────────────────────────────────────
+export const designSoftwareAssumptions = pgTable('design_software_assumptions', {
+  id:               serial('id').primaryKey(),
+  revisionId:       integer('revision_id').notNull().references(() => designSoftwareRevisions.id, { onDelete: 'cascade' }),
+  section:          varchar('section', { length: 50 }).notNull(),
+  parameterKey:     varchar('parameter_key', { length: 100 }).notNull(),
+  parameterLabel:   varchar('parameter_label', { length: 200 }).notNull(),
+  assumedValue:     jsonb('assumed_value').notNull(),
+  unit:             varchar('unit', { length: 30 }),
+  sourceType:       varchar('source_type', { length: 30 }).notNull(),
+  sourceReference:  text('source_reference'),
+  engineeringBasis: text('engineering_basis'),
+  createdBy:        integer('created_by').notNull().references(() => users.id),
+  createdAt:        timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  idxRevisionId:   index('ds_assumptions_revision_id_idx').on(table.revisionId),
+  chkSourceType:   check('ds_assumptions_source_type_chk', sql`source_type IN ('Measured', 'Vendor', 'Literature', 'Assumed')`),
+}));
+
+// ── 8. design_software_approvals ──────────────────────────────────────────────
+// Workflow audit trail. One row per status transition action.
+// Immutable — rows are appended only, never updated or deleted.
+// ──────────────────────────────────────────────────────────────────────────────
+export const designSoftwareApprovals = pgTable('design_software_approvals', {
+  id:          serial('id').primaryKey(),
+  revisionId:  integer('revision_id').notNull().references(() => designSoftwareRevisions.id, { onDelete: 'cascade' }),
+  action:      varchar('action', { length: 30 }).notNull(),
+  performedBy: integer('performed_by').notNull().references(() => users.id),
+  performedAt: timestamp('performed_at').notNull().defaultNow(),
+  comments:    text('comments'),
+}, (table) => ({
+  idxRevisionPerformedAt: index('ds_approvals_revision_at_idx').on(table.revisionId, table.performedAt),
+  chkAction: check('ds_approvals_action_chk', sql`action IN ('submit_for_review', 'return_to_draft', 'check', 'approve', 'issue', 'supersede', 'archive')`),
+}));
+
+// ── Zod insert schemas ────────────────────────────────────────────────────────
+export const insertDesignSoftwareDesignSchema = createInsertSchema(designSoftwareDesigns).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertDesignSoftwareRevisionSchema = createInsertSchema(designSoftwareRevisions).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertDesignSoftwareInputSchema = createInsertSchema(designSoftwareInputs).omit({ id: true, updatedAt: true });
+export const insertDesignSoftwareResultSchema = createInsertSchema(designSoftwareResults).omit({ id: true, computedAt: true });
+export const insertDesignSoftwareCalculationRunSchema = createInsertSchema(designSoftwareCalculationRuns).omit({ id: true, calculatedAt: true });
+export const insertDesignSoftwareAssumptionSchema = createInsertSchema(designSoftwareAssumptions).omit({ id: true, createdAt: true });
+export const insertDesignSoftwareApprovalSchema = createInsertSchema(designSoftwareApprovals).omit({ id: true, performedAt: true });
+
+// ── TypeScript types ──────────────────────────────────────────────────────────
+export type DesignSoftwareDesign = typeof designSoftwareDesigns.$inferSelect;
+export type DesignSoftwareRevision = typeof designSoftwareRevisions.$inferSelect;
+export type DesignSoftwareInput = typeof designSoftwareInputs.$inferSelect;
+export type DesignSoftwareResult = typeof designSoftwareResults.$inferSelect;
+export type DesignSoftwareCalculationRun = typeof designSoftwareCalculationRuns.$inferSelect;
+export type DesignSoftwareAssumption = typeof designSoftwareAssumptions.$inferSelect;
+export type DesignSoftwareApproval = typeof designSoftwareApprovals.$inferSelect;
