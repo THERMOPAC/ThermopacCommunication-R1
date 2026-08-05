@@ -1036,6 +1036,35 @@ export default function DesignSoftwareWorkspacePage() {
         </SectionCard>
 
         <SectionCard title="Operating Conditions">
+          <div className="border-b pb-3 mb-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Site Conditions</p>
+            <FieldRow label="Ambient Temperature" value={db.ambient_temperature ?? ""} onChange={v => f("ambient_temperature", v)} onBlur={s} unit="°C" />
+            <FieldRow label="Wet Bulb Temperature" value={db.wet_bulb_temperature ?? ""} onChange={v => f("wet_bulb_temperature", v)} onBlur={s} unit="°C" />
+            <FieldRow label="Site Elevation" value={db.site_elevation ?? ""} onChange={v => f("site_elevation", v)} onBlur={s} unit="m above MSL" />
+            <FieldRow
+              label="Atmospheric Pressure"
+              value={db.atm_pressure_override
+                ? db.atm_pressure_manual ?? ""
+                : db.site_elevation
+                  ? (101325 * Math.pow(1 - 0.0000225577 * parseFloat(db.site_elevation), 5.25588) / 1000).toFixed(2)
+                  : "101.325"}
+              onChange={v => f("atm_pressure_manual", v)}
+              onBlur={s}
+              unit="kPa"
+              readOnly={!db.atm_pressure_override}
+              note={!db.atm_pressure_override ? "Auto-calculated from elevation (ISA)" : "Manual override active"}
+            />
+            <div className="flex items-center gap-2 mt-1">
+              <input
+                type="checkbox"
+                id="atm_override"
+                checked={db.atm_pressure_override === "true"}
+                onChange={e => { f("atm_pressure_override", String(e.target.checked)); s(); }}
+                className="h-4 w-4"
+              />
+              <label htmlFor="atm_override" className="text-xs text-gray-500">Override atmospheric pressure</label>
+            </div>
+          </div>
           <FieldRow label="Feed Flow" value={db.feed_flow ?? db.design_capacity_lph ?? ""} onChange={() => {}} onBlur={() => {}} unit="LPH" readOnly note="= Design Capacity (LPH)" />
           <SelectRow label="Feed Temperature" value={db.feed_temperature ?? ""} onChange={v => f("feed_temperature", v)} onBlur={s} onCommit={v => csa({ feed_temperature: v })} options={["10", "15", "20", "25", "30", "35", "40"]} unit="°C" />
           <FieldRow
@@ -1225,35 +1254,6 @@ export default function DesignSoftwareWorkspacePage() {
             {cwOverride && (
               <FieldRow label="Override Reason" value={db.cw_delta_t_override_reason ?? ""} onChange={v => f("cw_delta_t_override_reason", v)} onBlur={s} placeholder="Authorization / justification" note={!(db.cw_delta_t_override_reason ?? "").trim() ? "Required while override is active" : undefined} />
             )}
-          </div>
-          <div className="border-t pt-3 mt-1">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Site Conditions</p>
-            <FieldRow label="Ambient Temperature" value={db.ambient_temperature ?? ""} onChange={v => f("ambient_temperature", v)} onBlur={s} unit="°C" />
-            <FieldRow label="Wet Bulb Temperature" value={db.wet_bulb_temperature ?? ""} onChange={v => f("wet_bulb_temperature", v)} onBlur={s} unit="°C" />
-            <FieldRow label="Site Elevation" value={db.site_elevation ?? ""} onChange={v => f("site_elevation", v)} onBlur={s} unit="m above MSL" />
-            <FieldRow
-              label="Atmospheric Pressure"
-              value={db.atm_pressure_override
-                ? db.atm_pressure_manual ?? ""
-                : db.site_elevation
-                  ? (101325 * Math.pow(1 - 0.0000225577 * parseFloat(db.site_elevation), 5.25588) / 1000).toFixed(2)
-                  : "101.325"}
-              onChange={v => f("atm_pressure_manual", v)}
-              onBlur={s}
-              unit="kPa"
-              readOnly={!db.atm_pressure_override}
-              note={!db.atm_pressure_override ? "Auto-calculated from elevation (ISA)" : "Manual override active"}
-            />
-            <div className="flex items-center gap-2 mt-1">
-              <input
-                type="checkbox"
-                id="atm_override"
-                checked={db.atm_pressure_override === "true"}
-                onChange={e => { f("atm_pressure_override", String(e.target.checked)); s(); }}
-                className="h-4 w-4"
-              />
-              <label htmlFor="atm_override" className="text-xs text-gray-500">Override atmospheric pressure</label>
-            </div>
           </div>
         </SectionCard>
 
