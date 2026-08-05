@@ -567,7 +567,7 @@ export default function DesignSoftwareWorkspacePage() {
   const overrideViolations: string[] = [];
   {
     const opV = vNum(db.operating_pressure); const dpM = vNum(db.dp_margin_value); const dpV = vNum(db.design_pressure);
-    if (opV !== null && dpM !== null && dpV !== null && dpV !== opV + dpM && !(db.dp_override_reason ?? "").trim()) {
+    if (opV !== null && dpM !== null && dpV !== null && Math.abs(dpV - (opV + dpM)) > 0.005 && !(db.dp_override_reason ?? "").trim()) {
       overrideViolations.push("Design Pressure deviates from the Thermopac Design Pressure Rule without an override reason");
     }
     if (db.design_pressure_override === "true" && !(db.dp_override_reason ?? "").trim()) {
@@ -577,7 +577,7 @@ export default function DesignSoftwareWorkspacePage() {
       overrideViolations.push("Design Pressure must be ≥ Operating Pressure");
     }
     const otV = vNum(db.operating_temperature); const dtM = vNum(db.dt_margin_value); const dtV = vNum(db.design_temperature);
-    if (otV !== null && dtM !== null && dtV !== null && dtV !== otV + dtM && !(db.dt_override_reason ?? "").trim()) {
+    if (otV !== null && dtM !== null && dtV !== null && Math.abs(dtV - (otV + dtM)) > 0.05 && !(db.dt_override_reason ?? "").trim()) {
       overrideViolations.push("Design Temperature deviates from the Thermopac Design Temperature Rule without an override reason");
     }
     if (db.design_temperature_override === "true" && !(db.dt_override_reason ?? "").trim()) {
@@ -792,20 +792,34 @@ export default function DesignSoftwareWorkspacePage() {
     // New Value, Reason, User and Timestamp; re-entering the rule value clears the override.
     const commitDesignValue = (key: "design_pressure" | "design_temperature", reasonKey: string, ruleVal: string | null) => () => {
       const val = (db[key] ?? "").trim();
-      if (ruleVal !== null && val !== "" && num(val) === num(ruleVal)) {
+      // Blank entry: never persist a blank/zero design value — restore the rule
+      // result (auto() recomputes when calculable) and clear any override state.
+      if (val === "") {
+        cs(auto({ [key]: "", [`${key}_status`]: "", [`${key}_override`]: "", [reasonKey]: "" }));
+        return;
+      }
+      // Matches the rule → return to Auto-Calculated
+      if (ruleVal !== null && num(val) === num(ruleVal)) {
         cs(auto({ [key]: ruleVal, [`${key}_override`]: "", [reasonKey]: "" }));
         return;
       }
+      // Engineer override: audit entry carries Previous Value, New Value, Reason, User, Timestamp.
       const audits = auditList(key);
-      const last = audits.length ? audits[audits.length - 1].to : (ruleVal ?? "");
-      if (val === last && db[`${key}_override`] === "true") { s(); return; }
-      if (val === "" || (ruleVal !== null && num(val) === num(ruleVal))) { s(); return; }
-      const entry = { ts: new Date().toISOString(), user: user?.username ?? "", from: last, to: val, reason: (db[reasonKey] ?? "").trim() };
+      const lastEntry = audits.length ? audits[audits.length - 1] : null;
+      const from = lastEntry ? lastEntry.to : (ruleVal ?? "");
+      const reason = (db[reasonKey] ?? "").trim();
+      let newAudits = audits;
+      if (!lastEntry || lastEntry.to !== val) {
+        newAudits = [...audits, { ts: new Date().toISOString(), user: user?.username ?? "", from, to: val, reason }];
+      } else if (reason && !lastEntry.reason) {
+        // Reason supplied after the value commit — attach it to the existing entry.
+        newAudits = [...audits.slice(0, -1), { ...lastEntry, reason }];
+      } else { s(); return; }
       cs(auto({
         [key]: val,
         [`${key}_override`]: "true",
         [`${key}_status`]: "Engineer Override",
-        [`${key}_audit`]: JSON.stringify([...audits, entry]),
+        [`${key}_audit`]: JSON.stringify(newAudits),
       }));
     };
     const clearDesignOverride = (key: "design_pressure" | "design_temperature", reasonKey: string) => () =>
@@ -1003,7 +1017,7 @@ export default function DesignSoftwareWorkspacePage() {
               <div className="ml-[212px] mt-1 space-y-1">
                 <div className={`flex items-center gap-2 text-xs rounded px-2 py-1 border ${(db.dp_override_reason ?? "").trim() ? "bg-gray-50 border-gray-200" : "bg-amber-50 border-amber-300"}`}>
                   <span className={(db.dp_override_reason ?? "").trim() ? "text-gray-500" : "text-amber-700 font-medium"}>Override reason{(db.dp_override_reason ?? "").trim() ? "" : " required"}:</span>
-                  <Input value={db.dp_override_reason ?? ""} onChange={e => f("dp_override_reason", e.target.value)} onBlur={s} placeholder="Why does Design Pressure deviate from the Thermopac rule?" className="h-6 text-xs flex-1" />
+                  <Input value={db.dp_override_reason ?? ""} onChange={e => f("dp_override_reason", e.target.value)} onBlur={commitDesignValue("design_pressure", "dp_override_reason", suggestedDP)} placeholder="Why does Design Pressure deviate from the Thermopac rule?" className="h-6 text-xs flex-1" />
                   <button type="button" onClick={clearDesignOverride("design_pressure", "dp_override_reason")} className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Revert to rule</button>
                 </div>
               </div>
@@ -1035,7 +1049,7 @@ export default function DesignSoftwareWorkspacePage() {
               <div className="ml-[212px] mt-1 space-y-1">
                 <div className={`flex items-center gap-2 text-xs rounded px-2 py-1 border ${(db.dt_override_reason ?? "").trim() ? "bg-gray-50 border-gray-200" : "bg-amber-50 border-amber-300"}`}>
                   <span className={(db.dt_override_reason ?? "").trim() ? "text-gray-500" : "text-amber-700 font-medium"}>Override reason{(db.dt_override_reason ?? "").trim() ? "" : " required"}:</span>
-                  <Input value={db.dt_override_reason ?? ""} onChange={e => f("dt_override_reason", e.target.value)} onBlur={s} placeholder="Why does Design Temperature deviate from the Thermopac rule?" className="h-6 text-xs flex-1" />
+                  <Input value={db.dt_override_reason ?? ""} onChange={e => f("dt_override_reason", e.target.value)} onBlur={commitDesignValue("design_temperature", "dt_override_reason", suggestedDT)} placeholder="Why does Design Temperature deviate from the Thermopac rule?" className="h-6 text-xs flex-1" />
                   <button type="button" onClick={clearDesignOverride("design_temperature", "dt_override_reason")} className="px-2 py-0.5 border border-blue-300 text-blue-700 rounded hover:bg-blue-50 whitespace-nowrap">Revert to rule</button>
                 </div>
               </div>
