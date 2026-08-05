@@ -275,6 +275,17 @@ const HEATER_OUTLET_DEFAULT = "230";
 const CW_INLET_OPTIONS = ["10", "15", "20", "25", "30", "40", "45"];
 const CW_DELTA_T_OPTIONS = ["4", "6", "8"];
 const CW_DELTA_T_DEFAULT = "8";
+
+// Process Design (Stage 4) approved defaults
+const SO_RATIO_OPTIONS = ["0.5", "1.0", "1.5", "2.0"];
+const SO_RATIO_DEFAULT = "1.5";
+const THEORETICAL_STAGES_DEFAULT = "6";
+const STAGE_EFFICIENCY_DEFAULT = "60";
+const DESIGN_MARGIN_DEFAULT = "20";
+const PHASE_CONFIG_OPTIONS = [
+  { value: "rrbo_continuous_nmp_dispersed", label: "RRBO continuous / NMP dispersed" },
+  { value: "nmp_continuous_rrbo_dispersed", label: "NMP continuous / RRBO dispersed" },
+];
 const THERMAL_DEFAULT_SOURCE = "Thermopac design default — thermal-fluid master data";
 
 const LIMIT_TYPES = ["Max", "Min", "Target", "Range"];
@@ -497,6 +508,8 @@ interface Approval {
 interface CalcRun {
   id: number; calculation_type: string; engine_name: string; engine_version: string;
   calculation_status: string; calculated_at: string; calculated_by_name: string | null;
+  warnings?: { code?: string; message: string }[];
+  validation_issues?: { field?: string; message: string; severity?: string }[];
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -548,6 +561,11 @@ export default function DesignSoftwareWorkspacePage() {
   const runsQ = useQuery<CalcRun[]>({
     queryKey: [`/api/design-software/revisions/${activeRevisionId}/runs`],
     queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/runs`) as Promise<CalcRun[]>,
+    enabled: !!activeRevisionId,
+  });
+  const resultsQ = useQuery<any[]>({
+    queryKey: [`/api/design-software/revisions/${activeRevisionId}/results`],
+    queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/results`) as Promise<any[]>,
     enabled: !!activeRevisionId,
   });
   const approvalsQ = useQuery<Approval[]>({
@@ -607,7 +625,7 @@ export default function DesignSoftwareWorkspacePage() {
   const epdNmpQ = useQuery({
     queryKey: [`/api/design-software/epd/nmp`, fpOtStr],
     queryFn: () => apiRequest("GET", `/api/design-software/epd/nmp?tc=${encodeURIComponent(fpOtStr)}`) as Promise<any>,
-    enabled: activeStep === "fluid_properties" && fpOt !== null,
+    enabled: (activeStep === "fluid_properties" || activeStep === "process_design") && fpOt !== null,
   });
 
   // Seed approved master-data defaults into blank Fluid Properties fields only.
@@ -709,6 +727,34 @@ export default function DesignSoftwareWorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFrozen, activeRevisionId, inputsQ.data, localData, savingSection, upsertMutation.isPending]);
 
+  // ── Process Design (Stage 4) default initialization ─────────────────────────
+  // Consumes the approved Design Basis: S/O ratio 1.5 (vol/vol), 6 theoretical
+  // stages, 60 % stage efficiency, 20 % design margin; Extraction T/P track the
+  // Design Basis Operating T/P until manually changed. Blank-only for defaults;
+  // tracked fields never override a manual value.
+  useEffect(() => {
+    if (activeStep !== "process_design" || isFrozen || !activeRevisionId || !inputsQ.data) return;
+    if (savingSection !== null || upsertMutation.isPending) return;
+    const pd = localData["process_design"] ?? {};
+    const dbx = localData["design_basis"] ?? {};
+    const u: Record<string, string> = {};
+    const blank = (k: string) => (pd[k] ?? "").trim() === "";
+    if (blank("so_ratio")) u.so_ratio = SO_RATIO_DEFAULT;
+    if (blank("theoretical_stages")) u.theoretical_stages = THEORETICAL_STAGES_DEFAULT;
+    if (blank("stage_efficiency")) u.stage_efficiency = STAGE_EFFICIENCY_DEFAULT;
+    if (blank("design_margin")) u.design_margin = DESIGN_MARGIN_DEFAULT;
+    const otTrk = (dbx.operating_temperature ?? "").trim();
+    if (otTrk !== "" && pd.extraction_temperature_manual !== "true" && (pd.extraction_temperature ?? "").trim() !== otTrk) {
+      u.extraction_temperature = otTrk;
+    }
+    const opTrk = (dbx.operating_pressure ?? "").trim();
+    if (opTrk !== "" && pd.extraction_pressure_manual !== "true" && (pd.extraction_pressure ?? "").trim() !== opTrk) {
+      u.extraction_pressure = opTrk;
+    }
+    if (Object.keys(u).length > 0) commitSection("process_design", u);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStep, isFrozen, activeRevisionId, inputsQ.data, localData, savingSection, upsertMutation.isPending]);
+
   const newRevisionMutation = useMutation({
     mutationFn: () =>
       apiRequest("POST", `/api/design-software/designs/${designId}/revisions`, {
@@ -746,6 +792,7 @@ export default function DesignSoftwareWorkspacePage() {
       apiRequest("POST", `/api/design-software/revisions/${activeRevisionId}/calculate`, { calculationType }) as Promise<any>,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/runs`] });
+      qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/results`] });
     },
     onError: (e: any) => toast({ title: "Calculation error", description: e.message, variant: "destructive" }),
   });
@@ -1632,19 +1679,161 @@ export default function DesignSoftwareWorkspacePage() {
 
   function renderProcessDesign() {
     const pd = d("process_design");
+    const dbx = d("design_basis");
+    const fp = d("fluid_properties");
     const f = field("process_design");
     const s = save("process_design");
+    const cs = (u: Record<string, string>) => commitSection("process_design", u);
     const pdRun = runs.find(r => r.calculation_type === "process_design");
+    const pdResult = (resultsQ.data ?? []).find((r: any) => r.section === "process_design");
+    const rd: any = pdResult?.data ?? null;
+
+    // Effective inputs — approved defaults shown immediately, everything editable
+    const otStr = (dbx.operating_temperature ?? "").trim();
+    const opStr = (dbx.operating_pressure ?? "").trim();
+    const ratioEff = (pd.so_ratio ?? "").trim() !== "" ? (pd.so_ratio as string) : SO_RATIO_DEFAULT;
+    const stagesEff = (pd.theoretical_stages ?? "").trim() !== "" ? (pd.theoretical_stages as string) : THEORETICAL_STAGES_DEFAULT;
+    const effEff = (pd.stage_efficiency ?? "").trim() !== "" ? (pd.stage_efficiency as string) : STAGE_EFFICIENCY_DEFAULT;
+    const marginEff = (pd.design_margin ?? "").trim() !== "" ? (pd.design_margin as string) : DESIGN_MARGIN_DEFAULT;
+    const extTEff = pd.extraction_temperature_manual === "true" ? (pd.extraction_temperature ?? "") : (otStr || (pd.extraction_temperature ?? ""));
+    const extPEff = pd.extraction_pressure_manual === "true" ? (pd.extraction_pressure ?? "") : (opStr || (pd.extraction_pressure ?? ""));
+
+    const effN = numOrNull(effEff);
+    const effInvalid = effN !== null && (effN <= 0 || effN > 100);
+    const stagesN = numOrNull(stagesEff);
+    const stagesInvalid = stagesN !== null && (stagesN < 1 || !Number.isInteger(stagesN));
+
+    // Solvent circulation display — definitions only (volume ratio × feed flow,
+    // mass = volume × EPD NMP density, max = normal × (1 + margin)); the C2
+    // engine remains the authority for the material balance itself.
+    const feedLph = numOrNull(dbx.design_capacity_lph ?? dbx.design_capacity);
+    const ratioN = numOrNull(ratioEff);
+    const marginN = numOrNull(marginEff);
+    const rhoNmp = numOrNull(fp.nmp_density_value) ?? (epdNmpQ.data?.density?.value != null ? Number(epdNmpQ.data.density.value) : null);
+    const normLph = feedLph !== null && ratioN !== null && ratioN > 0 ? feedLph * ratioN : null;
+    const normMass = normLph !== null && rhoNmp !== null ? (normLph / 1000) * rhoNmp : null;
+    const maxLph = normLph !== null && marginN !== null && marginN >= 0 ? normLph * (1 + marginN / 100) : null;
+    const maxMass = maxLph !== null && rhoNmp !== null ? (maxLph / 1000) * rhoNmp : null;
+    const fmt = (v: number | null | undefined, dp = 0) =>
+      v === null || v === undefined || !isFinite(v as number) ? null : (v as number).toLocaleString("en-IN", { maximumFractionDigits: dp });
+
+    const statusLine = (text: string) => <p className="text-[11px] text-gray-400 px-2 -mt-0.5">{text}</p>;
+    const calcRow = (label: string, value: string | null, unit: string, missing: string) => (
+      <div className="grid grid-cols-[220px_1fr] items-center gap-3 py-1">
+        <span className="text-sm text-gray-700 font-medium">{label}</span>
+        {value !== null ? (
+          <span className="font-mono text-sm text-blue-700 font-semibold">{value} {unit} <span className="ml-1 text-[10px] font-sans font-normal text-gray-400">Calculated</span></span>
+        ) : (
+          <span className="text-xs text-amber-700">Not Calculable — missing: {missing}</span>
+        )}
+      </div>
+    );
+
+    // Material-balance result presentation
+    const engineName = pdRun?.engine_name ?? "llx-process-design";
+    const engineVersion = pdResult?.engine_version ?? pdRun?.engine_version;
+    const runStatusRaw: string = rd?.calculationRunStatus ?? pdRun?.calculation_status ?? "";
+    const runWarnings: { code?: string; message: string }[] = Array.isArray(pdRun?.warnings) ? pdRun!.warnings! : [];
+    const missingInputs: string[] = Array.from(new Set([
+      ...(rd?.normalCase?.yields?.missingInputs ?? []),
+      ...(rd?.normalCase?.componentBalance?.missingInputs ?? []),
+      ...(rd?.maximumCase?.componentBalance?.missingInputs ?? []),
+    ]));
+    const gross = rd?.normalCase?.grossInletBalance;
+    const flows = rd?.flows;
+    const yields = rd?.normalCase?.yields;
+    const closure = rd?.normalCase?.componentBalance?.closure;
+    const pct = (v: unknown) => (typeof v === "number" && isFinite(v) ? (v * 100).toFixed(2) : null);
+
+    const resultCard = (label: string, value: string | null, unit: string, formulaRef: string, source: string, classification?: string) => (
+      <div className="border rounded-lg p-3 bg-gray-50">
+        <div className="flex items-center justify-between mb-1 gap-2">
+          <p className="text-sm font-semibold text-gray-800">{label}</p>
+          {value !== null ? (
+            <span className="font-mono text-blue-700 text-sm font-bold whitespace-nowrap">{value}{unit ? ` ${unit}` : ""}</span>
+          ) : (
+            <span className="text-xs text-amber-700 font-medium whitespace-nowrap">{rd ? "Pending Validation" : "Not run"}</span>
+          )}
+        </div>
+        <p className="text-xs text-gray-500">Ref: {formulaRef}</p>
+        <p className="text-xs text-gray-400">Source: {source}</p>
+        {classification && <p className={`text-[11px] mt-0.5 ${classification === "Pending Validation" ? "text-amber-600" : "text-gray-400"}`}>Status: {classification}</p>}
+        <p className="text-[11px] text-gray-300">Engine: {engineName}{engineVersion ? ` v${engineVersion}` : ""}</p>
+      </div>
+    );
+
     return (
       <div className="max-w-3xl">
         <SectionCard title="Process Inputs">
-          <FieldRow label="Solvent / Oil Ratio" value={pd.so_ratio ?? ""} onChange={v => f("so_ratio", v)} onBlur={s} unit="vol/vol" />
-          <FieldRow label="Extraction Temperature" value={pd.extraction_temperature ?? ""} onChange={v => f("extraction_temperature", v)} onBlur={s} unit="°C" />
-          <FieldRow label="Extraction Pressure" value={pd.extraction_pressure ?? ""} onChange={v => f("extraction_pressure", v)} onBlur={s} unit="bar g" />
-          <FieldRow label="Theoretical Stages" value={pd.theoretical_stages ?? ""} onChange={v => f("theoretical_stages", v)} onBlur={s} unit="—" />
-          <FieldRow label="Stage Efficiency" value={pd.stage_efficiency ?? ""} onChange={v => f("stage_efficiency", v)} onBlur={s} unit="%" />
-          <FieldRow label="Solvent Circulation Rate" value={pd.solvent_circulation_rate ?? ""} onChange={v => f("solvent_circulation_rate", v)} onBlur={s} unit="LPH" />
-          <FieldRow label="Design Margin" value={pd.design_margin ?? ""} onChange={v => f("design_margin", v)} onBlur={s} unit="%" />
+          <SelectRow
+            label="Solvent / Oil Ratio"
+            value={ratioEff}
+            onChange={v => f("so_ratio", v)}
+            onCommit={v => cs({ so_ratio: v, so_ratio_manual: v === SO_RATIO_DEFAULT ? "" : "true" })}
+            options={SO_RATIO_OPTIONS}
+            unit=": 1 (vol/vol)"
+          />
+          {statusLine(`Status: ${pd.so_ratio_manual === "true" ? "Manual" : "Auto-Populated"} · Basis: NMP solvent volume flow / RRBO feed volume flow · Rule: default ${SO_RATIO_DEFAULT} : 1`)}
+
+          <FieldRow
+            label="Extraction Temperature"
+            value={extTEff}
+            onChange={v => f("extraction_temperature", v)}
+            onBlur={() => {
+              const v = (pd.extraction_temperature ?? "").trim();
+              cs({ extraction_temperature: v || otStr, extraction_temperature_manual: v !== "" && v !== otStr ? "true" : "" });
+            }}
+            unit="°C"
+          />
+          {statusLine(`Status: ${pd.extraction_temperature_manual === "true" ? "Manual" : "Auto-Populated"} · Rule: follows Design Basis Operating Temperature (${otStr || "—"} °C) until manually changed`)}
+
+          <FieldRow
+            label="Extraction Pressure"
+            value={extPEff}
+            onChange={v => f("extraction_pressure", v)}
+            onBlur={() => {
+              const v = (pd.extraction_pressure ?? "").trim();
+              cs({ extraction_pressure: v || opStr, extraction_pressure_manual: v !== "" && v !== opStr ? "true" : "" });
+            }}
+            unit="bar g"
+          />
+          {statusLine(`Status: ${pd.extraction_pressure_manual === "true" ? "Manual" : "Auto-Populated"} · Rule: follows Design Basis Operating Pressure (${opStr || "—"} bar g) until manually changed`)}
+
+          <FieldRow label="Theoretical Stages" value={stagesEff} onChange={v => f("theoretical_stages", v)} onBlur={s} unit="stages" />
+          {stagesInvalid && <p className="text-xs text-red-600 px-2 -mt-0.5">Theoretical stages must be a whole number ≥ 1.</p>}
+          {statusLine(`Status: ${(pd.theoretical_stages ?? "").trim() !== "" && pd.theoretical_stages !== THEORETICAL_STAGES_DEFAULT ? "Manual" : "Auto-Populated"} · Rule: default ${THEORETICAL_STAGES_DEFAULT} stages`)}
+
+          <FieldRow label="Stage Efficiency" value={effEff} onChange={v => f("stage_efficiency", v)} onBlur={s} unit="%" />
+          {effInvalid && <p className="text-xs text-red-600 px-2 -mt-0.5">Stage efficiency must be greater than 0 % and not more than 100 %.</p>}
+          {statusLine(`Status: ${(pd.stage_efficiency ?? "").trim() !== "" && pd.stage_efficiency !== STAGE_EFFICIENCY_DEFAULT ? "Manual" : "Auto-Populated"} · Rule: default ${STAGE_EFFICIENCY_DEFAULT} %`)}
+
+          <FieldRow label="Design Margin" value={marginEff} onChange={v => f("design_margin", v)} onBlur={s} unit="%" />
+          {statusLine(`Status: ${(pd.design_margin ?? "").trim() !== "" && pd.design_margin !== DESIGN_MARGIN_DEFAULT ? "Manual" : "Auto-Populated"} · Rule: default ${DESIGN_MARGIN_DEFAULT} % · applied to Normal Solvent Circulation to give Maximum Solvent Circulation`)}
+
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
+            <label className="text-sm text-gray-700 font-medium pt-1.5">Phase Configuration</label>
+            <select
+              value={pd.phase_configuration ?? ""}
+              onChange={e => cs({ phase_configuration: e.target.value })}
+              disabled={isFrozen}
+              className="h-8 text-sm border rounded-md px-2 bg-white"
+            >
+              <option value="">Select…</option>
+              {PHASE_CONFIG_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <span />
+          </div>
+          {statusLine("Status: Manual · Engineer selection required by the C2 engine — phase continuity is never assumed from density")}
+        </SectionCard>
+
+        <SectionCard title="Solvent Circulation Rate">
+          {calcRow("Normal Solvent Flow", fmt(normLph), "LPH", [feedLph === null ? "Feed Flow (Design Basis)" : "", ratioN === null || ratioN <= 0 ? "Solvent/Oil Ratio" : ""].filter(Boolean).join(", ") || "—")}
+          {calcRow("Normal Solvent Mass Flow", fmt(normMass), "kg/h", normLph === null ? "Normal Solvent Flow" : "NMP density (EPD, at Operating Temperature)")}
+          {calcRow("Maximum Solvent Flow", fmt(maxLph), "LPH", normLph === null ? "Normal Solvent Flow" : "Design Margin")}
+          {calcRow("Maximum Solvent Mass Flow", fmt(maxMass), "kg/h", maxLph === null ? "Maximum Solvent Flow" : "NMP density (EPD, at Operating Temperature)")}
+          <p className="text-[11px] text-gray-400 px-2 mt-1">
+            Solvent Volumetric Flow = Feed Volumetric Flow ({fmt(feedLph) ?? "—"} LPH) × Solvent/Oil Ratio ({ratioEff} : 1) · Maximum = Normal × (1 + {marginEff} %) · Mass flows use NMP density {rhoNmp !== null ? `${fmt(rhoNmp, 1)} kg/m³` : "(EPD pending)"} from EPD
+          </p>
         </SectionCard>
 
         <div className="flex items-center gap-3 mb-4">
@@ -1657,17 +1846,56 @@ export default function DesignSoftwareWorkspacePage() {
             <Play className="h-3.5 w-3.5" />
             {calculateMutation.isPending ? "Calculating…" : "Run Material Balance"}
           </Button>
-          {pdRun && <span className="text-xs text-gray-400">Last run: {new Date(pdRun.calculated_at).toLocaleString()}</span>}
+          {pdRun && (
+            <span className="text-xs text-gray-400">
+              Last run: {new Date(pdRun.calculated_at).toLocaleString()} · {engineName} v{pdRun.engine_version} · {pdRun.calculation_status}
+            </span>
+          )}
         </div>
 
         <SectionCard title="Material Balance Results">
-          <div className="grid grid-cols-2 gap-3">
-            <CalcResultCard label="Material Balance" unit="kg/hr" reference="Mass conservation" engineVersion={pdRun?.engine_version} />
-            <CalcResultCard label="Solvent Balance" unit="LPH" reference="S/O ratio × Feed flow" engineVersion={pdRun?.engine_version} />
-            <CalcResultCard label="Product Yield" unit="%" reference="Raffinate yield calculation" engineVersion={pdRun?.engine_version} />
-            <CalcResultCard label="Extract Yield" unit="%" reference="Extract = Feed − Raffinate" engineVersion={pdRun?.engine_version} />
-          </div>
-          {!pdRun && <p className="text-xs text-gray-400 italic mt-2">Run material balance to see results</p>}
+          {rd ? (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                {resultCard("Gross Material Balance (Feed + Solvent)", fmt(gross?.totalInletMassFlow, 1), gross?.unit ?? "kg/h", "C2 PD-006 — gross inlet balance F + S", "C2 Process Design Engine", gross?.classification)}
+                {resultCard("Solvent Balance (Normal NMP Mass Flow)", fmt(flows?.normalSolventMassFlow, 1), "kg/h", "C2 PD-002/PD-003 — solvent basis", "C2 Process Design Engine", gross?.classification)}
+                {resultCard("Raffinate Yield (solvent-free)", pct(yields?.solventFreeRaffinateYield), "%", "C2 PD-007 — solvent-free raffinate / feed", "C2 Process Design Engine", yields?.classification)}
+                {resultCard("Extract Yield (gross extract / feed)", pct(yields?.grossExtractToFeedRatio), "%", "C2 PD-007 — gross extract stream / feed", "C2 Process Design Engine", yields?.classification)}
+                {resultCard("Normal Solvent Circulation", fmt(typeof flows?.normalSolventVolumetricFlow === "number" ? flows.normalSolventVolumetricFlow * 1000 : null), "LPH", "C2 PD-002 — normal case", "C2 Process Design Engine", gross?.classification)}
+                {resultCard("Maximum Solvent Circulation", fmt(typeof flows?.maximumSolventVolumetricFlow === "number" ? flows.maximumSolventVolumetricFlow * 1000 : null), "LPH", `C2 PD-004 — normal × max-circulation factor ${flows?.maxCirculationFactor ?? ""}`, "C2 Process Design Engine", gross?.classification)}
+                {resultCard("Material-Balance Closure", closure ? `${(closure.relative * 100).toExponential(2)}` : null, "%", "C2 PD-006 — |in − out| / in", "C2 Process Design Engine", rd?.normalCase?.componentBalance?.classification)}
+                {resultCard("Validation Status", runStatusRaw ? (runStatusRaw === "screening_complete" ? "Screening Complete" : runStatusRaw === "pending_validation" ? "Pending Validation" : runStatusRaw) : null, "", "Overall C2 run status", "C2 Process Design Engine")}
+              </div>
+              {missingInputs.length > 0 && (
+                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-xs font-semibold text-amber-800 mb-1">Missing validation inputs (component balance is Pending Validation — no values assumed):</p>
+                  <p className="text-xs text-amber-700">{missingInputs.join(", ")}</p>
+                </div>
+              )}
+              {runWarnings.length > 0 && (
+                <div className="mt-3 p-3 bg-gray-50 border rounded-lg">
+                  <p className="text-xs font-semibold text-gray-700 mb-1">Engine warnings</p>
+                  {runWarnings.map((w, i) => (
+                    <p key={i} className="text-xs text-gray-600">{w.code ? `[${w.code}] ` : ""}{w.message}</p>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-xs text-gray-400 italic">
+              {pdRun && pdRun.calculation_status === "error"
+                ? "Last run was blocked — required upstream inputs are missing. Complete the Design Basis and Fluid Properties, then re-run."
+                : "Run material balance to see results"}
+            </p>
+          )}
+          {pdRun?.calculation_status === "error" && Array.isArray(pdRun.validation_issues) && pdRun.validation_issues.length > 0 && (
+            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-xs font-semibold text-red-800 mb-1">Blocking validation issues</p>
+              {pdRun.validation_issues.map((v, i) => (
+                <p key={i} className="text-xs text-red-700">{v.field ? `${v.field}: ` : ""}{v.message}</p>
+              ))}
+            </div>
+          )}
         </SectionCard>
       </div>
     );

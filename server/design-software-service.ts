@@ -9,6 +9,7 @@
 import { pool } from './db';
 import { engineRegistry } from './engine-framework/registry';
 import { CalculationContext } from './engine-framework/types';
+import { mapWorkspaceProcessDesignInputs } from './llx-process-design-input-mapper';
 
 // ── Lifecycle transition table ────────────────────────────────────────────────
 // action → { requiredStatus, nextStatus, setsFrozen, setsField }
@@ -512,9 +513,14 @@ export async function runCalculation(
     'SELECT section, data FROM design_software_inputs WHERE revision_id = $1',
     [revisionId],
   );
-  const inputs: Record<string, unknown> = {};
+  let inputs: Record<string, unknown> = {};
   for (const row of inputRows.rows) {
     Object.assign(inputs, row.data);
+  }
+  // Workspace → engine input adapter (structure + unit conversion only; the
+  // C2 engine and its equations are untouched).
+  if (rev.module_type === 'llx' && calculationType === 'process_design') {
+    inputs = mapWorkspaceProcessDesignInputs(inputs);
   }
 
   const context: CalculationContext = {
