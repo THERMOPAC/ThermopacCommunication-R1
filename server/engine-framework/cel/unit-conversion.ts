@@ -22,7 +22,7 @@ const CATEGORIES: Record<string, FactorMap> = {
   // base: kg/m³
   density: { 'kg/m3': 1, 'g/cm3': 1e3, 'g/mL': 1e3, 'g/L': 1, 'lb/ft3': 16.018463373960142 },
   // base: Pa
-  pressure: { Pa: 1, kPa: 1e3, MPa: 1e6, bar: 1e5, bara: 1e5, mbar: 1e2, atm: 101325, mmHg: 133.322387415, torr: 133.322368421, psi: 6894.757293168, 'kg/cm2': 98066.5 },
+  pressure: { Pa: 1, kPa: 1e3, MPa: 1e6, bar: 1e5, bara: 1e5, mbar: 1e2, atm: 101325, mmHg: 133.322387415, torr: 133.322368421, psi: 6894.757293168, 'kg/cm2': 98066.5, mmWC: 9.80665, mmH2O: 9.80665, mWC: 9806.65 },
   // base: m³/s
   volumetricFlow: { 'm3/s': 1, 'm3/h': 1 / 3600, 'm3/hr': 1 / 3600, 'L/s': 1e-3, 'L/min': 1e-3 / 60, 'L/h': 1e-3 / 3600, LPH: 1e-3 / 3600, lph: 1e-3 / 3600, LPM: 1e-3 / 60, GPM: 6.30901964e-5, 'ft3/h': 0.028316846592 / 3600 },
   // base: kg/s
@@ -39,6 +39,8 @@ const CATEGORIES: Record<string, FactorMap> = {
   energy: { J: 1, kJ: 1e3, MJ: 1e6, Wh: 3600, kWh: 3.6e6, cal: 4.184, kcal: 4184, BTU: 1055.05585262 },
   // base: W
   power: { W: 1, kW: 1e3, MW: 1e6, hp: 745.699871582, 'kcal/h': 4184 / 3600, 'BTU/h': 1055.05585262 / 3600 },
+  // base: s⁻¹ (revolutions per second)
+  rotationalSpeed: { '1/s': 1, 's-1': 1, rps: 1, Hz: 1, rpm: 1 / 60, '1/min': 1 / 60 },
 };
 
 /** Find which category a unit belongs to. Returns null if unknown. */

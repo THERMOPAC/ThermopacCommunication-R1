@@ -79,7 +79,12 @@ export function newtonRaphsonSolve(
     if (!Number.isFinite(xNew)) break;
     if (Math.abs(xNew - x) <= tolerance * Math.max(1, Math.abs(xNew))) {
       const r = f(xNew);
-      return { root: xNew, iterations: i + 1, converged: true, residual: r, method: 'newton-raphson' };
+      // Convergence requires BOTH a small step AND a small residual —
+      // a small step with a large residual is NOT a root (e.g. bad derivative).
+      if (Number.isFinite(r) && Math.abs(r) <= tolerance) {
+        return { root: xNew, iterations: i + 1, converged: true, residual: r, method: 'newton-raphson' };
+      }
+      break; // controlled failure → fallback or converged:false
     }
     x = xNew;
   }
@@ -141,19 +146,26 @@ export function goldenSectionMaximize(
   if (a >= b) throw new EngineeringInputError(`Bracket invalid: a (${a}) must be < b (${b}).`);
   const phi = (Math.sqrt(5) - 1) / 2;
   let lo = a, hi = b;
+  const evalF = (x: number): number => {
+    const v = f(x);
+    if (!Number.isFinite(v)) {
+      throw new EngineeringInputError(`Golden-section: objective is not finite at x = ${x} (got ${v}).`);
+    }
+    return v;
+  };
   let x1 = hi - phi * (hi - lo);
   let x2 = lo + phi * (hi - lo);
-  let f1 = f(x1), f2 = f(x2);
+  let f1 = evalF(x1), f2 = evalF(x2);
   let i = 0;
   for (; i < maxIterations && hi - lo > tolerance; i++) {
     if (f1 < f2) {
       lo = x1; x1 = x2; f1 = f2;
-      x2 = lo + phi * (hi - lo); f2 = f(x2);
+      x2 = lo + phi * (hi - lo); f2 = evalF(x2);
     } else {
       hi = x2; x2 = x1; f2 = f1;
-      x1 = hi - phi * (hi - lo); f1 = f(x1);
+      x1 = hi - phi * (hi - lo); f1 = evalF(x1);
     }
   }
   const x = 0.5 * (lo + hi);
-  return { x, fx: f(x), iterations: i, converged: hi - lo <= tolerance };
+  return { x, fx: evalF(x), iterations: i, converged: hi - lo <= tolerance };
 }

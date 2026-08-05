@@ -15,7 +15,7 @@ import {
   GRAVITY, warnIfOutsideRange,
 } from './utilities';
 import { reynolds } from './dimensionless';
-import { goldenSectionMaximize } from './numerical';
+import { goldenSectionMaximize, bisectionSolve } from './numerical';
 
 // ── Geometry ──────────────────────────────────────────────────────────────────
 
@@ -78,14 +78,17 @@ export interface TerminalVelocityResult {
 }
 
 /**
- * Terminal (free-rise/free-fall) velocity of a single rigid spherical drop in
- * a quiescent continuous phase — force balance solved iteratively:
+ * RIGID-SPHERE TERMINAL-VELOCITY SCREENING.
+ *
+ * Terminal (free-rise/free-fall) velocity of a single RIGID spherical particle
+ * in a quiescent continuous phase — force balance solved iteratively:
  *
  *   u_t = √( 4·g·d·|Δρ| / (3·Cd·ρc) ),   Cd = f(Re(u_t))
  *
- * NOTE: assumes rigid-sphere behaviour. Circulating/oscillating drops in
- * liquid-liquid systems can deviate; the LLX engine applies column-specific
- * corrections on top of this baseline.
+ * ⚠ SCREENING ONLY — this is NOT a validated liquid-drop terminal velocity.
+ * Real liquid drops (e.g. NMP/oil systems) may deform, internally circulate,
+ * oscillate, or have interfaces immobilized by surfactants — all of which
+ * change the drag. Every result carries a RIGID_SPHERE_SCREENING warning.
  *
  * @param dropDiameter m
  * @param dispersedDensity kg/m³
@@ -111,7 +114,13 @@ export function terminalVelocitySphere(
     );
   }
 
-  const warnings: EngineeringWarning[] = [];
+  const warnings: EngineeringWarning[] = [
+    {
+      code: 'RIGID_SPHERE_SCREENING',
+      message:
+        'Rigid-sphere screening estimate only — real liquid drops may deform, internally circulate, oscillate, or have immobilized interfaces, changing the drag. Do not treat as a validated liquid-drop terminal velocity.',
+    },
+  ];
 
   // Initial guess from Stokes law
   let u = (dRho * g * dropDiameter * dropDiameter) / (18 * continuousViscosity);
@@ -187,93 +196,192 @@ export function slipVelocity(
   return dispersedSuperficialVelocity / holdup + continuousSuperficialVelocity / (1 - holdup);
 }
 
-export interface FloodingPointResult {
-  holdupAtFlooding: number;             // φ_f
-  dispersedVelocityAtFlooding: number;  // u_df, m/s
-  continuousVelocityAtFlooding: number; // u_cf, m/s
-  totalThroughputAtFlooding: number;    // u_df + u_cf, m/s
+/**
+ * Generic counter-current holdup root solver.
+ *
+ * Finds dispersed-phase holdup φ satisfying the counter-current slip balance:
+ *   u_d/φ + u_c/(1−φ) = slipFn(φ)
+ * where slipFn is the TECHNOLOGY-SPECIFIC slip-velocity model supplied by the
+ * calling engine (ECP packing model, ECR rotor/compartment model, etc.).
+ * CEL makes NO claim about which slip model applies to which equipment.
+ *
+ * Scans the bounded interval for sign changes and returns ALL roots found
+ * (the slip balance can have multiple solutions; the lowest is normally the
+ * stable operating holdup).
+ *
+ * @param slipFn engine-supplied slip velocity model, m/s as a function of φ
+ * @param dispersedSuperficialVelocity u_d, m/s
+ * @param continuousSuperficialVelocity u_c, m/s
+ * @param bounds holdup search bounds within (0, 1); default [0.001, 0.999]
+ */
+export function solveCounterCurrentHoldup(
+  slipFn: (holdup: number) => number,
+  dispersedSuperficialVelocity: number,
+  continuousSuperficialVelocity: number,
+  bounds: { min: number; max: number } = { min: 0.001, max: 0.999 },
+): { roots: number[]; converged: boolean; warnings: EngineeringWarning[] } {
+  assertNonNegative(dispersedSuperficialVelocity, 'dispersedSuperficialVelocity');
+  assertNonNegative(continuousSuperficialVelocity, 'continuousSuperficialVelocity');
+  if (!(bounds.min > 0 && bounds.max < 1 && bounds.min < bounds.max)) {
+    throw new EngineeringInputError(`Holdup bounds must satisfy 0 < min < max < 1 (got [${bounds.min}, ${bounds.max}]).`);
+  }
+  const residual = (phi: number) =>
+    slipVelocity(dispersedSuperficialVelocity, continuousSuperficialVelocity, phi) - slipFn(phi);
+
+  const warnings: EngineeringWarning[] = [];
+  const roots: number[] = [];
+  const nScan = 200;
+  let allConverged = true;
+  let prevPhi = bounds.min;
+  let prevR = residual(prevPhi);
+  if (!Number.isFinite(prevR)) throw new EngineeringInputError(`Slip balance residual not finite at φ = ${prevPhi}.`);
+  for (let i = 1; i <= nScan; i++) {
+    const phi = bounds.min + ((bounds.max - bounds.min) * i) / nScan;
+    const r = residual(phi);
+    if (!Number.isFinite(r)) throw new EngineeringInputError(`Slip balance residual not finite at φ = ${phi}.`);
+    if (prevR === 0) roots.push(prevPhi);
+    else if (prevR * r < 0) {
+      const sol = bisectionSolve(residual, prevPhi, phi, 1e-12);
+      roots.push(sol.root);
+      if (!sol.converged) allConverged = false;
+    }
+    prevPhi = phi; prevR = r;
+  }
+  if (roots.length === 0) {
+    warnings.push({
+      code: 'NO_HOLDUP_SOLUTION',
+      message: 'No holdup satisfies the slip balance within the search bounds — the column is likely flooded at these velocities (or the slip model/inputs are inconsistent).',
+    });
+  }
+  if (roots.length > 1) {
+    warnings.push({
+      code: 'MULTIPLE_HOLDUP_ROOTS',
+      message: `Slip balance has ${roots.length} holdup solutions — the lowest is normally the stable operating point; the upper root indicates approach to flooding.`,
+    });
+  }
+  return { roots, converged: allConverged, warnings };
+}
+
+export interface ThroughputMaximumResult {
+  /** How the flow ratio is defined — always continuous/dispersed here. */
+  flowRatioDefinition: 'R = u_c / u_d';
+  flowRatioValue: number;
+  holdupBounds: { min: number; max: number };
+  optimumHoldup: number;                 // φ at maximum throughput
+  dispersedVelocityAtMaximum: number;    // u_d, m/s
+  continuousVelocityAtMaximum: number;   // u_c = R·u_d, m/s
+  converged: boolean;
   warnings: EngineeringWarning[];
 }
 
 /**
- * Flooding point from the Thornton slip-velocity framework.
+ * Generic bounded throughput maximizer at FIXED flow ratio.
  *
- * Model: u_d/φ + u_c/(1−φ) = u₀·(1−φ), with fixed flow ratio R = u_c/u_d.
- * Substituting u_c = R·u_d:
- *   u_d(φ) = u₀ · φ·(1−φ)² / ( (1−φ) + R·φ )
- * Flooding occurs at the φ that maximises u_d — found numerically
- * (golden-section), which is robust for all R including R → 1.
+ * Numerically maximizes an ENGINE-SUPPLIED dispersed-phase throughput
+ * function u_d(φ) over a bounded holdup interval (golden-section search).
+ * The physical meaning of the maximum (e.g. a flooding point) is defined by
+ * the calling engine's hydraulic model — CEL provides only the mathematics.
+ * This is NOT an ECP or ECR flooding correlation; those require
+ * technology-specific engines.
  *
- * @param characteristicVelocity u₀ — column-specific characteristic slip
- *        velocity, m/s. MUST be supplied by the calling engine (ECP/ECR
- *        correlations produce different u₀).
- * @param flowRatio R = u_c/u_d (continuous-to-dispersed superficial velocity ratio)
+ * The result is bound to the flow ratio it was computed at — comparisons at
+ * a different operating ratio are invalid (see percentOfThroughputMaximum).
+ *
+ * @param dispersedThroughputOfHoldup engine-supplied u_d(φ), m/s
+ * @param flowRatio R = u_c/u_d at which the function was constructed
+ * @param bounds holdup search bounds within (0, 1); default [1e-6, 1−1e-6]
  */
-export function thorntonFloodingPoint(
-  characteristicVelocity: number,
+export function maximizeThroughputAtFixedFlowRatio(
+  dispersedThroughputOfHoldup: (holdup: number) => number,
   flowRatio: number,
-): FloodingPointResult {
-  assertPositive(characteristicVelocity, 'characteristicVelocity');
+  bounds: { min: number; max: number } = { min: 1e-6, max: 1 - 1e-6 },
+): ThroughputMaximumResult {
   assertNonNegative(flowRatio, 'flowRatio');
-
+  if (!(bounds.min > 0 && bounds.max < 1 && bounds.min < bounds.max)) {
+    throw new EngineeringInputError(`Holdup bounds must satisfy 0 < min < max < 1 (got [${bounds.min}, ${bounds.max}]).`);
+  }
   const warnings: EngineeringWarning[] = [];
-  const u0 = characteristicVelocity;
-  const R = flowRatio;
-
-  const uD = (phi: number) => (u0 * phi * (1 - phi) * (1 - phi)) / ((1 - phi) + R * phi);
-
-  const { x: phiF, fx: uDf, converged } = goldenSectionMaximize(uD, 1e-6, 1 - 1e-6, 1e-10);
+  const { x: phiOpt, fx: uDMax, converged } = goldenSectionMaximize(
+    dispersedThroughputOfHoldup, bounds.min, bounds.max, 1e-10,
+  );
   if (!converged) {
     warnings.push({
-      code: 'FLOODING_SEARCH_NOT_CONVERGED',
-      message: 'Golden-section search for flooding holdup did not fully converge — result is approximate.',
+      code: 'THROUGHPUT_SEARCH_NOT_CONVERGED',
+      message: 'Golden-section search for the throughput maximum did not fully converge — result is approximate.',
     });
   }
-
-  const uCf = R * uDf;
-  warnIfOutsideRange(phiF, 0.05, 0.6, 'Flooding holdup φ_f', warnings, 'FLOODING_HOLDUP_UNUSUAL');
+  if (!(uDMax > 0)) {
+    warnings.push({
+      code: 'NONPOSITIVE_THROUGHPUT_MAXIMUM',
+      message: `Throughput maximum is ${uDMax} m/s (≤ 0) — the supplied throughput function or its bounds are physically inconsistent.`,
+    });
+  }
+  warnIfOutsideRange(phiOpt, 0.05, 0.6, 'Optimum holdup φ*', warnings, 'OPTIMUM_HOLDUP_UNUSUAL');
 
   return {
-    holdupAtFlooding: phiF,
-    dispersedVelocityAtFlooding: uDf,
-    continuousVelocityAtFlooding: uCf,
-    totalThroughputAtFlooding: uDf + uCf,
+    flowRatioDefinition: 'R = u_c / u_d',
+    flowRatioValue: flowRatio,
+    holdupBounds: { ...bounds },
+    optimumHoldup: phiOpt,
+    dispersedVelocityAtMaximum: uDMax,
+    continuousVelocityAtMaximum: flowRatio * uDMax,
+    converged,
     warnings,
   };
 }
 
 /**
- * Percent-of-flooding for actual operating velocities against the flooding point.
- * Standard design practice: operate extraction columns at 40–80 % of flooding.
+ * Percent-of-maximum-throughput for actual operating velocities against a
+ * throughput maximum computed by maximizeThroughputAtFixedFlowRatio.
+ *
+ * The comparison is only physically valid at the SAME flow ratio the maximum
+ * was computed at — an off-ratio comparison throws unless the caller passes
+ * allowRatioMismatch, in which case a warning is attached instead.
+ * Standard design practice: operate extraction columns at 40–80 % of the
+ * hydraulic capacity limit.
  */
-export function percentOfFlooding(
+export function percentOfThroughputMaximum(
   actualDispersedVelocity: number,
   actualContinuousVelocity: number,
-  flooding: FloodingPointResult,
+  maximum: ThroughputMaximumResult,
+  allowRatioMismatch = false,
 ): CalcResult {
   assertNonNegative(actualDispersedVelocity, 'actualDispersedVelocity');
   assertNonNegative(actualContinuousVelocity, 'actualContinuousVelocity');
   const warnings: EngineeringWarning[] = [];
-  const actualTotal = actualDispersedVelocity + actualContinuousVelocity;
-  const floodTotal = flooding.totalThroughputAtFlooding;
-  if (floodTotal <= 0) {
-    throw new EngineeringInputError('Flooding total throughput must be > 0.');
+
+  const maxTotal = maximum.dispersedVelocityAtMaximum + maximum.continuousVelocityAtMaximum;
+  if (!(maxTotal > 0)) {
+    throw new EngineeringInputError('Throughput maximum must be > 0 for a percent-of-maximum comparison.');
   }
-  const pct = (actualTotal / floodTotal) * 100;
+
+  // Ratio binding: the maximum is only valid at its own flow ratio.
+  if (actualDispersedVelocity > 0) {
+    const actualRatio = actualContinuousVelocity / actualDispersedVelocity;
+    const refRatio = maximum.flowRatioValue;
+    const mismatch = Math.abs(actualRatio - refRatio) > 1e-6 + 0.01 * Math.max(actualRatio, refRatio);
+    if (mismatch) {
+      const msg = `Operating flow ratio R = ${actualRatio.toFixed(4)} differs from the ratio the throughput maximum was computed at (R = ${refRatio.toFixed(4)}). The comparison is not physically valid — recompute the maximum at the operating ratio.`;
+      if (!allowRatioMismatch) throw new EngineeringInputError(msg);
+      warnings.push({ code: 'FLOW_RATIO_MISMATCH', message: msg });
+    }
+  }
+
+  const pct = ((actualDispersedVelocity + actualContinuousVelocity) / maxTotal) * 100;
   if (pct >= 100) {
     warnings.push({
-      code: 'ABOVE_FLOODING',
-      message: `Operating point is at ${pct.toFixed(1)} % of flooding — column will flood. Increase diameter or reduce throughput.`,
+      code: 'ABOVE_CAPACITY_LIMIT',
+      message: `Operating point is at ${pct.toFixed(1)} % of the hydraulic capacity limit — the column cannot sustain this throughput. Increase diameter or reduce flows.`,
     });
   } else if (pct > 80) {
     warnings.push({
-      code: 'NEAR_FLOODING',
-      message: `Operating point is at ${pct.toFixed(1)} % of flooding — above the recommended 80 % design ceiling.`,
+      code: 'NEAR_CAPACITY_LIMIT',
+      message: `Operating point is at ${pct.toFixed(1)} % of the hydraulic capacity limit — above the recommended 80 % design ceiling.`,
     });
   } else if (pct < 40) {
     warnings.push({
-      code: 'FAR_BELOW_FLOODING',
-      message: `Operating point is at ${pct.toFixed(1)} % of flooding — column may be oversized (design practice: 40–80 %).`,
+      code: 'FAR_BELOW_CAPACITY_LIMIT',
+      message: `Operating point is at ${pct.toFixed(1)} % of the hydraulic capacity limit — column may be oversized (design practice: 40–80 %).`,
     });
   }
   return { value: pct, warnings };

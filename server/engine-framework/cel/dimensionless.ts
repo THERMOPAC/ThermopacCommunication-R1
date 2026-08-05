@@ -63,6 +63,27 @@ export function froude(velocity: number, characteristicLength: number, g = GRAVI
 }
 
 /**
+ * Squared Froude number: Fr² = u² / (g·L)
+ * Distinct result from `froude` — never mix the two under one result key.
+ */
+export function froudeSquared(velocity: number, characteristicLength: number, g = GRAVITY): number {
+  const fr = froude(velocity, characteristicLength, g);
+  return fr * fr;
+}
+
+/**
+ * Rotational Froude number (rotating equipment): Fr_rot = N²·D / g
+ * @param rotationalSpeed N, rev/s (s⁻¹) — convert from rpm before calling
+ * @param diameter D, m (rotor/impeller diameter)
+ */
+export function froudeRotational(rotationalSpeed: number, diameter: number, g = GRAVITY): number {
+  assertNonNegative(rotationalSpeed, 'rotationalSpeed');
+  assertPositive(diameter, 'diameter');
+  assertPositive(g, 'g');
+  return (rotationalSpeed * rotationalSpeed * diameter) / g;
+}
+
+/**
  * Eötvös (Bond) number: Eo = Δρ·g·d² / σ
  * Governs drop shape regime (spherical / oblate / cap) in liquid-liquid systems.
  * @param densityDifference |ρc − ρd|, kg/m³

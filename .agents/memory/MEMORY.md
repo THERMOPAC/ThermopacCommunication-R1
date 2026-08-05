@@ -1,4 +1,5 @@
 - [LLX Workspace Architecture](llx-workspace-architecture.md) — 14-step design env; step keys, section data persistence, technology-selection gating, validation logic, lifecycle statuses.
+- [LLX CEL/EPD governance](llx-cel-epd-governance.md) — RRBO = Re-Refined Base Oil (project fluid, never library correlations); CEL flooding utilities must stay generic; controlled source types; exact-citation rule.
 - [SAP ChartOfAccounts Code dash format](sap-coa-code-dash.md) — SAP Code field uses dashes (e.g. `50207350600-ARL`); FormatCode omits them. Always strip dashes when matching user input against SAP account codes.
 - [Flanges SAP builder](flanges-sap-builder.md) — RM-FLG-{STD}-{TYPE}-{SIZE}-{RATING}-{MAT}-{FACE}; size uses DN-prefix via normalizeFlangeSizeCode(); Standard/Rating compatibility enforced; field names differ from pipes/fittings.
 - [Buy Catalog SAP Item Persistence](buy-catalog-sap-persistence.md) — Phase 1 complete: getOrCreateCatalogMasterItem helper, ON CONFLICT DO NOTHING pattern, two-DB migration, all 26 resolvers standardised.

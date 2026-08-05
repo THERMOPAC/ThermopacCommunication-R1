@@ -1,6 +1,10 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// EPD — Water (H₂O), liquid phase, atmospheric pressure
-// Validated correlations from open literature.
+// EPD — Water (H₂O), liquid phase, atmospheric pressure — LIBRARY fluid
+//
+// Level 1 scope: only the properties immediately required by LLX hydraulic
+// screening — density, dynamic viscosity, surface tension. No steam/water
+// package expansion (specific heat and thermal conductivity deferred until a
+// utility-context need arises with exact citable correlations).
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import type { FluidDefinition } from '../types';
@@ -11,47 +15,53 @@ export const water: FluidDefinition = {
   casNumber: '7732-18-5',
   properties: {
     density: {
-      // Kell (1975) polynomial approximation (simplified, ±0.05 kg/m³ 0–100 °C)
+      // Kell (1975) exact rational form, 1 atm:
+      // ρ [kg/m³] = (999.83952 + 16.945176·T − 7.9870401e-3·T² − 46.170461e-6·T³
+      //              + 105.56302e-9·T⁴ − 280.54253e-12·T⁵) / (1 + 16.879850e-3·T)
       correlation: {
-        type: 'polynomial-C',
-        coeffs: [999.83952, 0.06978, -0.0090857, 1.0164e-4, -1.1354e-6, 6.5327e-9],
+        type: 'rational-C',
+        num: [999.83952, 16.945176, -7.9870401e-3, -46.170461e-6, 105.56302e-9, -280.54253e-12],
+        den: [1, 16.879850e-3],
       },
-      validRangeC: { min: 0, max: 100 },
-      source: 'Kell (1975), J. Chem. Eng. Data 20(1) — polynomial fit, 1 atm',
+      validRangeC: { min: 0, max: 150 },
+      equationUnits: 'T in °C → ρ in kg/m³',
+      citation: {
+        title: 'Density, Thermal Expansivity, and Compressibility of Liquid Water from 0° to 150 °C',
+        organization: 'G. S. Kell, J. Chem. Eng. Data, Vol. 20, No. 1',
+        year: 1975,
+        notes: 'Exact Kell rational form at 1 atm. Regression checks: 997.047 kg/m³ at 25 °C; 971.79 kg/m³ at 80 °C.',
+      },
     },
     dynamicViscosity: {
-      // Vogel: ln μ[mPa·s] = −3.7188 + 578.919/(T_K − 137.546); μ(25°C)=0.892 mPa·s
+      // Vogel: ln μ[mPa·s] = −3.7188 + 578.919 / (T[K] − 137.546)
       correlation: { type: 'andrade-viscosity', A: -3.7188, B: 578.919, C: 137.546 },
       validRangeC: { min: 0, max: 100 },
-      source: 'Vogel equation fit (Viswanath & Natarajan); 0.892 mPa·s at 25 °C',
+      equationUnits: 'T in K → μ in mPa·s (converted to Pa·s)',
+      citation: {
+        title: 'Data Book on the Viscosity of Liquids (Vogel-equation parameters for water)',
+        organization: 'D. S. Viswanath & G. Natarajan, Hemisphere Publishing',
+        year: 1989,
+        notes: 'Regression check: 0.892 mPa·s at 25 °C; 0.355 mPa·s at 80 °C.',
+      },
     },
     surfaceTension: {
-      // IAPWS 1994: σ = 235.8e-3·τ^1.256·(1 − 0.625τ), τ = (647.096 − T_K)/647.096
+      // IAPWS R1-76(2014): σ[N/m] = 235.8e-3 · τ^1.256 · (1 − 0.625·τ),
+      // τ = 1 − T[K]/647.096
       correlation: {
         type: 'critical-scaling-sigma',
         criticalTemperatureK: 647.096,
-        s0: 235.8e-3,
-        n: 1.256,
-        m: 0.625,
+        B: 235.8e-3,
+        mu: 1.256,
+        b: -0.625,
       },
-      validRangeC: { min: 0, max: 100 },
-      source: 'IAPWS (1994) surface tension formulation',
+      validRangeC: { min: 0.01, max: 100 },
+      equationUnits: 'T in K → σ in N/m',
+      citation: {
+        title: 'IAPWS R1-76(2014): Revised Release on Surface Tension of Ordinary Water Substance',
+        organization: 'International Association for the Properties of Water and Steam (IAPWS)',
+        year: 2014,
+        notes: 'Official IAPWS formulation (valid triple point to critical point; Level 1 range restricted to 0.01–100 °C). Regression check: 71.97 mN/m at 25 °C.',
+      },
     },
-    specificHeat: {
-      // Liquid water cp, J/(kg·K); weak T dependence 0–100 °C
-      correlation: { type: 'polynomial-C', coeffs: [4217.4, -2.8064, 0.074915, -7.0129e-4, 2.6244e-6] },
-      validRangeC: { min: 0, max: 100 },
-      source: 'Polynomial fit to NIST/IAPWS liquid cp data, 1 atm',
-    },
-    thermalConductivity: {
-      correlation: { type: 'polynomial-C', coeffs: [0.5650, 1.916e-3, -7.72e-6] },
-      validRangeC: { min: 0, max: 100 },
-      source: 'Polynomial fit to IAPWS thermal conductivity, 1 atm',
-    },
-  },
-  interfacialTension: {
-    // Against LLX partner fluids, N/m near 25 °C
-    rrbo: { value: 0.025, source: 'Representative vegetable-oil/water IFT (0.02–0.03 N/m). REQUIRES THERMOPAC VALIDATION.' },
-    nmp: { value: 0.004, source: 'NMP is water-miscible — very low effective IFT; LLX with NMP/water pairs is not a standard immiscible system. REQUIRES THERMOPAC VALIDATION.' },
   },
 };
