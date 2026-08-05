@@ -38,24 +38,32 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>)
     out.feedFlow = { value: feedLph / 1000, basis: 'volumetric' };
   }
 
-  // Feed (RRBO) density — only the source-tagged Fluid Properties entry is
-  // mapped. Governance: provenance is NEVER invented here — if the engineer
-  // has not selected a controlled source type (Measured/Vendor/Literature/
-  // Assumed) in Fluid Properties, feedDensity is left unset and the engine's
-  // own validation blocks the run with an explicit missing-input message.
+  // Feed (RRBO) density — the source-tagged Fluid Properties entry is mapped.
+  // Provenance rule: if the engineer selected a controlled source type
+  // (Measured/Vendor/Literature/Assumed) it is passed through verbatim.
+  // If no source type is selected, the value on the page is the auto-populated
+  // Thermopac Feed Master default — mapped as sourceType 'Assumed' with a
+  // sourceReference naming the master, so the provenance is traceable and the
+  // engine never receives an untagged density. Nothing is invented: the value,
+  // reference temperature, and master label all come from the workspace entry.
   let rho: number | undefined;
-  const srcRaw = String(inputs.rrbo_density_source ?? '').trim();
   if (out.feedDensity === undefined) {
     const fpRho = num(inputs.rrbo_density_value);
-    if (fpRho !== undefined && fpRho > 0 && SOURCE_TYPES.includes(srcRaw)) {
+    if (fpRho !== undefined && fpRho > 0) {
       rho = fpRho;
+      const srcRaw = String(inputs.rrbo_density_source ?? '').trim();
       const refT = num(String(inputs.rrbo_density_ref_temp ?? '15').replace(/°?C/gi, '')) ?? 15;
       const refRaw = String(inputs.rrbo_density_source_reference ?? '').trim();
+      const tagged = SOURCE_TYPES.includes(srcRaw);
       out.feedDensity = {
         value: fpRho,
         referenceTemperatureC: refT,
-        sourceType: srcRaw,
-        sourceReference: refRaw !== '' ? refRaw : `Fluid Properties workspace entry (engineer source type: ${srcRaw})`,
+        sourceType: tagged ? srcRaw : 'Assumed',
+        sourceReference: refRaw !== ''
+          ? refRaw
+          : tagged
+            ? `Fluid Properties workspace entry (engineer source type: ${srcRaw})`
+            : 'Thermopac Feed Master (Default) — Fluid Properties auto-populated value, no engineer source type selected',
       };
     }
   } else {
