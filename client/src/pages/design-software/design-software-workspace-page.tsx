@@ -292,7 +292,7 @@ const THERMAL_DEFAULT_SOURCE = "Thermopac design default — thermal-fluid maste
 // Interface Control — stored with Process Design data for future
 // Instrumentation, Control and P&ID modules.
 const INTERFACE_CONTROL_OPTIONS = [
-  { value: "interphase_level_control", label: "Interphase Level Control" },
+  { value: "interphase_level_control", label: "Interphase Level Control (Default)" },
 ];
 const INTERFACE_CONTROL_DEFAULT = "interphase_level_control";
 // C2 component-balance assumptions — Thermopac Preliminary Screening Defaults.
