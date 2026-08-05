@@ -28,7 +28,7 @@ import {
 } from '../../engine-framework/types';
 import {
   CEL_VERSION, EPD_VERSION,
-  getProperty, registerProjectFluid, unregisterProjectFluid,
+  getProperty, createPropertyContext,
   containsAssumedData, EngineeringInputError,
   SOURCE_TYPES,
 } from '../../engine-framework/common-engineering-library';
@@ -378,33 +378,34 @@ export class LLXProcessDesignEngine implements IDesignEngine {
     }
 
     const errs: ValidationError[] = [];
-    const feedFluidId = `rrbo-run-${context.revisionId}`;
+    const feedFluidId = 'rrbo';
 
     try {
       const T = num(inputs.operatingTemperature)!;
       const fd = inputs.feedDensity as Record<string, unknown>;
 
-      // Register the run's RRBO density as a transient project fluid so all EPD
-      // governance (Assumed warnings, no-temperature-correction warning,
-      // extrapolation, positivity) applies through the published interface.
-      registerProjectFluid({
+      // Calculation-scoped property context: the run's RRBO density lives ONLY
+      // in this context (validated by the same EPD rules), so concurrent runs
+      // with different project-fluid data can never observe each other's
+      // values. The shared registries are never mutated. Library fluids (NMP,
+      // water) remain read-only shared data.
+      const feedDensityEntry = {
+        value: num(fd.value)!,
+        unit: 'kg/m3',
+        referenceTemperatureC: num(fd.referenceTemperatureC)!,
+        sourceType: fd.sourceType as SourceType,
+        sourceReference: fd.sourceReference as string,
+        ...(fd.validRangeC ? { validRangeC: fd.validRangeC as { min: number; max: number } } : {}),
+        ...(fd.temperatureCoefficient ? { temperatureCoefficient: fd.temperatureCoefficient as { slopePerC: number; sourceType: SourceType; sourceReference: string } } : {}),
+      };
+      const propertyContext = createPropertyContext([{
         id: feedFluidId,
         name: 'RRBO (Re-Refined Base Oil) — run feed',
         isProjectFluid: true,
-        properties: {
-          density: {
-            value: num(fd.value)!,
-            unit: 'kg/m3',
-            referenceTemperatureC: num(fd.referenceTemperatureC)!,
-            sourceType: fd.sourceType as SourceType,
-            sourceReference: fd.sourceReference as string,
-            ...(fd.validRangeC ? { validRangeC: fd.validRangeC as { min: number; max: number } } : {}),
-            ...(fd.temperatureCoefficient ? { temperatureCoefficient: fd.temperatureCoefficient as { slopePerC: number; sourceType: SourceType; sourceReference: string } } : {}),
-          },
-        },
-      });
+        properties: { density: feedDensityEntry },
+      }]);
 
-      const rhoFeed = getProperty(feedFluidId, 'density', T);
+      const rhoFeed = getProperty(feedFluidId, 'density', T, propertyContext);
       const rhoSolvent = getProperty('nmp', 'density', T);
       for (const w of [...rhoFeed.warnings, ...rhoSolvent.warnings]) {
         warnings.push({ code: w.code, message: w.message });
@@ -565,7 +566,14 @@ export class LLXProcessDesignEngine implements IDesignEngine {
         calculationRunStatus,
         designBasis: {
           operatingTemperatureC: T,
-          feedFluid: { id: 'rrbo', name: 'RRBO (Re-Refined Base Oil)', density: { value: rhoFeed.value, unit: rhoFeed.unit, source: rhoFeed.source } },
+          feedFluid: {
+            id: 'rrbo',
+            name: 'RRBO (Re-Refined Base Oil)',
+            density: { value: rhoFeed.value, unit: rhoFeed.unit, source: rhoFeed.source },
+            // Complete entered project-fluid record — persisted so historical
+            // runs stay reproducible even if project-fluid values later change.
+            enteredDensity: feedDensityEntry,
+          },
           solventFluid: { id: 'nmp', name: 'NMP', density: { value: rhoSolvent.value, unit: rhoSolvent.unit, source: rhoSolvent.source } },
         },
         flows: {
@@ -608,8 +616,6 @@ export class LLXProcessDesignEngine implements IDesignEngine {
         warnings,
         validationIssues: [...errs, { field: e instanceof EngineeringInputError ? 'inputs' : 'calculation', message, severity: 'error' }],
       };
-    } finally {
-      unregisterProjectFluid(feedFluidId);
     }
   }
 

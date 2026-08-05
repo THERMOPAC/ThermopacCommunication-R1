@@ -293,6 +293,42 @@ async function main() {
     })());
   }
 
+  // ── 9. Concurrency — two simultaneous runs with different RRBO properties ──
+  console.log('── Property-context concurrency isolation ──');
+  {
+    const a = baseInputs();
+    (a.feedDensity as any) = { value: 880, referenceTemperatureC: 60, sourceType: 'Measured', sourceReference: 'Project A density LR-A-001' };
+    const b = baseInputs();
+    (b.feedDensity as any) = { value: 940, referenceTemperatureC: 60, sourceType: 'Measured', sourceReference: 'Project B density LR-B-001' };
+    // Interleave many concurrent runs of both projects
+    const runs = await Promise.all(
+      Array.from({ length: 10 }, (_, k) => engine.calculate(k % 2 === 0 ? a : b,
+        { revisionId: 100 + k, designId: k, moduleType: 'llx', userId: 1 })),
+    );
+    let isolated = true;
+    runs.forEach((res, k) => {
+      const d = res.data as any;
+      const expected = k % 2 === 0 ? 880 : 940;
+      const expectedRef = k % 2 === 0 ? 'LR-A-001' : 'LR-B-001';
+      if (d.designBasis.feedFluid.density.value !== expected) isolated = false;
+      if (!String(d.designBasis.feedFluid.density.source).includes(expectedRef)) isolated = false;
+      if (Math.abs(d.flows.feedVolumetricFlow - 5000 / expected) > 1e-9) isolated = false;
+    });
+    checkTrue('10 interleaved runs each see only their own RRBO density + source', isolated);
+
+    // Persistence completeness: full entered project-fluid record in the result
+    const ed = (runs[0].data as any).designBasis.feedFluid.enteredDensity;
+    checkTrue('entered RRBO record persisted (value/unit/refT/sourceType/sourceReference)',
+      ed.value === 880 && ed.unit === 'kg/m3' && ed.referenceTemperatureC === 60
+      && ed.sourceType === 'Measured' && ed.sourceReference === 'Project A density LR-A-001');
+
+    // No global-state leakage: 'rrbo' must NOT resolve outside a calculation context
+    const { getProperty } = await import('../epd/database');
+    let leaked = true;
+    try { getProperty('rrbo', 'density', 60); } catch { leaked = false; }
+    checkTrue('no RRBO leaked into the shared registry after runs', !leaked);
+  }
+
   console.log(`\n═══ RESULT: ${pass} passed, ${fail} failed ═══`);
   process.exit(fail === 0 ? 0 : 1);
 }

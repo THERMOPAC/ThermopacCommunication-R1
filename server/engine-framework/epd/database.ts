@@ -62,6 +62,40 @@ export function unregisterProjectFluid(fluidId: string): void {
   projectRegistry.delete(fluidId);
 }
 
+// ── Calculation-scoped property context ───────────────────────────────────────
+//
+// Engines must NOT mutate the shared registries during a calculation run
+// (concurrent runs may carry different project-fluid data). Instead, build a
+// PropertyContext for the run and pass it to the lookup functions. Lookup
+// order: context project fluids → library fluids → globally registered
+// project fluids. Library fluids remain read-only shared data; the context is
+// immutable after creation and never touches global state.
+
+export interface PropertyContext {
+  readonly projectFluids: ReadonlyMap<string, ProjectFluidDefinition>;
+}
+
+/**
+ * Build an immutable, calculation-scoped property context. Every project
+ * fluid is fully validated up front (same rules as registerProjectFluid).
+ */
+export function createPropertyContext(fluids: ProjectFluidDefinition[]): PropertyContext {
+  const map = new Map<string, ProjectFluidDefinition>();
+  for (const fluid of fluids) {
+    if (libraryRegistry.has(fluid.id)) {
+      throw new EngineeringInputError(`'${fluid.id}' is a library fluid and cannot be redefined in a property context.`);
+    }
+    if (map.has(fluid.id)) {
+      throw new EngineeringInputError(`Duplicate fluid '${fluid.id}' in property context.`);
+    }
+    for (const [prop, entry] of Object.entries(fluid.properties) as Array<[PropertyId, ProjectFluidProperty]>) {
+      validateProjectProperty(fluid.id, prop, entry);
+    }
+    map.set(fluid.id, fluid);
+  }
+  return { projectFluids: map };
+}
+
 function validateProjectProperty(fluidId: string, prop: PropertyId, e: ProjectFluidProperty): void {
   assertFinite(e.value, `${fluidId}.${prop}.value`);
   assertFinite(e.referenceTemperatureC, `${fluidId}.${prop}.referenceTemperatureC`);
@@ -110,10 +144,11 @@ export function listFluids(): Array<{ id: string; name: string; kind: 'library' 
   ];
 }
 
-export function getFluid(fluidId: string): FluidDefinition | ProjectFluidDefinition {
-  const f = libraryRegistry.get(fluidId) ?? projectRegistry.get(fluidId);
+export function getFluid(fluidId: string, context?: PropertyContext): FluidDefinition | ProjectFluidDefinition {
+  const f = context?.projectFluids.get(fluidId) ?? libraryRegistry.get(fluidId) ?? projectRegistry.get(fluidId);
   if (!f) {
-    const available = Array.from(libraryRegistry.keys()).concat(Array.from(projectRegistry.keys())).join(', ');
+    const available = Array.from(context?.projectFluids.keys() ?? [])
+      .concat(Array.from(libraryRegistry.keys()), Array.from(projectRegistry.keys())).join(', ');
     throw new EngineeringInputError(`Unknown fluid '${fluidId}'. Available: ${available}.`);
   }
   return f;
@@ -174,12 +209,12 @@ function evaluateCorrelation(
  * Extrapolation outside the validated range warns; physically impossible
  * inputs/outputs throw. Assumed data always warns.
  */
-export function getProperty(fluidId: string, property: PropertyId, temperatureC: number): PropertyResult {
+export function getProperty(fluidId: string, property: PropertyId, temperatureC: number, context?: PropertyContext): PropertyResult {
   assertFinite(temperatureC, 'temperatureC');
   if (temperatureC < ABSOLUTE_ZERO_C) {
     throw new EngineeringInputError(`Temperature ${temperatureC} °C is below absolute zero.`);
   }
-  const fluid = getFluid(fluidId);
+  const fluid = getFluid(fluidId, context);
   const warnings: EngineeringWarning[] = [];
   let value: number;
   let source: string;
@@ -265,11 +300,11 @@ export function containsAssumedData(warnings: EngineeringWarning[]): boolean {
  * Interfacial tension between a PROJECT fluid and another fluid, N/m —
  * engineer-entered and source-tagged only. No library defaults exist.
  */
-export function getInterfacialTension(fluidA: string, fluidB: string): {
+export function getInterfacialTension(fluidA: string, fluidB: string, context?: PropertyContext): {
   value: number; unit: string; source: string; warnings: EngineeringWarning[];
 } {
-  const a = getFluid(fluidA);
-  const b = getFluid(fluidB);
+  const a = getFluid(fluidA, context);
+  const b = getFluid(fluidB, context);
   const entryA = 'isProjectFluid' in a ? a.interfacialTension?.[fluidB] : undefined;
   const entryB = 'isProjectFluid' in b ? b.interfacialTension?.[fluidA] : undefined;
   const entry = entryA ?? entryB;
