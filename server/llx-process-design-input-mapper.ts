@@ -105,23 +105,33 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>)
   // These are component-split assumptions, distinct from the Raffinate/Extract
   // Yield product-requirement targets (never substituted for each other).
   // Engine contract: TaggedValue { value (fraction), sourceType, sourceReference }.
-  const componentBalanceMap: Array<[string, string, number]> = [
-    ['solute_mass_fraction_feed', 'soluteMassFractionInFeed', 20],
-    ['solute_recovery_extract', 'soluteRecoveryToExtract', 90],
-    ['solvent_carryover_raffinate', 'solventCarryoverFraction', 2],
-    ['oil_loss_extract', 'oilLossToExtractFraction', 1],
-  ];
-  for (const [wsKey, engineKey, defPct] of componentBalanceMap) {
+  // soluteMassFractionInFeed is a top-level engine input; the three split
+  // fractions live under caseSplits.normal (engine reuses them for the
+  // maximum case with an explicit reused-splits assumption).
+  const taggedPct = (wsKey: string, defPct: number) => {
     const pct = num(inputs[wsKey]);
-    if (out[engineKey] === undefined && pct !== undefined && pct >= 0 && pct <= 100) {
-      out[engineKey] = {
-        value: pct / 100,
-        sourceType: 'Assumed',
-        sourceReference: pct === defPct
-          ? 'Thermopac Preliminary Screening Default'
-          : 'Engineer-entered screening value (Process Design workspace) — pending laboratory validation',
-      };
-    }
+    if (pct === undefined || pct < 0 || pct > 100) return undefined;
+    return {
+      value: pct / 100,
+      sourceType: 'Assumed',
+      sourceReference: pct === defPct
+        ? 'Thermopac Preliminary Screening Default'
+        : 'Engineer-entered screening value (Process Design workspace) — pending laboratory validation',
+    };
+  };
+  if (out.soluteMassFractionInFeed === undefined) {
+    const xF = taggedPct('solute_mass_fraction_feed', 20);
+    if (xF !== undefined) out.soluteMassFractionInFeed = xF;
+  }
+  if (out.caseSplits === undefined) {
+    const normal: Record<string, unknown> = {};
+    const r = taggedPct('solute_recovery_extract', 90);
+    const sL = taggedPct('solvent_carryover_raffinate', 2);
+    const oL = taggedPct('oil_loss_extract', 1);
+    if (r !== undefined) normal.soluteRecoveryToExtract = r;
+    if (sL !== undefined) normal.solventCarryoverFraction = sL;
+    if (oL !== undefined) normal.oilLossToExtractFraction = oL;
+    if (Object.keys(normal).length > 0) out.caseSplits = { normal };
   }
 
   return out;
