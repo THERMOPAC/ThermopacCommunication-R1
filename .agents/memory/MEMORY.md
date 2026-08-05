@@ -24,3 +24,4 @@
 - [Offer Communication Register V1](offer-comm-register.md) — 5 tables; two path builders; governance routes; generation service (WORD/EXCEL/PPT/PDF); template management; Phase 2 (versioning) deferred.
 - [Comm Register one-click generate](comm-register-one-click.md) — POST /communications auto-generates Rev 00 for generate types; pptxgenjs needs ESM/CJS guard; WORD has built-in docx fallback (no template upload required).
 - [Offer Comm Governance integration](offer-comm-governance.md) — COMM_DOCUMENT (id=95) + COMM_SOR_COPY (id=96) rules; resolveGcsPathWithMeta() added alongside resolveGcsPath() (never modified); gcs_rule_id on both tables.
+- [C4 packed-column engine governance](c4-packed-column-governance.md) — llx-ecp consumes Packing DB (clones only); curves interpolation-only with fixed independent variables; utilization never from C3 generic %.
