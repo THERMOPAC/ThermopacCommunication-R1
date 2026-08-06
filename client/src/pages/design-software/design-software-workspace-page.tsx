@@ -634,6 +634,12 @@ export default function DesignSoftwareWorkspacePage() {
     queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/results`) as Promise<any[]>,
     enabled: !!activeRevisionId,
   });
+  const reportsQ = useQuery<any[]>({
+    queryKey: [`/api/design-software/revisions/${activeRevisionId}/reports`],
+    queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/reports`) as Promise<any[]>,
+    enabled: !!activeRevisionId,
+  });
+
   const approvalsQ = useQuery<Approval[]>({
     queryKey: [`/api/design-software/revisions/${activeRevisionId}/approvals`],
     queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/approvals`) as Promise<Approval[]>,
@@ -698,6 +704,8 @@ export default function DesignSoftwareWorkspacePage() {
 
   // Stage 9 — automatic nozzle generation (server-side Thermopac nozzle master data)
   const [nozGenBusy, setNozGenBusy] = useState(false);
+  // Stage 13 — report generation busy flag
+  const [reportGenBusy, setReportGenBusy] = useState(false);
   /** Generate + size the nozzle schedule and persist it (awaited direct POST so a
    *  follow-on calculation run sees the saved rows). Returns true on success. */
   const autoGenerateNozzles = useCallback(async (): Promise<boolean> => {
@@ -3434,7 +3442,7 @@ export default function DesignSoftwareWorkspacePage() {
 
   function renderReports() {
     const reportCards = [
-      { key: "design_basis",       title: "Design Basis Report",          desc: "Summary of all design inputs, operating conditions and product requirements." },
+      { key: "design_basis",       docType: "DBR", title: "Design Basis Report", desc: "Frozen statement of the design basis — Stages 1–4 inputs with source classification, assumptions register and validation summary." },
       { key: "process_design",     title: "Process Design Report",        desc: "Material balance, solvent balance and process design summary." },
       { key: "hydraulic_calc",     title: "Hydraulic Calculation Report", desc: "Full hydraulic calculation workings with formulas and references." },
       { key: "equipment_datasheet",title: "Equipment Datasheet",          desc: "Engineering datasheet for equipment procurement." },
@@ -3450,25 +3458,83 @@ export default function DesignSoftwareWorkspacePage() {
           Report generation requires completed calculation runs. Reports are generated from live engineering data and frozen at each revision.
         </div>
         <div className="grid grid-cols-2 gap-4">
-          {reportCards.map(rc => (
-            <div key={rc.key} className="border rounded-xl p-4 bg-white">
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <p className="font-semibold text-sm text-gray-900">{rc.title}</p>
-                <FileDown className="h-4 w-4 text-gray-300 shrink-0 mt-0.5" />
+          {reportCards.map(rc => {
+            const docType = (rc as any).docType as string | undefined;
+            const rep = docType ? (reportsQ.data ?? []).find(r => r.doc_type === docType) : undefined;
+            const statusColours: Record<string, string> = {
+              draft: "bg-gray-100 text-gray-600 border-gray-200",
+              for_review: "bg-amber-50 text-amber-700 border-amber-200",
+              approved: "bg-green-50 text-green-700 border-green-200",
+              issued: "bg-blue-50 text-blue-700 border-blue-200",
+            };
+            const statusLabels: Record<string, string> = { draft: "Draft", for_review: "For Review", approved: "Approved", issued: "Issued" };
+            const advanceLabels: Record<string, string> = { draft: "Submit for Review", for_review: "Approve", approved: "Issue" };
+            const missingErrors = rep ? ((rep.missing_data ?? []) as any[]).filter(m => m.severity === "error").length : 0;
+            return (
+              <div key={rc.key} className="border rounded-xl p-4 bg-white">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <p className="font-semibold text-sm text-gray-900">{rc.title}</p>
+                  {rep
+                    ? <Badge className={`border text-[10px] px-2 shrink-0 ${statusColours[rep.status] ?? ""}`}>{statusLabels[rep.status] ?? rep.status}</Badge>
+                    : <FileDown className="h-4 w-4 text-gray-300 shrink-0 mt-0.5" />}
+                </div>
+                <p className="text-xs text-gray-500 mb-3">{rc.desc}</p>
+                {docType ? (
+                  <div className="space-y-1.5">
+                    {rep && (
+                      <p className="text-[11px] text-gray-500">
+                        {rep.doc_number} · {rep.report_rev} · generated {new Date(rep.generated_at).toLocaleString()} by {rep.generated_by_name ?? "—"}
+                        <span className="block">
+                          {rep.assumption_count} assumption(s) in register{missingErrors > 0 && <span className="text-red-600"> · {missingErrors} mandatory value(s) missing</span>}
+                        </span>
+                      </p>
+                    )}
+                    <div className="flex gap-1.5">
+                      <Button size="sm" variant={rep ? "outline" : "default"} className="flex-1 text-xs gap-1.5" disabled={reportGenBusy || (rep && rep.status !== "draft")}
+                        title={rep && rep.status !== "draft" ? `${statusLabels[rep.status]} report is immutable — content changes require a new design revision` : undefined}
+                        onClick={async () => {
+                          setReportGenBusy(true);
+                          try {
+                            const res: any = await apiRequest("POST", `/api/design-software/revisions/${activeRevisionId}/reports`, { docType });
+                            toast({ title: `${rep ? "Regenerated" : "Generated"} ${res.docNumber} ${res.reportRev}`, description: `${res.assumptions} assumption(s) in register · ${res.missing} validation finding(s)${res.blocking ? ` · ${res.blocking} blocking` : ""}` });
+                            reportsQ.refetch();
+                          } catch (e: any) {
+                            toast({ title: "Report generation failed", description: e.message, variant: "destructive" });
+                          } finally { setReportGenBusy(false); }
+                        }}>
+                        <FileDown className="h-3.5 w-3.5" /> {rep ? "Regenerate" : "Generate"}
+                      </Button>
+                      {rep && (
+                        <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={() => window.open(`/api/design-software/reports/${rep.id}/pdf`, "_blank")}>
+                          View PDF
+                        </Button>
+                      )}
+                    </div>
+                    {rep && advanceLabels[rep.status] && (
+                      <Button size="sm" variant="ghost" className="w-full text-xs text-gray-600"
+                        disabled={rep.status === "draft" && missingErrors > 0}
+                        title={rep.status === "draft" && missingErrors > 0 ? "Blocked — mandatory basis values missing; complete inputs and regenerate" : undefined}
+                        onClick={async () => {
+                          try {
+                            const res: any = await apiRequest("POST", `/api/design-software/reports/${rep.id}/advance-status`);
+                            toast({ title: `Report ${statusLabels[res.status] ?? res.status}` });
+                            reportsQ.refetch();
+                          } catch (e: any) {
+                            toast({ title: "Status change blocked", description: e.message, variant: "destructive" });
+                          }
+                        }}>
+                        {advanceLabels[rep.status]} →
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <Button size="sm" variant="outline" className="w-full text-xs gap-1.5" disabled={true} title="Implemented one at a time in engineering sequence — next: Process Design Report">
+                    <FileDown className="h-3.5 w-3.5" /> Generate (pending implementation)
+                  </Button>
+                )}
               </div>
-              <p className="text-xs text-gray-500 mb-3">{rc.desc}</p>
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full text-xs gap-1.5"
-                disabled={true}
-                title="Report generation — Stage C"
-              >
-                <FileDown className="h-3.5 w-3.5" />
-                Generate (Stage C)
-              </Button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );

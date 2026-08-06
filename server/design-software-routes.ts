@@ -5,6 +5,7 @@
 import { Express, Request, Response } from 'express';
 import { ensureAuthenticated } from './auth-middleware';
 import * as svc from './design-software-service';
+import * as reports from './design-reports/report-service';
 import { getProperty, containsAssumedData } from './engine-framework/epd/database';
 
 // Register all LLX engines with the global registry at module load time
@@ -526,6 +527,48 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
       res.json(await svc.listApprovals(parseInt(req.params.id)));
     } catch (err: any) {
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Stage 13 — Engineering Reports (snapshot architecture) ─────────────────
+  /** List generated reports for a revision. */
+  app.get('/api/design-software/revisions/:id/reports', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      res.json(await reports.listReports(parseInt(req.params.id)));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+
+  /** Generate (or regenerate, while draft) a report from a frozen payload. */
+  app.post('/api/design-software/revisions/:id/reports', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { docType } = req.body;
+      if (!docType) return res.status(400).json({ error: 'docType is required' });
+      res.json(await reports.generateReport(parseInt(req.params.id), String(docType), (req.user as any).id));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+
+  /** Render the persisted payload to PDF (read-only — allowed in any status). */
+  app.get('/api/design-software/reports/:reportId/pdf', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { pdf, fileName } = await reports.renderReportById(parseInt(req.params.reportId));
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+      res.send(pdf);
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+
+  /** Advance report status: draft → for_review → approved → issued. */
+  app.post('/api/design-software/reports/:reportId/advance-status', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      res.json(await reports.advanceReportStatus(parseInt(req.params.reportId), (req.user as any).id));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
     }
   });
 
