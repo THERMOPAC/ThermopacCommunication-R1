@@ -2373,8 +2373,17 @@ export default function DesignSoftwareWorkspacePage() {
     const scr = sulzerQ.data;
     const err = (sulzerQ.error as any)?.message;
     const fmtB = (n: number) => n.toLocaleString("en-IN", { maximumFractionDigits: 1 });
-    const yn = (b: boolean, note: string) => (
-      <span className={b ? "text-green-700" : "text-amber-700"} title={note}>{b ? "Compatible" : "Not preferred"}</span>
+    const confColor = (c: string) =>
+      c === "High Confidence" ? "text-green-700 bg-green-50 border-green-200"
+      : c === "Medium Confidence" ? "text-amber-700 bg-amber-50 border-amber-200"
+      : "text-red-700 bg-red-50 border-red-200";
+    const critCell = (c: any) => (
+      <span
+        className={c.status === "Good Agreement" ? "text-green-700" : c.status === "Feasible — Review Recommended" ? "text-amber-700" : "text-red-700"}
+        title={c.note}
+      >
+        {c.status}
+      </span>
     );
     const famRow = (fam: any) => {
       const sel = fam.perDiameter.find((d: any) => d.isSelectedTrial) ?? fam.perDiameter[0];
@@ -2383,14 +2392,14 @@ export default function DesignSoftwareWorkspacePage() {
           <td className="py-1.5 pr-2 font-medium text-gray-800">Sulzer {fam.record.family}<span className="block text-[10px] text-gray-400 font-normal">{fam.record.packingCategory}</span></td>
           <td className="py-1.5 pr-2">{sel ? `${fmtB(sel.normalSpecificThroughput_m3_m2h)}` : "—"}</td>
           <td className="py-1.5 pr-2">{sel ? `${fmtB(sel.maximumSpecificThroughput_m3_m2h)}` : "—"}</td>
-          <td className="py-1.5 pr-2">{fam.record.typicalSpecificThroughput.min}–{fam.record.typicalSpecificThroughput.max}</td>
-          <td className="py-1.5 pr-2">{yn(fam.stageCompatible, fam.stageCompatibilityNote)}<span className="block text-[10px] text-gray-400">≤ {fam.record.preliminaryStageRange.maxNTS} NTS</span></td>
-          <td className="py-1.5 pr-2">{yn(fam.phaseRatioCompatible, fam.phaseRatioNote)}<span className="block text-[10px] text-gray-400">{fam.record.phaseRatioRule}</span></td>
-          <td className="py-1.5 pr-2">{yn(fam.backMixingSuitable, fam.backMixingNote)}</td>
+          <td className="py-1.5 pr-2">{fam.record.typicalSpecificThroughput.min}–{fam.record.typicalSpecificThroughput.max}<span className="block text-[10px] text-gray-400">typical, not a limit</span></td>
+          <td className="py-1.5 pr-2">{fam.hydraulicLoading.classification}<span className="block text-[10px] text-gray-400">{critCell(fam.hydraulicLoading)}</span></td>
+          <td className="py-1.5 pr-2">{critCell(fam.stageCompatibility)}<span className="block text-[10px] text-gray-400">≤ {fam.record.preliminaryStageRange.maxNTS} NTS</span></td>
+          <td className="py-1.5 pr-2">{critCell(fam.phaseRatioCompatibility)}<span className="block text-[10px] text-gray-400">{fam.record.phaseRatioRule}</span></td>
+          <td className="py-1.5 pr-2">{critCell(fam.backMixingSuitability)}</td>
           <td className="py-1.5 pr-2">{fam.record.typicalNumberOfBeds}</td>
           <td className="py-1.5 pr-2">{fam.record.capacityClassification}</td>
-          <td className="py-1.5 pr-2">{fam.screeningStatus}</td>
-          <td className="py-1.5 pr-2 text-[11px] text-gray-600">{fam.recommendationBasis}</td>
+          <td className="py-1.5 pr-2"><span className={`inline-block px-1.5 py-0.5 rounded border text-[11px] font-medium ${confColor(fam.confidence)}`}>{fam.confidence}</span></td>
           <td className="py-1.5 text-[10px] text-gray-400">{fam.record.sourceReference}</td>
         </tr>
       );
@@ -2425,19 +2434,33 @@ export default function DesignSoftwareWorkspacePage() {
                     <th className="py-1 pr-2">Packing Family</th>
                     <th className="py-1 pr-2">B Normal<br/>m³/(m²·h)</th>
                     <th className="py-1 pr-2">B Maximum<br/>m³/(m²·h)</th>
-                    <th className="py-1 pr-2">Published Range</th>
+                    <th className="py-1 pr-2">Typical Published Range</th>
+                    <th className="py-1 pr-2">Hydraulic Loading</th>
                     <th className="py-1 pr-2">Stage Compat.</th>
                     <th className="py-1 pr-2">Phase-Ratio Compat.</th>
                     <th className="py-1 pr-2">Back-Mixing</th>
                     <th className="py-1 pr-2">Beds</th>
                     <th className="py-1 pr-2">Capacity Class</th>
-                    <th className="py-1 pr-2">Screening Status</th>
-                    <th className="py-1 pr-2">Recommendation Basis</th>
+                    <th className="py-1 pr-2">Screening Confidence</th>
                     <th className="py-1">Source</th>
                   </tr>
                 </thead>
                 <tbody>{famRow(scr.smv)}{famRow(scr.smvp)}</tbody>
               </table>
+            </div>
+            <div className="mt-2 grid md:grid-cols-2 gap-2">
+              {[scr.smv, scr.smvp].map((fam: any) => (
+                <div key={fam.record.family} className="border border-gray-200 rounded-lg p-2.5 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-gray-800">Sulzer {fam.record.family}</p>
+                    <span className={`inline-block px-1.5 py-0.5 rounded border text-[11px] font-medium ${confColor(fam.confidence)}`}>{fam.confidence}</span>
+                  </div>
+                  <p className="text-[11px] text-gray-700"><span className="font-medium">Hydraulic Loading:</span> {fam.hydraulicLoading.classification}</p>
+                  <p className="text-[11px] text-gray-600">{fam.hydraulicLoading.note}</p>
+                  <p className="text-[11px] text-gray-600"><span className="font-medium text-gray-700">Comment:</span> {fam.confidenceComment}</p>
+                  <p className="text-[10px] text-gray-400">{fam.recommendationBasis}</p>
+                </div>
+              ))}
             </div>
             <div className="mt-2 space-y-1">
               <p className="text-[11px] text-gray-600">Specific throughput per Stage 5 trial diameter (normal / maximum):</p>
