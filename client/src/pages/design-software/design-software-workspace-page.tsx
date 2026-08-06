@@ -1016,9 +1016,23 @@ export default function DesignSoftwareWorkspacePage() {
   const ts = d("technology_selection");
   const hd = d("hydraulic_design");
   const runs = runsQ.data ?? [];
-  const hasHydraulicsRun = runs.some(r => r.calculation_type === "hydraulics_common" && r.calculation_status === "success");
-  const hasECPRun = runs.some(r => r.calculation_type === "ecp" && r.calculation_status === "success");
-  const hasECRRun = runs.some(r => r.calculation_type === "ecr" && r.calculation_status === "success");
+  // Execution vs engineering-maturity are SEPARATE validation questions:
+  // a run that completed with engine warnings (Assumed / Pending Validation
+  // data) HAS been executed. Executed = latest run of the type has status
+  // success or warning; error/failed or no run at all = not executed.
+  const latestRun = (type: string) =>
+    runs.filter(r => r.calculation_type === type)
+        .sort((a, b) => new Date(b.calculated_at ?? 0).getTime() - new Date(a.calculated_at ?? 0).getTime())[0];
+  const execCheck = (type: string): { executed: boolean; withWarnings: boolean } => {
+    const r = latestRun(type);
+    if (!r) return { executed: false, withWarnings: false };
+    const executed = r.calculation_status === "success" || r.calculation_status === "warning";
+    return { executed, withWarnings: r.calculation_status === "warning" };
+  };
+  const WARN_NOTE = "Status: Completed with Engineering Warnings. Reason: Preliminary design contains Assumed and/or Pending Validation data. Execution, engineering maturity, vendor validation and final approval are reported independently — warnings remain visible and still gate release-grade approval.";
+  const hydExec = execCheck("hydraulics_common");
+  const ecpExec = execCheck("ecp");
+  const ecrExec = execCheck("ecr");
   const floodingMargin = parseFloat(hd.flooding_margin ?? "");
   const mandatoryFields = [db.process_description, db.feed_service, db.solvent, db.design_capacity_lph ?? db.design_capacity, ts.technology];
 
@@ -1080,9 +1094,11 @@ export default function DesignSoftwareWorkspacePage() {
       note: !ts.technology ? "Select ECP, ECR or Compare Both in Step 6" : undefined,
     },
     {
-      label: "Common hydraulics calculation run",
-      status: hasHydraulicsRun ? "pass" : "warning",
-      note: !hasHydraulicsRun ? "Run Step 5 before proceeding to approval" : undefined,
+      label: "Common Hydraulics Calculation Executed",
+      status: hydExec.executed ? "pass" : "fail",
+      note: hydExec.executed
+        ? (hydExec.withWarnings ? `✓ Calculation Executed. ${WARN_NOTE}` : undefined)
+        : "No successful hydraulics run exists (latest run failed or Step 5 not run)",
     },
     {
       label: "Flooding within allowable limits (< 80 %)",
@@ -1093,14 +1109,20 @@ export default function DesignSoftwareWorkspacePage() {
           : floodingMargin >= 80 ? `Current flooding margin: ${floodingMargin.toFixed(1)} %` : undefined,
     },
     {
-      label: showECP ? "ECP equipment calculation run" : "ECP calculation (not selected)",
-      status: !showECP ? "pending" : hasECPRun ? "pass" : "warning",
-      note: showECP && !hasECPRun ? "Run ECP calculation in Step 7" : undefined,
+      label: showECP ? "ECP Equipment Calculation Executed" : "ECP calculation (not selected)",
+      status: !showECP ? "pending" : ecpExec.executed ? "pass" : "fail",
+      note: !showECP ? undefined
+        : ecpExec.executed
+          ? (ecpExec.withWarnings ? `✓ Calculation Executed. ${WARN_NOTE}` : undefined)
+          : "No successful ECP run exists (latest run failed or Step 7 not run)",
     },
     {
-      label: showECR ? "ECR equipment calculation run" : "ECR calculation (not selected)",
-      status: !showECR ? "pending" : hasECRRun ? "pass" : "warning",
-      note: showECR && !hasECRRun ? "Run ECR calculation in Step 7" : undefined,
+      label: showECR ? "ECR Equipment Calculation Executed" : "ECR calculation (not selected)",
+      status: !showECR ? "pending" : ecrExec.executed ? "pass" : "fail",
+      note: !showECR ? undefined
+        : ecrExec.executed
+          ? (ecrExec.withWarnings ? `✓ Calculation Executed. ${WARN_NOTE}` : undefined)
+          : "No successful ECR run exists (latest run failed or Step 7 not run)",
     },
     {
       label: "All fluid properties have a source declared",

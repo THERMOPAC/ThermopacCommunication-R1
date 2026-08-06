@@ -503,15 +503,15 @@ title = "ThermopacLocalDocumentAgent v1.0.7 — Windows Package"
 id = "TDxeErytPirw4QUHw930A"
 uri = "file://docs/reports/LLX-RND-2026-0001-ECPR_Rev0.pdf"
 type = "pdf"
-title = "ECPR — ECP Calculation Report Rev 0 (run #63)"
-description = "Packed-column C4 calculation report rendered from the frozen run #63 snapshot — submitted for independent review."
+title = "ECPR Rev 0 — corrected (run #63)"
+description = "Equations transliterated to readable ASCII math; 250 mm size entry removed; SSA designation wording and Rauber/Sulzer citation corrected. Resubmitted for review."
 
 [[outputs]]
 id = "gEyulpd5gRfSC5miCkdKz"
 uri = "file://docs/reports/LLX-RND-2026-0001-ECRR_Rev0.pdf"
 type = "pdf"
-title = "ECRR — ECR Calculation Report Rev 0 (run #64)"
-description = "Agitated-column C5 calculation report rendered from the frozen run #64 snapshot — submitted for independent review."
+title = "ECRR Rev 0 — corrected (run #64)"
+description = "Equations now readable (Re = rho_c·N·D_R²/µ_c, P_1 = N_P·rho_m·N³·D_R^5, etc.). Resubmitted for review."
 
 [[outputs]]
 id = "_wBHteZY_dEnGEiqHgbiV"
