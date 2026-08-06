@@ -1126,23 +1126,36 @@ export default function DesignSoftwareWorkspacePage() {
     {
       label: "Flooding within allowable limits (< 80 %)",
       ...((): { status: "pass" | "fail" | "warning" | "pending"; note?: string } => {
-        // Reads the latest active (non-superseded) DS-SEL record — never the old manual field.
+        // Pass/fail of the DESIGN CRITERION only (utilization ≤ limit), read from
+        // the latest active (non-superseded) DS-SEL record. Basis maturity is a
+        // separate advisory check below.
         const dsel = designSelectionQ.data?.record ?? null;
         const util = dsel?.floodingUtilization;
         const limit = dsel?.utilizationLimit?.value ?? 0.8;
         if (dsel == null || typeof util !== "number") {
           return { status: "pending", note: "No active DS-SEL record with a hydraulic utilization result exists yet" };
         }
-        const preliminary = !!dsel.capacityBasis?.assumed;
         const utilPct = (util * 100).toFixed(2);
         const limitPct = (limit * 100).toFixed(0);
         if (util > limit) {
           return { status: "fail", note: `Hydraulic utilization ${utilPct} % exceeds the allowable limit ${limitPct} % (DS-SEL record, ${dsel.capacityBasis?.tier ?? "declared basis"})` };
         }
-        if (preliminary) {
-          return { status: "warning", note: `Preliminary hydraulic utilization within allowable screening limit: ${utilPct}% ≤ ${limitPct}% — Pending Hydraulic Validation.` };
+        return { status: "pass", note: `Hydraulic utilization within allowable limit: ${utilPct}% ≤ ${limitPct}% (basis: ${dsel.capacityBasis?.tier ?? "declared basis"})` };
+      })(),
+    },
+    {
+      label: "Hydraulic capacity basis maturity",
+      ...((): { status: "pass" | "fail" | "warning" | "pending"; note?: string } => {
+        // Maturity of the underlying hydraulic basis — advisory only, independent
+        // of the design-criterion pass/fail above.
+        const dsel = designSelectionQ.data?.record ?? null;
+        if (dsel == null || typeof dsel.floodingUtilization !== "number") {
+          return { status: "pending", note: "No active DS-SEL record yet" };
         }
-        return { status: "pass", note: `Hydraulic utilization ${utilPct} % ≤ ${limitPct} % against the ${dsel.capacityBasis?.tier ?? "declared basis"}` };
+        if (dsel.capacityBasis?.assumed) {
+          return { status: "warning", note: "Hydraulic capacity basis: Preliminary Screening Threshold – Pending Hydraulic Validation." };
+        }
+        return { status: "pass", note: `Validated hydraulic capacity basis: ${dsel.capacityBasis?.tier ?? "declared basis"}` };
       })(),
     },
     {
