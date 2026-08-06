@@ -10,6 +10,7 @@ import { pool } from './db';
 import { engineRegistry } from './engine-framework/registry';
 import { CalculationContext } from './engine-framework/types';
 import { mapWorkspaceProcessDesignInputs } from './llx-process-design-input-mapper';
+import { mapWorkspaceMechanicalInputs } from './llx-mechanical-design-input-mapper';
 
 // ── Lifecycle transition table ────────────────────────────────────────────────
 // action → { requiredStatus, nextStatus, setsFrozen, setsField }
@@ -505,8 +506,10 @@ export async function runCalculation(
   if (!revRow.rows[0]) throw new Error('Revision not found');
   const rev = revRow.rows[0];
 
-  // Get engine
-  const engine = engineRegistry.getOrThrow(rev.module_type, calculationType);
+  // Get engine — common downstream engines (e.g. C6 mech-vessel) are registered
+  // under moduleType 'common' and shared across modules.
+  const engine = engineRegistry.get(rev.module_type, calculationType)
+    ?? engineRegistry.getOrThrow('common', calculationType);
 
   // Load the relevant input section(s)
   const inputRows = await pool.query(
@@ -521,6 +524,48 @@ export async function runCalculation(
   // C2 engine and its equations are untouched).
   if (rev.module_type === 'llx' && ['process_design', 'hydraulics_common', 'ecp', 'ecr'].includes(calculationType)) {
     inputs = mapWorkspaceProcessDesignInputs(inputs, calculationType);
+  }
+
+  // Stage 9 → C6 adapter: adopt geometry from the selected technology's latest
+  // accepted C4/C5 run (never re-entered), then map the Mechanical Design Basis
+  // into the mech-vessel input contract. Mapping only — no C6 equation changes.
+  if (rev.module_type === 'llx' && calculationType === 'mechanical_vessel') {
+    const preferred = String(inputs['preferred'] ?? '').trim();
+    if (preferred !== 'ecp' && preferred !== 'ecr') {
+      throw new Error('Select the technology (ECP or ECR) in Stage 8 — Technology Comparison before running the preliminary mechanical design. "Continue Both" requires a single selected technology for the mechanical basis.');
+    }
+    const techRunQ = await pool.query(
+      `SELECT * FROM design_software_calculation_runs
+       WHERE revision_id = $1 AND calculation_type = $2 AND calculation_status IN ('success','warning')
+       ORDER BY calculated_at DESC LIMIT 1`,
+      [revisionId, preferred],
+    );
+    const techRun = techRunQ.rows[0];
+    if (!techRun) throw new Error(`No accepted ${preferred.toUpperCase()} run available — run the Stage 7 ${preferred.toUpperCase()} calculation first.`);
+    const hb = techRun.result_snapshot?.heightBreakdown ?? {};
+
+    // Selected diameter: Stage 9 override → Stage 5 engineer trial → sweep minimum feasible.
+    let dia = Number(inputs['column_diameter_m'] ?? '') || Number(inputs['column_diameter'] ?? '') || NaN;
+    if (!Number.isFinite(dia) || dia <= 0) {
+      const hydQ = await pool.query(
+        `SELECT data->'normalCase'->'summary'->>'minimumFeasibleDiameter_m' AS d
+         FROM design_software_results WHERE revision_id = $1 AND section = 'hydraulics_common'`,
+        [revisionId],
+      );
+      dia = Number(hydQ.rows[0]?.d ?? NaN);
+    }
+    const tt = Number(inputs['tt_height_m'] ?? '') || Number(hb.totalTangentToTangent?.result ?? NaN);
+    const oh = Number(inputs['overall_height_m'] ?? '') || Number(hb.overallVesselHeight?.result ?? NaN);
+    if (!Number.isFinite(dia) || !Number.isFinite(tt) || !Number.isFinite(oh)) {
+      throw new Error('Mechanical geometry incomplete — column diameter (Stage 5), tangent-to-tangent and overall heights (Stage 7 run) are all required before the C6 screening can run.');
+    }
+    inputs = mapWorkspaceMechanicalInputs(inputs, {
+      sourceEngine: { engineId: techRun.engine_name, engineVersion: techRun.engine_version, calculationType: preferred },
+      sourceRunReference: `run #${techRun.id} (${techRun.calculated_at?.toISOString?.() ?? techRun.calculated_at})`,
+      insideDiameter_m: dia,
+      tangentToTangentHeight_m: tt,
+      overallVesselHeight_m: oh,
+    });
   }
 
   const context: CalculationContext = {

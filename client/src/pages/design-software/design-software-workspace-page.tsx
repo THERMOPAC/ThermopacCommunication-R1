@@ -3040,8 +3040,8 @@ export default function DesignSoftwareWorkspacePage() {
           <div className="grid grid-cols-[210px_1fr_60px] items-start gap-3 py-1">
             <label className="text-sm text-gray-600 pt-2 font-medium leading-tight">Shell Thickness</label>
             <div className="pt-2">
-              <p className="text-sm text-gray-500 italic">Calculated by the future ASME Pressure Vessel Design Engine.</p>
-              <p className="text-[10px] text-gray-400">Not a manual entry — Stage 9 only prepares the design basis.</p>
+              <p className="text-sm text-gray-500 italic">Calculated by the existing C6 Common Mechanical Design Engine — preliminary screening only. Final code-certified ASME/EN/IS design remains pending.</p>
+              <p className="text-[10px] text-gray-400">Not a manual entry — run the preliminary mechanical design below.</p>
             </div>
             <span className="text-xs text-gray-400 pt-2">mm</span>
           </div>
@@ -3148,16 +3148,108 @@ export default function DesignSoftwareWorkspacePage() {
             ["Nozzle Count", String(nozzles.length)],
             ["Design Pressure", effVal(inherited[5]) ? `${effVal(inherited[5])} bar g` : "Pending"],
             ["Design Temperature", effVal(inherited[7]) ? `${effVal(inherited[7])} °C` : "Pending"],
-            ["Shell Thickness", "Calculated by the future ASME Pressure Vessel Design Engine"],
+            ["Shell Thickness", "Calculated by the C6 Common Mechanical Design Engine — preliminary screening only"],
           ] as [string, string][]).map(([k, v]) => (
             <div key={k} className="flex justify-between py-1 border-b last:border-0">
               <span className="text-sm text-gray-600">{k}</span>
               <span className="text-sm text-gray-800 font-medium text-right">{v}</span>
             </div>
           ))}
-          <p className="text-[10px] text-gray-400 mt-2">This summary is the input set handed to the future ASME Section VIII Pressure Vessel Design Engine. No shell/head thickness, reinforcement, MAWP or code calculations are performed in Stage 9.</p>
+          <p className="text-[10px] text-gray-400 mt-2">This summary is the input set mapped into the existing C6 Common Mechanical Design Engine (mech-vessel v1.0.0) — preliminary screening only. No reinforcement, wind/seismic, detailed skirt/saddle design, FEA, PV Elite replacement or code-certified MAWP calculation. Final code-certified ASME/EN/IS design remains pending.</p>
         </SectionCard>
+
+        {renderMechVesselResults()}
       </div>
+    );
+  }
+
+  function renderMechVesselResults() {
+    const mechRun: any = runs.find(r => r.calculation_type === "mechanical_vessel" && ["success", "warning"].includes(r.calculation_status));
+    const snap = mechRun?.result_snapshot;
+    const fmtV = (it: any, dp = 2) => it && typeof it.result === "number" && isFinite(it.result) ? `${it.result.toFixed(dp)} ${it.units}` : null;
+    const cell = (label: string, it: any, dp = 2) => (
+      <div key={label} className="flex justify-between py-1 border-b last:border-0">
+        <span className="text-sm text-gray-600">{label}</span>
+        <span className={`text-sm font-medium text-right ${fmtV(it, dp) ? "text-gray-800" : "text-amber-700"}`}>
+          {fmtV(it, dp) ?? `${it?.status ?? "Not Calculable"}${it?.validation ? "" : ""}`}
+          {!fmtV(it, dp) && it?.validation && <span className="block text-[10px] font-normal text-gray-400 max-w-[340px]">{it.validation}</span>}
+        </span>
+      </div>
+    );
+    return (
+      <SectionCard title="Preliminary Mechanical Design — C6 Common Mechanical Design Engine">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[11px] text-gray-500">
+            Maps the confirmed Stage 9 Mechanical Design Basis into mech-vessel v1.0.0. Preliminary thin-wall screening only — not a final ASME design and not fabrication-ready.
+          </p>
+          <Button size="sm" disabled={isFrozen || calculateMutation.isPending} onClick={() => calculateMutation.mutate("mechanical_vessel")}>
+            {calculateMutation.isPending ? "Running…" : "Run Preliminary Mechanical Design"}
+          </Button>
+        </div>
+        <div className="p-2 bg-gray-50 border rounded-lg text-[10px] text-gray-500 mb-3">
+          Applicability limitations: no reinforcement calculation · no wind or seismic design · no detailed skirt/saddle design · no FEA · no PV Elite replacement · no code-certified MAWP calculation. Final code-certified ASME/EN/IS design remains pending.
+        </div>
+        {!mechRun ? (
+          <p className="text-sm text-gray-400 italic">No preliminary mechanical design run yet.</p>
+        ) : (
+          <>
+            <p className="text-[11px] text-gray-500 mb-2">
+              Run #{mechRun.id} · {mechRun.engine_name} v{mechRun.engine_version} · {mechRun.calculation_status === "warning" ? "Pending Validation" : mechRun.calculation_status} · {new Date(mechRun.calculated_at).toLocaleString()} · Engine status: {snap?.calculationRunStatus ?? "—"}
+            </p>
+            <div className="grid md:grid-cols-2 gap-x-8">
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Thickness Screening (mm)</p>
+                {cell("Shell — calculated", snap?.shellDesign?.shellThicknessCalculated, 3)}
+                {cell("Shell — required (incl. CA)", snap?.shellDesign?.shellThicknessRequired, 3)}
+                {cell("Shell — selected plate", snap?.shellDesign?.shellThicknessSelected, 0)}
+                {cell("Head — calculated", snap?.shellDesign?.headThicknessCalculated, 3)}
+                {cell("Head — required (incl. CA)", snap?.shellDesign?.headThicknessRequired, 3)}
+                {cell("Head — selected plate", snap?.shellDesign?.headThicknessSelected, 0)}
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Volume & Weights</p>
+                {cell("Internal volume", snap?.weights?.vesselVolume, 3)}
+                {cell("Empty weight", snap?.weights?.emptyWeight, 0)}
+                {cell("Operating weight", snap?.weights?.operatingWeight, 0)}
+                {cell("Hydrotest weight", snap?.weights?.hydrotestWeight, 0)}
+                <p className="text-xs font-semibold text-gray-500 uppercase mt-3 mb-1">Support & Lifting</p>
+                <div className="flex justify-between py-1 border-b"><span className="text-sm text-gray-600">Support type</span><span className="text-sm font-medium text-gray-800">{String(snap?.support?.selection?.result ?? "—")}{snap?.support?.quantity ? ` × ${snap.support.quantity}` : ""}</span></div>
+                <div className="py-1">
+                  <span className="text-sm text-gray-600">Preliminary lifting arrangement</span>
+                  <p className="text-xs text-gray-700 mt-0.5">{snap?.lifting?.lugQuantity?.result ?? "—"} lugs — {(snap?.lifting?.suggestedLocations ?? []).join("; ") || "—"}</p>
+                  <p className="text-[10px] text-amber-700">Quantity/location convention only — no structural verification.</p>
+                </div>
+              </div>
+            </div>
+            {Array.isArray(snap?.nozzleSchedule) && snap.nozzleSchedule.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Preliminary Nozzle Schedule ({snap.nozzleSchedule.length})</p>
+                <div className="overflow-x-auto">
+                  <div className="grid gap-1 text-[10px] font-semibold text-gray-500 uppercase" style={{ gridTemplateColumns: "60px 1fr 90px 70px 90px 110px", minWidth: 600 }}>
+                    <span>Tag</span><span>Service</span><span>Size (DN)</span><span>Rating</span><span>Flange Class</span><span>Flange Std</span>
+                  </div>
+                  {snap.nozzleSchedule.map((n: any, i: number) => (
+                    <div key={i} className="grid gap-1 text-[11px] text-gray-700 py-0.5 border-b last:border-0" style={{ gridTemplateColumns: "60px 1fr 90px 70px 90px 110px", minWidth: 600 }}>
+                      <span>{n.tag ?? "—"}</span><span>{n.service}</span>
+                      <span>{typeof n.size?.result === "number" ? n.size.result : (n.size?.status ?? "—")}</span>
+                      <span>{n.rating ?? "—"}</span><span>{n.flangeClass ?? "—"}</span><span>{n.flangeStandard ?? "—"}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {Array.isArray(snap?.assumptions) && snap.assumptions.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Assumptions ({snap.assumptions.length})</p>
+                {snap.assumptions.map((a: any, i: number) => (
+                  <p key={i} className="text-[11px] text-gray-600">• {a.assumption}{a.sourceReference ? ` — ${a.sourceReference}` : ""}{a.consequence ? ` (${a.consequence})` : ""}</p>
+                ))}
+              </div>
+            )}
+            {renderRunIssues(mechRun, "C6 Mechanical")}
+          </>
+        )}
+      </SectionCard>
     );
   }
 
