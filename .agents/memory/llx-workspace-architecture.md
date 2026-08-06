@@ -68,3 +68,11 @@ mechanical_design, utilities, cost_estimation
 - Rotor diameter must NOT be default-populated alongside rotor ratio — C5 enforces ±1 % consistency per swept diameter; supply ratio only and the engine derives the diameter.
 - The input mapper spreads raw workspace inputs into `out`; any flat workspace key that collides with an engine record key (e.g. `hets`) must be rebuilt when the value is not an object.
 - Workspace efficiency fields display % — defaults must be percent values (40/90), the mapper's pctToFraction converts.
+
+## Packing designation vs physical size (Prasad review, 2026-08-06)
+- "250" in Sulzer SMV/SMVP 250 is the nominal specific-surface-area grade (250 m²/m³), NOT a physical element size. Never store "250 mm".
+- PackingRecord.size is now OPTIONAL in the registry — leave blank unless a vendor specifies an actual element dimension; never populate with a placeholder.
+- Controlled citation: "Johannes Rauber, Sulzer Chemtech Ltd., Design Practice for Packed Liquid-Liquid Extraction Columns, AIChE 2006".
+
+## PDF glyph safety (report framework)
+- Helvetica base-14 fonts are WinAnsi-only: π, Greek letters, ≤, √, − render as garbage. renderReportPdf() deep-sanitizes the payload via NON_WINANSI_MAP transliteration (π→pi, ρ→rho, ≤→<=, …). Any new report content with math symbols outside WinAnsi must go through this renderer, not raw pdfkit text.

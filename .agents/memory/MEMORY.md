@@ -2,6 +2,7 @@
 - [LLX pending prod DB ALTERs](llx-prod-db-alters-pending.md) — constraint widenings (mechanical_vessel, ecp/ecr_design) applied to dev only; apply to prod at next publish; never drop comparison/summary from ds_results_section_chk.
 - [LLX V&V framework](llx-vv-framework.md) — verification (release-scoped, computed from evidence) vs engineering confidence (revision-scoped) never merged; tolerances never widened; registers never invented.
 - [LLX Workspace Architecture](llx-workspace-architecture.md) — 14-step design env; step keys, section data persistence, technology-selection gating, validation logic, lifecycle statuses.
+- [LLX ECPR/ECRR calc reports](llx-workspace-architecture.md) — render frozen run snapshots only; PDF renderer transliterates non-WinAnsi math glyphs; packing size optional (250 = Sulzer SSA grade, never mm).
 - [LLX CEL/EPD governance](llx-cel-epd-governance.md) — RRBO = Re-Refined Base Oil (project fluid, never library correlations); CEL flooding utilities must stay generic; controlled source types; exact-citation rule.
 - [SAP ChartOfAccounts Code dash format](sap-coa-code-dash.md) — SAP Code field uses dashes (e.g. `50207350600-ARL`); FormatCode omits them. Always strip dashes when matching user input against SAP account codes.
 - [Flanges SAP builder](flanges-sap-builder.md) — RM-FLG-{STD}-{TYPE}-{SIZE}-{RATING}-{MAT}-{FACE}; size uses DN-prefix via normalizeFlangeSizeCode(); Standard/Rating compatibility enforced; field names differ from pipes/fittings.
