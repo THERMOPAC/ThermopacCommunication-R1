@@ -2482,11 +2482,47 @@ export default function DesignSoftwareWorkspacePage() {
     );
   }
 
+  function renderRunIssues(latestRun: any, label: string) {
+    if (!latestRun) return null;
+    const issues = Array.isArray(latestRun.validation_issues) ? latestRun.validation_issues : [];
+    const warns = Array.isArray(latestRun.warnings) ? latestRun.warnings : [];
+    return (
+      <div className="mt-2 space-y-2">
+        <p className="text-[11px] text-gray-500">
+          Last run: {new Date(latestRun.calculated_at).toLocaleString()} · {latestRun.engine_name} v{latestRun.engine_version} · {latestRun.calculation_status}
+        </p>
+        {latestRun.calculation_status === "error" && (
+          <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-xs font-semibold text-red-800 mb-1">
+              {label} run blocked — the engine reported {issues.length} missing/invalid mandatory input{issues.length === 1 ? "" : "s"}. No results were generated; nothing is defaulted silently.
+            </p>
+            <ul className="space-y-0.5">
+              {issues.map((v: any, i: number) => (
+                <li key={i} className="text-[11px] text-red-700"><span className="font-medium">{v.field ?? "input"}:</span> {v.message}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {warns.length > 0 && (
+          <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-xs font-semibold text-amber-800 mb-1">Engine warnings</p>
+            <ul className="space-y-0.5">
+              {warns.map((w: any, i: number) => (
+                <li key={i} className="text-[11px] text-amber-700">{w.code ? `${w.code}: ` : ""}{w.message}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   function renderECPDesign() {
     const ec = d("ecp_design");
     const f = field("ecp_design");
     const s = save("ecp_design");
     const ecpRun = runs.find(r => r.calculation_type === "ecp" && r.calculation_status === "success");
+    const ecpLatestRun = runs.filter(r => r.calculation_type === "ecp").sort((a, b) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0];
     const packings = packingsQ.data ?? [];
     const selectedPacking = packings.find((p: any) => p.id === ec.packing_id);
     const statusLine = (text: string) => <p className="text-[11px] text-gray-400 px-2 -mt-0.5">{text}</p>;
@@ -2557,6 +2593,7 @@ export default function DesignSoftwareWorkspacePage() {
             Packing height, packing volume, pressure drop, and total column height are C4 engine outputs — they are no longer manual inputs. Run Calculate ECP with a Packing Database record and HETS to generate them.
           </p>
           {ecpRun && <p className="text-[11px] text-gray-500 mt-1">Last successful run: {new Date(ecpRun.calculated_at).toLocaleString()}</p>}
+          {renderRunIssues(ecpLatestRun, "ECP")}
         </SectionCard>
         <Button size="sm" className="gap-2 mb-4" disabled={isFrozen || calculateMutation.isPending} onClick={() => calculateMutation.mutate("ecp")}>
           <Play className="h-3.5 w-3.5" /> Calculate ECP
@@ -2570,6 +2607,7 @@ export default function DesignSoftwareWorkspacePage() {
     const f = field("ecr_design");
     const s = save("ecr_design");
     const ecrRun = runs.find(r => r.calculation_type === "ecr" && r.calculation_status === "success");
+    const ecrLatestRun = runs.filter(r => r.calculation_type === "ecr").sort((a, b) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0];
     const statusLine = (text: string) => <p className="text-[11px] text-gray-400 px-2 -mt-0.5">{text}</p>;
 
     // ── Read-only results binding from the latest accepted C5 ECR result ────
@@ -2628,7 +2666,9 @@ export default function DesignSoftwareWorkspacePage() {
         </Button>
         <SectionCard title="ECR — Calculated Results (C5 engine, read-only)">
           {!selRow ? (
-            <p className="text-xs text-gray-400">No ECR results yet — enter the engineering inputs above and run Calculate ECR. Calculated values are never entered manually.</p>
+            ecrLatestRun?.calculation_status === "error"
+              ? null
+              : <p className="text-xs text-gray-400">No ECR results yet — enter the engineering inputs above and run Calculate ECR. Calculated values are never entered manually.</p>
           ) : (
             <>
               <p className="text-[11px] text-gray-500 mb-1">
@@ -2650,6 +2690,7 @@ export default function DesignSoftwareWorkspacePage() {
               {resultRow("Validation Status", selRow?.feasibility)}
             </>
           )}
+          {renderRunIssues(ecrLatestRun, "ECR")}
         </SectionCard>
       </div>
     );
