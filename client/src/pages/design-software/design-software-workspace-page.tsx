@@ -1039,7 +1039,6 @@ export default function DesignSoftwareWorkspacePage() {
   // ── Validation checks ─────────────────────────────────────────────────────────
   const db = d("design_basis");
   const ts = d("technology_selection");
-  const hd = d("hydraulic_design");
   const runs = runsQ.data ?? [];
   // Execution vs engineering-maturity are SEPARATE validation questions:
   // a run that completed with engine warnings (Assumed / Pending Validation
