@@ -11,6 +11,6 @@ The dev DB got manual `ALTER TABLE ... DROP/ADD CONSTRAINT` widenings during LLX
 - `ds_calc_runs_type_chk` — add `mechanical_vessel`.
 - `ds_results_section_chk` — add `mechanical_vessel` (keep `comparison`, `summary` — dropping them broke the constraint once in dev; full list: process_design, hydraulics_common, ecp, ecr, comparison, summary, mechanical_vessel).
 
-**Also pending on production:** `CREATE TABLE design_reports` + `design_report_events` (Stage 13 reporting; created manually in dev via Node pg — re-run the same DDL on prod at next publish).
+**Also pending on production:** `CREATE TABLE design_reports` + `design_report_events` (Stage 13 reporting) AND the three V&V tables `vv_regression_cases`, `vv_regression_runs`, `vv_equation_register` — all created manually in dev via Node pg; re-run the same DDL on prod at next publish (see `server/vv/` and `server/design-reports/` for column lists).
 
 **How to apply:** run the ALTERs against production via the production DB query path after publish; drizzle push is unreliable here (schema too large — see publish DB-diff hang note).

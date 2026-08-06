@@ -6,6 +6,8 @@ import { Express, Request, Response } from 'express';
 import { ensureAuthenticated } from './auth-middleware';
 import * as svc from './design-software-service';
 import * as reports from './design-reports/report-service';
+import * as vv from './vv/regression-service';
+import * as vvRegister from './vv/equation-register-service';
 import { getProperty, containsAssumedData } from './engine-framework/epd/database';
 
 // Register all LLX engines with the global registry at module load time
@@ -567,6 +569,66 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
   app.post('/api/design-software/reports/:reportId/advance-status', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       res.json(await reports.advanceReportStatus(parseInt(req.params.reportId), (req.user as any).id));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+
+  // ── V&V — Phase A (Regression Harness) + Phase B (Equation Register) ──────
+
+  /** List regression cases with their latest run result. */
+  app.get('/api/design-software/vv/regression/cases', ensureAuthenticated, async (_req: Request, res: Response) => {
+    try {
+      res.json(await vv.listCases());
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+
+  /** Run one regression case. */
+  app.post('/api/design-software/vv/regression/cases/:caseId/run', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      res.json(await vv.runCase(parseInt(req.params.caseId), user.fullName ?? user.username ?? String(user.id)));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+
+  /** Run ALL active regression cases (release gate). */
+  app.post('/api/design-software/vv/regression/run-all', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      res.json(await vv.runAll(user.fullName ?? user.username ?? String(user.id)));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+
+  /** Equation register — list (optionally per engine via ?engineId=). */
+  app.get('/api/design-software/vv/equation-register', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      res.json(await vvRegister.listRegister(req.query.engineId as string | undefined));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+
+  /** Record one evidence pillar on one equation (named engineer + reference required). */
+  app.post('/api/design-software/vv/equation-register/:equationId/evidence', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      const by = req.body.by ?? user.fullName ?? user.username ?? String(user.id);
+      res.json(await vvRegister.recordEvidence(parseInt(req.params.equationId), req.body.pillar, by, req.body.reference));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+
+  /** Computed Software Verification status per engine (never asserted). */
+  app.get('/api/design-software/vv/verification-status', ensureAuthenticated, async (_req: Request, res: Response) => {
+    try {
+      res.json(await vvRegister.verificationStatus());
     } catch (err: any) {
       res.status(err.statusCode ?? 500).json({ error: err.message });
     }

@@ -1,5 +1,6 @@
 - [LLX localData hydration](llx-localdata-hydration.md) — inputs refetch must merge UNDER local values after first load or whole-section saves persist rollbacks (lost OT/OP/capacity).
 - [LLX pending prod DB ALTERs](llx-prod-db-alters-pending.md) — constraint widenings (mechanical_vessel, ecp/ecr_design) applied to dev only; apply to prod at next publish; never drop comparison/summary from ds_results_section_chk.
+- [LLX V&V framework](llx-vv-framework.md) — verification (release-scoped, computed from evidence) vs engineering confidence (revision-scoped) never merged; tolerances never widened; registers never invented.
 - [LLX Workspace Architecture](llx-workspace-architecture.md) — 14-step design env; step keys, section data persistence, technology-selection gating, validation logic, lifecycle statuses.
 - [LLX CEL/EPD governance](llx-cel-epd-governance.md) — RRBO = Re-Refined Base Oil (project fluid, never library correlations); CEL flooding utilities must stay generic; controlled source types; exact-citation rule.
 - [SAP ChartOfAccounts Code dash format](sap-coa-code-dash.md) — SAP Code field uses dashes (e.g. `50207350600-ARL`); FormatCode omits them. Always strip dashes when matching user input against SAP account codes.
