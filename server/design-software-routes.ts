@@ -96,8 +96,11 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
       const soVol = num(String(inputs.so_ratio ?? '').trim() !== '' ? inputs.so_ratio : '1.5');
       const margin = num(inputs.design_margin) ?? 20;
       const nts = num(inputs.theoretical_stages) ?? num(inputs.stages) ?? 6;
-      if (feedLph === null || soVol === null) {
-        return res.status(422).json({ message: 'Feed flow (Design Basis) and S/O ratio (Process Design) are required before Sulzer screening.' });
+      if (feedLph === null || feedLph <= 0 || soVol === null || soVol <= 0) {
+        return res.status(422).json({ message: 'A positive feed flow (Design Basis) and positive S/O ratio (Process Design) are required before Sulzer screening.' });
+      }
+      if (margin === null || margin < 0 || nts === null || nts <= 0) {
+        return res.status(422).json({ message: 'Design margin must be ≥ 0 and theoretical stages must be positive before Sulzer screening.' });
       }
       const normalTotal = (feedLph / 1000) * (1 + soVol);
       const maximumTotal = feedLph / 1000 + (feedLph / 1000) * soVol * (1 + margin / 100);
@@ -123,7 +126,12 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
 
       const contRho = num(inputs.nmp_density_value);
       const dispRho = num(inputs.rrbo_density_value);
-      const risk = String(inputs.backmixing_risk ?? 'moderate').toLowerCase();
+      // Back-mixing risk: explicit query param (from the live UI control) wins
+      // over the persisted section value — avoids stale-save races.
+      const riskParam = String(req.query.risk ?? '').toLowerCase();
+      const risk = ['low', 'moderate', 'high'].includes(riskParam)
+        ? riskParam
+        : String(inputs.backmixing_risk ?? 'moderate').toLowerCase();
       const out = runSulzerPackingScreening({
         normalTotalFlow_m3_h: normalTotal,
         maximumTotalFlow_m3_h: maximumTotal,

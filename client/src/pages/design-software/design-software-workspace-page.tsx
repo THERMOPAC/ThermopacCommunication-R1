@@ -622,9 +622,10 @@ export default function DesignSoftwareWorkspacePage() {
     queryKey: ["/api/design-software/packings"],
     queryFn: () => apiRequest("GET", "/api/design-software/packings") as Promise<any[]>,
   });
+  const backMixingRisk = (localData["ecp_design"]?.backmixing_risk as string) ?? "moderate";
   const sulzerQ = useQuery<any>({
-    queryKey: [`/api/design-software/revisions/${activeRevisionId}/sulzer-screening`],
-    queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/sulzer-screening`) as Promise<any>,
+    queryKey: [`/api/design-software/revisions/${activeRevisionId}/sulzer-screening`, backMixingRisk],
+    queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/sulzer-screening?risk=${backMixingRisk}`) as Promise<any>,
     enabled: !!activeRevisionId,
     retry: false,
   });
@@ -2400,7 +2401,7 @@ export default function DesignSoftwareWorkspacePage() {
           <label className="text-sm text-gray-700 font-medium pt-1.5">Back-Mixing Risk</label>
           <select
             value={ec.backmixing_risk ?? "moderate"}
-            onChange={e => { f("backmixing_risk", e.target.value); s(); setTimeout(() => sulzerQ.refetch(), 400); }}
+            onChange={e => { f("backmixing_risk", e.target.value); s(); }}
             disabled={isFrozen}
             className="h-8 text-sm border rounded-md px-2 bg-white"
           >
