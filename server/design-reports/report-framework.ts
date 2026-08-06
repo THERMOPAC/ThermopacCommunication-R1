@@ -224,13 +224,18 @@ export function renderReportPdf(p: ReportPayload): Promise<Buffer> {
     doc.y = 80; doc.x = M;
     doc.font('Helvetica-Bold').fontSize(14).fillColor('#000').text('Table of Contents', M, 80);
     doc.moveDown(0.8);
-    toc.forEach(t => {
+    for (const t of toc) {
+      // Overflow guard: the TOC has exactly one reserved page. Letting pdfkit
+      // auto-add a page here would shift every page number computed above.
+      if (doc.y > doc.page.height - 90) {
+        doc.font('Helvetica').fontSize(9).fillColor(LIGHT).text('… (continued — see section headings)', M, doc.y);
+        break;
+      }
       doc.font('Helvetica').fontSize(10).fillColor('#111');
-      const label = `${t.num}.  ${t.title}`;
-      doc.text(label, M, doc.y, { continued: true, width: W - 40 });
+      doc.text(`${t.num}.  ${t.title}`, M, doc.y, { continued: true, width: W - 40, lineBreak: false });
       doc.font('Helvetica').fillColor(LIGHT).text(`  ${t.page}`, { align: 'right' });
       doc.moveDown(0.2);
-    });
+    }
 
     // ── Headers / footers / watermark on every page ──────────────────────────
     const range = doc.bufferedPageRange();

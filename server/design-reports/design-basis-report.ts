@@ -128,11 +128,12 @@ export async function buildDesignBasisPayload(revisionId: number, generatedByNam
     if (value === '') {
       sourceType = 'Not Entered'; sourceRef = '';
       if (f.mandatory) missing.push({ item: f.label, reason: 'Mandatory basis value not entered and not rule-populated.', severity: 'error' });
+    } else if (manual) {
+      // Manual/override flag takes precedence over any stale Auto-Populated status
+      sourceType = 'Engineer Entry (rule overridden)'; sourceRef = source || '';
     } else if (status === 'Auto-Populated' || status === 'Auto-Calculated') {
       sourceType = 'Thermopac Rule (Auto-Populated)';
       sourceRef = source || f.ruleRef || 'Thermopac Design Basis Standard';
-    } else if (manual) {
-      sourceType = 'Engineer Entry (rule overridden)'; sourceRef = source || '';
     } else {
       sourceType = 'Engineer Entry'; sourceRef = source || '';
     }
@@ -152,7 +153,7 @@ export async function buildDesignBasisPayload(revisionId: number, generatedByNam
       const source = String(fp[`${pr.key}_source`] ?? '').trim();
       let sourceType = 'Not Entered';
       if (value !== '') sourceType = source === 'Assumed' ? 'Assumed — Pending Validation' : source ? 'Entered (cited source)' : 'Entered (source not cited)';
-      if (value !== '' && source === 'Assumed') assumptions.push({ item: `${g.title.split('—')[0].trim()} — ${pr.label}`, value: `${value} ${unit}`.trim(), sourceRef: 'Thermopac preliminary screening default', status: 'Pending Laboratory Validation' });
+      if (value !== '' && source === 'Assumed') assumptions.push({ item: `${g.title.split('—')[0].trim()} — ${pr.label}`, value: `${value} ${unit}`.trim(), sourceRef: [source, refT ? `@ ${refT} °C` : ''].filter(Boolean).join(' '), status: 'Pending Laboratory Validation' });
       if (value !== '' && source && source !== 'Assumed') references.add(source);
       if (value === '' && ['interfacial_tension', 'nmp_solubility_rrbo', 'oil_solubility_nmp'].includes(pr.key)) {
         missing.push({ item: pr.label, reason: 'No approved NMP/RRBO two-phase value — laboratory/vendor data required.', severity: 'warning' });

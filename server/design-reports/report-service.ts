@@ -67,13 +67,17 @@ export async function generateReport(revisionId: number, docType: string, userId
   let reportId: number;
   if (existing.rows.length) {
     reportId = existing.rows[0].id;
-    await pool.query(`UPDATE design_reports SET payload = $1, generated_by = $2, generated_at = NOW() WHERE id = $3`, [JSON.stringify(payload), userId, reportId]);
+    // Conditional update — refuses to overwrite a report concurrently advanced out of draft
+    const upd = await pool.query(`UPDATE design_reports SET payload = $1, generated_by = $2, generated_at = NOW() WHERE id = $3 AND status = 'draft'`, [JSON.stringify(payload), userId, reportId]);
+    if (upd.rowCount === 0) throw Object.assign(new Error('The report left draft status while regeneration was in progress — refresh and retry.'), { statusCode: 409 });
     await logEvent(reportId, 'regenerated', userId, `blocking=${blocking}`);
   } else {
+    // Unique index on (revision_id, doc_type) prevents concurrent duplicate first generations
     const ins = await pool.query(
       `INSERT INTO design_reports (revision_id, doc_type, doc_number, report_rev, status, payload, generated_by)
-       VALUES ($1,$2,$3,$4,'draft',$5,$6) RETURNING id`,
+       VALUES ($1,$2,$3,$4,'draft',$5,$6) ON CONFLICT (revision_id, doc_type) DO NOTHING RETURNING id`,
       [revisionId, docType, payload.docNumber, payload.reportRev, JSON.stringify(payload), userId]);
+    if (!ins.rows.length) throw Object.assign(new Error('A report of this type was generated concurrently — refresh and retry.'), { statusCode: 409 });
     reportId = ins.rows[0].id;
     await logEvent(reportId, 'generated', userId, `blocking=${blocking}`);
   }
@@ -102,7 +106,9 @@ export async function advanceReportStatus(reportId: number, userId: number) {
     throw Object.assign(new Error('Four-eyes rule: the approver must be different from the user who generated the report.'), { statusCode: 403 });
   }
   const col = next === 'for_review' ? 'reviewed' : next === 'approved' ? 'approved' : 'issued';
-  await pool.query(`UPDATE design_reports SET status = $1, ${col}_by = $2, ${col}_at = NOW() WHERE id = $3`, [next, userId, reportId]);
+  // Expected-status predicate — two concurrent advances cannot both transition
+  const upd = await pool.query(`UPDATE design_reports SET status = $1, ${col}_by = $2, ${col}_at = NOW() WHERE id = $3 AND status = $4`, [next, userId, reportId, rep.status]);
+  if (upd.rowCount === 0) throw Object.assign(new Error('Report status changed concurrently — refresh and retry.'), { statusCode: 409 });
   await logEvent(reportId, `status_${next}`, userId);
   return { id: reportId, status: next };
 }
