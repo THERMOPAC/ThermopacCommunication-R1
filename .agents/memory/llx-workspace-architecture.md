@@ -61,3 +61,10 @@ mechanical_design, utilities, cost_estimation
 - **Governance:** feedDensity is always mapped from the Fluid Properties RRBO density: an engineer-selected controlled source type passes verbatim; if no source type is selected, the mapper tags the auto-populated Thermopac Feed Master value as sourceType 'Assumed' with a sourceReference naming the master — the engine never receives an untagged or invented density.
 - **UI rule:** when the latest process_design run is `error`, suppress the previous accepted result (results table keeps last success; showing it would present stale values as current).
 - S/O ratio in the workspace is VOLUME basis (NMP vol / RRBO vol), default 1.5:1; engine ratio is mass basis — never conflate.
+
+## Thermopac preliminary screening defaults (Stage 7)
+- Rule: preliminary defaults live OUTSIDE the engines (dedicated defaults module + apply/clear route + assumptions-register sync); engines keep full validation and classify everything Pending Validation.
+- **Why:** governance requires visible/editable/Assumed-tagged defaults, never hidden engine fallbacks.
+- Rotor diameter must NOT be default-populated alongside rotor ratio — C5 enforces ±1 % consistency per swept diameter; supply ratio only and the engine derives the diameter.
+- The input mapper spreads raw workspace inputs into `out`; any flat workspace key that collides with an engine record key (e.g. `hets`) must be rebuilt when the value is not an object.
+- Workspace efficiency fields display % — defaults must be percent values (40/90), the mapper's pctToFraction converts.
