@@ -181,6 +181,22 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>)
   if (out.diameterSweep === undefined && out.diameterValues === undefined) {
     out.diameterSweep = { min: 0.3, max: 2.0, step: 0.05 };
   }
+  // Droplet basis — engineer-approved Thermopac screening defaults (2026-08-06):
+  // Sauter mean diameter d32 (workspace mm → engine m) with terminal velocity
+  // as the characteristic velocity, and hindrance exponent n = 1 as an explicit
+  // Assumed entry (the engine's own required form for n = 1).
+  const SCREENING_REF = 'Thermopac Preliminary Screening Default';
+  if (out.sauterMeanDiameter === undefined && out.characteristicVelocity === undefined) {
+    const d32mm = num(inputs.sauter_mean_d32) ?? 1.0;
+    if (d32mm > 0) {
+      out.sauterMeanDiameter = { value: d32mm / 1000, sourceType: 'Assumed', sourceReference: SCREENING_REF };
+      if (out.useTerminalVelocityAsCharacteristic === undefined) out.useTerminalVelocityAsCharacteristic = true;
+    }
+  }
+  if (out.hindranceExponent === undefined && (out.useTerminalVelocityAsCharacteristic === true || out.characteristicVelocity !== undefined)) {
+    const n = num(inputs.hindrance_exponent) ?? 1;
+    if (n > 0) out.hindranceExponent = { value: n, sourceType: 'Assumed', sourceReference: `${SCREENING_REF} — n pending laboratory validation` };
+  }
 
   return out;
 }

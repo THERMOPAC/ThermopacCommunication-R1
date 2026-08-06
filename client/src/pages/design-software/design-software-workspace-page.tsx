@@ -2126,13 +2126,27 @@ export default function DesignSoftwareWorkspacePage() {
     const fmt = (v: number | null | undefined, dp = 0) =>
       v === null || v === undefined || !isFinite(v) ? "—" : v.toLocaleString("en-IN", { minimumFractionDigits: dp, maximumFractionDigits: dp });
     const statusLine = (text: string) => <p className="text-[11px] text-gray-400 px-2 -mt-0.5">{text}</p>;
+    // Trial diameter auto-initialization: engine-computed minimum feasible
+    // diameter from the latest hydraulic sizing sweep (never computed here).
+    const hydResData = (resultsQ.data ?? []).find((r: any) => r.section === "hydraulics_common")?.data;
+    const hydNormal = hydResData?.normalCase ?? hydResData?.cases?.normal;
+    const minFeasibleD = numOrNull(String(hydNormal?.summary?.minimumFeasibleDiameter_m ?? ""));
     return (
       <div className="max-w-3xl">
         <SectionCard title="Hydraulic Inputs">
-          <FieldRow label="Column Diameter (trial)" value={hd.column_diameter ?? ""} onChange={v => f("column_diameter", v)} onBlur={s} unit="m" placeholder="Blank — engine evaluates the full screening sweep (0.3–2.0 m)" />
+          <FieldRow
+            label="Column Diameter (trial)"
+            value={(hd.column_diameter ?? "").trim() !== "" ? (hd.column_diameter as string) : (minFeasibleD !== null ? String(minFeasibleD) : "")}
+            onChange={v => f("column_diameter", v)}
+            onBlur={s}
+            unit="m"
+            placeholder="Auto-sizes from the hydraulic screening sweep on first run"
+          />
           {statusLine((hd.column_diameter ?? "").trim() !== ""
             ? "Status: Manual · Engineer-selected trial diameter — evaluated within the screening sweep"
-            : "Status: Auto-Populated · Rule: blank runs the Common Hydraulic screening sweep 0.3–2.0 m (0.05 m step); the engine evaluates each diameter — a recommended diameter requires a source-tagged droplet basis (d32 or characteristic velocity)")}
+            : minFeasibleD !== null
+              ? `Status: Auto-Populated · Minimum feasible diameter ${minFeasibleD} m from the Common Hydraulic sizing sweep (0.3–2.0 m) · Source: Common Hydraulic Design Engine — engineer may override before re-running`
+              : "Status: Auto-Populated · Rule: first Run Common Hydraulics sizes the column via the screening sweep 0.3–2.0 m (0.05 m step) using the d32 screening basis below; the minimum feasible diameter then appears here")}
           <FieldRow label="Continuous Phase Density" value={hd.cont_density ?? d("fluid_properties").nmp_density_value ?? ""} onChange={v => f("cont_density", v)} onBlur={s} unit="kg/m³" note="Auto-filled from Fluid Properties" />
           <FieldRow label="Dispersed Phase Density" value={hd.disp_density ?? d("fluid_properties").rrbo_density_value ?? ""} onChange={v => f("disp_density", v)} onBlur={s} unit="kg/m³" />
           <FieldRow label="Continuous Phase Viscosity" value={hd.cont_viscosity ?? d("fluid_properties").nmp_viscosity_dynamic_value ?? ""} onChange={v => f("cont_viscosity", v)} onBlur={s} unit="mPa·s" />
@@ -2149,6 +2163,10 @@ export default function DesignSoftwareWorkspacePage() {
             ? "Status: Manual · Engineer override"
             : `Status: Auto-Populated · Rule: Feed Flow (${hydFeedLph !== null ? fmt(hydFeedLph) : "—"} LPH) + Normal Solvent Flow (${hydFeedLph !== null && hydRatio !== null ? fmt(hydFeedLph * hydRatio) : "—"} LPH) = ${hydTotalLph !== null ? fmt(hydTotalLph) : "—"} LPH = ${hydTotalM3h !== null ? fmt(hydTotalM3h, 1) : "—"} m³/h · Source: Process Design / Design Basis`)}
           <FieldRow label="Flooding Margin Design" value={hd.flooding_margin_design ?? "70"} onChange={v => f("flooding_margin_design", v)} onBlur={s} unit="%" />
+          <FieldRow label="Sauter Mean Diameter d32 (screening)" value={hd.sauter_mean_d32 ?? "1.0"} onChange={v => f("sauter_mean_d32", v)} onBlur={s} unit="mm" />
+          {statusLine(`Status: ${(hd.sauter_mean_d32 ?? "").trim() !== "" && hd.sauter_mean_d32 !== "1.0" ? "Manual" : "Auto-Populated"} · Default 1.0 mm · Source: Thermopac Preliminary Screening Default (Assumed) · terminal velocity used as characteristic velocity`)}
+          <FieldRow label="Hindrance Exponent n" value={hd.hindrance_exponent ?? "1"} onChange={v => f("hindrance_exponent", v)} onBlur={s} unit="—" />
+          {statusLine(`Status: ${(hd.hindrance_exponent ?? "").trim() !== "" && hd.hindrance_exponent !== "1" ? "Manual" : "Auto-Populated"} · Default n = 1 (explicit Assumed entry — not a universal relationship) · Pending Laboratory Validation`)}
         </SectionCard>
 
         <div className="flex items-center gap-3 mb-4">
