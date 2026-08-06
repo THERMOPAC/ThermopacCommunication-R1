@@ -3164,6 +3164,8 @@ export default function DesignSoftwareWorkspacePage() {
   }
 
   function renderMechVesselResults() {
+    const tcPreferred = String(d("technology_comparison").preferred ?? "");
+    const techSelected = tcPreferred === "ecp" || tcPreferred === "ecr";
     const mechRun: any = runs.find(r => r.calculation_type === "mechanical_vessel" && ["success", "warning"].includes(r.calculation_status));
     const snap = mechRun?.result_snapshot;
     const fmtV = (it: any, dp = 2) => it && typeof it.result === "number" && isFinite(it.result) ? `${it.result.toFixed(dp)} ${it.units}` : null;
@@ -3182,10 +3184,15 @@ export default function DesignSoftwareWorkspacePage() {
           <p className="text-[11px] text-gray-500">
             Maps the confirmed Stage 9 Mechanical Design Basis into mech-vessel v1.0.0. Preliminary thin-wall screening only — not a final ASME design and not fabrication-ready.
           </p>
-          <Button size="sm" disabled={isFrozen || calculateMutation.isPending} onClick={() => calculateMutation.mutate("mechanical_vessel")}>
+          <Button size="sm" disabled={isFrozen || calculateMutation.isPending || !techSelected} onClick={() => calculateMutation.mutate("mechanical_vessel")}>
             {calculateMutation.isPending ? "Running…" : "Run Preliminary Mechanical Design"}
           </Button>
         </div>
+        {!techSelected && (
+          <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 mb-3">
+            Blocked — set <strong>Engineer Selected Technology</strong> to ECP or ECR in Stage 8 (Technology Comparison) first. {tcPreferred === "both_vendor_pilot" ? '"Continue Both for Vendor/Pilot Review" cannot drive the mechanical basis — a single technology is required.' : "The software never auto-selects the technology."}
+          </div>
+        )}
         <div className="p-2 bg-gray-50 border rounded-lg text-[10px] text-gray-500 mb-3">
           Applicability limitations: no reinforcement calculation · no wind or seismic design · no detailed skirt/saddle design · no FEA · no PV Elite replacement · no code-certified MAWP calculation. Final code-certified ASME/EN/IS design remains pending.
         </div>
