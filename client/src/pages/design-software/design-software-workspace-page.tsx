@@ -931,10 +931,14 @@ export default function DesignSoftwareWorkspacePage() {
   });
 
   function renderPrelimBanner(scope: "ecp" | "ecr") {
+    const section = scope === "ecp" ? "ecp_design" : "ecr_design";
+    const active = Object.keys(localData[section] ?? {}).some(k => k.endsWith("_source_reference") && String((localData[section] as any)[k] ?? "").startsWith("Thermopac Preliminary"));
     return (
       <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl mb-3">
         <p className="text-xs text-blue-900">
-          Thermopac preliminary screening defaults are active. Results are suitable for preliminary engineering only and require vendor, laboratory, or pilot validation before design release.
+          {active
+            ? "Thermopac preliminary screening defaults are active. Results are suitable for preliminary engineering only and require vendor, laboratory, or pilot validation before design release."
+            : "Thermopac preliminary screening defaults are available for this panel — apply them to populate a complete Assumed-tagged preliminary input set (Pending Validation)."}
         </p>
         <div className="flex gap-2 mt-2">
           <Button size="sm" variant="outline" className="h-7 text-xs" disabled={isFrozen || prelimDefaultsMutation.isPending}

@@ -90,10 +90,11 @@ export function ecrDefaultFields(stage5ColumnDiameter_m: number | null): Default
     { key: 'rotor_ratio', value: '0.50', label: 'Rotor / Column Diameter Ratio', unit: '-', ref: R },
     { key: 'rotor_speed', value: '60', label: 'Rotor Speed', unit: 'rpm', ref: R },
     { key: 'power_number', value: '1.0', label: 'Power Number', unit: '-', ref: R },
-    { key: 'compartment_efficiency', value: '0.40', label: 'Compartment Efficiency', unit: 'fraction', ref: R },
+    // Workspace fields display %, the input mapper converts to fraction (0.40 / 0.90)
+    { key: 'compartment_efficiency', value: '40', label: 'Compartment Efficiency', unit: '% (0.40 fraction)', ref: R },
     { key: 'compartment_height', value: '0.25', label: 'Compartment Height', unit: 'm', ref: R },
     { key: 'rotors_per_compartment', value: '1', label: 'Rotors per Compartment', unit: '-', ref: R },
-    { key: 'shaft_efficiency', value: '0.90', label: 'Shaft Efficiency', unit: 'fraction', ref: R },
+    { key: 'shaft_efficiency', value: '90', label: 'Shaft Efficiency', unit: '% (0.90 fraction)', ref: R },
     { key: 'mechanical_design_margin', value: '1.25', label: 'Mechanical Design Margin', unit: '-', ref: R },
     { key: 'top_head_height', value: '0.50', label: 'Top Head Height', unit: 'm', ref: R },
     { key: 'top_disengagement_height', value: '1.00', label: 'Top Disengagement Height', unit: 'm', ref: R },
