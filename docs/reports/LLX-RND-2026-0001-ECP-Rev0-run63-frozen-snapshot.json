@@ -3481,18 +3481,12 @@
         "note": "The engine consumes packing data — it never owns packing data. Vendor identity is data, not code.",
         "record": {
           "id": "sulzer-smvp-preliminary-screening",
-          "size": {
-            "unit": "mm",
-            "value": 250,
-            "sourceType": "Assumed",
-            "sourceReference": "Generic structured sheet-metal packing literature-typical value, Assumed — NOT Sulzer-certified vendor data; nominal element designation placeholder"
-          },
-          "source": "Rauber, Design Practice for Packed Liquid-Liquid Extraction Columns, AIChE 2006 — preliminary screening characteristics only",
+          "source": "Johannes Rauber, Sulzer Chemtech Ltd., Design Practice for Packed Liquid-Liquid Extraction Columns, AIChE 2006 — preliminary screening characteristics only",
           "material": "Metal (stainless steel assumed for screening)",
           "revision": "Rev 0 (preliminary screening)",
           "packingType": "structured sheet-metal",
           "productName": "SMVP — Preliminary Screening Record",
-          "vendorNotes": "Efficiency / Back-Mixing Preferred family (published screening throughput 35–60 m³/(m²·h), NTS ≤ 10, up to 3 beds). Preliminary screening record — controlled literature characteristics (Rauber, Design Practice for Packed Liquid-Liquid Extraction Columns, AIChE 2006 — preliminary screening characteristics only). Replace with a vendor-certified record before any rating use.",
+          "vendorNotes": "Efficiency / Back-Mixing Preferred family (published screening throughput 35–60 m³/(m²·h), NTS ≤ 10, up to 3 beds). Preliminary screening record — controlled literature characteristics (Johannes Rauber, Sulzer Chemtech Ltd., Design Practice for Packed Liquid-Liquid Extraction Columns, AIChE 2006 — preliminary screening characteristics only). Replace with a vendor-certified record before any rating use.",
           "manufacturer": "Sulzer (preliminary screening record — not vendor-certified)",
           "voidFraction": {
             "unit": "-",
@@ -3506,7 +3500,7 @@
             "unit": "m2/m3",
             "value": 250,
             "sourceType": "Assumed",
-            "sourceReference": "Mid-range of the published 200–500 m²/m³ SSA screening range (Rauber, Design Practice for Packed Liquid-Liquid Extraction Columns, AIChE 2006 — preliminary screening characteristics only)"
+            "sourceReference": "Packing designation: \"250\" is the nominal specific-surface-area grade (250 m²/m³) of the SMV/SMVP families, not a physical element dimension; within the published 200–500 m²/m³ SSA screening range (Johannes Rauber, Sulzer Chemtech Ltd., Design Practice for Packed Liquid-Liquid Extraction Columns, AIChE 2006 — preliminary screening characteristics only)"
           }
         },
         "consumedFrom": "Packing Database record 'sulzer-smvp-preliminary-screening'"

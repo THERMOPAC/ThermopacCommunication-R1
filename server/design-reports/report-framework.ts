@@ -62,7 +62,35 @@ const LIGHT = '#999999';
 const RULE = '#cccccc';
 const BRAND = '#7f1d1d';
 
-export function renderReportPdf(p: ReportPayload): Promise<Buffer> {
+// ── PDF glyph safety ──────────────────────────────────────────────────────────
+// The standard PDF base-14 fonts (Helvetica) cover WinAnsi only. Greek letters
+// and several math symbols stored verbatim in engine strings (π, ρ, φ, ≤, √ …)
+// have no glyph and render as garbage. Transliterate ONLY glyphs outside
+// WinAnsi to unambiguous ASCII math equivalents; everything WinAnsi supports
+// (·, ², ³, ×, °, ±, µ) is left untouched so stored strings stay as close to
+// verbatim as the font allows.
+const NON_WINANSI_MAP: Record<string, string> = {
+  '\u03C0': 'pi', '\u03C1': 'rho', '\u03C6': 'phi', '\u03D5': 'phi', '\u03BC': 'µ',
+  '\u03C3': 'sigma', '\u03B7': 'eta', '\u03B5': 'eps', '\u03B3': 'gamma', '\u03BB': 'lambda',
+  '\u0394': 'Delta', '\u03A3': 'Sigma', '\u03A9': 'Omega', '\u03BD': 'nu', '\u03C4': 'tau',
+  '\u2264': '<=', '\u2265': '>=', '\u221A': 'sqrt', '\u2212': '-', '\u2260': '!=',
+  '\u2248': '~=', '\u221E': 'inf', '\u2192': '->', '\u2190': '<-', '\u22C5': '·',
+  '\u2081': '_1', '\u2082': '_2', '\u2080': '_0', '\u2070': '^0', '\u2074': '^4', '\u2075': '^5',
+};
+const NON_WINANSI_RE = new RegExp(`[${Object.keys(NON_WINANSI_MAP).join('')}]`, 'g');
+function sanitizeForPdf(v: any): any {
+  if (typeof v === 'string') return v.replace(NON_WINANSI_RE, (ch) => NON_WINANSI_MAP[ch]);
+  if (Array.isArray(v)) return v.map(sanitizeForPdf);
+  if (v && typeof v === 'object') {
+    const out: any = {};
+    for (const k of Object.keys(v)) out[k] = sanitizeForPdf(v[k]);
+    return out;
+  }
+  return v;
+}
+
+export function renderReportPdf(payload: ReportPayload): Promise<Buffer> {
+  const p: ReportPayload = sanitizeForPdf(payload);
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margins: { top: 70, bottom: 60, left: M, right: M }, bufferPages: true, info: { Title: `${p.docNumber} ${p.reportRev}`, Author: 'Thermopac Engineering' } });
     const chunks: Buffer[] = [];

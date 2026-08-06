@@ -28,7 +28,7 @@ export const PRELIM_HETS_REF = 'Thermopac Preliminary ECP Screening Default v1.0
 export const SMV_PRELIM_ID = 'sulzer-smv-preliminary-screening';
 export const SMVP_PRELIM_ID = 'sulzer-smvp-preliminary-screening';
 
-const LIT_REF = 'Rauber, Design Practice for Packed Liquid-Liquid Extraction Columns, AIChE 2006 — preliminary screening characteristics only';
+const LIT_REF = 'Johannes Rauber, Sulzer Chemtech Ltd., Design Practice for Packed Liquid-Liquid Extraction Columns, AIChE 2006 — preliminary screening characteristics only';
 const GENERIC_NOTE = 'Generic structured sheet-metal packing literature-typical value, Assumed — NOT Sulzer-certified vendor data';
 
 function prelimRecord(id: string, productName: string, purposeNote: string): PackingRecord {
@@ -40,8 +40,11 @@ function prelimRecord(id: string, productName: string, purposeNote: string): Pac
     packingType: 'structured sheet-metal',
     geometryClass: 'structured',
     material: 'Metal (stainless steel assumed for screening)',
-    size: { value: 250, unit: 'mm', sourceType: 'Assumed', sourceReference: `${GENERIC_NOTE}; nominal element designation placeholder` },
-    specificSurfaceArea: { value: 250, unit: 'm2/m3', sourceType: 'Assumed', sourceReference: `Mid-range of the published 200–500 m²/m³ SSA screening range (${LIT_REF})` },
+    // size deliberately OMITTED: "250" in SMV/SMVP 250 is the Sulzer nominal
+    // surface-area designation (m²/m³), not a physical element size in mm.
+    // No vendor-supported physical size exists for these preliminary records,
+    // so none is invented (previous "250 mm placeholder" removed per review).
+    specificSurfaceArea: { value: 250, unit: 'm2/m3', sourceType: 'Assumed', sourceReference: `Packing designation: "250" is the nominal specific-surface-area grade (250 m²/m³) of the SMV/SMVP families, not a physical element dimension; within the published 200–500 m²/m³ SSA screening range (${LIT_REF}). Thermopac Preliminary Screening / Pending Vendor Validation` },
     voidFraction: { value: 0.95, unit: '-', sourceType: 'Assumed', sourceReference: GENERIC_NOTE },
     // hydraulicCapacityData / pressureDropData deliberately ABSENT:
     // vendor capacity and pressure-drop curves are never invented. The C4

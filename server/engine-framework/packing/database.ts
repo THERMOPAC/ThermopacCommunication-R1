@@ -126,7 +126,7 @@ export interface PackingRecord {
   packingType: string;                  // e.g. 'structured sheet-metal', 'random ring'
   geometryClass: 'random' | 'structured';
   material: string;
-  size: PackingTaggedValue;             // nominal size / crimp designation
+  size?: PackingTaggedValue;            // nominal size / crimp designation (optional — omit when no vendor-supported physical size exists; never populate with a placeholder)
   specificSurfaceArea: PackingTaggedValue;  // m2/m3
   voidFraction: PackingTaggedValue;         // –
   packingFactor?: PackingTaggedValue;       // 1/m (optional vendor datum)
@@ -213,7 +213,7 @@ export function validatePackingRecord(record: unknown): PackingValidationIssue[]
     if (typeof r[f] !== 'string' || !r[f].trim()) issues.push({ field: `packing.${f}`, message: `packing.${f} is mandatory (non-empty string)` });
   }
   if (r.geometryClass !== 'random' && r.geometryClass !== 'structured') issues.push({ field: 'packing.geometryClass', message: "packing.geometryClass must be 'random' or 'structured'" });
-  checkTagged(r.size, 'packing.size', 'mm', issues, { min: 0.1, max: 500 });
+  if (r.size !== undefined) checkTagged(r.size, 'packing.size', 'mm', issues, { min: 0.1, max: 500 });
   checkTagged(r.specificSurfaceArea, 'packing.specificSurfaceArea', 'm2/m3', issues, { min: 50, max: 1500 });
   checkTagged(r.voidFraction, 'packing.voidFraction', '-', issues, { min: 0.5, max: 0.99 });
   if (r.packingFactor !== undefined) checkTagged(r.packingFactor, 'packing.packingFactor', '1/m', issues, { min: 1, max: 10000 });
