@@ -186,14 +186,25 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>)
   // as the characteristic velocity, and hindrance exponent n = 1 as an explicit
   // Assumed entry (the engine's own required form for n = 1).
   const SCREENING_REF = 'Thermopac Preliminary Screening Default';
-  if (out.sauterMeanDiameter === undefined && out.characteristicVelocity === undefined) {
-    const d32mm = num(inputs.sauter_mean_d32) ?? 1.0;
+  const uKModel = String(inputs.hydraulic_model ?? '').trim() === 'characteristic_velocity';
+  if (uKModel && out.characteristicVelocity === undefined) {
+    const uk = num(inputs.characteristic_velocity);
+    if (uk !== undefined && uk > 0) {
+      out.characteristicVelocity = { value: uk, sourceType: 'Assumed', sourceReference: 'Engineer-entered characteristic velocity (Stage 5 workspace) — pending laboratory validation' };
+    }
+  }
+  if (!uKModel && out.sauterMeanDiameter === undefined && out.characteristicVelocity === undefined) {
+    const d32mm = num(inputs.sauter_mean_d32) ?? 1.5;
     if (d32mm > 0) {
       out.sauterMeanDiameter = { value: d32mm / 1000, sourceType: 'Assumed', sourceReference: SCREENING_REF };
       if (out.useTerminalVelocityAsCharacteristic === undefined) out.useTerminalVelocityAsCharacteristic = true;
     }
   }
   if (out.hindranceExponent === undefined && (out.useTerminalVelocityAsCharacteristic === true || out.characteristicVelocity !== undefined)) {
+    // Engine contract: a characteristic-velocity basis always requires n; in the
+    // default d32/terminal-velocity screening method n = 1 is carried as the
+    // engine's explicit Assumed entry (recorded in the run's assumption register,
+    // not surfaced as a workspace input).
     const n = num(inputs.hindrance_exponent) ?? 1;
     if (n > 0) out.hindranceExponent = { value: n, sourceType: 'Assumed', sourceReference: `${SCREENING_REF} — n pending laboratory validation` };
   }

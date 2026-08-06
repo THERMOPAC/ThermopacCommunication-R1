@@ -2163,10 +2163,33 @@ export default function DesignSoftwareWorkspacePage() {
             ? "Status: Manual · Engineer override"
             : `Status: Auto-Populated · Rule: Feed Flow (${hydFeedLph !== null ? fmt(hydFeedLph) : "—"} LPH) + Normal Solvent Flow (${hydFeedLph !== null && hydRatio !== null ? fmt(hydFeedLph * hydRatio) : "—"} LPH) = ${hydTotalLph !== null ? fmt(hydTotalLph) : "—"} LPH = ${hydTotalM3h !== null ? fmt(hydTotalM3h, 1) : "—"} m³/h · Source: Process Design / Design Basis`)}
           <FieldRow label="Flooding Margin Design" value={hd.flooding_margin_design ?? "70"} onChange={v => f("flooding_margin_design", v)} onBlur={s} unit="%" />
-          <FieldRow label="Sauter Mean Diameter d32 (screening)" value={hd.sauter_mean_d32 ?? "1.0"} onChange={v => f("sauter_mean_d32", v)} onBlur={s} unit="mm" />
-          {statusLine(`Status: ${(hd.sauter_mean_d32 ?? "").trim() !== "" && hd.sauter_mean_d32 !== "1.0" ? "Manual" : "Auto-Populated"} · Default 1.0 mm · Source: Thermopac Preliminary Screening Default (Assumed) · terminal velocity used as characteristic velocity`)}
-          <FieldRow label="Hindrance Exponent n" value={hd.hindrance_exponent ?? "1"} onChange={v => f("hindrance_exponent", v)} onBlur={s} unit="—" />
-          {statusLine(`Status: ${(hd.hindrance_exponent ?? "").trim() !== "" && hd.hindrance_exponent !== "1" ? "Manual" : "Auto-Populated"} · Default n = 1 (explicit Assumed entry — not a universal relationship) · Pending Laboratory Validation`)}
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
+            <label className="text-sm text-gray-700 font-medium pt-1.5">Hydraulic Model</label>
+            <select
+              value={hd.hydraulic_model ?? "d32_terminal"}
+              onChange={e => { f("hydraulic_model", e.target.value); s(); }}
+              disabled={isFrozen}
+              className="h-8 text-sm border rounded-md px-2 bg-white"
+            >
+              <option value="d32_terminal">Sauter Mean Diameter (d32) / Terminal Velocity (Default)</option>
+              <option value="characteristic_velocity">Characteristic Velocity + Hindrance Exponent</option>
+            </select>
+            <span />
+          </div>
+          {statusLine(`Status: ${(hd.hydraulic_model ?? "d32_terminal") === "d32_terminal" ? "Auto-Populated · Default LLX screening method" : "Manual · Engineer-selected hydraulic model"}`)}
+          {(hd.hydraulic_model ?? "d32_terminal") === "d32_terminal" ? (
+            <>
+              <FieldRow label="Sauter Mean Diameter d32 (screening)" value={hd.sauter_mean_d32 ?? "1.5"} onChange={v => f("sauter_mean_d32", v)} onBlur={s} unit="mm" />
+              {statusLine(`Status: ${(hd.sauter_mean_d32 ?? "").trim() !== "" && hd.sauter_mean_d32 !== "1.5" ? "Manual" : "Auto-Populated"} · Default 1.5 mm · Source: Thermopac Preliminary Screening Default (Assumed) · terminal velocity used as characteristic velocity`)}
+            </>
+          ) : (
+            <>
+              <FieldRow label="Characteristic Velocity" value={hd.characteristic_velocity ?? ""} onChange={v => f("characteristic_velocity", v)} onBlur={s} unit="m/s" />
+              {statusLine("Status: Manual · Engineer-entered characteristic velocity — pending laboratory validation")}
+              <FieldRow label="Hindrance Exponent n" value={hd.hindrance_exponent ?? "1"} onChange={v => f("hindrance_exponent", v)} onBlur={s} unit="—" />
+              {statusLine(`Status: ${(hd.hindrance_exponent ?? "").trim() !== "" && hd.hindrance_exponent !== "1" ? "Manual" : "Auto-Populated"} · Default n = 1 (explicit Assumed entry — not a universal relationship) · Pending Laboratory Validation`)}
+            </>
+          )}
         </SectionCard>
 
         <div className="flex items-center gap-3 mb-4">
