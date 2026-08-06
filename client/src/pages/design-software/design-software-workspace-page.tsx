@@ -249,6 +249,10 @@ const ISA_FORMULA = "P = 101.325 × (1 − 2.25577×10⁻⁵ × h)^5.25588 kPa";
 // Internal pressure and external vacuum are SEPARATE design cases; Full Vacuum is
 // a designation, never represented as 0 bar(g).
 const LLX_COL_INTERNAL_DP = "2.5"; // bar(g)
+// Thermopac Design Basis Master — default operating conditions for
+// Liquid–Liquid NMP Solvent Extraction. Blank-only seed, fully editable.
+const OPERATING_PRESSURE_DEFAULT = "1.0"; // bar(g)
+const OPERATING_PRESSURE_SOURCE = "Thermopac Design Basis Master";
 const LLX_COL_EXTERNAL_CONDITION = "Full Vacuum";
 const LLX_COL_ORIENTATION = "Vertical";
 const LLX_COL_HEIGHT_M = "14";
@@ -1273,6 +1277,12 @@ export default function DesignSoftwareWorkspacePage() {
           colour_scale: "",
         };
       }
+      // Operating Pressure — Thermopac Design Basis Master default for LLX
+      // (1.0 bar g). Blank-only: never overwrites an engineer-entered value.
+      if ((m.operating_pressure ?? "").trim() === "") {
+        m.operating_pressure = OPERATING_PRESSURE_DEFAULT;
+        updates = { ...updates, operating_pressure: OPERATING_PRESSURE_DEFAULT };
+      }
       if (m.design_objective_manual !== "true") {
         m.design_objective = genObjective();
         updates = { ...updates, design_objective: m.design_objective };
@@ -1501,8 +1511,10 @@ export default function DesignSoftwareWorkspacePage() {
             onChange={v => f("operating_pressure", v)}
             onBlur={() => cs(auto({}))}
             unit="bar g"
-            note="Manual — no process-configuration rule or master data available"
           />
+          <p className="text-xs ml-[212px] -mt-1 text-gray-500">
+            Status: {(db.operating_pressure ?? "").trim() !== "" && db.operating_pressure !== OPERATING_PRESSURE_DEFAULT ? "Manual" : "Auto-Populated"} · Default {OPERATING_PRESSURE_DEFAULT} bar g · Source: {OPERATING_PRESSURE_SOURCE} — editable; Extraction Pressure follows this value
+          </p>
           <SelectRow label="Operating Temperature" value={db.operating_temperature ?? ""} onChange={v => f("operating_temperature", v)} onBlur={s} onCommit={v => csa({ operating_temperature: v })} options={["50", "55", "60", "65", "70", "75", "80"]} unit="°C" allowOther note="Values above 80 °C may be entered directly — Design Temperature then follows OT + 20 °C" />
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Extraction Column Pressure Design — Thermopac Standard</p>
