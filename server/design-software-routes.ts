@@ -48,6 +48,34 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
     }
   });
 
+  // ── Packing Database (read-only registry listing) ──────────────────────────
+  // Vendor packing records registered in the in-memory Packing Database.
+  // Shipped empty by design — vendor data is registered, never invented.
+  app.get('/api/design-software/packings', ensureAuthenticated, async (_req: Request, res: Response) => {
+    try {
+      const { listPackings } = await import('./engine-framework/packing/database');
+      res.json(listPackings().map((p: any) => ({
+        id: p.id,
+        manufacturer: p.manufacturer,
+        productFamily: p.productFamily,
+        productName: p.productName,
+        packingType: p.packingType,
+        geometryClass: p.geometryClass,
+        material: p.material,
+        size: p.size ?? null,
+        specificSurfaceArea: p.specificSurfaceArea ?? null,
+        voidFraction: p.voidFraction ?? null,
+        maximumBedHeight: p.maximumBedHeight ?? null,
+        hydraulicCapacityReference: p.hydraulicCapacityData?.source ?? p.hydraulicCapacityData?.sourceReference ?? null,
+        pressureDropReference: p.pressureDropData?.wet?.source ?? p.pressureDropData?.wet?.sourceReference ?? null,
+        source: p.source ?? null,
+        revision: p.revision ?? null,
+      })));
+    } catch (e: any) {
+      res.status(500).json({ message: e?.message ?? 'Packing Database listing failed' });
+    }
+  });
+
   // ── Designs ────────────────────────────────────────────────────────────────
 
   /** List designs with optional filters. */

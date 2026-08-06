@@ -618,6 +618,10 @@ export default function DesignSoftwareWorkspacePage() {
     queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/runs`) as Promise<CalcRun[]>,
     enabled: !!activeRevisionId,
   });
+  const packingsQ = useQuery<any[]>({
+    queryKey: ["/api/design-software/packings"],
+    queryFn: () => apiRequest("GET", "/api/design-software/packings") as Promise<any[]>,
+  });
   const resultsQ = useQuery<any[]>({
     queryKey: [`/api/design-software/revisions/${activeRevisionId}/results`],
     queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/results`) as Promise<any[]>,
@@ -2278,19 +2282,82 @@ export default function DesignSoftwareWorkspacePage() {
     );
   }
 
+  function equipmentCarryOver() {
+    // Stage 5 / Stage 3 / Stage 4 carry-over — bindings only, no calculations
+    const hd = d("hydraulic_design");
+    const fp = d("fluid_properties");
+    const dbx = d("design_basis");
+    const pdx = d("process_design");
+    const feedLph = numOrNull(dbx.design_capacity_lph ?? dbx.design_capacity ?? dbx.feed_flow);
+    const ratio = numOrNull((pdx.so_ratio ?? "").trim() !== "" ? pdx.so_ratio : SO_RATIO_DEFAULT);
+    const margin = numOrNull(pdx.design_margin) ?? 20;
+    const totalLph = feedLph !== null && ratio !== null ? feedLph * (1 + ratio) : null;
+    const hydResData = (resultsQ.data ?? []).find((r: any) => r.section === "hydraulics_common")?.data;
+    const hydNormal = hydResData?.normalCase ?? hydResData?.cases?.normal;
+    const minFeasibleD = numOrNull(String(hydNormal?.summary?.minimumFeasibleDiameter_m ?? ""));
+    const diameter = (hd.column_diameter ?? "").trim() !== "" ? numOrNull(hd.column_diameter) : minFeasibleD;
+    const diameterSource = (hd.column_diameter ?? "").trim() !== ""
+      ? "Stage 5 — engineer-selected trial diameter"
+      : minFeasibleD !== null ? "Stage 5 — Common Hydraulic sizing sweep (minimum feasible diameter)" : "Stage 5 — pending Common Hydraulic run";
+    return {
+      diameter, diameterSource,
+      totalLph, totalM3h: totalLph !== null ? totalLph / 1000 : null,
+      contDensity: hd.cont_density ?? fp.nmp_density_value ?? "",
+      dispDensity: hd.disp_density ?? fp.rrbo_density_value ?? "",
+      contViscosity: hd.cont_viscosity ?? fp.nmp_viscosity_dynamic_value ?? "",
+      dispViscosity: hd.disp_viscosity ?? fp.rrbo_viscosity_dynamic_value ?? "",
+      ift: hd.interfacial_tension ?? fp.interfacial_tension_value ?? "",
+      phaseConfig: (pdx.phase_configuration ?? "").trim() || "—",
+      normalSolventLph: feedLph !== null && ratio !== null ? feedLph * ratio : null,
+      maxSolventLph: feedLph !== null && ratio !== null ? feedLph * ratio * (1 + margin / 100) : null,
+      feedLph,
+    };
+  }
+
+  function renderCarryOverCard(co: ReturnType<typeof equipmentCarryOver>) {
+    const row = (label: string, value: string, source: string) => (
+      <div className="grid grid-cols-[180px_1fr] gap-2 py-1 border-b border-gray-50 last:border-0">
+        <span className="text-xs text-gray-500">{label}</span>
+        <span className="text-xs">
+          <span className="font-medium text-gray-800">{value}</span>
+          <span className="block text-[10px] text-gray-400">Auto-Populated · Source: {source}</span>
+        </span>
+      </div>
+    );
+    return (
+      <SectionCard title="Carry-Over from Common Hydraulic Design (Stage 5)">
+        {row("Column Diameter", co.diameter !== null ? `${co.diameter} m` : "— (run Stage 5)", co.diameterSource)}
+        {row("Total Volumetric Flow", co.totalLph !== null ? `${co.totalLph.toLocaleString("en-IN")} LPH = ${(co.totalM3h as number).toFixed(1)} m³/h` : "—", "Stage 5 — Feed + Normal Solvent Flow")}
+        {row("Continuous Phase Density", co.contDensity ? `${co.contDensity} kg/m³` : "—", "Stage 3 — Fluid Properties (NMP)")}
+        {row("Dispersed Phase Density", co.dispDensity ? `${co.dispDensity} kg/m³` : "—", "Stage 3 — Fluid Properties (RRBO)")}
+        {row("Continuous Phase Viscosity", co.contViscosity ? `${co.contViscosity} mPa·s` : "—", "Stage 3 — Fluid Properties (NMP)")}
+        {row("Dispersed Phase Viscosity", co.dispViscosity ? `${co.dispViscosity} mPa·s` : "—", "Stage 3 — Fluid Properties (RRBO)")}
+        {row("Interfacial Tension", co.ift ? `${co.ift} mN/m` : "—", "Stage 3 — Two-Phase Properties")}
+        {row("Phase Configuration", co.phaseConfig, "Stage 4 — Process Design")}
+        {row("Normal Case Flows", co.feedLph !== null && co.normalSolventLph !== null ? `Feed ${co.feedLph.toLocaleString("en-IN")} LPH · Solvent ${co.normalSolventLph.toLocaleString("en-IN")} LPH` : "—", "Stage 2/4 — Design Basis + S/O ratio")}
+        {row("Maximum Case Flows", co.feedLph !== null && co.maxSolventLph !== null ? `Feed ${co.feedLph.toLocaleString("en-IN")} LPH · Solvent ${co.maxSolventLph.toLocaleString("en-IN")} LPH` : "—", "Stage 4 — Design Margin rule")}
+        <p className="text-[10px] text-gray-400 mt-2">These values remain owned by their source stages — override them there, not here. The equipment engines receive them traceably through the workspace mapper.</p>
+      </SectionCard>
+    );
+  }
+
   function renderEquipmentDesign() {
     if (!techSelection) {
       return (
         <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
           <AlertTriangle className="h-5 w-5 shrink-0" />
-          Complete Technology Selection (Step 6) before designing equipment.
+          Complete Technology Selection (Step 6) before designing equipment. Stage 7 is blocked until a technology (ECP, ECR, or Compare Both) is selected.
         </div>
       );
     }
+    const co = equipmentCarryOver();
     return (
-      <div className={`max-w-5xl ${techSelection === "both" ? "grid grid-cols-2 gap-6" : ""}`}>
-        {showECP && renderECPDesign()}
-        {showECR && renderECRDesign()}
+      <div className="max-w-5xl space-y-6">
+        {renderCarryOverCard(co)}
+        <div className={techSelection === "both" ? "grid grid-cols-2 gap-6" : ""}>
+          {showECP && renderECPDesign()}
+          {showECR && renderECRDesign()}
+        </div>
       </div>
     );
   }
@@ -2300,27 +2367,79 @@ export default function DesignSoftwareWorkspacePage() {
     const f = field("ecp_design");
     const s = save("ecp_design");
     const ecpRun = runs.find(r => r.calculation_type === "ecp" && r.calculation_status === "success");
+    const packings = packingsQ.data ?? [];
+    const selectedPacking = packings.find((p: any) => p.id === ec.packing_id);
+    const statusLine = (text: string) => <p className="text-[11px] text-gray-400 px-2 -mt-0.5">{text}</p>;
+    const pk = (v: any, unit = "") => (v === null || v === undefined || v === "" ? "—" : `${typeof v === "object" ? v.value ?? "—" : v}${unit ? ` ${unit}` : ""}`);
     return (
       <div>
         <SectionCard title="ECP — Packed Extraction Column">
-          <FieldRow label="Packing Manufacturer" value={ec.manufacturer ?? ""} onChange={v => f("manufacturer", v)} onBlur={s} />
-          <FieldRow label="Packing Type" value={ec.packing_type ?? ""} onChange={v => f("packing_type", v)} onBlur={s} placeholder="e.g. Sulzer MellapakPlus" />
-          <FieldRow label="Packing Material" value={ec.packing_material ?? ""} onChange={v => f("packing_material", v)} onBlur={s} placeholder="e.g. 316L SS" />
-          <FieldRow label="Specific Surface Area" value={ec.specific_surface_area ?? ""} onChange={v => f("specific_surface_area", v)} onBlur={s} unit="m²/m³" />
-          <FieldRow label="Void Fraction" value={ec.void_fraction ?? ""} onChange={v => f("void_fraction", v)} onBlur={s} unit="—" />
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3 mb-1">
+            <label className="text-sm text-gray-700 font-medium pt-1.5">Packing (Packing Database)</label>
+            <select
+              value={ec.packing_id ?? ""}
+              onChange={e => { f("packing_id", e.target.value); s(); }}
+              disabled={isFrozen}
+              className="h-8 text-sm border rounded-md px-2 bg-white"
+            >
+              <option value="">— select a registered packing —</option>
+              {packings.map((p: any) => (
+                <option key={p.id} value={p.id}>{p.manufacturer} {p.productName} ({p.material})</option>
+              ))}
+            </select>
+            <span />
+          </div>
+          {packings.length === 0 && (
+            <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 mb-2">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              No packing records are registered in the Packing Database. Vendor data is never invented — register controlled vendor records to enable selection. The ECP calculation requires a Packing Database record.
+            </div>
+          )}
+          {selectedPacking && (
+            <div className="rounded-lg border border-gray-100 bg-gray-50 p-2.5 mb-2 space-y-0.5">
+              {[
+                ["Manufacturer", pk(selectedPacking.manufacturer)],
+                ["Packing Family / Type", pk(`${selectedPacking.productFamily ?? ""} ${selectedPacking.productName ?? ""} · ${selectedPacking.packingType ?? ""} (${selectedPacking.geometryClass ?? ""})`)],
+                ["Material", pk(selectedPacking.material)],
+                ["Specific Surface Area", pk(selectedPacking.specificSurfaceArea, "m²/m³")],
+                ["Void Fraction", pk(selectedPacking.voidFraction)],
+                ["Maximum Bed Height", pk(selectedPacking.maximumBedHeight, "m")],
+                ["Capacity Data Reference", pk(selectedPacking.hydraulicCapacityReference)],
+                ["Pressure-Drop Data Reference", pk(selectedPacking.pressureDropReference)],
+              ].map(([l, v]) => (
+                <div key={l as string} className="grid grid-cols-[180px_1fr] gap-2 text-xs">
+                  <span className="text-gray-500">{l}</span>
+                  <span className="font-medium text-gray-800">{v}</span>
+                </div>
+              ))}
+              <p className="text-[10px] text-gray-400 pt-1">Auto-Populated · Source: Packing Database record "{selectedPacking.id}" — read-only vendor data, consumed by the C4 ECP engine.</p>
+            </div>
+          )}
           <FieldRow label="HETS (design)" value={ec.hets ?? ""} onChange={v => f("hets", v)} onBlur={s} unit="m" />
-          <FieldRow label="Packing Height" value={ec.packing_height ?? ""} onChange={v => f("packing_height", v)} onBlur={s} unit="m" />
-          <FieldRow label="Packing Volume" value={ec.packing_volume ?? ""} onChange={v => f("packing_volume", v)} onBlur={s} unit="m³" />
-          <FieldRow label="Pressure Drop" value={ec.pressure_drop ?? ""} onChange={v => f("pressure_drop", v)} onBlur={s} unit="Pa/m" />
-          <FieldRow label="Liquid Distributor" value={ec.liquid_distributor ?? ""} onChange={v => f("liquid_distributor", v)} onBlur={s} />
-          <FieldRow label="Packing Support Plate" value={ec.support_plate ?? ""} onChange={v => f("support_plate", v)} onBlur={s} />
-          <FieldRow label="Hold Down Grid" value={ec.hold_down_grid ?? ""} onChange={v => f("hold_down_grid", v)} onBlur={s} />
-          <FieldRow label="Total Column Height" value={ec.total_column_height ?? ""} onChange={v => f("total_column_height", v)} onBlur={s} unit="m" />
+          {statusLine("HETS comes only from a source-tagged system HETS record or engineer input — never predicted. Engineer-entered values are tagged Assumed, pending validation.")}
+          <FieldRow label="Liquid Distributor (type)" value={ec.liquid_distributor ?? ""} onChange={v => f("liquid_distributor", v)} onBlur={s} />
+        </SectionCard>
+        <SectionCard title="ECP — Height Allowances (engineer/vendor)">
+          <FieldRow label="Top Head Height" value={ec.top_head_height ?? ""} onChange={v => f("top_head_height", v)} onBlur={s} unit="m" />
+          <FieldRow label="Top Disengagement Height" value={ec.top_disengagement_height ?? ""} onChange={v => f("top_disengagement_height", v)} onBlur={s} unit="m" />
+          <FieldRow label="Top Distributor Allowance" value={ec.top_distributor_allowance ?? ""} onChange={v => f("top_distributor_allowance", v)} onBlur={s} unit="m" />
+          <FieldRow label="Packing Support Allowance" value={ec.packing_support_allowance ?? ""} onChange={v => f("packing_support_allowance", v)} onBlur={s} unit="m" />
+          <FieldRow label="Hold-Down Allowance" value={ec.hold_down_allowance ?? ""} onChange={v => f("hold_down_allowance", v)} onBlur={s} unit="m" />
+          <FieldRow label="Bottom Distributor Allowance" value={ec.bottom_distributor_allowance ?? ""} onChange={v => f("bottom_distributor_allowance", v)} onBlur={s} unit="m" />
+          <FieldRow label="Bottom Disengagement Height" value={ec.bottom_disengagement_height ?? ""} onChange={v => f("bottom_disengagement_height", v)} onBlur={s} unit="m" />
+          <FieldRow label="Bottom Head Height" value={ec.bottom_head_height ?? ""} onChange={v => f("bottom_head_height", v)} onBlur={s} unit="m" />
+          <FieldRow label="Redistributor Allowance" value={ec.redistributor_allowance ?? ""} onChange={v => f("redistributor_allowance", v)} onBlur={s} unit="m" />
+          {statusLine("Engineer/vendor dimensions — mapped to the C4 engine only when entered; missing items are reported explicitly by the engine, never defaulted.")}
+        </SectionCard>
+        <SectionCard title="ECP — Calculated Results">
+          <p className="text-xs text-gray-400">
+            Packing height, packing volume, pressure drop, and total column height are C4 engine outputs — they are no longer manual inputs. Run Calculate ECP with a Packing Database record and HETS to generate them.
+          </p>
+          {ecpRun && <p className="text-[11px] text-gray-500 mt-1">Last successful run: {new Date(ecpRun.calculated_at).toLocaleString()}</p>}
         </SectionCard>
         <Button size="sm" className="gap-2 mb-4" disabled={isFrozen || calculateMutation.isPending} onClick={() => calculateMutation.mutate("ecp")}>
           <Play className="h-3.5 w-3.5" /> Calculate ECP
         </Button>
-        {ecpRun && <p className="text-xs text-gray-400 mb-2">Last run: {new Date(ecpRun.calculated_at).toLocaleString()}</p>}
       </div>
     );
   }
@@ -2330,27 +2449,85 @@ export default function DesignSoftwareWorkspacePage() {
     const f = field("ecr_design");
     const s = save("ecr_design");
     const ecrRun = runs.find(r => r.calculation_type === "ecr" && r.calculation_status === "success");
+    const statusLine = (text: string) => <p className="text-[11px] text-gray-400 px-2 -mt-0.5">{text}</p>;
+
+    // ── Read-only results binding from the latest accepted C5 ECR result ────
+    const ecrData = (resultsQ.data ?? []).find((r: any) => r.section === "ecr")?.data;
+    const ecrNormal = ecrData?.normalCase ?? ecrData?.cases?.normal;
+    const ecrRows: any[] = ecrNormal?.diameters ?? [];
+    const trialD = numOrNull(String(ecrNormal?.summary?.selectedTrialDiameter_m ?? ""));
+    const selRow = ecrRows.find((r: any) => trialD !== null && Math.abs(Number(r.diameter_m) - trialD) < 1e-9)
+      ?? ecrRows.find((r: any) => r.feasibility === "within_screening_band")
+      ?? ecrRows[0];
+    const sp0 = selRow?.rotor?.atSpeed?.[0];
+    const itemVal = (it: any, dp = 3, scale = 1): string => {
+      const v = it && typeof it === "object" ? it.result : it;
+      if (v === null || v === undefined) return "—";
+      if (typeof v === "number") return (v * scale).toLocaleString("en-IN", { maximumFractionDigits: dp });
+      return String(v);
+    };
+    const itemStatus = (it: any): string => (it && typeof it === "object" && it.status ? ` · ${it.status}` : "");
+    const resultRow = (label: string, it: any, unit = "", dp = 3, scale = 1) => (
+      <div key={label} className="grid grid-cols-[200px_1fr] gap-2 py-1 border-b border-gray-50 last:border-0">
+        <span className="text-xs text-gray-500">{label}</span>
+        <span className="text-xs font-medium text-gray-800">{itemVal(it, dp, scale)}{unit ? ` ${unit}` : ""}<span className="text-[10px] text-gray-400 font-normal">{itemStatus(it)}</span></span>
+      </div>
+    );
+
     return (
       <div>
-        <SectionCard title="ECR — Kühni Agitated Column">
-          <FieldRow label="Rotor Diameter" value={er.rotor_diameter ?? ""} onChange={v => f("rotor_diameter", v)} onBlur={s} unit="m" />
+        <SectionCard title="ECR — Kühni Agitated Column · Engineering Inputs">
+          <FieldRow label="Rotor Diameter" value={er.rotor_diameter ?? ""} onChange={v => f("rotor_diameter", v)} onBlur={s} unit="m" placeholder="Or enter rotor/column ratio below" />
+          <FieldRow label="Rotor / Column Diameter Ratio" value={er.rotor_ratio ?? ""} onChange={v => f("rotor_ratio", v)} onBlur={s} unit="—" placeholder="e.g. 0.5" />
           <FieldRow label="Rotor Speed" value={er.rotor_speed ?? ""} onChange={v => f("rotor_speed", v)} onBlur={s} unit="rpm" />
-          <FieldRow label="Tip Speed" value={er.tip_speed ?? ""} onChange={v => f("tip_speed", v)} onBlur={s} unit="m/s" />
-          <FieldRow label="Rotor Reynolds Number" value={er.rotor_re ?? ""} onChange={v => f("rotor_re", v)} onBlur={s} unit="—" />
-          <FieldRow label="Rotor Weber Number" value={er.rotor_we ?? ""} onChange={v => f("rotor_we", v)} onBlur={s} unit="—" />
-          <FieldRow label="Rotor Froude Number" value={er.rotor_fr ?? ""} onChange={v => f("rotor_fr", v)} onBlur={s} unit="—" />
           <FieldRow label="Power Number" value={er.power_number ?? ""} onChange={v => f("power_number", v)} onBlur={s} unit="—" />
-          <FieldRow label="Power Per Rotor" value={er.power_per_rotor ?? ""} onChange={v => f("power_per_rotor", v)} onBlur={s} unit="W" />
-          <FieldRow label="Number of Compartments" value={er.compartment_count ?? ""} onChange={v => f("compartment_count", v)} onBlur={s} unit="—" />
           <FieldRow label="Compartment Height" value={er.compartment_height ?? ""} onChange={v => f("compartment_height", v)} onBlur={s} unit="m" />
-          <FieldRow label="Active Height" value={er.active_height ?? ""} onChange={v => f("active_height", v)} onBlur={s} unit="m" />
-          <FieldRow label="Shaft Power" value={er.shaft_power ?? ""} onChange={v => f("shaft_power", v)} onBlur={s} unit="kW" />
-          <FieldRow label="Total Column Height" value={er.total_column_height ?? ""} onChange={v => f("total_column_height", v)} onBlur={s} unit="m" />
+          <FieldRow label="Compartment Efficiency" value={er.compartment_efficiency ?? ""} onChange={v => f("compartment_efficiency", v)} onBlur={s} unit="%" />
+          <FieldRow label="Shaft Efficiency" value={er.shaft_efficiency ?? ""} onChange={v => f("shaft_efficiency", v)} onBlur={s} unit="%" />
+          <FieldRow label="Mechanical Design Margin" value={er.mechanical_design_margin ?? ""} onChange={v => f("mechanical_design_margin", v)} onBlur={s} unit="—" placeholder="e.g. 1.2" />
+          <FieldRow label="Rotors per Compartment" value={er.rotors_per_compartment ?? ""} onChange={v => f("rotors_per_compartment", v)} onBlur={s} unit="—" placeholder="1" />
+          <FieldRow label="Max Allowable Tip Speed (vendor)" value={er.max_tip_speed ?? ""} onChange={v => f("max_tip_speed", v)} onBlur={s} unit="m/s" />
+          <FieldRow label="Max Allowable Shaft Power (vendor)" value={er.max_shaft_power ?? ""} onChange={v => f("max_shaft_power", v)} onBlur={s} unit="kW" />
+          <FieldRow label="Max Unsupported Shaft Length (vendor)" value={er.max_unsupported_shaft_length ?? ""} onChange={v => f("max_unsupported_shaft_length", v)} onBlur={s} unit="m" />
+          {statusLine("Engineer/vendor-entered inputs — mapped source-tagged to the C5 ECR engine, pending validation. Vendor limits are optional; missing limits are reported by the engine, never assumed.")}
+        </SectionCard>
+        <SectionCard title="ECR — Height Allowances (engineer/vendor)">
+          <FieldRow label="Drive/Seal/Bearing Allowance" value={er.drive_seal_bearing_allowance ?? ""} onChange={v => f("drive_seal_bearing_allowance", v)} onBlur={s} unit="m" />
+          <FieldRow label="Top Head Height" value={er.top_head_height ?? ""} onChange={v => f("top_head_height", v)} onBlur={s} unit="m" />
+          <FieldRow label="Top Disengagement Height" value={er.top_disengagement_height ?? ""} onChange={v => f("top_disengagement_height", v)} onBlur={s} unit="m" />
+          <FieldRow label="Top Distributor Allowance" value={er.top_distributor_allowance ?? ""} onChange={v => f("top_distributor_allowance", v)} onBlur={s} unit="m" />
+          <FieldRow label="Bottom Distributor Allowance" value={er.bottom_distributor_allowance ?? ""} onChange={v => f("bottom_distributor_allowance", v)} onBlur={s} unit="m" />
+          <FieldRow label="Bottom Disengagement Height" value={er.bottom_disengagement_height ?? ""} onChange={v => f("bottom_disengagement_height", v)} onBlur={s} unit="m" />
+          <FieldRow label="Bottom Head Height" value={er.bottom_head_height ?? ""} onChange={v => f("bottom_head_height", v)} onBlur={s} unit="m" />
         </SectionCard>
         <Button size="sm" className="gap-2 mb-4" disabled={isFrozen || calculateMutation.isPending} onClick={() => calculateMutation.mutate("ecr")}>
           <Play className="h-3.5 w-3.5" /> Calculate ECR
         </Button>
-        {ecrRun && <p className="text-xs text-gray-400 mb-2">Last run: {new Date(ecrRun.calculated_at).toLocaleString()}</p>}
+        <SectionCard title="ECR — Calculated Results (C5 engine, read-only)">
+          {!selRow ? (
+            <p className="text-xs text-gray-400">No ECR results yet — enter the engineering inputs above and run Calculate ECR. Calculated values are never entered manually.</p>
+          ) : (
+            <>
+              <p className="text-[11px] text-gray-500 mb-1">
+                Normal case · Column diameter {String(selRow.diameter_m)} m
+                {trialD !== null && Math.abs(Number(selRow.diameter_m) - trialD) < 1e-9 ? " (engineer-selected trial)" : " (first in-band diameter from sweep)"}
+                {ecrRun ? ` · Run: ${new Date(ecrRun.calculated_at).toLocaleString()}` : ""}
+              </p>
+              {resultRow("Tip Speed", sp0?.tipSpeed, "m/s")}
+              {resultRow("Rotor Reynolds Number", sp0?.reynolds, "", 0)}
+              {resultRow("Rotor Weber Number", sp0?.weber, "", 1)}
+              {resultRow("Rotor Froude Number", sp0?.froude, "", 4)}
+              {resultRow("Power Per Rotor", sp0?.power?.perRotor, "W", 1)}
+              {resultRow("Number of Compartments", ecrData?.compartments, "", 0)}
+              {resultRow("Active Height", ecrData?.heightBreakdown?.activeAgitatedHeight, "m", 2)}
+              {resultRow("Shaft Power", sp0?.power?.totalShaft, "kW", 2, 0.001)}
+              {resultRow("Motor Design Power", sp0?.power?.motorDesign, "kW", 2, 0.001)}
+              {resultRow("Total Column Height (overall vessel)", ecrData?.heightBreakdown?.overallVesselHeight, "m", 2)}
+              {resultRow("Hydraulic Utilization", selRow?.ecrHydraulicUtilization, "%", 1)}
+              {resultRow("Validation Status", selRow?.feasibility)}
+            </>
+          )}
+        </SectionCard>
       </div>
     );
   }

@@ -209,5 +209,100 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>)
     if (n > 0) out.hindranceExponent = { value: n, sourceType: 'Assumed', sourceReference: `${SCREENING_REF} — n pending laboratory validation` };
   }
 
+  // ── Stage 7 (Equipment Design) extras — restructuring/unit conversion only ──
+  // Case mass flows (kg/h) from the established volumetric basis:
+  //   RRBO: feed LPH × ρRRBO / 1000 ;  NMP: feed LPH × S/O(vol) × ρNMP(OT) / 1000
+  //   maximum NMP flow = normal × maxCirculationFactor (Design Margin rule).
+  if ((out.normalCase === undefined || out.maximumCase === undefined)
+      && feedLph !== undefined && feedLph > 0 && rho !== undefined && rho > 0
+      && soVol !== undefined && soVol > 0 && ot !== undefined) {
+    try {
+      const rhoNmp = getProperty('nmp', 'density', ot).value;
+      const mRRBO = (feedLph / 1000) * rho;
+      const mNMPn = (feedLph / 1000) * soVol * rhoNmp;
+      const circ = num(out.maxCirculationFactor) ?? 1;
+      if (out.normalCase === undefined) out.normalCase = { rrboMassFlow_kg_h: mRRBO, nmpMassFlow_kg_h: mNMPn };
+      if (out.maximumCase === undefined) out.maximumCase = { rrboMassFlow_kg_h: mRRBO, nmpMassFlow_kg_h: mNMPn * circ };
+    } catch { /* EPD out of range — engine validation reports the gap */ }
+  }
+
+  // Generic engineer-entered tagged mapper for Stage 7 flat fields.
+  const ENG_REF = 'Engineer-entered (Stage 7 Equipment Design workspace) — pending validation';
+  const taggedFrom = (wsKey: string, engineKey: string, opts?: { scale?: number; pctToFraction?: boolean; ref?: string }) => {
+    if (out[engineKey] !== undefined) return;
+    let v = num(inputs[wsKey]);
+    if (v === undefined || v <= 0) return;
+    if (opts?.pctToFraction && v > 1) v = v / 100;
+    if (opts?.scale) v = v * opts.scale;
+    out[engineKey] = { value: v, sourceType: 'Assumed', sourceReference: opts?.ref ?? ENG_REF };
+  };
+
+  // ECR — genuine engineering inputs (Stage 7 ECR panel)
+  taggedFrom('rotor_diameter', 'rotorDiameter');
+  taggedFrom('rotor_ratio', 'rotorToColumnDiameterRatio');
+  taggedFrom('rotor_speed', 'rotorSpeed');
+  taggedFrom('power_number', 'powerNumber');
+  taggedFrom('compartment_height', 'compartmentHeight');
+  taggedFrom('compartment_efficiency', 'compartmentEfficiency', { pctToFraction: true });
+  taggedFrom('shaft_efficiency', 'shaftEfficiency', { pctToFraction: true });
+  taggedFrom('mechanical_design_margin', 'mechanicalDesignMargin');
+  taggedFrom('rotors_per_compartment', 'rotorsPerCompartment');
+  const VENDOR_REF = 'Engineer/vendor-entered limit (Stage 7 workspace) — pending vendor confirmation';
+  taggedFrom('max_tip_speed', 'maxAllowableTipSpeed', { ref: VENDOR_REF });
+  taggedFrom('max_shaft_power', 'maxAllowableShaftPower', { ref: VENDOR_REF });
+  taggedFrom('max_unsupported_shaft_length', 'maxUnsupportedShaftLength', { ref: VENDOR_REF });
+  if (out.rotorType === undefined && String(inputs.rotor_type ?? '').trim() !== '') out.rotorType = String(inputs.rotor_type).trim();
+  if (out.powerDensityBasis === undefined) out.powerDensityBasis = 'continuous_phase';
+  // Continuous-phase viscosity (required by ECR when NMP is continuous):
+  // NMP dynamic viscosity, workspace mPa·s → Pa·s.
+  if (out.continuousPhaseViscosity === undefined) {
+    const isNmpCont = String(out.phaseConfiguration ?? '') === 'nmp_continuous_rrbo_dispersed';
+    const muKey = isNmpCont ? 'nmp_viscosity_dynamic_value' : 'rrbo_viscosity_dynamic_value';
+    const muC = num(inputs[muKey]);
+    if (muC !== undefined && muC > 0) {
+      const refT = num(String(inputs[isNmpCont ? 'nmp_viscosity_dynamic_ref_temp' : 'rrbo_viscosity_dynamic_ref_temp'] ?? '').replace(/°?C/gi, ''));
+      out.continuousPhaseViscosity = {
+        value: muC / 1000,
+        referenceTemperatureC: refT ?? ot ?? 70,
+        sourceType: 'Assumed',
+        sourceReference: 'Fluid Properties workspace entry (dynamic viscosity, mPa·s converted to Pa·s)',
+      };
+    }
+  }
+  // Height allowances — engineer/vendor dimensions, mapped ONLY when entered
+  // (the engines list missing ones explicitly; nothing is defaulted here).
+  taggedFrom('drive_seal_bearing_allowance', 'driveSealBearingAllowance');
+  taggedFrom('top_head_height', 'topHeadHeight');
+  taggedFrom('top_disengagement_height', 'topDisengagementHeight');
+  taggedFrom('top_distributor_allowance', 'topDistributorAllowance');
+  taggedFrom('packing_support_allowance', 'packingSupportAllowance');
+  taggedFrom('hold_down_allowance', 'holdDownAllowance');
+  taggedFrom('bottom_distributor_allowance', 'bottomDistributorAllowance');
+  taggedFrom('bottom_disengagement_height', 'bottomDisengagementHeight');
+  taggedFrom('bottom_head_height', 'bottomHeadHeight');
+  taggedFrom('redistributor_allowance', 'redistributorAllowance');
+
+  // ECP — Packing Database reference + system HETS record
+  if (out.packingId === undefined && String(inputs.packing_id ?? '').trim() !== '') {
+    out.packingId = String(inputs.packing_id).trim();
+  }
+  const hetsVal = num(inputs.hets);
+  if (out.hets === undefined && hetsVal !== undefined && hetsVal > 0) {
+    const src = String(inputs.hets_source ?? '').trim();
+    out.hets = {
+      value: hetsVal,
+      unit: 'm',
+      operatingTemperatureC: ot ?? 0,
+      solvent: 'NMP',
+      feed: 'RRBO (Re-Refined Base Oil)',
+      packing: String(inputs.packing_id ?? inputs.packing_type ?? 'unspecified packing').trim(),
+      sourceType: SOURCE_TYPES.includes(src) ? src : 'Assumed',
+      sourceReference: String(inputs.hets_source_reference ?? '').trim() !== ''
+        ? String(inputs.hets_source_reference).trim()
+        : 'Engineer-entered system HETS (Stage 7 ECP workspace) — pending validation',
+    };
+    if (out.heightBasis === undefined) out.heightBasis = 'HETS';
+  }
+
   return out;
 }
