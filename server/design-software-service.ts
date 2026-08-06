@@ -520,7 +520,7 @@ export async function runCalculation(
   // Workspace → engine input adapter (structure + unit conversion only; the
   // C2 engine and its equations are untouched).
   if (rev.module_type === 'llx' && ['process_design', 'hydraulics_common', 'ecp', 'ecr'].includes(calculationType)) {
-    inputs = mapWorkspaceProcessDesignInputs(inputs);
+    inputs = mapWorkspaceProcessDesignInputs(inputs, calculationType);
   }
 
   const context: CalculationContext = {

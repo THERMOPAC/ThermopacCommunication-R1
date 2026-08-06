@@ -2477,6 +2477,8 @@ export default function DesignSoftwareWorkspacePage() {
     return (
       <div>
         <SectionCard title="ECR — Kühni Agitated Column · Engineering Inputs">
+          <FieldRow label="Rotor Type" value={er.rotor_type ?? "Kühni turbine"} onChange={v => f("rotor_type", v)} onBlur={s} placeholder="e.g. Kühni turbine" />
+          {statusLine(`Status: ${(er.rotor_type ?? "").trim() !== "" && er.rotor_type !== "Kühni turbine" ? "Manual" : "Auto-Populated · Default label"} · Identification label only — carries no correlation`)}
           <FieldRow label="Rotor Diameter" value={er.rotor_diameter ?? ""} onChange={v => f("rotor_diameter", v)} onBlur={s} unit="m" placeholder="Or enter rotor/column ratio below" />
           <FieldRow label="Rotor / Column Diameter Ratio" value={er.rotor_ratio ?? ""} onChange={v => f("rotor_ratio", v)} onBlur={s} unit="—" placeholder="e.g. 0.5" />
           <FieldRow label="Rotor Speed" value={er.rotor_speed ?? ""} onChange={v => f("rotor_speed", v)} onBlur={s} unit="rpm" />

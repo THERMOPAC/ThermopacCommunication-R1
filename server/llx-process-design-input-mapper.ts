@@ -24,7 +24,7 @@ const num = (v: unknown): number | undefined => {
 
 const SOURCE_TYPES = ['Measured', 'Vendor', 'Literature', 'Assumed'];
 
-export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>): Record<string, unknown> {
+export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>, calculationType?: string): Record<string, unknown> {
   const out: Record<string, unknown> = { ...inputs };
   // Per-key pass-through: any engine-ready camelCase key already present wins
   // untouched; only missing keys are mapped from the flat workspace fields.
@@ -158,16 +158,28 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>)
     }
   }
   // Interfacial tension: workspace mN/m → engine N/m (tagged, optional input).
+  // The Stage 5 override field wins over the Fluid Properties entry; the
+  // engineer-selected source type/reference is propagated, not hard-coded.
   if (out.interfacialTension === undefined) {
-    const ift = num(inputs.interfacial_tension_value);
+    const iftOverride = num(inputs.interfacial_tension); // Stage 5 hydraulic_design field
+    const iftFp = num(inputs.interfacial_tension_value); // Fluid Properties entry
+    const overridden = iftOverride !== undefined && iftOverride > 0 && iftOverride !== iftFp;
+    const ift = overridden ? iftOverride : iftFp;
     if (ift !== undefined && ift > 0) {
       const src = String(inputs.interfacial_tension_source ?? '').trim();
+      const refRaw = String(inputs.interfacial_tension_source_reference ?? '').trim();
       const refT = num(String(inputs.interfacial_tension_ref_temp ?? '70').replace(/°?C/gi, '')) ?? 70;
       out.interfacialTension = {
         value: ift / 1000,
         referenceTemperatureC: refT,
-        sourceType: SOURCE_TYPES.includes(src) ? src : 'Assumed',
-        sourceReference: 'Thermopac Preliminary Screening Default (Two-Phase Properties workspace entry)',
+        sourceType: overridden ? 'Assumed' : (SOURCE_TYPES.includes(src) ? src : 'Assumed'),
+        sourceReference: overridden
+          ? 'Engineer-entered interfacial tension (Stage 5 Common Hydraulic workspace) — pending validation'
+          : refRaw !== ''
+            ? refRaw
+            : SOURCE_TYPES.includes(src)
+              ? `Two-Phase Properties workspace entry (engineer source type: ${src})`
+              : 'Thermopac Preliminary Screening Default (Two-Phase Properties workspace entry)',
       };
     }
   }
@@ -210,6 +222,10 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>)
   }
 
   // ── Stage 7 (Equipment Design) extras — restructuring/unit conversion only ──
+  // Applied ONLY for the equipment calculation types: ECR/ECP-specific keys
+  // must never leak into C2 (process_design) or C3 (hydraulics_common) snapshots.
+  const isEquipment = calculationType === 'ecp' || calculationType === 'ecr';
+  if (!isEquipment) return out;
   // Case mass flows (kg/h) from the established volumetric basis:
   //   RRBO: feed LPH × ρRRBO / 1000 ;  NMP: feed LPH × S/O(vol) × ρNMP(OT) / 1000
   //   maximum NMP flow = normal × maxCirculationFactor (Design Margin rule).
@@ -251,7 +267,12 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>)
   taggedFrom('max_tip_speed', 'maxAllowableTipSpeed', { ref: VENDOR_REF });
   taggedFrom('max_shaft_power', 'maxAllowableShaftPower', { ref: VENDOR_REF });
   taggedFrom('max_unsupported_shaft_length', 'maxUnsupportedShaftLength', { ref: VENDOR_REF });
-  if (out.rotorType === undefined && String(inputs.rotor_type ?? '').trim() !== '') out.rotorType = String(inputs.rotor_type).trim();
+  if (out.rotorType === undefined) {
+    const rt = String(inputs.rotor_type ?? '').trim();
+    // Identification label only (engine carries no rotor-type correlation) —
+    // the workspace default label is applied when the engineer leaves it as-is.
+    out.rotorType = rt !== '' ? rt : 'Kühni turbine (default label)';
+  }
   if (out.powerDensityBasis === undefined) out.powerDensityBasis = 'continuous_phase';
   // Continuous-phase viscosity (required by ECR when NMP is continuous):
   // NMP dynamic viscosity, workspace mPa·s → Pa·s.
