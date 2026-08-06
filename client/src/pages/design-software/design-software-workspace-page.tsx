@@ -622,6 +622,12 @@ export default function DesignSoftwareWorkspacePage() {
     queryKey: ["/api/design-software/packings"],
     queryFn: () => apiRequest("GET", "/api/design-software/packings") as Promise<any[]>,
   });
+  const sulzerQ = useQuery<any>({
+    queryKey: [`/api/design-software/revisions/${activeRevisionId}/sulzer-screening`],
+    queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/sulzer-screening`) as Promise<any>,
+    enabled: !!activeRevisionId,
+    retry: false,
+  });
   const resultsQ = useQuery<any[]>({
     queryKey: [`/api/design-software/revisions/${activeRevisionId}/results`],
     queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/results`) as Promise<any[]>,
@@ -2362,6 +2368,96 @@ export default function DesignSoftwareWorkspacePage() {
     );
   }
 
+  function renderSulzerScreening(f: (k: string, v: string) => void, s: () => void, ec: Record<string, any>) {
+    const scr = sulzerQ.data;
+    const err = (sulzerQ.error as any)?.message;
+    const fmtB = (n: number) => n.toLocaleString("en-IN", { maximumFractionDigits: 1 });
+    const yn = (b: boolean, note: string) => (
+      <span className={b ? "text-green-700" : "text-amber-700"} title={note}>{b ? "Compatible" : "Not preferred"}</span>
+    );
+    const famRow = (fam: any) => {
+      const sel = fam.perDiameter.find((d: any) => d.isSelectedTrial) ?? fam.perDiameter[0];
+      return (
+        <tr key={fam.record.family} className="border-b border-gray-100 align-top">
+          <td className="py-1.5 pr-2 font-medium text-gray-800">Sulzer {fam.record.family}<span className="block text-[10px] text-gray-400 font-normal">{fam.record.packingCategory}</span></td>
+          <td className="py-1.5 pr-2">{sel ? `${fmtB(sel.normalSpecificThroughput_m3_m2h)}` : "—"}</td>
+          <td className="py-1.5 pr-2">{sel ? `${fmtB(sel.maximumSpecificThroughput_m3_m2h)}` : "—"}</td>
+          <td className="py-1.5 pr-2">{fam.record.typicalSpecificThroughput.min}–{fam.record.typicalSpecificThroughput.max}</td>
+          <td className="py-1.5 pr-2">{yn(fam.stageCompatible, fam.stageCompatibilityNote)}<span className="block text-[10px] text-gray-400">≤ {fam.record.preliminaryStageRange.maxNTS} NTS</span></td>
+          <td className="py-1.5 pr-2">{yn(fam.phaseRatioCompatible, fam.phaseRatioNote)}<span className="block text-[10px] text-gray-400">{fam.record.phaseRatioRule}</span></td>
+          <td className="py-1.5 pr-2">{yn(fam.backMixingSuitable, fam.backMixingNote)}</td>
+          <td className="py-1.5 pr-2">{fam.record.typicalNumberOfBeds}</td>
+          <td className="py-1.5 pr-2">{fam.record.capacityClassification}</td>
+          <td className="py-1.5 pr-2">{fam.screeningStatus}</td>
+          <td className="py-1.5 pr-2 text-[11px] text-gray-600">{fam.recommendationBasis}</td>
+          <td className="py-1.5 text-[10px] text-gray-400">{fam.record.sourceReference}</td>
+        </tr>
+      );
+    };
+    return (
+      <SectionCard title="Sulzer SMV / SMVP — Preliminary Packing Screening (literature-based)">
+        <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3 mb-2">
+          <label className="text-sm text-gray-700 font-medium pt-1.5">Back-Mixing Risk</label>
+          <select
+            value={ec.backmixing_risk ?? "moderate"}
+            onChange={e => { f("backmixing_risk", e.target.value); s(); setTimeout(() => sulzerQ.refetch(), 400); }}
+            disabled={isFrozen}
+            className="h-8 text-sm border rounded-md px-2 bg-white"
+          >
+            <option value="low">Low</option>
+            <option value="moderate">Moderate (default)</option>
+            <option value="high">High</option>
+          </select>
+          <Button size="sm" variant="outline" className="h-8" onClick={() => sulzerQ.refetch()}>Refresh Screening</Button>
+        </div>
+        {err && <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5">{err}</p>}
+        {scr && (
+          <>
+            <p className="text-[11px] text-gray-500 mb-1">
+              Selection is by specific liquid loading B = Total Volumetric Flow / Column Cross-Sectional Area [m³/(m²·h)] per Stage 5 trial diameter — never by total plant flow alone.
+              Normal Total Flow {fmtB(scr.input.normalTotalFlow_m3_h)} m³/h · Maximum Total Flow {fmtB(scr.input.maximumTotalFlow_m3_h)} m³/h · NTS {scr.input.theoreticalStages} · S/O (vol) {scr.input.phaseRatioVolumetric}
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-[10px] uppercase text-gray-400 border-b border-gray-200">
+                    <th className="py-1 pr-2">Packing Family</th>
+                    <th className="py-1 pr-2">B Normal<br/>m³/(m²·h)</th>
+                    <th className="py-1 pr-2">B Maximum<br/>m³/(m²·h)</th>
+                    <th className="py-1 pr-2">Published Range</th>
+                    <th className="py-1 pr-2">Stage Compat.</th>
+                    <th className="py-1 pr-2">Phase-Ratio Compat.</th>
+                    <th className="py-1 pr-2">Back-Mixing</th>
+                    <th className="py-1 pr-2">Beds</th>
+                    <th className="py-1 pr-2">Capacity Class</th>
+                    <th className="py-1 pr-2">Screening Status</th>
+                    <th className="py-1 pr-2">Recommendation Basis</th>
+                    <th className="py-1">Source</th>
+                  </tr>
+                </thead>
+                <tbody>{famRow(scr.smv)}{famRow(scr.smvp)}</tbody>
+              </table>
+            </div>
+            <div className="mt-2 space-y-1">
+              <p className="text-[11px] text-gray-600">Specific throughput per Stage 5 trial diameter (normal / maximum):</p>
+              <div className="flex flex-wrap gap-1.5">
+                {scr.loadings.map((l: any) => (
+                  <span key={l.diameter_m} className={`text-[10px] px-2 py-0.5 rounded-full border ${l.isSelectedTrial ? "border-blue-300 bg-blue-50 text-blue-800" : "border-gray-200 bg-gray-50 text-gray-600"}`}>
+                    D {l.diameter_m} m → {fmtB(l.normalSpecificThroughput_m3_m2h)} / {fmtB(l.maximumSpecificThroughput_m3_m2h)}{l.isSelectedTrial ? " · trial" : ""}
+                  </span>
+                ))}
+              </div>
+              <p className="text-xs font-semibold text-gray-800 mt-1">{scr.overallVerdict}</p>
+              <p className="text-[11px] text-gray-600">{scr.verdictNote}</p>
+              <p className="text-[10px] text-gray-400">{scr.governanceNote}</p>
+            </div>
+          </>
+        )}
+        {!scr && !err && <p className="text-xs text-gray-400">Loading screening…</p>}
+      </SectionCard>
+    );
+  }
+
   function renderECPDesign() {
     const ec = d("ecp_design");
     const f = field("ecp_design");
@@ -2419,6 +2515,7 @@ export default function DesignSoftwareWorkspacePage() {
           {statusLine("HETS comes only from a source-tagged system HETS record or engineer input — never predicted. Engineer-entered values are tagged Assumed, pending validation.")}
           <FieldRow label="Liquid Distributor (type)" value={ec.liquid_distributor ?? ""} onChange={v => f("liquid_distributor", v)} onBlur={s} />
         </SectionCard>
+        {renderSulzerScreening(f, s, ec)}
         <SectionCard title="ECP — Height Allowances (engineer/vendor)">
           <FieldRow label="Top Head Height" value={ec.top_head_height ?? ""} onChange={v => f("top_head_height", v)} onBlur={s} unit="m" />
           <FieldRow label="Top Disengagement Height" value={ec.top_disengagement_height ?? ""} onChange={v => f("top_disengagement_height", v)} onBlur={s} unit="m" />

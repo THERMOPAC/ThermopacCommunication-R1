@@ -76,6 +76,73 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
     }
   });
 
+  // ── Sulzer SMV/SMVP preliminary packing screening (Stage 7, literature-based) ─
+  // Pure screening arithmetic (B = Q/A + threshold checks) against controlled
+  // Rauber/AIChE 2006 records — no C2–C6 engine equations involved or duplicated.
+  app.get('/api/design-software/revisions/:id/sulzer-screening', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const revisionId = parseInt(req.params.id);
+      const { runSulzerPackingScreening } = await import('./llx-sulzer-packing-screening');
+      const [inputRows, resultRows] = await Promise.all([svc.listInputs(revisionId), svc.listResults(revisionId)]);
+      const inputs: Record<string, any> = {};
+      for (const row of inputRows) Object.assign(inputs, row.data);
+      const num = (v: unknown): number | null => {
+        const n = typeof v === 'number' ? v : parseFloat(String(v ?? '').trim());
+        return isFinite(n) ? n : null;
+      };
+
+      // Upstream values (Stage 2/3/4/5) — bindings only
+      const feedLph = num(inputs.design_capacity_lph ?? inputs.design_capacity ?? inputs.feed_flow);
+      const soVol = num(String(inputs.so_ratio ?? '').trim() !== '' ? inputs.so_ratio : '1.5');
+      const margin = num(inputs.design_margin) ?? 20;
+      const nts = num(inputs.theoretical_stages) ?? num(inputs.stages) ?? 6;
+      if (feedLph === null || soVol === null) {
+        return res.status(422).json({ message: 'Feed flow (Design Basis) and S/O ratio (Process Design) are required before Sulzer screening.' });
+      }
+      const normalTotal = (feedLph / 1000) * (1 + soVol);
+      const maximumTotal = feedLph / 1000 + (feedLph / 1000) * soVol * (1 + margin / 100);
+
+      // Stage 5 trial diameters: screening-band rows from the accepted Common
+      // Hydraulic sweep, plus the engineer-selected trial diameter when present.
+      const hyd = resultRows.find((r: any) => r.section === 'hydraulics_common')?.data;
+      const hydNormal = hyd?.normalCase ?? hyd?.cases?.normal;
+      const sweepRows: any[] = hydNormal?.diameters ?? [];
+      const bandDs = sweepRows
+        .filter((r: any) => r.feasibility === 'within_screening_band')
+        .map((r: any) => Number(r.diameter_m))
+        .filter((d: number) => isFinite(d) && d > 0);
+      const engineerTrial = num(inputs.column_diameter);
+      const minFeasible = num(hydNormal?.summary?.minimumFeasibleDiameter_m);
+      const selectedTrial = engineerTrial ?? minFeasible;
+      const diameterSet = Array.from(new Set(
+        [...bandDs, ...(selectedTrial !== null ? [selectedTrial] : [])].map(d => Math.round(d * 1000) / 1000),
+      )).sort((a, b) => a - b);
+      if (diameterSet.length === 0) {
+        return res.status(422).json({ message: 'No Stage 5 trial diameters available — run the Common Hydraulic Design sweep (Stage 5) first. Packing is not selected from total plant flow alone.' });
+      }
+
+      const contRho = num(inputs.nmp_density_value);
+      const dispRho = num(inputs.rrbo_density_value);
+      const risk = String(inputs.backmixing_risk ?? 'moderate').toLowerCase();
+      const out = runSulzerPackingScreening({
+        normalTotalFlow_m3_h: normalTotal,
+        maximumTotalFlow_m3_h: maximumTotal,
+        trialDiameters_m: diameterSet,
+        selectedTrialDiameter_m: selectedTrial !== null ? Math.round(selectedTrial * 1000) / 1000 : null,
+        theoreticalStages: nts,
+        phaseRatioVolumetric: soVol,
+        backMixingRisk: (['low', 'moderate', 'high'].includes(risk) ? risk : 'moderate') as any,
+        densityDifference_kg_m3: contRho !== null && dispRho !== null ? Math.abs(contRho - dispRho) : null,
+        continuousViscosity_mPas: num(inputs.nmp_viscosity_dynamic_value),
+        dispersedViscosity_mPas: num(inputs.rrbo_viscosity_dynamic_value),
+        interfacialTension_mN_m: num(inputs.interfacial_tension ?? inputs.interfacial_tension_value),
+      });
+      res.json(out);
+    } catch (e: any) {
+      res.status(500).json({ message: e?.message ?? 'Sulzer screening failed' });
+    }
+  });
+
   // ── Designs ────────────────────────────────────────────────────────────────
 
   /** List designs with optional filters. */
