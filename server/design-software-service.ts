@@ -93,6 +93,17 @@ function formatDesignNumber(
 
 // ── Design CRUD ───────────────────────────────────────────────────────────────
 
+/**
+ * Rule-populated defaults persisted for every new LLX design at creation.
+ * These are DATA, not UI placeholders — source-tagged, editable in Stage 2,
+ * and read verbatim by the Design Basis Report.
+ */
+export const LLX_DESIGN_BASIS_SEED = {
+  solvent: 'N-Methyl-2-Pyrrolidone (NMP)',
+  solvent_status: 'Auto-Populated',
+  solvent_source: 'Thermopac LLX Design Basis Master — standard extraction solvent for the LLX module',
+} as const;
+
 export async function createDesign(params: {
   moduleType: string;
   designType: string;
@@ -158,6 +169,16 @@ export async function createDesign(params: {
        WHERE id = $2`,
       [revision.id, design.id],
     );
+
+    // Seed rule-populated design-basis defaults so persisted data — not UI
+    // placeholders — carries the standard values (source-tagged, editable).
+    if (params.moduleType === 'llx') {
+      await client.query(
+        `INSERT INTO design_software_inputs (revision_id, section, data, engine_version, updated_by)
+         VALUES ($1, 'design_basis', $2, 'seed-v1', $3)`,
+        [revision.id, JSON.stringify(LLX_DESIGN_BASIS_SEED), params.createdBy],
+      );
+    }
 
     await client.query('COMMIT');
 

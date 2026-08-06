@@ -32,7 +32,7 @@ const OP_RULE = 'Thermopac Design Basis Master — LLX operating pressure defaul
 
 const GENERAL: FieldSpec[] = [
   { key: 'feed_service', label: 'Feed Service', mandatory: true },
-  { key: 'solvent', label: 'Solvent', mandatory: true },
+  { key: 'solvent', label: 'Solvent', mandatory: true, ruleRef: 'Thermopac LLX Design Basis Master — standard extraction solvent for the LLX module' },
   { key: 'feed_density', label: 'Feed Density', unit: 'kg/m³' },
   { key: 'design_capacity_lph', label: 'Design Capacity', unit: 'LPH', mandatory: true },
   { key: 'design_capacity_mtpa', label: 'Design Capacity (annual)', unit: 't/yr' },

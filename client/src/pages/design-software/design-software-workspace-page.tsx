@@ -1480,12 +1480,14 @@ export default function DesignSoftwareWorkspacePage() {
           />
           <SelectRow
             label="Solvent"
-            value={db.solvent || "NMP"}
+            value={db.solvent ?? ""}
             onChange={v => f("solvent", v)}
             onBlur={s}
-            onCommit={v => csa({ solvent: v })}
-            options={db.solvent && db.solvent !== "NMP" ? ["NMP", db.solvent] : ["NMP"]}
-            note="Default NMP. Controlled list — expanded via master data only. Drives the Fluid Properties section."
+            onCommit={v => csa({ solvent: v, solvent_status: "Manual", solvent_source: "Engineer selection" })}
+            options={db.solvent && db.solvent !== "N-Methyl-2-Pyrrolidone (NMP)" ? ["N-Methyl-2-Pyrrolidone (NMP)", db.solvent] : ["N-Methyl-2-Pyrrolidone (NMP)"]}
+            note={db.solvent
+              ? `Status: ${db.solvent_status || "Manual"}${db.solvent_source ? ` · Source: ${db.solvent_source}` : ""} · Controlled list — expanded via master data only. Drives the Fluid Properties section.`
+              : "Not persisted — new designs are seeded with N-Methyl-2-Pyrrolidone (NMP) automatically. Select to persist."}
           />
           <SelectRow
             label="Design Capacity (LPH)"
