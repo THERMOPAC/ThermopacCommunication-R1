@@ -11,6 +11,7 @@ import { engineRegistry } from './engine-framework/registry';
 import { CalculationContext } from './engine-framework/types';
 import { mapWorkspaceProcessDesignInputs } from './llx-process-design-input-mapper';
 import { mapWorkspaceMechanicalInputs } from './llx-mechanical-design-input-mapper';
+import { generateNozzleSchedule as generateNozzles } from './llx-nozzle-master-data';
 
 // ── Lifecycle transition table ────────────────────────────────────────────────
 // action → { requiredStatus, nextStatus, setsFrozen, setsField }
@@ -488,6 +489,81 @@ export async function listCalculationRuns(revisionId: number) {
     [revisionId],
   );
   return result.rows;
+}
+
+/**
+ * Stage 9 — fully automatic nozzle generation and preliminary sizing.
+ * Reads the merged workspace inputs, the selected technology and adopted
+ * geometry, and applies the controlled Thermopac nozzle master data
+ * (velocity rules, DN series, instrument masters, access rules). Returns
+ * the generated schedule + validation issues; the CLIENT saves the rows
+ * into mechanical_design.nozzle_rows through the ordinary input-save path
+ * (single write path, no server-side shadow writes).
+ */
+export async function generateNozzleSchedule(revisionId: number) {
+  const revRow = await pool.query(
+    `SELECT r.*, d.module_type FROM design_software_revisions r
+     JOIN design_software_designs d ON d.id = r.design_id WHERE r.id = $1`,
+    [revisionId],
+  );
+  if (!revRow.rows[0]) throw new Error('Revision not found');
+
+  const inputRows = await pool.query(
+    'SELECT section, data FROM design_software_inputs WHERE revision_id = $1',
+    [revisionId],
+  );
+  const inputs: Record<string, unknown> = {};
+  for (const row of inputRows.rows) Object.assign(inputs, row.data);
+
+  const preferred = String(inputs['preferred'] ?? '').trim();
+  if (preferred !== 'ecp' && preferred !== 'ecr') {
+    throw new Error('Select the technology (ECP or ECR) in Stage 8 — Technology Comparison before generating the nozzle schedule.');
+  }
+  const techRunQ = await pool.query(
+    `SELECT * FROM design_software_calculation_runs
+     WHERE revision_id = $1 AND calculation_type = $2 AND calculation_status IN ('success','warning')
+     ORDER BY calculated_at DESC LIMIT 1`,
+    [revisionId, preferred],
+  );
+  const techRun = techRunQ.rows[0];
+  if (!techRun) throw new Error(`No accepted ${preferred.toUpperCase()} run available — run the Stage 7 ${preferred.toUpperCase()} calculation first.`);
+  const hb = techRun.result_snapshot?.heightBreakdown ?? {};
+
+  const nnum = (v: unknown): number | null => {
+    const n = Number(String(v ?? '').trim());
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  let dia = nnum(inputs['column_diameter_m']) ?? nnum(inputs['column_diameter']);
+  if (dia === null) {
+    const hydQ = await pool.query(
+      `SELECT data->'normalCase'->'summary'->>'minimumFeasibleDiameter_m' AS d
+       FROM design_software_results WHERE revision_id = $1 AND section = 'hydraulics_common'`,
+      [revisionId],
+    );
+    dia = nnum(hydQ.rows[0]?.d);
+  }
+  const tt = nnum(inputs['tt_height_m']) ?? nnum(hb.totalTangentToTangent?.result);
+  if (dia === null || tt === null) {
+    throw new Error('Nozzle generation requires the column diameter (Stage 5) and tangent-to-tangent height (Stage 7 run) — complete those stages first.');
+  }
+
+  const feedLph = nnum(inputs['design_capacity_lph']) ?? nnum(inputs['design_capacity']) ?? nnum(inputs['feed_flow']);
+  const soRatio = nnum(inputs['so_ratio']);
+  const feedFlow_m3h = feedLph !== null ? feedLph / 1000 : null;
+  const solventFlow_m3h = feedFlow_m3h !== null && soRatio !== null ? feedFlow_m3h * soRatio : null;
+
+  return generateNozzles({
+    preferred,
+    insideDiameter_m: dia,
+    tangentToTangentHeight_m: tt,
+    feedFlow_m3h,
+    solventFlow_m3h,
+    bottomDisengagement_m: nnum(inputs['bottom_disengagement_height']),
+    topDisengagement_m: nnum(inputs['top_disengagement_height']),
+    topDistributorAllowance_m: nnum(inputs['top_distributor_allowance']),
+    designPressureBarg: nnum(inputs['llx_internal_design_pressure']) ?? nnum(inputs['design_pressure']) ?? undefined,
+    designTempC: nnum(inputs['design_temperature']) ?? undefined,
+  });
 }
 
 export async function runCalculation(

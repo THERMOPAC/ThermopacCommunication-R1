@@ -412,6 +412,18 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
     }
   });
 
+  /** Stage 9 — fully automatic nozzle generation & preliminary sizing from
+   *  controlled Thermopac nozzle master data. Returns rows + validation issues;
+   *  the client saves them via the ordinary input-save path. */
+  app.post('/api/design-software/revisions/:id/nozzles/generate', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      res.json(await svc.generateNozzleSchedule(parseInt(req.params.id)));
+    } catch (err: any) {
+      const status = err.message?.includes('not found') ? 404 : err.message?.includes('Select the technology') || err.message?.includes('No accepted') || err.message?.includes('complete those stages') ? 422 : 500;
+      res.status(status).json({ error: err.message });
+    }
+  });
+
   // ── Results ────────────────────────────────────────────────────────────────
 
   /** List accepted results for a revision. */

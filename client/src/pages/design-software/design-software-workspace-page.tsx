@@ -696,6 +696,9 @@ export default function DesignSoftwareWorkspacePage() {
   // Save on blur helper
   const save = (section: string) => () => saveSection(section);
 
+  // Stage 9 — automatic nozzle generation (server-side Thermopac nozzle master data)
+  const [nozGenBusy, setNozGenBusy] = useState(false);
+
   // Atomic commit — merges updates into local state AND posts the exact merged
   // object, so immediate actions (Apply buttons, dropdown selections, checkboxes,
   // row deletes) can never save from a stale closure.
@@ -2978,29 +2981,47 @@ export default function DesignSoftwareWorkspacePage() {
     const CA_REF = "Thermopac Design Standard — Corrosion Allowance (Carbon Steel 3 mm / Stainless & Duplex 0 mm)";
 
     // ── Nozzle schedule (structured, JSON in section data) ──────────
-    type Noz = { tag: string; service: string; size: string; rating: string; connection: string; orientation: string; elevation: string; remarks: string };
-    const NOZ_COLS: { k: keyof Noz; label: string; w: string }[] = [
-      { k: "tag", label: "Tag", w: "60px" }, { k: "service", label: "Service", w: "1fr" },
-      { k: "size", label: "Size", w: "70px" }, { k: "rating", label: "Rating", w: "70px" },
-      { k: "connection", label: "Connection", w: "100px" }, { k: "orientation", label: "Orientation", w: "90px" },
-      { k: "elevation", label: "Elevation", w: "80px" }, { k: "remarks", label: "Remarks", w: "1fr" },
+    type Noz = {
+      tag: string; service: string; flow_basis?: string; design_velocity?: string; calc_dia_mm?: string;
+      size: string; rating: string; flange_std?: string; facing?: string; connection: string;
+      orientation: string; elevation: string; qty?: string; source?: string; status?: string; remarks: string;
+    };
+    const NOZ_COLS: { k: keyof Noz; label: string; w: string; ro?: boolean }[] = [
+      { k: "tag", label: "Tag", w: "56px" }, { k: "service", label: "Service", w: "170px" },
+      { k: "flow_basis", label: "Flow Basis", w: "200px", ro: true }, { k: "design_velocity", label: "Vel.", w: "62px" },
+      { k: "calc_dia_mm", label: "Calc Ø mm", w: "70px", ro: true }, { k: "size", label: "DN", w: "64px" },
+      { k: "rating", label: "Rating", w: "60px" }, { k: "flange_std", label: "Flange Std", w: "86px" },
+      { k: "facing", label: "Facing", w: "56px" }, { k: "connection", label: "Conn.", w: "76px" },
+      { k: "orientation", label: "Orient.", w: "78px" }, { k: "elevation", label: "Elev. m", w: "62px" },
+      { k: "qty", label: "Qty", w: "40px" }, { k: "source", label: "Source", w: "120px", ro: true },
+      { k: "status", label: "Status", w: "150px", ro: true }, { k: "remarks", label: "Remarks", w: "180px" },
     ];
     let nozzles: Noz[] = [];
     try { nozzles = JSON.parse(md.nozzle_rows ?? "[]"); } catch { nozzles = []; }
-    const NOZ_TEMPLATE_REF = "Thermopac Preliminary Nozzle Schedule Template v1.0 (Assumed — sizes and elevations to be confirmed by the engineer)";
-    const stdNozzles = (): Noz[] => {
-      const base: [string, string][] = [
-        ["N1", "Feed (Aqueous) Inlet"], ["N2", "Solvent Inlet"], ["N3", "Raffinate Outlet"], ["N4", "Extract Outlet"],
-        ["N5", "Vent"], ["N6", "Drain"], ["PI1", "Pressure Instrument"], ["TI1", "Temperature Instrument"],
-        ["LI1", "Level Instrument"], ["S1", "Sampling"],
-      ];
-      if (preferred === "ecr") base.push(["M1", "Agitator Shaft Entry / Drive Mount (top head)"]);
-      return base.map(([tag, service]) => ({ tag, service, size: "", rating: "150#", connection: "Flanged RF", orientation: "", elevation: "", remarks: "" }));
-    };
+    let nozIssues: { severity: string; message: string }[] = [];
+    try { nozIssues = JSON.parse(md.nozzle_generation_issues ?? "[]"); } catch { nozIssues = []; }
+    const nozRefs = (md.nozzle_generation_refs ?? "").trim();
     const saveNozzles = (rows: Noz[]) => cm({ nozzle_rows: JSON.stringify(rows) }); // atomic — never saves from a stale closure
+    // An edit to a generated value marks the row Engineer Override (no Change Reason required).
     const setNozCell = (i: number, k: keyof Noz, v: string) => {
-      const rows = nozzles.map((r, j) => (j === i ? { ...r, [k]: v } : r));
+      const rows = nozzles.map((r, j) => (j === i ? { ...r, [k]: v, ...(r.source === "Auto-Generated" && v !== (r[k] ?? "") ? { source: "Engineer Override" } : {}) } : r));
       f("nozzle_rows", JSON.stringify(rows));
+    };
+    const generateNozzlesAuto = async () => {
+      setNozGenBusy(true);
+      try {
+        const res: any = await apiRequest("POST", `/api/design-software/revisions/${activeRevisionId}/nozzles/generate`);
+        commitSection("mechanical_design", {
+          nozzle_rows: JSON.stringify(res.rows),
+          nozzle_generation_issues: JSON.stringify(res.issues ?? []),
+          nozzle_generation_refs: (res.references ?? []).join(" · "),
+        });
+        toast({ title: "Nozzle schedule generated", description: `${res.rows.length} nozzles sized from Thermopac nozzle master data${(res.issues ?? []).length ? ` — ${(res.issues as any[]).length} validation finding(s)` : ""}.` });
+      } catch (e: any) {
+        toast({ title: "Nozzle generation blocked", description: e.message, variant: "destructive" });
+      } finally {
+        setNozGenBusy(false);
+      }
     };
 
     // ── Structural ──────────────────────────────────────────────────
@@ -3083,32 +3104,48 @@ export default function DesignSoftwareWorkspacePage() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Nozzle Schedule (Structured)">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] text-gray-500">{NOZ_TEMPLATE_REF}</p>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" disabled={isFrozen} onClick={() => saveNozzles(stdNozzles())}>
-                {nozzles.length ? "Regenerate Standard Nozzles" : "Generate Standard Nozzles"}
+        <SectionCard title="Nozzle Schedule (Auto-Generated & Sized)">
+          <div className="flex items-center justify-between mb-2 gap-3">
+            <p className="text-[11px] text-gray-500">
+              Fully automatic generation from the selected technology, process flows, vessel geometry and controlled Thermopac nozzle master data (velocity rules, DN series, instrument masters, access rules). Liquid nozzles: A = Q/v, d = √(4A/π), next larger DN. All values remain editable — an edit is marked Engineer Override. Elevations are Preliminary Layout values.
+              {nozRefs && <> <span className="text-gray-400">Master data: {nozRefs}</span></>}
+            </p>
+            <div className="flex gap-2 shrink-0">
+              <Button size="sm" variant="outline" disabled={isFrozen || nozGenBusy || (preferred !== "ecp" && preferred !== "ecr")} onClick={generateNozzlesAuto}>
+                {nozGenBusy ? "Generating…" : nozzles.length ? "Regenerate & Size Nozzles (Auto)" : "Generate & Size Nozzles (Auto)"}
               </Button>
               {nozzles.length > 0 && (
-                <Button size="sm" variant="outline" disabled={isFrozen} onClick={() => saveNozzles([...nozzles, { tag: "", service: "", size: "", rating: "150#", connection: "Flanged RF", orientation: "", elevation: "", remarks: "" }])}>
+                <Button size="sm" variant="outline" disabled={isFrozen} onClick={() => saveNozzles([...nozzles, { tag: "", service: "", size: "", rating: "150#", flange_std: "ASME B16.5", facing: "RF", connection: "Flanged", orientation: "", elevation: "", qty: "1", source: "Engineer Entry", status: "Preliminary — Pending Validation", remarks: "" } as Noz])}>
                   + Add Row
                 </Button>
               )}
             </div>
           </div>
+          {preferred !== "ecp" && preferred !== "ecr" && (
+            <p className="text-[11px] text-amber-700 mb-2">Generation requires a single selected technology (ECP or ECR) in Stage 8 — Technology Comparison.</p>
+          )}
+          {nozIssues.length > 0 && (
+            <div className="p-2 mb-2 bg-amber-50 border border-amber-200 rounded text-[11px] text-amber-800">
+              <p className="font-semibold mb-1">Generation validation findings</p>
+              {nozIssues.map((it, i) => (
+                <p key={i} className={it.severity === "error" ? "text-red-700" : ""}>• [{it.severity}] {it.message}</p>
+              ))}
+            </div>
+          )}
           {nozzles.length === 0 ? (
-            <p className="text-sm text-gray-400 italic">No nozzles defined — click "Generate Standard Nozzles" to seed the standard {preferred === "ecr" ? "ECR" : preferred === "ecp" ? "ECP" : "LLX"} schedule.</p>
+            <p className="text-sm text-gray-400 italic">No nozzles defined — click "Generate &amp; Size Nozzles (Auto)" to generate and size the full {preferred === "ecr" ? "ECR" : preferred === "ecp" ? "ECP" : "LLX"} schedule from Thermopac nozzle master data.</p>
           ) : (
             <div className="overflow-x-auto">
-              <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: NOZ_COLS.map(c => c.w).join(" ") + " 28px", minWidth: 900 }}>
+              <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: NOZ_COLS.map(c => c.w).join(" ") + " 28px", minWidth: 1650 }}>
                 {NOZ_COLS.map(c => <span key={c.k} className="text-[10px] font-semibold text-gray-500 uppercase">{c.label}</span>)}
                 <span />
               </div>
               {nozzles.map((n, i) => (
-                <div key={i} className="grid gap-1 mb-1" style={{ gridTemplateColumns: NOZ_COLS.map(c => c.w).join(" ") + " 28px", minWidth: 900 }}>
-                  {NOZ_COLS.map(c => (
-                    <Input key={c.k} value={n[c.k]} disabled={isFrozen} className="h-7 text-[11px] px-1.5"
+                <div key={i} className="grid gap-1 mb-1" style={{ gridTemplateColumns: NOZ_COLS.map(c => c.w).join(" ") + " 28px", minWidth: 1650 }}>
+                  {NOZ_COLS.map(c => c.ro ? (
+                    <span key={c.k} title={n[c.k] ?? ""} className={`text-[10px] leading-tight pt-1.5 truncate ${c.k === "source" && n.source === "Engineer Override" ? "text-blue-600 font-medium" : "text-gray-500"}`}>{n[c.k] ?? ""}</span>
+                  ) : (
+                    <Input key={c.k} value={n[c.k] ?? ""} disabled={isFrozen} className="h-7 text-[11px] px-1.5"
                       onChange={e => setNozCell(i, c.k, e.target.value)} onBlur={s} />
                   ))}
                   <button className="text-gray-300 hover:text-red-500 text-sm" disabled={isFrozen} title="Remove row"
