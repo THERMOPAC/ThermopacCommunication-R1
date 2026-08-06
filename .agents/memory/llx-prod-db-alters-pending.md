@@ -22,3 +22,4 @@ CREATE TABLE IF NOT EXISTS design_selection_records (LIKE design_selection_recor
 ```
 Real DDL: copy from dev — `pg_dump --schema-only -t design_selection_records` or re-run the raw SQL used in dev (table with record jsonb, selected_technology, selected_diameter_mm, confidence_level, selection_status chk (recommended/engineering_review_required/not_recommendable), is_superseded, decision chk (pending/approved/verification_requested/overridden), decision_by/at/engineer/reason, override_technology/diameter_mm/impact, created_by/at).
 Also seed prod V&V equation register: `npx tsx server/vv/seed-dsel-equation-register.ts` against prod DB.
+Also on prod: `CREATE UNIQUE INDEX IF NOT EXISTS design_selection_records_one_active_per_revision ON design_selection_records (revision_id) WHERE is_superseded = FALSE;`

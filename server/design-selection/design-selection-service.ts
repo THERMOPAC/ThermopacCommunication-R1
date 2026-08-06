@@ -140,8 +140,12 @@ function evaluateTechnology(tech: Tech, run: any | null, inputs: Record<string, 
   const snap = run.result_snapshot ?? {};
   const maxCase = snap.maximumCase ?? {};
   const normalCase = snap.normalCase ?? {};
-  const maxDiams: any[] = Array.isArray(maxCase.diameters) ? maxCase.diameters : [];
-  const normDiams: any[] = Array.isArray(normalCase.diameters) ? normalCase.diameters : [];
+  // Sort ascending by diameter regardless of stored sweep order — DS-SEL-003
+  // requires the SMALLEST feasible increment, and the frozen snapshot preserves
+  // caller-supplied candidate order which is not guaranteed sorted.
+  const byDiameter = (a: any, b: any) => (num(a?.diameter_m) ?? Infinity) - (num(b?.diameter_m) ?? Infinity);
+  const maxDiams: any[] = (Array.isArray(maxCase.diameters) ? [...maxCase.diameters] : []).sort(byDiameter);
+  const normDiams: any[] = (Array.isArray(normalCase.diameters) ? [...normalCase.diameters] : []).sort(byDiameter);
   const maxFlows = maxCase.flows ?? {};
   const normFlows = normalCase.flows ?? {};
   const qMax = (num(maxFlows.nmpVolumetricFlow_m3_h) ?? NaN) + (num(maxFlows.rrboVolumetricFlow_m3_h) ?? NaN);
@@ -361,6 +365,9 @@ export async function generateSelectionRecord(revisionId: number, userId: number
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    // Revision-scoped advisory lock: serializes concurrent regenerations so at
+    // most one non-superseded record can exist per revision at any time.
+    await client.query('SELECT pg_advisory_xact_lock($1, $2)', [742001, revisionId]);
     await client.query('UPDATE design_selection_records SET is_superseded = TRUE WHERE revision_id = $1 AND is_superseded = FALSE', [revisionId]);
     const ins = await client.query(
       `INSERT INTO design_selection_records
@@ -412,8 +419,9 @@ export async function recordDecision(recordId: number, userId: number, body: {
     const upd = await pool.query(
       `UPDATE design_selection_records
           SET decision=$2, decision_by=$3, decision_at=NOW(), decision_engineer=$4, decision_reason=$5
-        WHERE id=$1 RETURNING *`,
+        WHERE id=$1 AND is_superseded = FALSE AND decision = 'pending' RETURNING *`,
       [recordId, decision, userId, engineer, reason || null]);
+    if (!upd.rows.length) throw Object.assign(new Error('This record was superseded or already decided while the decision was in flight — reload and decide on the latest record.'), { statusCode: 409 });
     return upd.rows[0];
   }
 
@@ -423,6 +431,16 @@ export async function recordDecision(recordId: number, userId: number, body: {
     const oDia = Number.isFinite(Number(body.overrideDiameterMm)) && Number(body.overrideDiameterMm) > 0 ? Math.round(Number(body.overrideDiameterMm)) : null;
     if (!oTech && !oDia) throw Object.assign(new Error('Override must change the technology and/or the diameter.'), { statusCode: 400 });
     if (oTech && !['ecp', 'ecr'].includes(oTech)) throw Object.assign(new Error(`Unknown override technology '${oTech}'.`), { statusCode: 400 });
+    {
+      // Reject no-op overrides: an "override" identical to the autonomous
+      // recommendation would record a governance action without a change.
+      const autoRec = rec.record ?? {};
+      const effT = oTech ?? autoRec.selectedTechnology ?? null;
+      const effD = oDia ?? autoRec.selectedDiameter_mm ?? null;
+      if (effT === (autoRec.selectedTechnology ?? null) && effD === (autoRec.selectedDiameter_mm ?? null)) {
+        throw Object.assign(new Error('Override values are identical to the autonomous recommendation — use Approve instead, or change the technology/diameter.'), { statusCode: 400 });
+      }
+    }
 
     // Impact assessment — read from the record's frozen evaluation table (never recomputed)
     const record = rec.record ?? {};
@@ -440,8 +458,9 @@ export async function recordDecision(recordId: number, userId: number, body: {
       `UPDATE design_selection_records
           SET decision='overridden', decision_by=$2, decision_at=NOW(), decision_engineer=$3, decision_reason=$4,
               override_technology=$5, override_diameter_mm=$6, override_impact=$7
-        WHERE id=$1 RETURNING *`,
+        WHERE id=$1 AND is_superseded = FALSE AND decision = 'pending' RETURNING *`,
       [recordId, userId, engineer, reason, oTech, oDia, JSON.stringify(impact)]);
+    if (!upd.rows.length) throw Object.assign(new Error('This record was superseded or already decided while the decision was in flight — reload and decide on the latest record.'), { statusCode: 409 });
     return upd.rows[0];
   }
 
