@@ -2223,7 +2223,7 @@ export default function DesignSoftwareWorkspacePage() {
             <label className="text-sm text-gray-700 font-medium pt-1.5">Hydraulic Model</label>
             <select
               value={hd.hydraulic_model ?? "d32_terminal"}
-              onChange={e => { f("hydraulic_model", e.target.value); s(); }}
+              onChange={e => commitSection("hydraulic_design", { hydraulic_model: e.target.value })}
               disabled={isFrozen}
               className="h-8 text-sm border rounded-md px-2 bg-white"
             >
@@ -2455,7 +2455,7 @@ export default function DesignSoftwareWorkspacePage() {
           <label className="text-sm text-gray-700 font-medium pt-1.5">Back-Mixing Risk</label>
           <select
             value={ec.backmixing_risk ?? "moderate"}
-            onChange={e => { f("backmixing_risk", e.target.value); s(); }}
+            onChange={e => commitSection("ecp_design", { backmixing_risk: e.target.value })}
             disabled={isFrozen}
             className="h-8 text-sm border rounded-md px-2 bg-white"
           >
@@ -2579,7 +2579,7 @@ export default function DesignSoftwareWorkspacePage() {
             <label className="text-sm text-gray-700 font-medium pt-1.5">Packing (Packing Database)</label>
             <select
               value={ec.packing_id ?? ""}
-              onChange={e => { f("packing_id", e.target.value); s(); }}
+              onChange={e => commitSection("ecp_design", { packing_id: e.target.value })}
               disabled={isFrozen}
               className="h-8 text-sm border rounded-md px-2 bg-white"
             >
@@ -2902,7 +2902,7 @@ export default function DesignSoftwareWorkspacePage() {
               className="w-full h-9 text-sm border rounded-md px-2 bg-white"
               value={tc.preferred ?? ""}
               disabled={isFrozen}
-              onChange={e => { f("preferred", e.target.value); s(); }}
+              onChange={e => commitSection("technology_comparison", { preferred: e.target.value })}
             >
               <option value="">— Not yet selected —</option>
               <option value="ecp">ECP</option>
