@@ -140,5 +140,47 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>)
     }
   }
 
+  // ── Stage 5 (Common Hydraulic Design) extras — same restructuring-only rule ──
+  // Feed (RRBO) dynamic viscosity: workspace mPa·s → engine Pa·s.
+  if (out.feedViscosity === undefined) {
+    const mu = num(inputs.rrbo_viscosity_dynamic_value);
+    if (mu !== undefined && mu > 0) {
+      const src = String(inputs.rrbo_viscosity_dynamic_source ?? '').trim();
+      const refT = num(String(inputs.rrbo_viscosity_dynamic_ref_temp ?? '40').replace(/°?C/gi, '')) ?? 40;
+      out.feedViscosity = {
+        value: mu / 1000,
+        referenceTemperatureC: refT,
+        sourceType: SOURCE_TYPES.includes(src) ? src : 'Assumed',
+        sourceReference: SOURCE_TYPES.includes(src)
+          ? 'Fluid Properties workspace entry (engineer source type)'
+          : 'Thermopac Feed Master (Default) — Fluid Properties auto-populated dynamic viscosity',
+      };
+    }
+  }
+  // Interfacial tension: workspace mN/m → engine N/m (tagged, optional input).
+  if (out.interfacialTension === undefined) {
+    const ift = num(inputs.interfacial_tension_value);
+    if (ift !== undefined && ift > 0) {
+      const src = String(inputs.interfacial_tension_source ?? '').trim();
+      const refT = num(String(inputs.interfacial_tension_ref_temp ?? '70').replace(/°?C/gi, '')) ?? 70;
+      out.interfacialTension = {
+        value: ift / 1000,
+        referenceTemperatureC: refT,
+        sourceType: SOURCE_TYPES.includes(src) ? src : 'Assumed',
+        sourceReference: 'Thermopac Preliminary Screening Default (Two-Phase Properties workspace entry)',
+      };
+    }
+  }
+  // Diameter basis: engineer trial diameter when entered; the screening sweep
+  // (a sweep configuration, not a process value) covers the practical LLX
+  // column range when no trial is given.
+  const trialD = num(inputs.column_diameter);
+  if (out.selectedTrialDiameter === undefined && trialD !== undefined && trialD > 0) {
+    out.selectedTrialDiameter = trialD;
+  }
+  if (out.diameterSweep === undefined && out.diameterValues === undefined) {
+    out.diameterSweep = { min: 0.3, max: 2.0, step: 0.05 };
+  }
+
   return out;
 }

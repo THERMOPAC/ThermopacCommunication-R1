@@ -2114,16 +2114,40 @@ export default function DesignSoftwareWorkspacePage() {
     const f = field("hydraulic_design");
     const s = save("hydraulic_design");
     const hydRun = runs.find(r => r.calculation_type === "hydraulics_common" && r.calculation_status === "success");
+    // Total Volumetric Flow — binding only: Feed Flow + Normal Solvent Flow
+    // (both already established in Design Basis / Process Design).
+    const dbx = d("design_basis");
+    const pdx = d("process_design");
+    const hydFeedLph = numOrNull(dbx.design_capacity_lph ?? dbx.design_capacity ?? dbx.feed_flow);
+    const hydRatio = numOrNull((pdx.so_ratio ?? "").trim() !== "" ? pdx.so_ratio : SO_RATIO_DEFAULT);
+    const hydTotalLph = hydFeedLph !== null && hydRatio !== null ? hydFeedLph * (1 + hydRatio) : null;
+    const hydTotalM3h = hydTotalLph !== null ? hydTotalLph / 1000 : null;
+    const totalFlowOverride = (hd.total_flow ?? "").trim();
+    const fmt = (v: number | null | undefined, dp = 0) =>
+      v === null || v === undefined || !isFinite(v) ? "—" : v.toLocaleString("en-IN", { minimumFractionDigits: dp, maximumFractionDigits: dp });
+    const statusLine = (text: string) => <p className="text-[11px] text-gray-400 px-2 -mt-0.5">{text}</p>;
     return (
       <div className="max-w-3xl">
         <SectionCard title="Hydraulic Inputs">
-          <FieldRow label="Column Diameter (trial)" value={hd.column_diameter ?? ""} onChange={v => f("column_diameter", v)} onBlur={s} unit="m" placeholder="Or leave blank to auto-size" />
+          <FieldRow label="Column Diameter (trial)" value={hd.column_diameter ?? ""} onChange={v => f("column_diameter", v)} onBlur={s} unit="m" placeholder="Blank — engine evaluates the full screening sweep (0.3–2.0 m)" />
+          {statusLine((hd.column_diameter ?? "").trim() !== ""
+            ? "Status: Manual · Engineer-selected trial diameter — evaluated within the screening sweep"
+            : "Status: Auto-Populated · Rule: blank runs the Common Hydraulic screening sweep 0.3–2.0 m (0.05 m step); the engine evaluates each diameter — a recommended diameter requires a source-tagged droplet basis (d32 or characteristic velocity)")}
           <FieldRow label="Continuous Phase Density" value={hd.cont_density ?? d("fluid_properties").nmp_density_value ?? ""} onChange={v => f("cont_density", v)} onBlur={s} unit="kg/m³" note="Auto-filled from Fluid Properties" />
           <FieldRow label="Dispersed Phase Density" value={hd.disp_density ?? d("fluid_properties").rrbo_density_value ?? ""} onChange={v => f("disp_density", v)} onBlur={s} unit="kg/m³" />
           <FieldRow label="Continuous Phase Viscosity" value={hd.cont_viscosity ?? d("fluid_properties").nmp_viscosity_dynamic_value ?? ""} onChange={v => f("cont_viscosity", v)} onBlur={s} unit="mPa·s" />
           <FieldRow label="Dispersed Phase Viscosity" value={hd.disp_viscosity ?? d("fluid_properties").rrbo_viscosity_dynamic_value ?? ""} onChange={v => f("disp_viscosity", v)} onBlur={s} unit="mPa·s" />
           <FieldRow label="Interfacial Tension" value={hd.interfacial_tension ?? d("fluid_properties").interfacial_tension_value ?? ""} onChange={v => f("interfacial_tension", v)} onBlur={s} unit="mN/m" />
-          <FieldRow label="Total Volumetric Flow" value={hd.total_flow ?? ""} onChange={v => f("total_flow", v)} onBlur={s} unit="m³/h" />
+          <FieldRow
+            label="Total Volumetric Flow"
+            value={totalFlowOverride !== "" ? (hd.total_flow as string) : (hydTotalM3h !== null ? String(Math.round(hydTotalM3h * 100) / 100) : "")}
+            onChange={v => f("total_flow", v)}
+            onBlur={s}
+            unit="m³/h"
+          />
+          {statusLine(totalFlowOverride !== "" && numOrNull(totalFlowOverride) !== hydTotalM3h
+            ? "Status: Manual · Engineer override"
+            : `Status: Auto-Populated · Rule: Feed Flow (${hydFeedLph !== null ? fmt(hydFeedLph) : "—"} LPH) + Normal Solvent Flow (${hydFeedLph !== null && hydRatio !== null ? fmt(hydFeedLph * hydRatio) : "—"} LPH) = ${hydTotalLph !== null ? fmt(hydTotalLph) : "—"} LPH = ${hydTotalM3h !== null ? fmt(hydTotalM3h, 1) : "—"} m³/h · Source: Process Design / Design Basis`)}
           <FieldRow label="Flooding Margin Design" value={hd.flooding_margin_design ?? "70"} onChange={v => f("flooding_margin_design", v)} onBlur={s} unit="%" />
         </SectionCard>
 
