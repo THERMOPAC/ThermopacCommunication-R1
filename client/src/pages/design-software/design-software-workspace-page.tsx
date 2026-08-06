@@ -698,6 +698,31 @@ export default function DesignSoftwareWorkspacePage() {
 
   // Stage 9 — automatic nozzle generation (server-side Thermopac nozzle master data)
   const [nozGenBusy, setNozGenBusy] = useState(false);
+  /** Generate + size the nozzle schedule and persist it (awaited direct POST so a
+   *  follow-on calculation run sees the saved rows). Returns true on success. */
+  const autoGenerateNozzles = useCallback(async (): Promise<boolean> => {
+    if (isFrozen || !activeRevisionId) return false;
+    setNozGenBusy(true);
+    try {
+      const res: any = await apiRequest("POST", `/api/design-software/revisions/${activeRevisionId}/nozzles/generate`);
+      const next = {
+        ...(localData["mechanical_design"] ?? {}),
+        nozzle_rows: JSON.stringify(res.rows),
+        nozzle_generation_issues: JSON.stringify(res.issues ?? []),
+        nozzle_generation_refs: (res.references ?? []).join(" · "),
+      };
+      setLocalData(prev => ({ ...prev, mechanical_design: next }));
+      await apiRequest("POST", `/api/design-software/revisions/${activeRevisionId}/inputs`, { section: "mechanical_design", data: next });
+      inputsQ.refetch();
+      toast({ title: "Nozzle schedule generated", description: `${res.rows.length} nozzles sized from Thermopac nozzle master data${(res.issues ?? []).length ? ` — ${(res.issues as any[]).length} validation finding(s)` : ""}.` });
+      return true;
+    } catch (e: any) {
+      toast({ title: "Nozzle generation blocked", description: e.message, variant: "destructive" });
+      return false;
+    } finally {
+      setNozGenBusy(false);
+    }
+  }, [isFrozen, activeRevisionId, localData, toast]);
 
   // Atomic commit — merges updates into local state AND posts the exact merged
   // object, so immediate actions (Apply buttons, dropdown selections, checkboxes,
@@ -3007,22 +3032,7 @@ export default function DesignSoftwareWorkspacePage() {
       const rows = nozzles.map((r, j) => (j === i ? { ...r, [k]: v, ...(r.source === "Auto-Generated" && v !== (r[k] ?? "") ? { source: "Engineer Override" } : {}) } : r));
       f("nozzle_rows", JSON.stringify(rows));
     };
-    const generateNozzlesAuto = async () => {
-      setNozGenBusy(true);
-      try {
-        const res: any = await apiRequest("POST", `/api/design-software/revisions/${activeRevisionId}/nozzles/generate`);
-        commitSection("mechanical_design", {
-          nozzle_rows: JSON.stringify(res.rows),
-          nozzle_generation_issues: JSON.stringify(res.issues ?? []),
-          nozzle_generation_refs: (res.references ?? []).join(" · "),
-        });
-        toast({ title: "Nozzle schedule generated", description: `${res.rows.length} nozzles sized from Thermopac nozzle master data${(res.issues ?? []).length ? ` — ${(res.issues as any[]).length} validation finding(s)` : ""}.` });
-      } catch (e: any) {
-        toast({ title: "Nozzle generation blocked", description: e.message, variant: "destructive" });
-      } finally {
-        setNozGenBusy(false);
-      }
-    };
+    const generateNozzlesAuto = () => autoGenerateNozzles();
 
     // ── Structural ──────────────────────────────────────────────────
     const SUPPORT_TYPES = ["Skirt", "Leg Support", "Saddle", "Lug", "Trunnion"];
@@ -3221,8 +3231,20 @@ export default function DesignSoftwareWorkspacePage() {
           <p className="text-[11px] text-gray-500">
             Maps the confirmed Stage 9 Mechanical Design Basis into mech-vessel v1.0.0. Preliminary thin-wall screening only — not a final ASME design and not fabrication-ready.
           </p>
-          <Button size="sm" disabled={isFrozen || calculateMutation.isPending || !techSelected} onClick={() => calculateMutation.mutate("mechanical_vessel")}>
-            {calculateMutation.isPending ? "Running…" : "Run Preliminary Mechanical Design"}
+          <Button size="sm" disabled={isFrozen || calculateMutation.isPending || nozGenBusy || !techSelected} onClick={async () => {
+            // Fully automatic: an unsized/legacy nozzle schedule (no DN on any row and
+            // no engineer overrides) is auto-generated + persisted before the run.
+            let rows: any[] = [];
+            try { rows = JSON.parse(d("mechanical_design").nozzle_rows ?? "[]"); } catch { rows = []; }
+            const hasOverride = rows.some(r => r.source === "Engineer Override" || r.source === "Engineer Entry");
+            const unsized = rows.length === 0 || rows.every(r => !String(r.size ?? "").trim());
+            if (unsized && !hasOverride) {
+              const ok = await autoGenerateNozzles();
+              if (!ok) return;
+            }
+            calculateMutation.mutate("mechanical_vessel");
+          }}>
+            {nozGenBusy ? "Generating nozzles…" : calculateMutation.isPending ? "Running…" : "Run Preliminary Mechanical Design"}
           </Button>
         </div>
         {!techSelected && (
