@@ -143,6 +143,11 @@ export function mapWorkspaceMechanicalInputs(
         tag: String(r.tag ?? '').trim() || undefined,
         service: canonicalNozzleService(String(r.service)),
         rating: String(r.rating ?? '').trim() || undefined,
+        facing: String(r.facing ?? '').trim() || undefined,
+        // Generated schedule stores the ASME class in `rating` (e.g. "150#") and the
+        // flange standard in `flange_std` (e.g. "ASME B16.5") — map both through.
+        flangeClass: String(r.flange_class ?? r.rating ?? '').trim() || undefined,
+        flangeStandard: String(r.flange_std ?? r.flange_standard ?? '').trim() || undefined,
         remarks: [String(r.remarks ?? '').trim(), String(r.orientation ?? '').trim() && `Orientation: ${String(r.orientation).trim()}`, String(r.elevation ?? '').trim() && `Elevation: ${String(r.elevation).trim()}`].filter(Boolean).join('; ') || undefined,
       };
       if (dn !== undefined && dn > 0) n.size = tag(dn, 'DN', 'Stage 9 nozzle schedule entry');
