@@ -625,6 +625,58 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
     }
   });
 
+  /** Approve a recorded (draft) evidence pillar — approver must differ from the recorder. */
+  app.post('/api/design-software/vv/equation-register/:equationId/evidence/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      const approvedBy = req.body.approvedBy ?? user.fullName ?? user.username ?? String(user.id);
+      res.json(await vvRegister.approveEvidence(parseInt(req.params.equationId), req.body.pillar, approvedBy));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+
+  /** Verification findings — list / raise / close (open critical findings block Verified). */
+  app.get('/api/design-software/vv/findings', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      res.json(await vvRegister.listFindings(req.query.engineId as string | undefined));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+  app.post('/api/design-software/vv/findings', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      const raisedBy = req.body.raisedBy ?? user.fullName ?? user.username ?? String(user.id);
+      res.json(await vvRegister.raiseFinding({
+        engineId: req.body.engineId, equationRef: req.body.equationRef,
+        severity: req.body.severity, description: req.body.description, raisedBy,
+      }));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+  app.post('/api/design-software/vv/findings/:id/close', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      const closedBy = req.body.closedBy ?? user.fullName ?? user.username ?? String(user.id);
+      res.json(await vvRegister.closeFinding(parseInt(req.params.id), closedBy, req.body.closureReference));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+
+  /** Independent engine-version approval (immutable, one per engine+version) — required for Verified. */
+  app.post('/api/design-software/vv/engine-version-approvals', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+      const approvedBy = req.body.approvedBy ?? user.fullName ?? user.username ?? String(user.id);
+      res.json(await vvRegister.approveEngineVersion(req.body.engineId, req.body.engineVersion, approvedBy, req.body.reference));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+
   /** Computed Software Verification status per engine (never asserted). */
   app.get('/api/design-software/vv/verification-status', ensureAuthenticated, async (_req: Request, res: Response) => {
     try {
