@@ -159,15 +159,30 @@ function screenFamily(rec: SulzerScreeningRecord, inp: SulzerScreeningInput, loa
   const sel = perDiameter.find(d => d.isSelectedTrial) ?? perDiameter[0];
   const bNormal = sel.normalSpecificThroughput_m3_m2h;
   const bMax = sel.maximumSpecificThroughput_m3_m2h;
-  // Anywhere in the normal↔maximum operating window inside the typical band counts as within.
-  const anyCaseWithin = classifyLoading(bNormal, rec) === 'Within Typical Published Loading'
-    || classifyLoading(bMax, rec) === 'Within Typical Published Loading'
-    || (bNormal <= max && bMax >= min);
-  const classification: LoadingClassification = anyCaseWithin
-    ? 'Within Typical Published Loading'
-    : classifyLoading(bMax, rec); // below/above judged on the higher (maximum-case) loading
+  // Classify both endpoints of the normal↔maximum operating window; the family-level
+  // classification is only "Within" when BOTH endpoints sit inside the typical band.
+  // Mixed windows take the more conservative (further-from-band) endpoint's label.
+  const clsNormal = classifyLoading(bNormal, rec);
+  const clsMax = classifyLoading(bMax, rec);
+  let classification: LoadingClassification;
+  if (clsNormal === 'Within Typical Published Loading' && clsMax === 'Within Typical Published Loading') {
+    classification = 'Within Typical Published Loading';
+  } else if (clsMax === 'Above Typical Published Loading') {
+    classification = 'Above Typical Published Loading'; // high end governs flooding-approach risk
+  } else if (clsNormal === 'Below Typical Published Loading') {
+    classification = 'Below Typical Published Loading'; // low end governs distribution/wetting risk
+  } else {
+    classification = clsNormal !== 'Within Typical Published Loading' ? clsNormal : clsMax;
+  }
+  const mixedWindow = clsNormal !== clsMax;
 
-  const significantExtrapolation = bMax < min * EXTRAPOLATION_FACTOR || bNormal > max * (1 + EXTRAPOLATION_FACTOR);
+  // Conservative endpoint tests: low-loading extrapolation judged at the NORMAL case
+  // (worst distribution/wetting), high-loading extrapolation at the MAXIMUM case
+  // (worst flooding approach).
+  const significantExtrapolation = bNormal < min * EXTRAPOLATION_FACTOR || bMax > max * (1 + EXTRAPOLATION_FACTOR);
+  const windowText = mixedWindow
+    ? ` Operating window spans classifications: normal case ${clsNormal.toLowerCase()}, maximum case ${clsMax.toLowerCase()}.`
+    : '';
 
   const hydraulicLoading: FamilyScreeningResult['hydraulicLoading'] = {
     label: 'Hydraulic Loading Compatibility',
@@ -178,8 +193,8 @@ function screenFamily(rec: SulzerScreeningRecord, inp: SulzerScreeningInput, loa
     note: classification === 'Within Typical Published Loading'
       ? `B ${bNormal.toFixed(1)}–${bMax.toFixed(1)} m³/(m²·h) within the typical published screening range ${min}–${max}. Good preliminary match with published screening characteristics.`
       : classification === 'Below Typical Published Loading'
-        ? `B ${bNormal.toFixed(1)}–${bMax.toFixed(1)} m³/(m²·h) below the typical published screening range ${min}–${max}. Hydraulically feasible — the published range is a typical design characteristic, not an operating limit. Lower loading may influence liquid distribution, wetting efficiency and distributor performance. ${significantExtrapolation ? 'Significant extrapolation beyond published experience — vendor or pilot validation strongly recommended.' : 'Vendor or pilot confirmation recommended.'}`
-        : `B ${bNormal.toFixed(1)}–${bMax.toFixed(1)} m³/(m²·h) above the typical published screening range ${min}–${max}. Higher loading raises flooding-approach and entrainment risk relative to published experience. ${significantExtrapolation ? 'Significant extrapolation beyond published experience — vendor or pilot validation strongly recommended.' : 'Additional hydraulic review and vendor or pilot confirmation recommended.'}`,
+        ? `B ${bNormal.toFixed(1)}–${bMax.toFixed(1)} m³/(m²·h) below the typical published screening range ${min}–${max}.${windowText} Hydraulically feasible — the published range is a typical design characteristic, not an operating limit. Lower loading may influence liquid distribution, wetting efficiency and distributor performance. ${significantExtrapolation ? 'Significant extrapolation beyond published experience — vendor or pilot validation strongly recommended.' : 'Vendor or pilot confirmation recommended.'}`
+        : `B ${bNormal.toFixed(1)}–${bMax.toFixed(1)} m³/(m²·h) reaches above the typical published screening range ${min}–${max}.${windowText} Higher loading raises flooding-approach and entrainment risk relative to published experience. ${significantExtrapolation ? 'Significant extrapolation beyond published experience — vendor or pilot validation strongly recommended.' : 'Additional hydraulic review and vendor or pilot confirmation recommended.'}`,
   };
 
   const stageOk = inp.theoreticalStages <= rec.preliminaryStageRange.maxNTS;
@@ -272,7 +287,7 @@ export function runSulzerPackingScreening(inp: SulzerScreeningInput): SulzerScre
   let verdictNote: string;
   if (rSmv <= 1 && rSmvp <= 1) {
     overallVerdict = 'Vendor/Pilot Validation Required';
-    verdictNote = 'Both packings show significant extrapolation beyond published screening experience (Low Confidence). Neither technology is rejected — vendor or pilot validation is required to proceed.';
+    verdictNote = 'Both packings show significant extrapolation beyond published screening experience (Low Confidence). Both technologies remain candidates — vendor or pilot validation is required to proceed.';
   } else if (rSmv === rSmvp) {
     overallVerdict = 'Both Technically Viable';
     verdictNote = rSmv === 3
@@ -280,10 +295,10 @@ export function runSulzerPackingScreening(inp: SulzerScreeningInput): SulzerScre
       : 'Both packings are technically feasible at Medium Confidence — outside the typical published characteristics in one or more respects. Additional hydraulic review and vendor or pilot confirmation recommended for either choice. No packing is finalized at this stage.';
   } else if (rSmv > rSmvp) {
     overallVerdict = 'Preliminary SMV Preference';
-    verdictNote = `SMV screens at ${smv.confidence} vs SMVP at ${smvp.confidence} for this design. Preference is preliminary only — the alternative remains technically feasible and is not rejected.`;
+    verdictNote = `SMV screens at ${smv.confidence} vs SMVP at ${smvp.confidence} for this design. Preference is preliminary only — the alternative remains a technically feasible candidate.`;
   } else {
     overallVerdict = 'Preliminary SMVP Preference';
-    verdictNote = `SMVP screens at ${smvp.confidence} vs SMV at ${smv.confidence} for this design. Preference is preliminary only — the alternative remains technically feasible and is not rejected.`;
+    verdictNote = `SMVP screens at ${smvp.confidence} vs SMV at ${smv.confidence} for this design. Preference is preliminary only — the alternative remains a technically feasible candidate.`;
   }
 
   return {
