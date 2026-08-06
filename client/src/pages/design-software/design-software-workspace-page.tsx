@@ -3445,7 +3445,7 @@ export default function DesignSoftwareWorkspacePage() {
   function renderReports() {
     const reportCards = [
       { key: "design_basis",       docType: "DBR", title: "Design Basis Report", desc: "Frozen statement of the design basis — Stages 1–4 inputs with source classification, assumptions register and validation summary." },
-      { key: "process_design",     title: "Process Design Report",        desc: "Material balance, solvent balance and process design summary." },
+      { key: "process_design",     docType: "PDR", title: "Process Design Report", desc: "Frozen C2 results — material balance (normal + maximum case), solvent balance, yields and split fractions with provenance." },
       { key: "hydraulic_calc",     title: "Hydraulic Calculation Report", desc: "Full hydraulic calculation workings with formulas and references." },
       { key: "equipment_datasheet",title: "Equipment Datasheet",          desc: "Engineering datasheet for equipment procurement." },
       { key: "mechanical_datasheet",title:"Mechanical Datasheet",         desc: "Mechanical design datasheet for fabrication." },
