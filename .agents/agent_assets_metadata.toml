@@ -498,3 +498,31 @@ id = "wvqiVkYlkgRei1ns2JOOH"
 uri = "file://local-document-agent/ThermopacLocalDocumentAgent-v1.0.7-windows.zip"
 type = "unspecified"
 title = "ThermopacLocalDocumentAgent v1.0.7 — Windows Package"
+
+[[outputs]]
+id = "TDxeErytPirw4QUHw930A"
+uri = "file://docs/reports/LLX-RND-2026-0001-ECPR_Rev0.pdf"
+type = "pdf"
+title = "ECPR — ECP Calculation Report Rev 0 (run #63)"
+description = "Packed-column C4 calculation report rendered from the frozen run #63 snapshot — submitted for independent review."
+
+[[outputs]]
+id = "gEyulpd5gRfSC5miCkdKz"
+uri = "file://docs/reports/LLX-RND-2026-0001-ECRR_Rev0.pdf"
+type = "pdf"
+title = "ECRR — ECR Calculation Report Rev 0 (run #64)"
+description = "Agitated-column C5 calculation report rendered from the frozen run #64 snapshot — submitted for independent review."
+
+[[outputs]]
+id = "_wBHteZY_dEnGEiqHgbiV"
+uri = "file://docs/reports/LLX-RND-2026-0001-ECP-Rev0-run63-frozen-snapshot.json"
+type = "unspecified"
+title = "Frozen ECP snapshot JSON (run #63)"
+description = "Verbatim frozen 'ecp' result snapshot + run metadata for hand-checking."
+
+[[outputs]]
+id = "Q_p2KNGyPR_--nBL9rRY5"
+uri = "file://docs/reports/LLX-RND-2026-0001-ECR-Rev0-run64-frozen-snapshot.json"
+type = "unspecified"
+title = "Frozen ECR snapshot JSON (run #64)"
+description = "Verbatim frozen 'ecr' result snapshot + run metadata for hand-checking."

@@ -619,7 +619,7 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
     try {
       const user = req.user as any;
       const by = req.body.by ?? user.fullName ?? user.username ?? String(user.id);
-      res.json(await vvRegister.recordEvidence(parseInt(req.params.equationId), req.body.pillar, by, req.body.reference));
+      res.json(await vvRegister.recordEvidence(parseInt(req.params.equationId), req.body.pillar, by, req.body.reference, user.id));
     } catch (err: any) {
       res.status(err.statusCode ?? 500).json({ error: err.message });
     }
@@ -630,7 +630,7 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
     try {
       const user = req.user as any;
       const approvedBy = req.body.approvedBy ?? user.fullName ?? user.username ?? String(user.id);
-      res.json(await vvRegister.approveEvidence(parseInt(req.params.equationId), req.body.pillar, approvedBy));
+      res.json(await vvRegister.approveEvidence(parseInt(req.params.equationId), req.body.pillar, approvedBy, user.id));
     } catch (err: any) {
       res.status(err.statusCode ?? 500).json({ error: err.message });
     }

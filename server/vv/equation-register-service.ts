@@ -64,15 +64,16 @@ export async function recordEvidence(
   pillar: EvidencePillar,
   by: string,
   reference: string,
+  actorUserId?: number,
 ): Promise<any> {
   if (!EVIDENCE_PILLARS.includes(pillar)) throw Object.assign(new Error(`Unknown evidence pillar '${pillar}'`), { statusCode: 400 });
   if (!by?.trim() || !reference?.trim()) throw Object.assign(new Error('Evidence requires a named engineer (by) and a document reference'), { statusCode: 400 });
   const q = await pool.query(
     `UPDATE vv_equation_register
-        SET evidence = evidence || jsonb_build_object($2::text, jsonb_build_object('done', true, 'status', 'draft', 'by', $3::text, 'reference', $4::text, 'recordedAt', to_char(now(), 'YYYY-MM-DD HH24:MI') || ' UTC')),
+        SET evidence = evidence || jsonb_build_object($2::text, jsonb_build_object('done', true, 'status', 'draft', 'by', $3::text, 'reference', $4::text, 'recordedAt', to_char(now(), 'YYYY-MM-DD HH24:MI') || ' UTC', 'recordedByUserId', $5::int)),
             updated_at = now()
       WHERE id = $1 RETURNING *`,
-    [equationId, pillar, by.trim(), reference.trim()]);
+    [equationId, pillar, by.trim(), reference.trim(), actorUserId ?? null]);
   if (!q.rows.length) throw Object.assign(new Error('Equation register entry not found'), { statusCode: 404 });
   return q.rows[0];
 }
@@ -86,6 +87,7 @@ export async function approveEvidence(
   equationId: number,
   pillar: EvidencePillar,
   approvedBy: string,
+  actorUserId?: number,
 ): Promise<any> {
   if (!EVIDENCE_PILLARS.includes(pillar)) throw Object.assign(new Error(`Unknown evidence pillar '${pillar}'`), { statusCode: 400 });
   if (!approvedBy?.trim()) throw Object.assign(new Error('approvedBy (named engineer) is required'), { statusCode: 400 });
@@ -101,10 +103,10 @@ export async function approveEvidence(
   const q = await pool.query(
     `UPDATE vv_equation_register
         SET evidence = jsonb_set(evidence, ARRAY[$2::text],
-              (evidence->$2::text) || jsonb_build_object('status', 'approved', 'approvedBy', $3::text, 'approvedAt', to_char(now(), 'YYYY-MM-DD HH24:MI') || ' UTC')),
+              (evidence->$2::text) || jsonb_build_object('status', 'approved', 'approvedBy', $3::text, 'approvedAt', to_char(now(), 'YYYY-MM-DD HH24:MI') || ' UTC', 'approvedByUserId', $4::int)),
             updated_at = now()
       WHERE id = $1 RETURNING *`,
-    [equationId, pillar, approvedBy.trim()]);
+    [equationId, pillar, approvedBy.trim(), actorUserId ?? null]);
   return q.rows[0];
 }
 

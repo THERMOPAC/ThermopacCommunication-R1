@@ -46,14 +46,19 @@ function collectEquationIndex(data: any): string[][] {
     if (Array.isArray(o)) { o.forEach((x, i) => walk(x, path)); return; }
     if (typeof o.formulaReference === 'string' && typeof o.source === 'string') {
       if (!hits.has(o.formulaReference)) hits.set(o.formulaReference, new Set());
-      const set = hits.get(o.formulaReference)!;
-      if (set.size < 4) set.add(o.source);
+      hits.get(o.formulaReference)!.add(o.source);
     }
     for (const k of Object.keys(o)) walk(o[k], path ? `${path}.${k}` : k);
   };
   walk(data, '');
+  const SHOWN = 6;
   const refs = Array.from(hits.keys()).sort();
-  const rows = refs.map(ref => [ref, Array.from(hits.get(ref)!).join('\n')]);
+  const rows = refs.map(ref => {
+    const all = Array.from(hits.get(ref)!);
+    const shown = all.slice(0, SHOWN);
+    const omitted = all.length - shown.length;
+    return [ref, shown.join('\n') + (omitted > 0 ? `\n… ${omitted} further distinct usage string(s) omitted for legibility (they differ only in per-diameter numeric values) — the COMPLETE verbatim set is in the frozen JSON snapshot export accompanying this report.` : '')];
+  });
   return [['Equation Ref', 'Formula / basis strings as stored in the frozen snapshot (verbatim; one line per distinct usage)'], ...rows];
 }
 
@@ -95,10 +100,19 @@ async function loadCommon(revisionId: number, section: 'ecp' | 'ecr') {
   const rev = revQ.rows[0];
   const resQ = await pool.query(`SELECT data, engine_version, computed_at FROM design_software_results WHERE revision_id = $1 AND section = $2`, [revisionId, section]);
   if (!resQ.rows.length) throw Object.assign(new Error(`No persisted ${section.toUpperCase()} result snapshot for this revision — run the calculation first. The report never re-runs engines.`), { statusCode: 422 });
+  // Bind run provenance to the frozen snapshot: pick the run whose timestamp
+  // matches the snapshot's computed_at (±60 s). If no run matches, the report
+  // fails closed on run identity (runId null) rather than citing a wrong run.
   const runQ = await pool.query(
     `SELECT id, engine_name, engine_version, calculation_status, calculated_at
        FROM design_software_calculation_runs
-      WHERE revision_id = $1 AND calculation_type = $2 ORDER BY calculated_at DESC LIMIT 1`, [revisionId, section]);
+      WHERE revision_id = $1 AND calculation_type = $2
+        AND abs(extract(epoch FROM (calculated_at - $3::timestamptz))) <= 60
+      ORDER BY abs(extract(epoch FROM (calculated_at - $3::timestamptz))) LIMIT 1`,
+    [revisionId, section, resQ.rows[0].computed_at]);
+  if (!runQ.rows.length) {
+    throw Object.assign(new Error(`No calculation run matches the persisted ${section.toUpperCase()} snapshot timestamp — run/snapshot provenance cannot be established; refusing to cite an unrelated run.`), { statusCode: 422 });
+  }
   const diQ = await pool.query(`SELECT data FROM design_software_inputs WHERE revision_id = $1 AND section = 'design_identity'`, [revisionId]);
   const di: Record<string, string> = diQ.rows.reduce((a: any, r: any) => ({ ...a, ...r.data }), {});
   // The OTHER technology snapshot, for the mechanically derived comparison
@@ -232,7 +246,7 @@ export async function buildEcpCalculationPayload(revisionId: number, generatedBy
     { title: 'Bed Arrangement', intro: `Basis (verbatim): ${ecp.bedArrangement?.basis ?? '—'} [${ecp.bedArrangement?.formulaReference ?? ''}]`, table: [
       ['Bed', 'Height (m)'],
       ...(ecp.bedArrangement?.beds ?? []).map((b: any) => [String(b.bed), f2(b.height_m)]),
-      ['Redistributors', String(ecp.bedArrangement?.redistributors ?? 0)],
+      ['Redistributors', ecp.bedArrangement?.redistributors != null ? String(ecp.bedArrangement.redistributors) : 'NOT STORED IN SNAPSHOT'],
     ]},
     { title: 'Case Flows — Normal', rows: flowsRows(ecp.normalCase) },
     { title: 'Hydraulic Loading & Capacity Screening — Normal Case', intro: 'Per-diameter hydraulic loading (ECP-001), utilization vs Vendor Packing Capacity (ECP-002 — not screenable for this record), vendor checks (ECP-003) and wet pressure drop (ECP-007). "Not Calculable" cells reproduce the engine finding — no value was invented.', table: diamTable(ecp.normalCase) },
