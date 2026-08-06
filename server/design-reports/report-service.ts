@@ -13,11 +13,14 @@ import { renderReportPdf, type ReportPayload } from './report-framework';
 import { buildDesignBasisPayload } from './design-basis-report';
 import { buildProcessDesignPayload } from './process-design-report';
 import { buildHydraulicDesignPayload } from './hydraulic-design-report';
+import { buildEcpCalculationPayload, buildEcrCalculationPayload } from './ecp-ecr-calculation-reports';
 
 export const REPORT_BUILDERS: Record<string, (revisionId: number, generatedByName: string) => Promise<{ payload: ReportPayload; blocking: number }>> = {
   DBR: buildDesignBasisPayload,
   PDR: buildProcessDesignPayload,
   HDR: buildHydraulicDesignPayload,
+  ECPR: buildEcpCalculationPayload,
+  ECRR: buildEcrCalculationPayload,
 };
 
 const TRANSITIONS: Record<string, string> = { draft: 'for_review', for_review: 'approved', approved: 'issued' };
