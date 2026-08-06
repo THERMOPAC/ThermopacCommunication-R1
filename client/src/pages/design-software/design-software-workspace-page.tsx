@@ -2951,13 +2951,16 @@ export default function DesignSoftwareWorkspacePage() {
       { key: "operating_temperature", label: "Operating Temperature", unit: "°C", inh: (dbData.operating_temperature ?? "").trim(), stage: "Stage 2 — Design Basis", ref: "Design Basis operating condition", missing: "Pending Design Basis entry" },
       { key: "design_temperature", label: "Design Temperature", unit: "°C", inh: (dbData.design_temperature ?? "").trim(), stage: "Stage 2 — Design Basis", ref: dbData.design_temperature_source ?? "Thermopac Design Temperature Rule", missing: "Pending Design Basis entry" },
     ];
-    const effVal = (row: typeof inherited[0]) => (md[row.key] ?? "").trim() !== "" ? md[row.key].trim() : row.inh;
+    // Override is intent-based (key present in mechanical_design), not value-comparison —
+    // an override equal to today's inherited value stays an override if upstream changes.
+    const isOverridden = (key: string) => (md[key] ?? "").trim() !== "";
+    const effVal = (row: typeof inherited[0]) => isOverridden(row.key) ? md[row.key].trim() : row.inh;
     const rowStatus = (row: typeof inherited[0]) => {
-      const ov = (md[row.key] ?? "").trim();
-      if (ov !== "" && ov !== row.inh) return "Engineer Override";
+      if (isOverridden(row.key)) return "Engineer Override";
       if (row.inh !== "") return "Auto-Populated";
       return row.missing ?? "Pending";
     };
+    const cm = (updates: Record<string, string>) => commitSection("mechanical_design", updates);
 
     // ── Mechanical configuration masters ────────────────────────────
     const HEAD_TYPES = ["2:1 Ellipsoidal", "Torispherical", "Hemispherical", "Flat", "Conical"];
@@ -2970,8 +2973,8 @@ export default function DesignSoftwareWorkspacePage() {
     const headType = md.head_type && HEAD_TYPES.includes(md.head_type) ? md.head_type : "2:1 Ellipsoidal";
     const shellMat = md.shell_material && MATERIALS.some(m => m.name === md.shell_material) ? md.shell_material : "SA-516 Gr 70";
     const caDefault = MATERIALS.find(m => m.name === shellMat)?.ca ?? "";
-    const caVal = (md.corrosion_allowance ?? "").trim() !== "" ? md.corrosion_allowance.trim() : caDefault;
-    const caStatus = (md.corrosion_allowance ?? "").trim() !== "" && md.corrosion_allowance.trim() !== caDefault ? "Engineer Override" : "Auto-Populated";
+    const caVal = isOverridden("corrosion_allowance") ? md.corrosion_allowance.trim() : caDefault;
+    const caStatus = isOverridden("corrosion_allowance") ? "Engineer Override" : "Auto-Populated";
     const CA_REF = "Thermopac Design Standard — Corrosion Allowance (Carbon Steel 3 mm / Stainless & Duplex 0 mm)";
 
     // ── Nozzle schedule (structured, JSON in section data) ──────────
@@ -2994,7 +2997,7 @@ export default function DesignSoftwareWorkspacePage() {
       if (preferred === "ecr") base.push(["M1", "Agitator Shaft Entry / Drive Mount (top head)"]);
       return base.map(([tag, service]) => ({ tag, service, size: "", rating: "150#", connection: "Flanged RF", orientation: "", elevation: "", remarks: "" }));
     };
-    const saveNozzles = (rows: Noz[]) => { f("nozzle_rows", JSON.stringify(rows)); s(); };
+    const saveNozzles = (rows: Noz[]) => cm({ nozzle_rows: JSON.stringify(rows) }); // atomic — never saves from a stale closure
     const setNozCell = (i: number, k: keyof Noz, v: string) => {
       const rows = nozzles.map((r, j) => (j === i ? { ...r, [k]: v } : r));
       f("nozzle_rows", JSON.stringify(rows));
@@ -3027,6 +3030,9 @@ export default function DesignSoftwareWorkspacePage() {
                 <Input value={effVal(row)} onChange={e => f(row.key, e.target.value)} onBlur={s} disabled={isFrozen}
                   placeholder={row.inh === "" ? (row.missing ?? "Pending") : row.label} className="h-8 text-sm" />
                 {trace(rowStatus(row), row.stage, row.ref)}
+                {isOverridden(row.key) && !isFrozen && (
+                  <button className="text-[10px] text-blue-600 hover:underline" onClick={() => cm({ [row.key]: "" })}>Revert to inherited value</button>
+                )}
               </div>
               <span className="text-xs text-gray-400 pt-2">{row.unit ?? ""}</span>
             </div>
@@ -3046,7 +3052,7 @@ export default function DesignSoftwareWorkspacePage() {
             <label className="text-sm text-gray-600 pt-2 font-medium leading-tight">Head Type</label>
             <div>
               <select className="w-full h-8 text-sm border rounded-md px-2 bg-white" value={headType} disabled={isFrozen}
-                onChange={e => { f("head_type", e.target.value); s(); }}>
+                onChange={e => cm({ head_type: e.target.value })}>
                 {HEAD_TYPES.map(h => <option key={h} value={h}>{h}{h === "2:1 Ellipsoidal" ? " (Default)" : ""}</option>)}
               </select>
               {trace(md.head_type && md.head_type !== "2:1 Ellipsoidal" ? "Engineer Override" : "Auto-Populated", "Thermopac Design Standard", "Default head type — 2:1 Ellipsoidal")}
@@ -3057,7 +3063,7 @@ export default function DesignSoftwareWorkspacePage() {
             <label className="text-sm text-gray-600 pt-2 font-medium leading-tight">Shell Material</label>
             <div>
               <select className="w-full h-8 text-sm border rounded-md px-2 bg-white" value={shellMat} disabled={isFrozen}
-                onChange={e => { f("shell_material", e.target.value); f("corrosion_allowance", ""); s(); }}>
+                onChange={e => cm({ shell_material: e.target.value, corrosion_allowance: "" })}>
                 {MATERIALS.map(m => <option key={m.name} value={m.name}>{m.name}{m.name === "SA-516 Gr 70" ? " (Default)" : ""}</option>)}
               </select>
               {trace(md.shell_material && md.shell_material !== "SA-516 Gr 70" ? "Engineer Override" : "Auto-Populated", "Material Master", "Default shell material — SA-516 Gr 70")}
@@ -3069,6 +3075,9 @@ export default function DesignSoftwareWorkspacePage() {
             <div>
               <Input value={caVal} onChange={e => f("corrosion_allowance", e.target.value)} onBlur={s} disabled={isFrozen} className="h-8 text-sm" />
               {trace(caStatus, "Thermopac Design Standards", CA_REF)}
+              {isOverridden("corrosion_allowance") && !isFrozen && (
+                <button className="text-[10px] text-blue-600 hover:underline" onClick={() => cm({ corrosion_allowance: "" })}>Revert to standard default</button>
+              )}
             </div>
             <span className="text-xs text-gray-400 pt-2">mm</span>
           </div>
@@ -3115,15 +3124,15 @@ export default function DesignSoftwareWorkspacePage() {
             <label className="text-sm text-gray-600 pt-2 font-medium leading-tight">Support Type</label>
             <div>
               <select className="w-full h-8 text-sm border rounded-md px-2 bg-white" value={supportType} disabled={isFrozen}
-                onChange={e => { f("supports", e.target.value); s(); }}>
+                onChange={e => cm({ supports: e.target.value })}>
                 {SUPPORT_TYPES.map(t => <option key={t} value={t}>{t}{t === "Skirt" ? " (Default — vertical column)" : ""}</option>)}
               </select>
               {trace(md.supports && md.supports !== "Skirt" ? "Engineer Override" : "Auto-Populated", "Thermopac Design Standard", "Default support for vertical LLX columns — Skirt")}
             </div>
             <span />
           </div>
-          <FieldRow label="Skirt / Support Height" value={md.skirt_height ?? ""} onChange={v => f("skirt_height", v)} onBlur={s} unit="mm" placeholder="Engineer entry — set at layout/GA stage" />
-          <FieldRow label="Lifting Lugs" value={md.lifting_lugs ?? ""} onChange={v => f("lifting_lugs", v)} onBlur={s} placeholder="e.g. 2 × Trunnion, Qty / Rating" />
+          <FieldRow label="Skirt / Support Height" value={md.skirt_height ?? ""} onChange={v => f("skirt_height", v)} onBlur={s} unit="mm" placeholder="Engineer entry — set at layout/GA stage" readOnly={isFrozen} />
+          <FieldRow label="Lifting Lugs" value={md.lifting_lugs ?? ""} onChange={v => f("lifting_lugs", v)} onBlur={s} placeholder="e.g. 2 × Trunnion, Qty / Rating" readOnly={isFrozen} />
         </SectionCard>
 
         <SectionCard title="Mechanical Design Summary (Read-Only)">
