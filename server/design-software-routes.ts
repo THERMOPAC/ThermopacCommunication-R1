@@ -11,6 +11,14 @@ import { getProperty, containsAssumedData } from './engine-framework/epd/databas
 import './engines/llx/index';
 import './engines/common/index';
 
+// Register the Thermopac preliminary screening packing records (SMV/SMVP —
+// literature-based screening records, not vendor-certified rating data).
+import { registerPreliminaryPackingRecords, ecpDefaultFields, ecrDefaultFields, PRELIM_DEFAULT_REF, PRELIM_HETS_REF } from './llx-preliminary-screening-defaults';
+{
+  const issues = registerPreliminaryPackingRecords();
+  if (issues.length > 0) console.error('[DS] Preliminary packing record registration issues:', issues);
+}
+
 export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
 
   // ── Engine registry info ────────────────────────────────────────────────────
@@ -148,6 +156,101 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
       res.json(out);
     } catch (e: any) {
       res.status(500).json({ message: e?.message ?? 'Sulzer screening failed' });
+    }
+  });
+
+  // ── Thermopac preliminary screening defaults (Stage 7 ECP/ECR) ─────────────
+  // Applies/clears the visible, editable, Assumed-tagged preliminary input set
+  // and keeps the assumptions register in sync. Engine validation is untouched.
+  app.post('/api/design-software/revisions/:id/preliminary-defaults', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const revisionId = parseInt(req.params.id);
+      const userId = (req.user as any).id;
+      const scope = String(req.body.scope ?? '');
+      const action = String(req.body.action ?? '');
+      if (!['ecp', 'ecr'].includes(scope)) return res.status(400).json({ error: "scope must be 'ecp' or 'ecr'" });
+      if (!['apply', 'clear'].includes(action)) return res.status(400).json({ error: "action must be 'apply' or 'clear'" });
+      const section = scope === 'ecp' ? 'ecp_design' : 'ecr_design';
+
+      const [inputRows, resultRows] = await Promise.all([svc.listInputs(revisionId), svc.listResults(revisionId)]);
+      const merged: Record<string, any> = {};
+      for (const row of inputRows) Object.assign(merged, row.data);
+      const sectionRow = inputRows.find((r: any) => r.section === section);
+      const sectionData: Record<string, any> = { ...(sectionRow?.data ?? {}) };
+
+      // Stage 5 column diameter (engineer trial or minimum feasible) for the ECR rotor diameter
+      let stage5D: number | null = null;
+      if (scope === 'ecr') {
+        const n = parseFloat(String(merged.column_diameter ?? ''));
+        const hydNormal = (resultRows.find((r: any) => r.section === 'hydraulics_common')?.data ?? {}).normalCase;
+        const minF = parseFloat(String(hydNormal?.summary?.minimumFeasibleDiameter_m ?? ''));
+        stage5D = isFinite(n) && n > 0 ? n : isFinite(minF) && minF > 0 ? minF : null;
+      }
+      const fields = scope === 'ecp' ? ecpDefaultFields() : ecrDefaultFields(stage5D);
+
+      const existing = await svc.listAssumptions(revisionId);
+      const isDefaultAssumption = (a: any) =>
+        a.section === section && [PRELIM_DEFAULT_REF, PRELIM_HETS_REF].includes(a.source_reference);
+
+      // Rotor diameter is engine-calculated from the ratio — remove any earlier
+      // default-written rotor_diameter entry (and its register row) on both actions.
+      if (scope === 'ecr' && sectionData['rotor_diameter_source_reference'] === PRELIM_DEFAULT_REF) {
+        delete sectionData['rotor_diameter'];
+        delete sectionData['rotor_diameter_source_reference'];
+      }
+      for (const a of existing) {
+        if (a.section === section && a.parameter_key === 'rotor_diameter' && isDefaultAssumption(a)) {
+          await svc.deleteAssumption(a.id, userId);
+        }
+      }
+
+      if (action === 'apply') {
+        for (const f of fields) {
+          sectionData[f.key] = f.value;
+          if (f.key !== 'packing_id') sectionData[`${f.key}_source_reference`] = f.ref;
+        }
+        if (scope === 'ecp') {
+          sectionData['hets_source'] = 'Assumed';
+          sectionData['hets_source_reference'] = PRELIM_HETS_REF;
+        }
+        await svc.upsertInput(revisionId, section, sectionData, '1.0.0', userId);
+        // Assumptions register — one entry per default, no duplicates
+        for (const f of fields) {
+          const already = existing.some((a: any) => a.section === section && a.parameter_key === f.key && isDefaultAssumption(a));
+          if (!already) {
+            await svc.addAssumption(revisionId, {
+              section,
+              parameterKey: f.key,
+              parameterLabel: f.label,
+              assumedValue: f.value,
+              unit: f.unit,
+              sourceType: 'Assumed',
+              sourceReference: f.ref,
+              engineeringBasis: 'Thermopac preliminary equipment screening default — starting value only, Pending Validation until replaced by approved vendor, measured, or project data',
+            }, userId);
+          }
+        }
+      } else {
+        for (const f of fields) {
+          delete sectionData[f.key];
+          delete sectionData[`${f.key}_source_reference`];
+        }
+        if (scope === 'ecp') {
+          if (sectionData['hets_source_reference'] === PRELIM_HETS_REF) {
+            delete sectionData['hets_source'];
+            delete sectionData['hets_source_reference'];
+          }
+        }
+        await svc.upsertInput(revisionId, section, sectionData, '1.0.0', userId);
+        for (const a of existing) {
+          if (isDefaultAssumption(a)) await svc.deleteAssumption(a.id, userId);
+        }
+      }
+
+      res.json({ section, data: sectionData, applied: action === 'apply', fieldCount: fields.length });
+    } catch (err: any) {
+      const status = err.message?.includes('frozen') ? 409 : err.message?.includes('not found') ? 404 : 500;
+      res.status(status).json({ error: err.message });
     }
   });
 

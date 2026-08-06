@@ -15,6 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { getProperty } from './engine-framework/epd/database';
+import { getPacking } from './engine-framework/packing/database';
 
 const num = (v: unknown): number | undefined => {
   if (v === null || v === undefined) return undefined;
@@ -250,7 +251,11 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     if (v === undefined || v <= 0) return;
     if (opts?.pctToFraction && v > 1) v = v / 100;
     if (opts?.scale) v = v * opts.scale;
-    out[engineKey] = { value: v, sourceType: 'Assumed', sourceReference: opts?.ref ?? ENG_REF };
+    // Per-field workspace source reference (e.g. Thermopac preliminary screening
+    // defaults write `<key>_source_reference`) wins over the generic reference,
+    // so the true provenance is carried into the calculation snapshot.
+    const fieldRef = String(inputs[`${wsKey}_source_reference`] ?? '').trim();
+    out[engineKey] = { value: v, sourceType: 'Assumed', sourceReference: fieldRef !== '' ? fieldRef : (opts?.ref ?? ENG_REF) };
   };
 
   // ECR — genuine engineering inputs (Stage 7 ECR panel)
@@ -308,7 +313,10 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     out.packingId = String(inputs.packing_id).trim();
   }
   const hetsVal = num(inputs.hets);
-  if (out.hets === undefined && hetsVal !== undefined && hetsVal > 0) {
+  // The workspace stores `hets` as a flat string; the engine requires a full
+  // HETS record object. A non-object value here is the raw workspace field
+  // leaked through the spread — always rebuild it as the record.
+  if ((out.hets === undefined || typeof out.hets !== 'object') && hetsVal !== undefined && hetsVal > 0) {
     const src = String(inputs.hets_source ?? '').trim();
     out.hets = {
       value: hetsVal,
@@ -316,7 +324,16 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       operatingTemperatureC: ot ?? 0,
       solvent: 'NMP',
       feed: 'RRBO (Re-Refined Base Oil)',
-      packing: String(inputs.packing_id ?? inputs.packing_type ?? 'unspecified packing').trim(),
+      // Match the engine's HETS↔packing consistency check: use the registered
+      // record's product name when the id resolves, otherwise the raw entry.
+      packing: (() => {
+        const pid = String(inputs.packing_id ?? '').trim();
+        if (pid !== '') {
+          const rec = getPacking(pid);
+          if (rec?.productName) return rec.productName;
+        }
+        return String(inputs.packing_id ?? inputs.packing_type ?? 'unspecified packing').trim();
+      })(),
       sourceType: SOURCE_TYPES.includes(src) ? src : 'Assumed',
       sourceReference: String(inputs.hets_source_reference ?? '').trim() !== ''
         ? String(inputs.hets_source_reference).trim()

@@ -912,6 +912,47 @@ export default function DesignSoftwareWorkspacePage() {
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const prelimDefaultsMutation = useMutation({
+    mutationFn: (p: { scope: "ecp" | "ecr"; action: "apply" | "clear" }) =>
+      apiRequest("POST", `/api/design-software/revisions/${activeRevisionId}/preliminary-defaults`, p) as Promise<any>,
+    onSuccess: (resp: any) => {
+      // Server response is authoritative for this section — overwrite local values
+      setLocalData(prev => ({ ...prev, [resp.section]: Object.fromEntries(Object.entries(resp.data ?? {}).map(([k, v]) => [k, String(v ?? "")])) }));
+      qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/inputs`] });
+      qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/assumptions`] });
+      toast({
+        title: resp.applied ? "Preliminary defaults applied" : "Preliminary defaults cleared",
+        description: resp.applied
+          ? `${resp.fieldCount} Assumed-tagged screening defaults populated — editable, Pending Validation.`
+          : "Thermopac preliminary default values and their register entries were removed.",
+      });
+    },
+    onError: (e: any) => toast({ title: "Preliminary defaults error", description: e.message, variant: "destructive" }),
+  });
+
+  function renderPrelimBanner(scope: "ecp" | "ecr") {
+    return (
+      <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl mb-3">
+        <p className="text-xs text-blue-900">
+          Thermopac preliminary screening defaults are active. Results are suitable for preliminary engineering only and require vendor, laboratory, or pilot validation before design release.
+        </p>
+        <div className="flex gap-2 mt-2">
+          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={isFrozen || prelimDefaultsMutation.isPending}
+            onClick={() => prelimDefaultsMutation.mutate({ scope, action: "apply" })}>
+            Reset to Thermopac Preliminary Defaults
+          </Button>
+          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={isFrozen || prelimDefaultsMutation.isPending}
+            onClick={() => prelimDefaultsMutation.mutate({ scope, action: "clear" })}>
+            Clear Preliminary Defaults
+          </Button>
+        </div>
+        <p className="text-[10px] text-blue-700 mt-1.5">
+          All defaults are Source Type: Assumed, visible and editable above, entered in the assumptions register, and classified Pending Validation until replaced by approved vendor, measured, or project data.
+        </p>
+      </div>
+    );
+  }
+
   const calculateMutation = useMutation({
     mutationFn: (calculationType: string) =>
       apiRequest("POST", `/api/design-software/revisions/${activeRevisionId}/calculate`, { calculationType }) as Promise<any>,
@@ -2595,6 +2636,7 @@ export default function DesignSoftwareWorkspacePage() {
           {ecpRun && <p className="text-[11px] text-gray-500 mt-1">Last successful run: {new Date(ecpRun.calculated_at).toLocaleString()}</p>}
           {renderRunIssues(ecpLatestRun, "ECP")}
         </SectionCard>
+        {renderPrelimBanner("ecp")}
         <Button size="sm" className="gap-2 mb-4" disabled={isFrozen || calculateMutation.isPending} onClick={() => calculateMutation.mutate("ecp")}>
           <Play className="h-3.5 w-3.5" /> Calculate ECP
         </Button>
@@ -2661,6 +2703,7 @@ export default function DesignSoftwareWorkspacePage() {
           <FieldRow label="Bottom Disengagement Height" value={er.bottom_disengagement_height ?? ""} onChange={v => f("bottom_disengagement_height", v)} onBlur={s} unit="m" />
           <FieldRow label="Bottom Head Height" value={er.bottom_head_height ?? ""} onChange={v => f("bottom_head_height", v)} onBlur={s} unit="m" />
         </SectionCard>
+        {renderPrelimBanner("ecr")}
         <Button size="sm" className="gap-2 mb-4" disabled={isFrozen || calculateMutation.isPending} onClick={() => calculateMutation.mutate("ecr")}>
           <Play className="h-3.5 w-3.5" /> Calculate ECR
         </Button>

@@ -55,3 +55,9 @@ mechanical_design, utilities, cost_estimation
 ## Known pre-existing risks (flagged by review, NOT fixed — user decision pending)
 - Section saves POST whole objects with no lock-version; concurrent editors can silently overwrite each other.
 - Revision input routes check authentication only — no per-design authorization.
+
+## Stage 4 (Process Design) — workspace → C2 engine adapter
+- The C2 engine takes structured camelCase inputs; the workspace stores flat snake_case strings. The adapter lives in the service layer (`llx-process-design-input-mapper.ts`, hooked in runCalculation for llx/process_design only) and does ONLY structure + unit conversion (LPH→m³/h, vol-basis S/O ratio→mass basis via ρNMP(OT)/ρRRBO from EPD, margin%→maxCirculationFactor, efficiency%→fraction). Per-key pass-through: engine-ready keys always win.
+- **Governance:** feedDensity is always mapped from the Fluid Properties RRBO density: an engineer-selected controlled source type passes verbatim; if no source type is selected, the mapper tags the auto-populated Thermopac Feed Master value as sourceType 'Assumed' with a sourceReference naming the master — the engine never receives an untagged or invented density.
+- **UI rule:** when the latest process_design run is `error`, suppress the previous accepted result (results table keeps last success; showing it would present stale values as current).
+- S/O ratio in the workspace is VOLUME basis (NMP vol / RRBO vol), default 1.5:1; engine ratio is mass basis — never conflate.
