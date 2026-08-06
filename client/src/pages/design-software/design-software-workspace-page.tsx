@@ -1058,7 +1058,6 @@ export default function DesignSoftwareWorkspacePage() {
   const hydExec = execCheck("hydraulics_common");
   const ecpExec = execCheck("ecp");
   const ecrExec = execCheck("ecr");
-  const floodingMargin = parseFloat(hd.flooding_margin ?? "");
   const mandatoryFields = [db.process_description, db.feed_service, db.solvent, db.design_capacity_lph ?? db.design_capacity, ts.technology];
 
   // Override-traceability enforcement (Design Basis governed suggestions)
@@ -1127,11 +1126,25 @@ export default function DesignSoftwareWorkspacePage() {
     },
     {
       label: "Flooding within allowable limits (< 80 %)",
-      status: isNaN(floodingMargin) ? "pending"
-            : floodingMargin >= 80 ? "fail"
-            : "pass",
-      note: isNaN(floodingMargin) ? "Run hydraulics calculation first"
-          : floodingMargin >= 80 ? `Current flooding margin: ${floodingMargin.toFixed(1)} %` : undefined,
+      ...((): { status: "pass" | "fail" | "warning" | "pending"; note?: string } => {
+        // Reads the latest active (non-superseded) DS-SEL record — never the old manual field.
+        const dsel = designSelectionQ.data?.record ?? null;
+        const util = dsel?.floodingUtilization;
+        const limit = dsel?.utilizationLimit?.value ?? 0.8;
+        if (dsel == null || typeof util !== "number") {
+          return { status: "pending", note: "No active DS-SEL record with a hydraulic utilization result exists yet" };
+        }
+        const preliminary = !!dsel.capacityBasis?.assumed;
+        const utilPct = (util * 100).toFixed(2);
+        const limitPct = (limit * 100).toFixed(0);
+        if (util > limit) {
+          return { status: "fail", note: `Hydraulic utilization ${utilPct} % exceeds the allowable limit ${limitPct} % (DS-SEL record, ${dsel.capacityBasis?.tier ?? "declared basis"})` };
+        }
+        if (preliminary) {
+          return { status: "warning", note: `Preliminary hydraulic utilization within allowable screening limit: ${utilPct}% ≤ ${limitPct}% — Pending Hydraulic Validation.` };
+        }
+        return { status: "pass", note: `Hydraulic utilization ${utilPct} % ≤ ${limitPct} % against the ${dsel.capacityBasis?.tier ?? "declared basis"}` };
+      })(),
     },
     {
       label: showECP ? "ECP Equipment Calculation Executed" : "ECP calculation (not selected)",
