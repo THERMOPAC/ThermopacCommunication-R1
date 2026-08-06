@@ -17,7 +17,7 @@ export const NOZZLE_MASTER_REF = 'Thermopac Preliminary Nozzle Master v1.0 (Assu
 export const VELOCITY_MASTER_REF = 'Thermopac Preliminary Nozzle Velocity Master v1.0 (Assumed — Pending Validation)';
 export const LAYOUT_REF = 'Preliminary Layout — generated from vessel geometry; to be confirmed at GA/layout stage';
 
-/** Approved Thermopac DN series (same series the Stage 9 → C6 mapper declares). */
+/** Thermopac DN series (Assumed screening series — same series the Stage 9 → C6 mapper declares; Pending Validation). */
 export const DN_SERIES = [15, 20, 25, 32, 40, 50, 65, 80, 100, 125, 150, 200, 250, 300];
 
 /** Liquid-service design velocities, m/s, with approved screening ranges. */
@@ -194,9 +194,28 @@ export function generateNozzleSchedule(ctx: NozzleGenerationContext): NozzleGene
   const tags = rows.map(r => r.tag);
   const dup = tags.filter((t, i) => tags.indexOf(t) !== i);
   if (dup.length) issues.push({ severity: 'error', message: `Duplicate nozzle tags generated: ${Array.from(new Set(dup)).join(', ')}` });
-  const mandatory = ['feed', 'solvent', 'raffinate', 'extract', 'vent', 'drain', 'instrument'];
+  // Selected DN must never be below the calculated bore (checked per row, not by construction).
+  for (const r of rows) {
+    const calc = Number(r.calc_dia_mm);
+    const dn = Number(String(r.size).replace(/dn/i, ''));
+    if (Number.isFinite(calc) && calc > 0 && Number.isFinite(dn) && dn < calc) {
+      issues.push({ severity: 'error', message: `${r.tag} (${r.service}): selected DN${dn} is below the calculated bore ${calc} mm.` });
+    }
+  }
+  const mandatory = ['feed', 'solvent', 'raffinate', 'extract', 'vent', 'drain'];
   const words = rows.map(r => r.service.toLowerCase());
-  for (const m of mandatory) if (!words.some(w => w.includes(m === 'instrument' ? 'instrument' : m))) issues.push({ severity: 'error', message: `Mandatory service missing from the generated schedule: ${m}` });
+  for (const m of mandatory) if (!words.some(w => w.includes(m))) issues.push({ severity: 'error', message: `Mandatory service missing from the generated schedule: ${m}` });
+  // Full Instrument Nozzle Master set must be present (not just any instrument-labelled row).
+  for (const m of INSTRUMENT_NOZZLE_MASTER) {
+    if (!rows.some(r => r.service === m.service)) issues.push({ severity: 'error', message: `Instrument Nozzle Master service missing: ${m.service}` });
+  }
+  // Technology-specific access rules.
+  if (ctx.preferred === 'ecr' && !rows.some(r => r.service.toLowerCase().includes('agitator shaft'))) {
+    issues.push({ severity: 'error', message: 'ECR selected but no agitator shaft / drive opening generated.' });
+  }
+  if (ctx.preferred === 'ecp' && !(rows.some(r => r.service.toLowerCase().includes('packing loading')) && rows.some(r => r.service.toLowerCase().includes('packing unloading')))) {
+    issues.push({ severity: 'error', message: 'ECP selected but packing loading/unloading access openings are missing.' });
+  }
   for (const r of rows) {
     const el = Number(r.elevation);
     if (Number.isFinite(el) && (el < 0 || el > tt + 0.01)) issues.push({ severity: 'error', message: `${r.tag}: elevation ${r.elevation} m lies outside the vessel geometry (0 – ${fmtM(tt)} m T/T).` });
