@@ -2921,26 +2921,232 @@ export default function DesignSoftwareWorkspacePage() {
     const md = d("mechanical_design");
     const f = field("mechanical_design");
     const s = save("mechanical_design");
+    const dbData = d("design_basis");
+    const tcData = d("technology_comparison");
+
+    // ── Inherited values (Stages 1/7/8) ─────────────────────────────
+    const acceptedStatuses = ["success", "warning"];
+    const preferred = tcData.preferred ?? "";
+    const techLabel = preferred === "ecp" ? "ECP (Packed Column)" : preferred === "ecr" ? "ECR (Rotary Agitated Column)" : preferred === "both_vendor_pilot" ? "Continue Both for Vendor/Pilot Review" : "";
+    const techRunType = preferred === "ecp" || preferred === "ecr" ? preferred : null;
+    const techRun: any = techRunType ? runs.find(r => r.calculation_type === techRunType && acceptedStatuses.includes(r.calculation_status)) : null;
+    const techHB = techRun?.result_snapshot?.heightBreakdown;
+
+    const hydSummary = (resultsQ.data ?? []).find((r: any) => r.section === "hydraulics_common")?.data?.normalCase?.summary;
+    const trialStr = (d("hydraulic_design").column_diameter ?? "").trim();
+    const selDiaM = parseFloat(trialStr) > 0 ? parseFloat(trialStr) : parseFloat(String(hydSummary?.minimumFeasibleDiameter_m ?? ""));
+    const fmt = (v: any, dp = 2) => (typeof v === "number" && isFinite(v) ? v.toFixed(dp) : "");
+
+    const mdRow = inputsQ.data?.find?.((r: any) => r.section === "mechanical_design");
+    const sectionUpdated = mdRow?.updated_at ? new Date(mdRow.updated_at).toLocaleString() : "Never saved";
+
+    // Inherited field definitions: [key, label, unit, inheritedValue, sourceStage, sourceRef]
+    const inherited: { key: string; label: string; unit?: string; inh: string; stage: string; ref: string; missing?: string }[] = [
+      { key: "selected_technology", label: "Selected Technology", inh: techLabel, stage: "Stage 8 — Technology Comparison", ref: "Engineer Selected Technology", missing: "Pending Technology Selection (Stage 8)" },
+      { key: "column_diameter_m", label: "Column Diameter", unit: "m", inh: fmt(selDiaM), stage: "Stage 7 — Equipment Design", ref: trialStr ? "Stage 5 engineer trial diameter" : "Stage 5 minimum feasible diameter (sweep)", missing: "Pending Stage 5 hydraulic sweep" },
+      { key: "tt_height_m", label: "Tangent-to-Tangent Height", unit: "m", inh: fmt(techHB?.totalTangentToTangent?.result), stage: "Stage 7 — Equipment Design", ref: techRun ? `${techRunType?.toUpperCase()} run #${techRun.id} v${techRun.engine_version}` : "", missing: "Pending accepted Stage 7 run for selected technology" },
+      { key: "overall_height_m", label: "Overall Vessel Height", unit: "m", inh: fmt(techHB?.overallVesselHeight?.result), stage: "Stage 7 — Equipment Design", ref: techRun ? `${techRunType?.toUpperCase()} run #${techRun.id} v${techRun.engine_version}` : "", missing: "Pending accepted Stage 7 run for selected technology" },
+      { key: "operating_pressure", label: "Operating Pressure", unit: "bar g", inh: (dbData.operating_pressure ?? "").trim(), stage: "Stage 2 — Design Basis", ref: "Design Basis operating condition", missing: "Pending Design Basis entry" },
+      { key: "design_pressure", label: "Design Pressure (Internal)", unit: "bar g", inh: (dbData.llx_internal_design_pressure ?? dbData.design_pressure ?? "").trim(), stage: "Stage 2 — Design Basis", ref: "Thermopac Design Rule — LLX internal design pressure", missing: "Pending Design Basis entry" },
+      { key: "operating_temperature", label: "Operating Temperature", unit: "°C", inh: (dbData.operating_temperature ?? "").trim(), stage: "Stage 2 — Design Basis", ref: "Design Basis operating condition", missing: "Pending Design Basis entry" },
+      { key: "design_temperature", label: "Design Temperature", unit: "°C", inh: (dbData.design_temperature ?? "").trim(), stage: "Stage 2 — Design Basis", ref: dbData.design_temperature_source ?? "Thermopac Design Temperature Rule", missing: "Pending Design Basis entry" },
+    ];
+    const effVal = (row: typeof inherited[0]) => (md[row.key] ?? "").trim() !== "" ? md[row.key].trim() : row.inh;
+    const rowStatus = (row: typeof inherited[0]) => {
+      const ov = (md[row.key] ?? "").trim();
+      if (ov !== "" && ov !== row.inh) return "Engineer Override";
+      if (row.inh !== "") return "Auto-Populated";
+      return row.missing ?? "Pending";
+    };
+
+    // ── Mechanical configuration masters ────────────────────────────
+    const HEAD_TYPES = ["2:1 Ellipsoidal", "Torispherical", "Hemispherical", "Flat", "Conical"];
+    const MATERIALS: { name: string; ca: string }[] = [
+      { name: "SA-516 Gr 70", ca: "3" },
+      { name: "SS304L", ca: "0" },
+      { name: "SS316L", ca: "0" },
+      { name: "Duplex Stainless Steel (2205)", ca: "0" },
+    ];
+    const headType = md.head_type && HEAD_TYPES.includes(md.head_type) ? md.head_type : "2:1 Ellipsoidal";
+    const shellMat = md.shell_material && MATERIALS.some(m => m.name === md.shell_material) ? md.shell_material : "SA-516 Gr 70";
+    const caDefault = MATERIALS.find(m => m.name === shellMat)?.ca ?? "";
+    const caVal = (md.corrosion_allowance ?? "").trim() !== "" ? md.corrosion_allowance.trim() : caDefault;
+    const caStatus = (md.corrosion_allowance ?? "").trim() !== "" && md.corrosion_allowance.trim() !== caDefault ? "Engineer Override" : "Auto-Populated";
+    const CA_REF = "Thermopac Design Standard — Corrosion Allowance (Carbon Steel 3 mm / Stainless & Duplex 0 mm)";
+
+    // ── Nozzle schedule (structured, JSON in section data) ──────────
+    type Noz = { tag: string; service: string; size: string; rating: string; connection: string; orientation: string; elevation: string; remarks: string };
+    const NOZ_COLS: { k: keyof Noz; label: string; w: string }[] = [
+      { k: "tag", label: "Tag", w: "60px" }, { k: "service", label: "Service", w: "1fr" },
+      { k: "size", label: "Size", w: "70px" }, { k: "rating", label: "Rating", w: "70px" },
+      { k: "connection", label: "Connection", w: "100px" }, { k: "orientation", label: "Orientation", w: "90px" },
+      { k: "elevation", label: "Elevation", w: "80px" }, { k: "remarks", label: "Remarks", w: "1fr" },
+    ];
+    let nozzles: Noz[] = [];
+    try { nozzles = JSON.parse(md.nozzle_rows ?? "[]"); } catch { nozzles = []; }
+    const NOZ_TEMPLATE_REF = "Thermopac Preliminary Nozzle Schedule Template v1.0 (Assumed — sizes and elevations to be confirmed by the engineer)";
+    const stdNozzles = (): Noz[] => {
+      const base: [string, string][] = [
+        ["N1", "Feed (Aqueous) Inlet"], ["N2", "Solvent Inlet"], ["N3", "Raffinate Outlet"], ["N4", "Extract Outlet"],
+        ["N5", "Vent"], ["N6", "Drain"], ["PI1", "Pressure Instrument"], ["TI1", "Temperature Instrument"],
+        ["LI1", "Level Instrument"], ["S1", "Sampling"],
+      ];
+      if (preferred === "ecr") base.push(["M1", "Agitator Shaft Entry / Drive Mount (top head)"]);
+      return base.map(([tag, service]) => ({ tag, service, size: "", rating: "150#", connection: "Flanged RF", orientation: "", elevation: "", remarks: "" }));
+    };
+    const saveNozzles = (rows: Noz[]) => { f("nozzle_rows", JSON.stringify(rows)); s(); };
+    const setNozCell = (i: number, k: keyof Noz, v: string) => {
+      const rows = nozzles.map((r, j) => (j === i ? { ...r, [k]: v } : r));
+      f("nozzle_rows", JSON.stringify(rows));
+    };
+
+    // ── Structural ──────────────────────────────────────────────────
+    const SUPPORT_TYPES = ["Skirt", "Leg Support", "Saddle", "Lug", "Trunnion"];
+    const supportType = md.supports && SUPPORT_TYPES.includes(md.supports) ? md.supports : "Skirt";
+
+    const trace = (status: string, stage: string, ref: string) => (
+      <p className="text-[10px] text-gray-400 leading-tight mt-0.5">
+        <span className={status === "Engineer Override" ? "text-blue-600 font-medium" : status === "Auto-Populated" ? "text-green-700" : "text-amber-700"}>{status}</span>
+        {stage && <> · {stage}</>}{ref && <> · {ref}</>} · Editable
+      </p>
+    );
+
     return (
-      <div className="max-w-2xl">
+      <div className="max-w-4xl">
         <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 mb-4">
           <Info className="h-4 w-4 shrink-0" />
-          Architecture designed for future integration with ASME Section VIII, IS 2825 and PV Elite.
+          Stage 9 assembles the traceable Mechanical Design Basis for the future ASME Section VIII Pressure Vessel Design Engine. No code calculations are performed here.
         </div>
-        <SectionCard title="Vessel Sizing">
-          <FieldRow label="Vessel Diameter" value={md.vessel_diameter ?? ""} onChange={v => f("vessel_diameter", v)} onBlur={s} unit="mm" />
-          <FieldRow label="Shell Thickness" value={md.shell_thickness ?? ""} onChange={v => f("shell_thickness", v)} onBlur={s} unit="mm" />
-          <FieldRow label="Head Type" value={md.head_type ?? ""} onChange={v => f("head_type", v)} onBlur={s} placeholder="e.g. Torispherical, 2:1 Ellipsoidal" />
-          <FieldRow label="Corrosion Allowance" value={md.corrosion_allowance ?? ""} onChange={v => f("corrosion_allowance", v)} onBlur={s} unit="mm" />
-          <FieldRow label="Shell Material" value={md.shell_material ?? ""} onChange={v => f("shell_material", v)} onBlur={s} placeholder="e.g. SA-516 Gr 70 / 304L SS" />
+
+        <SectionCard title="Vessel Geometry & Design Conditions (Auto-Populated)">
+          <p className="text-[11px] text-gray-500 mb-2">Inherited from previous stages — no re-entry required. Values remain editable; an edit is recorded as Engineer Override. Section last updated: {sectionUpdated}.</p>
+          {inherited.map(row => (
+            <div key={row.key} className="grid grid-cols-[210px_1fr_60px] items-start gap-3 py-1">
+              <label className="text-sm text-gray-600 pt-2 font-medium leading-tight">{row.label}</label>
+              <div>
+                <Input value={effVal(row)} onChange={e => f(row.key, e.target.value)} onBlur={s} disabled={isFrozen}
+                  placeholder={row.inh === "" ? (row.missing ?? "Pending") : row.label} className="h-8 text-sm" />
+                {trace(rowStatus(row), row.stage, row.ref)}
+              </div>
+              <span className="text-xs text-gray-400 pt-2">{row.unit ?? ""}</span>
+            </div>
+          ))}
+          <div className="grid grid-cols-[210px_1fr_60px] items-start gap-3 py-1">
+            <label className="text-sm text-gray-600 pt-2 font-medium leading-tight">Shell Thickness</label>
+            <div className="pt-2">
+              <p className="text-sm text-gray-500 italic">Calculated by the future ASME Pressure Vessel Design Engine.</p>
+              <p className="text-[10px] text-gray-400">Not a manual entry — Stage 9 only prepares the design basis.</p>
+            </div>
+            <span className="text-xs text-gray-400 pt-2">mm</span>
+          </div>
         </SectionCard>
-        <SectionCard title="Nozzle Schedule">
-          <TextAreaRow label="Nozzle Description" value={md.nozzle_schedule ?? ""} onChange={v => f("nozzle_schedule", v)} onBlur={s} rows={4} placeholder="Aqueous feed, Solvent feed, Raffinate outlet, Extract outlet, Vent, Drain…" />
+
+        <SectionCard title="Mechanical Configuration">
+          <div className="grid grid-cols-[210px_1fr_60px] items-start gap-3 py-1">
+            <label className="text-sm text-gray-600 pt-2 font-medium leading-tight">Head Type</label>
+            <div>
+              <select className="w-full h-8 text-sm border rounded-md px-2 bg-white" value={headType} disabled={isFrozen}
+                onChange={e => { f("head_type", e.target.value); s(); }}>
+                {HEAD_TYPES.map(h => <option key={h} value={h}>{h}{h === "2:1 Ellipsoidal" ? " (Default)" : ""}</option>)}
+              </select>
+              {trace(md.head_type && md.head_type !== "2:1 Ellipsoidal" ? "Engineer Override" : "Auto-Populated", "Thermopac Design Standard", "Default head type — 2:1 Ellipsoidal")}
+            </div>
+            <span />
+          </div>
+          <div className="grid grid-cols-[210px_1fr_60px] items-start gap-3 py-1">
+            <label className="text-sm text-gray-600 pt-2 font-medium leading-tight">Shell Material</label>
+            <div>
+              <select className="w-full h-8 text-sm border rounded-md px-2 bg-white" value={shellMat} disabled={isFrozen}
+                onChange={e => { f("shell_material", e.target.value); f("corrosion_allowance", ""); s(); }}>
+                {MATERIALS.map(m => <option key={m.name} value={m.name}>{m.name}{m.name === "SA-516 Gr 70" ? " (Default)" : ""}</option>)}
+              </select>
+              {trace(md.shell_material && md.shell_material !== "SA-516 Gr 70" ? "Engineer Override" : "Auto-Populated", "Material Master", "Default shell material — SA-516 Gr 70")}
+            </div>
+            <span />
+          </div>
+          <div className="grid grid-cols-[210px_1fr_60px] items-start gap-3 py-1">
+            <label className="text-sm text-gray-600 pt-2 font-medium leading-tight">Corrosion Allowance</label>
+            <div>
+              <Input value={caVal} onChange={e => f("corrosion_allowance", e.target.value)} onBlur={s} disabled={isFrozen} className="h-8 text-sm" />
+              {trace(caStatus, "Thermopac Design Standards", CA_REF)}
+            </div>
+            <span className="text-xs text-gray-400 pt-2">mm</span>
+          </div>
         </SectionCard>
+
+        <SectionCard title="Nozzle Schedule (Structured)">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] text-gray-500">{NOZ_TEMPLATE_REF}</p>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" disabled={isFrozen} onClick={() => saveNozzles(stdNozzles())}>
+                {nozzles.length ? "Regenerate Standard Nozzles" : "Generate Standard Nozzles"}
+              </Button>
+              {nozzles.length > 0 && (
+                <Button size="sm" variant="outline" disabled={isFrozen} onClick={() => saveNozzles([...nozzles, { tag: "", service: "", size: "", rating: "150#", connection: "Flanged RF", orientation: "", elevation: "", remarks: "" }])}>
+                  + Add Row
+                </Button>
+              )}
+            </div>
+          </div>
+          {nozzles.length === 0 ? (
+            <p className="text-sm text-gray-400 italic">No nozzles defined — click "Generate Standard Nozzles" to seed the standard {preferred === "ecr" ? "ECR" : preferred === "ecp" ? "ECP" : "LLX"} schedule.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: NOZ_COLS.map(c => c.w).join(" ") + " 28px", minWidth: 900 }}>
+                {NOZ_COLS.map(c => <span key={c.k} className="text-[10px] font-semibold text-gray-500 uppercase">{c.label}</span>)}
+                <span />
+              </div>
+              {nozzles.map((n, i) => (
+                <div key={i} className="grid gap-1 mb-1" style={{ gridTemplateColumns: NOZ_COLS.map(c => c.w).join(" ") + " 28px", minWidth: 900 }}>
+                  {NOZ_COLS.map(c => (
+                    <Input key={c.k} value={n[c.k]} disabled={isFrozen} className="h-7 text-[11px] px-1.5"
+                      onChange={e => setNozCell(i, c.k, e.target.value)} onBlur={s} />
+                  ))}
+                  <button className="text-gray-300 hover:text-red-500 text-sm" disabled={isFrozen} title="Remove row"
+                    onClick={() => saveNozzles(nozzles.filter((_, j) => j !== i))}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+
         <SectionCard title="Structural">
-          <FieldRow label="Support Type" value={md.supports ?? ""} onChange={v => f("supports", v)} onBlur={s} placeholder="e.g. Skirt, Lug, Saddle" />
-          <FieldRow label="Skirt Height" value={md.skirt_height ?? ""} onChange={v => f("skirt_height", v)} onBlur={s} unit="mm" />
+          <div className="grid grid-cols-[210px_1fr_60px] items-start gap-3 py-1">
+            <label className="text-sm text-gray-600 pt-2 font-medium leading-tight">Support Type</label>
+            <div>
+              <select className="w-full h-8 text-sm border rounded-md px-2 bg-white" value={supportType} disabled={isFrozen}
+                onChange={e => { f("supports", e.target.value); s(); }}>
+                {SUPPORT_TYPES.map(t => <option key={t} value={t}>{t}{t === "Skirt" ? " (Default — vertical column)" : ""}</option>)}
+              </select>
+              {trace(md.supports && md.supports !== "Skirt" ? "Engineer Override" : "Auto-Populated", "Thermopac Design Standard", "Default support for vertical LLX columns — Skirt")}
+            </div>
+            <span />
+          </div>
+          <FieldRow label="Skirt / Support Height" value={md.skirt_height ?? ""} onChange={v => f("skirt_height", v)} onBlur={s} unit="mm" placeholder="Engineer entry — set at layout/GA stage" />
           <FieldRow label="Lifting Lugs" value={md.lifting_lugs ?? ""} onChange={v => f("lifting_lugs", v)} onBlur={s} placeholder="e.g. 2 × Trunnion, Qty / Rating" />
+        </SectionCard>
+
+        <SectionCard title="Mechanical Design Summary (Read-Only)">
+          {([
+            ["Selected Technology", effVal(inherited[0]) || "Pending Stage 8 selection"],
+            ["Column Diameter", effVal(inherited[1]) ? `${effVal(inherited[1])} m` : "Pending"],
+            ["T/T Height", effVal(inherited[2]) ? `${effVal(inherited[2])} m` : "Pending Stage 7 run"],
+            ["Overall Vessel Height", effVal(inherited[3]) ? `${effVal(inherited[3])} m` : "Pending Stage 7 run"],
+            ["Shell Material", shellMat],
+            ["Head Type", headType],
+            ["Support Type", supportType],
+            ["Corrosion Allowance", caVal !== "" ? `${caVal} mm` : "Pending"],
+            ["Nozzle Count", String(nozzles.length)],
+            ["Design Pressure", effVal(inherited[5]) ? `${effVal(inherited[5])} bar g` : "Pending"],
+            ["Design Temperature", effVal(inherited[7]) ? `${effVal(inherited[7])} °C` : "Pending"],
+            ["Shell Thickness", "Calculated by the future ASME Pressure Vessel Design Engine"],
+          ] as [string, string][]).map(([k, v]) => (
+            <div key={k} className="flex justify-between py-1 border-b last:border-0">
+              <span className="text-sm text-gray-600">{k}</span>
+              <span className="text-sm text-gray-800 font-medium text-right">{v}</span>
+            </div>
+          ))}
+          <p className="text-[10px] text-gray-400 mt-2">This summary is the input set handed to the future ASME Section VIII Pressure Vessel Design Engine. No shell/head thickness, reinforcement, MAWP or code calculations are performed in Stage 9.</p>
         </SectionCard>
       </div>
     );
