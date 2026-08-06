@@ -545,7 +545,17 @@ export async function runCalculation(
     const hb = techRun.result_snapshot?.heightBreakdown ?? {};
 
     // Selected diameter: Stage 9 override → Stage 5 engineer trial → sweep minimum feasible.
-    let dia = Number(inputs['column_diameter_m'] ?? '') || Number(inputs['column_diameter'] ?? '') || NaN;
+    // A present-but-invalid Stage 9 entry throws — engineer entries are never silently replaced.
+    const strictNum = (key: string, label: string): number | undefined => {
+      const raw = inputs[key];
+      if (raw === undefined || raw === null || String(raw).trim() === '') return undefined;
+      const v = Number(raw);
+      if (!Number.isFinite(v) || v <= 0) throw new Error(`${label} ('${String(raw)}') is not a valid positive number — correct or clear the Stage 9 entry.`);
+      return v;
+    };
+    let dia = strictNum('column_diameter_m', 'Stage 9 column diameter override')
+      ?? strictNum('column_diameter', 'Stage 5 column diameter trial')
+      ?? NaN;
     if (!Number.isFinite(dia) || dia <= 0) {
       const hydQ = await pool.query(
         `SELECT data->'normalCase'->'summary'->>'minimumFeasibleDiameter_m' AS d
@@ -554,8 +564,8 @@ export async function runCalculation(
       );
       dia = Number(hydQ.rows[0]?.d ?? NaN);
     }
-    const tt = Number(inputs['tt_height_m'] ?? '') || Number(hb.totalTangentToTangent?.result ?? NaN);
-    const oh = Number(inputs['overall_height_m'] ?? '') || Number(hb.overallVesselHeight?.result ?? NaN);
+    const tt = strictNum('tt_height_m', 'Stage 9 tangent-to-tangent height override') ?? Number(hb.totalTangentToTangent?.result ?? NaN);
+    const oh = strictNum('overall_height_m', 'Stage 9 overall height override') ?? Number(hb.overallVesselHeight?.result ?? NaN);
     if (!Number.isFinite(dia) || !Number.isFinite(tt) || !Number.isFinite(oh)) {
       throw new Error('Mechanical geometry incomplete — column diameter (Stage 5), tangent-to-tangent and overall heights (Stage 7 run) are all required before the C6 screening can run.');
     }

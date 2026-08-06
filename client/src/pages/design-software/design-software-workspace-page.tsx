@@ -3018,7 +3018,7 @@ export default function DesignSoftwareWorkspacePage() {
       <div className="max-w-4xl">
         <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 mb-4">
           <Info className="h-4 w-4 shrink-0" />
-          Stage 9 assembles the traceable Mechanical Design Basis for the future ASME Section VIII Pressure Vessel Design Engine. No code calculations are performed here.
+          Stage 9 assembles the traceable Mechanical Design Basis and runs it through the existing C6 Common Mechanical Design Engine — preliminary screening only. Final code-certified ASME/EN/IS design remains pending.
         </div>
 
         <SectionCard title="Vessel Geometry & Design Conditions (Auto-Populated)">

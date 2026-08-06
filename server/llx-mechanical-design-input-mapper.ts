@@ -50,6 +50,17 @@ function num(v: unknown): number | undefined {
   return undefined;
 }
 
+/** Presence-aware numeric read: a blank/absent entry returns undefined (an
+ *  Assumed default may then apply), but a present-but-invalid entry throws a
+ *  field-specific error — an engineer entry is never silently replaced. */
+function numStrict(inputs: Record<string, unknown>, key: string, label: string): number | undefined {
+  const raw = inputs[key];
+  if (raw === undefined || raw === null || String(raw).trim() === '') return undefined;
+  const v = num(raw);
+  if (v === undefined) throw new Error(`${label} ('${String(raw)}') is not a valid number — correct the Stage 9 entry or clear it to use the tagged Assumed screening default.`);
+  return v;
+}
+
 function tag(value: number, unit: string, sourceReference: string, sourceType: 'Measured' | 'Vendor' | 'Literature' | 'Assumed' = 'Assumed') {
   return { value, unit, sourceType, sourceReference };
 }
@@ -80,30 +91,32 @@ export function mapWorkspaceMechanicalInputs(
   geo: MechGeometryContext,
 ): Record<string, unknown> {
   const str = (k: string) => String(inputs[k] ?? '').trim();
-  const ov = (k: string) => (str(k) !== '' ? num(inputs[k]) : undefined); // Stage 9 override
+  const ov = (k: string, label: string) => numStrict(inputs, k, label); // Stage 9 override — invalid entries throw
 
   // ── Orientation — explicit, from Design Basis (never inferred here either) ──
   const orientationRaw = str('vessel_orientation').toLowerCase();
   const vesselOrientation = orientationRaw === 'horizontal' ? 'horizontal' : orientationRaw === 'vertical' ? 'vertical' : undefined;
 
   // ── Design conditions (Stage 9 override wins over Design Basis) ────────────
-  const opP = ov('operating_pressure_ov') ?? num(inputs.operating_pressure);
-  const desP = ov('design_pressure_ov') ?? num(inputs.llx_internal_design_pressure) ?? num(inputs.design_pressure);
-  const opT = ov('operating_temperature_ov') ?? num(inputs.operating_temperature);
-  const desT = ov('design_temperature_ov') ?? num(inputs.design_temperature);
+  const opP = ov('operating_pressure_ov', 'Stage 9 operating pressure override') ?? num(inputs.operating_pressure);
+  const desP = ov('design_pressure_ov', 'Stage 9 design pressure override') ?? num(inputs.llx_internal_design_pressure) ?? num(inputs.design_pressure);
+  const opT = ov('operating_temperature_ov', 'Stage 9 operating temperature override') ?? num(inputs.operating_temperature);
+  const desT = ov('design_temperature_ov', 'Stage 9 design temperature override') ?? num(inputs.design_temperature);
   const DB_REF = 'Stage 2 Design Basis / Stage 9 Mechanical Design Basis';
 
   // ── Material Interface from the Stage 9 material master selection ──────────
   const matName = str('shell_material') !== '' ? str('shell_material') : 'SA-516 Gr 70';
   const master = MATERIAL_MASTER[matName];
-  const caEntered = num(inputs.corrosion_allowance);
+  const caEntered = numStrict(inputs, 'corrosion_allowance', 'Stage 9 corrosion allowance');
+  const sEntered = numStrict(inputs, 'allowable_stress_mpa', 'Stage 9 allowable stress');
+  const rhoEntered = numStrict(inputs, 'material_density_kgm3', 'Stage 9 material density');
   const material = master
     ? {
         materialName: matName,
         materialSpecification: master.spec,
         materialGrade: master.grade,
-        allowableStress: tag(num(inputs.allowable_stress_mpa) ?? master.allowableStressMPa, 'MPa', num(inputs.allowable_stress_mpa) !== undefined ? 'Stage 9 engineer-entered allowable stress' : MATERIAL_REF),
-        density: tag(num(inputs.material_density_kgm3) ?? master.density, 'kg/m3', num(inputs.material_density_kgm3) !== undefined ? 'Stage 9 engineer-entered material density' : MATERIAL_REF),
+        allowableStress: tag(sEntered ?? master.allowableStressMPa, 'MPa', sEntered !== undefined ? 'Stage 9 engineer-entered allowable stress' : MATERIAL_REF),
+        density: tag(rhoEntered ?? master.density, 'kg/m3', rhoEntered !== undefined ? 'Stage 9 engineer-entered material density' : MATERIAL_REF),
         corrosionAllowance: tag(caEntered ?? master.caDefault, 'mm', caEntered !== undefined ? 'Stage 9 Mechanical Design Basis — corrosion allowance' : 'Thermopac Design Standard — Corrosion Allowance (CS 3 mm / SS & Duplex 0 mm)'),
         source: MATERIAL_REF,
       }
@@ -113,7 +126,10 @@ export function mapWorkspaceMechanicalInputs(
   const headRaw = str('head_type') !== '' ? str('head_type') : '2:1 Ellipsoidal';
   const headType = HEAD_TYPE_MAP[headRaw];
   if (headRaw === 'Conical') {
-    throw new Error("Conical heads are not supported by the C6 preliminary screening engine (mech-vessel v1.0.0). Select 2:1 Ellipsoidal, Torispherical, Hemispherical or Flat in Stage 9, or defer the conical design to the code-certified stage.");
+    throw new Error("Conical heads are not supported by the C6 preliminary screening engine (mech-vessel v1.0.0). Select 2:1 Ellipsoidal, Hemispherical or Flat in Stage 9, or defer the conical design to the code-certified stage.");
+  }
+  if (headRaw === 'Torispherical') {
+    throw new Error('Torispherical screening requires engineer-entered crown radius, knuckle radius, head depth and head volume, which Stage 9 does not yet collect. Select 2:1 Ellipsoidal, Hemispherical or Flat for the C6 preliminary screening, or defer the torispherical design to the code-certified stage.');
   }
 
   // ── Nozzles from the structured Stage 9 schedule ────────────────────────────
@@ -152,7 +168,7 @@ export function mapWorkspaceMechanicalInputs(
     ...(opT !== undefined ? { operatingTemperature: tag(opT, 'C', DB_REF) } : {}),
     ...(desT !== undefined ? { designTemperature: tag(desT, 'C', String(inputs.design_temperature_source ?? '').trim() || 'Thermopac Design Temperature Rule (Stage 2)') } : {}),
     ...(material ? { material } : {}),
-    jointEfficiency: tag(num(inputs.joint_efficiency) ?? 0.85, '-', num(inputs.joint_efficiency) !== undefined ? 'Stage 9 engineer-entered joint efficiency' : `${ALLOWANCE_REF} — spot-examination screening basis`),
+    jointEfficiency: (() => { const e = numStrict(inputs, 'joint_efficiency', 'Stage 9 joint efficiency'); return tag(e ?? 0.85, '-', e !== undefined ? 'Stage 9 engineer-entered joint efficiency' : `${ALLOWANCE_REF} — spot-examination screening basis`); })(),
     designCode: 'NOT_ASSIGNED',
     ...(headType ? { headType } : {}),
     plateThicknessSeries: { values_mm: [5, 6, 8, 10, 12, 14, 16, 18, 20, 22, 25, 28, 32, 36, 40], sourceType: 'Assumed', sourceReference: PLATE_REF },
@@ -164,17 +180,29 @@ export function mapWorkspaceMechanicalInputs(
     ...(supportOverride ? { supportOverride } : {}),
     ...(supportOverride === 'legs'
       ? {
-          legCriteria: {
-            maxHeight: tag(num(inputs.leg_max_height_m) ?? 6, 'm', num(inputs.leg_max_height_m) !== undefined ? 'Stage 9 engineer-entered leg height criterion' : `${ALLOWANCE_REF} — preliminary leg height criterion`),
-            maxWeight: tag(num(inputs.leg_max_weight_kg) ?? 10000, 'kg', num(inputs.leg_max_weight_kg) !== undefined ? 'Stage 9 engineer-entered leg weight criterion' : `${ALLOWANCE_REF} — preliminary leg weight criterion`),
-          },
+          legCriteria: (() => {
+            const lh = numStrict(inputs, 'leg_max_height_m', 'Stage 9 leg height criterion');
+            const lw = numStrict(inputs, 'leg_max_weight_kg', 'Stage 9 leg weight criterion');
+            return {
+              maxHeight: tag(lh ?? 6, 'm', lh !== undefined ? 'Stage 9 engineer-entered leg height criterion' : `${ALLOWANCE_REF} — preliminary leg height criterion`),
+              maxWeight: tag(lw ?? 10000, 'kg', lw !== undefined ? 'Stage 9 engineer-entered leg weight criterion' : `${ALLOWANCE_REF} — preliminary leg weight criterion`),
+            };
+          })(),
         }
       : {}),
     // MEC-008 weight allowances — Stage 9 entries win; otherwise Assumed screening allowances.
-    nozzlesWeight: tag(num(inputs.nozzles_weight_kg) ?? 200, 'kg', num(inputs.nozzles_weight_kg) !== undefined ? 'Stage 9 engineer-entered nozzles/manways weight' : `${ALLOWANCE_REF} — nozzles & manways`),
-    internalsWeight: tag(num(inputs.internals_weight_kg) ?? 500, 'kg', num(inputs.internals_weight_kg) !== undefined ? 'Stage 9 engineer-entered internals weight' : `${ALLOWANCE_REF} — packing/rotor internals`),
-    supportsWeight: tag(num(inputs.supports_weight_kg) ?? 300, 'kg', num(inputs.supports_weight_kg) !== undefined ? 'Stage 9 engineer-entered support-structure weight' : `${ALLOWANCE_REF} — support structure`),
-    headBlankFactor: tag(num(inputs.head_blank_factor) ?? 1.1, '-', num(inputs.head_blank_factor) !== undefined ? 'Stage 9 engineer-entered head blank factor' : `${ALLOWANCE_REF} — head blank-mass factor`),
+    ...(() => {
+      const alw = (key: string, label: string, dflt: number, unit: string, ref: string) => {
+        const v = numStrict(inputs, key, label);
+        return tag(v ?? dflt, unit, v !== undefined ? label.replace('Stage 9', 'Stage 9 engineer-entered') : ref);
+      };
+      return {
+        nozzlesWeight: alw('nozzles_weight_kg', 'Stage 9 nozzles/manways weight', 200, 'kg', `${ALLOWANCE_REF} — nozzles & manways`),
+        internalsWeight: alw('internals_weight_kg', 'Stage 9 internals weight', 500, 'kg', `${ALLOWANCE_REF} — packing/rotor internals`),
+        supportsWeight: alw('supports_weight_kg', 'Stage 9 support-structure weight', 300, 'kg', `${ALLOWANCE_REF} — support structure`),
+        headBlankFactor: alw('head_blank_factor', 'Stage 9 head blank factor', 1.1, '-', `${ALLOWANCE_REF} — head blank-mass factor`),
+      };
+    })(),
     operatingLiquidDensity: num(inputs.feed_density) !== undefined
       ? tag(num(inputs.feed_density)!, 'kg/m3', String(inputs.feed_density_status ?? '').trim() !== '' ? `Stage 2 Design Basis feed density (${String(inputs.feed_density_status).trim()})` : 'Stage 2 Design Basis feed density')
       : tag(1000, 'kg/m3', `${ALLOWANCE_REF} — water-like operating liquid density (no Design Basis feed density available)`),
