@@ -110,6 +110,11 @@ export async function runCase(caseId: number, ranBy: string): Promise<any> {
   });
 
   const exp = c.expected ?? {};
+  // Guard against a malformed/empty expected snapshot silently passing:
+  // an empty expected vs an empty (error) result would compare clean.
+  if (!exp.data || typeof exp.data !== 'object' || Object.keys(exp.data).length === 0) {
+    throw Object.assign(new Error(`Regression case ${caseId} has an empty/malformed expected snapshot — refusing to run (a vacuous comparison could falsely PASS)`), { statusCode: 422 });
+  }
   const relTol = typeof exp.relTol === 'number' ? exp.relTol : DEFAULT_REL_TOL;
   const absTol = typeof exp.absTol === 'number' ? exp.absTol : DEFAULT_ABS_TOL;
   const ignorePaths: string[] = Array.isArray(exp.ignorePaths) ? exp.ignorePaths : [];

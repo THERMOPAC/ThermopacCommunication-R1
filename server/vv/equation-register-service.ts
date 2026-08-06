@@ -80,8 +80,14 @@ export async function verificationStatus(): Promise<any[]> {
     const reg = await pool.query(
       `SELECT count(*)::int AS total,
               count(*) FILTER (
-                WHERE evidence ? 'handCalc' AND evidence ? 'unitCheck'
-                  AND evidence ? 'boundaryCheck' AND evidence ? 'independentReview'
+                WHERE (evidence->'handCalc'->>'done')::boolean IS TRUE
+                  AND coalesce(evidence->'handCalc'->>'by','') <> '' AND coalesce(evidence->'handCalc'->>'reference','') <> ''
+                  AND (evidence->'unitCheck'->>'done')::boolean IS TRUE
+                  AND coalesce(evidence->'unitCheck'->>'by','') <> '' AND coalesce(evidence->'unitCheck'->>'reference','') <> ''
+                  AND (evidence->'boundaryCheck'->>'done')::boolean IS TRUE
+                  AND coalesce(evidence->'boundaryCheck'->>'by','') <> '' AND coalesce(evidence->'boundaryCheck'->>'reference','') <> ''
+                  AND (evidence->'independentReview'->>'done')::boolean IS TRUE
+                  AND coalesce(evidence->'independentReview'->>'by','') <> '' AND coalesce(evidence->'independentReview'->>'reference','') <> ''
               )::int AS fully_evidenced
          FROM vv_equation_register WHERE engine_id = $1`, [e.engineId]);
     const { total, fully_evidenced } = reg.rows[0];
