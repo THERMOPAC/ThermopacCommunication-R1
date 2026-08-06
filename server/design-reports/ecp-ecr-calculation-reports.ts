@@ -147,6 +147,56 @@ function comparisonSection(ecp: any, ecr: any): ReportSection {
   };
 }
 
+/** Engineering Decision Record — renders the latest (non-superseded) DS-SEL
+ *  autonomous selection record verbatim. Read-only: the report never re-runs
+ *  the selector and never recomputes any figure. */
+async function decisionRecordSection(revisionId: number): Promise<ReportSection> {
+  const q = await pool.query(
+    `SELECT r.*, u.username AS created_by_name, du.username AS decision_by_name
+       FROM design_selection_records r
+       LEFT JOIN users u ON u.id = r.created_by
+       LEFT JOIN users du ON du.id = r.decision_by
+      WHERE r.revision_id = $1 AND r.is_superseded = FALSE
+      ORDER BY r.created_at DESC LIMIT 1`, [revisionId]);
+  if (!q.rows.length) {
+    return { title: 'Engineering Decision Record (DS-SEL Autonomous Design Selection)', paragraphs: ['No design selection record exists for this revision — the autonomous selector runs after each accepted equipment calculation. No record is invented.'] };
+  }
+  const row = q.rows[0];
+  const rec = row.record ?? {};
+  const f4 = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(4) : '—');
+  const f2n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(2) : '—');
+  const rows: ReportRow[] = [
+    { label: 'Selected technology', value: rec.selectedTechnology ? String(rec.selectedTechnology).toUpperCase() : (rec.selectionStatus === 'engineering_review_required' ? 'NONE — engineering review required' : 'NONE — not recommendable'), sourceType: `Record #${row.id}`, sourceRef: rec.governanceState ?? '' },
+    { label: 'Selected diameter', value: rec.selectedDiameter_mm != null ? String(rec.selectedDiameter_mm) : '—', unit: 'mm', sourceType: 'DS-SEL-003' },
+    { label: 'Calculated minimum diameter', value: rec.calculatedMinimumDiameter_mm != null ? String(rec.calculatedMinimumDiameter_mm) : '—', unit: 'mm', sourceType: 'DS-SEL-001' },
+    { label: 'Practical rounding rule', value: '—', sourceType: 'DS-SEL-002', sourceRef: rec.roundingRule ?? '' },
+    { label: 'Normal loading at selected diameter', value: f2n(rec.normalLoading), unit: 'm³/(m²·h)', sourceType: 'Frozen sweep (verbatim)' },
+    { label: 'Maximum loading at selected diameter', value: f2n(rec.maximumLoading), unit: 'm³/(m²·h)', sourceType: 'Frozen sweep (verbatim)' },
+    { label: 'Flooding utilization (maximum case governs)', value: f4(rec.floodingUtilization), unit: '-', sourceType: 'DS-SEL-003', sourceRef: rec.capacityBasis ? `Basis: ${rec.capacityBasis.value} ${rec.capacityBasis.unit} — ${rec.capacityBasis.tier}` : '' },
+    { label: 'Flooding margin', value: `${f4(rec.floodingMarginFraction)} (${f2n(rec.floodingMarginAbsolute)} m³/(m²·h) absolute)`, sourceType: 'DS-SEL-005 step 2' },
+    { label: 'Confidence level', value: String(rec.confidenceLevel ?? row.confidence_level ?? '—'), sourceType: 'Data maturity only — never a selection criterion' },
+    { label: 'Engineer decision', value: String(row.decision ?? 'pending'), sourceType: row.decision_engineer ? `Engineer: ${row.decision_engineer}` : '', sourceRef: row.decision_reason ?? '' },
+  ];
+  if (row.decision === 'overridden') {
+    rows.push({ label: 'Engineer Override — retained autonomous values', value: `Autonomous: ${rec.selectedTechnology ? String(rec.selectedTechnology).toUpperCase() : '—'} @ ${rec.selectedDiameter_mm ?? '—'} mm → Override: ${(row.override_technology ?? rec.selectedTechnology ?? '—').toUpperCase?.() ?? row.override_technology} @ ${row.override_diameter_mm ?? rec.selectedDiameter_mm ?? '—'} mm`, sourceType: 'Override', sourceRef: row.decision_reason ?? '' });
+  }
+  const cascadeTable: string[][] = [
+    ['Step', 'Criterion', 'Evaluation', 'Outcome'],
+    ...(rec.cascade ?? []).map((s: any) => [String(s.step), s.criterion, s.evaluation, s.outcome]),
+  ];
+  const paragraphs = [
+    `Reason for the recommendation (assembled from the cascade evaluation, verbatim): ${rec.reason ?? '—'}`,
+    `Governing assumptions in the selection path: ${(rec.governingAssumptions ?? []).map((a: any, i: number) => `(${i + 1}) ${a.item}: ${a.value} — ${a.source}`).join(' ') || 'none recorded'}.`,
+    `Confidence basis: ${(rec.confidenceBasis ?? []).join(' ')}`,
+    `Provenance: ${(rec.provenance?.runs ?? []).map((r: any) => `${String(r.technology).toUpperCase()} run #${r.runId} (${r.engine} v${r.engineVersion}, status '${r.status}')`).join('; ') || '—'}. ${rec.provenance?.note ?? ''} Record generated ${rec.generatedAt ?? '—'} by ${row.created_by_name ?? '—'}; selector ${rec.engine?.id ?? 'llx-design-selection'} v${rec.engine?.version ?? '—'} (rules DS-SEL-001…005).`,
+  ];
+  return {
+    title: 'Engineering Decision Record (DS-SEL Autonomous Design Selection)',
+    intro: 'Autonomous deterministic design selection — the software acts as the Process Design Engineer. All loadings are read verbatim from the frozen calculation run snapshots; the selector never recomputes engine results. CAPEX/OPEX are excluded by direction; confidence level is data-maturity information only and is never a tie-breaker.',
+    rows, table: cascadeTable.length > 1 ? cascadeTable : undefined, paragraphs,
+  };
+}
+
 function verifiabilitySection(data: any, tech: string): ReportSection {
   const nc = collectNotCalculable(data);
   const rows: string[][] = [['Equation Ref', 'Item (stored basis string)', 'Why it cannot be independently verified from this report (stored explanation, verbatim)'],
@@ -263,6 +313,7 @@ export async function buildEcpCalculationPayload(revisionId: number, generatedBy
       rrow('Overall vessel height', hb.overallVesselHeight, 2),
     ]},
     comparisonSection(ecp, other),
+    await decisionRecordSection(revisionId),
     { title: 'Engine Warnings (Verbatim)', paragraphs: (() => { const w = collectWarnings(ecp); return w.length ? w.map((x, i) => `${i + 1}. ${x}`) : [`No warning strings stored on individual items. Run status: ${ecp.calculationRunStatus ?? '—'} — see Validation & Missing-Data Summary.`]; })() },
     { title: 'Limitations (Verbatim)', paragraphs: (ecp.limitations ?? []).map((l: string, i: number) => `${i + 1}. ${l}`) },
     verifiabilitySection(ecp, 'ECP'),
@@ -406,6 +457,7 @@ export async function buildEcrCalculationPayload(revisionId: number, generatedBy
       rrow('Overall vessel height', hb.overallVesselHeight, 2),
     ]},
     comparisonSection(other, ecr),
+    await decisionRecordSection(revisionId),
     { title: 'Engine Warnings (Verbatim)', paragraphs: (() => { const w = collectWarnings(ecr); return w.length ? w.map((x, i) => `${i + 1}. ${x}`) : [`No warning strings stored on individual items. Run status: ${ecr.calculationRunStatus ?? '—'} — see Validation & Missing-Data Summary.`]; })() },
     { title: 'Limitations (Verbatim)', paragraphs: (ecr.limitations ?? []).map((l: string, i: number) => `${i + 1}. ${l}`) },
     verifiabilitySection(ecr, 'ECR'),

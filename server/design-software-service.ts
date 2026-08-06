@@ -735,6 +735,18 @@ export async function runCalculation(
     );
   }
 
+  // DS-SEL — regenerate the autonomous design selection record whenever an
+  // equipment run (C4/C5) completes with an accepted status. Non-fatal: a
+  // selector failure never blocks the engine run that was just persisted.
+  if (['ecp', 'ecr'].includes(calculationType) && calcResult.status !== 'error') {
+    try {
+      const { generateSelectionRecord } = await import('./design-selection/design-selection-service');
+      await generateSelectionRecord(revisionId, userId);
+    } catch (e: any) {
+      console.error('[DS-SEL] Selection record regeneration failed (non-fatal):', e?.message ?? e);
+    }
+  }
+
   return { run: runRow.rows[0], result: calcResult };
 }
 

@@ -464,6 +464,38 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
     }
   });
 
+  // ── DS-SEL — Autonomous Design Selection (Engineering Decision Record) ─────
+
+  /** Latest (non-superseded) autonomous selection record for a revision. */
+  app.get('/api/design-software/revisions/:id/design-selection', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { getLatestSelection } = await import('./design-selection/design-selection-service');
+      res.json(await getLatestSelection(parseInt(req.params.id)));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+
+  /** Regenerate the autonomous selection record from the latest frozen runs. */
+  app.post('/api/design-software/revisions/:id/design-selection/run', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { generateSelectionRecord } = await import('./design-selection/design-selection-service');
+      res.json(await generateSelectionRecord(parseInt(req.params.id), (req.user as any).id));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+
+  /** Engineer decision on a selection record: approve / request_verification / override. */
+  app.post('/api/design-software/design-selection/:recordId/decision', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { recordDecision } = await import('./design-selection/design-selection-service');
+      res.json(await recordDecision(parseInt(req.params.recordId), (req.user as any).id, req.body ?? {}));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+
   // ── Assumptions ────────────────────────────────────────────────────────────
 
   /** List assumptions for a revision. */

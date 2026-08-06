@@ -17004,6 +17004,38 @@ export const designSoftwareApprovals = pgTable('design_software_approvals', {
   chkAction: check('ds_approvals_action_chk', sql`action IN ('submit_for_review', 'return_to_draft', 'check', 'approve', 'issue', 'supersede', 'archive')`),
 }));
 
+// ── 9. design_selection_records ───────────────────────────────────────────────
+// Autonomous Engineering Decision Records (DS-SEL) — the deterministic design-
+// selection layer's output. Superseded-not-edited: every regeneration marks the
+// previous record is_superseded and appends a new row. The engineer decision
+// (approve / request_verification / override) is recorded on the record itself;
+// the autonomous values are NEVER overwritten by an override.
+// ──────────────────────────────────────────────────────────────────────────────
+export const designSelectionRecords = pgTable('design_selection_records', {
+  id:                 serial('id').primaryKey(),
+  revisionId:         integer('revision_id').notNull().references(() => designSoftwareRevisions.id, { onDelete: 'cascade' }),
+  record:             jsonb('record').notNull(),
+  selectedTechnology: varchar('selected_technology', { length: 10 }),
+  selectedDiameterMm: integer('selected_diameter_mm'),
+  confidenceLevel:    varchar('confidence_level', { length: 40 }).notNull(),
+  selectionStatus:    varchar('selection_status', { length: 40 }).notNull(),
+  isSuperseded:       boolean('is_superseded').notNull().default(false),
+  decision:           varchar('decision', { length: 30 }).notNull().default('pending'),
+  decisionBy:         integer('decision_by').references(() => users.id),
+  decisionAt:         timestamp('decision_at'),
+  decisionEngineer:   varchar('decision_engineer', { length: 120 }),
+  decisionReason:     text('decision_reason'),
+  overrideTechnology: varchar('override_technology', { length: 10 }),
+  overrideDiameterMm: integer('override_diameter_mm'),
+  overrideImpact:     jsonb('override_impact'),
+  createdBy:          integer('created_by').notNull().references(() => users.id),
+  createdAt:          timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  idxRevisionCreatedAt: index('dsel_records_revision_at_idx').on(table.revisionId, table.createdAt),
+  chkSelectionStatus:   check('dsel_records_status_chk', sql`selection_status IN ('recommended', 'engineering_review_required', 'not_recommendable')`),
+  chkDecision:          check('dsel_records_decision_chk', sql`decision IN ('pending', 'approved', 'verification_requested', 'overridden')`),
+}));
+
 // ── Zod insert schemas ────────────────────────────────────────────────────────
 export const insertDesignSoftwareDesignSchema = createInsertSchema(designSoftwareDesigns).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDesignSoftwareRevisionSchema = createInsertSchema(designSoftwareRevisions).omit({ id: true, createdAt: true, updatedAt: true });

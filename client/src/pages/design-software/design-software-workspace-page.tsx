@@ -586,6 +586,13 @@ export default function DesignSoftwareWorkspacePage() {
   const [showLifecycle, setShowLifecycle] = useState<string | null>(null);
   const [lifecycleComment, setLifecycleComment] = useState("");
 
+  // DS-SEL — engineer decision dialog (approve / request_verification / override)
+  const [dselDialog, setDselDialog] = useState<string | null>(null);
+  const [dselEngineer, setDselEngineer] = useState("");
+  const [dselReason, setDselReason] = useState("");
+  const [dselOverrideTech, setDselOverrideTech] = useState("");
+  const [dselOverrideDia, setDselOverrideDia] = useState("");
+
   // ── Queries ─────────────────────────────────────────────────────────────────
   const designQ = useQuery({
     queryKey: [`/api/design-software/designs/${designId}`],
@@ -637,6 +644,12 @@ export default function DesignSoftwareWorkspacePage() {
   const reportsQ = useQuery<any[]>({
     queryKey: [`/api/design-software/revisions/${activeRevisionId}/reports`],
     queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/reports`) as Promise<any[]>,
+    enabled: !!activeRevisionId,
+  });
+
+  const designSelectionQ = useQuery<any>({
+    queryKey: [`/api/design-software/revisions/${activeRevisionId}/design-selection`],
+    queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/design-selection`) as Promise<any>,
     enabled: !!activeRevisionId,
   });
 
@@ -999,8 +1012,20 @@ export default function DesignSoftwareWorkspacePage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/runs`] });
       qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/results`] });
+      qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/design-selection`] });
     },
     onError: (e: any) => toast({ title: "Calculation error", description: e.message, variant: "destructive" }),
+  });
+
+  const dselDecisionMutation = useMutation({
+    mutationFn: ({ recordId, body }: { recordId: number; body: any }) =>
+      apiRequest("POST", `/api/design-software/design-selection/${recordId}/decision`, body) as Promise<any>,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/design-selection`] });
+      setDselDialog(null); setDselEngineer(""); setDselReason(""); setDselOverrideTech(""); setDselOverrideDia("");
+      toast({ title: "Decision recorded" });
+    },
+    onError: (e: any) => toast({ title: "Decision failed", description: e.message, variant: "destructive" }),
   });
 
   // ── Derived state ─────────────────────────────────────────────────────────────
@@ -1123,6 +1148,23 @@ export default function DesignSoftwareWorkspacePage() {
         : ecrExec.executed
           ? (ecrExec.withWarnings ? `✓ Calculation Executed. ${WARN_NOTE}` : undefined)
           : "No successful ECR run exists (latest run failed or Step 7 not run)",
+    },
+    {
+      // Advisory only — informational acceptance-state line for the autonomous
+      // Engineering Decision Record. Execution/maturity separation: the record's
+      // existence and decision state never block submission by themselves.
+      label: "Design selection decision recorded (DS-SEL)",
+      status: (() => {
+        const r = designSelectionQ.data;
+        if (!r) return "pending";
+        return r.decision === "pending" ? "warning" : "pass";
+      })(),
+      note: (() => {
+        const r = designSelectionQ.data;
+        if (!r) return "No autonomous selection record yet — it is generated after each accepted ECP/ECR run (informational; not blocking)";
+        if (r.decision === "pending") return "Autonomous recommendation awaiting engineer decision (Approve / Request Verification / Override) — informational; not blocking";
+        return `Decision: ${String(r.decision).replace(/_/g, " ")} by ${r.decision_engineer ?? "—"}`;
+      })(),
     },
     {
       label: "All fluid properties have a source declared",
@@ -2466,11 +2508,117 @@ export default function DesignSoftwareWorkspacePage() {
     return (
       <div className="max-w-5xl space-y-6">
         {renderCarryOverCard(co)}
+        {renderDesignSelectionCard()}
         <div className={techSelection === "both" ? "grid grid-cols-2 gap-6" : ""}>
           {showECP && renderECPDesign()}
           {showECR && renderECRDesign()}
         </div>
       </div>
+    );
+  }
+
+  // ── DS-SEL — Autonomous Design Selection (Engineering Decision Record) ──────
+  function renderDesignSelectionCard() {
+    const row = designSelectionQ.data;
+    const rec = row?.record ?? null;
+    const f4 = (v: any) => (typeof v === "number" && Number.isFinite(v) ? v.toFixed(4) : "—");
+    const f2 = (v: any) => (typeof v === "number" && Number.isFinite(v) ? v.toFixed(2) : "—");
+    const decided = row && row.decision !== "pending";
+    const kv = (label: string, value: any, sub?: string) => (
+      <div className="grid grid-cols-[220px_1fr] gap-2 py-1 border-b border-gray-50 last:border-0">
+        <span className="text-xs text-gray-500">{label}</span>
+        <span className="text-xs">
+          <span className="font-medium text-gray-800">{value}</span>
+          {sub && <span className="block text-[10px] text-gray-400">{sub}</span>}
+        </span>
+      </div>
+    );
+    const submitDecision = () => {
+      if (!row) return;
+      const body: any = { action: dselDialog, engineer: dselEngineer, reason: dselReason };
+      if (dselDialog === "override") {
+        if (dselOverrideTech) body.overrideTechnology = dselOverrideTech;
+        if (dselOverrideDia.trim() !== "") body.overrideDiameterMm = Number(dselOverrideDia);
+      }
+      dselDecisionMutation.mutate({ recordId: row.id, body });
+    };
+    return (
+      <SectionCard title="Autonomous Design Selection — Engineering Decision Record (DS-SEL)">
+        {!rec ? (
+          <p className="text-xs text-gray-500">
+            No selection record yet — the software generates the Engineering Decision Record automatically after each accepted ECP/ECR calculation run (deterministic rules DS-SEL-001…005; no value is invented).
+          </p>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <Badge variant={rec.selectionStatus === "recommended" ? "default" : "destructive"}>
+                {rec.selectionStatus === "recommended" ? "Recommended" : rec.selectionStatus === "engineering_review_required" ? "Engineering Review Required" : "Not Recommendable"}
+              </Badge>
+              <Badge variant="outline">{rec.confidenceLevel}</Badge>
+              <Badge variant="outline">{row.decision === "pending" ? "Awaiting Engineer Decision" : `Decision: ${String(row.decision).replace(/_/g, " ")}`}</Badge>
+            </div>
+            {kv("Selected technology", rec.selectedTechnology ? String(rec.selectedTechnology).toUpperCase() : (rec.selectionStatus === "engineering_review_required" ? "None — multiple technically acceptable solutions identified; engineering review required" : "None"), rec.governanceState)}
+            {kv("Selected diameter", rec.selectedDiameter_mm != null ? `${rec.selectedDiameter_mm} mm` : "—", "DS-SEL-003 — smallest practical 50 mm increment satisfying utilization ≤ limit")}
+            {kv("Calculated minimum diameter", rec.calculatedMinimumDiameter_mm != null ? `${rec.calculatedMinimumDiameter_mm} mm` : "—", "DS-SEL-001 — D_min = √(4·Q_max/(π·u_allow·C_basis))")}
+            {kv("Practical rounding rule", "Round UP to next 50 mm increment — never down", "DS-SEL-002")}
+            {kv("Normal / Maximum loading", `${f2(rec.normalLoading)} / ${f2(rec.maximumLoading)} m³/(m²·h)`, "Read verbatim from the frozen sweep at the selected diameter")}
+            {kv("Flooding utilization", f4(rec.floodingUtilization), rec.capacityBasis ? `Basis: ${rec.capacityBasis.value} ${rec.capacityBasis.unit} — ${rec.capacityBasis.tier}${rec.capacityBasis.assumed ? " (Assumed — Pending Hydraulic Validation)" : ""}` : undefined)}
+            {kv("Flooding margin", `${f4(rec.floodingMarginFraction)} (${f2(rec.floodingMarginAbsolute)} m³/(m²·h) absolute)`, "DS-SEL-005 step 2 — direct comparison of calculated margins, no tie band")}
+            {kv("Reason for recommendation", rec.reason ?? "—")}
+            {(rec.governingAssumptions ?? []).length > 0 && kv("Governing assumptions", (
+              <span>{(rec.governingAssumptions ?? []).map((a: any, i: number) => <span key={i} className="block">{a.item}: {a.value} — <span className="text-gray-400">{a.source}</span></span>)}</span>
+            ))}
+            {(rec.technologies ?? []).filter((t: any) => !t.recommendable).map((t: any) => (
+              <div key={t.technology} className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-[11px] text-amber-800">
+                {t.technology.toUpperCase()} not recommendable — {t.notRecommendableReason}
+              </div>
+            ))}
+            {row.decision === "overridden" && (
+              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-[11px] text-blue-800">
+                Engineer Override by {row.decision_engineer} — {row.decision_reason}. Autonomous values retained above; override: {row.override_technology ? row.override_technology.toUpperCase() : (rec.selectedTechnology ?? "—").toUpperCase?.()} @ {row.override_diameter_mm ?? rec.selectedDiameter_mm ?? "—"} mm.
+                {row.override_impact?.warning && <span className="block mt-1">{row.override_impact.warning}</span>}
+                {row.override_impact?.floodingUtilization != null && <span className="block mt-1">Impact (frozen table): utilization {f4(row.override_impact.floodingUtilization)}, margin {f4(row.override_impact.floodingMarginFraction)}, feasible per autonomous criteria: {String(row.override_impact.feasiblePerAutonomousCriteria)}</span>}
+              </div>
+            )}
+            {decided && row.decision !== "overridden" && (
+              <p className="text-[11px] text-gray-500 mt-2">Decision recorded by {row.decision_engineer} on {row.decision_at ? new Date(row.decision_at).toLocaleString() : "—"}{row.decision_reason ? ` — ${row.decision_reason}` : ""}</p>
+            )}
+            {!isFrozen && !decided && (
+              <div className="flex gap-2 mt-3">
+                <Button size="sm" onClick={() => setDselDialog("approve")}>Approve</Button>
+                <Button size="sm" variant="outline" onClick={() => setDselDialog("request_verification")}>Request Verification</Button>
+                <Button size="sm" variant="outline" onClick={() => setDselDialog("override")}>Override</Button>
+              </div>
+            )}
+            <p className="text-[10px] text-gray-400 mt-2">
+              The software acts as the Process Design Engineer: technology and diameter are determined autonomously by deterministic rules (DS-SEL-001…005) from the frozen calculation runs — CAPEX/OPEX excluded; confidence level is data maturity only and never a tie-breaker. Records are superseded, never edited; every re-run generates a fresh record.
+            </p>
+            {dselDialog && (
+              <div className="mt-3 p-3 border rounded-lg bg-gray-50 space-y-2">
+                <p className="text-xs font-medium text-gray-700">
+                  {dselDialog === "approve" ? "Approve the autonomous recommendation" : dselDialog === "request_verification" ? "Request independent verification" : "Override the autonomous recommendation (mandatory engineering justification; the autonomous values are retained)"}
+                </p>
+                <Input placeholder="Engineer name (mandatory)" value={dselEngineer} onChange={e => setDselEngineer(e.target.value)} className="h-8 text-xs" />
+                <Textarea placeholder={dselDialog === "override" ? "Engineering justification (mandatory)" : "Comments (optional)"} value={dselReason} onChange={e => setDselReason(e.target.value)} className="text-xs" rows={2} />
+                {dselDialog === "override" && (
+                  <div className="flex gap-2">
+                    <select value={dselOverrideTech} onChange={e => setDselOverrideTech(e.target.value)} className="h-8 text-xs border rounded px-2">
+                      <option value="">Keep technology</option>
+                      <option value="ecp">ECP</option>
+                      <option value="ecr">ECR</option>
+                    </select>
+                    <Input placeholder="Override diameter (mm)" value={dselOverrideDia} onChange={e => setDselOverrideDia(e.target.value)} className="h-8 text-xs w-44" />
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Button size="sm" disabled={dselDecisionMutation.isPending} onClick={submitDecision}>Confirm</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setDselDialog(null)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </SectionCard>
     );
   }
 

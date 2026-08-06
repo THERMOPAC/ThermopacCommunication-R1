@@ -30,3 +30,4 @@
 - [Offer Comm Governance integration](offer-comm-governance.md) — COMM_DOCUMENT (id=95) + COMM_SOR_COPY (id=96) rules; resolveGcsPathWithMeta() added alongside resolveGcsPath() (never modified); gcs_rule_id on both tables.
 - [Common mechanical vessel engine](mech-vessel-engine.md) — engine index files register only via design-software-routes import; complete Assumed pre-pass before building items; exact service word-match.
 - [C4 packed-column engine governance](c4-packed-column-governance.md) — llx-ecp consumes Packing DB (clones only); curves interpolation-only with fixed independent variables; utilization never from C3 generic %.
+- [LLX DS-SEL governance](llx-dsel-governance.md) — deterministic selection rules only; no scoring/CAPEX/confidence tie-breaks; exact review-required wording; ECR basis non-transferable.
