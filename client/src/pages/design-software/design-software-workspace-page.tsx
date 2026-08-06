@@ -2558,19 +2558,20 @@ export default function DesignSoftwareWorkspacePage() {
               <Badge variant="outline">{row.decision === "pending" ? "Awaiting Engineer Decision" : `Decision: ${String(row.decision).replace(/_/g, " ")}`}</Badge>
             </div>
             {kv("Selected technology", rec.selectedTechnology ? String(rec.selectedTechnology).toUpperCase() : (rec.selectionStatus === "engineering_review_required" ? "None — multiple technically acceptable solutions identified; engineering review required" : "None"), rec.governanceState)}
-            {kv("Selected diameter", rec.selectedDiameter_mm != null ? `${rec.selectedDiameter_mm} mm` : "—", "DS-SEL-003 — smallest practical 50 mm increment satisfying utilization ≤ limit")}
+            {kv("Selected preliminary diameter", rec.selectedDiameter_mm != null ? `${rec.selectedDiameter_mm} mm` : "—", "DS-SEL-003 — smallest practical 50 mm increment satisfying utilization ≤ limit")}
             {kv("Calculated minimum diameter", rec.calculatedMinimumDiameter_mm != null ? `${rec.calculatedMinimumDiameter_mm} mm` : "—", "DS-SEL-001 — D_min = √(4·Q_max/(π·u_allow·C_basis))")}
             {kv("Practical rounding rule", "Round UP to next 50 mm increment — never down", "DS-SEL-002")}
             {kv("Normal / Maximum loading", `${f2(rec.normalLoading)} / ${f2(rec.maximumLoading)} m³/(m²·h)`, "Read verbatim from the frozen sweep at the selected diameter")}
-            {kv("Flooding utilization", f4(rec.floodingUtilization), rec.capacityBasis ? `Basis: ${rec.capacityBasis.value} ${rec.capacityBasis.unit} — ${rec.capacityBasis.tier}${rec.capacityBasis.assumed ? " (Assumed — Pending Hydraulic Validation)" : ""}` : undefined)}
-            {kv("Flooding margin", `${f4(rec.floodingMarginFraction)} (${f2(rec.floodingMarginAbsolute)} m³/(m²·h) absolute)`, "DS-SEL-005 step 2 — direct comparison of calculated margins, no tie band")}
+            {kv(rec.terminology?.utilizationLabel ?? "Utilization against preliminary capacity-screening basis", f4(rec.floodingUtilization), rec.capacityBasis ? `Basis: ${rec.capacityBasis.value} ${rec.capacityBasis.unit} — ${rec.capacityBasis.tier}${rec.capacityBasis.assumed ? " (Assumed — Pending Hydraulic and Pressure-Drop Validation)" : ""}` : undefined)}
+            {kv(rec.terminology?.marginLabel ?? "Preliminary hydraulic loading margin", `${f4(rec.floodingMarginFraction)} (${f2(rec.floodingMarginAbsolute)} m³/(m²·h) absolute)`, "DS-SEL-005 step 2 — direct comparison of calculated margins, no tie band")}
+            {(rec.terminology ? !!rec.terminology.trueFloodingStatement : true) && kv("True flooding utilization / margin", "Not Calculable", rec.terminology?.trueFloodingStatement ?? "Not Calculable until approved vendor, pilot or RRBO/NMP experimental flooding data are entered.")}
             {kv("Reason for recommendation", rec.reason ?? "—")}
             {(rec.governingAssumptions ?? []).length > 0 && kv("Governing assumptions", (
               <span>{(rec.governingAssumptions ?? []).map((a: any, i: number) => <span key={i} className="block">{a.item}: {a.value} — <span className="text-gray-400">{a.source}</span></span>)}</span>
             ))}
             {(rec.technologies ?? []).filter((t: any) => !t.recommendable).map((t: any) => (
               <div key={t.technology} className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-[11px] text-amber-800">
-                {t.technology.toUpperCase()} not recommendable — {t.notRecommendableReason}
+                {t.notAssessable ? t.notRecommendableReason : `${t.technology.toUpperCase()} not feasible — ${t.notRecommendableReason}`}
               </div>
             ))}
             {row.decision === "overridden" && (

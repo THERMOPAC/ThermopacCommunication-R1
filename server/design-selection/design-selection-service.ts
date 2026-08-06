@@ -38,17 +38,37 @@ const ROUNDING_RULE_TEXT =
 // validated flooding capacity for the RRBO/NMP system.
 const PRELIM_THRESHOLD_DEFAULT = 60;
 const PRELIM_THRESHOLD_SOURCE =
-  'Upper bound of the Sulzer SMV/SMVP published screening throughput range 35–60 m³/(m²·h) (Johannes Rauber, Sulzer Chemtech Ltd., AIChE 2006) — preliminary screening threshold, NOT validated flooding capacity for the RRBO/NMP system.';
+  'Upper bound of the Sulzer SMV/SMVP published screening throughput range 35–60 m³/(m²·h) (Johannes Rauber, Sulzer Chemtech Ltd., AIChE 2006) — a published typical SMVP throughput characteristic, NOT validated RRBO/NMP flooding capacity.';
 const UTILIZATION_LIMIT_DEFAULT = 0.80;
 const UTILIZATION_LIMIT_SOURCE =
-  'Maximum allowable flooding utilization for preliminary design — configurable screening criterion consistent with the C4/C5 utilization screening band upper bound (80 %); not a universal engineering rule.';
+  'Maximum allowable utilization against the preliminary capacity-screening basis — configurable screening criterion consistent with the C4/C5 utilization screening band upper bound (80 %); not a universal engineering rule.';
+
+/** Governed terminology (audit correction 2026-08-06): when the basis is the
+ *  screening threshold, utilization/margin are SCREENING quantities — true
+ *  flooding utilization and flooding margin remain Not Calculable until
+ *  approved vendor, pilot or RRBO/NMP experimental flooding data are entered. */
+const TERMINOLOGY_PRELIMINARY = {
+  utilizationLabel: 'Utilization against preliminary capacity-screening basis',
+  marginLabel: 'Preliminary hydraulic loading margin',
+  basisLabel: 'Thermopac preliminary SMVP throughput threshold',
+  trueFloodingStatement:
+    'True flooding utilization and true flooding margin: Not Calculable — they remain Not Calculable until approved vendor, pilot or RRBO/NMP experimental flooding data are entered.',
+} as const;
+const TERMINOLOGY_VALIDATED = {
+  utilizationLabel: 'Flooding utilization',
+  marginLabel: 'Flooding margin',
+  basisLabel: 'Validated flooding capacity basis',
+  trueFloodingStatement: null,
+} as const;
+const ECR_NOT_ASSESSABLE_TEXT =
+  'ECR Not Assessable for Autonomous Hydraulic Selection — validated ECR capacity basis unavailable.';
 
 type Tech = 'ecp' | 'ecr';
 
 interface CapacityBasis {
   value: number;
   unit: string;
-  tier: 'Vendor Validated' | 'Pilot Validated' | 'Preliminary Screening Threshold';
+  tier: 'Vendor Validated' | 'Pilot Validated' | 'Thermopac preliminary SMVP throughput threshold';
   source: string;
   assumed: boolean;
 }
@@ -60,6 +80,10 @@ interface TechEvaluation {
   engineName: string | null;
   engineVersion: string | null;
   recommendable: boolean;
+  /** True when the technology cannot be assessed at all (no capacity basis / no
+   *  accepted run) — governance distinguishes Not Assessable from Not
+   *  Recommendable: non-assessability never implies technical inferiority. */
+  notAssessable: boolean;
   notRecommendableReason: string | null;
   capacityBasis: CapacityBasis | null;
   utilizationLimit: { value: number; source: string; assumed: boolean } | null;
@@ -105,7 +129,7 @@ function resolveCapacityBasis(inputs: Record<string, any>, tech: Tech): Capacity
   }
   if (tech === 'ecp') {
     const threshold = num(inputs.preliminary_flooding_threshold) ?? PRELIM_THRESHOLD_DEFAULT;
-    return { value: threshold, unit: 'm³/(m²·h)', tier: 'Preliminary Screening Threshold', source: PRELIM_THRESHOLD_SOURCE, assumed: true };
+    return { value: threshold, unit: 'm³/(m²·h)', tier: 'Thermopac preliminary SMVP throughput threshold', source: PRELIM_THRESHOLD_SOURCE, assumed: true };
   }
   // ECR: the SMVP packing screening threshold applies to structured packing only —
   // it is NOT transferable to an agitated column. Without validated ECR capacity
@@ -116,7 +140,7 @@ function resolveCapacityBasis(inputs: Record<string, any>, tech: Tech): Capacity
 function evaluateTechnology(tech: Tech, run: any | null, inputs: Record<string, any>): TechEvaluation {
   const base: TechEvaluation = {
     technology: tech, runId: null, runStatus: null, engineName: null, engineVersion: null,
-    recommendable: false, notRecommendableReason: null, capacityBasis: null, utilizationLimit: null,
+    recommendable: false, notAssessable: false, notRecommendableReason: null, capacityBasis: null, utilizationLimit: null,
     maxTotalFlow_m3_h: null, normalTotalFlow_m3_h: null,
     calculatedMinimumDiameter_mm: null, selectedDiameter_mm: null,
     normalLoading: null, maximumLoading: null, floodingUtilization: null,
@@ -125,7 +149,8 @@ function evaluateTechnology(tech: Tech, run: any | null, inputs: Record<string, 
     checksNotAssessable: [], evaluationTable: [],
   };
   if (!run) {
-    base.notRecommendableReason = `No accepted ${tech.toUpperCase()} calculation run exists for this revision — the technology cannot be assessed.`;
+    base.notAssessable = true;
+    base.notRecommendableReason = `${tech.toUpperCase()} Not Assessable for Autonomous Hydraulic Selection — no accepted ${tech.toUpperCase()} calculation run exists for this revision.`;
     return base;
   }
   base.runId = run.id;
@@ -156,8 +181,10 @@ function evaluateTechnology(tech: Tech, run: any | null, inputs: Record<string, 
   const basis = resolveCapacityBasis(inputs, tech);
   base.capacityBasis = basis;
   if (!basis) {
+    base.notAssessable = true;
     base.notRecommendableReason =
-      'No hydraulic capacity basis is available for ECR: the Thermopac preliminary screening threshold derives from structured-packing (SMV/SMVP) published data and is not transferable to an agitated column; the C3 generic throughput percentage is not a substitute. Enter validated ECR flooding-capacity data (vendor or pilot) to make ECR assessable. No capacity value was invented.';
+      ECR_NOT_ASSESSABLE_TEXT +
+      ' The Thermopac preliminary SMVP throughput threshold derives from structured-packing (SMV/SMVP) published data and is not transferable to an agitated column; the C3 generic throughput percentage is not a substitute. Enter validated ECR flooding-capacity data (vendor or pilot) to make ECR assessable. Non-assessability does not imply technical inferiority; no capacity value was invented.';
     return base;
   }
   const uLimitVal = num(inputs.max_design_utilization) ?? UTILIZATION_LIMIT_DEFAULT;
@@ -201,7 +228,7 @@ function evaluateTechnology(tech: Tech, run: any | null, inputs: Record<string, 
     if (selected_mm === null && d_mm >= firstIncrement_mm && d_mm % INCREMENT_MM === 0 && feasible) selected_mm = d_mm;
   }
   if (selected_mm === null) {
-    base.notRecommendableReason = `No diameter in the frozen ${tech.toUpperCase()} sweep at or above the rounded minimum (${firstIncrement_mm} mm) satisfies utilization ≤ ${uLimit.value} against the ${basis.tier} basis (${basis.value} ${basis.unit}). The sweep range may be exceeded — extend the engine sweep or review the basis.`;
+    base.notRecommendableReason = `No diameter in the frozen ${tech.toUpperCase()} sweep at or above the rounded minimum (${firstIncrement_mm} mm) satisfies utilization ≤ ${uLimit.value} against the ${basis.tier} (${basis.value} ${basis.unit}). The sweep range may be exceeded — extend the engine sweep or review the basis.`;
     return base;
   }
 
@@ -237,24 +264,31 @@ function runCascade(evals: TechEvaluation[]) {
   const rec = evals.filter(e => e.recommendable);
   const elim = evals.filter(e => !e.recommendable);
   steps.push({
-    step: 1, criterion: 'Hydraulic feasibility',
-    evaluation: evals.map(e => `${e.technology.toUpperCase()}: ${e.recommendable ? `recommendable (selected ${e.selectedDiameter_mm} mm, utilization ${e.floodingUtilization?.toFixed(4)})` : `NOT recommendable — ${e.notRecommendableReason}`}`).join(' | '),
-    outcome: rec.length === 0 ? 'No recommendable technology' : rec.length === 1 ? `${rec[0].technology.toUpperCase()} is the only hydraulically recommendable technology — selected at step 1` : `${rec.length} technologies recommendable — proceed to step 2`,
+    step: 1, criterion: 'Hydraulic feasibility / assessability',
+    evaluation: evals.map(e => `${e.technology.toUpperCase()}: ${e.recommendable ? `assessable and feasible (selected ${e.selectedDiameter_mm} mm, utilization ${e.floodingUtilization?.toFixed(4)} against the ${e.capacityBasis?.tier ?? 'declared basis'})` : e.notAssessable ? `NOT ASSESSABLE — ${e.notRecommendableReason}` : `NOT feasible — ${e.notRecommendableReason}`}`).join(' | '),
+    outcome: rec.length === 0 ? 'No assessable and feasible technology' : rec.length === 1 ? `${rec[0].technology.toUpperCase()} is the only currently assessable and hydraulically feasible technology — selected at step 1` : `${rec.length} technologies assessable and feasible — proceed to step 2`,
   });
-  if (rec.length === 0) return { steps, selected: null as Tech | null, status: 'not_recommendable' as const, reason: `No technology is hydraulically recommendable: ${elim.map(e => `${e.technology.toUpperCase()} — ${e.notRecommendableReason}`).join('; ')}` };
-  if (rec.length === 1) return { steps, selected: rec[0].technology, status: 'recommended' as const, reason: `${rec[0].technology.toUpperCase()} selected at cascade step 1 (hydraulic feasibility): ${elim.length ? elim.map(e => `${e.technology.toUpperCase()} not recommendable — ${e.notRecommendableReason}`).join('; ') : 'only recommendable technology'}` };
+  if (rec.length === 0) return { steps, selected: null as Tech | null, status: 'not_recommendable' as const, reason: `No technology is currently assessable and hydraulically feasible: ${elim.map(e => `${e.technology.toUpperCase()} — ${e.notRecommendableReason}`).join('; ')}` };
+  if (rec.length === 1) {
+    const sel = rec[0].technology.toUpperCase();
+    const allElimNotAssessable = elim.length > 0 && elim.every(e => e.notAssessable);
+    const reason = allElimNotAssessable
+      ? `${sel} selected as the only currently assessable technology under the available preliminary hydraulic basis. This does not establish technical superiority over ${elim.map(e => e.technology.toUpperCase()).join(', ')}. ${elim.map(e => e.notRecommendableReason).join('; ')}`
+      : `${sel} selected at cascade step 1 (hydraulic feasibility): ${elim.length ? elim.map(e => `${e.technology.toUpperCase()} — ${e.notRecommendableReason}`).join('; ') : 'only assessable and feasible technology'}`;
+    return { steps, selected: rec[0].technology, status: 'recommended' as const, reason };
+  }
 
-  // Step 2 — direct comparison of the actual calculated flooding margins (no tie band)
+  // Step 2 — direct comparison of the actual calculated hydraulic loading margins (no tie band)
   const sorted = [...rec].sort((a, b) => (b.floodingMarginFraction ?? -Infinity) - (a.floodingMarginFraction ?? -Infinity));
   const best = sorted[0]; const second = sorted[1];
   const m1 = best.floodingMarginFraction; const m2 = second.floodingMarginFraction;
   steps.push({
-    step: 2, criterion: 'Flooding margin (direct comparison of calculated values)',
+    step: 2, criterion: 'Hydraulic loading margin (direct comparison of calculated values; reported as preliminary when the basis is a screening threshold)',
     evaluation: rec.map(e => `${e.technology.toUpperCase()}: margin ${e.floodingMarginFraction?.toFixed(6)} (${e.floodingMarginAbsolute?.toFixed(3)} m³/(m²·h) absolute)`).join(' | '),
-    outcome: m1 !== null && m2 !== null && m1 !== m2 ? `${best.technology.toUpperCase()} has the greater flooding margin — selected at step 2` : 'Margins identical — proceed to step 3',
+    outcome: m1 !== null && m2 !== null && m1 !== m2 ? `${best.technology.toUpperCase()} has the greater hydraulic loading margin — selected at step 2` : 'Margins identical — proceed to step 3',
   });
   if (m1 !== null && m2 !== null && m1 !== m2) {
-    return { steps, selected: best.technology, status: 'recommended' as const, reason: `${best.technology.toUpperCase()} selected at cascade step 2: flooding margin ${m1.toFixed(4)} vs ${second.technology.toUpperCase()} ${m2.toFixed(4)} (direct comparison of calculated values).` };
+    return { steps, selected: best.technology, status: 'recommended' as const, reason: `${best.technology.toUpperCase()} selected at cascade step 2: hydraulic loading margin ${m1.toFixed(4)} vs ${second.technology.toUpperCase()} ${m2.toFixed(4)} (direct comparison of calculated values).` };
   }
 
   // Step 3 — pressure drop, only when validated ΔP data exist for ALL remaining technologies
@@ -287,7 +321,7 @@ function deriveConfidence(evals: TechEvaluation[], selected: Tech | null): { lev
       facts.push('Utilization limit or capacity basis remains Assumed — confidence limited to Preliminary Screening.');
     }
   } else {
-    facts.push('Capacity basis tier: ' + (tiers.join(', ') || 'none') + ' — Preliminary Screening threshold governs the selection path.');
+    facts.push('Capacity basis tier: ' + (tiers.join(', ') || 'none') + ' — the Thermopac preliminary SMVP throughput threshold governs the selection path.');
   }
   facts.push('Ladder: Preliminary Screening → Engineering Standard → Vendor Validated → Pilot Validated → Commercially Proven. Confidence equals the maturity of the WEAKEST selection-path input. Engineering Standard requires an approved Thermopac standard basis (none registered); Commercially Proven requires an approved operating-reference record (register not yet established).');
   return { level, basis: facts };
@@ -336,9 +370,12 @@ export async function generateSelectionRecord(revisionId: number, userId: number
     engine: { id: DSEL_ENGINE_ID, version: DSEL_ENGINE_VERSION },
     generatedAt: new Date().toISOString(),
     revisionId,
-    governanceState: 'Autonomous Preliminary Selection — Pending Hydraulic Validation',
+    governanceState: 'Autonomous Preliminary Selection — Pending Hydraulic and Pressure-Drop Validation',
     roundingRule: ROUNDING_RULE_TEXT,
     incrementMm: INCREMENT_MM,
+    // Governed terminology (audit correction 2026-08-06): screening-basis
+    // quantities are never presented as true flooding quantities.
+    terminology: (selectedEval?.capacityBasis && !selectedEval.capacityBasis.assumed) ? TERMINOLOGY_VALIDATED : TERMINOLOGY_PRELIMINARY,
     technologies: evals,
     cascade: cascade.steps,
     selectedTechnology: cascade.selected,

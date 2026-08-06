@@ -165,15 +165,22 @@ async function decisionRecordSection(revisionId: number): Promise<ReportSection>
   const rec = row.record ?? {};
   const f4 = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(4) : '—');
   const f2n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(2) : '—');
+  const term = rec.terminology ?? {
+    utilizationLabel: 'Utilization against preliminary capacity-screening basis',
+    marginLabel: 'Preliminary hydraulic loading margin',
+    basisLabel: 'Thermopac preliminary SMVP throughput threshold',
+    trueFloodingStatement: 'True flooding utilization and true flooding margin: Not Calculable — they remain Not Calculable until approved vendor, pilot or RRBO/NMP experimental flooding data are entered.',
+  };
   const rows: ReportRow[] = [
     { label: 'Selected technology', value: rec.selectedTechnology ? String(rec.selectedTechnology).toUpperCase() : (rec.selectionStatus === 'engineering_review_required' ? 'NONE — engineering review required' : 'NONE — not recommendable'), sourceType: `Record #${row.id}`, sourceRef: rec.governanceState ?? '' },
-    { label: 'Selected diameter', value: rec.selectedDiameter_mm != null ? String(rec.selectedDiameter_mm) : '—', unit: 'mm', sourceType: 'DS-SEL-003' },
+    { label: 'Selected preliminary diameter', value: rec.selectedDiameter_mm != null ? String(rec.selectedDiameter_mm) : '—', unit: 'mm', sourceType: 'DS-SEL-003' },
     { label: 'Calculated minimum diameter', value: rec.calculatedMinimumDiameter_mm != null ? String(rec.calculatedMinimumDiameter_mm) : '—', unit: 'mm', sourceType: 'DS-SEL-001' },
     { label: 'Practical rounding rule', value: '—', sourceType: 'DS-SEL-002', sourceRef: rec.roundingRule ?? '' },
     { label: 'Normal loading at selected diameter', value: f2n(rec.normalLoading), unit: 'm³/(m²·h)', sourceType: 'Frozen sweep (verbatim)' },
     { label: 'Maximum loading at selected diameter', value: f2n(rec.maximumLoading), unit: 'm³/(m²·h)', sourceType: 'Frozen sweep (verbatim)' },
-    { label: 'Flooding utilization (maximum case governs)', value: f4(rec.floodingUtilization), unit: '-', sourceType: 'DS-SEL-003', sourceRef: rec.capacityBasis ? `Basis: ${rec.capacityBasis.value} ${rec.capacityBasis.unit} — ${rec.capacityBasis.tier}` : '' },
-    { label: 'Flooding margin', value: `${f4(rec.floodingMarginFraction)} (${f2n(rec.floodingMarginAbsolute)} m³/(m²·h) absolute)`, sourceType: 'DS-SEL-005 step 2' },
+    { label: `${term.utilizationLabel} (maximum case governs)`, value: f4(rec.floodingUtilization), unit: '-', sourceType: 'DS-SEL-003', sourceRef: rec.capacityBasis ? `Basis: ${rec.capacityBasis.value} ${rec.capacityBasis.unit} — ${rec.capacityBasis.tier}` : '' },
+    { label: term.marginLabel, value: `${f4(rec.floodingMarginFraction)} (${f2n(rec.floodingMarginAbsolute)} m³/(m²·h) absolute)`, sourceType: 'DS-SEL-005 step 2' },
+    ...(term.trueFloodingStatement ? [{ label: 'True flooding utilization / true flooding margin', value: 'Not Calculable', sourceType: 'Governance', sourceRef: term.trueFloodingStatement } as ReportRow] : []),
     { label: 'Confidence level', value: String(rec.confidenceLevel ?? row.confidence_level ?? '—'), sourceType: 'Data maturity only — never a selection criterion' },
     { label: 'Engineer decision', value: String(row.decision ?? 'pending'), sourceType: row.decision_engineer ? `Engineer: ${row.decision_engineer}` : '', sourceRef: row.decision_reason ?? '' },
   ];

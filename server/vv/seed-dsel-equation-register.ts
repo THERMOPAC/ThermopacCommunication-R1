@@ -32,20 +32,20 @@ const DSEL: Entry[] = [
   },
   {
     ref: 'DS-SEL-003',
-    statement: 'Hydraulic feasibility and diameter selection: flooding utilization U = L_total/C_basis with L_total read verbatim from the frozen maximum-continuous-case sweep row at the candidate diameter (never recomputed); a candidate is feasible when U ≤ u_allow; the selected diameter is the SMALLEST practical 50 mm increment at or above the rounded minimum that is feasible. Checks without governed data (minimum wetting, distributor range, vendor recommended loading) are skipped-with-notation, never silently passed.',
-    citation: `${REG}, DS-SEL-003 — deterministic selection rule`,
+    statement: 'Hydraulic feasibility and diameter selection: utilization against the declared capacity basis U = L_total/C_basis with L_total read verbatim from the frozen maximum-continuous-case sweep row at the candidate diameter (never recomputed); a candidate is feasible when U ≤ u_allow; the selected preliminary diameter is the SMALLEST practical 50 mm increment at or above the rounded minimum that is feasible. When C_basis is the Thermopac preliminary SMVP throughput threshold, U is the "utilization against preliminary capacity-screening basis" and (1 − U) is the "preliminary hydraulic loading margin" — true flooding utilization and true flooding margin remain Not Calculable until approved vendor, pilot or RRBO/NMP experimental flooding data are entered. Checks without governed data (minimum wetting, distributor range, vendor recommended loading) are skipped-with-notation, never silently passed.',
+    citation: `${REG}, DS-SEL-003 — deterministic selection rule; terminology per engineering audit correction 2026-08-06`,
     unitsNote: 'L_total, C_basis m³/(m²·h); U dimensionless', rangeNote: 'Candidate diameters restricted to the frozen sweep range; sweep exhaustion ⇒ Not Recommendable, never extrapolated.',
   },
   {
     ref: 'DS-SEL-004',
-    statement: 'Capacity-basis hierarchy: engineer-entered validated flooding capacity (Vendor Validated or Pilot Validated, source-referenced) governs when present; otherwise the ECP preliminary screening threshold (upper bound of the Sulzer SMV/SMVP published screening throughput range 35–60 m³/(m²·h)) applies, tagged Assumed — Pending Hydraulic Validation. The packing screening threshold is NOT transferable to ECR: without validated ECR capacity data, ECR has no capacity basis and is Not Recommendable — no value is invented and the C3 generic percentage is not a substitute.',
-    citation: `${REG}, DS-SEL-004 — data governance rule; threshold source: Johannes Rauber, Sulzer Chemtech Ltd., AIChE 2006`,
+    statement: 'Capacity-basis hierarchy: engineer-entered validated flooding capacity (Vendor Validated or Pilot Validated, source-referenced) governs when present; otherwise the Thermopac preliminary SMVP throughput threshold (upper bound of the Sulzer SMV/SMVP published screening throughput range 35–60 m³/(m²·h) — a published typical SMVP throughput characteristic, NOT validated RRBO/NMP flooding capacity) applies, tagged Assumed — Pending Hydraulic and Pressure-Drop Validation. The packing throughput threshold is NOT transferable to ECR: without validated ECR capacity data ECR is "Not Assessable for Autonomous Hydraulic Selection — validated ECR capacity basis unavailable"; non-assessability does not imply technical inferiority, no value is invented, and the C3 generic percentage is not a substitute.',
+    citation: `${REG}, DS-SEL-004 — data governance rule; threshold source: Johannes Rauber, Sulzer Chemtech Ltd., AIChE 2006; terminology per engineering audit correction 2026-08-06`,
     unitsNote: 'm³/(m²·h)', rangeNote: 'Strict first-match hierarchy; active tier always named on the Engineering Decision Record.',
   },
   {
     ref: 'DS-SEL-005',
-    statement: 'Technology selection cascade (deterministic, first differentiator wins): (1) hydraulic feasibility — technologies with a failed run or no feasible diameter are eliminated with the stated reason; (2) direct comparison of the actual calculated flooding margins (1 − U) at each technology\'s selected diameter — greater margin preferred, no tie band; (3) pressure drop, applied ONLY when validated ΔP data exist for all remaining technologies — lower ΔP preferred. If technologies remain technically equivalent after all criteria: "Multiple technically acceptable solutions identified. Engineering review required." — no preference is invented.',
-    citation: `${REG}, DS-SEL-005 — deterministic priority cascade, user directive 2026-08-06`,
+    statement: 'Technology selection cascade (deterministic, first differentiator wins): (1) assessability and hydraulic feasibility — a technology without a validated capacity basis is "Not Assessable for Autonomous Hydraulic Selection" (eliminated with the stated reason, without any implication of technical inferiority); technologies with a failed run or no feasible diameter are eliminated with the stated reason; when exactly one technology remains assessable, it is selected as the only currently assessable technology under the available preliminary hydraulic basis — this does not establish technical superiority; (2) direct comparison of the actual calculated hydraulic loading margins (1 − U) at each technology\'s selected diameter — greater margin preferred, no tie band; (3) pressure drop, applied ONLY when validated ΔP data exist for all remaining technologies — lower ΔP preferred. If technologies remain technically equivalent after all criteria: "Multiple technically acceptable solutions identified. Engineering review required." — no preference is invented.',
+    citation: `${REG}, DS-SEL-005 — deterministic priority cascade, user directive 2026-08-06; terminology per engineering audit correction 2026-08-06`,
     unitsNote: 'margins dimensionless; ΔP Pa', rangeNote: 'Confidence level is data-maturity information only and is NEVER used as a tie-breaker.',
   },
 ];
@@ -57,7 +57,10 @@ async function main() {
       await pool.query(
         `INSERT INTO vv_equation_register (engine_id, equation_ref, statement, source_citation, units_note, valid_range_note, evidence)
          VALUES ($1,$2,$3,$4,$5,$6,'{}')
-         ON CONFLICT (engine_id, equation_ref) DO NOTHING`,
+         ON CONFLICT (engine_id, equation_ref) DO UPDATE
+           SET statement = EXCLUDED.statement, source_citation = EXCLUDED.source_citation,
+               units_note = EXCLUDED.units_note, valid_range_note = EXCLUDED.valid_range_note,
+               updated_at = NOW()`,
         ['llx-design-selection', e.ref, e.statement, e.citation, e.unitsNote, e.rangeNote]);
       console.log('seeded', e.ref);
     }
