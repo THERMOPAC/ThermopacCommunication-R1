@@ -11,6 +11,7 @@ import { engineRegistry } from './engine-framework/registry';
 import { CalculationContext } from './engine-framework/types';
 import { mapWorkspaceProcessDesignInputs } from './llx-process-design-input-mapper';
 import { mapWorkspaceMechanicalInputs } from './llx-mechanical-design-input-mapper';
+import { mergeSectionData } from './section-merge';
 import { generateNozzleSchedule as generateNozzles } from './llx-nozzle-master-data';
 
 // ── Lifecycle transition table ────────────────────────────────────────────────
@@ -470,13 +471,19 @@ export async function upsertInput(
 ) {
   await assertRevisionNotFrozen(revisionId);
 
+  const existingRow = await pool.query(
+    'SELECT data FROM design_software_inputs WHERE revision_id = $1 AND section = $2',
+    [revisionId, section],
+  );
+  const merged = mergeSectionData(existingRow.rows[0]?.data, data);
+
   const result = await pool.query(
     `INSERT INTO design_software_inputs (revision_id, section, data, engine_version, updated_by)
      VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (revision_id, section)
      DO UPDATE SET data = $3, engine_version = $4, updated_by = $5, updated_at = NOW()
      RETURNING *`,
-    [revisionId, section, JSON.stringify(data), engineVersion, userId],
+    [revisionId, section, JSON.stringify(merged), engineVersion, userId],
   );
 
   // Bump lock_version on revision
