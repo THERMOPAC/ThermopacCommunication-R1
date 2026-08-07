@@ -23,3 +23,23 @@ CREATE TABLE IF NOT EXISTS design_selection_records (LIKE design_selection_recor
 Real DDL: copy from dev — `pg_dump --schema-only -t design_selection_records` or re-run the raw SQL used in dev (table with record jsonb, selected_technology, selected_diameter_mm, confidence_level, selection_status chk (recommended/engineering_review_required/not_recommendable), is_superseded, decision chk (pending/approved/verification_requested/overridden), decision_by/at/engineer/reason, override_technology/diameter_mm/impact, created_by/at).
 Also seed prod V&V equation register: `npx tsx server/vv/seed-dsel-equation-register.ts` against prod DB.
 Also on prod: `CREATE UNIQUE INDEX IF NOT EXISTS design_selection_records_one_active_per_revision ON design_selection_records (revision_id) WHERE is_superseded = FALSE;`
+
+## DS-SEL-006 diameter governance (dev-only as of 2026-08-07)
+Apply to prod at next publish:
+```sql
+ALTER TABLE design_selection_records
+  ADD COLUMN IF NOT EXISTS selection_mode varchar(20) NOT NULL DEFAULT 'autonomous',
+  ADD COLUMN IF NOT EXISTS user_selected_diameter_mm integer,
+  ADD COLUMN IF NOT EXISTS effective_diameter_mm integer,
+  ADD COLUMN IF NOT EXISTS user_selection_engineer varchar(120),
+  ADD COLUMN IF NOT EXISTS user_selection_reason text,
+  ADD COLUMN IF NOT EXISTS user_selection_at timestamp,
+  ADD COLUMN IF NOT EXISTS selection_impact jsonb;
+ALTER TABLE design_selection_records ADD CONSTRAINT dsel_records_mode_chk CHECK (selection_mode IN ('autonomous','user_selected'));
+ALTER TABLE design_reports
+  ADD COLUMN IF NOT EXISTS is_stale boolean NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS stale_reason text;
+DROP INDEX IF EXISTS design_reports_rev_doc_uidx;
+CREATE UNIQUE INDEX design_reports_rev_doc_live_uidx ON design_reports (revision_id, doc_type) WHERE NOT is_stale;
+```
+(The partial index is REQUIRED — generateReport's ON CONFLICT targets `(revision_id, doc_type) WHERE NOT is_stale`.) Re-seed DS-SEL register (now includes DS-SEL-006).
