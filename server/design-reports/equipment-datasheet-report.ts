@@ -88,6 +88,14 @@ export async function buildEquipmentDatasheetPayload(revisionId: number, generat
   if (!dc.designCode || String(dc.designCode) === 'NOT_ASSIGNED') {
     missing.push({ item: 'Design code', reason: 'No governing design code has been assigned in the mechanical design inputs (engine records NOT_ASSIGNED). A datasheet cannot be issued for procurement without the governing code — assign it in Stage 9.', severity: 'error' });
   }
+  // Procurement-required values the engine declared unavailable (null) are
+  // rendered "Not Calculable" verbatim AND block leaving draft.
+  if (typeof thk.shellSelected_mm !== 'number') {
+    missing.push({ item: 'Shell thickness (selected)', reason: 'The frozen mechanical snapshot carries no selected shell thickness (engine declared it unavailable). A procurement datasheet cannot leave draft without it.', severity: 'error' });
+  }
+  if (typeof thk.headSelected_mm !== 'number') {
+    missing.push({ item: 'Head thickness (selected)', reason: 'The frozen mechanical snapshot carries no selected head thickness (engine declared it unavailable — e.g. flat/custom head outside the screening method). A procurement datasheet cannot leave draft without it.', severity: 'error' });
+  }
 
   // ── Sections ───────────────────────────────────────────────────────────────
   const sections: ReportSection[] = [
@@ -126,8 +134,8 @@ export async function buildEquipmentDatasheetPayload(revisionId: number, generat
       { label: 'Allowable stress', value: fnum(mat.allowableStress_MPa, 1), unit: 'MPa', sourceType: s(mat.source ?? 'Stage 9 input (frozen)') },
       { label: 'Material density', value: f0(mat.density_kg_m3), unit: 'kg/m³', sourceType: s(mat.source ?? 'Stage 9 input (frozen)') },
       { label: 'Corrosion allowance', value: fnum(mat.corrosionAllowance_mm ?? thk.corrosionAllowance_mm, 1), unit: 'mm', sourceType: 'Stage 9 input (frozen)' },
-      { label: 'Shell thickness (selected)', value: fnum(thk.shellSelected_mm, 1), unit: 'mm', sourceType: s(thk.method ?? 'Frozen mechanical snapshot') },
-      { label: 'Head thickness (selected)', value: fnum(thk.headSelected_mm, 1), unit: 'mm', sourceType: s(thk.method ?? 'Frozen mechanical snapshot') },
+      { label: 'Shell thickness (selected)', value: typeof thk.shellSelected_mm === 'number' ? fnum(thk.shellSelected_mm, 1) : 'Not Calculable', unit: 'mm', sourceType: s(thk.method ?? 'Frozen mechanical snapshot') },
+      { label: 'Head thickness (selected)', value: typeof thk.headSelected_mm === 'number' ? fnum(thk.headSelected_mm, 1) : 'Not Calculable', unit: 'mm', sourceType: s(thk.method ?? 'Frozen mechanical snapshot') },
     ]},
     { title: 'Supports, Weights & Lifting', rows: [
       { label: 'Support type / quantity', value: `${s(sup.type)} / ${s(sup.quantity)}`, sourceType: 'Frozen mechanical snapshot', sourceRef: s(sup.basis ?? '') === '—' ? '' : String(sup.basis) },
@@ -153,6 +161,12 @@ export async function buildEquipmentDatasheetPayload(revisionId: number, generat
   } else {
     missing.push({ item: 'Nozzle schedule', reason: 'No nozzle rows exist in the frozen mechanical snapshot — enter the nozzle schedule in Stage 9 and re-run the mechanical calculation.', severity: 'error' });
   }
+  // Nozzle completeness gate: procurement requires size and rating per nozzle.
+  const isMissingVal = (v: unknown) => v == null || v === '' || /not calculable|not entered|not_assigned/i.test(String(v));
+  const incompleteNozzles = nozzles.filter((n: any) => isMissingVal(n.size_DN ?? n.size) || isMissingVal(n.rating));
+  if (incompleteNozzles.length) {
+    missing.push({ item: 'Nozzle schedule completeness', reason: `Nozzle(s) ${incompleteNozzles.map((n: any) => s(n.tag)).join(', ')} have no size and/or rating in the frozen mechanical snapshot (engine value reproduced verbatim). Complete the Stage 9 nozzle inputs and re-run the mechanical calculation before leaving draft.`, severity: 'error' });
+  }
 
   // ── Diameter governance (DS-SEL-006) ──────────────────────────────────────
   if (dsel?.selectedDiameter_mm != null) {
@@ -165,7 +179,9 @@ export async function buildEquipmentDatasheetPayload(revisionId: number, generat
       ],
     });
     const effM = (dsel.effectiveDiameter_mm ?? dsel.selectedDiameter_mm) / 1000;
-    if (typeof geo.insideDiameter_m === 'number' && Math.abs(geo.insideDiameter_m - effM) > 0.0005) {
+    if (typeof geo.insideDiameter_m !== 'number' || !Number.isFinite(geo.insideDiameter_m)) {
+      missing.push({ item: 'Diameter consistency', reason: 'The frozen mechanical snapshot carries no numeric inside diameter — the consistency check against the effective design diameter (DS-SEL-006) cannot be performed. Re-run the mechanical calculation.', severity: 'error' });
+    } else if (Math.abs(geo.insideDiameter_m - effM) > 0.0005) {
       missing.push({ item: 'Diameter consistency', reason: `The frozen mechanical snapshot inside diameter (${geo.insideDiameter_m} m) does not match the effective design diameter (${effM} m) — a Stage 9 explicit diameter override or a stale mechanical run governs. Re-run the mechanical calculation or resolve the override before issue.`, severity: 'error' });
     }
   } else {

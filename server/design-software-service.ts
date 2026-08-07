@@ -738,6 +738,16 @@ export async function runCalculation(
     ],
   );
 
+  // Governing-geometry change detection (mechanical): capture the previous
+  // accepted snapshot BEFORE the upsert so reports can be reconciled when an
+  // ordinary Stage 9 re-run (e.g. an explicit diameter override) changes the
+  // geometry outside the DS-SEL-006 workflow.
+  let prevMechGeometry: any = null;
+  if (calculationType === 'mechanical_vessel' && calcResult.status !== 'error') {
+    const prevQ = await pool.query(`SELECT data FROM design_software_results WHERE revision_id = $1 AND section = 'mechanical_vessel'`, [revisionId]);
+    prevMechGeometry = prevQ.rows[0]?.data?.mechanicalDatasheet?.geometry ?? prevQ.rows[0]?.data?.geometry ?? null;
+  }
+
   // If success/warning, upsert the accepted result
   if (calcResult.status !== 'error') {
     await pool.query(
@@ -752,6 +762,29 @@ export async function runCalculation(
         engine.getEngineVersion(), calcResult.calculationClass, userId,
       ],
     );
+  }
+
+  // Report reconciliation on governing-geometry change (mechanical): an
+  // ordinary Stage 9 re-run that changes the governing geometry (diameter,
+  // heights, thickness) must reconcile existing reports exactly like the
+  // DS-SEL-006 workflow does — otherwise a previously issued datasheet could
+  // stay live with the old geometry. Non-fatal for the run itself, but every
+  // failure is logged loudly; the DS-SEL orchestrator's own final
+  // reconciliation is idempotent over whatever this pass already did.
+  if (calculationType === 'mechanical_vessel' && calcResult.status !== 'error') {
+    const mechData: any = calcResult.data ?? {};
+    const newGeo = mechData.mechanicalDatasheet?.geometry ?? mechData.geometry ?? null;
+    const geoKey = (g: any) => g ? JSON.stringify([g.insideDiameter_m, g.tangentToTangent_m, g.overallHeight_m, g.straightShell_m, g.headType]) : null;
+    if (prevMechGeometry && newGeo && geoKey(prevMechGeometry) !== geoKey(newGeo)) {
+      try {
+        const { reconcileReportsAfterDesignChange } = await import('./design-reports/report-service');
+        await reconcileReportsAfterDesignChange(
+          revisionId, userId,
+          `Superseded by an accepted mechanical re-run that changed the governing geometry (inside diameter ${prevMechGeometry.insideDiameter_m} m → ${newGeo.insideDiameter_m} m).`);
+      } catch (e: any) {
+        console.error('[REPORTS] Reconciliation after mechanical geometry change FAILED — existing reports may show superseded geometry:', e?.message ?? e);
+      }
+    }
   }
 
   // DS-SEL — regenerate the autonomous design selection record whenever an

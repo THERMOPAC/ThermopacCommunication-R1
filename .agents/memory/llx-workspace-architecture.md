@@ -76,3 +76,5 @@ mechanical_design, utilities, cost_estimation
 
 ## PDF glyph safety (report framework)
 - Helvetica base-14 fonts are WinAnsi-only: π, Greek letters, ≤, √, − render as garbage. renderReportPdf() deep-sanitizes the payload via NON_WINANSI_MAP transliteration (π→pi, ρ→rho, ≤→<=, …). Any new report content with math symbols outside WinAnsi must go through this renderer, not raw pdfkit text.
+
+**Equipment Datasheet (EDS, 2026-08-07):** builder at server/design-reports/equipment-datasheet-report.ts renders ONLY the frozen mechanical_vessel result snapshot (`mechanicalDatasheet` object) + design inputs + active DS-SEL record. Blocking (error) gates: design code NOT_ASSIGNED, missing selected shell/head thickness, incomplete nozzle size/rating, mech inside diameter absent or ≠ effective DS-SEL diameter. Any accepted mechanical re-run that changes governing geometry auto-reconciles reports (same stale/regenerate path as DS-SEL-006) — detection compares prev vs new mechanicalDatasheet.geometry in runCalculation.
