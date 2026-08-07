@@ -114,9 +114,16 @@ export async function reconcileReportsAfterDesignChange(revisionId: number, user
   for (const rep of rows.rows) {
     try {
       if (rep.status !== 'draft') {
-        await pool.query(
-          `UPDATE design_reports SET is_stale = TRUE, stale_reason = $2 WHERE id = $1 AND NOT is_stale`,
-          [rep.id, changeReason]);
+        // Expected-status predicate — refuses to mark stale if the report
+        // transitioned concurrently since it was read; that generation must
+        // then be reconciled by a re-run of this routine.
+        const upd = await pool.query(
+          `UPDATE design_reports SET is_stale = TRUE, stale_reason = $2 WHERE id = $1 AND NOT is_stale AND status = $3`,
+          [rep.id, changeReason, rep.status]);
+        if (upd.rowCount === 0) {
+          outcome.push({ docType: rep.doc_type, action: 'FAILED', error: 'Report status changed concurrently during reconciliation — re-apply the reconciliation for this report type.' });
+          continue;
+        }
         await logEvent(rep.id, 'marked_stale', userId, changeReason);
         await generateReport(revisionId, rep.doc_type, userId); // new draft row from the new frozen runs
         outcome.push({ docType: rep.doc_type, action: `previous ${rep.status} report marked stale; new draft generated from the new frozen runs` });
@@ -167,7 +174,7 @@ export async function advanceReportStatus(reportId: number, userId: number) {
   }
   const col = next === 'for_review' ? 'reviewed' : next === 'approved' ? 'approved' : 'issued';
   // Expected-status predicate — two concurrent advances cannot both transition
-  const upd = await pool.query(`UPDATE design_reports SET status = $1, ${col}_by = $2, ${col}_at = NOW() WHERE id = $3 AND status = $4`, [next, userId, reportId, rep.status]);
+  const upd = await pool.query(`UPDATE design_reports SET status = $1, ${col}_by = $2, ${col}_at = NOW() WHERE id = $3 AND status = $4 AND NOT is_stale`, [next, userId, reportId, rep.status]);
   if (upd.rowCount === 0) throw Object.assign(new Error('Report status changed concurrently — refresh and retry.'), { statusCode: 409 });
   await logEvent(reportId, `status_${next}`, userId);
   return { id: reportId, status: next };

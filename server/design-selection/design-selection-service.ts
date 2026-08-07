@@ -567,6 +567,18 @@ export async function applyUserDiameterSelection(revisionId: number, userId: num
 
   // Early gate against the CURRENT autonomous minimum (final authoritative
   // validation re-runs against the FRESH record inside generateSelectionRecord).
+  // Revision-wide workflow lock: the governed selection is a multi-step
+  // orchestration (re-runs → record → mechanical → impact → reports). A second
+  // concurrent application (or manual engine run) interleaving with it could
+  // bind a mixed set of runs — refuse instead of queueing.
+  const lockClient = await pool.connect();
+  const locked = await lockClient.query('SELECT pg_try_advisory_lock($1, $2) AS ok', [742002, revisionId]);
+  if (!locked.rows[0]?.ok) {
+    lockClient.release();
+    throw Object.assign(new Error('Another governed diameter selection (or recalculation workflow) is in progress for this revision — wait for it to complete and retry.'), { statusCode: 409 });
+  }
+  try {
+
   const active = await getLatestSelection(revisionId);
   if (!active) throw Object.assign(new Error('No design selection record exists — run the Stage 7 equipment calculations first.'), { statusCode: 422 });
   const activeAuto = active.record?.autonomousDiameter_mm ?? active.record?.selectedDiameter_mm ?? null;
@@ -677,6 +689,10 @@ export async function applyUserDiameterSelection(revisionId: number, userId: num
     recalculations: rerunOutcome,
     reports,
   };
+
+  } finally {
+    try { await lockClient.query('SELECT pg_advisory_unlock($1, $2)', [742002, revisionId]); } finally { lockClient.release(); }
+  }
 }
 
 export async function getLatestSelection(revisionId: number) {
