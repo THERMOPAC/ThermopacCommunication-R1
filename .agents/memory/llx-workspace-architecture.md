@@ -81,3 +81,6 @@ mechanical_design, utilities, cost_estimation
 
 ## Report suite complete (all 10 doc types)
 DBR/PDR/HDR/ECPR/ECRR/EDS/MDS/RFQ/PCB/EDR all registered in REPORT_BUILDERS. PCB COMPOSES the other builders' frozen payloads verbatim (parts; unavailable required part = blocking error; DS-SEL selected technology makes that calc part required). EDR reuses exported decisionRecordSection. Mech engine validationChecklist is an OBJECT keyed by check name ({pass, evidence}), NOT an array; failed checks block MDS. C2 headline flows live under data.flows (feedVolumetricFlow, normalSolventVolumetricFlow, ...). Design code NOT_ASSIGNED blocks EDS/MDS/RFQ/EDR (and PCB via Part 6). Inspection/NDE/testing requirements are declared "not specified" in RFQ as warning (belong to purchase spec, not the datasheet) — deliberate.
+
+## Stage 9 inputs are WHOLE-SECTION REPLACE
+POST /revisions/:id/inputs REPLACES the section's data JSON — a partial write (e.g. {design_code} only) WIPES the rest of the section (nozzle_rows, supports...). Any scripted test write must read-merge-write the full section data. Recovery source if wiped: calculation_runs.input_snapshot (mapped engine inputs) + POST /nozzles/generate (deterministic from master data). design_code (Stage 9, engineer-entered, no default) maps to engine designCode; NOT_ASSIGNED when blank.
