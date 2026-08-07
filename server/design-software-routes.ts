@@ -197,9 +197,11 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
 
       // Rotor diameter is engine-calculated from the ratio — remove any earlier
       // default-written rotor_diameter entry (and its register row) on both actions.
+      // Deletions must be explicit null tombstones — input saves use field-level
+      // merge semantics, so omitting a key preserves it (see section-merge.ts).
       if (scope === 'ecr' && sectionData['rotor_diameter_source_reference'] === PRELIM_DEFAULT_REF) {
-        delete sectionData['rotor_diameter'];
-        delete sectionData['rotor_diameter_source_reference'];
+        sectionData['rotor_diameter'] = null;
+        sectionData['rotor_diameter_source_reference'] = null;
       }
       for (const a of existing) {
         if (a.section === section && a.parameter_key === 'rotor_diameter' && isDefaultAssumption(a)) {
@@ -235,13 +237,13 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
         }
       } else {
         for (const f of fields) {
-          delete sectionData[f.key];
-          delete sectionData[`${f.key}_source_reference`];
+          sectionData[f.key] = null;
+          sectionData[`${f.key}_source_reference`] = null;
         }
         if (scope === 'ecp') {
           if (sectionData['hets_source_reference'] === PRELIM_HETS_REF) {
-            delete sectionData['hets_source'];
-            delete sectionData['hets_source_reference'];
+            sectionData['hets_source'] = null;
+            sectionData['hets_source_reference'] = null;
           }
         }
         await svc.upsertInput(revisionId, section, sectionData, '1.0.0', userId);
@@ -250,6 +252,8 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
         }
       }
 
+      // Strip null tombstones from the response — they represent deleted keys.
+      for (const k of Object.keys(sectionData)) if (sectionData[k] === null) delete sectionData[k];
       res.json({ section, data: sectionData, applied: action === 'apply', fieldCount: fields.length });
     } catch (err: any) {
       const status = err.message?.includes('frozen') ? 409 : err.message?.includes('not found') ? 404 : 500;

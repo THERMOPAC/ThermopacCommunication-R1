@@ -471,19 +471,23 @@ export async function upsertInput(
 ) {
   await assertRevisionNotFrozen(revisionId);
 
-  const existingRow = await pool.query(
-    'SELECT data FROM design_software_inputs WHERE revision_id = $1 AND section = $2',
-    [revisionId, section],
-  );
-  const merged = mergeSectionData(existingRow.rows[0]?.data, data);
+  // Field-level merge semantics (see server/section-merge.ts): incoming keys
+  // overwrite, absent keys are preserved, explicit null deletes a key. The
+  // merge happens atomically inside the UPDATE statement (JSONB || / - on the
+  // stored row) so concurrent partial saves cannot lose each other's fields.
+  const removeKeys = Object.keys(data).filter((k) => data[k] === null);
+  const setData: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(data)) if (v !== null) setData[k] = v;
 
   const result = await pool.query(
     `INSERT INTO design_software_inputs (revision_id, section, data, engine_version, updated_by)
      VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (revision_id, section)
-     DO UPDATE SET data = $3, engine_version = $4, updated_by = $5, updated_at = NOW()
+     DO UPDATE SET
+       data = (COALESCE(design_software_inputs.data, '{}'::jsonb) || $3::jsonb) - $6::text[],
+       engine_version = $4, updated_by = $5, updated_at = NOW()
      RETURNING *`,
-    [revisionId, section, JSON.stringify(merged), engineVersion, userId],
+    [revisionId, section, JSON.stringify(setData), engineVersion, userId, removeKeys],
   );
 
   // Bump lock_version on revision
