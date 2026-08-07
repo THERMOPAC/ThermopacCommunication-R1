@@ -19,6 +19,15 @@ import { pool } from '../db';
 import type { ReportPayload, ReportRow, ReportSection } from './report-framework';
 import { classifyTaggedSource } from './report-framework';
 
+/** Display-level wording of the configurable utilization-band note (presentation
+ *  only — the frozen snapshot note text is never modified). */
+const SCREENING_CRITERION_WORDING = 'Thermopac Preliminary Engineering Screening Criterion (project-specific). This is a configurable engineering screening limit and shall not be interpreted as a universal hydraulic design limit.';
+const rewordScreeningNote = (note: unknown): string => {
+  const s = String(note ?? '');
+  return s.includes('Configurable screening criterion') ? SCREENING_CRITERION_WORDING : s;
+};
+
+
 const f2 = (v: unknown): string => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(2) : '');
 const f3 = (v: unknown): string => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(3) : '');
 
@@ -280,7 +289,7 @@ export async function buildEcpCalculationPayload(revisionId: number, generatedBy
     { label: 'RRBO (dispersed) mass flow', value: f2(kase?.flows?.rrboMassFlow_kg_h), unit: 'kg/h', sourceType: 'From C2 frozen flows' },
     { label: 'NMP volumetric flow', value: f2(kase?.flows?.nmpVolumetricFlow_m3_h), unit: 'm³/h', sourceType: 'From C2 frozen flows' },
     { label: 'RRBO volumetric flow', value: f2(kase?.flows?.rrboVolumetricFlow_m3_h), unit: 'm³/h', sourceType: 'From C2 frozen flows' },
-    { label: 'Utilization screening band', value: `${kase?.utilizationBandPercent?.min ?? '—'} – ${kase?.utilizationBandPercent?.max ?? '—'}`, unit: '%', sourceType: 'Configurable criterion', sourceRef: kase?.utilizationBandPercent?.note ?? '' },
+    { label: 'Utilization screening band', value: `${kase?.utilizationBandPercent?.min ?? '—'} – ${kase?.utilizationBandPercent?.max ?? '—'}`, unit: '%', sourceType: 'Configurable criterion', sourceRef: rewordScreeningNote(kase?.utilizationBandPercent?.note) },
   ];
 
   const sections: ReportSection[] = [
@@ -288,6 +297,7 @@ export async function buildEcpCalculationPayload(revisionId: number, generatedBy
       `This ECP Calculation Report presents the Stage C4 packed-column screening for design ${rev.design_number}${rev.title ? `, ${rev.title}` : ''}, rendered from the frozen 'ecp' result snapshot of Design Revision Rev ${rev.revision_number}. Calculation run: #${run?.id ?? '—'} (engine ${run?.engine_name ?? 'llx-ecp'} v${res.engine_version ?? run?.engine_version ?? '—'}, status '${run?.calculation_status ?? '—'}', calculated ${run?.calculated_at ? new Date(run.calculated_at).toISOString().replace('T', ' ').slice(0, 16) + ' UTC' : '—'}). The engine was NOT re-run for this report.`,
       `Engine chain versions (verbatim from snapshot): ${Object.entries(ecp.engineVersions ?? {}).map(([k, v]) => `${k} v${v}`).join(', ') || '—'}. The governing design basis is stated in ${rev.design_number}-DBR; process flows derive from ${rev.design_number}-PDR; generic hydraulics from ${rev.design_number}-HDR (same revision).`,
       `Engine applicability statement (verbatim): "${ecp.applicabilityStatement ?? '—'}".`,
+      'This preliminary calculation shall not be used for vendor packing performance guarantees or commercial hydraulic rating.',
     ]},
     { title: 'Design Basis Inputs', rows: [
       { label: 'Operating temperature', value: String(db.operatingTemperatureC ?? ''), unit: '°C', sourceType: 'Design basis' },
@@ -299,7 +309,7 @@ export async function buildEcpCalculationPayload(revisionId: number, generatedBy
       { label: 'System derating factor', value: String(db.systemDeratingFactor?.value ?? ''), sourceType: 'Not supplied — default 1.0', sourceRef: db.systemDeratingFactor?.note ?? '' },
       { label: 'RRBO density used', value: String(db.feedFluid?.densityUsed?.value ?? ''), unit: db.feedFluid?.densityUsed?.unit ?? '', sourceType: 'Entered/EPD', sourceRef: db.feedFluid?.densityUsed?.source ?? '' },
       { label: 'NMP density used', value: String(db.solventFluid?.densityUsed?.value ?? ''), unit: db.solventFluid?.densityUsed?.unit ?? '', sourceType: 'Entered/EPD', sourceRef: db.solventFluid?.densityUsed?.source ?? '' },
-      { label: 'Utilization screening band', value: `${db.utilizationBandPercent?.min ?? '—'} – ${db.utilizationBandPercent?.max ?? '—'}`, unit: '%', sourceType: 'Configurable criterion', sourceRef: db.utilizationBandPercent?.note ?? '' },
+      { label: 'Utilization screening band', value: `${db.utilizationBandPercent?.min ?? '—'} – ${db.utilizationBandPercent?.max ?? '—'}`, unit: '%', sourceType: 'Configurable criterion', sourceRef: rewordScreeningNote(db.utilizationBandPercent?.note) },
     ]},
     { title: 'Packing Data (Consumed Record — Verbatim)', intro: `${db.packing?.consumedFrom ?? ''}. ${db.packing?.note ?? ''}`, rows: [
       { label: 'Record ID / revision', value: `${rec.id ?? '—'} / ${rec.revision ?? '—'}`, sourceType: 'Packing Database' },
@@ -449,7 +459,7 @@ export async function buildEcrCalculationPayload(revisionId: number, generatedBy
       { label: 'System derating factor', value: String(db.systemDeratingFactor?.value ?? ''), sourceType: 'Not supplied — default 1.0', sourceRef: db.systemDeratingFactor?.note ?? '' },
       { label: 'Tip-speed criteria', value: db.tipSpeedCriteria?.preferredRange == null && db.tipSpeedCriteria?.vendorLimit == null ? 'Not supplied' : `${db.tipSpeedCriteria?.preferredRange ?? '—'} / ${db.tipSpeedCriteria?.vendorLimit ?? '—'}`, sourceType: 'Not supplied', sourceRef: db.tipSpeedCriteria?.note ?? '' },
       { label: 'Vendor hydraulic capacity', value: 'Not supplied', sourceType: 'Not supplied', sourceRef: db.vendorHydraulicCapacity?.note ?? '' },
-      { label: 'Utilization screening band', value: `${db.utilizationBandPercent?.min ?? '—'} – ${db.utilizationBandPercent?.max ?? '—'}`, unit: '%', sourceType: 'Configurable criterion', sourceRef: db.utilizationBandPercent?.note ?? '' },
+      { label: 'Utilization screening band', value: `${db.utilizationBandPercent?.min ?? '—'} – ${db.utilizationBandPercent?.max ?? '—'}`, unit: '%', sourceType: 'Configurable criterion', sourceRef: rewordScreeningNote(db.utilizationBandPercent?.note) },
     ]},
     { title: 'Equation Reference Index (From Frozen Snapshot)', intro: 'Every formula/basis string stored in the frozen snapshot, grouped by equation reference and reproduced verbatim. Controlled statements: C5 section of the Correlation & Equation Register; software-verification status tracked in the V&V equation register (all ECR entries currently Partially Verified).', table: collectEquationIndex(ecr) },
     { title: 'Compartments & Active Height', rows: [

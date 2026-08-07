@@ -20,10 +20,18 @@ const f4 = (v: unknown): string => (typeof v === 'number' && Number.isFinite(v) 
 const sci = (v: unknown): string => (typeof v === 'number' && Number.isFinite(v) ? v.toExponential(3) : '');
 
 const FEAS_LABELS: Record<string, string> = {
-  within_screening_band: 'Within screening band',
-  above_screening_band: 'Above screening band (high loading)',
-  below_minimum_loading_band: 'Below minimum loading band',
+  within_screening_band: 'Within preliminary screening band',
+  above_screening_band: 'Above preliminary screening band (high loading)',
+  below_minimum_loading_band: 'Below preliminary loading band',
   hydraulically_infeasible: 'Hydraulically infeasible',
+};
+
+/** Display-level wording of the configurable screening-band note (presentation
+ *  only — snapshot note text is preserved verbatim in the frozen payload). */
+const SCREENING_CRITERION_WORDING = 'Thermopac Preliminary Engineering Screening Criterion (project-specific). This is a configurable engineering screening limit and shall not be interpreted as a universal hydraulic design limit.';
+const rewordScreeningNote = (note: unknown): string => {
+  const s = String(note ?? '');
+  return s.includes('Configurable screening criterion') ? SCREENING_CRITERION_WORDING : s;
 };
 
 export async function buildHydraulicDesignPayload(revisionId: number, generatedByName: string): Promise<{ payload: ReportPayload; blocking: number }> {
@@ -67,6 +75,12 @@ export async function buildHydraulicDesignPayload(revisionId: number, generatedB
     });
     if (a.sourceReference) references.add(a.sourceReference);
   }
+  // u_K is DERIVED (from the calculated terminal velocity at the selected d32)
+  // whenever a Sauter mean diameter governs the run — it is only an
+  // independently selected model when entered directly with no d32 basis.
+  const uKDerived = db.sauterMeanDiameter?.value != null
+    || String(db.characteristicVelocity?.basis ?? '').toLowerCase().includes('terminal');
+
   const ift = db.interfacialTension ?? hy.shapeRegimeIndicators?.interfacialTension;
   if (ift?.source?.startsWith('Assumed')) {
     assumptions.push({ item: 'Interfacial tension', value: `${ift.value} ${ift.unit ?? ''}`.trim(), sourceRef: ift.source, status: 'Pending Laboratory Validation' });
@@ -111,9 +125,11 @@ export async function buildHydraulicDesignPayload(revisionId: number, generatedB
       `This Hydraulic Design Report presents the generic counter-current hydraulic screening for design ${rev.design_number}, ${rev.title ?? ''}, rendered from the persisted C3 result snapshot for Design Revision Rev ${rev.revision_number}. The governing design basis is stated in ${rev.design_number}-DBR; process flows derive from ${rev.design_number}-PDR (same revision).`,
       `Engine applicability statement (verbatim): "${hy.applicabilityStatement ?? '—'}". Technology-specific hydraulics (packing or rotor internals) are rated by the C4 ECP / C5 ECR engines and reported separately.`,
     ]},
-    { title: 'Hydraulic Design Basis', rows: [
+    { title: 'Hydraulic Design Basis', intro: uKDerived
+      ? 'Governing preliminary hydraulic model: Sauter Mean Diameter (d32) with calculated terminal velocity. The slip equation u_slip = u_K·(1−φ)^n is presented only as the mathematical implementation of the calculated terminal velocity model. Characteristic Velocity (u_K) shown below is derived from the calculated terminal velocity using the selected Sauter Mean Diameter (d32). It is not an independently selected hydraulic model.'
+      : undefined, rows: [
       { label: 'Slip Model', value: String(db.slipModel ?? ''), sourceType: 'C3 result snapshot' },
-      { label: 'Characteristic Velocity u_K', value: f4(db.characteristicVelocity?.value_m_s), unit: 'm/s', sourceType: 'Provisional', sourceRef: db.characteristicVelocity?.basis ?? '' },
+      { label: uKDerived ? 'Derived Characteristic Velocity u_K (from calculated terminal velocity)' : 'Characteristic Velocity u_K', value: f4(db.characteristicVelocity?.value_m_s), unit: 'm/s', sourceType: uKDerived ? 'Derived — not an independent model' : 'Provisional', sourceRef: db.characteristicVelocity?.basis ?? '' },
       { label: 'Sauter Mean Diameter d32', value: String(db.sauterMeanDiameter?.value ?? ''), unit: 'm', sourceType: db.sauterMeanDiameter?.sourceType ?? '', sourceRef: db.sauterMeanDiameter?.sourceReference ?? '' },
       { label: 'Hindrance Exponent n', value: String(db.hindranceExponent?.value ?? db.hindranceExponent ?? ''), sourceType: db.hindranceExponent?.sourceType ?? 'Assumed', sourceRef: db.hindranceExponent?.sourceReference ?? 'Thermopac Preliminary Screening Default — n pending laboratory validation' },
       { label: 'Interfacial Tension', value: ift?.value != null ? String(ift.value) : '', unit: ift?.unit ?? 'N/m', sourceType: classifyTaggedSource(ift?.source), sourceRef: ift?.source ?? '' },
