@@ -173,13 +173,15 @@ async function decisionRecordSection(revisionId: number): Promise<ReportSection>
   };
   const rows: ReportRow[] = [
     { label: 'Selected technology', value: rec.selectedTechnology ? String(rec.selectedTechnology).toUpperCase() : (rec.selectionStatus === 'engineering_review_required' ? 'NONE — engineering review required' : 'NONE — not recommendable'), sourceType: `Record #${row.id}`, sourceRef: rec.governanceState ?? '' },
-    { label: 'Selected preliminary diameter', value: rec.selectedDiameter_mm != null ? String(rec.selectedDiameter_mm) : '—', unit: 'mm', sourceType: 'DS-SEL-003' },
+    { label: 'Autonomous calculated diameter (retained for traceability)', value: (rec.autonomousDiameter_mm ?? rec.selectedDiameter_mm) != null ? String(rec.autonomousDiameter_mm ?? rec.selectedDiameter_mm) : '—', unit: 'mm', sourceType: 'DS-SEL-003' },
+    { label: 'User-selected governing diameter', value: rec.userSelectedDiameter_mm != null ? String(rec.userSelectedDiameter_mm) : 'None — autonomous selection governs', unit: rec.userSelectedDiameter_mm != null ? 'mm' : undefined, sourceType: 'DS-SEL-006', sourceRef: rec.userSelection ? `Governed selection by ${rec.userSelection.engineer} (${rec.userSelection.selectedAt ?? '—'})${rec.userSelection.carriedForward ? ' — carried forward across recalculation' : ''}: ${rec.userSelection.reason}` : '' },
+    { label: 'EFFECTIVE design diameter (governs all downstream calculations)', value: (rec.effectiveDiameter_mm ?? rec.selectedDiameter_mm) != null ? String(rec.effectiveDiameter_mm ?? rec.selectedDiameter_mm) : '—', unit: 'mm', sourceType: 'DS-SEL-006', sourceRef: rec.selectionMode === 'user_selected' ? 'Governed user selection of a larger, more conservative diameter — not an Engineer Override of an unsafe design.' : 'Autonomous selection — no governed user selection entered.' },
     { label: 'Calculated minimum diameter', value: rec.calculatedMinimumDiameter_mm != null ? String(rec.calculatedMinimumDiameter_mm) : '—', unit: 'mm', sourceType: 'DS-SEL-001' },
     { label: 'Practical rounding rule', value: '—', sourceType: 'DS-SEL-002', sourceRef: rec.roundingRule ?? '' },
-    { label: 'Normal loading at selected diameter', value: f2n(rec.normalLoading), unit: 'm³/(m²·h)', sourceType: 'Frozen sweep (verbatim)' },
-    { label: 'Maximum loading at selected diameter', value: f2n(rec.maximumLoading), unit: 'm³/(m²·h)', sourceType: 'Frozen sweep (verbatim)' },
-    { label: `${term.utilizationLabel} (maximum case governs)`, value: f4(rec.floodingUtilization), unit: '-', sourceType: 'DS-SEL-003', sourceRef: rec.capacityBasis ? `Basis: ${rec.capacityBasis.value} ${rec.capacityBasis.unit} — ${rec.capacityBasis.tier}` : '' },
-    { label: term.marginLabel, value: `${f4(rec.floodingMarginFraction)} (${f2n(rec.floodingMarginAbsolute)} m³/(m²·h) absolute)`, sourceType: 'DS-SEL-005 step 2' },
+    { label: 'Normal loading at effective diameter', value: f2n(rec.effectiveNormalLoading ?? rec.normalLoading), unit: 'm³/(m²·h)', sourceType: 'Frozen sweep (verbatim)' },
+    { label: 'Maximum loading at effective diameter', value: f2n(rec.effectiveMaximumLoading ?? rec.maximumLoading), unit: 'm³/(m²·h)', sourceType: 'Frozen sweep (verbatim)' },
+    { label: `${term.utilizationLabel} at effective diameter (maximum case governs)`, value: f4(rec.effectiveFloodingUtilization ?? rec.floodingUtilization), unit: '-', sourceType: 'DS-SEL-003', sourceRef: rec.capacityBasis ? `Basis: ${rec.capacityBasis.value} ${rec.capacityBasis.unit} — ${rec.capacityBasis.tier}` : '' },
+    { label: `${term.marginLabel} at effective diameter`, value: `${f4(rec.effectiveFloodingMarginFraction ?? rec.floodingMarginFraction)} (${f2n(rec.effectiveFloodingMarginAbsolute ?? rec.floodingMarginAbsolute)} m³/(m²·h) absolute)`, sourceType: 'DS-SEL-005 step 2' },
     ...(term.trueFloodingStatement ? [{ label: 'True flooding utilization / true flooding margin', value: 'Not Calculable', sourceType: 'Governance', sourceRef: term.trueFloodingStatement } as ReportRow] : []),
     { label: 'Confidence level', value: String(rec.confidenceLevel ?? row.confidence_level ?? '—'), sourceType: 'Data maturity only — never a selection criterion' },
     { label: 'Engineer decision', value: String(row.decision ?? 'pending'), sourceType: row.decision_engineer ? `Engineer: ${row.decision_engineer}` : '', sourceRef: row.decision_reason ?? '' },
@@ -195,8 +197,20 @@ async function decisionRecordSection(revisionId: number): Promise<ReportSection>
     `Reason for the recommendation (assembled from the cascade evaluation, verbatim): ${rec.reason ?? '—'}`,
     `Governing assumptions in the selection path: ${(rec.governingAssumptions ?? []).map((a: any, i: number) => `(${i + 1}) ${a.item}: ${a.value} — ${a.source}`).join(' ') || 'none recorded'}.`,
     `Confidence basis: ${(rec.confidenceBasis ?? []).join(' ')}`,
-    `Provenance: ${(rec.provenance?.runs ?? []).map((r: any) => `${String(r.technology).toUpperCase()} run #${r.runId} (${r.engine} v${r.engineVersion}, status '${r.status}')`).join('; ') || '—'}. ${rec.provenance?.note ?? ''} Record generated ${rec.generatedAt ?? '—'} by ${row.created_by_name ?? '—'}; selector ${rec.engine?.id ?? 'llx-design-selection'} v${rec.engine?.version ?? '—'} (rules DS-SEL-001…005).`,
+    `Provenance: ${(rec.provenance?.runs ?? []).map((r: any) => `${String(r.technology).toUpperCase()} run #${r.runId} (${r.engine} v${r.engineVersion}, status '${r.status}')`).join('; ') || '—'}. ${rec.provenance?.note ?? ''} Record generated ${rec.generatedAt ?? '—'} by ${row.created_by_name ?? '—'}; selector ${rec.engine?.id ?? 'llx-design-selection'} v${rec.engine?.version ?? '—'} (rules DS-SEL-001…006).`,
   ];
+  if (rec.selectionImpact) {
+    const imp = rec.selectionImpact;
+    const fmt = (v: any) => (typeof v === 'number' && Number.isFinite(v) ? String(Math.round(v * 10000) / 10000) : '—');
+    paragraphs.push(
+      `Diameter governance impact (DS-SEL-006, read verbatim from the frozen runs): previous effective diameter ${imp.previous?.effectiveDiameter_mm ?? '—'} mm → new effective diameter ${imp.effectiveDiameter_mm ?? '—'} mm. ` +
+      `Utilization ${fmt(imp.previous?.floodingUtilization)} → ${fmt(imp.new?.floodingUtilization)}; margin ${fmt(imp.previous?.floodingMarginFraction)} → ${fmt(imp.new?.floodingMarginFraction)}; ` +
+      `maximum loading ${fmt(imp.previous?.maximumLoading)} → ${fmt(imp.new?.maximumLoading)} m³/(m²·h). Pressure drop: ${imp.new?.pressureDrop ?? '—'}. Holdup: ${imp.holdup ?? '—'} ` +
+      `Heights (T/T, overall): ${fmt(imp.previous?.heights?.tangentToTangent_m)}/${fmt(imp.previous?.heights?.overallVesselHeight_m)} m → ${fmt(imp.new?.heights?.tangentToTangent_m)}/${fmt(imp.new?.heights?.overallVesselHeight_m)} m. ` +
+      `Run IDs: ${JSON.stringify(imp.previous?.runIds ?? {})} → ${JSON.stringify(imp.new?.runIds ?? {})}.`,
+    );
+  }
+  if (rec.userSelectionDropped) paragraphs.push(String(rec.userSelectionDropped));
   return {
     title: 'Engineering Decision Record (DS-SEL Autonomous Design Selection)',
     intro: 'Autonomous deterministic design selection — the software acts as the Process Design Engineer. All loadings are read verbatim from the frozen calculation run snapshots; the selector never recomputes engine results. CAPEX/OPEX are excluded by direction; confidence level is data-maturity information only and is never a tie-breaker.',

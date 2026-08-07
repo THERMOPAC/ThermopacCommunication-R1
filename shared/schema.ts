@@ -17028,12 +17028,27 @@ export const designSelectionRecords = pgTable('design_selection_records', {
   overrideTechnology: varchar('override_technology', { length: 10 }),
   overrideDiameterMm: integer('override_diameter_mm'),
   overrideImpact:     jsonb('override_impact'),
+  // ── Governed user diameter selection (DS-SEL-006) ──────────────────────────
+  // The engineer may select a LARGER governing diameter (50 mm increment series,
+  // ≥ the autonomous minimum — smaller values are rejected server-side). This is
+  // a governed conservative selection, NOT an Engineer Override of an unsafe
+  // design. The autonomous diameter is always retained for traceability;
+  // effective_diameter_mm = user_selected_diameter_mm when present, else the
+  // autonomous selected_diameter_mm.
+  selectionMode:          varchar('selection_mode', { length: 20 }).notNull().default('autonomous'),
+  userSelectedDiameterMm: integer('user_selected_diameter_mm'),
+  effectiveDiameterMm:    integer('effective_diameter_mm'),
+  userSelectionEngineer:  varchar('user_selection_engineer', { length: 120 }),
+  userSelectionReason:    text('user_selection_reason'),
+  userSelectionAt:        timestamp('user_selection_at'),
+  selectionImpact:        jsonb('selection_impact'),
   createdBy:          integer('created_by').notNull().references(() => users.id),
   createdAt:          timestamp('created_at').notNull().defaultNow(),
 }, (table) => ({
   idxRevisionCreatedAt: index('dsel_records_revision_at_idx').on(table.revisionId, table.createdAt),
   chkSelectionStatus:   check('dsel_records_status_chk', sql`selection_status IN ('recommended', 'engineering_review_required', 'not_recommendable')`),
   chkDecision:          check('dsel_records_decision_chk', sql`decision IN ('pending', 'approved', 'verification_requested', 'overridden')`),
+  chkSelectionMode:     check('dsel_records_mode_chk', sql`selection_mode IN ('autonomous', 'user_selected')`),
 }));
 
 // ── Zod insert schemas ────────────────────────────────────────────────────────

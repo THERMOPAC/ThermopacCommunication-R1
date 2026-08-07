@@ -593,6 +593,12 @@ export default function DesignSoftwareWorkspacePage() {
   const [dselOverrideTech, setDselOverrideTech] = useState("");
   const [dselOverrideDia, setDselOverrideDia] = useState("");
 
+  // DS-SEL-006 — governed user diameter selection (Step 7)
+  const [udOpen, setUdOpen] = useState(false);
+  const [udDia, setUdDia] = useState("");
+  const [udEngineer, setUdEngineer] = useState("");
+  const [udReason, setUdReason] = useState("");
+
   // ── Queries ─────────────────────────────────────────────────────────────────
   const designQ = useQuery({
     queryKey: [`/api/design-software/designs/${designId}`],
@@ -1028,6 +1034,22 @@ export default function DesignSoftwareWorkspacePage() {
     onError: (e: any) => toast({ title: "Decision failed", description: e.message, variant: "destructive" }),
   });
 
+  const userDiameterMutation = useMutation({
+    mutationFn: (body: { diameterMm: number; engineer: string; reason: string }) =>
+      apiRequest("POST", `/api/design-software/revisions/${activeRevisionId}/design-selection/user-diameter`, body) as Promise<any>,
+    onSuccess: (res: any) => {
+      qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/design-selection`] });
+      qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/runs`] });
+      qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/results`] });
+      qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/reports`] });
+      setUdOpen(false); setUdDia(""); setUdEngineer(""); setUdReason("");
+      const recalcs = (res?.recalculations ?? []).filter((r: any) => r.runId).map((r: any) => r.calculation).join(", ");
+      const reports = (res?.reports ?? []).map((r: any) => `${r.docType}: ${r.error ? "FAILED — " + r.error : r.action}`).join(" · ");
+      toast({ title: "Governing diameter applied", description: `Re-run: ${recalcs || "none"}. ${reports ? "Reports — " + reports : ""} New DS-SEL record awaits engineer decision.` });
+    },
+    onError: (e: any) => toast({ title: "Governing diameter selection rejected", description: e.message, variant: "destructive" }),
+  });
+
   // ── Derived state ─────────────────────────────────────────────────────────────
   const currentStatus = activeRevision?.status ?? design?.revision_status ?? design?.current_status;
   const lifecycleActions = LIFECYCLE_ACTIONS[currentStatus] ?? [];
@@ -1130,17 +1152,20 @@ export default function DesignSoftwareWorkspacePage() {
         // the latest active (non-superseded) DS-SEL record. Basis maturity is a
         // separate advisory check below.
         const dsel = designSelectionQ.data?.record ?? null;
-        const util = dsel?.floodingUtilization;
+        // Effective design diameter governs (governed user selection when
+        // present, else autonomous) — legacy records carry only floodingUtilization.
+        const util = typeof dsel?.effectiveFloodingUtilization === "number" ? dsel.effectiveFloodingUtilization : dsel?.floodingUtilization;
         const limit = dsel?.utilizationLimit?.value ?? 0.8;
         if (dsel == null || typeof util !== "number") {
           return { status: "pending", note: "No active DS-SEL record with a hydraulic utilization result exists yet" };
         }
+        const atDia = dsel.effectiveDiameter_mm ?? dsel.selectedDiameter_mm;
         const utilPct = (util * 100).toFixed(2);
         const limitPct = (limit * 100).toFixed(0);
         if (util > limit) {
-          return { status: "fail", note: `Hydraulic utilization ${utilPct} % exceeds the allowable limit ${limitPct} % (DS-SEL record, ${dsel.capacityBasis?.tier ?? "declared basis"})` };
+          return { status: "fail", note: `Hydraulic utilization ${utilPct} % at the effective design diameter${atDia != null ? ` (${atDia} mm)` : ""} exceeds the allowable limit ${limitPct} % (DS-SEL record, ${dsel.capacityBasis?.tier ?? "declared basis"})` };
         }
-        return { status: "pass", note: `Hydraulic utilization within allowable limit: ${utilPct}% ≤ ${limitPct}% (basis: ${dsel.capacityBasis?.tier ?? "declared basis"})` };
+        return { status: "pass", note: `Hydraulic utilization within allowable limit at the effective design diameter${atDia != null ? ` (${atDia} mm)` : ""}: ${utilPct}% ≤ ${limitPct}% (basis: ${dsel.capacityBasis?.tier ?? "declared basis"})` };
       })(),
     },
     {
@@ -2318,7 +2343,7 @@ export default function DesignSoftwareWorkspacePage() {
       <div className="max-w-3xl">
         <SectionCard title="Hydraulic Inputs">
           <FieldRow
-            label="Column Diameter (trial)"
+            label="Trial diameter — screening only; does not govern final design"
             value={(hd.column_diameter ?? "").trim() !== "" ? (hd.column_diameter as string) : (minFeasibleD !== null ? String(minFeasibleD) : "")}
             onChange={v => f("column_diameter", v)}
             onBlur={s}
@@ -2326,7 +2351,7 @@ export default function DesignSoftwareWorkspacePage() {
             placeholder="Auto-sizes from the hydraulic screening sweep on first run"
           />
           {statusLine((hd.column_diameter ?? "").trim() !== ""
-            ? "Status: Manual · Engineer-selected trial diameter — evaluated within the screening sweep"
+            ? "Status: Manual · Engineer-selected trial diameter — screening evaluation only. The governing design diameter is set in Step 7 (Governing Diameter Selection on the DS-SEL record)."
             : minFeasibleD !== null
               ? `Status: Auto-Populated · Minimum feasible diameter ${minFeasibleD} m from the Common Hydraulic sizing sweep (0.3–2.0 m) · Source: Common Hydraulic Design Engine — engineer may override before re-running`
               : "Status: Auto-Populated · Rule: first Run Common Hydraulics sizes the column via the screening sweep 0.3–2.0 m (0.05 m step) using the d32 screening basis below; the minimum feasible diameter then appears here")}
@@ -2583,7 +2608,15 @@ export default function DesignSoftwareWorkspacePage() {
               <Badge variant="outline">{row.decision === "pending" ? "Awaiting Engineer Decision" : `Decision: ${String(row.decision).replace(/_/g, " ")}`}</Badge>
             </div>
             {kv("Selected technology", rec.selectedTechnology ? String(rec.selectedTechnology).toUpperCase() : (rec.selectionStatus === "engineering_review_required" ? "None — multiple technically acceptable solutions identified; engineering review required" : "None"), rec.governanceState)}
-            {kv("Selected preliminary diameter", rec.selectedDiameter_mm != null ? `${rec.selectedDiameter_mm} mm` : "—", "DS-SEL-003 — smallest practical 50 mm increment satisfying utilization ≤ limit")}
+            {kv("Autonomous diameter", (rec.autonomousDiameter_mm ?? rec.selectedDiameter_mm) != null ? `${rec.autonomousDiameter_mm ?? rec.selectedDiameter_mm} mm` : "—", "DS-SEL-003 — smallest practical 50 mm increment satisfying utilization ≤ limit; always retained for traceability")}
+            {kv("User-selected diameter", rec.userSelectedDiameter_mm != null ? `${rec.userSelectedDiameter_mm} mm` : "— (none — autonomous selection governs)", rec.userSelection ? `Governed selection by ${rec.userSelection.engineer}${rec.userSelection.carriedForward ? " (carried forward across recalculation)" : ""} — ${rec.userSelection.reason}` : "DS-SEL-006 — governed 50 mm series, ≥ autonomous diameter; not an Engineer Override")}
+            {kv("Effective design diameter", (rec.effectiveDiameter_mm ?? rec.selectedDiameter_mm) != null ? `${rec.effectiveDiameter_mm ?? rec.selectedDiameter_mm} mm` : "—", "Governs all downstream calculations and reports — user-selected diameter when entered and valid, otherwise the autonomous diameter")}
+            {rec.selectionMode === "user_selected" && (
+              kv("Loading / utilization at effective diameter", `${f2(rec.effectiveNormalLoading)} / ${f2(rec.effectiveMaximumLoading)} m³/(m²·h) · utilization ${f4(rec.effectiveFloodingUtilization)} · margin ${f4(rec.effectiveFloodingMarginFraction)}`, "Read verbatim from the frozen sweep at the effective design diameter")
+            )}
+            {rec.userSelectionDropped && (
+              <div className="mt-1 p-2 bg-amber-50 border border-amber-200 rounded text-[11px] text-amber-800">{rec.userSelectionDropped}</div>
+            )}
             {kv("Calculated minimum diameter", rec.calculatedMinimumDiameter_mm != null ? `${rec.calculatedMinimumDiameter_mm} mm` : "—", "DS-SEL-001 — D_min = √(4·Q_max/(π·u_allow·C_basis))")}
             {kv("Practical rounding rule", "Round UP to next 50 mm increment — never down", "DS-SEL-002")}
             {kv("Normal / Maximum loading", `${f2(rec.normalLoading)} / ${f2(rec.maximumLoading)} m³/(m²·h)`, "Read verbatim from the frozen sweep at the selected diameter")}
@@ -2608,6 +2641,37 @@ export default function DesignSoftwareWorkspacePage() {
             )}
             {decided && row.decision !== "overridden" && (
               <p className="text-[11px] text-gray-500 mt-2">Decision recorded by {row.decision_engineer} on {row.decision_at ? new Date(row.decision_at).toLocaleString() : "—"}{row.decision_reason ? ` — ${row.decision_reason}` : ""}</p>
+            )}
+            {/* ── DS-SEL-006 — Governing Diameter Selection ─────────────────── */}
+            {!isFrozen && rec.selectedDiameter_mm != null && (
+              <div className="mt-3 p-3 border rounded-lg bg-slate-50 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium text-gray-700">Governing Diameter Selection (DS-SEL-006)</p>
+                  {!udOpen && <Button size="sm" variant="outline" onClick={() => { setUdOpen(true); setUdDia(String(rec.effectiveDiameter_mm ?? rec.selectedDiameter_mm)); }}>Select governing diameter…</Button>}
+                </div>
+                <p className="text-[11px] text-gray-500">
+                  Minimum permitted: <strong>{rec.autonomousDiameter_mm ?? rec.selectedDiameter_mm} mm</strong> (autonomous calculated minimum — DS-SEL-003). A smaller diameter would exceed the allowable utilization limit against the declared capacity basis and is blocked server-side. Only the governed 50 mm increment series is allowed. This is a governed selection of a larger, more conservative diameter — not an Engineer Override of an unsafe design.
+                </p>
+                {udOpen && (
+                  <div className="space-y-2">
+                    <div className="flex gap-2 items-center">
+                      <Input placeholder={`Diameter (mm, 50 mm series, ≥ ${rec.autonomousDiameter_mm ?? rec.selectedDiameter_mm})`} value={udDia} onChange={e => setUdDia(e.target.value)} className="h-8 text-xs w-64" />
+                      <span className="text-[10px] text-gray-400">mm</span>
+                    </div>
+                    <Input placeholder="Engineer name (mandatory)" value={udEngineer} onChange={e => setUdEngineer(e.target.value)} className="h-8 text-xs" />
+                    <Textarea placeholder="Reason for selecting a larger diameter (mandatory)" value={udReason} onChange={e => setUdReason(e.target.value)} className="text-xs" rows={2} />
+                    <p className="text-[10px] text-gray-400">
+                      On confirmation the software automatically re-runs Common Hydraulics, ECP, ECR (where applicable) and the mechanical calculation with the effective diameter, supersedes this record (decision resets to Pending — the new effective design must be reviewed again) and reconciles all affected reports. Draft reports regenerate; For Review / Released reports are marked stale and regenerated as new records; approval is blocked while any report remains stale.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button size="sm" disabled={userDiameterMutation.isPending} onClick={() => userDiameterMutation.mutate({ diameterMm: Number(udDia), engineer: udEngineer, reason: udReason })}>
+                        {userDiameterMutation.isPending ? "Recalculating…" : "Confirm & Recalculate"}
+                      </Button>
+                      <Button size="sm" variant="ghost" disabled={userDiameterMutation.isPending} onClick={() => setUdOpen(false)}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
             {!isFrozen && !decided && (
               <div className="flex gap-2 mt-3">
@@ -3658,7 +3722,10 @@ export default function DesignSoftwareWorkspacePage() {
         <div className="grid grid-cols-2 gap-4">
           {reportCards.map(rc => {
             const docType = (rc as any).docType as string | undefined;
-            const rep = docType ? (reportsQ.data ?? []).find(r => r.doc_type === docType) : undefined;
+            // The LIVE report row is the non-stale one; stale rows (superseded by
+            // a governed design change) stay listed for the audit trail only.
+            const rep = docType ? (reportsQ.data ?? []).find(r => r.doc_type === docType && !r.is_stale) : undefined;
+            const staleRep = docType ? (reportsQ.data ?? []).find(r => r.doc_type === docType && r.is_stale) : undefined;
             const statusColours: Record<string, string> = {
               draft: "bg-gray-100 text-gray-600 border-gray-200",
               for_review: "bg-amber-50 text-amber-700 border-amber-200",
@@ -3679,6 +3746,12 @@ export default function DesignSoftwareWorkspacePage() {
                 <p className="text-xs text-gray-500 mb-3">{rc.desc}</p>
                 {docType ? (
                   <div className="space-y-1.5">
+                    {staleRep && (
+                      <div className="p-2 bg-amber-50 border border-amber-200 rounded text-[10px] text-amber-800">
+                        Previous {staleRep.status === "for_review" ? "For Review" : staleRep.status} report is <strong>STALE</strong> — {staleRep.stale_reason ?? "superseded by a governed design change"}. It is retained for the audit trail;{" "}
+                        <button className="underline" onClick={() => window.open(`/api/design-software/reports/${staleRep.id}/pdf`, "_blank")}>view superseded PDF</button>. Approval/issue of this revision's reports is blocked until all stale reports are resolved by the regenerated versions below.
+                      </div>
+                    )}
                     {rep && (
                       <p className="text-[11px] text-gray-500">
                         {rep.doc_number} · {rep.report_rev} · generated {new Date(rep.generated_at).toLocaleString()} by {rep.generated_by_name ?? "—"}

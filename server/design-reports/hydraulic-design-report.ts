@@ -140,6 +140,25 @@ export async function buildHydraulicDesignPayload(revisionId: number, generatedB
     { title: 'Limitations', paragraphs: (hy.limitations ?? []).map((l: string, i: number) => `${i + 1}. ${l}`) },
   ];
 
+  // ── Diameter governance (DS-SEL-006) — the effective design diameter governs
+  // downstream work; the screening tables above evaluate the full sweep range.
+  const dselQ = await pool.query(
+    `SELECT record FROM design_selection_records
+      WHERE revision_id = $1 AND is_superseded = FALSE
+      ORDER BY created_at DESC LIMIT 1`, [revisionId]);
+  const dsel = dselQ.rows[0]?.record;
+  if (dsel?.selectedDiameter_mm != null) {
+    sections.push({
+      title: 'Governing Diameter (DS-SEL-006)',
+      rows: [
+        { label: 'Autonomous calculated diameter (retained for traceability)', value: String(dsel.autonomousDiameter_mm ?? dsel.selectedDiameter_mm), unit: 'mm', sourceType: 'DS-SEL-003' },
+        { label: 'User-selected governing diameter', value: dsel.userSelectedDiameter_mm != null ? String(dsel.userSelectedDiameter_mm) : 'None — autonomous selection governs', unit: dsel.userSelectedDiameter_mm != null ? 'mm' : undefined, sourceType: 'DS-SEL-006', sourceRef: dsel.userSelection ? `Governed selection by ${dsel.userSelection.engineer}: ${dsel.userSelection.reason}` : '' },
+        { label: 'EFFECTIVE design diameter (governs all downstream calculations)', value: String(dsel.effectiveDiameter_mm ?? dsel.selectedDiameter_mm), unit: 'mm', sourceType: 'DS-SEL-006', sourceRef: dsel.selectionMode === 'user_selected' ? 'Governed user selection of a larger, more conservative diameter — not an Engineer Override of an unsafe design.' : 'Autonomous selection — no governed user selection entered.' },
+      ],
+      paragraphs: ['The diameter screening tables in this report evaluate the full sweep range by design; the row at the effective design diameter is the governing hydraulic operating point. See the Engineering Decision Record in the equipment calculation report for the full DS-SEL cascade and impact assessment.'],
+    });
+  }
+
   const lifecycle = String(rev.status ?? 'draft');
   const payload: ReportPayload = {
     docType: 'HDR',

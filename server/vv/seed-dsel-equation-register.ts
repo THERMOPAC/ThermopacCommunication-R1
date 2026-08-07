@@ -48,6 +48,12 @@ const DSEL: Entry[] = [
     citation: `${REG}, DS-SEL-005 — deterministic priority cascade, user directive 2026-08-06; terminology per engineering audit correction 2026-08-06`,
     unitsNote: 'margins dimensionless; ΔP Pa', rangeNote: 'Confidence level is data-maturity information only and is NEVER used as a tie-breaker.',
   },
+  {
+    ref: 'DS-SEL-006',
+    statement: 'Governed user diameter selection: the engineer may select a governing column diameter from the governed 50 mm increment series, equal to or greater than the autonomous calculated diameter (DS-SEL-003); any lower value and any off-series value is rejected server-side. Effective design diameter = user-selected diameter when entered and valid, otherwise the autonomous diameter; the autonomous diameter is always retained for traceability. A valid selection automatically re-runs Common Hydraulics, ECP, ECR (where applicable) and the mechanical calculation with the effective diameter, supersedes the previous active selection record (engineer decision resets to pending), records the impact (previous/new run IDs, loading, utilization, margin, pressure drop, holdup where calculable, heights) and reconciles all affected reports (drafts regenerated; for_review/released marked stale + new record generated; approval/issue blocked while any report remains stale). This is a governed conservative selection, NOT an Engineer Override of an unsafe design.',
+    citation: `${REG}, DS-SEL-006 — diameter governance workflow, user directive 2026-08-07`,
+    unitsNote: 'diameter mm (50 mm series)', rangeNote: 'Selection limited to the frozen sweep range of the accepted equipment run — loadings are never extrapolated.',
+  },
 ];
 
 async function main() {

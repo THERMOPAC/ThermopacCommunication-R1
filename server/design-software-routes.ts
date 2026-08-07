@@ -486,6 +486,19 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
     }
   });
 
+  /** DS-SEL-006 — governed user diameter selection: validates (50 mm series,
+   *  ≥ autonomous minimum), re-runs all applicable calculations with the
+   *  effective diameter, supersedes the record (decision resets to pending)
+   *  and reconciles the affected reports. */
+  app.post('/api/design-software/revisions/:id/design-selection/user-diameter', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { applyUserDiameterSelection } = await import('./design-selection/design-selection-service');
+      res.json(await applyUserDiameterSelection(parseInt(req.params.id), (req.user as any).id, req.body ?? {}));
+    } catch (err: any) {
+      res.status(err.statusCode ?? 500).json({ error: err.message });
+    }
+  });
+
   /** Engineer decision on a selection record: approve / request_verification / override. */
   app.post('/api/design-software/design-selection/:recordId/decision', ensureAuthenticated, async (req: Request, res: Response) => {
     try {

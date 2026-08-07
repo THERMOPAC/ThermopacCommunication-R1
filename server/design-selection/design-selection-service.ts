@@ -101,6 +101,7 @@ interface TechEvaluation {
   evaluationTable: Array<{
     diameter_mm: number;
     maxLoading: number;
+    normalLoading: number | null;
     utilization: number | null;
     marginFraction: number | null;
     feasible: boolean | null;
@@ -215,14 +216,15 @@ function evaluateTechnology(tech: Tech, run: any | null, inputs: Record<string, 
   for (const r of maxDiams) {
     const d_mm = Math.round((num(r.diameter_m) ?? 0) * 1000);
     const load = num(r.loads?.total?.result);
+    const normLoad = num(rowAt(normDiams, num(r.diameter_m) !== null ? (num(r.diameter_m)! * 1000) : NaN)?.loads?.total?.result);
     if (load === null) {
-      base.evaluationTable.push({ diameter_mm: d_mm, maxLoading: NaN, utilization: null, marginFraction: null, feasible: null, note: 'Total loading not stored in frozen snapshot' });
+      base.evaluationTable.push({ diameter_mm: d_mm, maxLoading: NaN, normalLoading: normLoad, utilization: null, marginFraction: null, feasible: null, note: 'Total loading not stored in frozen snapshot' });
       continue;
     }
     const util = load / basis.value;
     const feasible = util <= uLimit.value;
     base.evaluationTable.push({
-      diameter_mm: d_mm, maxLoading: load, utilization: util, marginFraction: 1 - util, feasible,
+      diameter_mm: d_mm, maxLoading: load, normalLoading: normLoad, utilization: util, marginFraction: 1 - util, feasible,
       note: d_mm < firstIncrement_mm ? 'Below rounded minimum diameter' : null,
     });
     if (selected_mm === null && d_mm >= firstIncrement_mm && d_mm % INCREMENT_MM === 0 && feasible) selected_mm = d_mm;
@@ -327,8 +329,34 @@ function deriveConfidence(evals: TechEvaluation[], selected: Tech | null): { lev
   return { level, basis: facts };
 }
 
-/** Generate (or regenerate) the autonomous design selection record for a revision. */
-export async function generateSelectionRecord(revisionId: number, userId: number) {
+const USER_SELECTION_STATEMENT =
+  'Governed user selection of a larger, more conservative diameter — not an Engineer Override of an unsafe design. ' +
+  'The user-selected diameter must belong to the governed 50 mm increment series and be equal to or greater than the autonomous calculated diameter; smaller values are rejected. ' +
+  'The autonomous diameter is retained unaltered for traceability.';
+
+export interface UserDiameterSelection {
+  diameterMm: number;
+  engineer: string;
+  reason: string;
+  /** ISO timestamp of the original selection (carry-forward retains it). */
+  selectedAt?: string;
+  carriedForward?: boolean;
+}
+
+/** Generate (or regenerate) the autonomous design selection record for a revision.
+ *
+ *  opts.userSelection — apply a governed user diameter selection (DS-SEL-006) on
+ *  top of the autonomous result. When omitted, any user selection on the current
+ *  active record is carried forward automatically IF it is still valid against
+ *  the fresh autonomous evaluation (≥ new autonomous diameter, feasible in the
+ *  new frozen sweep); otherwise it is dropped with an explicit notation and the
+ *  record reverts to autonomous mode. The engineer decision always resets to
+ *  pending — the new effective design must be reviewed again. */
+export async function generateSelectionRecord(
+  revisionId: number,
+  userId: number,
+  opts?: { userSelection?: UserDiameterSelection },
+) {
   const revQ = await pool.query('SELECT id, is_frozen FROM design_software_revisions WHERE id = $1', [revisionId]);
   if (!revQ.rows.length) throw Object.assign(new Error('Revision not found'), { statusCode: 404 });
   if (revQ.rows[0].is_frozen) throw Object.assign(new Error('Revision is frozen — the design selection record cannot be regenerated.'), { statusCode: 409 });
@@ -356,6 +384,70 @@ export async function generateSelectionRecord(revisionId: number, userId: number
   const confidence = deriveConfidence(evals, cascade.selected);
   const selectedEval = cascade.selected ? evals.find(e => e.technology === cascade.selected)! : null;
 
+  // ── DS-SEL-006 — governed user diameter selection ──────────────────────────
+  // Explicit selection (opts.userSelection) is validated strictly and rejected
+  // with a 422 on any violation. Absent an explicit selection, the current
+  // active record's user selection is carried forward if still valid.
+  const autoDia_mm = selectedEval?.selectedDiameter_mm ?? null;
+  const evalRowAt = (d_mm: number) => selectedEval?.evaluationTable?.find(r => r.diameter_mm === d_mm) ?? null;
+
+  let userSel: UserDiameterSelection | null = null;
+  let userSelectionDropped: string | null = null;
+
+  const validateUserSelection = (sel: UserDiameterSelection, strict: boolean): string | null => {
+    const d = Math.round(Number(sel.diameterMm));
+    if (!Number.isFinite(d) || d <= 0) return 'User-selected diameter is not a valid positive number.';
+    if (d % INCREMENT_MM !== 0) return `User-selected diameter ${d} mm is not on the governed ${INCREMENT_MM} mm increment series — arbitrary values are not allowed.`;
+    if (autoDia_mm === null) return 'No autonomous diameter is available — the governed user selection requires a recommendable autonomous selection first.';
+    if (d < autoDia_mm) return `User-selected diameter ${d} mm is below the autonomous calculated minimum permitted diameter of ${autoDia_mm} mm (DS-SEL-003). A smaller diameter would exceed the allowable utilization limit against the declared capacity basis and is blocked.`;
+    const row = evalRowAt(d);
+    if (!row) return `User-selected diameter ${d} mm is outside the frozen sweep range of the accepted ${cascade.selected?.toUpperCase()} run — loadings are read verbatim from frozen snapshots and are never extrapolated. Valid range: ${selectedEval?.evaluationTable?.[0]?.diameter_mm ?? '?'}–${selectedEval?.evaluationTable?.slice(-1)[0]?.diameter_mm ?? '?'} mm.`;
+    if (row.feasible === false) return `User-selected diameter ${d} mm is not feasible against the declared capacity basis per the frozen evaluation table.`;
+    if (strict) {
+      if (!String(sel.engineer ?? '').trim()) return 'Engineer name is required for a governed diameter selection.';
+      if (!String(sel.reason ?? '').trim()) return 'A reason for selecting a larger diameter is required.';
+    }
+    return null;
+  };
+
+  if (opts?.userSelection) {
+    const err = validateUserSelection(opts.userSelection, true);
+    if (err) throw Object.assign(new Error(err), { statusCode: 422 });
+    userSel = { ...opts.userSelection, diameterMm: Math.round(Number(opts.userSelection.diameterMm)), selectedAt: opts.userSelection.selectedAt ?? new Date().toISOString(), carriedForward: false };
+  } else {
+    // Carry-forward check against the current active record (read BEFORE superseding).
+    const prevQ = await pool.query(
+      `SELECT selection_mode, user_selected_diameter_mm, user_selection_engineer, user_selection_reason, user_selection_at
+         FROM design_selection_records
+        WHERE revision_id = $1 AND is_superseded = FALSE
+        ORDER BY created_at DESC LIMIT 1`, [revisionId]);
+    const prev = prevQ.rows[0];
+    if (prev?.selection_mode === 'user_selected' && prev.user_selected_diameter_mm) {
+      const candidate: UserDiameterSelection = {
+        diameterMm: prev.user_selected_diameter_mm,
+        engineer: prev.user_selection_engineer ?? '',
+        reason: prev.user_selection_reason ?? '',
+        selectedAt: prev.user_selection_at ? new Date(prev.user_selection_at).toISOString() : undefined,
+        carriedForward: true,
+      };
+      const err = validateUserSelection(candidate, false);
+      if (err) {
+        userSelectionDropped = `Previous governed user diameter selection (${prev.user_selected_diameter_mm} mm by ${prev.user_selection_engineer ?? 'unknown'}) was NOT carried forward: ${err} The record reverts to the autonomous selection; a new governed selection may be entered.`;
+      } else {
+        userSel = candidate;
+      }
+    }
+  }
+
+  const effectiveDia_mm = userSel ? userSel.diameterMm : autoDia_mm;
+  const effRow = effectiveDia_mm !== null ? evalRowAt(effectiveDia_mm) : null;
+  const basisValue = selectedEval?.capacityBasis?.value ?? null;
+  const effMaxLoading = userSel ? (effRow?.maxLoading ?? null) : (selectedEval?.maximumLoading ?? null);
+  const effNormalLoading = userSel ? (effRow?.normalLoading ?? null) : (selectedEval?.normalLoading ?? null);
+  const effUtilization = userSel ? (effRow?.utilization ?? null) : (selectedEval?.floodingUtilization ?? null);
+  const effMarginFraction = effUtilization !== null && effUtilization !== undefined ? 1 - effUtilization : null;
+  const effMarginAbsolute = effMaxLoading !== null && basisValue !== null ? basisValue - effMaxLoading : null;
+
   // Governing assumptions — the selection-path assumptions plus the revision's Assumed register entries
   const governingAssumptions: Array<{ item: string; value: string; source: string }> = [];
   for (const e of evals) {
@@ -380,6 +472,24 @@ export async function generateSelectionRecord(revisionId: number, userId: number
     cascade: cascade.steps,
     selectedTechnology: cascade.selected,
     selectedDiameter_mm: selectedEval?.selectedDiameter_mm ?? null,
+    // ── DS-SEL-006 — diameter governance (autonomous / user-selected / effective)
+    selectionMode: userSel ? 'user_selected' : 'autonomous',
+    autonomousDiameter_mm: autoDia_mm,
+    userSelectedDiameter_mm: userSel?.diameterMm ?? null,
+    effectiveDiameter_mm: effectiveDia_mm,
+    effectiveNormalLoading: effNormalLoading,
+    effectiveMaximumLoading: effMaxLoading,
+    effectiveFloodingUtilization: effUtilization,
+    effectiveFloodingMarginFraction: effMarginFraction,
+    effectiveFloodingMarginAbsolute: effMarginAbsolute,
+    userSelection: userSel ? {
+      engineer: userSel.engineer,
+      reason: userSel.reason,
+      selectedAt: userSel.selectedAt,
+      carriedForward: userSel.carriedForward === true,
+      statement: USER_SELECTION_STATEMENT,
+    } : null,
+    userSelectionDropped,
     calculatedMinimumDiameter_mm: selectedEval?.calculatedMinimumDiameter_mm ?? null,
     normalLoading: selectedEval?.normalLoading ?? null,
     maximumLoading: selectedEval?.maximumLoading ?? null,
@@ -408,9 +518,13 @@ export async function generateSelectionRecord(revisionId: number, userId: number
     await client.query('UPDATE design_selection_records SET is_superseded = TRUE WHERE revision_id = $1 AND is_superseded = FALSE', [revisionId]);
     const ins = await client.query(
       `INSERT INTO design_selection_records
-         (revision_id, record, selected_technology, selected_diameter_mm, confidence_level, selection_status, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [revisionId, JSON.stringify(record), cascade.selected, record.selectedDiameter_mm, confidence.level, cascade.status, userId]);
+         (revision_id, record, selected_technology, selected_diameter_mm, confidence_level, selection_status, created_by,
+          selection_mode, user_selected_diameter_mm, effective_diameter_mm,
+          user_selection_engineer, user_selection_reason, user_selection_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [revisionId, JSON.stringify(record), cascade.selected, record.selectedDiameter_mm, confidence.level, cascade.status, userId,
+       userSel ? 'user_selected' : 'autonomous', userSel?.diameterMm ?? null, effectiveDia_mm,
+       userSel?.engineer ?? null, userSel?.reason ?? null, userSel?.selectedAt ? new Date(userSel.selectedAt) : null]);
     await client.query('COMMIT');
     return ins.rows[0];
   } catch (e) {
@@ -419,6 +533,150 @@ export async function generateSelectionRecord(revisionId: number, userId: number
   } finally {
     client.release();
   }
+}
+
+/**
+ * DS-SEL-006 — Governed user diameter selection (single orchestrated action).
+ *
+ * Validates the entry (50 mm increment series, ≥ autonomous minimum — smaller
+ * values rejected server-side), then automatically:
+ *   1. re-runs C3 Common Hydraulics, C4 ECP, C5 ECR (where applicable) and the
+ *      mechanical calculation with the effective diameter,
+ *   2. supersedes the previous active DS-SEL record and creates a new traceable
+ *      record in user_selected mode (decision resets to pending — the new
+ *      effective design must be reviewed again),
+ *   3. stores the impact assessment (previous vs new run IDs, loading,
+ *      utilization, margin, pressure drop, holdup where calculable, heights),
+ *   4. reconciles all affected reports (draft regenerated; for_review/released
+ *      marked stale + new report generated; approval blocked while stale).
+ */
+export async function applyUserDiameterSelection(revisionId: number, userId: number, body: {
+  diameterMm: number; engineer?: string; reason?: string;
+}) {
+  const revQ = await pool.query('SELECT id, is_frozen FROM design_software_revisions WHERE id = $1', [revisionId]);
+  if (!revQ.rows.length) throw Object.assign(new Error('Revision not found'), { statusCode: 404 });
+  if (revQ.rows[0].is_frozen) throw Object.assign(new Error('Revision is frozen — the governing diameter cannot be changed.'), { statusCode: 409 });
+
+  const engineer = String(body.engineer ?? '').trim();
+  const reason = String(body.reason ?? '').trim();
+  const dia = Math.round(Number(body.diameterMm));
+  if (!engineer) throw Object.assign(new Error('Engineer name is required for a governed diameter selection.'), { statusCode: 400 });
+  if (!reason) throw Object.assign(new Error('A reason for selecting a larger diameter is required.'), { statusCode: 400 });
+  if (!Number.isFinite(dia) || dia <= 0) throw Object.assign(new Error('User-selected diameter is not a valid positive number.'), { statusCode: 400 });
+  if (dia % INCREMENT_MM !== 0) throw Object.assign(new Error(`User-selected diameter ${dia} mm is not on the governed ${INCREMENT_MM} mm increment series — arbitrary values are not allowed.`), { statusCode: 422 });
+
+  // Early gate against the CURRENT autonomous minimum (final authoritative
+  // validation re-runs against the FRESH record inside generateSelectionRecord).
+  const active = await getLatestSelection(revisionId);
+  if (!active) throw Object.assign(new Error('No design selection record exists — run the Stage 7 equipment calculations first.'), { statusCode: 422 });
+  const activeAuto = active.record?.autonomousDiameter_mm ?? active.record?.selectedDiameter_mm ?? null;
+  if (activeAuto !== null && dia < activeAuto) {
+    throw Object.assign(new Error(`User-selected diameter ${dia} mm is below the autonomous calculated minimum permitted diameter of ${activeAuto} mm (DS-SEL-003). A smaller diameter would exceed the allowable utilization limit against the declared capacity basis and is blocked.`), { statusCode: 422 });
+  }
+
+  // ── Previous-state snapshot for the impact assessment ──────────────────────
+  const prevRunsQ = await pool.query(
+    `SELECT DISTINCT ON (calculation_type) id, calculation_type, calculation_status, result_snapshot
+       FROM design_software_calculation_runs
+      WHERE revision_id = $1 AND calculation_type IN ('hydraulics_common','ecp','ecr','mechanical_vessel')
+      ORDER BY calculation_type, calculated_at DESC`, [revisionId]);
+  const prevRuns: Record<string, any> = {};
+  for (const r of prevRunsQ.rows) prevRuns[r.calculation_type] = r;
+  const prevTech: Tech | null = (active.selected_technology === 'ecp' || active.selected_technology === 'ecr') ? active.selected_technology : null;
+  const heightsOf = (run: any) => {
+    const hb = run?.result_snapshot?.heightBreakdown ?? {};
+    return {
+      tangentToTangent_m: num(hb.totalTangentToTangent?.result),
+      overallVesselHeight_m: num(hb.overallVesselHeight?.result),
+    };
+  };
+  const prevState = {
+    recordId: active.id,
+    runIds: Object.fromEntries(Object.entries(prevRuns).map(([t, r]: [string, any]) => [t, r.id])),
+    effectiveDiameter_mm: active.effective_diameter_mm ?? active.selected_diameter_mm ?? null,
+    autonomousDiameter_mm: activeAuto,
+    normalLoading: active.record?.effectiveNormalLoading ?? active.record?.normalLoading ?? null,
+    maximumLoading: active.record?.effectiveMaximumLoading ?? active.record?.maximumLoading ?? null,
+    floodingUtilization: active.record?.effectiveFloodingUtilization ?? active.record?.floodingUtilization ?? null,
+    floodingMarginFraction: active.record?.effectiveFloodingMarginFraction ?? active.record?.floodingMarginFraction ?? null,
+    pressureDrop: active.record?.technologies?.find((t: any) => t.technology === prevTech)?.pressureDropAtSelected ?? null,
+    heights: prevTech ? heightsOf(prevRuns[prevTech]) : { tangentToTangent_m: null, overallVesselHeight_m: null },
+  };
+
+  // ── Automatic recalculation with the effective diameter ────────────────────
+  const { runCalculation } = await import('../design-software-service');
+  const rerunOutcome: Array<{ calculation: string; status: string; runId?: number; note?: string }> = [];
+  const rerun = async (type: string, applicable: boolean, whyNot?: string) => {
+    if (!applicable) { rerunOutcome.push({ calculation: type, status: 'not applicable', note: whyNot }); return; }
+    const { run } = await runCalculation(revisionId, type, userId);
+    if (run.calculation_status === 'error') {
+      throw Object.assign(new Error(`Automatic ${type} recalculation failed — the governed diameter selection was NOT applied. Resolve the calculation error and retry.`), { statusCode: 422 });
+    }
+    rerunOutcome.push({ calculation: type, status: run.calculation_status, runId: run.id });
+  };
+  await rerun('hydraulics_common', true);
+  await rerun('ecp', !!prevRuns.ecp, 'no prior accepted ECP run for this revision');
+  await rerun('ecr', !!prevRuns.ecr, 'no prior ECR run for this revision — ECR not applicable');
+
+  // ── New governed record (supersedes previous; decision resets to pending) ──
+  const newRecordRow = await generateSelectionRecord(revisionId, userId, {
+    userSelection: { diameterMm: dia, engineer, reason },
+  });
+
+  // Mechanical re-run AFTER the record exists so the mech geometry consumes the
+  // effective diameter; its post-run hook regenerates the record with the user
+  // selection carried forward. Mechanical is applicable only when it has run
+  // before (it requires the Stage 8 technology selection).
+  await rerun('mechanical_vessel', !!prevRuns.mechanical_vessel, 'no prior mechanical run for this revision — run it from Stage 9 when the mechanical basis is complete');
+
+  // ── Impact assessment on the final active record ────────────────────────────
+  const finalRec = await getLatestSelection(revisionId);
+  const newRunsQ = await pool.query(
+    `SELECT DISTINCT ON (calculation_type) id, calculation_type, result_snapshot
+       FROM design_software_calculation_runs
+      WHERE revision_id = $1 AND calculation_type IN ('hydraulics_common','ecp','ecr','mechanical_vessel')
+        AND calculation_status IN ('success','warning')
+      ORDER BY calculation_type, calculated_at DESC`, [revisionId]);
+  const newRuns: Record<string, any> = {};
+  for (const r of newRunsQ.rows) newRuns[r.calculation_type] = r;
+  const newTech: Tech | null = (finalRec?.selected_technology === 'ecp' || finalRec?.selected_technology === 'ecr') ? finalRec.selected_technology : null;
+  const impact = {
+    kind: 'DS-SEL-006 governed user diameter selection',
+    statement: USER_SELECTION_STATEMENT,
+    engineer, reason, appliedAt: new Date().toISOString(),
+    autonomousDiameter_mm: finalRec?.record?.autonomousDiameter_mm ?? null,
+    userSelectedDiameter_mm: dia,
+    effectiveDiameter_mm: finalRec?.effective_diameter_mm ?? dia,
+    previous: prevState,
+    new: {
+      recordId: finalRec?.id ?? newRecordRow.id,
+      runIds: Object.fromEntries(Object.entries(newRuns).map(([t, r]: [string, any]) => [t, r.id])),
+      normalLoading: finalRec?.record?.effectiveNormalLoading ?? null,
+      maximumLoading: finalRec?.record?.effectiveMaximumLoading ?? null,
+      floodingUtilization: finalRec?.record?.effectiveFloodingUtilization ?? null,
+      floodingMarginFraction: finalRec?.record?.effectiveFloodingMarginFraction ?? null,
+      pressureDrop: finalRec?.record?.technologies?.find((t: any) => t.technology === newTech)?.pressureDropAtSelected ?? null,
+      heights: newTech ? heightsOf(newRuns[newTech]) : { tangentToTangent_m: null, overallVesselHeight_m: null },
+    },
+    holdup: 'Not Calculable — the accepted engine snapshots carry no holdup result; no holdup value is invented.',
+    note: 'All figures are read verbatim from the new frozen calculation runs and the governed selection record — nothing is recomputed here.',
+  };
+  await pool.query(
+    `UPDATE design_selection_records
+        SET selection_impact = $2, record = record || jsonb_build_object('selectionImpact', $2::jsonb)
+      WHERE id = $1`, [finalRec?.id ?? newRecordRow.id, JSON.stringify(impact)]);
+
+  // ── Report reconciliation ───────────────────────────────────────────────────
+  const { reconcileReportsAfterDesignChange } = await import('../design-reports/report-service');
+  const reports = await reconcileReportsAfterDesignChange(
+    revisionId, userId,
+    `Superseded by governed user diameter selection: effective diameter ${dia} mm (autonomous ${finalRec?.record?.autonomousDiameter_mm ?? activeAuto} mm) by ${engineer} on ${new Date().toISOString().slice(0, 10)}`);
+
+  return {
+    record: await getLatestSelection(revisionId),
+    recalculations: rerunOutcome,
+    reports,
+  };
 }
 
 export async function getLatestSelection(revisionId: number) {

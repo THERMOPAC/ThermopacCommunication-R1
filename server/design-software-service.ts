@@ -554,7 +554,9 @@ export async function generateNozzleSchedule(revisionId: number) {
     const n = Number(String(v ?? '').trim());
     return Number.isFinite(n) && n > 0 ? n : null;
   };
-  let dia = nnum(inputs['column_diameter_m']) ?? nnum(inputs['column_diameter']);
+  let dia = nnum(inputs['column_diameter_m'])
+    ?? (await getEffectiveDesignDiameterM(revisionId))
+    ?? nnum(inputs['column_diameter']);
   if (dia === null) {
     const hydQ = await pool.query(
       `SELECT data->'normalCase'->'summary'->>'minimumFeasibleDiameter_m' AS d
@@ -585,6 +587,19 @@ export async function generateNozzleSchedule(revisionId: number) {
     designPressureBarg: nnum(inputs['llx_internal_design_pressure']) ?? nnum(inputs['design_pressure']) ?? undefined,
     designTempC: nnum(inputs['design_temperature']) ?? undefined,
   });
+}
+
+/** Effective design diameter (m) from the active DS-SEL record — the governed
+ *  user-selected diameter when present, otherwise the autonomous selection.
+ *  Returns undefined when no active record carries a diameter. */
+async function getEffectiveDesignDiameterM(revisionId: number): Promise<number | undefined> {
+  const q = await pool.query(
+    `SELECT COALESCE(effective_diameter_mm, selected_diameter_mm) AS d_mm
+       FROM design_selection_records
+      WHERE revision_id = $1 AND is_superseded = FALSE
+      ORDER BY created_at DESC LIMIT 1`, [revisionId]);
+  const dMm = Number(q.rows[0]?.d_mm);
+  return Number.isFinite(dMm) && dMm > 0 ? dMm / 1000 : undefined;
 }
 
 export async function runCalculation(
@@ -650,7 +665,11 @@ export async function runCalculation(
       if (!Number.isFinite(v) || v <= 0) throw new Error(`${label} ('${String(raw)}') is not a valid positive number — correct or clear the Stage 9 entry.`);
       return v;
     };
+    // Diameter precedence: Stage 9 explicit mechanical override → EFFECTIVE
+    // design diameter from the active DS-SEL record (autonomous or governed
+    // user selection, DS-SEL-006) → Stage 5 screening trial → sweep minimum.
     let dia = strictNum('column_diameter_m', 'Stage 9 column diameter override')
+      ?? (await getEffectiveDesignDiameterM(revisionId))
       ?? strictNum('column_diameter', 'Stage 5 column diameter trial')
       ?? NaN;
     if (!Number.isFinite(dia) || dia <= 0) {
