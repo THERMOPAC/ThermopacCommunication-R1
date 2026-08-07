@@ -150,7 +150,7 @@ function comparisonSection(ecp: any, ecr: any): ReportSection {
 /** Engineering Decision Record — renders the latest (non-superseded) DS-SEL
  *  autonomous selection record verbatim. Read-only: the report never re-runs
  *  the selector and never recomputes any figure. */
-async function decisionRecordSection(revisionId: number): Promise<ReportSection> {
+export async function decisionRecordSection(revisionId: number): Promise<ReportSection> {
   const q = await pool.query(
     `SELECT r.*, u.username AS created_by_name, du.username AS decision_by_name
        FROM design_selection_records r

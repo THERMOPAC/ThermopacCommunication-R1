@@ -3708,10 +3708,10 @@ export default function DesignSoftwareWorkspacePage() {
       { key: "process_design",     docType: "PDR", title: "Process Design Report", desc: "Frozen C2 results — material balance (normal + maximum case), solvent balance, yields and split fractions with provenance." },
       { key: "hydraulic_calc",     docType: "HDR", title: "Hydraulic Design Report", desc: "Frozen C3 generic screening — diameter feasibility tables (normal + maximum case), terminal-velocity screening, shape-regime indicators, slip-model basis and limitations." },
       { key: "equipment_datasheet",docType: "EDS", title: "Equipment Datasheet", desc: "Engineering datasheet for equipment procurement — frozen mechanical snapshot at the effective design diameter (DS-SEL-006), process/design conditions, materials, nozzle schedule, weights." },
-      { key: "mechanical_datasheet",title:"Mechanical Datasheet",         desc: "Mechanical design datasheet for fabrication." },
-      { key: "rfq_datasheet",      title: "RFQ Datasheet",               desc: "Request-for-quotation specification sheet." },
-      { key: "calc_book",          title: "Process Calculation Book",     desc: "Complete calculation workings in engineering format." },
-      { key: "design_report",      title: "Engineering Design Report",    desc: "Complete engineering design report for client submission." },
+      { key: "mechanical_datasheet",docType: "MDS", title:"Mechanical Datasheet", desc: "Mechanical design datasheet for fabrication — full thickness workings with verbatim engine formulas, weights breakdown, nozzle schedule with projections, validation checklist." },
+      { key: "rfq_datasheet",      docType: "RFQ", title: "RFQ Datasheet",  desc: "Request-for-quotation specification — purchaser design data at the effective diameter, nozzle schedule, and the explicit vendor-scope/outstanding-analyses declaration." },
+      { key: "calc_book",          docType: "PCB", title: "Process Calculation Book", desc: "Complete calculation workings — compiles the frozen DBR, PDR, HDR, ECPR, ECRR and mechanical payloads verbatim into one book." },
+      { key: "design_report",      docType: "EDR", title: "Engineering Design Report", desc: "Complete engineering design report — design basis extract, C2 summary, full DS-SEL decision record, mechanical summary, run and document registers." },
     ];
     return (
       <div className="max-w-3xl">
