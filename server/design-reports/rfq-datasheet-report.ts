@@ -75,7 +75,6 @@ export async function buildRfqDatasheetPayload(revisionId: number, generatedByNa
       { label: 'Equipment', value: `Liquid-Liquid Extraction Column — feed: ${s(db.feed_service)}; solvent: ${s(db.solvent)}`, sourceType: 'Design basis' },
       { label: 'Design number / title', value: `${s(rev.design_number)} — ${s(rev.title)}`, sourceType: 'Design register' },
       { label: 'Client / Plant location', value: `${s(di.client)} / ${s(di.plant_location)}`, sourceType: 'Design identity' },
-      { label: 'Quantity', value: '1', sourceType: 'One vessel per design revision (register convention)' },
     ]},
     { title: 'Purchaser Design Data', intro: 'Read verbatim from the frozen mechanical run snapshot at the effective design diameter (DS-SEL-006).', rows: [
       { label: 'Operating / design pressure', value: `${fnum(dc.operatingPressure_barg)} / ${fnum(dc.designPressure_barg)}`, unit: 'barg', sourceType: 'Frozen mechanical snapshot' },
@@ -105,9 +104,9 @@ export async function buildRfqDatasheetPayload(revisionId: number, generatedByNa
       ],
     });
     const isMissingVal = (v: unknown) => v == null || v === '' || /not calculable|not entered|not_assigned/i.test(String(v));
-    const incomplete = nozzles.filter((n: any) => isMissingVal(n.size_DN ?? n.size) || isMissingVal(n.rating));
+    const incomplete = nozzles.filter((n: any) => isMissingVal(n.size_DN ?? n.size) || isMissingVal(n.rating) || isMissingVal(n.facing) || isMissingVal(n.flangeStandard) || isMissingVal(n.flangeClass));
     if (incomplete.length) {
-      missing.push({ item: 'Nozzle schedule completeness', reason: `Nozzle(s) ${incomplete.map((n: any) => s(n.tag)).join(', ')} have no size and/or rating in the frozen snapshot — an RFQ cannot go to vendors with unsized nozzles. Complete Stage 9 and re-run.`, severity: 'error' });
+      missing.push({ item: 'Nozzle schedule completeness', reason: `Nozzle(s) ${incomplete.map((n: any) => s(n.tag)).join(', ')} are missing size, rating, facing and/or flange standard/class in the frozen snapshot — an RFQ cannot go to vendors with incompletely specified nozzles. Complete the Stage 9 nozzle inputs (or defaults) and re-run.`, severity: 'error' });
     }
   } else {
     missing.push({ item: 'Nozzle schedule', reason: 'No nozzle rows exist in the frozen mechanical snapshot — enter the nozzle schedule in Stage 9 and re-run the mechanical calculation.', severity: 'error' });

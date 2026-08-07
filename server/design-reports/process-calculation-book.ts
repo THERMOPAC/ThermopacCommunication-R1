@@ -38,6 +38,17 @@ export async function buildProcessCalculationBookPayload(revisionId: number, gen
   const diQ = await pool.query(`SELECT data FROM design_software_inputs WHERE revision_id = $1 AND section = 'design_identity'`, [revisionId]);
   const di: Record<string, string> = diQ.rows.reduce((a: any, r: any) => ({ ...a, ...r.data }), {});
 
+  // The technology selected by the active DS-SEL record makes that part REQUIRED —
+  // the calculation book cannot leave draft without the governing sizing calculation.
+  const dselQ = await pool.query(
+    `SELECT record FROM design_selection_records
+      WHERE revision_id = $1 AND is_superseded = FALSE
+      ORDER BY created_at DESC LIMIT 1`, [revisionId]);
+  const selectedTech = String(dselQ.rows[0]?.record?.selectedTechnology ?? dselQ.rows[0]?.record?.selected_technology ?? '').toLowerCase();
+  const requiredOverride: Record<string, boolean> = {};
+  if (selectedTech.includes('ecp') || selectedTech.includes('packed')) requiredOverride['Part 4'] = true;
+  if (selectedTech.includes('ecr') || selectedTech.includes('agitated') || selectedTech.includes('rdc')) requiredOverride['Part 5'] = true;
+
   const sections: ReportSection[] = [];
   const assumptions: NonNullable<ReportPayload['assumptions']> = [];
   const missing: NonNullable<ReportPayload['missingData']> = [];
@@ -65,7 +76,7 @@ export async function buildProcessCalculationBookPayload(revisionId: number, gen
       missing.push({
         item: `${p.part}: ${p.title}`,
         reason: `This part could not be compiled: ${reason}`,
-        severity: p.required ? 'error' : 'warning',
+        severity: (requiredOverride[p.part] ?? p.required) ? 'error' : 'warning',
       });
     }
   }

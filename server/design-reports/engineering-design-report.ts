@@ -78,19 +78,18 @@ export async function buildEngineeringDesignReportPayload(revisionId: number, ge
   // ── 2. Process design summary (C2, verbatim) ──────────────────────────────
   const c2 = results['process_design']?.data;
   if (c2) {
-    const nb = c2.normalCase ?? c2.materialBalance?.normalCase ?? {};
-    const mb = c2.maximumCase ?? c2.materialBalance?.maximumCase ?? {};
-    const flowRows: ReportRow[] = [];
-    const pushFlow = (label: string, kase: any) => {
-      const feed = kase?.feed ?? kase?.streams?.feed; const solvent = kase?.solvent ?? kase?.streams?.solvent;
-      if (feed || solvent) flowRows.push({ label, value: `feed ${fnum(feed?.volumetricFlow_m3_h ?? feed?.flow_m3_h)} m³/h; solvent ${fnum(solvent?.volumetricFlow_m3_h ?? solvent?.flow_m3_h)} m³/h`, sourceType: 'Frozen C2 snapshot (verbatim)' });
-    };
-    pushFlow('Normal case flows', nb);
-    pushFlow('Maximum continuous case flows', mb);
+    const flows = c2.flows ?? {};
+    const uM = flows.unitMass ?? 'kg/h';
+    const uV = flows.unitVolumetric ?? 'm³/h';
     sections.push({
       title: 'Process Design Summary (C2)',
-      intro: 'Headline flows only — the complete material and solvent balance with provenance is in the Process Design Report (PDR).',
-      rows: flowRows.length ? flowRows : [{ label: 'C2 summary', value: 'See the Process Design Report (PDR) for the complete frozen balance.', sourceType: `Frozen C2 snapshot (engine v${s(results['process_design']?.engine_version)})` }],
+      intro: `Headline flows read verbatim from the frozen C2 snapshot (engine v${s(results['process_design']?.engine_version)}) — the complete material and solvent balance with provenance is in the Process Design Report (PDR).`,
+      rows: [
+        { label: 'Feed flow (mass / volumetric)', value: `${fnum(flows.feedMassFlow, 1)} ${uM} / ${fnum(flows.feedVolumetricFlow)} ${uV}`, sourceType: 'Frozen C2 snapshot' },
+        { label: 'Normal solvent flow (mass / volumetric)', value: `${fnum(flows.normalSolventMassFlow, 1)} ${uM} / ${fnum(flows.normalSolventVolumetricFlow)} ${uV}`, sourceType: 'Frozen C2 snapshot' },
+        { label: 'Maximum solvent flow (mass / volumetric)', value: `${fnum(flows.maximumSolventMassFlow, 1)} ${uM} / ${fnum(flows.maximumSolventVolumetricFlow)} ${uV}`, sourceType: 'Frozen C2 snapshot' },
+        { label: 'Max circulation factor', value: s(flows.maxCirculationFactor), sourceType: 'Frozen C2 snapshot' },
+      ],
     });
   }
 

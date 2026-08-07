@@ -173,12 +173,19 @@ export async function buildMechanicalDatasheetPayload(revisionId: number, genera
   }
 
   // ── Validation checklist + future analyses ────────────────────────────────
-  const checklist: any[] = mech.validationChecklist ?? [];
-  if (checklist.length) {
+  const checklist: Record<string, { pass?: boolean; evidence?: string }> = mech.validationChecklist ?? {};
+  const checklistEntries = Object.entries(checklist);
+  if (checklistEntries.length) {
     sections.push({
       title: 'Engine Validation Checklist (verbatim)',
-      table: [['Item', 'Status', 'Note'], ...checklist.map((c: any) => [s(c.item ?? c.check ?? c.label), s(c.status), s(c.note ?? c.detail ?? '')])],
+      table: [['Check', 'Result', 'Evidence (verbatim)'], ...checklistEntries.map(([name, c]) => [name, c?.pass === true ? 'PASS' : c?.pass === false ? 'FAIL' : '—', s(c?.evidence)])],
     });
+    const failed = checklistEntries.filter(([, c]) => c?.pass === false);
+    if (failed.length) {
+      missing.push({ item: 'Engine validation checklist', reason: `Failed check(s) in the frozen mechanical run: ${failed.map(([n, c]) => `${n} (${s(c?.evidence)})`).join('; ')}. A fabrication datasheet cannot leave draft with failed engine checks — resolve the Stage 9 inputs and re-run.`, severity: 'error' });
+    }
+  } else {
+    missing.push({ item: 'Engine validation checklist', reason: 'The frozen mechanical snapshot carries no validation checklist — re-run the Stage 9 mechanical calculation on the current engine version.', severity: 'error' });
   }
   const futureParas: string[] = [];
   if (mech.applicabilityStatement) futureParas.push(`Applicability (verbatim): ${mech.applicabilityStatement}`);
