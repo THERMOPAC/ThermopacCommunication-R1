@@ -89,6 +89,21 @@ function sanitizeForPdf(v: any): any {
   return v;
 }
 
+/**
+ * Derive the displayed source classification from a stored tagged-source
+ * string (e.g. "Measured at 70 °C" → "Measured"). Never invents a class:
+ * unknown/empty sources classify as Assumed — Pending Validation (the
+ * conservative default), so a value can never display as validated
+ * without an explicit Measured/Vendor/Literature tag.
+ */
+export function classifyTaggedSource(source: string | null | undefined): string {
+  const s = String(source ?? '').trim();
+  if (/^measured/i.test(s)) return 'Measured';
+  if (/^vendor/i.test(s)) return 'Vendor';
+  if (/^literature/i.test(s)) return 'Literature';
+  return 'Assumed — Pending Validation';
+}
+
 export function renderReportPdf(payload: ReportPayload): Promise<Buffer> {
   const p: ReportPayload = sanitizeForPdf(payload);
   return new Promise((resolve, reject) => {
@@ -269,6 +284,10 @@ export function renderReportPdf(payload: ReportPayload): Promise<Buffer> {
     const range = doc.bufferedPageRange();
     for (let i = 0; i < range.count; i++) {
       doc.switchToPage(i);
+      // Footer/watermark text sits below the bottom margin; without zeroing the
+      // margin pdfkit auto-appends a page for EVERY page here (doubling the
+      // document with footer-only pages). Safe: nothing else is written after.
+      doc.page.margins.bottom = 0;
       if (i > 0) {
         doc.font('Helvetica').fontSize(7.5).fillColor(LIGHT);
         doc.text(`${p.docNumber}  ·  ${p.reportRev}  ·  ${p.docTypeTitle}`, M, 30, { width: W * 0.7, lineBreak: false });

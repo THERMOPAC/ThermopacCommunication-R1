@@ -11,6 +11,7 @@
  */
 import { pool } from '../db';
 import type { ReportPayload, ReportRow, ReportSection } from './report-framework';
+import { classifyTaggedSource } from './report-framework';
 
 const f1 = (v: unknown): string => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(1) : '');
 const f2 = (v: unknown): string => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(2) : '');
@@ -115,7 +116,7 @@ export async function buildHydraulicDesignPayload(revisionId: number, generatedB
       { label: 'Characteristic Velocity u_K', value: f4(db.characteristicVelocity?.value_m_s), unit: 'm/s', sourceType: 'Provisional', sourceRef: db.characteristicVelocity?.basis ?? '' },
       { label: 'Sauter Mean Diameter d32', value: String(db.sauterMeanDiameter?.value ?? ''), unit: 'm', sourceType: db.sauterMeanDiameter?.sourceType ?? '', sourceRef: db.sauterMeanDiameter?.sourceReference ?? '' },
       { label: 'Hindrance Exponent n', value: String(db.hindranceExponent?.value ?? db.hindranceExponent ?? ''), sourceType: db.hindranceExponent?.sourceType ?? 'Assumed', sourceRef: db.hindranceExponent?.sourceReference ?? 'Thermopac Preliminary Screening Default — n pending laboratory validation' },
-      { label: 'Interfacial Tension', value: ift?.value != null ? String(ift.value) : '', unit: ift?.unit ?? 'N/m', sourceType: 'Assumed — Pending Validation', sourceRef: ift?.source ?? '' },
+      { label: 'Interfacial Tension', value: ift?.value != null ? String(ift.value) : '', unit: ift?.unit ?? 'N/m', sourceType: classifyTaggedSource(ift?.source), sourceRef: ift?.source ?? '' },
       { label: 'Density Difference', value: f1(db.densityDifference_kg_m3), unit: 'kg/m³', sourceType: 'Calculated (C3)' },
       { label: 'Operating Temperature', value: String(db.operatingTemperatureC ?? ''), unit: '°C', sourceType: 'Design basis' },
       { label: 'Holdup Search Bounds', value: db.holdupBounds ? `${db.holdupBounds.min ?? '—'} – ${db.holdupBounds.max ?? '—'}` : '', unit: 'φ (–)', sourceType: 'Engine configuration' },

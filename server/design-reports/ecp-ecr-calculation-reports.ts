@@ -17,6 +17,7 @@
  */
 import { pool } from '../db';
 import type { ReportPayload, ReportRow, ReportSection } from './report-framework';
+import { classifyTaggedSource } from './report-framework';
 
 const f2 = (v: unknown): string => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(2) : '');
 const f3 = (v: unknown): string => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(3) : '');
@@ -314,7 +315,7 @@ export async function buildEcpCalculationPayload(revisionId: number, generatedBy
     { title: 'HETS & Packing Height', rows: [rrow('Packed height (N × HETS)', ecp.packingHeight, 2)], paragraphs: [
       `HETS provenance (verbatim): value ${db.hets?.value ?? '—'} ${db.hets?.unit ?? ''}, source type ${db.hets?.sourceType ?? '—'}, reference "${db.hets?.sourceReference ?? '—'}"; system: ${db.hets?.feed ?? '—'} / ${db.hets?.solvent ?? '—'} on ${db.hets?.packing ?? '—'} at ${db.hets?.operatingTemperatureC ?? '—'} °C. Note (verbatim): ${db.hets?.note ?? '—'}.`,
     ]},
-    { title: 'Bed Arrangement', intro: `Basis (verbatim): ${ecp.bedArrangement?.basis ?? '—'} [${ecp.bedArrangement?.formulaReference ?? ''}]`, table: [
+    { title: 'Bed Arrangement', intro: `${String(ecp.bedArrangement?.basis ?? '').includes('NO_BED_HEIGHT_LIMIT_DATA') ? 'STATUS: Preliminary single-bed assumption — Pending Vendor Maximum Bed Height. Bed count and redistributor requirement are NOT settled design results. ' : ''}Basis (verbatim): ${ecp.bedArrangement?.basis ?? '—'} [${ecp.bedArrangement?.formulaReference ?? ''}]`, table: [
       ['Bed', 'Height (m)'],
       ...(ecp.bedArrangement?.beds ?? []).map((b: any) => [String(b.bed), f2(b.height_m)]),
       ['Redistributors', ecp.bedArrangement?.redistributors != null ? String(ecp.bedArrangement.redistributors) : 'NOT STORED IN SNAPSHOT'],
@@ -442,7 +443,7 @@ export async function buildEcrCalculationPayload(revisionId: number, generatedBy
       { label: 'Compartment efficiency', value: String(db.compartmentEfficiency?.value ?? ''), unit: '-', sourceType: db.compartmentEfficiency?.sourceType ?? '', sourceRef: db.compartmentEfficiency?.sourceReference ?? '' },
       { label: 'Power-density basis', value: String(db.powerDensityBasis?.selected ?? ''), sourceType: 'Engine configuration', sourceRef: db.powerDensityBasis?.note ?? '' },
       { label: 'Interfacial tension', value: String(db.interfacialTension?.value ?? ''), unit: db.interfacialTension?.unit ?? 'N/m', sourceType: db.interfacialTension?.sourceType ?? '', sourceRef: db.interfacialTension?.sourceReference ?? '' },
-      { label: 'Continuous-phase viscosity', value: String(db.continuousPhaseViscosity?.value ?? ''), unit: db.continuousPhaseViscosity?.unit ?? 'Pa.s', sourceType: 'Assumed — Pending Validation', sourceRef: db.continuousPhaseViscosity?.source ?? '' },
+      { label: 'Continuous-phase viscosity', value: String(db.continuousPhaseViscosity?.value ?? ''), unit: db.continuousPhaseViscosity?.unit ?? 'Pa.s', sourceType: classifyTaggedSource(db.continuousPhaseViscosity?.source), sourceRef: db.continuousPhaseViscosity?.source ?? '' },
       { label: 'RRBO density used', value: String(db.feedFluid?.densityUsed?.value ?? ''), unit: db.feedFluid?.densityUsed?.unit ?? '', sourceType: 'Entered/EPD', sourceRef: db.feedFluid?.densityUsed?.source ?? '' },
       { label: 'NMP density used', value: String(db.solventFluid?.densityUsed?.value ?? ''), unit: db.solventFluid?.densityUsed?.unit ?? '', sourceType: 'Entered/EPD', sourceRef: db.solventFluid?.densityUsed?.source ?? '' },
       { label: 'System derating factor', value: String(db.systemDeratingFactor?.value ?? ''), sourceType: 'Not supplied — default 1.0', sourceRef: db.systemDeratingFactor?.note ?? '' },
