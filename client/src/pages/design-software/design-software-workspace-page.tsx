@@ -3382,6 +3382,18 @@ export default function DesignSoftwareWorkspacePage() {
             </div>
             <span className="text-xs text-gray-400 pt-2">mm</span>
           </div>
+          <div className="grid grid-cols-[210px_1fr_60px] items-start gap-3 py-1">
+            <label className="text-sm text-gray-600 pt-2 font-medium leading-tight">Governing Design Code</label>
+            <div>
+              <select className="w-full h-8 text-sm border rounded-md px-2 bg-white" value={(md.design_code ?? "").trim()} disabled={isFrozen}
+                onChange={e => cm({ design_code: e.target.value })}>
+                <option value="">— Not Assigned (blocks report issue) —</option>
+                {["ASME Sec VIII Div 1", "ASME Sec VIII Div 2", "EN 13445", "IS 2825", "PD 5500"].map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              {trace((md.design_code ?? "").trim() ? "Engineer Entered" : "Mandatory — Not Assigned", "Stage 9 — Mechanical Design", "No default is applied; the engine records NOT_ASSIGNED verbatim until entered. Assigning the code and re-running unblocks the EDS/MDS/RFQ/EDR reports.")}
+            </div>
+            <span />
+          </div>
         </SectionCard>
 
         <SectionCard title="Nozzle Schedule (Auto-Generated & Sized)">

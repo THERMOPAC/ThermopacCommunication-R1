@@ -174,7 +174,8 @@ export function mapWorkspaceMechanicalInputs(
     ...(desT !== undefined ? { designTemperature: tag(desT, 'C', String(inputs.design_temperature_source ?? '').trim() || 'Thermopac Design Temperature Rule (Stage 2)') } : {}),
     ...(material ? { material } : {}),
     jointEfficiency: (() => { const e = numStrict(inputs, 'joint_efficiency', 'Stage 9 joint efficiency'); return tag(e ?? 0.85, '-', e !== undefined ? 'Stage 9 engineer-entered joint efficiency' : `${ALLOWANCE_REF} — spot-examination screening basis`); })(),
-    designCode: 'NOT_ASSIGNED',
+    // Governing design code — Stage 9 engineer-entered; NOT_ASSIGNED verbatim when absent (never invented).
+    designCode: str('design_code') || 'NOT_ASSIGNED',
     ...(headType ? { headType } : {}),
     plateThicknessSeries: { values_mm: [5, 6, 8, 10, 12, 14, 16, 18, 20, 22, 25, 28, 32, 36, 40], sourceType: 'Assumed', sourceReference: PLATE_REF },
     nozzles,
