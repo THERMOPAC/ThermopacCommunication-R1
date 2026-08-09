@@ -120,7 +120,7 @@ async function main() {
     // rich items (refinement 8)
     const it = row.ecpHydraulicUtilization;
     checkTrue('rich item: units/source/status/validation/warnings/formulaReference/engineVersion',
-      it.units === '%' && typeof it.source === 'string' && typeof it.status === 'string' && typeof it.validation === 'string' && Array.isArray(it.warnings) && it.formulaReference === 'ECP-002' && it.engineVersion === '1.0.0');
+      it.units === '%' && typeof it.source === 'string' && typeof it.status === 'string' && typeof it.validation === 'string' && Array.isArray(it.warnings) && it.formulaReference === 'ECP-002' && it.engineVersion === '1.1.0');
     // versions & applicability
     const v5 = d.engineVersions;
     checkTrue('CEL/EPD/C2/C3/ECP versions recorded', !!(v5.cel && v5.epd && v5.processDesign && v5.hydraulicsCommon && v5.ecpPackedColumn));
@@ -129,8 +129,20 @@ async function main() {
     // rate-based placeholders (refinement 4)
     const rb = d.rateBasedPlaceholders;
     checkTrue('HTU/NTU/Ka/interfacialArea reserved as null', rb.htu === null && rb.ntu === null && rb.ka === null && rb.interfacialArea === null);
-    // dry/wet separation (refinement 5)
-    checkTrue('wet applied, dry reserved', d.pressureDropArchitecture.wetApplied === true && d.pressureDropArchitecture.dryReserved === true);
+    // dry/wet separation (refinement 5; v1.1.0: dry preliminary prediction implemented — ECP-009)
+    checkTrue('wet applied, dry preliminary (ECP-009)', d.pressureDropArchitecture.wetApplied === true && d.pressureDropArchitecture.dryReserved === false && d.pressureDropArchitecture.dryPreliminaryImplemented === true);
+    // ECP-009/ECP-010 single-phase frictional framework (v1.1.0)
+    const sp = row.singlePhaseFrictional;
+    checkTrue('ECP-009 present with classification', sp && sp.classification === 'Preliminary Pressure Drop Prediction — Pending RRBO/NMP Validation');
+    check('ECP-009 d_h = 4/a', d.dryPressureDropPrediction.hydraulicDiameter.result, 4 / 250, 1e-12);
+    checkTrue('ECP-009 Re/F_v/u_s calculated', typeof sp.phaseReynolds.result === 'number' && typeof sp.phaseLoadFactor.result === 'number' && typeof sp.superficialVelocity.result === 'number');
+    checkTrue('ECP-009 c_f Not Calculable without tagged basis', sp.frictionFactor.status === 'Not Calculable' && sp.dryPressureDrop.status === 'Not Calculable');
+    checkTrue('ECP-009 pipe reference never a packing c_f', sp.laminarPipeReferenceFrictionFactor.validation.includes('REFERENCE ONLY'));
+    checkTrue('ECP-010 verification present with range statement', d.dryPressureDropVerification && String(d.dryPressureDropVerification.validatedRangeStatement).includes('OUTSIDE'));
+    const DPC = 'Preliminary Pressure Drop Prediction — Pending RRBO/NMP Validation';
+    checkTrue('mandated classification on every pressure-drop quantity (incl. Not Calculable)',
+      sp.frictionFactor.pressureDropClassification === DPC && sp.dryPressureDrop.pressureDropClassification === DPC
+      && d.dryPressureDropVerification.backCalculatedFrictionFactor.pressureDropClassification === DPC);
     // vendor neutrality (refinement 9): no vendor brand names in engine strings
     const json = JSON.stringify(d).toLowerCase();
     checkTrue('no C3 generic-throughput reuse in output', !json.includes('generichydraulicthroughput'));
@@ -252,7 +264,7 @@ async function main() {
     const res = await engine.calculate(i, ctx);
     const row = (res.data as any).normalCase.diameters[0];
     checkTrue('open-area velocity below vendor window flagged', row.distributor.overallStatus === 'outside_vendor_limits' && row.distributor.openAreaVelocity.warnings.length > 0);
-    checkTrue('distributor sub-checks are rich items', row.distributor.openAreaVelocity.formulaReference === 'ECP-004' && row.distributor.openAreaVelocity.engineVersion === '1.0.0');
+    checkTrue('distributor sub-checks are rich items', row.distributor.openAreaVelocity.formulaReference === 'ECP-004' && row.distributor.openAreaVelocity.engineVersion === '1.1.0');
     checkTrue('DISTRIBUTOR_OUTSIDE_VENDOR_LIMITS warning', res.warnings.some((w) => w.code === 'DISTRIBUTOR_OUTSIDE_VENDOR_LIMITS'));
 
     // capacity exceeded
@@ -451,6 +463,46 @@ async function main() {
       const ok = res.status === 'error' && (res.data as any).calculationRunStatus === 'calculation_blocked' && !JSON.stringify(res.data).includes('NaN');
       checkTrue(`blocked: ${name}`, ok, res.validationIssues.slice(0, 2));
     }
+  }
+
+  // ── 13b. ECP-009 friction-factor governance (v1.1.0) ──
+  console.log('── ECP-009 friction-factor governance ──');
+  {
+    const DPC = 'Preliminary Pressure Drop Prediction — Pending RRBO/NMP Validation';
+    // provenance gating: frictionFactorData without provenance is refused
+    const noProv = registerPacking(vendorPacking({ id: 'ff-noprov', frictionFactorData: { kind: 'constant', dependentUnit: '-', value: 2.0, applicabilityNote: 'test', sourceType: 'Vendor', sourceReference: 'Vendor bulletin X' } as never }));
+    checkTrue('frictionFactorData without provenance refused', noProv.some(i => i.field.includes('frictionFactorProvenance')));
+    // provenance value outside the controlled set is refused
+    const badProv = registerPacking(vendorPacking({ id: 'ff-badprov', frictionFactorData: { kind: 'constant', dependentUnit: '-', value: 2.0, applicabilityNote: 'test', sourceType: 'Vendor', sourceReference: 'Sulcol run' } as never, frictionFactorProvenance: 'vendor_software' as never }));
+    checkTrue('vendor_software provenance refused', badProv.some(i => i.field.includes('frictionFactorProvenance')));
+    // curve vs any variable other than phaseReynoldsNumber is refused
+    const badVar = registerPacking(vendorPacking({ id: 'ff-badvar', frictionFactorProvenance: 'measured' as never, frictionFactorData: { kind: 'table', independentVariable: 'totalLiquidLoad', independentUnit: 'm3/(m2.h)', dependentUnit: '-', points: [{ x: 1, y: 3 }, { x: 500, y: 1 }], sourceType: 'Measured', sourceReference: 'lab' } as never }));
+    checkTrue('c_f curve vs non-Re variable refused', badVar.some(i => i.field.includes('independentVariable')));
+    // supplied constant c_f: dry Δp computed and classified
+    const okIssues = registerPacking(vendorPacking({ id: 'ff-const', frictionFactorProvenance: 'measured' as never, frictionFactorData: { kind: 'constant', dependentUnit: '-', value: 2.5, applicabilityNote: 'laminar range, test datum', sourceType: 'Measured', sourceReference: 'lab measurement M-1' } as never }));
+    checkTrue('valid c_f record registers', okIssues.length === 0, okIssues);
+    const iC = baseInputs(); delete iC.packing; (iC as any).packingId = 'ff-const';
+    const rC = await engine.calculate(iC, ctx);
+    const rowC = (rC.data as any).maximumCase.diameters[0];
+    const spC = rowC.singlePhaseFrictional;
+    // Δp/Δz = c_f·F_v²/(2·d_h) — eq. (6) equivalence, using the engine's own emitted F_v
+    const expDpm = 2.5 * Math.pow(spC.phaseLoadFactor.result, 2) / (2 * (4 / 250));
+    check('dry Δp/Δz = c_f·F_v²/(2·d_h) with supplied constant c_f', spC.dryPressureDrop.perMeter.result, expDpm, 1e-9);
+    checkTrue('supplied c_f still only Pending Validation + mandated classification',
+      spC.frictionFactor.status === 'Pending Validation' && spC.dryPressureDrop.perMeter.pressureDropClassification === DPC && spC.dryPressureDrop.total.pressureDropClassification === DPC);
+    checkTrue('c_f source cites provenance', String(spC.frictionFactor.source).includes('provenance: measured'));
+    // supplied c_f CURVE: out-of-range Re refused (no extrapolation)
+    const curveReg = registerPacking(vendorPacking({ id: 'ff-curve', frictionFactorProvenance: 'controlled_literature' as never, frictionFactorData: { kind: 'table', independentVariable: 'phaseReynoldsNumber', independentUnit: '-', dependentUnit: '-', points: [{ x: 1, y: 30 }, { x: 10, y: 4 }], sourceType: 'Literature', sourceReference: 'controlled source C-1' } as never }));
+    checkTrue('c_f curve record registers', curveReg.length === 0, curveReg);
+    const iK = baseInputs(); delete iK.packing; (iK as any).packingId = 'ff-curve';
+    const rK = await engine.calculate(iK, ctx);
+    const spK = (rK.data as any).maximumCase.diameters[0].singlePhaseFrictional;
+    checkTrue('c_f curve out-of-Re-range ⇒ Not Calculable (no extrapolation), classified', spK.frictionFactor.status === 'Not Calculable' && spK.dryPressureDrop.pressureDropClassification === DPC);
+    // RRBO-continuous: continuous-phase viscosity must be the entered RRBO datum
+    const iR = baseInputs(); (iR as any).phaseConfiguration = 'rrbo_continuous_nmp_dispersed';
+    const rR = await engine.calculate(iR, ctx);
+    const spR = (rR.data as any).maximumCase.diameters[0].singlePhaseFrictional;
+    checkTrue('RRBO-continuous Re uses RRBO viscosity (lower Re than NMP-continuous)', String(spR.phaseReynolds.source).includes('η_c(RRBO)'));
   }
 
   // ── 14. Concurrency / property-context isolation ──

@@ -16,6 +16,7 @@ import { buildProcessDesignPayload } from './process-design-report';
 import { buildHydraulicDesignPayload } from './hydraulic-design-report';
 import { buildEcpCalculationPayload, buildEcrCalculationPayload } from './ecp-ecr-calculation-reports';
 import { buildMechanicalDatasheetPayload } from './mechanical-datasheet-report';
+import { buildPreliminaryGaPayload } from './preliminary-general-arrangement';
 
 const PARTS: Array<{ part: string; title: string; builder: (revisionId: number, generatedByName: string) => Promise<{ payload: ReportPayload; blocking: number }>; required: boolean }> = [
   { part: 'Part 1', title: 'Design Basis (DBR content)', builder: buildDesignBasisPayload, required: true },
@@ -24,6 +25,7 @@ const PARTS: Array<{ part: string; title: string; builder: (revisionId: number, 
   { part: 'Part 4', title: 'Packed Column Calculation — C4 ECP (ECPR content)', builder: buildEcpCalculationPayload, required: false },
   { part: 'Part 5', title: 'Agitated Column Calculation — C5 ECR (ECRR content)', builder: buildEcrCalculationPayload, required: false },
   { part: 'Part 6', title: 'Mechanical Design Workings (MDS content)', builder: buildMechanicalDatasheetPayload, required: true },
+  { part: 'Part 7', title: 'Preliminary General Arrangement (PGA content — Not for Fabrication)', builder: buildPreliminaryGaPayload, required: false },
 ];
 
 export async function buildProcessCalculationBookPayload(revisionId: number, generatedByName: string): Promise<{ payload: ReportPayload; blocking: number }> {

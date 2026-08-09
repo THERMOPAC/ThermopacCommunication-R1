@@ -21,6 +21,17 @@ export interface ReportRow {
   sourceRef?: string;    // exact citation — rendered verbatim, never paraphrased
 }
 
+/** JSON-serializable vector-drawing primitives (frozen in the payload like all
+ *  other report content — no executable code is ever persisted). Coordinates
+ *  are in PDF points relative to the drawing origin (top-left of the drawing
+ *  area on its dedicated page). */
+export type DrawPrimitive =
+  | { kind: 'line'; x1: number; y1: number; x2: number; y2: number; color?: string; lineWidth?: number; dash?: number[] }
+  | { kind: 'rect'; x: number; y: number; w: number; h: number; stroke?: string; fill?: string; lineWidth?: number; dash?: number[] }
+  | { kind: 'path'; d: string; stroke?: string; fill?: string; lineWidth?: number; dash?: number[] }
+  | { kind: 'circle'; cx: number; cy: number; r: number; stroke?: string; fill?: string; lineWidth?: number }
+  | { kind: 'text'; x: number; y: number; str: string; size?: number; bold?: boolean; color?: string; align?: 'left' | 'center' | 'right'; boxWidth?: number; rotate?: number };
+
 export interface ReportSection {
   title: string;
   intro?: string;
@@ -28,6 +39,9 @@ export interface ReportSection {
   /** free-form table: first array is the header row */
   table?: string[][];
   paragraphs?: string[];
+  /** When present the section renders on its own dedicated page as a scaled
+   *  vector drawing (e.g. the Preliminary General Arrangement views). */
+  drawing?: { heightPt: number; primitives: DrawPrimitive[]; caption?: string; landscape?: boolean };
 }
 
 export interface ReportPayload {
@@ -214,8 +228,85 @@ export function renderReportPdf(payload: ReportPayload): Promise<Buffer> {
       doc.y = y + 6; doc.x = M;
     };
 
+    // ── Drawing renderer (dedicated page per drawing section) ───────────────
+    const finite = (...ns: any[]) => ns.every(n => typeof n === 'number' && Number.isFinite(n));
+    const validPrim = (pr: any): boolean => {
+      if (!pr || typeof pr !== 'object') return false;
+      switch (pr.kind) {
+        case 'line': return finite(pr.x1, pr.y1, pr.x2, pr.y2);
+        case 'rect': return finite(pr.x, pr.y, pr.w, pr.h);
+        case 'path': return typeof pr.d === 'string' && pr.d.length > 0 && pr.d.length < 10000;
+        case 'circle': return finite(pr.cx, pr.cy, pr.r);
+        case 'text': return finite(pr.x, pr.y) && pr.str != null;
+        default: return false;
+      }
+    };
+    const drawPrimitives = (ox: number, oy: number, prims: DrawPrimitive[]) => {
+      for (const pr of Array.isArray(prims) ? prims : []) {
+        // Persisted payloads may be old/malformed — skip anything that would
+        // hand PDFKit a non-finite coordinate rather than corrupting the page.
+        if (!validPrim(pr)) continue;
+        doc.save();
+        if (pr.kind === 'line') {
+          if (pr.dash) doc.dash(pr.dash[0], { space: pr.dash[1] ?? pr.dash[0] });
+          doc.lineWidth(pr.lineWidth ?? 0.8).moveTo(ox + pr.x1, oy + pr.y1).lineTo(ox + pr.x2, oy + pr.y2).stroke(pr.color ?? '#000');
+        } else if (pr.kind === 'rect') {
+          if (pr.dash) doc.dash(pr.dash[0], { space: pr.dash[1] ?? pr.dash[0] });
+          doc.lineWidth(pr.lineWidth ?? 0.8);
+          if (pr.fill && pr.stroke) doc.rect(ox + pr.x, oy + pr.y, pr.w, pr.h).fillAndStroke(pr.fill, pr.stroke);
+          else if (pr.fill) doc.rect(ox + pr.x, oy + pr.y, pr.w, pr.h).fill(pr.fill);
+          else doc.rect(ox + pr.x, oy + pr.y, pr.w, pr.h).stroke(pr.stroke ?? '#000');
+        } else if (pr.kind === 'path') {
+          if (pr.dash) doc.dash(pr.dash[0], { space: pr.dash[1] ?? pr.dash[0] });
+          doc.lineWidth(pr.lineWidth ?? 0.8).translate(ox, oy);
+          if (pr.fill && pr.stroke) doc.path(pr.d).fillAndStroke(pr.fill, pr.stroke);
+          else if (pr.fill) doc.path(pr.d).fill(pr.fill);
+          else doc.path(pr.d).stroke(pr.stroke ?? '#000');
+        } else if (pr.kind === 'circle') {
+          doc.lineWidth(pr.lineWidth ?? 0.8);
+          if (pr.fill && pr.stroke) doc.circle(ox + pr.cx, oy + pr.cy, pr.r).fillAndStroke(pr.fill, pr.stroke);
+          else if (pr.fill) doc.circle(ox + pr.cx, oy + pr.cy, pr.r).fill(pr.fill);
+          else doc.circle(ox + pr.cx, oy + pr.cy, pr.r).stroke(pr.stroke ?? '#000');
+        } else if (pr.kind === 'text') {
+          doc.font(pr.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(pr.size ?? 7).fillColor(pr.color ?? '#000');
+          if (pr.rotate) doc.rotate(pr.rotate, { origin: [ox + pr.x, oy + pr.y] });
+          doc.text(String(pr.str), ox + pr.x, oy + pr.y, { width: pr.boxWidth ?? 200, align: pr.align ?? 'left', lineBreak: false });
+        }
+        doc.restore();
+      }
+    };
+
     // ── Body sections ────────────────────────────────────────────────────────
+    let pendingPortrait = false;
     for (const s of p.sections) {
+      if (s.drawing) {
+        const land = !!s.drawing.landscape;
+        if (land) {
+          // full landscape drawing sheet — no report heading (the sheet carries
+          // its own title block); origin leaves room for the page header strip
+          doc.addPage({ size: 'A4', layout: 'landscape', margins: { top: 46, bottom: 40, left: 30, right: 30 } });
+          const ox = 30, oy2 = 48;
+          drawPrimitives(ox, oy2, s.drawing.primitives);
+          const wLoc = doc.page.width - 2 * ox;
+          doc.y = Math.min(oy2 + s.drawing.heightPt + 6, doc.page.height - 60);
+          doc.x = ox;
+          if (s.drawing.caption) doc.font('Helvetica').fontSize(7).fillColor(GRAY).text(s.drawing.caption, ox, doc.y, { width: wLoc });
+          pendingPortrait = true;
+          continue;
+        }
+        if (pendingPortrait) pendingPortrait = false; // addPage below resets to portrait via explicit options
+        doc.addPage({ size: 'A4', layout: 'portrait', margins: { top: 70, bottom: 60, left: M, right: M } });
+        heading(s.title);
+        if (s.intro) { doc.font('Helvetica').fontSize(8.5).fillColor(GRAY).text(s.intro, M, doc.y, { width: W }); doc.moveDown(0.3); }
+        const oy = doc.y + 4;
+        drawPrimitives(M, oy, s.drawing.primitives);
+        doc.y = Math.min(oy + s.drawing.heightPt + 8, doc.page.height - 70);
+        doc.x = M;
+        if (s.drawing.caption) { doc.font('Helvetica').fontSize(7.5).fillColor(GRAY).text(s.drawing.caption, M, doc.y, { width: W }); doc.moveDown(0.3); }
+        for (const para of s.paragraphs ?? []) { doc.font('Helvetica').fontSize(8.5).fillColor('#111').text(para, M, doc.y, { width: W }); doc.moveDown(0.3); }
+        continue;
+      }
+      if (pendingPortrait) { doc.addPage({ size: 'A4', layout: 'portrait', margins: { top: 70, bottom: 60, left: M, right: M } }); pendingPortrait = false; }
       heading(s.title);
       if (s.intro) { doc.font('Helvetica').fontSize(9).fillColor(GRAY).text(s.intro, M, doc.y, { width: W }); doc.moveDown(0.4); }
       for (const para of s.paragraphs ?? []) { doc.font('Helvetica').fontSize(9.5).fillColor('#111').text(para, M, doc.y, { width: W, align: 'justify' }); doc.moveDown(0.4); }
@@ -288,15 +379,18 @@ export function renderReportPdf(payload: ReportPayload): Promise<Buffer> {
       // margin pdfkit auto-appends a page for EVERY page here (doubling the
       // document with footer-only pages). Safe: nothing else is written after.
       doc.page.margins.bottom = 0;
+      // landscape drawing sheets use tighter margins — size header/footer per page
+      const mL = doc.page.width > doc.page.height ? 30 : M;
+      const wL = doc.page.width - 2 * mL;
       if (i > 0) {
         doc.font('Helvetica').fontSize(7.5).fillColor(LIGHT);
-        doc.text(`${p.docNumber}  ·  ${p.reportRev}  ·  ${p.docTypeTitle}`, M, 30, { width: W * 0.7, lineBreak: false });
-        doc.text(`Page ${i + 1} of ${range.count}`, M + W * 0.7, 30, { width: W * 0.3, align: 'right', lineBreak: false });
-        doc.moveTo(M, 42).lineTo(M + W, 42).stroke(RULE);
+        doc.text(`${p.docNumber}  ·  ${p.reportRev}  ·  ${p.docTypeTitle}`, mL, 30, { width: wL * 0.7, lineBreak: false });
+        doc.text(`Page ${i + 1} of ${range.count}`, mL + wL * 0.7, 30, { width: wL * 0.3, align: 'right', lineBreak: false });
+        doc.moveTo(mL, 42).lineTo(mL + wL, 42).stroke(RULE);
       }
-      doc.moveTo(M, doc.page.height - 48).lineTo(M + W, doc.page.height - 48).stroke(RULE);
+      doc.moveTo(mL, doc.page.height - 48).lineTo(mL + wL, doc.page.height - 48).stroke(RULE);
       doc.font('Helvetica').fontSize(7).fillColor(LIGHT)
-        .text(`Generated ${p.generatedAt} · Design Revision ${p.revisionLabel} · Frozen payload — regeneration reproduces this document`, M, doc.page.height - 42, { width: W, align: 'center', lineBreak: false });
+        .text(`Generated ${p.generatedAt} · Design Revision ${p.revisionLabel} · Frozen payload — regeneration reproduces this document`, mL, doc.page.height - 42, { width: wL, align: 'center', lineBreak: false });
       if (p.watermark) {
         doc.save();
         doc.rotate(-40, { origin: [doc.page.width / 2, doc.page.height / 2] });

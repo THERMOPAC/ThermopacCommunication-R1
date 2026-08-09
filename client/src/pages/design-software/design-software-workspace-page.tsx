@@ -3724,6 +3724,8 @@ export default function DesignSoftwareWorkspacePage() {
       { key: "rfq_datasheet",      docType: "RFQ", title: "RFQ Datasheet",  desc: "Request-for-quotation specification — purchaser design data at the effective diameter, nozzle schedule, and the explicit vendor-scope/outstanding-analyses declaration." },
       { key: "calc_book",          docType: "PCB", title: "Process Calculation Book", desc: "Complete calculation workings — compiles the frozen DBR, PDR, HDR, ECPR, ECRR and mechanical payloads verbatim into one book." },
       { key: "design_report",      docType: "EDR", title: "Engineering Design Report", desc: "Complete engineering design report — design basis extract, C2 summary, full DS-SEL decision record, mechanical summary, run and document registers." },
+      { key: "preliminary_ga",     docType: "PGA", title: "Preliminary General Arrangement", desc: "Auto-generated scaled elevation & sectional views from the frozen calculation snapshots — nozzle table, dimension table, internals stack. Pending Mechanical Detail Design — Not for Fabrication." },
+      { key: "design_review",      docType: "DRR", title: "Design Review Report", desc: "Capability & disposition review of the preliminary single-phase frictional pressure-drop framework (ECP-009/ECP-010) — existing vs new capability, gaps, recommended modifications, confidence per calculation, Not-Calculable dispositions." },
     ];
     return (
       <div className="max-w-3xl">

@@ -16,6 +16,7 @@ import {
   Eye, Pencil, Trash2, FlaskConical,
   AlertTriangle,
 } from "lucide-react";
+import ReferencePapersSection from "./reference-papers-section";
 
 // ── Status colour map ─────────────────────────────────────────────────────────
 const STATUS_COLOURS: Record<string, string> = {
@@ -303,6 +304,9 @@ export default function DesignSoftwareListPage({ moduleType = "llx" }: { moduleT
             ))}
           </div>
         )}
+
+        {/* ── Reference Papers — controlled literature library (global) ────────── */}
+        <ReferencePapersSection />
 
         {/* ── New Design Dialog ─────────────────────────────────────────────────── */}
         <Dialog open={showNew} onOpenChange={setShowNew}>

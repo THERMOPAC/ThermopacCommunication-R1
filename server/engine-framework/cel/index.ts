@@ -7,3 +7,4 @@ export * from './unit-conversion';
 export * from './numerical';
 export * from './dimensionless';
 export * from './hydraulics';
+export * from './packing-single-phase';

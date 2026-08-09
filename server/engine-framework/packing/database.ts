@@ -130,6 +130,25 @@ export interface PackingRecord {
   specificSurfaceArea: PackingTaggedValue;  // m2/m3
   voidFraction: PackingTaggedValue;         // –
   packingFactor?: PackingTaggedValue;       // 1/m (optional vendor datum)
+  /** Corrugation angle from the vertical (structured packing), degrees.
+   *  Optional vendor/literature datum — NEVER invented. Used only for
+   *  flow-regime classification against PUBLISHED critical Reynolds numbers
+   *  (Zogg via Duss 2013: 45° → Re_crit ≈ 250; 30° → Re_crit ≈ 450). */
+  corrugationAngleDeg?: PackingTaggedValue; // deg
+  /** Source-tagged packing friction factor c_f — constant with stated
+   *  applicability, or a curve vs 'phaseReynoldsNumber' (interpolation only).
+   *  The Duss (2013) paper publishes NO packing c_f(Re) correlation equation
+   *  and vendor SOFTWARE outputs are excluded by directive — so this datum
+   *  must come from measurements, controlled literature, or a published
+   *  vendor DOCUMENT. Never invented. Requires frictionFactorProvenance. */
+  frictionFactorData?: PerformanceBasis;    // dependent: – (c_f) vs phaseReynoldsNumber
+  /** MANDATORY companion to frictionFactorData — controlled provenance class.
+   *  Permitted: 'measured' (laboratory/pilot measurement), 'controlled_literature'
+   *  (published, citable literature), 'vendor_document' (published vendor
+   *  datasheet/technical bulletin — a document, not a software run).
+   *  Vendor-SOFTWARE outputs (Sulcol, DRP, rating tools, etc.) are PROHIBITED
+   *  by project directive and have no permitted value here. */
+  frictionFactorProvenance?: 'measured' | 'controlled_literature' | 'vendor_document';
   /** Vendor Packing Capacity — max total (both-phase) liquid load. Curve vs an
    *  explicit independent variable, or a constant with stated applicability. */
   hydraulicCapacityData?: PerformanceBasis; // dependent: m3/(m2.h)
@@ -216,6 +235,20 @@ export function validatePackingRecord(record: unknown): PackingValidationIssue[]
   if (r.size !== undefined) checkTagged(r.size, 'packing.size', 'mm', issues, { min: 0.1, max: 500 });
   checkTagged(r.specificSurfaceArea, 'packing.specificSurfaceArea', 'm2/m3', issues, { min: 50, max: 1500 });
   checkTagged(r.voidFraction, 'packing.voidFraction', '-', issues, { min: 0.5, max: 0.99 });
+  if (r.corrugationAngleDeg !== undefined) checkTagged(r.corrugationAngleDeg, 'packing.corrugationAngleDeg', 'deg', issues, { min: 10, max: 80 });
+  if (r.frictionFactorData !== undefined) {
+    checkBasis(r.frictionFactorData, 'packing.frictionFactorData', issues);
+    const ff = r.frictionFactorData;
+    if (ff && ff.kind !== 'constant' && (ff as PerformanceCurve).independentVariable !== 'phaseReynoldsNumber') {
+      issues.push({ field: 'packing.frictionFactorData.independentVariable', message: "packing.frictionFactorData curves must be expressed vs 'phaseReynoldsNumber' (superficial-velocity basis, Zogg/Duss definition) — a curve against any other variable is refused" });
+    }
+    const ALLOWED_FF_PROVENANCE = ['measured', 'controlled_literature', 'vendor_document'];
+    if (!ALLOWED_FF_PROVENANCE.includes(String((r as Record<string, unknown>).frictionFactorProvenance))) {
+      issues.push({ field: 'packing.frictionFactorProvenance', message: "frictionFactorData requires frictionFactorProvenance ∈ {'measured','controlled_literature','vendor_document'} — vendor-SOFTWARE outputs (Sulcol, DRP, rating tools, etc.) are prohibited by project directive and have no permitted provenance value; the record is refused without a controlled provenance class" });
+    }
+  } else if ((r as Record<string, unknown>).frictionFactorProvenance !== undefined) {
+    issues.push({ field: 'packing.frictionFactorProvenance', message: 'frictionFactorProvenance is only meaningful alongside frictionFactorData' });
+  }
   if (r.packingFactor !== undefined) checkTagged(r.packingFactor, 'packing.packingFactor', '1/m', issues, { min: 1, max: 10000 });
   if (r.hydraulicCapacityData !== undefined) checkBasis(r.hydraulicCapacityData, 'packing.hydraulicCapacityData', issues);
   if (r.pressureDropData?.wet !== undefined) checkBasis(r.pressureDropData.wet, 'packing.pressureDropData.wet', issues);

@@ -19,6 +19,8 @@ import { buildMechanicalDatasheetPayload } from './mechanical-datasheet-report';
 import { buildRfqDatasheetPayload } from './rfq-datasheet-report';
 import { buildProcessCalculationBookPayload } from './process-calculation-book';
 import { buildEngineeringDesignReportPayload } from './engineering-design-report';
+import { buildDesignReviewPayload } from './design-review-report';
+import { buildPreliminaryGaPayload } from './preliminary-general-arrangement';
 
 export const REPORT_BUILDERS: Record<string, (revisionId: number, generatedByName: string) => Promise<{ payload: ReportPayload; blocking: number }>> = {
   DBR: buildDesignBasisPayload,
@@ -31,6 +33,8 @@ export const REPORT_BUILDERS: Record<string, (revisionId: number, generatedByNam
   RFQ: buildRfqDatasheetPayload,
   PCB: buildProcessCalculationBookPayload,
   EDR: buildEngineeringDesignReportPayload,
+  DRR: buildDesignReviewPayload,
+  PGA: buildPreliminaryGaPayload,
 };
 
 const TRANSITIONS: Record<string, string> = { draft: 'for_review', for_review: 'approved', approved: 'issued' };

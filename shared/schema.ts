@@ -16919,6 +16919,125 @@ export const designSoftwareInputs = pgTable('design_software_inputs', {
   chkSection:          check('ds_inputs_section_chk', sql`section IN ('design_identity', 'design_basis', 'fluid_properties', 'process_design', 'hydraulic_design', 'technology_selection', 'equipment_design', 'technology_comparison', 'mechanical_design', 'utilities', 'cost_estimation', 'design_validation', 'reports', 'revision_control', 'ecp', 'ecr', 'comparison')`),
 }));
 
+// ── 4b. design_software_reference_papers ─────────────────────────────────────
+// Controlled literature library for the LLX Design Software (Step 15).
+// GLOBAL (not revision-scoped): the single governed source for every equation,
+// correlation, assumption and report citation. Papers are never deleted —
+// status moves to 'superseded' or 'withdrawn' instead, so existing citations
+// remain resolvable.
+// ──────────────────────────────────────────────────────────────────────────────
+export const designSoftwareReferencePapers = pgTable('design_software_reference_papers', {
+  id:           serial('id').primaryKey(),
+  refCode:      varchar('ref_code', { length: 20 }).notNull(),   // e.g. REF-001
+  authors:      text('authors').notNull(),
+  organization: varchar('organization', { length: 200 }),
+  title:        text('title').notNull(),
+  publication:  text('publication').notNull(),                    // venue, e.g. "AIChE Spring Meeting"
+  year:         integer('year').notNull(),
+  usedFor:      text('used_for').notNull(),                       // where in LLX this paper is applied
+  notes:        text('notes'),
+  status:       varchar('status', { length: 20 }).notNull().default('active'),
+  filePath:     text('file_path'),                                // GCS object key of the uploaded paper PDF
+  fileName:     varchar('file_name', { length: 300 }),            // original filename for download
+  fileUploadedAt: timestamp('file_uploaded_at'),
+  createdBy:    integer('created_by').notNull().references(() => users.id),
+  createdAt:    timestamp('created_at').notNull().defaultNow(),
+  updatedAt:    timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqRefCode: uniqueIndex('ds_ref_papers_code_uniq').on(table.refCode),
+  chkStatus:   check('ds_ref_papers_status_chk', sql`status IN ('active', 'superseded', 'withdrawn')`),
+}));
+
+// ── 4c. CPS Sizing Tool — Knowledge Engine (Phase 1) ──────────────────────────
+// GLOBAL controlled source of all engineering parameters for the future CPS
+// sizing calculations. Single source of truth: calculation code must retrieve
+// constants by parameter_code, never hard-code them. Only Superusers may
+// create/update/deactivate parameters (enforced server-side). parameter_code
+// is IMMUTABLE after creation. Undefined engineering values are stored as
+// NULL — the system never silently substitutes a placeholder value.
+// ──────────────────────────────────────────────────────────────────────────────
+export const cpsKnowledgeParameters = pgTable('cps_knowledge_parameters', {
+  id:               serial('id').primaryKey(),
+  category:         varchar('category', { length: 40 }).notNull(),       // engineering/UI grouping
+  parameterName:    varchar('parameter_name', { length: 200 }).notNull(),
+  parameterCode:    varchar('parameter_code', { length: 60 }).notNull(), // immutable lookup key, e.g. MEDIA_WT_PER_COL
+  symbol:           varchar('symbol', { length: 40 }),
+  parameterType:    varchar('parameter_type', { length: 30 }).notNull(), // engineering nature of the parameter
+  value:            numeric('value'),                                    // NULL = not yet defined (never a placeholder)
+  unit:             varchar('unit', { length: 40 }),
+  description:      text('description'),
+  engineeringNotes: text('engineering_notes'),
+  displayOrder:     integer('display_order').notNull().default(0),
+  isActive:         boolean('is_active').notNull().default(true),
+  createdBy:        integer('created_by').notNull().references(() => users.id),
+  createdAt:        timestamp('created_at').notNull().defaultNow(),
+  updatedAt:        timestamp('updated_at').notNull().defaultNow(),
+  updatedBy:        integer('updated_by').notNull().references(() => users.id),
+}, (table) => ({
+  uniqParamCode: uniqueIndex('cps_kparams_code_uniq').on(table.parameterCode),
+  idxCategory:   index('cps_kparams_category_idx').on(table.category),
+  chkCategory:   check('cps_kparams_category_chk', sql`category IN ('media_column', 'material_properties', 'heating_cooling', 'process_cutoff', 'process_times', 'regeneration_recovery', 'standard_equipment', 'regen_offgas_tox', 'sulphur_breakthrough_model')`),
+  chkParamType:  check('cps_kparams_type_chk', sql`parameter_type IN ('performance', 'physical_constant', 'process_threshold', 'process_time', 'equipment_standard', 'calibrated_model_constant')`),
+}));
+
+// Append-only change history of numeric parameter values. Written automatically
+// (same transaction) whenever a Superuser changes a parameter's value.
+export const cpsKnowledgeParameterHistory = pgTable('cps_knowledge_parameter_history', {
+  id:            serial('id').primaryKey(),
+  parameterId:   integer('parameter_id').notNull().references(() => cpsKnowledgeParameters.id),
+  parameterCode: varchar('parameter_code', { length: 60 }).notNull(),
+  oldValue:      numeric('old_value'),
+  newValue:      numeric('new_value'),
+  changedBy:     integer('changed_by').notNull().references(() => users.id),
+  changedAt:     timestamp('changed_at').notNull().defaultNow(),
+  // Traceability fields — required for calibrated_model_constant parameters.
+  // reason: plain-language description of why the value was changed.
+  // reference: test report, workbook, or data source used for recalibration.
+  // previousBasis: engineering-basis classification of the old value (e.g. CALIBRATED MODEL CONSTANT).
+  reason:        text('reason'),
+  reference:     text('reference'),
+  previousBasis: text('previous_basis'),
+}, (table) => ({
+  idxParamId: index('cps_kparam_hist_param_idx').on(table.parameterId),
+}));
+
+// ── CPS Sizing Tool — Customer Input cases (approved register; NO sizing logic) ──
+// One row per customer sizing case. Colour-only cases store NULL sulphur (never
+// 0); sulphur scope requires both sulphur fields — enforced in service + CHECK.
+export const cpsSizingCases = pgTable('cps_sizing_cases', {
+  id:              serial('id').primaryKey(),
+  customerId:      integer('customer_id').references(() => customers.id), // optional link; free-text name is authoritative
+  customerName:    text('customer_name').notNull(),
+  plantLocation:   text('plant_location').notNull(),
+  cpsFeedCapacity: numeric('cps_feed_capacity').notNull(),                // L/h, > 0
+  rrboGrade:       varchar('rrbo_grade', { length: 20 }).notNull(),       // "SN 80" … "SN 300"
+  feedOilVisc40c:  numeric('feed_oil_visc_40c').notNull(),                // cSt @ 40°C, > 0
+  treatmentScope:  varchar('treatment_scope', { length: 30 }).notNull(),  // COLOUR_ODOR | COLOUR_ODOR_SULPHUR
+  inletColour:     numeric('inlet_colour').notNull(),                     // ASTM
+  targetColour:    numeric('target_colour').notNull(),                    // ASTM, < inlet
+  inletSulphur:    numeric('inlet_sulphur'),                              // ppm, sulphur scope only
+  targetSulphur:   numeric('target_sulphur'),                             // ppm, sulphur scope only, < inlet
+  // Immutable KE snapshot — frozen at calculation time. Stores parameter_code, value, unit,
+  // parameter_type and calculation_timestamp for every KE parameter used in the sizing output.
+  // Must not be overwritten when KE parameters are updated later; preserves traceability.
+  keSnapshot:       jsonb('ke_snapshot'),
+  // Frozen calculation output — written atomically with ke_snapshot on every successful Recalculate.
+  // Contains schema_version, calculation_timestamp, calculation_inputs, sizing scalars, flags,
+  // massBalance, and formatted display rows (rows/vocRows/toxRows).
+  calculatedOutput: jsonb('calculated_output'),
+  // TRUE whenever customer inputs have been saved after the last successful Recalculate.
+  // Set to FALSE by the calculation-snapshot endpoint; set to TRUE by updateCpsSizingCase.
+  calculationStale: boolean('calculation_stale').notNull().default(true),
+  createdBy:        integer('created_by').notNull().references(() => users.id),
+  createdAt:       timestamp('created_at').notNull().defaultNow(),
+  updatedAt:       timestamp('updated_at').notNull().defaultNow(),
+  updatedBy:       integer('updated_by').notNull().references(() => users.id),
+}, (table) => ({
+  idxCustomer: index('cps_scases_customer_idx').on(table.customerId),
+  chkScope:    check('cps_scases_scope_chk', sql`treatment_scope IN ('COLOUR_ODOR', 'COLOUR_ODOR_SULPHUR')`),
+  chkSulphur:  check('cps_scases_sulphur_chk', sql`(treatment_scope = 'COLOUR_ODOR' AND inlet_sulphur IS NULL AND target_sulphur IS NULL) OR (treatment_scope = 'COLOUR_ODOR_SULPHUR' AND inlet_sulphur IS NOT NULL AND target_sulphur IS NOT NULL)`),
+}));
+
 // ── 5. design_software_results ────────────────────────────────────────────────
 // Accepted/current result snapshot per section per revision.
 // calculation_runs table preserves every execution history independently.

@@ -73,7 +73,7 @@ function collectEquationIndex(data: any): string[][] {
 }
 
 /** Collect every warning string stored anywhere in the snapshot. */
-function collectWarnings(data: any): string[] {
+export function collectWarnings(data: any): string[] {
   const out = new Set<string>();
   const walk = (o: any) => {
     if (!o || typeof o !== 'object') return;
@@ -86,7 +86,7 @@ function collectWarnings(data: any): string[] {
 }
 
 /** Collect Not Calculable items with their stored explanation (verbatim). */
-function collectNotCalculable(data: any): Array<{ where: string; source: string; validation: string; ref: string }> {
+export function collectNotCalculable(data: any): Array<{ where: string; source: string; validation: string; ref: string }> {
   const seen = new Map<string, { where: string; source: string; validation: string; ref: string }>();
   const walk = (o: any, path: string) => {
     if (!o || typeof o !== 'object') return;
@@ -101,7 +101,7 @@ function collectNotCalculable(data: any): Array<{ where: string; source: string;
   return Array.from(seen.values());
 }
 
-async function loadCommon(revisionId: number, section: 'ecp' | 'ecr') {
+export async function loadCommon(revisionId: number, section: 'ecp' | 'ecr') {
   const revQ = await pool.query(
     `SELECT r.*, d.design_number, d.title, d.design_type
        FROM design_software_revisions r JOIN design_software_designs d ON d.id = r.design_id
@@ -183,9 +183,9 @@ export async function decisionRecordSection(revisionId: number): Promise<ReportS
   };
   const rows: ReportRow[] = [
     { label: 'Selected technology', value: rec.selectedTechnology ? String(rec.selectedTechnology).toUpperCase() : (rec.selectionStatus === 'engineering_review_required' ? 'NONE — engineering review required' : 'NONE — not recommendable'), sourceType: `Record #${row.id}`, sourceRef: rec.governanceState ?? '' },
-    { label: 'Autonomous calculated diameter (retained for traceability)', value: (rec.autonomousDiameter_mm ?? rec.selectedDiameter_mm) != null ? String(rec.autonomousDiameter_mm ?? rec.selectedDiameter_mm) : '—', unit: 'mm', sourceType: 'DS-SEL-003' },
+    { label: 'Autonomous recommendation (retained for traceability — NOT the current design diameter)', value: (rec.autonomousDiameter_mm ?? rec.selectedDiameter_mm) != null ? `${rec.autonomousDiameter_mm ?? rec.selectedDiameter_mm} mm${typeof rec.floodingUtilization === 'number' ? ` (${(rec.floodingUtilization * 100).toFixed(2)}% preliminary utilization)` : ''}` : '—', sourceType: 'DS-SEL-003' },
     { label: 'User-selected governing diameter', value: rec.userSelectedDiameter_mm != null ? String(rec.userSelectedDiameter_mm) : 'None — autonomous selection governs', unit: rec.userSelectedDiameter_mm != null ? 'mm' : undefined, sourceType: 'DS-SEL-006', sourceRef: rec.userSelection ? `Governed selection by ${rec.userSelection.engineer} (${rec.userSelection.selectedAt ?? '—'})${rec.userSelection.carriedForward ? ' — carried forward across recalculation' : ''}: ${rec.userSelection.reason}` : '' },
-    { label: 'EFFECTIVE design diameter (governs all downstream calculations)', value: (rec.effectiveDiameter_mm ?? rec.selectedDiameter_mm) != null ? String(rec.effectiveDiameter_mm ?? rec.selectedDiameter_mm) : '—', unit: 'mm', sourceType: 'DS-SEL-006', sourceRef: rec.selectionMode === 'user_selected' ? 'Governed user selection of a larger, more conservative diameter — not an Engineer Override of an unsafe design.' : 'Autonomous selection — no governed user selection entered.' },
+    { label: 'EFFECTIVE GOVERNING design diameter (governs all downstream calculations)', value: (rec.effectiveDiameter_mm ?? rec.selectedDiameter_mm) != null ? `${rec.effectiveDiameter_mm ?? rec.selectedDiameter_mm} mm${typeof (rec.effectiveFloodingUtilization ?? rec.floodingUtilization) === 'number' ? ` (${((rec.effectiveFloodingUtilization ?? rec.floodingUtilization) * 100).toFixed(2)}% preliminary utilization)` : ''}` : '—', sourceType: 'DS-SEL-006', sourceRef: rec.selectionMode === 'user_selected' ? 'Governed user selection of a larger, more conservative diameter — not an Engineer Override of an unsafe design.' : 'Autonomous selection — no governed user selection entered.' },
     { label: 'Calculated minimum diameter', value: rec.calculatedMinimumDiameter_mm != null ? String(rec.calculatedMinimumDiameter_mm) : '—', unit: 'mm', sourceType: 'DS-SEL-001' },
     { label: 'Practical rounding rule', value: '—', sourceType: 'DS-SEL-002', sourceRef: rec.roundingRule ?? '' },
     { label: 'Normal loading at effective diameter', value: f2n(rec.effectiveNormalLoading ?? rec.normalLoading), unit: 'm³/(m²·h)', sourceType: 'Frozen sweep (verbatim)' },
@@ -243,6 +243,66 @@ function verifiabilitySection(data: any, tech: string): ReportSection {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ECP-009/ECP-010 — Preliminary single-phase frictional (dry-bed analog)
+// pressure-drop sections (rendered verbatim from the frozen snapshot; present
+// only on runs computed by engine llx-ecp ≥ v1.1.0)
+// ─────────────────────────────────────────────────────────────────────────────
+/** Report-layer regime label (display only — the frozen snapshot string is never modified):
+ *  'Laminar' renders as a preliminary classification per governance directive;
+ *  'Not Determinable' (no corrugation angle) is retained verbatim. */
+function regimeLabel(item: any): string {
+  const raw = rv(item);
+  return raw === 'Laminar' ? 'Preliminary Laminar Classification (published-anchor bounding only)' : raw;
+}
+
+function dryDpSections(ecp: any): ReportSection[] {
+  const pred = ecp.dryPressureDropPrediction;
+  const verif = ecp.dryPressureDropVerification;
+  if (!pred) return [];
+  const spTable = (kase: any): string[][] => {
+    const header = ['D (m)', 'u_s cont. (m/s)', 'Re (–)', 'F_v (Pa^0.5)', 'Flow regime', 'f=16/Re pipe ref. (–)', 'c_f packing (–)', 'Δp/Δz dry (Pa/m)', 'Δp dry total (Pa)'];
+    return [header, ...(kase?.diameters ?? []).map((d: any) => {
+      const sp = d.singlePhaseFrictional ?? {};
+      const dp = sp.dryPressureDrop;
+      return [
+        f2(d.diameter_m), rv(sp.superficialVelocity, 5), rv(sp.phaseReynolds, 2), rv(sp.phaseLoadFactor, 4),
+        regimeLabel(sp.flowRegime), rv(sp.laminarPipeReferenceFrictionFactor, 5), rv(sp.frictionFactor, 4),
+        dp?.perMeter !== undefined ? rv(dp.perMeter, 2) : rv(dp, 2), dp?.total !== undefined ? rv(dp.total, 1) : '—',
+      ];
+    })];
+  };
+  const sections: ReportSection[] = [
+    { title: 'Preliminary Single-Phase Frictional Pressure Drop — Dry-Bed Analog (ECP-009)',
+      intro: `CLASSIFICATION (applies to every quantity in this section): ${pred.classification}. Framework and equations from the controlled source paper — only explicitly published equations are implemented; no vendor-software outputs or proprietary correlations are used.`,
+      rows: [rrow('Packing hydraulic diameter d_h = 4/a', pred.hydraulicDiameter, 4)],
+      table: [
+        ['Equation ID', 'Statement', 'Variables & units', 'Source (verbatim)'],
+        ...(pred.derivation?.equations ?? []).map((e: any) => [e.id, e.statement, e.variables, e.source]),
+      ],
+      paragraphs: [
+        `Derivation note (verbatim): ${pred.derivation?.note ?? '—'}`,
+        `Applicability limits (verbatim from snapshot): ${(pred.applicabilityLimits ?? []).map((l: string, i: number) => `(${i + 1}) ${l}`).join(' ')}`,
+        `Engineering assumptions (verbatim): ${(pred.engineeringAssumptions ?? []).map((a: string, i: number) => `(${i + 1}) ${a}`).join(' ')}`,
+        `Source documents: ${(pred.sourceDocuments ?? []).join('; ')}`,
+      ],
+    },
+    { title: 'Single-Phase Frictional Results — Normal Case (ECP-009)', intro: '"Not Calculable" cells reproduce the engine finding verbatim — no friction factor or pressure drop was invented. The pipe reference column is the paper\'s eq. (1) comparison anchor only; it is never used as a packing friction factor.', table: spTable(ecp.normalCase) },
+    { title: 'Single-Phase Frictional Results — Maximum Continuous Case (ECP-009)', table: spTable(ecp.maximumCase) },
+  ];
+  if (verif) {
+    sections.push({
+      title: 'Dry Pressure-Drop Verification & Validated-Range Statement (ECP-010)',
+      rows: [rrow('Back-calculated friction factor c_f = 2·(Δp/Δz)·d_h/(ρ_c·u_s²)', verif.backCalculatedFrictionFactor, 4)],
+      paragraphs: [
+        `Verification procedure (verbatim from snapshot): ${verif.procedure ?? '—'}`,
+        `Validated-range statement (verbatim from snapshot): ${verif.validatedRangeStatement ?? '—'}`,
+      ],
+    });
+  }
+  return sections;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ECP — Packed Column Calculation Report (C4)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function buildEcpCalculationPayload(revisionId: number, generatedByName: string): Promise<{ payload: ReportPayload; blocking: number }> {
@@ -267,6 +327,8 @@ export async function buildEcpCalculationPayload(revisionId: number, generatedBy
     { item: 'Vendor minimum wetting rate', reason: 'Not in the packing record — minimum-wetting check Not Calculable; never assumed (ECP-003).', severity: 'warning' },
     { item: 'Vendor recommended loading range', reason: 'Not in the packing record — recommended-loading check Not Calculable (ECP-003).', severity: 'warning' },
     { item: 'Distributor specification', reason: 'No distributor specification supplied — distributor checks run only when vendor distributor data exist (ECP-004).', severity: 'warning' },
+    { item: 'Packing friction factor (c_f) basis', reason: 'No source-tagged friction-factor basis in the packing record — dry single-phase frictional Δp Not Calculable (ECP-009); the source paper publishes the governing framework but no packing c_f(Re) correlation equation, and vendor-software c_f outputs are excluded by directive.', severity: 'warning' },
+    { item: 'Packing corrugation angle', reason: 'No source-tagged corrugation angle in the packing record — flow-regime classification falls back to the bounding argument against the lowest published critical Reynolds number (ECP-009).', severity: 'warning' },
     { item: 'Vendor-certified packing record', reason: `Packing record '${rec.id ?? '—'}' is a preliminary screening record with Assumed characteristics — replace with a vendor-certified record before any rating use.`, severity: 'warning' },
     { item: 'HETS confirmation', reason: 'HETS is Assumed (system data: solvent + feed + packing + temperature) — vendor/test confirmation required before the packed height is engineering-verified (ECP-005).', severity: 'warning' },
     { item: 'System derating factor', reason: 'Not supplied — 1.0 applied with NO_SYSTEM_DERATING_DATA warning; never invented.', severity: 'warning' },
@@ -334,6 +396,7 @@ export async function buildEcpCalculationPayload(revisionId: number, generatedBy
     { title: 'Hydraulic Loading & Capacity Screening — Normal Case', intro: 'Per-diameter hydraulic loading (ECP-001), utilization vs Vendor Packing Capacity (ECP-002 — not screenable for this record), vendor checks (ECP-003) and wet pressure drop (ECP-007). "Not Calculable" cells reproduce the engine finding — no value was invented.', table: diamTable(ecp.normalCase) },
     { title: 'Case Flows — Maximum Continuous', rows: flowsRows(ecp.maximumCase) },
     { title: 'Hydraulic Loading & Capacity Screening — Maximum Continuous Case', table: diamTable(ecp.maximumCase) },
+    ...dryDpSections(ecp),
     { title: 'Capacity / Flooding & Pressure-Drop Architecture', paragraphs: [
       `Capacity/flooding screening: hydraulic utilization is defined against Vendor Packing Capacity (ECP-002). The consumed packing record carries no Vendor Packing Capacity data, therefore utilization is Pending Validation at every diameter and the ${db.utilizationBandPercent?.min ?? '—'}–${db.utilizationBandPercent?.max ?? '—'} % screening band could not be applied. The C3 generic throughput percentage is not a substitute (engine statement, verbatim).`,
       `Pressure-drop architecture (verbatim): ${ecp.pressureDropArchitecture?.note ?? '—'} (wetApplied=${String(ecp.pressureDropArchitecture?.wetApplied)}, dryReserved=${String(ecp.pressureDropArchitecture?.dryReserved)}).`,

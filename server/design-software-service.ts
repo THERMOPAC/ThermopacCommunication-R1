@@ -952,3 +952,506 @@ export async function listApprovals(revisionId: number) {
 export function listEngines() {
   return engineRegistry.listAll();
 }
+
+// ── Reference Papers (Step 15 — controlled literature library) ────────────────
+// GLOBAL library: the single governed source for every LLX equation,
+// correlation, assumption and report citation. Papers are never deleted —
+// status moves to 'superseded'/'withdrawn' so existing citations stay
+// resolvable.
+
+const REF_CODE_RE = /^REF-\d{3,}$/;
+
+export async function listReferencePapers() {
+  const result = await pool.query(
+    `SELECT p.*, u.username AS created_by_name
+     FROM design_software_reference_papers p
+     LEFT JOIN users u ON u.id = p.created_by
+     ORDER BY p.ref_code ASC`,
+  );
+  return result.rows;
+}
+
+export async function createReferencePaper(input: {
+  refCode: string; authors: string; organization?: string | null;
+  title: string; publication: string; year: number; usedFor: string;
+  notes?: string | null;
+}, userId: number) {
+  const refCode = String(input.refCode ?? '').trim().toUpperCase();
+  if (!REF_CODE_RE.test(refCode)) throw new Error('Reference code must be of the form REF-NNN (e.g. REF-001)');
+  for (const [k, label] of [['authors', 'Author(s)'], ['title', 'Title'], ['publication', 'Publication / venue'], ['usedFor', 'Used-for statement']] as const) {
+    if (!String((input as any)[k] ?? '').trim()) throw new Error(`${label} is required`);
+  }
+  const year = Number(input.year);
+  if (!Number.isInteger(year) || year < 1800 || year > 2200) throw new Error('A valid publication year is required');
+  const result = await pool.query(
+    `INSERT INTO design_software_reference_papers
+       (ref_code, authors, organization, title, publication, year, used_for, notes, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     RETURNING *`,
+    [refCode, input.authors.trim(), (input.organization ?? '').trim() || null,
+     input.title.trim(), input.publication.trim(), year, input.usedFor.trim(),
+     (input.notes ?? '').trim() || null, userId],
+  );
+  return result.rows[0];
+}
+
+export async function setReferencePaperDocument(id: number, filePath: string, fileName: string) {
+  const result = await pool.query(
+    `UPDATE design_software_reference_papers
+     SET file_path = $1, file_name = $2, file_uploaded_at = NOW(), updated_at = NOW()
+     WHERE id = $3 RETURNING *`,
+    [filePath, fileName, id],
+  );
+  if (result.rows.length === 0) throw new Error('Reference paper not found');
+  return result.rows[0];
+}
+
+export async function updateReferencePaper(id: number, patch: {
+  authors?: string; organization?: string | null; title?: string;
+  publication?: string; year?: number; usedFor?: string;
+  notes?: string | null; status?: string;
+}) {
+  // ref_code is immutable — it is the citation key used across the software.
+  const sets: string[] = [];
+  const vals: any[] = [];
+  const push = (col: string, v: any) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
+  if (patch.authors !== undefined) { if (!patch.authors.trim()) throw new Error('Author(s) cannot be blank'); push('authors', patch.authors.trim()); }
+  if (patch.organization !== undefined) push('organization', (patch.organization ?? '').trim() || null);
+  if (patch.title !== undefined) { if (!patch.title.trim()) throw new Error('Title cannot be blank'); push('title', patch.title.trim()); }
+  if (patch.publication !== undefined) { if (!patch.publication.trim()) throw new Error('Publication cannot be blank'); push('publication', patch.publication.trim()); }
+  if (patch.year !== undefined) {
+    const y = Number(patch.year);
+    if (!Number.isInteger(y) || y < 1800 || y > 2200) throw new Error('A valid publication year is required');
+    push('year', y);
+  }
+  if (patch.usedFor !== undefined) { if (!patch.usedFor.trim()) throw new Error('Used-for statement cannot be blank'); push('used_for', patch.usedFor.trim()); }
+  if (patch.notes !== undefined) push('notes', (patch.notes ?? '').trim() || null);
+  if (patch.status !== undefined) {
+    if (!['active', 'superseded', 'withdrawn'].includes(patch.status)) throw new Error('Status must be active, superseded or withdrawn');
+    // Controlled transitions: active → superseded/withdrawn; superseded →
+    // active/withdrawn; withdrawn is TERMINAL (a withdrawn paper must be
+    // re-registered under a new reference code if it is ever needed again).
+    const cur = await pool.query(`SELECT status FROM design_software_reference_papers WHERE id = $1`, [id]);
+    if (cur.rows.length === 0) throw new Error('Reference paper not found');
+    const from = cur.rows[0].status;
+    if (from === 'withdrawn' && patch.status !== 'withdrawn') {
+      throw new Error('Withdrawn is terminal — register the paper again under a new reference code if required');
+    }
+    push('status', patch.status);
+  }
+  if (sets.length === 0) throw new Error('No fields to update');
+  sets.push(`updated_at = NOW()`);
+  vals.push(id);
+  const result = await pool.query(
+    `UPDATE design_software_reference_papers SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING *`,
+    vals,
+  );
+  if (result.rows.length === 0) throw new Error('Reference paper not found');
+  return result.rows[0];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CPS Sizing Tool — Knowledge Engine (Phase 1)
+// GLOBAL controlled source of all CPS engineering parameters. Single source of
+// truth: future sizing calculations must retrieve constants by parameter_code —
+// never hard-code them. parameter_code is IMMUTABLE. NULL value = not yet
+// defined; the system never substitutes a placeholder engineering value.
+// Superuser authorization is enforced at the route layer for all writes.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const CPS_CATEGORIES = ['media_column', 'material_properties', 'heating_cooling', 'process_cutoff', 'process_times', 'regeneration_recovery', 'standard_equipment', 'regen_offgas_tox', 'sulphur_breakthrough_model'];
+const CPS_PARAM_TYPES = ['performance', 'physical_constant', 'process_threshold', 'process_time', 'equipment_standard', 'calibrated_model_constant'];
+const CPS_CODE_RE = /^[A-Z][A-Z0-9_]{1,59}$/;
+
+export async function listCpsParameters(category?: string) {
+  if (category !== undefined && !CPS_CATEGORIES.includes(category)) throw new Error('Unknown CPS parameter category');
+  const result = await pool.query(
+    `SELECT p.*, u.username AS updated_by_name
+     FROM cps_knowledge_parameters p
+     LEFT JOIN users u ON u.id = p.updated_by
+     ${category ? 'WHERE p.category = $1' : ''}
+     ORDER BY p.category, p.display_order, p.parameter_name`,
+    category ? [category] : [],
+  );
+  return result.rows;
+}
+
+function parseCpsValue(raw: any): string | null {
+  // NULL/'' means "not yet defined" — stored as NULL, never a placeholder.
+  // Values are kept as decimal STRINGS end-to-end (never JS floats) so
+  // PostgreSQL NUMERIC precision is preserved exactly.
+  if (raw === null || raw === undefined || String(raw).trim() === '') return null;
+  const s = String(raw).trim();
+  if (!/^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test(s)) {
+    throw new Error('Value must be a number, or blank for "not yet defined"');
+  }
+  return s;
+}
+
+export async function createCpsParameter(input: {
+  category: string; parameterName: string; parameterCode: string; symbol?: string | null;
+  parameterType: string; value?: number | string | null; unit?: string | null;
+  description?: string | null; engineeringNotes?: string | null; displayOrder?: number;
+}, userId: number) {
+  if (!CPS_CATEGORIES.includes(input.category)) throw new Error('Unknown CPS parameter category');
+  if (!CPS_PARAM_TYPES.includes(input.parameterType)) throw new Error('Unknown parameter type');
+  const code = String(input.parameterCode ?? '').trim().toUpperCase();
+  if (!CPS_CODE_RE.test(code)) throw new Error('Parameter code must be UPPER_SNAKE_CASE (letters, digits, underscores; starts with a letter)');
+  if (!String(input.parameterName ?? '').trim()) throw new Error('Parameter name is required');
+  const value = parseCpsValue(input.value);
+  const result = await pool.query(
+    `INSERT INTO cps_knowledge_parameters
+       (category, parameter_name, parameter_code, symbol, parameter_type, value, unit, description, engineering_notes, display_order, created_by, updated_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11)
+     RETURNING *`,
+    [input.category, input.parameterName.trim(), code, (input.symbol ?? '').trim() || null,
+     input.parameterType, value, (input.unit ?? '').trim() || null,
+     (input.description ?? '').trim() || null, (input.engineeringNotes ?? '').trim() || null,
+     Number(input.displayOrder) || 0, userId],
+  );
+  return result.rows[0];
+}
+
+// Manual source parameters that trigger derived-parameter recalculation.
+// Tier-1 sources drive OIL_RETAINED_PER_COL.
+// OIL_BURNED_REGEN drives the Tier-2 split only (not Tier 1).
+const DERIVED_OIL_RETAINED_SOURCES = ['COL_INTERNAL_VOL', 'MEDIA_VOID_FRACTION', 'BASE_OIL_SG'];
+const ALL_DERIVED_TRIGGER_SOURCES = [...DERIVED_OIL_RETAINED_SOURCES, 'OIL_BURNED_REGEN'];
+
+// Helper: write a derived-param value + history entry if the value actually changed.
+async function _writeDerivedIfChanged(
+  client: any, userId: number,
+  code: string, newValue: string,
+) {
+  const cur = await client.query(
+    `SELECT id, value FROM cps_knowledge_parameters WHERE parameter_code = $1 FOR UPDATE`,
+    [code],
+  );
+  if (cur.rows.length === 0) return;
+  const { id, value: oldValue } = cur.rows[0];
+  const chk = await client.query(
+    `SELECT ($1::numeric IS DISTINCT FROM $2::numeric) AS changed`, [oldValue, newValue],
+  );
+  if (!chk.rows[0].changed) return;
+  await client.query(
+    `UPDATE cps_knowledge_parameters SET value = $1, updated_at = NOW(), updated_by = $2 WHERE id = $3`,
+    [newValue, userId, id],
+  );
+  await client.query(
+    `INSERT INTO cps_knowledge_parameter_history (parameter_id, parameter_code, old_value, new_value, changed_by)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [id, code, oldValue, newValue, userId],
+  );
+}
+
+// Full two-tier derived-parameter recalculation. Runs within an open client
+// transaction immediately after any manual-source value change.
+//
+// Tier 1 — OIL_RETAINED_PER_COL:
+//   COL_INTERNAL_VOL × MEDIA_VOID_FRACTION × BASE_OIL_SG  (kg/column)
+//   Skipped when recalcTier1 = false (e.g. only OIL_BURNED_REGEN changed).
+//
+// Tier 2 — Regeneration split (derived from Tier-1 result + OIL_BURNED_REGEN):
+//   OIL_RECOVERED_VACUUM = (retained − burned) / 2
+//   BLACK_OIL_PER_COL    = (retained − burned) / 2
+//   OIL_RECOVERED_REGEN  = 0  (by design)
+//
+// Fails open: if any required source is NULL/undefined, the dependent derived
+// value is left at its last good stored value rather than being zeroed.
+async function recalculateDerivedParams(
+  client: any, userId: number, recalcTier1 = true,
+) {
+  // ── Tier 1: OIL_RETAINED_PER_COL ─────────────────────────────────────────
+  if (recalcTier1) {
+    const src = await client.query(
+      `SELECT parameter_code, value FROM cps_knowledge_parameters
+       WHERE parameter_code = ANY($1::text[]) AND is_active = true`,
+      [DERIVED_OIL_RETAINED_SOURCES],
+    );
+    const m: Record<string, string | null> = {};
+    for (const r of src.rows) m[r.parameter_code] = r.value;
+    const colVol  = m['COL_INTERNAL_VOL'];
+    const voidFrac = m['MEDIA_VOID_FRACTION'];
+    const sg       = m['BASE_OIL_SG'];
+    if (colVol != null && voidFrac != null && sg != null) {
+      const retained = String(parseFloat(colVol) * parseFloat(voidFrac) * parseFloat(sg));
+      await _writeDerivedIfChanged(client, userId, 'OIL_RETAINED_PER_COL', retained);
+    }
+  }
+
+  // ── Tier 2: Regeneration split ────────────────────────────────────────────
+  // Read the (possibly just-updated) retained value and OIL_BURNED_REGEN.
+  const t2src = await client.query(
+    `SELECT parameter_code, value FROM cps_knowledge_parameters
+     WHERE parameter_code IN ('OIL_RETAINED_PER_COL', 'OIL_BURNED_REGEN')`,
+  );
+  const t2: Record<string, string | null> = {};
+  for (const r of t2src.rows) t2[r.parameter_code] = r.value;
+  const retained = t2['OIL_RETAINED_PER_COL'];
+  const burned   = t2['OIL_BURNED_REGEN'];
+  if (retained != null && burned != null) {
+    const remaining  = parseFloat(retained) - parseFloat(burned);
+    const twoThirds  = String((remaining / 3) * 2);   // full JS precision — no rounding
+    const oneThird   = String(remaining / 3);
+    await _writeDerivedIfChanged(client, userId, 'OIL_RECOVERED_VACUUM', twoThirds);
+    await _writeDerivedIfChanged(client, userId, 'BLACK_OIL_PER_COL',    oneThird);
+    await _writeDerivedIfChanged(client, userId, 'OIL_RECOVERED_REGEN',  '0');
+  }
+}
+
+export async function updateCpsParameter(id: number, patch: {
+  category?: string; parameterName?: string; symbol?: string | null; parameterType?: string;
+  value?: number | string | null; unit?: string | null; description?: string | null;
+  engineeringNotes?: string | null; displayOrder?: number; isActive?: boolean;
+  changeReason?: string;
+}, userId: number) {
+  // parameter_code is IMMUTABLE — future calculation code depends on it.
+  if ('parameterCode' in patch) throw new Error('Parameter code is immutable after creation');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const cur = await client.query(`SELECT * FROM cps_knowledge_parameters WHERE id = $1 FOR UPDATE`, [id]);
+    if (cur.rows.length === 0) throw new Error('Parameter not found');
+    const existing = cur.rows[0];
+
+    // Derived parameters: block all direct value writes (any user, any role).
+    if (existing.is_derived && 'value' in patch) {
+      throw new Error(
+        `${existing.parameter_code} is auto-calculated from ${existing.derived_formula ?? 'source parameters'} and cannot be manually edited.`
+      );
+    }
+
+    const sets: string[] = [];
+    const vals: any[] = [];
+    const push = (col: string, v: any) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
+
+    if (patch.category !== undefined) { if (!CPS_CATEGORIES.includes(patch.category)) throw new Error('Unknown CPS parameter category'); push('category', patch.category); }
+    if (patch.parameterName !== undefined) { if (!patch.parameterName.trim()) throw new Error('Parameter name cannot be blank'); push('parameter_name', patch.parameterName.trim()); }
+    if (patch.symbol !== undefined) push('symbol', (patch.symbol ?? '').trim() || null);
+    if (patch.parameterType !== undefined) { if (!CPS_PARAM_TYPES.includes(patch.parameterType)) throw new Error('Unknown parameter type'); push('parameter_type', patch.parameterType); }
+    if (patch.unit !== undefined) push('unit', (patch.unit ?? '').trim() || null);
+    if (patch.description !== undefined) push('description', (patch.description ?? '').trim() || null);
+    if (patch.engineeringNotes !== undefined) push('engineering_notes', (patch.engineeringNotes ?? '').trim() || null);
+    if (patch.displayOrder !== undefined) push('display_order', Number(patch.displayOrder) || 0);
+    if (patch.isActive !== undefined) push('is_active', !!patch.isActive);
+
+    let valueChanged = false;
+    let newValue: string | null = null;
+    if ('value' in patch) {
+      newValue = parseCpsValue(patch.value);
+      // Exact-decimal comparison done by PostgreSQL NUMERIC — never JS floats,
+      // so distinct high-precision decimals are never collapsed/missed.
+      const cmp = await client.query(
+        `SELECT ($1::numeric IS DISTINCT FROM $2::numeric) AS changed`,
+        [existing.value, newValue],
+      );
+      valueChanged = cmp.rows[0].changed === true;
+      if (valueChanged) push('value', newValue);
+    }
+
+    if (sets.length === 0) throw new Error('No fields to update');
+    push('updated_by', userId);
+    sets.push(`updated_at = NOW()`);
+    vals.push(id);
+    const result = await client.query(
+      `UPDATE cps_knowledge_parameters SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING *`,
+      vals,
+    );
+
+    // Change history: automatic, same transaction, whenever the value changes.
+    if (valueChanged) {
+      await client.query(
+        `INSERT INTO cps_knowledge_parameter_history (parameter_id, parameter_code, old_value, new_value, changed_by)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [id, existing.parameter_code, existing.value, newValue, userId],
+      );
+    }
+
+    // If a source parameter changed, recalculate derived params in the same transaction.
+    // Tier-1 sources (COL_INTERNAL_VOL, MEDIA_VOID_FRACTION, BASE_OIL_SG) trigger both tiers.
+    // OIL_BURNED_REGEN triggers only Tier 2 (split calculation — retained value unchanged).
+    if (valueChanged && ALL_DERIVED_TRIGGER_SOURCES.includes(existing.parameter_code)) {
+      const recalcTier1 = DERIVED_OIL_RETAINED_SOURCES.includes(existing.parameter_code);
+      await recalculateDerivedParams(client, userId, recalcTier1);
+    }
+
+    await client.query('COMMIT');
+    return result.rows[0];
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+export async function listCpsParameterHistory(parameterId: number) {
+  const result = await pool.query(
+    `SELECT h.*, u.username AS changed_by_name
+     FROM cps_knowledge_parameter_history h
+     LEFT JOIN users u ON u.id = h.changed_by
+     WHERE h.parameter_id = $1
+     ORDER BY h.changed_at DESC, h.id DESC`,
+    [parameterId],
+  );
+  return result.rows;
+}
+
+// ── CPS Sizing Tool — Customer Input cases (definition approved; NO sizing logic) ──
+// Server-side conditional validation is authoritative: colour-only cases must
+// store NULL sulphur (never 0); sulphur cases require both sulphur fields.
+const CPS_TREATMENT_SCOPES = ['COLOUR_ODOR', 'COLOUR_ODOR_SULPHUR'];
+
+// Parse + require a FINITE number for validation comparisons. parseCpsValue
+// already enforces decimal-string format; this additionally rejects values so
+// large they lose finite semantics in JS (e.g. 1e400 → Infinity), which would
+// defeat the ordering / positivity checks below.
+function parseFiniteCpsValue(raw: any, label: string): string | null {
+  const s = parseCpsValue(raw);
+  if (s !== null && !isFinite(Number(s))) throw new Error(`${label} is out of the accepted numeric range`);
+  return s;
+}
+
+function validateCpsSizingInput(input: {
+  customerId?: number | null; customerName?: string; plantLocation?: string;
+  cpsFeedCapacity?: number | string; rrboGrade?: string; feedOilVisc40c?: number | string;
+  treatmentScope?: string; inletColour?: number | string; targetColour?: number | string;
+  inletSulphur?: number | string | null; targetSulphur?: number | string | null;
+}) {
+  const customerName = (input.customerName ?? '').trim();
+  if (!customerName) throw new Error('Customer name is required');
+  const plantLocation = (input.plantLocation ?? '').trim();
+  if (!plantLocation) throw new Error('Project / plant location is required');
+
+  const capacity = parseFiniteCpsValue(input.cpsFeedCapacity, 'Required CPS capacity');
+  if (capacity === null || Number(capacity) <= 0) throw new Error('Required CPS capacity (L/h) must be a positive number');
+
+  const rrboGrade = (input.rrboGrade ?? '').trim().toUpperCase().replace(/\s+/g, ' ');
+  const gradeMatch = rrboGrade.match(/^SN ?(\d{2,3})$/);
+  if (!gradeMatch) throw new Error('RRBO grade must be in the form "SN <number>" (SN 80 – SN 500)');
+  const gradeNum = Number(gradeMatch[1]);
+  if (gradeNum < 80 || gradeNum > 500) throw new Error('RRBO grade must be between SN 80 and SN 500');
+  const normalizedGrade = `SN ${gradeNum}`;
+
+  const viscosity = parseFiniteCpsValue(input.feedOilVisc40c, 'Feed oil viscosity');
+  if (viscosity === null || Number(viscosity) <= 0) throw new Error('Feed oil viscosity @ 40°C (cSt) must be a positive number');
+
+  const scope = input.treatmentScope ?? '';
+  if (!CPS_TREATMENT_SCOPES.includes(scope)) throw new Error('Required treatment must be Colour & Odor Improvement or Colour, Odor & Sulphur Improvement');
+
+  const inletColour = parseFiniteCpsValue(input.inletColour, 'Inlet ASTM colour');
+  if (inletColour === null || Number(inletColour) < 0) throw new Error('Inlet ASTM colour is required and cannot be negative');
+  const targetColour = parseFiniteCpsValue(input.targetColour, 'Expected outlet ASTM colour');
+  if (targetColour === null || Number(targetColour) < 0) throw new Error('Expected outlet ASTM colour is required and cannot be negative');
+  if (Number(targetColour) >= Number(inletColour)) throw new Error('Expected outlet colour must be better (lower) than inlet colour');
+
+  let inletSulphur: string | null = null;
+  let targetSulphur: string | null = null;
+  if (scope === 'COLOUR_ODOR_SULPHUR') {
+    inletSulphur = parseFiniteCpsValue(input.inletSulphur, 'Inlet sulphur');
+    if (inletSulphur === null || Number(inletSulphur) <= 0) throw new Error('Inlet sulphur (ppm) is required for sulphur treatment scope');
+    targetSulphur = parseFiniteCpsValue(input.targetSulphur, 'Expected outlet sulphur');
+    if (targetSulphur === null || Number(targetSulphur) < 0) throw new Error('Expected outlet sulphur (ppm) is required for sulphur treatment scope');
+    if (Number(targetSulphur) >= Number(inletSulphur)) throw new Error('Expected outlet sulphur must be lower than inlet sulphur');
+  } else if (input.inletSulphur != null || input.targetSulphur != null) {
+    throw new Error('Sulphur inputs are not allowed for the Colour & Odor Improvement scope');
+  }
+
+  return {
+    customerId: input.customerId ?? null, customerName, plantLocation,
+    cpsFeedCapacity: capacity, rrboGrade: normalizedGrade, feedOilVisc40c: viscosity,
+    treatmentScope: scope, inletColour, targetColour, inletSulphur, targetSulphur,
+  };
+}
+
+export async function listCpsSizingCases() {
+  const result = await pool.query(
+    `SELECT c.*, u.username AS created_by_name, u2.username AS updated_by_name
+     FROM cps_sizing_cases c
+     LEFT JOIN users u ON u.id = c.created_by
+     LEFT JOIN users u2 ON u2.id = c.updated_by
+     ORDER BY c.updated_at DESC, c.id DESC`,
+  );
+  return result.rows;
+}
+
+export async function getCpsSizingCase(id: number) {
+  const result = await pool.query(`SELECT * FROM cps_sizing_cases WHERE id = $1`, [id]);
+  if (result.rows.length === 0) throw new Error('Sizing case not found');
+  return result.rows[0];
+}
+
+export async function createCpsSizingCase(input: Parameters<typeof validateCpsSizingInput>[0], userId: number) {
+  const v = validateCpsSizingInput(input);
+  const result = await pool.query(
+    `INSERT INTO cps_sizing_cases
+       (customer_id, customer_name, plant_location, cps_feed_capacity, rrbo_grade, feed_oil_visc_40c,
+        treatment_scope, inlet_colour, target_colour, inlet_sulphur, target_sulphur, created_by, updated_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12) RETURNING *`,
+    [v.customerId, v.customerName, v.plantLocation, v.cpsFeedCapacity, v.rrboGrade, v.feedOilVisc40c,
+     v.treatmentScope, v.inletColour, v.targetColour, v.inletSulphur, v.targetSulphur, userId],
+  );
+  return result.rows[0];
+}
+
+export async function updateCpsSizingCase(id: number, input: Parameters<typeof validateCpsSizingInput>[0], userId: number) {
+  // Whole-record validation (not field patching): the conditional sulphur rules
+  // only make sense against the full submitted input set.
+  // Sets calculation_stale = TRUE so the UI can warn that the saved result may
+  // no longer reflect the current inputs.  ke_snapshot and calculated_output are
+  // intentionally preserved — the previous successful result remains readable.
+  const v = validateCpsSizingInput(input);
+  const result = await pool.query(
+    `UPDATE cps_sizing_cases SET
+       customer_id = $1, customer_name = $2, plant_location = $3, cps_feed_capacity = $4,
+       rrbo_grade = $5, feed_oil_visc_40c = $6, treatment_scope = $7, inlet_colour = $8,
+       target_colour = $9, inlet_sulphur = $10, target_sulphur = $11,
+       calculation_stale = TRUE, updated_by = $12, updated_at = NOW()
+     WHERE id = $13 RETURNING *`,
+    [v.customerId, v.customerName, v.plantLocation, v.cpsFeedCapacity, v.rrboGrade, v.feedOilVisc40c,
+     v.treatmentScope, v.inletColour, v.targetColour, v.inletSulphur, v.targetSulphur, userId, id],
+  );
+  if (result.rows.length === 0) throw new Error('Sizing case not found');
+  return result.rows[0];
+}
+
+export async function deleteCpsSizingCase(id: number) {
+  const result = await pool.query(`DELETE FROM cps_sizing_cases WHERE id = $1 RETURNING id`, [id]);
+  if (result.rows.length === 0) throw new Error('Sizing case not found');
+  return { id: result.rows[0].id };
+}
+
+// ── CPS Sizing — KE snapshot + calculated output update ──────────────────────
+// updateCpsSizingCaseKeSnapshot — called by the client after every successful
+// Output Sizing recalculation.  Atomically replaces:
+//   cps_sizing_cases.ke_snapshot      — branch-specific KE parameter set
+//   cps_sizing_cases.calculated_output — serialised BuildRowsResult + inputs
+//   cps_sizing_cases.calculation_stale — reset to FALSE
+// Failed calculations must never call this — the client enforces this.
+// Both columns are written in ONE UPDATE statement; they are committed together
+// or not at all.
+const VALID_CALC_SCOPES = ['COLOUR_ODOR', 'COLOUR_ODOR_SULPHUR'] as const;
+
+export async function updateCpsSizingCaseKeSnapshot(
+  sizingCaseId: number,
+  treatmentScope: string,
+  keSnapshot: object,
+  calculatedOutput: object,
+  userId: number,
+): Promise<{ sizingCaseId: number }> {
+  if (!VALID_CALC_SCOPES.includes(treatmentScope as any))
+    throw new Error('Invalid treatment_scope for KE snapshot');
+
+  const result = await pool.query(
+    `UPDATE cps_sizing_cases
+     SET ke_snapshot       = $1,
+         calculated_output = $2,
+         calculation_stale = FALSE,
+         updated_at        = NOW(),
+         updated_by        = $3
+     WHERE id = $4 RETURNING id`,
+    [JSON.stringify(keSnapshot), JSON.stringify(calculatedOutput), userId, sizingCaseId],
+  );
+  if (result.rows.length === 0) throw new Error('Sizing case not found');
+  return { sizingCaseId };
+}

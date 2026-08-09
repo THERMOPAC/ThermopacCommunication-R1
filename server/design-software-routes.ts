@@ -87,6 +87,237 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
     }
   });
 
+  // ── Reference Papers (Step 15 — controlled literature library, GLOBAL) ─────
+  // The single governed source for all LLX literature references. No DELETE
+  // route by design — papers are superseded/withdrawn, never removed, so
+  // existing citations (REF-NNN) remain resolvable.
+  app.get('/api/design-software/reference-papers', ensureAuthenticated, async (_req: Request, res: Response) => {
+    try {
+      res.json(await svc.listReferencePapers());
+    } catch (e: any) {
+      res.status(500).json({ message: e?.message ?? 'Reference paper listing failed' });
+    }
+  });
+
+  app.post('/api/design-software/reference-papers', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      res.status(201).json(await svc.createReferencePaper(req.body, (req.user as any).id));
+    } catch (e: any) {
+      const msg = e?.message ?? 'Reference paper creation failed';
+      res.status(/duplicate key/i.test(msg) ? 409 : 422).json({
+        message: /duplicate key/i.test(msg) ? 'That reference code is already registered' : msg,
+      });
+    }
+  });
+
+  app.patch('/api/design-software/reference-papers/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (!isFinite(id)) return res.status(400).json({ message: 'Invalid reference paper id' });
+      res.json(await svc.updateReferencePaper(id, req.body));
+    } catch (e: any) {
+      const msg = e?.message ?? 'Reference paper update failed';
+      res.status(/not found/i.test(msg) ? 404 : 422).json({ message: msg });
+    }
+  });
+
+  // ── CPS Sizing Tool — Knowledge Engine (Phase 1, GLOBAL) ───────────────────
+  // Single controlled source of all CPS engineering parameters. Reads are open
+  // to authenticated users (future sizing engine + read-only UI); all writes
+  // are Superuser-only, enforced HERE server-side (client hiding of Edit
+  // controls is a UI convenience only). No DELETE — deactivate via is_active.
+  const requireSuperuser = (req: Request, res: Response, next: () => void) => {
+    if ((req.user as any)?.role !== 'Superuser') {
+      return res.status(403).json({ message: 'Only a Superuser may modify Knowledge Engine parameters' });
+    }
+    next();
+  };
+
+  app.get('/api/design-software/cps/parameters', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      res.json(await svc.listCpsParameters(req.query.category as string | undefined));
+    } catch (e: any) {
+      res.status(422).json({ message: e?.message ?? 'CPS parameter listing failed' });
+    }
+  });
+
+  app.post('/api/design-software/cps/parameters', ensureAuthenticated, requireSuperuser, async (req: Request, res: Response) => {
+    try {
+      res.status(201).json(await svc.createCpsParameter(req.body, (req.user as any).id));
+    } catch (e: any) {
+      const msg = e?.message ?? 'CPS parameter creation failed';
+      res.status(/duplicate key/i.test(msg) ? 409 : 422).json({
+        message: /duplicate key/i.test(msg) ? 'That parameter code is already registered' : msg,
+      });
+    }
+  });
+
+  app.patch('/api/design-software/cps/parameters/:id', ensureAuthenticated, requireSuperuser, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (!isFinite(id)) return res.status(400).json({ message: 'Invalid parameter id' });
+      res.json(await svc.updateCpsParameter(id, req.body, (req.user as any).id));
+    } catch (e: any) {
+      const msg = e?.message ?? 'CPS parameter update failed';
+      res.status(/not found/i.test(msg) ? 404 : 422).json({ message: msg });
+    }
+  });
+
+  // ── CPS Sizing Tool — Customer Input cases. Input capture only (no sizing
+  // logic). Any authenticated Design Software user may create/edit cases —
+  // these are project data, not Knowledge Engine constants. The conditional
+  // sulphur validation is enforced server-side in the service.
+  app.get('/api/design-software/cps/sizing-cases', ensureAuthenticated, async (_req: Request, res: Response) => {
+    try {
+      res.json(await svc.listCpsSizingCases());
+    } catch (e: any) {
+      res.status(422).json({ message: e?.message ?? 'Sizing case listing failed' });
+    }
+  });
+
+  app.get('/api/design-software/cps/sizing-cases/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (!isFinite(id)) return res.status(400).json({ message: 'Invalid sizing case id' });
+      res.json(await svc.getCpsSizingCase(id));
+    } catch (e: any) {
+      const msg = e?.message ?? 'Sizing case lookup failed';
+      res.status(/not found/i.test(msg) ? 404 : 422).json({ message: msg });
+    }
+  });
+
+  app.post('/api/design-software/cps/sizing-cases', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      res.status(201).json(await svc.createCpsSizingCase(req.body, (req.user as any).id));
+    } catch (e: any) {
+      res.status(422).json({ message: e?.message ?? 'Sizing case creation failed' });
+    }
+  });
+
+  app.patch('/api/design-software/cps/sizing-cases/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (!isFinite(id)) return res.status(400).json({ message: 'Invalid sizing case id' });
+      res.json(await svc.updateCpsSizingCase(id, req.body, (req.user as any).id));
+    } catch (e: any) {
+      const msg = e?.message ?? 'Sizing case update failed';
+      res.status(/not found/i.test(msg) ? 404 : 422).json({ message: msg });
+    }
+  });
+
+  app.delete('/api/design-software/cps/sizing-cases/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (!isFinite(id)) return res.status(400).json({ message: 'Invalid sizing case id' });
+      res.json(await svc.deleteCpsSizingCase(id));
+    } catch (e: any) {
+      const msg = e?.message ?? 'Sizing case deletion failed';
+      res.status(/not found/i.test(msg) ? 404 : 422).json({ message: msg });
+    }
+  });
+
+  // POST — atomically save ke_snapshot + calculated_output after a successful recalculation.
+  // Body: { treatment_scope, ke_snapshot, calculated_output }.
+  // A failed calculation must NOT call this — enforced on the client.
+  // Both columns are written in one UPDATE; calculation_stale is reset to FALSE.
+  app.post('/api/design-software/cps/sizing-cases/:id/calculation-snapshot', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (!isFinite(id)) return res.status(400).json({ message: 'Invalid sizing case id' });
+      const { treatment_scope, ke_snapshot, calculated_output } = req.body;
+      if (!treatment_scope || typeof ke_snapshot !== 'object')
+        return res.status(400).json({ message: 'treatment_scope and ke_snapshot (object) are required' });
+      if (typeof calculated_output !== 'object' || calculated_output === null)
+        return res.status(400).json({ message: 'calculated_output (object) is required' });
+      const result = await svc.updateCpsSizingCaseKeSnapshot(
+        id, treatment_scope, ke_snapshot, calculated_output, (req.user as any).id,
+      );
+      res.status(200).json(result);
+    } catch (e: any) {
+      const msg = e?.message ?? 'KE snapshot update failed';
+      res.status(/not found/i.test(msg) ? 404 : 422).json({ message: msg });
+    }
+  });
+
+  app.get('/api/design-software/cps/parameters/:id/history', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (!isFinite(id)) return res.status(400).json({ message: 'Invalid parameter id' });
+      res.json(await svc.listCpsParameterHistory(id));
+    } catch (e: any) {
+      res.status(500).json({ message: e?.message ?? 'CPS parameter history failed' });
+    }
+  });
+
+  // ── Reference paper PDF upload / download (GCS-backed) ─────────────────────
+  {
+    const multer = (await import('multer')).default;
+    const refPaperUpload = multer({
+      storage: multer.memoryStorage(),
+      limits: { fileSize: 50 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (file.mimetype === 'application/pdf') cb(null, true);
+        else cb(new Error('Only PDF files are accepted for reference papers'));
+      },
+    });
+
+    app.post('/api/design-software/reference-papers/:id/document', ensureAuthenticated,
+      (req: Request, res: Response, next) => refPaperUpload.single('file')(req, res, (err: any) => {
+        if (err) return res.status(422).json({ message: err?.message ?? 'Upload failed' });
+        next();
+      }),
+      async (req: Request, res: Response) => {
+        try {
+          const id = parseInt(req.params.id);
+          if (!isFinite(id)) return res.status(400).json({ message: 'Invalid reference paper id' });
+          if (!req.file) return res.status(422).json({ message: 'A PDF file is required (field name: file)' });
+          const paper = (await svc.listReferencePapers()).find((p: any) => p.id === id);
+          if (!paper) return res.status(404).json({ message: 'Reference paper not found' });
+
+          const storage = (await import('./utils/storage-config')).default;
+          const { bucketName } = await import('./utils/storage-config');
+          const safeName = req.file.originalname.replace(/[^\w.\- ]+/g, '_');
+          const gcsPath = `TPEL/DESIGN_SOFTWARE/REFERENCE_PAPERS/${paper.ref_code}/${safeName}`;
+          await storage.bucket(bucketName).file(gcsPath).save(req.file.buffer, {
+            contentType: 'application/pdf',
+            resumable: false,
+          });
+          const updated = await svc.setReferencePaperDocument(id, gcsPath, req.file.originalname);
+          res.json(updated);
+        } catch (e: any) {
+          res.status(500).json({ message: e?.message ?? 'Reference paper upload failed' });
+        }
+      });
+
+    app.get('/api/design-software/reference-papers/:id/document', ensureAuthenticated, async (req: Request, res: Response) => {
+      try {
+        const id = parseInt(req.params.id);
+        if (!isFinite(id)) return res.status(400).json({ message: 'Invalid reference paper id' });
+        const paper = (await svc.listReferencePapers()).find((p: any) => p.id === id);
+        if (!paper) return res.status(404).json({ message: 'Reference paper not found' });
+        if (!paper.file_path) return res.status(404).json({ message: 'No document uploaded for this reference paper' });
+
+        const storage = (await import('./utils/storage-config')).default;
+        const { bucketName } = await import('./utils/storage-config');
+        const file = storage.bucket(bucketName).file(paper.file_path);
+        const [exists] = await file.exists();
+        if (!exists) return res.status(404).json({ message: 'Stored document not found in object storage' });
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${(paper.file_name ?? `${paper.ref_code}.pdf`).replace(/"/g, '')}"`);
+        const stream = file.createReadStream();
+        stream.on('error', (err) => {
+          console.error('[DS] Reference paper stream error:', err);
+          if (!res.headersSent) res.status(500).json({ message: 'Document streaming failed' });
+          else res.end();
+        });
+        stream.pipe(res);
+      } catch (e: any) {
+        res.status(500).json({ message: e?.message ?? 'Reference paper download failed' });
+      }
+    });
+  }
+
   // ── Sulzer SMV/SMVP preliminary packing screening (Stage 7, literature-based) ─
   // Pure screening arithmetic (B = Q/A + threshold checks) against controlled
   // Rauber/AIChE 2006 records — no C2–C6 engine equations involved or duplicated.

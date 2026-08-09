@@ -141,6 +141,7 @@ function Layout({ children }: LayoutProps) {
   const [isOIMenuOpen, setIsOIMenuOpen] = useState(false);
   const [isHazopMenuOpen, setIsHazopMenuOpen] = useState(false);
   const [isDesignSoftwareMenuOpen, setIsDesignSoftwareMenuOpen] = useState(false);
+  const [isCpsSizingMenuOpen, setIsCpsSizingMenuOpen] = useState(false);
   const [attendanceCheckCompleted, setAttendanceCheckCompleted] = useState(false);
 
   // Get all module permissions for the current user
@@ -293,6 +294,10 @@ function Layout({ children }: LayoutProps) {
 
     if (isOnDesignSoftwarePage && !isDesignSoftwareMenuOpen) {
       setIsDesignSoftwareMenuOpen(true);
+    }
+
+    if (location.startsWith("/design-software/cps-sizing") && !isCpsSizingMenuOpen) {
+      setIsCpsSizingMenuOpen(true);
     }
   }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnSapPurchasingPage, isOnDocumentControlPage, isDocumentControlMenuOpen, isOnOIPage, isOIMenuOpen, isOnHazopPage, isHazopMenuOpen, isOnDesignSoftwarePage, isDesignSoftwareMenuOpen]);
 
@@ -497,6 +502,16 @@ function Layout({ children }: LayoutProps) {
       toggle: () => setIsDesignSoftwareMenuOpen(!isDesignSoftwareMenuOpen),
       children: [
         { icon: Cpu, label: "Liquid-Liquid Extraction", href: "/design-software/liquid-liquid-extraction" },
+        {
+          icon: BookOpen,
+          label: "CPS Sizing Tool",
+          isOpen: isCpsSizingMenuOpen,
+          toggle: () => setIsCpsSizingMenuOpen(!isCpsSizingMenuOpen),
+          children: [
+            { icon: LayoutDashboard, label: "Sizing Dashboard", href: "/design-software/cps-sizing" },
+            { icon: BookOpen, label: "Knowledge Engine", href: "/design-software/cps-sizing/knowledge-engine" },
+          ],
+        },
       ]
     }] : []),
     ...(hasViewPermission("HAZOP") ? [{
@@ -731,7 +746,10 @@ function Layout({ children }: LayoutProps) {
                       
                       const Icon = item.icon;
                       // Check if any child is active
-                      const isChildActive = item.children?.some(child => location.startsWith(child.href?.split('?')[0] || ''));
+                      const isChildActive = item.children?.some(child =>
+                        (child.href ? location.startsWith(child.href.split('?')[0]) : false) ||
+                        (child as any).children?.some((gc: any) => gc.href && location.startsWith(gc.href.split('?')[0]))
+                      );
                       
                       return (
                         <li key={`submenu-${orderIndex}`} className="space-y-1">
@@ -759,7 +777,61 @@ function Layout({ children }: LayoutProps) {
                                 const isChildActive = child.href ? location.startsWith(child.href.split('?')[0]) : false;
                                 // When we have exact match or for the case of query parameters - check full href match
                                 const isExactMatch = location === child.href;
-                                
+
+                                // Third-level submenu (e.g. CPS Sizing Tool → Sizing Dashboard / Knowledge Engine)
+                                const grandChildren = (child as any).children as Array<{ icon: any; label: string; href: string }> | undefined;
+                                if (grandChildren) {
+                                  const isAnyGrandChildActive = grandChildren.some(gc => location.startsWith(gc.href.split('?')[0]));
+                                  // Longest-prefix match so only the most specific entry highlights
+                                  const activeGcHref = grandChildren
+                                    .map(gc => gc.href.split('?')[0])
+                                    .filter(h => location === h || location.startsWith(h + '/'))
+                                    .sort((a, b) => b.length - a.length)[0];
+                                  return (
+                                    <li key={`${orderIndex}-${childIndex}`} className="space-y-1">
+                                      <button
+                                        onClick={(child as any).toggle}
+                                        className={`flex items-center justify-between gap-3 px-3 py-2 w-full text-left text-[#EF4444] transition-colors rounded-md
+                                          ${isAnyGrandChildActive ? 'bg-[#E0F2FE] font-semibold' : 'hover:bg-[#F3F4F6]'}`}
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <ChildIcon className="h-4 w-4 text-[#EF4444]" />
+                                          <span>{child.label}</span>
+                                        </div>
+                                        {(child as any).isOpen ? (
+                                          <ChevronDown className="h-4 w-4 text-[#3B82F6]" />
+                                        ) : (
+                                          <ChevronRight className="h-4 w-4 text-[#3B82F6]" />
+                                        )}
+                                      </button>
+                                      {(child as any).isOpen && (
+                                        <ul className="pl-7 space-y-1 mt-1">
+                                          {grandChildren.map((gc, gcIndex) => {
+                                            const GcIcon = gc.icon;
+                                            const gcActive = gc.href.split('?')[0] === activeGcHref;
+                                            return (
+                                              <li key={`${orderIndex}-${childIndex}-${gcIndex}`}>
+                                                <Link href={gc.href}>
+                                                  <button
+                                                    className={`flex items-center gap-3 px-3 py-2 w-full text-left text-[#EF4444] transition-colors
+                                                      ${gcActive
+                                                        ? 'bg-[#E0F2FE] border-l-4 border-[#3B82F6] pl-2 font-semibold rounded-r-md'
+                                                        : 'hover:bg-[#F3F4F6] rounded-md'
+                                                      }`}
+                                                  >
+                                                    <GcIcon className="h-4 w-4 text-[#EF4444]" />
+                                                    <span className="flex-1 text-left">{gc.label}</span>
+                                                  </button>
+                                                </Link>
+                                              </li>
+                                            );
+                                          })}
+                                        </ul>
+                                      )}
+                                    </li>
+                                  );
+                                }
+
                                 return (
                                   <li key={`${orderIndex}-${childIndex}`}>
                                     <Link href={child.href || ''}>

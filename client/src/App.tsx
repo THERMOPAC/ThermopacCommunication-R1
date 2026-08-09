@@ -320,6 +320,10 @@ function Router() {
       <ProtectedRoute path="/oi/config" component={() => <OI.OiConfigPage />} />
 
       {/* ── Design Software ──────────────────────────────────────────────── */}
+      <ProtectedRoute path="/design-software/cps-sizing/new" component={() => <DesignSoftware.CpsSizingNewCasePage />} />
+      <ProtectedRoute path="/design-software/cps-sizing/case/:id" component={() => <DesignSoftware.CpsSizingCasePage />} />
+      <ProtectedRoute path="/design-software/cps-sizing/knowledge-engine" component={() => <DesignSoftware.CpsKnowledgeEnginePage />} />
+      <ProtectedRoute path="/design-software/cps-sizing" component={() => <DesignSoftware.CpsSizingCasesPage />} />
       <ProtectedRoute path="/design-software/liquid-liquid-extraction" component={() => <DesignSoftware.DesignSoftwareListPage />} />
       <ProtectedRoute path="/design-software/liquid-liquid-extraction/:designId" component={() => <DesignSoftware.DesignSoftwareWorkspacePage />} />
 

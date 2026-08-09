@@ -41,6 +41,10 @@ import {
   CEL_VERSION, EPD_VERSION,
   getProperty, createPropertyContext, containsAssumedData, EngineeringInputError,
   SOURCE_TYPES, columnCrossSectionArea,
+  packingHydraulicDiameter, phaseLoadFactor, packingPhaseReynolds,
+  fanningLaminarPipeReference, dryPackingPressureDropPerLength,
+  backCalculatedFrictionFactor, classifyPackingFlowRegime,
+  DUSS_2013_CITATION, ZOGG_1972_CITATION,
 } from '../../engine-framework/common-engineering-library';
 import type { SourceType } from '../../engine-framework/epd/types';
 import {
@@ -54,7 +58,7 @@ import {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const ENGINE_VERSION = '1.0.0';
+const ENGINE_VERSION = '1.1.0'; // 1.1.0: ECP-009/ECP-010 preliminary single-phase frictional (dry-bed) pressure-drop framework (Duss 2013)
 const C2_PROCESS_DESIGN_VERSION = '1.0.0';
 const C3_HYDRAULICS_COMMON_VERSION = '1.0.0';
 
@@ -318,6 +322,16 @@ export class LLXECPEngine implements IDesignEngine {
       const continuousPhase = rrboContinuous ? 'RRBO' : 'NMP';
       const dispersedPhase = rrboContinuous ? 'NMP' : 'RRBO';
 
+      // Continuous-phase properties for the ECP-009 single-phase frictional
+      // (dry-bed analog) framework — entered RRBO tags or EPD NMP data only.
+      const rhoCont = rrboContinuous ? rhoRRBO : rhoNMP;
+      const muCont = rrboContinuous
+        ? getProperty('rrbo', 'dynamicViscosity', T, propertyContext)
+        : getProperty('nmp', 'dynamicViscosity', T);
+      for (const w of muCont.warnings) pushWarning(w.code, w.message);
+      const contPropsAssumed = propertyAssumed || containsAssumedData(muCont.warnings)
+        || (rrboContinuous && feedViscosityEntry.sourceType === 'Assumed');
+
       // ── HETS (system data) & packing height — ECP-005 ───────────────────────
       const hets = inputs.hets as HETSRecord;
       if (hets.sourceType === 'Assumed') { notePending(); assumptions.push({ assumption: `HETS = ${hets.value} m is ASSUMED (${hets.sourceReference})`, sourceType: hets.sourceType, sourceReference: hets.sourceReference, consequence: 'Packing height and total heights are Pending Validation' }); }
@@ -458,7 +472,26 @@ export class LLXECPEngine implements IDesignEngine {
       }
       const distributorModule = distributorSpec ? resolveDistributorModule(distributorSpec.distributorType) : undefined;
 
-      // ── Per-case diameter rating — ECP-001…ECP-004, ECP-007, ECP-008 ───────
+      // ── ECP-009 basis — hydraulic diameter & friction-factor basis ─────────
+      // Preliminary single-phase frictional (dry-bed analog) framework per
+      // Duss (2013). Classification is ALWAYS 'Preliminary Pressure Drop
+      // Prediction — Pending RRBO/NMP Validation' (the paper's validated
+      // envelope is gas-phase distillation packing — LLX liquid-liquid duty is
+      // outside it; see pressureDropVerification range statement).
+      const DRY_DP_CLASSIFICATION = 'Preliminary Pressure Drop Prediction — Pending RRBO/NMP Validation';
+      const dh_m = packingHydraulicDiameter(packing.specificSurfaceArea.value); // DUSS2013-EQ3: d_h = 4/a
+      const dhStatus: Classification = packing.specificSurfaceArea.sourceType === 'Assumed' ? 'Pending Validation' : 'Calculated Screening Result';
+      const hydraulicDiameterItem = item('ECP-009-DH', dh_m, 'm',
+        `d_h = 4/a with a = ${packing.specificSurfaceArea.value} m²/m³ (${packing.specificSurfaceArea.sourceType}: ${packing.specificSurfaceArea.sourceReference}) — Zogg hydraulic-diameter definition, eq. (3) of ${DUSS_2013_CITATION}`,
+        dhStatus, dhStatus === 'Pending Validation' ? 'Specific surface area is Assumed — d_h is Pending Validation with it' : 'Published geometric definition applied to the packing record datum');
+      const ffBasis: PerformanceBasis | undefined = packing.frictionFactorData;
+      const corrAngle = packing.corrugationAngleDeg;
+      if (!ffBasis) {
+        pushWarning('NO_PACKING_FRICTION_FACTOR_DATA',
+          `Packing record '${packing.id}' has no source-tagged friction-factor basis (c_f) — the dry frictional pressure drop (ECP-009) is Not Calculable. ${DUSS_2013_CITATION} publishes the governing framework Δp/Δz = c_f·ρ·u_s²/(2·d_h) but NO packing c_f(Re) correlation equation (the paper's tabulated c_f values are vendor-software outputs, excluded by project directive), and the pipe laminar relation f = 16/Re under-predicts packing c_f by roughly an order of magnitude in the laminar regime (Zogg) — no value is invented.`);
+      }
+
+      // ── Per-case diameter rating — ECP-001…ECP-004, ECP-007…ECP-009 ───────
       const utilizationPendingBase = packingAssumed || (derate?.sourceType === 'Assumed') || propertyAssumed;
       const runCase = (caseName: 'normal' | 'maximum', flows: ReturnType<typeof caseFlows>) => {
         const rows: Record<string, unknown>[] = [];
@@ -549,7 +582,7 @@ export class LLXECPEngine implements IDesignEngine {
             row.distributor = { formulaReference: 'ECP-004', status: 'Not Calculable' as Classification, reason: 'No distributor specification supplied — checks run only when vendor distributor data exist' };
           }
 
-          // ECP-007 — WET pressure drop only (dry is reserved architecture)
+          // ECP-007 — WET pressure drop (operating basis); dry preliminary prediction is ECP-009
           const wet: PerformanceBasis | undefined = packing.pressureDropData?.wet;
           if (wet) {
             const dp = evaluatePerformanceBasis(wet, loadTot);
@@ -561,11 +594,66 @@ export class LLXECPEngine implements IDesignEngine {
               const dpStatus: Classification = performanceBasisAssumed(wet) || hets.sourceType === 'Assumed' ? 'Pending Validation' : 'Calculated Screening Result';
               row.pressureDrop = {
                 perMeter: item('ECP-007', dp.value!, 'Pa/m', `Vendor Pressure Drop (wet) at total load ${loadTot.toFixed(2)} m3/(m2.h) [${dp.source}]`, dpStatus, 'Interpolated inside vendor data range only'),
-                total: item('ECP-007', totalDp, 'Pa', 'Δp/m × active packing height (ECP-005)', dpStatus, 'Wet pressure drop only — dry basis is reserved architecture'),
+                total: item('ECP-007', totalDp, 'Pa', 'Δp/m × active packing height (ECP-005)', dpStatus, 'Wet pressure drop — the operating-column basis; the dry single-phase frictional prediction (ECP-009) never substitutes it'),
               };
             }
           } else {
             row.pressureDrop = item('ECP-007', null, 'Pa', 'Vendor Pressure Drop (wet)', 'Not Calculable', 'No wet pressure-drop basis in the packing record — no universal Pa/m value is invented; all other outputs are unaffected');
+          }
+
+          // ECP-009 — preliminary single-phase frictional (dry-bed analog)
+          // pressure-drop framework (Duss 2013). Continuous phase only —
+          // below the loading point the paper shows Δp is governed by the
+          // single-phase frictional term.
+          {
+            const uCont_ms = loadC / 3600; // m³/(m²·h) → m/s superficial
+            const defStatus: Classification = contPropsAssumed || dhStatus === 'Pending Validation' ? 'Pending Validation' : 'Calculated Screening Result';
+            const re = uCont_ms > 0 ? packingPhaseReynolds(uCont_ms, rhoCont.value, dh_m, muCont.value) : null; // DUSS2013-EQ4
+            const fv = phaseLoadFactor(uCont_ms, rhoCont.value); // DUSS2013-EQ5
+            const sp: Record<string, unknown> = {
+              classification: DRY_DP_CLASSIFICATION,
+              superficialVelocity: item('ECP-009-US', uCont_ms, 'm/s', `u_s = (continuous-phase load ${loadC.toFixed(3)} m³/(m²·h)) / 3600 — superficial-velocity definition (${continuousPhase} continuous)`, defStatus, 'Definition — from entered flows, densities and column area'),
+              phaseLoadFactor: item('ECP-009-FV', fv, 'Pa^0.5', `F_v = u_s·√ρ_c with ρ_c(${continuousPhase}) = ${rhoCont.value.toFixed(1)} kg/m³ [${rhoCont.source}] — eq. (5) of ${DUSS_2013_CITATION}`, defStatus, 'Published definition (gas-load-factor analog applied to the continuous liquid phase)'),
+              phaseReynolds: re !== null
+                ? item('ECP-009-RE', re, '-', `Re = u_s·ρ_c·d_h/η_c with η_c(${continuousPhase}) = ${(muCont.value * 1000).toPrecision(4)} mPa·s [${muCont.source}], d_h = ${dh_m.toFixed(4)} m — eq. (4) of ${DUSS_2013_CITATION} (superficial-velocity basis, Zogg)`, defStatus, 'Published definition — superficial-velocity Reynolds number')
+                : item('ECP-009-RE', null, '-', 'Phase Reynolds number', 'Not Calculable', 'Zero continuous-phase superficial velocity'),
+            };
+            if (re !== null) {
+              const regime = classifyPackingFlowRegime(re, corrAngle?.value);
+              sp.flowRegime = item('ECP-009-REGIME', regime.regime, '-',
+                `${regime.basis}${corrAngle ? ` Corrugation angle ${corrAngle.value}° (${corrAngle.sourceType}: ${corrAngle.sourceReference}).` : ''} Published anchors: ${ZOGG_1972_CITATION}`,
+                regime.regime === 'Not Determinable' ? 'Not Calculable' : 'Pending Validation',
+                'Classified ONLY against published experimental critical Reynolds numbers (45° → ≈250; 30° → ≈450) — anchors were measured on gas/liquid distillation packing; applicability to LLX liquid-liquid duty is Pending Validation');
+              const fRef = fanningLaminarPipeReference(re);
+              sp.laminarPipeReferenceFrictionFactor = item('ECP-009-FREF', fRef.value, '-',
+                `f = 16/Re (Fanning, laminar PIPE) at Re = ${re.toPrecision(4)} — eq. (1) reference relation of ${DUSS_2013_CITATION}`,
+                'Calculated Screening Result',
+                `REFERENCE ONLY — ${fRef.applicabilityNote}`);
+              // Every pressure-drop quantity (including Not Calculable
+              // dispositions) carries the mandated classification as an
+              // immutable field alongside status — never only on the parent.
+              const dpc = <T extends object>(o: T): T & { pressureDropClassification: string } => ({ ...o, pressureDropClassification: DRY_DP_CLASSIFICATION });
+              if (ffBasis) {
+                const cf = evaluatePerformanceBasis(ffBasis, ffBasis.kind === 'constant' ? 0 : re);
+                if (!cf.ok) {
+                  sp.frictionFactor = dpc(item('ECP-009-CF', null, '-', 'Packing friction factor c_f (source-tagged basis)', 'Not Calculable', cf.reason!, [cf.reason!]));
+                  sp.dryPressureDrop = dpc(item('ECP-009-DP', null, 'Pa/m', 'Δp/Δz = c_f·ρ_c·u_s²/(2·d_h)', 'Not Calculable', `Friction-factor basis refused at Re = ${re.toPrecision(4)}: ${cf.reason}`));
+                } else {
+                  const dpm = dryPackingPressureDropPerLength(cf.value!, dh_m, rhoCont.value, uCont_ms);
+                  sp.frictionFactor = dpc(item('ECP-009-CF', cf.value!, '-', `Packing friction factor c_f at Re = ${re.toPrecision(4)} [${cf.source}; provenance: ${packing.frictionFactorProvenance}]`, 'Pending Validation', DRY_DP_CLASSIFICATION));
+                  sp.dryPressureDrop = {
+                    perMeter: dpc(item('ECP-009-DP', dpm, 'Pa/m', `Δp/Δz = c_f·ρ_c·u_s²/(2·d_h) — eq. (2)/(6) of ${DUSS_2013_CITATION}`, 'Pending Validation', DRY_DP_CLASSIFICATION)),
+                    total: dpc(item('ECP-009-DP', dpm * packingHeight_m, 'Pa', 'Δp/Δz × active packing height (ECP-005)', 'Pending Validation', DRY_DP_CLASSIFICATION)),
+                  };
+                }
+              } else {
+                sp.frictionFactor = dpc(item('ECP-009-CF', null, '-', 'Packing friction factor c_f',
+                  'Not Calculable',
+                  'No source-tagged packing friction-factor basis in the packing record. The source paper publishes the governing framework but NO packing c_f(Re) correlation equation; its tabulated c_f values are vendor-software outputs (excluded by directive), and the pipe laminar relation f = 16/Re is NOT applicable to packing (under-predicts c_f by ~an order of magnitude in the laminar regime — Zogg). No value is invented.'));
+                sp.dryPressureDrop = dpc(item('ECP-009-DP', null, 'Pa/m', `Δp/Δz = c_f·ρ_c·u_s²/(2·d_h) — eq. (2)/(6) of ${DUSS_2013_CITATION}`, 'Not Calculable', 'Blocked solely by the missing friction factor (ECP-009-CF) — d_h, u_s, Re and F_v above are calculated and independently verifiable'));
+              }
+            }
+            row.singlePhaseFrictional = sp;
           }
 
           row.feasibility = feasibility;
@@ -597,6 +685,78 @@ export class LLXECPEngine implements IDesignEngine {
 
       const normalCase = runCase('normal', normalFlows);
       const maximumCase = runCase('maximum', maximumFlows);
+
+      // ── ECP-009 governance block — derivation, applicability, assumptions ──
+      assumptions.push({
+        assumption: `Single-phase frictional pressure-drop framework (${DUSS_2013_CITATION}) applied to the CONTINUOUS liquid phase (${continuousPhase}) as a preliminary dry-bed analog`,
+        sourceType: 'Assumed',
+        sourceReference: DUSS_2013_CITATION,
+        consequence: 'The paper\'s validated envelope is gas-phase frictional pressure drop in counter-current gas/liquid distillation packing below the loading point. LLX liquid-liquid duty is OUTSIDE that envelope: every ECP-009 pressure-drop result is classified "Preliminary Pressure Drop Prediction — Pending RRBO/NMP Validation" and shall not be used for vendor guarantees or commercial hydraulic rating.',
+      });
+      notePending();
+      const dryPressureDropPrediction: Record<string, unknown> = {
+        formulaReference: 'ECP-009',
+        classification: DRY_DP_CLASSIFICATION,
+        hydraulicDiameter: hydraulicDiameterItem,
+        derivation: {
+          note: 'Complete mathematical basis — only equations explicitly published in the source paper. Per-diameter numeric results are in normalCase/maximumCase → diameters[] → singlePhaseFrictional.',
+          equations: [
+            { id: 'DUSS2013-EQ3', statement: 'd_h = 4/a — hydraulic diameter of packing (Zogg definition)', variables: 'a = specific packing area (m²/m³); d_h (m)', source: `eq. (3), ${DUSS_2013_CITATION}; original definition: ${ZOGG_1972_CITATION}` },
+            { id: 'DUSS2013-EQ4', statement: 'Re = u_s·ρ·d_h/η — phase Reynolds number on the SUPERFICIAL-velocity basis', variables: 'u_s = superficial velocity (m/s); ρ = phase density (kg/m³); η = dynamic viscosity (Pa·s); Re (–)', source: `eq. (4), ${DUSS_2013_CITATION}` },
+            { id: 'DUSS2013-EQ5', statement: 'F_v = u_s·√ρ — load factor (F-factor)', variables: 'F_v (Pa^0.5)', source: `eq. (5), ${DUSS_2013_CITATION}` },
+            { id: 'DUSS2013-EQ2/EQ6', statement: 'Δp/Δz = c_f·ρ·u_s²/(2·d_h) = c_f·F_v²/(2·d_h) — single-phase frictional pressure drop per unit packed height', variables: 'c_f = packing friction factor / drag coefficient (–); Δp/Δz (Pa/m)', source: `eqs. (2) and (6), ${DUSS_2013_CITATION}` },
+            { id: 'DUSS2013-EQ1', statement: 'f = 16/Re — Fanning friction factor, laminar flow in hydraulically smooth PIPES (Re < 2300). REFERENCE RELATION ONLY — never used as a packing friction factor', variables: 'f (–)', source: `eq. (1), ${DUSS_2013_CITATION} (L. F. Moody, Trans. ASME 66 (1944) 671)` },
+            { id: 'ZOGG-RECRIT', statement: 'Published experimental critical Reynolds numbers: Re_crit ≈ 250 (corrugation angle 45°, Y-type); Re_crit ≈ 450 (30°, X-type). Friction factor is Re-dependent below Re_crit (laminar) and must not be treated as constant there', variables: 'Re_crit (–)', source: ZOGG_1972_CITATION },
+          ],
+        },
+        applicabilityLimits: [
+          'Below the loading point only: the source demonstrates (Sulcol curves, F_v ≤ ~4 Pa^0.5 at low liquid loads) that liquid holdup has marginal influence there — near loading/flooding the single-phase frictional model under-states Δp.',
+          'Published Re_crit anchors exist ONLY for corrugation angles 45° and 30° measured on Sulzer gauze packing (specific area 500 m²/m³) — no interpolation over angle or geometry is performed.',
+          'The paper publishes NO packing c_f(Re) correlation equation: c_f must be a source-tagged vendor/measured/controlled-literature datum. Its tabulated c_f values are vendor-software outputs and are excluded by project directive.',
+          'The paper\'s validation basis is GAS-phase flow in gas/liquid distillation packing. Application to the LLX continuous liquid phase is an analog OUTSIDE the validated envelope — all pressure-drop results are Preliminary, Pending RRBO/NMP Validation.',
+          'The pipe laminar relation f = 16/Re is carried as a reference relation only — packing laminar c_f is experimentally about an order of magnitude higher (Zogg), so the pipe relation would drastically under-predict Δp.',
+        ],
+        engineeringAssumptions: [
+          `Continuous phase (${continuousPhase}) treated as the single flowing phase of the frictional model (dry-bed analog); dispersed-phase holdup effects are excluded — consistent with the paper's below-loading-point scope but unvalidated for liquid-liquid operation.`,
+          'Superficial-velocity basis retained for Re exactly as in the source (Zogg evaluation) — no void-fraction or effective-velocity correction is introduced beyond the published equations.',
+        ],
+        sourceDocuments: [DUSS_2013_CITATION, ZOGG_1972_CITATION],
+      };
+
+      // ── ECP-010 — verification per the paper's recommended procedure ───────
+      // Quantitative check (paper, steps a–f): from a computed specific pressure
+      // drop, back-calculate c_f = 2·(Δp/Δz)·d_h/(ρ·u_s²) at the computed Re and
+      // compare against the published friction-factor relationships. Executed
+      // against the Vendor Pressure Drop (wet) basis when it is calculable.
+      const verifCase = maximumCase;
+      const verifRow = (verifCase.diameters as Record<string, any>[]).find(r => trialD !== undefined && Math.abs((r.diameter_m as number) - trialD) < 1e-9) ?? (verifCase.diameters as Record<string, any>[])[0];
+      const verifDp = verifRow?.pressureDrop?.perMeter?.result as number | undefined;
+      const verifSp = verifRow?.singlePhaseFrictional as Record<string, any> | undefined;
+      const verifU = verifSp?.superficialVelocity?.result as number | undefined;
+      const verifRe = verifSp?.phaseReynolds?.result as number | undefined;
+      let backCalc: ResultItem & { pressureDropClassification?: string };
+      if (typeof verifDp === 'number' && typeof verifU === 'number' && verifU > 0 && typeof verifRe === 'number') {
+        const cfBack = backCalculatedFrictionFactor(verifDp, dh_m, rhoCont.value, verifU);
+        const fRef = fanningLaminarPipeReference(verifRe);
+        backCalc = item('ECP-010-CFVERIF', cfBack, '-',
+          `c_f = 2·(Δp/Δz)·d_h/(ρ_c·u_s²) with Δp/Δz = ${verifDp.toFixed(3)} Pa/m (Vendor Pressure Drop, wet — ECP-007), d_h = ${dh_m.toFixed(4)} m, ρ_c = ${rhoCont.value.toFixed(1)} kg/m³, u_s = ${verifU.toExponential(3)} m/s at D = ${verifRow.diameter_m} m (maximum case) — verification procedure step (d), ${DUSS_2013_CITATION}`,
+          'Pending Validation',
+          `Back-calculated (implied) friction factor at Re = ${verifRe.toPrecision(4)}; laminar PIPE reference f = 16/Re = ${fRef.value.toPrecision(4)} at the same Re (comparison anchor only). Comparison against the published packing curves (Zogg, corrugation-angle-specific) requires a source-tagged corrugation angle and remains an engineering-review step.`);
+      } else {
+        backCalc = item('ECP-010-CFVERIF', null, '-',
+          'c_f = 2·(Δp/Δz)·d_h/(ρ_c·u_s²) — verification procedure step (d) of the source paper',
+          'Not Calculable',
+          'No calculable specific pressure drop is available to verify: the packing record has no Vendor Pressure Drop (wet) basis (ECP-007 Not Calculable) and no friction-factor basis (ECP-009-CF Not Calculable). The verification runs automatically once either datum is entered.');
+      }
+      backCalc = { ...backCalc, pressureDropClassification: DRY_DP_CLASSIFICATION };
+      const dryPressureDropVerification: Record<string, unknown> = {
+        formulaReference: 'ECP-010',
+        procedure: 'Source-paper quantitative check, steps (a)–(f): (a) compute the specific pressure drop at design conditions; (b) u_s = F_v/√ρ (here: directly from flows); (c) d_h = 4/a and corrugation angle; (d) back-calculate c_f from eq. (2); (e) compute Re from eq. (4); (f) compare c_f(Re) against the published friction-factor relationships for the correct corrugation angle.',
+        backCalculatedFrictionFactor: backCalc,
+        validatedRangeStatement:
+          `LLX operating point vs the paper's validated range: the source's friction-factor relationships and critical Reynolds numbers were established for GAS-phase flow in counter-current gas/liquid structured packing (Zogg test cells; deep-vacuum distillation applications). The LLX column is a LIQUID-LIQUID extraction duty — the flowing continuous phase is a liquid (${continuousPhase}). LLX therefore operates OUTSIDE the paper's validated range; the framework is applied as a preliminary physics-based analog only and every ECP-009/ECP-010 pressure-drop quantity is classified "${DRY_DP_CLASSIFICATION}".`,
+        sourceDocuments: [DUSS_2013_CITATION, ZOGG_1972_CITATION],
+      };
 
       const calculationRunStatus = anyPending ? 'pending_validation' : 'screening_complete';
 
@@ -634,11 +794,13 @@ export class LLXECPEngine implements IDesignEngine {
         },
         heightBreakdown,
         normalCase, maximumCase,
+        dryPressureDropPrediction,
+        dryPressureDropVerification,
         rateBasedPlaceholders: {
           note: 'Reserved architecture for a future rate-based path (heightBasis HTU_NTU). NOT calculated in Stage C4.',
           htu: null, ntu: null, ka: null, interfacialArea: null,
         },
-        pressureDropArchitecture: { wetApplied: true, dryReserved: true, note: 'Dry and wet pressure drop are separated; only WET applies to the operating extraction column. Dry basis is reserved architecture.' },
+        pressureDropArchitecture: { wetApplied: true, dryReserved: false, dryPreliminaryImplemented: true, note: `Dry and wet pressure drop are separated. WET (vendor basis, ECP-007) remains the operating-column basis. DRY now carries the preliminary single-phase frictional prediction framework (ECP-009, ${DUSS_2013_CITATION}) — classified "${DRY_DP_CLASSIFICATION}"; it is NOT an operating-column pressure drop and never substitutes the vendor wet basis.` },
         assumptions,
       };
 
