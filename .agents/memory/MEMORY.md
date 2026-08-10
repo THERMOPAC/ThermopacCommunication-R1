@@ -4,6 +4,7 @@
 - [LLX Workspace Architecture](llx-workspace-architecture.md) — 14-step design env; step keys, section data persistence, technology-selection gating, validation logic, lifecycle statuses.
 - [LLX ECPR/ECRR calc reports](llx-workspace-architecture.md) — render frozen run snapshots only; PDF renderer transliterates non-WinAnsi math glyphs; packing size optional (250 = Sulzer SSA grade, never mm).
 - [LLX CEL/EPD governance](llx-cel-epd-governance.md) — RRBO = Re-Refined Base Oil (project fluid, never library correlations); CEL flooding utilities must stay generic; controlled source types; exact-citation rule.
+- [Duss 2013 governed Re–cf dataset](duss2013-governed-cf.md) — cf auto-calculated; 45°/30° datasets in packing-single-phase.ts; below_range→boundary min NOT design ΔP; prod Re≈0.36 is below_range.
 - [SAP ChartOfAccounts Code dash format](sap-coa-code-dash.md) — SAP Code field uses dashes (e.g. `50207350600-ARL`); FormatCode omits them. Always strip dashes when matching user input against SAP account codes.
 - [Flanges SAP builder](flanges-sap-builder.md) — RM-FLG-{STD}-{TYPE}-{SIZE}-{RATING}-{MAT}-{FACE}; size uses DN-prefix via normalizeFlangeSizeCode(); Standard/Rating compatibility enforced; field names differ from pipes/fittings.
 - [Buy Catalog SAP Item Persistence](buy-catalog-sap-persistence.md) — Phase 1 complete: getOrCreateCatalogMasterItem helper, ON CONFLICT DO NOTHING pattern, two-DB migration, all 26 resolvers standardised.
@@ -32,4 +33,6 @@
 - [C4 packed-column engine governance](c4-packed-column-governance.md) — llx-ecp consumes Packing DB (clones only); curves interpolation-only with fixed independent variables; utilization never from C3 generic %.
 - [LLX PGA drawing report](llx-pga-drawing.md) — JSON drawing-primitive section kind; fail-closed parsing (HOLD, never clamp/zero-substitute); DS-SEL label reconciliation; 4/3-bezier head apex.
 - [CPS Knowledge Engine governance](cps-knowledge-engine.md) — frozen 7×5 structure; NULL = not defined (never placeholder); decimal-string values; Superuser-only writes; Excel-model units.
+- [NRTL τ(T) LLE model governance](nrtl-temperature-lle-governance.md) — model NOT admitted (Coto anchor RMSD ~0.018 vs 0.009 gate); DEVELOPMENT GAP is the honest outcome; never widen the gate.
+- [Coto 2022 LLE dataset governance](coto2022-lle-governance.md) — tie-lines valid, nominal r/feed labels fail mass balance; interpolate on x1R; envelope too narrow for design N_T; fail-closed.
 - [LLX DS-SEL governance](llx-dsel-governance.md) — deterministic selection rules only; no scoring/CAPEX/confidence tie-breaks; exact review-required wording; ECR basis non-transferable.

@@ -53,6 +53,16 @@ import {
   weber, eotvos, morton,
 } from '../../engine-framework/common-engineering-library';
 import type { SourceType } from '../../engine-framework/epd/types';
+import {
+  packingHydraulicDiameter, phaseLoadFactor, packingPhaseReynolds,
+  dryPackingPressureDropPerLength, fanningLaminarPipeReference,
+  classifyPackingFlowRegime, DUSS_2013_CITATION, ZOGG_1972_CITATION,
+  evaluateDuss2013ReCf, type Duss2013DatasetRecord,
+} from '../../engine-framework/common-engineering-library';
+import {
+  type PerformanceBasis,
+  evaluatePerformanceBasis, performanceBasisAssumed, validatePerformanceBasis,
+} from '../../engine-framework/packing/database';
 
 // ── Structures ────────────────────────────────────────────────────────────────
 
@@ -70,6 +80,10 @@ const DEFAULT_HOLDUP_BOUNDS = { min: 0.005, max: 0.60 };
 const MODERATE_HOLDUP_LIMIT = 0.60;
 const DEFAULT_SCREENING_BAND = { min: 40, max: 80 }; // % of generic maximum — configurable criterion
 const DEFAULT_ROOT_ISOLATION_TOLERANCE = 0.02;
+
+const C3_PRESSURE_DROP_CLASSIFICATION = 'Controlled Literature Prediction — Preliminary / Pending RRBO-NMP Validation';
+const ALLOWED_CF_PROVENANCE = ['measured', 'controlled_literature', 'vendor_document'] as const;
+type CfProvenance = (typeof ALLOWED_CF_PROVENANCE)[number];
 
 const APPLICABILITY_STATEMENT = 'PRELIMINARY GENERIC HYDRAULIC SCREENING — NOT ECP OR ECR RATING';
 const LIMITATIONS = [
@@ -248,6 +262,34 @@ export class LLXHydraulicsEngine implements IDesignEngine {
     const trial = num(inputs.selectedTrialDiameter);
     if (inputs.selectedTrialDiameter !== undefined && (trial === undefined || trial <= 0)) err('selectedTrialDiameter', 'selectedTrialDiameter must be > 0 (m)');
 
+    // Optional pressure-drop basis (HYD-009) — structural validation only;
+    // detailed per-diameter computation proceeds in calculate() as non-blocking
+    const pdBasisRaw = inputs.pressureDropBasis;
+    if (pdBasisRaw !== undefined && pdBasisRaw !== null) {
+      if (typeof pdBasisRaw !== 'object' || Array.isArray(pdBasisRaw)) {
+        err('pressureDropBasis', 'pressureDropBasis must be an object when provided');
+      } else {
+        const pdb = pdBasisRaw as Record<string, unknown>;
+        const psa = pdb.packingSpecificSurface as Record<string, unknown> | undefined;
+        if (!psa) {
+          err('pressureDropBasis.packingSpecificSurface', 'pressureDropBasis.packingSpecificSurface { value (m²/m³), sourceType, sourceReference } is required when pressureDropBasis is provided');
+        } else {
+          const v = num(psa.value);
+          if (v === undefined || v <= 0) err('pressureDropBasis.packingSpecificSurface.value', 'packingSpecificSurface.value must be > 0 (m²/m³)');
+          if (!SOURCE_TYPES.includes(psa.sourceType as SourceType)) err('pressureDropBasis.packingSpecificSurface.sourceType', `packingSpecificSurface.sourceType must be one of ${SOURCE_TYPES.join(', ')}`);
+          if (typeof psa.sourceReference !== 'string' || !(psa.sourceReference as string).trim()) err('pressureDropBasis.packingSpecificSurface.sourceReference', 'packingSpecificSurface.sourceReference is mandatory');
+        }
+        // cf may come from the governed Duss 2013 dataset (auto-injected) OR from a user-entered frictionFactorBasis.
+        const hasGoverned = pdb.governedReCfDataset !== undefined && pdb.governedReCfDataset !== null;
+        if (!hasGoverned && !pdb.frictionFactorBasis) {
+          err('pressureDropBasis.frictionFactorBasis', 'pressureDropBasis: either governedReCfDataset (auto-injected) or frictionFactorBasis + frictionFactorProvenance is required');
+        }
+        if (!hasGoverned && pdb.frictionFactorBasis && !ALLOWED_CF_PROVENANCE.includes(pdb.frictionFactorProvenance as CfProvenance)) {
+          err('pressureDropBasis.frictionFactorProvenance', `frictionFactorProvenance must be one of: ${ALLOWED_CF_PROVENANCE.join(', ')} — vendor-SOFTWARE outputs (Sulcol, DRP, etc.) are prohibited by project directive; a controlled provenance class is mandatory`);
+        }
+      }
+    }
+
     return { valid: errors.filter((e) => e.severity === 'error').length === 0, errors };
   }
 
@@ -355,7 +397,55 @@ export class LLXHydraulicsEngine implements IDesignEngine {
       const rhoC = rrboContinuous ? rhoRRBO.value : rhoNMP.value;
       const rhoD = rrboContinuous ? rhoNMP.value : rhoRRBO.value;
       const muC = rrboContinuous ? muRRBO.value : muNMP.value;
+      const muC_Pas = muC;   // muC is already Pa·s from EPD (dynamic viscosity)
       const densityDifference = Math.abs(rhoC - rhoD);
+
+      // HYD-009: Single-phase frictional pressure drop basis — Duss 2013 / Zogg
+      // All results classified: C3_PRESSURE_DROP_CLASSIFICATION.
+      // Non-blocking: if the basis is absent or malformed, pressure drop fields
+      // are omitted from each diameter row without affecting holdup/throughput.
+      const pdIn = inputs.pressureDropBasis as Record<string, unknown> | undefined;
+      let dhSetup: { dh_m: number; a_m2_m3: number; source: string } | undefined;
+      let cfBasis: PerformanceBasis | undefined;
+      let cfProvenance: CfProvenance | undefined;
+      let corrAngleDeg: number | undefined;
+      let vendorDpBasis: PerformanceBasis | undefined;
+      let governedDataset: Duss2013DatasetRecord | undefined;
+      let pdBasisAssumed = false;
+      if (pdIn) {
+        try {
+          const psa = pdIn.packingSpecificSurface as Record<string, unknown>;
+          const a = num(psa?.value);
+          if (a !== undefined && a > 0) {
+            const dh = packingHydraulicDiameter(a);
+            dhSetup = { dh_m: dh, a_m2_m3: a, source: `${psa.sourceType}: ${psa.sourceReference}` };
+          }
+          const angleIn = pdIn.packingCorrugationAngleDeg as Record<string, unknown> | undefined;
+          if (angleIn) corrAngleDeg = num(angleIn.value);
+          cfBasis = pdIn.frictionFactorBasis as PerformanceBasis | undefined;
+          cfProvenance = pdIn.frictionFactorProvenance as CfProvenance | undefined;
+          if (cfBasis && performanceBasisAssumed(cfBasis)) {
+            pdBasisAssumed = true;
+            assumptions.push({ assumption: 'Packing friction factor c_f is tagged Assumed — pressure drop results are Pending Validation', sourceType: 'Assumed', sourceReference: (cfBasis as Record<string, unknown>).sourceReference as string ?? 'pressureDropBasis.frictionFactorBasis', scope: 'run' });
+          }
+          governedDataset = pdIn.governedReCfDataset as Duss2013DatasetRecord | undefined;
+          vendorDpBasis = pdIn.vendorPressureDropBasis as PerformanceBasis | undefined;
+          // Detailed frictionFactorBasis validation issues → warnings (non-blocking)
+          if (cfBasis) {
+            for (const issue of validatePerformanceBasis(cfBasis, 'pressureDropBasis.frictionFactorBasis')) {
+              warnings.push({ code: 'PRESSURE_DROP_BASIS_ISSUE', message: `${issue.field}: ${issue.message}` });
+            }
+          }
+          if (vendorDpBasis) {
+            for (const issue of validatePerformanceBasis(vendorDpBasis, 'pressureDropBasis.vendorPressureDropBasis')) {
+              warnings.push({ code: 'PRESSURE_DROP_BASIS_ISSUE', message: `${issue.field}: ${issue.message}` });
+            }
+          }
+        } catch (pdErr) {
+          warnings.push({ code: 'PRESSURE_DROP_BASIS_ISSUE', message: `Pressure drop basis parse error: ${(pdErr as Error).message}` });
+          dhSetup = undefined; cfBasis = undefined; vendorDpBasis = undefined; governedDataset = undefined;
+        }
+      }
       if (densityDifference < SMALL) {
         errs.push({ field: 'feedDensity', message: 'Density difference between phases is ~zero — gravity counter-current flow is Not Calculable.', severity: 'error' });
         return { ...base, status: 'error', data: { calculationRunStatus: 'calculation_blocked' }, warnings, validationIssues: errs };
@@ -567,6 +657,126 @@ export class LLXHydraulicsEngine implements IDesignEngine {
           row.interfacialArea = (operatingHoldup !== undefined && !ambiguous && d32)
             ? { classification: holdupClassification, value_m2_m3: interfacialArea(operatingHoldup, d32.value), basis: 'a = 6·φ_operating/d32 — from the established operating holdup only' }
             : { classification: 'Not Calculable' as Classification, reason: !d32 ? 'sauterMeanDiameter not provided' : operatingHoldup === undefined ? 'No established operating holdup' : 'Operating branch is ambiguous — interfacial area from an unresolved root is not reported' };
+
+          // HYD-009: Duss 2013 / Zogg single-phase frictional ΔP/Δz — per diameter
+          // cf source priority: (1) governed Duss 2013 dataset (auto-injected), (2) user-entered constant/tabular cfBasis.
+          if (dhSetup && (governedDataset || (cfBasis && cfProvenance))) {
+            const { dh_m: dh, a_m2_m3: a } = dhSetup;
+            const re = uC > 0 ? packingPhaseReynolds(uC, rhoC, dh, muC_Pas) : 0;
+            const fv = phaseLoadFactor(uC, rhoC);
+            const regime = uC > 0 && re > 0 ? classifyPackingFlowRegime(re, corrAngleDeg) : { regime: 'Not Determinable' as const, criticalReynolds: null, basis: 'u_c = 0 — no flow' };
+            const fRef = uC > 0 && re > 0 ? fanningLaminarPipeReference(re) : null;
+
+            const litResult: Record<string, unknown> = {
+              classification: C3_PRESSURE_DROP_CLASSIFICATION,
+              continuousPhaseSuperficialVelocity_m_s: uC,
+              hydraulicDiameter_m: dh,
+              specificSurfaceArea_m2_m3: a,
+              phaseReynolds: uC > 0 ? re : null,
+              phaseLoadFactor_Pa05: fv,
+              flowRegime: { regime: regime.regime, criticalReynolds: regime.criticalReynolds, basis: regime.basis },
+              laminarPipeReferenceFrictionFactor: fRef ? { value: fRef.value, applicabilityNote: fRef.applicabilityNote } : null,
+            };
+
+            if (governedDataset) {
+              // ── Governed Duss 2013 dataset path ──
+              // evaluateDuss2013ReCf applies the governed range policy:
+              //   - within [tableMin, tableMax] → piecewise linear interpolation
+              //   - below tableMin → 'below_range', boundary minimum estimate provided (NOT design ΔP)
+              //   - above tableMax → 'above_range', no estimate
+              const cfEval = evaluateDuss2013ReCf(re > 0 ? re : 1e-12, governedDataset);
+              if (cfEval.status === 'interpolated' && cfEval.cf !== null) {
+                const dpm = uC > 0 ? dryPackingPressureDropPerLength(cfEval.cf, dh, rhoC, uC) : 0;
+                litResult.frictionFactor = {
+                  value: cfEval.cf,
+                  status: 'interpolated',
+                  provenance: 'controlled_literature',
+                  source: governedDataset.sourceDocuments.join('; '),
+                  note: cfEval.note,
+                };
+                litResult.pressureDropPerMeter_Pa_m = dpm;
+                litResult.outsideTabularRange = false;
+              } else {
+                // below_range or above_range — report without blocking the row
+                litResult.frictionFactor = {
+                  notCalculable: true,
+                  status: cfEval.status,
+                  note: cfEval.note,
+                  provenance: 'controlled_literature',
+                };
+                litResult.pressureDropPerMeter_Pa_m = null;
+                litResult.outsideTabularRange = true;
+                litResult.outsideTabularRangeStatus = cfEval.status;
+                // For below_range only: boundary minimum estimate as indicative lower bound
+                if (cfEval.status === 'below_range' && cfEval.boundaryMinimum) {
+                  const { cfAtBoundary, boundaryRe } = cfEval.boundaryMinimum;
+                  const dpmBoundary = uC > 0 ? dryPackingPressureDropPerLength(cfAtBoundary, dh, rhoC, uC) : 0;
+                  litResult.pressureDropBoundaryMinimumEstimate = {
+                    classification: 'Published-boundary minimum ΔP estimate — NOT design ΔP. Do not use for column sizing acceptance/rejection.',
+                    cf: cfAtBoundary,
+                    cfAtPublishedRe: boundaryRe,
+                    pressureDropPerMeter_Pa_m: dpmBoundary,
+                    operatingRe: re,
+                    note:
+                      `Uses c_f = ${cfAtBoundary} at the published dataset minimum Re = ${boundaryRe} ` +
+                      `(Re_operating = ${re.toExponential(4)} is below the tabulated range [${governedDataset.tableMin}, ${governedDataset.tableMax}]). ` +
+                      `Actual c_f at Re = ${re.toExponential(4)} is expected to be HIGHER — Zogg 1972 Figure 2 shows c_f increasing with decreasing Re in the laminar regime. ` +
+                      `This value is a LOWER BOUND on ΔP/Δz and must not be used for sizing decisions.`,
+                  };
+                } else {
+                  litResult.pressureDropBoundaryMinimumEstimate = null;
+                }
+              }
+            } else if (cfBasis && cfProvenance) {
+              // ── User-entered constant/tabular frictionFactorBasis path ──
+              const cfEval = cfBasis.kind === 'constant'
+                ? evaluatePerformanceBasis(cfBasis, 0)     // x ignored for constant
+                : evaluatePerformanceBasis(cfBasis, re);
+              if (cfEval.ok && cfEval.value !== undefined) {
+                const dpm = uC > 0 ? dryPackingPressureDropPerLength(cfEval.value, dh, rhoC, uC) : 0;
+                litResult.frictionFactor = { value: cfEval.value, source: cfEval.source, provenance: cfProvenance };
+                litResult.pressureDropPerMeter_Pa_m = dpm;
+              } else {
+                litResult.frictionFactor = { notCalculable: true, reason: cfEval.reason };
+                litResult.pressureDropPerMeter_Pa_m = null;
+              }
+            }
+
+            const pdRow: Record<string, unknown> = {
+              framework: 'Duss 2013 / Zogg',
+              literature: litResult,
+              activeResult: 'literature',
+            };
+
+            if (vendorDpBasis) {
+              // Vendor override: evaluated at Re (constant → x ignored)
+              const vendEval = vendorDpBasis.kind === 'constant'
+                ? evaluatePerformanceBasis(vendorDpBasis, 0)
+                : evaluatePerformanceBasis(vendorDpBasis, re);
+              if (vendEval.ok && vendEval.value !== undefined) {
+                pdRow.vendor = {
+                  pressureDropPerMeter_Pa_m: vendEval.value,
+                  source: vendEval.source,
+                  supersedes: 'literature_calculation',
+                  literatureRetained: true,
+                  note: 'Vendor data is the active result for this diameter — literature calculation is retained for comparison',
+                };
+                pdRow.activeResult = 'vendor';
+              } else {
+                pdRow.vendor = { notCalculable: true, reason: vendEval.reason };
+              }
+            }
+
+            row.pressureDropPrediction = pdRow;
+          } else if (pdIn) {
+            // Basis was provided but is incomplete — note but don't block row
+            row.pressureDropPrediction = {
+              classification: 'Not Calculable',
+              reason: !dhSetup
+                ? 'packingSpecificSurface missing or invalid'
+                : 'No cf basis — governedReCfDataset not injected and frictionFactorBasis + frictionFactorProvenance not provided',
+            };
+          }
           rows.push(row);
         }
         const feasible = rows.filter((r) => r.genericHydraulicFeasibility === 'within_screening_band' || r.genericHydraulicFeasibility === 'above_screening_band' || r.genericHydraulicFeasibility === 'below_minimum_loading_band');
@@ -634,6 +844,72 @@ export class LLXHydraulicsEngine implements IDesignEngine {
         terminalVelocityScreening: terminalVelocity,
         shapeRegimeIndicators: shapeRegime,
         normalCase, maximumCase,
+        ...(dhSetup && (governedDataset || (cfBasis && cfProvenance)) ? {
+          pressureDropBasisSetup: {
+            classification: C3_PRESSURE_DROP_CLASSIFICATION,
+            framework: 'Duss 2013 / Zogg',
+            sourceDocuments: governedDataset ? governedDataset.sourceDocuments : [DUSS_2013_CITATION, ZOGG_1972_CITATION],
+            hydraulicDiameter: {
+              value_m: dhSetup.dh_m,
+              specificSurfaceArea_m2_m3: dhSetup.a_m2_m3,
+              source: dhSetup.source,
+              equation: 'DUSS2013-EQ3: d_h = 4/a (Zogg definition)',
+            },
+            corrugationAngle: corrAngleDeg !== undefined
+              ? {
+                  value_deg: corrAngleDeg,
+                  reCrit: governedDataset?.reCrit ?? null,
+                  reCritBasis: governedDataset?.reCritBasis ?? null,
+                  note: corrAngleDeg === 45 || corrAngleDeg === 30
+                    ? `Published Zogg/Duss anchor — governed dataset available (Re_crit = ${governedDataset?.reCrit ?? '—'})`
+                    : 'Not a published anchor (45° or 30°) — no governed dataset; flow-regime classification not determinable',
+                }
+              : null,
+            cfBasis: governedDataset
+              ? {
+                  type: 'governed_tabulated_dataset',
+                  datasetId: governedDataset.id,
+                  corrugationType: governedDataset.corrugationType,
+                  nominalSpecificSurface_m2_m3: governedDataset.nominalSpecificSurface_m2_m3,
+                  points: governedDataset.points.length,
+                  validRange_re: { min: governedDataset.tableMin, max: governedDataset.tableMax },
+                  provenance: 'controlled_literature',
+                  governanceNote: governedDataset.governanceNote,
+                }
+              : {
+                  type: 'user_entered',
+                  kind: cfBasis?.kind,
+                  provenance: cfProvenance,
+                  assumed: pdBasisAssumed,
+                },
+            vendorOverrideProvided: vendorDpBasis !== undefined,
+            activeResult: vendorDpBasis !== undefined ? 'vendor' : 'literature',
+            rangePolicy: governedDataset
+              ? {
+                  interpolation: `Piecewise linear within Re = [${governedDataset.tableMin}, ${governedDataset.tableMax}]`,
+                  belowRange: 'c_f not directly supported — boundary minimum ΔP estimate provided (NOT design ΔP; lower bound only)',
+                  aboveRange: 'c_f not directly supported — no governed extrapolation rule approved above published range',
+                }
+              : null,
+            governanceSummary:
+              governedDataset
+                ? `cf auto-calculated from Duss 2013 Table 2 governed dataset (${governedDataset.id}). ` +
+                  'Vendor-SOFTWARE outputs (Sulcol, DRP, etc.) are prohibited as live design inputs. ' +
+                  'Table 2 values from the published conference paper are used as controlled-literature tabulated data with full provenance.'
+                : 'cf from user-entered source-tagged PerformanceBasis (controlled_literature / measured / vendor_document). Vendor-SOFTWARE outputs are prohibited.',
+            applicabilityStatement: [
+              'Single-phase frictional model only — valid below the loading point.',
+              "The source paper's validated envelope is GAS-phase flow in counter-current gas/liquid distillation packing. Application to RRBO-NMP liquid-liquid continuous-phase flow is an ANALOG OUTSIDE the validated envelope.",
+              `All results classified: "${C3_PRESSURE_DROP_CLASSIFICATION}"`,
+            ],
+            equations: [
+              { id: 'DUSS2013-EQ3', statement: 'd_h = 4/a', variables: 'a = specific packing surface (m²/m³); d_h (m)' },
+              { id: 'DUSS2013-EQ4', statement: 'Re = u_s·ρ_c·d_h/η_c', variables: 'u_s = continuous superficial velocity (m/s); ρ_c (kg/m³); η_c (Pa·s)' },
+              { id: 'DUSS2013-EQ5', statement: 'F_v = u_s·√ρ_c', variables: 'F_v (Pa^0.5)' },
+              { id: 'DUSS2013-EQ2/EQ6', statement: 'ΔP/Δz = c_f·ρ_c·u_s²/(2·d_h) = c_f·F_v²/(2·d_h)', variables: 'c_f = packing friction factor (–); ΔP/Δz (Pa/m)' },
+            ],
+          },
+        } : {}),
         assumptions,
       };
 

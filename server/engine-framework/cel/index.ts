@@ -8,3 +8,4 @@ export * from './numerical';
 export * from './dimensionless';
 export * from './hydraulics';
 export * from './packing-single-phase';
+export * from './coto2022-nmp-lle';

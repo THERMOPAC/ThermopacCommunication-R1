@@ -16,6 +16,7 @@
 
 import { getProperty } from './engine-framework/epd/database';
 import { getPacking } from './engine-framework/packing/database';
+import { DUSS2013_DATASETS } from './engine-framework/cel/packing-single-phase';
 
 const num = (v: unknown): number | undefined => {
   if (v === null || v === undefined) return undefined;
@@ -30,7 +31,14 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   // Per-key pass-through: any engine-ready camelCase key already present wins
   // untouched; only missing keys are mapped from the flat workspace fields.
 
-  const ot = out.operatingTemperature !== undefined ? num(out.operatingTemperature) : num(inputs.operating_temperature);
+  // Governing equilibrium temperature: the workspace Extraction Temperature
+  // field (auto-populated from the Design Basis Operating Temperature until
+  // manually changed) governs the C2 N_T equilibrium basis. It takes
+  // precedence over operating_temperature so a manual extraction-temperature
+  // entry actually drives the Coto/NRTL model selection.
+  const ot = out.operatingTemperature !== undefined
+    ? num(out.operatingTemperature)
+    : (num(inputs.extraction_temperature) ?? num(inputs.operating_temperature));
   if (out.operatingTemperature === undefined && ot !== undefined) out.operatingTemperature = ot;
 
   // Feed flow — Design Basis capacity (LPH → m³/h, volumetric basis)
@@ -87,6 +95,56 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
 
   const stages = num(inputs.theoretical_stages);
   if (out.theoreticalStages === undefined && stages !== undefined) out.theoreticalStages = stages;
+
+  // ── Governed Coto 2022 LLE stage inputs (N_T auto-calculation) ─────────────
+  // Restructuring only: flat workspace fields → lleStageInputs TaggedValues.
+  // Nothing is defaulted or invented — missing fields simply stay absent and
+  // the engine fails closed listing them.
+  if (out.lleStageInputs === undefined) {
+    const taggedFrom = (valueKey: string, srcKey: string, refKey: string, scale = 1): Record<string, unknown> | undefined => {
+      const v = num(inputs[valueKey]);
+      if (v === undefined) return undefined;
+      const src = String(inputs[srcKey] ?? '').trim();
+      const ref = String(inputs[refKey] ?? '').trim();
+      const tagged = SOURCE_TYPES.includes(src);
+      return {
+        value: v * scale,
+        sourceType: tagged ? src : 'Assumed',
+        sourceReference: ref !== '' ? ref : (tagged ? 'Process Design workspace entry (engineer source type)' : 'Process Design workspace entry — no engineer source type selected'),
+      };
+    };
+    const lle: Record<string, unknown> = {};
+    const ch: Record<string, unknown> = {};
+    const mw: Record<string, unknown> = {};
+    const chPairs: Array<[string, string]> = [
+      ['saturates', 'rrbo_saturates_wt'], ['monoAromatics', 'rrbo_mono_aromatics_wt'],
+      ['diAromatics', 'rrbo_di_aromatics_wt'], ['polyAromatics', 'rrbo_poly_aromatics_wt'],
+    ];
+    for (const [k, wsKey] of chPairs) {
+      const t = taggedFrom(wsKey, 'rrbo_characterisation_source', 'rrbo_characterisation_source_reference');
+      if (t) ch[k] = t;
+    }
+    const mwPairs: Array<[string, string]> = [
+      ['saturates', 'rrbo_mw_saturates'], ['monoAromatics', 'rrbo_mw_mono'],
+      ['diAromatics', 'rrbo_mw_di'], ['polyAromatics', 'rrbo_mw_poly'],
+    ];
+    for (const [k, wsKey] of mwPairs) {
+      const t = taggedFrom(wsKey, 'rrbo_class_mw_source', 'rrbo_class_mw_source_reference');
+      if (t) mw[k] = t;
+    }
+    if (Object.keys(ch).length > 0) lle.rrboCharacterisationWtPct = ch;
+    // Total Aromatics — editable engineer field (workspace default 2.7 wt %,
+    // seeded blank-only in the UI, never hard-coded here). Used by the engine
+    // as a governed consistency check against mono+di+poly.
+    const totAr = taggedFrom('rrbo_total_aromatics_wt', 'rrbo_characterisation_source', 'rrbo_characterisation_source_reference');
+    if (totAr) lle.totalAromaticsWtPct = totAr;
+    if (Object.keys(mw).length > 0) lle.classMolecularWeights = mw;
+    const tgt = taggedFrom('target_raffinate_aromatics_mol', 'target_raffinate_aromatics_source', 'target_raffinate_aromatics_source_reference');
+    if (tgt) lle.targetRaffinateAromaticsMolePct = tgt;
+    const sPur = taggedFrom('solvent_nmp_mole_fraction', 'solvent_nmp_mole_fraction_source', 'solvent_nmp_mole_fraction_source_reference');
+    if (sPur) lle.solventNmpMoleFraction = sPur;
+    if (Object.keys(lle).length > 0) out.lleStageInputs = lle;
+  }
 
   const eff = num(inputs.stage_efficiency);
   if (out.compartmentOrStageEfficiency === undefined && eff !== undefined && eff > 0 && eff <= 100) {
@@ -220,6 +278,61 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     // not surfaced as a workspace input).
     const n = num(inputs.hindrance_exponent) ?? 1;
     if (n > 0) out.hindranceExponent = { value: n, sourceType: 'Assumed', sourceReference: `${SCREENING_REF} — n pending laboratory validation` };
+  }
+
+  // ── Pressure drop basis (HYD-009) — Duss 2013 / Zogg (Stage 5 workspace fields)
+  // cf is AUTO-CALCULATED from the governed Duss 2013 Table 2 dataset — NOT user-entered.
+  // Dataset selection: corrugation angle 45° → Table 2-A (45°/Y-type, a≈250, Re 143–7144);
+  //                    corrugation angle 30° → Table 2-B (30°/X-type, a≈500, Re 71–3572).
+  // Defaults: a = 250 m²/m³, φ = 45° when fields are blank (Sulzer Mellapak 250.Y class).
+  // Out-of-range policy is enforced in the engine by evaluateDuss2013ReCf().
+  if (out.pressureDropBasis === undefined && calculationType === 'hydraulics_common') {
+    // Packing geometry — default 250 m²/m³ / 45° when not entered
+    const psaVal = num(inputs.packing_specific_surface_value) ?? 250;
+    const psaSrc = String(inputs.packing_specific_surface_source_type ?? '').trim() || 'Literature';
+    const psaRef = String(inputs.packing_specific_surface_source_ref ?? '').trim()
+      || 'Duss 2013 Table 2 / Zogg 1972 ETH Diss. Nr. 4886 — Sulzer Mellapak 250.Y class (nominal)';
+
+    // Corrugation angle — default 45° (Y-type) when not entered
+    const angVal = num(inputs.packing_corrugation_angle_value) ?? 45;
+    const angSrc = String(inputs.packing_corrugation_angle_source_type ?? '').trim() || 'Literature';
+    const angRef = String(inputs.packing_corrugation_angle_source_ref ?? '').trim()
+      || 'Duss 2013 §"Interpretation of Results" / Zogg 1972 ETH Diss. Nr. 4886';
+
+    // Auto-select governed Duss 2013 dataset by corrugation angle
+    const governedDataset = DUSS2013_DATASETS[angVal] ?? null;
+
+    if (psaVal > 0) {
+      const pdBasis: Record<string, unknown> = {
+        packingSpecificSurface: { value: psaVal, sourceType: psaSrc, sourceReference: psaRef },
+        packingCorrugationAngleDeg: { value: angVal, sourceType: angSrc, sourceReference: angRef },
+      };
+      if (governedDataset) {
+        // Inject the full governed dataset — engine evaluates cf at run-time Re
+        pdBasis.governedReCfDataset = governedDataset;
+      } else {
+        // No governed dataset for this angle — engine will mark pressure drop Not Calculable
+        pdBasis.governedReCfDatasetNote =
+          `No governed Duss 2013 dataset for corrugation angle ${angVal}°. ` +
+          'Only 45° (Y-type, Table 2-A) and 30° (X-type, Table 2-B) are supported. ' +
+          'Provide a vendor-override pressureDropPerMeter or change φ to 30° or 45°.';
+      }
+      // Optional vendor pressure drop override — supersedes governed calculation
+      const vdpVal = num(inputs.vendor_dp_value);
+      const vdpSrc = String(inputs.vendor_dp_source_type ?? '').trim();
+      const vdpRef = String(inputs.vendor_dp_source_ref ?? '').trim();
+      if (vdpVal !== undefined && vdpVal > 0 && vdpSrc && vdpRef) {
+        pdBasis.vendorPressureDropBasis = {
+          kind: 'constant',
+          value: vdpVal,
+          unit: 'Pa/m',
+          applicabilityNote: 'Vendor pressure drop datum — supersedes the governed-literature basis; literature calculation retained for comparison.',
+          sourceType: vdpSrc,
+          sourceReference: vdpRef,
+        };
+      }
+      out.pressureDropBasis = pdBasis;
+    }
   }
 
   // ── Stage 7 (Equipment Design) extras — restructuring/unit conversion only ──

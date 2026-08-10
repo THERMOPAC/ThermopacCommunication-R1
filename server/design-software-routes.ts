@@ -277,7 +277,13 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
           const storage = (await import('./utils/storage-config')).default;
           const { bucketName } = await import('./utils/storage-config');
           const safeName = req.file.originalname.replace(/[^\w.\- ]+/g, '_');
-          const gcsPath = `TPEL/DESIGN_SOFTWARE/REFERENCE_PAPERS/${paper.ref_code}/${safeName}`;
+          // Include a timestamp in the path so every upload creates a NEW GCS
+          // object rather than overwriting the existing one.  Overwriting an
+          // existing GCS object requires storage.objects.delete, which the
+          // Replit production VM service account does not have.  Orphaned old
+          // copies are harmless — these are governance PDFs rarely replaced.
+          const ts = Date.now();
+          const gcsPath = `TPEL/DESIGN_SOFTWARE/REFERENCE_PAPERS/${paper.ref_code}/${ts}_${safeName}`;
           await storage.bucket(bucketName).file(gcsPath).save(req.file.buffer, {
             contentType: 'application/pdf',
             resumable: false,
@@ -337,7 +343,15 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
       const feedLph = num(inputs.design_capacity_lph ?? inputs.design_capacity ?? inputs.feed_flow);
       const soVol = num(String(inputs.so_ratio ?? '').trim() !== '' ? inputs.so_ratio : '1.5');
       const margin = num(inputs.design_margin) ?? 20;
-      const nts = num(inputs.theoretical_stages) ?? num(inputs.stages) ?? 6;
+      // Governed N_T: consume the accepted C2 stages result (auto-calculated
+      // or engineer override). NEVER invent a default stage count — if the C2
+      // result is absent or Not Calculable, screening is blocked until Stage 4
+      // is resolved.
+      const c2Stages = resultRows.find((r: any) => r.section === 'process_design')?.data?.stages;
+      const nts = c2Stages && c2Stages.mode !== 'not_calculable' ? num(c2Stages.theoreticalStages) : null;
+      if (nts === null) {
+        return res.status(422).json({ message: 'Theoretical stages are not established: run the Stage 4 (C2 Process Design) calculation first. N_T must be auto-calculated (governed Coto 2022 LLE) or an explicit Engineer Override — no default is assumed.' });
+      }
       if (feedLph === null || feedLph <= 0 || soVol === null || soVol <= 0) {
         return res.status(422).json({ message: 'A positive feed flow (Design Basis) and positive S/O ratio (Process Design) are required before Sulzer screening.' });
       }

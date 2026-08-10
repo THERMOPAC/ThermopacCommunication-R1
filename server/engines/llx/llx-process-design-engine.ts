@@ -33,6 +33,12 @@ import {
   SOURCE_TYPES,
 } from '../../engine-framework/common-engineering-library';
 import type { SourceType } from '../../engine-framework/epd/types';
+import {
+  computeGovernedTheoreticalStages, GovernedNtResult, InjectedEquilibrium,
+  COTO_2022_CITATION, COTO_2022_DATASET_ID, COTO_2022_DATASET_VERSION,
+  COTO_2022_TEMPERATURE_K, SURROGATE_MW, COTO_COMPONENTS, COTO_COMPONENT_ROLES,
+} from '../../engine-framework/cel/coto2022-nmp-lle';
+import { generateNrtlTieLineTable, NrtlModelError, NRTL_MODEL_ID } from '../../engine-framework/cel/nrtl-nmp-lle';
 
 // ── Input structures ──────────────────────────────────────────────────────────
 
@@ -269,7 +275,7 @@ function computeCaseBalance(args: CaseBalanceArgs): {
 
 export class LLXProcessDesignEngine implements IDesignEngine {
   getEngineId(): string { return 'llx-process-design'; }
-  getEngineVersion(): string { return '1.0.0'; }
+  getEngineVersion(): string { return '1.1.0'; }
   getModuleType(): string { return 'llx'; }
   getCalculationType(): string { return 'process_design'; }
 
@@ -323,13 +329,43 @@ export class LLXProcessDesignEngine implements IDesignEngine {
       err('phaseConfiguration', `phaseConfiguration must be one of: ${PHASE_CONFIGS.join(', ')}`);
     }
 
-    // Stage inputs
+    // Stage inputs — theoreticalStages is now the ENGINEER OVERRIDE value,
+    // used ONLY when the governed Coto 2022 N_T cannot be auto-calculated.
+    // It remains optional-but-validated: when the governed calculation fails
+    // closed AND no override is present, the stage block is Not Calculable.
     const N = num(inputs.theoreticalStages);
-    if (N === undefined || N < 1 || !Number.isInteger(N)) err('theoreticalStages', 'theoreticalStages must be an integer ≥ 1');
-    else if (N > 20) warn('theoreticalStages', `theoreticalStages = ${N} is unusually high for screening — verify`);
+    if (inputs.theoreticalStages !== undefined && inputs.theoreticalStages !== null && String(inputs.theoreticalStages).trim() !== '') {
+      if (N === undefined || N < 1 || !Number.isInteger(N)) err('theoreticalStages', 'theoreticalStages (Engineer Override N_T) must be an integer ≥ 1');
+      else if (N > 20) warn('theoreticalStages', `theoreticalStages = ${N} is unusually high for screening — verify`);
+    }
+    // Governed LLE stage inputs — structural validation only (optional block)
+    const lle = inputs.lleStageInputs as Record<string, unknown> | undefined;
+    if (lle !== undefined && lle !== null) {
+      const ch = lle.rrboCharacterisationWtPct as Record<string, unknown> | undefined;
+      const mw = lle.classMolecularWeights as Record<string, unknown> | undefined;
+      const classes = ['saturates', 'monoAromatics', 'diAromatics', 'polyAromatics'] as const;
+      if (ch) {
+        let sumPct = 0; let all = true;
+        for (const c of classes) {
+          const t = parseTagged(ch[c], `lleStageInputs.rrboCharacterisationWtPct.${c}`, errors, { min: 0, max: 100 });
+          if (t) sumPct += t.value; else all = false;
+        }
+        if (all && Math.abs(sumPct - 100) > 0.5) err('lleStageInputs.rrboCharacterisationWtPct', `RRBO characterisation classes must sum to 100 wt % ± 0.5 (got ${sumPct.toFixed(2)})`);
+      }
+      if (mw) for (const c of classes) parseTagged(mw[c], `lleStageInputs.classMolecularWeights.${c}`, errors, { min: 1, max: 5000 });
+      if (lle.targetRaffinateAromaticsMolePct !== undefined) parseTagged(lle.targetRaffinateAromaticsMolePct, 'lleStageInputs.targetRaffinateAromaticsMolePct', errors, { min: 0, max: 100, minExclusive: true, maxExclusive: true });
+      if (lle.solventNmpMoleFraction !== undefined) parseTagged(lle.solventNmpMoleFraction, 'lleStageInputs.solventNmpMoleFraction', errors, { min: 0, max: 1, minExclusive: true });
+    }
+    // Stage/compartment efficiency is OPTIONAL and informational-only for
+    // packed columns: the governing height calculation is H_active = N_T ×
+    // HETS (ECP engine). It applies only where a separately governed
+    // stage-efficiency model exists (e.g. ECR mixer-settler compartments).
+    // It is never defaulted.
     const eff = num(inputs.compartmentOrStageEfficiency);
-    if (eff === undefined || eff <= 0 || eff > 1) err('compartmentOrStageEfficiency', 'compartmentOrStageEfficiency must be in (0, 1]');
-    else if (eff < 0.2) warn('compartmentOrStageEfficiency', `compartmentOrStageEfficiency = ${eff} is unusually low — verify`);
+    if (eff !== undefined) {
+      if (eff <= 0 || eff > 1) err('compartmentOrStageEfficiency', 'compartmentOrStageEfficiency must be in (0, 1] when provided');
+      else if (eff < 0.2) warn('compartmentOrStageEfficiency', `compartmentOrStageEfficiency = ${eff} is unusually low — verify`);
+    }
 
     // Optional tagged inputs — structural validation
     parseTagged(inputs.soluteMassFractionInFeed, 'soluteMassFractionInFeed', errors, { min: 0, max: 1, minExclusive: true, maxExclusive: true });
@@ -537,22 +573,258 @@ export class LLXProcessDesignEngine implements IDesignEngine {
         }
       }
 
-      // PD-010 — Preliminary Stage-Equivalent Estimate
-      const theoreticalStages = num(inputs.theoreticalStages)!;
-      const stageEfficiency = num(inputs.compartmentOrStageEfficiency)!;
-      const stages = {
-        theoreticalStages,
-        compartmentOrStageEfficiency: stageEfficiency,
-        estimatedPhysicalStages: Math.ceil(theoreticalStages / stageEfficiency),
-        label: 'Preliminary Stage-Equivalent Estimate',
-        note: 'NOT a final ECP packing-stage or ECR compartment count — the ECP/ECR engines calculate their own active height / compartment count.',
-        classification: 'Calculated Screening Result' as Classification,
+      // PD-010 / PD-011 — Theoretical stages.
+      // N_T is auto-calculated from the governed Coto 2022 LLE dataset when
+      // the design point lies inside the governed envelope; otherwise the
+      // calculation fails closed (stating the exact limit exceeded) and the
+      // engineer-override value (if provided) is used, always labelled
+      // 'Engineer Override — Assumed / Pending Validation'. N_T = 6 (or any
+      // override) is NEVER presented as an auto-calculated result.
+      const overrideN = num(inputs.theoreticalStages);
+      // Stage efficiency: informational-only. NOT part of the governing packed-
+      // column height calculation (H_active = N_T × HETS in the ECP engine).
+      // Reported, when provided, solely as context for a separately governed
+      // stage-efficiency model (e.g. ECR mixer-settler compartment count).
+      const stageEfficiency = num(inputs.compartmentOrStageEfficiency);
+      const stageEfficiencyInfo = stageEfficiency !== undefined
+        ? {
+            stageEfficiencyInformational: stageEfficiency,
+            stageEfficiencyNote: 'Informational only — does NOT govern packed-column height (H_active = N_T × HETS, ECP engine). Applies only to a separately governed stage-efficiency model (e.g. ECR mixer-settler compartments).',
+          }
+        : {};
+      const lleIn = inputs.lleStageInputs as Record<string, unknown> | undefined;
+
+      let lleResult: GovernedNtResult | null = null;
+      let lleInputEcho: Record<string, unknown> | undefined;
+      let nrtlBasisTrace: Record<string, unknown> | undefined;
+      let nrtlGap: { limit: string; detail: string } | undefined;
+      const lleMissing: string[] = [];
+      if (!lleIn) {
+        lleMissing.push('lleStageInputs (RRBO characterisation, class molecular weights, target raffinate aromatics)');
+      } else {
+        const classes = ['saturates', 'monoAromatics', 'diAromatics', 'polyAromatics'] as const;
+        const ch = lleIn.rrboCharacterisationWtPct as Record<string, unknown> | undefined;
+        const mw = lleIn.classMolecularWeights as Record<string, unknown> | undefined;
+        const wt: number[] = []; const mws: number[] = [];
+        for (const c of classes) {
+          const w = num((ch?.[c] as Record<string, unknown> | undefined)?.value);
+          const m = num((mw?.[c] as Record<string, unknown> | undefined)?.value);
+          if (w === undefined) lleMissing.push(`rrboCharacterisationWtPct.${c}`);
+          if (m === undefined) lleMissing.push(`classMolecularWeights.${c}`);
+          if (w !== undefined) wt.push(w);
+          if (m !== undefined) mws.push(m);
+        }
+        const tgt = num((lleIn.targetRaffinateAromaticsMolePct as Record<string, unknown> | undefined)?.value);
+        if (tgt === undefined) lleMissing.push('targetRaffinateAromaticsMolePct');
+        const sPur = num((lleIn.solventNmpMoleFraction as Record<string, unknown> | undefined)?.value);
+        // Total Aromatics (editable engineer field, wt %) — REQUIRED whenever
+        // the LLE calculation is attempted, and consistency-checked against
+        // the class split: mono + di + poly must match the entered total
+        // within ±0.5 wt %, else the characterisation is internally
+        // inconsistent and the calculation fails closed. Not bypassable by
+        // API callers omitting the field.
+        const totAr = num((lleIn.totalAromaticsWtPct as Record<string, unknown> | undefined)?.value);
+        if (totAr === undefined) lleMissing.push('totalAromaticsWtPct (Total Aromatics, wt % — editable engineer field; consistency gate for the class split)');
+        if (totAr !== undefined && lleMissing.length === 0) {
+          const classAromatics = wt[1] + wt[2] + wt[3];
+          if (Math.abs(classAromatics - totAr) > 0.5) {
+            lleMissing.push(`consistent aromatics characterisation (Total Aromatics entered = ${totAr} wt % but mono+di+poly = ${classAromatics.toFixed(2)} wt % — must agree within ±0.5 wt %)`);
+          }
+        }
+        if (lleMissing.length === 0) {
+          // wt% → mole fractions per governed class MWs (NMP in feed = 0)
+          const molesPerClass = wt.map((w, i) => w / mws[i]);
+          const totalMoles = molesPerClass.reduce((a, b) => a + b, 0);
+          const feedMoleFractions = [...molesPerClass.map((m) => m / totalMoles), 0];
+          const avgFeedMW = 100 / totalMoles; // basis 100 g feed
+          const solventMolarRatio = solventToOilRatio.value * (avgFeedMW / SURROGATE_MW.nmp);
+          lleInputEcho = {
+            pseudoComponentMapping: COTO_COMPONENTS.map((c, i) => ({ component: c, representsRrboClass: COTO_COMPONENT_ROLES[i] })),
+            feedMoleFractions: feedMoleFractions.map((v) => Number(v.toFixed(5))),
+            averageFeedMolecularWeight_g_mol: Number(avgFeedMW.toFixed(2)),
+            nmpMolecularWeight_g_mol: SURROGATE_MW.nmp,
+            massSolventToOilRatio: solventToOilRatio.value,
+            solventMolarRatio_molNMP_per_molFeed: Number(solventMolarRatio.toFixed(4)),
+            targetRaffinateAromaticsMoleFraction: tgt / 100,
+            temperatureK: T + 273.15,
+            rrboCharacterisationWtPct: ch,
+            ...(totAr !== undefined ? { totalAromaticsWtPct: totAr } : {}),
+            classMolecularWeights: mw,
+          };
+          // ── Temperature-dependent model path (approved architecture):
+          // when the design temperature is off the 298.15 K anchor, the
+          // ADMITTED NRTL τ(T) model (validated against the governed gate)
+          // generates the tie-line table AT the design temperature and the
+          // identical variable-flow cascade runs on it. If the model is not
+          // admitted or T is outside the calibrated envelope, this path
+          // fails closed (DEVELOPMENT GAP recorded) and the existing
+          // Coto-as-is Preliminary behaviour applies. Tie-lines are NEVER
+          // temperature-scaled.
+          const tK = T + 273.15;
+          let nrtlBasis: InjectedEquilibrium | undefined;
+          if (Math.abs(tK - COTO_2022_TEMPERATURE_K) > 0.5) {
+            try {
+              const { tieLines, artifact } = generateNrtlTieLineTable(tK);
+              nrtlBasis = {
+                tieLines,
+                datasetId: NRTL_MODEL_ID,
+                datasetVersion: artifact.version,
+                citation: artifact.citationList.join(' | '),
+                envelopeName: `NRTL τ(T) governed model at ${tK.toFixed(2)} K`,
+                extraCaveats: [
+                  `Equilibrium basis: NRTL τij = aij + bij/T model v${artifact.version} (artifact nrtl-params-v1.json), regressed on the governed calibration datasets and ADMITTED by the validation gate (Coto 298.15 K flash RMSD ${artifact.validation.cotoRmsd} ≤ ${artifact.validation.cotoTolerance}; leave-one-temperature-out passed). Tie-line table generated by isothermal flash at ${tK.toFixed(2)} K — never by scaling experimental tie-lines.`,
+                  ...artifact.boundedAssumptions,
+                ],
+              };
+              nrtlBasisTrace = {
+                modelId: NRTL_MODEL_ID,
+                modelVersion: artifact.version,
+                parameterArtifact: 'server/engine-framework/cel/data/nrtl-params-v1.json',
+                generatedAtUtc: artifact.generatedAtUtc,
+                temperatureK: tK,
+                temperatureEnvelopeK: artifact.temperatureEnvelopeK,
+                tieLineCount: nrtlBasis.tieLines.length,
+                validation: artifact.validation,
+              };
+            } catch (e) {
+              if (e instanceof NrtlModelError) {
+                nrtlGap = { limit: e.limit, detail: e.detail };
+                warnings.push({ code: 'NT_TEMPERATURE_MODEL_GAP', message: `${e.limit}: ${e.detail} Falling back to the 298.15 K tie-lines used as-is (result Preliminary — Pending RRBO/NMP Validation).` });
+              } else throw e;
+            }
+          }
+          lleResult = computeGovernedTheoreticalStages({
+            temperatureK: tK,
+            feedMoleFractions,
+            solventMolarRatio,
+            targetRaffinateAromaticsMole: tgt / 100,
+            ...(sPur !== undefined ? { solventNmpMoleFraction: sPur } : {}),
+          }, nrtlBasis);
+        }
+      }
+      if (lleResult === null) {
+        // Governed inputs incomplete → fail closed on the missing inputs.
+        // Temperature mismatch alone never suppresses the calculation (it
+        // only downgrades a successful result to Preliminary), so it is
+        // noted, not raised as the limit. Nothing is assumed.
+        const tOut = Math.abs((T + 273.15) - COTO_2022_TEMPERATURE_K) > 0.5;
+        lleResult = {
+          datasetId: COTO_2022_DATASET_ID,
+          datasetVersion: COTO_2022_DATASET_VERSION,
+          citation: COTO_2022_CITATION,
+          status: 'not_calculable',
+          ...(tOut ? { temperatureStatus: 'outside_range_preliminary' as const } : { temperatureStatus: 'in_range' as const }),
+          limitExceeded: {
+            limit: 'Governed inputs not provided',
+            detail: `N_T auto-calculation requires governed inputs that are missing: ${lleMissing.join(', ')}. No values are assumed.${tOut ? ` Note: design temperature ${(T + 273.15).toFixed(2)} K is outside the 298.15 K experimental range — once the missing inputs are provided, N_T will be calculated from the 298.15 K tie-lines as-is and classified Preliminary — Pending RRBO/NMP Validation (no temperature correction or extrapolation).` : ''}`,
+          },
+          governingMeasure: 'total raffinate aromatics (mole fraction)',
+          stageTrace: [],
+          method: 'not run — governed inputs incomplete',
+          exclusions: [],
+          caveats: [],
+        };
+      }
+
+      const autoCalculated = lleResult.status === 'calculated' && lleResult.theoreticalStagesRounded !== undefined;
+      let ntOverrideActive = false;
+      let stages: Record<string, unknown>;
+      if (autoCalculated) {
+        const nT = lleResult.theoreticalStagesRounded!;
+        const tPrelim = lleResult.temperatureStatus === 'outside_range_preliminary';
+        const viaNrtl = nrtlBasisTrace !== undefined;
+        stages = {
+          mode: 'auto_calculated',
+          theoreticalStages: nT,
+          theoreticalStagesFractional: lleResult.theoreticalStages,
+          ...stageEfficiencyInfo,
+          label: viaNrtl
+            ? `Theoretical Stages — Auto-Calculated (NRTL τ(T) Governed Model at ${(nrtlBasisTrace!.temperatureK as number).toFixed(2)} K)`
+            : tPrelim
+              ? 'Controlled-Literature RRBO Surrogate LLE Model — Preliminary / Outside Experimental Temperature Range / Pending RRBO-NMP Validation'
+              : 'Theoretical Stages — Auto-Calculated (Coto 2022 Governed LLE)',
+          basis: viaNrtl
+            ? `${NRTL_MODEL_ID} v${nrtlBasisTrace!.modelVersion} tie-line table generated by isothermal NRTL flash at ${(nrtlBasisTrace!.temperatureK as number).toFixed(2)} K (calibrated envelope [${(nrtlBasisTrace!.temperatureEnvelopeK as { min: number; max: number }).min.toFixed(2)}, ${(nrtlBasisTrace!.temperatureEnvelopeK as { min: number; max: number }).max.toFixed(2)}] K; interpolation only — never tie-line scaling)`
+            : `${COTO_2022_DATASET_ID} v${COTO_2022_DATASET_VERSION} at ${COTO_2022_TEMPERATURE_K} K (tie-lines used as-is; no temperature correction or extrapolation)`,
+          ...(viaNrtl ? { modelTrace: nrtlBasisTrace } : {}),
+          ...(lleResult.temperatureStatement ? { temperatureStatement: lleResult.temperatureStatement } : {}),
+          note: 'Governing height calculation is H_active = N_T × HETS (evaluated in the ECP engine with the governed HETS). Stage efficiency does not enter the packed-column height.',
+          ...(overrideN !== undefined ? { engineerOverrideEntered: overrideN, engineerOverrideApplied: false, engineerOverrideNote: 'An engineer-override N_T was entered but NOT applied: the governed auto-calculation succeeded and takes precedence.' } : {}),
+          // NRTL off-anchor results carry the polyaromatic bounded assumption
+          // (bij ≡ 0 for DI/POLY pairs) → Pending Validation, never presented
+          // as a fully validated equilibrium result.
+          classification: (viaNrtl || tPrelim ? 'Pending Validation' : 'Calculated Screening Result') as Classification,
+        };
+        if (viaNrtl) {
+          warnings.push({ code: 'NT_NRTL_POLYAROMATIC_ASSUMPTION', message: `N_T auto-calculated from the admitted NRTL τ(T) model at ${(nrtlBasisTrace!.temperatureK as number).toFixed(2)} K. DI/POLY temperature slopes are a bounded assumption (bij ≡ 0 — no multi-temperature polyaromatic data); result is Pending Validation.` });
+          assumptions.push({
+            assumption: 'NRTL τ(T) DI/POLY binary temperature slopes bij ≡ 0 (τ held at 298.15 K-regressed values) — bounded assumption, no multi-temperature polyaromatic LLE data exist',
+            sourceType: 'Assumed',
+            sourceReference: 'nrtl-params-v1.json boundedAssumptions (governed regression artifact)',
+            scope: 'run',
+          });
+        }
+        if (tPrelim) {
+          warnings.push({ code: 'NT_TEMPERATURE_PRELIMINARY', message: lleResult.temperatureStatement! });
+        }
+        if (overrideN !== undefined && overrideN !== nT) {
+          warnings.push({ code: 'NT_OVERRIDE_IGNORED', message: `Engineer-override theoretical stages (${overrideN}) ignored — governed ${viaNrtl ? 'NRTL τ(T)' : 'Coto 2022'} auto-calculation succeeded with N_T = ${nT}.` });
+        }
+      } else if (overrideN !== undefined) {
+        ntOverrideActive = true;
+        stages = {
+          mode: 'engineer_override',
+          theoreticalStages: overrideN,
+          ...stageEfficiencyInfo,
+          label: 'Engineer Override — Assumed / Pending Validation',
+          overrideReason: lleResult.limitExceeded,
+          ...(lleResult.temperatureStatus === 'outside_range_preliminary'
+            ? { temperatureStatement: `Design temperature is outside the 298.15 K experimental range of the governed Coto 2022 dataset. Any future auto-calculated NT will use the 298.15 K controlled-literature equilibrium data as-is and be classified Preliminary — Pending RRBO/NMP Validation (no temperature correction or extrapolation).` }
+            : {}),
+          note: 'The governed Coto 2022 N_T auto-calculation is Not Calculable at this design point (exact limit recorded above). The engineer-override stage count is an Assumed value and is NEVER presented as an auto-calculated result. NOT a final ECP packing-stage or ECR compartment count.',
+          classification: 'Pending Validation' as Classification,
+        };
+        warnings.push({
+          code: 'NT_ENGINEER_OVERRIDE',
+          message: `Theoretical stages N_T = ${overrideN} is an Engineer Override (Assumed — Pending Validation). Governed auto-calculation failed closed: ${lleResult.limitExceeded?.limit ?? 'Not Calculable'}.`,
+        });
+        assumptions.push({
+          assumption: `Theoretical stage count N_T = ${overrideN} — Engineer Override (governed Coto 2022 auto-calculation Not Calculable: ${lleResult.limitExceeded?.limit ?? 'unknown limit'})`,
+          sourceType: 'Assumed',
+          sourceReference: 'Engineer Override — Process Design workspace theoretical-stages entry',
+          scope: 'run',
+        });
+      } else {
+        ntOverrideActive = true; // pending: no stage basis at all
+        stages = {
+          mode: 'not_calculable',
+          theoreticalStages: null,
+          ...stageEfficiencyInfo,
+          label: 'Theoretical Stages — Not Calculable',
+          overrideReason: lleResult.limitExceeded,
+          ...(lleResult.temperatureStatus === 'outside_range_preliminary'
+            ? { temperatureStatement: `Design temperature is outside the 298.15 K experimental range of the governed Coto 2022 dataset. Any future auto-calculated NT will use the 298.15 K controlled-literature equilibrium data as-is and be classified Preliminary — Pending RRBO/NMP Validation (no temperature correction or extrapolation).` }
+            : {}),
+          note: 'Governed auto-calculation failed closed and no Engineer Override N_T was entered. Enter an override (recorded as Assumed — Pending Validation) or bring the design point inside the governed envelope.',
+          classification: 'Not Calculable' as Classification,
+        };
+        warnings.push({ code: 'NT_NOT_CALCULABLE', message: `Theoretical stages Not Calculable: ${lleResult.limitExceeded?.limit ?? 'governed calculation failed closed'} — and no Engineer Override N_T was entered.` });
+      }
+
+      const lleStageCalculation: Record<string, unknown> = {
+        ...lleResult,
+        ...(lleInputEcho ? { inputTrace: lleInputEcho } : {}),
+        ...(nrtlBasisTrace ? { temperatureModelTrace: nrtlBasisTrace } : {}),
+        ...(nrtlGap ? { temperatureModelGap: nrtlGap } : {}),
       };
 
       // Status derivation (correction 11)
       const anyPending = normalCase.pending || maximumCase.pending
         || (extractionFactor?.classification === 'Pending Validation')
         || propertyAssumed || anyAssumedInput
+        || ntOverrideActive
+        || nrtlBasisTrace !== undefined // NRTL-based N_T carries the polyaromatic bounded assumption → Pending Validation
+        || lleResult.temperatureStatus === 'outside_range_preliminary'
         || phaseClassification === 'Not Calculable';
       const calculationRunStatus = anyPending ? 'pending_validation' : 'screening_complete';
       if (propertyAssumed) {
@@ -597,6 +869,7 @@ export class LLXProcessDesignEngine implements IDesignEngine {
         maximumCase: maximumCase.result,
         ...(extractionFactor ? { extractionFactor } : {}),
         stages,
+        lleStageCalculation,
         assumptions,
       };
 
@@ -630,7 +903,6 @@ export class LLXProcessDesignEngine implements IDesignEngine {
       flows ? { label: 'Normal solvent mass flow', value: flows.normalSolventMassFlow, unit: 'kg/h', highlight: true } : null,
       flows ? { label: 'Maximum solvent mass flow', value: flows.maximumSolventMassFlow, unit: 'kg/h' } : null,
       ratio ? { label: 'Solvent-to-oil ratio (NMP / total RRBO feed, mass)', value: ratio.value } : null,
-      stages ? { label: 'Preliminary Stage-Equivalent Estimate', value: stages.estimatedPhysicalStages } : null,
       status ? { label: 'Run status', value: status, highlight: true } : null,
     ].filter(Boolean) as DesignSummary['keyResults'];
     const warningsOut: string[] = [];

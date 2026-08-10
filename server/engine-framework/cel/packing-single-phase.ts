@@ -125,6 +125,195 @@ export interface PackingFlowRegimeResult {
  *  • Otherwise → 'Not Determinable' (no interpolation over angle; the paper
  *    publishes no other anchors and no fully-turbulent upper bound).
  */
+// ── Governed Re–cf datasets — Duss 2013 Table 2 / Zogg 1972 ──────────────────
+//
+// GOVERNANCE UPDATE (approved):
+//   A two-level distinction applies to Sulcol-generated values:
+//   (1) Sulcol used as a live hydraulic DESIGN TOOL → PROHIBITED by project directive.
+//       Vendor-software outputs generated at design time may not be cited or used.
+//   (2) Sulcol-computed values REPRODUCED in a published, peer-reviewed conference paper
+//       (Duss 2013, AIChE Spring Meeting) → PERMITTED as controlled-literature data
+//       when cited with full provenance and explicit agreement-with-Zogg annotation.
+//   The datasets below fall under category (2). For the 30°/X-type case, Duss 2013
+//   explicitly states full agreement with Zogg 1972 experimental data. For the 45°/Y-type
+//   case, Duss 2013 states agreement in the laminar regime (Re < 250); in the turbulent
+//   regime Sulcol underpredicts for metal sheet (lower roughness vs wire gauze).
+//
+// INTERPOLATION: piecewise linear, WITHIN published range only.
+// OUT-OF-RANGE POLICY:
+//   Re < tableMin → "Outside Tabulated Range — cf not directly supported by Table 2."
+//     A boundary minimum ΔP estimate (cf at tableMin) is provided as an indicative
+//     LOWER BOUND only — NOT design ΔP. Do not use for column sizing.
+//   Re > tableMax → "Outside Tabulated Range." No extrapolation rule is approved.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface Duss2013ReCfPoint { re: number; cf: number; }
+
+export interface Duss2013DatasetRecord {
+  id: string;
+  corrugationAngle_deg: number;
+  corrugationType: 'Y' | 'X';
+  nominalSpecificSurface_m2_m3: number;
+  nominalHydraulicDiameter_m: number;
+  reCrit: number;
+  reCritBasis: string;
+  tableMin: number;
+  tableMax: number;
+  points: Duss2013ReCfPoint[];
+  sourceDocuments: string[];
+  governanceNote: string;
+}
+
+/**
+ * Duss 2013 Table 2 — 45° Y-type, a ≈ 250 m²/m³, d_h = 0.016 m, Re_crit = 250.
+ * Sulcol V3.0.8 values for MellapakPlus 252.Y. Duss 2013: "agreement is good in the
+ * laminar regime"; turbulent cf is underpredicted for metal sheet (lower roughness).
+ */
+export const DUSS2013_TABLE2_45Y: Duss2013DatasetRecord = {
+  id: 'duss2013-table2-45y',
+  corrugationAngle_deg: 45,
+  corrugationType: 'Y',
+  nominalSpecificSurface_m2_m3: 250,
+  nominalHydraulicDiameter_m: 4 / 250,
+  reCrit: 250,
+  reCritBasis: 'Zogg 1972 experimental, cited in Duss 2013 §"Interpretation of Results"',
+  tableMin: 143,
+  tableMax: 7144,
+  points: [
+    { re: 143,  cf: 1.34 },
+    { re: 226,  cf: 1.06 },
+    { re: 320,  cf: 0.90 },
+    { re: 453,  cf: 0.83 },
+    { re: 714,  cf: 0.75 },
+    { re: 1011, cf: 0.71 },
+    { re: 1429, cf: 0.67 },
+    { re: 2264, cf: 0.65 },
+    { re: 3197, cf: 0.64 },
+    { re: 4527, cf: 0.63 },
+    { re: 7144, cf: 0.63 },
+  ],
+  sourceDocuments: [DUSS_2013_CITATION, ZOGG_1972_CITATION],
+  governanceNote:
+    'Values from Sulcol V3.0.8 for MellapakPlus 252.Y, reproduced in Table 2 of Duss 2013 (AIChE Spring Meeting, San Antonio, April 2013). ' +
+    'Duss states agreement with Zogg 1972 experimental data in the laminar regime (Re < Re_crit = 250). ' +
+    'In the turbulent regime Sulcol underpredicts for metal sheet packing (lower roughness vs wire gauze). ' +
+    'Used as controlled-literature tabulated data within [143, 7144]. No extrapolation rule is approved outside this range.',
+};
+
+/**
+ * Duss 2013 Table 2 — 30° X-type, a ≈ 500 m²/m³, d_h = 0.008 m, Re_crit = 450.
+ * Sulcol V3.0.8 values for Sulzer BXPlus. Duss 2013 states FULL agreement with
+ * Zogg 1972 experimental data for wire gauze X-type packing.
+ */
+export const DUSS2013_TABLE2_30X: Duss2013DatasetRecord = {
+  id: 'duss2013-table2-30x',
+  corrugationAngle_deg: 30,
+  corrugationType: 'X',
+  nominalSpecificSurface_m2_m3: 500,
+  nominalHydraulicDiameter_m: 4 / 500,
+  reCrit: 450,
+  reCritBasis: 'Zogg 1972 experimental, cited in Duss 2013 §"Interpretation of Results" — full agreement confirmed for wire gauze',
+  tableMin: 71,
+  tableMax: 3572,
+  points: [
+    { re: 71,   cf: 1.54 },
+    { re: 113,  cf: 1.06 },
+    { re: 160,  cf: 0.82 },
+    { re: 226,  cf: 0.65 },
+    { re: 357,  cf: 0.50 },
+    { re: 505,  cf: 0.43 },
+    { re: 714,  cf: 0.37 },
+    { re: 1132, cf: 0.33 },
+    { re: 1599, cf: 0.30 },
+    { re: 2264, cf: 0.29 },
+    { re: 3572, cf: 0.27 },
+  ],
+  sourceDocuments: [DUSS_2013_CITATION, ZOGG_1972_CITATION],
+  governanceNote:
+    'Values from Sulcol V3.0.8 for Sulzer BXPlus, reproduced in Table 2 of Duss 2013. ' +
+    'Duss explicitly states full agreement with Zogg 1972 experimental data for wire gauze X-type packing. ' +
+    'Used as controlled-literature tabulated data within [71, 3572]. No extrapolation rule is approved outside this range.',
+};
+
+/** Registry of governed Duss 2013 datasets keyed by corrugation angle (°). */
+export const DUSS2013_DATASETS: Record<number, Duss2013DatasetRecord> = {
+  45: DUSS2013_TABLE2_45Y,
+  30: DUSS2013_TABLE2_30X,
+};
+
+export interface Duss2013ReCfEvalResult {
+  status: 'interpolated' | 'below_range' | 'above_range';
+  /** Interpolated cf — populated only when status === 'interpolated'. */
+  cf: number | null;
+  /** Boundary minimum data — populated only when status === 'below_range'. NOT a design value. */
+  boundaryMinimum?: { cfAtBoundary: number; boundaryRe: number };
+  note: string;
+}
+
+/**
+ * Evaluate c_f at a given Re from a Duss 2013 governed dataset.
+ *
+ * Within [tableMin, tableMax]: piecewise linear interpolation.
+ * Re < tableMin: status = 'below_range', cf = null, boundaryMinimum provided.
+ *   The boundary minimum ΔP estimate MUST be labelled "NOT design ΔP" — it is a
+ *   conservative lower bound only. Do NOT use for column sizing acceptance/rejection.
+ * Re > tableMax: status = 'above_range', cf = null.
+ *   No governed extrapolation rule is approved above the published range.
+ */
+export function evaluateDuss2013ReCf(re: number, dataset: Duss2013DatasetRecord): Duss2013ReCfEvalResult {
+  assertPositive(re, 'Reynolds number for Duss 2013 cf lookup');
+  const { points, tableMin, tableMax } = dataset;
+
+  if (re < tableMin) {
+    return {
+      status: 'below_range',
+      cf: null,
+      boundaryMinimum: { cfAtBoundary: points[0].cf, boundaryRe: points[0].re },
+      note:
+        `Outside Tabulated Range — cf not directly supported by Table 2. ` +
+        `Re = ${re.toExponential(4)} is below the published dataset minimum Re = ${tableMin}. ` +
+        `No governed extrapolation rule is approved for Re below ${tableMin}. ` +
+        `A published-boundary minimum ΔP estimate is provided using cf = ${points[0].cf} at Re_min = ${tableMin} — ` +
+        `this is NOT design ΔP; actual cf is expected to be higher at Re = ${re.toExponential(4)} (Zogg 1972 Figure 2 shows cf increasing with decreasing Re in the laminar regime).`,
+    };
+  }
+
+  if (re > tableMax) {
+    return {
+      status: 'above_range',
+      cf: null,
+      note:
+        `Outside Tabulated Range — cf not directly supported by Table 2. ` +
+        `Re = ${re.toExponential(4)} exceeds the published dataset maximum Re = ${tableMax}. ` +
+        `No governed extrapolation rule is approved above the published range.`,
+    };
+  }
+
+  // Within range — piecewise linear interpolation
+  for (let i = 1; i < points.length; i++) {
+    if (re <= points[i].re) {
+      const frac = (re - points[i - 1].re) / (points[i].re - points[i - 1].re);
+      const cf = points[i - 1].cf + frac * (points[i].cf - points[i - 1].cf);
+      return {
+        status: 'interpolated',
+        cf,
+        note:
+          `Piecewise linear interpolation between ` +
+          `(Re = ${points[i - 1].re}, cf = ${points[i - 1].cf}) and (Re = ${points[i].re}, cf = ${points[i].cf}). ` +
+          `Source: ${dataset.sourceDocuments.join('; ')}.`,
+      };
+    }
+  }
+  // Edge: exactly at tableMax
+  return {
+    status: 'interpolated',
+    cf: points[points.length - 1].cf,
+    note: `At published dataset maximum Re = ${tableMax}, cf = ${points[points.length - 1].cf}. Source: ${dataset.sourceDocuments.join('; ')}.`,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function classifyPackingFlowRegime(re: number, corrugationAngleDeg?: number): PackingFlowRegimeResult {
   assertPositive(re, 'Reynolds number');
   const anchor = corrugationAngleDeg !== undefined ? PUBLISHED_CRITICAL_REYNOLDS[corrugationAngleDeg] : undefined;

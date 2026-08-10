@@ -649,6 +649,37 @@ export async function runCalculation(
     inputs = mapWorkspaceProcessDesignInputs(inputs, calculationType);
   }
 
+  // Governed N_T adoption (Stage 7): when the accepted C2 result carries an
+  // AUTO-CALCULATED theoretical-stage count (Coto 2022 governed LLE), the
+  // ECP/ECR engines adopt it in preference to the workspace field — the
+  // workspace theoretical-stages entry is the Engineer Override and applies
+  // only when the governed calculation is Not Calculable. Adoption only; no
+  // engine equations change (H_active = N_T × HETS stays in the ECP engine).
+  if (rev.module_type === 'llx' && ['ecp', 'ecr'].includes(calculationType)) {
+    const pdQ = await pool.query(
+      `SELECT data->'stages' AS stages, computed_at FROM design_software_results WHERE revision_id = $1 AND section = 'process_design'`,
+      [revisionId],
+    );
+    const pdStages = pdQ.rows[0]?.stages;
+    if (pdStages?.mode === 'auto_calculated' && Number.isFinite(Number(pdStages.theoreticalStages))) {
+      // Freshness gate: an auto-calculated N_T is adopted only if the C2
+      // result is not stale relative to the process-design inputs. A stale
+      // auto result is never silently replaced by the workspace override —
+      // the engineer must re-run C2 first.
+      const inpQ = await pool.query(
+        `SELECT updated_at FROM design_software_inputs WHERE revision_id = $1 AND section = 'process_design'`,
+        [revisionId],
+      );
+      const inputsUpdated = inpQ.rows[0]?.updated_at ? new Date(inpQ.rows[0].updated_at).getTime() : 0;
+      const resultComputed = pdQ.rows[0]?.computed_at ? new Date(pdQ.rows[0].computed_at).getTime() : 0;
+      if (inputsUpdated > resultComputed) {
+        throw new Error('The C2 Process Design inputs changed after the last accepted run that auto-calculated N_T. Re-run the Stage 4 material balance to refresh the governed N_T before running the Stage 7 calculation.');
+      }
+      inputs.theoreticalStages = Number(pdStages.theoreticalStages);
+      inputs.theoreticalStagesProvenance = `Auto-calculated N_T adopted from the accepted C2 Process Design result (${pdStages.basis ?? 'Coto 2022 governed LLE'}) — workspace override not applied.`;
+    }
+  }
+
   // Stage 9 → C6 adapter: adopt geometry from the selected technology's latest
   // accepted C4/C5 run (never re-entered), then map the Mechanical Design Basis
   // into the mech-vessel input contract. Mapping only — no C6 equation changes.

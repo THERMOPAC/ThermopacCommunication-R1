@@ -1,0 +1,209 @@
+{
+ "modelId": "NRTL_NMP_RRBO_SURROGATE",
+ "version": "1.1.0",
+ "generatedAtUtc": "2026-08-10T18:11:41.821Z",
+ "citationList": [
+  "B. Coto, I. Suárez, M.J. Tenorio, S. Nieto, N. Alvarez, J.J. Espada, \"Extraction of aromatic and polyaromatic compounds with NMP: Experimental and model description\", Fluid Phase Equilibria 554 (2022) 113293, Table 3",
+  "Fahim et al., Fluid Phase Equilib. 231 (2005) 163-170 (NIST ThermoML 10.1016/j.fluid.2005.01.012)",
+  "Fandary et al., J. Chem. Thermodyn. 38 (2006) 455-460 (NIST ThermoML 10.1016/j.jct.2005.06.012)",
+  "Aljimaz et al., J. Chem. Eng. Data 51 (2006) 1026-1030 (NIST ThermoML 10.1021/je050513r)"
+ ],
+ "temperatureEnvelopeK": {
+  "min": 289,
+  "max": 328
+ },
+ "params": {
+  "a": [
+   [
+    0,
+    4.869965986888839,
+    -2.512538649859691,
+    2.245270492311589,
+    -3.0642225042060325
+   ],
+   [
+    -0.42181686468812596,
+    0,
+    -1.5515342374811545,
+    5.705350444408836,
+    -0.8507665886010704
+   ],
+   [
+    -2.1227894543706447,
+    -0.8365654483465066,
+    0,
+    -0.42306928909818353,
+    -0.13614159086503308
+   ],
+   [
+    8.314365782410341,
+    10.382316611589193,
+    -7.078449909177141,
+    0,
+    -2.762574135819551
+   ],
+   [
+    0.44362173956611306,
+    -0.27915131766814527,
+    -7.685705981570991,
+    3.0851868440310963,
+    0
+   ]
+  ],
+  "b": [
+   [
+    0,
+    -2411.632670972809,
+    0,
+    0,
+    1463.6525883575728
+   ],
+   [
+    41.4680697354721,
+    0,
+    0,
+    0,
+    -178.69684201400153
+   ],
+   [
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   [
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   [
+    454.1000914390271,
+    -1063.5304203568323,
+    0,
+    0,
+    0
+   ]
+  ],
+  "alpha": [
+   [
+    0,
+    0.2,
+    0.2,
+    0.2,
+    0.2
+   ],
+   [
+    0.2,
+    0,
+    0.2,
+    0.2,
+    0.2
+   ],
+   [
+    0.2,
+    0.2,
+    0,
+    0.2,
+    0.2
+   ],
+   [
+    0.2,
+    0.2,
+    0.2,
+    0,
+    0.2
+   ],
+   [
+    0.2,
+    0.2,
+    0.2,
+    0.2,
+    0
+   ]
+  ]
+ },
+ "objective": {
+  "description": "Hierarchical Coto-anchored regression: Stage A τ(298.15 K) on Coto tie-lines (isoactivity pre-fit + direct flash-composition polish); Stage B shared temperature slopes b on multi-T literature (per-dataset nuisance offsets absorb species lumping; only b transfers). Weights 1/u(x)², u floored at 0.003.",
+  "finalValue": 0.051773182894744994,
+  "nTieLines": 236,
+  "weightFloorUx": 0.003
+ },
+ "validation": {
+  "cotoRmsd": 0.01745,
+  "cotoMaxAbsDev": 0.06735,
+  "cotoTolerance": 0.009000000000000001,
+  "cotoPass": false,
+  "loto": [
+   {
+    "leftOutT_K": 289,
+    "rmsd": 0.03107,
+    "maxAbsDev": 0.08175,
+    "pass": true
+   },
+   {
+    "leftOutT_K": 293.2,
+    "rmsd": 0.06806,
+    "maxAbsDev": 0.26965,
+    "pass": false
+   },
+   {
+    "leftOutT_K": 298,
+    "rmsd": 0.05492,
+    "maxAbsDev": 0.25309,
+    "pass": true
+   },
+   {
+    "leftOutT_K": 303.2,
+    "rmsd": 0.08887,
+    "maxAbsDev": 0.28551,
+    "pass": false
+   },
+   {
+    "leftOutT_K": 308,
+    "rmsd": 0.03678,
+    "maxAbsDev": 0.13597,
+    "pass": true
+   },
+   {
+    "leftOutT_K": 313.2,
+    "rmsd": 0.02524,
+    "maxAbsDev": 0.10173,
+    "pass": true
+   },
+   {
+    "leftOutT_K": 318,
+    "rmsd": 0.04561,
+    "maxAbsDev": 0.27365,
+    "pass": true
+   },
+   {
+    "leftOutT_K": 323.2,
+    "rmsd": 0.02821,
+    "maxAbsDev": 0.09101,
+    "pass": true
+   },
+   {
+    "leftOutT_K": 328,
+    "rmsd": 0.10797,
+    "maxAbsDev": 0.36168,
+    "pass": false
+   }
+  ],
+  "lotoPass": false,
+  "admitted": false,
+  "notes": [
+   "Coto flash reproduction: 17/17 two-phase, 0 collapsed.",
+   "fahim2005: experimental K_MONO trend sign 1, model 1 → PASS",
+   "fandary2006: experimental K_MONO trend sign 1, model 1 → PASS",
+   "aljimaz2006: experimental K_MONO trend sign 1, model 1 → PASS",
+   "Model NOT admitted — application fails closed (Temperature-Dependent LLE Model — DEVELOPMENT GAP)."
+  ]
+ },
+ "boundedAssumptions": [
+  "DI/POLY binary τ slopes bij ≡ 0 (no multi-temperature polyaromatic data) — approved bounded assumption; off-298.15 K results carry POLYAROMATIC_TEMPERATURE_ASSUMPTION and are Pending Validation.",
+  "Temperature slopes for SAT/MONO/NMP pairs transferred from C12–C17 alkane + C9–C11 alkylbenzene literature via per-dataset nuisance offsets; the offsets themselves are NOT part of the governed model."
+ ]
+}

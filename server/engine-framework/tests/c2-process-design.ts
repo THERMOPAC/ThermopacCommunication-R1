@@ -106,9 +106,12 @@ async function main() {
     checkTrue('max case Pending Validation when splits reused', mb.classification === 'Pending Validation');
     checkTrue('normal case Calculated Screening Result', nb.classification === 'Calculated Screening Result');
 
-    // PD-010
-    check('estimatedPhysicalStages ceil(6/0.6)', d.stages.estimatedPhysicalStages, 10);
-    checkTrue('stage label = Preliminary Stage-Equivalent Estimate', d.stages.label === 'Preliminary Stage-Equivalent Estimate');
+    // PD-010 (governed N_T): with no governed LLE inputs the auto-calculation
+    // fails closed and the entered theoreticalStages acts as Engineer Override.
+    checkTrue('stages mode = engineer_override', d.stages.mode === 'engineer_override');
+    checkTrue('stage label = Engineer Override — Assumed / Pending Validation', d.stages.label === 'Engineer Override — Assumed / Pending Validation');
+    checkTrue('no estimatedPhysicalStages field', !('estimatedPhysicalStages' in d.stages));
+    checkTrue('stage efficiency informational only', d.stages.stageEfficiencyInformational === 0.6);
 
     // Versions, assumptions, status
     checkTrue('CEL version recorded', d.celVersion === '1.0.0');

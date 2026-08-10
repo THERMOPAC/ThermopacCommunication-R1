@@ -285,8 +285,7 @@ const CW_DELTA_T_DEFAULT = "8";
 // Process Design (Stage 4) approved defaults
 const SO_RATIO_OPTIONS = ["0.5", "1.0", "1.5", "2.0"];
 const SO_RATIO_DEFAULT = "1.5";
-const THEORETICAL_STAGES_DEFAULT = "6";
-const STAGE_EFFICIENCY_DEFAULT = "60";
+const TOTAL_AROMATICS_DEFAULT = "2.7";
 const DESIGN_MARGIN_DEFAULT = "20";
 const PHASE_CONFIG_OPTIONS = [
   { value: "rrbo_continuous_nmp_dispersed", label: "RRBO continuous / NMP dispersed" },
@@ -916,8 +915,15 @@ export default function DesignSoftwareWorkspacePage() {
     const u: Record<string, string> = {};
     const blank = (k: string) => (pd[k] ?? "").trim() === "";
     if (blank("so_ratio")) u.so_ratio = SO_RATIO_DEFAULT;
-    if (blank("theoretical_stages")) u.theoretical_stages = THEORETICAL_STAGES_DEFAULT;
-    if (blank("stage_efficiency")) u.stage_efficiency = STAGE_EFFICIENCY_DEFAULT;
+    // theoretical_stages is intentionally NOT seeded: it is the Engineer
+    // Override N_T, which must be an explicit engineer action — the governed
+    // Coto 2022 auto-calculation is the primary basis (never a default of 6).
+    // Total Aromatics is an EDITABLE engineer field (never hard-coded in the
+    // engine); blank-only default 2.7 wt % per engineering direction.
+    if (blank("rrbo_total_aromatics_wt")) u.rrbo_total_aromatics_wt = TOTAL_AROMATICS_DEFAULT;
+    // stage_efficiency is intentionally NOT seeded: it is informational-only
+    // (never governs packed-column height, H_active = N_T × HETS) and is never
+    // silently assumed at 60 %.
     if (blank("design_margin")) u.design_margin = DESIGN_MARGIN_DEFAULT;
     if (blank("interface_control")) u.interface_control = INTERFACE_CONTROL_DEFAULT;
     for (const cb of COMPONENT_BALANCE_FIELDS) {
@@ -2074,8 +2080,8 @@ export default function DesignSoftwareWorkspacePage() {
     const otStr = (dbx.operating_temperature ?? "").trim();
     const opStr = (dbx.operating_pressure ?? "").trim();
     const ratioEff = (pd.so_ratio ?? "").trim() !== "" ? (pd.so_ratio as string) : SO_RATIO_DEFAULT;
-    const stagesEff = (pd.theoretical_stages ?? "").trim() !== "" ? (pd.theoretical_stages as string) : THEORETICAL_STAGES_DEFAULT;
-    const effEff = (pd.stage_efficiency ?? "").trim() !== "" ? (pd.stage_efficiency as string) : STAGE_EFFICIENCY_DEFAULT;
+    const stagesEff = pd.theoretical_stages ?? ""; // Engineer Override N_T — never defaulted
+    const effEff = pd.stage_efficiency ?? ""; // informational-only, never defaulted
     const marginEff = (pd.design_margin ?? "").trim() !== "" ? (pd.design_margin as string) : DESIGN_MARGIN_DEFAULT;
     const extTEff = pd.extraction_temperature_manual === "true" ? (pd.extraction_temperature ?? "") : (otStr || (pd.extraction_temperature ?? ""));
     const extPEff = pd.extraction_pressure_manual === "true" ? (pd.extraction_pressure ?? "") : (opStr || (pd.extraction_pressure ?? ""));
@@ -2167,7 +2173,7 @@ export default function DesignSoftwareWorkspacePage() {
             }}
             unit="°C"
           />
-          {statusLine(`Status: ${pd.extraction_temperature_manual === "true" ? "Manual" : "Auto-Populated"} · Rule: follows Design Basis Operating Temperature (${otStr || "—"} °C) until manually changed`)}
+          {statusLine(`Status: ${pd.extraction_temperature_manual === "true" ? "Manual (Engineer-Entered)" : "Auto-Populated (Design Basis Operating Temperature)"} · Rule: follows Design Basis Operating Temperature (${otStr || "—"} °C) until manually changed · Governs the N_T equilibrium basis: 298.15 K → Coto 2022 tie-lines; other temperatures → admitted NRTL τ(T) model within its calibrated envelope, else DEVELOPMENT GAP / Preliminary (tie-lines never temperature-scaled)`)}
 
           <FieldRow
             label="Extraction Pressure"
@@ -2181,13 +2187,13 @@ export default function DesignSoftwareWorkspacePage() {
           />
           {statusLine(`Status: ${pd.extraction_pressure_manual === "true" ? "Manual" : "Auto-Populated"} · Rule: follows Design Basis Operating Pressure (${opStr || "—"} bar g) until manually changed`)}
 
-          <FieldRow label="Theoretical Stages" value={stagesEff} onChange={v => f("theoretical_stages", v)} onBlur={s} unit="stages" />
+          <FieldRow label="Theoretical Stages — Engineer Override (N_T)" value={stagesEff} onChange={v => f("theoretical_stages", v)} onBlur={s} unit="stages" />
           {stagesInvalid && <p className="text-xs text-red-600 px-2 -mt-0.5">Theoretical stages must be a whole number ≥ 1.</p>}
-          {statusLine(`Status: ${(pd.theoretical_stages ?? "").trim() !== "" && pd.theoretical_stages !== THEORETICAL_STAGES_DEFAULT ? "Manual" : "Auto-Populated"} · Rule: default ${THEORETICAL_STAGES_DEFAULT} stages`)}
+          {statusLine(`Status: Engineer Override · Used ONLY when the governed Coto 2022 N_T auto-calculation is Not Calculable · Classification when applied: Engineer Override — Assumed / Pending Validation · Never presented as an auto-calculated result`)}
 
-          <FieldRow label="Stage Efficiency" value={effEff} onChange={v => f("stage_efficiency", v)} onBlur={s} unit="%" />
+          <FieldRow label="Stage Efficiency (informational only)" value={effEff} onChange={v => f("stage_efficiency", v)} onBlur={s} unit="%" />
           {effInvalid && <p className="text-xs text-red-600 px-2 -mt-0.5">Stage efficiency must be greater than 0 % and not more than 100 %.</p>}
-          {statusLine(`Status: ${(pd.stage_efficiency ?? "").trim() !== "" && pd.stage_efficiency !== STAGE_EFFICIENCY_DEFAULT ? "Manual" : "Auto-Populated"} · Rule: default ${STAGE_EFFICIENCY_DEFAULT} %`)}
+          {statusLine("Status: Manual (optional) · Informational only — does NOT govern packed-column height (H_active = N_T × HETS). Applies only where a separately governed stage-efficiency model exists (e.g. ECR mixer-settler compartments). Never defaulted.")}
 
           <FieldRow label="Design Margin" value={marginEff} onChange={v => f("design_margin", v)} onBlur={s} unit="%" />
           {statusLine(`Status: ${(pd.design_margin ?? "").trim() !== "" && pd.design_margin !== DESIGN_MARGIN_DEFAULT ? "Manual" : "Auto-Populated"} · Rule: default ${DESIGN_MARGIN_DEFAULT} % · applied to Normal Solvent Circulation to give Maximum Solvent Circulation`)}
@@ -2242,6 +2248,67 @@ export default function DesignSoftwareWorkspacePage() {
           })}
         </SectionCard>
 
+        <SectionCard title="RRBO Characterisation & LLE Targets — Governed N_T Inputs (Coto 2022)">
+          <div className="flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 mb-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>
+              Governed inputs for automatic theoretical-stage (N_T) calculation from the Coto 2022
+              controlled LLE dataset (Fluid Phase Equilibria 554 (2022) 113293, Table 3 — 298.15 K).
+              Class mapping: saturates → n-dodecane · mono-aromatics → 1,4-xylene · di-aromatics →
+              1-methylnaphtalene · poly-aromatics → pyrene (governed screening analogy). Missing
+              inputs are never assumed — the calculation fails closed listing them.
+            </span>
+          </div>
+          <FieldRow label="RRBO Total Aromatics" value={pd.rrbo_total_aromatics_wt ?? ""} onChange={v => f("rrbo_total_aromatics_wt", v)} onBlur={s} unit="wt %" />
+          {statusLine(`Status: ${(pd.rrbo_total_aromatics_wt ?? "").trim() !== "" && pd.rrbo_total_aromatics_wt !== TOTAL_AROMATICS_DEFAULT ? "Manual · Engineer-entered" : `Auto-Populated · default ${TOTAL_AROMATICS_DEFAULT} wt % — editable`} · Consistency-checked against Mono + Di + Poly (±0.5 wt %) — a mismatch fails the N_T calculation closed`)}
+          <FieldRow label="RRBO Saturates" value={pd.rrbo_saturates_wt ?? ""} onChange={v => f("rrbo_saturates_wt", v)} onBlur={s} unit="wt %" />
+          <FieldRow label="RRBO Mono-Aromatics" value={pd.rrbo_mono_aromatics_wt ?? ""} onChange={v => f("rrbo_mono_aromatics_wt", v)} onBlur={s} unit="wt %" />
+          <FieldRow label="RRBO Di-Aromatics" value={pd.rrbo_di_aromatics_wt ?? ""} onChange={v => f("rrbo_di_aromatics_wt", v)} onBlur={s} unit="wt %" />
+          <FieldRow label="RRBO Poly-Aromatics" value={pd.rrbo_poly_aromatics_wt ?? ""} onChange={v => f("rrbo_poly_aromatics_wt", v)} onBlur={s} unit="wt %" />
+          {(() => {
+            const chSum = ["rrbo_saturates_wt", "rrbo_mono_aromatics_wt", "rrbo_di_aromatics_wt", "rrbo_poly_aromatics_wt"]
+              .map(k => numOrNull((pd[k] ?? "").trim()))
+              .reduce<number | null>((a, b) => (a === null || b === null ? null : a + b), 0);
+            return chSum !== null && Math.abs(chSum - 100) > 0.5
+              ? <p className="text-xs text-red-600 px-2 -mt-0.5">Characterisation classes sum to {chSum.toFixed(2)} wt % — must sum to 100 ± 0.5.</p>
+              : null;
+          })()}
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
+            <label className="text-sm text-gray-700 font-medium pt-1.5">Characterisation Source</label>
+            <select value={pd.rrbo_characterisation_source ?? ""} onChange={e => cs({ rrbo_characterisation_source: e.target.value })} disabled={isFrozen} className="h-8 text-sm border rounded-md px-2 bg-white">
+              <option value="">Select…</option>
+              {["Measured", "Vendor", "Literature", "Assumed"].map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+            <span />
+          </div>
+          <FieldRow label="Source Reference (characterisation)" value={pd.rrbo_characterisation_source_reference ?? ""} onChange={v => f("rrbo_characterisation_source_reference", v)} onBlur={s} unit="" />
+          <FieldRow label="Class MW — Saturates" value={pd.rrbo_mw_saturates ?? ""} onChange={v => f("rrbo_mw_saturates", v)} onBlur={s} unit="g/mol" />
+          <FieldRow label="Class MW — Mono-Aromatics" value={pd.rrbo_mw_mono ?? ""} onChange={v => f("rrbo_mw_mono", v)} onBlur={s} unit="g/mol" />
+          <FieldRow label="Class MW — Di-Aromatics" value={pd.rrbo_mw_di ?? ""} onChange={v => f("rrbo_mw_di", v)} onBlur={s} unit="g/mol" />
+          <FieldRow label="Class MW — Poly-Aromatics" value={pd.rrbo_mw_poly ?? ""} onChange={v => f("rrbo_mw_poly", v)} onBlur={s} unit="g/mol" />
+          {statusLine("Class molecular weights are governed inputs (GPC/MS or engineer-tagged) — surrogate pure-compound MWs are never substituted for RRBO class MWs")}
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
+            <label className="text-sm text-gray-700 font-medium pt-1.5">Class MW Source</label>
+            <select value={pd.rrbo_class_mw_source ?? ""} onChange={e => cs({ rrbo_class_mw_source: e.target.value })} disabled={isFrozen} className="h-8 text-sm border rounded-md px-2 bg-white">
+              <option value="">Select…</option>
+              {["Measured", "Vendor", "Literature", "Assumed"].map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+            <span />
+          </div>
+          <FieldRow label="Source Reference (class MWs)" value={pd.rrbo_class_mw_source_reference ?? ""} onChange={v => f("rrbo_class_mw_source_reference", v)} onBlur={s} unit="" />
+          <FieldRow label="Target Raffinate Aromatics" value={pd.target_raffinate_aromatics_mol ?? ""} onChange={v => f("target_raffinate_aromatics_mol", v)} onBlur={s} unit="mol %" />
+          <FieldRow label="Source Reference (target)" value={pd.target_raffinate_aromatics_source_reference ?? ""} onChange={v => f("target_raffinate_aromatics_source_reference", v)} onBlur={s} unit="" />
+          {statusLine("Governed envelope: raffinate locus x1R ∈ [0.641, 0.878] (total aromatics ≈ 6.2–20.1 mol %) at 298.15 K — targets outside fail closed, no extrapolation")}
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
+            <label className="text-sm text-gray-700 font-medium pt-1.5">Target Source</label>
+            <select value={pd.target_raffinate_aromatics_source ?? ""} onChange={e => cs({ target_raffinate_aromatics_source: e.target.value })} disabled={isFrozen} className="h-8 text-sm border rounded-md px-2 bg-white">
+              <option value="">Select…</option>
+              {["Measured", "Vendor", "Literature", "Assumed"].map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+            <span />
+          </div>
+        </SectionCard>
+
         <SectionCard title="Solvent Circulation Rate">
           {calcRow("Normal Solvent Flow", fmt(normLph), "LPH", [feedLph === null ? "Feed Flow (Design Basis)" : "", ratioN === null || ratioN <= 0 ? "Solvent/Oil Ratio" : ""].filter(Boolean).join(", ") || "—")}
           {calcRow("Normal Solvent Mass Flow", fmt(normMass), "kg/h", normLph === null ? "Normal Solvent Flow" : "NMP density (EPD, at Operating Temperature)")}
@@ -2282,6 +2349,85 @@ export default function DesignSoftwareWorkspacePage() {
                 {resultCard("Material-Balance Closure", closure ? `${(closure.relative * 100).toExponential(2)}` : null, "%", "C2 PD-006 — |in − out| / in", "C2 Process Design Engine", rd?.normalCase?.componentBalance?.classification)}
                 {resultCard("Validation Status", runStatusRaw ? (runStatusRaw === "screening_complete" ? "Screening Complete" : runStatusRaw === "pending_validation" ? "Pending Validation" : runStatusRaw) : null, "", "Overall C2 run status", "C2 Process Design Engine")}
               </div>
+              {(() => {
+                const st = rd?.stages;
+                const lle = rd?.lleStageCalculation;
+                if (!st && !lle) return null;
+                const auto = st?.mode === "auto_calculated";
+                return (
+                  <div className="mt-3 border rounded-lg p-3 bg-gray-50">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="text-sm font-semibold text-gray-800">Theoretical Stages (N_T)</p>
+                      {st?.theoreticalStages != null ? (
+                        <span className={`font-mono text-sm font-bold whitespace-nowrap ${auto ? "text-blue-700" : "text-amber-700"}`}>
+                          N_T = {st.theoreticalStages}{st.theoreticalStagesFractional != null && st.theoreticalStagesFractional !== st.theoreticalStages ? ` (calc. ${st.theoreticalStagesFractional})` : ""}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-red-700 font-medium">Not Calculable</span>
+                      )}
+                    </div>
+                    <p className={`text-xs font-medium ${auto ? "text-blue-700" : st?.mode === "engineer_override" ? "text-amber-700" : "text-red-700"}`}>{st?.label}</p>
+                    {st?.basis && <p className="text-xs text-gray-500">Basis: {st.basis}</p>}
+                    {st?.modelTrace && (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                        <p className="text-[11px] font-semibold text-blue-800">Temperature-Dependent LLE Model (NRTL τ(T))</p>
+                        <p className="text-[11px] text-blue-700 mt-0.5">
+                          Model {st.modelTrace.modelId} v{st.modelTrace.modelVersion} · tie-line table flashed at {Number(st.modelTrace.temperatureK).toFixed(2)} K · calibrated envelope [{Number(st.modelTrace.temperatureEnvelopeK?.min).toFixed(2)}, {Number(st.modelTrace.temperatureEnvelopeK?.max).toFixed(2)}] K · {st.modelTrace.tieLineCount} tie-lines · validation: Coto RMSD {st.modelTrace.validation?.cotoRmsd} (tol {st.modelTrace.validation?.cotoTolerance}), LOTO {st.modelTrace.validation?.lotoPass ? "passed" : "failed"} · parameter artifact {st.modelTrace.parameterArtifact}
+                        </p>
+                        <p className="text-[11px] text-blue-700 mt-0.5">DI/POLY temperature slopes are a bounded assumption (b<sub>ij</sub> ≡ 0) — result Pending Validation.</p>
+                      </div>
+                    )}
+                    {lle?.temperatureModelGap && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                        <p className="text-xs font-semibold text-red-800">{lle.temperatureModelGap.limit}</p>
+                        <p className="text-[11px] text-red-700 mt-0.5">{lle.temperatureModelGap.detail}</p>
+                      </div>
+                    )}
+                    {st?.temperatureStatement && (
+                      <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded">
+                        <p className="text-[11px] text-amber-800 font-medium">{st.temperatureStatement}</p>
+                      </div>
+                    )}
+                    {lle?.limitExceeded && (
+                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                        <p className="text-xs font-semibold text-red-800">{lle.limitExceeded.limit}</p>
+                        <p className="text-[11px] text-red-700 mt-0.5">{lle.limitExceeded.detail}</p>
+                      </div>
+                    )}
+                    {lle?.feedStageNote && <p className="text-[11px] text-gray-500 mt-1">{lle.feedStageNote}</p>}
+                    {Array.isArray(lle?.stageTrace) && lle.stageTrace.length > 0 && (
+                      <div className="mt-2 overflow-x-auto">
+                        <p className="text-xs font-semibold text-gray-700 mb-1">Stage-by-stage trace (from raffinate end, molar basis R_N = 100)</p>
+                        <table className="text-[11px] font-mono border-collapse">
+                          <thead>
+                            <tr className="text-gray-500">
+                              <th className="border px-1.5 py-0.5">Stage</th>
+                              <th className="border px-1.5 py-0.5">R out (mol)</th>
+                              <th className="border px-1.5 py-0.5">x out [C12, Ar-mono, Ar-di, Ar-poly, NMP]</th>
+                              <th className="border px-1.5 py-0.5">E out (mol)</th>
+                              <th className="border px-1.5 py-0.5">Passing R (mol)</th>
+                              <th className="border px-1.5 py-0.5">Aromatics passing</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {lle.stageTrace.map((t: any, i: number) => (
+                              <tr key={i} className="text-gray-700">
+                                <td className="border px-1.5 py-0.5">{t.stageFromRaffinateEnd}</td>
+                                <td className="border px-1.5 py-0.5">{t.raffinateLeaving?.flow_mol}</td>
+                                <td className="border px-1.5 py-0.5">[{(t.raffinateLeaving?.x ?? []).join(", ")}]</td>
+                                <td className="border px-1.5 py-0.5">{t.extractLeaving?.flow_mol}</td>
+                                <td className="border px-1.5 py-0.5">{t.passingRaffinateFromAbove?.flow_mol}</td>
+                                <td className="border px-1.5 py-0.5">{t.aromaticsInPassingStream}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    {lle?.citation && <p className="text-[10px] text-gray-400 mt-2">Dataset: {lle.datasetId} v{lle.datasetVersion} · {lle.citation}</p>}
+                  </div>
+                );
+              })()}
               {missingInputs.length > 0 && (
                 <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                   <p className="text-xs font-semibold text-amber-800 mb-1">Missing validation inputs (component balance is Pending Validation — no values assumed):</p>
@@ -2321,7 +2467,8 @@ export default function DesignSoftwareWorkspacePage() {
     const hd = d("hydraulic_design");
     const f = field("hydraulic_design");
     const s = save("hydraulic_design");
-    const hydRun = runs.find(r => r.calculation_type === "hydraulics_common" && r.calculation_status === "success");
+    const hydRun = runs.filter(r => r.calculation_type === "hydraulics_common" && (r.calculation_status === "success" || r.calculation_status === "warning"))
+      .sort((a, b) => new Date(b.calculated_at ?? 0).getTime() - new Date(a.calculated_at ?? 0).getTime())[0];
     // Total Volumetric Flow — binding only: Feed Flow + Normal Solvent Flow
     // (both already established in Design Basis / Process Design).
     const dbx = d("design_basis");
@@ -2400,6 +2547,129 @@ export default function DesignSoftwareWorkspacePage() {
           )}
         </SectionCard>
 
+        <SectionCard title="Pressure Drop Basis — Duss 2013 / Zogg (Controlled Literature)">
+          <p className="text-[12px] text-gray-500 mb-3 leading-relaxed">
+            Single-phase frictional ΔP/Δz using the Duss 2013 / Zogg framework
+            (EQ3–EQ6: d<sub>h</sub> = 4/a; Re = u<sub>s</sub>·ρ·d<sub>h</sub>/η; F<sub>v</sub> = u<sub>s</sub>·√ρ; ΔP/Δz = c<sub>f</sub>·ρ·u<sub>s</sub>²/2d<sub>h</sub>).
+            All results are classified: <span className="font-medium text-amber-700">Controlled Literature Prediction — Preliminary / Pending RRBO-NMP Validation</span>.
+            Providing vendor data below supersedes the literature result without deleting it.
+          </p>
+
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5">
+            <label className="text-sm text-gray-700 font-medium pt-1.5">Source Type (packing geometry)</label>
+            <select
+              value={hd.packing_specific_surface_source_type ?? "Literature"}
+              onChange={e => commitSection("hydraulic_design", { packing_specific_surface_source_type: e.target.value })}
+              disabled={isFrozen}
+              className="h-8 text-sm border rounded-md px-2 bg-white"
+            >
+              <option value="Literature">Literature</option>
+              <option value="Vendor">Vendor</option>
+              <option value="Measured">Measured</option>
+              <option value="Assumed">Assumed</option>
+            </select>
+            <span />
+          </div>
+          <FieldRow
+            label="Packing Specific Surface Area"
+            value={hd.packing_specific_surface_value ?? "250"}
+            onChange={v => f("packing_specific_surface_value", v)}
+            onBlur={s}
+            unit="m²/m³"
+            placeholder="250"
+          />
+          <FieldRow
+            label="Specific Surface Source Reference"
+            value={hd.packing_specific_surface_source_ref ?? "Duss 2013 Table 2 / Zogg 1972 ETH Diss. Nr. 4886 — Sulzer Mellapak 250.Y class (nominal)"}
+            onChange={v => f("packing_specific_surface_source_ref", v)}
+            onBlur={s}
+            unit=""
+            placeholder="e.g. Sulzer Mellapak 250.Y data sheet, rev. 2019"
+          />
+          {statusLine("d_h = 4/a (DUSS2013-EQ3, Zogg definition) · Default 250 m²/m³ matches Duss 2013 Table 2-A. Update when vendor datasheet confirms actual surface.")}
+
+          <FieldRow
+            label="Corrugation Angle"
+            value={hd.packing_corrugation_angle_value ?? "45"}
+            onChange={v => f("packing_corrugation_angle_value", v)}
+            onBlur={s}
+            unit="°"
+            placeholder="45"
+          />
+          <FieldRow
+            label="Corrugation Angle Source Reference"
+            value={hd.packing_corrugation_angle_source_ref ?? "Duss 2013 §\"Interpretation of Results\" / Zogg 1972 ETH Diss. Nr. 4886"}
+            onChange={v => f("packing_corrugation_angle_source_ref", v)}
+            onBlur={s}
+            unit=""
+            placeholder="Vendor data sheet / Zogg 1972"
+          />
+          {statusLine("45° → Table 2-A (Y-type, Re 143–7144) · 30° → Table 2-B (X-type, Re 71–3572) · Other angles: no governed dataset (provide vendor override).")}
+
+          <div className="border-t border-gray-100 pt-3 mt-1">
+            <p className="text-[12px] font-medium text-gray-600 mb-1.5">
+              Friction Factor c<sub>f</sub> — Auto-Calculated (Governed Dataset)
+            </p>
+            {(() => {
+              const angRaw = (hd.packing_corrugation_angle_value ?? "45").trim();
+              const ang = Number(angRaw);
+              const is45 = ang === 45 || angRaw === "";
+              const is30 = ang === 30;
+              const dataset = is45
+                ? { label: "45° Y-type (Table 2-A)", points: 11, reMin: 143, reMax: 7144, reCrit: 250 }
+                : is30
+                  ? { label: "30° X-type (Table 2-B)", points: 11, reMin: 71, reMax: 3572, reCrit: 450 }
+                  : null;
+              return (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-[11px] text-blue-800 space-y-1.5">
+                  <p className="font-semibold text-blue-900">c<sub>f</sub> is not user-entered — it is computed automatically at each operating Re using the Duss 2013 Table 2 governed dataset.</p>
+                  {dataset ? (
+                    <>
+                      <p><span className="font-medium">Active dataset:</span> Duss 2013 Table 2, {dataset.label} — {dataset.points} points, Re {dataset.reMin}–{dataset.reMax}, Re<sub>crit</sub> = {dataset.reCrit}</p>
+                      <p><span className="font-medium">Method:</span> Piecewise linear interpolation within the published range.</p>
+                      <p><span className="font-medium">Below Re = {dataset.reMin}:</span> "Outside Tabulated Range." Boundary minimum ΔP estimate provided using c<sub>f</sub> at Re<sub>min</sub> — <span className="font-semibold text-amber-800">NOT design ΔP</span>; do not use for sizing.</p>
+                      <p><span className="font-medium">Above Re = {dataset.reMax}:</span> "Outside Tabulated Range." No estimate.</p>
+                    </>
+                  ) : (
+                    <p className="text-amber-800 font-medium">No governed dataset for φ = {angRaw}°. Only 45° (Y-type) and 30° (X-type) are supported. Change the corrugation angle or provide a vendor override.</p>
+                  )}
+                  <p><span className="font-medium">Sources:</span> Duss 2013 (AIChE Spring Meeting, San Antonio, April 2013, Table 2) / Zogg 1972 (ETH Diss. Nr. 4886). Sulcol V3.0.8 values reproduced in the published paper — treated as controlled-literature tabulated data.</p>
+                  <p><span className="font-medium">Provenance:</span> Controlled Literature — auto-calculated, not user-entered. Vendor-software outputs (Sulcol, DRP, etc.) are prohibited as direct design inputs.</p>
+                </div>
+              );
+            })()}
+          </div>
+
+          <div className="border-t border-gray-100 pt-3 mt-1">
+            <p className="text-[12px] font-medium text-gray-600 mb-1.5">Vendor Pressure Drop Override (optional)</p>
+            <p className="text-[11px] text-gray-400 mb-2">
+              When entered, the vendor value supersedes the controlled-literature result as the active ΔP/Δz for this diameter.
+              The literature calculation is retained alongside for comparison.
+            </p>
+          </div>
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5">
+            <label className="text-sm text-gray-700 font-medium pt-1.5">Vendor ΔP Source Type</label>
+            <select
+              value={hd.vendor_dp_source_type ?? "Vendor"}
+              onChange={e => commitSection("hydraulic_design", { vendor_dp_source_type: e.target.value })}
+              disabled={isFrozen}
+              className="h-8 text-sm border rounded-md px-2 bg-white"
+            >
+              <option value="Vendor">Vendor</option>
+              <option value="Measured">Measured</option>
+              <option value="Literature">Literature</option>
+            </select>
+            <span />
+          </div>
+          <FieldRow label="Vendor ΔP/Δz (constant)" value={hd.vendor_dp_value ?? ""} onChange={v => f("vendor_dp_value", v)} onBlur={s} unit="Pa/m" placeholder="Leave blank to use literature basis — enter to activate vendor override" />
+          <FieldRow label="Vendor ΔP Source Reference" value={hd.vendor_dp_source_ref ?? ""} onChange={v => f("vendor_dp_source_ref", v)} onBlur={s} unit="" placeholder="Vendor tech document / test report reference" />
+          {statusLine(
+            (hd.vendor_dp_value ?? "").trim() !== ""
+              ? `Status: Vendor override active — ΔP/Δz = ${hd.vendor_dp_value} Pa/m will supersede the literature result; literature retained for comparison`
+              : "Status: No vendor override — controlled-literature basis will be used"
+          )}
+        </SectionCard>
+
         <div className="flex items-center gap-3 mb-4">
           <Button
             size="sm"
@@ -2414,23 +2684,205 @@ export default function DesignSoftwareWorkspacePage() {
         </div>
 
         <SectionCard title="Hydraulic Calculation Results">
-          <div className="grid grid-cols-2 gap-3">
-            <CalcResultCard label="Column Diameter" formula="D = √(4Q / π·u_f·FM)" unit="m" reference="Thornton (1956)" engineVersion={hydRun?.engine_version} />
-            <CalcResultCard label="Cross-Sectional Area" formula="A = π·D²/4" unit="m²" reference="Geometry" engineVersion={hydRun?.engine_version} />
-            <CalcResultCard label="Superficial Velocity (cont.)" formula="u_c = Q_c / A" unit="m/s" reference="Definition" engineVersion={hydRun?.engine_version} />
-            <CalcResultCard label="Superficial Velocity (disp.)" formula="u_d = Q_d / A" unit="m/s" reference="Definition" engineVersion={hydRun?.engine_version} />
-            <CalcResultCard label="Droplet Diameter" formula="d = C·σ^0.5 / (Δρ·g)^0.5" unit="mm" reference="Lapidus & Elgin" engineVersion={hydRun?.engine_version} />
-            <CalcResultCard label="Terminal Velocity" formula="u_t = √(4·d·Δρ·g / 3·C_D·ρ_c)" unit="m/s" reference="Stokes / Intermediate" engineVersion={hydRun?.engine_version} />
-            <CalcResultCard label="Reynolds Number" formula="Re = ρ_c·u_t·d / μ_c" unit="—" reference="Dimensionless" engineVersion={hydRun?.engine_version} />
-            <CalcResultCard label="Weber Number" formula="We = ρ_c·u_t²·d / σ" unit="—" reference="Dimensionless" engineVersion={hydRun?.engine_version} />
-            <CalcResultCard label="Froude Number" formula="Fr = u_t / √(g·d)" unit="—" reference="Dimensionless" engineVersion={hydRun?.engine_version} />
-            <CalcResultCard label="Drag Coefficient" formula="C_D = 24/Re + 6/(1+√Re) + 0.4" unit="—" reference="Schiller-Naumann" engineVersion={hydRun?.engine_version} />
-            <CalcResultCard label="Operating Holdup" formula="φ = u_d / (u_d + u_c·(1-φ)^n)" unit="—" reference="Seader & Henley" engineVersion={hydRun?.engine_version} />
-            <CalcResultCard label="Flooding Velocity" formula="u_f = u_t·(1-φ_f)^n" unit="m/s" reference="Thornton (1956)" engineVersion={hydRun?.engine_version} />
-            <CalcResultCard label="Flooding Margin" formula="FM = (u_c+u_d) / u_f × 100" unit="%" reference="Design criterion < 80 %" engineVersion={hydRun?.engine_version} />
-            <CalcResultCard label="Interfacial Area" formula="a = 6·φ / d" unit="m²/m³" reference="Bubble/drop model" engineVersion={hydRun?.engine_version} />
-          </div>
-          {!hydRun && <p className="text-xs text-gray-400 italic mt-2">Run hydraulics calculation to populate results</p>}
+          {!hydRun ? (
+            <p className="text-xs text-gray-400 italic">Run Common Hydraulics to see results</p>
+          ) : (() => {
+            const tv   = hydResData?.terminalVelocityScreening;
+            const db2  = hydResData?.designBasis;
+            const normSum = hydResData?.normalCase?.summary;
+            const maxSum  = hydResData?.maximumCase?.summary;
+            const normDiams: any[] = hydResData?.normalCase?.diameters ?? [];
+            const maxDiams:  any[] = hydResData?.maximumCase?.diameters ?? [];
+            const n4 = (v: any) => typeof v === "number" ? v.toFixed(4) : "—";
+            const n3 = (v: any) => typeof v === "number" ? v.toFixed(3) : "—";
+            const n2 = (v: any) => typeof v === "number" ? v.toFixed(2) : "—";
+            const feasLabel: Record<string,string> = {
+              within_screening_band:        "✅ Within band",
+              above_screening_band:         "⚠ Above band",
+              below_minimum_loading_band:   "↓ Below band",
+              hydraulically_infeasible:     "✗ Infeasible",
+              pending_validation:           "— Pending",
+            };
+            const bandRow = (label: string, summary: any) => {
+              if (!summary) return null;
+              const band = summary.screeningBandDiameterRange_m;
+              return (
+                <div className="flex items-center gap-4 py-1">
+                  <span className="text-xs text-gray-500 w-28 shrink-0">{label}</span>
+                  <span className="text-xs font-medium text-gray-800">
+                    Min feasible: <span className="font-mono text-blue-700">{n3(summary.minimumFeasibleDiameter_m)} m</span>
+                    {band && <span className="ml-3">Screening band: <span className="font-mono text-green-700">{n3(band.min)}–{n3(band.max)} m</span></span>}
+                  </span>
+                </div>
+              );
+            };
+            // Build per-diameter table rows for key diameters (feasible region)
+            const keyDiams = normDiams.filter((r: any) => {
+              const pct = r.percentageOfGenericHydraulicThroughputMaximum;
+              return typeof pct === "number" && pct <= 110;
+            });
+            const maxKeyDiams = maxDiams.filter((r: any) => {
+              const pct = r.percentageOfGenericHydraulicThroughputMaximum;
+              return typeof pct === "number" && pct <= 110;
+            });
+            return (
+              <div className="space-y-4">
+                {/* Terminal velocity */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Terminal Velocity Screening (rigid-sphere, RRBO drop in NMP)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <CalcResultCard label="Sauter Mean Diameter d₃₂" formula="Engineer-entered (Assumed)" unit="m" reference="Thermopac Preliminary Screening Default"
+                      result={db2?.sauterMeanDiameter?.value} engineVersion={hydRun?.engine_version} />
+                    <CalcResultCard label="Terminal Velocity u_T" formula="u_T = √(4·d₃₂·Δρ·g / 3·C_D·ρ_c)" unit="m/s" reference="Iterative Cd/Re balance"
+                      result={typeof tv?.velocity_m_s === "number" ? Number(tv.velocity_m_s.toFixed(5)) : undefined} engineVersion={hydRun?.engine_version} />
+                    <CalcResultCard label="Reynolds Number Re_T" formula="Re = ρ_c·u_T·d₃₂ / μ_c" unit="—" reference="Dimensionless"
+                      result={typeof tv?.reynolds === "number" ? Number(tv.reynolds.toFixed(2)) : undefined} engineVersion={hydRun?.engine_version} />
+                    <CalcResultCard label="Drag Coefficient C_D" formula="C_D·Re² = (4/3)·d₃₂³·ρ_c·Δρ·g / μ_c²" unit="—" reference="Schiller-Naumann (intermediate)"
+                      result={typeof tv?.dragCoefficient === "number" ? Number(tv.dragCoefficient.toFixed(4)) : undefined} engineVersion={hydRun?.engine_version} />
+                    <CalcResultCard label="Flow Regime" formula="Re < 2 → Stokes; Re < 500 → Intermediate; else Turbulent" unit="" reference="Regime classification"
+                      result={tv?.regime ?? undefined} engineVersion={hydRun?.engine_version} />
+                    <CalcResultCard label="Density Difference Δρ" formula="Δρ = |ρ_NMP − ρ_RRBO|" unit="kg/m³" reference="Buoyancy driver"
+                      result={typeof db2?.densityDifference_kg_m3 === "number" ? Number(db2.densityDifference_kg_m3.toFixed(3)) : undefined} engineVersion={hydRun?.engine_version} />
+                  </div>
+                  <p className="text-[10px] text-amber-600 mt-1 px-1">⚠ Rigid-sphere screening only — NOT a validated liquid-drop terminal velocity. All holdup results are Pending Validation.</p>
+                </div>
+
+                {/* Characteristic velocity & slip model */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Characteristic Velocity & Slip Model</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <CalcResultCard label="Characteristic Velocity u_K" formula="u_K = u_T (engineer option: useTerminalVelocityAsCharacteristic)" unit="m/s" reference="PROVISIONAL — requires experimental validation"
+                      result={typeof db2?.characteristicVelocity?.value_m_s === "number" ? Number(db2.characteristicVelocity.value_m_s.toFixed(5)) : undefined} engineVersion={hydRun?.engine_version} />
+                    <CalcResultCard label="Hindrance Exponent n" formula="u_slip = u_K·(1−φ)^n" unit="—" reference="Assumed n=1 (Thermopac screening default)"
+                      result={typeof hydResData?.designBasis?.hindranceExponent?.value === "number" ? hydResData.designBasis.hindranceExponent.value : undefined} engineVersion={hydRun?.engine_version} />
+                    <CalcResultCard label="Flow Ratio R (normal)" formula="R = u_NMP / u_RRBO = q_NMP / q_RRBO" unit="—" reference="Counter-current flow basis"
+                      result={(() => { const rows = normDiams; if (!rows.length) return undefined; const r0 = rows[0]?.flowRatio?.value; return typeof r0 === "number" ? Number(r0.toFixed(4)) : undefined; })()} engineVersion={hydRun?.engine_version} />
+                    <CalcResultCard label="Flow Ratio R (maximum)" formula="R_max = R_normal × maxCirculationFactor" unit="—" reference="Counter-current flow basis"
+                      result={(() => { const rows = maxDiams; if (!rows.length) return undefined; const r0 = rows[0]?.flowRatio?.value; return typeof r0 === "number" ? Number(r0.toFixed(4)) : undefined; })()} engineVersion={hydRun?.engine_version} />
+                  </div>
+                </div>
+
+                {/* Case summaries */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Diameter Sweep Summary (0.30–2.00 m, step 0.05 m)</p>
+                  <div className="bg-gray-50 rounded border px-3 py-2 space-y-1">
+                    {bandRow("Normal case", normSum)}
+                    {bandRow("Maximum case", maxSum)}
+                    {normSum?.withinScreeningBandDiameters_m?.length > 0 && (
+                      <div className="flex items-start gap-4 py-1">
+                        <span className="text-xs text-gray-500 w-28 shrink-0">Within band (normal)</span>
+                        <span className="text-xs font-mono text-green-700">{(normSum.withinScreeningBandDiameters_m as number[]).map(d => `${d} m`).join("  ·  ")}</span>
+                      </div>
+                    )}
+                    {normSum?.hydraulicallyInfeasibleDiameters_m?.length > 0 && (
+                      <div className="flex items-start gap-4 py-1">
+                        <span className="text-xs text-gray-500 w-28 shrink-0">Infeasible (normal)</span>
+                        <span className="text-xs font-mono text-red-600">{(normSum.hydraulicallyInfeasibleDiameters_m as number[]).map(d => `${d} m`).join("  ·  ")}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Normal case per-diameter table */}
+                {keyDiams.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Normal Case — Per-Diameter Results</p>
+                    <div className="overflow-x-auto">
+                      <table className="text-xs w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100 text-gray-600">
+                            <th className="text-left px-2 py-1 border border-gray-200">D (m)</th>
+                            <th className="text-right px-2 py-1 border border-gray-200">% of Max</th>
+                            <th className="text-left px-2 py-1 border border-gray-200">Feasibility</th>
+                            <th className="text-right px-2 py-1 border border-gray-200">φ_op</th>
+                            <th className="text-right px-2 py-1 border border-gray-200">Re</th>
+                            <th className="text-right px-2 py-1 border border-gray-200">ΔP/Δz (Pa/m)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {keyDiams.map((row: any) => {
+                            const feas: string = row.genericHydraulicFeasibility ?? "";
+                            const pct: number | null = typeof row.percentageOfGenericHydraulicThroughputMaximum === "number" ? row.percentageOfGenericHydraulicThroughputMaximum : null;
+                            const phi: number | null = row.holdup?.operatingHoldup ?? null;
+                            const litPd = row.pressureDropPrediction?.literature;
+                            const re: number | null = litPd?.phaseReynolds ?? null;
+                            const dpPm: number | null = litPd?.pressureDropPerMeter_Pa_m ?? null;
+                            const dpMin: number | null = litPd?.pressureDropBoundaryMinimumEstimate?.pressureDropPerMeter_Pa_m ?? null;
+                            const isWithin = feas === "within_screening_band";
+                            const isAbove  = feas === "above_screening_band";
+                            return (
+                              <tr key={row.diameter_m}
+                                className={isWithin ? "bg-green-50" : isAbove ? "bg-amber-50" : feas === "hydraulically_infeasible" ? "bg-red-50" : ""}>
+                                <td className="font-mono px-2 py-1 border border-gray-200 font-semibold">{n3(row.diameter_m)}</td>
+                                <td className="font-mono text-right px-2 py-1 border border-gray-200">{n2(pct)}%</td>
+                                <td className="px-2 py-1 border border-gray-200">{feasLabel[feas] ?? feas}</td>
+                                <td className="font-mono text-right px-2 py-1 border border-gray-200">{phi != null ? n4(phi) : "—"}</td>
+                                <td className="font-mono text-right px-2 py-1 border border-gray-200">{re != null ? n2(re) : "—"}</td>
+                                <td className="font-mono text-right px-2 py-1 border border-gray-200">
+                                  {dpPm != null ? n3(dpPm) : dpMin != null ? <span className="text-amber-600" title="Boundary minimum — NOT design ΔP">≥{n3(dpMin)}*</span> : <span className="text-gray-400">— (below Re range)</span>}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                      <p className="text-[10px] text-gray-400 mt-1">* Boundary minimum ΔP estimate using c_f at Re_min=143 — NOT design ΔP; actual c_f is higher (Zogg 1972). Re range for Duss 2013 Table 2-A: 143–7144.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Maximum case per-diameter table */}
+                {maxKeyDiams.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Maximum Case — Per-Diameter Results</p>
+                    <div className="overflow-x-auto">
+                      <table className="text-xs w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100 text-gray-600">
+                            <th className="text-left px-2 py-1 border border-gray-200">D (m)</th>
+                            <th className="text-right px-2 py-1 border border-gray-200">% of Max</th>
+                            <th className="text-left px-2 py-1 border border-gray-200">Feasibility</th>
+                            <th className="text-right px-2 py-1 border border-gray-200">φ_op</th>
+                            <th className="text-right px-2 py-1 border border-gray-200">Re</th>
+                            <th className="text-right px-2 py-1 border border-gray-200">ΔP/Δz (Pa/m)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {maxKeyDiams.map((row: any) => {
+                            const feas: string = row.genericHydraulicFeasibility ?? "";
+                            const pct: number | null = typeof row.percentageOfGenericHydraulicThroughputMaximum === "number" ? row.percentageOfGenericHydraulicThroughputMaximum : null;
+                            const phi: number | null = row.holdup?.operatingHoldup ?? null;
+                            const litPd = row.pressureDropPrediction?.literature;
+                            const re: number | null = litPd?.phaseReynolds ?? null;
+                            const dpPm: number | null = litPd?.pressureDropPerMeter_Pa_m ?? null;
+                            const dpMin: number | null = litPd?.pressureDropBoundaryMinimumEstimate?.pressureDropPerMeter_Pa_m ?? null;
+                            const isWithin = feas === "within_screening_band";
+                            const isAbove  = feas === "above_screening_band";
+                            return (
+                              <tr key={row.diameter_m}
+                                className={isWithin ? "bg-green-50" : isAbove ? "bg-amber-50" : feas === "hydraulically_infeasible" ? "bg-red-50" : ""}>
+                                <td className="font-mono px-2 py-1 border border-gray-200 font-semibold">{n3(row.diameter_m)}</td>
+                                <td className="font-mono text-right px-2 py-1 border border-gray-200">{n2(pct)}%</td>
+                                <td className="px-2 py-1 border border-gray-200">{feasLabel[feas] ?? feas}</td>
+                                <td className="font-mono text-right px-2 py-1 border border-gray-200">{phi != null ? n4(phi) : "—"}</td>
+                                <td className="font-mono text-right px-2 py-1 border border-gray-200">{re != null ? n2(re) : "—"}</td>
+                                <td className="font-mono text-right px-2 py-1 border border-gray-200">
+                                  {dpPm != null ? n3(dpPm) : dpMin != null ? <span className="text-amber-600" title="Boundary minimum — NOT design ΔP">≥{n3(dpMin)}*</span> : <span className="text-gray-400">— (below Re range)</span>}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                      <p className="text-[10px] text-gray-400 mt-1">* Boundary minimum ΔP estimate — NOT design ΔP. * At D=0.55 m maximum case, Re=144.9 is within the governed range → direct c_f interpolation available.</p>
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-[10px] text-gray-400">Engine v{hydRun?.engine_version} · Run: {new Date(hydRun?.calculated_at ?? 0).toLocaleString()} · Status: {hydRun?.calculation_status}</p>
+              </div>
+            );
+          })()}
         </SectionCard>
       </div>
     );

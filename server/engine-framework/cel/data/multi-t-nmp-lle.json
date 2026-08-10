@@ -1,0 +1,4399 @@
+{
+ "citation": {
+  "fahim2005": "Fahim et al., Fluid Phase Equilib. 231 (2005) 163-170 (NIST ThermoML 10.1016/j.fluid.2005.01.012)",
+  "fandary2006": "Fandary et al., J. Chem. Thermodyn. 38 (2006) 455-460 (NIST ThermoML 10.1016/j.jct.2005.06.012)",
+  "aljimaz2006": "Aljimaz et al., J. Chem. Eng. Data 51 (2006) 1026-1030 (NIST ThermoML 10.1021/je050513r)"
+ },
+ "classMap": {
+  "dodecane": "SAT",
+  "tetradecane": "SAT",
+  "heptadecane": "SAT",
+  "hexadecane": "SAT",
+  "propylbenzene": "MONO",
+  "pentylbenzene": "MONO",
+  "1,3,5-trimethylbenzene": "MONO",
+  "N-methylpyrrolidone": "NMP"
+ },
+ "tieLines": [
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "MONO": 0,
+    "SAT": 0.8132,
+    "NMP": 0.1868
+   },
+   "extract": {
+    "SAT": 0.0466,
+    "MONO": 0,
+    "NMP": 0.9534
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0001
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "MONO": 0.0493,
+    "SAT": 0.7334,
+    "NMP": 0.2173
+   },
+   "extract": {
+    "SAT": 0.0505,
+    "MONO": 0.0298,
+    "NMP": 0.9197
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0062
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "MONO": 0.0841,
+    "SAT": 0.6951,
+    "NMP": 0.2208
+   },
+   "extract": {
+    "SAT": 0.0569,
+    "MONO": 0.0527,
+    "NMP": 0.8904
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0105
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "MONO": 0.1249,
+    "SAT": 0.6375,
+    "NMP": 0.2376
+   },
+   "extract": {
+    "SAT": 0.0699,
+    "MONO": 0.0833,
+    "NMP": 0.8468
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0156
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "MONO": 0.1428,
+    "SAT": 0.6068,
+    "NMP": 0.2504
+   },
+   "extract": {
+    "SAT": 0.0745,
+    "MONO": 0.0984,
+    "NMP": 0.8271
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0178
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "MONO": 0.1638,
+    "SAT": 0.5732,
+    "NMP": 0.263
+   },
+   "extract": {
+    "SAT": 0.0848,
+    "MONO": 0.1176,
+    "NMP": 0.7976
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0204
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "MONO": 0.178,
+    "SAT": 0.5471,
+    "NMP": 0.2749
+   },
+   "extract": {
+    "SAT": 0.1011,
+    "MONO": 0.1319,
+    "NMP": 0.767
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0222
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "MONO": 0.1972,
+    "SAT": 0.5044,
+    "NMP": 0.2984
+   },
+   "extract": {
+    "SAT": 0.1173,
+    "MONO": 0.1521,
+    "NMP": 0.7306
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0245
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0,
+    "SAT": 0.7798,
+    "NMP": 0.2202
+   },
+   "extract": {
+    "SAT": 0.0494,
+    "MONO": 0,
+    "NMP": 0.9506
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0001
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0.0418,
+    "SAT": 0.7132,
+    "NMP": 0.245
+   },
+   "extract": {
+    "SAT": 0.0589,
+    "MONO": 0.0277,
+    "NMP": 0.9134
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0053
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0.0781,
+    "SAT": 0.6407,
+    "NMP": 0.2812
+   },
+   "extract": {
+    "SAT": 0.0705,
+    "MONO": 0.0554,
+    "NMP": 0.8741
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0097
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0.1097,
+    "SAT": 0.5815,
+    "NMP": 0.3088
+   },
+   "extract": {
+    "SAT": 0.0846,
+    "MONO": 0.0832,
+    "NMP": 0.8322
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0136
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0.1306,
+    "SAT": 0.5388,
+    "NMP": 0.3306
+   },
+   "extract": {
+    "SAT": 0.0975,
+    "MONO": 0.104,
+    "NMP": 0.7985
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0162
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0.1415,
+    "SAT": 0.5149,
+    "NMP": 0.3436
+   },
+   "extract": {
+    "SAT": 0.1059,
+    "MONO": 0.1158,
+    "NMP": 0.7783
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0176
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0.1578,
+    "SAT": 0.4759,
+    "NMP": 0.3663
+   },
+   "extract": {
+    "SAT": 0.1217,
+    "MONO": 0.1348,
+    "NMP": 0.7435
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0196
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0.1657,
+    "SAT": 0.4553,
+    "NMP": 0.379
+   },
+   "extract": {
+    "SAT": 0.1314,
+    "MONO": 0.1445,
+    "NMP": 0.7241
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0206
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0,
+    "SAT": 0.7393,
+    "NMP": 0.2607
+   },
+   "extract": {
+    "SAT": 0.0855,
+    "MONO": 0,
+    "NMP": 0.9145
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0001
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0.0399,
+    "SAT": 0.6984,
+    "NMP": 0.2617
+   },
+   "extract": {
+    "SAT": 0.0882,
+    "MONO": 0.0284,
+    "NMP": 0.8834
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0057
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0.0769,
+    "SAT": 0.6416,
+    "NMP": 0.2815
+   },
+   "extract": {
+    "SAT": 0.1131,
+    "MONO": 0.0586,
+    "NMP": 0.8283
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0096
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0.0943,
+    "SAT": 0.5961,
+    "NMP": 0.3096
+   },
+   "extract": {
+    "SAT": 0.1316,
+    "MONO": 0.0754,
+    "NMP": 0.793
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0118
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0.1295,
+    "SAT": 0.5198,
+    "NMP": 0.3507
+   },
+   "extract": {
+    "SAT": 0.1861,
+    "MONO": 0.1136,
+    "NMP": 0.7003
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0161
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0.1365,
+    "SAT": 0.4774,
+    "NMP": 0.3861
+   },
+   "extract": {
+    "SAT": 0.2163,
+    "MONO": 0.1239,
+    "NMP": 0.6598
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.017
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0.1605,
+    "SAT": 0.3344,
+    "NMP": 0.5051
+   },
+   "extract": {
+    "SAT": 0.3176,
+    "MONO": 0.1586,
+    "NMP": 0.5238
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.02
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "MONO": 0,
+    "SAT": 0.6526,
+    "NMP": 0.3474
+   },
+   "extract": {
+    "SAT": 0.0925,
+    "MONO": 0,
+    "NMP": 0.9075
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0001
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "MONO": 0.0408,
+    "SAT": 0.5767,
+    "NMP": 0.3825
+   },
+   "extract": {
+    "SAT": 0.1117,
+    "MONO": 0.0293,
+    "NMP": 0.859
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0057
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "MONO": 0.0665,
+    "SAT": 0.5237,
+    "NMP": 0.4098
+   },
+   "extract": {
+    "SAT": 0.1296,
+    "MONO": 0.0617,
+    "NMP": 0.8087
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0086
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "MONO": 0.0865,
+    "SAT": 0.4726,
+    "NMP": 0.4409
+   },
+   "extract": {
+    "SAT": 0.1534,
+    "MONO": 0.0829,
+    "NMP": 0.7637
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0109
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "MONO": 0.1023,
+    "SAT": 0.3871,
+    "NMP": 0.5106
+   },
+   "extract": {
+    "SAT": 0.213,
+    "MONO": 0.0997,
+    "NMP": 0.6873
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "dodecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0128
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 289,
+   "raffinate": {
+    "MONO": 0,
+    "SAT": 0.8185,
+    "NMP": 0.1815
+   },
+   "extract": {
+    "SAT": 0.0211,
+    "MONO": 0,
+    "NMP": 0.9789
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0001
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 289,
+   "raffinate": {
+    "MONO": 0.0348,
+    "SAT": 0.7722,
+    "NMP": 0.193
+   },
+   "extract": {
+    "SAT": 0.0258,
+    "MONO": 0.0189,
+    "NMP": 0.9553
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0043
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 289,
+   "raffinate": {
+    "MONO": 0.0732,
+    "SAT": 0.7213,
+    "NMP": 0.2055
+   },
+   "extract": {
+    "SAT": 0.0305,
+    "MONO": 0.0423,
+    "NMP": 0.9272
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0091
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 289,
+   "raffinate": {
+    "MONO": 0.1139,
+    "SAT": 0.6625,
+    "NMP": 0.2236
+   },
+   "extract": {
+    "SAT": 0.0368,
+    "MONO": 0.0705,
+    "NMP": 0.8927
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0141
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 289,
+   "raffinate": {
+    "MONO": 0.1448,
+    "SAT": 0.6186,
+    "NMP": 0.2366
+   },
+   "extract": {
+    "SAT": 0.0427,
+    "MONO": 0.0948,
+    "NMP": 0.8625
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.018
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 289,
+   "raffinate": {
+    "MONO": 0.1703,
+    "SAT": 0.579,
+    "NMP": 0.2507
+   },
+   "extract": {
+    "SAT": 0.0496,
+    "MONO": 0.1162,
+    "NMP": 0.8342
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0211
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 289,
+   "raffinate": {
+    "MONO": 0.1863,
+    "SAT": 0.5526,
+    "NMP": 0.2611
+   },
+   "extract": {
+    "SAT": 0.0549,
+    "MONO": 0.1304,
+    "NMP": 0.8147
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0231
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 289,
+   "raffinate": {
+    "MONO": 0.2003,
+    "SAT": 0.5204,
+    "NMP": 0.2793
+   },
+   "extract": {
+    "SAT": 0.064,
+    "MONO": 0.1461,
+    "NMP": 0.7899
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0248
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 289,
+   "raffinate": {
+    "MONO": 0.2154,
+    "SAT": 0.5048,
+    "NMP": 0.2798
+   },
+   "extract": {
+    "SAT": 0.0752,
+    "MONO": 0.1654,
+    "NMP": 0.7594
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0267
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 289,
+   "raffinate": {
+    "MONO": 0.2275,
+    "SAT": 0.4885,
+    "NMP": 0.284
+   },
+   "extract": {
+    "SAT": 0.0865,
+    "MONO": 0.1804,
+    "NMP": 0.7331
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0282
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0,
+    "SAT": 0.7898,
+    "NMP": 0.2102
+   },
+   "extract": {
+    "SAT": 0.0218,
+    "MONO": 0,
+    "NMP": 0.9782
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0001
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0.0332,
+    "SAT": 0.7034,
+    "NMP": 0.2634
+   },
+   "extract": {
+    "SAT": 0.0293,
+    "MONO": 0.0206,
+    "NMP": 0.9501
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0047
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0.0657,
+    "SAT": 0.6942,
+    "NMP": 0.2401
+   },
+   "extract": {
+    "SAT": 0.0377,
+    "MONO": 0.0427,
+    "NMP": 0.9196
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0084
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0.0998,
+    "SAT": 0.628,
+    "NMP": 0.2722
+   },
+   "extract": {
+    "SAT": 0.0421,
+    "MONO": 0.0698,
+    "NMP": 0.8881
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0124
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0.1279,
+    "SAT": 0.5749,
+    "NMP": 0.2972
+   },
+   "extract": {
+    "SAT": 0.0511,
+    "MONO": 0.0941,
+    "NMP": 0.8548
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0159
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0.1534,
+    "SAT": 0.5341,
+    "NMP": 0.3125
+   },
+   "extract": {
+    "SAT": 0.0608,
+    "MONO": 0.1166,
+    "NMP": 0.8226
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.019
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0.1669,
+    "SAT": 0.4899,
+    "NMP": 0.3432
+   },
+   "extract": {
+    "SAT": 0.0692,
+    "MONO": 0.1314,
+    "NMP": 0.7994
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0207
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0.1831,
+    "SAT": 0.4488,
+    "NMP": 0.3681
+   },
+   "extract": {
+    "SAT": 0.0802,
+    "MONO": 0.1498,
+    "NMP": 0.77
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0227
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0.1981,
+    "SAT": 0.4075,
+    "NMP": 0.3944
+   },
+   "extract": {
+    "SAT": 0.0885,
+    "MONO": 0.1671,
+    "NMP": 0.7444
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0246
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "MONO": 0.2139,
+    "SAT": 0.3925,
+    "NMP": 0.3936
+   },
+   "extract": {
+    "SAT": 0.1025,
+    "MONO": 0.1865,
+    "NMP": 0.711
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0265
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0,
+    "SAT": 0.7425,
+    "NMP": 0.2575
+   },
+   "extract": {
+    "SAT": 0.0329,
+    "MONO": 0,
+    "NMP": 0.9671
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0001
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0.0314,
+    "SAT": 0.6842,
+    "NMP": 0.2844
+   },
+   "extract": {
+    "SAT": 0.0395,
+    "MONO": 0.0209,
+    "NMP": 0.9396
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0042
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0.0652,
+    "SAT": 0.6439,
+    "NMP": 0.2909
+   },
+   "extract": {
+    "SAT": 0.0496,
+    "MONO": 0.0464,
+    "NMP": 0.904
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0083
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0.0948,
+    "SAT": 0.5979,
+    "NMP": 0.3073
+   },
+   "extract": {
+    "SAT": 0.0589,
+    "MONO": 0.0717,
+    "NMP": 0.8694
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0118
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0.1245,
+    "SAT": 0.5203,
+    "NMP": 0.3552
+   },
+   "extract": {
+    "SAT": 0.0723,
+    "MONO": 0.0921,
+    "NMP": 0.8356
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0155
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0.1388,
+    "SAT": 0.5043,
+    "NMP": 0.3569
+   },
+   "extract": {
+    "SAT": 0.0822,
+    "MONO": 0.1171,
+    "NMP": 0.8007
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0172
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0.1532,
+    "SAT": 0.4844,
+    "NMP": 0.3624
+   },
+   "extract": {
+    "SAT": 0.0927,
+    "MONO": 0.1332,
+    "NMP": 0.7741
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.019
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0.1698,
+    "SAT": 0.4477,
+    "NMP": 0.3825
+   },
+   "extract": {
+    "SAT": 0.1151,
+    "MONO": 0.1563,
+    "NMP": 0.7286
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0211
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0.1793,
+    "SAT": 0.4005,
+    "NMP": 0.4202
+   },
+   "extract": {
+    "SAT": 0.1272,
+    "MONO": 0.1686,
+    "NMP": 0.7042
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0223
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "MONO": 0.1855,
+    "SAT": 0.3805,
+    "NMP": 0.434
+   },
+   "extract": {
+    "SAT": 0.1404,
+    "MONO": 0.1814,
+    "NMP": 0.6782
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.023
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "MONO": 0,
+    "SAT": 0.6366,
+    "NMP": 0.3634
+   },
+   "extract": {
+    "SAT": 0.0541,
+    "MONO": 0,
+    "NMP": 0.9459
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0001
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "MONO": 0.0287,
+    "SAT": 0.6213,
+    "NMP": 0.35
+   },
+   "extract": {
+    "SAT": 0.0573,
+    "MONO": 0.021,
+    "NMP": 0.9217
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0044
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "MONO": 0.0611,
+    "SAT": 0.5696,
+    "NMP": 0.3693
+   },
+   "extract": {
+    "SAT": 0.0711,
+    "MONO": 0.0471,
+    "NMP": 0.8818
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0079
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "MONO": 0.0943,
+    "SAT": 0.5091,
+    "NMP": 0.3966
+   },
+   "extract": {
+    "SAT": 0.0869,
+    "MONO": 0.0781,
+    "NMP": 0.835
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0118
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "MONO": 0.1323,
+    "SAT": 0.4048,
+    "NMP": 0.4629
+   },
+   "extract": {
+    "SAT": 0.1231,
+    "MONO": 0.1185,
+    "NMP": 0.7584
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0165
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "MONO": 0.1439,
+    "SAT": 0.3581,
+    "NMP": 0.498
+   },
+   "extract": {
+    "SAT": 0.1396,
+    "MONO": 0.133,
+    "NMP": 0.7274
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0179
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "MONO": 0.1526,
+    "SAT": 0.329,
+    "NMP": 0.5184
+   },
+   "extract": {
+    "SAT": 0.1624,
+    "MONO": 0.1446,
+    "NMP": 0.693
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.019
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "MONO": 0.1627,
+    "SAT": 0.3102,
+    "NMP": 0.5271
+   },
+   "extract": {
+    "SAT": 0.2182,
+    "MONO": 0.1607,
+    "NMP": 0.6211
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0203
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.9289,
+    "MONO": 0,
+    "NMP": 0.0711
+   },
+   "extract": {
+    "SAT": 0.0121,
+    "MONO": 0,
+    "NMP": 0.9879
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0015
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.8865,
+    "MONO": 0.0381,
+    "NMP": 0.0754
+   },
+   "extract": {
+    "SAT": 0.0143,
+    "MONO": 0.0206,
+    "NMP": 0.9651
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0048
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.8435,
+    "MONO": 0.0801,
+    "NMP": 0.0764
+   },
+   "extract": {
+    "SAT": 0.0169,
+    "MONO": 0.0445,
+    "NMP": 0.9386
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.01
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.8098,
+    "MONO": 0.1084,
+    "NMP": 0.0818
+   },
+   "extract": {
+    "SAT": 0.0212,
+    "MONO": 0.0646,
+    "NMP": 0.9142
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0135
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.7833,
+    "MONO": 0.1374,
+    "NMP": 0.0793
+   },
+   "extract": {
+    "SAT": 0.0229,
+    "MONO": 0.0815,
+    "NMP": 0.8956
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0171
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.7448,
+    "MONO": 0.1624,
+    "NMP": 0.0928
+   },
+   "extract": {
+    "SAT": 0.0267,
+    "MONO": 0.1004,
+    "NMP": 0.8729
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0202
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.7163,
+    "MONO": 0.183,
+    "NMP": 0.1007
+   },
+   "extract": {
+    "SAT": 0.0301,
+    "MONO": 0.1164,
+    "NMP": 0.8535
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0228
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.6983,
+    "MONO": 0.1932,
+    "NMP": 0.1085
+   },
+   "extract": {
+    "SAT": 0.0322,
+    "MONO": 0.1261,
+    "NMP": 0.8417
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.024
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.6739,
+    "MONO": 0.2065,
+    "NMP": 0.1196
+   },
+   "extract": {
+    "SAT": 0.0342,
+    "MONO": 0.1375,
+    "NMP": 0.8283
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0257
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.6589,
+    "MONO": 0.2196,
+    "NMP": 0.1215
+   },
+   "extract": {
+    "SAT": 0.0367,
+    "MONO": 0.1495,
+    "NMP": 0.8138
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0273
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.9015,
+    "MONO": 0,
+    "NMP": 0.0985
+   },
+   "extract": {
+    "SAT": 0.0146,
+    "MONO": 0,
+    "NMP": 0.9854
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0018
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.8575,
+    "MONO": 0.0361,
+    "NMP": 0.1064
+   },
+   "extract": {
+    "SAT": 0.017,
+    "MONO": 0.0209,
+    "NMP": 0.9621
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0046
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.8097,
+    "MONO": 0.0747,
+    "NMP": 0.1156
+   },
+   "extract": {
+    "SAT": 0.0207,
+    "MONO": 0.0449,
+    "NMP": 0.9344
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0094
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.7645,
+    "MONO": 0.1048,
+    "NMP": 0.1307
+   },
+   "extract": {
+    "SAT": 0.0227,
+    "MONO": 0.0653,
+    "NMP": 0.912
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0131
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.7281,
+    "MONO": 0.1266,
+    "NMP": 0.1453
+   },
+   "extract": {
+    "SAT": 0.0266,
+    "MONO": 0.0822,
+    "NMP": 0.8912
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0158
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.6734,
+    "MONO": 0.1523,
+    "NMP": 0.1743
+   },
+   "extract": {
+    "SAT": 0.0301,
+    "MONO": 0.1028,
+    "NMP": 0.8671
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0189
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.6467,
+    "MONO": 0.1695,
+    "NMP": 0.1838
+   },
+   "extract": {
+    "SAT": 0.0346,
+    "MONO": 0.1182,
+    "NMP": 0.8472
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0211
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.6011,
+    "MONO": 0.1836,
+    "NMP": 0.2153
+   },
+   "extract": {
+    "SAT": 0.0394,
+    "MONO": 0.1329,
+    "NMP": 0.8277
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0228
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.5467,
+    "MONO": 0.198,
+    "NMP": 0.2553
+   },
+   "extract": {
+    "SAT": 0.0419,
+    "MONO": 0.1485,
+    "NMP": 0.8096
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0246
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.5044,
+    "MONO": 0.2109,
+    "NMP": 0.2847
+   },
+   "extract": {
+    "SAT": 0.0449,
+    "MONO": 0.1628,
+    "NMP": 0.7923
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0261
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.8822,
+    "MONO": 0,
+    "NMP": 0.1178
+   },
+   "extract": {
+    "SAT": 0.0161,
+    "MONO": 0,
+    "NMP": 0.9839
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.002
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.8405,
+    "MONO": 0.0348,
+    "NMP": 0.1247
+   },
+   "extract": {
+    "SAT": 0.0212,
+    "MONO": 0.0212,
+    "NMP": 0.9576
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0044
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.7785,
+    "MONO": 0.0755,
+    "NMP": 0.146
+   },
+   "extract": {
+    "SAT": 0.0254,
+    "MONO": 0.0481,
+    "NMP": 0.9265
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0095
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.7337,
+    "MONO": 0.1006,
+    "NMP": 0.1657
+   },
+   "extract": {
+    "SAT": 0.0286,
+    "MONO": 0.0665,
+    "NMP": 0.9049
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0126
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.6999,
+    "MONO": 0.1231,
+    "NMP": 0.177
+   },
+   "extract": {
+    "SAT": 0.034,
+    "MONO": 0.0842,
+    "NMP": 0.8818
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0154
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.6583,
+    "MONO": 0.1484,
+    "NMP": 0.1933
+   },
+   "extract": {
+    "SAT": 0.0393,
+    "MONO": 0.1059,
+    "NMP": 0.8548
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0184
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.6265,
+    "MONO": 0.1594,
+    "NMP": 0.2141
+   },
+   "extract": {
+    "SAT": 0.0442,
+    "MONO": 0.1164,
+    "NMP": 0.8394
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0198
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.5799,
+    "MONO": 0.1712,
+    "NMP": 0.2489
+   },
+   "extract": {
+    "SAT": 0.0486,
+    "MONO": 0.1282,
+    "NMP": 0.8232
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0212
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.5062,
+    "MONO": 0.1917,
+    "NMP": 0.3021
+   },
+   "extract": {
+    "SAT": 0.0545,
+    "MONO": 0.1505,
+    "NMP": 0.795
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0238
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.4857,
+    "MONO": 0.2025,
+    "NMP": 0.3118
+   },
+   "extract": {
+    "SAT": 0.0603,
+    "MONO": 0.163,
+    "NMP": 0.7767
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0251
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.7937,
+    "MONO": 0,
+    "NMP": 0.2063
+   },
+   "extract": {
+    "SAT": 0.0198,
+    "MONO": 0,
+    "NMP": 0.9802
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0025
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.7428,
+    "MONO": 0.0345,
+    "NMP": 0.2227
+   },
+   "extract": {
+    "SAT": 0.0258,
+    "MONO": 0.0221,
+    "NMP": 0.9521
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0049
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.6839,
+    "MONO": 0.0745,
+    "NMP": 0.2416
+   },
+   "extract": {
+    "SAT": 0.0308,
+    "MONO": 0.0503,
+    "NMP": 0.9189
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0095
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.6559,
+    "MONO": 0.0977,
+    "NMP": 0.2464
+   },
+   "extract": {
+    "SAT": 0.0363,
+    "MONO": 0.0686,
+    "NMP": 0.8951
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0123
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.6212,
+    "MONO": 0.1175,
+    "NMP": 0.2613
+   },
+   "extract": {
+    "SAT": 0.0402,
+    "MONO": 0.0852,
+    "NMP": 0.8746
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0147
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.5841,
+    "MONO": 0.1388,
+    "NMP": 0.2771
+   },
+   "extract": {
+    "SAT": 0.0471,
+    "MONO": 0.1062,
+    "NMP": 0.8467
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0172
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.5527,
+    "MONO": 0.1547,
+    "NMP": 0.2926
+   },
+   "extract": {
+    "SAT": 0.0526,
+    "MONO": 0.1224,
+    "NMP": 0.825
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0192
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.5242,
+    "MONO": 0.1681,
+    "NMP": 0.3077
+   },
+   "extract": {
+    "SAT": 0.0588,
+    "MONO": 0.1375,
+    "NMP": 0.8037
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0208
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.4978,
+    "MONO": 0.1743,
+    "NMP": 0.3279
+   },
+   "extract": {
+    "SAT": 0.0607,
+    "MONO": 0.1448,
+    "NMP": 0.7945
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0216
+  },
+  {
+   "source": "fahim2005",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.4859,
+    "MONO": 0.1796,
+    "NMP": 0.3345
+   },
+   "extract": {
+    "SAT": 0.0631,
+    "MONO": 0.1516,
+    "NMP": 0.7853
+   },
+   "components": {
+    "MONO": "propylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0223
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.8185,
+    "MONO": 0,
+    "NMP": 0.1815
+   },
+   "extract": {
+    "MONO": 0,
+    "SAT": 0.0211,
+    "NMP": 0.9789
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0001
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.7824,
+    "MONO": 0.0351,
+    "NMP": 0.1825
+   },
+   "extract": {
+    "MONO": 0.0196,
+    "SAT": 0.026,
+    "NMP": 0.9544
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0045
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.7315,
+    "MONO": 0.0731,
+    "NMP": 0.1954
+   },
+   "extract": {
+    "MONO": 0.0433,
+    "SAT": 0.0307,
+    "NMP": 0.926
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0058
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.6777,
+    "MONO": 0.1139,
+    "NMP": 0.2084
+   },
+   "extract": {
+    "MONO": 0.0706,
+    "SAT": 0.0371,
+    "NMP": 0.8923
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0076
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.6358,
+    "MONO": 0.1448,
+    "NMP": 0.2194
+   },
+   "extract": {
+    "MONO": 0.095,
+    "SAT": 0.0431,
+    "NMP": 0.8619
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0091
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.5962,
+    "MONO": 0.1703,
+    "NMP": 0.2335
+   },
+   "extract": {
+    "MONO": 0.1163,
+    "SAT": 0.0499,
+    "NMP": 0.8338
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0106
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.5567,
+    "MONO": 0.1863,
+    "NMP": 0.257
+   },
+   "extract": {
+    "MONO": 0.1306,
+    "SAT": 0.0551,
+    "NMP": 0.8143
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0115
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.5206,
+    "MONO": 0.2003,
+    "NMP": 0.2791
+   },
+   "extract": {
+    "MONO": 0.1463,
+    "SAT": 0.0642,
+    "NMP": 0.7895
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0124
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.5051,
+    "MONO": 0.2154,
+    "NMP": 0.2795
+   },
+   "extract": {
+    "MONO": 0.1656,
+    "SAT": 0.0754,
+    "NMP": 0.759
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0134
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.4887,
+    "MONO": 0.2275,
+    "NMP": 0.2838
+   },
+   "extract": {
+    "MONO": 0.1806,
+    "SAT": 0.0867,
+    "NMP": 0.7327
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0141
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.7898,
+    "MONO": 0,
+    "NMP": 0.2102
+   },
+   "extract": {
+    "MONO": 0,
+    "SAT": 0.0218,
+    "NMP": 0.9782
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0001
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.7336,
+    "MONO": 0.0332,
+    "NMP": 0.2332
+   },
+   "extract": {
+    "MONO": 0.0208,
+    "SAT": 0.0294,
+    "NMP": 0.9498
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0044
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.6944,
+    "MONO": 0.0657,
+    "NMP": 0.2399
+   },
+   "extract": {
+    "MONO": 0.0429,
+    "SAT": 0.0379,
+    "NMP": 0.9192
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0055
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.6283,
+    "MONO": 0.0998,
+    "NMP": 0.2719
+   },
+   "extract": {
+    "MONO": 0.0702,
+    "SAT": 0.0423,
+    "NMP": 0.8875
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0069
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.5751,
+    "MONO": 0.1279,
+    "NMP": 0.297
+   },
+   "extract": {
+    "MONO": 0.0943,
+    "SAT": 0.0513,
+    "NMP": 0.8544
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0083
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.5344,
+    "MONO": 0.1534,
+    "NMP": 0.3122
+   },
+   "extract": {
+    "MONO": 0.1169,
+    "SAT": 0.0611,
+    "NMP": 0.822
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0096
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.4901,
+    "MONO": 0.1669,
+    "NMP": 0.343
+   },
+   "extract": {
+    "MONO": 0.1316,
+    "SAT": 0.0694,
+    "NMP": 0.799
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0103
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.4491,
+    "MONO": 0.1831,
+    "NMP": 0.3678
+   },
+   "extract": {
+    "MONO": 0.1501,
+    "SAT": 0.0804,
+    "NMP": 0.7695
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0113
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.4077,
+    "MONO": 0.1981,
+    "NMP": 0.3942
+   },
+   "extract": {
+    "MONO": 0.1673,
+    "SAT": 0.0888,
+    "NMP": 0.7439
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0123
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.3926,
+    "MONO": 0.2139,
+    "NMP": 0.3935
+   },
+   "extract": {
+    "MONO": 0.1866,
+    "SAT": 0.1027,
+    "NMP": 0.7107
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0133
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.7425,
+    "MONO": 0,
+    "NMP": 0.2575
+   },
+   "extract": {
+    "MONO": 0,
+    "SAT": 0.0329,
+    "NMP": 0.9671
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0001
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.6944,
+    "MONO": 0.0316,
+    "NMP": 0.274
+   },
+   "extract": {
+    "MONO": 0.0211,
+    "SAT": 0.0402,
+    "NMP": 0.9387
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0044
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.6441,
+    "MONO": 0.0654,
+    "NMP": 0.2905
+   },
+   "extract": {
+    "MONO": 0.0466,
+    "SAT": 0.0499,
+    "NMP": 0.9035
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0055
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.5981,
+    "MONO": 0.0951,
+    "NMP": 0.3068
+   },
+   "extract": {
+    "MONO": 0.072,
+    "SAT": 0.0591,
+    "NMP": 0.8689
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0067
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.5305,
+    "MONO": 0.1248,
+    "NMP": 0.3447
+   },
+   "extract": {
+    "MONO": 0.0925,
+    "SAT": 0.0739,
+    "NMP": 0.8336
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0081
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.5045,
+    "MONO": 0.1391,
+    "NMP": 0.3564
+   },
+   "extract": {
+    "MONO": 0.1173,
+    "SAT": 0.0825,
+    "NMP": 0.8002
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0088
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.4846,
+    "MONO": 0.1535,
+    "NMP": 0.3619
+   },
+   "extract": {
+    "MONO": 0.1335,
+    "SAT": 0.093,
+    "NMP": 0.7735
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0096
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.4579,
+    "MONO": 0.1702,
+    "NMP": 0.3719
+   },
+   "extract": {
+    "MONO": 0.1565,
+    "SAT": 0.116,
+    "NMP": 0.7275
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0105
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.4008,
+    "MONO": 0.1796,
+    "NMP": 0.4196
+   },
+   "extract": {
+    "MONO": 0.1688,
+    "SAT": 0.1274,
+    "NMP": 0.7038
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0111
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.3807,
+    "MONO": 0.1857,
+    "NMP": 0.4336
+   },
+   "extract": {
+    "MONO": 0.1816,
+    "SAT": 0.1406,
+    "NMP": 0.6778
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0115
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.6668,
+    "MONO": 0,
+    "NMP": 0.3332
+   },
+   "extract": {
+    "MONO": 0,
+    "SAT": 0.0541,
+    "NMP": 0.9459
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0001
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.6216,
+    "MONO": 0.029,
+    "NMP": 0.3494
+   },
+   "extract": {
+    "MONO": 0.021,
+    "SAT": 0.0576,
+    "NMP": 0.9214
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0043
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.5699,
+    "MONO": 0.0613,
+    "NMP": 0.3688
+   },
+   "extract": {
+    "MONO": 0.0474,
+    "SAT": 0.0712,
+    "NMP": 0.8814
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0053
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.5094,
+    "MONO": 0.0946,
+    "NMP": 0.396
+   },
+   "extract": {
+    "MONO": 0.0784,
+    "SAT": 0.0871,
+    "NMP": 0.8345
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0067
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.4051,
+    "MONO": 0.1325,
+    "NMP": 0.4624
+   },
+   "extract": {
+    "MONO": 0.1188,
+    "SAT": 0.1233,
+    "NMP": 0.7579
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0085
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.3584,
+    "MONO": 0.1441,
+    "NMP": 0.4975
+   },
+   "extract": {
+    "MONO": 0.1332,
+    "SAT": 0.1399,
+    "NMP": 0.7269
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0091
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.3292,
+    "MONO": 0.1529,
+    "NMP": 0.5179
+   },
+   "extract": {
+    "MONO": 0.1449,
+    "SAT": 0.1626,
+    "NMP": 0.6925
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0095
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.3104,
+    "MONO": 0.1629,
+    "NMP": 0.5267
+   },
+   "extract": {
+    "MONO": 0.1609,
+    "SAT": 0.2184,
+    "NMP": 0.6207
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "tetradecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0101
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.9319,
+    "MONO": 0,
+    "NMP": 0.0681
+   },
+   "extract": {
+    "SAT": 0.0121,
+    "MONO": 0,
+    "NMP": 0.9879
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0041
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.8995,
+    "MONO": 0.0364,
+    "NMP": 0.0641
+   },
+   "extract": {
+    "SAT": 0.0149,
+    "MONO": 0.0206,
+    "NMP": 0.9645
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0045
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.8626,
+    "MONO": 0.0768,
+    "NMP": 0.0606
+   },
+   "extract": {
+    "SAT": 0.0178,
+    "MONO": 0.0447,
+    "NMP": 0.9375
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0059
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.8272,
+    "MONO": 0.1086,
+    "NMP": 0.0642
+   },
+   "extract": {
+    "SAT": 0.0212,
+    "MONO": 0.0648,
+    "NMP": 0.914
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0073
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.8013,
+    "MONO": 0.1337,
+    "NMP": 0.065
+   },
+   "extract": {
+    "SAT": 0.0236,
+    "MONO": 0.0817,
+    "NMP": 0.8947
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0086
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.7688,
+    "MONO": 0.1598,
+    "NMP": 0.0714
+   },
+   "extract": {
+    "SAT": 0.0271,
+    "MONO": 0.1006,
+    "NMP": 0.8723
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0099
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.7423,
+    "MONO": 0.1804,
+    "NMP": 0.0773
+   },
+   "extract": {
+    "SAT": 0.0305,
+    "MONO": 0.1167,
+    "NMP": 0.8528
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0112
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.7263,
+    "MONO": 0.1934,
+    "NMP": 0.0803
+   },
+   "extract": {
+    "SAT": 0.0323,
+    "MONO": 0.1262,
+    "NMP": 0.8415
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.012
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.6902,
+    "MONO": 0.2067,
+    "NMP": 0.1031
+   },
+   "extract": {
+    "SAT": 0.0352,
+    "MONO": 0.1376,
+    "NMP": 0.8272
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0128
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 298,
+   "raffinate": {
+    "SAT": 0.6704,
+    "MONO": 0.2198,
+    "NMP": 0.1098
+   },
+   "extract": {
+    "SAT": 0.0389,
+    "MONO": 0.1496,
+    "NMP": 0.8115
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0136
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.9015,
+    "MONO": 0,
+    "NMP": 0.0985
+   },
+   "extract": {
+    "SAT": 0.0146,
+    "MONO": 0,
+    "NMP": 0.9854
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0041
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.8975,
+    "MONO": 0.0358,
+    "NMP": 0.0667
+   },
+   "extract": {
+    "SAT": 0.0178,
+    "MONO": 0.0209,
+    "NMP": 0.9613
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0045
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.8197,
+    "MONO": 0.0744,
+    "NMP": 0.1059
+   },
+   "extract": {
+    "SAT": 0.0217,
+    "MONO": 0.0441,
+    "NMP": 0.9342
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0058
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.7745,
+    "MONO": 0.1043,
+    "NMP": 0.1212
+   },
+   "extract": {
+    "SAT": 0.0237,
+    "MONO": 0.0658,
+    "NMP": 0.9105
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0071
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.7381,
+    "MONO": 0.1261,
+    "NMP": 0.1358
+   },
+   "extract": {
+    "SAT": 0.0276,
+    "MONO": 0.0827,
+    "NMP": 0.8897
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0082
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.6834,
+    "MONO": 0.152,
+    "NMP": 0.1646
+   },
+   "extract": {
+    "SAT": 0.0321,
+    "MONO": 0.1031,
+    "NMP": 0.8648
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0095
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.6567,
+    "MONO": 0.1691,
+    "NMP": 0.1742
+   },
+   "extract": {
+    "SAT": 0.0366,
+    "MONO": 0.1185,
+    "NMP": 0.8449
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0105
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.6111,
+    "MONO": 0.1832,
+    "NMP": 0.2057
+   },
+   "extract": {
+    "SAT": 0.0404,
+    "MONO": 0.1332,
+    "NMP": 0.8264
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0114
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.5567,
+    "MONO": 0.1977,
+    "NMP": 0.2456
+   },
+   "extract": {
+    "SAT": 0.0439,
+    "MONO": 0.1487,
+    "NMP": 0.8074
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0123
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 308,
+   "raffinate": {
+    "SAT": 0.5144,
+    "MONO": 0.2104,
+    "NMP": 0.2752
+   },
+   "extract": {
+    "SAT": 0.0459,
+    "MONO": 0.1631,
+    "NMP": 0.791
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.013
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.8822,
+    "MONO": 0,
+    "NMP": 0.1178
+   },
+   "extract": {
+    "SAT": 0.0161,
+    "MONO": 0,
+    "NMP": 0.9839
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0041
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.8475,
+    "MONO": 0.0338,
+    "NMP": 0.1187
+   },
+   "extract": {
+    "SAT": 0.0222,
+    "MONO": 0.0212,
+    "NMP": 0.9566
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0044
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.7855,
+    "MONO": 0.0757,
+    "NMP": 0.1388
+   },
+   "extract": {
+    "SAT": 0.0265,
+    "MONO": 0.0501,
+    "NMP": 0.9234
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0059
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.7437,
+    "MONO": 0.0981,
+    "NMP": 0.1582
+   },
+   "extract": {
+    "SAT": 0.0295,
+    "MONO": 0.0675,
+    "NMP": 0.903
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0068
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.7095,
+    "MONO": 0.1201,
+    "NMP": 0.1704
+   },
+   "extract": {
+    "SAT": 0.0358,
+    "MONO": 0.0852,
+    "NMP": 0.879
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0079
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.6683,
+    "MONO": 0.1424,
+    "NMP": 0.1893
+   },
+   "extract": {
+    "SAT": 0.0435,
+    "MONO": 0.1059,
+    "NMP": 0.8506
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.009
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.6365,
+    "MONO": 0.1564,
+    "NMP": 0.2071
+   },
+   "extract": {
+    "SAT": 0.0472,
+    "MONO": 0.1194,
+    "NMP": 0.8334
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0097
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.5899,
+    "MONO": 0.1682,
+    "NMP": 0.2419
+   },
+   "extract": {
+    "SAT": 0.0521,
+    "MONO": 0.1302,
+    "NMP": 0.8177
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0104
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.5585,
+    "MONO": 0.1807,
+    "NMP": 0.2608
+   },
+   "extract": {
+    "SAT": 0.0555,
+    "MONO": 0.1425,
+    "NMP": 0.802
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0112
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 318,
+   "raffinate": {
+    "SAT": 0.5195,
+    "MONO": 0.1835,
+    "NMP": 0.297
+   },
+   "extract": {
+    "SAT": 0.0623,
+    "MONO": 0.1579,
+    "NMP": 0.7798
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0114
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.7937,
+    "MONO": 0,
+    "NMP": 0.2063
+   },
+   "extract": {
+    "SAT": 0.0198,
+    "MONO": 0,
+    "NMP": 0.9802
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0042
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.7528,
+    "MONO": 0.0335,
+    "NMP": 0.2137
+   },
+   "extract": {
+    "SAT": 0.0258,
+    "MONO": 0.0231,
+    "NMP": 0.9511
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0044
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.6939,
+    "MONO": 0.0735,
+    "NMP": 0.2326
+   },
+   "extract": {
+    "SAT": 0.0301,
+    "MONO": 0.0513,
+    "NMP": 0.9186
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0058
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.6659,
+    "MONO": 0.0967,
+    "NMP": 0.2374
+   },
+   "extract": {
+    "SAT": 0.0393,
+    "MONO": 0.0696,
+    "NMP": 0.8911
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0068
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.6312,
+    "MONO": 0.1155,
+    "NMP": 0.2533
+   },
+   "extract": {
+    "SAT": 0.0432,
+    "MONO": 0.0862,
+    "NMP": 0.8706
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0077
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.5941,
+    "MONO": 0.1368,
+    "NMP": 0.2691
+   },
+   "extract": {
+    "SAT": 0.0501,
+    "MONO": 0.1082,
+    "NMP": 0.8417
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0087
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.5627,
+    "MONO": 0.1527,
+    "NMP": 0.2846
+   },
+   "extract": {
+    "SAT": 0.0556,
+    "MONO": 0.1244,
+    "NMP": 0.82
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0095
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.5242,
+    "MONO": 0.1661,
+    "NMP": 0.3097
+   },
+   "extract": {
+    "SAT": 0.0618,
+    "MONO": 0.1385,
+    "NMP": 0.7997
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0103
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.5048,
+    "MONO": 0.1723,
+    "NMP": 0.3229
+   },
+   "extract": {
+    "SAT": 0.0677,
+    "MONO": 0.1468,
+    "NMP": 0.7855
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0107
+  },
+  {
+   "source": "fandary2006",
+   "T_K": 328,
+   "raffinate": {
+    "SAT": 0.4959,
+    "MONO": 0.1776,
+    "NMP": 0.3265
+   },
+   "extract": {
+    "SAT": 0.0719,
+    "MONO": 0.1536,
+    "NMP": 0.7745
+   },
+   "components": {
+    "MONO": "pentylbenzene",
+    "SAT": "heptadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.011
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 293.2,
+   "raffinate": {
+    "SAT": 0.8769,
+    "MONO": 0,
+    "NMP": 0.1231
+   },
+   "extract": {
+    "SAT": 0.008,
+    "MONO": 0,
+    "NMP": 0.992
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.008
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 293.2,
+   "raffinate": {
+    "SAT": 0.8005,
+    "MONO": 0.0482,
+    "NMP": 0.1513
+   },
+   "extract": {
+    "SAT": 0.0112,
+    "MONO": 0.0167,
+    "NMP": 0.9721
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0116
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 293.2,
+   "raffinate": {
+    "SAT": 0.6915,
+    "MONO": 0.1094,
+    "NMP": 0.1991
+   },
+   "extract": {
+    "SAT": 0.0137,
+    "MONO": 0.0497,
+    "NMP": 0.9366
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0122
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 293.2,
+   "raffinate": {
+    "SAT": 0.6294,
+    "MONO": 0.1697,
+    "NMP": 0.2009
+   },
+   "extract": {
+    "SAT": 0.0142,
+    "MONO": 0.0672,
+    "NMP": 0.9186
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0131
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 293.2,
+   "raffinate": {
+    "SAT": 0.5518,
+    "MONO": 0.2262,
+    "NMP": 0.222
+   },
+   "extract": {
+    "SAT": 0.016,
+    "MONO": 0.0925,
+    "NMP": 0.8915
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0121
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 293.2,
+   "raffinate": {
+    "SAT": 0.4847,
+    "MONO": 0.2638,
+    "NMP": 0.2515
+   },
+   "extract": {
+    "SAT": 0.0171,
+    "MONO": 0.1145,
+    "NMP": 0.8684
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0118
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 293.2,
+   "raffinate": {
+    "SAT": 0.4557,
+    "MONO": 0.2831,
+    "NMP": 0.2612
+   },
+   "extract": {
+    "SAT": 0.0191,
+    "MONO": 0.1281,
+    "NMP": 0.8528
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0112
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 293.2,
+   "raffinate": {
+    "SAT": 0.3437,
+    "MONO": 0.3296,
+    "NMP": 0.3267
+   },
+   "extract": {
+    "SAT": 0.0203,
+    "MONO": 0.1553,
+    "NMP": 0.8244
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.011
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 293.2,
+   "raffinate": {
+    "SAT": 0.305,
+    "MONO": 0.3401,
+    "NMP": 0.3549
+   },
+   "extract": {
+    "SAT": 0.0256,
+    "MONO": 0.1801,
+    "NMP": 0.7943
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0107
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 293.2,
+   "raffinate": {
+    "SAT": 0.275,
+    "MONO": 0.3502,
+    "NMP": 0.3748
+   },
+   "extract": {
+    "SAT": 0.033,
+    "MONO": 0.2102,
+    "NMP": 0.7568
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0109
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 303.2,
+   "raffinate": {
+    "SAT": 0.787,
+    "MONO": 0,
+    "NMP": 0.213
+   },
+   "extract": {
+    "SAT": 0.0132,
+    "MONO": 0,
+    "NMP": 0.9868
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.01
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 303.2,
+   "raffinate": {
+    "SAT": 0.6987,
+    "MONO": 0.0433,
+    "NMP": 0.258
+   },
+   "extract": {
+    "SAT": 0.0162,
+    "MONO": 0.0189,
+    "NMP": 0.9649
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0116
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 303.2,
+   "raffinate": {
+    "SAT": 0.5773,
+    "MONO": 0.1201,
+    "NMP": 0.3026
+   },
+   "extract": {
+    "SAT": 0.0204,
+    "MONO": 0.0586,
+    "NMP": 0.921
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0123
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 303.2,
+   "raffinate": {
+    "SAT": 0.519,
+    "MONO": 0.1507,
+    "NMP": 0.3303
+   },
+   "extract": {
+    "SAT": 0.0237,
+    "MONO": 0.0762,
+    "NMP": 0.9001
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0115
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 303.2,
+   "raffinate": {
+    "SAT": 0.4863,
+    "MONO": 0.1708,
+    "NMP": 0.3429
+   },
+   "extract": {
+    "SAT": 0.0272,
+    "MONO": 0.0893,
+    "NMP": 0.8835
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0107
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 303.2,
+   "raffinate": {
+    "SAT": 0.4401,
+    "MONO": 0.1921,
+    "NMP": 0.3678
+   },
+   "extract": {
+    "SAT": 0.029,
+    "MONO": 0.1021,
+    "NMP": 0.8689
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0107
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 303.2,
+   "raffinate": {
+    "SAT": 0.391,
+    "MONO": 0.2177,
+    "NMP": 0.3913
+   },
+   "extract": {
+    "SAT": 0.0396,
+    "MONO": 0.126,
+    "NMP": 0.8344
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0109
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 303.2,
+   "raffinate": {
+    "SAT": 0.31,
+    "MONO": 0.2446,
+    "NMP": 0.4454
+   },
+   "extract": {
+    "SAT": 0.0474,
+    "MONO": 0.1492,
+    "NMP": 0.8034
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0111
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 303.2,
+   "raffinate": {
+    "SAT": 0.2725,
+    "MONO": 0.2596,
+    "NMP": 0.4679
+   },
+   "extract": {
+    "SAT": 0.0574,
+    "MONO": 0.1692,
+    "NMP": 0.7734
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0124
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 313.2,
+   "raffinate": {
+    "SAT": 0.753,
+    "MONO": 0,
+    "NMP": 0.247
+   },
+   "extract": {
+    "SAT": 0.0184,
+    "MONO": 0,
+    "NMP": 0.9816
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.01
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 313.2,
+   "raffinate": {
+    "SAT": 0.6723,
+    "MONO": 0.0387,
+    "NMP": 0.289
+   },
+   "extract": {
+    "SAT": 0.0227,
+    "MONO": 0.0193,
+    "NMP": 0.958
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0114
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 313.2,
+   "raffinate": {
+    "SAT": 0.5464,
+    "MONO": 0.1106,
+    "NMP": 0.343
+   },
+   "extract": {
+    "SAT": 0.0277,
+    "MONO": 0.0583,
+    "NMP": 0.914
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0116
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 313.2,
+   "raffinate": {
+    "SAT": 0.5041,
+    "MONO": 0.1391,
+    "NMP": 0.3568
+   },
+   "extract": {
+    "SAT": 0.0346,
+    "MONO": 0.0771,
+    "NMP": 0.8883
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0116
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 313.2,
+   "raffinate": {
+    "SAT": 0.4501,
+    "MONO": 0.1653,
+    "NMP": 0.3846
+   },
+   "extract": {
+    "SAT": 0.0506,
+    "MONO": 0.1001,
+    "NMP": 0.8493
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0115
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 313.2,
+   "raffinate": {
+    "SAT": 0.3921,
+    "MONO": 0.1871,
+    "NMP": 0.4208
+   },
+   "extract": {
+    "SAT": 0.0566,
+    "MONO": 0.116,
+    "NMP": 0.8274
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0116
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 313.2,
+   "raffinate": {
+    "SAT": 0.3431,
+    "MONO": 0.204,
+    "NMP": 0.4529
+   },
+   "extract": {
+    "SAT": 0.0676,
+    "MONO": 0.133,
+    "NMP": 0.7994
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.013
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 313.2,
+   "raffinate": {
+    "SAT": 0.29,
+    "MONO": 0.2147,
+    "NMP": 0.4953
+   },
+   "extract": {
+    "SAT": 0.0996,
+    "MONO": 0.165,
+    "NMP": 0.7354
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0142
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 323.2,
+   "raffinate": {
+    "SAT": 0.7161,
+    "MONO": 0,
+    "NMP": 0.2839
+   },
+   "extract": {
+    "SAT": 0.0246,
+    "MONO": 0,
+    "NMP": 0.9754
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.01
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 323.2,
+   "raffinate": {
+    "SAT": 0.6246,
+    "MONO": 0.0429,
+    "NMP": 0.3325
+   },
+   "extract": {
+    "SAT": 0.0313,
+    "MONO": 0.021,
+    "NMP": 0.9477
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0111
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 323.2,
+   "raffinate": {
+    "SAT": 0.555,
+    "MONO": 0.0761,
+    "NMP": 0.3689
+   },
+   "extract": {
+    "SAT": 0.0391,
+    "MONO": 0.0417,
+    "NMP": 0.9192
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0111
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 323.2,
+   "raffinate": {
+    "SAT": 0.5072,
+    "MONO": 0.0987,
+    "NMP": 0.3941
+   },
+   "extract": {
+    "SAT": 0.0442,
+    "MONO": 0.0572,
+    "NMP": 0.8986
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0109
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 323.2,
+   "raffinate": {
+    "SAT": 0.4572,
+    "MONO": 0.1187,
+    "NMP": 0.4241
+   },
+   "extract": {
+    "SAT": 0.0504,
+    "MONO": 0.0719,
+    "NMP": 0.8777
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0113
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 323.2,
+   "raffinate": {
+    "SAT": 0.3654,
+    "MONO": 0.1512,
+    "NMP": 0.4834
+   },
+   "extract": {
+    "SAT": 0.0658,
+    "MONO": 0.0983,
+    "NMP": 0.8359
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0137
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 323.2,
+   "raffinate": {
+    "SAT": 0.3083,
+    "MONO": 0.1674,
+    "NMP": 0.5243
+   },
+   "extract": {
+    "SAT": 0.0954,
+    "MONO": 0.1189,
+    "NMP": 0.7857
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0181
+  },
+  {
+   "source": "aljimaz2006",
+   "T_K": 323.2,
+   "raffinate": {
+    "SAT": 0.2731,
+    "MONO": 0.176,
+    "NMP": 0.5509
+   },
+   "extract": {
+    "SAT": 0.1269,
+    "MONO": 0.1388,
+    "NMP": 0.7343
+   },
+   "components": {
+    "MONO": "1,3,5-trimethylbenzene",
+    "SAT": "hexadecane",
+    "NMP": "N-methylpyrrolidone"
+   },
+   "u_x": 0.0187
+  }
+ ]
+}

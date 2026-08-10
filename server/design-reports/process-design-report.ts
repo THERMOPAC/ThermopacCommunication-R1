@@ -137,10 +137,14 @@ export async function buildProcessDesignPayload(revisionId: number, generatedByN
       { label: 'NMP Carryover to Raffinate', value: pct(nYields.nmpCarryoverToRaffinate), unit: '%', sourceType: 'Calculated (C2)' },
     ]},
     { title: 'Split Fractions Used', intro: 'Split fractions govern the component balance. Assumed values are Thermopac preliminary screening defaults — replace with laboratory/vendor equilibrium data before design approval.', rows: splitRows },
-    { title: 'Preliminary Stage-Equivalent Estimate', intro: pd.stages?.note, rows: [
-      { label: 'Theoretical Stages', value: String(pd.stages?.theoreticalStages ?? ''), sourceType: pd.stages?.classification ?? '' },
-      { label: 'Stage / Compartment Efficiency', value: pct(pd.stages?.compartmentOrStageEfficiency), unit: '%', sourceType: pd.stages?.classification ?? '' },
-      { label: 'Estimated Physical Stages', value: String(pd.stages?.estimatedPhysicalStages ?? ''), sourceType: pd.stages?.classification ?? '' },
+    { title: 'Theoretical Stages (Governed N_T)', intro: [pd.stages?.label, pd.stages?.temperatureStatement, pd.stages?.note].filter(Boolean).join(' '), rows: [
+      { label: 'Theoretical Stages N_T', value: String(pd.stages?.theoreticalStages ?? 'Not Calculable'), sourceType: pd.stages?.classification ?? '' },
+      ...(pd.stages?.mode === 'not_calculable' || pd.stages?.mode === 'engineer_override'
+        ? [{ label: 'Governed Auto-Calculation Limit', value: String(pd.stages?.overrideReason?.limit ?? ''), sourceType: pd.stages?.classification ?? '' }]
+        : []),
+      ...(pd.stages?.stageEfficiencyInformational !== undefined && pd.stages?.stageEfficiencyInformational !== null
+        ? [{ label: 'Stage Efficiency (informational only — does not govern packed height H_active = N_T × HETS)', value: pct(pd.stages?.stageEfficiencyInformational), unit: '%', sourceType: 'Informational' }]
+        : []),
     ]},
   ];
 

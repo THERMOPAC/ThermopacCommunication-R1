@@ -65,7 +65,7 @@ const C2: Entry[] = [
     unitsNote: 'dimensionless', rangeNote: 'm > 0 enforced; solventBasis = normal case.',
   },
   {
-    ref: 'PD-010', statement: 'Preliminary Stage-Equivalent Estimate: estimatedPhysicalStages = ceil(theoreticalStages / compartmentOrStageEfficiency). Labelled Preliminary Stage-Equivalent Estimate — NOT an ECP packing-stage or ECR compartment count (those engines compute their own active height/compartment count).',
+    ref: 'PD-010', statement: 'Governed theoretical stages N_T: auto-calculated from the Coto 2022 controlled-literature LLE dataset (variable-flow cascade, 298.15 K tie-lines as-is; off-temperature results Preliminary — Pending RRBO/NMP Validation) or explicit Engineer Override (Assumed — Pending Validation). Stage efficiency is informational-only; the physical-stage estimate ceil(N_T/eff) is retired. Governing packed height H_active = N_T × HETS (ECP engine).',
     citation: `${REG}, §7 PD-010 — screening practice`,
     unitsNote: 'dimensionless (stage count)', rangeNote: 'theoreticalStages integer ≥ 1 (warn > 20); efficiency ∈ (0,1] (warn < 0.2).',
   },
