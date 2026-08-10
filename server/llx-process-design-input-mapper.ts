@@ -41,6 +41,20 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     : (num(inputs.extraction_temperature) ?? num(inputs.operating_temperature));
   if (out.operatingTemperature === undefined && ot !== undefined) out.operatingTemperature = ot;
 
+  // Extraction Temperature — the governing LLE calculation input. The
+  // workspace tracks Design Basis OT unless the engineer manually overrides
+  // it (extraction_temperature_manual = "true"). Provenance is carried so the
+  // engine's temperature-model trace names the actual source.
+  const extT = num(inputs.extraction_temperature);
+  if (out.extractionTemperature === undefined && extT !== undefined) {
+    out.extractionTemperature = extT;
+    if (out.extractionTemperatureProvenance === undefined) {
+      out.extractionTemperatureProvenance = String(inputs.extraction_temperature_manual ?? '') === 'true'
+        ? 'Extraction Temperature — engineer-entered manual override (Process Design workspace)'
+        : 'Extraction Temperature — tracking Design Basis Operating Temperature (Process Design workspace)';
+    }
+  }
+
   // Feed flow — Design Basis capacity (LPH → m³/h, volumetric basis)
   const feedLph = num(inputs.design_capacity_lph) ?? num(inputs.design_capacity);
   if (out.feedFlow === undefined && feedLph !== undefined && feedLph > 0) {

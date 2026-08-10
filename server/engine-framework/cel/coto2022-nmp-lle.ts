@@ -153,13 +153,14 @@ export class CotoEnvelopeError extends Error {
   ) { super(`${limit}: ${detail}`); this.name = 'CotoEnvelopeError'; }
 }
 
-export function interpolateTieLineIn(rows: readonly TieLine[], x1R: number, envelopeName = 'Coto 2022'): TieLineInterpolation {
-  const x1Min = rows[0].x[0], x1Max = rows[rows.length - 1].x[0];
+export function interpolateTieLine(x1R: number, rows: readonly TieLine[] = COTO_2022_XYLENE_TIELINES): TieLineInterpolation {
+  const x1Min = rows[0].x[0];
+  const x1Max = rows[rows.length - 1].x[0];
   if (!Number.isFinite(x1R)) throw new CotoEnvelopeError('Invalid coordinate', `x1R = ${x1R} is not a finite number`);
   if (x1R < x1Min - 1e-12 || x1R > x1Max + 1e-12) {
     throw new CotoEnvelopeError(
       'Outside Experimental Composition Range — Pending Validation',
-      `raffinate x1R = ${x1R.toFixed(4)} is outside the governed ${envelopeName} envelope x1R ∈ [${x1Min}, ${x1Max}]. No extrapolation is permitted.`,
+      `raffinate x1R = ${x1R.toFixed(4)} is outside the governed tie-line envelope x1R ∈ [${x1Min}, ${x1Max}]. No composition extrapolation is permitted.`,
     );
   }
   const clamped = Math.min(Math.max(x1R, x1Min), x1Max);
@@ -172,35 +173,27 @@ export function interpolateTieLineIn(rows: readonly TieLine[], x1R: number, enve
   return { x1R: clamped, raffinate: raff, extract: ext, bracket: { lowerTableOrder: lo.tableOrder, upperTableOrder: hi.tableOrder, fraction: f } };
 }
 
-/** Governed Coto 2022 interpolation (default tie-line set). */
-export function interpolateTieLine(x1R: number): TieLineInterpolation {
-  return interpolateTieLineIn(COTO_2022_XYLENE_TIELINES, x1R, 'Coto 2022');
-}
-
 /** Find the locus x1R whose raffinate total-aromatics equals the target
  *  (monotone decreasing in x1R — verified). Fails closed outside envelope. */
-export function locusX1RForAromaticsIn(rows: readonly TieLine[], targetAromaticsMole: number, envelopeName = 'Coto 2022'): number {
-  const x1Min = rows[0].x[0], x1Max = rows[rows.length - 1].x[0];
+export function locusX1RForAromatics(targetAromaticsMole: number, rows: readonly TieLine[] = COTO_2022_XYLENE_TIELINES): number {
+  const x1Min = rows[0].x[0];
+  const x1Max = rows[rows.length - 1].x[0];
   const arMin = aromatics(rows[rows.length - 1].x); // at x1R max
   const arMax = aromatics(rows[0].x);               // at x1R min
   if (targetAromaticsMole < arMin - 1e-12 || targetAromaticsMole > arMax + 1e-12) {
     throw new CotoEnvelopeError(
       'Outside Experimental Composition Range — Pending Validation',
-      `target raffinate aromatics ${targetAromaticsMole.toFixed(4)} (mole fraction) is outside the governed ${envelopeName} raffinate-locus range [${arMin.toFixed(3)}, ${arMax.toFixed(3)}] (x1R ∈ [${x1Min}, ${x1Max}]). No extrapolation is permitted.`,
+      `target raffinate aromatics ${targetAromaticsMole.toFixed(4)} (mole fraction) is outside the governed raffinate-locus range [${arMin.toFixed(3)}, ${arMax.toFixed(3)}] (x1R ∈ [${x1Min}, ${x1Max}]). No extrapolation is permitted.`,
     );
   }
   // bisection on x1R
   let lo = x1Min, hi = x1Max;
   for (let k = 0; k < 80; k++) {
     const mid = (lo + hi) / 2;
-    const ar = aromatics(interpolateTieLineIn(rows, mid, envelopeName).raffinate);
+    const ar = aromatics(interpolateTieLine(mid, rows).raffinate);
     if (ar > targetAromaticsMole) lo = mid; else hi = mid;
   }
   return (lo + hi) / 2;
-}
-
-export function locusX1RForAromatics(targetAromaticsMole: number): number {
-  return locusX1RForAromaticsIn(COTO_2022_XYLENE_TIELINES, targetAromaticsMole, 'Coto 2022');
 }
 
 // ── Variable-flow counter-current stage calculation ──────────────────────────
@@ -226,6 +219,19 @@ export interface GovernedNtInput {
   targetRaffinateAromaticsMole: number;
   /** NMP purity of the solvent make-up, mole fraction NMP (recycle aromatics reduce it) */
   solventNmpMoleFraction?: number; // default 1.0 (pure)
+  /** Optional alternative equilibrium basis: a model-generated tie-line family
+   *  AT the design temperature (governed NRTL τ(T) model). When provided, the
+   *  cascade runs unchanged on this family (composition interpolation-only
+   *  within ITS envelope) and the 298.15 K temperature-window logic is
+   *  bypassed — the equilibrium is by construction at the design temperature.
+   *  Classification/labelling of the model basis is the CALLER's duty. */
+  equilibriumBasis?: {
+    tieLines: readonly TieLine[]; // sorted ascending by x[0]
+    datasetId: string;
+    datasetVersion: string;
+    citation: string;
+    basisLabel: string;
+  };
 }
 
 export interface GovernedNtResult {
@@ -236,9 +242,11 @@ export interface GovernedNtResult {
   /** Exact limit exceeded when not_calculable (fail-closed statement). */
   limitExceeded?: { limit: string; detail: string };
   /** Temperature governance: design T inside the 298.15 K experimental window,
-   *  or outside it — in which case the result is Preliminary (tie-lines used
-   *  as-is at 298.15 K; NEVER temperature-corrected or extrapolated). */
-  temperatureStatus?: 'in_range' | 'outside_range_preliminary';
+   *  outside it (tie-lines used as-is at 298.15 K; NEVER temperature-corrected
+   *  or extrapolated), or 'model_at_design_temperature' — the equilibrium came
+   *  from a governed temperature-dependent model evaluated AT the design
+   *  temperature (caller labels interpolation/extrapolation status). */
+  temperatureStatus?: 'in_range' | 'outside_range_preliminary' | 'model_at_design_temperature';
   /** Exact user-facing statement when temperatureStatus = outside_range_preliminary. */
   temperatureStatement?: string;
   theoreticalStages?: number;        // fractional N_T
@@ -280,37 +288,21 @@ const CAVEATS = [
   'Non-monotone pairs within u(x)=0.003 exist in x6R and x1E columns; piecewise-linear treatment carries the raw scatter without smoothing.',
 ];
 
-/** Optional injected equilibrium basis (e.g. governed NRTL τ(T) model tie-line
- *  table at the design temperature). When provided, the cascade runs on the
- *  injected tie-lines and the Coto 298.15 K temperature-preliminary logic is
- *  bypassed (the injected basis IS at the design temperature — the caller is
- *  responsible for its own governance labels/caveats). */
-export interface InjectedEquilibrium {
-  tieLines: readonly TieLine[];
-  datasetId: string;
-  datasetVersion: string;
-  citation: string;
-  envelopeName: string;
-  /** exclusions/caveats appended to the governed base lists */
-  extraExclusions?: string[];
-  extraCaveats?: string[];
-}
-
-export function computeGovernedTheoreticalStages(input: GovernedNtInput, injected?: InjectedEquilibrium): GovernedNtResult {
-  const eqRows: readonly TieLine[] = injected?.tieLines ?? COTO_2022_XYLENE_TIELINES;
-  const envName = injected?.envelopeName ?? 'Coto 2022';
-  const X1MIN = eqRows[0].x[0], X1MAX = eqRows[eqRows.length - 1].x[0];
-  const interp = (x1R: number) => interpolateTieLineIn(eqRows, x1R, envName);
-  const locus = (t: number) => locusX1RForAromaticsIn(eqRows, t, envName);
+export function computeGovernedTheoreticalStages(input: GovernedNtInput): GovernedNtResult {
+  const basis = input.equilibriumBasis;
+  const rows = basis?.tieLines ?? COTO_2022_XYLENE_TIELINES;
+  const X1_MIN = rows[0].x[0];
+  const X1_MAX = rows[rows.length - 1].x[0];
+  const interp = (v: number) => interpolateTieLine(v, rows);
   const base: Pick<GovernedNtResult, 'datasetId' | 'datasetVersion' | 'citation' | 'governingMeasure' | 'stageTrace' | 'method' | 'exclusions' | 'caveats' | 'temperatureStatus' | 'temperatureStatement'> = {
-    datasetId: injected?.datasetId ?? COTO_2022_DATASET_ID,
-    datasetVersion: injected?.datasetVersion ?? COTO_2022_DATASET_VERSION,
-    citation: injected?.citation ?? COTO_2022_CITATION,
+    datasetId: basis?.datasetId ?? COTO_2022_DATASET_ID,
+    datasetVersion: basis?.datasetVersion ?? COTO_2022_DATASET_VERSION,
+    citation: basis?.citation ?? COTO_2022_CITATION,
     governingMeasure: 'total raffinate aromatics (mole fraction)' as const,
     stageTrace: [] as StageTraceEntry[],
     method: METHOD_TEXT,
-    exclusions: injected ? [...EXCLUSIONS, ...(injected.extraExclusions ?? [])] : EXCLUSIONS,
-    caveats: injected ? [...CAVEATS, ...(injected.extraCaveats ?? [])] : CAVEATS,
+    exclusions: EXCLUSIONS,
+    caveats: CAVEATS,
   };
   const fail = (limit: string, detail: string): GovernedNtResult =>
     ({ ...base, status: 'not_calculable', limitExceeded: { limit, detail } });
@@ -323,11 +315,11 @@ export function computeGovernedTheoreticalStages(input: GovernedNtInput, injecte
   // extrapolated) and the result is downgraded to Preliminary. Composition-
   // envelope violations and missing inputs still fail closed. ────────────────
   if (!Number.isFinite(input.temperatureK)) return fail('Invalid input', `temperatureK = ${input.temperatureK} is not finite`);
-  if (injected) {
-    // Injected equilibrium basis is generated AT the design temperature — the
-    // 298.15 K preliminary downgrade does not apply. Caller carries its own
-    // governance labels (model validation status, bounded assumptions).
-    base.temperatureStatus = 'in_range';
+  if (basis) {
+    // Model-generated equilibrium AT the design temperature: the 298.15 K
+    // experimental-window logic does not apply. The caller carries the
+    // interpolation/extrapolation classification.
+    base.temperatureStatus = 'model_at_design_temperature';
   } else {
     const temperatureInRange = Math.abs(input.temperatureK - COTO_2022_TEMPERATURE_K) <= COTO_2022_TEMPERATURE_TOLERANCE_K;
     const temperatureStatus: 'in_range' | 'outside_range_preliminary' = temperatureInRange ? 'in_range' : 'outside_range_preliminary';
@@ -362,7 +354,7 @@ export function computeGovernedTheoreticalStages(input: GovernedNtInput, injecte
 
   // ── Limit 3: raffinate spec on the governed locus ───────────────────────────
   let specX1R: number;
-  try { specX1R = locus(input.targetRaffinateAromaticsMole); }
+  try { specX1R = locusX1RForAromatics(input.targetRaffinateAromaticsMole, rows); }
   catch (e) { if (e instanceof CotoEnvelopeError) return fail(e.limit, e.detail); throw e; }
   const spec = interp(specX1R);
   const xN = spec.raffinate;
@@ -376,7 +368,7 @@ export function computeGovernedTheoreticalStages(input: GovernedNtInput, injecte
 
   // ── Cascade for a given solvent flow S (basis R_N = 100 mol) ───────────────
   const RN = 100;
-  interface CascadeOut { crossed: boolean; nT?: number; trace: StageTraceEntry[]; impliedFeed?: number; offEnvelope?: { stage: number; x1: number }; feedStageNote?: string; }
+  interface CascadeOut { crossed: boolean; nT?: number; trace: StageTraceEntry[]; impliedFeed?: number; totalFlowRelResidual?: number; offEnvelope?: { stage: number; x1: number }; feedStageNote?: string; }
   const runCascade = (S: number): CascadeOut => {
     const trace: StageTraceEntry[] = [];
     let yCurr = spec.extract.slice();
@@ -394,7 +386,8 @@ export function computeGovernedTheoreticalStages(input: GovernedNtInput, injecte
       const g = (Rp: number): { val: number | null; xp: number[]; E: number } => {
         const { xp, E } = xPrevOf(Rp);
         if (E <= 0) return { val: null, xp, E };
-        if (xp[0] < X1MIN || xp[0] > X1MAX) return { val: null, xp, E };
+        if (!xp.every((v) => Number.isFinite(v))) return { val: null, xp, E };
+        if (xp[0] < X1_MIN || xp[0] > X1_MAX) return { val: null, xp, E };
         return { val: xp[4] - interp(xp[0]).raffinate[4], xp, E };
       };
       // bracket search on R_prev
@@ -405,7 +398,7 @@ export function computeGovernedTheoreticalStages(input: GovernedNtInput, injecte
       for (let k = 0; k <= 1600; k++) {
         const Rp = RLO + (k * (RHI - RLO)) / 1600;
         const { val, xp } = g(Rp);
-        if (val === null) { if (xp[0] > 0) offEnv = { Rp, xp }; prev = null; continue; }
+        if (val === null) { if (Number.isFinite(xp[0]) && xp[0] > 0) offEnv = { Rp, xp }; prev = null; continue; }
         if (prev && prev.val * val <= 0) {
           let a = prev.Rp, b = Rp;
           for (let it = 0; it < 60; it++) {
@@ -438,7 +431,16 @@ export function computeGovernedTheoreticalStages(input: GovernedNtInput, injecte
           const F = (-b0 * yCurr[4] + yCurr[0] * b4) / det;
           const E = (zF[0] * b4 - zF[4] * b0) / det;
           const totalResidual = E - (F + S - RN);
-          if (F > 0 && E > 0 && aromF > aromPrev - 1e-9) {
+          // Feasibility of the implied flows is checked on the UNROUNDED
+          // physical values BEFORE any display rounding: flows must be finite,
+          // positive, and physically plausible (the feed cannot be smaller
+          // than the raffinate product nor absurdly larger than the basis —
+          // a runaway secant iterate must be rejected here, not reported).
+          const flowsPlausible =
+            Number.isFinite(F) && Number.isFinite(E) && F > 0 && E > 0 &&
+            F >= RN * 0.5 && F <= RN * 1e3 && E <= (F + S) &&
+            Number.isFinite(totalResidual);
+          if (flowsPlausible && aromF > aromPrev - 1e-9) {
             const residuals = [1, 2, 3].map((i) => ({
               component: COTO_COMPONENTS[i],
               residual: round((RN * xN[i] + E * yCurr[i] - S * yS[i]) / F - zF[i], 5),
@@ -457,6 +459,7 @@ export function computeGovernedTheoreticalStages(input: GovernedNtInput, injecte
               nT: stage,
               trace,
               impliedFeed: F,
+              totalFlowRelResidual: totalResidual / F,
               feedStageNote: `Feed enters stage ${stage} (counted from the raffinate end) directly; the fractional utilisation of this stage cannot be resolved on the governed tie-line locus (extrapolation prohibited), so N_T is reported as the whole stage count — conservative.`,
             };
           }
@@ -465,8 +468,8 @@ export function computeGovernedTheoreticalStages(input: GovernedNtInput, injecte
       }
       const { xp, E } = xPrevOf(sol);
       // consistency residuals on the non-closing components (xyl, men, pyr)
-      const locusRow = interp(xp[0]).raffinate;
-      const residuals = [1, 2, 3].map((i) => ({ component: COTO_COMPONENTS[i], residual: round(xp[i] - locusRow[i], 5) }));
+      const locus = interp(xp[0]).raffinate;
+      const residuals = [1, 2, 3].map((i) => ({ component: COTO_COMPONENTS[i], residual: round(xp[i] - locus[i], 5) }));
       const arom = aromatics(xp);
       trace.push({
         stageFromRaffinateEnd: stage,
@@ -488,7 +491,7 @@ export function computeGovernedTheoreticalStages(input: GovernedNtInput, injecte
           const b0 = RN * xN[0];
           const b4 = RN * xN[4] - S;
           const cand = (-b0 * yCurr[4] + yCurr[0] * b4) / det;
-          if (cand > 0) F = cand;
+          if (Number.isFinite(cand) && cand >= RN * 0.5 && cand <= RN * 1e3) F = cand;
         }
         return { crossed: true, nT: stage - 1 + frac, trace, impliedFeed: F };
       }
@@ -532,12 +535,18 @@ export function computeGovernedTheoreticalStages(input: GovernedNtInput, injecte
     const violations: string[] = [];
     for (const t of best.out.trace) {
       for (const r of t.locusConsistencyResiduals) {
-        const isTotal = r.component.startsWith('total-flow');
-        const tol = isTotal ? COTO_2022_TOTAL_FLOW_REL_TOLERANCE * (best.out.impliedFeed ?? RN) : COTO_2022_RESIDUAL_TOLERANCE;
-        if (Math.abs(r.residual) > tol) {
-          violations.push(`stage ${t.stageFromRaffinateEnd}: ${r.component} residual ${r.residual} exceeds tolerance ${isTotal ? `${COTO_2022_TOTAL_FLOW_REL_TOLERANCE * 100} % of implied feed` : `3·u(x) = ${COTO_2022_RESIDUAL_TOLERANCE}`}`);
+        // Total-flow closure is checked on the UNROUNDED relative residual
+        // (|E − (F+S−R_N)| / F) captured before display rounding — never on
+        // the rounded trace value against an absolute-scaled tolerance.
+        if (r.component.startsWith('total-flow')) continue;
+        if (Math.abs(r.residual) > COTO_2022_RESIDUAL_TOLERANCE) {
+          violations.push(`stage ${t.stageFromRaffinateEnd}: ${r.component} residual ${r.residual} exceeds tolerance 3·u(x) = ${COTO_2022_RESIDUAL_TOLERANCE}`);
         }
       }
+    }
+    const relTotal = best.out.totalFlowRelResidual;
+    if (relTotal !== undefined && (!Number.isFinite(relTotal) || Math.abs(relTotal) > COTO_2022_TOTAL_FLOW_REL_TOLERANCE)) {
+      violations.push(`total-flow closure |E − (F+S−R_N)| / F = ${Number.isFinite(relTotal) ? Math.abs(relTotal).toExponential(3) : 'non-finite'} exceeds tolerance ${COTO_2022_TOTAL_FLOW_REL_TOLERANCE * 100} % of implied feed (unrounded check)`);
     }
     if (violations.length > 0) {
       return {
@@ -556,7 +565,7 @@ export function computeGovernedTheoreticalStages(input: GovernedNtInput, injecte
   if (!best || !best.out.crossed || best.ratio === undefined || best.out.nT === undefined) {
     const probe = runCascade(rDesign * RN);
     const detail = probe.offEnvelope
-      ? `stage stepping left the governed raffinate-locus envelope at stage ${probe.offEnvelope.stage} (computed passing-stream x1R = ${Number.isFinite(probe.offEnvelope.x1) ? probe.offEnvelope.x1.toFixed(4) : 'not on locus'}; governed envelope x1R ∈ [${X1MIN}, ${X1MAX}]) before reaching the feed composition. The design separation depth exceeds the governed ${envName} composition envelope.`
+      ? `stage stepping left the governed raffinate-locus envelope at stage ${probe.offEnvelope.stage} (computed passing-stream x1R = ${Number.isFinite(probe.offEnvelope.x1) ? probe.offEnvelope.x1.toFixed(4) : 'not on locus'}; governed envelope x1R ∈ [${X1_MIN}, ${X1_MAX}]) before reaching the feed composition. The design separation depth exceeds the governed composition envelope of the equilibrium basis.`
       : 'no counter-current solution reaches the feed composition within the governed envelope at the design solvent ratio.';
     return { ...base, status: 'not_calculable', stageTrace: probe.trace, spec: { x1R: round(specX1R, 4), raffinate: xN.map((v) => round(v, 4)), equilibriumExtract: spec.extract.map((v) => round(v, 4)), bracket: spec.bracket }, limitExceeded: { limit: 'Outside Experimental Composition Range — Pending Validation', detail } };
   }

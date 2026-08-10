@@ -34,11 +34,16 @@ import {
 } from '../../engine-framework/common-engineering-library';
 import type { SourceType } from '../../engine-framework/epd/types';
 import {
-  computeGovernedTheoreticalStages, GovernedNtResult, InjectedEquilibrium,
+  computeGovernedTheoreticalStages, GovernedNtResult,
   COTO_2022_CITATION, COTO_2022_DATASET_ID, COTO_2022_DATASET_VERSION,
   COTO_2022_TEMPERATURE_K, SURROGATE_MW, COTO_COMPONENTS, COTO_COMPONENT_ROLES,
 } from '../../engine-framework/cel/coto2022-nmp-lle';
-import { generateNrtlTieLineTable, NrtlModelError, NRTL_MODEL_ID } from '../../engine-framework/cel/nrtl-nmp-lle';
+import {
+  temperatureModelStatus, generateModelTieLinesAtTemperature, TlleModelError,
+  experimentalFamilyForTemperature,
+  TLLE_MODEL_ID, TLLE_MODEL_VERSION, TLLE_MODEL_NAME, TLLE_MODEL_CITATION,
+  TLLE_REPRODUCTION_RECORD, TLLE_EXTRAPOLATION_CLASSIFICATION,
+} from '../../engine-framework/cel/llx-temperature-lle-model';
 
 // ── Input structures ──────────────────────────────────────────────────────────
 
@@ -287,6 +292,14 @@ export class LLXProcessDesignEngine implements IDesignEngine {
     const T = num(inputs.operatingTemperature);
     if (T === undefined) err('operatingTemperature', 'operatingTemperature (°C) is required and must be a finite number');
     else if (T < -273.15) err('operatingTemperature', 'operatingTemperature is below absolute zero');
+
+    // Extraction Temperature — the governing LLE calculation input (optional;
+    // defaults to operatingTemperature when absent).
+    const extT = num(inputs.extractionTemperature);
+    if (inputs.extractionTemperature !== undefined && inputs.extractionTemperature !== null && String(inputs.extractionTemperature).trim() !== '') {
+      if (extT === undefined) err('extractionTemperature', 'extractionTemperature (°C) must be a finite number when provided');
+      else if (extT < -273.15) err('extractionTemperature', 'extractionTemperature is below absolute zero');
+    }
 
     // Feed flow
     const feedFlow = inputs.feedFlow as Record<string, unknown> | undefined;
@@ -594,10 +607,78 @@ export class LLXProcessDesignEngine implements IDesignEngine {
         : {};
       const lleIn = inputs.lleStageInputs as Record<string, unknown> | undefined;
 
+      // ── Extraction Temperature — governing LLE calculation input ───────────
+      // The user-selected extraction temperature (falls back to the operating
+      // temperature). The governed temperature-dependent LLE model NEVER fails
+      // closed solely on temperature:
+      //   inside calibrated range  → interpolation of governed experimental tie-lines
+      //   outside calibrated range → NRTL τ(T) extrapolation, always classified
+      //     'Temperature Extrapolation — Preliminary / Pending Validation'
+      const extractionTemperatureC = num(inputs.extractionTemperature) ?? T;
+      const extractionTemperatureK = extractionTemperatureC + 273.15;
+      const tModel = temperatureModelStatus(extractionTemperatureK);
+      const temperatureModelBlock: Record<string, unknown> = {
+        userSelectedTemperatureC: extractionTemperatureC,
+        userSelectedTemperatureK: Number(extractionTemperatureK.toFixed(2)),
+        temperatureSource: num(inputs.extractionTemperature) !== undefined
+          ? String((inputs.extractionTemperatureProvenance as string | undefined) ?? 'Extraction Temperature field (Process Design workspace)')
+          : 'Operating Temperature (Design Basis) — no separate extraction temperature entered',
+        calibratedTemperatureRangeK: tModel.calibratedRangeK,
+        mode: tModel.mode,
+        distanceOutsideRangeK: tModel.distanceOutsideRangeK,
+        classification: tModel.classification,
+        statement: tModel.statement,
+        model: { id: TLLE_MODEL_ID, version: TLLE_MODEL_VERSION, name: TLLE_MODEL_NAME, citation: TLLE_MODEL_CITATION },
+        calibrationDatasets: tModel.calibrationDatasets,
+        validationStatus: tModel.mode === 'interpolation'
+          ? 'Governed experimental tie-lines used directly (exact within data uncertainty u(x) = 0.003)'
+          : `${TLLE_EXTRAPOLATION_CLASSIFICATION}. Model 298.15 K reproduction record: max |Δx| = ${TLLE_REPRODUCTION_RECORD.maxAbsDev} vs gate ${TLLE_REPRODUCTION_RECORD.gate} (${TLLE_REPRODUCTION_RECORD.tieLinesWithinGate}/${TLLE_REPRODUCTION_RECORD.tieLinesTotal} tie-lines within gate) — see V&V register.`,
+      };
+      let extrapolationBasis: NonNullable<Parameters<typeof computeGovernedTheoreticalStages>[0]['equilibriumBasis']> | undefined;
+      let extrapolationBasisError: { limit: string; detail: string } | undefined;
+      if (tModel.mode === 'interpolation') {
+        // In-range: the registry supplies the experimental family that governs
+        // this temperature. The Coto 2022 298.15 K family IS the engine's
+        // default governed path (used as-is, exact); any OTHER admitted family
+        // is passed explicitly as the equilibrium basis.
+        const expFam = experimentalFamilyForTemperature(extractionTemperatureK);
+        temperatureModelBlock.experimentalBasis = expFam
+          ? { datasetId: expFam.dataset.datasetId, datasetVersion: expFam.dataset.datasetVersion, temperatureK: expFam.temperatureK, tieLines: expFam.tieLines.length }
+          : null;
+        if (expFam && expFam.dataset.datasetId !== COTO_2022_DATASET_ID) {
+          extrapolationBasis = {
+            tieLines: expFam.tieLines,
+            datasetId: expFam.dataset.datasetId,
+            datasetVersion: expFam.dataset.datasetVersion,
+            citation: expFam.dataset.citation,
+            basisLabel: `Governed experimental tie-lines at ${expFam.temperatureK.toFixed(2)} K (${expFam.dataset.datasetId} v${expFam.dataset.datasetVersion})`,
+          };
+        }
+      }
+      if (tModel.mode === 'extrapolation') {
+        try {
+          const fam = generateModelTieLinesAtTemperature(extractionTemperatureK);
+          extrapolationBasis = {
+            tieLines: fam.tieLines,
+            datasetId: fam.datasetId,
+            datasetVersion: fam.datasetVersion,
+            citation: fam.citation,
+            basisLabel: fam.basisLabel,
+          };
+          temperatureModelBlock.modelTieLineFamily = {
+            temperatureK: fam.temperatureK,
+            x1REnvelope: [fam.x1RMin, fam.x1RMax],
+            tieLinesUsed: fam.sourceTieLinesUsed,
+            droppedTieLines: fam.droppedTieLines,
+          };
+        } catch (e) {
+          if (e instanceof TlleModelError) extrapolationBasisError = { limit: e.limit, detail: e.detail };
+          else throw e;
+        }
+      }
+
       let lleResult: GovernedNtResult | null = null;
       let lleInputEcho: Record<string, unknown> | undefined;
-      let nrtlBasisTrace: Record<string, unknown> | undefined;
-      let nrtlGap: { limit: string; detail: string } | undefined;
       const lleMissing: string[] = [];
       if (!lleIn) {
         lleMissing.push('lleStageInputs (RRBO characterisation, class molecular weights, target raffinate aromatics)');
@@ -646,60 +727,39 @@ export class LLXProcessDesignEngine implements IDesignEngine {
             massSolventToOilRatio: solventToOilRatio.value,
             solventMolarRatio_molNMP_per_molFeed: Number(solventMolarRatio.toFixed(4)),
             targetRaffinateAromaticsMoleFraction: tgt / 100,
-            temperatureK: T + 273.15,
+            temperatureK: Number(extractionTemperatureK.toFixed(2)),
             rrboCharacterisationWtPct: ch,
             ...(totAr !== undefined ? { totalAromaticsWtPct: totAr } : {}),
             classMolecularWeights: mw,
           };
-          // ── Temperature-dependent model path (approved architecture):
-          // when the design temperature is off the 298.15 K anchor, the
-          // ADMITTED NRTL τ(T) model (validated against the governed gate)
-          // generates the tie-line table AT the design temperature and the
-          // identical variable-flow cascade runs on it. If the model is not
-          // admitted or T is outside the calibrated envelope, this path
-          // fails closed (DEVELOPMENT GAP recorded) and the existing
-          // Coto-as-is Preliminary behaviour applies. Tie-lines are NEVER
-          // temperature-scaled.
-          const tK = T + 273.15;
-          let nrtlBasis: InjectedEquilibrium | undefined;
-          if (Math.abs(tK - COTO_2022_TEMPERATURE_K) > 0.5) {
-            try {
-              const { tieLines, artifact } = generateNrtlTieLineTable(tK);
-              nrtlBasis = {
-                tieLines,
-                datasetId: NRTL_MODEL_ID,
-                datasetVersion: artifact.version,
-                citation: artifact.citationList.join(' | '),
-                envelopeName: `NRTL τ(T) governed model at ${tK.toFixed(2)} K`,
-                extraCaveats: [
-                  `Equilibrium basis: NRTL τij = aij + bij/T model v${artifact.version} (artifact nrtl-params-v1.json), regressed on the governed calibration datasets and ADMITTED by the validation gate (Coto 298.15 K flash RMSD ${artifact.validation.cotoRmsd} ≤ ${artifact.validation.cotoTolerance}; leave-one-temperature-out passed). Tie-line table generated by isothermal flash at ${tK.toFixed(2)} K — never by scaling experimental tie-lines.`,
-                  ...artifact.boundedAssumptions,
-                ],
-              };
-              nrtlBasisTrace = {
-                modelId: NRTL_MODEL_ID,
-                modelVersion: artifact.version,
-                parameterArtifact: 'server/engine-framework/cel/data/nrtl-params-v1.json',
-                generatedAtUtc: artifact.generatedAtUtc,
-                temperatureK: tK,
-                temperatureEnvelopeK: artifact.temperatureEnvelopeK,
-                tieLineCount: nrtlBasis.tieLines.length,
-                validation: artifact.validation,
-              };
-            } catch (e) {
-              if (e instanceof NrtlModelError) {
-                nrtlGap = { limit: e.limit, detail: e.detail };
-                warnings.push({ code: 'NT_TEMPERATURE_MODEL_GAP', message: `${e.limit}: ${e.detail} Falling back to the 298.15 K tie-lines used as-is (result Preliminary — Pending RRBO/NMP Validation).` });
-              } else throw e;
-            }
+          if (tModel.mode === 'extrapolation' && extrapolationBasisError) {
+            // The temperature-dependent model could not produce a usable
+            // two-phase family at the user temperature — fail closed with the
+            // model's exact statement (composition/model limit, NOT a hard
+            // temperature limit).
+            lleResult = {
+              datasetId: TLLE_MODEL_ID,
+              datasetVersion: TLLE_MODEL_VERSION,
+              citation: TLLE_MODEL_CITATION,
+              status: 'not_calculable',
+              temperatureStatus: 'model_at_design_temperature',
+              limitExceeded: extrapolationBasisError,
+              governingMeasure: 'total raffinate aromatics (mole fraction)',
+              stageTrace: [],
+              method: 'not run — temperature-dependent LLE model could not generate a tie-line family at the extraction temperature',
+              exclusions: [],
+              caveats: [],
+            };
+          } else {
+            lleResult = computeGovernedTheoreticalStages({
+              temperatureK: extractionTemperatureK,
+              feedMoleFractions,
+              solventMolarRatio,
+              targetRaffinateAromaticsMole: tgt / 100,
+              ...(sPur !== undefined ? { solventNmpMoleFraction: sPur } : {}),
+              ...(extrapolationBasis ? { equilibriumBasis: extrapolationBasis } : {}),
+            });
           }
-          lleResult = computeGovernedTheoreticalStages({
-            temperatureK: tK,
-            feedMoleFractions,
-            solventMolarRatio,
-            targetRaffinateAromaticsMole: tgt / 100,
-            ...(sPur !== undefined ? { solventNmpMoleFraction: sPur } : {}),
-          }, nrtlBasis);
         }
       }
       if (lleResult === null) {
@@ -732,43 +792,34 @@ export class LLXProcessDesignEngine implements IDesignEngine {
       if (autoCalculated) {
         const nT = lleResult.theoreticalStagesRounded!;
         const tPrelim = lleResult.temperatureStatus === 'outside_range_preliminary';
-        const viaNrtl = nrtlBasisTrace !== undefined;
+        const tExtrap = tModel.mode === 'extrapolation' && lleResult.temperatureStatus === 'model_at_design_temperature';
         stages = {
           mode: 'auto_calculated',
           theoreticalStages: nT,
           theoreticalStagesFractional: lleResult.theoreticalStages,
           ...stageEfficiencyInfo,
-          label: viaNrtl
-            ? `Theoretical Stages — Auto-Calculated (NRTL τ(T) Governed Model at ${(nrtlBasisTrace!.temperatureK as number).toFixed(2)} K)`
+          label: tExtrap
+            ? `Theoretical Stages — Auto-Calculated at ${extractionTemperatureK.toFixed(2)} K — ${TLLE_EXTRAPOLATION_CLASSIFICATION}`
             : tPrelim
               ? 'Controlled-Literature RRBO Surrogate LLE Model — Preliminary / Outside Experimental Temperature Range / Pending RRBO-NMP Validation'
               : 'Theoretical Stages — Auto-Calculated (Coto 2022 Governed LLE)',
-          basis: viaNrtl
-            ? `${NRTL_MODEL_ID} v${nrtlBasisTrace!.modelVersion} tie-line table generated by isothermal NRTL flash at ${(nrtlBasisTrace!.temperatureK as number).toFixed(2)} K (calibrated envelope [${(nrtlBasisTrace!.temperatureEnvelopeK as { min: number; max: number }).min.toFixed(2)}, ${(nrtlBasisTrace!.temperatureEnvelopeK as { min: number; max: number }).max.toFixed(2)}] K; interpolation only — never tie-line scaling)`
+          basis: tExtrap
+            ? `${TLLE_MODEL_ID} v${TLLE_MODEL_VERSION} — NRTL τ(T) tie-line family evaluated at the user extraction temperature ${extractionTemperatureK.toFixed(2)} K (calibrated range [${tModel.calibratedRangeK.minK}, ${tModel.calibratedRangeK.maxK}] K)`
             : `${COTO_2022_DATASET_ID} v${COTO_2022_DATASET_VERSION} at ${COTO_2022_TEMPERATURE_K} K (tie-lines used as-is; no temperature correction or extrapolation)`,
-          ...(viaNrtl ? { modelTrace: nrtlBasisTrace } : {}),
           ...(lleResult.temperatureStatement ? { temperatureStatement: lleResult.temperatureStatement } : {}),
+          ...(tExtrap ? { temperatureStatement: tModel.statement } : {}),
           note: 'Governing height calculation is H_active = N_T × HETS (evaluated in the ECP engine with the governed HETS). Stage efficiency does not enter the packed-column height.',
           ...(overrideN !== undefined ? { engineerOverrideEntered: overrideN, engineerOverrideApplied: false, engineerOverrideNote: 'An engineer-override N_T was entered but NOT applied: the governed auto-calculation succeeded and takes precedence.' } : {}),
-          // NRTL off-anchor results carry the polyaromatic bounded assumption
-          // (bij ≡ 0 for DI/POLY pairs) → Pending Validation, never presented
-          // as a fully validated equilibrium result.
-          classification: (viaNrtl || tPrelim ? 'Pending Validation' : 'Calculated Screening Result') as Classification,
+          classification: ((tPrelim || tExtrap) ? 'Pending Validation' : 'Calculated Screening Result') as Classification,
         };
-        if (viaNrtl) {
-          warnings.push({ code: 'NT_NRTL_POLYAROMATIC_ASSUMPTION', message: `N_T auto-calculated from the admitted NRTL τ(T) model at ${(nrtlBasisTrace!.temperatureK as number).toFixed(2)} K. DI/POLY temperature slopes are a bounded assumption (bij ≡ 0 — no multi-temperature polyaromatic data); result is Pending Validation.` });
-          assumptions.push({
-            assumption: 'NRTL τ(T) DI/POLY binary temperature slopes bij ≡ 0 (τ held at 298.15 K-regressed values) — bounded assumption, no multi-temperature polyaromatic LLE data exist',
-            sourceType: 'Assumed',
-            sourceReference: 'nrtl-params-v1.json boundedAssumptions (governed regression artifact)',
-            scope: 'run',
-          });
-        }
         if (tPrelim) {
           warnings.push({ code: 'NT_TEMPERATURE_PRELIMINARY', message: lleResult.temperatureStatement! });
         }
+        if (tExtrap) {
+          warnings.push({ code: 'NT_TEMPERATURE_EXTRAPOLATION', message: tModel.statement });
+        }
         if (overrideN !== undefined && overrideN !== nT) {
-          warnings.push({ code: 'NT_OVERRIDE_IGNORED', message: `Engineer-override theoretical stages (${overrideN}) ignored — governed ${viaNrtl ? 'NRTL τ(T)' : 'Coto 2022'} auto-calculation succeeded with N_T = ${nT}.` });
+          warnings.push({ code: 'NT_OVERRIDE_IGNORED', message: `Engineer-override theoretical stages (${overrideN}) ignored — governed Coto 2022 auto-calculation succeeded with N_T = ${nT}.` });
         }
       } else if (overrideN !== undefined) {
         ntOverrideActive = true;
@@ -814,8 +865,7 @@ export class LLXProcessDesignEngine implements IDesignEngine {
       const lleStageCalculation: Record<string, unknown> = {
         ...lleResult,
         ...(lleInputEcho ? { inputTrace: lleInputEcho } : {}),
-        ...(nrtlBasisTrace ? { temperatureModelTrace: nrtlBasisTrace } : {}),
-        ...(nrtlGap ? { temperatureModelGap: nrtlGap } : {}),
+        temperatureModel: temperatureModelBlock,
       };
 
       // Status derivation (correction 11)
@@ -823,7 +873,6 @@ export class LLXProcessDesignEngine implements IDesignEngine {
         || (extractionFactor?.classification === 'Pending Validation')
         || propertyAssumed || anyAssumedInput
         || ntOverrideActive
-        || nrtlBasisTrace !== undefined // NRTL-based N_T carries the polyaromatic bounded assumption → Pending Validation
         || lleResult.temperatureStatus === 'outside_range_preliminary'
         || phaseClassification === 'Not Calculable';
       const calculationRunStatus = anyPending ? 'pending_validation' : 'screening_complete';

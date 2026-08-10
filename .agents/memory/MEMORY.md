@@ -33,6 +33,6 @@
 - [C4 packed-column engine governance](c4-packed-column-governance.md) — llx-ecp consumes Packing DB (clones only); curves interpolation-only with fixed independent variables; utilization never from C3 generic %.
 - [LLX PGA drawing report](llx-pga-drawing.md) — JSON drawing-primitive section kind; fail-closed parsing (HOLD, never clamp/zero-substitute); DS-SEL label reconciliation; 4/3-bezier head apex.
 - [CPS Knowledge Engine governance](cps-knowledge-engine.md) — frozen 7×5 structure; NULL = not defined (never placeholder); decimal-string values; Superuser-only writes; Excel-model units.
-- [NRTL τ(T) LLE model governance](nrtl-temperature-lle-governance.md) — model NOT admitted (Coto anchor RMSD ~0.018 vs 0.009 gate); DEVELOPMENT GAP is the honest outcome; never widen the gate.
+- [LLX TLLE governance](llx-tlle-governance.md) — extraction T never fails closed; in-range = experimental tie-lines exact; out-of-range = NRTL τ(T) family labelled "Temperature Extrapolation — Preliminary / Pending Validation"; gate honestly failed (0.092 vs 0.009).
 - [Coto 2022 LLE dataset governance](coto2022-lle-governance.md) — tie-lines valid, nominal r/feed labels fail mass balance; interpolate on x1R; envelope too narrow for design N_T; fail-closed.
 - [LLX DS-SEL governance](llx-dsel-governance.md) — deterministic selection rules only; no scoring/CAPEX/confidence tie-breaks; exact review-required wording; ECR basis non-transferable.

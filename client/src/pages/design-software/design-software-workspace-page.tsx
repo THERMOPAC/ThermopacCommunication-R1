@@ -2173,7 +2173,7 @@ export default function DesignSoftwareWorkspacePage() {
             }}
             unit="°C"
           />
-          {statusLine(`Status: ${pd.extraction_temperature_manual === "true" ? "Manual (Engineer-Entered)" : "Auto-Populated (Design Basis Operating Temperature)"} · Rule: follows Design Basis Operating Temperature (${otStr || "—"} °C) until manually changed · Governs the N_T equilibrium basis: 298.15 K → Coto 2022 tie-lines; other temperatures → admitted NRTL τ(T) model within its calibrated envelope, else DEVELOPMENT GAP / Preliminary (tie-lines never temperature-scaled)`)}
+          {statusLine(`Status: ${pd.extraction_temperature_manual === "true" ? "Manual" : "Auto-Populated"} · Rule: follows Design Basis Operating Temperature (${otStr || "—"} °C) until manually changed`)}
 
           <FieldRow
             label="Extraction Pressure"
@@ -2368,21 +2368,39 @@ export default function DesignSoftwareWorkspacePage() {
                     </div>
                     <p className={`text-xs font-medium ${auto ? "text-blue-700" : st?.mode === "engineer_override" ? "text-amber-700" : "text-red-700"}`}>{st?.label}</p>
                     {st?.basis && <p className="text-xs text-gray-500">Basis: {st.basis}</p>}
-                    {st?.modelTrace && (
-                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                        <p className="text-[11px] font-semibold text-blue-800">Temperature-Dependent LLE Model (NRTL τ(T))</p>
-                        <p className="text-[11px] text-blue-700 mt-0.5">
-                          Model {st.modelTrace.modelId} v{st.modelTrace.modelVersion} · tie-line table flashed at {Number(st.modelTrace.temperatureK).toFixed(2)} K · calibrated envelope [{Number(st.modelTrace.temperatureEnvelopeK?.min).toFixed(2)}, {Number(st.modelTrace.temperatureEnvelopeK?.max).toFixed(2)}] K · {st.modelTrace.tieLineCount} tie-lines · validation: Coto RMSD {st.modelTrace.validation?.cotoRmsd} (tol {st.modelTrace.validation?.cotoTolerance}), LOTO {st.modelTrace.validation?.lotoPass ? "passed" : "failed"} · parameter artifact {st.modelTrace.parameterArtifact}
-                        </p>
-                        <p className="text-[11px] text-blue-700 mt-0.5">DI/POLY temperature slopes are a bounded assumption (b<sub>ij</sub> ≡ 0) — result Pending Validation.</p>
-                      </div>
-                    )}
-                    {lle?.temperatureModelGap && (
-                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                        <p className="text-xs font-semibold text-red-800">{lle.temperatureModelGap.limit}</p>
-                        <p className="text-[11px] text-red-700 mt-0.5">{lle.temperatureModelGap.detail}</p>
-                      </div>
-                    )}
+                    {(() => {
+                      const tm = lle?.temperatureModel;
+                      if (!tm) return null;
+                      const extrap = tm.mode === "extrapolation";
+                      return (
+                        <div className={`mt-2 p-2 rounded border ${extrap ? "bg-orange-50 border-orange-300" : "bg-emerald-50 border-emerald-200"}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className={`text-xs font-semibold ${extrap ? "text-orange-800" : "text-emerald-800"}`}>Temperature-Dependent LLE Model</p>
+                            <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${extrap ? "bg-orange-200 text-orange-900" : "bg-emerald-200 text-emerald-900"}`}>
+                              {extrap ? "Extrapolation" : "Interpolation"}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 mt-1 text-[11px] text-gray-700">
+                            <span>Extraction temperature (user-selected)</span>
+                            <span className="font-mono">{tm.userSelectedTemperatureC} °C ({tm.userSelectedTemperatureK} K)</span>
+                            <span>Calibrated temperature range</span>
+                            <span className="font-mono">[{tm.calibratedTemperatureRangeK?.minK}, {tm.calibratedTemperatureRangeK?.maxK}] K</span>
+                            {extrap && (
+                              <>
+                                <span>Distance outside calibrated range</span>
+                                <span className="font-mono">{tm.distanceOutsideRangeK} K</span>
+                              </>
+                            )}
+                            <span>Model</span>
+                            <span className="font-mono">{tm.model?.id} v{tm.model?.version}</span>
+                          </div>
+                          <p className={`text-[11px] mt-1 font-medium ${extrap ? "text-orange-800" : "text-emerald-800"}`}>{tm.classification}</p>
+                          <p className="text-[10px] text-gray-600 mt-0.5">{tm.statement}</p>
+                          <p className="text-[10px] text-gray-500 mt-0.5">Validation status: {tm.validationStatus}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">Temperature source: {tm.temperatureSource}</p>
+                        </div>
+                      );
+                    })()}
                     {st?.temperatureStatement && (
                       <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded">
                         <p className="text-[11px] text-amber-800 font-medium">{st.temperatureStatement}</p>
