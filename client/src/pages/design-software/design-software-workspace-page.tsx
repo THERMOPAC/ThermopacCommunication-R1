@@ -1228,10 +1228,17 @@ export default function DesignSoftwareWorkspacePage() {
       P_elec += P_motor_W / 1000;
     }
 
+    // Unit conversions for Indian thermal-systems convention:
+    //   Heating duty  → kcal/h  (1 kW = 860 kcal/h)
+    //   Cooling duty  → TR      (1 TR = 3.517 kW)
+    //   Electrical    → kW      (unchanged)
+    const KW_TO_KCALH = 860;
+    const KW_TO_TR    = 1 / 3.517;
+
     const r2 = (v: number) => String(Math.round(v * 100) / 100);
     return {
-      thermal_oil_duty: r2(Q_thermal),
-      cw_duty:          r2(Q_CW),
+      thermal_oil_duty: r2(Q_thermal * KW_TO_KCALH),
+      cw_duty:          r2(Q_CW     * KW_TO_TR),
       cw_flow:          r2(V_CW),
       electrical_load:  r2(P_elec),
     };
@@ -5423,10 +5430,10 @@ export default function DesignSoftwareWorkspacePage() {
           </Button>
         </div>
         <SectionCard title="Utility Requirements">
-          <FieldRow label="Thermal Oil Duty" value={ut.thermal_oil_duty ?? ""} onChange={v => f("thermal_oil_duty", v)} onBlur={s} unit="kW" />
-          {statusLine("ṁ_NMP(max) × Cp_NMP(1.67 kJ/kg·K) × (T_op − T_CW_out) — NMP solvent heating duty")}
-          <FieldRow label="Cooling Water Duty" value={ut.cw_duty ?? ""} onChange={v => f("cw_duty", v)} onBlur={s} unit="kW" />
-          {statusLine("Thermal duty + raffinate sensible cooling: ṁ_RRBO(max) × Cp_RRBO(2.1 kJ/kg·K) × (T_op − T_amb)")}
+          <FieldRow label="Thermal Oil Duty" value={ut.thermal_oil_duty ?? ""} onChange={v => f("thermal_oil_duty", v)} onBlur={s} unit="kcal/h" />
+          {statusLine("ṁ_NMP(max) × Cp_NMP(1.67 kJ/kg·K) × (T_op − T_CW_out) × 860 — NMP solvent heating duty")}
+          <FieldRow label="Cooling Water Duty" value={ut.cw_duty ?? ""} onChange={v => f("cw_duty", v)} onBlur={s} unit="TR" />
+          {statusLine("(Thermal duty + raffinate cooling) / 3.517 — 1 TR = 3.517 kW; raffinate: ṁ_RRBO(max) × Cp_RRBO(2.1 kJ/kg·K) × (T_op − T_amb)")}
           <FieldRow label="Cooling Water Flow" value={ut.cw_flow ?? ""} onChange={v => f("cw_flow", v)} onBlur={s} unit="m³/h" />
           {statusLine("CW duty / (ρ_w × Cp_w × ΔT_CW) — uses CW ΔT from Design Basis")}
           <FieldRow label="Steam Requirement" value={ut.steam_requirement ?? ""} onChange={v => f("steam_requirement", v)} onBlur={s} unit="kg/h" />
