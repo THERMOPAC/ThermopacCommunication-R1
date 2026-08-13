@@ -4262,9 +4262,18 @@ export default function DesignSoftwareWorkspacePage() {
     const dselTech = dselRec?.selectedTechnology ?? null;
     const dselMode = dselRec?.selectionMode ?? null;
 
+    // Validate DS-SEL against the current hydraulic sweep minimum.
+    // If DS-SEL effective diameter < current sweep minimum, the record is stale:
+    // it was generated from a previous run that produced a smaller minimum feasible
+    // diameter. In that case fall back to Stage 5 and surface a stale warning.
+    // A 1 mm tolerance handles floating-point rounding in the sweep.
+    const dselValid = dselDiameter_m !== null &&
+      (minFeasibleD === null || dselDiameter_m >= minFeasibleD - 0.001);
+    const dselStale = dselDiameter_m !== null && !dselValid;
+
     let diameter: number | null;
     let diameterSource: string;
-    if (dselDiameter_m !== null) {
+    if (dselValid) {
       diameter = dselDiameter_m;
       const modeLabel = dselMode === "user_selected" ? "user-selected" : "autonomous";
       diameterSource = `Stage 7 — DS-SEL effective design diameter (${modeLabel}, ${dselDiameter_mm} mm)`;
@@ -4279,7 +4288,8 @@ export default function DesignSoftwareWorkspacePage() {
     }
 
     return {
-      diameter, diameterSource, dselTech,
+      diameter, diameterSource, dselTech, dselStale,
+      dselDiameter_mm, // exposed for the stale warning message
       totalLph, totalM3h: totalLph !== null ? totalLph / 1000 : null,
       // Fall back to EPD library values (same source the Stage 5 field displays) when
       // the engineer has not manually stored a value in the hydraulic_design section.
@@ -4313,8 +4323,21 @@ export default function DesignSoftwareWorkspacePage() {
       : "Carry-Over from Common Hydraulic Design (Stage 5)";
     return (
       <SectionCard title={cardTitle}>
-        {/* DS-SEL diameter override banner — shown whenever DS-SEL governs the column diameter */}
-        {fromDSSEL && (
+        {/* Stale DS-SEL warning — DS-SEL diameter is below the current sweep minimum */}
+        {co.dselStale && (
+          <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-300 rounded-lg mb-3 -mt-1">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-amber-900 leading-snug">
+              <span className="font-semibold">DS-SEL record is stale.</span>{" "}
+              The DS-SEL effective diameter ({co.dselDiameter_mm} mm) is below the current hydraulic sweep minimum feasible diameter.
+              This means the DS-SEL was generated from an earlier run with different inputs.
+              Re-run the ECP/ECR calculation — DS-SEL will auto-regenerate with the correct autonomous diameter.
+              Stage 5 diameter is used below until the record is refreshed.
+            </p>
+          </div>
+        )}
+        {/* DS-SEL diameter override banner — shown when DS-SEL is valid and governs */}
+        {fromDSSEL && !co.dselStale && (
           <div className="flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg mb-3 -mt-1">
             <Info className="h-3.5 w-3.5 text-blue-600 shrink-0 mt-0.5" />
             <p className="text-[11px] text-blue-800 leading-snug">
