@@ -1237,24 +1237,31 @@ export default function DesignSoftwareWorkspacePage() {
 
     const r2 = (v: number) => String(Math.round(v * 100) / 100);
     return {
-      thermal_oil_duty: r2(Q_thermal * KW_TO_KCALH),
-      cw_duty:          r2(Q_CW     * KW_TO_TR),
-      cw_flow:          r2(V_CW),
-      electrical_load:  r2(P_elec),
+      thermal_oil_duty:  r2(Q_thermal * KW_TO_KCALH),
+      cw_duty:           r2(Q_CW     * KW_TO_TR),
+      cw_flow:           r2(V_CW),
+      electrical_load:   r2(P_elec),
+      // Sentinel: if this changes, the seeder re-fires even when fields are not blank.
+      // Bump this string any time output units change.
+      _units_version:    "v2-kcalh-TR",
     };
   }
 
   // ── Utility auto-seeder (Step 10) ──────────────────────────────────────────
-  // Fires once on hydration when the four calculable fields are all blank.
+  // Fires on hydration when the four calculable fields are all blank,
+  // OR when the stored _units_version sentinel doesn't match the current
+  // output format (catches stale values seeded under a previous unit scheme).
   // Steam and nitrogen remain blank (require stripping design — manual entry).
-  // The engineer can recalculate at any time using the button in Stage 10.
+  // The engineer can recalculate at any time using the Recalculate button.
+  const UTILITY_UNITS_VERSION = "v2-kcalh-TR";
   useEffect(() => {
     if (isFrozen || !activeRevisionId) return;
     if (hydratedRevision !== activeRevisionId) return;
     const ut = localData["utilities"] ?? {};
     const allBlank = ["thermal_oil_duty", "cw_duty", "cw_flow", "electrical_load"]
       .every(k => !(ut[k] ?? "").trim());
-    if (!allBlank) return;
+    const staleUnits = (ut as any)._units_version !== UTILITY_UNITS_VERSION;
+    if (!allBlank && !staleUnits) return;
     const vals = computeUtilities();
     if (vals) commitSection("utilities", vals);
   // eslint-disable-next-line react-hooks/exhaustive-deps
