@@ -1165,6 +1165,94 @@ export default function DesignSoftwareWorkspacePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFrozen, activeRevisionId, hydratedRevision, localData, prelimDefaultsMutation.isPending]);
 
+  // ── Utility calculation helper ─────────────────────────────────────────────
+  // Derives the four calculable utility fields from workspace inputs + EPD data.
+  // Returns null when required inputs are absent (caller should not commit).
+  // Physical constants: Cp_NMP 1.67 kJ/(kg·K), Cp_RRBO 2.1 kJ/(kg·K),
+  // pump ΔP 300 kPa screening, η_pump 0.65, Cp_water 4.186 kJ/(kg·K).
+  // Steam and nitrogen require stripping-column design — left for manual entry.
+  function computeUtilities(): Record<string, string> | null {
+    const db  = localData["design_basis"]       ?? {};
+    const pd  = localData["process_design"]     ?? {};
+    const ts  = localData["technology_selection"] ?? {};
+
+    const T_op      = numOrNull(db.operating_temperature);
+    const T_amb     = numOrNull(db.ambient_temperature ?? AMBIENT_DEFAULT) ?? 25;
+    const T_CW_in   = numOrNull(db.cw_inlet_temperature ?? String(T_amb));
+    const dT_CW     = numOrNull(db.cw_delta_t ?? CW_DELTA_T_DEFAULT) ?? 8;
+    const Q_feed_lph = numOrNull(db.design_capacity_lph ?? db.design_capacity);
+    const R          = numOrNull((pd.so_ratio ?? "").trim());
+    const margin_pct = numOrNull((pd.design_margin ?? "0").trim()) ?? 0;
+
+    if (T_op === null || Q_feed_lph === null || R === null || T_CW_in === null) return null;
+
+    const dpData = densityPairQ.data as any;
+    const rhoNMP  = dpData?.nmp?.value;
+    const rhoRRBO = dpData?.rrbo?.value;
+    if (!rhoNMP || !rhoRRBO) return null;
+
+    const T_CW_out   = T_CW_in + dT_CW;
+    const dT_heat    = T_op - T_CW_out;
+    if (dT_heat <= 0) return null; // operating temp must be above CW outlet
+
+    const CP_NMP    = 1.67;   // kJ/(kg·K)
+    const CP_RRBO   = 2.1;    // kJ/(kg·K)
+    const CP_WATER  = 4.186;  // kJ/(kg·K)
+    const RHO_WATER = 1000;   // kg/m³
+    const ETA_PUMP  = 0.65;
+    const DP_PUMP   = 300000; // Pa — screening
+
+    const f_max = 1 + margin_pct / 100;
+    // max-case mass flow rates (kg/s)
+    const m_NMP  = (Q_feed_lph * R * f_max) / 1000 / 3600 * rhoNMP;
+    const m_RRBO = (Q_feed_lph * f_max)     / 1000 / 3600 * rhoRRBO;
+
+    // 1 — Thermal Oil Duty: heat NMP from T_CW_out back to T_op
+    const Q_thermal = m_NMP * CP_NMP * dT_heat;            // kW
+
+    // 2 — CW Duty: cool recycled NMP + cool raffinate from T_op to T_amb
+    const Q_raff = m_RRBO * CP_RRBO * (T_op - T_amb);      // kW
+    const Q_CW   = Q_thermal + Q_raff;                       // kW
+
+    // 3 — CW Flow
+    const V_CW = Q_CW * 3600 / (RHO_WATER * CP_WATER * dT_CW); // m³/h
+
+    // 4 — Electrical Load: pumps (all streams, max case) + ECR motor if present
+    const Q_total_m3s = (Q_feed_lph * f_max * (1 + R)) / 1000 / 3600;
+    const P_pumps = (Q_total_m3s * DP_PUMP / ETA_PUMP) / 1000; // kW
+    let P_elec = P_pumps;
+    const tech = (ts.technology ?? "").trim();
+    const ecrRes = (resultsQ.data ?? []).find((r: any) => r.section === "ecr");
+    const P_motor_W = ecrRes?.data?.maximumCase?.power?.motorDesign?.value;
+    if ((tech === "ecr" || tech === "both") && typeof P_motor_W === "number" && isFinite(P_motor_W)) {
+      P_elec += P_motor_W / 1000;
+    }
+
+    const r2 = (v: number) => String(Math.round(v * 100) / 100);
+    return {
+      thermal_oil_duty: r2(Q_thermal),
+      cw_duty:          r2(Q_CW),
+      cw_flow:          r2(V_CW),
+      electrical_load:  r2(P_elec),
+    };
+  }
+
+  // ── Utility auto-seeder (Step 10) ──────────────────────────────────────────
+  // Fires once on hydration when the four calculable fields are all blank.
+  // Steam and nitrogen remain blank (require stripping design — manual entry).
+  // The engineer can recalculate at any time using the button in Stage 10.
+  useEffect(() => {
+    if (isFrozen || !activeRevisionId) return;
+    if (hydratedRevision !== activeRevisionId) return;
+    const ut = localData["utilities"] ?? {};
+    const allBlank = ["thermal_oil_duty", "cw_duty", "cw_flow", "electrical_load"]
+      .every(k => !(ut[k] ?? "").trim());
+    if (!allBlank) return;
+    const vals = computeUtilities();
+    if (vals) commitSection("utilities", vals);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydratedRevision, activeRevisionId, isFrozen, localData, densityPairQ.data, resultsQ.data]);
+
   function renderPrelimBanner(scope: "ecp" | "ecr") {
     const section = scope === "ecp" ? "ecp_design" : "ecr_design";
     const active = Object.keys(localData[section] ?? {}).some(k => k.endsWith("_source_reference") && String((localData[section] as any)[k] ?? "").startsWith("Thermopac Preliminary"));
@@ -5319,20 +5407,34 @@ export default function DesignSoftwareWorkspacePage() {
     const ut = d("utilities");
     const f = field("utilities");
     const s = save("utilities");
+    const utCalc = computeUtilities();
+    const statusLine = (text: string) => <p className="text-[11px] text-gray-400 px-2 -mt-0.5">{text}</p>;
     return (
       <div className="max-w-2xl">
         {stageBanner("utilities", "Utilities incomplete")}
-        <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 mb-4">
-          <Info className="h-4 w-4 shrink-0" />
-          Operating temperatures are auto-filled from Design Basis. All utilities are consistent with Section 2 operating conditions.
+        <div className="flex items-center justify-between gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 mb-4">
+          <div className="flex items-center gap-2">
+            <Info className="h-4 w-4 shrink-0" />
+            <span>Four fields are calculated from Design Basis, fluid properties, and equipment results. Steam and nitrogen require stripping design — enter manually.</span>
+          </div>
+          <Button size="sm" variant="outline" className="h-7 text-xs shrink-0" disabled={isFrozen || !utCalc}
+            onClick={() => { if (utCalc) { Object.entries(utCalc).forEach(([k, v]) => f(k, v)); commitSection("utilities", utCalc); } }}>
+            Recalculate
+          </Button>
         </div>
         <SectionCard title="Utility Requirements">
           <FieldRow label="Thermal Oil Duty" value={ut.thermal_oil_duty ?? ""} onChange={v => f("thermal_oil_duty", v)} onBlur={s} unit="kW" />
+          {statusLine("ṁ_NMP(max) × Cp_NMP(1.67 kJ/kg·K) × (T_op − T_CW_out) — NMP solvent heating duty")}
           <FieldRow label="Cooling Water Duty" value={ut.cw_duty ?? ""} onChange={v => f("cw_duty", v)} onBlur={s} unit="kW" />
+          {statusLine("Thermal duty + raffinate sensible cooling: ṁ_RRBO(max) × Cp_RRBO(2.1 kJ/kg·K) × (T_op − T_amb)")}
           <FieldRow label="Cooling Water Flow" value={ut.cw_flow ?? ""} onChange={v => f("cw_flow", v)} onBlur={s} unit="m³/h" />
+          {statusLine("CW duty / (ρ_w × Cp_w × ΔT_CW) — uses CW ΔT from Design Basis")}
           <FieldRow label="Steam Requirement" value={ut.steam_requirement ?? ""} onChange={v => f("steam_requirement", v)} onBlur={s} unit="kg/h" />
+          {statusLine("Manual entry — requires stripping column / NMP regeneration design (not in current scope)")}
           <FieldRow label="Electrical Load" value={ut.electrical_load ?? ""} onChange={v => f("electrical_load", v)} onBlur={s} unit="kW" />
+          {statusLine("Pump power (all streams, ΔP 300 kPa, η 0.65) + ECR motor design power if ECR result present")}
           <FieldRow label="Nitrogen Requirement" value={ut.nitrogen_requirement ?? ""} onChange={v => f("nitrogen_requirement", v)} onBlur={s} unit="Nm³/h" />
+          {statusLine("Manual entry — site blanket/purge philosophy; not derivable from process inputs")}
         </SectionCard>
         <SectionCard title="Reference Conditions (from Design Basis)">
           <FieldRow label="Thermal Oil Inlet" value={d("design_basis").thermal_heater_inlet ?? "—"} onChange={() => {}} readOnly />
