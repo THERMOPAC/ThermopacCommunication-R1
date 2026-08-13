@@ -4326,9 +4326,15 @@ export default function DesignSoftwareWorkspacePage() {
         </span>
       </div>
     );
-    const cardTitle = fromDSSEL
-      ? "Design Inputs — DS-SEL Effective Diameter + Stage 5 Hydraulic Carry-Over"
-      : "Carry-Over from Common Hydraulic Design (Stage 5)";
+    const techLabel: Record<string, string> = {
+      ecp: "ECP — Packed Extraction Column",
+      ecr: "ECR — Kühni Agitated Column",
+      both: "Compare Both — ECP and ECR",
+    };
+    const ts6 = d("technology_selection");
+    const tech6Label = techLabel[techSelection] ?? techSelection.toUpperCase();
+    const tech6Rationale = (ts6.technology_selection_rationale ?? "").trim();
+    const cardTitle = "Design Inputs — Stage 5 Hydraulic Carry-Over + Stage 6 Technology Decision";
     return (
       <SectionCard title={cardTitle}>
         {/* Stale DS-SEL warning — tech mismatch or diameter below current sweep minimum */}
@@ -4360,6 +4366,28 @@ export default function DesignSoftwareWorkspacePage() {
             </p>
           </div>
         )}
+        {/* ── Stage 6 Technology Decision ─────────────────────────────────── */}
+        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mt-1 mb-1">Stage 6 — Technology Decision</p>
+        <div className="grid grid-cols-[180px_1fr] gap-2 py-1 border-b border-gray-50">
+          <span className="text-xs text-gray-500">Selected Technology</span>
+          <span className="text-xs">
+            <span className="font-medium text-gray-800">{tech6Label || "— (not yet selected)"}</span>
+            <span className="block text-[10px] text-gray-400">Engineer decision · Source: Stage 6 — Technology Selection</span>
+          </span>
+        </div>
+        {tech6Rationale ? (
+          <div className="grid grid-cols-[180px_1fr] gap-2 py-1 border-b border-gray-50">
+            <span className="text-xs text-gray-500">Selection Rationale</span>
+            <span className="text-xs font-medium text-gray-800 whitespace-pre-wrap">{tech6Rationale}</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-[180px_1fr] gap-2 py-1 border-b border-gray-50">
+            <span className="text-xs text-gray-500">Selection Rationale</span>
+            <span className="text-xs text-amber-700 italic">Not entered — required on Stage 6 before design can be frozen</span>
+          </div>
+        )}
+        {/* ── Stage 5 Hydraulic Carry-Over ────────────────────────────────── */}
+        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mt-3 mb-1">Stage 5 — Hydraulic Carry-Over</p>
         {row("Column Diameter", co.diameter !== null ? `${co.diameter} m` : "— (run Stage 5)", co.diameterSource)}
         {row("Total Volumetric Flow", co.totalLph !== null ? `${co.totalLph.toLocaleString("en-IN")} LPH = ${(co.totalM3h as number).toFixed(1)} m³/h` : "—", "Stage 5 — Feed + Normal Solvent Flow")}
         {row("Continuous Phase Density", co.contDensity ? `${co.contDensity} kg/m³` : "—", "Stage 5 — Hydraulic Design (engineer-entered)")}
