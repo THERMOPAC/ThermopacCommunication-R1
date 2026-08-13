@@ -4402,6 +4402,15 @@ export default function DesignSoftwareWorkspacePage() {
         </span>
       </div>
     );
+    // Stale-record check: DS-SEL effective diameter vs. current hydraulic sweep minimum.
+    // If effective < sweep minimum the record was generated from an older run.
+    const hydResData = (resultsQ.data ?? []).find((r: any) => r.section === "hydraulics_common")?.data;
+    const hydNormal = hydResData?.normalCase ?? hydResData?.cases?.normal;
+    const minFeasibleD_m = numOrNull(String(hydNormal?.summary?.minimumFeasibleDiameter_m ?? ""));
+    const dselEffective_mm = rec?.effectiveDiameter_mm ?? rec?.selectedDiameter_mm ?? null;
+    const dselStaleRecord = dselEffective_mm !== null && minFeasibleD_m !== null &&
+      (dselEffective_mm / 1000) < minFeasibleD_m - 0.001;
+
     const submitDecision = () => {
       if (!row) return;
       const body: any = { action: dselDialog, engineer: dselEngineer, reason: dselReason };
@@ -4413,6 +4422,20 @@ export default function DesignSoftwareWorkspacePage() {
     };
     return (
       <SectionCard title="Autonomous Design Selection — Engineering Decision Record (DS-SEL)">
+        {/* Stale record warning — shown when effective diameter is below the current sweep minimum */}
+        {rec && dselStaleRecord && (
+          <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-300 rounded-lg mb-3 -mt-1">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-amber-900 leading-snug">
+              <span className="font-semibold">This DS-SEL record is stale.</span>{" "}
+              The effective design diameter recorded here ({dselEffective_mm} mm) is below the current hydraulic sweep minimum feasible diameter
+              ({minFeasibleD_m !== null ? `${Math.round(minFeasibleD_m * 1000)} mm` : "—"}).
+              The record was generated from an earlier run with different inputs and has not been updated.
+              <span className="block mt-1 font-medium">Re-run the ECP/ECR calculation — DS-SEL regenerates automatically and this record will be replaced.</span>
+              The Equipment Design carry-over inputs above have already fallen back to the Stage 5 hydraulic value.
+            </p>
+          </div>
+        )}
         {!rec ? (
           <p className="text-xs text-gray-500">
             No selection record yet — the software generates the Engineering Decision Record automatically after each accepted ECP/ECR calculation run (deterministic rules DS-SEL-001…005; no value is invented).
