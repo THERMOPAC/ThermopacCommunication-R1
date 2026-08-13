@@ -22,11 +22,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { PRODUCT_REQUIREMENT_MASTER, PRODUCT_PARAMETER_MASTER, shouldSeedRequirementRows } from "@shared/product-requirement-master";
 import {
-  RRBO_FEED_DENSITY_MASTER, RRBO_FEED_DENSITY_REF_TEMP, NMP_MASTER,
+  NMP_MASTER,
   RRBO_FEED_VISCOSITY_MASTER, RRBO_FEED_VISCOSITY_REF_TEMP,
   EMULSION_BEHAVIOUR_DEFAULT, EMULSION_BEHAVIOUR_LEGACY_DEFAULT, PENDING_VALIDATION, FLUID_PROPERTY_PROVENANCE,
   TWO_PHASE_SCREENING_DEFAULTS, TWO_PHASE_SCREENING_SOURCE, TWO_PHASE_SCREENING_REF_TEMP,
 } from "@shared/fluid-properties-master";
+import { resolveNtInputs } from "@/lib/nt-requirement-resolver";
 
 // Module-level numeric parse helper (blank/invalid → null).
 const numOrNull = (v: string | undefined | null): number | null => {
@@ -100,14 +101,14 @@ function SectionCard({ title, children, className = "" }: { title: string; child
 }
 
 function FieldRow({
-  label, value, onChange, onBlur, type = "text", unit, placeholder, readOnly = false, note,
+  label, value, onChange, onBlur, type = "text", unit, placeholder, readOnly = false, note, error,
 }: {
   label: string; value: string; onChange: (v: string) => void; onBlur?: () => void;
-  type?: string; unit?: string; placeholder?: string; readOnly?: boolean; note?: string;
+  type?: string; unit?: string; placeholder?: string; readOnly?: boolean; note?: string; error?: string;
 }) {
   return (
     <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
-      <label className="text-sm text-gray-600 pt-2 font-medium leading-tight">{label}</label>
+      <label className={`text-sm pt-2 font-medium leading-tight ${error ? "text-red-600" : "text-gray-600"}`}>{label}{error && <span className="text-red-500 ml-0.5">*</span>}</label>
       <div>
         <Input
           type={type}
@@ -116,9 +117,10 @@ function FieldRow({
           onBlur={onBlur}
           placeholder={placeholder ?? label}
           readOnly={readOnly}
-          className={`h-8 text-sm ${readOnly ? "bg-gray-50 text-gray-500" : ""}`}
+          className={`h-8 text-sm ${readOnly ? "bg-gray-50 text-gray-500" : ""} ${error ? "border-red-400 focus-visible:ring-red-400 bg-red-50" : ""}`}
         />
-        {note && <p className="text-xs text-gray-400 mt-1">{note}</p>}
+        {error && <p className="text-xs text-red-600 mt-1 font-medium">{error}</p>}
+        {note && !error && <p className="text-xs text-gray-400 mt-1">{note}</p>}
       </div>
       <div className="pt-2 min-w-[60px]">
         {unit && <span className="text-xs text-gray-400">{unit}</span>}
@@ -149,10 +151,10 @@ function TextAreaRow({
 }
 
 function SelectRow({
-  label, value, onChange, onBlur, onCommit, options, allowOther = false, unit, note,
+  label, value, onChange, onBlur, onCommit, options, allowOther = false, unit, note, error,
 }: {
   label: string; value: string; onChange: (v: string) => void; onBlur?: () => void;
-  onCommit?: (v: string) => void; options: string[]; allowOther?: boolean; unit?: string; note?: string;
+  onCommit?: (v: string) => void; options: string[]; allowOther?: boolean; unit?: string; note?: string; error?: string;
 }) {
   const inList = options.includes(value);
   const [otherMode, setOtherMode] = useState(!!value && !inList);
@@ -169,7 +171,7 @@ function SelectRow({
             else { setOtherMode(false); onChange(v); onBlur?.(); }
           }}
         >
-          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder={`Select ${label}`} /></SelectTrigger>
+          <SelectTrigger className={`h-8 text-sm ${error ? "border-red-400 focus:ring-red-400 bg-red-50" : ""}`}><SelectValue placeholder={`Select ${label}`} /></SelectTrigger>
           <SelectContent>
             {options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
             {allowOther && <SelectItem value="__other__">Other…</SelectItem>}
@@ -184,7 +186,8 @@ function SelectRow({
             className="h-8 text-sm"
           />
         )}
-        {note && <p className="text-xs text-gray-400">{note}</p>}
+        {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
+        {note && !error && <p className="text-xs text-gray-400">{note}</p>}
       </div>
       <div className="pt-2 min-w-[60px]">{unit && <span className="text-xs text-gray-400">{unit}</span>}</div>
     </div>
@@ -195,19 +198,26 @@ function SelectRow({
  *  If the confirmed value differs from the suggestion, an override reason is required. */
 /** Searchable dropdown (combobox) row — options list is master-data driven. */
 function SearchSelectRow({
-  label, value, options, onSelect, unit, note, placeholder,
+  label, value, options, onSelect, unit, note, placeholder, error,
 }: {
   label: string; value: string; options: string[]; onSelect: (v: string) => void;
-  unit?: string; note?: string; placeholder?: string;
+  unit?: string; note?: string; placeholder?: string; error?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
-      <label className="text-sm text-gray-600 pt-2 font-medium leading-tight">{label}</label>
+      <label className={`text-sm pt-2 font-medium leading-tight ${error ? "text-red-600" : "text-gray-600"}`}>
+        {label}{error && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
       <div className="space-y-1">
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
-            <Button variant="outline" role="combobox" aria-expanded={open} className="h-8 w-full justify-between text-sm font-normal">
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={open}
+              className={`h-8 w-full justify-between text-sm font-normal ${error ? "border-red-400 bg-red-50 text-red-900" : ""}`}
+            >
               {value || placeholder || "Select…"}
               <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
             </Button>
@@ -229,7 +239,8 @@ function SearchSelectRow({
             </Command>
           </PopoverContent>
         </Popover>
-        {note && <p className="text-xs text-gray-400">{note}</p>}
+        {error && <p className="text-xs text-red-600 font-medium">{error}</p>}
+        {note && !error && <p className="text-xs text-gray-400">{note}</p>}
       </div>
       <div className="pt-2 min-w-[60px]">{unit && <span className="text-xs text-gray-400">{unit}</span>}</div>
     </div>
@@ -284,9 +295,9 @@ const CW_DELTA_T_DEFAULT = "8";
 
 // Process Design (Stage 4) approved defaults
 const SO_RATIO_OPTIONS = ["0.5", "1.0", "1.5", "2.0"];
-const SO_RATIO_DEFAULT = "1.5";
+// SO_RATIO_DEFAULT deliberately removed — S/O is a governed engineer input with no silent default (A-2).
 const TOTAL_AROMATICS_DEFAULT = "2.7";
-const DESIGN_MARGIN_DEFAULT = "20";
+// DESIGN_MARGIN_DEFAULT deliberately removed — Design Margin is a governed project input with no silent default (A-3).
 const PHASE_CONFIG_OPTIONS = [
   { value: "rrbo_continuous_nmp_dispersed", label: "RRBO continuous / NMP dispersed" },
   { value: "nmp_continuous_rrbo_dispersed", label: "NMP continuous / RRBO dispersed" },
@@ -321,6 +332,11 @@ const FEED_SERVICE_OPTIONS = [
 ];
 
 const CAPACITY_OPTIONS = Array.from({ length: 15 }, (_, i) => String((i + 1) * 1000));
+
+// Cross-stage error keys per stage — fields whose UI lives in a DIFFERENT stage's form.
+// Add entries here as each stage's validation is approved and cross-stage rules emerge.
+// The footer uses this to show "N fields in a later stage" instead of "N fields missing on this page".
+const CROSS_STAGE_ERROR_KEYS: Partial<Record<string, Set<string>>> = {};
 
 // Thermopac Design Basis Default feed densities @ 15 °C (kg/m³) — preliminary
 // engineering defaults only; fully editable by the engineer.
@@ -459,49 +475,56 @@ const SOURCE_OPTIONS = ["Measured", "Vendor", "Literature", "Assumed"] as const;
 type Source = (typeof SOURCE_OPTIONS)[number];
 
 function PropertyRow({
-  label, propKey, data, onChange, onBlur,
+  label, propKey, data, onChange, onBlur, error,
 }: {
   label: string;
   propKey: string;
   data: Record<string, string>;
   onChange: (key: string, val: string) => void;
   onBlur: () => void;
+  error?: string;
 }) {
   const src = (data[`${propKey}_source`] ?? "Measured") as Source;
   const isAssumed = src === "Assumed";
   return (
-    <div className={`grid grid-cols-[180px_110px_90px_110px_120px] items-center gap-2 py-1.5 px-2 rounded-lg ${isAssumed ? "bg-amber-50 border border-amber-200" : ""}`}>
-      <span className="text-sm text-gray-700 font-medium">
-        {label}
-        {isAssumed && <AlertTriangle className="inline h-3 w-3 ml-1 text-amber-500" />}
-      </span>
-      <Input
-        value={data[`${propKey}_value`] ?? ""}
-        onChange={e => onChange(`${propKey}_value`, e.target.value)}
-        onBlur={onBlur}
-        placeholder="Value"
-        className="h-7 text-xs"
-      />
-      <Input
-        value={data[`${propKey}_unit`] ?? ""}
-        onChange={e => onChange(`${propKey}_unit`, e.target.value)}
-        onBlur={onBlur}
-        placeholder="Unit"
-        className="h-7 text-xs"
-      />
-      <Input
-        value={data[`${propKey}_ref_temp`] ?? ""}
-        onChange={e => onChange(`${propKey}_ref_temp`, e.target.value)}
-        onBlur={onBlur}
-        placeholder="Ref. temp."
-        className="h-7 text-xs"
-      />
-      <Select value={src} onValueChange={v => { onChange(`${propKey}_source`, v); onBlur(); }}>
-        <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          {SOURCE_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-        </SelectContent>
-      </Select>
+    <div>
+      <div className={`grid grid-cols-[180px_110px_90px_110px_120px] items-center gap-2 py-1.5 px-2 rounded-lg ${
+        error ? "bg-red-50 border border-red-200" : isAssumed ? "bg-amber-50 border border-amber-200" : ""
+      }`}>
+        <span className={`text-sm font-medium ${error ? "text-red-700" : "text-gray-700"}`}>
+          {label}
+          {error && <span className="text-red-500 ml-0.5">*</span>}
+          {!error && isAssumed && <AlertTriangle className="inline h-3 w-3 ml-1 text-amber-500" />}
+        </span>
+        <Input
+          value={data[`${propKey}_value`] ?? ""}
+          onChange={e => onChange(`${propKey}_value`, e.target.value)}
+          onBlur={onBlur}
+          placeholder="Value"
+          className={`h-7 text-xs ${error ? "border-red-400" : ""}`}
+        />
+        <Input
+          value={data[`${propKey}_unit`] ?? ""}
+          onChange={e => onChange(`${propKey}_unit`, e.target.value)}
+          onBlur={onBlur}
+          placeholder="Unit"
+          className="h-7 text-xs"
+        />
+        <Input
+          value={data[`${propKey}_ref_temp`] ?? ""}
+          onChange={e => onChange(`${propKey}_ref_temp`, e.target.value)}
+          onBlur={onBlur}
+          placeholder="Ref. temp."
+          className="h-7 text-xs"
+        />
+        <Select value={src} onValueChange={v => { onChange(`${propKey}_source`, v); onBlur(); }}>
+          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {SOURCE_OPTIONS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      {error && <p className="text-xs text-red-600 font-medium px-2 mt-0.5">{error}</p>}
     </div>
   );
 }
@@ -577,6 +600,14 @@ export default function DesignSoftwareWorkspacePage() {
   const [localData, setLocalData] = useState<Record<string, Record<string, string>>>({});
   const [savingSection, setSavingSection] = useState<string | null>(null);
 
+  // ── Stage-by-stage validation ────────────────────────────────────────────────
+  // errors:   { stageKey → { fieldKey → errorMessage } }  — block forward nav
+  // warnings: { stageKey → { fieldKey → warningMessage } } — shown but do not block
+  // attempted: set of stages where the user has tried to navigate forward via "Next →"
+  const [stageValidationErrors,   setStageValidationErrors]   = useState<Partial<Record<StepKey, Record<string, string>>>>({});
+  const [stageValidationWarnings, setStageValidationWarnings] = useState<Partial<Record<StepKey, Record<string, string>>>>({});
+  const [stageValidationAttempted, setStageValidationAttempted] = useState<Set<StepKey>>(new Set());
+
   // New revision dialog
   const [showNewRevision, setShowNewRevision] = useState(false);
   const [revisionNote, setRevisionNote] = useState("");
@@ -634,11 +665,12 @@ export default function DesignSoftwareWorkspacePage() {
     queryKey: ["/api/design-software/packings"],
     queryFn: () => apiRequest("GET", "/api/design-software/packings") as Promise<any[]>,
   });
-  const backMixingRisk = (localData["ecp_design"]?.backmixing_risk as string) ?? "moderate";
+  // backMixingRisk has no silent default — A-4. Query is disabled until engineer has assessed and entered a value.
+  const backMixingRisk = (localData["ecp_design"]?.backmixing_risk as string) ?? "";
   const sulzerQ = useQuery<any>({
     queryKey: [`/api/design-software/revisions/${activeRevisionId}/sulzer-screening`, backMixingRisk],
     queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/sulzer-screening?risk=${backMixingRisk}`) as Promise<any>,
-    enabled: !!activeRevisionId,
+    enabled: !!activeRevisionId && backMixingRisk !== "",
     retry: false,
   });
   const resultsQ = useQuery<any[]>({
@@ -670,6 +702,9 @@ export default function DesignSoftwareWorkspacePage() {
   // replacing it would roll back values that the next whole-section save then
   // silently erases from the server (root cause of lost Design Basis fields).
   const hydratedRevisionRef = useRef<number | null>(null);
+  // Tracks the previous N_T calculability state so the auto-trigger fires only
+  // on the transition false → true (not on every render while already calculable).
+  const ntPrevCalculable = useRef(false);
   // Hydration barrier for ALL auto-seeding effects: seeders must not run until
   // localData actually contains the first server snapshot for this revision.
   // State (not the ref) is used so that, in the render pass where hydration is
@@ -772,6 +807,17 @@ export default function DesignSoftwareWorkspacePage() {
     enabled: (activeStep === "fluid_properties" || activeStep === "process_design") && fpOt !== null,
   });
 
+  // Grade from Design Basis — used to select the correct RRBO EPD library fluid.
+  const fpGrade = (localData["design_basis"]?.feed_service ?? "Re-Refined Base Oil SN300").trim();
+
+  // Governed density pair — ρNMP(T), ρRRBO_<grade>(T), Δρ(T) — EPD library lookup.
+  // Used in Fluid Properties display and Stage 5 hydraulic auto-fill.
+  const densityPairQ = useQuery({
+    queryKey: [`/api/design-software/epd/density-pair`, fpOtStr, fpGrade],
+    queryFn: () => apiRequest("GET", `/api/design-software/epd/density-pair?tc=${encodeURIComponent(fpOtStr)}&grade=${encodeURIComponent(fpGrade)}`) as Promise<any>,
+    enabled: fpOt !== null,
+  });
+
   // Seed approved master-data defaults into blank Fluid Properties fields only.
   // Never overwrites engineer-entered values; properties without an approved
   // Thermopac value are left manual (no invented data).
@@ -793,12 +839,9 @@ export default function DesignSoftwareWorkspacePage() {
       }
       if (refTemp && blank(`${key}_ref_temp`) && (`${key}_value` in u)) u[`${key}_ref_temp`] = refTemp;
     };
-    // RRBO — Thermopac Feed Master density for the selected grade
-    const grade = (dbx.feed_service ?? "").trim();
-    const rhoMaster = RRBO_FEED_DENSITY_MASTER[grade];
-    if (rhoMaster) setIf("rrbo_density", rhoMaster, "kg/m³", `${RRBO_FEED_DENSITY_REF_TEMP} °C`);
     // RRBO viscosities — Thermopac Master Data (Default) @ 40 °C, starting
     // values until laboratory measurements; engineer may override.
+    const grade = (dbx.feed_service ?? "").trim();
     const muMaster = RRBO_FEED_VISCOSITY_MASTER[grade];
     if (muMaster) {
       setIf("rrbo_viscosity_dynamic", muMaster.dynamic_mpas, "mPa·s", `${RRBO_FEED_VISCOSITY_REF_TEMP} °C`);
@@ -817,23 +860,9 @@ export default function DesignSoftwareWorkspacePage() {
       setIf("rrbo_colour", target("Product Colour"), "ASTM D1500");
       setIf("rrbo_sulphur", target("Sulphur"), "ppm");
     } catch { /* ignore malformed rows */ }
-    // RRBO kinematic viscosity — fallback calculation from an engineer-entered
-    // dynamic viscosity ÷ density, only when the viscosity master did not
-    // already seed a value for this grade.
-    const mu = numOrNull(fp.rrbo_viscosity_dynamic_value);
-    const rho = numOrNull(`${"rrbo_density_value" in u ? u.rrbo_density_value : fp.rrbo_density_value}`);
-    if (mu !== null && rho !== null && rho > 0 && blank("rrbo_viscosity_kinematic_value") && !("rrbo_viscosity_kinematic_value" in u)) {
-      u.rrbo_viscosity_kinematic_value = String(Math.round((mu / rho) * 1000 * 1000) / 1000);
-      if (blank("rrbo_viscosity_kinematic_unit")) u.rrbo_viscosity_kinematic_unit = "mm²/s";
-      if (blank("rrbo_viscosity_kinematic_ref_temp") && (fp.rrbo_viscosity_dynamic_ref_temp ?? "").trim() !== "")
-        u.rrbo_viscosity_kinematic_ref_temp = fp.rrbo_viscosity_dynamic_ref_temp;
-    }
-    // NMP — EPD values at Operating Temperature
+    // NMP — EPD values at Operating Temperature (density is application-calculated;
+    // only dynamic viscosity is seeded from the EPD data into the workspace field)
     const epd = epdNmpQ.data;
-    if (epd?.density?.value != null) {
-      setIf("nmp_density", String(Math.round(epd.density.value * 10) / 10), "kg/m³", fpOtStr + " °C");
-      if (blank("nmp_density_source") && ("nmp_density_value" in u)) u.nmp_density_source = epd.density.pendingValidation ? "Assumed" : "Literature";
-    }
     if (epd?.dynamicViscosity?.value != null) {
       setIf("nmp_viscosity_dynamic", String(Math.round(epd.dynamicViscosity.value * 1000) / 1000), "mPa·s", fpOtStr + " °C");
       if (blank("nmp_viscosity_dynamic_source") && ("nmp_viscosity_dynamic_value" in u)) u.nmp_viscosity_dynamic_source = epd.dynamicViscosity.pendingValidation ? "Assumed" : "Literature";
@@ -902,10 +931,9 @@ export default function DesignSoftwareWorkspacePage() {
   }, [isFrozen, activeRevisionId, hydratedRevision, inputsQ.data, localData, savingSection, upsertMutation.isPending]);
 
   // ── Process Design (Stage 4) default initialization ─────────────────────────
-  // Consumes the approved Design Basis: S/O ratio 1.5 (vol/vol), 6 theoretical
-  // stages, 60 % stage efficiency, 20 % design margin; Extraction T/P track the
-  // Design Basis Operating T/P until manually changed. Blank-only for defaults;
-  // tracked fields never override a manual value.
+  // Seeds only governed engineering defaults. S/O ratio is NOT seeded — it is a
+  // project input that must be explicitly entered by the engineer (no silent default).
+  // Extraction T/P track the Design Basis Operating T/P until manually changed.
   useEffect(() => {
     if (activeStep !== "process_design" || isFrozen || !activeRevisionId || !inputsQ.data) return;
     if (hydratedRevision !== activeRevisionId) return; // never seed from pre-hydration empty state
@@ -914,7 +942,8 @@ export default function DesignSoftwareWorkspacePage() {
     const dbx = localData["design_basis"] ?? {};
     const u: Record<string, string> = {};
     const blank = (k: string) => (pd[k] ?? "").trim() === "";
-    if (blank("so_ratio")) u.so_ratio = SO_RATIO_DEFAULT;
+    // so_ratio is intentionally NOT seeded: S/O ratio is a governed project input
+    // that the engineer must enter explicitly — no silent default is permitted.
     // theoretical_stages is intentionally NOT seeded: it is the Engineer
     // Override N_T, which must be an explicit engineer action — the governed
     // Coto 2022 auto-calculation is the primary basis (never a default of 6).
@@ -924,7 +953,8 @@ export default function DesignSoftwareWorkspacePage() {
     // stage_efficiency is intentionally NOT seeded: it is informational-only
     // (never governs packed-column height, H_active = N_T × HETS) and is never
     // silently assumed at 60 %.
-    if (blank("design_margin")) u.design_margin = DESIGN_MARGIN_DEFAULT;
+    // design_margin is intentionally NOT seeded: it is a governed project input
+    // that the engineer must enter explicitly — no silent default is permitted (A-3).
     if (blank("interface_control")) u.interface_control = INTERFACE_CONTROL_DEFAULT;
     for (const cb of COMPONENT_BALANCE_FIELDS) {
       if (blank(cb.key)) u[cb.key] = cb.def;
@@ -940,6 +970,122 @@ export default function DesignSoftwareWorkspacePage() {
     if (Object.keys(u).length > 0) commitSection("process_design", u);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeStep, isFrozen, activeRevisionId, hydratedRevision, inputsQ.data, localData, savingSection, upsertMutation.isPending]);
+
+  // ── Hydraulic Design C3 screening defaults (Step 5) ──────────────────────────
+  // Pre-populate d32 = 3 mm and n = 1 (both Assumed — Preliminary / Pending
+  // Validation) for new d32_terminal cases. Values are stored explicitly in the
+  // workspace so the C3 engine always receives visible, traceable inputs — no
+  // hidden mapper fallbacks. The engineer may change either value freely; doing
+  // so updates the source type and reference to reflect the new basis.
+  // n is only seeded in d32_terminal mode; in characteristic_velocity mode the
+  // engineer must supply a measured/literature n with no screening default.
+  useEffect(() => {
+    if (isFrozen || !activeRevisionId) return;
+    if (hydratedRevision !== activeRevisionId) return;
+    if (savingSection !== null || upsertMutation.isPending) return;
+    const hd = localData["hydraulic_design"] ?? {};
+    const mode = (hd.hydraulic_model ?? "").trim() || "d32_terminal";
+    const updates: Record<string, string> = {};
+    const D32_REF = "Thermopac Preliminary Screening Default — d₃₂ = 3 mm (Assumed / Preliminary / Pending Validation)";
+    const N_REF   = "Thermopac Preliminary Screening Default — n = 1 (Assumed / Preliminary / Pending Validation)";
+    // d32 — always seed when blank; field is consumed only in d32_terminal mode
+    // but is stored regardless so a future mode switch retains the screening basis.
+    if (!hd.sauter_mean_d32 || hd.sauter_mean_d32.trim() === "") {
+      updates.sauter_mean_d32            = "3";
+      updates.sauter_mean_d32_source     = "Assumed";
+      updates.sauter_mean_d32_source_ref = D32_REF;
+    }
+    // n — seed only in d32_terminal mode; no governed default in
+    // characteristic_velocity mode (engineer must enter a measured value).
+    if (mode === "d32_terminal" && (!hd.hindrance_exponent || hd.hindrance_exponent.trim() === "")) {
+      updates.hindrance_exponent            = "1";
+      updates.hindrance_exponent_source     = "Assumed";
+      updates.hindrance_exponent_source_ref = N_REF;
+    }
+    if (Object.keys(updates).length === 0) return;
+    commitSection("hydraulic_design", updates);
+  }, [isFrozen, activeRevisionId, hydratedRevision, localData, savingSection, upsertMutation.isPending, commitSection]);
+
+  // ── Technology Selection rationale auto-population (Step 6) ─────────────────
+  // Writes a preliminary rationale when a technology is selected and the field
+  // is blank. The engineer can edit or overwrite it freely at any time.
+  useEffect(() => {
+    if (isFrozen || !activeRevisionId) return;
+    if (hydratedRevision !== activeRevisionId) return;
+    if (savingSection !== null || upsertMutation.isPending) return;
+    const ts = localData["technology_selection"] ?? {};
+    const tech = (ts.technology ?? "").trim();
+    if (!tech) return; // no technology chosen yet — nothing to seed
+    if ((ts.technology_selection_rationale ?? "").trim()) return; // already filled
+    const RATIONALE: Record<string, string> = {
+      ecp:  "ECP — Packed Extraction Column selected for this service. Static packing, no moving parts, low maintenance profile. Preliminary selection — subject to hydraulic screening results and vendor confirmation.",
+      ecr:  "ECR — Kühni Agitated Column selected for this service. Rotating agitator provides higher stage efficiency and throughput adjustability. Preliminary selection — subject to hydraulic screening results and vendor confirmation.",
+      both: "Both ECP and ECR are being evaluated in parallel for comparative assessment of column diameter, stage count, and equipment cost. Final technology selection to be made following hydraulic screening and equipment design results.",
+    };
+    const text = RATIONALE[tech];
+    if (!text) return;
+    commitSection("technology_selection", { technology_selection_rationale: text });
+  }, [isFrozen, activeRevisionId, hydratedRevision, localData, savingSection, upsertMutation.isPending, commitSection]);
+
+  // ── N_T auto-calculation trigger ────────────────────────────────────────────
+  // Fires the material-balance + N_T run when the user enters RRBO Total
+  // Aromatics AND all 8 governed N_T required inputs become valid.
+  // Only triggers on the false→true transition (not on every render).
+  useEffect(() => {
+    if (activeStep !== "process_design" || isFrozen) { ntPrevCalculable.current = false; return; }
+    const pd = localData["process_design"] ?? {};
+    const db = localData["design_basis"] ?? {};
+    const hasTotalAromatics = (pd["rrbo_total_aromatics_wt"] ?? "").trim() !== "";
+    if (!hasTotalAromatics) { ntPrevCalculable.current = false; return; }
+    const ntNowCalculable = resolveNtInputs(db, pd).calculable;
+    if (ntNowCalculable && !ntPrevCalculable.current && !calculateMutation.isPending) {
+      calculateMutation.mutate("process_design");
+    }
+    ntPrevCalculable.current = ntNowCalculable;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStep, isFrozen, localData]);
+
+  // ── N_T result write-back ────────────────────────────────────────────────────
+  // After a process_design calculation completes, copy the engine-calculated N_T
+  // (theoreticalStages) back into the workspace field so the engineer can see it
+  // and optionally override it.  Skipped if the engineer has already overridden.
+  useEffect(() => {
+    const pdResult = (resultsQ.data ?? []).find((r: any) => r.section === "process_design");
+    const calcNt = pdResult?.data?.stages?.theoreticalStages;   // stages is the nested object
+    if (typeof calcNt !== "number" || !Number.isInteger(calcNt) || calcNt < 1) return;
+    const pd = localData["process_design"] ?? {};
+    if ((pd.theoretical_stages_source ?? "") === "override") return; // respect manual override
+    if ((pd.theoretical_stages ?? "").trim() === String(calcNt)) return; // already in sync
+    commitSection("process_design", {
+      theoretical_stages:        String(calcNt),
+      theoretical_stages_source: "calculated",
+    });
+    setTimeout(() => saveSection("process_design"), 60);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultsQ.data]);
+
+  // ── Assumed RRBO characterisation auto-fill (SOFTWARE TESTING ONLY) ─────────
+  // Fires ONCE when all 4 class fields are empty, source === "Assumed", and
+  // Total Aromatics is a valid number.  Preserves any manually entered values.
+  useEffect(() => {
+    if (activeStep !== "process_design" || isFrozen) return;
+    const pd = localData["process_design"] ?? {};
+    if ((pd.rrbo_characterisation_source ?? "") !== "Assumed") return;
+    const A = parseFloat((pd.rrbo_total_aromatics_wt ?? "").trim());
+    if (!Number.isFinite(A) || A <= 0 || A >= 100) return;
+    const allEmpty = ["rrbo_saturates_wt", "rrbo_mono_aromatics_wt", "rrbo_di_aromatics_wt", "rrbo_poly_aromatics_wt"]
+      .every(k => (pd[k as keyof typeof pd] ?? "").trim() === "");
+    if (!allEmpty) return;
+    const sat  = String(parseFloat((100 - A).toFixed(4)));
+    const ar3  = String(parseFloat((A / 3).toFixed(4)));
+    commitSection("process_design", {
+      rrbo_saturates_wt:       sat,
+      rrbo_mono_aromatics_wt:  ar3,
+      rrbo_di_aromatics_wt:    ar3,
+      rrbo_poly_aromatics_wt:  ar3,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStep, isFrozen, localData]);
 
   const newRevisionMutation = useMutation({
     mutationFn: () =>
@@ -990,6 +1136,34 @@ export default function DesignSoftwareWorkspacePage() {
     },
     onError: (e: any) => toast({ title: "Preliminary defaults error", description: e.message, variant: "destructive" }),
   });
+
+  // ── ECP / ECR preliminary equipment screening defaults (Step 7) ───────────────
+  // Auto-applies the Thermopac preliminary screening defaults for ECP and/or ECR
+  // the first time a technology-selected revision loads with blank height allowances.
+  // Uses the same server route as the manual "Reset to Thermopac Preliminary Defaults"
+  // button (which also registers each value in the assumptions register).
+  // One scope is applied per render pass; the localData update from onSuccess
+  // re-triggers the effect and the second scope (if needed) fires on the next pass.
+  // The banner and manual reset button remain fully functional — this only seeds
+  // a blank workspace; populated or engineer-modified values are never overwritten.
+  useEffect(() => {
+    if (isFrozen || !activeRevisionId) return;
+    if (hydratedRevision !== activeRevisionId) return;
+    if (prelimDefaultsMutation.isPending) return;
+    const tech = (localData["technology_selection"]?.technology ?? "").trim();
+    // ECP — apply when technology includes ECP and height allowances are absent
+    if ((tech === "ecp" || tech === "both") &&
+        !(localData["ecp_design"]?.top_head_height ?? "").trim()) {
+      prelimDefaultsMutation.mutate({ scope: "ecp", action: "apply" });
+      return; // one mutation per pass
+    }
+    // ECR — apply when technology includes ECR and height allowances are absent
+    if ((tech === "ecr" || tech === "both") &&
+        !(localData["ecr_design"]?.top_head_height ?? "").trim()) {
+      prelimDefaultsMutation.mutate({ scope: "ecr", action: "apply" });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFrozen, activeRevisionId, hydratedRevision, localData, prelimDefaultsMutation.isPending]);
 
   function renderPrelimBanner(scope: "ecp" | "ecr") {
     const section = scope === "ecp" ? "ecp_design" : "ecr_design";
@@ -1063,6 +1237,413 @@ export default function DesignSoftwareWorkspacePage() {
   const showECP = techSelection === "ecp" || techSelection === "both";
   const showECR = techSelection === "ecr" || techSelection === "both";
   const d = (section: string) => localData[section] ?? {};
+
+  // ── Stage validation engine ──────────────────────────────────────────────────
+  // Returns { errors, warnings } for a given stage.
+  //   errors   — blocking: forward nav is prevented until resolved
+  //   warnings — advisory: shown but do not block navigation
+  // Add each stage's rules here as each is approved.
+  function validateStage(stageKey: StepKey): { errors: Record<string, string>; warnings: Record<string, string> } {
+    const errors:   Record<string, string> = {};
+    const warnings: Record<string, string> = {};
+    const numVal = (v: string | undefined): number | null => {
+      if (!v?.trim()) return null;
+      const n = parseFloat(v.trim());
+      return Number.isFinite(n) ? n : null;
+    };
+
+    if (stageKey === "design_identity") {
+      const di = d("design_identity");
+      if (!di.prepared_by?.trim())    errors["prepared_by"]    = "Prepared By is required";
+      if (!di.checked_by?.trim())     errors["checked_by"]     = "Checked By is required";
+      if (!di.approved_by?.trim())    errors["approved_by"]    = "Approved By is required";
+      if (!di.client?.trim())         errors["client"]         = "Client / Customer is required";
+      if (!di.plant_location?.trim()) errors["plant_location"] = "Plant Location is required";
+    }
+
+    if (stageKey === "design_basis") {
+      const db2 = d("design_basis");
+
+      // ── Blocking rules ──────────────────────────────────────────────────────
+      // Design Capacity
+      const cap = numVal(db2.design_capacity_lph ?? db2.design_capacity);
+      if (cap === null || cap <= 0)
+        errors["design_capacity_lph"] = "Design Capacity is required and must be > 0 LPH";
+
+      // Feed Service — must be one of the four governed RRBO grades
+      const svcOk = FEED_SERVICE_OPTIONS.includes(db2.feed_service ?? "");
+      if (!svcOk)
+        errors["feed_service"] = "Feed Service (RRBO grade) must be selected — required for fluid property lookup";
+
+      // Operating Temperature — numeric, 0 < T < 200 °C
+      const ot2 = numVal(db2.operating_temperature);
+      if (ot2 === null)
+        errors["operating_temperature"] = "Operating Temperature is required";
+      else if (ot2 <= 0 || ot2 >= 200)
+        errors["operating_temperature"] = `Operating Temperature ${ot2} °C is out of the governed range (0–200 °C)`;
+
+      // Thermal Oil Type — required for heater duty and thermal design (C9 mechanical)
+      if (!db2.thermal_oil_type?.trim())
+        errors["thermal_oil_type"] = "Thermal Oil Type / Grade must be selected — required for heater duty and mechanical design";
+
+      // Operating Days — required selection
+      if (!db2.operating_days?.trim())
+        errors["operating_days"] = "Operating Days must be selected";
+
+      // Design Life — required selection
+      if (!db2.design_life?.trim())
+        errors["design_life"] = "Design Life must be selected";
+
+      // Feed Temperature — required selection
+      if (!db2.feed_temperature?.trim())
+        errors["feed_temperature"] = "Feed Temperature must be selected";
+
+      // Feed Pressure — required entry
+      if (!db2.feed_pressure?.trim())
+        errors["feed_pressure"] = "Feed Pressure must be entered";
+    }
+
+    if (stageKey === "fluid_properties") {
+      const fp = d("fluid_properties");
+      const val = (k: string) => (fp[k] ?? "").trim();
+
+      // ── Blocking rules ──────────────────────────────────────────────────────
+      // Core hydraulic design inputs
+      if (!val("rrbo_viscosity_dynamic_value"))
+        errors["rrbo_viscosity_dynamic"] = "RRBO Dynamic Viscosity is required — needed for hydraulic and packing design";
+      if (!val("nmp_viscosity_dynamic_value"))
+        errors["nmp_viscosity_dynamic"] = "NMP Dynamic Viscosity is required — needed for hydraulic and packing design";
+
+      // Phase-separation / extraction equilibrium inputs
+      if (!val("interfacial_tension_value"))
+        errors["interfacial_tension"] = "Interfacial Tension is required — needed for phase-separation design";
+      if (!val("nmp_solubility_rrbo_value"))
+        errors["nmp_solubility_rrbo"] = "NMP in RRBO-Rich Phase is required — needed for extraction equilibrium";
+      if (!val("oil_solubility_nmp_value"))
+        errors["oil_solubility_nmp"] = "Oil/Extractables in NMP-Rich Phase is required — needed for extraction equilibrium";
+
+      // Settler sizing input
+      if (!val("phase_separation_time"))
+        errors["phase_separation_time"] = "Phase Separation Time is required — needed for settler/coalescer sizing";
+
+      // ── Advisory warnings ───────────────────────────────────────────────────
+      const assumedProps = ["rrbo_viscosity_dynamic", "rrbo_viscosity_kinematic", "nmp_viscosity_dynamic",
+                            "interfacial_tension", "nmp_solubility_rrbo", "oil_solubility_nmp"]
+        .filter(k => val(`${k}_source`) === "Assumed");
+      if (assumedProps.length > 0)
+        warnings["assumed_properties"] = `${assumedProps.length} fluid propert${assumedProps.length > 1 ? "ies" : "y"} still tagged Assumed — replace with laboratory or vendor data before final release`;
+    }
+
+    if (stageKey === "process_design") {
+      const pd = d("process_design");
+      const val = (k: string) => (pd[k] ?? "").trim();
+
+      // ── Blocking rules ──────────────────────────────────────────────────────
+      // Required inputs with no default
+      if (!val("so_ratio"))
+        errors["so_ratio"] = "Solvent/Oil Ratio is required — engineer-entered, no default";
+      if (!val("design_margin"))
+        errors["design_margin"] = "Design Margin is required — needed for maximum solvent circulation";
+      if (!val("phase_configuration"))
+        errors["phase_configuration"] = "Phase Configuration is required — C2 engine never assumes phase continuity from density";
+
+      // Format validation — only block when a value has been entered AND is invalid
+      const stagesN = numOrNull(val("theoretical_stages"));
+      if (val("theoretical_stages") && (stagesN === null || stagesN < 1 || !Number.isInteger(stagesN)))
+        errors["theoretical_stages"] = "Theoretical stages must be a whole number ≥ 1";
+      const effN = numOrNull(val("stage_efficiency"));
+      if (val("stage_efficiency") && (effN === null || effN <= 0 || effN > 100))
+        errors["stage_efficiency"] = "Stage efficiency must be > 0 % and ≤ 100 %";
+
+      // ── RRBO characterisation & LLE targets — driven by governed N_T resolver ─
+      // Single source of truth: only process_design section fields are blocking
+      // here; design_basis fields (operating_temperature, feed_service) are
+      // gated at Stage 2. Class MWs are NOT user inputs (surrogate constants).
+      for (const rf of resolveNtInputs(d("design_basis"), pd).missingFields.filter(f => f.section === "process_design")) {
+        errors[rf.key] = `${rf.label} is required — ${rf.reason}`;
+      }
+
+      // Target raffinate aromatics source reference — mandatory whenever the target
+      // value is entered. The engine's parseTagged() rejects a blank sourceReference
+      // with an error status, so gate it here before the run.
+      if (val("target_raffinate_aromatics_mol") && !val("target_raffinate_aromatics_source_reference"))
+        errors["target_raffinate_aromatics_source_reference"] = "Target Raffinate Aromatics Source Reference is required — enter the product-quality specification document that sets this threshold (e.g. RRBO product spec sheet, client requirement document)";
+    }
+
+    if (stageKey === "hydraulic_design") {
+      const hd = d("hydraulic_design");
+      const val = (k: string) => (hd[k] ?? "").trim();
+      const VALID_SOURCES = ["Measured", "Vendor", "Literature", "Assumed"];
+
+      // Packing Specific Surface Area — blocking
+      if (!val("packing_specific_surface_value"))
+        errors["packing_specific_surface_value"] = "Packing Specific Surface Area is required — no default (A-5 governed input)";
+      else {
+        if (!VALID_SOURCES.includes(val("packing_specific_surface_source_type")))
+          errors["packing_specific_surface_source_type"] = "Source Type for Packing SSA is required (Measured / Vendor / Literature / Assumed)";
+        if (!val("packing_specific_surface_source_ref"))
+          errors["packing_specific_surface_source_ref"] = "Source Reference for Packing SSA is required — non-blank";
+      }
+
+      // Corrugation Angle — blocking
+      if (!val("packing_corrugation_angle_value"))
+        errors["packing_corrugation_angle_value"] = "Corrugation Angle is required — no default (30° or 45°)";
+      else if (!val("packing_corrugation_angle_source_ref"))
+        errors["packing_corrugation_angle_source_ref"] = "Corrugation Angle Source Reference is required — non-blank";
+
+      // Droplet / characteristic-velocity model
+      const model = val("hydraulic_model") || "d32_terminal";
+      if (model === "d32_terminal") {
+        const d32v = numVal(val("sauter_mean_d32"));
+        if (d32v === null || d32v <= 0)
+          errors["sauter_mean_d32"] = "Sauter Mean Diameter d32 is required and must be > 0 mm — screening default d₃₂ = 3 mm (Assumed) should have been pre-populated";
+        else {
+          if (!VALID_SOURCES.includes(val("sauter_mean_d32_source")))
+            errors["sauter_mean_d32_source"] = "d32 Source Type is required (Measured / Vendor / Literature / Assumed)";
+          if (!val("sauter_mean_d32_source_ref"))
+            errors["sauter_mean_d32_source_ref"] = "d32 Source Reference is required — non-blank";
+        }
+        // n is a governed source-tagged input in d32_terminal mode.
+        // The UI pre-populates n = 1 (Assumed) for new cases; source type and
+        // reference are always required (same pattern as d32).
+        const nv = numVal(val("hindrance_exponent"));
+        if (nv === null || nv <= 0) {
+          errors["hindrance_exponent"] = "Hindrance Exponent n is required and must be > 0 — screening default n = 1 (Assumed) should have been pre-populated";
+        } else {
+          if (!VALID_SOURCES.includes(val("hindrance_exponent_source")))
+            errors["hindrance_exponent_source"] = "n Source Type is required (Measured / Vendor / Literature / Assumed)";
+          if (!val("hindrance_exponent_source_ref"))
+            errors["hindrance_exponent_source_ref"] = "n Source Reference is required — non-blank";
+        }
+      } else {
+        const uk = numVal(val("characteristic_velocity"));
+        if (uk === null || uk <= 0)
+          errors["characteristic_velocity"] = "Characteristic Velocity u_K is required and must be > 0 m/s";
+        else {
+          if (!VALID_SOURCES.includes(val("characteristic_velocity_source")))
+            errors["characteristic_velocity_source"] = "u_K Source Type is required (Measured / Vendor / Literature / Assumed)";
+          if (!val("characteristic_velocity_source_ref"))
+            errors["characteristic_velocity_source_ref"] = "u_K Source Reference is required — non-blank";
+        }
+        const n = numVal(val("hindrance_exponent"));
+        if (n === null || n <= 0)
+          errors["hindrance_exponent"] = "Hindrance Exponent n is required — no default (A-series governed input)";
+        else {
+          if (!VALID_SOURCES.includes(val("hindrance_exponent_source")))
+            errors["hindrance_exponent_source"] = "Hindrance Exponent Source Type is required (Measured / Vendor / Literature / Assumed)";
+          if (!val("hindrance_exponent_source_ref"))
+            errors["hindrance_exponent_source_ref"] = "Hindrance Exponent Source Reference is required — non-blank";
+        }
+      }
+
+      // Advisory: SSA with no governed cf dataset and no vendor ΔP override
+      const ssaV = numVal(val("packing_specific_surface_value"));
+      if (ssaV !== null && [300, 350, 400, 450].includes(ssaV) && !val("vendor_dp_value"))
+        warnings["ssa_no_governed_cf"] = `SSA = ${ssaV} m²/m³ has no governed Duss 2013 c_f dataset — pressure drop Not Calculable for this geometry. Enter vendor ΔP data to enable pressure-drop calculation.`;
+    }
+
+    if (stageKey === "technology_selection") {
+      const ts2 = d("technology_selection");
+      if (!ts2.technology?.trim())
+        errors["technology"] = "Technology must be selected (ECP, ECR, or Compare Both) — Stage 7 Equipment Design is blocked without a selection";
+      if (!ts2.technology_selection_rationale?.trim())
+        errors["technology_selection_rationale"] = "Selection Rationale is required — provenance requirement, non-blank";
+    }
+
+    if (stageKey === "equipment_design") {
+      const techSel = d("technology_selection").technology;
+      const isECP = techSel === "ecp" || techSel === "both";
+      const isECR = techSel === "ecr" || techSel === "both";
+      const VALID_SOURCES = ["Measured", "Vendor", "Literature", "Assumed"];
+      if (!techSel?.trim()) {
+        errors["technology"] = "Technology selection (Stage 6) is required before Equipment Design inputs are validated";
+      } else {
+        if (isECP) {
+          const ec = d("ecp_design");
+          const ecVal = (k: string) => (ec[k] ?? "").trim();
+          if (!ecVal("packing_id"))
+            errors["ecp_packing_id"] = "ECP: a packing record must be selected from the Packing Database — the C4 engine cannot run without it";
+          const hetsV = numVal(ecVal("hets"));
+          if (hetsV === null || hetsV <= 0)
+            errors["ecp_hets"] = "ECP HETS Override is required (> 0 m) — not calculable; governed override with source traceability is mandatory";
+          else {
+            if (!VALID_SOURCES.includes(ecVal("hets_source")))
+              errors["ecp_hets_source"] = "ECP HETS Source Type is required";
+            if (!ecVal("hets_source_reference"))
+              errors["ecp_hets_source_reference"] = "ECP HETS Source Reference is required — non-blank";
+          }
+          for (const [k, label] of [
+            ["top_head_height", "ECP Top Head Height"], ["top_disengagement_height", "ECP Top Disengagement Height"],
+            ["top_distributor_allowance", "ECP Top Distributor Allowance"], ["packing_support_allowance", "ECP Packing Support Allowance"],
+            ["hold_down_allowance", "ECP Hold-Down Allowance"], ["bottom_distributor_allowance", "ECP Bottom Distributor Allowance"],
+            ["bottom_disengagement_height", "ECP Bottom Disengagement Height"], ["bottom_head_height", "ECP Bottom Head Height"],
+          ] as [string, string][]) {
+            if (!numVal(ecVal(k)))
+              errors[`ecp_${k}`] = `${label} is required (> 0 m) — the C4 engine blocks without all 8 mandatory height allowances`;
+          }
+        }
+        if (isECR) {
+          const er = d("ecr_design");
+          const erVal = (k: string) => (er[k] ?? "").trim();
+          if (!numVal(erVal("rotor_diameter")) && !numVal(erVal("rotor_ratio")))
+            errors["ecr_rotor"] = "ECR: enter Rotor Diameter (m) OR Rotor/Column Diameter Ratio — at least one is required";
+          const hasSpeed = numVal(erVal("rotor_speed")) !== null;
+          const hasRange = erVal("rotor_speed_range") !== "";
+          if (!hasSpeed && !hasRange)
+            errors["ecr_rotor_speed"] = "ECR Rotor Speed or Speed Range — one is required (mutually exclusive)";
+          if (hasSpeed && hasRange)
+            errors["ecr_rotor_speed"] = "ECR Rotor Speed and Speed Range are mutually exclusive — enter only one";
+          for (const [k, label] of [["power_number", "ECR Power Number"], ["compartment_height", "ECR Compartment Height"]] as [string, string][]) {
+            if (!numVal(erVal(k)))
+              errors[`ecr_${k}`] = `${label} is required (> 0) — the C5 engine blocks without it`;
+          }
+          const ceV = numVal(erVal("compartment_efficiency"));
+          if (ceV === null || ceV <= 0)
+            errors["ecr_compartment_efficiency"] = "ECR Compartment Efficiency is required — governed override only, no default (A-10)";
+          else {
+            if (!VALID_SOURCES.includes(erVal("compartment_efficiency_source")))
+              errors["ecr_compartment_efficiency_source"] = "ECR Compartment Efficiency Source Type is required";
+            if (!erVal("compartment_efficiency_source_reference"))
+              errors["ecr_compartment_efficiency_source_reference"] = "ECR Compartment Efficiency Source Reference is required — non-blank";
+          }
+          for (const [k, label] of [
+            ["shaft_efficiency", "ECR Shaft Efficiency"], ["mechanical_design_margin", "ECR Mechanical Design Margin"],
+            ["drive_seal_bearing_allowance", "ECR Drive/Seal/Bearing Allowance"],
+          ] as [string, string][]) {
+            if (!numVal(erVal(k)))
+              errors[`ecr_${k}`] = `${label} is required (> 0) — the C5 engine blocks without it`;
+          }
+          for (const [k, label] of [
+            ["top_head_height", "ECR Top Head Height"], ["top_disengagement_height", "ECR Top Disengagement Height"],
+            ["top_distributor_allowance", "ECR Top Distributor Allowance"], ["bottom_distributor_allowance", "ECR Bottom Distributor Allowance"],
+            ["bottom_disengagement_height", "ECR Bottom Disengagement Height"], ["bottom_head_height", "ECR Bottom Head Height"],
+          ] as [string, string][]) {
+            if (!numVal(erVal(k)))
+              errors[`ecr_${k}`] = `${label} is required (> 0 m) — the C5 engine blocks without it`;
+          }
+        }
+      }
+    }
+
+    if (stageKey === "technology_comparison") {
+      const techSel2 = d("technology_selection").technology;
+      if (!techSel2?.trim())
+        errors["technology"] = "Technology not selected — complete Stage 6 first";
+      const isECP2 = techSel2 === "ecp" || techSel2 === "both";
+      const isECR2 = techSel2 === "ecr" || techSel2 === "both";
+      if (isECP2 && !ecpExec.executed)
+        errors["ecp_run"] = "No accepted ECP run exists — run Stage 7 ECP calculation and accept the result first";
+      if (isECR2 && !ecrExec.executed)
+        errors["ecr_run"] = "No accepted ECR run exists — run Stage 7 ECR calculation and accept the result first";
+    }
+
+    if (stageKey === "mechanical_design") {
+      const md2 = d("mechanical_design");
+      if (!(md2.design_code ?? "").trim())
+        errors["design_code"] = "Governing Design Code must be assigned — the C6 engine records NOT_ASSIGNED until it is entered";
+    }
+
+    if (stageKey === "utilities") {
+      const ut = d("utilities");
+      const val = (k: string) => (ut[k] ?? "").trim();
+      const missingUtils = (["thermal_oil_duty", "cw_duty", "cw_flow", "steam_requirement", "electrical_load", "nitrogen_requirement"] as const)
+        .filter(k => !val(k));
+      if (missingUtils.length > 0)
+        warnings["utilities_incomplete"] = `${missingUtils.length} utility field${missingUtils.length > 1 ? "s" : ""} not yet entered — the utilities section of Stage 13 reports will be incomplete`;
+    }
+
+    if (stageKey === "cost_estimation") {
+      const ce = d("cost_estimation");
+      const val = (k: string) => (ce[k] ?? "").trim();
+      const byearStr = val("base_year");
+      const byear = byearStr ? numVal(byearStr) : null;
+      if (byear === null || byear < 2000 || !Number.isInteger(byear))
+        errors["base_year"] = "Base Year is required — integer ≥ 2000";
+      const efStr = val("escalation_factor");
+      const ef = efStr ? numVal(efStr) : null;
+      if (ef === null || ef <= 0)
+        errors["escalation_factor"] = "Escalation Factor is required (> 0)";
+      const cpStr = val("contingency_percent");
+      const cp = cpStr ? numVal(cpStr) : null;
+      if (cp === null || cp < 0 || cp > 100)
+        errors["contingency_percent"] = "Contingency % is required (0–100 %)";
+      // Advisory: base year differs significantly from current year with factor = 1.0
+      if (byear !== null && ef !== null) {
+        const currentYear = new Date().getFullYear();
+        if (Math.abs(currentYear - byear) > 2 && Math.abs(ef - 1.0) < 0.001)
+          warnings["escalation_factor"] = `Base year ${byear} differs from the current year ${currentYear} by more than 2 years but the escalation factor is 1.00 — verify that cost escalation has been correctly applied`;
+      }
+    }
+
+    // Future stages will be added here as each is approved.
+
+    return { errors, warnings };
+  }
+
+  // "Next →" button: validates the current stage and blocks forward navigation on errors.
+  // Sidebar clicks use bare setActiveStep (free navigation) — this avoids circular deadlocks
+  // when a blocking field (e.g. Phase Configuration) lives in a later stage's UI.
+  function tryNavigateTo(targetKey: StepKey) {
+    const currentIdx = STEPS.findIndex(s => s.key === activeStep);
+    const targetIdx  = STEPS.findIndex(s => s.key === targetKey);
+
+    // "Previous ←" button — always allowed (no validation)
+    if (targetIdx <= currentIdx) {
+      setActiveStep(targetKey);
+      return;
+    }
+
+    // Forward — validate current stage first
+    const { errors, warnings } = validateStage(activeStep);
+    setStageValidationErrors(  prev => ({ ...prev, [activeStep]: errors }));
+    setStageValidationWarnings(prev => ({ ...prev, [activeStep]: warnings }));
+    setStageValidationAttempted(prev => new Set(prev).add(activeStep));
+
+    if (Object.keys(errors).length > 0) {
+      // Scroll to the first erroneous field wrapper
+      const firstKey = Object.keys(errors)[0];
+      const el = document.querySelector(`[data-field-key="${activeStep}__${firstKey}"]`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      return; // Block forward navigation
+    }
+
+    setActiveStep(targetKey);
+  }
+
+  // Status of a step for the left-nav indicator dot.
+  function stageStatus(key: StepKey): "complete" | "warning" | "blocking" | "unchecked" {
+    if (!stageValidationAttempted.has(key)) return "unchecked";
+    const errs  = stageValidationErrors[key]   ?? {};
+    const warns = stageValidationWarnings[key] ?? {};
+    if (Object.keys(errs).length  > 0) return "blocking";
+    if (Object.keys(warns).length > 0) return "warning";
+    return "complete";
+  }
+
+  // Renders the per-stage error/warning banner — same visual pattern as Stage 3/4.
+  function stageBanner(key: StepKey, label = "Stage incomplete") {
+    if (!stageValidationAttempted.has(key)) return null;
+    const ve = stageValidationErrors[key] ?? {};
+    const vw = stageValidationWarnings[key] ?? {};
+    const ec = Object.keys(ve).length;
+    const wc = Object.keys(vw).length;
+    return (
+      <>
+        {ec > 0 && (
+          <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 flex items-start gap-2">
+            <span className="mt-0.5 shrink-0 text-red-500">⚠</span>
+            <p className="text-sm font-semibold text-red-800">{label} — {ec} required input{ec > 1 ? "s" : ""} missing or invalid</p>
+          </div>
+        )}
+        {wc > 0 && (
+          <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
+            <span className="mt-0.5 shrink-0 text-amber-500">⚠</span>
+            <p className="text-sm text-amber-800">{Object.values(vw).join(" · ")}</p>
+          </div>
+        )}
+      </>
+    );
+  }
 
   // ── Validation checks ─────────────────────────────────────────────────────────
   const db = d("design_basis");
@@ -1226,7 +1807,7 @@ export default function DesignSoftwareWorkspacePage() {
       label: "All fluid properties have a source declared",
       status: (() => {
         const fp = d("fluid_properties");
-        const keys = ["rrbo_density", "rrbo_viscosity_dynamic", "nmp_density", "nmp_viscosity_dynamic", "interfacial_tension"];
+        const keys = ["rrbo_viscosity_dynamic", "nmp_viscosity_dynamic", "interfacial_tension"];
         return keys.every(k => fp[`${k}_source`]) ? "pass" : "warning";
       })(),
       note: "Every fluid property must have Measured / Vendor / Literature / Assumed declared",
@@ -1235,11 +1816,84 @@ export default function DesignSoftwareWorkspacePage() {
       label: "Assumed data acknowledged",
       status: (() => {
         const fp = d("fluid_properties");
-        const keys = ["rrbo_density", "rrbo_viscosity_dynamic", "rrbo_viscosity_kinematic", "nmp_density", "nmp_viscosity_dynamic", "interfacial_tension", "mutual_solubility"];
+        const keys = ["rrbo_viscosity_dynamic", "rrbo_viscosity_kinematic", "nmp_viscosity_dynamic", "interfacial_tension", "mutual_solubility"];
         const assumed = keys.filter(k => fp[`${k}_source`] === "Assumed");
         return assumed.length === 0 ? "pass" : "warning";
       })(),
       note: "Review amber-highlighted assumed values before approving",
+    },
+    // ── Stage 5–11 aggregate checks ────────────────────────────────────────────
+    {
+      label: "Stage 5 — Hydraulic Design inputs complete",
+      status: (() => {
+        const { errors: e5 } = validateStage("hydraulic_design");
+        return Object.keys(e5).length === 0 ? "pass" : "fail";
+      })(),
+      note: (() => {
+        const { errors: e5 } = validateStage("hydraulic_design");
+        const k = Object.keys(e5);
+        return k.length > 0 ? `${k.length} blocking input${k.length > 1 ? "s" : ""} missing: ${Object.values(e5).slice(0, 2).join("; ")}${k.length > 2 ? `… (+${k.length - 2} more)` : ""}` : undefined;
+      })(),
+    },
+    {
+      label: "Stage 6 — Technology selection and rationale complete",
+      status: (() => {
+        const { errors: e6 } = validateStage("technology_selection");
+        return Object.keys(e6).length === 0 ? "pass" : "fail";
+      })(),
+      note: (() => {
+        const { errors: e6 } = validateStage("technology_selection");
+        const k = Object.keys(e6);
+        return k.length > 0 ? Object.values(e6).join("; ") : undefined;
+      })(),
+    },
+    {
+      label: showECP || showECR ? "Stage 7 — Equipment Design inputs complete" : "Stage 7 — Equipment Design (technology not selected)",
+      status: (() => {
+        if (!showECP && !showECR) return "pending";
+        const { errors: e7 } = validateStage("equipment_design");
+        return Object.keys(e7).length === 0 ? "pass" : "fail";
+      })(),
+      note: (() => {
+        if (!showECP && !showECR) return "Select technology in Stage 6 first";
+        const { errors: e7 } = validateStage("equipment_design");
+        const k = Object.keys(e7);
+        return k.length > 0 ? `${k.length} blocking input${k.length > 1 ? "s" : ""} missing: ${Object.values(e7).slice(0, 2).join("; ")}${k.length > 2 ? `… (+${k.length - 2} more)` : ""}` : undefined;
+      })(),
+    },
+    ...(techSelection === "both" ? [{
+      label: "Stage 8 — Technology Comparison runs complete",
+      status: (() => {
+        const { errors: e8 } = validateStage("technology_comparison");
+        return Object.keys(e8).length === 0 ? "pass" : "fail";
+      })() as "pass" | "fail" | "warning" | "pending",
+      note: (() => {
+        const { errors: e8 } = validateStage("technology_comparison");
+        const k = Object.keys(e8);
+        return k.length > 0 ? Object.values(e8).join("; ") : undefined;
+      })(),
+    }] : []),
+    {
+      label: "Stage 9 — Mechanical Design code assigned",
+      status: (() => {
+        const { errors: e9 } = validateStage("mechanical_design");
+        return Object.keys(e9).length === 0 ? "pass" : "fail";
+      })(),
+      note: (() => {
+        const { errors: e9 } = validateStage("mechanical_design");
+        return Object.values(e9).join("; ") || undefined;
+      })(),
+    },
+    {
+      label: "Stage 11 — Cost Estimation parameters complete",
+      status: (() => {
+        const { errors: e11 } = validateStage("cost_estimation");
+        return Object.keys(e11).length === 0 ? "pass" : "fail";
+      })(),
+      note: (() => {
+        const { errors: e11 } = validateStage("cost_estimation");
+        return Object.values(e11).join("; ") || undefined;
+      })(),
     },
   ] as { label: string; status: "pass" | "fail" | "warning" | "pending"; note?: string }[];
 
@@ -1249,14 +1903,27 @@ export default function DesignSoftwareWorkspacePage() {
 
   function renderDesignIdentity() {
     const di = d("design_identity");
+    const ve = stageValidationErrors["design_identity"] ?? {};
+    const fErr = (key: string) => ve[key];
     const info = (label: string, value: string | null | undefined) => (
       <div key={label} className="grid grid-cols-[180px_1fr] gap-2 py-1.5 border-b last:border-0">
         <span className="text-sm text-gray-500">{label}</span>
         <span className="text-sm font-medium text-gray-900">{value || <span className="text-gray-300 italic">—</span>}</span>
       </div>
     );
+    const blockingCount = Object.keys(ve).length;
     return (
       <div className="max-w-2xl">
+        {/* Validation error summary — shown only after first forward-nav attempt */}
+        {stageValidationAttempted.has("design_identity") && blockingCount > 0 && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 flex items-start gap-2">
+            <span className="text-red-500 mt-0.5 shrink-0">⚠</span>
+            <div>
+              <p className="text-sm font-semibold text-red-800">Stage incomplete — {blockingCount} required field{blockingCount > 1 ? "s" : ""} missing</p>
+              <p className="text-xs text-red-700 mt-0.5">Complete all required fields before proceeding to Design Basis.</p>
+            </div>
+          </div>
+        )}
         <SectionCard title="Engineering Document">
           {info("Design Number", design?.design_number)}
           {info("Design Title", design?.title)}
@@ -1268,11 +1935,21 @@ export default function DesignSoftwareWorkspacePage() {
         </SectionCard>
         {!isFrozen && (
           <SectionCard title="Responsibility">
-            <FieldRow label="Prepared By" value={di.prepared_by ?? ""} onChange={v => field("design_identity")("prepared_by", v)} onBlur={save("design_identity")} />
-            <FieldRow label="Checked By" value={di.checked_by ?? ""} onChange={v => field("design_identity")("checked_by", v)} onBlur={save("design_identity")} />
-            <FieldRow label="Approved By" value={di.approved_by ?? ""} onChange={v => field("design_identity")("approved_by", v)} onBlur={save("design_identity")} />
-            <FieldRow label="Client / Customer" value={di.client ?? ""} onChange={v => field("design_identity")("client", v)} onBlur={save("design_identity")} />
-            <FieldRow label="Plant Location" value={di.plant_location ?? ""} onChange={v => field("design_identity")("plant_location", v)} onBlur={save("design_identity")} />
+            <div data-field-key="design_identity__prepared_by">
+              <FieldRow label="Prepared By" value={di.prepared_by ?? ""} onChange={v => field("design_identity")("prepared_by", v)} onBlur={save("design_identity")} error={fErr("prepared_by")} />
+            </div>
+            <div data-field-key="design_identity__checked_by">
+              <FieldRow label="Checked By" value={di.checked_by ?? ""} onChange={v => field("design_identity")("checked_by", v)} onBlur={save("design_identity")} error={fErr("checked_by")} />
+            </div>
+            <div data-field-key="design_identity__approved_by">
+              <FieldRow label="Approved By" value={di.approved_by ?? ""} onChange={v => field("design_identity")("approved_by", v)} onBlur={save("design_identity")} error={fErr("approved_by")} />
+            </div>
+            <div data-field-key="design_identity__client">
+              <FieldRow label="Client / Customer" value={di.client ?? ""} onChange={v => field("design_identity")("client", v)} onBlur={save("design_identity")} error={fErr("client")} />
+            </div>
+            <div data-field-key="design_identity__plant_location">
+              <FieldRow label="Plant Location" value={di.plant_location ?? ""} onChange={v => field("design_identity")("plant_location", v)} onBlur={save("design_identity")} error={fErr("plant_location")} />
+            </div>
           </SectionCard>
         )}
         {design?.design_type === "project" && (
@@ -1327,12 +2004,11 @@ export default function DesignSoftwareWorkspacePage() {
       const m = { ...db, ...updates };
       const lphM = num(m.design_capacity_lph);
       const daysM = num(m.operating_days);
-      // Prefer the Design Basis feed density (source-tagged by construction); fall back to Fluid Properties
+      // Design Basis feed density (source-tagged by construction) — primary source only.
+      // RRBO density is no longer user-entered in Fluid Properties; it is application-calculated.
       const dbRho = num(m.feed_density);
-      const rhoM = dbRho !== null ? dbRho : num(fpData0.rrbo_density_value);
-      const rhoOk = dbRho !== null
-        ? true
-        : rhoM !== null && (fpData0.rrbo_density_source ?? "").trim() !== "" && (fpData0.rrbo_density_ref_temp ?? "").trim() !== "";
+      const rhoM = dbRho;
+      const rhoOk = dbRho !== null;
       if (lphM !== null && daysM !== null && rhoOk) {
         m.design_capacity_mtpa = ((lphM * 24 * daysM * (rhoM as number)) / 1e6).toFixed(0);
         updates = { ...updates, design_capacity_mtpa: m.design_capacity_mtpa };
@@ -1543,18 +2219,33 @@ export default function DesignSoftwareWorkspacePage() {
     // Design capacity cross-conversion (governed: only with annual hours + tagged density)
     const daysYr = num(db.operating_days);
     const fpData = d("fluid_properties");
+    // RRBO density is no longer user-entered in Fluid Properties; use Design Basis feed density only.
     const dbFeedRho = num(db.feed_density);
-    const rho = dbFeedRho !== null ? dbFeedRho : num(fpData.rrbo_density_value);
-    const rhoTagged = dbFeedRho !== null
-      ? true
-      : rho !== null && (fpData.rrbo_density_source ?? "").trim() !== "" && (fpData.rrbo_density_ref_temp ?? "").trim() !== "";
-    const rhoRefT = dbFeedRho !== null ? `${db.feed_density_ref_temp || "15"} °C` : fpData.rrbo_density_ref_temp;
-    const rhoSrc = dbFeedRho !== null ? (db.feed_density_source || FEED_DENSITY_DEFAULT_SOURCE) : fpData.rrbo_density_source;
+    const rho = dbFeedRho;
+    const rhoTagged = dbFeedRho !== null;
+    const rhoRefT = `${db.feed_density_ref_temp || "15"} °C`;
+    const rhoSrc = db.feed_density_source || FEED_DENSITY_DEFAULT_SOURCE;
     const annualHours = daysYr !== null ? 24 * daysYr : null; // Operating Hours fixed at 24 hr/day for this module
     const lph = num(db.design_capacity_lph);
     const tpa = lph !== null && annualHours !== null && rhoTagged ? (lph * annualHours * (rho as number)) / 1e6 : null;
+
+    // Stage 2 validation helpers (populated after first "Next →" click)
+    const s2ve = stageValidationErrors["design_basis"] ?? {};
+    const fErr2 = (key: string) => s2ve[key];
+    const s2Attempted = stageValidationAttempted.has("design_basis");
+    const s2ErrCount  = Object.keys(s2ve).length;
+
     return (
       <div className="max-w-3xl">
+        {/* Stage 2 validation summary — shown only after first forward-nav attempt */}
+        {s2Attempted && s2ErrCount > 0 && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 flex items-start gap-2">
+            <span className="mt-0.5 shrink-0 text-red-500">⚠</span>
+            <p className="text-sm font-semibold text-red-800">
+              Stage incomplete — {s2ErrCount} required field{s2ErrCount > 1 ? "s" : ""} missing
+            </p>
+          </div>
+        )}
         <SectionCard title="General">
           <TextAreaRow
             label="Process Description"
@@ -1575,19 +2266,22 @@ export default function DesignSoftwareWorkspacePage() {
               </Button>
             )}
           </div>
-          <SelectRow
-            label="Feed Service"
-            value={db.feed_service ?? ""}
-            onChange={v => f("feed_service", v)}
-            onBlur={s}
-            onCommit={v => {
-              const rho = FEED_SERVICE_DENSITY[v];
-              csa(rho
-                ? { feed_service: v, feed_density: rho, feed_density_ref_temp: "15", feed_density_source: FEED_DENSITY_DEFAULT_SOURCE, feed_density_status: "Auto-Populated" }
-                : { feed_service: v });
-            }}
-            options={db.feed_service && !FEED_SERVICE_OPTIONS.includes(db.feed_service) ? [...FEED_SERVICE_OPTIONS, db.feed_service] : FEED_SERVICE_OPTIONS}
-          />
+          <div data-field-key="design_basis__feed_service">
+            <SelectRow
+              label="Feed Service"
+              value={db.feed_service ?? ""}
+              onChange={v => f("feed_service", v)}
+              onBlur={s}
+              onCommit={v => {
+                const rho = FEED_SERVICE_DENSITY[v];
+                csa(rho
+                  ? { feed_service: v, feed_density: rho, feed_density_ref_temp: "15", feed_density_source: FEED_DENSITY_DEFAULT_SOURCE, feed_density_status: "Auto-Populated" }
+                  : { feed_service: v });
+              }}
+              options={db.feed_service && !FEED_SERVICE_OPTIONS.includes(db.feed_service) ? [...FEED_SERVICE_OPTIONS, db.feed_service] : FEED_SERVICE_OPTIONS}
+              error={fErr2("feed_service")}
+            />
+          </div>
           <FieldRow
             label="Feed Density"
             value={db.feed_density ?? ""}
@@ -1609,16 +2303,19 @@ export default function DesignSoftwareWorkspacePage() {
               ? `Status: ${db.solvent_status || "Manual"}${db.solvent_source ? ` · Source: ${db.solvent_source}` : ""} · Controlled list — expanded via master data only. Drives the Fluid Properties section.`
               : "Not persisted — new designs are seeded with N-Methyl-2-Pyrrolidone (NMP) automatically. Select to persist."}
           />
-          <SelectRow
-            label="Design Capacity (LPH)"
-            value={db.design_capacity_lph ?? db.design_capacity ?? ""}
-            onChange={v => { f("design_capacity_lph", v); f("design_capacity", v); f("feed_flow", v); }}
-            onBlur={s}
-            onCommit={v => csa({ design_capacity_lph: v, design_capacity: v, feed_flow: v })}
-            options={db.design_capacity_lph && !CAPACITY_OPTIONS.includes(db.design_capacity_lph) ? [...CAPACITY_OPTIONS, db.design_capacity_lph] : CAPACITY_OPTIONS}
-            unit="LPH"
-            note="Sets Feed Flow and the legacy capacity field"
-          />
+          <div data-field-key="design_basis__design_capacity_lph">
+            <SelectRow
+              label="Design Capacity (LPH)"
+              value={db.design_capacity_lph ?? db.design_capacity ?? ""}
+              onChange={v => { f("design_capacity_lph", v); f("design_capacity", v); f("feed_flow", v); }}
+              onBlur={s}
+              onCommit={v => csa({ design_capacity_lph: v, design_capacity: v, feed_flow: v })}
+              options={db.design_capacity_lph && !CAPACITY_OPTIONS.includes(db.design_capacity_lph) ? [...CAPACITY_OPTIONS, db.design_capacity_lph] : CAPACITY_OPTIONS}
+              unit="LPH"
+              note="Sets Feed Flow and the legacy capacity field"
+              error={fErr2("design_capacity_lph")}
+            />
+          </div>
           <FieldRow label="Design Capacity (TPA)" value={tpa !== null ? tpa.toFixed(0) : (db.design_capacity_mtpa ?? "")} onChange={() => {}} onBlur={() => {}} unit="t/yr" readOnly />
           {tpa !== null && (
             <p className="text-xs ml-[212px] -mt-1 text-gray-500">
@@ -1626,16 +2323,31 @@ export default function DesignSoftwareWorkspacePage() {
             </p>
           )}
           <FieldRow label="Operating Hours" value="24" onChange={() => {}} onBlur={() => {}} unit="hr/day" readOnly note="Fixed for this module" />
-          <SelectRow label="Operating Days" value={db.operating_days ?? ""} onChange={v => f("operating_days", v)} onBlur={s} onCommit={v => csa({ operating_days: v })} options={["300", "310", "320", "330"]} unit="days/yr" />
-          <SelectRow
-            label="Design Life"
-            value={db.design_life ?? ""}
-            onChange={v => f("design_life", v)}
-            onBlur={s}
-            onCommit={v => csa({ design_life: v })}
-            options={db.design_life && !["20", "30"].includes(db.design_life) ? ["20", "30", db.design_life] : ["20", "30"]}
-            unit="years"
-          />
+          <div data-field-key="design_basis__operating_days">
+            <SelectRow
+              label="Operating Days"
+              value={db.operating_days ?? ""}
+              onChange={v => f("operating_days", v)}
+              onBlur={s}
+              onCommit={v => csa({ operating_days: v })}
+              options={["300", "310", "320", "330"]}
+              unit="days/yr"
+              error={fErr2("operating_days")}
+              note={undefined}
+            />
+          </div>
+          <div data-field-key="design_basis__design_life">
+            <SelectRow
+              label="Design Life"
+              value={db.design_life ?? ""}
+              onChange={v => f("design_life", v)}
+              onBlur={s}
+              onCommit={v => csa({ design_life: v })}
+              options={db.design_life && !["20", "30"].includes(db.design_life) ? ["20", "30", db.design_life] : ["20", "30"]}
+              unit="years"
+              error={fErr2("design_life")}
+            />
+          </div>
           <TextAreaRow
             label="Design Objective"
             value={db.design_objective || (db.design_objective_manual !== "true" ? genObjective() : "")}
@@ -1710,15 +2422,30 @@ export default function DesignSoftwareWorkspacePage() {
             )}
           </div>
           <FieldRow label="Feed Flow" value={db.feed_flow ?? db.design_capacity_lph ?? ""} onChange={() => {}} onBlur={() => {}} unit="LPH" readOnly note="= Design Capacity (LPH)" />
-          <SelectRow label="Feed Temperature" value={db.feed_temperature ?? ""} onChange={v => f("feed_temperature", v)} onBlur={s} onCommit={v => csa({ feed_temperature: v })} options={["10", "15", "20", "25", "30", "35", "40"]} unit="°C" />
-          <FieldRow
-            label="Feed Pressure"
-            value={db.feed_pressure ?? ""}
-            onChange={v => f("feed_pressure", v)}
-            onBlur={() => cs(auto({}))}
-            unit="bar g"
-            note="Manual — no process-configuration rule or master data available"
-          />
+          <div data-field-key="design_basis__feed_temperature">
+            <SelectRow
+              label="Feed Temperature"
+              value={db.feed_temperature ?? ""}
+              onChange={v => f("feed_temperature", v)}
+              onBlur={s}
+              onCommit={v => csa({ feed_temperature: v })}
+              options={["10", "15", "20", "25", "30", "35", "40"]}
+              unit="°C"
+              error={fErr2("feed_temperature")}
+              note={undefined}
+            />
+          </div>
+          <div data-field-key="design_basis__feed_pressure">
+            <FieldRow
+              label="Feed Pressure"
+              value={db.feed_pressure ?? ""}
+              onChange={v => f("feed_pressure", v)}
+              onBlur={() => cs(auto({}))}
+              unit="bar g"
+              error={fErr2("feed_pressure")}
+              note={fErr2("feed_pressure") ? undefined : "Manual — no process-configuration rule or master data available"}
+            />
+          </div>
           <FieldRow
             label="Operating Pressure"
             value={db.operating_pressure ?? ""}
@@ -1729,7 +2456,20 @@ export default function DesignSoftwareWorkspacePage() {
           <p className="text-xs ml-[212px] -mt-1 text-gray-500">
             Status: {(db.operating_pressure ?? "").trim() !== "" && db.operating_pressure !== OPERATING_PRESSURE_DEFAULT ? "Manual" : "Auto-Populated"} · Default {OPERATING_PRESSURE_DEFAULT} bar g · Source: {OPERATING_PRESSURE_SOURCE} — editable; Extraction Pressure follows this value
           </p>
-          <SelectRow label="Operating Temperature" value={db.operating_temperature ?? ""} onChange={v => f("operating_temperature", v)} onBlur={s} onCommit={v => csa({ operating_temperature: v })} options={["50", "55", "60", "65", "70", "75", "80"]} unit="°C" allowOther note="Values above 80 °C may be entered directly — Design Temperature then follows OT + 20 °C" />
+          <div data-field-key="design_basis__operating_temperature">
+            <SelectRow
+              label="Operating Temperature"
+              value={db.operating_temperature ?? ""}
+              onChange={v => f("operating_temperature", v)}
+              onBlur={s}
+              onCommit={v => csa({ operating_temperature: v })}
+              options={["50", "55", "60", "65", "70", "75", "80"]}
+              unit="°C"
+              allowOther
+              error={fErr2("operating_temperature")}
+              note={fErr2("operating_temperature") ? undefined : "Values above 80 °C may be entered directly — Design Temperature then follows OT + 20 °C"}
+            />
+          </div>
           <div className="border-t pt-3 mt-1">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Extraction Column Pressure Design — Thermopac Standard</p>
             <FieldRow label="Vessel Orientation" value={db.vessel_orientation ?? LLX_COL_ORIENTATION} onChange={() => {}} onBlur={() => {}} readOnly note="Thermopac standard — vertical extraction column" />
@@ -1824,14 +2564,17 @@ export default function DesignSoftwareWorkspacePage() {
               };
               return (
                 <>
-                  <SearchSelectRow
-                    label="Oil Type / Grade"
-                    value={db.thermal_oil_type ?? ""}
-                    options={THERMAL_OIL_OPTIONS}
-                    onSelect={v => csa({ thermal_oil_type: v })}
-                    placeholder="Search / select thermal oil…"
-                    note="Searchable — master data: Therminol 65 / 66"
-                  />
+                  <div data-field-key="design_basis__thermal_oil_type">
+                    <SearchSelectRow
+                      label="Oil Type / Grade"
+                      value={db.thermal_oil_type ?? ""}
+                      options={THERMAL_OIL_OPTIONS}
+                      onSelect={v => csa({ thermal_oil_type: v })}
+                      placeholder="Search / select thermal oil…"
+                      note="Searchable — master data: Therminol 65 / 66"
+                      error={fErr2("thermal_oil_type")}
+                    />
+                  </div>
                   <FieldRow
                     label="Heater Inlet Temp"
                     value={db.thermal_heater_inlet ?? ""}
@@ -1980,24 +2723,48 @@ export default function DesignSoftwareWorkspacePage() {
     const fp = d("fluid_properties");
     const f = field("fluid_properties");
     const s = save("fluid_properties");
+
+    // Stage 3 validation helpers
+    const s3ve = stageValidationErrors["fluid_properties"]   ?? {};
+    const s3vw = stageValidationWarnings["fluid_properties"] ?? {};
+    const fErr3 = (key: string) => s3ve[key];
+    const s3Attempted = stageValidationAttempted.has("fluid_properties");
+    const s3ErrCount  = Object.keys(s3ve).length;
+    const s3WarnCount = Object.keys(s3vw).length;
+
     const prop = (label: string, key: string) => (
-      <div key={key}>
-        <PropertyRow label={label} propKey={key} data={fp} onChange={f} onBlur={s} />
-        {FLUID_PROPERTY_PROVENANCE[key] && (
+      <div key={key} data-field-key={`fluid_properties__${key}`}>
+        <PropertyRow label={label} propKey={key} data={fp} onChange={f} onBlur={s} error={fErr3(key)} />
+        {FLUID_PROPERTY_PROVENANCE[key] && !fErr3(key) && (
           <p className="text-[11px] text-gray-400 px-2 -mt-0.5">{FLUID_PROPERTY_PROVENANCE[key]}</p>
         )}
-        {["interfacial_tension", "nmp_solubility_rrbo", "oil_solubility_nmp"].includes(key) && (fp[`${key}_value`] ?? "").trim() === "" && (
+        {["interfacial_tension", "nmp_solubility_rrbo", "oil_solubility_nmp"].includes(key) && (fp[`${key}_value`] ?? "").trim() === "" && !fErr3(key) && (
           <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 mx-2 mt-0.5 inline-block">
             {PENDING_VALIDATION} — no approved NMP/RRBO two-phase value; enter laboratory/vendor data
           </p>
         )}
       </div>
     );
-    const assumedCount = ["rrbo_density", "rrbo_viscosity_dynamic", "rrbo_viscosity_kinematic", "nmp_density", "nmp_viscosity_dynamic", "interfacial_tension", "nmp_solubility_rrbo", "oil_solubility_nmp"]
+    const assumedCount = ["rrbo_viscosity_dynamic", "rrbo_viscosity_kinematic", "nmp_viscosity_dynamic", "interfacial_tension", "nmp_solubility_rrbo", "oil_solubility_nmp"]
       .filter(k => fp[`${k}_source`] === "Assumed").length;
     return (
       <div className="max-w-4xl">
-        {assumedCount > 0 && (
+        {/* Stage 3 validation banner — shown after first forward-nav attempt */}
+        {s3Attempted && s3ErrCount > 0 && (
+          <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 flex items-start gap-2">
+            <span className="mt-0.5 shrink-0 text-red-500">⚠</span>
+            <p className="text-sm font-semibold text-red-800">
+              Stage incomplete — {s3ErrCount} required fluid propert{s3ErrCount > 1 ? "ies" : "y"} missing
+            </p>
+          </div>
+        )}
+        {s3Attempted && s3WarnCount > 0 && (
+          <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
+            <span className="mt-0.5 shrink-0 text-amber-500">⚠</span>
+            <p className="text-sm text-amber-800">{s3vw["assumed_properties"]}</p>
+          </div>
+        )}
+        {assumedCount > 0 && !s3Attempted && (
           <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800 mb-4">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <strong>{assumedCount} assumed value{assumedCount > 1 ? "s" : ""}</strong> — highlighted in amber below. Review before approving.
@@ -2010,8 +2777,56 @@ export default function DesignSoftwareWorkspacePage() {
           <span className="w-[110px]">Ref. Temperature</span>
           <span className="w-[120px]">Source</span>
         </div>
+        <SectionCard title="Phase Separation Density — Application Calculated">
+          <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 mb-3">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>
+              Source type: <strong>Assumed</strong> (provisional). No manual entry required or accepted.
+              Replace governed dataset with controlled vendor or measured data before release-grade classification.
+            </span>
+          </div>
+          {fpOt === null && (
+            <p className="text-xs text-amber-700 px-1">Enter Operating Temperature in Design Basis to display densities.</p>
+          )}
+          {!fpGrade && (
+            <p className="text-xs text-amber-700 px-1">Select RRBO Feed Service in Design Basis to display grade-specific density.</p>
+          )}
+          {fpOt !== null && densityPairQ.isLoading && (
+            <p className="text-xs text-gray-400 py-1 px-1">Calculating…</p>
+          )}
+          {fpOt !== null && densityPairQ.isError && (
+            <p className="text-xs text-red-600 py-1 px-1">Density lookup failed — verify Operating Temperature and Feed Service grade are valid.</p>
+          )}
+          {fpOt !== null && densityPairQ.data && (() => {
+            const dp = densityPairQ.data as { nmp: { value: number }; rrbo: { value: number }; delta: number; rrboFluidId?: string; densityTrace?: { grade: string } };
+            const gradeLabel = dp.densityTrace?.grade ?? (dp.rrboFluidId ?? "RRBO").replace("rrbo-", "").toUpperCase();
+            const rows: { label: string; value: number; bold?: boolean }[] = [
+              { label: `\u03c1 RRBO ${gradeLabel}`, value: dp.rrbo.value },
+              { label: "\u03c1 NMP", value: dp.nmp.value },
+              { label: `\u0394\u03c1 = |\u03c1\u2009NMP \u2212 \u03c1\u2009RRBO ${gradeLabel}|`, value: dp.delta, bold: true },
+            ];
+            return (
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-4 text-xs text-gray-400 px-2 mb-1">
+                  <span className="w-[240px]">Property</span>
+                  <span className="w-[80px] text-right">Value</span>
+                  <span className="w-[60px] pl-2">Unit</span>
+                </div>
+                {rows.map(r => (
+                  <div key={r.label} className={`flex items-center gap-4 px-2 py-1 rounded ${r.bold ? "bg-gray-50 border border-gray-100 mt-1" : ""}`}>
+                    <span className={`w-[240px] text-sm ${r.bold ? "font-semibold text-gray-800" : "text-gray-700"}`}>{r.label}</span>
+                    <span className={`w-[80px] text-right font-mono text-sm ${r.bold ? "font-bold text-blue-800" : "text-blue-700"}`}>{r.value.toFixed(1)}</span>
+                    <span className="w-[60px] pl-2 text-xs text-gray-500">kg/m³</span>
+                  </div>
+                ))}
+                <p className="text-[11px] text-gray-400 px-2 pt-2">
+                  Trace: {gradeLabel} · {fpOtStr} °C · ρ{gradeLabel} = {dp.rrbo.value.toFixed(1)} · ρNMP = {dp.nmp.value.toFixed(1)} · Δρ = {dp.delta.toFixed(1)} kg/m³ · EPD tabular (Assumed)
+                </p>
+              </div>
+            );
+          })()}
+        </SectionCard>
         <SectionCard title="RRBO — Raffinate / Residual Base Oil">
-          {prop("Density", "rrbo_density")}
           {prop("Dynamic Viscosity", "rrbo_viscosity_dynamic")}
           {prop("Kinematic Viscosity", "rrbo_viscosity_kinematic")}
           {prop("Temperature", "rrbo_temperature")}
@@ -2021,7 +2836,6 @@ export default function DesignSoftwareWorkspacePage() {
           {prop("Asphaltenes", "rrbo_asphaltenes")}
         </SectionCard>
         <SectionCard title="NMP — N-Methyl-2-Pyrrolidone">
-          {prop("Density", "nmp_density")}
           {prop("Dynamic Viscosity", "nmp_viscosity_dynamic")}
           {prop("Temperature", "nmp_temperature")}
           {prop("Purity", "nmp_purity")}
@@ -2068,6 +2882,15 @@ export default function DesignSoftwareWorkspacePage() {
     const f = field("process_design");
     const s = save("process_design");
     const cs = (u: Record<string, string>) => commitSection("process_design", u);
+
+    // Stage 4 validation helpers
+    const s4ve = stageValidationErrors["process_design"]   ?? {};
+    const s4vw = stageValidationWarnings["process_design"] ?? {};
+    const fErr4 = (key: string) => s4ve[key];
+    const s4Attempted = stageValidationAttempted.has("process_design");
+    const s4ErrCount  = Object.keys(s4ve).length;
+    const s4WarnCount = Object.keys(s4vw).length;
+
     const pdRun = runs.find(r => r.calculation_type === "process_design");
     const pdResult = (resultsQ.data ?? []).find((r: any) => r.section === "process_design");
     // Never present a stale accepted result as current: if the LATEST run was
@@ -2079,10 +2902,10 @@ export default function DesignSoftwareWorkspacePage() {
     // Effective inputs — approved defaults shown immediately, everything editable
     const otStr = (dbx.operating_temperature ?? "").trim();
     const opStr = (dbx.operating_pressure ?? "").trim();
-    const ratioEff = (pd.so_ratio ?? "").trim() !== "" ? (pd.so_ratio as string) : SO_RATIO_DEFAULT;
+    const ratioEff = (pd.so_ratio ?? "").trim();
     const stagesEff = pd.theoretical_stages ?? ""; // Engineer Override N_T — never defaulted
     const effEff = pd.stage_efficiency ?? ""; // informational-only, never defaulted
-    const marginEff = (pd.design_margin ?? "").trim() !== "" ? (pd.design_margin as string) : DESIGN_MARGIN_DEFAULT;
+    const marginEff = (pd.design_margin ?? "").trim();
     const extTEff = pd.extraction_temperature_manual === "true" ? (pd.extraction_temperature ?? "") : (otStr || (pd.extraction_temperature ?? ""));
     const extPEff = pd.extraction_pressure_manual === "true" ? (pd.extraction_pressure ?? "") : (opStr || (pd.extraction_pressure ?? ""));
 
@@ -2097,7 +2920,7 @@ export default function DesignSoftwareWorkspacePage() {
     const feedLph = numOrNull(dbx.design_capacity_lph ?? dbx.design_capacity ?? dbx.feed_flow);
     const ratioN = numOrNull(ratioEff);
     const marginN = numOrNull(marginEff);
-    const rhoNmp = numOrNull(fp.nmp_density_value) ?? (epdNmpQ.data?.density?.value != null ? Number(epdNmpQ.data.density.value) : null);
+    const rhoNmp = epdNmpQ.data?.density?.value != null ? Number(epdNmpQ.data.density.value) : null;
     const normLph = feedLph !== null && ratioN !== null && ratioN > 0 ? feedLph * ratioN : null;
     const normMass = normLph !== null && rhoNmp !== null ? (normLph / 1000) * rhoNmp : null;
     const maxLph = normLph !== null && marginN !== null && marginN >= 0 ? normLph * (1 + marginN / 100) : null;
@@ -2152,26 +2975,40 @@ export default function DesignSoftwareWorkspacePage() {
 
     return (
       <div className="max-w-3xl">
+        {/* Stage 4 validation banner — shown after first forward-nav attempt */}
+        {s4Attempted && s4ErrCount > 0 && (
+          <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 flex items-start gap-2">
+            <span className="mt-0.5 shrink-0 text-red-500">⚠</span>
+            <p className="text-sm font-semibold text-red-800">
+              Stage incomplete — {s4ErrCount} required field{s4ErrCount > 1 ? "s" : ""} missing or invalid
+            </p>
+          </div>
+        )}
         <SectionCard title="Process Inputs">
+          <div data-field-key="process_design__so_ratio">
           <SelectRow
             label="Solvent / Oil Ratio"
             value={ratioEff}
             onChange={v => f("so_ratio", v)}
-            onCommit={v => cs({ so_ratio: v, so_ratio_manual: v === SO_RATIO_DEFAULT ? "" : "true" })}
+            onCommit={v => cs({ so_ratio: v, so_ratio_manual: v !== "" ? "true" : "" })}
             options={SO_RATIO_OPTIONS}
             unit=": 1 (vol/vol)"
+            allowOther
+            note="Engineer-entered project input — no default. Enter the design S/O ratio (vol NMP / vol RRBO)."
+            error={fErr4("so_ratio")}
           />
-          {statusLine(`Status: ${pd.so_ratio_manual === "true" ? "Manual" : "Auto-Populated"} · Basis: NMP solvent volume flow / RRBO feed volume flow · Rule: default ${SO_RATIO_DEFAULT} : 1`)}
+          </div>
+          {statusLine(`Status: ${ratioEff ? "Engineer-entered" : "Not entered — required input"} · Basis: NMP solvent volume flow / RRBO feed volume flow`)}
 
-          <FieldRow
+          <SelectRow
             label="Extraction Temperature"
             value={extTEff}
             onChange={v => f("extraction_temperature", v)}
-            onBlur={() => {
-              const v = (pd.extraction_temperature ?? "").trim();
-              cs({ extraction_temperature: v || otStr, extraction_temperature_manual: v !== "" && v !== otStr ? "true" : "" });
-            }}
+            onBlur={s}
+            onCommit={v => cs({ extraction_temperature: v, extraction_temperature_manual: v !== "" && v !== otStr ? "true" : "" })}
+            options={["25", "30", "40", "50", "60", "70"]}
             unit="°C"
+            note="Governed EPD tabular points — densities are exact at these temperatures; interpolated between them"
           />
           {statusLine(`Status: ${pd.extraction_temperature_manual === "true" ? "Manual" : "Auto-Populated"} · Rule: follows Design Basis Operating Temperature (${otStr || "—"} °C) until manually changed`)}
 
@@ -2187,29 +3024,62 @@ export default function DesignSoftwareWorkspacePage() {
           />
           {statusLine(`Status: ${pd.extraction_pressure_manual === "true" ? "Manual" : "Auto-Populated"} · Rule: follows Design Basis Operating Pressure (${opStr || "—"} bar g) until manually changed`)}
 
-          <FieldRow label="Theoretical Stages — Engineer Override (N_T)" value={stagesEff} onChange={v => f("theoretical_stages", v)} onBlur={s} unit="stages" />
-          {stagesInvalid && <p className="text-xs text-red-600 px-2 -mt-0.5">Theoretical stages must be a whole number ≥ 1.</p>}
-          {statusLine(`Status: Engineer Override · Used ONLY when the governed Coto 2022 N_T auto-calculation is Not Calculable · Classification when applied: Engineer Override — Assumed / Pending Validation · Never presented as an auto-calculated result`)}
+          <div data-field-key="process_design__theoretical_stages">
+          <FieldRow
+            label="Theoretical Stages (N_T)"
+            value={stagesEff}
+            onChange={v => {
+              f("theoretical_stages", v);
+              // Mark as Engineer Override the moment the user edits the field so
+              // the write-back effect does not clobber a deliberate manual entry.
+              cs({ theoretical_stages_source: v.trim() ? "override" : "" });
+            }}
+            onBlur={s}
+            unit="stages"
+            error={fErr4("theoretical_stages")}
+          />
+          </div>
+          {(() => {
+            const src = (pd.theoretical_stages_source ?? "").trim();
+            if (src === "calculated") {
+              return statusLine(`Status: Auto-Calculated · Coto 2022 LLE (N_T = ${stagesEff}) · Edit this field to enter an Engineer Override — the override will be labelled "Assumed / Pending Validation" in all reports`);
+            }
+            if (src === "override") {
+              return statusLine(`Status: Engineer Override · Assumed / Pending Validation · Coto 2022 auto-calculation was overridden by a manual entry · Clear the field to restore auto-calculation`);
+            }
+            return statusLine(`Status: Pending · N_T will be auto-calculated from the Coto 2022 LLE model once all required inputs are present — enter a value here to use an Engineer Override instead`);
+          })()}
 
-          <FieldRow label="Stage Efficiency (informational only)" value={effEff} onChange={v => f("stage_efficiency", v)} onBlur={s} unit="%" />
-          {effInvalid && <p className="text-xs text-red-600 px-2 -mt-0.5">Stage efficiency must be greater than 0 % and not more than 100 %.</p>}
+          <div data-field-key="process_design__stage_efficiency">
+          <FieldRow label="Stage Efficiency (informational only)" value={effEff} onChange={v => f("stage_efficiency", v)} onBlur={s} unit="%" error={fErr4("stage_efficiency")} />
+          </div>
           {statusLine("Status: Manual (optional) · Informational only — does NOT govern packed-column height (H_active = N_T × HETS). Applies only where a separately governed stage-efficiency model exists (e.g. ECR mixer-settler compartments). Never defaulted.")}
 
-          <FieldRow label="Design Margin" value={marginEff} onChange={v => f("design_margin", v)} onBlur={s} unit="%" />
-          {statusLine(`Status: ${(pd.design_margin ?? "").trim() !== "" && pd.design_margin !== DESIGN_MARGIN_DEFAULT ? "Manual" : "Auto-Populated"} · Rule: default ${DESIGN_MARGIN_DEFAULT} % · applied to Normal Solvent Circulation to give Maximum Solvent Circulation`)}
+          <div data-field-key="process_design__design_margin">
+          <FieldRow label="Design Margin" value={marginEff} onChange={v => f("design_margin", v)} onBlur={s} unit="%" note="Engineer-entered project input — no default. Applied to Normal Solvent Circulation to give Maximum Solvent Circulation." error={fErr4("design_margin")} />
+          </div>
+          {statusLine(`Status: ${marginEff ? "Engineer-entered" : "Not entered — required input"} · Basis: Maximum Solvent Circulation = Normal × (1 + Margin / 100)`)}
 
+          <div data-field-key="process_design__phase_configuration">
           <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
-            <label className="text-sm text-gray-700 font-medium pt-1.5">Phase Configuration</label>
+            <label className={`text-sm font-medium pt-1.5 ${fErr4("phase_configuration") ? "text-red-700" : "text-gray-700"}`}>
+              Phase Configuration
+              {fErr4("phase_configuration") && <span className="text-red-500 ml-0.5">*</span>}
+            </label>
             <select
               value={pd.phase_configuration ?? ""}
               onChange={e => cs({ phase_configuration: e.target.value })}
               disabled={isFrozen}
-              className="h-8 text-sm border rounded-md px-2 bg-white"
+              className={`h-8 text-sm border rounded-md px-2 bg-white ${fErr4("phase_configuration") ? "border-red-400 bg-red-50" : ""}`}
             >
               <option value="">Select…</option>
               {PHASE_CONFIG_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             <span />
+          </div>
+          {fErr4("phase_configuration") && (
+            <p className="text-xs text-red-600 font-medium px-2 mt-0.5">{fErr4("phase_configuration")}</p>
+          )}
           </div>
           {statusLine("Status: Manual · Engineer selection required by the C2 engine — phase continuity is never assumed from density")}
 
@@ -2249,22 +3119,61 @@ export default function DesignSoftwareWorkspacePage() {
         </SectionCard>
 
         <SectionCard title="RRBO Characterisation & LLE Targets — Governed N_T Inputs (Coto 2022)">
-          <div className="flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 mb-2">
-            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-            <span>
-              Governed inputs for automatic theoretical-stage (N_T) calculation from the Coto 2022
-              controlled LLE dataset (Fluid Phase Equilibria 554 (2022) 113293, Table 3 — 298.15 K).
-              Class mapping: saturates → n-dodecane · mono-aromatics → 1,4-xylene · di-aromatics →
-              1-methylnaphtalene · poly-aromatics → pyrene (governed screening analogy). Missing
-              inputs are never assumed — the calculation fails closed listing them.
-            </span>
-          </div>
           <FieldRow label="RRBO Total Aromatics" value={pd.rrbo_total_aromatics_wt ?? ""} onChange={v => f("rrbo_total_aromatics_wt", v)} onBlur={s} unit="wt %" />
-          {statusLine(`Status: ${(pd.rrbo_total_aromatics_wt ?? "").trim() !== "" && pd.rrbo_total_aromatics_wt !== TOTAL_AROMATICS_DEFAULT ? "Manual · Engineer-entered" : `Auto-Populated · default ${TOTAL_AROMATICS_DEFAULT} wt % — editable`} · Consistency-checked against Mono + Di + Poly (±0.5 wt %) — a mismatch fails the N_T calculation closed`)}
-          <FieldRow label="RRBO Saturates" value={pd.rrbo_saturates_wt ?? ""} onChange={v => f("rrbo_saturates_wt", v)} onBlur={s} unit="wt %" />
-          <FieldRow label="RRBO Mono-Aromatics" value={pd.rrbo_mono_aromatics_wt ?? ""} onChange={v => f("rrbo_mono_aromatics_wt", v)} onBlur={s} unit="wt %" />
-          <FieldRow label="RRBO Di-Aromatics" value={pd.rrbo_di_aromatics_wt ?? ""} onChange={v => f("rrbo_di_aromatics_wt", v)} onBlur={s} unit="wt %" />
-          <FieldRow label="RRBO Poly-Aromatics" value={pd.rrbo_poly_aromatics_wt ?? ""} onChange={v => f("rrbo_poly_aromatics_wt", v)} onBlur={s} unit="wt %" />
+          {statusLine(`Status: ${(pd.rrbo_total_aromatics_wt ?? "").trim() !== "" && pd.rrbo_total_aromatics_wt !== TOTAL_AROMATICS_DEFAULT ? "Manual · Engineer-entered" : `Auto-Populated · default ${TOTAL_AROMATICS_DEFAULT} wt % — editable`} · Trigger for N_T input resolution — class distribution (Mono / Di / Poly) entered below; Total Aromatics is derived by the engine as their sum`)}
+
+          {/* N_T calculability panel — shown whenever Total Aromatics is entered.
+              Driven entirely by the governed resolver — never a hard-coded field list. */}
+          {(() => {
+            const totalAromEntered = (pd.rrbo_total_aromatics_wt ?? "").trim() !== "";
+            if (!totalAromEntered) return null;
+            const ntResult = resolveNtInputs(d("design_basis"), pd);
+            if (ntResult.calculable) {
+              return (
+                <div className="my-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 flex items-center gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+                  <p className="text-sm font-semibold text-emerald-800">All N_T inputs present — auto-calculation triggered</p>
+                </div>
+              );
+            }
+            return (
+              <div className="my-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                  <p className="text-sm font-semibold text-amber-800">
+                    N_T requires {ntResult.missingFields.length} more input{ntResult.missingFields.length !== 1 ? "s" : ""}
+                  </p>
+                </div>
+                <ul className="space-y-1 pl-1">
+                  {ntResult.missingFields.map(rf => (
+                    <li key={rf.key} className="text-xs text-amber-900 flex items-start gap-1">
+                      <span className="shrink-0 mt-0.5 text-amber-500">•</span>
+                      <span>
+                        <span className="font-medium">{rf.label}{rf.unit ? ` (${rf.unit})` : ""}</span>
+                        {rf.section === "design_basis" && (
+                          <span className="ml-1 text-[10px] font-semibold uppercase tracking-wide text-amber-600 bg-amber-100 px-1 rounded">Stage 2</span>
+                        )}
+                        <span className="text-amber-700"> — {rf.reason}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
+
+          <div data-field-key="process_design__rrbo_saturates_wt">
+            <FieldRow label="RRBO Saturates" value={pd.rrbo_saturates_wt ?? ""} onChange={v => f("rrbo_saturates_wt", v)} onBlur={s} unit="wt %" error={fErr4("rrbo_saturates_wt")} />
+          </div>
+          <div data-field-key="process_design__rrbo_mono_aromatics_wt">
+            <FieldRow label="RRBO Mono-Aromatics" value={pd.rrbo_mono_aromatics_wt ?? ""} onChange={v => f("rrbo_mono_aromatics_wt", v)} onBlur={s} unit="wt %" error={fErr4("rrbo_mono_aromatics_wt")} />
+          </div>
+          <div data-field-key="process_design__rrbo_di_aromatics_wt">
+            <FieldRow label="RRBO Di-Aromatics" value={pd.rrbo_di_aromatics_wt ?? ""} onChange={v => f("rrbo_di_aromatics_wt", v)} onBlur={s} unit="wt %" error={fErr4("rrbo_di_aromatics_wt")} />
+          </div>
+          <div data-field-key="process_design__rrbo_poly_aromatics_wt">
+            <FieldRow label="RRBO Poly-Aromatics" value={pd.rrbo_poly_aromatics_wt ?? ""} onChange={v => f("rrbo_poly_aromatics_wt", v)} onBlur={s} unit="wt %" error={fErr4("rrbo_poly_aromatics_wt")} />
+          </div>
           {(() => {
             const chSum = ["rrbo_saturates_wt", "rrbo_mono_aromatics_wt", "rrbo_di_aromatics_wt", "rrbo_poly_aromatics_wt"]
               .map(k => numOrNull((pd[k] ?? "").trim()))
@@ -2281,22 +3190,51 @@ export default function DesignSoftwareWorkspacePage() {
             </select>
             <span />
           </div>
+
+          {/* ── Assumed distribution — inline, no separate card ──────────── */}
+          {(() => {
+            const A = parseFloat((pd.rrbo_total_aromatics_wt ?? "").trim());
+            if (!Number.isFinite(A) || A <= 0 || A >= 100) return null;
+            const sat = parseFloat((100 - A).toFixed(4));
+            const ar3 = parseFloat((A / 3).toFixed(4));
+            const applyAssumed = () => {
+              cs({
+                rrbo_saturates_wt:            String(sat),
+                rrbo_mono_aromatics_wt:       String(ar3),
+                rrbo_di_aromatics_wt:         String(ar3),
+                rrbo_poly_aromatics_wt:       String(ar3),
+                rrbo_characterisation_source: "Assumed",
+              });
+              setTimeout(() => saveSection("process_design"), 60);
+            };
+            const hasValues = ["rrbo_saturates_wt", "rrbo_mono_aromatics_wt", "rrbo_di_aromatics_wt", "rrbo_poly_aromatics_wt"]
+              .some(k => (pd[k as keyof typeof pd] ?? "").trim() !== "");
+            return (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1.5 text-[11px] text-orange-800 bg-orange-50 border border-orange-200 rounded">
+                <span className="font-bold uppercase tracking-wider text-orange-600 shrink-0">[Testing]</span>
+                <span className="text-orange-700 shrink-0">
+                  Assumed: Sat&nbsp;=&nbsp;<strong>{sat}</strong>&nbsp;·
+                  Mono&nbsp;=&nbsp;Di&nbsp;=&nbsp;Poly&nbsp;=&nbsp;<strong>{ar3}</strong>&nbsp;wt%
+                  &nbsp;(Σ&nbsp;={parseFloat((sat + ar3 * 3).toFixed(4))}&nbsp;wt%)
+                </span>
+                {!isFrozen && (
+                  <button
+                    type="button"
+                    onClick={applyAssumed}
+                    className="ml-auto shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded border border-orange-400 bg-white hover:bg-orange-100 text-orange-800 transition-colors"
+                  >
+                    {hasValues ? "⟳ Re-apply" : "Apply"}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+
           <FieldRow label="Source Reference (characterisation)" value={pd.rrbo_characterisation_source_reference ?? ""} onChange={v => f("rrbo_characterisation_source_reference", v)} onBlur={s} unit="" />
-          <FieldRow label="Class MW — Saturates" value={pd.rrbo_mw_saturates ?? ""} onChange={v => f("rrbo_mw_saturates", v)} onBlur={s} unit="g/mol" />
-          <FieldRow label="Class MW — Mono-Aromatics" value={pd.rrbo_mw_mono ?? ""} onChange={v => f("rrbo_mw_mono", v)} onBlur={s} unit="g/mol" />
-          <FieldRow label="Class MW — Di-Aromatics" value={pd.rrbo_mw_di ?? ""} onChange={v => f("rrbo_mw_di", v)} onBlur={s} unit="g/mol" />
-          <FieldRow label="Class MW — Poly-Aromatics" value={pd.rrbo_mw_poly ?? ""} onChange={v => f("rrbo_mw_poly", v)} onBlur={s} unit="g/mol" />
-          {statusLine("Class molecular weights are governed inputs (GPC/MS or engineer-tagged) — surrogate pure-compound MWs are never substituted for RRBO class MWs")}
-          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
-            <label className="text-sm text-gray-700 font-medium pt-1.5">Class MW Source</label>
-            <select value={pd.rrbo_class_mw_source ?? ""} onChange={e => cs({ rrbo_class_mw_source: e.target.value })} disabled={isFrozen} className="h-8 text-sm border rounded-md px-2 bg-white">
-              <option value="">Select…</option>
-              {["Measured", "Vendor", "Literature", "Assumed"].map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
-            <span />
+          {statusLine("Surrogate conversion: saturates → n-dodecane 170.34 · mono → 1,4-xylene 106.17 · di → 1-methylnaphthalene 142.20 · poly → pyrene 202.25 g/mol (governed constants, not user-entered)")}
+          <div data-field-key="process_design__target_raffinate_aromatics_mol">
+            <FieldRow label="Target Raffinate Aromatics" value={pd.target_raffinate_aromatics_mol ?? ""} onChange={v => f("target_raffinate_aromatics_mol", v)} onBlur={s} unit="mol %" error={fErr4("target_raffinate_aromatics_mol")} />
           </div>
-          <FieldRow label="Source Reference (class MWs)" value={pd.rrbo_class_mw_source_reference ?? ""} onChange={v => f("rrbo_class_mw_source_reference", v)} onBlur={s} unit="" />
-          <FieldRow label="Target Raffinate Aromatics" value={pd.target_raffinate_aromatics_mol ?? ""} onChange={v => f("target_raffinate_aromatics_mol", v)} onBlur={s} unit="mol %" />
           <FieldRow label="Source Reference (target)" value={pd.target_raffinate_aromatics_source_reference ?? ""} onChange={v => f("target_raffinate_aromatics_source_reference", v)} onBlur={s} unit="" />
           {statusLine("Governed envelope: raffinate locus x1R ∈ [0.641, 0.878] (total aromatics ≈ 6.2–20.1 mol %) at 298.15 K — targets outside fail closed, no extrapolation")}
           <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
@@ -2307,6 +3245,27 @@ export default function DesignSoftwareWorkspacePage() {
             </select>
             <span />
           </div>
+          {/* Provenance status block — always visible, never auto-resolved */}
+          {(() => {
+            const tgtVal    = (pd.target_raffinate_aromatics_mol ?? "").trim();
+            const tgtSrc    = (pd.target_raffinate_aromatics_source ?? "").trim();
+            const tgtRefRaw = (pd.target_raffinate_aromatics_source_reference ?? "").trim();
+            // Numeric mirror: ref equals target value string → not a real reference
+            const isNumericMirror = tgtRefRaw !== "" &&
+              Number.isFinite(parseFloat(tgtRefRaw)) &&
+              Math.abs(parseFloat(tgtRefRaw) - parseFloat(tgtVal)) < 1e-9;
+            const refDisplay = (tgtRefRaw === "" || isNumericMirror) ? "Not Provided" : tgtRefRaw;
+            const srcDisplay = tgtSrc !== "" ? tgtSrc : "Not Stated";
+            return (
+              <div className="mx-2 mt-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 space-y-0.5">
+                <p className="font-semibold text-amber-800 mb-1">Target Raffinate Aromatics — Provenance</p>
+                <p><span className="text-amber-700 w-36 inline-block">Target:</span><span className="font-mono">{tgtVal !== "" ? `${tgtVal} mol%` : "—"}</span></p>
+                <p><span className="text-amber-700 w-36 inline-block">Source:</span><span className="font-mono">{srcDisplay}</span></p>
+                <p><span className="text-amber-700 w-36 inline-block">Source Reference:</span><span className={`font-mono ${refDisplay === "Not Provided" ? "italic" : ""}`}>{refDisplay}</span></p>
+                <p><span className="text-amber-700 w-36 inline-block">Engineering Basis:</span><span className="font-semibold">Not Governed</span></p>
+              </div>
+            );
+          })()}
         </SectionCard>
 
         <SectionCard title="Solvent Circulation Rate">
@@ -2485,14 +3444,20 @@ export default function DesignSoftwareWorkspacePage() {
     const hd = d("hydraulic_design");
     const f = field("hydraulic_design");
     const s = save("hydraulic_design");
+    const s5ve = stageValidationErrors["hydraulic_design"] ?? {};
+    const fErr5 = (key: string) => s5ve[key];
     const hydRun = runs.filter(r => r.calculation_type === "hydraulics_common" && (r.calculation_status === "success" || r.calculation_status === "warning"))
       .sort((a, b) => new Date(b.calculated_at ?? 0).getTime() - new Date(a.calculated_at ?? 0).getTime())[0];
+    const hydErrorRun = !hydRun
+      ? runs.filter(r => r.calculation_type === "hydraulics_common" && r.calculation_status === "error")
+          .sort((a, b) => new Date(b.calculated_at ?? 0).getTime() - new Date(a.calculated_at ?? 0).getTime())[0]
+      : undefined;
     // Total Volumetric Flow — binding only: Feed Flow + Normal Solvent Flow
     // (both already established in Design Basis / Process Design).
     const dbx = d("design_basis");
     const pdx = d("process_design");
     const hydFeedLph = numOrNull(dbx.design_capacity_lph ?? dbx.design_capacity ?? dbx.feed_flow);
-    const hydRatio = numOrNull((pdx.so_ratio ?? "").trim() !== "" ? pdx.so_ratio : SO_RATIO_DEFAULT);
+    const hydRatio = numOrNull((pdx.so_ratio ?? "").trim());
     const hydTotalLph = hydFeedLph !== null && hydRatio !== null ? hydFeedLph * (1 + hydRatio) : null;
     const hydTotalM3h = hydTotalLph !== null ? hydTotalLph / 1000 : null;
     const totalFlowOverride = (hd.total_flow ?? "").trim();
@@ -2506,6 +3471,7 @@ export default function DesignSoftwareWorkspacePage() {
     const minFeasibleD = numOrNull(String(hydNormal?.summary?.minimumFeasibleDiameter_m ?? ""));
     return (
       <div className="max-w-3xl">
+        {stageBanner("hydraulic_design")}
         <SectionCard title="Hydraulic Inputs">
           <FieldRow
             label="Trial diameter — screening only; does not govern final design"
@@ -2520,8 +3486,8 @@ export default function DesignSoftwareWorkspacePage() {
             : minFeasibleD !== null
               ? `Status: Auto-Populated · Minimum feasible diameter ${minFeasibleD} m from the Common Hydraulic sizing sweep (0.3–2.0 m) · Source: Common Hydraulic Design Engine — engineer may override before re-running`
               : "Status: Auto-Populated · Rule: first Run Common Hydraulics sizes the column via the screening sweep 0.3–2.0 m (0.05 m step) using the d32 screening basis below; the minimum feasible diameter then appears here")}
-          <FieldRow label="Continuous Phase Density" value={hd.cont_density ?? d("fluid_properties").nmp_density_value ?? ""} onChange={v => f("cont_density", v)} onBlur={s} unit="kg/m³" note="Auto-filled from Fluid Properties" />
-          <FieldRow label="Dispersed Phase Density" value={hd.disp_density ?? d("fluid_properties").rrbo_density_value ?? ""} onChange={v => f("disp_density", v)} onBlur={s} unit="kg/m³" />
+          <FieldRow label="Continuous Phase Density" value={hd.cont_density ?? (densityPairQ.data ? String(Math.round(densityPairQ.data.nmp.value * 10) / 10) : "")} onChange={v => f("cont_density", v)} onBlur={s} unit="kg/m³" note="Auto-filled from EPD library at Operating Temperature" />
+          <FieldRow label="Dispersed Phase Density" value={hd.disp_density ?? (densityPairQ.data ? String(Math.round(densityPairQ.data.rrbo.value * 10) / 10) : "")} onChange={v => f("disp_density", v)} onBlur={s} unit="kg/m³" note="Auto-filled from EPD library at Operating Temperature" />
           <FieldRow label="Continuous Phase Viscosity" value={hd.cont_viscosity ?? d("fluid_properties").nmp_viscosity_dynamic_value ?? ""} onChange={v => f("cont_viscosity", v)} onBlur={s} unit="mPa·s" />
           <FieldRow label="Dispersed Phase Viscosity" value={hd.disp_viscosity ?? d("fluid_properties").rrbo_viscosity_dynamic_value ?? ""} onChange={v => f("disp_viscosity", v)} onBlur={s} unit="mPa·s" />
           <FieldRow label="Interfacial Tension" value={hd.interfacial_tension ?? d("fluid_properties").interfacial_tension_value ?? ""} onChange={v => f("interfacial_tension", v)} onBlur={s} unit="mN/m" />
@@ -2535,7 +3501,7 @@ export default function DesignSoftwareWorkspacePage() {
           {statusLine(totalFlowOverride !== "" && numOrNull(totalFlowOverride) !== hydTotalM3h
             ? "Status: Manual · Engineer override"
             : `Status: Auto-Populated · Rule: Feed Flow (${hydFeedLph !== null ? fmt(hydFeedLph) : "—"} LPH) + Normal Solvent Flow (${hydFeedLph !== null && hydRatio !== null ? fmt(hydFeedLph * hydRatio) : "—"} LPH) = ${hydTotalLph !== null ? fmt(hydTotalLph) : "—"} LPH = ${hydTotalM3h !== null ? fmt(hydTotalM3h, 1) : "—"} m³/h · Source: Process Design / Design Basis`)}
-          <FieldRow label="Flooding Margin Design" value={hd.flooding_margin_design ?? "70"} onChange={v => f("flooding_margin_design", v)} onBlur={s} unit="%" />
+          <FieldRow label="Throughput Utilisation Band Upper Limit" value={hd.flooding_margin_design ?? "70"} onChange={v => f("flooding_margin_design", v)} onBlur={s} unit="%" note="Stored design criterion (e.g. 70%). The C3 engine applies the governed 40–80% screening band. This field is recorded here for reference; it does not replace a validated flooding correlation." />
           <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
             <label className="text-sm text-gray-700 font-medium pt-1.5">Hydraulic Model</label>
             <select
@@ -2544,23 +3510,123 @@ export default function DesignSoftwareWorkspacePage() {
               disabled={isFrozen}
               className="h-8 text-sm border rounded-md px-2 bg-white"
             >
-              <option value="d32_terminal">Sauter Mean Diameter (d32) / Terminal Velocity (Default)</option>
-              <option value="characteristic_velocity">Characteristic Velocity + Hindrance Exponent</option>
+              <option value="d32_terminal">d₃₂ / Rigid-Sphere Terminal Velocity — Preliminary Screening / Pending Validation (Default)</option>
+              <option value="characteristic_velocity">Characteristic Swarm Velocity u_K + Hindrance Exponent n (Engineer-entered, source-tagged)</option>
             </select>
             <span />
           </div>
-          {statusLine(`Status: ${(hd.hydraulic_model ?? "d32_terminal") === "d32_terminal" ? "Auto-Populated · Default LLX screening method" : "Manual · Engineer-selected hydraulic model"}`)}
+          {statusLine(`Status: ${(hd.hydraulic_model ?? "d32_terminal") === "d32_terminal" ? "Preliminary Screening · u_K = u_T (Pending Validation) · d₃₂ = 3 mm, n = 1 (Assumed screening defaults — Preliminary / Pending Validation)" : "Engineer-entered · u_K and n source-tagged"}`)}
           {(hd.hydraulic_model ?? "d32_terminal") === "d32_terminal" ? (
             <>
-              <FieldRow label="Sauter Mean Diameter d32 (screening)" value={hd.sauter_mean_d32 ?? "1.5"} onChange={v => f("sauter_mean_d32", v)} onBlur={s} unit="mm" />
-              {statusLine(`Status: ${(hd.sauter_mean_d32 ?? "").trim() !== "" && hd.sauter_mean_d32 !== "1.5" ? "Manual" : "Auto-Populated"} · Default 1.5 mm · Source: Thermopac Preliminary Screening Default (Assumed) · terminal velocity used as characteristic velocity`)}
+              <FieldRow label="Sauter Mean Diameter d32 (screening)" value={hd.sauter_mean_d32 ?? ""} onChange={v => f("sauter_mean_d32", v)} onBlur={s} unit="mm" note="Screening default: d₃₂ = 3 mm (Assumed — Preliminary / Pending Validation). Replace with a measured, vendor, or literature value before design-grade use. Never adjusted to obtain a desired column diameter." error={fErr5("sauter_mean_d32")} />
+              {statusLine(`Status: ${(hd.sauter_mean_d32 ?? "").trim() !== "" && hd.sauter_mean_d32_source_ref !== "Thermopac Preliminary Screening Default — d₃₂ = 3 mm (Assumed / Preliminary / Pending Validation)" ? `Engineer-entered · d₃₂ = ${hd.sauter_mean_d32} mm` : `Screening default · d₃₂ = 3 mm (Assumed — Preliminary / Pending Validation)`} · Basis: d₃₂ / rigid-sphere terminal velocity — u_K = u_T`)}
+              <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5 mt-1">
+                <label className={`text-sm font-medium pt-1.5 ${fErr5("sauter_mean_d32_source") ? "text-red-700" : "text-gray-700"}`}>
+                  d32 Source Type{fErr5("sauter_mean_d32_source") && <span className="text-red-500 ml-0.5">*</span>}
+                </label>
+                <div>
+                  <select
+                    value={hd.sauter_mean_d32_source ?? ""}
+                    onChange={e => commitSection("hydraulic_design", { sauter_mean_d32_source: e.target.value })}
+                    disabled={isFrozen}
+                    className={`h-8 text-sm border rounded-md px-2 bg-white w-full ${fErr5("sauter_mean_d32_source") ? "border-red-400 bg-red-50" : ""}`}
+                  >
+                    <option value="">— select source type —</option>
+                    <option value="Measured">Measured</option>
+                    <option value="Vendor">Vendor</option>
+                    <option value="Literature">Literature</option>
+                    <option value="Assumed">Assumed</option>
+                  </select>
+                  {fErr5("sauter_mean_d32_source") && <p className="text-xs text-red-600 font-medium mt-0.5">{fErr5("sauter_mean_d32_source")}</p>}
+                </div>
+                <span />
+              </div>
+              <FieldRow label="d32 Source Reference" value={hd.sauter_mean_d32_source_ref ?? ""} onChange={v => f("sauter_mean_d32_source_ref", v)} onBlur={s} unit="" placeholder="e.g. Laboratory measurement report / Vendor droplet study / Thornton 1959 — pending RRBO-NMP data" error={fErr5("sauter_mean_d32_source_ref")} />
+
+              {/* ── Hindrance Exponent n (governed, source-tagged — d32_terminal mode) ───── */}
+              <FieldRow
+                label="Hindrance Exponent n"
+                value={hd.hindrance_exponent ?? ""}
+                onChange={v => f("hindrance_exponent", v)}
+                onBlur={s}
+                unit="—"
+                note="Screening default: n = 1 (Assumed — Preliminary / Pending Validation). Governs the slip model: u_slip(φ) = u_K·(1−φ)^n. Not a universal relationship — replace with a measured or literature value before design-grade use."
+                error={fErr5("hindrance_exponent")}
+              />
+              {statusLine(`Status: ${hd.hindrance_exponent_source_ref === "Thermopac Preliminary Screening Default — n = 1 (Assumed / Preliminary / Pending Validation)" ? "Screening default · n = 1 (Assumed — Preliminary / Pending Validation)" : `Engineer-entered · n = ${hd.hindrance_exponent}`}`)}
+              <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5 mt-1">
+                <label className={`text-sm font-medium pt-1.5 ${fErr5("hindrance_exponent_source") ? "text-red-700" : "text-gray-700"}`}>
+                  n Source Type{fErr5("hindrance_exponent_source") && <span className="text-red-500 ml-0.5">*</span>}
+                </label>
+                <div>
+                  <select
+                    value={hd.hindrance_exponent_source ?? ""}
+                    onChange={e => commitSection("hydraulic_design", { hindrance_exponent_source: e.target.value })}
+                    disabled={isFrozen}
+                    className={`h-8 text-sm border rounded-md px-2 bg-white w-full ${fErr5("hindrance_exponent_source") ? "border-red-400 bg-red-50" : ""}`}
+                  >
+                    <option value="">— select source type —</option>
+                    <option value="Measured">Measured</option>
+                    <option value="Vendor">Vendor</option>
+                    <option value="Literature">Literature</option>
+                    <option value="Assumed">Assumed</option>
+                  </select>
+                  {fErr5("hindrance_exponent_source") && <p className="text-xs text-red-600 font-medium mt-0.5">{fErr5("hindrance_exponent_source")}</p>}
+                </div>
+                <span />
+              </div>
+              <FieldRow label="n Source Reference" value={hd.hindrance_exponent_source_ref ?? ""} onChange={v => f("hindrance_exponent_source_ref", v)} onBlur={s} unit="" placeholder="e.g. Lapidus & Elgin 1957 / Thornton 1956 / Godfrey & Slater 1994 / Laboratory holdup experiment — pending RRBO-NMP validation" error={fErr5("hindrance_exponent_source_ref")} />
             </>
           ) : (
             <>
-              <FieldRow label="Characteristic Velocity" value={hd.characteristic_velocity ?? ""} onChange={v => f("characteristic_velocity", v)} onBlur={s} unit="m/s" />
-              {statusLine("Status: Manual · Engineer-entered characteristic velocity — pending laboratory validation")}
-              <FieldRow label="Hindrance Exponent n" value={hd.hindrance_exponent ?? "1"} onChange={v => f("hindrance_exponent", v)} onBlur={s} unit="—" />
-              {statusLine(`Status: ${(hd.hindrance_exponent ?? "").trim() !== "" && hd.hindrance_exponent !== "1" ? "Manual" : "Auto-Populated"} · Default n = 1 (explicit Assumed entry — not a universal relationship) · Pending Laboratory Validation`)}
+              <FieldRow label="Characteristic Swarm Velocity u_K" value={hd.characteristic_velocity ?? ""} onChange={v => f("characteristic_velocity", v)} onBlur={s} unit="m/s" note="Engineer-entered, source-tagged. Must be a measured swarm velocity for the RRBO/NMP system at the operating temperature and packing geometry — not the rigid-sphere terminal velocity u_T." error={fErr5("characteristic_velocity")} />
+              {statusLine(`Status: ${(hd.characteristic_velocity ?? "").trim() !== "" ? "Engineer-entered" : "Not entered — required input"} · Source type and reference required`)}
+              <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5 mt-1">
+                <label className={`text-sm font-medium pt-1.5 ${fErr5("characteristic_velocity_source") ? "text-red-700" : "text-gray-700"}`}>
+                  u_K Source Type{fErr5("characteristic_velocity_source") && <span className="text-red-500 ml-0.5">*</span>}
+                </label>
+                <div>
+                  <select
+                    value={hd.characteristic_velocity_source ?? ""}
+                    onChange={e => commitSection("hydraulic_design", { characteristic_velocity_source: e.target.value })}
+                    disabled={isFrozen}
+                    className={`h-8 text-sm border rounded-md px-2 bg-white w-full ${fErr5("characteristic_velocity_source") ? "border-red-400 bg-red-50" : ""}`}
+                  >
+                    <option value="">— select source type —</option>
+                    <option value="Measured">Measured</option>
+                    <option value="Vendor">Vendor</option>
+                    <option value="Literature">Literature</option>
+                    <option value="Assumed">Assumed</option>
+                  </select>
+                  {fErr5("characteristic_velocity_source") && <p className="text-xs text-red-600 font-medium mt-0.5">{fErr5("characteristic_velocity_source")}</p>}
+                </div>
+                <span />
+              </div>
+              <FieldRow label="u_K Source Reference" value={hd.characteristic_velocity_source_ref ?? ""} onChange={v => f("characteristic_velocity_source_ref", v)} onBlur={s} unit="" placeholder="e.g. Laboratory holdup/slip experiment — RRBO SN300 / NMP at 60°C on MellapakPlus 252.Y; pending RRBO-NMP validation" error={fErr5("characteristic_velocity_source_ref")} />
+              <FieldRow label="Hindrance Exponent n" value={hd.hindrance_exponent ?? ""} onChange={v => f("hindrance_exponent", v)} onBlur={s} unit="—" note="Engineer-entered project input — no default. Not a universal relationship; source: laboratory measurement or literature for this system." error={fErr5("hindrance_exponent")} />
+              {statusLine(`Status: ${(hd.hindrance_exponent ?? "").trim() !== "" ? "Engineer-entered" : "Not entered — required input"} · Pending Laboratory Validation`)}
+              <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5 mt-1">
+                <label className={`text-sm font-medium pt-1.5 ${fErr5("hindrance_exponent_source") ? "text-red-700" : "text-gray-700"}`}>
+                  Hindrance Exponent Source Type{fErr5("hindrance_exponent_source") && <span className="text-red-500 ml-0.5">*</span>}
+                </label>
+                <div>
+                  <select
+                    value={hd.hindrance_exponent_source ?? ""}
+                    onChange={e => commitSection("hydraulic_design", { hindrance_exponent_source: e.target.value })}
+                    disabled={isFrozen}
+                    className={`h-8 text-sm border rounded-md px-2 bg-white w-full ${fErr5("hindrance_exponent_source") ? "border-red-400 bg-red-50" : ""}`}
+                  >
+                    <option value="">— select source type —</option>
+                    <option value="Measured">Measured</option>
+                    <option value="Vendor">Vendor</option>
+                    <option value="Literature">Literature</option>
+                    <option value="Assumed">Assumed</option>
+                  </select>
+                  {fErr5("hindrance_exponent_source") && <p className="text-xs text-red-600 font-medium mt-0.5">{fErr5("hindrance_exponent_source")}</p>}
+                </div>
+                <span />
+              </div>
+              <FieldRow label="Hindrance Exponent Source Reference" value={hd.hindrance_exponent_source_ref ?? ""} onChange={v => f("hindrance_exponent_source_ref", v)} onBlur={s} unit="" placeholder="e.g. Laboratory settling experiments / Coulaloglou & Tavlarides 1977 — pending RRBO-NMP validation" error={fErr5("hindrance_exponent_source_ref")} />
             </>
           )}
         </SectionCard>
@@ -2573,86 +3639,114 @@ export default function DesignSoftwareWorkspacePage() {
             Providing vendor data below supersedes the literature result without deleting it.
           </p>
 
-          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5">
-            <label className="text-sm text-gray-700 font-medium pt-1.5">Source Type (packing geometry)</label>
-            <select
-              value={hd.packing_specific_surface_source_type ?? "Literature"}
-              onChange={e => commitSection("hydraulic_design", { packing_specific_surface_source_type: e.target.value })}
-              disabled={isFrozen}
-              className="h-8 text-sm border rounded-md px-2 bg-white"
-            >
-              <option value="Literature">Literature</option>
-              <option value="Vendor">Vendor</option>
-              <option value="Measured">Measured</option>
-              <option value="Assumed">Assumed</option>
-            </select>
+          <SelectRow
+            label="Packing Specific Surface Area"
+            value={hd.packing_specific_surface_value ?? ""}
+            onChange={v => f("packing_specific_surface_value", v)}
+            onBlur={s}
+            onCommit={v => commitSection("hydraulic_design", { packing_specific_surface_value: v })}
+            options={["250", "300", "350", "400", "450", "500"]}
+            unit="m²/m³"
+            note="Engineer-selected packing geometry — no default. d_h = 4/a (DUSS2013-EQ3) calculated automatically."
+            error={fErr5("packing_specific_surface_value")}
+          />
+          {statusLine(`Status: ${(hd.packing_specific_surface_value ?? "").trim() ? `a = ${hd.packing_specific_surface_value} m²/m³ · d_h = ${(4 / Number(hd.packing_specific_surface_value)).toFixed(5)} m (DUSS2013-EQ3: d_h = 4/a)` : "Not entered — required input"}`)}
+          {(() => {
+            const ssaV = Number((hd.packing_specific_surface_value ?? "").trim());
+            if (!ssaV) return null;
+            const link = ssaV === 250
+              ? <span className="text-emerald-700">Duss 2013 governed basis: <b>MellapakPlus 252.Y</b> · 45° corrugation · Y-type · Table 2-A (Re 143–7144, Re<sub>crit</sub> = 250)</span>
+              : ssaV === 500
+                ? <span className="text-emerald-700">Duss 2013 governed basis: <b>BXPlus</b> · 30° corrugation · X-type · Table 2-B (Re 71–3572, Re<sub>crit</sub> = 450)</span>
+                : <span className="text-amber-700 font-medium">No governed Duss 2013 cf dataset for {ssaV} m²/m³ — friction factor and pressure drop: Not Calculable. Vendor override required for ΔP.</span>;
+            return <p className="text-[11px] px-2 mt-0.5">{link}</p>;
+          })()}
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5 mt-2">
+            <label className={`text-sm font-medium pt-1.5 ${fErr5("packing_specific_surface_source_type") ? "text-red-700" : "text-gray-700"}`}>
+              Source Type (packing geometry){fErr5("packing_specific_surface_source_type") && <span className="text-red-500 ml-0.5">*</span>}
+            </label>
+            <div>
+              <select
+                value={hd.packing_specific_surface_source_type ?? ""}
+                onChange={e => commitSection("hydraulic_design", { packing_specific_surface_source_type: e.target.value })}
+                disabled={isFrozen}
+                className={`h-8 text-sm border rounded-md px-2 bg-white w-full ${fErr5("packing_specific_surface_source_type") ? "border-red-400 bg-red-50" : ""}`}
+              >
+                <option value="">— select source type —</option>
+                <option value="Literature">Literature</option>
+                <option value="Vendor">Vendor</option>
+                <option value="Measured">Measured</option>
+                <option value="Assumed">Assumed</option>
+              </select>
+              {fErr5("packing_specific_surface_source_type") && <p className="text-xs text-red-600 font-medium mt-0.5">{fErr5("packing_specific_surface_source_type")}</p>}
+            </div>
             <span />
           </div>
           <FieldRow
-            label="Packing Specific Surface Area"
-            value={hd.packing_specific_surface_value ?? "250"}
-            onChange={v => f("packing_specific_surface_value", v)}
-            onBlur={s}
-            unit="m²/m³"
-            placeholder="250"
-          />
-          <FieldRow
             label="Specific Surface Source Reference"
-            value={hd.packing_specific_surface_source_ref ?? "Duss 2013 Table 2 / Zogg 1972 ETH Diss. Nr. 4886 — Sulzer Mellapak 250.Y class (nominal)"}
+            value={hd.packing_specific_surface_source_ref ?? ""}
             onChange={v => f("packing_specific_surface_source_ref", v)}
             onBlur={s}
             unit=""
-            placeholder="e.g. Sulzer Mellapak 250.Y data sheet, rev. 2019"
+            placeholder="e.g. Duss 2013 Table 2-A / Sulzer Mellapak 250.Y data sheet rev. 2019"
+            error={fErr5("packing_specific_surface_source_ref")}
           />
-          {statusLine("d_h = 4/a (DUSS2013-EQ3, Zogg definition) · Default 250 m²/m³ matches Duss 2013 Table 2-A. Update when vendor datasheet confirms actual surface.")}
 
-          <FieldRow
+          <SelectRow
             label="Corrugation Angle"
-            value={hd.packing_corrugation_angle_value ?? "45"}
+            value={hd.packing_corrugation_angle_value ?? ""}
             onChange={v => f("packing_corrugation_angle_value", v)}
             onBlur={s}
+            onCommit={v => commitSection("hydraulic_design", { packing_corrugation_angle_value: v })}
+            options={["30", "45"]}
             unit="°"
-            placeholder="45"
+            note="Governed packing geometry — no default. 45° = Y-type · 30° = X-type. cf dataset is governed by SSA, not by angle alone."
+            error={fErr5("packing_corrugation_angle_value")}
           />
+          {statusLine(`Status: ${(hd.packing_corrugation_angle_value ?? "").trim() ? "Engineer-selected" : "Not entered — required input"}`)}
           <FieldRow
             label="Corrugation Angle Source Reference"
-            value={hd.packing_corrugation_angle_source_ref ?? "Duss 2013 §\"Interpretation of Results\" / Zogg 1972 ETH Diss. Nr. 4886"}
+            value={hd.packing_corrugation_angle_source_ref ?? ""}
             onChange={v => f("packing_corrugation_angle_source_ref", v)}
             onBlur={s}
             unit=""
-            placeholder="Vendor data sheet / Zogg 1972"
+            placeholder="e.g. Duss 2013 §Interpretation of Results / Vendor data sheet"
+            error={fErr5("packing_corrugation_angle_source_ref")}
           />
-          {statusLine("45° → Table 2-A (Y-type, Re 143–7144) · 30° → Table 2-B (X-type, Re 71–3572) · Other angles: no governed dataset (provide vendor override).")}
 
           <div className="border-t border-gray-100 pt-3 mt-1">
             <p className="text-[12px] font-medium text-gray-600 mb-1.5">
               Friction Factor c<sub>f</sub> — Auto-Calculated (Governed Dataset)
             </p>
             {(() => {
-              const angRaw = (hd.packing_corrugation_angle_value ?? "45").trim();
-              const ang = Number(angRaw);
-              const is45 = ang === 45 || angRaw === "";
-              const is30 = ang === 30;
-              const dataset = is45
-                ? { label: "45° Y-type (Table 2-A)", points: 11, reMin: 143, reMax: 7144, reCrit: 250 }
-                : is30
-                  ? { label: "30° X-type (Table 2-B)", points: 11, reMin: 71, reMax: 3572, reCrit: 450 }
+              const ssaRaw = (hd.packing_specific_surface_value ?? "").trim();
+              const ssa = Number(ssaRaw);
+              // cf dataset governed by SSA — not by corrugation angle alone (Duss governance)
+              const dataset = ssa === 250
+                ? { label: "45° Y-type (Table 2-A) — MellapakPlus 252.Y basis", points: 11, reMin: 143, reMax: 7144, reCrit: 250 }
+                : ssa === 500
+                  ? { label: "30° X-type (Table 2-B) — BXPlus basis", points: 11, reMin: 71, reMax: 3572, reCrit: 450 }
                   : null;
+              const intermediate = ssa === 300 || ssa === 350 || ssa === 400 || ssa === 450;
               return (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-[11px] text-blue-800 space-y-1.5">
-                  <p className="font-semibold text-blue-900">c<sub>f</sub> is not user-entered — it is computed automatically at each operating Re using the Duss 2013 Table 2 governed dataset.</p>
-                  {dataset ? (
+                <div className={`border rounded-lg p-3 text-[11px] space-y-1.5 ${dataset ? "bg-blue-50 border-blue-200 text-blue-800" : intermediate ? "bg-amber-50 border-amber-200 text-amber-800" : "bg-gray-50 border-gray-200 text-gray-500"}`}>
+                  <p className="font-semibold">c<sub>f</sub> is not user-entered — it is computed automatically at each operating Re using the Duss 2013 Table 2 governed dataset.</p>
+                  {!ssaRaw && (
+                    <p className="font-medium">Select Packing Specific Surface Area to determine the active governed dataset.</p>
+                  )}
+                  {intermediate && (
+                    <p className="font-semibold text-amber-900">No governed Duss 2013 cf dataset for a = {ssa} m²/m³. Duss 2013 characterises only 250 m²/m³ (MellapakPlus 252.Y, Table 2-A) and 500 m²/m³ (BXPlus, Table 2-B). Hydraulic diameter d_h = 4/a is calculable; friction factor c<sub>f</sub> and pressure drop ΔP: <b>Not Calculable</b>. Provide a vendor pressure-drop override to proceed.</p>
+                  )}
+                  {dataset && (
                     <>
                       <p><span className="font-medium">Active dataset:</span> Duss 2013 Table 2, {dataset.label} — {dataset.points} points, Re {dataset.reMin}–{dataset.reMax}, Re<sub>crit</sub> = {dataset.reCrit}</p>
                       <p><span className="font-medium">Method:</span> Piecewise linear interpolation within the published range.</p>
-                      <p><span className="font-medium">Below Re = {dataset.reMin}:</span> "Outside Tabulated Range." Boundary minimum ΔP estimate provided using c<sub>f</sub> at Re<sub>min</sub> — <span className="font-semibold text-amber-800">NOT design ΔP</span>; do not use for sizing.</p>
+                      <p><span className="font-medium">Below Re = {dataset.reMin}:</span> "Outside Tabulated Range." Boundary minimum ΔP estimate using c<sub>f</sub> at Re<sub>min</sub> — <span className="font-semibold text-amber-800">NOT design ΔP</span>; do not use for sizing.</p>
                       <p><span className="font-medium">Above Re = {dataset.reMax}:</span> "Outside Tabulated Range." No estimate.</p>
                     </>
-                  ) : (
-                    <p className="text-amber-800 font-medium">No governed dataset for φ = {angRaw}°. Only 45° (Y-type) and 30° (X-type) are supported. Change the corrugation angle or provide a vendor override.</p>
                   )}
-                  <p><span className="font-medium">Sources:</span> Duss 2013 (AIChE Spring Meeting, San Antonio, April 2013, Table 2) / Zogg 1972 (ETH Diss. Nr. 4886). Sulcol V3.0.8 values reproduced in the published paper — treated as controlled-literature tabulated data.</p>
-                  <p><span className="font-medium">Provenance:</span> Controlled Literature — auto-calculated, not user-entered. Vendor-software outputs (Sulcol, DRP, etc.) are prohibited as direct design inputs.</p>
+                  {ssaRaw && <p><span className="font-medium">Sources:</span> Duss 2013 (AIChE Spring Meeting, San Antonio, April 2013, Table 2) / Zogg 1972 (ETH Diss. Nr. 4886). Sulcol V3.0.8 values reproduced — treated as controlled-literature tabulated data.</p>}
+                  {ssaRaw && <p><span className="font-medium">Provenance:</span> Controlled Literature — auto-calculated, not user-entered. Vendor-software outputs (Sulcol, DRP, etc.) are prohibited as direct design inputs.</p>}
                 </div>
               );
             })()}
@@ -2703,7 +3797,26 @@ export default function DesignSoftwareWorkspacePage() {
 
         <SectionCard title="Hydraulic Calculation Results">
           {!hydRun ? (
-            <p className="text-xs text-gray-400 italic">Run Common Hydraulics to see results</p>
+            hydErrorRun ? (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-red-600">Last run failed — fix the following before re-running:</p>
+                <ul className="space-y-1">
+                  {((hydErrorRun.validation_issues ?? []) as any[]).filter((e: any) => e.severity === "error").map((e: any, i: number) => (
+                    <li key={i} className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1">
+                      <span className="font-mono font-semibold">{e.field}</span>: {e.message}
+                    </li>
+                  ))}
+                  {((hydErrorRun.validation_issues ?? []) as any[]).filter((e: any) => e.severity === "warning").map((e: any, i: number) => (
+                    <li key={i} className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                      <span className="font-mono font-semibold">{e.field}</span>: {e.message}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[11px] text-gray-400">Run at: {new Date(hydErrorRun.calculated_at).toLocaleString()} · Engine v{hydErrorRun.engine_version}</p>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 italic">Run Common Hydraulics to see results</p>
+            )
           ) : (() => {
             const tv   = hydResData?.terminalVelocityScreening;
             const db2  = hydResData?.designBasis;
@@ -2715,34 +3828,38 @@ export default function DesignSoftwareWorkspacePage() {
             const n3 = (v: any) => typeof v === "number" ? v.toFixed(3) : "—";
             const n2 = (v: any) => typeof v === "number" ? v.toFixed(2) : "—";
             const feasLabel: Record<string,string> = {
-              within_screening_band:        "✅ Within band",
-              above_screening_band:         "⚠ Above band",
-              below_minimum_loading_band:   "↓ Below band",
+              hydraulically_feasible:       "✓ Feasible",
               hydraulically_infeasible:     "✗ Infeasible",
+              not_calculable:               "— Not calculable",
               pending_validation:           "— Pending",
             };
             const bandRow = (label: string, summary: any) => {
               if (!summary) return null;
-              const band = summary.screeningBandDiameterRange_m;
+              const feasCount = summary.hydraulicallyFeasibleDiameters_m?.length ?? 0;
               return (
                 <div className="flex items-center gap-4 py-1">
                   <span className="text-xs text-gray-500 w-28 shrink-0">{label}</span>
                   <span className="text-xs font-medium text-gray-800">
                     Min feasible: <span className="font-mono text-blue-700">{n3(summary.minimumFeasibleDiameter_m)} m</span>
-                    {band && <span className="ml-3">Screening band: <span className="font-mono text-green-700">{n3(band.min)}–{n3(band.max)} m</span></span>}
+                    <span className="ml-3 text-gray-600">Feasible diameters: <span className="font-mono text-blue-700">{feasCount}</span></span>
                   </span>
                 </div>
               );
             };
-            // Build per-diameter table rows for key diameters (feasible region)
-            const keyDiams = normDiams.filter((r: any) => {
+            // Build per-diameter table rows.
+            // Show feasible rows (≤110%) when they exist.
+            // When the entire sweep is infeasible (no row passes the filter),
+            // fall back to all rows so the engineer can see why each diameter failed.
+            const feasNorm = normDiams.filter((r: any) => {
               const pct = r.percentageOfGenericHydraulicThroughputMaximum;
               return typeof pct === "number" && pct <= 110;
             });
-            const maxKeyDiams = maxDiams.filter((r: any) => {
+            const keyDiams = feasNorm.length > 0 ? feasNorm : normDiams;
+            const feasMax = maxDiams.filter((r: any) => {
               const pct = r.percentageOfGenericHydraulicThroughputMaximum;
               return typeof pct === "number" && pct <= 110;
             });
+            const maxKeyDiams = feasMax.length > 0 ? feasMax : maxDiams;
             return (
               <div className="space-y-4">
                 {/* Terminal velocity */}
@@ -2767,11 +3884,12 @@ export default function DesignSoftwareWorkspacePage() {
 
                 {/* Characteristic velocity & slip model */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Characteristic Velocity & Slip Model</p>
+                  <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Slip Model Parameters — C3 Generic Screening</p>
                   <div className="grid grid-cols-2 gap-2">
-                    <CalcResultCard label="Characteristic Velocity u_K" formula="u_K = u_T (engineer option: useTerminalVelocityAsCharacteristic)" unit="m/s" reference="PROVISIONAL — requires experimental validation"
+                    <CalcResultCard label="Characteristic Swarm Velocity u_K" formula="u_K = u_T (rigid-sphere) — Preliminary / Pending Validation" unit="m/s" reference="u_K ≠ u_T in general; rigid-sphere terminal velocity is an upper-bound screening proxy only. Replace with measured swarm velocity before design-grade use."
                       result={typeof db2?.characteristicVelocity?.value_m_s === "number" ? Number(db2.characteristicVelocity.value_m_s.toFixed(5)) : undefined} engineVersion={hydRun?.engine_version} />
-                    <CalcResultCard label="Hindrance Exponent n" formula="u_slip = u_K·(1−φ)^n" unit="—" reference="Assumed n=1 (Thermopac screening default)"
+                    <CalcResultCard label="Hindrance Exponent n" formula="u_slip(φ) = u_K·(1−φ)^n — Godfrey generic slip model" unit="—"
+                      reference={hydResData?.designBasis?.hindranceExponent ? `${hydResData.designBasis.hindranceExponent.sourceType}: ${hydResData.designBasis.hindranceExponent.sourceReference}` : "Not entered — default n = 1 (Assumed) pending engineer input"}
                       result={typeof hydResData?.designBasis?.hindranceExponent?.value === "number" ? hydResData.designBasis.hindranceExponent.value : undefined} engineVersion={hydRun?.engine_version} />
                     <CalcResultCard label="Flow Ratio R (normal)" formula="R = u_NMP / u_RRBO = q_NMP / q_RRBO" unit="—" reference="Counter-current flow basis"
                       result={(() => { const rows = normDiams; if (!rows.length) return undefined; const r0 = rows[0]?.flowRatio?.value; return typeof r0 === "number" ? Number(r0.toFixed(4)) : undefined; })()} engineVersion={hydRun?.engine_version} />
@@ -2786,19 +3904,67 @@ export default function DesignSoftwareWorkspacePage() {
                   <div className="bg-gray-50 rounded border px-3 py-2 space-y-1">
                     {bandRow("Normal case", normSum)}
                     {bandRow("Maximum case", maxSum)}
-                    {normSum?.withinScreeningBandDiameters_m?.length > 0 && (
+                    {normSum?.hydraulicallyFeasibleDiameters_m?.length > 0 && (
                       <div className="flex items-start gap-4 py-1">
-                        <span className="text-xs text-gray-500 w-28 shrink-0">Within band (normal)</span>
-                        <span className="text-xs font-mono text-green-700">{(normSum.withinScreeningBandDiameters_m as number[]).map(d => `${d} m`).join("  ·  ")}</span>
+                        <span className="text-xs text-gray-500 w-28 shrink-0">Feasible (normal)</span>
+                        <span className="text-xs font-mono text-blue-700">{(normSum.hydraulicallyFeasibleDiameters_m as number[]).map((d: number) => `${d} m`).join("  ·  ")}</span>
                       </div>
                     )}
                     {normSum?.hydraulicallyInfeasibleDiameters_m?.length > 0 && (
                       <div className="flex items-start gap-4 py-1">
                         <span className="text-xs text-gray-500 w-28 shrink-0">Infeasible (normal)</span>
-                        <span className="text-xs font-mono text-red-600">{(normSum.hydraulicallyInfeasibleDiameters_m as number[]).map(d => `${d} m`).join("  ·  ")}</span>
+                        <span className="text-xs font-mono text-red-600">{(normSum.hydraulicallyInfeasibleDiameters_m as number[]).map((d: number) => `${d} m`).join("  ·  ")}</span>
                       </div>
                     )}
+                    {normSum?.screeningBandSuspended && (
+                      <p className="text-[10px] text-amber-700 pt-1">⚠ 40–80% screening band suspended — no governed source established. Feasible = holdup solution exists and % of max &lt; 100%.</p>
+                    )}
                   </div>
+                  {/* Rauber 2006 — Typical Specific Throughput Reference (independent result) */}
+                  {(() => {
+                    const qNMP  = hydResData?.normalCase?.nmpVolumetricFlow_m3_h;
+                    const qRRBO = hydResData?.normalCase?.rrboVolumetricFlow_m3_h;
+                    if (typeof qNMP !== "number" || typeof qRRBO !== "number") return null;
+                    const qTot = qNMP + qRRBO;
+                    const dFrom = (q: number) => 2 * Math.sqrt(qTot / (Math.PI * q));
+                    const qAt = (d: number) => qTot / (Math.PI * d * d / 4);
+                    const trialD = normSum?.selectedTrialDiameter_m;
+                    return (
+                      <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 space-y-2 mt-2">
+                        <p className="text-xs font-semibold text-amber-900 uppercase tracking-wide">
+                          Rauber 2006 — Typical Specific Throughput (Independent Reference)
+                        </p>
+                        <p className="text-[10px] text-amber-800">
+                          Classification: <strong>Typical Specific Throughput Range — Packed Liquid-Liquid Extraction Controlled Literature.</strong> NOT a flooding capacity. Q_total (normal) = {qTot.toFixed(2)} m³/h.
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="text-xs space-y-0.5">
+                            <p className="font-semibold text-gray-700">SMV — 50–90 m³/(m²·h)</p>
+                            <p className="font-mono text-gray-800">Implied D: {dFrom(90).toFixed(3)}–{dFrom(50).toFixed(3)} m</p>
+                            {typeof trialD === "number" && (
+                              <p className="text-[10px] text-gray-600">
+                                q at D={trialD.toFixed(3)} m: {qAt(trialD).toFixed(1)} m³/(m²·h)
+                                {" "}{qAt(trialD) < 50 ? "← below typical range (over-sized)" : qAt(trialD) > 90 ? "← above typical range" : "← within typical range"}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-xs space-y-0.5">
+                            <p className="font-semibold text-gray-700">SMVP — 35–60 m³/(m²·h)</p>
+                            <p className="font-mono text-gray-800">Implied D: {dFrom(60).toFixed(3)}–{dFrom(35).toFixed(3)} m</p>
+                            {typeof trialD === "number" && (
+                              <p className="text-[10px] text-gray-600">
+                                q at D={trialD.toFixed(3)} m: {qAt(trialD).toFixed(1)} m³/(m²·h)
+                                {" "}{qAt(trialD) < 35 ? "← below typical range (over-sized)" : qAt(trialD) > 60 ? "← above typical range" : "← within typical range"}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-amber-700">
+                          ⚠ Neither Rauber 2006 nor C3 Godfrey slip model is governing for final diameter selection. Governing hydraulic data (vendor, Thermopac pilot, or validated commercial operating data) is required to resolve the conflict.
+                        </p>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Normal case per-diameter table */}
@@ -2826,11 +3992,10 @@ export default function DesignSoftwareWorkspacePage() {
                             const re: number | null = litPd?.phaseReynolds ?? null;
                             const dpPm: number | null = litPd?.pressureDropPerMeter_Pa_m ?? null;
                             const dpMin: number | null = litPd?.pressureDropBoundaryMinimumEstimate?.pressureDropPerMeter_Pa_m ?? null;
-                            const isWithin = feas === "within_screening_band";
-                            const isAbove  = feas === "above_screening_band";
+                            const isFeasible = feas === "hydraulically_feasible";
                             return (
                               <tr key={row.diameter_m}
-                                className={isWithin ? "bg-green-50" : isAbove ? "bg-amber-50" : feas === "hydraulically_infeasible" ? "bg-red-50" : ""}>
+                                className={isFeasible ? "bg-blue-50" : feas === "hydraulically_infeasible" ? "bg-red-50" : ""}>
                                 <td className="font-mono px-2 py-1 border border-gray-200 font-semibold">{n3(row.diameter_m)}</td>
                                 <td className="font-mono text-right px-2 py-1 border border-gray-200">{n2(pct)}%</td>
                                 <td className="px-2 py-1 border border-gray-200">{feasLabel[feas] ?? feas}</td>
@@ -2874,11 +4039,10 @@ export default function DesignSoftwareWorkspacePage() {
                             const re: number | null = litPd?.phaseReynolds ?? null;
                             const dpPm: number | null = litPd?.pressureDropPerMeter_Pa_m ?? null;
                             const dpMin: number | null = litPd?.pressureDropBoundaryMinimumEstimate?.pressureDropPerMeter_Pa_m ?? null;
-                            const isWithin = feas === "within_screening_band";
-                            const isAbove  = feas === "above_screening_band";
+                            const isFeasible = feas === "hydraulically_feasible";
                             return (
                               <tr key={row.diameter_m}
-                                className={isWithin ? "bg-green-50" : isAbove ? "bg-amber-50" : feas === "hydraulically_infeasible" ? "bg-red-50" : ""}>
+                                className={isFeasible ? "bg-blue-50" : feas === "hydraulically_infeasible" ? "bg-red-50" : ""}>
                                 <td className="font-mono px-2 py-1 border border-gray-200 font-semibold">{n3(row.diameter_m)}</td>
                                 <td className="font-mono text-right px-2 py-1 border border-gray-200">{n2(pct)}%</td>
                                 <td className="px-2 py-1 border border-gray-200">{feasLabel[feas] ?? feas}</td>
@@ -2917,6 +4081,7 @@ export default function DesignSoftwareWorkspacePage() {
     ];
     return (
       <div className="max-w-2xl">
+        {stageBanner("technology_selection")}
         <SectionCard title="Technology Selection">
           <p className="text-sm text-gray-500 mb-4">
             Select the extraction technology to design. Changing technology will never re-run upstream hydraulic calculations — only the equipment-specific design steps will change.
@@ -2951,6 +4116,19 @@ export default function DesignSoftwareWorkspacePage() {
               Technology must be selected before Equipment Design can proceed.
             </div>
           )}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Selection Rationale</label>
+            <textarea
+              value={ts.technology_selection_rationale ?? ""}
+              onChange={e => { f("technology_selection_rationale", e.target.value); }}
+              onBlur={s}
+              disabled={isFrozen}
+              rows={3}
+              className="w-full text-sm border rounded-md px-3 py-2 resize-none"
+              placeholder="Enter the engineering basis and key factors that drove this technology selection. Required — provenance traceability."
+            />
+            <p className="text-[10px] text-gray-400 mt-0.5">Required — engineering provenance; non-blank. This rationale is carried into the ECPR and ECRR calculation reports.</p>
+          </div>
         </SectionCard>
       </div>
     );
@@ -2963,8 +4141,8 @@ export default function DesignSoftwareWorkspacePage() {
     const dbx = d("design_basis");
     const pdx = d("process_design");
     const feedLph = numOrNull(dbx.design_capacity_lph ?? dbx.design_capacity ?? dbx.feed_flow);
-    const ratio = numOrNull((pdx.so_ratio ?? "").trim() !== "" ? pdx.so_ratio : SO_RATIO_DEFAULT);
-    const margin = numOrNull(pdx.design_margin) ?? 20;
+    const ratio = numOrNull((pdx.so_ratio ?? "").trim());
+    const margin = numOrNull(pdx.design_margin);
     const totalLph = feedLph !== null && ratio !== null ? feedLph * (1 + ratio) : null;
     const hydResData = (resultsQ.data ?? []).find((r: any) => r.section === "hydraulics_common")?.data;
     const hydNormal = hydResData?.normalCase ?? hydResData?.cases?.normal;
@@ -2976,8 +4154,12 @@ export default function DesignSoftwareWorkspacePage() {
     return {
       diameter, diameterSource,
       totalLph, totalM3h: totalLph !== null ? totalLph / 1000 : null,
-      contDensity: hd.cont_density ?? fp.nmp_density_value ?? "",
-      dispDensity: hd.disp_density ?? fp.rrbo_density_value ?? "",
+      // Fall back to EPD library values (same source the Stage 5 field displays) when
+      // the engineer has not manually stored a value in the hydraulic_design section.
+      contDensity: hd.cont_density ||
+        (densityPairQ.data ? String(Math.round((densityPairQ.data as any).nmp.value * 10) / 10) : ""),
+      dispDensity: hd.disp_density ||
+        (densityPairQ.data ? String(Math.round((densityPairQ.data as any).rrbo.value * 10) / 10) : ""),
       contViscosity: hd.cont_viscosity ?? fp.nmp_viscosity_dynamic_value ?? "",
       dispViscosity: hd.disp_viscosity ?? fp.rrbo_viscosity_dynamic_value ?? "",
       ift: hd.interfacial_tension ?? fp.interfacial_tension_value ?? "",
@@ -3002,8 +4184,8 @@ export default function DesignSoftwareWorkspacePage() {
       <SectionCard title="Carry-Over from Common Hydraulic Design (Stage 5)">
         {row("Column Diameter", co.diameter !== null ? `${co.diameter} m` : "— (run Stage 5)", co.diameterSource)}
         {row("Total Volumetric Flow", co.totalLph !== null ? `${co.totalLph.toLocaleString("en-IN")} LPH = ${(co.totalM3h as number).toFixed(1)} m³/h` : "—", "Stage 5 — Feed + Normal Solvent Flow")}
-        {row("Continuous Phase Density", co.contDensity ? `${co.contDensity} kg/m³` : "—", "Stage 3 — Fluid Properties (NMP)")}
-        {row("Dispersed Phase Density", co.dispDensity ? `${co.dispDensity} kg/m³` : "—", "Stage 3 — Fluid Properties (RRBO)")}
+        {row("Continuous Phase Density", co.contDensity ? `${co.contDensity} kg/m³` : "—", "Stage 5 — Hydraulic Design (engineer-entered)")}
+        {row("Dispersed Phase Density", co.dispDensity ? `${co.dispDensity} kg/m³` : "—", "Stage 5 — Hydraulic Design (engineer-entered)")}
         {row("Continuous Phase Viscosity", co.contViscosity ? `${co.contViscosity} mPa·s` : "—", "Stage 3 — Fluid Properties (NMP)")}
         {row("Dispersed Phase Viscosity", co.dispViscosity ? `${co.dispViscosity} mPa·s` : "—", "Stage 3 — Fluid Properties (RRBO)")}
         {row("Interfacial Tension", co.ift ? `${co.ift} mN/m` : "—", "Stage 3 — Two-Phase Properties")}
@@ -3027,6 +4209,7 @@ export default function DesignSoftwareWorkspacePage() {
     const co = equipmentCarryOver();
     return (
       <div className="max-w-5xl space-y-6">
+        {stageBanner("equipment_design")}
         {renderCarryOverCard(co)}
         {renderDesignSelectionCard()}
         <div className={techSelection === "both" ? "grid grid-cols-2 gap-6" : ""}>
@@ -3222,13 +4405,14 @@ export default function DesignSoftwareWorkspacePage() {
         <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3 mb-2">
           <label className="text-sm text-gray-700 font-medium pt-1.5">Back-Mixing Risk</label>
           <select
-            value={ec.backmixing_risk ?? "moderate"}
+            value={ec.backmixing_risk ?? ""}
             onChange={e => commitSection("ecp_design", { backmixing_risk: e.target.value })}
             disabled={isFrozen}
             className="h-8 text-sm border rounded-md px-2 bg-white"
           >
+            <option value="">— Not Assessed —</option>
             <option value="low">Low</option>
-            <option value="moderate">Moderate (default)</option>
+            <option value="moderate">Moderate</option>
             <option value="high">High</option>
           </select>
           <Button size="sm" variant="outline" className="h-8" onClick={() => sulzerQ.refetch()}>Refresh Screening</Button>
@@ -3384,8 +4568,35 @@ export default function DesignSoftwareWorkspacePage() {
               <p className="text-[10px] text-gray-400 pt-1">Auto-Populated · Source: Packing Database record "{selectedPacking.id}" — read-only vendor data, consumed by the C4 ECP engine.</p>
             </div>
           )}
-          <FieldRow label="HETS (design)" value={ec.hets ?? ""} onChange={v => f("hets", v)} onBlur={s} unit="m" />
-          {statusLine("HETS comes only from a source-tagged system HETS record or engineer input — never predicted. Engineer-entered values are tagged Assumed, pending validation.")}
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-2">
+            <p className="text-sm font-semibold text-amber-900 mb-1">HETS — Not Calculable: Governing Mass-Transfer Model Required</p>
+            <p className="text-[11px] text-amber-800 leading-relaxed">
+              No application-level mass-transfer / HTU-NTU model is currently implemented for the NMP–RRBO system.
+              HETS cannot be predicted by the engine. A governing mass-transfer model is required before HETS becomes a calculated output.
+            </p>
+            <p className="text-[11px] text-amber-700 mt-1 font-medium">
+              Vendor / pilot / test HETS is accepted as a governed override only — with explicit source type and audit reference.
+            </p>
+          </div>
+          <FieldRow label="HETS Override (vendor / pilot / test)" value={ec.hets ?? ""} onChange={v => f("hets", v)} onBlur={s} unit="m" note="Governed override only. Source type and reference below are mandatory — no silent defaults." />
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5">
+            <label className="text-sm text-gray-700 font-medium pt-1.5">HETS Source Type</label>
+            <select
+              value={ec.hets_source ?? ""}
+              onChange={e => commitSection("ecp_design", { hets_source: e.target.value })}
+              disabled={isFrozen}
+              className="h-8 text-sm border rounded-md px-2 bg-white"
+            >
+              <option value="">— select source type —</option>
+              <option value="Vendor">Vendor</option>
+              <option value="Measured">Measured</option>
+              <option value="Literature">Literature</option>
+              <option value="Assumed">Assumed</option>
+            </select>
+            <span />
+          </div>
+          <FieldRow label="HETS Source Reference" value={ec.hets_source_reference ?? ""} onChange={v => f("hets_source_reference", v)} onBlur={s} unit="" placeholder="e.g. Vendor test report ref. / pilot campaign date / literature citation" />
+          {statusLine(`Status: ${ec.hets ? `Override entered · Source: ${ec.hets_source || "Not selected — required"} · ${ec.hets_source_reference ? "Reference provided" : "Reference missing — required"}` : "No override — HETS not calculable until mass-transfer model is implemented"}`)}
           <FieldRow label="Liquid Distributor (type)" value={ec.liquid_distributor ?? ""} onChange={v => f("liquid_distributor", v)} onBlur={s} />
         </SectionCard>
         {renderSulzerScreening(f, s, ec)}
@@ -3457,7 +4668,38 @@ export default function DesignSoftwareWorkspacePage() {
           <FieldRow label="Rotor Speed" value={er.rotor_speed ?? ""} onChange={v => f("rotor_speed", v)} onBlur={s} unit="rpm" />
           <FieldRow label="Power Number" value={er.power_number ?? ""} onChange={v => f("power_number", v)} onBlur={s} unit="—" />
           <FieldRow label="Compartment Height" value={er.compartment_height ?? ""} onChange={v => f("compartment_height", v)} onBlur={s} unit="m" />
-          <FieldRow label="Compartment Efficiency" value={er.compartment_efficiency ?? ""} onChange={v => f("compartment_efficiency", v)} onBlur={s} unit="%" />
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-2">
+            <p className="text-sm font-semibold text-amber-900 mb-1">Compartment Efficiency — Not Calculable: Governing Efficiency Model Required</p>
+            <p className="text-[11px] text-amber-800 leading-relaxed">
+              No application-level compartment mass-transfer efficiency model is currently implemented for the NMP–RRBO system.
+              E cannot be predicted by the engine — a governed efficiency model (e.g. Murphree or axial-dispersion-corrected) is required.
+            </p>
+            <p className="text-[11px] text-amber-700 mt-1 font-medium">
+              Vendor / pilot / literature efficiency accepted as a governed override only — value, source type, and audit reference are all mandatory.
+            </p>
+          </div>
+          <FieldRow label="Compartment Efficiency Override (vendor / pilot / literature)" value={er.compartment_efficiency ?? ""} onChange={v => f("compartment_efficiency", v)} onBlur={s} unit="%" note="Governed override only — no free engineer entry. All three fields below are mandatory." />
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5">
+            <label className="text-sm text-gray-700 font-medium pt-1.5">Compartment Efficiency Source Type</label>
+            <select
+              value={er.compartment_efficiency_source ?? ""}
+              onChange={e => commitSection("ecr_design", { compartment_efficiency_source: e.target.value })}
+              disabled={isFrozen}
+              className="h-8 text-sm border rounded-md px-2 bg-white"
+            >
+              <option value="">— select source type —</option>
+              <option value="Vendor">Vendor</option>
+              <option value="Measured">Measured</option>
+              <option value="Literature">Literature</option>
+              <option value="Assumed">Assumed</option>
+            </select>
+            <span />
+          </div>
+          <FieldRow label="Compartment Efficiency Source Reference" value={er.compartment_efficiency_source_reference ?? ""} onChange={v => f("compartment_efficiency_source_reference", v)} onBlur={s} unit="" placeholder="e.g. Vendor test report ref. / pilot campaign / Míšek 1994 Table 3" />
+          {statusLine(`Status: ${er.compartment_efficiency
+            ? `Override entered: ${er.compartment_efficiency} % · Source: ${er.compartment_efficiency_source || "Not selected — required"} · ${er.compartment_efficiency_source_reference ? "Reference provided" : "Reference missing — required"}`
+            : "No override — Not Calculable until efficiency model is implemented or governed override provided"
+          }`)}
           <FieldRow label="Shaft Efficiency" value={er.shaft_efficiency ?? ""} onChange={v => f("shaft_efficiency", v)} onBlur={s} unit="%" />
           <FieldRow label="Mechanical Design Margin" value={er.mechanical_design_margin ?? ""} onChange={v => f("mechanical_design_margin", v)} onBlur={s} unit="—" placeholder="e.g. 1.2" />
           <FieldRow label="Rotors per Compartment" value={er.rotors_per_compartment ?? ""} onChange={v => f("rotors_per_compartment", v)} onBlur={s} unit="—" placeholder="1" />
@@ -3620,6 +4862,7 @@ export default function DesignSoftwareWorkspacePage() {
 
     return (
       <div className="max-w-4xl">
+        {stageBanner("technology_comparison")}
         <SectionCard title="Technology Comparison — ECP vs ECR">
           <div className="mb-3 space-y-0.5">
             {runHeader(ecpRun, "ECP")}
@@ -3787,6 +5030,7 @@ export default function DesignSoftwareWorkspacePage() {
 
     return (
       <div className="max-w-4xl">
+        {stageBanner("mechanical_design")}
         <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 mb-4">
           <Info className="h-4 w-4 shrink-0" />
           Stage 9 assembles the traceable Mechanical Design Basis and runs it through the existing C6 Common Mechanical Design Engine — preliminary screening only. Final code-certified ASME/EN/IS design remains pending.
@@ -4077,6 +5321,7 @@ export default function DesignSoftwareWorkspacePage() {
     const s = save("utilities");
     return (
       <div className="max-w-2xl">
+        {stageBanner("utilities", "Utilities incomplete")}
         <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 mb-4">
           <Info className="h-4 w-4 shrink-0" />
           Operating temperatures are auto-filled from Design Basis. All utilities are consistent with Section 2 operating conditions.
@@ -4116,6 +5361,7 @@ export default function DesignSoftwareWorkspacePage() {
     const total = items.reduce((sum, it) => sum + (parseFloat(ce[it.key] ?? "") || 0), 0);
     return (
       <div className="max-w-2xl">
+        {stageBanner("cost_estimation")}
         <SectionCard title="Cost Estimation">
           <div className="grid grid-cols-[200px_120px_60px] gap-2 mb-2">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Item</span>
@@ -4463,20 +5709,30 @@ export default function DesignSoftwareWorkspacePage() {
               {STEPS.map(step => {
                 const Icon = step.icon;
                 const isActive = activeStep === step.key;
-                // Validation indicator
-                const hasFail = step.key === "design_validation" && validationChecks.some(c => c.status === "fail");
+                const st = stageStatus(step.key as StepKey);
+                // Design Validation stage inherits the existing check aggregator
+                const hasDvFail = step.key === "design_validation" && validationChecks.some(c => c.status === "fail");
                 return (
                   <button
                     key={step.key}
-                    onClick={() => setActiveStep(step.key)}
+                    onClick={() => setActiveStep(step.key as StepKey)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors mb-0.5 ${
                       isActive ? "bg-blue-600 text-white shadow-sm" : "hover:bg-gray-100 text-gray-700"
                     }`}
                   >
                     <span className={`text-xs font-bold w-5 shrink-0 ${isActive ? "text-blue-200" : "text-gray-400"}`}>{step.id}</span>
                     <Icon className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-blue-200" : "text-gray-400"}`} />
-                    <span className="text-xs font-medium leading-tight">{step.label}</span>
-                    {hasFail && <span className="ml-auto w-2 h-2 rounded-full bg-red-500 shrink-0" />}
+                    <span className="text-xs font-medium leading-tight flex-1">{step.label}</span>
+                    {/* Stage status indicator — set only after "Next →" has been pressed */}
+                    {st === "complete" && !isActive && (
+                      <span className="ml-auto w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Stage complete" />
+                    )}
+                    {st === "warning" && !isActive && (
+                      <span className="ml-auto w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Completed with warnings" />
+                    )}
+                    {(st === "blocking" || hasDvFail) && (
+                      <span className="ml-auto w-2 h-2 rounded-full bg-red-500 shrink-0" title="Blocking errors present" />
+                    )}
                   </button>
                 );
               })}
@@ -4507,6 +5763,69 @@ export default function DesignSoftwareWorkspacePage() {
             </div>
 
             {renderStepContent(activeStep)}
+
+            {/* ── Stage navigation footer ──────────────────────────────────── */}
+            {(() => {
+              const currentIdx = STEPS.findIndex(s => s.key === activeStep);
+              const nextStep   = STEPS[currentIdx + 1];
+              const prevStep   = STEPS[currentIdx - 1];
+              if (!nextStep && !prevStep) return null;
+              const errs  = stageValidationErrors[activeStep]   ?? {};
+              const warns = stageValidationWarnings[activeStep] ?? {};
+              const crossKeys      = CROSS_STAGE_ERROR_KEYS[activeStep] ?? new Set<string>();
+              const inStageErrKeys = Object.keys(errs).filter(k => !crossKeys.has(k));
+              const crossErrKeys   = Object.keys(errs).filter(k =>  crossKeys.has(k));
+              const hasErrors   = Object.keys(errs).length  > 0;
+              const hasWarnings = Object.keys(warns).length > 0;
+              const attempted   = stageValidationAttempted.has(activeStep);
+              return (
+                <div className="mt-8 pt-5 border-t flex items-center justify-between">
+                  <div>
+                    {prevStep && (
+                      <button
+                        onClick={() => setActiveStep(prevStep.key as StepKey)}
+                        className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+                      >
+                        <ChevronRight className="h-4 w-4 rotate-180" />
+                        {prevStep.label}
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {attempted && inStageErrKeys.length > 0 && (
+                      <span className="text-xs text-red-600 font-medium">
+                        {inStageErrKeys.length} required field{inStageErrKeys.length > 1 ? "s" : ""} missing on this page
+                      </span>
+                    )}
+                    {attempted && inStageErrKeys.length === 0 && crossErrKeys.length > 0 && (
+                      <span className="text-xs text-red-600 font-medium">
+                        {crossErrKeys.length} required field{crossErrKeys.length > 1 ? "s" : ""} in a later stage
+                      </span>
+                    )}
+                    {attempted && !hasErrors && hasWarnings && (
+                      <span className="text-xs text-amber-600 font-medium">
+                        {Object.keys(warns).length} warning{Object.keys(warns).length > 1 ? "s" : ""} — review recommended
+                      </span>
+                    )}
+                    {nextStep && (
+                      <button
+                        onClick={() => tryNavigateTo(nextStep.key as StepKey)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          attempted && hasErrors
+                            ? "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
+                            : attempted && hasWarnings
+                              ? "bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
+                              : "bg-blue-600 text-white hover:bg-blue-700"
+                        }`}
+                      >
+                        {nextStep.label}
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>

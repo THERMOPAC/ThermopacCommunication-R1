@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, bigint, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, real, check, pgEnum, index, smallint } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, bigint, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, unique, real, check, pgEnum, index, smallint } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -10949,7 +10949,10 @@ export const statutoryFilingStatus = pgTable('statutory_filing_status', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
-  uniqueFiling: uniqueIndex('statutory_filing_uniq').on(table.moduleType, table.financialYear, table.filingPeriod, table.state, table.companyId),
+  // NULLS NOT DISTINCT replaces the old COALESCE(state,'') expression index:
+  // same semantics (NULL states treated as equal for uniqueness), but
+  // introspectable by drizzle-kit (expression indexes crash push in 0.30).
+  uniqueFiling: unique('statutory_filing_uniq').on(table.moduleType, table.financialYear, table.filingPeriod, table.state, table.companyId).nullsNotDistinct(),
 }));
 
 export const insertStatutoryFilingStatusSchema = createInsertSchema(statutoryFilingStatus).omit({ id: true, createdAt: true, updatedAt: true });

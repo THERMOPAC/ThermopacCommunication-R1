@@ -22,6 +22,37 @@ import type {
 import { PROPERTY_UNITS, SOURCE_TYPES } from './types';
 import { water } from './fluids/water';
 import { nmp } from './fluids/nmp';
+import { rrboSn150 } from './fluids/rrbo-sn150';
+import { rrboSn200 } from './fluids/rrbo-sn200';
+import { rrboSn300 } from './fluids/rrbo-sn300';
+import { rrboSn500 } from './fluids/rrbo-sn500';
+
+/**
+ * Maps the workspace Feed Service value (as stored in design_basis.feed_service)
+ * to the corresponding EPD library fluid ID.
+ *
+ * Governance rule: every RRBO grade that participates in LLX design MUST have
+ * its own entry here.  Grades not in this map throw EngineeringInputError —
+ * no cross-grade fallback is permitted.
+ */
+export const RRBO_GRADE_FLUID_MAP: Readonly<Record<string, string>> = {
+  'Re-Refined Base Oil SN150': 'rrbo-sn150',
+  'Re-Refined Base Oil SN200': 'rrbo-sn200',
+  'Re-Refined Base Oil SN300': 'rrbo-sn300',
+  'Re-Refined Base Oil SN500': 'rrbo-sn500',
+};
+
+/** Resolve a Feed Service string to an EPD fluid ID; throws if unregistered. */
+export function rrboGradeFluidId(feedService: string): string {
+  const id = RRBO_GRADE_FLUID_MAP[feedService.trim()];
+  if (!id) {
+    throw new EngineeringInputError(
+      `feedService "${feedService}" is not a registered RRBO grade. ` +
+      `Registered grades: ${Object.keys(RRBO_GRADE_FLUID_MAP).join(', ')}.`
+    );
+  }
+  return id;
+}
 
 const ABSOLUTE_ZERO_C = -273.15;
 
@@ -132,6 +163,10 @@ function validateProjectProperty(fluidId: string, prop: PropertyId, e: ProjectFl
 
 registerFluid(water);
 registerFluid(nmp);
+registerFluid(rrboSn150);
+registerFluid(rrboSn200);
+registerFluid(rrboSn300);
+registerFluid(rrboSn500);
 
 export function listFluids(): Array<{ id: string; name: string; kind: 'library' | 'project'; properties: PropertyId[] }> {
   return [

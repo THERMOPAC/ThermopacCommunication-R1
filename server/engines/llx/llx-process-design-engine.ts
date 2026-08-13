@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// LLX — Process Design Engine (Stage C2) — v1.0.0
+// LLX — Process Design Engine (Stage C2) — v1.3.0
 //
 // Implements PD-001…PD-008, PD-010 per the approved corrected Stage C2 basis:
 //   - Three-pseudo-component screening balance: Oil carrier / Extractable
@@ -28,7 +28,7 @@ import {
 } from '../../engine-framework/types';
 import {
   CEL_VERSION, EPD_VERSION,
-  getProperty, createPropertyContext,
+  getProperty,
   containsAssumedData, EngineeringInputError,
   SOURCE_TYPES,
 } from '../../engine-framework/common-engineering-library';
@@ -44,6 +44,9 @@ import {
   TLLE_MODEL_ID, TLLE_MODEL_VERSION, TLLE_MODEL_NAME, TLLE_MODEL_CITATION,
   TLLE_REPRODUCTION_RECORD, TLLE_EXTRAPOLATION_CLASSIFICATION,
 } from '../../engine-framework/cel/llx-temperature-lle-model';
+import {
+  computeNrtlDirectCascadeNt,
+} from '../../engine-framework/cel/llx-nrtl-direct-cascade';
 
 // ── Input structures ──────────────────────────────────────────────────────────
 
@@ -280,7 +283,7 @@ function computeCaseBalance(args: CaseBalanceArgs): {
 
 export class LLXProcessDesignEngine implements IDesignEngine {
   getEngineId(): string { return 'llx-process-design'; }
-  getEngineVersion(): string { return '1.1.0'; }
+  getEngineVersion(): string { return '1.3.0'; }
   getModuleType(): string { return 'llx'; }
   getCalculationType(): string { return 'process_design'; }
 
@@ -308,18 +311,6 @@ export class LLXProcessDesignEngine implements IDesignEngine {
       err('feedFlow', 'feedFlow { value > 0, basis } is required');
     } else if (feedFlow.basis !== 'mass' && feedFlow.basis !== 'volumetric') {
       err('feedFlow.basis', "feedFlow.basis must be 'mass' (kg/h) or 'volumetric' (m³/h)");
-    }
-
-    // RRBO density — required as a source-tagged project-fluid entry
-    const fd = inputs.feedDensity as Record<string, unknown> | undefined;
-    if (!fd) {
-      err('feedDensity', 'feedDensity is required: source-tagged RRBO density { value (kg/m3), referenceTemperatureC, sourceType, sourceReference }. No default RRBO correlations exist.');
-    } else {
-      const dv = num(fd.value);
-      if (dv === undefined || dv <= 0) err('feedDensity.value', 'feedDensity.value must be > 0 (kg/m3)');
-      if (num(fd.referenceTemperatureC) === undefined) err('feedDensity.referenceTemperatureC', 'feedDensity.referenceTemperatureC (°C) is required');
-      if (!SOURCE_TYPES.includes(fd.sourceType as SourceType)) err('feedDensity.sourceType', `feedDensity.sourceType must be one of ${SOURCE_TYPES.join(', ')}`);
-      if (typeof fd.sourceReference !== 'string' || !fd.sourceReference.trim()) err('feedDensity.sourceReference', 'feedDensity.sourceReference is mandatory');
     }
 
     // Solvent basis — solventFlow and/or solventToOilRatio (PD-003 consistency in calculate)
@@ -365,7 +356,7 @@ export class LLXProcessDesignEngine implements IDesignEngine {
         }
         if (all && Math.abs(sumPct - 100) > 0.5) err('lleStageInputs.rrboCharacterisationWtPct', `RRBO characterisation classes must sum to 100 wt % ± 0.5 (got ${sumPct.toFixed(2)})`);
       }
-      if (mw) for (const c of classes) parseTagged(mw[c], `lleStageInputs.classMolecularWeights.${c}`, errors, { min: 1, max: 5000 });
+      // classMolecularWeights removed: wt%→mol now uses governed Coto 2022 surrogate MWs (engine constants).
       if (lle.targetRaffinateAromaticsMolePct !== undefined) parseTagged(lle.targetRaffinateAromaticsMolePct, 'lleStageInputs.targetRaffinateAromaticsMolePct', errors, { min: 0, max: 100, minExclusive: true, maxExclusive: true });
       if (lle.solventNmpMoleFraction !== undefined) parseTagged(lle.solventNmpMoleFraction, 'lleStageInputs.solventNmpMoleFraction', errors, { min: 0, max: 1, minExclusive: true });
     }
@@ -427,39 +418,51 @@ export class LLXProcessDesignEngine implements IDesignEngine {
     }
 
     const errs: ValidationError[] = [];
-    const feedFluidId = 'rrbo';
 
     try {
       const T = num(inputs.operatingTemperature)!;
-      const fd = inputs.feedDensity as Record<string, unknown>;
 
-      // Calculation-scoped property context: the run's RRBO density lives ONLY
-      // in this context (validated by the same EPD rules), so concurrent runs
-      // with different project-fluid data can never observe each other's
-      // values. The shared registries are never mutated. Library fluids (NMP,
-      // water) remain read-only shared data.
-      const feedDensityEntry = {
-        value: num(fd.value)!,
-        unit: 'kg/m3',
-        referenceTemperatureC: num(fd.referenceTemperatureC)!,
-        sourceType: fd.sourceType as SourceType,
-        sourceReference: fd.sourceReference as string,
-        ...(fd.validRangeC ? { validRangeC: fd.validRangeC as { min: number; max: number } } : {}),
-        ...(fd.temperatureCoefficient ? { temperatureCoefficient: fd.temperatureCoefficient as { slopePerC: number; sourceType: SourceType; sourceReference: string } } : {}),
-      };
-      const propertyContext = createPropertyContext([{
-        id: feedFluidId,
-        name: 'RRBO (Re-Refined Base Oil) — run feed',
-        isProjectFluid: true,
-        properties: { density: feedDensityEntry },
-      }]);
+      // Extraction temperature — resolved once here; used for both the
+      // phase-separation density evaluation (PD-005) and the LLE block further
+      // below.  Must NOT be inferred from operatingTemperature at PD-005: the
+      // density difference must be calculated at the governing extraction T,
+      // not merely at whatever temperature happens to equal it through the
+      // mapper.  Falls back to operatingTemperature only when the engineer has
+      // not entered a separate extraction temperature.
+      const extractionTemperatureC = num(inputs.extractionTemperature) ?? T;
+      const extractionTemperatureSource = num(inputs.extractionTemperature) !== undefined
+        ? String((inputs.extractionTemperatureProvenance as string | undefined) ?? 'Extraction Temperature field (Process Design workspace)')
+        : 'Operating Temperature (Design Basis) — no separate extraction temperature entered';
 
-      const rhoFeed = getProperty(feedFluidId, 'density', T, propertyContext);
+      // RRBO grade fluid ID — set by the mapper from Design Basis feed_service;
+      // falls back to SN300 only if the mapper did not resolve it (pre-existing runs).
+      const rrboFluidId = String(inputs.rrboFluidId ?? 'rrbo-sn300');
+
+      // PD-001-density — density at operatingTemperature for flow-basis conversion
+      // (volumetric flows, S/O ratio).  These must reflect the actual phase
+      // conditions at the operating point, not the equilibrium extraction point.
+      // Both densities are from the governed EPD library — no user entry.
+      const rhoFeed = getProperty(rrboFluidId, 'density', T);
       const rhoSolvent = getProperty('nmp', 'density', T);
       for (const w of [...rhoFeed.warnings, ...rhoSolvent.warnings]) {
         warnings.push({ code: w.code, message: w.message });
       }
       let propertyAssumed = containsAssumedData(rhoFeed.warnings) || containsAssumedData(rhoSolvent.warnings);
+
+      // PD-005-density — density at EXTRACTION temperature for phase-separation
+      // screening (Δρ, buoyancy direction).  Independent of the flow-basis
+      // densities above; extraction T may differ from operating T.
+      const rhoFeed_atExtT = getProperty(rrboFluidId, 'density', extractionTemperatureC);
+      const rhoSolvent_atExtT = getProperty('nmp', 'density', extractionTemperatureC);
+      for (const w of [...rhoFeed_atExtT.warnings, ...rhoSolvent_atExtT.warnings]) {
+        // De-duplicate: only push if not already present from the operating-T call
+        const key = `${w.code}:${w.message}`;
+        const alreadyPresent = warnings.some((x) => `${x.code}:${x.message}` === key);
+        if (!alreadyPresent) warnings.push({ code: w.code, message: w.message });
+      }
+      if (containsAssumedData(rhoFeed_atExtT.warnings) || containsAssumedData(rhoSolvent_atExtT.warnings)) {
+        propertyAssumed = true;
+      }
 
       // PD-001 — flow basis conversion
       const feedFlow = inputs.feedFlow as { value: number; basis: 'mass' | 'volumetric' };
@@ -511,17 +514,21 @@ export class LLXProcessDesignEngine implements IDesignEngine {
       const maximumSolventVolumetricFlow = maximumSolventMassFlow / rhoSolvent.value;
 
       // PD-005 — phase configuration (continuity from engineer input ONLY)
+      // Δρ is computed at the governed extraction temperature, not operatingT.
+      // No hardcoded screening threshold is applied: Δρ is always reported and
+      // the engineer interprets it against system-specific phase-separation
+      // knowledge.  A threshold would require a controlled-literature basis
+      // that does not currently exist in the system.
       const phaseConfig = inputs.phaseConfiguration as PhaseConfig;
       const continuousPhase = phaseConfig === 'rrbo_continuous_nmp_dispersed' ? 'RRBO' : 'NMP';
       const dispersedPhase = phaseConfig === 'rrbo_continuous_nmp_dispersed' ? 'NMP' : 'RRBO';
-      const densityDifference = Math.abs(rhoSolvent.value - rhoFeed.value);
-      const lighterPhase = rhoFeed.value < rhoSolvent.value ? 'RRBO' : rhoFeed.value > rhoSolvent.value ? 'NMP' : null;
+      const densityDifference_atExtT = Math.abs(rhoSolvent_atExtT.value - rhoFeed_atExtT.value);
+      const lighterPhase = rhoFeed_atExtT.value < rhoSolvent_atExtT.value ? 'RRBO'
+                         : rhoFeed_atExtT.value > rhoSolvent_atExtT.value ? 'NMP' : null;
       let phaseClassification: Classification = 'Calculated Screening Result';
       if (lighterPhase === null) {
         phaseClassification = 'Not Calculable';
-        warnings.push({ code: 'ZERO_DENSITY_DIFFERENCE', message: `RRBO and NMP densities are equal at ${T} °C (Δρ = 0) — buoyancy direction is Not Calculable and gravity settling is infeasible.` });
-      } else if (densityDifference < 30) {
-        warnings.push({ code: 'LOW_DENSITY_DIFFERENCE', message: `Density difference ${densityDifference.toFixed(1)} kg/m³ < 30 kg/m³ — phase separation will be difficult; verify at design temperature.` });
+        warnings.push({ code: 'ZERO_DENSITY_DIFFERENCE', message: `RRBO and NMP densities are equal at the extraction temperature ${extractionTemperatureC} °C (Δρ = 0) — buoyancy direction is Not Calculable and gravity settling is infeasible.` });
       }
 
       // Split inputs per case (correction 2 — independent cases)
@@ -608,21 +615,18 @@ export class LLXProcessDesignEngine implements IDesignEngine {
       const lleIn = inputs.lleStageInputs as Record<string, unknown> | undefined;
 
       // ── Extraction Temperature — governing LLE calculation input ───────────
-      // The user-selected extraction temperature (falls back to the operating
-      // temperature). The governed temperature-dependent LLE model NEVER fails
-      // closed solely on temperature:
+      // extractionTemperatureC is resolved once at the top of calculate() and
+      // reused here for the LLE block.  The governed temperature-dependent LLE
+      // model NEVER fails closed solely on temperature:
       //   inside calibrated range  → interpolation of governed experimental tie-lines
       //   outside calibrated range → NRTL τ(T) extrapolation, always classified
       //     'Temperature Extrapolation — Preliminary / Pending Validation'
-      const extractionTemperatureC = num(inputs.extractionTemperature) ?? T;
       const extractionTemperatureK = extractionTemperatureC + 273.15;
       const tModel = temperatureModelStatus(extractionTemperatureK);
       const temperatureModelBlock: Record<string, unknown> = {
         userSelectedTemperatureC: extractionTemperatureC,
         userSelectedTemperatureK: Number(extractionTemperatureK.toFixed(2)),
-        temperatureSource: num(inputs.extractionTemperature) !== undefined
-          ? String((inputs.extractionTemperatureProvenance as string | undefined) ?? 'Extraction Temperature field (Process Design workspace)')
-          : 'Operating Temperature (Design Basis) — no separate extraction temperature entered',
+        temperatureSource: extractionTemperatureSource,
         calibratedTemperatureRangeK: tModel.calibratedRangeK,
         mode: tModel.mode,
         distanceOutsideRangeK: tModel.distanceOutsideRangeK,
@@ -685,58 +689,52 @@ export class LLXProcessDesignEngine implements IDesignEngine {
       } else {
         const classes = ['saturates', 'monoAromatics', 'diAromatics', 'polyAromatics'] as const;
         const ch = lleIn.rrboCharacterisationWtPct as Record<string, unknown> | undefined;
-        const mw = lleIn.classMolecularWeights as Record<string, unknown> | undefined;
-        const wt: number[] = []; const mws: number[] = [];
+        // Governed engineering basis (2026-08-11): wt%→mol conversion uses Coto 2022
+        // surrogate compound MWs — fixed physical constants, not user-entered values.
+        // Total Aromatics is derived as mono + di + poly — not a separate required input.
+        const SURROGATE_MWS = [SURROGATE_MW.c12, SURROGATE_MW.xylene, SURROGATE_MW.methylnaphtalene, SURROGATE_MW.pyrene];
+        const wt: number[] = [];
         for (const c of classes) {
           const w = num((ch?.[c] as Record<string, unknown> | undefined)?.value);
-          const m = num((mw?.[c] as Record<string, unknown> | undefined)?.value);
           if (w === undefined) lleMissing.push(`rrboCharacterisationWtPct.${c}`);
-          if (m === undefined) lleMissing.push(`classMolecularWeights.${c}`);
           if (w !== undefined) wt.push(w);
-          if (m !== undefined) mws.push(m);
         }
         const tgt = num((lleIn.targetRaffinateAromaticsMolePct as Record<string, unknown> | undefined)?.value);
         if (tgt === undefined) lleMissing.push('targetRaffinateAromaticsMolePct');
         const sPur = num((lleIn.solventNmpMoleFraction as Record<string, unknown> | undefined)?.value);
-        // Total Aromatics (editable engineer field, wt %) — REQUIRED whenever
-        // the LLE calculation is attempted, and consistency-checked against
-        // the class split: mono + di + poly must match the entered total
-        // within ±0.5 wt %, else the characterisation is internally
-        // inconsistent and the calculation fails closed. Not bypassable by
-        // API callers omitting the field.
-        const totAr = num((lleIn.totalAromaticsWtPct as Record<string, unknown> | undefined)?.value);
-        if (totAr === undefined) lleMissing.push('totalAromaticsWtPct (Total Aromatics, wt % — editable engineer field; consistency gate for the class split)');
-        if (totAr !== undefined && lleMissing.length === 0) {
-          const classAromatics = wt[1] + wt[2] + wt[3];
-          if (Math.abs(classAromatics - totAr) > 0.5) {
-            lleMissing.push(`consistent aromatics characterisation (Total Aromatics entered = ${totAr} wt % but mono+di+poly = ${classAromatics.toFixed(2)} wt % — must agree within ±0.5 wt %)`);
-          }
-        }
         if (lleMissing.length === 0) {
-          // wt% → mole fractions per governed class MWs (NMP in feed = 0)
-          const molesPerClass = wt.map((w, i) => w / mws[i]);
+          // Derived: Total Aromatics = mono + di + poly (no user entry required)
+          const totAr = wt[1] + wt[2] + wt[3];
+          // wt% → mole fractions using governed Coto 2022 surrogate MWs (NMP in feed = 0)
+          const molesPerClass = wt.map((w, i) => w / SURROGATE_MWS[i]);
           const totalMoles = molesPerClass.reduce((a, b) => a + b, 0);
           const feedMoleFractions = [...molesPerClass.map((m) => m / totalMoles), 0];
-          const avgFeedMW = 100 / totalMoles; // basis 100 g feed
+          const avgFeedMW = 100 / totalMoles; // basis 100 g feed, surrogate-MW basis
           const solventMolarRatio = solventToOilRatio.value * (avgFeedMW / SURROGATE_MW.nmp);
           lleInputEcho = {
             pseudoComponentMapping: COTO_COMPONENTS.map((c, i) => ({ component: c, representsRrboClass: COTO_COMPONENT_ROLES[i] })),
+            surrogateConversionBasis: {
+              saturates:     { surrogate: 'n-dodecane',          mw_g_mol: SURROGATE_MW.c12 },
+              monoAromatics: { surrogate: '1,4-xylene',          mw_g_mol: SURROGATE_MW.xylene },
+              diAromatics:   { surrogate: '1-methylnaphthalene', mw_g_mol: SURROGATE_MW.methylnaphtalene },
+              polyAromatics: { surrogate: 'pyrene',              mw_g_mol: SURROGATE_MW.pyrene },
+              note: 'Governed engineering basis: surrogate compound MWs used for wt%→mol conversion; RRBO class MWs are not required',
+            },
             feedMoleFractions: feedMoleFractions.map((v) => Number(v.toFixed(5))),
-            averageFeedMolecularWeight_g_mol: Number(avgFeedMW.toFixed(2)),
+            averageSurrogateFeedMW_g_mol: Number(avgFeedMW.toFixed(2)),
             nmpMolecularWeight_g_mol: SURROGATE_MW.nmp,
             massSolventToOilRatio: solventToOilRatio.value,
             solventMolarRatio_molNMP_per_molFeed: Number(solventMolarRatio.toFixed(4)),
             targetRaffinateAromaticsMoleFraction: tgt / 100,
             temperatureK: Number(extractionTemperatureK.toFixed(2)),
             rrboCharacterisationWtPct: ch,
-            ...(totAr !== undefined ? { totalAromaticsWtPct: totAr } : {}),
-            classMolecularWeights: mw,
+            derivedTotalAromaticsWtPct: Number(totAr.toFixed(3)),
           };
           if (tModel.mode === 'extrapolation' && extrapolationBasisError) {
             // The temperature-dependent model could not produce a usable
-            // two-phase family at the user temperature — fail closed with the
-            // model's exact statement (composition/model limit, NOT a hard
-            // temperature limit).
+            // two-phase family at the user temperature — treat this as a
+            // signal that the NRTL model itself is degenerate at this T
+            // (e.g. the system is essentially single-phase), and fail closed.
             lleResult = {
               datasetId: TLLE_MODEL_ID,
               datasetVersion: TLLE_MODEL_VERSION,
@@ -746,11 +744,24 @@ export class LLXProcessDesignEngine implements IDesignEngine {
               limitExceeded: extrapolationBasisError,
               governingMeasure: 'total raffinate aromatics (mole fraction)',
               stageTrace: [],
-              method: 'not run — temperature-dependent LLE model could not generate a tie-line family at the extraction temperature',
+              method: 'not run — NRTL model could not produce a usable two-phase envelope at the extraction temperature (fewer than 4 anchor tie-lines converged to a distinct two-phase split); direct cascade not attempted',
               exclusions: [],
               caveats: [],
             };
+          } else if (tModel.mode === 'extrapolation') {
+            // Extrapolation: use the direct NRTL counter-current cascade.
+            // This calls nrtlFlash() per stage for any composition, eliminating
+            // the x1R-envelope restriction of the Hunter-Nash locus solver.
+            lleResult = computeNrtlDirectCascadeNt({
+              temperatureK: extractionTemperatureK,
+              feedMoleFractions,
+              solventMolarRatio,
+              targetRaffinateAromaticsMole: tgt / 100,
+            });
           } else {
+            // Interpolation (calibrated temperature): use the Hunter-Nash locus
+            // solver with the governed experimental tie-lines (exact within
+            // data uncertainty u(x) = 0.003). No NRTL model involved.
             lleResult = computeGovernedTheoreticalStages({
               temperatureK: extractionTemperatureK,
               feedMoleFractions,
@@ -804,7 +815,7 @@ export class LLXProcessDesignEngine implements IDesignEngine {
               ? 'Controlled-Literature RRBO Surrogate LLE Model — Preliminary / Outside Experimental Temperature Range / Pending RRBO-NMP Validation'
               : 'Theoretical Stages — Auto-Calculated (Coto 2022 Governed LLE)',
           basis: tExtrap
-            ? `${TLLE_MODEL_ID} v${TLLE_MODEL_VERSION} — NRTL τ(T) tie-line family evaluated at the user extraction temperature ${extractionTemperatureK.toFixed(2)} K (calibrated range [${tModel.calibratedRangeK.minK}, ${tModel.calibratedRangeK.maxK}] K)`
+            ? `${TLLE_MODEL_ID} v${TLLE_MODEL_VERSION} — Direct NRTL τ(T) counter-current cascade (successive substitution) at ${extractionTemperatureK.toFixed(2)} K; NRTL parameters calibrated at [${tModel.calibratedRangeK.minK}, ${tModel.calibratedRangeK.maxK}] K`
             : `${COTO_2022_DATASET_ID} v${COTO_2022_DATASET_VERSION} at ${COTO_2022_TEMPERATURE_K} K (tie-lines used as-is; no temperature correction or extrapolation)`,
           ...(lleResult.temperatureStatement ? { temperatureStatement: lleResult.temperatureStatement } : {}),
           ...(tExtrap ? { temperatureStatement: tModel.statement } : {}),
@@ -887,15 +898,37 @@ export class LLXProcessDesignEngine implements IDesignEngine {
         calculationRunStatus,
         designBasis: {
           operatingTemperatureC: T,
+          extractionTemperatureC,
+          extractionTemperatureSource,
           feedFluid: {
-            id: 'rrbo',
-            name: 'RRBO (Re-Refined Base Oil)',
-            density: { value: rhoFeed.value, unit: rhoFeed.unit, source: rhoFeed.source },
-            // Complete entered project-fluid record — persisted so historical
-            // runs stay reproducible even if project-fluid values later change.
-            enteredDensity: feedDensityEntry,
+            id: rrboFluidId,
+            name: rhoFeed.fluidId,
+            grade: rrboFluidId.replace('rrbo-', '').toUpperCase(),
+            // Density trace: Grade → T → ρRRBO → ρNMP → Δρ (extraction-temperature basis)
+            densityTrace: {
+              grade: rrboFluidId.replace('rrbo-', '').toUpperCase(),
+              operatingTemperatureC: T,
+              extractionTemperatureC,
+              rhoRRBO_atOperatingT_kg_m3: rhoFeed.value,
+              rhoNMP_atOperatingT_kg_m3: rhoSolvent.value,
+              rhoRRBO_atExtractionT_kg_m3: rhoFeed_atExtT.value,
+              rhoNMP_atExtractionT_kg_m3: rhoSolvent_atExtT.value,
+              deltaDensity_atExtractionT_kg_m3: Math.abs(rhoSolvent_atExtT.value - rhoFeed_atExtT.value),
+              basis: 'EPD governed tabular dataset — linear interpolation between 6 points (25–70 °C)',
+              source: rhoFeed_atExtT.source,
+            },
+            // Density at operatingT — from EPD library; used for flow-basis conversions (PD-001, PD-004)
+            densityAtOperatingT: { value: rhoFeed.value, unit: rhoFeed.unit, source: rhoFeed.source },
+            // Density at extractionT — from EPD library; used for phase-separation screening (PD-005)
+            densityAtExtractionT: { value: rhoFeed_atExtT.value, unit: rhoFeed_atExtT.unit, source: rhoFeed_atExtT.source },
           },
-          solventFluid: { id: 'nmp', name: 'NMP', density: { value: rhoSolvent.value, unit: rhoSolvent.unit, source: rhoSolvent.source } },
+          solventFluid: {
+            id: 'nmp', name: 'NMP',
+            // Density at operatingT — used for flow-basis conversions
+            densityAtOperatingT: { value: rhoSolvent.value, unit: rhoSolvent.unit, source: rhoSolvent.source },
+            // Density at extractionT — used for phase-separation screening
+            densityAtExtractionT: { value: rhoSolvent_atExtT.value, unit: rhoSolvent_atExtT.unit, source: rhoSolvent_atExtT.source },
+          },
         },
         flows: {
           unitMass: 'kg/h', unitVolumetric: 'm3/h',
@@ -909,9 +942,16 @@ export class LLXProcessDesignEngine implements IDesignEngine {
         phaseConfiguration: {
           input: phaseConfig,
           continuousPhase, dispersedPhase,
+          // Δρ basis — ALWAYS extraction temperature; NEVER operatingTemperature
+          densityDifferenceTemperatureBasis: {
+            temperatureC: extractionTemperatureC,
+            temperatureSource: extractionTemperatureSource,
+            rhoNMP_kg_m3: { value: rhoSolvent_atExtT.value, unit: rhoSolvent_atExtT.unit, source: rhoSolvent_atExtT.source },
+            rhoRRBO_kg_m3: { value: rhoFeed_atExtT.value, unit: rhoFeed_atExtT.unit, source: rhoFeed_atExtT.source, grade: rrboFluidId.replace('rrbo-', '').toUpperCase() },
+          },
           lighterPhase, heavierPhase: lighterPhase === null ? null : lighterPhase === 'RRBO' ? 'NMP' : 'RRBO',
-          densityDifference_kg_m3: densityDifference,
-          note: 'Phase continuity is taken from the engineer input only; density determines buoyancy direction, not continuity.',
+          densityDifference_kg_m3: densityDifference_atExtT,
+          note: 'Phase continuity is taken from the engineer input only; density determines buoyancy direction, not continuity. No screening threshold is applied — Δρ is reported and interpreted by the engineer.',
           classification: phaseClassification,
         },
         normalCase: normalCase.result,

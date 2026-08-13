@@ -61,54 +61,42 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     out.feedFlow = { value: feedLph / 1000, basis: 'volumetric' };
   }
 
-  // Feed (RRBO) density — the source-tagged Fluid Properties entry is mapped.
-  // Provenance rule: if the engineer selected a controlled source type
-  // (Measured/Vendor/Literature/Assumed) it is passed through verbatim.
-  // If no source type is selected, the value on the page is the auto-populated
-  // Thermopac Feed Master default — mapped as sourceType 'Assumed' with a
-  // sourceReference naming the master, so the provenance is traceable and the
-  // engine never receives an untagged density. Nothing is invented: the value,
-  // reference temperature, and master label all come from the workspace entry.
-  let rho: number | undefined;
-  if (out.feedDensity === undefined) {
-    const fpRho = num(inputs.rrbo_density_value);
-    if (fpRho !== undefined && fpRho > 0) {
-      rho = fpRho;
-      const srcRaw = String(inputs.rrbo_density_source ?? '').trim();
-      const refT = num(String(inputs.rrbo_density_ref_temp ?? '15').replace(/°?C/gi, '')) ?? 15;
-      const refRaw = String(inputs.rrbo_density_source_reference ?? '').trim();
-      const tagged = SOURCE_TYPES.includes(srcRaw);
-      out.feedDensity = {
-        value: fpRho,
-        referenceTemperatureC: refT,
-        sourceType: tagged ? srcRaw : 'Assumed',
-        sourceReference: refRaw !== ''
-          ? refRaw
-          : tagged
-            ? `Fluid Properties workspace entry (engineer source type: ${srcRaw})`
-            : 'Thermopac Feed Master (Default) — Fluid Properties auto-populated value, no engineer source type selected',
-      };
-    }
-  } else {
-    rho = num((out.feedDensity as Record<string, unknown>)?.value);
-  }
+  // RRBO grade → EPD fluid ID (governed; no cross-grade fallback).
+  // The workspace stores the Feed Service label (e.g. "Re-Refined Base Oil SN300").
+  const RRBO_GRADE_FLUID_IDS: Record<string, string> = {
+    'Re-Refined Base Oil SN150': 'rrbo-sn150',
+    'Re-Refined Base Oil SN200': 'rrbo-sn200',
+    'Re-Refined Base Oil SN300': 'rrbo-sn300',
+    'Re-Refined Base Oil SN500': 'rrbo-sn500',
+  };
+  const feedService = String(inputs.feed_service ?? '').trim();
+  const rrboFluidId = RRBO_GRADE_FLUID_IDS[feedService] ?? 'rrbo-sn300';
+  if (out.rrboFluidId === undefined) out.rrboFluidId = rrboFluidId;
 
   // S/O ratio — workspace basis is VOLUME (NMP vol flow / RRBO vol flow).
-  // Engine expects mass basis: multiply by ρNMP(OT)/ρRRBO.
+  // Engine expects mass basis: multiply by ρNMP(OT)/ρRRBO(grade, OT).
+  // Both densities are evaluated from the governed EPD library — no user entry.
   const soVol = num(inputs.so_ratio);
-  if (out.solventToOilRatio === undefined && soVol !== undefined && soVol > 0 && ot !== undefined && rho !== undefined && rho > 0) {
+  if (out.solventToOilRatio === undefined && soVol !== undefined && soVol > 0 && ot !== undefined) {
     try {
-      const rhoNmp = getProperty('nmp', 'density', ot).value; // kg/m³
-      out.solventToOilRatio = soVol * (rhoNmp / rho);
+      const rhoNmp  = getProperty('nmp',        'density', ot).value; // kg/m³
+      const rhoRrbo = getProperty(rrboFluidId,  'density', ot).value; // kg/m³
+      out.solventToOilRatio = soVol * (rhoNmp / rhoRrbo);
       out.solventToOilRatioBasisNote =
-        `Converted from volume-basis S/O ratio ${soVol} (NMP vol / RRBO vol) using ρNMP(${ot} °C) = ${rhoNmp.toFixed(1)} kg/m³ / ρRRBO = ${rho} kg/m³`;
+        `Converted from volume-basis S/O ratio ${soVol} (NMP vol / RRBO vol) using ρNMP(${ot} °C) = ${rhoNmp.toFixed(1)} kg/m³ / ρRRBO ${feedService || rrboFluidId}(${ot} °C) = ${rhoRrbo.toFixed(1)} kg/m³`;
     } catch {
       /* EPD out of range — leave unset; engine validation reports it */
     }
   }
 
   const stages = num(inputs.theoretical_stages);
-  if (out.theoreticalStages === undefined && stages !== undefined) out.theoreticalStages = stages;
+  const stagesSource = String(inputs.theoretical_stages_source ?? '').trim();
+  // Pass to the engine as Engineer Override ONLY when the user explicitly entered/changed
+  // the value (source === 'override'). Never re-pass an auto-calculated value back as an
+  // override — that would suppress the Coto 2022 LLE calculation on subsequent runs.
+  if (out.theoreticalStages === undefined && stages !== undefined && stagesSource !== 'calculated') {
+    out.theoreticalStages = stages;
+  }
 
   // ── Governed Coto 2022 LLE stage inputs (N_T auto-calculation) ─────────────
   // Restructuring only: flat workspace fields → lleStageInputs TaggedValues.
@@ -129,7 +117,6 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     };
     const lle: Record<string, unknown> = {};
     const ch: Record<string, unknown> = {};
-    const mw: Record<string, unknown> = {};
     const chPairs: Array<[string, string]> = [
       ['saturates', 'rrbo_saturates_wt'], ['monoAromatics', 'rrbo_mono_aromatics_wt'],
       ['diAromatics', 'rrbo_di_aromatics_wt'], ['polyAromatics', 'rrbo_poly_aromatics_wt'],
@@ -138,23 +125,35 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       const t = taggedFrom(wsKey, 'rrbo_characterisation_source', 'rrbo_characterisation_source_reference');
       if (t) ch[k] = t;
     }
-    const mwPairs: Array<[string, string]> = [
-      ['saturates', 'rrbo_mw_saturates'], ['monoAromatics', 'rrbo_mw_mono'],
-      ['diAromatics', 'rrbo_mw_di'], ['polyAromatics', 'rrbo_mw_poly'],
-    ];
-    for (const [k, wsKey] of mwPairs) {
-      const t = taggedFrom(wsKey, 'rrbo_class_mw_source', 'rrbo_class_mw_source_reference');
-      if (t) mw[k] = t;
-    }
     if (Object.keys(ch).length > 0) lle.rrboCharacterisationWtPct = ch;
-    // Total Aromatics — editable engineer field (workspace default 2.7 wt %,
-    // seeded blank-only in the UI, never hard-coded here). Used by the engine
-    // as a governed consistency check against mono+di+poly.
-    const totAr = taggedFrom('rrbo_total_aromatics_wt', 'rrbo_characterisation_source', 'rrbo_characterisation_source_reference');
-    if (totAr) lle.totalAromaticsWtPct = totAr;
-    if (Object.keys(mw).length > 0) lle.classMolecularWeights = mw;
-    const tgt = taggedFrom('target_raffinate_aromatics_mol', 'target_raffinate_aromatics_source', 'target_raffinate_aromatics_source_reference');
-    if (tgt) lle.targetRaffinateAromaticsMolePct = tgt;
+    // Class MWs and Total Aromatics are NOT passed to the engine:
+    //   • wt%→mol uses fixed Coto 2022 surrogate MWs (engine constants — no user entry).
+    //   • Total Aromatics is derived by the engine as mono + di + poly.
+    // Target Raffinate Aromatics — governed provenance handling.
+    // The generic taggedFrom fallback is NOT used here: a source reference that
+    // is numerically identical to the target value is not a real reference
+    // (it means the field was left blank or mistyped). Store blank in that case.
+    // Never invent a sourceReference from the numeric target value itself.
+    const tgtV = num(inputs['target_raffinate_aromatics_mol']);
+    if (tgtV !== undefined) {
+      const tgtSrc = String(inputs['target_raffinate_aromatics_source'] ?? '').trim();
+      const tgtRefRaw = String(inputs['target_raffinate_aromatics_source_reference'] ?? '').trim();
+      // Reject numeric-mirror refs (e.g. ref === "10" when target value is 10)
+      const isNumericMirror = tgtRefRaw !== '' &&
+        Number.isFinite(parseFloat(tgtRefRaw)) &&
+        Math.abs(parseFloat(tgtRefRaw) - tgtV) < 1e-9;
+      const tgtRef = isNumericMirror ? '' : tgtRefRaw;
+      lle.targetRaffinateAromaticsMolePct = {
+        value: tgtV,
+        sourceType: SOURCE_TYPES.includes(tgtSrc) ? tgtSrc : 'Assumed',
+        // Engine parseTagged requires a non-blank sourceReference.
+        // Fall back to a descriptive placeholder when the engineer has not yet
+        // entered a reference — never mirror the numeric value itself (A-ref rule).
+        sourceReference: tgtRef !== ''
+          ? tgtRef
+          : 'Target raffinate aromatics — source reference not entered; enter the product-quality specification document (Stage 4)',
+      };
+    }
     const sPur = taggedFrom('solvent_nmp_mole_fraction', 'solvent_nmp_mole_fraction_source', 'solvent_nmp_mole_fraction_source_reference');
     if (sPur) lle.solventNmpMoleFraction = sPur;
     if (Object.keys(lle).length > 0) out.lleStageInputs = lle;
@@ -215,11 +214,13 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
 
   // ── Stage 5 (Common Hydraulic Design) extras — same restructuring-only rule ──
   // Feed (RRBO) dynamic viscosity: workspace mPa·s → engine Pa·s.
+  // feedViscosity — value, reference temperature, and source must all be present.
+  // No fallback on referenceTemperatureC (A-11). If blank → block; engine reports missing input.
   if (out.feedViscosity === undefined) {
     const mu = num(inputs.rrbo_viscosity_dynamic_value);
-    if (mu !== undefined && mu > 0) {
+    const refT = num(String(inputs.rrbo_viscosity_dynamic_ref_temp ?? '').replace(/°?C/gi, ''));
+    if (mu !== undefined && mu > 0 && refT !== undefined) {
       const src = String(inputs.rrbo_viscosity_dynamic_source ?? '').trim();
-      const refT = num(String(inputs.rrbo_viscosity_dynamic_ref_temp ?? '40').replace(/°?C/gi, '')) ?? 40;
       out.feedViscosity = {
         value: mu / 1000,
         referenceTemperatureC: refT,
@@ -230,18 +231,38 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       };
     }
   }
+  // feedDensity: RRBO (dispersed phase / feed oil) density — auto-populated from
+  // the governed EPD tabular library at operating temperature. No user entry is
+  // required or accepted for this property (governed A-5; no default correlations).
+  // The same getProperty call is already used for the S/O ratio conversion above.
+  if (out.feedDensity === undefined && ot !== undefined) {
+    try {
+      const rhoRrbo = getProperty(rrboFluidId, 'density', ot);
+      out.feedDensity = {
+        value: rhoRrbo.value,           // kg/m³
+        referenceTemperatureC: ot,
+        sourceType: 'Assumed',
+        sourceReference: `EPD library — ${feedService || rrboFluidId} density at ${ot} °C (governed tabular interpolation, Assumed — no user entry)`,
+      };
+    } catch {
+      /* EPD out of range — engine validation will report the missing density */
+    }
+  }
+
   // Interfacial tension: workspace mN/m → engine N/m (tagged, optional input).
   // The Stage 5 override field wins over the Fluid Properties entry; the
   // engineer-selected source type/reference is propagated, not hard-coded.
+  // interfacialTension — value, reference temperature, and source must travel together (A-11).
+  // No fallback on referenceTemperatureC. If blank → block; engine reports missing input.
   if (out.interfacialTension === undefined) {
     const iftOverride = num(inputs.interfacial_tension); // Stage 5 hydraulic_design field
     const iftFp = num(inputs.interfacial_tension_value); // Fluid Properties entry
     const overridden = iftOverride !== undefined && iftOverride > 0 && iftOverride !== iftFp;
     const ift = overridden ? iftOverride : iftFp;
-    if (ift !== undefined && ift > 0) {
+    const refT = num(String(inputs.interfacial_tension_ref_temp ?? '').replace(/°?C/gi, ''));
+    if (ift !== undefined && ift > 0 && refT !== undefined) {
       const src = String(inputs.interfacial_tension_source ?? '').trim();
       const refRaw = String(inputs.interfacial_tension_source_reference ?? '').trim();
-      const refT = num(String(inputs.interfacial_tension_ref_temp ?? '70').replace(/°?C/gi, '')) ?? 70;
       out.interfacialTension = {
         value: ift / 1000,
         referenceTemperatureC: refT,
@@ -266,70 +287,130 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   if (out.diameterSweep === undefined && out.diameterValues === undefined) {
     out.diameterSweep = { min: 0.3, max: 2.0, step: 0.05 };
   }
-  // Droplet basis — engineer-approved Thermopac screening defaults (2026-08-06):
-  // Sauter mean diameter d32 (workspace mm → engine m) with terminal velocity
-  // as the characteristic velocity, and hindrance exponent n = 1 as an explicit
-  // Assumed entry (the engine's own required form for n = 1).
+  // Task #69 — Forward engineer-entered throughput utilisation band upper limit to C3.
+  // The engine slot is screeningBandPercent: { min, max }. The governed lower limit is
+  // 40% — immovable project criterion. The engineer may tighten the upper limit below
+  // the governed 80% default (e.g. 65% for a more conservative screening).
+  // Values above 80% are accepted by the engine validator but are outside the agreed
+  // project screening basis — leave them to the engineer's judgment.
+  if (out.screeningBandPercent === undefined) {
+    const bandMax = num(inputs.flooding_margin_design);
+    const BAND_MIN = 40; // GOVERNED_SCREENING_BAND.min — immovable project criterion
+    if (bandMax !== undefined && bandMax > BAND_MIN && bandMax <= 100) {
+      out.screeningBandPercent = { min: BAND_MIN, max: bandMax };
+    }
+  }
+  // Droplet basis — Sauter mean diameter d32 (workspace mm → engine m) with rigid-sphere
+  // terminal velocity used as the provisional characteristic velocity (u_K = u_T,
+  // Preliminary / Pending Validation — see engine warning CHARACTERISTIC_VELOCITY_FROM_RIGID_SPHERE_SCREENING).
+  // Hindrance exponent n is a governed, source-tagged engineering input for BOTH hydraulic
+  // models. Both d32 and n are pre-populated in the UI with screening defaults
+  // (d32 = 3 mm, n = 1, both Assumed — Preliminary / Pending Validation) and stored
+  // explicitly in the workspace. The mapper uses only the values present in the workspace —
+  // no hidden fallbacks for either parameter.
   const SCREENING_REF = 'Thermopac Preliminary Screening Default';
   const uKModel = String(inputs.hydraulic_model ?? '').trim() === 'characteristic_velocity';
   if (uKModel && out.characteristicVelocity === undefined) {
     const uk = num(inputs.characteristic_velocity);
     if (uk !== undefined && uk > 0) {
-      out.characteristicVelocity = { value: uk, sourceType: 'Assumed', sourceReference: 'Engineer-entered characteristic velocity (Stage 5 workspace) — pending laboratory validation' };
+      const VALID_SRC_UK = ['Measured', 'Vendor', 'Literature', 'Assumed'];
+      const ukSrc = String(inputs.characteristic_velocity_source ?? '').trim();
+      const ukRef = String(inputs.characteristic_velocity_source_ref ?? '').trim();
+      out.characteristicVelocity = {
+        value: uk,
+        sourceType: VALID_SRC_UK.includes(ukSrc) ? ukSrc : 'Assumed',
+        sourceReference: ukRef !== '' ? ukRef : 'Engineer-entered characteristic velocity (Stage 5 workspace) — source not specified',
+      };
     }
   }
+  // d32 has no silent default — A-5. If blank the engine receives no sauterMeanDiameter
+  // and blocks with a missing-input error (fail-closed).
+  // useTerminalVelocityAsCharacteristic is set unconditionally when in d32_terminal mode
+  // so the engine's existing validation ("useTerminalVelocityAsCharacteristic requires
+  // sauterMeanDiameter") fires and returns a proper error status — instead of silently
+  // running the sweep with all rows 'not_calculable' and minimumFeasibleDiameter_m = null.
   if (!uKModel && out.sauterMeanDiameter === undefined && out.characteristicVelocity === undefined) {
-    const d32mm = num(inputs.sauter_mean_d32) ?? 1.5;
-    if (d32mm > 0) {
-      out.sauterMeanDiameter = { value: d32mm / 1000, sourceType: 'Assumed', sourceReference: SCREENING_REF };
-      if (out.useTerminalVelocityAsCharacteristic === undefined) out.useTerminalVelocityAsCharacteristic = true;
+    const d32mm = num(inputs.sauter_mean_d32);
+    if (d32mm !== undefined && d32mm > 0) {
+      const VALID_SRC = ['Measured', 'Vendor', 'Literature', 'Assumed'];
+      const d32src = String(inputs.sauter_mean_d32_source ?? '').trim();
+      const d32ref = String(inputs.sauter_mean_d32_source_ref ?? '').trim();
+      out.sauterMeanDiameter = {
+        value: d32mm / 1000,
+        sourceType: VALID_SRC.includes(d32src) ? d32src : 'Assumed',
+        sourceReference: d32ref !== '' ? d32ref : SCREENING_REF,
+      };
     }
+    if (out.useTerminalVelocityAsCharacteristic === undefined) out.useTerminalVelocityAsCharacteristic = true;
   }
-  if (out.hindranceExponent === undefined && (out.useTerminalVelocityAsCharacteristic === true || out.characteristicVelocity !== undefined)) {
-    // Engine contract: a characteristic-velocity basis always requires n; in the
-    // default d32/terminal-velocity screening method n = 1 is carried as the
-    // engine's explicit Assumed entry (recorded in the run's assumption register,
-    // not surfaced as a workspace input).
-    const n = num(inputs.hindrance_exponent) ?? 1;
-    if (n > 0) out.hindranceExponent = { value: n, sourceType: 'Assumed', sourceReference: `${SCREENING_REF} — n pending laboratory validation` };
+  if (out.hindranceExponent === undefined) {
+    // n is a governed, source-tagged engineering parameter for BOTH hydraulic models.
+    // The UI pre-populates n = 1 (Assumed — Preliminary / Pending Validation) for
+    // new d32_terminal cases so the value is always explicit and visible in the
+    // workspace. No hidden fallback is applied here — if n is absent from the
+    // workspace the engine blocks with a missing-input error (fail-closed, both modes).
+    const VALID_SRC_N = ['Measured', 'Vendor', 'Literature', 'Assumed'];
+    const nRaw = num(inputs.hindrance_exponent);
+    const nSrc = String(inputs.hindrance_exponent_source ?? '').trim();
+    const nRef = String(inputs.hindrance_exponent_source_ref ?? '').trim();
+
+    if (nRaw !== undefined && nRaw > 0) {
+      out.hindranceExponent = {
+        value: nRaw,
+        sourceType: VALID_SRC_N.includes(nSrc) ? nSrc : 'Assumed',
+        sourceReference: nRef !== '' ? nRef : 'Engineer-entered hindrance exponent (Stage 5 workspace)',
+      };
+    }
+    // n absent: no hindranceExponent emitted → engine blocks with a missing-input
+    // error (fail-closed). New cases should never reach here because the UI
+    // pre-populates n = 1 at first load.
   }
 
   // ── Pressure drop basis (HYD-009) — Duss 2013 / Zogg (Stage 5 workspace fields)
   // cf is AUTO-CALCULATED from the governed Duss 2013 Table 2 dataset — NOT user-entered.
-  // Dataset selection: corrugation angle 45° → Table 2-A (45°/Y-type, a≈250, Re 143–7144);
-  //                    corrugation angle 30° → Table 2-B (30°/X-type, a≈500, Re 71–3572).
-  // Defaults: a = 250 m²/m³, φ = 45° when fields are blank (Sulzer Mellapak 250.Y class).
+  // Governed dataset is selected by SSA (not by corrugation angle):
+  //   a = 250 m²/m³ → Table 2-A (45°/Y-type, MellapakPlus 252.Y basis, Re 143–7144)
+  //   a = 500 m²/m³ → Table 2-B (30°/X-type, BXPlus basis, Re 71–3572)
+  //   a = 300/350/400/450 m²/m³ → dh = 4/a calculable; cf/ΔP Not Calculable (no governed dataset)
+  // No silent defaults — all packing geometry fields fail closed when blank (A-series).
   // Out-of-range policy is enforced in the engine by evaluateDuss2013ReCf().
   if (out.pressureDropBasis === undefined && calculationType === 'hydraulics_common') {
-    // Packing geometry — default 250 m²/m³ / 45° when not entered
-    const psaVal = num(inputs.packing_specific_surface_value) ?? 250;
-    const psaSrc = String(inputs.packing_specific_surface_source_type ?? '').trim() || 'Literature';
-    const psaRef = String(inputs.packing_specific_surface_source_ref ?? '').trim()
-      || 'Duss 2013 Table 2 / Zogg 1972 ETH Diss. Nr. 4886 — Sulzer Mellapak 250.Y class (nominal)';
+    // Packing geometry — no silent defaults (A-series). Fail closed when blank.
+    const psaVal = num(inputs.packing_specific_surface_value);
+    const psaSrc = String(inputs.packing_specific_surface_source_type ?? '').trim();
+    const psaRef = String(inputs.packing_specific_surface_source_ref ?? '').trim();
 
-    // Corrugation angle — default 45° (Y-type) when not entered
-    const angVal = num(inputs.packing_corrugation_angle_value) ?? 45;
-    const angSrc = String(inputs.packing_corrugation_angle_source_type ?? '').trim() || 'Literature';
-    const angRef = String(inputs.packing_corrugation_angle_source_ref ?? '').trim()
-      || 'Duss 2013 §"Interpretation of Results" / Zogg 1972 ETH Diss. Nr. 4886';
+    // Corrugation angle — no silent defaults (A-series). Fail closed when blank.
+    const angVal = num(inputs.packing_corrugation_angle_value);
+    const angSrc = String(inputs.packing_corrugation_angle_source_type ?? '').trim();
+    const angRef = String(inputs.packing_corrugation_angle_source_ref ?? '').trim();
 
-    // Auto-select governed Duss 2013 dataset by corrugation angle
-    const governedDataset = DUSS2013_DATASETS[angVal] ?? null;
+    // Governed Duss 2013 dataset selected by SSA — never by corrugation angle alone.
+    // 300/350/400/450 m²/m³ have no governed cf characterisation in Duss 2013.
+    const governedDataset = psaVal === 250 ? DUSS2013_DATASETS[45]
+                          : psaVal === 500 ? DUSS2013_DATASETS[30]
+                          : null;
 
-    if (psaVal > 0) {
+    if (psaVal !== undefined && psaVal > 0 && psaSrc && psaRef) {
       const pdBasis: Record<string, unknown> = {
         packingSpecificSurface: { value: psaVal, sourceType: psaSrc, sourceReference: psaRef },
-        packingCorrugationAngleDeg: { value: angVal, sourceType: angSrc, sourceReference: angRef },
       };
+      if (angVal !== undefined && angSrc && angRef) {
+        pdBasis.packingCorrugationAngleDeg = { value: angVal, sourceType: angSrc, sourceReference: angRef };
+      }
       if (governedDataset) {
         // Inject the full governed dataset — engine evaluates cf at run-time Re
         pdBasis.governedReCfDataset = governedDataset;
       } else {
-        // No governed dataset for this angle — engine will mark pressure drop Not Calculable
-        pdBasis.governedReCfDatasetNote =
-          `No governed Duss 2013 dataset for corrugation angle ${angVal}°. ` +
-          'Only 45° (Y-type, Table 2-A) and 30° (X-type, Table 2-B) are supported. ' +
-          'Provide a vendor-override pressureDropPerMeter or change φ to 30° or 45°.';
+        // No governed cf dataset for this SSA — engine marks pressure drop Not Calculable.
+        // d_h = 4/a is still calculable; only cf/ΔP are blocked.
+        const INTERMEDIATE = [300, 350, 400, 450];
+        pdBasis.governedReCfDatasetNote = INTERMEDIATE.includes(psaVal as number)
+          ? `No governed Duss 2013 cf dataset for a = ${psaVal} m²/m³. ` +
+            'Duss 2013 characterises only 250 m²/m³ (MellapakPlus 252.Y, Table 2-A) and 500 m²/m³ (BXPlus, Table 2-B). ' +
+            'Hydraulic diameter d_h = 4/a is calculable; friction factor and pressure drop: Not Calculable. ' +
+            'Provide a vendor pressure-drop override to proceed.'
+          : `No governed Duss 2013 dataset for a = ${psaVal} m²/m³.`;
       }
       // Optional vendor pressure drop override — supersedes governed calculation
       const vdpVal = num(inputs.vendor_dp_value);
@@ -358,11 +439,12 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   //   RRBO: feed LPH × ρRRBO / 1000 ;  NMP: feed LPH × S/O(vol) × ρNMP(OT) / 1000
   //   maximum NMP flow = normal × maxCirculationFactor (Design Margin rule).
   if ((out.normalCase === undefined || out.maximumCase === undefined)
-      && feedLph !== undefined && feedLph > 0 && rho !== undefined && rho > 0
+      && feedLph !== undefined && feedLph > 0
       && soVol !== undefined && soVol > 0 && ot !== undefined) {
     try {
-      const rhoNmp = getProperty('nmp', 'density', ot).value;
-      const mRRBO = (feedLph / 1000) * rho;
+      const rhoNmp  = getProperty('nmp',       'density', ot).value;
+      const rhoRrbo = getProperty(rrboFluidId, 'density', ot).value;
+      const mRRBO = (feedLph / 1000) * rhoRrbo;
       const mNMPn = (feedLph / 1000) * soVol * rhoNmp;
       const circ = num(out.maxCirculationFactor) ?? 1;
       if (out.normalCase === undefined) out.normalCase = { rrboMassFlow_kg_h: mRRBO, nmpMassFlow_kg_h: mNMPn };
@@ -391,7 +473,18 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   taggedFrom('rotor_speed', 'rotorSpeed');
   taggedFrom('power_number', 'powerNumber');
   taggedFrom('compartment_height', 'compartmentHeight');
-  taggedFrom('compartment_efficiency', 'compartmentEfficiency', { pctToFraction: true });
+  // compartmentEfficiency — governed override only; no silent Assumed tagging (A-10).
+  // Value + source type + source reference must travel together.
+  // Engine is required:true → if any part is missing the ECR engine blocks cleanly.
+  if (out.compartmentEfficiency === undefined) {
+    const ceVal = num(inputs.compartment_efficiency);
+    const ceSrc = String(inputs.compartment_efficiency_source ?? '').trim();
+    const ceRef = String(inputs.compartment_efficiency_source_reference ?? '').trim();
+    if (ceVal !== undefined && ceVal > 0 && SOURCE_TYPES.includes(ceSrc) && ceRef !== '') {
+      const fraction = ceVal > 1 ? ceVal / 100 : ceVal;
+      out.compartmentEfficiency = { value: fraction, sourceType: ceSrc, sourceReference: ceRef };
+    }
+  }
   taggedFrom('shaft_efficiency', 'shaftEfficiency', { pctToFraction: true });
   taggedFrom('mechanical_design_margin', 'mechanicalDesignMargin');
   taggedFrom('rotors_per_compartment', 'rotorsPerCompartment');
@@ -408,15 +501,18 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   if (out.powerDensityBasis === undefined) out.powerDensityBasis = 'continuous_phase';
   // Continuous-phase viscosity (required by ECR when NMP is continuous):
   // NMP dynamic viscosity, workspace mPa·s → Pa·s.
+  // continuousPhaseViscosity — value and reference temperature must travel together (A-11).
+  // No fallback on referenceTemperatureC (removed ?? ot ?? 70). If blank → block.
   if (out.continuousPhaseViscosity === undefined) {
     const isNmpCont = String(out.phaseConfiguration ?? '') === 'nmp_continuous_rrbo_dispersed';
     const muKey = isNmpCont ? 'nmp_viscosity_dynamic_value' : 'rrbo_viscosity_dynamic_value';
+    const refTKey = isNmpCont ? 'nmp_viscosity_dynamic_ref_temp' : 'rrbo_viscosity_dynamic_ref_temp';
     const muC = num(inputs[muKey]);
-    if (muC !== undefined && muC > 0) {
-      const refT = num(String(inputs[isNmpCont ? 'nmp_viscosity_dynamic_ref_temp' : 'rrbo_viscosity_dynamic_ref_temp'] ?? '').replace(/°?C/gi, ''));
+    const refT = num(String(inputs[refTKey] ?? '').replace(/°?C/gi, ''));
+    if (muC !== undefined && muC > 0 && refT !== undefined) {
       out.continuousPhaseViscosity = {
         value: muC / 1000,
-        referenceTemperatureC: refT ?? ot ?? 70,
+        referenceTemperatureC: refT,
         sourceType: 'Assumed',
         sourceReference: 'Fluid Properties workspace entry (dynamic viscosity, mPa·s converted to Pa·s)',
       };
@@ -443,16 +539,17 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   // The workspace stores `hets` as a flat string; the engine requires a full
   // HETS record object. A non-object value here is the raw workspace field
   // leaked through the spread — always rebuild it as the record.
+  // HETS — governed override only; no silent defaults on source or reference (A-series).
+  // Engine receives no HETS when blank → height calculation blocks with missing-input error.
   if ((out.hets === undefined || typeof out.hets !== 'object') && hetsVal !== undefined && hetsVal > 0) {
     const src = String(inputs.hets_source ?? '').trim();
+    const ref = String(inputs.hets_source_reference ?? '').trim();
     out.hets = {
       value: hetsVal,
       unit: 'm',
       operatingTemperatureC: ot ?? 0,
       solvent: 'NMP',
       feed: 'RRBO (Re-Refined Base Oil)',
-      // Match the engine's HETS↔packing consistency check: use the registered
-      // record's product name when the id resolves, otherwise the raw entry.
       packing: (() => {
         const pid = String(inputs.packing_id ?? '').trim();
         if (pid !== '') {
@@ -462,9 +559,7 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
         return String(inputs.packing_id ?? inputs.packing_type ?? 'unspecified packing').trim();
       })(),
       sourceType: SOURCE_TYPES.includes(src) ? src : 'Assumed',
-      sourceReference: String(inputs.hets_source_reference ?? '').trim() !== ''
-        ? String(inputs.hets_source_reference).trim()
-        : 'Engineer-entered system HETS (Stage 7 ECP workspace) — pending validation',
+      sourceReference: ref || 'Governed HETS override (Stage 7 ECP workspace) — source required',
     };
     if (out.heightBasis === undefined) out.heightBasis = 'HETS';
   }

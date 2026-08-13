@@ -1,3 +1,5 @@
+import { GOVERNED_UTILIZATION_BAND } from './llx-governed-design-criteria';
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // ECR-Type Kühni Agitated Extraction Column Engine (Stage C5)
 //
@@ -59,7 +61,6 @@ type Classification = 'Calculated Screening Result' | 'Pending Validation' | 'No
 const DENSITY_BASES = ['continuous_phase', 'volume_averaged'] as const;
 type DensityBasis = (typeof DENSITY_BASES)[number];
 
-const DEFAULT_UTILIZATION_BAND = { min: 40, max: 80 }; // % — configurable criterion, not a universal rule
 const G = 9.80665; // m/s2
 const SMALL = 1e-12;
 
@@ -447,7 +448,7 @@ export class LLXECREngine implements IDesignEngine {
       const utilizationPendingBase = propertyAssumed || capacityAssumed || (derate?.sourceType === 'Assumed');
 
       const utilBandIn = inputs.utilizationBandPercent as Record<string, unknown> | undefined;
-      const utilizationBand = utilBandIn ? { min: num(utilBandIn.min)!, max: num(utilBandIn.max)! } : { ...DEFAULT_UTILIZATION_BAND };
+      const utilizationBand = utilBandIn ? { min: num(utilBandIn.min)!, max: num(utilBandIn.max)! } : { ...GOVERNED_UTILIZATION_BAND };
 
       // ── Diameter list ────────────────────────────────────────────────────────
       let diameters: number[];

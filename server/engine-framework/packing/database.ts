@@ -161,6 +161,29 @@ export interface PackingRecord {
   recommendedLoadingRange?: { min: PackingTaggedValue; max: PackingTaggedValue }; // m3/(m2.h) total load
   minimumWettingRate?: PackingTaggedValue;  // m3/(m2.h) continuous-phase load
   maximumBedHeight?: PackingTaggedValue;    // m per bed
+  /** Typical specific throughput range from controlled packed-L-L-extraction
+   *  literature (e.g. Rauber 2006 — Sulzer SMV/SMVP field experience).
+   *  GOVERNANCE RULES — violation is a classification error, not a
+   *  permissible engineering judgement:
+   *    (1) This is NOT a flooding capacity and must NOT be used as a
+   *        denominator in any utilization or efficiency calculation.
+   *    (2) The actual total liquid load (both phases, m³/(m²·h)) must fall
+   *        WITHIN [min, max] for the column to be in the typical zone.
+   *        A load BELOW min → column is over-sized relative to this range.
+   *        A load ABOVE max → column is outside this typical range.
+   *    (3) This range is SYSTEM-AGNOSTIC: it reflects Sulzer general L-L
+   *        experience and is not validated for NMP/RRBO SN300 at 60°C or
+   *        any specific project fluid pair without additional evidence.
+   *    (4) Never declare either this range or the C3 Godfrey model as
+   *        governing for final column diameter without governing hydraulic
+   *        data (vendor, pilot, or validated commercial operating data). */
+  typicalSpecificThroughputRange_m3_m2_h?: {
+    min: number;
+    max: number;
+    source: string;
+    classification: string;
+    applicabilityNote: string;
+  };
   vendorNotes?: string;
   source: string;                       // overall record source, e.g. datasheet id
   revision: string;                     // record revision, e.g. 'Rev 0'

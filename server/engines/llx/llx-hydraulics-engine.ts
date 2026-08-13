@@ -1,3 +1,5 @@
+import { GOVERNED_HOLDUP_BOUNDS, GOVERNED_SCREENING_BAND } from './llx-governed-design-criteria';
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // LLX — Common Hydraulic Screening Engine (Stage C3) — v1.0.0
 //
@@ -73,13 +75,13 @@ type PhaseConfig = (typeof PHASE_CONFIGS)[number];
 
 type Classification = 'Calculated Screening Result' | 'Pending Validation' | 'Not Calculable';
 
-const RATIO_TOLERANCE = 0.001;
+// Numerical solver tolerances — NOT engineering design criteria (see llx-governed-design-criteria.ts).
+const RATIO_TOLERANCE = 0.001;           // 0.1 % solvent-basis consistency check (PD-003)
+const DEFAULT_ROOT_ISOLATION_TOLERANCE = 0.02; // holdup branch isolation (bisection solver only)
 const SMALL = 1e-12;
 
-const DEFAULT_HOLDUP_BOUNDS = { min: 0.005, max: 0.60 };
+// Moderate-holdup applicability ceiling — Godfrey slip model boundary.
 const MODERATE_HOLDUP_LIMIT = 0.60;
-const DEFAULT_SCREENING_BAND = { min: 40, max: 80 }; // % of generic maximum — configurable criterion
-const DEFAULT_ROOT_ISOLATION_TOLERANCE = 0.02;
 
 const C3_PRESSURE_DROP_CLASSIFICATION = 'Controlled Literature Prediction — Preliminary / Pending RRBO-NMP Validation';
 const ALLOWED_CF_PROVENANCE = ['measured', 'controlled_literature', 'vendor_document'] as const;
@@ -535,12 +537,12 @@ export class LLXHydraulicsEngine implements IDesignEngine {
 
       // Configurable bounds / band / tolerance — all stored in the snapshot
       const hbIn = inputs.holdupBounds as Record<string, unknown> | undefined;
-      const holdupBounds = hbIn ? { min: num(hbIn.min)!, max: num(hbIn.max)! } : { ...DEFAULT_HOLDUP_BOUNDS };
+      const holdupBounds = hbIn ? { min: num(hbIn.min)!, max: num(hbIn.max)! } : { ...GOVERNED_HOLDUP_BOUNDS };
       if (holdupBounds.max > MODERATE_HOLDUP_LIMIT) {
         warnings.push({ code: 'HOLDUP_BOUND_ABOVE_MODERATE_LIMIT', message: `Configured holdup upper bound ${holdupBounds.max} exceeds the moderate-holdup applicability limit ${MODERATE_HOLDUP_LIMIT} — roots above ${MODERATE_HOLDUP_LIMIT} are outside the generic slip model's applicability.` });
       }
       const sbIn = inputs.screeningBandPercent as Record<string, unknown> | undefined;
-      const screeningBand = sbIn ? { min: num(sbIn.min)!, max: num(sbIn.max)! } : { ...DEFAULT_SCREENING_BAND };
+      const screeningBand = sbIn ? { min: num(sbIn.min)!, max: num(sbIn.max)! } : { ...GOVERNED_SCREENING_BAND };
       const rootTol = num(inputs.rootIsolationTolerance) ?? DEFAULT_ROOT_ISOLATION_TOLERANCE;
 
       // Diameter sweep per independent case (HYD-007 / HYD-008)
@@ -635,11 +637,11 @@ export class LLXHydraulicsEngine implements IDesignEngine {
             if (w.code === 'FAR_BELOW_CAPACITY_LIMIT' || w.code === 'NEAR_CAPACITY_LIMIT') continue;
             if (!warnings.some((x) => x.message === w.message)) warnings.push({ code: w.code, message: w.message });
           }
+          // Screening band is SUSPENDED (no governed source). C3 reports only
+          // hydraulically_feasible / hydraulically_infeasible.
           const feasibility =
             holdupRes.roots.length === 0 || pct >= 100 ? 'hydraulically_infeasible'
-              : pct > screeningBand.max ? 'above_screening_band'
-                : pct < screeningBand.min ? 'below_minimum_loading_band'
-                  : 'within_screening_band';
+              : 'hydraulically_feasible';
 
           row.holdup = {
             classification: holdupClassification,
@@ -779,22 +781,26 @@ export class LLXHydraulicsEngine implements IDesignEngine {
           }
           rows.push(row);
         }
-        const feasible = rows.filter((r) => r.genericHydraulicFeasibility === 'within_screening_band' || r.genericHydraulicFeasibility === 'above_screening_band' || r.genericHydraulicFeasibility === 'below_minimum_loading_band');
-        const within = rows.filter((r) => r.genericHydraulicFeasibility === 'within_screening_band');
+        // Screening band SUSPENDED — feasible = any diameter with a holdup
+        // solution and % of maximum < 100 %. No band-derived sub-classification.
+        const feasible = rows.filter((r) => r.genericHydraulicFeasibility === 'hydraulically_feasible');
         return {
           caseName,
           solventMassFlow_kg_h: caseName === 'normal' ? normalSolventMassFlow : maximumSolventMassFlow,
           nmpVolumetricFlow_m3_h: qNMP * 3600,
           rrboVolumetricFlow_m3_h: qRRBO_m3s * 3600,
-          screeningBandPercent: { ...screeningBand, note: 'Configurable screening criterion — not a universal engineering rule' },
+          screeningBandPercent: {
+            ...screeningBand,
+            suspended: true,
+            note: 'Suspended — no governed source established for the 40–80% criterion. Not used for diameter classification. Percentage of Generic Hydraulic Throughput Maximum is reported as a raw value per diameter.',
+          },
           diameters: rows,
           summary: {
             hydraulicallyInfeasibleDiameters_m: rows.filter((r) => r.genericHydraulicFeasibility === 'hydraulically_infeasible').map((r) => r.diameter_m),
-            aboveScreeningBandDiameters_m: rows.filter((r) => r.genericHydraulicFeasibility === 'above_screening_band').map((r) => r.diameter_m),
-            withinScreeningBandDiameters_m: within.map((r) => r.diameter_m),
-            belowMinimumLoadingBandDiameters_m: rows.filter((r) => r.genericHydraulicFeasibility === 'below_minimum_loading_band').map((r) => r.diameter_m),
+            hydraulicallyFeasibleDiameters_m: feasible.map((r) => r.diameter_m),
             minimumFeasibleDiameter_m: feasible.length ? (feasible[0].diameter_m as number) : null,
-            screeningBandDiameterRange_m: within.length ? { min: within[0].diameter_m, max: within[within.length - 1].diameter_m } : null,
+            screeningBandSuspended: true,
+            screeningBandSuspendedNote: 'The 40–80% generic screening band has no established governed source and is suspended from diameter classification. All diameters where a holdup solution exists and % of maximum < 100% are classified hydraulically_feasible. Percentage of Generic Hydraulic Throughput Maximum is reported per diameter as a raw value only.',
             selectedTrialDiameter_m: num(inputs.selectedTrialDiameter) ?? null,
             selectedTrialDiameterNote: inputs.selectedTrialDiameter !== undefined ? 'Engineer-selected trial diameter (echoed, not engine-recommended)' : 'No trial diameter selected — the engine does not recommend one',
           },

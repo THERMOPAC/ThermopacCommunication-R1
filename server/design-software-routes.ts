@@ -8,7 +8,7 @@ import * as svc from './design-software-service';
 import * as reports from './design-reports/report-service';
 import * as vv from './vv/regression-service';
 import * as vvRegister from './vv/equation-register-service';
-import { getProperty, containsAssumedData } from './engine-framework/epd/database';
+import { getProperty, containsAssumedData, RRBO_GRADE_FLUID_MAP } from './engine-framework/epd/database';
 
 // Register all LLX engines with the global registry at module load time
 import './engines/llx/index';
@@ -56,6 +56,56 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
       });
     } catch (e: any) {
       res.status(422).json({ message: e?.message ?? 'EPD lookup failed' });
+    }
+  });
+
+  // ── EPD lookup — NMP + RRBO density pair at a given temperature and grade ───
+  // Returns ρNMP(T), ρRRBO_<grade>(T) and Δρ(T) from the governed EPD library.
+  // Query params:
+  //   tc    — temperature in °C (required)
+  //   grade — Feed Service string or RRBO fluid ID (optional; defaults to SN300)
+  // Used by the Fluid Properties workspace to display calculated densities
+  // and by Stage 5 to auto-fill continuous/dispersed phase density fields.
+  app.get('/api/design-software/epd/density-pair', ensureAuthenticated, (req: Request, res: Response) => {
+    const tc = Number(req.query.tc);
+    if (!isFinite(tc)) return res.status(400).json({ message: 'Query parameter tc (temperature °C) is required' });
+    const gradeParam = String(req.query.grade ?? '').trim();
+    try {
+      // Resolve RRBO fluid ID: accept either the Feed Service label or raw fluid ID.
+      let rrboFluidId = 'rrbo-sn300'; // default for backward compat
+      if (gradeParam) {
+        rrboFluidId = RRBO_GRADE_FLUID_MAP[gradeParam] ?? gradeParam;
+      }
+      const nmpResult  = getProperty('nmp', 'density', tc);
+      const rrboResult = getProperty(rrboFluidId, 'density', tc);
+      const delta = Math.abs(nmpResult.value - rrboResult.value);
+      res.json({
+        temperatureC: tc,
+        rrboFluidId,
+        densityTrace: {
+          grade: rrboFluidId,
+          temperatureC: tc,
+          rhoRRBO_kg_m3: rrboResult.value,
+          rhoNMP_kg_m3: nmpResult.value,
+          deltaDensity_kg_m3: delta,
+          basis: 'EPD governed tabular dataset — linear interpolation',
+        },
+        nmp: {
+          value: nmpResult.value,
+          unit: 'kg/m³',
+          source: nmpResult.source,
+          pendingValidation: containsAssumedData(nmpResult.warnings),
+        },
+        rrbo: {
+          value: rrboResult.value,
+          unit: 'kg/m³',
+          source: rrboResult.source,
+          pendingValidation: containsAssumedData(rrboResult.warnings),
+        },
+        delta,
+      });
+    } catch (e: any) {
+      res.status(422).json({ message: e?.message ?? 'EPD density-pair lookup failed' });
     }
   });
 

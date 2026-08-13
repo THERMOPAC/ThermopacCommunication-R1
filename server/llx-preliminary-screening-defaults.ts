@@ -55,13 +55,38 @@ function prelimRecord(id: string, productName: string, purposeNote: string): Pac
   };
 }
 
+const RAUBER_THROUGHPUT_CLASSIFICATION = 'Typical Specific Throughput Range — Packed Liquid-Liquid Extraction Controlled Literature';
+const RAUBER_THROUGHPUT_NOTE = (range: string, nts: string, so: string) =>
+  `Total liquid volumetric load per unit cross-section (both phases combined). ` +
+  `NOT a flooding capacity — must not be used as a denominator in any utilization calculation. ` +
+  `The actual specific throughput must fall within ${range} m³/(m²·h) for the column to be in the typical operating zone. ` +
+  `Conditions: SSA 200–500 m²/m³, NTS ≤ ${nts}, S/O ≤ ${so}. ` +
+  `Not validated for NMP/RRBO SN300 at 60°C. Governing hydraulic data (vendor, pilot, or validated commercial) required before any final diameter decision.`;
+
 /** Register the SMV/SMVP preliminary screening records (idempotent). */
 export function registerPreliminaryPackingRecords(): PackingValidationIssue[] {
-  const issues = [
-    ...registerPacking(prelimRecord(SMV_PRELIM_ID, 'SMV — Preliminary Screening Record', 'Capacity Preferred family (published screening throughput 50–90 m³/(m²·h), NTS ≤ 6, single bed).')),
-    ...registerPacking(prelimRecord(SMVP_PRELIM_ID, 'SMVP — Preliminary Screening Record', 'Efficiency / Back-Mixing Preferred family (published screening throughput 35–60 m³/(m²·h), NTS ≤ 10, up to 3 beds).')),
+  const smvRecord = prelimRecord(SMV_PRELIM_ID, 'SMV — Preliminary Screening Record', 'Capacity Preferred family (published screening throughput 50–90 m³/(m²·h), NTS ≤ 6, single bed).');
+  smvRecord.typicalSpecificThroughputRange_m3_m2_h = {
+    min: 50,
+    max: 90,
+    source: LIT_REF,
+    classification: RAUBER_THROUGHPUT_CLASSIFICATION,
+    applicabilityNote: RAUBER_THROUGHPUT_NOTE('50–90', '6', '3'),
+  };
+
+  const smvpRecord = prelimRecord(SMVP_PRELIM_ID, 'SMVP — Preliminary Screening Record', 'Efficiency / Back-Mixing Preferred family (published screening throughput 35–60 m³/(m²·h), NTS ≤ 10, up to 3 beds).');
+  smvpRecord.typicalSpecificThroughputRange_m3_m2_h = {
+    min: 35,
+    max: 60,
+    source: LIT_REF,
+    classification: RAUBER_THROUGHPUT_CLASSIFICATION,
+    applicabilityNote: RAUBER_THROUGHPUT_NOTE('35–60', '10', '3 beds'),
+  };
+
+  return [
+    ...registerPacking(smvRecord),
+    ...registerPacking(smvpRecord),
   ];
-  return issues;
 }
 
 // ── Workspace-section default field sets ─────────────────────────────────────

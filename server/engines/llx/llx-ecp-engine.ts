@@ -1,3 +1,5 @@
+import { GOVERNED_UTILIZATION_BAND } from './llx-governed-design-criteria';
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Common Packed-Column Engine — ECP-Type Packed Extraction Column (Stage C4)
 //
@@ -77,7 +79,6 @@ const PHASE_CONFIGS = ['rrbo_continuous_nmp_dispersed', 'nmp_continuous_rrbo_dis
 type PhaseConfig = (typeof PHASE_CONFIGS)[number];
 type Classification = 'Calculated Screening Result' | 'Pending Validation' | 'Not Calculable';
 
-const DEFAULT_UTILIZATION_BAND = { min: 40, max: 80 }; // % — configurable criterion, not a universal rule
 const SMALL = 1e-12;
 
 // ── Rich result item (refinement 8) ───────────────────────────────────────────
@@ -439,7 +440,7 @@ export class LLXECPEngine implements IDesignEngine {
       }
 
       const utilBandIn = inputs.utilizationBandPercent as Record<string, unknown> | undefined;
-      const utilizationBand = utilBandIn ? { min: num(utilBandIn.min)!, max: num(utilBandIn.max)! } : { ...DEFAULT_UTILIZATION_BAND };
+      const utilizationBand = utilBandIn ? { min: num(utilBandIn.min)!, max: num(utilBandIn.max)! } : { ...GOVERNED_UTILIZATION_BAND };
 
       // ── Diameter list ────────────────────────────────────────────────────────
       let diameters: number[];
