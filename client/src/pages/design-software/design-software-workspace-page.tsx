@@ -4298,6 +4298,7 @@ export default function DesignSoftwareWorkspacePage() {
   }
 
   function renderCarryOverCard(co: ReturnType<typeof equipmentCarryOver>) {
+    const fromDSSEL = co.diameterSource.startsWith("Stage 7 — DS-SEL");
     const row = (label: string, value: string, source: string) => (
       <div className="grid grid-cols-[180px_1fr] gap-2 py-1 border-b border-gray-50 last:border-0">
         <span className="text-xs text-gray-500">{label}</span>
@@ -4307,8 +4308,23 @@ export default function DesignSoftwareWorkspacePage() {
         </span>
       </div>
     );
+    const cardTitle = fromDSSEL
+      ? "Design Inputs — DS-SEL Effective Diameter + Stage 5 Hydraulic Carry-Over"
+      : "Carry-Over from Common Hydraulic Design (Stage 5)";
     return (
-      <SectionCard title="Carry-Over from Common Hydraulic Design (Stage 5)">
+      <SectionCard title={cardTitle}>
+        {/* DS-SEL diameter override banner — shown whenever DS-SEL governs the column diameter */}
+        {fromDSSEL && (
+          <div className="flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg mb-3 -mt-1">
+            <Info className="h-3.5 w-3.5 text-blue-600 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-blue-800 leading-snug">
+              <span className="font-semibold">DS-SEL-006 diameter governance is active.</span>{" "}
+              The column diameter below comes from the Autonomous Design Selection record (effective = user ?? autonomous),
+              which supersedes the Stage 5 screening-only trial diameter.
+              The Stage 5 trial is labelled "screening only — does not govern final design" and is retained for traceability.
+            </p>
+          </div>
+        )}
         {row("Column Diameter", co.diameter !== null ? `${co.diameter} m` : "— (run Stage 5)", co.diameterSource)}
         {row("Total Volumetric Flow", co.totalLph !== null ? `${co.totalLph.toLocaleString("en-IN")} LPH = ${(co.totalM3h as number).toFixed(1)} m³/h` : "—", "Stage 5 — Feed + Normal Solvent Flow")}
         {row("Continuous Phase Density", co.contDensity ? `${co.contDensity} kg/m³` : "—", "Stage 5 — Hydraulic Design (engineer-entered)")}
