@@ -4267,9 +4267,17 @@ export default function DesignSoftwareWorkspacePage() {
     // it was generated from a previous run that produced a smaller minimum feasible
     // diameter. In that case fall back to Stage 5 and surface a stale warning.
     // A 1 mm tolerance handles floating-point rounding in the sweep.
-    const dselValid = dselDiameter_m !== null &&
+    const dselDiameterValid = dselDiameter_m !== null &&
       (minFeasibleD === null || dselDiameter_m >= minFeasibleD - 0.001);
-    const dselStale = dselDiameter_m !== null && !dselValid;
+
+    // Technology mismatch: Stage 6 selection changed since this DS-SEL record was
+    // generated. "both" always passes — it covers any single-tech record.
+    const dselTechMismatch = dselTech !== null &&
+      techSelection !== "both" &&
+      dselTech.toLowerCase() !== techSelection.toLowerCase();
+
+    const dselValid = dselDiameterValid && !dselTechMismatch;
+    const dselStale = dselRec !== null && !dselValid;
 
     let diameter: number | null;
     let diameterSource: string;
@@ -4288,7 +4296,7 @@ export default function DesignSoftwareWorkspacePage() {
     }
 
     return {
-      diameter, diameterSource, dselTech, dselStale,
+      diameter, diameterSource, dselTech, dselStale, dselTechMismatch,
       dselDiameter_mm, // exposed for the stale warning message
       totalLph, totalM3h: totalLph !== null ? totalLph / 1000 : null,
       // Fall back to EPD library values (same source the Stage 5 field displays) when
@@ -4323,16 +4331,20 @@ export default function DesignSoftwareWorkspacePage() {
       : "Carry-Over from Common Hydraulic Design (Stage 5)";
     return (
       <SectionCard title={cardTitle}>
-        {/* Stale DS-SEL warning — DS-SEL diameter is below the current sweep minimum */}
+        {/* Stale DS-SEL warning — tech mismatch or diameter below current sweep minimum */}
         {co.dselStale && (
           <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-300 rounded-lg mb-3 -mt-1">
             <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
             <p className="text-[11px] text-amber-900 leading-snug">
               <span className="font-semibold">DS-SEL record is stale.</span>{" "}
-              The DS-SEL effective diameter ({co.dselDiameter_mm} mm) is below the current hydraulic sweep minimum feasible diameter.
-              This means the DS-SEL was generated from an earlier run with different inputs.
-              Re-run the ECP/ECR calculation — DS-SEL will auto-regenerate with the correct autonomous diameter.
-              Stage 5 diameter is used below until the record is refreshed.
+              {co.dselTechMismatch
+                ? <>Technology selection was changed to <strong>{techSelection.toUpperCase()}</strong> on Stage 6, but this DS-SEL record was generated for <strong>{(co.dselTech ?? "").toUpperCase()}</strong>. It does not reflect the current design intent.</>
+                : <>The recorded effective diameter ({co.dselDiameter_mm} mm) is below the current hydraulic sweep minimum feasible diameter — generated from an earlier run with different inputs.</>
+              }
+              <span className="block mt-1 font-medium">
+                Run the {techSelection === "both" ? "ECP/ECR" : techSelection.toUpperCase()} calculation in Stage 7 — DS-SEL regenerates automatically and this record will be replaced.
+              </span>
+              Stage 5 hydraulic diameter is used below until the record is refreshed.
             </p>
           </div>
         )}
@@ -4404,12 +4416,18 @@ export default function DesignSoftwareWorkspacePage() {
     );
     // Stale-record check: DS-SEL effective diameter vs. current hydraulic sweep minimum.
     // If effective < sweep minimum the record was generated from an older run.
-    const hydResData = (resultsQ.data ?? []).find((r: any) => r.section === "hydraulics_common")?.data;
-    const hydNormal = hydResData?.normalCase ?? hydResData?.cases?.normal;
-    const minFeasibleD_m = numOrNull(String(hydNormal?.summary?.minimumFeasibleDiameter_m ?? ""));
+    const hydResData2 = (resultsQ.data ?? []).find((r: any) => r.section === "hydraulics_common")?.data;
+    const hydNormal2 = hydResData2?.normalCase ?? hydResData2?.cases?.normal;
+    const minFeasibleD_m = numOrNull(String(hydNormal2?.summary?.minimumFeasibleDiameter_m ?? ""));
     const dselEffective_mm = rec?.effectiveDiameter_mm ?? rec?.selectedDiameter_mm ?? null;
-    const dselStaleRecord = dselEffective_mm !== null && minFeasibleD_m !== null &&
+    const dselRecTech = rec?.selectedTechnology ?? null;
+    // Stale if: diameter below current sweep minimum, OR tech changed on Stage 6 since record was generated
+    const dselDiameterStale = dselEffective_mm !== null && minFeasibleD_m !== null &&
       (dselEffective_mm / 1000) < minFeasibleD_m - 0.001;
+    const dselTechStale = dselRecTech !== null &&
+      techSelection !== "both" &&
+      dselRecTech.toLowerCase() !== techSelection.toLowerCase();
+    const dselStaleRecord = dselDiameterStale || dselTechStale;
 
     const submitDecision = () => {
       if (!row) return;
