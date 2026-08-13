@@ -4237,7 +4237,11 @@ export default function DesignSoftwareWorkspacePage() {
   }
 
   function equipmentCarryOver() {
-    // Stage 5 / Stage 3 / Stage 4 carry-over — bindings only, no calculations
+    // Stage 5 / Stage 3 / Stage 4 / DS-SEL carry-over — bindings only, no calculations.
+    // Diameter priority (per DS-SEL-006 governance):
+    //   1. DS-SEL effective diameter (autonomous ?? user-selected) — authoritative design basis
+    //   2. hydraulic_design.column_diameter — engineer-entered trial in Stage 5
+    //   3. hydraulics_common sweep minimum feasible diameter
     const hd = d("hydraulic_design");
     const fp = d("fluid_properties");
     const dbx = d("design_basis");
@@ -4249,12 +4253,33 @@ export default function DesignSoftwareWorkspacePage() {
     const hydResData = (resultsQ.data ?? []).find((r: any) => r.section === "hydraulics_common")?.data;
     const hydNormal = hydResData?.normalCase ?? hydResData?.cases?.normal;
     const minFeasibleD = numOrNull(String(hydNormal?.summary?.minimumFeasibleDiameter_m ?? ""));
-    const diameter = (hd.column_diameter ?? "").trim() !== "" ? numOrNull(hd.column_diameter) : minFeasibleD;
-    const diameterSource = (hd.column_diameter ?? "").trim() !== ""
-      ? "Stage 5 — engineer-selected trial diameter"
-      : minFeasibleD !== null ? "Stage 5 — Common Hydraulic sizing sweep (minimum feasible diameter)" : "Stage 5 — pending Common Hydraulic run";
+
+    // DS-SEL effective diameter (mm → m)
+    const dselRec = designSelectionQ.data?.record ?? null;
+    const dselDiameter_mm = typeof dselRec?.effectiveDiameter_mm === "number" && isFinite(dselRec.effectiveDiameter_mm)
+      ? dselRec.effectiveDiameter_mm : null;
+    const dselDiameter_m = dselDiameter_mm !== null ? Math.round(dselDiameter_mm) / 1000 : null;
+    const dselTech = dselRec?.selectedTechnology ?? null;
+    const dselMode = dselRec?.selectionMode ?? null;
+
+    let diameter: number | null;
+    let diameterSource: string;
+    if (dselDiameter_m !== null) {
+      diameter = dselDiameter_m;
+      const modeLabel = dselMode === "user_selected" ? "user-selected" : "autonomous";
+      diameterSource = `Stage 7 — DS-SEL effective design diameter (${modeLabel}, ${dselDiameter_mm} mm)`;
+    } else if ((hd.column_diameter ?? "").trim() !== "") {
+      diameter = numOrNull(hd.column_diameter);
+      diameterSource = "Stage 5 — engineer-selected trial diameter";
+    } else {
+      diameter = minFeasibleD;
+      diameterSource = minFeasibleD !== null
+        ? "Stage 5 — Common Hydraulic sizing sweep (minimum feasible diameter)"
+        : "Stage 5 — pending Common Hydraulic run";
+    }
+
     return {
-      diameter, diameterSource,
+      diameter, diameterSource, dselTech,
       totalLph, totalM3h: totalLph !== null ? totalLph / 1000 : null,
       // Fall back to EPD library values (same source the Stage 5 field displays) when
       // the engineer has not manually stored a value in the hydraulic_design section.
