@@ -49,7 +49,6 @@ import {
   TimerIcon
 } from 'lucide-react';
 import { format, parseISO, addDays, subDays, isAfter, isBefore, startOfDay, isEqual } from 'date-fns';
-import { fmtDate } from '@/lib/date-utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import AIMeetingNotes from '@/components/ai-meeting-notes';
 import EnhancedAIMeetingAssistant from '@/components/enhanced-ai-meeting-assistant';
