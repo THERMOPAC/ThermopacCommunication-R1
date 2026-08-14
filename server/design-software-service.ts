@@ -643,6 +643,38 @@ export async function runCalculation(
   for (const row of inputRows.rows) {
     Object.assign(inputs, row.data);
   }
+  // Diameter resolution for ECP/ECR engine runs — DS-SEL governance.
+  // Resolves the effective column diameter before the mapper runs, using the
+  // same priority chain the Stage 7 carry-over card applies on the client:
+  //   1. DS-SEL effective diameter (from active, non-superseded record)
+  //      — valid only when ≥ current hydraulic sweep minimum feasible (1 mm tol)
+  //   2. Current hydraulic sweep minimum feasible diameter
+  //   3. Stage 5 engineer-entered trial (inputs.column_diameter — existing fallback)
+  // Injected into inputs.column_diameter so the mapper picks it up as the
+  // selectedTrialDiameter for the engine run.
+  if (rev.module_type === 'llx' && ['ecp', 'ecr'].includes(calculationType)) {
+    const [dselD, hydResRow] = await Promise.all([
+      getEffectiveDesignDiameterM(revisionId),
+      pool.query(
+        `SELECT data->'normalCase'->'summary'->>'minimumFeasibleDiameter_m' AS d
+           FROM design_software_results
+          WHERE revision_id = $1 AND section = 'hydraulics_common'`,
+        [revisionId],
+      ),
+    ]);
+    const minFeasibleD = Number(hydResRow.rows[0]?.d);
+    const minFeasible = Number.isFinite(minFeasibleD) && minFeasibleD > 0 ? minFeasibleD : null;
+    let resolvedD: number | null = null;
+    if (dselD !== undefined && (minFeasible === null || dselD >= minFeasible - 0.001)) {
+      resolvedD = dselD;           // DS-SEL governs — consistent with current sweep
+    } else if (minFeasible !== null) {
+      resolvedD = minFeasible;     // DS-SEL stale or absent — use current sweep minimum
+    }
+    if (resolvedD !== null) {
+      inputs.column_diameter = resolvedD;  // mapper reads this as selectedTrialDiameter
+    }
+  }
+
   // Workspace → engine input adapter (structure + unit conversion only; the
   // C2 engine and its equations are untouched).
   if (rev.module_type === 'llx' && ['process_design', 'hydraulics_common', 'ecp', 'ecr'].includes(calculationType)) {
