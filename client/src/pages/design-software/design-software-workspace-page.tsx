@@ -4532,13 +4532,23 @@ export default function DesignSoftwareWorkspacePage() {
             )}
             {/* ── DS-SEL-006 — Governing Diameter Selection ─────────────────── */}
             {!isFrozen && rec.selectedDiameter_mm != null && (
-              <div className="mt-3 p-3 border rounded-lg bg-slate-50 space-y-2">
+              <div className={`mt-3 p-3 border rounded-lg space-y-2 ${dselStaleRecord ? "bg-amber-50 border-amber-200 opacity-75" : "bg-slate-50"}`}>
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-medium text-gray-700">Governing Diameter Selection (DS-SEL-006)</p>
-                  {!udOpen && <Button size="sm" variant="outline" onClick={() => { setUdOpen(true); setUdDia(String(rec.effectiveDiameter_mm ?? rec.selectedDiameter_mm)); }}>Select governing diameter…</Button>}
+                  <p className="text-xs font-medium text-gray-700">
+                    Governing Diameter Selection (DS-SEL-006)
+                    {dselStaleRecord && <span className="ml-2 text-[10px] font-normal text-amber-700 italic">— record stale, re-run to update</span>}
+                  </p>
+                  {!udOpen && !dselStaleRecord && (
+                    <Button size="sm" variant="outline" onClick={() => { setUdOpen(true); setUdDia(String(rec.effectiveDiameter_mm ?? rec.selectedDiameter_mm)); }}>Select governing diameter…</Button>
+                  )}
                 </div>
                 <p className="text-[11px] text-gray-500">
-                  Minimum permitted: <strong>{rec.autonomousDiameter_mm ?? rec.selectedDiameter_mm} mm</strong> (autonomous calculated minimum — DS-SEL-003). A smaller diameter would exceed the allowable utilization limit against the declared capacity basis and is blocked server-side. Only the governed 50 mm increment series is allowed. This is a governed selection of a larger, more conservative diameter — not an Engineer Override of an unsafe design.
+                  Minimum permitted:{" "}
+                  <strong className={dselStaleRecord ? "text-amber-700" : ""}>{rec.autonomousDiameter_mm ?? rec.selectedDiameter_mm} mm</strong>
+                  {dselStaleRecord
+                    ? <span className="text-amber-700 ml-1">(from previous run — parameters have changed; re-run {techSelection === "both" ? "ECP/ECR" : techSelection.toUpperCase()} to recalculate)</span>
+                    : <span> (autonomous calculated minimum — DS-SEL-003). A smaller diameter would exceed the allowable utilization limit against the declared capacity basis and is blocked server-side. Only the governed 50 mm increment series is allowed. This is a governed selection of a larger, more conservative diameter — not an Engineer Override of an unsafe design.</span>
+                  }
                 </p>
                 {udOpen && (
                   <div className="space-y-2">
