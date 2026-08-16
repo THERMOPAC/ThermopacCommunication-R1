@@ -4464,6 +4464,10 @@ export default function DesignSoftwareWorkspacePage() {
           <p className="text-xs text-gray-500">
             No selection record yet — the software generates the Engineering Decision Record automatically after each accepted ECR calculation run (deterministic rules DS-SEL-001…005; no value is invented).
           </p>
+        ) : dselStaleRecord ? (
+          <p className="text-xs text-amber-700 italic mt-1">
+            Record data hidden — this DS-SEL record was generated from a previous run and no longer reflects the current design. Re-run the ECR calculation (Stage 7) to regenerate it.
+          </p>
         ) : (
           <>
             <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -4537,7 +4541,7 @@ export default function DesignSoftwareWorkspacePage() {
                     <Input placeholder="Engineer name (mandatory)" value={udEngineer} onChange={e => setUdEngineer(e.target.value)} className="h-8 text-xs" />
                     <Textarea placeholder="Reason for selecting a larger diameter (mandatory)" value={udReason} onChange={e => setUdReason(e.target.value)} className="text-xs" rows={2} />
                     <p className="text-[10px] text-gray-400">
-                      On confirmation the software automatically re-runs Common Hydraulics, ECP, ECR (where applicable) and the mechanical calculation with the effective diameter, supersedes this record (decision resets to Pending — the new effective design must be reviewed again) and reconciles all affected reports. Draft reports regenerate; For Review / Released reports are marked stale and regenerated as new records; approval is blocked while any report remains stale.
+                      On confirmation the software automatically re-runs Common Hydraulics and ECR and the mechanical calculation with the effective diameter, supersedes this record (decision resets to Pending — the new effective design must be reviewed again) and reconciles all affected reports. Draft reports regenerate; For Review / Released reports are marked stale and regenerated as new records; approval is blocked while any report remains stale.
                     </p>
                     <div className="flex gap-2">
                       <Button size="sm" disabled={userDiameterMutation.isPending} onClick={() => userDiameterMutation.mutate({ diameterMm: Number(udDia), engineer: udEngineer, reason: udReason })}>
@@ -4570,8 +4574,7 @@ export default function DesignSoftwareWorkspacePage() {
                   <div className="flex gap-2">
                     <select value={dselOverrideTech} onChange={e => setDselOverrideTech(e.target.value)} className="h-8 text-xs border rounded px-2">
                       <option value="">Keep technology</option>
-                      <option value="ecp">ECP</option>
-                      <option value="ecr">ECR</option>
+                      <option value="ecr">ECR — Kühni Agitated Column</option>
                     </select>
                     <Input placeholder="Override diameter (mm)" value={dselOverrideDia} onChange={e => setDselOverrideDia(e.target.value)} className="h-8 text-xs w-44" />
                   </div>
