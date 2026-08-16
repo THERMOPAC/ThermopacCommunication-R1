@@ -315,6 +315,28 @@ export class LLXECREngine implements IDesignEngine {
       const rhoC = rrboContinuous ? rhoRRBO.value : rhoNMP.value;
       const rhoCSource = rrboContinuous ? rhoRRBO.source : rhoNMP.source;
 
+      // ── Density-difference screening (ECR-006 applicability) ─────────────────
+      // Δρ = |ρ_NMP − ρ_RRBO| at operating temperature.
+      // 50 kg/m³ is a published standard-ECR applicability screening threshold only —
+      // values below do NOT block the run; they require vendor/pilot validation.
+      const ECR_DELTARHO_THRESHOLD_KG_M3 = 50;
+      const deltarho_kg_m3 = Math.abs(rhoNMP.value - rhoRRBO.value);
+      const deltarhoStatus: Classification = propertyAssumed ? 'Pending Validation' : 'Calculated Screening Result';
+      const deltarhoScreeningResult = deltarho_kg_m3 >= ECR_DELTARHO_THRESHOLD_KG_M3
+        ? 'Within Published Standard ECR Screening Envelope'
+        : 'Vendor/Pilot Validation Required';
+      const densityDifferenceScreening = {
+        deltarho: item('ECR-006', deltarho_kg_m3, 'kg/m³',
+          `|ρ_NMP(${rhoNMP.value.toFixed(1)} kg/m³ [${rhoNMP.source}]) − ρ_RRBO(${rhoRRBO.value.toFixed(1)} kg/m³ [${rhoRRBO.source}])| at ${T} °C`,
+          deltarhoStatus, 'Density difference — ECR applicability screening only; not a design limit'),
+        screeningThreshold_kg_m3: ECR_DELTARHO_THRESHOLD_KG_M3,
+        screeningResult: deltarhoScreeningResult,
+        screeningNote: 'Single-point density-difference screening only; loaded-NMP composition and Δρ(z) along the column are not yet calculated.',
+        interpretation: deltarho_kg_m3 >= ECR_DELTARHO_THRESHOLD_KG_M3
+          ? `Δρ ${deltarho_kg_m3.toFixed(1)} kg/m³ ≥ ${ECR_DELTARHO_THRESHOLD_KG_M3} kg/m³ published threshold — within standard ECR screening envelope.`
+          : `Δρ ${deltarho_kg_m3.toFixed(1)} kg/m³ < ${ECR_DELTARHO_THRESHOLD_KG_M3} kg/m³ published threshold — run is NOT rejected; vendor/pilot validation is required before proceeding.`,
+      };
+
       // Continuous-phase viscosity: entered override, or RRBO entered viscosity
       // when RRBO is continuous. Never silently taken for NMP (gated above).
       const muCTagged = parseTagged(inputs.continuousPhaseViscosity, 'continuousPhaseViscosity', errs, { min: 1e-5, max: 10, unit: 'Pa.s' });
@@ -420,11 +442,28 @@ export class LLXECREngine implements IDesignEngine {
       const ttLabels = ['Top Disengagement', 'Top Distributor', 'Active Agitated Section', 'Bottom Distributor', 'Bottom Disengagement'];
       const totalTT = hLines.filter((l) => ttLabels.includes(l.label)).reduce((s, l) => s + (l.item.result as number), 0);
       const overallVessel = totalTT + allowances.topHeadHeight.value + allowances.bottomHeadHeight.value + allowances.driveSealBearingAllowance.value;
+      // ── ECR-008 effective-performance reporting outputs ───────────────────────
+      // S_effective and HETS_effective are governance/reporting outputs only —
+      // they do NOT create a second height calculation path. The compartment
+      // calculation (ECR-007/ECR-008) remains the single source of truth.
+      const sEffective = activeHeight > 0 && stages > 0 ? stages / activeHeight : null;
+      const hetsEffective = stages > 0 && activeHeight > 0 ? activeHeight / stages : null;
+      const effPerfStatus: Classification = heightStatus === 'Pending Validation' || compClassification === 'Pending Validation' ? 'Pending Validation' : 'Calculated Screening Result';
       const heightBreakdown = {
         activeAgitatedHeight: item('ECR-008', activeHeight, 'm', `${nCompartments} compartments × compartment height`, heightStatus, heightStatus === 'Pending Validation' ? 'Contains Assumed data' : 'Source-tagged'),
         lines: hLines.map((l) => ({ label: l.label, ...l.item })),
         totalTangentToTangent: item('ECR-008', totalTT, 'm', 'Sum of tangent-to-tangent items (heads and drive/seal excluded)', heightStatus, heightStatus === 'Pending Validation' ? 'Contains Assumed data' : 'Source-tagged'),
         overallVesselHeight: item('ECR-008', overallVessel, 'm', 'Total T/T + top head + bottom head + drive/seal/bearing allowance', heightStatus, heightStatus === 'Pending Validation' ? 'Contains Assumed data' : 'Source-tagged'),
+        effectivePerformance: {
+          stagesPerMetre: item('ECR-008', sEffective, 'stages/m',
+            `S_effective = N_T ${stages} / H_active ${activeHeight.toFixed(4)} m (ECR-007/ECR-008 basis: E_M ${compartmentEfficiency.value} / h_comp ${compartmentHeight.value} m = ${(compartmentEfficiency.value / compartmentHeight.value).toFixed(2)} stages/m)`,
+            effPerfStatus, 'Governance reporting output only — not a separate height calculation path'),
+          hetsEffective: item('ECR-008', hetsEffective, 'm/stage',
+            `HETS_effective = H_active ${activeHeight.toFixed(4)} m / N_T ${stages}`,
+            effPerfStatus, 'Governance reporting output only — not a separate height calculation path'),
+          screeningBasis: `Thermopac Preliminary ECR Screening Basis: E_M/h_comp = ${compartmentEfficiency.value}/${compartmentHeight.value} = ${(compartmentEfficiency.value / compartmentHeight.value).toFixed(2)} theoretical stages/m — Pending Vendor/Pilot Validation`,
+          note: 'Single-point screening only. Loaded-NMP composition and column-axial property profiles are not yet calculated (ECR-2 rate-based model).',
+        },
       };
 
       // ── Vendor capacity & derating — ECR-002 ────────────────────────────────
@@ -643,7 +682,7 @@ export class LLXECREngine implements IDesignEngine {
                 densityBasis: { selected: densityBasis, valueUsed_kg_m3: rhoMix, source: rhoMixSource, reservedBases: ['holdup_corrected (future — requires a validated holdup model)'] },
                 perRotor: item('ECR-006', P1, 'W', `P₁ = N_P ${powerNumber.value} [${sourceOf(powerNumber)}] · ρ_m ${rhoMix.toFixed(1)} kg/m³ [basis '${densityBasis}'] · N³ · D_R⁵`, powerStatus, 'Agitation power per rotor'),
                 totalShaft: item('ECR-006', PShaft, 'W', `P₁ [ρ_m ${rhoMix.toFixed(1)} kg/m³, basis '${densityBasis}'] × ${nRotors} rotors (${nCompartments} compartments × ${nRotorsPerComp} rotor(s)/compartment)`, powerStatus, 'Total shaft power'),
-                motorDesign: item('ECR-006', PMotor, 'W', `P_shaft [ρ_m ${rhoMix.toFixed(1)} kg/m³, basis '${densityBasis}'] / η_shaft ${shaftEfficiency.value} [${sourceOf(shaftEfficiency)}] × margin ${designMargin.value} [${sourceOf(designMargin)}]`, powerStatus, 'Motor design power — screening only, not a motor selection'),
+                motorDesign: item('ECR-006', PMotor, 'W', `P_shaft [ρ_m ${rhoMix.toFixed(1)} kg/m³, basis '${densityBasis}'] / η_shaft ${shaftEfficiency.value} [${sourceOf(shaftEfficiency)}] × margin ${designMargin.value} [${sourceOf(designMargin)}]`, powerStatus, 'Preliminary Agitator Power Screening — not vendor motor sizing'),
               },
               mechanicalScreening: {
                 formulaReference: 'ECR-009',
@@ -731,6 +770,7 @@ export class LLXECREngine implements IDesignEngine {
         },
         compartments: compartmentsItem,
         heightBreakdown,
+        densityDifferenceScreening,
         normalCase, maximumCase,
         rateBasedPlaceholders: {
           note: 'Reserved architecture for a future rate-based path. NOT calculated in Stage C5.',

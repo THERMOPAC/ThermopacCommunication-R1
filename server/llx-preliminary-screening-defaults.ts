@@ -24,6 +24,8 @@ import { registerPacking, type PackingRecord, type PackingValidationIssue } from
 
 export const PRELIM_DEFAULT_REF = 'Thermopac Preliminary Equipment Screening Default v1.0';
 export const PRELIM_HETS_REF = 'Thermopac Preliminary ECP Screening Default v1.0';
+// ECR-specific screening basis ref — not attributed individually to any vendor
+export const PRELIM_ECR_SCREENING_REF = 'Thermopac Preliminary ECR Screening Basis — Pending Vendor/Pilot Validation';
 
 export const SMV_PRELIM_ID = 'sulzer-smv-preliminary-screening';
 export const SMVP_PRELIM_ID = 'sulzer-smvp-preliminary-screening';
@@ -114,13 +116,22 @@ export function ecpDefaultFields(): DefaultField[] {
 
 export function ecrDefaultFields(stage5ColumnDiameter_m: number | null): DefaultField[] {
   const R = PRELIM_DEFAULT_REF;
+  const ECR = PRELIM_ECR_SCREENING_REF;
   const fields: DefaultField[] = [
     { key: 'rotor_ratio', value: '0.50', label: 'Rotor / Column Diameter Ratio', unit: '-', ref: R },
     { key: 'rotor_speed', value: '60', label: 'Rotor Speed', unit: 'rpm', ref: R },
-    { key: 'power_number', value: '1.0', label: 'Power Number', unit: '-', ref: R },
-    // Workspace fields display %, the input mapper converts to fraction (0.40 / 0.90)
-    { key: 'compartment_efficiency', value: '40', label: 'Compartment Efficiency', unit: '% (0.40 fraction)', ref: R },
-    { key: 'compartment_height', value: '0.25', label: 'Compartment Height', unit: 'm', ref: R },
+    { key: 'power_number', value: '1.0', label: 'Power Number (N_P)', unit: '-', ref: R },
+    // Agitator Power Density Basis: visible, editable, no hidden fallback.
+    // 'continuous_phase' is the preliminary default — engineer may change to 'volume_averaged'.
+    { key: 'power_density_basis', value: 'continuous_phase', label: 'Agitator Power Density Basis', unit: '-', ref: R },
+    // Stator open-area fraction: now a visible default (was absent and Not Calculable)
+    { key: 'stator_open_area_fraction', value: '0.30', label: 'Stator Open Area Fraction', unit: '-', ref: R },
+    // Compartment efficiency and height: paired ECR preliminary screening basis.
+    // E_M / h_comp = 0.50 / 0.25 = 2.0 theoretical stages/m.
+    // Not attributed individually to Sulzer — this is a Thermopac preliminary screening target.
+    // Workspace fields display %, the input mapper converts to fraction (0.50 / 0.90)
+    { key: 'compartment_efficiency', value: '50', label: 'Compartment Efficiency', unit: '% (0.50 fraction)', ref: ECR },
+    { key: 'compartment_height', value: '0.25', label: 'Compartment Height', unit: 'm', ref: ECR },
     { key: 'rotors_per_compartment', value: '1', label: 'Rotors per Compartment', unit: '-', ref: R },
     { key: 'shaft_efficiency', value: '90', label: 'Shaft Efficiency', unit: '% (0.90 fraction)', ref: R },
     { key: 'mechanical_design_margin', value: '1.25', label: 'Mechanical Design Margin', unit: '-', ref: R },

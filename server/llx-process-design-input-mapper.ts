@@ -509,7 +509,18 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     // the workspace default label is applied when the engineer leaves it as-is.
     out.rotorType = rt !== '' ? rt : 'Kühni turbine (default label)';
   }
-  if (out.powerDensityBasis === undefined) out.powerDensityBasis = 'continuous_phase';
+  // Agitator Power Density Basis — no hidden fallback (governance §5).
+  // The default 'continuous_phase' is seeded by ecrDefaultFields() and stored
+  // explicitly in the workspace as power_density_basis. If absent the engine
+  // validator blocks with a clear error — no silent injection.
+  if (out.powerDensityBasis === undefined) {
+    const pdb = String(inputs.power_density_basis ?? '').trim();
+    if (pdb === 'continuous_phase' || pdb === 'volume_averaged') out.powerDensityBasis = pdb;
+    // Absent or invalid → leave undefined; engine validator blocks with diagnostic.
+  }
+  // Stator open-area fraction — now a visible default (0.30, Assumed); mapper
+  // converts the workspace string to a source-tagged engine input.
+  taggedFrom('stator_open_area_fraction', 'statorOpenAreaFraction');
   // Continuous-phase viscosity (required by ECR when NMP is continuous):
   // NMP dynamic viscosity, workspace mPa·s → Pa·s.
   // continuousPhaseViscosity — value and reference temperature must travel together (A-11).

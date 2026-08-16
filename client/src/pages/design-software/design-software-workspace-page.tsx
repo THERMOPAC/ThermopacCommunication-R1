@@ -4875,14 +4875,16 @@ export default function DesignSoftwareWorkspacePage() {
           <FieldRow label="Rotor Diameter" value={er.rotor_diameter ?? ""} onChange={v => f("rotor_diameter", v)} onBlur={s} unit="m" placeholder="Or enter rotor/column ratio below" />
           <FieldRow label="Rotor / Column Diameter Ratio" value={er.rotor_ratio ?? ""} onChange={v => f("rotor_ratio", v)} onBlur={s} unit="—" placeholder="e.g. 0.5" />
           <FieldRow label="Rotor Speed" value={er.rotor_speed ?? ""} onChange={v => f("rotor_speed", v)} onBlur={s} unit="rpm" />
-          <FieldRow label="Power Number" value={er.power_number ?? ""} onChange={v => f("power_number", v)} onBlur={s} unit="—" />
+          <FieldRow label="Power Number (N_P)" value={er.power_number ?? ""} onChange={v => f("power_number", v)} onBlur={s} unit="—" note="Thermopac Preliminary Screening Assumption — Pending Validation. Replace with vendor/literature datum when available." />
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-2">
-            <p className="text-sm font-semibold text-amber-900 mb-1">ECR Compartment Height — Governing Vendor / Pilot Data Required</p>
+            <p className="text-sm font-semibold text-amber-900 mb-1">ECR Compartment Height &amp; Efficiency — Governing Vendor / Pilot Data Required</p>
             <p className="text-[11px] text-amber-800 leading-relaxed">
-              Compartment height h<sub>compartment</sub> is a vendor / pilot / literature input. No application-specific correlation exists for Kühni/Sulzer-type columns on the NMP–RRBO system.
+              Compartment height h<sub>comp</sub> and efficiency E<sub>M</sub> are vendor / pilot / literature inputs. No application-specific correlation exists for Kühni/Sulzer-type columns on the NMP–RRBO system.
             </p>
             <p className="text-[11px] text-amber-700 mt-1 font-medium">
-              The preliminary default (0.25 m, Assumed) is a Thermopac screening placeholder — Pending Vendor/Pilot Validation. Replace with a vendor datasheet, pilot campaign, or literature datum before any design decision.
+              Preliminary screening basis: E<sub>M</sub> / h<sub>comp</sub> = 0.50 / 0.25 = <strong>2.0 theoretical stages/m</strong>.
+              This is a Thermopac Preliminary ECR Screening Basis — Pending Vendor/Pilot Validation. It is not attributed individually to Sulzer.
+              Replace with a vendor datasheet, pilot campaign, or literature datum before any design decision.
               Value, source type, and source reference are all mandatory.
             </p>
           </div>
@@ -4909,10 +4911,10 @@ export default function DesignSoftwareWorkspacePage() {
             : "No value — ECR height not calculable"
           }`)}
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-2">
-            <p className="text-sm font-semibold text-amber-900 mb-1">Compartment Efficiency — Not Calculable: Governing Efficiency Model Required</p>
+            <p className="text-sm font-semibold text-amber-900 mb-1">Compartment Efficiency — Governing Efficiency Model Required</p>
             <p className="text-[11px] text-amber-800 leading-relaxed">
               No application-level compartment mass-transfer efficiency model is currently implemented for the NMP–RRBO system.
-              E cannot be predicted by the engine — a governed efficiency model (e.g. Murphree or axial-dispersion-corrected) is required.
+              E<sub>M</sub> cannot be predicted by the engine. The preliminary default of <strong>50 % (0.50)</strong> targets 2.0 theoretical stages/m with h<sub>comp</sub> = 0.25 m — this is a Thermopac screening placeholder only, not a Sulzer published value.
             </p>
             <p className="text-[11px] text-amber-700 mt-1 font-medium">
               Vendor / pilot / literature efficiency accepted as a governed override only — value, source type, and audit reference are all mandatory.
@@ -4943,6 +4945,21 @@ export default function DesignSoftwareWorkspacePage() {
           <FieldRow label="Shaft Efficiency" value={er.shaft_efficiency ?? ""} onChange={v => f("shaft_efficiency", v)} onBlur={s} unit="%" />
           <FieldRow label="Mechanical Design Margin" value={er.mechanical_design_margin ?? ""} onChange={v => f("mechanical_design_margin", v)} onBlur={s} unit="—" placeholder="e.g. 1.2" />
           <FieldRow label="Rotors per Compartment" value={er.rotors_per_compartment ?? ""} onChange={v => f("rotors_per_compartment", v)} onBlur={s} unit="—" placeholder="1" />
+          <FieldRow label="Stator Open Area Fraction" value={er.stator_open_area_fraction ?? ""} onChange={v => f("stator_open_area_fraction", v)} onBlur={s} unit="—" note="Fraction of column cross-section open through stator rings. Assumed / Pending Vendor Validation." />
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5 mt-1">
+            <label className="text-sm text-gray-700 font-medium pt-1.5">Agitator Power Density Basis</label>
+            <select
+              value={er.power_density_basis ?? "continuous_phase"}
+              onChange={e => commitSection("ecr_design", { power_density_basis: e.target.value })}
+              disabled={isFrozen}
+              className="h-8 text-sm border rounded-md px-2 bg-white"
+            >
+              <option value="continuous_phase">Continuous Phase Density — preliminary default</option>
+              <option value="volume_averaged">Volume-Averaged Mixture Density</option>
+            </select>
+            <span />
+          </div>
+          {statusLine("Power density basis for P₁ = N_P·ρ_m·N³·D_R⁵. 'Continuous phase' is the Thermopac preliminary default — recorded explicitly with every calculation.")}
           <FieldRow label="Max Allowable Tip Speed (vendor)" value={er.max_tip_speed ?? ""} onChange={v => f("max_tip_speed", v)} onBlur={s} unit="m/s" />
           <FieldRow label="Max Allowable Shaft Power (vendor)" value={er.max_shaft_power ?? ""} onChange={v => f("max_shaft_power", v)} onBlur={s} unit="kW" />
           <FieldRow label="Max Unsupported Shaft Length (vendor)" value={er.max_unsupported_shaft_length ?? ""} onChange={v => f("max_unsupported_shaft_length", v)} onBlur={s} unit="m" />
@@ -4979,11 +4996,45 @@ export default function DesignSoftwareWorkspacePage() {
               {resultRow("Rotor Froude Number", sp0?.froude, "", 4)}
               {resultRow("Power Per Rotor", sp0?.power?.perRotor, "W", 1)}
               {resultRow("Number of Compartments", ecrData?.compartments, "", 0)}
-              {resultRow("Active Height", ecrData?.heightBreakdown?.activeAgitatedHeight, "m", 2)}
+              {resultRow("Active Agitated Height", ecrData?.heightBreakdown?.activeAgitatedHeight, "m", 2)}
+              {/* Effective performance — governance reporting outputs, not a second height calculation */}
+              {resultRow("Effective Stages / m (S_eff = N_T / H_active)", ecrData?.heightBreakdown?.effectivePerformance?.stagesPerMetre, "stages/m", 2)}
+              {resultRow("Effective HETS (H_active / N_T)", ecrData?.heightBreakdown?.effectivePerformance?.hetsEffective, "m/stage", 3)}
               {resultRow("Shaft Power", sp0?.power?.totalShaft, "kW", 2, 0.001)}
-              {resultRow("Motor Design Power", sp0?.power?.motorDesign, "kW", 2, 0.001)}
+              <div key="motor-power" className="grid grid-cols-[200px_1fr] gap-2 py-1 border-b border-gray-50 last:border-0">
+                <span className="text-xs text-gray-500">Motor Design Power</span>
+                <span className="text-xs font-medium text-gray-800">
+                  {sp0?.power?.motorDesign?.result != null ? ((sp0.power.motorDesign.result as number) * 0.001).toLocaleString("en-IN", { maximumFractionDigits: 2 }) : "—"} kW
+                  <span className="text-[10px] text-amber-600 font-normal ml-1">Preliminary Agitator Power Screening — not vendor motor sizing</span>
+                </span>
+              </div>
               {resultRow("Total Column Height (overall vessel)", ecrData?.heightBreakdown?.overallVesselHeight, "m", 2)}
               {resultRow("Hydraulic Utilization", selRow?.ecrHydraulicUtilization, "%", 1)}
+              {/* Density-difference screening */}
+              {(() => {
+                const dds = ecrData?.densityDifferenceScreening;
+                if (!dds) return null;
+                const deltarhoVal = dds?.deltarho?.result;
+                const screeningResult: string = dds?.screeningResult ?? "";
+                const isWithin = screeningResult.includes("Within");
+                return (
+                  <div className="mt-2 p-2.5 rounded-lg border border-gray-200 bg-gray-50">
+                    <p className="text-[11px] font-semibold text-gray-700 mb-1">Density-Difference Screening (Δρ)</p>
+                    <div className="grid grid-cols-[200px_1fr] gap-2 py-0.5">
+                      <span className="text-xs text-gray-500">|ρ_NMP − ρ_RRBO|</span>
+                      <span className="text-xs font-medium text-gray-800">{deltarhoVal != null ? (deltarhoVal as number).toFixed(1) : "—"} kg/m³ · {dds?.deltarho?.status ?? ""}</span>
+                    </div>
+                    <div className="grid grid-cols-[200px_1fr] gap-2 py-0.5">
+                      <span className="text-xs text-gray-500">Screening threshold</span>
+                      <span className="text-xs font-medium text-gray-800">50 kg/m³ (published standard ECR applicability)</span>
+                    </div>
+                    <div className={`mt-1 text-[11px] font-medium ${isWithin ? "text-green-700" : "text-amber-700"}`}>
+                      {screeningResult || "—"}
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1">{dds?.screeningNote}</p>
+                  </div>
+                );
+              })()}
               {resultRow("Validation Status", selRow?.feasibility)}
             </>
           )}
