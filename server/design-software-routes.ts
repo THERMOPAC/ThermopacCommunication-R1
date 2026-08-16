@@ -466,8 +466,13 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
       const userId = (req.user as any).id;
       const scope = String(req.body.scope ?? '');
       const action = String(req.body.action ?? '');
+      // mode: 'reset' (default) — overwrite all fields; 'backfill' — only write fields that are currently absent/null/empty.
+      // 'backfill' is used by the auto-seed effect to fill newly added required fields without
+      // overwriting any engineer-modified values in an existing workspace.
+      const mode = String(req.body.mode ?? 'reset');
       if (!['ecp', 'ecr'].includes(scope)) return res.status(400).json({ error: "scope must be 'ecp' or 'ecr'" });
       if (!['apply', 'clear'].includes(action)) return res.status(400).json({ error: "action must be 'apply' or 'clear'" });
+      if (!['reset', 'backfill'].includes(mode)) return res.status(400).json({ error: "mode must be 'reset' or 'backfill'" });
       const section = scope === 'ecp' ? 'ecp_design' : 'ecr_design';
 
       const [inputRows, resultRows] = await Promise.all([svc.listInputs(revisionId), svc.listResults(revisionId)]);
@@ -506,6 +511,10 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
 
       if (action === 'apply') {
         for (const f of fields) {
+          // In backfill mode, skip any field that already has a non-null, non-empty value —
+          // this preserves engineer-modified values while filling newly added required fields.
+          const existingVal = sectionData[f.key];
+          if (mode === 'backfill' && existingVal !== null && existingVal !== undefined && String(existingVal).trim() !== '') continue;
           sectionData[f.key] = f.value;
           if (f.key !== 'packing_id') sectionData[`${f.key}_source_reference`] = f.ref;
         }

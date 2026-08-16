@@ -1133,7 +1133,7 @@ export default function DesignSoftwareWorkspacePage() {
   });
 
   const prelimDefaultsMutation = useMutation({
-    mutationFn: (p: { scope: "ecp" | "ecr"; action: "apply" | "clear" }) =>
+    mutationFn: (p: { scope: "ecp" | "ecr"; action: "apply" | "clear"; mode?: "reset" | "backfill" }) =>
       apiRequest("POST", `/api/design-software/revisions/${activeRevisionId}/preliminary-defaults`, p) as Promise<any>,
     onSuccess: (resp: any) => {
       // Server response is authoritative for this section — overwrite local values
@@ -1164,10 +1164,17 @@ export default function DesignSoftwareWorkspacePage() {
     if (hydratedRevision !== activeRevisionId) return;
     if (prelimDefaultsMutation.isPending) return;
     const tech = (localData["technology_selection"]?.technology ?? "").trim();
-    // ECR — apply when technology is ECR and height allowances are absent
-    if (tech === "ecr" &&
-        !(localData["ecr_design"]?.top_head_height ?? "").trim()) {
+    const ecr = localData["ecr_design"] ?? {};
+    // Full apply — technology is ECR and height allowances are completely absent (brand new workspace)
+    if (tech === "ecr" && !(ecr.top_head_height ?? "").trim()) {
       prelimDefaultsMutation.mutate({ scope: "ecr", action: "apply" });
+      return;
+    }
+    // Backfill — ECR workspace already has height allowances (engineer values present) but is
+    // missing a newly required field added after the workspace was created (e.g. system_derating_factor).
+    // backfill mode writes only absent fields — never overwrites engineer-modified values.
+    if (tech === "ecr" && (ecr.top_head_height ?? "").trim() && !(ecr.system_derating_factor ?? "").trim()) {
+      prelimDefaultsMutation.mutate({ scope: "ecr", action: "apply", mode: "backfill" });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFrozen, activeRevisionId, hydratedRevision, localData, prelimDefaultsMutation.isPending]);
@@ -4409,25 +4416,24 @@ export default function DesignSoftwareWorkspacePage() {
     };
     return (
       <SectionCard title="Autonomous Design Selection — Engineering Decision Record (DS-SEL)">
-        {/* Stale record warning — shown when effective diameter is below the current sweep minimum */}
-        {rec && dselStaleRecord && (
+        {/* Stale record warning — only for diameter staleness.
+            Tech-mismatch records (e.g. a stored ECP record when design is ECR) are treated as
+            absent: they cannot be used and will be automatically replaced on the next ECR run. */}
+        {rec && dselDiameterStale && !dselTechStale && (
           <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-300 rounded-lg mb-3 -mt-1">
             <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
             <p className="text-[11px] text-amber-900 leading-snug">
               <span className="font-semibold">This DS-SEL record is stale and its data is hidden below.</span>{" "}
-              {dselTechStale
-                ? <>It was generated with technology <strong>{(dselRecTech ?? "").toUpperCase()}</strong>, but the current design uses <strong>ECR</strong>. The record no longer reflects the current design intent.</>
-                : <>The effective design diameter recorded here ({dselEffective_mm} mm) is below the current hydraulic sweep minimum feasible diameter ({minFeasibleD_m !== null ? `${Math.round(minFeasibleD_m * 1000)} mm` : "—"}). It was generated from an earlier run with different inputs.</>
-              }
+              The effective design diameter recorded here ({dselEffective_mm} mm) is below the current hydraulic sweep minimum feasible diameter ({minFeasibleD_m !== null ? `${Math.round(minFeasibleD_m * 1000)} mm` : "—"}). It was generated from an earlier run with different inputs.
               <span className="block mt-1 font-medium">Run Calculate ECR in Stage 7 — DS-SEL regenerates automatically and this record will be replaced.</span>
             </p>
           </div>
         )}
-        {!rec ? (
+        {(!rec || dselTechStale) ? (
           <p className="text-xs text-gray-500">
             No selection record yet — the software generates the Engineering Decision Record automatically after each accepted ECR calculation run (deterministic rules DS-SEL-001…005; no value is invented).
           </p>
-        ) : dselStaleRecord ? null : (
+        ) : dselDiameterStale ? null : (
           <>
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <Badge variant={rec.selectionStatus === "recommended" ? "default" : "destructive"}>
