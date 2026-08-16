@@ -549,26 +549,19 @@ export async function generateNozzleSchedule(revisionId: number) {
 
   let preferred = String(inputs['preferred'] ?? '').trim();
   if (preferred !== 'ecp' && preferred !== 'ecr') {
-    // Stage 9 explicit selector override (mech_technology_basis)
-    const mechBasis = String(inputs['mech_technology_basis'] ?? '').trim();
-    if (mechBasis === 'ecp' || mechBasis === 'ecr') {
-      preferred = mechBasis;
+    // Auto-detect: use the most recently accepted Stage 7 run (ecp or ecr).
+    // No explicit selection is ever required — the most recent accepted run governs.
+    const autoQ = await pool.query(
+      `SELECT calculation_type FROM design_software_calculation_runs
+       WHERE revision_id = $1 AND calculation_type IN ('ecp','ecr') AND calculation_status IN ('success','warning')
+       ORDER BY calculated_at DESC LIMIT 1`,
+      [revisionId],
+    );
+    const autoType: string = autoQ.rows[0]?.calculation_type ?? '';
+    if (autoType === 'ecp' || autoType === 'ecr') {
+      preferred = autoType;
     } else {
-      // Auto-detect: if only one technology has an accepted Stage 7 run, use it
-      const autoQ = await pool.query(
-        `SELECT calculation_type FROM design_software_calculation_runs
-         WHERE revision_id = $1 AND calculation_type IN ('ecp','ecr') AND calculation_status IN ('success','warning')
-         GROUP BY calculation_type`,
-        [revisionId],
-      );
-      const autoTypes: string[] = autoQ.rows.map((r: any) => r.calculation_type);
-      if (autoTypes.length === 1) {
-        preferred = autoTypes[0];  // Only one technology has a run — unambiguous
-      } else if (autoTypes.length > 1) {
-        throw new Error('Both ECP and ECR Stage 7 runs exist. Select the Mechanical Technology Basis in Stage 9 or set Stage 8 — Technology Comparison to a single technology.');
-      } else {
-        throw new Error('No accepted Stage 7 ECP or ECR run found — run the Stage 7 calculation first.');
-      }
+      throw new Error('No accepted Stage 7 ECP or ECR run found — run the Stage 7 calculation first.');
     }
   }
   const techRunQ = await pool.query(
@@ -738,30 +731,20 @@ export async function runCalculation(
   if (rev.module_type === 'llx' && calculationType === 'mechanical_vessel') {
     let preferred = String(inputs['preferred'] ?? '').trim();
     if (preferred !== 'ecp' && preferred !== 'ecr') {
-      // Stage 9 explicit selector override
-      const mechBasis = String(inputs['mech_technology_basis'] ?? '').trim();
-      if (mechBasis === 'ecp' || mechBasis === 'ecr') {
-        preferred = mechBasis;
+      // Auto-detect: use the most recently accepted Stage 7 run (ecp or ecr).
+      // No explicit selection is ever required — the most recent accepted run governs.
+      const autoQ = await pool.query(
+        `SELECT calculation_type FROM design_software_calculation_runs
+         WHERE revision_id = $1 AND calculation_type IN ('ecp','ecr') AND calculation_status IN ('success','warning')
+         ORDER BY calculated_at DESC LIMIT 1`,
+        [revisionId],
+      );
+      const autoType: string = autoQ.rows[0]?.calculation_type ?? '';
+      if (autoType === 'ecp' || autoType === 'ecr') {
+        preferred = autoType;
       } else {
-        // Auto-detect: if only one technology has an accepted Stage 7 run, use it
-        const autoQ = await pool.query(
-          `SELECT calculation_type FROM design_software_calculation_runs
-           WHERE revision_id = $1 AND calculation_type IN ('ecp','ecr') AND calculation_status IN ('success','warning')
-           GROUP BY calculation_type`,
-          [revisionId],
-        );
-        const autoTypes: string[] = autoQ.rows.map((r: any) => r.calculation_type);
-        if (autoTypes.length === 1) {
-          preferred = autoTypes[0];
-        } else if (autoTypes.length > 1) {
-          throw new Error('Both ECP and ECR Stage 7 runs exist. Select the Mechanical Technology Basis in Stage 9 or set Stage 8 — Technology Comparison to a single technology.');
-        } else {
-          throw new Error('No accepted Stage 7 ECP or ECR run found — run the Stage 7 calculation first.');
-        }
+        throw new Error('No accepted Stage 7 ECP or ECR run found — run the Stage 7 calculation first.');
       }
-    }
-    if (preferred !== 'ecp' && preferred !== 'ecr') {
-      throw new Error('Could not resolve mechanical technology basis — run the Stage 7 ECR or ECP calculation first.');
     }
     const techRunQ = await pool.query(
       `SELECT * FROM design_software_calculation_runs

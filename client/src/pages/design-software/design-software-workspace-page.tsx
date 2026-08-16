@@ -5321,22 +5321,13 @@ export default function DesignSoftwareWorkspacePage() {
     const acceptedStatuses = ["success", "warning"];
     const preferred = tcData.preferred ?? "";
     const techLabel = preferred === "ecp" ? "ECP (Packed Column)" : preferred === "ecr" ? "ECR (Rotary Agitated Column)" : preferred === "both_vendor_pilot" ? "Continue Both for Vendor/Pilot Review" : "";
-    // Auto-detect: if only one technology has an accepted Stage 7 run, use it automatically
-    // without requiring any Stage 8 or Stage 9 selection.
-    const acceptedEcrRun = runs.find((r: any) => r.calculation_type === "ecr" && acceptedStatuses.includes(r.calculation_status));
-    const acceptedEcpRun = runs.find((r: any) => r.calculation_type === "ecp" && acceptedStatuses.includes(r.calculation_status));
-    const autoTech = (acceptedEcrRun && !acceptedEcpRun) ? "ecr"
-      : (!acceptedEcrRun && acceptedEcpRun) ? "ecp"
-      : "";  // both or neither → cannot auto-select
-    // effectiveTech priority:
-    //   1. Stage 8 explicit (ecp/ecr)
-    //   2. Auto-detected from available Stage 7 runs (ECR-only or ECP-only workspace)
-    //   3. Stage 9 explicit selector (only shown when both technologies exist)
-    const effectiveTech = (preferred === "ecp" || preferred === "ecr") ? preferred
-      : autoTech
-      || ((md.mech_technology_basis === "ecp" || md.mech_technology_basis === "ecr") ? md.mech_technology_basis : "");
-    // Selector is only needed when both ECP and ECR runs exist and Stage 8 hasn't resolved it
-    const needsMechBasisSelector = !autoTech && (preferred !== "ecp" && preferred !== "ecr") && !!(acceptedEcrRun && acceptedEcpRun);
+    // Auto-detect mechanical basis from accepted Stage 7 runs — no user selection ever required.
+    // Priority: Stage 8 explicit selection → most recently accepted Stage 7 run (ecp or ecr).
+    const lastStage7Run: any = [...runs]
+      .filter((r: any) => ["ecp", "ecr"].includes(r.calculation_type) && acceptedStatuses.includes(r.calculation_status))
+      .sort((a: any, b: any) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0];
+    const effectiveTech: string = (preferred === "ecp" || preferred === "ecr") ? preferred
+      : (lastStage7Run?.calculation_type ?? "");
     const techRunType = effectiveTech || null;
     const techRun: any = techRunType ? runs.find((r: any) => r.calculation_type === techRunType && acceptedStatuses.includes(r.calculation_status)) : null;
     const techHB = techRun?.result_snapshot?.heightBreakdown;
@@ -5434,36 +5425,6 @@ export default function DesignSoftwareWorkspacePage() {
           Stage 9 assembles the traceable Mechanical Design Basis and runs it through the existing C6 Common Mechanical Design Engine — preliminary screening only. Final code-certified ASME/EN/IS design remains pending.
         </div>
 
-        {/* ── Mechanical Technology Basis selector — only when both ECP & ECR runs exist and Stage 8 hasn't resolved it ── */}
-        {needsMechBasisSelector && (
-          <div className="p-3 mb-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <p className="text-sm font-semibold text-amber-900 mb-1">Mechanical Technology Basis — Engineer Selection Required</p>
-            <p className="text-xs text-amber-800 mb-2">
-              Both ECP and ECR Stage 7 runs exist. Stage 8 is set to <strong>"{techLabel || "not selected"}"</strong>.
-              Select the technology to use as the basis for this Stage 9 preliminary mechanical design.
-              This does not change the Stage 8 selection — both technologies remain in scope for the vendor/pilot review.
-            </p>
-            <div className="grid grid-cols-[210px_1fr] items-center gap-3">
-              <label className="text-sm text-gray-700 font-medium">Mechanical Technology Basis</label>
-              <select
-                className="w-full h-8 text-sm border border-amber-300 rounded-md px-2 bg-white"
-                value={md.mech_technology_basis ?? ""}
-                disabled={isFrozen}
-                onChange={e => cm({ mech_technology_basis: e.target.value })}
-              >
-                <option value="">— Select technology for mechanical design —</option>
-                <option value="ecp">ECP (Packed Column)</option>
-                <option value="ecr">ECR (Rotary Agitated Column)</option>
-              </select>
-            </div>
-            {effectiveTech && (
-              <p className="text-[11px] text-amber-700 mt-1.5">
-                ✓ Using <strong>{effectiveTech.toUpperCase()}</strong> as mechanical basis for Stage 9.
-                Heights and geometry will be inherited from the accepted Stage 7 {effectiveTech.toUpperCase()} run.
-              </p>
-            )}
-          </div>
-        )}
 
         <SectionCard title="Vessel Geometry & Design Conditions (Auto-Populated)">
           <p className="text-[11px] text-gray-500 mb-2">Inherited from previous stages — no re-entry required. Values remain editable; an edit is recorded as Engineer Override. Section last updated: {sectionUpdated}.</p>
@@ -5637,16 +5598,13 @@ export default function DesignSoftwareWorkspacePage() {
 
   function renderMechVesselResults() {
     const tcPreferred = String(d("technology_comparison").preferred ?? "");
-    const mechBasis = String(d("mechanical_design").mech_technology_basis ?? "");
-    // Mirror the same effectiveTech derivation as renderMechanicalDesign:
-    //   1. Stage 8 explicit  2. Auto-detect from runs  3. Stage 9 selector
+    // Mirror renderMechanicalDesign: Stage 8 explicit → most recent accepted Stage 7 run
     const acceptedSt = ["success", "warning"];
-    const hasEcr = runs.some((r: any) => r.calculation_type === "ecr" && acceptedSt.includes(r.calculation_status));
-    const hasEcp = runs.some((r: any) => r.calculation_type === "ecp" && acceptedSt.includes(r.calculation_status));
-    const autoTechMV = (hasEcr && !hasEcp) ? "ecr" : (!hasEcr && hasEcp) ? "ecp" : "";
-    const effectiveTechMV = (tcPreferred === "ecp" || tcPreferred === "ecr") ? tcPreferred
-      : autoTechMV
-      || ((mechBasis === "ecp" || mechBasis === "ecr") ? mechBasis : "");
+    const lastMVRun: any = [...runs]
+      .filter((r: any) => ["ecp","ecr"].includes(r.calculation_type) && acceptedSt.includes(r.calculation_status))
+      .sort((a: any, b: any) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0];
+    const effectiveTechMV: string = (tcPreferred === "ecp" || tcPreferred === "ecr") ? tcPreferred
+      : (lastMVRun?.calculation_type ?? "");
     const techSelected = !!effectiveTechMV;
     const mechRun: any = runs.find(r => r.calculation_type === "mechanical_vessel" && ["success", "warning"].includes(r.calculation_status));
     const snap = mechRun?.result_snapshot;
