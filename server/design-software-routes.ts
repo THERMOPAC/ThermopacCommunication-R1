@@ -513,6 +513,17 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
           sectionData['hets_source'] = 'Assumed';
           sectionData['hets_source_reference'] = PRELIM_HETS_REF;
         }
+        if (scope === 'ecr') {
+          // Source-type companions for the two governed ECR height inputs.
+          // Written explicitly here (same pattern as hets_source for ECP) so the mapper
+          // receives a complete { value, sourceType, sourceReference } triple for each
+          // and does NOT force sourceType = 'Assumed' independently.
+          sectionData['compartment_efficiency_source'] = 'Assumed';
+          sectionData['compartment_height_source'] = 'Assumed';
+          // compartment_height_source_reference is auto-written via ${f.key}_source_reference
+          // loop above (f.key = 'compartment_height', f.ref = PRELIM_DEFAULT_REF).
+          // compartment_efficiency_source_reference likewise already written by that loop.
+        }
         await svc.upsertInput(revisionId, section, sectionData, '1.0.0', userId);
         // Assumptions register — one entry per default, no duplicates
         for (const f of fields) {
@@ -540,6 +551,12 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
             sectionData['hets_source'] = null;
             sectionData['hets_source_reference'] = null;
           }
+        }
+        if (scope === 'ecr') {
+          // Null-tombstone the source-type companions so they are cleared alongside the values.
+          sectionData['compartment_efficiency_source'] = null;
+          sectionData['compartment_height_source'] = null;
+          // compartment_height_source_reference is already nulled via ${f.key}_source_reference loop.
         }
         await svc.upsertInput(revisionId, section, sectionData, '1.0.0', userId);
         for (const a of existing) {

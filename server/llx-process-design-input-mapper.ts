@@ -472,7 +472,18 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   taggedFrom('rotor_ratio', 'rotorToColumnDiameterRatio');
   taggedFrom('rotor_speed', 'rotorSpeed');
   taggedFrom('power_number', 'powerNumber');
-  taggedFrom('compartment_height', 'compartmentHeight');
+  // compartmentHeight — governed override; source type and reference must travel together.
+  // Engine is required:true → if value/source/reference is missing the ECR engine blocks cleanly.
+  // Source type is NEVER hardwired to 'Assumed' — user-entered Vendor/Measured/Literature/Assumed
+  // passes through exactly as entered (same pattern as compartmentEfficiency below).
+  if (out.compartmentHeight === undefined) {
+    const chVal = num(inputs.compartment_height);
+    const chSrc = String(inputs.compartment_height_source ?? '').trim();
+    const chRef = String(inputs.compartment_height_source_reference ?? '').trim();
+    if (chVal !== undefined && chVal > 0 && SOURCE_TYPES.includes(chSrc) && chRef !== '') {
+      out.compartmentHeight = { value: chVal, sourceType: chSrc, sourceReference: chRef };
+    }
+  }
   // compartmentEfficiency — governed override only; no silent Assumed tagging (A-10).
   // Value + source type + source reference must travel together.
   // Engine is required:true → if any part is missing the ECR engine blocks cleanly.

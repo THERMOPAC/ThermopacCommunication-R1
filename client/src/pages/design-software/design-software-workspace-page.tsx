@@ -1595,9 +1595,17 @@ export default function DesignSoftwareWorkspacePage() {
             errors["ecr_rotor_speed"] = "ECR Rotor Speed or Speed Range — one is required (mutually exclusive)";
           if (hasSpeed && hasRange)
             errors["ecr_rotor_speed"] = "ECR Rotor Speed and Speed Range are mutually exclusive — enter only one";
-          for (const [k, label] of [["power_number", "ECR Power Number"], ["compartment_height", "ECR Compartment Height"]] as [string, string][]) {
-            if (!numVal(erVal(k)))
-              errors[`ecr_${k}`] = `${label} is required (> 0) — the C5 engine blocks without it`;
+          if (!numVal(erVal("power_number")))
+            errors["ecr_power_number"] = "ECR Power Number is required (> 0) — the C5 engine blocks without it";
+          // compartment_height: value + source type + source reference all mandatory (governs ECR active height)
+          const chV = numVal(erVal("compartment_height"));
+          if (chV === null || chV <= 0)
+            errors["ecr_compartment_height"] = "ECR Compartment Height is required (> 0 m) — the C5 engine blocks without it";
+          else {
+            if (!VALID_SOURCES.includes(erVal("compartment_height_source")))
+              errors["ecr_compartment_height_source"] = "ECR Compartment Height Source Type is required";
+            if (!erVal("compartment_height_source_reference"))
+              errors["ecr_compartment_height_source_reference"] = "ECR Compartment Height Source Reference is required — non-blank";
           }
           const ceV = numVal(erVal("compartment_efficiency"));
           if (ceV === null || ceV <= 0)
@@ -4912,7 +4920,38 @@ export default function DesignSoftwareWorkspacePage() {
           <FieldRow label="Rotor / Column Diameter Ratio" value={er.rotor_ratio ?? ""} onChange={v => f("rotor_ratio", v)} onBlur={s} unit="—" placeholder="e.g. 0.5" />
           <FieldRow label="Rotor Speed" value={er.rotor_speed ?? ""} onChange={v => f("rotor_speed", v)} onBlur={s} unit="rpm" />
           <FieldRow label="Power Number" value={er.power_number ?? ""} onChange={v => f("power_number", v)} onBlur={s} unit="—" />
-          <FieldRow label="Compartment Height" value={er.compartment_height ?? ""} onChange={v => f("compartment_height", v)} onBlur={s} unit="m" />
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-2">
+            <p className="text-sm font-semibold text-amber-900 mb-1">ECR Compartment Height — Governing Vendor / Pilot Data Required</p>
+            <p className="text-[11px] text-amber-800 leading-relaxed">
+              Compartment height h<sub>compartment</sub> is a vendor / pilot / literature input. No application-specific correlation exists for Kühni/Sulzer-type columns on the NMP–RRBO system.
+            </p>
+            <p className="text-[11px] text-amber-700 mt-1 font-medium">
+              The preliminary default (0.25 m, Assumed) is a Thermopac screening placeholder — Pending Vendor/Pilot Validation. Replace with a vendor datasheet, pilot campaign, or literature datum before any design decision.
+              Value, source type, and source reference are all mandatory.
+            </p>
+          </div>
+          <FieldRow label="ECR Compartment Height (vendor / pilot / literature)" value={er.compartment_height ?? ""} onChange={v => f("compartment_height", v)} onBlur={s} unit="m" note="Governed input — source type and reference below are mandatory." />
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5">
+            <label className="text-sm text-gray-700 font-medium pt-1.5">Compartment Height Source Type</label>
+            <select
+              value={er.compartment_height_source ?? ""}
+              onChange={e => commitSection("ecr_design", { compartment_height_source: e.target.value })}
+              disabled={isFrozen}
+              className="h-8 text-sm border rounded-md px-2 bg-white"
+            >
+              <option value="">— select source type —</option>
+              <option value="Vendor">Vendor</option>
+              <option value="Measured">Measured</option>
+              <option value="Literature">Literature</option>
+              <option value="Assumed">Assumed</option>
+            </select>
+            <span />
+          </div>
+          <FieldRow label="Compartment Height Source Reference" value={er.compartment_height_source_reference ?? ""} onChange={v => f("compartment_height_source_reference", v)} onBlur={s} unit="" placeholder="e.g. Vendor datasheet / pilot campaign / Míšek 1994 Table 2" />
+          {statusLine(`Status: ${er.compartment_height
+            ? `${er.compartment_height} m · Source: ${er.compartment_height_source || "Not selected — required"} · ${er.compartment_height_source_reference ? "Reference provided" : "Reference missing — required"}${er.compartment_height_source === "Assumed" ? " · Preliminary ECR Screening — Pending Vendor/Pilot Validation" : ""}`
+            : "No value — ECR height not calculable"
+          }`)}
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-2">
             <p className="text-sm font-semibold text-amber-900 mb-1">Compartment Efficiency — Not Calculable: Governing Efficiency Model Required</p>
             <p className="text-[11px] text-amber-800 leading-relaxed">
