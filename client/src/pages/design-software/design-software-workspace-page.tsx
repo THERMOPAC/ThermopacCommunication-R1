@@ -1018,9 +1018,7 @@ export default function DesignSoftwareWorkspacePage() {
     if (!tech) return; // no technology chosen yet — nothing to seed
     if ((ts.technology_selection_rationale ?? "").trim()) return; // already filled
     const RATIONALE: Record<string, string> = {
-      ecp:  "ECP — Packed Extraction Column selected for this service. Static packing, no moving parts, low maintenance profile. Preliminary selection — subject to hydraulic screening results and vendor confirmation.",
       ecr:  "ECR — Kühni Agitated Column selected for this service. Rotating agitator provides higher stage efficiency and throughput adjustability. Preliminary selection — subject to hydraulic screening results and vendor confirmation.",
-      both: "Both ECP and ECR are being evaluated in parallel for comparative assessment of column diameter, stage count, and equipment cost. Final technology selection to be made following hydraulic screening and equipment design results.",
     };
     const text = RATIONALE[tech];
     if (!text) return;
@@ -1151,14 +1149,8 @@ export default function DesignSoftwareWorkspacePage() {
     if (hydratedRevision !== activeRevisionId) return;
     if (prelimDefaultsMutation.isPending) return;
     const tech = (localData["technology_selection"]?.technology ?? "").trim();
-    // ECP — apply when technology includes ECP and height allowances are absent
-    if ((tech === "ecp" || tech === "both") &&
-        !(localData["ecp_design"]?.top_head_height ?? "").trim()) {
-      prelimDefaultsMutation.mutate({ scope: "ecp", action: "apply" });
-      return; // one mutation per pass
-    }
-    // ECR — apply when technology includes ECR and height allowances are absent
-    if ((tech === "ecr" || tech === "both") &&
+    // ECR — apply when technology is ECR and height allowances are absent
+    if (tech === "ecr" &&
         !(localData["ecr_design"]?.top_head_height ?? "").trim()) {
       prelimDefaultsMutation.mutate({ scope: "ecr", action: "apply" });
     }
@@ -1336,8 +1328,8 @@ export default function DesignSoftwareWorkspacePage() {
   const currentStatus = activeRevision?.status ?? design?.revision_status ?? design?.current_status;
   const lifecycleActions = LIFECYCLE_ACTIONS[currentStatus] ?? [];
   const techSelection = localData["technology_selection"]?.technology ?? "";
-  const showECP = techSelection === "ecp" || techSelection === "both";
-  const showECR = techSelection === "ecr" || techSelection === "both";
+  const showECP = false; // ECP (Packed Column) removed — ECR — Kühni Agitated Column is the only design technology
+  const showECR = techSelection === "ecr";
   const d = (section: string) => localData[section] ?? {};
 
   // ── Stage validation engine ──────────────────────────────────────────────────
@@ -1547,7 +1539,7 @@ export default function DesignSoftwareWorkspacePage() {
     if (stageKey === "technology_selection") {
       const ts2 = d("technology_selection");
       if (!ts2.technology?.trim())
-        errors["technology"] = "Technology must be selected (ECP, ECR, or Compare Both) — Stage 7 Equipment Design is blocked without a selection";
+        errors["technology"] = "Technology must be confirmed (ECR — Kühni Agitated Column) — Stage 7 Equipment Design is blocked without a selection";
       if (!ts2.technology_selection_rationale?.trim())
         errors["technology_selection_rationale"] = "Selection Rationale is required — provenance requirement, non-blank";
     }
@@ -1833,7 +1825,7 @@ export default function DesignSoftwareWorkspacePage() {
     {
       label: "Technology selection made",
       status: ts.technology ? "pass" : "fail",
-      note: !ts.technology ? "Select ECP, ECR or Compare Both in Step 6" : undefined,
+      note: !ts.technology ? "Confirm technology (ECR — Kühni Agitated Column) in Step 6" : undefined,
     },
     {
       label: "Common Hydraulics Calculation Executed",
@@ -1881,14 +1873,6 @@ export default function DesignSoftwareWorkspacePage() {
       })(),
     },
     {
-      label: showECP ? "ECP Equipment Calculation Executed" : "ECP calculation (not selected)",
-      status: !showECP ? "pending" : ecpExec.executed ? "pass" : "fail",
-      note: !showECP ? undefined
-        : ecpExec.executed
-          ? (ecpExec.withWarnings ? `✓ Calculation Executed. ${WARN_NOTE}` : undefined)
-          : "No successful ECP run exists (latest run failed or Step 7 not run)",
-    },
-    {
       label: showECR ? "ECR Equipment Calculation Executed" : "ECR calculation (not selected)",
       status: !showECR ? "pending" : ecrExec.executed ? "pass" : "fail",
       note: !showECR ? undefined
@@ -1908,7 +1892,7 @@ export default function DesignSoftwareWorkspacePage() {
       })(),
       note: (() => {
         const r = designSelectionQ.data;
-        if (!r) return "No autonomous selection record yet — it is generated after each accepted ECP/ECR run (informational; not blocking)";
+        if (!r) return "No autonomous selection record yet — it is generated after each accepted ECR run (informational; not blocking)";
         if (r.decision === "pending") return "Autonomous recommendation awaiting engineer decision (Approve / Request Verification / Override) — informational; not blocking";
         return `Decision: ${String(r.decision).replace(/_/g, " ")} by ${r.decision_engineer ?? "—"}`;
       })(),
@@ -1971,18 +1955,6 @@ export default function DesignSoftwareWorkspacePage() {
         return k.length > 0 ? `${k.length} blocking input${k.length > 1 ? "s" : ""} missing: ${Object.values(e7).slice(0, 2).join("; ")}${k.length > 2 ? `… (+${k.length - 2} more)` : ""}` : undefined;
       })(),
     },
-    ...(techSelection === "both" ? [{
-      label: "Stage 8 — Technology Comparison runs complete",
-      status: (() => {
-        const { errors: e8 } = validateStage("technology_comparison");
-        return Object.keys(e8).length === 0 ? "pass" : "fail";
-      })() as "pass" | "fail" | "warning" | "pending",
-      note: (() => {
-        const { errors: e8 } = validateStage("technology_comparison");
-        const k = Object.keys(e8);
-        return k.length > 0 ? Object.values(e8).join("; ") : undefined;
-      })(),
-    }] : []),
     {
       label: "Stage 9 — Mechanical Design code assigned",
       status: (() => {
@@ -4185,9 +4157,7 @@ export default function DesignSoftwareWorkspacePage() {
     const f = field("technology_selection");
     const s = save("technology_selection");
     const options = [
-      { value: "ecp", label: "ECP — Packed Extraction Column", desc: "Static packing, no moving parts, low maintenance" },
-      { value: "ecr", label: "ECR — Kühni Agitated Column", desc: "Rotating agitator, higher stage efficiency, adjustable" },
-      { value: "both", label: "Compare Both — ECP and ECR", desc: "Design both technologies for side-by-side comparison" },
+      { value: "ecr", label: "ECR — Kühni Agitated Column", desc: "Rotating agitator, higher stage efficiency, adjustable speed — selected technology for this service" },
     ];
     return (
       <div className="max-w-2xl">
@@ -4335,9 +4305,7 @@ export default function DesignSoftwareWorkspacePage() {
       </div>
     );
     const techLabel: Record<string, string> = {
-      ecp: "ECP — Packed Extraction Column",
       ecr: "ECR — Kühni Agitated Column",
-      both: "Compare Both — ECP and ECR",
     };
     const ts6 = d("technology_selection");
     const tech6Label = techLabel[techSelection] ?? techSelection.toUpperCase();
@@ -4356,7 +4324,7 @@ export default function DesignSoftwareWorkspacePage() {
                 : <>The recorded effective diameter ({co.dselDiameter_mm} mm) is below the current hydraulic sweep minimum feasible diameter — generated from an earlier run with different inputs.</>
               }
               <span className="block mt-1 font-medium">
-                Run the {techSelection === "both" ? "ECP/ECR" : techSelection.toUpperCase()} calculation in Stage 7 — DS-SEL regenerates automatically and this record will be replaced.
+                Run the ECR calculation in Stage 7 — DS-SEL regenerates automatically and this record will be replaced.
               </span>
               Stage 5 hydraulic diameter is used below until the record is refreshed.
             </p>
@@ -4416,7 +4384,7 @@ export default function DesignSoftwareWorkspacePage() {
       return (
         <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
           <AlertTriangle className="h-5 w-5 shrink-0" />
-          Complete Technology Selection (Step 6) before designing equipment. Stage 7 is blocked until a technology (ECP, ECR, or Compare Both) is selected.
+          Complete Technology Selection (Step 6) before designing equipment. Stage 7 is blocked until the technology (ECR — Kühni Agitated Column) is confirmed.
         </div>
       );
     }
@@ -4426,8 +4394,7 @@ export default function DesignSoftwareWorkspacePage() {
         {stageBanner("equipment_design")}
         {renderCarryOverCard(co)}
         {renderDesignSelectionCard()}
-        <div className={techSelection === "both" ? "grid grid-cols-2 gap-6" : ""}>
-          {showECP && renderECPDesign()}
+        <div>
           {showECR && renderECRDesign()}
         </div>
       </div>
@@ -4485,14 +4452,14 @@ export default function DesignSoftwareWorkspacePage() {
               The effective design diameter recorded here ({dselEffective_mm} mm) is below the current hydraulic sweep minimum feasible diameter
               ({minFeasibleD_m !== null ? `${Math.round(minFeasibleD_m * 1000)} mm` : "—"}).
               The record was generated from an earlier run with different inputs and has not been updated.
-              <span className="block mt-1 font-medium">Re-run the ECP/ECR calculation — DS-SEL regenerates automatically and this record will be replaced.</span>
+              <span className="block mt-1 font-medium">Re-run the ECR calculation — DS-SEL regenerates automatically and this record will be replaced.</span>
               The Equipment Design carry-over inputs above have already fallen back to the Stage 5 hydraulic value.
             </p>
           </div>
         )}
         {!rec ? (
           <p className="text-xs text-gray-500">
-            No selection record yet — the software generates the Engineering Decision Record automatically after each accepted ECP/ECR calculation run (deterministic rules DS-SEL-001…005; no value is invented).
+            No selection record yet — the software generates the Engineering Decision Record automatically after each accepted ECR calculation run (deterministic rules DS-SEL-001…005; no value is invented).
           </p>
         ) : (
           <>
@@ -4554,7 +4521,7 @@ export default function DesignSoftwareWorkspacePage() {
                   Minimum permitted:{" "}
                   <strong className={dselStaleRecord ? "text-amber-700" : ""}>{rec.autonomousDiameter_mm ?? rec.selectedDiameter_mm} mm</strong>
                   {dselStaleRecord
-                    ? <span className="text-amber-700 ml-1">(from previous run — parameters have changed; re-run {techSelection === "both" ? "ECP/ECR" : techSelection.toUpperCase()} to recalculate)</span>
+                    ? <span className="text-amber-700 ml-1">(from previous run — parameters have changed; re-run ECR to recalculate)</span>
                     : <span> (autonomous calculated minimum — DS-SEL-003). A smaller diameter would exceed the allowable utilization limit against the declared capacity basis and is blocked server-side. Only the governed 50 mm increment series is allowed. This is a governed selection of a larger, more conservative diameter — not an Engineer Override of an unsafe design.</span>
                   }
                 </p>
