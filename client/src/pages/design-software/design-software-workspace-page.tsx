@@ -4438,12 +4438,12 @@ export default function DesignSoftwareWorkspacePage() {
           <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-300 rounded-lg mb-3 -mt-1">
             <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
             <p className="text-[11px] text-amber-900 leading-snug">
-              <span className="font-semibold">This DS-SEL record is stale.</span>{" "}
-              The effective design diameter recorded here ({dselEffective_mm} mm) is below the current hydraulic sweep minimum feasible diameter
-              ({minFeasibleD_m !== null ? `${Math.round(minFeasibleD_m * 1000)} mm` : "—"}).
-              The record was generated from an earlier run with different inputs and has not been updated.
-              <span className="block mt-1 font-medium">Re-run the ECR calculation — DS-SEL regenerates automatically and this record will be replaced.</span>
-              The Equipment Design carry-over inputs above have already fallen back to the Stage 5 hydraulic value.
+              <span className="font-semibold">This DS-SEL record is stale and its data is hidden below.</span>{" "}
+              {dselTechStale
+                ? <>It was generated with technology <strong>{(dselRecTech ?? "").toUpperCase()}</strong>, but the current design uses <strong>ECR</strong>. The record no longer reflects the current design intent.</>
+                : <>The effective design diameter recorded here ({dselEffective_mm} mm) is below the current hydraulic sweep minimum feasible diameter ({minFeasibleD_m !== null ? `${Math.round(minFeasibleD_m * 1000)} mm` : "—"}). It was generated from an earlier run with different inputs.</>
+              }
+              <span className="block mt-1 font-medium">Run Calculate ECR in Stage 7 — DS-SEL regenerates automatically and this record will be replaced.</span>
             </p>
           </div>
         )}
@@ -4451,11 +4451,7 @@ export default function DesignSoftwareWorkspacePage() {
           <p className="text-xs text-gray-500">
             No selection record yet — the software generates the Engineering Decision Record automatically after each accepted ECR calculation run (deterministic rules DS-SEL-001…005; no value is invented).
           </p>
-        ) : dselStaleRecord ? (
-          <p className="text-xs text-amber-700 italic mt-1">
-            Record data hidden — this DS-SEL record was generated from a previous run and no longer reflects the current design. Re-run the ECR calculation (Stage 7) to regenerate it.
-          </p>
-        ) : (
+        ) : dselStaleRecord ? null : (
           <>
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <Badge variant={rec.selectionStatus === "recommended" ? "default" : "destructive"}>
