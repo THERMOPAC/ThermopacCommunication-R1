@@ -5031,6 +5031,12 @@ export default function DesignSoftwareWorkspacePage() {
               {/* Effective performance — governance reporting outputs, not a second height calculation */}
               {resultRow("Effective Stages / m (S_eff = N_T / H_active)", ecrData?.heightBreakdown?.effectivePerformance?.stagesPerMetre, "stages/m", 2)}
               {resultRow("Effective HETS (H_active / N_T)", ecrData?.heightBreakdown?.effectivePerformance?.hetsEffective, "m/stage", 3)}
+              {!ecrData?.heightBreakdown?.effectivePerformance && (
+                <p className="text-[10px] text-amber-600 px-1 mb-1">
+                  Effective performance outputs require a fresh Calculate ECR run — the stored snapshot predates these fields (engine updated this session).
+                  {" "}First re-run the Stage 4 Material Balance if the C2 guard is active, then re-run Calculate ECR.
+                </p>
+              )}
               {resultRow("Shaft Power", sp0?.power?.totalShaft, "kW", 2, 0.001)}
               <div key="motor-power" className="grid grid-cols-[200px_1fr] gap-2 py-1 border-b border-gray-50 last:border-0">
                 <span className="text-xs text-gray-500">Motor Design Power</span>
