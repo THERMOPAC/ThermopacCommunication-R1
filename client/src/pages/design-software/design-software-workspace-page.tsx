@@ -1177,13 +1177,18 @@ export default function DesignSoftwareWorkspacePage() {
       return;
     }
     // Backfill — ECR workspace already has height allowances (engineer values present) but is
-    // missing a newly required field added after the workspace was created (e.g. system_derating_factor).
+    // missing a newly required field added after the workspace was created (e.g. system_derating_factor,
+    // ecr_preliminary_hydraulic_capacity, ecr_interfacial_tension — A1/A2/A3 governance 2026-08-16).
     // backfill mode writes only absent fields — never overwrites engineer-modified values.
     // The ref guard prevents re-triggering while the query refetch is in-flight after the mutation.
+    const ecrNeedsBackfill =
+      !(ecr.system_derating_factor ?? "").trim() ||
+      !(ecr.ecr_preliminary_hydraulic_capacity ?? "").trim() ||
+      !(ecr.ecr_interfacial_tension ?? "").trim();
     if (
       tech === "ecr" &&
       (ecr.top_head_height ?? "").trim() &&
-      !(ecr.system_derating_factor ?? "").trim() &&
+      ecrNeedsBackfill &&
       ecrBackfillAttemptedRef.current !== activeRevisionId
     ) {
       ecrBackfillAttemptedRef.current = activeRevisionId;
@@ -4942,7 +4947,20 @@ export default function DesignSoftwareWorkspacePage() {
           <FieldRow label="Shaft Efficiency" value={er.shaft_efficiency ?? ""} onChange={v => f("shaft_efficiency", v)} onBlur={s} unit="%" />
           <FieldRow label="Mechanical Design Margin" value={er.mechanical_design_margin ?? ""} onChange={v => f("mechanical_design_margin", v)} onBlur={s} unit="—" placeholder="e.g. 1.2" />
           <FieldRow label="Rotors per Compartment" value={er.rotors_per_compartment ?? ""} onChange={v => f("rotors_per_compartment", v)} onBlur={s} unit="—" placeholder="1" />
-          <FieldRow label="Stator Open Area Fraction" value={er.stator_open_area_fraction ?? ""} onChange={v => f("stator_open_area_fraction", v)} onBlur={s} unit="—" note="Fraction of column cross-section open through stator rings. Assumed / Pending Vendor Validation." />
+          <FieldRow label="Stator Open Area Fraction" value={er.stator_open_area_fraction ?? ""} onChange={v => f("stator_open_area_fraction", v)} onBlur={s} unit="—" note="Fraction of column cross-section open through stator rings. Default 0.40 — Thermopac Preliminary ECR Geometry Assumption (Kühni AG; Widmer 1973; Godfrey & Slater 1994 — midpoint of 0.35–0.45 published range). Replace with vendor geometry when available." />
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-2 mt-2">
+            <p className="text-sm font-semibold text-amber-900 mb-1">Interfacial Tension — ECR Weber Number</p>
+            <p className="text-[11px] text-amber-800 leading-relaxed">
+              σ is used only for the ECR rotor Weber number (We = ρ<sub>c</sub>·N²·D<sub>R</sub>³/σ — a dimensionless agitation criterion; no droplet-size prediction is made from it).
+              Default 10 mN/m is the <strong>Thermopac Preliminary RRBO/NMP Interfacial-Tension Assumption</strong> —
+              midpoint of the 5–15 mN/m published range for polar-solvent/paraffinic-hydrocarbon systems
+              (Hampe 1986; Seibert &amp; Fair 1988). <strong>Not measured RRBO/NMP data.</strong> Replace with a measured or literature value when available.
+              If the Stage 5 Common Hydraulics workspace already carries an IFT entry, that value takes precedence over this field.
+            </p>
+          </div>
+          <FieldRow label="Interfacial Tension (ECR Weber No.)" value={er.ecr_interfacial_tension ?? ""} onChange={v => f("ecr_interfacial_tension", v)} onBlur={s} unit="mN/m" note="Thermopac Preliminary RRBO/NMP Interfacial-Tension Assumption — Pending Validation. Used for Weber number only." />
+          <FieldRow label="IFT Reference Temperature" value={er.ecr_interfacial_tension_ref_temp ?? ""} onChange={v => f("ecr_interfacial_tension_ref_temp", v)} onBlur={s} unit="°C" placeholder="e.g. 60" />
+          {statusLine(`Interfacial tension: ${er.ecr_interfacial_tension ? `${er.ecr_interfacial_tension} mN/m @ ${er.ecr_interfacial_tension_ref_temp ?? "?"}°C · Thermopac Preliminary — Pending Validation` : "No value — Weber number Not Calculable"}`)}
           <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5 mt-1">
             <label className="text-sm text-gray-700 font-medium pt-1.5">Agitator Power Density Basis</label>
             <select
@@ -4961,6 +4979,42 @@ export default function DesignSoftwareWorkspacePage() {
           <FieldRow label="Max Allowable Shaft Power (vendor)" value={er.max_shaft_power ?? ""} onChange={v => f("max_shaft_power", v)} onBlur={s} unit="kW" />
           <FieldRow label="Max Unsupported Shaft Length (vendor)" value={er.max_unsupported_shaft_length ?? ""} onChange={v => f("max_unsupported_shaft_length", v)} onBlur={s} unit="m" />
           {statusLine("Engineer/vendor-entered inputs — mapped source-tagged to the C5 ECR engine, pending validation. Vendor limits are optional; missing limits are reported by the engine, never assumed.")}
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-2 mt-3">
+            <p className="text-sm font-semibold text-amber-900 mb-1">Preliminary ECR Hydraulic Capacity — Thermopac Preliminary ECR Screening Basis</p>
+            <p className="text-[11px] text-amber-800 leading-relaxed">
+              The ECR hydraulic utilization U = (Q<sub>total</sub>/A) / (C<sub>ECR</sub> × F<sub>derate</sub>) × 100 requires an ECR-specific hydraulic capacity C<sub>ECR</sub>.
+              Default <strong>20 m³/(m²·h)</strong> is the <strong>Thermopac Preliminary ECR Hydraulic Capacity Assumption</strong> —
+              conservative midpoint of the published Kühni-type agitated-column flooding range 15–30 m³/(m²·h)
+              for low-viscosity hydrocarbon/solvent systems (Míšek 1985; Pratt &amp; Stevens 1992).
+            </p>
+            <p className="text-[11px] text-amber-700 mt-1 font-medium">
+              <strong>Not a Sulzer guarantee.</strong> <strong>Not validated RRBO/NMP flooding data.</strong>
+              Any ECR diameter selected from this basis is a <strong>Preliminary ECR Diameter — based on assumed hydraulic capacity.</strong>
+              Replace with vendor-quoted flooding capacity when obtained. Source type and reference are mandatory.
+            </p>
+          </div>
+          <FieldRow label="Preliminary ECR Hydraulic Capacity" value={er.ecr_preliminary_hydraulic_capacity ?? ""} onChange={v => f("ecr_preliminary_hydraulic_capacity", v)} onBlur={s} unit="m³/(m²·h)" note="Thermopac Preliminary ECR Hydraulic Capacity Assumption — Pending Validation. Replace with vendor-quoted flooding capacity when obtained." />
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5">
+            <label className="text-sm text-gray-700 font-medium pt-1.5">ECR Capacity Source Type</label>
+            <select
+              value={er.ecr_preliminary_hydraulic_capacity_source ?? ""}
+              onChange={e => commitSection("ecr_design", { ecr_preliminary_hydraulic_capacity_source: e.target.value })}
+              disabled={isFrozen}
+              className="h-8 text-sm border rounded-md px-2 bg-white"
+            >
+              <option value="">— select source type —</option>
+              <option value="Vendor">Vendor</option>
+              <option value="Measured">Measured</option>
+              <option value="Literature">Literature</option>
+              <option value="Assumed">Assumed</option>
+            </select>
+            <span />
+          </div>
+          <FieldRow label="ECR Capacity Source Reference" value={er.ecr_preliminary_hydraulic_capacity_source_reference ?? ""} onChange={v => f("ecr_preliminary_hydraulic_capacity_source_reference", v)} onBlur={s} unit="" placeholder="e.g. Vendor flooding test / Míšek 1985 / Thermopac Preliminary ECR Hydraulic Capacity Assumption" />
+          {statusLine(`ECR Capacity: ${er.ecr_preliminary_hydraulic_capacity
+            ? `${er.ecr_preliminary_hydraulic_capacity} m³/(m²·h) · Source: ${er.ecr_preliminary_hydraulic_capacity_source || "Not selected — required"} · ${er.ecr_preliminary_hydraulic_capacity_source_reference ? "Reference provided" : "Reference missing — required"}${er.ecr_preliminary_hydraulic_capacity_source === "Assumed" ? " · Preliminary ECR Screening — Pending Vendor/Pilot Validation" : er.ecr_preliminary_hydraulic_capacity_source === "Vendor" ? " · Vendor basis — will advance confidence beyond Preliminary Screening" : ""}`
+            : "No value — ECR hydraulic utilization Not Calculable"
+          }`)}
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-2 mt-3">
             <p className="text-sm font-semibold text-amber-900 mb-1">System Derating Factor — Vendor Hydraulic Capacity Correction</p>
             <p className="text-[11px] text-amber-800 leading-relaxed">

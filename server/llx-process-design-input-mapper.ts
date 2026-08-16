@@ -518,9 +518,44 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     if (pdb === 'continuous_phase' || pdb === 'volume_averaged') out.powerDensityBasis = pdb;
     // Absent or invalid → leave undefined; engine validator blocks with diagnostic.
   }
-  // Stator open-area fraction — now a visible default (0.30, Assumed); mapper
-  // converts the workspace string to a source-tagged engine input.
+  // Stator open-area fraction — visible default (0.40, Assumed — A3 governance 2026-08-16);
+  // mapper converts the workspace string to a source-tagged engine input.
   taggedFrom('stator_open_area_fraction', 'statorOpenAreaFraction');
+  // A1 — Preliminary ECR Hydraulic Capacity (governance approval 2026-08-16).
+  // Constructs vendorHydraulicCapacity as a ConstantBasis only when no capacity is already mapped
+  // and only for the ECR calculation type — must never inject into ECP / C3 / C2 calculations.
+  if (out.vendorHydraulicCapacity === undefined && calculationType === 'ecr') {
+    const capVal = num(inputs.ecr_preliminary_hydraulic_capacity);
+    const capSrc = String(inputs.ecr_preliminary_hydraulic_capacity_source ?? '').trim();
+    const capRef = String(inputs.ecr_preliminary_hydraulic_capacity_source_reference ?? '').trim();
+    if (capVal !== undefined && capVal > 0 && SOURCE_TYPES.includes(capSrc as typeof SOURCE_TYPES[number]) && capRef !== '') {
+      out.vendorHydraulicCapacity = {
+        kind: 'constant',
+        value: capVal,
+        unit: 'm³/(m²·h)',
+        applicabilityNote: 'Thermopac Preliminary ECR Hydraulic Capacity Assumption — not a vendor guarantee and not validated RRBO/NMP flooding data; replace with vendor-quoted flooding capacity when obtained',
+        sourceType: capSrc as typeof SOURCE_TYPES[number],
+        sourceReference: capRef,
+      };
+    }
+  }
+  // A2 — Preliminary ECR Interfacial Tension (governance approval 2026-08-16).
+  // Seeds interfacialTension for Weber-number calculation when no Stage-5 or Fluid-Properties
+  // IFT is available. ECR only — uses a dedicated ecr_interfacial_tension key to avoid
+  // colliding with the generic hydraulic_design interfacial_tension field.
+  if (out.interfacialTension === undefined && calculationType === 'ecr') {
+    const iftVal = num(inputs.ecr_interfacial_tension);  // mN/m → N/m below
+    const iftRefT = num(String(inputs.ecr_interfacial_tension_ref_temp ?? '').replace(/°?C/gi, ''));
+    const iftRef = String(inputs.ecr_interfacial_tension_source_reference ?? '').trim();
+    if (iftVal !== undefined && iftVal > 0 && iftRefT !== undefined) {
+      out.interfacialTension = {
+        value: iftVal / 1000,
+        referenceTemperatureC: iftRefT,
+        sourceType: 'Assumed',
+        sourceReference: iftRef !== '' ? iftRef : 'Thermopac Preliminary RRBO/NMP Interfacial-Tension Assumption — Pending Validation',
+      };
+    }
+  }
   // systemDeratingFactor — now a visible governed Stage 7 input; no hidden 1.0 engine fallback.
   // Three-field pattern: value + source type + source reference must all travel together.
   // Engine is required: true → if any part is missing the ECR engine blocks cleanly.

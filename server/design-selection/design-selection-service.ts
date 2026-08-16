@@ -61,14 +61,14 @@ const TERMINOLOGY_VALIDATED = {
   trueFloodingStatement: null,
 } as const;
 const ECR_NOT_ASSESSABLE_TEXT =
-  'ECR Not Assessable for Autonomous Hydraulic Selection — validated ECR capacity basis unavailable.';
+  'ECR Not Assessable for Autonomous Hydraulic Selection — no ECR capacity basis is available (neither a validated vendor/pilot basis nor the Thermopac Preliminary ECR Hydraulic Capacity Assumption).';
 
 type Tech = 'ecp' | 'ecr';
 
 interface CapacityBasis {
   value: number;
   unit: string;
-  tier: 'Vendor Validated' | 'Pilot Validated' | 'Thermopac preliminary SMVP throughput threshold';
+  tier: 'Vendor Validated' | 'Pilot Validated' | 'Thermopac preliminary SMVP throughput threshold' | 'Thermopac Preliminary ECR Hydraulic Capacity Assumption';
   source: string;
   assumed: boolean;
 }
@@ -133,8 +133,22 @@ function resolveCapacityBasis(inputs: Record<string, any>, tech: Tech): Capacity
     return { value: threshold, unit: 'm³/(m²·h)', tier: 'Thermopac preliminary SMVP throughput threshold', source: PRELIM_THRESHOLD_SOURCE, assumed: true };
   }
   // ECR: the SMVP packing screening threshold applies to structured packing only —
-  // it is NOT transferable to an agitated column. Without validated ECR capacity
-  // data there is no capacity basis, and none is invented.
+  // it is NOT transferable to an agitated column.  Before returning null, check for
+  // the Thermopac Preliminary ECR Hydraulic Capacity Assumption (A1, 2026-08-16).
+  // This is seeded by ecrDefaultFields() at 20 m³/(m²·h) Assumed — not a vendor
+  // guarantee and not validated RRBO/NMP flooding data.
+  const prelimEcr = num(inputs.ecr_preliminary_hydraulic_capacity);
+  if (prelimEcr !== null && prelimEcr > 0) {
+    const prelimRef = String(inputs.ecr_preliminary_hydraulic_capacity_source_reference ?? '').trim();
+    return {
+      value: prelimEcr,
+      unit: 'm³/(m²·h)',
+      tier: 'Thermopac Preliminary ECR Hydraulic Capacity Assumption',
+      source: prelimRef || 'Thermopac Preliminary ECR Hydraulic Capacity Assumption — Pending Validation',
+      assumed: true,
+    };
+  }
+  // No capacity basis at all — none is invented.
   return null;
 }
 
@@ -185,7 +199,10 @@ function evaluateTechnology(tech: Tech, run: any | null, inputs: Record<string, 
     base.notAssessable = true;
     base.notRecommendableReason =
       ECR_NOT_ASSESSABLE_TEXT +
-      ' The Thermopac preliminary SMVP throughput threshold derives from structured-packing (SMV/SMVP) published data and is not transferable to an agitated column; the C3 generic throughput percentage is not a substitute. Enter validated ECR flooding-capacity data (vendor or pilot) to make ECR assessable. Non-assessability does not imply technical inferiority; no capacity value was invented.';
+      ' The Thermopac preliminary SMVP throughput threshold derives from structured-packing (SMV/SMVP) published data and is not transferable to an agitated column; the C3 generic throughput percentage is not a substitute.' +
+      ' To assess ECR on a preliminary basis, ensure the Thermopac Preliminary ECR Hydraulic Capacity Assumption (ecr_preliminary_hydraulic_capacity) is seeded in the ECR workspace.' +
+      ' To improve confidence above Preliminary Screening, enter validated ECR flooding-capacity data (vendor or pilot).' +
+      ' Non-assessability does not imply technical inferiority; no capacity value was invented.';
     return base;
   }
   const uLimitVal = num(inputs.max_design_utilization) ?? UTILIZATION_LIMIT_DEFAULT;
@@ -467,7 +484,20 @@ export async function generateSelectionRecord(
     incrementMm: INCREMENT_MM,
     // Governed terminology (audit correction 2026-08-06): screening-basis
     // quantities are never presented as true flooding quantities.
-    terminology: (selectedEval?.capacityBasis && !selectedEval.capacityBasis.assumed) ? TERMINOLOGY_VALIDATED : TERMINOLOGY_PRELIMINARY,
+    terminology: (() => {
+      const base = (selectedEval?.capacityBasis && !selectedEval.capacityBasis.assumed) ? TERMINOLOGY_VALIDATED : TERMINOLOGY_PRELIMINARY;
+      // When ECR is selected on the preliminary assumed capacity, override the basisLabel so it
+      // does not misrepresent the SMVP threshold as the governing basis (DS-SEL-004).
+      if (cascade.selected === 'ecr' && selectedEval?.capacityBasis?.assumed) {
+        return { ...base, basisLabel: 'Thermopac Preliminary ECR Hydraulic Capacity Assumption' };
+      }
+      return base;
+    })(),
+    // DS-SEL-004 / A1 governance: when ECR is selected on an assumed hydraulic-capacity basis,
+    // every diameter derived from that basis must carry an explicit governance label.
+    ecrPreliminaryDiameterNotice: (cascade.selected === 'ecr' && selectedEval?.capacityBasis?.assumed)
+      ? 'Preliminary ECR Diameter — based on assumed hydraulic capacity (Thermopac Preliminary ECR Hydraulic Capacity Assumption — Pending Validation). Replace with validated vendor or pilot ECR flooding-capacity data to advance beyond Preliminary Screening.'
+      : null,
     technologies: evals,
     cascade: cascade.steps,
     selectedTechnology: cascade.selected,

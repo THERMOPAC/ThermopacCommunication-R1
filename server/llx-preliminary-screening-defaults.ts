@@ -127,7 +127,10 @@ export function ecrDefaultFields(stage5ColumnDiameter_m: number | null): Default
     // Methodology choice (not a vendor-measured physical value) — generic Equipment Screening ref.
     { key: 'power_density_basis', value: 'continuous_phase', label: 'Agitator Power Density Basis', unit: '-', ref: R },
     // Stator open-area fraction: ECR-specific preliminary assumption.
-    { key: 'stator_open_area_fraction', value: '0.30', label: 'Stator Open Area Fraction', unit: '-', ref: ECR },
+    // A3 governance (2026-08-16): 0.40 (Kühni standard column, midpoint of 0.35–0.45 published range,
+    // Kühni AG product documentation; Widmer 1973; Godfrey & Slater 1994).
+    // Thermopac Preliminary ECR Geometry Assumption — Pending Validation.
+    { key: 'stator_open_area_fraction', value: '0.40', label: 'Stator Open Area Fraction', unit: '-', ref: ECR },
     // Compartment efficiency and height: paired ECR preliminary screening basis.
     // E_M / h_comp = 0.50 / 0.25 = 2.0 theoretical stages/m.
     // Not attributed individually to Sulzer — this is a Thermopac preliminary screening target.
@@ -145,6 +148,23 @@ export function ecrDefaultFields(stage5ColumnDiameter_m: number | null): Default
     { key: 'system_derating_factor', value: '1.0', label: 'System Derating Factor', unit: '-', ref: ECR },
     { key: 'system_derating_factor_source', value: 'Assumed', label: 'System Derating Factor Source Type', unit: '-', ref: ECR },
     { key: 'system_derating_factor_source_reference', value: PRELIM_ECR_SCREENING_REF, label: 'System Derating Factor Source Reference', unit: '-', ref: ECR },
+    // A1 — Preliminary ECR Hydraulic Capacity (2026-08-16 governance approval).
+    // 20 m³/(m²·h) total throughput at the declared flow ratio — conservative midpoint of the
+    // published Kühni-type agitated-column flooding range (Míšek 1985, Pratt & Stevens 1992).
+    // NOT a Sulzer guarantee. NOT validated RRBO/NMP data.
+    // Replace with vendor-quoted flooding capacity when obtained.
+    { key: 'ecr_preliminary_hydraulic_capacity', value: '20', label: 'Preliminary ECR Hydraulic Capacity', unit: 'm³/(m²·h)', ref: ECR },
+    { key: 'ecr_preliminary_hydraulic_capacity_source', value: 'Assumed', label: 'Preliminary ECR Hydraulic Capacity Source Type', unit: '-', ref: ECR },
+    { key: 'ecr_preliminary_hydraulic_capacity_source_reference', value: 'Thermopac Preliminary ECR Hydraulic Capacity Assumption — Pending Validation (Míšek 1985 Liquid-Liquid Extraction Equipment; Pratt & Stevens 1992 — conservative midpoint of published Kühni-type flooding range 15–30 m³/(m²·h) for low-viscosity hydrocarbon/solvent systems)', label: 'Preliminary ECR Hydraulic Capacity Source Reference', unit: '-', ref: ECR },
+    // A2 — Preliminary ECR Interfacial Tension (2026-08-16 governance approval).
+    // 10 mN/m for NMP / RRBO (mineral oil) system — midpoint of published 5–15 mN/m range
+    // for polar-solvent/paraffinic-hydrocarbon systems at operating temperature
+    // (Hampe 1986, Seibert & Fair 1988; NMP surface tension ≈ 28 mN/m pure).
+    // Used ONLY for ECR Weber-number calculation. NOT measured RRBO/NMP data.
+    // Replace with measured or literature value when available.
+    { key: 'ecr_interfacial_tension', value: '10', label: 'Interfacial Tension (ECR Weber Number)', unit: 'mN/m', ref: ECR },
+    { key: 'ecr_interfacial_tension_ref_temp', value: '60', label: 'Interfacial Tension Reference Temperature', unit: '°C', ref: ECR },
+    { key: 'ecr_interfacial_tension_source_reference', value: 'Thermopac Preliminary RRBO/NMP Interfacial-Tension Assumption — Pending Validation (Hampe 1986; Seibert & Fair 1988 — polar-solvent/paraffinic-HC system analogy; not measured RRBO/NMP data)', label: 'Interfacial Tension Source Reference', unit: '-', ref: ECR },
     { key: 'top_head_height', value: '0.50', label: 'Top Head Height', unit: 'm', ref: R },
     { key: 'top_disengagement_height', value: '1.00', label: 'Top Disengagement Height', unit: 'm', ref: R },
     { key: 'top_distributor_allowance', value: '0.50', label: 'Top Distributor Allowance', unit: 'm', ref: R },

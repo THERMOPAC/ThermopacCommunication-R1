@@ -471,7 +471,18 @@ export class LLXECREngine implements IDesignEngine {
       // ── Vendor capacity & derating — ECR-002 ────────────────────────────────
       const capacityBasis = inputs.vendorHydraulicCapacity as PerformanceBasis | undefined;
       const capacityAssumed = capacityBasis ? performanceBasisAssumed(capacityBasis) : false;
-      if (capacityAssumed) { notePending(); assumptions.push({ assumption: 'Vendor Hydraulic Capacity data are ASSUMED', consequence: 'ECR utilization is Pending Validation' }); }
+      if (capacityAssumed) {
+        // Use the basis sourceReference as the assumption label so the engine snapshot
+        // carries the exact governed text (e.g. "Thermopac Preliminary ECR Hydraulic Capacity
+        // Assumption — Pending Validation …") rather than a generic string.
+        const capRef = (capacityBasis as { sourceReference?: string }).sourceReference
+          ?? 'Vendor Hydraulic Capacity data are Assumed';
+        notePending();
+        assumptions.push({
+          assumption: capRef,
+          consequence: 'ECR hydraulic utilization is Calculated — Thermopac Preliminary ECR Screening Basis — Pending Vendor/Pilot Validation',
+        });
+      }
       // systemDeratingFactor is now a required visible governed input — no hidden 1.0 fallback.
       // ecrDefaultFields() seeds 1.0 Assumed; the engineer replaces it when vendor data exist.
       // Absent/incomplete → required: true blocks with a clear validation diagnostic.
@@ -481,7 +492,7 @@ export class LLXECREngine implements IDesignEngine {
       if (derate.sourceType === 'Assumed') { notePending(); assumptions.push({ assumption: `System derating factor ${derate.value} is ASSUMED`, sourceType: derate.sourceType, sourceReference: derate.sourceReference, consequence: 'ECR hydraulic utilization is Pending Validation' }); }
       if (!capacityBasis) {
         notePending();
-        pushWarning('NO_ECR_CAPACITY_DATA', 'No ECR-specific Vendor Hydraulic Capacity data supplied — ECR hydraulic utilization is Pending Validation (loads are still reported). The C3 generic screening percentage is NOT a substitute.');
+        pushWarning('NO_ECR_CAPACITY_DATA', 'No ECR hydraulic capacity data supplied (neither a validated vendor/pilot basis nor the Thermopac Preliminary ECR Hydraulic Capacity Assumption). ECR hydraulic utilization is Pending Validation — loads are still reported. The C3 generic screening percentage is NOT a substitute.');
       }
       const utilizationPendingBase = propertyAssumed || capacityAssumed || derate.sourceType === 'Assumed';
 

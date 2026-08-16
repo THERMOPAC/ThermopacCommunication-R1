@@ -451,6 +451,90 @@ async function main() {
     checkTrue('shared NMP registry untouched', Math.abs(getProperty('nmp', 'density', T).value - rhoNMP) < 1e-12);
   }
 
+  // ── 14. A1/A2/A3 governance assumptions (2026-08-16) ──
+  console.log('── A1: Preliminary ECR Hydraulic Capacity (Assumed ConstantBasis) ──');
+  {
+    // A1a — Assumed ConstantBasis at 20 m³/(m²·h): utilization calculated, run pending_validation
+    const i = baseInputs();
+    (i as any).vendorHydraulicCapacity = {
+      kind: 'constant',
+      value: 20,
+      unit: 'm³/(m²·h)',
+      applicabilityNote: 'Thermopac Preliminary ECR Hydraulic Capacity Assumption — not a vendor guarantee',
+      sourceType: 'Assumed',
+      sourceReference: 'Thermopac Preliminary ECR Hydraulic Capacity Assumption — Pending Validation',
+    };
+    const res = await engine.calculate(i, ctx);
+    checkTrue('A1a: run succeeds with preliminary capacity', res.status !== 'error', res.validationIssues);
+    const row = (res.data as any).normalCase.diameters[0];
+    checkTrue('A1a: utilization result is a number', typeof row.ecrHydraulicUtilization.result === 'number');
+    const expectedUtil = (loadTot / (20 * 1.0)) * 100;  // derating = 1.0 from baseInputs
+    check('A1a: utilization = loadTot/20 × 100', row.ecrHydraulicUtilization.result, expectedUtil, 1e-9);
+    checkTrue('A1a: utilization status Pending Validation (Assumed capacity)', row.ecrHydraulicUtilization.status === 'Pending Validation');
+    checkTrue('A1a: run status pending_validation', (res.data as any).calculationRunStatus === 'pending_validation');
+    checkTrue('A1a: assumption register carries capacity reference', (res.data as any).assumptions.some((a: any) => a.assumption.includes('Thermopac Preliminary ECR Hydraulic Capacity Assumption')));
+    checkTrue('A1a: consequence labels preliminary basis', (res.data as any).assumptions.some((a: any) => a.consequence?.includes('Calculated — Thermopac Preliminary ECR Screening Basis')));
+    // A1b — Vendor ConstantBasis (30 m³/(m²·h)) with Vendor derating factor: status Calculated Screening Result.
+    // baseInputs uses Assumed derating which also makes utilization Pending Validation;
+    // override derating to Vendor so ONLY the capacity source governs.
+    const j = baseInputs();
+    (j as any).systemDeratingFactor = { value: 1.0, unit: '-', sourceType: 'Vendor', sourceReference: 'Vendor qualification test' };
+    const resV = await engine.calculate(j, ctx);
+    checkTrue('A1b: vendor capacity run succeeds', resV.status !== 'error', resV.validationIssues);
+    const rowV = (resV.data as any).normalCase.diameters[0];
+    // vendorHydraulicCapacity.sourceType = 'Vendor', systemDeratingFactor.sourceType = 'Vendor',
+    // propertyAssumed may still make this Pending Validation — assert vendor capacity gives a result.
+    checkTrue('A1b: vendor capacity → utilization result is a number', typeof rowV.ecrHydraulicUtilization.result === 'number');
+    check('A1b: utilization value = loadTot/30 × 100', rowV.ecrHydraulicUtilization.result, (loadTot / (30 * 1.0)) * 100, 1e-9);
+  }
+
+  console.log('── A2: Preliminary ECR Interfacial Tension (Assumed, 10 mN/m) ──');
+  {
+    // A2a — Assumed IFT at 10 mN/m: Weber number calculated, status Pending Validation
+    const i = baseInputs();
+    const rhoNMPLocal = getProperty('nmp', 'density', T).value;
+    (i as any).interfacialTension = { value: 0.010, referenceTemperatureC: 60, sourceType: 'Assumed', sourceReference: 'Thermopac Preliminary RRBO/NMP Interfacial-Tension Assumption' };
+    const res = await engine.calculate(i, ctx);
+    checkTrue('A2a: run succeeds with preliminary IFT', res.status !== 'error', res.validationIssues);
+    const sp = (res.data as any).normalCase.diameters[0].rotor.atSpeed[0];
+    const N = 120 / 60;
+    const expectedWe = rhoNMPLocal * N * N * 0.5 ** 3 / 0.010;
+    check('A2a: We = ρ_c·N²·D_R³/σ (10 mN/m)', sp.weber.result, expectedWe, 1e-6);
+    checkTrue('A2a: Weber status Pending Validation (Assumed IFT)', sp.weber.status === 'Pending Validation');
+    // A2b — No IFT supplied: Weber number Not Calculable (never assumed by engine)
+    const j = baseInputs();
+    delete (j as any).interfacialTension;
+    const res2 = await engine.calculate(j, ctx);
+    checkTrue('A2b: absent IFT → Weber Not Calculable', (res2.data as any).normalCase.diameters[0].rotor.atSpeed[0].weber.status === 'Not Calculable');
+    checkTrue('A2b: other outputs unaffected (loads still calculated)', typeof (res2.data as any).normalCase.diameters[0].loads.total.result === 'number');
+  }
+
+  console.log('── A3: Stator Open Area Fraction 0.40 (Assumed) ──');
+  {
+    // A3a — Assumed stator fraction 0.40: stator velocity calculated
+    const i = baseInputs();
+    const rhoNMPLocal = getProperty('nmp', 'density', T).value;
+    (i as any).statorOpenAreaFraction = { value: 0.40, unit: '-', sourceType: 'Assumed', sourceReference: 'Thermopac Preliminary ECR Geometry Assumption' };
+    const res = await engine.calculate(i, ctx);
+    checkTrue('A3a: run succeeds with 0.40 stator fraction', res.status !== 'error', res.validationIssues);
+    const row = (res.data as any).normalCase.diameters[0];
+    checkTrue('A3a: stator velocity result is a number', typeof row.statorFreeAreaVelocity.result === 'number');
+    const qC40 = 7500 / rhoNMPLocal; const qD40 = 5000 / 895;
+    check('A3a: v_st = (Q_c+Q_d)/(A·0.40)', row.statorFreeAreaVelocity.result, (qD40 + qC40) / 3600 / (A * 0.40), 1e-9);
+    checkTrue('A3a: stator velocity status Pending Validation (Assumed fraction)', row.statorFreeAreaVelocity.status === 'Pending Validation');
+    // A3b — baseInputs uses 0.25 (Vendor).  EPD-library physical properties are tagged Assumed
+    // → propertyAssumed = true → stator velocity is Pending Validation even with Vendor fraction
+    // (weakest-link governance).  The important guarantee: the velocity VALUE is always calculated.
+    const resV = await engine.calculate(baseInputs(), ctx);
+    const rowV = (resV.data as any).normalCase.diameters[0];
+    checkTrue('A3b: vendor stator fraction run succeeds', resV.status !== 'error', resV.validationIssues);
+    check('A3b: v_st with 0.25 (baseInputs)', rowV.statorFreeAreaVelocity.result, (qD40 + qC40) / 3600 / (A * 0.25), 1e-9);
+    // Note: EPD-library physical properties are tagged Assumed → propertyAssumed = true → stator velocity
+    // status is Pending Validation even when statorOpenAreaFraction.sourceType = 'Vendor'.  This is correct
+    // weakest-link governance: the stator velocity value is always reported; only the status reflects provenance.
+    checkTrue('A3b: stator velocity value computed regardless of source', typeof rowV.statorFreeAreaVelocity.result === 'number');
+  }
+
   console.log(`\n═══ RESULT: ${passed} passed, ${failed} failed ═══`);
   if (failed > 0) process.exit(1);
 }
