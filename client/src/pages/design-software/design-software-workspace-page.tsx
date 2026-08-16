@@ -4140,57 +4140,6 @@ export default function DesignSoftwareWorkspacePage() {
                       <p className="text-[10px] text-amber-700 pt-1">⚠ 40–80% screening band suspended — no governed source established. Feasible = holdup solution exists and % of max &lt; 100%.</p>
                     )}
                   </div>
-                  {/* Rauber 2006 — Typical Specific Throughput Reference (independent result) */}
-                  {(() => {
-                    const qNMP  = hydResData?.normalCase?.nmpVolumetricFlow_m3_h;
-                    const qRRBO = hydResData?.normalCase?.rrboVolumetricFlow_m3_h;
-                    if (typeof qNMP !== "number" || typeof qRRBO !== "number") return null;
-                    const qTot = qNMP + qRRBO;
-                    const dFrom = (q: number) => 2 * Math.sqrt(qTot / (Math.PI * q));
-                    const qAt = (d: number) => qTot / (Math.PI * d * d / 4);
-                    const trialD = normSum?.selectedTrialDiameter_m;
-                    return (
-                      <div className="rounded border border-gray-200 bg-gray-50 px-3 py-2 space-y-2 mt-2">
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                            Rauber 2006 — Typical SMV/SMVP Specific Throughput
-                          </p>
-                          <span className="inline-block px-1.5 py-0.5 rounded border border-gray-300 bg-white text-[10px] font-semibold text-gray-600 whitespace-nowrap">
-                            Packed-Column Reference Only — Not Used for ECR Selection
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-gray-600">
-                          <strong>Typical Specific Throughput Range — Packed Liquid-Liquid Extraction (Sulzer SMV/SMVP).</strong>{" "}
-                          NOT a flooding capacity. NOT an input to ECR diameter selection. Retained for ECP (packed column) context only. Q_total (normal) = {qTot.toFixed(2)} m³/h.
-                        </p>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="text-xs space-y-0.5">
-                            <p className="font-semibold text-gray-600">SMV — 50–90 m³/(m²·h)</p>
-                            <p className="font-mono text-gray-700">Implied D: {dFrom(90).toFixed(3)}–{dFrom(50).toFixed(3)} m</p>
-                            {typeof trialD === "number" && (
-                              <p className="text-[10px] text-gray-500">
-                                q at D={trialD.toFixed(3)} m: {qAt(trialD).toFixed(1)} m³/(m²·h)
-                                {" "}{qAt(trialD) < 50 ? "← below typical range (over-sized)" : qAt(trialD) > 90 ? "← above typical range" : "← within typical range"}
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-xs space-y-0.5">
-                            <p className="font-semibold text-gray-600">SMVP — 35–60 m³/(m²·h)</p>
-                            <p className="font-mono text-gray-700">Implied D: {dFrom(60).toFixed(3)}–{dFrom(35).toFixed(3)} m</p>
-                            {typeof trialD === "number" && (
-                              <p className="text-[10px] text-gray-500">
-                                q at D={trialD.toFixed(3)} m: {qAt(trialD).toFixed(1)} m³/(m²·h)
-                                {" "}{qAt(trialD) < 35 ? "← below typical range (over-sized)" : qAt(trialD) > 60 ? "← above typical range" : "← within typical range"}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <p className="text-[10px] text-gray-500">
-                          These values are shown for ECP screening context only. Rauber 2006 packed-column throughput and the C3 Godfrey slip model do not govern and are not inputs to ECR diameter selection — ECR uses only its own ECR Hydraulic Capacity basis (C<sub>ECR</sub>), derating factor F<sub>D</sub>, and the DS-SEL-001 formula.
-                        </p>
-                      </div>
-                    );
-                  })()}
                 </div>
 
                 {/* Normal case per-diameter table */}
