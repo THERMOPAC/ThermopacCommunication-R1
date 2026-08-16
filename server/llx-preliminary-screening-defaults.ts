@@ -118,14 +118,16 @@ export function ecrDefaultFields(stage5ColumnDiameter_m: number | null): Default
   const R = PRELIM_DEFAULT_REF;
   const ECR = PRELIM_ECR_SCREENING_REF;
   const fields: DefaultField[] = [
-    { key: 'rotor_ratio', value: '0.50', label: 'Rotor / Column Diameter Ratio', unit: '-', ref: R },
-    { key: 'rotor_speed', value: '60', label: 'Rotor Speed', unit: 'rpm', ref: R },
-    { key: 'power_number', value: '1.0', label: 'Power Number (N_P)', unit: '-', ref: R },
+    // ECR-specific preliminary screening assumptions — not Sulzer-validated values.
+    // All five carry PRELIM_ECR_SCREENING_REF so they are never misread as vendor data.
+    { key: 'rotor_ratio', value: '0.50', label: 'Rotor / Column Diameter Ratio', unit: '-', ref: ECR },
+    { key: 'rotor_speed', value: '60', label: 'Rotor Speed', unit: 'rpm', ref: ECR },
+    { key: 'power_number', value: '1.0', label: 'Power Number (N_P)', unit: '-', ref: ECR },
     // Agitator Power Density Basis: visible, editable, no hidden fallback.
-    // 'continuous_phase' is the preliminary default — engineer may change to 'volume_averaged'.
+    // Methodology choice (not a vendor-measured physical value) — generic Equipment Screening ref.
     { key: 'power_density_basis', value: 'continuous_phase', label: 'Agitator Power Density Basis', unit: '-', ref: R },
-    // Stator open-area fraction: now a visible default (was absent and Not Calculable)
-    { key: 'stator_open_area_fraction', value: '0.30', label: 'Stator Open Area Fraction', unit: '-', ref: R },
+    // Stator open-area fraction: ECR-specific preliminary assumption.
+    { key: 'stator_open_area_fraction', value: '0.30', label: 'Stator Open Area Fraction', unit: '-', ref: ECR },
     // Compartment efficiency and height: paired ECR preliminary screening basis.
     // E_M / h_comp = 0.50 / 0.25 = 2.0 theoretical stages/m.
     // Not attributed individually to Sulzer — this is a Thermopac preliminary screening target.

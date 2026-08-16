@@ -4882,9 +4882,11 @@ export default function DesignSoftwareWorkspacePage() {
               Compartment height h<sub>comp</sub> and efficiency E<sub>M</sub> are vendor / pilot / literature inputs. No application-specific correlation exists for Kühni/Sulzer-type columns on the NMP–RRBO system.
             </p>
             <p className="text-[11px] text-amber-700 mt-1 font-medium">
-              Preliminary screening basis: E<sub>M</sub> / h<sub>comp</sub> = 0.50 / 0.25 = <strong>2.0 theoretical stages/m</strong>.
+              Nominal preliminary basis: E<sub>M</sub> / h<sub>comp</sub> = 0.50 / 0.25 = <strong>2.0 theoretical stages/m (nominal)</strong>.
+              Because compartment count uses ceil(), the actual S<sub>effective</sub> = N<sub>T</sub> / H<sub>active</sub> will in general differ from 2.0 stages/m.
+              The calculated effective value in the results panel below is authoritative for reporting.
               This is a Thermopac Preliminary ECR Screening Basis — Pending Vendor/Pilot Validation. It is not attributed individually to Sulzer.
-              Replace with a vendor datasheet, pilot campaign, or literature datum before any design decision.
+              Replace with vendor datasheet, pilot campaign, or literature data before any design decision.
               Value, source type, and source reference are all mandatory.
             </p>
           </div>

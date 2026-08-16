@@ -366,14 +366,16 @@ export class LLXECREngine implements IDesignEngine {
       const powerNumber = parseTagged(inputs.powerNumber, 'powerNumber', errs, { min: 0.1, max: 20, unit: '-', required: true })!;
       const compartmentEfficiency = parseTagged(inputs.compartmentEfficiency, 'compartmentEfficiency', errs, { min: 1e-6, max: 1, unit: '-', required: true })!;
       const compartmentHeight = parseTagged(inputs.compartmentHeight, 'compartmentHeight', errs, { min: 0.05, max: 1, unit: 'm', required: true })!;
-      const rotorsPerComp = parseTagged(inputs.rotorsPerCompartment, 'rotorsPerCompartment', errs, { min: 1, max: 10, unit: '-', integer: true });
+      // rotorsPerCompartment is required: no hidden numerical fallback.
+      // The UI auto-populates 1 (Assumed) via ecrDefaultFields(); the engine
+      // must use that explicit value or fail closed — never silently assume 1.
+      const rotorsPerComp = parseTagged(inputs.rotorsPerCompartment, 'rotorsPerCompartment', errs, { min: 1, max: 10, unit: '-', integer: true, required: true })!;
       const shaftEfficiency = parseTagged(inputs.shaftEfficiency, 'shaftEfficiency', errs, { min: 0.5, max: 1.0, unit: '-', required: true })!;
       const designMargin = parseTagged(inputs.mechanicalDesignMargin, 'mechanicalDesignMargin', errs, { min: 1.0, max: 2.0, unit: '-', required: true })!;
       for (const t of [powerNumber, compartmentEfficiency, compartmentHeight, shaftEfficiency, designMargin, rotorsPerComp].filter(Boolean) as TaggedValue[]) {
         if (t.sourceType === 'Assumed') { notePending(); assumptions.push({ assumption: `Input tagged ASSUMED (${t.sourceReference}, value ${t.value})`, sourceType: t.sourceType, sourceReference: t.sourceReference, consequence: 'Downstream items are Pending Validation' }); }
       }
-      const nRotorsPerComp = rotorsPerComp?.value ?? 1;
-      if (!rotorsPerComp) pushWarning('ROTORS_PER_COMPARTMENT_DEFAULT', 'rotorsPerCompartment not supplied — 1 rotor per compartment applied (typical ECR arrangement; confirm with vendor).');
+      const nRotorsPerComp = rotorsPerComp.value;
 
       const maxTip = parseTagged(inputs.maxAllowableTipSpeed, 'maxAllowableTipSpeed', errs, { min: 0.1, max: 50, unit: 'm/s' });
       const prefIn = inputs.preferredTipSpeedRange as Record<string, unknown> | undefined;

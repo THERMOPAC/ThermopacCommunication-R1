@@ -39,6 +39,7 @@ function baseInputs(): Record<string, unknown> {
     rotorSpeed: tag(120, 'rpm'),
     powerNumber: tag(3.5, '-'),
     statorOpenAreaFraction: tag(0.25, '-'),
+    rotorsPerCompartment: tag(1, '-', 'Assumed', 'ECR preliminary default — 1 rotor per compartment (Thermopac Preliminary ECR Screening Basis)'),
     theoreticalStages: 6,
     compartmentEfficiency: tag(0.4, '-'),
     compartmentHeight: tag(0.25, 'm'),
