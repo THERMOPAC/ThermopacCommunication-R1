@@ -702,6 +702,9 @@ export default function DesignSoftwareWorkspacePage() {
   // replacing it would roll back values that the next whole-section save then
   // silently erases from the server (root cause of lost Design Basis fields).
   const hydratedRevisionRef = useRef<number | null>(null);
+  // Tracks whether a backfill for newly-required ECR fields has been dispatched this session.
+  // Prevents the backfill useEffect from re-triggering while the query refetch is in-flight.
+  const ecrBackfillAttemptedRef = useRef<number | null>(null);
   // Tracks the previous N_T calculability state so the auto-trigger fires only
   // on the transition false → true (not on every render while already calculable).
   const ntPrevCalculable = useRef(false);
@@ -1135,17 +1138,20 @@ export default function DesignSoftwareWorkspacePage() {
   const prelimDefaultsMutation = useMutation({
     mutationFn: (p: { scope: "ecp" | "ecr"; action: "apply" | "clear"; mode?: "reset" | "backfill" }) =>
       apiRequest("POST", `/api/design-software/revisions/${activeRevisionId}/preliminary-defaults`, p) as Promise<any>,
-    onSuccess: (resp: any) => {
+    onSuccess: (resp: any, variables: { scope: string; action: string; mode?: string }) => {
       // Server response is authoritative for this section — overwrite local values
       setLocalData(prev => ({ ...prev, [resp.section]: Object.fromEntries(Object.entries(resp.data ?? {}).map(([k, v]) => [k, String(v ?? "")])) }));
       qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/inputs`] });
       qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/assumptions`] });
-      toast({
-        title: resp.applied ? "Preliminary defaults applied" : "Preliminary defaults cleared",
-        description: resp.applied
-          ? `${resp.fieldCount} Assumed-tagged screening defaults populated — editable, Pending Validation.`
-          : "Thermopac preliminary default values and their register entries were removed.",
-      });
+      // Suppress toast for silent auto-backfills (newly required fields on existing workspaces).
+      if (variables.mode !== 'backfill') {
+        toast({
+          title: resp.applied ? "Preliminary defaults applied" : "Preliminary defaults cleared",
+          description: resp.applied
+            ? `${resp.fieldCount} Assumed-tagged screening defaults populated — editable, Pending Validation.`
+            : "Thermopac preliminary default values and their register entries were removed.",
+        });
+      }
     },
     onError: (e: any) => toast({ title: "Preliminary defaults error", description: e.message, variant: "destructive" }),
   });
@@ -1173,7 +1179,14 @@ export default function DesignSoftwareWorkspacePage() {
     // Backfill — ECR workspace already has height allowances (engineer values present) but is
     // missing a newly required field added after the workspace was created (e.g. system_derating_factor).
     // backfill mode writes only absent fields — never overwrites engineer-modified values.
-    if (tech === "ecr" && (ecr.top_head_height ?? "").trim() && !(ecr.system_derating_factor ?? "").trim()) {
+    // The ref guard prevents re-triggering while the query refetch is in-flight after the mutation.
+    if (
+      tech === "ecr" &&
+      (ecr.top_head_height ?? "").trim() &&
+      !(ecr.system_derating_factor ?? "").trim() &&
+      ecrBackfillAttemptedRef.current !== activeRevisionId
+    ) {
+      ecrBackfillAttemptedRef.current = activeRevisionId;
       prelimDefaultsMutation.mutate({ scope: "ecr", action: "apply", mode: "backfill" });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
