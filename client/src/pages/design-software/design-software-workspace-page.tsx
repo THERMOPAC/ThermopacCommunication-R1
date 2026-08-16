@@ -4186,19 +4186,6 @@ export default function DesignSoftwareWorkspacePage() {
               Technology must be selected before Equipment Design can proceed.
             </div>
           )}
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Selection Rationale <span className="text-gray-400 font-normal text-xs">(optional)</span></label>
-            <textarea
-              value={ts.technology_selection_rationale ?? ""}
-              onChange={e => { f("technology_selection_rationale", e.target.value); }}
-              onBlur={s}
-              disabled={isFrozen}
-              rows={3}
-              className="w-full text-sm border rounded-md px-3 py-2 resize-none"
-              placeholder="Enter the engineering basis and key factors that drove this technology selection."
-            />
-            <p className="text-[10px] text-gray-400 mt-0.5">Optional — if entered, carried into the ECPR and ECRR calculation reports.</p>
-          </div>
         </SectionCard>
       </div>
     );
@@ -4341,17 +4328,6 @@ export default function DesignSoftwareWorkspacePage() {
             <span className="block text-[10px] text-gray-400">Engineer decision · Source: Stage 6 — Technology Selection</span>
           </span>
         </div>
-        {tech6Rationale ? (
-          <div className="grid grid-cols-[180px_1fr] gap-2 py-1 border-b border-gray-50">
-            <span className="text-xs text-gray-500">Selection Rationale</span>
-            <span className="text-xs font-medium text-gray-800 whitespace-pre-wrap">{tech6Rationale}</span>
-          </div>
-        ) : (
-          <div className="grid grid-cols-[180px_1fr] gap-2 py-1 border-b border-gray-50">
-            <span className="text-xs text-gray-500">Selection Rationale</span>
-            <span className="text-xs text-gray-400 italic">Not entered (optional)</span>
-          </div>
-        )}
         {/* ── Stage 5 Hydraulic Carry-Over ────────────────────────────────── */}
         <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mt-3 mb-1">Stage 5 — Hydraulic Carry-Over</p>
         {row("Column Diameter", co.diameter !== null ? `${co.diameter} m` : "— (run Stage 5)", co.diameterSource)}
