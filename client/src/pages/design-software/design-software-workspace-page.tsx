@@ -15,7 +15,7 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   ArrowLeft, Lock, GitBranch, ChevronRight, CheckCircle2, XCircle,
   AlertCircle, FileText, BookOpen, Droplets, Activity, Calculator,
-  GitFork, Settings, BarChart2, Wrench, Zap, DollarSign, ShieldCheck,
+  GitFork, Settings, Wrench, Zap, DollarSign, ShieldCheck,
   FileDown, History, Play, Save, AlertTriangle, Info, Check, ChevronsUpDown
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -77,13 +77,12 @@ const STEPS = [
   { id: 5,  key: "hydraulic_design",      label: "Common Hydraulic Design",  icon: Calculator },
   { id: 6,  key: "technology_selection",  label: "Technology Selection",     icon: GitFork },
   { id: 7,  key: "equipment_design",      label: "Equipment Design",         icon: Settings },
-  { id: 8,  key: "technology_comparison", label: "Technology Comparison",    icon: BarChart2 },
-  { id: 9,  key: "mechanical_design",     label: "Mechanical Design",        icon: Wrench },
-  { id: 10, key: "utilities",             label: "Utilities",                icon: Zap },
-  { id: 11, key: "cost_estimation",       label: "Cost Estimation",          icon: DollarSign },
-  { id: 12, key: "design_validation",     label: "Design Validation",        icon: ShieldCheck },
-  { id: 13, key: "reports",              label: "Reports",                  icon: FileDown },
-  { id: 14, key: "revision_control",      label: "Review & Revision Control",icon: History },
+  { id: 8,  key: "mechanical_design",     label: "Mechanical Design",        icon: Wrench },
+  { id: 9,  key: "utilities",             label: "Utilities",                icon: Zap },
+  { id: 10, key: "cost_estimation",       label: "Cost Estimation",          icon: DollarSign },
+  { id: 11, key: "design_validation",     label: "Design Validation",        icon: ShieldCheck },
+  { id: 12, key: "reports",              label: "Reports",                  icon: FileDown },
+  { id: 13, key: "revision_control",      label: "Review & Revision Control",icon: History },
 ] as const;
 
 type StepKey = (typeof STEPS)[number]["key"];
@@ -1645,15 +1644,6 @@ export default function DesignSoftwareWorkspacePage() {
       }
     }
 
-    if (stageKey === "technology_comparison") {
-      const techSel2 = d("technology_selection").technology;
-      if (!techSel2?.trim())
-        errors["technology"] = "Technology not selected — complete Stage 6 first";
-      // ECP removed — only check ECR run exists. Legacy "ecp"/"both" values treated as ECR.
-      if (techSel2?.trim() && !ecrExec.executed)
-        errors["ecr_run"] = "No accepted ECR run exists — run Stage 7 ECR calculation and accept the result first";
-    }
-
     if (stageKey === "mechanical_design") {
       const md2 = d("mechanical_design");
       if (!(md2.design_code ?? "").trim())
@@ -1666,7 +1656,7 @@ export default function DesignSoftwareWorkspacePage() {
       const missingUtils = (["thermal_oil_duty", "cw_duty", "cw_flow", "steam_requirement", "electrical_load", "nitrogen_requirement"] as const)
         .filter(k => !val(k));
       if (missingUtils.length > 0)
-        warnings["utilities_incomplete"] = `${missingUtils.length} utility field${missingUtils.length > 1 ? "s" : ""} not yet entered — the utilities section of Stage 13 reports will be incomplete`;
+        warnings["utilities_incomplete"] = `${missingUtils.length} utility field${missingUtils.length > 1 ? "s" : ""} not yet entered — the utilities section of Stage 12 reports will be incomplete`;
     }
 
     if (stageKey === "cost_estimation") {
@@ -1971,7 +1961,7 @@ export default function DesignSoftwareWorkspacePage() {
       })(),
     },
     {
-      label: "Stage 9 — Mechanical Design code assigned",
+      label: "Stage 8 — Mechanical Design code assigned",
       status: (() => {
         const { errors: e9 } = validateStage("mechanical_design");
         return Object.keys(e9).length === 0 ? "pass" : "fail";
@@ -1982,7 +1972,7 @@ export default function DesignSoftwareWorkspacePage() {
       })(),
     },
     {
-      label: "Stage 11 — Cost Estimation parameters complete",
+      label: "Stage 10 — Cost Estimation parameters complete",
       status: (() => {
         const { errors: e11 } = validateStage("cost_estimation");
         return Object.keys(e11).length === 0 ? "pass" : "fail";
@@ -5135,199 +5125,21 @@ export default function DesignSoftwareWorkspacePage() {
     );
   }
 
-  function renderTechnologyComparison() {
-    if (techSelection !== "both") {
-      return (
-        <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-sm">
-          <Info className="h-5 w-5 shrink-0" />
-          Technology Comparison is only shown when <strong>"Compare Both"</strong> is selected in Step 6.
-        </div>
-      );
-    }
-    const tc = d("technology_comparison");
-    const f = field("technology_comparison");
-    const s = save("technology_comparison");
-
-    // ── Run binding: latest accepted (success / pending-validation) run per engine ──
-    const acceptedStatuses = ["success", "warning"]; // 'warning' = calculated, Pending Validation
-    const ecpRun: any = runs.find(r => r.calculation_type === "ecp" && acceptedStatuses.includes(r.calculation_status));
-    const ecrRun: any = runs.find(r => r.calculation_type === "ecr" && acceptedStatuses.includes(r.calculation_status));
-
-    // Selected Stage 5 diameter: engineer trial when entered, else the sweep minimum feasible
-    const hydSummary = (resultsQ.data ?? []).find((r: any) => r.section === "hydraulics_common")?.data?.normalCase?.summary;
-    const trialStr = (d("hydraulic_design").column_diameter ?? "").trim();
-    const selDia = parseFloat(trialStr) > 0 ? parseFloat(trialStr) : parseFloat(String(hydSummary?.minimumFeasibleDiameter_m ?? ""));
-    const selRow = (snap: any) => (snap?.normalCase?.diameters ?? []).find((x: any) => Math.abs(x.diameter_m - selDia) < 1e-6);
-
-    type Cell = { text: string; sub?: string; warn?: boolean };
-    const NA: Cell = { text: "Not Applicable" };
-    const noRun = (t: string): Cell => ({ text: `No accepted ${t} run available`, warn: true });
-    const fmtN = (v: any, dp = 2) => (typeof v === "number" && isFinite(v) ? v.toFixed(dp) : null);
-
-    const ecpSnap = ecpRun?.result_snapshot;
-    const ecrSnap = ecrRun?.result_snapshot;
-    const ecpHB = ecpSnap?.heightBreakdown;
-    const ecrHB = ecrSnap?.heightBreakdown;
-    const ecpSel = selRow(ecpSnap);
-    const ecrSel = selRow(ecrSnap);
-    const ecrAt = ecrSel?.rotor?.atSpeed?.[0];
-
-    const packedBed = (ecpHB?.lines ?? []).filter((l: any) => String(l.label).startsWith("Packing Bed")).reduce((a: number, l: any) => a + (l.result ?? 0), 0);
-    const utilCell = (u: any, tech: string): Cell => !u || u.result === null
-      ? { text: "Pending Vendor Capacity Data", sub: `${tech} vendor capacity data not in record — C3 generic % is not a substitute`, warn: true }
-      : { text: `${fmtN(u.result, 1)} %`, sub: u.status };
-    const genericLoad = hydSummary ? `Stage 5 generic hydraulic screening available — not ECP/ECR vendor rating` : undefined;
-
-    const calcRows: { label: string; unit: string; ecp: Cell; ecr: Cell }[] = [
-      {
-        label: "Column Diameter", unit: "m",
-        ecp: ecpRun ? { text: fmtN(selDia) ?? "—", sub: trialStr ? "Stage 5 engineer trial" : "Stage 5 minimum feasible (sweep)" } : noRun("ECP"),
-        ecr: ecrRun ? { text: fmtN(selDia) ?? "—", sub: trialStr ? "Stage 5 engineer trial" : "Stage 5 minimum feasible (sweep)" } : noRun("ECR"),
-      },
-      {
-        label: "Active Height", unit: "m",
-        ecp: ecpRun ? { text: fmtN(packedBed) ?? "—", sub: "Total packed-bed height (ECP-005/006)" } : noRun("ECP"),
-        ecr: ecrRun ? { text: fmtN(ecrHB?.activeAgitatedHeight?.result) ?? "—", sub: `Active agitated height (${ecrSnap?.compartments?.result ?? "—"} compartments × compartment height)` } : noRun("ECR"),
-      },
-      {
-        label: "Total Height (Overall Vessel)", unit: "m",
-        ecp: ecpRun ? { text: fmtN(ecpHB?.overallVesselHeight?.result) ?? "—", sub: `T/T ${fmtN(ecpHB?.totalTangentToTangent?.result)} m + heads` } : noRun("ECP"),
-        ecr: ecrRun ? { text: fmtN(ecrHB?.overallVesselHeight?.result) ?? "—", sub: `T/T ${fmtN(ecrHB?.totalTangentToTangent?.result)} m + heads + drive/seal` } : noRun("ECR"),
-      },
-      {
-        label: "Hydraulic Utilization", unit: "%",
-        ecp: ecpRun ? utilCell(ecpSel?.ecpHydraulicUtilization, "ECP") : noRun("ECP"),
-        ecr: ecrRun ? utilCell(ecrSel?.ecrHydraulicUtilization, "ECR") : noRun("ECR"),
-      },
-      {
-        label: "Pressure Drop", unit: "Pa/m",
-        ecp: ecpRun
-          ? (ecpSel?.pressureDrop?.result !== null && ecpSel?.pressureDrop?.result !== undefined
-              ? { text: `${fmtN(ecpSel.pressureDrop.result, 1)} ${ecpSel.pressureDrop.units}`, sub: ecpSel.pressureDrop.status }
-              : { text: "Not Calculable", sub: "Vendor pressure-drop data missing", warn: true })
-          : noRun("ECP"),
-        ecr: NA,
-      },
-      {
-        label: "Shaft Power", unit: "kW",
-        ecp: NA,
-        ecr: ecrRun && ecrAt
-          ? { text: fmtN((ecrAt.power?.totalShaft?.result ?? NaN) / 1000, 4) ?? "—", sub: `Motor design ${fmtN((ecrAt.power?.motorDesign?.result ?? NaN) / 1000, 4)} kW (ECR-006, ${ecrAt.power?.totalShaft?.status})` }
-          : noRun("ECR"),
-      },
-    ];
-
-    const runHeader = (run: any, label: string) => run ? (
-      <p className="text-[11px] text-gray-500">
-        <strong>{label}</strong>: run #{run.id} · {run.engine_name} v{run.engine_version} · {run.calculation_status === "warning" ? "Pending Validation" : run.calculation_status} · {new Date(run.calculated_at).toLocaleString()}
-      </p>
-    ) : <p className="text-[11px] text-amber-700"><strong>{label}</strong>: {label === "ECP" ? "No accepted ECP run available" : "No accepted ECR run available"} — run Calculate in Step 7</p>;
-
-    // ── Qualitative screening rows: Preliminary Engineering Assessment, editable ──
-    const QUAL_REF = "Preliminary Engineering Assessment — Thermopac qualitative screening basis (editable)";
-    const LIT_REF = "Sulzer ECP/ECR literature screening record (Rauber, AIChE 2006)";
-    const pulsator = String(d("technology_selection").pulsator_required ?? tc.pulsator_required ?? "").toLowerCase() === "yes";
-    const qualRows: { key: string; label: string; ecpDefault: string; ecrDefault: string; ref: string }[] = [
-      { key: "moving_parts", label: "Moving Parts", ecpDefault: pulsator ? "Pulsator only" : "No (unpulsed)", ecrDefault: "Yes — rotor, shaft and drive", ref: QUAL_REF },
-      { key: "fouling_resistance", label: "Fouling Resistance", ecpDefault: "Moderate — packing/distributors sensitive to solids, rag and fouling", ecrDefault: "Moderate to Good — agitated internals tolerate changing properties; shaft/bearings/narrow internals need maintenance", ref: QUAL_REF },
-      { key: "maintenance", label: "Maintenance", ecpDefault: pulsator ? "Medium (pulsator selected)" : "Low (unpulsed column)", ecrDefault: "Medium to High — rotor, shaft, seal, bearings, drive", ref: QUAL_REF },
-      { key: "turndown", label: "Turndown", ecpDefault: "1:2", ecrDefault: "1:3", ref: LIT_REF },
-    ];
-
-    const costCell: Cell = { text: "Not Calculable", sub: "Cost Estimation (Step 11) not completed", warn: true };
-    const cellEl = (c: Cell) => (
-      <div className="text-center px-1">
-        <span className={`text-xs ${c.warn ? "text-amber-700" : "text-gray-800"} font-medium`}>{c.text}</span>
-        {c.sub && <p className="text-[10px] text-gray-400 leading-tight">{c.sub}</p>}
-      </div>
-    );
-
-    return (
-      <div className="max-w-4xl">
-        {stageBanner("technology_comparison")}
-        <SectionCard title="Technology Comparison — ECP vs ECR">
-          <div className="mb-3 space-y-0.5">
-            {runHeader(ecpRun, "ECP")}
-            {runHeader(ecrRun, "ECR")}
-            {genericLoad && <p className="text-[10px] text-gray-400">{genericLoad}</p>}
-          </div>
-          <div className="grid grid-cols-[1fr_190px_190px] gap-1 mb-2">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Parameter</span>
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">ECP</span>
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">ECR</span>
-          </div>
-          {calcRows.map(row => (
-            <div key={row.label} className="grid grid-cols-[1fr_190px_190px] gap-1 items-center py-1.5 border-b">
-              <span className="text-sm text-gray-700">{row.label} <span className="text-gray-400 text-xs">({row.unit})</span></span>
-              {cellEl(row.ecp)}
-              {cellEl(row.ecr)}
-            </div>
-          ))}
-          {qualRows.map(row => (
-            <div key={row.key} className="grid grid-cols-[1fr_190px_190px] gap-1 items-center py-1.5 border-b">
-              <span className="text-sm text-gray-700">{row.label}
-                <p className="text-[10px] text-gray-400 leading-tight">{row.ref}</p>
-              </span>
-              <Input value={tc[`ecp_${row.key}`] ?? row.ecpDefault} onChange={e => f(`ecp_${row.key}`, e.target.value)} onBlur={s} className="h-8 text-[11px] text-center" disabled={isFrozen} />
-              <Input value={tc[`ecr_${row.key}`] ?? row.ecrDefault} onChange={e => f(`ecr_${row.key}`, e.target.value)} onBlur={s} className="h-8 text-[11px] text-center" disabled={isFrozen} />
-            </div>
-          ))}
-          {(["CAPEX (₹ Lakhs)", "OPEX (₹ Lakhs/yr)"]).map(lbl => (
-            <div key={lbl} className="grid grid-cols-[1fr_190px_190px] gap-1 items-center py-1.5 border-b last:border-0">
-              <span className="text-sm text-gray-700">{lbl}</span>
-              {cellEl(costCell)}
-              {cellEl(costCell)}
-            </div>
-          ))}
-          <p className="text-[10px] text-gray-400 mt-2">
-            All calculated cells are bound to the latest accepted C4/C5 runs (never manual entry). CAPEX/OPEX will bind to the Cost Estimation engine when Step 11 is completed.
-          </p>
-        </SectionCard>
-        <SectionCard title="Selection Decision">
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800 mb-3">
-            <AlertTriangle className="inline h-4 w-4 mr-1" />
-            <strong>The software never automatically selects the preferred technology.</strong> The engineer must make this decision based on technical merit and project requirements.
-          </div>
-          <TextAreaRow label="Preliminary Comparison Summary" value={tc.comparison_summary ?? ""} onChange={v => f("comparison_summary", v)} onBlur={s} rows={3} placeholder="Engineer's summary of the ECP vs ECR comparison (heights, power, utilization data gaps, qualitative factors)" />
-          <div className="mb-3">
-            <label className="text-xs font-medium text-gray-600 block mb-1">Engineer Selected Technology</label>
-            <select
-              className="w-full h-9 text-sm border rounded-md px-2 bg-white"
-              value={tc.preferred ?? ""}
-              disabled={isFrozen}
-              onChange={e => commitSection("technology_comparison", { preferred: e.target.value })}
-            >
-              <option value="">— Not yet selected —</option>
-              <option value="ecp">ECP</option>
-              <option value="ecr">ECR</option>
-              <option value="both_vendor_pilot">Continue Both for Vendor/Pilot Review</option>
-            </select>
-          </div>
-          <TextAreaRow label="Selection Basis" value={tc.selection_basis ?? ""} onChange={v => f("selection_basis", v)} onBlur={s} rows={3} placeholder="Technical justification for technology selection" />
-          <TextAreaRow label="Engineer Comments" value={tc.engineer_comments ?? ""} onChange={v => f("engineer_comments", v)} onBlur={s} rows={2} placeholder="Additional engineering notes" />
-        </SectionCard>
-      </div>
-    );
-  }
-
   function renderMechanicalDesign() {
     const md = d("mechanical_design");
     const f = field("mechanical_design");
     const s = save("mechanical_design");
     const dbData = d("design_basis");
-    const tcData = d("technology_comparison");
 
-    // ── Inherited values (Stages 1/7/8) ─────────────────────────────
+
+    // ── Inherited values (from Stages 1/5/7) ─────────────────────────────
     const acceptedStatuses = ["success", "warning"];
-    const preferred = tcData.preferred ?? "";
-    const techLabel = preferred === "ecp" ? "ECP (Packed Column)" : preferred === "ecr" ? "ECR (Rotary Agitated Column)" : preferred === "both_vendor_pilot" ? "Continue Both for Vendor/Pilot Review" : "";
-    // Auto-detect mechanical basis from accepted Stage 7 runs — no user selection ever required.
-    // Priority: Stage 8 explicit selection → most recently accepted Stage 7 run (ecp or ecr).
+    // Auto-detect mechanical basis: most recently accepted Stage 7 ECR or ECP run — no selection required.
     const lastStage7Run: any = [...runs]
       .filter((r: any) => ["ecp", "ecr"].includes(r.calculation_type) && acceptedStatuses.includes(r.calculation_status))
       .sort((a: any, b: any) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0];
-    const effectiveTech: string = (preferred === "ecp" || preferred === "ecr") ? preferred
-      : (lastStage7Run?.calculation_type ?? "");
+    const effectiveTech: string = lastStage7Run?.calculation_type ?? "";
+    const techLabel = effectiveTech === "ecp" ? "ECP (Packed Column)" : effectiveTech === "ecr" ? "ECR (Rotary Agitated Column)" : "";
     const techRunType = effectiveTech || null;
     const techRun: any = techRunType ? runs.find((r: any) => r.calculation_type === techRunType && acceptedStatuses.includes(r.calculation_status)) : null;
     const techHB = techRun?.result_snapshot?.heightBreakdown;
@@ -5342,7 +5154,7 @@ export default function DesignSoftwareWorkspacePage() {
 
     // Inherited field definitions: [key, label, unit, inheritedValue, sourceStage, sourceRef]
     const inherited: { key: string; label: string; unit?: string; inh: string; stage: string; ref: string; missing?: string }[] = [
-      { key: "selected_technology", label: "Selected Technology", inh: techLabel, stage: "Stage 8 — Technology Comparison", ref: "Engineer Selected Technology", missing: "Pending Technology Selection (Stage 8)" },
+      { key: "selected_technology", label: "Selected Technology", inh: techLabel, stage: "Stage 7 — Equipment Design", ref: "Auto-detected from most recent accepted Stage 7 run", missing: "Pending accepted Stage 7 ECR/ECP run" },
       { key: "column_diameter_m", label: "Column Diameter", unit: "m", inh: fmt(selDiaM), stage: "Stage 7 — Equipment Design", ref: trialStr ? "Stage 5 engineer trial diameter" : "Stage 5 minimum feasible diameter (sweep)", missing: "Pending Stage 5 hydraulic sweep" },
       { key: "tt_height_m", label: "Tangent-to-Tangent Height", unit: "m", inh: fmt(techHB?.totalTangentToTangent?.result), stage: "Stage 7 — Equipment Design", ref: techRun ? `${techRunType?.toUpperCase()} run #${techRun.id} v${techRun.engine_version}` : "", missing: "Pending accepted Stage 7 run for selected technology" },
       { key: "overall_height_m", label: "Overall Vessel Height", unit: "m", inh: fmt(techHB?.overallVesselHeight?.result), stage: "Stage 7 — Equipment Design", ref: techRun ? `${techRunType?.toUpperCase()} run #${techRun.id} v${techRun.engine_version}` : "", missing: "Pending accepted Stage 7 run for selected technology" },
@@ -5422,7 +5234,7 @@ export default function DesignSoftwareWorkspacePage() {
         {stageBanner("mechanical_design")}
         <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 mb-4">
           <Info className="h-4 w-4 shrink-0" />
-          Stage 9 assembles the traceable Mechanical Design Basis and runs it through the existing C6 Common Mechanical Design Engine — preliminary screening only. Final code-certified ASME/EN/IS design remains pending.
+          Stage 8 assembles the traceable Mechanical Design Basis and runs it through the existing C6 Common Mechanical Design Engine — preliminary screening only. Final code-certified ASME/EN/IS design remains pending.
         </div>
 
 
@@ -5494,7 +5306,7 @@ export default function DesignSoftwareWorkspacePage() {
                 <option value="">— Not Assigned (blocks report issue) —</option>
                 {["ASME Sec VIII Div 1", "ASME Sec VIII Div 2", "EN 13445", "IS 2825", "PD 5500"].map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-              {trace((md.design_code ?? "").trim() ? "Engineer Entered" : "Mandatory — Not Assigned", "Stage 9 — Mechanical Design", "No default is applied; the engine records NOT_ASSIGNED verbatim until entered. Assigning the code and re-running unblocks the EDS/MDS/RFQ/EDR reports.")}
+              {trace((md.design_code ?? "").trim() ? "Engineer Entered" : "Mandatory — Not Assigned", "Stage 8 — Mechanical Design", "No default is applied; the engine records NOT_ASSIGNED verbatim until entered. Assigning the code and re-running unblocks the EDS/MDS/RFQ/EDR reports.")}
             </div>
             <span />
           </div>
@@ -5518,7 +5330,7 @@ export default function DesignSoftwareWorkspacePage() {
             </div>
           </div>
           {!effectiveTech && (
-            <p className="text-[11px] text-amber-700 mb-2">Generation requires a technology basis — select ECP or ECR above, or set Stage 8 — Technology Comparison to a single technology.</p>
+            <p className="text-[11px] text-amber-700 mb-2">Generation requires an accepted Stage 7 ECR or ECP run — run the Stage 7 calculation and accept the result first.</p>
           )}
           {nozIssues.length > 0 && (
             <div className="p-2 mb-2 bg-amber-50 border border-amber-200 rounded text-[11px] text-amber-800">
@@ -5570,7 +5382,7 @@ export default function DesignSoftwareWorkspacePage() {
 
         <SectionCard title="Mechanical Design Summary (Read-Only)">
           {([
-            ["Selected Technology", effVal(inherited[0]) || "Pending Stage 8 selection"],
+            ["Selected Technology", effVal(inherited[0]) || "Pending Stage 7 accepted run"],
             ["Column Diameter", effVal(inherited[1]) ? `${effVal(inherited[1])} m` : "Pending"],
             ["T/T Height", effVal(inherited[2]) ? `${effVal(inherited[2])} m` : "Pending Stage 7 run"],
             ["Overall Vessel Height", effVal(inherited[3]) ? `${effVal(inherited[3])} m` : "Pending Stage 7 run"],
@@ -5597,14 +5409,12 @@ export default function DesignSoftwareWorkspacePage() {
   }
 
   function renderMechVesselResults() {
-    const tcPreferred = String(d("technology_comparison").preferred ?? "");
-    // Mirror renderMechanicalDesign: Stage 8 explicit → most recent accepted Stage 7 run
+    // Auto-detect: most recently accepted Stage 7 ECR or ECP run governs.
     const acceptedSt = ["success", "warning"];
     const lastMVRun: any = [...runs]
       .filter((r: any) => ["ecp","ecr"].includes(r.calculation_type) && acceptedSt.includes(r.calculation_status))
       .sort((a: any, b: any) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0];
-    const effectiveTechMV: string = (tcPreferred === "ecp" || tcPreferred === "ecr") ? tcPreferred
-      : (lastMVRun?.calculation_type ?? "");
+    const effectiveTechMV: string = lastMVRun?.calculation_type ?? "";
     const techSelected = !!effectiveTechMV;
     const mechRun: any = runs.find(r => r.calculation_type === "mechanical_vessel" && ["success", "warning"].includes(r.calculation_status));
     const snap = mechRun?.result_snapshot;
@@ -5622,7 +5432,7 @@ export default function DesignSoftwareWorkspacePage() {
       <SectionCard title="Preliminary Mechanical Design — C6 Common Mechanical Design Engine">
         <div className="flex items-center justify-between mb-2">
           <p className="text-[11px] text-gray-500">
-            Maps the confirmed Stage 9 Mechanical Design Basis into mech-vessel v1.0.0. Preliminary thin-wall screening only — not a final ASME design and not fabrication-ready.
+            Maps the confirmed Stage 8 Mechanical Design Basis into mech-vessel v1.0.0. Preliminary thin-wall screening only — not a final ASME design and not fabrication-ready.
           </p>
           <Button size="sm" disabled={isFrozen || calculateMutation.isPending || nozGenBusy || !techSelected || !effectiveTechMV} onClick={async () => {
             // Fully automatic: an unsized/legacy nozzle schedule (no DN on any row and
@@ -5642,7 +5452,7 @@ export default function DesignSoftwareWorkspacePage() {
         </div>
         {!techSelected && (
           <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 mb-3">
-            Blocked — set <strong>Engineer Selected Technology</strong> to ECP or ECR in Stage 8 (Technology Comparison) first. {tcPreferred === "both_vendor_pilot" ? '"Continue Both for Vendor/Pilot Review" cannot drive the mechanical basis — a single technology is required.' : "The software never auto-selects the technology."}
+            Blocked — no accepted Stage 7 ECR or ECP run found. Run the Stage 7 calculation and accept the result first.
           </div>
         )}
         <div className="p-2 bg-gray-50 border rounded-lg text-[10px] text-gray-500 mb-3">
@@ -6039,7 +5849,6 @@ export default function DesignSoftwareWorkspacePage() {
       case "hydraulic_design":      return renderHydraulicDesign();
       case "technology_selection":  return renderTechnologySelection();
       case "equipment_design":      return renderEquipmentDesign();
-      case "technology_comparison": return renderTechnologyComparison();
       case "mechanical_design":     return renderMechanicalDesign();
       case "utilities":             return renderUtilities();
       case "cost_estimation":       return renderCostEstimation();
