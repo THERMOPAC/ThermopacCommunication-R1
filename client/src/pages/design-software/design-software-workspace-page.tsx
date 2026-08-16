@@ -4966,6 +4966,40 @@ export default function DesignSoftwareWorkspacePage() {
           <FieldRow label="Max Allowable Shaft Power (vendor)" value={er.max_shaft_power ?? ""} onChange={v => f("max_shaft_power", v)} onBlur={s} unit="kW" />
           <FieldRow label="Max Unsupported Shaft Length (vendor)" value={er.max_unsupported_shaft_length ?? ""} onChange={v => f("max_unsupported_shaft_length", v)} onBlur={s} unit="m" />
           {statusLine("Engineer/vendor-entered inputs — mapped source-tagged to the C5 ECR engine, pending validation. Vendor limits are optional; missing limits are reported by the engine, never assumed.")}
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-2 mt-3">
+            <p className="text-sm font-semibold text-amber-900 mb-1">System Derating Factor — Vendor Hydraulic Capacity Correction</p>
+            <p className="text-[11px] text-amber-800 leading-relaxed">
+              Applies when the vendor hydraulic capacity curve was determined under conditions different from the project system (e.g. different fluid pair, temperature, test scale, or packing generation).
+              A factor of 1.0 means no correction — the vendor capacity value is used as-is.
+            </p>
+            <p className="text-[11px] text-amber-700 mt-1 font-medium">
+              Utilisation formula: U = load<sub>tot</sub> / (capacity<sub>vendor</sub> × derating) × 100 %.
+              Default 1.0 (Assumed) is the Thermopac Preliminary ECR Screening Basis — Pending Vendor/Pilot Validation.
+              Replace with a vendor/pilot-derived correction when available. Value, source type, and source reference are all mandatory.
+            </p>
+          </div>
+          <FieldRow label="System Derating Factor" value={er.system_derating_factor ?? ""} onChange={v => f("system_derating_factor", v)} onBlur={s} unit="—" note="0.1–1.0. Used only in ECR hydraulic utilization — does not affect height, rotor power, or stage calculations." />
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5">
+            <label className="text-sm text-gray-700 font-medium pt-1.5">Derating Factor Source Type</label>
+            <select
+              value={er.system_derating_factor_source ?? ""}
+              onChange={e => commitSection("ecr_design", { system_derating_factor_source: e.target.value })}
+              disabled={isFrozen}
+              className="h-8 text-sm border rounded-md px-2 bg-white"
+            >
+              <option value="">— select source type —</option>
+              <option value="Vendor">Vendor</option>
+              <option value="Measured">Measured</option>
+              <option value="Literature">Literature</option>
+              <option value="Assumed">Assumed</option>
+            </select>
+            <span />
+          </div>
+          <FieldRow label="Derating Factor Source Reference" value={er.system_derating_factor_source_reference ?? ""} onChange={v => f("system_derating_factor_source_reference", v)} onBlur={s} unit="" placeholder="e.g. Vendor qualification test / pilot campaign / Thermopac Preliminary ECR Screening Basis" />
+          {statusLine(`Derating: ${er.system_derating_factor
+            ? `${er.system_derating_factor} · Source: ${er.system_derating_factor_source || "Not selected — required"} · ${er.system_derating_factor_source_reference ? "Reference provided" : "Reference missing — required"}${er.system_derating_factor_source === "Assumed" ? " · Preliminary ECR Screening — Pending Vendor/Pilot Validation" : ""}`
+            : "No value — engine will block (required governed input)"
+          }`)}
         </SectionCard>
         <SectionCard title="ECR — Height Allowances (engineer/vendor)">
           <FieldRow label="Drive/Seal/Bearing Allowance" value={er.drive_seal_bearing_allowance ?? ""} onChange={v => f("drive_seal_bearing_allowance", v)} onBlur={s} unit="m" />

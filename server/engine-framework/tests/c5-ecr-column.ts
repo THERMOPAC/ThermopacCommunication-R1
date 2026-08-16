@@ -40,6 +40,7 @@ function baseInputs(): Record<string, unknown> {
     powerNumber: tag(3.5, '-'),
     statorOpenAreaFraction: tag(0.25, '-'),
     rotorsPerCompartment: tag(1, '-', 'Assumed', 'ECR preliminary default — 1 rotor per compartment (Thermopac Preliminary ECR Screening Basis)'),
+    systemDeratingFactor: tag(1.0, '-', 'Assumed', 'Thermopac Preliminary ECR Screening Basis — Pending Vendor/Pilot Validation'),
     theoreticalStages: 6,
     compartmentEfficiency: tag(0.4, '-'),
     compartmentHeight: tag(0.25, 'm'),
@@ -264,12 +265,15 @@ async function main() {
     k.vendorHydraulicCapacity = { kind: 'table', independentVariable: 'totalLiquidLoad', independentUnit: 'm3/(m2.h)', dependentUnit: 'm3/(m2.h)', points: [{ x: 5, y: 32 }, { x: 30, y: 25 }], sourceType: 'Vendor', sourceReference: 'wrong basis' };
     checkTrue('wrong curve variable blocked', (await engine.calculate(k, ctx)).status === 'error');
 
-    // Assumed capacity ⇒ pending; no derating ⇒ warning
+    // Assumed capacity ⇒ utilization Pending Validation
     const m = baseInputs();
     (m.vendorHydraulicCapacity as any).sourceType = 'Assumed';
     const res3 = await engine.calculate(m, ctx);
     checkTrue('Assumed capacity → utilization Pending Validation', (res3.data as any).normalCase.diameters[0].ecrHydraulicUtilization.status === 'Pending Validation');
-    checkTrue('NO_SYSTEM_DERATING_DATA warning', res3.warnings.some((w) => w.code === 'NO_SYSTEM_DERATING_DATA'));
+    // systemDeratingFactor absent → blocked (required governed input; no hidden 1.0 fallback)
+    const noDerate = baseInputs();
+    delete (noDerate as any).systemDeratingFactor;
+    checkTrue('systemDeratingFactor absent → calculation blocked', (await engine.calculate(noDerate, ctx)).status === 'error');
   }
 
   // ── 8. Mechanical screening ──

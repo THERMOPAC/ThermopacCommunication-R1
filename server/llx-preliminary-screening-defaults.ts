@@ -134,9 +134,17 @@ export function ecrDefaultFields(stage5ColumnDiameter_m: number | null): Default
     // Workspace fields display %, the input mapper converts to fraction (0.50 / 0.90)
     { key: 'compartment_efficiency', value: '50', label: 'Compartment Efficiency', unit: '% (0.50 fraction)', ref: ECR },
     { key: 'compartment_height', value: '0.25', label: 'Compartment Height', unit: 'm', ref: ECR },
-    { key: 'rotors_per_compartment', value: '1', label: 'Rotors per Compartment', unit: '-', ref: R },
+    { key: 'rotors_per_compartment', value: '1', label: 'Rotors per Compartment', unit: '-', ref: ECR },
     { key: 'shaft_efficiency', value: '90', label: 'Shaft Efficiency', unit: '% (0.90 fraction)', ref: R },
     { key: 'mechanical_design_margin', value: '1.25', label: 'Mechanical Design Margin', unit: '-', ref: R },
+    // System derating factor: now a visible governed input (was a hidden 1.0 engine fallback).
+    // Default 1.0 = no correction applied to vendor hydraulic capacity.
+    // Replace with vendor/pilot correction factor when capacity curve was derived under
+    // different conditions (fluid system, temperature, test scale) from the project system.
+    // All three fields seeded so the engine never blocks on first auto-populate.
+    { key: 'system_derating_factor', value: '1.0', label: 'System Derating Factor', unit: '-', ref: ECR },
+    { key: 'system_derating_factor_source', value: 'Assumed', label: 'System Derating Factor Source Type', unit: '-', ref: ECR },
+    { key: 'system_derating_factor_source_reference', value: PRELIM_ECR_SCREENING_REF, label: 'System Derating Factor Source Reference', unit: '-', ref: ECR },
     { key: 'top_head_height', value: '0.50', label: 'Top Head Height', unit: 'm', ref: R },
     { key: 'top_disengagement_height', value: '1.00', label: 'Top Disengagement Height', unit: 'm', ref: R },
     { key: 'top_distributor_allowance', value: '0.50', label: 'Top Distributor Allowance', unit: 'm', ref: R },

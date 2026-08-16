@@ -521,6 +521,18 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   // Stator open-area fraction — now a visible default (0.30, Assumed); mapper
   // converts the workspace string to a source-tagged engine input.
   taggedFrom('stator_open_area_fraction', 'statorOpenAreaFraction');
+  // systemDeratingFactor — now a visible governed Stage 7 input; no hidden 1.0 engine fallback.
+  // Three-field pattern: value + source type + source reference must all travel together.
+  // Engine is required: true → if any part is missing the ECR engine blocks cleanly.
+  if (out.systemDeratingFactor === undefined) {
+    const dfVal = num(inputs.system_derating_factor);
+    const dfSrc = String(inputs.system_derating_factor_source ?? '').trim();
+    const dfRef = String(inputs.system_derating_factor_source_reference ?? '').trim();
+    if (dfVal !== undefined && dfVal > 0 && SOURCE_TYPES.includes(dfSrc) && dfRef !== '') {
+      out.systemDeratingFactor = { value: dfVal, sourceType: dfSrc, sourceReference: dfRef };
+    }
+    // Absent/incomplete → leave undefined; engine validator blocks with a clear diagnostic.
+  }
   // Continuous-phase viscosity (required by ECR when NMP is continuous):
   // NMP dynamic viscosity, workspace mPa·s → Pa·s.
   // continuousPhaseViscosity — value and reference temperature must travel together (A-11).

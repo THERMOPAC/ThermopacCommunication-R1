@@ -205,7 +205,7 @@ export class LLXECREngine implements IDesignEngine {
     if (stages === undefined || stages <= 0) err('theoreticalStages', 'theoreticalStages must be > 0 (engineer-entered, typically from the Stage C2 result)');
     parseTagged(inputs.compartmentEfficiency, 'compartmentEfficiency', errors, { min: 1e-6, max: 1, unit: '-', required: true });
     parseTagged(inputs.compartmentHeight, 'compartmentHeight', errors, { min: 0.05, max: 1, unit: 'm', required: true });
-    parseTagged(inputs.rotorsPerCompartment, 'rotorsPerCompartment', errors, { min: 1, max: 10, unit: '-', integer: true });
+    parseTagged(inputs.rotorsPerCompartment, 'rotorsPerCompartment', errors, { min: 1, max: 10, unit: '-', integer: true, required: true });
 
     // Mechanical
     parseTagged(inputs.shaftEfficiency, 'shaftEfficiency', errors, { min: 0.5, max: 1.0, unit: '-', required: true });
@@ -232,7 +232,7 @@ export class LLXECREngine implements IDesignEngine {
         err('vendorHydraulicCapacity.value', 'A constant Vendor Hydraulic Capacity must be a finite value > 0');
       }
     }
-    parseTagged(inputs.systemDeratingFactor, 'systemDeratingFactor', errors, { min: 0.1, max: 1.0, unit: '-' });
+    parseTagged(inputs.systemDeratingFactor, 'systemDeratingFactor', errors, { min: 0.1, max: 1.0, unit: '-', required: true });
 
     // Diameter basis — identical discipline to C3/C4
     const sweep = inputs.diameterSweep as Record<string, unknown> | undefined;
@@ -472,21 +472,18 @@ export class LLXECREngine implements IDesignEngine {
       const capacityBasis = inputs.vendorHydraulicCapacity as PerformanceBasis | undefined;
       const capacityAssumed = capacityBasis ? performanceBasisAssumed(capacityBasis) : false;
       if (capacityAssumed) { notePending(); assumptions.push({ assumption: 'Vendor Hydraulic Capacity data are ASSUMED', consequence: 'ECR utilization is Pending Validation' }); }
-      const derate = parseTagged(inputs.systemDeratingFactor, 'systemDeratingFactor', errs, { min: 0.1, max: 1.0, unit: '-' });
-      let derateValue = 1.0;
-      let derateSource = 'No vendor system-derating factor supplied — 1.0 used with explicit warning (never invented)';
-      if (derate) {
-        derateValue = derate.value;
-        derateSource = `Vendor system-derating factor (${sourceOf(derate)})`;
-        if (derate.sourceType === 'Assumed') { notePending(); assumptions.push({ assumption: `System derating factor ${derate.value} is ASSUMED`, sourceType: derate.sourceType, sourceReference: derate.sourceReference, consequence: 'ECR utilization is Pending Validation' }); }
-      } else if (capacityBasis) {
-        pushWarning('NO_SYSTEM_DERATING_DATA', `No vendor system-derating factor supplied — Vendor Hydraulic Capacity applied without correction. Confirm applicability to the ${dispersedPhase}-in-${continuousPhase} system.`);
-      }
+      // systemDeratingFactor is now a required visible governed input — no hidden 1.0 fallback.
+      // ecrDefaultFields() seeds 1.0 Assumed; the engineer replaces it when vendor data exist.
+      // Absent/incomplete → required: true blocks with a clear validation diagnostic.
+      const derate = parseTagged(inputs.systemDeratingFactor, 'systemDeratingFactor', errs, { min: 0.1, max: 1.0, unit: '-', required: true })!;
+      const derateValue = derate.value;
+      const derateSource = `System derating factor ${derate.value} (${sourceOf(derate)})`;
+      if (derate.sourceType === 'Assumed') { notePending(); assumptions.push({ assumption: `System derating factor ${derate.value} is ASSUMED`, sourceType: derate.sourceType, sourceReference: derate.sourceReference, consequence: 'ECR hydraulic utilization is Pending Validation' }); }
       if (!capacityBasis) {
         notePending();
         pushWarning('NO_ECR_CAPACITY_DATA', 'No ECR-specific Vendor Hydraulic Capacity data supplied — ECR hydraulic utilization is Pending Validation (loads are still reported). The C3 generic screening percentage is NOT a substitute.');
       }
-      const utilizationPendingBase = propertyAssumed || capacityAssumed || (derate?.sourceType === 'Assumed');
+      const utilizationPendingBase = propertyAssumed || capacityAssumed || derate.sourceType === 'Assumed';
 
       const utilBandIn = inputs.utilizationBandPercent as Record<string, unknown> | undefined;
       const utilizationBand = utilBandIn ? { min: num(utilBandIn.min)!, max: num(utilBandIn.max)! } : { ...GOVERNED_UTILIZATION_BAND };
