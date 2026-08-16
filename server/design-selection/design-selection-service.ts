@@ -8,9 +8,10 @@
  *
  * Governed deterministic rules (registered as DS-SEL-001…005 in the V&V
  * equation register and the Correlation & Equation Register):
- *   DS-SEL-001  Calculated minimum diameter  D_min = sqrt(4·Q_max / (π·u_allow·C_basis))
+ *   DS-SEL-001  Calculated minimum diameter  D_min = sqrt(4·Q_max / (π·u_allow·C_basis·F_D))
+ *               F_D = system derating factor (ECR only; F_D = 1.0 for ECP which uses declared capacity directly)
  *   DS-SEL-002  Practical rounding rule — round UP to the next 50 mm increment, never down
- *   DS-SEL-003  Hydraulic feasibility — flooding utilization = L_total/C_basis ≤ u_allow,
+ *   DS-SEL-003  Hydraulic feasibility — flooding utilization = L_total/(C_basis·F_D) ≤ u_allow,
  *               evaluated on the frozen maximum-continuous-case sweep row at the candidate
  *               diameter; selected diameter = smallest 50 mm increment that passes
  *   DS-SEL-004  Capacity-basis hierarchy — Vendor > Pilot > Thermopac preliminary screening
@@ -27,7 +28,7 @@
 import { pool } from '../db';
 
 export const DSEL_ENGINE_ID = 'llx-design-selection';
-export const DSEL_ENGINE_VERSION = '1.0.0';
+export const DSEL_ENGINE_VERSION = '1.1.0';
 
 const INCREMENT_MM = 50; // Approved practical diameter increment series (50 mm)
 const ROUNDING_RULE_TEXT =
@@ -95,8 +96,10 @@ interface TechEvaluation {
   maximumLoading: number | null;  // m³/(m²·h) at selected diameter, maximum case
   floodingUtilization: number | null;   // fraction, maximum case governs
   floodingMarginFraction: number | null;    // 1 − utilization
-  floodingMarginAbsolute: number | null;    // basis − max loading, m³/(m²·h)
+  floodingMarginAbsolute: number | null;    // effCap − max loading, m³/(m²·h)
   pressureDropAtSelected: string;           // stored engine status, verbatim
+  /** ECR only: system derating factor applied (F_D). null for ECP (no derating concept). */
+  systemDeratingFactor: number | null;
   checksNotAssessable: string[];
   evaluationTable: Array<{
     diameter_mm: number;
@@ -161,6 +164,7 @@ function evaluateTechnology(tech: Tech, run: any | null, inputs: Record<string, 
     normalLoading: null, maximumLoading: null, floodingUtilization: null,
     floodingMarginFraction: null, floodingMarginAbsolute: null,
     pressureDropAtSelected: 'Not Calculable — no validated pressure-drop basis',
+    systemDeratingFactor: null,
     checksNotAssessable: [], evaluationTable: [],
   };
   if (!run) {
@@ -212,13 +216,25 @@ function evaluateTechnology(tech: Tech, run: any | null, inputs: Record<string, 
     base.notRecommendableReason = `Entered maximum design utilization '${inputs.max_design_utilization}' is not a fraction in (0, 1] — correct the entry.`;
     return base;
   }
+
+  // DS-SEL-001a — system derating factor F_D (ECR only; DS-SEL-001 formula).
+  // ECP uses the declared flooding capacity directly (no derating concept) → F_D = 1.0.
+  // For ECR: read the raw numeric string from the merged workspace inputs; the ecr_design
+  // section stores it as a plain value (the ECR engine's source-tagging wrapper is not
+  // present at this level).  Missing or non-finite → default 1.0 (conservative: over-estimates
+  // effective capacity).  Clamp to [0.1, 1.0] per the governed input range.
+  const derateValue = tech === 'ecr'
+    ? Math.max(0.1, Math.min(1.0, num(inputs.system_derating_factor) ?? 1.0))
+    : 1.0;
+  base.systemDeratingFactor = tech === 'ecr' ? derateValue : null;
+
   if (!Number.isFinite(qMax) || qMax <= 0) {
     base.notRecommendableReason = `The frozen ${tech.toUpperCase()} maximum-case snapshot carries no valid total volumetric flow — feasibility cannot be assessed.`;
     return base;
   }
 
-  // DS-SEL-001 — calculated minimum diameter
-  const dMin_m = Math.sqrt((4 * qMax) / (Math.PI * uLimit.value * basis.value));
+  // DS-SEL-001 — calculated minimum diameter (includes F_D for ECR; F_D = 1.0 for ECP)
+  const dMin_m = Math.sqrt((4 * qMax) / (Math.PI * uLimit.value * basis.value * derateValue));
   base.calculatedMinimumDiameter_mm = Math.round(dMin_m * 1000 * 10) / 10;
 
   // DS-SEL-002 — round UP to next 50 mm increment (never down)
@@ -238,7 +254,7 @@ function evaluateTechnology(tech: Tech, run: any | null, inputs: Record<string, 
       base.evaluationTable.push({ diameter_mm: d_mm, maxLoading: NaN, normalLoading: normLoad, utilization: null, marginFraction: null, feasible: null, note: 'Total loading not stored in frozen snapshot' });
       continue;
     }
-    const util = load / basis.value;
+    const util = load / (basis.value * derateValue);
     const feasible = util <= uLimit.value;
     base.evaluationTable.push({
       diameter_mm: d_mm, maxLoading: load, normalLoading: normLoad, utilization: util, marginFraction: 1 - util, feasible,
@@ -256,9 +272,10 @@ function evaluateTechnology(tech: Tech, run: any | null, inputs: Record<string, 
   base.selectedDiameter_mm = selected_mm;
   base.maximumLoading = num(selMax?.loads?.total?.result);
   base.normalLoading = num(selNorm?.loads?.total?.result);
-  base.floodingUtilization = base.maximumLoading !== null ? base.maximumLoading / basis.value : null;
+  const effCap = basis.value * derateValue;  // effective capacity = C_basis × F_D
+  base.floodingUtilization = base.maximumLoading !== null ? base.maximumLoading / effCap : null;
   base.floodingMarginFraction = base.floodingUtilization !== null ? 1 - base.floodingUtilization : null;
-  base.floodingMarginAbsolute = base.maximumLoading !== null ? basis.value - base.maximumLoading : null;
+  base.floodingMarginAbsolute = base.maximumLoading !== null ? effCap - base.maximumLoading : null;
 
   const dp = selMax?.pressureDrop;
   base.pressureDropAtSelected = dp?.result != null && typeof dp.result === 'number'

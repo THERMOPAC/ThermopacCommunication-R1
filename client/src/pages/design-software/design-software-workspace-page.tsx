@@ -2063,6 +2063,92 @@ export default function DesignSoftwareWorkspacePage() {
       return Number.isFinite(n) ? n : null;
     };
     const fpData0 = d("fluid_properties");
+
+    // ── Extract Quality — Calculated from NRTL/Cascade Component Balance ───────
+    // Surrogate MWs (Coto 2022 engine constants, physical constants):
+    //   [0] n-C12 (Saturates), [1] 1,4-xylene (Mono-Ar), [2] 1-methylnaphthalene (Di-Ar),
+    //   [3] pyrene (Poly-Ar), [4] NMP — used for mass/mole unit conversion only.
+    const pd4 = d("process_design");
+    const pdResultData: any = (resultsQ.data ?? []).find((r: any) => r.section === "process_design")?.data ?? null;
+    const pdAcceptedRun = runs.find(r =>
+      r.calculation_type === "process_design" && ["success", "warning"].includes(r.calculation_status),
+    );
+    const lleCascade: any = pdResultData?.lleStageCalculation ?? null;
+    // Stage j=1 (raffinate product end) is stages[0]; j=N (extract end) is stages[N-1].
+    const cascadeStages: any[] = Array.isArray(lleCascade?.stages) ? lleCascade.stages : [];
+    const raffStage: any = cascadeStages.length > 0 ? cascadeStages[0] : null;
+    const hasNrtlData =
+      raffStage !== null &&
+      Array.isArray(raffStage.raffinate_x) && raffStage.raffinate_x.length >= 5 &&
+      typeof raffStage.raffinateFlow_mol === "number" &&
+      Array.isArray(lleCascade?.overallBalance?.rows) && lleCascade.overallBalance.rows.length >= 5;
+    // Feed total RRBO mass flow (kg/h) from normalCase component balance
+    const eqFeedKgh: number | null =
+      typeof pdResultData?.normalCase?.componentBalance?.feed?.total === "number"
+        ? (pdResultData.normalCase.componentBalance.feed.total as number)
+        : null;
+    // Live RRBO wt% from Stage 4 inputs — updates immediately when engineer changes composition
+    const eqLiveWt = [
+      parseFloat((pd4.rrbo_saturates_wt      ?? "").trim()),
+      parseFloat((pd4.rrbo_mono_aromatics_wt  ?? "").trim()),
+      parseFloat((pd4.rrbo_di_aromatics_wt    ?? "").trim()),
+      parseFloat((pd4.rrbo_poly_aromatics_wt  ?? "").trim()),
+    ];
+    const hasLiveWt = eqLiveWt.every(v => isFinite(v) && v >= 0);
+    // Staleness: compare live wt% against the inputTrace echoed in the accepted run snapshot
+    const runWtEcho = [
+      lleCascade?.inputTrace?.rrboCharacterisationWtPct?.saturates?.value,
+      lleCascade?.inputTrace?.rrboCharacterisationWtPct?.monoAromatics?.value,
+      lleCascade?.inputTrace?.rrboCharacterisationWtPct?.diAromatics?.value,
+      lleCascade?.inputTrace?.rrboCharacterisationWtPct?.polyAromatics?.value,
+    ] as (number | undefined)[];
+    const eqIsStale = hasLiveWt && runWtEcho.some(
+      (rv, i) => typeof rv === "number" && Math.abs(rv - eqLiveWt[i]) > 0.01,
+    );
+    // Compute extract composition using mole split fractions from the cascade
+    interface EQResult {
+      satKgh: number; monoKgh: number; diKgh: number; polyKgh: number;
+      oilEKgh: number; nmpEKgh: number;
+      satWt: number; monoWt: number; diWt: number; polyWt: number;
+      totalArWt: number; oilYield: number; nmpWtInExtract: number;
+    }
+    let eqResult: EQResult | null = null;
+    if (hasNrtlData && hasLiveWt && eqFeedKgh !== null && eqFeedKgh > 0) {
+      const rx   = raffStage.raffinate_x as number[];
+      const rFlow = raffStage.raffinateFlow_mol as number;
+      const obRows = (lleCascade.overallBalance.rows as { lhs_mol: number }[]);
+      // Mole split fraction to raffinate for each oil component (i = 0..3).
+      // The molar split = mass split because both phases contain the same surrogate
+      // molecule for each class (same MW cancels in numerator/denominator).
+      const splitR = [0, 1, 2, 3].map(i => {
+        const feedMolI = obRows[i].lhs_mol;
+        return feedMolI > 0 ? (rFlow * rx[i]) / feedMolI : 0;
+      });
+      // Feed mass per component using live wt% (kg/h)
+      const mF = eqLiveWt.map(wt => eqFeedKgh * wt / 100);
+      // Extract mass per component: m_{i,E} = m_{i,F} − m_{i,R}
+      const mE = mF.map((m, i) => Math.max(0, m * (1 - splitR[i])));
+      const oilEKgh = mE.reduce((a, b) => a + b, 0);
+      // NMP in extract from the normalCase pseudo-component balance (kg/h)
+      const nmpEKgh: number =
+        typeof pdResultData?.normalCase?.componentBalance?.extract?.nmp === "number"
+          ? (pdResultData.normalCase.componentBalance.extract.nmp as number)
+          : 0;
+      const totalExtract = oilEKgh + nmpEKgh;
+      if (oilEKgh > 0) {
+        eqResult = {
+          satKgh: mE[0], monoKgh: mE[1], diKgh: mE[2], polyKgh: mE[3],
+          oilEKgh, nmpEKgh,
+          satWt:        mE[0] / oilEKgh * 100,
+          monoWt:       mE[1] / oilEKgh * 100,
+          diWt:         mE[2] / oilEKgh * 100,
+          polyWt:       mE[3] / oilEKgh * 100,
+          totalArWt:    (mE[1] + mE[2] + mE[3]) / oilEKgh * 100,
+          oilYield:     oilEKgh / eqFeedKgh * 100,
+          nmpWtInExtract: totalExtract > 0 ? nmpEKgh / totalExtract * 100 : 0,
+        };
+      }
+    }
     // Auto-generated Process Description (item 1) — built only from entered data
     const genDesc = (m: Record<string, string>): string => {
       const parts: string[] = [];
@@ -2210,10 +2296,8 @@ export default function DesignSoftwareWorkspacePage() {
           m.raffinate_quality_rows = JSON.stringify(prMaster.raffinate);
           updates = { ...updates, raffinate_quality_rows: m.raffinate_quality_rows, raffinate_quality_rows_seeded: "true" };
         }
-        if (shouldSeedRequirementRows(m.extract_quality_rows, m.extract_quality_rows_seeded)) {
-          m.extract_quality_rows = JSON.stringify(prMaster.extract);
-          updates = { ...updates, extract_quality_rows: m.extract_quality_rows, extract_quality_rows_seeded: "true" };
-        }
+        // Extract quality is now a calculated output (NRTL/cascade component balance) —
+        // no longer seeded from Product Requirement Master defaults.
       }
       // One-time migration: legacy standalone Colour Scale / Colour Value /
       // Raffinate Yield fields fold into the structured Product Requirement
@@ -2783,17 +2867,66 @@ export default function DesignSoftwareWorkspacePage() {
             onBlur={s}
             onCommit={v => cs({ raffinate_quality_rows: v, raffinate_quality_rows_seeded: "true" })}
           />
+          {/* Extract Quality — calculated read-only panel from NRTL/cascade component balance */}
           <div className="border-t pt-3">
-            <QualityRowsEditor
-              title="Extract Quality"
-              jsonValue={!shouldSeedRequirementRows(db.extract_quality_rows, db.extract_quality_rows_seeded) || !PRODUCT_REQUIREMENT_MASTER[db.feed_service ?? ""]
-                ? (db.extract_quality_rows ?? "")
-                : JSON.stringify(PRODUCT_REQUIREMENT_MASTER[db.feed_service ?? ""].extract)}
-              legacyValue={db.extract_quality}
-              onChange={v => { f("extract_quality_rows", v); f("extract_quality_rows_seeded", "true"); }}
-              onBlur={s}
-              onCommit={v => cs({ extract_quality_rows: v, extract_quality_rows_seeded: "true" })}
-            />
+            <div className="mb-2 flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-gray-800">Extract Quality</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">Calculated</span>
+              <span className="text-xs text-gray-400">NMP-free oil basis · NRTL/cascade component balance</span>
+            </div>
+            {eqIsStale && (
+              <div className="flex items-start gap-2 mb-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                RRBO characterisation inputs changed since last Stage 4 run — re-run Process Design to refresh mole split fractions.
+              </div>
+            )}
+            {eqResult ? (
+              <div>
+                {([ 
+                  { label: "Saturates",                           value: eqResult.satWt,     bold: false },
+                  { label: "Mono-Aromatics",                      value: eqResult.monoWt,    bold: false },
+                  { label: "Di-Aromatics",                        value: eqResult.diWt,      bold: false },
+                  { label: "Poly-Aromatics",                      value: eqResult.polyWt,    bold: false },
+                  { label: "Total Aromatics",                     value: eqResult.totalArWt, bold: true  },
+                  { label: "Extract Oil Yield (of RRBO feed)",    value: eqResult.oilYield,  bold: false },
+                ] as { label: string; value: number; bold: boolean }[]).map(({ label, value, bold }) => (
+                  <div key={label} className="grid grid-cols-[220px_1fr] items-center gap-2 py-1 border-b border-gray-50">
+                    <span className={`text-sm text-gray-700 ${bold ? "font-semibold" : ""}`}>{label}</span>
+                    <span className={`font-mono text-sm ${bold ? "text-blue-800 font-bold" : "text-blue-700 font-semibold"}`}>
+                      {value.toFixed(2)} wt %
+                      <span className="ml-2 text-[10px] font-sans font-normal text-gray-400">Calculated</span>
+                    </span>
+                  </div>
+                ))}
+                <div className="grid grid-cols-[220px_1fr] items-center gap-2 py-1.5 mt-1 border-t border-gray-100">
+                  <span className="text-sm text-gray-500 italic">NMP-rich extract phase</span>
+                  <span className="font-mono text-sm text-gray-600">
+                    {eqResult.nmpWtInExtract.toFixed(2)} wt % NMP
+                    <span className="ml-2 text-[10px] font-sans font-normal text-gray-400">
+                      ({(100 - eqResult.nmpWtInExtract).toFixed(2)} wt % oil)
+                    </span>
+                  </span>
+                </div>
+                {pdAcceptedRun && (
+                  <p className="text-[11px] text-gray-400 mt-1.5">
+                    Source: Stage 4 Process Design run #{pdAcceptedRun.id}
+                    {" · "}{new Date(pdAcceptedRun.calculated_at).toLocaleString()}
+                    {" · "}{pdAcceptedRun.engine_name} v{pdAcceptedRun.engine_version}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 p-3 bg-gray-50 border border-gray-200 rounded text-sm text-gray-500">
+                <Info className="h-4 w-4 shrink-0 mt-0.5 text-gray-400" />
+                <span>
+                  {!pdAcceptedRun
+                    ? "Not calculable — no accepted Stage 4 Process Design run found. Run Stage 4 with RRBO characterisation (Saturates / Mono / Di / Poly wt%) and target raffinate aromatics."
+                    : !hasNrtlData
+                      ? "Not calculable — Stage 4 run does not contain a per-component NRTL cascade trace. This is available when the NRTL direct cascade path is used (extrapolation mode, i.e. design temperature significantly above 25 °C)."
+                      : "Not calculable — RRBO characterisation wt% inputs (Saturates / Mono / Di / Poly) must be entered in Stage 4 Process Design."}
+                </span>
+              </div>
+            )}
           </div>
         </SectionCard>
 
@@ -4843,6 +4976,31 @@ export default function DesignSoftwareWorkspacePage() {
       ?? ecrRows.find((r: any) => r.feasibility === "within_screening_band")
       ?? ecrRows[0];
     const sp0 = selRow?.rotor?.atSpeed?.[0];
+
+    // ── ECR Hydraulic Diameter Basis — computed for display panel ────────────────
+    // D_ECR = sqrt(4·Q_T / (π·C_ECR·F_D·U_max)) — ECR-specific basis only.
+    // C3 Godfrey slip model and Rauber 2006 packed-column throughput do NOT participate.
+    const qT_maxECR: number | null = (() => {
+      const flows = ecrRun?.result_snapshot?.maximumCase?.flows;
+      const qR = parseFloat(String(flows?.rrboVolumetricFlow_m3_h ?? ""));
+      const qN = parseFloat(String(flows?.nmpVolumetricFlow_m3_h ?? ""));
+      return isFinite(qR) && isFinite(qN) ? qR + qN : null;
+    })();
+    const cECR_v: number | null = (() => {
+      const v = parseFloat(String(er.ecr_preliminary_hydraulic_capacity ?? ""));
+      return isFinite(v) && v > 0 ? v : null;
+    })();
+    const fD_v: number | null = (() => {
+      const v = parseFloat(String(er.system_derating_factor ?? ""));
+      return isFinite(v) && v > 0 ? v : null;
+    })();
+    const uMaxECR = 0.80; // DS-SEL governed maximum screening utilization (configurable)
+    const dCalcECR_m: number | null = (qT_maxECR !== null && cECR_v !== null && fD_v !== null)
+      ? Math.sqrt((4 * qT_maxECR) / (Math.PI * cECR_v * fD_v * uMaxECR))
+      : null;
+    // DS-SEL ECR-specific evaluation block (carries selected standard diameter + utilization)
+    const dselECREval: any = designSelectionQ.data?.record?.technologies?.find((t: any) => t.technology === "ecr") ?? null;
+
     const itemVal = (it: any, dp = 3, scale = 1): string => {
       const v = it && typeof it === "object" ? it.result : it;
       if (v === null || v === undefined) return "—";
@@ -5053,6 +5211,72 @@ export default function DesignSoftwareWorkspacePage() {
         <Button size="sm" className="gap-2 mb-4" disabled={isFrozen || calculateMutation.isPending} onClick={() => calculateMutation.mutate("ecr")}>
           <Play className="h-3.5 w-3.5" /> Calculate ECR
         </Button>
+
+        {/* ── ECR Hydraulic Diameter Basis — independent of C3/Rauber/ECP ── */}
+        <SectionCard title="ECR Hydraulic Diameter Basis">
+          <div className="mb-2 p-2.5 rounded-lg border border-sky-100 bg-sky-50">
+            <p className="text-[11px] text-sky-800 leading-relaxed">
+              D<sub>ECR</sub> = √(4·Q<sub>T</sub> / (π·C<sub>ECR</sub>·F<sub>D</sub>·U<sub>max</sub>)) — ECR-specific hydraulic capacity basis only.
+              C3 Godfrey slip model and Rauber 2006 packed-column throughput do <strong>not</strong> govern ECR diameter and
+              are not inputs to this calculation.
+            </p>
+          </div>
+          {[
+            {
+              label: "Total Liquid Throughput Q\u1D40 (max case)",
+              value: qT_maxECR !== null ? `${qT_maxECR.toFixed(2)} m³/h  (Q\u1D40 = Q\u1D2E\u1D3A\u1D35\u1D2C + Q\u1D4C\u1D39\u1D3C)` : ecrRun ? "Flows not found in run snapshot — re-run Calculate ECR" : "No accepted ECR run — enter inputs and calculate",
+              alert: qT_maxECR === null,
+            },
+            {
+              label: "ECR Hydraulic Capacity C\u1D3C\u1D3C\u1D3A (assumed)",
+              value: cECR_v !== null ? `${cECR_v} m³/(m²·h) · ${er.ecr_preliminary_hydraulic_capacity_source || "source not selected"} · ${er.ecr_preliminary_hydraulic_capacity_source_reference || "no reference"}` : "Not entered — required for diameter calculation",
+              alert: cECR_v === null,
+            },
+            {
+              label: "System Derating Factor F\u1D30",
+              value: fD_v !== null ? `${fD_v} · ${er.system_derating_factor_source || "source not selected"} · ${er.system_derating_factor_source_reference || "no reference"}` : "Not entered — required for diameter calculation",
+              alert: fD_v === null,
+            },
+            {
+              label: "Effective Capacity C\u1D3C\u1D3C\u1D3A × F\u1D30",
+              value: (cECR_v !== null && fD_v !== null) ? `${(cECR_v * fD_v).toFixed(2)} m³/(m²·h)` : "—",
+              alert: false,
+            },
+            {
+              label: "Max Design Utilization U\u2098\u2090\u02E3",
+              value: `${(uMaxECR * 100).toFixed(0)} % (DS-SEL governed screening criterion)`,
+              alert: false,
+            },
+            {
+              label: "Calculated Minimum Diameter D\u1D3C\u1D3C\u1D3A",
+              value: dCalcECR_m !== null ? `${(dCalcECR_m * 1000).toFixed(1)} mm  (continuous — before 50 mm rounding)` : "Not calculable — enter Q\u1D40, C\u1D3C\u1D3C\u1D3A, and F\u1D30",
+              alert: dCalcECR_m === null,
+            },
+            {
+              label: "DS-SEL Selected Standard Diameter",
+              value: dselECREval?.selectedDiameter_mm != null
+                ? `${dselECREval.selectedDiameter_mm} mm  (next 50 mm increment ≥ D\u1D3C\u1D3C\u1D3A · DS-SEL-002)`
+                : "Run DS-SEL (Step 8) to determine the governed standard diameter",
+              alert: dselECREval?.selectedDiameter_mm == null,
+            },
+            {
+              label: "Actual Utilization at Selected Diameter",
+              value: dselECREval?.floodingUtilization != null
+                ? `${(dselECREval.floodingUtilization * 100).toFixed(1)} %  (max case · against C\u1D3C\u1D3C\u1D3A × F\u1D30)`
+                : "—",
+              alert: false,
+            },
+          ].map(({ label, value, alert }) => (
+            <div key={label} className="grid grid-cols-[260px_1fr] gap-2 py-1 border-b border-gray-50 last:border-0">
+              <span className="text-xs text-gray-500">{label}</span>
+              <span className={`text-xs font-medium ${alert ? "text-amber-700" : "text-gray-800"}`}>{value}</span>
+            </div>
+          ))}
+          <p className="text-[10px] text-gray-400 mt-2">
+            Packed-column reference values (C3 Godfrey slip model, Rauber 2006 SMVP throughput) appear only in the ECP design section and do not participate in ECR diameter selection.
+          </p>
+        </SectionCard>
+
         <SectionCard title="ECR — Calculated Results (C5 engine, read-only)">
           {!selRow ? (
             ecrLatestRun?.calculation_status === "error"
