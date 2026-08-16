@@ -1006,6 +1006,21 @@ export default function DesignSoftwareWorkspacePage() {
     commitSection("hydraulic_design", updates);
   }, [isFrozen, activeRevisionId, hydratedRevision, localData, savingSection, upsertMutation.isPending, commitSection]);
 
+  // ── Legacy technology value migration ────────────────────────────────────────
+  // Revisions created before ECP was removed may have technology="ecp" or "both".
+  // Auto-migrate to "ecr" on load so the radio button shows correctly and
+  // downstream logic (showECR, validation) receives the canonical value.
+  useEffect(() => {
+    if (isFrozen || !activeRevisionId) return;
+    if (hydratedRevision !== activeRevisionId) return;
+    if (savingSection !== null || upsertMutation.isPending) return;
+    const raw = (localData["technology_selection"]?.technology ?? "").trim();
+    if (raw === "ecp" || raw === "both") {
+      commitSection("technology_selection", { technology: "ecr" });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFrozen, activeRevisionId, hydratedRevision, localData, savingSection, upsertMutation.isPending]);
+
   // ── Technology Selection rationale auto-population (Step 6) ─────────────────
   // Writes a preliminary rationale when a technology is selected and the field
   // is blank. The engineer can edit or overwrite it freely at any time.
@@ -1329,7 +1344,10 @@ export default function DesignSoftwareWorkspacePage() {
   const lifecycleActions = LIFECYCLE_ACTIONS[currentStatus] ?? [];
   const techSelection = localData["technology_selection"]?.technology ?? "";
   const showECP = false; // ECP (Packed Column) removed — ECR — Kühni Agitated Column is the only design technology
-  const showECR = techSelection === "ecr";
+  // Legacy revisions may have technology="both" or technology="ecp" stored from before ECP was removed.
+  // Treat any non-empty technology value as ECR so the panel renders while the migration effect below
+  // auto-writes "ecr" back to the database.
+  const showECR = !!(techSelection && techSelection.trim());
   const d = (section: string) => localData[section] ?? {};
 
   // ── Stage validation engine ──────────────────────────────────────────────────
@@ -1546,36 +1564,12 @@ export default function DesignSoftwareWorkspacePage() {
 
     if (stageKey === "equipment_design") {
       const techSel = d("technology_selection").technology;
-      const isECP = techSel === "ecp" || techSel === "both";
-      const isECR = techSel === "ecr" || techSel === "both";
+      // ECP removed — only ECR is validated. Legacy "ecp"/"both" stored values are treated as ECR.
+      const isECR = !!(techSel?.trim());
       const VALID_SOURCES = ["Measured", "Vendor", "Literature", "Assumed"];
       if (!techSel?.trim()) {
         errors["technology"] = "Technology selection (Stage 6) is required before Equipment Design inputs are validated";
       } else {
-        if (isECP) {
-          const ec = d("ecp_design");
-          const ecVal = (k: string) => (ec[k] ?? "").trim();
-          if (!ecVal("packing_id"))
-            errors["ecp_packing_id"] = "ECP: a packing record must be selected from the Packing Database — the C4 engine cannot run without it";
-          const hetsV = numVal(ecVal("hets"));
-          if (hetsV === null || hetsV <= 0)
-            errors["ecp_hets"] = "ECP HETS Override is required (> 0 m) — not calculable; governed override with source traceability is mandatory";
-          else {
-            if (!VALID_SOURCES.includes(ecVal("hets_source")))
-              errors["ecp_hets_source"] = "ECP HETS Source Type is required";
-            if (!ecVal("hets_source_reference"))
-              errors["ecp_hets_source_reference"] = "ECP HETS Source Reference is required — non-blank";
-          }
-          for (const [k, label] of [
-            ["top_head_height", "ECP Top Head Height"], ["top_disengagement_height", "ECP Top Disengagement Height"],
-            ["top_distributor_allowance", "ECP Top Distributor Allowance"], ["packing_support_allowance", "ECP Packing Support Allowance"],
-            ["hold_down_allowance", "ECP Hold-Down Allowance"], ["bottom_distributor_allowance", "ECP Bottom Distributor Allowance"],
-            ["bottom_disengagement_height", "ECP Bottom Disengagement Height"], ["bottom_head_height", "ECP Bottom Head Height"],
-          ] as [string, string][]) {
-            if (!numVal(ecVal(k)))
-              errors[`ecp_${k}`] = `${label} is required (> 0 m) — the C4 engine blocks without all 8 mandatory height allowances`;
-          }
-        }
         if (isECR) {
           const er = d("ecr_design");
           const erVal = (k: string) => (er[k] ?? "").trim();
@@ -1631,11 +1625,8 @@ export default function DesignSoftwareWorkspacePage() {
       const techSel2 = d("technology_selection").technology;
       if (!techSel2?.trim())
         errors["technology"] = "Technology not selected — complete Stage 6 first";
-      const isECP2 = techSel2 === "ecp" || techSel2 === "both";
-      const isECR2 = techSel2 === "ecr" || techSel2 === "both";
-      if (isECP2 && !ecpExec.executed)
-        errors["ecp_run"] = "No accepted ECP run exists — run Stage 7 ECP calculation and accept the result first";
-      if (isECR2 && !ecrExec.executed)
+      // ECP removed — only check ECR run exists. Legacy "ecp"/"both" values treated as ECR.
+      if (techSel2?.trim() && !ecrExec.executed)
         errors["ecr_run"] = "No accepted ECR run exists — run Stage 7 ECR calculation and accept the result first";
     }
 
@@ -4178,7 +4169,7 @@ export default function DesignSoftwareWorkspacePage() {
                   type="radio"
                   name="technology"
                   value={opt.value}
-                  checked={ts.technology === opt.value}
+                  checked={ts.technology === opt.value || (opt.value === "ecr" && (ts.technology === "ecp" || ts.technology === "both"))}
                   onChange={() => { f("technology", opt.value); s(); }}
                   className="mt-0.5"
                   disabled={isFrozen}
