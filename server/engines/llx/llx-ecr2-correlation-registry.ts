@@ -339,15 +339,16 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     equation:
       'CANDIDATE — DO NOT IMPLEMENT. ' +
       'Reproduced from Laitinen et al. (2019) Eq. (3). ' +
-      'd32/h = [SYMBOL:primary_candidate=C₁^n₁]^0.45 / ' +
+      'd32/h = [SYMBOL:primary_candidate=C₁^n₁] / ' +
       '[1.6·(γ/((ρc−ρd)·g·h²))^(1/2) + ' +
       '0.034·((ψ/g)·(ρc/(g·γ))^(1/4))^(−0.63)·[GROUPING:strong_candidate=(h·(ρcg/γ)^0.5)^0.38]^(−1)] ' +
       '| UNRESOLVED_SYMBOL (primary_candidate — NOT YET ADOPTED): ' +
-      '  Laitinen PDF renders "e^0.45" in numerator. Primary candidate is C₁^n₁ from the K&H ' +
-      '  unified framework: C₁ is the only Kühni-table constant not yet placed, and n₁=0.45 ' +
-      '  is purposeless in the unified framework unless C₁ is the base. ' +
+      '  Laitinen PDF renders a symbol raised to exponent n₁=0.45 in the numerator. ' +
+      '  Primary candidate is C₁^n₁: C₁ and n₁=0.45 are the only Kühni-table constants ' +
+      '  not yet placed in the equation (C₂, C₃, n₂, n₃ all positionally confirmed). ' +
+      '  n₁ is column-specific — purposeless in the unified framework unless applied to C₁. ' +
       '  For ECR-2 (d→c): C₁^n₁ = 3.04^0.45 ≈ 1.674. For c→d: 1^0.45 = 1.000. ' +
-      '  Secondary candidate: Euler\'s constant e ≈ 2.71828 (PDF "e" character, dimensionless). ' +
+      '  This is a structural inference — NOT a verified published placement. ' +
       '  Requires K&H 1996 primary (DOI 10.1021/ie950674w) to confirm. ' +
       '| UNRESOLVED_GROUPING (strong_candidate — NOT YET ADOPTED): ' +
       '  Laitinen transcription "h·(ρcg/γ)^0.38" is DEFINITIVELY dimensionally wrong (m^+0.24). ' +
@@ -707,12 +708,13 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       'RESOLUTION ANALYSIS COMPLETE — TWO FLAGS REMAIN OPEN PENDING PRIMARY PAPER: ' +
       '' +
       'UNRESOLVED_SYMBOL (analysis status: primary_candidate identified, NOT adopted): ' +
-      '  Laitinen PDF renders "e^0.45" in numerator. ' +
-      '  PRIMARY CANDIDATE: C₁^n₁ — supported by K&H unified framework: C₁ and n₁=0.45 are ' +
-      '  the only two Kühni table constants not yet placed in the equation (C₂, C₃, n₂, n₃ all ' +
-      '  confirmed). n₁ is column-specific — purposeless unless applied to C₁. ' +
+      '  Laitinen PDF renders a symbol raised to exponent n₁=0.45 in the numerator. ' +
+      '  PRIMARY CANDIDATE: C₁^n₁ — structural inference from K&H unified framework: ' +
+      '  C₁ and n₁=0.45 are the only two Kühni table constants not yet placed (C₂, C₃, n₂, ' +
+      '  n₃ all positionally confirmed). n₁ is column-specific — purposeless in the unified ' +
+      '  framework unless applied to column-type constant C₁. ' +
       '  ECR-2 value if confirmed: C₁(d→c)^n₁ = 3.04^0.45 ≈ 1.674. ' +
-      '  SECONDARY CANDIDATE: Euler\'s constant e ≈ 2.71828 (dimensionless; PDF rendering). ' +
+      '  This is a structural inference — NOT verified published placement. ' +
       '  DIMENSIONAL CONSTRAINT (definitive): base must be dimensionless — ψ and any ' +
       '  dimensional quantity are definitively excluded. ' +
       '  DO NOT adopt C₁^n₁ or any candidate numerically without primary confirmation. ' +
@@ -736,12 +738,13 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       '  C3=0.034 — CONFIRMED in Term₂ as coefficient on agitation-geometry group. ' +
       '  n1=0.45  — primary_candidate placement: exponent on C₁ in numerator. ' +
       '  n2=−0.63 — CONFIRMED in Term₂ as exponent on agitation group. ' +
-      '  n3=−0.38 — RESOLVED via parameter table: geometry group exponent [h/λc]^(−0.38). ' +
+      '  n3=−0.38 — strong_candidate placement: exponent on [h/λc] in Term₂ (UNRESOLVED_GROUPING ' +
+      '             pending K&H 1996 primary paper; parameter table consistent but not primary-verified). ' +
       '' +
       'BEFORE advancing to governed and implementing numerically: ' +
       '(1) Read K&H 1996 primary paper (DOI 10.1021/ie950674w). ' +
-      '    Clear UNRESOLVED_SYMBOL: confirm numerator symbol is C₁^n₁ or Euler e. ' +
-      '    Clear UNRESOLVED_GROUPING: confirm geometry group is (h·(ρcg/γ)^0.5)^0.38. ' +
+      '    Clear UNRESOLVED_SYMBOL: confirm numerator symbol (primary candidate: C₁^n₁) from equation body. ' +
+      '    Clear UNRESOLVED_GROUPING: confirm geometry group (strong candidate: (h·(ρcg/γ)^0.5)^0.38). ' +
       '    Confirm C₁ and n₁ placements from Table 2 and equation body. ' +
       '(2) Set primarySourceVerified = true with engineer name and date. ' +
       '(3) Confirm K&H 1996 Kühni experimental dataset phase convention ' +
