@@ -130,32 +130,33 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
 
   // ── 1. Sauter mean droplet diameter (d₃₂) ────────────────────────────────
   //
-  // Kumar & Hartland (1996) — Kühni-specific parameter set.
+  // Kumar & Hartland (1996) — Kühni column, Eq. (3) as reproduced in
+  // Laitinen et al. (2019), Chem. Eng. Res. Des., 146, 518–527.
   // STATUS: candidate_governed
   //
+  // EQUATION NOW DOCUMENTED from peer-reviewed secondary reproduction.
+  // Do NOT implement numerically — status remains candidate_governed.
+  //
+  // ── OPEN ITEMS requiring primary-paper resolution ─────────────────────────
+  //   (a) "e" in numerator: PDF extraction renders the numerator as "e^0.45".
+  //       Dimensional analysis rules out ψ^0.45 (W/kg)^0.45 as the numerator
+  //       (would yield non-dimensionless result). Most consistent reading:
+  //       "e" is the mathematical constant (≈2.71828), making numerator e^0.45
+  //       a fixed dimensionless prefactor ≈ 1.568. Confirm from K&H 1996 original.
+  //   (b) h-group in Term₂: "h·(ρc·g/γ)^0.38" has units m^0.24 as written;
+  //       dimensionally consistent form would be (h²·ρcg/γ)^0.38 (= Eo^0.38,
+  //       dimensionless). Exact grouping must be confirmed from primary paper.
+  //   (c) C1 = 3.04 (identified in prior secondary reproduction): NOT visibly
+  //       assigned in the Laitinen Eq. (3) rendering. Confirm assignment from
+  //       K&H 1996 primary paper before removing this parameter.
+  //   (d) K&H 1996 fit: 702 data points, average relative deviation 22%.
+  //       Laitinen reports significant deviance vs their 2MTHF/water measurements,
+  //       attributing it to experimental limitations in quantifying coalescence.
+  //
   // PHASE ASSIGNMENT (ECR-2 specific):
-  //   RRBO = DISPERSED phase   (light, upward)
-  //   NMP  = CONTINUOUS phase  (heavy, downward)
-  //   Mass-transfer direction: d → c  (aromatics transfer from RRBO drops into NMP)
-  //   This must be preserved when the governing equation is reconstructed for ECR-2.
-  //
-  // IDENTIFIED KÜHNI PARAMETER SET (secondary reproduction):
-  //   Six parameters identified from secondary peer-reviewed reproduction of
-  //   K&H 1996 for the Kühni column type:
-  //     C1 = 3.04,  n1 = 0.45
-  //     C2 = 1.60,  n2 = −0.63
-  //     C3 = 0.034, n3 = −0.38
-  //   secondaryReproductionVerified = true
-  //   primarySourceVerified        = false  ← must be verified from K&H 1996 primary paper
-  //
-  // IMPORTANT — DO NOT IMPLEMENT THE SIMPLIFIED TWO-TERM EQUATION BELOW:
-  //   The six parameters (C1, C2, C3, n1, n2, n3) indicate that the actual
-  //   K&H 1996 Kühni equation has a more detailed structure than the generic
-  //   two-term abstract model. The exact full equation — including geometry
-  //   terms, dimension groups, and unit conventions — must be reconstructed
-  //   cleanly from the primary paper before any numerical implementation.
-  //   The equation field below is a STRUCTURAL PLACEHOLDER ONLY.
-  //
+  //   RRBO = DISPERSED phase  (light, upward)
+  //   NMP  = CONTINUOUS phase (heavy, downward)
+  //   Confirm K&H 1996 dataset phase convention before implementation.
   // ──────────────────────────────────────────────────────────────────────────
   {
     id: 'ecr2_d32_kh1996',
@@ -164,244 +165,339 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
 
     source:
       'Kumar, A. & Hartland, S. (1996). ' +
-      '"Unified Correlations for the Prediction of Drop Size in ' +
-      'Liquid−Liquid Extraction Columns." ' +
-      'Industrial & Engineering Chemistry Research, 35(8), 2682–2695. ' +
-      'DOI: 10.1021/ie950674w. ' +
-      'Kühni-specific coefficients: Table 2, column "Kühni". ' +
-      'Phase assignment for ECR-2: RRBO dispersed, NMP continuous, mass transfer d→c.',
+      '"Unified Correlations for the Prediction of Drop Size in Liquid−Liquid Extraction Columns." ' +
+      'Industrial & Engineering Chemistry Research, 35(8), 2682–2695. DOI: 10.1021/ie950674w. ' +
+      'K&H fitted 702 data points; reported average relative deviation 22%. ' +
+      'Equation reproduced as Eq. (3) in: ' +
+      'Laitinen, A. et al. (2019). "Axial Dispersion and CFD Models for the Extraction of ' +
+      'Levulinic Acid from Dilute Aqueous Solution in a Kühni Column with 2-Methyltetrahydrofuran Solvent." ' +
+      'Chemical Engineering Research and Design, 146, 518–527. DOI: 10.1016/j.cherd.2019.04.018.',
 
-    // ── Equation (STRUCTURAL PLACEHOLDER — DO NOT IMPLEMENT) ───────────────
+    // ── Equation — reproduced from Laitinen et al. (2019), Eq. (3) ──────────
     //
-    // The K&H 1996 unified d₃₂ model for agitated columns uses an additive
-    // structure combining a buoyancy term and a Kolmogorov turbulence term.
-    // The GENERIC abstract form is:
+    // Exact transcription from secondary source (Laitinen 2019, p. 10):
     //
-    //   d_32 = C1 · (σ / (Δρ · g))^n1
-    //        + C2 · (σ / ρ_c)^n2 · ε^n3
-    //        [+ C3 · (geometry / property group) ]
+    //   d₃₂ / h  =  e^0.45 / [ Term₁ + Term₂ ]
     //
-    // The IDENTIFIED KÜHNI PARAMETERS ARE:
-    //   C1 = 3.04,  n1 = 0.45
-    //   C2 = 1.60,  n2 = −0.63
-    //   C3 = 0.034, n3 = −0.38
+    //   Term₁ = 1.6 · (γ / ((ρc − ρd) · g · h²))^(1/2)
     //
-    // HOWEVER: The exact assignment of (C3, n3) to a specific term, the full
-    // dimensional form, the geometry groups, and the unit conventions HAVE NOT
-    // YET been reconstructed from the primary paper. Do NOT substitute the six
-    // parameters into the simplified two-term equation above — the actual Kühni
-    // equation may have a third term or different groupings.
+    //   Term₂ = 0.034 · ((ψ/g) · (ρc/(g·γ))^(1/4))^(−0.63) · (h · (ρcg/γ)^0.38)^(−1)
     //
-    // This equation field will be updated once the exact published mathematical
-    // form is confirmed from K&H 1996 and separately approved.
+    // Symbol map (Laitinen 2019 nomenclature):
+    //   d₃₂   Sauter mean droplet diameter     [m]
+    //   h      compartment height               [m]
+    //   e      see note (a) above — mathematical constant (≈2.71828) or ε/ψ
+    //   γ      interfacial tension              [N m⁻¹ = kg s⁻²]
+    //   ρc     continuous-phase density         [kg m⁻³]
+    //   ρd     dispersed-phase density          [kg m⁻³]
+    //   g      gravitational acceleration       [m s⁻²]
+    //   ψ      mechanical power dissipation
+    //          per unit mass                    [W kg⁻¹ = m² s⁻³]
+    //
+    // Dimensional status:
+    //   Term₁: 1.6·(γ/((ρc−ρd)·g·h²))^0.5
+    //          → γ/((ρc−ρd)·g·h²) = [kg/s²]/[kg/s²] = dimensionless ✓
+    //          → Term₁ dimensionless ✓
+    //   Term₂: h·(ρcg/γ)^0.38 — see note (b) above; exact grouping TBD.
+    //   Numerator: e^0.45 — dimensionless only if e = mathematical constant;
+    //              if e = ψ then (W/kg)^0.45 has dimensions — inconsistent ✗.
+    //
+    // DO NOT IMPLEMENT. Equation reproduced for engineering review only.
+    // Two open items ((a) and (b) above) must be resolved from primary paper
+    // before any numerical implementation.
     //
     equation:
-      'STRUCTURAL PLACEHOLDER — DO NOT IMPLEMENT. ' +
-      'Identified parameters (secondary reproduction, not yet assigned to terms): ' +
-      'C1=3.04 n1=0.45 | C2=1.60 n2=−0.63 | C3=0.034 n3=−0.38. ' +
-      'Exact Kühni equation form with full geometry groups and unit conventions ' +
-      'must be reconstructed from K&H 1996 primary paper before numerical use. ' +
-      'Generic structure: d_32 = C1·(σ/(Δρ·g))^n1 + C2·(σ/ρ_c)^n2·ε^n3 [+C3·(...)^(...)] ' +
-      '| ε = N_P · N^3 · D_R^5 / (A_col · h_comp) [W/kg] ' +
-      '| Phase: RRBO dispersed, NMP continuous, mass-transfer d→c.',
+      'CANDIDATE — DO NOT IMPLEMENT. ' +
+      'Reproduced from Laitinen et al. (2019) Eq. (3). ' +
+      'd32/h = e^0.45 / [1.6·(γ/((ρc−ρd)·g·h²))^(1/2) + ' +
+      '0.034·((ψ/g)·(ρc/(g·γ))^(1/4))^(−0.63)·(h·(ρcg/γ)^0.38)^(−1)] ' +
+      '| OPEN: "e" in numerator = mathematical constant e≈2.71828 or ψ (power dissipation)? ' +
+      '  Dimensional analysis favours mathematical constant — confirm from K&H 1996. ' +
+      '| OPEN: exact grouping of h·(ρcg/γ)^0.38 in Term₂ — ' +
+      '  dimensionally consistent form is (h²·ρcg/γ)^0.38 = Eo^0.38 — confirm from K&H 1996. ' +
+      '| OPEN: C1=3.04 (prior secondary source) not visible in this rendering — ' +
+      '  confirm assignment or absence from K&H 1996 Table 2.',
 
-    // ── Identified Kühni parameters (secondary reproduction) ────────────────
-    // These are recorded for audit purposes. Do not use for calculation until
-    // the full equation is reconstructed and status advances to 'governed'.
+    // ── Variable definitions ─────────────────────────────────────────────────
     variables: {
       d_32: {
-        symbol: 'd_32',
+        symbol: 'd₃₂',
         unit: 'm',
-        description: 'Sauter mean droplet diameter (volume-to-surface mean)',
+        description:
+          'Sauter mean droplet diameter (volume-to-surface mean diameter). ' +
+          'Left-hand side variable: d₃₂/h is the dimensionless ratio.',
       },
-      // ── Kühni coefficients ──────────────────────────────────────────────────
-      // Identified values (secondary reproduction). Term assignments NOT yet
-      // established — do not pair Ci with ni until K&H 1996 Table 2 is read.
-      C1: {
-        symbol: 'C1',
+      h: {
+        symbol: 'h',
+        unit: 'm',
+        description:
+          'Compartment height — centre-to-centre spacing between rotor planes. ' +
+          'Normalisation length for d₃₂ on the LHS. ' +
+          'Also appears in Term₂ as part of a geometry group — exact grouping TBD (see note b).',
+      },
+      e_numerator: {
+        symbol: 'e',
         unit: '—',
         description:
-          'Kühni regression coefficient. Identified value: 3.04 (secondary reproduction). ' +
-          'Which term (buoyancy/turbulence/geometry) this multiplies is NOT YET CONFIRMED — ' +
-          'do not assume C1 pairs with n1 without primary-paper verification.',
+          'Numerator symbol from Laitinen Eq. (3). ' +
+          'Dimensional analysis: if e = mathematical constant ≈ 2.71828, ' +
+          'then e^0.45 ≈ 1.568 (dimensionless prefactor). ' +
+          'If e = ψ (power dissipation, W/kg), the result has units (W/kg)^0.45 ' +
+          'and the equation is not dimensionally homogeneous. ' +
+          'PRIMARY PAPER MUST RESOLVE THIS. Do not implement until confirmed.',
       },
-      C2: {
-        symbol: 'C2',
-        unit: '—',
+      gamma: {
+        symbol: 'γ',
+        unit: 'N m⁻¹',
         description:
-          'Kühni regression coefficient. Identified value: 1.60 (secondary reproduction). ' +
-          'Term assignment NOT YET CONFIRMED from primary paper.',
+          'Liquid–liquid interfacial tension at operating temperature. ' +
+          'SI: [N/m] = [kg/s²]. Must be in SI — do not use mN/m. ' +
+          'For ECR-2: NMP/RRBO interfacial tension at column operating temperature.',
       },
-      C3: {
-        symbol: 'C3',
-        unit: '—',
+      rho_c: {
+        symbol: 'ρc',
+        unit: 'kg m⁻³',
         description:
-          'Kühni regression coefficient. Identified value: 0.034 (secondary reproduction). ' +
-          'Term assignment NOT YET CONFIRMED from primary paper. ' +
-          'May belong to a geometry-correction group or a third additive term.',
+          'Continuous-phase density. In ECR-2: NMP is the continuous phase. ' +
+          'Confirm that K&H 1996 Kühni dataset also uses aqueous/heavy phase as continuous.',
       },
-      // ── Kühni exponents ─────────────────────────────────────────────────────
-      // Identified values (secondary reproduction). Which Ci each ni belongs to
-      // is NOT established — confirm term structure from primary paper.
-      n1: {
-        symbol: 'n1',
-        unit: '—',
+      rho_d: {
+        symbol: 'ρd',
+        unit: 'kg m⁻³',
         description:
-          'Kühni regression exponent. Identified value: 0.45 (secondary reproduction). ' +
-          'Term assignment NOT YET CONFIRMED. Do not pair with C1 without primary-paper verification.',
-      },
-      n2: {
-        symbol: 'n2',
-        unit: '—',
-        description:
-          'Kühni regression exponent. Identified value: −0.63 (secondary reproduction). ' +
-          'Term assignment NOT YET CONFIRMED.',
-      },
-      n3: {
-        symbol: 'n3',
-        unit: '—',
-        description:
-          'Kühni regression exponent. Identified value: −0.38 (secondary reproduction). ' +
-          'Term assignment NOT YET CONFIRMED.',
-      },
-      sigma: {
-        symbol: 'σ',
-        unit: 'N/m',
-        description: 'Liquid–liquid interfacial tension at operating temperature',
-      },
-      delta_rho: {
-        symbol: 'Δρ',
-        unit: 'kg/m³',
-        description: 'Absolute density difference |ρ_c − ρ_d| between continuous and dispersed phases',
+          'Dispersed-phase density. In ECR-2: RRBO is the dispersed phase (light, upward-flowing).',
       },
       g: {
         symbol: 'g',
-        unit: 'm/s²',
-        description: 'Standard gravitational acceleration, 9.80665 m/s²',
+        unit: 'm s⁻²',
+        description: 'Standard gravitational acceleration. Value: 9.80665 m/s².',
       },
-      rho_c: {
-        symbol: 'ρ_c',
-        unit: 'kg/m³',
-        description: 'Continuous-phase (NMP) density at operating temperature',
-      },
-      rho_d: {
-        symbol: 'ρ_d',
-        unit: 'kg/m³',
-        description: 'Dispersed-phase (RRBO) density at operating temperature',
-      },
-      epsilon: {
-        symbol: 'ε',
-        unit: 'W/kg',
+      psi: {
+        symbol: 'ψ',
+        unit: 'W kg⁻¹',
         description:
-          'Mean specific power dissipation rate per unit liquid mass in the compartment. ' +
-          'ε = N_P · N³ · D_R⁵ / (A_col · h_comp) where N is rotor speed in rev/s.',
+          'Mechanical power dissipation per unit mass of liquid in the compartment. ' +
+          'ψ = N_P · N³ · D_R⁵ / (A_col · h) where N = rotor speed [rev/s]. ' +
+          'Same physical quantity as ε used in other references. ' +
+          'SI: [W/kg] = [m²/s³].',
       },
       N_P: {
         symbol: 'N_P',
         unit: '—',
-        description: 'Rotor power number (dimensionless). Engineer-supplied, source-tagged.',
+        description:
+          'Rotor power number (dimensionless). ' +
+          'Must be sourced from Kühni rotor geometry data or a separate validated correlation.',
       },
-      N: {
+      N_rot: {
         symbol: 'N',
-        unit: 'rev/s',
-        description: 'Rotor rotational speed (= rpm / 60)',
+        unit: 'rev s⁻¹',
+        description: 'Rotor rotational speed: N = RPM / 60.',
       },
       D_R: {
         symbol: 'D_R',
         unit: 'm',
-        description: 'Rotor diameter',
+        description: 'Rotor disc diameter.',
       },
       A_col: {
         symbol: 'A_col',
         unit: 'm²',
-        description: 'Column internal cross-sectional area = π·D²/4',
+        description: 'Column internal cross-sectional area = π·D²/4.',
       },
-      h_comp: {
-        symbol: 'h_comp',
-        unit: 'm',
-        description: 'Compartment height (centre-to-centre rotor spacing)',
+      // ── Term₁ group: γ/((ρc−ρd)·g·h²) ──────────────────────────────────
+      // Dimensional check: [kg/s²]/([kg/m³]·[m/s²]·[m²]) = [kg/s²]/[kg/s²] = dimensionless ✓
+      // This is the reciprocal of the Eötvös number Eo = (ρc−ρd)·g·h²/γ.
+      Eo_inv: {
+        symbol: 'γ/((ρc−ρd)·g·h²)',
+        unit: '—',
+        description:
+          'Inverse Eötvös number with compartment height h as the characteristic length. ' +
+          'Dimensionless: [kg/s²]/[kg/s²] = 1. ' +
+          'Captures the balance between interfacial tension and buoyancy forces ' +
+          'at the compartment scale.',
+      },
+      // ── Term₂ inner groups ───────────────────────────────────────────────
+      // Group 1: (ψ/g)·(ρc/(gγ))^(1/4) — dimensional check:
+      //   ψ/g = [m²/s³]/[m/s²] = [m/s]
+      //   ρc/(gγ) = [kg/m³]/([m/s²·kg/s²]) = [kg/m³]/[kg·m/s⁴] = s⁴/m⁴ ... units of s^4/m^4
+      //   (ρc/(gγ))^(1/4) = s/m
+      //   Product: [m/s]·[s/m] = dimensionless ✓
+      psi_group: {
+        symbol: '(ψ/g)·(ρc/(g·γ))^(1/4)',
+        unit: '—',
+        description:
+          'Dimensionless agitation group combining power dissipation with fluid properties. ' +
+          'Dimensional verification: (ψ/g)[m/s] × (ρc/(gγ))^0.25[s/m] = dimensionless ✓. ' +
+          'Raised to exponent −0.63 in Term₂.',
+      },
+      // Group 2: h·(ρcg/γ)^0.38 — OPEN dimensional issue:
+      //   ρcg/γ = [kg/(m²·s²)]/[kg/s²] = 1/m² — has units m⁻²
+      //   (ρcg/γ)^0.38 has units m⁻⁰·⁷⁶
+      //   h·m⁻⁰·⁷⁶ has units m^+0.24 — NOT dimensionless.
+      //   Dimensionally consistent equivalent: (h²·ρcg/γ)^0.38 = Eo^0.38 (dimensionless)
+      //   Primary paper must resolve whether grouping is h·(ρcg/γ)^0.38 or (h²·ρcg/γ)^0.38.
+      h_group: {
+        symbol: 'h·(ρcg/γ)^0.38',
+        unit: 'm^0.24 [dimensional ambiguity — see note]',
+        description:
+          'Geometry-property group from Term₂ of Laitinen Eq. (3). ' +
+          'As written: h·(ρcg/γ)^0.38. ρcg/γ has units m⁻², so (ρcg/γ)^0.38 has units m⁻⁰·⁷⁶, ' +
+          'and h·m⁻⁰·⁷⁶ has units m^+0.24 — not dimensionless. ' +
+          'Dimensionally consistent candidate: (h²·ρcg/γ)^0.38 = Eo^0.38 (inverse Eo, dimensionless). ' +
+          'Exact grouping MUST be confirmed from K&H 1996 primary paper before implementation.',
+      },
+      // ── Previously identified coefficients ──────────────────────────────
+      // Five of the six values from prior secondary reproduction now assigned to
+      // visible positions in Laitinen Eq. (3). C1=3.04 remains unresolved.
+      coeff_1pt6: {
+        symbol: '1.6',
+        unit: '—',
+        description:
+          'Coefficient in Term₁ of denominator. ' +
+          'Corresponds to C2=1.60 from prior secondary reproduction. ' +
+          'Multiplies (inverse Eo)^0.5.',
+      },
+      coeff_0pt034: {
+        symbol: '0.034',
+        unit: '—',
+        description:
+          'Coefficient in Term₂ of denominator. ' +
+          'Corresponds to C3=0.034 from prior secondary reproduction. ' +
+          'Multiplies the combined agitation-geometry group.',
+      },
+      exp_0pt45: {
+        symbol: '0.45',
+        unit: '—',
+        description:
+          'Exponent in numerator on "e". Corresponds to n1=0.45 from prior secondary reproduction.',
+      },
+      exp_neg0pt63: {
+        symbol: '−0.63',
+        unit: '—',
+        description:
+          'Exponent on the agitation group (ψ/g)·(ρc/(gγ))^0.25 in Term₂. ' +
+          'Corresponds to n2=−0.63 from prior secondary reproduction.',
+      },
+      exp_0pt38: {
+        symbol: '0.38',
+        unit: '—',
+        description:
+          'Exponent on the h-group in Term₂ (inside the (...)^(−1) factor). ' +
+          'Corresponds to |n3|=0.38 (n3=−0.38) from prior secondary reproduction. ' +
+          'Sign: the entire h-group is raised to (−1) in Term₂, so n3=−0.38 maps to ' +
+          'a positive inner exponent of 0.38 with the outer −1 supplying the sign.',
+      },
+      C1_unresolved: {
+        symbol: 'C1=3.04',
+        unit: '—',
+        description:
+          'Kühni coefficient C1=3.04 identified in a prior secondary reproduction. ' +
+          'NOT visibly assigned in the Laitinen Eq. (3) rendering. ' +
+          'May be: (a) the coefficient on the "e^0.45" numerator (i.e., numerator = 3.04·e^0.45), ' +
+          '(b) a normalisation factor absorbed into the equation structure, or ' +
+          '(c) incorrectly identified in the prior source. ' +
+          'Resolve from K&H 1996 primary paper Table 2.',
       },
     },
 
-    // ── Validity range (K&H 1996 Kühni dataset — confirm from Table 1) ───────
+    // ── Validity ranges ──────────────────────────────────────────────────────
+    // From Laitinen (2019) and K&H 1996 secondary sources.
+    // Confirm exact bounds from K&H 1996 Table 1 (or equivalent).
     validityRange: {
-      epsilon: {
+      psi: {
         min: 0.1,
         max: 50,
         unit: 'W/kg',
-        note: 'Approximate range of the K&H 1996 Kühni dataset. Confirm exact bounds from Table 1.',
+        note:
+          'Approximate range of K&H 1996 mechanically agitated column dataset. ' +
+          'Confirm Kühni subset from primary paper. ' +
+          'Laitinen column: h=30mm, D_R=48mm, D=60mm, N=100–150 rpm.',
       },
-      sigma: {
+      gamma: {
         min: 0.001,
-        max: 0.05,
+        max: 0.045,
         unit: 'N/m',
-        note: 'Organic–aqueous systems. NMP/RRBO σ must be confirmed within this range.',
+        note:
+          'Organic–aqueous systems. Laitinen: γ=3.50 mN/m (2MTHF/water). ' +
+          'NMP/RRBO interfacial tension must be measured and confirmed within this range.',
       },
       delta_rho: {
         min: 50,
         max: 600,
         unit: 'kg/m³',
-        note: 'K&H 1996 database range. Confirm NMP/RRBO Δρ lies within.',
+        note:
+          'K&H 1996 database range. Laitinen: Δρ=143 kg/m³ (water/2MTHF). ' +
+          'Confirm NMP/RRBO Δρ lies within.',
+      },
+      d_32: {
+        min: 0.0003,
+        max: 0.005,
+        unit: 'm',
+        note:
+          'Approximate Kühni dataset range (0.3–5 mm). ' +
+          'Laitinen measured 0.51–0.65 mm at 100–150 rpm for 2MTHF/water. ' +
+          'Expected range for NMP/RRBO system must be verified.',
       },
     },
 
     applicabilityStatus: 'candidate_governed',
-    primarySourceVerified: false,            // Not yet read from K&H 1996 primary paper
-    secondaryReproductionVerified: true,     // Six parameters traced to secondary peer-reviewed source
-    validatedForRRBONMP: false,              // Pilot calibration required
+    primarySourceVerified: false,          // K&H 1996 primary paper not yet inspected
+    secondaryReproductionVerified: true,   // Equation reproduced from Laitinen et al. (2019) — peer-reviewed
+    validatedForRRBONMP: false,            // Pilot calibration required for NMP/RRBO
 
     pilotCalibrationFactor: {
       symbol: 'f_cal_d32',
       description:
-        'd_32_design = f_cal_d32 · d_32_KH96. ' +
-        'Multiplicative factor applied to the K&H 1996 prediction to correct for ' +
-        'the NMP/RRBO fluid system (interfacial rheology, aromatic solute effects). ' +
-        'Kept strictly separate from the published equation coefficients — ' +
-        'do not modify C1, C2, C3, n1, n2, n3 during calibration.',
+        'd₃₂_design = f_cal_d32 · d₃₂_KH96. ' +
+        'Multiplicative correction factor for NMP/RRBO fluid system applied AFTER ' +
+        'the published equation is evaluated. ' +
+        'Kept strictly separate from the equation constants (1.6, 0.034, exponents). ' +
+        'Do NOT modify equation constants during pilot calibration.',
       currentValue: 'NOT_YET_CALIBRATED',
       note:
-        'f_cal_d32 derived from ECR pilot-plant d₃₂ measurements with actual RRBO/NMP. ' +
-        'Until measured, f_cal_d32 = 1.0 (no correction).',
+        'f_cal_d32 derived from ECR pilot-plant d₃₂ measurements (RRBO feed + NMP solvent). ' +
+        'Until measured: f_cal_d32 = 1.0 (no correction applied).',
     },
 
     approvalNote:
-      'candidate_governed: six Kühni parameters (C1=3.04 n1=0.45, C2=1.60 n2=−0.63, ' +
-      'C3=0.034 n3=−0.38) identified from secondary peer-reviewed reproduction. ' +
+      'candidate_governed: equation reproduced from Laitinen et al. (2019), Eq. (3) — ' +
+      'peer-reviewed secondary source using K&H 1996. secondaryReproductionVerified=true. ' +
       'BEFORE advancing to governed: ' +
-      '(1) Read K&H 1996 primary paper (DOI 10.1021/ie950674w), Table 2 — ' +
-      '    confirm all six values AND the exact term structure each belongs to. ' +
-      '(2) Reconstruct the full Kühni equation with correct geometry groups and ' +
-      '    unit conventions — the simplified two-term form must NOT be used. ' +
-      '(3) Confirm ECR-2 phase assignment (RRBO dispersed, NMP continuous, d→c) ' +
-      '    is consistent with the K&H 1996 phase convention for the Kühni dataset. ' +
-      '(4) Set primarySourceVerified = true with engineer name and date. ' +
-      '(5) Confirm NMP/RRBO system properties within K&H 1996 validity range. ' +
-      'Do NOT implement numerically until governed.',
+      '(1) Read K&H 1996 primary paper (DOI 10.1021/ie950674w). ' +
+      '    Resolve open item (a): confirm "e" in numerator is mathematical constant or ψ. ' +
+      '    Resolve open item (b): confirm exact grouping of h-term in Term₂. ' +
+      '    Resolve open item (c): confirm whether C1=3.04 appears and where. ' +
+      '(2) Set primarySourceVerified = true with engineer name and date. ' +
+      '(3) Confirm K&H 1996 Kühni experimental dataset phase convention ' +
+      '    matches ECR-2 phase assignment (RRBO dispersed, NMP continuous). ' +
+      '(4) Verify NMP/RRBO system properties (γ, Δρ, ρc, ρd) lie within validity range. ' +
+      'DO NOT IMPLEMENT NUMERICALLY until governed.',
   },
 
   // ── 2. Dispersed-phase holdup (φ_d) ──────────────────────────────────────
   //
   // Kumar & Hartland (1995) — Kühni agitated-column parameter set.
+  // Equations (1) and (2) as reproduced in Laitinen et al. (2019),
+  // Chem. Eng. Res. Des., 146, 518–527, DOI 10.1016/j.cherd.2019.04.018.
   // STATUS: candidate_governed
   //
-  // IDENTIFIED KÜHNI CONSTANTS (secondary reproduction — UNASSIGNED TO TERMS):
-  //   Eight numerical constants identified from secondary reproduction:
-  //     [ 2.67×10⁻², 0.77, 0.64, 20.7, 0.90, −0.34, 2.27, −0.77 ]
-  //   secondaryReproductionVerified = true
-  //   primarySourceVerified        = false  ← must verify from K&H 1995 primary paper
+  // ALL EIGHT KÜHNI CONSTANTS ARE NOW ASSIGNED to exact equation terms.
+  // Do NOT implement numerically — status remains candidate_governed.
   //
-  // IMPORTANT — DO NOT ASSIGN CONSTANTS TO EQUATION TERMS YET:
-  //   The exact Kühni equation form (which of the K&H 1995 representations is used,
-  //   how the 8 constants map to C, n, a, b, c, d, e, and any additional terms)
-  //   must first be established from the primary paper (DOI: 10.1021/ie00038a032).
-  //   The provisional generic equation in this entry must NOT be implemented.
+  // LAITINEN VALIDATION (2MTHF/water system, Kühni ECR60/50G, T=298K):
+  //   Relative deviation: 11.2% (vs K&H 1995 reported 13% for 75mm column).
+  //   Laitinen reports the correlation predicts holdup "reasonably well at
+  //   100 and 125 rpm especially at the lower S/F ratio; larger deviation at 150 rpm."
+  //   K&H 1995 reported average deviation 21% over all column types.
   //
-  // DO NOT IMPLEMENT THE PROVISIONAL GENERIC EQUATION BELOW.
+  // PHASE CONVENTION (ECR-2):
+  //   Ud = dispersed-phase superficial velocity = Q_RRBO / A_col  [RRBO upward]
+  //   Uc = continuous-phase superficial velocity = Q_NMP / A_col  [NMP downward]
+  //   Confirm K&H 1995 Kühni experimental dataset uses same phase convention.
   // ──────────────────────────────────────────────────────────────────────────
   {
     id: 'ecr2_holdup_kh1995',
     quantity: 'holdup',
-    name: 'Kühni Column φ_d — Kumar & Hartland (1995), agitated-column parameter set',
+    name: 'Kühni Column φ — Kumar & Hartland (1995), agitated-column holdup',
 
     source:
       'Kumar, A. & Hartland, S. (1995). ' +
@@ -409,193 +505,548 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       'in Liquid-Liquid Extraction Columns." ' +
       'Industrial & Engineering Chemistry Research, 34(11), 3925–3940. ' +
       'DOI: 10.1021/ie00038a032. ' +
-      'Kühni-specific constants: Table [confirm table number from primary paper]. ' +
-      'Phase assignment for ECR-2: RRBO dispersed (V_d), NMP continuous (V_c).',
+      'K&H reported avg. absolute relative deviation: 13% for 75mm Kühni; 21% all data. ' +
+      'Equations reproduced as Eqs (1) and (2) in: ' +
+      'Laitinen, A. et al. (2019). "Axial Dispersion and CFD Models for the Extraction of ' +
+      'Levulinic Acid from Dilute Aqueous Solution in a Kühni Column with 2-Methyltetrahydrofuran Solvent." ' +
+      'Chemical Engineering Research and Design, 146, 518–527. DOI: 10.1016/j.cherd.2019.04.018. ' +
+      'Laitinen validation: 11.2% relative deviation for 2MTHF/water at 298 K.',
 
-    // ── Equation (PROVISIONAL GENERIC STRUCTURE — DO NOT IMPLEMENT) ─────────
+    // ── Equations — exact reproduction from Laitinen et al. (2019), Eqs (1)–(2) ──
     //
-    // K&H 1995 GENERAL APPROACH (from abstract and secondary sources):
-    //   Presents an EXPLICIT correlation for φ_d — avoids the need to solve
-    //   implicit equations arising from Richardson-Zaki + continuity.
+    //  Eq. (1) — dispersed-phase holdup φ:
     //
-    //   Slip velocity definition (K&H 1995, Eq. 1):
-    //     V_slip = V_d / φ_d  +  V_c / (1 − φ_d)
+    //   φ = [ 2.67×10⁻² + (ψθ/g)^0.77 ] · (Ud·θ)^0.64 · exp(20.7·Uc·θ)^0.90
+    //       · ((ρc − ρd)/ρc)^(−0.34) · 2.27 · xf^(−0.77)
     //
-    //   PROVISIONAL generic form for agitated columns:
-    //     φ_d / (1 − φ_d)^n = C · V_d^a · (V_c + V_d)^b
-    //                          · (ρ_c / Δρ)^c · (μ_c / σ)^d · ε^e
+    //  Eq. (2) — characteristic time-length scale θ:
     //
-    // IDENTIFIED KÜHNI CONSTANTS (8 values, unassigned to equation terms):
-    //   [ 2.67e-2, 0.77, 0.64, 20.7, 0.90, -0.34, 2.27, -0.77 ]
-    //   How these 8 values map to (C, n, a, b, c, d, e) and any additional terms
-    //   MUST be established from the primary paper before this becomes 'governed'.
-    //   The generic form above may have additional terms for the Kühni type.
+    //   θ = (ρc / (g · γ))^0.25
     //
-    // Relationship to d₃₂: K&H 1995 holdup does NOT require d₃₂ as input.
-    // Interfacial area computed separately: a = 6·φ_d / d₃₂ (m²/m³).
+    //  where the Laitinen (2019) nomenclature is:
+    //   φ      hold-up (dispersed phase volume fraction)      [—]
+    //   ψ      mechanical power dissipation per unit mass     [W kg⁻¹]
+    //   g      gravitational acceleration                     [m s⁻²]
+    //   Ud     dispersed-phase superficial velocity           [m s⁻¹]
+    //   Uc     continuous-phase superficial velocity          [m s⁻¹]
+    //   ρc     continuous-phase density                       [kg m⁻³]
+    //   ρd     dispersed-phase density                        [kg m⁻³]
+    //   xf     fractional free column cross-sectional area    [—]
+    //   γ      interfacial tension                            [N m⁻¹]
+    //   θ      derived characteristic scale = (ρc/(gγ))^0.25 [s m⁻¹]
+    //
+    //  ── Assignment of all eight Kühni constants ──────────────────────────
+    //   2.67×10⁻²  additive constant inside the first bracket [ ] in Eq. (1)
+    //   0.77        exponent on (ψθ/g)
+    //   0.64        exponent on (Ud·θ)
+    //   20.7        linear coefficient inside exp argument: exp(20.7·Uc·θ)
+    //   0.90        exponent on the entire exp(…) factor: [exp(20.7·Uc·θ)]^0.90
+    //   −0.34       exponent on ((ρc − ρd)/ρc)
+    //   2.27        multiplicative coefficient on xf^(−0.77)
+    //   −0.77       exponent on xf
+    //
+    //  ── Dimensional verification of θ ────────────────────────────────────
+    //   θ = (ρc/(gγ))^0.25
+    //   ρc: kg/m³,  g: m/s²,  γ: N/m = kg/s²
+    //   ρc/(gγ) = [kg/m³]/([m/s²]·[kg/s²]) = [kg/m³]/[kg·m/s⁴] = s⁴/m⁴
+    //   θ = (s⁴/m⁴)^0.25 = s/m  ✓
+    //   Ud·θ = [m/s]·[s/m] = dimensionless ✓
+    //   Uc·θ = [m/s]·[s/m] = dimensionless ✓
+    //   ψθ/g = [W/kg]·[s/m]/[m/s²] = [m²/s³]·[s/m]/[m/s²]
+    //        = [m/s²]/[m/s²] = dimensionless ✓
+    //
+    //  ── Physical structure of Eq. (1) ────────────────────────────────────
+    //   The equation is fully explicit in φ — no iteration required.
+    //   The first bracket [2.67×10⁻² + (ψθ/g)^0.77] adds a base holdup constant
+    //   to an agitation-driven term: at ψ→0 the bracket → 2.67×10⁻² (minimum
+    //   holdup), at high ψ the agitation term dominates.
+    //   The (Ud·θ)^0.64 factor: holdup increases with dispersed-phase throughput.
+    //   The exp(20.7·Uc·θ)^0.90 factor: holdup decreases with continuous-phase
+    //   throughput (increased Uc flushes drops upward faster, reducing inventory).
+    //   The ((ρc−ρd)/ρc)^(−0.34) factor: smaller density difference → more holdup.
+    //   The 2.27·xf^(−0.77) factor: smaller free area (more restricted stator) → more holdup.
     //
     equation:
-      'PROVISIONAL — DO NOT IMPLEMENT. ' +
-      'Identified Kühni constants (unassigned to equation terms, secondary reproduction): ' +
-      '[2.67e-2, 0.77, 0.64, 20.7, 0.90, -0.34, 2.27, -0.77]. ' +
-      'Provisional generic structure: ' +
-      'φ_d / (1−φ_d)^n = C · V_d^a · (V_c+V_d)^b · (ρ_c/Δρ)^c · (μ_c/σ)^d · ε^e ' +
-      '| V_slip = V_d/φ_d + V_c/(1−φ_d) [K&H 1995, Eq. 1] ' +
-      '| Exact Kühni form and term assignments must be read from K&H 1995 primary paper ' +
-      '  (DOI: 10.1021/ie00038a032) before any numerical use. ' +
-      '| Phase (ECR-2): V_d = RRBO superficial velocity, V_c = NMP superficial velocity.',
+      'CANDIDATE — DO NOT IMPLEMENT. ' +
+      'Reproduced from Laitinen et al. (2019) Eqs (1) and (2). ' +
+      'Eq.(1): φ = [2.67e-2 + (ψθ/g)^0.77]·(Ud·θ)^0.64·[exp(20.7·Uc·θ)]^0.90' +
+      '·((ρc−ρd)/ρc)^(−0.34)·2.27·xf^(−0.77) ' +
+      'Eq.(2): θ = (ρc/(g·γ))^0.25  [s/m — dimensionless products Ud·θ, Uc·θ, ψθ/g ✓] ' +
+      '| ECR-2: Ud=Q_RRBO/A_col [dispersed], Uc=Q_NMP/A_col [continuous] ' +
+      '| All constants now assigned — see variables section.',
 
     // ── Symbol definitions ──────────────────────────────────────────────────
     variables: {
-      phi_d: {
-        symbol: 'φ_d',
+      phi: {
+        symbol: 'φ',
         unit: '—',
-        description: 'Dispersed-phase holdup (volume fraction). In ECR-2: RRBO is the dispersed phase.',
-      },
-      unassigned_kuhni_constants: {
-        symbol: '[k1…k8]',
-        unit: 'various',
         description:
-          'Eight Kühni-specific constants identified from secondary reproduction: ' +
-          '[2.67e-2, 0.77, 0.64, 20.7, 0.90, -0.34, 2.27, -0.77]. ' +
-          'Term assignment (which maps to C, n, a, b, c, d, e, and any additional terms) ' +
-          'must be established from K&H 1995 primary paper (DOI: 10.1021/ie00038a032). ' +
-          'Do not assign to equation terms until confirmed.',
+          'Dispersed-phase holdup (volume fraction of dispersed phase in the column). ' +
+          'In ECR-2: RRBO is the dispersed phase. ' +
+          'φ is the LHS of Laitinen Eq. (1) — computed directly, no iteration.',
       },
-      V_slip: {
-        symbol: 'V_slip',
-        unit: 'm/s',
+      theta: {
+        symbol: 'θ',
+        unit: 's m⁻¹',
         description:
-          'Slip velocity. Definition (K&H 1995, Eq. 1): V_slip = V_d/φ_d + V_c/(1−φ_d). ' +
-          'Both V_d and V_c are positive superficial velocities (m/s).',
+          'Characteristic time-length scale defined by Laitinen Eq. (2): θ = (ρc/(g·γ))^0.25. ' +
+          'Dimensional verification: (s⁴/m⁴)^0.25 = s/m ✓. ' +
+          'Makes Ud·θ, Uc·θ, and ψθ/g dimensionless. ' +
+          'This group is determined entirely by continuous-phase properties and ' +
+          'interfacial tension — it is constant along the column at fixed temperature.',
       },
-      V_d: {
-        symbol: 'V_d',
-        unit: 'm/s',
+      psi: {
+        symbol: 'ψ',
+        unit: 'W kg⁻¹',
         description:
-          'Dispersed-phase superficial velocity = Q_RRBO / A_col in ECR-2. ' +
-          'RRBO is the dispersed phase in ECR-2.',
+          'Mechanical power dissipation per unit mass of liquid in the compartment. ' +
+          'SI: [W/kg] = [m²/s³]. ' +
+          'For Kühni: ψ = N_P · N³ · D_R⁵ / (A_col · h) where N = rotor speed [rev/s]. ' +
+          'N_P is the rotor power number — must be sourced from geometry data.',
       },
-      V_c: {
-        symbol: 'V_c',
-        unit: 'm/s',
+      g: {
+        symbol: 'g',
+        unit: 'm s⁻²',
+        description: 'Standard gravitational acceleration: 9.80665 m/s².',
+      },
+      Ud: {
+        symbol: 'Ud',
+        unit: 'm s⁻¹',
         description:
-          'Continuous-phase superficial velocity = Q_NMP / A_col in ECR-2. ' +
-          'NMP is the continuous phase in ECR-2.',
+          'Dispersed-phase superficial velocity = volumetric flow / column cross-section area. ' +
+          'In ECR-2: Ud = Q_RRBO / A_col [RRBO is dispersed, light phase, flows upward]. ' +
+          'Dimensionless product: Ud·θ [—].',
+      },
+      Uc: {
+        symbol: 'Uc',
+        unit: 'm s⁻¹',
+        description:
+          'Continuous-phase superficial velocity = volumetric flow / column cross-section area. ' +
+          'In ECR-2: Uc = Q_NMP / A_col [NMP is continuous, heavy phase, flows downward]. ' +
+          'Dimensionless product: Uc·θ [—].',
       },
       rho_c: {
-        symbol: 'ρ_c',
-        unit: 'kg/m³',
-        description: 'Continuous-phase (NMP) density at operating temperature',
-      },
-      delta_rho: {
-        symbol: 'Δρ',
-        unit: 'kg/m³',
-        description: 'Absolute density difference |ρ_NMP − ρ_RRBO|',
-      },
-      mu_c: {
-        symbol: 'μ_c',
-        unit: 'Pa·s',
-        description: 'Continuous-phase (NMP) dynamic viscosity',
-      },
-      sigma: {
-        symbol: 'σ',
-        unit: 'N/m',
-        description: 'NMP/RRBO interfacial tension at operating temperature',
-      },
-      epsilon: {
-        symbol: 'ε',
-        unit: 'W/kg',
+        symbol: 'ρc',
+        unit: 'kg m⁻³',
         description:
-          'Mean specific power dissipation in the compartment. ' +
-          'Same definition as for d₃₂: ε = N_P·N³·D_R⁵/(A_col·h_comp).',
+          'Continuous-phase density. In ECR-2: NMP density at operating temperature. ' +
+          'Appears in both θ (Eq. 2) and the density-ratio group of Eq. (1).',
+      },
+      rho_d: {
+        symbol: 'ρd',
+        unit: 'kg m⁻³',
+        description:
+          'Dispersed-phase density. In ECR-2: RRBO density at operating temperature.',
+      },
+      xf: {
+        symbol: 'xf',
+        unit: '—',
+        description:
+          'Fractional free column cross-sectional area — the open area of the Kühni stator ' +
+          'partition plates as a fraction of the column total cross section. ' +
+          'From Laitinen Table 2: xf = 0.30 (30%) for the ECR60/50G column. ' +
+          'Must be confirmed for the specific Kühni model used in ECR-2. ' +
+          'Appears with coefficient 2.27 and exponent −0.77: 2.27·xf^(−0.77). ' +
+          'Smaller free area → more restricted flow → higher holdup.',
+      },
+      gamma: {
+        symbol: 'γ',
+        unit: 'N m⁻¹',
+        description:
+          'Liquid–liquid interfacial tension at operating temperature. ' +
+          'SI: [N/m] = [kg/s²]. Must be in SI — do not use mN/m. ' +
+          'Laitinen measured γ = 3.50 mN/m for 2MTHF/water at 295 K. ' +
+          'NMP/RRBO interfacial tension must be measured at ECR-2 operating temperature.',
+      },
+      // ── Assigned Kühni constants ─────────────────────────────────────────
+      k1_additive: {
+        symbol: '2.67×10⁻²',
+        unit: '—',
+        description:
+          'Additive constant inside the first bracket of Eq. (1). ' +
+          'Represents minimum holdup at zero agitation (ψ→0): ' +
+          'φ_min → 2.67×10⁻²·(Ud·θ)^0.64·[exp(20.7·Uc·θ)]^0.90·(...)',
+      },
+      k2_psi_exp: {
+        symbol: '0.77',
+        unit: '—',
+        description:
+          'Exponent on the agitation group (ψθ/g) inside the first bracket. ' +
+          'At high agitation, bracket ≈ (ψθ/g)^0.77 — holdup increases sub-linearly with ψ.',
+      },
+      k3_Ud_exp: {
+        symbol: '0.64',
+        unit: '—',
+        description: 'Exponent on (Ud·θ) — holdup increases with dispersed-phase throughput.',
+      },
+      k4_exp_coeff: {
+        symbol: '20.7',
+        unit: '—',
+        description:
+          'Linear coefficient inside the exp argument: exp(20.7·Uc·θ). ' +
+          'Note: 20.7 is NOT an exponent on Uc; it multiplies the dimensionless group Uc·θ ' +
+          'before the exp function is applied. ' +
+          'High continuous-phase velocity → exp term → holdup suppressed.',
+      },
+      k5_exp_outer: {
+        symbol: '0.90',
+        unit: '—',
+        description:
+          'Exponent on the entire exp(…) factor: [exp(20.7·Uc·θ)]^0.90. ' +
+          'The outer 0.90 power slightly attenuates the exponential sensitivity to Uc.',
+      },
+      k6_dens_exp: {
+        symbol: '−0.34',
+        unit: '—',
+        description:
+          'Exponent on the density-ratio group ((ρc−ρd)/ρc). ' +
+          'Negative: smaller density difference → higher holdup (drops settle more slowly).',
+      },
+      k7_xf_coeff: {
+        symbol: '2.27',
+        unit: '—',
+        description:
+          'Multiplicative prefactor on xf^(−0.77). ' +
+          'Works together with k8 (−0.77) to give the stator geometry factor.',
+      },
+      k8_xf_exp: {
+        symbol: '−0.77',
+        unit: '—',
+        description:
+          'Exponent on fractional free area xf. ' +
+          'Negative: smaller free area (more restricted stator) → higher holdup. ' +
+          'Combined factor: 2.27·xf^(−0.77).',
       },
     },
 
-    // ── Validity range ───────────────────────────────────────────────────────
+    // ── Validity ranges ──────────────────────────────────────────────────────
+    // From Laitinen (2019) Table 2 and K&H 1995 general documentation.
+    // Confirm Kühni-specific bounds from K&H 1995 primary paper.
     validityRange: {
-      phi_d: {
-        min: 0.0,
-        max: 0.5,
+      phi: {
+        min: 0.01,
+        max: 0.40,
         unit: '—',
         note:
-          'K&H 1995 correlation range for agitated columns. ' +
-          'Flooding occurs as φ_d → φ_d_flood; flooding margin must be monitored separately.',
+          'Range from Laitinen experiments: φ = 3.98–16.04%. ' +
+          'Flooding occurs as φ → φ_flood; flood margin must be monitored separately. ' +
+          'Confirm upper bound from K&H 1995 Kühni dataset.',
       },
-      V_d: {
+      Ud: {
         min: 0.0005,
-        max: 0.025,
+        max: 0.02,
         unit: 'm/s',
-        note: 'Approximate range of K&H 1995 Kühni dataset. Confirm exact bounds from primary paper.',
+        note:
+          'Laitinen: S/F 8.4/9.2 to 12.2/14.0 kg/h. ' +
+          'Confirm K&H 1995 Kühni dataset Ud range from primary paper.',
       },
-      V_c: {
+      Uc: {
         min: 0.0005,
-        max: 0.025,
+        max: 0.02,
         unit: 'm/s',
-        note: 'Approximate range. Confirm from primary paper.',
+        note: 'Approximate range. Confirm from K&H 1995 primary paper.',
       },
-      epsilon: {
+      psi: {
         min: 0.05,
         max: 50,
         unit: 'W/kg',
-        note: 'Agitated-column range. Confirm Kühni subset bounds from primary paper.',
+        note: 'Agitated-column range. Confirm Kühni subset bounds from K&H 1995 primary paper.',
+      },
+      gamma: {
+        min: 0.001,
+        max: 0.045,
+        unit: 'N/m',
+        note:
+          'Laitinen: γ = 3.50 mN/m (2MTHF/water). ' +
+          'NMP/RRBO interfacial tension must be measured and confirmed within range.',
+      },
+      xf: {
+        min: 0.10,
+        max: 0.50,
+        unit: '—',
+        note:
+          'Laitinen ECR60/50G: xf = 0.30. ' +
+          'Confirm Kühni model used in ECR-2 and its stator free area fraction.',
       },
     },
 
     applicabilityStatus: 'candidate_governed',
-    primarySourceVerified: false,            // Must be set to true after reading K&H 1995
-    secondaryReproductionVerified: true,     // 8 constants traced to secondary peer-reviewed source
-    validatedForRRBONMP: false,              // Pilot calibration required
+    primarySourceVerified: false,          // K&H 1995 primary paper not yet inspected
+    secondaryReproductionVerified: true,   // Eqs (1)–(2) reproduced from Laitinen et al. (2019) — peer-reviewed
+    validatedForRRBONMP: false,            // Pilot calibration required for NMP/RRBO system
 
     pilotCalibrationFactor: {
       symbol: 'f_cal_phi',
       description:
-        'φ_d_design = f_cal_phi · φ_d_KH95. ' +
-        'Multiplicative factor applied to the K&H 1995 prediction to correct for ' +
-        'NMP/RRBO-specific coalescence behaviour (interfacial rheology, aromatic solute effects). ' +
-        'Kept strictly separate from the published correlation constants — ' +
-        'do not modify the 8 identified Kühni constants during calibration.',
+        'φ_design = f_cal_phi · φ_KH95. ' +
+        'Multiplicative correction factor for NMP/RRBO applied AFTER Eq. (1) is evaluated. ' +
+        'Kept strictly separate from the published constants — ' +
+        'do NOT modify any of the 8 Kühni constants (2.67e-2, 0.77, 0.64, 20.7, 0.90, ' +
+        '−0.34, 2.27, −0.77) during calibration.',
       currentValue: 'NOT_YET_CALIBRATED',
       note:
-        'f_cal_phi derived from ECR pilot-plant holdup measurements with actual RRBO/NMP. ' +
-        'Until measured, f_cal_phi = 1.0 (no correction).',
+        'f_cal_phi derived from ECR pilot-plant holdup measurements with actual RRBO/NMP at operating T. ' +
+        'Until measured: f_cal_phi = 1.0 (no correction). ' +
+        'Laitinen 11.2% deviation for 2MTHF/water is a reference benchmark only.',
     },
 
     approvalNote:
-      'candidate_governed: 8 Kühni constants identified from secondary peer-reviewed ' +
-      'reproduction [2.67e-2, 0.77, 0.64, 20.7, 0.90, -0.34, 2.27, -0.77]. ' +
+      'candidate_governed: Eqs (1) and (2) reproduced exactly from Laitinen et al. (2019) — ' +
+      'peer-reviewed secondary source using K&H 1995. ' +
+      'All 8 Kühni constants now assigned to exact equation terms. ' +
+      'secondaryReproductionVerified=true. ' +
       'BEFORE advancing to governed: ' +
-      '(1) Read K&H 1995 primary paper (DOI 10.1021/ie00038a032) and identify the ' +
-      '    exact Kühni equation form — confirm whether the φ_d/(1−φ_d)^n structure ' +
-      '    or an alternative representation is used for Kühni. ' +
-      '(2) Assign each of the 8 constants to its exact term in the equation; ' +
-      '    confirm units and dimensional consistency of every group. ' +
-      '(3) Verify the validity range (V_d, V_c, ε, σ, Δρ) covers ECR-2 envelope. ' +
-      '(4) Confirm ECR-2 phase convention (RRBO=dispersed, NMP=continuous) matches ' +
-      '    the K&H 1995 Kühni dataset dispersed-phase convention. ' +
+      '(1) Read K&H 1995 primary paper (DOI 10.1021/ie00038a032): ' +
+      '    confirm exact equation form and Kühni constant table match Laitinen reproduction. ' +
+      '(2) Confirm K&H 1995 Kühni experimental dataset uses same phase convention ' +
+      '    as Laitinen (aqueous=continuous, organic=dispersed) for Ud and Uc. ' +
+      '    If reversed, Ud and Uc in Eq. (1) must be reassigned for ECR-2. ' +
+      '(3) Verify K&H 1995 Kühni validity ranges cover ECR-2 operating envelope ' +
+      '    (Ud, Uc, ψ, γ, Δρ, xf). ' +
+      '(4) Confirm xf for the specific Kühni model used in ECR-2 (not ECR60/50G). ' +
       '(5) Set primarySourceVerified = true with engineer name and date. ' +
-      'Do NOT implement numerically until governed.',
+      'DO NOT IMPLEMENT NUMERICALLY until governed.',
   },
 
-  // ── 3. Overall volumetric mass-transfer coefficient (K_oa) ───────────────
+  // ── 3. Phase mass-transfer coefficients — Kumar & Hartland (1999) ────────
+  //
+  // Candidate correlation for individual phase Sherwood numbers (kc, kd)
+  // reproduced from Laitinen et al. (2019), Eqs (10)–(15) [1D model form]
+  // and Eqs (18)–(23) [CFD form, slightly reformulated].
+  //
+  // Primary source:
+  //   Kumar, A. & Hartland, S. (1999). "Correlations for Prediction of Mass
+  //   Transfer Coefficients in Single Drop Systems and Liquid-Liquid Extraction
+  //   Columns." Transactions of the Institution of Chemical Engineers (Trans IChemE),
+  //   Part A, 77, 372–384.
+  //
+  // STATUS: pending_approval
+  //   Equations documented from secondary reproduction only.
+  //   Dimensional verification, primary-paper check, and explicit engineering
+  //   approval required before advancing.
+  //   ECR-2 requires component-by-component treatment (Sat/Mono/Di/Poly) —
+  //   a single lumped ki is NOT acceptable. How the Sherwood number correlation
+  //   is applied per-component must be resolved before implementation.
+  // ──────────────────────────────────────────────────────────────────────────
   {
-    id: 'ecr2_koa_pending',
+    id: 'ecr2_koa_kh1999',
     quantity: 'mass_transfer',
-    name: 'Kühni Column Overall Volumetric Mass-Transfer Coefficient (K_oa)',
-    source: 'PENDING — Kühni-appropriate liquid-liquid extraction mass-transfer ' +
-      'correlation to be provided and approved. Must not assume a universal ' +
-      'coefficient. Individual component driving forces (Saturates, Mono, Di, Poly) ' +
-      'must be preserved because their equilibrium distribution coefficients differ.',
+    name: 'Kühni Column Phase Mass-Transfer Coefficients — Kumar & Hartland (1999)',
+
+    source:
+      'Kumar, A. & Hartland, S. (1999). ' +
+      '"Correlations for Prediction of Mass Transfer Coefficients in Single Drop Systems ' +
+      'and Liquid-Liquid Extraction Columns." ' +
+      'Transactions of the Institution of Chemical Engineers, Part A, 77, 372–384. ' +
+      'Equations reproduced from: ' +
+      'Laitinen, A. et al. (2019). Chemical Engineering Research and Design, 146, 518–527. ' +
+      'DOI: 10.1016/j.cherd.2019.04.018. ' +
+      'Laitinen reports kc values 4.29–6.38 × 10⁻⁵ m/s and kd values 3.43–5.12 × 10⁻⁵ m/s ' +
+      'for 2MTHF/water system; overall ki ≈ 1.4–2.2 × 10⁻⁵ m/s.',
+
+    // ── Equations — reproduced from Laitinen et al. (2019) ──────────────────
+    //
+    // OVERALL MASS TRANSFER COEFFICIENT, Eq. (10):
+    //   ki = kc · kd / (kd · Kd + kc)
+    //   [Note: Laitinen Eq.(10) PDF renders denominator as "kc·Kd + kc" which
+    //    is likely a typographic error; the physically correct form for
+    //    resistance-in-series is ki = kc·kd / (kd·Kd + kc) — confirm from K&H 1999]
+    //
+    // PARTITION COEFFICIENT, Eq. (11):
+    //   Kd,i = Cd,i* / Cc,i*
+    //   (ratio of equilibrium dispersed-to-continuous concentrations for component i)
+    //
+    // CONTINUOUS-PHASE SHERWOOD NUMBER, Eqs (12)–(14) [1D form]:
+    //
+    //   (Shc − Shc,rigid) / (Shc,∞ − Shc) × 1/(1−φ)
+    //     = 5.26×10⁻² · Red^(−2/3) + 6.59×10⁻² · Red^(1/4) · Scc^(1/3)
+    //       · (Uslip·μc/γ)^(1/3) · 1/(1+κ^1.1)
+    //       · (1 + C1 · ((ψ/g)·(ρc/(gγ))^(1/4))^...)
+    //
+    //   Shc,rigid = 2.43 + 0.775·Re^(1/2)·Scc^(1/3) + 0.0103·Re·Scc^(1/3)  ... Eq. (13)
+    //   Shc,∞    = 50 + (2/√π)·(Re·Scc)^(1/2)                               ... Eq. (14)
+    //     [Eq.(14) valid: 0.1 < Re < 1400, 180 < Scc < 571600, 15 < Shc < 1919]
+    //     [Eq.(13) valid: 10 < Re < 1200]
+    //
+    //   kc = Shc · De / d32        [continuous-phase mass transfer coefficient, m/s]
+    //
+    // DISPERSED-PHASE SHERWOOD NUMBER, Eq. (15) [1D form] / Eq. (23) [CFD form]:
+    //
+    //   Shd = 17.7 + 3.19×10⁻³·(Red·Scd)^(1/3)^1.7 / (1 + 1.43×10⁻²·(Red·Scd)^(1/3)^0.7)
+    //         · (ρd/ρc)^(2/3) · 1/(1+κ^(2/3))
+    //         · (1 + C2·((ψ/g)·(ρc/(gγ))^(1/4))^...)
+    //
+    //   kd = Shd · De / d32        [dispersed-phase mass transfer coefficient, m/s]
+    //
+    // INTERFACIAL AREA, Eq. (9):
+    //   a = 6·φ / d32              [specific interfacial area, m²/m³]
+    //
+    // SLIP VELOCITY (required for Shc):
+    //   Uslip = Ud/φ + Uc/(1−φ)   [from continuity]
+    //
+    // DIMENSIONLESS GROUPS:
+    //   Red  = Uslip · ρc · d32 / μc   [drop Reynolds number]
+    //   Scc  = μc / (ρc · De,c)        [continuous Sc]
+    //   Scd  = μd / (ρd · De,d)        [dispersed Sc]
+    //   κ    = μd / μc                 [viscosity ratio]
+    //   De   = molecular diffusivity of solute in each phase [m²/s]
+    //
+    // C1, C2 = agitation correction constants for continuous and dispersed phases.
+    //   Exact forms of the agitation terms containing C1 and C2 require primary paper.
+    //   Laitinen uses C1 in the continuous phase Shc equation and C2 in the
+    //   dispersed phase Shd equation. Values not extracted — pending_approval.
+    //
+    // ECR-2 SPECIFIC REQUIREMENTS BEFORE IMPLEMENTATION:
+    //   (a) Component-by-component application: ki must be computed separately for
+    //       each of Sat / Mono / Di / Poly with their respective De and Kd values.
+    //       A single lumped ki applied to the whole hydrocarbon is NOT acceptable.
+    //   (b) Confirm K&H 1999 phase convention matches ECR-2 (RRBO dispersed, NMP continuous).
+    //   (c) Confirm the exact C1 and C2 agitation terms from K&H 1999 primary paper.
+    //   (d) Laitinen Re range (6–21) is below Eq.(13) validity floor (Re>10).
+    //       Confirm applicability or use alternative correlation for low-Re regime.
+    //   (e) Kd for each pseudo-component must come from ECR-2 NRTL flash, not assumed.
+    //
     equation:
-      'K_oa(z) = f(d_32(z), φ_d(z), Re(z), We(z), Sc_c(z), Sc_d(z), geometry) — ' +
-      'EQUATION NOT YET APPROVED. Component-by-component application required.',
-    variables: {},
-    validityRange: {},
+      'PENDING_APPROVAL — DO NOT IMPLEMENT. ' +
+      'Framework from K&H 1999 as reproduced in Laitinen (2019) Eqs (10)–(15). ' +
+      'ki = kc·kd/(kd·Kd+kc) [overall, component i] ' +
+      '| kc = Shc·De/d32, kd = Shd·De/d32 ' +
+      '| Shc: Lévêque + Hadamard–Rybczynski + agitation correction (C1 term — pending primary paper) ' +
+      '| Shc,rigid = 2.43 + 0.775·Re^0.5·Scc^(1/3) + 0.0103·Re·Scc^(1/3) [Eq.13, Re 10–1200] ' +
+      '| Shc,∞ = 50 + (2/√π)·(Re·Scc)^0.5 [Eq.14, Re 0.1–1400] ' +
+      '| Shd = 17.7 + 3.19e-3·(Re·Scd)^(1/3)^1.7 / (1+1.43e-2·(Re·Scd)^(1/3)^0.7) ' +
+      '       ·(ρd/ρc)^(2/3)·1/(1+κ^(2/3))·(1+C2·agitation) [C2 pending primary paper] ' +
+      '| a = 6·φ/d32, Uslip = Ud/φ + Uc/(1−φ) ' +
+      '| ECR-2: apply per component (Sat/Mono/Di/Poly) with component-specific De and Kd.',
+
+    variables: {
+      ki: {
+        symbol: 'ki',
+        unit: 'm s⁻¹',
+        description:
+          'Overall mass transfer coefficient for component i, based on continuous-phase driving force. ' +
+          'Defined by Laitinen Eq. (10): ki = kc·kd/(kd·Kd+kc). ' +
+          'Must be applied per pseudo-component in ECR-2.',
+      },
+      kc: {
+        symbol: 'kc',
+        unit: 'm s⁻¹',
+        description:
+          'Continuous-phase (NMP) mass transfer coefficient. ' +
+          'kc = Shc·De,c/d32 where De,c is the molecular diffusivity of the solute in NMP.',
+      },
+      kd: {
+        symbol: 'kd',
+        unit: 'm s⁻¹',
+        description:
+          'Dispersed-phase (RRBO) mass transfer coefficient. ' +
+          'kd = Shd·De,d/d32 where De,d is the molecular diffusivity of the solute in RRBO.',
+      },
+      Kd: {
+        symbol: 'Kd,i',
+        unit: '—',
+        description:
+          'Partition coefficient for component i: Kd,i = Cd,i* / Cc,i* ' +
+          '(equilibrium dispersed-to-continuous concentration ratio). ' +
+          'Must be computed from ECR-2 NRTL flash for each pseudo-component.',
+      },
+      Shc: {
+        symbol: 'Shc',
+        unit: '—',
+        description:
+          'Continuous-phase Sherwood number. ' +
+          'Computed from Laitinen Eqs (12)–(14) using rigid-sphere and fully-circulating limits ' +
+          'plus an agitation correction containing C1 (value pending K&H 1999 primary paper).',
+      },
+      Shd: {
+        symbol: 'Shd',
+        unit: '—',
+        description:
+          'Dispersed-phase Sherwood number. ' +
+          'Computed from Laitinen Eq. (15): base term 17.7 + saturation function of Re·Scd, ' +
+          'times density ratio, times viscosity correction, times agitation factor (C2 pending).',
+      },
+      Red: {
+        symbol: 'Red',
+        unit: '—',
+        description:
+          'Drop Reynolds number: Red = Uslip·ρc·d32/μc. ' +
+          'Uses slip velocity Uslip = Ud/φ + Uc/(1−φ). ' +
+          'Laitinen reports Red ≈ 6–21; note Eq.(13) formally valid only for Re > 10.',
+      },
+      Scc: {
+        symbol: 'Scc',
+        unit: '—',
+        description:
+          'Continuous-phase Schmidt number: Scc = μc/(ρc·De,c). ' +
+          'Laitinen reports Scc ≈ 900 for 2MTHF/water; Eq.(14) valid 180 < Scc < 571600.',
+      },
+      Scd: {
+        symbol: 'Scd',
+        unit: '—',
+        description: 'Dispersed-phase Schmidt number: Scd = μd/(ρd·De,d).',
+      },
+      kappa: {
+        symbol: 'κ',
+        unit: '—',
+        description: 'Viscosity ratio: κ = μd/μc (dispersed/continuous).',
+      },
+      De: {
+        symbol: 'De',
+        unit: 'm² s⁻¹',
+        description:
+          'Effective molecular diffusivity of the transferring solute in the relevant phase. ' +
+          'Laitinen uses De = 9.34×10⁻⁹ m²/s (continuous) and 2.4×10⁻⁹ m²/s (dispersed). ' +
+          'Must be provided for each pseudo-component (Sat/Mono/Di/Poly) in ECR-2.',
+      },
+      a_intf: {
+        symbol: 'a',
+        unit: 'm² m⁻³',
+        description: 'Specific interfacial area: a = 6·φ/d32. Requires holdup φ and d32 as inputs.',
+      },
+      Uslip: {
+        symbol: 'Uslip',
+        unit: 'm s⁻¹',
+        description:
+          'Slip velocity between phases: Uslip = Ud/φ + Uc/(1−φ). ' +
+          'Requires holdup φ as input from K&H 1995 correlation.',
+      },
+    },
+
+    validityRange: {
+      Red: {
+        min: 0.1,
+        max: 1400,
+        unit: '—',
+        note:
+          'Shc,∞ formula (Eq.14) valid 0.1–1400. ' +
+          'Shc,rigid (Eq.13) valid 10–1200. ' +
+          'Laitinen Re≈6–21: below Eq.(13) floor — applicability must be confirmed.',
+      },
+      Scc: {
+        min: 180,
+        max: 571600,
+        unit: '—',
+        note: 'From Laitinen Eq.(14) validity statement. Laitinen: Scc≈900 ✓.',
+      },
+    },
+
     applicabilityStatus: 'pending_approval',
+    primarySourceVerified: false,
+    secondaryReproductionVerified: true,   // Framework reproduced from Laitinen (2019)
+    validatedForRRBONMP: false,
+
     approvalNote:
-      'Gated on d_32 and holdup approval. Requires: explicit treatment of ' +
-      'individual component distribution coefficients from the NRTL model. ' +
-      'A single lumped K_oa is not acceptable — must resolve Sat/Mono/Di/Poly separately.',
+      'pending_approval: K&H 1999 framework documented from Laitinen et al. (2019) secondary reproduction. ' +
+      'BEFORE advancing to candidate_governed: ' +
+      '(1) Read K&H 1999 primary paper — confirm exact Shc and Shd equations and C1, C2 agitation terms. ' +
+      '(2) Resolve component-level application strategy: ki must be computed per pseudo-component ' +
+      '    (Sat/Mono/Di/Poly) with individual De and Kd from the NRTL model. ' +
+      '(3) Resolve Eq.(13) validity at Re < 10 for ECR-2 operating conditions. ' +
+      '(4) Confirm ki/Kd sign convention and which phase the driving force is expressed in. ' +
+      '(5) Confirm K&H 1999 phase convention (continuous/dispersed assignment). ' +
+      'GATED ON: d32 (ecr2_d32_kh1996) and holdup (ecr2_holdup_kh1995) both reaching governed. ' +
+      'DO NOT IMPLEMENT until both upstream correlations are governed and this entry is approved.',
   },
 
   // ── 4. Axial dispersion / back-mixing ────────────────────────────────────
