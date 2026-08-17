@@ -861,19 +861,33 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         })
       : null;
 
-    if (holdupResult?.status === 'outside_envelope') {
-      const failed = holdupResult.failedChecks.join(', ');
-      pushWarning(
-        'HOLDUP_OUTSIDE_ENVELOPE',
-        `K&H 1995 holdup: inputs outside correlation envelope (${failed}) — holdup_dispersed = null for all compartments. ` +
-        'Adjust operating conditions or accept that holdup is not calculable at this envelope.',
-      );
-    }
     if (holdupResult?.status === 'input_missing') {
       pushWarning(
         'HOLDUP_INPUT_MISSING',
-        `K&H 1995 holdup: missing or invalid required inputs (${holdupResult.missing.join(', ')}) — holdup_dispersed = null. ` +
+        `K&H 1995 holdup: missing or invalid required inputs (${holdupResult.missing.join(', ')}) — holdup_dispersed not calculable. ` +
         'Supply statorOpenAreaFraction and valid interfacialTension to enable holdup calculation.',
+      );
+    }
+    if (holdupResult?.status === 'calculation_invalid') {
+      pushWarning(
+        'HOLDUP_CALCULATION_INVALID',
+        `K&H 1995 holdup: equation produced a non-finite result (phi_raw = ${holdupResult.phi_raw}) — ${holdupResult.reason}`,
+      );
+    }
+    if (holdupResult?.status === 'physically_invalid') {
+      pushWarning(
+        'HOLDUP_PHYSICALLY_INVALID',
+        `K&H 1995 holdup: phi_raw = ${holdupResult.phi_raw.toFixed(4)} (${holdupResult.physicalViolation}) — ` +
+        'the correlation has produced a physically inadmissible prediction at this operating point. ' +
+        'Review agitation intensity (ψ) and flow conditions.',
+      );
+    }
+    if (holdupResult?.status === 'calculated_extrapolated') {
+      pushWarning(
+        'HOLDUP_EXTRAPOLATED',
+        `K&H 1995 holdup: phi = ${holdupResult.phi.toFixed(4)} calculated but inputs outside diagnostic applicability ranges ` +
+        `(${holdupResult.extrapolatedRanges.join(', ')}). All ranges are source_not_verified. ` +
+        'Result is the best available preliminary engineering estimate — apply engineering judgement.',
       );
     }
 
@@ -1050,29 +1064,53 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       },
 
       holdupCorrelation: {
-        correlationId:   'ecr2_holdup_kh1995',
+        correlationId:     'ecr2_holdup_kh1995',
         correlationStatus: 'secondary_equation_verified',
-        governanceStatus: 'UNVERIFIED — pending primary source',
+        engineeringBasis:  'Published Correlation — Preliminary Engineering',
+        governanceStatus:  'UNVERIFIED — pending primary source',
         primarySourceVerified: false,
-        validatedForRRBONMP: false,
+        validatedForRRBONMP:   false,
+        psiBasis: 'Thermopac preliminary interpretation — specific mechanical power dissipation',
+        localAxialApplication: 'Thermopac model extension',
         phase1Note: 'Phase 1: uniform inlet-condition properties applied to all compartments. Axial property variation requires Phase 2.',
         phaseMappingFixed: 'RRBO = dispersed (Ud, ρd) | NMP = continuous (Uc, ρc)',
         psi_W_kg,
         gamma_N_m: gamma?.value ?? null,
         xf: fStator?.value ?? null,
         result: holdupResult,
-        phi: holdupResult?.status === 'calculated' ? holdupResult.phi : null,
-        theta_s_m: holdupResult?.status === 'calculated' ? holdupResult.theta_s_m : null,
-        intermediates: holdupResult?.status === 'calculated' ? holdupResult.intermediates : null,
-        applicabilityDiagnostics: holdupResult && holdupResult.status !== 'input_missing'
+        // phi is non-null when status ∈ {'calculated', 'calculated_extrapolated'}
+        phi: holdupResult != null && (holdupResult.status === 'calculated' || holdupResult.status === 'calculated_extrapolated')
+          ? holdupResult.phi
+          : null,
+        phi_raw: holdupResult != null && holdupResult.status !== 'input_missing'
+          ? holdupResult.phi_raw
+          : null,
+        theta_s_m: holdupResult != null && holdupResult.status !== 'input_missing'
+          ? holdupResult.theta_s_m
+          : null,
+        intermediates: holdupResult != null && holdupResult.status !== 'input_missing'
+          ? holdupResult.intermediates
+          : null,
+        applicabilityDiagnostics: holdupResult != null && holdupResult.status !== 'input_missing'
           ? holdupResult.applicabilityDiagnostics
           : null,
+        extrapolatedRanges: holdupResult != null && holdupResult.status !== 'input_missing'
+          ? holdupResult.extrapolatedRanges
+          : null,
+        downstreamUsable: holdupResult != null
+          ? (holdupResult.status === 'calculated' || holdupResult.status === 'calculated_extrapolated')
+          : false,
       },
 
       forwardSimulationStatus: {
-        holdup: holdupResult?.status === 'calculated'
-          ? `CALCULATED — φ = ${holdupResult.phi.toFixed(4)} (${(holdupResult.phi * 100).toFixed(2)} %) — UNVERIFIED pending primary source`
-          : `NOT CALCULATED — ${holdupResult?.status ?? 'interfacialTension not supplied'}`,
+        holdup: (() => {
+          if (holdupResult == null) return 'NOT CALCULATED — interfacialTension not supplied';
+          if (holdupResult.status === 'calculated')
+            return `CALCULATED — φ = ${holdupResult.phi.toFixed(4)} (${(holdupResult.phi * 100).toFixed(2)} %) — Published Correlation Preliminary Engineering`;
+          if (holdupResult.status === 'calculated_extrapolated')
+            return `CALCULATED_EXTRAPOLATED — φ = ${holdupResult.phi.toFixed(4)} (${(holdupResult.phi * 100).toFixed(2)} %) — outside ranges: ${holdupResult.extrapolatedRanges.join(', ')}`;
+          return `NOT CALCULABLE — ${holdupResult.status}`;
+        })(),
         d32: 'NOT IMPLEMENTED — UNRESOLVED_SYMBOL and UNRESOLVED_GROUPING in registry; requires K&H 1996 primary paper review',
         massTransfer: 'NOT IMPLEMENTED — gated on d₃₂ and holdup governing',
         bvp: 'NOT IMPLEMENTED — Phase 2',

@@ -20,16 +20,18 @@
 //
 // ── GOVERNANCE ──────────────────────────────────────────────────────────────
 //
-//   Every result carries governanceStatus = 'UNVERIFIED — pending primary source'.
-//   primarySourceVerified = false.
-//   validatedForRRBONMP = false.
+//   engineeringBasis = 'Published Correlation — Preliminary Engineering'
+//   primarySourceVerified = false
+//   validatedForRRBONMP   = false
 //
-//   Results MUST NOT be used for:
-//     · Column sizing decisions
-//     · Flooding margin calculations
-//     · Performance guarantees
-//     · Design basis commitments
-//   until primarySourceVerified = true and status advances to 'governed'.
+//   These flags record the state of verification — they do NOT suppress a
+//   mathematically valid result.  phi = null is only set when the calculation
+//   itself fails (calculation_invalid) or the empirical output is
+//   physically inadmissible (physically_invalid).
+//
+//   Results are appropriate for preliminary engineering sizing.
+//   They must NOT be used for design-basis commitments or performance
+//   guarantees until primarySourceVerified = true.
 //
 // ── SCOPE ───────────────────────────────────────────────────────────────────
 //
@@ -57,52 +59,132 @@
 //     Uc·θ:    [m/s]·[s/m] = − ✓
 //     ψθ/g:    [m²/s³]·[s/m]/[m/s²] = − ✓
 //
+// ── ψ DEFINITION ────────────────────────────────────────────────────────────
+//
+//   Current implementation: ψ = (P/V) / ρ_mix [W/kg]
+//   where P/V = N_P·N³·D_R⁵ / (A_col·h_comp) [W/m³]
+//
+//   The exact mass basis of ψ (total liquid, continuous, or dispersed)
+//   is NOT explicitly stated in the secondary source (Laitinen 2019).
+//   Primary K&H 1995 paper not yet read.
+//   psiBasis = 'Thermopac preliminary interpretation — specific mechanical
+//               power dissipation'
+//   This does NOT block calculation.
+//
+// ── AXIAL APPLICATION ───────────────────────────────────────────────────────
+//
+//   K&H 1995 is an empirical whole-column correlation.
+//   Applying it independently at local axial states is a Thermopac modelling
+//   extension.  localAxialApplication = 'Thermopac model extension'.
+//   This does NOT block calculation.
+//
+// ── DOWNSTREAM USABILITY RULE ───────────────────────────────────────────────
+//
+//   ECR-2 modules (d₃₂, K_oa, BVP, optimizer) MAY consume holdup when:
+//     result.status ∈ { 'calculated', 'calculated_extrapolated' }
+//     result.phi    !== null
+//
+//   They MUST NOT consume holdup when:
+//     result.status ∈ { 'input_missing', 'calculation_invalid', 'physically_invalid' }
+//
+//   Use the exported isHoldupUsable() guard to enforce this contract.
+//
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /** Gravitational acceleration (m/s²). Fixed physical constant. */
 const G = 9.80665;
 
-// ── Validity ranges (from ecr2_holdup_kh1995 registry entry) ─────────────────
-// Bounds checked before calculation. Results outside these ranges trigger
-// 'outside_envelope' — no silent extrapolation.
+// ── Applicability ranges — diagnostic metadata only ───────────────────────────
+//
+// These ranges are recorded PURELY as engineering reference.  They do NOT block
+// calculation.  Exceeding a range changes the result status from 'calculated'
+// to 'calculated_extrapolated' and populates extrapolatedRanges.
+//
+// SOURCE CLASSIFICATION for each range:
+//
+//   Ud_m_s   → source_not_verified
+//     Note: claimed as Kühni dataset range from K&H 1995 / Laitinen 2019.
+//     K&H 1995 primary paper not yet read.  Laitinen 2019 is a secondary
+//     reproduction; it does not explicitly tabulate the training data envelope.
+//
+//   Uc_m_s   → source_not_verified
+//     Same basis as Ud_m_s.
+//
+//   psi_W_kg → source_not_verified
+//     Stated as agitated-column range; ψ basis is itself unresolved
+//     (Thermopac preliminary).  No primary citation.
+//
+//   gamma_N_m → source_not_verified
+//     Claimed as organic–aqueous system range from K&H 1995 database.
+//     K&H 1995 primary not yet read.
+//
+//   xf → source_not_verified
+//     Derived from Laitinen ECR60/50G geometry (xf = 0.30).  No explicit
+//     published training range for xf confirmed in either source.
 
-interface ApplicabilityBound {
+/** Source classification for an applicability range. */
+export type ApplicabilityRangeSource =
+  | 'published_primary'
+  | 'published_secondary'
+  | 'derived_from_published_data'
+  | 'thermopac_preliminary'
+  | 'source_not_verified';
+
+/** Applicability range entry — diagnostic metadata. */
+export interface ApplicabilityRange {
   min: number;
   max: number;
   unit: string;
-  note: string;
+  /** How this range bound was determined. */
+  source: ApplicabilityRangeSource;
+  /** Human-readable description of the source claim. */
+  sourceNote: string;
 }
 
-const VALIDITY: Record<string, ApplicabilityBound> = {
+const DIAGNOSTIC_RANGES: Record<string, ApplicabilityRange> = {
   Ud_m_s: {
     min: 0.0005,
     max: 0.02,
     unit: 'm/s',
-    note: 'Dispersed-phase superficial velocity (Laitinen/K&H 1995 Kühni dataset range)',
+    source: 'source_not_verified',
+    sourceNote:
+      'Claimed Kühni training-dataset range (K&H 1995 / Laitinen 2019). ' +
+      'K&H 1995 primary not yet read; Laitinen 2019 does not tabulate training envelope.',
   },
   Uc_m_s: {
     min: 0.0005,
     max: 0.02,
     unit: 'm/s',
-    note: 'Continuous-phase superficial velocity (Laitinen/K&H 1995 Kühni dataset range)',
+    source: 'source_not_verified',
+    sourceNote:
+      'Same basis as Ud_m_s. Source not verified against primary paper.',
   },
   psi_W_kg: {
     min: 0.05,
     max: 50,
     unit: 'W/kg',
-    note: 'Mechanical power dissipation per unit mass (agitated-column range, K&H 1995)',
+    source: 'source_not_verified',
+    sourceNote:
+      'Agitated-column operating range. ψ mass basis is unresolved ' +
+      '(Thermopac preliminary interpretation). No primary citation confirmed.',
   },
   gamma_N_m: {
     min: 0.001,
     max: 0.045,
     unit: 'N/m',
-    note: 'Interfacial tension (organic–aqueous systems, K&H 1995 database)',
+    source: 'source_not_verified',
+    sourceNote:
+      'Claimed organic–aqueous system range from K&H 1995 database. ' +
+      'K&H 1995 primary not yet read.',
   },
   xf: {
     min: 0.10,
     max: 0.50,
     unit: '−',
-    note: 'Stator fractional free cross-sectional area (Laitinen ECR60/50G: 0.30)',
+    source: 'source_not_verified',
+    sourceNote:
+      'Derived from Laitinen ECR60/50G geometry (xf = 0.30). ' +
+      'No explicit published training range for xf confirmed in either source.',
   },
 };
 
@@ -131,22 +213,59 @@ export interface ApplicabilityCheckItem {
   min: number;
   max: number;
   unit: string;
+  source: ApplicabilityRangeSource;
+  sourceNote: string;
   withinRange: boolean;
-  note: string;
+  /** True only when withinRange = false and the result is calculated_extrapolated. */
+  extrapolated: boolean;
 }
 
 /** Governance metadata — fixed for this implementation. */
 export interface HoldupGovernance {
+  /**
+   * Records that the secondary-source equation is accepted as the current
+   * preliminary engineering basis.  Does NOT suppress a valid result.
+   */
+  engineeringBasis: 'Published Correlation — Preliminary Engineering';
   governanceStatus: 'UNVERIFIED — pending primary source';
   source: 'Kumar & Hartland (1995) via Laitinen et al. (2019) secondary reproduction';
   registryId: 'ecr2_holdup_kh1995';
   correlationStatus: 'secondary_equation_verified';
+  /**
+   * K&H 1995 primary paper not yet read.
+   * Does NOT force phi = null.
+   */
   primarySourceVerified: false;
+  /**
+   * Correlation not calibrated against RRBO/NMP pilot or vendor data.
+   * Does NOT force phi = null.
+   */
   validatedForRRBONMP: false;
   phaseMapping: 'NMP=continuous (ρc, Uc) | RRBO=dispersed (ρd, Ud)';
+  /**
+   * The exact mass basis of ψ is unresolved in available secondary sources.
+   * Current implementation uses ψ = (P/V)/ρ_mix (total liquid basis).
+   * Does NOT block calculation.
+   */
+  psiBasis: 'Thermopac preliminary interpretation — specific mechanical power dissipation';
+  /**
+   * Applying K&H 1995 (whole-column empirical) at local axial states is
+   * a Thermopac modelling extension.
+   * Does NOT block calculation.
+   */
+  localAxialApplication: 'Thermopac model extension';
+  /**
+   * ── DOWNSTREAM USABILITY RULE ─────────────────────────────────────────
+   * ECR-2 modules MUST check isHoldupUsable(result) before consuming phi.
+   * Usable statuses: 'calculated', 'calculated_extrapolated' (phi !== null).
+   * Non-usable statuses: 'input_missing', 'calculation_invalid', 'physically_invalid'.
+   */
+  downstreamUsabilityRule:
+    "consume phi only when status ∈ {'calculated','calculated_extrapolated'} — use isHoldupUsable()";
 }
 
 const GOVERNANCE: HoldupGovernance = {
+  engineeringBasis: 'Published Correlation — Preliminary Engineering',
   governanceStatus: 'UNVERIFIED — pending primary source',
   source: 'Kumar & Hartland (1995) via Laitinen et al. (2019) secondary reproduction',
   registryId: 'ecr2_holdup_kh1995',
@@ -154,66 +273,150 @@ const GOVERNANCE: HoldupGovernance = {
   primarySourceVerified: false,
   validatedForRRBONMP: false,
   phaseMapping: 'NMP=continuous (ρc, Uc) | RRBO=dispersed (ρd, Ud)',
+  psiBasis: 'Thermopac preliminary interpretation — specific mechanical power dissipation',
+  localAxialApplication: 'Thermopac model extension',
+  downstreamUsabilityRule:
+    "consume phi only when status ∈ {'calculated','calculated_extrapolated'} — use isHoldupUsable()",
 } as const;
 
-/** Successful holdup calculation result. */
-export interface HoldupSuccess {
+/** Intermediate dimensionless groups and equation terms (for traceability). */
+export interface HoldupIntermediates {
+  /** ψθ/g — dimensionless agitation group. */
+  psiTheta_over_g: number;
+  /** Ud·θ — dimensionless dispersed-phase throughput group. */
+  Ud_theta: number;
+  /** Uc·θ — dimensionless continuous-phase throughput group. */
+  Uc_theta: number;
+  /** (ρc − ρd)/ρc — dimensionless density ratio. */
+  density_ratio: number;
+  /** [2.67×10⁻² + (ψθ/g)^0.77] — agitation bracket. */
+  termA: number;
+  /** (Ud·θ)^0.64 — dispersed throughput term. */
+  termB: number;
+  /** [exp(20.7·Uc·θ)]^0.90 — continuous throughput term. */
+  termC: number;
+  /** ((ρc−ρd)/ρc)^(−0.34) — density-ratio term. */
+  termD: number;
+  /** 2.27·xf^(−0.77) — stator geometry term. */
+  termE: number;
+}
+
+// ── Result types ──────────────────────────────────────────────────────────────
+
+/**
+ * All inputs valid, all inputs within diagnostic applicability ranges.
+ * phi is physically valid: 0 < phi < 1.
+ * DOWNSTREAM: consumable.
+ */
+export interface HoldupCalculated {
   status: 'calculated';
-  /** Dispersed-phase holdup φ (volume fraction, dimensionless). */
+  /** Dispersed-phase holdup φ — volume fraction (0, 1). */
   phi: number;
+  /** Raw equation output (= phi when status is 'calculated'). */
+  phi_raw: number;
   /** Characteristic time-length scale θ = (ρc/(g·γ))^0.25 (s/m). */
   theta_s_m: number;
-  /**
-   * Intermediate dimensionless groups and equation terms.
-   * Retained for traceability and dimensional verification.
-   */
-  intermediates: {
-    /** ψθ/g — dimensionless agitation group. */
-    psiTheta_over_g: number;
-    /** Ud·θ — dimensionless dispersed-phase throughput group. */
-    Ud_theta: number;
-    /** Uc·θ — dimensionless continuous-phase throughput group. */
-    Uc_theta: number;
-    /** (ρc − ρd)/ρc — dimensionless density ratio. */
-    density_ratio: number;
-    /** [2.67×10⁻² + (ψθ/g)^0.77] — agitation bracket. */
-    termA: number;
-    /** (Ud·θ)^0.64 — dispersed throughput term. */
-    termB: number;
-    /** [exp(20.7·Uc·θ)]^0.90 — continuous throughput term. */
-    termC: number;
-    /** ((ρc−ρd)/ρc)^(−0.34) — density-ratio term. */
-    termD: number;
-    /** 2.27·xf^(−0.77) — stator geometry term. */
-    termE: number;
-  };
-  /** Per-input applicability diagnostics against K&H 1995 dataset bounds. */
+  intermediates: HoldupIntermediates;
   applicabilityDiagnostics: Record<string, ApplicabilityCheckItem>;
   governance: HoldupGovernance;
 }
 
-/** Result when one or more required inputs fall outside the correlation envelope. */
-export interface HoldupOutsideEnvelope {
-  status: 'outside_envelope';
-  phi: null;
-  /** Names of inputs that failed the range check. */
-  failedChecks: string[];
-  /** Full applicability diagnostics (including passed checks for context). */
+/**
+ * All inputs valid; calculation succeeded; phi physically valid (0 < phi < 1);
+ * but one or more inputs exceeded a diagnostic applicability range.
+ * Extrapolation outside the source dataset.  Use with engineering judgement.
+ * DOWNSTREAM: consumable (caller must decide whether extrapolation is acceptable).
+ */
+export interface HoldupCalculatedExtrapolated {
+  status: 'calculated_extrapolated';
+  /** Dispersed-phase holdup φ — volume fraction (0, 1). */
+  phi: number;
+  /** Raw equation output (= phi when physically valid). */
+  phi_raw: number;
+  /** Characteristic time-length scale θ (s/m). */
+  theta_s_m: number;
+  intermediates: HoldupIntermediates;
   applicabilityDiagnostics: Record<string, ApplicabilityCheckItem>;
+  /** Names of inputs that exceeded their diagnostic ranges. */
+  extrapolatedRanges: string[];
   governance: HoldupGovernance;
 }
 
-/** Result when a required input was not supplied. */
+/**
+ * Required mathematical inputs were absent, non-finite, or physically
+ * inconsistent (e.g. rho_c ≤ rho_d).
+ * DOWNSTREAM: NOT consumable.
+ */
 export interface HoldupInputMissing {
   status: 'input_missing';
   phi: null;
+  phi_raw: null;
   missing: string[];
 }
 
+/**
+ * Inputs were valid but the calculation produced a non-finite intermediate
+ * or result (NaN, ±Infinity).  This can occur at extreme operating conditions
+ * where the empirical equation overflows (e.g. very high Uc causing exp() overflow).
+ * DOWNSTREAM: NOT consumable.
+ */
+export interface HoldupCalculationInvalid {
+  status: 'calculation_invalid';
+  phi: null;
+  /** The raw non-finite value produced by the equation — retained for diagnostics. */
+  phi_raw: number;
+  theta_s_m: number;
+  intermediates: HoldupIntermediates;
+  applicabilityDiagnostics: Record<string, ApplicabilityCheckItem>;
+  extrapolatedRanges: string[];
+  /** Description of the mathematical failure. */
+  reason: string;
+  governance: HoldupGovernance;
+}
+
+/**
+ * Calculation completed but phi_raw is outside the physically admissible
+ * range (0, 1).  Holdup is a volume fraction; phi_raw ≤ 0 or ≥ 1 means
+ * the empirical correlation has produced a physically inadmissible prediction
+ * at this operating point.  phi_raw is retained for diagnostics.
+ * DOWNSTREAM: NOT consumable.
+ */
+export interface HoldupPhysicallyInvalid {
+  status: 'physically_invalid';
+  phi: null;
+  /** Raw equation output — retained even though physically inadmissible. */
+  phi_raw: number;
+  theta_s_m: number;
+  intermediates: HoldupIntermediates;
+  applicabilityDiagnostics: Record<string, ApplicabilityCheckItem>;
+  extrapolatedRanges: string[];
+  /** phi_raw ≤ 0 or phi_raw ≥ 1 */
+  physicalViolation: 'phi_raw <= 0' | 'phi_raw >= 1';
+  governance: HoldupGovernance;
+}
+
 export type KH1995HoldupResult =
-  | HoldupSuccess
-  | HoldupOutsideEnvelope
-  | HoldupInputMissing;
+  | HoldupCalculated
+  | HoldupCalculatedExtrapolated
+  | HoldupInputMissing
+  | HoldupCalculationInvalid
+  | HoldupPhysicallyInvalid;
+
+// ── Downstream usability guard ────────────────────────────────────────────────
+
+/**
+ * Returns true when the holdup result can be consumed by downstream ECR-2 modules.
+ *
+ * RULE: ECR-2 modules (d₃₂, K_oa, BVP, optimizer) MUST call this guard before
+ * using result.phi.  Only 'calculated' and 'calculated_extrapolated' statuses
+ * are usable.  Callers consuming 'calculated_extrapolated' must apply engineering
+ * judgement about the extrapolation acceptability for their specific purpose.
+ */
+export function isHoldupUsable(
+  result: KH1995HoldupResult,
+): result is HoldupCalculated | HoldupCalculatedExtrapolated {
+  return result.status === 'calculated' || result.status === 'calculated_extrapolated';
+}
 
 // ── Implementation ────────────────────────────────────────────────────────────
 
@@ -221,9 +424,18 @@ export type KH1995HoldupResult =
  * Compute Kühni dispersed-phase holdup using Kumar & Hartland (1995),
  * Eqs (1)–(2) as reproduced in Laitinen et al. (2019).
  *
- * GOVERNANCE: result.governance.governanceStatus is always
- * 'UNVERIFIED — pending primary source'. Results must not be used for
- * design sizing or performance commitments until primarySourceVerified = true.
+ * ENGINEERING BASIS: 'Published Correlation — Preliminary Engineering'
+ * GOVERNANCE: primarySourceVerified = false, validatedForRRBONMP = false.
+ *   These flags record verification state — they do NOT suppress valid results.
+ *
+ * STATUS HIERARCHY (priority order):
+ *   1. input_missing        — required input absent, non-finite, or rho_c ≤ rho_d
+ *   2. calculation_invalid  — intermediate or phi_raw is NaN/Infinity
+ *   3. physically_invalid   — phi_raw ≤ 0 or phi_raw ≥ 1
+ *   4. calculated_extrapolated — valid phi but ≥1 input outside diagnostic range
+ *   5. calculated           — all inputs within diagnostic ranges, valid phi
+ *
+ * DOWNSTREAM: use isHoldupUsable(result) before consuming result.phi.
  *
  * @param inputs  Physical inputs — all must be in SI units as documented.
  * @returns       KH1995HoldupResult — check result.status before using result.phi.
@@ -231,7 +443,7 @@ export type KH1995HoldupResult =
 export function computeKH1995Holdup(inputs: HoldupInputs): KH1995HoldupResult {
   const { psi_W_kg, Ud_m_s, Uc_m_s, rho_c_kg_m3, rho_d_kg_m3, gamma_N_m, xf } = inputs;
 
-  // ── Guard: all inputs must be finite positive numbers ─────────────────────
+  // ── 1. Guard: all inputs must be finite positive numbers ──────────────────
   const missing: string[] = [];
   const requiredPositive: [string, number][] = [
     ['psi_W_kg',    psi_W_kg],
@@ -245,13 +457,15 @@ export function computeKH1995Holdup(inputs: HoldupInputs): KH1995HoldupResult {
   for (const [name, v] of requiredPositive) {
     if (!Number.isFinite(v) || v <= 0) missing.push(name);
   }
-  if (rho_c_kg_m3 <= rho_d_kg_m3) {
-    // NMP must be denser than RRBO for a physically valid density difference
-    missing.push('rho_c_kg_m3 must be > rho_d_kg_m3 (NMP denser than RRBO)');
+  if (Number.isFinite(rho_c_kg_m3) && Number.isFinite(rho_d_kg_m3) && rho_c_kg_m3 <= rho_d_kg_m3) {
+    // NMP must be denser than RRBO for a physically valid density difference (ECR-2 fixed phase mapping).
+    missing.push('rho_c_kg_m3 must be > rho_d_kg_m3 (NMP continuous must be denser than RRBO dispersed)');
   }
-  if (missing.length > 0) return { status: 'input_missing', phi: null, missing };
+  if (missing.length > 0) {
+    return { status: 'input_missing', phi: null, phi_raw: null, missing };
+  }
 
-  // ── Applicability checks ──────────────────────────────────────────────────
+  // ── 2. Applicability diagnostics (diagnostic only — do not block) ─────────
   const rangeInputs: [string, number][] = [
     ['Ud_m_s',    Ud_m_s],
     ['Uc_m_s',    Uc_m_s],
@@ -261,33 +475,26 @@ export function computeKH1995Holdup(inputs: HoldupInputs): KH1995HoldupResult {
   ];
 
   const applicabilityDiagnostics: Record<string, ApplicabilityCheckItem> = {};
-  const failedChecks: string[] = [];
+  const extrapolatedRanges: string[] = [];
 
   for (const [name, value] of rangeInputs) {
-    const bounds = VALIDITY[name];
-    const withinRange = value >= bounds.min && value <= bounds.max;
+    const range = DIAGNOSTIC_RANGES[name];
+    const withinRange = value >= range.min && value <= range.max;
+    const extrapolated = !withinRange;
     applicabilityDiagnostics[name] = {
       value,
-      min: bounds.min,
-      max: bounds.max,
-      unit: bounds.unit,
+      min: range.min,
+      max: range.max,
+      unit: range.unit,
+      source: range.source,
+      sourceNote: range.sourceNote,
       withinRange,
-      note: bounds.note,
+      extrapolated,
     };
-    if (!withinRange) failedChecks.push(name);
+    if (extrapolated) extrapolatedRanges.push(name);
   }
 
-  if (failedChecks.length > 0) {
-    return {
-      status: 'outside_envelope',
-      phi: null,
-      failedChecks,
-      applicabilityDiagnostics,
-      governance: GOVERNANCE,
-    };
-  }
-
-  // ── Eq. (2): characteristic time-length scale θ ───────────────────────────
+  // ── 3. Eq. (2): characteristic time-length scale θ ───────────────────────
   //
   //   θ = (ρc / (g · γ))^0.25
   //
@@ -297,13 +504,13 @@ export function computeKH1995Holdup(inputs: HoldupInputs): KH1995HoldupResult {
   //
   const theta_s_m = Math.pow(rho_c_kg_m3 / (G * gamma_N_m), 0.25);
 
-  // ── Dimensionless groups ─────────────────────────────────────────────────
+  // ── 4. Dimensionless groups ───────────────────────────────────────────────
   const psiTheta_over_g = (psi_W_kg * theta_s_m) / G;  // (ψ·θ)/g  [−]
   const Ud_theta        = Ud_m_s * theta_s_m;           // Ud·θ     [−]
   const Uc_theta        = Uc_m_s * theta_s_m;           // Uc·θ     [−]
   const density_ratio   = (rho_c_kg_m3 - rho_d_kg_m3) / rho_c_kg_m3; // [−]
 
-  // ── Eq. (1): dispersed-phase holdup φ ────────────────────────────────────
+  // ── 5. Eq. (1): dispersed-phase holdup φ ─────────────────────────────────
   //
   //   φ = [2.67×10⁻² + (ψθ/g)^0.77]
   //       · (Ud·θ)^0.64
@@ -320,23 +527,99 @@ export function computeKH1995Holdup(inputs: HoldupInputs): KH1995HoldupResult {
   const termD = Math.pow(density_ratio, -0.34);
   const termE = 2.27 * Math.pow(xf, -0.77);
 
-  const phi = termA * termB * termC * termD * termE;
+  const phi_raw = termA * termB * termC * termD * termE;
+
+  const intermediates: HoldupIntermediates = {
+    psiTheta_over_g,
+    Ud_theta,
+    Uc_theta,
+    density_ratio,
+    termA,
+    termB,
+    termC,
+    termD,
+    termE,
+  };
+
+  // ── 6. Guard: mathematical validity ──────────────────────────────────────
+  //
+  // phi_raw can be NaN or ±Infinity at extreme operating conditions.
+  // For example: very high Uc causes 20.7·Uc·θ >> 709, overflowing exp().
+  // This is a calculation failure, not a physical conclusion.
+  //
+  if (!Number.isFinite(phi_raw)) {
+    return {
+      status: 'calculation_invalid',
+      phi: null,
+      phi_raw,
+      theta_s_m,
+      intermediates,
+      applicabilityDiagnostics,
+      extrapolatedRanges,
+      reason:
+        `phi_raw = ${phi_raw} — non-finite intermediate produced by the empirical equation. ` +
+        'Likely cause: exp(20.7·Uc·θ) overflow at very high Uc, or zero/negative ' +
+        'argument to a fractional power. Review operating conditions.',
+      governance: GOVERNANCE,
+    };
+  }
+
+  // ── 7. Guard: physical validity ───────────────────────────────────────────
+  //
+  // Holdup is a volume fraction — it must satisfy 0 < φ < 1.
+  // The K&H empirical correlation is not constrained to this range.
+  // phi_raw ≥ 1 means the correlation has produced a physically inadmissible
+  // prediction at this operating point — it is NOT valid holdup.
+  // phi_raw is retained in the result for diagnostic traceability.
+  // Do NOT clamp phi_raw.
+  //
+  if (phi_raw <= 0) {
+    return {
+      status: 'physically_invalid',
+      phi: null,
+      phi_raw,
+      theta_s_m,
+      intermediates,
+      applicabilityDiagnostics,
+      extrapolatedRanges,
+      physicalViolation: 'phi_raw <= 0',
+      governance: GOVERNANCE,
+    };
+  }
+  if (phi_raw >= 1) {
+    return {
+      status: 'physically_invalid',
+      phi: null,
+      phi_raw,
+      theta_s_m,
+      intermediates,
+      applicabilityDiagnostics,
+      extrapolatedRanges,
+      physicalViolation: 'phi_raw >= 1',
+      governance: GOVERNANCE,
+    };
+  }
+
+  // ── 8. Valid result — inside or outside applicability ranges ─────────────
+  if (extrapolatedRanges.length > 0) {
+    return {
+      status: 'calculated_extrapolated',
+      phi: phi_raw,
+      phi_raw,
+      theta_s_m,
+      intermediates,
+      applicabilityDiagnostics,
+      extrapolatedRanges,
+      governance: GOVERNANCE,
+    };
+  }
 
   return {
     status: 'calculated',
-    phi,
+    phi: phi_raw,
+    phi_raw,
     theta_s_m,
-    intermediates: {
-      psiTheta_over_g,
-      Ud_theta,
-      Uc_theta,
-      density_ratio,
-      termA,
-      termB,
-      termC,
-      termD,
-      termE,
-    },
+    intermediates,
     applicabilityDiagnostics,
     governance: GOVERNANCE,
   };
