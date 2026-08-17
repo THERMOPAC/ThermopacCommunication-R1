@@ -296,8 +296,12 @@ export interface ECR2CompartmentState {
   interfacialArea_result: InterfacialAreaResult | null;
   /** Slip velocity U_slip = u_d/φ_d + u_c/(1−φ_d) (m/s). Non-null when φ_d is usable. */
   U_slip_m_s: number | null;
-  /** Overall volumetric mass-transfer coefficient K_oa (m/s). Null — K_oa pending_approval. */
-  Koa_m_s: null;
+  /**
+   * Overall volumetric mass-transfer coefficient K_oa (1/s).
+   * Unit: s⁻¹ — K_overall [m/s] × a [1/m] = [1/s].
+   * Null — K_oa numerically blocked pending K&H 1999 approval and K_d,i definition approval.
+   */
+  Koa_per_s: null;
 }
 
 // ── Boundary conditions ────────────────────────────────────────────────────────
@@ -1127,7 +1131,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         interfacialArea_m2_m3: aScalar,
         interfacialArea_result: interfacialAreaResult,
         U_slip_m_s,
-        Koa_m_s: null,
+        Koa_per_s: null,
       });
     }
 

@@ -146,10 +146,15 @@ export interface ECR2ComponentMassTransfer {
    */
   K_overall_m_s: number | ECR2NullField;
   /**
-   * Volumetric overall coefficient K_oa,i = K_overall,i · a (m/s).
+   * Volumetric overall coefficient K_oa,i = K_overall,i · a (1/s).
+   *
+   * Unit: s⁻¹ — NOT m/s.
+   * K_overall,i [m/s] × a [m²/m³ = 1/m] = [1/s] ✓
+   *
    * Null until K_overall,i and a are both available.
+   * Numerical population blocked pending K&H 1999 approval and K_d,i definition approval.
    */
-  Koa_i_m_s: number | ECR2NullField;
+  Koa_i_per_s: number | ECR2NullField;
 
   // ── Driving force and transfer rate (NOT YET IMPLEMENTED) ────────────
   /**
@@ -297,12 +302,17 @@ export interface ECR2CompartmentStateV2 {
   ];
 
   /**
-   * Overall volumetric mass-transfer coefficient K_oa = K_overall · a (m/s).
+   * Overall volumetric mass-transfer coefficient K_oa = K_overall · a (1/s).
+   *
+   * Unit: s⁻¹ — NOT m/s.
+   * K_overall [m/s] × a [m²/m³ = 1/m] = [1/s] ✓
+   *
    * Null until K_overall and a are both available.
    * This is a SCALAR representing a lumped all-component value for reporting.
-   * Rate-based calculation uses per-component K_overall,i · a internally.
+   * Rate-based calculation uses per-component K_overall,i · a (Koa_i_per_s) internally.
+   * Numerical population blocked pending K&H 1999 approval and K_d,i definition approval.
    */
-  Koa_m_s: number | ECR2NullField;
+  Koa_per_s: number | ECR2NullField;
 
   // ── Local compartment composition (Phase 2 / test state) ────────────
   /**
@@ -711,14 +721,14 @@ export function buildDependencyGraph(opts: {
     {
       quantity: 'Koa',
       symbol: 'K_oa',
-      unit: 'm/s',
+      unit: '1/s',
       level: KoaAvailable ? 'available' : 'missing_dependency',
       dependsOn: ['K_overall', 'interfacial_area'],
       blockedBy: 'blocked_by_K_overall',
       correlationId: null,
       statusMessage:
         'K_oa unavailable — requires K_overall and interfacial area a. ' +
-        'K_oa = K_overall · a once both are resolved.',
+        'K_oa = K_overall [m/s] · a [1/m] = [1/s] once both are resolved.',
     },
     {
       quantity: 'component_transfer_rates',
