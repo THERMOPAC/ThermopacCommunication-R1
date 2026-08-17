@@ -75,8 +75,37 @@ import {
 
 import {
   computeKH1995Holdup,
+  isHoldupUsable,
   type KH1995HoldupResult,
 } from './llx-ecr2-holdup';
+
+import {
+  computeDropletDiameter,
+  isD32Usable,
+  drivingForceContractDefined,
+  drivingForceContractNote,
+  type D32Config,
+  type D32Result,
+} from './llx-ecr2-d32-interface';
+
+import {
+  computeInterfacialArea,
+  computeSlipVelocity,
+  type InterfacialAreaResult,
+} from './llx-ecr2-interfacial-area';
+
+import {
+  buildDependencyGraph,
+  type ECR2DependencyGraph,
+  NULL_BLOCKED_D32,
+  NULL_BLOCKED_HOLDUP,
+  NULL_BLOCKED_INTERFACIAL_AREA,
+  NULL_BLOCKED_KC,
+  NULL_BLOCKED_KD,
+  NULL_BLOCKED_K_OVERALL,
+  NULL_PHASE2,
+  NULL_LOCAL_PROPERTIES,
+} from './llx-ecr2-compartment-state';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -239,9 +268,16 @@ export interface ECR2CompartmentState {
   /** Local interfacial tension σ(z) (N/m). Null until Phase 2. */
   sigma_N_m: number | null;
 
-  // ── Hydrodynamic correlation outputs (pending approval) ──────────────────
-  /** Sauter mean droplet diameter d₃₂(z) (m). Null — d₃₂ correlation pending_approval. */
-  d32_m: null;
+  // ── Hydrodynamic correlation outputs ─────────────────────────────────────
+  /**
+   * Sauter mean droplet diameter d₃₂(z) (m).
+   * Non-null when mode='engineer_supplied' and a valid value was provided,
+   * or when the K&H 1996 correlation is resolved and governed (not yet).
+   * Null when K&H 1996 UNRESOLVED flags are blocking and no engineer value supplied.
+   */
+  d32_m: number | null;
+  /** Full d₃₂ result from the plug-in interface. Null if d₃₂ not attempted. */
+  d32_result: D32Result | null;
   /**
    * Dispersed-phase holdup φ_d(z) (−).
    * Populated by K&H 1995 (secondary_equation_verified) in Phase 1 when
@@ -250,8 +286,16 @@ export interface ECR2CompartmentState {
    * Check result.status before reading result.phi.
    */
   holdup_dispersed: KH1995HoldupResult | null;
-  /** Interfacial area a(z) = 6·φ_d/d₃₂ (m²/m³). Null — gated on d₃₂ and holdup. */
-  interfacialArea_m2_m3: null;
+  /**
+   * Specific interfacial area a(z) = 6·φ_d/d₃₂ (m²/m³).
+   * Non-null when both φ_d and d₃₂ are usable.
+   * Null with explicit reason when either is blocked.
+   */
+  interfacialArea_m2_m3: number | null;
+  /** Full interfacial area result including status and diagnostics. Null if not attempted. */
+  interfacialArea_result: InterfacialAreaResult | null;
+  /** Slip velocity U_slip = u_d/φ_d + u_c/(1−φ_d) (m/s). Non-null when φ_d is usable. */
+  U_slip_m_s: number | null;
   /** Overall volumetric mass-transfer coefficient K_oa (m/s). Null — K_oa pending_approval. */
   Koa_m_s: null;
 }
@@ -406,6 +450,22 @@ export interface ECR2SimulatorInputs {
    * Must come from RRBO characterization; Assumed values seeded as defaults.
    */
   molecularWeights: ECR2MolecularWeights;
+
+  // ── d₃₂ configuration (optional) ─────────────────────────────────────
+  /**
+   * d₃₂ mode configuration for this simulator run.
+   *
+   * Omit to run without d₃₂ (interfacial area and mass transfer will be null).
+   *
+   * mode='published_correlation': use K&H 1996 (currently returns
+   *   correlation_unresolved — UNRESOLVED flags must be cleared first).
+   *
+   * mode='engineer_supplied': supply d₃₂ explicitly for simulator development
+   *   and sensitivity testing. Must include value_m, sourceType, sourceReference.
+   *   All downstream outputs carry the engineer-supplied basis label.
+   *   DO NOT use as a production result.
+   */
+  d32Config?: D32Config;
 
   // ── Product target (optional — for Phase 7 optimizer) ─────────────────
   productTarget?: {
@@ -603,6 +663,32 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       parseTagged(mw.mono_g_mol,      'molecularWeights.mono_g_mol',      errors, { min: 100, max: 1000, unit: 'g/mol', required: true });
       parseTagged(mw.di_g_mol,        'molecularWeights.di_g_mol',        errors, { min: 100, max: 1000, unit: 'g/mol', required: true });
       parseTagged(mw.poly_g_mol,      'molecularWeights.poly_g_mol',      errors, { min: 100, max: 1000, unit: 'g/mol', required: true });
+    }
+
+    // d₃₂ config validation (optional field)
+    if (inputs.d32Config !== undefined && inputs.d32Config !== null) {
+      const d32Cfg = inputs.d32Config as Record<string, unknown>;
+      const mode = d32Cfg.mode;
+      if (mode !== 'published_correlation' && mode !== 'engineer_supplied') {
+        err('d32Config.mode', "d32Config.mode must be 'published_correlation' or 'engineer_supplied'");
+      } else if (mode === 'published_correlation') {
+        if (d32Cfg.correlationId !== 'ecr2_d32_kh1996') {
+          err('d32Config.correlationId', "d32Config.correlationId must be 'ecr2_d32_kh1996' for published_correlation mode");
+        }
+      } else if (mode === 'engineer_supplied') {
+        const v = num(d32Cfg.value_m);
+        if (v === undefined || v <= 0) {
+          err('d32Config.value_m', 'd32Config.value_m must be a positive finite number (Sauter mean diameter in metres)');
+        } else if (v > 0.05) {
+          errors.push({ field: 'd32Config.value_m', message: `d32Config.value_m = ${v * 1000} mm is unusually large (> 50 mm) — verify units are metres`, severity: 'warning' });
+        }
+        if (typeof d32Cfg.sourceType !== 'string' || !(d32Cfg.sourceType as string).trim()) {
+          errors.push({ field: 'd32Config.sourceType', message: 'd32Config.sourceType should be a non-empty string (e.g. Assumed, Vendor, Literature_Analogy)', severity: 'warning' });
+        }
+        if (typeof d32Cfg.sourceReference !== 'string' || !(d32Cfg.sourceReference as string).trim()) {
+          errors.push({ field: 'd32Config.sourceReference', message: 'd32Config.sourceReference should be a non-empty source reference string', severity: 'warning' });
+        }
+      }
     }
 
     return {
@@ -911,6 +997,86 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       );
     }
 
+    // ── d₃₂ computation ──────────────────────────────────────────────────────
+    //
+    // Phase 1 uniform: d₃₂ is computed once with inlet-condition properties.
+    // Phase 2 will call per-compartment with local ρ_c, ρ_d, σ, φ_d.
+    //
+    // If d32Config is not supplied, d₃₂ is not attempted.
+    // If d32Config.mode='published_correlation', returns correlation_unresolved
+    // until K&H 1996 UNRESOLVED flags are cleared from the primary paper.
+    // If d32Config.mode='engineer_supplied', uses the engineer-supplied value.
+    //
+    const d32Config = inputs.d32Config as D32Config | undefined;
+
+    // Build a partial local state for d₃₂ computation (Phase 1: inlet properties)
+    const d32LocalState = {
+      h_comp_m:       hComp,
+      psi_W_kg,
+      rho_c_kg_m3:    rhoNMP.value,       // NMP = continuous phase
+      rho_d_kg_m3:    feedDensity.value,  // RRBO = dispersed phase
+      delta_rho_kg_m3: Math.abs(rhoNMP.value - feedDensity.value),
+      sigma_N_m:      gamma?.value ?? 0,
+      xf_stator:      fStator?.value ?? Number.NaN,
+      phi_d:          (holdupResult != null && isHoldupUsable(holdupResult)) ? holdupResult.phi : Number.NaN,
+    };
+
+    const d32Result: D32Result | null = d32Config
+      ? computeDropletDiameter(d32LocalState, d32Config)
+      : null;
+
+    // Emit warnings for d₃₂ status
+    if (d32Result?.status === 'correlation_unresolved') {
+      pushWarning(
+        'D32_CORRELATION_UNRESOLVED',
+        'K&H 1996 d₃₂ correlation (ecr2_d32_kh1996) has UNRESOLVED_SYMBOL and UNRESOLVED_GROUPING. ' +
+        'Cannot compute d₃₂ from published correlation. ' +
+        'Supply d32Config.mode=\'engineer_supplied\' to proceed with downstream development.',
+      );
+    }
+    if (d32Result?.status === 'engineer_supplied') {
+      pushWarning(
+        'D32_ENGINEER_SUPPLIED',
+        `Engineer-Supplied d₃₂ = ${(d32Result.d32_m! * 1000).toFixed(3)} mm — ` +
+        'Simulator Development / Sensitivity Basis. NOT a published correlation result. ' +
+        `Source: ${d32Result.engineerSource?.sourceType ?? 'unspecified'} — ${d32Result.engineerSource?.sourceReference ?? 'no reference'}. ` +
+        'All downstream outputs (a, k_c, k_d, K_oa) carry this basis label.',
+      );
+    }
+
+    const d32Scalar: number | null = (d32Result && isD32Usable(d32Result)) ? d32Result.d32_m : null;
+
+    // ── Interfacial area ─────────────────────────────────────────────────────
+    //
+    // a = 6·φ_d / d₃₂ — requires both usable φ_d and usable d₃₂.
+    // Computed once with Phase 1 uniform inlet-condition values.
+    //
+    const interfacialAreaResult: InterfacialAreaResult | null =
+      (holdupResult !== null || d32Result !== null)
+        ? computeInterfacialArea(holdupResult, d32Result)
+        : null;
+
+    const aScalar: number | null = interfacialAreaResult?.a_m2_m3 ?? null;
+
+    if (interfacialAreaResult?.status === 'blocked_d32' && d32Config === undefined) {
+      // Don't warn about this — user simply didn't supply d₃₂, which is expected
+    } else if (interfacialAreaResult && interfacialAreaResult.a_m2_m3 !== null) {
+      pushWarning(
+        'INTERFACIAL_AREA_COMPUTED',
+        `Interfacial area a = ${interfacialAreaResult.a_m2_m3.toFixed(1)} m²/m³ ` +
+        `(φ_d = ${interfacialAreaResult.phi_d_used?.toFixed(4)}, d₃₂ = ${((interfacialAreaResult.d32_m_used ?? 0) * 1000).toFixed(3)} mm). ` +
+        `${interfacialAreaResult.d32EngineerSupplied ? 'Engineer-supplied d₃₂ basis.' : 'Published correlation basis.'}`,
+      );
+    }
+
+    // ── Slip velocity ────────────────────────────────────────────────────────
+    const slipVelocityResult = (holdupResult !== null && isHoldupUsable(holdupResult))
+      ? computeSlipVelocity(u_raffinate_m_s, u_extract_m_s, holdupResult.phi)
+      : null;
+    const U_slip_m_s: number | null = (slipVelocityResult && 'U_slip_m_s' in slipVelocityResult && slipVelocityResult.U_slip_m_s !== null)
+      ? slipVelocityResult.U_slip_m_s
+      : null;
+
     // ── Build compartment grid ───────────────────────────────────────────────
     const compartments: ECR2CompartmentState[] = [];
     for (let k = 1; k <= N_compartments; k++) {
@@ -952,11 +1118,16 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         mu_d_Pa_s:      null,
         sigma_N_m:      null,
 
-        // Correlation outputs
-        d32_m:               null,          // CANDIDATE — UNRESOLVED_SYMBOL/UNRESOLVED_GROUPING; not implemented
-        holdup_dispersed:    holdupResult,  // K&H 1995 — secondary_equation_verified; UNVERIFIED pending primary
-        interfacialArea_m2_m3: null,        // Gated on d₃₂ and holdup — Phase 2
-        Koa_m_s:             null,          // pending_approval — Phase 2
+        // Correlation outputs — Phase 1 uniform values
+        // d₃₂ and interfacial area: uniform across compartments in Phase 1
+        // Phase 2 will compute per-compartment with local properties.
+        d32_m:                d32Scalar,
+        d32_result:           d32Result,
+        holdup_dispersed:     holdupResult,
+        interfacialArea_m2_m3: aScalar,
+        interfacialArea_result: interfacialAreaResult,
+        U_slip_m_s,
+        Koa_m_s: null,
       });
     }
 
@@ -1083,11 +1254,117 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
 
       correlationRegistry: {
         note:
-          'ecr2_holdup_kh1995: secondary_equation_verified — K&H 1995 holdup now computed per compartment. ' +
-          'ecr2_d32_kh1996: candidate_governed — UNRESOLVED_SYMBOL and UNRESOLVED_GROUPING block implementation. ' +
-          'ecr2_koa_kh1999: pending_approval — gated on d₃₂ and holdup. ' +
+          'ecr2_holdup_kh1995: secondary_equation_verified — K&H 1995 holdup computed in Phase 1. ' +
+          'ecr2_d32_kh1996: candidate_governed — UNRESOLVED_SYMBOL and UNRESOLVED_GROUPING block published implementation; engineer_supplied mode available. ' +
+          'ecr2_koa_kh1999: pending_approval — gated on d₃₂ and K&H 1999 primary paper (C1, C2 agitation terms). ' +
           'ecr2_flooding_pending, ecr2_axial_dispersion_pending: pending/reserved.',
         entries: corrRegistry,
+      },
+
+      // ── Dependency graph ───────────────────────────────────────────────────
+      dependencyGraph: buildDependencyGraph({
+        psiAvailable:               true,
+        holdupUsable:               holdupResult !== null && isHoldupUsable(holdupResult),
+        holdupPhysicallyInvalid:    holdupResult?.status === 'physically_invalid',
+        d32Available:               d32Scalar !== null,
+        d32EngineerSupplied:        d32Result?.mode === 'engineer_supplied',
+        d32CorrelationUnresolved:   d32Result?.status === 'correlation_unresolved',
+        propertiesAvailable:        gamma !== undefined,
+      }),
+
+      // ── d₃₂ section ────────────────────────────────────────────────────────
+      d32: {
+        correlationId:    'ecr2_d32_kh1996',
+        correlationStatus: 'candidate_governed',
+        engineeringBasis: d32Result?.status === 'engineer_supplied'
+          ? 'Engineer-Supplied d₃₂ — Simulator Development / Sensitivity Basis'
+          : 'Published Correlation — candidate_governed (K&H 1996)',
+        modeUsed:         d32Config?.mode ?? 'not_attempted',
+        d32_mm:           d32Scalar !== null ? d32Scalar * 1000 : null,
+        d32_m:            d32Scalar,
+        status:           d32Result?.status ?? 'not_attempted',
+        label:            d32Result?.label ?? null,
+        extrapolated:     d32Result?.extrapolated ?? false,
+        diagnostics:      d32Result?.diagnostics ?? [],
+        provenance:       d32Result?.provenance ?? 'd₃₂ not attempted — d32Config not supplied.',
+        engineerSource:   d32Result?.engineerSource ?? null,
+        unresolved: {
+          UNRESOLVED_SYMBOL:
+            'Numerator base for n₁=0.45 — primary candidate C₁^n₁ (C₁=3.04, d→c Kühni). ' +
+            'Structural inference — NOT confirmed from K&H 1996 primary paper.',
+          UNRESOLVED_GROUPING:
+            'Term₂ geometry group — strong candidate [h·(ρcg/γ)^0.5]^0.38 = [h/λc]^0.38. ' +
+            'Laitinen transcription h·(ρcg/γ)^0.38 is definitively dimensionally wrong (m^+0.24). ' +
+            'Parameter table consistent — NOT confirmed from primary paper.',
+          resolutionRequired: 'K&H 1996 primary paper (DOI 10.1021/ie950674w), Table 2 and equation body.',
+        },
+      },
+
+      // ── Interfacial area section ───────────────────────────────────────────
+      interfacialArea: {
+        formula: 'a = 6·φ_d / d₃₂  (m²/m³)',
+        source: 'Laitinen (2019) Eq. (9) / standard drop-population model',
+        a_m2_m3:       aScalar,
+        status:        interfacialAreaResult?.status ?? 'not_attempted',
+        phi_d_used:    interfacialAreaResult?.phi_d_used ?? null,
+        d32_mm_used:   interfacialAreaResult?.d32_m_used !== null && interfacialAreaResult?.d32_m_used !== undefined
+          ? interfacialAreaResult.d32_m_used * 1000
+          : null,
+        d32EngineerSupplied: interfacialAreaResult?.d32EngineerSupplied ?? false,
+        label:         interfacialAreaResult?.label ?? null,
+        blockingReasons: interfacialAreaResult?.blockingReasons ?? [
+          'd₃₂ not supplied — provide d32Config to compute interfacial area.',
+        ],
+        diagnostics:   interfacialAreaResult?.diagnostics ?? [],
+        provenance:    interfacialAreaResult?.provenance ?? 'a not attempted — d32Config not supplied.',
+        slipVelocity: {
+          U_slip_m_s,
+          formula: 'U_slip = u_d/φ_d + u_c/(1−φ_d)',
+          note: U_slip_m_s !== null
+            ? `Computed from Phase 1 uniform φ_d. Does not require d₃₂.`
+            : 'Not computed — requires usable φ_d.',
+        },
+      },
+
+      // ── Mass-transfer interface contract ───────────────────────────────────
+      massTransferInterface: {
+        correlationId: 'ecr2_koa_kh1999',
+        correlationStatus: 'pending_approval',
+        status: 'NOT IMPLEMENTED',
+        reason:
+          'K&H 1999 mass-transfer framework (k_c, k_d, K_overall) is pending_approval. ' +
+          'C1 and C2 agitation correction terms require K&H 1999 primary paper. ' +
+          'Additionally gated on d₃₂ resolution (UNRESOLVED flags in K&H 1996).',
+        interfaceDefined: true,
+        interfaceContract: {
+          k_c: 'k_c = Sh_c · De_c / d₃₂  (m/s) — per pseudo-component, NMP continuous phase',
+          k_d: 'k_d = Sh_d · De_d / d₃₂  (m/s) — per pseudo-component, RRBO dispersed phase',
+          K_overall: 'K_overall,i = k_c · k_d / (k_d · K_d,i + k_c)  — component i, resistance-in-series',
+          K_d_partition: 'K_d,i = C_d,i* / C_c,i* from NRTL flash per pseudo-component',
+          Koa: 'K_oa,i = K_overall,i · a  (m/s)',
+          applicationNote:
+            'Must be applied per pseudo-component (Sat/Mono/Di/Poly) with component-specific De and K_d. ' +
+            'A single lumped ki is NOT acceptable for ECR-2.',
+        },
+        drivingForceContract: {
+          defined: drivingForceContractDefined,
+          note: drivingForceContractNote,
+        },
+        pseudoComponentSystem: {
+          0: 'Saturates   — separate De_c, De_d, K_d,0 required',
+          1: 'Mono-aromatics — separate De_c, De_d, K_d,1 required',
+          2: 'Di-aromatics   — separate De_c, De_d, K_d,2 required',
+          3: 'Poly-aromatics — separate De_c, De_d, K_d,3 required',
+          4: 'NMP (solvent) — not transferred on driving-force basis',
+        },
+        blockedBy: {
+          primary: d32Scalar === null
+            ? { reason: 'blocked_by_d32', correlationId: 'ecr2_d32_kh1996' }
+            : { reason: 'correlation_unresolved', correlationId: 'ecr2_koa_kh1999' },
+          message: d32Scalar === null
+            ? 'K_oa requires d₃₂ (for d₃₂-based Sherwood number computation). Supply engineer d₃₂ to continue.'
+            : 'K_oa requires K&H 1999 primary paper to confirm C1 and C2 agitation terms.',
+        },
       },
 
       holdupCorrelation: {
@@ -1133,20 +1410,46 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         holdup: (() => {
           if (holdupResult == null) return 'NOT CALCULATED — interfacialTension not supplied';
           if (holdupResult.status === 'calculated')
-            return `CALCULATED — φ = ${holdupResult.phi.toFixed(4)} (${(holdupResult.phi * 100).toFixed(2)} %) — Published Correlation Preliminary Engineering`;
+            return `CALCULATED — φ = ${holdupResult.phi.toFixed(4)} (${(holdupResult.phi * 100).toFixed(2)} %) — Published Correlation Preliminary Engineering (K&H 1995)`;
           if (holdupResult.status === 'calculated_extrapolated')
             return `CALCULATED_EXTRAPOLATED — φ = ${holdupResult.phi.toFixed(4)} (${(holdupResult.phi * 100).toFixed(2)} %) — outside ranges: ${holdupResult.extrapolatedRanges.join(', ')}`;
           return `NOT CALCULABLE — ${holdupResult.status}`;
         })(),
-        d32: 'NOT IMPLEMENTED — UNRESOLVED_SYMBOL and UNRESOLVED_GROUPING in registry; requires K&H 1996 primary paper review',
-        massTransfer: 'NOT IMPLEMENTED — gated on d₃₂ and holdup governing',
-        bvp: 'NOT IMPLEMENTED — Phase 2',
-        optimizer: 'NOT IMPLEMENTED — Phase 2',
-        axialDispersion: 'NOT IMPLEMENTED — reserved',
+        slipVelocity: U_slip_m_s !== null
+          ? `CALCULATED — U_slip = ${U_slip_m_s.toExponential(4)} m/s (from φ_d, does not require d₃₂)`
+          : 'NOT CALCULATED — requires usable φ_d',
+        d32: (() => {
+          if (!d32Config) return 'NOT ATTEMPTED — d32Config not supplied; provide d32Config to enable d₃₂ computation';
+          if (d32Result?.status === 'engineer_supplied')
+            return `ENGINEER_SUPPLIED — d₃₂ = ${(d32Result.d32_m! * 1000).toFixed(3)} mm — Simulator Development / Sensitivity Basis`;
+          if (d32Result?.status === 'correlation_unresolved')
+            return 'CORRELATION_UNRESOLVED — K&H 1996 has UNRESOLVED_SYMBOL and UNRESOLVED_GROUPING; cannot compute from published correlation';
+          if (d32Result?.status === 'calculated')
+            return `CALCULATED — d₃₂ = ${(d32Result.d32_m! * 1000).toFixed(3)} mm (K&H 1996)`;
+          if (d32Result?.status === 'calculated_extrapolated')
+            return `CALCULATED_EXTRAPOLATED — d₃₂ = ${(d32Result.d32_m! * 1000).toFixed(3)} mm (outside K&H 1996 validity range)`;
+          return `NOT CALCULABLE — ${d32Result?.status ?? 'unknown'}`;
+        })(),
+        interfacialArea: (() => {
+          if (!interfacialAreaResult) return 'NOT ATTEMPTED — d32Config not supplied';
+          if (interfacialAreaResult.a_m2_m3 !== null)
+            return `CALCULATED — a = ${interfacialAreaResult.a_m2_m3.toFixed(1)} m²/m³ ` +
+              `(φ_d=${interfacialAreaResult.phi_d_used?.toFixed(4)}, d₃₂=${((interfacialAreaResult.d32_m_used ?? 0)*1000).toFixed(3)} mm` +
+              `${interfacialAreaResult.d32EngineerSupplied ? ', engineer-supplied basis' : ''})`;
+          return `BLOCKED — ${interfacialAreaResult.status}: ${interfacialAreaResult.blockingReasons.join('; ')}`;
+        })(),
+        massTransfer: d32Scalar === null
+          ? 'BLOCKED — k_c/k_d/K_overall require d₃₂ (and K&H 1999 primary paper for C1/C2 terms). Supply engineer d₃₂ and await K&H 1999 approval.'
+          : 'BLOCKED_CORRELATION — d₃₂ available but K&H 1999 mass-transfer correlation is pending_approval (C1/C2 agitation terms require primary paper).',
+        Koa: 'BLOCKED — gated on k_c, k_d, K_overall (all gated on K&H 1999 approval)',
+        bvp: 'NOT IMPLEMENTED — requires: φ_d usable, d₃₂ usable/supplied, a calculated, k_c defined, k_d defined, K_overall defined, K_oa defined, driving-force contract implemented.',
+        optimizer: 'NOT IMPLEMENTED — downstream of BVP',
+        axialDispersion: 'NOT IMPLEMENTED — reserved; plug-flow baseline must be established first',
         nrtlReuseConfirmed: true,
         nrtlFunction: 'nrtlFlash(z, T_K, x0, y0) from llx-temperature-lle-model.ts — imported and ready for Phase 2',
         bvpOrientation: 'Two-point BVP: z=0 (RRBO feed known, extract unknown) and z=H (NMP feed known, raffinate unknown)',
-        rateBasisNote: 'ECR-2 is rate-based. NRTL provides local equilibrium TARGET for driving force; finite K_oa determines actual transfer.',
+        rateBasisNote: 'ECR-2 is rate-based. NRTL provides local equilibrium TARGET for driving force; finite K_oa determines actual transfer rate.',
+        drivingForceContract: drivingForceContractNote,
       },
 
       ecr1IsolationProof: {
@@ -1170,8 +1473,17 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
   // ── generateSummary ───────────────────────────────────────────────────────
 
   generateSummary(results: Record<string, unknown>): DesignSummary {
-    const geo = results.geometry as Record<string, unknown> | undefined;
-    const pwr = results.power   as Record<string, unknown> | undefined;
+    const geo  = results.geometry  as Record<string, unknown> | undefined;
+    const pwr  = results.power     as Record<string, unknown> | undefined;
+    const d32S = results.d32       as Record<string, unknown> | undefined;
+    const intA = results.interfacialArea as Record<string, unknown> | undefined;
+    const dep  = results.dependencyGraph as Record<string, unknown> | undefined;
+
+    const d32mm    = d32S?.d32_mm    != null ? Number(d32S.d32_mm) : null;
+    const aVal     = intA?.a_m2_m3   != null ? Number(intA.a_m2_m3) : null;
+    const avail    = dep?.availableCount as number | undefined;
+    const total    = dep?.totalCount    as number | undefined;
+
     return {
       keyResults: [
         geo?.nCompartments != null
@@ -1183,15 +1495,30 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         pwr?.totalShaftPower_kW != null
           ? { label: 'Total shaft power', value: Number(pwr.totalShaftPower_kW), unit: 'kW', highlight: true }
           : null,
-        { label: 'Scaffold phase', value: 'Phase 1 — geometry and power only', highlight: true },
+        pwr?.psi_W_kg != null
+          ? { label: 'Specific power ψ', value: Number(pwr.psi_W_kg), unit: 'W/kg', highlight: false }
+          : null,
+        d32mm !== null
+          ? { label: 'd₃₂ (Phase 1 uniform)', value: d32mm, unit: 'mm', highlight: true }
+          : { label: 'd₃₂', value: 'Blocked — K&H 1996 UNRESOLVED or not supplied', highlight: false },
+        aVal !== null
+          ? { label: 'Interfacial area a', value: Number(aVal.toFixed(1)), unit: 'm²/m³', highlight: true }
+          : { label: 'Interfacial area a', value: 'Blocked — requires d₃₂', highlight: false },
+        avail != null && total != null
+          ? { label: 'Dependency graph', value: `${avail}/${total} quantities available`, highlight: false }
+          : null,
       ].filter(Boolean) as DesignSummary['keyResults'],
       recommendations: [
-        'ECR-2 PHASE 1 SCAFFOLD ONLY — forward simulation not yet implemented.',
-        'All hydrodynamic correlations are pending_approval — no d₃₂, holdup, or K_oa calculated.',
-        'Phase 2 implementation requires separate approval of at minimum: d₃₂ and holdup correlations.',
+        'ECR-2 Phase 1 + d₃₂/interfacial-area infrastructure. BVP and optimizer NOT implemented.',
+        d32mm === null
+          ? 'To enable a, k_c, k_d, K_oa: supply d32Config.mode=\'engineer_supplied\' for development/sensitivity.'
+          : `d₃₂ = ${d32mm.toFixed(3)} mm (${d32S?.modeUsed}). Interfacial area a = ${aVal?.toFixed(1) ?? 'blocked'} m²/m³.`,
+        'K&H 1999 mass-transfer correlation (k_c, k_d) is pending_approval — C1/C2 agitation terms require K&H 1999 primary paper.',
+        'K&H 1996 d₃₂: UNRESOLVED_SYMBOL and UNRESOLVED_GROUPING — resolve from primary paper (DOI 10.1021/ie950674w).',
+        'ECR-1 remains frozen and isolated — calculation_type=\'ecr_simulator\' confirmed.',
       ],
       warnings: [],
-      calculationClass: 'Preliminary Simulator Scaffold',
+      calculationClass: 'Preliminary Simulator — Phase 1 + d₃₂/Interfacial-Area Infrastructure',
     };
   }
 }
