@@ -39,23 +39,31 @@ export type CorrelationQuantity =
 /**
  * Correlation lifecycle statuses
  *
- *  governed           — Equation frozen, coefficients verified from primary source,
- *                       explicitly approved for use in ECR-2 calculations.
+ *  governed                  — Equation frozen, coefficients verified from primary source,
+ *                             explicitly approved for use in ECR-2 calculations.
  *
- *  candidate_governed — Full citation confirmed; equation form and all symbol
- *                       definitions documented from the primary publication.
- *                       Kühni-specific coefficients extracted from the paper's
- *                       data table and recorded here. Equation may NOT be
- *                       implemented numerically until status advances to
- *                       'governed'. Separate note flags RRBO/NMP validation status.
+ *  secondary_equation_verified — Equation form and all constants traced to a peer-reviewed
+ *                             secondary source that explicitly cites and reproduces the primary.
+ *                             Dimensional verification complete. ALL symbol assignments resolved
+ *                             in the secondary source. Equation is accepted for CONTROLLED
+ *                             implementation (i.e. the engine may call it behind a governance
+ *                             guard), but primarySourceVerified must still be set to true before
+ *                             the result may be used for design decisions.
  *
- *  pending_approval   — No candidate equation nominated yet. Placeholder only.
+ *  candidate_governed        — Equation reproduced from a secondary source; symbol assignments
+ *                             and/or dimensional groupings contain UNRESOLVED items that must be
+ *                             cleared from the primary paper before any numerical use.
+ *                             Do NOT implement numerically until UNRESOLVED flags are removed and
+ *                             status advances.
  *
- *  reserved           — Architectural slot; correlation category needed in Phase 3+
- *                       but no candidate nominated and not required now.
+ *  pending_approval          — No candidate equation nominated yet. Placeholder only.
+ *
+ *  reserved                  — Architectural slot; correlation category needed in Phase 3+
+ *                             but no candidate nominated and not required now.
  */
 export type CorrelationStatus =
   | 'governed'
+  | 'secondary_equation_verified'
   | 'candidate_governed'
   | 'pending_approval'
   | 'reserved';
@@ -137,18 +145,41 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
   // EQUATION NOW DOCUMENTED from peer-reviewed secondary reproduction.
   // Do NOT implement numerically — status remains candidate_governed.
   //
-  // ── OPEN ITEMS requiring primary-paper resolution ─────────────────────────
-  //   (a) "e" in numerator: PDF extraction renders the numerator as "e^0.45".
-  //       Dimensional analysis rules out ψ^0.45 (W/kg)^0.45 as the numerator
-  //       (would yield non-dimensionless result). Most consistent reading:
-  //       "e" is the mathematical constant (≈2.71828), making numerator e^0.45
-  //       a fixed dimensionless prefactor ≈ 1.568. Confirm from K&H 1996 original.
-  //   (b) h-group in Term₂: "h·(ρc·g/γ)^0.38" has units m^0.24 as written;
-  //       dimensionally consistent form would be (h²·ρcg/γ)^0.38 (= Eo^0.38,
-  //       dimensionless). Exact grouping must be confirmed from primary paper.
-  //   (c) C1 = 3.04 (identified in prior secondary reproduction): NOT visibly
-  //       assigned in the Laitinen Eq. (3) rendering. Confirm assignment from
-  //       K&H 1996 primary paper before removing this parameter.
+  // ── Full Kühni parameter table — secondary-verified metadata ─────────────
+  //   Source: general structure of K&H unified correlations; specific coefficient
+  //   table reproduced in prior secondary reproduction and accepted as metadata.
+  //   These values are NOT yet placed into the equation with confidence — see
+  //   UNRESOLVED flags below.
+  //
+  //   C1(c→d) = 1      (transfer direction: continuous to dispersed)
+  //   C1(d→c) = 3.04   (transfer direction: dispersed to continuous — ECR-2 direction)
+  //   C2      = 1.60
+  //   C3      = 0.034
+  //   n1      = 0.45
+  //   n2      = −0.63
+  //   n3      = −0.38
+  //
+  //   ECR-2 phase convention: mass transfer is d→c (RRBO→NMP), so C1=3.04 applies.
+  //   How C1 enters the equation structure must be resolved from K&H 1996 primary.
+  //
+  // ── UNRESOLVED items requiring primary-paper resolution ───────────────────
+  //   (a) UNRESOLVED_SYMBOL: numerator symbol in "?^0.45".
+  //       Laitinen Eq. (3) renders the numerator as a single-character symbol
+  //       raised to exponent n1=0.45. Identity is UNRESOLVED.
+  //       Do NOT assume it is Euler's constant e ≈ 2.71828 — this is NOT confirmed.
+  //       Candidate interpretations (none adopted):
+  //         · mathematical constant e (dimensionless prefactor e^0.45 ≈ 1.568)
+  //         · C1 (from the Kühni table above, e.g. 3.04^0.45)
+  //         · another fluid/geometry variable
+  //       Must be read from K&H 1996 primary paper, Table 2 / equation body.
+  //   (b) UNRESOLVED_GROUPING: h-group in Term₂: "h·(ρcg/γ)^0.38".
+  //       As written, ρcg/γ has units m⁻², so (ρcg/γ)^0.38 has units m⁻⁰·⁷⁶,
+  //       and h·m⁻⁰·⁷⁶ has units m^+0.24 — NOT dimensionless.
+  //       Dimensionally consistent candidate: (h²·ρcg/γ)^0.38 = Eo^0.38.
+  //       Exact grouping MUST be confirmed from K&H 1996 primary paper.
+  //   (c) C1=3.04 assignment: NOT visibly assigned in the Laitinen Eq. (3)
+  //       rendering. May be: numerator coefficient, absorbed factor, or other.
+  //       Resolve from K&H 1996 primary paper Table 2.
   //   (d) K&H 1996 fit: 702 data points, average relative deviation 22%.
   //       Laitinen reports significant deviance vs their 2MTHF/water measurements,
   //       attributing it to experimental limitations in quantifying coalescence.
@@ -198,25 +229,29 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     //   Term₁: 1.6·(γ/((ρc−ρd)·g·h²))^0.5
     //          → γ/((ρc−ρd)·g·h²) = [kg/s²]/[kg/s²] = dimensionless ✓
     //          → Term₁ dimensionless ✓
-    //   Term₂: h·(ρcg/γ)^0.38 — see note (b) above; exact grouping TBD.
-    //   Numerator: e^0.45 — dimensionless only if e = mathematical constant;
-    //              if e = ψ then (W/kg)^0.45 has dimensions — inconsistent ✗.
+    //   Term₂: h·(ρcg/γ)^0.38 — UNRESOLVED_GROUPING; see (b) above.
+    //   Numerator: [UNRESOLVED_SYMBOL]^0.45 — base identity NOT resolved.
+    //              DO NOT assume mathematical constant e ≈ 2.71828.
     //
     // DO NOT IMPLEMENT. Equation reproduced for engineering review only.
-    // Two open items ((a) and (b) above) must be resolved from primary paper
+    // Both UNRESOLVED flags must be cleared from K&H 1996 primary paper
     // before any numerical implementation.
     //
     equation:
       'CANDIDATE — DO NOT IMPLEMENT. ' +
       'Reproduced from Laitinen et al. (2019) Eq. (3). ' +
-      'd32/h = e^0.45 / [1.6·(γ/((ρc−ρd)·g·h²))^(1/2) + ' +
-      '0.034·((ψ/g)·(ρc/(g·γ))^(1/4))^(−0.63)·(h·(ρcg/γ)^0.38)^(−1)] ' +
-      '| OPEN: "e" in numerator = mathematical constant e≈2.71828 or ψ (power dissipation)? ' +
-      '  Dimensional analysis favours mathematical constant — confirm from K&H 1996. ' +
-      '| OPEN: exact grouping of h·(ρcg/γ)^0.38 in Term₂ — ' +
-      '  dimensionally consistent form is (h²·ρcg/γ)^0.38 = Eo^0.38 — confirm from K&H 1996. ' +
-      '| OPEN: C1=3.04 (prior secondary source) not visible in this rendering — ' +
-      '  confirm assignment or absence from K&H 1996 Table 2.',
+      'd32/h = [UNRESOLVED_SYMBOL]^0.45 / [1.6·(γ/((ρc−ρd)·g·h²))^(1/2) + ' +
+      '0.034·((ψ/g)·(ρc/(g·γ))^(1/4))^(−0.63)·[UNRESOLVED_GROUPING: h·(ρcg/γ)^0.38]^(−1)] ' +
+      '| UNRESOLVED_SYMBOL: numerator base for exponent 0.45 is a single-character symbol in ' +
+      '  Laitinen Eq. (3) whose identity is NOT confirmed. ' +
+      '  DO NOT interpret as Euler\'s constant e ≈ 2.71828 — this is not verified. ' +
+      '  Must be read from K&H 1996 primary paper (DOI 10.1021/ie950674w), Table 2 / equation body. ' +
+      '| UNRESOLVED_GROUPING: h-term in Term₂ written as "h·(ρcg/γ)^0.38" has units m^+0.24 ' +
+      '  (not dimensionless). Consistent form is (h²·ρcg/γ)^0.38 = Eo^0.38 — confirm from K&H 1996. ' +
+      '| KÜHNI PARAMETER TABLE (secondary-verified metadata): ' +
+      '  C1(c→d)=1, C1(d→c)=3.04, C2=1.60, C3=0.034, n1=0.45, n2=−0.63, n3=−0.38. ' +
+      '  ECR-2 direction is d→c, so C1=3.04. Placement in equation structure UNRESOLVED. ' +
+      '| C1=3.04 not visibly assigned in Laitinen Eq. (3) rendering — confirm from K&H 1996 Table 2.',
 
     // ── Variable definitions ─────────────────────────────────────────────────
     variables: {
@@ -236,15 +271,43 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
           'Also appears in Term₂ as part of a geometry group — exact grouping TBD (see note b).',
       },
       e_numerator: {
-        symbol: 'e',
+        symbol: '[UNRESOLVED_SYMBOL]',
         unit: '—',
         description:
-          'Numerator symbol from Laitinen Eq. (3). ' +
-          'Dimensional analysis: if e = mathematical constant ≈ 2.71828, ' +
-          'then e^0.45 ≈ 1.568 (dimensionless prefactor). ' +
-          'If e = ψ (power dissipation, W/kg), the result has units (W/kg)^0.45 ' +
-          'and the equation is not dimensionally homogeneous. ' +
-          'PRIMARY PAPER MUST RESOLVE THIS. Do not implement until confirmed.',
+          'UNRESOLVED_SYMBOL: numerator base for exponent n1=0.45 in Laitinen Eq. (3). ' +
+          'Laitinen\'s PDF renders a single-character symbol raised to 0.45 in the numerator. ' +
+          'Identity is NOT resolved — do NOT assume Euler\'s constant e ≈ 2.71828. ' +
+          'Candidate interpretations (none adopted until primary paper read): ' +
+          '  · Mathematical constant e (dimensionless: e^0.45 ≈ 1.568) — NOT confirmed. ' +
+          '  · C1 from the Kühni parameter table (e.g. 3.04^0.45 for d→c) — NOT confirmed. ' +
+          '  · Another fluid or geometry variable — NOT confirmed. ' +
+          'Must be identified from K&H 1996 primary paper (DOI 10.1021/ie950674w), ' +
+          'Table 2 and/or the equation body. ' +
+          'DO NOT IMPLEMENT until symbol identity is confirmed and UNRESOLVED_SYMBOL is removed.',
+      },
+      kuhni_param_table: {
+        symbol: 'C1, C2, C3, n1, n2, n3',
+        unit: '—',
+        description:
+          'Full Kühni parameter table from the K&H unified correlation framework. ' +
+          'Secondary-verified metadata — recorded from prior secondary reproduction. ' +
+          'These values are accepted as the numerical targets but their placement in ' +
+          'the equation structure remains UNRESOLVED pending K&H 1996 primary paper. ' +
+          '' +
+          'Table: ' +
+          '  C1(c→d) = 1       [transfer from continuous to dispersed phase] ' +
+          '  C1(d→c) = 3.04    [transfer from dispersed to continuous phase — ECR-2 direction] ' +
+          '  C2      = 1.60    [visible in Laitinen Eq. (3): Term₁ coefficient, confirmed] ' +
+          '  C3      = 0.034   [visible in Laitinen Eq. (3): Term₂ coefficient, confirmed] ' +
+          '  n1      = 0.45    [exponent on UNRESOLVED_SYMBOL in numerator] ' +
+          '  n2      = −0.63   [exponent on agitation group in Term₂, confirmed] ' +
+          '  n3      = −0.38   [exponent magnitude for h-group, inner sign; outer −1 supplies −] ' +
+          '' +
+          'ECR-2 operates in d→c direction (RRBO→NMP), so C1=3.04 applies. ' +
+          'C2=1.60 and C3=0.034 are positionally confirmed in Laitinen Eq. (3). ' +
+          'C1 placement in the equation is UNRESOLVED (see UNRESOLVED_SYMBOL note above). ' +
+          'Do NOT use these constants in a numerical implementation until all UNRESOLVED ' +
+          'flags are cleared from the primary paper.',
       },
       gamma: {
         symbol: 'γ',
@@ -329,25 +392,30 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
           'Dimensional verification: (ψ/g)[m/s] × (ρc/(gγ))^0.25[s/m] = dimensionless ✓. ' +
           'Raised to exponent −0.63 in Term₂.',
       },
-      // Group 2: h·(ρcg/γ)^0.38 — OPEN dimensional issue:
+      // Group 2: h·(ρcg/γ)^0.38 — UNRESOLVED_GROUPING:
       //   ρcg/γ = [kg/(m²·s²)]/[kg/s²] = 1/m² — has units m⁻²
       //   (ρcg/γ)^0.38 has units m⁻⁰·⁷⁶
       //   h·m⁻⁰·⁷⁶ has units m^+0.24 — NOT dimensionless.
-      //   Dimensionally consistent equivalent: (h²·ρcg/γ)^0.38 = Eo^0.38 (dimensionless)
-      //   Primary paper must resolve whether grouping is h·(ρcg/γ)^0.38 or (h²·ρcg/γ)^0.38.
+      //   Dimensionally consistent candidate: (h²·ρcg/γ)^0.38 = Eo^0.38 (dimensionless)
+      //   Primary paper must resolve exact grouping before any numerical use.
       h_group: {
-        symbol: 'h·(ρcg/γ)^0.38',
-        unit: 'm^0.24 [dimensional ambiguity — see note]',
+        symbol: '[UNRESOLVED_GROUPING: h·(ρcg/γ)^0.38]',
+        unit: 'm^0.24 [DIMENSIONAL INCONSISTENCY — grouping UNRESOLVED]',
         description:
-          'Geometry-property group from Term₂ of Laitinen Eq. (3). ' +
-          'As written: h·(ρcg/γ)^0.38. ρcg/γ has units m⁻², so (ρcg/γ)^0.38 has units m⁻⁰·⁷⁶, ' +
-          'and h·m⁻⁰·⁷⁶ has units m^+0.24 — not dimensionless. ' +
-          'Dimensionally consistent candidate: (h²·ρcg/γ)^0.38 = Eo^0.38 (inverse Eo, dimensionless). ' +
-          'Exact grouping MUST be confirmed from K&H 1996 primary paper before implementation.',
+          'UNRESOLVED_GROUPING: geometry-property group from Term₂ of Laitinen Eq. (3). ' +
+          'As transcribed from Laitinen: h·(ρcg/γ)^0.38. ' +
+          'Dimensional issue: ρcg/γ = m⁻², so (ρcg/γ)^0.38 has units m⁻⁰·⁷⁶, ' +
+          'and h·m⁻⁰·⁷⁶ gives units m^+0.24 — NOT dimensionless. ' +
+          'Dimensionally consistent candidate grouping: (h²·ρcg/γ)^0.38 = Eo^0.38 (dimensionless). ' +
+          'Exponent magnitude |n3|=0.38 is secondary-verified from Kühni parameter table (n3=−0.38, ' +
+          'with the outer ^(−1) in Term₂ supplying the sign). ' +
+          'Exact grouping of the h-term MUST be confirmed from K&H 1996 primary paper. ' +
+          'DO NOT IMPLEMENT until UNRESOLVED_GROUPING is cleared.',
       },
-      // ── Previously identified coefficients ──────────────────────────────
-      // Five of the six values from prior secondary reproduction now assigned to
-      // visible positions in Laitinen Eq. (3). C1=3.04 remains unresolved.
+      // ── Positionally confirmed coefficients and Kühni table ──────────────
+      // C2=1.60 and C3=0.034 are visible at confirmed positions in Laitinen Eq. (3).
+      // C1=3.04 assignment remains UNRESOLVED — see C1_unresolved entry below.
+      // Full parameter table stored in kuhni_param_table variable above.
       coeff_1pt6: {
         symbol: '1.6',
         unit: '—',
@@ -368,7 +436,9 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
         symbol: '0.45',
         unit: '—',
         description:
-          'Exponent in numerator on "e". Corresponds to n1=0.45 from prior secondary reproduction.',
+          'Exponent n1=0.45 applied to the UNRESOLVED_SYMBOL in the numerator. ' +
+          'Value n1=0.45 is secondary-verified from the Kühni parameter table. ' +
+          'The base to which 0.45 is applied is UNRESOLVED — see e_numerator and kuhni_param_table entries.',
       },
       exp_neg0pt63: {
         symbol: '−0.63',
@@ -390,12 +460,16 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
         symbol: 'C1=3.04',
         unit: '—',
         description:
-          'Kühni coefficient C1=3.04 identified in a prior secondary reproduction. ' +
+          'Kühni coefficient C1(d→c)=3.04 from the secondary-verified parameter table ' +
+          '(see kuhni_param_table entry). ECR-2 direction is d→c so C1=3.04 applies. ' +
           'NOT visibly assigned in the Laitinen Eq. (3) rendering. ' +
-          'May be: (a) the coefficient on the "e^0.45" numerator (i.e., numerator = 3.04·e^0.45), ' +
-          '(b) a normalisation factor absorbed into the equation structure, or ' +
-          '(c) incorrectly identified in the prior source. ' +
-          'Resolve from K&H 1996 primary paper Table 2.',
+          'Possible placements (none confirmed): ' +
+          '  (a) coefficient on the UNRESOLVED_SYMBOL in the numerator ' +
+          '      (i.e., numerator = C1·[symbol]^n1 or numerator = C1^n1), ' +
+          '  (b) normalisation factor absorbed into the equation structure, ' +
+          '  (c) numerator IS C1^n1 = 3.04^0.45 directly (no separate base symbol). ' +
+          'All three interpretations remain UNRESOLVED. ' +
+          'Resolve from K&H 1996 primary paper Table 2 and equation body.',
       },
     },
 
@@ -461,16 +535,23 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     approvalNote:
       'candidate_governed: equation reproduced from Laitinen et al. (2019), Eq. (3) — ' +
       'peer-reviewed secondary source using K&H 1996. secondaryReproductionVerified=true. ' +
+      'TWO UNRESOLVED FLAGS BLOCK ADVANCEMENT: ' +
+      '  UNRESOLVED_SYMBOL: identity of the numerator base (raised to exponent n1=0.45) ' +
+      '    is not confirmed. DO NOT interpret as Euler\'s constant e ≈ 2.71828 — not verified. ' +
+      '    Candidates: mathematical constant e, C1^n1, or another variable. None adopted. ' +
+      '  UNRESOLVED_GROUPING: h-term in Term₂ transcribed as h·(ρcg/γ)^0.38 is dimensionally ' +
+      '    inconsistent (m^+0.24). Consistent form is (h²·ρcg/γ)^0.38 = Eo^0.38. Not confirmed. ' +
+      'FULL Kühni parameter table now recorded as secondary-verified metadata: ' +
+      '  C1(c→d)=1, C1(d→c)=3.04, C2=1.60, C3=0.034, n1=0.45, n2=−0.63, n3=−0.38. ' +
       'BEFORE advancing to governed: ' +
       '(1) Read K&H 1996 primary paper (DOI 10.1021/ie950674w). ' +
-      '    Resolve open item (a): confirm "e" in numerator is mathematical constant or ψ. ' +
-      '    Resolve open item (b): confirm exact grouping of h-term in Term₂. ' +
-      '    Resolve open item (c): confirm whether C1=3.04 appears and where. ' +
+      '    Clear UNRESOLVED_SYMBOL: identify numerator base and confirm C1 placement. ' +
+      '    Clear UNRESOLVED_GROUPING: confirm exact h-term grouping in Term₂. ' +
       '(2) Set primarySourceVerified = true with engineer name and date. ' +
       '(3) Confirm K&H 1996 Kühni experimental dataset phase convention ' +
       '    matches ECR-2 phase assignment (RRBO dispersed, NMP continuous). ' +
       '(4) Verify NMP/RRBO system properties (γ, Δρ, ρc, ρd) lie within validity range. ' +
-      'DO NOT IMPLEMENT NUMERICALLY until governed.',
+      'DO NOT IMPLEMENT NUMERICALLY until both UNRESOLVED flags are cleared and status is governed.',
   },
 
   // ── 2. Dispersed-phase holdup (φ_d) ──────────────────────────────────────
@@ -770,7 +851,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       },
     },
 
-    applicabilityStatus: 'candidate_governed',
+    applicabilityStatus: 'secondary_equation_verified',
     primarySourceVerified: false,          // K&H 1995 primary paper not yet inspected
     secondaryReproductionVerified: true,   // Eqs (1)–(2) reproduced from Laitinen et al. (2019) — peer-reviewed
     validatedForRRBONMP: false,            // Pilot calibration required for NMP/RRBO system
@@ -791,13 +872,21 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     },
 
     approvalNote:
-      'candidate_governed: Eqs (1) and (2) reproduced exactly from Laitinen et al. (2019) — ' +
-      'peer-reviewed secondary source using K&H 1995. ' +
-      'All 8 Kühni constants now assigned to exact equation terms. ' +
-      'secondaryReproductionVerified=true. ' +
+      'secondary_equation_verified: Eqs (1) and (2) accepted as secondary-reproduced K&H 1995 holdup model. ' +
+      'Equation form fully confirmed from Laitinen et al. (2019), peer-reviewed secondary source. ' +
+      'All 8 Kühni constants assigned to exact equation terms. No UNRESOLVED symbols or groupings. ' +
+      'Dimensional verification complete for θ, Ud·θ, Uc·θ, ψθ/g (all dimensionless ✓). ' +
+      'secondaryReproductionVerified=true. Ready for CONTROLLED implementation behind a governance guard. ' +
+      '' +
+      'CONTROLLED IMPLEMENTATION GATE: ' +
+      '  Engine may call Eqs (1)–(2) numerically, but any output used for design decisions ' +
+      '  must carry a clearly labelled "UNVERIFIED — pending primary source" flag. ' +
+      '  Result must not be used for column sizing, flooding margin, or performance guarantees ' +
+      '  until primarySourceVerified = true. ' +
+      '' +
       'BEFORE advancing to governed: ' +
       '(1) Read K&H 1995 primary paper (DOI 10.1021/ie00038a032): ' +
-      '    confirm exact equation form and Kühni constant table match Laitinen reproduction. ' +
+      '    confirm exact equation form and all 8 Kühni constants match Laitinen reproduction. ' +
       '(2) Confirm K&H 1995 Kühni experimental dataset uses same phase convention ' +
       '    as Laitinen (aqueous=continuous, organic=dispersed) for Ud and Uc. ' +
       '    If reversed, Ud and Uc in Eq. (1) must be reassigned for ECR-2. ' +
@@ -805,7 +894,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       '    (Ud, Uc, ψ, γ, Δρ, xf). ' +
       '(4) Confirm xf for the specific Kühni model used in ECR-2 (not ECR60/50G). ' +
       '(5) Set primarySourceVerified = true with engineer name and date. ' +
-      'DO NOT IMPLEMENT NUMERICALLY until governed.',
+      'Numerical output remains UNVERIFIED until governed.',
   },
 
   // ── 3. Phase mass-transfer coefficients — Kumar & Hartland (1999) ────────
