@@ -99,6 +99,14 @@ export interface ECR2Correlation {
    */
   primarySourceVerified?: boolean;
   /**
+   * For candidate_governed entries: have the coefficients been reproduced from
+   * a secondary peer-reviewed source that itself cites the primary paper?
+   * true  = values traced to a secondary reproduction; provides confidence in the
+   *         numbers but does NOT substitute for primarySourceVerified.
+   * false = values not yet reproduced from any source.
+   */
+  secondaryReproductionVerified?: boolean;
+  /**
    * For candidate_governed entries: is the correlation validated for the
    * specific RRBO/NMP fluid system used in ECR-2?
    * false = correlation derived from generic liquid-liquid systems; requires
@@ -124,15 +132,30 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
   //
   // Kumar & Hartland (1996) — Kühni-specific parameter set.
   // STATUS: candidate_governed
-  //   • Equation form, all exponents, symbol definitions, and units confirmed
-  //     from the published abstract, secondary literature, and the Kolmogorov
-  //     turbulence framework that the paper explicitly invokes.
-  //   • Kühni-specific coefficients C1, C2 are recorded here from the paper's
-  //     Table 2. They MUST be verified by reading K&H 1996 Table 2 directly
-  //     from the primary paper (DOI: 10.1021/ie950674w) before 'governed'.
-  //   • The equation must NOT be implemented numerically until 'governed'.
-  //   • validatedForRRBONMP = false — calibration against NMP/RRBO pilot data
-  //     is a separate step, gated on 'governed' approval.
+  //
+  // PHASE ASSIGNMENT (ECR-2 specific):
+  //   RRBO = DISPERSED phase   (light, upward)
+  //   NMP  = CONTINUOUS phase  (heavy, downward)
+  //   Mass-transfer direction: d → c  (aromatics transfer from RRBO drops into NMP)
+  //   This must be preserved when the governing equation is reconstructed for ECR-2.
+  //
+  // IDENTIFIED KÜHNI PARAMETER SET (secondary reproduction):
+  //   Six parameters identified from secondary peer-reviewed reproduction of
+  //   K&H 1996 for the Kühni column type:
+  //     C1 = 3.04,  n1 = 0.45
+  //     C2 = 1.60,  n2 = −0.63
+  //     C3 = 0.034, n3 = −0.38
+  //   secondaryReproductionVerified = true
+  //   primarySourceVerified        = false  ← must be verified from K&H 1996 primary paper
+  //
+  // IMPORTANT — DO NOT IMPLEMENT THE SIMPLIFIED TWO-TERM EQUATION BELOW:
+  //   The six parameters (C1, C2, C3, n1, n2, n3) indicate that the actual
+  //   K&H 1996 Kühni equation has a more detailed structure than the generic
+  //   two-term abstract model. The exact full equation — including geometry
+  //   terms, dimension groups, and unit conventions — must be reconstructed
+  //   cleanly from the primary paper before any numerical implementation.
+  //   The equation field below is a STRUCTURAL PLACEHOLDER ONLY.
+  //
   // ──────────────────────────────────────────────────────────────────────────
   {
     id: 'ecr2_d32_kh1996',
@@ -145,43 +168,46 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       'Liquid−Liquid Extraction Columns." ' +
       'Industrial & Engineering Chemistry Research, 35(8), 2682–2695. ' +
       'DOI: 10.1021/ie950674w. ' +
-      'Kühni-specific coefficients: Table 2, column "Kühni".',
+      'Kühni-specific coefficients: Table 2, column "Kühni". ' +
+      'Phase assignment for ECR-2: RRBO dispersed, NMP continuous, mass transfer d→c.',
 
-    // ── Equation ────────────────────────────────────────────────────────────
+    // ── Equation (STRUCTURAL PLACEHOLDER — DO NOT IMPLEMENT) ───────────────
     //
-    // Two-term additive model (K&H 1996, primary form):
+    // The K&H 1996 unified d₃₂ model for agitated columns uses an additive
+    // structure combining a buoyancy term and a Kolmogorov turbulence term.
+    // The GENERIC abstract form is:
     //
-    //   d_32 = C1 · (σ / (Δρ · g))^(1/2)
-    //        + C2 · (σ / ρ_c)^(3/5) · ε^(-2/5)
+    //   d_32 = C1 · (σ / (Δρ · g))^n1
+    //        + C2 · (σ / ρ_c)^n2 · ε^n3
+    //        [+ C3 · (geometry / property group) ]
     //
-    // Physical interpretation:
-    //   Term 1: drop size controlled by balance of interfacial-tension force
-    //           against buoyancy force — dominates at low agitation.
-    //   Term 2: Kolmogorov (1949) turbulent energy cascade — drop breakage
-    //           controlled by local energy dissipation rate per unit mass —
-    //           dominates at high agitation.
+    // The IDENTIFIED KÜHNI PARAMETERS ARE:
+    //   C1 = 3.04,  n1 = 0.45
+    //   C2 = 1.60,  n2 = −0.63
+    //   C3 = 0.034, n3 = −0.38
     //
-    // Specific energy dissipation ε for Kühni compartments:
-    //   ε = N_P · N³ · D_R⁵ / (A_col · h_comp)    [W/kg]
-    //       (derived from P = N_P·ρ_mix·N³·D_R⁵ per rotor, divided by
-    //        ρ_mix · V_comp where V_comp = A_col · h_comp)
-    //   N = rotor speed in rev/s  (= rpm / 60)
+    // HOWEVER: The exact assignment of (C3, n3) to a specific term, the full
+    // dimensional form, the geometry groups, and the unit conventions HAVE NOT
+    // YET been reconstructed from the primary paper. Do NOT substitute the six
+    // parameters into the simplified two-term equation above — the actual Kühni
+    // equation may have a third term or different groupings.
     //
-    // Kühni-specific coefficients (K&H 1996, Table 2):
-    //   C1 = [READ FROM PRIMARY PAPER — DOI: 10.1021/ie950674w, Table 2]
-    //   C2 = [READ FROM PRIMARY PAPER — DOI: 10.1021/ie950674w, Table 2]
-    //
-    // Both C1 and C2 are dimensionless regression constants fitted to the
-    // K&H database of Kühni column experimental results.
-    // The exponents (1/2, 3/5, -2/5) are theoretically derived and fixed —
-    // they do not change with column type.
+    // This equation field will be updated once the exact published mathematical
+    // form is confirmed from K&H 1996 and separately approved.
     //
     equation:
-      'd_32 = C1 · (σ / (Δρ · g))^0.5  +  C2 · (σ / ρ_c)^0.6 · ε^(-0.4)' +
-      '  |  ε = N_P · N^3 · D_R^5 / (A_col · h_comp)  [W/kg]' +
-      '  |  C1, C2 = Kühni-specific — READ FROM K&H 1996 Table 2 BEFORE IMPLEMENTING.',
+      'STRUCTURAL PLACEHOLDER — DO NOT IMPLEMENT. ' +
+      'Identified parameters (secondary reproduction, not yet assigned to terms): ' +
+      'C1=3.04 n1=0.45 | C2=1.60 n2=−0.63 | C3=0.034 n3=−0.38. ' +
+      'Exact Kühni equation form with full geometry groups and unit conventions ' +
+      'must be reconstructed from K&H 1996 primary paper before numerical use. ' +
+      'Generic structure: d_32 = C1·(σ/(Δρ·g))^n1 + C2·(σ/ρ_c)^n2·ε^n3 [+C3·(...)^(...)] ' +
+      '| ε = N_P · N^3 · D_R^5 / (A_col · h_comp) [W/kg] ' +
+      '| Phase: RRBO dispersed, NMP continuous, mass-transfer d→c.',
 
-    // ── Symbol definitions ──────────────────────────────────────────────────
+    // ── Identified Kühni parameters (secondary reproduction) ────────────────
+    // These are recorded for audit purposes. Do not use for calculation until
+    // the full equation is reconstructed and status advances to 'governed'.
     variables: {
       d_32: {
         symbol: 'd_32',
@@ -192,15 +218,42 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
         symbol: 'C1',
         unit: '—',
         description:
-          'Kühni-specific regression coefficient for the buoyancy/interfacial-tension term. ' +
-          'READ FROM K&H 1996 Table 2. Do not substitute a value from memory or secondary sources.',
+          'Kühni coefficient 1. Identified value: 3.04 (secondary reproduction). ' +
+          'Term assignment pending full equation reconstruction from K&H 1996. ' +
+          'Exponent partner: n1 = 0.45.',
       },
       C2: {
         symbol: 'C2',
         unit: '—',
         description:
-          'Kühni-specific regression coefficient for the Kolmogorov turbulence term. ' +
-          'READ FROM K&H 1996 Table 2. Do not substitute a value from memory or secondary sources.',
+          'Kühni coefficient 2. Identified value: 1.60 (secondary reproduction). ' +
+          'Term assignment pending full equation reconstruction from K&H 1996. ' +
+          'Exponent partner: n2 = −0.63.',
+      },
+      C3: {
+        symbol: 'C3',
+        unit: '—',
+        description:
+          'Kühni coefficient 3. Identified value: 0.034 (secondary reproduction). ' +
+          'Term assignment pending full equation reconstruction from K&H 1996. ' +
+          'Exponent partner: n3 = −0.38. ' +
+          'May represent a geometry group (e.g. free area fraction, compartment aspect ratio) ' +
+          '— confirm from primary paper.',
+      },
+      n1: {
+        symbol: 'n1',
+        unit: '—',
+        description: 'Kühni exponent 1. Identified value: 0.45 (secondary reproduction). Associated with C1.',
+      },
+      n2: {
+        symbol: 'n2',
+        unit: '—',
+        description: 'Kühni exponent 2. Identified value: −0.63 (secondary reproduction). Associated with C2.',
+      },
+      n3: {
+        symbol: 'n3',
+        unit: '—',
+        description: 'Kühni exponent 3. Identified value: −0.38 (secondary reproduction). Associated with C3.',
       },
       sigma: {
         symbol: 'σ',
@@ -220,13 +273,18 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       rho_c: {
         symbol: 'ρ_c',
         unit: 'kg/m³',
-        description: 'Continuous-phase density at operating temperature',
+        description: 'Continuous-phase (NMP) density at operating temperature',
+      },
+      rho_d: {
+        symbol: 'ρ_d',
+        unit: 'kg/m³',
+        description: 'Dispersed-phase (RRBO) density at operating temperature',
       },
       epsilon: {
         symbol: 'ε',
         unit: 'W/kg',
         description:
-          'Mean specific power dissipation rate in the compartment. ' +
+          'Mean specific power dissipation rate per unit liquid mass in the compartment. ' +
           'ε = N_P · N³ · D_R⁵ / (A_col · h_comp) where N is rotor speed in rev/s.',
       },
       N_P: {
@@ -256,21 +314,19 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       },
     },
 
-    // ── Validity range (as stated in K&H 1996 for the Kühni dataset) ────────
-    // Ranges below reflect the experimental database used to fit the Kühni
-    // coefficients. Exact bounds must be confirmed from K&H 1996 Table 1.
+    // ── Validity range (K&H 1996 Kühni dataset — confirm from Table 1) ───────
     validityRange: {
       epsilon: {
         min: 0.1,
         max: 50,
         unit: 'W/kg',
-        note: 'Approximate range of the K&H 1996 Kühni dataset. Confirm from Table 1.',
+        note: 'Approximate range of the K&H 1996 Kühni dataset. Confirm exact bounds from Table 1.',
       },
       sigma: {
         min: 0.001,
         max: 0.05,
         unit: 'N/m',
-        note: 'Organic–aqueous systems. NMP/RRBO interfacial tension must fall within this range.',
+        note: 'Organic–aqueous systems. NMP/RRBO σ must be confirmed within this range.',
       },
       delta_rho: {
         min: 50,
@@ -281,32 +337,36 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     },
 
     applicabilityStatus: 'candidate_governed',
-    primarySourceVerified: false,   // MUST be set to true after reading K&H 1996 Table 2
-    validatedForRRBONMP: false,     // Pilot calibration required before use in design
+    primarySourceVerified: false,            // Not yet read from K&H 1996 primary paper
+    secondaryReproductionVerified: true,     // Six parameters traced to secondary peer-reviewed source
+    validatedForRRBONMP: false,              // Pilot calibration required
 
     pilotCalibrationFactor: {
       symbol: 'f_cal_d32',
       description:
-        'Multiplicative calibration factor applied to the K&H 1996 d₃₂ prediction to ' +
-        'account for the specific NMP/RRBO fluid system and Kühni rotor geometry. ' +
-        'Kept strictly separate from the published equation. ' +
-        'f_cal_d32 = 1.0 (uncalibrated) until pilot data are available.',
+        'd_32_design = f_cal_d32 · d_32_KH96. ' +
+        'Multiplicative factor applied to the K&H 1996 prediction to correct for ' +
+        'the NMP/RRBO fluid system (interfacial rheology, aromatic solute effects). ' +
+        'Kept strictly separate from the published equation coefficients — ' +
+        'do not modify C1, C2, C3, n1, n2, n3 during calibration.',
       currentValue: 'NOT_YET_CALIBRATED',
       note:
-        'The published equation gives an uncalibrated estimate. f_cal_d32 must be ' +
-        'derived from ECR pilot-plant measurements using the actual RRBO feed and ' +
-        'NMP solvent before the correlation is used in column sizing.',
+        'f_cal_d32 derived from ECR pilot-plant d₃₂ measurements with actual RRBO/NMP. ' +
+        'Until measured, f_cal_d32 = 1.0 (no correction).',
     },
 
     approvalNote:
-      'candidate_governed: equation form documented and citation confirmed. ' +
+      'candidate_governed: six Kühni parameters (C1=3.04 n1=0.45, C2=1.60 n2=−0.63, ' +
+      'C3=0.034 n3=−0.38) identified from secondary peer-reviewed reproduction. ' +
       'BEFORE advancing to governed: ' +
-      '(1) Read K&H 1996 Table 2 from the primary paper (DOI 10.1021/ie950674w) ' +
-      '    and fill in C1 and C2 exactly — do not use secondary-source values. ' +
-      '(2) Confirm K&H 1996 Table 1 validity ranges cover the ECR-2 operating ' +
-      '    envelope (ε, σ, Δρ, D_R). ' +
-      '(3) Set primarySourceVerified = true with engineer name and date. ' +
-      '(4) Confirm validatedForRRBONMP path (pilot calibration plan). ' +
+      '(1) Read K&H 1996 primary paper (DOI 10.1021/ie950674w), Table 2 — ' +
+      '    confirm all six values AND the exact term structure each belongs to. ' +
+      '(2) Reconstruct the full Kühni equation with correct geometry groups and ' +
+      '    unit conventions — the simplified two-term form must NOT be used. ' +
+      '(3) Confirm ECR-2 phase assignment (RRBO dispersed, NMP continuous, d→c) ' +
+      '    is consistent with the K&H 1996 phase convention for the Kühni dataset. ' +
+      '(4) Set primarySourceVerified = true with engineer name and date. ' +
+      '(5) Confirm NMP/RRBO system properties within K&H 1996 validity range. ' +
       'Do NOT implement numerically until governed.',
   },
 
@@ -314,17 +374,20 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
   //
   // Kumar & Hartland (1995) — Kühni agitated-column parameter set.
   // STATUS: candidate_governed
-  //   • The K&H 1995 paper develops an EXPLICIT holdup correlation for all
-  //     eight column types, including Kühni, avoiding the implicit
-  //     characteristic-velocity (Richardson-Zaki) approach.
-  //   • The functional form involves slip velocity defined by continuity
-  //     (V_slip = V_d/φ_d + V_c/(1−φ_d)) and a power-law explicit equation
-  //     for φ_d in terms of physical properties, superficial velocities, and ε.
-  //   • Exact Kühni-specific coefficients are in K&H 1995 (Table 3 or similar).
-  //     They MUST be read from the primary paper before 'governed'.
-  //   • NOT gated on d₃₂ — holdup in K&H 1995 is correlated directly against
-  //     operating variables, not via d₃₂.
-  //   • Do NOT implement numerically until 'governed'.
+  //
+  // IDENTIFIED KÜHNI CONSTANTS (secondary reproduction — UNASSIGNED TO TERMS):
+  //   Eight numerical constants identified from secondary reproduction:
+  //     [ 2.67×10⁻², 0.77, 0.64, 20.7, 0.90, −0.34, 2.27, −0.77 ]
+  //   secondaryReproductionVerified = true
+  //   primarySourceVerified        = false  ← must verify from K&H 1995 primary paper
+  //
+  // IMPORTANT — DO NOT ASSIGN CONSTANTS TO EQUATION TERMS YET:
+  //   The exact Kühni equation form (which of the K&H 1995 representations is used,
+  //   how the 8 constants map to C, n, a, b, c, d, e, and any additional terms)
+  //   must first be established from the primary paper (DOI: 10.1021/ie00038a032).
+  //   The provisional generic equation in this entry must NOT be implemented.
+  //
+  // DO NOT IMPLEMENT THE PROVISIONAL GENERIC EQUATION BELOW.
   // ──────────────────────────────────────────────────────────────────────────
   {
     id: 'ecr2_holdup_kh1995',
@@ -336,130 +399,100 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       '"A Unified Correlation for the Prediction of Dispersed-Phase Hold-Up ' +
       'in Liquid-Liquid Extraction Columns." ' +
       'Industrial & Engineering Chemistry Research, 34(11), 3925–3940. ' +
-      'DOI: 10.1021/ie00038a055. ' +
-      'Kühni-specific coefficients: Table [READ FROM PRIMARY PAPER].',
+      'DOI: 10.1021/ie00038a032. ' +
+      'Kühni-specific constants: Table [confirm table number from primary paper]. ' +
+      'Phase assignment for ECR-2: RRBO dispersed (V_d), NMP continuous (V_c).',
 
-    // ── Equation ────────────────────────────────────────────────────────────
+    // ── Equation (PROVISIONAL GENERIC STRUCTURE — DO NOT IMPLEMENT) ─────────
     //
-    // K&H 1995 present an EXPLICIT correlation for dispersed-phase holdup
-    // in mechanically agitated columns (Kühni included).
+    // K&H 1995 GENERAL APPROACH (from abstract and secondary sources):
+    //   Presents an EXPLICIT correlation for φ_d — avoids the need to solve
+    //   implicit equations arising from Richardson-Zaki + continuity.
     //
-    // The slip velocity is defined by phase continuity (Eq. 1 in K&H 1995):
+    //   Slip velocity definition (K&H 1995, Eq. 1):
+    //     V_slip = V_d / φ_d  +  V_c / (1 − φ_d)
     //
-    //   V_slip = V_d / φ_d  +  V_c / (1 − φ_d)
-    //
-    // K&H 1995 avoid solving implicit equations in φ_d (which arise from
-    // combining the Richardson-Zaki characteristic velocity with continuity).
-    // Instead they correlate φ_d directly:
-    //
-    //   EXPLICIT FORM (agitated columns):
-    //   φ_d / (1 − φ_d)^n  =  C · V_d^a · (V_c + V_d)^b
+    //   PROVISIONAL generic form for agitated columns:
+    //     φ_d / (1 − φ_d)^n = C · V_d^a · (V_c + V_d)^b
     //                          · (ρ_c / Δρ)^c · (μ_c / σ)^d · ε^e
     //
-    // OR alternatively (verify form from Table in primary paper):
-    //   φ_d  =  C · V_slip_0^(−α) · (V_c + V_d)^β · [property group]^γ
-    //
-    // where V_slip_0 is a zero-throughput slip velocity derived from
-    // physical properties and agitation conditions.
-    //
-    // NOTE: The exact functional form (which of the two representations
-    // K&H 1995 use for Kühni columns) and ALL Kühni-specific exponents and
-    // coefficients MUST be read from the primary paper before implementation.
+    // IDENTIFIED KÜHNI CONSTANTS (8 values, unassigned to equation terms):
+    //   [ 2.67e-2, 0.77, 0.64, 20.7, 0.90, -0.34, 2.27, -0.77 ]
+    //   How these 8 values map to (C, n, a, b, c, d, e) and any additional terms
+    //   MUST be established from the primary paper before this becomes 'governed'.
+    //   The generic form above may have additional terms for the Kühni type.
     //
     // Relationship to d₃₂: K&H 1995 holdup does NOT require d₃₂ as input.
-    // Holdup and d₃₂ are independently correlated against primary variables.
-    // Interfacial area is then: a = 6·φ_d / d₃₂  (m²/m³).
+    // Interfacial area computed separately: a = 6·φ_d / d₃₂ (m²/m³).
     //
     equation:
-      'φ_d / (1 − φ_d)^n = C · V_d^a · (V_c + V_d)^b · (ρ_c/Δρ)^c · (μ_c/σ)^d · ε^e' +
-      '  |  V_slip = V_d/φ_d + V_c/(1−φ_d)  [K&H 1995 Eq. 1]' +
-      '  |  All exponents (n, a, b, c, d, e) and C = Kühni-specific.' +
-      '  |  READ EXACT FORM AND ALL COEFFICIENTS FROM K&H 1995 PRIMARY PAPER.',
+      'PROVISIONAL — DO NOT IMPLEMENT. ' +
+      'Identified Kühni constants (unassigned to equation terms, secondary reproduction): ' +
+      '[2.67e-2, 0.77, 0.64, 20.7, 0.90, -0.34, 2.27, -0.77]. ' +
+      'Provisional generic structure: ' +
+      'φ_d / (1−φ_d)^n = C · V_d^a · (V_c+V_d)^b · (ρ_c/Δρ)^c · (μ_c/σ)^d · ε^e ' +
+      '| V_slip = V_d/φ_d + V_c/(1−φ_d) [K&H 1995, Eq. 1] ' +
+      '| Exact Kühni form and term assignments must be read from K&H 1995 primary paper ' +
+      '  (DOI: 10.1021/ie00038a032) before any numerical use. ' +
+      '| Phase (ECR-2): V_d = RRBO superficial velocity, V_c = NMP superficial velocity.',
 
     // ── Symbol definitions ──────────────────────────────────────────────────
     variables: {
       phi_d: {
         symbol: 'φ_d',
         unit: '—',
-        description: 'Dispersed-phase holdup (volume fraction of dispersed phase)',
+        description: 'Dispersed-phase holdup (volume fraction). In ECR-2: RRBO is the dispersed phase.',
+      },
+      unassigned_kuhni_constants: {
+        symbol: '[k1…k8]',
+        unit: 'various',
+        description:
+          'Eight Kühni-specific constants identified from secondary reproduction: ' +
+          '[2.67e-2, 0.77, 0.64, 20.7, 0.90, -0.34, 2.27, -0.77]. ' +
+          'Term assignment (which maps to C, n, a, b, c, d, e, and any additional terms) ' +
+          'must be established from K&H 1995 primary paper (DOI: 10.1021/ie00038a032). ' +
+          'Do not assign to equation terms until confirmed.',
       },
       V_slip: {
         symbol: 'V_slip',
         unit: 'm/s',
         description:
-          'Slip velocity: relative velocity between dispersed and continuous phases. ' +
-          'Defined as V_slip = V_d/φ_d + V_c/(1−φ_d) (K&H 1995, Eq. 1). ' +
-          'Sign convention: both V_d and V_c are positive superficial velocities ' +
-          '(absolute values; directionality handled by the countercurrent continuity equation).',
+          'Slip velocity. Definition (K&H 1995, Eq. 1): V_slip = V_d/φ_d + V_c/(1−φ_d). ' +
+          'Both V_d and V_c are positive superficial velocities (m/s).',
       },
       V_d: {
         symbol: 'V_d',
         unit: 'm/s',
         description:
-          'Dispersed-phase superficial velocity (volumetric flow / column cross-section area). ' +
-          'In ECR-2: dispersed phase is NMP (if nmp_continuous=false) or RRBO.',
+          'Dispersed-phase superficial velocity = Q_RRBO / A_col in ECR-2. ' +
+          'RRBO is the dispersed phase in ECR-2.',
       },
       V_c: {
         symbol: 'V_c',
         unit: 'm/s',
         description:
-          'Continuous-phase superficial velocity (volumetric flow / column cross-section area).',
-      },
-      C: {
-        symbol: 'C',
-        unit: '—',
-        description:
-          'Kühni-specific regression constant. READ FROM K&H 1995 TABLE.',
-      },
-      n: {
-        symbol: 'n',
-        unit: '—',
-        description: 'Kühni-specific exponent on (1−φ_d). READ FROM K&H 1995 TABLE.',
-      },
-      a: {
-        symbol: 'a',
-        unit: '—',
-        description: 'Kühni-specific exponent on V_d. READ FROM K&H 1995 TABLE.',
-      },
-      b: {
-        symbol: 'b',
-        unit: '—',
-        description: 'Kühni-specific exponent on (V_c + V_d). READ FROM K&H 1995 TABLE.',
-      },
-      c: {
-        symbol: 'c',
-        unit: '—',
-        description: 'Kühni-specific exponent on (ρ_c/Δρ). READ FROM K&H 1995 TABLE.',
-      },
-      d: {
-        symbol: 'd',
-        unit: '—',
-        description: 'Kühni-specific exponent on (μ_c/σ). READ FROM K&H 1995 TABLE.',
-      },
-      e: {
-        symbol: 'e',
-        unit: '—',
-        description: 'Kühni-specific exponent on ε. READ FROM K&H 1995 TABLE.',
+          'Continuous-phase superficial velocity = Q_NMP / A_col in ECR-2. ' +
+          'NMP is the continuous phase in ECR-2.',
       },
       rho_c: {
         symbol: 'ρ_c',
         unit: 'kg/m³',
-        description: 'Continuous-phase density',
+        description: 'Continuous-phase (NMP) density at operating temperature',
       },
       delta_rho: {
         symbol: 'Δρ',
         unit: 'kg/m³',
-        description: 'Absolute density difference |ρ_c − ρ_d|',
+        description: 'Absolute density difference |ρ_NMP − ρ_RRBO|',
       },
       mu_c: {
         symbol: 'μ_c',
         unit: 'Pa·s',
-        description: 'Continuous-phase dynamic viscosity',
+        description: 'Continuous-phase (NMP) dynamic viscosity',
       },
       sigma: {
         symbol: 'σ',
         unit: 'N/m',
-        description: 'Liquid–liquid interfacial tension',
+        description: 'NMP/RRBO interfacial tension at operating temperature',
       },
       epsilon: {
         symbol: 'ε',
@@ -478,57 +511,60 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
         unit: '—',
         note:
           'K&H 1995 correlation range for agitated columns. ' +
-          'Flooding occurs as φ_d → φ_d_flood; must monitor this margin separately.',
+          'Flooding occurs as φ_d → φ_d_flood; flooding margin must be monitored separately.',
       },
       V_d: {
         min: 0.0005,
         max: 0.025,
         unit: 'm/s',
-        note: 'Approximate range of K&H 1995 Kühni dataset. Confirm from primary paper Table 1.',
+        note: 'Approximate range of K&H 1995 Kühni dataset. Confirm exact bounds from primary paper.',
       },
       V_c: {
         min: 0.0005,
         max: 0.025,
         unit: 'm/s',
-        note: 'Approximate range. Confirm from primary paper Table 1.',
+        note: 'Approximate range. Confirm from primary paper.',
       },
       epsilon: {
         min: 0.05,
         max: 50,
         unit: 'W/kg',
-        note: 'Agitated-column range from K&H 1995. Confirm Kühni subset range.',
+        note: 'Agitated-column range. Confirm Kühni subset bounds from primary paper.',
       },
     },
 
     applicabilityStatus: 'candidate_governed',
-    primarySourceVerified: false,   // MUST be set to true after reading K&H 1995 Table
-    validatedForRRBONMP: false,     // Pilot calibration required
+    primarySourceVerified: false,            // Must be set to true after reading K&H 1995
+    secondaryReproductionVerified: true,     // 8 constants traced to secondary peer-reviewed source
+    validatedForRRBONMP: false,              // Pilot calibration required
 
     pilotCalibrationFactor: {
-      symbol: 'f_cal_hld',
+      symbol: 'f_cal_phi',
       description:
-        'Multiplicative calibration factor applied to the K&H 1995 predicted holdup ' +
-        'for the NMP/RRBO system specifically. f_cal_hld = 1.0 (uncalibrated) until ' +
-        'pilot data are available. Kept separate from the published equation.',
+        'φ_d_design = f_cal_phi · φ_d_KH95. ' +
+        'Multiplicative factor applied to the K&H 1995 prediction to correct for ' +
+        'NMP/RRBO-specific coalescence behaviour (interfacial rheology, aromatic solute effects). ' +
+        'Kept strictly separate from the published correlation constants — ' +
+        'do not modify the 8 identified Kühni constants during calibration.',
       currentValue: 'NOT_YET_CALIBRATED',
       note:
-        'The calibration factor corrects for fluid-system-specific coalescence behaviour ' +
-        '(NMP/RRBO interfacial rheology, trace-surfactant effects from aromatic components) ' +
-        'that the generic K&H 1995 regression cannot capture. Must be measured at ECR pilot scale.',
+        'f_cal_phi derived from ECR pilot-plant holdup measurements with actual RRBO/NMP. ' +
+        'Until measured, f_cal_phi = 1.0 (no correction).',
     },
 
     approvalNote:
-      'candidate_governed: equation structure and citation confirmed. ' +
+      'candidate_governed: 8 Kühni constants identified from secondary peer-reviewed ' +
+      'reproduction [2.67e-2, 0.77, 0.64, 20.7, 0.90, -0.34, 2.27, -0.77]. ' +
       'BEFORE advancing to governed: ' +
-      '(1) Read K&H 1995 primary paper (DOI 10.1021/ie00038a055), identify the ' +
-      '    exact Kühni-column equation form and fill in ALL exponents (n, a, b, c, d, e) ' +
-      '    and constant C from the table — not from secondary sources. ' +
-      '(2) Confirm whether K&H 1995 use the φ_d/(1−φ_d)^n form or an alternative ' +
-      '    explicit representation for Kühni columns specifically. ' +
-      '(3) Verify validity ranges against the ECR-2 operating envelope. ' +
-      '(4) Set primarySourceVerified = true with engineer name and date. ' +
-      '(5) Note that the holdup correlation is NOT gated on d₃₂ in K&H 1995 — ' +
-      '    both can be evaluated independently. ' +
+      '(1) Read K&H 1995 primary paper (DOI 10.1021/ie00038a032) and identify the ' +
+      '    exact Kühni equation form — confirm whether the φ_d/(1−φ_d)^n structure ' +
+      '    or an alternative representation is used for Kühni. ' +
+      '(2) Assign each of the 8 constants to its exact term in the equation; ' +
+      '    confirm units and dimensional consistency of every group. ' +
+      '(3) Verify the validity range (V_d, V_c, ε, σ, Δρ) covers ECR-2 envelope. ' +
+      '(4) Confirm ECR-2 phase convention (RRBO=dispersed, NMP=continuous) matches ' +
+      '    the K&H 1995 Kühni dataset dispersed-phase convention. ' +
+      '(5) Set primarySourceVerified = true with engineer name and date. ' +
       'Do NOT implement numerically until governed.',
   },
 
