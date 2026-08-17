@@ -542,11 +542,11 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     if (hComp === undefined || hComp <= 0 || hComp > 2)
       err('compartmentHeight_m', 'compartmentHeight_m must be > 0 and ≤ 2 (m)');
     if (D !== undefined && H !== undefined && hComp !== undefined) {
-      const nComp = Math.floor(H / hComp);
+      const nComp = Math.ceil(H / hComp); // ceiling — matches calculate() geometry
       if (nComp < 1)
         err('compartmentHeight_m', `compartmentHeight_m ${hComp} m exceeds activeHeight_m ${H} m — no compartments would result`);
       if (nComp > 500)
-        errors.push({ field: 'activeHeight_m', message: `H/h_comp = ${nComp} compartments — consider a coarser compartment height for Phase 1 screening`, severity: 'warning' });
+        errors.push({ field: 'activeHeight_m', message: `ceil(H/h_comp) = ${nComp} compartments — consider a coarser compartment height for Phase 1 screening`, severity: 'warning' });
     }
 
     // Rotor geometry
@@ -693,15 +693,25 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       : null; // not supplied
 
     // ── Axial grid ───────────────────────────────────────────────────────────
-    const N_compartments = Math.floor(H / hComp);
-    const H_actual = N_compartments * hComp; // actual agitated height after integer rounding
-    const H_rounding_loss = H - H_actual;
-    if (H_rounding_loss > 1e-3)
+    //
+    // N_comp = ceil(H_requested / h_comp)  — ceiling, not floor.
+    // H_actual = N_comp × h_comp           — always ≥ H_requested.
+    //
+    // Rationale: N_comp is the realized integer equipment geometry (number of
+    // agitator stages manufactured). Using ceiling ensures the delivered
+    // column NEVER provides less active height than the design specifies.
+    // floor() would under-deliver height and is physically incorrect for
+    // specifying a piece of equipment against a required separation duty.
+    //
+    const N_compartments = Math.ceil(H / hComp);
+    const H_actual = N_compartments * hComp;
+    const H_extension = H_actual - H; // always ≥ 0 by construction
+    if (H_extension > 1e-3)
       pushWarning(
-        'HEIGHT_ROUNDING',
-        `H_active ${H} m / h_comp ${hComp} m → ${N_compartments} compartments; ` +
-        `actual agitated height = ${H_actual.toFixed(4)} m (rounding loss = ${H_rounding_loss.toFixed(4)} m). ` +
-        `Geometry preserved after integer rounding as required.`,
+        'HEIGHT_CEILING_EXTENSION',
+        `H_requested ${H} m / h_comp ${hComp} m → N_comp = ${N_compartments} (ceil). ` +
+        `H_actual = ${H_actual.toFixed(4)} m (${H_extension.toFixed(4)} m above requested). ` +
+        `H_actual ≥ H_requested is guaranteed — excess height is conservative.`,
       );
 
     // ── Feed compositions → mole basis ──────────────────────────────────────
