@@ -73,6 +73,11 @@ import {
   isGoverned,
 } from './llx-ecr2-correlation-registry';
 
+import {
+  computeKH1995Holdup,
+  type KH1995HoldupResult,
+} from './llx-ecr2-holdup';
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const ENGINE_ID      = 'llx-ecr-simulator';
@@ -237,8 +242,14 @@ export interface ECR2CompartmentState {
   // ── Hydrodynamic correlation outputs (pending approval) ──────────────────
   /** Sauter mean droplet diameter d₃₂(z) (m). Null — d₃₂ correlation pending_approval. */
   d32_m: null;
-  /** Dispersed-phase holdup φ_d(z) (−). Null — holdup correlation pending_approval. */
-  holdup_dispersed: null;
+  /**
+   * Dispersed-phase holdup φ_d(z) (−).
+   * Populated by K&H 1995 (secondary_equation_verified) in Phase 1 when
+   * interfacialTension and statorOpenAreaFraction are supplied.
+   * Null when inputs are missing or outside correlation envelope.
+   * Check result.status before reading result.phi.
+   */
+  holdup_dispersed: KH1995HoldupResult | null;
   /** Interfacial area a(z) = 6·φ_d/d₃₂ (m²/m³). Null — gated on d₃₂ and holdup. */
   interfacialArea_m2_m3: null;
   /** Overall volumetric mass-transfer coefficient K_oa (m/s). Null — K_oa pending_approval. */
@@ -657,6 +668,17 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const fStator      = inputs.statorOpenAreaFraction
       ? parseTagged(inputs.statorOpenAreaFraction, 'statorOpenAreaFraction', [], { min: 0.01, max: 0.9, unit: '-' })
       : undefined;
+    // Interfacial tension — optional; required for K&H 1995 holdup.
+    // If absent, holdup_dispersed will be null for all compartments.
+    const gamma        = inputs.interfacialTension !== undefined
+      ? parseTagged(inputs.interfacialTension, 'interfacialTension', [], { min: 0.0001, max: 0.1, unit: 'N/m' })
+      : undefined;
+    if (!gamma)
+      pushWarning(
+        'HOLDUP_GAMMA_MISSING',
+        'interfacialTension not supplied or failed validation — K&H 1995 holdup (ecr2_holdup_kh1995) not calculable. ' +
+        'Provide γ (N/m) as { value, sourceType, sourceReference } to enable holdup computation.',
+      );
     const feedDensity  = parseTagged(inputs.feedDensity,   'feedDensity',   [], { min: 500, max: 1200, unit: 'kg/m3', required: true })!;
 
     const mwRaw = inputs.molecularWeights as Record<string, unknown>;
@@ -800,6 +822,61 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       ? statorVelocity(qTotal_m3_h, A_col, fStator.value)
       : null;
 
+    // ── ψ — mechanical power dissipation per unit mass ───────────────────────
+    //
+    // ψ [W/kg] = N_P · N³ · D_R⁵ / (A_col · h_comp)
+    //          = P_V_W_m3 / ρ_mix
+    //
+    // Uses the same continuous-phase density basis as the Phase 1 power calc.
+    // Dimensional identity: P₁ [W] = N_P · ρ · N³ · D_R⁵
+    //   → P/V = P₁ / (A_col · h_comp) [W/m³]
+    //   → ψ   = (P/V) / ρ = N_P · N³ · D_R⁵ / (A_col · h_comp)  [W/kg = m²/s³] ✓
+    //
+    // In Phase 1, ψ is uniform along the column (inlet-condition properties).
+    // Phase 2 will replace with compartment-local densities.
+    //
+    const psi_W_kg = P_V_W_m3 / rhoMix_phase1;
+
+    // ── K&H 1995 holdup — uniform Phase 1 calculation ─────────────────────────
+    //
+    // Computed once with inlet-condition properties (Phase 1 uniform assumption).
+    // Phase 2 will call per compartment with local ρ, γ, and flow corrections.
+    //
+    // Phase mapping is governance-fixed for ECR-2:
+    //   Dispersed = RRBO → Ud = u_raffinate_m_s, ρd = feedDensity.value
+    //   Continuous = NMP → Uc = u_extract_m_s,   ρc = rhoNMP.value
+    //
+    // xf: stator open-area fraction. If statorOpenAreaFraction was not supplied,
+    // xf = NaN triggers input_missing in computeKH1995Holdup — no silent default.
+    //
+    const holdupResult: KH1995HoldupResult | null = gamma !== undefined
+      ? computeKH1995Holdup({
+          psi_W_kg,
+          Ud_m_s:      u_raffinate_m_s,   // RRBO = dispersed phase
+          Uc_m_s:      u_extract_m_s,     // NMP  = continuous phase
+          rho_c_kg_m3: rhoNMP.value,      // NMP  = continuous phase
+          rho_d_kg_m3: feedDensity.value, // RRBO = dispersed phase
+          gamma_N_m:   gamma.value,
+          xf:          fStator !== undefined ? fStator.value : Number.NaN,
+        })
+      : null;
+
+    if (holdupResult?.status === 'outside_envelope') {
+      const failed = holdupResult.failedChecks.join(', ');
+      pushWarning(
+        'HOLDUP_OUTSIDE_ENVELOPE',
+        `K&H 1995 holdup: inputs outside correlation envelope (${failed}) — holdup_dispersed = null for all compartments. ` +
+        'Adjust operating conditions or accept that holdup is not calculable at this envelope.',
+      );
+    }
+    if (holdupResult?.status === 'input_missing') {
+      pushWarning(
+        'HOLDUP_INPUT_MISSING',
+        `K&H 1995 holdup: missing or invalid required inputs (${holdupResult.missing.join(', ')}) — holdup_dispersed = null. ` +
+        'Supply statorOpenAreaFraction and valid interfacialTension to enable holdup calculation.',
+      );
+    }
+
     // ── Build compartment grid ───────────────────────────────────────────────
     const compartments: ECR2CompartmentState[] = [];
     for (let k = 1; k <= N_compartments; k++) {
@@ -841,11 +918,11 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         mu_d_Pa_s:      null,
         sigma_N_m:      null,
 
-        // Correlation outputs — all pending_approval
-        d32_m:               null,
-        holdup_dispersed:    null,
-        interfacialArea_m2_m3: null,
-        Koa_m_s:             null,
+        // Correlation outputs
+        d32_m:               null,          // CANDIDATE — UNRESOLVED_SYMBOL/UNRESOLVED_GROUPING; not implemented
+        holdup_dispersed:    holdupResult,  // K&H 1995 — secondary_equation_verified; UNVERIFIED pending primary
+        interfacialArea_m2_m3: null,        // Gated on d₃₂ and holdup — Phase 2
+        Koa_m_s:             null,          // pending_approval — Phase 2
       });
     }
 
@@ -916,7 +993,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         activeHeightInput_m:         H,
         nCompartments:               N_compartments,
         activeHeightActual_m:        H_actual,
-        heightRoundingLoss_m:        H_rounding_loss,
+        heightRoundingLoss_m:        H_extension,
         rotorType,
       },
 
@@ -964,17 +1041,47 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       },
 
       correlationRegistry: {
-        note: 'All correlations are pending_approval. No equations or coefficients are implemented. Phase 2 hydrodynamic correlations require separate approval.',
+        note:
+          'ecr2_holdup_kh1995: secondary_equation_verified — K&H 1995 holdup now computed per compartment. ' +
+          'ecr2_d32_kh1996: candidate_governed — UNRESOLVED_SYMBOL and UNRESOLVED_GROUPING block implementation. ' +
+          'ecr2_koa_kh1999: pending_approval — gated on d₃₂ and holdup. ' +
+          'ecr2_flooding_pending, ecr2_axial_dispersion_pending: pending/reserved.',
         entries: corrRegistry,
       },
 
+      holdupCorrelation: {
+        correlationId:   'ecr2_holdup_kh1995',
+        correlationStatus: 'secondary_equation_verified',
+        governanceStatus: 'UNVERIFIED — pending primary source',
+        primarySourceVerified: false,
+        validatedForRRBONMP: false,
+        phase1Note: 'Phase 1: uniform inlet-condition properties applied to all compartments. Axial property variation requires Phase 2.',
+        phaseMappingFixed: 'RRBO = dispersed (Ud, ρd) | NMP = continuous (Uc, ρc)',
+        psi_W_kg,
+        gamma_N_m: gamma?.value ?? null,
+        xf: fStator?.value ?? null,
+        result: holdupResult,
+        phi: holdupResult?.status === 'calculated' ? holdupResult.phi : null,
+        theta_s_m: holdupResult?.status === 'calculated' ? holdupResult.theta_s_m : null,
+        intermediates: holdupResult?.status === 'calculated' ? holdupResult.intermediates : null,
+        applicabilityDiagnostics: holdupResult && holdupResult.status !== 'input_missing'
+          ? holdupResult.applicabilityDiagnostics
+          : null,
+      },
+
       forwardSimulationStatus: {
-        status: 'not_implemented',
-        reason: 'Phase 1 scaffold only. Forward simulation (composition profiles, d₃₂, holdup, K_oa, mass-balance solver) requires Phase 2 implementation after correlation approval.',
+        holdup: holdupResult?.status === 'calculated'
+          ? `CALCULATED — φ = ${holdupResult.phi.toFixed(4)} (${(holdupResult.phi * 100).toFixed(2)} %) — UNVERIFIED pending primary source`
+          : `NOT CALCULATED — ${holdupResult?.status ?? 'interfacialTension not supplied'}`,
+        d32: 'NOT IMPLEMENTED — UNRESOLVED_SYMBOL and UNRESOLVED_GROUPING in registry; requires K&H 1996 primary paper review',
+        massTransfer: 'NOT IMPLEMENTED — gated on d₃₂ and holdup governing',
+        bvp: 'NOT IMPLEMENTED — Phase 2',
+        optimizer: 'NOT IMPLEMENTED — Phase 2',
+        axialDispersion: 'NOT IMPLEMENTED — reserved',
         nrtlReuseConfirmed: true,
         nrtlFunction: 'nrtlFlash(z, T_K, x0, y0) from llx-temperature-lle-model.ts — imported and ready for Phase 2',
         bvpOrientation: 'Two-point BVP: z=0 (RRBO feed known, extract unknown) and z=H (NMP feed known, raffinate unknown)',
-        rateBasisNote: 'ECR-2 is rate-based. NRTL provides local equilibrium TARGET for driving force; finite K_oa determines actual transfer. Bulk phases do not reach full equilibrium unless transfer conditions justify it.',
+        rateBasisNote: 'ECR-2 is rate-based. NRTL provides local equilibrium TARGET for driving force; finite K_oa determines actual transfer.',
       },
 
       ecr1IsolationProof: {
