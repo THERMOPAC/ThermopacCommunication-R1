@@ -822,18 +822,38 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       ? statorVelocity(qTotal_m3_h, A_col, fStator.value)
       : null;
 
-    // ── ψ — mechanical power dissipation per unit mass ───────────────────────
+    // ── ψ — mechanical specific power dissipation (Form A) ───────────────────
     //
-    // ψ [W/kg] = N_P · N³ · D_R⁵ / (A_col · h_comp)
-    //          = P_V_W_m3 / ρ_mix
+    // This implementation uses Form A:
     //
-    // Uses the same continuous-phase density basis as the Phase 1 power calc.
-    // Dimensional identity: P₁ [W] = N_P · ρ · N³ · D_R⁵
-    //   → P/V = P₁ / (A_col · h_comp) [W/m³]
-    //   → ψ   = (P/V) / ρ = N_P · N³ · D_R⁵ / (A_col · h_comp)  [W/kg = m²/s³] ✓
+    //   P₁      = N_P · ρ_b · N³ · D_R⁵                [W]       ← includes ρ_b
+    //   P/V     = P₁ / (A_col · h_comp)                 [W/m³]    ← includes ρ_b
+    //   ψ       = (P/V) / ρ_b                           [W/kg = m²/s³]
+    //           = N_P · ρ_b · N³ · D_R⁵ / (A·h) / ρ_b
+    //           = N_P · N³ · D_R⁵ / (A_col · h_comp)   ← ρ_b cancels ✓
     //
-    // In Phase 1, ψ is uniform along the column (inlet-condition properties).
-    // Phase 2 will replace with compartment-local densities.
+    // Density basis ρ_b: continuous-phase inlet density (rhoMix_phase1).
+    // Same ρ_b appears once in the numerator (powerPerRotor) and once in the
+    // denominator (division below) — it cancels completely.
+    // This is NOT a double division.  The result is density-independent.
+    //
+    // Form B equivalence:
+    //   ψ = N_P · N³ · D_R⁵ / (A_col · h_comp)   [W/kg]
+    // produces the same numerical value because the same ρ_b cancelled.
+    //
+    // Reference verification (N_P=1, N=1 s⁻¹, D_R=0.1 m, A=0.01 m², h=0.1 m):
+    //   Form A:  P = 1×ρ×1³×0.1⁵ = ρ×10⁻⁵ W
+    //            P/V = ρ×10⁻⁵ / 0.001 = ρ×0.01 W/m³
+    //            ψ = ρ×0.01 / ρ = 0.01 W/kg ✓
+    //   Form B:  ψ = 1×1³×0.1⁵ / (0.01×0.1) = 10⁻⁵/10⁻³ = 0.01 W/kg ✓
+    //
+    // Literature uncertainty (unresolved, does NOT affect calculation):
+    //   The exact liquid mass basis K&H 1995 intended for ψ has not been
+    //   confirmed from the primary paper. Since ρ_b cancels, the numerical
+    //   result is the same regardless of whether K&H used total, continuous,
+    //   or dispersed mass basis — provided their density appears consistently
+    //   in both P₁ and the ψ normalisation.
+    //   psiDefinitionEvidenceStatus = 'thermopac_preliminary'
     //
     const psi_W_kg = P_V_W_m3 / rhoMix_phase1;
 
@@ -1043,8 +1063,15 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         motorDesignPower_kW:  P_motor_W / 1000,
         shaftEfficiency:      { value: shaftEff.value,     source: sourceOf(shaftEff) },
         designMargin:         { value: designMargin.value, source: sourceOf(designMargin) },
-        powerFormula:         'P₁ = N_P · ρ_mix · N³ · D_R⁵ (per rotor, ECR2-003)',
+        powerFormula:         'P₁ = N_P · ρ_b · N³ · D_R⁵ (per rotor, ECR2-003)',
         motorFormula:         'P_motor = P_shaft_total / η_shaft × design_margin',
+        // ── ψ dimensional audit fields ────────────────────────────────────────
+        psi_W_kg,
+        psiFormA_verified: 'P_V_W_m3 = N_P·ρ_b·N³·D_R⁵/(A·h) [W/m³]; ψ = P_V_W_m3/ρ_b [W/kg]; ρ_b cancels → ψ = N_P·N³·D_R⁵/(A·h) — Form A ✓',
+        psiDensityCancellation: 'ρ_b enters once in numerator (powerPerRotor) and once in denominator (÷rhoMix_phase1) — not a double division; net result is density-independent',
+        powerDensityBasis: `Phase 1 continuous-phase inlet density (${continuousPhase}) = ${rhoMix_phase1.toFixed(2)} kg/m³ — same ρ_b in both P₁ and ψ normalisation`,
+        psiMassBasis: 'source_not_verified — K&H 1995 primary paper not yet read; Laitinen 2019 does not state mass basis explicitly; numerical result is density-independent due to cancellation, so mass-basis uncertainty does not affect ψ value when same ρ_b is used consistently',
+        psiDefinitionEvidenceStatus: 'thermopac_preliminary',
       },
 
       boundaryConditions,
