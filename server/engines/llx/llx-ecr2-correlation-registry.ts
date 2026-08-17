@@ -214,46 +214,55 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
         unit: 'm',
         description: 'Sauter mean droplet diameter (volume-to-surface mean)',
       },
+      // ── Kühni coefficients ──────────────────────────────────────────────────
+      // Identified values (secondary reproduction). Term assignments NOT yet
+      // established — do not pair Ci with ni until K&H 1996 Table 2 is read.
       C1: {
         symbol: 'C1',
         unit: '—',
         description:
-          'Kühni coefficient 1. Identified value: 3.04 (secondary reproduction). ' +
-          'Term assignment pending full equation reconstruction from K&H 1996. ' +
-          'Exponent partner: n1 = 0.45.',
+          'Kühni regression coefficient. Identified value: 3.04 (secondary reproduction). ' +
+          'Which term (buoyancy/turbulence/geometry) this multiplies is NOT YET CONFIRMED — ' +
+          'do not assume C1 pairs with n1 without primary-paper verification.',
       },
       C2: {
         symbol: 'C2',
         unit: '—',
         description:
-          'Kühni coefficient 2. Identified value: 1.60 (secondary reproduction). ' +
-          'Term assignment pending full equation reconstruction from K&H 1996. ' +
-          'Exponent partner: n2 = −0.63.',
+          'Kühni regression coefficient. Identified value: 1.60 (secondary reproduction). ' +
+          'Term assignment NOT YET CONFIRMED from primary paper.',
       },
       C3: {
         symbol: 'C3',
         unit: '—',
         description:
-          'Kühni coefficient 3. Identified value: 0.034 (secondary reproduction). ' +
-          'Term assignment pending full equation reconstruction from K&H 1996. ' +
-          'Exponent partner: n3 = −0.38. ' +
-          'May represent a geometry group (e.g. free area fraction, compartment aspect ratio) ' +
-          '— confirm from primary paper.',
+          'Kühni regression coefficient. Identified value: 0.034 (secondary reproduction). ' +
+          'Term assignment NOT YET CONFIRMED from primary paper. ' +
+          'May belong to a geometry-correction group or a third additive term.',
       },
+      // ── Kühni exponents ─────────────────────────────────────────────────────
+      // Identified values (secondary reproduction). Which Ci each ni belongs to
+      // is NOT established — confirm term structure from primary paper.
       n1: {
         symbol: 'n1',
         unit: '—',
-        description: 'Kühni exponent 1. Identified value: 0.45 (secondary reproduction). Associated with C1.',
+        description:
+          'Kühni regression exponent. Identified value: 0.45 (secondary reproduction). ' +
+          'Term assignment NOT YET CONFIRMED. Do not pair with C1 without primary-paper verification.',
       },
       n2: {
         symbol: 'n2',
         unit: '—',
-        description: 'Kühni exponent 2. Identified value: −0.63 (secondary reproduction). Associated with C2.',
+        description:
+          'Kühni regression exponent. Identified value: −0.63 (secondary reproduction). ' +
+          'Term assignment NOT YET CONFIRMED.',
       },
       n3: {
         symbol: 'n3',
         unit: '—',
-        description: 'Kühni exponent 3. Identified value: −0.38 (secondary reproduction). Associated with C3.',
+        description:
+          'Kühni regression exponent. Identified value: −0.38 (secondary reproduction). ' +
+          'Term assignment NOT YET CONFIRMED.',
       },
       sigma: {
         symbol: 'σ',
