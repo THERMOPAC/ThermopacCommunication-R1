@@ -24,6 +24,9 @@
 import type { ComponentVector } from './llx-ecr-simulator-engine';
 import type { KH1995HoldupResult } from './llx-ecr2-holdup';
 import type { D32Result } from './llx-ecr2-d32-interface';
+import type { ECR2LocalNRTLResult } from './llx-ecr2-local-nrtl';
+import type { ECR2LocalPropertySet } from './llx-ecr2-local-properties';
+import type { ECR2DiffusivityContract, DiffusivityInput } from './llx-ecr2-diffusivity';
 
 // ── Dependency reasons ─────────────────────────────────────────────────────
 
@@ -63,36 +66,103 @@ export interface ECR2NullField {
 
 // ── Hydrodynamic dimensionless groups ──────────────────────────────────────
 
-/** Drop-level dimensionless groups — all gated on d₃₂ and local properties. */
+/**
+ * Drop-level dimensionless groups — bulk (phase-level) quantities.
+ *
+ * Sc_c and Sc_d are per-component and live in ECR2ComponentMassTransfer.
+ * These bulk groups use NMP/RRBO phase properties only.
+ */
 export interface ECR2HydrodynamicGroups {
-  /** Drop Reynolds number: Re_d = U_slip·ρ_c·d₃₂/μ_c (—). */
-  Re_drop: number | ECR2NullField;
-  /** Drop Weber number: We = ρ_c·U_slip²·d₃₂/σ (—). */
-  We_drop: number | ECR2NullField;
-  /** Continuous-phase Schmidt number: Sc_c = μ_c/(ρ_c·De_c) (—).
-   *  Requires molecular diffusivity De_c (not an input in Phase 1). */
-  Sc_c: number | ECR2NullField;
-  /** Dispersed-phase Schmidt number: Sc_d = μ_d/(ρ_d·De_d) (—). */
-  Sc_d: number | ECR2NullField;
   /** Slip velocity: U_slip = u_d/φ_d + u_c/(1−φ_d) (m/s).
    *  Computable once φ_d is available — does NOT require d₃₂. */
   U_slip_m_s: number | ECR2NullField;
+  /** Drop Reynolds number: Re_d = ρ_c·U_slip·d₃₂/μ_c (—). Gated on d₃₂ + properties. */
+  Re_drop: number | ECR2NullField;
+  /** Drop Weber number: We = ρ_c·U_slip²·d₃₂/σ (—). Gated on d₃₂ + properties + σ. */
+  We_drop: number | ECR2NullField;
+  /**
+   * Viscosity ratio κ = μ_d/μ_c (—).
+   * Gated on μ_d (engineer-supplied) and μ_c (EPD library).
+   */
+  kappa: number | ECR2NullField;
+  /**
+   * NOTE: Sc_c,i and Sc_d,i are per-component (component-index-dependent De).
+   * They live in ECR2ComponentMassTransfer, not here.
+   */
 }
 
-/** Per-component mass-transfer quantities. */
+/**
+ * Per-component mass-transfer quantities.
+ *
+ * Applied separately for Sat (0), Mono (1), Di (2), Poly (3).
+ * NMP (4) is the solvent — not included in this structure.
+ *
+ * Blocked fields carry ECR2NullField with an explicit dependency reason.
+ * Dependency chain (all gated on d₃₂ and K&H 1999 approval):
+ *
+ *   De_c,i (engineer-supplied) → Sc_c,i → (Sh_c,i) → k_c,i = Sh_c,i·De_c,i/d₃₂
+ *   De_d,i (engineer-supplied) → Sc_d,i → (Sh_d,i) → k_d,i = Sh_d,i·De_d,i/d₃₂
+ *   k_c,i + k_d,i + K_d,i     → K_overall,i = k_c·k_d/(k_d·K_d+k_c)
+ *   K_overall,i + a            → Koa_i = K_overall,i · a
+ */
 export interface ECR2ComponentMassTransfer {
-  /** Continuous-phase Sherwood number Sh_c (—). Gated on d₃₂. */
+  // ── Diffusivities (engineer-supplied — no EPD/CEL defaults) ──────────
+  /** Molecular diffusivity of this component in the continuous (NMP) phase (m²/s). */
+  De_c_m2_s: DiffusivityInput | ECR2NullField;
+  /** Molecular diffusivity of this component in the dispersed (RRBO) phase (m²/s). */
+  De_d_m2_s: DiffusivityInput | ECR2NullField;
+
+  // ── Schmidt numbers (per-component — depend on De and phase properties) ──
+  /** Continuous-phase Schmidt number: Sc_c,i = μ_c/(ρ_c·De_c,i) (—). */
+  Sc_c: number | ECR2NullField;
+  /** Dispersed-phase Schmidt number: Sc_d,i = μ_d/(ρ_d·De_d,i) (—). */
+  Sc_d: number | ECR2NullField;
+
+  // ── Sherwood numbers (K&H 1999 — pending_approval) ────────────────────
+  /** Continuous-phase Sherwood number Sh_c,i (—). Gated on d₃₂ and K&H 1999. */
   Sh_c: number | ECR2NullField;
-  /** Dispersed-phase Sherwood number Sh_d (—). Gated on d₃₂. */
+  /** Dispersed-phase Sherwood number Sh_d,i (—). Gated on d₃₂ and K&H 1999. */
   Sh_d: number | ECR2NullField;
-  /** Continuous-phase mass-transfer coefficient k_c = Sh_c·De_c/d₃₂ (m/s). */
+
+  // ── Phase mass-transfer coefficients (m/s) ────────────────────────────
+  /** Continuous-phase k_c,i = Sh_c,i·De_c,i/d₃₂ (m/s). */
   k_c_m_s: number | ECR2NullField;
-  /** Dispersed-phase mass-transfer coefficient k_d = Sh_d·De_d/d₃₂ (m/s). */
+  /** Dispersed-phase k_d,i = Sh_d,i·De_d,i/d₃₂ (m/s). */
   k_d_m_s: number | ECR2NullField;
-  /** Partition coefficient from NRTL: K_d,i = C_d,i*/C_c,i* (—). */
+
+  // ── Equilibrium partition coefficient ─────────────────────────────────
+  /**
+   * Partition coefficient K_d,i (—).
+   * Definition and derivation from NRTL to be approved in the
+   * Mass-Transfer / Driving-Force Approval Report (hard stop §9).
+   * NOT computed until that derivation is approved.
+   */
   K_d_partition: number | ECR2NullField;
-  /** Overall mass-transfer coefficient k_i = k_c·k_d/(k_d·K_d+k_c) (m/s). */
+
+  // ── Overall coefficient and K_oa ──────────────────────────────────────
+  /**
+   * Overall mass-transfer coefficient K_overall,i (m/s).
+   * Formula blocked pending approval (§9). Structure preserved for wiring.
+   */
   K_overall_m_s: number | ECR2NullField;
+  /**
+   * Volumetric overall coefficient K_oa,i = K_overall,i · a (m/s).
+   * Null until K_overall,i and a are both available.
+   */
+  Koa_i_m_s: number | ECR2NullField;
+
+  // ── Driving force and transfer rate (NOT YET IMPLEMENTED) ────────────
+  /**
+   * Component driving force Δ_i (units TBD — see §9 approval report).
+   * NOT implemented until K_d, K_overall basis, and concentration basis
+   * are confirmed.
+   */
+  drivingForce_i: ECR2NullField;
+  /**
+   * Component transfer rate N_i (mol/(m³·s) × compartment volume).
+   * NOT implemented — requires driving force and K_oa.
+   */
+  transferRate_i_mol_m3_s: ECR2NullField;
 }
 
 // ── Full compartment state schema (V2) ─────────────────────────────────────
@@ -234,6 +304,48 @@ export interface ECR2CompartmentStateV2 {
    */
   Koa_m_s: number | ECR2NullField;
 
+  // ── Local compartment composition (Phase 2 / test state) ────────────
+  /**
+   * Actual RRBO-rich (dispersed) phase mole fractions at this compartment [Sat, Mono, Di, Poly, NMP].
+   * Supplied as a test state in Phase 2 pre-BVP development.
+   * Not propagated axially yet (BVP not implemented).
+   * Null until compositions are supplied or BVP is solved.
+   */
+  x_local: number[] | ECR2NullField;
+  /**
+   * Actual NMP-rich (continuous) phase mole fractions at this compartment [Sat, Mono, Di, Poly, NMP].
+   * Null until supplied or BVP solved.
+   */
+  y_local: number[] | ECR2NullField;
+
+  // ── Local NRTL equilibrium ─────────────────────────────────────────
+  /**
+   * NRTL equilibrium quantities at local compartment conditions.
+   * Contains: gamma_x, gamma_y, x_eq, y_eq, flashConverged, flashTrivial,
+   *           K_approx, temperatureStatus.
+   * Null until x_local and y_local are supplied.
+   */
+  nrtlLocal: ECR2LocalNRTLResult | ECR2NullField;
+
+  // ── Local physical properties ──────────────────────────────────────
+  /**
+   * Full local physical property set: rho_c, rho_d, delta_rho, mu_c, mu_d, sigma.
+   * rho_c, rho_d, mu_c: from EPD library at temperature T.
+   * mu_d, sigma: must be engineer-supplied (no EPD library defaults).
+   * All evaluated as PURE-COMPONENT properties at temperature T_C
+   * (composition-dependent mixing rules are NOT implemented here).
+   * Null when the full property set has not been computed.
+   */
+  localProperties: ECR2LocalPropertySet | null;
+
+  // ── Component diffusivities (engineer-supplied) ────────────────────
+  /**
+   * Molecular diffusivities for the 4 transferable pseudo-components.
+   * No EPD/CEL library defaults exist — all must be engineer-supplied.
+   * Null when no diffusivities have been provided.
+   */
+  diffusivityContract: ECR2DiffusivityContract | null;
+
   // ── Compositions (Phase 2 — BVP solution) ────────────────────────────
   /** Raffinate-phase mole fractions [Sat, Mono, Di, Poly, NMP]. Null until Phase 2. */
   x_raffinate_mole: ComponentVector | ECR2NullField;
@@ -317,6 +429,36 @@ export const NULL_DE_MISSING: ECR2NullField = nullField(
   'ecr2_koa_kh1999',
   'Requires molecular diffusivity De (m²/s) for this pseudo-component in each phase. ' +
   'De must be engineer-supplied or computed from a separate diffusivity model.',
+);
+
+export const NULL_BLOCKED_COMPOSITION: ECR2NullField = nullField(
+  'blocked_by_composition',
+  null,
+  'Requires local compartment composition (x_local and y_local). ' +
+  'Supply test compositions or wait for BVP solver (Phase 2).',
+);
+
+export const NULL_BLOCKED_KD_PARTITION: ECR2NullField = nullField(
+  'blocked_by_Kd_partition',
+  'ecr2_koa_kh1999',
+  'Requires component partition coefficient K_d,i from NRTL flash. ' +
+  'K_d definition and derivation must be approved (§9 hard stop) before implementation. ' +
+  'See Mass-Transfer / Driving-Force Approval Report.',
+);
+
+export const NULL_DRIVING_FORCE: ECR2NullField = nullField(
+  'phase_2_not_implemented',
+  null,
+  'Driving force Δ_i not implemented. Requires: K_d definition approved (§9), ' +
+  'concentration basis confirmed, K_overall formula approved. ' +
+  'See Mass-Transfer / Driving-Force Approval Report before implementation.',
+);
+
+export const NULL_TRANSFER_RATE: ECR2NullField = nullField(
+  'phase_2_not_implemented',
+  null,
+  'Component transfer rate N_i not implemented. Requires driving force Δ_i and K_oa,i. ' +
+  'See Mass-Transfer / Driving-Force Approval Report.',
 );
 
 // ── Dependency graph ───────────────────────────────────────────────────────
