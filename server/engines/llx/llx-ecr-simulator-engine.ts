@@ -66,7 +66,19 @@ import {
   nrtlFlash,
   nrtlLnGamma,
   temperatureModelStatus,
+  TLLE_MODEL_ID,
+  TLLE_MODEL_VERSION,
+  TLLE_MODEL_NAME,
+  TLLE_MODEL_CITATION,
 } from '../../engine-framework/cel/llx-temperature-lle-model';
+
+import {
+  COTO_COMPONENTS,
+  COTO_COMPONENT_ROLES,
+  COTO_2022_DATASET_ID,
+  COTO_2022_DATASET_VERSION,
+  SURROGATE_MW,
+} from '../../engine-framework/cel/coto2022-nmp-lle';
 
 import {
   correlationRegistrySummary,
@@ -132,6 +144,27 @@ export const N_COMP = 5;
 
 /** Five-component mole or mass fraction vector. Index follows IDX. */
 export type ComponentVector = [number, number, number, number, number];
+
+/**
+ * Fixed Coto surrogate MW vector in the canonical NRTL component order.
+ *
+ * This is a thermodynamic-coordinate conversion basis only. It is not a
+ * physical RRBO molecular-weight characterization.
+ */
+const COTO_SURROGATE_MW_VECTOR: ComponentVector = [
+  SURROGATE_MW.c12,
+  SURROGATE_MW.xylene,
+  SURROGATE_MW.methylnaphtalene,
+  SURROGATE_MW.pyrene,
+  SURROGATE_MW.nmp,
+];
+
+export const ECR2_PHYSICAL_BASIS_STATUS =
+  'ACTIVE_ENGINEERING_INPUT__NUMERICAL_USE_PENDING_MASS_TRANSFER_ARCHITECTURE' as const;
+
+export type ECR2ThermodynamicStateSource =
+  | 'c2_inherited'
+  | 'c2_basis_reconstructed';
 
 // ── Type helpers ───────────────────────────────────────────────────────────────
 
@@ -320,10 +353,23 @@ export interface ECR2BoundaryConditions {
     z_m: 0;
     /** RRBO feed mass flow entering at bottom (kg/h). Known. */
     rrboFeed_kg_h: number;
-    /** RRBO feed mole fractions [Sat, Mono, Di, Poly, NMP]. Known (converted from mass basis). */
-    x_feed_mole: ComponentVector;
-    /** RRBO feed total molar flow (mol/h). Known. */
-    L_feed_mol_h: number;
+    /**
+     * Coto thermodynamic feed coordinates [Sat, Mono, Di, Poly, NMP].
+     * These are surrogate-model mole fractions, not physical RRBO mole fractions.
+     */
+    x_feed_thermo: ComponentVector;
+    /**
+     * Coto-surrogate total molar representation of the RRBO feed (mol/h).
+     * It closes with x_feed_thermo and its Coto average surrogate MW, never
+     * with ECR2MolecularWeights.
+     */
+    L_feed_surrogate_mol_h: number;
+    /**
+     * Component mass representation derived from the Coto surrogate basis.
+     * This is not a physical RRBO allocation when its composition differs from
+     * the project feed composition.
+     */
+    surrogateComponentMassRepresentation_kg_h: ComponentVector;
     /** Extract outlet — unknown at Phase 1; solved by BVP in Phase 2. */
     extract_outlet: null;
   };
@@ -331,10 +377,15 @@ export interface ECR2BoundaryConditions {
     z_m: number; // = H_active_m
     /** Fresh NMP solvent mass flow entering at top (kg/h). Known. */
     nmpFeed_kg_h: number;
-    /** Fresh NMP mole fractions [Sat, Mono, Di, Poly, NMP]. Known (purity-derived). */
-    y_feed_mole: ComponentVector;
-    /** Fresh NMP total molar flow (mol/h). Known. */
-    V_feed_mol_h: number;
+    /** Coto thermodynamic solvent coordinates [Sat, Mono, Di, Poly, NMP]. */
+    y_feed_thermo: ComponentVector;
+    /**
+     * Coto-surrogate total molar representation of the solvent feed (mol/h).
+     * It closes with the selected C2 solvent molar ratio and y_feed_thermo.
+     */
+    V_feed_surrogate_mol_h: number;
+    /** Coto-surrogate component mass representation; not a physical allocation. */
+    surrogateComponentMassRepresentation_kg_h: ComponentVector;
     /** Raffinate outlet — unknown at Phase 1; solved by BVP in Phase 2. */
     raffinate_outlet: null;
   };
@@ -364,6 +415,91 @@ export interface ECR2MolecularWeights {
 
 /** NMP MW is exact — not a user input. */
 export const NMP_MW_G_MOL = 99.13;
+
+/**
+ * Optional handoff of the canonical C2 thermodynamic input trace.
+ *
+ * Only feedMoleFractions is required for a handoff. Remaining values preserve
+ * available C2 traceability; ECR-2 reconstructs them from its actual physical
+ * feed boundary when C2 did not persist a value.
+ */
+export interface ECR2C2ThermodynamicHandoff {
+  feedMoleFractions: ComponentVector;
+  temperatureK?: number;
+  solventMolarRatio?: number;
+  sourceCalculationId?: string;
+  /** Current Design Software revision that supplied the C2 result snapshot. */
+  sourceRevisionId?: string;
+  sourceWorkspaceId?: string;
+}
+
+/**
+ * Immutable trace of the Coto/NRTL coordinate system used by ECR-2.
+ *
+ * This basis is intentionally separate from ECR2MolecularWeights. It gives
+ * nrtlFlash() the identical feed coordinate used by C2 whenever that canonical
+ * C2 state is available.
+ */
+export interface ECR2ThermodynamicBasis {
+  componentOrder: readonly [0, 1, 2, 3, 4];
+  componentIdentities: typeof COTO_COMPONENTS;
+  componentRoles: typeof COTO_COMPONENT_ROLES;
+  feedMoleFractions: ComponentVector;
+  /** Coto-surrogate mass fractions implied by feedMoleFractions and SURROGATE_MW. */
+  feedSurrogateMassFractions: ComponentVector;
+  surrogateMW_g_mol: {
+    saturates: number;
+    mono: number;
+    di: number;
+    poly: number;
+    nmp: number;
+  };
+  averageSurrogateFeedMW_g_mol: number;
+  temperatureK: number;
+  solventMolarRatio: number;
+  rrboCharacterisationWtPct: {
+    saturates: number;
+    mono: number;
+    di: number;
+    poly: number;
+  };
+  thermodynamicStateSource: ECR2ThermodynamicStateSource;
+  sourceCalculationId: string | null;
+  sourceRevisionId: string | null;
+  sourceWorkspaceId: string | null;
+  modelIdentity: {
+    id: string;
+    version: string;
+    name: string;
+    citation: string;
+    datasetId: string;
+    datasetVersion: string;
+  };
+}
+
+/**
+ * Active project physical characterization retained for the future approved
+ * mass-balance / mass-transfer architecture. No numerical bridge to the Coto
+ * thermodynamic coordinates exists or is created here.
+ */
+export interface ECR2PhysicalBasis {
+  physicalBasisStatus: typeof ECR2_PHYSICAL_BASIS_STATUS;
+  ecr2MolecularWeights: {
+    saturates_g_mol: TaggedValue;
+    mono_g_mol: TaggedValue;
+    di_g_mol: TaggedValue;
+    poly_g_mol: TaggedValue;
+    nmp_g_mol: {
+      value: number;
+      unit: 'g/mol';
+      source: string;
+    };
+  };
+  systemDefaultAvailability:
+    'not_exposed_by_current_input_contract__no_default_value_invented';
+  overrideStatus:
+    'source_tag_retained__explicit_override_flag_not_supported_by_current_input_contract';
+}
 
 // ── Input schema ───────────────────────────────────────────────────────────────
 
@@ -406,6 +542,12 @@ export interface ECR2SimulatorInputs {
   };
   /** NMP solvent purity — mass fraction of NMP in the solvent stream (0–1). */
   nmpPurity: number;
+  /**
+   * Canonical thermodynamic state emitted by C2 at
+   * data.lleStageCalculation.inputTrace. When supplied, this exact Coto
+   * feedMoleFractions vector is inherited instead of being regenerated.
+   */
+  c2ThermodynamicHandoff?: ECR2C2ThermodynamicHandoff;
   /** Phase continuity assignment. */
   phaseConfiguration: 'rrbo_continuous_nmp_dispersed' | 'nmp_continuous_rrbo_dispersed';
 
@@ -448,10 +590,12 @@ export interface ECR2SimulatorInputs {
   /** Interfacial tension σ at operating temperature (N/m). Source-tagged. */
   interfacialTension?: TaggedValue;
 
-  // ── Molecular weights (for mole-basis conversion) ─────────────────────
+  // ── Physical/project molecular weights (not NRTL coordinates) ─────────
   /**
-   * Pseudo-component molecular weights. Source-tagged.
-   * Must come from RRBO characterization; Assumed values seeded as defaults.
+   * Physical/project RRBO pseudo-component molecular weights. Source-tagged.
+   * They remain active engineering inputs, reserved for the future approved
+   * physical mass-balance/mass-transfer layer. They must not alter the Coto
+   * thermodynamic mole-fraction coordinates.
    */
   molecularWeights: ECR2MolecularWeights;
 
@@ -509,35 +653,186 @@ function powerPerRotor(
   return N_P * rho_kg_m3 * Math.pow(N, 3) * Math.pow(rotorDiameter_m, 5);
 }
 
-// ── Mass/mole conversion ──────────────────────────────────────────────────────
+// ── Thermodynamic-coordinate conversion ───────────────────────────────────────
 
 /**
- * Convert mass fractions to mole fractions for the 5-component system.
- * MW array: [MW_Sat, MW_Mono, MW_Di, MW_Poly, MW_NMP] in g/mol.
+ * Convert mass fractions to Coto thermodynamic mole coordinates.
+ * MW array must be the canonical Coto surrogate vector in [Sat, Mono, Di, Poly, NMP] order.
  */
-function massToMoleFraction(
+function massToThermodynamicMoleFraction(
   wt: ComponentVector,
   mw: [number, number, number, number, number],
 ): ComponentVector {
   const moles = wt.map((w, i) => w / mw[i]);
   const total = moles.reduce((s, m) => s + m, 0);
   if (total <= 0)
-    throw new Error('massToMoleFraction: zero total moles — check mass fractions');
+    throw new Error('massToThermodynamicMoleFraction: zero total surrogate moles — check mass fractions');
   return moles.map((m) => m / total) as unknown as ComponentVector;
 }
 
-/** Convert kg/h mass flows to total mol/h given mass fractions and MW array. */
-function massFlowToMolFlow(
-  massFlow_kg_h: number,
-  massFractions: ComponentVector,
-  mw_g_mol: [number, number, number, number, number],
-): number {
-  // mol/h = Σ (w_i × massFlow_kg_h × 1000 / MW_i)
-  let molTotal = 0;
-  for (let i = 0; i < N_COMP; i++) {
-    molTotal += (massFractions[i] * massFlow_kg_h * 1000) / mw_g_mol[i];
-  }
-  return molTotal;
+/** Component mass representation implied by one closed Coto surrogate basis. */
+function surrogateComponentMassRepresentation(
+  totalSurrogateMolarFlow_mol_h: number,
+  moleFractions: ComponentVector,
+): ComponentVector {
+  return moleFractions.map(
+    (z_i, i) => totalSurrogateMolarFlow_mol_h * z_i * COTO_SURROGATE_MW_VECTOR[i] / 1000,
+  ) as ComponentVector;
+}
+
+function isComponentVector(value: unknown): value is ComponentVector {
+  return Array.isArray(value)
+    && value.length === N_COMP
+    && value.every((v) => typeof v === 'number' && Number.isFinite(v) && v >= 0)
+    && Math.abs(value.reduce((sum, v) => sum + v, 0) - 1) <= 0.005;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Extracts the canonical state from the C2 result snapshot without modifying C2.
+ *
+ * The source path is intentionally exact:
+ * data.lleStageCalculation.inputTrace.feedMoleFractions.
+ * A null result tells the caller no usable canonical state was persisted and
+ * that ECR-2 must use its governed C2-basis reconstruction instead.
+ */
+export function extractC2ThermodynamicHandoff(
+  c2CalculationResult: unknown,
+): ECR2C2ThermodynamicHandoff | null {
+  if (!isRecord(c2CalculationResult)) return null;
+  const resultData = isRecord(c2CalculationResult.data)
+    ? c2CalculationResult.data
+    : c2CalculationResult;
+  const lleStageCalculation = resultData.lleStageCalculation;
+  if (!isRecord(lleStageCalculation) || !isRecord(lleStageCalculation.inputTrace)) return null;
+  const inputTrace = lleStageCalculation.inputTrace;
+  if (!isComponentVector(inputTrace.feedMoleFractions)) return null;
+
+  const sourceCalculationId = typeof resultData.calculationId === 'string'
+    ? resultData.calculationId
+    : typeof c2CalculationResult.calculationId === 'string'
+      ? c2CalculationResult.calculationId
+      : undefined;
+  const sourceWorkspaceId = typeof resultData.workspaceId === 'string'
+    ? resultData.workspaceId
+    : typeof c2CalculationResult.workspaceId === 'string'
+      ? c2CalculationResult.workspaceId
+      : undefined;
+  const sourceRevisionId = typeof resultData.revisionId === 'string'
+    ? resultData.revisionId
+    : typeof c2CalculationResult.revisionId === 'string'
+      ? c2CalculationResult.revisionId
+      : undefined;
+  const temperatureK = num(inputTrace.temperatureK);
+  const solventMolarRatio = num(inputTrace.solventMolarRatio_molNMP_per_molFeed);
+
+  return {
+    feedMoleFractions: [...inputTrace.feedMoleFractions] as ComponentVector,
+    ...(temperatureK !== undefined ? { temperatureK } : {}),
+    ...(solventMolarRatio !== undefined ? { solventMolarRatio } : {}),
+    ...(sourceCalculationId ? { sourceCalculationId } : {}),
+    ...(sourceRevisionId ? { sourceRevisionId } : {}),
+    ...(sourceWorkspaceId ? { sourceWorkspaceId } : {}),
+  };
+}
+
+/**
+ * Builds the governed Coto thermodynamic coordinate state for ECR-2.
+ *
+ * The inherited C2 vector is authoritative when it is present and valid.
+ * Otherwise reconstruction deliberately matches C2's wt% / SURROGATE_MW
+ * conversion exactly. Physical ECR2MolecularWeights are intentionally absent.
+ */
+export function buildECR2ThermodynamicBasis(input: {
+  operatingTemperatureC: number;
+  rrboMassFlow_kg_h: number;
+  nmpMassFlow_kg_h: number;
+  rrboMassFractions: ComponentVector;
+  c2ThermodynamicHandoff?: ECR2C2ThermodynamicHandoff;
+}): ECR2ThermodynamicBasis {
+  const { operatingTemperatureC, rrboMassFlow_kg_h, nmpMassFlow_kg_h, rrboMassFractions, c2ThermodynamicHandoff } = input;
+  const fallbackFeedMoleFractions = massToThermodynamicMoleFraction(
+    rrboMassFractions,
+    COTO_SURROGATE_MW_VECTOR,
+  );
+  const inherited = c2ThermodynamicHandoff?.feedMoleFractions;
+  const feedMoleFractions = inherited && isComponentVector(inherited)
+    ? [...inherited] as ComponentVector
+    : fallbackFeedMoleFractions;
+  const averageSurrogateFeedMW_g_mol = feedMoleFractions.reduce(
+    (sum, z_i, i) => sum + z_i * COTO_SURROGATE_MW_VECTOR[i],
+    0,
+  );
+  const surrogateMassFractions = feedMoleFractions.map(
+    (z_i, i) => (z_i * COTO_SURROGATE_MW_VECTOR[i]) / averageSurrogateFeedMW_g_mol,
+  ) as ComponentVector;
+  const reconstructedSolventMolarRatio =
+    (nmpMassFlow_kg_h / rrboMassFlow_kg_h)
+    * (averageSurrogateFeedMW_g_mol / SURROGATE_MW.nmp);
+
+  return {
+    componentOrder: [0, 1, 2, 3, 4],
+    componentIdentities: COTO_COMPONENTS,
+    componentRoles: COTO_COMPONENT_ROLES,
+    feedMoleFractions,
+    feedSurrogateMassFractions: surrogateMassFractions,
+    surrogateMW_g_mol: {
+      saturates: SURROGATE_MW.c12,
+      mono: SURROGATE_MW.xylene,
+      di: SURROGATE_MW.methylnaphtalene,
+      poly: SURROGATE_MW.pyrene,
+      nmp: SURROGATE_MW.nmp,
+    },
+    averageSurrogateFeedMW_g_mol,
+    temperatureK: c2ThermodynamicHandoff?.temperatureK ?? operatingTemperatureC + 273.15,
+    solventMolarRatio: c2ThermodynamicHandoff?.solventMolarRatio ?? reconstructedSolventMolarRatio,
+    rrboCharacterisationWtPct: {
+      saturates: surrogateMassFractions[IDX.SAT] * 100,
+      mono: surrogateMassFractions[IDX.MONO] * 100,
+      di: surrogateMassFractions[IDX.DI] * 100,
+      poly: surrogateMassFractions[IDX.POLY] * 100,
+    },
+    thermodynamicStateSource: inherited && isComponentVector(inherited)
+      ? 'c2_inherited'
+      : 'c2_basis_reconstructed',
+    sourceCalculationId: c2ThermodynamicHandoff?.sourceCalculationId ?? null,
+    sourceRevisionId: c2ThermodynamicHandoff?.sourceRevisionId ?? null,
+    sourceWorkspaceId: c2ThermodynamicHandoff?.sourceWorkspaceId ?? null,
+    modelIdentity: {
+      id: TLLE_MODEL_ID,
+      version: TLLE_MODEL_VERSION,
+      name: TLLE_MODEL_NAME,
+      citation: TLLE_MODEL_CITATION,
+      datasetId: COTO_2022_DATASET_ID,
+      datasetVersion: COTO_2022_DATASET_VERSION,
+    },
+  };
+}
+
+function buildECR2PhysicalBasis(
+  molecularWeights: ECR2MolecularWeights,
+): ECR2PhysicalBasis {
+  return {
+    physicalBasisStatus: ECR2_PHYSICAL_BASIS_STATUS,
+    ecr2MolecularWeights: {
+      saturates_g_mol: molecularWeights.saturates_g_mol,
+      mono_g_mol: molecularWeights.mono_g_mol,
+      di_g_mol: molecularWeights.di_g_mol,
+      poly_g_mol: molecularWeights.poly_g_mol,
+      nmp_g_mol: {
+        value: NMP_MW_G_MOL,
+        unit: 'g/mol',
+        source: 'Exact molecular weight — not an input',
+      },
+    },
+    systemDefaultAvailability:
+      'not_exposed_by_current_input_contract__no_default_value_invented',
+    overrideStatus:
+      'source_tag_retained__explicit_override_flag_not_supported_by_current_input_contract',
+  };
 }
 
 // ── Engine ────────────────────────────────────────────────────────────────────
@@ -594,6 +889,30 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       const sum = sat + mono + di + poly;
       if (Math.abs(sum - 1.0) > 0.005)
         err('feedCompositionMassFraction', `Mass fractions must sum to 1.0 (got ${sum.toFixed(4)})`);
+    }
+
+    // Optional C2 canonical thermodynamic-state handoff
+    if (inputs.c2ThermodynamicHandoff !== undefined && inputs.c2ThermodynamicHandoff !== null) {
+      const handoff = inputs.c2ThermodynamicHandoff as Record<string, unknown>;
+      if (!isComponentVector(handoff.feedMoleFractions)) {
+        err(
+          'c2ThermodynamicHandoff.feedMoleFractions',
+          'C2 canonical feedMoleFractions must be five non-negative values [Sat, Mono, Di, Poly, NMP] summing to 1.000 ± 0.005',
+        );
+      }
+      const handoffTemperatureK = num(handoff.temperatureK);
+      if (handoff.temperatureK !== undefined && (handoffTemperatureK === undefined || handoffTemperatureK <= 0)) {
+        err('c2ThermodynamicHandoff.temperatureK', 'C2 canonical temperatureK must be a positive finite number when supplied');
+      } else if (T !== undefined && handoffTemperatureK !== undefined && Math.abs(handoffTemperatureK - (T + 273.15)) > 1e-6) {
+        err(
+          'c2ThermodynamicHandoff.temperatureK',
+          `C2 canonical temperatureK (${handoffTemperatureK}) must match operatingTemperatureC + 273.15 (${T + 273.15})`,
+        );
+      }
+      const handoffSolventMolarRatio = num(handoff.solventMolarRatio);
+      if (handoff.solventMolarRatio !== undefined && (handoffSolventMolarRatio === undefined || handoffSolventMolarRatio <= 0)) {
+        err('c2ThermodynamicHandoff.solventMolarRatio', 'C2 canonical solventMolarRatio must be > 0 when supplied');
+      }
     }
 
     // NMP purity
@@ -776,16 +1095,18 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const mwMono = parseTagged(mwRaw.mono_g_mol,      'molecularWeights.mono_g_mol',      [], { min: 100, max: 1000, unit: 'g/mol', required: true })!;
     const mwDi   = parseTagged(mwRaw.di_g_mol,        'molecularWeights.di_g_mol',        [], { min: 100, max: 1000, unit: 'g/mol', required: true })!;
     const mwPoly = parseTagged(mwRaw.poly_g_mol,      'molecularWeights.poly_g_mol',      [], { min: 100, max: 1000, unit: 'g/mol', required: true })!;
-    const mwNMP  = NMP_MW_G_MOL;
-
-    const mwVec: [number, number, number, number, number] = [
-      mwSat.value, mwMono.value, mwDi.value, mwPoly.value, mwNMP,
-    ];
+    const physicalMolecularWeights: ECR2MolecularWeights = {
+      saturates_g_mol: mwSat,
+      mono_g_mol: mwMono,
+      di_g_mol: mwDi,
+      poly_g_mol: mwPoly,
+    };
+    const physicalBasis = buildECR2PhysicalBasis(physicalMolecularWeights);
 
     // Warn if any MW is Assumed
     const mwAssumed = [mwSat, mwMono, mwDi, mwPoly].some((t) => t.sourceType === 'Assumed');
     if (mwAssumed)
-      pushWarning('MW_ASSUMED', 'One or more pseudo-component molecular weights are Assumed — mole-basis boundary conditions are Pending Validation until RRBO characterization data are available.');
+      pushWarning('PHYSICAL_MW_ASSUMED', 'One or more physical/project RRBO molecular weights are Assumed. They remain active engineering inputs for the pending physical mass-transfer architecture and do not alter Coto/NRTL coordinates.');
 
     // ── NRTL model status at operating temperature ───────────────────────────
     const nrtlStatus = temperatureModelStatus(T_K);
@@ -826,7 +1147,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         `H_actual ≥ H_requested is guaranteed — excess height is conservative.`,
       );
 
-    // ── Feed compositions → mole basis ──────────────────────────────────────
+    // ── Physical feed composition → separate thermodynamic coordinates ──────
     const fc = inputs.feedCompositionMassFraction as Record<string, unknown>;
     const rrboMassFrac: ComponentVector = [
       num(fc.saturates)!,
@@ -844,36 +1165,47 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       rrboMassFrac[3] / rrboBuildSum,
       0,
     ];
-    const x_feed_mole = massToMoleFraction(rrboNormalized, mwVec);
-    const L_feed_mol_h = massFlowToMolFlow(mRRBO, rrboNormalized, mwVec);
+    const c2ThermodynamicHandoff = inputs.c2ThermodynamicHandoff as ECR2C2ThermodynamicHandoff | undefined;
+    const thermodynamicBasis = buildECR2ThermodynamicBasis({
+      operatingTemperatureC: T_C,
+      rrboMassFlow_kg_h: mRRBO,
+      nmpMassFlow_kg_h: mNMP,
+      rrboMassFractions: rrboNormalized,
+      c2ThermodynamicHandoff,
+    });
+    const x_feed_thermo = thermodynamicBasis.feedMoleFractions;
+    const L_feed_surrogate_mol_h =
+      (mRRBO * 1000) / thermodynamicBasis.averageSurrogateFeedMW_g_mol;
+    const rrboSurrogateComponentMassRepresentation_kg_h =
+      surrogateComponentMassRepresentation(L_feed_surrogate_mol_h, x_feed_thermo);
 
-    // NMP solvent: purity fraction is NMP, impurity assumed Saturates
-    const nmpMassFrac: ComponentVector = [
-      1 - purity, // impurity → Saturates (conservative, Assumed)
-      0,
-      0,
-      0,
-      purity,
-    ];
+    // The physical NMP purity remains a plant-boundary input. The C2/NRTL
+    // thermodynamic solvent boundary is canonical fresh NMP so it closes with
+    // the selected C2 solvent molar ratio.
     if (purity < 1.0)
-      pushWarning('NMP_IMPURITY_ASSUMED_SAT', `NMP purity ${purity.toFixed(4)} — solvent impurity (${((1 - purity) * 100).toFixed(2)} %) assigned to Saturates (Assumed). Review if impurity characterization differs.`);
-    const y_feed_mole = massToMoleFraction(nmpMassFrac, mwVec);
-    const V_feed_mol_h = massFlowToMolFlow(mNMP, nmpMassFrac, mwVec);
+      pushWarning('NMP_PURITY_PHYSICAL_ONLY', `NMP purity ${purity.toFixed(4)} is retained as a physical plant-boundary input. The C2 thermodynamic solvent coordinate is canonical fresh NMP; characterize impurities before any physical mass-transfer architecture is enabled.`);
+    const y_feed_thermo: ComponentVector = [0, 0, 0, 0, 1];
+    const V_feed_surrogate_mol_h =
+      L_feed_surrogate_mol_h * thermodynamicBasis.solventMolarRatio;
+    const nmpSurrogateComponentMassRepresentation_kg_h =
+      surrogateComponentMassRepresentation(V_feed_surrogate_mol_h, y_feed_thermo);
 
     // ── Boundary conditions ──────────────────────────────────────────────────
     const boundaryConditions: ECR2BoundaryConditions = {
       bottom: {
         z_m: 0,
         rrboFeed_kg_h: mRRBO,
-        x_feed_mole,
-        L_feed_mol_h,
+        x_feed_thermo,
+        L_feed_surrogate_mol_h,
+        surrogateComponentMassRepresentation_kg_h: rrboSurrogateComponentMassRepresentation_kg_h,
         extract_outlet: null,
       },
       top: {
         z_m: H_actual,
         nmpFeed_kg_h: mNMP,
-        y_feed_mole,
-        V_feed_mol_h,
+        y_feed_thermo,
+        V_feed_surrogate_mol_h,
+        surrogateComponentMassRepresentation_kg_h: nmpSurrogateComponentMassRepresentation_kg_h,
         raffinate_outlet: null,
       },
     };
@@ -1167,28 +1499,27 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           density_kg_m3:    { value: rho, source: sourceOf(feedDensity) },
           volumetricFlow_m3_h: qRRBO_m3_h,
           compositionMassFraction: { saturates: rrboNormalized[IDX.SAT], mono: rrboNormalized[IDX.MONO], di: rrboNormalized[IDX.DI], poly: rrboNormalized[IDX.POLY] },
-          compositionMoleFraction: { saturates: x_feed_mole[IDX.SAT], mono: x_feed_mole[IDX.MONO], di: x_feed_mole[IDX.DI], poly: x_feed_mole[IDX.POLY], nmp: x_feed_mole[IDX.NMP] },
-          totalMolarFlow_mol_h: L_feed_mol_h,
+          thermodynamicMoleFraction: { saturates: x_feed_thermo[IDX.SAT], mono: x_feed_thermo[IDX.MONO], di: x_feed_thermo[IDX.DI], poly: x_feed_thermo[IDX.POLY], nmp: x_feed_thermo[IDX.NMP] },
+          surrogateMolarFlow_mol_h: L_feed_surrogate_mol_h,
+          surrogateComponentMassRepresentation_kg_h: { saturates: rrboSurrogateComponentMassRepresentation_kg_h[IDX.SAT], mono: rrboSurrogateComponentMassRepresentation_kg_h[IDX.MONO], di: rrboSurrogateComponentMassRepresentation_kg_h[IDX.DI], poly: rrboSurrogateComponentMassRepresentation_kg_h[IDX.POLY], nmp: rrboSurrogateComponentMassRepresentation_kg_h[IDX.NMP] },
+          thermodynamicCoordinateNote: 'Closed Coto surrogate thermodynamic representation only. Physical RRBO kg/h and physical composition remain separately reported and are not redefined.',
         },
         nmpSolvent: {
           massFlow_kg_h:    mNMP,
           purity:           purity,
           density_kg_m3:    { value: rhoNMP.value, source: rhoNMP.source },
           volumetricFlow_m3_h: qNMP_m3_h,
-          compositionMoleFraction: { saturates: y_feed_mole[IDX.SAT], mono: y_feed_mole[IDX.MONO], di: y_feed_mole[IDX.DI], poly: y_feed_mole[IDX.POLY], nmp: y_feed_mole[IDX.NMP] },
-          totalMolarFlow_mol_h: V_feed_mol_h,
-          impurityNote: purity < 1.0 ? 'Solvent impurity assigned to Saturates — Assumed' : 'Pure NMP solvent',
+          thermodynamicMoleFraction: { saturates: y_feed_thermo[IDX.SAT], mono: y_feed_thermo[IDX.MONO], di: y_feed_thermo[IDX.DI], poly: y_feed_thermo[IDX.POLY], nmp: y_feed_thermo[IDX.NMP] },
+          surrogateMolarFlow_mol_h: V_feed_surrogate_mol_h,
+          surrogateComponentMassRepresentation_kg_h: { saturates: nmpSurrogateComponentMassRepresentation_kg_h[IDX.SAT], mono: nmpSurrogateComponentMassRepresentation_kg_h[IDX.MONO], di: nmpSurrogateComponentMassRepresentation_kg_h[IDX.DI], poly: nmpSurrogateComponentMassRepresentation_kg_h[IDX.POLY], nmp: nmpSurrogateComponentMassRepresentation_kg_h[IDX.NMP] },
+          impurityNote: purity < 1.0 ? 'Physical solvent impurity remains outside the C2 thermodynamic coordinate; no transfer mapping has been created.' : 'Physical solvent specified as pure NMP',
         },
         SO_massRatio: SO_mass,
-        molecularWeights: {
-          saturates_g_mol: { value: mwSat.value, source: sourceOf(mwSat) },
-          mono_g_mol:      { value: mwMono.value, source: sourceOf(mwMono) },
-          di_g_mol:        { value: mwDi.value,   source: sourceOf(mwDi) },
-          poly_g_mol:      { value: mwPoly.value,  source: sourceOf(mwPoly) },
-          nmp_g_mol:       { value: NMP_MW_G_MOL,  source: 'Exact molecular weight — not an input' },
-          assumedNote:     mwAssumed ? 'One or more MW values are Assumed — mole fractions are Pending Validation' : 'All MW values are source-tagged',
-        },
+        physicalBasis,
       },
+
+      thermodynamicBasis,
+      physicalBasis,
 
       geometry: {
         formulaReference: 'ECR2-001',

@@ -13,6 +13,7 @@ import { mapWorkspaceProcessDesignInputs } from './llx-process-design-input-mapp
 import { mapWorkspaceMechanicalInputs } from './llx-mechanical-design-input-mapper';
 import { mergeSectionData } from './section-merge';
 import { generateNozzleSchedule as generateNozzles } from './llx-nozzle-master-data';
+import { injectC2ThermodynamicHandoffForECR2 } from './engines/llx/llx-ecr2-c2-handoff';
 
 // ── Lifecycle transition table ────────────────────────────────────────────────
 // action → { requiredStatus, nextStatus, setsFrozen, setsField }
@@ -692,6 +693,35 @@ export async function runCalculation(
   // C2 engine and its equations are untouched).
   if (rev.module_type === 'llx' && ['process_design', 'hydraulics_common', 'ecp', 'ecr'].includes(calculationType)) {
     inputs = mapWorkspaceProcessDesignInputs(inputs, calculationType);
+  }
+
+  // C2 → ECR-2 thermodynamic handoff: the accepted C2 snapshot owns the
+  // Coto/NRTL feed coordinate when it is available. The ECR-2 engine keeps its
+  // exact C2-basis reconstruction fallback when no valid C2 trace is persisted.
+  // This is intentionally limited to the simulator; C4/C5 retain their existing
+  // governed N_T adoption path below.
+  if (rev.module_type === 'llx' && calculationType === 'ecr_simulator') {
+    const [c2ResultQ, c2InputQ] = await Promise.all([
+      pool.query(
+        `SELECT data, computed_at FROM design_software_results
+         WHERE revision_id = $1 AND section = 'process_design'`,
+        [revisionId],
+      ),
+      pool.query(
+        `SELECT updated_at FROM design_software_inputs
+         WHERE revision_id = $1 AND section = 'process_design'`,
+        [revisionId],
+      ),
+    ]);
+    injectC2ThermodynamicHandoffForECR2(
+      inputs,
+      c2ResultQ.rows[0]?.data,
+      {
+        sourceRevisionId: String(revisionId),
+        c2ResultComputedAt: c2ResultQ.rows[0]?.computed_at,
+        c2InputsUpdatedAt: c2InputQ.rows[0]?.updated_at,
+      },
+    );
   }
 
   // Governed N_T adoption (Stage 7): when the accepted C2 result carries an
