@@ -5,7 +5,7 @@
 //   · computeDropletDiameter() — both modes
 //   · isD32Usable() — usability guard
 //   · Engineer-supplied mode: value validation, labelling, guards, advisories
-//   · Published-correlation mode: always returns correlation_unresolved
+//   · Published-correlation mode: approved K&H 1996 preliminary reconstruction
 //   · Interface contract: double-exponent notation absent, correct label text
 //   · Driving-force contract existence
 // ─────────────────────────────────────────────────────────────────────────────
@@ -48,77 +48,122 @@ const PUBLISHED_CFG: PublishedCorrelationD32Config = {
   correlationId: 'ecr2_d32_kh1996',
 };
 
-// ── 1. Published-correlation mode ─────────────────────────────────────────────
+const RESULT_META = {
+  d32_raw_m: null,
+  engineeringBasis: 'test',
+  governanceStatus: 'test',
+  primarySourceVerified: false,
+  validatedForRRBONMP: false,
+  pilotCalibrationStatus: 'test',
+  calibrationFactor: null,
+  localAxialApplication: 'test',
+};
 
-describe('computeDropletDiameter — published_correlation mode', () => {
-  it('always returns status=correlation_unresolved while K&H 1996 flags are open', () => {
-    const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
-    expect(result.status).toBe('correlation_unresolved');
-  });
+// ── 1. Published-correlation preliminary reconstruction ───────────────────────
 
-  it('returns d32_m = null when correlation is unresolved', () => {
+describe('computeDropletDiameter — published_correlation preliminary reconstruction', () => {
+  it('returns a usable preliminary-engineering reconstruction', () => {
     const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
-    expect(result.d32_m).toBeNull();
-  });
-
-  it('returns mode = published_correlation', () => {
-    const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
+    expect(result.status).toBe('preliminary_engineering_reconstruction');
     expect(result.mode).toBe('published_correlation');
-  });
-
-  it('returns correlationId = ecr2_d32_kh1996', () => {
-    const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
     expect(result.correlationId).toBe('ecr2_d32_kh1996');
+    expect(isD32Usable(result)).toBe(true);
   });
 
-  it('label is null when d32_m is null', () => {
+  it('uses C1^n1 = 3.04^0.45 once only', () => {
     const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
-    expect(result.label).toBeNull();
+    expect(3.04 ** 0.45).toBeCloseTo(1.649275139, 9);
+    expect(result.diagnostics.join(' ')).toContain('1.649275139');
+    expect(result.diagnostics.join(' ')).not.toMatch(/\^0\.45\)\^0\.45/);
   });
 
-  it('diagnostics contain UNRESOLVED_SYMBOL mention', () => {
+  it('matches an independently calculated reference case', () => {
     const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
-    const combined = result.diagnostics.join(' ');
-    expect(combined).toMatch(/UNRESOLVED_SYMBOL/);
+    // Independent evaluation of the approved equation for VALID_LOCAL_STATE.
+    expect(result.d32_raw_m).toBeCloseTo(0.45667856255541833, 12);
+    expect(result.d32_m).toBeCloseTo(0.45667856255541833, 12);
+    expect(result.d32_m).toBeGreaterThan(0);
   });
 
-  it('diagnostics contain UNRESOLVED_GROUPING mention', () => {
-    const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
-    const combined = result.diagnostics.join(' ');
-    expect(combined).toMatch(/UNRESOLVED_GROUPING/);
+  it('uses the capillary-length geometry group rather than the invalid transcription', () => {
+    const rhoC = VALID_LOCAL_STATE.rho_c_kg_m3;
+    const gamma = VALID_LOCAL_STATE.sigma_N_m;
+    const g = 9.80665;
+    const geometryFromDirectForm = VALID_LOCAL_STATE.h_comp_m * Math.sqrt(rhoC * g / gamma);
+    const lambdaC = Math.sqrt(gamma / (rhoC * g));
+    expect(geometryFromDirectForm).toBeCloseTo(VALID_LOCAL_STATE.h_comp_m / lambdaC, 12);
+    expect(Number.isFinite(geometryFromDirectForm)).toBe(true);
   });
 
-  it('diagnostics mention K&H 1996 primary paper DOI', () => {
-    const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
-    const combined = result.diagnostics.join(' ');
-    expect(combined).toMatch(/10\.1021\/ie950674w/);
+  it('returns input_missing for absent gamma without inventing a value', () => {
+    const { sigma_N_m: _unused, ...withoutGamma } = VALID_LOCAL_STATE;
+    const result = computeDropletDiameter(withoutGamma, PUBLISHED_CFG);
+    expect(result.status).toBe('input_missing');
+    expect(result.d32_m).toBeNull();
+    expect(result.diagnostics.join(' ')).toMatch(/sigma_N_m.*gamma/i);
   });
 
-  it('diagnostics suggest engineer_supplied as the path forward', () => {
-    const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
-    const combined = result.diagnostics.join(' ');
-    expect(combined).toMatch(/engineer.supplied/i);
-  });
-
-  it('engineerSource is null for published_correlation mode', () => {
-    const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
-    expect(result.engineerSource).toBeNull();
-  });
-
-  it('extrapolated is false for unresolved correlation', () => {
-    const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
-    expect(result.extrapolated).toBe(false);
-  });
-
-  it('works with minimal local state (no optional fields)', () => {
-    const result = computeDropletDiameter({}, PUBLISHED_CFG);
-    expect(result.status).toBe('correlation_unresolved');
+  it('rejects gamma <= 0 without clamping', () => {
+    const result = computeDropletDiameter({ ...VALID_LOCAL_STATE, sigma_N_m: 0 }, PUBLISHED_CFG);
+    expect(result.status).toBe('calculation_invalid');
     expect(result.d32_m).toBeNull();
   });
 
-  it('is not usable', () => {
+  it('rejects h <= 0 without clamping', () => {
+    const result = computeDropletDiameter({ ...VALID_LOCAL_STATE, h_comp_m: 0 }, PUBLISHED_CFG);
+    expect(result.status).toBe('calculation_invalid');
+    expect(result.d32_m).toBeNull();
+  });
+
+  it('rejects rho_c <= rho_d', () => {
+    const result = computeDropletDiameter({ ...VALID_LOCAL_STATE, rho_c_kg_m3: 870 }, PUBLISHED_CFG);
+    expect(result.status).toBe('calculation_invalid');
+    expect(result.d32_m).toBeNull();
+  });
+
+  it('rejects psi <= 0 and retains a finite raw value when calculable', () => {
+    const result = computeDropletDiameter({ ...VALID_LOCAL_STATE, psi_W_kg: 0 }, PUBLISHED_CFG);
+    expect(result.status).toBe('calculation_invalid');
+    expect(result.d32_m).toBeNull();
+    expect(result.d32_raw_m).toBe(0);
+  });
+
+  it('carries required preliminary governance fields and warnings', () => {
     const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
-    expect(isD32Usable(result)).toBe(false);
+    const diagnostics = result.diagnostics.join(' ');
+    expect(result.engineeringBasis).toBe('Published Correlation — Preliminary Engineering');
+    expect(result.governanceStatus).toBe('K&H 1996 reconstructed pending primary-source verification');
+    expect(result.primarySourceVerified).toBe(false);
+    expect(result.validatedForRRBONMP).toBe(false);
+    expect(result.calibrationFactor).toBe(1);
+    expect(result.pilotCalibrationStatus).toBe('NOT_YET_CALIBRATED__UNITY_BASIS');
+    expect(result.localAxialApplication).toBe('Thermopac model extension — uniform/inlet property basis');
+    for (const warning of [
+      'PRIMARY_SOURCE_UNVERIFIED__KH1996',
+      'NUMERATOR_RECONSTRUCTION__C1_N1',
+      'GEOMETRY_RECONSTRUCTION__CAPILLARY_LENGTH_GROUP',
+      'KH1996_PHASE_CONVENTION_NOT_PRIMARY_VERIFIED',
+      'RRBO_NMP_VALIDATION_PENDING',
+    ]) expect(diagnostics).toContain(warning);
+  });
+
+  it('does not use stator open area or holdup as d32 inputs', () => {
+    const baseline = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
+    const changedContext = computeDropletDiameter({
+      ...VALID_LOCAL_STATE,
+      xf_stator: 0.81,
+      phi_d: 0.91,
+    }, PUBLISHED_CFG);
+    expect(changedContext.d32_m).toBeCloseTo(baseline.d32_m!, 12);
+  });
+
+  it('responds only to an approved mathematical local-state input', () => {
+    const baseline = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
+    const changedGamma = computeDropletDiameter({
+      ...VALID_LOCAL_STATE,
+      sigma_N_m: VALID_LOCAL_STATE.sigma_N_m * 1.1,
+    }, PUBLISHED_CFG);
+    expect(changedGamma.d32_m).not.toBeCloseTo(baseline.d32_m!, 12);
   });
 });
 
@@ -274,8 +319,9 @@ describe('isD32Usable()', () => {
     expect(isD32Usable(result)).toBe(true);
   });
 
-  it('false for correlation_unresolved', () => {
-    const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
+  it('false for missing gamma', () => {
+    const { sigma_N_m: _unused, ...withoutGamma } = VALID_LOCAL_STATE;
+    const result = computeDropletDiameter(withoutGamma, PUBLISHED_CFG);
     expect(isD32Usable(result)).toBe(false);
   });
 
@@ -291,6 +337,7 @@ describe('isD32Usable()', () => {
       diagnostics: [],
       provenance: '',
       engineerSource: null,
+      ...RESULT_META,
     };
     expect(isD32Usable(fakeResult)).toBe(false);
   });
@@ -306,6 +353,7 @@ describe('isD32Usable()', () => {
       diagnostics: [],
       provenance: '',
       engineerSource: null,
+      ...RESULT_META,
     };
     expect(isD32Usable(fakeResult)).toBe(false);
   });
@@ -321,6 +369,7 @@ describe('isD32Usable()', () => {
       diagnostics: [],
       provenance: '',
       engineerSource: null,
+      ...RESULT_META,
     };
     expect(isD32Usable(fakeResult)).toBe(false);
   });
@@ -373,14 +422,14 @@ describe('driving-force interface contract', () => {
 // ── 7. Compartment-index diagnostics ──────────────────────────────────────────
 
 describe('compartment index in diagnostics', () => {
-  it('unresolved result includes compartment index in diagnostics', () => {
+  it('published result includes compartment index in diagnostics', () => {
     const state = { ...VALID_LOCAL_STATE, compartmentIndex: 7 };
     const result = computeDropletDiameter(state, PUBLISHED_CFG);
     const combined = result.diagnostics.join(' ');
     expect(combined).toContain('7');
   });
 
-  it('unresolved result with z_m shows location when no compartmentIndex', () => {
+  it('input-missing result with z_m shows location when no compartmentIndex', () => {
     const state = { h_comp_m: 0.06, z_m: 1.23 };
     const result = computeDropletDiameter(state, PUBLISHED_CFG);
     const combined = result.diagnostics.join(' ');

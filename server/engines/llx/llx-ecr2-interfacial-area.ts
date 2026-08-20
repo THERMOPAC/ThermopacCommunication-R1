@@ -25,6 +25,8 @@ import { isD32Usable, type D32Result } from './llx-ecr2-d32-interface';
 /** Status of the interfacial area computation. */
 export type InterfacialAreaStatus =
   | 'calculated'              // a computed from both usable φ_d and usable d₃₂
+  | 'calculated_preliminary_d32'
+                               // a computed from approved preliminary K&H 1996 d₃₂
   | 'calculated_engineer_d32' // a computed but d₃₂ was engineer-supplied
   | 'blocked_holdup'          // φ_d is not usable
   | 'blocked_d32'             // d₃₂ is null or not usable
@@ -34,7 +36,7 @@ export type InterfacialAreaStatus =
 /**
  * Result of computeInterfacialArea().
  *
- * a_m2_m3 is non-null only when status is 'calculated' or 'calculated_engineer_d32'.
+ * a_m2_m3 is non-null only when a calculated status is returned.
  */
 export interface InterfacialAreaResult {
   /** Specific interfacial area a = 6·φ_d/d₃₂ (m²/m³). Null when either input is unusable. */
@@ -67,7 +69,7 @@ export interface InterfacialAreaResult {
  *      'calculated_extrapolated'. 'physically_invalid', 'input_missing', and
  *      'calculation_invalid' all block the computation.
  *   2. isD32Usable(d32Result) — d₃₂ must be a finite positive number with
- *      status 'calculated', 'calculated_extrapolated', or 'engineer_supplied'.
+ *      a preliminary, calculated, calculated_extrapolated, or engineer-supplied status.
  *   3. 0 < φ_d < 1 (physical admissibility — belt-and-suspenders after guard 1).
  *   4. d₃₂ > 0     (physical admissibility — belt-and-suspenders after guard 2).
  *
@@ -103,8 +105,7 @@ export function computeInterfacialArea(
     const reason = d32Result === null
       ? 'D₃₂ result is null — d₃₂ was not computed.'
       : `D₃₂ status '${d32Result.status}' is not usable for interfacial area. ` +
-        "Only 'calculated', 'calculated_extrapolated', and 'engineer_supplied' are downstream-consumable. " +
-        "(K&H 1996 has UNRESOLVED flags — supply an engineer d₃₂ to proceed.)";
+        'Only usable positive d₃₂ statuses are downstream-consumable.';
     blockingReasons.push(reason);
   }
 
@@ -156,11 +157,11 @@ export function computeInterfacialArea(
       blockingReasons,
       diagnostics: [
         `φ_d = ${typeof phi_d === 'number' ? phi_d.toFixed(4) : 'unavailable'} (usable, from K&H 1995). ` +
-        'd₃₂ is unavailable — K&H 1996 UNRESOLVED. Supply engineer d₃₂ to compute a.',
+        'd₃₂ is unavailable or failed a physical/numerical validity guard.',
       ],
       provenance:
         'a = 6·φ_d/d₃₂ not computed — d₃₂ is null. ' +
-        'K&H 1996 correlation has UNRESOLVED_SYMBOL and UNRESOLVED_GROUPING. ' +
+        'The K&H 1996 d₃₂ result is not usable. ' +
         'Blocked_by: ecr2_d32_kh1996.',
     };
   }
@@ -206,6 +207,7 @@ export function computeInterfacialArea(
 
   // Diagnostics and status
   const isEngineerD32 = d32Result.mode === 'engineer_supplied';
+  const isPreliminaryD32 = d32Result.status === 'preliminary_engineering_reconstruction';
   const isExtrapolatedHoldup = holdupResult.status === 'calculated_extrapolated';
 
   if (isExtrapolatedHoldup) {
@@ -218,6 +220,12 @@ export function computeInterfacialArea(
     diagnostics.push(
       `d₃₂ = ${(d32_m * 1000).toFixed(3)} mm was engineer-supplied (not from published correlation). ` +
       'All downstream outputs computed from this a carry the engineer-supplied basis label.'
+    );
+  }
+  if (isPreliminaryD32) {
+    diagnostics.push(
+      'd₃₂ was calculated from the K&H 1996 preliminary-engineering reconstruction. ' +
+      'Primary-source verification, phase-convention confirmation, RRBO/NMP validation, and pilot calibration remain pending.'
     );
   }
 
@@ -237,11 +245,15 @@ export function computeInterfacialArea(
 
   const status: InterfacialAreaStatus = isEngineerD32
     ? 'calculated_engineer_d32'
-    : 'calculated';
+    : isPreliminaryD32
+      ? 'calculated_preliminary_d32'
+      : 'calculated';
 
   const label = isEngineerD32
     ? 'Interfacial Area — Engineer-Supplied d₃₂ Basis (Simulator Development / Sensitivity)'
-    : 'Interfacial Area — Published Correlation Basis (K&H 1995 holdup)';
+    : isPreliminaryD32
+      ? 'Interfacial Area — Published Correlation — Preliminary Engineering (K&H 1996 d₃₂)'
+      : 'Interfacial Area — Published Correlation Basis (K&H 1995 holdup)';
 
   return {
     a_m2_m3: a,
@@ -258,7 +270,7 @@ export function computeInterfacialArea(
       `φ_d source: K&H 1995 (ecr2_holdup_kh1995, ${holdupResult.status}). ` +
       `d₃₂ source: ${isEngineerD32
         ? `engineer-supplied (${d32Result.engineerSource?.sourceType ?? 'unspecified'})`
-        : 'published correlation'}. ` +
+        : d32Result.engineeringBasis}. ` +
       'Formula: Laitinen (2019) Eq. (9) / standard drop-population model. ' +
       'Dimensional check: a [m²/m³] = 6·[—]/[m] ✓.',
   };

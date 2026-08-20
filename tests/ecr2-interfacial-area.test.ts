@@ -48,6 +48,14 @@ const PUBLISHED_D32_CFG = {
   correlationId: 'ecr2_d32_kh1996' as const,
 };
 
+const PUBLISHED_D32_STATE = {
+  h_comp_m: 0.06,
+  psi_W_kg: HOLDUP_INPUTS.psi_W_kg,
+  rho_c_kg_m3: HOLDUP_INPUTS.rho_c_kg_m3,
+  rho_d_kg_m3: HOLDUP_INPUTS.rho_d_kg_m3,
+  sigma_N_m: HOLDUP_INPUTS.gamma_N_m,
+};
+
 function makeUsableHoldup() {
   const result = computeKH1995Holdup(HOLDUP_INPUTS);
   expect(isHoldupUsable(result)).toBe(true);
@@ -56,6 +64,10 @@ function makeUsableHoldup() {
 
 function makeEngineerD32(value_m = 0.002) {
   return computeDropletDiameter({}, { ...ENGINEER_D32_CFG, value_m });
+}
+
+function makePreliminaryD32() {
+  return computeDropletDiameter(PUBLISHED_D32_STATE, PUBLISHED_D32_CFG);
 }
 
 // ── 1. Successful computation ─────────────────────────────────────────────────
@@ -138,6 +150,15 @@ describe('computeInterfacialArea — successful computation', () => {
     const r2 = computeInterfacialArea(h2, d32);
     // a ∝ φ_d — ratio should match holdup ratio
     expect(r1.a_m2_m3! / r2.a_m2_m3!).toBeCloseTo(h1.phi / h2.phi, 4);
+  });
+
+  it('uses the preliminary K&H 1996 d32 only after both guards are usable', () => {
+    const holdup = makeUsableHoldup();
+    const d32 = makePreliminaryD32();
+    const result = computeInterfacialArea(holdup, d32);
+    expect(result.status).toBe('calculated_preliminary_d32');
+    expect(result.a_m2_m3).toBeCloseTo(6 * holdup.phi / d32.d32_m!, 10);
+    expect(result.label).toContain('Preliminary Engineering');
   });
 });
 
@@ -227,6 +248,14 @@ describe('computeInterfacialArea — physical admissibility', () => {
       diagnostics: [],
       provenance: '',
       engineerSource: { sourceType: 'test', sourceReference: 'test' },
+      d32_raw_m: 0,
+      engineeringBasis: 'test',
+      governanceStatus: 'test',
+      primarySourceVerified: false,
+      validatedForRRBONMP: false,
+      pilotCalibrationStatus: 'test',
+      calibrationFactor: null,
+      localAxialApplication: 'test',
     };
     const result = computeInterfacialArea(makeUsableHoldup(), fakeBadD32);
     // d₃₂=0 causes isD32Usable to return false → blocked_d32 (not physically_invalid from guard)

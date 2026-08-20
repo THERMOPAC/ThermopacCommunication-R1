@@ -14,19 +14,19 @@
 //    units, and explicit approval on record.
 // 4. 'reserved' status is for architectural placeholders where the correlation
 //    category is needed but no candidate equation has been nominated yet.
-// 5. ECR-2 calculate() must check every correlation it calls. If status is not
-//    'governed', the corresponding output must be null with a clear note.
+// 5. ECR-2 calculate() must check every correlation it calls. Outputs are null
+//    unless their lifecycle explicitly authorizes controlled numerical use.
 //
 // PHASE 1 → POST-PHASE 1 STATUS:
-//   d32   : candidate_governed (K&H 1996, Kühni set) — NOT implemented
-//   holdup: candidate_governed (K&H 1995, Kühni set) — NOT implemented
+//   d32   : preliminary_engineering_reconstruction (K&H 1996, Kühni set)
+//   holdup: secondary_equation_verified (K&H 1995, Kühni set)
 //   K_oa  : pending_approval
 //   axial dispersion: reserved
 //   flooding: pending_approval
 //
-// candidate_governed = equation structure and citation confirmed; Kühni-specific
-// numerical coefficients documented from primary paper. Do NOT implement any
-// correlation numerically until status explicitly changes to 'governed'.
+// preliminary_engineering_reconstruction = an explicitly approved reconstruction
+// may be calculated with persistent traceability warnings. It is neither primary-
+// source verified, RRBO/NMP validated, pilot calibrated, nor governed.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export type CorrelationQuantity =
@@ -56,6 +56,12 @@ export type CorrelationQuantity =
  *                             Do NOT implement numerically until UNRESOLVED flags are removed and
  *                             status advances.
  *
+ *  preliminary_engineering_reconstruction — An explicitly approved best-supported
+ *                             reconstruction may be calculated for preliminary
+ *                             engineering. It must retain primary-source,
+ *                             applicability, phase-convention, and calibration
+ *                             warnings; it is not governed.
+ *
  *  pending_approval          — No candidate equation nominated yet. Placeholder only.
  *
  *  reserved                  — Architectural slot; correlation category needed in Phase 3+
@@ -65,6 +71,7 @@ export type CorrelationStatus =
   | 'governed'
   | 'secondary_equation_verified'
   | 'candidate_governed'
+  | 'preliminary_engineering_reconstruction'
   | 'pending_approval'
   | 'reserved';
 
@@ -140,10 +147,11 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
   //
   // Kumar & Hartland (1996) — Kühni column, Eq. (3) as reproduced in
   // Laitinen et al. (2019), Chem. Eng. Res. Des., 146, 518–527.
-  // STATUS: candidate_governed
+  // STATUS: preliminary_engineering_reconstruction
   //
-  // EQUATION NOW DOCUMENTED from peer-reviewed secondary reproduction.
-  // Do NOT implement numerically — status remains candidate_governed.
+  // The reconstruction is explicitly approved for preliminary engineering
+  // only. It remains unverified against the primary source, unvalidated for
+  // RRBO/NMP, and uncalibrated to pilot data.
   //
   // ── Full Kühni parameter table — secondary-verified metadata ─────────────
   //   Source: general structure of K&H unified correlations; specific coefficient
@@ -197,7 +205,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
   //       · C₁ is explicitly defined in the K&H unified framework as the
   //         column-type and transfer-direction constant. C₁^n₁ correctly
   //         incorporates column-type dependence through both C₁ and n₁.
-  //       · For ECR-2 direction (d→c): C₁^n₁ = 3.04^0.45 ≈ 1.674 — a
+  //       · For ECR-2 direction (d→c): C₁^n₁ = 3.04^0.45 ≈ 1.649275 — a
   //         physically reasonable prefactor (larger drops in d→c direction).
   //       · For c→d direction: C₁^n₁ = 1^0.45 = 1.000 — reduces to unity,
   //         consistent with c→d being the reference direction in K&H.
@@ -337,6 +345,13 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     // before any numerical implementation.
     //
     equation:
+      'PRELIMINARY ENGINEERING RECONSTRUCTION — d32/h = C1^n1 / ' +
+      '[C2·(γ/((ρc−ρd)·g·h²))^0.5 + C3·((ψ/g)·(ρc/(g·γ))^0.25)^n2·' +
+      '(h·(ρcg/γ)^0.5)^n3], with C1=3.04, C2=1.60, C3=0.034, n1=0.45, n2=−0.63, n3=−0.38 for ECR-2 d→c. ' +
+      'C1^n1 = 3.04^0.45 is applied once only; the geometry group is h/λc. ' +
+      'Approved as Published Correlation — Preliminary Engineering with primary-source, phase-convention, RRBO/NMP validation, and uncalibrated-unity traceability warnings.',
+    /*
+    equation:
       'CANDIDATE — DO NOT IMPLEMENT. ' +
       'Reproduced from Laitinen et al. (2019) Eq. (3). ' +
       'd32/h = [SYMBOL:primary_candidate=C₁^n₁] / ' +
@@ -347,7 +362,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       '  Primary candidate is C₁^n₁: C₁ and n₁=0.45 are the only Kühni-table constants ' +
       '  not yet placed in the equation (C₂, C₃, n₂, n₃ all positionally confirmed). ' +
       '  n₁ is column-specific — purposeless in the unified framework unless applied to C₁. ' +
-      '  For ECR-2 (d→c): C₁^n₁ = 3.04^0.45 ≈ 1.674. For c→d: 1^0.45 = 1.000. ' +
+      '  For ECR-2 (d→c): C₁^n₁ = 3.04^0.45 ≈ 1.649275. For c→d: 1^0.45 = 1.000. ' +
       '  This is a structural inference — NOT a verified published placement. ' +
       '  Requires K&H 1996 primary (DOI 10.1021/ie950674w) to confirm. ' +
       '| UNRESOLVED_GROUPING (strong_candidate — NOT YET ADOPTED): ' +
@@ -363,6 +378,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       '  ECR-2 direction is d→c, so C1=3.04. ' +
       '  C2 confirmed at Term₁ (1.6). C3 confirmed at Term₂ (0.034). n2 confirmed (−0.63). ' +
       '  C1 and n1 are strong_candidates for numerator C₁^n₁ — pending primary confirmation.',
+    */
 
     // ── Variable definitions ─────────────────────────────────────────────────
     variables: {
@@ -402,7 +418,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
           '    If the base were a universal constant (Euler e, or any fixed value), n₁ would ' +
           '    give the same result for all column types — making it purposeless as a ' +
           '    column-specific parameter. C₁^n₁ incorporates column-type variation through both. ' +
-          '  · For ECR-2 direction (d→c): C₁^n₁ = 3.04^0.45 ≈ 1.674 (larger drops in d→c). ' +
+          '  · For ECR-2 direction (d→c): C₁^n₁ = 3.04^0.45 ≈ 1.649275 (larger drops in d→c). ' +
           '  · For c→d reference direction: C₁^n₁ = 1^0.45 = 1.000 (unity — base case). ' +
           '  Status: strong_candidate — NOT adopted. Requires K&H 1996 primary confirmation. ' +
           '' +
@@ -630,7 +646,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
           'If UNRESOLVED_SYMBOL is confirmed as C₁ (primary candidate), then the ' +
           'numerator is C₁^n₁ and C₁ is fully placed: ' +
           '  · C₁(c→d)^n₁ = 1^0.45 = 1.000 (reference/baseline) ' +
-          '  · C₁(d→c)^n₁ = 3.04^0.45 ≈ 1.674 (ECR-2 value) ' +
+          '  · C₁(d→c)^n₁ = 3.04^0.45 ≈ 1.649275 (ECR-2 value) ' +
           'This would resolve the C₁ placement question together with UNRESOLVED_SYMBOL. ' +
           '' +
           'If UNRESOLVED_SYMBOL is confirmed as Euler\'s e, then C₁=3.04 must appear ' +
@@ -682,7 +698,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       },
     },
 
-    applicabilityStatus: 'candidate_governed',
+    applicabilityStatus: 'preliminary_engineering_reconstruction',
     primarySourceVerified: false,          // K&H 1996 primary paper not yet inspected
     secondaryReproductionVerified: true,   // Equation reproduced from Laitinen et al. (2019) — peer-reviewed
     validatedForRRBONMP: false,            // Pilot calibration required for NMP/RRBO
@@ -702,7 +718,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     },
 
     approvalNote:
-      'candidate_governed: equation reproduced from Laitinen et al. (2019), Eq. (3) — ' +
+      'preliminary_engineering_reconstruction: approved best-supported K&H 1996 reconstruction from Laitinen et al. (2019), Eq. (3) — ' +
       'peer-reviewed secondary source using K&H 1996. secondaryReproductionVerified=true. ' +
       '' +
       'RESOLUTION ANALYSIS COMPLETE — TWO FLAGS REMAIN OPEN PENDING PRIMARY PAPER: ' +
@@ -713,11 +729,11 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       '  C₁ and n₁=0.45 are the only two Kühni table constants not yet placed (C₂, C₃, n₂, ' +
       '  n₃ all positionally confirmed). n₁ is column-specific — purposeless in the unified ' +
       '  framework unless applied to column-type constant C₁. ' +
-      '  ECR-2 value if confirmed: C₁(d→c)^n₁ = 3.04^0.45 ≈ 1.674. ' +
+      '  ECR-2 value if confirmed: C₁(d→c)^n₁ = 3.04^0.45 ≈ 1.649275. ' +
       '  This is a structural inference — NOT verified published placement. ' +
       '  DIMENSIONAL CONSTRAINT (definitive): base must be dimensionless — ψ and any ' +
       '  dimensional quantity are definitively excluded. ' +
-      '  DO NOT adopt C₁^n₁ or any candidate numerically without primary confirmation. ' +
+      '  Approved for preliminary engineering only: retain this reconstruction warning on every numerical result. ' +
       '' +
       'UNRESOLVED_GROUPING (analysis status: strong_candidate identified, NOT adopted): ' +
       '  Laitinen transcription h·(ρcg/γ)^0.38 is DEFINITIVELY dimensionally wrong (m^+0.24). ' +
@@ -730,7 +746,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       '         contradicting Kühni table n₃=−0.38 — REJECTED on framework grounds. ' +
       '  Typesetting diagnosis: exponent 0.38 was placed on (ρcg/γ) instead of on the ' +
       '  whole group (h·(ρcg/γ)^0.5) in the Laitinen PDF — a known LaTeX rendering issue. ' +
-      '  DO NOT adopt (h·(ρcg/γ)^0.5)^0.38 numerically without primary confirmation. ' +
+      '  Approved for preliminary engineering only: retain this reconstruction warning on every numerical result. ' +
       '' +
       'KÜHNI PARAMETER TABLE — PLACEMENT STATUS: ' +
       '  C1(c→d)=1, C1(d→c)=3.04 — primary_candidate placement: numerator as C₁^n₁. ' +
@@ -741,7 +757,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       '  n3=−0.38 — strong_candidate placement: exponent on [h/λc] in Term₂ (UNRESOLVED_GROUPING ' +
       '             pending K&H 1996 primary paper; parameter table consistent but not primary-verified). ' +
       '' +
-      'BEFORE advancing to governed and implementing numerically: ' +
+      'Before advancing this preliminary reconstruction to governed: ' +
       '(1) Read K&H 1996 primary paper (DOI 10.1021/ie950674w). ' +
       '    Clear UNRESOLVED_SYMBOL: confirm numerator symbol (primary candidate: C₁^n₁) from equation body. ' +
       '    Clear UNRESOLVED_GROUPING: confirm geometry group (strong candidate: (h·(ρcg/γ)^0.5)^0.38). ' +
@@ -750,7 +766,8 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       '(3) Confirm K&H 1996 Kühni experimental dataset phase convention ' +
       '    matches ECR-2 phase assignment (RRBO dispersed, NMP continuous). ' +
       '(4) Verify NMP/RRBO system properties lie within K&H 1996 validity range. ' +
-      'DO NOT IMPLEMENT NUMERICALLY until both flags are cleared and status is governed.',
+      'The present implementation is limited to Published Correlation — Preliminary Engineering. ' +
+      'Do not set primarySourceVerified or validatedForRRBONMP true, and do not claim a calibrated performance guarantee.',
   },
 
   // ── 2. Dispersed-phase holdup (φ_d) ──────────────────────────────────────

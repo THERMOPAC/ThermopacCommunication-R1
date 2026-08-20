@@ -4,9 +4,8 @@
 // Defines the contract through which a droplet diameter enters the ECR-2
 // simulator. Two modes are supported:
 //
-//   'published_correlation'  — K&H 1996 (ecr2_d32_kh1996). Currently blocked:
-//                              UNRESOLVED_SYMBOL and UNRESOLVED_GROUPING in the
-//                              registry. Returns status='correlation_unresolved'.
+//   'published_correlation'  — K&H 1996 (ecr2_d32_kh1996), implemented as an
+//                              approved preliminary-engineering reconstruction.
 //
 //   'engineer_supplied'      — Explicit engineer-supplied d₃₂ for simulator
 //                              development and sensitivity testing ONLY.
@@ -19,8 +18,8 @@
 //
 // IMPORTANT:
 //   · Do NOT silently substitute an assumed d₃₂.
-//   · A null result with status='correlation_unresolved' is the correct
-//     output when K&H 1996 has not been cleared.
+//   · A null result for an unavailable or invalid calculation is the correct
+//     response — never invent or silently substitute a fallback d₃₂.
 //   · Engineer-supplied d₃₂ is NOT a hidden fallback — it requires explicit
 //     declaration of source type and reference by the engineer.
 // ═══════════════════════════════════════════════════════════════════════════
@@ -30,9 +29,9 @@
 /**
  * Which source provides d₃₂ for this simulator run.
  *
- * 'published_correlation' — use K&H 1996 (currently unresolved; will return
- *                           status='correlation_unresolved' until K&H 1996 flags
- *                           are cleared from the primary paper).
+ * 'published_correlation' — use the approved K&H 1996 preliminary-engineering
+ *                           reconstruction. This remains explicitly unverified
+ *                           against the primary source and RRBO/NMP pilot data.
  * 'engineer_supplied'     — engineer provides d₃₂ explicitly for development/
  *                           sensitivity testing. Not a published model result.
  */
@@ -40,10 +39,14 @@ export type D32Mode = 'published_correlation' | 'engineer_supplied';
 
 /** Status of the d₃₂ computation result. */
 export type D32Status =
-  | 'calculated'              // from a resolved published correlation — not yet achievable
+  | 'preliminary_engineering_reconstruction'
+                               // approved K&H 1996 reconstruction; traceability warnings required
+  | 'calculated'              // reserved for a fully governed published correlation
   | 'calculated_extrapolated' // from resolved correlation but outside validity range
   | 'engineer_supplied'       // explicit engineer input, labelled accordingly
-  | 'correlation_unresolved'  // K&H 1996 has UNRESOLVED flags — cannot compute
+  | 'phase_configuration_unsupported'
+                               // published K&H 1996 reconstruction not approved for selected continuity
+  | 'correlation_unresolved'  // reserved for a future unapproved published correlation
   | 'calculation_invalid'     // correlation produced a non-physical result
   | 'input_missing';          // required local-state inputs are absent
 
@@ -82,13 +85,9 @@ export interface EngineerSuppliedD32Config {
 /**
  * Configuration for the published K&H 1996 correlation.
  *
- * Currently this correlation has two UNRESOLVED flags:
- *   UNRESOLVED_SYMBOL:   numerator base (primary candidate C₁^n₁ — unconfirmed)
- *   UNRESOLVED_GROUPING: geometry group in Term₂ (strong candidate [h·(ρcg/γ)^0.5]^0.38 — unconfirmed)
- *
- * Until both flags are cleared from the K&H 1996 primary paper
- * (DOI 10.1021/ie950674w), computeDropletDiameter() returns
- * status='correlation_unresolved' and d32_m=null.
+ * The preliminary reconstruction uses C₁^n₁ (with n₁ applied once) and
+ * [h·(ρcg/γ)^0.5]^n₃. It is not primary-source verified, RRBO/NMP validated,
+ * or pilot calibrated; every result carries those traceability warnings.
  */
 export interface PublishedCorrelationD32Config {
   mode: 'published_correlation';
@@ -117,14 +116,23 @@ export interface D32LocalState {
   rho_c_kg_m3: number;
   /** Local dispersed-phase (RRBO) density ρ_d (kg/m³). */
   rho_d_kg_m3: number;
-  /** Local density difference Δρ = ρ_c − ρ_d (kg/m³). Must be > 0. */
-  delta_rho_kg_m3: number;
+  /**
+   * Legacy diagnostic context only; d₃₂ derives Δρ directly as ρ_c − ρ_d so
+   * contradictory caller-supplied differences cannot affect the calculation.
+   */
+  delta_rho_kg_m3?: number;
   /** Local interfacial tension σ (N/m). */
   sigma_N_m: number;
-  /** Stator open-area fraction x_f (—). Required for K&H framework. */
-  xf_stator: number;
-  /** Dispersed-phase holdup φ_d (—). Required for K&H 1996 (some formulations). */
-  phi_d: number;
+  /**
+   * Legacy context only; not a mathematical input to the approved d₃₂ equation.
+   * Holdup retains its independent K&H 1995 requirement for x_f.
+   */
+  xf_stator?: number;
+  /**
+   * Legacy context only; not a mathematical input to the approved d₃₂ equation.
+   * Kept optional for callers that co-locate holdup and d₃₂ state.
+   */
+  phi_d?: number;
   /** Axial position z (m). For diagnostics only. */
   z_m?: number;
   /** Compartment index. For diagnostics only. */
@@ -136,16 +144,21 @@ export interface D32LocalState {
 /**
  * Result of computeDropletDiameter().
  *
- * d32_m is non-null only when status is 'calculated', 'calculated_extrapolated',
- * or 'engineer_supplied'.
+ * d32_m is non-null only when status is preliminary, calculated,
+ * calculated_extrapolated, or engineer_supplied.
  *
- * Status 'correlation_unresolved' means the K&H 1996 equation cannot be
- * computed — the unresolved flags must be cleared from the primary paper
- * before numerical implementation is possible.
+ * Status 'correlation_unresolved' is reserved for a future unapproved
+ * correlation; the K&H 1996 preliminary path remains explicitly traceable.
  */
 export interface D32Result {
   /** Sauter mean diameter d₃₂ (m). Null unless status is computed or engineer_supplied. */
   d32_m: number | null;
+  /**
+   * Unclamped raw correlation output (m). Retained when finite even when a
+   * later physical-validity guard rejects it; null when no numerical output is
+   * mathematically calculable.
+   */
+  d32_raw_m: number | null;
   /** Computation status. */
   status: D32Status;
   /** Mode that produced this result. */
@@ -172,29 +185,76 @@ export interface D32Result {
    * Null for published correlation results.
    */
   engineerSource: { sourceType: string; sourceReference: string } | null;
+  /** Engineering basis carried by every numerical d₃₂ result. */
+  engineeringBasis: string;
+  /** Lifecycle/governance statement carried without suppressing preliminary use. */
+  governanceStatus: string;
+  /** K&H 1996 primary paper has not been verified in this implementation. */
+  primarySourceVerified: boolean;
+  /** K&H 1996 has not been validated for the RRBO/NMP system. */
+  validatedForRRBONMP: boolean;
+  /** Calibration condition attached to the result. */
+  pilotCalibrationStatus: string;
+  /** Applied calibration factor; unity is explicitly uncalibrated. */
+  calibrationFactor: number | null;
+  /** States whether values are local or the current uniform/inlet model extension. */
+  localAxialApplication: string;
 }
 
 // ── Validation helpers ─────────────────────────────────────────────────────
 
-function validateLocalState(state: D32LocalState): string[] {
-  const issues: string[] = [];
-  if (!Number.isFinite(state.h_comp_m) || state.h_comp_m <= 0)
-    issues.push('h_comp_m must be > 0 (m)');
-  if (!Number.isFinite(state.psi_W_kg) || state.psi_W_kg < 0)
-    issues.push('psi_W_kg must be ≥ 0 (W/kg)');
-  if (!Number.isFinite(state.rho_c_kg_m3) || state.rho_c_kg_m3 <= 0)
-    issues.push('rho_c_kg_m3 must be > 0 (kg/m³)');
-  if (!Number.isFinite(state.rho_d_kg_m3) || state.rho_d_kg_m3 <= 0)
-    issues.push('rho_d_kg_m3 must be > 0 (kg/m³)');
-  if (!Number.isFinite(state.delta_rho_kg_m3) || state.delta_rho_kg_m3 <= 0)
-    issues.push('delta_rho_kg_m3 must be > 0 — continuous phase must be denser than dispersed');
-  if (!Number.isFinite(state.sigma_N_m) || state.sigma_N_m <= 0)
-    issues.push('sigma_N_m must be > 0 (N/m)');
-  if (!Number.isFinite(state.xf_stator) || state.xf_stator <= 0 || state.xf_stator >= 1)
-    issues.push('xf_stator must be in (0, 1)');
-  if (!Number.isFinite(state.phi_d) || state.phi_d <= 0 || state.phi_d >= 1)
-    issues.push('phi_d must be in (0, 1) — non-usable holdup passed to d₃₂ computation');
-  return issues;
+const GRAVITY_M_S2 = 9.80665;
+const KH1996_PRELIMINARY = {
+  C1_d_to_c: 3.04,
+  C2: 1.60,
+  C3: 0.034,
+  n1: 0.45,
+  n2: -0.63,
+  n3: -0.38,
+} as const;
+
+const PRELIMINARY_ENGINEERING_BASIS =
+  'Published Correlation — Preliminary Engineering';
+const PRELIMINARY_GOVERNANCE_STATUS =
+  'K&H 1996 reconstructed pending primary-source verification';
+const UNIFORM_INLET_BASIS =
+  'Thermopac model extension — uniform/inlet property basis';
+const PRELIMINARY_TRACEABILITY_WARNINGS = [
+  'PRIMARY_SOURCE_UNVERIFIED__KH1996',
+  'NUMERATOR_RECONSTRUCTION__C1_N1',
+  'GEOMETRY_RECONSTRUCTION__CAPILLARY_LENGTH_GROUP',
+  'KH1996_PHASE_CONVENTION_NOT_PRIMARY_VERIFIED',
+  'RRBO_NMP_VALIDATION_PENDING',
+] as const;
+
+function publishedGovernanceFields() {
+  return {
+    engineeringBasis: PRELIMINARY_ENGINEERING_BASIS,
+    governanceStatus: PRELIMINARY_GOVERNANCE_STATUS,
+    primarySourceVerified: false,
+    validatedForRRBONMP: false,
+    pilotCalibrationStatus: 'NOT_YET_CALIBRATED__UNITY_BASIS',
+    calibrationFactor: 1.0,
+    localAxialApplication: UNIFORM_INLET_BASIS,
+  };
+}
+
+function engineerGovernanceFields() {
+  return {
+    engineeringBasis: 'Engineer-Supplied d₃₂ — Simulator Development / Sensitivity Basis',
+    governanceStatus: 'engineer_supplied_development_basis',
+    primarySourceVerified: false,
+    validatedForRRBONMP: false,
+    pilotCalibrationStatus: 'NOT_APPLICABLE__ENGINEER_SUPPLIED_VALUE',
+    calibrationFactor: null,
+    localAxialApplication: 'Engineer-supplied value; local axial basis declared by source reference',
+  };
+}
+
+function stateLocation(state: Partial<D32LocalState>): string {
+  if (state.compartmentIndex !== undefined) return `compartment ${state.compartmentIndex}`;
+  if (state.z_m !== undefined) return `z = ${state.z_m.toFixed(3)} m`;
+  return 'unspecified location';
 }
 
 // ── Main function ──────────────────────────────────────────────────────────
@@ -207,14 +267,13 @@ function validateLocalState(state: D32LocalState): string[] {
  * this interface — never assume or hard-code a value.
  *
  * Current behaviour:
- *   · mode='published_correlation': returns status='correlation_unresolved' (K&H 1996
- *     has UNRESOLVED flags that block numerical implementation).
+ *   · mode='published_correlation': evaluates the approved K&H 1996
+ *     preliminary-engineering reconstruction and carries traceability warnings.
  *   · mode='engineer_supplied': validates the engineer's value, applies physical
  *     admissibility guards (d₃₂ > 0), and returns it with explicit labelling.
  *
- * When K&H 1996 primary paper flags are cleared and the correlation is approved,
- * this function's 'published_correlation' branch is where the numerical
- * implementation goes — downstream code does not change.
+ * A future primary-source verification may advance the result lifecycle, but
+ * must not alter the approved equation without a governed review.
  *
  * @param localState  Local compartment hydrodynamic state (required for correlation;
  *                    can be a minimal object for engineer_supplied mode).
@@ -235,6 +294,7 @@ export function computeDropletDiameter(
     if (!Number.isFinite(cfg.value_m) || cfg.value_m <= 0) {
       return {
         d32_m: null,
+        d32_raw_m: Number.isFinite(cfg.value_m) ? cfg.value_m : null,
         status: 'calculation_invalid',
         mode: 'engineer_supplied',
         correlationId: null,
@@ -243,6 +303,7 @@ export function computeDropletDiameter(
         diagnostics: ['Engineer-supplied d₃₂ value must be a finite positive number (m).'],
         provenance: 'Engineer-supplied value rejected — failed physical admissibility guard (d₃₂ > 0).',
         engineerSource: { sourceType: cfg.sourceType, sourceReference: cfg.sourceReference },
+        ...engineerGovernanceFields(),
       };
     }
 
@@ -270,6 +331,7 @@ export function computeDropletDiameter(
 
     return {
       d32_m: cfg.value_m,
+      d32_raw_m: cfg.value_m,
       status: 'engineer_supplied',
       mode: 'engineer_supplied',
       correlationId: null,
@@ -286,61 +348,141 @@ export function computeDropletDiameter(
         sourceType: cfg.sourceType,
         sourceReference: cfg.sourceReference,
       },
+      ...engineerGovernanceFields(),
     };
   }
 
   // ── Published correlation mode ────────────────────────────────────────────
   if (config.mode === 'published_correlation') {
-    // K&H 1996 correlation is candidate_governed with two unresolved flags.
-    // Numerical implementation is BLOCKED until both flags are cleared from
-    // the primary paper (DOI 10.1021/ie950674w).
-    //
-    // When the flags are cleared:
-    //   1. This block is replaced with the numerical implementation.
-    //   2. The correlation status advances to 'governed'.
-    //   3. The 'localState' parameter is used here for the computation.
-    //
-    // UNRESOLVED_SYMBOL:   numerator base for exponent n₁=0.45.
-    //   Primary candidate: C₁^n₁ = 3.04^0.45 ≈ 1.674 (d→c, Kühni).
-    //   Requires K&H 1996 Table 2 / equation body to confirm.
-    //
-    // UNRESOLVED_GROUPING: Term₂ geometry group.
-    //   Strong candidate: [h·(ρcg/σ)^0.5]^0.38 = [h/λc]^0.38.
-    //   Transcribed form h·(ρcg/σ)^0.38 is definitively dimensionally wrong (m^+0.24).
-    //   Requires K&H 1996 primary to confirm.
-    //
-    // Reference: see llx-ecr2-correlation-registry.ts, entry 'ecr2_d32_kh1996'.
+    const location = stateLocation(localState);
+    const h = localState.h_comp_m;
+    const psi = localState.psi_W_kg;
+    const rhoC = localState.rho_c_kg_m3;
+    const rhoD = localState.rho_d_kg_m3;
+    const gamma = localState.sigma_N_m;
+    const requiredInputs: Array<[string, number | undefined]> = [
+      ['h_comp_m', h],
+      ['psi_W_kg', psi],
+      ['rho_c_kg_m3', rhoC],
+      ['rho_d_kg_m3', rhoD],
+      ['sigma_N_m (gamma)', gamma],
+    ];
+    const missing = requiredInputs
+      .filter(([, value]) => value === undefined || value === null)
+      .map(([name]) => name);
 
-    const stateLocation = localState.compartmentIndex !== undefined
-      ? `compartment ${localState.compartmentIndex}`
-      : localState.z_m !== undefined
-        ? `z = ${localState.z_m.toFixed(3)} m`
-        : 'unspecified location';
+    if (missing.length > 0) {
+      return {
+        d32_m: null,
+        d32_raw_m: null,
+        status: 'input_missing',
+        mode: 'published_correlation',
+        correlationId: 'ecr2_d32_kh1996',
+        label: null,
+        extrapolated: false,
+        diagnostics: [
+          `K&H 1996 preliminary d₃₂ reconstruction at ${location}: required input(s) missing: ${missing.join(', ')}.`,
+          ...PRELIMINARY_TRACEABILITY_WARNINGS,
+        ],
+        provenance:
+          'K&H 1996 preliminary-engineering reconstruction not calculated — required numerical inputs are absent. ' +
+          'No NMP/RRBO interfacial tension is invented.',
+        engineerSource: null,
+        ...publishedGovernanceFields(),
+      };
+    }
+
+    const values = [h!, psi!, rhoC!, rhoD!, gamma!];
+    if (!values.every(Number.isFinite)) {
+      return {
+        d32_m: null,
+        d32_raw_m: null,
+        status: 'calculation_invalid',
+        mode: 'published_correlation',
+        correlationId: 'ecr2_d32_kh1996',
+        label: null,
+        extrapolated: false,
+        diagnostics: [
+          `K&H 1996 preliminary d₃₂ reconstruction at ${location}: all numerical inputs must be finite.`,
+          ...PRELIMINARY_TRACEABILITY_WARNINGS,
+        ],
+        provenance: 'K&H 1996 preliminary-engineering reconstruction rejected — non-finite numerical input.',
+        engineerSource: null,
+        ...publishedGovernanceFields(),
+      };
+    }
+
+    const numerator = Math.pow(KH1996_PRELIMINARY.C1_d_to_c, KH1996_PRELIMINARY.n1);
+    const deltaRho = rhoC! - rhoD!;
+    const term1 = KH1996_PRELIMINARY.C2 * Math.sqrt(
+      gamma! / (deltaRho * GRAVITY_M_S2 * h! * h!),
+    );
+    const agitationGroup = (psi! / GRAVITY_M_S2)
+      * Math.pow(rhoC! / (GRAVITY_M_S2 * gamma!), 0.25);
+    const geometryGroup = h! * Math.sqrt((rhoC! * GRAVITY_M_S2) / gamma!);
+    const term2 = KH1996_PRELIMINARY.C3
+      * Math.pow(agitationGroup, KH1996_PRELIMINARY.n2)
+      * Math.pow(geometryGroup, KH1996_PRELIMINARY.n3);
+    const denominator = term1 + term2;
+    const rawCandidate = h! * numerator / denominator;
+    const d32Raw = Number.isFinite(rawCandidate) ? rawCandidate : null;
+
+    const invalid: string[] = [];
+    if (h! <= 0) invalid.push('h_comp_m must be > 0 (m)');
+    if (psi! <= 0) invalid.push('psi_W_kg must be > 0 (W/kg)');
+    if (rhoC! <= 0) invalid.push('rho_c_kg_m3 must be > 0 (kg/m³)');
+    if (rhoD! <= 0) invalid.push('rho_d_kg_m3 must be > 0 (kg/m³)');
+    if (gamma! <= 0) invalid.push('sigma_N_m (gamma) must be > 0 (N/m)');
+    if (rhoC! <= rhoD!) invalid.push('rho_c_kg_m3 must be > rho_d_kg_m3 (NMP continuous phase must be denser)');
+    if (!Number.isFinite(denominator) || denominator <= 0)
+      invalid.push(`denominator must be finite and > 0 (received ${denominator})`);
+    if (!Number.isFinite(rawCandidate) || rawCandidate <= 0)
+      invalid.push(`d32_raw_m must be finite and > 0 (received ${rawCandidate})`);
+
+    if (invalid.length > 0) {
+      return {
+        d32_m: null,
+        d32_raw_m: d32Raw,
+        status: 'calculation_invalid',
+        mode: 'published_correlation',
+        correlationId: 'ecr2_d32_kh1996',
+        label: null,
+        extrapolated: false,
+        diagnostics: [
+          `K&H 1996 preliminary d₃₂ reconstruction at ${location}: ${invalid.join('; ')}. No value was clamped.`,
+          ...PRELIMINARY_TRACEABILITY_WARNINGS,
+        ],
+        provenance:
+          `K&H 1996 preliminary-engineering reconstruction rejected by physical/numerical guard. ` +
+          `Raw d₃₂ retained when finite: ${d32Raw === null ? 'not calculable' : `${d32Raw} m`}.`,
+        engineerSource: null,
+        ...publishedGovernanceFields(),
+      };
+    }
 
     return {
-      d32_m: null,
-      status: 'correlation_unresolved',
+      d32_m: d32Raw,
+      d32_raw_m: d32Raw,
+      status: 'preliminary_engineering_reconstruction',
       mode: 'published_correlation',
       correlationId: 'ecr2_d32_kh1996',
-      label: null,
+      label: PRELIMINARY_ENGINEERING_BASIS,
       extrapolated: false,
       diagnostics: [
-        `K&H 1996 d₃₂ correlation (ecr2_d32_kh1996) at ${stateLocation}: ` +
-        'Cannot compute — two UNRESOLVED flags block numerical implementation.',
-        'UNRESOLVED_SYMBOL: numerator base for exponent n₁=0.45 is not confirmed from the primary paper. ' +
-        'Primary candidate C₁^n₁ (C₁=3.04, n₁=0.45 for d→c Kühni) — structural inference only. ' +
-        'Requires K&H 1996 primary paper (DOI 10.1021/ie950674w).',
-        'UNRESOLVED_GROUPING: Term₂ geometry group transcribed as h·(ρcg/γ)^0.38 is dimensionally ' +
-        'impossible (m^+0.24). Strong candidate [h·(ρcg/γ)^0.5]^0.38 = [h/λc]^0.38 — pending primary. ' +
-        'Requires K&H 1996 primary paper to confirm.',
-        'ACTION: Supply an engineer-specified d₃₂ (mode=\'engineer_supplied\') to proceed with ' +
-        'downstream development of interfacial area, mass-transfer coefficients, and K_oa.',
+        ...PRELIMINARY_TRACEABILITY_WARNINGS,
+        `C₁^n₁ = ${KH1996_PRELIMINARY.C1_d_to_c}^${KH1996_PRELIMINARY.n1} = ${numerator.toFixed(9)} (n₁ applied once).`,
+        `d₃₂_raw = h·C₁^n₁/(Term₁ + Term₂) = ${d32Raw!.toExponential(8)} m.`,
+        `Local application: ${UNIFORM_INLET_BASIS}.`,
+        'Calibration factor = 1.0 on an explicit NOT_YET_CALIBRATED__UNITY_BASIS; it is not a validated calibration.',
       ],
       provenance:
-        'K&H 1996 Kühni d₃₂ correlation. Registry status: candidate_governed. ' +
-        'primarySourceVerified=false. Two UNRESOLVED flags (UNRESOLVED_SYMBOL, UNRESOLVED_GROUPING) ' +
-        'prevent numerical implementation. See ecr2_d32_kh1996 in the correlation registry.',
+        'K&H 1996 Kühni d₃₂ preliminary reconstruction: ' +
+        'd₃₂/h = C₁^n₁ / [C₂·(γ/((ρc−ρd)gh²))^0.5 + ' +
+        'C₃·((ψ/g)·(ρc/(gγ))^0.25)^n₂·(h·(ρcg/γ)^0.5)^n₃]. ' +
+        'RRBO = dispersed, NMP = continuous, so C₁(d→c)=3.04. ' +
+        'Not primary-source verified, RRBO/NMP validated, or pilot calibrated.',
       engineerSource: null,
+      ...publishedGovernanceFields(),
     };
   }
 
@@ -357,7 +499,8 @@ export function computeDropletDiameter(
  *
  * A result is usable when:
  *   · d32_m is a finite positive number, AND
- *   · status is 'calculated', 'calculated_extrapolated', or 'engineer_supplied'
+ *   · status is 'preliminary_engineering_reconstruction', 'calculated',
+ *     'calculated_extrapolated', or 'engineer_supplied'
  *
  * 'correlation_unresolved', 'calculation_invalid', and 'input_missing' are NOT usable.
  */
@@ -368,6 +511,7 @@ export function isD32Usable(result: D32Result): result is D32Result & { d32_m: n
     result.d32_m > 0 &&
     (
       result.status === 'calculated' ||
+      result.status === 'preliminary_engineering_reconstruction' ||
       result.status === 'calculated_extrapolated' ||
       result.status === 'engineer_supplied'
     )

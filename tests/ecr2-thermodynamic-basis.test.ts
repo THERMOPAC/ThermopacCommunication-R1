@@ -331,6 +331,73 @@ describe('ECR2MolecularWeights thermodynamic isolation', () => {
   });
 });
 
+describe('ECR-2 preliminary d32 phase applicability', () => {
+  const publishedD32 = {
+    mode: 'published_correlation',
+    correlationId: 'ecr2_d32_kh1996',
+  };
+
+  it('calculates published K&H 1996 d32 only for NMP-continuous/RRBO-dispersed operation', async () => {
+    const result = await new LLXECRSimulatorEngine().calculate(
+      simulatorInput({
+        d32Config: publishedD32,
+        statorOpenAreaFraction: { value: 0.23, unit: '-', sourceType: 'Assumed', sourceReference: 'test fixture' },
+        rotorSpeed_rpm: 60,
+      }),
+      {},
+    );
+    const data = result.data as Record<string, any>;
+    const d32 = data.d32;
+    expect(d32.status).toBe('preliminary_engineering_reconstruction');
+    expect(d32.correlationStatus).toBe('preliminary_engineering_reconstruction');
+    expect(d32.d32_m).toBeGreaterThan(0);
+    expect(data.forwardSimulationStatus.d32).toContain('Published Correlation — Preliminary Engineering');
+    expect(data.forwardSimulationStatus.d32).toContain('RRBO/NMP validation');
+    expect(data.forwardSimulationStatus.interfacialArea).toContain('Preliminary Engineering');
+    expect(result.warnings.some((warning: any) =>
+      warning.code === 'INTERFACIAL_AREA_COMPUTED' &&
+      warning.message.includes('Published Correlation — Preliminary Engineering') &&
+      warning.message.includes('RRBO/NMP validation'),
+    )).toBe(true);
+  });
+
+  it('fails closed for published K&H 1996 d32 when RRBO is configured as continuous', async () => {
+    const result = await new LLXECRSimulatorEngine().calculate(
+      simulatorInput({
+        phaseConfiguration: 'rrbo_continuous_nmp_dispersed',
+        d32Config: publishedD32,
+      }),
+      {},
+    );
+    const data = result.data as Record<string, any>;
+    expect(data.d32.status).toBe('phase_configuration_unsupported');
+    expect(data.d32.correlationStatus).toBe('phase_configuration_unsupported');
+    expect(data.d32.d32_m).toBeNull();
+    expect(data.d32.diagnostics.join(' ')).toContain('nmp_continuous_rrbo_dispersed');
+    expect(data.forwardSimulationStatus.d32).toContain('phase_configuration_unsupported');
+    expect(data.forwardSimulationStatus.d32).toContain('nmp_continuous_rrbo_dispersed');
+  });
+
+  it('reports engineer-supplied d32 with its actual source status', async () => {
+    const result = await new LLXECRSimulatorEngine().calculate(
+      simulatorInput({
+        phaseConfiguration: 'rrbo_continuous_nmp_dispersed',
+        d32Config: {
+          mode: 'engineer_supplied',
+          value_m: 0.002,
+          sourceType: 'Assumed',
+          sourceReference: 'Engine-level phase applicability test',
+        },
+      }),
+      {},
+    );
+    const d32 = (result.data as Record<string, any>).d32;
+    expect(d32.status).toBe('engineer_supplied');
+    expect(d32.correlationStatus).toBe('engineer_supplied');
+    expect(d32.d32_m).toBe(0.002);
+  });
+});
+
 describe('SURROGATE-REPRESENTATION MASS CLOSURE', () => {
   it('recovers every input component mass with the same surrogate MW used in both directions', () => {
     const feedMassFlow_kg_h = 1000;
