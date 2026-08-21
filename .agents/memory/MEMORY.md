@@ -44,3 +44,4 @@
 - [ECR-2 K&H 1999 evidence boundary](llx-ecr2-kh1999-evidence.md) — preliminary parameters permit only physical concentration/Kd/driving-force work; Sherwood-dependent numerics remain unavailable.
 - [K&H 1999 preliminary local kernel](llx-kh1999-evidence-boundary.md) — secondary equations may run only as provenance-tagged local preliminary physics; partition/rate gating stays explicit.
 - [ECR-2 five-component local transfer](llx-five-component-local-transfer.md) — local transfer, Schmidt, diffusivity, and conservation must retain Sat/Mono/Di/Poly/NMP ordering.
+- [ECR-2 effective transfer volume](ecr2-effective-transfer-volume.md) — use total modeled active compartment liquid volume A_column×Δz; φd appears once in a=6φd/d32.
