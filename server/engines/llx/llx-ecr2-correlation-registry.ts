@@ -119,7 +119,7 @@ export interface ECR2Correlation {
   /** Original publication to which the secondary source attributes the equation. */
   originalAttribution?: string;
   /** Metadata may be source-verified while runtime evaluation remains prohibited. */
-  numericalUse?: 'metadata_only' | 'not_authorized' | 'independently_available';
+  numericalUse?: 'metadata_only' | 'not_authorized' | 'independently_available' | 'preliminary_authorized';
   /**
    * For candidate_governed entries only: has the equation been verified from the
    * original primary paper (not training memory, not a secondary citation)?
@@ -374,7 +374,7 @@ export interface ECR2FuturePreliminaryInputContract {
   id: 'd32' | 'D_c' | 'D_d' | 'sigma' | 'mu_c' | 'mu_d';
   unit: string;
   requiredFields: readonly ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'];
-  activation: 'future_only_not_runtime';
+  activation: 'future_only_not_runtime' | 'preliminary_runtime_required';
   note: string;
 }
 
@@ -384,12 +384,12 @@ export interface ECR2FuturePreliminaryInputContract {
  * explicitly authorised later.
  */
 export const ECR2_KH1999_FUTURE_PRELIMINARY_INPUTS: readonly ECR2FuturePreliminaryInputContract[] = [
-  { id: 'd32', unit: 'm', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'future_only_not_runtime', note: 'May be governed-calculated or engineer-entered/measured; existing K&H 1996 governance is unchanged.' },
-  { id: 'D_c', unit: 'm²/s', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'future_only_not_runtime', note: 'Continuous-phase component diffusivity.' },
-  { id: 'D_d', unit: 'm²/s', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'future_only_not_runtime', note: 'Dispersed-phase component diffusivity.' },
-  { id: 'sigma', unit: 'N/m', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'future_only_not_runtime', note: 'Physical liquid-liquid interfacial tension.' },
-  { id: 'mu_c', unit: 'Pa·s', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'future_only_not_runtime', note: 'Continuous-phase physical viscosity.' },
-  { id: 'mu_d', unit: 'Pa·s', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'future_only_not_runtime', note: 'Dispersed-phase physical viscosity.' },
+  { id: 'd32', unit: 'm', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'preliminary_runtime_required', note: 'May be governed-calculated or engineer-entered/measured; existing K&H 1996 governance is unchanged.' },
+  { id: 'D_c', unit: 'm²/s', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'preliminary_runtime_required', note: 'Continuous-phase component diffusivity.' },
+  { id: 'D_d', unit: 'm²/s', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'preliminary_runtime_required', note: 'Dispersed-phase component diffusivity.' },
+  { id: 'sigma', unit: 'N/m', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'preliminary_runtime_required', note: 'Physical liquid-liquid interfacial tension.' },
+  { id: 'mu_c', unit: 'Pa·s', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'preliminary_runtime_required', note: 'Continuous-phase physical viscosity.' },
+  { id: 'mu_d', unit: 'Pa·s', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'preliminary_runtime_required', note: 'Dispersed-phase physical viscosity.' },
 ] as const;
 
 type KH1999DependencyAvailability = 'available' | 'unavailable' | 'independently_governed';
@@ -414,30 +414,18 @@ export interface ECR2KH1999OutputDependency {
   requiredConstants: readonly KH1999Dependency[];
   requiredLocalVariables: readonly KH1999Dependency[];
   d32Provenance: readonly ('governed_calculated_future' | 'engineer_entered_or_measured_future')[];
-  runtimeStatus: 'not_activated' | 'independently_available';
+  runtimeStatus: 'not_activated' | 'independently_available' | 'preliminary_authorized';
   blockerIds: readonly ECR2KH1999RuntimeBlockerId[];
   exactBlockers: readonly string[];
 }
 
 const D32_PROVENANCE = ['governed_calculated_future', 'engineer_entered_or_measured_future'] as const;
 const SHC_BLOCKERS = [
-  'kuhni_psi_definition',
-  'drop_regime_selector',
-  'characteristic_velocity',
-  'original_validity_ranges',
-  'rrbo_nmp_validation',
-  'runtime_activation',
 ] as const;
 const SHD_BLOCKERS = [
-  'kuhni_psi_definition',
   'kuhni_shd_C2',
-  'drop_regime_selector',
-  'characteristic_velocity',
-  'original_validity_ranges',
-  'rrbo_nmp_validation',
-  'runtime_activation',
 ] as const;
-const OVERALL_BLOCKERS = [...SHC_BLOCKERS, ...SHD_BLOCKERS, 'overall_partition_basis'] as const;
+const OVERALL_BLOCKERS = ['overall_partition_basis'] as const;
 
 /**
  * This map is declarative governance data. It never feeds the local kernel and
@@ -451,13 +439,13 @@ export const ECR2_KH1999_MASS_TRANSFER_DEPENDENCY_MAP: readonly ECR2KH1999Output
     requiredLocalVariables: [
       { id: 'Re', availability: 'available', detail: 'd32·Vs·rho_c/mu_c dimensionless group.' },
       { id: 'Sc_c', availability: 'available', detail: 'mu_c/(rho_c·D_c) dimensionless group.' },
-      { id: 'psi_kuhni', availability: 'unavailable', detail: 'No governed Kühni power-dissipation definition is authorised for this equation.' },
+      { id: 'psi_kuhni', availability: 'available', detail: 'Thermopac preliminary interpretation: ψ = (P/V)/ρ_mix_phase1, retained with persistent provenance warning.' },
       { id: 'phi_d', availability: 'independently_governed', detail: 'K&H 1995 holdup remains an independent existing gate.' },
     ],
     d32Provenance: D32_PROVENANCE,
-    runtimeStatus: 'not_activated',
+    runtimeStatus: 'preliminary_authorized',
     blockerIds: SHC_BLOCKERS,
-    exactBlockers: ['Kühni ψ definition is not governed for the reproduced K&H 1999 correction.', 'Drop-regime and characteristic-velocity treatment are not recovered.', 'Original validity ranges and RRBO/NMP validation are not recovered.', 'Production Sherwood activation is explicitly out of scope.'],
+    exactBlockers: [],
   },
   {
     output: 'Sh_d',
@@ -470,9 +458,9 @@ export const ECR2_KH1999_MASS_TRANSFER_DEPENDENCY_MAP: readonly ECR2KH1999Output
       { id: 'drop_regime', availability: 'unavailable', detail: 'Rigid/circulating/oscillating selector and characteristic-velocity relation are not recovered.' },
     ],
     d32Provenance: D32_PROVENANCE,
-    runtimeStatus: 'not_activated',
+    runtimeStatus: 'preliminary_authorized',
     blockerIds: SHD_BLOCKERS,
-    exactBlockers: ['Kühni Sh_d C2 is not published in the accepted evidence.', 'Kühni ψ, drop-regime selection, and characteristic velocity are unresolved.', 'Original validity ranges and RRBO/NMP validation are not recovered.', 'Production Sherwood activation is explicitly out of scope.'],
+    exactBlockers: ['Kühni Sh_d C2 must be provided as a scoped, provenance-tagged engineer preliminary input.'],
   },
   {
     output: 'k_c',
@@ -480,9 +468,9 @@ export const ECR2_KH1999_MASS_TRANSFER_DEPENDENCY_MAP: readonly ECR2KH1999Output
     requiredConstants: [],
     requiredLocalVariables: [{ id: 'Sh_c', availability: 'unavailable', detail: 'Blocked by the Sh_c dependencies above.' }, { id: 'D_c', availability: 'unavailable', detail: 'The provenance contract exists, but mass-transfer use is future-only and not runtime activated.' }],
     d32Provenance: D32_PROVENANCE,
-    runtimeStatus: 'not_activated',
-    blockerIds: SHC_BLOCKERS,
-    exactBlockers: ['Sh_c is not activated.'],
+    runtimeStatus: 'preliminary_authorized',
+    blockerIds: [],
+    exactBlockers: [],
   },
   {
     output: 'k_d',
@@ -490,9 +478,9 @@ export const ECR2_KH1999_MASS_TRANSFER_DEPENDENCY_MAP: readonly ECR2KH1999Output
     requiredConstants: [],
     requiredLocalVariables: [{ id: 'Sh_d', availability: 'unavailable', detail: 'Blocked by the Sh_d dependencies above.' }, { id: 'D_d', availability: 'unavailable', detail: 'The provenance contract exists, but mass-transfer use is future-only and not runtime activated.' }],
     d32Provenance: D32_PROVENANCE,
-    runtimeStatus: 'not_activated',
+    runtimeStatus: 'preliminary_authorized',
     blockerIds: SHD_BLOCKERS,
-    exactBlockers: ['Sh_d is not activated.'],
+    exactBlockers: ['Sh_d requires a scoped, provenance-tagged Kühni C2 preliminary input.'],
   },
   {
     output: 'K_overall',
@@ -506,7 +494,7 @@ export const ECR2_KH1999_MASS_TRANSFER_DEPENDENCY_MAP: readonly ECR2KH1999Output
     d32Provenance: D32_PROVENANCE,
     runtimeStatus: 'not_activated',
     blockerIds: OVERALL_BLOCKERS,
-    exactBlockers: ['Two-film slope m / partition basis is unresolved.', 'Both film coefficients remain unavailable.'],
+    exactBlockers: ['Two-film slope m / partition basis must be explicitly engineer-approved and governed before use.', 'Both film coefficients must be available.'],
   },
   {
     output: 'a',
@@ -552,14 +540,11 @@ export function validateKH1999MassTransferDependencyMap(): string[] {
   if (!shd?.exactBlockers.some((item) => item.includes('Kühni Sh_d C2'))) {
     issues.push('Sh_d must retain the missing Kühni C2 blocker.');
   }
-  const inactiveEntries = ECR2_KH1999_MASS_TRANSFER_DEPENDENCY_MAP.filter(
-    (item) => item.runtimeStatus === 'not_activated',
-  );
-  if (inactiveEntries.some((item) => !item.blockerIds.includes('runtime_activation'))) {
-    issues.push('Every inactive mass-transfer output must retain the explicit runtime activation blocker.');
+  if (shc?.runtimeStatus !== 'preliminary_authorized') {
+    issues.push('Sh_c must be preliminary-authorized with its scoped Kühni C1 evidence.');
   }
-  if (!shc?.blockerIds.includes('original_validity_ranges') || !shd?.blockerIds.includes('rrbo_nmp_validation')) {
-    issues.push('Both Sherwood outputs must preserve original-validity and RRBO/NMP blockers.');
+  if (shd?.runtimeStatus !== 'preliminary_authorized') {
+    issues.push('Sh_d must be preliminary-authorized when a scoped engineer C2 input is supplied.');
   }
   if (rate?.runtimeStatus !== 'not_activated') issues.push('Transfer rate must remain inactive.');
   if (!area?.d32Provenance.includes('engineer_entered_or_measured_future')) {
@@ -1607,7 +1592,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     validityRange: {},
     applicabilityStatus: 'secondary_equation_verified',
     correlationStatus: 'secondary_equation_verified',
-    numericalUse: 'not_authorized',
+    numericalUse: 'preliminary_authorized',
     primarySourceVerified: false,
     secondaryReproductionVerified: true,
     validatedForRRBONMP: false,
@@ -1627,7 +1612,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     validityRange: {},
     applicabilityStatus: 'secondary_equation_verified',
     correlationStatus: 'secondary_equation_verified',
-    numericalUse: 'not_authorized',
+    numericalUse: 'preliminary_authorized',
     primarySourceVerified: false,
     secondaryReproductionVerified: true,
     validatedForRRBONMP: false,
@@ -1645,7 +1630,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     validityRange: {},
     applicabilityStatus: 'secondary_equation_verified',
     correlationStatus: 'secondary_equation_verified',
-    numericalUse: 'not_authorized',
+    numericalUse: 'preliminary_authorized',
     primarySourceVerified: false,
     secondaryReproductionVerified: true,
     validatedForRRBONMP: false,
@@ -1668,7 +1653,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     validityRange: {},
     applicabilityStatus: 'secondary_equation_verified',
     correlationStatus: 'secondary_equation_verified',
-    numericalUse: 'not_authorized',
+    numericalUse: 'preliminary_authorized',
     primarySourceVerified: false,
     secondaryReproductionVerified: true,
     validatedForRRBONMP: false,
@@ -1692,7 +1677,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     validityRange: {},
     applicabilityStatus: 'secondary_equation_verified',
     correlationStatus: 'secondary_equation_verified',
-    numericalUse: 'not_authorized',
+    numericalUse: 'preliminary_authorized',
     primarySourceVerified: false,
     secondaryReproductionVerified: true,
     validatedForRRBONMP: false,

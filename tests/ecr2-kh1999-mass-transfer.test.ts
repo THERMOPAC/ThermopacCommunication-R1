@@ -27,6 +27,8 @@ import {
   computePhysicalComponentMassConcentrations,
   createUnavailableKH1999PreliminaryLocalMassTransfer,
   evaluateKH1999PreliminaryLocalMassTransfer,
+  activateKH1999PreliminaryLocalMassTransfer,
+  type ECR2KH1999EngineerC2Input,
   type ECR2PhysicalMolecularWeightVector,
   type FiveComponentVector,
 } from '../server/engines/llx/llx-ecr2-kh1999-mass-transfer';
@@ -94,7 +96,89 @@ function validKernelSupport(diffusivity = DIFFUSIVITIES) {
     mu_c: properties.mu_c,
     mu_d: properties.mu_d,
   });
-  return { rho_c, rho_d, dimensionless, schmidt };
+  return { properties, rho_c, rho_d, dimensionless, schmidt };
+}
+
+const KUHNI_C2: ECR2KH1999EngineerC2Input = {
+  value: 1.25,
+  sourceType: 'Assumed',
+  sourceReference: 'Unit-test scoped preliminary Kühni Sh_d C2',
+  scope: 'kuhni_shd_preliminary',
+};
+
+const D32_PROVENANCE = {
+  value_m: 0.0005,
+  source: 'governed_calculated' as const,
+  sourceReference: 'Unit-test governed preliminary d32',
+};
+
+function activatedKernel(options: {
+  c2?: ECR2KH1999EngineerC2Input | null;
+  partitionApproved?: boolean;
+  d32_m?: number | null;
+  phi_d?: number;
+  diffusivity?: ECR2DiffusivityContract;
+  baseArea_m2_m3?: number | null;
+  activationD32?: typeof D32_PROVENANCE;
+  invalidMuDProvenance?: boolean;
+  invalidD32Source?: boolean;
+} = {}) {
+  const support = validKernelSupport(options.diffusivity ?? DIFFUSIVITIES);
+  const valueOf = (field: unknown) => {
+    if (!isPropertyAvailable(field as ReturnType<typeof computeLocalProperties>['rho_c'])) {
+      throw new Error('expected available test property');
+    }
+    return field.value;
+  };
+  const recordOf = (field: ReturnType<typeof computeLocalProperties>['rho_c']) => {
+    if (!isPropertyAvailable(field)) throw new Error('expected available test property');
+    return field;
+  };
+  const d32_m = options.d32_m === undefined ? 0.0005 : options.d32_m;
+  const base = evaluateKH1999PreliminaryLocalMassTransfer({
+    continuous_bulk: [0.04, 0.03, 0.02, 0.01, 0.90],
+    dispersed_bulk: [0.42, 0.28, 0.14, 0.10, 0.06],
+    continuous_equilibrium: [0.04, 0.03, 0.02, 0.01, 0.90],
+    dispersed_equilibrium: [0.42, 0.28, 0.14, 0.10, 0.06],
+    rho_c_bulk_kg_m3: support.rho_c,
+    rho_d_bulk_kg_m3: support.rho_d,
+    rho_c_equilibrium_kg_m3: support.rho_c,
+    rho_d_equilibrium_kg_m3: support.rho_d,
+    molecularWeights: MW,
+    dimensionless: support.dimensionless,
+    schmidt: support.schmidt,
+    d32_m,
+    interfacialArea_m2_m3: options.baseArea_m2_m3 === undefined
+      ? (d32_m ? 6 * (options.phi_d ?? 0.2) / d32_m : null)
+      : options.baseArea_m2_m3,
+  });
+  const result = activateKH1999PreliminaryLocalMassTransfer(base, {
+    hydrodynamics: {
+      phi_d: options.phi_d ?? 0.2,
+      psi_W_kg: 0.10,
+      U_slip_m_s: 0.001,
+      rho_c_kg_m3: support.rho_c,
+      rho_d_kg_m3: support.rho_d,
+      mu_c: recordOf(support.properties.mu_c),
+      mu_d: options.invalidMuDProvenance
+        ? { ...recordOf(support.properties.mu_d), sourceReference: '' }
+        : recordOf(support.properties.mu_d),
+      sigma: recordOf(support.properties.sigma),
+    },
+    diffusivity: options.diffusivity ?? DIFFUSIVITIES,
+    d32: options.activationD32 ?? (options.invalidD32Source
+      ? { ...D32_PROVENANCE, source: 'unregistered' as unknown as 'governed_calculated' }
+      : { ...D32_PROVENANCE, value_m: d32_m ?? Number.NaN }),
+    kuhniShdC2: options.c2 === undefined ? KUHNI_C2 : options.c2,
+    partitionBasis: options.partitionApproved
+      ? {
+          basis: 'K_d_concentration',
+          approvalStatus: 'engineer_approved_governed',
+          sourceReference: 'Unit-test governed K_d concentration basis',
+        }
+      : null,
+  });
+  return { result, support, base };
 }
 
 describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
@@ -158,27 +242,18 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
     ]));
   });
 
-  it('maps all mass-transfer prerequisites while keeping numerical outputs inactive', () => {
+  it('maps independently governed preliminary authorization and retains the partition gate', () => {
     expect(validateKH1999MassTransferDependencyMap()).toEqual([]);
     const byOutput = Object.fromEntries(ECR2_KH1999_MASS_TRANSFER_DEPENDENCY_MAP.map(
       (entry) => [entry.output, entry],
     ));
-    expect(byOutput.Sh_c.runtimeStatus).toBe('not_activated');
-    expect(byOutput.Sh_c.exactBlockers.join(' ')).toMatch(/Kühni ψ/);
+    expect(byOutput.Sh_c.runtimeStatus).toBe('preliminary_authorized');
+    expect(byOutput.Sh_c.exactBlockers).toEqual([]);
     expect(byOutput.Sh_d.requiredConstants).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'kh1999_shd_C2_kuhni', availability: 'unavailable' }),
     ]));
-    expect(byOutput.Sh_c.blockerIds).toEqual(expect.arrayContaining([
-      'kuhni_psi_definition',
-      'drop_regime_selector',
-      'characteristic_velocity',
-      'original_validity_ranges',
-      'rrbo_nmp_validation',
-      'runtime_activation',
-    ]));
     expect(byOutput.Sh_d.blockerIds).toEqual(expect.arrayContaining([
       'kuhni_shd_C2',
-      'runtime_activation',
     ]));
     expect(byOutput.K_overall.exactBlockers.join(' ')).toMatch(/partition|slope m/i);
     expect(byOutput.Koa.runtimeStatus).toBe('not_activated');
@@ -189,7 +264,7 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
       'engineer_entered_or_measured_future',
     ]));
     expect(ECR2_KH1999_FUTURE_PRELIMINARY_INPUTS.every(
-      (input) => input.activation === 'future_only_not_runtime' &&
+      (input) => input.activation === 'preliminary_runtime_required' &&
         input.requiredFields.join(',') === 'value,unit,sourceType,sourceReference,engineeringStatus',
     )).toBe(true);
   });
@@ -280,6 +355,228 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
     expect(typeof result.components.Sat.Sc_c).toBe('object');
     expect(result.components.Sat.K_d_partition).toEqual(expect.any(Number));
     expect(result.components.Sat.Sh_c.reason).toBe('correlation_unresolved');
+  });
+
+  it('calculates the exact registered Sh_c equation with scoped Kühni C1 = 7.5', () => {
+    const { result, support, base } = activatedKernel({ c2: null });
+    const shc = result.components.Sat.Sh_c;
+    const sc = base.components.Sat.Sc_c;
+    expect(typeof shc).toBe('number');
+    expect(typeof sc).toBe('number');
+    if (typeof shc !== 'number' || typeof sc !== 'number' || typeof support.dimensionless.Re_d !== 'number' ||
+      typeof support.dimensionless.kappa !== 'number') throw new Error('expected numeric local support');
+
+    const mu_c = isPropertyAvailable(support.properties.mu_c) ? support.properties.mu_c.value : 0;
+    const sigma = isPropertyAvailable(support.properties.sigma) ? support.properties.sigma.value : 0;
+    const de = DIFFUSIVITIES.Sat.De_c!.value_m2_s;
+    const re = support.dimensionless.Re_d;
+    const shRigid = 2.43 + 0.775 * Math.sqrt(re) * Math.cbrt(sc) + 0.0103 * re * Math.cbrt(sc);
+    const shInfinity = 50 + (2 / Math.sqrt(Math.PI)) * Math.sqrt((0.0005 * 0.001) / de);
+    const agitation = (0.10 / 9.80665) * Math.pow(support.rho_c / (9.80665 * sigma), 0.25);
+    const rhs = 5.26e-2 *
+      Math.pow(re, 1 / 3 + 6.59e-2 * Math.pow(re, 0.25)) *
+      Math.cbrt(sc) *
+      Math.cbrt((0.001 * mu_c) / sigma) *
+      (1 / (1 + Math.pow(support.dimensionless.kappa, 1.1))) *
+      (1 + 7.5 * Math.cbrt(agitation));
+    expect(shc).toBeCloseTo((1 - 0.2) * ((shRigid + rhs * shInfinity) / (1 + rhs)), 12);
+    expect(result.components.Sat.outputStatus.Sh_c.status).toBe('calculated_preliminary');
+    expect(result.governance.primarySourceVerified).toBe(false);
+    expect(result.governance.validatedForRRBONMP).toBe(false);
+  });
+
+  it('derives Re and κ from the activated local state instead of accepting stale base dimensionless values', () => {
+    const { result, base, support } = activatedKernel({ c2: null });
+    const numericProperty = (field: ReturnType<typeof computeLocalProperties>['rho_c']) => {
+      if (!isPropertyAvailable(field)) throw new Error('expected property');
+      return field.value;
+    };
+    const staleBase = {
+      ...base,
+      dimensionless: {
+        ...base.dimensionless!,
+        Re_d: 999,
+        kappa: 99,
+      },
+    };
+    const recalculated = activateKH1999PreliminaryLocalMassTransfer(staleBase, {
+      hydrodynamics: {
+        phi_d: 0.2, psi_W_kg: 0.10, U_slip_m_s: 0.001,
+        rho_c_kg_m3: support.rho_c, rho_d_kg_m3: support.rho_d,
+        mu_c: (() => { if (!isPropertyAvailable(support.properties.mu_c)) throw new Error('expected property'); return support.properties.mu_c; })(),
+        mu_d: (() => { if (!isPropertyAvailable(support.properties.mu_d)) throw new Error('expected property'); return support.properties.mu_d; })(),
+        sigma: (() => { if (!isPropertyAvailable(support.properties.sigma)) throw new Error('expected property'); return support.properties.sigma; })(),
+      },
+      diffusivity: DIFFUSIVITIES,
+      d32: D32_PROVENANCE,
+      kuhniShdC2: null,
+    });
+    expect(recalculated.components.Sat.Sh_c).toEqual(result.components.Sat.Sh_c);
+  });
+
+  it('recomputes Schmidt numbers and interfacial area from activated inputs rather than stale base snapshots', () => {
+    const { base, support } = activatedKernel({ c2: null });
+    const numericProperty = (field: ReturnType<typeof computeLocalProperties>['rho_c']) => {
+      if (!isPropertyAvailable(field)) throw new Error('expected property');
+      return field.value;
+    };
+    const activationDiffusivity: ECR2DiffusivityContract = {
+      ...DIFFUSIVITIES,
+      Sat: {
+        De_c: { ...DIFFUSIVITIES.Sat.De_c!, value_m2_s: 1.05e-9 },
+        De_d: DIFFUSIVITIES.Sat.De_d,
+      },
+    };
+    const changed = activateKH1999PreliminaryLocalMassTransfer(base, {
+      hydrodynamics: {
+        phi_d: 0.2, psi_W_kg: 0.10, U_slip_m_s: 0.001,
+        rho_c_kg_m3: support.rho_c, rho_d_kg_m3: support.rho_d,
+        mu_c: (() => { if (!isPropertyAvailable(support.properties.mu_c)) throw new Error('expected property'); return { ...support.properties.mu_c, value: numericProperty(support.properties.mu_c) * 1.5 }; })(),
+        mu_d: (() => { if (!isPropertyAvailable(support.properties.mu_d)) throw new Error('expected property'); return support.properties.mu_d; })(),
+        sigma: (() => { if (!isPropertyAvailable(support.properties.sigma)) throw new Error('expected property'); return support.properties.sigma; })(),
+      },
+      diffusivity: activationDiffusivity,
+      d32: D32_PROVENANCE,
+      kuhniShdC2: null,
+    });
+    const changedSc = changed.components.Sat.Sc_c;
+    expect(typeof changedSc).toBe('number');
+    if (typeof changedSc !== 'number') throw new Error('expected activated Sc');
+    expect(changedSc).toBeCloseTo(
+      (numericProperty(support.properties.mu_c) * 1.5) / (support.rho_c * 1.05e-9),
+      12,
+    );
+    expect(changedSc).not.toEqual(base.components.Sat.Sc_c);
+
+    const areaResult = activatedKernel({
+      partitionApproved: true,
+      baseArea_m2_m3: 1,
+    }).result.components.Sat;
+    expect(typeof areaResult.K_overall_m_s).toBe('number');
+    expect(typeof areaResult.K_oa_per_s).toBe('number');
+    if (typeof areaResult.K_overall_m_s !== 'number' || typeof areaResult.K_oa_per_s !== 'number') {
+      throw new Error('expected calculated Koa');
+    }
+    expect(areaResult.K_oa_per_s).toBeCloseTo(areaResult.K_overall_m_s * (6 * 0.2 / 0.0005), 15);
+  });
+
+  it('rejects an activation density state that differs from the concentration/Kd basis', () => {
+    const { base, support } = activatedKernel({ c2: null });
+    const numericProperty = (field: ReturnType<typeof computeLocalProperties>['rho_c']) => {
+      if (!isPropertyAvailable(field)) throw new Error('expected property');
+      return field.value;
+    };
+    const mismatch = activateKH1999PreliminaryLocalMassTransfer(base, {
+      hydrodynamics: {
+        phi_d: 0.2, psi_W_kg: 0.10, U_slip_m_s: 0.001,
+        rho_c_kg_m3: support.rho_c + 1, rho_d_kg_m3: support.rho_d,
+        mu_c: (() => { if (!isPropertyAvailable(support.properties.mu_c)) throw new Error('expected property'); return support.properties.mu_c; })(),
+        mu_d: (() => { if (!isPropertyAvailable(support.properties.mu_d)) throw new Error('expected property'); return support.properties.mu_d; })(),
+        sigma: (() => { if (!isPropertyAvailable(support.properties.sigma)) throw new Error('expected property'); return support.properties.sigma; })(),
+      },
+      diffusivity: DIFFUSIVITIES,
+      d32: D32_PROVENANCE,
+      kuhniShdC2: null,
+    });
+    expect(mismatch.components.Sat.outputStatus.Sh_c.status).toBe('not_calculable');
+    expect(mismatch.components.Sat.outputStatus.K_overall.status).toBe('engineer_partition_basis_required');
+    expect(mismatch.components.Sat.Sh_c).toEqual(expect.objectContaining({
+      reason: 'blocked_by_local_properties',
+    }));
+  });
+
+  it('rejects wrong C1 constants, leaves Sh_c independent of missing C2, and rejects borrowed C2 constants', () => {
+    const { base, support } = activatedKernel({ c2: null });
+    const properties = support.properties;
+    const numericProperty = (field: ReturnType<typeof computeLocalProperties>['rho_c']) => {
+      if (!isPropertyAvailable(field)) throw new Error('expected property');
+      return field.value;
+    };
+    const wrongC1 = activateKH1999PreliminaryLocalMassTransfer(base, {
+      hydrodynamics: {
+        phi_d: 0.2, psi_W_kg: 0.1, U_slip_m_s: 0.001,
+        rho_c_kg_m3: support.rho_c, rho_d_kg_m3: support.rho_d,
+        mu_c: (() => { if (!isPropertyAvailable(properties.mu_c)) throw new Error('expected property'); return properties.mu_c; })(),
+        mu_d: (() => { if (!isPropertyAvailable(properties.mu_d)) throw new Error('expected property'); return properties.mu_d; })(),
+        sigma: (() => { if (!isPropertyAvailable(properties.sigma)) throw new Error('expected property'); return properties.sigma; })(),
+      },
+      diffusivity: DIFFUSIVITIES,
+      d32: D32_PROVENANCE,
+      c1Override: 0.90,
+      kuhniShdC2: { ...KUHNI_C2, value: 4.33 },
+    });
+    expect(wrongC1.components.Sat.outputStatus.Sh_c.status).toBe('blocked_by_invalid_c1_scope');
+    expect(wrongC1.components.Sat.outputStatus.Sh_d.status).toBe('blocked_by_invalid_c2_scope');
+
+    const missingC2 = activatedKernel({ c2: null }).result.components.Sat;
+    expect(missingC2.outputStatus.Sh_c.status).toBe('calculated_preliminary');
+    expect(missingC2.outputStatus.k_c.status).toBe('calculated_preliminary');
+    expect(missingC2.outputStatus.Sh_d.status).toBe('engineer_input_required_for_preliminary_shd');
+    expect(missingC2.outputStatus.k_d.status).toBe('engineer_input_required_for_preliminary_shd');
+  });
+
+  it('calculates Sc, k_c, k_d, a, Koa, and a zero equilibrium transfer rate with explicit basis approval', () => {
+    const { result, support, base } = activatedKernel({ partitionApproved: true });
+    const sat = result.components.Sat;
+    expect(typeof sat.Sc_c).toBe('number');
+    expect(typeof sat.Sc_d).toBe('number');
+    expect(typeof sat.Sh_c).toBe('number');
+    expect(typeof sat.Sh_d).toBe('number');
+    expect(typeof sat.k_c_m_s).toBe('number');
+    expect(typeof sat.k_d_m_s).toBe('number');
+    expect(typeof sat.K_overall_m_s).toBe('number');
+    expect(typeof sat.K_oa_per_s).toBe('number');
+    if (typeof sat.Sc_c !== 'number' || typeof sat.Sc_d !== 'number' || typeof sat.Sh_c !== 'number' ||
+      typeof sat.Sh_d !== 'number' || typeof sat.k_c_m_s !== 'number' || typeof sat.k_d_m_s !== 'number' ||
+      typeof sat.K_overall_m_s !== 'number' || typeof sat.K_oa_per_s !== 'number') throw new Error('expected calculated values');
+    const mu_c = isPropertyAvailable(support.properties.mu_c) ? support.properties.mu_c.value : 0;
+    const mu_d = isPropertyAvailable(support.properties.mu_d) ? support.properties.mu_d.value : 0;
+    expect(sat.Sc_c).toBeCloseTo(mu_c / (support.rho_c * DIFFUSIVITIES.Sat.De_c!.value_m2_s), 12);
+    expect(sat.Sc_d).toBeCloseTo(mu_d / (support.rho_d * DIFFUSIVITIES.Sat.De_d!.value_m2_s), 12);
+    expect(sat.k_c_m_s).toBeCloseTo(sat.Sh_c * DIFFUSIVITIES.Sat.De_c!.value_m2_s / 0.0005, 15);
+    expect(sat.k_d_m_s).toBeCloseTo(sat.Sh_d * DIFFUSIVITIES.Sat.De_d!.value_m2_s / 0.0005, 15);
+    expect(base.interfacialArea_m2_m3).toBeCloseTo(6 * 0.2 / 0.0005, 12);
+    expect(sat.K_oa_per_s).toBeCloseTo(sat.K_overall_m_s * base.interfacialArea_m2_m3!, 15);
+    expect(sat.drivingForce_dispersed_kg_m3).toBeCloseTo(0, 12);
+    expect(sat.transferRate_kg_m3_s).toBeCloseTo(0, 12);
+    expect(result.governance.engineerInputs.kuhniShdC2).toEqual(KUHNI_C2);
+  });
+
+  it('propagates missing d32, diffusivity, invalid holdup, and partition status independently', () => {
+    const missingD32 = activatedKernel({ d32_m: null, c2: null }).result.components.Sat;
+    expect(missingD32.outputStatus.Sh_c.status).toBe('blocked_by_missing_d32');
+    expect(missingD32.outputStatus.Sh_d.status).toBe('blocked_by_missing_d32');
+
+    const missingDe = activatedKernel({ diffusivity: emptyDiffusivityContract(), c2: KUHNI_C2 }).result.components.Sat;
+    expect(missingDe.outputStatus.Sh_c.status).toBe('blocked_by_missing_diffusivity');
+    expect(missingDe.outputStatus.Sh_d.status).toBe('blocked_by_missing_diffusivity');
+
+    const invalidHoldup = activatedKernel({ phi_d: 1.1, c2: KUHNI_C2 }).result.components.Sat;
+    expect(invalidHoldup.outputStatus.Sh_c.status).toBe('blocked_by_invalid_holdup');
+
+    const partitionBlocked = activatedKernel({ c2: KUHNI_C2 }).result.components.Sat;
+    expect(partitionBlocked.outputStatus.k_c.status).toBe('calculated_preliminary');
+    expect(partitionBlocked.outputStatus.k_d.status).toBe('calculated_preliminary');
+    expect(partitionBlocked.outputStatus.K_overall.status).toBe('engineer_partition_basis_required');
+    expect(partitionBlocked.outputStatus.Koa.status).toBe('blocked_by_K_overall');
+  });
+
+  it('rejects unprovenanced local properties, d32 source, and diffusivity metadata', () => {
+    const badProperty = activatedKernel({ invalidMuDProvenance: true, c2: null }).result.components.Sat;
+    expect(badProperty.outputStatus.Sh_c.status).toBe('not_calculable');
+
+    const badD32 = activatedKernel({ invalidD32Source: true, c2: null }).result.components.Sat;
+    expect(badD32.outputStatus.Sh_c.status).toBe('blocked_by_missing_d32');
+
+    const badDiffusivity: ECR2DiffusivityContract = {
+      ...DIFFUSIVITIES,
+      Sat: {
+        De_c: { ...DIFFUSIVITIES.Sat.De_c!, sourceReference: '' },
+        De_d: DIFFUSIVITIES.Sat.De_d,
+      },
+    };
+    const badDiff = activatedKernel({ diffusivity: badDiffusivity, c2: null }).result.components.Sat;
+    expect(badDiff.outputStatus.Sh_c.status).toBe('blocked_by_missing_diffusivity');
   });
 
   it('does not use Phase-1 uniform values as a fake local mass-transfer state', () => {
