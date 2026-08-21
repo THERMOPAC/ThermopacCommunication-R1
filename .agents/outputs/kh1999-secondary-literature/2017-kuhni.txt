@@ -1,0 +1,2450 @@
+
+
+===== 2017-kuhni — PAGE 1 =====
+Iran. J. Chem. Chem. Eng. 
+Research Article 
+Vol. 36, No. 5, 2017 
+ 
+149 
+ 
+ 
+Experimental Determination of Continuous Phase 
+Overall Mass Transfer Coefficients  
+Case Study: Kühni Extraction Column 
+ 
+ 
+Asadollahzadeh, Mehdi*+ 
+Department of Chemical Engineering, Iran University of Science and Technology (IUST),  
+P.O. Box 16765-163 Tehran, I.R. IRAN 
+ 
+Torkaman, Rezvan; Torab-Mostaedi, Meisam 
+Materials and Nuclear Fuel Research School, Nuclear Science and Technology Research Institute,  
+P.O. Box 11365-8486 Tehran, I.R. IRAN 
+ 
+ 
+ABSTRACT: Experimental data obtained in a pilot-scale Kühni liquid-liquid extraction column 
+were used to obtain. In this study, volumetric overall mass transfer coefficients were measured  
+and correlated under different operating variables in a 113 mm diameter Kühni column. Both  
+mass transfer directions are considered in the experiments.  The effect of operating parameters  
+on the volumetric overall mass transfer coefficients has been investigated. According to obtained results, 
+mass transfer performance is strongly dependent on rotor speed and mass transfer direction, 
+although only slightly dependent on phase flow rates. A novel empirical correlation is developed  
+for prediction of overall continuous phase Sherwood number based on dispersed phase holdup, 
+Reynolds number and mass transfer direction. The proposed correlations based on dimensionless 
+numbers can be considered as a useful tool for the possible scale up of the Kühni column. 
+ 
+ 
+KEYWORDS: Kühni column; Overall mass transfer coefficients; Mass transfer direction; 
+Sherwood number. 
+ 
+ 
+INTRODUCTION 
+Liquid-liquid extraction or solvent extraction is  
+a separation process which is based on the different 
+distribution of the components to be separated between 
+two liquid phases. It depends on the mass transfer of  
+the component to be extracted from a first liquid phase  
+to a second one [1, 2].  
+Different types of liquid-liquid columns are in use 
+nowadays, which can be classified into two main  
+ 
+ 
+ 
+categories: agitated (RDC, ORC & Kühni) and pulsed 
+(packed, sieve plate & disc and doughnut) columns [3-6]. 
+The Kühni contactor represents a logical development 
+of the RDC and ORC columns, in which the baffled 
+impellers of the latter are replaced by the unbaffled 
+double entry turbines, and the annular partition plates 
+between stages in the former are replaced by the 
+perforated stator plates [7]. 
+ 
+ 
+ 
+* To whom correspondence should be addressed. 
++ E-mail: mehdiasadollahzadeh@alumni.iust.ac.ir 
+1021-9986/2017/5/149-161 
+     13/$/6.30 
+
+
+===== 2017-kuhni — PAGE 2 =====
+Iran. J. Chem. Chem. Eng. 
+Asadollahzadeh M. et al. 
+Vol. 36, No. 5, 2017 
+ 
+150 
+In most industrial extraction equipment, one phase  
+is dispersed as a swarm in a second continuous phase. 
+This method of contact has the advantage of providing a large 
+interfacial area per unit volume for the mass transfer [8, 9]. 
+The design and scale up of an extractor needs  
+the calculation of two independent parameters including 
+the cross-sectional area and the height of the column.  
+The first one is required to accommodate the desired flows 
+without flooding and the second one should be 
+determined to reach the appropriate performance of 
+extraction columns [10]. 
+Therefore, knowledge of mass transfer performance  
+is of fundamental importance for the design and 
+development of practical extraction columns. Mixing  
+is often applied to the extraction columns such as RDC, 
+Kühni, and ORC columns in order to improve the phase 
+contact. The performance of the apparatus is often 
+ameliorated by the use of impellers. The agitation 
+modifies the apparatus hydrodynamics by inducing 
+turbulence in the flow thus improving the interphase 
+contact and intensifying the mass transfer [11, 12]. 
+The knowledge of axial mixing in extraction column 
+is necessary for understanding the fundamental processes 
+involved in the mass transfer. Failure to account for axial 
+mixing may lead to large errors in column dimensions.  
+It has been reported that axial dispersion in extraction columns 
+lowers the process efficiency as much as 30% [13]. 
+Use axial mixing or backflow model for design and 
+scale-up is now developed for determination of height of 
+extraction column. In this method, one parameter is 
+considered for all deviations from the ideal plug flow 
+conditions [14]. 
+The investigation has been focused to study the axial 
+dispersion in continuous phase of liquid–liquid extraction 
+columns such as spray towers [15-17], reciprocating plate 
+extraction columns [18, 19] and pulsed sieve plate 
+extraction columns [20, 21]. Although, a few studies  
+can be found in which this effect has been taken into account. 
+Determining mass transfer coefficient in an extractor 
+is difficult due to significant uncertainty. Although,  
+the Kühni was applied appropriately for a number  
+of separation processes, limited experimental data  
+are available from the literature on the mass transfer 
+performance of Kühni extraction columns. 
+This research work examines the ability of an axial 
+dispersion model with correlations to predict the 
+performance of a Kühni column.  New correlations  
+are proposed to describe the effects of agitation conditions, 
+phase velocities, physical properties of the liquid-liquid 
+system on the overall mass transfer coefficients. 
+ 
+EXPERIMENTAL SECTION 
+Description of the Equipment 
+A pilot scale unit of Kühni extraction column  
+was constructed. Internal diameter of Kühni contactor is 
+113 mm and it has 10 stages. Agitation at each stage  
+is achieved with 50 mm diameter shrouded six-blade 
+turbine agitator with an accurate speed control.  
+The interface location of the two phases at the top  
+of the heavy-phase inlet and under the light-phase outlet 
+in the upper settler was automatically controlled by an optical 
+sensor. A solenoid valve (a normally closed type)  
+was provided at the outlet stream of the heavy phase. 
+When the interface location was meant to change, the optical 
+sensor sent a signal to the solenoid valve and the heavy 
+phase was allowed to leave the column by opening  
+the diaphragm of the solenoid valve. The light phase  
+was allowed to leave the column via an overflow.  
+A schematic diagram of the experimental apparatus  
+is shown in Fig. 1. The geometrical data of the investigated 
+extraction column are given in Table 1. 
+ 
+Materials Used 
+All 
+experiments 
+were 
+conducted 
+at 
+ambient 
+temperature, using a liquid–liquid system according to 
+the recommendations of the European Federation of 
+Chemical Engineering [22]. The system was toluene–
+acetone-water. The experiments were carried out in both 
+mass transfer directions. In all of the experiments, dilute 
+solutions were investigated with approximately 3.5 wt% 
+acetone as transferred solute in the organic or aqueous 
+phase. 
+The physical properties of these systems are listed in 
+Table 2. Technical-grade solvents of at least 99.5 wt% 
+purity were used as the dispersed phase and distilled 
+water was used as the continuous phase.  
+ 
+Analytic Procedure 
+In each experiment the following variables were 
+measured:  
+(1) Before starting each run, the aqueous and organic 
+phases were first mutually saturated, after which acetone 
+
+
+===== 2017-kuhni — PAGE 3 =====
+Iran. J. Chem. Chem. Eng. 
+Experimental Determination of Continuous Phase ... 
+Vol. 36, No. 5, 2017 
+ 
+151
+ 
+Table 1: The geometrical data of the investigated extraction column. 
+Column diameter (m) 
+0.117 
+Shrouded six-bladed turbine diameter (m) 
+0.05 
+Column working height (m) 
+0.7 
+Stator plate fractional free area 
+0.212 
+No. of compartments (-) 
+10 
+ 
+Table 2: Physical properties of liquid systems at 20 ºC [22]. 
+Physical property
+ 
+Toluene/acetone/water
+ 
+]
+3
+[kg/m
+ 
+cρ
+ 
+994.4-995.7
+ 
+]
+3
+[kg/m
+ 
+d
+ρ
+ 
+864.4-865.2
+ 
+[mPa.s]
+ 
+c
+μ
+ 
+1.059-1.075
+ 
+[mPa.s]
+ 
+d
+μ
+ 
+0.574-0.584
+ 
+σ [mN/m]
+ 
+27.5-30.1
+ 
+/s]
+2
+[m
+ 
+c
+D
+ 
+9
+-
+1.14×10
+-
+1.09
+ 
+/s]
+2
+[m
+ 
+d
+D
+ 
+9
+-
+2.8×10
+-
+2.7
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Fig. 1: A schematic diagram of the experimental apparatus. 
+
+
+===== 2017-kuhni — PAGE 4 =====
+Iran. J. Chem. Chem. Eng. 
+Asadollahzadeh M. et al. 
+Vol. 36, No. 5, 2017 
+ 
+152 
+was added to the dispersed (organic) phase to give  
+a concentration of about 3.5 wt% acetone. 
+(2) Samples of each phase were taken at their inlets  
+to the column and used for determination of the initial solute 
+concentration. 
+(3) The rotor speed and the continuous phase flow 
+rate were set at the desired valves and the dispersed phase 
+gradually admitted into the column up to the desired 
+volumetric flow rate. 
+(4) The interface location was then maintained at the 
+desired height, and the system was allowed to reach 
+steady-state. 
+(5) For all experiments, the steady-state condition 
+could be achieved after three times the residence times. 
+(6) At the end of each run, samples of the aqueous 
+and organic phases were taken at their respective outlet. 
+(7) The solute concentrations were then determined 
+by UV-visible spectroscopy. 
+(8) Dispersed phase holdup (φ) along the column 
+using shutdown procedure, when the operation became 
+steady state, the dispersed phase and continuous phase 
+inlet and outlet valves were quickly closed. The dispersed 
+phase was allowed to settle and the difference  
+in the interface level location was used to measure the total 
+holdup. The holdup was defined as the ratio of the displaced 
+dispersed 
+phase 
+volume 
+to 
+the 
+total 
+volume  
+of the extraction region. 
+(9) Sauter mean diameter of droplets (d32), in the way 
+that pictures of four different heights of the column have 
+been captured in each experiment by means of a very 
+high-resolution Nikon D5000 camera and have been 
+compared 
+with 
+the 
+stators 
+thickness 
+served 
+as  
+the reference for the drop size measurements. The Sauter 
+mean diameter was calculated from the following 
+equation: 
+N
+3
+i
+i
+i 1
+32
+N
+2
+i
+i
+i 1
+n d
+d
+n d
+
+
+
+
+
+                                                                 (1) 
+where ni denotes the number of drops of diameter di. 
+The specific interfacial area was obtained by  
+the following equation:  
+32
+6
+a
+d
+
+
+                                                                           (2) 
+ 
+All experiments were performed far from flooding 
+conditions. For each liquid-liquid system the operating 
+variables were systematically varied to determine  
+their influence on the volumetric overall mass transfer 
+coefficient. 
+ 
+Model for mass transfer coefficient 
+According to the axial diffusion model and material 
+balance in the extraction column, over the differential 
+elements of the extraction column with a total effective 
+height, H, the equation set for steady state process  
+is established using following equation, under the constant 
+superficial velocities Vc and Vd at any given agitation 
+rate [8]: 
+*
+oc
+c
+1
+x
+x
+N
+(x
+x )
+0
+Z
+P
+Z
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 (3) 
+*
+c
+oc
+d
+d
+V
+1
+x
+y
+N
+(x
+x )
+0
+Z
+P
+Z
+V
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                  (4) 
+It should be noted that in Eqs. (3) and (4)  
+Noc= KocaH/Vc represents (NTU)oc= H/(HTU)oc. Pec and Ped 
+are Peclet numbers and may be represent as Eqs. (5) and (6): 
+c
+c
+c
+HV
+Pe
+E
+
+  
+ 
+ 
+ 
+ 
+ (5) 
+d
+d
+d
+HV
+Pe
+E
+
+  
+ 
+ 
+ 
+ 
+ (6) 
+The axial mixing in the dispersed phase is generally 
+less pronounced than that in the continuous phase.  
+In the present work, dispersed phase axial dispersion is assumed 
+to be negligible. The following boundary conditions  
+can be used for the extraction column: 
+d
+0 ,
+dZ
+
+  
+ 
+ 
+ 
+ 
+ (7) 
+dy
+y (at thebottomof theextractor), Z 1
+
+  
+d
+Pe (
+),
+dZ
+
+
+
+
+
+  
+ 
+ 
+ 
+ (8) 
+(at thetopof theextractor), Z
+0
+  
+By using the continuous phase axial dispersion 
+coefficient, the measured dispersed and continuous phase 
+
+
+===== 2017-kuhni — PAGE 5 =====
+Iran. J. Chem. Chem. Eng. 
+Experimental Determination of Continuous Phase ... 
+Vol. 36, No. 5, 2017 
+ 
+153
+ 
+concentrations, together with the equilibrium data,  
+and the boundary conditions, the experimental values  
+of 
+volumetric 
+overall 
+mass 
+transfer 
+coefficients  
+are calculated from Eqs. (3) and (4). 
+In the current study, dispersed phase axial dispersion 
+is taken to be negligible, with the continuous phase axial 
+mixing coefficient calculated by the following equation 
+given by Kumar and Hartland [23]:  
+c
+d
+c
+c
+c
+E
+V
+0.42 0.29
+V h
+V
+
+
+
+
+
+
+
+
+
+
+
+                                          (9) 
+2
+R
+c
+R
+c
+ND
+13.38
+1.05 10
+V
+ND
+3.18
+V
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+0.08
+0.1
+0.16
+c
+R
+c
+c
+c
+c
+R
+c
+V D
+D
+D
+e
+D
+h
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+RESULTS AND DISCUSSION 
+The influence of agitation rate on the volumetric 
+overall mass transfer coefficient, mean drop size and 
+holdup are shown in Fig. 2 (a, b and c). and the pictures 
+of drop sizes for dispersed to continuous transfer  
+with different rotor speed are shown in Fig 3. 
+As expected, a higher rotor speed leads to a lower value 
+of the mean drop size and a higher value of the holdup. 
+The interfacial area for mass transfer increases with both 
+effects. However, the reduction of drop diameter results  
+in a reduction of the overall mass transfer coefficient  
+due to the reduction of internal circulations inside the drop.  
+The experimental findings indicate that the effect of  
+the interfacial area is larger than that of the overall mass 
+transfer coefficient and, consequently, the mass transfer 
+performance increases with an increase in rotor speed. 
+Fig. 2 also reveals that the extraction column 
+performance changes with the mass transfer direction. 
+When the mass transfer carries out from the continuous to 
+the dispersed phase, acetone concentration in the top of 
+drop is lower than the bottom of the drop. This interfacial 
+tension driving force results in interface moves in 
+opposition to the direction of the inner circulation 
+generated in the droplet. So, interface deformation can be 
+happened when the direction of mass transfer is c → d. 
+Drop deformation such as the break-up process leads  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Fig. 2: Effect of agitation rate on (a) Volumetric overall mass 
+transfer (b) Sauter mean drop diameter and (c) Holdup  
+(Vc= Vd= 0.62 mm/s). 
+100           125          150           175          200           225           250 
+N (rpm) 
+16
+ 
+ 
+14
+ 
+ 
+12
+ 
+ 
+10
+ 
+ 
+8
+ 
+ 
+6
+ 
+ 
+4
+ 
+ 
+2
+ 
+Koc.a 103 (1/s) 
+100           125          150           175          200           225           250 
+N (rpm) 
+3.0
+ 
+ 
+2.5
+ 
+ 
+2.0
+ 
+ 
+1.5
+ 
+ 
+1.0
+ 
+ 
+0.5
+ 
+d32 (mm) 
+100           125          150           175          200           225           250 
+N (rpm) 
+0.18
+ 
+ 
+0.16
+ 
+ 
+0.14
+ 
+ 
+0.12
+ 
+ 
+0.10
+ 
+ 
+0.08
+ 
+ 
+0.06
+ 
+ 
+0.04
+ 
+ 
+0.02
+ 
+Holdup (-) 
+
+
+===== 2017-kuhni — PAGE 6 =====
+Iran. J. Chem. Chem. Eng. 
+Asadollahzadeh M. et al. 
+Vol. 36, No. 5, 2017 
+ 
+154 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Fig. 3: Pictures of drop sizes with different rotor speeds for dispersed to continuous transfer (a) 135, (b) 175, (c) 195, (d) 235 rpm. 
+ 
+to the enhancement of mass transfer. For d → c mass 
+transfer,the interfacial tension driving force is opposite. 
+The interface motion and the inner circulation are  
+in the same direction. Consequently, the droplets can be more 
+stable than in the c → d direction. Therefore, drops tend 
+to be smaller in c → d mass transfer than opposite 
+direction (see Fig. 2 (b)). In addition, the dispersed phase 
+holdup is larger for c → d acetone transfer because  
+of the smaller droplets formation (see Fig. 2 (c)). Finally, 
+in the case of c → d direction, the interfacial area is higher 
+than that of in the d → c because of the lower drop size and 
+higher holdup. 
+The higher mass transfer coefficient in the d → c 
+direction than c → d direction for acetone transfer can be 
+explained via the interfacial turbulence induction of local 
+differences in the acetone concentration. The interfacial 
+tension driving force is occurred due to interfacial 
+movement and internal circulation generated in the drop. 
+The latter mentioned phenomena are in the same direction 
+in c → d acetone transfer, while in d → c acetone transfer, 
+they are in the opposing directions. For mentioned reason, 
+internal agitation within the drop would carries out in d → c 
+transfer systems which results in higher mass transfer 
+coefficient than that realized for c → d transfer systems.  
+It is seen that the influence of interfacial area on the mass 
+transfer performance of extraction column is lower than 
+that of the overall mass transfer coefficient. 
+The influence of continuous phase velocity on 
+volumetric overall mass transfer coefficient, mean drop 
+size and holdup are shown in Fig. 4 (a, b and c). It can be seen 
+that the volumetric overall mass transfer coefficient  
+and interfacial area increase with an increase in continuous 
+phase velocity in the range of velocities studied.  
+The dispersed phase holdup increases with the 
+increase in continuous phase velocity due to a reduction 
+of the relative velocity between the drops and continuous 
+phase. Moreover, this effect is not appreciable on the size 
+of the dispersed drops (Fig.4b). Therefore, the interfacial 
+area increases with the increase in holdup. The overall 
+mass transfer coefficient increases with Vc due to  
+an increase in drag forces arising from the relative velocity 
+between a drop and the continuous phase. Consequently, 
+the mass transfer performance increases with the increase 
+in the interfacial area and overall mass transfer coefficient.  
+It is also observed that the overall mass transfer 
+coefficient slightly increases with an increase in the 
+
+
+===== 2017-kuhni — PAGE 7 =====
+Iran. J. Chem. Chem. Eng. 
+Experimental Determination of Continuous Phase ... 
+Vol. 36, No. 5, 2017 
+ 
+155
+ 
+continuous phase velocity. Therefore, the column 
+performance increases with the both effects. 
+Fig. 5 (a, b and c) shows the influence of dispersed 
+phase velocity on volumetric overall mass transfer 
+coefficient, mean drop size and holdup respectively.  
+As it can be seen from Figs. 5(b) and (c), the Sauter mean drop 
+diameter and dispersed phase holdup increase with the 
+enhancement of dispersed phase velocity in the c → d 
+and d → c mass transfer directions, although,  
+the influence of the dispersed phase holdup on the interfacial 
+area is dominant than that of the mean drop size. Thus, 
+there is an increase in the interfacial area with increasing 
+of dispersed phase velocity. As it is also seen, the overall 
+mass transfer coefficient increases with the enhancement 
+of the dispersed phase velocity for d → c and c → d 
+direction. For both mass transfer directions, the mass 
+transfer performance in the extraction column would 
+enhance with an increase in both overall mass transfer 
+coefficient and the interfacial area. 
+Several studies have reported that mass transfer is  
+an important parameter in liquid–liquid columns and  
+has to be taken into account to design industrial columns. 
+Mass transfer in the continuous phase is commonly changed 
+by a combination of molecular diffusion, and natural  
+or forced convection within the drop [24].  
+A number of empirical equations to predict mass 
+transfer in a single drop and different types of extraction 
+columns are available. Table 3 briefly gives a list  
+of the published related correlations. 
+Table 4 is provided for comparison of experimental 
+results of overall mass transfer coefficient with the results 
+of previous studies. Average Absolute Relative Error 
+(AARE) is used to determine the accuracy of current 
+work. According to the Table 4, it can be resulted that 
+none of the previous correlations are suitable for 
+determination of mass transfer coefficient in the 
+perforated rotating disc contactor. 
+The calculated values of the overall mass transfer 
+coefficients (Koc) are then compared with those provided 
+from single-drop correlations (Eqs. (10) to (17) in Table 1). 
+This is affected by using one of the following expressions 
+relating 
+the 
+overall 
+to 
+individual 
+mass 
+transfer 
+coefficients: 
+oc
+c
+d
+1
+1
+1
+k
+k
+mk
+
+
+                                                          (23) 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Fig. 4: Effect of continuous phase velocity on (a) Volumetric 
+overall mass transfer the (b) Sauter mean drop diameter and 
+(c) Hold-up (Vd= 0.62 mm/s). 
+0.2               0.4               0.6               0.8                1                 1.2 
+Vc(mm/s) 
+14
+ 
+ 
+12
+ 
+ 
+10
+ 
+ 
+8
+ 
+ 
+6
+ 
+ 
+4
+ 
+ 
+2
+ 
+ 
+0
+ 
+Koc.a 103 (1/s) 
+2.5
+ 
+ 
+2.1
+ 
+ 
+1.7
+ 
+ 
+1.3
+ 
+ 
+0.9
+ 
+ 
+0.5
+ 
+d32 (mm) 
+0.2               0.4              0.6               0.8                1                 1.2 
+Vd (mm/s) 
+0.16
+ 
+ 
+0.14
+ 
+ 
+0.12
+ 
+ 
+0.10
+ 
+ 
+0.08
+ 
+ 
+0.06
+ 
+ 
+0.04
+ 
+ 
+0.02
+ 
+Holdup (-) 
+0.2               0.4              0.6               0.8                1                1.2 
+Vd (mm/s) 
+
+
+===== 2017-kuhni — PAGE 8 =====
+Iran. J. Chem. Chem. Eng. 
+Asadollahzadeh M. et al. 
+Vol. 36, No. 5, 2017 
+ 
+156 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Fig. 5: Effect of dispersed phase velocity on (a) Volumetric 
+overall mass transfer (b) Sauter mean drop diameter and  
+(c) Hold-up (Vc= 0.62 mm/s). 
+The Gröber equation (Eq. (24)) [36] concerns rigid 
+drops which do not have any internal circulation and 
+where mass transfer is more controlled by a transient 
+molecular diffusion.   
+2
+n
+d
+od
+n
+2
+n 1
+4
+D t
+d
+K
+ln 6
+B exp
+6t
+d
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    (24) 
+The Kronig-Brink model (Eq. (25)) [37] assumes  
+a laminar diffusion with an inner circulation inside  
+the drop, induced by its relative motion, with respect  
+to the continuous phase.  
+2
+n
+d
+od
+n
+2
+n 1
+64
+D t
+d
+3
+K
+ln
+B exp
+6t
+8
+d
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                 (25) 
+The Handlos-Baron model (Eq. (26)) [38] deals  
+with the case of drops with internal turbulent circulation 
+and where mass transfer is controlled by turbulent diffusion.  
+2
+n
+t
+od
+n
+n 1
+V t
+d
+K
+ln 6
+B exp
+6t
+128d(1
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+              (26) 
+Although mass transfer into or out of drops have been 
+investigated for many years, it is still not fully 
+understood, since it depends on several factors. These 
+factors include the fact that the dispersed phase mass 
+transfer coefficient depends upon the nature, size and 
+behavior of the drop. The presently available equations 
+for calculation of the dispersed phase mass transfer 
+coefficient are not usually valid over a range of drop sizes 
+and behavior in a typical extraction column. The above 
+equation is used for calculation of kd for circulating drop 
+(Eqs. (14) to (17)). 
+The values of error in the correlations related to these 
+columns are rather unsatisfactory for a kühni column.  
+A 
+comparison 
+between 
+these 
+correlations 
+and  
+the experimental data is shown in Fig. 6. 
+In the present study, the possibility of using  
+these correlations for prediction of overall continuous 
+mass transfer coefficient.  
+The 
+predictive 
+correlation 
+for 
+mass 
+transfer 
+coefficient in conjunction with holdup, drop size and 
+physical properties are proposed to predict the 
+performance of the columns as expressed by the 
+following equations: 
+0.2               0.4               0.6               0.8                1                 1.2 
+Vd (mm/s) 
+14
+ 
+ 
+12
+ 
+ 
+10
+ 
+ 
+8
+ 
+ 
+6
+ 
+ 
+4
+ 
+ 
+2
+ 
+ 
+0
+ 
+Koc.a 103 (1/s) 
+3.0
+ 
+ 
+2.5
+ 
+ 
+2.0
+ 
+ 
+1.5
+ 
+ 
+1.0
+ 
+ 
+0.5
+ 
+d32 (mm) 
+0.16
+ 
+ 
+0.14
+ 
+ 
+0.12
+ 
+ 
+0.10
+ 
+ 
+0.08
+ 
+ 
+0.06
+ 
+ 
+0.04
+ 
+ 
+0.02
+ 
+Holdup (-) 
+0.2               0.4              0.6               0.8                1                 1.2 
+Vd (mm/s) 
+0.2               0.4              0.6               0.8                1                 1.2 
+Vd (mm/s) 
+
+
+===== 2017-kuhni — PAGE 9 =====
+Iran. J. Chem. Chem. Eng. 
+Experimental Determination of Continuous Phase ... 
+Vol. 36, No. 5, 2017 
+ 
+157
+ 
+Table 3: Previous correlations for estimation of mass transfer coefficient in single drop systems and extraction columns. 
+Correlations 
+Reference 
+Stagnant Drops 
+1/2
+1/3
+c
+c
+Sh
+0.7Re
+Sc
+high Reynolds numbers
+
+                                                                          (10) 
+Lochiel and 
+Calderbank [25] 
+100
+Re
+1
+1
+79
+.0
+4.2
+1
+66
+.0
+2
+2.1
+7.1
+6
+/
+1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+c
+c
+c
+c
+c
+c
+c
+Pe
+Pe
+Sc
+c
+S
+Sc
+Sc
+Sh
+                                                      (11) 
+Brauer [26] 
+3
+/
+1
+2
+/
+1
+1 Re
+2
+c
+c
+Sc
+C
+Sh
+
+
+                                                                                                                   (12) 
+Skelland [24] 
+3
+/
+1
+48
+.0
+Re
+724
+.0
+1
+c
+c
+Sc
+Sh
+
+
+                                                                                                              (13) 
+Clift et al. [27] 
+Circulating Drops 
+800
+Re
+8
+Re
+8.1
+126
+42
+.0
+5.0
+
+
+
+
+
+c
+c
+Sc
+Sh
+                                                                                      (14) 
+Garner et al. 
+[28] 
+23600
+130
+1000
+Re
+4
+Re
+0511
+.0
+2
+7.0
+724
+.0
+
+
+
+
+
+
+c
+c
+c
+Sc
+Sc
+Sh
+                                                   (15) 
+Brauer [26] 
+4
+/
+2
+)
+15
+.2
+89
+.2
+(
+Re
+1
+1
+2
+2
+/
+1
+64
+.0
+2
+/
+1
+2
+/
+1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+c
+d
+c
+c
+and
+Pe
+Sh
+
+
+
+
+
+                                 (16) 
+Weber [29] 
+3
+/
+1
+3
+/
+1
+2
+/
+1
+,
+42
+.0
+3
+,
+,
+,
+Re
+0103
+.0
+Re
+775
+.0
+43
+.2
+241000
+190
+1200
+Re
+10
+]
+10
+18
+.4
+exp[
+1
+c
+rigid
+c
+c
+c
+rigid
+c
+circ
+c
+rigid
+c
+c
+Sc
+Sc
+Sh
+Sc
+Pe
+Sh
+Sh
+Sh
+Sh
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                           (17) 
+Steiner [30] 
+Extraction Columns 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+3
+/
+1
+4
+/
+1
+1
+1.1
+3
+/
+1
+Re
+10
+59
+.6
+2
+/
+1
+2
+,
+,
+1
+1
+1
+Re
+10
+26
+.5
+)
+1
+/(
+1
+3
+/
+1
+4
+/
+1
+2
+
+
+
+
+
+
+
+
+g
+g
+C
+V
+Sh
+Sh
+Sh
+Sh
+c
+c
+s
+Sc
+c
+c
+rigid
+c
+c
+c
+(18) 
+C1 =4.33, 2.44, 7.5 and 0 for Pulsed, Karr, Kühni and Rotating Disc Column, respectively. 
+Kumar and 
+Hartland [31] 
+Settler
+Mixer
+Hanson
+Sh
+Sh
+oc
+oc
+10
+Re
+Re
+000217
+.0
+586
+.2
+10
+Re
+Re
+116
+.0
+34
+.
+12
+86
+.4
+389
+.1
+
+
+
+
+
+
+                                                (19) 
+Torab-Mostaedi 
+et al. [32] 
+n
+tion Colum
+ked Extrac
+Pulsed Pac
+d
+to
+c
+Sh
+c
+to
+d
+Sh
+oc
+oc
+)
+(
+105
+Re
+9
+Re
+27
+.
+27
+35
+.
+59
+)
+(
+150
+Re
+10
+Re
+8.
+14
+76
+.
+49
+45
+.0
+64
+.0
+
+
+
+
+
+
+
+
+
+
+            (20) 
+Torab-Mostaedi 
+and Safdari [33] 
+n
+)
+(
+08
+.
+57
+Re
+45
+.9
+)
+1(
+Re
+30
+.
+113
+50
+.
+119
+)
+(
+43
+.
+69
+Re
+73
+.
+11
+)
+1(
+Re
+62
+.
+103
+56
+.
+121
+12
+.0
+16
+.0
+Colum
+ction
+hnut Extra
+c and Doug
+pulsed Dis
+d
+to
+c
+Sh
+c
+to
+d
+Sh
+oc
+oc
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+(21) 
+Torab-Mostaedi 
+et al. [34] 
+ 
+n
+Colum
+ction
+ARDC Extra
+d
+to
+c
+Sh
+c
+to
+d
+Sh
+oc
+oc
+)
+(
+)
+1(
+Re
+01
+.
+117
+72
+.
+120
+)
+(
+)
+1(
+Re
+94
+.
+22
+31
+.
+37
+12
+.0
+4.0
+
+
+
+
+
+
+
+
+
+
+                                                    (22) 
+Torab-Mostaedi 
+and 
+Asadollahzadeh 
+[35] 
+ 
+
+
+===== 2017-kuhni — PAGE 10 =====
+Iran. J. Chem. Chem. Eng. 
+Asadollahzadeh M. et al. 
+Vol. 36, No. 5, 2017 
+ 
+158 
+Table 4: The values of AARE in the predicted values of Overall Sherwood number obtained by previous correlations. 
+Equation 
+Averaged absolute values of the relative error (AARE) 
+d to c direct 
+c to d direct 
+Shc (Lochiel and Calderbank, Eq.10) and kd (Newman, Eq.24) 
+78.4% 
+76.7% 
+Shc (Brauer, Eq.11) and kd (Newman, Eq.24) 
+77.1% 
+75.2% 
+Shc (Skelland, Eq.12) and kd (Newman, Eq.24) 
+77.8% 
+76.0% 
+Shc (Clift et al., Eq.13) and kd (Newman, Eq.24) 
+77.9% 
+76.0% 
+Shc (Garner et al., Eq.14) and kd (Kronig and Brink, Eq.25) 
+144.2% 
+124.5% 
+Shc (Brauer, Eq.15) and kd (Kronig and Brink, Eq.25) 
+59.4% 
+56.8% 
+Shc (Weber, Eq.16) and kd (Kronig and Brink, Eq.25) 
+39.4% 
+34.9% 
+Shc (Steiner, Eq.17) and kd (Kronig and Brink, Eq.25) 
+57.1% 
+54.0% 
+Shoc (Kumar and Hartland, RDC Column, Eq. 18) 
+18.9% 
+12.6% 
+Shoc (Kumar and Hartland, Kühni Column, Eq. 18) 
+19.0% 
+12.7% 
+Shoc (Torab-Mostaedi et al., Eq. 19) 
+48.3% 
+44.5% 
+Shoc (Torab-Mostaedi and Safdari, Eq.20) 
+61.8% 
+75.9% 
+Shoc (Torab-Mostaedi et al., Eq.21) 
+52.2% 
+60.7% 
+Shoc (Torab-Mostaedi and Asadollahzadeh, Eq. 22) 
+52.5% 
+60.3% 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Fig. 6: Comparison of the values calculated previous models with experimental results (a) d to c direction and (b) c to d direction. 
+ 
+0.65
+oc
+Sh
+4.89 2.19Re(1
+)
+(d to c)
+
+
+
+
+          (27) 
+0.78
+0.46
+oc
+Sh
+5.19 5.39Re
+(1
+)
+(c to d)
+
+
+
+
+ 
+The experimental data are compared with the 
+calculated results from the above equations in Fig. 7. This 
+figure indicates that the suggested equation can estimate 
+the overall continuous phase Sherwood number with high 
+accuracy. These correlations predict the results with  
+a reduced average error of 3.75%. 
+CONCLUSIONS  
+(1) The experimental findings show that the mass 
+transfer performance is strongly dependent on rotor speed 
+and interfacial tension. Improved column performance  
+is observed for the system of lower interfacial tension. 
+(2) The results show that the continuous phase 
+velocity has little influenced on the value of Koca, while 
+Koca increases with an increase in dispersed phase 
+velocity. 
+60
+ 
+ 
+55
+ 
+ 
+50
+ 
+ 
+45
+ 
+ 
+40
+ 
+ 
+35
+ 
+ 
+30
+ 
+ 
+25
+ 
+ 
+20
+ 
+ 
+15
+ 
+ 
+10
+ 
+ 
+5
+ 
+Shoc ((Calculated) 
+5      10     15     20     25     30     35     40     45     50     55     60 
+Shoc (Experimental) 
+5       10      15      20     25      30      35     40      45       50     55 
+Shoc (Experimental) 
+55
+ 
+ 
+50
+ 
+ 
+45
+ 
+ 
+40
+ 
+ 
+35
+ 
+ 
+30
+ 
+ 
+25
+ 
+ 
+20
+ 
+ 
+15
+ 
+ 
+10
+ 
+ 
+5
+ 
+Shoc ((Calculated) 
+
+
+===== 2017-kuhni — PAGE 11 =====
+Iran. J. Chem. Chem. Eng. 
+Experimental Determination of Continuous Phase ... 
+Vol. 36, No. 5, 2017 
+ 
+159
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Fig. 7: Comparison between experimental data and the 
+estimated values using equation (27). 
+ 
+(3) 
+Continuous 
+phase 
+overall 
+mass 
+transfer 
+coefficients are predicted using new correlations  
+which is developed in this study. The proposed correlations 
+can be applied to determine the extraction column height 
+for various extraction processes. 
+(4) These correlations can be used to calculate  
+the column height for different extraction processes.  
+the present study is of use to those desiring to use kühni 
+extraction column. 
+ 
+NOMENCLATURE 
+a                                                       Interfacial area, m2/m3 
+Bn                                              nth coefficient in equations 
+d32                                        Sauter mean drop diameter, m 
+Dc                                                       Column diameter, m 
+DR                                                           Rotor diameter, m 
+D                                              Molecular diffusivity, m2/s 
+E                                          Axial mixing coefficient, m2/s 
+g                                      Acceleration due to gravity, m/s2 
+H                                    Effective height of the column, m 
+K                              Overall mass transfer coefficient, m/s 
+N                                                                 Rotor speed, s-1 
+Nox                                        Number of 'true' transfer unit 
+P                                                        Péclet number=HV/E 
+Pec                 Continuous-phase Péclet number = d32Vs/Dc 
+Q   Flow rate of the continuous or dispersed phase, [m3/s] 
+Re                                       Reynolds number = d32Vsρc/μc 
+Sc                                                Schmidt number =μ/(ρD) 
+Sh                                             Sherwood number =kd32/D 
+Shoc              Overall continuous-phase Sherwood number  
+                                                                            =Kocd32/D 
+t                                                                               Time, s 
+V                                                  Superficial velocity, m/s 
+Vs                                                            Slip velocity, m/s 
+Vt                                                     Terminal velocity, m/s 
+x                  Mass fraction of acetone in continuous phase 
+x*                                               Equilibrium mass fraction 
+y                     Mass fraction of acetone in dispersed phase 
+ 
+Greek Letters 
+n                           nth coefficient in equations (24 and 25) 
+                                                                  Density, kg/m3 
+                     Density difference between phases, kg/m3 
+                                                      Viscosity ratio (μd/ μc) 
+                                                             Interfacial tension 
+                                                                           Viscosity 
+                                                    Dispersed phase holdup 
+                                        Power dissipated per unit mass 
+ 
+Subscripts 
+c                                                              Continuous phase 
+d                                                                Dispersed phase 
+o                                                                     Overall value 
+x                      x-phase (continuous phase in present case) 
+y                         y-phase (dispersed phase in present case) 
+ 
+Superscripts 
+*                                                             Equilibrium value 
+º                                                                   Inlet to column 
+ 
+Received : Jun. 28, 2016  ;  Accepted : Jan. 9, 2017 
+ 
+REFERENCES 
+[1] Kislik V.S., "Solvent Extraction: Classical and Novel 
+Approaches", Elsevier, New York (2012). 
+[2] Aguailar M., Cortina J.L., "Solvent extraction and 
+liquid membranes", CRC Press, New York (2013). 
+[3] Jaradat M., Attarakih M., Bart H.J., Population 
+Balance Modeling of Pulsed (Packed and Sieve-
+Plate) Extraction Columns: Coupled Hydrodynamic 
+and Mass Transfer, Ind. Eng. Chem. Res., 50: 
+14121-14135 (2011). 
+[4] 
+Asadollahzadeh 
+M., 
+Torab-Mostaedi 
+M., 
+Shahhosseini 
+Sh., 
+Ghaemi 
+A., 
+Experimental 
+Investigation of Dispersed Phase Holdup and Flooding 
+Characteristics in a Multistage Column Extractor, 
+Chem. Eng. Res. Des., 105: 177-187 (2016). 
+0                             20                            40                            60 
+Shoc (Experimental) 
+60
+ 
+ 
+50
+ 
+ 
+40
+ 
+ 
+30
+ 
+ 
+20
+ 
+ 
+10
+ 
+ 
+0
+ 
+Shoc (Calculated) 
+
+
+===== 2017-kuhni — PAGE 12 =====
+Iran. J. Chem. Chem. Eng. 
+Asadollahzadeh M. et al. 
+Vol. 36, No. 5, 2017 
+ 
+160 
+[5] Torkaman R., Asadollahzadeh M., Torab-Mostaedi M., 
+Determination of Slip and Characteristic Velocities 
+in Reactive Extraction with Experiments in the 
+Oldshue-Rushton 
+Column 
+and 
+Presence 
+of 
+Samarium and Gadolinium Metals, Chem. Eng. 
+Process, 111: 7-13 (2017). 
+[6] 
+Asadollahzadeh 
+M., 
+Torab-Mostaedi 
+M., 
+Shahhosseini Sh. Ghaemi A., Holdup, Characteristic 
+Velocity and Slip Velocity between Two Phases  
+in a Multi-Impeller Column for High/Medium/Low 
+Interfacial Tension Systems, Chem. Eng. Process, 
+100: 65-78 (2016). 
+[7] Godfrey J.C., Slater M.J., "Liquid-Liquid Extraction 
+Equipment", Wiley, New York (1994). 
+[8] Thornton J. D., "Science and Practice of Liquid-
+Liquid Extraction", Oxford University Press, Oxford  
+(1992). 
+[9] Ghorbanian S.A., Abolghasemi H., Radpour S.R., 
+Modelling of Mean Drop Size in a Extraction Spray 
+Column and Developing a New Model, Iran. J. 
+Chem. Chem. Eng. (IJCCE), 30: 89-96 (2011). 
+[10] Yuan S., Jin S., Chen Z., Yuan Y., Yin H.,  
+An Improved Correlation of the Mean Drop Size  
+in a Modified Scheibel Extraction Column, Chem. 
+Eng. Technol., 37: 2165-2174 (2014). 
+[11] Ritcey G.M., Ashbrook A.W., "Solvent Extraction: 
+Principles and Applications to Process Metallurgy", 
+Elsevier, New York (1984). 
+[12] Abolghasemi H., Moosavian M.A., Radpour S.R., 
+The Effects of a Surfactant Concentration on the 
+Mass Transfer in a Mixer-Settler Extractor, Iran. J. 
+Chem. Chem. Eng. (IJCCE), 25: 9-15 (2006). 
+[13] Li N.N., Ziegler E.N., Effect of Axial Mixing on 
+Mass Transfer in Extraction Columns, Ind. Eng. 
+Chem., 59: 30-36 (1967). 
+[14] Bart H.G., Drumm C., Attarakih M.M., Process 
+Intensification with Reactive Extraction Columns, 
+Chem. Eng. Process, 47: 57-65 (2008). 
+[15] Henton J.E., Cavers S.D., Continuous-Phase Axial 
+Dispersion in Liquid–Liquid Spray Towers, Ind. 
+Eng. Chem. Fund., 9: 384-392 (1970). 
+[16] Geankoplis C.J., Sapp J.B., Arnold F.C., Marroquin G., 
+Axial Dispersion Coefficients of the Continuous 
+Phase in Liquid–Liquid Spray Towers, Ind. Eng. 
+Chem. Fund. , 21: 306-311 (1982). 
+[17] Nosratinia F., Omidkhah M.R., Bastani D., 
+Saifkordi A.A., Investigation of Mass Transfer 
+Coefficient under Jetting Conditions in a Liquid-
+Liquid Extraction System, Iran. J. Chem. Chem. 
+Eng. (IJCCE), 29: 1-12 (2010). 
+[18] Hafez M.M., Baird M.H.I., Nirdosh I., Flooding and 
+Axial Dispersion in Reciprocating Plate Extraction 
+Column, Can. J. Chem. Eng. , 57: 150-158  
+(1979). 
+[19] Parthasarathy P., Sriniketan G., Srinivas N.S., 
+Varma Y.B.G., Axial Mixing of Continuous Phase 
+in Reciprocating Plate Columns, Chem. Eng. Sci., 
+39: 987-995 (1984). 
+[20] Kumar A., Hartland S., Prediction of Continuous-
+Phase 
+Axial 
+Mixing 
+Coefficients 
+in 
+Pulsed 
+Perforated-Plate Extraction Columns, Ind. Eng. 
+Chem. Res., 28: 1507-1513 (1989). 
+[21] Moghadam E.H., Bahmanyar H., Heshmatifar F., 
+Kasaie M., Ziaei-Azad H., The Investigation of 
+Mass Transfer Coefficients in a Pulsed Rgular 
+Packed Column Applying SiO2 Nanoparticles, Sep. 
+Purif. Technol., 176: 15-22 (2017). 
+[22] Míšek T., Berger R., Schroter J., "Standard Test 
+Systems for Liquid Extraction Studies", EFCE Publ. 
+Ser. (1985). 
+[23] Kumar A., Hartland S., Prediction of Axial Mixing 
+Coefficients in Rotating Disc and Asymmetric 
+Rotating Disc Extraction Columns, Can. J. Chem. 
+Eng., 70: 77-87 (1992). 
+[24] Skelland A.H.P., "Diffusional Mass Transfer", 
+Wiley, New York (1974). 
+[25] Lochiel A.C., Calderbank P.H., Mass Transfer in the 
+Continuous Phase Around Axisymmetric Bodies of 
+Revolution, Chem. Eng. Sci., 19: 471-484 (1964). 
+[26] 
+Brauer 
+H., 
+"Stoffaustausch 
+Einschliesslich 
+Chemischer 
+Reaktionen", 
+Verlag 
+Sauerlander, 
+Aarau, Switzerland (1971). 
+[27] Clift R., Grace J.R., Weber M.E., "Bubbles, Drops 
+and Particles", Academic Press, New York (1978). 
+[28] Garner F.H., Foord A., Tayeban M., Mass Transfer 
+From Circulating Drops, J. Appl. Chem., 9: 315-323 
+(1959). 
+[29] Weber M.E., Mass TRansfer From Spherical Drops 
+at High Reynolds Numbers, Ind. Eng. Chem. 
+Fundam., 14:  365-366 (1975). 
+
+
+===== 2017-kuhni — PAGE 13 =====
+Iran. J. Chem. Chem. Eng. 
+Experimental Determination of Continuous Phase ... 
+Vol. 36, No. 5, 2017 
+ 
+161
+ 
+[30] Steiner L., Mass-Transfer Rates From Single Drops 
+and Drop Swarms, Chem. Eng. Sci., 41: 1979-1986 
+(1986). 
+[31] Kumar A., Hartland S., Correlations for Prediction 
+of Masstransfer Coefficients in Single Drop Systems 
+and Liquid-Liquidextraction Columns, Chem. Eng. 
+Res. Des., 77: 372-384 (1999). 
+[32] Torab-Mostaedi M., Safdari S.J., Moosavian M.A., 
+Maragheh M.G., Mass Transfer Coefficiens in a 
+Hanson Mixer-Settler Extraction Column, Braz. J. 
+Chem.  Eng., 25: 473-481 (2008). 
+[33] Torab-Mostaedi M., Safdari J., Mass Transfer 
+Coefficients in a Pulsed Packed Extraction Column, 
+Chem. Eng. Process, 48: 1321-1326 (2009). 
+[34] Torab-Mostaedi M., Jalilvand H., Outokesh M., 
+Dispersed Phase Holdup in a Pulsed Disc and 
+Doughnut Extraction Column, Braz. J. Chem. Eng., 
+28: 313-323 (2011). 
+[35] Torab-Mostaedi M., Asadollahzadeh M., Mass 
+Transfer Performance in an Asymmetric Rotating 
+Disc Contactor, Chem. Eng. Res. Des., 94: 90-97 
+(2015). 
+[36] H. Grober, Die Erwarmung and Abkuhlung 
+einfacher Geometrischer Korper, Z. Var. Dtsch. Ing., 
+69: 705-711 (1925). 
+[37] Kronig R., Brink J.C., On the Theory of Extraction 
+From Falling Drops, Appl. Sci. Res., 2: 142-154 
+(1950). 
+[38] Handlos A.E., Baron T., Mass and Heat Transfer 
+From Drops in Liquid–Liquid Extraction, AIChE J., 
+3: 127-136 (1957). 
