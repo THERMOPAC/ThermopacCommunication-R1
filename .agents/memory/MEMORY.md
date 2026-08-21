@@ -41,3 +41,4 @@
 - [LLX DS-SEL governance](llx-dsel-governance.md) — deterministic selection rules only; no scoring/CAPEX/confidence tie-breaks; exact review-required wording; ECR basis non-transferable.
 - [LLX workspace validation matrix](llx-workspace-validation-matrix.md) — Stages 5–11 blocking/warning rules; stageBanner() shared helper; d32/hindrance source type pass-through in mapper; Stage 12 validationChecks aggregation pattern.
 - [ECR-2 K&H 1996 preliminary d₃₂](llx-ecr2-kh1996-preliminary-d32.md) — approved preliminary reconstruction is usable only with persistent source, applicability, and calibration warnings; it is not governed.
+- [ECR-2 K&H 1999 evidence boundary](llx-ecr2-kh1999-evidence.md) — Laitinen 2019 gives secondary equations on mass basis, but primary-only C1/C2 values and convention verification keep all rate numerics blocked.
