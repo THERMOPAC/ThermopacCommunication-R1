@@ -35,6 +35,7 @@ export type CorrelationQuantity =
   | 'droplet_size'
   | 'holdup'
   | 'mass_transfer'
+  | 'interfacial_area'
   | 'axial_dispersion'
   | 'flooding';
 
@@ -108,6 +109,18 @@ export interface ECR2Correlation {
   /** Governance status. */
   applicabilityStatus: CorrelationStatus;
   /**
+   * Evidence status recorded separately for secondary reproductions. Existing
+   * historic entries may omit this field; new K&H 1999 evidence records must
+   * set it explicitly.
+   */
+  correlationStatus?: CorrelationStatus;
+  /** Exact equation location in the peer-reviewed secondary source. */
+  secondarySourceEquation?: string;
+  /** Original publication to which the secondary source attributes the equation. */
+  originalAttribution?: string;
+  /** Metadata may be source-verified while runtime evaluation remains prohibited. */
+  numericalUse?: 'metadata_only' | 'not_authorized' | 'independently_available';
+  /**
    * For candidate_governed entries only: has the equation been verified from the
    * original primary paper (not training memory, not a secondary citation)?
    * false = coefficients documented from training/secondary sources — MUST be
@@ -144,7 +157,15 @@ export interface ECR2Correlation {
 // ── K&H 1999 supplied preliminary parameter evidence ─────────────────────────
 
 export interface ECR2KH1999PreliminaryParameter {
-  id: 'C1' | 'C2' | 'Fc' | 'Fd';
+  id:
+    | 'kh1999_provisional_C1'
+    | 'kh1999_provisional_C2'
+    | 'kh1999_provisional_Fc'
+    | 'kh1999_provisional_Fd';
+  /** Printed symbol only; never use it as a registry lookup key. */
+  symbol: 'C1' | 'C2' | 'Fc' | 'Fd';
+  /** Makes the provisional source family explicit and prevents symbol collisions. */
+  scope: 'project_provisional_role_unresolved';
   value: number;
   unit: '—';
   phaseRole: 'continuous' | 'dispersed';
@@ -162,28 +183,32 @@ export interface ECR2KH1999PreliminaryParameter {
  */
 export const ECR2_KH1999_PRELIMINARY_PARAMETERS: readonly ECR2KH1999PreliminaryParameter[] = [
   {
-    id: 'C1', value: 0.90, unit: '—', phaseRole: 'continuous',
+    id: 'kh1999_provisional_C1', symbol: 'C1', scope: 'project_provisional_role_unresolved',
+    value: 0.90, unit: '—', phaseRole: 'continuous',
     physicalRole: 'K&H 1999 continuous-phase agitation parameter',
     equationPlacement: 'unresolved_do_not_apply_numerically',
     evidenceStatus: 'supplied_preliminary_evidence',
     source: 'ECR-2 K&H 1999 preliminary implementation specification.',
   },
   {
-    id: 'C2', value: 0.45, unit: '—', phaseRole: 'dispersed',
+    id: 'kh1999_provisional_C2', symbol: 'C2', scope: 'project_provisional_role_unresolved',
+    value: 0.45, unit: '—', phaseRole: 'dispersed',
     physicalRole: 'K&H 1999 dispersed-phase agitation parameter',
     equationPlacement: 'unresolved_do_not_apply_numerically',
     evidenceStatus: 'supplied_preliminary_evidence',
     source: 'ECR-2 K&H 1999 preliminary implementation specification.',
   },
   {
-    id: 'Fc', value: 0.76, unit: '—', phaseRole: 'continuous',
+    id: 'kh1999_provisional_Fc', symbol: 'Fc', scope: 'project_provisional_role_unresolved',
+    value: 0.76, unit: '—', phaseRole: 'continuous',
     physicalRole: 'Kühni continuous-phase correction',
     equationPlacement: 'unresolved_do_not_apply_numerically',
     evidenceStatus: 'supplied_preliminary_evidence',
     source: 'ECR-2 K&H 1999 preliminary implementation specification.',
   },
   {
-    id: 'Fd', value: 0.58, unit: '—', phaseRole: 'dispersed',
+    id: 'kh1999_provisional_Fd', symbol: 'Fd', scope: 'project_provisional_role_unresolved',
+    value: 0.58, unit: '—', phaseRole: 'dispersed',
     physicalRole: 'Kühni dispersed-phase correction',
     equationPlacement: 'unresolved_do_not_apply_numerically',
     evidenceStatus: 'supplied_preliminary_evidence',
@@ -193,20 +218,27 @@ export const ECR2_KH1999_PRELIMINARY_PARAMETERS: readonly ECR2KH1999PreliminaryP
 
 /** Guard against symbol collision or an accidental phase-role swap. */
 export function validateKH1999PreliminaryParameterRegistry(): string[] {
-  const expected: Record<ECR2KH1999PreliminaryParameter['id'], readonly [number, 'continuous' | 'dispersed']> = {
-    C1: [0.90, 'continuous'],
-    C2: [0.45, 'dispersed'],
-    Fc: [0.76, 'continuous'],
-    Fd: [0.58, 'dispersed'],
+  const expected: Record<ECR2KH1999PreliminaryParameter['id'], readonly [
+    'C1' | 'C2' | 'Fc' | 'Fd',
+    number,
+    'continuous' | 'dispersed',
+  ]> = {
+    kh1999_provisional_C1: ['C1', 0.90, 'continuous'],
+    kh1999_provisional_C2: ['C2', 0.45, 'dispersed'],
+    kh1999_provisional_Fc: ['Fc', 0.76, 'continuous'],
+    kh1999_provisional_Fd: ['Fd', 0.58, 'dispersed'],
   };
   const issues: string[] = [];
   const seen = new Set<string>();
   for (const parameter of ECR2_KH1999_PRELIMINARY_PARAMETERS) {
     if (seen.has(parameter.id)) issues.push(`Duplicate K&H 1999 parameter '${parameter.id}'.`);
     seen.add(parameter.id);
-    const [value, phaseRole] = expected[parameter.id];
-    if (parameter.value !== value || parameter.phaseRole !== phaseRole) {
+    const [symbol, value, phaseRole] = expected[parameter.id];
+    if (parameter.symbol !== symbol || parameter.value !== value || parameter.phaseRole !== phaseRole) {
       issues.push(`K&H 1999 parameter '${parameter.id}' has an unexpected value or phase role.`);
+    }
+    if (parameter.scope !== 'project_provisional_role_unresolved') {
+      issues.push(`K&H 1999 parameter '${parameter.id}' must remain in its provisional source scope.`);
     }
     if (parameter.equationPlacement !== 'unresolved_do_not_apply_numerically') {
       issues.push(`K&H 1999 parameter '${parameter.id}' must not receive an invented equation placement.`);
