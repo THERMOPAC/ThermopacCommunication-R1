@@ -42,3 +42,4 @@
 - [LLX workspace validation matrix](llx-workspace-validation-matrix.md) — Stages 5–11 blocking/warning rules; stageBanner() shared helper; d32/hindrance source type pass-through in mapper; Stage 12 validationChecks aggregation pattern.
 - [ECR-2 K&H 1996 preliminary d₃₂](llx-ecr2-kh1996-preliminary-d32.md) — approved preliminary reconstruction is usable only with persistent source, applicability, and calibration warnings; it is not governed.
 - [ECR-2 K&H 1999 evidence boundary](llx-ecr2-kh1999-evidence.md) — preliminary parameters permit only physical concentration/Kd/driving-force work; Sherwood-dependent numerics remain unavailable.
+- [K&H 1999 secondary evidence boundary](llx-kh1999-evidence-boundary.md) — Kühni C1=7.5 is separate from provisional constants; C2/regimes/Fc/Fd/partition roles remain unresolved.

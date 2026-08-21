@@ -224,7 +224,29 @@ The K&H continuous and dispersed expressions demonstrably contain:
 They do **not** evidence \(F_c=0.76\), \(F_d=0.58\), \(\psi/\phi\), or
 \(\psi\phi\). Their roles remain `UNRESOLVED`.
 
-## 6. Film, partition, and overall-coefficient basis
+## 6. Symbol collision table
+
+Identical symbols are not treated as identical constants. “Safe for ECR-2”
+means safe to use in the current Kühni simulator, not merely that the
+expression is dimensionally valid.
+
+| Symbol | Source / equation | Physical meaning in that source | Value | Device type | Phase basis | K&H (1999)? | Safe for ECR-2? | Evidence |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| \(C_1\) | 2011 Eq. (8) | Additive coefficient in the continuous-side power correction | \(4.33\) for the pulsed case stated below Eq. (12) | Pulsed column | Continuous-side \(Sh_c\) | Yes, as reproduced | No for the ECR-2 Kuhni equation without a Kuhni \(\psi\) basis | `VERIFIED_SECONDARY` for pulsed |
+| \(C_2\) | 2011 Eq. (9) | Additive coefficient in the dispersed-side power correction | \(4.33\) for the pulsed case stated below Eq. (12) | Pulsed column | Dispersed-side \(Sh_d\) | Yes, as reproduced | No; no Kuhni value recovered | `VERIFIED_SECONDARY` for pulsed |
+| \(C_1\) | 2017 Table 3 Eq. (18) | Same additive coefficient in the reproduced continuous-side K&H equation | \(4.33\) pulsed; \(2.44\) Karr; **\(7.5\) Kuhni**; \(0\) rotating disc | Pulsed, Karr, Kuhni, rotating disc | Continuous-side \(Sh_c\) | Yes, explicitly attributed | **Only \(7.5\) is evidenced for Kuhni; not the provisional \(0.90\)** | `VERIFIED_SECONDARY` |
+| \(C_1\) | Project-approved provisional value | Role not established by either uploaded paper | \(0.90\) | Not established | Not established | Not established | **No**; do not place by symbol matching | `ENGINEER_APPROVED_PRELIMINARY` / role `UNRESOLVED` |
+| \(C_2\) | Project-approved provisional value | Role not established by either uploaded paper | \(0.45\) | Not established | Not established | Not established | **No**; do not place by symbol matching | `ENGINEER_APPROVED_PRELIMINARY` / role `UNRESOLVED` |
+| \(F_c\) | Project-approved provisional value | Does not appear in either uploaded paper | \(0.76\) | Not established | Not established | Not evidenced | **No** | `ENGINEER_APPROVED_PRELIMINARY` / role `UNRESOLVED` |
+| \(F_d\) | Project-approved provisional value | Does not appear in either uploaded paper | \(0.58\) | Not established | Not established | Not evidenced | **No** | `ENGINEER_APPROVED_PRELIMINARY` / role `UNRESOLVED` |
+
+The uploaded papers contain no equation numbered with \(F_c\) or \(F_d\), no
+definition of either symbol, and no numerical entry for either value. They also
+do not supply a Kuhni \(C_2\) table value. The project values may belong to a
+different K&H correlation family, characteristic-velocity relation, or
+hydrodynamic relation; that possibility is preserved but not inferred.
+
+## 7. Film, partition, and overall-coefficient basis
 
 The 2011 source prints the continuous-basis two-film resistance equation:
 
@@ -254,6 +276,20 @@ Consequences:
   concentration, or mass concentration.
 - No source found defines \(K_{overall}a\) or \(Koa\).
 
+### 7.1 Exact equilibrium notation recovered
+
+The 2011 paper defines \(x\) as the solute **mass fraction in the continuous
+phase**, \(x^*\) as the **equilibrium continuous-phase mass fraction
+corresponding to the dispersed phase**, and \(y\) as the solute **mass
+fraction in the dispersed phase**. Its column balances use the equilibrium
+quantity \(x^*\) and the measured \(x\)/\(y\) mass fractions.
+
+The paper does **not** define a named \(K_d\) or state whether its undefined
+two-film slope \(m\) is \(dy^*/dx^*\), \(dx^*/dy^*\), or a concentration-basis
+partition coefficient. Therefore the exact partition basis needed by the
+current ECR-2 candidate is **not recovered**. This is not evidence against
+ECR-2’s physical concentration definition; it is an evidence boundary.
+
 Accordingly, the current ECR-2 candidate
 \(1/K_{od}=1/k_d+K_d/k_c\) is **`STILL_UNRESOLVED`** — neither confirmed nor
 contradicted by the recovered secondary evidence. No algebraic replacement is
@@ -264,7 +300,7 @@ The often-used geometric expression
 volumetric coefficient to \(k_{oc}\). It is `STRONG_SECONDARY` as a geometric
 area relation, but it is not explicitly attributed there to K&H (1999).
 
-## 7. Dimensional audit
+## 8. Dimensional audit
 
 | Equation / quantity | Check | Result |
 | --- | --- | --- |
@@ -279,7 +315,7 @@ area relation, but it is not explicitly attributed there to K&H (1999).
 | Eq. (13) | Requires \(m\) dimensionless and all \(k\) values in m/s | Formally consistent under that condition; printed \(k_{oc}\) s⁻¹ unit is flagged |
 | \(a=6\phi_d/d_{32}\) | \(1/m\) | m²/m³ |
 
-## 8. Required separation from later, device-specific correlations
+## 9. Required separation from later, device-specific correlations
 
 The 2011 authors state that K&H correlations did not accurately predict their
 pulsed disc-and-doughnut data, then introduce their own Eqs. (14)–(15):
@@ -310,7 +346,7 @@ Sh_{oc}=-5.19+5.39Re^{0.78}(1-\phi)^{0.46}\quad(c\to d).
 These are also `DEVICE_SPECIFIC_NOT_TRANSFERABLE`; they are not K&H (1999)
 equations and must not be substituted into ECR-2’s K&H kernel.
 
-## 9. Validity ranges
+## 10. Validity ranges
 
 No original K&H validity ranges for \(Re\), \(Sc\), \(We\), \(Eo\), drop
 diameter, viscosity ratio, interfacial tension, holdup, or power input were
@@ -319,7 +355,31 @@ recovered from the supplied sources. Status: **`NOT RECOVERED`**.
 The ranges printed for the later 2011 pulsed-column fits above belong only to
 those authors’ data and must not be propagated to K&H or ECR-2.
 
-## 10. Final implementation gate
+## 11. Final implementation gate
+
+### READY TO IMPLEMENT — documentary/source-faithful equations only
+
+The following can be recorded as exact equations in a separately gated
+literature module, without treating the module as enabled ECR-2 rate
+prediction:
+
+1. The continuous-side K&H Eq. (8)/(18), with the printed holdup and power
+   correction, using **\(C_1=7.5\) only for the reproduced Kuhni table entry**.
+2. The printed limiting expressions \(Sh_{c,\mathrm{rigid}}\) (Eq. 10),
+   \(Sh_{c,\infty}\) (Eq. 11), and \(Pe_c=d_{32}V_s/D_c\).
+3. The printed dispersed-side structure Eq. (9), with **\(C_2=4.33\) only for
+   the explicitly stated pulsed-column case**.
+4. The printed pulsed-only \(\psi\) equation (Eq. 12), marked
+   `DEVICE_SPECIFIC_NOT_TRANSFERABLE`.
+5. The printed continuous-basis two-film relation Eq. (13), marked with its
+   undefined \(m\) and nomenclature-unit defect.
+6. The geometric area relation \(a=6\phi_d/d_{32}\), kept separate from the
+   K&H correlation attribution.
+
+“Ready” here means the equations are documented faithfully. It does **not**
+authorize enabling ECR-2 local transfer rates.
+
+### NOT READY — ECR-2 numerical activation
 
 | Target | Evidence status | Implementation gate |
 | --- | --- | --- |
@@ -338,7 +398,13 @@ those authors’ data and must not be propagated to K&H or ECR-2.
 | \(a=6\phi_d/d_{32}\) | `STRONG_SECONDARY` (not specifically attributed to K&H) | Existing geometric relation may remain separate from K&H rate enablement |
 | 2011/2017 authors’ fitted overall correlations | `DEVICE_SPECIFIC_NOT_TRANSFERABLE` | Do not import into ECR-2 |
 
-## 11. Stop point for engineer review
+The unresolved activation blockers are: a governed Kuhni \(\psi\) definition;
+Kuhni \(C_2\); rigid/circulating/oscillating regime criteria; characteristic
+velocity; the roles of \(C_1=0.90\), \(C_2=0.45\), \(F_c=0.76\), and \(F_d=0.58\);
+the definition and basis of \(m/K_d\); the overall dispersed-side resistance;
+and original K&H validity ranges.
+
+## 12. Stop point for engineer review
 
 The evidence is sufficient to preserve the K&H continuous-side formula and to
 record the dispersed-side formula faithfully. It is insufficient to activate
