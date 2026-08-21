@@ -2,10 +2,10 @@
 // ECR-2 — K&H 1999 Preliminary Local Mass-Transfer Kernel
 //
 // This module deliberately stops before Sherwood-number evaluation. The current
-// approved evidence supplies the K&H parameter values and physical phase roles,
-// but not the complete Sh_c / Sh_d equations, their regime selection, or the
-// algebraic placement of C1, C2, Fc, and Fd. Applying any of those quantities
-// numerically would invent a correlation.
+// registry records secondary-source Sh_c / Sh_d structures and a scoped Kühni
+// continuous-side C1. It does not supply a governed Kühni psi definition,
+// Kühni dispersed-side C2, drop-regime selector, or overall-resistance basis.
+// Applying a numerical correlation before those gates clear would invent one.
 //
 // Source-backed work implemented here:
 //   · physical mole-fraction → component mass-concentration conversion
@@ -129,12 +129,13 @@ const COMPONENT_INDEX: Record<TransferComponent, 0 | 1 | 2 | 3> = {
 };
 
 const UNRESOLVED_SHERWOOD_ITEMS = [
-  'Complete continuous-phase Sh_c equation.',
-  'Complete dispersed-phase Sh_d equation.',
+  'Governed Kühni ψ definition for the secondary-recorded power correction.',
+  'Kühni-specific dispersed-side C2.',
   'Rigid/circulating/oscillating regime equations and selection criterion.',
-  'Exact C1/C2 algebraic placement.',
-  'Exact Fc/Fd algebraic placement.',
-  'Verified low-Re policy.',
+  'Characteristic-drop-velocity relation.',
+  'Defined two-film slope m and overall partition basis.',
+  'Original K&H validity ranges and RRBO/NMP validation.',
+  'Explicit runtime activation approval.',
 ] as const;
 
 function isFinitePositive(value: number | null | undefined): value is number {
@@ -160,8 +161,8 @@ function unavailable(
 function unavailableSherwood(component: TransferComponent, quantity: string): ECR2NullField {
   return unavailable(
     'correlation_unresolved',
-    `${quantity} (${component}) is unavailable: K&H 1999 Sh_c/Sh_d equations, regime selection, and ` +
-      `C1/C2/Fc/Fd placement remain unresolved. No numerical reconstruction was invented.`,
+    `${quantity} (${component}) is unavailable: secondary K&H 1999 equation metadata is not runtime authorisation. ` +
+      `Kühni ψ, dispersed-side C2, regime selection, and overall-resistance basis remain unresolved. No numerical reconstruction was invented.`,
   );
 }
 
@@ -240,8 +241,9 @@ function reynoldsApplicability(dimensionless: ECR2DimensionlessResult | null): E
  * Evaluate the approved preliminary K&H 1999 local-kernel subset.
  *
  * It calculates concentration-based K_d and driving force only. The result
- * intentionally leaves Sherwood-dependent values unavailable until the missing
- * source equations are recovered and governed.
+ * intentionally leaves Sherwood-dependent values unavailable until the
+ * unresolved Kühni-specific dependencies are governed and runtime use is
+ * explicitly authorised.
  */
 export function evaluateKH1999PreliminaryLocalMassTransfer(params: {
   /**
@@ -364,7 +366,7 @@ export function evaluateKH1999PreliminaryLocalMassTransfer(params: {
     unresolvedItems: UNRESOLVED_SHERWOOD_ITEMS,
     diagnostics: [
       'K_d,i is calculated as C_d,i* / C_c,i* from equilibrium physical mass concentrations; it is not taken directly from mole-fraction ratios.',
-      'K_od,i = k_c,i·k_d,i / (K_d,i·k_d,i + k_c,i) and K_oa,i = K_od,i·a are defined but intentionally unavailable until both phase Sherwood equations are source-complete.',
+      'K_od,i = k_c,i·k_d,i / (K_d,i·k_d,i + k_c,i) and K_oa,i = K_od,i·a are defined but intentionally unavailable until both phase Sherwood chains and the overall-basis gate are authorised.',
       reApplicability === 'below_rigid_sphere_validity'
         ? 'Re_d is below the reported rigid-sphere validity floor (10); no low-Re policy has been verified.'
         : `Re_d applicability advisory: ${reApplicability}.`,

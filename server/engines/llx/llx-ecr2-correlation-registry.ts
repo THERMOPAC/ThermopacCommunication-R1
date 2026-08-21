@@ -250,6 +250,345 @@ export function validateKH1999PreliminaryParameterRegistry(): string[] {
   return issues;
 }
 
+// ── K&H 1999 secondary-literature evidence ────────────────────────────────────
+
+export interface ECR2KH1999ScopedConstant {
+  id:
+    | 'kh1999_shc_agitation_C1_kuhni'
+    | 'kh1999_shc_agitation_C1_pulsed'
+    | 'kh1999_shd_agitation_C2_pulsed';
+  symbol: 'C1' | 'C2';
+  value: number;
+  unit: '—';
+  correlationId: 'ecr2_kh1999_shc_secondary' | 'ecr2_kh1999_shd_secondary';
+  sourceScope: 'kh1999_secondary_equation';
+  deviceType: 'kuhni' | 'pulsed';
+  phaseBasis: 'continuous' | 'dispersed';
+  equationPlacement: string;
+  evidenceStatus: 'secondary_equation_verified';
+  source: string;
+}
+
+/**
+ * Secondary-source values are deliberately scoped to the individual equation,
+ * device, and phase. They are not aliases for the project provisional
+ * parameters above, nor for K&H 1995/1996 constants.
+ */
+export const ECR2_KH1999_SECONDARY_SCOPED_CONSTANTS: readonly ECR2KH1999ScopedConstant[] = [
+  {
+    id: 'kh1999_shc_agitation_C1_kuhni',
+    symbol: 'C1',
+    value: 7.5,
+    unit: '—',
+    correlationId: 'ecr2_kh1999_shc_secondary',
+    sourceScope: 'kh1999_secondary_equation',
+    deviceType: 'kuhni',
+    phaseBasis: 'continuous',
+    equationPlacement: 'Additive coefficient inside the [1 + C1·agitationGroup^(1/3)] continuous-side power correction.',
+    evidenceStatus: 'secondary_equation_verified',
+    source: 'Asadollahzadeh et al. (2017), Table 3 Eq. (18): C1 = 7.5 for Kühni columns.',
+  },
+  {
+    id: 'kh1999_shc_agitation_C1_pulsed',
+    symbol: 'C1',
+    value: 4.33,
+    unit: '—',
+    correlationId: 'ecr2_kh1999_shc_secondary',
+    sourceScope: 'kh1999_secondary_equation',
+    deviceType: 'pulsed',
+    phaseBasis: 'continuous',
+    equationPlacement: 'Same printed continuous-side power-correction location; pulsed-column context only.',
+    evidenceStatus: 'secondary_equation_verified',
+    source: 'Torab-Mostaedi et al. (2011), after Eq. (12); Asadollahzadeh et al. (2017), Table 3 Eq. (18).',
+  },
+  {
+    id: 'kh1999_shd_agitation_C2_pulsed',
+    symbol: 'C2',
+    value: 4.33,
+    unit: '—',
+    correlationId: 'ecr2_kh1999_shd_secondary',
+    sourceScope: 'kh1999_secondary_equation',
+    deviceType: 'pulsed',
+    phaseBasis: 'dispersed',
+    equationPlacement: 'Additive coefficient inside the [1 + C2·agitationGroup^(1/3)] dispersed-side power correction.',
+    evidenceStatus: 'secondary_equation_verified',
+    source: 'Torab-Mostaedi et al. (2011), after Eq. (12): C1 = C2 = 4.33 for pulsed columns.',
+  },
+] as const;
+
+/** Guards the accepted source scopes against accidental C1/C2 name matching. */
+export function validateKH1999SecondaryEvidenceRegistry(
+  constants: readonly ECR2KH1999ScopedConstant[] = ECR2_KH1999_SECONDARY_SCOPED_CONSTANTS,
+  preliminaryParameters: readonly ECR2KH1999PreliminaryParameter[] = ECR2_KH1999_PRELIMINARY_PARAMETERS,
+): string[] {
+  const issues: string[] = [];
+  const expected: Record<ECR2KH1999ScopedConstant['id'], Omit<ECR2KH1999ScopedConstant, 'id' | 'equationPlacement' | 'source'>> = {
+    kh1999_shc_agitation_C1_kuhni: {
+      symbol: 'C1', value: 7.5, unit: '—', correlationId: 'ecr2_kh1999_shc_secondary',
+      sourceScope: 'kh1999_secondary_equation', deviceType: 'kuhni', phaseBasis: 'continuous',
+      evidenceStatus: 'secondary_equation_verified',
+    },
+    kh1999_shc_agitation_C1_pulsed: {
+      symbol: 'C1', value: 4.33, unit: '—', correlationId: 'ecr2_kh1999_shc_secondary',
+      sourceScope: 'kh1999_secondary_equation', deviceType: 'pulsed', phaseBasis: 'continuous',
+      evidenceStatus: 'secondary_equation_verified',
+    },
+    kh1999_shd_agitation_C2_pulsed: {
+      symbol: 'C2', value: 4.33, unit: '—', correlationId: 'ecr2_kh1999_shd_secondary',
+      sourceScope: 'kh1999_secondary_equation', deviceType: 'pulsed', phaseBasis: 'dispersed',
+      evidenceStatus: 'secondary_equation_verified',
+    },
+  };
+  const seen = new Set<string>();
+  for (const constant of constants) {
+    if (seen.has(constant.id)) issues.push(`Duplicate secondary K&H 1999 constant '${constant.id}'.`);
+    seen.add(constant.id);
+    const expectedScope = expected[constant.id];
+    if (!expectedScope) {
+      issues.push(`Unrecognised secondary K&H 1999 constant '${constant.id}'.`);
+      continue;
+    }
+    for (const key of Object.keys(expectedScope) as (keyof typeof expectedScope)[]) {
+      if (constant[key] !== expectedScope[key]) {
+        issues.push(`Secondary K&H 1999 constant '${constant.id}' has an invalid ${String(key)} scope.`);
+      }
+    }
+  }
+  for (const id of Object.keys(expected) as ECR2KH1999ScopedConstant['id'][]) {
+    if (!seen.has(id)) issues.push(`Required secondary K&H 1999 constant '${id}' is missing.`);
+  }
+  if (constants.some(
+    (constant) => constant.deviceType === 'kuhni' && constant.symbol === 'C2',
+  )) {
+    issues.push('No Kühni dispersed-side C2 may be created without published secondary evidence.');
+  }
+  const secondaryIds = new Set<string>(constants.map((constant) => constant.id));
+  const symbolCollisions = preliminaryParameters.some(
+    (parameter) => String(parameter.scope) === 'kh1999_secondary_equation' || secondaryIds.has(parameter.id),
+  );
+  if (symbolCollisions) issues.push('Project provisional parameters must not share secondary-evidence source scope or registry identities.');
+  return issues;
+}
+
+export interface ECR2FuturePreliminaryInputContract {
+  id: 'd32' | 'D_c' | 'D_d' | 'sigma' | 'mu_c' | 'mu_d';
+  unit: string;
+  requiredFields: readonly ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'];
+  activation: 'future_only_not_runtime';
+  note: string;
+}
+
+/**
+ * Shape only: this does not add any runtime input or substitute data. It
+ * preserves the provenance contract required if preliminary simulation is
+ * explicitly authorised later.
+ */
+export const ECR2_KH1999_FUTURE_PRELIMINARY_INPUTS: readonly ECR2FuturePreliminaryInputContract[] = [
+  { id: 'd32', unit: 'm', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'future_only_not_runtime', note: 'May be governed-calculated or engineer-entered/measured; existing K&H 1996 governance is unchanged.' },
+  { id: 'D_c', unit: 'm²/s', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'future_only_not_runtime', note: 'Continuous-phase component diffusivity.' },
+  { id: 'D_d', unit: 'm²/s', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'future_only_not_runtime', note: 'Dispersed-phase component diffusivity.' },
+  { id: 'sigma', unit: 'N/m', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'future_only_not_runtime', note: 'Physical liquid-liquid interfacial tension.' },
+  { id: 'mu_c', unit: 'Pa·s', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'future_only_not_runtime', note: 'Continuous-phase physical viscosity.' },
+  { id: 'mu_d', unit: 'Pa·s', requiredFields: ['value', 'unit', 'sourceType', 'sourceReference', 'engineeringStatus'], activation: 'future_only_not_runtime', note: 'Dispersed-phase physical viscosity.' },
+] as const;
+
+type KH1999DependencyAvailability = 'available' | 'unavailable' | 'independently_governed';
+export type ECR2KH1999RuntimeBlockerId =
+  | 'kuhni_psi_definition'
+  | 'kuhni_shd_C2'
+  | 'drop_regime_selector'
+  | 'characteristic_velocity'
+  | 'overall_partition_basis'
+  | 'original_validity_ranges'
+  | 'rrbo_nmp_validation'
+  | 'runtime_activation'
+  | 'independent_d32_governance';
+interface KH1999Dependency {
+  id: string;
+  availability: KH1999DependencyAvailability;
+  detail: string;
+}
+export interface ECR2KH1999OutputDependency {
+  output: 'Sh_c' | 'Sh_d' | 'k_c' | 'k_d' | 'K_overall' | 'a' | 'Koa' | 'transfer_rate';
+  equationStructure: KH1999Dependency;
+  requiredConstants: readonly KH1999Dependency[];
+  requiredLocalVariables: readonly KH1999Dependency[];
+  d32Provenance: readonly ('governed_calculated_future' | 'engineer_entered_or_measured_future')[];
+  runtimeStatus: 'not_activated' | 'independently_available';
+  blockerIds: readonly ECR2KH1999RuntimeBlockerId[];
+  exactBlockers: readonly string[];
+}
+
+const D32_PROVENANCE = ['governed_calculated_future', 'engineer_entered_or_measured_future'] as const;
+const SHC_BLOCKERS = [
+  'kuhni_psi_definition',
+  'drop_regime_selector',
+  'characteristic_velocity',
+  'original_validity_ranges',
+  'rrbo_nmp_validation',
+  'runtime_activation',
+] as const;
+const SHD_BLOCKERS = [
+  'kuhni_psi_definition',
+  'kuhni_shd_C2',
+  'drop_regime_selector',
+  'characteristic_velocity',
+  'original_validity_ranges',
+  'rrbo_nmp_validation',
+  'runtime_activation',
+] as const;
+const OVERALL_BLOCKERS = [...SHC_BLOCKERS, ...SHD_BLOCKERS, 'overall_partition_basis'] as const;
+
+/**
+ * This map is declarative governance data. It never feeds the local kernel and
+ * is the single source for why a future output remains unavailable.
+ */
+export const ECR2_KH1999_MASS_TRANSFER_DEPENDENCY_MAP: readonly ECR2KH1999OutputDependency[] = [
+  {
+    output: 'Sh_c',
+    equationStructure: { id: 'ecr2_kh1999_shc_secondary', availability: 'available', detail: '2011 Eq. (8) and 2017 Table 3 Eq. (18) reproduce the structure.' },
+    requiredConstants: [{ id: 'kh1999_shc_agitation_C1_kuhni', availability: 'available', detail: 'C1 = 7.5 only in the verified Kühni continuous-side context.' }],
+    requiredLocalVariables: [
+      { id: 'Re', availability: 'available', detail: 'd32·Vs·rho_c/mu_c dimensionless group.' },
+      { id: 'Sc_c', availability: 'available', detail: 'mu_c/(rho_c·D_c) dimensionless group.' },
+      { id: 'psi_kuhni', availability: 'unavailable', detail: 'No governed Kühni power-dissipation definition is authorised for this equation.' },
+      { id: 'phi_d', availability: 'independently_governed', detail: 'K&H 1995 holdup remains an independent existing gate.' },
+    ],
+    d32Provenance: D32_PROVENANCE,
+    runtimeStatus: 'not_activated',
+    blockerIds: SHC_BLOCKERS,
+    exactBlockers: ['Kühni ψ definition is not governed for the reproduced K&H 1999 correction.', 'Drop-regime and characteristic-velocity treatment are not recovered.', 'Original validity ranges and RRBO/NMP validation are not recovered.', 'Production Sherwood activation is explicitly out of scope.'],
+  },
+  {
+    output: 'Sh_d',
+    equationStructure: { id: 'ecr2_kh1999_shd_secondary', availability: 'available', detail: '2011 Eq. (9) reproduces one dispersed-side structure.' },
+    requiredConstants: [{ id: 'kh1999_shd_C2_kuhni', availability: 'unavailable', detail: 'No Kühni C2 value is published in the accepted evidence.' }],
+    requiredLocalVariables: [
+      { id: 'Re', availability: 'available', detail: 'Shared drop Reynolds number.' },
+      { id: 'Sc_d', availability: 'available', detail: 'mu_d/(rho_d·D_d) dimensionless group.' },
+      { id: 'psi_kuhni', availability: 'unavailable', detail: 'No governed Kühni power-dissipation definition is authorised.' },
+      { id: 'drop_regime', availability: 'unavailable', detail: 'Rigid/circulating/oscillating selector and characteristic-velocity relation are not recovered.' },
+    ],
+    d32Provenance: D32_PROVENANCE,
+    runtimeStatus: 'not_activated',
+    blockerIds: SHD_BLOCKERS,
+    exactBlockers: ['Kühni Sh_d C2 is not published in the accepted evidence.', 'Kühni ψ, drop-regime selection, and characteristic velocity are unresolved.', 'Original validity ranges and RRBO/NMP validation are not recovered.', 'Production Sherwood activation is explicitly out of scope.'],
+  },
+  {
+    output: 'k_c',
+    equationStructure: { id: 'k_c = Sh_c·D_c/d32', availability: 'available', detail: 'Film-coefficient identity is source-reproduced.' },
+    requiredConstants: [],
+    requiredLocalVariables: [{ id: 'Sh_c', availability: 'unavailable', detail: 'Blocked by the Sh_c dependencies above.' }, { id: 'D_c', availability: 'unavailable', detail: 'The provenance contract exists, but mass-transfer use is future-only and not runtime activated.' }],
+    d32Provenance: D32_PROVENANCE,
+    runtimeStatus: 'not_activated',
+    blockerIds: SHC_BLOCKERS,
+    exactBlockers: ['Sh_c is not activated.'],
+  },
+  {
+    output: 'k_d',
+    equationStructure: { id: 'k_d = Sh_d·D_d/d32', availability: 'available', detail: 'Film-coefficient identity is source-reproduced.' },
+    requiredConstants: [],
+    requiredLocalVariables: [{ id: 'Sh_d', availability: 'unavailable', detail: 'Blocked by the Sh_d dependencies above.' }, { id: 'D_d', availability: 'unavailable', detail: 'The provenance contract exists, but mass-transfer use is future-only and not runtime activated.' }],
+    d32Provenance: D32_PROVENANCE,
+    runtimeStatus: 'not_activated',
+    blockerIds: SHD_BLOCKERS,
+    exactBlockers: ['Sh_d is not activated.'],
+  },
+  {
+    output: 'K_overall',
+    equationStructure: { id: 'ecr2_kh1999_two_film_secondary', availability: 'available', detail: '2011 Eq. (13) is recorded exactly as printed.' },
+    requiredConstants: [],
+    requiredLocalVariables: [
+      { id: 'k_c', availability: 'unavailable', detail: 'Requires activated Sh_c.' },
+      { id: 'k_d', availability: 'unavailable', detail: 'Requires activated Sh_d.' },
+      { id: 'm_or_partition_basis', availability: 'unavailable', detail: 'The printed m is undefined; the ECR-2 partition convention is not confirmed by this source.' },
+    ],
+    d32Provenance: D32_PROVENANCE,
+    runtimeStatus: 'not_activated',
+    blockerIds: OVERALL_BLOCKERS,
+    exactBlockers: ['Two-film slope m / partition basis is unresolved.', 'Both film coefficients remain unavailable.'],
+  },
+  {
+    output: 'a',
+    equationStructure: { id: 'ecr2_kh1999_interfacial_area_secondary', availability: 'available', detail: 'a = 6·phi_d/d32 is secondary-recorded and implemented independently.' },
+    requiredConstants: [],
+    requiredLocalVariables: [{ id: 'phi_d', availability: 'independently_governed', detail: 'Existing K&H 1995 holdup result.' }, { id: 'd32', availability: 'independently_governed', detail: 'Existing K&H 1996 or engineer-supplied d32 gate.' }],
+    d32Provenance: D32_PROVENANCE,
+    runtimeStatus: 'independently_available',
+    blockerIds: ['independent_d32_governance'],
+    exactBlockers: ['Not a mass-transfer-rate activation; existing d32 governance remains independent.'],
+  },
+  {
+    output: 'Koa',
+    equationStructure: { id: 'Koa = K_overall·a', availability: 'available', detail: 'Definition only; no runtime evaluation is authorised.' },
+    requiredConstants: [],
+    requiredLocalVariables: [{ id: 'K_overall', availability: 'unavailable', detail: 'Two-film basis is unresolved.' }, { id: 'a', availability: 'independently_governed', detail: 'Available only through existing independent guards.' }],
+    d32Provenance: D32_PROVENANCE,
+    runtimeStatus: 'not_activated',
+    blockerIds: OVERALL_BLOCKERS,
+    exactBlockers: ['K_overall is unavailable.'],
+  },
+  {
+    output: 'transfer_rate',
+    equationStructure: { id: 'rate = Koa·approved_driving_force', availability: 'unavailable', detail: 'No approved rate convention is enabled.' },
+    requiredConstants: [],
+    requiredLocalVariables: [{ id: 'Koa', availability: 'unavailable', detail: 'Koa is unavailable.' }, { id: 'driving_force_convention', availability: 'unavailable', detail: 'Existing physical driving force is informational only until Koverall is approved.' }],
+    d32Provenance: D32_PROVENANCE,
+    runtimeStatus: 'not_activated',
+    blockerIds: OVERALL_BLOCKERS,
+    exactBlockers: ['Koa and the overall partition/resistance convention are unresolved.'],
+  },
+] as const;
+
+export function validateKH1999MassTransferDependencyMap(): string[] {
+  const issues: string[] = [];
+  const shc = ECR2_KH1999_MASS_TRANSFER_DEPENDENCY_MAP.find((item) => item.output === 'Sh_c');
+  const shd = ECR2_KH1999_MASS_TRANSFER_DEPENDENCY_MAP.find((item) => item.output === 'Sh_d');
+  const rate = ECR2_KH1999_MASS_TRANSFER_DEPENDENCY_MAP.find((item) => item.output === 'transfer_rate');
+  const area = ECR2_KH1999_MASS_TRANSFER_DEPENDENCY_MAP.find((item) => item.output === 'a');
+  if (!shc?.requiredConstants.some((item) => item.id === 'kh1999_shc_agitation_C1_kuhni' && item.availability === 'available')) {
+    issues.push('Sh_c must identify the scoped Kühni C1 = 7.5 requirement.');
+  }
+  if (!shd?.exactBlockers.some((item) => item.includes('Kühni Sh_d C2'))) {
+    issues.push('Sh_d must retain the missing Kühni C2 blocker.');
+  }
+  const inactiveEntries = ECR2_KH1999_MASS_TRANSFER_DEPENDENCY_MAP.filter(
+    (item) => item.runtimeStatus === 'not_activated',
+  );
+  if (inactiveEntries.some((item) => !item.blockerIds.includes('runtime_activation'))) {
+    issues.push('Every inactive mass-transfer output must retain the explicit runtime activation blocker.');
+  }
+  if (!shc?.blockerIds.includes('original_validity_ranges') || !shd?.blockerIds.includes('rrbo_nmp_validation')) {
+    issues.push('Both Sherwood outputs must preserve original-validity and RRBO/NMP blockers.');
+  }
+  if (rate?.runtimeStatus !== 'not_activated') issues.push('Transfer rate must remain inactive.');
+  if (!area?.d32Provenance.includes('engineer_entered_or_measured_future')) {
+    issues.push('Interfacial area must retain an engineer-entered/measured d32 future provenance path.');
+  }
+  return issues;
+}
+
+const KH1999_SECONDARY_VARIABLES: Record<string, CorrelationVariable> = {
+  Re: { symbol: 'Re', unit: '—', description: 'Drop Reynolds number: d32·Vs·rho_c/mu_c.' },
+  Sc_c: { symbol: 'Sc_c', unit: '—', description: 'Continuous Schmidt number: mu_c/(rho_c·D_c).' },
+  Sc_d: { symbol: 'Sc_d', unit: '—', description: 'Dispersed Schmidt number: mu_d/(rho_d·D_d).' },
+  Pe_c: { symbol: 'Pe_c', unit: '—', description: 'Continuous Péclet number: d32·Vs/D_c.' },
+  Vs: { symbol: 'V_s', unit: 'm s⁻¹', description: 'Slip velocity between phases.' },
+  d32: { symbol: 'd32', unit: 'm', description: 'Sauter mean droplet diameter; remains independently governed.' },
+  phi_d: { symbol: 'φ_d', unit: '—', description: 'Dispersed-phase holdup; printed as x_d in the 2011 paper.' },
+  psi: { symbol: 'ψ', unit: 'W kg⁻¹', description: 'Power dissipated per unit mass; no Kühni-specific definition is enabled.' },
+  rho_c: { symbol: 'ρ_c', unit: 'kg m⁻³', description: 'Continuous-phase density.' },
+  rho_d: { symbol: 'ρ_d', unit: 'kg m⁻³', description: 'Dispersed-phase density.' },
+  mu_c: { symbol: 'μ_c', unit: 'Pa·s', description: 'Continuous-phase viscosity.' },
+  mu_d: { symbol: 'μ_d', unit: 'Pa·s', description: 'Dispersed-phase viscosity.' },
+  sigma: { symbol: 'σ', unit: 'N m⁻¹', description: 'Interfacial tension.' },
+  kappa: { symbol: 'κ', unit: '—', description: 'Viscosity ratio: μ_d/μ_c.' },
+  D_c: { symbol: 'D_c', unit: 'm² s⁻¹', description: 'Continuous-phase solute diffusivity.' },
+  D_d: { symbol: 'D_d', unit: 'm² s⁻¹', description: 'Dispersed-phase solute diffusivity.' },
+  g: { symbol: 'g', unit: 'm s⁻²', description: 'Gravitational acceleration.' },
+  m: { symbol: 'm', unit: '—', description: 'Undefined two-film slope in the printed source; not inferred.' },
+};
+
 // ── Registry ─────────────────────────────────────────────────────────────────
 
 export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
@@ -1245,20 +1584,149 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
   //   is applied per-component must be resolved before implementation.
   // ──────────────────────────────────────────────────────────────────────────
   {
+    id: 'ecr2_kh1999_shc_secondary',
+    quantity: 'mass_transfer',
+    name: 'K&H 1999 Continuous-Side Sherwood Structure — Secondary Verified',
+    source:
+      'Torab-Mostaedi, M.; Ghaemi, A.; Asadollahzadeh, M.; Pejmanzad, P. ' +
+      '"Mass Transfer Performance in Pulsed Disc and Doughnut Extraction Columns." ' +
+      'Brazilian Journal of Chemical Engineering 28(3), 447–456 (2011), Eq. (8). ' +
+      'Independently reproduced for a Kühni column by Asadollahzadeh, M.; Torkaman, R.; ' +
+      'Torab-Mostaedi, M., Iranian Journal of Chemistry & Chemical Engineering 36(5), 149–161 (2017), Table 3 Eq. (18).',
+    secondarySourceEquation: '2011 Eq. (8); 2017 Table 3 Eq. (18).',
+    originalAttribution: 'Attributed by both secondary sources to Kumar & Hartland (1999).',
+    equation:
+      '((Sh_c/(1−φ_d))−Sh_c,rigid)/(Sh_c,infinity−(Sh_c/(1−φ_d))) = 5.26×10⁻²·Re^(1/3+6.59×10⁻²·Re^0.25)·Sc_c^(1/3)·(V_s·μ_c/σ)^(1/3)·[1/(1+κ^1.1)]·[1+C1·{(ψ/g)·(ρ_c/(g·σ))^0.25}^(1/3)].',
+    variables: {
+      ...KH1999_SECONDARY_VARIABLES,
+      Sh_c: { symbol: 'Sh_c', unit: '—', description: 'Continuous-phase Sherwood number.' },
+      Sh_c_rigid: { symbol: 'Sh_c,rigid', unit: '—', description: 'Rigid-drop continuous-side limit from 2011 Eq. (10).' },
+      Sh_c_infinity: { symbol: 'Sh_c,∞', unit: '—', description: 'Infinite-circulation continuous-side limit from 2011 Eq. (11).' },
+      C1: { symbol: 'C1', unit: '—', description: 'Use only scoped Kuhni identifier kh1999_shc_agitation_C1_kuhni (7.5); no global C1 lookup.' },
+    },
+    validityRange: {},
+    applicabilityStatus: 'secondary_equation_verified',
+    correlationStatus: 'secondary_equation_verified',
+    numericalUse: 'not_authorized',
+    primarySourceVerified: false,
+    secondaryReproductionVerified: true,
+    validatedForRRBONMP: false,
+    approvalNote:
+      'The printed equation structure and Kühni C1=7.5 are secondary-verified metadata only. ' +
+      'Kühni ψ, regime treatment, original validity ranges, RRBO/NMP validation, and runtime authorisation are not recovered; do not evaluate Sh_c.',
+  },
+  {
+    id: 'ecr2_kh1999_shc_rigid_secondary',
+    quantity: 'mass_transfer',
+    name: 'K&H 1999 Continuous-Side Rigid-Drop Limit — Secondary Verified',
+    source: 'Torab-Mostaedi et al., Brazilian Journal of Chemical Engineering 28(3), 447–456 (2011), Eq. (10).',
+    secondarySourceEquation: '2011 Eq. (10).',
+    originalAttribution: 'Printed within the K&H (1999) correlation framework.',
+    equation: 'Sh_c,rigid = 2.43 + 0.775·Re^0.5·Sc_c^(1/3) + 0.0103·Re·Sc_c^(1/3).',
+    variables: { ...KH1999_SECONDARY_VARIABLES, Sh_c_rigid: { symbol: 'Sh_c,rigid', unit: '—', description: 'Rigid-drop continuous-side Sherwood limit.' } },
+    validityRange: {},
+    applicabilityStatus: 'secondary_equation_verified',
+    correlationStatus: 'secondary_equation_verified',
+    numericalUse: 'not_authorized',
+    primarySourceVerified: false,
+    secondaryReproductionVerified: true,
+    validatedForRRBONMP: false,
+    approvalNote: 'Exact secondary reproduction recorded. Original K&H validity range and an authorised ECR-2 regime selector were not recovered; not evaluated independently.',
+  },
+  {
+    id: 'ecr2_kh1999_shc_infinity_secondary',
+    quantity: 'mass_transfer',
+    name: 'K&H 1999 Continuous-Side Infinite-Circulation Limit — Secondary Verified',
+    source: 'Torab-Mostaedi et al., Brazilian Journal of Chemical Engineering 28(3), 447–456 (2011), Eq. (11).',
+    secondarySourceEquation: '2011 Eq. (11).',
+    originalAttribution: 'Printed within the K&H (1999) correlation framework.',
+    equation: 'Sh_c,infinity = 50 + (2/sqrt(π))·Pe_c^0.5; Pe_c = d32·V_s/D_c.',
+    variables: { ...KH1999_SECONDARY_VARIABLES, Sh_c_infinity: { symbol: 'Sh_c,∞', unit: '—', description: 'Infinite-circulation continuous-side Sherwood limit.' } },
+    validityRange: {},
+    applicabilityStatus: 'secondary_equation_verified',
+    correlationStatus: 'secondary_equation_verified',
+    numericalUse: 'not_authorized',
+    primarySourceVerified: false,
+    secondaryReproductionVerified: true,
+    validatedForRRBONMP: false,
+    approvalNote: 'Exact secondary reproduction recorded. It remains part of the inactive Sh_c chain pending a governed Kühni ψ and regime treatment.',
+  },
+  {
+    id: 'ecr2_kh1999_shd_secondary',
+    quantity: 'mass_transfer',
+    name: 'K&H 1999 Dispersed-Side Sherwood Structure — Secondary Verified',
+    source: 'Torab-Mostaedi et al., Brazilian Journal of Chemical Engineering 28(3), 447–456 (2011), Eq. (9).',
+    secondarySourceEquation: '2011 Eq. (9).',
+    originalAttribution: 'Attributed by the secondary source to Kumar & Hartland (1999).',
+    equation:
+      'Sh_d = 17.7 + [3.19×10⁻³·(Re·Sc_d^(1/3))^1.7/(1+1.43×10⁻²·(Re·Sc_d^(1/3))^0.7)]·(ρ_d/ρ_c)^(2/3)·[1/(1+κ^(2/3))]·[1+C2·{(ψ/g)·(ρ_c/(g·σ))^0.25}^(1/3)].',
+    variables: {
+      ...KH1999_SECONDARY_VARIABLES,
+      Sh_d: { symbol: 'Sh_d', unit: '—', description: 'Dispersed-phase Sherwood number.' },
+      C2: { symbol: 'C2', unit: '—', description: 'Only pulsed C2=4.33 is secondary-verified; no Kuhni C2 is recovered.' },
+    },
+    validityRange: {},
+    applicabilityStatus: 'secondary_equation_verified',
+    correlationStatus: 'secondary_equation_verified',
+    numericalUse: 'not_authorized',
+    primarySourceVerified: false,
+    secondaryReproductionVerified: true,
+    validatedForRRBONMP: false,
+    approvalNote:
+      'The printed structure is secondary-verified, but Kuhni C2, drop-regime selection, characteristic velocity, Kuhni ψ, original validity ranges, and RRBO/NMP validation are unresolved. Do not evaluate Sh_d.',
+  },
+  {
+    id: 'ecr2_kh1999_two_film_secondary',
+    quantity: 'mass_transfer',
+    name: 'K&H 1999 Continuous-Basis Two-Film Relation — Secondary Verified',
+    source: 'Torab-Mostaedi et al., Brazilian Journal of Chemical Engineering 28(3), 447–456 (2011), Eq. (13).',
+    secondarySourceEquation: '2011 Eq. (13).',
+    originalAttribution: 'Printed in the K&H (1999) mass-transfer framework.',
+    equation: '1/k_oc = 1/k_c + m/k_d.',
+    variables: {
+      ...KH1999_SECONDARY_VARIABLES,
+      k_oc: { symbol: 'k_oc', unit: 'm s⁻¹ (conditional)', description: 'Printed nomenclature reports s⁻¹, but the resistance equation is dimensionally consistent only on a film-coefficient m/s basis; discrepancy is preserved.' },
+      k_c: { symbol: 'k_c', unit: 'm s⁻¹', description: 'Continuous-side film coefficient.' },
+      k_d: { symbol: 'k_d', unit: 'm s⁻¹', description: 'Dispersed-side film coefficient.' },
+    },
+    validityRange: {},
+    applicabilityStatus: 'secondary_equation_verified',
+    correlationStatus: 'secondary_equation_verified',
+    numericalUse: 'not_authorized',
+    primarySourceVerified: false,
+    secondaryReproductionVerified: true,
+    validatedForRRBONMP: false,
+    approvalNote:
+      'Equation recorded exactly as printed. The source does not define m or the ECR-2 partition basis, and its k_oc nomenclature unit conflicts with film-coefficient dimensions. No overall coefficient is authorised.',
+  },
+  {
+    id: 'ecr2_kh1999_interfacial_area_secondary',
+    quantity: 'interfacial_area',
+    name: 'Specific Interfacial Area a = 6φ_d/d32 — Secondary Recorded',
+    source: 'Torab-Mostaedi et al., Brazilian Journal of Chemical Engineering 28(3), 447–456 (2011), prose accompanying conversion of volumetric coefficient to k_oc.',
+    secondarySourceEquation: '2011 prose accompanying Eq. (13); no equation number assigned.',
+    originalAttribution: 'The secondary source states the geometric relation but does not explicitly attribute it to K&H (1999).',
+    equation: 'a = 6·φ_d/d32.',
+    variables: { ...KH1999_SECONDARY_VARIABLES, a: { symbol: 'a', unit: 'm² m⁻³', description: 'Specific interfacial area.' } },
+    validityRange: {},
+    applicabilityStatus: 'secondary_equation_verified',
+    correlationStatus: 'secondary_equation_verified',
+    numericalUse: 'independently_available',
+    primarySourceVerified: false,
+    secondaryReproductionVerified: true,
+    validatedForRRBONMP: false,
+    approvalNote:
+      'This existing geometric calculation is independently guarded by usable K&H 1995 holdup and an independently governed or engineer-supplied d32. It does not activate any K&H 1999 transfer-rate calculation.',
+  },
+  {
     id: 'ecr2_koa_kh1999',
     quantity: 'mass_transfer',
-    name: 'Kühni Column Phase Mass-Transfer Coefficients — Kumar & Hartland (1999)',
+    name: 'K&H 1999 Mass-Transfer Runtime Activation Gate',
 
     source:
-      'Kumar, A. & Hartland, S. (1999). ' +
-      '"Correlations for Prediction of Mass Transfer Coefficients in Single Drop Systems ' +
-      'and Liquid-Liquid Extraction Columns." ' +
-      'Transactions of the Institution of Chemical Engineers, Part A, 77, 372–384. ' +
-      'Equations reproduced from: ' +
-      'Laitinen, A. et al. (2019). Chemical Engineering Research and Design, 146, 518–527. ' +
-      'DOI: 10.1016/j.cherd.2019.04.018. ' +
-      'Laitinen reports kc values 4.29–6.38 × 10⁻⁵ m/s and kd values 3.43–5.12 × 10⁻⁵ m/s ' +
-      'for 2MTHF/water system; overall ki ≈ 1.4–2.2 × 10⁻⁵ m/s.',
+      'Runtime gate for the separately registered K&H 1999 secondary evidence: ' +
+      'Torab-Mostaedi et al. (2011), Eqs. (8)–(13), and Asadollahzadeh et al. (2017), Table 3 Eq. (18). ' +
+      'Original attribution: Kumar & Hartland (1999), Transactions of the Institution of Chemical Engineers, Part A, 77, 372–384.',
 
     // ── Evidence boundary ────────────────────────────────────────────────────
     //
@@ -1288,11 +1756,12 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     //   (e) Kd for each pseudo-component must come from ECR-2 NRTL flash, not assumed.
     //
     equation:
-      'MASS_TRANSFER_PRELIMINARY — controlled numerical scope: Kd,i = Cd,i*/Cc,i* and ' +
+      'MASS_TRANSFER_RUNTIME_GATE — controlled numerical scope: Kd,i = Cd,i*/Cc,i* and ' +
       'ΔCd,i = Cd,i − Kd,i·Cc,i on physical mass-concentration basis. Interface contracts only: ' +
       'kc=Shc·De,c/d32; kd=Shd·De,d/d32; Kod=kc·kd/(Kd·kd+kc); Koa=Kod·a. ' +
-      'Shc/Shd and all dependent quantities are unavailable pending complete source-backed equations, ' +
-      'regime selection, low-Re policy, and C1/C2/Fc/Fd placement. Apply per component Sat/Mono/Di/Poly.',
+      'Secondary equation metadata does not authorise Shc/Shd or dependent runtime quantities: ' +
+      'Kühni ψ, Kuhni C2, regime selection, m/partition basis, original validity ranges, and activation approval remain unresolved. ' +
+      'Apply the controlled subset per component Sat/Mono/Di/Poly.',
 
     variables: {
       ki: {
@@ -1337,25 +1806,25 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
         description:
           'Dispersed-phase Sherwood number. Its complete source-backed equation, regime selection, and exact correction placement are unresolved; numerical evaluation is prohibited.',
       },
-      C1: {
+      provisional_C1: {
         symbol: 'C1',
         unit: '—',
-        description: 'Supplied preliminary continuous-phase agitation parameter = 0.90. Exact equation placement is unresolved; not applied numerically.',
+        description: 'Project provisional C1 = 0.90, scoped outside the secondary equation registry. Exact role is unresolved; not applied numerically.',
       },
-      C2: {
+      provisional_C2: {
         symbol: 'C2',
         unit: '—',
-        description: 'Supplied preliminary dispersed-phase agitation parameter = 0.45. Exact equation placement is unresolved; not applied numerically.',
+        description: 'Project provisional C2 = 0.45, scoped outside the secondary equation registry. Exact role is unresolved; not applied numerically.',
       },
-      Fc: {
+      provisional_Fc: {
         symbol: 'Fc',
         unit: '—',
-        description: 'Supplied preliminary continuous-phase Kühni correction = 0.76. Exact equation placement is unresolved; not applied numerically.',
+        description: 'Project provisional Fc = 0.76. It does not occur in the accepted secondary evidence and is not applied numerically.',
       },
-      Fd: {
+      provisional_Fd: {
         symbol: 'Fd',
         unit: '—',
-        description: 'Supplied preliminary dispersed-phase Kühni correction = 0.58. Exact equation placement is unresolved; not applied numerically.',
+        description: 'Project provisional Fd = 0.58. It does not occur in the accepted secondary evidence and is not applied numerically.',
       },
       Red: {
         symbol: 'Red',
@@ -1404,35 +1873,20 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       },
     },
 
-    validityRange: {
-      Red: {
-        min: 0.1,
-        max: 1400,
-        unit: '—',
-        note:
-          'Shc,∞ formula (Eq.14) valid 0.1–1400. ' +
-          'Shc,rigid (Eq.13) valid 10–1200. ' +
-          'Laitinen Re≈6–21: below Eq.(13) floor — applicability must be confirmed.',
-      },
-      Scc: {
-        min: 180,
-        max: 571600,
-        unit: '—',
-        note: 'From Laitinen Eq.(14) validity statement. Laitinen: Scc≈900 ✓.',
-      },
-    },
+    validityRange: {},
 
-    applicabilityStatus: 'preliminary_engineering_reconstruction',
+    applicabilityStatus: 'candidate_governed',
+    correlationStatus: 'candidate_governed',
+    numericalUse: 'not_authorized',
     primarySourceVerified: false,
     secondaryReproductionVerified: true,   // Framework reproduced from Laitinen (2019)
     validatedForRRBONMP: false,
 
     approvalNote:
-      'preliminary_engineering_reconstruction: supplied C1=0.90, C2=0.45, Fc=0.76, and Fd=0.58 are retained ' +
-      'with their verified physical phase roles. Controlled numerical work is limited to physical concentration ' +
-      'conversion, Kd=Cd*/Cc*, and driving-force reporting. Complete Shc/Shd equations, regime selection, low-Re ' +
-      'policy, and exact C1/C2/Fc/Fd placement remain unresolved; Sh, film coefficients, Kod, Koa, and rates MUST ' +
-      'remain unavailable. Before any Sherwood-dependent calculation: recover and verify the exact published forms.',
+      'The preliminary project constants remain separately scoped with unresolved equation roles. Controlled numerical work remains ' +
+      'limited to physical concentration conversion, Kd=Cd*/Cc*, and driving-force reporting. Secondary equation metadata is now ' +
+      'recorded separately, but Kuhni ψ, Kuhni C2, regime selection, m/partition basis, original validity ranges, and runtime approval ' +
+      'remain unresolved; Sh, film coefficients, Kod, Koa, and rates MUST remain unavailable.',
   },
 
   // ── 4. Axial dispersion / back-mixing ────────────────────────────────────

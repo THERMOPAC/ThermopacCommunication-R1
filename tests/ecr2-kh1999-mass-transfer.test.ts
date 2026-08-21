@@ -14,8 +14,14 @@ import {
 } from '../server/engines/llx/llx-ecr2-local-properties';
 import { computeLocalNRTL } from '../server/engines/llx/llx-ecr2-local-nrtl';
 import {
+  ECR2_CORRELATION_REGISTRY,
+  ECR2_KH1999_FUTURE_PRELIMINARY_INPUTS,
+  ECR2_KH1999_MASS_TRANSFER_DEPENDENCY_MAP,
   ECR2_KH1999_PRELIMINARY_PARAMETERS,
+  ECR2_KH1999_SECONDARY_SCOPED_CONSTANTS,
+  validateKH1999MassTransferDependencyMap,
   validateKH1999PreliminaryParameterRegistry,
+  validateKH1999SecondaryEvidenceRegistry,
 } from '../server/engines/llx/llx-ecr2-correlation-registry';
 import {
   computePhysicalComponentMassConcentrations,
@@ -95,13 +101,96 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
   it('stores the supplied constants with their roles and prevents symbol-role collisions', () => {
     expect(validateKH1999PreliminaryParameterRegistry()).toEqual([]);
     expect(ECR2_KH1999_PRELIMINARY_PARAMETERS).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'C1', value: 0.90, phaseRole: 'continuous' }),
-      expect.objectContaining({ id: 'C2', value: 0.45, phaseRole: 'dispersed' }),
-      expect.objectContaining({ id: 'Fc', value: 0.76, phaseRole: 'continuous' }),
-      expect.objectContaining({ id: 'Fd', value: 0.58, phaseRole: 'dispersed' }),
+      expect.objectContaining({ id: 'kh1999_provisional_C1', symbol: 'C1', value: 0.90, phaseRole: 'continuous' }),
+      expect.objectContaining({ id: 'kh1999_provisional_C2', symbol: 'C2', value: 0.45, phaseRole: 'dispersed' }),
+      expect.objectContaining({ id: 'kh1999_provisional_Fc', symbol: 'Fc', value: 0.76, phaseRole: 'continuous' }),
+      expect.objectContaining({ id: 'kh1999_provisional_Fd', symbol: 'Fd', value: 0.58, phaseRole: 'dispersed' }),
     ]));
     expect(ECR2_KH1999_PRELIMINARY_PARAMETERS.every(
       (parameter) => parameter.equationPlacement === 'unresolved_do_not_apply_numerically',
+    )).toBe(true);
+  });
+
+  it('records secondary equations and constants without equating same-named symbols', () => {
+    expect(validateKH1999SecondaryEvidenceRegistry()).toEqual([]);
+    expect(ECR2_KH1999_SECONDARY_SCOPED_CONSTANTS).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'kh1999_shc_agitation_C1_kuhni',
+        symbol: 'C1',
+        value: 7.5,
+        correlationId: 'ecr2_kh1999_shc_secondary',
+        deviceType: 'kuhni',
+      }),
+      expect.objectContaining({
+        id: 'kh1999_shd_agitation_C2_pulsed',
+        symbol: 'C2',
+        value: 4.33,
+        deviceType: 'pulsed',
+      }),
+    ]));
+    expect(ECR2_KH1999_SECONDARY_SCOPED_CONSTANTS.some(
+      (constant) => constant.deviceType === 'kuhni' && constant.symbol === 'C2',
+    )).toBe(false);
+
+    for (const id of [
+      'ecr2_kh1999_shc_secondary',
+      'ecr2_kh1999_shd_secondary',
+      'ecr2_kh1999_shc_rigid_secondary',
+      'ecr2_kh1999_shc_infinity_secondary',
+      'ecr2_kh1999_two_film_secondary',
+      'ecr2_kh1999_interfacial_area_secondary',
+    ]) {
+      expect(ECR2_CORRELATION_REGISTRY.find((entry) => entry.id === id)).toEqual(expect.objectContaining({
+        correlationStatus: 'secondary_equation_verified',
+        primarySourceVerified: false,
+      }));
+    }
+  });
+
+  it('rejects a secondary constant whose device or phase scope is mutated', () => {
+    const corrupted = ECR2_KH1999_SECONDARY_SCOPED_CONSTANTS.map((constant) =>
+      constant.id === 'kh1999_shc_agitation_C1_kuhni'
+        ? { ...constant, deviceType: 'pulsed' as const }
+        : constant,
+    );
+    expect(validateKH1999SecondaryEvidenceRegistry(corrupted)).toEqual(expect.arrayContaining([
+      expect.stringMatching(/invalid deviceType scope/),
+    ]));
+  });
+
+  it('maps all mass-transfer prerequisites while keeping numerical outputs inactive', () => {
+    expect(validateKH1999MassTransferDependencyMap()).toEqual([]);
+    const byOutput = Object.fromEntries(ECR2_KH1999_MASS_TRANSFER_DEPENDENCY_MAP.map(
+      (entry) => [entry.output, entry],
+    ));
+    expect(byOutput.Sh_c.runtimeStatus).toBe('not_activated');
+    expect(byOutput.Sh_c.exactBlockers.join(' ')).toMatch(/Kühni ψ/);
+    expect(byOutput.Sh_d.requiredConstants).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'kh1999_shd_C2_kuhni', availability: 'unavailable' }),
+    ]));
+    expect(byOutput.Sh_c.blockerIds).toEqual(expect.arrayContaining([
+      'kuhni_psi_definition',
+      'drop_regime_selector',
+      'characteristic_velocity',
+      'original_validity_ranges',
+      'rrbo_nmp_validation',
+      'runtime_activation',
+    ]));
+    expect(byOutput.Sh_d.blockerIds).toEqual(expect.arrayContaining([
+      'kuhni_shd_C2',
+      'runtime_activation',
+    ]));
+    expect(byOutput.K_overall.exactBlockers.join(' ')).toMatch(/partition|slope m/i);
+    expect(byOutput.Koa.runtimeStatus).toBe('not_activated');
+    expect(byOutput.transfer_rate.runtimeStatus).toBe('not_activated');
+    expect(byOutput.a.runtimeStatus).toBe('independently_available');
+    expect(byOutput.a.d32Provenance).toEqual(expect.arrayContaining([
+      'governed_calculated_future',
+      'engineer_entered_or_measured_future',
+    ]));
+    expect(ECR2_KH1999_FUTURE_PRELIMINARY_INPUTS.every(
+      (input) => input.activation === 'future_only_not_runtime' &&
+        input.requiredFields.join(',') === 'value,unit,sourceType,sourceReference,engineeringStatus',
     )).toBe(true);
   });
 
