@@ -4463,9 +4463,147 @@ export default function DesignSoftwareWorkspacePage() {
         {stageBanner("equipment_design")}
         {renderCarryOverCard(co)}
         {renderDesignSelectionCard()}
+        {renderEcr2Simulator()}
         <div>
           {showECR && renderECRDesign()}
         </div>
+      </div>
+    );
+  }
+
+  function renderEcr2Simulator() {
+    const sim = d("ecr_simulator");
+    const f = field("ecr_simulator");
+    const s = save("ecr_simulator");
+    const simResult = (resultsQ.data ?? []).find((r: any) => r.section === "ecr_simulator")?.data;
+    const bvp = simResult?.bvp;
+    const latestRun = runs
+      .filter(r => r.calculation_type === "ecr_simulator")
+      .sort((a, b) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0];
+    const inherited = [
+      ["Operating temperature", d("design_basis").operating_temperature, "Design Basis"],
+      ["RRBO composition", d("process_design").rrbo_saturates_wt ? "Sat / Mono / Di / Poly characterisation" : "Missing", "Process Design"],
+      ["S/O ratio", d("process_design").so_ratio, "Process Design"],
+      ["Column diameter", d("hydraulic_design").column_diameter, "Common Hydraulic Design"],
+      ["RRBO viscosity", d("fluid_properties").rrbo_viscosity_dynamic_value, "Fluid Properties"],
+      ["Interfacial tension", d("hydraulic_design").interfacial_tension || d("fluid_properties").interfacial_tension_value, "Two-Phase Properties"],
+    ];
+    const fmt = (value: any, digits = 4) => typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "—";
+    const profile = bvp?.axialProfile ?? [];
+    const compartments = bvp?.compartments ?? [];
+    const resultOk = bvp?.status === "converged" && bvp?.massBalanceStatus === "passed";
+    const staleResult = !!bvp && latestRun?.calculation_status === "error";
+    return (
+      <div className="space-y-4">
+        <SectionCard title="ECR-2 — Counter-Current Simulator">
+          <div className="p-3 rounded-lg border border-amber-200 bg-amber-50 mb-4">
+            <p className="text-sm font-semibold text-amber-900">Simulator only — preliminary engineering</p>
+            <p className="text-xs text-amber-800 mt-1">
+              Uses the governed five-component counter-current BVP. It does not alter ECR-1 design results, activate an optimizer,
+              determine flooding, or create a design search.
+            </p>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              <Badge className="bg-amber-100 text-amber-800 border border-amber-200 text-[10px]">Published Correlation — Preliminary Engineering</Badge>
+              <Badge className="bg-amber-100 text-amber-800 border border-amber-200 text-[10px]">primarySourceVerified: false</Badge>
+              <Badge className="bg-amber-100 text-amber-800 border border-amber-200 text-[10px]">validatedForRRBONMP: false</Badge>
+              <Badge className="bg-amber-100 text-amber-800 border border-amber-200 text-[10px]">pilotCalibrationStatus: NOT_YET_VALIDATED</Badge>
+            </div>
+          </div>
+
+          <p className="text-xs font-semibold text-gray-700 mb-1">Inherited workspace inputs</p>
+          <div className="rounded-lg border overflow-hidden mb-4">
+            {inherited.map(([label, value, source]) => (
+              <div key={label} className="grid grid-cols-[180px_1fr_auto] gap-2 px-3 py-2 border-b last:border-0 text-xs">
+                <span className="text-gray-500">{label}</span>
+                <span className={value ? "font-medium text-gray-800" : "text-red-700"}>{value || "MISSING_REQUIRED"}</span>
+                <Badge className="h-5 bg-blue-50 text-blue-700 border border-blue-200 text-[9px]">{value ? `INHERITED · ${source}` : `Required source · ${source}`}</Badge>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-xs font-semibold text-gray-700 mb-1">Engineer-editable simulator inputs</p>
+          <p className="text-[11px] text-gray-500 mb-3">Saved under the simulator only. Required values are classified as ENGINE_INPUT; all calculated values remain read-only in the result snapshot.</p>
+          <FieldRow label="Active agitated height" value={sim.activeHeight_m ?? ""} onChange={v => f("activeHeight_m", v)} onBlur={s} unit="m" />
+          <FieldRow label="Column diameter override" value={sim.columnDiameter_m ?? ""} onChange={v => f("columnDiameter_m", v)} onBlur={s} unit="m" note="Leave blank to inherit the Stage 5 diameter." />
+          <FieldRow label="Compartment height" value={sim.compartmentHeight_m ?? ""} onChange={v => f("compartmentHeight_m", v)} onBlur={s} unit="m" />
+          <FieldRow label="Rotor / column ratio" value={sim.rotorToColumnDiameterRatio ?? ""} onChange={v => f("rotorToColumnDiameterRatio", v)} onBlur={s} unit="—" />
+          <FieldRow label="Rotor speed" value={sim.rotorSpeed_rpm ?? ""} onChange={v => f("rotorSpeed_rpm", v)} onBlur={s} unit="rpm" />
+          <FieldRow label="Rotor type" value={sim.rotorType ?? ""} onChange={v => f("rotorType", v)} onBlur={s} />
+          <FieldRow label="Power number Nₚ" value={sim.powerNumber ?? ""} onChange={v => f("powerNumber", v)} onBlur={s} unit="—" />
+          <FieldRow label="Stator open area fraction" value={sim.statorOpenAreaFraction ?? ""} onChange={v => f("statorOpenAreaFraction", v)} onBlur={s} unit="—" />
+          <FieldRow label="Shaft efficiency" value={sim.shaftEfficiency ?? ""} onChange={v => f("shaftEfficiency", v)} onBlur={s} unit="fraction" />
+          <FieldRow label="Mechanical design margin" value={sim.mechanicalDesignMargin ?? ""} onChange={v => f("mechanicalDesignMargin", v)} onBlur={s} unit="—" />
+          <FieldRow label="Power-number source reference" value={sim.powerNumberSourceReference ?? ""} onChange={v => f("powerNumberSourceReference", v)} onBlur={s} />
+          <FieldRow label="Stator source reference" value={sim.statorSourceReference ?? ""} onChange={v => f("statorSourceReference", v)} onBlur={s} />
+          <FieldRow label="Shaft-efficiency source reference" value={sim.shaftEfficiencyReference ?? ""} onChange={v => f("shaftEfficiencyReference", v)} onBlur={s} />
+          <FieldRow label="Margin source reference" value={sim.mechanicalDesignMarginReference ?? ""} onChange={v => f("mechanicalDesignMarginReference", v)} onBlur={s} />
+
+          <div className="mt-3 grid gap-3">
+            <div>
+              <Label className="text-xs">Physical molecular weights JSON <Badge className="ml-1 bg-violet-50 text-violet-700 border border-violet-200 text-[9px]">ENGINE_INPUT</Badge></Label>
+              <Textarea className="mt-1 text-xs font-mono" rows={3} value={sim.molecularWeights ?? ""} onChange={e => f("molecularWeights", e.target.value)} onBlur={s}
+                placeholder={'{"saturates_g_mol":{"value":330,"sourceType":"Assumed","sourceReference":"..."}, "mono_g_mol":{}, "di_g_mol":{}, "poly_g_mol":{}}'} disabled={isFrozen} />
+            </div>
+            <div>
+              <Label className="text-xs">d₃₂ configuration JSON <Badge className="ml-1 bg-violet-50 text-violet-700 border border-violet-200 text-[9px]">ENGINE_INPUT</Badge></Label>
+              <Textarea className="mt-1 text-xs font-mono" rows={3} value={sim.d32Config ?? ""} onChange={e => f("d32Config", e.target.value)} onBlur={s}
+                placeholder={'{"mode":"engineer_supplied","value_m":0.0005,"sourceType":"Assumed","sourceReference":"..."}'} disabled={isFrozen} />
+            </div>
+            <div>
+              <Label className="text-xs">BVP activation JSON <Badge className="ml-1 bg-violet-50 text-violet-700 border border-violet-200 text-[9px]">ENGINE_INPUT</Badge></Label>
+              <Textarea className="mt-1 text-xs font-mono" rows={7} value={sim.bvp ?? ""} onChange={e => f("bvp", e.target.value)} onBlur={s}
+                placeholder={'{"rrboGradeId":"rrbo-sn300","kuhniShdC2":{"value":1.25,"sourceType":"Assumed","sourceReference":"...","scope":"kuhni_shd_preliminary"},"partitionBasis":{"basis":"K_d_concentration","approvalStatus":"engineer_approved_governed","sourceReference":"..."},"diffusivity":{"Sat":{"De_c":{},"De_d":{}},"Mono":{},"Di":{},"Poly":{},"NMP":{}}}'} disabled={isFrozen} />
+              <p className="text-[10px] text-gray-500 mt-1">All five components and both phases require source-tagged diffusivity values. No defaults are seeded or inferred.</p>
+            </div>
+          </div>
+          <div className="flex gap-2 mt-4">
+            <Button size="sm" variant="outline" disabled={isFrozen || upsertMutation.isPending} onClick={() => saveSection("ecr_simulator")}>
+              <Save className="h-3.5 w-3.5 mr-1.5" /> Save simulator inputs
+            </Button>
+            <Button size="sm" className="gap-1.5" disabled={isFrozen || calculateMutation.isPending} onClick={() => calculateMutation.mutate("ecr_simulator")}>
+              <Play className="h-3.5 w-3.5" /> RUN ECR-2 SIMULATION
+            </Button>
+          </div>
+          {renderRunIssues(latestRun, "ECR-2 simulator")}
+        </SectionCard>
+
+        {(bvp || latestRun?.calculation_status === "error") && (
+          <SectionCard title="ECR-2 — Simulation Snapshot">
+            {!bvp ? (
+              <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-xs text-red-800">
+                The run was blocked before a result snapshot could be accepted. Expand the run issues above; each issue identifies the missing field and its dependency.
+              </div>
+            ) : (
+              <>
+                <div className={`p-3 rounded-lg border text-xs mb-4 ${staleResult || !resultOk ? "bg-red-50 border-red-200 text-red-800" : "bg-emerald-50 border-emerald-200 text-emerald-800"}`}>
+                  <strong>{staleResult ? "Previous accepted simulation is stale" : resultOk ? "Accepted preliminary simulation" : "Simulation not accepted"}</strong>
+                  <span className="ml-2">BVP: {bvp.status} · convergence: {bvp.convergenceStatus} · mass balance: {bvp.massBalanceStatus}</span>
+                  {staleResult && <p className="mt-1">The newest simulator run failed. The result below is retained only as an earlier accepted snapshot and must not be used as the current run.</p>}
+                  {!resultOk && bvp.failure && <p className="mt-1">Missing/failed dependency: <strong>{bvp.failure.dependency}</strong> — {bvp.failure.message}</p>}
+                </div>
+                <div className="grid md:grid-cols-2 gap-3 mb-4">
+                  {["raffinate", "extract"].map(name => {
+                    const outlet = bvp.outlets?.[name];
+                    return <div key={name} className="border rounded-lg p-3">
+                      <p className="font-semibold text-sm capitalize">{name}</p>
+                      <p className="text-xs text-gray-500 mt-1">Total flow: {fmt(outlet?.totalFlow_kg_h, 3)} kg/h</p>
+                      <p className="text-[11px] text-gray-600 mt-1">Sat {fmt(outlet?.massFractions?.[0])} · Mono {fmt(outlet?.massFractions?.[1])} · Di {fmt(outlet?.massFractions?.[2])} · Poly {fmt(outlet?.massFractions?.[3])} · NMP {fmt(outlet?.massFractions?.[4])}</p>
+                    </div>;
+                  })}
+                </div>
+                <div className="grid md:grid-cols-3 gap-3 mb-4">
+                  <div className="border rounded-lg p-3 text-xs"><p className="text-gray-500">Iterations</p><p className="font-semibold text-base">{bvp.iterations}</p></div>
+                  <div className="border rounded-lg p-3 text-xs"><p className="text-gray-500">Final residual norm</p><p className="font-semibold text-base">{fmt(bvp.finalResidualNorm, 7)}</p></div>
+                  <div className="border rounded-lg p-3 text-xs"><p className="text-gray-500">Total mass balance</p><p className="font-semibold text-base">{fmt(bvp.totalMassBalance_kg_h, 8)} kg/h</p></div>
+                </div>
+                <p className="text-xs font-semibold text-gray-700 mb-1">Axial profile (CALCULATED)</p>
+                <div className="overflow-auto border rounded-lg mb-4"><table className="min-w-full text-[11px]"><thead className="bg-gray-50"><tr><th className="p-2 text-left">z (m)</th><th className="p-2 text-left">Raffinate flow</th><th className="p-2 text-left">Extract flow</th><th className="p-2 text-left">φd</th><th className="p-2 text-left">d32 (mm)</th><th className="p-2 text-left">Re_d</th></tr></thead><tbody>{profile.map((p: any, i: number) => <tr key={i} className="border-t"><td className="p-2">{fmt(p.z_m, 3)}</td><td className="p-2">{fmt(p.raffinateFlow_kg_h, 3)}</td><td className="p-2">{fmt(p.extractFlow_kg_h, 3)}</td><td className="p-2">{fmt(p.phi_d, 4)}</td><td className="p-2">{fmt(p.d32_m * 1000, 3)}</td><td className="p-2">{fmt(p.Re_d, 2)}</td></tr>)}</tbody></table></div>
+                <p className="text-xs font-semibold text-gray-700 mb-1">Compartment engineering table (CALCULATED)</p>
+                <div className="overflow-auto border rounded-lg"><table className="min-w-full text-[11px]"><thead className="bg-gray-50"><tr><th className="p-2 text-left">#</th><th className="p-2 text-left">z centre</th><th className="p-2 text-left">Active liquid volume</th><th className="p-2 text-left">Transfer warning(s)</th></tr></thead><tbody>{compartments.map((c: any) => <tr key={c.compartmentIndex} className="border-t"><td className="p-2">{c.compartmentIndex}</td><td className="p-2">{fmt(c.z_centre_m, 3)} m</td><td className="p-2">{fmt(c.activeLiquidVolume_m3, 5)} m³</td><td className="p-2">{(c.localWarnings ?? []).join("; ") || "—"}</td></tr>)}</tbody></table></div>
+              </>
+            )}
+          </SectionCard>
+        )}
       </div>
     );
   }

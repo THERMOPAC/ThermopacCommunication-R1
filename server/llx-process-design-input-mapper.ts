@@ -433,7 +433,7 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   // ── Stage 7 (Equipment Design) extras — restructuring/unit conversion only ──
   // Applied ONLY for the equipment calculation types: ECR/ECP-specific keys
   // must never leak into C2 (process_design) or C3 (hydraulics_common) snapshots.
-  const isEquipment = calculationType === 'ecp' || calculationType === 'ecr';
+  const isEquipment = calculationType === 'ecp' || calculationType === 'ecr' || calculationType === 'ecr_simulator';
   if (!isEquipment) return out;
   // Case mass flows (kg/h) from the established volumetric basis:
   //   RRBO: feed LPH × ρRRBO / 1000 ;  NMP: feed LPH × S/O(vol) × ρNMP(OT) / 1000
@@ -450,6 +450,72 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       if (out.normalCase === undefined) out.normalCase = { rrboMassFlow_kg_h: mRRBO, nmpMassFlow_kg_h: mNMPn };
       if (out.maximumCase === undefined) out.maximumCase = { rrboMassFlow_kg_h: mRRBO, nmpMassFlow_kg_h: mNMPn * circ };
     } catch { /* EPD out of range — engine validation reports the gap */ }
+  }
+
+  // ECR-2 simulator boundary. This is an adapter only: it derives inherited
+  // workspace values and leaves the explicit simulator/BVP activation section
+  // untouched. No BVP equation or physical-property correlation belongs here.
+  if (calculationType === 'ecr_simulator') {
+    const normal = out.normalCase as Record<string, unknown> | undefined;
+    const rrboMassFlow = num(normal?.rrboMassFlow_kg_h);
+    const nmpMassFlow = num(normal?.nmpMassFlow_kg_h);
+    const pct = (key: string) => {
+      const value = num(inputs[key]);
+      return value === undefined ? undefined : value / 100;
+    };
+    const comp = {
+      saturates: pct('rrbo_saturates_wt'),
+      mono: pct('rrbo_mono_aromatics_wt'),
+      di: pct('rrbo_di_aromatics_wt'),
+      poly: pct('rrbo_poly_aromatics_wt'),
+    };
+    if (out.operatingTemperatureC === undefined && ot !== undefined) out.operatingTemperatureC = ot;
+    if (out.rrboMassFlow_kg_h === undefined && rrboMassFlow !== undefined) out.rrboMassFlow_kg_h = rrboMassFlow;
+    if (out.nmpMassFlow_kg_h === undefined && nmpMassFlow !== undefined) out.nmpMassFlow_kg_h = nmpMassFlow;
+    if (out.feedCompositionMassFraction === undefined && Object.values(comp).every(v => v !== undefined)) {
+      out.feedCompositionMassFraction = comp;
+    }
+    const nmpPurity = num(inputs.solvent_nmp_mole_fraction);
+    if (out.nmpPurity === undefined && nmpPurity !== undefined) out.nmpPurity = nmpPurity > 1 ? nmpPurity / 100 : nmpPurity;
+    if (out.phaseConfiguration === undefined) out.phaseConfiguration = 'nmp_continuous_rrbo_dispersed';
+
+    // Simulator-only geometry/settings are intentionally held in the
+    // ecr_simulator input section. They are not propagated into ECR-1.
+    const nested = (inputs.ecr2Simulator ?? inputs.ecr2_simulator ?? {}) as Record<string, unknown>;
+    // runCalculation merges the ecr_simulator section directly into the input
+    // record. Therefore its persisted UI fields are flat, not nested. Prefer a
+    // nested API payload when present, then fall back to those exact flat keys.
+    const simValue = (key: string) => nested[key] ?? inputs[key] ?? inputs[`simulator_${key}`];
+    const simNum = (key: string) => num(simValue(key));
+    const simText = (key: string) => String(simValue(key) ?? '').trim();
+    out.columnDiameter_m = simNum('columnDiameter_m') ?? num(inputs.column_diameter);
+    out.activeHeight_m = simNum('activeHeight_m');
+    out.compartmentHeight_m = simNum('compartmentHeight_m') ?? num(inputs.compartment_height);
+    out.rotorToColumnDiameterRatio = simNum('rotorToColumnDiameterRatio') ?? num(inputs.rotor_ratio);
+    out.rotorSpeed_rpm = simNum('rotorSpeed_rpm') ?? num(inputs.rotor_speed);
+    out.rotorType = simText('rotorType') || String(inputs.rotor_type ?? '').trim();
+    if (simNum('powerNumber') !== undefined) {
+      out.powerNumber = { value: simNum('powerNumber'), sourceType: simText('powerNumberSourceType') || 'Assumed', sourceReference: simText('powerNumberSourceReference') };
+    }
+    if (simNum('statorOpenAreaFraction') !== undefined) {
+      out.statorOpenAreaFraction = { value: simNum('statorOpenAreaFraction'), sourceType: simText('statorSourceType') || 'Assumed', sourceReference: simText('statorSourceReference') };
+    }
+    if (simNum('shaftEfficiency') !== undefined) {
+      out.shaftEfficiency = { value: simNum('shaftEfficiency'), sourceType: 'Assumed', sourceReference: simText('shaftEfficiencyReference') };
+    }
+    if (simNum('mechanicalDesignMargin') !== undefined) {
+      out.mechanicalDesignMargin = { value: simNum('mechanicalDesignMargin'), sourceType: 'Assumed', sourceReference: simText('mechanicalDesignMarginReference') };
+    }
+    const parseJson = (value: unknown) => {
+      if (typeof value !== 'string') return value;
+      try { return JSON.parse(value); } catch { return undefined; }
+    };
+    const d32Config = simValue('d32Config');
+    const molecularWeights = simValue('molecularWeights');
+    const bvp = simValue('bvp');
+    if (d32Config !== undefined) out.d32Config = parseJson(d32Config);
+    if (molecularWeights !== undefined) out.molecularWeights = parseJson(molecularWeights);
+    if (bvp !== undefined) out.bvp = parseJson(bvp);
   }
 
   // Generic engineer-entered tagged mapper for Stage 7 flat fields.

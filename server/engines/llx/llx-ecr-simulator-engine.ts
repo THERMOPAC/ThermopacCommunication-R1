@@ -124,16 +124,21 @@ import {
   createUnavailableKH1999PreliminaryLocalMassTransfer,
   type ECR2KH1999LocalMassTransferResult,
 } from './llx-ecr2-kh1999-mass-transfer';
+import {
+  solveECR2CounterCurrentBVP,
+  type ECR2CounterCurrentBVPResult,
+} from './llx-ecr2-counter-current-bvp';
+import { emptyDiffusivityContract } from './llx-ecr2-diffusivity';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const ENGINE_ID      = 'llx-ecr-simulator';
-const ENGINE_VERSION = '2.0.0';
+const ENGINE_VERSION = '2.1.0';
 const CALCULATION_TYPE = 'ecr_simulator';
 
 const APPLICABILITY_STATEMENT =
-  'ECR-2 PRELIMINARY AGITATED EXTRACTION COLUMN SIMULATOR — PHASE 1 SCAFFOLD ' +
-  '(GEOMETRY AND POWER ONLY) — NOT VENDOR RATING AND NOT FOR FABRICATION.';
+  'ECR-2 PRELIMINARY AGITATED EXTRACTION COLUMN SIMULATOR — COUNTER-CURRENT ' +
+  'FIVE-COMPONENT BVP — NOT VENDOR RATING AND NOT FOR FABRICATION.';
 
 /** Fixed by governance — one rotor per compartment in ECR-2. Not an input. */
 const ROTORS_PER_COMPARTMENT = 1;
@@ -861,6 +866,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const errors: ValidationError[] = [];
     const err = (field: string, message: string) =>
       errors.push({ field, message, severity: 'error' });
+    const warn = (field: string, message: string) =>
+      errors.push({ field, message, severity: 'warning' });
 
     // Operating temperature
     const T = num(inputs.operatingTemperatureC);
@@ -936,6 +943,12 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const validPhaseConfigs = ['rrbo_continuous_nmp_dispersed', 'nmp_continuous_rrbo_dispersed'];
     if (!validPhaseConfigs.includes(inputs.phaseConfiguration as string))
       err('phaseConfiguration', `phaseConfiguration must be one of: ${validPhaseConfigs.join(', ')}`);
+    if (inputs.phaseConfiguration !== 'nmp_continuous_rrbo_dispersed') {
+      err(
+        'phaseConfiguration',
+        'The ECR-2 counter-current BVP is governed only for nmp_continuous_rrbo_dispersed (NMP continuous, RRBO dispersed).',
+      );
+    }
 
     // Column geometry
     const D = num(inputs.columnDiameter_m);
@@ -1024,6 +1037,21 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           errors.push({ field: 'd32Config.sourceReference', message: 'd32Config.sourceReference should be a non-empty source reference string', severity: 'warning' });
         }
       }
+    }
+
+    // Full BVP activation inputs deliberately remain explicit. The frozen BVP
+    // reports the first unavailable dependency in its structured failure result;
+    // these validation entries give the workspace a complete pre-run checklist.
+    const bvp = inputs.bvp as Record<string, unknown> | undefined;
+    if (!bvp) {
+      warn('bvp', 'BVP activation data is missing: d32, five-component diffusivity, Kühni Shd C2, and approved concentration Kd basis. The solver will return a structured dependency-blocked snapshot.');
+    } else {
+      if (!inputs.d32Config) warn('d32Config', 'd32Config is required for the ECR-2 BVP; no default is permitted.');
+      if (!inputs.feedViscosity) warn('feedViscosity', 'feedViscosity is required for the ECR-2 BVP local-property closure.');
+      if (!inputs.interfacialTension) warn('interfacialTension', 'interfacialTension is required for the ECR-2 BVP local-property closure.');
+      if (!bvp.diffusivity) warn('bvp.diffusivity', 'Five-component, two-phase diffusivity inputs are required for the ECR-2 BVP.');
+      if (!bvp.kuhniShdC2) warn('bvp.kuhniShdC2', 'An explicit preliminary Kühni Shd C2 input is required for the ECR-2 BVP.');
+      if (!bvp.partitionBasis) warn('bvp.partitionBasis', 'An engineer-approved K_d concentration partition basis is required for the ECR-2 BVP.');
     }
 
     return {
@@ -1439,6 +1467,66 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
 
     const d32Scalar: number | null = (d32Result && isD32Usable(d32Result)) ? d32Result.d32_m : null;
 
+    // ── Frozen counter-current BVP boundary ───────────────────────────────────
+    // This engine assembles the typed boundary contract only. The numerical
+    // equations, local properties and transfer physics remain owned by the
+    // verified solver and are not reproduced here.
+    const bvpSettings = (inputs.bvp ?? {}) as Record<string, any>;
+    const bvpResult: ECR2CounterCurrentBVPResult = solveECR2CounterCurrentBVP({
+      numberOfCompartments: N_compartments,
+      activeHeight_m: H_actual,
+      columnCrossSectionArea_m2: A_col,
+      psi_W_kg,
+      statorOpenAreaFraction: fStator?.value ?? Number.NaN,
+      operatingTemperature_C: T_C,
+      physicalMolecularWeights: {
+        Sat_g_mol: mwSat.value,
+        Mono_g_mol: mwMono.value,
+        Di_g_mol: mwDi.value,
+        Poly_g_mol: mwPoly.value,
+        NMP_g_mol: 99.13,
+      },
+      c2ThermodynamicBasis: thermodynamicBasis,
+      rrboFeedComponentFlows_kg_h: [
+        mRRBO * rrboNormalized[IDX.SAT],
+        mRRBO * rrboNormalized[IDX.MONO],
+        mRRBO * rrboNormalized[IDX.DI],
+        mRRBO * rrboNormalized[IDX.POLY],
+        0,
+      ],
+      nmpFeedComponentFlows_kg_h: [0, 0, 0, 0, mNMP * purity],
+      governedProperties: {
+        rrboGradeId: String(bvpSettings.rrboGradeId ?? inputs.rrboFluidId ?? ''),
+        mu_d_engineer: inputs.feedViscosity
+          ? {
+              value: parseTagged(inputs.feedViscosity, 'feedViscosity', [], { min: 1e-5, max: 10, unit: 'Pa.s' })!.value,
+              unit: 'Pa.s',
+              sourceType: String((inputs.feedViscosity as any).sourceType ?? 'Assumed'),
+              sourceReference: String((inputs.feedViscosity as any).sourceReference ?? ''),
+              referenceTemperature_C: Number((inputs.feedViscosity as any).referenceTemperatureC ?? T_C),
+            }
+          : null,
+        sigma_engineer: gamma
+          ? {
+              value: gamma.value,
+              unit: 'N/m',
+              sourceType: String((inputs.interfacialTension as any).sourceType ?? 'Assumed'),
+              sourceReference: String((inputs.interfacialTension as any).sourceReference ?? ''),
+              referenceTemperature_C: Number((inputs.interfacialTension as any).referenceTemperatureC ?? T_C),
+            }
+          : null,
+        diffusivity: bvpSettings.diffusivity ?? emptyDiffusivityContract(),
+      },
+      d32Config: d32Config ?? null,
+      kuhniShdC2: bvpSettings.kuhniShdC2 ?? null,
+      partitionBasis: bvpSettings.partitionBasis ?? null,
+      solverOptions: bvpSettings.solverOptions,
+    });
+    if (bvpResult.status !== 'converged')
+      pushWarning('BVP_NOT_ACCEPTED', bvpResult.failure?.message ?? bvpResult.diagnostics[0] ?? 'Counter-current BVP did not converge.');
+    if (bvpResult.massBalanceStatus !== 'passed')
+      pushWarning('BVP_MASS_BALANCE_FAILED', 'Counter-current BVP result is not accepted because its mass-balance check did not pass.');
+
     // ── Interfacial area ─────────────────────────────────────────────────────
     //
     // a = 6·φ_d / d₃₂ — requires both usable φ_d and usable d₃₂.
@@ -1539,8 +1627,10 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     // ── Result payload ───────────────────────────────────────────────────────
     const data: Record<string, unknown> = {
       applicabilityStatement: APPLICABILITY_STATEMENT,
-      phase: 1,
-      calculationRunStatus: 'scaffold_phase_1_geometry_and_power',
+      phase: 2,
+      calculationRunStatus: bvpResult.status === 'converged' && bvpResult.massBalanceStatus === 'passed'
+        ? 'counter_current_bvp_accepted'
+        : 'counter_current_bvp_not_accepted',
       phaseOrientationNote:
         'z=0=BOTTOM: RRBO enters (upward), extract exits. ' +
         'z=H=TOP: fresh NMP enters (downward), raffinate exits. ' +
@@ -1583,6 +1673,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
 
       thermodynamicBasis,
       physicalBasis,
+      bvp: bvpResult,
 
       geometry: {
         formulaReference: 'ECR2-001',
@@ -1846,7 +1937,9 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         })(),
         massTransfer: 'MASS_TRANSFER_PRELIMINARY — concentration-based Kd/driving-force local kernel is available when a local state exists; Sherwood-dependent quantities are intentionally unavailable.',
         Koa: 'UNAVAILABLE — Koa depends on source-incomplete Shc/Shd, k_c, k_d, and Kod; no numerical reconstruction is permitted.',
-        bvp: 'NOT IMPLEMENTED — requires: φ_d usable, d₃₂ usable/supplied, a calculated, k_c defined, k_d defined, K_overall defined, K_oa defined, driving-force contract implemented.',
+        bvp: bvpResult.status === 'converged' && bvpResult.massBalanceStatus === 'passed'
+          ? 'ACCEPTED — verified preliminary counter-current five-component BVP.'
+          : `NOT ACCEPTED — ${bvpResult.failure?.dependency ?? bvpResult.convergenceStatus}: ${bvpResult.failure?.message ?? bvpResult.diagnostics[0] ?? 'review BVP diagnostics.'}`,
         optimizer: 'NOT IMPLEMENTED — downstream of BVP',
         axialDispersion: 'NOT IMPLEMENTED — reserved; plug-flow baseline must be established first',
         nrtlReuseConfirmed: true,
@@ -1867,7 +1960,9 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
 
     return {
       ...base,
-      status: warnings.length > 0 ? 'warning' : 'success',
+      status: bvpResult.status !== 'converged' || bvpResult.massBalanceStatus !== 'passed'
+        ? 'error'
+        : warnings.length > 0 ? 'warning' : 'success',
       data,
       warnings,
       validationIssues: gate.errors,
