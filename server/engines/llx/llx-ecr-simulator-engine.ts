@@ -1,9 +1,9 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // ECR-2 — LLX Agitated Extraction Column Simulator Engine (Stage C5-S)
 //
-// PHASE 1 SCAFFOLD — GEOMETRY, POWER, BOUNDARY CONDITIONS, AND CORRELATION
-// REGISTRY ONLY. MASS TRANSFER, HOLDUP, d₃₂, AND FORWARD SIMULATION LOOP
-// ARE NOT YET IMPLEMENTED. See correlation registry for gating status.
+// PHASE 1 SCAFFOLD — GEOMETRY, POWER, BOUNDARY CONDITIONS, HYDRAULICS, AND
+// GOVERNED PRELIMINARY MASS-TRANSFER INTERFACE. No axial propagation, BVP,
+// flooding, optimisation, or UI layer is implemented here.
 //
 // RELATIONSHIP TO ECR-1
 // ─────────────────────
@@ -83,6 +83,7 @@ import {
 import {
   correlationRegistrySummary,
   isGoverned,
+  ECR2_KH1999_PRELIMINARY_PARAMETERS,
 } from './llx-ecr2-correlation-registry';
 
 import {
@@ -118,6 +119,11 @@ import {
   NULL_PHASE2,
   NULL_LOCAL_PROPERTIES,
 } from './llx-ecr2-compartment-state';
+
+import {
+  createUnavailableKH1999PreliminaryLocalMassTransfer,
+  type ECR2KH1999LocalMassTransferResult,
+} from './llx-ecr2-kh1999-mass-transfer';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -329,6 +335,11 @@ export interface ECR2CompartmentState {
   interfacialArea_result: InterfacialAreaResult | null;
   /** Slip velocity U_slip = u_d/φ_d + u_c/(1−φ_d) (m/s). Non-null when φ_d is usable. */
   U_slip_m_s: number | null;
+  /**
+   * K&H 1999 preliminary local result. Phase 1 has no local composition/property
+   * state, so every dependent calculation is explicitly unavailable.
+   */
+  massTransferPreliminary: ECR2KH1999LocalMassTransferResult;
   /**
    * Overall volumetric mass-transfer coefficient K_oa (1/s).
    * Unit: s⁻¹ — K_overall [m/s] × a [1/m] = [1/s].
@@ -1514,6 +1525,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         interfacialArea_m2_m3: aScalar,
         interfacialArea_result: interfacialAreaResult,
         U_slip_m_s,
+        massTransferPreliminary: createUnavailableKH1999PreliminaryLocalMassTransfer(),
         Koa_per_s: null,
       });
     }
@@ -1642,7 +1654,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         note:
           'ecr2_holdup_kh1995: secondary_equation_verified — K&H 1995 holdup computed in Phase 1. ' +
           'ecr2_d32_kh1996: preliminary_engineering_reconstruction — K&H 1996 reconstruction calculated with primary-source, phase-convention, RRBO/NMP validation, and calibration traceability warnings. ' +
-          'ecr2_koa_kh1999: pending_approval — gated on d₃₂ and K&H 1999 primary paper (C1, C2 agitation terms). ' +
+          'ecr2_koa_kh1999: MASS_TRANSFER_PRELIMINARY — concentration-based Kd/driving-force kernel is controlled; ' +
+          'Sherwood-dependent terms remain unavailable pending source-complete equations and placement. ' +
           'ecr2_flooding_pending, ecr2_axial_dispersion_pending: pending/reserved.',
         entries: corrRegistry,
       },
@@ -1715,12 +1728,14 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       // ── Mass-transfer interface contract ───────────────────────────────────
       massTransferInterface: {
         correlationId: 'ecr2_koa_kh1999',
-        correlationStatus: 'pending_approval',
-        status: 'NOT IMPLEMENTED',
+        correlationStatus: 'preliminary_engineering_reconstruction',
+        status: 'MASS_TRANSFER_PRELIMINARY',
         reason:
-          'K&H 1999 mass-transfer framework (k_c, k_d, K_overall) is pending_approval. ' +
-          'C1 and C2 agitation correction terms require K&H 1999 primary paper. ' +
-          'Additionally gated on d₃₂ resolution (UNRESOLVED flags in K&H 1996).',
+          'The controlled local kernel now calculates physical concentration conversion, concentration-based Kd, and ' +
+          'driving-force reporting when a solved local state is supplied. This Phase-1 scaffold has no local state. ' +
+          'Shc/Shd, phase film coefficients, Kod, Koa, and rates remain unavailable because complete equations, regime ' +
+          'selection, low-Re policy, and C1/C2/Fc/Fd placement are not source-complete.',
+        preliminaryParameters: ECR2_KH1999_PRELIMINARY_PARAMETERS,
         interfaceDefined: true,
         interfaceContract: {
           k_c: 'k_c = Sh_c · De_c / d₃₂  (m/s) — per pseudo-component, NMP continuous phase',
@@ -1744,12 +1759,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           4: 'NMP (solvent) — not transferred on driving-force basis',
         },
         blockedBy: {
-          primary: d32Scalar === null
-            ? { reason: 'blocked_by_d32', correlationId: 'ecr2_d32_kh1996' }
-            : { reason: 'correlation_unresolved', correlationId: 'ecr2_koa_kh1999' },
-          message: d32Scalar === null
-            ? 'K_oa requires d₃₂ (for d₃₂-based Sherwood number computation). Supply engineer d₃₂ to continue.'
-            : 'K_oa requires K&H 1999 primary paper to confirm C1 and C2 agitation terms.',
+          primary: { reason: 'correlation_unresolved', correlationId: 'ecr2_koa_kh1999' },
+          message: 'K_oa remains unavailable until the complete K&H 1999 Sherwood equations, regime-selection rule, and C1/C2/Fc/Fd placement are verified. d₃₂ is also required once that evidence exists.',
         },
       },
 
@@ -1833,10 +1844,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
                   : ''})`;
           return `BLOCKED — ${interfacialAreaResult.status}: ${interfacialAreaResult.blockingReasons.join('; ')}`;
         })(),
-        massTransfer: d32Scalar === null
-          ? 'BLOCKED — k_c/k_d/K_overall require d₃₂ (and K&H 1999 primary paper for C1/C2 terms). Supply engineer d₃₂ and await K&H 1999 approval.'
-          : 'BLOCKED_CORRELATION — d₃₂ available but K&H 1999 mass-transfer correlation is pending_approval (C1/C2 agitation terms require primary paper).',
-        Koa: 'BLOCKED — gated on k_c, k_d, K_overall (all gated on K&H 1999 approval)',
+        massTransfer: 'MASS_TRANSFER_PRELIMINARY — concentration-based Kd/driving-force local kernel is available when a local state exists; Sherwood-dependent quantities are intentionally unavailable.',
+        Koa: 'UNAVAILABLE — Koa depends on source-incomplete Shc/Shd, k_c, k_d, and Kod; no numerical reconstruction is permitted.',
         bvp: 'NOT IMPLEMENTED — requires: φ_d usable, d₃₂ usable/supplied, a calculated, k_c defined, k_d defined, K_overall defined, K_oa defined, driving-force contract implemented.',
         optimizer: 'NOT IMPLEMENTED — downstream of BVP',
         axialDispersion: 'NOT IMPLEMENTED — reserved; plug-flow baseline must be established first',

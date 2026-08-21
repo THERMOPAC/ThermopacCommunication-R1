@@ -118,8 +118,8 @@ export interface ECR2ComponentMassTransfer {
   /** Dispersed-phase Schmidt number: Sc_d,i = μ_d/(ρ_d·De_d,i) (—). */
   Sc_d: number | ECR2NullField;
 
-  // ── Sherwood numbers (K&H 1999 — pending_approval) ────────────────────
-  /** Continuous-phase Sherwood number Sh_c,i (—). Gated on d₃₂ and K&H 1999. */
+  // ── Sherwood numbers (K&H 1999 — evidence incomplete) ─────────────────
+  /** Continuous-phase Sherwood number Sh_c,i (—). Unavailable until the complete equation and regime policy are recovered. */
   Sh_c: number | ECR2NullField;
   /** Dispersed-phase Sherwood number Sh_d,i (—). Gated on d₃₂ and K&H 1999. */
   Sh_d: number | ECR2NullField;
@@ -133,9 +133,8 @@ export interface ECR2ComponentMassTransfer {
   // ── Equilibrium partition coefficient ─────────────────────────────────
   /**
    * Partition coefficient K_d,i (—).
-   * Definition and derivation from NRTL to be approved in the
-   * Mass-Transfer / Driving-Force Approval Report (hard stop §9).
-   * NOT computed until that derivation is approved.
+   * K_d,i = C_d,i* / C_c,i* on the physical equilibrium mass-concentration
+   * basis. It must never be substituted by an x_i/y_i mole-fraction ratio.
    */
   K_d_partition: number | ECR2NullField;
 

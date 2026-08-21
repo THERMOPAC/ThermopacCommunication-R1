@@ -20,7 +20,9 @@
 // PHASE 1 → POST-PHASE 1 STATUS:
 //   d32   : preliminary_engineering_reconstruction (K&H 1996, Kühni set)
 //   holdup: secondary_equation_verified (K&H 1995, Kühni set)
-//   K_oa  : pending_approval
+//   K_oa  : preliminary_engineering_reconstruction (K_d/driving-force subset
+//           is controlled; source-incomplete Sherwood-dependent terms remain
+//           explicitly unavailable)
 //   axial dispersion: reserved
 //   flooding: pending_approval
 //
@@ -137,6 +139,83 @@ export interface ECR2Correlation {
   };
   /** Explains what is needed to advance status, or documents the approval. */
   approvalNote: string;
+}
+
+// ── K&H 1999 supplied preliminary parameter evidence ─────────────────────────
+
+export interface ECR2KH1999PreliminaryParameter {
+  id: 'C1' | 'C2' | 'Fc' | 'Fd';
+  value: number;
+  unit: '—';
+  phaseRole: 'continuous' | 'dispersed';
+  physicalRole: string;
+  equationPlacement: 'unresolved_do_not_apply_numerically';
+  evidenceStatus: 'supplied_preliminary_evidence';
+  source: string;
+}
+
+/**
+ * These constants are intentionally separate from all historic K&H registry
+ * symbols. Their identical-looking names must never be matched by name alone:
+ * application is permitted only after an exact published equation role is
+ * established.
+ */
+export const ECR2_KH1999_PRELIMINARY_PARAMETERS: readonly ECR2KH1999PreliminaryParameter[] = [
+  {
+    id: 'C1', value: 0.90, unit: '—', phaseRole: 'continuous',
+    physicalRole: 'K&H 1999 continuous-phase agitation parameter',
+    equationPlacement: 'unresolved_do_not_apply_numerically',
+    evidenceStatus: 'supplied_preliminary_evidence',
+    source: 'ECR-2 K&H 1999 preliminary implementation specification.',
+  },
+  {
+    id: 'C2', value: 0.45, unit: '—', phaseRole: 'dispersed',
+    physicalRole: 'K&H 1999 dispersed-phase agitation parameter',
+    equationPlacement: 'unresolved_do_not_apply_numerically',
+    evidenceStatus: 'supplied_preliminary_evidence',
+    source: 'ECR-2 K&H 1999 preliminary implementation specification.',
+  },
+  {
+    id: 'Fc', value: 0.76, unit: '—', phaseRole: 'continuous',
+    physicalRole: 'Kühni continuous-phase correction',
+    equationPlacement: 'unresolved_do_not_apply_numerically',
+    evidenceStatus: 'supplied_preliminary_evidence',
+    source: 'ECR-2 K&H 1999 preliminary implementation specification.',
+  },
+  {
+    id: 'Fd', value: 0.58, unit: '—', phaseRole: 'dispersed',
+    physicalRole: 'Kühni dispersed-phase correction',
+    equationPlacement: 'unresolved_do_not_apply_numerically',
+    evidenceStatus: 'supplied_preliminary_evidence',
+    source: 'ECR-2 K&H 1999 preliminary implementation specification.',
+  },
+] as const;
+
+/** Guard against symbol collision or an accidental phase-role swap. */
+export function validateKH1999PreliminaryParameterRegistry(): string[] {
+  const expected: Record<ECR2KH1999PreliminaryParameter['id'], readonly [number, 'continuous' | 'dispersed']> = {
+    C1: [0.90, 'continuous'],
+    C2: [0.45, 'dispersed'],
+    Fc: [0.76, 'continuous'],
+    Fd: [0.58, 'dispersed'],
+  };
+  const issues: string[] = [];
+  const seen = new Set<string>();
+  for (const parameter of ECR2_KH1999_PRELIMINARY_PARAMETERS) {
+    if (seen.has(parameter.id)) issues.push(`Duplicate K&H 1999 parameter '${parameter.id}'.`);
+    seen.add(parameter.id);
+    const [value, phaseRole] = expected[parameter.id];
+    if (parameter.value !== value || parameter.phaseRole !== phaseRole) {
+      issues.push(`K&H 1999 parameter '${parameter.id}' has an unexpected value or phase role.`);
+    }
+    if (parameter.equationPlacement !== 'unresolved_do_not_apply_numerically') {
+      issues.push(`K&H 1999 parameter '${parameter.id}' must not receive an invented equation placement.`);
+    }
+  }
+  for (const id of Object.keys(expected)) {
+    if (!seen.has(id)) issues.push(`Required K&H 1999 parameter '${id}' is missing.`);
+  }
+  return issues;
 }
 
 // ── Registry ─────────────────────────────────────────────────────────────────
@@ -1149,57 +1228,22 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       'Laitinen reports kc values 4.29–6.38 × 10⁻⁵ m/s and kd values 3.43–5.12 × 10⁻⁵ m/s ' +
       'for 2MTHF/water system; overall ki ≈ 1.4–2.2 × 10⁻⁵ m/s.',
 
-    // ── Equations — reproduced from Laitinen et al. (2019) ──────────────────
+    // ── Evidence boundary ────────────────────────────────────────────────────
     //
-    // OVERALL MASS TRANSFER COEFFICIENT, Eq. (10):
-    //   ki = kc · kd / (kd · Kd + kc)
-    //   [Note: Laitinen Eq.(10) PDF renders denominator as "kc·Kd + kc" which
-    //    is likely a typographic error; the physically correct form for
-    //    resistance-in-series is ki = kc·kd / (kd·Kd + kc) — confirm from K&H 1999]
+    // The controlled preliminary kernel is intentionally limited to:
+    //   Kd,i = Cd,i* / Cc,i* (physical equilibrium mass concentrations)
+    //   ΔCd,i = Cd,i − Kd,i·Cc,i
     //
-    // PARTITION COEFFICIENT, Eq. (11):
-    //   Kd,i = Cd,i* / Cc,i*
-    //   (ratio of equilibrium dispersed-to-continuous concentrations for component i)
+    // Film definitions and the resistance-in-series form are retained as
+    // interface contracts only:
+    //   kc,i = Shc,i·De,c,i/d32
+    //   kd,i = Shd,i·De,d,i/d32
+    //   Kod,i = kc,i·kd,i/(Kd,i·kd,i + kc,i)
+    //   Koa,i = Kod,i·a
     //
-    // CONTINUOUS-PHASE SHERWOOD NUMBER, Eqs (12)–(14) [1D form]:
-    //
-    //   (Shc − Shc,rigid) / (Shc,∞ − Shc) × 1/(1−φ)
-    //     = 5.26×10⁻² · Red^(−2/3) + 6.59×10⁻² · Red^(1/4) · Scc^(1/3)
-    //       · (Uslip·μc/γ)^(1/3) · 1/(1+κ^1.1)
-    //       · (1 + C1 · ((ψ/g)·(ρc/(gγ))^(1/4))^...)
-    //
-    //   Shc,rigid = 2.43 + 0.775·Re^(1/2)·Scc^(1/3) + 0.0103·Re·Scc^(1/3)  ... Eq. (13)
-    //   Shc,∞    = 50 + (2/√π)·(Re·Scc)^(1/2)                               ... Eq. (14)
-    //     [Eq.(14) valid: 0.1 < Re < 1400, 180 < Scc < 571600, 15 < Shc < 1919]
-    //     [Eq.(13) valid: 10 < Re < 1200]
-    //
-    //   kc = Shc · De / d32        [continuous-phase mass transfer coefficient, m/s]
-    //
-    // DISPERSED-PHASE SHERWOOD NUMBER, Eq. (15) [1D form] / Eq. (23) [CFD form]:
-    //
-    //   Shd = 17.7 + 3.19×10⁻³·(Red·Scd)^(1/3)^1.7 / (1 + 1.43×10⁻²·(Red·Scd)^(1/3)^0.7)
-    //         · (ρd/ρc)^(2/3) · 1/(1+κ^(2/3))
-    //         · (1 + C2·((ψ/g)·(ρc/(gγ))^(1/4))^...)
-    //
-    //   kd = Shd · De / d32        [dispersed-phase mass transfer coefficient, m/s]
-    //
-    // INTERFACIAL AREA, Eq. (9):
-    //   a = 6·φ / d32              [specific interfacial area, m²/m³]
-    //
-    // SLIP VELOCITY (required for Shc):
-    //   Uslip = Ud/φ + Uc/(1−φ)   [from continuity]
-    //
-    // DIMENSIONLESS GROUPS:
-    //   Red  = Uslip · ρc · d32 / μc   [drop Reynolds number]
-    //   Scc  = μc / (ρc · De,c)        [continuous Sc]
-    //   Scd  = μd / (ρd · De,d)        [dispersed Sc]
-    //   κ    = μd / μc                 [viscosity ratio]
-    //   De   = molecular diffusivity of solute in each phase [m²/s]
-    //
-    // C1, C2 = agitation correction constants for continuous and dispersed phases.
-    //   Exact forms of the agitation terms containing C1 and C2 require primary paper.
-    //   Laitinen uses C1 in the continuous phase Shc equation and C2 in the
-    //   dispersed phase Shd equation. Values not extracted — pending_approval.
+    // No complete source-backed Shc/Shd form, regime-selection rule, low-Re
+    // policy, or C1/C2/Fc/Fd placement is presently available. Do not infer one
+    // from the partial historic secondary-source transcription.
     //
     // ECR-2 SPECIFIC REQUIREMENTS BEFORE IMPLEMENTATION:
     //   (a) Component-by-component application: ki must be computed separately for
@@ -1212,17 +1256,11 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     //   (e) Kd for each pseudo-component must come from ECR-2 NRTL flash, not assumed.
     //
     equation:
-      'PENDING_APPROVAL — DO NOT IMPLEMENT. ' +
-      'Framework from K&H 1999 as reproduced in Laitinen (2019) Eqs (10)–(15). ' +
-      'ki = kc·kd/(kd·Kd+kc) [overall, component i] ' +
-      '| kc = Shc·De/d32, kd = Shd·De/d32 ' +
-      '| Shc: Lévêque + Hadamard–Rybczynski + agitation correction (C1 term — pending primary paper) ' +
-      '| Shc,rigid = 2.43 + 0.775·Re^0.5·Scc^(1/3) + 0.0103·Re·Scc^(1/3) [Eq.13, Re 10–1200] ' +
-      '| Shc,∞ = 50 + (2/√π)·(Re·Scc)^0.5 [Eq.14, Re 0.1–1400] ' +
-      '| Shd = 17.7 + 3.19e-3·(Re·Scd)^(1/3)^1.7 / (1+1.43e-2·(Re·Scd)^(1/3)^0.7) ' +
-      '       ·(ρd/ρc)^(2/3)·1/(1+κ^(2/3))·(1+C2·agitation) [C2 pending primary paper] ' +
-      '| a = 6·φ/d32, Uslip = Ud/φ + Uc/(1−φ) ' +
-      '| ECR-2: apply per component (Sat/Mono/Di/Poly) with component-specific De and Kd.',
+      'MASS_TRANSFER_PRELIMINARY — controlled numerical scope: Kd,i = Cd,i*/Cc,i* and ' +
+      'ΔCd,i = Cd,i − Kd,i·Cc,i on physical mass-concentration basis. Interface contracts only: ' +
+      'kc=Shc·De,c/d32; kd=Shd·De,d/d32; Kod=kc·kd/(Kd·kd+kc); Koa=Kod·a. ' +
+      'Shc/Shd and all dependent quantities are unavailable pending complete source-backed equations, ' +
+      'regime selection, low-Re policy, and C1/C2/Fc/Fd placement. Apply per component Sat/Mono/Di/Poly.',
 
     variables: {
       ki: {
@@ -1259,17 +1297,33 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
         symbol: 'Shc',
         unit: '—',
         description:
-          'Continuous-phase Sherwood number. ' +
-          'Computed from Laitinen Eqs (12)–(14) using rigid-sphere and fully-circulating limits ' +
-          'plus an agitation correction containing C1 (value pending K&H 1999 primary paper).',
+          'Continuous-phase Sherwood number. Its complete source-backed equation and exact correction placement are unresolved; numerical evaluation is prohibited.',
       },
       Shd: {
         symbol: 'Shd',
         unit: '—',
         description:
-          'Dispersed-phase Sherwood number. ' +
-          'Computed from Laitinen Eq. (15): base term 17.7 + saturation function of Re·Scd, ' +
-          'times density ratio, times viscosity correction, times agitation factor (C2 pending).',
+          'Dispersed-phase Sherwood number. Its complete source-backed equation, regime selection, and exact correction placement are unresolved; numerical evaluation is prohibited.',
+      },
+      C1: {
+        symbol: 'C1',
+        unit: '—',
+        description: 'Supplied preliminary continuous-phase agitation parameter = 0.90. Exact equation placement is unresolved; not applied numerically.',
+      },
+      C2: {
+        symbol: 'C2',
+        unit: '—',
+        description: 'Supplied preliminary dispersed-phase agitation parameter = 0.45. Exact equation placement is unresolved; not applied numerically.',
+      },
+      Fc: {
+        symbol: 'Fc',
+        unit: '—',
+        description: 'Supplied preliminary continuous-phase Kühni correction = 0.76. Exact equation placement is unresolved; not applied numerically.',
+      },
+      Fd: {
+        symbol: 'Fd',
+        unit: '—',
+        description: 'Supplied preliminary dispersed-phase Kühni correction = 0.58. Exact equation placement is unresolved; not applied numerically.',
       },
       Red: {
         symbol: 'Red',
@@ -1336,22 +1390,17 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       },
     },
 
-    applicabilityStatus: 'pending_approval',
+    applicabilityStatus: 'preliminary_engineering_reconstruction',
     primarySourceVerified: false,
     secondaryReproductionVerified: true,   // Framework reproduced from Laitinen (2019)
     validatedForRRBONMP: false,
 
     approvalNote:
-      'pending_approval: K&H 1999 framework documented from Laitinen et al. (2019) secondary reproduction. ' +
-      'BEFORE advancing to candidate_governed: ' +
-      '(1) Read K&H 1999 primary paper — confirm exact Shc and Shd equations and C1, C2 agitation terms. ' +
-      '(2) Resolve component-level application strategy: ki must be computed per pseudo-component ' +
-      '    (Sat/Mono/Di/Poly) with individual De and Kd from the NRTL model. ' +
-      '(3) Resolve Eq.(13) validity at Re < 10 for ECR-2 operating conditions. ' +
-      '(4) Confirm ki/Kd sign convention and which phase the driving force is expressed in. ' +
-      '(5) Confirm K&H 1999 phase convention (continuous/dispersed assignment). ' +
-      'GATED ON: d32 (ecr2_d32_kh1996) and holdup (ecr2_holdup_kh1995) both reaching governed. ' +
-      'DO NOT IMPLEMENT until both upstream correlations are governed and this entry is approved.',
+      'preliminary_engineering_reconstruction: supplied C1=0.90, C2=0.45, Fc=0.76, and Fd=0.58 are retained ' +
+      'with their verified physical phase roles. Controlled numerical work is limited to physical concentration ' +
+      'conversion, Kd=Cd*/Cc*, and driving-force reporting. Complete Shc/Shd equations, regime selection, low-Re ' +
+      'policy, and exact C1/C2/Fc/Fd placement remain unresolved; Sh, film coefficients, Kod, Koa, and rates MUST ' +
+      'remain unavailable. Before any Sherwood-dependent calculation: recover and verify the exact published forms.',
   },
 
   // ── 4. Axial dispersion / back-mixing ────────────────────────────────────
