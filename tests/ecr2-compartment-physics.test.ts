@@ -152,6 +152,14 @@ const DE_POLY: DiffusivityInput = {
   method: 'Wilke-Chang (1955) — estimate',
   status: 'engineer_supplied',
 };
+const DE_NMP: DiffusivityInput = {
+  value_m2_s: 2.4e-9,
+  sourceType: 'Assumed',
+  sourceReference: 'Wilke-Chang estimate for NMP in local ECR-2 phase pair',
+  referenceTemperature_C: 70,
+  method: 'Wilke-Chang (1955) — estimate',
+  status: 'engineer_supplied',
+};
 
 const HOLDUP_INPUTS = {
   psi_W_kg:    0.012,
@@ -193,6 +201,7 @@ function makeDiffusivityContract(): ECR2DiffusivityContract {
     Mono: { De_c: DE_MONO, De_d: { ...DE_MONO, value_m2_s: 1.8e-9 } },
     Di:   { De_c: DE_DI,   De_d: { ...DE_DI,   value_m2_s: 1.4e-9 } },
     Poly: { De_c: DE_POLY, De_d: { ...DE_POLY, value_m2_s: 1.0e-9 } },
+    NMP:  { De_c: DE_NMP,  De_d: { ...DE_NMP,  value_m2_s: 1.9e-9 } },
   };
 }
 
@@ -941,14 +950,21 @@ describe('21. component independence', () => {
     expect(typeof sc.Poly.Sc_c).toBe('number');        // Poly unaffected
   });
 
-  it('4 transferable components — NMP excluded from diffusivity contract', () => {
+  it('preserves NMP as the fifth provenance-tagged local mass-transfer component', () => {
     const c = makeDiffusivityContract();
+    const p = makeLocalProps();
+    const sc = computeAllSchmidtNumbers({
+      diffusivity: c,
+      rho_c: p.rho_c, rho_d: p.rho_d, mu_c: p.mu_c, mu_d: p.mu_d,
+    });
     const keys = Object.keys(c);
     expect(keys).toContain('Sat');
     expect(keys).toContain('Mono');
     expect(keys).toContain('Di');
     expect(keys).toContain('Poly');
-    expect(keys).not.toContain('NMP');
+    expect(keys).toContain('NMP');
+    expect(typeof sc.NMP.Sc_c).toBe('number');
+    expect(typeof sc.NMP.Sc_d).toBe('number');
   });
 });
 

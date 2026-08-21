@@ -35,7 +35,8 @@ import {
   type ECR2KH1999PreliminaryParameter,
 } from './llx-ecr2-correlation-registry';
 
-export const TRANSFER_COMPONENTS = ['Sat', 'Mono', 'Di', 'Poly'] as const;
+/** The local kernel preserves the frozen NRTL order, including NMP. */
+export const TRANSFER_COMPONENTS = ['Sat', 'Mono', 'Di', 'Poly', 'NMP'] as const;
 export type TransferComponent = (typeof TRANSFER_COMPONENTS)[number];
 
 export type FiveComponentVector = readonly [
@@ -233,13 +234,15 @@ const MW_KEYS: Record<TransferComponent, keyof ECR2PhysicalMolecularWeightVector
   Mono: 'Mono_g_mol',
   Di: 'Di_g_mol',
   Poly: 'Poly_g_mol',
+  NMP: 'NMP_g_mol',
 };
 
-const COMPONENT_INDEX: Record<TransferComponent, 0 | 1 | 2 | 3> = {
+const COMPONENT_INDEX: Record<TransferComponent, 0 | 1 | 2 | 3 | 4> = {
   Sat: 0,
   Mono: 1,
   Di: 2,
   Poly: 3,
+  NMP: 4,
 };
 
 const UNRESOLVED_SHERWOOD_ITEMS = [

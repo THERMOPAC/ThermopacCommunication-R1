@@ -1,11 +1,8 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // ECR-2 — Component Diffusivity Contract and Schmidt Numbers
 //
-// Implements the engineer-supplied diffusivity input contract for each
-// transferable pseudo-component: Sat, Mono, Di, Poly.
-//
-// NMP (index 4) is the solvent — its diffusivity is NOT part of this contract
-// because NMP is not transferred on a component driving-force basis.
+// Implements the engineer-supplied diffusivity input contract for each local
+// thermodynamic component: Sat, Mono, Di, Poly, NMP.
 //
 // ── GOVERNANCE ───────────────────────────────────────────────────────────
 //
@@ -86,14 +83,16 @@ export interface ComponentDiffusivities {
 }
 
 /**
- * Full diffusivity contract: one entry per transferable pseudo-component.
- * NMP (index 4) is excluded — NMP is the solvent, not transferred on driving-force basis.
+ * Full diffusivity contract: one entry per local thermodynamic component.
+ * NMP is retained so a local interphase-transfer result always preserves the
+ * frozen five-component NRTL ordering.
  */
 export interface ECR2DiffusivityContract {
   Sat:  ComponentDiffusivities;  // index 0
   Mono: ComponentDiffusivities;  // index 1
   Di:   ComponentDiffusivities;  // index 2
   Poly: ComponentDiffusivities;  // index 3
+  NMP:  ComponentDiffusivities;  // index 4
 }
 
 /**
@@ -108,13 +107,14 @@ export interface ECR2ComponentSchmidt {
 }
 
 /**
- * All Schmidt numbers for the 4 transferable components.
+ * All Schmidt numbers for the frozen five-component local state.
  */
 export interface ECR2AllSchmidtNumbers {
   Sat:  ECR2ComponentSchmidt;
   Mono: ECR2ComponentSchmidt;
   Di:   ECR2ComponentSchmidt;
   Poly: ECR2ComponentSchmidt;
+  NMP:  ECR2ComponentSchmidt;
 }
 
 // ── Empty contract builder ─────────────────────────────────────────────────
@@ -130,6 +130,7 @@ export function emptyDiffusivityContract(): ECR2DiffusivityContract {
     Mono: { ...empty },
     Di:   { ...empty },
     Poly: { ...empty },
+    NMP:  { ...empty },
   };
 }
 
@@ -258,7 +259,7 @@ export function computeSchmidtNumbers(params: {
 }
 
 /**
- * Compute Schmidt numbers for all 4 transferable components.
+ * Compute Schmidt numbers for the frozen five-component local state.
  */
 export function computeAllSchmidtNumbers(params: {
   diffusivity: ECR2DiffusivityContract;
@@ -274,5 +275,6 @@ export function computeAllSchmidtNumbers(params: {
     Mono: computeSchmidtNumbers({ label: 'Mono', De_c: diffusivity.Mono.De_c, De_d: diffusivity.Mono.De_d, ...base }),
     Di:   computeSchmidtNumbers({ label: 'Di',   De_c: diffusivity.Di.De_c,   De_d: diffusivity.Di.De_d,   ...base }),
     Poly: computeSchmidtNumbers({ label: 'Poly', De_c: diffusivity.Poly.De_c, De_d: diffusivity.Poly.De_d, ...base }),
+    NMP:  computeSchmidtNumbers({ label: 'NMP',  De_c: diffusivity.NMP.De_c,  De_d: diffusivity.NMP.De_d,  ...base }),
   };
 }

@@ -43,3 +43,4 @@
 - [ECR-2 K&H 1996 preliminary d₃₂](llx-ecr2-kh1996-preliminary-d32.md) — approved preliminary reconstruction is usable only with persistent source, applicability, and calibration warnings; it is not governed.
 - [ECR-2 K&H 1999 evidence boundary](llx-ecr2-kh1999-evidence.md) — preliminary parameters permit only physical concentration/Kd/driving-force work; Sherwood-dependent numerics remain unavailable.
 - [K&H 1999 preliminary local kernel](llx-kh1999-evidence-boundary.md) — secondary equations may run only as provenance-tagged local preliminary physics; partition/rate gating stays explicit.
+- [ECR-2 five-component local transfer](llx-five-component-local-transfer.md) — local transfer, Schmidt, diffusivity, and conservation must retain Sat/Mono/Di/Poly/NMP ordering.

@@ -69,6 +69,7 @@ const DIFFUSIVITIES: ECR2DiffusivityContract = {
   Mono: { De_c: DIFFUSIVITY, De_d: { ...DIFFUSIVITY, value_m2_s: 1.2e-9 } },
   Di: { De_c: DIFFUSIVITY, De_d: { ...DIFFUSIVITY, value_m2_s: 1.0e-9 } },
   Poly: { De_c: DIFFUSIVITY, De_d: { ...DIFFUSIVITY, value_m2_s: 0.8e-9 } },
+  NMP: { De_c: { ...DIFFUSIVITY, value_m2_s: 2.5e-9 }, De_d: { ...DIFFUSIVITY, value_m2_s: 1.8e-9 } },
 };
 
 function validKernelSupport(diffusivity = DIFFUSIVITIES) {
@@ -112,6 +113,33 @@ const D32_PROVENANCE = {
   sourceReference: 'Unit-test governed preliminary d32',
 };
 
+function localNrtlEquilibrium() {
+  const nrtl = computeLocalNRTL({
+    x_j: [0.42, 0.28, 0.14, 0.10, 0.06],
+    y_j: [0.04, 0.03, 0.02, 0.01, 0.90],
+    z_feed: [0.20, 0.14, 0.08, 0.06, 0.52],
+    T_K: 343.15,
+  });
+  if (!nrtl.x_eq || !nrtl.y_eq) throw new Error('expected local NRTL equilibrium');
+  return {
+    continuous: nrtl.y_eq as FiveComponentVector,
+    dispersed: nrtl.x_eq as FiveComponentVector,
+  };
+}
+
+function shiftSatAgainstNmp(
+  composition: FiveComponentVector,
+  satDelta: number,
+): FiveComponentVector {
+  return [
+    composition[0] + satDelta,
+    composition[1],
+    composition[2],
+    composition[3],
+    composition[4] - satDelta,
+  ];
+}
+
 function activatedKernel(options: {
   c2?: ECR2KH1999EngineerC2Input | null;
   partitionApproved?: boolean;
@@ -122,6 +150,10 @@ function activatedKernel(options: {
   activationD32?: typeof D32_PROVENANCE;
   invalidMuDProvenance?: boolean;
   invalidD32Source?: boolean;
+  continuousBulk?: FiveComponentVector;
+  dispersedBulk?: FiveComponentVector;
+  continuousEquilibrium?: FiveComponentVector;
+  dispersedEquilibrium?: FiveComponentVector;
 } = {}) {
   const support = validKernelSupport(options.diffusivity ?? DIFFUSIVITIES);
   const valueOf = (field: unknown) => {
@@ -135,11 +167,19 @@ function activatedKernel(options: {
     return field;
   };
   const d32_m = options.d32_m === undefined ? 0.0005 : options.d32_m;
+  const continuousBulk: FiveComponentVector =
+    options.continuousBulk ?? [0.04, 0.03, 0.02, 0.01, 0.90];
+  const dispersedBulk: FiveComponentVector =
+    options.dispersedBulk ?? [0.42, 0.28, 0.14, 0.10, 0.06];
+  const continuousEquilibrium: FiveComponentVector =
+    options.continuousEquilibrium ?? [0.04, 0.03, 0.02, 0.01, 0.90];
+  const dispersedEquilibrium: FiveComponentVector =
+    options.dispersedEquilibrium ?? [0.42, 0.28, 0.14, 0.10, 0.06];
   const base = evaluateKH1999PreliminaryLocalMassTransfer({
-    continuous_bulk: [0.04, 0.03, 0.02, 0.01, 0.90],
-    dispersed_bulk: [0.42, 0.28, 0.14, 0.10, 0.06],
-    continuous_equilibrium: [0.04, 0.03, 0.02, 0.01, 0.90],
-    dispersed_equilibrium: [0.42, 0.28, 0.14, 0.10, 0.06],
+    continuous_bulk: continuousBulk,
+    dispersed_bulk: dispersedBulk,
+    continuous_equilibrium: continuousEquilibrium,
+    dispersed_equilibrium: dispersedEquilibrium,
     rho_c_bulk_kg_m3: support.rho_c,
     rho_d_bulk_kg_m3: support.rho_d,
     rho_c_equilibrium_kg_m3: support.rho_c,
@@ -577,6 +617,173 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
     };
     const badDiff = activatedKernel({ diffusivity: badDiffusivity, c2: null }).result.components.Sat;
     expect(badDiff.outputStatus.Sh_c.status).toBe('blocked_by_missing_diffusivity');
+  });
+
+  it('verifies positive and reverse non-equilibrium transfer for all five components through the real kernel', () => {
+    const equilibrium = localNrtlEquilibrium();
+    const positiveDispersed = shiftSatAgainstNmp(equilibrium.dispersed, 0.04);
+    const negativeDispersed = shiftSatAgainstNmp(equilibrium.dispersed, -0.04);
+    const componentOrder = ['Sat', 'Mono', 'Di', 'Poly', 'NMP'] as const;
+
+    const positive = activatedKernel({
+      partitionApproved: true,
+      continuousBulk: equilibrium.continuous,
+      dispersedBulk: positiveDispersed,
+      continuousEquilibrium: equilibrium.continuous,
+      dispersedEquilibrium: equilibrium.dispersed,
+    }).result;
+    const negative = activatedKernel({
+      partitionApproved: true,
+      continuousBulk: equilibrium.continuous,
+      dispersedBulk: negativeDispersed,
+      continuousEquilibrium: equilibrium.continuous,
+      dispersedEquilibrium: equilibrium.dispersed,
+    }).result;
+
+    expect(Object.keys(positive.components)).toEqual(componentOrder);
+    expect(Object.keys(negative.components)).toEqual(componentOrder);
+    for (const component of componentOrder) {
+      expect(positive.components[component].component).toBe(component);
+      expect(negative.components[component].component).toBe(component);
+      expect(typeof positive.components[component].drivingForce_dispersed_kg_m3).toBe('number');
+      expect(typeof positive.components[component].transferRate_kg_m3_s).toBe('number');
+      expect(typeof negative.components[component].drivingForce_dispersed_kg_m3).toBe('number');
+      expect(typeof negative.components[component].transferRate_kg_m3_s).toBe('number');
+    }
+
+    expect(positive.components.Sat.drivingForce_dispersed_kg_m3).toBeGreaterThan(0);
+    expect(positive.components.Sat.transferRate_kg_m3_s).toBeGreaterThan(0);
+    expect(negative.components.Sat.drivingForce_dispersed_kg_m3).toBeLessThan(0);
+    expect(negative.components.Sat.transferRate_kg_m3_s).toBeLessThan(0);
+    expect(positive.components.NMP.drivingForce_dispersed_kg_m3).toBeLessThan(0);
+    expect(negative.components.NMP.drivingForce_dispersed_kg_m3).toBeGreaterThan(0);
+
+    for (const result of [positive, negative]) {
+      for (const component of componentOrder) {
+        const item = result.components[component];
+        if (typeof item.K_oa_per_s !== 'number' ||
+            typeof item.drivingForce_dispersed_kg_m3 !== 'number' ||
+            typeof item.transferRate_kg_m3_s !== 'number') {
+          throw new Error(`expected calculated rate for ${component}`);
+        }
+        expect(item.transferRate_kg_m3_s).toBeCloseTo(
+          item.K_oa_per_s * item.drivingForce_dispersed_kg_m3,
+          12,
+        );
+        expect(Math.sign(item.transferRate_kg_m3_s))
+          .toBe(Math.sign(item.drivingForce_dispersed_kg_m3));
+      }
+    }
+  });
+
+  it('verifies equilibrium zero transfer and five-component local conservation', () => {
+    const equilibrium = localNrtlEquilibrium();
+    const { result } = activatedKernel({
+      partitionApproved: true,
+      continuousBulk: equilibrium.continuous,
+      dispersedBulk: equilibrium.dispersed,
+      continuousEquilibrium: equilibrium.continuous,
+      dispersedEquilibrium: equilibrium.dispersed,
+    });
+    const componentOrder = ['Sat', 'Mono', 'Di', 'Poly', 'NMP'] as const;
+    const volume_m3 = 0.003;
+    const interval_s = 2.5;
+
+    let dispersedTotal = 0;
+    let continuousTotal = 0;
+    for (const component of componentOrder) {
+      const item = result.components[component];
+      expect(item.drivingForce_dispersed_kg_m3).toBeCloseTo(0, 12);
+      expect(item.transferRate_kg_m3_s).toBeCloseTo(0, 12);
+      if (typeof item.transferRate_kg_m3_s !== 'number') {
+        throw new Error(`expected equilibrium rate for ${component}`);
+      }
+
+      const transferred_kg = item.transferRate_kg_m3_s * volume_m3 * interval_s;
+      const dispersedDelta_kg = -transferred_kg;
+      const continuousDelta_kg = transferred_kg;
+      expect(dispersedDelta_kg + continuousDelta_kg).toBeCloseTo(0, 12);
+      dispersedTotal += dispersedDelta_kg;
+      continuousTotal += continuousDelta_kg;
+    }
+    expect(dispersedTotal + continuousTotal).toBeCloseTo(0, 12);
+  });
+
+  it('verifies positive and reverse transfer conservation without adding time to production equations', () => {
+    const equilibrium = localNrtlEquilibrium();
+    const cases = [
+      {
+        dispersedBulk: shiftSatAgainstNmp(equilibrium.dispersed, 0.04),
+        direction: 'positive',
+      },
+      {
+        dispersedBulk: shiftSatAgainstNmp(equilibrium.dispersed, -0.04),
+        direction: 'negative',
+      },
+    ];
+    const volume_m3 = 0.001;
+    const interval_s = 0.1;
+    const incomingPhaseInventory_kg = 1;
+    let dispersedTotal = 0;
+    let continuousTotal = 0;
+
+    for (const testCase of cases) {
+      const result = activatedKernel({
+        partitionApproved: true,
+        continuousBulk: equilibrium.continuous,
+        dispersedBulk: testCase.dispersedBulk,
+        continuousEquilibrium: equilibrium.continuous,
+        dispersedEquilibrium: equilibrium.dispersed,
+      }).result;
+      for (const component of ['Sat', 'Mono', 'Di', 'Poly', 'NMP'] as const) {
+        const item = result.components[component];
+        if (typeof item.transferRate_kg_m3_s !== 'number') {
+          throw new Error(`expected ${testCase.direction} rate for ${component}`);
+        }
+        const transferred_kg = item.transferRate_kg_m3_s * volume_m3 * interval_s;
+        const dispersedDelta_kg = -transferred_kg;
+        const continuousDelta_kg = transferred_kg;
+        expect(dispersedDelta_kg + continuousDelta_kg).toBeCloseTo(0, 12);
+        if (testCase.direction === 'positive') {
+          expect(Math.max(0, transferred_kg)).toBeLessThanOrEqual(incomingPhaseInventory_kg);
+        } else {
+          expect(Math.max(0, -transferred_kg)).toBeLessThanOrEqual(incomingPhaseInventory_kg);
+        }
+        dispersedTotal += dispersedDelta_kg;
+        continuousTotal += continuousDelta_kg;
+      }
+    }
+    expect(dispersedTotal + continuousTotal).toBeCloseTo(0, 12);
+  });
+
+  it('isolates a one-component bulk perturbation while retaining the frozen component order', () => {
+    const equilibrium = localNrtlEquilibrium();
+    const baseline = activatedKernel({
+      partitionApproved: true,
+      continuousBulk: equilibrium.continuous,
+      dispersedBulk: equilibrium.dispersed,
+      continuousEquilibrium: equilibrium.continuous,
+      dispersedEquilibrium: equilibrium.dispersed,
+    }).result;
+    const perturbed = activatedKernel({
+      partitionApproved: true,
+      continuousBulk: equilibrium.continuous,
+      dispersedBulk: shiftSatAgainstNmp(equilibrium.dispersed, 0.04),
+      continuousEquilibrium: equilibrium.continuous,
+      dispersedEquilibrium: equilibrium.dispersed,
+    }).result;
+    const componentOrder = ['Sat', 'Mono', 'Di', 'Poly', 'NMP'] as const;
+
+    expect(perturbed.components.Sat.drivingForce_dispersed_kg_m3)
+      .not.toEqual(baseline.components.Sat.drivingForce_dispersed_kg_m3);
+    expect(perturbed.components.Sat.transferRate_kg_m3_s)
+      .not.toEqual(baseline.components.Sat.transferRate_kg_m3_s);
+    expect(componentOrder.map((component) => perturbed.components[component].component))
+      .toEqual(componentOrder);
+    for (const component of componentOrder) {
+      expect(perturbed.components[component].component).toBe(component);
+      expect(typeof perturbed.components[component].K_d_partition).toBe('number');
+    }
   });
 
   it('does not use Phase-1 uniform values as a fake local mass-transfer state', () => {
