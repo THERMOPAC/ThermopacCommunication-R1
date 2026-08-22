@@ -4708,6 +4708,7 @@ export default function DesignSoftwareWorkspacePage() {
     ];
     const mandatoryDependencies = stage8Dependencies.filter(dependency => dependency.mandatory);
     const resolvedDependencies = mandatoryDependencies.filter(dependency => dependency.ready);
+    const unresolvedDependencies = mandatoryDependencies.filter(dependency => !dependency.ready);
     const autoResolvedCount = mandatoryDependencies.filter(dependency => dependency.group === "auto" && dependency.ready).length;
     const missingEngineeringCount = mandatoryDependencies.filter(dependency => dependency.group === "engineering" && !dependency.ready).length;
     const missingApprovalCount = mandatoryDependencies.filter(dependency => dependency.group === "approval" && !dependency.ready).length;
@@ -4962,10 +4963,10 @@ export default function DesignSoftwareWorkspacePage() {
           </div>
           {stage8Blocking && (
             <p className="mt-2 text-xs text-red-700">
-              Run blocked by {Object.keys(stage8Errors).length} unresolved Stage 8 dependenc{Object.keys(stage8Errors).length === 1 ? "y" : "ies"}: {Object.values(stage8Errors).slice(0, 2).join("; ")}
+              Run blocked by {unresolvedDependencies.length} unresolved Stage 8 dependenc{unresolvedDependencies.length === 1 ? "y" : "ies"}: {unresolvedDependencies.slice(0, 2).map(dependency => `${dependency.label} — ${dependency.blockingReason}`).join("; ")}
             </p>
           )}
-          {renderRunIssues(latestRun, "ECR-2 simulator")}
+          {renderRunIssues(latestRun, "ECR-2 simulator", { useStructuredEcr2Dependencies: true })}
         </SectionCard>
 
         {(bvp || latestRun?.calculation_status === "error") && (
@@ -5313,10 +5314,20 @@ export default function DesignSoftwareWorkspacePage() {
     );
   }
 
-  function renderRunIssues(latestRun: any, label: string) {
+  function renderRunIssues(
+    latestRun: any,
+    label: string,
+    options?: { useStructuredEcr2Dependencies?: boolean },
+  ) {
     if (!latestRun) return null;
     const issues = Array.isArray(latestRun.validation_issues) ? latestRun.validation_issues : [];
     const warns = Array.isArray(latestRun.warnings) ? latestRun.warnings : [];
+    const legacyEcr2Issues = options?.useStructuredEcr2Dependencies
+      ? issues.filter((issue: any) => issue.field === "molecularWeights" || issue.field === "bvp")
+      : [];
+    const displayedIssues = options?.useStructuredEcr2Dependencies
+      ? issues.filter((issue: any) => issue.field !== "molecularWeights" && issue.field !== "bvp")
+      : issues;
     return (
       <div className="mt-2 space-y-2">
         <p className="text-[11px] text-gray-500">
@@ -5327,8 +5338,13 @@ export default function DesignSoftwareWorkspacePage() {
             <p className="text-xs font-semibold text-red-800 mb-1">
               {label} run blocked — the engine reported {issues.length} missing/invalid mandatory input{issues.length === 1 ? "" : "s"}. No results were generated; nothing is defaulted silently.
             </p>
+            {legacyEcr2Issues.length > 0 && (
+              <p className="mb-1 text-[11px] text-red-700">
+                This persisted run contains the pre-structured-register generic contract diagnostics. The live Stage 8 dependency register above is the authoritative per-dependency explanation and does not default missing engineering data.
+              </p>
+            )}
             <ul className="space-y-0.5">
-              {issues.map((v: any, i: number) => (
+              {displayedIssues.map((v: any, i: number) => (
                 <li key={i} className="text-[11px] text-red-700"><span className="font-medium">{v.field ?? "input"}:</span> {v.message}</li>
               ))}
             </ul>
