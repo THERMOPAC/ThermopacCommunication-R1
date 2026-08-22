@@ -13,7 +13,7 @@ describe('ECR-2 simulator workspace adapter', () => {
       rrbo_mono_aromatics_wt: '30',
       rrbo_di_aromatics_wt: '15',
       rrbo_poly_aromatics_wt: '5',
-      solvent_nmp_mole_fraction: '1',
+      nmp_purity: '99.5',
       column_diameter: '0.5',
       compartment_height: '0.25',
       rotor_ratio: '0.5',
@@ -37,6 +37,7 @@ describe('ECR-2 simulator workspace adapter', () => {
     }, 'ecr_simulator');
 
     expect(mapped.operatingTemperatureC).toBe(70);
+    expect(mapped.nmpPurity).toBe(0.995);
     expect(mapped.phaseConfiguration).toBe('nmp_continuous_rrbo_dispersed');
     expect(mapped.feedCompositionMassFraction).toEqual({
       saturates: 0.5, mono: 0.3, di: 0.15, poly: 0.05,

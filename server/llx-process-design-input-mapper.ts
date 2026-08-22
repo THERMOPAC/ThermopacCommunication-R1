@@ -475,7 +475,10 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     if (out.feedCompositionMassFraction === undefined && Object.values(comp).every(v => v !== undefined)) {
       out.feedCompositionMassFraction = comp;
     }
-    const nmpPurity = num(inputs.solvent_nmp_mole_fraction);
+    // Fluid Properties seeds NMP purity as nmp_purity (wt.%); retain the
+    // legacy solvent_nmp_mole_fraction field only as a fallback for older
+    // workspace payloads. The simulator requires a mass fraction.
+    const nmpPurity = num(inputs.nmp_purity) ?? num(inputs.solvent_nmp_mole_fraction);
     if (out.nmpPurity === undefined && nmpPurity !== undefined) out.nmpPurity = nmpPurity > 1 ? nmpPurity / 100 : nmpPurity;
     if (out.phaseConfiguration === undefined) out.phaseConfiguration = 'nmp_continuous_rrbo_dispersed';
 
