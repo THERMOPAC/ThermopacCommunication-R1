@@ -107,6 +107,7 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
     expect(resolution.records.diffusivity_sat_c.blockingReason).toContain('NMP molecular weight');
     expect(resolution.records.diffusivity_sat_d.blockingReason).toContain('RRBO operating-temperature viscosity');
     expect(resolution.records.diffusivity_nmp_c.blockingReason).toContain('ROOT_GAP_NMP_SELF_DIFFUSION');
+    expect(resolution.records).not.toHaveProperty('kuhni_shd_c2');
   });
 
   it('auto-calculates each eligible Wilke–Chang route only from a complete controlled basis', () => {
@@ -148,6 +149,7 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
       pilotCalibrationStatus: 'NOT_YET_VALIDATED',
     });
     expect(at80.records.diffusivity_sat_c.value).toBeGreaterThan(at60.records.diffusivity_sat_c.value!);
+    expect(at60.records).not.toHaveProperty('kuhni_shd_c2');
   });
 
   it('retains the physical-basis decision, equation, and uncertainty in an SN300 auto-resolution', () => {
@@ -198,6 +200,12 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
     expect(invalid.records.physical_mw_sat.status).toBe('BLOCKED_MISSING_REQUIRED_EVIDENCE');
     expect(invalid.records.diffusivity_sat_c.blockingReason).toContain('physical molecular weight');
     expect(invalid.records.diffusivity_nmp_c.status).toBe('BLOCKED_MISSING_REQUIRED_EVIDENCE');
+    expect(invalid.records).not.toHaveProperty('kuhni_shd_c2');
+  });
+
+  it('does not expose Kühni Shd C2 as a numerical parameter', () => {
+    expect(() => findEcr2Stage8Evidence('kuhni_shd_c2' as any)).toThrow(/Unknown ECR-2 Stage 8 evidence record/);
+    expect(ECR2_STAGE8_EVIDENCE_CATALOG.map((record) => record.id)).not.toContain('kuhni_shd_c2');
   });
 
   it('server-side validation rejects missing, blocked, pending, and unknown evidence states', () => {

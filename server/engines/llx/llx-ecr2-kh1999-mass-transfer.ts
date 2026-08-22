@@ -814,7 +814,7 @@ export function activateKH1999PreliminaryLocalMassTransfer(
         } else {
           Sh_d = calculated;
           k_d_m_s = calculated * De_d!.value_m2_s / d32_m;
-          shdStatus = outputState('calculated_preliminary', 'Sh_d calculated with the registered dispersed-side K&H single-drop correlation.');
+          shdStatus = outputState('calculated_preliminary', 'Sh_d calculated from the reproduced K&H single-drop terms: 17.7, 0.00319, 0.0143, density ratio, and viscosity ratio; no unsupported C2 multiplier is applied.');
           kdStatus = outputState('calculated_preliminary', 'k_d = Sh_d·D_d/d₃₂ (m/s).');
         }
       }

@@ -620,21 +620,23 @@ export async function acceptAllEcr2Stage8ResolvedValues(revisionId: number, user
       'diffusivity_di_c', 'diffusivity_di_d', 'diffusivity_poly_c', 'diffusivity_poly_d',
       'diffusivity_nmp_c', 'diffusivity_nmp_d',
     ];
-    const retiredKuhniC2Fields = [
+    const obsoleteAuditKeys = [
+      'stage8_system_values_acceptance_status',
       'kuhni_shd_c2_value',
       'kuhni_shd_c2_source_type',
       'kuhni_shd_c2_source_reference',
-      'kuhni_shd_c2_evidence_status',
-    ];
-    const obsoleteAuditKeys = [
-      'stage8_system_values_acceptance_status',
-      ...retiredKuhniC2Fields,
       ...prefixes.flatMap((prefix) => [
         `${prefix}_evidence_status`, `${prefix}_original_evidence`,
         `${prefix}_resolver_fingerprint`, `${prefix}_resolver_signature`,
         `${prefix}_accepted_by`, `${prefix}_accepted_at`,
         `${prefix}_override_reason`, `${prefix}_override_user`, `${prefix}_override_at`,
       ]),
+      ...[
+        'kuhni_shd_c2_evidence_status', 'kuhni_shd_c2_original_evidence',
+        'kuhni_shd_c2_resolver_fingerprint', 'kuhni_shd_c2_resolver_signature',
+        'kuhni_shd_c2_accepted_by', 'kuhni_shd_c2_accepted_at',
+        'kuhni_shd_c2_override_reason', 'kuhni_shd_c2_override_user', 'kuhni_shd_c2_override_at',
+      ],
     ];
     await client.query(
       `INSERT INTO design_software_inputs (revision_id, section, data, engine_version, updated_by)

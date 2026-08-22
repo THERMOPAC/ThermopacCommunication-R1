@@ -34,6 +34,23 @@ const SOURCE_TYPES = ['Measured', 'Vendor', 'Literature', 'Assumed'];
 
 export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>, calculationType?: string): Record<string, unknown> {
   const out: Record<string, unknown> = { ...inputs };
+  // Retire the unsupported dispersed-side C2 entry path completely. Old
+  // workspace records may still carry these keys, but neither a mapped engine
+  // payload nor a new calculation snapshot may preserve or consume them.
+  for (const key of [
+    'kuhni_shd_c2_value',
+    'kuhni_shd_c2_source_type',
+    'kuhni_shd_c2_source_reference',
+    'kuhni_shd_c2_evidence_status',
+    'kuhni_shd_c2_original_evidence',
+    'kuhni_shd_c2_resolver_fingerprint',
+    'kuhni_shd_c2_resolver_signature',
+    'kuhni_shd_c2_accepted_by',
+    'kuhni_shd_c2_accepted_at',
+    'kuhni_shd_c2_override_reason',
+    'kuhni_shd_c2_override_user',
+    'kuhni_shd_c2_override_at',
+  ]) delete out[key];
   // Per-key pass-through: any engine-ready camelCase key already present wins
   // untouched; only missing keys are mapped from the flat workspace fields.
 
@@ -815,10 +832,13 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
 
     const legacyBvp = asRecord(parseJson(simValue('bvp')));
     const bvp: Record<string, any> = { ...legacyBvp };
-    // Retire the formerly user-entered dispersed-side C2 from old snapshots.
-    // The published single-drop Sh_d form has no C2 term, so legacy values must
-    // never reach a future engine run or persisted snapshot.
     delete bvp.kuhniShdC2;
+    if (bvp.stage8Evidence && typeof bvp.stage8Evidence === 'object') {
+      delete bvp.stage8Evidence.kuhni_shd_c2;
+    }
+    if (bvp.stage8Resolution?.records && typeof bvp.stage8Resolution.records === 'object') {
+      delete bvp.stage8Resolution.records.kuhni_shd_c2;
+    }
     if (!bvp.rrboGradeId) bvp.rrboGradeId = String(out.rrboFluidId ?? inputs.rrboFluidId ?? '');
 
     const diffusivityComponents = [

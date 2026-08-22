@@ -4586,7 +4586,7 @@ export default function DesignSoftwareWorkspacePage() {
         const resolved = preview.data?.autoPopulatedCount ?? 0;
         toast({
           title: "Stage 8 candidates resolved",
-          description: `${resolved} of 14 numerical dependencies were resolved from the current governed server basis. Review and accept each candidate before running ECR-2.`,
+          description: `${resolved} of 15 numerical dependencies were resolved from the current governed server basis. Review and accept each candidate before running ECR-2.`,
         });
       } catch (e: any) {
         toast({ title: "Stage 8 resolution failed", description: e.message, variant: "destructive" });
@@ -4936,7 +4936,7 @@ export default function DesignSoftwareWorkspacePage() {
             <div className="mt-3 grid gap-2 sm:grid-cols-3" data-testid="stage8-auto-populated-summary">
               <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
                  <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-800">System-resolved numerical dependencies</p>
-                 <p className="mt-0.5 text-lg font-bold text-emerald-900">{autoPopulatedCount} / 14</p>
+                <p className="mt-0.5 text-lg font-bold text-emerald-900">{autoPopulatedCount} / 14</p>
                 <p className="text-[10px] text-emerald-800">4 physical MW + 10 diffusivities</p>
               </div>
               <div className="rounded-md border border-emerald-200 bg-white px-3 py-2">
@@ -4944,10 +4944,10 @@ export default function DesignSoftwareWorkspacePage() {
                 <p className="mt-0.5 text-lg font-bold text-emerald-900">{autoResolvedDiffusivityCount} / 10</p>
                 <p className="text-[10px] text-slate-600">{10 - autoResolvedDiffusivityCount} unresolved</p>
               </div>
-              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-800">Remaining dependency</p>
-                 <p className="mt-0.5 text-sm font-bold text-amber-900">Kd concentration basis</p>
-                 <p className="text-[10px] text-amber-800">Engineer approval still required</p>
+              <div className="rounded-md border border-violet-200 bg-violet-50 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-800">Remaining approval</p>
+                <p className="mt-0.5 text-sm font-bold text-violet-900">Kd concentration basis</p>
+                <p className="text-[10px] text-violet-800">Engineer approval remains required</p>
               </div>
             </div>
              <div className="mt-3 flex flex-wrap items-center gap-2">

@@ -7,8 +7,6 @@ export const ECR2_STAGE8_COMPONENTS = [
 ] as const;
 
 export const ECR2_STAGE8_SOURCE_TYPES = ["Measured", "Vendor", "Literature", "Assumed"] as const;
-
-type TaggedValue = { value?: unknown; sourceType?: unknown; sourceReference?: unknown };
 type ResolverRecord = {
   id?: unknown;
   status?: unknown;

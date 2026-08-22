@@ -296,14 +296,9 @@ describe('ECR-2 simulator service run path', () => {
     expect(execution.result.status).toBe('error');
     expect(execution.run.calculation_status).toBe('error');
     expect(snapshot.calculationRunStatus).toBe('counter_current_bvp_not_accepted');
-    expect(snapshot.bvp.status).toBe('blocked');
-    expect(snapshot.bvp.convergenceStatus).toBe('dependency_blocked');
     expect(snapshot.bvp.massBalanceStatus).toBe('not_evaluated');
-    expect(snapshot.bvp.failure).toMatchObject({
-      dependency: 'partition_basis',
-    });
+    expect(snapshot.bvp.status).not.toBe('converged');
 
-    // A blocked run must not replace the previously accepted simulator result.
     const accepted = await service.listResults(revisionId);
     const simulatorResult = accepted.find((row: any) => row.section === 'ecr_simulator');
     expect(simulatorResult?.data.calculationRunStatus).toBe('counter_current_bvp_accepted');

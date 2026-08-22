@@ -236,13 +236,10 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
         correlationId: 'ecr2_kh1999_shc_secondary',
         deviceType: 'kuhni',
       }),
-      expect.objectContaining({
-        id: 'kh1999_shc_agitation_C1_pulsed',
-        symbol: 'C1',
-        value: 4.33,
-        deviceType: 'pulsed',
-      }),
     ]));
+    expect(ECR2_KH1999_SECONDARY_SCOPED_CONSTANTS.some(
+      (constant) => constant.deviceType === 'kuhni' && constant.symbol === 'C2',
+    )).toBe(false);
 
     for (const id of [
       'ecr2_kh1999_shc_secondary',
@@ -382,7 +379,7 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
   });
 
   it('calculates the exact registered Sh_c equation with scoped Kühni C1 = 7.5', () => {
-    const { result, support, base } = activatedKernel({ c2: null });
+    const { result, support, base } = activatedKernel();
     const shc = result.components.Sat.Sh_c;
     const sc = base.components.Sat.Sc_c;
     expect(typeof shc).toBe('number');
@@ -506,7 +503,7 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
     }));
   });
 
-  it('rejects wrong C1 constants while preserving the independent published Shd form', () => {
+  it('rejects wrong C1 constants while retaining the published dispersed-side form without C2', () => {
     const { base, support } = activatedKernel();
     const properties = support.properties;
     const numericProperty = (field: ReturnType<typeof computeLocalProperties>['rho_c']) => {
@@ -527,7 +524,6 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
     });
     expect(wrongC1.components.Sat.outputStatus.Sh_c.status).toBe('blocked_by_invalid_c1_scope');
     expect(wrongC1.components.Sat.outputStatus.Sh_d.status).toBe('calculated_preliminary');
-    expect(wrongC1.components.Sat.outputStatus.k_d.status).toBe('calculated_preliminary');
   });
 
   it('calculates Sc, k_c, k_d, a, Koa, and a zero equilibrium transfer rate with explicit basis approval', () => {
@@ -548,14 +544,14 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
     const mu_d = isPropertyAvailable(support.properties.mu_d) ? support.properties.mu_d.value : 0;
     expect(sat.Sc_c).toBeCloseTo(mu_c / (support.rho_c * DIFFUSIVITIES.Sat.De_c!.value_m2_s), 12);
     expect(sat.Sc_d).toBeCloseTo(mu_d / (support.rho_d * DIFFUSIVITIES.Sat.De_d!.value_m2_s), 12);
+    const reSc = result.dimensionless!.Re_d * Math.cbrt(sat.Sc_d);
+    const expectedShd = 17.7 +
+      ((0.00319 * Math.pow(reSc, 1.7)) / (1 + 0.0143 * Math.pow(reSc, 0.7))) *
+      Math.pow(support.rho_d / support.rho_c, 2 / 3) /
+      (1 + Math.pow(mu_d / mu_c, 2 / 3));
+    expect(sat.Sh_d).toBeCloseTo(expectedShd, 12);
     expect(sat.k_c_m_s).toBeCloseTo(sat.Sh_c * DIFFUSIVITIES.Sat.De_c!.value_m2_s / 0.0005, 15);
     expect(sat.k_d_m_s).toBeCloseTo(sat.Sh_d * DIFFUSIVITIES.Sat.De_d!.value_m2_s / 0.0005, 15);
-    const reSc = support.dimensionless.Re_d * Math.cbrt(sat.Sc_d);
-    const expectedShd = 17.7
-      + (3.19e-3 * Math.pow(reSc, 1.7) / (1 + 1.43e-2 * Math.pow(reSc, 0.7)))
-        * Math.pow(support.rho_d / support.rho_c, 2 / 3)
-        / (1 + Math.pow(support.dimensionless.kappa, 2 / 3));
-    expect(sat.Sh_d).toBeCloseTo(expectedShd, 12);
     expect(base.interfacialArea_m2_m3).toBeCloseTo(6 * 0.2 / 0.0005, 12);
     expect(sat.K_oa_per_s).toBeCloseTo(sat.K_overall_m_s * base.interfacialArea_m2_m3!, 15);
     expect(sat.drivingForce_dispersed_kg_m3).toBeCloseTo(0, 12);
@@ -596,7 +592,7 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
         De_d: DIFFUSIVITIES.Sat.De_d,
       },
     };
-    const badDiff = activatedKernel({ diffusivity: badDiffusivity, c2: null }).result.components.Sat;
+    const badDiff = activatedKernel({ diffusivity: badDiffusivity }).result.components.Sat;
     expect(badDiff.outputStatus.Sh_c.status).toBe('blocked_by_missing_diffusivity');
   });
 
