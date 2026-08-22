@@ -82,6 +82,10 @@ const SMALL = 1e-12;
 
 // Moderate-holdup applicability ceiling — Godfrey slip model boundary.
 const MODERATE_HOLDUP_LIMIT = 0.60;
+const GRAVITY_M_S2 = 9.80665;
+const ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY = 'ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY';
+const KUHNI_VK_ROUTE_REFERENCE =
+  'Asadollahzadeh 2017 Kühni characteristic-velocity expression — engineer-supplied preliminary equation; bibliographic applicability and unit verification pending';
 
 const C3_PRESSURE_DROP_CLASSIFICATION = 'Controlled Literature Prediction — Preliminary / Pending RRBO-NMP Validation';
 const ALLOWED_CF_PROVENANCE = ['measured', 'controlled_literature', 'vendor_document'] as const;
@@ -142,6 +146,42 @@ function propertyEntryFromInput(o: Record<string, unknown>, unit: string) {
     sourceReference: o.sourceReference as string,
     ...(o.validRangeC ? { validRangeC: o.validRangeC as { min: number; max: number } } : {}),
     ...(o.temperatureCoefficient ? { temperatureCoefficient: o.temperatureCoefficient as { slopePerC: number; sourceType: SourceType; sourceReference: string } } : {}),
+  };
+}
+
+function calculateAsadollahzadehKuhniVk(input: {
+  diameter_m: number;
+  rotorToColumnDiameterRatio: number;
+  rotorSpeed_rpm: number;
+  continuousDensity_kg_m3: number;
+  dispersedDensity_kg_m3: number;
+  densityDifference_kg_m3: number;
+  continuousViscosity_Pa_s: number;
+  interfacialTension_N_m: number;
+  alphaMT: -1 | 0 | 1;
+}) {
+  const rotorDiameter_m = input.rotorToColumnDiameterRatio * input.diameter_m;
+  const rotationalSpeed_s_1 = input.rotorSpeed_rpm / 60;
+  const froude = (rotationalSpeed_s_1 ** 2 * rotorDiameter_m) / GRAVITY_M_S2;
+  const morton =
+    ((input.continuousViscosity_Pa_s ** 4) * GRAVITY_M_S2)
+    / (input.dispersedDensity_kg_m3 * (input.interfacialTension_N_m ** 3));
+  const directionFactor = 1 + 0.052 * input.alphaMT;
+  const velocity =
+    0.237
+    * Math.pow(input.continuousDensity_kg_m3 / input.densityDifference_kg_m3, 0.741)
+    * Math.pow(froude, -0.184)
+    * Math.pow(morton, -0.095)
+    * directionFactor;
+
+  return {
+    velocity_m_s: velocity,
+    froudeNumber: froude,
+    mortonNumber: morton,
+    rotorDiameter_m,
+    rotationalSpeed_s_1,
+    alphaMT: input.alphaMT,
+    directionFactor,
   };
 }
 
@@ -212,6 +252,29 @@ export class LLXHydraulicsEngine implements IDesignEngine {
       err('hindranceExponent', "hindranceExponent n = 1 is permitted ONLY as an explicit Assumed entry (sourceType: 'Assumed') — it is not a universal liquid-liquid extraction relationship and must not carry a Measured/Vendor/Literature tag unless the tagged source actually reports n = 1; if it does, enter the exact reported value (e.g. 1.0 from a named test report) as Assumed pending review.");
     }
     const useUt = inputs.useTerminalVelocityAsCharacteristic === true;
+    const characteristicVelocityRoute = String(inputs.characteristicVelocityRoute ?? '').trim();
+    const usesKuhniVkRoute = characteristicVelocityRoute === ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY;
+    if (characteristicVelocityRoute !== '' && !usesKuhniVkRoute) {
+      err('characteristicVelocityRoute', `Unsupported characteristic-velocity route: ${characteristicVelocityRoute}`);
+    }
+    if (usesKuhniVkRoute) {
+      parseTagged(inputs.rotorToColumnDiameterRatio, 'rotorToColumnDiameterRatio', errors, { min: 0, max: 1, minExclusive: true, maxExclusive: true });
+      parseTagged(inputs.rotorSpeed, 'rotorSpeed', errors, { min: 0, max: 5000, minExclusive: true });
+      if (inputs.interfacialTension === undefined || inputs.interfacialTension === null) {
+        err('interfacialTension', `${ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY} requires interfacialTension γ (N/m) at the operating temperature`);
+      }
+      const transferDirection = String(inputs.kuhniVkTransferDirection ?? '').trim();
+      if (!['d_to_c', 'no_transfer', 'c_to_d'].includes(transferDirection)) {
+        err('kuhniVkTransferDirection', `${ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY} requires an explicit resolved transfer direction: d_to_c, no_transfer, or c_to_d`);
+      }
+      const m = parseTagged(inputs.kuhniVkHindranceExponent, 'kuhniVkHindranceExponent', errors, { min: 0, max: 10, minExclusive: true });
+      if (m?.value === 1 && m.sourceType === 'Assumed') {
+        err('kuhniVkHindranceExponent', 'The Kühni-route hindrance exponent m = 1 cannot be an Assumed carry-over. Provide a separately sourced route-specific value.');
+      }
+      if (uK !== undefined || useUt) {
+        err('characteristicVelocityRoute', `${ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY} is a separate basis. Do not combine it with characteristicVelocity or useTerminalVelocityAsCharacteristic.`);
+      }
+    }
     if (uK !== undefined && useUt) err('useTerminalVelocityAsCharacteristic', 'Provide EITHER an entered characteristicVelocity OR useTerminalVelocityAsCharacteristic — not both');
     if (useUt && (inputs.sauterMeanDiameter === undefined || inputs.sauterMeanDiameter === null)) {
       err('useTerminalVelocityAsCharacteristic', 'useTerminalVelocityAsCharacteristic requires sauterMeanDiameter (the rigid-sphere screening velocity needs a drop diameter)');
@@ -510,10 +573,42 @@ export class LLXHydraulicsEngine implements IDesignEngine {
       const uKEntered = parseTagged(inputs.characteristicVelocity, 'characteristicVelocity', errs, { min: 0, max: 10, minExclusive: true });
       const nEntered = parseTagged(inputs.hindranceExponent, 'hindranceExponent', errs, { min: 0, max: 10, minExclusive: true });
       const useUt = inputs.useTerminalVelocityAsCharacteristic === true;
+      const characteristicVelocityRoute = String(inputs.characteristicVelocityRoute ?? '').trim();
+      const usesKuhniVkRoute = characteristicVelocityRoute === ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY;
+      const kuhniRotorRatio = usesKuhniVkRoute
+        ? parseTagged(inputs.rotorToColumnDiameterRatio, 'rotorToColumnDiameterRatio', errs, { min: 0, max: 1, minExclusive: true, maxExclusive: true })
+        : undefined;
+      const kuhniRotorSpeed = usesKuhniVkRoute
+        ? parseTagged(inputs.rotorSpeed, 'rotorSpeed', errs, { min: 0, max: 5000, minExclusive: true })
+        : undefined;
+      const kuhniM = usesKuhniVkRoute
+        ? parseTagged(inputs.kuhniVkHindranceExponent, 'kuhniVkHindranceExponent', errs, { min: 0, max: 10, minExclusive: true })
+        : undefined;
+      const kuhniTransferDirection = String(inputs.kuhniVkTransferDirection ?? '').trim();
+      const kuhniAlphaMT: -1 | 0 | 1 | undefined = kuhniTransferDirection === 'd_to_c'
+        ? 1
+        : kuhniTransferDirection === 'no_transfer'
+          ? 0
+          : kuhniTransferDirection === 'c_to_d'
+            ? -1
+            : undefined;
       let uK: number | undefined;
       let uKBasis: string | undefined;
       let holdupForcePending = false;
-      if (uKEntered) {
+      if (usesKuhniVkRoute) {
+        uKBasis = `PRELIMINARY — ${ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY}; calculated per trial diameter from Stage 4 operating-temperature properties and Stage 7 rotor ratio/speed`;
+        holdupForcePending = true;
+        warnings.push({
+          code: 'ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY',
+          message: `${ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY} is a preliminary, per-diameter characteristic-velocity route. It does not reuse the rigid-sphere terminal velocity.`,
+        });
+        assumptions.push({
+          assumption: 'Characteristic velocity is calculated by the preliminary Asadollahzadeh 2017 Kühni V_k expression; source applicability and SI output-unit verification remain pending',
+          sourceType: 'Literature',
+          sourceReference: KUHNI_VK_ROUTE_REFERENCE,
+          scope: 'run',
+        });
+      } else if (uKEntered) {
         uK = uKEntered.value;
         uKBasis = `Engineer-entered characteristic swarm/slip velocity (${uKEntered.sourceType}: ${uKEntered.sourceReference})`;
         if (uKEntered.sourceType === 'Assumed') { holdupForcePending = true; assumptions.push({ assumption: `Characteristic velocity u_K = ${uK} m/s is ASSUMED`, sourceType: uKEntered.sourceType, sourceReference: uKEntered.sourceReference, scope: 'run' }); }
@@ -525,7 +620,13 @@ export class LLXHydraulicsEngine implements IDesignEngine {
         assumptions.push({ assumption: `u_K provisionally taken equal to the rigid-sphere screening terminal velocity (${uT.toExponential(4)} m/s)`, sourceType: 'Assumed', sourceReference: 'Engineer option useTerminalVelocityAsCharacteristic', scope: 'run' });
       }
       let nExp: number | undefined;
-      if (uK !== undefined && nEntered) {
+      if (usesKuhniVkRoute && kuhniM) {
+        nExp = kuhniM.value;
+        if (kuhniM.sourceType === 'Assumed') {
+          holdupForcePending = true;
+          warnings.push({ code: 'ASSUMED_KUHNI_HINDRANCE_EXPONENT', message: `Kühni-route hindrance exponent m = ${nExp} is Assumed (${kuhniM.sourceReference}); capacity results remain Pending Validation.` });
+        }
+      } else if (uK !== undefined && nEntered) {
         nExp = nEntered.value;
         if (nEntered.sourceType === 'Assumed') {
           holdupForcePending = true;
@@ -533,7 +634,7 @@ export class LLXHydraulicsEngine implements IDesignEngine {
           assumptions.push({ assumption: `Hindrance exponent n = ${nExp} is ASSUMED`, sourceType: nEntered.sourceType, sourceReference: nEntered.sourceReference, scope: 'run' });
         }
       }
-      const holdupBasisAvailable = uK !== undefined && nExp !== undefined;
+      const holdupBasisAvailable = (uK !== undefined || usesKuhniVkRoute) && nExp !== undefined;
 
       // Configurable bounds / band / tolerance — all stored in the snapshot
       const hbIn = inputs.holdupBounds as Record<string, unknown> | undefined;
@@ -557,8 +658,6 @@ export class LLXHydraulicsEngine implements IDesignEngine {
         diameters = Array.from({ length: nPoints }, (_, i) => Number((sweepMin + i * sweepStep).toFixed(10)));
       }
 
-      const slipFn = holdupBasisAvailable ? (phi: number) => uK! * Math.pow(1 - phi, nExp!) : undefined;
-
       const runCase = (caseName: 'normal' | 'maximum', qNMP: number) => {
         const rows: Record<string, unknown>[] = [];
         let caseAmbiguity = false;
@@ -575,19 +674,62 @@ export class LLXHydraulicsEngine implements IDesignEngine {
             continuousSuperficialVelocity_m_s: uC, dispersedSuperficialVelocity_m_s: uD,
             flowRatio: { definition: 'R = u_c / u_d (continuous / dispersed superficial velocity)', value: R, continuousPhase, dispersedPhase },
           };
-          if (!slipFn) {
-            row.holdup = { classification: 'Not Calculable' as Classification, reason: 'No characteristic-velocity basis: enter source-tagged characteristicVelocity + hindranceExponent, or set useTerminalVelocityAsCharacteristic (with d32).' };
-            row.genericHydraulicFeasibility = 'not_calculable';
-            rows.push(row);
-            continue;
+          const kuhniVk = usesKuhniVkRoute && kuhniRotorRatio && kuhniRotorSpeed && kuhniAlphaMT !== undefined && ift
+            ? calculateAsadollahzadehKuhniVk({
+                diameter_m: D,
+                rotorToColumnDiameterRatio: kuhniRotorRatio.value,
+                rotorSpeed_rpm: kuhniRotorSpeed.value,
+                continuousDensity_kg_m3: rhoC,
+                dispersedDensity_kg_m3: rhoD,
+                densityDifference_kg_m3: densityDifference,
+                continuousViscosity_Pa_s: muC,
+                interfacialTension_N_m: ift.value,
+                alphaMT: kuhniAlphaMT,
+              })
+            : undefined;
+          const uKAtDiameter = usesKuhniVkRoute ? kuhniVk?.velocity_m_s : uK;
+          const rowSlipFn = holdupBasisAvailable && uKAtDiameter !== undefined
+            ? (phi: number) => uKAtDiameter * Math.pow(1 - phi, nExp!)
+            : undefined;
+          if (kuhniVk) {
+            row.characteristicVelocity = {
+              routeId: ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY,
+              classification: 'Pending Validation' as Classification,
+              value_m_s: kuhniVk.velocity_m_s,
+              froudeNumber: kuhniVk.froudeNumber,
+              mortonNumber: kuhniVk.mortonNumber,
+              rotorDiameter_m: kuhniVk.rotorDiameter_m,
+              rotorSpeed_rpm: kuhniRotorSpeed?.value,
+              alphaMT: kuhniVk.alphaMT,
+              transferDirection: kuhniTransferDirection,
+              equation: 'V_k = 0.237·(ρ_c/Δρ)^0.741·Fr^-0.184·N_μ^-0.095·(1+0.052·α_MT)',
+              sourceReference: KUHNI_VK_ROUTE_REFERENCE,
+            };
           }
+          if (!rowSlipFn) {
+            row.holdup = {
+              classification: 'Not Calculable' as Classification,
+              reason: usesKuhniVkRoute
+                ? 'Kühni V_k was calculated, but the route-specific hindrance exponent m is absent. The rigid-sphere route n is not reused.'
+                : 'No characteristic-velocity basis: enter source-tagged characteristicVelocity + hindranceExponent, or set useTerminalVelocityAsCharacteristic (with d32).',
+            };
+            row.genericHydraulicThroughputMaximum = {
+              classification: 'Not Calculable' as Classification,
+              reason: usesKuhniVkRoute
+                ? 'Kühni-route limiting throughput requires a separately sourced route-specific hindrance exponent m.'
+                : 'No complete characteristic-velocity and hindrance-exponent basis.',
+            };
+            row.percentageOfGenericHydraulicThroughputMaximum = null;
+            row.genericHydraulicFeasibility = 'not_calculable';
+            row.interfacialArea = { classification: 'Not Calculable' as Classification, reason: 'No established operating holdup' };
+          } else {
           // Generic Hydraulic Throughput Maximum at THIS case's ratio
-          const uDofPhi = (phi: number) => (uK! * Math.pow(1 - phi, nExp! + 1) * phi) / ((1 - phi) + R * phi);
+          const uDofPhi = (phi: number) => (uKAtDiameter! * Math.pow(1 - phi, nExp! + 1) * phi) / ((1 - phi) + R * phi);
           const maxRes = maximizeThroughputAtFixedFlowRatio(uDofPhi, R, holdupBounds);
           for (const w of maxRes.warnings) if (!warnings.some((x) => x.code === w.code && x.message === w.message)) warnings.push({ code: w.code, message: w.message });
           const phiStar = maxRes.optimumHoldup;
 
-          const holdupRes = solveCounterCurrentHoldup(slipFn, uD, uC, holdupBounds);
+          const holdupRes = solveCounterCurrentHoldup(rowSlipFn, uD, uC, holdupBounds);
           for (const w of holdupRes.warnings) if (!warnings.some((x) => x.code === w.code)) warnings.push({ code: w.code, message: w.message });
           const allRoots = holdupRes.roots.map((phi) => ({
             holdup: phi,
@@ -659,6 +801,7 @@ export class LLXHydraulicsEngine implements IDesignEngine {
           row.interfacialArea = (operatingHoldup !== undefined && !ambiguous && d32)
             ? { classification: holdupClassification, value_m2_m3: interfacialArea(operatingHoldup, d32.value), basis: 'a = 6·φ_operating/d32 — from the established operating holdup only' }
             : { classification: 'Not Calculable' as Classification, reason: !d32 ? 'sauterMeanDiameter not provided' : operatingHoldup === undefined ? 'No established operating holdup' : 'Operating branch is ambiguous — interfacial area from an unresolved root is not reported' };
+          }
 
           // HYD-009: Duss 2013 / Zogg single-phase frictional ΔP/Δz — per diameter
           // cf source priority: (1) governed Duss 2013 dataset (auto-injected), (2) user-entered constant/tabular cfBasis.
@@ -811,7 +954,7 @@ export class LLXHydraulicsEngine implements IDesignEngine {
       const normalCase = runCase('normal', qNMP_normal_m3s);
       const maximumCase = runCase('maximum', qNMP_maximum_m3s);
 
-      const anyPending = propertyAssumed || holdupForcePending || d32Assumed || normalCase.caseAmbiguity || maximumCase.caseAmbiguity;
+      const anyPending = propertyAssumed || holdupForcePending || d32Assumed || normalCase.caseAmbiguity || maximumCase.caseAmbiguity || usesKuhniVkRoute;
       const calculationRunStatus = anyPending ? 'pending_validation' : 'screening_complete';
 
       const data: Record<string, unknown> = {
@@ -838,6 +981,24 @@ export class LLXHydraulicsEngine implements IDesignEngine {
           d32ScreeningBand: d32Band ?? null,
           characteristicVelocity: uK !== undefined ? { value_m_s: uK, basis: uKBasis } : { classification: 'Not Calculable' as Classification, note: 'No u_K basis entered' },
           hindranceExponent: nEntered ?? null,
+          ...(usesKuhniVkRoute ? {
+            characteristicVelocityRoute: {
+              id: ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY,
+              classification: 'Pending Validation' as Classification,
+              equation: 'V_k = 0.237·(ρ_c/Δρ)^0.741·Fr^-0.184·N_μ^-0.095·(1+0.052·α_MT)',
+              froudeEquation: 'Fr = N²·d_R/g',
+              mortonEquation: 'N_μ = μ_c⁴·g/(ρ_d·γ³)',
+              alphaMT: kuhniAlphaMT ?? null,
+              transferDirection: kuhniTransferDirection || null,
+              rotorToColumnDiameterRatio: kuhniRotorRatio ?? null,
+              rotorSpeed: kuhniRotorSpeed ?? null,
+              routeSpecificHindranceExponent: kuhniM ?? null,
+              routeSpecificHindranceNote: kuhniM
+                ? 'Route-specific m supplied; the generic slip model remains preliminary.'
+                : 'No route-specific m supplied. The rigid-sphere route n is not reused; holdup, limiting throughput, percentage, and diameter selection are Not Calculable.',
+              sourceReference: KUHNI_VK_ROUTE_REFERENCE,
+            },
+          } : {}),
           slipModel: 'u_slip(φ) = u_K·(1−φ)^n — generic screening form; u_K and n require experimental or vendor validation',
           holdupBounds: { ...holdupBounds, moderateHoldupApplicabilityLimit: MODERATE_HOLDUP_LIMIT },
           rootIsolationTolerance: rootTol,

@@ -1,0 +1,10 @@
+---
+name: Stage 5 Kühni Vk preliminary route
+description: Governance boundary for the Asadollahzadeh 2017 Kühni characteristic-velocity comparison route.
+---
+
+The `ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY` Stage 5 route is a distinct, per-diameter characteristic-velocity calculation. It must never reuse the rigid-sphere terminal velocity or that route's hindrance exponent.
+
+**Why:** A characteristic-velocity expression alone does not establish the exponent needed by the generic Stage 5 slip/holdup model. Reusing the legacy assumed `n = 1` would turn an unrelated preliminary screening assumption into an apparent Kühni capacity result. The current engineer-supplied equation has not yet been backed by a controlled primary citation for native output units and applicability.
+
+**How to apply:** Resolve the transfer direction from governed Stage 4 context and rotor ratio/speed from Stage 7. Show calculated Fr, Morton number, and V_k as preliminary evidence. Until a separately sourced route-specific `m` and source-unit/applicability evidence are accepted, report holdup, limiting throughput, percentage, feasibility, and any diameter preference as Not Calculable. Do not change Stage 5 selection, Stage 7 geometry, DS-SEL, or downstream simulator inputs from this route alone.

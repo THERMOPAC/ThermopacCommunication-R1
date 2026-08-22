@@ -358,6 +358,33 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   // no hidden fallbacks for either parameter.
   const SCREENING_REF = 'Thermopac Preliminary Screening Default';
   const uKModel = String(inputs.hydraulic_model ?? '').trim() === 'characteristic_velocity';
+  const kuhniVkModel = String(inputs.hydraulic_model ?? '').trim() === 'asadollahzadeh_2017_kuhni_vk_preliminary';
+  if (kuhniVkModel) {
+    out.characteristicVelocityRoute = 'ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY';
+    // The current LLX process direction is determined from the Stage 4 process
+    // basis, not from a free Stage 5 selector. RRBO is the feed/dispersed phase,
+    // NMP is the solvent/continuous phase, and recovery is to extract.
+    const phase = String(inputs.phase_configuration ?? '').trim();
+    const recoveryToExtract = num(inputs.solute_recovery_extract);
+    if (phase === 'nmp_continuous_rrbo_dispersed' && recoveryToExtract !== undefined && recoveryToExtract > 0) {
+      out.kuhniVkTransferDirection = 'd_to_c';
+    }
+    // The V_k expression does not supply the hindrance exponent used by the
+    // generic Stage 5 slip equation. Never reuse hindrance_exponent from the
+    // d32/terminal route; only an independently entered route-specific m is mapped.
+    if (out.kuhniVkHindranceExponent === undefined) {
+      const m = num(inputs.kuhni_vk_hindrance_exponent);
+      const mSrc = String(inputs.kuhni_vk_hindrance_exponent_source ?? '').trim();
+      const mRef = String(inputs.kuhni_vk_hindrance_exponent_source_ref ?? '').trim();
+      if (m !== undefined && m > 0 && SOURCE_TYPES.includes(mSrc) && mRef !== '') {
+        out.kuhniVkHindranceExponent = {
+          value: m,
+          sourceType: mSrc,
+          sourceReference: mRef,
+        };
+      }
+    }
+  }
   if (uKModel && out.characteristicVelocity === undefined) {
     const uk = num(inputs.characteristic_velocity);
     if (uk !== undefined && uk > 0) {

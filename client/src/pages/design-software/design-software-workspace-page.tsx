@@ -1001,8 +1001,8 @@ export default function DesignSoftwareWorkspacePage() {
   // workspace so the C3 engine always receives visible, traceable inputs — no
   // hidden mapper fallbacks. The engineer may change either value freely; doing
   // so updates the source type and reference to reflect the new basis.
-  // n is only seeded in d32_terminal mode; in characteristic_velocity mode the
-  // engineer must supply a measured/literature n with no screening default.
+    // n is only seeded in d32_terminal mode; characteristic-velocity routes
+    // must carry their own, independently sourced exponent with no default.
   useEffect(() => {
     if (isFrozen || !activeRevisionId) return;
     if (hydratedRevision !== activeRevisionId) return;
@@ -1020,7 +1020,7 @@ export default function DesignSoftwareWorkspacePage() {
       updates.sauter_mean_d32_source_ref = D32_REF;
     }
     // n — seed only in d32_terminal mode; no governed default in
-    // characteristic_velocity mode (engineer must enter a measured value).
+    // characteristic-velocity routes (engineer must enter a separately sourced value).
     if (mode === "d32_terminal" && (!hd.hindrance_exponent || hd.hindrance_exponent.trim() === "")) {
       updates.hindrance_exponent            = "1";
       updates.hindrance_exponent_source     = "Assumed";
@@ -1584,6 +1584,18 @@ export default function DesignSoftwareWorkspacePage() {
             errors["hindrance_exponent_source"] = "n Source Type is required (Measured / Vendor / Literature / Assumed)";
           if (!val("hindrance_exponent_source_ref"))
             errors["hindrance_exponent_source_ref"] = "n Source Reference is required — non-blank";
+        }
+      } else if (model === "asadollahzadeh_2017_kuhni_vk_preliminary") {
+        const m = numVal(val("kuhni_vk_hindrance_exponent"));
+        if (m === null || m <= 0) {
+          warnings["kuhni_vk_hindrance_exponent"] = "Kühni V_k will be calculated from the inherited Stage 4/7 basis, but φ_op, limiting throughput, % of Max, and diameter screening remain Not Calculable until a route-specific m is separately sourced.";
+        } else {
+          if (!VALID_SOURCES.includes(val("kuhni_vk_hindrance_exponent_source")))
+            errors["kuhni_vk_hindrance_exponent_source"] = "Route-specific m Source Type is required (Measured / Vendor / Literature / Assumed)";
+          if (!val("kuhni_vk_hindrance_exponent_source_ref"))
+            errors["kuhni_vk_hindrance_exponent_source_ref"] = "Route-specific m Source Reference is required — non-blank";
+          if (m === 1 && val("kuhni_vk_hindrance_exponent_source") === "Assumed")
+            errors["kuhni_vk_hindrance_exponent"] = "m = 1 cannot be an Assumed carry-over. Supply a separately sourced Kühni-route value.";
         }
       } else {
         const uk = numVal(val("characteristic_velocity"));
@@ -3788,10 +3800,15 @@ export default function DesignSoftwareWorkspacePage() {
             >
               <option value="d32_terminal">d₃₂ / Rigid-Sphere Terminal Velocity — Preliminary Screening / Pending Validation (Default)</option>
               <option value="characteristic_velocity">Characteristic Swarm Velocity u_K + Hindrance Exponent n (Engineer-entered, source-tagged)</option>
+              <option value="asadollahzadeh_2017_kuhni_vk_preliminary">Asadollahzadeh 2017 Kühni V_k — Preliminary / Pending Validation</option>
             </select>
             <span />
           </div>
-          {statusLine(`Status: ${(hd.hydraulic_model ?? "d32_terminal") === "d32_terminal" ? "Preliminary Screening · u_K = u_T (Pending Validation) · d₃₂ = 3 mm, n = 1 (Assumed screening defaults — Preliminary / Pending Validation)" : "Engineer-entered · u_K and n source-tagged"}`)}
+          {statusLine(`Status: ${(hd.hydraulic_model ?? "d32_terminal") === "d32_terminal"
+            ? "Preliminary Screening · u_K = u_T (Pending Validation) · d₃₂ = 3 mm, n = 1 (Assumed screening defaults — Preliminary / Pending Validation)"
+            : (hd.hydraulic_model ?? "") === "asadollahzadeh_2017_kuhni_vk_preliminary"
+              ? "Preliminary Kühni route · V_k is calculated from Stage 4 operating-temperature properties and Stage 7 rotor ratio/speed; the rigid-sphere terminal velocity is not reused"
+              : "Engineer-entered · u_K and n source-tagged"}`)}
           {(hd.hydraulic_model ?? "d32_terminal") === "d32_terminal" ? (
             <>
               <FieldRow label="Sauter Mean Diameter d32 (screening)" value={hd.sauter_mean_d32 ?? ""} onChange={v => f("sauter_mean_d32", v)} onBlur={s} unit="mm" note="Screening default: d₃₂ = 3 mm (Assumed — Preliminary / Pending Validation). Replace with a measured, vendor, or literature value before design-grade use. Never adjusted to obtain a desired column diameter." error={fErr5("sauter_mean_d32")} />
@@ -3852,6 +3869,52 @@ export default function DesignSoftwareWorkspacePage() {
                 <span />
               </div>
               <FieldRow label="n Source Reference" value={hd.hindrance_exponent_source_ref ?? ""} onChange={v => f("hindrance_exponent_source_ref", v)} onBlur={s} unit="" placeholder="e.g. Lapidus & Elgin 1957 / Thornton 1956 / Godfrey & Slater 1994 / Laboratory holdup experiment — pending RRBO-NMP validation" error={fErr5("hindrance_exponent_source_ref")} />
+            </>
+          ) : (hd.hydraulic_model ?? "") === "asadollahzadeh_2017_kuhni_vk_preliminary" ? (
+            <>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-2">
+                <p className="text-sm font-semibold text-amber-900 mb-1">Asadollahzadeh 2017 Kühni V<sub>k</sub> — Preliminary Route</p>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  V<sub>k</sub> = 0.237·(ρ<sub>c</sub>/Δρ)<sup>0.741</sup>·Fr<sup>−0.184</sup>·N<sub>μ</sub><sup>−0.095</sup>·(1 + 0.052α<sub>MT</sub>), with Fr = N²d<sub>R</sub>/g and N<sub>μ</sub> = μ<sub>c</sub>⁴g/(ρ<sub>d</sub>γ³).
+                  The route inherits operating-temperature properties from Stage 4 and the rotor/column ratio plus rotor speed from Stage 7. For this RRBO→NMP extraction basis, α<sub>MT</sub> is resolved as +1 (d→c).
+                </p>
+                <p className="text-[11px] text-amber-800 mt-1 font-medium">
+                  V<sub>k</sub> is calculated separately at every trial diameter because d<sub>R</sub> = (Stage 7 rotor ratio) × D. It is not the rigid-sphere terminal velocity.
+                </p>
+              </div>
+              <FieldRow
+                label="Kühni-route Hindrance Exponent m"
+                value={hd.kuhni_vk_hindrance_exponent ?? ""}
+                onChange={v => f("kuhni_vk_hindrance_exponent", v)}
+                onBlur={s}
+                unit="—"
+                note="No default and no carry-over from the rigid-sphere n. Required only to calculate φ_op, limiting throughput, % of Max, and diameter feasibility."
+                error={fErr5("kuhni_vk_hindrance_exponent")}
+              />
+              <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5 mt-1">
+                <label className={`text-sm font-medium pt-1.5 ${fErr5("kuhni_vk_hindrance_exponent_source") ? "text-red-700" : "text-gray-700"}`}>
+                  Route-specific m Source Type{fErr5("kuhni_vk_hindrance_exponent_source") && <span className="text-red-500 ml-0.5">*</span>}
+                </label>
+                <div>
+                  <select
+                    value={hd.kuhni_vk_hindrance_exponent_source ?? ""}
+                    onChange={e => commitSection("hydraulic_design", { kuhni_vk_hindrance_exponent_source: e.target.value })}
+                    disabled={isFrozen}
+                    className={`h-8 text-sm border rounded-md px-2 bg-white w-full ${fErr5("kuhni_vk_hindrance_exponent_source") ? "border-red-400 bg-red-50" : ""}`}
+                  >
+                    <option value="">— select source type —</option>
+                    <option value="Measured">Measured</option>
+                    <option value="Vendor">Vendor</option>
+                    <option value="Literature">Literature</option>
+                    <option value="Assumed">Assumed</option>
+                  </select>
+                </div>
+                <span />
+              </div>
+              <FieldRow label="Route-specific m Source Reference" value={hd.kuhni_vk_hindrance_exponent_source_ref ?? ""} onChange={v => f("kuhni_vk_hindrance_exponent_source_ref", v)} onBlur={s} unit="" placeholder="Exact Kühni-route source, test report, or vendor curve" error={fErr5("kuhni_vk_hindrance_exponent_source_ref")} />
+              {statusLine((hd.kuhni_vk_hindrance_exponent ?? "").trim()
+                ? `Route-specific m entered · source: ${hd.kuhni_vk_hindrance_exponent_source || "missing"}`
+                : "V_k can be audited from the inherited Stage 4/7 basis. Capacity and diameter outputs remain Not Calculable until a route-specific m is supplied.")}
             </>
           ) : (
             <>
@@ -4096,10 +4159,12 @@ export default function DesignSoftwareWorkspacePage() {
           ) : (() => {
             const tv   = hydResData?.terminalVelocityScreening;
             const db2  = hydResData?.designBasis;
+            const kuhniRoute = db2?.characteristicVelocityRoute;
             const normSum = hydResData?.normalCase?.summary;
             const maxSum  = hydResData?.maximumCase?.summary;
             const normDiams: any[] = hydResData?.normalCase?.diameters ?? [];
             const maxDiams:  any[] = hydResData?.maximumCase?.diameters ?? [];
+            const firstKuhniVelocity = normDiams[0]?.characteristicVelocity;
             const n4 = (v: any) => typeof v === "number" ? v.toFixed(4) : "—";
             const n3 = (v: any) => typeof v === "number" ? v.toFixed(3) : "—";
             const n2 = (v: any) => typeof v === "number" ? v.toFixed(2) : "—";
@@ -4138,8 +4203,8 @@ export default function DesignSoftwareWorkspacePage() {
             const maxKeyDiams = feasMax.length > 0 ? feasMax : maxDiams;
             return (
               <div className="space-y-4">
-                {/* Terminal velocity */}
-                <div>
+                {/* Velocity basis */}
+                {!kuhniRoute ? <div>
                   <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Terminal Velocity Screening (rigid-sphere, RRBO drop in NMP)</p>
                   <div className="grid grid-cols-2 gap-2">
                     <CalcResultCard label="Sauter Mean Diameter d₃₂" formula="Engineer-entered (Assumed)" unit="m" reference="Thermopac Preliminary Screening Default"
@@ -4156,17 +4221,30 @@ export default function DesignSoftwareWorkspacePage() {
                       result={typeof db2?.densityDifference_kg_m3 === "number" ? Number(db2.densityDifference_kg_m3.toFixed(3)) : undefined} engineVersion={hydRun?.engine_version} />
                   </div>
                   <p className="text-[10px] text-amber-600 mt-1 px-1">⚠ Rigid-sphere screening only — NOT a validated liquid-drop terminal velocity. All holdup results are Pending Validation.</p>
-                </div>
+                </div> : <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Kühni V<sub>k</sub> Basis — Preliminary / Pending Validation</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <CalcResultCard label="Characteristic Velocity V_k (first trial diameter)" formula="V_k = 0.237·(ρ_c/Δρ)^0.741·Fr^-0.184·N_μ^-0.095·(1+0.052·α_MT)" unit="m/s"
+                      reference={kuhniRoute.sourceReference ?? "Preliminary route"} result={typeof firstKuhniVelocity?.value_m_s === "number" ? Number(firstKuhniVelocity.value_m_s.toFixed(5)) : undefined} engineVersion={hydRun?.engine_version} />
+                    <CalcResultCard label="Froude Number Fr (first trial diameter)" formula="Fr = N²·d_R/g" unit="—"
+                      reference="Stage 7 rotor ratio and speed" result={typeof firstKuhniVelocity?.froudeNumber === "number" ? Number(firstKuhniVelocity.froudeNumber.toFixed(6)) : undefined} engineVersion={hydRun?.engine_version} />
+                    <CalcResultCard label="Morton Number N_μ" formula="N_μ = μ_c⁴·g/(ρ_d·γ³)" unit="—"
+                      reference="Stage 4 operating-temperature properties" result={typeof firstKuhniVelocity?.mortonNumber === "number" ? Number(firstKuhniVelocity.mortonNumber.toExponential(4)) : undefined} engineVersion={hydRun?.engine_version} />
+                    <CalcResultCard label="Transfer Direction α_MT" formula="+1 dispersed→continuous; 0 no transfer; −1 continuous→dispersed" unit="—"
+                      reference={firstKuhniVelocity?.transferDirection ?? "Not resolved"} result={firstKuhniVelocity?.alphaMT} engineVersion={hydRun?.engine_version} />
+                  </div>
+                  <p className="text-[10px] text-amber-600 mt-1 px-1">⚠ V<sub>k</sub> is calculated per trial diameter. It is preliminary and is not the rigid-sphere terminal velocity; source units, applicability, and a route-specific m remain required before capacity or diameter selection.</p>
+                </div>}
 
                 {/* Characteristic velocity & slip model */}
                 <div>
                   <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Slip Model Parameters — C3 Generic Screening</p>
                   <div className="grid grid-cols-2 gap-2">
-                    <CalcResultCard label="Characteristic Swarm Velocity u_K" formula="u_K = u_T (rigid-sphere) — Preliminary / Pending Validation" unit="m/s" reference="u_K ≠ u_T in general; rigid-sphere terminal velocity is an upper-bound screening proxy only. Replace with measured swarm velocity before design-grade use."
-                      result={typeof db2?.characteristicVelocity?.value_m_s === "number" ? Number(db2.characteristicVelocity.value_m_s.toFixed(5)) : undefined} engineVersion={hydRun?.engine_version} />
-                    <CalcResultCard label="Hindrance Exponent n" formula="u_slip(φ) = u_K·(1−φ)^n — Godfrey generic slip model" unit="—"
-                      reference={hydResData?.designBasis?.hindranceExponent ? `${hydResData.designBasis.hindranceExponent.sourceType}: ${hydResData.designBasis.hindranceExponent.sourceReference}` : "Not entered — default n = 1 (Assumed) pending engineer input"}
-                      result={typeof hydResData?.designBasis?.hindranceExponent?.value === "number" ? hydResData.designBasis.hindranceExponent.value : undefined} engineVersion={hydRun?.engine_version} />
+                    <CalcResultCard label={kuhniRoute ? "Kühni V_k (first trial diameter)" : "Characteristic Swarm Velocity u_K"} formula={kuhniRoute ? "Per-diameter result shown above; no rigid-sphere u_T reuse" : "u_K = u_T (rigid-sphere) — Preliminary / Pending Validation"} unit="m/s" reference={kuhniRoute ? "Asadollahzadeh 2017 preliminary route" : "u_K ≠ u_T in general; rigid-sphere terminal velocity is an upper-bound screening proxy only. Replace with measured swarm velocity before design-grade use."}
+                      result={kuhniRoute ? (typeof firstKuhniVelocity?.value_m_s === "number" ? Number(firstKuhniVelocity.value_m_s.toFixed(5)) : undefined) : (typeof db2?.characteristicVelocity?.value_m_s === "number" ? Number(db2.characteristicVelocity.value_m_s.toFixed(5)) : undefined)} engineVersion={hydRun?.engine_version} />
+                    <CalcResultCard label={kuhniRoute ? "Route-specific Hindrance Exponent m" : "Hindrance Exponent n"} formula={kuhniRoute ? "u_slip(φ) = V_k·(1−φ)^m — source-required" : "u_slip(φ) = u_K·(1−φ)^n — Godfrey generic slip model"} unit="—"
+                      reference={kuhniRoute ? (kuhniRoute.routeSpecificHindranceNote ?? "Not entered") : (hydResData?.designBasis?.hindranceExponent ? `${hydResData.designBasis.hindranceExponent.sourceType}: ${hydResData.designBasis.hindranceExponent.sourceReference}` : "Not entered — default n = 1 (Assumed) pending engineer input")}
+                      result={kuhniRoute ? (typeof kuhniRoute.routeSpecificHindranceExponent?.value === "number" ? kuhniRoute.routeSpecificHindranceExponent.value : undefined) : (typeof hydResData?.designBasis?.hindranceExponent?.value === "number" ? hydResData.designBasis.hindranceExponent.value : undefined)} engineVersion={hydRun?.engine_version} />
                     <CalcResultCard label="Flow Ratio R (normal)" formula="R = u_NMP / u_RRBO = q_NMP / q_RRBO" unit="—" reference="Counter-current flow basis"
                       result={(() => { const rows = normDiams; if (!rows.length) return undefined; const r0 = rows[0]?.flowRatio?.value; return typeof r0 === "number" ? Number(r0.toFixed(4)) : undefined; })()} engineVersion={hydRun?.engine_version} />
                     <CalcResultCard label="Flow Ratio R (maximum)" formula="R_max = R_normal × maxCirculationFactor" unit="—" reference="Counter-current flow basis"
