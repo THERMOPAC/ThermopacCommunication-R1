@@ -29,4 +29,11 @@ describe('ECR-2 process simulation workflow boundary', () => {
     expect(workspaceSource).toContain('case "ecr2_simulation":       return renderEcr2ProcessSimulation();');
     expect(workspaceSource).toContain('data-testid="ecr2-process-simulation-stage"');
   });
+
+  it('persists simulator-only JSON before evaluating the ECR-2 calculation', () => {
+    expect(workspaceSource).toContain('const runEcr2Simulation = async () => {');
+    expect(workspaceSource).toContain('section: "ecr_simulator"');
+    expect(workspaceSource).toContain('await calculateMutation.mutateAsync("ecr_simulator")');
+    expect(workspaceSource).toContain('data-testid="ecr2-c2-refresh-required"');
+  });
 });

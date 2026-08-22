@@ -599,6 +599,7 @@ export default function DesignSoftwareWorkspacePage() {
   // Local form data per section (populated from API, dirty-tracked for save)
   const [localData, setLocalData] = useState<Record<string, Record<string, string>>>({});
   const [savingSection, setSavingSection] = useState<string | null>(null);
+  const [ecr2RunPreparing, setEcr2RunPreparing] = useState(false);
 
   // ── Stage-by-stage validation ────────────────────────────────────────────────
   // errors:   { stageKey → { fieldKey → errorMessage } }  — block forward nav
@@ -4520,6 +4521,49 @@ export default function DesignSoftwareWorkspacePage() {
     const latestRun = runs
       .filter(r => r.calculation_type === "ecr_simulator")
       .sort((a, b) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0];
+    const c2InputUpdatedAt = (inputsQ.data ?? []).find((row: any) => row.section === "process_design")?.updated_at;
+    const c2ResultComputedAt = (resultsQ.data ?? []).find((row: any) => row.section === "process_design")?.computed_at;
+    const c2InputsAreStale = !!(
+      c2InputUpdatedAt
+      && c2ResultComputedAt
+      && new Date(c2InputUpdatedAt).getTime() > new Date(c2ResultComputedAt).getTime()
+    );
+    const runEcr2Simulation = async () => {
+      if (isFrozen || !activeRevisionId || ecr2RunPreparing) return;
+      setEcr2RunPreparing(true);
+      setSavingSection("ecr_simulator");
+      let simulatorInputsSaved = false;
+      try {
+        // A textarea blur and the Run click can occur in the same browser turn.
+        // Persist the exact in-memory simulator payload before calculation so the
+        // service never evaluates the previous blank/partial saved payload.
+        await apiRequest("POST", `/api/design-software/revisions/${activeRevisionId}/inputs`, {
+          section: "ecr_simulator",
+          data: localData["ecr_simulator"] ?? {},
+        });
+        simulatorInputsSaved = true;
+        await qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/inputs`] });
+
+        if (c2InputsAreStale) {
+          toast({
+            title: "Simulator inputs saved — refresh Stage 4 first",
+            description: "C2 Process Design inputs changed after the accepted material-balance result. Re-run Stage 4 Material Balance before starting ECR-2.",
+            variant: "destructive",
+          });
+          return;
+        }
+        await calculateMutation.mutateAsync("ecr_simulator");
+      } catch (e: any) {
+        // calculateMutation reports its own calculation error. Only surface a
+        // dedicated message when the prerequisite save itself did not complete.
+        if (!simulatorInputsSaved) {
+          toast({ title: "Simulator input save failed", description: e.message, variant: "destructive" });
+        }
+      } finally {
+        setSavingSection(null);
+        setEcr2RunPreparing(false);
+      }
+    };
     const parseSnapshot = (value: any) => {
       if (typeof value !== "string") return value;
       try { return JSON.parse(value); } catch { return null; }
@@ -4570,6 +4614,14 @@ export default function DesignSoftwareWorkspacePage() {
               <Badge className="bg-amber-100 text-amber-800 border border-amber-200 text-[10px]">pilotCalibrationStatus: NOT_YET_VALIDATED</Badge>
             </div>
           </div>
+          {c2InputsAreStale && (
+            <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-xs text-red-800 mb-4" data-testid="ecr2-c2-refresh-required">
+              <strong>Stage 4 refresh required before ECR-2 can run.</strong>
+              <p className="mt-1">
+                The saved C2 Process Design inputs are newer than the accepted material-balance result. This simulator will save its own inputs, but you must return to Stage 4 and run Material Balance before starting the ECR-2 calculation.
+              </p>
+            </div>
+          )}
 
           <p className="text-xs font-semibold text-gray-700 mb-1">Inherited workspace inputs</p>
           <div className="rounded-lg border overflow-hidden mb-4">
@@ -4605,11 +4657,11 @@ export default function DesignSoftwareWorkspacePage() {
             </div>
           </div>
           <div className="flex gap-2 mt-4">
-            <Button size="sm" variant="outline" disabled={isFrozen || upsertMutation.isPending} onClick={() => saveSection("ecr_simulator")}>
+            <Button size="sm" variant="outline" disabled={isFrozen || upsertMutation.isPending || ecr2RunPreparing} onClick={() => saveSection("ecr_simulator")}>
               <Save className="h-3.5 w-3.5 mr-1.5" /> Save simulator inputs
             </Button>
-            <Button size="sm" className="gap-1.5" disabled={isFrozen || calculateMutation.isPending} onClick={() => calculateMutation.mutate("ecr_simulator")}>
-              <Play className="h-3.5 w-3.5" /> RUN ECR-2 SIMULATION
+            <Button size="sm" className="gap-1.5" disabled={isFrozen || calculateMutation.isPending || ecr2RunPreparing} onClick={runEcr2Simulation}>
+              <Play className="h-3.5 w-3.5" /> {ecr2RunPreparing ? "Saving simulator inputs…" : c2InputsAreStale ? "Save inputs & refresh C2" : "RUN ECR-2 SIMULATION"}
             </Button>
           </div>
           {renderRunIssues(latestRun, "ECR-2 simulator")}

@@ -12,6 +12,8 @@ design_identity | design_basis | fluid_properties | process_design | hydraulic_d
 - Stage 8 is `ecr2_simulation` and hosts the counter-current simulator, run completeness, results, profiles, compartment data, mass balance, provenance, and historical snapshots.
 - Stage 7 remains the governed owner of ECR equipment geometry and operating inputs. Stage 8 displays them as inherited values and permits only the explicit simulator diameter override plus simulator-owned BVP activation data.
 - The persisted simulator input/result/run key remains `ecr_simulator`; do not rename it when changing workflow navigation. Legacy simulator geometry values are preserved for audit but must not override Stage 7.
+- Run must persist the current simulator-only JSON before dispatching the calculation. A blur-save and a button click can occur together, so evaluating first would use the previous saved payload rather than the visible form values.
+- A persisted C2 handoff is valid only when its Process Design inputs are not newer than its accepted C2 result. The Stage 8 UI must explain this dependency; never bypass it by borrowing stale C2 thermodynamic state.
 - **Why:** Separating the numerical process simulator from Equipment Design prevents duplicated geometry, maintains provenance, and leaves a clean future host for an Optimizer mode without implementing one now.
 - **How to apply:** Any future simulator UI or route work belongs to Stage 8; keep BVP equations and ECR-1 isolated.
 
