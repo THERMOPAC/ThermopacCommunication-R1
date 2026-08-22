@@ -2,7 +2,7 @@
 // ECR-2 — d₃₂ Plug-In Interface
 //
 // Defines the contract through which a droplet diameter enters the ECR-2
-// simulator. Two modes are supported:
+// simulator. Three modes are supported:
 //
 //   'published_correlation'  — K&H 1996 (ecr2_d32_kh1996). The former
 //                              preliminary reconstruction is transcription-
@@ -14,6 +14,12 @@
 //                              Must carry source type and reference. Outputs are
 //                              labelled "Engineer-Supplied d₃₂ — Simulator
 //                              Development / Sensitivity Basis".
+//
+//   'direct_turbulence_preliminary'
+//                            — Separate Hinze-type preliminary engineering
+//                              route. It uses an explicitly source-tagged
+//                              selected C within the controlled sensitivity
+//                              interval. It is NOT the K&H 1996 equation.
 //
 // This interface also permits a future 'pilot_calibrated' mode once pilot data
 // becomes available.
@@ -37,12 +43,16 @@
  * 'engineer_supplied'     — engineer provides d₃₂ explicitly for development/
  *                           sensitivity testing. Not a published model result.
  */
-export type D32Mode = 'published_correlation' | 'engineer_supplied';
+export type D32Mode =
+  | 'published_correlation'
+  | 'engineer_supplied'
+  | 'direct_turbulence_preliminary';
 
 /** Status of the d₃₂ computation result. */
 export type D32Status =
   | 'calculated'              // reserved for a fully governed published correlation
   | 'calculated_extrapolated' // from resolved correlation but outside validity range
+  | 'calculated_preliminary'  // controlled preliminary engineering route
   | 'engineer_supplied'       // explicit engineer input, labelled accordingly
   | 'transcription_invalid'   // former K&H reconstruction is known not to match its secondary sources
   | 'phase_configuration_unsupported'
@@ -98,8 +108,29 @@ export interface PublishedCorrelationD32Config {
   correlationId: 'ecr2_d32_kh1996';
 }
 
-/** Union type — one of the two supported d₃₂ configurations. */
-export type D32Config = EngineerSuppliedD32Config | PublishedCorrelationD32Config;
+/**
+ * Configuration for the separately governed direct-turbulence sensitivity route.
+ *
+ * The C interval is deliberately fixed in the correlation registry rather than
+ * supplied as free-form input. A nominal C must remain inside that interval and
+ * carry its own recorded source; no midpoint is silently selected.
+ */
+export interface DirectTurbulencePreliminaryD32Config {
+  mode: 'direct_turbulence_preliminary';
+  correlationId: 'ecr2_d32_direct_turbulence_preliminary';
+  /** Selected preliminary C, dimensionless; must be within 0.36 to 0.43. */
+  C_nominal: number;
+  /** Source class for the selected nominal C. */
+  sourceType: string;
+  /** Exact source/reference for the selected nominal C. */
+  sourceReference: string;
+}
+
+/** Union type — one supported d₃₂ configuration. */
+export type D32Config =
+  | EngineerSuppliedD32Config
+  | PublishedCorrelationD32Config
+  | DirectTurbulencePreliminaryD32Config;
 
 // ── Local hydrodynamic state (inputs to the correlation) ──────────────────
 
@@ -140,6 +171,17 @@ export interface D32LocalState {
   z_m?: number;
   /** Compartment index. For diagnostics only. */
   compartmentIndex?: number;
+  /**
+   * Governed Stage 7 rotor data required for the direct-turbulence route.
+   * V_R is the active liquid volume of one agitated compartment, not total
+   * column volume. All values use SI units.
+   */
+  directTurbulence?: {
+    powerNumber_Ne: number;
+    rotorSpeed_s: number;
+    rotorDiameter_m: number;
+    rotorVolume_m3: number;
+  };
 }
 
 // ── Result type ────────────────────────────────────────────────────────────
@@ -200,6 +242,28 @@ export interface D32Result {
   calibrationFactor: number | null;
   /** States whether values are local or the current uniform/inlet model extension. */
   localAxialApplication: string;
+  /**
+   * Immutable direct-turbulence calculation and C-range sensitivity record.
+   * Present only for the separately named direct-turbulence preliminary route.
+   */
+  directTurbulence?: {
+    equation: 'd32 = C * (gamma / rho_c)^0.6 * epsilon^-0.4';
+    epsilon_m2_s3: number;
+    powerNumber_Ne: number;
+    rotorSpeed_s: number;
+    rotorDiameter_m: number;
+    rotorVolume_m3: number;
+    gamma_N_m: number;
+    rho_c_kg_m3: number;
+    C_nominal: number;
+    C_min: 0.36;
+    C_max: 0.43;
+    d32_at_C_min_m: number;
+    d32_at_C_nominal_m: number;
+    d32_at_C_max_m: number;
+    sourceType: string;
+    sourceReference: string;
+  };
 }
 
 // ── Validation helpers ─────────────────────────────────────────────────────
@@ -210,6 +274,8 @@ const TRANSCRIPTION_INVALID_GOVERNANCE_STATUS =
   'kh1996_secondary_reproductions_conflict_with_legacy_reconstruction';
 const UNIFORM_INLET_BASIS =
   'Thermopac model extension — uniform/inlet property basis';
+export const DIRECT_TURBULENCE_C_MIN = 0.36 as const;
+export const DIRECT_TURBULENCE_C_MAX = 0.43 as const;
 const TRANSCRIPTION_INVALID_TRACEABILITY = [
   'PRIMARY_SOURCE_UNVERIFIED__KH1996',
   'TRANSCRIPTION_INVALID__LEGACY_C1_N1_AND_DIRECT_HIGH_AGITATION_TERM',
@@ -241,6 +307,21 @@ function engineerGovernanceFields() {
     pilotCalibrationStatus: 'NOT_APPLICABLE__ENGINEER_SUPPLIED_VALUE',
     calibrationFactor: null,
     localAxialApplication: 'Engineer-supplied value; local axial basis declared by source reference',
+  };
+}
+
+function directTurbulenceGovernanceFields() {
+  return {
+    engineeringBasis:
+      'DIRECT_TURBULENCE_D32_PRELIMINARY — PRELIMINARY_ENGINEERING / NOT YET PILOT_VALIDATED',
+    governanceStatus:
+      'preliminary_engineering_not_yet_pilot_validated__direct_turbulence_d32',
+    primarySourceVerified: false,
+    validatedForRRBONMP: false,
+    pilotCalibrationStatus: 'NOT_YET_PILOT_VALIDATED',
+    calibrationFactor: 1.0,
+    localAxialApplication:
+      `${UNIFORM_INLET_BASIS}; ε derived from governed Stage 7 Nₑ, n, d_R, and V_R`,
   };
 }
 
@@ -277,6 +358,132 @@ export function computeDropletDiameter(
   localState: Partial<D32LocalState>,
   config: D32Config,
 ): D32Result {
+
+  // ── Direct-turbulence preliminary route ───────────────────────────────────
+  if (config.mode === 'direct_turbulence_preliminary') {
+    const cfg = config as DirectTurbulencePreliminaryD32Config;
+    const state = localState.directTurbulence;
+    const missing: string[] = [];
+    const finitePositive = (value: unknown) =>
+      typeof value === 'number' && Number.isFinite(value) && value > 0;
+
+    if (!finitePositive(localState.sigma_N_m)) missing.push('gamma_N_m');
+    if (!finitePositive(localState.rho_c_kg_m3)) missing.push('rho_c_kg_m3');
+    if (!state || !finitePositive(state.powerNumber_Ne)) missing.push('N_e');
+    if (!state || !finitePositive(state.rotorSpeed_s)) missing.push('n');
+    if (!state || !finitePositive(state.rotorDiameter_m)) missing.push('d_R');
+    if (!state || !finitePositive(state.rotorVolume_m3)) missing.push('V_R');
+    if (!finitePositive(cfg.C_nominal)) missing.push('C_nominal');
+    if (!cfg.sourceType?.trim()) missing.push('C_nominal sourceType');
+    if (!cfg.sourceReference?.trim()) missing.push('C_nominal sourceReference');
+
+    if (missing.length > 0) {
+      return {
+        d32_m: null,
+        d32_raw_m: null,
+        status: 'input_missing',
+        mode: 'direct_turbulence_preliminary',
+        correlationId: 'ecr2_d32_direct_turbulence_preliminary',
+        label: null,
+        extrapolated: false,
+        diagnostics: [
+          `DIRECT_TURBULENCE_D32_PRELIMINARY cannot calculate d₃₂ at ${stateLocation(localState)}; missing/invalid: ${missing.join(', ')}.`,
+          'The route requires temperature-matched γ and ρ_c plus governed Stage 7 Nₑ, n, d_R, and V_R.',
+        ],
+        provenance:
+          'Direct-turbulence preliminary route blocked. No nominal C or hydraulic input is silently inferred.',
+        engineerSource: null,
+        ...directTurbulenceGovernanceFields(),
+      };
+    }
+
+    if (cfg.C_nominal < DIRECT_TURBULENCE_C_MIN || cfg.C_nominal > DIRECT_TURBULENCE_C_MAX) {
+      return {
+        d32_m: null,
+        d32_raw_m: null,
+        status: 'calculation_invalid',
+        mode: 'direct_turbulence_preliminary',
+        correlationId: 'ecr2_d32_direct_turbulence_preliminary',
+        label: null,
+        extrapolated: false,
+        diagnostics: [
+          `Selected nominal C = ${cfg.C_nominal} is outside the governed preliminary sensitivity interval [${DIRECT_TURBULENCE_C_MIN}, ${DIRECT_TURBULENCE_C_MAX}].`,
+          'No midpoint or alternative nominal C is substituted.',
+        ],
+        provenance:
+          'Direct-turbulence preliminary route rejected because selected nominal C is outside the controlled sensitivity interval.',
+        engineerSource: null,
+        ...directTurbulenceGovernanceFields(),
+      };
+    }
+
+    const epsilon = state.powerNumber_Ne
+      * Math.pow(state.rotorSpeed_s, 3)
+      * Math.pow(state.rotorDiameter_m, 5)
+      / state.rotorVolume_m3;
+    const hydrodynamicScale = Math.pow(localState.sigma_N_m! / localState.rho_c_kg_m3!, 0.6)
+      * Math.pow(epsilon, -0.4);
+    const d32Nominal = cfg.C_nominal * hydrodynamicScale;
+    const d32Min = DIRECT_TURBULENCE_C_MIN * hydrodynamicScale;
+    const d32Max = DIRECT_TURBULENCE_C_MAX * hydrodynamicScale;
+
+    if (![epsilon, hydrodynamicScale, d32Nominal, d32Min, d32Max].every(finitePositive)) {
+      return {
+        d32_m: null,
+        d32_raw_m: Number.isFinite(d32Nominal) ? d32Nominal : null,
+        status: 'calculation_invalid',
+        mode: 'direct_turbulence_preliminary',
+        correlationId: 'ecr2_d32_direct_turbulence_preliminary',
+        label: null,
+        extrapolated: false,
+        diagnostics: ['DIRECT_TURBULENCE_D32_PRELIMINARY produced a non-physical epsilon or d₃₂ result.'],
+        provenance:
+          'Direct-turbulence preliminary route rejected by finite-positive output guard; no clamping applied.',
+        engineerSource: null,
+        ...directTurbulenceGovernanceFields(),
+      };
+    }
+
+    return {
+      d32_m: d32Nominal,
+      d32_raw_m: d32Nominal,
+      status: 'calculated_preliminary',
+      mode: 'direct_turbulence_preliminary',
+      correlationId: 'ecr2_d32_direct_turbulence_preliminary',
+      label: 'DIRECT_TURBULENCE_D32_PRELIMINARY — PRELIMINARY_ENGINEERING / NOT YET PILOT_VALIDATED',
+      extrapolated: false,
+      diagnostics: [
+        'This is a separate direct-turbulence preliminary d₃₂ route; it is NOT the verified K&H 1996 equation.',
+        'C range [0.36, 0.43] is retained as sensitivity only. Kühni-specific source verification and pilot validation remain pending.',
+      ],
+      provenance:
+        `d₃₂ = C·(γ/ρ_c)^0.6·ε^-0.4, ε = Nₑ·n³·d_R⁵/V_R. ` +
+        `Selected C=${cfg.C_nominal} (${cfg.sourceType}: ${cfg.sourceReference}); ` +
+        `sensitivity C=[${DIRECT_TURBULENCE_C_MIN}, ${DIRECT_TURBULENCE_C_MAX}]. ` +
+        'DIRECT_TURBULENCE_D32_PRELIMINARY — PRELIMINARY_ENGINEERING / NOT YET PILOT_VALIDATED. ' +
+        'Not K&H 1996 and not pilot-validated for RRBO/NMP.',
+      engineerSource: null,
+      directTurbulence: {
+        equation: 'd32 = C * (gamma / rho_c)^0.6 * epsilon^-0.4',
+        epsilon_m2_s3: epsilon,
+        powerNumber_Ne: state.powerNumber_Ne,
+        rotorSpeed_s: state.rotorSpeed_s,
+        rotorDiameter_m: state.rotorDiameter_m,
+        rotorVolume_m3: state.rotorVolume_m3,
+        gamma_N_m: localState.sigma_N_m!,
+        rho_c_kg_m3: localState.rho_c_kg_m3!,
+        C_nominal: cfg.C_nominal,
+        C_min: DIRECT_TURBULENCE_C_MIN,
+        C_max: DIRECT_TURBULENCE_C_MAX,
+        d32_at_C_min_m: d32Min,
+        d32_at_C_nominal_m: d32Nominal,
+        d32_at_C_max_m: d32Max,
+        sourceType: cfg.sourceType,
+        sourceReference: cfg.sourceReference,
+      },
+      ...directTurbulenceGovernanceFields(),
+    };
+  }
 
   // ── Engineer-supplied mode ───────────────────────────────────────────────
   if (config.mode === 'engineer_supplied') {
@@ -396,6 +603,7 @@ export function isD32Usable(result: D32Result): result is D32Result & { d32_m: n
     (
        result.status === 'calculated' ||
       result.status === 'calculated_extrapolated' ||
+       result.status === 'calculated_preliminary' ||
       result.status === 'engineer_supplied'
     )
   );

@@ -90,6 +90,16 @@ export interface ECR2CounterCurrentBVPInput {
   nmpFeedComponentFlows_kg_h: ECR2Vector;
   governedProperties: ECR2GovernedPropertyInputs;
   d32Config: D32Config | null;
+  /**
+   * Stage 7 rotor basis for the separate direct-turbulence d32 route. The
+   * compartment V_R is derived locally as A_column × Δz, so the BVP never
+   * receives a stale total-column or manually entered volume.
+   */
+  directTurbulenceRotor?: {
+    powerNumber_Ne: number;
+    rotorSpeed_s: number;
+    rotorDiameter_m: number;
+  };
   partitionBasis: ECR2KH1999PartitionBasisApproval | null;
   /**
    * Optional free face state from a prior converged run. Its length must be
@@ -330,6 +340,18 @@ function validateInput(input: ECR2CounterCurrentBVPInput): ECR2BVPLocalFailure |
   if (!finite(input.operatingTemperature_C)) return invalid('temperature', 'operatingTemperature_C must be finite.');
   if (!input.c2ThermodynamicBasis) return invalid('c2_thermodynamic_basis', 'A C2 thermodynamic basis is required for a BVP run.');
   if (!input.d32Config) return invalid('d32', 'd32Config is required; no d32 default is permitted.');
+  if (input.d32Config.mode === 'direct_turbulence_preliminary') {
+    const rotor = input.directTurbulenceRotor;
+    for (const [name, value] of [
+      ['directTurbulenceRotor.powerNumber_Ne', rotor?.powerNumber_Ne],
+      ['directTurbulenceRotor.rotorSpeed_s', rotor?.rotorSpeed_s],
+      ['directTurbulenceRotor.rotorDiameter_m', rotor?.rotorDiameter_m],
+    ] as const) {
+      if (!finite(value) || value <= 0) {
+        return invalid('direct_turbulence_d32', `${name} must be finite and > 0 for DIRECT_TURBULENCE_D32_PRELIMINARY.`);
+      }
+    }
+  }
   if (!input.partitionBasis) return invalid('partition_basis', 'An approved K_d concentration partition basis is required.');
   if (input.solverOptions?.transferStrength !== undefined &&
       (!finite(input.solverOptions.transferStrength) || input.solverOptions.transferStrength < 0 || input.solverOptions.transferStrength > 1)) {
@@ -368,12 +390,15 @@ function zeroTransferGuess(input: ECR2CounterCurrentBVPInput): number[] {
 }
 
 function d32Provenance(input: ECR2CounterCurrentBVPInput, d32: D32Result) {
+  const config = input.d32Config!;
   return {
     value_m: d32.d32_m!,
-    source: input.d32Config!.mode === 'engineer_supplied' ? 'engineer_entered' as const : 'governed_calculated' as const,
-    sourceReference: input.d32Config!.mode === 'engineer_supplied'
-      ? input.d32Config!.sourceReference
-      : 'ecr2_d32_kh1996 — approved preliminary reconstruction',
+    source: config.mode === 'engineer_supplied' ? 'engineer_entered' as const : 'governed_calculated' as const,
+    sourceReference: config.mode === 'engineer_supplied'
+      ? config.sourceReference
+      : config.mode === 'direct_turbulence_preliminary'
+        ? `ecr2_d32_direct_turbulence_preliminary — selected C=${config.C_nominal} (${config.sourceType}: ${config.sourceReference}); PRELIMINARY_ENGINEERING / NOT YET PILOT_VALIDATED`
+        : 'ecr2_d32_kh1996 — transcription-invalid route (not executable)',
   };
 }
 
@@ -446,6 +471,14 @@ function localCompartment(
     sigma_N_m: properties.snapshot.sigma_N_m,
     compartmentIndex: index,
     z_m: (index - 0.5) * height,
+    directTurbulence: input.directTurbulenceRotor
+      ? {
+          ...input.directTurbulenceRotor,
+          // V_R is the actual modeled liquid volume for this one axial
+          // compartment. Do not substitute total column liquid volume.
+          rotorVolume_m3: input.columnCrossSectionArea_m2 * height,
+        }
+      : undefined,
   }, input.d32Config!);
   if (!isD32Usable(d32)) {
     return { compartment: null, failure: invalid('d32', `d32 is unusable: ${d32.status}.`, index, null, d32.diagnostics) };

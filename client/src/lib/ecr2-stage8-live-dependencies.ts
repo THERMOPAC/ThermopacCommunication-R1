@@ -134,10 +134,19 @@ export function getEcr2Stage8LiveDependencies({
   const legacyMw = legacyObject(sim, "molecularWeights");
   const legacyBvp = legacyObject(sim, "bvp");
   const d32Mode = text(sim.d32_mode);
-  const d32Ready = d32Mode === "engineer_supplied"
+  const directTurbulenceReady = d32Mode === "direct_turbulence_preliminary"
+    && positive(sim.direct_turbulence_c_nominal)
+    && Number(sim.direct_turbulence_c_nominal) >= 0.36
+    && Number(sim.direct_turbulence_c_nominal) <= 0.43
+    && ECR2_STAGE8_SOURCE_TYPES.includes(
+      text(sim.direct_turbulence_c_source_type) as typeof ECR2_STAGE8_SOURCE_TYPES[number],
+    )
+    && text(sim.direct_turbulence_c_source_reference) !== "";
+  const d32Ready = (d32Mode === "engineer_supplied"
     && (positive(sim.d32_value_mm)
       && text(sim.d32_source_type) !== ""
-      && text(sim.d32_source_reference) !== "");
+      && text(sim.d32_source_reference) !== ""))
+    || directTurbulenceReady;
   const kdReady = text(sim.partition_basis_approval_status ?? legacyBvp.partitionBasis?.approvalStatus)
     === "engineer_approved_governed"
     && text(sim.partition_basis_source_reference ?? legacyBvp.partitionBasis?.sourceReference) !== ""
@@ -159,11 +168,17 @@ export function getEcr2Stage8LiveDependencies({
       group: "auto",
       label: "d₃₂",
       ready: d32Ready,
-      sourceClass: d32Mode === "engineer_supplied" ? "ENGINEER_INPUT" : "TRANSCRIPTION_INVALID",
+       sourceClass: d32Mode === "engineer_supplied"
+         ? "ENGINEER_INPUT"
+         : d32Mode === "direct_turbulence_preliminary"
+           ? "PRELIMINARY_ENGINEERING"
+           : "TRANSCRIPTION_INVALID",
       downstreamUse: "Feeds the governed d32 route and interfacial area a = 6φd/d32 for local transfer.",
-      blockingReason: d32Mode === "engineer_supplied"
-        ? "Engineer-supplied d₃₂ needs a positive value, source class, and source reference."
-        : "The K&H 1996 published d₃₂ reconstruction is transcription-invalid and cannot resolve a value. Use an explicit engineer-supplied sensitivity value or wait for independently verified source notation.",
+       blockingReason: d32Mode === "engineer_supplied"
+         ? "Engineer-supplied d₃₂ needs a positive value, source class, and source reference."
+         : d32Mode === "direct_turbulence_preliminary"
+           ? "DIRECT_TURBULENCE_D32_PRELIMINARY needs a selected C in 0.36–0.43 plus its recorded source class and reference. It remains PRELIMINARY_ENGINEERING / NOT YET PILOT_VALIDATED."
+           : "The K&H 1996 published d₃₂ reconstruction is transcription-invalid and cannot resolve a value. Use the separate direct-turbulence preliminary route, an explicit engineer-supplied sensitivity value, or wait for independently verified source notation.",
     },
     ...ECR2_STAGE8_COMPONENTS.slice(0, 4).map((component) => {
       const prefix = `molecular_weight_${component.key}`;

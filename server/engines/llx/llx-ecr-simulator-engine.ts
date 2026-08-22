@@ -1043,8 +1043,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     if (inputs.d32Config !== undefined && inputs.d32Config !== null) {
       const d32Cfg = inputs.d32Config as Record<string, unknown>;
       const mode = d32Cfg.mode;
-      if (mode !== 'published_correlation' && mode !== 'engineer_supplied') {
-        err('d32Config.mode', "d32Config.mode must be 'published_correlation' or 'engineer_supplied'");
+      if (mode !== 'published_correlation' && mode !== 'engineer_supplied' && mode !== 'direct_turbulence_preliminary') {
+        err('d32Config.mode', "d32Config.mode must be 'published_correlation', 'engineer_supplied', or 'direct_turbulence_preliminary'");
       } else if (mode === 'published_correlation') {
         if (d32Cfg.correlationId !== 'ecr2_d32_kh1996') {
           err('d32Config.correlationId', "d32Config.correlationId must be 'ecr2_d32_kh1996' for published_correlation mode");
@@ -1061,6 +1061,20 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         }
         if (typeof d32Cfg.sourceReference !== 'string' || !(d32Cfg.sourceReference as string).trim()) {
           errors.push({ field: 'd32Config.sourceReference', message: 'd32Config.sourceReference should be a non-empty source reference string', severity: 'warning' });
+        }
+      } else if (mode === 'direct_turbulence_preliminary') {
+        if (d32Cfg.correlationId !== 'ecr2_d32_direct_turbulence_preliminary') {
+          err('d32Config.correlationId', "d32Config.correlationId must be 'ecr2_d32_direct_turbulence_preliminary' for direct_turbulence_preliminary mode");
+        }
+        const C = num(d32Cfg.C_nominal);
+        if (C === undefined || C < 0.36 || C > 0.43) {
+          err('d32Config.C_nominal', 'd32Config.C_nominal must be a finite selected C in the governed preliminary interval [0.36, 0.43]');
+        }
+        if (typeof d32Cfg.sourceType !== 'string' || !(d32Cfg.sourceType as string).trim()) {
+          err('d32Config.sourceType', 'A source class is required for the selected direct-turbulence nominal C');
+        }
+        if (typeof d32Cfg.sourceReference !== 'string' || !(d32Cfg.sourceReference as string).trim()) {
+          err('d32Config.sourceReference', 'A source reference is required for the selected direct-turbulence nominal C');
         }
       }
     }
@@ -1490,6 +1504,9 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     // If d32Config.mode='published_correlation', returns the controlled
     // transcription-invalid K&H 1996 status without a numerical d₃₂.
     // If d32Config.mode='engineer_supplied', uses the engineer-supplied value.
+    // If d32Config.mode='direct_turbulence_preliminary', consumes governed Stage
+    // 7 rotor N_e, n, d_R, V_R and a source-tagged selected C. This separate
+    // route must never be identified as, or alter, the K&H 1996 route.
     //
     const d32Config = inputs.d32Config as D32Config | undefined;
 
@@ -1501,36 +1518,50 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       rho_c_kg_m3:    rhoNMP.value,       // NMP = continuous phase
       rho_d_kg_m3:    feedDensity.value,  // RRBO = dispersed phase
       sigma_N_m:      gamma?.value,
+      directTurbulence: {
+        powerNumber_Ne: powerNumber.value,
+        rotorSpeed_s: rpm / 60,
+        rotorDiameter_m: D_R,
+        rotorVolume_m3: A_col * hComp,
+      },
     };
 
     const d32Result: D32Result | null = !d32Config
       ? null
-      : d32Config.mode === 'published_correlation' &&
+      : (d32Config.mode === 'published_correlation' || d32Config.mode === 'direct_turbulence_preliminary') &&
           phaseConfig !== 'nmp_continuous_rrbo_dispersed'
         ? {
             d32_m: null,
             d32_raw_m: null,
             status: 'phase_configuration_unsupported',
-            mode: 'published_correlation',
-            correlationId: 'ecr2_d32_kh1996',
+            mode: d32Config.mode,
+            correlationId: d32Config.mode === 'published_correlation'
+              ? 'ecr2_d32_kh1996'
+              : 'ecr2_d32_direct_turbulence_preliminary',
             label: null,
             extrapolated: false,
             diagnostics: [
-              `K&H 1996 d₃₂ source route is scoped only to phaseConfiguration='nmp_continuous_rrbo_dispersed' ` +
+              `${d32Config.mode === 'published_correlation' ? 'K&H 1996 d₃₂ source' : 'DIRECT_TURBULENCE_D32_PRELIMINARY'} route is scoped only to phaseConfiguration='nmp_continuous_rrbo_dispersed' ` +
               `(NMP continuous, RRBO dispersed); received '${phaseConfig}'.`,
-              'No c→d K&H mapping, phase-property reassignment, or alternate coefficient set is approved for this simulator path.',
+              'No c→d mapping, phase-property reassignment, or alternate coefficient set is approved for this simulator path.',
             ],
             provenance:
-              'The transcription-invalid K&H 1996 source route is not applicable to the selected phase configuration. ' +
+              `${d32Config.mode === 'published_correlation' ? 'The transcription-invalid K&H 1996 source route' : 'The direct-turbulence preliminary route'} is not applicable to the selected phase configuration. ` +
               'The numerical d₃₂ calculation was intentionally not attempted.',
             engineerSource: null,
-            engineeringBasis: 'K&H 1996 transcription-invalid source route (phase configuration not approved)',
-            governanceStatus: 'phase_configuration_not_approved_for_kh1996_transcription_invalid_route',
+            engineeringBasis: d32Config.mode === 'published_correlation'
+              ? 'K&H 1996 transcription-invalid source route (phase configuration not approved)'
+              : 'DIRECT_TURBULENCE_D32_PRELIMINARY (phase configuration not approved)',
+            governanceStatus: d32Config.mode === 'published_correlation'
+              ? 'phase_configuration_not_approved_for_kh1996_transcription_invalid_route'
+              : 'phase_configuration_not_approved_for_direct_turbulence_preliminary_route',
             primarySourceVerified: false,
             validatedForRRBONMP: false,
-            pilotCalibrationStatus: 'NOT_APPLICABLE__TRANSCRIPTION_INVALID',
+            pilotCalibrationStatus: d32Config.mode === 'published_correlation'
+              ? 'NOT_APPLICABLE__TRANSCRIPTION_INVALID'
+              : 'NOT_YET_PILOT_VALIDATED',
             calibrationFactor: 1.0,
-            localAxialApplication: 'Not calculated — approved K&H 1996 direction is NMP continuous / RRBO dispersed only',
+            localAxialApplication: 'Not calculated — approved ECR-2 direction is NMP continuous / RRBO dispersed only',
           }
         : computeDropletDiameter(d32LocalState, d32Config);
 
@@ -1549,6 +1580,14 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         'Simulator Development / Sensitivity Basis. NOT a published correlation result. ' +
         `Source: ${d32Result.engineerSource?.sourceType ?? 'unspecified'} — ${d32Result.engineerSource?.sourceReference ?? 'no reference'}. ` +
         'All downstream outputs (a, k_c, k_d, K_oa) carry this basis label.',
+      );
+    }
+    if (d32Result?.status === 'calculated_preliminary') {
+      pushWarning(
+        'D32_DIRECT_TURBULENCE_PRELIMINARY',
+        `DIRECT_TURBULENCE_D32_PRELIMINARY d₃₂ = ${(d32Result.d32_m! * 1000).toFixed(3)} mm ` +
+        `(C=${d32Result.directTurbulence?.C_nominal}; C sensitivity ${((d32Result.directTurbulence?.d32_at_C_min_m ?? 0) * 1000).toFixed(3)}–${((d32Result.directTurbulence?.d32_at_C_max_m ?? 0) * 1000).toFixed(3)} mm). ` +
+        'PRELIMINARY_ENGINEERING / NOT YET PILOT_VALIDATED; separate from K&H 1996.',
       );
     }
     if (d32Result?.status === 'phase_configuration_unsupported') {
@@ -1693,6 +1732,11 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         diffusivity: bvpSettings.diffusivity ?? emptyDiffusivityContract(),
       },
       d32Config: d32Config ?? null,
+      directTurbulenceRotor: {
+        powerNumber_Ne: powerNumber.value,
+        rotorSpeed_s: rpm / 60,
+        rotorDiameter_m: D_R,
+      },
       partitionBasis: bvpSettings.partitionBasis ?? null,
       previousSolution: Array.isArray(bvpSettings.previousSolution)
         ? bvpSettings.previousSolution
@@ -1994,6 +2038,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         note:
           'ecr2_holdup_kh1995: secondary_equation_verified — K&H 1995 holdup computed in Phase 1. ' +
           'ecr2_d32_kh1996: transcription_invalid — legacy reconstruction disabled because independent secondary reproductions contradict its high-agitation-term placement; H and numerator notation remain unresolved. ' +
+           'ecr2_d32_direct_turbulence_preliminary: preliminary_engineering_reconstruction — separate source-tagged direct-turbulence sensitivity route; NOT YET PILOT_VALIDATED. ' +
           `ecr2_koa_kh1999: ${bvpResult.transferStatus.status} — ${bvpResult.transferStatus.message} ` +
           'ecr2_flooding_pending, ecr2_axial_dispersion_pending: pending/reserved.',
         entries: corrRegistry,
@@ -2013,7 +2058,11 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
 
       // ── d₃₂ section ────────────────────────────────────────────────────────
       d32: {
-        correlationId:    'ecr2_d32_kh1996',
+        correlationId:    d32Result?.correlationId ?? (
+          d32Config?.mode === 'direct_turbulence_preliminary'
+            ? 'ecr2_d32_direct_turbulence_preliminary'
+            : 'ecr2_d32_kh1996'
+        ),
         correlationStatus: d32Result?.status ?? 'not_attempted',
         engineeringBasis: d32Result?.engineeringBasis ?? 'd₃₂ not attempted',
         modeUsed:         d32Config?.mode ?? 'not_attempted',
@@ -2032,6 +2081,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         pilotCalibrationStatus: d32Result?.pilotCalibrationStatus ?? 'NOT_YET_CALIBRATED',
         calibrationFactor: d32Result?.calibrationFactor ?? null,
         localAxialApplication: d32Result?.localAxialApplication ?? null,
+        directTurbulence: d32Result?.directTurbulence ?? null,
         preliminaryTraceability: {
           numerator: 'UNRESOLVED: Laitinen Eq. (3) renders a numerator symbol raised to 0.45; no numerical identity is accepted.',
           geometry: 'UNRESOLVED: independent secondary reproductions establish a reciprocal high-agitation structure, but do not define H sufficiently for numerical use.',
@@ -2160,6 +2210,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           if (!d32Config) return 'NOT ATTEMPTED — d32Config not supplied; provide d32Config to enable d₃₂ computation';
           if (d32Result?.status === 'engineer_supplied')
             return `ENGINEER_SUPPLIED — d₃₂ = ${(d32Result.d32_m! * 1000).toFixed(3)} mm — Simulator Development / Sensitivity Basis`;
+          if (d32Result?.status === 'calculated_preliminary')
+            return `DIRECT_TURBULENCE_D32_PRELIMINARY — d₃₂ = ${(d32Result.d32_m! * 1000).toFixed(3)} mm; PRELIMINARY_ENGINEERING / NOT YET PILOT_VALIDATED (not K&H 1996)`;
           if (d32Result?.status === 'transcription_invalid')
             return 'TRANSCRIPTION_INVALID — K&H 1996 legacy reconstruction is disabled; H and numerator notation are unresolved, so no d₃₂ is calculated.';
           if (d32Result?.status === 'phase_configuration_unsupported')

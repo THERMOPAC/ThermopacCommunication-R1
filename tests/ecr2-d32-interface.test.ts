@@ -19,6 +19,7 @@ import {
   type D32LocalState,
   type EngineerSuppliedD32Config,
   type PublishedCorrelationD32Config,
+  type DirectTurbulencePreliminaryD32Config,
 } from '../server/engines/llx/llx-ecr2-d32-interface';
 
 // ── Shared test state ─────────────────────────────────────────────────────────
@@ -46,6 +47,14 @@ const ENGINEER_CFG_VALID: EngineerSuppliedD32Config = {
 const PUBLISHED_CFG: PublishedCorrelationD32Config = {
   mode: 'published_correlation',
   correlationId: 'ecr2_d32_kh1996',
+};
+
+const DIRECT_TURBULENCE_CFG: DirectTurbulencePreliminaryD32Config = {
+  mode: 'direct_turbulence_preliminary',
+  correlationId: 'ecr2_d32_direct_turbulence_preliminary',
+  C_nominal: 0.4,
+  sourceType: 'Literature',
+  sourceReference: 'Controlled preliminary C selection',
 };
 
 const RESULT_META = {
@@ -172,6 +181,51 @@ describe('computeDropletDiameter — engineer_supplied mode — valid input', ()
     // 2 mm is within 0.1–10 mm typical range — no ADVISORY expected
     const advisories = result.diagnostics.filter((d) => d.startsWith('ADVISORY'));
     expect(advisories).toHaveLength(0);
+  });
+});
+
+describe('computeDropletDiameter — direct_turbulence_preliminary', () => {
+  const state: D32LocalState = {
+    ...VALID_LOCAL_STATE,
+    directTurbulence: {
+      powerNumber_Ne: 2,
+      rotorSpeed_s: 2,
+      rotorDiameter_m: 0.1,
+      rotorVolume_m3: 0.002,
+    },
+  };
+
+  it('calculates the stated direct-turbulence equation and preserves C sensitivity', () => {
+    const result = computeDropletDiameter(state, DIRECT_TURBULENCE_CFG);
+    const epsilon = 2 * (2 ** 3) * (0.1 ** 5) / 0.002;
+    const expected = 0.4 * ((0.015 / 1020) ** 0.6) * (epsilon ** -0.4);
+    expect(result.status).toBe('calculated_preliminary');
+    expect(result.d32_m).toBeCloseTo(expected, 14);
+    expect(result.directTurbulence?.epsilon_m2_s3).toBeCloseTo(epsilon, 14);
+    expect(result.directTurbulence?.d32_at_C_min_m).toBeLessThan(result.d32_m!);
+    expect(result.directTurbulence?.d32_at_C_max_m).toBeGreaterThan(result.d32_m!);
+    expect(result.label).toContain('NOT YET PILOT_VALIDATED');
+    expect(result.provenance).toContain('Not K&H 1996');
+    expect(isD32Usable(result)).toBe(true);
+  });
+
+  it('fails closed without a recorded nominal-C source', () => {
+    const result = computeDropletDiameter(state, {
+      ...DIRECT_TURBULENCE_CFG,
+      sourceReference: '',
+    });
+    expect(result.status).toBe('input_missing');
+    expect(result.d32_m).toBeNull();
+    expect(isD32Usable(result)).toBe(false);
+  });
+
+  it('fails closed when selected C is outside the governed interval', () => {
+    const result = computeDropletDiameter(state, {
+      ...DIRECT_TURBULENCE_CFG,
+      C_nominal: 0.44,
+    });
+    expect(result.status).toBe('calculation_invalid');
+    expect(result.d32_m).toBeNull();
   });
 });
 

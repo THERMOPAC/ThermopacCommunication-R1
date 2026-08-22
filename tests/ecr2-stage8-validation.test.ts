@@ -65,6 +65,24 @@ describe('ECR-2 Stage 8 dependency graph', () => {
     expect(errors).not.toHaveProperty('bvp');
   });
 
+  it('accepts the separate direct-turbulence route only with an in-range, source-recorded nominal C', () => {
+    const sim = {
+      ...completeStage8(),
+      d32_mode: 'direct_turbulence_preliminary',
+      direct_turbulence_c_nominal: '0.40',
+      direct_turbulence_c_source_type: 'Literature',
+      direct_turbulence_c_source_reference: 'Controlled preliminary C selection',
+    };
+    const errors = validateEcr2Stage8(sim, true, currentSystemResolverRecords());
+    expect(errors).not.toHaveProperty('d32_mode');
+    expect(errors).not.toHaveProperty('direct_turbulence_c_nominal');
+    expect(errors).not.toHaveProperty('direct_turbulence_c_source_reference');
+
+    delete sim.direct_turbulence_c_source_reference;
+    expect(validateEcr2Stage8(sim, true, currentSystemResolverRecords()))
+      .toHaveProperty('direct_turbulence_c_source_reference');
+  });
+
   it('reports every missing diffusivity by component and phase instead of one generic BVP blocker', () => {
     const errors = validateEcr2Stage8({}, true);
     expect(errors).toHaveProperty('diffusivity_sat_c_value');

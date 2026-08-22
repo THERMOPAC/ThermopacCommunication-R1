@@ -110,6 +110,51 @@ function expectPhysicalBalancesClose(
 }
 
 describe('ECR-2 counter-current BVP', () => {
+  it('executes the separate direct-turbulence d32 route in every compartment without relabelling it K&H 1996', () => {
+    const direct = {
+      ...input(2),
+      directTurbulenceRotor: {
+        powerNumber_Ne: 1.2,
+        rotorSpeed_s: 2.5,
+        rotorDiameter_m: 0.12,
+      },
+      d32Config: {
+        mode: 'direct_turbulence_preliminary' as const,
+        correlationId: 'ecr2_d32_direct_turbulence_preliminary' as const,
+        C_nominal: 0.4,
+        sourceType: 'Literature',
+        sourceReference: 'BVP direct-turbulence provisional C evidence',
+      },
+    };
+    const result = solveECR2CounterCurrentBVP(direct);
+    expect(result.status).toBe('converged');
+    expect(result.transferStatus.status).toBe('LOCAL_PRELIMINARY_CALCULATED');
+    expect(result.compartments).toHaveLength(2);
+    for (const compartment of result.compartments) {
+      expect(compartment.d32.status).toBe('calculated_preliminary');
+      expect(compartment.d32.directTurbulence?.rotorVolume_m3)
+        .toBeCloseTo(direct.columnCrossSectionArea_m2 * (direct.activeHeight_m / 2), 14);
+      expect(compartment.interfacialArea.a_m2_m3).toBeGreaterThan(0);
+      expect(compartment.localMassTransfer.status).toBe('MASS_TRANSFER_PRELIMINARY');
+    }
+  });
+
+  it('blocks the direct-turbulence BVP route when its governed Stage 7 rotor basis is absent', () => {
+    const direct = {
+      ...input(1),
+      d32Config: {
+        mode: 'direct_turbulence_preliminary' as const,
+        correlationId: 'ecr2_d32_direct_turbulence_preliminary' as const,
+        C_nominal: 0.4,
+        sourceType: 'Literature',
+        sourceReference: 'BVP direct-turbulence provisional C evidence',
+      },
+    };
+    const result = solveECR2CounterCurrentBVP(direct);
+    expect(result.status).toBe('blocked');
+    expect(result.failure?.dependency).toBe('direct_turbulence_d32');
+  });
+
   it('solves N=1 with non-negative faces, orientation, and component conservation', () => {
     const result = solveECR2CounterCurrentBVP(input(1));
     expect(result.status).toBe('converged');

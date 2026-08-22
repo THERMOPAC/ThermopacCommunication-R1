@@ -158,6 +158,51 @@ export interface ECR2Correlation {
   approvalNote: string;
 }
 
+/**
+ * Distinct registry record for the executable direct-turbulence sensitivity
+ * route. It is intentionally not merged into ecr2_d32_kh1996: its equation
+ * and C range are project-controlled preliminary engineering, while the
+ * historical K&H source route remains transcription-invalid.
+ */
+export const ECR2_DIRECT_TURBULENCE_D32_PRELIMINARY_REGISTRY: ECR2Correlation = {
+  id: 'ecr2_d32_direct_turbulence_preliminary',
+  quantity: 'droplet_size',
+  name: 'Direct-turbulence d₃₂ — preliminary engineering sensitivity route',
+  source:
+    'Project-controlled preliminary route specification. The C sensitivity range 0.36–0.43 is retained as supplied preliminary engineering evidence; ' +
+    'a Kühni-specific primary source for that interval remains an open evidence item.',
+  equation: 'd32 = C * (gamma / rho_c)^0.6 * epsilon^-0.4; epsilon = N_e * n^3 * d_R^5 / V_R',
+  variables: {
+    d32: { symbol: 'd₃₂', unit: 'm', description: 'Sauter mean droplet diameter.' },
+    C: { symbol: 'C', unit: '—', description: 'Selected nominal dimensionless coefficient; governed sensitivity interval 0.36–0.43.' },
+    gamma: { symbol: 'γ', unit: 'N/m', description: 'Temperature-matched NMP/RRBO interfacial tension.' },
+    rho_c: { symbol: 'ρ_c', unit: 'kg/m³', description: 'Temperature-matched continuous-phase density.' },
+    epsilon: { symbol: 'ε', unit: 'm²/s³', description: 'Specific turbulent power dissipation.' },
+    N_e: { symbol: 'Nₑ', unit: '—', description: 'Governed Stage 7 rotor power number.' },
+    n: { symbol: 'n', unit: 's⁻¹', description: 'Governed Stage 7 rotor speed.' },
+    d_R: { symbol: 'd_R', unit: 'm', description: 'Governed Stage 7 rotor diameter.' },
+    V_R: { symbol: 'V_R', unit: 'm³', description: 'Active liquid volume of one agitated compartment.' },
+  },
+  validityRange: {
+    C: { min: 0.36, max: 0.43, unit: '—', note: 'Controlled sensitivity interval; not a verified K&H 1996 coefficient range.' },
+  },
+  applicabilityStatus: 'preliminary_engineering_reconstruction',
+  correlationStatus: 'preliminary_engineering_reconstruction',
+  numericalUse: 'preliminary_authorized',
+  primarySourceVerified: false,
+  secondaryReproductionVerified: false,
+  validatedForRRBONMP: false,
+  pilotCalibrationFactor: {
+    symbol: 'F_pilot',
+    description: 'Pilot validation/calibration factor for the direct-turbulence route.',
+    currentValue: 'NOT_YET_CALIBRATED',
+    note: 'No pilot calibration is available; F_pilot is fixed at 1.0 only to report the uncalibrated preliminary calculation.',
+  },
+  approvalNote:
+    'Numerical use is permitted only as DIRECT_TURBULENCE_D32_PRELIMINARY with persistent PRELIMINARY_ENGINEERING / NOT YET PILOT_VALIDATED labeling. ' +
+    'It must not be called K&H 1996, must not change the K&H registry lifecycle, and requires a source-recorded selected nominal C.',
+};
+
 // ── K&H 1999 supplied preliminary parameter evidence ─────────────────────────
 
 export interface ECR2KH1999PreliminaryParameter {
@@ -544,6 +589,7 @@ const KH1999_SECONDARY_VARIABLES: Record<string, CorrelationVariable> = {
 // ── Registry ─────────────────────────────────────────────────────────────────
 
 export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
+  ECR2_DIRECT_TURBULENCE_D32_PRELIMINARY_REGISTRY,
 
   // ── 1. Sauter mean droplet diameter (d₃₂) ────────────────────────────────
   //

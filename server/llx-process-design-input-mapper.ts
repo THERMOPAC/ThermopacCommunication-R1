@@ -603,6 +603,14 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
           sourceType: String(simValue('d32_source_type') ?? ''),
           sourceReference: String(simValue('d32_source_reference') ?? ''),
         };
+      } else if (d32Mode === 'direct_turbulence_preliminary') {
+        out.d32Config = {
+          mode: 'direct_turbulence_preliminary',
+          correlationId: 'ecr2_d32_direct_turbulence_preliminary',
+          C_nominal: simNum('direct_turbulence_c_nominal') ?? Number.NaN,
+          sourceType: String(simValue('direct_turbulence_c_source_type') ?? ''),
+          sourceReference: String(simValue('direct_turbulence_c_source_reference') ?? ''),
+        };
       } else if (d32Mode === 'published_correlation') {
         out.d32Config = { mode: 'published_correlation', correlationId: 'ecr2_d32_kh1996' };
       } else if (legacyD32.mode) {

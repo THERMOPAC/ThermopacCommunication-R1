@@ -5015,18 +5015,33 @@ export default function DesignSoftwareWorkspacePage() {
                    id: "d32",
                    ready: dependencyFor("d32").ready,
                    parameter: "d₃₂",
-                   value: sim.d32_mode === "engineer_supplied"
+                    value: sim.d32_mode === "engineer_supplied"
                       ? (sim.d32_value_mm || "—")
+                       : sim.d32_mode === "direct_turbulence_preliminary"
+                         ? (d32Snapshot?.d32_m ? `${fmt(d32Snapshot.d32_m * 1000, 4)} mm from latest preliminary run` : `C = ${sim.direct_turbulence_c_nominal || "—"} (range 0.36–0.43)`)
                       : d32Snapshot?.d32_m ? `${fmt(d32Snapshot.d32_m * 1000, 4)} mm from latest run` : "Unavailable — published K&H route is transcription-invalid",
                    unit: "mm",
                    status: dependencyStatus(dependencyFor("d32").sourceClass, dependencyFor("d32").ready),
                    details: <div className="space-y-1 text-[11px]">
                      <select className="h-7 w-full rounded-md border bg-white px-1.5 text-[11px]" value={sim.d32_mode || "published_correlation"} disabled={isFrozen} onChange={e => f("d32_mode", e.target.value)} onBlur={s}>
                         <option value="published_correlation">Published route — transcription-invalid (disabled)</option>
+                        <option value="direct_turbulence_preliminary">Direct turbulence — preliminary engineering / not yet pilot validated</option>
                        <option value="engineer_supplied">Engineer supplied</option>
                      </select>
                      {sim.d32_mode === "engineer_supplied"
                        ? <><Input className="h-7 text-[11px]" value={sim.d32_value_mm ?? ""} disabled={isFrozen} placeholder="d₃₂ value" onChange={e => f("d32_value_mm", e.target.value)} onBlur={s} />{sourceEditor("d32")}</>
+                        : sim.d32_mode === "direct_turbulence_preliminary"
+                          ? <div className="space-y-1 rounded border border-amber-200 bg-amber-50 p-2 text-amber-900">
+                              <p className="font-semibold">DIRECT_TURBULENCE_D32_PRELIMINARY — PRELIMINARY_ENGINEERING / NOT YET PILOT_VALIDATED</p>
+                              <p>Uses governed Stage 7 Nₑ, n, d_R, V_R and Stage 4/8 γ, ρc: d₃₂ = C(γ/ρc)^0.6ε^-0.4; ε = Nₑn³d_R⁵/V_R. This is not the K&H 1996 route.</p>
+                              <Input className="h-7 text-[11px]" value={sim.direct_turbulence_c_nominal ?? ""} disabled={isFrozen} placeholder="Selected nominal C (0.36–0.43)" onChange={e => f("direct_turbulence_c_nominal", e.target.value)} onBlur={s} />
+                              <select className="h-7 w-full rounded-md border bg-white px-1.5 text-[11px]" value={sim.direct_turbulence_c_source_type ?? ""} disabled={isFrozen} onChange={e => f("direct_turbulence_c_source_type", e.target.value)} onBlur={s}>
+                                <option value="">C source class</option>
+                                {ECR2_STAGE8_SOURCE_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+                              </select>
+                              <Input className="h-7 text-[11px]" value={sim.direct_turbulence_c_source_reference ?? ""} disabled={isFrozen} placeholder="Source reference for selected nominal C" onChange={e => f("direct_turbulence_c_source_reference", e.target.value)} onBlur={s} />
+                              {d32Snapshot?.directTurbulence && <p>Frozen sensitivity: C={d32Snapshot.directTurbulence.C_min} → {fmt(d32Snapshot.directTurbulence.d32_at_C_min_m * 1000, 4)} mm; selected C={d32Snapshot.directTurbulence.C_nominal} → {fmt(d32Snapshot.directTurbulence.d32_at_C_nominal_m * 1000, 4)} mm; C={d32Snapshot.directTurbulence.C_max} → {fmt(d32Snapshot.directTurbulence.d32_at_C_max_m * 1000, 4)} mm.</p>}
+                            </div>
                        : <p className="text-[10px] text-red-700">ecr2_d32_kh1996 — transcription-invalid route; numerical use is disabled pending independent source resolution.</p>}
                      <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> a = 6φd/d32 and local transfer calculation.</p>
                     {!dependencyFor("d32").ready && <p className="text-[10px] text-red-700"><strong>Block:</strong> {dependencyFor("d32").blockingReason}</p>}
@@ -5244,6 +5259,7 @@ export default function DesignSoftwareWorkspacePage() {
                     <strong>Latest d₃₂ safety status: {d32Snapshot.status ?? "not available"}</strong>
                     <span className="ml-2">Basis: {d32Snapshot.engineeringBasis ?? "—"}</span>
                     {(d32Snapshot.diagnostics ?? []).length > 0 && <p className="mt-1">{d32Snapshot.diagnostics[0]}</p>}
+                    {d32Snapshot.directTurbulence && <p className="mt-1">Frozen direct-turbulence sensitivity — ε: {fmt(d32Snapshot.directTurbulence.epsilon_m2_s3, 8)} m²/s³; C={d32Snapshot.directTurbulence.C_min}: {fmt(d32Snapshot.directTurbulence.d32_at_C_min_m * 1000, 4)} mm; nominal C={d32Snapshot.directTurbulence.C_nominal}: {fmt(d32Snapshot.directTurbulence.d32_at_C_nominal_m * 1000, 4)} mm; C={d32Snapshot.directTurbulence.C_max}: {fmt(d32Snapshot.directTurbulence.d32_at_C_max_m * 1000, 4)} mm.</p>}
                   </div>
                 )}
                 {showPreliminaryTransferPerformance ? (

@@ -131,11 +131,27 @@ export function validateEcr2Stage8(
       errors.d32_source_type = "Engineer-supplied d₃₂ requires a source class";
     if (!text(sim.d32_source_reference))
       errors.d32_source_reference = "Engineer-supplied d₃₂ requires a source reference";
+  } else if (d32Mode === "direct_turbulence_preliminary") {
+    const nominalC = Number(text(sim.direct_turbulence_c_nominal));
+    if (!Number.isFinite(nominalC) || nominalC < 0.36 || nominalC > 0.43) {
+      errors.direct_turbulence_c_nominal =
+        "DIRECT_TURBULENCE_D32_PRELIMINARY requires a selected nominal C within the governed sensitivity interval 0.36–0.43";
+    }
+    if (!ECR2_STAGE8_SOURCE_TYPES.includes(
+      text(sim.direct_turbulence_c_source_type) as typeof ECR2_STAGE8_SOURCE_TYPES[number],
+    )) {
+      errors.direct_turbulence_c_source_type =
+        "Selected direct-turbulence nominal C requires a recorded source class";
+    }
+    if (!text(sim.direct_turbulence_c_source_reference)) {
+      errors.direct_turbulence_c_source_reference =
+        "Selected direct-turbulence nominal C requires a recorded source reference";
+    }
   } else if (d32Mode === "" || d32Mode === "published_correlation") {
     errors.d32_mode =
       "The K&H 1996 published d₃₂ reconstruction is transcription-invalid and cannot be used. Supply a tagged engineer value for sensitivity work or await independently verified source notation.";
   } else {
-    errors.d32_mode = "d₃₂ route must be Engineer Supplied while the published K&H 1996 reconstruction is disabled";
+    errors.d32_mode = "d₃₂ route must be Engineer Supplied or DIRECT_TURBULENCE_D32_PRELIMINARY while the published K&H 1996 reconstruction is disabled";
   }
   // Blank d32_mode means the governed ECR-2 d32 route; it is not a missing
   // engineer value and is normalized by the workspace adapter.
