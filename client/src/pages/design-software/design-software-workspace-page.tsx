@@ -28,6 +28,7 @@ import {
   TWO_PHASE_SCREENING_DEFAULTS, TWO_PHASE_SCREENING_SOURCE, TWO_PHASE_SCREENING_REF_TEMP,
 } from "@shared/fluid-properties-master";
 import { resolveNtInputs } from "@/lib/nt-requirement-resolver";
+import { validateEcr2Stage8, ECR2_STAGE8_COMPONENTS, ECR2_STAGE8_SOURCE_TYPES } from "@/lib/ecr2-stage8-validation";
 
 // Module-level numeric parse helper (blank/invalid → null).
 const numOrNull = (v: string | undefined | null): number | null => {
@@ -1651,18 +1652,7 @@ export default function DesignSoftwareWorkspacePage() {
       const hasAcceptedEcrRun = (resultsQ.data ?? []).some((r: any) =>
         r.section === "ecr" && r.data?.heightBreakdown?.activeAgitatedHeight?.result,
       );
-      if (!hasAcceptedEcrRun) {
-        errors["stage7_ecr_result"] = "An accepted Stage 7 ECR Equipment Design result is required to inherit the active agitated height before the counter-current simulator can run";
-      }
-      for (const [key, label] of [
-        ["molecularWeights", "Physical molecular weights JSON"],
-        ["d32Config", "d₃₂ configuration JSON"],
-        ["bvp", "BVP activation JSON"],
-      ] as [string, string][]) {
-        if (!(sim[key] ?? "").trim()) {
-          errors[key] = `${label} is required for ECR-2 simulation — no engineering default is applied`;
-        }
-      }
+      Object.assign(errors, validateEcr2Stage8(sim, hasAcceptedEcrRun));
     }
 
     if (stageKey === "mechanical_design") {
@@ -4598,6 +4588,52 @@ export default function DesignSoftwareWorkspacePage() {
     const compartments = bvp?.compartments ?? [];
     const resultOk = bvp?.status === "converged" && bvp?.massBalanceStatus === "passed";
     const staleResult = hasStaleAcceptedSnapshot;
+    const hasAcceptedEcrRun = (resultsQ.data ?? []).some((r: any) =>
+      r.section === "ecr" && r.data?.heightBreakdown?.activeAgitatedHeight?.result,
+    );
+    const stage8Errors = validateEcr2Stage8(sim, hasAcceptedEcrRun);
+    const stage8Blocking = Object.keys(stage8Errors).length > 0;
+    const legacyMw = parseSnapshot(sim.molecularWeights) ?? {};
+    const legacyBvp = parseSnapshot(sim.bvp) ?? {};
+    const numeric = (value: unknown) => {
+      const n = Number(String(value ?? "").trim());
+      return String(value ?? "").trim() !== "" && Number.isFinite(n) && n > 0;
+    };
+    const taggedReady = (prefix: string, legacy?: any) =>
+      numeric(sim[`${prefix}_value`] ?? legacy?.value)
+      && !!(sim[`${prefix}_source_type`] ?? legacy?.sourceType)
+      && !!(sim[`${prefix}_source_reference`] ?? legacy?.sourceReference);
+    const dependencyStatus = (sourceClass: string, ready: boolean) => (
+      <div className="flex flex-wrap gap-1">
+        <Badge className="border border-blue-200 bg-blue-50 text-blue-700 text-[9px]">{sourceClass}</Badge>
+        <Badge className={ready
+          ? "border border-emerald-200 bg-emerald-50 text-emerald-700 text-[9px]"
+          : "border border-red-200 bg-red-50 text-red-700 text-[9px]"
+        }>{ready ? "READY" : "MISSING_REQUIRED"}</Badge>
+      </div>
+    );
+    const sourceEditor = (prefix: string, legacy?: any) => (
+      <div className="space-y-1">
+        <select
+          className="h-7 w-full rounded-md border bg-white px-1.5 text-[11px]"
+          value={sim[`${prefix}_source_type`] ?? legacy?.sourceType ?? ""}
+          disabled={isFrozen}
+          onChange={e => f(`${prefix}_source_type`, e.target.value)}
+          onBlur={s}
+        >
+          <option value="">Source class…</option>
+          {ECR2_STAGE8_SOURCE_TYPES.map(source => <option key={source} value={source}>{source}</option>)}
+        </select>
+        <Input
+          className="h-7 text-[11px]"
+          value={sim[`${prefix}_source_reference`] ?? legacy?.sourceReference ?? ""}
+          disabled={isFrozen}
+          placeholder="Source reference"
+          onChange={e => f(`${prefix}_source_reference`, e.target.value)}
+          onBlur={s}
+        />
+      </div>
+    );
     return (
       <div className="space-y-4">
         <SectionCard title="ECR-2 — Counter-Current Simulator">
@@ -4635,35 +4671,108 @@ export default function DesignSoftwareWorkspacePage() {
           </div>
 
           <p className="text-xs font-semibold text-gray-700 mb-1">Simulator-only inputs</p>
-          <p className="text-[11px] text-gray-500 mb-3">Stage 7 equipment geometry and operating data are inherited above and cannot be re-entered here. The diameter override below is the only permitted simulator geometry override; all BVP activation values are saved under the simulator only.</p>
+          <p className="text-[11px] text-gray-500 mb-3">Stage 7 equipment geometry and operating data are inherited above and cannot be re-entered here. The diameter override below is the only permitted simulator geometry override.</p>
           <FieldRow label="Simulator-only diameter override" value={sim.columnDiameter_m ?? ""} onChange={v => f("columnDiameter_m", v)} onBlur={s} unit="m" note="Leave blank to inherit the governed Stage 5/Stage 7 diameter." />
 
-          <div className="mt-3 grid gap-3">
-            <div>
-              <Label className="text-xs">Physical molecular weights JSON <Badge className="ml-1 bg-violet-50 text-violet-700 border border-violet-200 text-[9px]">ENGINE_INPUT</Badge></Label>
-              <Textarea className="mt-1 text-xs font-mono" rows={3} value={sim.molecularWeights ?? ""} onChange={e => f("molecularWeights", e.target.value)} onBlur={s}
-                placeholder={'{"saturates_g_mol":{"value":330,"sourceType":"Assumed","sourceReference":"..."}, "mono_g_mol":{}, "di_g_mol":{}, "poly_g_mol":{}}'} disabled={isFrozen} />
+          <SectionCard title="Stage 8 dependency register" className="mt-4">
+            <p className="text-[11px] text-gray-500">Each dependency is resolved independently. Legacy JSON is read only for older revisions; an empty legacy object is never a blocker.</p>
+            <div className="mt-3 overflow-x-auto rounded-lg border">
+              <div className="min-w-[900px]">
+                <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b bg-gray-50 px-3 py-2 text-[10px] font-semibold uppercase text-gray-500">
+                  <span>Parameter</span><span>Value</span><span>Unit</span><span>Source / reference</span><span>Status / action</span>
+                </div>
+                <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
+                  <span className="font-medium">d₃₂</span>
+                  <div className="space-y-1">
+                    <select className="h-7 w-full rounded-md border bg-white px-1.5 text-[11px]" value={sim.d32_mode || "published_correlation"} disabled={isFrozen} onChange={e => f("d32_mode", e.target.value)} onBlur={s}>
+                      <option value="published_correlation">Governed calculated route</option>
+                      <option value="engineer_supplied">Engineer supplied</option>
+                    </select>
+                    {sim.d32_mode === "engineer_supplied"
+                      ? <Input className="h-7 text-[11px]" value={sim.d32_value_mm ?? ""} disabled={isFrozen} placeholder="d₃₂ value" onChange={e => f("d32_value_mm", e.target.value)} onBlur={s} />
+                      : <p className="text-[10px] text-gray-500">{d32Snapshot?.d32_m ? `${fmt(d32Snapshot.d32_m * 1000, 4)} mm from latest run` : "Resolved by governed route at run time"}</p>}
+                  </div>
+                  <span className="pt-1">mm</span>
+                  {sim.d32_mode === "engineer_supplied" ? sourceEditor("d32") : <p className="pt-1 text-[11px]">ecr2_d32_kh1996<br />Published preliminary route</p>}
+                  {dependencyStatus(sim.d32_mode === "engineer_supplied" ? "ENGINEER_INPUT" : "CALCULATED", sim.d32_mode !== "engineer_supplied" || (numeric(sim.d32_value_mm) && !!sim.d32_source_type && !!sim.d32_source_reference))}
+                </div>
+
+                {ECR2_STAGE8_COMPONENTS.slice(0, 4).map(component => {
+                  const prefix = `molecular_weight_${component.key}`;
+                  const legacyKey = component.key === "sat" ? "saturates_g_mol" : `${component.key}_g_mol`;
+                  const legacy = legacyMw[legacyKey];
+                  return <div key={prefix} className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
+                    <span className="font-medium">Physical MW — {component.label}</span>
+                    <Input className="h-7 text-[11px]" value={sim[`${prefix}_value`] ?? legacy?.value ?? ""} disabled={isFrozen} placeholder="Required" onChange={e => f(`${prefix}_value`, e.target.value)} onBlur={s} />
+                    <span className="pt-1">g/mol</span>
+                    {sourceEditor(prefix, legacy)}
+                    <div>{dependencyStatus("ENGINEER_INPUT", taggedReady(prefix, legacy))}<p className="mt-1 text-[10px] text-gray-500">Physical concentration and rate conversion only; never NRTL.</p></div>
+                  </div>;
+                })}
+
+                {ECR2_STAGE8_COMPONENTS.flatMap(component => (["c", "d"] as const).map(phase => {
+                  const prefix = `diffusivity_${component.key}_${phase}`;
+                  const legacy = legacyBvp.diffusivity?.[component.label]?.[phase === "c" ? "De_c" : "De_d"];
+                  const ready = taggedReady(prefix, legacy)
+                    && numeric(sim[`${prefix}_reference_temperature_c`] ?? legacy?.referenceTemperature_C)
+                    && !!(sim[`${prefix}_method`] ?? legacy?.method);
+                  return <div key={prefix} className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
+                    <span className="font-medium">{phase === "c" ? "Dc" : "Dd"} {component.label}</span>
+                    <div className="space-y-1">
+                      <Input className="h-7 text-[11px]" value={sim[`${prefix}_value`] ?? legacy?.value_m2_s ?? ""} disabled={isFrozen} placeholder="Required" onChange={e => f(`${prefix}_value`, e.target.value)} onBlur={s} />
+                      <Input className="h-7 text-[11px]" value={sim[`${prefix}_reference_temperature_c`] ?? legacy?.referenceTemperature_C ?? ""} disabled={isFrozen} placeholder="Reference temperature °C" onChange={e => f(`${prefix}_reference_temperature_c`, e.target.value)} onBlur={s} />
+                    </div>
+                    <span className="pt-1">m²/s</span>
+                    <div className="space-y-1">{sourceEditor(prefix, legacy)}<Input className="h-7 text-[11px]" value={sim[`${prefix}_method`] ?? legacy?.method ?? ""} disabled={isFrozen} placeholder="Measurement / estimation method" onChange={e => f(`${prefix}_method`, e.target.value)} onBlur={s} /></div>
+                    <div>{dependencyStatus("ENGINEER_INPUT", ready)}<p className="mt-1 text-[10px] text-gray-500">No correlation or default is approved.</p></div>
+                  </div>;
+                }))}
+
+                {(() => {
+                  const legacy = legacyBvp.kuhniShdC2;
+                  return <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
+                    <span className="font-medium">Kühni Shd C2</span>
+                    <Input className="h-7 text-[11px]" value={sim.kuhni_shd_c2_value ?? legacy?.value ?? ""} disabled={isFrozen} placeholder="Required" onChange={e => f("kuhni_shd_c2_value", e.target.value)} onBlur={s} />
+                    <span className="pt-1">—</span>
+                    {sourceEditor("kuhni_shd_c2", legacy)}
+                    <div>{dependencyStatus("ENGINEER_INPUT", taggedReady("kuhni_shd_c2", legacy))}<p className="mt-1 text-[10px] text-gray-500">No fixture or pulsed-column default.</p></div>
+                  </div>;
+                })()}
+
+                {(() => {
+                  const legacy = legacyBvp.partitionBasis;
+                  const approval = sim.partition_basis_approval_status ?? legacy?.approvalStatus ?? "";
+                  const reference = sim.partition_basis_source_reference ?? legacy?.sourceReference ?? "";
+                  return <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 px-3 py-2 text-xs">
+                    <span className="font-medium">Kd basis approval</span>
+                    <span className="pt-1 text-[11px]">Calculated Kd = C*d / C*c</span>
+                    <span className="pt-1">—</span>
+                    <div className="space-y-1">
+                      <select className="h-7 w-full rounded-md border bg-white px-1.5 text-[11px]" value={approval} disabled={isFrozen} onChange={e => f("partition_basis_approval_status", e.target.value)} onBlur={s}>
+                        <option value="">Approval required…</option>
+                        <option value="engineer_approved_governed">Engineer approved governed basis</option>
+                      </select>
+                      <Input className="h-7 text-[11px]" value={reference} disabled={isFrozen} placeholder="Approval / source reference" onChange={e => f("partition_basis_source_reference", e.target.value)} onBlur={s} />
+                    </div>
+                    <div>{dependencyStatus("ENGINEER_APPROVAL", approval === "engineer_approved_governed" && !!String(reference).trim())}<p className="mt-1 text-[10px] text-gray-500">Numerical Kd is local-kernel calculated.</p></div>
+                  </div>;
+                })()}
+              </div>
             </div>
-            <div>
-              <Label className="text-xs">d₃₂ configuration JSON <Badge className="ml-1 bg-violet-50 text-violet-700 border border-violet-200 text-[9px]">ENGINE_INPUT</Badge></Label>
-              <Textarea className="mt-1 text-xs font-mono" rows={3} value={sim.d32Config ?? ""} onChange={e => f("d32Config", e.target.value)} onBlur={s}
-                placeholder={'{"mode":"engineer_supplied","value_m":0.0005,"sourceType":"Assumed","sourceReference":"..."}'} disabled={isFrozen} />
-            </div>
-            <div>
-              <Label className="text-xs">BVP activation JSON <Badge className="ml-1 bg-violet-50 text-violet-700 border border-violet-200 text-[9px]">ENGINE_INPUT</Badge></Label>
-              <Textarea className="mt-1 text-xs font-mono" rows={7} value={sim.bvp ?? ""} onChange={e => f("bvp", e.target.value)} onBlur={s}
-                placeholder={'{"rrboGradeId":"rrbo-sn300","kuhniShdC2":{"value":1.25,"sourceType":"Assumed","sourceReference":"...","scope":"kuhni_shd_preliminary"},"partitionBasis":{"basis":"K_d_concentration","approvalStatus":"engineer_approved_governed","sourceReference":"..."},"diffusivity":{"Sat":{"De_c":{},"De_d":{}},"Mono":{},"Di":{},"Poly":{},"NMP":{}}}'} disabled={isFrozen} />
-              <p className="text-[10px] text-gray-500 mt-1">All five components and both phases require source-tagged diffusivity values. No defaults are seeded or inferred.</p>
-            </div>
-          </div>
+          </SectionCard>
           <div className="flex gap-2 mt-4">
             <Button size="sm" variant="outline" disabled={isFrozen || upsertMutation.isPending || ecr2RunPreparing} onClick={() => saveSection("ecr_simulator")}>
               <Save className="h-3.5 w-3.5 mr-1.5" /> Save simulator inputs
             </Button>
-            <Button size="sm" className="gap-1.5" disabled={isFrozen || calculateMutation.isPending || ecr2RunPreparing} onClick={runEcr2Simulation}>
+            <Button size="sm" className="gap-1.5" disabled={isFrozen || calculateMutation.isPending || ecr2RunPreparing || stage8Blocking} onClick={runEcr2Simulation}>
               <Play className="h-3.5 w-3.5" /> {ecr2RunPreparing ? "Saving simulator inputs…" : c2InputsAreStale ? "Save inputs & refresh C2" : "RUN ECR-2 SIMULATION"}
             </Button>
           </div>
+          {stage8Blocking && (
+            <p className="mt-2 text-xs text-red-700">
+              Run blocked by {Object.keys(stage8Errors).length} unresolved Stage 8 dependenc{Object.keys(stage8Errors).length === 1 ? "y" : "ies"}: {Object.values(stage8Errors).slice(0, 2).join("; ")}
+            </p>
+          )}
           {renderRunIssues(latestRun, "ECR-2 simulator")}
         </SectionCard>
 

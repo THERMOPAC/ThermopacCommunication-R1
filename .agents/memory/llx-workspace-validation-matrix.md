@@ -44,3 +44,14 @@ description: Stages 5–11 blocking/warning validation rules, UI banner architec
 - Both fall back to 'Assumed' / screening ref if blank.
 
 **Why:** Source traceability is a governed requirement (A-5); hardcoding 'Assumed' prevented engineers from promoting d32 to 'Measured' or 'Vendor' when laboratory/vendor data became available.
+
+## ECR-2 Stage 8 — actual dependency graph
+
+- Never use the legacy `molecularWeights`, `d32Config`, or `bvp` JSON blobs as Stage 8 blockers. They are compatibility/audit input only; Stage 8 is expressed as independent, source-tagged engineering fields.
+- Four physical RRBO MWs (Sat, Mono, Di, Poly) remain blocking inputs, but only for downstream physical concentration, equilibrium concentration, concentration-based Kd, driving-force, and transfer-rate calculations. They must never affect local NRTL x/y/z or equilibrium coordinates, which use canonical Coto surrogate MWs.
+- Blank d32 selection means the governed ECR-2 published-correlation route, not a missing numeric default. An engineer-supplied route requires numeric d32 plus source class/reference.
+- The ten Dc/Dd diffusivities require individual value, source class/reference, reference temperature, and method; there is no approved correlation/default. Kühni Shd C2 remains an individual source-tagged engineer input. Partition approval concerns the concentration-basis relation only; numerical Kd stays locally calculated.
+
+**Why:** The raw BVP JSON contract predated the thermodynamic MW boundary and conflated independent numerical/governance decisions, which hid exactly what prevented a simulator run.
+
+**How to apply:** Keep the Run control gated only by accepted Stage 7 geometry plus the unresolved individual dependencies above. Preserve legacy JSON parsing in the adapter for older revisions, but always prefer structured fields and governed calculated routes.

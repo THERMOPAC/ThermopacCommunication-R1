@@ -533,12 +533,130 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       if (typeof value !== 'string') return value;
       try { return JSON.parse(value); } catch { return undefined; }
     };
-    const d32Config = simValue('d32Config');
-    const molecularWeights = simValue('molecularWeights');
-    const bvp = simValue('bvp');
-    if (d32Config !== undefined) out.d32Config = parseJson(d32Config);
-    if (molecularWeights !== undefined) out.molecularWeights = parseJson(molecularWeights);
-    if (bvp !== undefined) out.bvp = parseJson(bvp);
+    // Flat workspace data arrives in `out` first. JSON strings are legacy
+    // storage values, not engine-ready contracts, so release those keys for
+    // the independent-field adapter below. Pre-structured programmatic inputs
+    // retain their normal mapper precedence.
+    for (const key of ['d32Config', 'molecularWeights', 'bvp']) {
+      if (typeof out[key] === 'string') delete out[key];
+    }
+    const asRecord = (value: unknown): Record<string, any> =>
+      value && typeof value === 'object' ? value as Record<string, any> : {};
+    const legacyD32 = asRecord(parseJson(simValue('d32Config')));
+    const d32Mode = String(simValue('d32_mode') ?? '').trim();
+    if (out.d32Config === undefined) {
+      if (d32Mode === 'engineer_supplied') {
+        out.d32Config = {
+          mode: 'engineer_supplied',
+          value_m: (simNum('d32_value_mm') ?? Number.NaN) / 1000,
+          sourceType: String(simValue('d32_source_type') ?? ''),
+          sourceReference: String(simValue('d32_source_reference') ?? ''),
+        };
+      } else if (d32Mode === 'published_correlation') {
+        out.d32Config = { mode: 'published_correlation', correlationId: 'ecr2_d32_kh1996' };
+      } else if (legacyD32.mode) {
+        // Backwards compatibility only. New Stage 8 workspaces do not edit
+        // this JSON field; they select the route above.
+        out.d32Config = legacyD32;
+      } else {
+        // The governed preliminary d₃₂ route is a calculated dependency, not
+        // an engineer-entered numeric default.
+        out.d32Config = { mode: 'published_correlation', correlationId: 'ecr2_d32_kh1996' };
+      }
+    }
+
+    const legacyMw = asRecord(parseJson(simValue('molecularWeights')));
+    const physicalMwFields = [
+      ['sat', 'saturates_g_mol'],
+      ['mono', 'mono_g_mol'],
+      ['di', 'di_g_mol'],
+      ['poly', 'poly_g_mol'],
+    ] as const;
+    const readPhysicalMw = (key: string, legacyKey: string) => {
+      const value = simNum(`molecular_weight_${key}_value`);
+      const sourceType = String(simValue(`molecular_weight_${key}_source_type`) ?? '').trim();
+      const sourceReference = String(simValue(`molecular_weight_${key}_source_reference`) ?? '').trim();
+      if (value !== undefined || sourceType !== '' || sourceReference !== '') {
+        return { value: value ?? Number.NaN, unit: 'g/mol', sourceType, sourceReference };
+      }
+      return legacyMw[legacyKey];
+    };
+    if (out.molecularWeights === undefined) {
+      const mappedMw = Object.fromEntries(
+        physicalMwFields.map(([key, legacyKey]) => [legacyKey, readPhysicalMw(key, legacyKey)]),
+      );
+      if (Object.values(mappedMw).some((value) => value !== undefined)) out.molecularWeights = mappedMw;
+    }
+
+    const legacyBvp = asRecord(parseJson(simValue('bvp')));
+    const bvp: Record<string, any> = { ...legacyBvp };
+    if (!bvp.rrboGradeId) bvp.rrboGradeId = String(out.rrboFluidId ?? inputs.rrboFluidId ?? '');
+
+    const diffusivityComponents = [
+      ['sat', 'Sat'], ['mono', 'Mono'], ['di', 'Di'], ['poly', 'Poly'], ['nmp', 'NMP'],
+    ] as const;
+    const diffusivity: Record<string, any> = {};
+    let hasDiffusivityInput = false;
+    for (const [key, component] of diffusivityComponents) {
+      const legacyComponent = asRecord(legacyBvp.diffusivity?.[component]);
+      const pair: Record<string, any> = {};
+      for (const phase of ['c', 'd'] as const) {
+        const prefix = `diffusivity_${key}_${phase}`;
+        const value = simNum(`${prefix}_value`);
+        const sourceType = String(simValue(`${prefix}_source_type`) ?? '').trim();
+        const sourceReference = String(simValue(`${prefix}_source_reference`) ?? '').trim();
+        const referenceTemperature_C = simNum(`${prefix}_reference_temperature_c`);
+        const method = String(simValue(`${prefix}_method`) ?? '').trim();
+        const hasFlatValue = value !== undefined || sourceType !== '' || sourceReference !== ''
+          || referenceTemperature_C !== undefined || method !== '';
+        if (hasFlatValue) {
+          hasDiffusivityInput = true;
+          pair[phase === 'c' ? 'De_c' : 'De_d'] = {
+            value_m2_s: value ?? Number.NaN,
+            sourceType,
+            sourceReference,
+            referenceTemperature_C: referenceTemperature_C ?? Number.NaN,
+            method,
+            status: 'engineer_supplied',
+          };
+        } else {
+          pair[phase === 'c' ? 'De_c' : 'De_d'] = legacyComponent[phase === 'c' ? 'De_c' : 'De_d'] ?? null;
+          if (pair[phase === 'c' ? 'De_c' : 'De_d'] !== null) hasDiffusivityInput = true;
+        }
+      }
+      diffusivity[component] = pair;
+    }
+    if (hasDiffusivityInput) bvp.diffusivity = diffusivity;
+
+    const shdValue = simNum('kuhni_shd_c2_value');
+    const shdSourceType = String(simValue('kuhni_shd_c2_source_type') ?? '').trim();
+    const shdSourceReference = String(simValue('kuhni_shd_c2_source_reference') ?? '').trim();
+    if (shdValue !== undefined || shdSourceType !== '' || shdSourceReference !== '') {
+      bvp.kuhniShdC2 = {
+        value: shdValue ?? Number.NaN,
+        sourceType: shdSourceType,
+        sourceReference: shdSourceReference,
+        scope: 'kuhni_shd_preliminary',
+      };
+    } else if (legacyBvp.kuhniShdC2 !== undefined) {
+      bvp.kuhniShdC2 = legacyBvp.kuhniShdC2;
+    }
+
+    const approvalStatus = String(simValue('partition_basis_approval_status') ?? '').trim();
+    const approvalReference = String(simValue('partition_basis_source_reference') ?? '').trim();
+    if (approvalStatus !== '' || approvalReference !== '') {
+      bvp.partitionBasis = {
+        basis: 'K_d_concentration',
+        approvalStatus,
+        sourceReference: approvalReference,
+      };
+    } else if (legacyBvp.partitionBasis !== undefined) {
+      bvp.partitionBasis = legacyBvp.partitionBasis;
+    }
+    // bvp is now an engine-ready adapter object assembled from independent
+    // Stage 8 fields. The legacy JSON blob is never required; it is read only
+    // to preserve older revisions during migration.
+    out.bvp = bvp;
   }
 
   // Generic engineer-entered tagged mapper for Stage 7 flat fields.
