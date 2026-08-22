@@ -5164,7 +5164,13 @@ export default function DesignSoftwareWorkspacePage() {
     const er = d("ecr_design");
     const f = field("ecr_design");
     const s = save("ecr_design");
-    const ecrRun = runs.find(r => r.calculation_type === "ecr" && r.calculation_status === "success");
+    // Preliminary ECR results are commonly accepted with a "warning" status
+    // because their assumptions remain pending validation. A warning is still
+    // an accepted engineering snapshot; only error runs must be excluded from
+    // the hydraulic diameter display basis.
+    const ecrRun = runs
+      .filter(r => r.calculation_type === "ecr" && ["success", "warning"].includes(r.calculation_status))
+      .sort((a, b) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0];
     const ecrLatestRun = runs.filter(r => r.calculation_type === "ecr").sort((a, b) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0];
     const statusLine = (text: string) => <p className="text-[11px] text-gray-400 px-2 -mt-0.5">{text}</p>;
 
