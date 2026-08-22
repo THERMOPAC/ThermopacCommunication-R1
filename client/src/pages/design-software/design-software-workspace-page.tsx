@@ -4475,6 +4475,7 @@ export default function DesignSoftwareWorkspacePage() {
     const sim = d("ecr_simulator");
     const f = field("ecr_simulator");
     const s = save("ecr_simulator");
+    const co = equipmentCarryOver();
     const simResult = (resultsQ.data ?? []).find((r: any) => r.section === "ecr_simulator")?.data;
     const latestRun = runs
       .filter(r => r.calculation_type === "ecr_simulator")
@@ -4498,7 +4499,7 @@ export default function DesignSoftwareWorkspacePage() {
       ["Operating temperature", d("design_basis").operating_temperature, "Design Basis"],
       ["RRBO composition", d("process_design").rrbo_saturates_wt ? "Sat / Mono / Di / Poly characterisation" : "Missing", "Process Design"],
       ["S/O ratio", d("process_design").so_ratio, "Process Design"],
-      ["Column diameter", d("hydraulic_design").column_diameter, "Common Hydraulic Design"],
+      ["Column diameter", co.diameter !== null ? `${co.diameter} m` : "", co.diameterSource],
       ["RRBO viscosity", d("fluid_properties").rrbo_viscosity_dynamic_value, "Fluid Properties"],
       ["Interfacial tension", d("hydraulic_design").interfacial_tension || d("fluid_properties").interfacial_tension_value, "Two-Phase Properties"],
     ];
