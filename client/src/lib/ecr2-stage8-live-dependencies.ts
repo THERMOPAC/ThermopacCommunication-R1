@@ -133,8 +133,9 @@ export function getEcr2Stage8LiveDependencies({
 }: Ecr2Stage8LiveDependencyInput): Ecr2Stage8LiveDependency[] {
   const legacyMw = legacyObject(sim, "molecularWeights");
   const legacyBvp = legacyObject(sim, "bvp");
-  const d32Ready = sim.d32_mode !== "engineer_supplied"
-    || (positive(sim.d32_value_mm)
+  const d32Mode = text(sim.d32_mode);
+  const d32Ready = d32Mode === "engineer_supplied"
+    && (positive(sim.d32_value_mm)
       && text(sim.d32_source_type) !== ""
       && text(sim.d32_source_reference) !== "");
   const kdReady = text(sim.partition_basis_approval_status ?? legacyBvp.partitionBasis?.approvalStatus)
@@ -158,11 +159,11 @@ export function getEcr2Stage8LiveDependencies({
       group: "auto",
       label: "d₃₂",
       ready: d32Ready,
-      sourceClass: sim.d32_mode === "engineer_supplied" ? "ENGINEER_INPUT" : "CALCULATED",
+      sourceClass: d32Mode === "engineer_supplied" ? "ENGINEER_INPUT" : "TRANSCRIPTION_INVALID",
       downstreamUse: "Feeds the governed d32 route and interfacial area a = 6φd/d32 for local transfer.",
-      blockingReason: sim.d32_mode === "engineer_supplied"
+      blockingReason: d32Mode === "engineer_supplied"
         ? "Engineer-supplied d₃₂ needs a positive value, source class, and source reference."
-        : "No blocker; ecr2_d32_kh1996 resolves the value from the governed local state at run time.",
+        : "The K&H 1996 published d₃₂ reconstruction is transcription-invalid and cannot resolve a value. Use an explicit engineer-supplied sensitivity value or wait for independently verified source notation.",
     },
     ...ECR2_STAGE8_COMPONENTS.slice(0, 4).map((component) => {
       const prefix = `molecular_weight_${component.key}`;

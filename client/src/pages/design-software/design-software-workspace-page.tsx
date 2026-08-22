@@ -30,6 +30,7 @@ import {
 import { resolveNtInputs } from "@/lib/nt-requirement-resolver";
 import { validateEcr2Stage8, ECR2_STAGE8_COMPONENTS, ECR2_STAGE8_SOURCE_TYPES } from "@/lib/ecr2-stage8-validation";
 import { getEcr2Stage8LiveDependencies } from "@/lib/ecr2-stage8-live-dependencies";
+import { getEcr2D32SnapshotGovernance } from "@/lib/ecr2-d32-snapshot-governance";
 import {
   ECR2_STAGE8_VISIBLE_STATE_LABELS,
   getEcr2Stage8VisibleResolutionState,
@@ -4643,6 +4644,7 @@ export default function DesignSoftwareWorkspacePage() {
     const displayedSnapshot = latestFailedSnapshot ?? simResult;
     const bvp = displayedSnapshot?.bvp;
     const d32Snapshot = displayedSnapshot?.d32;
+    const d32SnapshotGovernance = getEcr2D32SnapshotGovernance(displayedSnapshot);
     const showingFailedSnapshot = !!latestFailedSnapshot;
     const hasStaleAcceptedSnapshot = !!simResult && showingFailedSnapshot;
     const activeHeight = ecrResult?.heightBreakdown?.activeAgitatedHeight?.result;
@@ -5012,19 +5014,19 @@ export default function DesignSoftwareWorkspacePage() {
                    parameter: "d₃₂",
                    value: sim.d32_mode === "engineer_supplied"
                      ? (sim.d32_value_mm || "—")
-                     : d32Snapshot?.d32_m ? `${fmt(d32Snapshot.d32_m * 1000, 4)} mm from latest run` : "Resolved by governed route at run time",
+                     : d32Snapshot?.d32_m ? `${fmt(d32Snapshot.d32_m * 1000, 4)} mm from latest run` : "Unavailable — published K&H route is transcription-invalid",
                    unit: "mm",
                    status: dependencyStatus(dependencyFor("d32").sourceClass, dependencyFor("d32").ready),
                    details: <div className="space-y-1 text-[11px]">
                      <select className="h-7 w-full rounded-md border bg-white px-1.5 text-[11px]" value={sim.d32_mode || "published_correlation"} disabled={isFrozen} onChange={e => f("d32_mode", e.target.value)} onBlur={s}>
-                       <option value="published_correlation">Governed calculated route</option>
+                        <option value="published_correlation">Published route — transcription-invalid (disabled)</option>
                        <option value="engineer_supplied">Engineer supplied</option>
                      </select>
                      {sim.d32_mode === "engineer_supplied"
                        ? <><Input className="h-7 text-[11px]" value={sim.d32_value_mm ?? ""} disabled={isFrozen} placeholder="d₃₂ value" onChange={e => f("d32_value_mm", e.target.value)} onBlur={s} />{sourceEditor("d32")}</>
-                       : <p className="text-[10px] text-gray-500">ecr2_d32_kh1996 — published preliminary route</p>}
+                       : <p className="text-[10px] text-red-700">ecr2_d32_kh1996 — transcription-invalid route; numerical use is disabled pending independent source resolution.</p>}
                      <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> a = 6φd/d32 and local transfer calculation.</p>
-                     {!dependencyFor("d32").ready && <p className="text-[10px] text-red-700"><strong>Block:</strong> positive value, source class, and source reference are required.</p>}
+                    {!dependencyFor("d32").ready && <p className="text-[10px] text-red-700"><strong>Block:</strong> {dependencyFor("d32").blockingReason}</p>}
                    </div>,
                  })}
 
@@ -5118,15 +5120,15 @@ export default function DesignSoftwareWorkspacePage() {
                 <div className="border-b bg-slate-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">D. GOVERNANCE / EVIDENCE REQUIRED</div>
                  {renderStage8DependencyRow({
                    id: "preliminary_evidence",
-                   ready: true,
-                   parameter: "Preliminary K&H evidence status",
-                   value: "Preliminary route",
+                    ready: false,
+                    parameter: "K&H 1996 d₃₂ source status",
+                    value: "Transcription-invalid",
                    unit: "—",
-                   status: dependencyStatus("CALCULATED", true),
+                    status: <Badge className="border border-red-200 bg-red-50 text-red-700 text-[10px]">BLOCKED</Badge>,
                    details: <div className="text-[11px]">
-                     <p><strong>Source:</strong> K&H 1996 reconstruction; primary verification and RRBO/NMP validation remain pending</p>
-                     <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> labels d32/transfer outputs and carries traceability warnings.</p>
-                     <p className="text-[10px] text-gray-600">Advisory evidence limitation; it does not block the explicitly preliminary route.</p>
+                      <p><strong>Source:</strong> the legacy K&H 1996 reconstruction conflicts with independent secondary reproductions and cannot be numerically executed.</p>
+                      <p className="mt-1 text-[10px] text-gray-600"><strong>Resolution:</strong> obtain authoritative definitions for H, the numerator symbol, and the complete coefficient mapping before introducing any calculated d₃₂ route.</p>
+                      <p className="text-[10px] text-red-700">This blocks the published d₃₂ route. Use a complete, source-tagged engineer-supplied d₃₂ only for simulator development or sensitivity work.</p>
                    </div>,
                  })}
               </div>
@@ -5204,6 +5206,12 @@ export default function DesignSoftwareWorkspacePage() {
 
         {(bvp || latestRun?.calculation_status === "error") && (
           <SectionCard title="ECR-2 — Simulation Snapshot">
+            {d32SnapshotGovernance.transcriptionInvalid && (
+              <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-xs text-red-800 mb-4">
+                <strong>{d32SnapshotGovernance.label}</strong>
+                <p className="mt-1">The stored run snapshot has not been changed or recalculated; this display overlay prevents its legacy numerical result from being interpreted as an active design basis.</p>
+              </div>
+            )}
             {!bvp ? (
               <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-xs text-red-800">
                 The latest run was blocked before a complete simulator snapshot was produced. Expand the run issues above; each issue identifies the missing field and its dependency.

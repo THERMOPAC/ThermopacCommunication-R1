@@ -59,111 +59,43 @@ const RESULT_META = {
   localAxialApplication: 'test',
 };
 
-// ── 1. Published-correlation preliminary reconstruction ───────────────────────
+// ── 1. Published-correlation transcription invalidation ───────────────────────
 
-describe('computeDropletDiameter — published_correlation preliminary reconstruction', () => {
-  it('returns a usable preliminary-engineering reconstruction', () => {
+describe('computeDropletDiameter — published_correlation transcription invalidation', () => {
+  it('returns a non-usable transcription-invalid result instead of the legacy reconstruction', () => {
     const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
-    expect(result.status).toBe('preliminary_engineering_reconstruction');
+    expect(result.status).toBe('transcription_invalid');
     expect(result.mode).toBe('published_correlation');
     expect(result.correlationId).toBe('ecr2_d32_kh1996');
-    expect(isD32Usable(result)).toBe(true);
-  });
-
-  it('uses C1^n1 = 3.04^0.45 once only', () => {
-    const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
-    expect(3.04 ** 0.45).toBeCloseTo(1.649275139, 9);
-    expect(result.diagnostics.join(' ')).toContain('1.649275139');
-    expect(result.diagnostics.join(' ')).not.toMatch(/\^0\.45\)\^0\.45/);
-  });
-
-  it('matches an independently calculated reference case', () => {
-    const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
-    // Independent evaluation of the approved equation for VALID_LOCAL_STATE.
-    expect(result.d32_raw_m).toBeCloseTo(0.45667856255541833, 12);
-    expect(result.d32_m).toBeCloseTo(0.45667856255541833, 12);
-    expect(result.d32_m).toBeGreaterThan(0);
-  });
-
-  it('uses the capillary-length geometry group rather than the invalid transcription', () => {
-    const rhoC = VALID_LOCAL_STATE.rho_c_kg_m3;
-    const gamma = VALID_LOCAL_STATE.sigma_N_m;
-    const g = 9.80665;
-    const geometryFromDirectForm = VALID_LOCAL_STATE.h_comp_m * Math.sqrt(rhoC * g / gamma);
-    const lambdaC = Math.sqrt(gamma / (rhoC * g));
-    expect(geometryFromDirectForm).toBeCloseTo(VALID_LOCAL_STATE.h_comp_m / lambdaC, 12);
-    expect(Number.isFinite(geometryFromDirectForm)).toBe(true);
-  });
-
-  it('returns input_missing for absent gamma without inventing a value', () => {
-    const { sigma_N_m: _unused, ...withoutGamma } = VALID_LOCAL_STATE;
-    const result = computeDropletDiameter(withoutGamma, PUBLISHED_CFG);
-    expect(result.status).toBe('input_missing');
     expect(result.d32_m).toBeNull();
-    expect(result.diagnostics.join(' ')).toMatch(/sigma_N_m.*gamma/i);
+    expect(result.d32_raw_m).toBeNull();
+    expect(isD32Usable(result)).toBe(false);
   });
 
-  it('rejects gamma <= 0 without clamping', () => {
-    const result = computeDropletDiameter({ ...VALID_LOCAL_STATE, sigma_N_m: 0 }, PUBLISHED_CFG);
-    expect(result.status).toBe('calculation_invalid');
-    expect(result.d32_m).toBeNull();
-  });
-
-  it('rejects h <= 0 without clamping', () => {
-    const result = computeDropletDiameter({ ...VALID_LOCAL_STATE, h_comp_m: 0 }, PUBLISHED_CFG);
-    expect(result.status).toBe('calculation_invalid');
-    expect(result.d32_m).toBeNull();
-  });
-
-  it('rejects rho_c <= rho_d', () => {
-    const result = computeDropletDiameter({ ...VALID_LOCAL_STATE, rho_c_kg_m3: 870 }, PUBLISHED_CFG);
-    expect(result.status).toBe('calculation_invalid');
-    expect(result.d32_m).toBeNull();
-  });
-
-  it('rejects psi <= 0 and retains a finite raw value when calculable', () => {
-    const result = computeDropletDiameter({ ...VALID_LOCAL_STATE, psi_W_kg: 0 }, PUBLISHED_CFG);
-    expect(result.status).toBe('calculation_invalid');
-    expect(result.d32_m).toBeNull();
-    expect(result.d32_raw_m).toBe(0);
-  });
-
-  it('carries required preliminary governance fields and warnings', () => {
+  it('records the reciprocal high-agitation conflict and unresolved notation', () => {
     const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
     const diagnostics = result.diagnostics.join(' ');
-    expect(result.engineeringBasis).toBe('Published Correlation — Preliminary Engineering');
-    expect(result.governanceStatus).toBe('K&H 1996 reconstructed pending primary-source verification');
+    expect(diagnostics).toContain('reciprocal high-agitation contribution');
+    expect(diagnostics).toContain('TRANSCRIPTION_INVALID__LEGACY_C1_N1_AND_DIRECT_HIGH_AGITATION_TERM');
+    expect(diagnostics).toContain('KH1996_H_UNRESOLVED__NUMERICAL_EXECUTION_DISABLED');
+    expect(diagnostics).toContain('KH1996_NUMERATOR_SYMBOL_UNRESOLVED__NUMERICAL_EXECUTION_DISABLED');
     expect(result.primarySourceVerified).toBe(false);
-    expect(result.validatedForRRBONMP).toBe(false);
-    expect(result.calibrationFactor).toBe(1);
-    expect(result.pilotCalibrationStatus).toBe('NOT_YET_CALIBRATED__UNITY_BASIS');
-    expect(result.localAxialApplication).toBe('Thermopac model extension — uniform/inlet property basis');
-    for (const warning of [
-      'PRIMARY_SOURCE_UNVERIFIED__KH1996',
-      'NUMERATOR_RECONSTRUCTION__C1_N1',
-      'GEOMETRY_RECONSTRUCTION__CAPILLARY_LENGTH_GROUP',
-      'KH1996_PHASE_CONVENTION_NOT_PRIMARY_VERIFIED',
-      'RRBO_NMP_VALIDATION_PENDING',
-    ]) expect(diagnostics).toContain(warning);
+    expect(result.pilotCalibrationStatus).toBe('NOT_APPLICABLE__TRANSCRIPTION_INVALID');
   });
 
-  it('does not use stator open area or holdup as d32 inputs', () => {
-    const baseline = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
-    const changedContext = computeDropletDiameter({
+  it('never re-enables the legacy calculation when local inputs change', () => {
+    const changedState = {
       ...VALID_LOCAL_STATE,
-      xf_stator: 0.81,
-      phi_d: 0.91,
-    }, PUBLISHED_CFG);
-    expect(changedContext.d32_m).toBeCloseTo(baseline.d32_m!, 12);
-  });
-
-  it('responds only to an approved mathematical local-state input', () => {
-    const baseline = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
-    const changedGamma = computeDropletDiameter({
-      ...VALID_LOCAL_STATE,
-      sigma_N_m: VALID_LOCAL_STATE.sigma_N_m * 1.1,
-    }, PUBLISHED_CFG);
-    expect(changedGamma.d32_m).not.toBeCloseTo(baseline.d32_m!, 12);
+      h_comp_m: 0.75,
+      psi_W_kg: 0.0671435,
+      sigma_N_m: 0.009,
+      rho_c_kg_m3: 1040,
+    };
+    const result = computeDropletDiameter(changedState, PUBLISHED_CFG);
+    expect(result.status).toBe('transcription_invalid');
+    expect(result.d32_m).toBeNull();
+    expect(result.d32_raw_m).toBeNull();
+    expect(result.provenance).toContain('approximately 10.299 m');
   });
 });
 

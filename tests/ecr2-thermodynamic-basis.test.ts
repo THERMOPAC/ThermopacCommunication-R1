@@ -337,7 +337,7 @@ describe('ECR-2 preliminary d32 phase applicability', () => {
     correlationId: 'ecr2_d32_kh1996',
   };
 
-  it('calculates published K&H 1996 d32 only for NMP-continuous/RRBO-dispersed operation', async () => {
+  it('keeps the published K&H 1996 d32 route fail-closed even for its scoped phase configuration', async () => {
     const result = await new LLXECRSimulatorEngine().calculate(
       simulatorInput({
         d32Config: publishedD32,
@@ -348,16 +348,14 @@ describe('ECR-2 preliminary d32 phase applicability', () => {
     );
     const data = result.data as Record<string, any>;
     const d32 = data.d32;
-    expect(d32.status).toBe('preliminary_engineering_reconstruction');
-    expect(d32.correlationStatus).toBe('preliminary_engineering_reconstruction');
-    expect(d32.d32_m).toBeGreaterThan(0);
-    expect(data.forwardSimulationStatus.d32).toContain('Published Correlation — Preliminary Engineering');
-    expect(data.forwardSimulationStatus.d32).toContain('RRBO/NMP validation');
-    expect(data.forwardSimulationStatus.interfacialArea).toContain('Preliminary Engineering');
+    expect(d32.status).toBe('transcription_invalid');
+    expect(d32.correlationStatus).toBe('transcription_invalid');
+    expect(d32.d32_m).toBeNull();
+    expect(data.forwardSimulationStatus.d32).toContain('TRANSCRIPTION_INVALID');
+    expect(data.forwardSimulationStatus.interfacialArea).toContain('blocked_d32');
     expect(result.warnings.some((warning: any) =>
-      warning.code === 'INTERFACIAL_AREA_COMPUTED' &&
-      warning.message.includes('Published Correlation — Preliminary Engineering') &&
-      warning.message.includes('RRBO/NMP validation'),
+      warning.code === 'D32_TRANSCRIPTION_INVALID' &&
+      warning.message.includes('reciprocal high-agitation contribution'),
     )).toBe(true);
   });
 
@@ -379,12 +377,16 @@ describe('ECR-2 preliminary d32 phase applicability', () => {
     );
 
     const data = result.data as Record<string, any>;
-    expect(data.d32.status).toBe('input_missing');
-    expect(data.d32.diagnostics.join(' ')).toContain('sigma_N_m');
+    expect(data.d32.status).toBe('transcription_invalid');
+    expect(data.d32.d32_m).toBeNull();
+    expect(data.d32.diagnostics.join(' ')).toContain('numerical execution');
     expect(result.warnings).toEqual(expect.arrayContaining([
       expect.objectContaining({
         code: 'SIGMA_TEMPERATURE_ROUTE_UNAVAILABLE',
         message: expect.stringContaining('Stage 4 Extraction Temperature 40 °C'),
+      }),
+      expect.objectContaining({
+        code: 'D32_TRANSCRIPTION_INVALID',
       }),
     ]));
   });

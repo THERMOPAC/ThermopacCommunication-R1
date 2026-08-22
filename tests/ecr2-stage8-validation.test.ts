@@ -58,10 +58,10 @@ function currentSystemResolverRecords() {
 }
 
 describe('ECR-2 Stage 8 dependency graph', () => {
-  it('uses the governed d32 route without requiring a duplicate engineer value or a BVP JSON object', () => {
+  it('blocks the disabled published d32 route without requiring a BVP JSON object', () => {
     const errors = validateEcr2Stage8(completeStage8(), true, currentSystemResolverRecords());
-    expect(errors).toEqual({});
-    expect(errors).not.toHaveProperty('d32Config');
+    expect(errors).toHaveProperty('d32_mode');
+    expect(errors.d32_mode).toContain('transcription-invalid');
     expect(errors).not.toHaveProperty('bvp');
   });
 
@@ -75,8 +75,12 @@ describe('ECR-2 Stage 8 dependency graph', () => {
   it('keeps physical-MW editing outside the local NRTL coordinate basis', () => {
     const original = completeStage8();
     const altered = { ...original, molecular_weight_sat_value: '650', molecular_weight_poly_value: '120' };
-    expect(validateEcr2Stage8(original, true, currentSystemResolverRecords())).toEqual({});
-    expect(validateEcr2Stage8(altered, true, currentSystemResolverRecords())).toEqual({});
+    expect(validateEcr2Stage8(original, true, currentSystemResolverRecords())).toEqual({
+      d32_mode: expect.stringContaining('transcription-invalid'),
+    });
+    expect(validateEcr2Stage8(altered, true, currentSystemResolverRecords())).toEqual({
+      d32_mode: expect.stringContaining('transcription-invalid'),
+    });
 
     const physicalMassFractions = [0.2, 0.12, 0.06, 0.02, 0.6];
     const before = thermodynamicMoleFractionsFromPhysicalMassFractions(physicalMassFractions);

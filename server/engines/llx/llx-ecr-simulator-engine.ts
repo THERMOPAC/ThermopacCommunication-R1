@@ -628,9 +628,8 @@ export interface ECR2SimulatorInputs {
    *
    * Omit to run without d₃₂ (interfacial area and mass transfer will be null).
    *
-    * mode='published_correlation': use the approved K&H 1996
-    *   preliminary-engineering reconstruction with persistent traceability
-    *   warnings (not primary-source verified, RRBO/NMP validated, or calibrated).
+   * mode='published_correlation': retain the controlled K&H 1996 selection,
+   *   which currently returns transcription_invalid without a numerical d₃₂.
    *
    * mode='engineer_supplied': supply d₃₂ explicitly for simulator development
    *   and sensitivity testing. Must include value_m, sourceType, sourceReference.
@@ -1435,8 +1434,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     // ρ_d, σ, and ψ. This Phase 1 calculation is explicitly uniform/inlet.
     //
     // If d32Config is not supplied, d₃₂ is not attempted.
-    // If d32Config.mode='published_correlation', evaluates the approved
-    // preliminary K&H 1996 reconstruction with traceability warnings.
+    // If d32Config.mode='published_correlation', returns the controlled
+    // transcription-invalid K&H 1996 status without a numerical d₃₂.
     // If d32Config.mode='engineer_supplied', uses the engineer-supplied value.
     //
     const d32Config = inputs.d32Config as D32Config | undefined;
@@ -1464,31 +1463,30 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
             label: null,
             extrapolated: false,
             diagnostics: [
-              `K&H 1996 preliminary d₃₂ is approved only for phaseConfiguration='nmp_continuous_rrbo_dispersed' ` +
+              `K&H 1996 d₃₂ source route is scoped only to phaseConfiguration='nmp_continuous_rrbo_dispersed' ` +
               `(NMP continuous, RRBO dispersed); received '${phaseConfig}'.`,
               'No c→d K&H mapping, phase-property reassignment, or alternate coefficient set is approved for this simulator path.',
             ],
             provenance:
-              'Published Correlation — Preliminary Engineering is not applicable to the selected phase configuration. ' +
+              'The transcription-invalid K&H 1996 source route is not applicable to the selected phase configuration. ' +
               'The numerical d₃₂ calculation was intentionally not attempted.',
             engineerSource: null,
-            engineeringBasis: 'Published Correlation — Preliminary Engineering (phase configuration not approved)',
-            governanceStatus: 'phase_configuration_not_approved_for_kh1996_preliminary_reconstruction',
+            engineeringBasis: 'K&H 1996 transcription-invalid source route (phase configuration not approved)',
+            governanceStatus: 'phase_configuration_not_approved_for_kh1996_transcription_invalid_route',
             primarySourceVerified: false,
             validatedForRRBONMP: false,
-            pilotCalibrationStatus: 'NOT_YET_CALIBRATED__UNITY_BASIS',
+            pilotCalibrationStatus: 'NOT_APPLICABLE__TRANSCRIPTION_INVALID',
             calibrationFactor: 1.0,
             localAxialApplication: 'Not calculated — approved K&H 1996 direction is NMP continuous / RRBO dispersed only',
           }
         : computeDropletDiameter(d32LocalState, d32Config);
 
     // Emit warnings for d₃₂ status
-    if (d32Result?.status === 'correlation_unresolved') {
+    if (d32Result?.status === 'transcription_invalid') {
       pushWarning(
-        'D32_CORRELATION_UNRESOLVED',
-        'K&H 1996 d₃₂ correlation (ecr2_d32_kh1996) has UNRESOLVED_SYMBOL and UNRESOLVED_GROUPING. ' +
-        'Cannot compute d₃₂ from published correlation. ' +
-        'Supply d32Config.mode=\'engineer_supplied\' to proceed with downstream development.',
+        'D32_TRANSCRIPTION_INVALID',
+        'K&H 1996 d₃₂ reconstruction is transcription-invalid: independent secondary reproductions require a reciprocal high-agitation contribution, while the legacy code directly added it. ' +
+        'H and the numerator symbol remain unresolved; no numerical d₃₂ is calculated. Supply an explicit engineer-supplied value only for sensitivity work.',
       );
     }
     if (d32Result?.status === 'engineer_supplied') {
@@ -1498,13 +1496,6 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         'Simulator Development / Sensitivity Basis. NOT a published correlation result. ' +
         `Source: ${d32Result.engineerSource?.sourceType ?? 'unspecified'} — ${d32Result.engineerSource?.sourceReference ?? 'no reference'}. ` +
         'All downstream outputs (a, k_c, k_d, K_oa) carry this basis label.',
-      );
-    }
-    if (d32Result?.status === 'preliminary_engineering_reconstruction') {
-      pushWarning(
-        'D32_PRELIMINARY_ENGINEERING_RECONSTRUCTION',
-        `K&H 1996 d₃₂ = ${(d32Result.d32_m! * 1000).toFixed(3)} mm calculated as Published Correlation — Preliminary Engineering. ` +
-        'Primary-source verification, K&H phase-convention confirmation, RRBO/NMP validation, and pilot calibration remain pending; no result was suppressed for those traceability warnings.',
       );
     }
     if (d32Result?.status === 'phase_configuration_unsupported') {
@@ -1682,9 +1673,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     if (interfacialAreaResult?.status === 'blocked_d32' && d32Config === undefined) {
       // Don't warn about this — user simply didn't supply d₃₂, which is expected
     } else if (interfacialAreaResult && interfacialAreaResult.a_m2_m3 !== null) {
-      const interfacialAreaBasis = d32Result?.status === 'preliminary_engineering_reconstruction'
-        ? 'Published Correlation — Preliminary Engineering; primary-source verification, RRBO/NMP validation, and pilot calibration pending.'
-        : interfacialAreaResult.d32EngineerSupplied
+      const interfacialAreaBasis = interfacialAreaResult.d32EngineerSupplied
           ? 'Engineer-supplied d₃₂ basis.'
           : 'Published correlation basis.';
       pushWarning(
@@ -1870,8 +1859,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         psiFormA_verified: 'P_V_W_m3 = N_P·ρ_b·N³·D_R⁵/(A·h) [W/m³]; ψ = P_V_W_m3/ρ_b [W/kg]; ρ_b cancels → ψ = N_P·N³·D_R⁵/(A·h) — Form A ✓',
         psiDensityCancellation: 'ρ_b enters once in numerator (powerPerRotor) and once in denominator (÷rhoMix_phase1) — not a double division; net result is density-independent',
         powerDensityBasis: `Phase 1 continuous-phase inlet density (${continuousPhase}) = ${rhoMix_phase1.toFixed(2)} kg/m³ — same ρ_b in both P₁ and ψ normalisation`,
-        psiMassBasis: 'source_not_verified — K&H 1995 primary paper not yet read; Laitinen 2019 does not state mass basis explicitly; numerical result is density-independent due to cancellation, so mass-basis uncertainty does not affect ψ value when same ρ_b is used consistently',
-        psiDefinitionEvidenceStatus: 'thermopac_preliminary',
+      psiMassBasis: 'Laitinen et al. (2019) nomenclature identifies ψ as mechanical power dissipation per unit mass [W/kg]; source supports conversion of P/V to ψ using liquid density.',
+      psiDefinitionEvidenceStatus: 'secondary_reproduction_verified',
       },
 
       boundaryConditions,
@@ -1884,7 +1873,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       correlationRegistry: {
         note:
           'ecr2_holdup_kh1995: secondary_equation_verified — K&H 1995 holdup computed in Phase 1. ' +
-          'ecr2_d32_kh1996: preliminary_engineering_reconstruction — K&H 1996 reconstruction calculated with primary-source, phase-convention, RRBO/NMP validation, and calibration traceability warnings. ' +
+          'ecr2_d32_kh1996: transcription_invalid — legacy reconstruction disabled because independent secondary reproductions contradict its high-agitation-term placement; H and numerator notation remain unresolved. ' +
           'ecr2_koa_kh1999: MASS_TRANSFER_PRELIMINARY — concentration-based Kd/driving-force kernel is controlled; ' +
           'Sherwood-dependent terms remain unavailable pending source-complete equations and placement. ' +
           'ecr2_flooding_pending, ecr2_axial_dispersion_pending: pending/reserved.',
@@ -1924,9 +1913,9 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         calibrationFactor: d32Result?.calibrationFactor ?? null,
         localAxialApplication: d32Result?.localAxialApplication ?? null,
         preliminaryTraceability: {
-          numerator: 'C₁^n₁ = 3.04^0.45 (n₁ applied once only); primary source not yet verified.',
-          geometry: 'h·(ρcg/γ)^0.5 = h/λc; the dimensionally invalid h·(ρcg/γ)^0.38 transcription is not used.',
-          pendingEvidence: 'K&H 1996 primary paper (DOI 10.1021/ie950674w), phase-convention confirmation, RRBO/NMP validation, and pilot calibration.',
+          numerator: 'UNRESOLVED: Laitinen Eq. (3) renders a numerator symbol raised to 0.45; no numerical identity is accepted.',
+          geometry: 'UNRESOLVED: independent secondary reproductions establish a reciprocal high-agitation structure, but do not define H sufficiently for numerical use.',
+          pendingEvidence: 'Independent authoritative resolution of H, numerator symbol, coefficient mapping, phase convention, and applicability; K&H 1996 primary text remains unverified.',
         },
       },
 
@@ -2050,9 +2039,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           if (!d32Config) return 'NOT ATTEMPTED — d32Config not supplied; provide d32Config to enable d₃₂ computation';
           if (d32Result?.status === 'engineer_supplied')
             return `ENGINEER_SUPPLIED — d₃₂ = ${(d32Result.d32_m! * 1000).toFixed(3)} mm — Simulator Development / Sensitivity Basis`;
-          if (d32Result?.status === 'preliminary_engineering_reconstruction')
-            return `CALCULATED — d₃₂ = ${(d32Result.d32_m! * 1000).toFixed(3)} mm — ` +
-              'Published Correlation — Preliminary Engineering; primary-source verification, phase-convention confirmation, RRBO/NMP validation, and pilot calibration pending.';
+          if (d32Result?.status === 'transcription_invalid')
+            return 'TRANSCRIPTION_INVALID — K&H 1996 legacy reconstruction is disabled; H and numerator notation are unresolved, so no d₃₂ is calculated.';
           if (d32Result?.status === 'phase_configuration_unsupported')
             return `NOT CALCULABLE — phase_configuration_unsupported: ${d32Result.diagnostics[0]}`;
           if (d32Result?.status === 'correlation_unresolved')
@@ -2070,9 +2058,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
               `(φ_d=${interfacialAreaResult.phi_d_used?.toFixed(4)}, d₃₂=${((interfacialAreaResult.d32_m_used ?? 0)*1000).toFixed(3)} mm` +
               `${interfacialAreaResult.d32EngineerSupplied
                 ? ', engineer-supplied basis'
-                : d32Result?.status === 'preliminary_engineering_reconstruction'
-                  ? ', Published Correlation — Preliminary Engineering; verification/validation/calibration pending'
-                  : ''})`;
+                : ''})`;
           return `BLOCKED — ${interfacialAreaResult.status}: ${interfacialAreaResult.blockingReasons.join('; ')}`;
         })(),
         massTransfer: 'MASS_TRANSFER_PRELIMINARY — concentration-based Kd/driving-force local kernel is available when a local state exists; Sherwood-dependent quantities are intentionally unavailable.',
@@ -2139,7 +2125,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           : null,
         d32mm !== null
           ? { label: 'd₃₂ (Phase 1 uniform)', value: d32mm, unit: 'mm', highlight: true }
-          : { label: 'd₃₂', value: 'Blocked — K&H 1996 UNRESOLVED or not supplied', highlight: false },
+          : { label: 'd₃₂', value: 'Blocked — K&H 1996 legacy reconstruction is transcription-invalid or no engineer value was supplied', highlight: false },
         aVal !== null
           ? { label: 'Interfacial area a', value: Number(aVal.toFixed(1)), unit: 'm²/m³', highlight: true }
           : { label: 'Interfacial area a', value: 'Blocked — requires d₃₂', highlight: false },
@@ -2153,7 +2139,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           ? 'To enable a, k_c, k_d, K_oa: supply d32Config.mode=\'engineer_supplied\' for development/sensitivity.'
           : `d₃₂ = ${d32mm.toFixed(3)} mm (${d32S?.modeUsed}). Interfacial area a = ${aVal?.toFixed(1) ?? 'blocked'} m²/m³.`,
         'K&H 1999 mass-transfer correlation (k_c, k_d) is pending_approval — C1/C2 agitation terms require K&H 1999 primary paper.',
-        'K&H 1996 d₃₂: UNRESOLVED_SYMBOL and UNRESOLVED_GROUPING — resolve from primary paper (DOI 10.1021/ie950674w).',
+        'K&H 1996 d₃₂: legacy reconstruction is transcription-invalid; resolve H, numerator notation, coefficient mapping, phase convention, and applicability from independent authoritative evidence before any numerical route is restored.',
         'ECR-1 remains frozen and isolated — calculation_type=\'ecr_simulator\' confirmed.',
       ],
       warnings: [],

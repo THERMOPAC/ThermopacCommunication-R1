@@ -1,31 +1,31 @@
 ---
-name: ECR-2 K&H 1996 preliminary d32
-description: Governance boundary for the approved K&H 1996 droplet-size reconstruction.
+name: ECR-2 K&H 1996 d32 transcription invalidation
+description: Fail-closed boundary for the legacy K&H 1996 droplet-size reconstruction and historical snapshots.
 ---
 
-The K&H 1996 d₃₂ reconstruction is approved as **Published Correlation — Preliminary Engineering**, not as a governed correlation. It is limited to NMP-continuous/RRBO-dispersed operation.
+The legacy K&H 1996 d₃₂ reconstruction is **transcription-invalid** and must never produce a numerical published-correlation result. It remains traceable only as evidence provenance; a complete, tagged engineer-supplied d₃₂ is the sole usable route for simulator development and sensitivity work.
 
-**Why:** The user explicitly accepted the best-supported reconstruction while retaining the unresolved primary-source confirmation, phase-convention confirmation, RRBO/NMP applicability validation, and pilot-calibration gaps. Numerical use must be transparent rather than silently blocked or upgraded to a performance claim.
+**Why:** The uploaded Rahimpour et al. (2024) *Scientific Reports* Table 1, reference 24 (Kumar & Hartland 1996), and Laitinen et al. (2019), Eq. (3), show reciprocal denominator structure that conflicts with the legacy direct-addition implementation. Neither secondary source resolves all required physical notation or coefficient mapping; numerical correction would therefore be invention.
 
-**How to apply:** Do not advance the result beyond preliminary engineering until the primary source, phase convention, RRBO/NMP applicability, and pilot calibration are formally evidenced and approved. Treat holdup as a separate prerequisite for interfacial-area use; do not add later-phase mass-transfer, BVP, flooding, optimization, or UI work under this approval.
+**How to apply:** Keep `PRIMARY_SOURCE_UNVERIFIED__KH1996`, block downstream interfacial-area/BVP calculations from the published route, and require authoritative definitions before adding an executable equation. Historical frozen snapshots must remain immutable but receive a display-only transcription-invalid overlay so prior numerical values cannot be interpreted as an active design basis.
 
 ## Secondary-source transcription audit
 
-Mirzaei et al. (2023), Table 1 (p. 3), prints the K&H 1996 Kühni row as:
+The uploaded paper is **Rahimpour et al. (2024)**, not Mirzaei et al. (2023). Its Table 1 (p. 3), reference 24, prints the K&H 1996 row as:
 
 \[
-\frac{d_{32}}{H} =
-\frac{C_{\psi1} e^n}
-{C_\Omega\left(\frac{\sigma}{\Delta\rho gH^2}\right)^{1/2}
+\frac{d_{32}}{h_c} =
+\frac{C_{\psi}\varepsilon^{0.32}}
+{\frac{1}{1.55\left(\frac{\sigma}{\Delta\rho g h_c^2}\right)^{1/2}}
 + \frac{1}
-{C_{\mathrm{II}}
-\left[\left(\frac{\varepsilon}{g}\right)
-\left(\frac{\rho_c}{g\sigma}\right)^{1/4}\right]^{n_1}
-\left[H\left(\frac{\rho_c g}{\sigma}\right)^{1/2}\right]^{n_2}}}
+{0.42
+\left[\left(\frac{\psi}{g}\right)
+\left(\frac{\Delta\rho}{g\sigma}\right)^{1/4}\right]^{-0.35}
+\left[h_c\left(\frac{\Delta\rho g}{\sigma}\right)^{1/2}\right]^{-1.15}}}
 \]
 
-This secondary source visibly distinguishes the numerator’s italic `e` from the agitation group’s Greek \(\varepsilon\), and places the complete high-agitation product under a reciprocal. It contains no glossary, units table, Kühni constant values, or definition of `H`/`e`; it cannot establish the original-paper meaning of those symbols.
+The printed row uses \(h_c\), not \(H\), and visibly distinguishes numerator \(\varepsilon\) from \(\psi\). It prints numeric coefficients 1.55 and 0.42 and fixed exponents 0.32, −0.35, and −1.15; it does not print \(C_\Omega\), \(C_{\mathrm{II}}\), \(n\), \(n_1\), \(n_2\), or \(\rho_c\). It contains no variable glossary, units table, or definition of \(h_c\), \(C_\psi\), or \(\varepsilon\).
 
-**Why:** The provisional implementation instead uses \(C_1^{n_1}\) and a directly multiplied high-agitation term. A like-for-like calculation with its six provisional values, \(H=h_\mathrm{comp}=0.25\) m, and a conditional \(e=\mathrm{Euler}\) reading gives 27.045 mm rather than 10.299 m. This demonstrates a material transcription/reconstruction difference, but does not clear the primary-source evidence boundary.
+**Why:** The provisional implementation used \(C_1^{n_1}\), a direct first denominator term, a directly multiplied second term, and \(\rho_c\) in two groups. All differ from the exact printed row. This establishes that the legacy 10.29936 m path is not an implementation of this secondary-source equation, but does not itself supply a corrected executable equation.
 
-**How to apply:** Keep `PRIMARY_SOURCE_UNVERIFIED__KH1996` and do not implement the secondary-source form until the original paper defines `e`, `H`, the parameter mapping, phase convention, and applicability. Use \(\varepsilon\) as specific power only when dimensionally checking the displayed group: W/kg makes it dimensionless; W/m³ does not.
+**How to apply:** Preserve provenance as `SECONDARY_SOURCE / PRIMARY_SOURCE_UNVERIFIED_KH1996`. Do not implement the secondary-source form until authoritative evidence defines \(h_c\), \(C_\psi\), \(\varepsilon\), coefficient mapping, phase convention, and applicability. The prose calls \(\psi\) power loss per unit mass; W/kg makes its printed group dimensionless, but the table does not print units.

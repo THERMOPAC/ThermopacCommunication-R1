@@ -25,8 +25,6 @@ import { isD32Usable, type D32Result } from './llx-ecr2-d32-interface';
 /** Status of the interfacial area computation. */
 export type InterfacialAreaStatus =
   | 'calculated'              // a computed from both usable φ_d and usable d₃₂
-  | 'calculated_preliminary_d32'
-                               // a computed from approved preliminary K&H 1996 d₃₂
   | 'calculated_engineer_d32' // a computed but d₃₂ was engineer-supplied
   | 'blocked_holdup'          // φ_d is not usable
   | 'blocked_d32'             // d₃₂ is null or not usable
@@ -69,7 +67,7 @@ export interface InterfacialAreaResult {
  *      'calculated_extrapolated'. 'physically_invalid', 'input_missing', and
  *      'calculation_invalid' all block the computation.
  *   2. isD32Usable(d32Result) — d₃₂ must be a finite positive number with
- *      a preliminary, calculated, calculated_extrapolated, or engineer-supplied status.
+   *      a calculated, calculated_extrapolated, or engineer-supplied status.
  *   3. 0 < φ_d < 1 (physical admissibility — belt-and-suspenders after guard 1).
  *   4. d₃₂ > 0     (physical admissibility — belt-and-suspenders after guard 2).
  *
@@ -133,7 +131,7 @@ export function computeInterfacialArea(
       status: 'blocked_holdup',
       phi_d_used: null,
       d32_m_used: d32Usable && d32Result ? d32Result.d32_m : null,
-      d32EngineerSupplied: d32Result?.mode === 'engineer_supplied' ?? false,
+       d32EngineerSupplied: d32Result?.mode === 'engineer_supplied',
       label: null,
       blockingReasons,
       diagnostics,
@@ -207,7 +205,6 @@ export function computeInterfacialArea(
 
   // Diagnostics and status
   const isEngineerD32 = d32Result.mode === 'engineer_supplied';
-  const isPreliminaryD32 = d32Result.status === 'preliminary_engineering_reconstruction';
   const isExtrapolatedHoldup = holdupResult.status === 'calculated_extrapolated';
 
   if (isExtrapolatedHoldup) {
@@ -220,12 +217,6 @@ export function computeInterfacialArea(
     diagnostics.push(
       `d₃₂ = ${(d32_m * 1000).toFixed(3)} mm was engineer-supplied (not from published correlation). ` +
       'All downstream outputs computed from this a carry the engineer-supplied basis label.'
-    );
-  }
-  if (isPreliminaryD32) {
-    diagnostics.push(
-      'd₃₂ was calculated from the K&H 1996 preliminary-engineering reconstruction. ' +
-      'Primary-source verification, phase-convention confirmation, RRBO/NMP validation, and pilot calibration remain pending.'
     );
   }
 
@@ -245,15 +236,11 @@ export function computeInterfacialArea(
 
   const status: InterfacialAreaStatus = isEngineerD32
     ? 'calculated_engineer_d32'
-    : isPreliminaryD32
-      ? 'calculated_preliminary_d32'
-      : 'calculated';
+    : 'calculated';
 
   const label = isEngineerD32
     ? 'Interfacial Area — Engineer-Supplied d₃₂ Basis (Simulator Development / Sensitivity)'
-    : isPreliminaryD32
-      ? 'Interfacial Area — Published Correlation — Preliminary Engineering (K&H 1996 d₃₂)'
-      : 'Interfacial Area — Published Correlation Basis (K&H 1995 holdup)';
+    : 'Interfacial Area — Published Correlation Basis (K&H 1995 holdup)';
 
   return {
     a_m2_m3: a,

@@ -36,12 +36,25 @@ describe("ECR-2 Stage 8 live dependency model", () => {
 
     const unresolved = dependencies.filter((dependency) => !dependency.ready);
     expect(dependencies).toHaveLength(17);
-    expect(dependencies.filter((dependency) => dependency.ready)).toHaveLength(16);
+    expect(dependencies.filter((dependency) => dependency.ready)).toHaveLength(15);
     expect(unresolved.map((dependency) => dependency.id)).toEqual([
+      "d32",
       "partition_basis",
     ]);
     expect(
       dependencies.filter((dependency) => dependency.id.startsWith("diffusivity_") && !dependency.ready),
     ).toHaveLength(0);
+  });
+
+  it("blocks the published K&H d32 route after its reconstruction was invalidated", () => {
+    const dependencies = getEcr2Stage8LiveDependencies({
+      sim: { d32_mode: "published_correlation" },
+      hasAcceptedEcrRun: true,
+      resolverRecords: currentResolverRecords(),
+    });
+    const d32 = dependencies.find((dependency) => dependency.id === "d32");
+    expect(d32?.ready).toBe(false);
+    expect(d32?.sourceClass).toBe("TRANSCRIPTION_INVALID");
+    expect(d32?.blockingReason).toContain("transcription-invalid");
   });
 });

@@ -152,13 +152,13 @@ describe('computeInterfacialArea — successful computation', () => {
     expect(r1.a_m2_m3! / r2.a_m2_m3!).toBeCloseTo(h1.phi / h2.phi, 4);
   });
 
-  it('uses the preliminary K&H 1996 d32 only after both guards are usable', () => {
+  it('blocks the transcription-invalid K&H 1996 d32 even when holdup is usable', () => {
     const holdup = makeUsableHoldup();
     const d32 = makePreliminaryD32();
     const result = computeInterfacialArea(holdup, d32);
-    expect(result.status).toBe('calculated_preliminary_d32');
-    expect(result.a_m2_m3).toBeCloseTo(6 * holdup.phi / d32.d32_m!, 10);
-    expect(result.label).toContain('Preliminary Engineering');
+    expect(result.status).toBe('blocked_d32');
+    expect(result.a_m2_m3).toBeNull();
+    expect(result.blockingReasons.join(' ')).toContain('transcription_invalid');
   });
 });
 

@@ -18,7 +18,7 @@
 //    unless their lifecycle explicitly authorizes controlled numerical use.
 //
 // PHASE 1 → POST-PHASE 1 STATUS:
-//   d32   : preliminary_engineering_reconstruction (K&H 1996, Kühni set)
+//   d32   : transcription_invalid (K&H 1996 legacy reconstruction disabled)
 //   holdup: secondary_equation_verified (K&H 1995, Kühni set)
 //   K_oa  : preliminary_engineering_reconstruction (K_d/driving-force subset
 //           is controlled; source-incomplete Sherwood-dependent terms remain
@@ -29,6 +29,9 @@
 // preliminary_engineering_reconstruction = an explicitly approved reconstruction
 // may be calculated with persistent traceability warnings. It is neither primary-
 // source verified, RRBO/NMP validated, pilot calibrated, nor governed.
+// transcription_invalid = a formerly executable reconstruction known to disagree
+// with reproduced source structure. It must retain provenance, but never produce
+// a numerical result until independent evidence resolves the discrepancy.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export type CorrelationQuantity =
@@ -75,6 +78,7 @@ export type CorrelationStatus =
   | 'secondary_equation_verified'
   | 'candidate_governed'
   | 'preliminary_engineering_reconstruction'
+  | 'transcription_invalid'
   | 'pending_approval'
   | 'reserved';
 
@@ -147,7 +151,7 @@ export interface ECR2Correlation {
   pilotCalibrationFactor?: {
     symbol: string;
     description: string;
-    currentValue: 'NOT_YET_CALIBRATED';
+    currentValue: 'NOT_YET_CALIBRATED' | 'NOT_APPLICABLE__TRANSCRIPTION_INVALID';
     note: string;
   };
   /** Explains what is needed to advance status, or documents the approval. */
@@ -545,11 +549,11 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
   //
   // Kumar & Hartland (1996) — Kühni column, Eq. (3) as reproduced in
   // Laitinen et al. (2019), Chem. Eng. Res. Des., 146, 518–527.
-  // STATUS: preliminary_engineering_reconstruction
+  // STATUS: transcription_invalid
   //
-  // The reconstruction is explicitly approved for preliminary engineering
-  // only. It remains unverified against the primary source, unvalidated for
-  // RRBO/NMP, and uncalibrated to pilot data.
+  // The former reconstruction is disabled. Independent secondary reproductions
+  // show that its direct high-agitation-term placement is wrong; unresolved
+  // H/numerator notation prevents a supported numerical replacement.
   //
   // ── Full Kühni parameter table — secondary-verified metadata ─────────────
   //   Source: general structure of K&H unified correlations; specific coefficient
@@ -709,7 +713,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       'Levulinic Acid from Dilute Aqueous Solution in a Kühni Column with 2-Methyltetrahydrofuran Solvent." ' +
       'Chemical Engineering Research and Design, 146, 518–527. DOI: 10.1016/j.cherd.2019.04.018.',
 
-    // ── Equation — reproduced from Laitinen et al. (2019), Eq. (3) ──────────
+    // ── Equation evidence — reproduced secondary sources, not executable ─────
     //
     // Exact transcription from secondary source (Laitinen 2019, p. 10):
     //
@@ -743,11 +747,10 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     // before any numerical implementation.
     //
     equation:
-      'PRELIMINARY ENGINEERING RECONSTRUCTION — d32/h = C1^n1 / ' +
-      '[C2·(γ/((ρc−ρd)·g·h²))^0.5 + C3·((ψ/g)·(ρc/(g·γ))^0.25)^n2·' +
-      '(h·(ρcg/γ)^0.5)^n3], with C1=3.04, C2=1.60, C3=0.034, n1=0.45, n2=−0.63, n3=−0.38 for ECR-2 d→c. ' +
-      'C1^n1 = 3.04^0.45 is applied once only; the geometry group is h/λc. ' +
-      'Approved as Published Correlation — Preliminary Engineering with primary-source, phase-convention, RRBO/NMP validation, and uncalibrated-unity traceability warnings.',
+      'TRANSCRIPTION-INVALID — no executable K&H 1996 d32 equation is registered. ' +
+      'Mirzaei et al. (2023), Table 1, and Laitinen et al. (2019), Eq. (3), independently reproduce a two-term form with a reciprocal high-agitation contribution; the legacy ECR-2 reconstruction directly added that contribution and is invalid. ' +
+      'Laitinen confirms psi in W/kg and visible values 1.6, 0.034, 0.45, and -0.63, but does not define H or the numerator symbol. ' +
+      'Do not infer C1^n1, Euler e, a capillary-length group, coefficient mapping, phase convention, or applicability. Primary-source status remains unverified.',
     /*
     equation:
       'CANDIDATE — DO NOT IMPLEMENT. ' +
@@ -1096,7 +1099,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       },
     },
 
-    applicabilityStatus: 'preliminary_engineering_reconstruction',
+    applicabilityStatus: 'transcription_invalid',
     primarySourceVerified: false,          // K&H 1996 primary paper not yet inspected
     secondaryReproductionVerified: true,   // Equation reproduced from Laitinen et al. (2019) — peer-reviewed
     validatedForRRBONMP: false,            // Pilot calibration required for NMP/RRBO
@@ -1109,63 +1112,18 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
         'the published equation is evaluated. ' +
         'Kept strictly separate from the equation constants (1.6, 0.034, exponents). ' +
         'Do NOT modify equation constants during pilot calibration.',
-      currentValue: 'NOT_YET_CALIBRATED',
+      currentValue: 'NOT_APPLICABLE__TRANSCRIPTION_INVALID',
       note:
-        'f_cal_d32 derived from ECR pilot-plant d₃₂ measurements (RRBO feed + NMP solvent). ' +
-        'Until measured: f_cal_d32 = 1.0 (no correction applied).',
+        'No pilot-calibration factor can apply until an evidence-supported numerical equation is restored. ' +
+        'The former unity factor did not validate or rescue the transcription-invalid reconstruction.',
     },
 
     approvalNote:
-      'preliminary_engineering_reconstruction: approved best-supported K&H 1996 reconstruction from Laitinen et al. (2019), Eq. (3) — ' +
-      'peer-reviewed secondary source using K&H 1996. secondaryReproductionVerified=true. ' +
-      '' +
-      'RESOLUTION ANALYSIS COMPLETE — TWO FLAGS REMAIN OPEN PENDING PRIMARY PAPER: ' +
-      '' +
-      'UNRESOLVED_SYMBOL (analysis status: primary_candidate identified, NOT adopted): ' +
-      '  Laitinen PDF renders a symbol raised to exponent n₁=0.45 in the numerator. ' +
-      '  PRIMARY CANDIDATE: C₁^n₁ — structural inference from K&H unified framework: ' +
-      '  C₁ and n₁=0.45 are the only two Kühni table constants not yet placed (C₂, C₃, n₂, ' +
-      '  n₃ all positionally confirmed). n₁ is column-specific — purposeless in the unified ' +
-      '  framework unless applied to column-type constant C₁. ' +
-      '  ECR-2 value if confirmed: C₁(d→c)^n₁ = 3.04^0.45 ≈ 1.649275. ' +
-      '  This is a structural inference — NOT verified published placement. ' +
-      '  DIMENSIONAL CONSTRAINT (definitive): base must be dimensionless — ψ and any ' +
-      '  dimensional quantity are definitively excluded. ' +
-      '  Approved for preliminary engineering only: retain this reconstruction warning on every numerical result. ' +
-      '' +
-      'UNRESOLVED_GROUPING (analysis status: strong_candidate identified, NOT adopted): ' +
-      '  Laitinen transcription h·(ρcg/γ)^0.38 is DEFINITIVELY dimensionally wrong (m^+0.24). ' +
-      '  STRONG CANDIDATE: [h·(ρcg/γ)^0.5]^0.38 = [h/λc]^0.38 — supported by: ' +
-      '    (i)  dimensional necessity (the transcribed form is definitively wrong); ' +
-      '    (ii) K&H framework: h/λc = h·(ρcg/γ)^0.5 is the fundamental geometry group; ' +
-      '    (iii) parameter table consistency: n₃=−0.38 applied to [h/λc] gives [h/λc]^(-0.38); ' +
-      '          equation writes [h_group]^(-1) → h_group = [h/λc]^0.38 ✓; ' +
-      '    (iv) alternative (h²ρcg/γ)^0.38 = [h/λc]^0.76 implies effective n₃=−0.76, ' +
-      '         contradicting Kühni table n₃=−0.38 — REJECTED on framework grounds. ' +
-      '  Typesetting diagnosis: exponent 0.38 was placed on (ρcg/γ) instead of on the ' +
-      '  whole group (h·(ρcg/γ)^0.5) in the Laitinen PDF — a known LaTeX rendering issue. ' +
-      '  Approved for preliminary engineering only: retain this reconstruction warning on every numerical result. ' +
-      '' +
-      'KÜHNI PARAMETER TABLE — PLACEMENT STATUS: ' +
-      '  C1(c→d)=1, C1(d→c)=3.04 — primary_candidate placement: numerator as C₁^n₁. ' +
-      '  C2=1.60  — CONFIRMED in Term₁ as coefficient on (Eo_d)^(−0.5). ' +
-      '  C3=0.034 — CONFIRMED in Term₂ as coefficient on agitation-geometry group. ' +
-      '  n1=0.45  — primary_candidate placement: exponent on C₁ in numerator. ' +
-      '  n2=−0.63 — CONFIRMED in Term₂ as exponent on agitation group. ' +
-      '  n3=−0.38 — strong_candidate placement: exponent on [h/λc] in Term₂ (UNRESOLVED_GROUPING ' +
-      '             pending K&H 1996 primary paper; parameter table consistent but not primary-verified). ' +
-      '' +
-      'Before advancing this preliminary reconstruction to governed: ' +
-      '(1) Read K&H 1996 primary paper (DOI 10.1021/ie950674w). ' +
-      '    Clear UNRESOLVED_SYMBOL: confirm numerator symbol (primary candidate: C₁^n₁) from equation body. ' +
-      '    Clear UNRESOLVED_GROUPING: confirm geometry group (strong candidate: (h·(ρcg/γ)^0.5)^0.38). ' +
-      '    Confirm C₁ and n₁ placements from Table 2 and equation body. ' +
-      '(2) Set primarySourceVerified = true with engineer name and date. ' +
-      '(3) Confirm K&H 1996 Kühni experimental dataset phase convention ' +
-      '    matches ECR-2 phase assignment (RRBO dispersed, NMP continuous). ' +
-      '(4) Verify NMP/RRBO system properties lie within K&H 1996 validity range. ' +
-      'The present implementation is limited to Published Correlation — Preliminary Engineering. ' +
-      'Do not set primarySourceVerified or validatedForRRBONMP true, and do not claim a calibrated performance guarantee.',
+      'transcription_invalid: the legacy ECR-2 reconstruction is not approved for numerical use. ' +
+      'Mirzaei et al. (2023), Table 1, and Laitinen et al. (2019), Eq. (3), independently establish a reciprocal high-agitation contribution that conflicts with the direct-addition legacy path. ' +
+      'Laitinen confirms ψ in W/kg and the visible 1.6, 0.034, 0.45, and -0.63 values, but neither reproduction defines H or the numerator symbol. ' +
+      'Do not infer C₁ⁿ¹, Euler e, a geometry group, coefficient mapping, phase convention, or applicability. ' +
+      'Obtain independent authoritative definitions, retain PRIMARY_SOURCE_UNVERIFIED__KH1996 until the original paper is verified, then implement and calibrate only the confirmed equation.',
   },
 
   // ── 2. Dispersed-phase holdup (φ_d) ──────────────────────────────────────

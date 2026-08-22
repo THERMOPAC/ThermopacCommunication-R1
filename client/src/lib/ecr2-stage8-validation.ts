@@ -131,8 +131,11 @@ export function validateEcr2Stage8(
       errors.d32_source_type = "Engineer-supplied d₃₂ requires a source class";
     if (!text(sim.d32_source_reference))
       errors.d32_source_reference = "Engineer-supplied d₃₂ requires a source reference";
-  } else if (d32Mode !== "" && d32Mode !== "published_correlation") {
-    errors.d32_mode = "d₃₂ route must be the governed calculation route or Engineer Supplied";
+  } else if (d32Mode === "" || d32Mode === "published_correlation") {
+    errors.d32_mode =
+      "The K&H 1996 published d₃₂ reconstruction is transcription-invalid and cannot be used. Supply a tagged engineer value for sensitivity work or await independently verified source notation.";
+  } else {
+    errors.d32_mode = "d₃₂ route must be Engineer Supplied while the published K&H 1996 reconstruction is disabled";
   }
   // Blank d32_mode means the governed ECR-2 d32 route; it is not a missing
   // engineer value and is normalized by the workspace adapter.
