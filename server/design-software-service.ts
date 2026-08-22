@@ -716,6 +716,12 @@ export async function runCalculation(
   // Workspace → engine input adapter (structure + unit conversion only; the
   // C2 engine and its equations are untouched).
   if (rev.module_type === 'llx' && ['process_design', 'hydraulics_common', 'ecp', 'ecr', 'ecr_simulator'].includes(calculationType)) {
+    // The authenticated actor is injected at the server boundary so an ECR-2
+    // Stage 8 engineer override cannot attribute itself to an arbitrary client value.
+    if (calculationType === 'ecr_simulator') {
+      inputs.__stage8_actor_id = String(userId);
+      inputs.__stage8_server_timestamp = new Date().toISOString();
+    }
     inputs = mapWorkspaceProcessDesignInputs(inputs, calculationType);
   }
 

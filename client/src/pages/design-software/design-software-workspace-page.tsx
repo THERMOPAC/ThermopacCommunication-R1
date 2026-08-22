@@ -29,6 +29,7 @@ import {
 } from "@shared/fluid-properties-master";
 import { resolveNtInputs } from "@/lib/nt-requirement-resolver";
 import { validateEcr2Stage8, ECR2_STAGE8_COMPONENTS, ECR2_STAGE8_SOURCE_TYPES } from "@/lib/ecr2-stage8-validation";
+import { findEcr2Stage8Evidence, type ECR2Stage8NumericalParameterId } from "@shared/ecr2-stage8-evidence";
 
 // Module-level numeric parse helper (blank/invalid → null).
 const numOrNull = (v: string | undefined | null): number | null => {
@@ -4602,10 +4603,90 @@ export default function DesignSoftwareWorkspacePage() {
     const taggedReady = (prefix: string, legacy?: any) =>
       numeric(sim[`${prefix}_value`] ?? legacy?.value)
       && ECR2_STAGE8_SOURCE_TYPES.includes((sim[`${prefix}_source_type`] ?? legacy?.sourceType) as typeof ECR2_STAGE8_SOURCE_TYPES[number])
-      && !!(sim[`${prefix}_source_reference`] ?? legacy?.sourceReference);
+      && !!(sim[`${prefix}_source_reference`] ?? legacy?.sourceReference)
+      && (() => {
+        const id = prefix === "kuhni_shd_c2"
+          ? "kuhni_shd_c2"
+          : prefix.startsWith("molecular_weight_")
+            ? `physical_mw_${prefix.replace("molecular_weight_", "")}` as ECR2Stage8NumericalParameterId
+            : prefix as ECR2Stage8NumericalParameterId;
+        const record = findEcr2Stage8Evidence(id);
+        const requestedStatus = sim[`${prefix}_evidence_status`] ?? "";
+        const status = requestedStatus === "ENGINEER_OVERRIDE"
+          ? requestedStatus
+          : requestedStatus === "ACCEPTED_AUTO_BASIS"
+            && record.status === "AUTO_RESOLVED_PENDING_ACCEPTANCE"
+            && typeof record.value === "number"
+            ? requestedStatus
+            : record.status;
+        const originalEvidence = sim[`${prefix}_original_evidence`] ?? "";
+        if (status === "ACCEPTED_AUTO_BASIS") return !!originalEvidence;
+        return status === "ENGINEER_OVERRIDE"
+          && !!originalEvidence
+          && !!sim[`${prefix}_override_reason`]
+          && !!sim[`${prefix}_override_user`]
+          && !Number.isNaN(Date.parse(sim[`${prefix}_override_at`] ?? ""));
+      })();
+    const evidenceFor = (id: ECR2Stage8NumericalParameterId, prefix: string) => {
+      const record = findEcr2Stage8Evidence(id);
+      const requestedStatus = sim[`${prefix}_evidence_status`] || "";
+      const status = requestedStatus === "ENGINEER_OVERRIDE"
+        ? requestedStatus
+        : requestedStatus === "ACCEPTED_AUTO_BASIS"
+          && record.status === "AUTO_RESOLVED_PENDING_ACCEPTANCE"
+          && typeof record.value === "number"
+          ? requestedStatus
+          : record.status;
+      return {
+        record,
+        status,
+        originalEvidence: sim[`${prefix}_original_evidence`] || "",
+        overrideReason: sim[`${prefix}_override_reason`] || "",
+        overrideUser: sim[`${prefix}_override_user`] || "",
+        overrideAt: sim[`${prefix}_override_at`] || "",
+      };
+    };
+    const evidenceIdForPrefix = (prefix: string): ECR2Stage8NumericalParameterId => (
+      prefix === "kuhni_shd_c2"
+        ? "kuhni_shd_c2"
+        : prefix.startsWith("molecular_weight_")
+          ? `physical_mw_${prefix.replace("molecular_weight_", "")}` as ECR2Stage8NumericalParameterId
+          : prefix as ECR2Stage8NumericalParameterId
+    );
+    const startEngineerOverride = (prefix: string, evidenceId: ECR2Stage8NumericalParameterId) => {
+      const evidence = evidenceFor(evidenceId, prefix);
+      commitSection("ecr_simulator", {
+        [`${prefix}_evidence_status`]: "ENGINEER_OVERRIDE",
+        [`${prefix}_original_evidence`]: evidence.originalEvidence || JSON.stringify(evidence.record),
+        [`${prefix}_override_reason`]: evidence.overrideReason,
+        [`${prefix}_override_user`]: evidence.overrideUser || String((user as any)?.id ?? ""),
+        [`${prefix}_override_at`]: evidence.overrideAt || new Date().toISOString(),
+      });
+    };
+    const applyEngineerOverride = (prefix: string, key: string, value: string, evidenceId: ECR2Stage8NumericalParameterId) => {
+      const evidence = evidenceFor(evidenceId, prefix);
+      if (evidence.status !== "ENGINEER_OVERRIDE") {
+        commitSection("ecr_simulator", {
+          [key]: value,
+          [`${prefix}_evidence_status`]: "ENGINEER_OVERRIDE",
+          [`${prefix}_original_evidence`]: evidence.originalEvidence || JSON.stringify(evidence.record),
+          [`${prefix}_override_user`]: evidence.overrideUser || String((user as any)?.id ?? ""),
+          [`${prefix}_override_at`]: evidence.overrideAt || new Date().toISOString(),
+        });
+        return;
+      }
+      f(key, value);
+    };
+    const acceptEvidenceBasis = (prefix: string) => {
+      const evidence = evidenceFor(evidenceIdForPrefix(prefix), prefix);
+      commitSection("ecr_simulator", {
+        [`${prefix}_evidence_status`]: "ACCEPTED_AUTO_BASIS",
+        [`${prefix}_original_evidence`]: evidence.originalEvidence || JSON.stringify(evidence.record),
+      });
+    };
     const stage8DependencyGroups = {
       auto: "AUTO-RESOLVED",
-      engineering: "ENGINEERING DATA REQUIRED",
+      engineering: "SYSTEM-RESOLVED BASIS",
       approval: "ENGINEERING APPROVAL REQUIRED",
       governance: "GOVERNANCE / EVIDENCE REQUIRED",
     } as const;
@@ -4652,9 +4733,9 @@ export default function DesignSoftwareWorkspacePage() {
           label: `Physical MW — ${component.label}`,
           ready,
           mandatory: true,
-          sourceClass: "ENGINEER_INPUT",
+          sourceClass: ready ? "SYSTEM_RESOLVER" : "SYSTEM_EVIDENCE_GAP",
           downstreamUse: "Builds physical mass fractions/concentrations, equilibrium concentrations, Kd, driving force, and transfer rate after NRTL.",
-          blockingReason: ready ? "No blocker." : "Positive value, valid source class, and source reference are required; no physical-MW default is allowed.",
+          blockingReason: ready ? "No blocker." : "System physical-characterization resolver has no approved RRBO pseudo-component molecular-weight basis.",
         };
       }),
       ...ECR2_STAGE8_COMPONENTS.flatMap(component => (["c", "d"] as const).map(phase => {
@@ -4669,9 +4750,9 @@ export default function DesignSoftwareWorkspacePage() {
           label: `${phase === "c" ? "Dc" : "Dd"} ${component.label}`,
           ready,
           mandatory: true,
-          sourceClass: "ENGINEER_INPUT",
+          sourceClass: ready ? "SYSTEM_RESOLVER" : "SYSTEM_EVIDENCE_GAP",
           downstreamUse: `Supplies the ${phase === "c" ? "continuous" : "dispersed"}-phase diffusivity for the ${component.label} Kühni local transfer/Schmidt calculation.`,
-          blockingReason: ready ? "No blocker." : "Value, valid source class/reference, reference temperature, and method are all required; no diffusivity correlation/default is approved.",
+          blockingReason: ready ? "No blocker." : "System resolver lacks the traceable physical inputs required for the applicable diffusivity route.",
         };
       })),
       {
@@ -4680,16 +4761,18 @@ export default function DesignSoftwareWorkspacePage() {
         label: "Kühni Shd C2",
         ready: taggedReady("kuhni_shd_c2", legacyBvp.kuhniShdC2),
         mandatory: true,
-        sourceClass: "ENGINEER_INPUT",
+        sourceClass: "SYSTEM_EVIDENCE_GAP",
         downstreamUse: "Activates the governed preliminary Kühni/Hartland 1999 local mass-transfer kernel.",
-        blockingReason: "An explicit value, source class, and source reference are required; fixture and pulsed-column constants are prohibited.",
+        blockingReason: "C2_EVIDENCE_NOT_CLOSED — no exact equation-bearing Kühni dispersed-side C2 basis is approved.",
       },
       {
         id: "partition_basis",
         group: "approval",
         label: "Kd concentration-basis approval",
         ready: (sim.partition_basis_approval_status ?? legacyBvp.partitionBasis?.approvalStatus) === "engineer_approved_governed"
-          && !!String(sim.partition_basis_source_reference ?? legacyBvp.partitionBasis?.sourceReference ?? "").trim(),
+          && !!String(sim.partition_basis_source_reference ?? legacyBvp.partitionBasis?.sourceReference ?? "").trim()
+          && !!String(sim.partition_basis_approved_by ?? legacyBvp.partitionBasis?.approvedBy ?? "").trim()
+          && !!String(sim.partition_basis_approved_at ?? legacyBvp.partitionBasis?.approvedAt ?? "").trim(),
         mandatory: true,
         sourceClass: "ENGINEER_APPROVAL",
         downstreamUse: "Authorizes Koverall = kc·kd/(Kd·kd + kc) and the dispersed concentration driving force; numerical Kd remains locally calculated.",
@@ -4713,6 +4796,11 @@ export default function DesignSoftwareWorkspacePage() {
     const missingEngineeringCount = mandatoryDependencies.filter(dependency => dependency.group === "engineering" && !dependency.ready).length;
     const missingApprovalCount = mandatoryDependencies.filter(dependency => dependency.group === "approval" && !dependency.ready).length;
     const blockedGovernanceCount = stage8Dependencies.filter(dependency => dependency.group === "governance" && dependency.mandatory && !dependency.ready).length;
+    const autoPopulatedCount = ECR2_STAGE8_COMPONENTS.slice(0, 4).filter(component =>
+      sim[`molecular_weight_${component.key}_evidence_status`] === "ACCEPTED_AUTO_BASIS",
+    ).length + ECR2_STAGE8_COMPONENTS.flatMap(component => ["c", "d"].map(phase =>
+      sim[`diffusivity_${component.key}_${phase}_evidence_status`] === "ACCEPTED_AUTO_BASIS",
+    )).filter(Boolean).length + (sim.kuhni_shd_c2_evidence_status === "ACCEPTED_AUTO_BASIS" ? 1 : 0);
     const dependencyStatus = (sourceClass: string, ready: boolean) => (
       <div className="flex flex-wrap gap-1">
         <Badge className="border border-blue-200 bg-blue-50 text-blue-700 text-[9px]">{sourceClass}</Badge>
@@ -4722,13 +4810,16 @@ export default function DesignSoftwareWorkspacePage() {
         }>{ready ? "READY" : "MISSING_REQUIRED"}</Badge>
       </div>
     );
-    const sourceEditor = (prefix: string, legacy?: any) => (
-      <div className="space-y-1">
+    const sourceEditor = (prefix: string, legacy?: any) => {
+      const evidenceId = evidenceIdForPrefix(prefix);
+      const evidence = evidenceFor(evidenceId, prefix);
+      const editable = evidence.status === "ENGINEER_OVERRIDE";
+      return <div className="space-y-1">
         <select
           className="h-7 w-full rounded-md border bg-white px-1.5 text-[11px]"
           value={sim[`${prefix}_source_type`] ?? legacy?.sourceType ?? ""}
-          disabled={isFrozen}
-          onChange={e => f(`${prefix}_source_type`, e.target.value)}
+          disabled={isFrozen || !editable}
+          onChange={e => applyEngineerOverride(prefix, `${prefix}_source_type`, e.target.value, evidenceId)}
           onBlur={s}
         >
           <option value="">Source class…</option>
@@ -4738,12 +4829,31 @@ export default function DesignSoftwareWorkspacePage() {
           className="h-7 text-[11px]"
           value={sim[`${prefix}_source_reference`] ?? legacy?.sourceReference ?? ""}
           disabled={isFrozen}
+          readOnly={!editable}
           placeholder="Source reference"
-          onChange={e => f(`${prefix}_source_reference`, e.target.value)}
+          onChange={e => applyEngineerOverride(prefix, `${prefix}_source_reference`, e.target.value, evidenceId)}
           onBlur={s}
         />
-      </div>
-    );
+        {editable ? (
+          <>
+            <Textarea
+              className="min-h-14 text-[11px]"
+              value={evidence.overrideReason}
+              placeholder="Required override reason"
+              onChange={e => f(`${prefix}_override_reason`, e.target.value)}
+              onBlur={s}
+            />
+            <p className="text-[10px] text-slate-500">
+              Override actor: {evidence.overrideUser || "captured by server at run"} · {evidence.overrideAt || "timestamp pending"}
+            </p>
+          </>
+        ) : (
+          <Button type="button" variant="outline" size="sm" className="h-6 w-full text-[10px]" disabled={isFrozen} onClick={() => startEngineerOverride(prefix, evidenceId)}>
+            Enter engineer override
+          </Button>
+        )}
+      </div>;
+    };
     return (
       <div className="space-y-4">
         <SectionCard title="ECR-2 — Counter-Current Simulator">
@@ -4785,7 +4895,7 @@ export default function DesignSoftwareWorkspacePage() {
           <FieldRow label="Simulator-only diameter override" value={sim.columnDiameter_m ?? ""} onChange={v => f("columnDiameter_m", v)} onBlur={s} unit="m" note="Leave blank to inherit the governed Stage 5/Stage 7 diameter." />
 
           <SectionCard title="Stage 8 dependency register" className="mt-4">
-            <p className="text-[11px] text-gray-500">Each dependency is resolved independently. Legacy JSON is read only for older revisions; an empty legacy object is never a blocker.</p>
+            <p className="text-[11px] text-gray-500">The system resolves each numerical dependency from its governed evidence record; this is not a manual-entry worksheet. Auto-resolved records need engineer acceptance before use. An engineer override is an exception and records the original basis, reason, user, and timestamp in the calculation snapshot.</p>
             <div className="mt-3 overflow-x-auto rounded-lg border">
               <div className="min-w-[900px]">
                 <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b bg-gray-50 px-3 py-2 text-[10px] font-semibold uppercase text-gray-500">
@@ -4823,20 +4933,25 @@ export default function DesignSoftwareWorkspacePage() {
                   </div>
                 </div>
 
-                <div className="border-b bg-amber-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">B. ENGINEERING DATA REQUIRED</div>
+                <div className="border-b bg-amber-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">B. SYSTEM-RESOLVED ENGINEERING BASIS</div>
                 {ECR2_STAGE8_COMPONENTS.slice(0, 4).map(component => {
                   const prefix = `molecular_weight_${component.key}`;
                   const legacyKey = component.key === "sat" ? "saturates_g_mol" : `${component.key}_g_mol`;
                   const legacy = legacyMw[legacyKey];
+                  const evidence = evidenceFor(`physical_mw_${component.key}` as ECR2Stage8NumericalParameterId, prefix);
+                  const editable = evidence.status === "ENGINEER_OVERRIDE";
                   return <div key={prefix} className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
                     <span className="font-medium">Physical MW — {component.label}</span>
-                    <Input className="h-7 text-[11px]" value={sim[`${prefix}_value`] ?? legacy?.value ?? ""} disabled={isFrozen} placeholder="Required" onChange={e => f(`${prefix}_value`, e.target.value)} onBlur={s} />
+                    <Input className={`h-7 text-[11px] ${editable ? "" : "bg-slate-50"}`} value={sim[`${prefix}_value`] ?? legacy?.value ?? ""} disabled={isFrozen} readOnly={!editable} placeholder={editable ? "Override value" : "Awaiting system resolution"} onChange={e => applyEngineerOverride(prefix, `${prefix}_value`, e.target.value, `physical_mw_${component.key}` as ECR2Stage8NumericalParameterId)} onBlur={s} />
                     <span className="pt-1">g/mol</span>
                     {sourceEditor(prefix, legacy)}
                     <div>
-                      {dependencyStatus("ENGINEER_INPUT", taggedReady(prefix, legacy))}
+                      {dependencyStatus(editable ? "ENGINEER_OVERRIDE" : "SYSTEM_RESOLVER", taggedReady(prefix, legacy))}
                       <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> physical concentration, equilibrium concentration, Kd, driving force, and transfer rate; never NRTL.</p>
-                      {!taggedReady(prefix, legacy) && <p className="text-[10px] text-red-700"><strong>Block:</strong> positive value, valid source class, and source reference are required.</p>}
+                      <p className="mt-1 text-[10px] text-gray-600"><strong>Evidence:</strong> {evidence.status} · {evidence.record.evidenceLevel} · {evidence.record.validationStatus}</p>
+                      <p className="text-[10px] text-gray-500">{evidence.record.blockingReason}</p>
+                      {evidence.status === "AUTO_RESOLVED_PENDING_ACCEPTANCE" && <Button type="button" size="sm" className="mt-1 h-6 text-[10px]" disabled={isFrozen} onClick={() => acceptEvidenceBasis(prefix)}>Accept basis</Button>}
+                      {!taggedReady(prefix, legacy) && <p className="text-[10px] text-red-700"><strong>Root gap:</strong> {evidence.record.blockingReason}</p>}
                     </div>
                   </div>;
                 })}
@@ -4844,36 +4959,45 @@ export default function DesignSoftwareWorkspacePage() {
                 {ECR2_STAGE8_COMPONENTS.flatMap(component => (["c", "d"] as const).map(phase => {
                   const prefix = `diffusivity_${component.key}_${phase}`;
                   const legacy = legacyBvp.diffusivity?.[component.label]?.[phase === "c" ? "De_c" : "De_d"];
+                  const evidence = evidenceFor(prefix as ECR2Stage8NumericalParameterId, prefix);
+                  const editable = evidence.status === "ENGINEER_OVERRIDE";
                   const ready = taggedReady(prefix, legacy)
                     && numeric(sim[`${prefix}_reference_temperature_c`] ?? legacy?.referenceTemperature_C)
                     && !!(sim[`${prefix}_method`] ?? legacy?.method);
                   return <div key={prefix} className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
                     <span className="font-medium">{phase === "c" ? "Dc" : "Dd"} {component.label}</span>
                     <div className="space-y-1">
-                      <Input className="h-7 text-[11px]" value={sim[`${prefix}_value`] ?? legacy?.value_m2_s ?? ""} disabled={isFrozen} placeholder="Required" onChange={e => f(`${prefix}_value`, e.target.value)} onBlur={s} />
-                      <Input className="h-7 text-[11px]" value={sim[`${prefix}_reference_temperature_c`] ?? legacy?.referenceTemperature_C ?? ""} disabled={isFrozen} placeholder="Reference temperature °C" onChange={e => f(`${prefix}_reference_temperature_c`, e.target.value)} onBlur={s} />
+                      <Input className={`h-7 text-[11px] ${editable ? "" : "bg-slate-50"}`} value={sim[`${prefix}_value`] ?? legacy?.value_m2_s ?? ""} disabled={isFrozen} readOnly={!editable} placeholder={editable ? "Override value" : "Resolved at run time"} onChange={e => applyEngineerOverride(prefix, `${prefix}_value`, e.target.value, prefix as ECR2Stage8NumericalParameterId)} onBlur={s} />
+                      <Input className={`h-7 text-[11px] ${editable ? "" : "bg-slate-50"}`} value={sim[`${prefix}_reference_temperature_c`] ?? legacy?.referenceTemperature_C ?? ""} disabled={isFrozen} readOnly={!editable} placeholder="Operating-temperature basis" onChange={e => applyEngineerOverride(prefix, `${prefix}_reference_temperature_c`, e.target.value, prefix as ECR2Stage8NumericalParameterId)} onBlur={s} />
                     </div>
                     <span className="pt-1">m²/s</span>
-                    <div className="space-y-1">{sourceEditor(prefix, legacy)}<Input className="h-7 text-[11px]" value={sim[`${prefix}_method`] ?? legacy?.method ?? ""} disabled={isFrozen} placeholder="Measurement / estimation method" onChange={e => f(`${prefix}_method`, e.target.value)} onBlur={s} /></div>
+                    <div className="space-y-1">{sourceEditor(prefix, legacy)}<Input className={`h-7 text-[11px] ${editable ? "" : "bg-slate-50"}`} value={sim[`${prefix}_method`] ?? legacy?.method ?? ""} disabled={isFrozen} readOnly={!editable} placeholder="System calculation method" onChange={e => applyEngineerOverride(prefix, `${prefix}_method`, e.target.value, prefix as ECR2Stage8NumericalParameterId)} onBlur={s} /></div>
                     <div>
-                      {dependencyStatus("ENGINEER_INPUT", ready)}
+                      {dependencyStatus(editable ? "ENGINEER_OVERRIDE" : "SYSTEM_RESOLVER", ready)}
                       <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> {phase === "c" ? "continuous" : "dispersed"}-phase {component.label} local transfer and Schmidt calculation.</p>
-                      {!ready && <p className="text-[10px] text-red-700"><strong>Block:</strong> value, source class/reference, reference temperature, and method are all required.</p>}
+                      <p className="mt-1 text-[10px] text-gray-600"><strong>Evidence:</strong> {evidence.status} · {evidence.record.method}</p>
+                      <p className="text-[10px] text-amber-700">{evidence.record.validationStatus}</p>
+                      {evidence.status === "AUTO_RESOLVED_PENDING_ACCEPTANCE" && <Button type="button" size="sm" className="mt-1 h-6 text-[10px]" disabled={isFrozen} onClick={() => acceptEvidenceBasis(prefix)}>Accept basis</Button>}
+                      {!ready && <p className="text-[10px] text-red-700"><strong>Root gap:</strong> {evidence.record.blockingReason}</p>}
                     </div>
                   </div>;
                 }))}
 
                 {(() => {
                   const legacy = legacyBvp.kuhniShdC2;
+                  const evidence = evidenceFor("kuhni_shd_c2", "kuhni_shd_c2");
+                  const editable = evidence.status === "ENGINEER_OVERRIDE";
                   return <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
                     <span className="font-medium">Kühni Shd C2</span>
-                    <Input className="h-7 text-[11px]" value={sim.kuhni_shd_c2_value ?? legacy?.value ?? ""} disabled={isFrozen} placeholder="Required" onChange={e => f("kuhni_shd_c2_value", e.target.value)} onBlur={s} />
+                    <Input className={`h-7 text-[11px] ${editable ? "" : "bg-slate-50"}`} value={sim.kuhni_shd_c2_value ?? legacy?.value ?? ""} disabled={isFrozen} readOnly={!editable} placeholder={editable ? "Override value" : "C2_EVIDENCE_NOT_CLOSED"} onChange={e => applyEngineerOverride("kuhni_shd_c2", "kuhni_shd_c2_value", e.target.value, "kuhni_shd_c2")} onBlur={s} />
                     <span className="pt-1">—</span>
                     {sourceEditor("kuhni_shd_c2", legacy)}
                     <div>
-                      {dependencyStatus("ENGINEER_INPUT", taggedReady("kuhni_shd_c2", legacy))}
+                      {dependencyStatus(editable ? "ENGINEER_OVERRIDE" : "SYSTEM_RESOLVER", taggedReady("kuhni_shd_c2", legacy))}
                       <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> governed preliminary Kühni/Hartland 1999 local mass-transfer kernel.</p>
-                      {!taggedReady("kuhni_shd_c2", legacy) && <p className="text-[10px] text-red-700"><strong>Block:</strong> explicit value, source class, and source reference are required; no fixture/default is allowed.</p>}
+                      <p className="mt-1 text-[10px] text-gray-600"><strong>Evidence:</strong> {evidence.status} · {evidence.record.source}</p>
+                      {evidence.status === "AUTO_RESOLVED_PENDING_ACCEPTANCE" && <Button type="button" size="sm" className="mt-1 h-6 text-[10px]" disabled={isFrozen} onClick={() => acceptEvidenceBasis("kuhni_shd_c2")}>Accept basis</Button>}
+                      {!taggedReady("kuhni_shd_c2", legacy) && <p className="text-[10px] text-red-700"><strong>Root gap:</strong> C2_EVIDENCE_NOT_CLOSED — {evidence.record.blockingReason}</p>}
                     </div>
                   </div>;
                 })()}
@@ -4883,6 +5007,12 @@ export default function DesignSoftwareWorkspacePage() {
                   const legacy = legacyBvp.partitionBasis;
                   const approval = sim.partition_basis_approval_status ?? legacy?.approvalStatus ?? "";
                   const reference = sim.partition_basis_source_reference ?? legacy?.sourceReference ?? "";
+                  const approvedBy = sim.partition_basis_approved_by ?? legacy?.approvedBy ?? "";
+                  const approvedAt = sim.partition_basis_approved_at ?? legacy?.approvedAt ?? "";
+                  const kdApproved = approval === "engineer_approved_governed"
+                    && !!String(reference).trim()
+                    && !!String(approvedBy).trim()
+                    && !!String(approvedAt).trim();
                   return <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 px-3 py-2 text-xs">
                     <span className="font-medium">Kd basis approval</span>
                     <span className="pt-1 text-[11px]">Calculated Kd = C*d / C*c</span>
@@ -4893,11 +5023,13 @@ export default function DesignSoftwareWorkspacePage() {
                         <option value="engineer_approved_governed">Engineer approved governed basis</option>
                       </select>
                       <Input className="h-7 text-[11px]" value={reference} disabled={isFrozen} placeholder="Approval / source reference" onChange={e => f("partition_basis_source_reference", e.target.value)} onBlur={s} />
+                      <Input className="h-7 text-[11px]" value={approvedBy} disabled={isFrozen} placeholder="Approving engineer" onChange={e => f("partition_basis_approved_by", e.target.value)} onBlur={s} />
+                      <Input type="datetime-local" className="h-7 text-[11px]" value={approvedAt} disabled={isFrozen} onChange={e => f("partition_basis_approved_at", e.target.value)} onBlur={s} />
                     </div>
                     <div>
-                      {dependencyStatus("ENGINEER_APPROVAL", approval === "engineer_approved_governed" && !!String(reference).trim())}
+                      {dependencyStatus("ENGINEER_APPROVAL", kdApproved)}
                       <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> authorizes Koverall and the dispersed concentration driving force.</p>
-                      {!(approval === "engineer_approved_governed" && !!String(reference).trim()) && <p className="text-[10px] text-red-700"><strong>Block:</strong> explicit governed concentration-basis approval and source reference are required; numerical Kd is not entered.</p>}
+                      {!kdApproved && <p className="text-[10px] text-red-700"><strong>Block:</strong> explicit governed concentration-basis approval, source reference, approver, and timestamp are required; numerical Kd is not entered.</p>}
                     </div>
                   </div>;
                 })()}
@@ -4934,9 +5066,9 @@ export default function DesignSoftwareWorkspacePage() {
                 <p className="text-[10px] text-gray-500">{autoResolvedCount} inherited/calculated</p>
               </div>
               <div className="rounded border bg-white px-2 py-1.5">
-                <p className="text-[10px] uppercase text-gray-500">Missing engineering data</p>
+                <p className="text-[10px] uppercase text-gray-500">Missing system evidence</p>
                 <p className="text-sm font-semibold text-amber-700">{missingEngineeringCount}</p>
-                <p className="text-[10px] text-gray-500">individual values/provenance</p>
+                <p className="text-[10px] text-gray-500">root evidence gaps</p>
               </div>
               <div className="rounded border bg-white px-2 py-1.5">
                 <p className="text-[10px] uppercase text-gray-500">Missing approvals</p>
@@ -4949,8 +5081,8 @@ export default function DesignSoftwareWorkspacePage() {
                 <p className="text-[10px] text-gray-500">advisory evidence is shown below</p>
               </div>
             </div>
-            <p className="mt-3 text-[11px] text-slate-600" title="Resolve all mandatory Stage 8 dependencies to run the preliminary ECR-2 counter-current simulation.">
-              Resolve all mandatory Stage 8 dependencies to run the preliminary ECR-2 counter-current simulation.
+            <p className="mt-3 text-[11px] text-slate-600" title="System evidence must resolve every Stage 8 numerical dependency before the preliminary ECR-2 counter-current simulation can run.">
+              Auto-populated numerical dependencies: {autoPopulatedCount} / 15. Unresolved evidence remains visible as a root gap and cannot be bypassed by normal data entry.
             </p>
           </div>
           <div className="flex gap-2 mt-4">
@@ -4967,7 +5099,7 @@ export default function DesignSoftwareWorkspacePage() {
                 Run blocked by {unresolvedDependencies.length} unresolved Stage 8 dependenc{unresolvedDependencies.length === 1 ? "y" : "ies"}.
               </p>
               <p className="mt-1 text-[11px]">
-                Review and complete each matching row in the dependency register above. No value is inferred or defaulted.
+                Review the root evidence gap for each matching system-resolved row. No value is inferred, defaulted, or requested as normal project data entry.
               </p>
               <ol className="mt-3 space-y-2">
                 {unresolvedDependencies.map((dependency, index) => (

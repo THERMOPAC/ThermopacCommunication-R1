@@ -85,6 +85,8 @@ function input(n = 1): ECR2CounterCurrentBVPInput {
       basis: 'K_d_concentration',
       approvalStatus: 'engineer_approved_governed',
       sourceReference: 'BVP approved concentration Kd basis',
+      approvedBy: 'Test Engineer',
+      approvedAt: '2026-08-22T10:00:00Z',
     },
     solverOptions: { maxIterations: 60, maxFunctionEvaluations: 2000 },
   };

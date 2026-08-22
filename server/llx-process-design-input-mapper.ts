@@ -17,6 +17,10 @@
 import { getProperty } from './engine-framework/epd/database';
 import { getPacking } from './engine-framework/packing/database';
 import { DUSS2013_DATASETS } from './engine-framework/cel/packing-single-phase';
+import {
+  ecr2Stage8EvidenceFingerprint,
+  findEcr2Stage8Evidence,
+} from '../shared/ecr2-stage8-evidence';
 
 const num = (v: unknown): number | undefined => {
   if (v === null || v === undefined) return undefined;
@@ -566,6 +570,33 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     }
 
     const legacyMw = asRecord(parseJson(simValue('molecularWeights')));
+    const stage8Evidence: Record<string, {
+      status: string;
+      originalEvidence: string;
+      resolverFingerprint: string;
+      overrideReason: string;
+      overrideUser: string;
+      overrideAt: string;
+    }> = {};
+    const stage8Audit = (id: Parameters<typeof findEcr2Stage8Evidence>[0], prefix: string) => {
+      const record = findEcr2Stage8Evidence(id);
+      const requestedStatus = String(simValue(`${prefix}_evidence_status`) ?? '');
+      const isOverride = requestedStatus === 'ENGINEER_OVERRIDE';
+      const isAcceptedAutoBasis = requestedStatus === 'ACCEPTED_AUTO_BASIS'
+        && record.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE'
+        && typeof record.value === 'number';
+      const fingerprint = ecr2Stage8EvidenceFingerprint(record);
+      return {
+      // The workspace never authorizes an auto-resolution. Only a trusted catalog
+      // candidate may be accepted; otherwise its blocking state is preserved.
+      status: isOverride ? 'ENGINEER_OVERRIDE' : isAcceptedAutoBasis ? 'ACCEPTED_AUTO_BASIS' : record.status,
+      originalEvidence: fingerprint,
+      resolverFingerprint: fingerprint,
+      overrideReason: String(simValue(`${prefix}_override_reason`) ?? ''),
+      overrideUser: isOverride ? String(inputs.__stage8_actor_id ?? '') : '',
+      overrideAt: isOverride ? String(inputs.__stage8_server_timestamp ?? '') : '',
+      };
+    };
     const physicalMwFields = [
       ['sat', 'saturates_g_mol'],
       ['mono', 'mono_g_mol'],
@@ -573,11 +604,27 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       ['poly', 'poly_g_mol'],
     ] as const;
     const readPhysicalMw = (key: string, legacyKey: string) => {
+      const prefix = `molecular_weight_${key}`;
+      const audit = stage8Audit(
+        `physical_mw_${key}` as 'physical_mw_sat' | 'physical_mw_mono' | 'physical_mw_di' | 'physical_mw_poly',
+        prefix,
+      );
+      stage8Evidence[`physical_mw_${key}`] = audit;
       const value = simNum(`molecular_weight_${key}_value`);
       const sourceType = String(simValue(`molecular_weight_${key}_source_type`) ?? '').trim();
       const sourceReference = String(simValue(`molecular_weight_${key}_source_reference`) ?? '').trim();
       if (value !== undefined || sourceType !== '' || sourceReference !== '') {
-        return { value: value ?? Number.NaN, unit: 'g/mol', sourceType, sourceReference };
+        return {
+          value: value ?? Number.NaN,
+          unit: 'g/mol',
+          sourceType,
+          sourceReference,
+          evidenceStatus: audit.status,
+          originalEvidence: audit.originalEvidence,
+          overrideReason: audit.overrideReason,
+          overrideUser: audit.overrideUser,
+          overrideAt: audit.overrideAt,
+        };
       }
       return legacyMw[legacyKey];
     };
@@ -607,6 +654,10 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
         const sourceReference = String(simValue(`${prefix}_source_reference`) ?? '').trim();
         const referenceTemperature_C = simNum(`${prefix}_reference_temperature_c`);
         const method = String(simValue(`${prefix}_method`) ?? '').trim();
+        stage8Evidence[prefix] = stage8Audit(
+          prefix as Parameters<typeof findEcr2Stage8Evidence>[0],
+          prefix,
+        );
         const hasFlatValue = value !== undefined || sourceType !== '' || sourceReference !== ''
           || referenceTemperature_C !== undefined || method !== '';
         if (hasFlatValue) {
@@ -631,6 +682,7 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     const shdValue = simNum('kuhni_shd_c2_value');
     const shdSourceType = String(simValue('kuhni_shd_c2_source_type') ?? '').trim();
     const shdSourceReference = String(simValue('kuhni_shd_c2_source_reference') ?? '').trim();
+    stage8Evidence.kuhni_shd_c2 = stage8Audit('kuhni_shd_c2', 'kuhni_shd_c2');
     if (shdValue !== undefined || shdSourceType !== '' || shdSourceReference !== '') {
       bvp.kuhniShdC2 = {
         value: shdValue ?? Number.NaN,
@@ -649,6 +701,8 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
         basis: 'K_d_concentration',
         approvalStatus,
         sourceReference: approvalReference,
+        approvedBy: String(simValue('partition_basis_approved_by') ?? '').trim(),
+        approvedAt: String(simValue('partition_basis_approved_at') ?? '').trim(),
       };
     } else if (legacyBvp.partitionBasis !== undefined) {
       bvp.partitionBasis = legacyBvp.partitionBasis;
@@ -656,6 +710,7 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     // bvp is now an engine-ready adapter object assembled from independent
     // Stage 8 fields. The legacy JSON blob is never required; it is read only
     // to preserve older revisions during migration.
+    bvp.stage8Evidence = stage8Evidence;
     out.bvp = bvp;
   }
 

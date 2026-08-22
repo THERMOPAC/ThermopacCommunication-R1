@@ -130,6 +130,11 @@ import {
   type ECR2CounterCurrentBVPInput,
 } from './llx-ecr2-counter-current-bvp';
 import { emptyDiffusivityContract } from './llx-ecr2-diffusivity';
+import {
+  ecr2Stage8EvidenceFingerprint,
+  ECR2_STAGE8_NUMERICAL_PARAMETER_IDS,
+  findEcr2Stage8Evidence,
+} from '../../../shared/ecr2-stage8-evidence';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1052,7 +1057,56 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       if (!inputs.interfacialTension) warn('interfacialTension', 'interfacialTension is required for the ECR-2 BVP local-property closure.');
       if (!bvp.diffusivity) warn('bvp.diffusivity', 'Five-component, two-phase diffusivity inputs are required for the ECR-2 BVP.');
       if (!bvp.kuhniShdC2) warn('bvp.kuhniShdC2', 'An explicit preliminary Kühni Shd C2 input is required for the ECR-2 BVP.');
-      if (!bvp.partitionBasis) warn('bvp.partitionBasis', 'An engineer-approved K_d concentration partition basis is required for the ECR-2 BVP.');
+      if (!bvp.partitionBasis) {
+        warn('bvp.partitionBasis', 'An engineer-approved K_d concentration partition basis is required for the ECR-2 BVP.');
+      } else {
+        const approval = bvp.partitionBasis as Record<string, unknown>;
+        if (typeof approval.approvedBy !== 'string' || !approval.approvedBy.trim()) {
+          err('bvp.partitionBasis.approvedBy', 'Kd concentration-basis approval requires the approving engineer.');
+        }
+        if (typeof approval.approvedAt !== 'string' || !approval.approvedAt.trim() || Number.isNaN(Date.parse(approval.approvedAt))) {
+          err('bvp.partitionBasis.approvedAt', 'Kd concentration-basis approval requires a valid approval timestamp.');
+        }
+      }
+      const evidence = bvp.stage8Evidence as Record<string, unknown> | undefined;
+      for (const id of ECR2_STAGE8_NUMERICAL_PARAMETER_IDS) {
+        const record = evidence?.[id] as Record<string, unknown> | undefined;
+        const status = typeof record?.status === 'string' ? record.status : '';
+        const originalEvidence = typeof record?.originalEvidence === 'string'
+          ? record.originalEvidence.trim()
+          : '';
+        const overrideReason = typeof record?.overrideReason === 'string'
+          ? record.overrideReason.trim()
+          : '';
+        const overrideUser = typeof record?.overrideUser === 'string'
+          ? record.overrideUser.trim()
+          : '';
+        const overrideAt = typeof record?.overrideAt === 'string'
+          ? record.overrideAt.trim()
+          : '';
+        const resolverFingerprint = typeof record?.resolverFingerprint === 'string'
+          ? record.resolverFingerprint
+          : '';
+        const catalogRecord = findEcr2Stage8Evidence(id);
+        const expectedFingerprint = ecr2Stage8EvidenceFingerprint(catalogRecord);
+        const trustedEvidence = originalEvidence === expectedFingerprint
+          && resolverFingerprint === expectedFingerprint;
+        const accepted = status === 'ACCEPTED_AUTO_BASIS'
+          && catalogRecord.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE'
+          && typeof catalogRecord.value === 'number'
+          && trustedEvidence;
+        const overridden = status === 'ENGINEER_OVERRIDE'
+          && trustedEvidence
+          && overrideReason.length > 0
+          && overrideUser.length > 0
+          && !Number.isNaN(Date.parse(overrideAt));
+        if (!accepted && !overridden) {
+          err(
+            `bvp.stage8Evidence.${id}`,
+            `Stage 8 '${id}' must be ACCEPTED_AUTO_BASIS with retained evidence or ENGINEER_OVERRIDE with retained evidence, reason, user, and timestamp; received '${status || 'missing'}'.`,
+          );
+        }
+      }
     }
 
     return {

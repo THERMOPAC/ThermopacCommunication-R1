@@ -25,6 +25,17 @@ function taggedComplete(value: unknown, sourceType: unknown, sourceReference: un
     && text(sourceReference) !== "";
 }
 
+function evidenceAccepted(sim: Record<string, string>, prefix: string): boolean {
+  const status = text(sim[`${prefix}_evidence_status`]);
+  const retainedEvidence = text(sim[`${prefix}_original_evidence`]) !== "";
+  if (status === "ACCEPTED_AUTO_BASIS") return retainedEvidence;
+  return status === "ENGINEER_OVERRIDE"
+    && retainedEvidence
+    && text(sim[`${prefix}_override_reason`]) !== ""
+    && text(sim[`${prefix}_override_user`]) !== ""
+    && !Number.isNaN(Date.parse(text(sim[`${prefix}_override_at`])));
+}
+
 function legacyObject(sim: Record<string, string>, key: string): Record<string, any> {
   try {
     const parsed = JSON.parse(sim[key] ?? "");
@@ -78,6 +89,10 @@ export function validateEcr2Stage8(
       errors[`${prefix}_value`] =
         `Physical ${component.title} molecular weight requires a positive value, source class, and source reference because downstream physical concentration and transfer-rate equations use it`;
     }
+    if (!evidenceAccepted(sim, prefix)) {
+      errors[`${prefix}_evidence_status`] =
+        `Physical ${component.title} auto-resolved basis requires explicit engineer acceptance or an override before it can be used`;
+    }
   }
 
   const d32Mode = text(sim.d32_mode);
@@ -112,6 +127,10 @@ export function validateEcr2Stage8(
         errors[`${prefix}_method`] =
           `${phase === "c" ? "Dc" : "Dd"} ${component.label} requires its estimation/measurement method`;
       }
+      if (!evidenceAccepted(sim, prefix)) {
+        errors[`${prefix}_evidence_status`] =
+          `${phase === "c" ? "Dc" : "Dd"} ${component.label} auto-resolved basis requires explicit engineer acceptance or an override before it can be used`;
+      }
     }
   }
 
@@ -123,6 +142,10 @@ export function validateEcr2Stage8(
   )) {
     errors.kuhni_shd_c2_value =
       "Kühni Shd C2 requires an explicit engineer value, source class, and source reference; no fixture or pulsed-column default is used";
+  }
+  if (!evidenceAccepted(sim, "kuhni_shd_c2")) {
+    errors.kuhni_shd_c2_evidence_status =
+      "Kühni Shd C2 auto-resolved basis requires explicit engineer acceptance or an override before it can be used";
   }
 
   const legacyBasis = legacyBvp.partitionBasis as Record<string, unknown> | undefined;
@@ -136,6 +159,14 @@ export function validateEcr2Stage8(
   if (!text(sim.partition_basis_source_reference ?? legacyBasis?.sourceReference)) {
     errors.partition_basis_source_reference =
       "Kd basis approval requires a source reference";
+  }
+  if (!text(sim.partition_basis_approved_by)) {
+    errors.partition_basis_approved_by =
+      "Kd basis approval requires the approving engineer";
+  }
+  if (!text(sim.partition_basis_approved_at)) {
+    errors.partition_basis_approved_at =
+      "Kd basis approval requires an approval timestamp";
   }
 
   return errors;

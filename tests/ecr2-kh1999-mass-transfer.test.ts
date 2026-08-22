@@ -215,6 +215,8 @@ function activatedKernel(options: {
           basis: 'K_d_concentration',
           approvalStatus: 'engineer_approved_governed',
           sourceReference: 'Unit-test governed K_d concentration basis',
+          approvedBy: 'Test Engineer',
+          approvedAt: '2026-08-22T10:00:00Z',
         }
       : null,
   });

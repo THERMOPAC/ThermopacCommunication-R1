@@ -159,6 +159,9 @@ export interface ECR2KH1999PartitionBasisApproval {
    */
   approvalStatus: 'engineer_approved_governed';
   sourceReference: string;
+  /** Auditable approval metadata; the numerical Kd remains locally calculated. */
+  approvedBy?: string;
+  approvedAt?: string;
 }
 
 export interface ECR2KH1999D32Provenance {
@@ -747,7 +750,11 @@ export function activateKH1999PreliminaryLocalMassTransfer(
   const C2 = resolveKuhniC2(activation);
   const partitionApproved = activation.partitionBasis?.basis === 'K_d_concentration' &&
     activation.partitionBasis.approvalStatus === 'engineer_approved_governed' &&
-    activation.partitionBasis.sourceReference.trim().length > 0;
+    activation.partitionBasis.sourceReference.trim().length > 0 &&
+    typeof activation.partitionBasis.approvedBy === 'string' &&
+    activation.partitionBasis.approvedBy.trim().length > 0 &&
+    typeof activation.partitionBasis.approvedAt === 'string' &&
+    !Number.isNaN(Date.parse(activation.partitionBasis.approvedAt));
 
   const components = Object.fromEntries(TRANSFER_COMPONENTS.map((component) => {
     const prior = base.components[component];

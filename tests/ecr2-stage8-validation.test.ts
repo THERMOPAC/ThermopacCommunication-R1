@@ -14,6 +14,8 @@ function completeStage8(): Record<string, string> {
     kuhni_shd_c2_source_reference: 'Kühni/Hartland 1999, preliminary reconstruction',
     partition_basis_approval_status: 'engineer_approved_governed',
     partition_basis_source_reference: 'ECR-2 governed concentration-basis approval',
+    partition_basis_approved_by: 'Test Engineer',
+    partition_basis_approved_at: '2026-08-22T10:00',
   };
 
   for (const component of ECR2_STAGE8_COMPONENTS.slice(0, 4)) {
@@ -21,6 +23,8 @@ function completeStage8(): Record<string, string> {
     sim[`${prefix}_value`] = '250';
     sim[`${prefix}_source_type`] = 'Assumed';
     sim[`${prefix}_source_reference`] = 'Approved physical surrogate basis';
+    sim[`${prefix}_evidence_status`] = 'ACCEPTED_AUTO_BASIS';
+    sim[`${prefix}_original_evidence`] = 'Accepted controlled evidence record';
   }
   for (const component of ECR2_STAGE8_COMPONENTS) {
     for (const phase of ['c', 'd']) {
@@ -30,8 +34,12 @@ function completeStage8(): Record<string, string> {
       sim[`${prefix}_source_reference`] = 'Approved diffusivity record';
       sim[`${prefix}_reference_temperature_c`] = '60';
       sim[`${prefix}_method`] = 'Engineer-reviewed source value';
+      sim[`${prefix}_evidence_status`] = 'ACCEPTED_AUTO_BASIS';
+      sim[`${prefix}_original_evidence`] = 'Accepted controlled evidence record';
     }
   }
+  sim.kuhni_shd_c2_evidence_status = 'ACCEPTED_AUTO_BASIS';
+  sim.kuhni_shd_c2_original_evidence = 'Accepted controlled evidence record';
   return sim;
 }
 
@@ -60,5 +68,45 @@ describe('ECR-2 Stage 8 dependency graph', () => {
     const before = thermodynamicMoleFractionsFromPhysicalMassFractions(physicalMassFractions);
     const after = thermodynamicMoleFractionsFromPhysicalMassFractions(physicalMassFractions);
     expect(after).toEqual(before);
+  });
+
+  it('requires auditable approver and timestamp metadata for the separate Kd approval row', () => {
+    const withoutAudit = completeStage8();
+    delete withoutAudit.partition_basis_approved_by;
+    delete withoutAudit.partition_basis_approved_at;
+    const errors = validateEcr2Stage8(withoutAudit, true);
+    expect(errors).toHaveProperty('partition_basis_approved_by');
+    expect(errors).toHaveProperty('partition_basis_approved_at');
+  });
+
+  it('blocks a calculated record until the engineer accepts its evidence basis or overrides it', () => {
+    const pending = {
+      ...completeStage8(),
+      diffusivity_sat_c_evidence_status: 'AUTO_RESOLVED_PENDING_ACCEPTANCE',
+    };
+    expect(validateEcr2Stage8(pending, true)).toHaveProperty('diffusivity_sat_c_evidence_status');
+    expect(validateEcr2Stage8({
+      ...pending,
+      diffusivity_sat_c_evidence_status: 'ENGINEER_OVERRIDE',
+      diffusivity_sat_c_original_evidence: 'original correlation evidence retained',
+      diffusivity_sat_c_override_reason: 'Controlled engineering exception',
+      diffusivity_sat_c_override_user: '23',
+      diffusivity_sat_c_override_at: '2026-08-22T10:00:00.000Z',
+    }, true)).not.toHaveProperty('diffusivity_sat_c_evidence_status');
+  });
+
+  it('requires reason, user, and timestamp for an engineer override', () => {
+    const overridden = {
+      ...completeStage8(),
+      molecular_weight_sat_evidence_status: 'ENGINEER_OVERRIDE',
+    };
+    expect(validateEcr2Stage8(overridden, true)).toHaveProperty('molecular_weight_sat_evidence_status');
+
+    Object.assign(overridden, {
+      molecular_weight_sat_override_reason: 'Characterization evidence supersedes system candidate',
+      molecular_weight_sat_override_user: '23',
+      molecular_weight_sat_override_at: '2026-08-22T10:00:00.000Z',
+    });
+    expect(validateEcr2Stage8(overridden, true)).not.toHaveProperty('molecular_weight_sat_evidence_status');
   });
 });
