@@ -1,0 +1,99 @@
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+                                                                                ISSN 0104-6632                        
+Printed in Brazil 
+www.abeq.org.br/bjche 
+ 
+ 
+    Vol. 26,  No. 04,  pp. 677 - 683,  October - December,  2009 
+ 
+*To whom correspondence should be addressed  
+ 
+ 
+ 
+ 
+Brazilian Journal 
+of Chemical 
+Engineering 
+ 
+ 
+DROP SIZE IN A LIQUID PULSED SIEVE-PLATE 
+EXTRACTION COLUMN 
+ 
+M. R. Usman, H. Sattar, S. N. Hussain, H. Muhammad, A. Asghar, and W. Afzal* 
+ 
+Institute of Chemical Engineering and Technology, Faculty of Engineering & Technology,  
+University of the Punjab, Lahore, New Campus, 54590, Pakistan. 
+E-mail: waheed@iqtm.pu.edu.pk  
+ 
+(Submitted: November 13, 2008 ; Revised: March 23, 2009 ; Accepted: March 30, 2009) 
+ 
+Abstract - The (Benzoic acid + kerosene + water) system was studied in a 5.0 cm diameter liquid pulsed 
+liquid-liquid extraction column with a total number of 80 sieve plates. The effect of pulsation intensity, 
+dispersed phase superficial velocity, and continuous phase superficial velocity on volume-surface mean 
+diameter was studied. Generally, the mean drop diameter decreased more rapidly with the increase of 
+pulsation intensities and superficial velocities at low pulsation intensities and superficial velocities. However, 
+the effect was not found to be significant at higher pulsation intensities and higher superficial velocities. In the 
+interpretation of the experimental results, the drop size was observed to be a function of the operating regimes 
+(mixer-settler, dispersion, and emulsion) of the pulsed sieve-plate extraction column. The experimental mean 
+drop diameters were compared to the most acceptable analytical drop size correlation developed by Kumar 
+and Hartland (1986). The correlation proved to be in good agreement for the column operating in the 
+dispersion regime.   
+Keywords: Pulsation intensity; Superficial velocities; Mean drop diameter; Correlation; operating regimes. 
+ 
+ 
+ 
+INTRODUCTION 
+ 
+The design, optimization and operation of a 
+pulsed sieve-plate extraction column require both 
+mass transfer and hydrodynamic characteristics. 
+Drop size affects almost all the parameters that 
+influence hydrodynamics and mass transfer in a 
+pulsed sieve-plate extraction column (Pietzsch and 
+Pilhofer, 1984). Knowledge of drop size and 
+distribution are necessary parameters for measuring 
+mass transfer coefficients (Yaparpalvi et al., 1986) 
+and aids in determining the efficiency of the 
+extraction column (Pietzsch and Pilhofer, 1984). It 
+influences the dispersed phase holdup and residence 
+time (Kumar and Hartland, 1996) and the maximum 
+capacity of the column (Pietzsch and Pilhofer, 1984 
+and Kumar and Hartland, 1996). Realizing the 
+overwhelming importance of drop size, many 
+investigators studied the effect of column operating 
+variables on drop size and developed correlations for 
+estimating the mean drop size. Among these 
+investigators, Misek (1964), Kagan et al. (1965), 
+Miyauchi and Oya (1965), Assenov and Penchev 
+(1971), 
+Kubica 
+and 
+Zdunkiewicz 
+(1977),  
+Boyadzhiev and Spassov (1982), Schmidt (1983), 
+Vassallo et al. (1983), Pietzsch and Pilhofer (1984), 
+Kumar and Hartland (1986, 1996), Ikeda and Suzuki 
+(1992), and Sreenivasulu et al. (1997)  have 
+developed their own drop size correlations. The 
+analytical correlation of Kumar and Hartland (1986) 
+is considered to be the most respectable among all 
+the available correlations (Grinbaum, 2006) and 
+selected for a comparison to the experimental data in 
+this work.   
+In the present contribution, the effect of dispersed 
+phase velocity, continuous phase velocity and 
+pulsation intensity on the mean drop size for the 
+system (benzoic acid + kerosene + water) in a pulsed 
+sieve-plate extraction column is presented. Here, 
+kerosene constituted the dispersed phase and water 

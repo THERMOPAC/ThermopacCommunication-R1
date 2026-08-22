@@ -1,0 +1,272 @@
+ 
+ 
+ 
+ 
+680  
+ 
+ 
+ 
+ 
+ 
+ 
+  M. R. Usman, H. Sattar, S. N. Hussain, H. Muhammad, A. Asghar, and W. Afzal 
+ 
+ 
+Brazilian Journal of Chemical Engineering 
+ 
+ 
+ 
+ 
+typical size distribution in the form of a histogram 
+between the percent number of drops and the Sauter 
+mean diameter, d32, of the corresponding group is 
+plotted in Figure 5. 
+The comparison of Figure 3 and Figure 4 reveals 
+the fact, that in the lower velocity region (lower end 
+of mixer-settler regime), dispersed phase velocity 
+produces much smaller drop sizes as compared to 
+continuous phase velocity. As an example, the value 
+of drop size is 3.17 mm at ud equal to 1.67 mm/s, 
+while drop diameter is much larger, 5.33 mm, when 
+uc is equal to 1.87mm/s. In this region, an increase in 
+the continuous phase velocity sharply decreases the 
+drop diameter, but the same is not true for the 
+dispersed phase velocity.  At higher velocities (upper 
+end of mixer-settler region), the effect of either 
+phase velocity is virtually the same; however, 
+smaller diameter is always obtained with ud.  
+Figures 6 and 7 give a comparison between the 
+experimental diameters and those calculated from the 
+most recommended equation, Eq. 2 developed by 
+Kumar and Hartland (1986) for the prediction of 
+drop diameter in a pulsed sieve-plate column. Table 
+2 gives the experimentally measured diameters, 
+while Table 3 includes the physical properties and 
+the column characteristics that are employed with the 
+Kumar and Hartland correlation to compare the 
+calculated and experimental diameters. 
+The correlation of Kumar and Hartland (1986) is 
+shown below: 
+ 
+w
+w
+0.18
+0.14
+0.25
+0.40
+32
+d
+0.25 0.75
+w
+w
+0.06
+2
+w
+d
+l
+g
+1.35
+ g
+g
+                
+Af
+             
+0.23 exp
+29.66 g
+⎛
+⎞
+⎜
+⎟
+⎛
+⎞
+μ
+⎜
+⎟
+⎜
+⎟
+=
+⋅α
+⋅
+⋅
+⎜
+⎟
+⎜
+⎟
+σ
+σ
+ρ
+σ
+⎝
+⎠
+⎜
+⎟
+Δρ
+ρ
+⎝
+⎠
+⎡
+⎤
+⎛
+⎞
+⎛
+⎞
+σ
+×
+⋅
++
+−
+⎢
+⎥
+⎜
+⎟
+⎜
+⎟
+⎜
+⎟
+σ
+α
+⎢
+⎥
+⎝
+⎠
+⎝
+⎠
+⎣
+⎦
+   (2)  
+ 
+2.00
+2.20
+2.40
+2.60
+2.80
+3.00
+3.20
+3.40
+0
+2
+4
+6
+8
+10
+u d (mm/s)
+d 32 (mm)
+Af = 7.4 mm/s
+uc = 3.51 mm/s
+2.00
+2.20
+2.40
+2.60
+2.80
+3.00
+3.20
+3.40
+0
+2
+4
+6
+8
+10
+u d (mm/s)
+d 32 (mm)
+2.00
+2.20
+2.40
+2.60
+2.80
+3.00
+3.20
+3.40
+0
+2
+4
+6
+8
+10
+u d (mm/s)
+d 32 (mm)
+Af = 7.4 mm/s
+uc = 3.51 mm/s
+ 
+2.00
+2.50
+3.00
+3.50
+4.00
+4.50
+5.00
+5.50
+6.00
+0
+2
+4
+6
+8
+10
+uc(mm/s)
+d32(mm)
+Af = 7.4 mm/s
+ud = 3.28 mm/s
+2.00
+2.50
+3.00
+3.50
+4.00
+4.50
+5.00
+5.50
+6.00
+0
+2
+4
+6
+8
+10
+uc(mm/s)
+d32(mm)
+Af = 7.4 mm/s
+ud = 3.28 mm/s
+ 
+Figure 3: Effect of dispersed phase superficial 
+velocity on the mean drop diameter  
+(refer to Table 2) 
+Figure 4: Effect of continuous phase superficial 
+velocity on the mean drop diameter  
+(refer to Table 2) 
+ 
+0
+10
+20
+30
+40
+50
+1.41 1.79 2.17 2.55 2.93 3.32 3.70 4.08
+Droplet diameter, d32(mm)
+% No. of drops
+d32 = 2.92 mm
+ud = 3.28 mm/s
+uc = 5.26 mm/s
+Af = 7.4 mm/s
+0
+10
+20
+30
+40
+50
+0
+10
+20
+30
+40
+50
+1.41 1.79 2.17 2.55 2.93 3.32 3.70 4.08
+1.41 1.79 2.17 2.55 2.93 3.32 3.70 4.08
+Droplet diameter, d32(mm)
+% No. of drops
+d32 = 2.92 mm
+ud = 3.28 mm/s
+uc = 5.26 mm/s
+Af = 7.4 mm/s
+ 
+Figure 5: A typical histogram showing the distribution of  
+drop diameters for a particular set of conditions. 

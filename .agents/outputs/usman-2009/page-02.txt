@@ -1,0 +1,113 @@
+ 
+ 
+ 
+ 
+678  
+ 
+ 
+ 
+ 
+ 
+ 
+  M. R. Usman, H. Sattar, S. N. Hussain, H. Muhammad, A. Asghar, and W. Afzal 
+ 
+ 
+Brazilian Journal of Chemical Engineering 
+ 
+ 
+ 
+ 
+was the continuous phase. The purpose of the study is 
+to contribute more data, needed for developing and/or 
+improving design strategies and scale up procedures 
+for liquid pulsed columns by working on original 
+systems, and to validate the most acceptable analytical 
+expressions for the mean drop diameter. The set of 
+new experimental data is used to test predictions of the 
+Kumar and Hartland correlation (1986). In the 
+interpretation of the experimental data and predictions 
+of the Kumar and Hartland correlation (1986), it is 
+observed that the efficiency of the method is related to 
+the operating regimes (mixer-settler, dispersed, and 
+emulsion). The method shows limitations in the mixer-
+settler regime potentially important in the plant start up 
+and shut down routines.  
+ 
+ 
+EXPERIMENTAL 
+ 
+The experimental setup is shown in Figure 1. A 
+pilot scale, 5.0 cm internal diameter glass sieve-plate 
+pulsed extraction column was used for all the 
+experiments undertaken. There were about 80, 1.0 
+mm thick stainless steel plates in the column and 
+every two plates were separated 5.0 cm apart. Each 
+plate contained 36 holes of 3.0 mm in diameter. The 
+holes were laid out on a triangular pitch of 5.0 mm. 
+The free area could not exceed 13.5% of the total 
+area. Analytical grade benzoic acid from BDH
+Chemicals (assay 99.5%) was used to make a ~ 2 
+mass % solution in Kerosene. 31°API kerosene with 
+an ASTM 50% point of 110°C was employed, 
+together with water available in the laboratory. 
+Chemicals were used as such and no attempt was 
+made to purify them further.  
+Firstly, the whole of the column was filled with 
+the water (continuous phase), then the kerosene-
+benzoic acid solution (dispersed phase), being 
+lighter, was introduced from the bottom of the 
+column. The photographic method was employed for 
+drop size diameter measurement in which the 
+photographs at different time intervals were taken 
+and, using a scale-ratio, the diameter of the drop is 
+measured. Generally, on average about 50 readings 
+were taken for each diameter value measured and 
+used in this work. The 30th plate (counting from the 
+bottom) was selected for the drop size observation 
+and measurement. This decision was taken on the 
+basis of convenience and the fact that drop formation 
+was found to be more stable at this level.  The drop 
+size was found to be relatively less stable at lower 
+levels of the column. All experiments were 
+conducted at room temperature (20 ± 1° C) and 
+conducted in the mixer-settler and dispersion 
+regimes, since most of the industrial columns avoid 
+being operated in the emulsion regime (Grinbaum, 
+2006). Table 2 provides information on all the 
+variables that were studied in this work.  
+ 
+1
+2
+3
+Kerosene
+Reservoir
+Kerosene
+Feed Pump
+Water
+Reservoir
+4
+Aqueous
+Feed Pump
+Pulsator
+Pump
+1
+2
+3
+Kerosene
+Reservoir
+Kerosene
+Feed Pump
+Water
+Reservoir
+4
+Aqueous
+Feed Pump
+Pulsator
+Pump
+1. Aqueous phase in 
+2. Aqueous phase out 
+3. Organic phase in 
+4. Organic phase out 
+ 
+Figure 1: Flow scheme of the pilot scale pulsed sieve-plate extraction 
+column. 

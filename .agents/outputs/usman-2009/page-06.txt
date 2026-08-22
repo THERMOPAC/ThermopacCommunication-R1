@@ -1,0 +1,163 @@
+ 
+ 
+ 
+ 
+682  
+ 
+ 
+ 
+ 
+ 
+ 
+  M. R. Usman, H. Sattar, S. N. Hussain, H. Muhammad, A. Asghar, and W. Afzal 
+ 
+ 
+Brazilian Journal of Chemical Engineering 
+ 
+ 
+ 
+ 
+settler regime and the dispersion regime. However, it 
+performs poorly in most of the mixer-settler region, 
+especially at the lower end of the mixer-settler region 
+(where a significant effect of both continuous and 
+dispersed phase velocity is observed, Figures 3 and 
+4) and then improves along the way. The maximum 
+deviation between the measured and calculated drop 
+sizes reaches as high as 50% in the lower end of the 
+mixer-settler region, but this deviation is generally 
+less than 10% in the dispersion region. The poor 
+results do not discourage the use of Eq. 2 for 
+prediction of drop diameter because of the fact that it 
+covers the practical operating ranges of the industrial 
+columns. However, if the column is operated in the 
+region described here as the lower end of mixer-
+settler regime, the use of the above equation should 
+be avoided. This situation can be encountered during 
+column start up and shut down routines. Figure 7, on 
+the other hand, gives a comparison under all 
+conditions studied in this work. It reveals the fact 
+that the efficacy of Eq. 2 is more disturbed by the 
+variations in continuous phase superficial velocity 
+than dispersed phase superficial velocity. The 
+maximum deviation reaches as high as 53% in the 
+case of continuous phase, while about 21% in the 
+case of dispersed phase velocity.  
+ 
+ 
+CONCLUSIONS 
+ 
+The energy input in the form of pulsation 
+intensity has a profound effect on the mean drop 
+diameter and an increase in the value decreases the 
+mean drop size. Drop size seems to be a function of 
+governing regime (mixer-settler or dispersion). The 
+effect of superficial velocities on drop diameter is 
+very much pronounced in the lower end of the 
+mixer-settler region and the change in the continuous 
+phase velocity has a larger effect on drop diameter in 
+this region. The analytical equation of Kumar and 
+Hartland (1986) proved to be very appropriate in the 
+region of practical interest, i.e., near the end of 
+mixer-settler regime and within the dispersion 
+regime; however, it failed in the lower end of the 
+mixer settler region. This is the region where 
+superficial velocities have a profound effect on 
+diameters.  
+ 
+ 
+ACKNOWLEDGMENTS 
+ 
+Support staff at the Unit Operations Laboratory, 
+Institute of Chemical Engineering and Technology, 
+University of the Punjab, Lahore, is gratefully 
+acknowledged 
+for 
+the 
+maintenance 
+of 
+the 
+experimental facilities.  
+ 
+ 
+NOMENCLATURE 
+ 
+A 
+stroke length or pulsation 
+amplitude 
+m
+d32 
+volume-surface mean or 
+Sauter mean drop diameter 
+m
+f 
+frequency of pulsation 
+s-1
+g 
+acceleration due to gravity 
+m/s2
+l 
+distance between sieve-
+plates  
+m
+c
+u 
+continuous phase superficial 
+velocity 
+m
+d
+u 
+dispersed phase superficial 
+velocity 
+m
+α 
+fractional free area of the 
+plate 
+d
+μ 
+viscosity of the dispersed 
+phase 
+Pa.s
+w
+ρ 
+density of water at 20°C  
+kg/m3
+Δρ 
+density difference between 
+heavier and lighter phases  
+kg/m3
+σ 
+interfacial tension  
+N/m
+w
+σ 
+surface tension of water at 
+20°C  
+N/m
+i 
+ith value 
+n 
+nth value 
+ 
+ 
+REFERENCES 
+ 
+Assenov, A., Penchev, I., Effect of pulsing intensity 
+upon droplet size in a plate pulsed extraction 
+column, Dokl. Bolg. Akad. Nauk. 24, 1381-1387 
+(1971). 
+Boyadzhiev, L. and Spassov, M., On the size of 
+drops in pulsed and vibrating plate extraction 
+columns, Chem. Eng. Sci. 37, 337-340 (1982). 
+Grinbaum, B., Review Article: The existing models 
+for simulation of pulsed and reciprocating 
+columns—How well do they work in the real 
+world? Solvent Extraction and Ion Exchange, 24, 
+795-822 (2006). 
+Ikeda, H. and Suzuki, A., Plate wettability and droplet 
+diameter in a pulsed perforated plate extraction 
+column, Can. J. Chem. Eng. 70, 232-236 (1992). 
+Kagan, S. Z., Aerov, M. E., Lonik, V. and Volkova, 
+T. S., Some hydrodynamic and mass transfer 
+problems in pulsed sieve-plate extractors, Int. 
+Chem. Eng. 5, 656-661 (1965). 

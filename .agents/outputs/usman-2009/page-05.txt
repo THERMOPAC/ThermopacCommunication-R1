@@ -1,0 +1,279 @@
+ 
+ 
+ 
+ 
+Drop Size in a Liquid Pulsed Sieve-Plate Extraction Column                                                                  681 
+ 
+ 
+Brazilian Journal of Chemical Engineering Vol. 26,  No. 04,  pp. 677 - 683,  October - December,  2009 
+ 
+ 
+ 
+ 
+0
+1
+2
+3
+4
+5
+6
+0
+5
+10
+15
+20
+25
+30
+Af (mm/s)
+d 32 (mm)
+Experimental
+Calculated (Eq. 2)
+1st Part
+(Mixer-settler
+Regime)
+2nd Part
+(Dispersion Regime)
+ud = 3.28 mm/s
+uc = 3.51 mm/s
+0
+1
+2
+3
+4
+5
+6
+0
+5
+10
+15
+20
+25
+30
+Af (mm/s)
+d 32 (mm)
+Experimental
+Calculated (Eq. 2)
+0
+1
+2
+3
+4
+5
+6
+0
+5
+10
+15
+20
+25
+30
+Af (mm/s)
+d 32 (mm)
+Experimental
+Calculated (Eq. 2)
+1st Part
+(Mixer-settler
+Regime)
+2nd Part
+(Dispersion Regime)
+ud = 3.28 mm/s
+uc = 3.51 mm/s
+ 
+0
+1
+2
+3
+4
+5
+6
+0
+1
+2
+3
+4
+5
+6
+d 32, Experimental (mm)
+d32fromEq. 2 (mm) 
+11
+Af = 7.4 mm/s, ud = 3.28
+mm/s
+ud = 3.28 mm/s, uc = 3.51
+mm/s
+Af = 7.4 mm/s, uc = 3.51 mm/s
+Af = 7.4 mm/s, ud = 3.28 mm/s
+ud = 3.28 mm/s, uc = 3.51 mm/s 
+0
+1
+2
+3
+4
+5
+6
+0
+1
+2
+3
+4
+5
+6
+d 32, Experimental (mm)
+d32fromEq. 2 (mm) 
+11
+Af = 7.4 mm/s, ud = 3.28
+mm/s
+ud = 3.28 mm/s, uc = 3.51
+mm/s
+0
+1
+2
+3
+4
+5
+6
+0
+1
+2
+3
+4
+5
+6
+d 32, Experimental (mm)
+d32fromEq. 2 (mm) 
+11
+Af = 7.4 mm/s, ud = 3.28
+mm/s
+ud = 3.28 mm/s, uc = 3.51
+mm/s
+Af = 7.4 mm/s, uc = 3.51 mm/s
+Af = 7.4 mm/s, ud = 3.28 mm/s
+ud = 3.28 mm/s, uc = 3.51 mm/s 
+ 
+Figure 6: Comparison of diameters with the  
+variation in pulsation intensity  
+(refer to Table 2) 
+Figure 7: Comparison of experimental diameters  
+with diameters calculated from Eq. (2) 
+(refer to Table 2 and Table 3) 
+ 
+Table 2: Experimental Variables and Measured Experimental Diameter   
+ 
+Frequency, 
+f 
+(Hz) 
+Amplitude,  
+A 
+(mm) 
+Continuous phase 
+velocity, uc 
+(mm/s) 
+Dispersed phase  
+velocity, ud 
+(mm/s) 
+d32, measured 
+experimentally 
+(mm) 
+0.165 
+20.0 
+3.51 
+3.28 
+5.32 
+0.370 
+20.0 
+3.51 
+3.28 
+3.03 
+0.370 
+20.0 
+3.51 
+1.67 
+3.19 
+0.370 
+20.0 
+3.51 
+5.13 
+2.56 
+0.370 
+20.0 
+3.51 
+6.70 
+2.45 
+0.370 
+20.0 
+3.51 
+8.33 
+2.43 
+0.370 
+20.0 
+1.87 
+3.28 
+5.33 
+0.370 
+20.0 
+5.26 
+3.28 
+2.92 
+0.370 
+20.0 
+6.70 
+3.28 
+2.82 
+0.370 
+20.0 
+8.33 
+3.28 
+2.49 
+0.560 
+20.0 
+3.51 
+3.28 
+2.40 
+0.925 
+20.0 
+3.51 
+3.28 
+2.15 
+1.230 
+20.0 
+3.51 
+3.28 
+1.76 
+ 
+Table 3: Physical Properties and Column Characteristics Used with Eq. 2 
+ 
+Parameter 
+Value with working units 
+ρw 
+998.2 kg/m3 
+μw 
+0.00100 Pa.s 
+σw 
+0.0728 N/m 
+Δρ 
+198.0 kg/m3 
+μd 
+0.00167 Pa.s 
+σ 
+0.0440 N/m 
+l 
+0.050 m 
+α 
+0.135 
+ 
+ 
+The single correlation is developed to apply in all 
+the three operating regimes discussed above. The 
+equation is based on 16 different liquid-liquid 
+systems and 326 published drop size measurements 
+(Kumar and Hartland, 1986). The effect of system 
+geometry, 
+pulsation 
+intensity, 
+and 
+physical 
+properties of phases is included. The effect of phase 
+superficial velocities is not incorporated.   
+Figure 6 describes the comparison of diameters 
+with the variation in pulsation intensity. It suggests 
+that Eq. 2 represents the experimental data very well 
+in the region comprising the upper end of the mixer-

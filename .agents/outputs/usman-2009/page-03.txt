@@ -1,0 +1,195 @@
+ 
+ 
+ 
+ 
+Drop Size in a Liquid Pulsed Sieve-Plate Extraction Column                                                                  679 
+ 
+ 
+Brazilian Journal of Chemical Engineering Vol. 26,  No. 04,  pp. 677 - 683,  October - December,  2009 
+ 
+ 
+ 
+ 
+RESULTS AND DISCUSSION 
+ 
+Depending on the intensity of mixing, three 
+separate 
+flow 
+regimes, 
+namely 
+mixer-settler, 
+dispersion, and emulsion regimes, are characterized 
+in the operation of a liquid pulsed extraction column 
+(Grinbaum, 2006). Based on pulsation intensity, the 
+approximate ranges for the three regimes are 
+provided in Table 1. These ranges are only 
+approximate and vary from system to system 
+(Sreenivasulu et al., 1997). The mixer- settler regime 
+is a region of low mixing and characterized by the 
+discrete zones in the column, i.e., one of the phases 
+may accumulate above or below each of the plates to 
+produce discontinuity in the column. Dispersion 
+regime avoids such discontinuity and dispersed 
+phase drops are more uniformly distributed in the 
+column. Emulsion regime is the operation of a highly 
+intense mixing process where the column tends to 
+approach flooding.  
+ 
+Table 1: Classification of Regimes in Liquid 
+Extraction Columns (Sreenivasulu et al., 1997) 
+ 
+Regime 
+Range (mm/s) 
+Mixer-settler 
+Af < 15 
+Dispersion 
+15 < Af < 40 
+Emulsion 
+Af  > 40 
+ 
+The effect of energy addition in the form of 
+pulsation intensity or pulsation velocity, Af, on the 
+mean drop diameter is shown in the Figure 2. The 
+pulsation intensity is defined as the product of 
+frequency of pulsation, f, and stroke length or 
+amplitude of pulsation, A, whereas the mean drop 
+diameter is taken as the volume-surface mean 
+diameter or Sauter mean diameter, d32. The following 
+expression is used for calculating the Sauter mean 
+diameter: 
+ 
+i n
+i n
+3
+2
+32
+i
+i
+i 1
+i 1
+d
+d
+d
+=
+=
+=
+=
+=∑
+∑
+             
+ 
+ 
+ 
+ 
+ 
+   (1) 
+ 
+It was observed that the mean drop diameter 
+decreases with an increase in the pulsation intensity. 
+This is in accordance with the expectations because 
+an increase in pulsation intensity is a function of 
+energy added to the column contents. However, an 
+interesting point may be explained by dividing the 
+curve in Figure 2 in two parts. The first part, defined 
+between pulsation intensity of 3.3 and 9.0 mm/s, is 
+characterized by a relatively sharp decrease in the 
+mean diameter as compared to the second part, 
+which comprises the range 9.0 mm/s to 24.6 mm/s. It 
+was visually observed that the first two points of the 
+curve lay in the mixer-settler regime, while the other 
+three belonged to the dispersion regime. So the end 
+of the first part may be the transition region from the 
+mixer-settler regime to the dispersion regime. It is 
+thus interpreted that the effect of pulsation intensity 
+on mean drop diameter is more pronounced in the 
+mixer-settler regime than in the dispersion regime. 
+ 
+0
+1
+2
+3
+4
+5
+6
+0
+5
+10
+15
+20
+25
+30
+Af (mm/s)
+d 32 (mm)
+1st Part
+(Mixer-settler
+Regime)
+2nd Part
+(Dispersion Regime)
+ud = 3.28 mm/s
+uc = 3.51 mm/s
+0
+1
+2
+3
+4
+5
+6
+0
+5
+10
+15
+20
+25
+30
+Af (mm/s)
+d 32 (mm)
+0
+1
+2
+3
+4
+5
+6
+0
+5
+10
+15
+20
+25
+30
+Af (mm/s)
+d 32 (mm)
+1st Part
+(Mixer-settler
+Regime)
+2nd Part
+(Dispersion Regime)
+ud = 3.28 mm/s
+uc = 3.51 mm/s
+ 
+Figure 2:  Effect of pulsation intensity on mean drop 
+diameter and the representation of mean diameter as 
+a function of flow regimes (refer to Table 2) 
+ 
+Figure 3 represents the influence of dispersed 
+phase (kerosene) superficial velocity, ud, on the 
+Sauter mean diameter for a constant value of 
+pulsation intensity of 7.4 mm/s and continuous phase 
+superficial velocity of 3.5 mm/s. In general, it shows 
+a decrease in the drop diameter with an increase in 
+dispersed phase velocity; however, near 6 mm/s 
+onwards, there seems to be no significant change in 
+drop diameter and further increase in the velocity 
+may not affect the drop size. Visual observations 
+showed that all the points of Figure 3 were in the 
+mixer-settler regime. Figure 4 describes a plot of 
+superficial continuous phase velocity and mean drop 
+diameter for a constant dispersed phase superficial 
+velocity of 3.28 mm/s and pulsation intensity of 7.4 
+mm/s. Here again, mean drop diameter decreases 
+significantly with an initial increase in the velocity, 
+while it seems not to be affected at higher velocity 
+values. Again, the visual observations reported a 
+mixer-settler regime. In order to visualize the spread 
+in the drop size range, for a particular set of values of 
+superficial velocities and pulsation intensity, a 
