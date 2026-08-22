@@ -478,8 +478,15 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     // Fluid Properties seeds NMP purity as nmp_purity (wt.%); retain the
     // legacy solvent_nmp_mole_fraction field only as a fallback for older
     // workspace payloads. The simulator requires a mass fraction.
-    const nmpPurity = num(inputs.nmp_purity) ?? num(inputs.solvent_nmp_mole_fraction);
-    if (out.nmpPurity === undefined && nmpPurity !== undefined) out.nmpPurity = nmpPurity > 1 ? nmpPurity / 100 : nmpPurity;
+    //
+    // The simulator section can also persist the camelCase nmpPurity key. A
+    // saved 99.5 there is still the workspace's wt.% representation, not an
+    // engine-ready fraction, so normalize it too rather than letting it bypass
+    // the adapter merely because its key already has camelCase spelling.
+    const nmpPurity = num(out.nmpPurity)
+      ?? num(inputs.nmp_purity)
+      ?? num(inputs.solvent_nmp_mole_fraction);
+    if (nmpPurity !== undefined) out.nmpPurity = nmpPurity > 1 ? nmpPurity / 100 : nmpPurity;
     if (out.phaseConfiguration === undefined) out.phaseConfiguration = 'nmp_continuous_rrbo_dispersed';
 
     // Simulator-only geometry/settings are intentionally held in the

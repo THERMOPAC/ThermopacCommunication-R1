@@ -49,4 +49,12 @@ describe('ECR-2 simulator workspace adapter', () => {
     expect(mapped.d32Config).toMatchObject({ mode: 'engineer_supplied', value_m: 0.0005 });
     expect(mapped.bvp).toMatchObject({ rrboGradeId: 'rrbo-sn300' });
   });
+
+  it('normalizes a simulator-section NMP purity percentage to an engine mass fraction', () => {
+    const mapped = mapWorkspaceProcessDesignInputs({
+      nmpPurity: '99.5',
+    }, 'ecr_simulator');
+
+    expect(mapped.nmpPurity).toBe(0.995);
+  });
 });
