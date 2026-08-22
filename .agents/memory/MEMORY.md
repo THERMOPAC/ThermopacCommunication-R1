@@ -49,3 +49,4 @@
 - [ECR-2 phase applicability boundary](ecr2-phase-applicability-boundary.md) — preserve Phase-1 d32 safety status for unsupported orientations, but dependency-block BVP execution outside NMP-continuous/RRBO-dispersed.
 - [ECR-2 Stage 8 evidence resolution](ecr2-stage8-evidence-resolution.md) — Wilke–Chang is traceable only as a pending-input estimate; physical MWs and Kühni C2 stay fail-closed until scoped evidence is approved.
 - [ECR-2 calculated evidence acceptance](ecr2-calculated-evidence-acceptance.md) — Stage 8 uses one current bulk acceptance state for system-resolved values; no per-value signatures or acceptance history.
+- [ECR-2 live dependency state](ecr2-live-dependency-state.md) — readiness, blocker list, run gate, and register must consume current resolver metadata from one model; never re-check stale saved fields.

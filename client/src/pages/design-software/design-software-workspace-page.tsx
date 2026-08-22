@@ -29,6 +29,7 @@ import {
 } from "@shared/fluid-properties-master";
 import { resolveNtInputs } from "@/lib/nt-requirement-resolver";
 import { validateEcr2Stage8, ECR2_STAGE8_COMPONENTS, ECR2_STAGE8_SOURCE_TYPES } from "@/lib/ecr2-stage8-validation";
+import { getEcr2Stage8LiveDependencies } from "@/lib/ecr2-stage8-live-dependencies";
 import {
   ECR2_STAGE8_VISIBLE_STATE_LABELS,
   getEcr2Stage8VisibleResolutionState,
@@ -4639,8 +4640,6 @@ export default function DesignSoftwareWorkspacePage() {
     const hasAcceptedEcrRun = (resultsQ.data ?? []).some((r: any) =>
       r.section === "ecr" && r.data?.heightBreakdown?.activeAgitatedHeight?.result,
     );
-    const stage8Errors = validateEcr2Stage8(sim, hasAcceptedEcrRun, serverResolverRecords);
-    const stage8Blocking = Object.keys(stage8Errors).length > 0;
     const legacyMw = parseSnapshot(sim.molecularWeights) ?? {};
     const legacyBvp = parseSnapshot(sim.bvp) ?? {};
     const numeric = (value: unknown) => {
@@ -4655,27 +4654,6 @@ export default function DesignSoftwareWorkspacePage() {
       const n = Number(value);
       if (!Number.isFinite(n)) return "—";
       return unit === "g/mol" ? n.toFixed(2) : n.toExponential(4);
-    };
-    const taggedReady = (prefix: string, legacy?: any) => {
-        const id = prefix === "kuhni_shd_c2"
-          ? "kuhni_shd_c2"
-          : prefix.startsWith("molecular_weight_")
-            ? `physical_mw_${prefix.replace("molecular_weight_", "")}` as ECR2Stage8NumericalParameterId
-            : prefix as ECR2Stage8NumericalParameterId;
-        const record = serverResolverRecords[id] ?? findEcr2Stage8Evidence(id);
-        const requestedStatus = sim[`${prefix}_evidence_status`] ?? "";
-        const status = requestedStatus === "ENGINEER_OVERRIDE"
-          ? requestedStatus
-          : sim.stage8_system_values_acceptance_status === "ACCEPTED" && systemResolved(record)
-            ? "ACCEPTED_AUTO_BASIS"
-            : record.status;
-        if (status === "ACCEPTED_AUTO_BASIS") {
-          return true;
-        }
-        return numeric(sim[`${prefix}_value`] ?? legacy?.value)
-          && ECR2_STAGE8_SOURCE_TYPES.includes((sim[`${prefix}_source_type`] ?? legacy?.sourceType) as typeof ECR2_STAGE8_SOURCE_TYPES[number])
-          && !!(sim[`${prefix}_source_reference`] ?? legacy?.sourceReference)
-          && status === "ENGINEER_OVERRIDE";
     };
     const evidenceFor = (id: ECR2Stage8NumericalParameterId, prefix: string) => {
       const record = serverResolverRecords[id] ?? findEcr2Stage8Evidence(id);
@@ -4771,118 +4749,23 @@ export default function DesignSoftwareWorkspacePage() {
           : "border border-red-200 bg-red-50 text-red-700 text-[9px]";
       return <Badge data-testid={`stage8-status-${evidence.record.id}`} className={className}>{visible.label}</Badge>;
     };
-    const stage8DependencyGroups = {
-      auto: "AUTO-RESOLVED",
-      engineering: "SYSTEM-RESOLVED BASIS",
-      approval: "ENGINEERING APPROVAL REQUIRED",
-      governance: "GOVERNANCE / EVIDENCE REQUIRED",
-    } as const;
-    type Stage8Dependency = {
-      id: string;
-      group: keyof typeof stage8DependencyGroups;
-      label: string;
-      ready: boolean;
-      mandatory: boolean;
-      sourceClass: string;
-      downstreamUse: string;
-      blockingReason: string;
+    const stage8Dependencies = getEcr2Stage8LiveDependencies({
+      sim,
+      hasAcceptedEcrRun,
+      resolverRecords: serverResolverRecords,
+    });
+    const dependencyById = new Map(stage8Dependencies.map(dependency => [dependency.id, dependency]));
+    const dependencyFor = (id: string) => {
+      const dependency = dependencyById.get(id);
+      if (!dependency) throw new Error(`Unknown Stage 8 dependency: ${id}`);
+      return dependency;
     };
-    const stage8Dependencies: Stage8Dependency[] = [
-      {
-        id: "stage7_ecr_result",
-        group: "auto",
-        label: "Stage 7 ECR equipment result",
-        ready: hasAcceptedEcrRun,
-        mandatory: true,
-        sourceClass: "INHERITED",
-        downstreamUse: "Provides accepted active agitated height and ECR geometry to the BVP.",
-        blockingReason: "Accepted Stage 7 ECR Equipment Design result is required; no manual Stage 8 geometry substitute is permitted.",
-      },
-      {
-        id: "d32",
-        group: "auto",
-        label: "d₃₂",
-        ready: sim.d32_mode !== "engineer_supplied" || (numeric(sim.d32_value_mm) && !!sim.d32_source_type && !!sim.d32_source_reference),
-        mandatory: true,
-        sourceClass: sim.d32_mode === "engineer_supplied" ? "ENGINEER_INPUT" : "CALCULATED",
-        downstreamUse: "Feeds the governed d32 route and interfacial area a = 6φd/d32 for local transfer.",
-        blockingReason: sim.d32_mode === "engineer_supplied"
-          ? "Engineer-supplied d₃₂ needs a positive value, source class, and source reference."
-          : "No blocker; ecr2_d32_kh1996 resolves the value from the governed local state at run time.",
-      },
-      ...ECR2_STAGE8_COMPONENTS.slice(0, 4).map(component => {
-        const prefix = `molecular_weight_${component.key}`;
-        const legacyKey = component.key === "sat" ? "saturates_g_mol" : `${component.key}_g_mol`;
-        const ready = taggedReady(prefix, legacyMw[legacyKey]);
-        return {
-          id: prefix,
-          group: "engineering" as const,
-          label: `Physical MW — ${component.label}`,
-          ready,
-          mandatory: true,
-          sourceClass: ready ? "SYSTEM_RESOLVER" : "SYSTEM_EVIDENCE_GAP",
-          downstreamUse: "Builds physical mass fractions/concentrations, equilibrium concentrations, Kd, driving force, and transfer rate after NRTL.",
-          blockingReason: ready ? "No blocker." : "System physical-characterization resolver has no approved RRBO pseudo-component molecular-weight basis.",
-        };
-      }),
-      ...ECR2_STAGE8_COMPONENTS.flatMap(component => (["c", "d"] as const).map(phase => {
-        const prefix = `diffusivity_${component.key}_${phase}`;
-        const legacy = legacyBvp.diffusivity?.[component.label]?.[phase === "c" ? "De_c" : "De_d"];
-        const ready = taggedReady(prefix, legacy)
-          && numeric(sim[`${prefix}_reference_temperature_c`] ?? legacy?.referenceTemperature_C)
-          && !!(sim[`${prefix}_method`] ?? legacy?.method);
-        return {
-          id: prefix,
-          group: "engineering" as const,
-          label: `${phase === "c" ? "Dc" : "Dd"} ${component.label}`,
-          ready,
-          mandatory: true,
-          sourceClass: ready ? "SYSTEM_RESOLVER" : "SYSTEM_EVIDENCE_GAP",
-          downstreamUse: `Supplies the ${phase === "c" ? "continuous" : "dispersed"}-phase diffusivity for the ${component.label} Kühni local transfer/Schmidt calculation.`,
-          blockingReason: ready ? "No blocker." : "System resolver lacks the traceable physical inputs required for the applicable diffusivity route.",
-        };
-      })),
-      {
-        id: "kuhni_shd_c2",
-        group: "engineering",
-        label: "Kühni Shd C2",
-        ready: taggedReady("kuhni_shd_c2", legacyBvp.kuhniShdC2),
-        mandatory: true,
-        sourceClass: "SYSTEM_EVIDENCE_GAP",
-        downstreamUse: "Activates the governed preliminary Kühni/Hartland 1999 local mass-transfer kernel.",
-        blockingReason: "C2_EVIDENCE_NOT_CLOSED — no exact equation-bearing Kühni dispersed-side C2 basis is approved.",
-      },
-      {
-        id: "partition_basis",
-        group: "approval",
-        label: "Kd concentration-basis approval",
-        ready: (sim.partition_basis_approval_status ?? legacyBvp.partitionBasis?.approvalStatus) === "engineer_approved_governed"
-          && !!String(sim.partition_basis_source_reference ?? legacyBvp.partitionBasis?.sourceReference ?? "").trim()
-          && !!String(sim.partition_basis_approved_by ?? legacyBvp.partitionBasis?.approvedBy ?? "").trim()
-          && !!String(sim.partition_basis_approved_at ?? legacyBvp.partitionBasis?.approvedAt ?? "").trim(),
-        mandatory: true,
-        sourceClass: "ENGINEER_APPROVAL",
-        downstreamUse: "Authorizes Koverall = kc·kd/(Kd·kd + kc) and the dispersed concentration driving force; numerical Kd remains locally calculated.",
-        blockingReason: "Engineer approval of the governed concentration-basis relation and a source reference are required; numerical Kd entry is not requested.",
-      },
-      {
-        id: "preliminary_evidence",
-        group: "governance",
-        label: "Preliminary K&H evidence status",
-        ready: true,
-        mandatory: false,
-        sourceClass: "CALCULATED",
-        downstreamUse: "Labels d32 and transfer outputs as preliminary engineering and carries traceability warnings.",
-        blockingReason: "Advisory evidence limitation only; it does not block the explicitly preliminary simulator route.",
-      },
-    ];
-    const mandatoryDependencies = stage8Dependencies.filter(dependency => dependency.mandatory);
-    const resolvedDependencies = mandatoryDependencies.filter(dependency => dependency.ready);
-    const unresolvedDependencies = mandatoryDependencies.filter(dependency => !dependency.ready);
-    const autoResolvedCount = mandatoryDependencies.filter(dependency => dependency.group === "auto" && dependency.ready).length;
-    const missingEngineeringCount = mandatoryDependencies.filter(dependency => dependency.group === "engineering" && !dependency.ready).length;
-    const missingApprovalCount = mandatoryDependencies.filter(dependency => dependency.group === "approval" && !dependency.ready).length;
-    const blockedGovernanceCount = stage8Dependencies.filter(dependency => dependency.group === "governance" && dependency.mandatory && !dependency.ready).length;
+    const resolvedDependencies = stage8Dependencies.filter(dependency => dependency.ready);
+    const unresolvedDependencies = stage8Dependencies.filter(dependency => !dependency.ready);
+    const autoResolvedCount = stage8Dependencies.filter(dependency => dependency.group === "auto" && dependency.ready).length;
+    const missingEngineeringCount = stage8Dependencies.filter(dependency => dependency.group === "engineering" && !dependency.ready).length;
+    const missingApprovalCount = stage8Dependencies.filter(dependency => dependency.group === "approval" && !dependency.ready).length;
+    const stage8Blocking = unresolvedDependencies.length > 0;
     // This is a system-resolution count, never a count of client-selected
     // "accepted" labels. A forged browser status must not make the register
     // advertise a numerical basis that the server catalog has not resolved.
@@ -5051,13 +4934,13 @@ export default function DesignSoftwareWorkspacePage() {
                 <div className="border-b bg-blue-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-blue-800">A. AUTO-RESOLVED</div>
                 <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
                   <span className="font-medium">Stage 7 ECR equipment result</span>
-                  <span className={hasAcceptedEcrRun ? "pt-1" : "pt-1 text-red-700"}>{hasAcceptedEcrRun ? "Accepted active height + geometry" : "Required before run"}</span>
+                  <span className={dependencyFor("stage7_ecr_result").ready ? "pt-1" : "pt-1 text-red-700"}>{dependencyFor("stage7_ecr_result").ready ? "Accepted active height + geometry" : "Required before run"}</span>
                   <span className="pt-1">inherited</span>
                   <span className="pt-1 text-[11px]">Stage 7 — accepted ECR Equipment Design result</span>
                   <div>
-                    {dependencyStatus("INHERITED", hasAcceptedEcrRun)}
+                    {dependencyStatus(dependencyFor("stage7_ecr_result").sourceClass, dependencyFor("stage7_ecr_result").ready)}
                     <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> active agitated height and ECR geometry for the BVP.</p>
-                    {!hasAcceptedEcrRun && <p className="text-[10px] text-red-700"><strong>Block:</strong> accepted Stage 7 ECR result is required; no manual Stage 8 geometry substitute is permitted.</p>}
+                    {!dependencyFor("stage7_ecr_result").ready && <p className="text-[10px] text-red-700"><strong>Block:</strong> accepted Stage 7 ECR result is required; no manual Stage 8 geometry substitute is permitted.</p>}
                   </div>
                 </div>
                 <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
@@ -5074,9 +4957,9 @@ export default function DesignSoftwareWorkspacePage() {
                   <span className="pt-1">mm</span>
                   {sim.d32_mode === "engineer_supplied" ? sourceEditor("d32") : <p className="pt-1 text-[11px]">ecr2_d32_kh1996<br />Published preliminary route</p>}
                   <div>
-                    {dependencyStatus(sim.d32_mode === "engineer_supplied" ? "ENGINEER_INPUT" : "CALCULATED", sim.d32_mode !== "engineer_supplied" || (numeric(sim.d32_value_mm) && !!sim.d32_source_type && !!sim.d32_source_reference))}
+                    {dependencyStatus(dependencyFor("d32").sourceClass, dependencyFor("d32").ready)}
                     <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> a = 6φd/d32 and local transfer calculation.</p>
-                    {sim.d32_mode === "engineer_supplied" && !(numeric(sim.d32_value_mm) && !!sim.d32_source_type && !!sim.d32_source_reference) && <p className="text-[10px] text-red-700"><strong>Block:</strong> positive value, source class, and source reference are required.</p>}
+                    {!dependencyFor("d32").ready && <p className="text-[10px] text-red-700"><strong>Block:</strong> positive value, source class, and source reference are required.</p>}
                   </div>
                 </div>
 
@@ -5090,7 +4973,7 @@ export default function DesignSoftwareWorkspacePage() {
                    const resolvedValue = !editable && numeric(evidence.record.value)
                      ? evidence.record.value
                      : (sim[`${prefix}_value`] ?? legacy?.value);
-                   const ready = taggedReady(prefix, legacy);
+                   const ready = dependencyFor(prefix).ready;
                   return <div key={prefix} className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
                     <span className="font-medium">Physical MW — {component.label}</span>
                      {editable
@@ -5111,9 +4994,7 @@ export default function DesignSoftwareWorkspacePage() {
                   const legacy = legacyBvp.diffusivity?.[component.label]?.[phase === "c" ? "De_c" : "De_d"];
                   const evidence = evidenceFor(prefix as ECR2Stage8NumericalParameterId, prefix);
                   const editable = evidence.status === "ENGINEER_OVERRIDE";
-                  const ready = taggedReady(prefix, legacy)
-                    && numeric(sim[`${prefix}_reference_temperature_c`] ?? evidence.record.inputSnapshot?.temperature_C ?? legacy?.referenceTemperature_C)
-                    && !!(sim[`${prefix}_method`] ?? evidence.record.method ?? legacy?.method);
+                   const ready = dependencyFor(prefix).ready;
                    const resolvedValue = !editable && numeric(evidence.record.value)
                      ? evidence.record.value
                      : (sim[`${prefix}_value`] ?? legacy?.value_m2_s);
@@ -5147,7 +5028,7 @@ export default function DesignSoftwareWorkspacePage() {
                   const legacy = legacyBvp.kuhniShdC2;
                   const evidence = evidenceFor("kuhni_shd_c2", "kuhni_shd_c2");
                   const editable = evidence.status === "ENGINEER_OVERRIDE";
-                  const ready = taggedReady("kuhni_shd_c2", legacy);
+                  const ready = dependencyFor("kuhni_shd_c2").ready;
                   const resolvedValue = editable ? (sim.kuhni_shd_c2_value ?? legacy?.value) : legacy?.value;
                   return <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
                     <span className="font-medium">Kühni Shd C2</span>
@@ -5171,10 +5052,7 @@ export default function DesignSoftwareWorkspacePage() {
                   const reference = sim.partition_basis_source_reference ?? legacy?.sourceReference ?? "";
                   const approvedBy = sim.partition_basis_approved_by ?? legacy?.approvedBy ?? "";
                   const approvedAt = sim.partition_basis_approved_at ?? legacy?.approvedAt ?? "";
-                  const kdApproved = approval === "engineer_approved_governed"
-                    && !!String(reference).trim()
-                    && !!String(approvedBy).trim()
-                    && !!String(approvedAt).trim();
+                  const kdApproved = dependencyFor("partition_basis").ready;
                   return <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 px-3 py-2 text-xs">
                     <span className="font-medium">Kd basis approval</span>
                     <span className="pt-1 text-[11px]">Calculated Kd = C*d / C*c</span>
@@ -5189,7 +5067,7 @@ export default function DesignSoftwareWorkspacePage() {
                       <Input type="datetime-local" className="h-7 text-[11px]" value={approvedAt} disabled={isFrozen} onChange={e => f("partition_basis_approved_at", e.target.value)} onBlur={s} />
                     </div>
                     <div>
-                      {dependencyStatus("ENGINEER_APPROVAL", kdApproved)}
+                      {dependencyStatus(dependencyFor("partition_basis").sourceClass, kdApproved)}
                       <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> authorizes Koverall and the dispersed concentration driving force.</p>
                       {!kdApproved && <p className="text-[10px] text-red-700"><strong>Block:</strong> explicit governed concentration-basis approval, source reference, approver, and timestamp are required; numerical Kd is not entered.</p>}
                     </div>
@@ -5212,16 +5090,16 @@ export default function DesignSoftwareWorkspacePage() {
           </SectionCard>
           <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3" data-testid="ecr2-stage8-readiness">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-semibold text-slate-800">Stage 8 readiness: {resolvedDependencies.length} / {mandatoryDependencies.length} dependencies resolved</p>
+              <p className="text-xs font-semibold text-slate-800">Stage 8 readiness: {resolvedDependencies.length} / {stage8Dependencies.length} dependencies resolved</p>
               <Badge className={stage8Blocking
                 ? "border border-red-200 bg-red-50 text-red-700 text-[10px]"
                 : "border border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px]"
               }>{stage8Blocking ? "RUN BLOCKED" : "READY TO RUN"}</Badge>
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200" aria-label={`Stage 8 readiness ${resolvedDependencies.length} of ${mandatoryDependencies.length}`}>
-              <div className={`h-full rounded-full transition-all ${stage8Blocking ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${Math.round((resolvedDependencies.length / mandatoryDependencies.length) * 100)}%` }} />
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200" aria-label={`Stage 8 readiness ${resolvedDependencies.length} of ${stage8Dependencies.length}`}>
+              <div className={`h-full rounded-full transition-all ${stage8Blocking ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${Math.round((resolvedDependencies.length / stage8Dependencies.length) * 100)}%` }} />
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-4">
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
               <div className="rounded border bg-white px-2 py-1.5">
                 <p className="text-[10px] uppercase text-gray-500">Ready</p>
                 <p className="text-sm font-semibold text-emerald-700">{resolvedDependencies.length}</p>
@@ -5236,11 +5114,6 @@ export default function DesignSoftwareWorkspacePage() {
                 <p className="text-[10px] uppercase text-gray-500">Missing approvals</p>
                 <p className="text-sm font-semibold text-violet-700">{missingApprovalCount}</p>
                 <p className="text-[10px] text-gray-500">governed Kd basis</p>
-              </div>
-              <div className="rounded border bg-white px-2 py-1.5">
-                <p className="text-[10px] uppercase text-gray-500">Blocked governance</p>
-                <p className="text-sm font-semibold text-slate-700">{blockedGovernanceCount}</p>
-                <p className="text-[10px] text-gray-500">advisory evidence is shown below</p>
               </div>
             </div>
             <p className="mt-3 text-[11px] text-slate-600" title="System evidence must resolve every Stage 8 numerical dependency before the preliminary ECR-2 counter-current simulation can run.">
