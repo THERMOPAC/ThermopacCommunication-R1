@@ -7,6 +7,10 @@ import {
   resolveEcr2Stage8Evidence,
   resolveWilkeChangDiffusivity,
 } from '../shared/ecr2-stage8-evidence';
+import {
+  ECR2_RRBO_SN300_PHYSICAL_COMPONENT_BASIS,
+  getEcr2PhysicalComponentBasis,
+} from '../shared/ecr2-physical-property-basis';
 import { LLXECRSimulatorEngine } from '../server/engines/llx/llx-ecr-simulator-engine';
 import { signEcr2Stage8ResolverRecord } from '../server/engines/llx/llx-ecr2-stage8-resolution-signature';
 
@@ -17,6 +21,18 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
     expect(physicalMw).toHaveLength(4);
     expect(physicalMw.every((record) => record.value === undefined)).toBe(true);
     expect(physicalMw.every((record) => record.warnings.join(' ').includes('Coto surrogate'))).toBe(true);
+  });
+
+  it('registers a versioned RRBO SN300 physical-family preliminary basis with no Coto molecular-weight reuse', () => {
+    const values = Object.values(ECR2_RRBO_SN300_PHYSICAL_COMPONENT_BASIS);
+    expect(values).toHaveLength(4);
+    expect(values.every((basis) => basis.decision === 'PHYSICAL_MW_PRELIMINARY_APPROVED_BASIS')).toBe(true);
+    expect(values.every((basis) => basis.evidenceLevel === 'ENGINEER_APPROVED_PRELIMINARY')).toBe(true);
+    expect(values.every((basis) => basis.equation.includes('42.965'))).toBe(true);
+    expect(values.map((basis) => basis.physicalMw_g_mol)).not.toEqual(
+      expect.arrayContaining([170.34, 106.17, 142.20, 202.25]),
+    );
+    expect(getEcr2PhysicalComponentBasis('rrbo-sn500')).toBeUndefined();
   });
 
   it('keeps Dc_NMP distinct from Dd_NMP and leaves only the unsupported self-diffusion route blocked', () => {
@@ -137,6 +153,40 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
     expect(at60.records.diffusivity_nmp_c.method).toContain('self-diffusion');
     expect(at60.records.diffusivity_nmp_d.value).toBeGreaterThan(0);
     expect(at80.records.diffusivity_sat_c.value).toBeGreaterThan(at60.records.diffusivity_sat_c.value!);
+  });
+
+  it('retains the physical-basis decision, equation, and uncertainty in an SN300 auto-resolution', () => {
+    const physicalComponents = Object.fromEntries(
+      Object.entries(ECR2_RRBO_SN300_PHYSICAL_COMPONENT_BASIS).map(([key, basis]) => [
+        key,
+        {
+          molecularWeight_g_mol: {
+            value: basis.physicalMw_g_mol,
+            source: basis.source,
+            evidenceLevel: basis.evidenceLevel,
+          },
+          density_kg_m3: {
+            value: basis.density_kg_m3,
+            source: `${basis.label} density anchor`,
+            evidenceLevel: basis.evidenceLevel,
+          },
+          method: basis.equation,
+          physicalMwDecision: basis.decision,
+        },
+      ]),
+    );
+    const resolution = resolveEcr2Stage8Evidence({ physicalComponents: physicalComponents as any });
+    const sat = resolution.records.physical_mw_sat;
+
+    expect(resolution.autoPopulatedCount).toBe(4);
+    expect(sat).toMatchObject({
+      status: 'AUTO_RESOLVED_PENDING_ACCEPTANCE',
+      value: 269.93,
+      evidenceLevel: 'ENGINEER_APPROVED_PRELIMINARY',
+      physicalMwDecision: 'PHYSICAL_MW_PRELIMINARY_APPROVED_BASIS',
+    });
+    expect(sat.method).toContain('42.965');
+    expect(sat.uncertainty).toContain('±20%');
   });
 
   it('fails closed for incomplete or invalid runtime resolver inputs rather than throwing or promoting a value', () => {
@@ -280,6 +330,54 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
       };
       const validation = engine.validate({ bvp: { stage8Evidence: evidence } });
       expect(validation.errors).not.toEqual(expect.arrayContaining([
+        expect.objectContaining({ field: 'bvp.stage8Evidence.physical_mw_sat', severity: 'error' }),
+      ]));
+    } finally {
+      if (previousSecret === undefined) delete process.env.SESSION_SECRET;
+      else process.env.SESSION_SECRET = previousSecret;
+    }
+  });
+
+  it('rejects a signed resolver record after any governed physical-basis provenance is changed', () => {
+    const previousSecret = process.env.SESSION_SECRET;
+    process.env.SESSION_SECRET = 'stage8-test-signing-secret-minimum-length';
+    try {
+      const engine = new LLXECRSimulatorEngine();
+      const candidate = {
+        ...findEcr2Stage8Evidence('physical_mw_sat'),
+        status: 'AUTO_RESOLVED_PENDING_ACCEPTANCE' as const,
+        value: 269.93,
+        source: 'server-controlled physical-basis source',
+        version: '1.0.0',
+        requiredInputs: ['TBP50', 'specific gravity'],
+        availableInputs: ['controlled preliminary anchors'],
+        missingInputs: ['GC/MS'],
+        uncertainty: '±20%',
+        physicalMwDecision: 'PHYSICAL_MW_PRELIMINARY_APPROVED_BASIS' as const,
+        warnings: ['controlled preliminary warning'],
+      };
+      const evidence = Object.fromEntries(ECR2_STAGE8_EVIDENCE_CATALOG.map((record) => {
+        const fingerprint = ecr2Stage8EvidenceFingerprint(record);
+        return [record.id, {
+          status: 'ENGINEER_OVERRIDE',
+          originalEvidence: fingerprint,
+          resolverFingerprint: fingerprint,
+          overrideReason: 'Controlled engineering exception',
+          overrideUser: '23',
+          overrideAt: '2026-08-22T10:00:00.000Z',
+        }];
+      }));
+      const fingerprint = ecr2Stage8EvidenceFingerprint(candidate);
+      candidate.version = 'tampered';
+      evidence.physical_mw_sat = {
+        status: 'ACCEPTED_AUTO_BASIS',
+        originalEvidence: fingerprint,
+        resolverFingerprint: fingerprint,
+        resolverRecord: candidate,
+        resolverSignature: signEcr2Stage8ResolverRecord(fingerprint),
+      };
+      const validation = engine.validate({ bvp: { stage8Evidence: evidence } });
+      expect(validation.errors).toEqual(expect.arrayContaining([
         expect.objectContaining({ field: 'bvp.stage8Evidence.physical_mw_sat', severity: 'error' }),
       ]));
     } finally {

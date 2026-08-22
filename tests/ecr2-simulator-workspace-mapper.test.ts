@@ -125,23 +125,66 @@ describe('ECR-2 simulator workspace adapter', () => {
     });
   });
 
-  it('initializes every unmapped Stage 8 evidence record to its catalog blocking state', () => {
-    const mapped = mapWorkspaceProcessDesignInputs({ operating_temperature: '60' }, 'ecr_simulator');
+  it('auto-resolves only the versioned SN300 physical-MW candidates and keeps all independent Stage 8 gaps blocked', () => {
+    const mapped = mapWorkspaceProcessDesignInputs({
+      feed_service: 'Re-Refined Base Oil SN300',
+      operating_temperature: '60',
+    }, 'ecr_simulator');
     const evidence = (mapped.bvp as any).stage8Evidence;
     const resolution = (mapped.bvp as any).stage8Resolution;
     expect(Object.keys(evidence)).toHaveLength(15);
-    expect(evidence.physical_mw_sat.status).toBe('BLOCKED_MISSING_REQUIRED_EVIDENCE');
+    expect(evidence.physical_mw_sat.status).toBe('AUTO_RESOLVED_PENDING_ACCEPTANCE');
+    expect(evidence.physical_mw_sat.resolverRecord).toMatchObject({
+      value: 269.93,
+      evidenceLevel: 'ENGINEER_APPROVED_PRELIMINARY',
+      physicalMwDecision: 'PHYSICAL_MW_PRELIMINARY_APPROVED_BASIS',
+    });
     expect(evidence.diffusivity_sat_c.status).toBe('BLOCKED_MISSING_REQUIRED_EVIDENCE');
     expect(evidence.kuhni_shd_c2.status).toBe('APPROVAL_REQUIRED');
     expect(resolution).toMatchObject({
       resolver: 'ecr2-stage8-governed-resolver-v1',
       operatingTemperature_C: 60,
-      autoPopulatedCount: 0,
-      unresolvedCount: 15,
+      autoPopulatedCount: 4,
+      unresolvedCount: 11,
     });
-    // The mapper did evaluate the governed NMP viscosity route, so the
-    // remaining continuous-phase gap begins at NMP MW/association and the
-    // physical solute characterization — not a fabricated temperature value.
+    // The mapper did evaluate the governed NMP viscosity and SN300
+    // pseudo-component routes, so the remaining continuous-phase gap begins at
+    // NMP MW/association — not a fabricated temperature or physical solute MW.
     expect(resolution.records.diffusivity_sat_c.blockingReason).toContain('NMP molecular weight');
+  });
+
+  it('does not let the SN300 preliminary family basis leak to another RRBO grade', () => {
+    const mapped = mapWorkspaceProcessDesignInputs({
+      feed_service: 'Re-Refined Base Oil SN500',
+      operating_temperature: '60',
+    }, 'ecr_simulator');
+    const resolution = (mapped.bvp as any).stage8Resolution;
+
+    expect(resolution.records.physical_mw_sat.status).toBe('BLOCKED_MISSING_REQUIRED_EVIDENCE');
+    expect(resolution.autoPopulatedCount).toBe(0);
+  });
+
+  it('fails closed when a client-carried RRBO fluid ID conflicts with the governed Feed Service', () => {
+    const mapped = mapWorkspaceProcessDesignInputs({
+      feed_service: 'Re-Refined Base Oil SN500',
+      rrboFluidId: 'rrbo-sn300',
+      operating_temperature: '60',
+    }, 'ecr_simulator');
+    const resolution = (mapped.bvp as any).stage8Resolution;
+
+    expect(resolution.records.physical_mw_sat.status).toBe('BLOCKED_MISSING_REQUIRED_EVIDENCE');
+    expect(resolution.autoPopulatedCount).toBe(0);
+  });
+
+  it('fails closed for an unrecognized Feed Service rather than defaulting to SN300 physical properties', () => {
+    const mapped = mapWorkspaceProcessDesignInputs({
+      feed_service: 'Uncharacterized Re-Refined Oil',
+      rrboFluidId: 'rrbo-sn300',
+      operating_temperature: '60',
+    }, 'ecr_simulator');
+    const resolution = (mapped.bvp as any).stage8Resolution;
+
+    expect(resolution.records.physical_mw_sat.status).toBe('BLOCKED_MISSING_REQUIRED_EVIDENCE');
+    expect(resolution.autoPopulatedCount).toBe(0);
   });
 });

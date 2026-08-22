@@ -22,6 +22,7 @@ import {
   findEcr2Stage8Evidence,
   resolveEcr2Stage8Evidence,
 } from '../shared/ecr2-stage8-evidence';
+import { getEcr2PhysicalComponentBasis } from '../shared/ecr2-physical-property-basis';
 import { signEcr2Stage8ResolverRecord } from './engines/llx/llx-ecr2-stage8-resolution-signature';
 
 const num = (v: unknown): number | undefined => {
@@ -77,6 +78,12 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   };
   const feedService = String(inputs.feed_service ?? '').trim();
   const rrboFluidId = RRBO_GRADE_FLUID_IDS[feedService] ?? 'rrbo-sn300';
+  // Stage 8 physical-family eligibility must be derived from the governed
+  // workspace Feed Service label, not an engine-shaped/client-carried fluid ID.
+  // Unknown or blank grades deliberately receive no physical-MW registry basis.
+  const authoritativeRrboGradeId = Object.prototype.hasOwnProperty.call(RRBO_GRADE_FLUID_IDS, feedService)
+    ? RRBO_GRADE_FLUID_IDS[feedService]
+    : undefined;
   if (out.rrboFluidId === undefined) out.rrboFluidId = rrboFluidId;
 
   // S/O ratio — workspace basis is VOLUME (NMP vol flow / RRBO vol flow).
@@ -591,9 +598,30 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
         // prerequisite rather than allowing a failed EPD lookup to escape.
       }
     }
+    const registeredPhysicalBasis = getEcr2PhysicalComponentBasis(authoritativeRrboGradeId);
+    const physicalComponents = registeredPhysicalBasis
+      ? Object.fromEntries(Object.entries(registeredPhysicalBasis).map(([key, basis]) => [
+        key,
+        {
+          molecularWeight_g_mol: {
+            value: basis.physicalMw_g_mol,
+            source: `${basis.source} Basis ${basis.sourceVersion}`,
+            evidenceLevel: basis.evidenceLevel,
+          },
+          density_kg_m3: {
+            value: basis.density_kg_m3,
+            source: `RRBO SN300 physical family density anchor, ${basis.sourceVersion}`,
+            evidenceLevel: basis.evidenceLevel,
+          },
+          method: basis.equation,
+          physicalMwDecision: basis.decision,
+        },
+      ]))
+      : undefined;
     const stage8Resolution = resolveEcr2Stage8Evidence({
       temperature_C: ot,
       nmp: nmpViscosity ? { viscosity_Pa_s: nmpViscosity } : undefined,
+      physicalComponents: physicalComponents as any,
     });
     const legacyMw = asRecord(parseJson(simValue('molecularWeights')));
     const stage8Evidence: Record<string, {
@@ -646,7 +674,7 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
         return {
           value: automatic.value,
           unit: 'g/mol',
-          sourceType: 'Literature',
+          sourceType: automatic.evidenceLevel === 'ENGINEER_APPROVED_PRELIMINARY' ? 'Assumed' : 'Literature',
           sourceReference: automatic.source,
           evidenceStatus: audit.status,
           originalEvidence: audit.originalEvidence,

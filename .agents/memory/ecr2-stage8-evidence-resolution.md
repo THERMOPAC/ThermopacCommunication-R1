@@ -5,6 +5,8 @@ description: Evidence boundary for physical molecular weights, diffusivity estim
 
 Stage 8 may never use Coto thermodynamic surrogate molecular weights, fixture values, project provisional C2 values, or pulsed-column C2 values as a shortcut to an executable mass-transfer simulation.
 
+RRBO SN300 has four acceptance-gated, engineer-approved preliminary physical-MW candidates based on explicit petroleum-fraction screening anchors; they are not release-grade governed properties and do not unlock diffusivity calculation. They may be selected only from the validated workspace Feed Service grade, never a client-carried fluid identifier, and never for another or unknown RRBO grade. Every physical-basis provenance field (including version, inputs/gaps, uncertainty, decision, and warnings) is part of the signed resolver fingerprint.
+
 Wilke–Chang (1955, doi:10.1002/aic.690010222) is an equation-bearing infinite-dilution estimate, not an RRBO/NMP-validated default. It can resolve only when the actual operating temperature, solvent viscosity, solvent MW/association factor, and physical solute MW and density/molar volume are all evidenced. Its result must retain `RRBO_NMP_VALIDATION_PENDING` and await engineer acceptance. `Dc_NMP` is NMP self-diffusion and is not interchangeable with `Dd_NMP`, which is NMP in the RRBO-rich dispersed phase.
 
 **Why:** Filling evidence gaps would create a plausible but untraceable simulator result.

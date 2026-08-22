@@ -1,10 +1,14 @@
 /**
  * Governed evidence boundary for the ECR-2 Stage 8 numerical dependencies.
  *
- * This module intentionally contains no representative RRBO values.  It records
- * the best currently traceable calculation route and returns a typed block when
- * a project characterization, molar volume, or exact C2 source is absent.
+ * Physical RRBO family values are supplied only by the separate, provenance-
+ * tagged physical-property registry.  They never become Coto/NRTL values.
  */
+
+import {
+  ECR2_RRBO_SN300_PHYSICAL_COMPONENT_BASIS,
+  type Ecr2PhysicalComponentKey,
+} from './ecr2-physical-property-basis';
 
 export const ECR2_STAGE8_NUMERICAL_PARAMETER_IDS = [
   'physical_mw_sat',
@@ -59,6 +63,12 @@ export interface ECR2Stage8EvidenceRecord {
   blockingReason?: string;
   resolutionInputs?: readonly string[];
   inputSnapshot?: Readonly<Record<string, string | number>>;
+  version?: string;
+  requiredInputs?: readonly string[];
+  availableInputs?: readonly string[];
+  missingInputs?: readonly string[];
+  uncertainty?: string;
+  physicalMwDecision?: 'PHYSICAL_MW_GOVERNED' | 'PHYSICAL_MW_PRELIMINARY_APPROVED_BASIS' | 'PHYSICAL_MW_EVIDENCE_NOT_CLOSED';
 }
 
 const BASE_PRIORITY = [
@@ -72,6 +82,7 @@ const BASE_PRIORITY = [
 const physicalMw = (
   id: Extract<ECR2Stage8NumericalParameterId, `physical_mw_${string}`>,
   label: string,
+  key: Ecr2PhysicalComponentKey,
 ): ECR2Stage8EvidenceRecord => ({
   id,
   label,
@@ -84,8 +95,17 @@ const physicalMw = (
   source: 'No eligible evidence record.',
   applicability: 'RRBO SN300 pseudo-component characterization required.',
   validationStatus: 'RRBO_NMP_VALIDATION_PENDING',
-  warnings: ['Coto surrogate molecular weights are thermodynamic-coordinate data and are prohibited here.'],
+  warnings: [
+    'Coto surrogate molecular weights are thermodynamic-coordinate data and are prohibited here.',
+    ...ECR2_RRBO_SN300_PHYSICAL_COMPONENT_BASIS[key].warnings,
+  ],
   blockingReason: 'A traceable physical RRBO pseudo-component molecular-weight basis is required.',
+  version: ECR2_RRBO_SN300_PHYSICAL_COMPONENT_BASIS[key].sourceVersion,
+  requiredInputs: ECR2_RRBO_SN300_PHYSICAL_COMPONENT_BASIS[key].requiredInputs,
+  availableInputs: ECR2_RRBO_SN300_PHYSICAL_COMPONENT_BASIS[key].availableInputs,
+  missingInputs: ECR2_RRBO_SN300_PHYSICAL_COMPONENT_BASIS[key].missingInputs,
+  uncertainty: ECR2_RRBO_SN300_PHYSICAL_COMPONENT_BASIS[key].uncertainty,
+  physicalMwDecision: 'PHYSICAL_MW_EVIDENCE_NOT_CLOSED',
 });
 
 const diffusivity = (
@@ -120,10 +140,10 @@ const diffusivity = (
 });
 
 export const ECR2_STAGE8_EVIDENCE_CATALOG: readonly ECR2Stage8EvidenceRecord[] = [
-  physicalMw('physical_mw_sat', 'Physical MW — Saturates'),
-  physicalMw('physical_mw_mono', 'Physical MW — Mono-aromatics'),
-  physicalMw('physical_mw_di', 'Physical MW — Di-aromatics'),
-  physicalMw('physical_mw_poly', 'Physical MW — Poly-aromatics'),
+  physicalMw('physical_mw_sat', 'Physical MW — Saturates', 'sat'),
+  physicalMw('physical_mw_mono', 'Physical MW — Mono-aromatics', 'mono'),
+  physicalMw('physical_mw_di', 'Physical MW — Di-aromatics', 'di'),
+  physicalMw('physical_mw_poly', 'Physical MW — Poly-aromatics', 'poly'),
   diffusivity('diffusivity_sat_c', 'Dc Saturates', 'continuous NMP-rich'),
   diffusivity('diffusivity_sat_d', 'Dd Saturates', 'dispersed RRBO-rich'),
   diffusivity('diffusivity_mono_c', 'Dc Mono-aromatics', 'continuous NMP-rich'),
@@ -234,6 +254,8 @@ export interface ECR2Stage8ResolutionContext {
   physicalComponents?: Partial<Record<PhysicalComponentKey, {
     molecularWeight_g_mol?: ECR2Stage8TrustedScalar;
     density_kg_m3?: ECR2Stage8TrustedScalar;
+    method?: string;
+    physicalMwDecision?: 'PHYSICAL_MW_GOVERNED' | 'PHYSICAL_MW_PRELIMINARY_APPROVED_BASIS';
   }>>;
   kuhniShdC2?: ECR2Stage8TrustedScalar & {
     exactEquationIdentity: string;
@@ -286,12 +308,13 @@ function resolvedRecord(
   source: string,
   resolutionInputs: readonly string[],
   inputSnapshot: Readonly<Record<string, string | number>> = {},
+  evidenceLevel: Exclude<ECR2EvidenceLevel, 'MISSING'> = 'SECONDARY_EQUATION_VERIFIED',
 ): ECR2Stage8EvidenceRecord {
   return {
     ...base,
     value,
     status: 'AUTO_RESOLVED_PENDING_ACCEPTANCE',
-    evidenceLevel: 'SECONDARY_EQUATION_VERIFIED',
+    evidenceLevel,
     method,
     source,
     blockingReason: undefined,
@@ -318,19 +341,26 @@ export function resolveEcr2Stage8Evidence(
     const item = physical[key];
     const molecularWeight = item?.molecularWeight_g_mol;
     records[id] = isTrustedScalar(molecularWeight)
-      ? resolvedRecord(
-        records[id],
-        molecularWeight.value,
-        'Server-owned physical pseudo-component characterization basis',
-        molecularWeight.source,
-        [`physicalComponents.${key}.molecularWeight_g_mol`, `physicalComponents.${key}.density_kg_m3`],
-        {
-          molecularWeight_g_mol: molecularWeight.value,
-          molecularWeightSource: molecularWeight.source,
-          density_kg_m3: isTrustedScalar(item?.density_kg_m3) ? item.density_kg_m3.value : 'NOT_REGISTERED',
-          densitySource: isTrustedScalar(item?.density_kg_m3) ? item.density_kg_m3.source : 'NOT_REGISTERED',
-        },
-      )
+      ? {
+        ...resolvedRecord(
+          records[id],
+          molecularWeight.value,
+          item?.method?.trim() || 'Server-owned physical pseudo-component characterization basis',
+          molecularWeight.source,
+          [`physicalComponents.${key}.molecularWeight_g_mol`, `physicalComponents.${key}.density_kg_m3`],
+          {
+            molecularWeight_g_mol: molecularWeight.value,
+            molecularWeightSource: molecularWeight.source,
+            density_kg_m3: isTrustedScalar(item?.density_kg_m3) ? item.density_kg_m3.value : 'NOT_REGISTERED',
+            densitySource: isTrustedScalar(item?.density_kg_m3) ? item.density_kg_m3.source : 'NOT_REGISTERED',
+          },
+          molecularWeight.evidenceLevel,
+        ),
+        physicalMwDecision: item?.physicalMwDecision
+          ?? (molecularWeight.evidenceLevel === 'ENGINEER_APPROVED_PRELIMINARY'
+            ? 'PHYSICAL_MW_PRELIMINARY_APPROVED_BASIS'
+            : 'PHYSICAL_MW_GOVERNED'),
+      }
       : blockedRecord(
         records[id],
         `ROOT_GAP_PHYSICAL_MW_${key.toUpperCase()}: no controlled physical RRBO ${componentLabel[key]} pseudo-component molecular-weight characterization is registered; Coto/NRTL surrogate MW is prohibited.`,
@@ -475,7 +505,14 @@ export function ecr2Stage8EvidenceFingerprint(record: ECR2Stage8EvidenceRecord):
     source: record.source,
     applicability: record.applicability,
     validationStatus: record.validationStatus,
+    warnings: record.warnings,
     resolutionInputs: record.resolutionInputs ?? [],
     inputSnapshot: record.inputSnapshot ?? {},
+    version: record.version ?? null,
+    requiredInputs: record.requiredInputs ?? [],
+    availableInputs: record.availableInputs ?? [],
+    missingInputs: record.missingInputs ?? [],
+    uncertainty: record.uncertainty ?? null,
+    physicalMwDecision: record.physicalMwDecision ?? null,
   });
 }
