@@ -76,6 +76,9 @@ describe('computeDropletDiameter — published_correlation transcription invalid
     const result = computeDropletDiameter(VALID_LOCAL_STATE, PUBLISHED_CFG);
     const diagnostics = result.diagnostics.join(' ');
     expect(diagnostics).toContain('reciprocal high-agitation contribution');
+    expect(diagnostics).toContain('Rahimpour et al. (2024)');
+    expect(diagnostics).toContain('Pulse and karr');
+    expect(diagnostics).not.toContain('Mirzaei');
     expect(diagnostics).toContain('TRANSCRIPTION_INVALID__LEGACY_C1_N1_AND_DIRECT_HIGH_AGITATION_TERM');
     expect(diagnostics).toContain('KH1996_H_UNRESOLVED__NUMERICAL_EXECUTION_DISABLED');
     expect(diagnostics).toContain('KH1996_NUMERATOR_SYMBOL_UNRESOLVED__NUMERICAL_EXECUTION_DISABLED');

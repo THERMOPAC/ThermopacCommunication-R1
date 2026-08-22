@@ -358,7 +358,7 @@ export function computeDropletDiameter(
       extrapolated: false,
       diagnostics: [
         `K&H 1996 d₃₂ at ${location} is not calculated: the former reconstruction is transcription-invalid.`,
-        'Mirzaei et al. (2023), Table 1, and Laitinen et al. (2019), Eq. (3), both show a reciprocal high-agitation contribution; the legacy implementation directly added that contribution.',
+        'Rahimpour et al. (2024), Table 1 (explicitly “Pulse and karr”), and Laitinen et al. (2019), Eq. (3) (Kühni-specific), both show a reciprocal high-agitation contribution; the legacy implementation directly added that contribution.',
         'Laitinen confirms ψ is mechanical power dissipation per unit mass (W/kg), but neither independent secondary reproduction resolves H or the numerator symbol sufficiently for numerical execution.',
         ...TRANSCRIPTION_INVALID_TRACEABILITY,
       ],

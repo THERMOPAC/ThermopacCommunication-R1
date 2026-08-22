@@ -748,7 +748,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     //
     equation:
       'TRANSCRIPTION-INVALID — no executable K&H 1996 d32 equation is registered. ' +
-      'Mirzaei et al. (2023), Table 1, and Laitinen et al. (2019), Eq. (3), independently reproduce a two-term form with a reciprocal high-agitation contribution; the legacy ECR-2 reconstruction directly added that contribution and is invalid. ' +
+      'Rahimpour et al. (2024), Table 1 (explicitly “Pulse and karr”), and Laitinen et al. (2019), Eq. (3) (Kühni-specific), independently reproduce a two-term form with a reciprocal high-agitation contribution; the legacy ECR-2 reconstruction directly added that contribution and is invalid. ' +
       'Laitinen confirms psi in W/kg and visible values 1.6, 0.034, 0.45, and -0.63, but does not define H or the numerator symbol. ' +
       'Do not infer C1^n1, Euler e, a capillary-length group, coefficient mapping, phase convention, or applicability. Primary-source status remains unverified.',
     /*
@@ -1120,7 +1120,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
 
     approvalNote:
       'transcription_invalid: the legacy ECR-2 reconstruction is not approved for numerical use. ' +
-      'Mirzaei et al. (2023), Table 1, and Laitinen et al. (2019), Eq. (3), independently establish a reciprocal high-agitation contribution that conflicts with the direct-addition legacy path. ' +
+      'Rahimpour et al. (2024), Table 1 (explicitly “Pulse and karr”), and Laitinen et al. (2019), Eq. (3) (Kühni-specific), independently establish a reciprocal high-agitation contribution that conflicts with the direct-addition legacy path. ' +
       'Laitinen confirms ψ in W/kg and the visible 1.6, 0.034, 0.45, and -0.63 values, but neither reproduction defines H or the numerator symbol. ' +
       'Do not infer C₁ⁿ¹, Euler e, a geometry group, coefficient mapping, phase convention, or applicability. ' +
       'Obtain independent authoritative definitions, retain PRIMARY_SOURCE_UNVERIFIED__KH1996 until the original paper is verified, then implement and calibrate only the confirmed equation.',
