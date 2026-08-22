@@ -1393,6 +1393,18 @@ export default function DesignSoftwareWorkspacePage() {
   // auto-writes "ecr" back to the database.
   const showECR = !!(techSelection && techSelection.trim());
   const d = (section: string) => localData[section] ?? {};
+  const ecr2Stage8ResolverRecords = stage8ResolutionQ.data?.records;
+  const ecr2HasAcceptedEcrRun = (resultsQ.data ?? []).some((r: any) =>
+    r.section === "ecr" && r.data?.heightBreakdown?.activeAgitatedHeight?.result,
+  );
+  // This is the one live Stage 8 readiness model. The register, stage banner,
+  // footer count, and validation input all use current resolver metadata rather
+  // than treating system-resolved values as blank form fields.
+  const ecr2LiveDependencies = getEcr2Stage8LiveDependencies({
+    sim: d("ecr_simulator"),
+    hasAcceptedEcrRun: ecr2HasAcceptedEcrRun,
+    resolverRecords: ecr2Stage8ResolverRecords,
+  });
 
   // ── Stage validation engine ──────────────────────────────────────────────────
   // Returns { errors, warnings } for a given stage.
@@ -1666,10 +1678,15 @@ export default function DesignSoftwareWorkspacePage() {
 
     if (stageKey === "ecr2_simulation") {
       const sim = d("ecr_simulator");
-      const hasAcceptedEcrRun = (resultsQ.data ?? []).some((r: any) =>
-        r.section === "ecr" && r.data?.heightBreakdown?.activeAgitatedHeight?.result,
-      );
-      Object.assign(errors, validateEcr2Stage8(sim, hasAcceptedEcrRun));
+      // System-resolved MW/diffusivity candidates are valid only when the
+      // validator sees the current server resolver register. Without this
+      // third argument, every calculated candidate is misreported as a
+      // missing manual field (up to 48 false errors on the footer).
+      Object.assign(errors, validateEcr2Stage8(
+        sim,
+        ecr2HasAcceptedEcrRun,
+        ecr2Stage8ResolverRecords,
+      ));
     }
 
     if (stageKey === "mechanical_design") {
@@ -1762,12 +1779,21 @@ export default function DesignSoftwareWorkspacePage() {
     const vw = stageValidationWarnings[key] ?? {};
     const ec = Object.keys(ve).length;
     const wc = Object.keys(vw).length;
+    const stage8Unresolved = key === "ecr2_simulation" && stage8ResolutionQ.isSuccess
+      ? ecr2LiveDependencies.filter(dependency => !dependency.ready)
+      : null;
+    const displayedErrorCount = stage8Unresolved?.length ?? ec;
     return (
       <>
-        {ec > 0 && (
+        {displayedErrorCount > 0 && (
           <div className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 flex items-start gap-2">
             <span className="mt-0.5 shrink-0 text-red-500">⚠</span>
-            <p className="text-sm font-semibold text-red-800">{label} — {ec} required input{ec > 1 ? "s" : ""} missing or invalid</p>
+            <p className="text-sm font-semibold text-red-800">
+              {stage8Unresolved
+                ? `${label} — ${displayedErrorCount} required dependenc${displayedErrorCount === 1 ? "y" : "ies"} unresolved`
+                : `${label} — ${displayedErrorCount} required input${displayedErrorCount > 1 ? "s" : ""} missing or invalid`
+              }
+            </p>
           </div>
         )}
         {wc > 0 && (
@@ -4748,11 +4774,7 @@ export default function DesignSoftwareWorkspacePage() {
           : "border border-red-200 bg-red-50 text-red-700 text-[9px]";
       return <Badge data-testid={`stage8-status-${evidence.record.id}`} className={className}>{visible.label}</Badge>;
     };
-    const stage8Dependencies = getEcr2Stage8LiveDependencies({
-      sim,
-      hasAcceptedEcrRun,
-      resolverRecords: serverResolverRecords,
-    });
+    const stage8Dependencies = ecr2LiveDependencies;
     const dependencyById = new Map(stage8Dependencies.map(dependency => [dependency.id, dependency]));
     const dependencyFor = (id: string) => {
       const dependency = dependencyById.get(id);
@@ -6975,6 +6997,10 @@ export default function DesignSoftwareWorkspacePage() {
               const hasErrors   = Object.keys(errs).length  > 0;
               const hasWarnings = Object.keys(warns).length > 0;
               const attempted   = stageValidationAttempted.has(activeStep);
+              const stage8Unresolved = activeStep === "ecr2_simulation" && stage8ResolutionQ.isSuccess
+                ? ecr2LiveDependencies.filter(dependency => !dependency.ready)
+                : null;
+              const displayedInStageErrorCount = stage8Unresolved?.length ?? inStageErrKeys.length;
               return (
                 <div className="mt-8 pt-5 border-t flex items-center justify-between">
                   <div>
@@ -6989,12 +7015,15 @@ export default function DesignSoftwareWorkspacePage() {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    {attempted && inStageErrKeys.length > 0 && (
+                    {attempted && displayedInStageErrorCount > 0 && (
                       <span className="text-xs text-red-600 font-medium">
-                        {inStageErrKeys.length} required field{inStageErrKeys.length > 1 ? "s" : ""} missing on this page
+                        {stage8Unresolved
+                          ? `${displayedInStageErrorCount} required dependenc${displayedInStageErrorCount === 1 ? "y" : "ies"} unresolved on this page`
+                          : `${displayedInStageErrorCount} required field${displayedInStageErrorCount > 1 ? "s" : ""} missing on this page`
+                        }
                       </span>
                     )}
-                    {attempted && inStageErrKeys.length === 0 && crossErrKeys.length > 0 && (
+                    {attempted && displayedInStageErrorCount === 0 && crossErrKeys.length > 0 && (
                       <span className="text-xs text-red-600 font-medium">
                         {crossErrKeys.length} required field{crossErrKeys.length > 1 ? "s" : ""} in a later stage
                       </span>

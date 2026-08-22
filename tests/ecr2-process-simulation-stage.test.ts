@@ -36,4 +36,11 @@ describe('ECR-2 process simulation workflow boundary', () => {
     expect(workspaceSource).toContain('await calculateMutation.mutateAsync("ecr_simulator")');
     expect(workspaceSource).toContain('data-testid="ecr2-c2-refresh-required"');
   });
+
+  it('validates Stage 8 against the live resolver register and summarizes unresolved dependencies', () => {
+    expect(workspaceSource).toContain('const ecr2Stage8ResolverRecords = stage8ResolutionQ.data?.records;');
+    expect(workspaceSource).toContain('resolverRecords: ecr2Stage8ResolverRecords,');
+    expect(workspaceSource).toContain('ecr2LiveDependencies.filter(dependency => !dependency.ready)');
+    expect(workspaceSource).toContain('required dependenc');
+  });
 });
