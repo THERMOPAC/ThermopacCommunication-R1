@@ -35,10 +35,10 @@ const flatSimulatorInput = {
   rotor_ratio: '0.5',
   rotor_speed: '150',
   activeHeight_m: '1',
-  powerNumber: '1.2',
-  statorOpenAreaFraction: '0.5',
-  shaftEfficiency: '0.8',
-  mechanicalDesignMargin: '1.2',
+  power_number: '1.2',
+  stator_open_area_fraction: '0.5',
+  shaft_efficiency: '80',
+  mechanical_design_margin: '1.2',
   molecularWeights: JSON.stringify({
     saturates_g_mol: { value: 330, sourceType: 'Assumed', sourceReference: 'test' },
   }),
@@ -73,6 +73,17 @@ function configureDatabase(resultData: Record<string, unknown> = { bvp: { status
     }
     if (text.includes('FROM design_software_results') && text.includes("section = 'hydraulics_common'")) {
       return { rows: [] };
+    }
+    if (text.includes('FROM design_software_results') && text.includes("section = 'ecr'")) {
+      return {
+        rows: [{
+          data: {
+            heightBreakdown: {
+              activeAgitatedHeight: { result: 1 },
+            },
+          },
+        }],
+      };
     }
     if (text.includes('FROM design_software_results') && text.includes("section = 'process_design'")) {
       return { rows: [] };
@@ -117,6 +128,7 @@ describe('ECR-2 simulator service run boundary', () => {
     const engineInput = engine.validate.mock.calls[0][0];
 
     expect(engineRegistry.get).toHaveBeenCalledWith('llx', 'ecr_simulator');
+    expect(engineInput.activeHeight_m).toBe(1);
     expect(engineInput.powerNumber).toMatchObject({ value: 1.2 });
     expect(engineInput.d32Config).toMatchObject({ mode: 'engineer_supplied', value_m: 0.0005 });
     expect(engineInput.bvp).toMatchObject({ rrboGradeId: 'rrbo-sn300' });

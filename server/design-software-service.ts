@@ -657,6 +657,20 @@ export async function runCalculation(
   for (const row of inputRows.rows) {
     Object.assign(inputs, row.data);
   }
+  // Stage 8 ECR-2 simulation inherits the active agitated height calculated
+  // by the accepted Stage 7 ECR result. It is carried in a dedicated adapter
+  // key so it cannot overwrite or mutate either persisted input section.
+  if (rev.module_type === 'llx' && calculationType === 'ecr_simulator') {
+    const ecrResultQ = await pool.query(
+      `SELECT data FROM design_software_results
+       WHERE revision_id = $1 AND section = 'ecr'`,
+      [revisionId],
+    );
+    const activeHeight = Number(ecrResultQ.rows[0]?.data?.heightBreakdown?.activeAgitatedHeight?.result);
+    if (Number.isFinite(activeHeight) && activeHeight > 0) {
+      inputs.ecr_active_height_m = activeHeight;
+    }
+  }
   // Diameter resolution for ECP/ECR engine runs — DS-SEL governance.
   // Resolves the effective column diameter before the mapper runs, using the
   // same priority chain the Stage 7 carry-over card applies on the client:

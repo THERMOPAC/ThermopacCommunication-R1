@@ -77,12 +77,13 @@ const STEPS = [
   { id: 5,  key: "hydraulic_design",      label: "Common Hydraulic Design",  icon: Calculator },
   { id: 6,  key: "technology_selection",  label: "Technology Selection",     icon: GitFork },
   { id: 7,  key: "equipment_design",      label: "Equipment Design",         icon: Settings },
-  { id: 8,  key: "mechanical_design",     label: "Mechanical Design",        icon: Wrench },
-  { id: 9,  key: "utilities",             label: "Utilities",                icon: Zap },
-  { id: 10, key: "cost_estimation",       label: "Cost Estimation",          icon: DollarSign },
-  { id: 11, key: "design_validation",     label: "Design Validation",        icon: ShieldCheck },
-  { id: 12, key: "reports",              label: "Reports",                  icon: FileDown },
-  { id: 13, key: "revision_control",      label: "Review & Revision Control",icon: History },
+  { id: 8,  key: "ecr2_simulation",       label: "ECR-2 Process Simulation", icon: Play },
+  { id: 9,  key: "mechanical_design",     label: "Mechanical Design",        icon: Wrench },
+  { id: 10, key: "utilities",             label: "Utilities",                icon: Zap },
+  { id: 11, key: "cost_estimation",       label: "Cost Estimation",          icon: DollarSign },
+  { id: 12, key: "design_validation",     label: "Design Validation",        icon: ShieldCheck },
+  { id: 13, key: "reports",               label: "Reports",                  icon: FileDown },
+  { id: 14, key: "revision_control",      label: "Review & Revision Control",icon: History },
 ] as const;
 
 type StepKey = (typeof STEPS)[number]["key"];
@@ -1644,6 +1645,25 @@ export default function DesignSoftwareWorkspacePage() {
       }
     }
 
+    if (stageKey === "ecr2_simulation") {
+      const sim = d("ecr_simulator");
+      const hasAcceptedEcrRun = (resultsQ.data ?? []).some((r: any) =>
+        r.section === "ecr" && r.data?.heightBreakdown?.activeAgitatedHeight?.result,
+      );
+      if (!hasAcceptedEcrRun) {
+        errors["stage7_ecr_result"] = "An accepted Stage 7 ECR Equipment Design result is required to inherit the active agitated height before the counter-current simulator can run";
+      }
+      for (const [key, label] of [
+        ["molecularWeights", "Physical molecular weights JSON"],
+        ["d32Config", "d₃₂ configuration JSON"],
+        ["bvp", "BVP activation JSON"],
+      ] as [string, string][]) {
+        if (!(sim[key] ?? "").trim()) {
+          errors[key] = `${label} is required for ECR-2 simulation — no engineering default is applied`;
+        }
+      }
+    }
+
     if (stageKey === "mechanical_design") {
       const md2 = d("mechanical_design");
       if (!(md2.design_code ?? "").trim())
@@ -1656,7 +1676,7 @@ export default function DesignSoftwareWorkspacePage() {
       const missingUtils = (["thermal_oil_duty", "cw_duty", "cw_flow", "steam_requirement", "electrical_load", "nitrogen_requirement"] as const)
         .filter(k => !val(k));
       if (missingUtils.length > 0)
-        warnings["utilities_incomplete"] = `${missingUtils.length} utility field${missingUtils.length > 1 ? "s" : ""} not yet entered — the utilities section of Stage 12 reports will be incomplete`;
+        warnings["utilities_incomplete"] = `${missingUtils.length} utility field${missingUtils.length > 1 ? "s" : ""} not yet entered — the utilities section of Stage 13 reports will be incomplete`;
     }
 
     if (stageKey === "cost_estimation") {
@@ -1961,7 +1981,7 @@ export default function DesignSoftwareWorkspacePage() {
       })(),
     },
     {
-      label: "Stage 8 — Mechanical Design code assigned",
+      label: "Stage 9 — Mechanical Design code assigned",
       status: (() => {
         const { errors: e9 } = validateStage("mechanical_design");
         return Object.keys(e9).length === 0 ? "pass" : "fail";
@@ -1972,7 +1992,7 @@ export default function DesignSoftwareWorkspacePage() {
       })(),
     },
     {
-      label: "Stage 10 — Cost Estimation parameters complete",
+      label: "Stage 11 — Cost Estimation parameters complete",
       status: (() => {
         const { errors: e11 } = validateStage("cost_estimation");
         return Object.keys(e11).length === 0 ? "pass" : "fail";
@@ -4463,10 +4483,28 @@ export default function DesignSoftwareWorkspacePage() {
         {stageBanner("equipment_design")}
         {renderCarryOverCard(co)}
         {renderDesignSelectionCard()}
-        {renderEcr2Simulator()}
         <div>
           {showECR && renderECRDesign()}
         </div>
+      </div>
+    );
+  }
+
+  function renderEcr2ProcessSimulation() {
+    return (
+      <div className="max-w-5xl space-y-4" data-testid="ecr2-process-simulation-stage">
+        {stageBanner("ecr2_simulation")}
+        <div className="flex items-start justify-between gap-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+          <div>
+            <p className="text-sm font-semibold text-blue-900">ECR-2 Process Simulation</p>
+            <p className="mt-1 text-xs text-blue-800">
+              This stage consumes the governed Stage 7 equipment basis and preserves the counter-current simulator as a separate process-simulation boundary.
+              A future Optimizer mode may be added here; it is not enabled or implemented in this revision.
+            </p>
+          </div>
+          <Badge className="shrink-0 border border-blue-200 bg-white text-blue-800 text-[10px]">SIMULATOR</Badge>
+        </div>
+        {renderEcr2Simulator()}
       </div>
     );
   }
@@ -4476,6 +4514,8 @@ export default function DesignSoftwareWorkspacePage() {
     const f = field("ecr_simulator");
     const s = save("ecr_simulator");
     const co = equipmentCarryOver();
+    const ecrResult = (resultsQ.data ?? []).find((r: any) => r.section === "ecr")?.data;
+    const ecr = d("ecr_design");
     const simResult = (resultsQ.data ?? []).find((r: any) => r.section === "ecr_simulator")?.data;
     const latestRun = runs
       .filter(r => r.calculation_type === "ecr_simulator")
@@ -4495,11 +4535,17 @@ export default function DesignSoftwareWorkspacePage() {
     const d32Snapshot = displayedSnapshot?.d32;
     const showingFailedSnapshot = !!latestFailedSnapshot;
     const hasStaleAcceptedSnapshot = !!simResult && showingFailedSnapshot;
+    const activeHeight = ecrResult?.heightBreakdown?.activeAgitatedHeight?.result;
     const inherited = [
       ["Operating temperature", d("design_basis").operating_temperature, "Design Basis"],
       ["RRBO composition", d("process_design").rrbo_saturates_wt ? "Sat / Mono / Di / Poly characterisation" : "Missing", "Process Design"],
       ["S/O ratio", d("process_design").so_ratio, "Process Design"],
       ["Column diameter", co.diameter !== null ? `${co.diameter} m` : "", co.diameterSource],
+      ["Active agitated height", typeof activeHeight === "number" ? `${activeHeight} m` : "", "Stage 7 — accepted ECR Equipment Design result"],
+      ["Compartment height", ecr.compartment_height ? `${ecr.compartment_height} m` : "", "Stage 7 — ECR Equipment Design"],
+      ["Rotor geometry", ecr.rotor_ratio ? `Dᵣ/D꜀ = ${ecr.rotor_ratio}` : "", "Stage 7 — ECR Equipment Design"],
+      ["Rotor speed", ecr.rotor_speed ? `${ecr.rotor_speed} rpm` : "", "Stage 7 — ECR Equipment Design"],
+      ["Power number", ecr.power_number ?? "", "Stage 7 — ECR Equipment Design"],
       ["RRBO viscosity", d("fluid_properties").rrbo_viscosity_dynamic_value, "Fluid Properties"],
       ["Interfacial tension", d("hydraulic_design").interfacial_tension || d("fluid_properties").interfacial_tension_value, "Two-Phase Properties"],
     ];
@@ -4536,22 +4582,9 @@ export default function DesignSoftwareWorkspacePage() {
             ))}
           </div>
 
-          <p className="text-xs font-semibold text-gray-700 mb-1">Engineer-editable simulator inputs</p>
-          <p className="text-[11px] text-gray-500 mb-3">Saved under the simulator only. Required values are classified as ENGINE_INPUT; all calculated values remain read-only in the result snapshot.</p>
-          <FieldRow label="Active agitated height" value={sim.activeHeight_m ?? ""} onChange={v => f("activeHeight_m", v)} onBlur={s} unit="m" />
-          <FieldRow label="Column diameter override" value={sim.columnDiameter_m ?? ""} onChange={v => f("columnDiameter_m", v)} onBlur={s} unit="m" note="Leave blank to inherit the Stage 5 diameter." />
-          <FieldRow label="Compartment height" value={sim.compartmentHeight_m ?? ""} onChange={v => f("compartmentHeight_m", v)} onBlur={s} unit="m" />
-          <FieldRow label="Rotor / column ratio" value={sim.rotorToColumnDiameterRatio ?? ""} onChange={v => f("rotorToColumnDiameterRatio", v)} onBlur={s} unit="—" />
-          <FieldRow label="Rotor speed" value={sim.rotorSpeed_rpm ?? ""} onChange={v => f("rotorSpeed_rpm", v)} onBlur={s} unit="rpm" />
-          <FieldRow label="Rotor type" value={sim.rotorType ?? ""} onChange={v => f("rotorType", v)} onBlur={s} />
-          <FieldRow label="Power number Nₚ" value={sim.powerNumber ?? ""} onChange={v => f("powerNumber", v)} onBlur={s} unit="—" />
-          <FieldRow label="Stator open area fraction" value={sim.statorOpenAreaFraction ?? ""} onChange={v => f("statorOpenAreaFraction", v)} onBlur={s} unit="—" />
-          <FieldRow label="Shaft efficiency" value={sim.shaftEfficiency ?? ""} onChange={v => f("shaftEfficiency", v)} onBlur={s} unit="fraction" />
-          <FieldRow label="Mechanical design margin" value={sim.mechanicalDesignMargin ?? ""} onChange={v => f("mechanicalDesignMargin", v)} onBlur={s} unit="—" />
-          <FieldRow label="Power-number source reference" value={sim.powerNumberSourceReference ?? ""} onChange={v => f("powerNumberSourceReference", v)} onBlur={s} />
-          <FieldRow label="Stator source reference" value={sim.statorSourceReference ?? ""} onChange={v => f("statorSourceReference", v)} onBlur={s} />
-          <FieldRow label="Shaft-efficiency source reference" value={sim.shaftEfficiencyReference ?? ""} onChange={v => f("shaftEfficiencyReference", v)} onBlur={s} />
-          <FieldRow label="Margin source reference" value={sim.mechanicalDesignMarginReference ?? ""} onChange={v => f("mechanicalDesignMarginReference", v)} onBlur={s} />
+          <p className="text-xs font-semibold text-gray-700 mb-1">Simulator-only inputs</p>
+          <p className="text-[11px] text-gray-500 mb-3">Stage 7 equipment geometry and operating data are inherited above and cannot be re-entered here. The diameter override below is the only permitted simulator geometry override; all BVP activation values are saved under the simulator only.</p>
+          <FieldRow label="Simulator-only diameter override" value={sim.columnDiameter_m ?? ""} onChange={v => f("columnDiameter_m", v)} onBlur={s} unit="m" note="Leave blank to inherit the governed Stage 5/Stage 7 diameter." />
 
           <div className="mt-3 grid gap-3">
             <div>
@@ -5574,7 +5607,7 @@ export default function DesignSoftwareWorkspacePage() {
         {stageBanner("mechanical_design")}
         <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 mb-4">
           <Info className="h-4 w-4 shrink-0" />
-          Stage 8 assembles the traceable Mechanical Design Basis and runs it through the existing C6 Common Mechanical Design Engine — preliminary screening only. Final code-certified ASME/EN/IS design remains pending.
+          Stage 9 assembles the traceable Mechanical Design Basis and runs it through the existing C6 Common Mechanical Design Engine — preliminary screening only. Final code-certified ASME/EN/IS design remains pending.
         </div>
 
 
@@ -5646,7 +5679,7 @@ export default function DesignSoftwareWorkspacePage() {
                 <option value="">— Not Assigned (blocks report issue) —</option>
                 {["ASME Sec VIII Div 1", "ASME Sec VIII Div 2", "EN 13445", "IS 2825", "PD 5500"].map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-              {trace((md.design_code ?? "").trim() ? "Engineer Entered" : "Mandatory — Not Assigned", "Stage 8 — Mechanical Design", "No default is applied; the engine records NOT_ASSIGNED verbatim until entered. Assigning the code and re-running unblocks the EDS/MDS/RFQ/EDR reports.")}
+              {trace((md.design_code ?? "").trim() ? "Engineer Entered" : "Mandatory — Not Assigned", "Stage 9 — Mechanical Design", "No default is applied; the engine records NOT_ASSIGNED verbatim until entered. Assigning the code and re-running unblocks the EDS/MDS/RFQ/EDR reports.")}
             </div>
             <span />
           </div>
@@ -5772,7 +5805,7 @@ export default function DesignSoftwareWorkspacePage() {
       <SectionCard title="Preliminary Mechanical Design — C6 Common Mechanical Design Engine">
         <div className="flex items-center justify-between mb-2">
           <p className="text-[11px] text-gray-500">
-            Maps the confirmed Stage 8 Mechanical Design Basis into mech-vessel v1.0.0. Preliminary thin-wall screening only — not a final ASME design and not fabrication-ready.
+            Maps the confirmed Stage 9 Mechanical Design Basis into mech-vessel v1.0.0. Preliminary thin-wall screening only — not a final ASME design and not fabrication-ready.
           </p>
           <Button size="sm" disabled={isFrozen || calculateMutation.isPending || nozGenBusy || !techSelected || !effectiveTechMV} onClick={async () => {
             // Fully automatic: an unsized/legacy nozzle schedule (no DN on any row and
@@ -6189,6 +6222,7 @@ export default function DesignSoftwareWorkspacePage() {
       case "hydraulic_design":      return renderHydraulicDesign();
       case "technology_selection":  return renderTechnologySelection();
       case "equipment_design":      return renderEquipmentDesign();
+      case "ecr2_simulation":       return renderEcr2ProcessSimulation();
       case "mechanical_design":     return renderMechanicalDesign();
       case "utilities":             return renderUtilities();
       case "cost_estimation":       return renderCostEstimation();

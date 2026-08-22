@@ -498,33 +498,32 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     if (workspacePhase !== '') out.phaseConfiguration = workspacePhase;
     else if (out.phaseConfiguration === undefined) out.phaseConfiguration = 'nmp_continuous_rrbo_dispersed';
 
-    // Simulator-only geometry/settings are intentionally held in the
-    // ecr_simulator input section. They are not propagated into ECR-1.
+    // Stage 7 is the governed owner of ECR geometry and operating values.
+    // Stage 8 retains only its explicitly simulator-owned BVP inputs and one
+    // permitted diameter override. Legacy simulator geometry keys are retained
+    // in storage for audit/history but must not override the Stage 7 basis.
     const nested = (inputs.ecr2Simulator ?? inputs.ecr2_simulator ?? {}) as Record<string, unknown>;
     // runCalculation merges the ecr_simulator section directly into the input
     // record. Therefore its persisted UI fields are flat, not nested. Prefer a
     // nested API payload when present, then fall back to those exact flat keys.
     const simValue = (key: string) => nested[key] ?? inputs[key] ?? inputs[`simulator_${key}`];
     const simNum = (key: string) => num(simValue(key));
-    const simText = (key: string) => String(simValue(key) ?? '').trim();
+    // mapWorkspaceProcessDesignInputs begins with a flat copy of every saved
+    // section. Remove old Stage-8 simulator geometry aliases before the normal
+    // Stage-7 tagged mapper runs below; otherwise a raw legacy string would
+    // falsely count as an engine-ready value and bypass its governing source.
+    for (const key of [
+      'powerNumber', 'statorOpenAreaFraction', 'shaftEfficiency',
+      'mechanicalDesignMargin', 'compartmentHeight',
+    ]) {
+      delete out[key];
+    }
     out.columnDiameter_m = simNum('columnDiameter_m') ?? num(inputs.column_diameter);
-    out.activeHeight_m = simNum('activeHeight_m');
-    out.compartmentHeight_m = simNum('compartmentHeight_m') ?? num(inputs.compartment_height);
-    out.rotorToColumnDiameterRatio = simNum('rotorToColumnDiameterRatio') ?? num(inputs.rotor_ratio);
-    out.rotorSpeed_rpm = simNum('rotorSpeed_rpm') ?? num(inputs.rotor_speed);
-    out.rotorType = simText('rotorType') || String(inputs.rotor_type ?? '').trim();
-    if (simNum('powerNumber') !== undefined) {
-      out.powerNumber = { value: simNum('powerNumber'), sourceType: simText('powerNumberSourceType') || 'Assumed', sourceReference: simText('powerNumberSourceReference') };
-    }
-    if (simNum('statorOpenAreaFraction') !== undefined) {
-      out.statorOpenAreaFraction = { value: simNum('statorOpenAreaFraction'), sourceType: simText('statorSourceType') || 'Assumed', sourceReference: simText('statorSourceReference') };
-    }
-    if (simNum('shaftEfficiency') !== undefined) {
-      out.shaftEfficiency = { value: simNum('shaftEfficiency'), sourceType: 'Assumed', sourceReference: simText('shaftEfficiencyReference') };
-    }
-    if (simNum('mechanicalDesignMargin') !== undefined) {
-      out.mechanicalDesignMargin = { value: simNum('mechanicalDesignMargin'), sourceType: 'Assumed', sourceReference: simText('mechanicalDesignMarginReference') };
-    }
+    out.activeHeight_m = num(inputs.ecr_active_height_m);
+    out.compartmentHeight_m = num(inputs.compartment_height);
+    out.rotorToColumnDiameterRatio = num(inputs.rotor_ratio);
+    out.rotorSpeed_rpm = num(inputs.rotor_speed);
+    out.rotorType = String(inputs.rotor_type ?? '').trim();
     const parseJson = (value: unknown) => {
       if (typeof value !== 'string') return value;
       try { return JSON.parse(value); } catch { return undefined; }

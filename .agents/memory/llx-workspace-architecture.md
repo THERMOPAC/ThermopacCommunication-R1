@@ -6,7 +6,14 @@ description: How the 14-step LLX engineering design workspace is structured — 
 # LLX Workspace Architecture
 
 ## Step keys (StepKey union)
-design_identity | design_basis | fluid_properties | process_design | hydraulic_design | technology_selection | equipment_design | technology_comparison | mechanical_design | utilities | cost_estimation | design_validation | reports | revision_control
+design_identity | design_basis | fluid_properties | process_design | hydraulic_design | technology_selection | equipment_design | ecr2_simulation | mechanical_design | utilities | cost_estimation | design_validation | reports | revision_control
+
+## ECR-2 process-simulation boundary
+- Stage 8 is `ecr2_simulation` and hosts the counter-current simulator, run completeness, results, profiles, compartment data, mass balance, provenance, and historical snapshots.
+- Stage 7 remains the governed owner of ECR equipment geometry and operating inputs. Stage 8 displays them as inherited values and permits only the explicit simulator diameter override plus simulator-owned BVP activation data.
+- The persisted simulator input/result/run key remains `ecr_simulator`; do not rename it when changing workflow navigation. Legacy simulator geometry values are preserved for audit but must not override Stage 7.
+- **Why:** Separating the numerical process simulator from Equipment Design prevents duplicated geometry, maintains provenance, and leaves a clean future host for an Optimizer mode without implementing one now.
+- **How to apply:** Any future simulator UI or route work belongs to Stage 8; keep BVP equations and ECR-1 isolated.
 
 ## Input persistence
 - All form data lives in `localInputs[sectionKey]` (Record<string, string>)
@@ -15,12 +22,10 @@ design_identity | design_basis | fluid_properties | process_design | hydraulic_d
 - `savingSection` state shows "Saving…" indicator in the section header
 
 ## Technology selection gating
-- `techSelection = localData["technology_selection"]?.technology` → "ecp" | "ecr" | "both"
-- `showECP = techSelection === "ecp" || techSelection === "both"`
-- `showECR = techSelection === "ecr" || techSelection === "both"`
-- Equipment Design (step 7) and Technology Comparison (step 8) are conditionally rendered
+- `techSelection = localData["technology_selection"]?.technology`; the current workspace is ECR-only.
+- Equipment Design (Stage 7) is gated by technology selection; ECR-2 Process Simulation (Stage 8) inherits the accepted Stage 7 ECR basis.
 
-## Validation checklist (Step 12)
+## Validation checklist (Stage 12)
 - Client-side checks against `localData` + `runsQ.data`
 - `canSubmit` = no "fail" checks → gates "Submit for Review" button in Step 14
 - Mandatory: design basis fields, technology selection, hydraulics run, flooding margin < 80%
@@ -37,14 +42,14 @@ Keys stored as `{propKey}_value`, `{propKey}_unit`, `{propKey}_ref_temp`, `{prop
 Amber highlight when source = "Assumed"
 
 ## Calculation types (engine keys)
-process_design | hydraulics_common | ecp | ecr
+process_design | hydraulics_common | ecp | ecr | ecr_simulator
 Triggered via `POST /api/design-software/revisions/:id/calculate` with `{ calculationType }`
 Results read from `GET /api/design-software/revisions/:id/runs`
 
 ## Section data keys → API section names
 design_identity, design_basis, fluid_properties, process_design, hydraulic_design,
 technology_selection, ecp_design, ecr_design, technology_comparison,
-mechanical_design, utilities, cost_estimation
+ecr_simulator, mechanical_design, utilities, cost_estimation
 
 ## Master-data auto-population pattern (Aug 2026)
 - Defaults live in `shared/` master modules (product-requirement-master.ts, fluid-properties-master.ts) — never hardcoded in the React component.
