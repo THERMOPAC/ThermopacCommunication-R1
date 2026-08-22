@@ -376,6 +376,12 @@ describe('ECR-2 preliminary d32 phase applicability', () => {
     expect(data.d32.diagnostics.join(' ')).toContain('nmp_continuous_rrbo_dispersed');
     expect(data.forwardSimulationStatus.d32).toContain('phase_configuration_unsupported');
     expect(data.forwardSimulationStatus.d32).toContain('nmp_continuous_rrbo_dispersed');
+    expect(data.bvp).toMatchObject({
+      status: 'blocked',
+      convergenceStatus: 'dependency_blocked',
+      failure: { dependency: 'phase_configuration' },
+    });
+    expect(result.status).toBe('error');
   });
 
   it('reports engineer-supplied d32 with its actual source status', async () => {
@@ -395,6 +401,7 @@ describe('ECR-2 preliminary d32 phase applicability', () => {
     expect(d32.status).toBe('engineer_supplied');
     expect(d32.correlationStatus).toBe('engineer_supplied');
     expect(d32.d32_m).toBe(0.002);
+    expect((result.data as Record<string, any>).bvp.failure.dependency).toBe('phase_configuration');
   });
 });
 

@@ -4476,10 +4476,24 @@ export default function DesignSoftwareWorkspacePage() {
     const f = field("ecr_simulator");
     const s = save("ecr_simulator");
     const simResult = (resultsQ.data ?? []).find((r: any) => r.section === "ecr_simulator")?.data;
-    const bvp = simResult?.bvp;
     const latestRun = runs
       .filter(r => r.calculation_type === "ecr_simulator")
       .sort((a, b) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0];
+    const parseSnapshot = (value: any) => {
+      if (typeof value !== "string") return value;
+      try { return JSON.parse(value); } catch { return null; }
+    };
+    // Failed calculations are deliberately not upserted into results, but their
+    // structured snapshot is the current safety record and must take precedence
+    // over any earlier accepted result in this simulator panel.
+    const latestFailedSnapshot = latestRun?.calculation_status === "error"
+      ? parseSnapshot(latestRun.result_snapshot)
+      : null;
+    const displayedSnapshot = latestFailedSnapshot ?? simResult;
+    const bvp = displayedSnapshot?.bvp;
+    const d32Snapshot = displayedSnapshot?.d32;
+    const showingFailedSnapshot = !!latestFailedSnapshot;
+    const hasStaleAcceptedSnapshot = !!simResult && showingFailedSnapshot;
     const inherited = [
       ["Operating temperature", d("design_basis").operating_temperature, "Design Basis"],
       ["RRBO composition", d("process_design").rrbo_saturates_wt ? "Sat / Mono / Di / Poly characterisation" : "Missing", "Process Design"],
@@ -4492,7 +4506,7 @@ export default function DesignSoftwareWorkspacePage() {
     const profile = bvp?.axialProfile ?? [];
     const compartments = bvp?.compartments ?? [];
     const resultOk = bvp?.status === "converged" && bvp?.massBalanceStatus === "passed";
-    const staleResult = !!bvp && latestRun?.calculation_status === "error";
+    const staleResult = hasStaleAcceptedSnapshot;
     return (
       <div className="space-y-4">
         <SectionCard title="ECR-2 — Counter-Current Simulator">
@@ -4571,16 +4585,24 @@ export default function DesignSoftwareWorkspacePage() {
           <SectionCard title="ECR-2 — Simulation Snapshot">
             {!bvp ? (
               <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-xs text-red-800">
-                The run was blocked before a result snapshot could be accepted. Expand the run issues above; each issue identifies the missing field and its dependency.
+                The latest run was blocked before a complete simulator snapshot was produced. Expand the run issues above; each issue identifies the missing field and its dependency.
+                {d32Snapshot && <p className="mt-2"><strong>d₃₂ safety status: {d32Snapshot.status ?? "not available"}</strong>{d32Snapshot.diagnostics?.[0] ? ` — ${d32Snapshot.diagnostics[0]}` : ""}</p>}
               </div>
             ) : (
               <>
                 <div className={`p-3 rounded-lg border text-xs mb-4 ${staleResult || !resultOk ? "bg-red-50 border-red-200 text-red-800" : "bg-emerald-50 border-emerald-200 text-emerald-800"}`}>
-                  <strong>{staleResult ? "Previous accepted simulation is stale" : resultOk ? "Accepted preliminary simulation" : "Simulation not accepted"}</strong>
+                  <strong>{showingFailedSnapshot ? "Latest simulation not accepted" : resultOk ? "Accepted preliminary simulation" : "Simulation not accepted"}</strong>
                   <span className="ml-2">BVP: {bvp.status} · convergence: {bvp.convergenceStatus} · mass balance: {bvp.massBalanceStatus}</span>
-                  {staleResult && <p className="mt-1">The newest simulator run failed. The result below is retained only as an earlier accepted snapshot and must not be used as the current run.</p>}
+                  {staleResult && <p className="mt-1">An earlier accepted snapshot exists but is stale. The safety result below is from the newest failed run and is the current record.</p>}
                   {!resultOk && bvp.failure && <p className="mt-1">Missing/failed dependency: <strong>{bvp.failure.dependency}</strong> — {bvp.failure.message}</p>}
                 </div>
+                {d32Snapshot && (
+                  <div className="p-3 rounded-lg border border-amber-200 bg-amber-50 text-xs text-amber-900 mb-4">
+                    <strong>Latest d₃₂ safety status: {d32Snapshot.status ?? "not available"}</strong>
+                    <span className="ml-2">Basis: {d32Snapshot.engineeringBasis ?? "—"}</span>
+                    {(d32Snapshot.diagnostics ?? []).length > 0 && <p className="mt-1">{d32Snapshot.diagnostics[0]}</p>}
+                  </div>
+                )}
                 <div className="grid md:grid-cols-2 gap-3 mb-4">
                   {["raffinate", "extract"].map(name => {
                     const outlet = bvp.outlets?.[name];

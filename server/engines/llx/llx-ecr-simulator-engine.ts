@@ -127,6 +127,7 @@ import {
 import {
   solveECR2CounterCurrentBVP,
   type ECR2CounterCurrentBVPResult,
+  type ECR2CounterCurrentBVPInput,
 } from './llx-ecr2-counter-current-bvp';
 import { emptyDiffusivityContract } from './llx-ecr2-diffusivity';
 
@@ -944,9 +945,9 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     if (!validPhaseConfigs.includes(inputs.phaseConfiguration as string))
       err('phaseConfiguration', `phaseConfiguration must be one of: ${validPhaseConfigs.join(', ')}`);
     if (inputs.phaseConfiguration !== 'nmp_continuous_rrbo_dispersed') {
-      err(
+      warn(
         'phaseConfiguration',
-        'The ECR-2 counter-current BVP is governed only for nmp_continuous_rrbo_dispersed (NMP continuous, RRBO dispersed).',
+        'The ECR-2 counter-current BVP will be dependency-blocked because it is governed only for nmp_continuous_rrbo_dispersed (NMP continuous, RRBO dispersed). Phase-1 d₃₂ applicability remains reported explicitly.',
       );
     }
 
@@ -1472,7 +1473,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     // equations, local properties and transfer physics remain owned by the
     // verified solver and are not reproduced here.
     const bvpSettings = (inputs.bvp ?? {}) as Record<string, any>;
-    const bvpResult: ECR2CounterCurrentBVPResult = solveECR2CounterCurrentBVP({
+    const bvpInput: ECR2CounterCurrentBVPInput = {
       numberOfCompartments: N_compartments,
       activeHeight_m: H_actual,
       columnCrossSectionArea_m2: A_col,
@@ -1521,7 +1522,36 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       kuhniShdC2: bvpSettings.kuhniShdC2 ?? null,
       partitionBasis: bvpSettings.partitionBasis ?? null,
       solverOptions: bvpSettings.solverOptions,
-    });
+    };
+    const bvpResult: ECR2CounterCurrentBVPResult =
+      phaseConfig === 'nmp_continuous_rrbo_dispersed'
+        ? solveECR2CounterCurrentBVP(bvpInput)
+        : (() => {
+            // Keep the Phase-1 correlation payload available for an unsupported
+            // orientation (notably its explicit d₃₂ status), but never begin
+            // numerical BVP work outside the governed NMP-continuous direction.
+            // The solver's early dependency exit supplies the complete frozen
+            // result shape; this engine replaces that dependency with the
+            // governing orientation block before returning it.
+            const blocked = solveECR2CounterCurrentBVP({ ...bvpInput, d32Config: null });
+            const message =
+              `Counter-current BVP is governed only for phaseConfiguration='nmp_continuous_rrbo_dispersed' ` +
+              `(NMP continuous, RRBO dispersed); received '${phaseConfig}'.`;
+            return {
+              ...blocked,
+              diagnostics: [message],
+              failure: {
+                dependency: 'phase_configuration',
+                message,
+                compartmentIndex: null,
+                component: null,
+                provenance: [
+                  'ECR-2 BVP phase-orientation governance',
+                  'Phase-1 d₃₂ applicability is retained separately in data.d32.',
+                ],
+              },
+            };
+          })();
     if (bvpResult.status !== 'converged')
       pushWarning('BVP_NOT_ACCEPTED', bvpResult.failure?.message ?? bvpResult.diagnostics[0] ?? 'Counter-current BVP did not converge.');
     if (bvpResult.massBalanceStatus !== 'passed')

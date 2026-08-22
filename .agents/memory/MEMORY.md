@@ -46,3 +46,4 @@
 - [ECR-2 five-component local transfer](llx-five-component-local-transfer.md) — local transfer, Schmidt, diffusivity, and conservation must retain Sat/Mono/Di/Poly/NMP ordering.
 - [ECR-2 effective transfer volume](ecr2-effective-transfer-volume.md) — use total modeled active compartment liquid volume A_column×Δz; φd appears once in a=6φd/d32.
 - [ECR-2 preliminary property closure](ecr2-preliminary-property-closure.md) — first BVP freezes provenance-tagged physical properties while local transfer physics recalculate; never invent mixture rules.
+- [ECR-2 phase applicability boundary](ecr2-phase-applicability-boundary.md) — preserve Phase-1 d32 safety status for unsupported orientations, but dependency-block BVP execution outside NMP-continuous/RRBO-dispersed.
