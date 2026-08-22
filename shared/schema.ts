@@ -908,8 +908,6 @@ export type CampaignChannelSelect = typeof campaignChannels.$inferSelect;
 export type CampaignActivitySelect = typeof campaignActivities.$inferSelect;
 export type CampaignLeadSelect = typeof campaignLeads.$inferSelect;
 
-export type Module = typeof modules[number];
-
 export const departments = [
   "Accounts",
   "Administration",

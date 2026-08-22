@@ -1590,6 +1590,9 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       d32Config: d32Config ?? null,
       kuhniShdC2: bvpSettings.kuhniShdC2 ?? null,
       partitionBasis: bvpSettings.partitionBasis ?? null,
+      previousSolution: Array.isArray(bvpSettings.previousSolution)
+        ? bvpSettings.previousSolution
+        : null,
       solverOptions: bvpSettings.solverOptions,
     };
     const bvpResult: ECR2CounterCurrentBVPResult =
