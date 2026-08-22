@@ -103,13 +103,25 @@ export interface ECR2ClosureEngineerPropertyInput {
   readonly referenceTemperature_C: number;
 }
 
+/**
+ * A property calculated by an eligible governed route at the current operating
+ * temperature. This is distinct from an engineer's raw anchor datum.
+ */
+export interface ECR2ClosureGovernedPropertyInput extends ECR2ClosureEngineerPropertyInput {
+  readonly method: string;
+  readonly basis: string;
+  readonly warnings: readonly string[];
+}
+
 export interface ECR2GovernedPropertyInputs {
   /** Selected grade ID; no cross-grade fallback is permitted. */
   readonly rrboGradeId: string;
   /** Required only when the selected RRBO grade has no valid EPD density route. */
   readonly rho_d_engineer?: ECR2ClosureEngineerPropertyInput | null;
-  /** Required unless a stronger governed RRBO viscosity route is introduced. */
+  /** Explicit at-operating-temperature RRBO viscosity takes precedence. */
   readonly mu_d_engineer: ECR2ClosureEngineerPropertyInput | null;
+  /** Eligible RRBO operating-temperature calculation, assembled at the BVP boundary. */
+  readonly mu_d_governed?: ECR2ClosureGovernedPropertyInput | null;
   /** Explicit NMP/RRBO pair value; first-BVP basis is column-constant. */
   readonly sigma_engineer: ECR2ClosureEngineerPropertyInput | null;
   /** Required pair of values for every frozen component and both phases. */
@@ -122,6 +134,7 @@ export interface ECR2LocalPropertyMetadata {
   readonly sourceType: string;
   readonly sourceReference: string;
   readonly basis: string;
+  readonly method?: string;
   readonly referenceTemperature_C: number;
   readonly localityStatus: ECR2LocalPropertyStatus;
   readonly validationStatus: ECR2LocalPropertyValidationStatus;
@@ -297,6 +310,25 @@ function makeEngineerProperty(
   });
 }
 
+function makeGovernedProperty(
+  input: ECR2ClosureGovernedPropertyInput,
+  validationStatus: ECR2LocalPropertyValidationStatus,
+  localityWarning: string,
+): ECR2ResolvedLocalProperty {
+  return freezeProperty({
+    value: input.value,
+    unit: input.unit,
+    sourceType: input.sourceType,
+    sourceReference: input.sourceReference,
+    basis: input.basis,
+    method: input.method,
+    referenceTemperature_C: input.referenceTemperature_C,
+    localityStatus: 'LOCAL_PROPERTY_GOVERNED',
+    validationStatus,
+    warnings: propertyWarnings(localityWarning, input.warnings),
+  });
+}
+
 function makeEpdProperty(
   value: number,
   unit: string,
@@ -366,6 +398,28 @@ function validateDiffusivity(
     label,
     errors,
   );
+  return errors.length === 0;
+}
+
+function validateGovernedPropertyInput(
+  input: ECR2ClosureGovernedPropertyInput | null | undefined,
+  label: string,
+  expectedUnits: readonly string[],
+  operatingTemperature_C: number,
+  errors: string[],
+): input is ECR2ClosureGovernedPropertyInput {
+  if (!validateEngineerInput(input, label, expectedUnits, operatingTemperature_C, errors)) {
+    return false;
+  }
+  if (typeof input.method !== 'string' || !input.method.trim()) {
+    errors.push(`${label}: method is required provenance.`);
+  }
+  if (typeof input.basis !== 'string' || !input.basis.trim()) {
+    errors.push(`${label}: basis is required provenance.`);
+  }
+  if (!Array.isArray(input.warnings)) {
+    errors.push(`${label}: warnings must be a provenance array.`);
+  }
   return errors.length === 0;
 }
 
@@ -439,6 +493,7 @@ export function resolveECR2LocalProperties(
     rrboGradeId,
     rho_d_engineer,
     mu_d_engineer,
+    mu_d_governed,
     sigma_engineer,
     diffusivity,
   } = governedPropertyInputs;
@@ -534,15 +589,42 @@ export function resolveECR2LocalProperties(
     }
   }
 
-  const muDErrors: string[] = [];
-  const hasMuD = validateEngineerInput(
+  const muDEngineerErrors: string[] = [];
+  const hasAtTemperatureEngineerMuD = validateEngineerInput(
     mu_d_engineer,
     'mu_d_engineer',
     ['Pa.s', 'Pa·s'],
     operatingTemperature_C,
-    muDErrors,
+    muDEngineerErrors,
   );
-  if (!hasMuD) errors.push(`mu_d: ${muDErrors.join(' ')}`);
+  const muDGovernedErrors: string[] = [];
+  const hasGovernedMuD = validateGovernedPropertyInput(
+    mu_d_governed,
+    'mu_d_governed',
+    ['Pa.s', 'Pa·s'],
+    operatingTemperature_C,
+    muDGovernedErrors,
+  );
+  let mu_d: ECR2ResolvedLocalProperty | undefined;
+  if (hasAtTemperatureEngineerMuD) {
+    mu_d = makeEngineerProperty(
+      mu_d_engineer,
+      'engineer_supplied_rrbo_viscosity_at_operating_temperature_preliminary',
+      'PRELIMINARY_RRBO_PROPERTY',
+      dispersedWarning,
+    );
+  } else if (hasGovernedMuD) {
+    mu_d = makeGovernedProperty(
+      mu_d_governed,
+      'PRELIMINARY_RRBO_PROPERTY',
+      dispersedWarning,
+    );
+  } else {
+    errors.push(
+      `mu_d: no governed RRBO operating-temperature viscosity route applies for '${rrboGradeId}' at ${operatingTemperature_C} °C. ` +
+      `${muDGovernedErrors.join(' ')} ${muDEngineerErrors.join(' ')}`.trim(),
+    );
+  }
 
   const sigmaErrors: string[] = [];
   const hasSigma = validateEngineerInput(
@@ -581,18 +663,12 @@ export function resolveECR2LocalProperties(
     }
   }
 
-  if (errors.length > 0 || !rho_d || !hasMuD || !hasSigma ||
+  if (errors.length > 0 || !rho_d || !mu_d || !hasSigma ||
       continuousDiffusivities.length !== COMPONENT_NAMES.length ||
       dispersedDiffusivities.length !== COMPONENT_NAMES.length) {
     return blocked(errors, diagnostics);
   }
 
-  const mu_d = makeEngineerProperty(
-    mu_d_engineer,
-    'engineer_supplied_rrbo_viscosity_at_operating_temperature_preliminary',
-    'PRELIMINARY_RRBO_PROPERTY',
-    dispersedWarning,
-  );
   const sigma = makeEngineerProperty(
     sigma_engineer,
     'column_constant_engineer_supplied_preliminary',
@@ -687,7 +763,7 @@ export function toECR2KernelPropertyResult(
     unit: property.unit,
     sourceType: property.sourceType,
     sourceReference: property.sourceReference,
-    calculationMethod: property.basis,
+    calculationMethod: property.method ?? property.basis,
     status: property.sourceType === 'EPD_Library'
       ? 'library'
       : 'engineer_supplied',

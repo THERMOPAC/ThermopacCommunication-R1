@@ -5539,6 +5539,17 @@ export default function DesignSoftwareWorkspacePage() {
     const displayedIssues = options?.useStructuredEcr2Dependencies
       ? issues.filter((issue: any) => issue.field !== "molecularWeights" && issue.field !== "bvp")
       : issues;
+    const resultSnapshot = typeof latestRun.result_snapshot === "string"
+      ? (() => {
+        try { return JSON.parse(latestRun.result_snapshot); } catch { return null; }
+      })()
+      : latestRun.result_snapshot;
+    const downstreamFailure = options?.useStructuredEcr2Dependencies
+      ? resultSnapshot?.bvp?.failure
+      : null;
+    const showsDownstreamFailure = displayedIssues.length === 0
+      && typeof downstreamFailure?.dependency === "string"
+      && typeof downstreamFailure?.message === "string";
     return (
       <div className="mt-2 space-y-2">
         <p className="text-[11px] text-gray-500">
@@ -5547,7 +5558,10 @@ export default function DesignSoftwareWorkspacePage() {
         {latestRun.calculation_status === "error" && (
           <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-xs font-semibold text-red-800 mb-1">
-              {label} run blocked — the engine reported {issues.length} missing/invalid mandatory input{issues.length === 1 ? "" : "s"}. No results were generated; nothing is defaulted silently.
+              {showsDownstreamFailure
+                ? `${label} run blocked by downstream BVP dependency '${downstreamFailure.dependency}': ${downstreamFailure.message}`
+                : `${label} run blocked — the engine reported ${issues.length} missing/invalid mandatory input${issues.length === 1 ? "" : "s"}.`
+              } No results were generated; nothing is defaulted silently.
             </p>
             {legacyEcr2Issues.length > 0 && (
               <p className="mb-1 text-[11px] text-red-700">
@@ -5555,6 +5569,9 @@ export default function DesignSoftwareWorkspacePage() {
               </p>
             )}
             <ul className="space-y-0.5">
+              {showsDownstreamFailure && (
+                <li className="text-[11px] text-red-700"><span className="font-medium">{downstreamFailure.dependency}:</span> {downstreamFailure.message}</li>
+              )}
               {displayedIssues.map((v: any, i: number) => (
                 <li key={i} className="text-[11px] text-red-700"><span className="font-medium">{v.field ?? "input"}:</span> {v.message}</li>
               ))}

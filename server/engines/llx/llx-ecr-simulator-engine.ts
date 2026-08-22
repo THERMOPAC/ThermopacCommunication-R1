@@ -57,6 +57,9 @@ import {
 } from '../../engine-framework/common-engineering-library';
 
 import type { SourceType } from '../../engine-framework/epd/types';
+import {
+  resolveRrboSn300DynamicViscosityAtTemperature,
+} from '../../../shared/ecr2-stage8-transport-basis';
 
 // NRTL reuse: nrtlFlash is imported for Phase 2 forward simulation.
 // In Phase 1 it is not called but the import confirms the reuse path.
@@ -1504,6 +1507,59 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     // equations, local properties and transfer physics remain owned by the
     // verified solver and are not reproduced here.
     const bvpSettings = (inputs.bvp ?? {}) as Record<string, any>;
+    const rrboGradeId = String(bvpSettings.rrboGradeId ?? inputs.rrboFluidId ?? '');
+    const rawFeedViscosity = inputs.feedViscosity
+      ? parseTagged(inputs.feedViscosity, 'feedViscosity', [], { min: 1e-5, max: 10, unit: 'Pa.s' })
+      : undefined;
+    const rawFeedViscosityReferenceTemperature_C = Number(
+      (inputs.feedViscosity as any)?.referenceTemperatureC ?? T_C,
+    );
+    let muDGoverned: {
+      value: number;
+      unit: string;
+      sourceType: string;
+      sourceReference: string;
+      referenceTemperature_C: number;
+      method: string;
+      basis: string;
+      warnings: readonly string[];
+    } | null = null;
+    if (rrboGradeId === 'rrbo-sn300') {
+      try {
+        const densityAtOperatingTemperature = getProperty('rrbo-sn300', 'density', T_C);
+        let kinematicViscosity40_cSt: number | undefined;
+        if (rawFeedViscosity && Math.abs(rawFeedViscosityReferenceTemperature_C - 40) < 1e-9) {
+          const densityAt40 = getProperty('rrbo-sn300', 'density', 40);
+          kinematicViscosity40_cSt = rawFeedViscosity.value * 1e6 / densityAt40.value;
+        }
+        const resolved = resolveRrboSn300DynamicViscosityAtTemperature({
+          temperature_C: T_C,
+          density_kg_m3: densityAtOperatingTemperature.value,
+          kinematicViscosity40_cSt,
+        });
+        if (resolved) {
+          muDGoverned = {
+            value: resolved.value_Pa_s,
+            unit: 'Pa.s',
+            sourceType: 'Thermopac',
+            sourceReference: `${resolved.source}; RRBO density at ${T_C} °C: ${densityAtOperatingTemperature.source}` +
+              (rawFeedViscosity && Math.abs(rawFeedViscosityReferenceTemperature_C - 40) < 1e-9
+                ? `; 40 °C anchor: ${sourceOf(rawFeedViscosity)}`
+                : ''),
+            referenceTemperature_C: T_C,
+            method: resolved.method,
+            basis: `rrbo_sn300_astm_d341_walther_operating_temperature_preliminary; ${resolved.applicability}`,
+            warnings: [
+              ...resolved.warnings,
+              ...densityAtOperatingTemperature.warnings.map((warning) => warning.message),
+            ],
+          };
+        }
+      } catch {
+        // The local-property closure reports the named operating-temperature
+        // dependency block when the governed route cannot be assembled.
+      }
+    }
     const bvpInput: ECR2CounterCurrentBVPInput = {
       numberOfCompartments: N_compartments,
       activeHeight_m: H_actual,
@@ -1528,16 +1584,17 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       ],
       nmpFeedComponentFlows_kg_h: [0, 0, 0, 0, mNMP * purity],
       governedProperties: {
-        rrboGradeId: String(bvpSettings.rrboGradeId ?? inputs.rrboFluidId ?? ''),
-        mu_d_engineer: inputs.feedViscosity
+        rrboGradeId,
+        mu_d_engineer: rawFeedViscosity
           ? {
-              value: parseTagged(inputs.feedViscosity, 'feedViscosity', [], { min: 1e-5, max: 10, unit: 'Pa.s' })!.value,
+              value: rawFeedViscosity.value,
               unit: 'Pa.s',
-              sourceType: String((inputs.feedViscosity as any).sourceType ?? 'Assumed'),
-              sourceReference: String((inputs.feedViscosity as any).sourceReference ?? ''),
-              referenceTemperature_C: Number((inputs.feedViscosity as any).referenceTemperatureC ?? T_C),
+              sourceType: rawFeedViscosity.sourceType,
+              sourceReference: rawFeedViscosity.sourceReference,
+              referenceTemperature_C: rawFeedViscosityReferenceTemperature_C,
             }
           : null,
+        mu_d_governed: muDGoverned,
         sigma_engineer: gamma
           ? {
               value: gamma.value,

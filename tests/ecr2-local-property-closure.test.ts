@@ -23,6 +23,10 @@ import {
 import {
   computeDimensionlessNumbers,
 } from '../server/engines/llx/llx-ecr2-dimensionless';
+import { getProperty } from '../server/engine-framework/common-engineering-library';
+import {
+  resolveRrboSn300DynamicViscosityAtTemperature,
+} from '../shared/ecr2-stage8-transport-basis';
 
 const TEMPERATURE_C = 70;
 const X_LOCAL = [0.42, 0.28, 0.14, 0.10, 0.06];
@@ -225,6 +229,53 @@ describe('ECR-2 preliminary local-property closure', () => {
     expect(property.warnings).toContain(
       ECR2_LOCALITY_WARNING_CODES.dispersedComposition,
     );
+  });
+
+  it('uses the governed RRBO SN300 temperature route when the available viscosity anchor is at 40 °C', () => {
+    const anchorAt40_Pa_s = 0.052;
+    const densityAt40 = getProperty('rrbo-sn300', 'density', 40).value;
+    const densityAt70 = getProperty('rrbo-sn300', 'density', TEMPERATURE_C).value;
+    const resolved = resolveRrboSn300DynamicViscosityAtTemperature({
+      temperature_C: TEMPERATURE_C,
+      density_kg_m3: densityAt70,
+      kinematicViscosity40_cSt: anchorAt40_Pa_s * 1e6 / densityAt40,
+    });
+    expect(resolved).toBeDefined();
+    if (!resolved) return;
+
+    const snapshot = resolvedSnapshot(resolve(makeInputs({
+      mu_d_engineer: engineer(anchorAt40_Pa_s, 'Pa.s', 'RRBO viscosity anchor at 40 °C', 40),
+      mu_d_governed: {
+        value: resolved.value_Pa_s,
+        unit: 'Pa.s',
+        sourceType: 'Thermopac',
+        sourceReference: `${resolved.source}; controlled test 40 °C anchor`,
+        referenceTemperature_C: TEMPERATURE_C,
+        method: resolved.method,
+        basis: `rrbo_sn300_astm_d341_walther_operating_temperature_preliminary; ${resolved.applicability}`,
+        warnings: resolved.warnings,
+      },
+    })));
+
+    expect(snapshot.mu_d_Pa_s).toBeCloseTo(resolved.value_Pa_s, 12);
+    expect(snapshot.mu_d_Pa_s).not.toBe(anchorAt40_Pa_s);
+    expect(snapshot.properties.mu_d.sourceType).toBe('Thermopac');
+    expect(snapshot.properties.mu_d.referenceTemperature_C).toBe(TEMPERATURE_C);
+    expect(snapshot.properties.mu_d.method).toContain('ASTM D341/Walther');
+    expect(snapshot.properties.mu_d.basis).toContain('rrbo_sn300_astm_d341_walther');
+    expect(snapshot.properties.mu_d.warnings).toContain('RRBO_NMP_VALIDATION_PENDING');
+  });
+
+  it('names the governed operating-temperature route as the dependency when neither route applies', () => {
+    const result = resolve(makeInputs({
+      rrboGradeId: 'unregistered-rrbo-grade',
+      rho_d_engineer: engineer(860, 'kg/m3', 'RRBO density fallback at 70 °C'),
+      mu_d_engineer: engineer(0.052, 'Pa.s', 'RRBO viscosity anchor at 40 °C', 40),
+      mu_d_governed: null,
+    }));
+
+    expect(result.status).toBe('blocked');
+    expect(result.errors.join(' ')).toContain('no governed RRBO operating-temperature viscosity route applies');
   });
 
   it('uses the explicit column-constant interfacial-tension route', () => {
