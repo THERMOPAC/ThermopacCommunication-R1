@@ -11,6 +11,8 @@ Wang et al. (2017), *Mass transfer in a pulsed and non-pulsed disc and doughnut 
 
 The supplied preliminary implementation specification subsequently established C1 = 0.90 and C2 = 0.45 as continuous/dispersed agitation parameters, and Fc = 0.76 and Fd = 0.58 as continuous/dispersed Kühni corrections. It does not establish the exact equation placement for any of them, complete Shc/Shd equations, regime-selection criteria, or a low-Re policy.
 
+Asadollahzadeh et al. (2017), *Experimental Determination of Continuous Phase Overall Mass Transfer Coefficients: Case Study: Kühni Extraction Column*, Table 3 Eq. (18), is an accessible equation-bearing secondary source. It reproduces the K&H continuous/overall-side relation and gives Kühni \(C_1=7.5\); it does not reproduce a dispersed-side \(Sh_d\) equation or provide a Kühni \(C_2\). This strengthens the exclusion of both the project-provisional \(C_2=0.45\) and pulsed-column \(C_2=4.33\).
+
 **Why:** Partial secondary-source transcription variants and unplaced corrections could silently produce the wrong correlation, phase basis, or resistance convention.
 
 **How to apply:** The controlled preliminary scope may calculate physical concentration conversion, Kd = Cd*/Cc*, and ΔCd = Cd − Kd·Cc while preserving separate NRTL surrogate coordinates and physical molecular weights. Keep Shc, Shd, kc, kd, Kod, Koa, and transfer rate unavailable until the missing source evidence is recovered and governed.

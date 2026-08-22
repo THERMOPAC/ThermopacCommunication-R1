@@ -110,7 +110,7 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
     expect(resolution.records.kuhni_shd_c2.blockingReason).toContain('ROOT_GAP_KUHNI_SHD_C2');
   });
 
-  it('auto-calculates each eligible Wilke–Chang route only from a complete controlled basis and retains temperature sensitivity', () => {
+  it('auto-calculates each eligible Wilke–Chang route only from a complete controlled basis while retaining the unsupported C2 gap', () => {
     const scalar = (value: number, source: string) => ({
       value, source, evidenceLevel: 'PRIMARY_EQUATION_VERIFIED' as const,
     });
@@ -135,17 +135,11 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
         associationFactor: scalar(1, 'controlled RRBO association factor'),
       },
       physicalComponents,
-      kuhniShdC2: {
-        ...scalar(1.2, 'controlled exact Kühni C2'),
-        exactEquationIdentity: 'Kühni/Hartland 1999, exact dispersed-side Shd coefficient placement',
-        deviceApplicability: 'kuhni' as const,
-        phaseBasis: 'dispersed' as const,
-      },
     };
     const at60 = resolveEcr2Stage8Evidence(context);
     const at80 = resolveEcr2Stage8Evidence({ ...context, temperature_C: 80 });
 
-    expect(at60).toMatchObject({ autoPopulatedCount: 15, unresolvedCount: 0 });
+    expect(at60).toMatchObject({ autoPopulatedCount: 14, unresolvedCount: 1 });
     expect(at60.records.diffusivity_sat_c.status).toBe('CALCULATED_PRELIMINARY');
     expect(at60.records.diffusivity_sat_d.status).toBe('CALCULATED_PRELIMINARY');
     expect(at60.records.diffusivity_nmp_c.method).toContain('self-diffusion');
@@ -155,6 +149,10 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
       pilotCalibrationStatus: 'NOT_YET_VALIDATED',
     });
     expect(at80.records.diffusivity_sat_c.value).toBeGreaterThan(at60.records.diffusivity_sat_c.value!);
+    expect(at60.records.kuhni_shd_c2).toMatchObject({
+      status: 'APPROVAL_REQUIRED',
+      value: undefined,
+    });
   });
 
   it('retains the physical-basis decision, equation, and uncertainty in an SN300 auto-resolution', () => {
@@ -201,14 +199,6 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
       nmp: {
         selfDiffusion_m2_s: { value: Number.NaN, source: 'invalid', evidenceLevel: 'PRIMARY_EQUATION_VERIFIED' },
       },
-      kuhniShdC2: {
-        value: -1,
-        source: 'invalid',
-        evidenceLevel: 'PRIMARY_EQUATION_VERIFIED',
-        exactEquationIdentity: 'not eligible',
-        deviceApplicability: 'kuhni',
-        phaseBasis: 'dispersed',
-      },
     });
     expect(invalid.records.physical_mw_sat.status).toBe('BLOCKED_MISSING_REQUIRED_EVIDENCE');
     expect(invalid.records.diffusivity_sat_c.blockingReason).toContain('physical molecular weight');
@@ -216,11 +206,39 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
     expect(invalid.records.kuhni_shd_c2.status).toBe('APPROVAL_REQUIRED');
   });
 
-  it('keeps Kühni C2 approval-required and excludes the pulsed-column value', () => {
+  it('keeps Kühni C2 approval-required and documents the literature evidence gap', () => {
     const c2 = findEcr2Stage8Evidence('kuhni_shd_c2');
     expect(c2.status).toBe('APPROVAL_REQUIRED');
     expect(c2.value).toBeUndefined();
+    expect(c2.source).toContain('Kumar & Hartland (1999)');
+    expect(c2.source).toContain('C1 = 7.5');
+    expect(c2.method).toContain('not a dispersed-side Shd C2');
     expect(c2.warnings.join(' ')).toContain('pulsed-column C2');
+    expect(c2.blockingReason).toContain('exact dispersed-side Shd equation');
+  });
+
+  it('rejects pulsed, project-provisional, and fixture C2 payloads from the automatic resolver', () => {
+    const candidate = (value: number, source: string) => ({
+      value,
+      source,
+      evidenceLevel: 'SECONDARY_EQUATION_VERIFIED' as const,
+      exactEquationIdentity: 'Claimed exact dispersed-side Shd coefficient placement',
+      deviceApplicability: 'kuhni' as const,
+      phaseBasis: 'dispersed' as const,
+    });
+
+    for (const attemptedC2 of [
+      candidate(4.33, 'Pulsed-column secondary source'),
+      candidate(0.45, 'ECR-2 project provisional specification'),
+      candidate(1.25, 'Test fixture'),
+    ]) {
+      const resolution = resolveEcr2Stage8Evidence({ kuhniShdC2: attemptedC2 } as any);
+      expect(resolution.records.kuhni_shd_c2).toMatchObject({
+        status: 'APPROVAL_REQUIRED',
+        value: undefined,
+      });
+      expect(resolution.records.kuhni_shd_c2.blockingReason).toContain('ROOT_GAP_KUHNI_SHD_C2');
+    }
   });
 
   it('server-side validation rejects missing, blocked, pending, and unknown evidence states', () => {

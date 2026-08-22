@@ -166,13 +166,17 @@ export const ECR2_STAGE8_EVIDENCE_CATALOG: readonly ECR2Stage8EvidenceRecord[] =
     sourcePriority: BASE_PRIORITY,
     evidenceLevel: 'MISSING',
     status: 'APPROVAL_REQUIRED',
-    basis: 'Exact Kühni dispersed-side K&H 1999 Shd equation identity and coefficient placement.',
-    method: 'No numerical resolution is permitted until the exact equation, device applicability, phase basis, and coefficient value are evidenced.',
-    source: 'Existing secondary evidence supports a pulsed-column C2 only; it is explicitly excluded from the Kühni route.',
+    basis: 'Exact Kühni dispersed-side K&H 1999 Shd equation identity, coefficient placement, and numerical C2.',
+    method: 'No numerical resolution is permitted: the accessible equation-bearing secondary source reproduces only the Kühni continuous/overall-side relation and C1 = 7.5, not a dispersed-side Shd C2.',
+    source: 'Kumar & Hartland (1999), Chem. Eng. Res. Des. 77(5), 372–384, doi:10.1205/026387699526359 (primary full text not available in this review); Asadollahzadeh et al. (2017), Table 3 Eq. (18), supports only Kühni C1 = 7.5. The verified C2 = 4.33 source is pulsed-column-only and excluded.',
     applicability: 'Kühni extraction column only.',
     validationStatus: 'NOT_APPLICABLE',
-    warnings: ['Do not use the project provisional C2, fixture C2, or pulsed-column C2 by symbol matching.'],
-    blockingReason: 'Scoped engineer preliminary evidence or exact equation-bearing Kühni C2 literature is required.',
+    warnings: [
+      'No reviewed source identifies a Kühni dispersed-side C2 or reproduces the exact Shd equation.',
+      'Do not infer C2 from Kühni C1 = 7.5 or from a continuous/overall-side relation.',
+      'Do not use the project provisional C2, fixture C2, or pulsed-column C2 by symbol matching.',
+    ],
+    blockingReason: 'ROOT_GAP_KUHNI_SHD_C2: an equation-bearing source must establish the exact dispersed-side Shd equation, numerical C2, Kühni applicability, and phase placement. The reviewed Kühni C1 and pulsed-column C2 records do not meet that requirement.',
   },
 ] as const;
 
@@ -321,11 +325,6 @@ export interface ECR2Stage8ResolutionContext {
     method?: string;
     physicalMwDecision?: 'PHYSICAL_MW_GOVERNED' | 'PHYSICAL_MW_PRELIMINARY_APPROVED_BASIS';
   }>>;
-  kuhniShdC2?: ECR2Stage8TrustedScalar & {
-    exactEquationIdentity: string;
-    deviceApplicability: 'kuhni';
-    phaseBasis: 'dispersed';
-  };
 }
 
 export interface ECR2Stage8Resolution {
@@ -587,26 +586,15 @@ export function resolveEcr2Stage8Evidence(
     wc(`diffusivity_${component}_d`, component, 'd');
   }
 
-  const c2 = context.kuhniShdC2;
-  records.kuhni_shd_c2 = isTrustedScalar(c2)
-    && c2.deviceApplicability === 'kuhni'
-    && c2.phaseBasis === 'dispersed'
-    && c2.exactEquationIdentity.trim() !== ''
-    ? resolvedRecord(
-      records.kuhni_shd_c2,
-      c2.value,
-      `Exact Kühni Shd C2 — ${c2.exactEquationIdentity}`,
-      c2.source,
-      ['kuhniShdC2'],
-      {
-        c2: c2.value,
-        exactEquationIdentity: c2.exactEquationIdentity,
-        deviceApplicability: c2.deviceApplicability,
-        phaseBasis: c2.phaseBasis,
-        source: c2.source,
-      },
-    )
-    : blockedRecord(records.kuhni_shd_c2, 'ROOT_GAP_KUHNI_SHD_C2: no exact equation-bearing Kühni dispersed-side C2 source, device applicability, and phase placement are registered; project, fixture, and pulsed-column values are excluded.', ['kuhniShdC2']);
+  // A system-resolved C2 is intentionally impossible until a governed,
+  // equation-bearing Kühni dispersed-side source is registered above. Do not
+  // accept a runtime candidate: that would turn pulsed, provisional, or fixture
+  // values into a system record merely because they look provenance-complete.
+  records.kuhni_shd_c2 = blockedRecord(
+    records.kuhni_shd_c2,
+    records.kuhni_shd_c2.blockingReason!,
+    ['governedKuhniShdC2LiteratureRecord'],
+  );
 
   const values = Object.values(records);
   return {
