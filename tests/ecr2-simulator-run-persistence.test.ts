@@ -18,7 +18,7 @@ const { query, engine, engineRegistry } = vi.hoisted(() => {
 vi.mock('../server/db', () => ({ pool: { query } }));
 vi.mock('../server/engine-framework/registry', () => ({ engineRegistry }));
 
-import { runCalculation } from '../server/design-software-service';
+import { previewEcr2Stage8Resolution, runCalculation } from '../server/design-software-service';
 
 const flatSimulatorInput = {
   operating_temperature: '70',
@@ -150,5 +150,19 @@ describe('ECR-2 simulator service run boundary', () => {
     expect(engine.calculate).not.toHaveBeenCalled();
     expect(query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO design_software_calculation_runs'))).toBe(true);
     expect(query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO design_software_results'))).toBe(false);
+  });
+
+  it('previews the current Stage 8 candidates without creating a calculation run', async () => {
+    configureDatabase();
+
+    const preview = await previewEcr2Stage8Resolution(7) as any;
+
+    expect(preview).toMatchObject({
+      resolver: 'ecr2-stage8-governed-resolver-v1',
+      autoPopulatedCount: 14,
+      unresolvedCount: 1,
+    });
+    expect(preview.records.diffusivity_sat_c.status).toBe('CALCULATED_PRELIMINARY');
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO design_software_calculation_runs'))).toBe(false);
   });
 });

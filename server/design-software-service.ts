@@ -525,6 +525,42 @@ export async function listCalculationRuns(revisionId: number) {
 }
 
 /**
+ * Read-only Stage 8 resolver preview. This deliberately maps the saved
+ * workspace basis without creating a calculation run or accepted result, so
+ * engineers can inspect and accept governed candidates before the simulator's
+ * guarded run is available.
+ */
+export async function previewEcr2Stage8Resolution(revisionId: number) {
+  const revRow = await pool.query(
+    `SELECT r.id, d.module_type
+     FROM design_software_revisions r
+     JOIN design_software_designs d ON d.id = r.design_id
+     WHERE r.id = $1`,
+    [revisionId],
+  );
+  const revision = revRow.rows[0];
+  if (!revision) throw new Error('Revision not found');
+  if (revision.module_type !== 'llx') throw new Error('Stage 8 resolution preview is available only for LLX revisions');
+
+  const inputRows = await pool.query(
+    'SELECT section, data FROM design_software_inputs WHERE revision_id = $1',
+    [revisionId],
+  );
+  const inputs: Record<string, unknown> = {};
+  for (const row of inputRows.rows) Object.assign(inputs, row.data);
+
+  const mapped = mapWorkspaceProcessDesignInputs(inputs, 'ecr_simulator') as {
+    bvp?: { stage8Resolution?: unknown };
+  };
+  return mapped.bvp?.stage8Resolution ?? {
+    resolver: 'ecr2-stage8-governed-resolver-v1',
+    autoPopulatedCount: 0,
+    unresolvedCount: 15,
+    records: {},
+  };
+}
+
+/**
  * Stage 9 — fully automatic nozzle generation and preliminary sizing.
  * Reads the merged workspace inputs, the selected technology and adopted
  * geometry, and applies the controlled Thermopac nozzle master data

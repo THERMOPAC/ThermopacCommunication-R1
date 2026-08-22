@@ -740,6 +740,16 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
     }
   });
 
+  /** Read-only Stage 8 evidence preview. It never writes a run or result. */
+  app.get('/api/design-software/revisions/:id/ecr2-stage8-resolution', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      res.json(await svc.previewEcr2Stage8Resolution(parseInt(req.params.id)));
+    } catch (err: any) {
+      const status = err.message?.includes('not found') ? 404 : err.message?.includes('only for LLX') ? 422 : 500;
+      res.status(status).json({ error: err.message });
+    }
+  });
+
   /** Stage 9 — fully automatic nozzle generation & preliminary sizing from
    *  controlled Thermopac nozzle master data. Returns rows + validation issues;
    *  the client saves them via the ordinary input-save path. */

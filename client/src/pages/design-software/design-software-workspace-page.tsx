@@ -668,6 +668,12 @@ export default function DesignSoftwareWorkspacePage() {
     queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/runs`) as Promise<CalcRun[]>,
     enabled: !!activeRevisionId,
   });
+  const stage8ResolutionQ = useQuery<any>({
+    queryKey: [`/api/design-software/revisions/${activeRevisionId}/ecr2-stage8-resolution`],
+    queryFn: () => apiRequest("GET", `/api/design-software/revisions/${activeRevisionId}/ecr2-stage8-resolution`) as Promise<any>,
+    enabled: !!activeRevisionId && activeStep === "ecr2_simulation",
+    retry: false,
+  });
   const packingsQ = useQuery<any[]>({
     queryKey: ["/api/design-software/packings"],
     queryFn: () => apiRequest("GET", "/api/design-software/packings") as Promise<any[]>,
@@ -4538,6 +4544,7 @@ export default function DesignSoftwareWorkspacePage() {
         });
         simulatorInputsSaved = true;
         await qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/inputs`] });
+        await qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/ecr2-stage8-resolution`] });
 
         if (c2InputsAreStale) {
           toast({
@@ -4559,6 +4566,29 @@ export default function DesignSoftwareWorkspacePage() {
         setEcr2RunPreparing(false);
       }
     };
+    const resolveStage8Candidates = async () => {
+      if (isFrozen || !activeRevisionId || ecr2RunPreparing) return;
+      setEcr2RunPreparing(true);
+      setSavingSection("ecr_simulator");
+      try {
+        await apiRequest("POST", `/api/design-software/revisions/${activeRevisionId}/inputs`, {
+          section: "ecr_simulator",
+          data: localData["ecr_simulator"] ?? {},
+        });
+        await qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/inputs`] });
+        const preview = await stage8ResolutionQ.refetch();
+        const resolved = preview.data?.autoPopulatedCount ?? 0;
+        toast({
+          title: "Stage 8 candidates resolved",
+          description: `${resolved} of 15 numerical dependencies were resolved from the current governed server basis. Review and accept each candidate before running ECR-2.`,
+        });
+      } catch (e: any) {
+        toast({ title: "Stage 8 resolution failed", description: e.message, variant: "destructive" });
+      } finally {
+        setSavingSection(null);
+        setEcr2RunPreparing(false);
+      }
+    };
     const parseSnapshot = (value: any) => {
       if (typeof value !== "string") return value;
       try { return JSON.parse(value); } catch { return null; }
@@ -4570,7 +4600,14 @@ export default function DesignSoftwareWorkspacePage() {
       ? parseSnapshot(latestRun.result_snapshot)
       : null;
     const latestInputSnapshot = parseSnapshot((latestRun as any)?.input_snapshot);
-    const serverResolverRecords = latestInputSnapshot?.bvp?.stage8Resolution?.records ?? {};
+    const previewResolverRecords = stage8ResolutionQ.data?.records;
+    const snapshotResolverRecords = latestInputSnapshot?.bvp?.stage8Resolution?.records;
+    // The read-only preview reflects the current saved inputs. A historical run
+    // is only used while the preview has not yet loaded, so stale candidates
+    // cannot be accepted after a basis change.
+    const serverResolverRecords = previewResolverRecords && Object.keys(previewResolverRecords).length > 0
+      ? previewResolverRecords
+      : snapshotResolverRecords ?? {};
     const displayedSnapshot = latestFailedSnapshot ?? simResult;
     const bvp = displayedSnapshot?.bvp;
     const d32Snapshot = displayedSnapshot?.d32;
@@ -5133,8 +5170,8 @@ export default function DesignSoftwareWorkspacePage() {
             <Button size="sm" variant="outline" disabled={isFrozen || upsertMutation.isPending || ecr2RunPreparing} onClick={() => saveSection("ecr_simulator")}>
               <Save className="h-3.5 w-3.5 mr-1.5" /> Save simulator inputs
             </Button>
-            <Button size="sm" variant="outline" className="gap-1.5" title="Ask the server to resolve governed Stage 8 candidates without bypassing any unresolved safety dependency." disabled={isFrozen || calculateMutation.isPending || ecr2RunPreparing || c2InputsAreStale} onClick={runEcr2Simulation}>
-              <Calculator className="h-3.5 w-3.5" /> Resolve Stage 8 candidates
+            <Button size="sm" variant="outline" className="gap-1.5" title="Refresh governed Stage 8 candidates from the current saved inputs without creating a simulation run." disabled={isFrozen || stage8ResolutionQ.isFetching || ecr2RunPreparing} onClick={resolveStage8Candidates}>
+              <Calculator className="h-3.5 w-3.5" /> {stage8ResolutionQ.isFetching || ecr2RunPreparing ? "Resolving candidates…" : "Resolve Stage 8 candidates"}
             </Button>
             <Button size="sm" className="gap-1.5" title="Resolve all mandatory Stage 8 dependencies to run the preliminary ECR-2 counter-current simulation." disabled={isFrozen || calculateMutation.isPending || ecr2RunPreparing || stage8Blocking} onClick={runEcr2Simulation}>
               <Play className="h-3.5 w-3.5" /> {ecr2RunPreparing ? "Saving simulator inputs…" : c2InputsAreStale ? "Save inputs & refresh C2" : "RUN ECR-2 SIMULATION"}
