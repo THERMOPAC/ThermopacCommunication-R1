@@ -58,4 +58,10 @@ describe('ECR-2 simulator workspace adapter', () => {
 
     expect(mapped.nmpPurity).toBe(0.995);
   });
+
+  it('does not let a blank Stage 7 rotor label suppress the identification fallback', () => {
+    const mapped = mapWorkspaceProcessDesignInputs({}, 'ecr_simulator');
+
+    expect(mapped.rotorType).toBe('Kühni turbine (default label)');
+  });
 });

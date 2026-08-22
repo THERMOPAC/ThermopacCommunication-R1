@@ -523,7 +523,12 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     out.compartmentHeight_m = num(inputs.compartment_height);
     out.rotorToColumnDiameterRatio = num(inputs.rotor_ratio);
     out.rotorSpeed_rpm = num(inputs.rotor_speed);
-    out.rotorType = String(inputs.rotor_type ?? '').trim();
+    // Do not write an empty Stage 7 label into the mapped payload. The generic
+    // ECR mapper below applies the explicit workspace identification fallback
+    // when the field is blank; assigning "" here would suppress that fallback
+    // and make the simulator fail its mandatory rotorType check.
+    const stage7RotorType = String(inputs.rotor_type ?? '').trim();
+    if (stage7RotorType !== '') out.rotorType = stage7RotorType;
     const parseJson = (value: unknown) => {
       if (typeof value !== 'string') return value;
       try { return JSON.parse(value); } catch { return undefined; }
