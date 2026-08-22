@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import {
-  ArrowLeft, Lock, GitBranch, ChevronRight, CheckCircle2, XCircle,
+  ArrowLeft, Lock, GitBranch, ChevronRight, ChevronDown, CheckCircle2, XCircle,
   AlertCircle, FileText, BookOpen, Droplets, Activity, Calculator,
   GitFork, Settings, Wrench, Zap, DollarSign, ShieldCheck,
   FileDown, History, Play, Save, AlertTriangle, Info, Check, ChevronsUpDown
@@ -611,6 +611,7 @@ export default function DesignSoftwareWorkspacePage() {
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [ecr2RunPreparing, setEcr2RunPreparing] = useState(false);
   const [ecr2AcceptancePreparing, setEcr2AcceptancePreparing] = useState(false);
+  const [stage8ExpandedRows, setStage8ExpandedRows] = useState<Record<string, boolean>>({});
 
   // ── Stage-by-stage validation ────────────────────────────────────────────────
   // errors:   { stageKey → { fieldKey → errorMessage } }  — block forward nav
@@ -4849,6 +4850,47 @@ export default function DesignSoftwareWorkspacePage() {
         </Button>
       </div>;
     };
+    const renderStage8DependencyRow = ({
+      id,
+      ready,
+      parameter,
+      value,
+      unit,
+      status,
+      details,
+    }: {
+      id: string;
+      ready: boolean;
+      parameter: ReactNode;
+      value: ReactNode;
+      unit: ReactNode;
+      status: ReactNode;
+      details: ReactNode;
+    }) => {
+      const expanded = stage8ExpandedRows[id] ?? !ready;
+      return <div key={id} className="border-b last:border-b-0">
+        <div className="grid grid-cols-[170px_180px_70px_1fr_36px] items-start gap-2 px-3 py-2 text-xs">
+          <span className="font-medium">{parameter}</span>
+          <div className="min-w-0">{value}</div>
+          <span className="pt-1">{unit}</span>
+          <div className="min-w-0">{status}</div>
+          <button
+            type="button"
+            className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+            aria-expanded={expanded}
+            aria-controls={`stage8-details-${id}`}
+            aria-label={`${expanded ? "Collapse" : "Expand"} ${typeof parameter === "string" ? parameter : "Stage 8 dependency"} details`}
+            title={expanded ? "Collapse details" : "Expand details"}
+            onClick={() => setStage8ExpandedRows(previous => ({ ...previous, [id]: !expanded }))}
+          >
+            <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
+          </button>
+        </div>
+        {expanded && <div id={`stage8-details-${id}`} className="border-t bg-slate-50/70 px-3 py-2">
+          {details}
+        </div>}
+      </div>;
+    };
     return (
       <div className="space-y-4">
         <SectionCard title="ECR-2 — Counter-Current Simulator">
@@ -4925,40 +4967,44 @@ export default function DesignSoftwareWorkspacePage() {
              </div>
             <div className="mt-3 overflow-x-auto rounded-lg border">
               <div className="min-w-[900px]">
-                <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b bg-gray-50 px-3 py-2 text-[10px] font-semibold uppercase text-gray-500">
-                  <span>Parameter</span><span>Value</span><span>Unit</span><span>Source / reference / Tref / method</span><span>Status / downstream use / blocking reason</span>
+                 <div className="grid grid-cols-[170px_180px_70px_1fr_36px] gap-2 border-b bg-gray-50 px-3 py-2 text-[10px] font-semibold uppercase text-gray-500">
+                   <span>Parameter</span><span>Value</span><span>Unit</span><span>Status</span><span aria-hidden="true"></span>
                 </div>
                 <div className="border-b bg-blue-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-blue-800">A. AUTO-RESOLVED</div>
-                <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
-                  <span className="font-medium">Stage 7 ECR equipment result</span>
-                  <span className={dependencyFor("stage7_ecr_result").ready ? "pt-1" : "pt-1 text-red-700"}>{dependencyFor("stage7_ecr_result").ready ? "Accepted active height + geometry" : "Required before run"}</span>
-                  <span className="pt-1">inherited</span>
-                  <span className="pt-1 text-[11px]">Stage 7 — accepted ECR Equipment Design result</span>
-                  <div>
-                    {dependencyStatus(dependencyFor("stage7_ecr_result").sourceClass, dependencyFor("stage7_ecr_result").ready)}
-                    <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> active agitated height and ECR geometry for the BVP.</p>
-                    {!dependencyFor("stage7_ecr_result").ready && <p className="text-[10px] text-red-700"><strong>Block:</strong> accepted Stage 7 ECR result is required; no manual Stage 8 geometry substitute is permitted.</p>}
-                  </div>
-                </div>
-                <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
-                  <span className="font-medium">d₃₂</span>
-                  <div className="space-y-1">
-                    <select className="h-7 w-full rounded-md border bg-white px-1.5 text-[11px]" value={sim.d32_mode || "published_correlation"} disabled={isFrozen} onChange={e => f("d32_mode", e.target.value)} onBlur={s}>
-                      <option value="published_correlation">Governed calculated route</option>
-                      <option value="engineer_supplied">Engineer supplied</option>
-                    </select>
-                    {sim.d32_mode === "engineer_supplied"
-                      ? <Input className="h-7 text-[11px]" value={sim.d32_value_mm ?? ""} disabled={isFrozen} placeholder="d₃₂ value" onChange={e => f("d32_value_mm", e.target.value)} onBlur={s} />
-                      : <p className="text-[10px] text-gray-500">{d32Snapshot?.d32_m ? `${fmt(d32Snapshot.d32_m * 1000, 4)} mm from latest run` : "Resolved by governed route at run time"}</p>}
-                  </div>
-                  <span className="pt-1">mm</span>
-                  {sim.d32_mode === "engineer_supplied" ? sourceEditor("d32") : <p className="pt-1 text-[11px]">ecr2_d32_kh1996<br />Published preliminary route</p>}
-                  <div>
-                    {dependencyStatus(dependencyFor("d32").sourceClass, dependencyFor("d32").ready)}
-                    <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> a = 6φd/d32 and local transfer calculation.</p>
-                    {!dependencyFor("d32").ready && <p className="text-[10px] text-red-700"><strong>Block:</strong> positive value, source class, and source reference are required.</p>}
-                  </div>
-                </div>
+                 {renderStage8DependencyRow({
+                   id: "stage7_ecr_result",
+                   ready: dependencyFor("stage7_ecr_result").ready,
+                   parameter: "Stage 7 ECR equipment result",
+                   value: dependencyFor("stage7_ecr_result").ready ? "Accepted active height + geometry" : <span className="text-red-700">Required before run</span>,
+                   unit: "inherited",
+                   status: dependencyStatus(dependencyFor("stage7_ecr_result").sourceClass, dependencyFor("stage7_ecr_result").ready),
+                   details: <div className="text-[11px]">
+                     <p><strong>Source:</strong> Stage 7 — accepted ECR Equipment Design result</p>
+                     <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> active agitated height and ECR geometry for the BVP.</p>
+                     {!dependencyFor("stage7_ecr_result").ready && <p className="text-[10px] text-red-700"><strong>Block:</strong> accepted Stage 7 ECR result is required; no manual Stage 8 geometry substitute is permitted.</p>}
+                   </div>,
+                 })}
+                 {renderStage8DependencyRow({
+                   id: "d32",
+                   ready: dependencyFor("d32").ready,
+                   parameter: "d₃₂",
+                   value: sim.d32_mode === "engineer_supplied"
+                     ? (sim.d32_value_mm || "—")
+                     : d32Snapshot?.d32_m ? `${fmt(d32Snapshot.d32_m * 1000, 4)} mm from latest run` : "Resolved by governed route at run time",
+                   unit: "mm",
+                   status: dependencyStatus(dependencyFor("d32").sourceClass, dependencyFor("d32").ready),
+                   details: <div className="space-y-1 text-[11px]">
+                     <select className="h-7 w-full rounded-md border bg-white px-1.5 text-[11px]" value={sim.d32_mode || "published_correlation"} disabled={isFrozen} onChange={e => f("d32_mode", e.target.value)} onBlur={s}>
+                       <option value="published_correlation">Governed calculated route</option>
+                       <option value="engineer_supplied">Engineer supplied</option>
+                     </select>
+                     {sim.d32_mode === "engineer_supplied"
+                       ? <><Input className="h-7 text-[11px]" value={sim.d32_value_mm ?? ""} disabled={isFrozen} placeholder="d₃₂ value" onChange={e => f("d32_value_mm", e.target.value)} onBlur={s} />{sourceEditor("d32")}</>
+                       : <p className="text-[10px] text-gray-500">ecr2_d32_kh1996 — published preliminary route</p>}
+                     <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> a = 6φd/d32 and local transfer calculation.</p>
+                     {!dependencyFor("d32").ready && <p className="text-[10px] text-red-700"><strong>Block:</strong> positive value, source class, and source reference are required.</p>}
+                   </div>,
+                 })}
 
                  <div className="border-b bg-amber-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">B. SYSTEM-RESOLVED VALUES</div>
                 {ECR2_STAGE8_COMPONENTS.slice(0, 4).map(component => {
@@ -4971,19 +5017,20 @@ export default function DesignSoftwareWorkspacePage() {
                      ? evidence.record.value
                      : (sim[`${prefix}_value`] ?? legacy?.value);
                    const ready = dependencyFor(prefix).ready;
-                  return <div key={prefix} className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
-                    <span className="font-medium">Physical MW — {component.label}</span>
-                     {editable
-                       ? <Input className="h-7 text-[11px]" value={sim[`${prefix}_value`] ?? legacy?.value ?? ""} disabled={isFrozen} placeholder="Override value" onChange={e => applyEngineerOverride(prefix, `${prefix}_value`, e.target.value, `physical_mw_${component.key}` as ECR2Stage8NumericalParameterId)} onBlur={s} />
-                       : <div className={`h-7 rounded-md border px-2 py-1 text-[11px] ${resolvedValue ? "bg-slate-50 text-slate-800" : "bg-red-50 text-red-700"}`}>{resolvedValue ? formatStage8Value(resolvedValue, evidence.record.unit) : "—"}</div>}
-                    <span className="pt-1">g/mol</span>
-                     {renderResolutionDetails(prefix, evidence, legacy, ready)}
-                    <div>
-                       {resolutionStatusBadge(evidence, ready)}
-                      <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> physical concentration, equilibrium concentration, Kd, driving force, and transfer rate; never NRTL.</p>
+                   return renderStage8DependencyRow({
+                     id: prefix,
+                     ready,
+                     parameter: `Physical MW — ${component.label}`,
+                     value: <div className={`h-7 rounded-md border px-2 py-1 text-[11px] ${resolvedValue ? "bg-slate-50 text-slate-800" : "bg-red-50 text-red-700"}`}>{resolvedValue ? formatStage8Value(resolvedValue, evidence.record.unit) : "—"}</div>,
+                     unit: "g/mol",
+                     status: resolutionStatusBadge(evidence, ready),
+                     details: <div className="space-y-2 text-[11px]">
+                       {editable && <Input className="h-7 text-[11px]" value={sim[`${prefix}_value`] ?? legacy?.value ?? ""} disabled={isFrozen} placeholder="Override value" onChange={e => applyEngineerOverride(prefix, `${prefix}_value`, e.target.value, `physical_mw_${component.key}` as ECR2Stage8NumericalParameterId)} onBlur={s} />}
+                       {renderResolutionDetails(prefix, evidence, legacy, ready)}
+                       <p className="text-[10px] text-gray-600"><strong>Use:</strong> physical concentration, equilibrium concentration, Kd, driving force, and transfer rate; never NRTL.</p>
                        {!ready && evidence.status === "ENGINEER_OVERRIDE" && <p className="text-[10px] text-red-700"><strong>Review:</strong> positive value, source, reference, reason, and audit metadata are required.</p>}
-                    </div>
-                  </div>;
+                     </div>,
+                   });
                 })}
 
                 {ECR2_STAGE8_COMPONENTS.flatMap(component => (["c", "d"] as const).map(phase => {
@@ -4998,27 +5045,24 @@ export default function DesignSoftwareWorkspacePage() {
                    const referenceTemperature = sim[`${prefix}_reference_temperature_c`]
                      ?? evidence.record.inputSnapshot?.temperature_C
                      ?? legacy?.referenceTemperature_C;
-                  return <div key={prefix} className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
-                    <span className="font-medium">{phase === "c" ? "Dc" : "Dd"} {component.label}</span>
-                    <div className="space-y-1">
-                       {editable
-                         ? <Input className="h-7 text-[11px]" value={sim[`${prefix}_value`] ?? legacy?.value_m2_s ?? ""} disabled={isFrozen} placeholder="Override value" onChange={e => applyEngineerOverride(prefix, `${prefix}_value`, e.target.value, prefix as ECR2Stage8NumericalParameterId)} onBlur={s} />
-                         : <div className={`h-7 rounded-md border px-2 py-1 text-[11px] ${resolvedValue ? "bg-slate-50 text-slate-800" : "bg-red-50 text-red-700"}`}>{resolvedValue ? formatStage8Value(resolvedValue, evidence.record.unit) : "—"}</div>}
-                       {editable
-                         ? <Input className="h-7 text-[11px]" value={sim[`${prefix}_reference_temperature_c`] ?? legacy?.referenceTemperature_C ?? ""} disabled={isFrozen} placeholder="Operating-temperature basis" onChange={e => applyEngineerOverride(prefix, `${prefix}_reference_temperature_c`, e.target.value, prefix as ECR2Stage8NumericalParameterId)} onBlur={s} />
-                         : <p className="text-[10px] text-slate-500">{referenceTemperature !== undefined ? `Reference temperature: ${referenceTemperature} °C` : "Reference temperature: —"}</p>}
-                    </div>
-                    <span className="pt-1">m²/s</span>
-                     <div className="space-y-1">
+                   return renderStage8DependencyRow({
+                     id: prefix,
+                     ready,
+                     parameter: `${phase === "c" ? "Dc" : "Dd"} ${component.label}`,
+                     value: <div className={`h-7 rounded-md border px-2 py-1 text-[11px] ${resolvedValue ? "bg-slate-50 text-slate-800" : "bg-red-50 text-red-700"}`}>{resolvedValue ? formatStage8Value(resolvedValue, evidence.record.unit) : "—"}</div>,
+                     unit: "m²/s",
+                     status: resolutionStatusBadge(evidence, ready),
+                     details: <div className="space-y-2 text-[11px]">
+                       {editable && <>
+                         <Input className="h-7 text-[11px]" value={sim[`${prefix}_value`] ?? legacy?.value_m2_s ?? ""} disabled={isFrozen} placeholder="Override value" onChange={e => applyEngineerOverride(prefix, `${prefix}_value`, e.target.value, prefix as ECR2Stage8NumericalParameterId)} onBlur={s} />
+                         <Input className="h-7 text-[11px]" value={sim[`${prefix}_reference_temperature_c`] ?? legacy?.referenceTemperature_C ?? ""} disabled={isFrozen} placeholder="Operating-temperature basis" onChange={e => applyEngineerOverride(prefix, `${prefix}_reference_temperature_c`, e.target.value, prefix as ECR2Stage8NumericalParameterId)} onBlur={s} />
+                       </>}
                        {renderResolutionDetails(prefix, evidence, legacy, ready)}
                        {editable && <Input className="h-7 text-[11px]" value={sim[`${prefix}_method`] ?? legacy?.method ?? ""} disabled={isFrozen} placeholder="System calculation method" onChange={e => applyEngineerOverride(prefix, `${prefix}_method`, e.target.value, prefix as ECR2Stage8NumericalParameterId)} onBlur={s} />}
-                     </div>
-                    <div>
-                       {resolutionStatusBadge(evidence, ready)}
-                      <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> {phase === "c" ? "continuous" : "dispersed"}-phase {component.label} local transfer and Schmidt calculation.</p>
+                       <p className="text-[10px] text-gray-600"><strong>Use:</strong> {phase === "c" ? "continuous" : "dispersed"}-phase {component.label} local transfer and Schmidt calculation.</p>
                        {!ready && evidence.status === "ENGINEER_OVERRIDE" && <p className="text-[10px] text-red-700"><strong>Review:</strong> positive value, source, reference, method, reason, and audit metadata are required.</p>}
-                    </div>
-                  </div>;
+                     </div>,
+                   });
                 }))}
 
                 <div className="border-b bg-violet-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">C. ENGINEERING APPROVAL REQUIRED</div>
@@ -5029,38 +5073,40 @@ export default function DesignSoftwareWorkspacePage() {
                   const approvedBy = sim.partition_basis_approved_by ?? legacy?.approvedBy ?? "";
                   const approvedAt = sim.partition_basis_approved_at ?? legacy?.approvedAt ?? "";
                   const kdApproved = dependencyFor("partition_basis").ready;
-                  return <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 px-3 py-2 text-xs">
-                    <span className="font-medium">Kd basis approval</span>
-                    <span className="pt-1 text-[11px]">Calculated Kd = C*d / C*c</span>
-                    <span className="pt-1">—</span>
-                    <div className="space-y-1">
-                      <select className="h-7 w-full rounded-md border bg-white px-1.5 text-[11px]" value={approval} disabled={isFrozen} onChange={e => f("partition_basis_approval_status", e.target.value)} onBlur={s}>
-                        <option value="">Approval required…</option>
-                        <option value="engineer_approved_governed">Engineer approved governed basis</option>
-                      </select>
-                      <Input className="h-7 text-[11px]" value={reference} disabled={isFrozen} placeholder="Approval / source reference" onChange={e => f("partition_basis_source_reference", e.target.value)} onBlur={s} />
-                      <Input className="h-7 text-[11px]" value={approvedBy} disabled={isFrozen} placeholder="Approving engineer" onChange={e => f("partition_basis_approved_by", e.target.value)} onBlur={s} />
-                      <Input type="datetime-local" className="h-7 text-[11px]" value={approvedAt} disabled={isFrozen} onChange={e => f("partition_basis_approved_at", e.target.value)} onBlur={s} />
-                    </div>
-                    <div>
-                      {dependencyStatus(dependencyFor("partition_basis").sourceClass, kdApproved)}
-                      <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> authorizes Koverall and the dispersed concentration driving force.</p>
-                      {!kdApproved && <p className="text-[10px] text-red-700"><strong>Block:</strong> explicit governed concentration-basis approval, source reference, approver, and timestamp are required; numerical Kd is not entered.</p>}
-                    </div>
-                  </div>;
+                   return renderStage8DependencyRow({
+                     id: "partition_basis",
+                     ready: kdApproved,
+                     parameter: "Kd basis approval",
+                     value: "Calculated Kd = C*d / C*c",
+                     unit: "—",
+                     status: dependencyStatus(dependencyFor("partition_basis").sourceClass, kdApproved),
+                     details: <div className="space-y-1 text-[11px]">
+                       <select className="h-7 w-full rounded-md border bg-white px-1.5 text-[11px]" value={approval} disabled={isFrozen} onChange={e => f("partition_basis_approval_status", e.target.value)} onBlur={s}>
+                         <option value="">Approval required…</option>
+                         <option value="engineer_approved_governed">Engineer approved governed basis</option>
+                       </select>
+                       <Input className="h-7 text-[11px]" value={reference} disabled={isFrozen} placeholder="Approval / source reference" onChange={e => f("partition_basis_source_reference", e.target.value)} onBlur={s} />
+                       <Input className="h-7 text-[11px]" value={approvedBy} disabled={isFrozen} placeholder="Approving engineer" onChange={e => f("partition_basis_approved_by", e.target.value)} onBlur={s} />
+                       <Input type="datetime-local" className="h-7 text-[11px]" value={approvedAt} disabled={isFrozen} onChange={e => f("partition_basis_approved_at", e.target.value)} onBlur={s} />
+                       <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> authorizes Koverall and the dispersed concentration driving force.</p>
+                       {!kdApproved && <p className="text-[10px] text-red-700"><strong>Block:</strong> explicit governed concentration-basis approval, source reference, approver, and timestamp are required; numerical Kd is not entered.</p>}
+                     </div>,
+                   });
                 })()}
                 <div className="border-b bg-slate-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">D. GOVERNANCE / EVIDENCE REQUIRED</div>
-                <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 px-3 py-2 text-xs">
-                  <span className="font-medium">Preliminary K&H evidence status</span>
-                  <span className="pt-1">Preliminary route</span>
-                  <span className="pt-1">—</span>
-                  <span className="pt-1 text-[11px]">K&H 1996 reconstruction; primary verification and RRBO/NMP validation remain pending</span>
-                  <div>
-                    {dependencyStatus("CALCULATED", true)}
-                    <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> labels d32/transfer outputs and carries traceability warnings.</p>
-                    <p className="text-[10px] text-gray-600">Advisory evidence limitation; it does not block the explicitly preliminary route.</p>
-                  </div>
-                </div>
+                 {renderStage8DependencyRow({
+                   id: "preliminary_evidence",
+                   ready: true,
+                   parameter: "Preliminary K&H evidence status",
+                   value: "Preliminary route",
+                   unit: "—",
+                   status: dependencyStatus("CALCULATED", true),
+                   details: <div className="text-[11px]">
+                     <p><strong>Source:</strong> K&H 1996 reconstruction; primary verification and RRBO/NMP validation remain pending</p>
+                     <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> labels d32/transfer outputs and carries traceability warnings.</p>
+                     <p className="text-[10px] text-gray-600">Advisory evidence limitation; it does not block the explicitly preliminary route.</p>
+                   </div>,
+                 })}
               </div>
             </div>
           </SectionCard>
