@@ -1091,6 +1091,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         const resolverSignature = typeof record?.resolverSignature === 'string'
           ? record.resolverSignature
           : '';
+        const acceptedBy = typeof record?.acceptedBy === 'string' ? record.acceptedBy.trim() : '';
+        const acceptedAt = typeof record?.acceptedAt === 'string' ? record.acceptedAt.trim() : '';
         const catalogRecord = findEcr2Stage8Evidence(id);
         // The mapper attaches the server-computed resolver record. A browser
         // cannot nominate it: the service rebuilds this object from governed
@@ -1107,9 +1109,12 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           && resolverFingerprint === expectedFingerprint
           && dynamicResolverTrusted;
         const accepted = status === 'ACCEPTED_AUTO_BASIS'
-          && effectiveRecord.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE'
+          && (effectiveRecord.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE'
+            || effectiveRecord.status === 'CALCULATED_PRELIMINARY')
           && typeof effectiveRecord.value === 'number'
-          && trustedEvidence;
+          && trustedEvidence
+          && acceptedBy.length > 0
+          && !Number.isNaN(Date.parse(acceptedAt));
         const overridden = status === 'ENGINEER_OVERRIDE'
           && trustedEvidence
           && overrideReason.length > 0
@@ -1118,7 +1123,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         if (!accepted && !overridden) {
           err(
             `bvp.stage8Evidence.${id}`,
-            `Stage 8 '${id}' must be ACCEPTED_AUTO_BASIS with retained evidence or ENGINEER_OVERRIDE with retained evidence, reason, user, and timestamp; received '${status || 'missing'}'.`,
+            `Stage 8 '${id}' must be ACCEPTED_AUTO_BASIS with retained evidence, authenticated accepter, and server timestamp or ENGINEER_OVERRIDE with retained evidence, reason, user, and timestamp; received '${status || 'missing'}'.`,
           );
         }
       }

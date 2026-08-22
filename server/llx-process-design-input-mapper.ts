@@ -23,6 +23,7 @@ import {
   resolveEcr2Stage8Evidence,
 } from '../shared/ecr2-stage8-evidence';
 import { getEcr2PhysicalComponentBasis } from '../shared/ecr2-physical-property-basis';
+import { resolveRrboSn300DynamicViscosityAtTemperature } from '../shared/ecr2-stage8-transport-basis';
 import { signEcr2Stage8ResolverRecord } from './engines/llx/llx-ecr2-stage8-resolution-signature';
 
 const num = (v: unknown): number | undefined => {
@@ -579,10 +580,11 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     }
 
     // Resolve the catalog at the calculation boundary, not in the browser.
-    // The current library supplies a controlled NMP viscosity route only; all
-    // missing characterisation inputs remain explicit root gaps in this
-    // immutable run snapshot rather than becoming made-up Stage 8 values.
-    let nmpViscosity: { value: number; source: string; evidenceLevel: 'PRIMARY_EQUATION_VERIFIED' | 'ENGINEER_APPROVED_PRELIMINARY' } | undefined;
+    // Stage 8 owns the preliminary transport-property closure used to estimate
+    // diffusivities. No browser-carried diffusivity or Coto surrogate MW can
+    // become an automatic basis.
+    let nmpViscosity: { value: number; source: string; evidenceLevel: 'PRIMARY_EQUATION_VERIFIED' | 'ENGINEER_APPROVED_PRELIMINARY'; warnings: string[] } | undefined;
+    let nmpDensity: { value: number; source: string; evidenceLevel: 'PRIMARY_EQUATION_VERIFIED' | 'ENGINEER_APPROVED_PRELIMINARY'; warnings: string[] } | undefined;
     if (ot !== undefined) {
       try {
         const property = getProperty('nmp', 'dynamicViscosity', ot);
@@ -592,10 +594,25 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
           evidenceLevel: property.warnings.some((warning) => warning.code === 'EPD_ASSUMED_VALUE')
             ? 'ENGINEER_APPROVED_PRELIMINARY'
             : 'PRIMARY_EQUATION_VERIFIED',
+          warnings: property.warnings.map((warning) => warning.message),
         };
       } catch {
         // The resolver will report operating-temperature availability as a
         // prerequisite rather than allowing a failed EPD lookup to escape.
+      }
+      try {
+        const property = getProperty('nmp', 'density', ot);
+        nmpDensity = {
+          value: property.value,
+          source: property.source,
+          evidenceLevel: property.warnings.some((warning) => warning.code === 'EPD_ASSUMED_VALUE')
+            ? 'ENGINEER_APPROVED_PRELIMINARY'
+            : 'PRIMARY_EQUATION_VERIFIED',
+          warnings: property.warnings.map((warning) => warning.message),
+        };
+      } catch {
+        // The resolver preserves the named root gap when the EPD route cannot
+        // produce a positive operating-temperature density.
       }
     }
     const registeredPhysicalBasis = getEcr2PhysicalComponentBasis(authoritativeRrboGradeId);
@@ -618,9 +635,103 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
         },
       ]))
       : undefined;
+    const composition = asRecord(out.feedCompositionMassFraction);
+    const componentMassFractions = ['sat', 'mono', 'di', 'poly'].map((key) => num(
+      composition[key === 'sat' ? 'saturates' : key] ?? inputs[`rrbo_${key === 'sat' ? 'saturates' : `${key}_aromatics`}_wt`],
+    ));
+    const compositionSum = componentMassFractions.reduce<number>((sum, value) => sum + (value ?? 0), 0);
+    const normalizedMassFractions = compositionSum > 0
+      ? componentMassFractions.map((value) => (value ?? 0) / (compositionSum > 1.5 ? 100 : 1))
+      : [];
+    const rrboMolecularWeight = registeredPhysicalBasis
+      && normalizedMassFractions.length === 4
+      && normalizedMassFractions.every((value) => Number.isFinite(value) && value > 0)
+      && Math.abs(normalizedMassFractions.reduce((sum, value) => sum + value, 0) - 1) < 1e-6
+      ? (() => {
+        const bases = ['sat', 'mono', 'di', 'poly'] as const;
+        const inverseAverage = bases.reduce((sum, key, index) =>
+          sum + normalizedMassFractions[index] / registeredPhysicalBasis[key].physicalMw_g_mol, 0);
+        if (!Number.isFinite(inverseAverage) || inverseAverage <= 0) return undefined;
+        return {
+          value: 1 / inverseAverage,
+          source: 'Task #92 RRBO SN300 physical pseudo-component basis; mass-fraction harmonic-average solvent MW for Wilke–Chang.',
+          evidenceLevel: 'ENGINEER_APPROVED_PRELIMINARY' as const,
+          warnings: [
+            'RRBO_NMP_VALIDATION_PENDING',
+            'RRBO solvent molecular weight is a feed-composition harmonic average of Task #92 physical pseudo-components; it is not a Coto/NRTL surrogate value.',
+          ],
+        };
+      })()
+      : undefined;
+    let rrboViscosity: { value: number; source: string; evidenceLevel: 'ENGINEER_APPROVED_PRELIMINARY'; warnings: string[] } | undefined;
+    if (authoritativeRrboGradeId === 'rrbo-sn300' && ot !== undefined) {
+      try {
+        const rrboDensityAtOt = getProperty('rrbo-sn300', 'density', ot);
+        const workspaceViscosity_mPa_s = num(inputs.rrbo_viscosity_dynamic_value);
+        const workspaceReferenceTemperature_C = num(String(inputs.rrbo_viscosity_dynamic_ref_temp ?? '').replace(/°?C/gi, ''));
+        if (workspaceViscosity_mPa_s !== undefined && workspaceViscosity_mPa_s > 0
+          && workspaceReferenceTemperature_C !== undefined
+          && Math.abs(workspaceReferenceTemperature_C - ot) < 1e-9) {
+          rrboViscosity = {
+            value: workspaceViscosity_mPa_s / 1000,
+            source: `Fluid Properties workspace RRBO dynamic viscosity at ${ot} °C`,
+            evidenceLevel: 'ENGINEER_APPROVED_PRELIMINARY',
+            warnings: ['RRBO_NMP_VALIDATION_PENDING', 'RRBO operating-temperature viscosity is a preliminary workspace property; replace with controlled vendor or laboratory data before release-grade use.'],
+          };
+        } else {
+          let kinematicViscosity40_cSt: number | undefined;
+          if (workspaceViscosity_mPa_s !== undefined && workspaceViscosity_mPa_s > 0
+            && workspaceReferenceTemperature_C !== undefined
+            && Math.abs(workspaceReferenceTemperature_C - 40) < 1e-9) {
+            const densityAt40 = getProperty('rrbo-sn300', 'density', 40).value;
+            kinematicViscosity40_cSt = workspaceViscosity_mPa_s * 1000 / densityAt40;
+          }
+          const resolved = resolveRrboSn300DynamicViscosityAtTemperature({
+            temperature_C: ot,
+            density_kg_m3: rrboDensityAtOt.value,
+            kinematicViscosity40_cSt,
+          });
+          if (resolved) {
+            rrboViscosity = {
+              value: resolved.value_Pa_s,
+              source: `${resolved.source}; RRBO density at ${ot} °C: ${rrboDensityAtOt.source}`,
+              evidenceLevel: 'ENGINEER_APPROVED_PRELIMINARY',
+              warnings: [...resolved.warnings, ...rrboDensityAtOt.warnings.map((warning) => warning.message)],
+            };
+          }
+        }
+      } catch {
+        // The resolver reports a named RRBO operating-temperature property gap.
+      }
+    }
     const stage8Resolution = resolveEcr2Stage8Evidence({
       temperature_C: ot,
-      nmp: nmpViscosity ? { viscosity_Pa_s: nmpViscosity } : undefined,
+      nmp: registeredPhysicalBasis && (nmpViscosity || nmpDensity) ? {
+        viscosity_Pa_s: nmpViscosity,
+        molecularWeight_g_mol: {
+          value: 99.13,
+          source: 'NMP molecular weight 99.13 g/mol — CRC Handbook of Chemistry and Physics, 97th ed. (2016), 1-methyl-2-pyrrolidinone.',
+          evidenceLevel: 'PRIMARY_EQUATION_VERIFIED',
+          warnings: ['NMP pure-solvent molecular-weight basis; not a Coto/NRTL surrogate input.'],
+        },
+        associationFactor: {
+          value: 1,
+          source: 'Wilke–Chang (1955) solvent association-factor convention: non-hydrogen-bonding aprotic NMP preliminary φ = 1.0.',
+          evidenceLevel: 'ENGINEER_APPROVED_PRELIMINARY',
+          warnings: ['NMP Wilke–Chang association factor is a preliminary non-associating-solvent convention; validate for RRBO/NMP use before release-grade design.'],
+        },
+        density_kg_m3: nmpDensity,
+      } : undefined,
+      rrbo: rrboViscosity && rrboMolecularWeight ? {
+        viscosity_Pa_s: rrboViscosity,
+        molecularWeight_g_mol: rrboMolecularWeight,
+        associationFactor: {
+          value: 1,
+          source: 'Wilke–Chang (1955) solvent association-factor convention: hydrocarbon-like RRBO preliminary φ = 1.0.',
+          evidenceLevel: 'ENGINEER_APPROVED_PRELIMINARY',
+          warnings: ['RRBO Wilke–Chang association factor is a preliminary hydrocarbon-solvent convention; validate for RRBO/NMP use before release-grade design.'],
+        },
+      } : undefined,
       physicalComponents: physicalComponents as any,
     });
     const legacyMw = asRecord(parseJson(simValue('molecularWeights')));
@@ -631,24 +742,32 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       overrideReason: string;
       overrideUser: string;
       overrideAt: string;
+      acceptedBy: string;
+      acceptedAt: string;
     }> = {};
     const stage8Audit = (id: Parameters<typeof findEcr2Stage8Evidence>[0], prefix: string) => {
       const record = stage8Resolution.records[id] ?? findEcr2Stage8Evidence(id);
       const requestedStatus = String(simValue(`${prefix}_evidence_status`) ?? '');
       const isOverride = requestedStatus === 'ENGINEER_OVERRIDE';
+      const originalEvidence = String(simValue(`${prefix}_original_evidence`) ?? '');
+      const requestedFingerprint = String(simValue(`${prefix}_resolver_fingerprint`) ?? '');
       const isAcceptedAutoBasis = requestedStatus === 'ACCEPTED_AUTO_BASIS'
-        && record.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE'
-        && typeof record.value === 'number';
+        && (record.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' || record.status === 'CALCULATED_PRELIMINARY')
+        && typeof record.value === 'number'
+        && originalEvidence === ecr2Stage8EvidenceFingerprint(record)
+        && requestedFingerprint === ecr2Stage8EvidenceFingerprint(record);
       const fingerprint = ecr2Stage8EvidenceFingerprint(record);
       return {
       // The workspace never authorizes an auto-resolution. Only a trusted catalog
       // candidate may be accepted; otherwise its blocking state is preserved.
       status: isOverride ? 'ENGINEER_OVERRIDE' : isAcceptedAutoBasis ? 'ACCEPTED_AUTO_BASIS' : record.status,
-      originalEvidence: fingerprint,
+       originalEvidence: fingerprint,
       resolverFingerprint: fingerprint,
       overrideReason: String(simValue(`${prefix}_override_reason`) ?? ''),
       overrideUser: isOverride ? String(inputs.__stage8_actor_id ?? '') : '',
       overrideAt: isOverride ? String(inputs.__stage8_server_timestamp ?? '') : '',
+       acceptedBy: isAcceptedAutoBasis ? String(inputs.__stage8_actor_id ?? '') : '',
+       acceptedAt: isAcceptedAutoBasis ? String(inputs.__stage8_server_timestamp ?? '') : '',
        resolverRecord: record,
        resolverSignature: signEcr2Stage8ResolverRecord(fingerprint),
       };
@@ -670,7 +789,8 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       const sourceType = String(simValue(`molecular_weight_${key}_source_type`) ?? '').trim();
       const sourceReference = String(simValue(`molecular_weight_${key}_source_reference`) ?? '').trim();
       const automatic = (audit as any).resolverRecord;
-      if (automatic?.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' && typeof automatic.value === 'number') {
+       if ((automatic?.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' || automatic?.status === 'CALCULATED_PRELIMINARY')
+         && typeof automatic.value === 'number') {
         return {
           value: automatic.value,
           unit: 'g/mol',
@@ -730,7 +850,8 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
         const hasFlatValue = value !== undefined || sourceType !== '' || sourceReference !== ''
           || referenceTemperature_C !== undefined || method !== '';
         const automatic = (stage8Evidence[prefix] as any).resolverRecord;
-        if (automatic?.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' && typeof automatic.value === 'number') {
+        if ((automatic?.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' || automatic?.status === 'CALCULATED_PRELIMINARY')
+          && typeof automatic.value === 'number') {
           hasDiffusivityInput = true;
           pair[phase === 'c' ? 'De_c' : 'De_d'] = {
             value_m2_s: automatic.value,
@@ -765,7 +886,8 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     const shdSourceReference = String(simValue('kuhni_shd_c2_source_reference') ?? '').trim();
     stage8Evidence.kuhni_shd_c2 = stage8Audit('kuhni_shd_c2', 'kuhni_shd_c2');
     const automaticC2 = (stage8Evidence.kuhni_shd_c2 as any).resolverRecord;
-    if (automaticC2?.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' && typeof automaticC2.value === 'number') {
+    if ((automaticC2?.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' || automaticC2?.status === 'CALCULATED_PRELIMINARY')
+      && typeof automaticC2.value === 'number') {
       bvp.kuhniShdC2 = {
         value: automaticC2.value,
         sourceType: 'Literature',

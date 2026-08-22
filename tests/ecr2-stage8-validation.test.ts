@@ -4,6 +4,10 @@ import {
   validateEcr2Stage8,
 } from '../client/src/lib/ecr2-stage8-validation';
 import {
+  ecr2Stage8EvidenceFingerprint,
+  findEcr2Stage8Evidence,
+} from '../shared/ecr2-stage8-evidence';
+import {
   thermodynamicMoleFractionsFromPhysicalMassFractions,
 } from '../server/engines/llx/llx-ecr2-counter-current-bvp';
 
@@ -93,6 +97,33 @@ describe('ECR-2 Stage 8 dependency graph', () => {
       diffusivity_sat_c_override_user: '23',
       diffusivity_sat_c_override_at: '2026-08-22T10:00:00.000Z',
     }, true)).not.toHaveProperty('diffusivity_sat_c_evidence_status');
+  });
+
+  it('treats an exact accepted server candidate as a complete diffusivity without duplicate manual fields', () => {
+    const sim = completeStage8();
+    const prefix = 'diffusivity_sat_c';
+    delete sim[`${prefix}_value`];
+    delete sim[`${prefix}_source_type`];
+    delete sim[`${prefix}_source_reference`];
+    delete sim[`${prefix}_reference_temperature_c`];
+    delete sim[`${prefix}_method`];
+    const candidate = {
+      ...findEcr2Stage8Evidence('diffusivity_sat_c'),
+      status: 'CALCULATED_PRELIMINARY' as const,
+      value: 1.2e-9,
+      method: 'Controlled Stage 8 preliminary route',
+      inputSnapshot: { temperature_C: 60 },
+    };
+    const fingerprint = ecr2Stage8EvidenceFingerprint(candidate);
+    sim[`${prefix}_original_evidence`] = fingerprint;
+    sim[`${prefix}_resolver_fingerprint`] = fingerprint;
+    sim[`${prefix}_evidence_status`] = 'ACCEPTED_AUTO_BASIS';
+
+    const errors = validateEcr2Stage8(sim, true, { diffusivity_sat_c: candidate });
+    expect(errors).not.toHaveProperty(`${prefix}_value`);
+    expect(errors).not.toHaveProperty(`${prefix}_reference_temperature_c`);
+    expect(errors).not.toHaveProperty(`${prefix}_method`);
+    expect(errors).not.toHaveProperty(`${prefix}_evidence_status`);
   });
 
   it('requires reason, user, and timestamp for an engineer override', () => {

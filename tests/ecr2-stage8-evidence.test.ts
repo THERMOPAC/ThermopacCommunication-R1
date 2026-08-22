@@ -148,10 +148,14 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
     const at80 = resolveEcr2Stage8Evidence({ ...context, temperature_C: 80 });
 
     expect(at60).toMatchObject({ autoPopulatedCount: 15, unresolvedCount: 0 });
-    expect(at60.records.diffusivity_sat_c.status).toBe('AUTO_RESOLVED_PENDING_ACCEPTANCE');
-    expect(at60.records.diffusivity_sat_d.status).toBe('AUTO_RESOLVED_PENDING_ACCEPTANCE');
+    expect(at60.records.diffusivity_sat_c.status).toBe('CALCULATED_PRELIMINARY');
+    expect(at60.records.diffusivity_sat_d.status).toBe('CALCULATED_PRELIMINARY');
     expect(at60.records.diffusivity_nmp_c.method).toContain('self-diffusion');
     expect(at60.records.diffusivity_nmp_d.value).toBeGreaterThan(0);
+    expect(at60.records.diffusivity_nmp_c).toMatchObject({
+      validatedForRRBONMP: false,
+      pilotCalibrationStatus: 'NOT_YET_VALIDATED',
+    });
     expect(at80.records.diffusivity_sat_c.value).toBeGreaterThan(at60.records.diffusivity_sat_c.value!);
   });
 
@@ -223,7 +227,7 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
 
   it('server-side validation rejects missing, blocked, pending, and unknown evidence states', () => {
     const engine = new LLXECRSimulatorEngine();
-    const invalidStates = ['', 'BLOCKED_MISSING_REQUIRED_EVIDENCE', 'AUTO_RESOLVED_PENDING_ACCEPTANCE', 'unexpected'];
+    const invalidStates = ['', 'BLOCKED_MISSING_REQUIRED_EVIDENCE', 'AUTO_RESOLVED_PENDING_ACCEPTANCE', 'CALCULATED_PRELIMINARY', 'unexpected'];
     for (const status of invalidStates) {
       const validation = engine.validate({
         bvp: {
@@ -298,6 +302,46 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
     ]));
   });
 
+  it('requires a server-stamped accepting engineer and timestamp even for a signed resolver candidate', () => {
+    const previousSecret = process.env.SESSION_SECRET;
+    process.env.SESSION_SECRET = 'stage8-test-signing-secret-minimum-length';
+    try {
+      const engine = new LLXECRSimulatorEngine();
+      const candidate = {
+        ...findEcr2Stage8Evidence('physical_mw_sat'),
+        status: 'AUTO_RESOLVED_PENDING_ACCEPTANCE' as const,
+        value: 300,
+        source: 'server-controlled dynamic source',
+      };
+      const evidence = Object.fromEntries(ECR2_STAGE8_EVIDENCE_CATALOG.map((record) => {
+        const fingerprint = ecr2Stage8EvidenceFingerprint(record);
+        return [record.id, {
+          status: 'ENGINEER_OVERRIDE',
+          originalEvidence: fingerprint,
+          resolverFingerprint: fingerprint,
+          overrideReason: 'Controlled engineering exception',
+          overrideUser: '23',
+          overrideAt: '2026-08-22T10:00:00.000Z',
+        }];
+      }));
+      const fingerprint = ecr2Stage8EvidenceFingerprint(candidate);
+      evidence.physical_mw_sat = {
+        status: 'ACCEPTED_AUTO_BASIS',
+        originalEvidence: fingerprint,
+        resolverFingerprint: fingerprint,
+        resolverRecord: candidate,
+        resolverSignature: signEcr2Stage8ResolverRecord(fingerprint),
+      };
+      const validation = engine.validate({ bvp: { stage8Evidence: evidence } });
+      expect(validation.errors).toEqual(expect.arrayContaining([
+        expect.objectContaining({ field: 'bvp.stage8Evidence.physical_mw_sat', severity: 'error' }),
+      ]));
+    } finally {
+      if (previousSecret === undefined) delete process.env.SESSION_SECRET;
+      else process.env.SESSION_SECRET = previousSecret;
+    }
+  });
+
   it('accepts a server-signed dynamic resolver record while retaining its exact fingerprint', () => {
     const previousSecret = process.env.SESSION_SECRET;
     process.env.SESSION_SECRET = 'stage8-test-signing-secret-minimum-length';
@@ -327,6 +371,8 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
         resolverFingerprint: fingerprint,
         resolverRecord: candidate,
         resolverSignature: signEcr2Stage8ResolverRecord(fingerprint),
+      acceptedBy: '23',
+      acceptedAt: '2026-08-22T10:00:00.000Z',
       };
       const validation = engine.validate({ bvp: { stage8Evidence: evidence } });
       expect(validation.errors).not.toEqual(expect.arrayContaining([

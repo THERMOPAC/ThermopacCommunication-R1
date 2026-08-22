@@ -41,6 +41,7 @@ export type ECR2EvidenceLevel =
 
 export type ECR2EvidenceResolutionStatus =
   | 'AUTO_RESOLVED_PENDING_ACCEPTANCE'
+  | 'CALCULATED_PRELIMINARY'
   | 'ACCEPTED_AUTO_BASIS'
   | 'ENGINEER_OVERRIDE'
   | 'BLOCKED_MISSING_REQUIRED_EVIDENCE'
@@ -59,6 +60,10 @@ export interface ECR2Stage8EvidenceRecord {
   source: string;
   applicability: string;
   validationStatus: 'RRBO_NMP_VALIDATION_PENDING' | 'NOT_APPLICABLE';
+  /** True only when RRBO/NMP-specific transport validation exists. */
+  validatedForRRBONMP?: boolean;
+  /** Calibration remains a future evidence path, not a first-run prerequisite. */
+  pilotCalibrationStatus?: 'NOT_YET_VALIDATED' | 'CALIBRATED';
   warnings: readonly string[];
   blockingReason?: string;
   resolutionInputs?: readonly string[];
@@ -223,6 +228,62 @@ export function resolveWilkeChangDiffusivity(input: WilkeChangInput): WilkeChang
   };
 }
 
+export interface NmpSelfDiffusionInput {
+  temperature_C: number;
+  viscosity_Pa_s: number;
+  molecularWeight_g_mol: number;
+  density_kg_m3: number;
+}
+
+export type NmpSelfDiffusionResolution =
+  | { status: 'resolved'; value_m2_s: number; method: string; warnings: readonly string[] }
+  | { status: 'blocked'; value_m2_s: null; errors: readonly string[] };
+
+/**
+ * Preliminary pure-NMP self-diffusion route, deliberately distinct from
+ * Wilke–Chang.  The Stokes–Einstein molecular-radius form evaluates the
+ * hydrodynamic radius from the pure-liquid molecular volume at the actual
+ * operating temperature:
+ *
+ * r_h = [3M/(4πρN_A)]^(1/3);  D_self = k_B T/(6πμr_h)
+ *
+ * This is a published molecular-liquid estimate (Einstein, 1905) rather than
+ * a pseudo-solute shortcut.  It remains explicitly preliminary until a
+ * controlled NMP self-diffusion dataset is adopted.
+ */
+export function resolveNmpSelfDiffusion(input: NmpSelfDiffusionInput): NmpSelfDiffusionResolution {
+  const errors: string[] = [];
+  const positive = (value: number, label: string) => {
+    if (!Number.isFinite(value) || value <= 0) errors.push(`${label} must be a positive finite number.`);
+  };
+  if (!Number.isFinite(input.temperature_C) || input.temperature_C <= -273.15) {
+    errors.push('temperature_C must be above absolute zero.');
+  }
+  positive(input.viscosity_Pa_s, 'viscosity_Pa_s');
+  positive(input.molecularWeight_g_mol, 'molecularWeight_g_mol');
+  positive(input.density_kg_m3, 'density_kg_m3');
+  if (errors.length) return { status: 'blocked', value_m2_s: null, errors };
+
+  const kB = 1.380649e-23; // J/K, exact SI definition
+  const avogadro = 6.02214076e23; // mol^-1, exact SI definition
+  const molecularVolume_m3 = (input.molecularWeight_g_mol / 1000) / input.density_kg_m3 / avogadro;
+  const hydrodynamicRadius_m = Math.cbrt((3 * molecularVolume_m3) / (4 * Math.PI));
+  const temperature_K = input.temperature_C + 273.15;
+  const value = (kB * temperature_K) / (6 * Math.PI * input.viscosity_Pa_s * hydrodynamicRadius_m);
+  if (!Number.isFinite(value) || value <= 0) {
+    return { status: 'blocked', value_m2_s: null, errors: ['Stokes–Einstein produced a non-physical NMP self-diffusivity.'] };
+  }
+  return {
+    status: 'resolved',
+    value_m2_s: value,
+    method: 'Stokes–Einstein molecular-radius pure-NMP self-diffusion estimate (Einstein, 1905; not Wilke–Chang)',
+    warnings: [
+      'RRBO_NMP_VALIDATION_PENDING',
+      'Pure-NMP self-diffusion is a preliminary molecular-radius estimate; replace with controlled NMP PFG-NMR or tracer data before release-grade use.',
+    ],
+  };
+}
+
 type PhysicalComponentKey = 'sat' | 'mono' | 'di' | 'poly';
 type DiffusivityComponentKey = PhysicalComponentKey | 'nmp';
 
@@ -230,6 +291,9 @@ export interface ECR2Stage8TrustedScalar {
   value: number;
   source: string;
   evidenceLevel: Exclude<ECR2EvidenceLevel, 'MISSING'>;
+  warnings?: readonly string[];
+  method?: string;
+  applicability?: string;
 }
 
 /**
@@ -309,18 +373,27 @@ function resolvedRecord(
   resolutionInputs: readonly string[],
   inputSnapshot: Readonly<Record<string, string | number>> = {},
   evidenceLevel: Exclude<ECR2EvidenceLevel, 'MISSING'> = 'SECONDARY_EQUATION_VERIFIED',
+  preliminaryWarnings: readonly string[] = [],
 ): ECR2Stage8EvidenceRecord {
+  const isDiffusivity = base.id.startsWith('diffusivity_');
   return {
     ...base,
     value,
-    status: 'AUTO_RESOLVED_PENDING_ACCEPTANCE',
+    status: isDiffusivity ? 'CALCULATED_PRELIMINARY' : 'AUTO_RESOLVED_PENDING_ACCEPTANCE',
     evidenceLevel,
     method,
     source,
     blockingReason: undefined,
     resolutionInputs,
     inputSnapshot,
-    warnings: [...base.warnings, 'RRBO_NMP_VALIDATION_PENDING', 'System-resolved preliminary basis; engineer acceptance is required before numerical use.'],
+    validatedForRRBONMP: isDiffusivity ? false : base.validatedForRRBONMP,
+    pilotCalibrationStatus: isDiffusivity ? 'NOT_YET_VALIDATED' : base.pilotCalibrationStatus,
+    warnings: [...new Set([
+      ...base.warnings,
+      ...preliminaryWarnings,
+      'RRBO_NMP_VALIDATION_PENDING',
+      'System-resolved preliminary basis; engineer acceptance is required before numerical use.',
+    ])],
   };
 }
 
@@ -376,16 +449,64 @@ export function resolveEcr2Stage8Evidence(
     const base = records[id];
     if (component === 'nmp' && phase === 'c') {
       const self = context.nmp?.selfDiffusion_m2_s;
-      records[id] = isTrustedScalar(self)
-        ? resolvedRecord(
+      const viscosity = context.nmp?.viscosity_Pa_s;
+      const molecularWeight = context.nmp?.molecularWeight_g_mol;
+      const density = context.nmp?.density_kg_m3;
+      if (isTrustedScalar(self)) {
+        records[id] = resolvedRecord(
           base,
           self.value,
           'Controlled NMP self-diffusion basis (not Wilke–Chang)',
           self.source,
           ['nmp.selfDiffusion_m2_s'],
           { nmpSelfDiffusion_m2_s: self.value, nmpSelfDiffusionSource: self.source },
+          self.evidenceLevel,
+        );
+        return;
+      }
+      if (!Number.isFinite(context.temperature_C)
+        || !isTrustedScalar(viscosity)
+        || !isTrustedScalar(molecularWeight)
+        || !isTrustedScalar(density)) {
+        const missing = [
+          !Number.isFinite(context.temperature_C) ? 'operating temperature' : '',
+          !isTrustedScalar(viscosity) ? 'NMP operating-temperature viscosity' : '',
+          !isTrustedScalar(molecularWeight) ? 'NMP molecular weight' : '',
+          !isTrustedScalar(density) ? 'NMP operating-temperature density' : '',
+        ].filter(Boolean).join('; ');
+        records[id] = blockedRecord(
+          base,
+          `ROOT_GAP_NMP_SELF_DIFFUSION: ${missing} is not registered in a controlled upstream basis; Dc_NMP cannot use Wilke–Chang as a pseudo-solute shortcut.`,
+          ['temperature_C', 'nmp.viscosity_Pa_s', 'nmp.molecularWeight_g_mol', 'nmp.density_kg_m3'],
+        );
+        return;
+      }
+      const result = resolveNmpSelfDiffusion({
+        temperature_C: context.temperature_C!,
+        viscosity_Pa_s: viscosity.value,
+        molecularWeight_g_mol: molecularWeight.value,
+        density_kg_m3: density.value,
+      });
+      records[id] = result.status === 'resolved'
+        ? resolvedRecord(
+          base,
+          result.value_m2_s,
+          result.method,
+          `${viscosity.source}; ${molecularWeight.source}; ${density.source}`,
+          ['temperature_C', 'nmp.viscosity_Pa_s', 'nmp.molecularWeight_g_mol', 'nmp.density_kg_m3'],
+          {
+            temperature_C: context.temperature_C!,
+            nmpViscosity_Pa_s: viscosity.value,
+            nmpViscositySource: viscosity.source,
+            nmpMolecularWeight_g_mol: molecularWeight.value,
+            nmpMolecularWeightSource: molecularWeight.source,
+            nmpDensity_kg_m3: density.value,
+            nmpDensitySource: density.source,
+          },
+          'ENGINEER_APPROVED_PRELIMINARY',
+          [...(viscosity.warnings ?? []), ...(molecularWeight.warnings ?? []), ...(density.warnings ?? []), ...result.warnings],
         )
-        : blockedRecord(base, 'ROOT_GAP_NMP_SELF_DIFFUSION: no controlled NMP liquid self-diffusion equation or measured data is registered; Dc_NMP cannot use Wilke–Chang as a pseudo-solute shortcut.', ['nmp.selfDiffusion_m2_s']);
+        : blockedRecord(base, `ROOT_GAP_NMP_SELF_DIFFUSION: ${result.errors.join(' ')}`, ['temperature_C', 'nmp.viscosity_Pa_s', 'nmp.molecularWeight_g_mol', 'nmp.density_kg_m3']);
       return;
     }
     const solvent = phase === 'c' ? context.nmp : context.rrbo;
@@ -448,6 +569,15 @@ export function resolveEcr2Stage8Evidence(
           soluteDensity_kg_m3: soluteDensity!.value,
           soluteDensitySource: soluteDensity!.source,
         },
+          'ENGINEER_APPROVED_PRELIMINARY',
+          [
+            ...(solventViscosity!.warnings ?? []),
+            ...(solventMolecularWeight!.warnings ?? []),
+            ...(solventAssociationFactor!.warnings ?? []),
+            ...(soluteMolecularWeight!.warnings ?? []),
+            ...(soluteDensity!.warnings ?? []),
+            ...result.warnings,
+          ],
       )
       : blockedRecord(base, `ROOT_GAP_WILKE_CHANG_${id.toUpperCase()}: ${result.errors.join(' ')}`, resolutionInputs);
   };
@@ -481,8 +611,12 @@ export function resolveEcr2Stage8Evidence(
   const values = Object.values(records);
   return {
     records,
-    autoPopulatedCount: values.filter((record) => record.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE').length,
-    unresolvedCount: values.filter((record) => record.status !== 'AUTO_RESOLVED_PENDING_ACCEPTANCE').length,
+    autoPopulatedCount: values.filter((record) =>
+      record.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' || record.status === 'CALCULATED_PRELIMINARY',
+    ).length,
+    unresolvedCount: values.filter((record) =>
+      record.status !== 'AUTO_RESOLVED_PENDING_ACCEPTANCE' && record.status !== 'CALCULATED_PRELIMINARY',
+    ).length,
   };
 }
 
@@ -505,6 +639,8 @@ export function ecr2Stage8EvidenceFingerprint(record: ECR2Stage8EvidenceRecord):
     source: record.source,
     applicability: record.applicability,
     validationStatus: record.validationStatus,
+    validatedForRRBONMP: record.validatedForRRBONMP ?? null,
+    pilotCalibrationStatus: record.pilotCalibrationStatus ?? null,
     warnings: record.warnings,
     resolutionInputs: record.resolutionInputs ?? [],
     inputSnapshot: record.inputSnapshot ?? {},

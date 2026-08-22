@@ -1,3 +1,5 @@
+import { ecr2Stage8EvidenceFingerprint } from "@shared/ecr2-stage8-evidence";
+
 export const ECR2_STAGE8_COMPONENTS = [
   { key: "sat", label: "Sat", title: "Saturates" },
   { key: "mono", label: "Mono", title: "Mono-aromatics" },
@@ -9,6 +11,14 @@ export const ECR2_STAGE8_COMPONENTS = [
 export const ECR2_STAGE8_SOURCE_TYPES = ["Measured", "Vendor", "Literature", "Assumed"] as const;
 
 type TaggedValue = { value?: unknown; sourceType?: unknown; sourceReference?: unknown };
+type ResolverRecord = {
+  id?: unknown;
+  status?: unknown;
+  value?: unknown;
+  inputSnapshot?: Record<string, unknown>;
+  method?: unknown;
+  [key: string]: unknown;
+};
 
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : String(value ?? "").trim();
@@ -25,10 +35,45 @@ function taggedComplete(value: unknown, sourceType: unknown, sourceReference: un
     && text(sourceReference) !== "";
 }
 
-function evidenceAccepted(sim: Record<string, string>, prefix: string): boolean {
+function evidenceId(prefix: string): string {
+  return prefix.startsWith("molecular_weight_")
+    ? `physical_mw_${prefix.replace("molecular_weight_", "")}`
+    : prefix;
+}
+
+function acceptedResolverCandidate(
+  sim: Record<string, string>,
+  prefix: string,
+  resolverRecords?: Record<string, ResolverRecord>,
+): boolean {
+  const record = resolverRecords?.[evidenceId(prefix)];
+  if (!record || record.id !== evidenceId(prefix)
+    || !["AUTO_RESOLVED_PENDING_ACCEPTANCE", "CALCULATED_PRELIMINARY"].includes(text(record.status))
+    || !positive(record.value)) return false;
+  const fingerprint = text(sim[`${prefix}_resolver_fingerprint`]);
+  const originalEvidence = text(sim[`${prefix}_original_evidence`]);
+  // The browser stores the server's exact stable fingerprint at the explicit
+  // acceptance action. This lightweight check prevents a stale or unrelated
+  // server candidate from satisfying the manual-input validator; the engine
+  // independently recomputes and signs this identity at calculation time.
+  const expectedFingerprint = ecr2Stage8EvidenceFingerprint(record as any);
+  return text(sim[`${prefix}_evidence_status`]) === "ACCEPTED_AUTO_BASIS"
+    && fingerprint === expectedFingerprint
+    && originalEvidence === expectedFingerprint;
+}
+
+function evidenceAccepted(
+  sim: Record<string, string>,
+  prefix: string,
+  resolverRecords?: Record<string, ResolverRecord>,
+): boolean {
   const status = text(sim[`${prefix}_evidence_status`]);
   const retainedEvidence = text(sim[`${prefix}_original_evidence`]) !== "";
-  if (status === "ACCEPTED_AUTO_BASIS") return retainedEvidence;
+  if (status === "ACCEPTED_AUTO_BASIS") {
+    return resolverRecords?.[evidenceId(prefix)]
+      ? acceptedResolverCandidate(sim, prefix, resolverRecords)
+      : retainedEvidence;
+  }
   return status === "ENGINEER_OVERRIDE"
     && retainedEvidence
     && text(sim[`${prefix}_override_reason`]) !== ""
@@ -70,6 +115,7 @@ function legacyTagged(
 export function validateEcr2Stage8(
   sim: Record<string, string>,
   hasAcceptedEcrRun: boolean,
+  resolverRecords?: Record<string, ResolverRecord>,
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   const legacyMw = legacyObject(sim, "molecularWeights");
@@ -82,14 +128,15 @@ export function validateEcr2Stage8(
 
   for (const component of ECR2_STAGE8_COMPONENTS.slice(0, 4)) {
     const prefix = `molecular_weight_${component.key}`;
+    const candidateAccepted = acceptedResolverCandidate(sim, prefix, resolverRecords);
     const legacyKey = component.key === "sat" ? "saturates_g_mol"
       : component.key === "mono" ? "mono_g_mol"
         : component.key === "di" ? "di_g_mol" : "poly_g_mol";
-    if (!legacyTagged(legacyMw[legacyKey], sim, prefix)) {
+    if (!candidateAccepted && !legacyTagged(legacyMw[legacyKey], sim, prefix)) {
       errors[`${prefix}_value`] =
         `Physical ${component.title} molecular weight requires a positive value, source class, and source reference because downstream physical concentration and transfer-rate equations use it`;
     }
-    if (!evidenceAccepted(sim, prefix)) {
+    if (!evidenceAccepted(sim, prefix, resolverRecords)) {
       errors[`${prefix}_evidence_status`] =
         `Physical ${component.title} auto-resolved basis requires explicit engineer acceptance or an override before it can be used`;
     }
@@ -112,22 +159,25 @@ export function validateEcr2Stage8(
   for (const component of ECR2_STAGE8_COMPONENTS) {
     for (const phase of ["c", "d"] as const) {
       const prefix = `diffusivity_${component.key}_${phase}`;
+      const candidateAccepted = acceptedResolverCandidate(sim, prefix, resolverRecords);
       const legacy = legacyBvp.diffusivity?.[component.label === "Sat" ? "Sat" : component.label]?.[
         phase === "c" ? "De_c" : "De_d"
       ];
-      if (!legacyTagged(legacy, sim, prefix)) {
+      if (!candidateAccepted && !legacyTagged(legacy, sim, prefix)) {
         errors[`${prefix}_value`] =
           `${phase === "c" ? "Dc" : "Dd"} ${component.label} requires a positive value, source class, and source reference`;
       }
-      if (!positive(sim[`${prefix}_reference_temperature_c`]) && !positive((legacy as any)?.referenceTemperature_C)) {
+      if (!candidateAccepted
+        && !positive(sim[`${prefix}_reference_temperature_c`])
+        && !positive((legacy as any)?.referenceTemperature_C)) {
         errors[`${prefix}_reference_temperature_c`] =
           `${phase === "c" ? "Dc" : "Dd"} ${component.label} requires its reference temperature`;
       }
-      if (!text(sim[`${prefix}_method`]) && !text((legacy as any)?.method)) {
+      if (!candidateAccepted && !text(sim[`${prefix}_method`]) && !text((legacy as any)?.method)) {
         errors[`${prefix}_method`] =
           `${phase === "c" ? "Dc" : "Dd"} ${component.label} requires its estimation/measurement method`;
       }
-      if (!evidenceAccepted(sim, prefix)) {
+      if (!evidenceAccepted(sim, prefix, resolverRecords)) {
         errors[`${prefix}_evidence_status`] =
           `${phase === "c" ? "Dc" : "Dd"} ${component.label} auto-resolved basis requires explicit engineer acceptance or an override before it can be used`;
       }

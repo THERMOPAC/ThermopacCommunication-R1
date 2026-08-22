@@ -125,10 +125,14 @@ describe('ECR-2 simulator workspace adapter', () => {
     });
   });
 
-  it('auto-resolves only the versioned SN300 physical-MW candidates and keeps all independent Stage 8 gaps blocked', () => {
+  it('auto-calculates all ten preliminary SN300 diffusivities from server-owned operating-temperature bases', () => {
     const mapped = mapWorkspaceProcessDesignInputs({
       feed_service: 'Re-Refined Base Oil SN300',
       operating_temperature: '60',
+      rrbo_saturates_wt: '50',
+      rrbo_mono_aromatics_wt: '30',
+      rrbo_di_aromatics_wt: '15',
+      rrbo_poly_aromatics_wt: '5',
     }, 'ecr_simulator');
     const evidence = (mapped.bvp as any).stage8Evidence;
     const resolution = (mapped.bvp as any).stage8Resolution;
@@ -139,18 +143,30 @@ describe('ECR-2 simulator workspace adapter', () => {
       evidenceLevel: 'ENGINEER_APPROVED_PRELIMINARY',
       physicalMwDecision: 'PHYSICAL_MW_PRELIMINARY_APPROVED_BASIS',
     });
-    expect(evidence.diffusivity_sat_c.status).toBe('BLOCKED_MISSING_REQUIRED_EVIDENCE');
+    expect(evidence.diffusivity_sat_c.status).toBe('CALCULATED_PRELIMINARY');
+    expect(evidence.diffusivity_sat_d.status).toBe('CALCULATED_PRELIMINARY');
+    expect(evidence.diffusivity_nmp_c.status).toBe('CALCULATED_PRELIMINARY');
+    expect(evidence.diffusivity_nmp_d.status).toBe('CALCULATED_PRELIMINARY');
     expect(evidence.kuhni_shd_c2.status).toBe('APPROVAL_REQUIRED');
     expect(resolution).toMatchObject({
       resolver: 'ecr2-stage8-governed-resolver-v1',
       operatingTemperature_C: 60,
-      autoPopulatedCount: 4,
-      unresolvedCount: 11,
+      autoPopulatedCount: 14,
+      unresolvedCount: 1,
     });
-    // The mapper did evaluate the governed NMP viscosity and SN300
-    // pseudo-component routes, so the remaining continuous-phase gap begins at
-    // NMP MW/association — not a fabricated temperature or physical solute MW.
-    expect(resolution.records.diffusivity_sat_c.blockingReason).toContain('NMP molecular weight');
+    expect(resolution.records.diffusivity_sat_c).toMatchObject({
+      unit: 'm2/s',
+      status: 'CALCULATED_PRELIMINARY',
+      validatedForRRBONMP: false,
+      pilotCalibrationStatus: 'NOT_YET_VALIDATED',
+    });
+    expect(resolution.records.diffusivity_sat_c.inputSnapshot).toMatchObject({
+      temperature_C: 60,
+      solventMolecularWeight_g_mol: 99.13,
+    });
+    expect(resolution.records.diffusivity_sat_d.inputSnapshot).toMatchObject({
+      temperature_C: 60,
+    });
   });
 
   it('does not let the SN300 preliminary family basis leak to another RRBO grade', () => {
