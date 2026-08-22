@@ -13,7 +13,7 @@ describe('ECR-2 simulator workspace adapter', () => {
       rrbo_mono_aromatics_wt: '30',
       rrbo_di_aromatics_wt: '15',
       rrbo_poly_aromatics_wt: '5',
-      nmp_purity: '99.5',
+      nmp_purity_value: '99.5',
       column_diameter: '0.5',
       compartment_height: '0.25',
       rotor_ratio: '0.5',

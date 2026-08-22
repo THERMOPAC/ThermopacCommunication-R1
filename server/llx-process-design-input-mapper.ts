@@ -483,11 +483,20 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     // saved 99.5 there is still the workspace's wt.% representation, not an
     // engine-ready fraction, so normalize it too rather than letting it bypass
     // the adapter merely because its key already has camelCase spelling.
-    const nmpPurity = num(out.nmpPurity)
+    // The Stage 3 PropertyRow persistence shape is `${property}_value`, so
+    // nmp_purity_value is the authoritative workspace field. Check it before
+    // legacy or engine-shaped aliases: purity is inherited from Fluid
+    // Properties and is not an ECR-2 simulator override.
+    const nmpPurity = num(inputs.nmp_purity_value)
       ?? num(inputs.nmp_purity)
-      ?? num(inputs.solvent_nmp_mole_fraction);
+      ?? num(inputs.solvent_nmp_mole_fraction)
+      ?? num(out.nmpPurity);
     if (nmpPurity !== undefined) out.nmpPurity = nmpPurity > 1 ? nmpPurity / 100 : nmpPurity;
-    if (out.phaseConfiguration === undefined) out.phaseConfiguration = 'nmp_continuous_rrbo_dispersed';
+    // Stage 4 owns the phase orientation. Do not let a stale engine-shaped
+    // alias from another saved section override its selected configuration.
+    const workspacePhase = String(inputs.phase_configuration ?? '').trim();
+    if (workspacePhase !== '') out.phaseConfiguration = workspacePhase;
+    else if (out.phaseConfiguration === undefined) out.phaseConfiguration = 'nmp_continuous_rrbo_dispersed';
 
     // Simulator-only geometry/settings are intentionally held in the
     // ecr_simulator input section. They are not propagated into ECR-1.

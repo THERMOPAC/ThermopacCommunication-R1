@@ -68,6 +68,12 @@ function configureDatabase(resultData: Record<string, unknown> = { bvp: { status
     if (text.includes('SELECT section, data FROM design_software_inputs')) {
       return { rows: [{ section: 'ecr_simulator', data: flatSimulatorInput }] };
     }
+    if (text.includes('FROM design_selection_records')) {
+      return { rows: [] };
+    }
+    if (text.includes('FROM design_software_results') && text.includes("section = 'hydraulics_common'")) {
+      return { rows: [] };
+    }
     if (text.includes('FROM design_software_results') && text.includes("section = 'process_design'")) {
       return { rows: [] };
     }
