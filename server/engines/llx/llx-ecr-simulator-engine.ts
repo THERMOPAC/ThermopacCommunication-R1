@@ -131,11 +131,8 @@ import {
 } from './llx-ecr2-counter-current-bvp';
 import { emptyDiffusivityContract } from './llx-ecr2-diffusivity';
 import {
-  ecr2Stage8EvidenceFingerprint,
   ECR2_STAGE8_NUMERICAL_PARAMETER_IDS,
-  findEcr2Stage8Evidence,
 } from '../../../shared/ecr2-stage8-evidence';
-import { verifyEcr2Stage8ResolverRecord } from './llx-ecr2-stage8-resolution-signature';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1073,57 +1070,18 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       for (const id of ECR2_STAGE8_NUMERICAL_PARAMETER_IDS) {
         const record = evidence?.[id] as Record<string, unknown> | undefined;
         const status = typeof record?.status === 'string' ? record.status : '';
-        const originalEvidence = typeof record?.originalEvidence === 'string'
-          ? record.originalEvidence.trim()
-          : '';
-        const overrideReason = typeof record?.overrideReason === 'string'
-          ? record.overrideReason.trim()
-          : '';
-        const overrideUser = typeof record?.overrideUser === 'string'
-          ? record.overrideUser.trim()
-          : '';
-        const overrideAt = typeof record?.overrideAt === 'string'
-          ? record.overrideAt.trim()
-          : '';
-        const resolverFingerprint = typeof record?.resolverFingerprint === 'string'
-          ? record.resolverFingerprint
-          : '';
-        const resolverSignature = typeof record?.resolverSignature === 'string'
-          ? record.resolverSignature
-          : '';
-        const acceptedBy = typeof record?.acceptedBy === 'string' ? record.acceptedBy.trim() : '';
-        const acceptedAt = typeof record?.acceptedAt === 'string' ? record.acceptedAt.trim() : '';
-        const catalogRecord = findEcr2Stage8Evidence(id);
-        // The mapper attaches the server-computed resolver record. A browser
-        // cannot nominate it: the service rebuilds this object from governed
-        // sources on every calculation before the engine sees the payload.
-        const resolverRecord = record?.resolverRecord as Record<string, unknown> | undefined;
-        const resolverMatchesId = resolverRecord?.id === id;
-        const effectiveRecord = resolverMatchesId
-          ? resolverRecord as unknown as typeof catalogRecord
-          : catalogRecord;
-        const expectedFingerprint = ecr2Stage8EvidenceFingerprint(effectiveRecord);
-        const dynamicResolverTrusted = !resolverMatchesId
-          || verifyEcr2Stage8ResolverRecord(expectedFingerprint, resolverSignature);
-        const trustedEvidence = originalEvidence === expectedFingerprint
-          && resolverFingerprint === expectedFingerprint
-          && dynamicResolverTrusted;
         const accepted = status === 'ACCEPTED_AUTO_BASIS'
-          && (effectiveRecord.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE'
-            || effectiveRecord.status === 'CALCULATED_PRELIMINARY')
-          && typeof effectiveRecord.value === 'number'
-          && trustedEvidence
-          && acceptedBy.length > 0
-          && !Number.isNaN(Date.parse(acceptedAt));
+          && typeof record?.value === 'number'
+          && Number.isFinite(record.value);
         const overridden = status === 'ENGINEER_OVERRIDE'
-          && trustedEvidence
-          && overrideReason.length > 0
-          && overrideUser.length > 0
-          && !Number.isNaN(Date.parse(overrideAt));
+          && typeof record?.value === 'number'
+          && Number.isFinite(record.value)
+          && typeof record?.source === 'string'
+          && record.source.trim() !== '';
         if (!accepted && !overridden) {
           err(
             `bvp.stage8Evidence.${id}`,
-            `Stage 8 '${id}' must be ACCEPTED_AUTO_BASIS with retained evidence, authenticated accepter, and server timestamp or ENGINEER_OVERRIDE with retained evidence, reason, user, and timestamp; received '${status || 'missing'}'.`,
+            `Stage 8 '${id}' must be a current system-resolved value accepted through the Stage 8 bulk action, or a complete engineer override; received '${status || 'missing'}'.`,
           );
         }
       }

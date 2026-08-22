@@ -4,7 +4,6 @@ import {
   validateEcr2Stage8,
 } from '../client/src/lib/ecr2-stage8-validation';
 import {
-  ecr2Stage8EvidenceFingerprint,
   findEcr2Stage8Evidence,
 } from '../shared/ecr2-stage8-evidence';
 import {
@@ -13,6 +12,7 @@ import {
 
 function completeStage8(): Record<string, string> {
   const sim: Record<string, string> = {
+    stage8_system_values_acceptance_status: 'ACCEPTED',
     kuhni_shd_c2_value: '1.25',
     kuhni_shd_c2_source_type: 'Literature',
     kuhni_shd_c2_source_reference: 'Kühni/Hartland 1999, preliminary reconstruction',
@@ -27,8 +27,6 @@ function completeStage8(): Record<string, string> {
     sim[`${prefix}_value`] = '250';
     sim[`${prefix}_source_type`] = 'Assumed';
     sim[`${prefix}_source_reference`] = 'Approved physical surrogate basis';
-    sim[`${prefix}_evidence_status`] = 'ACCEPTED_AUTO_BASIS';
-    sim[`${prefix}_original_evidence`] = 'Accepted controlled evidence record';
   }
   for (const component of ECR2_STAGE8_COMPONENTS) {
     for (const phase of ['c', 'd']) {
@@ -38,18 +36,34 @@ function completeStage8(): Record<string, string> {
       sim[`${prefix}_source_reference`] = 'Approved diffusivity record';
       sim[`${prefix}_reference_temperature_c`] = '60';
       sim[`${prefix}_method`] = 'Engineer-reviewed source value';
-      sim[`${prefix}_evidence_status`] = 'ACCEPTED_AUTO_BASIS';
-      sim[`${prefix}_original_evidence`] = 'Accepted controlled evidence record';
     }
   }
-  sim.kuhni_shd_c2_evidence_status = 'ACCEPTED_AUTO_BASIS';
-  sim.kuhni_shd_c2_original_evidence = 'Accepted controlled evidence record';
+  sim.kuhni_shd_c2_evidence_status = 'ENGINEER_OVERRIDE';
   return sim;
+}
+
+function currentSystemResolverRecords() {
+  const physicalMw = ECR2_STAGE8_COMPONENTS.slice(0, 4).map((component, index) => [
+    `physical_mw_${component.key}`, {
+      ...findEcr2Stage8Evidence(`physical_mw_${component.key}` as any),
+      status: 'AUTO_RESOLVED_PENDING_ACCEPTANCE' as const,
+      value: 250 + index,
+    },
+  ]);
+  const diffusivities = ECR2_STAGE8_COMPONENTS.flatMap((component) => ['c', 'd'].map((phase) => [
+    `diffusivity_${component.key}_${phase}`, {
+      ...findEcr2Stage8Evidence(`diffusivity_${component.key}_${phase}` as any),
+      status: 'CALCULATED_PRELIMINARY' as const,
+      value: 1e-9,
+      inputSnapshot: { temperature_C: 60 },
+    },
+  ]));
+  return Object.fromEntries([...physicalMw, ...diffusivities]);
 }
 
 describe('ECR-2 Stage 8 dependency graph', () => {
   it('uses the governed d32 route without requiring a duplicate engineer value or a BVP JSON object', () => {
-    const errors = validateEcr2Stage8(completeStage8(), true);
+    const errors = validateEcr2Stage8(completeStage8(), true, currentSystemResolverRecords());
     expect(errors).toEqual({});
     expect(errors).not.toHaveProperty('d32Config');
     expect(errors).not.toHaveProperty('bvp');
@@ -65,8 +79,8 @@ describe('ECR-2 Stage 8 dependency graph', () => {
   it('keeps physical-MW editing outside the local NRTL coordinate basis', () => {
     const original = completeStage8();
     const altered = { ...original, molecular_weight_sat_value: '650', molecular_weight_poly_value: '120' };
-    expect(validateEcr2Stage8(original, true)).toEqual({});
-    expect(validateEcr2Stage8(altered, true)).toEqual({});
+    expect(validateEcr2Stage8(original, true, currentSystemResolverRecords())).toEqual({});
+    expect(validateEcr2Stage8(altered, true, currentSystemResolverRecords())).toEqual({});
 
     const physicalMassFractions = [0.2, 0.12, 0.06, 0.02, 0.6];
     const before = thermodynamicMoleFractionsFromPhysicalMassFractions(physicalMassFractions);
@@ -78,25 +92,21 @@ describe('ECR-2 Stage 8 dependency graph', () => {
     const withoutAudit = completeStage8();
     delete withoutAudit.partition_basis_approved_by;
     delete withoutAudit.partition_basis_approved_at;
-    const errors = validateEcr2Stage8(withoutAudit, true);
+    const errors = validateEcr2Stage8(withoutAudit, true, currentSystemResolverRecords());
     expect(errors).toHaveProperty('partition_basis_approved_by');
     expect(errors).toHaveProperty('partition_basis_approved_at');
   });
 
-  it('blocks a calculated record until the engineer accepts its evidence basis or overrides it', () => {
+  it('blocks a calculated record until the section-level acceptance or a complete override is present', () => {
     const pending = {
       ...completeStage8(),
-      diffusivity_sat_c_evidence_status: 'AUTO_RESOLVED_PENDING_ACCEPTANCE',
+      stage8_system_values_acceptance_status: '',
     };
-    expect(validateEcr2Stage8(pending, true)).toHaveProperty('diffusivity_sat_c_evidence_status');
+    expect(validateEcr2Stage8(pending, true, currentSystemResolverRecords())).toHaveProperty('diffusivity_sat_c_evidence_status');
     expect(validateEcr2Stage8({
       ...pending,
       diffusivity_sat_c_evidence_status: 'ENGINEER_OVERRIDE',
-      diffusivity_sat_c_original_evidence: 'original correlation evidence retained',
-      diffusivity_sat_c_override_reason: 'Controlled engineering exception',
-      diffusivity_sat_c_override_user: '23',
-      diffusivity_sat_c_override_at: '2026-08-22T10:00:00.000Z',
-    }, true)).not.toHaveProperty('diffusivity_sat_c_evidence_status');
+    }, true, currentSystemResolverRecords())).not.toHaveProperty('diffusivity_sat_c_evidence_status');
   });
 
   it('treats an exact accepted server candidate as a complete diffusivity without duplicate manual fields', () => {
@@ -114,30 +124,29 @@ describe('ECR-2 Stage 8 dependency graph', () => {
       method: 'Controlled Stage 8 preliminary route',
       inputSnapshot: { temperature_C: 60 },
     };
-    const fingerprint = ecr2Stage8EvidenceFingerprint(candidate);
-    sim[`${prefix}_original_evidence`] = fingerprint;
-    sim[`${prefix}_resolver_fingerprint`] = fingerprint;
-    sim[`${prefix}_evidence_status`] = 'ACCEPTED_AUTO_BASIS';
-
-    const errors = validateEcr2Stage8(sim, true, { diffusivity_sat_c: candidate });
+    const errors = validateEcr2Stage8(sim, true, {
+      ...currentSystemResolverRecords(),
+      diffusivity_sat_c: candidate,
+    });
     expect(errors).not.toHaveProperty(`${prefix}_value`);
     expect(errors).not.toHaveProperty(`${prefix}_reference_temperature_c`);
     expect(errors).not.toHaveProperty(`${prefix}_method`);
     expect(errors).not.toHaveProperty(`${prefix}_evidence_status`);
   });
 
-  it('requires reason, user, and timestamp for an engineer override', () => {
+  it('requires an actual value and source for an engineer override', () => {
     const overridden = {
       ...completeStage8(),
       molecular_weight_sat_evidence_status: 'ENGINEER_OVERRIDE',
     };
-    expect(validateEcr2Stage8(overridden, true)).toHaveProperty('molecular_weight_sat_evidence_status');
+    delete overridden.molecular_weight_sat_value;
+    delete overridden.molecular_weight_sat_source_reference;
+    expect(validateEcr2Stage8(overridden, true, currentSystemResolverRecords())).toHaveProperty('molecular_weight_sat_evidence_status');
 
     Object.assign(overridden, {
-      molecular_weight_sat_override_reason: 'Characterization evidence supersedes system candidate',
-      molecular_weight_sat_override_user: '23',
-      molecular_weight_sat_override_at: '2026-08-22T10:00:00.000Z',
+      molecular_weight_sat_value: '250',
+      molecular_weight_sat_source_reference: 'Characterization evidence',
     });
-    expect(validateEcr2Stage8(overridden, true)).not.toHaveProperty('molecular_weight_sat_evidence_status');
+    expect(validateEcr2Stage8(overridden, true, currentSystemResolverRecords())).not.toHaveProperty('molecular_weight_sat_evidence_status');
   });
 });

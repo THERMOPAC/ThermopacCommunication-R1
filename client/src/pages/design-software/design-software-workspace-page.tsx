@@ -34,7 +34,6 @@ import {
   getEcr2Stage8VisibleResolutionState,
 } from "@/lib/ecr2-stage8-display";
 import {
-  ecr2Stage8EvidenceFingerprint,
   findEcr2Stage8Evidence,
   type ECR2Stage8NumericalParameterId,
 } from "@shared/ecr2-stage8-evidence";
@@ -610,6 +609,7 @@ export default function DesignSoftwareWorkspacePage() {
   const [localData, setLocalData] = useState<Record<string, Record<string, string>>>({});
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [ecr2RunPreparing, setEcr2RunPreparing] = useState(false);
+  const [ecr2AcceptancePreparing, setEcr2AcceptancePreparing] = useState(false);
 
   // ── Stage-by-stage validation ────────────────────────────────────────────────
   // errors:   { stageKey → { fieldKey → errorMessage } }  — block forward nav
@@ -4666,43 +4666,28 @@ export default function DesignSoftwareWorkspacePage() {
         const requestedStatus = sim[`${prefix}_evidence_status`] ?? "";
         const status = requestedStatus === "ENGINEER_OVERRIDE"
           ? requestedStatus
-          : requestedStatus === "ACCEPTED_AUTO_BASIS"
-            && (record.status === "AUTO_RESOLVED_PENDING_ACCEPTANCE" || record.status === "CALCULATED_PRELIMINARY")
-            && typeof record.value === "number"
-            ? requestedStatus
+          : sim.stage8_system_values_acceptance_status === "ACCEPTED" && systemResolved(record)
+            ? "ACCEPTED_AUTO_BASIS"
             : record.status;
-        const originalEvidence = sim[`${prefix}_original_evidence`] ?? "";
-        const resolverFingerprint = sim[`${prefix}_resolver_fingerprint`] ?? "";
-        const expectedFingerprint = ecr2Stage8EvidenceFingerprint(record);
         if (status === "ACCEPTED_AUTO_BASIS") {
-          return originalEvidence === expectedFingerprint && resolverFingerprint === expectedFingerprint;
+          return true;
         }
         return numeric(sim[`${prefix}_value`] ?? legacy?.value)
           && ECR2_STAGE8_SOURCE_TYPES.includes((sim[`${prefix}_source_type`] ?? legacy?.sourceType) as typeof ECR2_STAGE8_SOURCE_TYPES[number])
           && !!(sim[`${prefix}_source_reference`] ?? legacy?.sourceReference)
-          && status === "ENGINEER_OVERRIDE"
-          && !!originalEvidence
-          && !!sim[`${prefix}_override_reason`]
-          && !!sim[`${prefix}_override_user`]
-          && !Number.isNaN(Date.parse(sim[`${prefix}_override_at`] ?? ""));
+          && status === "ENGINEER_OVERRIDE";
     };
     const evidenceFor = (id: ECR2Stage8NumericalParameterId, prefix: string) => {
       const record = serverResolverRecords[id] ?? findEcr2Stage8Evidence(id);
       const requestedStatus = sim[`${prefix}_evidence_status`] || "";
       const status = requestedStatus === "ENGINEER_OVERRIDE"
         ? requestedStatus
-        : requestedStatus === "ACCEPTED_AUTO_BASIS"
-          && (record.status === "AUTO_RESOLVED_PENDING_ACCEPTANCE" || record.status === "CALCULATED_PRELIMINARY")
-          && typeof record.value === "number"
-          ? requestedStatus
+        : sim.stage8_system_values_acceptance_status === "ACCEPTED" && systemResolved(record)
+          ? "ACCEPTED_AUTO_BASIS"
           : record.status;
       return {
         record,
         status,
-        originalEvidence: sim[`${prefix}_original_evidence`] || "",
-        overrideReason: sim[`${prefix}_override_reason`] || "",
-        overrideUser: sim[`${prefix}_override_user`] || "",
-        overrideAt: sim[`${prefix}_override_at`] || "",
       };
     };
     const evidenceIdForPrefix = (prefix: string): ECR2Stage8NumericalParameterId => (
@@ -4713,37 +4698,50 @@ export default function DesignSoftwareWorkspacePage() {
           : prefix as ECR2Stage8NumericalParameterId
     );
     const startEngineerOverride = (prefix: string, evidenceId: ECR2Stage8NumericalParameterId) => {
-      const evidence = evidenceFor(evidenceId, prefix);
       commitSection("ecr_simulator", {
         [`${prefix}_evidence_status`]: "ENGINEER_OVERRIDE",
-        [`${prefix}_original_evidence`]: evidence.originalEvidence || JSON.stringify(evidence.record),
-        [`${prefix}_override_reason`]: evidence.overrideReason,
-        [`${prefix}_override_user`]: evidence.overrideUser || String((user as any)?.id ?? ""),
-        [`${prefix}_override_at`]: evidence.overrideAt || new Date().toISOString(),
       });
     };
     const applyEngineerOverride = (prefix: string, key: string, value: string, evidenceId: ECR2Stage8NumericalParameterId) => {
-      const evidence = evidenceFor(evidenceId, prefix);
-      if (evidence.status !== "ENGINEER_OVERRIDE") {
+      if (evidenceFor(evidenceId, prefix).status !== "ENGINEER_OVERRIDE") {
         commitSection("ecr_simulator", {
           [key]: value,
           [`${prefix}_evidence_status`]: "ENGINEER_OVERRIDE",
-          [`${prefix}_original_evidence`]: evidence.originalEvidence || JSON.stringify(evidence.record),
-          [`${prefix}_override_user`]: evidence.overrideUser || String((user as any)?.id ?? ""),
-          [`${prefix}_override_at`]: evidence.overrideAt || new Date().toISOString(),
         });
         return;
       }
       f(key, value);
     };
-    const acceptEvidenceBasis = (prefix: string) => {
-      const evidence = evidenceFor(evidenceIdForPrefix(prefix), prefix);
-      const fingerprint = ecr2Stage8EvidenceFingerprint(evidence.record);
-      commitSection("ecr_simulator", {
-        [`${prefix}_evidence_status`]: "ACCEPTED_AUTO_BASIS",
-        [`${prefix}_original_evidence`]: fingerprint,
-        [`${prefix}_resolver_fingerprint`]: fingerprint,
-      });
+    const acceptAllSystemResolvedValues = async () => {
+      if (isFrozen || !activeRevisionId || ecr2AcceptancePreparing || ecr2RunPreparing) return;
+      setEcr2AcceptancePreparing(true);
+      try {
+        const result = await apiRequest("POST", `/api/design-software/revisions/${activeRevisionId}/ecr2-stage8-resolution/accept-all`, {}) as {
+          acceptedIds?: string[];
+        };
+        setLocalData(previous => {
+          const simulator = { ...(previous.ecr_simulator ?? {}) };
+          for (const key of Object.keys(simulator)) {
+            if (/(?:_evidence_status|_original_evidence|_resolver_fingerprint|_resolver_signature|_accepted_by|_accepted_at|_override_reason|_override_user|_override_at)$/.test(key)) {
+              delete simulator[key];
+            }
+          }
+          simulator.stage8_system_values_acceptance_status = result.acceptedIds?.length ? "ACCEPTED" : "";
+          return { ...previous, ecr_simulator: simulator };
+        });
+        await Promise.all([
+          inputsQ.refetch(),
+          stage8ResolutionQ.refetch(),
+        ]);
+        toast({
+          title: "System-resolved Stage 8 values accepted",
+          description: `${result.acceptedIds?.length ?? 0} current governed values were accepted and recorded by the server. Unresolved dependencies were not accepted.`,
+        });
+      } catch (e: any) {
+        toast({ title: "Stage 8 acceptance failed", description: e.message, variant: "destructive" });
+      } finally {
+        setEcr2AcceptancePreparing(false);
+      }
     };
     const visibleResolutionStatus = (evidence: ReturnType<typeof evidenceFor>, ready: boolean) => {
       const state = getEcr2Stage8VisibleResolutionState({
@@ -4938,16 +4936,6 @@ export default function DesignSoftwareWorkspacePage() {
           onChange={e => applyEngineerOverride(prefix, `${prefix}_source_reference`, e.target.value, evidenceId)}
           onBlur={s}
         />
-        <Textarea
-          className="min-h-14 text-[11px]"
-          value={evidence.overrideReason}
-          placeholder="Required override reason"
-          onChange={e => f(`${prefix}_override_reason`, e.target.value)}
-          onBlur={s}
-        />
-        <p className="text-[10px] text-slate-500">
-          Override metadata is captured with the calculation record.
-        </p>
       </div>;
     };
     const renderResolutionDetails = (prefix: string, evidence: ReturnType<typeof evidenceFor>, legacy: any, ready: boolean) => {
@@ -4971,11 +4959,6 @@ export default function DesignSoftwareWorkspacePage() {
           <p><strong>Basis:</strong> {evidence.record.basis || "Preliminary system-resolved engineering basis."}</p>
           {referenceTemperature !== undefined && <p><strong>Reference temperature:</strong> {referenceTemperature} °C</p>}
           {warnings.map(warning => <p key={warning} className="text-amber-700"><strong>Warning:</strong> {warning}</p>)}
-          {visible.state === "SYSTEM_RESOLVED_ACCEPTANCE_REQUIRED" && (
-            <Button type="button" size="sm" className="mt-1 h-7 text-[10px]" disabled={isFrozen} onClick={() => acceptEvidenceBasis(prefix)}>
-              ACCEPT PRELIMINARY BASIS
-            </Button>
-          )}
         </div>;
       }
       const evidenceId = evidenceIdForPrefix(prefix);
@@ -5027,7 +5010,7 @@ export default function DesignSoftwareWorkspacePage() {
           <FieldRow label="Simulator-only diameter override" value={sim.columnDiameter_m ?? ""} onChange={v => f("columnDiameter_m", v)} onBlur={s} unit="m" note="Leave blank to inherit the governed Stage 5/Stage 7 diameter." />
 
            <SectionCard title="Stage 8 dependency register" className="mt-4">
-             <p className="text-[11px] text-gray-500">The system resolves each numerical dependency from its governed evidence record; this is not a manual-entry worksheet. Resolved preliminary values show their source, method, basis, and warnings immediately. Accept the preliminary basis before use; an engineer override remains available only when no system basis is available.</p>
+              <p className="text-[11px] text-gray-500">The system resolves each numerical dependency from its governed evidence record; this is not a manual-entry worksheet. Each resolved value shows its value, source, method, and preliminary or validated status. One acceptance applies to all currently resolved values.</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-3" data-testid="stage8-auto-populated-summary">
               <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
                  <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-800">System-resolved numerical dependencies</p>
@@ -5045,6 +5028,21 @@ export default function DesignSoftwareWorkspacePage() {
                 <p className="text-[10px] text-amber-800">Governed evidence still required</p>
               </div>
             </div>
+             <div className="mt-3 flex flex-wrap items-center gap-2">
+               <Button
+                 type="button"
+                 size="sm"
+                 className="gap-1.5"
+                 data-testid="accept-all-stage8-system-resolved"
+                 disabled={isFrozen || ecr2AcceptancePreparing || ecr2RunPreparing || autoPopulatedCount === 0}
+                 onClick={acceptAllSystemResolvedValues}
+               >
+                 {ecr2AcceptancePreparing ? "ACCEPTING SYSTEM-RESOLVED VALUES…" : "ACCEPT ALL SYSTEM-RESOLVED VALUES"}
+               </Button>
+               <p className="text-[10px] text-slate-500">
+                 Accepts only current server-resolved values. Evidence gaps remain unresolved and are not accepted.
+               </p>
+             </div>
             <div className="mt-3 overflow-x-auto rounded-lg border">
               <div className="min-w-[900px]">
                 <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b bg-gray-50 px-3 py-2 text-[10px] font-semibold uppercase text-gray-500">

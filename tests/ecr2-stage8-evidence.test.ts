@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  ecr2Stage8EvidenceFingerprint,
   ECR2_STAGE8_EVIDENCE_CATALOG,
   findEcr2Stage8Evidence,
   resolveEcr2Stage8Evidence,
@@ -12,7 +11,6 @@ import {
   getEcr2PhysicalComponentBasis,
 } from '../shared/ecr2-physical-property-basis';
 import { LLXECRSimulatorEngine } from '../server/engines/llx/llx-ecr-simulator-engine';
-import { signEcr2Stage8ResolverRecord } from '../server/engines/llx/llx-ecr2-stage8-resolution-signature';
 
 describe('ECR-2 Stage 8 governed evidence registry', () => {
   it('registers exactly the fifteen required numerical dependencies without Coto physical-MW substitution', () => {
@@ -242,23 +240,19 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
     }
   });
 
-  it('server-side validation rejects forged acceptance and accepts only a fingerprinted, audited override', () => {
+  it('server-side validation requires values for accepted system records and sources for overrides', () => {
     const engine = new LLXECRSimulatorEngine();
     const evidence = Object.fromEntries(ECR2_STAGE8_EVIDENCE_CATALOG.map((record) => [
       record.id,
-      { status: 'ACCEPTED_AUTO_BASIS', originalEvidence: 'forged evidence', resolverFingerprint: 'forged evidence' },
+      { status: 'ACCEPTED_AUTO_BASIS' },
     ]));
     const accepted = engine.validate({ bvp: { stage8Evidence: evidence } });
     expect(accepted.errors.some((issue) => issue.field.startsWith('bvp.stage8Evidence.'))).toBe(true);
 
-    const satFingerprint = ecr2Stage8EvidenceFingerprint(findEcr2Stage8Evidence('physical_mw_sat'));
     evidence.physical_mw_sat = {
       status: 'ENGINEER_OVERRIDE',
-      originalEvidence: satFingerprint,
-      resolverFingerprint: satFingerprint,
-      overrideReason: 'Controlled engineering exception',
-      overrideUser: '23',
-      overrideAt: '2026-08-22T10:00:00.000Z',
+      value: 300,
+      source: 'Controlled engineering exception',
     };
     const overridden = engine.validate({ bvp: { stage8Evidence: evidence } });
     expect(overridden.errors).toEqual(expect.arrayContaining([
@@ -269,166 +263,17 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
     ]));
   });
 
-  it('server-side validation rejects an unsigned forged dynamic resolver record', () => {
+  it('accepts simple current system-resolved records without fingerprints or signatures', () => {
     const engine = new LLXECRSimulatorEngine();
-    const candidate = {
-      ...findEcr2Stage8Evidence('physical_mw_sat'),
-      status: 'AUTO_RESOLVED_PENDING_ACCEPTANCE' as const,
-      value: 300,
-      source: 'forged dynamic source',
-    };
-    const evidence = Object.fromEntries(ECR2_STAGE8_EVIDENCE_CATALOG.map((record) => {
-      const fingerprint = ecr2Stage8EvidenceFingerprint(record);
-      return [record.id, {
-        status: 'ENGINEER_OVERRIDE',
-        originalEvidence: fingerprint,
-        resolverFingerprint: fingerprint,
-        overrideReason: 'Controlled engineering exception',
-        overrideUser: '23',
-        overrideAt: '2026-08-22T10:00:00.000Z',
-      }];
-    }));
-    const forgedFingerprint = ecr2Stage8EvidenceFingerprint(candidate);
-    evidence.physical_mw_sat = {
-      status: 'ACCEPTED_AUTO_BASIS',
-      originalEvidence: forgedFingerprint,
-      resolverFingerprint: forgedFingerprint,
-      resolverRecord: candidate,
-      // Deliberately no resolverSignature.
-    };
+    const evidence = Object.fromEntries(ECR2_STAGE8_EVIDENCE_CATALOG.map((record) => [
+      record.id,
+      record.id === 'kuhni_shd_c2'
+        ? { status: 'ENGINEER_OVERRIDE', value: 1.2, source: 'Scoped Kühni evidence' }
+        : { status: 'ACCEPTED_AUTO_BASIS', value: record.value ?? 1e-9, source: record.source },
+    ]));
     const validation = engine.validate({ bvp: { stage8Evidence: evidence } });
-    expect(validation.errors).toEqual(expect.arrayContaining([
+    expect(validation.errors).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ field: 'bvp.stage8Evidence.physical_mw_sat', severity: 'error' }),
     ]));
-  });
-
-  it('requires a server-stamped accepting engineer and timestamp even for a signed resolver candidate', () => {
-    const previousSecret = process.env.SESSION_SECRET;
-    process.env.SESSION_SECRET = 'stage8-test-signing-secret-minimum-length';
-    try {
-      const engine = new LLXECRSimulatorEngine();
-      const candidate = {
-        ...findEcr2Stage8Evidence('physical_mw_sat'),
-        status: 'AUTO_RESOLVED_PENDING_ACCEPTANCE' as const,
-        value: 300,
-        source: 'server-controlled dynamic source',
-      };
-      const evidence = Object.fromEntries(ECR2_STAGE8_EVIDENCE_CATALOG.map((record) => {
-        const fingerprint = ecr2Stage8EvidenceFingerprint(record);
-        return [record.id, {
-          status: 'ENGINEER_OVERRIDE',
-          originalEvidence: fingerprint,
-          resolverFingerprint: fingerprint,
-          overrideReason: 'Controlled engineering exception',
-          overrideUser: '23',
-          overrideAt: '2026-08-22T10:00:00.000Z',
-        }];
-      }));
-      const fingerprint = ecr2Stage8EvidenceFingerprint(candidate);
-      evidence.physical_mw_sat = {
-        status: 'ACCEPTED_AUTO_BASIS',
-        originalEvidence: fingerprint,
-        resolverFingerprint: fingerprint,
-        resolverRecord: candidate,
-        resolverSignature: signEcr2Stage8ResolverRecord(fingerprint),
-      };
-      const validation = engine.validate({ bvp: { stage8Evidence: evidence } });
-      expect(validation.errors).toEqual(expect.arrayContaining([
-        expect.objectContaining({ field: 'bvp.stage8Evidence.physical_mw_sat', severity: 'error' }),
-      ]));
-    } finally {
-      if (previousSecret === undefined) delete process.env.SESSION_SECRET;
-      else process.env.SESSION_SECRET = previousSecret;
-    }
-  });
-
-  it('accepts a server-signed dynamic resolver record while retaining its exact fingerprint', () => {
-    const previousSecret = process.env.SESSION_SECRET;
-    process.env.SESSION_SECRET = 'stage8-test-signing-secret-minimum-length';
-    try {
-      const engine = new LLXECRSimulatorEngine();
-      const candidate = {
-        ...findEcr2Stage8Evidence('physical_mw_sat'),
-        status: 'AUTO_RESOLVED_PENDING_ACCEPTANCE' as const,
-        value: 300,
-        source: 'server-controlled dynamic source',
-      };
-      const evidence = Object.fromEntries(ECR2_STAGE8_EVIDENCE_CATALOG.map((record) => {
-        const fingerprint = ecr2Stage8EvidenceFingerprint(record);
-        return [record.id, {
-          status: 'ENGINEER_OVERRIDE',
-          originalEvidence: fingerprint,
-          resolverFingerprint: fingerprint,
-          overrideReason: 'Controlled engineering exception',
-          overrideUser: '23',
-          overrideAt: '2026-08-22T10:00:00.000Z',
-        }];
-      }));
-      const fingerprint = ecr2Stage8EvidenceFingerprint(candidate);
-      evidence.physical_mw_sat = {
-        status: 'ACCEPTED_AUTO_BASIS',
-        originalEvidence: fingerprint,
-        resolverFingerprint: fingerprint,
-        resolverRecord: candidate,
-        resolverSignature: signEcr2Stage8ResolverRecord(fingerprint),
-      acceptedBy: '23',
-      acceptedAt: '2026-08-22T10:00:00.000Z',
-      };
-      const validation = engine.validate({ bvp: { stage8Evidence: evidence } });
-      expect(validation.errors).not.toEqual(expect.arrayContaining([
-        expect.objectContaining({ field: 'bvp.stage8Evidence.physical_mw_sat', severity: 'error' }),
-      ]));
-    } finally {
-      if (previousSecret === undefined) delete process.env.SESSION_SECRET;
-      else process.env.SESSION_SECRET = previousSecret;
-    }
-  });
-
-  it('rejects a signed resolver record after any governed physical-basis provenance is changed', () => {
-    const previousSecret = process.env.SESSION_SECRET;
-    process.env.SESSION_SECRET = 'stage8-test-signing-secret-minimum-length';
-    try {
-      const engine = new LLXECRSimulatorEngine();
-      const candidate = {
-        ...findEcr2Stage8Evidence('physical_mw_sat'),
-        status: 'AUTO_RESOLVED_PENDING_ACCEPTANCE' as const,
-        value: 269.93,
-        source: 'server-controlled physical-basis source',
-        version: '1.0.0',
-        requiredInputs: ['TBP50', 'specific gravity'],
-        availableInputs: ['controlled preliminary anchors'],
-        missingInputs: ['GC/MS'],
-        uncertainty: '±20%',
-        physicalMwDecision: 'PHYSICAL_MW_PRELIMINARY_APPROVED_BASIS' as const,
-        warnings: ['controlled preliminary warning'],
-      };
-      const evidence = Object.fromEntries(ECR2_STAGE8_EVIDENCE_CATALOG.map((record) => {
-        const fingerprint = ecr2Stage8EvidenceFingerprint(record);
-        return [record.id, {
-          status: 'ENGINEER_OVERRIDE',
-          originalEvidence: fingerprint,
-          resolverFingerprint: fingerprint,
-          overrideReason: 'Controlled engineering exception',
-          overrideUser: '23',
-          overrideAt: '2026-08-22T10:00:00.000Z',
-        }];
-      }));
-      const fingerprint = ecr2Stage8EvidenceFingerprint(candidate);
-      candidate.version = 'tampered';
-      evidence.physical_mw_sat = {
-        status: 'ACCEPTED_AUTO_BASIS',
-        originalEvidence: fingerprint,
-        resolverFingerprint: fingerprint,
-        resolverRecord: candidate,
-        resolverSignature: signEcr2Stage8ResolverRecord(fingerprint),
-      };
-      const validation = engine.validate({ bvp: { stage8Evidence: evidence } });
-      expect(validation.errors).toEqual(expect.arrayContaining([
-        expect.objectContaining({ field: 'bvp.stage8Evidence.physical_mw_sat', severity: 'error' }),
-      ]));
-    } finally {
-      if (previousSecret === undefined) delete process.env.SESSION_SECRET;
-      else process.env.SESSION_SECRET = previousSecret;
-    }
   });
 });

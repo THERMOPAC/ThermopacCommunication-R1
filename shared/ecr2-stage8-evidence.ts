@@ -625,30 +625,3 @@ export function findEcr2Stage8Evidence(id: ECR2Stage8NumericalParameterId): ECR2
   if (!record) throw new Error(`Unknown ECR-2 Stage 8 evidence record '${id}'.`);
   return record;
 }
-
-/** Stable server-side provenance payload for a Stage 8 catalog resolution. */
-export function ecr2Stage8EvidenceFingerprint(record: ECR2Stage8EvidenceRecord): string {
-  return JSON.stringify({
-    id: record.id,
-    value: record.value ?? null,
-    unit: record.unit,
-    evidenceLevel: record.evidenceLevel,
-    status: record.status,
-    basis: record.basis,
-    method: record.method,
-    source: record.source,
-    applicability: record.applicability,
-    validationStatus: record.validationStatus,
-    validatedForRRBONMP: record.validatedForRRBONMP ?? null,
-    pilotCalibrationStatus: record.pilotCalibrationStatus ?? null,
-    warnings: record.warnings,
-    resolutionInputs: record.resolutionInputs ?? [],
-    inputSnapshot: record.inputSnapshot ?? {},
-    version: record.version ?? null,
-    requiredInputs: record.requiredInputs ?? [],
-    availableInputs: record.availableInputs ?? [],
-    missingInputs: record.missingInputs ?? [],
-    uncertainty: record.uncertainty ?? null,
-    physicalMwDecision: record.physicalMwDecision ?? null,
-  });
-}

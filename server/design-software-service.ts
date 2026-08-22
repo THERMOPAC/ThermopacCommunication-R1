@@ -479,6 +479,14 @@ export async function upsertInput(
   const removeKeys = Object.keys(data).filter((k) => data[k] === null);
   const setData: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(data)) if (v !== null) setData[k] = v;
+  // Bulk Stage 8 acceptance is set only by the dedicated resolver endpoint.
+  // Ordinary browser section saves preserve an already accepted server state
+  // but cannot manufacture, clear, or replace it.
+  if (section === 'ecr_simulator') {
+    delete setData.stage8_system_values_acceptance_status;
+    const acceptanceKeyIndex = removeKeys.indexOf('stage8_system_values_acceptance_status');
+    if (acceptanceKeyIndex >= 0) removeKeys.splice(acceptanceKeyIndex, 1);
+  }
 
   const result = await pool.query(
     `INSERT INTO design_software_inputs (revision_id, section, data, engine_version, updated_by)
@@ -558,6 +566,92 @@ export async function previewEcr2Stage8Resolution(revisionId: number) {
     unresolvedCount: 15,
     records: {},
   };
+}
+
+/**
+ * Accept every currently resolved Stage 8 numerical candidate in one
+ * server-side operation. Stage 8 stores one current acceptance state only;
+ * it deliberately keeps no per-value signature, fingerprint, or history.
+ */
+export async function acceptAllEcr2Stage8ResolvedValues(revisionId: number, userId: number) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const revRow = await client.query(
+      `SELECT r.id, r.is_frozen, d.module_type
+       FROM design_software_revisions r
+       JOIN design_software_designs d ON d.id = r.design_id
+       WHERE r.id = $1
+       FOR UPDATE`,
+      [revisionId],
+    );
+    const revision = revRow.rows[0];
+    if (!revision) throw new Error('Revision not found');
+    if (revision.is_frozen) throw new Error('This revision is frozen (status is checked or higher). Create a new revision to make changes.');
+    if (revision.module_type !== 'llx') throw new Error('Stage 8 acceptance is available only for LLX revisions');
+
+    const inputRows = await client.query(
+      'SELECT section, data FROM design_software_inputs WHERE revision_id = $1 ORDER BY section',
+      [revisionId],
+    );
+    const inputs: Record<string, unknown> = {};
+    for (const row of inputRows.rows) Object.assign(inputs, row.data);
+    const mapped = mapWorkspaceProcessDesignInputs(inputs, 'ecr_simulator') as {
+      bvp?: { stage8Resolution?: { records?: Record<string, any> } };
+    };
+    const records = mapped.bvp?.stage8Resolution?.records ?? {};
+    const acceptanceFields: Record<string, string> = {};
+    const acceptedIds: string[] = [];
+
+    for (const [id, record] of Object.entries(records)) {
+      const isResolved = (record.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE'
+        || record.status === 'CALCULATED_PRELIMINARY')
+        && typeof record.value === 'number'
+        && Number.isFinite(record.value)
+        && record.value > 0;
+      if (!isResolved) continue;
+      acceptedIds.push(id);
+    }
+
+    if (acceptedIds.length > 0) acceptanceFields.stage8_system_values_acceptance_status = 'ACCEPTED';
+    const prefixes = [
+      'molecular_weight_sat', 'molecular_weight_mono', 'molecular_weight_di', 'molecular_weight_poly',
+      'diffusivity_sat_c', 'diffusivity_sat_d', 'diffusivity_mono_c', 'diffusivity_mono_d',
+      'diffusivity_di_c', 'diffusivity_di_d', 'diffusivity_poly_c', 'diffusivity_poly_d',
+      'diffusivity_nmp_c', 'diffusivity_nmp_d', 'kuhni_shd_c2',
+    ];
+    const obsoleteAuditKeys = [
+      'stage8_system_values_acceptance_status',
+      ...prefixes.flatMap((prefix) => [
+        `${prefix}_evidence_status`, `${prefix}_original_evidence`,
+        `${prefix}_resolver_fingerprint`, `${prefix}_resolver_signature`,
+        `${prefix}_accepted_by`, `${prefix}_accepted_at`,
+        `${prefix}_override_reason`, `${prefix}_override_user`, `${prefix}_override_at`,
+      ]),
+    ];
+    await client.query(
+      `INSERT INTO design_software_inputs (revision_id, section, data, engine_version, updated_by)
+       VALUES ($1, 'ecr_simulator', $2::jsonb, '1.0.0', $3)
+       ON CONFLICT (revision_id, section)
+       DO UPDATE SET
+         data = (COALESCE(design_software_inputs.data, '{}'::jsonb) - $4::text[]) || EXCLUDED.data,
+         engine_version = EXCLUDED.engine_version,
+         updated_by = EXCLUDED.updated_by,
+         updated_at = NOW()`,
+      [revisionId, JSON.stringify(acceptanceFields), userId, obsoleteAuditKeys],
+    );
+    await client.query(
+      'UPDATE design_software_revisions SET lock_version = lock_version + 1, updated_at = NOW() WHERE id = $1',
+      [revisionId],
+    );
+    await client.query('COMMIT');
+    return { acceptedIds };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**

@@ -750,6 +750,20 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
     }
   });
 
+  /** Accept all current governed Stage 8 candidates in one server-signed audit operation. */
+  app.post('/api/design-software/revisions/:id/ecr2-stage8-resolution/accept-all', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const revisionId = parseInt(req.params.id);
+      if (isNaN(revisionId)) return res.status(400).json({ error: 'Invalid revision id' });
+      res.json(await svc.acceptAllEcr2Stage8ResolvedValues(revisionId, (req.user as any).id));
+    } catch (err: any) {
+      const status = err.message?.includes('frozen') ? 409
+        : err.message?.includes('not found') ? 404
+          : err.message?.includes('only for LLX') ? 422 : 500;
+      res.status(status).json({ error: err.message });
+    }
+  });
+
   /** Stage 9 — fully automatic nozzle generation & preliminary sizing from
    *  controlled Thermopac nozzle master data. Returns rows + validation issues;
    *  the client saves them via the ordinary input-save path. */

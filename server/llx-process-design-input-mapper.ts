@@ -18,13 +18,11 @@ import { getProperty } from './engine-framework/epd/database';
 import { getPacking } from './engine-framework/packing/database';
 import { DUSS2013_DATASETS } from './engine-framework/cel/packing-single-phase';
 import {
-  ecr2Stage8EvidenceFingerprint,
   findEcr2Stage8Evidence,
   resolveEcr2Stage8Evidence,
 } from '../shared/ecr2-stage8-evidence';
 import { getEcr2PhysicalComponentBasis } from '../shared/ecr2-physical-property-basis';
 import { resolveRrboSn300DynamicViscosityAtTemperature } from '../shared/ecr2-stage8-transport-basis';
-import { signEcr2Stage8ResolverRecord } from './engines/llx/llx-ecr2-stage8-resolution-signature';
 
 const num = (v: unknown): number | undefined => {
   if (v === null || v === undefined) return undefined;
@@ -640,13 +638,22 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       composition[key === 'sat' ? 'saturates' : key] ?? inputs[`rrbo_${key === 'sat' ? 'saturates' : `${key}_aromatics`}_wt`],
     ));
     const compositionSum = componentMassFractions.reduce<number>((sum, value) => sum + (value ?? 0), 0);
-    const normalizedMassFractions = compositionSum > 0
-      ? componentMassFractions.map((value) => (value ?? 0) / (compositionSum > 1.5 ? 100 : 1))
+    const compositionUsesPercent = compositionSum > 1.5;
+    const expectedCompositionTotal = compositionUsesPercent ? 100 : 1;
+    // Composition values are commonly rounded to four decimal places in the
+    // workspace (for example 75 + 3 × 8.3333 = 99.9999). Accept that normal
+    // reporting precision, then normalize before the harmonic-average MW.
+    // Materially incomplete compositions remain a named root gap.
+    const compositionIsClosed = compositionSum > 0
+      && Math.abs(compositionSum - expectedCompositionTotal)
+        <= (compositionUsesPercent ? 0.01 : 0.0001);
+    const normalizedMassFractions = compositionIsClosed
+      ? componentMassFractions.map((value) => (value ?? 0) / compositionSum)
       : [];
     const rrboMolecularWeight = registeredPhysicalBasis
       && normalizedMassFractions.length === 4
       && normalizedMassFractions.every((value) => Number.isFinite(value) && value > 0)
-      && Math.abs(normalizedMassFractions.reduce((sum, value) => sum + value, 0) - 1) < 1e-6
+        && Math.abs(normalizedMassFractions.reduce((sum, value) => sum + value, 0) - 1) < 1e-9
       ? (() => {
         const bases = ['sat', 'mono', 'di', 'poly'] as const;
         const inverseAverage = bases.reduce((sum, key, index) =>
@@ -735,41 +742,28 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       physicalComponents: physicalComponents as any,
     });
     const legacyMw = asRecord(parseJson(simValue('molecularWeights')));
-    const stage8Evidence: Record<string, {
-      status: string;
-      originalEvidence: string;
-      resolverFingerprint: string;
-      overrideReason: string;
-      overrideUser: string;
-      overrideAt: string;
-      acceptedBy: string;
-      acceptedAt: string;
-    }> = {};
-    const stage8Audit = (id: Parameters<typeof findEcr2Stage8Evidence>[0], prefix: string) => {
+    const systemValuesAccepted = String(simValue('stage8_system_values_acceptance_status') ?? '') === 'ACCEPTED';
+    const stage8Evidence: Record<string, Record<string, unknown>> = {};
+    const stage8ValueRecord = (id: Parameters<typeof findEcr2Stage8Evidence>[0], prefix: string) => {
       const record = stage8Resolution.records[id] ?? findEcr2Stage8Evidence(id);
       const requestedStatus = String(simValue(`${prefix}_evidence_status`) ?? '');
       const isOverride = requestedStatus === 'ENGINEER_OVERRIDE';
-      const originalEvidence = String(simValue(`${prefix}_original_evidence`) ?? '');
-      const requestedFingerprint = String(simValue(`${prefix}_resolver_fingerprint`) ?? '');
-      const isAcceptedAutoBasis = requestedStatus === 'ACCEPTED_AUTO_BASIS'
-        && (record.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' || record.status === 'CALCULATED_PRELIMINARY')
-        && typeof record.value === 'number'
-        && originalEvidence === ecr2Stage8EvidenceFingerprint(record)
-        && requestedFingerprint === ecr2Stage8EvidenceFingerprint(record);
-      const fingerprint = ecr2Stage8EvidenceFingerprint(record);
+      const systemResolved = (record.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' || record.status === 'CALCULATED_PRELIMINARY')
+        && typeof record.value === 'number';
       return {
-      // The workspace never authorizes an auto-resolution. Only a trusted catalog
-      // candidate may be accepted; otherwise its blocking state is preserved.
-      status: isOverride ? 'ENGINEER_OVERRIDE' : isAcceptedAutoBasis ? 'ACCEPTED_AUTO_BASIS' : record.status,
-       originalEvidence: fingerprint,
-      resolverFingerprint: fingerprint,
-      overrideReason: String(simValue(`${prefix}_override_reason`) ?? ''),
-      overrideUser: isOverride ? String(inputs.__stage8_actor_id ?? '') : '',
-      overrideAt: isOverride ? String(inputs.__stage8_server_timestamp ?? '') : '',
-       acceptedBy: isAcceptedAutoBasis ? String(inputs.__stage8_actor_id ?? '') : '',
-       acceptedAt: isAcceptedAutoBasis ? String(inputs.__stage8_server_timestamp ?? '') : '',
-       resolverRecord: record,
-       resolverSignature: signEcr2Stage8ResolverRecord(fingerprint),
+        id: record.id,
+        status: isOverride ? 'ENGINEER_OVERRIDE' : systemValuesAccepted && systemResolved ? 'ACCEPTED_AUTO_BASIS' : record.status,
+        value: record.value,
+        unit: record.unit,
+        source: record.source,
+        method: record.method,
+        evidenceLevel: record.evidenceLevel,
+        validatedForRRBONMP: record.validatedForRRBONMP,
+        pilotCalibrationStatus: record.pilotCalibrationStatus,
+        warnings: record.warnings,
+        blockingReason: record.blockingReason,
+        resolutionInputs: record.resolutionInputs,
+        inputSnapshot: record.inputSnapshot,
       };
     };
     const physicalMwFields = [
@@ -780,39 +774,34 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     ] as const;
     const readPhysicalMw = (key: string, legacyKey: string) => {
       const prefix = `molecular_weight_${key}`;
-      const audit = stage8Audit(
+      const valueRecord = stage8ValueRecord(
         `physical_mw_${key}` as 'physical_mw_sat' | 'physical_mw_mono' | 'physical_mw_di' | 'physical_mw_poly',
         prefix,
       );
-      stage8Evidence[`physical_mw_${key}`] = audit;
+      stage8Evidence[`physical_mw_${key}`] = valueRecord;
       const value = simNum(`molecular_weight_${key}_value`);
       const sourceType = String(simValue(`molecular_weight_${key}_source_type`) ?? '').trim();
       const sourceReference = String(simValue(`molecular_weight_${key}_source_reference`) ?? '').trim();
-      const automatic = (audit as any).resolverRecord;
-       if ((automatic?.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' || automatic?.status === 'CALCULATED_PRELIMINARY')
+      const automatic = valueRecord;
+        if ((automatic.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' || automatic.status === 'CALCULATED_PRELIMINARY' || automatic.status === 'ACCEPTED_AUTO_BASIS')
          && typeof automatic.value === 'number') {
         return {
           value: automatic.value,
           unit: 'g/mol',
           sourceType: automatic.evidenceLevel === 'ENGINEER_APPROVED_PRELIMINARY' ? 'Assumed' : 'Literature',
           sourceReference: automatic.source,
-          evidenceStatus: audit.status,
-          originalEvidence: audit.originalEvidence,
+          evidenceStatus: valueRecord.status,
           resolverMethod: automatic.method,
           resolverInputs: automatic.inputSnapshot ?? automatic.resolutionInputs,
         };
       }
-      if (audit.status === 'ENGINEER_OVERRIDE' && (value !== undefined || sourceType !== '' || sourceReference !== '')) {
+       if (valueRecord.status === 'ENGINEER_OVERRIDE' && (value !== undefined || sourceType !== '' || sourceReference !== '')) {
         return {
           value: value ?? Number.NaN,
           unit: 'g/mol',
           sourceType,
           sourceReference,
-          evidenceStatus: audit.status,
-          originalEvidence: audit.originalEvidence,
-          overrideReason: audit.overrideReason,
-          overrideUser: audit.overrideUser,
-          overrideAt: audit.overrideAt,
+          evidenceStatus: valueRecord.status,
         };
       }
       return legacyMw[legacyKey];
@@ -843,14 +832,14 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
         const sourceReference = String(simValue(`${prefix}_source_reference`) ?? '').trim();
         const referenceTemperature_C = simNum(`${prefix}_reference_temperature_c`);
         const method = String(simValue(`${prefix}_method`) ?? '').trim();
-        stage8Evidence[prefix] = stage8Audit(
+        stage8Evidence[prefix] = stage8ValueRecord(
           prefix as Parameters<typeof findEcr2Stage8Evidence>[0],
           prefix,
         );
         const hasFlatValue = value !== undefined || sourceType !== '' || sourceReference !== ''
           || referenceTemperature_C !== undefined || method !== '';
-        const automatic = (stage8Evidence[prefix] as any).resolverRecord;
-        if ((automatic?.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' || automatic?.status === 'CALCULATED_PRELIMINARY')
+        const automatic = stage8Evidence[prefix];
+        if ((automatic.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' || automatic.status === 'CALCULATED_PRELIMINARY' || automatic.status === 'ACCEPTED_AUTO_BASIS')
           && typeof automatic.value === 'number') {
           hasDiffusivityInput = true;
           pair[phase === 'c' ? 'De_c' : 'De_d'] = {
@@ -884,9 +873,9 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     const shdValue = simNum('kuhni_shd_c2_value');
     const shdSourceType = String(simValue('kuhni_shd_c2_source_type') ?? '').trim();
     const shdSourceReference = String(simValue('kuhni_shd_c2_source_reference') ?? '').trim();
-    stage8Evidence.kuhni_shd_c2 = stage8Audit('kuhni_shd_c2', 'kuhni_shd_c2');
-    const automaticC2 = (stage8Evidence.kuhni_shd_c2 as any).resolverRecord;
-    if ((automaticC2?.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' || automaticC2?.status === 'CALCULATED_PRELIMINARY')
+    stage8Evidence.kuhni_shd_c2 = stage8ValueRecord('kuhni_shd_c2', 'kuhni_shd_c2');
+    const automaticC2 = stage8Evidence.kuhni_shd_c2;
+    if ((automaticC2.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' || automaticC2.status === 'CALCULATED_PRELIMINARY' || automaticC2.status === 'ACCEPTED_AUTO_BASIS')
       && typeof automaticC2.value === 'number') {
       bvp.kuhniShdC2 = {
         value: automaticC2.value,
@@ -925,6 +914,7 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     // Stage 8 fields. The legacy JSON blob is never required; it is read only
     // to preserve older revisions during migration.
     bvp.stage8Evidence = stage8Evidence;
+    bvp.stage8SystemValuesAcceptanceStatus = systemValuesAccepted ? 'ACCEPTED' : 'PENDING';
     bvp.stage8Resolution = {
       resolver: 'ecr2-stage8-governed-resolver-v1',
       operatingTemperature_C: ot ?? null,

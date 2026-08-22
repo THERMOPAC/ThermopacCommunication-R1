@@ -1,5 +1,3 @@
-import { ecr2Stage8EvidenceFingerprint } from "@shared/ecr2-stage8-evidence";
-
 export const ECR2_STAGE8_COMPONENTS = [
   { key: "sat", label: "Sat", title: "Saturates" },
   { key: "mono", label: "Mono", title: "Mono-aromatics" },
@@ -50,16 +48,7 @@ function acceptedResolverCandidate(
   if (!record || record.id !== evidenceId(prefix)
     || !["AUTO_RESOLVED_PENDING_ACCEPTANCE", "CALCULATED_PRELIMINARY"].includes(text(record.status))
     || !positive(record.value)) return false;
-  const fingerprint = text(sim[`${prefix}_resolver_fingerprint`]);
-  const originalEvidence = text(sim[`${prefix}_original_evidence`]);
-  // The browser stores the server's exact stable fingerprint at the explicit
-  // acceptance action. This lightweight check prevents a stale or unrelated
-  // server candidate from satisfying the manual-input validator; the engine
-  // independently recomputes and signs this identity at calculation time.
-  const expectedFingerprint = ecr2Stage8EvidenceFingerprint(record as any);
-  return text(sim[`${prefix}_evidence_status`]) === "ACCEPTED_AUTO_BASIS"
-    && fingerprint === expectedFingerprint
-    && originalEvidence === expectedFingerprint;
+  return text(sim.stage8_system_values_acceptance_status) === "ACCEPTED";
 }
 
 function evidenceAccepted(
@@ -68,17 +57,11 @@ function evidenceAccepted(
   resolverRecords?: Record<string, ResolverRecord>,
 ): boolean {
   const status = text(sim[`${prefix}_evidence_status`]);
-  const retainedEvidence = text(sim[`${prefix}_original_evidence`]) !== "";
-  if (status === "ACCEPTED_AUTO_BASIS") {
-    return resolverRecords?.[evidenceId(prefix)]
-      ? acceptedResolverCandidate(sim, prefix, resolverRecords)
-      : retainedEvidence;
-  }
+  if (status !== "ENGINEER_OVERRIDE" && acceptedResolverCandidate(sim, prefix, resolverRecords)) return true;
   return status === "ENGINEER_OVERRIDE"
-    && retainedEvidence
-    && text(sim[`${prefix}_override_reason`]) !== ""
-    && text(sim[`${prefix}_override_user`]) !== ""
-    && !Number.isNaN(Date.parse(text(sim[`${prefix}_override_at`])));
+    && positive(sim[`${prefix}_value`])
+    && text(sim[`${prefix}_source_type`]) !== ""
+    && text(sim[`${prefix}_source_reference`]) !== "";
 }
 
 function legacyObject(sim: Record<string, string>, key: string): Record<string, any> {

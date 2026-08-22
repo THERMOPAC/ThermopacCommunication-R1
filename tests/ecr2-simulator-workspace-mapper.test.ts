@@ -65,33 +65,21 @@ describe('ECR-2 simulator workspace adapter', () => {
     expect(mapped.rotorType).toBe('Kühni turbine (default label)');
   });
 
-  it('derives Stage 8 evidence server-side and preserves an auditable override in the engine snapshot', () => {
+  it('derives Stage 8 evidence server-side and keeps an override free of acceptance audit fields', () => {
     const mapped = mapWorkspaceProcessDesignInputs({
-      __stage8_actor_id: '3',
-      __stage8_server_timestamp: '2026-08-22T10:00:00.000Z',
       molecular_weight_sat_value: '330',
       molecular_weight_sat_source_type: 'Literature',
       molecular_weight_sat_source_reference: 'RRBO characterization',
       molecular_weight_sat_evidence_status: 'ENGINEER_OVERRIDE',
-      molecular_weight_sat_original_evidence: 'original record',
-      molecular_weight_sat_override_reason: 'Approved engineering exception',
-      molecular_weight_sat_override_user: '3',
-      molecular_weight_sat_override_at: '2026-08-22T10:00:00.000Z',
       diffusivity_sat_c_value: '0.000000001',
       diffusivity_sat_c_source_type: 'Literature',
       diffusivity_sat_c_source_reference: 'Wilke-Chang evidence',
       diffusivity_sat_c_reference_temperature_c: '70',
       diffusivity_sat_c_method: 'Wilke-Chang (1955)',
-      diffusivity_sat_c_evidence_status: 'ACCEPTED_AUTO_BASIS',
-      diffusivity_sat_c_original_evidence: 'resolved at 70 C',
       kuhni_shd_c2_value: '1.2',
       kuhni_shd_c2_source_type: 'Literature',
       kuhni_shd_c2_source_reference: 'Scoped Kühni evidence',
       kuhni_shd_c2_evidence_status: 'ENGINEER_OVERRIDE',
-      kuhni_shd_c2_original_evidence: 'approval candidate',
-      kuhni_shd_c2_override_reason: 'Approved engineering exception',
-      kuhni_shd_c2_override_user: '3',
-      kuhni_shd_c2_override_at: '2026-08-22T10:00:00.000Z',
       partition_basis_approval_status: 'engineer_approved_governed',
       partition_basis_source_reference: 'Governing relation review',
       partition_basis_approved_by: 'A. Engineer',
@@ -101,21 +89,16 @@ describe('ECR-2 simulator workspace adapter', () => {
     expect(mapped.molecularWeights).toMatchObject({
       saturates_g_mol: {
         evidenceStatus: 'ENGINEER_OVERRIDE',
-        originalEvidence: expect.stringContaining('"id":"physical_mw_sat"'),
       },
     });
     expect(mapped.bvp).toMatchObject({
       stage8Evidence: {
         diffusivity_sat_c: {
           status: 'BLOCKED_MISSING_REQUIRED_EVIDENCE',
-          originalEvidence: expect.stringContaining('"id":"diffusivity_sat_c"'),
         },
         kuhni_shd_c2: {
           status: 'ENGINEER_OVERRIDE',
-          originalEvidence: expect.stringContaining('"id":"kuhni_shd_c2"'),
-          overrideReason: 'Approved engineering exception',
-          overrideUser: '3',
-          overrideAt: '2026-08-22T10:00:00.000Z',
+          value: undefined,
         },
       },
       partitionBasis: {
@@ -138,10 +121,9 @@ describe('ECR-2 simulator workspace adapter', () => {
     const resolution = (mapped.bvp as any).stage8Resolution;
     expect(Object.keys(evidence)).toHaveLength(15);
     expect(evidence.physical_mw_sat.status).toBe('AUTO_RESOLVED_PENDING_ACCEPTANCE');
-    expect(evidence.physical_mw_sat.resolverRecord).toMatchObject({
+    expect(evidence.physical_mw_sat).toMatchObject({
       value: 269.93,
       evidenceLevel: 'ENGINEER_APPROVED_PRELIMINARY',
-      physicalMwDecision: 'PHYSICAL_MW_PRELIMINARY_APPROVED_BASIS',
     });
     expect(evidence.diffusivity_sat_c.status).toBe('CALCULATED_PRELIMINARY');
     expect(evidence.diffusivity_sat_d.status).toBe('CALCULATED_PRELIMINARY');
@@ -167,6 +149,23 @@ describe('ECR-2 simulator workspace adapter', () => {
     expect(resolution.records.diffusivity_sat_d.inputSnapshot).toMatchObject({
       temperature_C: 60,
     });
+  });
+
+  it('normalizes a normally rounded 99.9999% SN300 composition before resolving the RRBO-rich diffusivities', () => {
+    const mapped = mapWorkspaceProcessDesignInputs({
+      feed_service: 'Re-Refined Base Oil SN300',
+      operating_temperature: '70',
+      rrbo_saturates_wt: '75',
+      rrbo_mono_aromatics_wt: '8.3333',
+      rrbo_di_aromatics_wt: '8.3333',
+      rrbo_poly_aromatics_wt: '8.3333',
+    }, 'ecr_simulator');
+    const resolution = (mapped.bvp as any).stage8Resolution;
+
+    expect(resolution.autoPopulatedCount).toBe(14);
+    expect(resolution.unresolvedCount).toBe(1);
+    expect(resolution.records.diffusivity_sat_d.status).toBe('CALCULATED_PRELIMINARY');
+    expect(resolution.records.diffusivity_nmp_d.status).toBe('CALCULATED_PRELIMINARY');
   });
 
   it('does not let the SN300 preliminary family basis leak to another RRBO grade', () => {
