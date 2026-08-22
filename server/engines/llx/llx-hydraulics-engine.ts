@@ -85,7 +85,44 @@ const MODERATE_HOLDUP_LIMIT = 0.60;
 const GRAVITY_M_S2 = 9.80665;
 const ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY = 'ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY';
 const KUHNI_VK_ROUTE_REFERENCE =
-  'Asadollahzadeh 2017 Kühni characteristic-velocity expression — engineer-supplied preliminary equation; bibliographic applicability and unit verification pending';
+  'Asadollahzadeh, M.; Torkaman, R.; Torab-Mostaedi, M. “New correlations for slip velocity and characteristic velocity in a rotary liquid–liquid extraction column.” Chemical Engineering Research & Design 127 (2017), 146–153. https://doi.org/10.1016/j.cherd.2017.07.032';
+
+// This is deliberately a server-owned evidence record, not a workspace field.
+// The bibliographic record and abstract have been checked, but the available
+// source material does not expose the equation page needed to verify its native
+// output units, fitted ranges, or complete pilot geometry. Do not infer those
+// facts from the supplied expression or let a client-side checkbox advance it.
+const KUHNI_VK_SOURCE_EVIDENCE = Object.freeze({
+  status: 'bibliography_verified_evidence_incomplete',
+  capacitySweepAllowed: false,
+  primarySource: {
+    citation: KUHNI_VK_ROUTE_REFERENCE,
+    verification: 'Bibliographic record and abstract verified',
+  },
+  equation: {
+    suppliedExpression: 'V_k = 0.237·(ρ_c/Δρ)^0.741·Fr^-0.184·N_μ^-0.095·(1+0.052·α_MT)',
+    nativeOutputUnit: null,
+    unitStatus: 'Not verified from the primary equation page',
+    transcriptionStatus: 'Supplied expression retained only as a preliminary transcription',
+  },
+  applicability: {
+    validRanges: null,
+    rangeStatus: 'Not extracted from the primary source',
+    testedSystem: 'Kühni liquid–liquid extraction column; the indexed abstract describes three liquid–liquid systems with and without mass transfer, including toluene–water work with silica nanoparticles.',
+    testedGeometry: null,
+    geometryStatus: 'Pilot geometry not verified from the primary source',
+    projectApplicability: 'No NMP/RRBO applicability or calibration has been established.',
+  },
+  blockers: [
+    'Native V_k output unit is not verified.',
+    'Fitted validity ranges are not verified.',
+    'Tested column geometry is not verified.',
+    'The tested systems are not the NMP/RRBO project system.',
+    'A separately sourced route-specific hindrance exponent m remains required.',
+    'Engineer review has not approved a capacity or sizing use.',
+  ],
+  reviewStatus: 'Capacity and diameter use blocked pending evidence review',
+});
 
 const C3_PRESSURE_DROP_CLASSIFICATION = 'Controlled Literature Prediction — Preliminary / Pending RRBO-NMP Validation';
 const ALLOWED_CF_PROVENANCE = ['measured', 'controlled_literature', 'vendor_document'] as const;
@@ -175,7 +212,7 @@ function calculateAsadollahzadehKuhniVk(input: {
     * directionFactor;
 
   return {
-    velocity_m_s: velocity,
+    nativeOutputValue: velocity,
     froudeNumber: froude,
     mortonNumber: morton,
     rotorDiameter_m,
@@ -592,6 +629,11 @@ export class LLXHydraulicsEngine implements IDesignEngine {
           : kuhniTransferDirection === 'c_to_d'
             ? -1
             : undefined;
+      // Only the server-owned evidence record can allow a route-specific
+      // capacity sweep. A separately sourced m is necessary but not sufficient.
+      const kuhniCapacitySweepAllowed = usesKuhniVkRoute
+        && KUHNI_VK_SOURCE_EVIDENCE.capacitySweepAllowed
+        && kuhniM !== undefined;
       let uK: number | undefined;
       let uKBasis: string | undefined;
       let holdupForcePending = false;
@@ -599,11 +641,11 @@ export class LLXHydraulicsEngine implements IDesignEngine {
         uKBasis = `PRELIMINARY — ${ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY}; calculated per trial diameter from Stage 4 operating-temperature properties and Stage 7 rotor ratio/speed`;
         holdupForcePending = true;
         warnings.push({
-          code: 'ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY',
-          message: `${ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY} is a preliminary, per-diameter characteristic-velocity route. It does not reuse the rigid-sphere terminal velocity.`,
+          code: 'KUHNI_VK_SOURCE_EVIDENCE_INCOMPLETE',
+          message: `${ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY} retains the primary bibliography, but its native output unit, valid ranges, and tested geometry are not yet verified. V_k is shown only as a native preliminary expression output; no holdup, capacity, feasibility, or diameter sweep is run.`,
         });
         assumptions.push({
-          assumption: 'Characteristic velocity is calculated by the preliminary Asadollahzadeh 2017 Kühni V_k expression; source applicability and SI output-unit verification remain pending',
+          assumption: 'The Asadollahzadeh 2017 V_k expression is retained as preliminary evidence only; its native output units, validity envelope, geometry, project applicability, and capacity-use approval are incomplete.',
           sourceType: 'Literature',
           sourceReference: KUHNI_VK_ROUTE_REFERENCE,
           scope: 'run',
@@ -634,7 +676,7 @@ export class LLXHydraulicsEngine implements IDesignEngine {
           assumptions.push({ assumption: `Hindrance exponent n = ${nExp} is ASSUMED`, sourceType: nEntered.sourceType, sourceReference: nEntered.sourceReference, scope: 'run' });
         }
       }
-      const holdupBasisAvailable = (uK !== undefined || usesKuhniVkRoute) && nExp !== undefined;
+      const holdupBasisAvailable = (uK !== undefined && nExp !== undefined) || kuhniCapacitySweepAllowed;
 
       // Configurable bounds / band / tolerance — all stored in the snapshot
       const hbIn = inputs.holdupBounds as Record<string, unknown> | undefined;
@@ -687,7 +729,7 @@ export class LLXHydraulicsEngine implements IDesignEngine {
                 alphaMT: kuhniAlphaMT,
               })
             : undefined;
-          const uKAtDiameter = usesKuhniVkRoute ? kuhniVk?.velocity_m_s : uK;
+          const uKAtDiameter = kuhniCapacitySweepAllowed ? kuhniVk?.nativeOutputValue : uK;
           const rowSlipFn = holdupBasisAvailable && uKAtDiameter !== undefined
             ? (phi: number) => uKAtDiameter * Math.pow(1 - phi, nExp!)
             : undefined;
@@ -695,7 +737,8 @@ export class LLXHydraulicsEngine implements IDesignEngine {
             row.characteristicVelocity = {
               routeId: ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY,
               classification: 'Pending Validation' as Classification,
-              value_m_s: kuhniVk.velocity_m_s,
+              nativeOutputValue: kuhniVk.nativeOutputValue,
+              nativeOutputUnit: KUHNI_VK_SOURCE_EVIDENCE.equation.nativeOutputUnit,
               froudeNumber: kuhniVk.froudeNumber,
               mortonNumber: kuhniVk.mortonNumber,
               rotorDiameter_m: kuhniVk.rotorDiameter_m,
@@ -704,19 +747,25 @@ export class LLXHydraulicsEngine implements IDesignEngine {
               transferDirection: kuhniTransferDirection,
               equation: 'V_k = 0.237·(ρ_c/Δρ)^0.741·Fr^-0.184·N_μ^-0.095·(1+0.052·α_MT)',
               sourceReference: KUHNI_VK_ROUTE_REFERENCE,
+              evidenceStatus: KUHNI_VK_SOURCE_EVIDENCE.status,
+              capacitySweepAllowed: KUHNI_VK_SOURCE_EVIDENCE.capacitySweepAllowed,
             };
           }
           if (!rowSlipFn) {
             row.holdup = {
               classification: 'Not Calculable' as Classification,
               reason: usesKuhniVkRoute
-                ? 'Kühni V_k was calculated, but the route-specific hindrance exponent m is absent. The rigid-sphere route n is not reused.'
+                ? (kuhniM
+                  ? 'Kühni V_k and route-specific m were supplied, but capacity use is blocked until the primary source native output unit, fitted validity ranges, tested geometry, project applicability, and engineer review are verified.'
+                  : 'Kühni V_k was calculated, but the route-specific hindrance exponent m is absent. The rigid-sphere route n is not reused. Source evidence also remains incomplete.')
                 : 'No characteristic-velocity basis: enter source-tagged characteristicVelocity + hindranceExponent, or set useTerminalVelocityAsCharacteristic (with d32).',
             };
             row.genericHydraulicThroughputMaximum = {
               classification: 'Not Calculable' as Classification,
               reason: usesKuhniVkRoute
-                ? 'Kühni-route limiting throughput requires a separately sourced route-specific hindrance exponent m.'
+                ? (kuhniM
+                  ? 'Kühni-route capacity sweep is blocked by incomplete primary-source evidence and missing engineer approval.'
+                  : 'Kühni-route limiting throughput requires a separately sourced route-specific hindrance exponent m; primary-source evidence is also incomplete.')
                 : 'No complete characteristic-velocity and hindrance-exponent basis.',
             };
             row.percentageOfGenericHydraulicThroughputMaximum = null;
@@ -994,9 +1043,10 @@ export class LLXHydraulicsEngine implements IDesignEngine {
               rotorSpeed: kuhniRotorSpeed ?? null,
               routeSpecificHindranceExponent: kuhniM ?? null,
               routeSpecificHindranceNote: kuhniM
-                ? 'Route-specific m supplied; the generic slip model remains preliminary.'
+                ? 'Route-specific m is separately supplied and retained for review, but it cannot enable capacity use while the V_k source evidence is incomplete.'
                 : 'No route-specific m supplied. The rigid-sphere route n is not reused; holdup, limiting throughput, percentage, and diameter selection are Not Calculable.',
               sourceReference: KUHNI_VK_ROUTE_REFERENCE,
+              sourceEvidence: KUHNI_VK_SOURCE_EVIDENCE,
             },
           } : {}),
           slipModel: 'u_slip(φ) = u_K·(1−φ)^n — generic screening form; u_K and n require experimental or vendor validation',

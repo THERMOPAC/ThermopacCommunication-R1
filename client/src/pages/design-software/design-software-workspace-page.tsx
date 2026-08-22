@@ -3881,6 +3881,12 @@ export default function DesignSoftwareWorkspacePage() {
                 <p className="text-[11px] text-amber-800 mt-1 font-medium">
                   V<sub>k</sub> is calculated separately at every trial diameter because d<sub>R</sub> = (Stage 7 rotor ratio) × D. It is not the rigid-sphere terminal velocity.
                 </p>
+                <div className="mt-2 rounded border border-amber-300 bg-amber-100/70 p-2 text-[11px] text-amber-950 leading-relaxed">
+                  <p className="font-semibold">Source evidence record — capacity/sizing use blocked</p>
+                  <p>Primary bibliography verified: Asadollahzadeh, M.; Torkaman, R.; Torab-Mostaedi, M. “New correlations for slip velocity and characteristic velocity in a rotary liquid–liquid extraction column,” <em>Chemical Engineering Research &amp; Design</em> 127 (2017), 146–153. DOI: 10.1016/j.cherd.2017.07.032.</p>
+                  <p className="mt-1">The accessible source record confirms a Kühni-column hydrodynamics study with three liquid–liquid systems, with and without mass transfer. It does <strong>not</strong> verify this transcription’s native V<sub>k</sub> output unit, fitted validity ranges, or tested pilot geometry; no NMP/RRBO calibration is established.</p>
+                  <p className="mt-1 font-medium">This route can show its native expression output and Fr/Morton audit values only. It cannot run a capacity sweep or change Stage 5, Stage 7, or DS-SEL selections until source evidence and engineer review approve design use.</p>
+                </div>
               </div>
               <FieldRow
                 label="Kühni-route Hindrance Exponent m"
@@ -3888,7 +3894,7 @@ export default function DesignSoftwareWorkspacePage() {
                 onChange={v => f("kuhni_vk_hindrance_exponent", v)}
                 onBlur={s}
                 unit="—"
-                note="No default and no carry-over from the rigid-sphere n. Required only to calculate φ_op, limiting throughput, % of Max, and diameter feasibility."
+                note="No default and no carry-over from the rigid-sphere n. Retained as route-specific evidence only; it cannot enable capacity or diameter selection until the V_k source review is approved."
                 error={fErr5("kuhni_vk_hindrance_exponent")}
               />
               <div className="grid grid-cols-[200px_1fr_auto] items-start gap-x-3 gap-y-0.5 mt-1">
@@ -3913,8 +3919,8 @@ export default function DesignSoftwareWorkspacePage() {
               </div>
               <FieldRow label="Route-specific m Source Reference" value={hd.kuhni_vk_hindrance_exponent_source_ref ?? ""} onChange={v => f("kuhni_vk_hindrance_exponent_source_ref", v)} onBlur={s} unit="" placeholder="Exact Kühni-route source, test report, or vendor curve" error={fErr5("kuhni_vk_hindrance_exponent_source_ref")} />
               {statusLine((hd.kuhni_vk_hindrance_exponent ?? "").trim()
-                ? `Route-specific m entered · source: ${hd.kuhni_vk_hindrance_exponent_source || "missing"}`
-                : "V_k can be audited from the inherited Stage 4/7 basis. Capacity and diameter outputs remain Not Calculable until a route-specific m is supplied.")}
+                ? `Route-specific m entered · source: ${hd.kuhni_vk_hindrance_exponent_source || "missing"} · capacity sweep remains blocked pending primary-source evidence review`
+                : "V_k can be audited from the inherited Stage 4/7 basis. Capacity and diameter outputs remain Not Calculable pending a separately sourced m and primary-source evidence review.")}
             </>
           ) : (
             <>
@@ -4222,10 +4228,10 @@ export default function DesignSoftwareWorkspacePage() {
                   </div>
                   <p className="text-[10px] text-amber-600 mt-1 px-1">⚠ Rigid-sphere screening only — NOT a validated liquid-drop terminal velocity. All holdup results are Pending Validation.</p>
                 </div> : <div>
-                  <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Kühni V<sub>k</sub> Basis — Preliminary / Pending Validation</p>
+                  <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Kühni V<sub>k</sub> Basis — Evidence Incomplete / Capacity Sweep Disabled</p>
                   <div className="grid grid-cols-2 gap-2">
-                    <CalcResultCard label="Characteristic Velocity V_k (first trial diameter)" formula="V_k = 0.237·(ρ_c/Δρ)^0.741·Fr^-0.184·N_μ^-0.095·(1+0.052·α_MT)" unit="m/s"
-                      reference={kuhniRoute.sourceReference ?? "Preliminary route"} result={typeof firstKuhniVelocity?.value_m_s === "number" ? Number(firstKuhniVelocity.value_m_s.toFixed(5)) : undefined} engineVersion={hydRun?.engine_version} />
+                    <CalcResultCard label="Characteristic V_k native output (first trial diameter)" formula="V_k = 0.237·(ρ_c/Δρ)^0.741·Fr^-0.184·N_μ^-0.095·(1+0.052·α_MT)" unit="native units unverified"
+                      reference={kuhniRoute.sourceReference ?? "Preliminary route"} result={typeof firstKuhniVelocity?.nativeOutputValue === "number" ? Number(firstKuhniVelocity.nativeOutputValue.toFixed(5)) : undefined} engineVersion={hydRun?.engine_version} />
                     <CalcResultCard label="Froude Number Fr (first trial diameter)" formula="Fr = N²·d_R/g" unit="—"
                       reference="Stage 7 rotor ratio and speed" result={typeof firstKuhniVelocity?.froudeNumber === "number" ? Number(firstKuhniVelocity.froudeNumber.toFixed(6)) : undefined} engineVersion={hydRun?.engine_version} />
                     <CalcResultCard label="Morton Number N_μ" formula="N_μ = μ_c⁴·g/(ρ_d·γ³)" unit="—"
@@ -4233,15 +4239,15 @@ export default function DesignSoftwareWorkspacePage() {
                     <CalcResultCard label="Transfer Direction α_MT" formula="+1 dispersed→continuous; 0 no transfer; −1 continuous→dispersed" unit="—"
                       reference={firstKuhniVelocity?.transferDirection ?? "Not resolved"} result={firstKuhniVelocity?.alphaMT} engineVersion={hydRun?.engine_version} />
                   </div>
-                  <p className="text-[10px] text-amber-600 mt-1 px-1">⚠ V<sub>k</sub> is calculated per trial diameter. It is preliminary and is not the rigid-sphere terminal velocity; source units, applicability, and a route-specific m remain required before capacity or diameter selection.</p>
+                  <p className="text-[10px] text-amber-600 mt-1 px-1">⚠ V<sub>k</sub> is calculated per trial diameter as an unlabelled native expression output. Its primary-source native unit, fitted ranges, and tested geometry remain unverified; a separately sourced m alone does not enable capacity or diameter selection.</p>
                 </div>}
 
                 {/* Characteristic velocity & slip model */}
                 <div>
                   <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Slip Model Parameters — C3 Generic Screening</p>
                   <div className="grid grid-cols-2 gap-2">
-                    <CalcResultCard label={kuhniRoute ? "Kühni V_k (first trial diameter)" : "Characteristic Swarm Velocity u_K"} formula={kuhniRoute ? "Per-diameter result shown above; no rigid-sphere u_T reuse" : "u_K = u_T (rigid-sphere) — Preliminary / Pending Validation"} unit="m/s" reference={kuhniRoute ? "Asadollahzadeh 2017 preliminary route" : "u_K ≠ u_T in general; rigid-sphere terminal velocity is an upper-bound screening proxy only. Replace with measured swarm velocity before design-grade use."}
-                      result={kuhniRoute ? (typeof firstKuhniVelocity?.value_m_s === "number" ? Number(firstKuhniVelocity.value_m_s.toFixed(5)) : undefined) : (typeof db2?.characteristicVelocity?.value_m_s === "number" ? Number(db2.characteristicVelocity.value_m_s.toFixed(5)) : undefined)} engineVersion={hydRun?.engine_version} />
+                    <CalcResultCard label={kuhniRoute ? "Kühni V_k (first trial diameter)" : "Characteristic Swarm Velocity u_K"} formula={kuhniRoute ? "Native expression output shown above; no rigid-sphere u_T reuse" : "u_K = u_T (rigid-sphere) — Preliminary / Pending Validation"} unit={kuhniRoute ? "native units unverified" : "m/s"} reference={kuhniRoute ? "Asadollahzadeh 2017 primary bibliography verified; equation native output unit and applicability pending evidence review" : "u_K ≠ u_T in general; rigid-sphere terminal velocity is an upper-bound screening proxy only. Replace with measured swarm velocity before design-grade use."}
+                      result={kuhniRoute ? (typeof firstKuhniVelocity?.nativeOutputValue === "number" ? Number(firstKuhniVelocity.nativeOutputValue.toFixed(5)) : undefined) : (typeof db2?.characteristicVelocity?.value_m_s === "number" ? Number(db2.characteristicVelocity.value_m_s.toFixed(5)) : undefined)} engineVersion={hydRun?.engine_version} />
                     <CalcResultCard label={kuhniRoute ? "Route-specific Hindrance Exponent m" : "Hindrance Exponent n"} formula={kuhniRoute ? "u_slip(φ) = V_k·(1−φ)^m — source-required" : "u_slip(φ) = u_K·(1−φ)^n — Godfrey generic slip model"} unit="—"
                       reference={kuhniRoute ? (kuhniRoute.routeSpecificHindranceNote ?? "Not entered") : (hydResData?.designBasis?.hindranceExponent ? `${hydResData.designBasis.hindranceExponent.sourceType}: ${hydResData.designBasis.hindranceExponent.sourceReference}` : "Not entered — default n = 1 (Assumed) pending engineer input")}
                       result={kuhniRoute ? (typeof kuhniRoute.routeSpecificHindranceExponent?.value === "number" ? kuhniRoute.routeSpecificHindranceExponent.value : undefined) : (typeof hydResData?.designBasis?.hindranceExponent?.value === "number" ? hydResData.designBasis.hindranceExponent.value : undefined)} engineVersion={hydRun?.engine_version} />
@@ -4255,6 +4261,11 @@ export default function DesignSoftwareWorkspacePage() {
                 {/* Case summaries */}
                 <div>
                   <p className="text-xs font-semibold text-gray-600 mb-1 uppercase tracking-wide">Diameter Sweep Summary (0.30–2.00 m, step 0.05 m)</p>
+                  {kuhniRoute?.sourceEvidence?.capacitySweepAllowed === false && (
+                    <div className="mb-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                      Capacity sweep not run for the Kühni V<sub>k</sub> route: native output units, fitted ranges, tested geometry, NMP/RRBO applicability, and engineer design-use approval are incomplete. No Stage 5 feasible diameter, Stage 7 carry-over, or DS-SEL update is produced from this route.
+                    </div>
+                  )}
                   <div className="bg-gray-50 rounded border px-3 py-2 space-y-1">
                     {bandRow("Normal case", normSum)}
                     {bandRow("Maximum case", maxSum)}

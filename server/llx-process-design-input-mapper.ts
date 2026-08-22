@@ -360,7 +360,18 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   const uKModel = String(inputs.hydraulic_model ?? '').trim() === 'characteristic_velocity';
   const kuhniVkModel = String(inputs.hydraulic_model ?? '').trim() === 'asadollahzadeh_2017_kuhni_vk_preliminary';
   if (kuhniVkModel) {
+    // The mapper begins with a workspace clone so legacy/camelCase engine fields
+    // can be present after a model switch. Strip every competing velocity basis:
+    // Kühni V_k is audit-only and has its own route-specific m.
+    delete out.characteristicVelocity;
+    delete out.useTerminalVelocityAsCharacteristic;
+    delete out.sauterMeanDiameter;
+    delete out.hindranceExponent;
     out.characteristicVelocityRoute = 'ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY';
+    // Source maturity is server-owned. A saved workspace must never claim that
+    // the primary correlation units, validity envelope, geometry, or design-use
+    // approval were checked. The engine owns the detailed evidence record.
+    out.kuhniVkEvidenceStatus = 'bibliography_verified_evidence_incomplete';
     // The current LLX process direction is determined from the Stage 4 process
     // basis, not from a free Stage 5 selector. RRBO is the feed/dispersed phase,
     // NMP is the solvent/continuous phase, and recovery is to extract.
@@ -398,13 +409,12 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       };
     }
   }
+  // d32 and terminal velocity belong only to the d32/rigid-sphere screening
+  // route. They may remain persisted after a model switch, but must not be
+  // emitted for the distinct Kühni V_k audit route.
   // d32 has no silent default — A-5. If blank the engine receives no sauterMeanDiameter
   // and blocks with a missing-input error (fail-closed).
-  // useTerminalVelocityAsCharacteristic is set unconditionally when in d32_terminal mode
-  // so the engine's existing validation ("useTerminalVelocityAsCharacteristic requires
-  // sauterMeanDiameter") fires and returns a proper error status — instead of silently
-  // running the sweep with all rows 'not_calculable' and minimumFeasibleDiameter_m = null.
-  if (!uKModel && out.sauterMeanDiameter === undefined && out.characteristicVelocity === undefined) {
+  if (!uKModel && !kuhniVkModel && out.sauterMeanDiameter === undefined && out.characteristicVelocity === undefined) {
     const d32mm = num(inputs.sauter_mean_d32);
     if (d32mm !== undefined && d32mm > 0) {
       const VALID_SRC = ['Measured', 'Vendor', 'Literature', 'Assumed'];
@@ -418,7 +428,9 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     }
     if (out.useTerminalVelocityAsCharacteristic === undefined) out.useTerminalVelocityAsCharacteristic = true;
   }
-  if (out.hindranceExponent === undefined) {
+  // The Kühni V_k route has its own separately sourced m. Do not even carry
+  // the generic/rigid-sphere n into that route's engine payload.
+  if (!kuhniVkModel && out.hindranceExponent === undefined) {
     // n is a governed, source-tagged engineering parameter for BOTH hydraulic models.
     // The UI pre-populates n = 1 (Assumed — Preliminary / Pending Validation) for
     // new d32_terminal cases so the value is always explicit and visible in the
