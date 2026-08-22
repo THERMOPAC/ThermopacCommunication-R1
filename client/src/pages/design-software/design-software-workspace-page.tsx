@@ -4601,8 +4601,117 @@ export default function DesignSoftwareWorkspacePage() {
     };
     const taggedReady = (prefix: string, legacy?: any) =>
       numeric(sim[`${prefix}_value`] ?? legacy?.value)
-      && !!(sim[`${prefix}_source_type`] ?? legacy?.sourceType)
+      && ECR2_STAGE8_SOURCE_TYPES.includes((sim[`${prefix}_source_type`] ?? legacy?.sourceType) as typeof ECR2_STAGE8_SOURCE_TYPES[number])
       && !!(sim[`${prefix}_source_reference`] ?? legacy?.sourceReference);
+    const stage8DependencyGroups = {
+      auto: "AUTO-RESOLVED",
+      engineering: "ENGINEERING DATA REQUIRED",
+      approval: "ENGINEERING APPROVAL REQUIRED",
+      governance: "GOVERNANCE / EVIDENCE REQUIRED",
+    } as const;
+    type Stage8Dependency = {
+      id: string;
+      group: keyof typeof stage8DependencyGroups;
+      label: string;
+      ready: boolean;
+      mandatory: boolean;
+      sourceClass: string;
+      downstreamUse: string;
+      blockingReason: string;
+    };
+    const stage8Dependencies: Stage8Dependency[] = [
+      {
+        id: "stage7_ecr_result",
+        group: "auto",
+        label: "Stage 7 ECR equipment result",
+        ready: hasAcceptedEcrRun,
+        mandatory: true,
+        sourceClass: "INHERITED",
+        downstreamUse: "Provides accepted active agitated height and ECR geometry to the BVP.",
+        blockingReason: "Accepted Stage 7 ECR Equipment Design result is required; no manual Stage 8 geometry substitute is permitted.",
+      },
+      {
+        id: "d32",
+        group: "auto",
+        label: "d₃₂",
+        ready: sim.d32_mode !== "engineer_supplied" || (numeric(sim.d32_value_mm) && !!sim.d32_source_type && !!sim.d32_source_reference),
+        mandatory: true,
+        sourceClass: sim.d32_mode === "engineer_supplied" ? "ENGINEER_INPUT" : "CALCULATED",
+        downstreamUse: "Feeds the governed d32 route and interfacial area a = 6φd/d32 for local transfer.",
+        blockingReason: sim.d32_mode === "engineer_supplied"
+          ? "Engineer-supplied d₃₂ needs a positive value, source class, and source reference."
+          : "No blocker; ecr2_d32_kh1996 resolves the value from the governed local state at run time.",
+      },
+      ...ECR2_STAGE8_COMPONENTS.slice(0, 4).map(component => {
+        const prefix = `molecular_weight_${component.key}`;
+        const legacyKey = component.key === "sat" ? "saturates_g_mol" : `${component.key}_g_mol`;
+        const ready = taggedReady(prefix, legacyMw[legacyKey]);
+        return {
+          id: prefix,
+          group: "engineering" as const,
+          label: `Physical MW — ${component.label}`,
+          ready,
+          mandatory: true,
+          sourceClass: "ENGINEER_INPUT",
+          downstreamUse: "Builds physical mass fractions/concentrations, equilibrium concentrations, Kd, driving force, and transfer rate after NRTL.",
+          blockingReason: ready ? "No blocker." : "Positive value, valid source class, and source reference are required; no physical-MW default is allowed.",
+        };
+      }),
+      ...ECR2_STAGE8_COMPONENTS.flatMap(component => (["c", "d"] as const).map(phase => {
+        const prefix = `diffusivity_${component.key}_${phase}`;
+        const legacy = legacyBvp.diffusivity?.[component.label]?.[phase === "c" ? "De_c" : "De_d"];
+        const ready = taggedReady(prefix, legacy)
+          && numeric(sim[`${prefix}_reference_temperature_c`] ?? legacy?.referenceTemperature_C)
+          && !!(sim[`${prefix}_method`] ?? legacy?.method);
+        return {
+          id: prefix,
+          group: "engineering" as const,
+          label: `${phase === "c" ? "Dc" : "Dd"} ${component.label}`,
+          ready,
+          mandatory: true,
+          sourceClass: "ENGINEER_INPUT",
+          downstreamUse: `Supplies the ${phase === "c" ? "continuous" : "dispersed"}-phase diffusivity for the ${component.label} Kühni local transfer/Schmidt calculation.`,
+          blockingReason: ready ? "No blocker." : "Value, valid source class/reference, reference temperature, and method are all required; no diffusivity correlation/default is approved.",
+        };
+      })),
+      {
+        id: "kuhni_shd_c2",
+        group: "engineering",
+        label: "Kühni Shd C2",
+        ready: taggedReady("kuhni_shd_c2", legacyBvp.kuhniShdC2),
+        mandatory: true,
+        sourceClass: "ENGINEER_INPUT",
+        downstreamUse: "Activates the governed preliminary Kühni/Hartland 1999 local mass-transfer kernel.",
+        blockingReason: "An explicit value, source class, and source reference are required; fixture and pulsed-column constants are prohibited.",
+      },
+      {
+        id: "partition_basis",
+        group: "approval",
+        label: "Kd concentration-basis approval",
+        ready: (sim.partition_basis_approval_status ?? legacyBvp.partitionBasis?.approvalStatus) === "engineer_approved_governed"
+          && !!String(sim.partition_basis_source_reference ?? legacyBvp.partitionBasis?.sourceReference ?? "").trim(),
+        mandatory: true,
+        sourceClass: "ENGINEER_APPROVAL",
+        downstreamUse: "Authorizes Koverall = kc·kd/(Kd·kd + kc) and the dispersed concentration driving force; numerical Kd remains locally calculated.",
+        blockingReason: "Engineer approval of the governed concentration-basis relation and a source reference are required; numerical Kd entry is not requested.",
+      },
+      {
+        id: "preliminary_evidence",
+        group: "governance",
+        label: "Preliminary K&H evidence status",
+        ready: true,
+        mandatory: false,
+        sourceClass: "CALCULATED",
+        downstreamUse: "Labels d32 and transfer outputs as preliminary engineering and carries traceability warnings.",
+        blockingReason: "Advisory evidence limitation only; it does not block the explicitly preliminary simulator route.",
+      },
+    ];
+    const mandatoryDependencies = stage8Dependencies.filter(dependency => dependency.mandatory);
+    const resolvedDependencies = mandatoryDependencies.filter(dependency => dependency.ready);
+    const autoResolvedCount = mandatoryDependencies.filter(dependency => dependency.group === "auto" && dependency.ready).length;
+    const missingEngineeringCount = mandatoryDependencies.filter(dependency => dependency.group === "engineering" && !dependency.ready).length;
+    const missingApprovalCount = mandatoryDependencies.filter(dependency => dependency.group === "approval" && !dependency.ready).length;
+    const blockedGovernanceCount = stage8Dependencies.filter(dependency => dependency.group === "governance" && dependency.mandatory && !dependency.ready).length;
     const dependencyStatus = (sourceClass: string, ready: boolean) => (
       <div className="flex flex-wrap gap-1">
         <Badge className="border border-blue-200 bg-blue-50 text-blue-700 text-[9px]">{sourceClass}</Badge>
@@ -4679,7 +4788,19 @@ export default function DesignSoftwareWorkspacePage() {
             <div className="mt-3 overflow-x-auto rounded-lg border">
               <div className="min-w-[900px]">
                 <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b bg-gray-50 px-3 py-2 text-[10px] font-semibold uppercase text-gray-500">
-                  <span>Parameter</span><span>Value</span><span>Unit</span><span>Source / reference</span><span>Status / action</span>
+                  <span>Parameter</span><span>Value</span><span>Unit</span><span>Source / reference / Tref / method</span><span>Status / downstream use / blocking reason</span>
+                </div>
+                <div className="border-b bg-blue-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-blue-800">A. AUTO-RESOLVED</div>
+                <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
+                  <span className="font-medium">Stage 7 ECR equipment result</span>
+                  <span className={hasAcceptedEcrRun ? "pt-1" : "pt-1 text-red-700"}>{hasAcceptedEcrRun ? "Accepted active height + geometry" : "Required before run"}</span>
+                  <span className="pt-1">inherited</span>
+                  <span className="pt-1 text-[11px]">Stage 7 — accepted ECR Equipment Design result</span>
+                  <div>
+                    {dependencyStatus("INHERITED", hasAcceptedEcrRun)}
+                    <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> active agitated height and ECR geometry for the BVP.</p>
+                    {!hasAcceptedEcrRun && <p className="text-[10px] text-red-700"><strong>Block:</strong> accepted Stage 7 ECR result is required; no manual Stage 8 geometry substitute is permitted.</p>}
+                  </div>
                 </div>
                 <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
                   <span className="font-medium">d₃₂</span>
@@ -4694,9 +4815,14 @@ export default function DesignSoftwareWorkspacePage() {
                   </div>
                   <span className="pt-1">mm</span>
                   {sim.d32_mode === "engineer_supplied" ? sourceEditor("d32") : <p className="pt-1 text-[11px]">ecr2_d32_kh1996<br />Published preliminary route</p>}
-                  {dependencyStatus(sim.d32_mode === "engineer_supplied" ? "ENGINEER_INPUT" : "CALCULATED", sim.d32_mode !== "engineer_supplied" || (numeric(sim.d32_value_mm) && !!sim.d32_source_type && !!sim.d32_source_reference))}
+                  <div>
+                    {dependencyStatus(sim.d32_mode === "engineer_supplied" ? "ENGINEER_INPUT" : "CALCULATED", sim.d32_mode !== "engineer_supplied" || (numeric(sim.d32_value_mm) && !!sim.d32_source_type && !!sim.d32_source_reference))}
+                    <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> a = 6φd/d32 and local transfer calculation.</p>
+                    {sim.d32_mode === "engineer_supplied" && !(numeric(sim.d32_value_mm) && !!sim.d32_source_type && !!sim.d32_source_reference) && <p className="text-[10px] text-red-700"><strong>Block:</strong> positive value, source class, and source reference are required.</p>}
+                  </div>
                 </div>
 
+                <div className="border-b bg-amber-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">B. ENGINEERING DATA REQUIRED</div>
                 {ECR2_STAGE8_COMPONENTS.slice(0, 4).map(component => {
                   const prefix = `molecular_weight_${component.key}`;
                   const legacyKey = component.key === "sat" ? "saturates_g_mol" : `${component.key}_g_mol`;
@@ -4706,7 +4832,11 @@ export default function DesignSoftwareWorkspacePage() {
                     <Input className="h-7 text-[11px]" value={sim[`${prefix}_value`] ?? legacy?.value ?? ""} disabled={isFrozen} placeholder="Required" onChange={e => f(`${prefix}_value`, e.target.value)} onBlur={s} />
                     <span className="pt-1">g/mol</span>
                     {sourceEditor(prefix, legacy)}
-                    <div>{dependencyStatus("ENGINEER_INPUT", taggedReady(prefix, legacy))}<p className="mt-1 text-[10px] text-gray-500">Physical concentration and rate conversion only; never NRTL.</p></div>
+                    <div>
+                      {dependencyStatus("ENGINEER_INPUT", taggedReady(prefix, legacy))}
+                      <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> physical concentration, equilibrium concentration, Kd, driving force, and transfer rate; never NRTL.</p>
+                      {!taggedReady(prefix, legacy) && <p className="text-[10px] text-red-700"><strong>Block:</strong> positive value, valid source class, and source reference are required.</p>}
+                    </div>
                   </div>;
                 })}
 
@@ -4724,7 +4854,11 @@ export default function DesignSoftwareWorkspacePage() {
                     </div>
                     <span className="pt-1">m²/s</span>
                     <div className="space-y-1">{sourceEditor(prefix, legacy)}<Input className="h-7 text-[11px]" value={sim[`${prefix}_method`] ?? legacy?.method ?? ""} disabled={isFrozen} placeholder="Measurement / estimation method" onChange={e => f(`${prefix}_method`, e.target.value)} onBlur={s} /></div>
-                    <div>{dependencyStatus("ENGINEER_INPUT", ready)}<p className="mt-1 text-[10px] text-gray-500">No correlation or default is approved.</p></div>
+                    <div>
+                      {dependencyStatus("ENGINEER_INPUT", ready)}
+                      <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> {phase === "c" ? "continuous" : "dispersed"}-phase {component.label} local transfer and Schmidt calculation.</p>
+                      {!ready && <p className="text-[10px] text-red-700"><strong>Block:</strong> value, source class/reference, reference temperature, and method are all required.</p>}
+                    </div>
                   </div>;
                 }))}
 
@@ -4735,10 +4869,15 @@ export default function DesignSoftwareWorkspacePage() {
                     <Input className="h-7 text-[11px]" value={sim.kuhni_shd_c2_value ?? legacy?.value ?? ""} disabled={isFrozen} placeholder="Required" onChange={e => f("kuhni_shd_c2_value", e.target.value)} onBlur={s} />
                     <span className="pt-1">—</span>
                     {sourceEditor("kuhni_shd_c2", legacy)}
-                    <div>{dependencyStatus("ENGINEER_INPUT", taggedReady("kuhni_shd_c2", legacy))}<p className="mt-1 text-[10px] text-gray-500">No fixture or pulsed-column default.</p></div>
+                    <div>
+                      {dependencyStatus("ENGINEER_INPUT", taggedReady("kuhni_shd_c2", legacy))}
+                      <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> governed preliminary Kühni/Hartland 1999 local mass-transfer kernel.</p>
+                      {!taggedReady("kuhni_shd_c2", legacy) && <p className="text-[10px] text-red-700"><strong>Block:</strong> explicit value, source class, and source reference are required; no fixture/default is allowed.</p>}
+                    </div>
                   </div>;
                 })()}
 
+                <div className="border-b bg-violet-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">C. ENGINEERING APPROVAL REQUIRED</div>
                 {(() => {
                   const legacy = legacyBvp.partitionBasis;
                   const approval = sim.partition_basis_approval_status ?? legacy?.approvalStatus ?? "";
@@ -4754,17 +4893,70 @@ export default function DesignSoftwareWorkspacePage() {
                       </select>
                       <Input className="h-7 text-[11px]" value={reference} disabled={isFrozen} placeholder="Approval / source reference" onChange={e => f("partition_basis_source_reference", e.target.value)} onBlur={s} />
                     </div>
-                    <div>{dependencyStatus("ENGINEER_APPROVAL", approval === "engineer_approved_governed" && !!String(reference).trim())}<p className="mt-1 text-[10px] text-gray-500">Numerical Kd is local-kernel calculated.</p></div>
+                    <div>
+                      {dependencyStatus("ENGINEER_APPROVAL", approval === "engineer_approved_governed" && !!String(reference).trim())}
+                      <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> authorizes Koverall and the dispersed concentration driving force.</p>
+                      {!(approval === "engineer_approved_governed" && !!String(reference).trim()) && <p className="text-[10px] text-red-700"><strong>Block:</strong> explicit governed concentration-basis approval and source reference are required; numerical Kd is not entered.</p>}
+                    </div>
                   </div>;
                 })()}
+                <div className="border-b bg-slate-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700">D. GOVERNANCE / EVIDENCE REQUIRED</div>
+                <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 px-3 py-2 text-xs">
+                  <span className="font-medium">Preliminary K&H evidence status</span>
+                  <span className="pt-1">Preliminary route</span>
+                  <span className="pt-1">—</span>
+                  <span className="pt-1 text-[11px]">K&H 1996 reconstruction; primary verification and RRBO/NMP validation remain pending</span>
+                  <div>
+                    {dependencyStatus("CALCULATED", true)}
+                    <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> labels d32/transfer outputs and carries traceability warnings.</p>
+                    <p className="text-[10px] text-gray-600">Advisory evidence limitation; it does not block the explicitly preliminary route.</p>
+                  </div>
+                </div>
               </div>
             </div>
           </SectionCard>
+          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3" data-testid="ecr2-stage8-readiness">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-slate-800">Stage 8 readiness: {resolvedDependencies.length} / {mandatoryDependencies.length} dependencies resolved</p>
+              <Badge className={stage8Blocking
+                ? "border border-red-200 bg-red-50 text-red-700 text-[10px]"
+                : "border border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px]"
+              }>{stage8Blocking ? "RUN BLOCKED" : "READY TO RUN"}</Badge>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200" aria-label={`Stage 8 readiness ${resolvedDependencies.length} of ${mandatoryDependencies.length}`}>
+              <div className={`h-full rounded-full transition-all ${stage8Blocking ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${Math.round((resolvedDependencies.length / mandatoryDependencies.length) * 100)}%` }} />
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-4">
+              <div className="rounded border bg-white px-2 py-1.5">
+                <p className="text-[10px] uppercase text-gray-500">Ready</p>
+                <p className="text-sm font-semibold text-emerald-700">{resolvedDependencies.length}</p>
+                <p className="text-[10px] text-gray-500">{autoResolvedCount} inherited/calculated</p>
+              </div>
+              <div className="rounded border bg-white px-2 py-1.5">
+                <p className="text-[10px] uppercase text-gray-500">Missing engineering data</p>
+                <p className="text-sm font-semibold text-amber-700">{missingEngineeringCount}</p>
+                <p className="text-[10px] text-gray-500">individual values/provenance</p>
+              </div>
+              <div className="rounded border bg-white px-2 py-1.5">
+                <p className="text-[10px] uppercase text-gray-500">Missing approvals</p>
+                <p className="text-sm font-semibold text-violet-700">{missingApprovalCount}</p>
+                <p className="text-[10px] text-gray-500">governed Kd basis</p>
+              </div>
+              <div className="rounded border bg-white px-2 py-1.5">
+                <p className="text-[10px] uppercase text-gray-500">Blocked governance</p>
+                <p className="text-sm font-semibold text-slate-700">{blockedGovernanceCount}</p>
+                <p className="text-[10px] text-gray-500">advisory evidence is shown below</p>
+              </div>
+            </div>
+            <p className="mt-3 text-[11px] text-slate-600" title="Resolve all mandatory Stage 8 dependencies to run the preliminary ECR-2 counter-current simulation.">
+              Resolve all mandatory Stage 8 dependencies to run the preliminary ECR-2 counter-current simulation.
+            </p>
+          </div>
           <div className="flex gap-2 mt-4">
             <Button size="sm" variant="outline" disabled={isFrozen || upsertMutation.isPending || ecr2RunPreparing} onClick={() => saveSection("ecr_simulator")}>
               <Save className="h-3.5 w-3.5 mr-1.5" /> Save simulator inputs
             </Button>
-            <Button size="sm" className="gap-1.5" disabled={isFrozen || calculateMutation.isPending || ecr2RunPreparing || stage8Blocking} onClick={runEcr2Simulation}>
+            <Button size="sm" className="gap-1.5" title="Resolve all mandatory Stage 8 dependencies to run the preliminary ECR-2 counter-current simulation." disabled={isFrozen || calculateMutation.isPending || ecr2RunPreparing || stage8Blocking} onClick={runEcr2Simulation}>
               <Play className="h-3.5 w-3.5" /> {ecr2RunPreparing ? "Saving simulator inputs…" : c2InputsAreStale ? "Save inputs & refresh C2" : "RUN ECR-2 SIMULATION"}
             </Button>
           </div>
