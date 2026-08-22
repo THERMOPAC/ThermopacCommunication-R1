@@ -4921,6 +4921,23 @@ export default function DesignSoftwareWorkspacePage() {
 
           <SectionCard title="Stage 8 dependency register" className="mt-4">
             <p className="text-[11px] text-gray-500">The system resolves each numerical dependency from its governed evidence record; this is not a manual-entry worksheet. Auto-resolved and calculated-preliminary records need engineer acceptance before use. RRBO/NMP validation and pilot calibration warnings remain visible, but do not block this explicitly preliminary first simulation. An engineer override is an exception and records the original basis, reason, user, and timestamp in the calculation snapshot.</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3" data-testid="stage8-auto-populated-summary">
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-800">Auto-populated numerical dependencies</p>
+                <p className="mt-0.5 text-lg font-bold text-emerald-900">{autoPopulatedCount} / 15</p>
+                <p className="text-[10px] text-emerald-800">4 physical MW + 10 diffusivities</p>
+              </div>
+              <div className="rounded-md border border-emerald-200 bg-white px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-800">Diffusivities auto-resolved</p>
+                <p className="mt-0.5 text-lg font-bold text-emerald-900">{autoResolvedDiffusivityCount} / 10</p>
+                <p className="text-[10px] text-slate-600">{10 - autoResolvedDiffusivityCount} unresolved</p>
+              </div>
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-800">Remaining dependency</p>
+                <p className="mt-0.5 text-sm font-bold text-amber-900">Kühni Shd C2</p>
+                <p className="text-[10px] text-amber-800">Governed evidence still required</p>
+              </div>
+            </div>
             <div className="mt-3 overflow-x-auto rounded-lg border">
               <div className="min-w-[900px]">
                 <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b bg-gray-50 px-3 py-2 text-[10px] font-semibold uppercase text-gray-500">
