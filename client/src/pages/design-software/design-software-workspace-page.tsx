@@ -4962,9 +4962,27 @@ export default function DesignSoftwareWorkspacePage() {
             </Button>
           </div>
           {stage8Blocking && (
-            <p className="mt-2 text-xs text-red-700">
-              Run blocked by {unresolvedDependencies.length} unresolved Stage 8 dependenc{unresolvedDependencies.length === 1 ? "y" : "ies"}: {unresolvedDependencies.slice(0, 2).map(dependency => `${dependency.label} — ${dependency.blockingReason}`).join("; ")}
-            </p>
+            <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+              <p className="font-semibold">
+                Run blocked by {unresolvedDependencies.length} unresolved Stage 8 dependenc{unresolvedDependencies.length === 1 ? "y" : "ies"}.
+              </p>
+              <p className="mt-1 text-[11px]">
+                Review and complete each matching row in the dependency register above. No value is inferred or defaulted.
+              </p>
+              <ol className="mt-3 space-y-2">
+                {unresolvedDependencies.map((dependency, index) => (
+                  <li key={dependency.id} className="rounded-md border border-red-200 bg-white px-2.5 py-2">
+                    <p className="font-medium text-red-900">{index + 1}. {dependency.label}</p>
+                    <p className="mt-0.5 text-[11px] text-red-800">
+                      <span className="font-medium">Required:</span> {dependency.blockingReason}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-600">
+                      <span className="font-medium">Downstream use:</span> {dependency.downstreamUse}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            </div>
           )}
           {renderRunIssues(latestRun, "ECR-2 simulator", { useStructuredEcr2Dependencies: true })}
         </SectionCard>
