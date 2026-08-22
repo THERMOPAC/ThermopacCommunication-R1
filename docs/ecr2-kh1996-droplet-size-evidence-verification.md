@@ -20,6 +20,77 @@ not a substitute for the primary equation. It leaves material equation notation
 unresolved. The available Rahimpour table is a separate pulsed/Karr record and must
 not be used as a Kühni equation.
 
+## Direct-turbulence C-range verification
+
+**Status:** no authoritative support found for `C = 0.36–0.43` in the ECR-2
+direct-turbulence route. The interval remains a **project-controlled preliminary
+sensitivity interval** and is not design-decision or release eligible.
+
+### Route and claimed range assessed
+
+The assessed route is:
+
+\[
+d_{32}=C\left(\frac{\gamma}{\rho_c}\right)^{0.6}\varepsilon^{-0.4},
+\qquad
+\varepsilon=\frac{N_e n^3d_R^5}{V_R}
+\]
+
+with dimensionless `C = 0.36–0.43`. This is not the K&H 1996 equation and is
+not treated as a transcription, parameterisation, or substitute for K&H 1996.
+
+### Sources inspected and exact limits
+
+1. **Kumar, A.; Hartland, S.** “Unified Correlations for the Prediction of Drop
+   Size in Liquid−Liquid Extraction Columns.” *Industrial & Engineering Chemistry
+   Research* **35**(8), 2682–2695 (1996). DOI:
+   [10.1021/ie950674w](https://doi.org/10.1021/ie950674w). The ACS publisher
+   abstract/record confirms that the study includes Kühni columns and a
+   high-agitation turbulence contribution, but does not expose an equation,
+   coefficient table, or `C = 0.36–0.43` range. It cannot support this route or
+   interval.
+2. **Laitinen, A. T.; Penttilä, K. J. T.; Manninen, M. T.; Syrjänen, J. K.;
+   Kaunisto, J. M.; Murtomäki, L. S.** “Axial Dispersion and CFD Models for the
+   Extraction of Levulinic Acid from Dilute Aqueous Solution in a Kühni Column
+   with 2-Methyltetrahydrofuran Solvent.” *Chemical Engineering Research and
+   Design* **146**, 518–527 (2019). DOI:
+   [10.1016/j.cherd.2019.04.018](https://doi.org/10.1016/j.cherd.2019.04.018).
+   Its accepted manuscript, pp. 10–11, reproduces a different Kühni-specific
+   `d32/h` relation with visible constants `1.6`, `0.034`, and `e^0.45`; it
+   reports no `0.36–0.43` coefficient interval and no equation matching the
+   direct-turbulence route. Its aqueous levulinic-acid/2MTHF bench column is not
+   an RRBO/NMP applicability or calibration record.
+3. **National Academies of Sciences, Engineering, and Medicine.** *Oil in the
+   Sea IV: Inputs, Fates, and Effects*, Appendix F, “Technical Aspects of
+   Equations and Models for Droplet Breakup in Turbulent Flows” (2022).
+   [Online chapter](https://www.nationalacademies.org/read/26410/chapter/18).
+   This is authoritative background for turbulent-breakup model limits, but
+   discusses calibrated oil-jet and mixing-tank models rather than a Kühni
+   extraction column. It supplies no basis for applying the stated range to the
+   ECR-2 route.
+
+### Applicability decision
+
+No inspected source jointly establishes the exact equation, the stated C interval,
+a mechanically agitated Kühni geometry, an NMP-continuous/RRBO-dispersed phase
+convention, or calibration for the ECR-2 operating envelope. Therefore:
+
+- `C = 0.36–0.43` may be used only to display the controlled preliminary
+  sensitivity band after a nominal C and its audit reference are explicitly
+  recorded;
+- a nominal-C reference documents the selected sensitivity point, **not**
+  authoritative verification of the interval;
+- every result remains `PRELIMINARY_ENGINEERING / NOT YET PILOT_VALIDATED` and
+  is not a design-decision or release basis;
+- the direct-turbulence route must remain separate from K&H 1996, whose
+  `transcription_invalid` lifecycle is unchanged.
+
+Advancement requires: (1) a lawful primary or otherwise authoritative source that
+prints the exact route and supports its C interval, (2) an explicit applicability
+decision for the ECR-2 Kühni configuration and phase convention, (3) RRBO/NMP
+pilot validation/calibration, and (4) governed review approval. No registry
+evidence status is advanced by this verification.
+
 ## Recorded evidence
 
 ### A. Primary publication — authoritative bibliographic record only

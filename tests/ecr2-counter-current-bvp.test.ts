@@ -122,8 +122,8 @@ describe('ECR-2 counter-current BVP', () => {
         mode: 'direct_turbulence_preliminary' as const,
         correlationId: 'ecr2_d32_direct_turbulence_preliminary' as const,
         C_nominal: 0.4,
-        sourceType: 'Literature',
-        sourceReference: 'BVP direct-turbulence provisional C evidence',
+        sourceType: 'Project-Controlled Preliminary',
+        sourceReference: 'ECR-2 direct-turbulence preliminary sensitivity register',
       },
     };
     const result = solveECR2CounterCurrentBVP(direct);
@@ -146,8 +146,8 @@ describe('ECR-2 counter-current BVP', () => {
         mode: 'direct_turbulence_preliminary' as const,
         correlationId: 'ecr2_d32_direct_turbulence_preliminary' as const,
         C_nominal: 0.4,
-        sourceType: 'Literature',
-        sourceReference: 'BVP direct-turbulence provisional C evidence',
+        sourceType: 'Project-Controlled Preliminary',
+        sourceReference: 'ECR-2 direct-turbulence preliminary sensitivity register',
       },
     };
     const result = solveECR2CounterCurrentBVP(direct);

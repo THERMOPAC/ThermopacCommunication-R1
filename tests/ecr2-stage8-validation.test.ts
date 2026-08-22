@@ -70,8 +70,8 @@ describe('ECR-2 Stage 8 dependency graph', () => {
       ...completeStage8(),
       d32_mode: 'direct_turbulence_preliminary',
       direct_turbulence_c_nominal: '0.40',
-      direct_turbulence_c_source_type: 'Literature',
-      direct_turbulence_c_source_reference: 'Controlled preliminary C selection',
+      direct_turbulence_c_source_type: 'Project-Controlled Preliminary',
+      direct_turbulence_c_source_reference: 'ECR-2 direct-turbulence preliminary sensitivity register',
     };
     const errors = validateEcr2Stage8(sim, true, currentSystemResolverRecords());
     expect(errors).not.toHaveProperty('d32_mode');

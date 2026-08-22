@@ -169,12 +169,13 @@ export const ECR2_DIRECT_TURBULENCE_D32_PRELIMINARY_REGISTRY: ECR2Correlation = 
   quantity: 'droplet_size',
   name: 'Direct-turbulence d₃₂ — preliminary engineering sensitivity route',
   source:
-    'Project-controlled preliminary route specification. The C sensitivity range 0.36–0.43 is retained as supplied preliminary engineering evidence; ' +
-    'a Kühni-specific primary source for that interval remains an open evidence item.',
+    'Project-controlled preliminary route specification. Evidence verification recorded in docs/ecr2-kh1996-droplet-size-evidence-verification.md ' +
+    '(§ Direct-turbulence C-range verification, 22 August 2026) found no authoritative source that supports both C = 0.36–0.43 and this exact route. ' +
+    'Kumar & Hartland (1996), Ind. Eng. Chem. Res. 35(8), 2682–2695, DOI 10.1021/ie950674w, and Laitinen et al. (2019), Chem. Eng. Res. Des. 146, 518–527, DOI 10.1016/j.cherd.2019.04.018, do not establish this interval for the ECR-2 route.',
   equation: 'd32 = C * (gamma / rho_c)^0.6 * epsilon^-0.4; epsilon = N_e * n^3 * d_R^5 / V_R',
   variables: {
     d32: { symbol: 'd₃₂', unit: 'm', description: 'Sauter mean droplet diameter.' },
-    C: { symbol: 'C', unit: '—', description: 'Selected nominal dimensionless coefficient; governed sensitivity interval 0.36–0.43.' },
+    C: { symbol: 'C', unit: '—', description: 'Selected nominal dimensionless coefficient; project-controlled preliminary sensitivity interval 0.36–0.43.' },
     gamma: { symbol: 'γ', unit: 'N/m', description: 'Temperature-matched NMP/RRBO interfacial tension.' },
     rho_c: { symbol: 'ρ_c', unit: 'kg/m³', description: 'Temperature-matched continuous-phase density.' },
     epsilon: { symbol: 'ε', unit: 'm²/s³', description: 'Specific turbulent power dissipation.' },
@@ -184,7 +185,12 @@ export const ECR2_DIRECT_TURBULENCE_D32_PRELIMINARY_REGISTRY: ECR2Correlation = 
     V_R: { symbol: 'V_R', unit: 'm³', description: 'Active liquid volume of one agitated compartment.' },
   },
   validityRange: {
-    C: { min: 0.36, max: 0.43, unit: '—', note: 'Controlled sensitivity interval; not a verified K&H 1996 coefficient range.' },
+    C: {
+      min: 0.36,
+      max: 0.43,
+      unit: '—',
+      note: 'Project-controlled preliminary sensitivity interval. No authoritative source verifies this range for d32 = C*(gamma/rho_c)^0.6*epsilon^-0.4 in a Kühni or RRBO/NMP system.',
+    },
   },
   applicabilityStatus: 'preliminary_engineering_reconstruction',
   correlationStatus: 'preliminary_engineering_reconstruction',
@@ -200,7 +206,8 @@ export const ECR2_DIRECT_TURBULENCE_D32_PRELIMINARY_REGISTRY: ECR2Correlation = 
   },
   approvalNote:
     'Numerical use is permitted only as DIRECT_TURBULENCE_D32_PRELIMINARY with persistent PRELIMINARY_ENGINEERING / NOT YET PILOT_VALIDATED labeling. ' +
-    'It must not be called K&H 1996, must not change the K&H registry lifecycle, and requires a source-recorded selected nominal C.',
+    'It is not design-decision or release eligible, must not be called K&H 1996, and must not change the K&H registry lifecycle. ' +
+    'A selected nominal-C source reference is audit traceability only; it does not verify the 0.36–0.43 interval. Advancement requires an authoritative route-and-range source plus separate RRBO/NMP pilot validation and approval.',
 };
 
 // ── K&H 1999 supplied preliminary parameter evidence ─────────────────────────

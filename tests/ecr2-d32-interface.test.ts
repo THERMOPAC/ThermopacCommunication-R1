@@ -13,6 +13,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeDropletDiameter,
+  DIRECT_TURBULENCE_C_RANGE_EVIDENCE_STATUS,
   isD32Usable,
   drivingForceContractDefined,
   drivingForceContractNote,
@@ -21,6 +22,9 @@ import {
   type PublishedCorrelationD32Config,
   type DirectTurbulencePreliminaryD32Config,
 } from '../server/engines/llx/llx-ecr2-d32-interface';
+import {
+  ECR2_DIRECT_TURBULENCE_D32_PRELIMINARY_REGISTRY,
+} from '../server/engines/llx/llx-ecr2-correlation-registry';
 
 // ── Shared test state ─────────────────────────────────────────────────────────
 
@@ -53,8 +57,8 @@ const DIRECT_TURBULENCE_CFG: DirectTurbulencePreliminaryD32Config = {
   mode: 'direct_turbulence_preliminary',
   correlationId: 'ecr2_d32_direct_turbulence_preliminary',
   C_nominal: 0.4,
-  sourceType: 'Literature',
-  sourceReference: 'Controlled preliminary C selection',
+  sourceType: 'Project-Controlled Preliminary',
+  sourceReference: 'ECR-2 direct-turbulence preliminary sensitivity register',
 };
 
 const RESULT_META = {
@@ -206,6 +210,10 @@ describe('computeDropletDiameter — direct_turbulence_preliminary', () => {
     expect(result.directTurbulence?.d32_at_C_max_m).toBeGreaterThan(result.d32_m!);
     expect(result.label).toContain('NOT YET PILOT_VALIDATED');
     expect(result.provenance).toContain('Not K&H 1996');
+    expect(result.governanceStatus).toContain('not_design_decision_eligible');
+    expect(result.directTurbulence?.C_rangeEvidenceStatus)
+      .toBe(DIRECT_TURBULENCE_C_RANGE_EVIDENCE_STATUS);
+    expect(result.directTurbulence?.C_rangeDesignDecisionEligible).toBe(false);
     expect(isD32Usable(result)).toBe(true);
   });
 
@@ -226,6 +234,19 @@ describe('computeDropletDiameter — direct_turbulence_preliminary', () => {
     });
     expect(result.status).toBe('calculation_invalid');
     expect(result.d32_m).toBeNull();
+  });
+
+  it('retains the unverified C range as preliminary and not design-decision eligible', () => {
+    expect(ECR2_DIRECT_TURBULENCE_D32_PRELIMINARY_REGISTRY.applicabilityStatus)
+      .toBe('preliminary_engineering_reconstruction');
+    expect(ECR2_DIRECT_TURBULENCE_D32_PRELIMINARY_REGISTRY.correlationStatus)
+      .toBe('preliminary_engineering_reconstruction');
+    expect(ECR2_DIRECT_TURBULENCE_D32_PRELIMINARY_REGISTRY.primarySourceVerified)
+      .toBe(false);
+    expect(ECR2_DIRECT_TURBULENCE_D32_PRELIMINARY_REGISTRY.validatedForRRBONMP)
+      .toBe(false);
+    expect(ECR2_DIRECT_TURBULENCE_D32_PRELIMINARY_REGISTRY.approvalNote)
+      .toContain('not design-decision or release eligible');
   });
 });
 

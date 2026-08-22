@@ -113,7 +113,9 @@ export interface PublishedCorrelationD32Config {
  *
  * The C interval is deliberately fixed in the correlation registry rather than
  * supplied as free-form input. A nominal C must remain inside that interval and
- * carry its own recorded source; no midpoint is silently selected.
+ * carry its own recorded source; no midpoint is silently selected. That source
+ * records the nominal-value selection only: it does not establish the
+ * project-controlled C interval as literature-verified.
  */
 export interface DirectTurbulencePreliminaryD32Config {
   mode: 'direct_turbulence_preliminary';
@@ -258,6 +260,9 @@ export interface D32Result {
     C_nominal: number;
     C_min: 0.36;
     C_max: 0.43;
+    C_rangeEvidenceStatus: 'PROJECT_CONTROLLED__AUTHORITATIVE_SOURCE_NOT_VERIFIED';
+    C_rangeDesignDecisionEligible: false;
+    C_rangeEvidenceReference: string;
     d32_at_C_min_m: number;
     d32_at_C_nominal_m: number;
     d32_at_C_max_m: number;
@@ -276,6 +281,10 @@ const UNIFORM_INLET_BASIS =
   'Thermopac model extension — uniform/inlet property basis';
 export const DIRECT_TURBULENCE_C_MIN = 0.36 as const;
 export const DIRECT_TURBULENCE_C_MAX = 0.43 as const;
+export const DIRECT_TURBULENCE_C_RANGE_EVIDENCE_STATUS =
+  'PROJECT_CONTROLLED__AUTHORITATIVE_SOURCE_NOT_VERIFIED' as const;
+export const DIRECT_TURBULENCE_C_RANGE_EVIDENCE_REFERENCE =
+  'docs/ecr2-kh1996-droplet-size-evidence-verification.md § Direct-turbulence C-range verification (22 August 2026)';
 const TRANSCRIPTION_INVALID_TRACEABILITY = [
   'PRIMARY_SOURCE_UNVERIFIED__KH1996',
   'TRANSCRIPTION_INVALID__LEGACY_C1_N1_AND_DIRECT_HIGH_AGITATION_TERM',
@@ -315,7 +324,7 @@ function directTurbulenceGovernanceFields() {
     engineeringBasis:
       'DIRECT_TURBULENCE_D32_PRELIMINARY — PRELIMINARY_ENGINEERING / NOT YET PILOT_VALIDATED',
     governanceStatus:
-      'preliminary_engineering_not_yet_pilot_validated__direct_turbulence_d32',
+      'preliminary_engineering_not_design_decision_eligible__authoritative_C_range_source_not_verified__direct_turbulence_d32',
     primarySourceVerified: false,
     validatedForRRBONMP: false,
     pilotCalibrationStatus: 'NOT_YET_PILOT_VALIDATED',
@@ -454,14 +463,15 @@ export function computeDropletDiameter(
       extrapolated: false,
       diagnostics: [
         'This is a separate direct-turbulence preliminary d₃₂ route; it is NOT the verified K&H 1996 equation.',
-        'C range [0.36, 0.43] is retained as sensitivity only. Kühni-specific source verification and pilot validation remain pending.',
+        'C range [0.36, 0.43] is project-controlled sensitivity only: no authoritative source verifies this interval for this exact route in a Kühni or RRBO/NMP system.',
+        'The nominal-C source reference records the selected value only; this result is not design-decision or release eligible pending authoritative range evidence and pilot validation.',
       ],
       provenance:
         `d₃₂ = C·(γ/ρ_c)^0.6·ε^-0.4, ε = Nₑ·n³·d_R⁵/V_R. ` +
         `Selected C=${cfg.C_nominal} (${cfg.sourceType}: ${cfg.sourceReference}); ` +
         `sensitivity C=[${DIRECT_TURBULENCE_C_MIN}, ${DIRECT_TURBULENCE_C_MAX}]. ` +
         'DIRECT_TURBULENCE_D32_PRELIMINARY — PRELIMINARY_ENGINEERING / NOT YET PILOT_VALIDATED. ' +
-        'Not K&H 1996 and not pilot-validated for RRBO/NMP.',
+        `${DIRECT_TURBULENCE_C_RANGE_EVIDENCE_STATUS}; Not K&H 1996, not design-decision eligible, and not pilot-validated for RRBO/NMP.`,
       engineerSource: null,
       directTurbulence: {
         equation: 'd32 = C * (gamma / rho_c)^0.6 * epsilon^-0.4',
@@ -475,6 +485,9 @@ export function computeDropletDiameter(
         C_nominal: cfg.C_nominal,
         C_min: DIRECT_TURBULENCE_C_MIN,
         C_max: DIRECT_TURBULENCE_C_MAX,
+        C_rangeEvidenceStatus: DIRECT_TURBULENCE_C_RANGE_EVIDENCE_STATUS,
+        C_rangeDesignDecisionEligible: false,
+        C_rangeEvidenceReference: DIRECT_TURBULENCE_C_RANGE_EVIDENCE_REFERENCE,
         d32_at_C_min_m: d32Min,
         d32_at_C_nominal_m: d32Nominal,
         d32_at_C_max_m: d32Max,
