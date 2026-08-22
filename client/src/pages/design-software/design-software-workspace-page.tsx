@@ -31,6 +31,7 @@ import { resolveNtInputs } from "@/lib/nt-requirement-resolver";
 import { validateEcr2Stage8, ECR2_STAGE8_COMPONENTS, ECR2_STAGE8_SOURCE_TYPES } from "@/lib/ecr2-stage8-validation";
 import { getEcr2Stage8LiveDependencies } from "@/lib/ecr2-stage8-live-dependencies";
 import { getEcr2D32SnapshotGovernance } from "@/lib/ecr2-d32-snapshot-governance";
+import { canDisplayECR2PreliminaryTransferPerformance } from "@/lib/ecr2-transfer-presentation";
 import {
   ECR2_STAGE8_VISIBLE_STATE_LABELS,
   getEcr2Stage8VisibleResolutionState,
@@ -4645,6 +4646,8 @@ export default function DesignSoftwareWorkspacePage() {
     const bvp = displayedSnapshot?.bvp;
     const d32Snapshot = displayedSnapshot?.d32;
     const d32SnapshotGovernance = getEcr2D32SnapshotGovernance(displayedSnapshot);
+    const transferStatus = bvp?.transferStatus ?? displayedSnapshot?.transferStatus;
+    const showPreliminaryTransferPerformance = canDisplayECR2PreliminaryTransferPerformance(bvp, transferStatus);
     const showingFailedSnapshot = !!latestFailedSnapshot;
     const hasStaleAcceptedSnapshot = !!simResult && showingFailedSnapshot;
     const activeHeight = ecrResult?.heightBreakdown?.activeAgitatedHeight?.result;
@@ -5013,8 +5016,8 @@ export default function DesignSoftwareWorkspacePage() {
                    ready: dependencyFor("d32").ready,
                    parameter: "d₃₂",
                    value: sim.d32_mode === "engineer_supplied"
-                     ? (sim.d32_value_mm || "—")
-                     : d32Snapshot?.d32_m ? `${fmt(d32Snapshot.d32_m * 1000, 4)} mm from latest run` : "Unavailable — published K&H route is transcription-invalid",
+                      ? (sim.d32_value_mm || "—")
+                      : d32Snapshot?.d32_m ? `${fmt(d32Snapshot.d32_m * 1000, 4)} mm from latest run` : "Unavailable — published K&H route is transcription-invalid",
                    unit: "mm",
                    status: dependencyStatus(dependencyFor("d32").sourceClass, dependencyFor("d32").ready),
                    details: <div className="space-y-1 text-[11px]">
@@ -5220,11 +5223,22 @@ export default function DesignSoftwareWorkspacePage() {
             ) : (
               <>
                 <div className={`p-3 rounded-lg border text-xs mb-4 ${staleResult || !resultOk ? "bg-red-50 border-red-200 text-red-800" : "bg-emerald-50 border-emerald-200 text-emerald-800"}`}>
-                  <strong>{showingFailedSnapshot ? "Latest simulation not accepted" : resultOk ? "Accepted preliminary simulation" : "Simulation not accepted"}</strong>
+                  <strong>{showingFailedSnapshot ? "Latest simulation not accepted" : resultOk ? "Converged preliminary simulation — NOT release eligible" : "Simulation not accepted"}</strong>
                   <span className="ml-2">BVP: {bvp.status} · convergence: {bvp.convergenceStatus} · mass balance: {bvp.massBalanceStatus}</span>
                   {staleResult && <p className="mt-1">An earlier accepted snapshot exists but is stale. The safety result below is from the newest failed run and is the current record.</p>}
                   {!resultOk && bvp.failure && <p className="mt-1">Missing/failed dependency: <strong>{bvp.failure.dependency}</strong> — {bvp.failure.message}</p>}
                 </div>
+                {transferStatus && (
+                  <div className={`p-3 rounded-lg border text-xs mb-4 ${
+                    transferStatus.status === "LOCAL_PRELIMINARY_CALCULATED"
+                      ? "bg-amber-50 border-amber-200 text-amber-900"
+                      : "bg-red-50 border-red-200 text-red-800"
+                  }`}>
+                    <strong>Transfer availability: {transferStatus.status}</strong>
+                    <span className="ml-2">Governed values: {transferStatus.governedValues ?? "UNAVAILABLE"} · Release: {transferStatus.releaseStatus ?? "NOT_RELEASE_ELIGIBLE"}</span>
+                    <p className="mt-1">{transferStatus.message}</p>
+                  </div>
+                )}
                 {d32Snapshot && (
                   <div className="p-3 rounded-lg border border-amber-200 bg-amber-50 text-xs text-amber-900 mb-4">
                     <strong>Latest d₃₂ safety status: {d32Snapshot.status ?? "not available"}</strong>
@@ -5232,25 +5246,33 @@ export default function DesignSoftwareWorkspacePage() {
                     {(d32Snapshot.diagnostics ?? []).length > 0 && <p className="mt-1">{d32Snapshot.diagnostics[0]}</p>}
                   </div>
                 )}
-                <div className="grid md:grid-cols-2 gap-3 mb-4">
-                  {["raffinate", "extract"].map(name => {
-                    const outlet = bvp.outlets?.[name];
-                    return <div key={name} className="border rounded-lg p-3">
-                      <p className="font-semibold text-sm capitalize">{name}</p>
-                      <p className="text-xs text-gray-500 mt-1">Total flow: {fmt(outlet?.totalFlow_kg_h, 3)} kg/h</p>
-                      <p className="text-[11px] text-gray-600 mt-1">Sat {fmt(outlet?.massFractions?.[0])} · Mono {fmt(outlet?.massFractions?.[1])} · Di {fmt(outlet?.massFractions?.[2])} · Poly {fmt(outlet?.massFractions?.[3])} · NMP {fmt(outlet?.massFractions?.[4])}</p>
-                    </div>;
-                  })}
-                </div>
+                {showPreliminaryTransferPerformance ? (
+                  <>
+                    <div className="grid md:grid-cols-2 gap-3 mb-4">
+                      {["raffinate", "extract"].map(name => {
+                        const outlet = bvp.outlets?.[name];
+                        return <div key={name} className="border rounded-lg p-3">
+                          <p className="font-semibold text-sm capitalize">{name}</p>
+                          <p className="text-xs text-gray-500 mt-1">Total flow: {fmt(outlet?.totalFlow_kg_h, 3)} kg/h</p>
+                          <p className="text-[11px] text-gray-600 mt-1">Sat {fmt(outlet?.massFractions?.[0])} · Mono {fmt(outlet?.massFractions?.[1])} · Di {fmt(outlet?.massFractions?.[2])} · Poly {fmt(outlet?.massFractions?.[3])} · NMP {fmt(outlet?.massFractions?.[4])}</p>
+                        </div>;
+                      })}
+                    </div>
+                    <p className="text-xs font-semibold text-gray-700 mb-1">Axial profile (CALCULATED PRELIMINARY — NOT RELEASE ELIGIBLE)</p>
+                    <div className="overflow-auto border rounded-lg mb-4"><table className="min-w-full text-[11px]"><thead className="bg-gray-50"><tr><th className="p-2 text-left">z (m)</th><th className="p-2 text-left">Raffinate flow</th><th className="p-2 text-left">Extract flow</th><th className="p-2 text-left">φd</th><th className="p-2 text-left">d32 (mm)</th><th className="p-2 text-left">Re_d</th></tr></thead><tbody>{profile.map((p: any, i: number) => <tr key={i} className="border-t"><td className="p-2">{fmt(p.z_m, 3)}</td><td className="p-2">{fmt(p.raffinateFlow_kg_h, 3)}</td><td className="p-2">{fmt(p.extractFlow_kg_h, 3)}</td><td className="p-2">{fmt(p.phi_d, 4)}</td><td className="p-2">{fmt(p.d32_m * 1000, 3)}</td><td className="p-2">{fmt(p.Re_d, 2)}</td></tr>)}</tbody></table></div>
+                    <p className="text-xs font-semibold text-gray-700 mb-1">Compartment engineering table (CALCULATED PRELIMINARY — NOT RELEASE ELIGIBLE)</p>
+                    <div className="overflow-auto border rounded-lg"><table className="min-w-full text-[11px]"><thead className="bg-gray-50"><tr><th className="p-2 text-left">#</th><th className="p-2 text-left">z centre</th><th className="p-2 text-left">Active liquid volume</th><th className="p-2 text-left">Transfer warning(s)</th></tr></thead><tbody>{compartments.map((c: any) => <tr key={c.compartmentIndex} className="border-t"><td className="p-2">{c.compartmentIndex}</td><td className="p-2">{fmt(c.z_centre_m, 3)} m</td><td className="p-2">{fmt(c.activeLiquidVolume_m3, 5)} m³</td><td className="p-2">{(c.localWarnings ?? []).join("; ") || "—"}</td></tr>)}</tbody></table></div>
+                  </>
+                ) : (
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+                    <strong>Transfer performance output unavailable.</strong> Any retained outlet, profile, or compartment arrays are unaccepted solver diagnostics and are not shown as calculated results.
+                  </div>
+                )}
                 <div className="grid md:grid-cols-3 gap-3 mb-4">
                   <div className="border rounded-lg p-3 text-xs"><p className="text-gray-500">Iterations</p><p className="font-semibold text-base">{bvp.iterations}</p></div>
                   <div className="border rounded-lg p-3 text-xs"><p className="text-gray-500">Final residual norm</p><p className="font-semibold text-base">{fmt(bvp.finalResidualNorm, 7)}</p></div>
                   <div className="border rounded-lg p-3 text-xs"><p className="text-gray-500">Total mass balance</p><p className="font-semibold text-base">{fmt(bvp.totalMassBalance_kg_h, 8)} kg/h</p></div>
                 </div>
-                <p className="text-xs font-semibold text-gray-700 mb-1">Axial profile (CALCULATED)</p>
-                <div className="overflow-auto border rounded-lg mb-4"><table className="min-w-full text-[11px]"><thead className="bg-gray-50"><tr><th className="p-2 text-left">z (m)</th><th className="p-2 text-left">Raffinate flow</th><th className="p-2 text-left">Extract flow</th><th className="p-2 text-left">φd</th><th className="p-2 text-left">d32 (mm)</th><th className="p-2 text-left">Re_d</th></tr></thead><tbody>{profile.map((p: any, i: number) => <tr key={i} className="border-t"><td className="p-2">{fmt(p.z_m, 3)}</td><td className="p-2">{fmt(p.raffinateFlow_kg_h, 3)}</td><td className="p-2">{fmt(p.extractFlow_kg_h, 3)}</td><td className="p-2">{fmt(p.phi_d, 4)}</td><td className="p-2">{fmt(p.d32_m * 1000, 3)}</td><td className="p-2">{fmt(p.Re_d, 2)}</td></tr>)}</tbody></table></div>
-                <p className="text-xs font-semibold text-gray-700 mb-1">Compartment engineering table (CALCULATED)</p>
-                <div className="overflow-auto border rounded-lg"><table className="min-w-full text-[11px]"><thead className="bg-gray-50"><tr><th className="p-2 text-left">#</th><th className="p-2 text-left">z centre</th><th className="p-2 text-left">Active liquid volume</th><th className="p-2 text-left">Transfer warning(s)</th></tr></thead><tbody>{compartments.map((c: any) => <tr key={c.compartmentIndex} className="border-t"><td className="p-2">{c.compartmentIndex}</td><td className="p-2">{fmt(c.z_centre_m, 3)} m</td><td className="p-2">{fmt(c.activeLiquidVolume_m3, 5)} m³</td><td className="p-2">{(c.localWarnings ?? []).join("; ") || "—"}</td></tr>)}</tbody></table></div>
               </>
             )}
           </SectionCard>

@@ -6,6 +6,7 @@ import {
   thermodynamicMoleFractionsFromPhysicalMassFractions,
   type ECR2CounterCurrentBVPInput,
 } from '../server/engines/llx/llx-ecr2-counter-current-bvp';
+import { buildDependencyGraph } from '../server/engines/llx/llx-ecr2-compartment-state';
 import { SURROGATE_MW } from '../server/engine-framework/cel/coto2022-nmp-lle';
 import type { DiffusivityInput, ECR2DiffusivityContract } from '../server/engines/llx/llx-ecr2-diffusivity';
 
@@ -112,6 +113,19 @@ describe('ECR-2 counter-current BVP', () => {
   it('solves N=1 with non-negative faces, orientation, and component conservation', () => {
     const result = solveECR2CounterCurrentBVP(input(1));
     expect(result.status).toBe('converged');
+    expect(result.transferStatus).toMatchObject({
+      status: 'LOCAL_PRELIMINARY_CALCULATED',
+      localPhysicsStatus: 'CALCULATED_PRELIMINARY',
+      governedValues: 'UNAVAILABLE',
+      releaseStatus: 'NOT_RELEASE_ELIGIBLE',
+      calculatedCompartmentCount: 1,
+      provenance: {
+        engineeringBasis: 'Published Correlation — Preliminary Engineering',
+        primarySourceVerified: false,
+        validatedForRRBONMP: false,
+        pilotCalibrationStatus: 'NOT_YET_VALIDATED',
+      },
+    });
     expect(result.compartments).toHaveLength(1);
     expect(result.compartments[0].dispersedIncoming_kg_h).toEqual(input(1).rrboFeedComponentFlows_kg_h);
     expect(result.compartments[0].continuousIncoming_kg_h).toEqual(input(1).nmpFeedComponentFlows_kg_h);
@@ -283,18 +297,81 @@ describe('ECR-2 counter-current BVP', () => {
     expect(result.failure?.dependency).toBe('donor_inventory');
   });
 
+  it('blocks transfer availability when a locally evaluable BVP is not accepted', () => {
+    const nonConverged = input(1);
+    nonConverged.solverOptions = {
+      transferStrength: 0,
+      maxIterations: 1,
+      maxFunctionEvaluations: 1,
+    };
+
+    const result = solveECR2CounterCurrentBVP(nonConverged);
+    expect(result.status).toBe('non_converged');
+    expect(result.compartments.length).toBeGreaterThan(0);
+    expect(result.transferStatus).toMatchObject({
+      status: 'LOCAL_PRELIMINARY_BLOCKED',
+      localPhysicsStatus: 'BLOCKED',
+      blocker: { dependency: 'convergence' },
+    });
+  });
+
   it('fails closed for a missing required local physical property and preserves preliminary provenance', () => {
     const noMuD = input();
     noMuD.governedProperties.mu_d_engineer = null;
     const blocked = solveECR2CounterCurrentBVP(noMuD);
     expect(blocked.status).toBe('blocked');
     expect(blocked.failure?.dependency).toBe('local_property_closure');
+    expect(blocked.transferStatus).toMatchObject({
+      status: 'LOCAL_PRELIMINARY_BLOCKED',
+      localPhysicsStatus: 'BLOCKED',
+      governedValues: 'UNAVAILABLE',
+      releaseStatus: 'NOT_RELEASE_ELIGIBLE',
+      blocker: { dependency: 'local_property_closure' },
+    });
 
     const valid = solveECR2CounterCurrentBVP(input());
     expect(valid.engineeringBasis).toBe('Published Correlation — Preliminary Engineering');
     expect(valid.primarySourceVerified).toBe(false);
     expect(valid.validatedForRRBONMP).toBe(false);
     expect(valid.pilotCalibrationStatus).toBe('NOT_YET_VALIDATED');
+  });
+
+  it('does not turn a physically inadmissible d32 into transfer performance', () => {
+    const invalidD32 = input();
+    invalidD32.d32Config = {
+      mode: 'engineer_supplied',
+      value_m: 0,
+      sourceType: 'Assumed',
+      sourceReference: 'Invalid zero d32 regression fixture',
+    };
+
+    const result = solveECR2CounterCurrentBVP(invalidD32);
+    expect(result.status).toBe('blocked');
+    expect(result.failure?.dependency).toBe('d32');
+    expect(result.transferStatus).toMatchObject({
+      status: 'LOCAL_PRELIMINARY_BLOCKED',
+      governedValues: 'UNAVAILABLE',
+      releaseStatus: 'NOT_RELEASE_ELIGIBLE',
+      blocker: { dependency: 'd32' },
+    });
+    expect(result.axialProfile).toEqual([]);
+    expect(result.outlets).toEqual({ raffinate: null, extract: null });
+  });
+
+  it('does not label an inadmissible engineer d32 as supplied in the dependency graph', () => {
+    const graph = buildDependencyGraph({
+      psiAvailable: true,
+      holdupUsable: true,
+      d32Available: false,
+      d32EngineerSupplied: true,
+      d32CorrelationUnresolved: false,
+      propertiesAvailable: true,
+    });
+    const d32 = graph.nodes.find((node) => node.quantity === 'd32');
+    expect(d32).toMatchObject({
+      level: 'missing_dependency',
+      blockedBy: 'blocked_by_d32',
+    });
   });
 
   it('reports a structured non-convergence outcome under a zero evaluation budget', () => {

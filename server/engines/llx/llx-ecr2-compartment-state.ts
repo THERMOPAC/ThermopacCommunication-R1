@@ -22,6 +22,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import type { ComponentVector } from './llx-ecr-simulator-engine';
+import type { ECR2PreliminaryTransferStatus } from './llx-ecr2-kh1999-mass-transfer';
 import type { KH1995HoldupResult } from './llx-ecr2-holdup';
 import type { D32Result } from './llx-ecr2-d32-interface';
 import type { ECR2LocalNRTLResult } from './llx-ecr2-local-nrtl';
@@ -475,6 +476,7 @@ export const NULL_TRANSFER_RATE: ECR2NullField = nullField(
 /** Availability level for a quantity in the dependency graph. */
 export type AvailabilityLevel =
   | 'available'             // computed and usable
+  | 'calculated_preliminary' // numerical local physics; never release-eligible
   | 'available_extrapolated' // computed but outside primary validity range
   | 'engineer_supplied'     // explicit engineer-supplied development basis
   | 'physically_invalid'    // result was physically impossible (not clamped)
@@ -507,7 +509,11 @@ export interface ECR2DependencyGraph {
   nodes: DependencyNode[];
   /** Summary: how many quantities are currently available (level !== missing_dependency/unresolved). */
   availableCount: number;
+  /** Numerical values present as local preliminary physics, excluded from availableCount. */
+  preliminaryCount: number;
   totalCount: number;
+  /** The same transfer availability record carried by the BVP snapshot. */
+  transferStatus: ECR2PreliminaryTransferStatus | null;
   /** First blocking reason in the chain (the root cause blocking the most downstream work). */
   primaryBlocker: ECR2DependencyReason | null;
   /** Registry correlation ID of the primary blocker. */
@@ -529,6 +535,8 @@ export function buildDependencyGraph(opts: {
   d32EngineerSupplied: boolean;
   d32CorrelationUnresolved: boolean;
   propertiesAvailable: boolean;  // rho_c, rho_d, mu_c, mu_d, sigma at inlet
+  /** Local BVP transfer status, when a snapshot has been attempted. */
+  transferStatus?: ECR2PreliminaryTransferStatus;
 }): ECR2DependencyGraph {
   const {
     psiAvailable,
@@ -538,15 +546,19 @@ export function buildDependencyGraph(opts: {
     d32EngineerSupplied,
     d32CorrelationUnresolved,
     propertiesAvailable,
+    transferStatus,
   } = opts;
 
   // Interfacial area requires both holdup and d₃₂
   const aAvailable = holdupUsable && d32Available;
   // Hydrodynamic groups require a, d₃₂, and properties
   const hydGroupsAvailable = aAvailable && propertiesAvailable;
-  // k_c, k_d require d₃₂, properties, and K&H 1999 approval (not yet)
-  const kcKdAvailable = false; // K&H 1999 is pending_approval
-  const KoaAvailable = false;  // gated on kc, kd, K_overall
+  const localPreliminaryCalculated =
+    transferStatus?.status === 'LOCAL_PRELIMINARY_CALCULATED';
+  const localPreliminaryBlocked =
+    transferStatus?.status === 'LOCAL_PRELIMINARY_BLOCKED';
+  const localPreliminaryMessage = transferStatus?.message ??
+    'No local preliminary transfer snapshot has been produced.';
 
   const nodes: DependencyNode[] = [
     {
@@ -616,25 +628,27 @@ export function buildDependencyGraph(opts: {
       quantity: 'd32',
       symbol: 'd₃₂',
       unit: 'm',
-      level: d32EngineerSupplied
-        ? 'engineer_supplied'
-        : d32CorrelationUnresolved
+      level: !d32Available
+        ? d32CorrelationUnresolved
           ? 'correlation_unresolved'
-          : d32Available
-            ? 'available'
-            : 'missing_dependency',
+          : 'missing_dependency'
+        : d32EngineerSupplied
+          ? 'engineer_supplied'
+          : 'available',
       dependsOn: ['specific_power', 'holdup'],
       blockedBy: d32Available ? null : 'blocked_by_d32',
       correlationId: 'ecr2_d32_kh1996',
-      statusMessage: d32EngineerSupplied
-        ? 'Engineer-Supplied d₃₂ — Simulator Development / Sensitivity Basis. ' +
-          'Not a published correlation result.'
-        : d32CorrelationUnresolved
+      statusMessage: !d32Available
+        ? d32CorrelationUnresolved
           ? 'K&H 1996 d₃₂ correlation has UNRESOLVED_SYMBOL and UNRESOLVED_GROUPING. ' +
             'Cannot be implemented numerically until both flags are cleared from the ' +
             'K&H 1996 primary paper (DOI 10.1021/ie950674w). ' +
             'Supply an engineer-specified d₃₂ to continue downstream development.'
-          : 'K&H 1996 d₃₂ not yet computed.',
+          : 'd₃₂ is unavailable or failed its physical/numerical admissibility guard.'
+        : d32EngineerSupplied
+        ? 'Engineer-Supplied d₃₂ — Simulator Development / Sensitivity Basis. ' +
+          'Not a published correlation result.'
+        : 'K&H 1996 d₃₂ calculated on the declared preliminary basis.',
     },
     {
       quantity: 'interfacial_area',
@@ -682,101 +696,111 @@ export function buildDependencyGraph(opts: {
       quantity: 'k_c',
       symbol: 'k_c',
       unit: 'm/s',
-      level: kcKdAvailable ? 'available' : 'correlation_unresolved',
+      level: localPreliminaryCalculated ? 'calculated_preliminary' : 'correlation_unresolved',
       dependsOn: ['d32', 'drop_reynolds'],
-      blockedBy: 'blocked_by_kc',
+      blockedBy: localPreliminaryCalculated ? null : 'blocked_by_kc',
       correlationId: 'ecr2_koa_kh1999',
       statusMessage:
-        'k_c unavailable — K&H 1999 mass-transfer correlation is pending_approval. ' +
-        'C1 agitation term requires K&H 1999 primary paper. Also gated on d₃₂ resolution. ' +
-        'Requires molecular diffusivity De_c (engineer-supplied) per pseudo-component.',
+        localPreliminaryCalculated
+          ? 'k_c calculated as provenance-tagged local preliminary physics. Governed design availability remains unavailable; not release-eligible.'
+          : `k_c unavailable — ${localPreliminaryBlocked ? localPreliminaryMessage : 'a local preliminary calculation has not completed.'}`,
     },
     {
       quantity: 'k_d',
       symbol: 'k_d',
       unit: 'm/s',
-      level: kcKdAvailable ? 'available' : 'correlation_unresolved',
+      level: localPreliminaryCalculated ? 'calculated_preliminary' : 'correlation_unresolved',
       dependsOn: ['d32', 'drop_reynolds'],
-      blockedBy: 'blocked_by_kd',
+      blockedBy: localPreliminaryCalculated ? null : 'blocked_by_kd',
       correlationId: 'ecr2_koa_kh1999',
       statusMessage:
-        'k_d unavailable — K&H 1999 mass-transfer correlation is pending_approval. ' +
-        'C2 agitation term requires K&H 1999 primary paper. Also gated on d₃₂ resolution. ' +
-        'Requires molecular diffusivity De_d (engineer-supplied) per pseudo-component.',
+        localPreliminaryCalculated
+          ? 'k_d calculated as provenance-tagged local preliminary physics. Governed design availability remains unavailable; not release-eligible.'
+          : `k_d unavailable — ${localPreliminaryBlocked ? localPreliminaryMessage : 'a local preliminary calculation has not completed.'}`,
     },
     {
       quantity: 'K_overall',
       symbol: 'K_overall,i',
       unit: 'm/s',
-      level: KoaAvailable ? 'available' : 'missing_dependency',
+      level: localPreliminaryCalculated ? 'calculated_preliminary' : 'missing_dependency',
       dependsOn: ['k_c', 'k_d'],
-      blockedBy: 'blocked_by_K_overall',
+      blockedBy: localPreliminaryCalculated ? null : 'blocked_by_K_overall',
       correlationId: 'ecr2_koa_kh1999',
       statusMessage:
-        'K_overall unavailable — requires k_c, k_d, and K_d,i (NRTL partition coefficient). ' +
-        'K_d,i must come from the NRTL flash for each pseudo-component. ' +
-        'Formula: K_overall,i = k_c·k_d / (k_d·K_d,i + k_c).',
+        localPreliminaryCalculated
+          ? 'K_overall calculated as provenance-tagged local preliminary physics; it is not a governed design value and is not release-eligible.'
+          : `K_overall unavailable — ${localPreliminaryBlocked ? localPreliminaryMessage : 'requires a complete local preliminary transfer state.'}`,
     },
     {
       quantity: 'Koa',
       symbol: 'K_oa',
       unit: '1/s',
-      level: KoaAvailable ? 'available' : 'missing_dependency',
+      level: localPreliminaryCalculated ? 'calculated_preliminary' : 'missing_dependency',
       dependsOn: ['K_overall', 'interfacial_area'],
-      blockedBy: 'blocked_by_K_overall',
+      blockedBy: localPreliminaryCalculated ? null : 'blocked_by_K_overall',
       correlationId: null,
       statusMessage:
-        'K_oa unavailable — requires K_overall and interfacial area a. ' +
-        'K_oa = K_overall [m/s] · a [1/m] = [1/s] once both are resolved.',
+        localPreliminaryCalculated
+          ? 'K_oa calculated as provenance-tagged local preliminary physics; governed K_oa remains unavailable and is not release-eligible.'
+          : `K_oa unavailable — ${localPreliminaryBlocked ? localPreliminaryMessage : 'requires a complete local preliminary transfer state.'}`,
     },
     {
       quantity: 'component_transfer_rates',
       symbol: 'N_i',
       unit: 'mol/(m³·s)',
-      level: 'missing_dependency',
+      level: localPreliminaryCalculated ? 'calculated_preliminary' : 'missing_dependency',
       dependsOn: ['Koa'],
-      blockedBy: 'blocked_by_K_overall',
+      blockedBy: localPreliminaryCalculated ? null : 'blocked_by_K_overall',
       correlationId: null,
       statusMessage:
-        'Component transfer rates unavailable — requires K_oa and local driving force ' +
-        '(x - x*) from NRTL equilibrium. Driving-force contract defined but not implemented.',
+        localPreliminaryCalculated
+          ? 'Component transfer rates calculated as provenance-tagged local preliminary physics. They are not governed design performance values and are not release-eligible.'
+          : `Component transfer rates unavailable — ${localPreliminaryBlocked ? localPreliminaryMessage : 'requires a complete local preliminary transfer state.'}`,
     },
     {
       quantity: 'compositions',
       symbol: 'x(z), y(z)',
       unit: 'mol/mol',
-      level: 'missing_dependency',
+      level: localPreliminaryCalculated ? 'calculated_preliminary' : 'missing_dependency',
       dependsOn: ['component_transfer_rates'],
-      blockedBy: 'phase_2_not_implemented',
+      blockedBy: localPreliminaryCalculated ? null : 'phase_2_not_implemented',
       correlationId: null,
       statusMessage:
-        'Axial composition profiles unavailable — BVP (counter-current compartment solver) ' +
-        'not yet implemented. Gated on all upstream quantities being available.',
+        localPreliminaryCalculated
+          ? 'Axial profiles were calculated from the counter-current BVP as preliminary local physics only; not release-eligible.'
+          : `Axial composition profiles unavailable — ${localPreliminaryBlocked ? localPreliminaryMessage : 'requires a complete local preliminary transfer state.'}`,
     },
     {
       quantity: 'raffinate_quality',
       symbol: 'x_raffinate',
       unit: 'mol/mol',
-      level: 'missing_dependency',
+      level: localPreliminaryCalculated ? 'calculated_preliminary' : 'missing_dependency',
       dependsOn: ['compositions'],
-      blockedBy: 'phase_2_not_implemented',
+      blockedBy: localPreliminaryCalculated ? null : 'phase_2_not_implemented',
       correlationId: null,
-      statusMessage: 'Raffinate outlet composition unavailable — BVP not yet implemented.',
+      statusMessage: localPreliminaryCalculated
+        ? 'Raffinate outlet calculated by the preliminary BVP only; not a governed or release-eligible performance value.'
+        : `Raffinate outlet unavailable — ${localPreliminaryBlocked ? localPreliminaryMessage : 'requires a complete local preliminary transfer state.'}`,
     },
     {
       quantity: 'extract_quality',
       symbol: 'y_extract',
       unit: 'mol/mol',
-      level: 'missing_dependency',
+      level: localPreliminaryCalculated ? 'calculated_preliminary' : 'missing_dependency',
       dependsOn: ['compositions'],
-      blockedBy: 'phase_2_not_implemented',
+      blockedBy: localPreliminaryCalculated ? null : 'phase_2_not_implemented',
       correlationId: null,
-      statusMessage: 'Extract outlet composition unavailable — BVP not yet implemented.',
+      statusMessage: localPreliminaryCalculated
+        ? 'Extract outlet calculated by the preliminary BVP only; not a governed or release-eligible performance value.'
+        : `Extract outlet unavailable — ${localPreliminaryBlocked ? localPreliminaryMessage : 'requires a complete local preliminary transfer state.'}`,
     },
   ];
 
   const availableCount = nodes.filter(
     (n) => n.level === 'available' || n.level === 'available_extrapolated' || n.level === 'engineer_supplied'
+  ).length;
+  const preliminaryCount = nodes.filter(
+    (n) => n.level === 'calculated_preliminary',
   ).length;
 
   // Primary blocker: first blocked_by_* or correlation_unresolved node
@@ -787,7 +811,9 @@ export function buildDependencyGraph(opts: {
   return {
     nodes,
     availableCount,
+    preliminaryCount,
     totalCount: nodes.length,
+    transferStatus: transferStatus ?? null,
     primaryBlocker: firstBlocked?.blockedBy ?? null,
     primaryBlockerCorrelationId: firstBlocked?.correlationId ?? null,
   };

@@ -17,8 +17,10 @@ import { computeAllSchmidtNumbers } from './llx-ecr2-diffusivity';
 import {
   activateKH1999PreliminaryLocalMassTransfer,
   evaluateKH1999PreliminaryLocalMassTransfer,
+  summarizeECR2PreliminaryTransferStatus,
   type ECR2KH1999LocalMassTransferResult,
   type ECR2KH1999PartitionBasisApproval,
+  type ECR2PreliminaryTransferStatus,
   type ECR2PhysicalMolecularWeightVector,
   type FiveComponentVector,
 } from './llx-ecr2-kh1999-mass-transfer';
@@ -154,6 +156,12 @@ export interface ECR2CounterCurrentBVPResult {
   primarySourceVerified: false;
   validatedForRRBONMP: false;
   pilotCalibrationStatus: 'NOT_YET_VALIDATED';
+  /**
+   * Authoritative availability for every numerical transfer value in this
+   * snapshot. Convergence does not promote these preliminary values to a
+   * governed, release-eligible design result.
+   */
+  transferStatus: ECR2PreliminaryTransferStatus;
   iterations: number;
   functionEvaluations: number;
   finalResidualNorm: number | null;
@@ -285,6 +293,10 @@ function resultFailure(
     primarySourceVerified: false,
     validatedForRRBONMP: false,
     pilotCalibrationStatus: 'NOT_YET_VALIDATED',
+    transferStatus: summarizeECR2PreliminaryTransferStatus([], {
+      dependency: failure.dependency,
+      message: failure.message,
+    }),
     iterations: 0,
     functionEvaluations,
     finalResidualNorm: null,
@@ -701,6 +713,15 @@ function resultFromEvaluation(
     primarySourceVerified: false,
     validatedForRRBONMP: false,
     pilotCalibrationStatus: 'NOT_YET_VALIDATED',
+    transferStatus: summarizeECR2PreliminaryTransferStatus(
+      evaluated.compartments.map((compartment) => compartment.localMassTransfer),
+      accepted
+        ? null
+        : {
+            dependency: 'convergence',
+            message: 'The nonlinear least-squares solver did not satisfy all numerical and mass-balance acceptance checks.',
+          },
+    ),
     iterations,
     functionEvaluations,
     finalResidualNorm: residualNorm,

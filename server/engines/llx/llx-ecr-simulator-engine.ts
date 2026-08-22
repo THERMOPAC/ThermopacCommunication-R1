@@ -125,6 +125,7 @@ import {
 
 import {
   createUnavailableKH1999PreliminaryLocalMassTransfer,
+  summarizeECR2PreliminaryTransferStatus,
   type ECR2KH1999LocalMassTransferResult,
 } from './llx-ecr2-kh1999-mass-transfer';
 import {
@@ -1151,7 +1152,6 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const fStator      = inputs.statorOpenAreaFraction
       ? parseTagged(inputs.statorOpenAreaFraction, 'statorOpenAreaFraction', [], { min: 0.01, max: 0.9, unit: '-' })
       : undefined;
-    // Interfacial tension — optional; required for K&H 1995 holdup.
     // A measurement/estimate at another temperature must never be used as the
     // Stage 4 operating-temperature value. No temperature route is currently
     // governed for sigma, so the named sigma evidence gap remains fail-closed.
@@ -1641,6 +1641,10 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
             return {
               ...blocked,
               diagnostics: [message],
+              transferStatus: summarizeECR2PreliminaryTransferStatus([], {
+                dependency: 'phase_configuration',
+                message,
+              }),
               failure: {
                 dependency: 'phase_configuration',
                 message,
@@ -1760,6 +1764,15 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       calculationRunStatus: bvpResult.status === 'converged' && bvpResult.massBalanceStatus === 'passed'
         ? 'counter_current_bvp_accepted'
         : 'counter_current_bvp_not_accepted',
+      transferStatus: bvpResult.transferStatus,
+      reportingStatus: {
+        numericalBvpStatus: bvpResult.status === 'converged' && bvpResult.massBalanceStatus === 'passed'
+          ? 'CONVERGED_PRELIMINARY'
+          : 'NOT_ACCEPTED',
+        governedValues: bvpResult.transferStatus.governedValues,
+        releaseStatus: bvpResult.transferStatus.releaseStatus,
+        message: bvpResult.transferStatus.message,
+      },
       phaseOrientationNote:
         'z=0=BOTTOM: RRBO enters (upward), extract exits. ' +
         'z=H=TOP: fresh NMP enters (downward), raffinate exits. ' +
@@ -1859,8 +1872,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         psiFormA_verified: 'P_V_W_m3 = N_P·ρ_b·N³·D_R⁵/(A·h) [W/m³]; ψ = P_V_W_m3/ρ_b [W/kg]; ρ_b cancels → ψ = N_P·N³·D_R⁵/(A·h) — Form A ✓',
         psiDensityCancellation: 'ρ_b enters once in numerator (powerPerRotor) and once in denominator (÷rhoMix_phase1) — not a double division; net result is density-independent',
         powerDensityBasis: `Phase 1 continuous-phase inlet density (${continuousPhase}) = ${rhoMix_phase1.toFixed(2)} kg/m³ — same ρ_b in both P₁ and ψ normalisation`,
-      psiMassBasis: 'Laitinen et al. (2019) nomenclature identifies ψ as mechanical power dissipation per unit mass [W/kg]; source supports conversion of P/V to ψ using liquid density.',
-      psiDefinitionEvidenceStatus: 'secondary_reproduction_verified',
+        psiMassBasis: 'Laitinen et al. (2019) nomenclature identifies ψ as mechanical power dissipation per unit mass [W/kg]; source supports conversion of P/V to ψ using liquid density.',
+        psiDefinitionEvidenceStatus: 'secondary_reproduction_verified',
       },
 
       boundaryConditions,
@@ -1874,8 +1887,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         note:
           'ecr2_holdup_kh1995: secondary_equation_verified — K&H 1995 holdup computed in Phase 1. ' +
           'ecr2_d32_kh1996: transcription_invalid — legacy reconstruction disabled because independent secondary reproductions contradict its high-agitation-term placement; H and numerator notation remain unresolved. ' +
-          'ecr2_koa_kh1999: MASS_TRANSFER_PRELIMINARY — concentration-based Kd/driving-force kernel is controlled; ' +
-          'Sherwood-dependent terms remain unavailable pending source-complete equations and placement. ' +
+          `ecr2_koa_kh1999: ${bvpResult.transferStatus.status} — ${bvpResult.transferStatus.message} ` +
           'ecr2_flooding_pending, ecr2_axial_dispersion_pending: pending/reserved.',
         entries: corrRegistry,
       },
@@ -1889,6 +1901,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         d32EngineerSupplied:        d32Result?.mode === 'engineer_supplied',
         d32CorrelationUnresolved:   d32Result?.status === 'correlation_unresolved',
         propertiesAvailable:        gamma !== undefined,
+        transferStatus:              bvpResult.transferStatus,
       }),
 
       // ── d₃₂ section ────────────────────────────────────────────────────────
@@ -1950,11 +1963,9 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         correlationId: 'ecr2_koa_kh1999',
         correlationStatus: 'preliminary_engineering_reconstruction',
         status: 'MASS_TRANSFER_PRELIMINARY',
+        availability: bvpResult.transferStatus,
         reason:
-          'The controlled local kernel now calculates physical concentration conversion, concentration-based Kd, and ' +
-          'driving-force reporting when a solved local state is supplied. This Phase-1 scaffold has no local state. ' +
-          'Shc/Shd, phase film coefficients, Kod, Koa, and rates remain unavailable because complete equations, regime ' +
-          'selection, low-Re policy, and C1/C2/Fc/Fd placement are not source-complete.',
+          bvpResult.transferStatus.message,
         preliminaryParameters: ECR2_KH1999_PRELIMINARY_PARAMETERS,
         interfaceDefined: true,
         interfaceContract: {
@@ -1979,8 +1990,11 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           4: 'NMP (solvent) — not transferred on driving-force basis',
         },
         blockedBy: {
-          primary: { reason: 'correlation_unresolved', correlationId: 'ecr2_koa_kh1999' },
-          message: 'K_oa remains unavailable until the complete K&H 1999 Sherwood equations, regime-selection rule, and C1/C2/Fc/Fd placement are verified. d₃₂ is also required once that evidence exists.',
+          primary: bvpResult.transferStatus.blocker
+            ? { reason: bvpResult.transferStatus.blocker.dependency, correlationId: 'ecr2_koa_kh1999' }
+            : null,
+          message: bvpResult.transferStatus.blocker?.message ??
+            'Governed K_oa remains unavailable. The local preliminary Koa shown in the BVP snapshot is not a release-eligible design value.',
         },
       },
 
@@ -2061,10 +2075,12 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
                 : ''})`;
           return `BLOCKED — ${interfacialAreaResult.status}: ${interfacialAreaResult.blockingReasons.join('; ')}`;
         })(),
-        massTransfer: 'MASS_TRANSFER_PRELIMINARY — concentration-based Kd/driving-force local kernel is available when a local state exists; Sherwood-dependent quantities are intentionally unavailable.',
-        Koa: 'UNAVAILABLE — Koa depends on source-incomplete Shc/Shd, k_c, k_d, and Kod; no numerical reconstruction is permitted.',
+        massTransfer: `${bvpResult.transferStatus.status} — ${bvpResult.transferStatus.message}`,
+        Koa: bvpResult.transferStatus.status === 'LOCAL_PRELIMINARY_CALCULATED'
+          ? 'CALCULATED_PRELIMINARY — local Koa is provenance-tagged physics only; governed Koa remains unavailable and is not release-eligible.'
+          : `UNAVAILABLE — ${bvpResult.transferStatus.message}`,
         bvp: bvpResult.status === 'converged' && bvpResult.massBalanceStatus === 'passed'
-          ? 'ACCEPTED — verified preliminary counter-current five-component BVP.'
+          ? 'CONVERGED_PRELIMINARY — counter-current five-component BVP solved numerically, but every transfer, profile, and outlet value remains NOT_RELEASE_ELIGIBLE.'
           : `NOT ACCEPTED — ${bvpResult.failure?.dependency ?? bvpResult.convergenceStatus}: ${bvpResult.failure?.message ?? bvpResult.diagnostics[0] ?? 'review BVP diagnostics.'}`,
         optimizer: 'NOT IMPLEMENTED — downstream of BVP',
         axialDispersion: 'NOT IMPLEMENTED — reserved; plug-flow baseline must be established first',
@@ -2103,10 +2119,12 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const d32S = results.d32       as Record<string, unknown> | undefined;
     const intA = results.interfacialArea as Record<string, unknown> | undefined;
     const dep  = results.dependencyGraph as Record<string, unknown> | undefined;
+    const transfer = results.transferStatus as Record<string, unknown> | undefined;
 
     const d32mm    = d32S?.d32_mm    != null ? Number(d32S.d32_mm) : null;
     const aVal     = intA?.a_m2_m3   != null ? Number(intA.a_m2_m3) : null;
     const avail    = dep?.availableCount as number | undefined;
+    const preliminary = dep?.preliminaryCount as number | undefined;
     const total    = dep?.totalCount    as number | undefined;
 
     return {
@@ -2130,20 +2148,33 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           ? { label: 'Interfacial area a', value: Number(aVal.toFixed(1)), unit: 'm²/m³', highlight: true }
           : { label: 'Interfacial area a', value: 'Blocked — requires d₃₂', highlight: false },
         avail != null && total != null
-          ? { label: 'Dependency graph', value: `${avail}/${total} quantities available`, highlight: false }
+          ? {
+              label: 'Dependency graph',
+              value: `${avail}/${total} governed/standard quantities available${preliminary ? `; ${preliminary} calculated preliminary` : ''}`,
+              highlight: false,
+            }
+          : null,
+        transfer?.status != null
+          ? {
+              label: 'Transfer-result status',
+              value: `${String(transfer.status)} — ${String(transfer.releaseStatus ?? 'NOT_RELEASE_ELIGIBLE')}`,
+              highlight: false,
+            }
           : null,
       ].filter(Boolean) as DesignSummary['keyResults'],
       recommendations: [
-        'ECR-2 Phase 1 + d₃₂/interfacial-area infrastructure. BVP and optimizer NOT implemented.',
+        transfer?.status === 'LOCAL_PRELIMINARY_CALCULATED'
+          ? 'Counter-current BVP local transfer physics converged as preliminary engineering only; its profiles and outlets are not release-eligible design performance.'
+          : 'Counter-current BVP local transfer physics is unavailable until its blocking dependency is resolved.',
         d32mm === null
           ? 'To enable a, k_c, k_d, K_oa: supply d32Config.mode=\'engineer_supplied\' for development/sensitivity.'
           : `d₃₂ = ${d32mm.toFixed(3)} mm (${d32S?.modeUsed}). Interfacial area a = ${aVal?.toFixed(1) ?? 'blocked'} m²/m³.`,
-        'K&H 1999 mass-transfer correlation (k_c, k_d) is pending_approval — C1/C2 agitation terms require K&H 1999 primary paper.',
+        'Governed K&H 1999 transfer performance remains unavailable; numerical local preliminary physics must retain its provenance and non-release status.',
         'K&H 1996 d₃₂: legacy reconstruction is transcription-invalid; resolve H, numerator notation, coefficient mapping, phase convention, and applicability from independent authoritative evidence before any numerical route is restored.',
         'ECR-1 remains frozen and isolated — calculation_type=\'ecr_simulator\' confirmed.',
       ],
       warnings: [],
-      calculationClass: 'Preliminary Simulator — Phase 1 + d₃₂/Interfacial-Area Infrastructure',
+      calculationClass: 'Preliminary Simulator — Local Transfer Physics Only (Not Release Eligible)',
     };
   }
 }

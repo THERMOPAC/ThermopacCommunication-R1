@@ -276,6 +276,15 @@ describe('ECR-2 simulator service run path', () => {
     });
     expect(resultSnapshot.bvp.status).toBe('converged');
     expect(resultSnapshot.bvp.massBalanceStatus).toBe('passed');
+    expect(resultSnapshot.transferStatus).toMatchObject({
+      status: 'LOCAL_PRELIMINARY_CALCULATED',
+      governedValues: 'UNAVAILABLE',
+      releaseStatus: 'NOT_RELEASE_ELIGIBLE',
+    });
+    expect(resultSnapshot.dependencyGraph.transferStatus).toMatchObject({
+      status: 'LOCAL_PRELIMINARY_CALCULATED',
+      releaseStatus: 'NOT_RELEASE_ELIGIBLE',
+    });
     expect(resultSnapshot.bvp.componentBalances_kg_h).toHaveLength(5);
     expect(resultSnapshot.bvp.totalMassBalance_kg_h).toBeCloseTo(0, 8);
 

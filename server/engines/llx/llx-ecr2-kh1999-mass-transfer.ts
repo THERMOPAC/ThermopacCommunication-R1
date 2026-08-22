@@ -126,6 +126,26 @@ export interface ECR2KH1999ComponentOutputStatuses {
   transferRate: ECR2KH1999OutputState;
 }
 
+/**
+ * One reporting status for numerical K&H local physics. A calculated local
+ * value remains distinct from a governed, release-eligible design value.
+ */
+export interface ECR2PreliminaryTransferStatus {
+  status: 'LOCAL_PRELIMINARY_CALCULATED' | 'LOCAL_PRELIMINARY_BLOCKED';
+  governedValues: 'UNAVAILABLE';
+  releaseStatus: 'NOT_RELEASE_ELIGIBLE';
+  localPhysicsStatus: 'CALCULATED_PRELIMINARY' | 'BLOCKED';
+  calculatedCompartmentCount: number;
+  message: string;
+  blocker: { dependency: string; message: string } | null;
+  provenance: {
+    engineeringBasis: 'Published Correlation — Preliminary Engineering';
+    primarySourceVerified: false;
+    validatedForRRBONMP: false;
+    pilotCalibrationStatus: 'NOT_YET_VALIDATED';
+  };
+}
+
 export interface ECR2KH1999HydrodynamicInputs {
   /** Usable dispersed-phase holdup (0 < φ_d < 1). */
   phi_d: number;
@@ -279,6 +299,67 @@ const PRELIMINARY_GOVERNANCE = {
   pilotCalibrationStatus: 'NOT_YET_VALIDATED' as const,
   psiBasis: 'Thermopac preliminary interpretation of K&H power dissipated per unit mass' as const,
 };
+
+/**
+ * Derive the shared availability model used by BVP snapshots, the dependency
+ * register, summaries, and reporting. Numerical completion never upgrades a
+ * local preliminary calculation to a governed performance claim.
+ */
+export function summarizeECR2PreliminaryTransferStatus(
+  localResults: readonly ECR2KH1999LocalMassTransferResult[],
+  blocker: { dependency: string; message: string } | null = null,
+): ECR2PreliminaryTransferStatus {
+  const hasCalculatedLocalRate = localResults.some((result) =>
+    TRANSFER_COMPONENTS.every(
+      (component) =>
+        result.components[component].outputStatus.transferRate.status === 'calculated_preliminary',
+    ),
+  );
+  const provenance = {
+    engineeringBasis: 'Published Correlation — Preliminary Engineering' as const,
+    primarySourceVerified: false as const,
+    validatedForRRBONMP: false as const,
+    pilotCalibrationStatus: 'NOT_YET_VALIDATED' as const,
+  };
+
+  if (blocker) {
+    return {
+      status: 'LOCAL_PRELIMINARY_BLOCKED',
+      governedValues: 'UNAVAILABLE',
+      releaseStatus: 'NOT_RELEASE_ELIGIBLE',
+      localPhysicsStatus: 'BLOCKED',
+      calculatedCompartmentCount: 0,
+      message: `Local preliminary transfer physics is blocked by ${blocker.dependency}: ${blocker.message}`,
+      blocker,
+      provenance,
+    };
+  }
+
+  if (hasCalculatedLocalRate) {
+    return {
+      status: 'LOCAL_PRELIMINARY_CALCULATED',
+      governedValues: 'UNAVAILABLE',
+      releaseStatus: 'NOT_RELEASE_ELIGIBLE',
+      localPhysicsStatus: 'CALCULATED_PRELIMINARY',
+      calculatedCompartmentCount: localResults.length,
+      message:
+        'Local Sherwood, Koa, transfer-rate, profile, and outlet values are calculated preliminary physics only; governed design values remain unavailable and this result is not release-eligible.',
+      blocker: null,
+      provenance,
+    };
+  }
+
+  return {
+    status: 'LOCAL_PRELIMINARY_BLOCKED',
+    governedValues: 'UNAVAILABLE',
+    releaseStatus: 'NOT_RELEASE_ELIGIBLE',
+    localPhysicsStatus: 'BLOCKED',
+    calculatedCompartmentCount: 0,
+    message: 'Local preliminary transfer physics is not available because no complete local calculation state was produced.',
+    blocker: null,
+    provenance,
+  };
+}
 
 function outputState(status: ECR2KH1999OutputStatus, message: string): ECR2KH1999OutputState {
   return { status, message };

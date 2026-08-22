@@ -40,8 +40,7 @@
 - [Coto 2022 LLE dataset governance](coto2022-lle-governance.md) — tie-lines valid, nominal r/feed labels fail mass balance; interpolate on x1R; envelope too narrow for design N_T; fail-closed.
 - [LLX DS-SEL governance](llx-dsel-governance.md) — deterministic selection rules only; no scoring/CAPEX/confidence tie-breaks; exact review-required wording; ECR basis non-transferable.
 - [LLX workspace validation matrix](llx-workspace-validation-matrix.md) — Stages 5–11 blocking/warning rules; stageBanner() shared helper; d32/hindrance source type pass-through in mapper; Stage 12 validationChecks aggregation pattern.
-- [ECR-2 K&H 1996 d₃₂](llx-ecr2-kh1996-preliminary-d32.md) — legacy reconstruction is transcription-invalid; published route stays fail-closed pending primary evidence.
-- [K&H 1986 pulsed-column evidence](llx-kh1986-pulsed-evidence.md) — distinct sieve-plate correlation; supports d32 definitions and mm-scale context, never the 1996 Kühni equation.
+- [ECR-2 K&H 1996 preliminary d₃₂](llx-ecr2-kh1996-preliminary-d32.md) — approved preliminary reconstruction is usable only with persistent source, applicability, and calibration warnings; it is not governed.
 - [ECR-2 K&H 1999 evidence boundary](llx-ecr2-kh1999-evidence.md) — preliminary parameters permit only physical concentration/Kd/driving-force work; Sherwood-dependent numerics remain unavailable.
 - [K&H 1999 preliminary local kernel](llx-kh1999-evidence-boundary.md) — secondary equations may run only as provenance-tagged local preliminary physics; partition/rate gating stays explicit.
 - [ECR-2 five-component local transfer](llx-five-component-local-transfer.md) — local transfer, Schmidt, diffusivity, and conservation must retain Sat/Mono/Di/Poly/NMP ordering.
@@ -51,4 +50,7 @@
 - [ECR-2 Stage 8 evidence resolution](ecr2-stage8-evidence-resolution.md) — Wilke–Chang is traceable only as a pending-input estimate; physical MWs and Kühni C2 stay fail-closed until scoped evidence is approved.
 - [ECR-2 calculated evidence acceptance](ecr2-calculated-evidence-acceptance.md) — Stage 8 uses one current bulk acceptance state for system-resolved values; no per-value signatures or acceptance history.
 - [ECR-2 live dependency state](ecr2-live-dependency-state.md) — readiness, blocker list, run gate, and register must consume current resolver metadata from one model; never re-check stale saved fields.
+- [ECR-2 K&H 1996 d₃₂](llx-ecr2-kh1996-preliminary-d32.md) — legacy reconstruction is transcription-invalid; published route stays fail-closed pending primary evidence.
+- [K&H 1986 pulsed-column evidence](llx-kh1986-pulsed-evidence.md) — distinct sieve-plate correlation; supports d32 definitions and mm-scale context, never the 1996 Kühni equation.
 - [ECR-2 Stage 4 temperature authority](ecr2-stage4-temperature-authority.md) — extraction temperature is the sole ECR-2 property-closure condition; older anchors require an at-temperature governed route.
+- [ECR-2 transfer result status](ecr2-transfer-result-status.md) — preliminary local transfer numerics never become governed/release-eligible; failed snapshots expose diagnostics, not performance.

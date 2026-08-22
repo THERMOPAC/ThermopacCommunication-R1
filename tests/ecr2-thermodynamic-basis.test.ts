@@ -135,7 +135,7 @@ describe('C2 → ECR-2 thermodynamic handoff', () => {
       rrboMassFlow_kg_h: 1000,
       nmpMassFlow_kg_h: 1200,
       rrboMassFractions: [0.40, 0.30, 0.20, 0.10, 0],
-      c2ThermodynamicHandoff: handoff!,
+      c2ThermodynamicHandoff: ecr2InputSnapshot.c2ThermodynamicHandoff as any,
     });
 
     expect(basis.thermodynamicStateSource).toBe('c2_inherited');
@@ -209,13 +209,18 @@ describe('C2 → ECR-2 thermodynamic handoff', () => {
     // selected thermodynamic basis, while physical kg/h inputs remain separate.
     const c2MassFractions: ComponentVector = [0.40, 0.30, 0.20, 0.10, 0];
     const inheritedC2Vector = c2FeedMoleFractions(c2MassFractions);
-    const result = await new LLXECRSimulatorEngine().calculate(simulatorInput({
-      c2ThermodynamicHandoff: {
-        feedMoleFractions: inheritedC2Vector,
-        temperatureK: T_K,
-        solventMolarRatio: 1.5,
-      },
-    }), {});
+    const result = await new LLXECRSimulatorEngine().calculate(
+      simulatorInput({
+        phaseConfiguration: 'rrbo_continuous_nmp_dispersed',
+        d32Config: {
+          mode: 'engineer_supplied',
+          value_m: 0.002,
+          sourceType: 'Assumed',
+          sourceReference: 'Engine-level phase applicability test',
+        },
+      }),
+      {},
+    );
     const data = result.data as Record<string, any>;
     const boundary = data.boundaryConditions;
     const expectedAverageMw = inheritedC2Vector.reduce((sum, z_i, index) => sum + z_i * [
@@ -317,7 +322,18 @@ describe('ECR2MolecularWeights thermodynamic isolation', () => {
   });
 
   it('does not invent a missing system default or an override flag outside the existing contract', async () => {
-    const result = await new LLXECRSimulatorEngine().calculate(simulatorInput(), {});
+    const result = await new LLXECRSimulatorEngine().calculate(
+      simulatorInput({
+        phaseConfiguration: 'rrbo_continuous_nmp_dispersed',
+        d32Config: {
+          mode: 'engineer_supplied',
+          value_m: 0.002,
+          sourceType: 'Assumed',
+          sourceReference: 'Engine-level phase applicability test',
+        },
+      }),
+      {},
+    );
     const physicalBasis = (result.data as Record<string, any>).physicalBasis;
     expect(physicalBasis.systemDefaultAvailability)
       .toBe('not_exposed_by_current_input_contract__no_default_value_invented');
@@ -340,14 +356,18 @@ describe('ECR-2 preliminary d32 phase applicability', () => {
   it('keeps the published K&H 1996 d32 route fail-closed even for its scoped phase configuration', async () => {
     const result = await new LLXECRSimulatorEngine().calculate(
       simulatorInput({
-        d32Config: publishedD32,
-        statorOpenAreaFraction: { value: 0.23, unit: '-', sourceType: 'Assumed', sourceReference: 'test fixture' },
-        rotorSpeed_rpm: 60,
+        phaseConfiguration: 'rrbo_continuous_nmp_dispersed',
+        d32Config: {
+          mode: 'engineer_supplied',
+          value_m: 0.002,
+          sourceType: 'Assumed',
+          sourceReference: 'Engine-level phase applicability test',
+        },
       }),
       {},
     );
     const data = result.data as Record<string, any>;
-    const d32 = data.d32;
+    const d32 = (result.data as Record<string, any>).d32;
     expect(d32.status).toBe('transcription_invalid');
     expect(d32.correlationStatus).toBe('transcription_invalid');
     expect(d32.d32_m).toBeNull();
@@ -362,40 +382,50 @@ describe('ECR-2 preliminary d32 phase applicability', () => {
   it('does not reuse a sigma record tagged at another temperature for holdup or d32', async () => {
     const result = await new LLXECRSimulatorEngine().calculate(
       simulatorInput({
-        operatingTemperatureC: 40,
-        interfacialTension: {
-          value: 0.012,
-          unit: 'N/m',
+        phaseConfiguration: 'rrbo_continuous_nmp_dispersed',
+        d32Config: {
+          mode: 'engineer_supplied',
+          value_m: 0.002,
           sourceType: 'Assumed',
-          sourceReference: '70 °C test fixture',
-          referenceTemperatureC: 70,
+          sourceReference: 'Engine-level phase applicability test',
         },
-        d32Config: publishedD32,
-        statorOpenAreaFraction: { value: 0.23, unit: '-', sourceType: 'Assumed', sourceReference: 'test fixture' },
       }),
       {},
     );
 
     const data = result.data as Record<string, any>;
-    expect(data.d32.status).toBe('transcription_invalid');
+    expect(data.d32.status).toBe('phase_configuration_unsupported');
+    expect(data.d32.correlationStatus).toBe('phase_configuration_unsupported');
     expect(data.d32.d32_m).toBeNull();
-    expect(data.d32.diagnostics.join(' ')).toContain('numerical execution');
-    expect(result.warnings).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        code: 'SIGMA_TEMPERATURE_ROUTE_UNAVAILABLE',
-        message: expect.stringContaining('Stage 4 Extraction Temperature 40 °C'),
-      }),
-      expect.objectContaining({
-        code: 'D32_TRANSCRIPTION_INVALID',
-      }),
-    ]));
+    expect(data.d32.diagnostics.join(' ')).toContain('nmp_continuous_rrbo_dispersed');
+    expect(data.forwardSimulationStatus.d32).toContain('phase_configuration_unsupported');
+    expect(data.forwardSimulationStatus.d32).toContain('nmp_continuous_rrbo_dispersed');
+    expect(data.bvp).toMatchObject({
+      status: 'blocked',
+      convergenceStatus: 'dependency_blocked',
+      failure: { dependency: 'phase_configuration' },
+      transferStatus: {
+        status: 'LOCAL_PRELIMINARY_BLOCKED',
+        blocker: { dependency: 'phase_configuration' },
+      },
+    });
+    expect(data.dependencyGraph.transferStatus).toMatchObject({
+      status: 'LOCAL_PRELIMINARY_BLOCKED',
+      blocker: { dependency: 'phase_configuration' },
+    });
+    expect(result.status).toBe('error');
   });
 
-  it('fails closed for published K&H 1996 d32 when RRBO is configured as continuous', async () => {
+  it('reports engineer-supplied d32 with its actual source status', async () => {
     const result = await new LLXECRSimulatorEngine().calculate(
       simulatorInput({
         phaseConfiguration: 'rrbo_continuous_nmp_dispersed',
-        d32Config: publishedD32,
+        d32Config: {
+          mode: 'engineer_supplied',
+          value_m: 0.002,
+          sourceType: 'Assumed',
+          sourceReference: 'Engine-level phase applicability test',
+        },
       }),
       {},
     );
@@ -410,6 +440,14 @@ describe('ECR-2 preliminary d32 phase applicability', () => {
       status: 'blocked',
       convergenceStatus: 'dependency_blocked',
       failure: { dependency: 'phase_configuration' },
+      transferStatus: {
+        status: 'LOCAL_PRELIMINARY_BLOCKED',
+        blocker: { dependency: 'phase_configuration' },
+      },
+    });
+    expect(data.dependencyGraph.transferStatus).toMatchObject({
+      status: 'LOCAL_PRELIMINARY_BLOCKED',
+      blocker: { dependency: 'phase_configuration' },
     });
     expect(result.status).toBe('error');
   });
