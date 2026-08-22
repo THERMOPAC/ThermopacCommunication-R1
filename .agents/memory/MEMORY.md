@@ -50,3 +50,4 @@
 - [ECR-2 Stage 8 evidence resolution](ecr2-stage8-evidence-resolution.md) — Wilke–Chang is traceable only as a pending-input estimate; physical MWs and Kühni C2 stay fail-closed until scoped evidence is approved.
 - [ECR-2 calculated evidence acceptance](ecr2-calculated-evidence-acceptance.md) — Stage 8 uses one current bulk acceptance state for system-resolved values; no per-value signatures or acceptance history.
 - [ECR-2 live dependency state](ecr2-live-dependency-state.md) — readiness, blocker list, run gate, and register must consume current resolver metadata from one model; never re-check stale saved fields.
+- [ECR-2 Stage 4 temperature authority](ecr2-stage4-temperature-authority.md) — extraction temperature is the sole ECR-2 property-closure condition; older anchors require an at-temperature governed route.

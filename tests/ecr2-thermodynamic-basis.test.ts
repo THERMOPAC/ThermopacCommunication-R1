@@ -361,6 +361,34 @@ describe('ECR-2 preliminary d32 phase applicability', () => {
     )).toBe(true);
   });
 
+  it('does not reuse a sigma record tagged at another temperature for holdup or d32', async () => {
+    const result = await new LLXECRSimulatorEngine().calculate(
+      simulatorInput({
+        operatingTemperatureC: 40,
+        interfacialTension: {
+          value: 0.012,
+          unit: 'N/m',
+          sourceType: 'Assumed',
+          sourceReference: '70 °C test fixture',
+          referenceTemperatureC: 70,
+        },
+        d32Config: publishedD32,
+        statorOpenAreaFraction: { value: 0.23, unit: '-', sourceType: 'Assumed', sourceReference: 'test fixture' },
+      }),
+      {},
+    );
+
+    const data = result.data as Record<string, any>;
+    expect(data.d32.status).toBe('input_missing');
+    expect(data.d32.diagnostics.join(' ')).toContain('sigma_N_m');
+    expect(result.warnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: 'SIGMA_TEMPERATURE_ROUTE_UNAVAILABLE',
+        message: expect.stringContaining('Stage 4 Extraction Temperature 40 °C'),
+      }),
+    ]));
+  });
+
   it('fails closed for published K&H 1996 d32 when RRBO is configured as continuous', async () => {
     const result = await new LLXECRSimulatorEngine().calculate(
       simulatorInput({

@@ -1153,15 +1153,35 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       ? parseTagged(inputs.statorOpenAreaFraction, 'statorOpenAreaFraction', [], { min: 0.01, max: 0.9, unit: '-' })
       : undefined;
     // Interfacial tension — optional; required for K&H 1995 holdup.
-    // If absent, holdup_dispersed will be null for all compartments.
-    const gamma        = inputs.interfacialTension !== undefined
+    // A measurement/estimate at another temperature must never be used as the
+    // Stage 4 operating-temperature value. No temperature route is currently
+    // governed for sigma, so the named sigma evidence gap remains fail-closed.
+    const gammaCandidate = inputs.interfacialTension !== undefined
       ? parseTagged(inputs.interfacialTension, 'interfacialTension', [], { min: 0.0001, max: 0.1, unit: 'N/m' })
       : undefined;
+    // Direct engine callers from pre-reference-temperature payloads represent
+    // their untagged sigma value as a value for the current run condition.
+    // Workspace-mapped records always carry an explicit reference temperature,
+    // so an explicitly tagged 70 °C value can never pass for a 40 °C run.
+    const gammaReferenceTemperature_C = Number(
+      (inputs.interfacialTension as any)?.referenceTemperatureC ?? T_C,
+    );
+    const gamma = gammaCandidate && Number.isFinite(gammaReferenceTemperature_C)
+      && Math.abs(gammaReferenceTemperature_C - T_C) < 1e-9
+      ? gammaCandidate
+      : undefined;
+    if (gammaCandidate && !gamma) {
+      pushWarning(
+        'SIGMA_TEMPERATURE_ROUTE_UNAVAILABLE',
+        `sigma: record reference temperature ${Number.isFinite(gammaReferenceTemperature_C) ? `${gammaReferenceTemperature_C} °C` : 'is missing'} ` +
+        `cannot be used at Stage 4 Extraction Temperature ${T_C} °C because no governed interfacial-tension temperature route is registered.`,
+      );
+    }
     if (!gamma)
       pushWarning(
         'HOLDUP_GAMMA_MISSING',
-        'interfacialTension not supplied or failed validation — K&H 1995 holdup (ecr2_holdup_kh1995) not calculable. ' +
-        'Provide γ (N/m) as { value, sourceType, sourceReference } to enable holdup computation.',
+        'interfacialTension is not resolved at the Stage 4 Extraction Temperature — K&H 1995 holdup (ecr2_holdup_kh1995) is not calculable. ' +
+        'Provide γ (N/m) at that temperature or register a governed temperature route.',
       );
     const feedDensity  = parseTagged(inputs.feedDensity,   'feedDensity',   [], { min: 500, max: 1200, unit: 'kg/m3', required: true })!;
 

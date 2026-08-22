@@ -266,6 +266,29 @@ describe('ECR-2 preliminary local-property closure', () => {
     expect(snapshot.properties.mu_d.warnings).toContain('RRBO_NMP_VALIDATION_PENDING');
   });
 
+  it('resolves every local property at the Stage 4 40 °C condition when that is the supplied operating temperature', () => {
+    const snapshot = resolvedSnapshot(resolve(makeInputs({
+      mu_d_engineer: engineer(0.052, 'Pa.s', 'RRBO viscosity at 40 °C', 40),
+      sigma_engineer: engineer(0.012, 'N/m', 'NMP/RRBO interfacial tension at 40 °C', 40),
+      diffusivity: makeDiffusivityContract(40),
+    }), X_LOCAL, Y_LOCAL, 40));
+
+    const allProperties = [
+      snapshot.properties.rho_c,
+      snapshot.properties.rho_d,
+      snapshot.properties.mu_c,
+      snapshot.properties.mu_d,
+      snapshot.properties.sigma,
+      ...snapshot.properties.D_c_i,
+      ...snapshot.properties.D_d_i,
+    ];
+    expect(snapshot.temperature_C).toBe(40);
+    expect(allProperties.every((property) => property.referenceTemperature_C === 40)).toBe(true);
+    expect(snapshot.properties.rho_c.sourceReference).toContain('40 °C');
+    expect(snapshot.properties.rho_d.sourceReference).toContain('40 °C');
+    expect(snapshot.properties.mu_c.sourceReference).toContain('40 °C');
+  });
+
   it('names the governed operating-temperature route as the dependency when neither route applies', () => {
     const result = resolve(makeInputs({
       rrboGradeId: 'unregistered-rrbo-grade',
@@ -408,7 +431,19 @@ describe('ECR-2 preliminary local-property closure', () => {
     }));
     expect(result.status).toBe('blocked');
     expect(result.errors.join(' ')).toMatch(/mu_d_engineer/);
-    expect(result.errors.join(' ')).toMatch(/reference temperature/);
+    expect(result.errors.join(' ')).toMatch(/Stage 4 Extraction Temperature/);
+  });
+
+  it('names sigma as the evidence gap when its record cannot be resolved at the Stage 4 temperature', () => {
+    const result = resolve(makeInputs({
+      sigma_engineer: engineer(0.012, 'N/m', 'NMP/RRBO interfacial tension at 70 °C', 70),
+      mu_d_engineer: engineer(0.052, 'Pa.s', 'RRBO viscosity at 40 °C', 40),
+      diffusivity: makeDiffusivityContract(40),
+    }), X_LOCAL, Y_LOCAL, 40);
+
+    expect(result.status).toBe('blocked');
+    expect(result.errors.join(' ')).toContain('sigma_engineer');
+    expect(result.errors.join(' ')).toContain('no governed temperature route resolves this property');
   });
 
   it('fails closed for missing diffusivity provenance', () => {

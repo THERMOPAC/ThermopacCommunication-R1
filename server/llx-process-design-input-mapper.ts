@@ -54,28 +54,26 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   // Per-key pass-through: any engine-ready camelCase key already present wins
   // untouched; only missing keys are mapped from the flat workspace fields.
 
-  // Governing equilibrium temperature: the workspace Extraction Temperature
-  // field (auto-populated from the Design Basis Operating Temperature until
-  // manually changed) governs the C2 N_T equilibrium basis. It takes
-  // precedence over operating_temperature so a manual extraction-temperature
-  // entry actually drives the Coto/NRTL model selection.
-  const ot = out.operatingTemperature !== undefined
-    ? num(out.operatingTemperature)
-    : (num(inputs.extraction_temperature) ?? num(inputs.operating_temperature));
-  if (out.operatingTemperature === undefined && ot !== undefined) out.operatingTemperature = ot;
-
-  // Extraction Temperature — the governing LLE calculation input. The
-  // workspace tracks Design Basis OT unless the engineer manually overrides
-  // it (extraction_temperature_manual = "true"). Provenance is carried so the
-  // engine's temperature-model trace names the actual source.
+  // Stage 4 Extraction Temperature is the single authoritative isothermal
+  // condition for the C2 handoff and the downstream ECR-2 property closure.
+  // A stale engine-shaped operating-temperature field can be present in a
+  // saved simulator payload; it is a legacy compatibility fallback only and
+  // must never override the Stage 4 workspace value.
   const extT = num(inputs.extraction_temperature);
-  if (out.extractionTemperature === undefined && extT !== undefined) {
+  const ot = extT
+    ?? num(inputs.operating_temperature)
+    ?? num(out.operatingTemperature);
+  const extractionTemperatureProvenance = String(inputs.extraction_temperature_manual ?? '') === 'true'
+    ? 'Stage 4 Extraction Temperature — engineer-entered manual override (Process Design workspace)'
+    : 'Stage 4 Extraction Temperature — tracking Design Basis Operating Temperature (Process Design workspace)';
+  if (ot !== undefined) out.operatingTemperature = ot;
+
+  // Preserve the Stage 4 value and source in the mapped calculation snapshot.
+  // This is provenance for the one canonical temperature, not a Stage 8 input.
+  if (extT !== undefined) {
     out.extractionTemperature = extT;
-    if (out.extractionTemperatureProvenance === undefined) {
-      out.extractionTemperatureProvenance = String(inputs.extraction_temperature_manual ?? '') === 'true'
-        ? 'Extraction Temperature — engineer-entered manual override (Process Design workspace)'
-        : 'Extraction Temperature — tracking Design Basis Operating Temperature (Process Design workspace)';
-    }
+    out.extractionTemperatureProvenance = extractionTemperatureProvenance;
+    out.operatingTemperatureProvenance = extractionTemperatureProvenance;
   }
 
   // Feed flow — Design Basis capacity (LPH → m³/h, volumetric basis)
@@ -264,7 +262,7 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   // the governed EPD tabular library at operating temperature. No user entry is
   // required or accepted for this property (governed A-5; no default correlations).
   // The same getProperty call is already used for the S/O ratio conversion above.
-  if (out.feedDensity === undefined && ot !== undefined) {
+  if ((out.feedDensity === undefined || calculationType === 'ecr_simulator') && ot !== undefined) {
     try {
       const rhoRrbo = getProperty(rrboFluidId, 'density', ot);
       out.feedDensity = {
@@ -283,7 +281,7 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   // engineer-selected source type/reference is propagated, not hard-coded.
   // interfacialTension — value, reference temperature, and source must travel together (A-11).
   // No fallback on referenceTemperatureC. If blank → block; engine reports missing input.
-  if (out.interfacialTension === undefined) {
+  if (out.interfacialTension === undefined || calculationType === 'ecr_simulator') {
     const iftOverride = num(inputs.interfacial_tension); // Stage 5 hydraulic_design field
     const iftFp = num(inputs.interfacial_tension_value); // Fluid Properties entry
     const overridden = iftOverride !== undefined && iftOverride > 0 && iftOverride !== iftFp;
@@ -498,7 +496,10 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       di: pct('rrbo_di_aromatics_wt'),
       poly: pct('rrbo_poly_aromatics_wt'),
     };
-    if (out.operatingTemperatureC === undefined && ot !== undefined) out.operatingTemperatureC = ot;
+    // Never retain a separate or stale Stage 8 temperature. `ot` is derived
+    // above from Stage 4 Extraction Temperature before any property resolver
+    // is called.
+    if (ot !== undefined) out.operatingTemperatureC = ot;
     if (out.rrboMassFlow_kg_h === undefined && rrboMassFlow !== undefined) out.rrboMassFlow_kg_h = rrboMassFlow;
     if (out.nmpMassFlow_kg_h === undefined && nmpMassFlow !== undefined) out.nmpMassFlow_kg_h = nmpMassFlow;
     if (out.feedCompositionMassFraction === undefined && Object.values(comp).every(v => v !== undefined)) {

@@ -244,7 +244,8 @@ function validateReferenceTemperature(
   ) {
     errors.push(
       `${label}: reference temperature ${referenceTemperature_C} °C does not match ` +
-      `operating temperature ${operatingTemperature_C} °C; no temperature correction is governed.`,
+      `Stage 4 Extraction Temperature ${operatingTemperature_C} °C; no governed ` +
+      `temperature route resolves this property at the requested condition.`,
     );
   }
 }
