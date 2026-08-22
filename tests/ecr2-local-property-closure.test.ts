@@ -27,6 +27,9 @@ import { getProperty } from '../server/engine-framework/common-engineering-libra
 import {
   resolveRrboSn300DynamicViscosityAtTemperature,
 } from '../shared/ecr2-stage8-transport-basis';
+import {
+  resolveEcr2RrboNmpInterfacialTensionAtTemperature,
+} from '../shared/ecr2-interfacial-tension-basis';
 
 const TEMPERATURE_C = 70;
 const X_LOCAL = [0.42, 0.28, 0.14, 0.10, 0.06];
@@ -310,6 +313,88 @@ describe('ECR-2 preliminary local-property closure', () => {
     expect(property.warnings).toContain(
       ECR2_LOCALITY_WARNING_CODES.interfacialTensionComposition,
     );
+  });
+
+  it('resolves an anchored sigma through the controlled temperature route and retains its provenance', () => {
+    const resolved = resolveEcr2RrboNmpInterfacialTensionAtTemperature({
+      temperature_C: TEMPERATURE_C,
+      anchor: {
+        value_N_m: 0.014,
+        temperature_C: 40,
+        sourceType: 'Measured',
+        sourceReference: 'RRBO/NMP IFT laboratory series — anchor at 40 °C',
+      },
+      temperatureCoefficient: {
+        slopePerC: -0.00003,
+        sourceType: 'Literature',
+        sourceReference: 'Approved RRBO/NMP IFT temperature coefficient memorandum',
+      },
+    });
+    expect(resolved).toBeDefined();
+    if (!resolved) return;
+    const measuredAnchor: ECR2ClosureEngineerPropertyInput = {
+      value: resolved.anchor.value_N_m,
+      unit: 'N/m',
+      sourceType: resolved.anchor.sourceType,
+      sourceReference: resolved.anchor.sourceReference,
+      referenceTemperature_C: resolved.anchor.temperature_C,
+    };
+
+    const snapshot = resolvedSnapshot(resolve(makeInputs({
+      sigma_engineer: measuredAnchor,
+      sigma_governed: {
+        value: resolved.value_N_m,
+        unit: 'N/m',
+        sourceType: resolved.sourceType,
+        sourceReference: resolved.sourceReference,
+        referenceTemperature_C: resolved.requestedTemperature_C,
+        method: resolved.method,
+        basis: resolved.basis,
+        warnings: resolved.warnings,
+        anchor: measuredAnchor,
+      },
+    })));
+
+    expect(snapshot.properties.sigma.value).toBeCloseTo(0.0131, 12);
+    expect(snapshot.properties.sigma.referenceTemperature_C).toBe(TEMPERATURE_C);
+    expect(snapshot.properties.sigma.method).toContain('sigma(T) = sigma_anchor');
+    expect(snapshot.properties.sigma.sourceReference).toBe(resolved.anchor.sourceReference);
+    expect(snapshot.properties.sigma.anchor).toMatchObject({
+      value: resolved.anchor.value_N_m,
+      referenceTemperature_C: resolved.anchor.temperature_C,
+      sourceType: resolved.anchor.sourceType,
+      sourceReference: resolved.anchor.sourceReference,
+    });
+    expect(snapshot.properties.sigma.warnings).toEqual(
+      expect.arrayContaining(resolved.warnings),
+    );
+  });
+
+  it('does not resolve sigma outside the controlled route range or without coefficient provenance', () => {
+    const anchor = {
+      value_N_m: 0.014,
+      temperature_C: 40,
+      sourceType: 'Measured',
+      sourceReference: 'RRBO/NMP IFT laboratory series — anchor at 40 °C',
+    };
+    expect(resolveEcr2RrboNmpInterfacialTensionAtTemperature({
+      temperature_C: 101,
+      anchor,
+      temperatureCoefficient: {
+        slopePerC: -0.00003,
+        sourceType: 'Literature',
+        sourceReference: 'Approved coefficient',
+      },
+    })).toBeUndefined();
+    expect(resolveEcr2RrboNmpInterfacialTensionAtTemperature({
+      temperature_C: 70,
+      anchor,
+      temperatureCoefficient: {
+        slopePerC: -0.00003,
+        sourceType: 'Literature',
+        sourceReference: '',
+      },
+    })).toBeUndefined();
   });
 
   it('retains five diffusivities per phase in Sat/Mono/Di/Poly/NMP order', () => {

@@ -60,6 +60,9 @@ import type { SourceType } from '../../engine-framework/epd/types';
 import {
   resolveRrboSn300DynamicViscosityAtTemperature,
 } from '../../../shared/ecr2-stage8-transport-basis';
+import {
+  resolveEcr2RrboNmpInterfacialTensionAtTemperature,
+} from '../../../shared/ecr2-interfacial-tension-basis';
 
 // NRTL reuse: nrtlFlash is imported for Phase 2 forward simulation.
 // In Phase 1 it is not called but the import confirms the reuse path.
@@ -192,6 +195,22 @@ interface TaggedValue {
   unit?: string;
   sourceType: SourceType;
   sourceReference: string;
+}
+
+interface ResolvedSigmaTaggedValue extends TaggedValue {
+  referenceTemperatureC: number;
+  temperatureResolution?: {
+    requestedTemperature_C: number;
+    anchor: {
+      value_N_m: number;
+      temperature_C: number;
+      sourceType: string;
+      sourceReference: string;
+    };
+    method: string;
+    basis: string;
+    warnings: readonly string[];
+  };
 }
 
 function num(v: unknown): number | undefined {
@@ -1153,8 +1172,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       ? parseTagged(inputs.statorOpenAreaFraction, 'statorOpenAreaFraction', [], { min: 0.01, max: 0.9, unit: '-' })
       : undefined;
     // A measurement/estimate at another temperature must never be used as the
-    // Stage 4 operating-temperature value. No temperature route is currently
-    // governed for sigma, so the named sigma evidence gap remains fail-closed.
+    // Stage 4 operating-temperature value unless its explicit, source-tagged
+    // temperature coefficient resolves it through the governed ECR-2 route.
     const gammaCandidate = inputs.interfacialTension !== undefined
       ? parseTagged(inputs.interfacialTension, 'interfacialTension', [], { min: 0.0001, max: 0.1, unit: 'N/m' })
       : undefined;
@@ -1165,15 +1184,49 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const gammaReferenceTemperature_C = Number(
       (inputs.interfacialTension as any)?.referenceTemperatureC ?? T_C,
     );
-    const gamma = gammaCandidate && Number.isFinite(gammaReferenceTemperature_C)
-      && Math.abs(gammaReferenceTemperature_C - T_C) < 1e-9
-      ? gammaCandidate
+    const gammaRaw = inputs.interfacialTension as Record<string, any> | undefined;
+    const gammaTemperatureCoefficient = gammaRaw?.temperatureCoefficient;
+    const gammaTemperatureRoute = gammaCandidate
+      && Number.isFinite(gammaReferenceTemperature_C)
+      && Math.abs(gammaReferenceTemperature_C - T_C) > 1e-9
+      && gammaTemperatureCoefficient
+      && typeof gammaTemperatureCoefficient === 'object'
+      ? resolveEcr2RrboNmpInterfacialTensionAtTemperature({
+          temperature_C: T_C,
+          anchor: {
+            value_N_m: gammaCandidate.value,
+            temperature_C: gammaReferenceTemperature_C,
+            sourceType: gammaCandidate.sourceType,
+            sourceReference: gammaCandidate.sourceReference,
+          },
+          temperatureCoefficient: {
+            slopePerC: num(gammaTemperatureCoefficient.slopePerC) ?? Number.NaN,
+            sourceType: String(gammaTemperatureCoefficient.sourceType ?? ''),
+            sourceReference: String(gammaTemperatureCoefficient.sourceReference ?? ''),
+          },
+        })
       : undefined;
+    const gamma: ResolvedSigmaTaggedValue | undefined =
+      gammaCandidate && Number.isFinite(gammaReferenceTemperature_C)
+      && Math.abs(gammaReferenceTemperature_C - T_C) < 1e-9
+        ? {
+            ...gammaCandidate,
+            referenceTemperatureC: T_C,
+          }
+        : gammaTemperatureRoute
+          ? {
+              ...gammaCandidate!,
+              value: gammaTemperatureRoute.value_N_m,
+              referenceTemperatureC: T_C,
+              temperatureResolution: gammaTemperatureRoute,
+            }
+          : undefined;
     if (gammaCandidate && !gamma) {
       pushWarning(
         'SIGMA_TEMPERATURE_ROUTE_UNAVAILABLE',
         `sigma: record reference temperature ${Number.isFinite(gammaReferenceTemperature_C) ? `${gammaReferenceTemperature_C} °C` : 'is missing'} ` +
-        `cannot be used at Stage 4 Extraction Temperature ${T_C} °C because no governed interfacial-tension temperature route is registered.`,
+        `cannot be used at Stage 4 Extraction Temperature ${T_C} °C because no complete governed NMP/RRBO temperature route applies. ` +
+        'A source-tagged temperature coefficient and an applicability range of 25–100 °C are required.',
       );
     }
     if (!gamma)
@@ -1606,13 +1659,35 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
             }
           : null,
         mu_d_governed: muDGoverned,
-        sigma_engineer: gamma
+        // Preserve the raw anchor even when the at-temperature route fails so
+        // the BVP closure can name sigma (rather than reporting an anonymous
+        // missing property) in its dependency block.
+        sigma_engineer: gammaCandidate
+          ? {
+              value: gammaCandidate.value,
+              unit: 'N/m',
+              sourceType: gammaCandidate.sourceType,
+              sourceReference: gammaCandidate.sourceReference,
+              referenceTemperature_C: gammaReferenceTemperature_C,
+            }
+          : null,
+        sigma_governed: gamma?.temperatureResolution
           ? {
               value: gamma.value,
               unit: 'N/m',
-              sourceType: String((inputs.interfacialTension as any).sourceType ?? 'Assumed'),
-              sourceReference: String((inputs.interfacialTension as any).sourceReference ?? ''),
-              referenceTemperature_C: Number((inputs.interfacialTension as any).referenceTemperatureC ?? T_C),
+              sourceType: gamma.sourceType,
+              sourceReference: gamma.sourceReference,
+              referenceTemperature_C: gamma.referenceTemperatureC,
+              method: gamma.temperatureResolution.method,
+              basis: gamma.temperatureResolution.basis,
+              warnings: gamma.temperatureResolution.warnings,
+              anchor: {
+                value: gamma.temperatureResolution.anchor.value_N_m,
+                unit: 'N/m',
+                sourceType: gamma.temperatureResolution.anchor.sourceType,
+                sourceReference: gamma.temperatureResolution.anchor.sourceReference,
+                referenceTemperature_C: gamma.temperatureResolution.anchor.temperature_C,
+              },
             }
           : null,
         diffusivity: bvpSettings.diffusivity ?? emptyDiffusivityContract(),
@@ -1809,6 +1884,38 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           surrogateComponentMassRepresentation_kg_h: { saturates: nmpSurrogateComponentMassRepresentation_kg_h[IDX.SAT], mono: nmpSurrogateComponentMassRepresentation_kg_h[IDX.MONO], di: nmpSurrogateComponentMassRepresentation_kg_h[IDX.DI], poly: nmpSurrogateComponentMassRepresentation_kg_h[IDX.POLY], nmp: nmpSurrogateComponentMassRepresentation_kg_h[IDX.NMP] },
           impurityNote: purity < 1.0 ? 'Physical solvent impurity remains outside the C2 thermodynamic coordinate; no transfer mapping has been created.' : 'Physical solvent specified as pure NMP',
         },
+        interfacialTension: gamma
+          ? {
+              value_N_m: gamma.value,
+              requestedTemperature_C: T_C,
+              sourceType: gamma.sourceType,
+              sourceReference: gamma.sourceReference,
+              ...(gamma.temperatureResolution
+                ? {
+                    method: gamma.temperatureResolution.method,
+                    basis: gamma.temperatureResolution.basis,
+                    warnings: gamma.temperatureResolution.warnings,
+                    anchor: gamma.temperatureResolution.anchor,
+                  }
+                : {
+                    method: 'Direct measured/engineer-supplied value at Stage 4 Extraction Temperature',
+                    basis: 'column_constant_engineer_supplied_preliminary',
+                    warnings: [],
+                    anchor: {
+                      value_N_m: gamma.value,
+                      temperature_C: T_C,
+                      sourceType: gamma.sourceType,
+                      sourceReference: gamma.sourceReference,
+                    },
+                  }),
+            }
+          : {
+              value_N_m: null,
+              requestedTemperature_C: T_C,
+              status: 'unresolved',
+              explanation:
+                'NMP/RRBO sigma is unresolved at Stage 4 Extraction Temperature; holdup and sigma-dependent d32 work remain blocked.',
+            },
         SO_massRatio: SO_mass,
         physicalBasis,
       },

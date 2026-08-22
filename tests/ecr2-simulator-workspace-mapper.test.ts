@@ -35,6 +35,33 @@ describe('ECR-2 simulator workspace adapter', () => {
     expect(bvp.diffusivity.Sat.De_c.referenceTemperature_C).toBe(40);
   });
 
+  it('propagates the source-tagged sigma temperature coefficient without inventing one', () => {
+    const mapped = mapWorkspaceProcessDesignInputs({
+      extraction_temperature: '70',
+      feed_service: 'Re-Refined Base Oil SN300',
+      interfacial_tension_value: '14',
+      interfacial_tension_ref_temp: '40',
+      interfacial_tension_source: 'Measured',
+      interfacial_tension_source_reference: 'RRBO/NMP IFT laboratory series',
+      interfacial_tension_temperature_coefficient: '-0.03',
+      interfacial_tension_temperature_coefficient_source: 'Literature',
+      interfacial_tension_temperature_coefficient_source_reference: 'Approved IFT temperature coefficient memorandum',
+    }, 'ecr_simulator');
+
+    expect(mapped.interfacialTension).toMatchObject({
+      value: 0.014,
+      referenceTemperatureC: 40,
+      sourceType: 'Measured',
+      sourceReference: 'RRBO/NMP IFT laboratory series',
+      temperatureCoefficient: {
+        sourceType: 'Literature',
+        sourceReference: 'Approved IFT temperature coefficient memorandum',
+      },
+    });
+    expect((mapped.interfacialTension as any).temperatureCoefficient.slopePerC)
+      .toBeCloseTo(-0.00003, 12);
+  });
+
   it('fails closed for an unrecognized Feed Service rather than defaulting to SN300 physical properties', () => {
     const mapped = mapWorkspaceProcessDesignInputs({
       feed_service: 'Uncharacterized Re-Refined Oil',

@@ -290,6 +290,20 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     if (ift !== undefined && ift > 0 && refT !== undefined) {
       const src = String(inputs.interfacial_tension_source ?? '').trim();
       const refRaw = String(inputs.interfacial_tension_source_reference ?? '').trim();
+      const sigmaSlope = num(
+        inputs.interfacial_tension_temperature_coefficient
+          ?? inputs.interfacial_tension_temp_coefficient,
+      );
+      const sigmaSlopeSource = String(
+        inputs.interfacial_tension_temperature_coefficient_source
+          ?? inputs.interfacial_tension_temp_coefficient_source
+          ?? '',
+      ).trim();
+      const sigmaSlopeReference = String(
+        inputs.interfacial_tension_temperature_coefficient_source_reference
+          ?? inputs.interfacial_tension_temp_coefficient_source_reference
+          ?? '',
+      ).trim();
       out.interfacialTension = {
         value: ift / 1000,
         referenceTemperatureC: refT,
@@ -301,6 +315,13 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
             : SOURCE_TYPES.includes(src)
               ? `Two-Phase Properties workspace entry (engineer source type: ${src})`
               : 'Thermopac Preliminary Screening Default (Two-Phase Properties workspace entry)',
+        ...(sigmaSlope !== undefined ? {
+          temperatureCoefficient: {
+            slopePerC: sigmaSlope / 1000,
+            sourceType: sigmaSlopeSource,
+            sourceReference: sigmaSlopeReference,
+          },
+        } : {}),
       };
     }
   }
@@ -1019,11 +1040,32 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     const iftRefT = num(String(inputs.ecr_interfacial_tension_ref_temp ?? '').replace(/°?C/gi, ''));
     const iftRef = String(inputs.ecr_interfacial_tension_source_reference ?? '').trim();
     if (iftVal !== undefined && iftVal > 0 && iftRefT !== undefined) {
+      const sigmaSlope = num(
+        inputs.ecr_interfacial_tension_temperature_coefficient
+          ?? inputs.ecr_interfacial_tension_temp_coefficient,
+      );
+      const sigmaSlopeSource = String(
+        inputs.ecr_interfacial_tension_temperature_coefficient_source
+          ?? inputs.ecr_interfacial_tension_temp_coefficient_source
+          ?? '',
+      ).trim();
+      const sigmaSlopeReference = String(
+        inputs.ecr_interfacial_tension_temperature_coefficient_source_reference
+          ?? inputs.ecr_interfacial_tension_temp_coefficient_source_reference
+          ?? '',
+      ).trim();
       out.interfacialTension = {
         value: iftVal / 1000,
         referenceTemperatureC: iftRefT,
         sourceType: 'Assumed',
         sourceReference: iftRef !== '' ? iftRef : 'Thermopac Preliminary RRBO/NMP Interfacial-Tension Assumption — Pending Validation',
+        ...(sigmaSlope !== undefined ? {
+          temperatureCoefficient: {
+            slopePerC: sigmaSlope / 1000,
+            sourceType: sigmaSlopeSource,
+            sourceReference: sigmaSlopeReference,
+          },
+        } : {}),
       };
     }
   }

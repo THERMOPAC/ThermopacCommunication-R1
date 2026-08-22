@@ -111,6 +111,8 @@ export interface ECR2ClosureGovernedPropertyInput extends ECR2ClosureEngineerPro
   readonly method: string;
   readonly basis: string;
   readonly warnings: readonly string[];
+  /** Original datum used by an at-temperature route, when applicable. */
+  readonly anchor?: ECR2ClosureEngineerPropertyInput;
 }
 
 export interface ECR2GovernedPropertyInputs {
@@ -124,6 +126,8 @@ export interface ECR2GovernedPropertyInputs {
   readonly mu_d_governed?: ECR2ClosureGovernedPropertyInput | null;
   /** Explicit NMP/RRBO pair value; first-BVP basis is column-constant. */
   readonly sigma_engineer: ECR2ClosureEngineerPropertyInput | null;
+  /** Explicitly resolved NMP/RRBO pair value at Stage 4 temperature. */
+  readonly sigma_governed?: ECR2ClosureGovernedPropertyInput | null;
   /** Required pair of values for every frozen component and both phases. */
   readonly diffusivity: ECR2DiffusivityContract;
 }
@@ -139,6 +143,8 @@ export interface ECR2LocalPropertyMetadata {
   readonly localityStatus: ECR2LocalPropertyStatus;
   readonly validationStatus: ECR2LocalPropertyValidationStatus;
   readonly warnings: readonly string[];
+  /** Original source-tagged datum retained when a temperature route is used. */
+  readonly anchor?: ECR2ClosureEngineerPropertyInput;
 }
 
 export interface ECR2ResolvedLocalProperty extends ECR2LocalPropertyMetadata {
@@ -279,6 +285,29 @@ function validateEngineerInput(
   return errors.length === 0;
 }
 
+function validateEngineerInputAtAnyTemperature(
+  input: ECR2ClosureEngineerPropertyInput | null | undefined,
+  label: string,
+  expectedUnits: readonly string[],
+  errors: string[],
+): input is ECR2ClosureEngineerPropertyInput {
+  if (!input || typeof input !== 'object') {
+    errors.push(`${label}: required engineer-supplied property is missing.`);
+    return false;
+  }
+  if (!isFinitePositive(input.value)) {
+    errors.push(`${label}: value must be a positive finite number.`);
+  }
+  if (!expectedUnits.includes(input.unit)) {
+    errors.push(`${label}: unit '${input.unit}' is invalid; expected ${expectedUnits.join(' or ')}.`);
+  }
+  if (!hasValidProvenance(input)) {
+    errors.push(`${label}: sourceType and sourceReference are required valid provenance.`);
+  }
+  validateTemperature(input.referenceTemperature_C, `${label}.referenceTemperature_C`, errors);
+  return errors.length === 0;
+}
+
 function propertyWarnings(
   localityWarning: string,
   sourceWarnings: readonly string[] = [],
@@ -297,6 +326,7 @@ function makeEngineerProperty(
   basis: string,
   validationStatus: ECR2LocalPropertyValidationStatus,
   localityWarning: string,
+  anchor?: ECR2ClosureEngineerPropertyInput,
 ): ECR2ResolvedLocalProperty {
   return freezeProperty({
     value: input.value,
@@ -308,6 +338,7 @@ function makeEngineerProperty(
     localityStatus: 'LOCAL_PROPERTY_ENGINEER_SUPPLIED',
     validationStatus,
     warnings: propertyWarnings(localityWarning),
+    ...(anchor ? { anchor: Object.freeze({ ...anchor }) } : {}),
   });
 }
 
@@ -327,6 +358,7 @@ function makeGovernedProperty(
     localityStatus: 'LOCAL_PROPERTY_GOVERNED',
     validationStatus,
     warnings: propertyWarnings(localityWarning, input.warnings),
+    ...(input.anchor ? { anchor: Object.freeze({ ...input.anchor }) } : {}),
   });
 }
 
@@ -496,6 +528,7 @@ export function resolveECR2LocalProperties(
     mu_d_engineer,
     mu_d_governed,
     sigma_engineer,
+    sigma_governed,
     diffusivity,
   } = governedPropertyInputs;
 
@@ -628,14 +661,62 @@ export function resolveECR2LocalProperties(
   }
 
   const sigmaErrors: string[] = [];
-  const hasSigma = validateEngineerInput(
+  const sigmaAnchorErrors: string[] = [];
+  const hasSigmaAnchor = validateEngineerInputAtAnyTemperature(
     sigma_engineer,
     'sigma_engineer',
     ['N/m'],
-    operatingTemperature_C,
-    sigmaErrors,
+    sigmaAnchorErrors,
   );
-  if (!hasSigma) errors.push(`sigma: ${sigmaErrors.join(' ')}`);
+  const sigmaGovernedErrors: string[] = [];
+  const hasGovernedSigma = validateGovernedPropertyInput(
+    sigma_governed,
+    'sigma_governed',
+    ['N/m'],
+    operatingTemperature_C,
+    sigmaGovernedErrors,
+  );
+  if (hasGovernedSigma && !hasSigmaAnchor) {
+    sigmaGovernedErrors.push('sigma_governed: original sigma_engineer anchor is required for traceability.');
+  }
+  let sigma: ECR2ResolvedLocalProperty | undefined;
+  if (hasGovernedSigma && hasSigmaAnchor) {
+    const governedAnchor = sigma_governed.anchor ?? sigma_engineer;
+    const anchorMatches = Math.abs(governedAnchor.referenceTemperature_C - sigma_engineer.referenceTemperature_C) <= TEMPERATURE_MATCH_TOLERANCE_C
+      && Math.abs(governedAnchor.value - sigma_engineer.value) <= Math.max(1e-12, Math.abs(sigma_engineer.value) * 1e-12)
+      && governedAnchor.sourceType === sigma_engineer.sourceType
+      && governedAnchor.sourceReference === sigma_engineer.sourceReference;
+    if (!anchorMatches) {
+      sigmaGovernedErrors.push(
+        'sigma_governed: anchor must match sigma_engineer value, reference temperature, sourceType, and sourceReference.',
+      );
+    } else {
+      sigma = makeGovernedProperty(
+        { ...sigma_governed, anchor: sigma_engineer },
+        'PRELIMINARY_COLUMN_CONSTANT_PROPERTY',
+        sigmaWarning,
+      );
+    }
+  } else if (hasSigmaAnchor
+    && Math.abs(sigma_engineer.referenceTemperature_C - operatingTemperature_C) <= TEMPERATURE_MATCH_TOLERANCE_C) {
+    sigma = makeEngineerProperty(
+      sigma_engineer,
+      'column_constant_engineer_supplied_preliminary',
+      'PRELIMINARY_COLUMN_CONSTANT_PROPERTY',
+      sigmaWarning,
+      sigma_engineer,
+    );
+  } else if (!hasSigmaAnchor) {
+    sigmaErrors.push(...sigmaAnchorErrors);
+  } else {
+    sigmaErrors.push(
+      `sigma_engineer: reference temperature ${sigma_engineer.referenceTemperature_C} °C does not match ` +
+      `Stage 4 Extraction Temperature ${operatingTemperature_C} °C; no governed temperature route resolves this property at the requested condition.`,
+    );
+  }
+  if (!sigma) {
+    errors.push(`sigma: ${sigmaErrors.join(' ')}${sigmaGovernedErrors.length > 0 ? ` ${sigmaGovernedErrors.join(' ')}` : ''}`.trim());
+  }
 
   // Validate the complete vector before constructing any partial snapshot.
   const continuousDiffusivities: DiffusivityInput[] = [];
@@ -664,18 +745,11 @@ export function resolveECR2LocalProperties(
     }
   }
 
-  if (errors.length > 0 || !rho_d || !mu_d || !hasSigma ||
+  if (errors.length > 0 || !rho_d || !mu_d || !sigma ||
       continuousDiffusivities.length !== COMPONENT_NAMES.length ||
       dispersedDiffusivities.length !== COMPONENT_NAMES.length) {
     return blocked(errors, diagnostics);
   }
-
-  const sigma = makeEngineerProperty(
-    sigma_engineer,
-    'column_constant_engineer_supplied_preliminary',
-    'PRELIMINARY_COLUMN_CONSTANT_PROPERTY',
-    sigmaWarning,
-  );
 
   const D_c_i = Object.freeze(
     continuousDiffusivities.map((input) =>

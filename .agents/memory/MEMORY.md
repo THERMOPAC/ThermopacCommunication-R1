@@ -53,4 +53,5 @@
 - [ECR-2 K&H 1996 d₃₂](llx-ecr2-kh1996-preliminary-d32.md) — legacy reconstruction is transcription-invalid; published route stays fail-closed pending primary evidence.
 - [K&H 1986 pulsed-column evidence](llx-kh1986-pulsed-evidence.md) — distinct sieve-plate correlation; supports d32 definitions and mm-scale context, never the 1996 Kühni equation.
 - [ECR-2 Stage 4 temperature authority](ecr2-stage4-temperature-authority.md) — extraction temperature is the sole ECR-2 property-closure condition; older anchors require an at-temperature governed route.
+- [ECR-2 sigma temperature route](ecr2-sigma-temperature-route.md) — a non-target NMP/RRBO sigma anchor needs a source-tagged slope and stays blocked outside 25–100 °C; no default slope.
 - [ECR-2 transfer result status](ecr2-transfer-result-status.md) — preliminary local transfer numerics never become governed/release-eligible; failed snapshots expose diagnostics, not performance.
