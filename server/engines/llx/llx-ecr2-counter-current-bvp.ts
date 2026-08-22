@@ -7,6 +7,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import type { ECR2ThermodynamicBasis } from './llx-ecr-simulator-engine';
+import { SURROGATE_MW } from '../../engine-framework/cel/coto2022-nmp-lle';
 import type { D32Config, D32Result } from './llx-ecr2-d32-interface';
 import { computeDropletDiameter, isD32Usable } from './llx-ecr2-d32-interface';
 import { computeKH1995Holdup, isHoldupUsable, type KH1995HoldupResult } from './llx-ecr2-holdup';
@@ -72,7 +73,10 @@ export interface ECR2CounterCurrentBVPInput {
   statorOpenAreaFraction: number;
   /** Isothermal operating temperature. */
   operatingTemperature_C: number;
-  /** Physical/project molecular weights used only for mass↔mole conversion. */
+  /**
+   * Physical/project molecular weights used only after NRTL for physical
+   * concentration, Kd, driving-force, and transfer-rate conversion.
+   */
   physicalMolecularWeights: ECR2PhysicalMolecularWeightVector;
   /**
    * C2 thermodynamic trace. The BVP blocks without it; local NRTL calculations
@@ -223,28 +227,49 @@ function massFractions(values: readonly number[]): ECR2Vector | null {
   return asVector(values.map((value) => value / total));
 }
 
-function moleFractions(values: readonly number[], molecularWeights: ECR2PhysicalMolecularWeightVector): ECR2Vector | null {
-  const mw = [
-    molecularWeights.Sat_g_mol,
-    molecularWeights.Mono_g_mol,
-    molecularWeights.Di_g_mol,
-    molecularWeights.Poly_g_mol,
-    molecularWeights.NMP_g_mol,
+/**
+ * Canonical Coto thermodynamic coordinate conversion.
+ *
+ * The BVP state remains physical component mass flow (kg/h), but every local
+ * composition supplied to NRTL must be represented on the governed Coto
+ * pseudo-component basis. Physical ECR-2 molecular weights are deliberately
+ * absent from this boundary and remain reserved for downstream physical
+ * concentration/rate conversion.
+ */
+export function thermodynamicMoleFractionsFromPhysicalMassFractions(
+  physicalMassFractions: readonly number[],
+): ECR2Vector | null {
+  const surrogateMw = [
+    SURROGATE_MW.c12,
+    SURROGATE_MW.xylene,
+    SURROGATE_MW.methylnaphtalene,
+    SURROGATE_MW.pyrene,
+    SURROGATE_MW.nmp,
   ];
-  if (!finiteNonNegativeVector(values) || !mw.every((value) => finite(value) && value > 0)) return null;
-  const moles = values.map((flow, i) => flow * 1000 / mw[i]);
+  if (
+    !finiteNonNegativeVector(physicalMassFractions) ||
+    !surrogateMw.every((value) => finite(value) && value > 0)
+  ) return null;
+  const moles = physicalMassFractions.map((fraction, i) => fraction / surrogateMw[i]);
   const total = sum(moles);
   if (!finite(total) || total <= 0) return null;
   return asVector(moles.map((value) => value / total));
 }
 
-function overallMoleFractions(
-  dispersed: readonly number[],
-  continuous: readonly number[],
-  molecularWeights: ECR2PhysicalMolecularWeightVector,
+function overallThermodynamicMoleFractions(
+  dispersedMassFractions: readonly number[],
+  continuousMassFractions: readonly number[],
+  dispersedTotal_kg_h: number,
+  continuousTotal_kg_h: number,
 ): ECR2Vector | null {
-  const combined = dispersed.map((value, index) => value + continuous[index]);
-  return moleFractions(combined, molecularWeights);
+  const combinedTotal = dispersedTotal_kg_h + continuousTotal_kg_h;
+  if (!finite(combinedTotal) || combinedTotal <= 0) return null;
+  const combinedMassFractions = dispersedMassFractions.map(
+    (fraction, index) =>
+      (fraction * dispersedTotal_kg_h + continuousMassFractions[index] * continuousTotal_kg_h) /
+      combinedTotal,
+  );
+  return thermodynamicMoleFractionsFromPhysicalMassFractions(combinedMassFractions);
 }
 
 function resultFailure(
@@ -356,15 +381,21 @@ function localCompartment(
   const localC = cIn.map((value, i) => (value + cOut[i]) / 2);
   const dMassFractions = massFractions(localD);
   const cMassFractions = massFractions(localC);
-  const x = moleFractions(localD, input.physicalMolecularWeights);
-  const y = moleFractions(localC, input.physicalMolecularWeights);
-  const z = overallMoleFractions(localD, localC, input.physicalMolecularWeights);
-  if (!dMassFractions || !cMassFractions || !x || !y || !z) {
+  const dTotal = sum(localD);
+  const cTotal = sum(localC);
+  const xThermo = dMassFractions &&
+    thermodynamicMoleFractionsFromPhysicalMassFractions(dMassFractions);
+  const yThermo = cMassFractions &&
+    thermodynamicMoleFractionsFromPhysicalMassFractions(cMassFractions);
+  const zThermo = dMassFractions && cMassFractions
+    ? overallThermodynamicMoleFractions(dMassFractions, cMassFractions, dTotal, cTotal)
+    : null;
+  if (!dMassFractions || !cMassFractions || !xThermo || !yThermo || !zThermo) {
     return { compartment: null, failure: invalid('local_composition', 'Local phase component flows cannot form valid non-zero five-component compositions.', index) };
   }
 
   const properties = resolveECR2LocalProperties(
-    { x_local: x, y_local: y, compartmentIndex: index },
+    { x_local: xThermo, y_local: yThermo, compartmentIndex: index },
     input.operatingTemperature_C,
     input.governedProperties,
   );
@@ -372,14 +403,17 @@ function localCompartment(
     return { compartment: null, failure: invalid('local_property_closure', properties.errors.join(' '), index, null, [...properties.warnings]) };
   }
 
-  const nrtl = computeLocalNRTL({ x_j: x, y_j: y, z_feed: z, T_K: input.operatingTemperature_C + 273.15 });
+  const nrtl = computeLocalNRTL({
+    x_j: xThermo,
+    y_j: yThermo,
+    z_feed: zThermo,
+    T_K: input.operatingTemperature_C + 273.15,
+  });
   if (nrtl.flashConverged !== true || !nrtl.x_eq || !nrtl.y_eq) {
     return { compartment: null, failure: invalid('local_nrtl', 'Local NRTL flash did not return a converged two-phase equilibrium state.', index, null, nrtl.diagnostics) };
   }
 
   const height = input.activeHeight_m / input.numberOfCompartments;
-  const dTotal = sum(localD);
-  const cTotal = sum(localC);
   const uD = dTotal / (properties.snapshot.rho_d_kg_m3 * input.columnCrossSectionArea_m2 * 3600);
   const uC = cTotal / (properties.snapshot.rho_c_kg_m3 * input.columnCrossSectionArea_m2 * 3600);
   const holdup = computeKH1995Holdup({
@@ -428,8 +462,8 @@ function localCompartment(
     mu_d: toECR2KernelPropertyResult(properties.snapshot.properties.mu_d),
   });
   const base = evaluateKH1999PreliminaryLocalMassTransfer({
-    continuous_bulk: y as FiveComponentVector,
-    dispersed_bulk: x as FiveComponentVector,
+    continuous_bulk: yThermo,
+    dispersed_bulk: xThermo,
     continuous_equilibrium: nrtl.y_eq as FiveComponentVector,
     dispersed_equilibrium: nrtl.x_eq as FiveComponentVector,
     rho_c_bulk_kg_m3: properties.snapshot.rho_c_kg_m3,

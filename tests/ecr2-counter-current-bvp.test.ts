@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { buildECR2ThermodynamicBasis } from '../server/engines/llx/llx-ecr-simulator-engine';
 import {
   solveECR2CounterCurrentBVP,
+  thermodynamicMoleFractionsFromPhysicalMassFractions,
   type ECR2CounterCurrentBVPInput,
 } from '../server/engines/llx/llx-ecr2-counter-current-bvp';
+import { SURROGATE_MW } from '../server/engine-framework/cel/coto2022-nmp-lle';
 import type { DiffusivityInput, ECR2DiffusivityContract } from '../server/engines/llx/llx-ecr2-diffusivity';
 
 const T_C = 70;
@@ -88,6 +90,28 @@ function input(n = 1): ECR2CounterCurrentBVPInput {
   };
 }
 
+function expectVectorsClose(
+  left: readonly number[] | null,
+  right: readonly number[] | null,
+  tolerance = 1e-12,
+) {
+  expect(left).not.toBeNull();
+  expect(right).not.toBeNull();
+  expect(left).toHaveLength(right!.length);
+  left!.forEach((value, index) => {
+    expect(Math.abs(value - right![index])).toBeLessThan(tolerance);
+  });
+}
+
+function expectPhysicalBalancesClose(
+  result: ReturnType<typeof solveECR2CounterCurrentBVP>,
+) {
+  expect(result.componentBalances_kg_h).not.toBeNull();
+  expect(result.componentBalances_kg_h!.every((value) => Math.abs(value) < 1e-6)).toBe(true);
+  expect(result.totalMassBalance_kg_h).not.toBeNull();
+  expect(Math.abs(result.totalMassBalance_kg_h!)).toBeLessThan(5e-6);
+}
+
 describe('ECR-2 counter-current BVP', () => {
   it('solves N=1 with non-negative faces, orientation, and component conservation', () => {
     const result = solveECR2CounterCurrentBVP(input(1));
@@ -96,8 +120,7 @@ describe('ECR-2 counter-current BVP', () => {
     expect(result.compartments[0].dispersedIncoming_kg_h).toEqual(input(1).rrboFeedComponentFlows_kg_h);
     expect(result.compartments[0].continuousIncoming_kg_h).toEqual(input(1).nmpFeedComponentFlows_kg_h);
     expect(result.stateVector!.every((value) => value >= 0)).toBe(true);
-    expect(result.componentBalances_kg_h!.every((value) => Math.abs(value) < 1e-6)).toBe(true);
-    expect(Math.abs(result.totalMassBalance_kg_h!)).toBeLessThan(5e-6);
+    expectPhysicalBalancesClose(result);
   });
 
   it('retains the zero-transfer invariant at lambda=0', () => {
@@ -118,6 +141,88 @@ describe('ECR-2 counter-current BVP', () => {
     expect(first.stateVector).toEqual(second.stateVector);
     expect(first.axialProfile).toHaveLength(2);
     expect(first.axialProfile.map((point) => point.z_m)).toEqual([0.0025, 0.0075]);
+    expectPhysicalBalancesClose(first);
+    expectPhysicalBalancesClose(second);
+  });
+
+  it('keeps local NRTL coordinates and equilibrium isolated from physical molecular weights', () => {
+    const baseInput = input(1);
+    baseInput.solverOptions = { ...baseInput.solverOptions, transferStrength: 0 };
+    const alteredMwInput = input(1);
+    alteredMwInput.solverOptions = { ...alteredMwInput.solverOptions, transferStrength: 0 };
+    alteredMwInput.physicalMolecularWeights = {
+      Sat_g_mol: 720,
+      Mono_g_mol: 410,
+      Di_g_mol: 510,
+      Poly_g_mol: 650,
+      NMP_g_mol: 99.13,
+    };
+
+    const base = solveECR2CounterCurrentBVP(baseInput);
+    const altered = solveECR2CounterCurrentBVP(alteredMwInput);
+    expect(base.status).toBe('converged');
+    expect(altered.status).toBe('converged');
+
+    const baseNrtl = base.compartments[0].localNRTL;
+    const alteredNrtl = altered.compartments[0].localNRTL;
+    expectVectorsClose(baseNrtl.x_j, alteredNrtl.x_j);
+    expectVectorsClose(baseNrtl.y_j, alteredNrtl.y_j);
+    expectVectorsClose(baseNrtl.z_feed, alteredNrtl.z_feed);
+    expectVectorsClose(baseNrtl.x_eq, alteredNrtl.x_eq);
+    expectVectorsClose(baseNrtl.y_eq, alteredNrtl.y_eq);
+  });
+
+  it('updates local NRTL coordinates and equilibrium when physical mass composition changes', () => {
+    const baseInput = input(1);
+    baseInput.solverOptions = { ...baseInput.solverOptions, transferStrength: 0 };
+    const changedCompositionInput = input(1);
+    changedCompositionInput.solverOptions = {
+      ...changedCompositionInput.solverOptions,
+      transferStrength: 0,
+    };
+    changedCompositionInput.rrboFeedComponentFlows_kg_h = [40, 35, 15, 10, 0];
+
+    const base = solveECR2CounterCurrentBVP(baseInput);
+    const changed = solveECR2CounterCurrentBVP(changedCompositionInput);
+    expect(base.status).toBe('converged');
+    expect(changed.status).toBe('converged');
+
+    const baseNrtl = base.compartments[0].localNRTL;
+    const changedNrtl = changed.compartments[0].localNRTL;
+    expect(changedNrtl.x_j).not.toEqual(baseNrtl.x_j);
+    expect(changedNrtl.z_feed).not.toEqual(baseNrtl.z_feed);
+    expect(changedNrtl.x_eq).not.toEqual(baseNrtl.x_eq);
+    expect(changedNrtl.y_eq).not.toEqual(baseNrtl.y_eq);
+  });
+
+  it('matches the C2 thermodynamic coordinate at the initial BVP boundary', () => {
+    const baseInput = input(1);
+    baseInput.solverOptions = { ...baseInput.solverOptions, transferStrength: 0 };
+    const result = solveECR2CounterCurrentBVP(baseInput);
+    expect(result.status).toBe('converged');
+
+    const basis = baseInput.c2ThermodynamicBasis!;
+    const c2MixedFeed = [
+      ...basis.feedMoleFractions.map((fraction) => fraction / (1 + basis.solventMolarRatio)),
+    ];
+    c2MixedFeed[4] += basis.solventMolarRatio / (1 + basis.solventMolarRatio);
+
+    const bvpInitialMassFractions = [
+      50 / 300,
+      30 / 300,
+      15 / 300,
+      5 / 300,
+      200 / 300,
+    ];
+    const bvpInitialThermo = thermodynamicMoleFractionsFromPhysicalMassFractions(
+      bvpInitialMassFractions,
+    );
+    expectVectorsClose(
+      bvpInitialThermo,
+      c2MixedFeed,
+    );
+    expectVectorsClose(result.compartments[0].localNRTL.z_feed, c2MixedFeed);
+    expect(SURROGATE_MW.nmp).toBe(99.13);
   });
 
   it('accepts a prior converged face state as its initial profile', () => {
@@ -133,7 +238,7 @@ describe('ECR-2 counter-current BVP', () => {
     const result = solveECR2CounterCurrentBVP(input(3));
     expect(result.status).toBe('converged');
     expect(result.compartments).toHaveLength(3);
-    expect(Math.abs(result.componentBalances_kg_h![4])).toBeLessThan(1e-6);
+    expectPhysicalBalancesClose(result);
     for (const compartment of result.compartments) {
       expect(compartment.transferAmount_kg_h).toHaveLength(5);
       for (let component = 0; component < 5; component++) {
