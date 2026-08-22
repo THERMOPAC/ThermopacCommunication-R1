@@ -102,12 +102,10 @@ export interface ECR2KH1999ComponentResult {
 
 export type ECR2KH1999OutputStatus =
   | 'calculated_preliminary'
-  | 'engineer_input_required_for_preliminary_shd'
   | 'blocked_by_missing_d32'
   | 'blocked_by_missing_diffusivity'
   | 'blocked_by_invalid_holdup'
   | 'blocked_by_invalid_c1_scope'
-  | 'blocked_by_invalid_c2_scope'
   | 'engineer_partition_basis_required'
   | 'blocked_by_K_overall'
   | 'not_calculable';
@@ -142,14 +140,6 @@ export interface ECR2KH1999HydrodynamicInputs {
   sigma: ECR2LocalPropertyResult;
 }
 
-export interface ECR2KH1999EngineerC2Input {
-  /** Engineer-entered Kühni Sh_d coefficient; never inferred from another device. */
-  value: number;
-  sourceType: string;
-  sourceReference: string;
-  scope: 'kuhni_shd_preliminary';
-}
-
 export interface ECR2KH1999PartitionBasisApproval {
   /** Exact ECR-2 concentration basis used by the local kernel. */
   basis: 'K_d_concentration';
@@ -180,8 +170,6 @@ export interface ECR2KH1999PreliminaryActivation {
    * or a pulsed-column constant by symbol collision.
    */
   c1Override?: number;
-  /** Required for preliminary Sh_d only; missing C2 must not block Sh_c/k_c. */
-  kuhniShdC2?: ECR2KH1999EngineerC2Input | null;
   /** Required only for K_overall, Koa, and rate. */
   partitionBasis?: ECR2KH1999PartitionBasisApproval | null;
 }
@@ -218,7 +206,6 @@ export interface ECR2KH1999LocalMassTransferResult {
     pilotCalibrationStatus: 'NOT_YET_VALIDATED';
     psiBasis: 'Thermopac preliminary interpretation of K&H power dissipated per unit mass';
     engineerInputs: {
-      kuhniShdC2: ECR2KH1999EngineerC2Input | null;
       diffusivity: ECR2DiffusivityContract | null;
       d32: ECR2KH1999D32Provenance | null;
       localProperties: {
@@ -250,7 +237,6 @@ const COMPONENT_INDEX: Record<TransferComponent, 0 | 1 | 2 | 3 | 4> = {
 
 const UNRESOLVED_SHERWOOD_ITEMS = [
   'Governed Kühni ψ definition for the secondary-recorded power correction.',
-  'Kühni-specific dispersed-side C2.',
   'Rigid/circulating/oscillating regime equations and selection criterion.',
   'Characteristic-drop-velocity relation.',
   'Defined two-film slope m and overall partition basis.',
@@ -282,7 +268,7 @@ function unavailableSherwood(component: TransferComponent, quantity: string): EC
   return unavailable(
     'correlation_unresolved',
     `${quantity} (${component}) is unavailable: secondary K&H 1999 equation metadata is not runtime authorisation. ` +
-      `Kühni ψ, dispersed-side C2, regime selection, and overall-resistance basis remain unresolved. No numerical reconstruction was invented.`,
+      `Kühni ψ, regime selection, and overall-resistance basis remain unresolved. No numerical reconstruction was invented.`,
   );
 }
 
@@ -371,9 +357,9 @@ function diffusivityProvenanceIssue(input: DiffusivityInput | null): string | nu
     !input.sourceReference.trim() ||
     !numeric(input.referenceTemperature_C) ||
     !input.method.trim() ||
-    input.status !== 'engineer_supplied'
+    !['engineer_supplied', 'system_resolved_preliminary'].includes(input.status)
   ) {
-    return 'Diffusivity requires sourceType, sourceReference, reference temperature, method, and engineer_supplied status.';
+    return 'Diffusivity requires sourceType, sourceReference, reference temperature, method, and an engineer-supplied or accepted system-resolved preliminary status.';
   }
   return null;
 }
@@ -395,37 +381,6 @@ function resolveKuhniC1(activation: ECR2KH1999PreliminaryActivation): number | E
     'correlation_unresolved',
     'Scoped Kühni C1 = 7.5 is absent from the controlled K&H 1999 registry.',
   );
-}
-
-function resolveKuhniC2(
-  activation: ECR2KH1999PreliminaryActivation,
-): number | ECR2NullField {
-  const c2 = activation.kuhniShdC2;
-  if (!c2) {
-    return unavailable(
-      'correlation_unresolved',
-      'ENGINEER_INPUT_REQUIRED_FOR_PRELIMINARY_SHD: provide a scoped Kühni Sh_d C2 with sourceType and sourceReference.',
-    );
-  }
-  if (
-    c2.scope !== 'kuhni_shd_preliminary' ||
-    !numeric(c2.value) ||
-    c2.value <= 0 ||
-    !c2.sourceType.trim() ||
-    !c2.sourceReference.trim()
-  ) {
-    return unavailable(
-      'correlation_unresolved',
-      'Kühni Sh_d C2 must be a positive, provenance-tagged engineer preliminary input scoped to kuhni_shd_preliminary.',
-    );
-  }
-  if (c2.value === 0.45 || c2.value === 4.33) {
-    return unavailable(
-      'correlation_unresolved',
-      'Kühni Sh_d C2 rejects project C2 = 0.45 and pulsed-column C2 = 4.33; neither is governed for this exact equation.',
-    );
-  }
-  return c2.value;
 }
 
 function calculateShc(params: {
@@ -464,19 +419,15 @@ function calculateShd(params: {
   Sc_d: number;
   kappa: number;
   h: ECR2KH1999HydrodynamicInputs;
-  C2: number;
 }): number | null {
-  const { Re, Sc_d, h, C2 } = params;
+  const { Re, Sc_d, h } = params;
   const reSc = Re * Math.cbrt(Sc_d);
   const hydrodynamicTerm = (3.19e-3 * Math.pow(reSc, 1.7)) /
     (1 + 1.43e-2 * Math.pow(reSc, 0.7));
-  const agitationGroup = (h.psi_W_kg / 9.80665) *
-    Math.pow(h.rho_c_kg_m3 / (9.80665 * h.sigma.value), 0.25);
   const Sh_d = 17.7 +
     hydrodynamicTerm *
     Math.pow(h.rho_d_kg_m3 / h.rho_c_kg_m3, 2 / 3) *
-    (1 / (1 + Math.pow(params.kappa, 2 / 3))) *
-    (1 + C2 * Math.cbrt(agitationGroup));
+    (1 / (1 + Math.pow(params.kappa, 2 / 3)));
   return Number.isFinite(Sh_d) && Sh_d > 0 ? Sh_d : null;
 }
 
@@ -704,7 +655,7 @@ export function evaluateKH1999PreliminaryLocalMassTransfer(params: {
     components,
     governance: {
       ...PRELIMINARY_GOVERNANCE,
-      engineerInputs: { kuhniShdC2: null, diffusivity: null, d32: null, localProperties: null },
+      engineerInputs: { diffusivity: null, d32: null, localProperties: null },
     },
     unresolvedItems: UNRESOLVED_SHERWOOD_ITEMS,
     diagnostics: [
@@ -747,7 +698,6 @@ export function activateKH1999PreliminaryLocalMassTransfer(
   const areaInvalid = !numeric(interfacialArea_m2_m3) || interfacialArea_m2_m3 <= 0;
   const groupsInvalid = !numeric(re) || re <= 0 || !numeric(kappa) || kappa <= 0;
   const C1 = resolveKuhniC1(activation);
-  const C2 = resolveKuhniC2(activation);
   const partitionApproved = activation.partitionBasis?.basis === 'K_d_concentration' &&
     activation.partitionBasis.approvalStatus === 'engineer_approved_governed' &&
     activation.partitionBasis.sourceReference.trim().length > 0 &&
@@ -849,21 +799,12 @@ export function activateKH1999PreliminaryLocalMassTransfer(
         k_d_m_s = unavailable('blocked_by_De', `k_d (${component}) requires provenance-tagged dispersed-phase diffusivity.`);
         shdStatus = outputState('blocked_by_missing_diffusivity', Sh_d.message);
         kdStatus = outputState('blocked_by_missing_diffusivity', k_d_m_s.message);
-      } else if (isNullField(C2)) {
-        Sh_d = C2;
-        k_d_m_s = unavailable('blocked_by_kd', `k_d (${component}) is blocked until scoped Kühni Sh_d C2 is supplied.`);
-        shdStatus = outputState(
-          activation.kuhniShdC2 ? 'blocked_by_invalid_c2_scope' : 'engineer_input_required_for_preliminary_shd',
-          C2.message,
-        );
-        kdStatus = outputState(shdStatus.status, k_d_m_s.message);
       } else {
         const calculated = calculateShd({
           Re: re,
           Sc_d,
           kappa,
           h,
-          C2,
         });
         if (!calculated) {
           Sh_d = unavailable('correlation_unresolved', `Sh_d (${component}) produced a non-physical numerical result; no clamp was applied.`);
@@ -873,7 +814,7 @@ export function activateKH1999PreliminaryLocalMassTransfer(
         } else {
           Sh_d = calculated;
           k_d_m_s = calculated * De_d!.value_m2_s / d32_m;
-          shdStatus = outputState('calculated_preliminary', 'Sh_d calculated with the registered dispersed-side K&H structure and scoped engineer C2 provenance.');
+          shdStatus = outputState('calculated_preliminary', 'Sh_d calculated with the registered dispersed-side K&H single-drop correlation.');
           kdStatus = outputState('calculated_preliminary', 'k_d = Sh_d·D_d/d₃₂ (m/s).');
         }
       }
@@ -985,7 +926,6 @@ export function activateKH1999PreliminaryLocalMassTransfer(
     governance: {
       ...PRELIMINARY_GOVERNANCE,
       engineerInputs: {
-        kuhniShdC2: activation.kuhniShdC2 ?? null,
         diffusivity: activation.diffusivity,
         d32: activation.d32,
         localProperties: { mu_c: activation.hydrodynamics.mu_c, mu_d: activation.hydrodynamics.mu_d, sigma: activation.hydrodynamics.sigma },
@@ -1050,7 +990,7 @@ export function createUnavailableKH1999PreliminaryLocalMassTransfer(
     components,
     governance: {
       ...PRELIMINARY_GOVERNANCE,
-      engineerInputs: { kuhniShdC2: null, diffusivity: null, d32: null, localProperties: null },
+      engineerInputs: { diffusivity: null, d32: null, localProperties: null },
     },
     unresolvedItems: UNRESOLVED_SHERWOOD_ITEMS,
     diagnostics: [

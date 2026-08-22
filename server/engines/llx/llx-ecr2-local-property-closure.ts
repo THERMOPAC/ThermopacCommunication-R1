@@ -351,8 +351,8 @@ function validateDiffusivity(
   if (!isFinitePositive(input.value_m2_s)) {
     errors.push(`${label}: value_m2_s must be a positive finite number.`);
   }
-  if (input.status !== 'engineer_supplied') {
-    errors.push(`${label}: status must be 'engineer_supplied'.`);
+  if (!['engineer_supplied', 'system_resolved_preliminary'].includes(input.status)) {
+    errors.push(`${label}: status must be 'engineer_supplied' or 'system_resolved_preliminary'.`);
   }
   if (!hasValidProvenance(input)) {
     errors.push(`${label}: sourceType and sourceReference are required valid provenance.`);

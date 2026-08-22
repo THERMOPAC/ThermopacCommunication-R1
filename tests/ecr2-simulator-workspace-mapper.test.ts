@@ -49,6 +49,7 @@ describe('ECR-2 simulator workspace adapter', () => {
     expect(mapped.powerNumber).toMatchObject({ value: 1.2 });
     expect(mapped.d32Config).toMatchObject({ mode: 'engineer_supplied', value_m: 0.0005 });
     expect(mapped.bvp).toMatchObject({ rrboGradeId: 'rrbo-sn300' });
+    expect(mapped.bvp).not.toHaveProperty('kuhniShdC2');
   });
 
   it('normalizes a simulator-section NMP purity percentage to an engine mass fraction', () => {
@@ -65,7 +66,7 @@ describe('ECR-2 simulator workspace adapter', () => {
     expect(mapped.rotorType).toBe('Kühni turbine (default label)');
   });
 
-  it('derives Stage 8 evidence server-side and keeps an override free of acceptance audit fields', () => {
+  it('derives Stage 8 evidence server-side and strips the retired C2 snapshot path', () => {
     const mapped = mapWorkspaceProcessDesignInputs({
       molecular_weight_sat_value: '330',
       molecular_weight_sat_source_type: 'Literature',
@@ -76,10 +77,9 @@ describe('ECR-2 simulator workspace adapter', () => {
       diffusivity_sat_c_source_reference: 'Wilke-Chang evidence',
       diffusivity_sat_c_reference_temperature_c: '70',
       diffusivity_sat_c_method: 'Wilke-Chang (1955)',
-      kuhni_shd_c2_value: '1.2',
-      kuhni_shd_c2_source_type: 'Literature',
-      kuhni_shd_c2_source_reference: 'Scoped Kühni evidence',
-      kuhni_shd_c2_evidence_status: 'ENGINEER_OVERRIDE',
+      bvp: JSON.stringify({
+        kuhniShdC2: { value: 1.2, sourceType: 'Literature', sourceReference: 'retired input', scope: 'kuhni_shd_preliminary' },
+      }),
       partition_basis_approval_status: 'engineer_approved_governed',
       partition_basis_source_reference: 'Governing relation review',
       partition_basis_approved_by: 'A. Engineer',
@@ -96,16 +96,13 @@ describe('ECR-2 simulator workspace adapter', () => {
         diffusivity_sat_c: {
           status: 'BLOCKED_MISSING_REQUIRED_EVIDENCE',
         },
-        kuhni_shd_c2: {
-          status: 'ENGINEER_OVERRIDE',
-          value: undefined,
-        },
       },
       partitionBasis: {
         approvedBy: 'A. Engineer',
         approvedAt: '2026-08-22T10:00',
       },
     });
+    expect(mapped.bvp).not.toHaveProperty('kuhniShdC2');
   });
 
   it('auto-calculates all ten preliminary SN300 diffusivities from server-owned operating-temperature bases', () => {
@@ -119,7 +116,7 @@ describe('ECR-2 simulator workspace adapter', () => {
     }, 'ecr_simulator');
     const evidence = (mapped.bvp as any).stage8Evidence;
     const resolution = (mapped.bvp as any).stage8Resolution;
-    expect(Object.keys(evidence)).toHaveLength(15);
+    expect(Object.keys(evidence)).toHaveLength(14);
     expect(evidence.physical_mw_sat.status).toBe('AUTO_RESOLVED_PENDING_ACCEPTANCE');
     expect(evidence.physical_mw_sat).toMatchObject({
       value: 269.93,
@@ -129,12 +126,11 @@ describe('ECR-2 simulator workspace adapter', () => {
     expect(evidence.diffusivity_sat_d.status).toBe('CALCULATED_PRELIMINARY');
     expect(evidence.diffusivity_nmp_c.status).toBe('CALCULATED_PRELIMINARY');
     expect(evidence.diffusivity_nmp_d.status).toBe('CALCULATED_PRELIMINARY');
-    expect(evidence.kuhni_shd_c2.status).toBe('APPROVAL_REQUIRED');
     expect(resolution).toMatchObject({
       resolver: 'ecr2-stage8-governed-resolver-v1',
       operatingTemperature_C: 60,
       autoPopulatedCount: 14,
-      unresolvedCount: 1,
+      unresolvedCount: 0,
     });
     expect(resolution.records.diffusivity_sat_c).toMatchObject({
       unit: 'm2/s',
@@ -163,7 +159,7 @@ describe('ECR-2 simulator workspace adapter', () => {
     const resolution = (mapped.bvp as any).stage8Resolution;
 
     expect(resolution.autoPopulatedCount).toBe(14);
-    expect(resolution.unresolvedCount).toBe(1);
+    expect(resolution.unresolvedCount).toBe(0);
     expect(resolution.records.diffusivity_sat_d.status).toBe('CALCULATED_PRELIMINARY');
     expect(resolution.records.diffusivity_nmp_d.status).toBe('CALCULATED_PRELIMINARY');
   });

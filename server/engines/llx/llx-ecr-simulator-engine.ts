@@ -1048,13 +1048,12 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     // these validation entries give the workspace a complete pre-run checklist.
     const bvp = inputs.bvp as Record<string, unknown> | undefined;
     if (!bvp) {
-      warn('bvp', 'BVP activation data is missing: d32, five-component diffusivity, Kühni Shd C2, and approved concentration Kd basis. The solver will return a structured dependency-blocked snapshot.');
+      warn('bvp', 'BVP activation data is missing: d32, five-component diffusivity, and approved concentration Kd basis. The solver will return a structured dependency-blocked snapshot.');
     } else {
       if (!inputs.d32Config) warn('d32Config', 'd32Config is required for the ECR-2 BVP; no default is permitted.');
       if (!inputs.feedViscosity) warn('feedViscosity', 'feedViscosity is required for the ECR-2 BVP local-property closure.');
       if (!inputs.interfacialTension) warn('interfacialTension', 'interfacialTension is required for the ECR-2 BVP local-property closure.');
       if (!bvp.diffusivity) warn('bvp.diffusivity', 'Five-component, two-phase diffusivity inputs are required for the ECR-2 BVP.');
-      if (!bvp.kuhniShdC2) warn('bvp.kuhniShdC2', 'An explicit preliminary Kühni Shd C2 input is required for the ECR-2 BVP.');
       if (!bvp.partitionBasis) {
         warn('bvp.partitionBasis', 'An engineer-approved K_d concentration partition basis is required for the ECR-2 BVP.');
       } else {
@@ -1551,7 +1550,6 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         diffusivity: bvpSettings.diffusivity ?? emptyDiffusivityContract(),
       },
       d32Config: d32Config ?? null,
-      kuhniShdC2: bvpSettings.kuhniShdC2 ?? null,
       partitionBasis: bvpSettings.partitionBasis ?? null,
       previousSolution: Array.isArray(bvpSettings.previousSolution)
         ? bvpSettings.previousSolution

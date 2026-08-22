@@ -50,12 +50,6 @@ const flatSimulatorInput = {
   }),
   bvp: JSON.stringify({
     rrboGradeId: 'rrbo-sn300',
-    kuhniShdC2: {
-      value: 1.25,
-      sourceType: 'Assumed',
-      sourceReference: 'test',
-      scope: 'kuhni_shd_preliminary',
-    },
   }),
 };
 
@@ -160,7 +154,7 @@ describe('ECR-2 simulator service run boundary', () => {
     expect(preview).toMatchObject({
       resolver: 'ecr2-stage8-governed-resolver-v1',
       autoPopulatedCount: 14,
-      unresolvedCount: 1,
+      unresolvedCount: 0,
     });
     expect(preview.records.diffusivity_sat_c.status).toBe('CALCULATED_PRELIMINARY');
     expect(query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO design_software_calculation_runs'))).toBe(false);

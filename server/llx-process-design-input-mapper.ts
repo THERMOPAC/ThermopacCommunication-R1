@@ -815,6 +815,10 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
 
     const legacyBvp = asRecord(parseJson(simValue('bvp')));
     const bvp: Record<string, any> = { ...legacyBvp };
+    // Retire the formerly user-entered dispersed-side C2 from old snapshots.
+    // The published single-drop Sh_d form has no C2 term, so legacy values must
+    // never reach a future engine run or persisted snapshot.
+    delete bvp.kuhniShdC2;
     if (!bvp.rrboGradeId) bvp.rrboGradeId = String(out.rrboFluidId ?? inputs.rrboFluidId ?? '');
 
     const diffusivityComponents = [
@@ -869,33 +873,6 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       diffusivity[component] = pair;
     }
     if (hasDiffusivityInput) bvp.diffusivity = diffusivity;
-
-    const shdValue = simNum('kuhni_shd_c2_value');
-    const shdSourceType = String(simValue('kuhni_shd_c2_source_type') ?? '').trim();
-    const shdSourceReference = String(simValue('kuhni_shd_c2_source_reference') ?? '').trim();
-    stage8Evidence.kuhni_shd_c2 = stage8ValueRecord('kuhni_shd_c2', 'kuhni_shd_c2');
-    const automaticC2 = stage8Evidence.kuhni_shd_c2;
-    if ((automaticC2.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' || automaticC2.status === 'CALCULATED_PRELIMINARY' || automaticC2.status === 'ACCEPTED_AUTO_BASIS')
-      && typeof automaticC2.value === 'number') {
-      bvp.kuhniShdC2 = {
-        value: automaticC2.value,
-        sourceType: 'Literature',
-        sourceReference: automaticC2.source,
-        scope: 'kuhni_shd_preliminary',
-        method: automaticC2.method,
-        resolverInputs: automaticC2.inputSnapshot ?? automaticC2.resolutionInputs,
-      };
-    } else if (stage8Evidence.kuhni_shd_c2.status === 'ENGINEER_OVERRIDE'
-      && (shdValue !== undefined || shdSourceType !== '' || shdSourceReference !== '')) {
-      bvp.kuhniShdC2 = {
-        value: shdValue ?? Number.NaN,
-        sourceType: shdSourceType,
-        sourceReference: shdSourceReference,
-        scope: 'kuhni_shd_preliminary',
-      };
-    } else if (legacyBvp.kuhniShdC2 !== undefined) {
-      bvp.kuhniShdC2 = legacyBvp.kuhniShdC2;
-    }
 
     const approvalStatus = String(simValue('partition_basis_approval_status') ?? '').trim();
     const approvalReference = String(simValue('partition_basis_source_reference') ?? '').trim();

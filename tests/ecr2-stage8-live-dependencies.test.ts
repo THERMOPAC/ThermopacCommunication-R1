@@ -35,10 +35,9 @@ describe("ECR-2 Stage 8 live dependency model", () => {
     });
 
     const unresolved = dependencies.filter((dependency) => !dependency.ready);
-    expect(dependencies).toHaveLength(18);
+    expect(dependencies).toHaveLength(17);
     expect(dependencies.filter((dependency) => dependency.ready)).toHaveLength(16);
     expect(unresolved.map((dependency) => dependency.id)).toEqual([
-      "kuhni_shd_c2",
       "partition_basis",
     ]);
     expect(

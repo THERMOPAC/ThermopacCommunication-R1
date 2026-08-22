@@ -13,8 +13,8 @@ import {
 import { LLXECRSimulatorEngine } from '../server/engines/llx/llx-ecr-simulator-engine';
 
 describe('ECR-2 Stage 8 governed evidence registry', () => {
-  it('registers exactly the fifteen required numerical dependencies without Coto physical-MW substitution', () => {
-    expect(ECR2_STAGE8_EVIDENCE_CATALOG).toHaveLength(15);
+  it('registers exactly the fourteen required numerical dependencies without Coto physical-MW substitution', () => {
+    expect(ECR2_STAGE8_EVIDENCE_CATALOG).toHaveLength(14);
     const physicalMw = ECR2_STAGE8_EVIDENCE_CATALOG.filter((record) => record.id.startsWith('physical_mw_'));
     expect(physicalMw).toHaveLength(4);
     expect(physicalMw.every((record) => record.value === undefined)).toBe(true);
@@ -89,7 +89,7 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
     expect(blocked).toMatchObject({ status: 'blocked', value_m2_s: null });
   });
 
-  it('evaluates all fifteen routes and reports the exact current root evidence gaps', () => {
+  it('evaluates all fourteen routes and reports the exact current root evidence gaps', () => {
     const resolution = resolveEcr2Stage8Evidence({
       temperature_C: 60,
       nmp: {
@@ -101,16 +101,15 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
       },
     });
 
-    expect(Object.keys(resolution.records)).toHaveLength(15);
-    expect(resolution).toMatchObject({ autoPopulatedCount: 0, unresolvedCount: 15 });
+    expect(Object.keys(resolution.records)).toHaveLength(14);
+    expect(resolution).toMatchObject({ autoPopulatedCount: 0, unresolvedCount: 14 });
     expect(resolution.records.physical_mw_sat.blockingReason).toContain('ROOT_GAP_PHYSICAL_MW_SAT');
     expect(resolution.records.diffusivity_sat_c.blockingReason).toContain('NMP molecular weight');
     expect(resolution.records.diffusivity_sat_d.blockingReason).toContain('RRBO operating-temperature viscosity');
     expect(resolution.records.diffusivity_nmp_c.blockingReason).toContain('ROOT_GAP_NMP_SELF_DIFFUSION');
-    expect(resolution.records.kuhni_shd_c2.blockingReason).toContain('ROOT_GAP_KUHNI_SHD_C2');
   });
 
-  it('auto-calculates each eligible Wilke–Chang route only from a complete controlled basis while retaining the unsupported C2 gap', () => {
+  it('auto-calculates each eligible Wilke–Chang route only from a complete controlled basis', () => {
     const scalar = (value: number, source: string) => ({
       value, source, evidenceLevel: 'PRIMARY_EQUATION_VERIFIED' as const,
     });
@@ -139,7 +138,7 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
     const at60 = resolveEcr2Stage8Evidence(context);
     const at80 = resolveEcr2Stage8Evidence({ ...context, temperature_C: 80 });
 
-    expect(at60).toMatchObject({ autoPopulatedCount: 14, unresolvedCount: 1 });
+    expect(at60).toMatchObject({ autoPopulatedCount: 14, unresolvedCount: 0 });
     expect(at60.records.diffusivity_sat_c.status).toBe('CALCULATED_PRELIMINARY');
     expect(at60.records.diffusivity_sat_d.status).toBe('CALCULATED_PRELIMINARY');
     expect(at60.records.diffusivity_nmp_c.method).toContain('self-diffusion');
@@ -149,10 +148,6 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
       pilotCalibrationStatus: 'NOT_YET_VALIDATED',
     });
     expect(at80.records.diffusivity_sat_c.value).toBeGreaterThan(at60.records.diffusivity_sat_c.value!);
-    expect(at60.records.kuhni_shd_c2).toMatchObject({
-      status: 'APPROVAL_REQUIRED',
-      value: undefined,
-    });
   });
 
   it('retains the physical-basis decision, equation, and uncertainty in an SN300 auto-resolution', () => {
@@ -203,42 +198,6 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
     expect(invalid.records.physical_mw_sat.status).toBe('BLOCKED_MISSING_REQUIRED_EVIDENCE');
     expect(invalid.records.diffusivity_sat_c.blockingReason).toContain('physical molecular weight');
     expect(invalid.records.diffusivity_nmp_c.status).toBe('BLOCKED_MISSING_REQUIRED_EVIDENCE');
-    expect(invalid.records.kuhni_shd_c2.status).toBe('APPROVAL_REQUIRED');
-  });
-
-  it('keeps Kühni C2 approval-required and documents the literature evidence gap', () => {
-    const c2 = findEcr2Stage8Evidence('kuhni_shd_c2');
-    expect(c2.status).toBe('APPROVAL_REQUIRED');
-    expect(c2.value).toBeUndefined();
-    expect(c2.source).toContain('Kumar & Hartland (1999)');
-    expect(c2.source).toContain('C1 = 7.5');
-    expect(c2.method).toContain('not a dispersed-side Shd C2');
-    expect(c2.warnings.join(' ')).toContain('pulsed-column C2');
-    expect(c2.blockingReason).toContain('exact dispersed-side Shd equation');
-  });
-
-  it('rejects pulsed, project-provisional, and fixture C2 payloads from the automatic resolver', () => {
-    const candidate = (value: number, source: string) => ({
-      value,
-      source,
-      evidenceLevel: 'SECONDARY_EQUATION_VERIFIED' as const,
-      exactEquationIdentity: 'Claimed exact dispersed-side Shd coefficient placement',
-      deviceApplicability: 'kuhni' as const,
-      phaseBasis: 'dispersed' as const,
-    });
-
-    for (const attemptedC2 of [
-      candidate(4.33, 'Pulsed-column secondary source'),
-      candidate(0.45, 'ECR-2 project provisional specification'),
-      candidate(1.25, 'Test fixture'),
-    ]) {
-      const resolution = resolveEcr2Stage8Evidence({ kuhniShdC2: attemptedC2 } as any);
-      expect(resolution.records.kuhni_shd_c2).toMatchObject({
-        status: 'APPROVAL_REQUIRED',
-        value: undefined,
-      });
-      expect(resolution.records.kuhni_shd_c2.blockingReason).toContain('ROOT_GAP_KUHNI_SHD_C2');
-    }
   });
 
   it('server-side validation rejects missing, blocked, pending, and unknown evidence states', () => {
@@ -285,9 +244,7 @@ describe('ECR-2 Stage 8 governed evidence registry', () => {
     const engine = new LLXECRSimulatorEngine();
     const evidence = Object.fromEntries(ECR2_STAGE8_EVIDENCE_CATALOG.map((record) => [
       record.id,
-      record.id === 'kuhni_shd_c2'
-        ? { status: 'ENGINEER_OVERRIDE', value: 1.2, source: 'Scoped Kühni evidence' }
-        : { status: 'ACCEPTED_AUTO_BASIS', value: record.value ?? 1e-9, source: record.source },
+      { status: 'ACCEPTED_AUTO_BASIS', value: record.value ?? 1e-9, source: record.source },
     ]));
     const validation = engine.validate({ bvp: { stage8Evidence: evidence } });
     expect(validation.errors).not.toEqual(expect.arrayContaining([

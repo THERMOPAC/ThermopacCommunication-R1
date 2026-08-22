@@ -4585,7 +4585,7 @@ export default function DesignSoftwareWorkspacePage() {
         const resolved = preview.data?.autoPopulatedCount ?? 0;
         toast({
           title: "Stage 8 candidates resolved",
-          description: `${resolved} of 15 numerical dependencies were resolved from the current governed server basis. Review and accept each candidate before running ECR-2.`,
+          description: `${resolved} of 14 numerical dependencies were resolved from the current governed server basis. Review and accept each candidate before running ECR-2.`,
         });
       } catch (e: any) {
         toast({ title: "Stage 8 resolution failed", description: e.message, variant: "destructive" });
@@ -4669,11 +4669,9 @@ export default function DesignSoftwareWorkspacePage() {
       };
     };
     const evidenceIdForPrefix = (prefix: string): ECR2Stage8NumericalParameterId => (
-      prefix === "kuhni_shd_c2"
-        ? "kuhni_shd_c2"
-        : prefix.startsWith("molecular_weight_")
-          ? `physical_mw_${prefix.replace("molecular_weight_", "")}` as ECR2Stage8NumericalParameterId
-          : prefix as ECR2Stage8NumericalParameterId
+      prefix.startsWith("molecular_weight_")
+        ? `physical_mw_${prefix.replace("molecular_weight_", "")}` as ECR2Stage8NumericalParameterId
+        : prefix as ECR2Stage8NumericalParameterId
     );
     const startEngineerOverride = (prefix: string, evidenceId: ECR2Stage8NumericalParameterId) => {
       commitSection("ecr_simulator", {
@@ -4772,7 +4770,6 @@ export default function DesignSoftwareWorkspacePage() {
     const autoPopulatedCount = [
       ...ECR2_STAGE8_COMPONENTS.slice(0, 4).map(component => `physical_mw_${component.key}`),
       ...ECR2_STAGE8_COMPONENTS.flatMap(component => ["c", "d"].map(phase => `diffusivity_${component.key}_${phase}`)),
-      "kuhni_shd_c2",
     ].filter(id => {
       const record = serverResolverRecords[id] ?? findEcr2Stage8Evidence(id as ECR2Stage8NumericalParameterId);
        return (record.status === "AUTO_RESOLVED_PENDING_ACCEPTANCE" || record.status === "CALCULATED_PRELIMINARY")
@@ -4897,7 +4894,7 @@ export default function DesignSoftwareWorkspacePage() {
             <div className="mt-3 grid gap-2 sm:grid-cols-3" data-testid="stage8-auto-populated-summary">
               <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
                  <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-800">System-resolved numerical dependencies</p>
-                <p className="mt-0.5 text-lg font-bold text-emerald-900">{autoPopulatedCount} / 15</p>
+                 <p className="mt-0.5 text-lg font-bold text-emerald-900">{autoPopulatedCount} / 14</p>
                 <p className="text-[10px] text-emerald-800">4 physical MW + 10 diffusivities</p>
               </div>
               <div className="rounded-md border border-emerald-200 bg-white px-3 py-2">
@@ -4907,8 +4904,8 @@ export default function DesignSoftwareWorkspacePage() {
               </div>
               <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-800">Remaining dependency</p>
-                <p className="mt-0.5 text-sm font-bold text-amber-900">Kühni Shd C2</p>
-                <p className="text-[10px] text-amber-800">Governed evidence still required</p>
+                 <p className="mt-0.5 text-sm font-bold text-amber-900">Kd concentration basis</p>
+                 <p className="text-[10px] text-amber-800">Engineer approval still required</p>
               </div>
             </div>
              <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -5024,27 +5021,6 @@ export default function DesignSoftwareWorkspacePage() {
                   </div>;
                 }))}
 
-                {(() => {
-                  const legacy = legacyBvp.kuhniShdC2;
-                  const evidence = evidenceFor("kuhni_shd_c2", "kuhni_shd_c2");
-                  const editable = evidence.status === "ENGINEER_OVERRIDE";
-                  const ready = dependencyFor("kuhni_shd_c2").ready;
-                  const resolvedValue = editable ? (sim.kuhni_shd_c2_value ?? legacy?.value) : legacy?.value;
-                  return <div className="grid grid-cols-[170px_180px_70px_1fr_170px] gap-2 border-b px-3 py-2 text-xs">
-                    <span className="font-medium">Kühni Shd C2</span>
-                    {editable
-                      ? <Input className="h-7 text-[11px]" value={sim.kuhni_shd_c2_value ?? legacy?.value ?? ""} disabled={isFrozen} placeholder="Override value" onChange={e => applyEngineerOverride("kuhni_shd_c2", "kuhni_shd_c2_value", e.target.value, "kuhni_shd_c2")} onBlur={s} />
-                      : <div className={`h-7 rounded-md border px-2 py-1 text-[11px] ${resolvedValue ? "bg-slate-50 text-slate-800" : "bg-red-50 text-red-700"}`}>{resolvedValue ? formatStage8Value(resolvedValue, evidence.record.unit) : "—"}</div>}
-                    <span className="pt-1">—</span>
-                    {renderResolutionDetails("kuhni_shd_c2", evidence, legacy, ready)}
-                    <div>
-                      {resolutionStatusBadge(evidence, ready)}
-                      <p className="mt-1 text-[10px] text-gray-600"><strong>Use:</strong> governed preliminary Kühni/Hartland 1999 local mass-transfer kernel.</p>
-                      {!ready && evidence.status === "ENGINEER_OVERRIDE" && <p className="text-[10px] text-red-700"><strong>Review:</strong> positive value, source, reference, reason, and audit metadata are required.</p>}
-                    </div>
-                  </div>;
-                })()}
-
                 <div className="border-b bg-violet-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">C. ENGINEERING APPROVAL REQUIRED</div>
                 {(() => {
                   const legacy = legacyBvp.partitionBasis;
@@ -5118,7 +5094,7 @@ export default function DesignSoftwareWorkspacePage() {
             </div>
             <p className="mt-3 text-[11px] text-slate-600" title="System evidence must resolve every Stage 8 numerical dependency before the preliminary ECR-2 counter-current simulation can run.">
               Diffusivities auto-resolved: {autoResolvedDiffusivityCount} / 10. Diffusivities unresolved: {10 - autoResolvedDiffusivityCount} / 10.
-              {" "}Stage 8 numerical auto-populated: {autoPopulatedCount} / 15. Unresolved evidence remains visible as a root gap and cannot be bypassed by normal data entry.
+              {" "}Stage 8 numerical auto-populated: {autoPopulatedCount} / 14. Unresolved evidence remains visible as a root gap and cannot be bypassed by normal data entry.
             </p>
           </div>
           <div className="flex gap-2 mt-4">

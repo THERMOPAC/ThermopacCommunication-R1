@@ -13,9 +13,6 @@ import {
 function completeStage8(): Record<string, string> {
   const sim: Record<string, string> = {
     stage8_system_values_acceptance_status: 'ACCEPTED',
-    kuhni_shd_c2_value: '1.25',
-    kuhni_shd_c2_source_type: 'Literature',
-    kuhni_shd_c2_source_reference: 'Kühni/Hartland 1999, preliminary reconstruction',
     partition_basis_approval_status: 'engineer_approved_governed',
     partition_basis_source_reference: 'ECR-2 governed concentration-basis approval',
     partition_basis_approved_by: 'Test Engineer',
@@ -38,7 +35,6 @@ function completeStage8(): Record<string, string> {
       sim[`${prefix}_method`] = 'Engineer-reviewed source value';
     }
   }
-  sim.kuhni_shd_c2_evidence_status = 'ENGINEER_OVERRIDE';
   return sim;
 }
 

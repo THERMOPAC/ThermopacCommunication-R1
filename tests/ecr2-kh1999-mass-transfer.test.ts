@@ -28,7 +28,6 @@ import {
   createUnavailableKH1999PreliminaryLocalMassTransfer,
   evaluateKH1999PreliminaryLocalMassTransfer,
   activateKH1999PreliminaryLocalMassTransfer,
-  type ECR2KH1999EngineerC2Input,
   type ECR2PhysicalMolecularWeightVector,
   type FiveComponentVector,
 } from '../server/engines/llx/llx-ecr2-kh1999-mass-transfer';
@@ -100,13 +99,6 @@ function validKernelSupport(diffusivity = DIFFUSIVITIES) {
   return { properties, rho_c, rho_d, dimensionless, schmidt };
 }
 
-const KUHNI_C2: ECR2KH1999EngineerC2Input = {
-  value: 1.25,
-  sourceType: 'Assumed',
-  sourceReference: 'Unit-test scoped preliminary Kühni Sh_d C2',
-  scope: 'kuhni_shd_preliminary',
-};
-
 const D32_PROVENANCE = {
   value_m: 0.0005,
   source: 'governed_calculated' as const,
@@ -141,7 +133,6 @@ function shiftSatAgainstNmp(
 }
 
 function activatedKernel(options: {
-  c2?: ECR2KH1999EngineerC2Input | null;
   partitionApproved?: boolean;
   d32_m?: number | null;
   phi_d?: number;
@@ -209,7 +200,6 @@ function activatedKernel(options: {
     d32: options.activationD32 ?? (options.invalidD32Source
       ? { ...D32_PROVENANCE, source: 'unregistered' as unknown as 'governed_calculated' }
       : { ...D32_PROVENANCE, value_m: d32_m ?? Number.NaN }),
-    kuhniShdC2: options.c2 === undefined ? KUHNI_C2 : options.c2,
     partitionBasis: options.partitionApproved
       ? {
           basis: 'K_d_concentration',
@@ -228,7 +218,6 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
     expect(validateKH1999PreliminaryParameterRegistry()).toEqual([]);
     expect(ECR2_KH1999_PRELIMINARY_PARAMETERS).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'kh1999_provisional_C1', symbol: 'C1', value: 0.90, phaseRole: 'continuous' }),
-      expect.objectContaining({ id: 'kh1999_provisional_C2', symbol: 'C2', value: 0.45, phaseRole: 'dispersed' }),
       expect.objectContaining({ id: 'kh1999_provisional_Fc', symbol: 'Fc', value: 0.76, phaseRole: 'continuous' }),
       expect.objectContaining({ id: 'kh1999_provisional_Fd', symbol: 'Fd', value: 0.58, phaseRole: 'dispersed' }),
     ]));
@@ -248,15 +237,12 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
         deviceType: 'kuhni',
       }),
       expect.objectContaining({
-        id: 'kh1999_shd_agitation_C2_pulsed',
-        symbol: 'C2',
+        id: 'kh1999_shc_agitation_C1_pulsed',
+        symbol: 'C1',
         value: 4.33,
         deviceType: 'pulsed',
       }),
     ]));
-    expect(ECR2_KH1999_SECONDARY_SCOPED_CONSTANTS.some(
-      (constant) => constant.deviceType === 'kuhni' && constant.symbol === 'C2',
-    )).toBe(false);
 
     for (const id of [
       'ecr2_kh1999_shc_secondary',
@@ -291,12 +277,8 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
     ));
     expect(byOutput.Sh_c.runtimeStatus).toBe('preliminary_authorized');
     expect(byOutput.Sh_c.exactBlockers).toEqual([]);
-    expect(byOutput.Sh_d.requiredConstants).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'kh1999_shd_C2_kuhni', availability: 'unavailable' }),
-    ]));
-    expect(byOutput.Sh_d.blockerIds).toEqual(expect.arrayContaining([
-      'kuhni_shd_C2',
-    ]));
+    expect(byOutput.Sh_d.requiredConstants).toEqual([]);
+    expect(byOutput.Sh_d.blockerIds).toEqual([]);
     expect(byOutput.K_overall.exactBlockers.join(' ')).toMatch(/partition|slope m/i);
     expect(byOutput.Koa.runtimeStatus).toBe('not_activated');
     expect(byOutput.transfer_rate.runtimeStatus).toBe('not_activated');
@@ -428,7 +410,7 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
   });
 
   it('derives Re and κ from the activated local state instead of accepting stale base dimensionless values', () => {
-    const { result, base, support } = activatedKernel({ c2: null });
+    const { result, base, support } = activatedKernel();
     const numericProperty = (field: ReturnType<typeof computeLocalProperties>['rho_c']) => {
       if (!isPropertyAvailable(field)) throw new Error('expected property');
       return field.value;
@@ -451,13 +433,12 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
       },
       diffusivity: DIFFUSIVITIES,
       d32: D32_PROVENANCE,
-      kuhniShdC2: null,
     });
     expect(recalculated.components.Sat.Sh_c).toEqual(result.components.Sat.Sh_c);
   });
 
   it('recomputes Schmidt numbers and interfacial area from activated inputs rather than stale base snapshots', () => {
-    const { base, support } = activatedKernel({ c2: null });
+    const { base, support } = activatedKernel();
     const numericProperty = (field: ReturnType<typeof computeLocalProperties>['rho_c']) => {
       if (!isPropertyAvailable(field)) throw new Error('expected property');
       return field.value;
@@ -479,7 +460,6 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
       },
       diffusivity: activationDiffusivity,
       d32: D32_PROVENANCE,
-      kuhniShdC2: null,
     });
     const changedSc = changed.components.Sat.Sc_c;
     expect(typeof changedSc).toBe('number');
@@ -503,7 +483,7 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
   });
 
   it('rejects an activation density state that differs from the concentration/Kd basis', () => {
-    const { base, support } = activatedKernel({ c2: null });
+    const { base, support } = activatedKernel();
     const numericProperty = (field: ReturnType<typeof computeLocalProperties>['rho_c']) => {
       if (!isPropertyAvailable(field)) throw new Error('expected property');
       return field.value;
@@ -518,7 +498,6 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
       },
       diffusivity: DIFFUSIVITIES,
       d32: D32_PROVENANCE,
-      kuhniShdC2: null,
     });
     expect(mismatch.components.Sat.outputStatus.Sh_c.status).toBe('not_calculable');
     expect(mismatch.components.Sat.outputStatus.K_overall.status).toBe('engineer_partition_basis_required');
@@ -527,8 +506,8 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
     }));
   });
 
-  it('rejects wrong C1 constants, leaves Sh_c independent of missing C2, and rejects borrowed C2 constants', () => {
-    const { base, support } = activatedKernel({ c2: null });
+  it('rejects wrong C1 constants while preserving the independent published Shd form', () => {
+    const { base, support } = activatedKernel();
     const properties = support.properties;
     const numericProperty = (field: ReturnType<typeof computeLocalProperties>['rho_c']) => {
       if (!isPropertyAvailable(field)) throw new Error('expected property');
@@ -545,16 +524,10 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
       diffusivity: DIFFUSIVITIES,
       d32: D32_PROVENANCE,
       c1Override: 0.90,
-      kuhniShdC2: { ...KUHNI_C2, value: 4.33 },
     });
     expect(wrongC1.components.Sat.outputStatus.Sh_c.status).toBe('blocked_by_invalid_c1_scope');
-    expect(wrongC1.components.Sat.outputStatus.Sh_d.status).toBe('blocked_by_invalid_c2_scope');
-
-    const missingC2 = activatedKernel({ c2: null }).result.components.Sat;
-    expect(missingC2.outputStatus.Sh_c.status).toBe('calculated_preliminary');
-    expect(missingC2.outputStatus.k_c.status).toBe('calculated_preliminary');
-    expect(missingC2.outputStatus.Sh_d.status).toBe('engineer_input_required_for_preliminary_shd');
-    expect(missingC2.outputStatus.k_d.status).toBe('engineer_input_required_for_preliminary_shd');
+    expect(wrongC1.components.Sat.outputStatus.Sh_d.status).toBe('calculated_preliminary');
+    expect(wrongC1.components.Sat.outputStatus.k_d.status).toBe('calculated_preliminary');
   });
 
   it('calculates Sc, k_c, k_d, a, Koa, and a zero equilibrium transfer rate with explicit basis approval', () => {
@@ -577,26 +550,32 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
     expect(sat.Sc_d).toBeCloseTo(mu_d / (support.rho_d * DIFFUSIVITIES.Sat.De_d!.value_m2_s), 12);
     expect(sat.k_c_m_s).toBeCloseTo(sat.Sh_c * DIFFUSIVITIES.Sat.De_c!.value_m2_s / 0.0005, 15);
     expect(sat.k_d_m_s).toBeCloseTo(sat.Sh_d * DIFFUSIVITIES.Sat.De_d!.value_m2_s / 0.0005, 15);
+    const reSc = support.dimensionless.Re_d * Math.cbrt(sat.Sc_d);
+    const expectedShd = 17.7
+      + (3.19e-3 * Math.pow(reSc, 1.7) / (1 + 1.43e-2 * Math.pow(reSc, 0.7)))
+        * Math.pow(support.rho_d / support.rho_c, 2 / 3)
+        / (1 + Math.pow(support.dimensionless.kappa, 2 / 3));
+    expect(sat.Sh_d).toBeCloseTo(expectedShd, 12);
     expect(base.interfacialArea_m2_m3).toBeCloseTo(6 * 0.2 / 0.0005, 12);
     expect(sat.K_oa_per_s).toBeCloseTo(sat.K_overall_m_s * base.interfacialArea_m2_m3!, 15);
     expect(sat.drivingForce_dispersed_kg_m3).toBeCloseTo(0, 12);
     expect(sat.transferRate_kg_m3_s).toBeCloseTo(0, 12);
-    expect(result.governance.engineerInputs.kuhniShdC2).toEqual(KUHNI_C2);
+    expect(result.governance.engineerInputs).not.toHaveProperty('kuhniShdC2');
   });
 
   it('propagates missing d32, diffusivity, invalid holdup, and partition status independently', () => {
-    const missingD32 = activatedKernel({ d32_m: null, c2: null }).result.components.Sat;
+    const missingD32 = activatedKernel({ d32_m: null }).result.components.Sat;
     expect(missingD32.outputStatus.Sh_c.status).toBe('blocked_by_missing_d32');
     expect(missingD32.outputStatus.Sh_d.status).toBe('blocked_by_missing_d32');
 
-    const missingDe = activatedKernel({ diffusivity: emptyDiffusivityContract(), c2: KUHNI_C2 }).result.components.Sat;
+    const missingDe = activatedKernel({ diffusivity: emptyDiffusivityContract() }).result.components.Sat;
     expect(missingDe.outputStatus.Sh_c.status).toBe('blocked_by_missing_diffusivity');
     expect(missingDe.outputStatus.Sh_d.status).toBe('blocked_by_missing_diffusivity');
 
-    const invalidHoldup = activatedKernel({ phi_d: 1.1, c2: KUHNI_C2 }).result.components.Sat;
+    const invalidHoldup = activatedKernel({ phi_d: 1.1 }).result.components.Sat;
     expect(invalidHoldup.outputStatus.Sh_c.status).toBe('blocked_by_invalid_holdup');
 
-    const partitionBlocked = activatedKernel({ c2: KUHNI_C2 }).result.components.Sat;
+    const partitionBlocked = activatedKernel().result.components.Sat;
     expect(partitionBlocked.outputStatus.k_c.status).toBe('calculated_preliminary');
     expect(partitionBlocked.outputStatus.k_d.status).toBe('calculated_preliminary');
     expect(partitionBlocked.outputStatus.K_overall.status).toBe('engineer_partition_basis_required');
@@ -604,10 +583,10 @@ describe('ECR-2 K&H 1999 preliminary mass-transfer kernel', () => {
   });
 
   it('rejects unprovenanced local properties, d32 source, and diffusivity metadata', () => {
-    const badProperty = activatedKernel({ invalidMuDProvenance: true, c2: null }).result.components.Sat;
+    const badProperty = activatedKernel({ invalidMuDProvenance: true }).result.components.Sat;
     expect(badProperty.outputStatus.Sh_c.status).toBe('not_calculable');
 
-    const badD32 = activatedKernel({ invalidD32Source: true, c2: null }).result.components.Sat;
+    const badD32 = activatedKernel({ invalidD32Source: true }).result.components.Sat;
     expect(badD32.outputStatus.Sh_c.status).toBe('blocked_by_missing_d32');
 
     const badDiffusivity: ECR2DiffusivityContract = {

@@ -618,10 +618,17 @@ export async function acceptAllEcr2Stage8ResolvedValues(revisionId: number, user
       'molecular_weight_sat', 'molecular_weight_mono', 'molecular_weight_di', 'molecular_weight_poly',
       'diffusivity_sat_c', 'diffusivity_sat_d', 'diffusivity_mono_c', 'diffusivity_mono_d',
       'diffusivity_di_c', 'diffusivity_di_d', 'diffusivity_poly_c', 'diffusivity_poly_d',
-      'diffusivity_nmp_c', 'diffusivity_nmp_d', 'kuhni_shd_c2',
+      'diffusivity_nmp_c', 'diffusivity_nmp_d',
+    ];
+    const retiredKuhniC2Fields = [
+      'kuhni_shd_c2_value',
+      'kuhni_shd_c2_source_type',
+      'kuhni_shd_c2_source_reference',
+      'kuhni_shd_c2_evidence_status',
     ];
     const obsoleteAuditKeys = [
       'stage8_system_values_acceptance_status',
+      ...retiredKuhniC2Fields,
       ...prefixes.flatMap((prefix) => [
         `${prefix}_evidence_status`, `${prefix}_original_evidence`,
         `${prefix}_resolver_fingerprint`, `${prefix}_resolver_signature`,

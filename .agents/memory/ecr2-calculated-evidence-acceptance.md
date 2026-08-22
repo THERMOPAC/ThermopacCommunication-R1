@@ -7,4 +7,4 @@ Stage 8 system-resolved preliminary values use one current section-level accepta
 
 **Why:** The governed resolver is the source of numerical truth, while the workspace requires a simple operational approval of the current resolved set rather than a separate audit trail for every value.
 
-**How to apply:** Preserve the single acceptance field for every automatic Stage 8 basis. Ordinary section saves must not fabricate the acceptance state; only the bulk resolver endpoint may set it. Unresolved dependencies stay blocked, and the underlying resolver equations and governed numerical values must not change as part of acceptance work.
+**How to apply:** Preserve the single acceptance field for every automatic Stage 8 basis. Ordinary section saves must not fabricate the acceptance state; only the bulk resolver endpoint may set it. Once accepted, system-resolved preliminary diffusivities may reach the BVP only with their resolver method, reference temperature, and source provenance intact. Unresolved dependencies stay blocked, and the underlying resolver equations and governed numerical values must not change as part of acceptance work.

@@ -17,7 +17,6 @@ import { computeAllSchmidtNumbers } from './llx-ecr2-diffusivity';
 import {
   activateKH1999PreliminaryLocalMassTransfer,
   evaluateKH1999PreliminaryLocalMassTransfer,
-  type ECR2KH1999EngineerC2Input,
   type ECR2KH1999LocalMassTransferResult,
   type ECR2KH1999PartitionBasisApproval,
   type ECR2PhysicalMolecularWeightVector,
@@ -89,7 +88,6 @@ export interface ECR2CounterCurrentBVPInput {
   nmpFeedComponentFlows_kg_h: ECR2Vector;
   governedProperties: ECR2GovernedPropertyInputs;
   d32Config: D32Config | null;
-  kuhniShdC2: ECR2KH1999EngineerC2Input | null;
   partitionBasis: ECR2KH1999PartitionBasisApproval | null;
   /**
    * Optional free face state from a prior converged run. Its length must be
@@ -320,7 +318,6 @@ function validateInput(input: ECR2CounterCurrentBVPInput): ECR2BVPLocalFailure |
   if (!finite(input.operatingTemperature_C)) return invalid('temperature', 'operatingTemperature_C must be finite.');
   if (!input.c2ThermodynamicBasis) return invalid('c2_thermodynamic_basis', 'A C2 thermodynamic basis is required for a BVP run.');
   if (!input.d32Config) return invalid('d32', 'd32Config is required; no d32 default is permitted.');
-  if (!input.kuhniShdC2) return invalid('kuhni_shd_c2', 'kuhniShdC2 is required for the full local transfer rate.');
   if (!input.partitionBasis) return invalid('partition_basis', 'An approved K_d concentration partition basis is required.');
   if (input.solverOptions?.transferStrength !== undefined &&
       (!finite(input.solverOptions.transferStrength) || input.solverOptions.transferStrength < 0 || input.solverOptions.transferStrength > 1)) {
@@ -489,7 +486,6 @@ function localCompartment(
     },
     diffusivity: input.governedProperties.diffusivity,
     d32: d32Provenance(input, d32),
-    kuhniShdC2: input.kuhniShdC2,
     partitionBasis: input.partitionBasis,
   });
   const rates = COMPONENTS.map((component) => localMassTransfer.components[component].transferRate_kg_m3_s);

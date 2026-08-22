@@ -167,20 +167,6 @@ export function validateEcr2Stage8(
     }
   }
 
-  const legacyC2 = legacyBvp.kuhniShdC2 as TaggedValue | undefined;
-  if (!taggedComplete(
-    sim.kuhni_shd_c2_value ?? legacyC2?.value,
-    sim.kuhni_shd_c2_source_type ?? legacyC2?.sourceType,
-    sim.kuhni_shd_c2_source_reference ?? legacyC2?.sourceReference,
-  )) {
-    errors.kuhni_shd_c2_value =
-      "Kühni Shd C2 requires an explicit engineer value, source class, and source reference; no fixture or pulsed-column default is used";
-  }
-  if (!evidenceAccepted(sim, "kuhni_shd_c2")) {
-    errors.kuhni_shd_c2_evidence_status =
-      "Kühni Shd C2 auto-resolved basis requires explicit engineer acceptance or an override before it can be used";
-  }
-
   const legacyBasis = legacyBvp.partitionBasis as Record<string, unknown> | undefined;
   if (
     text(sim.partition_basis_approval_status ?? legacyBasis?.approvalStatus)

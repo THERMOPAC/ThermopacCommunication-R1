@@ -54,11 +54,9 @@ function legacyObject(sim: Record<string, string>, key: string): Record<string, 
 }
 
 function evidenceIdForPrefix(prefix: string): ECR2Stage8NumericalParameterId {
-  return prefix === "kuhni_shd_c2"
-    ? "kuhni_shd_c2"
-    : prefix.startsWith("molecular_weight_")
-      ? `physical_mw_${prefix.replace("molecular_weight_", "")}` as ECR2Stage8NumericalParameterId
-      : prefix as ECR2Stage8NumericalParameterId;
+  return prefix.startsWith("molecular_weight_")
+    ? `physical_mw_${prefix.replace("molecular_weight_", "")}` as ECR2Stage8NumericalParameterId
+    : prefix as ECR2Stage8NumericalParameterId;
 }
 
 function systemResolved(record: ResolverRecord | undefined): boolean {
@@ -198,17 +196,6 @@ export function getEcr2Stage8LiveDependencies({
         blockingReason: "System resolver lacks an accepted, traceable diffusivity basis with operating-temperature and method metadata.",
       };
     })),
-    {
-      id: "kuhni_shd_c2",
-      group: "engineering",
-      label: "Kühni Shd C2",
-      ready: numericalDependencyReady({
-        sim, resolverRecords, prefix: "kuhni_shd_c2", legacy: legacyBvp.kuhniShdC2,
-      }),
-      sourceClass: "SYSTEM_EVIDENCE_GAP",
-      downstreamUse: "Activates the governed preliminary Kühni/Hartland 1999 local mass-transfer kernel.",
-      blockingReason: "C2_EVIDENCE_NOT_CLOSED — no exact equation-bearing Kühni dispersed-side C2 basis is approved.",
-    },
     {
       id: "partition_basis",
       group: "approval",

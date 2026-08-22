@@ -46,7 +46,6 @@ describe('ECR-2 Stage 8 bulk acceptance', () => {
     expect(result.acceptedIds).toHaveLength(14);
     expect(result.acceptedIds).toContain('physical_mw_sat');
     expect(result.acceptedIds).toContain('diffusivity_nmp_d');
-    expect(result.acceptedIds).not.toContain('kuhni_shd_c2');
 
     const upsertCall = query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO design_software_inputs'));
     const acceptanceFields = JSON.parse(upsertCall![1][1]);

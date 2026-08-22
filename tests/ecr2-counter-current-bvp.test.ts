@@ -75,12 +75,6 @@ function input(n = 1): ECR2CounterCurrentBVPInput {
       sourceType: 'Assumed',
       sourceReference: 'BVP engineer-supplied d32',
     },
-    kuhniShdC2: {
-      value: 1.25,
-      sourceType: 'Assumed',
-      sourceReference: 'BVP preliminary Kühni Shd C2',
-      scope: 'kuhni_shd_preliminary',
-    },
     partitionBasis: {
       basis: 'K_d_concentration',
       approvalStatus: 'engineer_approved_governed',

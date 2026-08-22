@@ -45,7 +45,7 @@ import {
 // ── Types ──────────────────────────────────────────────────────────────────
 
 /**
- * Engineer-supplied diffusivity for one component in one phase.
+ * Provenance-tagged diffusivity for one component in one phase.
  *
  * All five metadata fields are required. There are no defaults.
  * Values in m²/s (SI).
@@ -67,8 +67,11 @@ export interface DiffusivityInput {
    * Example: 'Wilke-Chang (1955) — estimate', 'Stokes-Einstein', 'Taylor dispersion', 'Assumed analogy'.
    */
   method: string;
-  /** Always 'engineer_supplied' — no library defaults. */
-  status: 'engineer_supplied';
+  /**
+   * Either an explicit engineer value or a current Stage 8 system-resolved
+   * preliminary value that has passed the section-level acceptance gate.
+   */
+  status: 'engineer_supplied' | 'system_resolved_preliminary';
 }
 
 /**

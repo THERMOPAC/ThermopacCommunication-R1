@@ -25,7 +25,6 @@ export const ECR2_STAGE8_NUMERICAL_PARAMETER_IDS = [
   'diffusivity_poly_d',
   'diffusivity_nmp_c',
   'diffusivity_nmp_d',
-  'kuhni_shd_c2',
 ] as const;
 
 export type ECR2Stage8NumericalParameterId =
@@ -159,25 +158,6 @@ export const ECR2_STAGE8_EVIDENCE_CATALOG: readonly ECR2Stage8EvidenceRecord[] =
   diffusivity('diffusivity_poly_d', 'Dd Poly-aromatics', 'dispersed RRBO-rich'),
   diffusivity('diffusivity_nmp_c', 'Dc NMP', 'continuous NMP-rich', true),
   diffusivity('diffusivity_nmp_d', 'Dd NMP', 'dispersed RRBO-rich'),
-  {
-    id: 'kuhni_shd_c2',
-    label: 'Kühni Shd C2',
-    unit: '—',
-    sourcePriority: BASE_PRIORITY,
-    evidenceLevel: 'MISSING',
-    status: 'APPROVAL_REQUIRED',
-    basis: 'Exact Kühni dispersed-side K&H 1999 Shd equation identity, coefficient placement, and numerical C2.',
-    method: 'No numerical resolution is permitted: the accessible equation-bearing secondary source reproduces only the Kühni continuous/overall-side relation and C1 = 7.5, not a dispersed-side Shd C2.',
-    source: 'Kumar & Hartland (1999), Chem. Eng. Res. Des. 77(5), 372–384, doi:10.1205/026387699526359 (primary full text not available in this review); Asadollahzadeh et al. (2017), Table 3 Eq. (18), supports only Kühni C1 = 7.5. The verified C2 = 4.33 source is pulsed-column-only and excluded.',
-    applicability: 'Kühni extraction column only.',
-    validationStatus: 'NOT_APPLICABLE',
-    warnings: [
-      'No reviewed source identifies a Kühni dispersed-side C2 or reproduces the exact Shd equation.',
-      'Do not infer C2 from Kühni C1 = 7.5 or from a continuous/overall-side relation.',
-      'Do not use the project provisional C2, fixture C2, or pulsed-column C2 by symbol matching.',
-    ],
-    blockingReason: 'ROOT_GAP_KUHNI_SHD_C2: an equation-bearing source must establish the exact dispersed-side Shd equation, numerical C2, Kühni applicability, and phase placement. The reviewed Kühni C1 and pulsed-column C2 records do not meet that requirement.',
-  },
 ] as const;
 
 export interface WilkeChangInput {
@@ -357,7 +337,7 @@ function blockedRecord(
 ): ECR2Stage8EvidenceRecord {
   return {
     ...base,
-    status: base.id === 'kuhni_shd_c2' ? 'APPROVAL_REQUIRED' : 'BLOCKED_MISSING_REQUIRED_EVIDENCE',
+    status: 'BLOCKED_MISSING_REQUIRED_EVIDENCE',
     value: undefined,
     blockingReason,
     resolutionInputs,
@@ -585,16 +565,6 @@ export function resolveEcr2Stage8Evidence(
     wc(`diffusivity_${component}_c`, component, 'c');
     wc(`diffusivity_${component}_d`, component, 'd');
   }
-
-  // A system-resolved C2 is intentionally impossible until a governed,
-  // equation-bearing Kühni dispersed-side source is registered above. Do not
-  // accept a runtime candidate: that would turn pulsed, provisional, or fixture
-  // values into a system record merely because they look provenance-complete.
-  records.kuhni_shd_c2 = blockedRecord(
-    records.kuhni_shd_c2,
-    records.kuhni_shd_c2.blockingReason!,
-    ['governedKuhniShdC2LiteratureRecord'],
-  );
 
   const values = Object.values(records);
   return {

@@ -126,18 +126,17 @@ const diffusivity = {
 
 const bvp = {
   rrboGradeId: 'rrbo-sn300',
-  kuhniShdC2: {
-    value: 1.25,
-    sourceType: 'Assumed',
-    sourceReference: 'ECR-2 service regression fixture',
-    scope: 'kuhni_shd_preliminary',
-  },
   partitionBasis: {
     basis: 'K_d_concentration',
     approvalStatus: 'engineer_approved_governed',
     sourceReference: 'ECR-2 service regression fixture',
+    approvedBy: 'Test Engineer',
+    approvedAt: '2026-08-22T10:00:00Z',
   },
   diffusivity,
+  solverOptions: {
+    transferStrength: 0,
+  },
 };
 
 const processDesignInputs = {
@@ -159,22 +158,22 @@ const processDesignInputs = {
 };
 
 const simulatorInputs = {
-  columnDiameter_m: '0.2523',
-  activeHeight_m: '0.01',
-  compartmentHeight_m: '0.01',
-  rotorToColumnDiameterRatio: '0.5',
-  rotorSpeed_rpm: '150',
-  rotorType: 'shrouded turbine',
-  powerNumber: '0.1',
-  powerNumberSourceType: 'Assumed',
-  powerNumberSourceReference: 'ECR-2 service regression fixture',
-  statorOpenAreaFraction: '0.5',
-  statorSourceType: 'Assumed',
-  statorSourceReference: 'ECR-2 service regression fixture',
-  shaftEfficiency: '0.8',
-  shaftEfficiencyReference: 'ECR-2 service regression fixture',
-  mechanicalDesignMargin: '1.2',
-  mechanicalDesignMarginReference: 'ECR-2 service regression fixture',
+  column_diameter: '0.2523',
+  ecr_active_height_m: '0.01',
+  compartment_height: '0.01',
+  compartment_height_source: 'Assumed',
+  compartment_height_source_reference: 'ECR-2 service regression fixture',
+  rotor_ratio: '0.5',
+  rotor_speed: '150',
+  rotor_type: 'shrouded turbine',
+  power_number: '0.1',
+  power_number_source_reference: 'ECR-2 service regression fixture',
+  stator_open_area_fraction: '0.5',
+  stator_open_area_fraction_source_reference: 'ECR-2 service regression fixture',
+  shaft_efficiency: '80',
+  shaft_efficiency_source_reference: 'ECR-2 service regression fixture',
+  mechanical_design_margin: '1.2',
+  mechanical_design_margin_source_reference: 'ECR-2 service regression fixture',
   molecularWeights: JSON.stringify(molecularWeights),
   d32Config: JSON.stringify({
     mode: 'engineer_supplied',
@@ -243,6 +242,7 @@ describe('ECR-2 simulator service run path', () => {
     ecr1Sentinel = ecr1.rows[0];
 
     await persistSimulatorInputs();
+    await service.acceptAllEcr2Stage8ResolvedValues(revisionId, userId);
   }, 60_000);
 
   afterAll(async () => {
@@ -287,7 +287,8 @@ describe('ECR-2 simulator service run path', () => {
   });
 
   it('persists a structured dependency-blocked snapshot when BVP inputs are missing', async () => {
-    await persistSimulatorInputs({ bvp: null, d32Config: null });
+    await persistSimulatorInputs({ ...simulatorInputs, bvp: null, d32Config: null });
+    await service.acceptAllEcr2Stage8ResolvedValues(revisionId, userId);
 
     const execution = await service.runCalculation(revisionId, 'ecr_simulator', userId);
     const snapshot = execution.run.result_snapshot;
@@ -299,7 +300,7 @@ describe('ECR-2 simulator service run path', () => {
     expect(snapshot.bvp.convergenceStatus).toBe('dependency_blocked');
     expect(snapshot.bvp.massBalanceStatus).toBe('not_evaluated');
     expect(snapshot.bvp.failure).toMatchObject({
-      dependency: 'd32',
+      dependency: 'partition_basis',
     });
 
     // A blocked run must not replace the previously accepted simulator result.
@@ -308,6 +309,7 @@ describe('ECR-2 simulator service run path', () => {
     expect(simulatorResult?.data.calculationRunStatus).toBe('counter_current_bvp_accepted');
 
     await persistSimulatorInputs();
+    await service.acceptAllEcr2Stage8ResolvedValues(revisionId, userId);
   });
 
   it('never accepts a simulator result whose BVP mass balance fails', async () => {
@@ -330,6 +332,7 @@ describe('ECR-2 simulator service run path', () => {
         previousSolution: deliberatelyImbalancedPriorState,
       }),
     });
+    await service.acceptAllEcr2Stage8ResolvedValues(revisionId, userId);
 
     const execution = await service.runCalculation(revisionId, 'ecr_simulator', userId);
     const snapshot = execution.run.result_snapshot;
