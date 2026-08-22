@@ -4565,6 +4565,8 @@ export default function DesignSoftwareWorkspacePage() {
     const latestFailedSnapshot = latestRun?.calculation_status === "error"
       ? parseSnapshot(latestRun.result_snapshot)
       : null;
+    const latestInputSnapshot = parseSnapshot((latestRun as any)?.input_snapshot);
+    const serverResolverRecords = latestInputSnapshot?.bvp?.stage8Resolution?.records ?? {};
     const displayedSnapshot = latestFailedSnapshot ?? simResult;
     const bvp = displayedSnapshot?.bvp;
     const d32Snapshot = displayedSnapshot?.d32;
@@ -4610,7 +4612,7 @@ export default function DesignSoftwareWorkspacePage() {
           : prefix.startsWith("molecular_weight_")
             ? `physical_mw_${prefix.replace("molecular_weight_", "")}` as ECR2Stage8NumericalParameterId
             : prefix as ECR2Stage8NumericalParameterId;
-        const record = findEcr2Stage8Evidence(id);
+        const record = serverResolverRecords[id] ?? findEcr2Stage8Evidence(id);
         const requestedStatus = sim[`${prefix}_evidence_status`] ?? "";
         const status = requestedStatus === "ENGINEER_OVERRIDE"
           ? requestedStatus
@@ -4628,7 +4630,7 @@ export default function DesignSoftwareWorkspacePage() {
           && !Number.isNaN(Date.parse(sim[`${prefix}_override_at`] ?? ""));
       })();
     const evidenceFor = (id: ECR2Stage8NumericalParameterId, prefix: string) => {
-      const record = findEcr2Stage8Evidence(id);
+      const record = serverResolverRecords[id] ?? findEcr2Stage8Evidence(id);
       const requestedStatus = sim[`${prefix}_evidence_status`] || "";
       const status = requestedStatus === "ENGINEER_OVERRIDE"
         ? requestedStatus
@@ -4796,11 +4798,17 @@ export default function DesignSoftwareWorkspacePage() {
     const missingEngineeringCount = mandatoryDependencies.filter(dependency => dependency.group === "engineering" && !dependency.ready).length;
     const missingApprovalCount = mandatoryDependencies.filter(dependency => dependency.group === "approval" && !dependency.ready).length;
     const blockedGovernanceCount = stage8Dependencies.filter(dependency => dependency.group === "governance" && dependency.mandatory && !dependency.ready).length;
-    const autoPopulatedCount = ECR2_STAGE8_COMPONENTS.slice(0, 4).filter(component =>
-      sim[`molecular_weight_${component.key}_evidence_status`] === "ACCEPTED_AUTO_BASIS",
-    ).length + ECR2_STAGE8_COMPONENTS.flatMap(component => ["c", "d"].map(phase =>
-      sim[`diffusivity_${component.key}_${phase}_evidence_status`] === "ACCEPTED_AUTO_BASIS",
-    )).filter(Boolean).length + (sim.kuhni_shd_c2_evidence_status === "ACCEPTED_AUTO_BASIS" ? 1 : 0);
+    // This is a system-resolution count, never a count of client-selected
+    // "accepted" labels. A forged browser status must not make the register
+    // advertise a numerical basis that the server catalog has not resolved.
+    const autoPopulatedCount = [
+      ...ECR2_STAGE8_COMPONENTS.slice(0, 4).map(component => `physical_mw_${component.key}`),
+      ...ECR2_STAGE8_COMPONENTS.flatMap(component => ["c", "d"].map(phase => `diffusivity_${component.key}_${phase}`)),
+      "kuhni_shd_c2",
+    ].filter(id => {
+      const record = serverResolverRecords[id] ?? findEcr2Stage8Evidence(id as ECR2Stage8NumericalParameterId);
+      return record.status === "AUTO_RESOLVED_PENDING_ACCEPTANCE" && typeof record.value === "number";
+    }).length;
     const dependencyStatus = (sourceClass: string, ready: boolean) => (
       <div className="flex flex-wrap gap-1">
         <Badge className="border border-blue-200 bg-blue-50 text-blue-700 text-[9px]">{sourceClass}</Badge>

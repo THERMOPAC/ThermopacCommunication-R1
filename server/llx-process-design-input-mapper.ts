@@ -20,7 +20,9 @@ import { DUSS2013_DATASETS } from './engine-framework/cel/packing-single-phase';
 import {
   ecr2Stage8EvidenceFingerprint,
   findEcr2Stage8Evidence,
+  resolveEcr2Stage8Evidence,
 } from '../shared/ecr2-stage8-evidence';
+import { signEcr2Stage8ResolverRecord } from './engines/llx/llx-ecr2-stage8-resolution-signature';
 
 const num = (v: unknown): number | undefined => {
   if (v === null || v === undefined) return undefined;
@@ -569,6 +571,30 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       }
     }
 
+    // Resolve the catalog at the calculation boundary, not in the browser.
+    // The current library supplies a controlled NMP viscosity route only; all
+    // missing characterisation inputs remain explicit root gaps in this
+    // immutable run snapshot rather than becoming made-up Stage 8 values.
+    let nmpViscosity: { value: number; source: string; evidenceLevel: 'PRIMARY_EQUATION_VERIFIED' | 'ENGINEER_APPROVED_PRELIMINARY' } | undefined;
+    if (ot !== undefined) {
+      try {
+        const property = getProperty('nmp', 'dynamicViscosity', ot);
+        nmpViscosity = {
+          value: property.value,
+          source: property.source,
+          evidenceLevel: property.warnings.some((warning) => warning.code === 'EPD_ASSUMED_VALUE')
+            ? 'ENGINEER_APPROVED_PRELIMINARY'
+            : 'PRIMARY_EQUATION_VERIFIED',
+        };
+      } catch {
+        // The resolver will report operating-temperature availability as a
+        // prerequisite rather than allowing a failed EPD lookup to escape.
+      }
+    }
+    const stage8Resolution = resolveEcr2Stage8Evidence({
+      temperature_C: ot,
+      nmp: nmpViscosity ? { viscosity_Pa_s: nmpViscosity } : undefined,
+    });
     const legacyMw = asRecord(parseJson(simValue('molecularWeights')));
     const stage8Evidence: Record<string, {
       status: string;
@@ -579,7 +605,7 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       overrideAt: string;
     }> = {};
     const stage8Audit = (id: Parameters<typeof findEcr2Stage8Evidence>[0], prefix: string) => {
-      const record = findEcr2Stage8Evidence(id);
+      const record = stage8Resolution.records[id] ?? findEcr2Stage8Evidence(id);
       const requestedStatus = String(simValue(`${prefix}_evidence_status`) ?? '');
       const isOverride = requestedStatus === 'ENGINEER_OVERRIDE';
       const isAcceptedAutoBasis = requestedStatus === 'ACCEPTED_AUTO_BASIS'
@@ -595,6 +621,8 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       overrideReason: String(simValue(`${prefix}_override_reason`) ?? ''),
       overrideUser: isOverride ? String(inputs.__stage8_actor_id ?? '') : '',
       overrideAt: isOverride ? String(inputs.__stage8_server_timestamp ?? '') : '',
+       resolverRecord: record,
+       resolverSignature: signEcr2Stage8ResolverRecord(fingerprint),
       };
     };
     const physicalMwFields = [
@@ -613,7 +641,20 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       const value = simNum(`molecular_weight_${key}_value`);
       const sourceType = String(simValue(`molecular_weight_${key}_source_type`) ?? '').trim();
       const sourceReference = String(simValue(`molecular_weight_${key}_source_reference`) ?? '').trim();
-      if (value !== undefined || sourceType !== '' || sourceReference !== '') {
+      const automatic = (audit as any).resolverRecord;
+      if (automatic?.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' && typeof automatic.value === 'number') {
+        return {
+          value: automatic.value,
+          unit: 'g/mol',
+          sourceType: 'Literature',
+          sourceReference: automatic.source,
+          evidenceStatus: audit.status,
+          originalEvidence: audit.originalEvidence,
+          resolverMethod: automatic.method,
+          resolverInputs: automatic.inputSnapshot ?? automatic.resolutionInputs,
+        };
+      }
+      if (audit.status === 'ENGINEER_OVERRIDE' && (value !== undefined || sourceType !== '' || sourceReference !== '')) {
         return {
           value: value ?? Number.NaN,
           unit: 'g/mol',
@@ -660,7 +701,19 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
         );
         const hasFlatValue = value !== undefined || sourceType !== '' || sourceReference !== ''
           || referenceTemperature_C !== undefined || method !== '';
-        if (hasFlatValue) {
+        const automatic = (stage8Evidence[prefix] as any).resolverRecord;
+        if (automatic?.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' && typeof automatic.value === 'number') {
+          hasDiffusivityInput = true;
+          pair[phase === 'c' ? 'De_c' : 'De_d'] = {
+            value_m2_s: automatic.value,
+            sourceType: 'Literature',
+            sourceReference: automatic.source,
+            referenceTemperature_C: ot ?? Number.NaN,
+            method: automatic.method,
+            status: 'system_resolved_preliminary',
+            resolverInputs: automatic.inputSnapshot ?? automatic.resolutionInputs,
+          };
+        } else if (stage8Evidence[prefix].status === 'ENGINEER_OVERRIDE' && hasFlatValue) {
           hasDiffusivityInput = true;
           pair[phase === 'c' ? 'De_c' : 'De_d'] = {
             value_m2_s: value ?? Number.NaN,
@@ -683,7 +736,18 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     const shdSourceType = String(simValue('kuhni_shd_c2_source_type') ?? '').trim();
     const shdSourceReference = String(simValue('kuhni_shd_c2_source_reference') ?? '').trim();
     stage8Evidence.kuhni_shd_c2 = stage8Audit('kuhni_shd_c2', 'kuhni_shd_c2');
-    if (shdValue !== undefined || shdSourceType !== '' || shdSourceReference !== '') {
+    const automaticC2 = (stage8Evidence.kuhni_shd_c2 as any).resolverRecord;
+    if (automaticC2?.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE' && typeof automaticC2.value === 'number') {
+      bvp.kuhniShdC2 = {
+        value: automaticC2.value,
+        sourceType: 'Literature',
+        sourceReference: automaticC2.source,
+        scope: 'kuhni_shd_preliminary',
+        method: automaticC2.method,
+        resolverInputs: automaticC2.inputSnapshot ?? automaticC2.resolutionInputs,
+      };
+    } else if (stage8Evidence.kuhni_shd_c2.status === 'ENGINEER_OVERRIDE'
+      && (shdValue !== undefined || shdSourceType !== '' || shdSourceReference !== '')) {
       bvp.kuhniShdC2 = {
         value: shdValue ?? Number.NaN,
         sourceType: shdSourceType,
@@ -711,6 +775,13 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     // Stage 8 fields. The legacy JSON blob is never required; it is read only
     // to preserve older revisions during migration.
     bvp.stage8Evidence = stage8Evidence;
+    bvp.stage8Resolution = {
+      resolver: 'ecr2-stage8-governed-resolver-v1',
+      operatingTemperature_C: ot ?? null,
+      autoPopulatedCount: stage8Resolution.autoPopulatedCount,
+      unresolvedCount: stage8Resolution.unresolvedCount,
+      records: stage8Resolution.records,
+    };
     out.bvp = bvp;
   }
 

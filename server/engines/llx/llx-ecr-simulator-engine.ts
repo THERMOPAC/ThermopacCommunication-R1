@@ -135,6 +135,7 @@ import {
   ECR2_STAGE8_NUMERICAL_PARAMETER_IDS,
   findEcr2Stage8Evidence,
 } from '../../../shared/ecr2-stage8-evidence';
+import { verifyEcr2Stage8ResolverRecord } from './llx-ecr2-stage8-resolution-signature';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1087,13 +1088,27 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         const resolverFingerprint = typeof record?.resolverFingerprint === 'string'
           ? record.resolverFingerprint
           : '';
+        const resolverSignature = typeof record?.resolverSignature === 'string'
+          ? record.resolverSignature
+          : '';
         const catalogRecord = findEcr2Stage8Evidence(id);
-        const expectedFingerprint = ecr2Stage8EvidenceFingerprint(catalogRecord);
+        // The mapper attaches the server-computed resolver record. A browser
+        // cannot nominate it: the service rebuilds this object from governed
+        // sources on every calculation before the engine sees the payload.
+        const resolverRecord = record?.resolverRecord as Record<string, unknown> | undefined;
+        const resolverMatchesId = resolverRecord?.id === id;
+        const effectiveRecord = resolverMatchesId
+          ? resolverRecord as unknown as typeof catalogRecord
+          : catalogRecord;
+        const expectedFingerprint = ecr2Stage8EvidenceFingerprint(effectiveRecord);
+        const dynamicResolverTrusted = !resolverMatchesId
+          || verifyEcr2Stage8ResolverRecord(expectedFingerprint, resolverSignature);
         const trustedEvidence = originalEvidence === expectedFingerprint
-          && resolverFingerprint === expectedFingerprint;
+          && resolverFingerprint === expectedFingerprint
+          && dynamicResolverTrusted;
         const accepted = status === 'ACCEPTED_AUTO_BASIS'
-          && catalogRecord.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE'
-          && typeof catalogRecord.value === 'number'
+          && effectiveRecord.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE'
+          && typeof effectiveRecord.value === 'number'
           && trustedEvidence;
         const overridden = status === 'ENGINEER_OVERRIDE'
           && trustedEvidence

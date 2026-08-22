@@ -57,6 +57,8 @@ export interface ECR2Stage8EvidenceRecord {
   validationStatus: 'RRBO_NMP_VALIDATION_PENDING' | 'NOT_APPLICABLE';
   warnings: readonly string[];
   blockingReason?: string;
+  resolutionInputs?: readonly string[];
+  inputSnapshot?: Readonly<Record<string, string | number>>;
 }
 
 const BASE_PRIORITY = [
@@ -201,6 +203,259 @@ export function resolveWilkeChangDiffusivity(input: WilkeChangInput): WilkeChang
   };
 }
 
+type PhysicalComponentKey = 'sat' | 'mono' | 'di' | 'poly';
+type DiffusivityComponentKey = PhysicalComponentKey | 'nmp';
+
+export interface ECR2Stage8TrustedScalar {
+  value: number;
+  source: string;
+  evidenceLevel: Exclude<ECR2EvidenceLevel, 'MISSING'>;
+}
+
+/**
+ * The resolver accepts only server-assembled, provenance-bearing inputs. It is
+ * deliberately data-free: callers must never substitute client Stage 8 fields
+ * into this structure to manufacture an automatic result.
+ */
+export interface ECR2Stage8ResolutionContext {
+  temperature_C?: number;
+  nmp?: {
+    viscosity_Pa_s?: ECR2Stage8TrustedScalar;
+    molecularWeight_g_mol?: ECR2Stage8TrustedScalar;
+    associationFactor?: ECR2Stage8TrustedScalar;
+    density_kg_m3?: ECR2Stage8TrustedScalar;
+    selfDiffusion_m2_s?: ECR2Stage8TrustedScalar;
+  };
+  rrbo?: {
+    viscosity_Pa_s?: ECR2Stage8TrustedScalar;
+    molecularWeight_g_mol?: ECR2Stage8TrustedScalar;
+    associationFactor?: ECR2Stage8TrustedScalar;
+  };
+  physicalComponents?: Partial<Record<PhysicalComponentKey, {
+    molecularWeight_g_mol?: ECR2Stage8TrustedScalar;
+    density_kg_m3?: ECR2Stage8TrustedScalar;
+  }>>;
+  kuhniShdC2?: ECR2Stage8TrustedScalar & {
+    exactEquationIdentity: string;
+    deviceApplicability: 'kuhni';
+    phaseBasis: 'dispersed';
+  };
+}
+
+export interface ECR2Stage8Resolution {
+  records: Record<ECR2Stage8NumericalParameterId, ECR2Stage8EvidenceRecord>;
+  autoPopulatedCount: number;
+  unresolvedCount: number;
+}
+
+const componentLabel: Record<DiffusivityComponentKey, string> = {
+  sat: 'Saturates', mono: 'Mono-aromatics', di: 'Di-aromatics',
+  poly: 'Poly-aromatics', nmp: 'NMP',
+};
+
+function isTrustedScalar(value: unknown): value is ECR2Stage8TrustedScalar {
+  if (!value || typeof value !== 'object') return false;
+  const scalar = value as Record<string, unknown>;
+  return typeof scalar.value === 'number'
+    && Number.isFinite(scalar.value)
+    && scalar.value > 0
+    && typeof scalar.source === 'string'
+    && scalar.source.trim() !== ''
+    && ['PROJECT_MEASURED', 'VENDOR_DOCUMENTED', 'PRIMARY_EQUATION_VERIFIED', 'SECONDARY_EQUATION_VERIFIED', 'ENGINEER_APPROVED_PRELIMINARY']
+      .includes(String(scalar.evidenceLevel));
+}
+
+function blockedRecord(
+  base: ECR2Stage8EvidenceRecord,
+  blockingReason: string,
+  resolutionInputs: readonly string[],
+): ECR2Stage8EvidenceRecord {
+  return {
+    ...base,
+    status: base.id === 'kuhni_shd_c2' ? 'APPROVAL_REQUIRED' : 'BLOCKED_MISSING_REQUIRED_EVIDENCE',
+    value: undefined,
+    blockingReason,
+    resolutionInputs,
+  };
+}
+
+function resolvedRecord(
+  base: ECR2Stage8EvidenceRecord,
+  value: number,
+  method: string,
+  source: string,
+  resolutionInputs: readonly string[],
+  inputSnapshot: Readonly<Record<string, string | number>> = {},
+): ECR2Stage8EvidenceRecord {
+  return {
+    ...base,
+    value,
+    status: 'AUTO_RESOLVED_PENDING_ACCEPTANCE',
+    evidenceLevel: 'SECONDARY_EQUATION_VERIFIED',
+    method,
+    source,
+    blockingReason: undefined,
+    resolutionInputs,
+    inputSnapshot,
+    warnings: [...base.warnings, 'RRBO_NMP_VALIDATION_PENDING', 'System-resolved preliminary basis; engineer acceptance is required before numerical use.'],
+  };
+}
+
+/**
+ * Resolve only calculations whose source, inputs, and applicability have been
+ * supplied by a server-owned upstream basis. It reports every missing physical
+ * prerequisite by name so Stage 8 can stop at the root gap.
+ */
+export function resolveEcr2Stage8Evidence(
+  context: ECR2Stage8ResolutionContext,
+): ECR2Stage8Resolution {
+  const records = Object.fromEntries(ECR2_STAGE8_EVIDENCE_CATALOG.map((record) => [record.id, { ...record }])) as
+    Record<ECR2Stage8NumericalParameterId, ECR2Stage8EvidenceRecord>;
+  const physical = context.physicalComponents ?? {};
+
+  for (const key of ['sat', 'mono', 'di', 'poly'] as const) {
+    const id = `physical_mw_${key}` as ECR2Stage8NumericalParameterId;
+    const item = physical[key];
+    const molecularWeight = item?.molecularWeight_g_mol;
+    records[id] = isTrustedScalar(molecularWeight)
+      ? resolvedRecord(
+        records[id],
+        molecularWeight.value,
+        'Server-owned physical pseudo-component characterization basis',
+        molecularWeight.source,
+        [`physicalComponents.${key}.molecularWeight_g_mol`, `physicalComponents.${key}.density_kg_m3`],
+        {
+          molecularWeight_g_mol: molecularWeight.value,
+          molecularWeightSource: molecularWeight.source,
+          density_kg_m3: isTrustedScalar(item?.density_kg_m3) ? item.density_kg_m3.value : 'NOT_REGISTERED',
+          densitySource: isTrustedScalar(item?.density_kg_m3) ? item.density_kg_m3.source : 'NOT_REGISTERED',
+        },
+      )
+      : blockedRecord(
+        records[id],
+        `ROOT_GAP_PHYSICAL_MW_${key.toUpperCase()}: no controlled physical RRBO ${componentLabel[key]} pseudo-component molecular-weight characterization is registered; Coto/NRTL surrogate MW is prohibited.`,
+        [`physicalComponents.${key}.molecularWeight_g_mol`, `physicalComponents.${key}.density_kg_m3`],
+      );
+  }
+
+  const wc = (
+    id: Extract<ECR2Stage8NumericalParameterId, `diffusivity_${string}`>,
+    component: PhysicalComponentKey | 'nmp',
+    phase: 'c' | 'd',
+  ) => {
+    const base = records[id];
+    if (component === 'nmp' && phase === 'c') {
+      const self = context.nmp?.selfDiffusion_m2_s;
+      records[id] = isTrustedScalar(self)
+        ? resolvedRecord(
+          base,
+          self.value,
+          'Controlled NMP self-diffusion basis (not Wilke–Chang)',
+          self.source,
+          ['nmp.selfDiffusion_m2_s'],
+          { nmpSelfDiffusion_m2_s: self.value, nmpSelfDiffusionSource: self.source },
+        )
+        : blockedRecord(base, 'ROOT_GAP_NMP_SELF_DIFFUSION: no controlled NMP liquid self-diffusion equation or measured data is registered; Dc_NMP cannot use Wilke–Chang as a pseudo-solute shortcut.', ['nmp.selfDiffusion_m2_s']);
+      return;
+    }
+    const solvent = phase === 'c' ? context.nmp : context.rrbo;
+    const solute = component === 'nmp'
+      ? context.nmp && { molecularWeight_g_mol: context.nmp.molecularWeight_g_mol, density_kg_m3: context.nmp.density_kg_m3 }
+      : physical[component];
+    const missing: string[] = [];
+    if (!Number.isFinite(context.temperature_C)) missing.push('operating temperature');
+    const solventViscosity = solvent?.viscosity_Pa_s;
+    const solventMolecularWeight = solvent?.molecularWeight_g_mol;
+    const solventAssociationFactor = solvent?.associationFactor;
+    const soluteMolecularWeight = solute?.molecularWeight_g_mol;
+    const soluteDensity = solute?.density_kg_m3;
+    if (!isTrustedScalar(solventViscosity)) missing.push(`${phase === 'c' ? 'NMP' : 'RRBO'} operating-temperature viscosity`);
+    if (!isTrustedScalar(solventMolecularWeight)) missing.push(`${phase === 'c' ? 'NMP' : 'RRBO'} molecular weight`);
+    if (!isTrustedScalar(solventAssociationFactor)) missing.push(`${phase === 'c' ? 'NMP' : 'RRBO'} Wilke–Chang association factor`);
+    if (!isTrustedScalar(soluteMolecularWeight)) missing.push(`${componentLabel[component]} physical molecular weight`);
+    if (!isTrustedScalar(soluteDensity)) missing.push(`${componentLabel[component]} physical density/molar-volume basis`);
+    const resolutionInputs = [
+      'temperature_C',
+      `${phase === 'c' ? 'nmp' : 'rrbo'}.viscosity_Pa_s`,
+      `${phase === 'c' ? 'nmp' : 'rrbo'}.molecularWeight_g_mol`,
+      `${phase === 'c' ? 'nmp' : 'rrbo'}.associationFactor`,
+      component === 'nmp' ? 'nmp.molecularWeight_g_mol' : `physicalComponents.${component}.molecularWeight_g_mol`,
+      component === 'nmp' ? 'nmp.density_kg_m3' : `physicalComponents.${component}.density_kg_m3`,
+    ];
+    if (missing.length > 0) {
+      records[id] = blockedRecord(
+        base,
+        `ROOT_GAP_WILKE_CHANG_${id.toUpperCase()}: ${missing.join('; ')} is not registered in a controlled upstream basis.`,
+        resolutionInputs,
+      );
+      return;
+    }
+    const result = resolveWilkeChangDiffusivity({
+      temperature_C: context.temperature_C!,
+      solventViscosity_Pa_s: solventViscosity!.value,
+      solventMolecularWeight_g_mol: solventMolecularWeight!.value,
+      solventAssociationFactor: solventAssociationFactor!.value,
+      soluteMolecularWeight_g_mol: soluteMolecularWeight!.value,
+      soluteDensity_kg_m3: soluteDensity!.value,
+    });
+    records[id] = result.status === 'resolved'
+      ? resolvedRecord(
+        base,
+        result.value_m2_s,
+        result.method,
+        `${solventViscosity!.source}; ${solventMolecularWeight!.source}; ${soluteMolecularWeight!.source}; ${soluteDensity!.source}`,
+        resolutionInputs,
+        {
+          temperature_C: context.temperature_C!,
+          solventViscosity_Pa_s: solventViscosity!.value,
+          solventViscositySource: solventViscosity!.source,
+          solventMolecularWeight_g_mol: solventMolecularWeight!.value,
+          solventMolecularWeightSource: solventMolecularWeight!.source,
+          solventAssociationFactor: solventAssociationFactor!.value,
+          solventAssociationFactorSource: solventAssociationFactor!.source,
+          soluteMolecularWeight_g_mol: soluteMolecularWeight!.value,
+          soluteMolecularWeightSource: soluteMolecularWeight!.source,
+          soluteDensity_kg_m3: soluteDensity!.value,
+          soluteDensitySource: soluteDensity!.source,
+        },
+      )
+      : blockedRecord(base, `ROOT_GAP_WILKE_CHANG_${id.toUpperCase()}: ${result.errors.join(' ')}`, resolutionInputs);
+  };
+
+  for (const component of ['sat', 'mono', 'di', 'poly', 'nmp'] as const) {
+    wc(`diffusivity_${component}_c`, component, 'c');
+    wc(`diffusivity_${component}_d`, component, 'd');
+  }
+
+  const c2 = context.kuhniShdC2;
+  records.kuhni_shd_c2 = isTrustedScalar(c2)
+    && c2.deviceApplicability === 'kuhni'
+    && c2.phaseBasis === 'dispersed'
+    && c2.exactEquationIdentity.trim() !== ''
+    ? resolvedRecord(
+      records.kuhni_shd_c2,
+      c2.value,
+      `Exact Kühni Shd C2 — ${c2.exactEquationIdentity}`,
+      c2.source,
+      ['kuhniShdC2'],
+      {
+        c2: c2.value,
+        exactEquationIdentity: c2.exactEquationIdentity,
+        deviceApplicability: c2.deviceApplicability,
+        phaseBasis: c2.phaseBasis,
+        source: c2.source,
+      },
+    )
+    : blockedRecord(records.kuhni_shd_c2, 'ROOT_GAP_KUHNI_SHD_C2: no exact equation-bearing Kühni dispersed-side C2 source, device applicability, and phase placement are registered; project, fixture, and pulsed-column values are excluded.', ['kuhniShdC2']);
+
+  const values = Object.values(records);
+  return {
+    records,
+    autoPopulatedCount: values.filter((record) => record.status === 'AUTO_RESOLVED_PENDING_ACCEPTANCE').length,
+    unresolvedCount: values.filter((record) => record.status !== 'AUTO_RESOLVED_PENDING_ACCEPTANCE').length,
+  };
+}
+
 export function findEcr2Stage8Evidence(id: ECR2Stage8NumericalParameterId): ECR2Stage8EvidenceRecord {
   const record = ECR2_STAGE8_EVIDENCE_CATALOG.find((candidate) => candidate.id === id);
   if (!record) throw new Error(`Unknown ECR-2 Stage 8 evidence record '${id}'.`);
@@ -220,5 +475,7 @@ export function ecr2Stage8EvidenceFingerprint(record: ECR2Stage8EvidenceRecord):
     source: record.source,
     applicability: record.applicability,
     validationStatus: record.validationStatus,
+    resolutionInputs: record.resolutionInputs ?? [],
+    inputSnapshot: record.inputSnapshot ?? {},
   });
 }

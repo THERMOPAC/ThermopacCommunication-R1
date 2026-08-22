@@ -126,11 +126,22 @@ describe('ECR-2 simulator workspace adapter', () => {
   });
 
   it('initializes every unmapped Stage 8 evidence record to its catalog blocking state', () => {
-    const mapped = mapWorkspaceProcessDesignInputs({}, 'ecr_simulator');
+    const mapped = mapWorkspaceProcessDesignInputs({ operating_temperature: '60' }, 'ecr_simulator');
     const evidence = (mapped.bvp as any).stage8Evidence;
+    const resolution = (mapped.bvp as any).stage8Resolution;
     expect(Object.keys(evidence)).toHaveLength(15);
     expect(evidence.physical_mw_sat.status).toBe('BLOCKED_MISSING_REQUIRED_EVIDENCE');
     expect(evidence.diffusivity_sat_c.status).toBe('BLOCKED_MISSING_REQUIRED_EVIDENCE');
     expect(evidence.kuhni_shd_c2.status).toBe('APPROVAL_REQUIRED');
+    expect(resolution).toMatchObject({
+      resolver: 'ecr2-stage8-governed-resolver-v1',
+      operatingTemperature_C: 60,
+      autoPopulatedCount: 0,
+      unresolvedCount: 15,
+    });
+    // The mapper did evaluate the governed NMP viscosity route, so the
+    // remaining continuous-phase gap begins at NMP MW/association and the
+    // physical solute characterization — not a fabricated temperature value.
+    expect(resolution.records.diffusivity_sat_c.blockingReason).toContain('NMP molecular weight');
   });
 });
