@@ -85,6 +85,7 @@ import {
   COTO_2022_DATASET_VERSION,
   SURROGATE_MW,
 } from '../../engine-framework/cel/coto2022-nmp-lle';
+import { calculateHydrocarbonProductQuality } from '../../engine-framework/cel/product-quality-basis';
 
 import {
   correlationRegistrySummary,
@@ -1776,6 +1777,20 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
               },
             };
           })();
+    const raffinateProductQuality = bvpResult.outlets.raffinate
+      ? calculateHydrocarbonProductQuality({
+          componentMoleFractions: bvpResult.outlets.raffinate.componentFlows_kg_h.map(
+            (flow, index) => (flow * 1000) / [
+              mwSat.value,
+              mwMono.value,
+              mwDi.value,
+              mwPoly.value,
+              NMP_MW_G_MOL,
+            ][index],
+          ),
+          componentMassFlows_kg_h: bvpResult.outlets.raffinate.componentFlows_kg_h,
+        })
+      : null;
     if (bvpResult.status !== 'converged')
       pushWarning('BVP_NOT_ACCEPTED', bvpResult.failure?.message ?? bvpResult.diagnostics[0] ?? 'Counter-current BVP did not converge.');
     if (bvpResult.massBalanceStatus !== 'passed')
@@ -1967,6 +1982,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       thermodynamicBasis,
       physicalBasis,
       bvp: bvpResult,
+      raffinateProductQuality,
 
       geometry: {
         formulaReference: 'ECR2-001',

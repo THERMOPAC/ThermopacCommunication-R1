@@ -134,6 +134,15 @@ async function main() {
     check('exact classification on result', tm?.classification === TLLE_EXTRAPOLATION_CLASSIFICATION);
     check('model identity + validation status surfaced', !!tm?.model?.id && String(tm?.validationStatus).includes('reproduction record'));
     check('model tie-line family echoed', (tm?.modelTieLineFamily?.tieLinesUsed ?? 0) >= 4);
+    const quality = d?.lleStageCalculation;
+    check('historical LLE aromatics are explicitly retained on the full phase',
+      quality?.raffinateAromaticsLLE?.symbol === 'x_A,R^LLE' &&
+      quality?.raffinateAromaticsLLE?.denominatorIncludesNMP === true);
+    check('hydrocarbon-only product molar and mass aromatics are reported separately',
+      quality?.raffinateProductQuality?.x_A_R_product?.symbol === 'x_A,R^product' &&
+      quality?.raffinateProductQuality?.w_A_R_product?.symbol === 'w_A,R^product' &&
+      quality?.raffinateProductQuality?.x_A_R_product?.denominatorIncludesNMP === false &&
+      quality?.raffinateProductQuality?.w_A_R_product?.denominatorIncludesNMP === false);
     const st = d?.stages;
     if (st?.mode === 'auto_calculated') {
       check('extrapolated N_T labelled with exact classification', String(st.label).includes(TLLE_EXTRAPOLATION_CLASSIFICATION) && st.classification === 'Pending Validation');

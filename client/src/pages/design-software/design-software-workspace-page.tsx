@@ -2142,6 +2142,8 @@ export default function DesignSoftwareWorkspacePage() {
       r.calculation_type === "process_design" && ["success", "warning"].includes(r.calculation_status),
     );
     const lleCascade: any = pdResultData?.lleStageCalculation ?? null;
+    const raffinateLleAromatics: any = lleCascade?.raffinateAromaticsLLE ?? null;
+    const raffinateProductQuality: any = lleCascade?.raffinateProductQuality ?? null;
     // Stage j=1 (raffinate product end) is stages[0]; j=N (extract end) is stages[N-1].
     const cascadeStages: any[] = Array.isArray(lleCascade?.stages) ? lleCascade.stages : [];
     const raffStage: any = cascadeStages.length > 0 ? cascadeStages[0] : null;
@@ -2935,6 +2937,53 @@ export default function DesignSoftwareWorkspacePage() {
             onBlur={s}
             onCommit={v => cs({ raffinate_quality_rows: v, raffinate_quality_rows_seeded: "true" })}
           />
+          <div className="border-t pt-3 mt-3">
+            <div className="mb-2 flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-gray-800">Calculated Raffinate Aromatics</span>
+              <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">Reporting basis</span>
+            </div>
+            {raffinateLleAromatics && raffinateProductQuality ? (
+              <>
+                {[
+                  {
+                    label: "LLE aromatics — full phase, NMP included",
+                    symbol: "x_A,R^LLE",
+                    value: raffinateLleAromatics.value,
+                    unit: "mol %",
+                  },
+                  {
+                    label: "Product aromatics — hydrocarbon-only, NMP excluded",
+                    symbol: "x_A,R^product",
+                    value: raffinateProductQuality.x_A_R_product?.value,
+                    unit: "mol %",
+                  },
+                  {
+                    label: "Product aromatics — hydrocarbon-only, NMP excluded",
+                    symbol: "w_A,R^product",
+                    value: raffinateProductQuality.w_A_R_product?.value,
+                    unit: "wt %",
+                  },
+                ].map(({ label, symbol, value, unit }) => (
+                  <div key={symbol} className="grid grid-cols-[260px_1fr] items-center gap-2 py-1 border-b border-gray-50">
+                    <span className="text-sm text-gray-700">
+                      {label}
+                      <span className="ml-1 text-[10px] font-mono text-gray-400">{symbol}</span>
+                    </span>
+                    <span className="font-mono text-sm text-blue-700 font-semibold">
+                      {typeof value === "number" ? `${(value * 100).toFixed(2)} ${unit}` : "—"}
+                    </span>
+                  </div>
+                ))}
+                <p className="text-[11px] text-gray-400 mt-1.5">
+                  The retained LLE value uses all five phase components. Product values use only Saturates + Mono + Di + Poly; residual NMP is excluded from both denominators.
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-gray-500">
+                Run Stage 4 Process Design with the LLE characterization to calculate basis-separated raffinate aromatics.
+              </p>
+            )}
+          </div>
           {/* Extract Quality — calculated read-only panel from NRTL/cascade component balance */}
           <div className="border-t pt-3">
             <div className="mb-2 flex items-center gap-2 flex-wrap">
@@ -4642,6 +4691,7 @@ export default function DesignSoftwareWorkspacePage() {
     const ecrResult = (resultsQ.data ?? []).find((r: any) => r.section === "ecr")?.data;
     const ecr = d("ecr_design");
     const simResult = (resultsQ.data ?? []).find((r: any) => r.section === "ecr_simulator")?.data;
+    const ecr2RaffinateProductQuality: any = simResult?.raffinateProductQuality ?? null;
     const latestRun = runs
       .filter(r => r.calculation_type === "ecr_simulator")
       .sort((a, b) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0];
@@ -5397,6 +5447,19 @@ export default function DesignSoftwareWorkspacePage() {
                         </div>;
                       })}
                     </div>
+                    {ecr2RaffinateProductQuality && (
+                      <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
+                        <p className="font-semibold">Raffinate product aromatics — hydrocarbon-only, NMP excluded</p>
+                        <p className="mt-1">
+                          x<sub>A,R</sub><sup>product</sup>: {((ecr2RaffinateProductQuality.x_A_R_product?.value ?? 0) * 100).toFixed(2)} mol %
+                          {" · "}
+                          w<sub>A,R</sub><sup>product</sup>: {((ecr2RaffinateProductQuality.w_A_R_product?.value ?? 0) * 100).toFixed(2)} wt %
+                        </p>
+                        <p className="mt-1 text-[11px] text-blue-800">
+                          Derived only from the physical BVP raffinate outlet. Residual NMP is excluded from both product-quality denominators; this remains a preliminary, non-release-eligible simulator result.
+                        </p>
+                      </div>
+                    )}
                     <p className="text-xs font-semibold text-gray-700 mb-1">Axial profile (CALCULATED PRELIMINARY — NOT RELEASE ELIGIBLE)</p>
                     <div className="overflow-auto border rounded-lg mb-4"><table className="min-w-full text-[11px]"><thead className="bg-gray-50"><tr><th className="p-2 text-left">z (m)</th><th className="p-2 text-left">Raffinate flow</th><th className="p-2 text-left">Extract flow</th><th className="p-2 text-left">φd</th><th className="p-2 text-left">d32 (mm)</th><th className="p-2 text-left">Re_d</th></tr></thead><tbody>{profile.map((p: any, i: number) => <tr key={i} className="border-t"><td className="p-2">{fmt(p.z_m, 3)}</td><td className="p-2">{fmt(p.raffinateFlow_kg_h, 3)}</td><td className="p-2">{fmt(p.extractFlow_kg_h, 3)}</td><td className="p-2">{fmt(p.phi_d, 4)}</td><td className="p-2">{fmt(p.d32_m * 1000, 3)}</td><td className="p-2">{fmt(p.Re_d, 2)}</td></tr>)}</tbody></table></div>
                     <p className="text-xs font-semibold text-gray-700 mb-1">Compartment engineering table (CALCULATED PRELIMINARY — NOT RELEASE ELIGIBLE)</p>

@@ -47,6 +47,10 @@ import {
 import {
   computeNrtlDirectCascadeNt,
 } from '../../engine-framework/cel/llx-nrtl-direct-cascade';
+import {
+  calculateHydrocarbonProductQuality,
+  type ProductQualityQuantities,
+} from '../../engine-framework/cel/product-quality-basis';
 
 // ── Input structures ──────────────────────────────────────────────────────────
 
@@ -83,6 +87,65 @@ function num(v: unknown): number | undefined {
   if (typeof v === 'number' && Number.isFinite(v)) return v;
   if (typeof v === 'string' && v.trim() !== '' && Number.isFinite(Number(v))) return Number(v);
   return undefined;
+}
+
+/**
+ * Build reporting-only product quality from the C2 raffinate-end state.
+ *
+ * The mole fraction remains on the existing Coto/NRTL pseudo-component
+ * coordinate. The mass fraction uses the entered RRBO class wt% and the same
+ * component split used by the cascade trace. NMP is deliberately absent from
+ * the mass denominator; this helper does not feed any process calculation.
+ */
+function deriveC2RaffinateProductQuality(
+  lleResult: GovernedNtResult,
+  lleInputEcho: Record<string, unknown> | undefined,
+  feedMassFlow_kg_h: number,
+): ProductQualityQuantities | null {
+  const directTrace = (lleResult as GovernedNtResult & {
+    directCascadeTrace?: {
+      feedMoleFractions_normalized?: readonly number[];
+      feedBasis_mol?: number;
+      stages?: readonly [{ raffinateFlow_mol?: number; raffinate_x?: readonly number[] }, ...unknown[]];
+    };
+  }).directCascadeTrace;
+  const directStage = directTrace?.stages?.[0];
+  const governedStage = lleResult.stageTrace[0];
+  const raffinateX = directStage?.raffinate_x ?? governedStage?.raffinateLeaving?.x ?? lleResult.spec?.raffinate;
+  const raffinateFlow = directStage?.raffinateFlow_mol
+    ?? governedStage?.raffinateLeaving?.flow_mol
+    ?? lleResult.balances?.basisRaffinateFlow_mol;
+  const feedX = directTrace?.feedMoleFractions_normalized
+    ?? (lleInputEcho?.feedMoleFractions as readonly number[] | undefined);
+  const feedFlow = directTrace?.feedBasis_mol ?? lleResult.balances?.impliedFeedFlow_mol;
+  if (
+    !raffinateX || raffinateX.length !== 5 ||
+    !feedX || feedX.length !== 5 ||
+    !Number.isFinite(raffinateFlow) || !Number.isFinite(feedFlow) ||
+    !(raffinateFlow! > 0) || !(feedFlow! > 0) ||
+    !(feedMassFlow_kg_h > 0)
+  ) return null;
+
+  const wtRecord = lleInputEcho?.rrboCharacterisationWtPct as Record<string, unknown> | undefined;
+  const wt = ['saturates', 'monoAromatics', 'diAromatics', 'polyAromatics'].map((key) => {
+    const value = (wtRecord?.[key] as Record<string, unknown> | undefined)?.value;
+    return num(value);
+  });
+  if (wt.some((value) => value === undefined)) return null;
+
+  const raffinateMassFlows = wt.map((value, index) => {
+    const feedMoles = feedX[index] ?? 0;
+    const split = feedMoles > 0 ? ((raffinateFlow! * (raffinateX![index] ?? 0)) / (feedFlow! * feedMoles)) : 0;
+    return feedMassFlow_kg_h * (value! / 100) * Math.max(0, Math.min(1, split));
+  });
+  try {
+    return calculateHydrocarbonProductQuality({
+      componentMoleFractions: raffinateX,
+      componentMassFlows_kg_h: [...raffinateMassFlows, 0],
+    });
+  } catch {
+    return null;
+  }
 }
 
 function parseTagged(raw: unknown, field: string, errors: ValidationError[], opts: { min: number; max: number; minExclusive?: boolean; maxExclusive?: boolean }): TaggedValue | undefined {
@@ -877,6 +940,12 @@ export class LLXProcessDesignEngine implements IDesignEngine {
         ...lleResult,
         ...(lleInputEcho ? { inputTrace: lleInputEcho } : {}),
         temperatureModel: temperatureModelBlock,
+        ...(lleResult.raffinateAromaticsLLE
+          ? {
+              raffinateAromaticsLLE: lleResult.raffinateAromaticsLLE,
+              raffinateProductQuality: deriveC2RaffinateProductQuality(lleResult, lleInputEcho, feedMassFlow),
+            }
+          : {}),
       };
 
       // Status derivation (correction 11)

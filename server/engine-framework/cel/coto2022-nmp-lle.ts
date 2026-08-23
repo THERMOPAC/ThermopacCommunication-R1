@@ -85,6 +85,11 @@ export const COTO_COMPONENT_ROLES = ['saturates (RRBO)', 'mono-aromatics (RRBO)'
  *  RRBO class MWs are governed inputs and must NOT default to these. */
 export const SURROGATE_MW = { c12: 170.34, xylene: 106.17, methylnaphtalene: 142.20, pyrene: 202.25, nmp: 99.13 } as const;
 
+import {
+  calculateLLEAromaticQuantity,
+  type LLEAromaticQuantity,
+} from './product-quality-basis';
+
 export interface TieLine {
   /** Raffinate mole fractions [c12, xyl, men, pyr, nmp] — sums to 1.000 */
   x: readonly number[];
@@ -255,6 +260,8 @@ export interface GovernedNtResult {
    *  not be resolved on the governed locus — N_T reported whole (conservative). */
   feedStageNote?: string;
   governingMeasure: 'total raffinate aromatics (mole fraction)';
+  /** Explicit copy of the historical full-phase x_A,R^LLE definition. */
+  raffinateAromaticsLLE?: LLEAromaticQuantity;
   stageTrace: StageTraceEntry[];
   spec?: { x1R: number; raffinate: number[]; equilibriumExtract: number[]; bracket: TieLineInterpolation['bracket'] };
   balances?: {
@@ -554,6 +561,7 @@ export function computeGovernedTheoreticalStages(input: GovernedNtInput): Govern
         status: 'not_calculable',
         stageTrace: best.out.trace,
         spec: { x1R: round(specX1R, 4), raffinate: xN.map((v) => round(v, 4)), equilibriumExtract: spec.extract.map((v) => round(v, 4)), bracket: spec.bracket },
+        raffinateAromaticsLLE: calculateLLEAromaticQuantity(xN),
         limitExceeded: {
           limit: 'Multicomponent Balance Closure Outside Tolerance — Pending Validation',
           detail: `the variable-flow cascade solution does not close all five component balances within the governed tolerance (3·u(x) = ${COTO_2022_RESIDUAL_TOLERANCE} mole fraction per component; total-flow ≤ ${COTO_2022_TOTAL_FLOW_REL_TOLERANCE * 100} % of implied feed): ${violations.join('; ')}. N_T is Not Calculable — the design point's multicomponent behaviour is not representable on the governed tie-line locus.`,
@@ -567,7 +575,14 @@ export function computeGovernedTheoreticalStages(input: GovernedNtInput): Govern
     const detail = probe.offEnvelope
       ? `stage stepping left the governed raffinate-locus envelope at stage ${probe.offEnvelope.stage} (computed passing-stream x1R = ${Number.isFinite(probe.offEnvelope.x1) ? probe.offEnvelope.x1.toFixed(4) : 'not on locus'}; governed envelope x1R ∈ [${X1_MIN}, ${X1_MAX}]) before reaching the feed composition. The design separation depth exceeds the governed composition envelope of the equilibrium basis.`
       : 'no counter-current solution reaches the feed composition within the governed envelope at the design solvent ratio.';
-    return { ...base, status: 'not_calculable', stageTrace: probe.trace, spec: { x1R: round(specX1R, 4), raffinate: xN.map((v) => round(v, 4)), equilibriumExtract: spec.extract.map((v) => round(v, 4)), bracket: spec.bracket }, limitExceeded: { limit: 'Outside Experimental Composition Range — Pending Validation', detail } };
+    return {
+      ...base,
+      status: 'not_calculable',
+      stageTrace: probe.trace,
+      spec: { x1R: round(specX1R, 4), raffinate: xN.map((v) => round(v, 4)), equilibriumExtract: spec.extract.map((v) => round(v, 4)), bracket: spec.bracket },
+      raffinateAromaticsLLE: calculateLLEAromaticQuantity(xN),
+      limitExceeded: { limit: 'Outside Experimental Composition Range — Pending Validation', detail },
+    };
   }
 
   const nT = best.out.nT;
@@ -579,6 +594,7 @@ export function computeGovernedTheoreticalStages(input: GovernedNtInput): Govern
     ...(best.out.feedStageNote ? { feedStageNote: best.out.feedStageNote } : {}),
     stageTrace: best.out.trace,
     spec: { x1R: round(specX1R, 4), raffinate: xN.map((v) => round(v, 4)), equilibriumExtract: spec.extract.map((v) => round(v, 4)), bracket: spec.bracket },
+    raffinateAromaticsLLE: calculateLLEAromaticQuantity(xN),
     balances: {
       basisRaffinateFlow_mol: RN,
       solventFlow_mol: round(best.S, 3),

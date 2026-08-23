@@ -58,3 +58,4 @@
 - [ECR-2 transfer result status](ecr2-transfer-result-status.md) — preliminary local transfer numerics never become governed/release-eligible; failed snapshots expose diagnostics, not performance.
 - [Stage 5 Kühni Vk preliminary route](stage5-kuhni-vk-preliminary.md) — V_k remains audit-only under an explicit engineer rejection; server-owned approval is required before capacity/diameter results can run.
 - [ECR-2 BVP acceptance flow](ecr2-bvp-acceptance-flow.md) — local residual closure is insufficient; terminal component and total balances are independent unchanged acceptance gates.
+- [LLX product-quality basis](llx-product-quality-basis.md) — retain full-phase LLE aromatics while reporting commercial raffinate aromatics on NMP-free hydrocarbon-only molar and mass bases.

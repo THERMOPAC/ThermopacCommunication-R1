@@ -37,6 +37,7 @@ import {
   GovernedNtResult,
   COTO_COMPONENTS,
 } from './coto2022-nmp-lle';
+import { calculateLLEAromaticQuantity } from './product-quality-basis';
 
 // ── Solver constants ──────────────────────────────────────────────────────────
 
@@ -547,6 +548,7 @@ export function computeNrtlDirectCascadeNt(
     status:                   'calculated',
     theoreticalStages:        r5(nTFrac),
     theoreticalStagesRounded: nTInt,
+    raffinateAromaticsLLE:    calculateLLEAromaticQuantity(finalState.xvec[1]),
     directCascadeTrace:       cascadeTrace,
   };
 }
