@@ -17,3 +17,8 @@ source data and xylene component order were visually verified.
 NRTL behavior as locally regressed/preliminary. Keep the inactive combined
 17-row NRTL artifact separate: it merges distinct xylene and toluene species
 into one mono-aromatic slot and is not the active xylene-only model.
+
+For a 20-directional-\(\tau\), fixed-\(\alpha=0.2\) diagnostic fit, the
+13 xylene tie-lines produced effective Jacobian rank 19/20 with one weak
+parameter combination. Do not promote a five-component fit from this dataset
+alone without resolving identifiability and passing the full composition gate.
