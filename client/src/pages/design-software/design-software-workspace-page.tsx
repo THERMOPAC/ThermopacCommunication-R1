@@ -4824,6 +4824,7 @@ export default function DesignSoftwareWorkspacePage() {
     const d32Snapshot = displayedSnapshot?.d32;
     const d32SnapshotGovernance = getEcr2D32SnapshotGovernance(displayedSnapshot);
     const transferStatus = bvp?.transferStatus ?? displayedSnapshot?.transferStatus;
+    const lleFlashAtOperatingTemperature: any = displayedSnapshot?.lleFlashAtOperatingTemperature ?? null;
     const showPreliminaryTransferPerformance = canDisplayECR2PreliminaryTransferPerformance(bvp, transferStatus);
     const showingFailedSnapshot = !!latestFailedSnapshot;
     const hasStaleAcceptedSnapshot = !!simResult && showingFailedSnapshot;
@@ -5490,6 +5491,38 @@ export default function DesignSoftwareWorkspacePage() {
                     <strong>Transfer availability: {transferStatus.status}</strong>
                     <span className="ml-2">Governed values: {transferStatus.governedValues ?? "UNAVAILABLE"} · Release: {transferStatus.releaseStatus ?? "NOT_RELEASE_ELIGIBLE"}</span>
                     <p className="mt-1">{transferStatus.message}</p>
+                  </div>
+                )}
+                {lleFlashAtOperatingTemperature && (
+                  <div className={`p-3 rounded-lg border text-xs mb-4 ${
+                    lleFlashAtOperatingTemperature.status === "two_phase_converged"
+                      ? "bg-amber-50 border-amber-200 text-amber-900"
+                      : "bg-red-50 border-red-200 text-red-800"
+                  }`}>
+                    <strong>Operating-temperature NRTL LLE: {String(lleFlashAtOperatingTemperature.status).replaceAll("_", " ")}</strong>
+                    <span className="ml-2">
+                      {fmt(lleFlashAtOperatingTemperature.temperature?.selectedOperatingTemperature_C, 2)} °C
+                      {" · "}
+                      {fmt(lleFlashAtOperatingTemperature.temperature?.selectedOperatingTemperature_K, 2)} K
+                    </span>
+                    <p className="mt-1">
+                      Stage 4 Extraction Temperature is the calculation authority. Model: {lleFlashAtOperatingTemperature.model?.id ?? "—"} v{lleFlashAtOperatingTemperature.model?.version ?? "—"}.
+                    </p>
+                    <p className="mt-1">
+                      Converged: {String(!!lleFlashAtOperatingTemperature.converged)} · Trivial: {String(!!lleFlashAtOperatingTemperature.trivial)}
+                      {" · "}
+                      {lleFlashAtOperatingTemperature.thermodynamicValidity?.selectedTemperatureApplicability ?? lleFlashAtOperatingTemperature.temperatureStatus?.classification ?? "temperature status unavailable"}.
+                    </p>
+                    {lleFlashAtOperatingTemperature.status === "two_phase_converged" && (
+                      <p className="mt-1 font-mono text-[11px]">
+                        Raffinate x: [{(lleFlashAtOperatingTemperature.raffinatePhaseMoleFractions ?? []).map((value: number) => fmt(value, 5)).join(", ")}]
+                        {" · "}
+                        Extract y: [{(lleFlashAtOperatingTemperature.extractPhaseMoleFractions ?? []).map((value: number) => fmt(value, 5)).join(", ")}]
+                      </p>
+                    )}
+                    {lleFlashAtOperatingTemperature.diagnostics?.[0] && (
+                      <p className="mt-1 text-[11px]">{lleFlashAtOperatingTemperature.diagnostics[0]}</p>
+                    )}
                   </div>
                 )}
                 {d32Snapshot && (

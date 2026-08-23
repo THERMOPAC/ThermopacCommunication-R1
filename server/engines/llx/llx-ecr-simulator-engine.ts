@@ -66,13 +66,12 @@ import {
   resolveEcr2RrboNmpInterfacialTensionConstantAtTemperature,
 } from '../../../shared/ecr2-interfacial-tension-basis';
 
-// NRTL reuse: nrtlFlash is imported for Phase 2 forward simulation.
-// In Phase 1 it is not called but the import confirms the reuse path.
-// The function signature: nrtlFlash(z, T_K, x0, y0) → FlashResult
-// where x = raffinate-phase mole fractions, y = extract-phase mole fractions.
+// NRTL reuse: the run-level LLE flash and the local BVP calculations both use
+// the governed CEL model. The function signature is
+// nrtlFlash(z, T_K, x0, y0) → FlashResult, where x = raffinate-phase mole
+// fractions and y = extract-phase mole fractions.
 import {
   nrtlFlash,
-  nrtlLnGamma,
   temperatureModelStatus,
   resolveThermodynamicValidityAtTemperature,
   TLLE_MODEL_ID,
@@ -532,6 +531,43 @@ export interface ECR2ThermodynamicBasis {
 }
 
 /**
+ * Executed, isothermal NRTL LLE flash for the ECR-2 inlet material basis.
+ *
+ * This is a run-level equilibrium trace, not a replacement for the local
+ * compartment flashes in the counter-current BVP. It makes the selected Stage
+ * 4 condition auditable even if the BVP is separately dependency-blocked.
+ */
+export interface ECR2LLEFlashSnapshot {
+  status:
+    | 'two_phase_converged'
+    | 'trivial_single_phase'
+    | 'not_converged'
+    | 'not_calculable';
+  temperature: {
+    selectedOperatingTemperature_C: number;
+    selectedOperatingTemperature_K: number;
+    authority: 'Stage 4 Extraction Temperature';
+  };
+  model: {
+    id: string;
+    version: string;
+    name: string;
+    citation: string;
+  };
+  overallFeedMoleFractions: ComponentVector;
+  initialRaffinateMoleFractions: ComponentVector;
+  initialExtractMoleFractions: ComponentVector;
+  raffinatePhaseMoleFractions: ComponentVector | null;
+  extractPhaseMoleFractions: ComponentVector | null;
+  extractPhaseMolarFraction: number | null;
+  converged: boolean;
+  trivial: boolean;
+  temperatureStatus: ReturnType<typeof temperatureModelStatus>;
+  thermodynamicValidity: ReturnType<typeof resolveThermodynamicValidityAtTemperature>;
+  diagnostics: string[];
+}
+
+/**
  * Active project physical characterization retained for the future approved
  * mass-balance / mass-transfer architecture. No numerical bridge to the Coto
  * thermodynamic coordinates exists or is created here.
@@ -841,7 +877,11 @@ export function buildECR2ThermodynamicBasis(input: {
       nmp: SURROGATE_MW.nmp,
     },
     averageSurrogateFeedMW_g_mol,
-    temperatureK: c2ThermodynamicHandoff?.temperatureK ?? operatingTemperatureC + 273.15,
+    // The upstream C2 handoff may supply the canonical composition basis, but
+    // it must never supply the ECR-2 execution temperature. validate() rejects
+    // a mismatched handoff temperature before calculation; the persisted basis
+    // always records the user-selected Stage 4 calculation condition.
+    temperatureK: operatingTemperatureC + 273.15,
     solventMolarRatio: c2ThermodynamicHandoff?.solventMolarRatio ?? reconstructedSolventMolarRatio,
     rrboCharacterisationWtPct: {
       saturates: surrogateMassFractions[IDX.SAT] * 100,
@@ -887,6 +927,134 @@ function buildECR2PhysicalBasis(
     overrideStatus:
       'source_tag_retained__explicit_override_flag_not_supported_by_current_input_contract',
   };
+}
+
+function buildECR2LLEFlashSnapshot(input: {
+  operatingTemperatureC: number;
+  operatingTemperatureK: number;
+  feedMoleFractions: ComponentVector;
+  freshNmpMoleFractions: ComponentVector;
+  solventMolarRatio: number;
+  temperatureStatus: ReturnType<typeof temperatureModelStatus>;
+  thermodynamicValidity: ReturnType<typeof resolveThermodynamicValidityAtTemperature>;
+  modelIdentity: ECR2ThermodynamicBasis['modelIdentity'];
+}): ECR2LLEFlashSnapshot {
+  const diagnostics: string[] = [];
+  const totalSurrogateMoles = 1 + input.solventMolarRatio;
+  const overallFeedMoleFractions = input.feedMoleFractions.map(
+    (value, index) => (
+      value + input.solventMolarRatio * input.freshNmpMoleFractions[index]
+    ) / totalSurrogateMoles,
+  ) as ComponentVector;
+  const base = {
+    temperature: {
+      selectedOperatingTemperature_C: input.operatingTemperatureC,
+      selectedOperatingTemperature_K: input.operatingTemperatureK,
+      authority: 'Stage 4 Extraction Temperature' as const,
+    },
+    model: {
+      id: input.modelIdentity.id,
+      version: input.modelIdentity.version,
+      name: input.modelIdentity.name,
+      citation: input.modelIdentity.citation,
+    },
+    overallFeedMoleFractions,
+    initialRaffinateMoleFractions: [...input.feedMoleFractions] as ComponentVector,
+    initialExtractMoleFractions: [...input.freshNmpMoleFractions] as ComponentVector,
+    temperatureStatus: input.temperatureStatus,
+    thermodynamicValidity: input.thermodynamicValidity,
+  };
+
+  if (
+    !Number.isFinite(totalSurrogateMoles) ||
+    totalSurrogateMoles <= 0 ||
+    !isComponentVector(overallFeedMoleFractions)
+  ) {
+    diagnostics.push(
+      'NRTL LLE flash was not attempted because the run-level surrogate overall composition is not a valid closed five-component vector.',
+    );
+    return {
+      ...base,
+      status: 'not_calculable',
+      raffinatePhaseMoleFractions: null,
+      extractPhaseMoleFractions: null,
+      extractPhaseMolarFraction: null,
+      converged: false,
+      trivial: false,
+      diagnostics,
+    };
+  }
+
+  try {
+    const flash = nrtlFlash(
+      overallFeedMoleFractions,
+      input.operatingTemperatureK,
+      input.feedMoleFractions,
+      input.freshNmpMoleFractions,
+    );
+    const finitePhases = isComponentVector(flash.x) && isComponentVector(flash.y);
+    const rawXIsRaffinate = finitePhases && flash.x[IDX.SAT] >= flash.y[IDX.SAT];
+    const raffinatePhaseMoleFractions = finitePhases
+      ? (rawXIsRaffinate ? flash.x : flash.y) as ComponentVector
+      : null;
+    const extractPhaseMoleFractions = finitePhases
+      ? (rawXIsRaffinate ? flash.y : flash.x) as ComponentVector
+      : null;
+    // nrtlFlash defines beta as the raw y-phase fraction. Convert it after
+    // orienting the phases so the persisted value always means NMP-rich extract.
+    const extractPhaseMolarFraction = finitePhases && Number.isFinite(flash.beta)
+      ? rawXIsRaffinate ? flash.beta : 1 - flash.beta
+      : null;
+
+    if (!finitePhases) {
+      diagnostics.push(
+        'NRTL LLE flash returned non-finite or non-normalized phase compositions; no equilibrium phase result is usable.',
+      );
+    } else if (!flash.converged) {
+      diagnostics.push(
+        'NRTL LLE flash did not converge within 1500 iterations. Persisted phase values are diagnostic iterates, not an accepted equilibrium result.',
+      );
+    } else if (flash.trivial) {
+      diagnostics.push(
+        'NRTL LLE flash converged to a trivial single-phase result at the selected operating temperature; two-phase equilibrium targets are not available from this run-level flash.',
+      );
+    } else {
+      diagnostics.push(
+        `NRTL LLE flash converged at the user-selected Stage 4 operating temperature ${input.operatingTemperatureK.toFixed(2)} K.`,
+      );
+    }
+
+    return {
+      ...base,
+      status: !finitePhases
+        ? 'not_calculable'
+        : !flash.converged
+          ? 'not_converged'
+          : flash.trivial
+            ? 'trivial_single_phase'
+            : 'two_phase_converged',
+      raffinatePhaseMoleFractions,
+      extractPhaseMoleFractions,
+      extractPhaseMolarFraction,
+      converged: flash.converged,
+      trivial: flash.trivial,
+      diagnostics,
+    };
+  } catch (error) {
+    diagnostics.push(
+      `NRTL LLE flash failed at the selected operating temperature: ${error instanceof Error ? error.message : String(error)}.`,
+    );
+    return {
+      ...base,
+      status: 'not_calculable',
+      raffinatePhaseMoleFractions: null,
+      extractPhaseMoleFractions: null,
+      extractPhaseMolarFraction: null,
+      converged: false,
+      trivial: false,
+      diagnostics,
+    };
+  }
 }
 
 // ── Engine ────────────────────────────────────────────────────────────────────
@@ -1388,6 +1556,30 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       L_feed_surrogate_mol_h * thermodynamicBasis.solventMolarRatio;
     const nmpSurrogateComponentMassRepresentation_kg_h =
       surrogateComponentMassRepresentation(V_feed_surrogate_mol_h, y_feed_thermo);
+    const lleFlashAtOperatingTemperature = buildECR2LLEFlashSnapshot({
+      operatingTemperatureC: T_C,
+      operatingTemperatureK: T_K,
+      feedMoleFractions: x_feed_thermo,
+      freshNmpMoleFractions: y_feed_thermo,
+      solventMolarRatio: thermodynamicBasis.solventMolarRatio,
+      temperatureStatus: nrtlStatus,
+      thermodynamicValidity,
+      modelIdentity: thermodynamicBasis.modelIdentity,
+    });
+    if (lleFlashAtOperatingTemperature.status === 'not_converged') {
+      pushWarning(
+        'ECR2_NRTL_LLE_NOT_CONVERGED',
+        lleFlashAtOperatingTemperature.diagnostics[0],
+      );
+    } else if (
+      lleFlashAtOperatingTemperature.status === 'trivial_single_phase' ||
+      lleFlashAtOperatingTemperature.status === 'not_calculable'
+    ) {
+      pushWarning(
+        'ECR2_NRTL_LLE_NOT_CALCULABLE',
+        lleFlashAtOperatingTemperature.diagnostics[0],
+      );
+    }
 
     // ── Boundary conditions ──────────────────────────────────────────────────
     const boundaryConditions: ECR2BoundaryConditions = {
@@ -2040,11 +2232,22 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       rotorsPerCompartmentFixed: ROTORS_PER_COMPARTMENT,
       engineVersions: { cel: CEL_VERSION, epd: EPD_VERSION, ecrSimulator: ENGINE_VERSION },
       thermodynamicTemperatureValidation: thermodynamicValidity,
+      lleFlashAtOperatingTemperature,
 
       designBasis: {
         operatingTemperatureC:  T_C,
         operatingTemperatureK:  T_K,
-        nrtlModelStatus:        { status: nrtlStatus, thermodynamicValidity, note: nrtlNote },
+        nrtlModelStatus:        {
+          status: nrtlStatus,
+          thermodynamicValidity,
+          note: nrtlNote,
+          execution: {
+            status: lleFlashAtOperatingTemperature.status,
+            selectedOperatingTemperatureK: lleFlashAtOperatingTemperature.temperature.selectedOperatingTemperature_K,
+            converged: lleFlashAtOperatingTemperature.converged,
+            trivial: lleFlashAtOperatingTemperature.trivial,
+          },
+        },
         phaseConfiguration:     { input: phaseConfig, continuousPhase, dispersedPhase },
         rrboFeed: {
           massFlow_kg_h:    mRRBO,
@@ -2338,6 +2541,13 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       },
 
       forwardSimulationStatus: {
+        lle: (() => {
+          const flash = lleFlashAtOperatingTemperature;
+          if (flash.status === 'two_phase_converged') {
+            return `CALCULATED_PRELIMINARY — run-level NRTL LLE flash converged at Stage 4 Extraction Temperature ${flash.temperature.selectedOperatingTemperature_C.toFixed(2)} °C (${flash.temperature.selectedOperatingTemperature_K.toFixed(2)} K). ${flash.temperatureStatus.classification}.`;
+          }
+          return `NOT_CALCULABLE — ${flash.diagnostics[0] ?? 'NRTL LLE flash did not provide an accepted two-phase equilibrium result.'}`;
+        })(),
         holdup: (() => {
           if (holdupResult == null) return 'NOT CALCULATED — interfacialTension not supplied';
           if (holdupResult.status === 'calculated')
@@ -2387,7 +2597,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         optimizer: 'NOT IMPLEMENTED — downstream of BVP',
         axialDispersion: 'NOT IMPLEMENTED — reserved; plug-flow baseline must be established first',
         nrtlReuseConfirmed: true,
-        nrtlFunction: 'nrtlFlash(z, T_K, x0, y0) from llx-temperature-lle-model.ts — imported and ready for Phase 2',
+        nrtlFunction: 'nrtlFlash(z, T_K, x0, y0) from llx-temperature-lle-model.ts — executed for the run-level inlet material basis and by local BVP equilibrium calculations',
         bvpOrientation: 'Two-point BVP: z=0 (RRBO feed known, extract unknown) and z=H (NMP feed known, raffinate unknown)',
         rateBasisNote: 'ECR-2 is rate-based. NRTL provides local equilibrium TARGET for driving force; finite K_oa determines actual transfer rate.',
         drivingForceContract: drivingForceContractNote,
