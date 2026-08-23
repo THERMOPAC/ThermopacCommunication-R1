@@ -533,3 +533,10 @@ uri = "file://.agents/outputs/ECR2-Optimizer-Readiness-Audit-Run-656.pdf"
 type = "pdf"
 title = "ECR-2 Optimizer Readiness Audit — Run 656"
 description = "Information-only PDF audit for LLX-RND-2026-0003, persisted run 656 at 2026-08-23 14:13:10.713 UTC / 19:43:10.713 IST. Final classification: NOT READY FOR PRELIMINARY OPTIMIZER."
+
+[[outputs]]
+id = "o23VZP8Z9TD2iwxvw1HqB"
+uri = "file://attached_assets/LLX-RND-2026-0003_ECR2_Run-689_Report.pdf"
+type = "pdf"
+title = "LLX-RND-2026-0003 ECR-2 Run 689 Report"
+description = "PDF report of the latest persisted ECR-2 simulator attempt, including failed-run diagnostics and the last accepted run reference."
