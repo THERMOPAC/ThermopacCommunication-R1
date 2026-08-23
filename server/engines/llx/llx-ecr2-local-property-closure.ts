@@ -111,6 +111,18 @@ export interface ECR2ClosureGovernedPropertyInput extends ECR2ClosureEngineerPro
   readonly method: string;
   readonly basis: string;
   readonly warnings: readonly string[];
+  /**
+   * A resolved property is either calculated through a governed correlation or
+   * carried unchanged through a separately governed, bounded constant basis.
+   */
+  readonly resolutionMode?:
+    | 'governed_temperature_correlation'
+    | 'preliminary_constant_over_range';
+  /** Required when resolutionMode is preliminary_constant_over_range. */
+  readonly applicabilityRange_C?: {
+    readonly min: number;
+    readonly max: number;
+  };
   /** Original datum used by an at-temperature route, when applicable. */
   readonly anchor?: ECR2ClosureEngineerPropertyInput;
 }
@@ -143,6 +155,13 @@ export interface ECR2LocalPropertyMetadata {
   readonly localityStatus: ECR2LocalPropertyStatus;
   readonly validationStatus: ECR2LocalPropertyValidationStatus;
   readonly warnings: readonly string[];
+  readonly resolutionMode?:
+    | 'governed_temperature_correlation'
+    | 'preliminary_constant_over_range';
+  readonly applicabilityRange_C?: {
+    readonly min: number;
+    readonly max: number;
+  };
   /** Original source-tagged datum retained when a temperature route is used. */
   readonly anchor?: ECR2ClosureEngineerPropertyInput;
 }
@@ -355,9 +374,15 @@ function makeGovernedProperty(
     basis: input.basis,
     method: input.method,
     referenceTemperature_C: input.referenceTemperature_C,
-    localityStatus: 'LOCAL_PROPERTY_GOVERNED',
+    localityStatus: input.resolutionMode === 'preliminary_constant_over_range'
+      ? 'LOCAL_PROPERTY_PRELIMINARY_CONSTANT'
+      : 'LOCAL_PROPERTY_GOVERNED',
     validationStatus,
     warnings: propertyWarnings(localityWarning, input.warnings),
+    ...(input.resolutionMode ? { resolutionMode: input.resolutionMode } : {}),
+    ...(input.applicabilityRange_C
+      ? { applicabilityRange_C: Object.freeze({ ...input.applicabilityRange_C }) }
+      : {}),
     ...(input.anchor ? { anchor: Object.freeze({ ...input.anchor }) } : {}),
   });
 }
@@ -452,6 +477,25 @@ function validateGovernedPropertyInput(
   }
   if (!Array.isArray(input.warnings)) {
     errors.push(`${label}: warnings must be a provenance array.`);
+  }
+  if (input.resolutionMode !== undefined
+    && input.resolutionMode !== 'governed_temperature_correlation'
+    && input.resolutionMode !== 'preliminary_constant_over_range') {
+    errors.push(`${label}: resolutionMode is invalid.`);
+  }
+  if (input.resolutionMode === 'preliminary_constant_over_range') {
+    const range = input.applicabilityRange_C;
+    if (!range
+      || !Number.isFinite(range.min)
+      || !Number.isFinite(range.max)
+      || range.min > range.max) {
+      errors.push(`${label}: preliminary constant basis requires a valid applicabilityRange_C.`);
+    } else if (operatingTemperature_C < range.min || operatingTemperature_C > range.max) {
+      errors.push(
+        `${label}: Stage 4 Extraction Temperature ${operatingTemperature_C} °C is outside ` +
+        `the governed preliminary constant applicability range [${range.min}, ${range.max}] °C.`,
+      );
+    }
   }
   return errors.length === 0;
 }

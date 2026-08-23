@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { mapWorkspaceProcessDesignInputs } from '../server/llx-process-design-input-mapper';
+import { ECR2_RRBO_NMP_SIGMA_CONSTANT_PRELIMINARY_BASIS } from '../shared/ecr2-interfacial-tension-basis';
 
 describe('ECR-2 simulator workspace adapter', () => {
   it('uses Stage 4 Extraction Temperature for every Stage 8 resolver even when stale engine-shaped temperatures are present', () => {
@@ -60,6 +61,23 @@ describe('ECR-2 simulator workspace adapter', () => {
     });
     expect((mapped.interfacialTension as any).temperatureCoefficient.slopePerC)
       .toBeCloseTo(-0.00003, 12);
+  });
+
+  it('never grants the constant sigma route to a Stage 5 override, even if a stale marker is present', () => {
+    const mapped = mapWorkspaceProcessDesignInputs({
+      extraction_temperature: '50',
+      interfacial_tension: '12',
+      interfacial_tension_value: '10',
+      interfacial_tension_ref_temp: '70',
+      interfacial_tension_source: 'Assumed',
+      interfacial_tension_constant_basis_id: ECR2_RRBO_NMP_SIGMA_CONSTANT_PRELIMINARY_BASIS.id,
+    }, 'ecr_simulator');
+
+    expect(mapped.interfacialTension).toMatchObject({
+      value: 0.012,
+      sourceReference: 'Engineer-entered interfacial tension (Stage 5 Common Hydraulic workspace) — pending validation',
+    });
+    expect(mapped.interfacialTension).not.toHaveProperty('preliminaryConstantBasisId');
   });
 
   it('fails closed for an unrecognized Feed Service rather than defaulting to SN300 physical properties', () => {

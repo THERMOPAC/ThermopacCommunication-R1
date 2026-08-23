@@ -61,7 +61,9 @@ import {
   resolveRrboSn300DynamicViscosityAtTemperature,
 } from '../../../shared/ecr2-stage8-transport-basis';
 import {
+  ECR2_RRBO_NMP_SIGMA_CONSTANT_PRELIMINARY_BASIS,
   resolveEcr2RrboNmpInterfacialTensionAtTemperature,
+  resolveEcr2RrboNmpInterfacialTensionConstantAtTemperature,
 } from '../../../shared/ecr2-interfacial-tension-basis';
 
 // NRTL reuse: nrtlFlash is imported for Phase 2 forward simulation.
@@ -212,6 +214,13 @@ interface ResolvedSigmaTaggedValue extends TaggedValue {
     method: string;
     basis: string;
     warnings: readonly string[];
+    resolutionMode:
+      | 'governed_temperature_correlation'
+      | 'preliminary_constant_over_range';
+    applicabilityRange_C: {
+      min: number;
+      max: number;
+    };
   };
 }
 
@@ -1222,6 +1231,23 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           },
         })
       : undefined;
+    const gammaConstantPreliminaryRoute = gammaCandidate
+      && Number.isFinite(gammaReferenceTemperature_C)
+      && Math.abs(gammaReferenceTemperature_C - T_C) > 1e-9
+      && !gammaTemperatureRoute
+      && gammaRaw?.preliminaryConstantBasisId
+        === ECR2_RRBO_NMP_SIGMA_CONSTANT_PRELIMINARY_BASIS.id
+      ? resolveEcr2RrboNmpInterfacialTensionConstantAtTemperature({
+          temperature_C: T_C,
+          anchor: {
+            value_N_m: gammaCandidate.value,
+            temperature_C: gammaReferenceTemperature_C,
+            sourceType: gammaCandidate.sourceType,
+            sourceReference: gammaCandidate.sourceReference,
+          },
+        })
+      : undefined;
+    const gammaTemperatureResolution = gammaTemperatureRoute ?? gammaConstantPreliminaryRoute;
     const gamma: ResolvedSigmaTaggedValue | undefined =
       gammaCandidate && Number.isFinite(gammaReferenceTemperature_C)
       && Math.abs(gammaReferenceTemperature_C - T_C) < 1e-9
@@ -1229,20 +1255,29 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
             ...gammaCandidate,
             referenceTemperatureC: T_C,
           }
-        : gammaTemperatureRoute
+        : gammaTemperatureResolution
           ? {
               ...gammaCandidate!,
-              value: gammaTemperatureRoute.value_N_m,
+              value: gammaTemperatureResolution.value_N_m,
               referenceTemperatureC: T_C,
-              temperatureResolution: gammaTemperatureRoute,
+              temperatureResolution: gammaTemperatureResolution,
             }
           : undefined;
+    if (gamma?.temperatureResolution?.resolutionMode === 'preliminary_constant_over_range') {
+      const range = gamma.temperatureResolution.applicabilityRange_C;
+      pushWarning(
+        'INTERFACIAL_TENSION_TEMPERATURE_DEPENDENCE_NOT_MODELLED',
+        `sigma uses the unchanged ${gamma.temperatureResolution.anchor.temperature_C} °C source anchor at the selected ${T_C} °C operating condition ` +
+        `under the governed preliminary constant-over-range basis [${range.min}, ${range.max}] °C. ` +
+        'No sigma(T) correlation has been applied.',
+      );
+    }
     if (gammaCandidate && !gamma) {
       pushWarning(
         'SIGMA_TEMPERATURE_ROUTE_UNAVAILABLE',
         `sigma: record reference temperature ${Number.isFinite(gammaReferenceTemperature_C) ? `${gammaReferenceTemperature_C} °C` : 'is missing'} ` +
-        `cannot be used at Stage 4 Extraction Temperature ${T_C} °C because no complete governed NMP/RRBO temperature route applies. ` +
-        'A source-tagged temperature coefficient and an applicability range of 25–100 °C are required.',
+        `cannot be used at Stage 4 Extraction Temperature ${T_C} °C because neither a complete governed NMP/RRBO temperature correlation nor a bounded preliminary constant basis applies. ` +
+        'The current controlled sigma bases apply only from 25–100 °C.',
       );
     }
     if (!gamma)
@@ -1723,6 +1758,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
               method: gamma.temperatureResolution.method,
               basis: gamma.temperatureResolution.basis,
               warnings: gamma.temperatureResolution.warnings,
+              resolutionMode: gamma.temperatureResolution.resolutionMode,
+              applicabilityRange_C: gamma.temperatureResolution.applicabilityRange_C,
               anchor: {
                 value: gamma.temperatureResolution.anchor.value_N_m,
                 unit: 'N/m',
@@ -2040,6 +2077,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
                     method: gamma.temperatureResolution.method,
                     basis: gamma.temperatureResolution.basis,
                     warnings: gamma.temperatureResolution.warnings,
+                    resolutionMode: gamma.temperatureResolution.resolutionMode,
+                    applicabilityRange_C: gamma.temperatureResolution.applicabilityRange_C,
                     anchor: gamma.temperatureResolution.anchor,
                   }
                 : {

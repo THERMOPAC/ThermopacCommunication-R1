@@ -29,6 +29,7 @@ import {
 } from '../shared/ecr2-stage8-transport-basis';
 import {
   resolveEcr2RrboNmpInterfacialTensionAtTemperature,
+  resolveEcr2RrboNmpInterfacialTensionConstantAtTemperature,
 } from '../shared/ecr2-interfacial-tension-basis';
 
 const TEMPERATURE_C = 70;
@@ -393,6 +394,67 @@ describe('ECR-2 preliminary local-property closure', () => {
         slopePerC: -0.00003,
         sourceType: 'Literature',
         sourceReference: '',
+      },
+    })).toBeUndefined();
+  });
+
+  it('uses the governed constant sigma basis at 50 °C without changing the 70 °C anchor', () => {
+    const resolved = resolveEcr2RrboNmpInterfacialTensionConstantAtTemperature({
+      temperature_C: 50,
+      anchor: {
+        value_N_m: 0.012,
+        temperature_C: 70,
+        sourceType: 'Assumed',
+        sourceReference: 'NMP/RRBO preliminary screening sigma anchor at 70 °C',
+      },
+    });
+    expect(resolved).toBeDefined();
+    if (!resolved) return;
+
+    const anchor: ECR2ClosureEngineerPropertyInput = {
+      value: resolved.anchor.value_N_m,
+      unit: 'N/m',
+      sourceType: resolved.anchor.sourceType,
+      sourceReference: resolved.anchor.sourceReference,
+      referenceTemperature_C: resolved.anchor.temperature_C,
+    };
+    const snapshot = resolvedSnapshot(resolve(makeInputs({
+      mu_d_engineer: engineer(0.012, 'Pa.s', 'RRBO viscosity at 50 °C', 50),
+      sigma_engineer: anchor,
+      sigma_governed: {
+        value: resolved.value_N_m,
+        unit: 'N/m',
+        sourceType: resolved.sourceType,
+        sourceReference: resolved.sourceReference,
+        referenceTemperature_C: resolved.requestedTemperature_C,
+        method: resolved.method,
+        basis: resolved.basis,
+        warnings: resolved.warnings,
+        resolutionMode: resolved.resolutionMode,
+        applicabilityRange_C: resolved.applicabilityRange_C,
+        anchor,
+      },
+      diffusivity: makeDiffusivityContract(50),
+    }), X_LOCAL, Y_LOCAL, 50));
+
+    const property = snapshot.properties.sigma;
+    expect(property.value).toBe(0.012);
+    expect(property.referenceTemperature_C).toBe(50);
+    expect(property.localityStatus).toBe('LOCAL_PROPERTY_PRELIMINARY_CONSTANT');
+    expect(property.resolutionMode).toBe('preliminary_constant_over_range');
+    expect(property.applicabilityRange_C).toEqual({ min: 25, max: 100 });
+    expect(property.anchor).toMatchObject({ referenceTemperature_C: 70 });
+    expect(property.warnings).toContain('INTERFACIAL_TENSION_TEMPERATURE_DEPENDENCE_NOT_MODELLED');
+  });
+
+  it('does not use the governed constant sigma basis outside its controlled range', () => {
+    expect(resolveEcr2RrboNmpInterfacialTensionConstantAtTemperature({
+      temperature_C: 101,
+      anchor: {
+        value_N_m: 0.012,
+        temperature_C: 70,
+        sourceType: 'Assumed',
+        sourceReference: 'NMP/RRBO preliminary screening sigma anchor at 70 °C',
       },
     })).toBeUndefined();
   });

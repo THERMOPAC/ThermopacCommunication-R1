@@ -27,6 +27,7 @@ import {
   EMULSION_BEHAVIOUR_DEFAULT, EMULSION_BEHAVIOUR_LEGACY_DEFAULT, PENDING_VALIDATION, FLUID_PROPERTY_PROVENANCE,
   TWO_PHASE_SCREENING_DEFAULTS, TWO_PHASE_SCREENING_SOURCE, TWO_PHASE_SCREENING_REF_TEMP,
 } from "@shared/fluid-properties-master";
+import { ECR2_RRBO_NMP_SIGMA_CONSTANT_PRELIMINARY_BASIS } from "@shared/ecr2-interfacial-tension-basis";
 import { resolveNtInputs } from "@/lib/nt-requirement-resolver";
 import { validateEcr2Stage8, ECR2_STAGE8_COMPONENTS, ECR2_STAGE8_SOURCE_TYPES } from "@/lib/ecr2-stage8-validation";
 import { getEcr2Stage8LiveDependencies } from "@/lib/ecr2-stage8-live-dependencies";
@@ -911,6 +912,15 @@ export default function DesignSoftwareWorkspacePage() {
       const tp = TWO_PHASE_SCREENING_DEFAULTS[k];
       setIf(k, tp.value, tp.unit, `${TWO_PHASE_SCREENING_REF_TEMP} °C`);
       if ((`${k}_value` in u) && blank(`${k}_source`)) u[`${k}_source`] = "Assumed";
+    }
+    // Private governance marker for the explicit, bounded ECR-2 constant
+    // sigma basis. It is seeded only for the unchanged screening default;
+    // Stage 5 overrides and ordinary vendor/measured records never receive it.
+    if (blank("interfacial_tension_constant_basis_id")
+      && String(u.interfacial_tension_value ?? fp.interfacial_tension_value ?? '') === TWO_PHASE_SCREENING_DEFAULTS.interfacial_tension.value
+      && String(u.interfacial_tension_ref_temp ?? fp.interfacial_tension_ref_temp ?? '') === `${TWO_PHASE_SCREENING_REF_TEMP} °C`
+      && String(u.interfacial_tension_source ?? fp.interfacial_tension_source ?? '') === 'Assumed') {
+      u.interfacial_tension_constant_basis_id = ECR2_RRBO_NMP_SIGMA_CONSTANT_PRELIMINARY_BASIS.id;
     }
     if (blank("phase_separation_time")) {
       u.phase_separation_time = TWO_PHASE_SCREENING_DEFAULTS.phase_separation_time.value;
@@ -3193,10 +3203,9 @@ export default function DesignSoftwareWorkspacePage() {
             <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
             <span>
               Thermopac Preliminary Screening Defaults @ {TWO_PHASE_SCREENING_REF_TEMP} °C — Source Type: Assumed · Source: {TWO_PHASE_SCREENING_SOURCE} · Status: Pending Laboratory Validation.
-              These are NOT measured equilibrium data. The reference temperature stays at {TWO_PHASE_SCREENING_REF_TEMP} °C and is not corrected when the Operating Temperature
-              {(d("design_basis").operating_temperature ?? "").trim() !== "" && (d("design_basis").operating_temperature ?? "").trim() !== TWO_PHASE_SCREENING_REF_TEMP
-                ? ` (currently ${(d("design_basis").operating_temperature ?? "").trim()} °C)`
-                : ""} changes — replace with temperature-dependent laboratory or vendor data.
+              These are NOT measured equilibrium data. The source anchor remains at {TWO_PHASE_SCREENING_REF_TEMP} °C and is never retagged or temperature-corrected.
+              For ECR-2 simulations within the governed preliminary 25–100 °C range, sigma may be used unchanged with the visible warning <strong>INTERFACIAL_TENSION_TEMPERATURE_DEPENDENCE_NOT_MODELLED</strong>.
+              Outside that range the simulator fails closed; replace this basis with temperature-dependent laboratory or vendor data when available.
             </span>
           </div>
           {prop("Interfacial Tension", "interfacial_tension")}

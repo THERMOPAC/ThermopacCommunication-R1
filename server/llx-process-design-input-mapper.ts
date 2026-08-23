@@ -23,6 +23,7 @@ import {
 } from '../shared/ecr2-stage8-evidence';
 import { getEcr2PhysicalComponentBasis } from '../shared/ecr2-physical-property-basis';
 import { resolveRrboSn300DynamicViscosityAtTemperature } from '../shared/ecr2-stage8-transport-basis';
+import { ECR2_RRBO_NMP_SIGMA_CONSTANT_PRELIMINARY_BASIS } from '../shared/ecr2-interfacial-tension-basis';
 
 const num = (v: unknown): number | undefined => {
   if (v === null || v === undefined) return undefined;
@@ -300,6 +301,14 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
           ?? inputs.interfacial_tension_temp_coefficient_source_reference
           ?? '',
       ).trim();
+      // Only the approved screening datum is allowed to use the bounded
+      // constant route. A Stage 5 override and ordinary single-temperature
+      // Vendor/Measured value remain anchors only, unless a valid linear route
+      // is supplied. The ID is system-owned and seeded with the approved
+      // Fluid Properties default, not inferred from a source type or value.
+      const preliminaryConstantBasisId = String(
+        inputs.interfacial_tension_constant_basis_id ?? '',
+      ).trim();
       out.interfacialTension = {
         value: ift / 1000,
         referenceTemperatureC: refT,
@@ -318,6 +327,10 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
             sourceReference: sigmaSlopeReference,
           },
         } : {}),
+        ...(!overridden
+          && preliminaryConstantBasisId === ECR2_RRBO_NMP_SIGMA_CONSTANT_PRELIMINARY_BASIS.id
+          ? { preliminaryConstantBasisId }
+          : {}),
       };
     }
   }
@@ -555,9 +568,13 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     // Never retain a separate or stale Stage 8 temperature. ECR-2 receives
     // only the explicit Stage 4 Extraction Temperature before any property
     // resolver is called.
-    delete out.operatingTemperature;
     delete out.operatingTemperatureC;
-    if (ot !== undefined) out.operatingTemperatureC = ot;
+    if (ot !== undefined) {
+      out.operatingTemperature = ot;
+      out.operatingTemperatureC = ot;
+    } else {
+      delete out.operatingTemperature;
+    }
     if (out.rrboMassFlow_kg_h === undefined && rrboMassFlow !== undefined) out.rrboMassFlow_kg_h = rrboMassFlow;
     if (out.nmpMassFlow_kg_h === undefined && nmpMassFlow !== undefined) out.nmpMassFlow_kg_h = nmpMassFlow;
     if (out.feedCompositionMassFraction === undefined && Object.values(comp).every(v => v !== undefined)) {
