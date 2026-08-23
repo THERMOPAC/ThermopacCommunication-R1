@@ -540,3 +540,10 @@ uri = "file://attached_assets/LLX-RND-2026-0003_ECR2_Run-689_Report.pdf"
 type = "pdf"
 title = "LLX-RND-2026-0003 ECR-2 Run 689 Report"
 description = "PDF report of the latest persisted ECR-2 simulator attempt, including failed-run diagnostics and the last accepted run reference."
+
+[[outputs]]
+id = "g8FsQX0451-e7rl5ybqyt"
+uri = "file://.agents/outputs/LLX-RND-2026-0003-Run-711.pdf"
+type = "pdf"
+title = "LLX-RND-2026-0003 — ECR-2 Simulator Run #711"
+description = "Six-page numerical report for the persisted 23 Aug 2026, 10:24:52 PM IST run, including outlets, balances, axial profile, transfer metrics, solver status, and Task #124 temperature applicability."
