@@ -38,6 +38,7 @@
 - [LLX direct NRTL cascade](llx-nrtl-direct-cascade.md) — replaces Hunter-Nash locus for extrapolation temps; nrtlFlash() per stage, no x1R envelope; interpolation path unchanged; verified LLX-RND-2026-0002 at 60°C → N_T = 1 (frac 0.189).
 - [LLX density architecture](llx-density-architecture.md) — NMP+RRBO SN300 densities are EPD-library-calculated (6-pt tabular, Assumed); no user input; feedDensity removed; density-pair API at /api/design-software/epd/density-pair?tc=T.
 - [Coto 2022 LLE dataset governance](coto2022-lle-governance.md) — tie-lines valid, nominal r/feed labels fail mass balance; interpolate on x1R; envelope too narrow for design N_T; fail-closed.
+- [Coto NRTL source boundary](coto-nrtl-source-boundary.md) — Coto publishes UNIFAC comparisons, not NRTL parameters; active 2/13 result is LLX’s own xylene-only regression.
 - [LLX DS-SEL governance](llx-dsel-governance.md) — deterministic selection rules only; no scoring/CAPEX/confidence tie-breaks; exact review-required wording; ECR basis non-transferable.
 - [LLX workspace validation matrix](llx-workspace-validation-matrix.md) — Stages 5–11 blocking/warning rules; stageBanner() shared helper; d32/hindrance source type pass-through in mapper; Stage 12 validationChecks aggregation pattern.
 - [ECR-2 K&H 1996 preliminary d₃₂](llx-ecr2-kh1996-preliminary-d32.md) — approved preliminary reconstruction is usable only with persistent source, applicability, and calibration warnings; it is not governed.
