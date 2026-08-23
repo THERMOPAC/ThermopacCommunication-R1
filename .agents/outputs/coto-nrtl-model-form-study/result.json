@@ -1,0 +1,91 @@
+{
+  "study": "Coto 2022 five-component xylene-family NRTL structural comparison",
+  "status": "DIAGNOSTIC_ONLY_NO_CANDIDATE_PROMOTED",
+  "conditions": {
+    "temperatureK": 298.15,
+    "componentOrder": ["n-dodecane", "1,4-xylene", "1-methylnaphthalene", "pyrene", "NMP"],
+    "nrtlAlpha": 0.2,
+    "tauBounds": [-40, 40],
+    "compositionAcceptanceGate": 0.009,
+    "sourceTieLines": 13
+  },
+  "activeBaseline": {
+    "description": "Independently re-flashed active LLX xylene-only matrix; not changed by this study.",
+    "tieLinesPassing": 2,
+    "tieLinesTotal": 13,
+    "rmsCompositionError": 0.01888125,
+    "maxCompositionError": 0.09198078
+  },
+  "structures": [
+    {
+      "id": "NRTL_4_SOLVENT_SYMMETRIC",
+      "detailFile": "NRTL_4_SOLVENT_SYMMETRIC.json",
+      "parameterCount": 4,
+      "optimizerConverged": true,
+      "jacobianRank": 4,
+      "jacobianConditionNumber": 44.678,
+      "rmsCompositionError": 0.02925562,
+      "maxCompositionError": 0.12360217,
+      "tieLinesPassing": 0,
+      "endpointIsoactivityRms": 1.50096994,
+      "endpointIsoactivityMax": 4.23131179
+    },
+    {
+      "id": "NRTL_8_SOLVENT_DIRECTIONAL",
+      "detailFile": "NRTL_8_SOLVENT_DIRECTIONAL.json",
+      "parameterCount": 8,
+      "optimizerConverged": false,
+      "jacobianRank": 8,
+      "jacobianConditionNumber": 497.493,
+      "rmsCompositionError": 0.02441432,
+      "maxCompositionError": 0.09083871,
+      "tieLinesPassing": 0,
+      "endpointIsoactivityRms": 1.68315859,
+      "endpointIsoactivityMax": 5.10954291
+    },
+    {
+      "id": "NRTL_10_ALL_SYMMETRIC",
+      "detailFile": "NRTL_10_ALL_SYMMETRIC.json",
+      "parameterCount": 10,
+      "optimizerConverged": true,
+      "jacobianRank": 10,
+      "jacobianConditionNumber": 418.481,
+      "rmsCompositionError": 0.02335322,
+      "maxCompositionError": 0.12961958,
+      "tieLinesPassing": 0,
+      "endpointIsoactivityRms": 1.43153868,
+      "endpointIsoactivityMax": 4.24440561
+    },
+    {
+      "id": "NRTL_14_HC_SYMMETRIC_SOLVENT_DIRECTIONAL",
+      "detailFile": "NRTL_14_HC_SYMMETRIC_SOLVENT_DIRECTIONAL.json",
+      "parameterCount": 14,
+      "optimizerConverged": false,
+      "jacobianRank": 14,
+      "jacobianConditionNumber": 1163.122,
+      "rmsCompositionError": 0.02931428,
+      "maxCompositionError": 0.1194736,
+      "tieLinesPassing": 0,
+      "endpointIsoactivityRms": 1.23383547,
+      "endpointIsoactivityMax": 3.69446784
+    },
+    {
+      "id": "NRTL_20_FULL_DIRECTIONAL",
+      "detailFile": "NRTL_20_FULL_DIRECTIONAL.json",
+      "parameterCount": 20,
+      "optimizerConverged": false,
+      "jacobianRank": 19,
+      "jacobianConditionNumber": 118301.927,
+      "rmsCompositionError": 0.01983363,
+      "maxCompositionError": 0.12114587,
+      "tieLinesPassing": 1,
+      "endpointIsoactivityRms": 0.29596562,
+      "endpointIsoactivityMax": 0.94806198
+    }
+  ],
+  "interpretation": [
+    "The four- and ten-parameter structures reached converged, full-rank minima but do not approach the 0.009 tie-line gate.",
+    "The twenty-parameter structure substantially improves isoactivity closure but is rank-deficient, extremely ill-conditioned, and iteration-limited; it is not a defensible fitted parameter set.",
+    "This comparison does not distinguish definitively between NRTL model-form limitation, surrogate-component limitation, and an unrealistically stringent acceptance gate."
+  ]
+}

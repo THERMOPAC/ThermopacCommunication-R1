@@ -1,0 +1,704 @@
+{
+  "id": "NRTL_10_ALL_SYMMETRIC",
+  "label": "All ten binary interactions symmetric",
+  "parameterCount": 10,
+  "parameterLabels": [
+    "tau_0_1=tau_1_0",
+    "tau_0_2=tau_2_0",
+    "tau_0_3=tau_3_0",
+    "tau_0_4=tau_4_0",
+    "tau_1_2=tau_2_1",
+    "tau_1_3=tau_3_1",
+    "tau_1_4=tau_4_1",
+    "tau_2_3=tau_3_2",
+    "tau_2_4=tau_4_2",
+    "tau_3_4=tau_4_3"
+  ],
+  "alpha": 0.2,
+  "tauBounds": [
+    -40,
+    40
+  ],
+  "fittedTauAt298_15": [
+    [
+      0,
+      -0.208238,
+      -0.996688,
+      9.85589,
+      1.705314
+    ],
+    [
+      -0.208238,
+      0,
+      -1.582836,
+      3.264644,
+      -1.056272
+    ],
+    [
+      -0.996688,
+      -1.582836,
+      0,
+      0.476587,
+      -2.030937
+    ],
+    [
+      9.85589,
+      3.264644,
+      0.476587,
+      0,
+      0.350374
+    ],
+    [
+      1.705314,
+      -1.056272,
+      -2.030937,
+      0.350374,
+      0
+    ]
+  ],
+  "optimizer": {
+    "method": "bounded Nelder-Mead with clipping",
+    "starts": 4,
+    "runs": [
+      {
+        "start": 1,
+        "objective": 624190.993032,
+        "iterations": 1400,
+        "optimizerConverged": false
+      },
+      {
+        "start": 2,
+        "objective": 7877.607562,
+        "iterations": 1278,
+        "optimizerConverged": true
+      },
+      {
+        "start": 3,
+        "objective": 86242.797788,
+        "iterations": 1400,
+        "optimizerConverged": false
+      },
+      {
+        "start": 4,
+        "objective": 106823.506123,
+        "iterations": 1400,
+        "optimizerConverged": false
+      }
+    ],
+    "bestObjectiveScaledByUxSquared": 7877.607562052641,
+    "bestIterations": 1278,
+    "bestConverged": true
+  },
+  "jacobian": {
+    "residualRows": 130,
+    "rankRelative1eMinus6": 10,
+    "conditionNumberUsingEffectiveRank": 418.481,
+    "singularValues": [
+      573.104719,
+      214.988395,
+      70.739152,
+      35.906717,
+      16.759116,
+      6.573363,
+      4.233998,
+      2.357102,
+      1.834191,
+      1.369488
+    ]
+  },
+  "reproduction": {
+    "rows": [
+      {
+        "sourceTableRow": 2,
+        "predictedRaffinate": [
+          0.7093209158157996,
+          0.1183480848845238,
+          0.04763283151432243,
+          0.0033745948503723284,
+          0.12132357293498196
+        ],
+        "predictedExtract": [
+          0.26238042303281145,
+          0.16042249290370386,
+          0.08441141475077003,
+          0.06277183999300673,
+          0.43001382931970805
+        ],
+        "converged": true,
+        "trivial": false,
+        "iterations": 180,
+        "experimentalRaffinate": [
+          0.641,
+          0.131,
+          0.05,
+          0.02,
+          0.158
+        ],
+        "experimentalExtract": [
+          0.392,
+          0.142,
+          0.077,
+          0.038,
+          0.351
+        ],
+        "maxAbsError": 0.12961958,
+        "rmsCompositionError": 0.05523348,
+        "maxAbsIsoactivityResidual": 0.96758252,
+        "isoactivityResiduals": [
+          -0.03248901,
+          0.21582316,
+          -0.08129526,
+          0.96758252,
+          -0.14906833
+        ],
+        "pass": false
+      },
+      {
+        "sourceTableRow": 5,
+        "predictedRaffinate": [
+          0.7089613771947879,
+          0.12158255164965737,
+          0.04624319958127936,
+          0.0034762353544899715,
+          0.11973663621978553
+        ],
+        "predictedExtract": [
+          0.2558558184847193,
+          0.16298236515815367,
+          0.08224810152732921,
+          0.06840980890467577,
+          0.4305039059251221
+        ],
+        "converged": true,
+        "trivial": false,
+        "iterations": 165,
+        "experimentalRaffinate": [
+          0.651,
+          0.134,
+          0.047,
+          0.021,
+          0.147
+        ],
+        "experimentalExtract": [
+          0.32,
+          0.15,
+          0.081,
+          0.05,
+          0.399
+        ],
+        "maxAbsError": 0.06414418,
+        "rmsCompositionError": 0.03190714,
+        "maxAbsIsoactivityResidual": 1.13343383,
+        "isoactivityResiduals": [
+          -0.02345836,
+          0.20617357,
+          -0.16259414,
+          1.13343383,
+          -0.17724619
+        ],
+        "pass": false
+      },
+      {
+        "sourceTableRow": 9,
+        "predictedRaffinate": [
+          0.6641356732933624,
+          0.1429290098750677,
+          0.0645173231146693,
+          0.007366908139698658,
+          0.12105108557720187
+        ],
+        "predictedExtract": [
+          0.22327841016679348,
+          0.15585020325712456,
+          0.09746988241561037,
+          0.1300303139117684,
+          0.3933711902487031
+        ],
+        "converged": true,
+        "trivial": false,
+        "iterations": 180,
+        "experimentalRaffinate": [
+          0.664,
+          0.136,
+          0.055,
+          0.035,
+          0.11
+        ],
+        "experimentalExtract": [
+          0.25,
+          0.162,
+          0.105,
+          0.095,
+          0.388
+        ],
+        "maxAbsError": 0.03503031,
+        "rmsCompositionError": 0.01757516,
+        "maxAbsIsoactivityResidual": 1.28753988,
+        "isoactivityResiduals": [
+          0.07172832,
+          0.02933112,
+          -0.45998965,
+          1.28753988,
+          -0.30214709
+        ],
+        "pass": false
+      },
+      {
+        "sourceTableRow": 10,
+        "predictedRaffinate": [
+          0.7498002271930169,
+          0.10339972121555899,
+          0.03917723099643323,
+          0.0022339625004045302,
+          0.10538885809458648
+        ],
+        "predictedExtract": [
+          0.21901059441759263,
+          0.14727723394106895,
+          0.07842834674855016,
+          0.08098096945715358,
+          0.4743028554356347
+        ],
+        "converged": true,
+        "trivial": false,
+        "iterations": 115,
+        "experimentalRaffinate": [
+          0.725,
+          0.109,
+          0.037,
+          0.018,
+          0.111
+        ],
+        "experimentalExtract": [
+          0.252,
+          0.141,
+          0.08,
+          0.064,
+          0.463
+        ],
+        "maxAbsError": 0.03298941,
+        "rmsCompositionError": 0.01574004,
+        "maxAbsIsoactivityResidual": 1.67204637,
+        "isoactivityResiduals": [
+          -0.00591043,
+          0.1510265,
+          -0.23783602,
+          1.67204637,
+          -0.23179922
+        ],
+        "pass": false
+      },
+      {
+        "sourceTableRow": 6,
+        "predictedRaffinate": [
+          0.8043796941185518,
+          0.0727993974297456,
+          0.023144950260069193,
+          0.0006499326793450805,
+          0.09902602551228819
+        ],
+        "predictedExtract": [
+          0.19688866374727365,
+          0.13266690015192398,
+          0.061151072828189414,
+          0.04368526202711095,
+          0.5656081012455021
+        ],
+        "converged": true,
+        "trivial": false,
+        "iterations": 77,
+        "experimentalRaffinate": [
+          0.8,
+          0.092,
+          0.022,
+          0.008,
+          0.078
+        ],
+        "experimentalExtract": [
+          0.206,
+          0.113,
+          0.062,
+          0.036,
+          0.583
+        ],
+        "maxAbsError": 0.02102603,
+        "rmsCompositionError": 0.01310473,
+        "maxAbsIsoactivityResidual": 2.79583126,
+        "isoactivityResiduals": [
+          -0.04555819,
+          0.61438314,
+          0.05314536,
+          2.79583126,
+          -0.44924388
+        ],
+        "pass": false
+      },
+      {
+        "sourceTableRow": 11,
+        "predictedRaffinate": [
+          0.8132356223033059,
+          0.0695638995828414,
+          0.022515032515116936,
+          0.0006775337587801353,
+          0.0940079118399557
+        ],
+        "predictedExtract": [
+          0.18382341710141886,
+          0.1259684979357281,
+          0.06084677709424666,
+          0.05685269815498441,
+          0.5725086097136219
+        ],
+        "converged": true,
+        "trivial": false,
+        "iterations": 72,
+        "experimentalRaffinate": [
+          0.813,
+          0.082,
+          0.02,
+          0.009,
+          0.076
+        ],
+        "experimentalExtract": [
+          0.19,
+          0.113,
+          0.063,
+          0.048,
+          0.586
+        ],
+        "maxAbsError": 0.01800791,
+        "rmsCompositionError": 0.01012888,
+        "maxAbsIsoactivityResidual": 2.77708321,
+        "isoactivityResiduals": [
+          -0.01859726,
+          0.43438233,
+          -0.12415928,
+          2.77708321,
+          -0.39741172
+        ],
+        "pass": false
+      },
+      {
+        "sourceTableRow": 3,
+        "predictedRaffinate": [
+          0.7861560192762604,
+          0.07659186137669252,
+          0.02748399120817295,
+          0.0005702053392312332,
+          0.10919792279964291
+        ],
+        "predictedExtract": [
+          0.22352737017054058,
+          0.13813035996757236,
+          0.06720997030744597,
+          0.024670814928743585,
+          0.5464614846256974
+        ],
+        "converged": true,
+        "trivial": false,
+        "iterations": 97,
+        "experimentalRaffinate": [
+          0.822,
+          0.085,
+          0.022,
+          0.006,
+          0.065
+        ],
+        "experimentalExtract": [
+          0.24,
+          0.124,
+          0.069,
+          0.017,
+          0.55
+        ],
+        "maxAbsError": 0.04419792,
+        "rmsCompositionError": 0.01978404,
+        "maxAbsIsoactivityResidual": 3.44322354,
+        "isoactivityResiduals": [
+          -0.02139261,
+          0.48330504,
+          -0.03691051,
+          3.44322354,
+          -0.49910603
+        ],
+        "pass": false
+      },
+      {
+        "sourceTableRow": 7,
+        "predictedRaffinate": [
+          0.8391504372483455,
+          0.050161678494780135,
+          0.0174169380896508,
+          0.0002638296878497116,
+          0.09300711647937385
+        ],
+        "predictedExtract": [
+          0.17276773474024137,
+          0.10810623755077049,
+          0.056096975896651816,
+          0.02989595428375443,
+          0.6331330975285819
+        ],
+        "converged": true,
+        "trivial": false,
+        "iterations": 61,
+        "experimentalRaffinate": [
+          0.857,
+          0.062,
+          0.015,
+          0.005,
+          0.061
+        ],
+        "experimentalExtract": [
+          0.181,
+          0.094,
+          0.057,
+          0.024,
+          0.644
+        ],
+        "maxAbsError": 0.03200712,
+        "rmsCompositionError": 0.0138993,
+        "maxAbsIsoactivityResidual": 3.70463914,
+        "isoactivityResiduals": [
+          -0.02756217,
+          0.59124915,
+          0.02597207,
+          3.70463914,
+          -0.47471371
+        ],
+        "pass": false
+      },
+      {
+        "sourceTableRow": 4,
+        "predictedRaffinate": [
+          0.8384037258496909,
+          0.0525627456732139,
+          0.015771181274366823,
+          0.00026888882589675236,
+          0.09299345837683166
+        ],
+        "predictedExtract": [
+          0.17123405544696865,
+          0.11292238064159427,
+          0.05151611015190713,
+          0.030977927824477055,
+          0.6333495259350529
+        ],
+        "converged": true,
+        "trivial": false,
+        "iterations": 59,
+        "experimentalRaffinate": [
+          0.858,
+          0.067,
+          0.015,
+          0.005,
+          0.055
+        ],
+        "experimentalExtract": [
+          0.157,
+          0.098,
+          0.052,
+          0.026,
+          0.667
+        ],
+        "maxAbsError": 0.03799346,
+        "rmsCompositionError": 0.01908293,
+        "maxAbsIsoactivityResidual": 3.80726645,
+        "isoactivityResiduals": [
+          0.00657381,
+          0.65306328,
+          0.1802501,
+          3.80726645,
+          -0.59178037
+        ],
+        "pass": false
+      },
+      {
+        "sourceTableRow": 1,
+        "predictedRaffinate": [
+          0.8270365483928097,
+          0.05514221696682907,
+          0.018744901883132558,
+          0.000210717103647731,
+          0.09886561565358087
+        ],
+        "predictedExtract": [
+          0.1875966331543105,
+          0.11718445163102881,
+          0.057458937644052244,
+          0.01788232855413142,
+          0.6198776490164771
+        ],
+        "converged": true,
+        "trivial": false,
+        "iterations": 65,
+        "experimentalRaffinate": [
+          0.86,
+          0.068,
+          0.018,
+          0.004,
+          0.05
+        ],
+        "experimentalExtract": [
+          0.158,
+          0.104,
+          0.058,
+          0.014,
+          0.666
+        ],
+        "maxAbsError": 0.04886562,
+        "rmsCompositionError": 0.02616697,
+        "maxAbsIsoactivityResidual": 4.24440561,
+        "isoactivityResiduals": [
+          0.03552733,
+          0.63529028,
+          0.26932886,
+          4.24440561,
+          -0.66843559
+        ],
+        "pass": false
+      },
+      {
+        "sourceTableRow": 12,
+        "predictedRaffinate": [
+          0.8560206631969381,
+          0.0436880887403926,
+          0.012518586947765,
+          0.00022388868337383947,
+          0.08754877243153038
+        ],
+        "predictedExtract": [
+          0.15240188555078304,
+          0.09967614628611235,
+          0.045697259703832725,
+          0.038022010181297264,
+          0.6642026982779746
+        ],
+        "converged": true,
+        "trivial": false,
+        "iterations": 52,
+        "experimentalRaffinate": [
+          0.863,
+          0.058,
+          0.013,
+          0.005,
+          0.061
+        ],
+        "experimentalExtract": [
+          0.15,
+          0.085,
+          0.045,
+          0.033,
+          0.687
+        ],
+        "maxAbsError": 0.02654877,
+        "rmsCompositionError": 0.01322121,
+        "maxAbsIsoactivityResidual": 3.6295797,
+        "isoactivityResiduals": [
+          -0.0193943,
+          0.66724356,
+          0.24169214,
+          3.6295797,
+          -0.48277822
+        ],
+        "pass": false
+      },
+      {
+        "sourceTableRow": 8,
+        "predictedRaffinate": [
+          0.856472514842104,
+          0.043392631377334394,
+          0.01049875823449658,
+          0.00016500006911897947,
+          0.08947109547694608
+        ],
+        "predictedExtract": [
+          0.15305638893840362,
+          0.10312924230206583,
+          0.04025560751616574,
+          0.027443234733594706,
+          0.67611552650977
+        ],
+        "converged": true,
+        "trivial": false,
+        "iterations": 54,
+        "experimentalRaffinate": [
+          0.877,
+          0.05,
+          0.011,
+          0.005,
+          0.057
+        ],
+        "experimentalExtract": [
+          0.174,
+          0.093,
+          0.038,
+          0.021,
+          0.674
+        ],
+        "maxAbsError": 0.0324711,
+        "rmsCompositionError": 0.01461284,
+        "maxAbsIsoactivityResidual": 4.20267292,
+        "isoactivityResiduals": [
+          -0.04655488,
+          0.48796462,
+          0.34070743,
+          4.20267292,
+          -0.49346884
+        ],
+        "pass": false
+      },
+      {
+        "sourceTableRow": 13,
+        "predictedRaffinate": [
+          0.8709078105172096,
+          0.03425915703535841,
+          0.009015243244499954,
+          0.00013664659177022354,
+          0.0856811426111618
+        ],
+        "predictedExtract": [
+          0.13918075841755817,
+          0.0869504938096021,
+          0.03810048251541294,
+          0.030986098703714462,
+          0.7047821665537123
+        ],
+        "converged": true,
+        "trivial": false,
+        "iterations": 46,
+        "experimentalRaffinate": [
+          0.878,
+          0.048,
+          0.01,
+          0.004,
+          0.06
+        ],
+        "experimentalExtract": [
+          0.135,
+          0.073,
+          0.037,
+          0.027,
+          0.728
+        ],
+        "maxAbsError": 0.02568114,
+        "rmsCompositionError": 0.01297224,
+        "maxAbsIsoactivityResidual": 3.93928612,
+        "isoactivityResiduals": [
+          -0.01290997,
+          0.73297811,
+          0.3372895,
+          3.93928612,
+          -0.45645105
+        ],
+        "pass": false
+      }
+    ],
+    "rmsCompositionError": 0.02335322,
+    "maxCompositionError": 0.12961958,
+    "tieLinesPassing": 0,
+    "tieLinesTotal": 13,
+    "endpointIsoactivityRms": 1.43153868,
+    "endpointIsoactivityMax": 4.24440561
+  }
+}
