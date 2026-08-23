@@ -15,6 +15,6 @@ describe('ECR hydraulic diameter display basis', () => {
     );
 
     expect(ecrRenderer).toContain('["success", "warning"].includes(r.calculation_status)');
-    expect(ecrRenderer).toContain('const flows = ecrRun?.result_snapshot?.maximumCase?.flows;');
+    expect(ecrRenderer).toContain('const maximumCaseFlows = ecrRun?.result_snapshot?.maximumCase?.flows ?? ecrData?.maximumCase?.flows;');
   });
 });

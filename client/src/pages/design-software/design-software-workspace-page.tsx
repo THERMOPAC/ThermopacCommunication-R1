@@ -592,6 +592,14 @@ interface Approval {
 interface CalcRun {
   id: number; calculation_type: string; engine_name: string; engine_version: string;
   calculation_status: string; calculated_at: string; calculated_by_name: string | null;
+  result_snapshot?: {
+    maximumCase?: {
+      flows?: {
+        rrboVolumetricFlow_m3_h?: number;
+        nmpVolumetricFlow_m3_h?: number;
+      };
+    };
+  };
   warnings?: { code?: string; message: string }[];
   validation_issues?: { field?: string; message: string; severity?: string }[];
 }
@@ -6050,8 +6058,12 @@ export default function DesignSoftwareWorkspacePage() {
     // ── ECR Hydraulic Diameter Basis — computed for display panel ────────────────
     // D_ECR = sqrt(4·Q_T / (π·C_ECR·F_D·U_max)) — ECR-specific basis only.
     // C3 Godfrey slip model and Rauber 2006 packed-column throughput do NOT participate.
+    // The immutable accepted run is the audit source. The accepted-result record
+    // contains the same C5 output and provides a resilient display fallback while
+    // run-history refetches after Calculate ECR.
+    const maximumCaseFlows = ecrRun?.result_snapshot?.maximumCase?.flows ?? ecrData?.maximumCase?.flows;
     const qT_maxECR: number | null = (() => {
-      const flows = ecrRun?.result_snapshot?.maximumCase?.flows;
+      const flows = maximumCaseFlows;
       const qR = parseFloat(String(flows?.rrboVolumetricFlow_m3_h ?? ""));
       const qN = parseFloat(String(flows?.nmpVolumetricFlow_m3_h ?? ""));
       return isFinite(qR) && isFinite(qN) ? qR + qN : null;
@@ -6294,7 +6306,7 @@ export default function DesignSoftwareWorkspacePage() {
           {[
             {
               label: "Total Liquid Throughput Q\u1D40 (max case)",
-              value: qT_maxECR !== null ? `${qT_maxECR.toFixed(2)} m³/h  (Q\u1D40 = Q\u1D2E\u1D3A\u1D35\u1D2C + Q\u1D4C\u1D39\u1D3C)` : ecrRun ? "Flows not found in run snapshot — re-run Calculate ECR" : "No accepted ECR run — enter inputs and calculate",
+              value: qT_maxECR !== null ? `${qT_maxECR.toFixed(2)} m³/h  (Q\u1D40 = Q\u1D2E\u1D3A\u1D35\u1D2C + Q\u1D4C\u1D39\u1D3C)` : (ecrRun || ecrData) ? "Flows not found in accepted ECR result — re-run Calculate ECR" : "No accepted ECR result — enter inputs and calculate",
               alert: qT_maxECR === null,
             },
             {
