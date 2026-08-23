@@ -5356,6 +5356,15 @@ export default function DesignSoftwareWorkspacePage() {
                   <span className="ml-2">BVP: {bvp.status} · convergence: {bvp.convergenceStatus} · mass balance: {bvp.massBalanceStatus}</span>
                   {staleResult && <p className="mt-1">An earlier accepted snapshot exists but is stale. The safety result below is from the newest failed run and is the current record.</p>}
                   {!resultOk && bvp.failure && <p className="mt-1">Missing/failed dependency: <strong>{bvp.failure.dependency}</strong> — {bvp.failure.message}</p>}
+                   {!resultOk && bvp.acceptanceChecks && (
+                     <p className="mt-1">
+                       Acceptance checks — normalized residual: {Number(bvp.acceptanceChecks.normalizedResidual?.value).toExponential(3)} / {Number(bvp.acceptanceChecks.normalizedResidual?.limit).toExponential(3)};
+                       {" "}relative state change: {Number(bvp.acceptanceChecks.relativeStateChange?.value).toExponential(3)} / {Number(bvp.acceptanceChecks.relativeStateChange?.limit).toExponential(3)};
+                       {" "}maximum component balance: {Number(bvp.acceptanceChecks.maximumComponentBalance_kg_h?.value).toExponential(3)} / {Number(bvp.acceptanceChecks.maximumComponentBalance_kg_h?.limit).toExponential(3)} kg/h;
+                       {" "}total balance: {Number(bvp.acceptanceChecks.totalBalance_kg_h?.value).toExponential(3)} / {Number(bvp.acceptanceChecks.totalBalance_kg_h?.limit).toExponential(3)} kg/h;
+                       {" "}termination: {String(bvp.acceptanceChecks.termination ?? "unknown").replace("_", " ")}.
+                     </p>
+                   )}
                 </div>
                 {transferStatus && (
                   <div className={`p-3 rounded-lg border text-xs mb-4 ${

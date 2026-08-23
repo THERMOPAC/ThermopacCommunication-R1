@@ -57,3 +57,4 @@
 - [ECR-2 sigma temperature route](ecr2-sigma-temperature-route.md) — a non-target NMP/RRBO sigma anchor needs a source-tagged slope and stays blocked outside 25–100 °C; no default slope.
 - [ECR-2 transfer result status](ecr2-transfer-result-status.md) — preliminary local transfer numerics never become governed/release-eligible; failed snapshots expose diagnostics, not performance.
 - [Stage 5 Kühni Vk preliminary route](stage5-kuhni-vk-preliminary.md) — V_k remains audit-only under an explicit engineer rejection; server-owned approval is required before capacity/diameter results can run.
+- [ECR-2 BVP acceptance flow](ecr2-bvp-acceptance-flow.md) — local residual closure is insufficient; terminal component and total balances are independent unchanged acceptance gates.

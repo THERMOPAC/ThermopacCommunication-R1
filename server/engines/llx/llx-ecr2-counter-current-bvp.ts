@@ -157,6 +157,20 @@ export interface ECR2BVPResidualRecord {
   continuousNormalized: number;
 }
 
+export interface ECR2BVPAcceptanceCheck {
+  value: number;
+  limit: number;
+  passed: boolean;
+}
+
+export interface ECR2BVPAcceptanceChecks {
+  normalizedResidual: ECR2BVPAcceptanceCheck;
+  relativeStateChange: ECR2BVPAcceptanceCheck;
+  maximumComponentBalance_kg_h: ECR2BVPAcceptanceCheck;
+  totalBalance_kg_h: ECR2BVPAcceptanceCheck;
+  termination: 'accepted' | 'iteration_budget' | 'evaluation_budget' | 'step_rejected' | 'infeasible';
+}
+
 export interface ECR2CounterCurrentBVPResult {
   status: 'converged' | 'non_converged' | 'blocked';
   convergenceStatus: 'accepted' | 'not_converged' | 'dependency_blocked';
@@ -201,6 +215,8 @@ export interface ECR2CounterCurrentBVPResult {
   };
   componentBalances_kg_h: ECR2Vector | null;
   totalMassBalance_kg_h: number | null;
+  /** Numerical and physical closure gates used for the returned state. */
+  acceptanceChecks: ECR2BVPAcceptanceChecks | null;
   diagnostics: readonly string[];
   failure: ECR2BVPLocalFailure | null;
   governance: typeof ECR2_EFFECTIVE_TRANSFER_VOLUME_GOVERNANCE;
@@ -319,6 +335,7 @@ function resultFailure(
     outlets: { raffinate: null, extract: null },
     componentBalances_kg_h: null,
     totalMassBalance_kg_h: null,
+    acceptanceChecks: null,
     diagnostics,
     failure,
     governance: ECR2_EFFECTIVE_TRANSFER_VOLUME_GOVERNANCE,
@@ -715,6 +732,67 @@ function profile(compartments: readonly ECR2BVPCompartment[]) {
   });
 }
 
+interface MassBalanceSummary {
+  raffinate: ECR2Vector;
+  extract: ECR2Vector;
+  componentBalance: ECR2Vector;
+  totalBalance: number;
+  maximumComponentBalance: number;
+  componentPass: boolean;
+  totalPass: boolean;
+  passed: boolean;
+}
+
+function calculateMassBalance(
+  input: ECR2CounterCurrentBVPInput,
+  state: readonly number[],
+): MassBalanceSummary {
+  const faces = unpackFaces(input, state);
+  const raffinate = asVector(faces.d[input.numberOfCompartments]);
+  const extract = asVector(faces.c[0]);
+  const componentBalance = asVector(COMPONENTS.map((_, i) =>
+    input.rrboFeedComponentFlows_kg_h[i] + input.nmpFeedComponentFlows_kg_h[i] - raffinate[i] - extract[i],
+  ));
+  const totalBalance = sum(componentBalance);
+  const maximumComponentBalance = Math.max(...componentBalance.map((value) => Math.abs(value)), 0);
+  const componentPass = maximumComponentBalance <= PROPOSED_SOLVER_TOLERANCE.componentBalance_kg_h;
+  const totalPass = Math.abs(totalBalance) <= PROPOSED_SOLVER_TOLERANCE.totalBalance_kg_h;
+  return {
+    raffinate,
+    extract,
+    componentBalance,
+    totalBalance,
+    maximumComponentBalance,
+    componentPass,
+    totalPass,
+    passed: componentPass && totalPass,
+  };
+}
+
+function formatAcceptanceValue(value: number): string {
+  return Number.isFinite(value) ? value.toExponential(3) : String(value);
+}
+
+function acceptanceFailureMessage(checks: ECR2BVPAcceptanceChecks): string {
+  const unmet: string[] = [];
+  if (!checks.normalizedResidual.passed) {
+    unmet.push(`normalized residual ${formatAcceptanceValue(checks.normalizedResidual.value)} exceeds ${formatAcceptanceValue(checks.normalizedResidual.limit)}`);
+  }
+  if (!checks.relativeStateChange.passed) {
+    unmet.push(`relative state change ${formatAcceptanceValue(checks.relativeStateChange.value)} exceeds ${formatAcceptanceValue(checks.relativeStateChange.limit)}`);
+  }
+  if (!checks.maximumComponentBalance_kg_h.passed) {
+    unmet.push(`maximum component balance ${formatAcceptanceValue(checks.maximumComponentBalance_kg_h.value)} kg/h exceeds ${formatAcceptanceValue(checks.maximumComponentBalance_kg_h.limit)} kg/h`);
+  }
+  if (!checks.totalBalance_kg_h.passed) {
+    unmet.push(`total balance ${formatAcceptanceValue(checks.totalBalance_kg_h.value)} kg/h exceeds ${formatAcceptanceValue(checks.totalBalance_kg_h.limit)} kg/h`);
+  }
+  const termination = checks.termination === 'accepted'
+    ? null
+    : `solver termination: ${checks.termination.replace('_', ' ')}`;
+  return `BVP acceptance not met: ${[...unmet, termination].filter(Boolean).join('; ')}.`;
+}
+
 function resultFromEvaluation(
   input: ECR2CounterCurrentBVPInput,
   status: 'converged' | 'non_converged',
@@ -723,24 +801,49 @@ function resultFromEvaluation(
   iterations: number,
   functionEvaluations: number,
   diagnostics: string[],
+  stateChange: number,
+  termination: ECR2BVPAcceptanceChecks['termination'],
 ): ECR2CounterCurrentBVPResult {
   const residualNorm = norm2(evaluated.residualNormalized);
   const maxRaw = Math.max(...evaluated.residualRaw.map((value) => Math.abs(value)), 0);
   const maxNormalized = Math.max(...evaluated.residualNormalized.map((value) => Math.abs(value)), 0);
-  const faces = unpackFaces(input, state);
-  const raffinate = asVector(faces.d[input.numberOfCompartments]);
-  const extract = asVector(faces.c[0]);
-  const componentBalance = asVector(COMPONENTS.map((_, i) =>
-    input.rrboFeedComponentFlows_kg_h[i] + input.nmpFeedComponentFlows_kg_h[i] - raffinate[i] - extract[i],
-  ));
-  const totalBalance = sum(componentBalance);
-  const balancePass = componentBalance.every((value) => Math.abs(value) <= PROPOSED_SOLVER_TOLERANCE.componentBalance_kg_h) &&
-    Math.abs(totalBalance) <= PROPOSED_SOLVER_TOLERANCE.totalBalance_kg_h;
-  const accepted = status === 'converged' && balancePass && maxNormalized <= (input.solverOptions?.normalizedResidual ?? PROPOSED_SOLVER_TOLERANCE.normalizedResidual);
+  const massBalance = calculateMassBalance(input, state);
+  // stateChange is already normalized as ||Δx|| / max(1, ||x||), so its
+  // acceptance limit is the configured relative threshold directly.
+  const relativeStateChangeLimit = input.solverOptions?.relativeStateChange ??
+    PROPOSED_SOLVER_TOLERANCE.relativeStateChange;
+  const acceptanceChecks: ECR2BVPAcceptanceChecks = {
+    normalizedResidual: {
+      value: maxNormalized,
+      limit: input.solverOptions?.normalizedResidual ?? PROPOSED_SOLVER_TOLERANCE.normalizedResidual,
+      passed: maxNormalized <= (input.solverOptions?.normalizedResidual ?? PROPOSED_SOLVER_TOLERANCE.normalizedResidual),
+    },
+    relativeStateChange: {
+      value: stateChange,
+      limit: relativeStateChangeLimit,
+      passed: stateChange <= relativeStateChangeLimit,
+    },
+    maximumComponentBalance_kg_h: {
+      value: massBalance.maximumComponentBalance,
+      limit: PROPOSED_SOLVER_TOLERANCE.componentBalance_kg_h,
+      passed: massBalance.componentPass,
+    },
+    totalBalance_kg_h: {
+      value: Math.abs(massBalance.totalBalance),
+      limit: PROPOSED_SOLVER_TOLERANCE.totalBalance_kg_h,
+      passed: massBalance.totalPass,
+    },
+    termination,
+  };
+  const accepted = status === 'converged' &&
+    acceptanceChecks.normalizedResidual.passed &&
+    acceptanceChecks.relativeStateChange.passed &&
+    massBalance.passed;
+  const failureMessage = accepted ? null : acceptanceFailureMessage(acceptanceChecks);
   return {
     status: accepted ? 'converged' : 'non_converged',
     convergenceStatus: accepted ? 'accepted' : 'not_converged',
-    massBalanceStatus: balancePass ? 'passed' : 'failed',
+    massBalanceStatus: massBalance.passed ? 'passed' : 'failed',
     propertyValidityStatus: 'passed',
     engineeringBasis: 'Published Correlation — Preliminary Engineering',
     primarySourceVerified: false,
@@ -752,7 +855,7 @@ function resultFromEvaluation(
         ? null
         : {
             dependency: 'convergence',
-            message: 'The nonlinear least-squares solver did not satisfy all numerical and mass-balance acceptance checks.',
+            message: failureMessage!,
           },
     ),
     iterations,
@@ -765,13 +868,14 @@ function resultFromEvaluation(
     compartments: evaluated.compartments,
     axialProfile: profile(evaluated.compartments),
     outlets: {
-      raffinate: { componentFlows_kg_h: raffinate, totalFlow_kg_h: sum(raffinate), massFractions: massFractions(raffinate)! },
-      extract: { componentFlows_kg_h: extract, totalFlow_kg_h: sum(extract), massFractions: massFractions(extract)! },
+      raffinate: { componentFlows_kg_h: massBalance.raffinate, totalFlow_kg_h: sum(massBalance.raffinate), massFractions: massFractions(massBalance.raffinate)! },
+      extract: { componentFlows_kg_h: massBalance.extract, totalFlow_kg_h: sum(massBalance.extract), massFractions: massFractions(massBalance.extract)! },
     },
-    componentBalances_kg_h: componentBalance,
-    totalMassBalance_kg_h: totalBalance,
-    diagnostics,
-    failure: accepted ? null : invalid('convergence', 'The nonlinear least-squares solver did not satisfy all numerical and mass-balance acceptance checks.'),
+    componentBalances_kg_h: massBalance.componentBalance,
+    totalMassBalance_kg_h: massBalance.totalBalance,
+    acceptanceChecks,
+    diagnostics: accepted ? diagnostics : [...diagnostics, failureMessage!],
+    failure: accepted ? null : invalid('convergence', failureMessage!),
     governance: ECR2_EFFECTIVE_TRANSFER_VOLUME_GOVERNANCE,
   };
 }
@@ -813,22 +917,41 @@ export function solveECR2CounterCurrentBVP(input: ECR2CounterCurrentBVPInput): E
     let state = [...initial];
     let current = evaluate(input, state, lambda, scales);
     evaluations.count++;
-    if (!current.valid) return { state, current, converged: false, iterations: 0, stateChange: Number.POSITIVE_INFINITY };
+    if (!current.valid) {
+      return {
+        state, current, converged: false, iterations: 0,
+        stateChange: Number.POSITIVE_INFINITY, termination: 'infeasible' as const,
+      };
+    }
     let damping = PROPOSED_SOLVER_TOLERANCE.initialDamping;
     let trust = PROPOSED_SOLVER_TOLERANCE.initialTrustRegionRelative * Math.max(1, norm2(state));
     // The zero-transfer profile is an exact λ=0 solution. Its implicit state
     // change is zero, not "unknown", so the residual/state acceptance checks
     // remain jointly meaningful at the continuation origin.
     let lastChange = 0;
+    let completedIterations = 0;
+    let termination: ECR2BVPAcceptanceChecks['termination'] = 'iteration_budget';
     for (let iteration = 1; iteration <= options.maxIterations && evaluations.count < evaluations.max; iteration++) {
+      completedIterations = iteration;
       const maxResidual = Math.max(...current.residualNormalized.map((value) => Math.abs(value)));
-      if (maxResidual <= options.normalizedResidual && lastChange <= options.relativeStateChange * Math.max(1, norm2(state))) {
-        return { state, current, converged: true, iterations: iteration - 1, stateChange: lastChange };
+      const massBalance = calculateMassBalance(input, state);
+      if (
+        maxResidual <= options.normalizedResidual &&
+        lastChange <= options.relativeStateChange &&
+        massBalance.passed
+      ) {
+        return {
+          state, current, converged: true, iterations: iteration - 1,
+          stateChange: lastChange, termination: 'accepted' as const,
+        };
       }
       const step = gaussNewtonStep(input, state, current, lambda, scales, damping, evaluations);
       if (!step) {
         damping *= 10;
-        if (damping > PROPOSED_SOLVER_TOLERANCE.maximumDamping) break;
+        if (damping > PROPOSED_SOLVER_TOLERANCE.maximumDamping) {
+          termination = 'step_rejected';
+          break;
+        }
         continue;
       }
       const stepNorm = norm2(step);
@@ -851,13 +974,21 @@ export function solveECR2CounterCurrentBVP(input: ECR2CounterCurrentBVPInput): E
       if (!accepted || !candidate) {
         // Once the scaled balances meet tolerance, the absence of any
         // feasibility-preserving residual-reducing step establishes a zero
-        // accepted state change for this bounded trust-region iteration.
-        if (maxResidual <= options.normalizedResidual) {
-          return { state, current, converged: true, iterations: iteration, stateChange: 0 };
+        // accepted state change for this bounded trust-region iteration. It
+        // remains insufficient unless the independent column mass balances
+        // meet their existing acceptance limits as well.
+        if (maxResidual <= options.normalizedResidual && massBalance.passed) {
+          return {
+            state, current, converged: true, iterations: iteration,
+            stateChange: 0, termination: 'accepted' as const,
+          };
         }
         damping *= 10;
         trust *= 0.5;
-        if (damping > PROPOSED_SOLVER_TOLERANCE.maximumDamping || trust < 1e-14) break;
+        if (damping > PROPOSED_SOLVER_TOLERANCE.maximumDamping || trust < 1e-14) {
+          termination = 'step_rejected';
+          break;
+        }
         continue;
       }
       lastChange = norm2(candidate.map((value, index) => value - state[index])) / Math.max(1, norm2(state));
@@ -866,7 +997,11 @@ export function solveECR2CounterCurrentBVP(input: ECR2CounterCurrentBVPInput): E
       damping = Math.max(PROPOSED_SOLVER_TOLERANCE.initialDamping * 1e-6, damping / 3);
       trust = Math.min(trust * 1.5, Math.max(1, norm2(state)));
     }
-    return { state, current, converged: false, iterations: options.maxIterations, stateChange: lastChange };
+    if (evaluations.count >= evaluations.max) termination = 'evaluation_budget';
+    return {
+      state, current, converged: false, iterations: completedIterations,
+      stateChange: lastChange, termination,
+    };
   };
 
   // First attempt full coupling.  Continuation is used only after a full
@@ -907,5 +1042,7 @@ export function solveECR2CounterCurrentBVP(input: ECR2CounterCurrentBVPInput): E
     totalIterations,
     evaluations.count,
     solved.converged ? diagnostics : [...diagnostics, 'Non-convergence diagnostics retained: residual, state vector, and last feasible local compartments are returned.'],
+    solved.stateChange,
+    solved.termination,
   );
 }

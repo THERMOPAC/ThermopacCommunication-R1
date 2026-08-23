@@ -128,6 +128,13 @@ describe('ECR-2 counter-current BVP', () => {
     };
     const result = solveECR2CounterCurrentBVP(direct);
     expect(result.status).toBe('converged');
+    expect(result.acceptanceChecks).toMatchObject({
+      normalizedResidual: { passed: true },
+      relativeStateChange: { passed: true },
+      maximumComponentBalance_kg_h: { passed: true },
+      totalBalance_kg_h: { passed: true },
+      termination: 'accepted',
+    });
     expect(result.transferStatus.status).toBe('LOCAL_PRELIMINARY_CALCULATED');
     expect(result.compartments).toHaveLength(2);
     for (const compartment of result.compartments) {
@@ -358,6 +365,46 @@ describe('ECR-2 counter-current BVP', () => {
       localPhysicsStatus: 'BLOCKED',
       blocker: { dependency: 'convergence' },
     });
+  });
+
+  it('does not accept an old face state merely because its normalized residual is within a loose gate when column balance still fails', () => {
+    const accepted = solveECR2CounterCurrentBVP(input(1));
+    expect(accepted.status).toBe('converged');
+
+    const prematureStop = input(1);
+    prematureStop.previousSolution = accepted.stateVector!.map((value) => value * 0.99);
+    prematureStop.solverOptions = {
+      normalizedResidual: 1,
+      relativeStateChange: 1,
+      maxIterations: 1,
+      maxFunctionEvaluations: 1,
+    };
+
+    const result = solveECR2CounterCurrentBVP(prematureStop);
+    expect(result.maximumNormalizedResidual!).toBeLessThanOrEqual(1);
+    expect(result.status).toBe('non_converged');
+    expect(result.massBalanceStatus).toBe('failed');
+    expect(result.acceptanceChecks).toMatchObject({
+      normalizedResidual: { passed: true },
+      maximumComponentBalance_kg_h: { passed: false },
+      termination: 'evaluation_budget',
+    });
+    expect(result.failure?.message).toContain('maximum component balance');
+  });
+
+  it('reports relative state change against the configured relative threshold without scaling it by flow magnitude', () => {
+    const constrained = input(1);
+    constrained.solverOptions = {
+      maxIterations: 1,
+      maxFunctionEvaluations: 2000,
+      relativeStateChange: 1e-8,
+    };
+
+    const result = solveECR2CounterCurrentBVP(constrained);
+    expect(result.status).toBe('non_converged');
+    expect(result.acceptanceChecks?.relativeStateChange.limit).toBe(1e-8);
+    expect(result.acceptanceChecks?.relativeStateChange.value).toBeGreaterThan(1e-8);
+    expect(result.acceptanceChecks?.relativeStateChange.passed).toBe(false);
   });
 
   it('fails closed for a missing required local physical property and preserves preliminary provenance', () => {
