@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ECR-2 Optimizer Readiness Audit — Run 656</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 17mm; }
+  :root { --navy:#17324d; --blue:#2e6f9e; --ink:#24313d; --muted:#5e6b76; --line:#cbd5dc; --pale:#edf4f8; --amber:#fff4d6; --red:#fbe8e8; --green:#e9f6ed; }
+  * { box-sizing:border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; color:var(--ink); font-size:9.2pt; line-height:1.38; margin:0; }
+  h1,h2,h3 { color:var(--navy); margin:0 0 7px; }
+  h1 { font-size:25pt; line-height:1.12; letter-spacing:-.3px; }
+  h2 { font-size:15pt; border-bottom:2px solid var(--blue); padding-bottom:4px; margin-top:4px; }
+  h3 { font-size:11pt; margin-top:10px; }
+  p { margin:5px 0 7px; }
+  ul,ol { margin:4px 0 7px 18px; padding:0; }
+  li { margin:2px 0; }
+  .cover { min-height:245mm; display:flex; flex-direction:column; justify-content:space-between; page-break-after:always; }
+  .kicker { text-transform:uppercase; font-size:8pt; letter-spacing:1.5px; color:var(--blue); font-weight:bold; margin-bottom:16px; }
+  .subtitle { font-size:13pt; color:var(--muted); margin-top:12px; max-width:145mm; }
+  .identity { border-left:5px solid var(--blue); padding:12px 15px; background:var(--pale); margin-top:28px; max-width:160mm; }
+  .identity strong { color:var(--navy); }
+  .classification { padding:14px 16px; background:var(--red); border:1px solid #dca4a4; color:#7c2525; font-size:15pt; font-weight:bold; margin-top:32px; }
+  .footer-note { color:var(--muted); font-size:8pt; border-top:1px solid var(--line); padding-top:7px; }
+  .section { page-break-before:always; }
+  .section.first { page-break-before:auto; }
+  .lead { background:var(--pale); border-left:4px solid var(--blue); padding:8px 10px; margin:8px 0 11px; }
+  .warning { background:var(--amber); border:1px solid #e4c779; padding:8px 10px; margin:8px 0; }
+  .pass { background:var(--green); }
+  .fail { background:var(--red); }
+  table { width:100%; border-collapse:collapse; margin:6px 0 11px; page-break-inside:avoid; }
+  th { background:var(--navy); color:white; font-weight:bold; text-align:left; padding:5px 6px; font-size:8.2pt; }
+  td { border:1px solid var(--line); padding:4px 6px; vertical-align:top; }
+  tr:nth-child(even) td { background:#f7fafc; }
+  .compact td,.compact th { padding:3px 5px; font-size:8pt; }
+  .small { font-size:8pt; color:var(--muted); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .card { border:1px solid var(--line); padding:8px 10px; background:#fbfcfd; }
+  .metric { font-size:16pt; color:var(--navy); font-weight:bold; }
+  .label { font-size:8pt; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
+  .nowrap { white-space:nowrap; }
+  .mono { font-family:"Courier New", monospace; font-size:8.4pt; }
+  .signature { margin-top:18px; color:var(--muted); }
+  .avoid { page-break-inside:avoid; }
+  @media print { a { color:inherit; text-decoration:none; } }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div>
+    <div class="kicker">LLX ECR-2 engineering audit</div>
+    <h1>Optimizer Readiness Audit</h1>
+    <div class="subtitle">Information-only assessment of whether the current ECR-2 simulator is ready to support a preliminary optimizer.</div>
+    <div class="identity">
+      <div><strong>Workspace:</strong> LLX-RND-2026-0003</div>
+      <div><strong>Selected simulator run:</strong> 656</div>
+      <div><strong>Persisted time:</strong> 23 August 2026, 14:13:10.713 UTC</div>
+      <div><strong>Local time:</strong> 23 August 2026, 19:43:10.713 IST</div>
+      <div><strong>Engine:</strong> llx-ecr-simulator 2.1.0 &nbsp;|&nbsp; <strong>Revision:</strong> 8</div>
+    </div>
+    <div class="classification">FINAL CLASSIFICATION: NOT READY FOR PRELIMINARY OPTIMIZER</div>
+  </div>
+  <div>
+    <p><strong>Purpose.</strong> Record the exact persisted state and distinguish numerical convergence from physical, thermodynamic, correlation, and governance readiness.</p>
+    <p><strong>Change control.</strong> No code, design inputs, UI, database, solver, governance records, or optimizer task were changed. No new simulations were run for this report.</p>
+    <div class="footer-note">Prepared from persisted run snapshots and repository governance/evidence records. This report is not a release-grade equipment design basis.</div>
+  </div>
+</section>
+
+<section class="section first">
+  <h2>1. Scope and selected evidence</h2>
+  <p>This audit is pinned to the user-specified evening run. The selected run is not replaced by later simulator executions.</p>
+  <table class="compact">
+    <tr><th>Evidence item</th><th>Use in this audit</th></tr>
+    <tr><td>Run 656 input/result snapshot</td><td>Primary current-run evidence.</td></tr>
+    <tr><td>Revision 8 C2 process-design result</td><td>Thermodynamic cascade, target, and theoretical-stage provenance.</td></tr>
+    <tr><td>Runs 631, 639, 643</td><td>Persisted comparative ECR-2 simulator cases.</td></tr>
+    <tr><td>ECR-2 BVP and correlation governance</td><td>Acceptance gates, fail-closed behavior, and applicability limits.</td></tr>
+    <tr><td>Existing repository tests</td><td>Mechanics/regression evidence only; not a grid-independence or pilot-validation substitute.</td></tr>
+  </table>
+  <div class="warning"><strong>Workspace distinction.</strong> The database contains LLX workspaces 0001, 0002, and 0003. Only 0003 has ECR-2 simulator runs. The “three cases” are three runs inside 0003, not three independently persisted ECR-2 workspaces.</div>
+</section>
+
+<section class="section">
+  <h2>2. Run identity and status</h2>
+  <div class="grid2">
+    <div class="card"><div class="label">Calculation status</div><div class="metric">warning</div><div>10 warnings; 0 validation issues</div></div>
+    <div class="card"><div class="label">BVP convergence</div><div class="metric">Accepted</div><div>13 iterations; four acceptance gates passed</div></div>
+    <div class="card"><div class="label">Final normalized residual</div><div class="metric">6.35e−14</div><div>Dimensionless residual measure</div></div>
+    <div class="card"><div class="label">Total mass-balance error</div><div class="metric">1.29e−10 kg/h</div><div>Internal numerical closure</div></div>
+  </div>
+  <p>The four independent BVP gates are normalized residual, relative state change, maximum component balance, and total mass balance. Passing them demonstrates numerical closure of the implemented equations; it does not validate the RRBO/NMP physical model.</p>
+</section>
+
+<section class="section">
+  <h2>3. Persisted BVP input vector</h2>
+  <h3>Feed and operating basis</h3>
+  <table class="compact">
+    <tr><th>Input</th><th>Value</th><th>Basis/status</th></tr>
+    <tr><td>RRBO feed</td><td>3,396 kg/h</td><td>Physical feed</td></tr>
+    <tr><td>NMP feed</td><td>3,952 kg/h</td><td>Physical feed</td></tr>
+    <tr><td>S/O</td><td>1.0 volume basis; 1.163722 mass basis</td><td>Input conversion</td></tr>
+    <tr><td>NMP purity</td><td>0.995</td><td>Physical plant-boundary input; not C2 solvent coordinate</td></tr>
+    <tr><td>Extraction / operating temperature</td><td>70 °C / 343.15 K</td><td>Thermodynamic evaluation temperature</td></tr>
+    <tr><td>Feed temperature anchor</td><td>25 °C</td><td>Persisted feed-side anchor</td></tr>
+    <tr><td>Feed / extraction / design pressure</td><td>2.5 / 1.0 / 2.5 bar</td><td>Pressure inputs</td></tr>
+    <tr><td>Phase configuration</td><td>NMP continuous / RRBO dispersed</td><td>Supported orientation</td></tr>
+  </table>
+  <h3>Physical RRBO composition</h3>
+  <table class="compact">
+    <tr><th>Component</th><th>Mass fraction</th><th>C2 normalized mole fraction</th></tr>
+    <tr><td>Saturates</td><td>0.750000</td><td>0.71177</td></tr>
+    <tr><td>Mono-aromatics</td><td>0.083333</td><td>0.12689</td></tr>
+    <tr><td>Di-aromatics</td><td>0.083333</td><td>0.09474</td></tr>
+    <tr><td>Poly-aromatics</td><td>0.083333</td><td>0.06661</td></tr>
+    <tr><td>NMP</td><td>0</td><td>0</td></tr>
+  </table>
+  <p>The C2 feed aromatic content is <strong>28.82286 mol%</strong>. The C2 target is <strong>10 mol% total aromatics</strong> on the five-component thermodynamic basis.</p>
+</section>
+
+<section class="section">
+  <h2>4. Properties, partition, and thermodynamic basis</h2>
+  <table class="compact">
+    <tr><th>Property / contract</th><th>Persisted value</th><th>Evidence status</th></tr>
+    <tr><td>RRBO density</td><td>849 kg/m³ at 70 °C</td><td>EPD tabular; Assumed/provisional</td></tr>
+    <tr><td>RRBO viscosity</td><td>0.0598 Pa·s; reference 40 °C</td><td>Auto-populated; not a validated 70 °C measurement</td></tr>
+    <tr><td>NMP viscosity</td><td>0.000917 Pa·s at 70 °C</td><td>Assumed</td></tr>
+    <tr><td>Interfacial tension</td><td>0.010 N/m at 70 °C</td><td>Vendor source</td></tr>
+    <tr><td>RRBO sulfur</td><td>1,500 ppm input</td><td>Not modeled in ECR-2</td></tr>
+    <tr><td>Partition basis</td><td><span class="mono">K_d concentration</span></td><td>Engineer-approved governed basis</td></tr>
+    <tr><td>Partition definition</td><td><span class="mono">K_d,i = C*d,i / C*c,i</span></td><td>Local NRTL equilibrium target</td></tr>
+    <tr><td>NRTL</td><td>α = 0.2; τ = b/T</td><td>Calibrated at 298.15 K only</td></tr>
+    <tr><td>Evaluation temperature</td><td>343.15 K</td><td>44.50 K outside calibrated range</td></tr>
+  </table>
+  <p>The revision-8 C2 record reports a fractional stage count of <strong>0.82802</strong>, rounded to <strong>N<sub>T</sub> = 1</strong>. At one C2 cascade stage, the reported raffinate aromatic content is 6.0906 mol%, below the 10 mol% target.</p>
+  <div class="warning"><strong>Thermodynamic limitation.</strong> NRTL calibration reproduction at 298.15 K has maximum deviation 0.092 against a 0.009 gate, with 2 of 13 tie-lines within the gate. At 70 °C the result is explicitly “Temperature Extrapolation — Preliminary / Pending Validation.”</div>
+</section>
+
+<section class="section">
+  <h2>5. Diffusivities and physical molecular weights</h2>
+  <table class="compact">
+    <tr><th>Component</th><th>Continuous phase (m²/s)</th><th>Dispersed phase (m²/s)</th><th>Classification</th></tr>
+    <tr><td>Saturates</td><td>4.28373e−10</td><td>4.55160e−11</td><td>Assumed/project</td></tr>
+    <tr><td>Mono-aromatics</td><td>4.00780e−10</td><td>4.25842e−11</td><td>Assumed/project</td></tr>
+    <tr><td>Di-aromatics</td><td>3.72830e−10</td><td>3.96144e−11</td><td>Assumed/project</td></tr>
+    <tr><td>Poly-aromatics</td><td>3.40076e−10</td><td>3.61341e−11</td><td>Assumed/project</td></tr>
+    <tr><td>NMP</td><td>8.03358e−10</td><td>9.28448e−11</td><td>Assumed/project</td></tr>
+  </table>
+  <table class="compact">
+    <tr><th>Physical component</th><th>MW (g/mol)</th><th>Status</th></tr>
+    <tr><td>Saturates</td><td>269.93</td><td>Assumed/auto-basis</td></tr>
+    <tr><td>Mono-aromatics</td><td>320.00</td><td>Assumed/auto-basis</td></tr>
+    <tr><td>Di-aromatics</td><td>377.57</td><td>Assumed/auto-basis</td></tr>
+    <tr><td>Poly-aromatics</td><td>459.45</td><td>Assumed/auto-basis</td></tr>
+    <tr><td>NMP</td><td>99.13</td><td>Physical solvent basis</td></tr>
+  </table>
+  <p>These physical/project values are separate from the Coto/NRTL surrogate compounds. They remain active preliminary inputs and are not evidence of validated RRBO/NMP transport properties.</p>
+</section>
+
+<section class="section">
+  <h2>6. Geometry and hydrodynamic inputs</h2>
+  <table class="compact">
+    <tr><th>Input</th><th>Value</th></tr>
+    <tr><td>Column diameter</td><td>0.85 m</td></tr>
+    <tr><td>Active height</td><td>0.75 m</td></tr>
+    <tr><td>Numerical compartments / compartment height</td><td>3 / 0.25 m</td></tr>
+    <tr><td>Rotor diameter</td><td>0.425 m</td></tr>
+    <tr><td>Rotor/column diameter ratio</td><td>0.5</td></tr>
+    <tr><td>Rotor speed</td><td>60 rpm</td></tr>
+    <tr><td>Rotor label</td><td>Kühni turbine</td></tr>
+    <tr><td>Rotors per compartment</td><td>1</td></tr>
+    <tr><td>Stator open-area fraction</td><td>0.4</td></tr>
+    <tr><td>Power density / dissipation basis</td><td>0.097741 W/kg</td></tr>
+    <tr><td>Power-number basis</td><td>0.39</td></tr>
+  </table>
+  <div class="warning"><strong>Discretization rule.</strong> The three numerical compartments are a solver grid, not a free equipment-design variable. Treating them as an optimizer variable would create a numerical rather than physical optimum.</div>
+</section>
+
+<section class="section">
+  <h2>7. d₃₂, holdup, and interfacial area</h2>
+  <p>The direct-turbulence route is:</p>
+  <p class="mono">ε = N<sub>e</sub> n³ d<sub>R</sub>⁵ / V<sub>R</sub></p>
+  <p class="mono">d<sub>32</sub> = C (γ / ρ<sub>c</sub>)<sup>0.6</sup> ε<sup>−0.4</sup></p>
+  <table class="compact">
+    <tr><th>Output</th><th>Run-656 result</th><th>Status</th></tr>
+    <tr><td>d₃₂</td><td>0.995817 mm</td><td>DIRECT_TURBULENCE_D32_PRELIMINARY</td></tr>
+    <tr><td>C</td><td>0.39</td><td>Project-controlled midpoint of 0.36–0.43; not pilot validated</td></tr>
+    <tr><td>Dispersed holdup, φ<sub>d</sub></td><td>0.204662</td><td>Preliminary correlation</td></tr>
+    <tr><td>Interfacial area, a</td><td>1,233.128 m²/m³</td><td>Computed from d₃₂ and holdup</td></tr>
+  </table>
+  <p>The local area uses <span class="mono">a = 6 φ<sub>d</sub> / d₃₂</span>, and the BVP-local area records match that equation. This is an internal consistency result, not experimental validation.</p>
+</section>
+
+<section class="section">
+  <h2>8. Run-656 outlet results</h2>
+  <h3>Raffinate</h3>
+  <table class="compact">
+    <tr><th>Component</th><th>Flow (kg/h)</th><th>Mass fraction</th></tr>
+    <tr><td>Saturates</td><td>1,931.598</td><td>0.796908</td></tr>
+    <tr><td>Mono-aromatics</td><td>101.355</td><td>0.041816</td></tr>
+    <tr><td>Di-aromatics</td><td>104.088</td><td>0.042943</td></tr>
+    <tr><td>Poly-aromatics</td><td>144.966</td><td>0.059808</td></tr>
+    <tr><td>NMP</td><td>141.858</td><td>0.058526</td></tr>
+    <tr><th>Total</th><th>2,423.865</th><th>1.000000</th></tr>
+  </table>
+  <h3>Extract</h3>
+  <table class="compact">
+    <tr><th>Component</th><th>Flow (kg/h)</th><th>Mass fraction</th></tr>
+    <tr><td>Saturates</td><td>615.405</td><td>0.125481</td></tr>
+    <tr><td>Mono-aromatics</td><td>181.644</td><td>0.037037</td></tr>
+    <tr><td>Di-aromatics</td><td>178.911</td><td>0.036480</td></tr>
+    <tr><td>Poly-aromatics</td><td>138.033</td><td>0.028145</td></tr>
+    <tr><td>NMP</td><td>3,790.382</td><td>0.772857</td></tr>
+    <tr><th>Total</th><th>4,904.375</th><th>1.000000</th></tr>
+  </table>
+</section>
+
+<section class="section">
+  <h2>9. Recovery and product-quality interpretation</h2>
+  <table class="compact">
+    <tr><th>Derived quantity</th><th>Result</th><th>Definition</th></tr>
+    <tr><td>RRBO to raffinate</td><td>2,282.007 kg/h; 67.197%</td><td>All four RRBO classes in raffinate / RRBO feed</td></tr>
+    <tr><td>RRBO to extract</td><td>1,113.993 kg/h; 32.803%</td><td>All four RRBO classes in extract / RRBO feed</td></tr>
+    <tr><td>Saturates recovery</td><td>56.879%</td><td>Raffinate saturates / feed saturates</td></tr>
+    <tr><td>Aromatic extraction yield</td><td>Approximately 58.73%</td><td>Extract mono+di+poly / feed mono+di+poly</td></tr>
+    <tr><td>Raffinate aromatics, including NMP</td><td>9.562 mol%</td><td>Physical MW calculation on total raffinate phase</td></tr>
+    <tr><td>Hydrocarbon-only raffinate aromatics</td><td>Approximately 11.3 mol%</td><td>NMP excluded from the denominator</td></tr>
+  </table>
+  <p>NMP is excluded from the aromatic recovery numerator and denominator. The 10 mol% C2 target is on a five-component thermodynamic basis, whereas a commercial hydrocarbon product specification may exclude residual NMP. The product-quality constraint therefore needs an explicit basis before optimization.</p>
+  <p><strong>Sulfur/DBT:</strong> Not yet available. A sulfur input exists, but no ECR-2 sulfur/DBT transfer and product-quality model is executed.</p>
+</section>
+
+<section class="section">
+  <h2>10. Output classification</h2>
+  <table class="compact">
+    <tr><th>Output</th><th>Classification</th><th>Audit interpretation</th></tr>
+    <tr><td>BVP residual, component balance, total balance</td><td>VERIFIED internally</td><td>Numerical acceptance only.</td></tr>
+    <tr><td>C2 fractional/rounded N<sub>T</sub></td><td>PRELIMINARY</td><td>NRTL extrapolation and calibration mismatch.</td></tr>
+    <tr><td>Local NRTL equilibrium</td><td>PRELIMINARY</td><td>70 °C extrapolation from 25 °C calibration.</td></tr>
+    <tr><td>d₃₂</td><td>PRELIMINARY</td><td>Direct-turbulence route not pilot validated.</td></tr>
+    <tr><td>Holdup and interfacial area</td><td>PRELIMINARY</td><td>Dependent on preliminary applicability basis.</td></tr>
+    <tr><td>Reynolds/Schmidt/Sh/film coefficients</td><td>PRELIMINARY / restricted</td><td>Property and secondary-correlation limitations.</td></tr>
+    <tr><td>K<sub>overall</sub>, K<sub>oa</sub>, component rates</td><td>PRELIMINARY / restricted</td><td>Not release/design-decision eligible.</td></tr>
+    <tr><td>Outlet flows and derived recovery</td><td>PRELIMINARY</td><td>Forward BVP output on preliminary physical basis.</td></tr>
+    <tr><td>Sulfur/DBT quality</td><td>NOT YET AVAILABLE</td><td>No model.</td></tr>
+    <tr><td>Flooding, economics, CAPEX, energy objective</td><td>NOT IMPLEMENTED</td><td>Separate or future models required.</td></tr>
+  </table>
+</section>
+
+<section class="section">
+  <h2>11. C1/C2 correlation governance</h2>
+  <table class="compact">
+    <tr><th>Constant/route</th><th>Value/status</th><th>Optimizer treatment</th></tr>
+    <tr><td>Project-provisional C1</td><td>0.90; role unresolved; not applied numerically</td><td>Never a decision variable</td></tr>
+    <tr><td>Project-provisional C2</td><td>0.45; role unresolved; not applied numerically</td><td>Never a decision variable</td></tr>
+    <tr><td>Scoped Kühni secondary C1</td><td>7.5; separately registered for preliminary equation</td><td>Fixed governed metadata only</td></tr>
+    <tr><td>Kühni C2 and placement</td><td>Unresolved for release use</td><td>Cannot support optimizer ranking</td></tr>
+  </table>
+  <p>Project-provisional values, secondary literature metadata, and governed release correlations must remain separate. A numerically available constant is not automatically a validated optimization input.</p>
+</section>
+
+<section class="section">
+  <h2>12. Legitimate variables and bounds</h2>
+  <table class="compact">
+    <tr><th>Candidate variable</th><th>Current value</th><th>Governed bounds</th><th>Status</th></tr>
+    <tr><td>Temperature</td><td>70 °C</td><td>Not governed</td><td>Blocked for optimization</td></tr>
+    <tr><td>S/O ratio</td><td>1.0 volume basis</td><td>Not governed</td><td>Numerically perturbable only</td></tr>
+    <tr><td>Rotor speed</td><td>60 rpm</td><td>Not governed</td><td>Preliminary only</td></tr>
+    <tr><td>Active height</td><td>0.75 m</td><td>Not governed</td><td>Needs grid/transfer validation</td></tr>
+    <tr><td>Column diameter</td><td>0.85 m</td><td>Not governed</td><td>Scale-up basis absent</td></tr>
+    <tr><td>Rotor ratio</td><td>0.5</td><td>Not governed</td><td>Engineering input, not an approved bound</td></tr>
+    <tr><td>d₃₂ C coefficient</td><td>0.39</td><td>0.36–0.43 sensitivity range</td><td>Not an optimization variable</td></tr>
+    <tr><td>Numerical compartments</td><td>3</td><td>Solver choice</td><td>Must be excluded from design optimization</td></tr>
+  </table>
+</section>
+
+<section class="section">
+  <h2>13. Objective and temperature treatment</h2>
+  <p>No governed optimizer objective currently exists. Possible future objectives—minimize height, diameter, energy, or RRBO loss while meeting aromatic and sulfur specifications—remain candidate concepts only.</p>
+  <p>An optimizer cannot safely rank run 656 outputs because the physical transfer response is preliminary, sulfur is unavailable, no flooding limit is implemented, no economic model is persisted, and the product-quality basis is not fully resolved.</p>
+  <div class="warning"><strong>Temperature conclusion.</strong> Temperature is not optimizer-ready. The 70 °C equilibrium result relies on NRTL extrapolation from a 25 °C calibration and is explicitly pending validation against controlled RRBO/NMP LLE data near the operating temperature.</div>
+  <p>The C2 theoretical stage result must remain separate from ECR-2 physical compartment semantics. C2 fractional N<sub>T</sub> = 0.82802, rounded N<sub>T</sub> = 1, does not mean that the ECR-2 column has one physical compartment or one validated transfer stage.</p>
+</section>
+
+<section class="section">
+  <h2>14. Grid independence</h2>
+  <p>Grid independence is <strong>not demonstrated</strong>.</p>
+  <ul>
+    <li>Run 656 uses three numerical compartments.</li>
+    <li>No persisted same-operating-point comparison across refined compartment grids was found.</li>
+    <li>Existing tests verify BVP mechanics, balances, and regression behavior.</li>
+    <li>Those tests do not establish outlet, recovery, or objective independence from compartment count.</li>
+  </ul>
+  <p>A future grid audit must compare the same operating point across multiple compartment counts, including outlet compositions, recovery, transfer, d₃₂/holdup profiles, residuals, and all objective-relevant quantities.</p>
+</section>
+
+<section class="section">
+  <h2>15. Persisted comparison cases</h2>
+  <table class="compact">
+    <tr><th>Run</th><th>S/O</th><th>D (m)</th><th>d<sub>R</sub> (m)</th><th>d₃₂ (mm)</th><th>φ<sub>d</sub></th><th>a (m²/m³)</th></tr>
+    <tr><td>631</td><td>2.0</td><td>1.05</td><td>0.525</td><td>0.773</td><td>0.2700</td><td>2,096.7</td></tr>
+    <tr><td>639</td><td>1.0</td><td>0.85</td><td>0.425</td><td>0.996</td><td>0.2047</td><td>1,233.1</td></tr>
+    <tr><td>643</td><td>0.5</td><td>0.75</td><td>0.375</td><td>1.157</td><td>0.1651</td><td>855.8</td></tr>
+    <tr><td>656</td><td>1.0</td><td>0.85</td><td>0.425</td><td>0.996</td><td>0.2047</td><td>1,233.1</td></tr>
+  </table>
+  <p>Runs 639 and 656 have the same numerical operating point and identical result snapshot. Runs 631, 639, and 643 all use 0.75 m height, three compartments, 60 rpm, and a 0.5 rotor ratio.</p>
+  <p>The comparison is not a one-variable S/O sensitivity: diameter and rotor diameter changed with S/O. At fixed rotor ratio, the observed trend is consistent with approximately ε ∝ D³, so reduced diameter reduces dissipation and increases d₃₂.</p>
+</section>
+
+<section class="section">
+  <h2>16. Sensitivity readiness</h2>
+  <table class="compact">
+    <tr><th>Variable</th><th>Can calculate a perturbation?</th><th>Readiness</th><th>Limitation</th></tr>
+    <tr><td>Temperature</td><td>Yes</td><td>Not ready</td><td>NRTL temperature extrapolation</td></tr>
+    <tr><td>S/O</td><td>Yes</td><td>Partial numerical evidence only</td><td>Existing cases confounded with diameter; no governed bounds</td></tr>
+    <tr><td>Rotor speed</td><td>Yes</td><td>Not ready</td><td>d₃₂ and transfer correlations preliminary</td></tr>
+    <tr><td>Active height</td><td>Yes</td><td>Not ready</td><td>Grid independence and transfer validation absent</td></tr>
+    <tr><td>Column diameter</td><td>Yes</td><td>Not ready</td><td>Geometry/d₃₂ coupling and scale-up basis absent</td></tr>
+  </table>
+  <p>Calculation capability is not the same as optimizer readiness. A variable is not ready until its model response, bounds, constraints, and evidence status can be audited independently.</p>
+</section>
+
+<section class="section">
+  <h2>17. Fail-closed conditions</h2>
+  <p>The optimizer must represent the following as <strong>INFEASIBLE</strong>, never as merely poor objective values:</p>
+  <div class="grid2">
+    <div class="card"><ul><li>Unsupported phase orientation</li><li>Missing/unapproved C2 basis</li><li>Missing partition basis</li><li>Missing d₃₂ configuration</li><li>Invalid flow vector</li><li>Invalid physical MWs</li><li>Invalid local composition</li><li>Failed property closure</li></ul></div>
+    <div class="card"><ul><li>Failed NRTL flash</li><li>Invalid holdup or d₃₂</li><li>Invalid interfacial area/slip</li><li>Invalid transfer volume</li><li>Donor-inventory violation</li><li>Negative/non-finite state</li><li>BVP non-convergence</li><li>Failed component/total balance</li></ul></div>
+  </div>
+  <p>Missing evidence, out-of-scope correlation applicability, and an unavailable requested sulfur/DBT constraint must also produce a hard infeasibility state.</p>
+</section>
+
+<section class="section">
+  <h2>18. Optimizer-exploit audit and validation requirements</h2>
+  <h3>Principal exploit risks</h3>
+  <ol>
+    <li>Lower diameter could improve apparent d₃₂ through the preliminary turbulence equation.</li>
+    <li>Higher S/O could appear beneficial without a solvent-cost, capacity, or flooding constraint.</li>
+    <li>The preliminary d₃₂ coefficient range could be exploited as a hidden decision variable.</li>
+    <li>C2 N<sub>T</sub> = 1 could be misread as an ECR-2 physical stage count.</li>
+    <li>Numerical compartment count could be varied to create a numerical optimum.</li>
+    <li>Assumed MWs, diffusivities, and viscosities could be treated as measured facts.</li>
+    <li>Numerical convergence could be mistaken for validated transfer performance.</li>
+    <li>Sulfur compliance could be claimed even though sulfur/DBT is not modeled.</li>
+  </ol>
+  <h3>Required validation before optimizer use</h3>
+  <ul>
+    <li>Controlled RRBO/NMP tie-lines at or near 70 °C, including water and purity effects.</li>
+    <li>Validation of local partition and NRTL behavior against measured system data.</li>
+    <li>Pilot d₃₂ measurements versus rpm, rotor/column geometry, power, and phase loading.</li>
+    <li>Holdup, flooding margin, residence-time, and axial-mixing validation.</li>
+    <li>Component mass-transfer coefficient and rate measurements.</li>
+    <li>Temperature-dependent density, viscosity, interfacial tension, MW, and diffusivity evidence.</li>
+    <li>Sulfur/DBT extraction and product-quality model validation.</li>
+    <li>Grid-independence evidence using persisted same-point refined-grid comparisons.</li>
+  </ul>
+</section>
+
+<section class="section">
+  <h2>19. Final readiness matrix</h2>
+  <table class="compact">
+    <tr><th>Requirement</th><th>Result</th></tr>
+    <tr><td>BVP numerical convergence</td><td class="pass"><strong>Pass, internal only</strong></td></tr>
+    <tr><td>Component and total balances</td><td class="pass"><strong>Pass, internal only</strong></td></tr>
+    <tr><td>Governed thermodynamics at operating temperature</td><td class="fail"><strong>Fail</strong></td></tr>
+    <tr><td>RRBO/NMP equilibrium validation</td><td class="fail"><strong>Fail</strong></td></tr>
+    <tr><td>Validated d₃₂, holdup, interfacial area</td><td class="fail"><strong>Fail</strong></td></tr>
+    <tr><td>Validated mass-transfer coefficients/rates</td><td class="fail"><strong>Fail</strong></td></tr>
+    <tr><td>Product-quality basis fully defined</td><td><strong>Partial</strong></td></tr>
+    <tr><td>Sulfur/DBT constraint enforcement</td><td class="fail"><strong>Not available</strong></td></tr>
+    <tr><td>Governed optimizer variable bounds</td><td class="fail"><strong>Not established</strong></td></tr>
+    <tr><td>Governed objective function</td><td class="fail"><strong>Not established</strong></td></tr>
+    <tr><td>Temperature, S/O, rpm, height, diameter sensitivity readiness</td><td class="fail"><strong>Not ready</strong></td></tr>
+    <tr><td>Grid independence</td><td class="fail"><strong>Not demonstrated</strong></td></tr>
+    <tr><td>Optimizer fail-closed behavior</td><td><strong>Required; optimizer not implemented</strong></td></tr>
+    <tr><td>Independent pilot/industrial validation</td><td class="fail"><strong>Not available</strong></td></tr>
+  </table>
+  <div class="classification">NOT READY FOR PRELIMINARY OPTIMIZER</div>
+  <p class="signature">Run 656 remains useful as a numerically converged, preliminary engineering simulation snapshot. It is not a validated optimization kernel or release/design-decision basis.</p>
+</section>
+
+</body>
+</html>
