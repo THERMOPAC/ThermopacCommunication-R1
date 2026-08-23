@@ -4935,6 +4935,31 @@ export default function DesignSoftwareWorkspacePage() {
         />
       </div>;
     };
+    // Engineer-supplied d₃₂ is a direct sensitivity input, not one of the
+    // numerical Stage 8 evidence records. Keep its provenance editor separate
+    // from sourceEditor(), which resolves only catalog-backed evidence IDs.
+    const engineerD32SourceEditor = () => (
+      <div className="space-y-1">
+        <select
+          className="h-7 w-full rounded-md border bg-white px-1.5 text-[11px]"
+          value={sim.d32_source_type ?? ""}
+          disabled={isFrozen}
+          onChange={e => f("d32_source_type", e.target.value)}
+          onBlur={s}
+        >
+          <option value="">Source class…</option>
+          {ECR2_STAGE8_SOURCE_TYPES.map(source => <option key={source} value={source}>{source}</option>)}
+        </select>
+        <Input
+          className="h-7 text-[11px]"
+          value={sim.d32_source_reference ?? ""}
+          disabled={isFrozen}
+          placeholder="Source reference"
+          onChange={e => f("d32_source_reference", e.target.value)}
+          onBlur={s}
+        />
+      </div>
+    );
     const renderResolutionDetails = (prefix: string, evidence: ReturnType<typeof evidenceFor>, legacy: any, ready: boolean) => {
       const visible = visibleResolutionStatus(evidence, ready);
       const hasCandidate = numeric(evidence.record.value)
@@ -5118,7 +5143,7 @@ export default function DesignSoftwareWorkspacePage() {
                        <option value="engineer_supplied">Engineer supplied</option>
                      </select>
                      {sim.d32_mode === "engineer_supplied"
-                       ? <><Input className="h-7 text-[11px]" value={sim.d32_value_mm ?? ""} disabled={isFrozen} placeholder="d₃₂ value" onChange={e => f("d32_value_mm", e.target.value)} onBlur={s} />{sourceEditor("d32")}</>
+                       ? <><Input className="h-7 text-[11px]" value={sim.d32_value_mm ?? ""} disabled={isFrozen} placeholder="d₃₂ value" onChange={e => f("d32_value_mm", e.target.value)} onBlur={s} />{engineerD32SourceEditor()}</>
                         : sim.d32_mode === "direct_turbulence_preliminary"
                           ? <div className="space-y-1 rounded border border-amber-200 bg-amber-50 p-2 text-amber-900">
                               <p className="font-semibold">DIRECT_TURBULENCE_D32_PRELIMINARY — PRELIMINARY_ENGINEERING / NOT YET PILOT_VALIDATED</p>
