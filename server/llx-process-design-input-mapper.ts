@@ -55,17 +55,13 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   // untouched; only missing keys are mapped from the flat workspace fields.
 
   // Stage 4 Extraction Temperature is the single authoritative isothermal
-  // condition for the C2 handoff and the downstream ECR-2 property closure.
-  // A stale engine-shaped operating-temperature field can be present in a
-  // saved simulator payload; it is a legacy compatibility fallback only and
-  // must never override the Stage 4 workspace value.
+  // condition for the C2 handoff and downstream ECR-2 property closure.
+  // It is an explicit process input: never fall back to Design Basis or a
+  // stale engine-shaped simulator temperature when it is blank.
   const extT = num(inputs.extraction_temperature);
-  const ot = extT
-    ?? num(inputs.operating_temperature)
-    ?? num(out.operatingTemperature);
-  const extractionTemperatureProvenance = String(inputs.extraction_temperature_manual ?? '') === 'true'
-    ? 'Stage 4 Extraction Temperature — engineer-entered manual override (Process Design workspace)'
-    : 'Stage 4 Extraction Temperature — tracking Design Basis Operating Temperature (Process Design workspace)';
+  const ot = extT;
+  const extractionTemperatureProvenance =
+    'Stage 4 Extraction Temperature — user-specified process condition (Process Design workspace)';
   if (ot !== undefined) out.operatingTemperature = ot;
 
   // Preserve the Stage 4 value and source in the mapped calculation snapshot.
@@ -556,9 +552,11 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       di: pct('rrbo_di_aromatics_wt'),
       poly: pct('rrbo_poly_aromatics_wt'),
     };
-    // Never retain a separate or stale Stage 8 temperature. `ot` is derived
-    // above from Stage 4 Extraction Temperature before any property resolver
-    // is called.
+    // Never retain a separate or stale Stage 8 temperature. ECR-2 receives
+    // only the explicit Stage 4 Extraction Temperature before any property
+    // resolver is called.
+    delete out.operatingTemperature;
+    delete out.operatingTemperatureC;
     if (ot !== undefined) out.operatingTemperatureC = ot;
     if (out.rrboMassFlow_kg_h === undefined && rrboMassFlow !== undefined) out.rrboMassFlow_kg_h = rrboMassFlow;
     if (out.nmpMassFlow_kg_h === undefined && nmpMassFlow !== undefined) out.nmpMassFlow_kg_h = nmpMassFlow;

@@ -964,15 +964,14 @@ export default function DesignSoftwareWorkspacePage() {
   }, [isFrozen, activeRevisionId, hydratedRevision, inputsQ.data, localData, savingSection, upsertMutation.isPending]);
 
   // ── Process Design (Stage 4) default initialization ─────────────────────────
-  // Seeds only governed engineering defaults. S/O ratio is NOT seeded — it is a
-  // project input that must be explicitly entered by the engineer (no silent default).
-  // Extraction T/P track the Design Basis Operating T/P until manually changed.
+  // Seeds only governed engineering defaults. S/O ratio and Extraction
+  // Temperature are NOT seeded — both are explicit project inputs with no
+  // silent Design Basis or legacy-temperature fallback.
   useEffect(() => {
     if (activeStep !== "process_design" || isFrozen || !activeRevisionId || !inputsQ.data) return;
     if (hydratedRevision !== activeRevisionId) return; // never seed from pre-hydration empty state
     if (savingSection !== null || upsertMutation.isPending) return;
     const pd = localData["process_design"] ?? {};
-    const dbx = localData["design_basis"] ?? {};
     const u: Record<string, string> = {};
     const blank = (k: string) => (pd[k] ?? "").trim() === "";
     // so_ratio is intentionally NOT seeded: S/O ratio is a governed project input
@@ -992,10 +991,7 @@ export default function DesignSoftwareWorkspacePage() {
     for (const cb of COMPONENT_BALANCE_FIELDS) {
       if (blank(cb.key)) u[cb.key] = cb.def;
     }
-    const otTrk = (dbx.operating_temperature ?? "").trim();
-    if (otTrk !== "" && pd.extraction_temperature_manual !== "true" && (pd.extraction_temperature ?? "").trim() !== otTrk) {
-      u.extraction_temperature = otTrk;
-    }
+    const dbx = localData["design_basis"] ?? {};
     const opTrk = (dbx.operating_pressure ?? "").trim();
     if (opTrk !== "" && pd.extraction_pressure_manual !== "true" && (pd.extraction_pressure ?? "").trim() !== opTrk) {
       u.extraction_pressure = opTrk;
@@ -1525,6 +1521,11 @@ export default function DesignSoftwareWorkspacePage() {
         errors["design_margin"] = "Design Margin is required — needed for maximum solvent circulation";
       if (!val("phase_configuration"))
         errors["phase_configuration"] = "Phase Configuration is required — C2 engine never assumes phase continuity from density";
+      const extractionTemperature = numOrNull(val("extraction_temperature"));
+      if (extractionTemperature === null)
+        errors["extraction_temperature"] = "Extraction Temperature is required — Stage 4 is the ECR-2 temperature authority and has no default";
+      else if (extractionTemperature <= 0 || extractionTemperature >= 200)
+        errors["extraction_temperature"] = `Extraction Temperature ${extractionTemperature} °C is out of the governed range (0–200 °C)`;
 
       // Format validation — only block when a value has been entered AND is invalid
       const stagesN = numOrNull(val("theoretical_stages"));
@@ -3245,14 +3246,15 @@ export default function DesignSoftwareWorkspacePage() {
     const latestRunBlocked = pdRun?.calculation_status === "error";
     const rd: any = latestRunBlocked ? null : (pdResult?.data ?? null);
 
-    // Effective inputs — approved defaults shown immediately, everything editable
-    const otStr = (dbx.operating_temperature ?? "").trim();
+    // Effective inputs — Stage 4 Extraction Temperature is an explicit
+    // user-entered process condition. It does not inherit or default from
+    // Design Basis Operating Temperature.
     const opStr = (dbx.operating_pressure ?? "").trim();
     const ratioEff = (pd.so_ratio ?? "").trim();
     const stagesEff = pd.theoretical_stages ?? ""; // Engineer Override N_T — never defaulted
     const effEff = pd.stage_efficiency ?? ""; // informational-only, never defaulted
     const marginEff = (pd.design_margin ?? "").trim();
-    const extTEff = pd.extraction_temperature_manual === "true" ? (pd.extraction_temperature ?? "") : (otStr || (pd.extraction_temperature ?? ""));
+    const extTEff = pd.extraction_temperature ?? "";
     const extPEff = pd.extraction_pressure_manual === "true" ? (pd.extraction_pressure ?? "") : (opStr || (pd.extraction_pressure ?? ""));
 
     const effN = numOrNull(effEff);
@@ -3351,12 +3353,14 @@ export default function DesignSoftwareWorkspacePage() {
             value={extTEff}
             onChange={v => f("extraction_temperature", v)}
             onBlur={s}
-            onCommit={v => cs({ extraction_temperature: v, extraction_temperature_manual: v !== "" && v !== otStr ? "true" : "" })}
+            onCommit={v => cs({ extraction_temperature: v, extraction_temperature_manual: v !== "" ? "true" : "" })}
             options={["25", "30", "40", "50", "60", "70"]}
+            allowOther
             unit="°C"
-            note="Governed EPD tabular points — densities are exact at these temperatures; interpolated between them"
+            note="User-entered Stage 4 process condition — choose a listed EPD point or enter any value within 0–200 °C. EPD densities interpolate between tabular points."
+            error={fErr4("extraction_temperature")}
           />
-          {statusLine(`Status: ${pd.extraction_temperature_manual === "true" ? "Manual" : "Auto-Populated"} · Rule: follows Design Basis Operating Temperature (${otStr || "—"} °C) until manually changed`)}
+          {statusLine(`Status: ${extTEff ? "User-entered" : "Not entered — required input"} · Authority: Stage 4 only; ECR-2 does not default to Design Basis or 70 °C`)}
 
           <FieldRow
             label="Extraction Pressure"
@@ -5904,8 +5908,7 @@ export default function DesignSoftwareWorkspacePage() {
     const downstreamFailure = options?.useStructuredEcr2Dependencies
       ? resultSnapshot?.bvp?.failure
       : null;
-    const showsDownstreamFailure = displayedIssues.length === 0
-      && typeof downstreamFailure?.dependency === "string"
+    const showsDownstreamFailure = typeof downstreamFailure?.dependency === "string"
       && typeof downstreamFailure?.message === "string";
     return (
       <div className="mt-2 space-y-2">
