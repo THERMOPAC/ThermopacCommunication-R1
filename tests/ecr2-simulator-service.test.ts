@@ -287,6 +287,47 @@ describe('ECR-2 simulator service run path', () => {
     });
     expect(resultSnapshot.bvp.componentBalances_kg_h).toHaveLength(5);
     expect(resultSnapshot.bvp.totalMassBalance_kg_h).toBeCloseTo(0, 8);
+    expect(resultSnapshot.headlineEngineeringResults).toMatchObject({
+      status: 'CALCULATED_PRELIMINARY',
+      releaseStatus: 'NOT_RELEASE_ELIGIBLE',
+      rrboNmpFeed: {
+        rrbo_kg_h: expect.any(Number),
+        nmp_kg_h: expect.any(Number),
+        soRatio_mass: expect.any(Number),
+      },
+      rrboRecovery_percent: expect.closeTo(100, 8),
+      extractOilYield_percent: expect.closeTo(0, 8),
+      totalAromaticRemoval_percent: expect.closeTo(0, 8),
+      sulfurDbtPrediction: 'NOT_IMPLEMENTED',
+      sulfurDbtPredictionNote: expect.stringContaining('must not be interpreted'),
+      productQualityBasis: {
+        raffinate: expect.stringContaining('Hydrocarbon-only'),
+      },
+    });
+    expect(resultSnapshot.headlineEngineeringResults.componentPerformance).toMatchObject({
+      saturates: {
+        raffinateRecovery_percent: expect.closeTo(100, 8),
+        removal_percent: expect.closeTo(0, 8),
+      },
+      nmp: {
+        extractRecovery_percent: expect.closeTo(100, 8),
+      },
+    });
+    expect(resultSnapshot.massBalanceSummary).toMatchObject({
+      componentOrder: ['Sat', 'Mono', 'Di', 'Poly', 'NMP'],
+      status: 'passed',
+      feed_kg_h: expect.any(Array),
+      raffinate_kg_h: expect.any(Array),
+      extract_kg_h: expect.any(Array),
+    });
+    expect(resultSnapshot.bvp.axialProfile[0]).toMatchObject({
+      k_c_m_s: expect.any(Array),
+      k_d_m_s: expect.any(Array),
+      K_overall_m_s: expect.any(Array),
+      Koa_per_s: expect.any(Array),
+      drivingForce_kg_m3: expect.any(Array),
+      transferRate_kg_m3_s: expect.any(Array),
+    });
 
     const accepted = await service.listResults(revisionId);
     const simulatorResult = accepted.find((row: any) => row.section === 'ecr_simulator');
@@ -307,6 +348,12 @@ describe('ECR-2 simulator service run path', () => {
     expect(snapshot.calculationRunStatus).toBe('counter_current_bvp_not_accepted');
     expect(snapshot.bvp.massBalanceStatus).toBe('not_evaluated');
     expect(snapshot.bvp.status).not.toBe('converged');
+    expect(snapshot.headlineEngineeringResults).toMatchObject({
+      status: 'NOT_CALCULABLE',
+      raffinateFlow_kg_h: null,
+      rrboRecovery_percent: null,
+      totalAromaticRemoval_percent: null,
+    });
 
     const accepted = await service.listResults(revisionId);
     const simulatorResult = accepted.find((row: any) => row.section === 'ecr_simulator');

@@ -4691,7 +4691,6 @@ export default function DesignSoftwareWorkspacePage() {
     const ecrResult = (resultsQ.data ?? []).find((r: any) => r.section === "ecr")?.data;
     const ecr = d("ecr_design");
     const simResult = (resultsQ.data ?? []).find((r: any) => r.section === "ecr_simulator")?.data;
-    const ecr2RaffinateProductQuality: any = simResult?.raffinateProductQuality ?? null;
     const latestRun = runs
       .filter(r => r.calculation_type === "ecr_simulator")
       .sort((a, b) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0];
@@ -4783,6 +4782,13 @@ export default function DesignSoftwareWorkspacePage() {
       : snapshotResolverRecords ?? {};
     const displayedSnapshot = latestFailedSnapshot ?? simResult;
     const bvp = displayedSnapshot?.bvp;
+    const headlineResults: any = displayedSnapshot?.headlineEngineeringResults ?? null;
+    const massBalanceSummary: any = displayedSnapshot?.massBalanceSummary ?? null;
+    const ecr2RaffinateProductQuality: any = displayedSnapshot?.raffinateProductQuality ?? null;
+    const simulationBasis: any = displayedSnapshot?.designBasis ?? simResult?.designBasis ?? null;
+    const simulationGeometry: any = displayedSnapshot?.geometry ?? null;
+    const simulationPower: any = displayedSnapshot?.power ?? null;
+    const simulationArea: any = displayedSnapshot?.interfacialArea ?? null;
     const d32Snapshot = displayedSnapshot?.d32;
     const d32SnapshotGovernance = getEcr2D32SnapshotGovernance(displayedSnapshot);
     const transferStatus = bvp?.transferStatus ?? displayedSnapshot?.transferStatus;
@@ -4790,10 +4796,12 @@ export default function DesignSoftwareWorkspacePage() {
     const showingFailedSnapshot = !!latestFailedSnapshot;
     const hasStaleAcceptedSnapshot = !!simResult && showingFailedSnapshot;
     const activeHeight = ecrResult?.heightBreakdown?.activeAgitatedHeight?.result;
+    const fmt = (value: any, digits = 4) => typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "—";
     const inherited = [
       ["Operating temperature", d("design_basis").operating_temperature, "Design Basis"],
-      ["RRBO composition", d("process_design").rrbo_saturates_wt ? "Sat / Mono / Di / Poly characterisation" : "Missing", "Process Design"],
-      ["S/O ratio", d("process_design").so_ratio, "Process Design"],
+      ["RRBO feed", simulationBasis?.rrboFeed?.massFlow_kg_h ? `${fmt(simulationBasis.rrboFeed.massFlow_kg_h, 3)} kg/h` : (d("process_design").design_capacity_lph ? `${d("process_design").design_capacity_lph} LPH physical feed basis` : ""), "Stage 4 Process Design"],
+      ["RRBO composition", d("process_design").rrbo_saturates_wt ? `Sat ${d("process_design").rrbo_saturates_wt}% · Mono ${d("process_design").rrbo_mono_aromatics_wt}% · Di ${d("process_design").rrbo_di_aromatics_wt}% · Poly ${d("process_design").rrbo_poly_aromatics_wt}%` : "Missing", "Stage 4 Process Design"],
+      ["NMP feed / S/O ratio", simulationBasis?.nmpSolvent?.massFlow_kg_h ? `${fmt(simulationBasis.nmpSolvent.massFlow_kg_h, 3)} kg/h · S/O ${fmt(simulationBasis.SO_massRatio, 4)} mass basis` : (d("process_design").so_ratio ? `${d("process_design").so_ratio} volume basis` : ""), "Stage 4 Process Design"],
       ["Column diameter", co.diameter !== null ? `${co.diameter} m` : "", co.diameterSource],
       ["Active agitated height", typeof activeHeight === "number" ? `${activeHeight} m` : "", "Stage 7 — accepted ECR Equipment Design result"],
       ["Compartment height", ecr.compartment_height ? `${ecr.compartment_height} m` : "", "Stage 7 — ECR Equipment Design"],
@@ -4803,7 +4811,6 @@ export default function DesignSoftwareWorkspacePage() {
       ["RRBO viscosity", d("fluid_properties").rrbo_viscosity_dynamic_value, "Fluid Properties"],
       ["Interfacial tension", d("hydraulic_design").interfacial_tension || d("fluid_properties").interfacial_tension_value, "Two-Phase Properties"],
     ];
-    const fmt = (value: any, digits = 4) => typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "—";
     const profile = bvp?.axialProfile ?? [];
     const compartments = bvp?.compartments ?? [];
     const resultOk = bvp?.status === "converged" && bvp?.massBalanceStatus === "passed";
@@ -5108,6 +5115,7 @@ export default function DesignSoftwareWorkspacePage() {
           )}
 
           <p className="text-xs font-semibold text-gray-700 mb-1">Inherited workspace inputs</p>
+          <p className="text-[11px] text-gray-500 mb-2">These values remain owned by their named workspace stage. Edit them at the source, then rerun the upstream calculation before simulating. The simulator does not create shadow operating inputs.</p>
           <div className="rounded-lg border overflow-hidden mb-4">
             {inherited.map(([label, value, source]) => (
               <div key={label} className="grid grid-cols-[180px_1fr_auto] gap-2 px-3 py-2 border-b last:border-0 text-xs">
@@ -5121,6 +5129,13 @@ export default function DesignSoftwareWorkspacePage() {
           <p className="text-xs font-semibold text-gray-700 mb-1">Simulator-only inputs</p>
           <p className="text-[11px] text-gray-500 mb-3">Stage 7 equipment geometry and operating data are inherited above and cannot be re-entered here. The diameter override below is the only permitted simulator geometry override.</p>
           <FieldRow label="Simulator-only diameter override" value={sim.columnDiameter_m ?? ""} onChange={v => f("columnDiameter_m", v)} onBlur={s} unit="m" note="Leave blank to inherit the governed Stage 5/Stage 7 diameter." />
+          <div className="mt-3 flex flex-wrap gap-1.5 text-[10px]">
+            <Badge className="border border-blue-200 bg-blue-50 text-blue-700">INHERITED</Badge>
+            <Badge className="border border-violet-200 bg-violet-50 text-violet-700">ENGINEER INPUT / APPROVAL</Badge>
+            <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700">CALCULATED</Badge>
+            <Badge className="border border-red-200 bg-red-50 text-red-700">MISSING REQUIRED / BLOCKED</Badge>
+            <Badge className="border border-amber-200 bg-amber-50 text-amber-800">PRELIMINARY / NOT RELEASE ELIGIBLE</Badge>
+          </div>
 
            <SectionCard title="Stage 8 dependency register" className="mt-4">
               <p className="text-[11px] text-gray-500">The system resolves each numerical dependency from its governed evidence record; this is not a manual-entry worksheet. Each resolved value shows its value, source, method, and preliminary or validated status. One acceptance applies to all currently resolved values.</p>
@@ -5437,13 +5452,57 @@ export default function DesignSoftwareWorkspacePage() {
                 )}
                 {showPreliminaryTransferPerformance ? (
                   <>
+                    <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-semibold">Headline engineering results — calculated preliminary</p>
+                        <Badge className="border border-amber-300 bg-amber-100 text-amber-900 text-[10px]">{headlineResults?.releaseStatus ?? "NOT RELEASE ELIGIBLE"}</Badge>
+                      </div>
+                      <p className="mt-1 text-[11px]">{headlineResults?.basis ?? "Accepted BVP outlet values only."}</p>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        {[
+                          ["RRBO feed", `${fmt(headlineResults?.rrboNmpFeed?.rrbo_kg_h, 3)} kg/h`],
+                          ["NMP feed", `${fmt(headlineResults?.rrboNmpFeed?.nmp_kg_h, 3)} kg/h`],
+                          ["S/O ratio", `${fmt(headlineResults?.rrboNmpFeed?.soRatio_mass, 4)} mass`],
+                          ["Temperature", `${fmt(headlineResults?.selectedOperatingTemperature_C, 2)} °C`],
+                          ["Raffinate flow", `${fmt(headlineResults?.raffinateFlow_kg_h, 3)} kg/h`],
+                          ["RRBO to extract", `${fmt(headlineResults?.rrboTransferToExtract_kg_h, 3)} kg/h`],
+                          ["RRBO recovery", `${fmt(headlineResults?.rrboRecovery_percent, 2)} %`],
+                          ["Extract oil yield", `${fmt(headlineResults?.extractOilYield_percent, 2)} %`],
+                          ["Saturates recovery", `${fmt(headlineResults?.saturatesRecovery_percent, 2)} %`],
+                          ["Saturates loss", `${fmt(headlineResults?.saturatesLoss_kg_h, 3)} kg/h`],
+                          ["Total aromatic removal", `${fmt(headlineResults?.totalAromaticRemoval_percent, 2)} %`],
+                          ["Sulfur / DBT prediction", headlineResults?.sulfurDbtPrediction?.replaceAll("_", " ") ?? "NOT IMPLEMENTED"],
+                        ].map(([label, value]) => <div key={label} className="rounded border border-amber-200 bg-white px-2.5 py-2"><p className="text-[10px] uppercase text-amber-800">{label}</p><p className="mt-0.5 font-semibold">{value}</p></div>)}
+                      </div>
+                      <div className="mt-3 grid gap-2 md:grid-cols-3">
+                        {[
+                          ["Mono-aromatic removal", headlineResults?.monoAromaticRemoval_percent],
+                          ["Di-aromatic removal", headlineResults?.diAromaticRemoval_percent],
+                          ["Poly-aromatic removal", headlineResults?.polyAromaticRemoval_percent],
+                        ].map(([label, value]) => <div key={String(label)} className="rounded border border-amber-200 bg-white px-2.5 py-2"><span className="text-[10px] uppercase text-amber-800">{label}</span><strong className="ml-2">{fmt(value, 2)} %</strong></div>)}
+                      </div>
+                      <p className="mt-3 text-[11px] text-amber-900"><strong>{headlineResults?.sulfurDbtPredictionNote ?? "SULFUR/DBT PREDICTION = NOT IMPLEMENTED. Aromatic-transfer results are not used as a sulfur or DBT surrogate."}</strong></p>
+                    </div>
+                    <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                      {[
+                        ["Numerical BVP compartments", simulationGeometry?.nCompartments],
+                        ["Physical active height", `${fmt(simulationGeometry?.activeHeightActual_m, 4)} m`],
+                        ["Column diameter", `${fmt(simulationGeometry?.columnDiameter_m, 4)} m`],
+                        ["Rotor speed", `${fmt(simulationPower?.rotorSpeed_rpm, 2)} rpm`],
+                        ["Dispersed holdup", fmt(bvp?.axialProfile?.[0]?.phi_d, 5)],
+                        ["d32", `${fmt(bvp?.axialProfile?.[0]?.d32_m ? bvp.axialProfile[0].d32_m * 1000 : null, 4)} mm`],
+                        ["Interfacial area", `${fmt(simulationArea?.a_m2_m3, 3)} m²/m³`],
+                        ["Rotor type", simulationGeometry?.rotorType ?? "—"],
+                      ].map(([label, value]) => <div key={String(label)} className="rounded-lg border bg-white p-2.5 text-xs"><p className="text-[10px] uppercase text-gray-500">{label}</p><p className="mt-0.5 font-semibold">{value}</p></div>)}
+                    </div>
                     <div className="grid md:grid-cols-2 gap-3 mb-4">
                       {["raffinate", "extract"].map(name => {
                         const outlet = bvp.outlets?.[name];
+                        const labels = ["Sat", "Mono", "Di", "Poly", "NMP"];
                         return <div key={name} className="border rounded-lg p-3">
                           <p className="font-semibold text-sm capitalize">{name}</p>
                           <p className="text-xs text-gray-500 mt-1">Total flow: {fmt(outlet?.totalFlow_kg_h, 3)} kg/h</p>
-                          <p className="text-[11px] text-gray-600 mt-1">Sat {fmt(outlet?.massFractions?.[0])} · Mono {fmt(outlet?.massFractions?.[1])} · Di {fmt(outlet?.massFractions?.[2])} · Poly {fmt(outlet?.massFractions?.[3])} · NMP {fmt(outlet?.massFractions?.[4])}</p>
+                          <table className="mt-2 w-full text-[11px]"><thead className="text-left text-gray-500"><tr><th>Component</th><th>Flow (kg/h)</th><th>Mass fraction</th></tr></thead><tbody>{labels.map((label, index) => <tr key={label} className="border-t"><td className="py-1">{label}</td><td>{fmt(outlet?.componentFlows_kg_h?.[index], 5)}</td><td>{fmt(outlet?.massFractions?.[index], 6)}</td></tr>)}</tbody></table>
                         </div>;
                       })}
                     </div>
@@ -5460,8 +5519,12 @@ export default function DesignSoftwareWorkspacePage() {
                         </p>
                       </div>
                     )}
-                    <p className="text-xs font-semibold text-gray-700 mb-1">Axial profile (CALCULATED PRELIMINARY — NOT RELEASE ELIGIBLE)</p>
+                    <p className="text-xs font-semibold text-gray-700 mb-1">Component and global mass balance (accepted BVP)</p>
+                    <div className="overflow-auto border rounded-lg mb-4"><table className="min-w-full text-[11px]"><thead className="bg-gray-50"><tr><th className="p-2 text-left">Component</th><th className="p-2 text-left">Feed (kg/h)</th><th className="p-2 text-left">Raffinate (kg/h)</th><th className="p-2 text-left">Extract (kg/h)</th><th className="p-2 text-left">Balance residual (kg/h)</th></tr></thead><tbody>{["Sat", "Mono", "Di", "Poly", "NMP"].map((label, index) => <tr key={label} className="border-t"><td className="p-2">{label}</td><td className="p-2">{fmt(massBalanceSummary?.feed_kg_h?.[index], 6)}</td><td className="p-2">{fmt(massBalanceSummary?.raffinate_kg_h?.[index], 6)}</td><td className="p-2">{fmt(massBalanceSummary?.extract_kg_h?.[index], 6)}</td><td className="p-2">{fmt(massBalanceSummary?.componentBalance_kg_h?.[index], 9)}</td></tr>)}<tr className="border-t bg-slate-50 font-semibold"><td className="p-2" colSpan={4}>Global mass-balance residual ({massBalanceSummary?.status ?? bvp.massBalanceStatus})</td><td className="p-2">{fmt(massBalanceSummary?.totalBalance_kg_h ?? bvp.totalMassBalance_kg_h, 9)}</td></tr></tbody></table></div>
+                    <p className="text-xs font-semibold text-gray-700 mb-1">Axial hydraulic profile (CALCULATED PRELIMINARY — NOT RELEASE ELIGIBLE)</p>
                     <div className="overflow-auto border rounded-lg mb-4"><table className="min-w-full text-[11px]"><thead className="bg-gray-50"><tr><th className="p-2 text-left">z (m)</th><th className="p-2 text-left">Raffinate flow</th><th className="p-2 text-left">Extract flow</th><th className="p-2 text-left">φd</th><th className="p-2 text-left">d32 (mm)</th><th className="p-2 text-left">Re_d</th></tr></thead><tbody>{profile.map((p: any, i: number) => <tr key={i} className="border-t"><td className="p-2">{fmt(p.z_m, 3)}</td><td className="p-2">{fmt(p.raffinateFlow_kg_h, 3)}</td><td className="p-2">{fmt(p.extractFlow_kg_h, 3)}</td><td className="p-2">{fmt(p.phi_d, 4)}</td><td className="p-2">{fmt(p.d32_m * 1000, 3)}</td><td className="p-2">{fmt(p.Re_d, 2)}</td></tr>)}</tbody></table></div>
+                    <p className="text-xs font-semibold text-gray-700 mb-1">Local mass-transfer profile by pseudo-component (CALCULATED PRELIMINARY — NOT RELEASE ELIGIBLE)</p>
+                    <div className="overflow-auto border rounded-lg mb-4"><table className="min-w-[1100px] text-[11px]"><thead className="bg-gray-50"><tr><th className="p-2 text-left">z (m)</th><th className="p-2 text-left">Component</th><th className="p-2 text-left">Shc</th><th className="p-2 text-left">Shd</th><th className="p-2 text-left">kc (m/s)</th><th className="p-2 text-left">kd (m/s)</th><th className="p-2 text-left">Koverall (m/s)</th><th className="p-2 text-left">Koa (1/s)</th><th className="p-2 text-left">Driving force (kg/m³)</th><th className="p-2 text-left">Transfer rate (kg/m³/s)</th></tr></thead><tbody>{profile.flatMap((p: any, i: number) => ["Sat", "Mono", "Di", "Poly", "NMP"].map((component, index) => <tr key={`${i}-${component}`} className="border-t"><td className="p-2">{index === 0 ? fmt(p.z_m, 3) : ""}</td><td className="p-2">{component}</td><td className="p-2">{fmt(p.Sh_c?.[index], 4)}</td><td className="p-2">{fmt(p.Sh_d?.[index], 4)}</td><td className="p-2">{fmt(p.k_c_m_s?.[index], 8)}</td><td className="p-2">{fmt(p.k_d_m_s?.[index], 8)}</td><td className="p-2">{fmt(p.K_overall_m_s?.[index], 8)}</td><td className="p-2">{fmt(p.Koa_per_s?.[index], 8)}</td><td className="p-2">{fmt(p.drivingForce_kg_m3?.[index], 5)}</td><td className="p-2">{fmt(p.transferRate_kg_m3_s?.[index], 9)}</td></tr>))}</tbody></table></div>
                     <p className="text-xs font-semibold text-gray-700 mb-1">Compartment engineering table (CALCULATED PRELIMINARY — NOT RELEASE ELIGIBLE)</p>
                     <div className="overflow-auto border rounded-lg"><table className="min-w-full text-[11px]"><thead className="bg-gray-50"><tr><th className="p-2 text-left">#</th><th className="p-2 text-left">z centre</th><th className="p-2 text-left">Active liquid volume</th><th className="p-2 text-left">Transfer warning(s)</th></tr></thead><tbody>{compartments.map((c: any) => <tr key={c.compartmentIndex} className="border-t"><td className="p-2">{c.compartmentIndex}</td><td className="p-2">{fmt(c.z_centre_m, 3)} m</td><td className="p-2">{fmt(c.activeLiquidVolume_m3, 5)} m³</td><td className="p-2">{(c.localWarnings ?? []).join("; ") || "—"}</td></tr>)}</tbody></table></div>
                   </>
@@ -5470,8 +5533,9 @@ export default function DesignSoftwareWorkspacePage() {
                     <strong>Transfer performance output unavailable.</strong> Any retained outlet, profile, or compartment arrays are unaccepted solver diagnostics and are not shown as calculated results.
                   </div>
                 )}
-                <div className="grid md:grid-cols-3 gap-3 mb-4">
+                <div className="grid md:grid-cols-4 gap-3 mb-4">
                   <div className="border rounded-lg p-3 text-xs"><p className="text-gray-500">Iterations</p><p className="font-semibold text-base">{bvp.iterations}</p></div>
+                  <div className="border rounded-lg p-3 text-xs"><p className="text-gray-500">Function evaluations</p><p className="font-semibold text-base">{bvp.functionEvaluations}</p></div>
                   <div className="border rounded-lg p-3 text-xs"><p className="text-gray-500">Final residual norm</p><p className="font-semibold text-base">{fmt(bvp.finalResidualNorm, 7)}</p></div>
                   <div className="border rounded-lg p-3 text-xs"><p className="text-gray-500">Total mass balance</p><p className="font-semibold text-base">{fmt(bvp.totalMassBalance_kg_h, 8)} kg/h</p></div>
                 </div>

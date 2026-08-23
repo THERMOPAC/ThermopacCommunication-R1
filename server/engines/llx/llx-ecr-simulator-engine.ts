@@ -1894,6 +1894,89 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const corrRegistry = correlationRegistrySummary();
 
     // ── Result payload ───────────────────────────────────────────────────────
+    const bvpAccepted = bvpResult.status === 'converged' && bvpResult.massBalanceStatus === 'passed';
+    const componentLabels = ['saturates', 'monoAromatics', 'diAromatics', 'polyAromatics', 'nmp'] as const;
+    const componentNames = ['Sat', 'Mono', 'Di', 'Poly', 'NMP'] as const;
+    const feedComponentFlows = bvpInput.rrboFeedComponentFlows_kg_h.map(
+      (flow, index) => flow + bvpInput.nmpFeedComponentFlows_kg_h[index],
+    );
+    const nullIfInvalid = (value: number | null | undefined): number | null =>
+      typeof value === 'number' && Number.isFinite(value) ? value : null;
+    const percentage = (numerator: number | null | undefined, denominator: number | null | undefined): number | null =>
+      bvpAccepted && typeof numerator === 'number' && Number.isFinite(numerator)
+        && typeof denominator === 'number' && Number.isFinite(denominator) && denominator > 0
+        ? (numerator / denominator) * 100
+        : null;
+    const raffinateFlows = bvpAccepted ? bvpResult.outlets.raffinate?.componentFlows_kg_h ?? null : null;
+    const extractFlows = bvpAccepted ? bvpResult.outlets.extract?.componentFlows_kg_h ?? null : null;
+    const componentPerformance = Object.fromEntries(componentLabels.map((label, index) => {
+      const feed = feedComponentFlows[index];
+      const raffinate = raffinateFlows?.[index] ?? null;
+      const extract = extractFlows?.[index] ?? null;
+      return [label, {
+        component: componentNames[index],
+        feed_kg_h: nullIfInvalid(feed),
+        raffinate_kg_h: nullIfInvalid(raffinate),
+        extract_kg_h: nullIfInvalid(extract),
+        raffinateRecovery_percent: percentage(raffinate, feed),
+        extractRecovery_percent: percentage(extract, feed),
+        removal_percent: percentage(extract, feed),
+        loss_kg_h: bvpAccepted && raffinate !== null && typeof raffinate === 'number'
+          ? nullIfInvalid(feed - raffinate)
+          : null,
+      }];
+    }));
+    const rrboFeedKgH = componentPerformance.saturates.feed_kg_h! +
+      componentPerformance.monoAromatics.feed_kg_h! +
+      componentPerformance.diAromatics.feed_kg_h! +
+      componentPerformance.polyAromatics.feed_kg_h!;
+    const rrboRaffinateKgH = bvpAccepted && raffinateFlows
+      ? raffinateFlows.slice(0, 4).reduce((sum, flow) => sum + flow, 0)
+      : null;
+    const rrboExtractKgH = bvpAccepted && extractFlows
+      ? extractFlows.slice(0, 4).reduce((sum, flow) => sum + flow, 0)
+      : null;
+    const totalAromaticFeedKgH = feedComponentFlows[1] + feedComponentFlows[2] + feedComponentFlows[3];
+    const totalAromaticExtractKgH = extractFlows
+      ? extractFlows[1] + extractFlows[2] + extractFlows[3]
+      : null;
+    const headlineEngineeringResults = {
+      status: bvpAccepted ? 'CALCULATED_PRELIMINARY' : 'NOT_CALCULABLE',
+      releaseStatus: 'NOT_RELEASE_ELIGIBLE',
+      basis: 'Accepted five-component counter-current BVP outlet flows; preliminary local transfer physics.',
+      rrboNmpFeed: {
+        rrbo_kg_h: mRRBO,
+        nmp_kg_h: mNMP,
+        soRatio_mass: SO_mass,
+      },
+      selectedOperatingTemperature_C: T_C,
+      raffinateFlow_kg_h: bvpAccepted ? nullIfInvalid(bvpResult.outlets.raffinate?.totalFlow_kg_h) : null,
+      rrboTransferToExtract_kg_h: rrboExtractKgH,
+      rrboRecovery_percent: percentage(rrboRaffinateKgH, rrboFeedKgH),
+      extractOilYield_percent: percentage(rrboExtractKgH, rrboFeedKgH),
+      saturatesRecovery_percent: componentPerformance.saturates.raffinateRecovery_percent,
+      saturatesLoss_kg_h: componentPerformance.saturates.loss_kg_h,
+      monoAromaticRemoval_percent: componentPerformance.monoAromatics.removal_percent,
+      diAromaticRemoval_percent: componentPerformance.diAromatics.removal_percent,
+      polyAromaticRemoval_percent: componentPerformance.polyAromatics.removal_percent,
+      totalAromaticRemoval_percent: percentage(totalAromaticExtractKgH, totalAromaticFeedKgH),
+      sulfurDbtPrediction: 'NOT_IMPLEMENTED',
+      sulfurDbtPredictionNote: 'SULFUR/DBT PREDICTION = NOT IMPLEMENTED. Aromatic-transfer results must not be interpreted as sulfur or DBT removal.',
+      componentPerformance,
+      productQualityBasis: {
+        raffinate: 'Hydrocarbon-only product quantities; NMP excluded from molar and mass denominators.',
+        extract: 'Physical five-component outlet quantities; no product-quality claim is inferred.',
+      },
+    };
+    const massBalanceSummary = {
+      componentOrder: componentNames,
+      feed_kg_h: feedComponentFlows,
+      raffinate_kg_h: bvpAccepted ? bvpResult.outlets.raffinate?.componentFlows_kg_h ?? null : null,
+      extract_kg_h: bvpAccepted ? bvpResult.outlets.extract?.componentFlows_kg_h ?? null : null,
+      componentBalance_kg_h: bvpResult.componentBalances_kg_h,
+      totalBalance_kg_h: bvpResult.totalMassBalance_kg_h,
+      status: bvpResult.massBalanceStatus,
+    };
     const data: Record<string, unknown> = {
       applicabilityStatement: APPLICABILITY_STATEMENT,
       phase: 2,
@@ -1985,6 +2068,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       thermodynamicBasis,
       physicalBasis,
       bvp: bvpResult,
+      headlineEngineeringResults,
+      massBalanceSummary,
       raffinateProductQuality,
 
       geometry: {
