@@ -88,40 +88,61 @@ const KUHNI_VK_ROUTE_REFERENCE =
   'Asadollahzadeh, M.; Torkaman, R.; Torab-Mostaedi, M. “New correlations for slip velocity and characteristic velocity in a rotary liquid–liquid extraction column.” Chemical Engineering Research & Design 127 (2017), 146–153. https://doi.org/10.1016/j.cherd.2017.07.032';
 
 // This is deliberately a server-owned evidence record, not a workspace field.
-// The bibliographic record and abstract have been checked, but the available
-// source material does not expose the equation page needed to verify its native
-// output units, fitted ranges, or complete pilot geometry. Do not infer those
-// facts from the supplied expression or let a client-side checkbox advance it.
+// The publisher's article record and abstract have been checked, but the
+// controlled primary equation page has not been obtained. Do not infer units,
+// fitted ranges, geometry, or an approved m from the supplied expression, and
+// do not let a client-side field advance the explicit rejected-use decision.
 const KUHNI_VK_SOURCE_EVIDENCE = Object.freeze({
-  status: 'bibliography_verified_evidence_incomplete',
+  recordId: 'LLX-ECR-KUHNI-VK-2017-001',
+  status: 'engineer_rejected_design_use',
   capacitySweepAllowed: false,
   primarySource: {
     citation: KUHNI_VK_ROUTE_REFERENCE,
-    verification: 'Bibliographic record and abstract verified',
+    publisherRecordUrl: 'https://www.sciencedirect.com/science/article/abs/pii/S0263876217304100',
+    verification: 'Publisher bibliographic record and abstract verified',
+  },
+  sourceControl: {
+    assessmentDate: '2026-08-22',
+    equationPageStatus: 'not_retained_primary_material_unavailable',
+    equationPageNote: 'The publisher record exposes institutional-access and purchase paths only; no lawful equation page was available to retain in the controlled record.',
   },
   equation: {
     suppliedExpression: 'V_k = 0.237·(ρ_c/Δρ)^0.741·Fr^-0.184·N_μ^-0.095·(1+0.052·α_MT)',
     nativeOutputUnit: null,
-    unitStatus: 'Not verified from the primary equation page',
-    transcriptionStatus: 'Supplied expression retained only as a preliminary transcription',
+    unitStatus: 'Unknown — no controlled primary equation page retained',
+    transcriptionStatus: 'Not independently checked against a primary equation page; supplied expression is audit-only',
   },
   applicability: {
     validRanges: null,
-    rangeStatus: 'Not extracted from the primary source',
-    testedSystem: 'Kühni liquid–liquid extraction column; the indexed abstract describes three liquid–liquid systems with and without mass transfer, including toluene–water work with silica nanoparticles.',
+    rangeStatus: 'Unknown — no controlled primary equation page retained',
+    testedSystem: 'Publisher abstract: three liquid–liquid systems with and without mass transfer, including toluene–water with silica nanoparticles.',
     testedGeometry: null,
-    geometryStatus: 'Pilot geometry not verified from the primary source',
-    projectApplicability: 'No NMP/RRBO applicability or calibration has been established.',
+    geometryStatus: 'Unknown — no controlled primary equation page retained',
+    projectOperatingEnvelope: 'NMP-continuous/RRBO-dispersed extraction with Stage 4 operating-temperature properties and Stage 7 rotor ratio/speed.',
+    projectApplicability: 'Not comparable: no source ranges or full geometry are available, and no NMP/RRBO calibration has been established.',
+  },
+  routeSpecificHindranceExponent: {
+    requirement: 'A separately sourced, route-specific m with a controlled source, validity context, and review is required.',
+    reviewStatus: 'not_accepted_for_design_use',
+    note: 'Any workspace m is retained only as audit provenance; none is accepted to enable capacity or diameter calculations.',
+  },
+  engineerReview: {
+    decision: 'rejected',
+    decisionDate: '2026-08-22',
+    scope: 'Stage 5 generic hydraulic capacity and diameter screening only',
+    capacityUseApproved: false,
+    diameterUseApproved: false,
+    rationale: 'Reject design use because the controlled primary equation page, native V_k output unit, independently checked transcription, fitted ranges, full tested geometry, NMP/RRBO applicability, and approved route-specific m are unavailable.',
   },
   blockers: [
-    'Native V_k output unit is not verified.',
-    'Fitted validity ranges are not verified.',
-    'Tested column geometry is not verified.',
-    'The tested systems are not the NMP/RRBO project system.',
-    'A separately sourced route-specific hindrance exponent m remains required.',
-    'Engineer review has not approved a capacity or sizing use.',
+    'Controlled primary equation page and native V_k output unit are unavailable.',
+    'Independent primary-source transcription check is unavailable.',
+    'Fitted validity ranges and full tested geometry are unavailable.',
+    'NMP/RRBO applicability and calibration are unavailable.',
+    'No route-specific m has been accepted for design use.',
+    'Engineer review explicitly rejects capacity and diameter use.',
   ],
-  reviewStatus: 'Capacity and diameter use blocked pending evidence review',
+  reviewStatus: 'Engineer rejected capacity and diameter use; audit output only',
 });
 
 const C3_PRESSURE_DROP_CLASSIFICATION = 'Controlled Literature Prediction — Preliminary / Pending RRBO-NMP Validation';
@@ -633,6 +654,8 @@ export class LLXHydraulicsEngine implements IDesignEngine {
       // capacity sweep. A separately sourced m is necessary but not sufficient.
       const kuhniCapacitySweepAllowed = usesKuhniVkRoute
         && KUHNI_VK_SOURCE_EVIDENCE.capacitySweepAllowed
+        && KUHNI_VK_SOURCE_EVIDENCE.engineerReview.capacityUseApproved
+        && KUHNI_VK_SOURCE_EVIDENCE.engineerReview.diameterUseApproved
         && kuhniM !== undefined;
       let uK: number | undefined;
       let uKBasis: string | undefined;
@@ -641,11 +664,11 @@ export class LLXHydraulicsEngine implements IDesignEngine {
         uKBasis = `PRELIMINARY — ${ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY}; calculated per trial diameter from Stage 4 operating-temperature properties and Stage 7 rotor ratio/speed`;
         holdupForcePending = true;
         warnings.push({
-          code: 'KUHNI_VK_SOURCE_EVIDENCE_INCOMPLETE',
-          message: `${ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY} retains the primary bibliography, but its native output unit, valid ranges, and tested geometry are not yet verified. V_k is shown only as a native preliminary expression output; no holdup, capacity, feasibility, or diameter sweep is run.`,
+          code: 'KUHNI_VK_DESIGN_USE_REJECTED',
+          message: `${ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY} is explicitly rejected for capacity and diameter use. The controlled primary equation page, native output unit, transcription check, ranges, geometry, NMP/RRBO applicability, and an accepted route-specific m are unavailable. V_k is shown only as an audit expression output; no holdup, capacity, feasibility, or diameter sweep is run.`,
         });
         assumptions.push({
-          assumption: 'The Asadollahzadeh 2017 V_k expression is retained as preliminary evidence only; its native output units, validity envelope, geometry, project applicability, and capacity-use approval are incomplete.',
+          assumption: 'The Asadollahzadeh 2017 V_k expression is retained as an audit-only record. Engineer review rejects its use for capacity and diameter decisions until controlled primary evidence and route-specific m review are complete.',
           sourceType: 'Literature',
           sourceReference: KUHNI_VK_ROUTE_REFERENCE,
           scope: 'run',
@@ -756,16 +779,16 @@ export class LLXHydraulicsEngine implements IDesignEngine {
               classification: 'Not Calculable' as Classification,
               reason: usesKuhniVkRoute
                 ? (kuhniM
-                  ? 'Kühni V_k and route-specific m were supplied, but capacity use is blocked until the primary source native output unit, fitted validity ranges, tested geometry, project applicability, and engineer review are verified.'
-                  : 'Kühni V_k was calculated, but the route-specific hindrance exponent m is absent. The rigid-sphere route n is not reused. Source evidence also remains incomplete.')
+                  ? 'Kühni V_k design use is rejected. The supplied m is audit provenance only; controlled primary evidence, an independently checked transcription, validity ranges, geometry, NMP/RRBO applicability, and accepted m review are unavailable.'
+                  : 'Kühni V_k design use is rejected. A route-specific m is absent, the rigid-sphere route n is not reused, and controlled primary evidence is unavailable.')
                 : 'No characteristic-velocity basis: enter source-tagged characteristicVelocity + hindranceExponent, or set useTerminalVelocityAsCharacteristic (with d32).',
             };
             row.genericHydraulicThroughputMaximum = {
               classification: 'Not Calculable' as Classification,
               reason: usesKuhniVkRoute
                 ? (kuhniM
-                  ? 'Kühni-route capacity sweep is blocked by incomplete primary-source evidence and missing engineer approval.'
-                  : 'Kühni-route limiting throughput requires a separately sourced route-specific hindrance exponent m; primary-source evidence is also incomplete.')
+                  ? 'Kühni-route capacity sweep is rejected by the engineer review; supplied m is not accepted for design use.'
+                  : 'Kühni-route limiting throughput requires a separately sourced, reviewed m, but engineer review also rejects capacity use pending controlled evidence.')
                 : 'No complete characteristic-velocity and hindrance-exponent basis.',
             };
             row.percentageOfGenericHydraulicThroughputMaximum = null;
@@ -1043,8 +1066,8 @@ export class LLXHydraulicsEngine implements IDesignEngine {
               rotorSpeed: kuhniRotorSpeed ?? null,
               routeSpecificHindranceExponent: kuhniM ?? null,
               routeSpecificHindranceNote: kuhniM
-                ? 'Route-specific m is separately supplied and retained for review, but it cannot enable capacity use while the V_k source evidence is incomplete.'
-                : 'No route-specific m supplied. The rigid-sphere route n is not reused; holdup, limiting throughput, percentage, and diameter selection are Not Calculable.',
+                ? 'Supplied m is retained as audit provenance only. Engineer review has not accepted it for the route, and capacity use is rejected.'
+                : 'No route-specific m supplied. The rigid-sphere route n is not reused; engineer review rejects capacity and diameter use, so holdup, limiting throughput, percentage, and selection are Not Calculable.',
               sourceReference: KUHNI_VK_ROUTE_REFERENCE,
               sourceEvidence: KUHNI_VK_SOURCE_EVIDENCE,
             },

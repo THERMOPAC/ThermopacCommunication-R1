@@ -56,4 +56,4 @@
 - [ECR-2 Stage 4 temperature authority](ecr2-stage4-temperature-authority.md) — extraction temperature is the sole ECR-2 property-closure condition; older anchors require an at-temperature governed route.
 - [ECR-2 sigma temperature route](ecr2-sigma-temperature-route.md) — a non-target NMP/RRBO sigma anchor needs a source-tagged slope and stays blocked outside 25–100 °C; no default slope.
 - [ECR-2 transfer result status](ecr2-transfer-result-status.md) — preliminary local transfer numerics never become governed/release-eligible; failed snapshots expose diagnostics, not performance.
-- [Stage 5 Kühni Vk preliminary route](stage5-kuhni-vk-preliminary.md) — V_k is separate from rigid-sphere u_T; never carry terminal-route n into it, and block capacity/diameter results until its source units and m are independently evidenced.
+- [Stage 5 Kühni Vk preliminary route](stage5-kuhni-vk-preliminary.md) — V_k remains audit-only under an explicit engineer rejection; server-owned approval is required before capacity/diameter results can run.

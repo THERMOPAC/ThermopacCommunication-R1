@@ -368,10 +368,10 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     delete out.sauterMeanDiameter;
     delete out.hindranceExponent;
     out.characteristicVelocityRoute = 'ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY';
-    // Source maturity is server-owned. A saved workspace must never claim that
-    // the primary correlation units, validity envelope, geometry, or design-use
-    // approval were checked. The engine owns the detailed evidence record.
-    out.kuhniVkEvidenceStatus = 'bibliography_verified_evidence_incomplete';
+    // Source maturity and engineer decision are server-owned. A saved workspace
+    // must never claim primary equation verification or override the rejected
+    // design-use decision. The engine owns the detailed evidence record.
+    out.kuhniVkEvidenceStatus = 'engineer_rejected_design_use';
     // The current LLX process direction is determined from the Stage 4 process
     // basis, not from a free Stage 5 selector. RRBO is the feed/dispersed phase,
     // NMP is the solvent/continuous phase, and recovery is to extract.

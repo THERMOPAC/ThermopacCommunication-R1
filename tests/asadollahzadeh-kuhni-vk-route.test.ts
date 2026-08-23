@@ -43,7 +43,34 @@ describe("ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY", () => {
 
     expect(mapped.kuhniVkHindranceExponent).toEqual(tag(1.35, "Literature", "Route-specific source"));
     expect(mapped.hindranceExponent).toBeUndefined();
-    expect(mapped.kuhniVkEvidenceStatus).toBe("bibliography_verified_evidence_incomplete");
+    expect(mapped.kuhniVkEvidenceStatus).toBe("engineer_rejected_design_use");
+  });
+
+  it("does not trust a workspace claim that capacity use was approved", async () => {
+    const mapped = mapWorkspaceProcessDesignInputs({
+      hydraulic_model: "asadollahzadeh_2017_kuhni_vk_preliminary",
+      phase_configuration: "nmp_continuous_rrbo_dispersed",
+      solute_recovery_extract: "90",
+      kuhniVkEvidenceStatus: "engineer_approved_design_use",
+      capacitySweepAllowed: true,
+      kuhni_vk_hindrance_exponent: "1.35",
+      kuhni_vk_hindrance_exponent_source: "Literature",
+      kuhni_vk_hindrance_exponent_source_ref: "Claimed approved route-specific m",
+    }, "hydraulics_common") as any;
+
+    expect(mapped.kuhniVkEvidenceStatus).toBe("engineer_rejected_design_use");
+
+    const result = await engine.calculate({
+      ...routeInputs(),
+      kuhniVkEvidenceStatus: mapped.kuhniVkEvidenceStatus,
+      capacitySweepAllowed: true,
+      kuhniVkHindranceExponent: tag(1.35, "Literature", "Claimed approved route-specific m"),
+    }, context);
+    const data = result.data as any;
+    expect(data.designBasis.characteristicVelocityRoute.sourceEvidence.engineerReview.decision).toBe("rejected");
+    expect(data.normalCase.diameters[0].characteristicVelocity.capacitySweepAllowed).toBe(false);
+    expect(data.normalCase.diameters[0].holdup.classification).toBe("Not Calculable");
+    expect(data.normalCase.summary.minimumFeasibleDiameter_m).toBeNull();
   });
 
   it("ignores stale d32-terminal workspace fields and still returns the audit-only V_k result", async () => {
@@ -98,6 +125,7 @@ describe("ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY", () => {
     expect(second.characteristicVelocity.nativeOutputValue).toBeLessThan(first.characteristicVelocity.nativeOutputValue);
     expect(first.characteristicVelocity.nativeOutputUnit).toBeNull();
     expect(first.characteristicVelocity.capacitySweepAllowed).toBe(false);
+    expect(first.characteristicVelocity.evidenceStatus).toBe("engineer_rejected_design_use");
     expect(first.holdup.classification).toBe("Not Calculable");
     expect(first.genericHydraulicThroughputMaximum.classification).toBe("Not Calculable");
     expect(first.percentageOfGenericHydraulicThroughputMaximum).toBeNull();
@@ -121,7 +149,17 @@ describe("ASADOLLAHZADEH_2017_KUHNI_VK_PRELIMINARY", () => {
     expect(first.genericHydraulicFeasibility).toBe("not_calculable");
     expect((result.data as any).normalCase.summary.minimumFeasibleDiameter_m).toBeNull();
     expect((result.data as any).designBasis.characteristicVelocityRoute.routeSpecificHindranceExponent.value).toBe(1.35);
-    expect((result.data as any).designBasis.characteristicVelocityRoute.sourceEvidence.capacitySweepAllowed).toBe(false);
+    const sourceEvidence = (result.data as any).designBasis.characteristicVelocityRoute.sourceEvidence;
+    expect(sourceEvidence.capacitySweepAllowed).toBe(false);
+    expect(sourceEvidence.sourceControl.equationPageStatus).toBe("not_retained_primary_material_unavailable");
+    expect(sourceEvidence.equation.nativeOutputUnit).toBeNull();
+    expect(sourceEvidence.applicability.validRanges).toBeNull();
+    expect(sourceEvidence.applicability.testedGeometry).toBeNull();
+    expect(sourceEvidence.routeSpecificHindranceExponent.reviewStatus).toBe("not_accepted_for_design_use");
+    expect(sourceEvidence.engineerReview.decision).toBe("rejected");
+    expect(sourceEvidence.engineerReview.capacityUseApproved).toBe(false);
+    expect(sourceEvidence.engineerReview.diameterUseApproved).toBe(false);
+    expect(result.warnings.some((warning) => warning.code === "KUHNI_VK_DESIGN_USE_REJECTED")).toBe(true);
   });
 
   it("rejects an assumed m = 1 carry-over", () => {
