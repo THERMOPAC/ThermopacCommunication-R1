@@ -621,6 +621,7 @@ export default function DesignSoftwareWorkspacePage() {
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [ecr2RunPreparing, setEcr2RunPreparing] = useState(false);
   const [ecr2AcceptancePreparing, setEcr2AcceptancePreparing] = useState(false);
+  const [lastEcr2RunReceipt, setLastEcr2RunReceipt] = useState<{ revisionId: number; run: CalcRun } | null>(null);
   const [stage8ExpandedRows, setStage8ExpandedRows] = useState<Record<string, boolean>>({});
 
   // ── Stage-by-stage validation ────────────────────────────────────────────────
@@ -4702,6 +4703,9 @@ export default function DesignSoftwareWorkspacePage() {
     const latestRun = runs
       .filter(r => r.calculation_type === "ecr_simulator")
       .sort((a, b) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0];
+    const runReceipt = lastEcr2RunReceipt?.revisionId === activeRevisionId
+      ? lastEcr2RunReceipt.run
+      : null;
     const c2InputUpdatedAt = (inputsQ.data ?? []).find((row: any) => row.section === "process_design")?.updated_at;
     const c2ResultComputedAt = (resultsQ.data ?? []).find((row: any) => row.section === "process_design")?.computed_at;
     const c2InputsAreStale = !!(
@@ -4734,7 +4738,13 @@ export default function DesignSoftwareWorkspacePage() {
           });
           return;
         }
-        await calculateMutation.mutateAsync("ecr_simulator");
+        const calculationResponse = await calculateMutation.mutateAsync("ecr_simulator");
+        if (calculationResponse?.run && activeRevisionId) {
+          // Show the persisted run identity immediately. The runs query is
+          // refreshed by the mutation, but that refetch can complete after the
+          // button handler returns (especially for a failed run).
+          setLastEcr2RunReceipt({ revisionId: activeRevisionId, run: calculationResponse.run });
+        }
       } catch (e: any) {
         // calculateMutation reports its own calculation error. Only surface a
         // dedicated message when the prerequisite save itself did not complete.
@@ -5383,6 +5393,24 @@ export default function DesignSoftwareWorkspacePage() {
               <Play className="h-3.5 w-3.5" /> {ecr2RunPreparing ? "Saving simulator inputs…" : c2InputsAreStale ? "Save inputs & refresh C2" : "RUN ECR-2 SIMULATION"}
             </Button>
           </div>
+          {runReceipt && (
+            <div
+              className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900"
+              data-testid="ecr2-run-receipt"
+            >
+              <p className="font-semibold">ECR-2 simulation run created</p>
+              <p className="mt-1">
+                <span className="font-medium">Run #{runReceipt.id}</span>
+                {" · "}
+                {new Date(runReceipt.calculated_at).toLocaleString()}
+                {" · "}
+                {runReceipt.calculation_status}
+              </p>
+              <p className="mt-1 text-[11px] text-blue-800">
+                This run is recorded in the calculation history, including when the simulator reports an error or the BVP is not accepted.
+              </p>
+            </div>
+          )}
           {stage8Blocking && (
             <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800">
               <p className="font-semibold">
@@ -5879,7 +5907,7 @@ export default function DesignSoftwareWorkspacePage() {
     return (
       <div className="mt-2 space-y-2">
         <p className="text-[11px] text-gray-500">
-          Last run: {new Date(latestRun.calculated_at).toLocaleString()} · {latestRun.engine_name} v{latestRun.engine_version} · {latestRun.calculation_status}
+          Last run: #{latestRun.id} · {new Date(latestRun.calculated_at).toLocaleString()} · {latestRun.engine_name} v{latestRun.engine_version} · {latestRun.calculation_status}
         </p>
         {latestRun.calculation_status === "error" && (
           <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg">
