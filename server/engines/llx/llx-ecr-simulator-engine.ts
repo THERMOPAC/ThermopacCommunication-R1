@@ -72,6 +72,7 @@ import {
   nrtlFlash,
   nrtlLnGamma,
   temperatureModelStatus,
+  resolveThermodynamicValidityAtTemperature,
   TLLE_MODEL_ID,
   TLLE_MODEL_VERSION,
   TLLE_MODEL_NAME,
@@ -904,7 +905,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     // NRTL model status at this temperature (informational — does not block)
     if (T !== undefined) {
       const nrtlStatus = temperatureModelStatus((T + 273.15));
-      if (nrtlStatus === 'out_of_range') {
+      if (nrtlStatus.mode === 'extrapolation') {
         errors.push({
           field: 'operatingTemperatureC',
           message: `NRTL model: temperature ${T} °C is outside the calibrated range — NRTL equilibrium targets will be extrapolated (Pending Validation).`,
@@ -1272,11 +1273,12 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
 
     // ── NRTL model status at operating temperature ───────────────────────────
     const nrtlStatus = temperatureModelStatus(T_K);
-    const nrtlNote = nrtlStatus === 'in_range'
+    const thermodynamicValidity = resolveThermodynamicValidityAtTemperature(T_K);
+    const nrtlNote = nrtlStatus.mode === 'interpolation'
       ? `NRTL model: in-range at ${T_C} °C — experimental tie-lines exact.`
-      : nrtlStatus === 'out_of_range'
+      : nrtlStatus.mode === 'extrapolation'
         ? `NRTL model: EXTRAPOLATION at ${T_C} °C — Temperature Extrapolation Preliminary / Pending Validation.`
-        : `NRTL model: status '${nrtlStatus}' at ${T_C} °C.`;
+        : `NRTL model: status '${nrtlStatus.mode}' at ${T_C} °C.`;
 
     // ── ECR-2 geometry ───────────────────────────────────────────────────────
     const A_col  = columnCrossSectionArea(D);                      // m²
@@ -1917,11 +1919,12 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         'No second characterization model created.',
       rotorsPerCompartmentFixed: ROTORS_PER_COMPARTMENT,
       engineVersions: { cel: CEL_VERSION, epd: EPD_VERSION, ecrSimulator: ENGINE_VERSION },
+      thermodynamicTemperatureValidation: thermodynamicValidity,
 
       designBasis: {
         operatingTemperatureC:  T_C,
         operatingTemperatureK:  T_K,
-        nrtlModelStatus:        { status: nrtlStatus, note: nrtlNote },
+        nrtlModelStatus:        { status: nrtlStatus, thermodynamicValidity, note: nrtlNote },
         phaseConfiguration:     { input: phaseConfig, continuousPhase, dispersedPhase },
         rrboFeed: {
           massFlow_kg_h:    mRRBO,

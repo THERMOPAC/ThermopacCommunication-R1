@@ -347,6 +347,14 @@ describe('4. local NRTL flash', () => {
     expect(['interpolation', 'extrapolation']).toContain(r.temperatureStatus.mode);
   });
 
+  it('returns the exact-temperature thermodynamic evidence contract', () => {
+    const r = computeLocalNRTL({ x_j: X_RRBO, y_j: Y_NMP, T_K: 298.15 });
+    expect(r.thermodynamicValidity.temperatureStatus).toBe('VALIDATED');
+    expect(r.thermodynamicValidity.calibrationTemperatureReproduction.status).toBe('FAIL');
+    expect(r.thermodynamicValidity.optimizerForwardThermodynamicReadiness).toBe('NOT_READY');
+    expect(r.thermodynamicValidity.evidence.tieLinesAvailable).toBe(13);
+  });
+
   it('flashKValues returns null when z_feed absent', () => {
     const r = computeLocalNRTL({ x_j: X_RRBO, y_j: Y_NMP, T_K });
     expect(flashKValues(r)).toBeNull();

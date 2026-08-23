@@ -40,7 +40,7 @@ import {
 } from '../../engine-framework/cel/coto2022-nmp-lle';
 import {
   temperatureModelStatus, generateModelTieLinesAtTemperature, TlleModelError,
-  experimentalFamilyForTemperature,
+  experimentalFamilyForTemperature, resolveThermodynamicValidityAtTemperature,
   TLLE_MODEL_ID, TLLE_MODEL_VERSION, TLLE_MODEL_NAME, TLLE_MODEL_CITATION,
   TLLE_REPRODUCTION_RECORD, TLLE_EXTRAPOLATION_CLASSIFICATION,
 } from '../../engine-framework/cel/llx-temperature-lle-model';
@@ -686,6 +686,7 @@ export class LLXProcessDesignEngine implements IDesignEngine {
       //     'Temperature Extrapolation — Preliminary / Pending Validation'
       const extractionTemperatureK = extractionTemperatureC + 273.15;
       const tModel = temperatureModelStatus(extractionTemperatureK);
+      const thermodynamicValidity = resolveThermodynamicValidityAtTemperature(extractionTemperatureK);
       const temperatureModelBlock: Record<string, unknown> = {
         userSelectedTemperatureC: extractionTemperatureC,
         userSelectedTemperatureK: Number(extractionTemperatureK.toFixed(2)),
@@ -697,6 +698,7 @@ export class LLXProcessDesignEngine implements IDesignEngine {
         statement: tModel.statement,
         model: { id: TLLE_MODEL_ID, version: TLLE_MODEL_VERSION, name: TLLE_MODEL_NAME, citation: TLLE_MODEL_CITATION },
         calibrationDatasets: tModel.calibrationDatasets,
+        thermodynamicValidity,
         validationStatus: tModel.mode === 'interpolation'
           ? 'Governed experimental tie-lines used directly (exact within data uncertainty u(x) = 0.003)'
           : `${TLLE_EXTRAPOLATION_CLASSIFICATION}. Model 298.15 K reproduction record: max |Δx| = ${TLLE_REPRODUCTION_RECORD.maxAbsDev} vs gate ${TLLE_REPRODUCTION_RECORD.gate} (${TLLE_REPRODUCTION_RECORD.tieLinesWithinGate}/${TLLE_REPRODUCTION_RECORD.tieLinesTotal} tie-lines within gate) — see V&V register.`,

@@ -347,6 +347,28 @@ describe('ECR2MolecularWeights thermodynamic isolation', () => {
   });
 });
 
+describe('ECR-2 operating-temperature thermodynamic validation', () => {
+  it('carries the selected-temperature evidence contract into the runtime snapshot', async () => {
+    const result = await new LLXECRSimulatorEngine().calculate(simulatorInput(), {});
+    const data = result.data as Record<string, any>;
+
+    expect(data.thermodynamicTemperatureValidation).toMatchObject({
+      operatingTemperatureK: T_K,
+      temperatureStatus: 'EXTRAPOLATED',
+      selectedTemperatureApplicability: 'EXTRAPOLATED_PRELIMINARY',
+      optimizerForwardThermodynamicReadiness: 'NOT_READY',
+      calibrationTemperatureReproduction: { status: 'FAIL' },
+      independentMultiTemperatureValidation: {
+        status: 'INSUFFICIENT_EVIDENCE',
+        diagnosticEvidenceExcluded: true,
+      },
+    });
+    expect(data.thermodynamicTemperatureValidation.evidence.tieLinesAvailable).toBe(13);
+    expect(data.designBasis.nrtlModelStatus.thermodynamicValidity)
+      .toEqual(data.thermodynamicTemperatureValidation);
+  });
+});
+
 describe('ECR-2 preliminary d32 phase applicability', () => {
   const publishedD32 = {
     mode: 'published_correlation',

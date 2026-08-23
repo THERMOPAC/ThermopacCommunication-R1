@@ -31,7 +31,9 @@ import {
   nrtlFlash,
   nrtlLnGamma,
   temperatureModelStatus,
+  resolveThermodynamicValidityAtTemperature,
   type TemperatureModelStatus,
+  type ThermodynamicValidityAtTemperature,
 } from '../../engine-framework/cel/llx-temperature-lle-model';
 
 import { validateComposition, COMPOSITION_TOLERANCE } from './llx-ecr2-composition';
@@ -99,6 +101,8 @@ export interface ECR2LocalNRTLResult {
   // ── Temperature model ─────────────────────────────────────────────────
   /** Temperature interpolation / extrapolation classification. */
   temperatureStatus: TemperatureModelStatus;
+  /** Full evidence/applicability contract for this exact local temperature. */
+  thermodynamicValidity: ThermodynamicValidityAtTemperature;
 
   // ── K-values (equilibrium ratios) ─────────────────────────────────────
   /**
@@ -190,6 +194,7 @@ export function computeLocalNRTL(params: {
 
   // ── Temperature model status ─────────────────────────────────────────
   const tempStatus = temperatureModelStatus(T_K);
+  const thermodynamicValidity = resolveThermodynamicValidityAtTemperature(T_K);
   if (tempStatus.mode === 'extrapolation') {
     diagnostics.push(
       `TEMPERATURE EXTRAPOLATION — T = ${T_K.toFixed(2)} K is ` +
@@ -268,6 +273,7 @@ export function computeLocalNRTL(params: {
     flashTrivial,
 
     temperatureStatus: tempStatus,
+    thermodynamicValidity,
     K_approx,
 
     diagnostics,

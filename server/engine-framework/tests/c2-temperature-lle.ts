@@ -10,6 +10,7 @@ import {
   temperatureModelStatus, generateModelTieLinesAtTemperature, TlleModelError,
   TLLE_EXTRAPOLATION_CLASSIFICATION, TLLE_REPRODUCTION_RECORD, TLLE_REPRODUCTION_GATE,
   experimentalFamilyForTemperature, calibratedTemperatureRangeK, usableCalibrationPointsK,
+  resolveThermodynamicValidityAtTemperature,
 } from '../cel/llx-temperature-lle-model';
 import {
   computeGovernedTheoreticalStages, interpolateTieLine,
@@ -41,6 +42,38 @@ async function main() {
     check('extrapolation distance = 44.5 K', sOut.distanceOutsideRangeK === 44.5, String(sOut.distanceOutsideRangeK));
     check('exact extrapolation classification', sOut.classification === TLLE_EXTRAPOLATION_CLASSIFICATION);
     check('no experimental family at 343.15 K', experimentalFamilyForTemperature(343.15) === null);
+
+    const direct = resolveThermodynamicValidityAtTemperature(298.15);
+    check('direct Coto temperature is explicitly validated-preliminary',
+      direct.temperatureStatus === 'VALIDATED' &&
+      direct.selectedTemperatureApplicability === 'VALIDATED_PRELIMINARY');
+    check('direct Coto evidence carries source context and tie-line count',
+      direct.evidence.pressureKPa === 101.6 &&
+      direct.evidence.components.length === 5 &&
+      direct.evidence.tieLinesAvailable === 13 &&
+      direct.evidence.tieLinesUsed === 13);
+    check('failed calibration reproduction and negative optimizer readiness are explicit',
+      direct.calibrationTemperatureReproduction.status === 'FAIL' &&
+      direct.optimizerForwardThermodynamicReadiness === 'NOT_READY');
+    check('multi-temperature diagnostic evidence remains excluded',
+      direct.independentMultiTemperatureValidation.status === 'INSUFFICIENT_EVIDENCE' &&
+      direct.independentMultiTemperatureValidation.diagnosticEvidenceExcluded === true &&
+      direct.parameterIdentifiability.status === 'CALIBRATION_TEMPERATURE_ONLY');
+
+    const nearBoundary = resolveThermodynamicValidityAtTemperature(298.65);
+    check('±0.5 K direct-evidence window remains validated-preliminary',
+      nearBoundary.temperatureStatus === 'VALIDATED' &&
+      nearBoundary.distanceFromNearestAdmittedTemperatureK === 0.5);
+    const extrapolated = resolveThermodynamicValidityAtTemperature(343.15);
+    check('off-calibration temperature is extrapolated-preliminary with exact distance',
+      extrapolated.temperatureStatus === 'EXTRAPOLATED' &&
+      extrapolated.selectedTemperatureApplicability === 'EXTRAPOLATED_PRELIMINARY' &&
+      extrapolated.extrapolation.used === true &&
+      extrapolated.extrapolation.distanceOutsideAdmittedRangeK === 45);
+    const insufficient = resolveThermodynamicValidityAtTemperature(Number.NaN);
+    check('invalid temperature fails closed as insufficient evidence',
+      insufficient.temperatureStatus === 'INSUFFICIENT_EVIDENCE' &&
+      insufficient.selectedTemperatureApplicability === 'INSUFFICIENT_EVIDENCE');
   }
 
   console.log('── Model tie-line family generation ──');
@@ -123,6 +156,10 @@ async function main() {
     check('25 °C → interpolation, dist 0', tm?.mode === 'interpolation' && tm?.distanceOutsideRangeK === 0);
     check('experimental basis reported in-range', tm?.experimentalBasis?.datasetId === COTO_2022_DATASET_ID && tm?.experimentalBasis?.tieLines === 13);
     check('user T + calibrated range surfaced', tm?.userSelectedTemperatureK === 298.15 && tm?.calibratedTemperatureRangeK?.minK === 298.15);
+    check('temperature resolver metadata is surfaced on the C2 snapshot',
+      tm?.thermodynamicValidity?.operatingTemperatureK === 298.15 &&
+      tm?.thermodynamicValidity?.temperatureStatus === 'VALIDATED' &&
+      tm?.thermodynamicValidity?.optimizerForwardThermodynamicReadiness === 'NOT_READY');
     check('no extrapolation warning in-range', !(d ? (r as any).warnings ?? [] : []).some?.((w: any) => w.code === 'NT_TEMPERATURE_EXTRAPOLATION'));
   }
   {
@@ -133,6 +170,10 @@ async function main() {
     check('70 °C → extrapolation, dist 44.5 K', tm?.mode === 'extrapolation' && tm?.distanceOutsideRangeK === 44.5);
     check('exact classification on result', tm?.classification === TLLE_EXTRAPOLATION_CLASSIFICATION);
     check('model identity + validation status surfaced', !!tm?.model?.id && String(tm?.validationStatus).includes('reproduction record'));
+    check('off-temperature C2 snapshot carries extrapolation evidence metadata',
+      tm?.thermodynamicValidity?.temperatureStatus === 'EXTRAPOLATED' &&
+      tm?.thermodynamicValidity?.evidence?.tieLinesAvailable === 13 &&
+      tm?.thermodynamicValidity?.independentMultiTemperatureValidation?.status === 'INSUFFICIENT_EVIDENCE');
     check('model tie-line family echoed', (tm?.modelTieLineFamily?.tieLinesUsed ?? 0) >= 4);
     const quality = d?.lleStageCalculation;
     check('historical LLE aromatics are explicitly retained on the full phase',

@@ -42,7 +42,7 @@
 import {
   TieLine, COTO_2022_XYLENE_TIELINES, COTO_2022_TEMPERATURE_K,
   COTO_2022_TEMPERATURE_TOLERANCE_K, COTO_2022_DATASET_ID,
-  COTO_2022_DATASET_VERSION, COTO_2022_CITATION, COTO_2022_UX,
+  COTO_2022_DATASET_VERSION, COTO_2022_CITATION, COTO_2022_UX, COTO_COMPONENTS,
 } from './coto2022-nmp-lle';
 
 export const TLLE_MODEL_ID = 'LLX_TLLE_NRTL_TAU_B_OVER_T';
@@ -74,6 +74,15 @@ export interface CalibrationDataset {
   datasetVersion: string;
   citation: string;
   admitted: string; // ISO date of engineering admission
+  /** Experimental context is carried with the evidence; it is never inferred
+   * from a model-generated tie-line family. */
+  pressureKPa?: number;
+  components?: readonly string[];
+  compositionBasis?: string;
+  uncertainty?: { moleFraction: number; temperatureK?: number };
+  /** Direct-use acceptance half-window around each experimental temperature. */
+  temperatureAcceptanceToleranceK?: number;
+  provenance?: string;
   /** Experimental tie-line families this dataset supplies, keyed by their
    *  measurement temperature. A dataset counts toward the calibrated range
    *  ONLY through temperatures whose tie-line family is actually usable
@@ -91,6 +100,12 @@ export const TLLE_CALIBRATION_REGISTRY: readonly CalibrationDataset[] = [
     datasetVersion: COTO_2022_DATASET_VERSION,
     citation: COTO_2022_CITATION,
     admitted: '2026-08-10',
+    pressureKPa: 101.6,
+    components: COTO_COMPONENTS,
+    compositionBasis: 'Verbatim Table 3 phase mole fractions; xylene-family pseudo-component basis',
+    uncertainty: { moleFraction: COTO_2022_UX, temperatureK: 0.05 },
+    temperatureAcceptanceToleranceK: COTO_2022_TEMPERATURE_TOLERANCE_K,
+    provenance: 'Controlled Literature — Coto 2022, Table 3; 13 xylene-family tie-lines retained after governance review',
     tieLineFamilies: [{ temperatureK: COTO_2022_TEMPERATURE_K, tieLines: COTO_2022_XYLENE_TIELINES }],
   },
 ];
@@ -122,7 +137,8 @@ export function experimentalFamilyForTemperature(userTemperatureK: number):
     for (const f of d.tieLineFamilies) {
       if (f.tieLines.length < MIN_USABLE_TIELINES) continue;
       const dist = Math.abs(userTemperatureK - f.temperatureK);
-      if (dist <= COTO_2022_TEMPERATURE_TOLERANCE_K && dist < bestDist) {
+      const acceptanceToleranceK = d.temperatureAcceptanceToleranceK ?? COTO_2022_TEMPERATURE_TOLERANCE_K;
+      if (dist <= acceptanceToleranceK && dist < bestDist) {
         bestMatch = { dataset: d, temperatureK: f.temperatureK, tieLines: f.tieLines };
         bestDist = dist;
       }
@@ -147,6 +163,87 @@ export interface TemperatureModelStatus {
 
 export const TLLE_EXTRAPOLATION_CLASSIFICATION =
   'Temperature Extrapolation — Preliminary / Pending Validation';
+
+export type ThermodynamicTemperatureStatus =
+  | 'VALIDATED'
+  | 'INTERPOLATED_WITHIN_VALIDATED_RANGE'
+  | 'EXTRAPOLATED'
+  | 'INSUFFICIENT_EVIDENCE';
+
+export type ThermodynamicValidityClassification =
+  | 'VALIDATED_PRELIMINARY'
+  | 'INTERPOLATED_PRELIMINARY'
+  | 'EXTRAPOLATED_PRELIMINARY'
+  | 'INSUFFICIENT_EVIDENCE'
+  | 'NOT_VALIDATED';
+
+/**
+ * Evidence and applicability contract for one operating temperature.
+ *
+ * This is deliberately independent of the numerical model result. A flash or
+ * cascade can return numbers while this contract still says that the
+ * temperature is extrapolated, the calibration reproduction failed, or the
+ * result is not optimizer-forward ready.
+ */
+export interface ThermodynamicValidityAtTemperature {
+  operatingTemperatureK: number;
+  operatingTemperatureC: number | null;
+  temperatureStatus: ThermodynamicTemperatureStatus;
+  selectedTemperatureApplicability: ThermodynamicValidityClassification;
+  optimizerForwardThermodynamicReadiness: 'READY' | 'NOT_READY';
+  calibrationTemperatureReproduction: {
+    status: 'PASS' | 'FAIL';
+    temperatureK: number;
+    maxAbsDeviation: number;
+    gate: number;
+    tieLinesWithinGate: number;
+    tieLinesTotal: number;
+    verdict: string;
+  };
+  independentMultiTemperatureValidation: {
+    status: 'VALIDATED' | 'INSUFFICIENT_EVIDENCE' | 'NOT_VALIDATED';
+    admittedTemperaturePointsK: number[];
+    diagnosticEvidenceExcluded: boolean;
+    statement: string;
+  };
+  parameterIdentifiability: {
+    status: 'CALIBRATION_TEMPERATURE_ONLY' | 'MULTI_TEMPERATURE';
+    formulation: 'NRTL_TAU_B_OVER_T';
+    modelId: string;
+    modelVersion: string;
+    statement: string;
+  };
+  evidence: {
+    source: string;
+    provenance: string;
+    pressureKPa: number | null;
+    components: readonly string[];
+    compositionBasis: string;
+    temperatureK: number;
+    uncertainty: { moleFraction: number; temperatureK: number | null };
+    directEvidenceAcceptanceToleranceK: number | null;
+    tieLinesAvailable: number;
+    tieLinesUsed: number;
+  };
+  nearestAdmittedTemperatureK: number | null;
+  distanceFromNearestAdmittedTemperatureK: number | null;
+  interpolation: {
+    used: boolean;
+    bracketingTemperaturesK: [number, number] | null;
+    bracketingEvidence: readonly {
+      temperatureK: number;
+      datasetId: string;
+      datasetVersion: string;
+      citation: string;
+    }[] | null;
+  };
+  extrapolation: {
+    used: boolean;
+    distanceOutsideAdmittedRangeK: number | null;
+  };
+  warnings: string[];
+  statement: string;
+}
 
 export function temperatureModelStatus(userTemperatureK: number): TemperatureModelStatus {
   const range = calibratedTemperatureRangeK();
@@ -198,6 +295,170 @@ export const TLLE_REPRODUCTION_RECORD = {
   verdict:
     `NRTL τ(T)=b/T (α=0.2) does NOT reproduce all governed tie-lines within the 3·u(x) = ${TLLE_REPRODUCTION_GATE} gate (2/13 within gate; max |Δx| = 0.092). Recorded honestly; consistent with the source paper's own model errors (Mod. UNIFAC-Do σ_K,par ≈ 31 %). Therefore: within the calibrated range the governed EXPERIMENTAL tie-lines are used directly (exact); the NRTL model serves ONLY for temperature extrapolation, always classified '${'Temperature Extrapolation — Preliminary / Pending Validation'}'.`,
 } as const;
+
+const MULTI_TEMPERATURE_VALIDATION_STATEMENT =
+  'No independent multi-temperature RRBO/NMP tie-line evidence is admitted to the active registry. ' +
+  'The existing multi-temperature NRTL parameter record is diagnostic/unadmitted and cannot validate τ(T), ' +
+  'unlock optimizer-forward thermodynamics, or upgrade an extrapolated result.';
+
+/**
+ * Resolve the evidence status for exactly the requested operating temperature.
+ *
+ * The resolver is intentionally deterministic and does not mutate the active
+ * registry, call a numerical flash, or inspect a fixed reference temperature.
+ * A direct family is evidence at that temperature; a bracketed pair is an
+ * interpolation opportunity only when the registry actually contains both
+ * admitted endpoint families. With today's registry the only direct point is
+ * 298.15 K, so every other usable temperature is extrapolated.
+ */
+export function resolveThermodynamicValidityAtTemperature(
+  operatingTemperatureK: number,
+): ThermodynamicValidityAtTemperature {
+  const points = [...new Set(usableCalibrationPointsK())].sort((a, b) => a - b);
+  const validTemperature = Number.isFinite(operatingTemperatureK) && operatingTemperatureK > 0;
+  const range = points.length > 0
+    ? { minK: points[0], maxK: points[points.length - 1] }
+    : null;
+  const nearest = validTemperature && points.length > 0
+    ? points.reduce((best, point) =>
+      Math.abs(point - operatingTemperatureK) < Math.abs(best - operatingTemperatureK) ? point : best,
+    points[0])
+    : null;
+  const nearestDistance = nearest === null ? null : Math.abs(operatingTemperatureK - nearest);
+  const directFamily = validTemperature ? experimentalFamilyForTemperature(operatingTemperatureK) : null;
+  const bracketing = validTemperature && points.length >= 2 && operatingTemperatureK > points[0] && operatingTemperatureK < points[points.length - 1]
+    ? [
+        points.reduce((best, point) => point < operatingTemperatureK && point > best ? point : best, points[0]),
+        points.reduce((best, point) => point > operatingTemperatureK && point < best ? point : best, points[points.length - 1]),
+      ] as [number, number]
+    : null;
+  const bracketingEvidence = bracketing?.map((temperatureK) => {
+    for (const candidate of TLLE_CALIBRATION_REGISTRY) {
+      if (candidate.tieLineFamilies.some((family) => family.temperatureK === temperatureK && family.tieLines.length >= MIN_USABLE_TIELINES)) {
+        return {
+          temperatureK,
+          datasetId: candidate.datasetId,
+          datasetVersion: candidate.datasetVersion,
+          citation: candidate.citation,
+        };
+      }
+    }
+    return null;
+  }).filter((entry): entry is NonNullable<typeof entry> => entry !== null) ?? null;
+
+  const status: ThermodynamicTemperatureStatus = !validTemperature || points.length === 0
+    ? 'INSUFFICIENT_EVIDENCE'
+    : directFamily
+      ? 'VALIDATED'
+      : bracketing
+        ? 'INTERPOLATED_WITHIN_VALIDATED_RANGE'
+        : 'EXTRAPOLATED';
+  const classification: ThermodynamicValidityClassification =
+    status === 'VALIDATED' ? 'VALIDATED_PRELIMINARY' :
+      status === 'INTERPOLATED_WITHIN_VALIDATED_RANGE' ? 'INTERPOLATED_PRELIMINARY' :
+        status === 'EXTRAPOLATED' ? 'EXTRAPOLATED_PRELIMINARY' :
+          'INSUFFICIENT_EVIDENCE';
+  const calibrationPass = TLLE_REPRODUCTION_RECORD.tieLinesWithinGate === TLLE_REPRODUCTION_RECORD.tieLinesTotal
+    && TLLE_REPRODUCTION_RECORD.maxAbsDev <= TLLE_REPRODUCTION_RECORD.gate;
+  // Merely registering two temperatures is not independent validation. A
+  // future admitted multi-temperature model must record its own governed
+  // validation gate before this can become VALIDATED/READY.
+  const hasMultipleAdmittedTemperatures = points.length >= 2;
+  const multiTemperatureValidated = false;
+  const warnings: string[] = [
+    'The active NRTL parameters are regressed at 298.15 K only; τ(T)=b/T is not independently temperature-validated.',
+    `Coto calibration-temperature NRTL reproduction: ${calibrationPass ? 'PASS' : 'FAIL'} ` +
+      `(${TLLE_REPRODUCTION_RECORD.tieLinesWithinGate}/${TLLE_REPRODUCTION_RECORD.tieLinesTotal} tie-lines within ` +
+      `${TLLE_REPRODUCTION_RECORD.gate}; maximum |Δx| = ${TLLE_REPRODUCTION_RECORD.maxAbsDev}).`,
+  ];
+  if (status === 'EXTRAPOLATED') warnings.push(TLLE_EXTRAPOLATION_CLASSIFICATION);
+  if (status === 'INTERPOLATED_WITHIN_VALIDATED_RANGE') {
+    warnings.push('Interpolation is evidence-qualified only when both bracketing experimental families are admitted; no such pair exists in the current registry.');
+  }
+  if (status === 'INSUFFICIENT_EVIDENCE') warnings.push('No admitted experimental temperature family can support this operating-temperature request.');
+
+  const dataset = directFamily?.dataset ?? TLLE_CALIBRATION_REGISTRY[0];
+  const tieLines = directFamily?.tieLines ?? dataset?.tieLineFamilies[0]?.tieLines ?? [];
+  const source = dataset?.citation ?? 'No admitted thermodynamic source';
+  const provenance = dataset?.provenance ?? 'Active calibration registry';
+  const celsius = validTemperature ? operatingTemperatureK - 273.15 : null;
+  const statement = !validTemperature
+    ? `Operating temperature ${String(operatingTemperatureK)} K is invalid; thermodynamic validity is insufficient evidence.`
+    : status === 'VALIDATED'
+      ? `Operating temperature ${operatingTemperatureK.toFixed(2)} K is directly covered by an admitted experimental tie-line family. ` +
+        'The experimental basis is usable for preliminary direct-equilibrium work, but optimizer-forward readiness remains blocked by the failed NRTL reproduction gate and absent multi-temperature validation.'
+      : status === 'INTERPOLATED_WITHIN_VALIDATED_RANGE'
+        ? `Operating temperature ${operatingTemperatureK.toFixed(2)} K is bracketed by admitted experimental temperatures and is classified as preliminary interpolation.`
+        : status === 'EXTRAPOLATED'
+          ? `Operating temperature ${operatingTemperatureK.toFixed(2)} K is outside the admitted experimental temperature range and is classified as preliminary extrapolation.`
+          : `Operating temperature ${operatingTemperatureK.toFixed(2)} K has insufficient admitted thermodynamic evidence.`;
+
+  return {
+    operatingTemperatureK,
+    operatingTemperatureC: celsius,
+    temperatureStatus: status,
+    selectedTemperatureApplicability: classification,
+    optimizerForwardThermodynamicReadiness: 'NOT_READY',
+    calibrationTemperatureReproduction: {
+      status: calibrationPass ? 'PASS' : 'FAIL',
+      temperatureK: COTO_2022_TEMPERATURE_K,
+      maxAbsDeviation: TLLE_REPRODUCTION_RECORD.maxAbsDev,
+      gate: TLLE_REPRODUCTION_RECORD.gate,
+      tieLinesWithinGate: TLLE_REPRODUCTION_RECORD.tieLinesWithinGate,
+      tieLinesTotal: TLLE_REPRODUCTION_RECORD.tieLinesTotal,
+      verdict: TLLE_REPRODUCTION_RECORD.verdict,
+    },
+    independentMultiTemperatureValidation: {
+      status: multiTemperatureValidated ? 'VALIDATED' : 'INSUFFICIENT_EVIDENCE',
+      admittedTemperaturePointsK: points,
+      diagnosticEvidenceExcluded: true,
+      statement: multiTemperatureValidated
+        ? 'At least two admitted temperature families are present; independent validation still requires a governed leave-one-temperature-out or equivalent gate.'
+        : hasMultipleAdmittedTemperatures
+          ? 'Multiple admitted temperature families are present, but no independent multi-temperature validation gate is recorded for the active τ(T) model. Optimizer-forward readiness remains blocked.'
+          : MULTI_TEMPERATURE_VALIDATION_STATEMENT,
+    },
+    parameterIdentifiability: {
+      status: hasMultipleAdmittedTemperatures ? 'MULTI_TEMPERATURE' : 'CALIBRATION_TEMPERATURE_ONLY',
+      formulation: 'NRTL_TAU_B_OVER_T',
+      modelId: TLLE_MODEL_ID,
+      modelVersion: TLLE_MODEL_VERSION,
+      statement: hasMultipleAdmittedTemperatures
+        ? 'Temperature dependence has admitted multi-temperature support but remains unvalidated until its governed validation gate passes.'
+        : 'b parameters are identifiable from the 298.15 K calibration only; the temperature dependence outside that point is a model-form extrapolation.',
+    },
+    evidence: {
+      source,
+      provenance,
+      pressureKPa: dataset?.pressureKPa ?? null,
+      components: dataset?.components ?? [],
+      compositionBasis: dataset?.compositionBasis ?? 'Not specified in active registry metadata',
+      temperatureK: dataset?.tieLineFamilies[0]?.temperatureK ?? COTO_2022_TEMPERATURE_K,
+      uncertainty: {
+        moleFraction: dataset?.uncertainty?.moleFraction ?? COTO_2022_UX,
+        temperatureK: dataset?.uncertainty?.temperatureK ?? null,
+      },
+      directEvidenceAcceptanceToleranceK: dataset?.temperatureAcceptanceToleranceK ?? null,
+      tieLinesAvailable: tieLines.length,
+      tieLinesUsed: directFamily?.tieLines.length ?? 0,
+    },
+    nearestAdmittedTemperatureK: nearest,
+    distanceFromNearestAdmittedTemperatureK: nearestDistance === null ? null : Number(nearestDistance.toFixed(6)),
+    interpolation: {
+      used: status === 'INTERPOLATED_WITHIN_VALIDATED_RANGE',
+      bracketingTemperaturesK: bracketing,
+      bracketingEvidence,
+    },
+    extrapolation: {
+      used: status === 'EXTRAPOLATED',
+      distanceOutsideAdmittedRangeK: status === 'EXTRAPOLATED' && range
+        ? Number(Math.max(0, range.minK - operatingTemperatureK, operatingTemperatureK - range.maxK).toFixed(6))
+        : null,
+    },
+    warnings,
+    statement,
+  };
+}
 
 // ── NRTL activity coefficients & two-phase flash ─────────────────────────────
 
