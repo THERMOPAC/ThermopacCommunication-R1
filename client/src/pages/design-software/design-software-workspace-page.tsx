@@ -4700,12 +4700,13 @@ export default function DesignSoftwareWorkspacePage() {
     const ecrResult = (resultsQ.data ?? []).find((r: any) => r.section === "ecr")?.data;
     const ecr = d("ecr_design");
     const simResult = (resultsQ.data ?? []).find((r: any) => r.section === "ecr_simulator")?.data;
-    const latestRun = runs
+    const latestRunFromHistory = runs
       .filter(r => r.calculation_type === "ecr_simulator")
       .sort((a, b) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0];
     const runReceipt = lastEcr2RunReceipt?.revisionId === activeRevisionId
       ? lastEcr2RunReceipt.run
       : null;
+    const latestRun = runReceipt ?? latestRunFromHistory;
     const c2InputUpdatedAt = (inputsQ.data ?? []).find((row: any) => row.section === "process_design")?.updated_at;
     const c2ResultComputedAt = (resultsQ.data ?? []).find((row: any) => row.section === "process_design")?.computed_at;
     const c2InputsAreStale = !!(
@@ -5893,6 +5894,8 @@ export default function DesignSoftwareWorkspacePage() {
     const displayedIssues = options?.useStructuredEcr2Dependencies
       ? issues.filter((issue: any) => issue.field !== "molecularWeights" && issue.field !== "bvp")
       : issues;
+    const blockingIssues = displayedIssues.filter((issue: any) => issue.severity !== "warning");
+    const warningOnlyIssues = displayedIssues.length > 0 && blockingIssues.length === 0;
     const resultSnapshot = typeof latestRun.result_snapshot === "string"
       ? (() => {
         try { return JSON.parse(latestRun.result_snapshot); } catch { return null; }
@@ -5914,7 +5917,11 @@ export default function DesignSoftwareWorkspacePage() {
             <p className="text-xs font-semibold text-red-800 mb-1">
               {showsDownstreamFailure
                 ? `${label} run blocked by downstream BVP dependency '${downstreamFailure.dependency}': ${downstreamFailure.message}`
-                : `${label} run blocked — the engine reported ${issues.length} missing/invalid mandatory input${issues.length === 1 ? "" : "s"}.`
+                : blockingIssues.length > 0
+                  ? `${label} run blocked — the engine reported ${blockingIssues.length} missing/invalid mandatory input${blockingIssues.length === 1 ? "" : "s"}.`
+                  : warningOnlyIssues
+                    ? `${label} run was not accepted by the downstream simulator. The engine recorded ${displayedIssues.length} advisory warning${displayedIssues.length === 1 ? "" : "s"}; this is not a missing mandatory input.`
+                    : `${label} run was not accepted by the downstream simulator.`
               } No results were generated; nothing is defaulted silently.
             </p>
             {legacyEcr2Issues.length > 0 && (
