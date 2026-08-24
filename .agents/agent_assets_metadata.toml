@@ -6,498 +6,581 @@ id = "n5-7Zi9zeFxQeytMnPh9T"
 uri = "file://communications-agent-technical-review.md"
 type = "text"
 title = "Communications Agent — Complete Technical Review"
+logical_id = "675a698d-a133-49d7-94ab-8d9163676f7d"
 
 [[outputs]]
 id = "JNxPY_brMRrXnfPDbpCQT"
 uri = "file://Production_Management_Agent_Implementation.md"
 type = "text"
 title = "Production Management Agent — Implementation Document"
+logical_id = "4a8acede-d3e3-444a-8acb-13a1f5c8ce01"
 
 [[outputs]]
 id = "yIhC5z4j9DtDwxqSzW6MJ"
 uri = "file://Non-System-User-Payroll-Unification-Plan.md"
 type = "text"
 title = "Non-System User Payroll Unification Plan v2.0 (Expert Reviewed)"
+logical_id = "91934d69-a0e5-4862-a28a-d9cd3d2aa632"
 
 [[outputs]]
 id = "21w9yky5clUsh66hZDHjj"
 uri = "file://attached_assets/GRPO-Implementation-Plan.md"
 type = "text"
 title = "PO to GRPO — Complete Implementation Plan"
+logical_id = "d4e00478-4a25-49e0-9353-5862a51829af"
 
 [[outputs]]
 id = "GMh4GZIkoOgwi6RZxfjzc"
 uri = "file://.local/DWAR_Implementation_Report.md"
 type = "text"
 title = "DWAR Scoring Model Overhaul — Full Implementation Report"
+logical_id = "591ce511-8946-4ade-98d7-575e38d543f8"
 
 [[outputs]]
 id = "91tQXcEMth8-UExQ7t93A"
 uri = "file://attached_assets/ATTENDANCE_AUDIT_REPORT.md"
 type = "text"
 title = "Attendance System — Strict Code Audit Report"
+logical_id = "6be46d84-5173-4508-8b50-2d55c6837884"
 
 [[outputs]]
 id = "pqbTdh0fka_wuWyIRDBkR"
 uri = "file://attached_assets/ATTENDANCE_VERIFICATION_PACK.md"
 type = "text"
 title = "Attendance Verification Pack & Shared Status Engine Proposal"
+logical_id = "8d1c0c9c-6314-4cb7-9fd4-908631412b91"
 
 [[outputs]]
 id = "CfE1qjZurYT70GVR-2bj7"
 uri = "file://attached_assets/ATTENDANCE_POST_IMPLEMENTATION_REVIEW.md"
 type = "text"
 title = "Attendance System — Post-Implementation Expert Review"
+logical_id = "e2996b92-1ec3-4c5c-b4b4-e69e12ce1946"
 
 [[outputs]]
 id = "KIkeNZaMRr0zCVG9Gec4t"
 uri = "file://.local/full-system-audit.md"
 type = "text"
 title = "Full Technical System Audit — THERMOPAC QMS"
+logical_id = "9b1c499f-b086-452d-8a66-a9607b2df2d1"
 
 [[outputs]]
 id = "uwa9IumI5jyVNOcJZaf7u"
 uri = "file://.local/epc-kickoff-automation-plan.md"
 type = "text"
 title = "EPC Project Kickoff — First Automation Slice Design"
+logical_id = "a2164065-fb78-4ec8-b4c7-7faeb3fec56b"
 
 [[outputs]]
 id = "-UkquMaE1p4bIDvH7XIcP"
 uri = "file://.local/zero-trust-audit-report.md"
 type = "text"
 title = "Zero-Trust Audit Report — Full System + EPC 8-Point Deep Verification"
+logical_id = "84b457fa-47cf-4035-a801-28541b4ca8aa"
 
 [[outputs]]
 id = "SUY2V8QH0KLwRAJDzJHXL"
 uri = "file://.local/epc-zero-trust-production-readiness-audit.md"
 type = "text"
 title = "EPC Zero-Trust Production Readiness Audit Report"
+logical_id = "a0dda3ed-111a-44dd-844c-38301aa2343c"
 
 [[outputs]]
 id = "lmhI17R4ppx_daivSL0BJ"
 uri = "file://.local/epc-tasks-alerts-integration-plan.md"
 type = "text"
 title = "EPC → Tasks & Alerts Integration Plan (Architecture Review)"
+logical_id = "0b436d3a-30c0-46f0-9907-c25d8a57a2eb"
 
 [[outputs]]
 id = "IPU8-Ossl6K9D0tEIMc24"
 uri = "file://.local/epc-tasks-alerts-integration-plan-v2.md"
 type = "text"
 title = "EPC Tasks & Alerts Integration Plan v2 (Revised & Approved)"
+logical_id = "a23cf939-5054-4449-9907-ccc43591498e"
 
 [[outputs]]
 id = "pd8_GrFYWbQ_eF7FlWTLL"
 uri = "file://.local/epc-permission-matrix.md"
 type = "text"
 title = "EPC Permission Matrix — Current Implementation"
+logical_id = "3efb6fd4-b028-48ab-af28-e06c3b0b59b4"
 
 [[outputs]]
 id = "M8SOG_w6JdmKhHRIMMXuZ"
 uri = "file://.local/epc-permission-dashboard-plan.md"
 type = "text"
 title = "EPC Permission Control Dashboard — Implementation Plan"
+logical_id = "643f6618-074e-4e35-a112-4f91a52ec8ca"
 
 [[outputs]]
 id = "PV9SfOo85l_DP86SCvUUJ"
 uri = "file://.local/gcs-path-audit-report.md"
 type = "text"
 title = "GCS File Path Audit Report"
+logical_id = "9e6f80ea-514b-4f7a-873a-7fc2b4f31ad7"
 
 [[outputs]]
 id = "NvwQf4BNugZzA2zpMunYX"
 uri = "file://.local/epc-file-governance-migration-plan.md"
 type = "text"
 title = "EPC-Only Project Document Governance — Migration Plan"
+logical_id = "3bb20b95-7945-4414-99d8-55ab118870cf"
 
 [[outputs]]
 id = "YHkPrNW37ztGj1xrC1yN7"
 uri = "file://.local/gcs-volume-report.md"
 type = "text"
 title = "Legacy GCS Volume Report"
+logical_id = "6a8b82e0-c7d7-4c75-b425-7d63eedf40c4"
 
 [[outputs]]
 id = "mFmhOsh8rjW-XxeIuLiKs"
 uri = "file://.local/epc-migration-implementation-plan.md"
 type = "text"
 title = "EPC File Governance — Implementation Plan (Phase 0 + Wave 1)"
+logical_id = "aa35d758-d3ef-41c8-8d30-825c9ff39790"
 
 [[outputs]]
 id = "YTuc72ruBhkgGfi7fzvcx"
 uri = "file://docs/epc-execution-drafts-design.md"
 type = "text"
 title = "EPC Execution Plan — Unified Automation Design (v3 Implementation Baseline, 1172 lines)"
+logical_id = "84616cab-f52e-4f66-be0b-ecfb0abbdf97"
 
 [[outputs]]
 id = "nLNBLgFMNoQP2VRH2MeRG"
 uri = "file://docs/edcf-baseline-v1.0.md"
 type = "text"
 title = "THERMOPAC EDCF Baseline v1.0"
+logical_id = "879715ce-7945-4878-9051-4ee936c07dd7"
 
 [[outputs]]
 id = "ioyWRVyylXTOmTkS0kFN5"
 uri = "file://.local/tasks/GCS-Governance-Combined-Plan.md"
 type = "text"
 title = "GCS Governance Remediation Plan — Revision 4"
+logical_id = "c49bbefd-0bb4-47fa-a35b-220fce2948fe"
 
 [[outputs]]
 id = "JteJ2u5tvU8mJ0KbOtaVs"
 uri = "file://ThermopacAgent-Phase1-Package.zip"
 type = "unspecified"
 title = "ThermopacAgent — Phase 1 Package (root-based, fixed workflow)"
+logical_id = "9f30e2ee-20a8-440b-bb4a-62c3093380e1"
 
 [[outputs]]
 id = "Wf0ws2868yS4q4Z_LQiIF"
 uri = "file://client/public/build-windows-agent.yml"
 type = "unspecified"
 title = "build-windows-agent.yml (root-based paths, fixed)"
+logical_id = "561adf54-c7d1-409a-bc66-5f8ef1e61e65"
 
 [[outputs]]
 id = "Jc62pySonTZHmdGkR-QPC"
 uri = "file://thermopac-agent-files.zip"
 type = "unspecified"
 title = "thermopac-agent-files.zip — agent/config.py · agent/main.py · config.ini"
+logical_id = "cbef2ab8-55f3-43c0-a489-f58711519a48"
 
 [[outputs]]
 id = "CKJg8ocyllgo8HrdUYB3O"
 uri = "file://setup-iss.zip"
 type = "unspecified"
 title = "setup.iss"
+logical_id = "ebb7675a-5a32-4fec-a615-2e2a0c001b6b"
 
 [[outputs]]
 id = "29E-KkgTbPfngEh3wKVaf"
 uri = "file://config-fix.zip"
 type = "unspecified"
 title = "config-fix.zip — agent/config.py + build-windows-agent.yml"
+logical_id = "732f02d7-a9bc-4cc3-8f06-f5f47b8ac810"
 
 [[outputs]]
 id = "yz8wFL-i779OG86YzK2T-"
 uri = "file://config-url-fix.zip"
 type = "unspecified"
 title = "config-url-fix.zip — agent/config.py + config.ini"
+logical_id = "175a1702-852b-4788-9a7a-f7cec42f45c6"
 
 [[outputs]]
 id = "nS3yxwkk-XgjiaFUd4dFx"
 uri = "file://thermopac-agent-final.zip"
 type = "unspecified"
 title = "thermopac-agent-final.zip — agent/config.py + config.ini"
+logical_id = "7cf68dec-5d56-492c-bf8b-d8433934abaa"
 
 [[outputs]]
 id = "hFqDd5kQVS81tYCa4jpfh"
 uri = "file://workflow-node24-fix.zip"
 type = "unspecified"
 title = "build-windows-agent.yml (Node 24 fix)"
+logical_id = "823f74ed-eb5d-4259-bd95-a9a9cfc519f9"
 
 [[outputs]]
 id = "MOahdlZK_-88EIaEE2kyh"
 uri = "file://github-upload.zip"
 type = "unspecified"
 title = "github-upload.zip — 3 files for GitHub"
+logical_id = "a3a5ca4f-355a-46d4-9f3e-dfccbdb073b1"
 
 [[outputs]]
 id = "qHXeOOpyVjgTc5ViwR1Pr"
 uri = "file://client/public/ThermopacAgentInstaller-v1.0.34.zip"
 type = "unspecified"
 title = "ThermopacAgent Installer v1.0.34 Dev"
+logical_id = "19e1d07f-dfe8-4591-8e2f-e9ac73b773a8"
 
 [[outputs]]
 id = "k4X4LjKoFu4vSub4a6fO8"
 uri = "file://client/public/ThermopacAgent-v1.0.34.zip"
 type = "unspecified"
 title = "ThermopacAgent Source ZIP v1.0.34 Dev"
+logical_id = "47800f1e-a5ea-442a-9aa9-0291eb56556d"
 
 [[outputs]]
 id = "FljpRxYd2h0ZSfeDm0rct"
 uri = "file://client/public/ThermopacAgentInstaller-v1.0.35.zip"
 type = "unspecified"
 title = "ThermopacAgent Installer v1.0.35 Dev"
+logical_id = "5ce2c8ce-97e5-4396-9803-5ce55e268868"
 
 [[outputs]]
 id = "k_k1-19jekn9pNPRInUjZ"
 uri = "file://client/public/ThermopacAgent-v1.0.35.zip"
 type = "unspecified"
 title = "ThermopacAgent Source ZIP v1.0.35 Dev"
+logical_id = "eab44f03-b4e3-4458-bb3d-b19205e210cb"
 
 [[outputs]]
 id = "C8FNcrdJZ2XII_BHKiSwc"
 uri = "file://client/public/ThermopacAgentInstaller-v1.0.36.zip"
 type = "unspecified"
 title = "ThermopacAgent Installer v1.0.36 Dev"
+logical_id = "d88e5c3e-1cf8-4336-8f74-0a1e7545aee3"
 
 [[outputs]]
 id = "vrrh96psHHNSJnGO2e-PL"
 uri = "file://client/public/ThermopacAgent-v1.0.36.zip"
 type = "unspecified"
 title = "ThermopacAgent Source ZIP v1.0.36 Dev"
+logical_id = "bf1b5a2f-efd0-4551-b792-a5bb25812b69"
 
 [[outputs]]
 id = "E9Et2LfvwPKCRJpM0EbUP"
 uri = "file://local-agent/installer_output/ThermopacAgent-v1.0.69-dev-source.zip"
 type = "unspecified"
 title = "ThermopacAgent v1.0.69 Dev — Installer Source Package"
+logical_id = "b94fc393-8c39-47ca-abb2-192ad73a2e7d"
 
 [[outputs]]
 id = "DuLimLl8HwL787wGgzdih"
 uri = "file://thermopac-erp-backup-20260503.zip"
 type = "unspecified"
 title = "THERMOPAC ERP — Full Source Backup (03 May 2026)"
+logical_id = "fab05f79-321a-4fe0-8fe8-12ee86190c24"
 
 [[outputs]]
 id = "7xVDMPCWiTDuBHXt5NpOj"
 uri = "file://docs/project-procurement-package-control-baseline.md"
 type = "text"
 title = "PPPC Baseline — Tag Number Control v4 CLOSED"
+logical_id = "0321347d-d350-442e-8c41-f66d6f62f790"
 
 [[outputs]]
 id = "tAo2joBdDsD5Z5XLmec5Z"
 uri = "file://docs/tds-governance-correction-plan-v1.1.md"
 type = "text"
 title = "TDS Governance Correction Plan v1.1"
+logical_id = "1bacff97-d6cb-49e9-be97-65226a5ec914"
 
 [[outputs]]
 id = "g0Ps3OR9DQphuBBBkN7y_"
 uri = "file://docs/tds-governance-correction-plan-v1.2.md"
 type = "text"
 title = "TDS Governance Correction Plan v1.2 — Final"
+logical_id = "80c65321-890c-4340-97ff-793fa6bfdc76"
 
 [[outputs]]
 id = "v64AbMZLa1x_qs8z_RXlF"
 uri = "file://docs/tds-governance-correction-plan-v1.3.md"
 type = "text"
 title = "TDS Governance Correction Plan v1.3 — Final"
+logical_id = "c320019f-486b-4e85-89dd-5fe0ff8b63cc"
 
 [[outputs]]
 id = "Igsrz6RjJ7trRfzZevF1B"
 uri = "file://docs/security-enforcement-gap-closure-plan-v1.0.md"
 type = "text"
 title = "Security Enforcement Gap Closure Plan v1.0"
+logical_id = "0ac84b9c-6078-49b4-8b34-ca517730d088"
 
 [[outputs]]
 id = "TMc75sdU_8PLTWaT_JADd"
 uri = "file://docs/security-phase1-implementation-plan-v1.0.md"
 type = "text"
 title = "Phase 1 Implementation Plan v1.0"
+logical_id = "b9fcf53c-d745-4e0c-8fb2-1be886063e5a"
 
 [[outputs]]
 id = "aPfoLjmAuFAS4_q_JHaLv"
 uri = "file://docs/security-phase1-verification-evidence-v1.0.md"
 type = "text"
 title = "Phase 1 Verification Evidence v1.0"
+logical_id = "cf0bce77-5c25-4e8a-8d37-d15726b954cd"
 
 [[outputs]]
 id = "msi2CG0jmIZJlDlSWl-1W"
 uri = "file://docs/security-phase2-implementation-plan-v1.0.md"
 type = "text"
 title = "Security Phase 2 Implementation Plan v1.0 (Revised)"
+logical_id = "e63e6f3d-aee1-45bb-a23d-75a8bb1da9c2"
 
 [[outputs]]
 id = "lXR62WedT93GcpVN0Xznw"
 uri = "file://docs/security-phase2-verification-evidence-v1.0.md"
 type = "text"
 title = "Phase 2 Verification Evidence v1.0"
+logical_id = "2e605ad8-9ee5-4f66-ae1d-06eacfa9ef9d"
 
 [[outputs]]
 id = "9NEUE2Cw_84r44Endu7EZ"
 uri = "file://UOR-PLC-Price-Review.xlsx"
 type = "table"
 title = "UOR-PLC Package Price Review"
+logical_id = "0fe9a7fc-2151-4e38-a60e-57a0e1579bb4"
 
 [[outputs]]
 id = "sauikHbhfBywHzVqe9I6g"
 uri = "file://docs/item-code-generation-plan-v2.0.md"
 type = "text"
 title = "Item Code Generation Plan v2.0"
+logical_id = "4c944b2a-ecb1-497d-ac06-8a95ac9da287"
 
 [[outputs]]
 id = "Sx2x5lgsbnwEA7VTjbrpu"
 uri = "file://docs/item-code-generation-plan-v3.0.md"
 type = "text"
 title = "Item Code Generation Plan v3.0"
+logical_id = "805e70d2-dcd8-439b-9346-d6ca96576cb6"
 
 [[outputs]]
 id = "g8KXGhSO-CZi74_ECjKrR"
 uri = "file://docs/item-code-generation-plan-v4.0.md"
 type = "text"
 title = "Item Code Generation Plan v4.0"
+logical_id = "85fed020-9213-42e0-b5d3-7cf7f397d00d"
 
 [[outputs]]
 id = "oLO664mzVTjg6H1UAUdtP"
 uri = "file://docs/item-code-generation-plan-v5.0.md"
 type = "text"
 title = "Item Code Generation Plan v5.0"
+logical_id = "f198336e-89eb-49fc-931c-a46196937bbd"
 
 [[outputs]]
 id = "a-rkTrc1VNCsha6nlsp3T"
 uri = "file://docs/item-code-generation-plan-v5.1.md"
 type = "text"
 title = "Item Code Generation Plan v5.1"
+logical_id = "e3d13ab7-5b43-489a-bf07-93c3ae4f9ecc"
 
 [[outputs]]
 id = "ABz48-Xtsn8Kk06d8hu-s"
 uri = "file://docs/item-code-generation-baseline-v1.0.md"
 type = "text"
 title = "BUY Item Code Generation — Baseline v1.0"
+logical_id = "f23c9c8c-f7d2-4d86-b36f-27b89bebbca8"
 
 [[outputs]]
 id = "FEnn26ohDTdWkRFNRtuYS"
 uri = "file://docs/item-code-generation-baseline-v1.1.md"
 type = "text"
 title = "BUY Item Code Generation — Baseline v1.1"
+logical_id = "5df02b7d-98e3-4be4-ad68-ec3d745f50ec"
 
 [[outputs]]
 id = "ndnL_zSV4oFM3SN0Qkoiw"
 uri = "file://docs/item-code-generation-baseline-v1.2.md"
 type = "text"
 title = "BUY Item Code Generation — Baseline v1.2"
+logical_id = "1654d855-cd4a-4be5-9f20-a88356557ca9"
 
 [[outputs]]
 id = "NZ2rBhcvsSc-lDEOGkWuh"
 uri = "file://docs/item-code-7segment-design-discussion.md"
 type = "text"
 title = "7-Segment Item Code — Design Discussion"
+logical_id = "8f87365e-4117-4e7e-b4a6-e397c5985c3f"
 
 [[outputs]]
 id = "pmzAPomI0aTM6wN0Cyw0o"
 uri = "file://docs/item-code-generation-baseline-v1.3.md"
 type = "text"
 title = "BUY Item Code Generation — Baseline v1.3 (Final Corrected — Ready for Sign-off)"
+logical_id = "85dda966-f930-4532-9781-c00326a4df3e"
 
 [[outputs]]
 id = "jpJzmLaSLXV3Dzu_gobXN"
 uri = "file://docs/procurement-list-control-baseline-v1.0.md"
 type = "text"
 title = "PLC Baseline v1.0 — Awaiting Approval"
+logical_id = "7e92649d-3bb2-428d-a1b0-f4df89c18bd4"
 
 [[outputs]]
 id = "BzTVUYCdM0gxQNgGHI1jO"
 uri = "file://docs/procurement-list-control-baseline-v1.md"
 type = "text"
 title = "PLC Baseline v1.0 FINAL — Awaiting Approval"
+logical_id = "0a2eff3b-b258-4671-b6fa-41746b96dccf"
 
 [[outputs]]
 id = "uO2Wye1LKhRRt0bXf2wIL"
 uri = "file://docs/procurement-list-control-phase1-evidence.md"
 type = "text"
 title = "PLC Phase 1 — Sign-Off Evidence Package"
+logical_id = "ff435d4a-7a8d-420f-8224-e161f6c8f8fe"
 
 [[outputs]]
 id = "jFU3W3GOCjyTYoHysL5zG"
 uri = "file://docs/rfq-email-dispatch-baseline-v1.0.md"
 type = "text"
 title = "RFQ Email Dispatch Baseline v1.0"
+logical_id = "efd658a2-97a3-41c2-a713-dc0b428dd303"
 
 [[outputs]]
 id = "aM48Rj9TQGGeQ6NrJZY0A"
 uri = "file://rfq-evidence-sample.pdf"
 type = "pdf"
 title = "2627-013-RFQ-0001 — Sample PDF (Evidence #2)"
+logical_id = "5ac01c61-587c-4477-8b98-1a05cea128f2"
 
 [[outputs]]
 id = "rgCX3UEIJ0jnlsxBMp0Cs"
 uri = "file://docs/sap-session-unification-migration-plan-v1.2.md"
 type = "text"
 title = "SAP Session Unification Migration Plan v1.2 (Baseline)"
+logical_id = "78d9fed3-588b-40f2-91a0-80da59ec116e"
 
 [[outputs]]
 id = "1x7Z-0M34GaMJMIblKiX1"
 uri = "file://docs/gcs-db-driven-routing-phase0-baseline.md"
 type = "text"
 title = "GCS DB-Driven Routing — Phase 0 Baseline v1.0"
+logical_id = "8e159c30-ccaa-412f-a186-1c6a8f153a32"
 
 [[outputs]]
 id = "B21Hv-Ot943RcSHjbc20k"
 uri = "file://docs/operational-intelligence-baseline-v1.md"
 type = "text"
 title = "Operational Intelligence — Baseline v1.2 (Final Draft)"
+logical_id = "215800b6-d539-46ea-a1bc-ce2ef4fc53d0"
 
 [[outputs]]
 id = "wj9O7CijiNBMjahqbL6ct"
 uri = "file://docs/OI-Baseline-v1.2-FINAL.md"
 type = "text"
 title = "OI-Baseline-v1.2-FINAL"
+logical_id = "a20b716d-3bd7-4f89-bb2d-f99ece124cc2"
 
 [[outputs]]
 id = "l1ow0GYgmpGKFKf9uNqxh"
 uri = "file://docs/operational-intelligence-phase1a-execution.md"
 type = "text"
 title = "OI Phase 1A Execution Plan — DRAFT"
+logical_id = "431829cb-950b-475e-b0ea-ff064356a7ce"
 
 [[outputs]]
 id = "6douB3qyadTE0WBIk6Mxr"
 uri = "file://docs/phase3a-implementation-tracker.md"
 type = "text"
 title = "Phase 3A Implementation Tracker"
+logical_id = "e2cfd5b3-4b01-4c9d-89fe-5cb43e3ebd6b"
 
 [[outputs]]
 id = "oQsPHar_SYZ3_Y724sZVn"
 uri = "file://docs/phase3a-zero-trust-audit.md"
 type = "text"
 title = "Phase 3A Zero-Trust Audit"
+logical_id = "6a0d77c6-3dd1-4f2a-8c18-d714e6a426e2"
 
 [[outputs]]
 id = "G9TRhrkPbs7nT8MjpqR5V"
 uri = "file://docs/phase3a-evidence-package.md"
 type = "text"
 title = "Phase 3A Evidence Package"
+logical_id = "4e9d9ab3-8395-42b0-a57c-bcfed93c5d71"
 
 [[outputs]]
 id = "wQ9AjMQHrqyAZCKOGIUnq"
 uri = "file://docs/operational-intelligence-phase3b-execution.md"
 type = "text"
 title = "Phase 3B Execution Plan — OI Analytics Suite"
+logical_id = "3d93e425-fdf5-49bf-903c-35182eb3b0a5"
 
 [[outputs]]
 id = "w5F6PZ3cgSuhZxCcUUnKk"
 uri = "file://docs/department-master-phase2-execution-plan.md"
 type = "text"
 title = "Department Master — Phase 2 Execution Plan v1.1"
+logical_id = "7de7b746-b5f9-4ea0-9ed4-cfbeaf5e9e21"
 
 [[outputs]]
 id = "siqfojJ1WlEoax575N6xi"
 uri = "file://docs/hazop-phase4-execution-plan-v1.0.md"
 type = "text"
 title = "HAZOP Phase 4 Execution Plan v1.0"
+logical_id = "523a2604-1071-4d64-9374-2fdf394049a3"
 
 [[outputs]]
 id = "w-bZWpD-hQNKjaqqRY8Sg"
 uri = "file://docs/hazop-phase4-execution-plan-v1.1.md"
 type = "text"
 title = "HAZOP Phase 4 Execution Plan v1.1 (Revised Architecture)"
+logical_id = "dcc0a59e-4cb3-4b3b-8be2-9256098f1127"
 
 [[outputs]]
 id = "eZI458kFTtQuEN-1qyNr1"
 uri = "file://docs/hazop-phase4-execution-plan-v1.2.md"
 type = "text"
 title = "HAZOP Phase 4 Execution Plan v1.2 (Final Architecture)"
+logical_id = "39b64920-ede9-49bc-8735-c5ee8d41c361"
 
 [[outputs]]
 id = "T-JtRG9M5Il4gNLGyoXGr"
 uri = "file://docs/hazop-phase4-execution-plan-v1.3.md"
 type = "text"
 title = "HAZOP Phase 4 Execution Plan v1.3 (Final Architecture)"
+logical_id = "efe03f46-30f4-4823-b8ee-a95e433b58e3"
 
 [[outputs]]
 id = "Pha8MwKIKyZSGOhVTmzpC"
 uri = "file://uploads/offer-templates/template_1773132640992_UOR_Offer_Template.pdf"
 type = "pdf"
 title = "UOR Standard Offer — UOR_Offer_Template.pdf (1.3 MB, 10 pages)"
+logical_id = "c928d131-49a2-40c1-8d9b-613956ae0da3"
 
 [[outputs]]
 id = "PdtH5OvB_Cfs7ROfF0UIX"
 uri = "file://uploads/offer-templates/template_1773145766973_CPS_Offer.pdf"
 type = "pdf"
 title = "CPS Offer Template — CPS_Offer.pdf (800 KB, 20 pages)"
+logical_id = "fbb4f396-2ca1-4465-9fe9-14e04910d056"
 
 [[outputs]]
 id = "RPEXITcUdnr0QQDMT2qLz"
 uri = "file://uploads/offer-templates/template_1773215624237_Automatic_Lubricant_Blending_Plant.pdf"
 type = "pdf"
 title = "Automatic Lubricant Blending Plant — Automatic_Lubricant_Blending_Plant.pdf (1.4 MB, 37 pages)"
+logical_id = "efa3aab8-fcab-43d4-a881-45fb94052afa"
 
 [[outputs]]
 id = "wvqiVkYlkgRei1ns2JOOH"
 uri = "file://local-document-agent/ThermopacLocalDocumentAgent-v1.0.7-windows.zip"
 type = "unspecified"
 title = "ThermopacLocalDocumentAgent v1.0.7 — Windows Package"
+logical_id = "36021c65-7554-4ad7-be31-c8d44cdd1af2"
 
 [[outputs]]
 id = "TDxeErytPirw4QUHw930A"
@@ -505,6 +588,7 @@ uri = "file://docs/reports/LLX-RND-2026-0001-ECPR_Rev0.pdf"
 type = "pdf"
 title = "ECPR Rev 0 — corrected (run #63)"
 description = "Equations transliterated to readable ASCII math; 250 mm size entry removed; SSA designation wording and Rauber/Sulzer citation corrected. Resubmitted for review."
+logical_id = "2e765a7f-2285-4b1d-b8ce-7df6001da2c6"
 
 [[outputs]]
 id = "gEyulpd5gRfSC5miCkdKz"
@@ -512,6 +596,7 @@ uri = "file://docs/reports/LLX-RND-2026-0001-ECRR_Rev0.pdf"
 type = "pdf"
 title = "ECRR Rev 0 — corrected (run #64)"
 description = "Equations now readable (Re = rho_c·N·D_R²/µ_c, P_1 = N_P·rho_m·N³·D_R^5, etc.). Resubmitted for review."
+logical_id = "a5c2242e-436f-4bfa-bfe5-87d405bd7423"
 
 [[outputs]]
 id = "_wBHteZY_dEnGEiqHgbiV"
@@ -519,6 +604,7 @@ uri = "file://docs/reports/LLX-RND-2026-0001-ECP-Rev0-run63-frozen-snapshot.json
 type = "unspecified"
 title = "Frozen ECP snapshot JSON (run #63)"
 description = "Verbatim frozen 'ecp' result snapshot + run metadata for hand-checking."
+logical_id = "11531f3c-7d26-4789-ad1d-be826dfe2397"
 
 [[outputs]]
 id = "Q_p2KNGyPR_--nBL9rRY5"
@@ -526,6 +612,7 @@ uri = "file://docs/reports/LLX-RND-2026-0001-ECR-Rev0-run64-frozen-snapshot.json
 type = "unspecified"
 title = "Frozen ECR snapshot JSON (run #64)"
 description = "Verbatim frozen 'ecr' result snapshot + run metadata for hand-checking."
+logical_id = "ba3bff83-fcfd-4be2-8216-99dc066eb59f"
 
 [[outputs]]
 id = "_Tn_eRZM45q86E56kdk66"
@@ -533,6 +620,7 @@ uri = "file://.agents/outputs/ECR2-Optimizer-Readiness-Audit-Run-656.pdf"
 type = "pdf"
 title = "ECR-2 Optimizer Readiness Audit — Run 656"
 description = "Information-only PDF audit for LLX-RND-2026-0003, persisted run 656 at 2026-08-23 14:13:10.713 UTC / 19:43:10.713 IST. Final classification: NOT READY FOR PRELIMINARY OPTIMIZER."
+logical_id = "870c5484-ffc7-4d23-b73e-910d13a77e1c"
 
 [[outputs]]
 id = "o23VZP8Z9TD2iwxvw1HqB"
@@ -540,6 +628,7 @@ uri = "file://attached_assets/LLX-RND-2026-0003_ECR2_Run-689_Report.pdf"
 type = "pdf"
 title = "LLX-RND-2026-0003 ECR-2 Run 689 Report"
 description = "PDF report of the latest persisted ECR-2 simulator attempt, including failed-run diagnostics and the last accepted run reference."
+logical_id = "8012073f-35c4-481e-aeae-32a774aea601"
 
 [[outputs]]
 id = "g8FsQX0451-e7rl5ybqyt"
@@ -547,6 +636,7 @@ uri = "file://.agents/outputs/LLX-RND-2026-0003-Run-711.pdf"
 type = "pdf"
 title = "LLX-RND-2026-0003 — ECR-2 Simulator Run #711"
 description = "Six-page numerical report for the persisted 23 Aug 2026, 10:24:52 PM IST run, including outlets, balances, axial profile, transfer metrics, solver status, and Task #124 temperature applicability."
+logical_id = "268c781b-5d5a-4988-aa6d-e02f8ee33707"
 
 [[outputs]]
 id = "WdIyUPcidJimOr8_IrssJ"
@@ -554,3 +644,4 @@ uri = "file://reports/ecr2-simulation-run-845-report.pdf"
 type = "pdf"
 title = "ECR-2 Simulation Run #845 Report - Equations Included"
 description = "Updated frozen Run #845 report with governing equations for feed basis, holdup, d32, interfacial area, K&H transfer, BVP balances, product quality, recovery, height selection, and all trial results."
+logical_id = "78b7df95-e67e-4602-8163-e3a9a1694a33"
