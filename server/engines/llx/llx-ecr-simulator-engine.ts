@@ -2108,9 +2108,12 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         ['ECR-2 progressive BVP height search', heightSizingFailure],
       );
       if (heightSizing.status !== 'target_met') {
+        const recoveryInfeasible = heightSizing.status === 'no_feasible_recovery';
         pushWarning(
           'ECR2_HEIGHT_NOT_CALCULABLE',
-          `ECR-2 physical height is ${heightSizing.status === 'target_not_met' ? 'not attained' : 'not calculable'}: ${heightSizingFailure}`,
+          recoveryInfeasible
+            ? `ECR-2 physical height is NOT CALCULATED: NO FEASIBLE D/H SOLUTION AT REQUIRED RRBO RECOVERY. ${heightSizingFailure}`
+            : `ECR-2 physical height is ${heightSizing.status === 'target_not_met' ? 'not attained' : 'not calculable'}: ${heightSizingFailure}`,
         );
       }
     } else {
@@ -2181,6 +2184,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         : null;
       const trialStatus = sizing?.status === 'target_met' && accepted
         ? 'feasible_preliminary'
+        : sizing?.status === 'no_feasible_recovery'
+          ? 'no_feasible_recovery'
         : sizing?.status === 'target_not_met'
           ? 'target_not_met'
           : 'dependency_blocked';
@@ -2202,6 +2207,10 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         productAromaticsMoleFraction: sizing?.achievedProductAromaticsMoleFraction
           ?? quality?.x_A_R_product.value
           ?? null,
+        rrboRecoveryMassFraction: sizing?.rrboRecoveryMassFraction ?? null,
+        recoveryResidual: sizing?.recoveryResidual ?? null,
+        recoveryRequirement: sizing?.recoveryRequirement ?? null,
+        bestAromaticsAtRequiredRecovery: sizing?.bestAromaticsAtRequiredRecovery ?? null,
         heightSizing: sizing,
         bvp,
         diagnostic: reason
@@ -2265,6 +2274,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         powerPerVolume_W_m3: trial.powerPerVolume_W_m3,
         productAromaticsMoleFraction: trial.productAromaticsMoleFraction,
         productQualityResidual: trial.productQualityResidual,
+        rrboRecoveryMassFraction: trial.rrboRecoveryMassFraction,
+        recoveryResidual: trial.recoveryResidual,
         releaseStatus: trial.governance.releaseStatus,
       }));
     const axialDiagnosticTrial = diameterTrials.find(
@@ -2614,7 +2625,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
             ...heightSizing,
             targetBasis: 'hydrocarbon_only_physical_outlet',
             targetExplanation:
-              'Target and achieved values use the physical raffinate outlet hydrocarbon-only molar basis: (Mono + Di + Poly) / (Sat + Mono + Di + Poly). NMP is excluded from both numerator and denominator.',
+              'A height is feasible only when the physical raffinate outlet hydrocarbon-only aromatic molar target is met and hydrocarbon-only RRBO recovery is at least 95%. NMP is excluded from the aromatic product basis and both RRBO-recovery numerator and denominator.',
             requiredActiveHeightStatus: heightSizing.requiredActiveHeight_m === null ? 'NOT_CALCULATED' : 'CALCULATED',
           }
         : {
@@ -2649,7 +2660,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         activeHeightActual_m:        heightSizing?.requiredActiveHeight_m ?? null,
         heightRoundingLoss_m:        null,
         heightMethod:                heightSizing?.status === 'target_met'
-          ? 'progressive_bvp_product_quality_target'
+          ? 'progressive_bvp_product_quality_and_rrbo_recovery_target'
           : performanceSimulationHeight_m !== null
             ? 'performance_simulation_only_fixed_height'
             : 'not_calculated_no_governed_target',

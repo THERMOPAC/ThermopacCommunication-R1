@@ -82,7 +82,7 @@ describe('ECR-2 progressive BVP physical-height solver', () => {
     const solveBvp = vi.fn((input: ECR2CounterCurrentBVPInput) => acceptedBvp(input));
     const result = solveECR2ProgressiveHeight({
       target: {
-        value: 0.20,
+        value: 0.28,
         sourceType: 'Measured',
         sourceReference: 'Physical hydrocarbon-only product specification',
       },
@@ -97,9 +97,9 @@ describe('ECR-2 progressive BVP physical-height solver', () => {
     expect(result.status).toBe('target_met');
     expect(solveBvp.mock.calls.length).toBeGreaterThan(5);
     expect(new Set(solveBvp.mock.calls.map(([input]) => input.activeHeight_m)).size).toBeGreaterThan(3);
-    expect(result.achievedProductAromaticsMoleFraction).toBeLessThanOrEqual(0.20);
+    expect(result.achievedProductAromaticsMoleFraction).toBeLessThanOrEqual(0.28);
     // If NMP were included, this would be close to zero instead of 0.20.
-    expect(result.achievedProductAromaticsMoleFraction).toBeGreaterThan(0.19);
+    expect(result.achievedProductAromaticsMoleFraction).toBeGreaterThan(0.27);
     expect(result.requiredActiveHeight_m).not.toBeNull();
     expect(result.selectedDeltaZ_m! * result.selectedNumberOfCells!).toBeCloseTo(result.requiredActiveHeight_m!, 12);
     expect(result.requiredActiveHeight_m! / result.maximumCellHeight_m)
@@ -110,7 +110,7 @@ describe('ECR-2 progressive BVP physical-height solver', () => {
     const runWithMesh = (maximumCellHeight_m: number) => {
       const seen: ECR2CounterCurrentBVPInput[] = [];
       const result = solveECR2ProgressiveHeight({
-        target: { value: 0.2, sourceType: 'Measured', sourceReference: 'physical product specification' },
+        target: { value: 0.28, sourceType: 'Measured', sourceReference: 'physical product specification' },
         maximumCellHeight_m,
         maximumPhysicalHeight_m: 1,
         heightTolerance_m: 0.002,
@@ -193,10 +193,10 @@ describe('ECR-2 progressive BVP physical-height solver', () => {
   it('fails closed when a bisection point rises above an already-evaluated higher-height residual', () => {
     const solveBvp = (input: ECR2CounterCurrentBVPInput) => {
       const aromaticFlow = input.activeHeight_m >= 0.15
-        ? 17.3
+        ? 27.3
         : input.activeHeight_m >= 0.10
-          ? 17
-          : 30 - input.activeHeight_m * 100;
+          ? 27
+          : 30;
       return {
         status: 'converged',
         massBalanceStatus: 'passed',
@@ -209,7 +209,7 @@ describe('ECR-2 progressive BVP physical-height solver', () => {
       } as unknown as ECR2CounterCurrentBVPResult;
     };
     const result = solveECR2ProgressiveHeight({
-      target: { value: 0.2, sourceType: 'Assumed', sourceReference: 'test target' },
+      target: { value: 0.281, sourceType: 'Assumed', sourceReference: 'test target' },
       maximumCellHeight_m: 0.05,
       physicalMolecularWeights_g_mol: [100, 100, 100, 100, 100],
       bvpBaseInput: baseInput,
@@ -220,4 +220,54 @@ describe('ECR-2 progressive BVP physical-height solver', () => {
     expect(result.status).toBe('not_calculable');
     expect(result.diagnostics.at(-1)).toContain('residual increased');
   });
+
+  it('reports no feasible height when the recovery boundary is reached before the aromatic target', () => {
+    const result = solveECR2ProgressiveHeight({
+      target: { value: 0.2, sourceType: 'Assumed', sourceReference: 'recovery boundary regression' },
+      maximumCellHeight_m: 0.05,
+      maximumPhysicalHeight_m: 1,
+      heightTolerance_m: 0.002,
+      physicalMolecularWeights_g_mol: [100, 100, 100, 100, 100],
+      bvpBaseInput: baseInput,
+      solveBvp: acceptedBvp,
+    });
+
+    expect(result.status).toBe('no_feasible_recovery');
+    expect(result.requiredActiveHeight_m).toBeNull();
+    expect(result.selectedBvp).toBeNull();
+    expect(result.bestAromaticsAtRequiredRecovery).toMatchObject({
+      rrboRecoveryMassFraction: expect.any(Number),
+      recoveryResidual: expect.any(Number),
+    });
+  });
+
+  it('keeps a feasible height when quality and recovery cross inside the same expansion interval', () => {
+    const result = solveECR2ProgressiveHeight({
+      target: { value: 0.27, sourceType: 'Assumed', sourceReference: 'recovery/quality crossing regression' },
+      maximumCellHeight_m: 0.05,
+      maximumPhysicalHeight_m: 1,
+      heightTolerance_m: 0.002,
+      physicalMolecularWeights_g_mol: [100, 100, 100, 100, 100],
+      bvpBaseInput: baseInput,
+      solveBvp: (input) => {
+        const aromaticFlow = Math.max(0, 30 - input.activeHeight_m * 40);
+        return {
+          status: 'converged',
+          massBalanceStatus: 'passed',
+          stateVector: Array.from({ length: input.numberOfCompartments * 10 }, (_, index) => index + 1),
+          failure: null,
+          outlets: {
+            raffinate: { componentFlows_kg_h: [70, aromaticFlow, 0, 0, 10000] },
+            extract: null,
+          },
+        } as unknown as ECR2CounterCurrentBVPResult;
+      },
+    });
+
+    expect(result.status).toBe('target_met');
+    expect(result.requiredActiveHeight_m).not.toBeNull();
+    expect(result.achievedProductAromaticsMoleFraction).toBeLessThanOrEqual(0.27);
+    expect(result.rrboRecoveryMassFraction).toBeGreaterThanOrEqual(0.95);
+  });
+
 });

@@ -63,4 +63,5 @@
 - [Stage 5 Kühni Vk preliminary route](stage5-kuhni-vk-preliminary.md) — V_k remains audit-only under an explicit engineer rejection; server-owned approval is required before capacity/diameter results can run.
 - [ECR-2 BVP acceptance flow](ecr2-bvp-acceptance-flow.md) — local residual closure is insufficient; terminal component and total balances are independent unchanged acceptance gates.
 - [ECR-2 progressive height sizing](ecr2-progressive-height-sizing.md) — physical-height trials must rebuild H-dependent agitation inputs and reject any non-monotone accepted residual sequence.
+- [ECR-2 recovery-constrained height](ecr2-recovery-constrained-height.md) — physical design points require aromatic target, BVP/mass balance, and ≥95% NMP-free RRBO recovery together.
 - [LLX product-quality basis](llx-product-quality-basis.md) — retain full-phase LLE aromatics while reporting commercial raffinate aromatics on NMP-free hydrocarbon-only molar and mass bases.

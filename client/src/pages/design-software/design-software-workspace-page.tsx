@@ -5744,6 +5744,9 @@ export default function DesignSoftwareWorkspacePage() {
                           ["Target xA,R product", heightSizing?.target?.value != null ? `${fmt(heightSizing.target.value * 100, 3)} mol %` : "—"],
                           ["Achieved xA,R product", heightSizing?.achievedProductAromaticsMoleFraction != null ? `${fmt(heightSizing.achievedProductAromaticsMoleFraction * 100, 3)} mol %` : "—"],
                           ["Residual F(H)", fmt(heightSizing?.residual, 7)],
+                          ["Minimum RRBO recovery", heightSizing?.recoveryRequirement?.minimumMassFraction != null ? `${fmt(heightSizing.recoveryRequirement.minimumMassFraction * 100, 3)} %` : "95.000 %"],
+                          ["Achieved RRBO recovery", heightSizing?.rrboRecoveryMassFraction != null ? `${fmt(heightSizing.rrboRecoveryMassFraction * 100, 3)} %` : "—"],
+                          ["Recovery residual", fmt(heightSizing?.recoveryResidual, 7)],
                           ["Required physical height", heightSizing?.requiredActiveHeight_m != null ? `${fmt(heightSizing.requiredActiveHeight_m, 4)} m` : "NOT_CALCULATED"],
                           ["Target bracket", heightSizing?.lowerBracketHeight_m != null && heightSizing?.upperBracketHeight_m != null ? `[${fmt(heightSizing.lowerBracketHeight_m, 4)}, ${fmt(heightSizing.upperBracketHeight_m, 4)}] m` : "—"],
                           ["Search tolerance", heightSizing?.searchTolerance_m != null ? `${fmt(heightSizing.searchTolerance_m, 4)} m` : "—"],
@@ -5751,6 +5754,27 @@ export default function DesignSoftwareWorkspacePage() {
                           ["Selected Δz", heightSizing?.selectedDeltaZ_m != null ? `${fmt(heightSizing.selectedDeltaZ_m, 5)} m` : "—"],
                         ].map(([label, value]) => <div key={String(label)} className="rounded border border-current/15 bg-white/70 px-2.5 py-2"><p className="text-[10px] uppercase opacity-70">{label}</p><p className="mt-0.5 font-semibold">{value}</p></div>)}
                       </div>
+                      {(heightSizing?.trials?.length ?? 0) > 0 && (
+                        <div className="mt-3 overflow-x-auto rounded border border-current/15 bg-white/70">
+                          <div className="min-w-[1040px]">
+                            <div className="grid grid-cols-[80px_105px_110px_105px_110px_100px_100px_1fr] gap-2 border-b bg-black/5 px-3 py-2 text-[10px] font-semibold uppercase opacity-80">
+                              <span>Diameter</span><span>Height</span><span>xA,R</span><span>Aromatic F(H)</span><span>RRBO recovery</span><span>Recovery residual</span><span>BVP / balance</span><span>Result</span>
+                            </div>
+                            {heightSizing.trials.map((trial: any, index: number) => (
+                              <div key={`${trial.physicalHeight_m}-${index}`} className="grid grid-cols-[80px_105px_110px_105px_110px_100px_100px_1fr] gap-2 border-b last:border-0 px-3 py-2 text-[11px]">
+                                <span>{simulationGeometry?.columnDiameter_m != null ? `${fmt(simulationGeometry.columnDiameter_m, 3)} m` : "—"}</span>
+                                <span>{fmt(trial.physicalHeight_m, 5)} m</span>
+                                <span>{trial.productAromaticsMoleFraction != null ? `${fmt(trial.productAromaticsMoleFraction * 100, 4)} %` : "—"}</span>
+                                <span>{fmt(trial.residual, 7)}</span>
+                                <span>{trial.rrboRecoveryMassFraction != null ? `${fmt(trial.rrboRecoveryMassFraction * 100, 4)} %` : "—"}</span>
+                                <span>{fmt(trial.recoveryResidual, 7)}</span>
+                                <span>{trial.bvpConverged ? "CONVERGED" : String(trial.bvpStatus ?? "—").toUpperCase()} / {trial.massBalancePassed ? "PASS" : "FAIL"}</span>
+                                <span className={trial.accepted ? "font-semibold text-emerald-700" : "font-semibold text-rose-700"}>{trial.accepted ? "ACCEPT" : "REJECT"}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {heightSizing?.performanceSimulationLabel && (
                         <p className="mt-2 rounded border border-amber-300 bg-amber-50 px-2.5 py-2 text-[11px] font-semibold text-amber-950">
                           {heightSizing.performanceSimulationLabel}

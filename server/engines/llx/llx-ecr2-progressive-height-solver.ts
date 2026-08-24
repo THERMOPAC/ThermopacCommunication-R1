@@ -24,9 +24,21 @@ export const ECR2_HEIGHT_SOLVER_NUMERICS = {
   maximumBisectionIterations: 24,
 } as const;
 
+/**
+ * ECR-2 process-design acceptance requirement. This is deliberately separate
+ * from BVP numerical acceptance: an exactly converged BVP is still not a
+ * feasible design point if it reaches the aromatic target by losing too much
+ * RRBO hydrocarbon to the extract.
+ */
+export const ECR2_RRBO_RECOVERY_REQUIREMENT = {
+  minimumMassFraction: 0.95,
+  basis: 'NMP-free hydrocarbon mass in raffinate / NMP-free hydrocarbon mass in RRBO feed',
+} as const;
+
 export type ECR2HeightSizingStatus =
   | 'target_met'
   | 'target_not_met'
+  | 'no_feasible_recovery'
   | 'not_calculable';
 
 export interface ECR2HeightQualityTarget {
@@ -40,8 +52,18 @@ export interface ECR2HeightTrial {
   numberOfCells: number;
   deltaZ_m: number;
   accepted: boolean;
+  /** True only when the full BVP converged and passed global mass balance. */
+  bvpAccepted: boolean;
+  bvpConverged: boolean;
+  massBalancePassed: boolean;
   productAromaticsMoleFraction: number | null;
   residual: number | null;
+  /** Hydrocarbon-only RRBO recovery. NMP is excluded from numerator and denominator. */
+  rrboRecoveryMassFraction: number | null;
+  recoveryResidual: number | null;
+  saturatesTransferred_kg_h: number | null;
+  aromaticsTransferred_kg_h: number | null;
+  totalRrboTransferredToExtract_kg_h: number | null;
   bvpStatus: ECR2CounterCurrentBVPResult['status'];
   massBalanceStatus: ECR2CounterCurrentBVPResult['massBalanceStatus'];
   failure: string | null;
@@ -52,6 +74,24 @@ export interface ECR2ProgressiveHeightSolveResult {
   requiredActiveHeight_m: number | null;
   achievedProductAromaticsMoleFraction: number | null;
   residual: number | null;
+  rrboRecoveryMassFraction: number | null;
+  recoveryResidual: number | null;
+  recoveryRequirement: typeof ECR2_RRBO_RECOVERY_REQUIREMENT;
+  /**
+   * Best calculated raffinate aromatic result among evaluated BVP points that
+   * retained the required RRBO recovery. This is the reportable comparator for
+   * an infeasible recovery-constrained search.
+   */
+  bestAromaticsAtRequiredRecovery: {
+    physicalHeight_m: number;
+    productAromaticsMoleFraction: number;
+    residual: number;
+    rrboRecoveryMassFraction: number;
+    recoveryResidual: number;
+    saturatesTransferred_kg_h: number;
+    aromaticsTransferred_kg_h: number;
+    totalRrboTransferredToExtract_kg_h: number;
+  } | null;
   target: ECR2HeightQualityTarget;
   maximumCellHeight_m: number;
   searchTolerance_m: number;
@@ -186,6 +226,55 @@ function productAromaticMoleFraction(
   }
 }
 
+function hydrocarbonSum(values: readonly number[]): number {
+  return values.slice(0, 4).reduce((total, value) => total + value, 0);
+}
+
+function aromaticSum(values: readonly number[]): number {
+  return values.slice(1, 4).reduce((total, value) => total + value, 0);
+}
+
+function recoveryAndTransferSummary(
+  bvp: ECR2CounterCurrentBVPResult,
+  rrboFeedComponentFlows_kg_h: readonly number[],
+): {
+  rrboRecoveryMassFraction: number;
+  saturatesTransferred_kg_h: number;
+  aromaticsTransferred_kg_h: number;
+  totalRrboTransferredToExtract_kg_h: number;
+} | null {
+  const raffinate = bvp.outlets?.raffinate?.componentFlows_kg_h;
+  const feedHydrocarbons = hydrocarbonSum(rrboFeedComponentFlows_kg_h);
+  if (
+    bvp.status !== 'converged' ||
+    bvp.massBalanceStatus !== 'passed' ||
+    !raffinate ||
+    !Number.isFinite(feedHydrocarbons) ||
+    feedHydrocarbons <= 0
+  ) return null;
+
+  const raffinateHydrocarbons = hydrocarbonSum(raffinate);
+  const saturatesTransferred_kg_h = rrboFeedComponentFlows_kg_h[0] - raffinate[0];
+  const aromaticsTransferred_kg_h =
+    aromaticSum(rrboFeedComponentFlows_kg_h) - aromaticSum(raffinate);
+  const totalRrboTransferredToExtract_kg_h = feedHydrocarbons - raffinateHydrocarbons;
+  const rrboRecoveryMassFraction = raffinateHydrocarbons / feedHydrocarbons;
+  const values = [
+    rrboRecoveryMassFraction,
+    saturatesTransferred_kg_h,
+    aromaticsTransferred_kg_h,
+    totalRrboTransferredToExtract_kg_h,
+  ];
+  return values.every(Number.isFinite)
+    ? {
+        rrboRecoveryMassFraction,
+        saturatesTransferred_kg_h,
+        aromaticsTransferred_kg_h,
+        totalRrboTransferredToExtract_kg_h,
+      }
+    : null;
+}
+
 export function solveECR2ProgressiveHeight(
   input: ECR2ProgressiveHeightSolveInput,
 ): ECR2ProgressiveHeightSolveResult {
@@ -197,14 +286,52 @@ export function solveECR2ProgressiveHeight(
   const diagnostics: string[] = [
     'Outer method: bracketed physical-height continuation followed by conservative bisection.',
     'Each trial reruns the full counter-current BVP; no local NRTL, K&H, d32, holdup, or transfer value is reused.',
+    `Design acceptance requires hydrocarbon-only raffinate aromatics at or below target and RRBO recovery at or above ${(ECR2_RRBO_RECOVERY_REQUIREMENT.minimumMassFraction * 100).toFixed(1)}%.`,
   ];
   const trials: ECR2HeightTrial[] = [];
+
+  const bestRecoveryQualifiedTrial = () =>
+    trials
+      .filter((trial) =>
+        trial.bvpAccepted &&
+        trial.productAromaticsMoleFraction !== null &&
+        trial.residual !== null &&
+        trial.rrboRecoveryMassFraction !== null &&
+        trial.recoveryResidual !== null &&
+        trial.recoveryResidual >= 0 &&
+        trial.saturatesTransferred_kg_h !== null &&
+        trial.aromaticsTransferred_kg_h !== null &&
+        trial.totalRrboTransferredToExtract_kg_h !== null,
+      )
+      .sort((left, right) =>
+        left.productAromaticsMoleFraction! - right.productAromaticsMoleFraction!,
+      )[0] ?? null;
+
+  const bestAromaticsAtRequiredRecovery = () => {
+    const candidate = bestRecoveryQualifiedTrial();
+    return candidate
+      ? {
+          physicalHeight_m: candidate.physicalHeight_m,
+          productAromaticsMoleFraction: candidate.productAromaticsMoleFraction!,
+          residual: candidate.residual!,
+          rrboRecoveryMassFraction: candidate.rrboRecoveryMassFraction!,
+          recoveryResidual: candidate.recoveryResidual!,
+          saturatesTransferred_kg_h: candidate.saturatesTransferred_kg_h!,
+          aromaticsTransferred_kg_h: candidate.aromaticsTransferred_kg_h!,
+          totalRrboTransferredToExtract_kg_h: candidate.totalRrboTransferredToExtract_kg_h!,
+        }
+      : null;
+  };
 
   const invalid = (message: string): ECR2ProgressiveHeightSolveResult => ({
     status: 'not_calculable',
     requiredActiveHeight_m: null,
     achievedProductAromaticsMoleFraction: null,
     residual: null,
+    rrboRecoveryMassFraction: null,
+    recoveryResidual: null,
+    recoveryRequirement: ECR2_RRBO_RECOVERY_REQUIREMENT,
+    bestAromaticsAtRequiredRecovery: bestAromaticsAtRequiredRecovery(),
     target: input.target,
     maximumCellHeight_m,
     searchTolerance_m: heightTolerance_m,
@@ -231,6 +358,7 @@ export function solveECR2ProgressiveHeight(
 
   let previousAccepted: AcceptedState | null = null;
   let monotonicityViolation: string | null = null;
+  let recoveryMonotonicityViolation: string | null = null;
 
   const evaluateHeight = (physicalHeight_m: number): EvaluatedTrial => {
     const cells = Math.max(1, Math.ceil(physicalHeight_m / maximumCellHeight_m));
@@ -259,25 +387,53 @@ export function solveECR2ProgressiveHeight(
         };
     const bvp = (input.solveBvp ?? solveECR2CounterCurrentBVP)(bvpInput);
     const quality = productAromaticMoleFraction(bvp, input.physicalMolecularWeights_g_mol);
-    const accepted = quality !== null;
+    const recovery = recoveryAndTransferSummary(
+      bvp,
+      input.bvpBaseInput.rrboFeedComponentFlows_kg_h,
+    );
+    const bvpAccepted = quality !== null && recovery !== null;
     const residual = quality === null ? null : quality - input.target.value;
+    const recoveryResidual = recovery === null
+      ? null
+      : recovery.rrboRecoveryMassFraction - ECR2_RRBO_RECOVERY_REQUIREMENT.minimumMassFraction;
+    const accepted = bvpAccepted && residual! <= 0 && recoveryResidual! >= 0;
+    const failure = !bvpAccepted
+      ? (bvp.failure?.message ?? 'BVP did not reach accepted convergence and global mass balance.')
+      : accepted
+        ? null
+        : [
+            residual! > 0
+              ? `Raffinate aromatic residual ${residual!.toExponential(3)} is above the product target.`
+              : null,
+            recoveryResidual! < 0
+              ? `RRBO recovery ${(recovery!.rrboRecoveryMassFraction * 100).toFixed(4)}% is below the ${(ECR2_RRBO_RECOVERY_REQUIREMENT.minimumMassFraction * 100).toFixed(1)}% requirement.`
+              : null,
+          ].filter(Boolean).join(' ');
     const trial: ECR2HeightTrial = {
       physicalHeight_m,
       numberOfCells: cells,
       deltaZ_m,
       accepted,
+      bvpAccepted,
+      bvpConverged: bvp.status === 'converged',
+      massBalancePassed: bvp.massBalanceStatus === 'passed',
       productAromaticsMoleFraction: quality,
       residual,
+      rrboRecoveryMassFraction: recovery?.rrboRecoveryMassFraction ?? null,
+      recoveryResidual,
+      saturatesTransferred_kg_h: recovery?.saturatesTransferred_kg_h ?? null,
+      aromaticsTransferred_kg_h: recovery?.aromaticsTransferred_kg_h ?? null,
+      totalRrboTransferredToExtract_kg_h: recovery?.totalRrboTransferredToExtract_kg_h ?? null,
       bvpStatus: bvp.status,
       massBalanceStatus: bvp.massBalanceStatus,
-      failure: accepted ? null : (bvp.failure?.message ?? 'BVP did not reach accepted convergence and global mass balance.'),
+      failure,
     };
     trials.push(trial);
-    if (accepted && bvp.stateVector) {
+    if (bvpAccepted && bvp.stateVector) {
       previousAccepted = { height_m: physicalHeight_m, cells, state: bvp.stateVector };
     }
     const acceptedOrdered = trials
-      .filter((entry) => entry.accepted && entry.residual !== null)
+      .filter((entry) => entry.bvpAccepted && entry.residual !== null)
       .sort((left, right) => left.physicalHeight_m - right.physicalHeight_m);
     for (let index = 1; index < acceptedOrdered.length; index++) {
       const prior = acceptedOrdered[index - 1];
@@ -289,55 +445,119 @@ export function solveECR2ProgressiveHeight(
         break;
       }
     }
+    for (let index = 1; index < acceptedOrdered.length; index++) {
+      const prior = acceptedOrdered[index - 1];
+      const current = acceptedOrdered[index];
+      if (
+        current.rrboRecoveryMassFraction !== null &&
+        prior.rrboRecoveryMassFraction !== null &&
+        current.rrboRecoveryMassFraction >
+          prior.rrboRecoveryMassFraction + ECR2_HEIGHT_SOLVER_NUMERICS.residualMonotonicityTolerance
+      ) {
+        recoveryMonotonicityViolation =
+          `RRBO recovery increased from ${(prior.rrboRecoveryMassFraction * 100).toFixed(5)}% at ${prior.physicalHeight_m.toFixed(4)} m ` +
+          `to ${(current.rrboRecoveryMassFraction * 100).toFixed(5)}% at ${current.physicalHeight_m.toFixed(4)} m; the recovery boundary cannot be established fail-closed.`;
+        break;
+      }
+    }
     return { trial, bvp, acceptedState: previousAccepted };
+  };
+
+  const resultFor = (
+    status: ECR2HeightSizingStatus,
+    summaryTrial: ECR2HeightTrial | null,
+    requiredActiveHeight_m: number | null,
+    lowerBracketHeight_m: number | null,
+    upperBracketHeight_m: number | null,
+    selected: EvaluatedTrial | null,
+  ): ECR2ProgressiveHeightSolveResult => ({
+    status,
+    requiredActiveHeight_m,
+    achievedProductAromaticsMoleFraction: summaryTrial?.productAromaticsMoleFraction ?? null,
+    residual: summaryTrial?.residual ?? null,
+    rrboRecoveryMassFraction: summaryTrial?.rrboRecoveryMassFraction ?? null,
+    recoveryResidual: summaryTrial?.recoveryResidual ?? null,
+    recoveryRequirement: ECR2_RRBO_RECOVERY_REQUIREMENT,
+    bestAromaticsAtRequiredRecovery: bestAromaticsAtRequiredRecovery(),
+    target: input.target,
+    maximumCellHeight_m,
+    searchTolerance_m: heightTolerance_m,
+    lowerBracketHeight_m,
+    upperBracketHeight_m,
+    selectedNumberOfCells: selected?.trial.numberOfCells ?? null,
+    selectedDeltaZ_m: selected?.trial.deltaZ_m ?? null,
+    trials,
+    selectedBvp: selected?.bvp ?? null,
+    diagnostics,
+  });
+
+  const noFeasibleRecovery = (
+    reachedTrial: ECR2HeightTrial,
+    message: string,
+  ): ECR2ProgressiveHeightSolveResult => {
+    const best = bestRecoveryQualifiedTrial();
+    diagnostics.push(
+      'NO FEASIBLE D/H SOLUTION AT REQUIRED RRBO RECOVERY: ' +
+      `${message} Best evaluated aromatic result while RRBO recovery remained at or above ` +
+      `${(ECR2_RRBO_RECOVERY_REQUIREMENT.minimumMassFraction * 100).toFixed(1)}% is ` +
+      (best
+        ? `${(best.productAromaticsMoleFraction! * 100).toFixed(5)} mol % at ${best.physicalHeight_m.toFixed(5)} m ` +
+          `with ${(best.rrboRecoveryMassFraction! * 100).toFixed(5)}% recovery.`
+        : 'not available because no converged, mass-balanced recovery-qualified BVP point exists.'),
+    );
+    return resultFor(
+      'no_feasible_recovery',
+      best ?? reachedTrial,
+      null,
+      best?.physicalHeight_m ?? null,
+      reachedTrial.physicalHeight_m,
+      null,
+    );
   };
 
   let lowerHeight = Math.min(
     maximumPhysicalHeight_m,
     Math.max(ECR2_HEIGHT_SOLVER_NUMERICS.minimumPhysicalHeight_m, heightTolerance_m),
   );
-  let lower: EvaluatedTrial | null = null;
-  for (let step = 0; step <= ECR2_HEIGHT_SOLVER_NUMERICS.maximumBracketExpansions; step++) {
-    const candidate = evaluateHeight(lowerHeight);
-    if (candidate.trial.accepted && candidate.trial.residual !== null) {
-      lower = candidate;
-      break;
-    }
-    return invalid(`The initial ${lowerHeight.toFixed(4)} m physical-height BVP is not accepted: ${candidate.trial.failure}`);
+  let lower = evaluateHeight(lowerHeight);
+  if (!lower.trial.bvpAccepted || lower.trial.residual === null || lower.trial.recoveryResidual === null) {
+    return invalid(`The initial ${lowerHeight.toFixed(4)} m physical-height BVP is not accepted: ${lower.trial.failure}`);
   }
-  if (!lower) return invalid('No accepted physical-height BVP was established during initial physical-height expansion.');
-  if (monotonicityViolation) return invalid(monotonicityViolation);
-
-  if (lower.trial.residual <= 0) {
-    diagnostics.push('The product target is met at the first accepted physical-height trial.');
-    return {
-      status: 'target_met',
-      requiredActiveHeight_m: lowerHeight,
-      achievedProductAromaticsMoleFraction: lower.trial.productAromaticsMoleFraction,
-      residual: lower.trial.residual,
-      target: input.target,
-      maximumCellHeight_m,
-      searchTolerance_m: heightTolerance_m,
-      lowerBracketHeight_m: trials.some((trial) => !trial.accepted) ? null : 0,
-      upperBracketHeight_m: lowerHeight,
-      selectedNumberOfCells: lower.trial.numberOfCells,
-      selectedDeltaZ_m: lower.trial.deltaZ_m,
-      trials,
-      selectedBvp: lower.bvp,
-      diagnostics,
-    };
+  if (monotonicityViolation || recoveryMonotonicityViolation) {
+    return invalid(monotonicityViolation ?? recoveryMonotonicityViolation!);
   }
 
+  if (lower.trial.accepted) {
+    diagnostics.push('Both product-quality and RRBO-recovery requirements are met at the first valid physical-height trial.');
+    return resultFor('target_met', lower.trial, lowerHeight, 0, lowerHeight, lower);
+  }
+  if (lower.trial.recoveryResidual < 0) {
+    return noFeasibleRecovery(
+      lower.trial,
+      `The initial ${lowerHeight.toFixed(4)} m trial is already below the recovery requirement.`,
+    );
+  }
   let upper: EvaluatedTrial | null = null;
   for (let step = 0; step < ECR2_HEIGHT_SOLVER_NUMERICS.maximumBracketExpansions; step++) {
     const nextHeight = Math.min(maximumPhysicalHeight_m, lowerHeight * 2);
     if (nextHeight <= lowerHeight) break;
     const candidate = evaluateHeight(nextHeight);
-    if (!candidate.trial.accepted || candidate.trial.residual === null) {
+    if (
+      !candidate.trial.bvpAccepted ||
+      candidate.trial.residual === null ||
+      candidate.trial.recoveryResidual === null
+    ) {
       return invalid(`The ${nextHeight.toFixed(4)} m continuation BVP is not accepted: ${candidate.trial.failure}`);
     }
-    if (monotonicityViolation) return invalid(monotonicityViolation);
-    if (candidate.trial.residual <= 0) {
+    if (monotonicityViolation || recoveryMonotonicityViolation) {
+      return invalid(monotonicityViolation ?? recoveryMonotonicityViolation!);
+    }
+
+    if (candidate.trial.accepted) {
+      upper = candidate;
+      break;
+    }
+    if (candidate.trial.recoveryResidual < 0) {
       upper = candidate;
       break;
     }
@@ -346,27 +566,61 @@ export function solveECR2ProgressiveHeight(
   }
 
   if (!upper) {
-    diagnostics.push(`Target not reached by the configured ${maximumPhysicalHeight_m.toFixed(3)} m physical-height bound.`);
-    return {
-      status: 'target_not_met',
-      requiredActiveHeight_m: null,
-      achievedProductAromaticsMoleFraction: lower.trial.productAromaticsMoleFraction,
-      residual: lower.trial.residual,
-      target: input.target,
-      maximumCellHeight_m,
-      searchTolerance_m: heightTolerance_m,
-      lowerBracketHeight_m: lowerHeight,
-      upperBracketHeight_m: null,
-      selectedNumberOfCells: null,
-      selectedDeltaZ_m: null,
-      trials,
-      selectedBvp: null,
-      diagnostics,
-    };
+    diagnostics.push(`Target not reached by the configured ${maximumPhysicalHeight_m.toFixed(3)} m physical-height bound while RRBO recovery remained acceptable.`);
+    return resultFor('target_not_met', lower.trial, null, lowerHeight, null, null);
+  }
+
+  /*
+   * A product-quality pass at the first recovery-failing expansion point does
+   * not prove infeasibility. The two physical requirements can cross in either
+   * order inside that interval. First resolve the largest height retaining
+   * recovery; only then decide whether the quality and recovery intervals
+   * overlap. This bisection establishes a constraint boundary, never a
+   * selected design height by itself.
+   */
+  if (upper.trial.recoveryResidual! < 0) {
+    let recoveryLowHeight = lowerHeight;
+    let recoveryLow = lower;
+    let recoveryHighHeight = upper.trial.physicalHeight_m;
+    let recoveryHigh = upper;
+    for (let iteration = 0;
+      iteration < ECR2_HEIGHT_SOLVER_NUMERICS.maximumBisectionIterations
+        && recoveryHighHeight - recoveryLowHeight > heightTolerance_m;
+      iteration++) {
+      const midpoint = (recoveryLowHeight + recoveryHighHeight) / 2;
+      const candidate = evaluateHeight(midpoint);
+      if (
+        !candidate.trial.bvpAccepted ||
+        candidate.trial.residual === null ||
+        candidate.trial.recoveryResidual === null
+      ) {
+        return invalid(`The ${midpoint.toFixed(4)} m recovery-boundary BVP is not accepted: ${candidate.trial.failure}`);
+      }
+      if (monotonicityViolation || recoveryMonotonicityViolation) {
+        return invalid(monotonicityViolation ?? recoveryMonotonicityViolation!);
+      }
+      if (candidate.trial.recoveryResidual >= 0) {
+        recoveryLowHeight = midpoint;
+        recoveryLow = candidate;
+      } else {
+        recoveryHighHeight = midpoint;
+        recoveryHigh = candidate;
+      }
+    }
+
+    if (recoveryLow.trial.residual! > 0) {
+      return noFeasibleRecovery(
+        recoveryHigh.trial,
+        `The recovery boundary is approximately ${recoveryLowHeight.toFixed(4)} m; its raffinate aromatic residual remains ${recoveryLow.trial.residual!.toExponential(3)} above target.`,
+      );
+    }
+    diagnostics.push(
+      `Recovery boundary resolved to [${recoveryLowHeight.toFixed(4)}, ${recoveryHighHeight.toFixed(4)}] m; aromatic target remains attainable before the recovery limit.`,
+    );
+    upper = recoveryLow;
   }
 
   let lowHeight = lowerHeight;
-  let low = lower;
   let highHeight = upper.trial.physicalHeight_m;
   let high = upper;
   for (let iteration = 0;
@@ -375,36 +629,30 @@ export function solveECR2ProgressiveHeight(
     iteration++) {
     const midpoint = (lowHeight + highHeight) / 2;
     const candidate = evaluateHeight(midpoint);
-    if (!candidate.trial.accepted || candidate.trial.residual === null) {
+    if (
+      !candidate.trial.bvpAccepted ||
+      candidate.trial.residual === null ||
+      candidate.trial.recoveryResidual === null
+    ) {
       return invalid(`The ${midpoint.toFixed(4)} m bisection BVP is not accepted: ${candidate.trial.failure}`);
     }
-    if (monotonicityViolation) return invalid(monotonicityViolation);
-    if (candidate.trial.residual <= 0) {
+    if (monotonicityViolation || recoveryMonotonicityViolation) {
+      return invalid(monotonicityViolation ?? recoveryMonotonicityViolation!);
+    }
+    if (candidate.trial.accepted) {
       highHeight = midpoint;
       high = candidate;
+    } else if (candidate.trial.recoveryResidual < 0) {
+      return invalid(
+        `RRBO-recovery feasibility is non-monotonic inside an otherwise feasible height bracket at ${midpoint.toFixed(4)} m; minimum feasible height cannot be established fail-closed.`,
+      );
     } else {
       lowHeight = midpoint;
-      low = candidate;
     }
   }
 
   diagnostics.push(
-    `Target bracket refined to [${lowHeight.toFixed(4)}, ${highHeight.toFixed(4)}] m; conservative upper bound selected.`,
+    `Simultaneous aromatic-quality and RRBO-recovery bracket refined to [${lowHeight.toFixed(4)}, ${highHeight.toFixed(4)}] m; conservative upper bound selected.`,
   );
-  return {
-    status: 'target_met',
-    requiredActiveHeight_m: highHeight,
-    achievedProductAromaticsMoleFraction: high.trial.productAromaticsMoleFraction,
-    residual: high.trial.residual,
-    target: input.target,
-    maximumCellHeight_m,
-    searchTolerance_m: heightTolerance_m,
-    lowerBracketHeight_m: lowHeight,
-    upperBracketHeight_m: highHeight,
-    selectedNumberOfCells: high.trial.numberOfCells,
-    selectedDeltaZ_m: high.trial.deltaZ_m,
-    trials,
-    selectedBvp: high.bvp,
-    diagnostics,
-  };
+  return resultFor('target_met', high.trial, highHeight, lowHeight, highHeight, high);
 }
