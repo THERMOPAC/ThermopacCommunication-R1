@@ -547,3 +547,10 @@ uri = "file://.agents/outputs/LLX-RND-2026-0003-Run-711.pdf"
 type = "pdf"
 title = "LLX-RND-2026-0003 — ECR-2 Simulator Run #711"
 description = "Six-page numerical report for the persisted 23 Aug 2026, 10:24:52 PM IST run, including outlets, balances, axial profile, transfer metrics, solver status, and Task #124 temperature applicability."
+
+[[outputs]]
+id = "WdIyUPcidJimOr8_IrssJ"
+uri = "file://reports/ecr2-simulation-run-845-report.pdf"
+type = "pdf"
+title = "ECR-2 Simulation Run #845 Report"
+description = "Frozen Run #845 report with diameter and height sizing, N_T, RRBO composition, recovery, outlet component flows, BVP diagnostics, warnings, and release-status limitations."
