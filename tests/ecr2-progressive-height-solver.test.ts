@@ -150,6 +150,38 @@ describe('ECR-2 progressive BVP physical-height solver', () => {
     }
   });
 
+  it('expands past an unphysical fixed-power starter height to establish the first accepted BVP trial', () => {
+    const solveBvp = vi.fn((input: ECR2CounterCurrentBVPInput) => {
+      if (input.activeHeight_m < 0.04) {
+        return {
+          status: 'blocked',
+          massBalanceStatus: 'not_evaluated',
+          stateVector: null,
+          failure: {
+            message: 'K&H 1995 holdup is unusable: physically_invalid.',
+          },
+        } as unknown as ECR2CounterCurrentBVPResult;
+      }
+      return acceptedBvp(input);
+    });
+    const result = solveECR2ProgressiveHeight({
+      target: { value: 0.25, sourceType: 'Assumed', sourceReference: 'physical product target' },
+      maximumCellHeight_m: 0.05,
+      maximumPhysicalHeight_m: 1,
+      heightTolerance_m: 0.002,
+      physicalMolecularWeights_g_mol: [100, 100, 100, 100, 100],
+      bvpBaseInput: baseInput,
+      solveBvp,
+    });
+
+    expect(result.status).toBe('target_met');
+    expect(result.requiredActiveHeight_m).not.toBeNull();
+    expect(result.trials.slice(0, 2).every((trial) => !trial.accepted)).toBe(true);
+    expect(result.trials.some((trial) => trial.accepted)).toBe(true);
+    expect(result.diagnostics.some((message) => message.includes('expanding physical height'))).toBe(true);
+    expect(solveBvp.mock.calls.some(([input]) => input.activeHeight_m >= 0.04)).toBe(true);
+  });
+
   it('refuses to use a converged-but-globally-unbalanced BVP point in the height search', () => {
     const result = solveECR2ProgressiveHeight({
       target: { value: 0.2, sourceType: 'Assumed', sourceReference: 'test target' },

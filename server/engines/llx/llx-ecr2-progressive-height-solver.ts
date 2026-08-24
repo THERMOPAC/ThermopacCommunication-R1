@@ -185,6 +185,21 @@ function productAromaticMoleFraction(
   }
 }
 
+/**
+ * A whole-column fixed-power basis makes the artificial 10 mm starter trial
+ * extremely energetic. K&H 1995 can therefore produce φd ≥ 1 at a height
+ * that is physically too short to represent the installed agitator volume.
+ *
+ * This is recoverable only while establishing the first accepted lower trial:
+ * a larger physical height reduces power density and recomputes all local
+ * physics. No other blocked/non-converged BVP condition is skipped.
+ */
+function isRecoverableLowHeightHoldupFailure(trial: ECR2HeightTrial): boolean {
+  return trial.bvpStatus === 'blocked'
+    && typeof trial.failure === 'string'
+    && /K&H 1995 holdup is unusable: physically_invalid/i.test(trial.failure);
+}
+
 export function solveECR2ProgressiveHeight(
   input: ECR2ProgressiveHeightSolveInput,
 ): ECR2ProgressiveHeightSolveResult {
@@ -295,14 +310,33 @@ export function solveECR2ProgressiveHeight(
     maximumPhysicalHeight_m,
     Math.max(ECR2_HEIGHT_SOLVER_NUMERICS.minimumPhysicalHeight_m, heightTolerance_m),
   );
-  let lower = evaluateHeight(lowerHeight);
-  if (!lower.trial.accepted || lower.trial.residual === null) {
-    return invalid(`The initial ${lowerHeight.toFixed(4)} m physical-height BVP is not accepted: ${lower.trial.failure}`);
+  let lower: EvaluatedTrial | null = null;
+  for (let step = 0; step <= ECR2_HEIGHT_SOLVER_NUMERICS.maximumBracketExpansions; step++) {
+    const candidate = evaluateHeight(lowerHeight);
+    if (candidate.trial.accepted && candidate.trial.residual !== null) {
+      lower = candidate;
+      break;
+    }
+    if (!isRecoverableLowHeightHoldupFailure(candidate.trial)) {
+      return invalid(`The initial ${lowerHeight.toFixed(4)} m physical-height BVP is not accepted: ${candidate.trial.failure}`);
+    }
+    if (lowerHeight >= maximumPhysicalHeight_m) {
+      return invalid(
+        `No accepted physical-height BVP was established up to the configured ${maximumPhysicalHeight_m.toFixed(3)} m bound; ` +
+        `the lowest-height trials are physically invalid because K&H 1995 holdup is outside 0 < φd < 1.`,
+      );
+    }
+    diagnostics.push(
+      `The ${lowerHeight.toFixed(4)} m starter trial has physically invalid K&H 1995 holdup under the fixed-power whole-column basis; ` +
+      'expanding physical height to establish the first accepted trial.',
+    );
+    lowerHeight = Math.min(maximumPhysicalHeight_m, lowerHeight * 2);
   }
+  if (!lower) return invalid('No accepted physical-height BVP was established during initial physical-height expansion.');
   if (monotonicityViolation) return invalid(monotonicityViolation);
 
   if (lower.trial.residual <= 0) {
-    diagnostics.push('The product target is met at the minimum reportable physical height.');
+    diagnostics.push('The product target is met at the first accepted physical-height trial.');
     return {
       status: 'target_met',
       requiredActiveHeight_m: lowerHeight,
@@ -311,7 +345,7 @@ export function solveECR2ProgressiveHeight(
       target: input.target,
       maximumCellHeight_m,
       searchTolerance_m: heightTolerance_m,
-      lowerBracketHeight_m: 0,
+      lowerBracketHeight_m: trials.some((trial) => !trial.accepted) ? null : 0,
       upperBracketHeight_m: lowerHeight,
       selectedNumberOfCells: lower.trial.numberOfCells,
       selectedDeltaZ_m: lower.trial.deltaZ_m,
