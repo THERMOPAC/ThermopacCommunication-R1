@@ -168,6 +168,8 @@ const processDesignInputs = {
 };
 
 const simulatorInputs = {
+  // Legacy manual search fields are deliberately retained in this fixture to
+  // prove the mapper and engine ignore them for new ECR-2 calculations.
   column_diameter: '0.2523',
   column_diameter_trials_m: '0.2523, 0.35',
   governed_psi_w_kg: '0.1',
@@ -283,19 +285,26 @@ describe('ECR-2 simulator service run path', () => {
       rrboGradeId: 'rrbo-sn300',
       partitionBasis: { basis: 'K_d_concentration' },
     });
+    expect(inputSnapshot.columnDiameterTrials_m).toBeUndefined();
+    expect(inputSnapshot.governedPsi_W_kg).toBeUndefined();
     expect(resultSnapshot.calculationRunStatus).toBe('counter_current_bvp_accepted');
     expect(resultSnapshot.geometry).toMatchObject({
       nCompartments: 1,
-      columnDiameter_m: 0.2523,
+      columnDiameter_m: 0.3,
     });
     expect(resultSnapshot.diameterSizing).toMatchObject({
-      method: 'independent_progressive_bvp_trial_per_configured_diameter',
+      method: 'engine_generated_independent_progressive_bvp_trials',
       selectedDiameter_m: null,
       selectionStatus: 'NOT_SELECTED_BY_SIMULATOR',
-      trialCount: 2,
+      trialCount: 5,
+      processSizingBasis: {
+        id: 'ecr2_preliminary_process_sizing_basis_v1',
+        status: 'PRELIMINARY_DEFAULT',
+        governedPsi_W_kg: 0.1,
+      },
     });
-    expect(resultSnapshot.diameterSizing.trials).toHaveLength(2);
-    expect(resultSnapshot.diameterSizing.trials.map((trial: any) => trial.diameter_m)).toEqual([0.2523, 0.35]);
+    expect(resultSnapshot.diameterSizing.trials).toHaveLength(5);
+    expect(resultSnapshot.diameterSizing.trials.map((trial: any) => trial.diameter_m)).toEqual([0.3, 0.45, 0.6, 0.8, 1]);
     for (const trial of resultSnapshot.diameterSizing.trials) {
       expect(trial.governedPsi_W_kg).toBeCloseTo(0.1, 12);
       expect(trial.powerPerVolume_W_m3).toBeCloseTo(trial.rhoMix_kg_m3 * 0.1, 10);
@@ -366,16 +375,16 @@ describe('ECR-2 simulator service run path', () => {
     });
   });
 
-  it('preserves malformed diameter-trial text for the engine to reject rather than silently dropping it', () => {
+  it('ignores legacy manual diameter and ψ values so they cannot alter the generated ECR-2 search', () => {
     const mapped = mapWorkspaceProcessDesignInputs({
       ...processDesignInputs,
       ...simulatorInputs,
       column_diameter_trials_m: '0.2523, malformed',
+      governed_psi_w_kg: '999',
     }, 'ecr_simulator');
-    const trials = mapped.columnDiameterTrials_m as number[];
-    expect(trials).toHaveLength(2);
-    expect(trials[0]).toBeCloseTo(0.2523, 12);
-    expect(Number.isNaN(trials[1])).toBe(true);
+    expect(mapped.columnDiameterTrials_m).toBeUndefined();
+    expect(mapped.columnDiameter_m).toBeUndefined();
+    expect(mapped.governedPsi_W_kg).toBeUndefined();
   });
 
   it('persists a structured dependency-blocked snapshot when BVP inputs are missing', async () => {

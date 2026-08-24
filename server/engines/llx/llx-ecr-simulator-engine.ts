@@ -165,6 +165,23 @@ const APPLICABILITY_STATEMENT =
 const G = 9.80665; // m/s²
 const PI = Math.PI;
 
+/**
+ * ECR-2 owns its preliminary process-sizing search mechanics. This is an
+ * evaluation envelope, not a hydraulic/flooding criterion and never selects a
+ * final column diameter. It deliberately has no user-editable workspace fields.
+ */
+const ECR2_PRELIMINARY_PROCESS_SIZING_BASIS = {
+  id: 'ecr2_preliminary_process_sizing_basis_v1',
+  status: 'PRELIMINARY_DEFAULT' as const,
+  sourceType: 'Assumed' as const,
+  sourceReference: 'Thermopac Preliminary ECR-2 process-model basis — pending governing evidence and pilot calibration',
+  psi_W_kg: 0.1,
+  diameterSearch: {
+    values_m: [0.30, 0.45, 0.60, 0.80, 1.00] as const,
+    method: 'fixed_preliminary_ecr2_evaluation_envelope',
+  },
+};
+
 // ── Component system (frozen) ──────────────────────────────────────────────────
 
 /** Frozen component index convention for ECR-2. Must not be reordered. */
@@ -647,13 +664,13 @@ export interface ECR2SimulatorInputs {
   phaseConfiguration: 'rrbo_continuous_nmp_dispersed' | 'nmp_continuous_rrbo_dispersed';
 
   // ── Column geometry ────────────────────────────────────────────────────
-  /** Column internal diameter D (m). */
-  columnDiameter_m: number;
+  /** Engine-resolved detail diameter (m), retained in snapshots for compatibility. */
+  columnDiameter_m?: number;
   /**
    * Explicit ECR-2 process-sizing diameter trials (m). Every entry is evaluated
    * independently; no Stage 7/DS-SEL diameter is injected into this list.
    */
-  columnDiameterTrials_m: readonly number[];
+  columnDiameterTrials_m?: readonly number[];
   /** Legacy diagnostic BVP height only; never used for physical sizing. */
   activeHeight_m?: number;
   /** Maximum numerical BVP-cell height Δz_max (m), not an equipment stage height. */
@@ -670,9 +687,8 @@ export interface ECR2SimulatorInputs {
   powerNumber: TaggedValue;
 
   /**
-   * Governed process specific agitation condition ψ = (P/V)/ρ_mix (W/kg).
-   * This is an independent process input; it is never reconstructed from rotor
-   * geometry, rotor count, shaft power, or active height.
+   * Deprecated external field. The simulator resolves ψ from its controlled
+   * process-sizing basis and ignores browser-supplied values.
    */
   governedPsi_W_kg?: TaggedValue;
   /** Density basis used with governedPsi_W_kg. Only the continuous-phase inlet
@@ -769,6 +785,63 @@ function validDiameterTrials(inputs: Record<string, unknown>): number[] {
   return raw
     .map((value) => num(value))
     .filter((value): value is number => value !== undefined);
+}
+
+function resolveECR2ProcessSizingInputs(inputs: Record<string, unknown>): Record<string, unknown> {
+  // A future controlled server-side basis may deliberately declare itself
+  // unavailable. In that case preserve the dependency gap instead of using a
+  // hidden manual or rotor-derived substitute.
+  const requestedSystemBasis = inputs.ecr2SystemProcessSizingBasis as Record<string, unknown> | undefined;
+  const basisUnavailable = requestedSystemBasis?.status === 'UNAVAILABLE';
+  if (basisUnavailable) {
+    return {
+      ...inputs,
+      columnDiameterTrials_m: [],
+      columnDiameter_m: undefined,
+      governedPsi_W_kg: undefined,
+      psiDensityBasis: undefined,
+      ecr2ResolvedProcessSizingBasis: {
+        id: String(requestedSystemBasis.id ?? 'ecr2_process_sizing_basis_unavailable'),
+        status: 'MISSING_DEPENDENCY',
+        missingDependency: String(requestedSystemBasis.missingDependency ?? 'ECR-2 governed/preliminary process-sizing basis'),
+      },
+    };
+  }
+
+  const basis = ECR2_PRELIMINARY_PROCESS_SIZING_BASIS;
+  const columnDiameterTrials_m = [...basis.diameterSearch.values_m];
+  return {
+    ...inputs,
+    // Overwrite every legacy UI/API value. The engine, not the browser, owns
+    // trial generation and ψ resolution.
+    columnDiameterTrials_m,
+    columnDiameter_m: columnDiameterTrials_m[0],
+    governedPsi_W_kg: {
+      value: basis.psi_W_kg,
+      unit: 'W/kg',
+      sourceType: basis.sourceType,
+      sourceReference: basis.sourceReference,
+    },
+    psiDensityBasis: 'continuous_phase_inlet',
+    ecr2ResolvedProcessSizingBasis: {
+      id: basis.id,
+      status: basis.status,
+      sourceType: basis.sourceType,
+      sourceReference: basis.sourceReference,
+      governedPsi_W_kg: basis.psi_W_kg,
+      psiDensityBasis: 'continuous_phase_inlet',
+      diameterSearch: basis.diameterSearch,
+      ignoredLegacyInputKeys: [
+        'column_diameter_trials_m',
+        'columnDiameterTrials_m',
+        'columnDiameter_m',
+        'governed_psi_w_kg',
+        'governedPsi_W_kg',
+        'governed_psi_source_type',
+        'governed_psi_source_reference',
+      ],
+    },
+  };
 }
 
 // ── Thermodynamic-coordinate conversion ───────────────────────────────────────
@@ -1096,6 +1169,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
   // ── validate ──────────────────────────────────────────────────────────────
 
   validate(inputs: Record<string, unknown>): ValidationResult {
+    inputs = resolveECR2ProcessSizingInputs(inputs);
     const errors: ValidationError[] = [];
     const err = (field: string, message: string) =>
       errors.push({ field, message, severity: 'error' });
@@ -1188,14 +1262,18 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const D = diameterTrials[0];
     const H = num(inputs.activeHeight_m);
     const hComp = num(inputs.compartmentHeight_m);
-    if (!Array.isArray(inputs.columnDiameterTrials_m)) {
-      err('columnDiameterTrials_m', 'An explicit non-empty ECR-2 diameter-trial list is required; a Stage 7/DS-SEL or legacy single-diameter carry-over is not permitted.');
-    } else if (inputs.columnDiameterTrials_m.length === 0) {
-      err('columnDiameterTrials_m', 'columnDiameterTrials_m must contain at least one explicit positive diameter (m)');
+    const sizingBasis = inputs.ecr2ResolvedProcessSizingBasis as Record<string, unknown> | undefined;
+    if (sizingBasis?.status === 'MISSING_DEPENDENCY') {
+      err(
+        'ecr2SystemProcessSizingBasis',
+        `ECR-2 process sizing is blocked: ${String(sizingBasis.missingDependency)} is unavailable. The simulator will not use manual diameter trials, manual ψ, Stage 7, DS-SEL, or rotor-derived P/V as a substitute.`,
+      );
+    } else if (!Array.isArray(inputs.columnDiameterTrials_m) || inputs.columnDiameterTrials_m.length === 0) {
+      err('ecr2ResolvedProcessSizingBasis', 'ECR-2 could not generate a non-empty internal diameter trial space from its process-sizing basis');
     } else if (diameterTrials.length !== inputs.columnDiameterTrials_m.length) {
-      err('columnDiameterTrials_m', 'Every columnDiameterTrials_m entry must be a finite positive number');
+      err('ecr2ResolvedProcessSizingBasis', 'The ECR-2 generated diameter trial space contains a non-finite value');
     } else if (diameterTrials.some((value) => value <= 0 || value > 10)) {
-      err('columnDiameterTrials_m', 'Every columnDiameterTrials_m entry must be > 0 and ≤ 10 m');
+      err('ecr2ResolvedProcessSizingBasis', 'Every ECR-2 generated diameter trial must be > 0 and ≤ 10 m');
     }
     if (H !== undefined && (H <= 0 || H > 100))
       err('activeHeight_m', 'When supplied for a diagnostic BVP, activeHeight_m must be > 0 and ≤ 100 (m)');
@@ -1222,12 +1300,12 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     // Power number
     parseTagged(inputs.powerNumber, 'powerNumber', errors, { min: 0.1, max: 20, unit: '-', required: true });
 
-    // Process agitation is an independent governed input. Rotor/mechanical
-    // fields are not an acceptable substitute for this condition.
+    // Process agitation is resolved from the ECR-2 controlled basis. Rotor and
+    // mechanical fields are never an acceptable substitute.
     if (inputs.governedPsi_W_kg === undefined || inputs.governedPsi_W_kg === null) {
-      warn(
+      err(
         'governedPsi_W_kg',
-        'Governed process specific agitation ψ is required for ECR-2 D/H sizing; rotor-derived ψ/P·V is not permitted.',
+        'ECR-2 process sizing is blocked because its governed/preliminary ψ basis is unavailable; rotor-derived ψ/P·V is not permitted.',
       );
     } else {
       parseTagged(inputs.governedPsi_W_kg, 'governedPsi_W_kg', errors, {
@@ -1367,6 +1445,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     inputs: Record<string, unknown>,
     context: CalculationContext,
   ): Promise<CalculationResult> {
+    inputs = resolveECR2ProcessSizingInputs(inputs);
     const base = {
       calculationClass: context.calculationClass ?? 'Preliminary Simulator Scaffold',
       engineId:      ENGINE_ID,
@@ -1516,6 +1595,13 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const governedPsi = inputs.governedPsi_W_kg
       ? parseTagged(inputs.governedPsi_W_kg, 'governedPsi_W_kg', [], { min: 1e-12, max: 1e6, unit: 'W/kg' })
       : undefined;
+    const processSizingBasis = inputs.ecr2ResolvedProcessSizingBasis as Record<string, unknown>;
+    if (processSizingBasis.status === 'PRELIMINARY_DEFAULT') {
+      pushWarning(
+        'ECR2_PROCESS_SIZING_BASIS_PRELIMINARY',
+        'ECR-2 generated its diameter trials and ψ from the system preliminary process-model basis. This evaluation envelope is not a hydraulic/flooding criterion and does not select a final diameter.',
+      );
+    }
 
     const mwRaw = inputs.molecularWeights as Record<string, unknown>;
     const mwSat  = parseTagged(mwRaw.saturates_g_mol, 'molecularWeights.saturates_g_mol', [], { min: 100, max: 1000, unit: 'g/mol', required: true })!;
@@ -2406,7 +2492,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         message: bvpResult.transferStatus.message,
       },
       diameterSizing: {
-        method: 'independent_progressive_bvp_trial_per_configured_diameter',
+        method: 'engine_generated_independent_progressive_bvp_trials',
+        processSizingBasis,
         selectedDiameter_m: null,
         selectionStatus: 'NOT_SELECTED_BY_SIMULATOR',
         selectionExplanation:

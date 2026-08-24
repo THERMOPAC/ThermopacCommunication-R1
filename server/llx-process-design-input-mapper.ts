@@ -624,21 +624,23 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     ]) {
       delete out[key];
     }
-    const rawDiameterTrials = simValue('column_diameter_trials_m')
-      ?? simValue('columnDiameterTrials_m');
-    const diameterTrials = Array.isArray(rawDiameterTrials)
-      ? rawDiameterTrials.map((value) => num(value) ?? Number.NaN)
-      : typeof rawDiameterTrials === 'string'
-        ? rawDiameterTrials.trim() === ''
-          ? []
-          : rawDiameterTrials.split(/[,\s]+/).map((token) => num(token) ?? Number.NaN)
-        : [];
-    // Explicit ECR-2 trials govern. Invalid entries deliberately survive as NaN
-    // so the engine rejects the complete run rather than quietly dropping a
-    // user-supplied diameter. Stage 7/DS-SEL and legacy single-diameter fields
-    // are never a process-sizing fallback.
-    if (rawDiameterTrials !== undefined) out.columnDiameterTrials_m = diameterTrials;
-    out.columnDiameter_m = diameterTrials[0];
+    // ECR-2 owns its trial generation and ψ resolution. Old saved simulator
+    // fields are intentionally discarded so a prior manual worksheet cannot
+    // influence a new calculation. The engine records the generated policy and
+    // missing-basis state in its frozen result snapshot.
+    for (const key of [
+      'column_diameter_trials_m',
+      'columnDiameterTrials_m',
+      'column_diameter_m',
+      'columnDiameter_m',
+      'governed_psi_w_kg',
+      'governedPsi_W_kg',
+      'governed_psi_source_type',
+      'governed_psi_source_reference',
+      'psiDensityBasis',
+    ]) {
+      delete out[key];
+    }
     delete out.activeHeight_m;
     out.compartmentHeight_m = num(inputs.compartment_height);
     out.rotorToColumnDiameterRatio = num(inputs.rotor_ratio);
@@ -649,17 +651,6 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     // and make the simulator fail its mandatory rotorType check.
     const stage7RotorType = String(inputs.rotor_type ?? '').trim();
     if (stage7RotorType !== '') out.rotorType = stage7RotorType;
-    const governedPsi = simNum('governed_psi_w_kg')
-      ?? simNum('governedPsi_W_kg');
-    if (governedPsi !== undefined) {
-      out.governedPsi_W_kg = {
-        value: governedPsi,
-        unit: 'W/kg',
-        sourceType: String(simValue('governed_psi_source_type') ?? 'Assumed'),
-        sourceReference: String(simValue('governed_psi_source_reference') ?? ''),
-      };
-      out.psiDensityBasis = 'continuous_phase_inlet';
-    }
     const parseJson = (value: unknown) => {
       if (typeof value !== 'string') return value;
       try { return JSON.parse(value); } catch { return undefined; }

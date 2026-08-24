@@ -89,21 +89,20 @@ function mixWithFreshNmp(feed: ComponentVector, solventMolarRatio: number): Comp
 }
 
 describe('C2 → ECR-2 thermodynamic handoff', () => {
-  it('requires a complete explicit positive ECR-2 diameter-trial list', () => {
+  it('generates the ECR-2 diameter trials and ψ internally instead of accepting a manual sizing worksheet', () => {
     const engine = new LLXECRSimulatorEngine();
-    const requiredList = engine.validate(simulatorInput({ columnDiameterTrials_m: undefined }));
-    expect(requiredList.errors).toContainEqual(expect.objectContaining({
+    const validation = engine.validate(simulatorInput({
+      columnDiameterTrials_m: [0, Number.NaN],
+      governedPsi_W_kg: { value: 999, unit: 'W/kg', sourceType: 'Assumed', sourceReference: 'legacy browser value' },
+    }));
+    expect(validation.errors).not.toContainEqual(expect.objectContaining({
       field: 'columnDiameterTrials_m',
       severity: 'error',
     }));
-
-    for (const trials of [[0.30, Number.NaN], [0.30, -0.40], [0]]) {
-      const validation = engine.validate(simulatorInput({ columnDiameterTrials_m: trials }));
-      expect(validation.errors).toContainEqual(expect.objectContaining({
-        field: 'columnDiameterTrials_m',
-        severity: 'error',
-      }));
-    }
+    expect(validation.errors).not.toContainEqual(expect.objectContaining({
+      field: 'governedPsi_W_kg',
+      severity: 'error',
+    }));
   });
 
   it('reconstructs the exact C2 SURROGATE_MW feed vector and produces identical NRTL equilibrium', () => {
