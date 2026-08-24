@@ -3625,7 +3625,16 @@ export default function DesignSoftwareWorkspacePage() {
           </div>
           {fErr4("target_raffinate_aromatics_basis") && <p className="ml-[212px] -mt-1 text-xs text-red-600">{fErr4("target_raffinate_aromatics_basis")}</p>}
           {statusLine("For ECR-2 height sizing, select the physical outlet basis only: (Mono + Di + Poly) / (Sat + Mono + Di + Poly). NMP is excluded from numerator and denominator. Surrogate-LLE targets remain screening-only.")}
-          <FieldRow label="Source Reference (target)" value={pd.target_raffinate_aromatics_source_reference ?? ""} onChange={v => f("target_raffinate_aromatics_source_reference", v)} onBlur={s} unit="" />
+          <FieldRow
+            label="Source Reference (target)"
+            value={pd.target_raffinate_aromatics_source_reference ?? ""}
+            onChange={v => f("target_raffinate_aromatics_source_reference", v)}
+            onBlur={s}
+            unit=""
+            placeholder="Approved product specification, test report, or design basis"
+            note="Required: cite the governing source for the hydrocarbon-only raffinate aromatics target."
+            error={fErr4("target_raffinate_aromatics_source_reference")}
+          />
           {statusLine("Governed envelope: raffinate locus x1R ∈ [0.641, 0.878] (total aromatics ≈ 6.2–20.1 mol %) at 298.15 K — targets outside fail closed, no extrapolation")}
           <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
             <label className="text-sm text-gray-700 font-medium pt-1.5">Target Source</label>
@@ -3813,7 +3822,7 @@ export default function DesignSoftwareWorkspacePage() {
           ) : (
             <p className="text-xs text-gray-400 italic">
               {pdRun && pdRun.calculation_status === "error"
-                ? "Last run was blocked — required upstream inputs are missing. Complete the Design Basis and Fluid Properties, then re-run."
+                ? "Last run was blocked — resolve the blocking validation issues below, then re-run Material Balance."
                 : "Run material balance to see results"}
             </p>
           )}
