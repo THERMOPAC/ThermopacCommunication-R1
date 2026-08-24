@@ -2267,6 +2267,20 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         productQualityResidual: trial.productQualityResidual,
         releaseStatus: trial.governance.releaseStatus,
       }));
+    const axialDiagnosticTrial = diameterTrials.find(
+      (trial) => trial.bvp.axialDiagnostic.acceptanceStatus === 'ACCEPTED',
+    ) ?? null;
+    const axialTransferDiagnostic = axialDiagnosticTrial?.bvp.axialDiagnostic
+      ?? bvpResult.axialDiagnostic;
+    const axialTransferDiagnosticBasis = axialDiagnosticTrial
+      ? {
+          diameter_m: axialDiagnosticTrial.diameter_m,
+          activeHeight_m: axialDiagnosticTrial.requiredActiveHeight_m,
+          numberOfCells: axialDiagnosticTrial.heightSizing?.selectedNumberOfCells ?? null,
+          deltaZ_m: axialDiagnosticTrial.heightSizing?.selectedDeltaZ_m ?? null,
+          selection: 'LOWEST_ACCEPTED_PRELIMINARY_DIAMETER_TRIAL',
+        }
+      : null;
     const H = heightSizing?.requiredActiveHeight_m ?? manualDiagnosticHeight_m ?? hComp;
     const N_compartments = heightSizing?.selectedNumberOfCells
       ?? Math.max(1, Math.ceil(H / hComp));
@@ -2516,6 +2530,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       engineVersions: { cel: CEL_VERSION, epd: EPD_VERSION, ecrSimulator: ENGINE_VERSION },
       thermodynamicTemperatureValidation: thermodynamicValidity,
       lleFlashAtOperatingTemperature,
+      axialTransferDiagnostic,
+      axialTransferDiagnosticBasis,
 
       designBasis: {
         operatingTemperatureC:  T_C,

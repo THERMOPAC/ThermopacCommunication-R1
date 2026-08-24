@@ -7,4 +7,4 @@ ECR-2 has one transfer-status record shared by BVP snapshots, dependency registe
 
 **Why:** A BVP can numerically evaluate local Sherwood, Koa, rate, profile, and outlet values before its full calculation is acceptable. Treating those arrays as available performance claims contradicts the dependency state and can make failed or physically invalid work look design-valid.
 
-**How to apply:** Derive every transfer availability surface from the shared status record. Render ordinary outlet/profile/compartment performance only when the BVP converged, passed mass balance, and status is `LOCAL_PRELIMINARY_CALCULATED`; otherwise retain numeric arrays only as unaccepted diagnostics.
+**How to apply:** Derive every transfer availability surface from the shared status record. Render ordinary outlet/profile/compartment performance only when the BVP converged, passed mass balance, and status is `LOCAL_PRELIMINARY_CALCULATED`; otherwise retain numeric arrays only as unaccepted diagnostics. An axial transfer diagnostic must return an explicit unavailable, empty increment set when its BVP is unaccepted, rather than exposing partial local values as calculated transfer.

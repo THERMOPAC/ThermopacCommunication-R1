@@ -147,6 +147,79 @@ export interface ECR2BVPResidualRecord {
   continuousNormalized: number;
 }
 
+export type ECR2AxialQuantityStatus =
+  | 'CALCULATED_PRELIMINARY'
+  | 'UNAVAILABLE'
+  | 'GOVERNED_BLOCKED';
+
+export interface ECR2AxialTransferIncrement {
+  compartmentIndex: number;
+  z_bottom_m: number;
+  z_centre_m: number;
+  z_top_m: number;
+  deltaZ_m: number;
+  phi_d: number | null;
+  d32_m: number | null;
+  interfacialArea_a_m2_m3: number | null;
+  drivingForce_kg_m3: ECR2Vector | null;
+  Koa_per_s: ECR2Vector | null;
+  transferAmount_kg_h: ECR2Vector | null;
+  cumulativeTransfer_kg_h: ECR2Vector | null;
+  quantityAvailability: {
+    phi_d: ECR2AxialQuantityStatus;
+    d32: ECR2AxialQuantityStatus;
+    interfacialArea: ECR2AxialQuantityStatus;
+    drivingForce: ECR2AxialQuantityStatus;
+    Koa: ECR2AxialQuantityStatus;
+    transferAmount: ECR2AxialQuantityStatus;
+  };
+}
+
+export interface ECR2AxialTransferDiagnostic {
+  status: ECR2AxialQuantityStatus;
+  acceptanceStatus: 'ACCEPTED' | 'UNACCEPTED';
+  componentOrder: readonly (typeof COMPONENTS)[number][];
+  increments: readonly ECR2AxialTransferIncrement[];
+  availability: {
+    localPhysics: 'CALCULATED_PRELIMINARY' | 'UNAVAILABLE';
+    governedDesignValues: 'GOVERNED_BLOCKED';
+    releaseStatus: 'NOT_RELEASE_ELIGIBLE';
+    message: string;
+  };
+  feed_kg_h: ECR2Vector | null;
+  cumulativeTransfer_kg_h: ECR2Vector | null;
+  outlets: {
+    raffinate_kg_h: ECR2Vector | null;
+    extract_kg_h: ECR2Vector | null;
+  };
+  outletReconciliation: {
+    status: 'RECONCILED' | 'NOT_AVAILABLE';
+    feed_kg_h: ECR2Vector | null;
+    raffinate_kg_h: ECR2Vector | null;
+    extract_kg_h: ECR2Vector | null;
+    cumulativeTransfer_kg_h: ECR2Vector | null;
+    transferFromRaffinate_kg_h: ECR2Vector | null;
+    transferToExtract_kg_h: ECR2Vector | null;
+    componentClosureResidual_kg_h: ECR2Vector | null;
+    aromatic: {
+      basis: 'hydrocarbon_only';
+      componentOrder: readonly ['Mono', 'Di', 'Poly'];
+      feedMassFlow_kg_h: number | null;
+      feedAromaticMassFraction: number | null;
+      feedAromaticMoleFraction: number | null;
+      raffinateMassFlow_kg_h: number | null;
+      raffinateAromaticMassFraction: number | null;
+      raffinateAromaticMoleFraction: number | null;
+      extractMassFlow_kg_h: number | null;
+      extractAromaticMassFraction: number | null;
+      extractAromaticMoleFraction: number | null;
+      cumulativeTransfer_kg_h: number | null;
+      transferFromRaffinate_kg_h: number | null;
+      transferToExtract_kg_h: number | null;
+    };
+  };
+}
+
 export interface ECR2BVPAcceptanceCheck {
   value: number;
   limit: number;
@@ -199,6 +272,7 @@ export interface ECR2CounterCurrentBVPResult {
     drivingForce_kg_m3: ECR2Vector;
     transferRate_kg_m3_s: ECR2Vector;
   }[];
+  axialDiagnostic: ECR2AxialTransferDiagnostic;
   outlets: {
     raffinate: { componentFlows_kg_h: ECR2Vector; totalFlow_kg_h: number; massFractions: ECR2Vector } | null;
     extract: { componentFlows_kg_h: ECR2Vector; totalFlow_kg_h: number; massFractions: ECR2Vector } | null;
@@ -299,6 +373,7 @@ function resultFailure(
   diagnostics: string[],
   functionEvaluations = 0,
 ): ECR2CounterCurrentBVPResult {
+  const axialDiagnostic = createUnavailableAxialDiagnostic(failure.message);
   return {
     status: 'blocked',
     convergenceStatus: 'dependency_blocked',
@@ -321,6 +396,7 @@ function resultFailure(
     residuals: [],
     compartments: [],
     axialProfile: [],
+    axialDiagnostic,
     outlets: { raffinate: null, extract: null },
     componentBalances_kg_h: null,
     totalMassBalance_kg_h: null,
@@ -714,6 +790,230 @@ function profile(compartments: readonly ECR2BVPCompartment[]) {
   });
 }
 
+function quantityStatus(value: number | null | undefined): ECR2AxialQuantityStatus {
+  return finite(value) ? 'CALCULATED_PRELIMINARY' : 'UNAVAILABLE';
+}
+
+function vectorQuantityStatus(value: readonly number[] | null | undefined): ECR2AxialQuantityStatus {
+  return value && value.length === N_COMPONENTS && value.every((item) => finite(item))
+    ? 'CALCULATED_PRELIMINARY'
+    : 'UNAVAILABLE';
+}
+
+function finiteOrNull(value: number | null | undefined): number | null {
+  return finite(value) ? value : null;
+}
+
+function finiteVectorOrNull(value: readonly unknown[] | null | undefined): ECR2Vector | null {
+  if (!value || value.length !== N_COMPONENTS) return null;
+  const numericValues = value.map((item) => finite(item) ? item : Number.NaN);
+  return numericValues.every((item) => finite(item)) ? asVector(numericValues) : null;
+}
+
+function addVectors(left: readonly number[], right: readonly number[]): ECR2Vector {
+  return asVector(left.map((value, index) => value + right[index]));
+}
+
+function subtractVectors(left: readonly number[], right: readonly number[]): ECR2Vector {
+  return asVector(left.map((value, index) => value - right[index]));
+}
+
+function hydrocarbonQuantity(
+  flows: readonly number[] | null,
+  physicalMolecularWeights: readonly number[],
+): {
+  massFlow_kg_h: number;
+  aromaticMassFraction: number;
+  aromaticMoleFraction: number;
+} | null {
+  if (!flows || flows.length !== N_COMPONENTS || physicalMolecularWeights.length !== N_COMPONENTS) return null;
+  if (!flows.every((value) => finite(value) && value >= 0) ||
+      !physicalMolecularWeights.every((value) => finite(value) && value > 0)) return null;
+  const hydrocarbonMass = sum(flows.slice(0, 4));
+  if (!(hydrocarbonMass > 0)) return null;
+  const aromaticMass = sum(flows.slice(1, 4));
+  const hydrocarbonMoles = flows
+    .slice(0, 4)
+    .reduce((total, flow, index) => total + (flow * 1000) / physicalMolecularWeights[index], 0);
+  const aromaticMoles = flows
+    .slice(1, 4)
+    .reduce((total, flow, offset) => total + (flow * 1000) / physicalMolecularWeights[offset + 1], 0);
+  if (!(hydrocarbonMoles > 0) || !finite(aromaticMoles)) return null;
+  return {
+    massFlow_kg_h: hydrocarbonMass,
+    aromaticMassFraction: aromaticMass / hydrocarbonMass,
+    aromaticMoleFraction: aromaticMoles / hydrocarbonMoles,
+  };
+}
+
+function createUnavailableAxialDiagnostic(message: string): ECR2AxialTransferDiagnostic {
+  return {
+    status: 'UNAVAILABLE',
+    acceptanceStatus: 'UNACCEPTED',
+    componentOrder: COMPONENTS,
+    increments: [],
+    availability: {
+      localPhysics: 'UNAVAILABLE',
+      governedDesignValues: 'GOVERNED_BLOCKED',
+      releaseStatus: 'NOT_RELEASE_ELIGIBLE',
+      message,
+    },
+    feed_kg_h: null,
+    cumulativeTransfer_kg_h: null,
+    outlets: { raffinate_kg_h: null, extract_kg_h: null },
+    outletReconciliation: {
+      status: 'NOT_AVAILABLE',
+      feed_kg_h: null,
+      raffinate_kg_h: null,
+      extract_kg_h: null,
+      cumulativeTransfer_kg_h: null,
+      transferFromRaffinate_kg_h: null,
+      transferToExtract_kg_h: null,
+      componentClosureResidual_kg_h: null,
+      aromatic: {
+        basis: 'hydrocarbon_only',
+        componentOrder: ['Mono', 'Di', 'Poly'],
+        feedMassFlow_kg_h: null,
+        feedAromaticMassFraction: null,
+        feedAromaticMoleFraction: null,
+        raffinateMassFlow_kg_h: null,
+        raffinateAromaticMassFraction: null,
+        raffinateAromaticMoleFraction: null,
+        extractMassFlow_kg_h: null,
+        extractAromaticMassFraction: null,
+        extractAromaticMoleFraction: null,
+        cumulativeTransfer_kg_h: null,
+        transferFromRaffinate_kg_h: null,
+        transferToExtract_kg_h: null,
+      },
+    },
+  };
+}
+
+function buildAxialDiagnostic(
+  input: ECR2CounterCurrentBVPInput,
+  compartments: readonly ECR2BVPCompartment[],
+  transferStatus: ECR2PreliminaryTransferStatus,
+  accepted: boolean,
+  outlets: {
+    raffinate: readonly number[];
+    extract: readonly number[];
+  } | null,
+): ECR2AxialTransferDiagnostic {
+  if (!accepted || compartments.length === 0 || !outlets) {
+    return createUnavailableAxialDiagnostic(transferStatus.message);
+  }
+
+  let cumulative: ECR2Vector = asVector(zeros());
+  const increments = compartments.map((item): ECR2AxialTransferIncrement => {
+    const drivingForce = finiteVectorOrNull(
+      COMPONENTS.map((component) => item.localMassTransfer.components[component].drivingForce_dispersed_kg_m3),
+    );
+    const koa = finiteVectorOrNull(COMPONENTS.map((component) => item.localMassTransfer.components[component].K_oa_per_s));
+    const transferAmount = finiteVectorOrNull(item.transferAmount_kg_h);
+    cumulative = transferAmount
+      ? addVectors(cumulative, transferAmount)
+      : asVector(zeros());
+    return {
+      compartmentIndex: item.compartmentIndex,
+      z_bottom_m: item.z_bottom_m,
+      z_centre_m: item.z_centre_m,
+      z_top_m: item.z_top_m,
+      deltaZ_m: item.z_top_m - item.z_bottom_m,
+      phi_d: finiteOrNull(item.holdup.phi),
+      d32_m: finiteOrNull(item.d32.d32_m),
+      interfacialArea_a_m2_m3: finiteOrNull(item.interfacialArea.a_m2_m3),
+      drivingForce_kg_m3: drivingForce,
+      Koa_per_s: koa,
+      transferAmount_kg_h: transferAmount,
+      cumulativeTransfer_kg_h: transferAmount ? cumulative : null,
+      quantityAvailability: {
+        phi_d: quantityStatus(item.holdup.phi),
+        d32: quantityStatus(item.d32.d32_m),
+        interfacialArea: quantityStatus(item.interfacialArea.a_m2_m3),
+        drivingForce: vectorQuantityStatus(drivingForce),
+        Koa: vectorQuantityStatus(koa),
+        transferAmount: vectorQuantityStatus(transferAmount),
+      },
+    };
+  });
+
+  const feed = addVectors(
+    input.rrboFeedComponentFlows_kg_h,
+    input.nmpFeedComponentFlows_kg_h,
+  );
+  const raffinate = asVector(outlets.raffinate);
+  const extract = asVector(outlets.extract);
+  const transferFromRaffinate = subtractVectors(input.rrboFeedComponentFlows_kg_h, raffinate);
+  const transferToExtract = subtractVectors(extract, input.nmpFeedComponentFlows_kg_h);
+  const componentClosureResidual = subtractVectors(transferFromRaffinate, transferToExtract);
+  const feedAromatic = hydrocarbonQuantity(feed, [
+    input.physicalMolecularWeights.Sat_g_mol,
+    input.physicalMolecularWeights.Mono_g_mol,
+    input.physicalMolecularWeights.Di_g_mol,
+    input.physicalMolecularWeights.Poly_g_mol,
+    input.physicalMolecularWeights.NMP_g_mol,
+  ]);
+  const raffinateAromatic = hydrocarbonQuantity(raffinate, [
+    input.physicalMolecularWeights.Sat_g_mol,
+    input.physicalMolecularWeights.Mono_g_mol,
+    input.physicalMolecularWeights.Di_g_mol,
+    input.physicalMolecularWeights.Poly_g_mol,
+    input.physicalMolecularWeights.NMP_g_mol,
+  ]);
+  const extractAromatic = hydrocarbonQuantity(extract, [
+    input.physicalMolecularWeights.Sat_g_mol,
+    input.physicalMolecularWeights.Mono_g_mol,
+    input.physicalMolecularWeights.Di_g_mol,
+    input.physicalMolecularWeights.Poly_g_mol,
+    input.physicalMolecularWeights.NMP_g_mol,
+  ]);
+  const aromatic = {
+    basis: 'hydrocarbon_only' as const,
+    componentOrder: ['Mono', 'Di', 'Poly'] as const,
+    feedMassFlow_kg_h: feedAromatic?.massFlow_kg_h ?? null,
+    feedAromaticMassFraction: feedAromatic?.aromaticMassFraction ?? null,
+    feedAromaticMoleFraction: feedAromatic?.aromaticMoleFraction ?? null,
+    raffinateMassFlow_kg_h: raffinateAromatic?.massFlow_kg_h ?? null,
+    raffinateAromaticMassFraction: raffinateAromatic?.aromaticMassFraction ?? null,
+    raffinateAromaticMoleFraction: raffinateAromatic?.aromaticMoleFraction ?? null,
+    extractMassFlow_kg_h: extractAromatic?.massFlow_kg_h ?? null,
+    extractAromaticMassFraction: extractAromatic?.aromaticMassFraction ?? null,
+    extractAromaticMoleFraction: extractAromatic?.aromaticMoleFraction ?? null,
+    cumulativeTransfer_kg_h: sum(cumulative.slice(1, 4)),
+    transferFromRaffinate_kg_h: sum(transferFromRaffinate.slice(1, 4)),
+    transferToExtract_kg_h: sum(transferToExtract.slice(1, 4)),
+  };
+  return {
+    status: 'CALCULATED_PRELIMINARY',
+    acceptanceStatus: accepted ? 'ACCEPTED' : 'UNACCEPTED',
+    componentOrder: COMPONENTS,
+    increments,
+    availability: {
+      localPhysics: 'CALCULATED_PRELIMINARY',
+      governedDesignValues: 'GOVERNED_BLOCKED',
+      releaseStatus: 'NOT_RELEASE_ELIGIBLE',
+      message: accepted
+        ? `${increments.length} axial increments contain calculated preliminary local quantities; governed design values remain unavailable.`
+        : 'Axial local quantities were retained as preliminary diagnostics, but the BVP snapshot is unaccepted.',
+    },
+    feed_kg_h: feed,
+    cumulativeTransfer_kg_h: cumulative,
+    outlets: { raffinate_kg_h: raffinate, extract_kg_h: extract },
+    outletReconciliation: {
+      status: accepted ? 'RECONCILED' : 'NOT_AVAILABLE',
+      feed_kg_h: feed,
+      raffinate_kg_h: raffinate,
+      extract_kg_h: extract,
+      cumulativeTransfer_kg_h: cumulative,
+      transferFromRaffinate_kg_h: accepted ? transferFromRaffinate : null,
+      transferToExtract_kg_h: accepted ? transferToExtract : null,
+      componentClosureResidual_kg_h: accepted ? componentClosureResidual : null,
+      aromatic,
+    },
+  };
+}
+
 interface MassBalanceSummary {
   raffinate: ECR2Vector;
   extract: ECR2Vector;
@@ -822,6 +1122,15 @@ function resultFromEvaluation(
     acceptanceChecks.relativeStateChange.passed &&
     massBalance.passed;
   const failureMessage = accepted ? null : acceptanceFailureMessage(acceptanceChecks);
+  const transferStatus = summarizeECR2PreliminaryTransferStatus(
+    evaluated.compartments.map((compartment) => compartment.localMassTransfer),
+    accepted
+      ? null
+      : {
+          dependency: 'convergence',
+          message: failureMessage!,
+        },
+  );
   return {
     status: accepted ? 'converged' : 'non_converged',
     convergenceStatus: accepted ? 'accepted' : 'not_converged',
@@ -831,15 +1140,7 @@ function resultFromEvaluation(
     primarySourceVerified: false,
     validatedForRRBONMP: false,
     pilotCalibrationStatus: 'NOT_YET_VALIDATED',
-    transferStatus: summarizeECR2PreliminaryTransferStatus(
-      evaluated.compartments.map((compartment) => compartment.localMassTransfer),
-      accepted
-        ? null
-        : {
-            dependency: 'convergence',
-            message: failureMessage!,
-          },
-    ),
+    transferStatus,
     iterations,
     functionEvaluations,
     finalResidualNorm: residualNorm,
@@ -849,6 +1150,13 @@ function resultFromEvaluation(
     residuals: evaluated.records,
     compartments: evaluated.compartments,
     axialProfile: profile(evaluated.compartments),
+    axialDiagnostic: buildAxialDiagnostic(
+      input,
+      evaluated.compartments,
+      transferStatus,
+      accepted,
+      { raffinate: massBalance.raffinate, extract: massBalance.extract },
+    ),
     outlets: {
       raffinate: { componentFlows_kg_h: massBalance.raffinate, totalFlow_kg_h: sum(massBalance.raffinate), massFractions: massFractions(massBalance.raffinate)! },
       extract: { componentFlows_kg_h: massBalance.extract, totalFlow_kg_h: sum(massBalance.extract), massFractions: massFractions(massBalance.extract)! },

@@ -315,6 +315,22 @@ describe('ECR-2 simulator service run path', () => {
     }
     expect(resultSnapshot.bvp.status).toBe('converged');
     expect(resultSnapshot.bvp.massBalanceStatus).toBe('passed');
+    expect(resultSnapshot.axialTransferDiagnostic).toMatchObject({
+      status: 'CALCULATED_PRELIMINARY',
+      acceptanceStatus: 'ACCEPTED',
+      componentOrder: ['Sat', 'Mono', 'Di', 'Poly', 'NMP'],
+      availability: {
+        governedDesignValues: 'GOVERNED_BLOCKED',
+        releaseStatus: 'NOT_RELEASE_ELIGIBLE',
+      },
+    });
+    expect(resultSnapshot.axialTransferDiagnostic.increments).toHaveLength(1);
+    expect(resultSnapshot.axialTransferDiagnostic.outletReconciliation.status).toBe('RECONCILED');
+    expect(resultSnapshot.axialTransferDiagnosticBasis).toMatchObject({
+      diameter_m: 0.3,
+      numberOfCells: 1,
+      selection: 'LOWEST_ACCEPTED_PRELIMINARY_DIAMETER_TRIAL',
+    });
     expect(resultSnapshot.transferStatus).toMatchObject({
       status: 'LOCAL_PRELIMINARY_CALCULATED',
       governedValues: 'UNAVAILABLE',

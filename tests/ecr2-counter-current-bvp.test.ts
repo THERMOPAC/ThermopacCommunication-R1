@@ -205,6 +205,65 @@ describe('ECR-2 counter-current BVP', () => {
     expectPhysicalBalancesClose(second);
   });
 
+  it('reports ordered axial transfer increments that reconcile to the accepted outlets', () => {
+    const result = solveECR2CounterCurrentBVP(input(2));
+    expect(result.status).toBe('converged');
+
+    const diagnostic = result.axialDiagnostic;
+    expect(diagnostic).toMatchObject({
+      status: 'CALCULATED_PRELIMINARY',
+      acceptanceStatus: 'ACCEPTED',
+      componentOrder: ['Sat', 'Mono', 'Di', 'Poly', 'NMP'],
+      availability: {
+        localPhysics: 'CALCULATED_PRELIMINARY',
+        governedDesignValues: 'GOVERNED_BLOCKED',
+        releaseStatus: 'NOT_RELEASE_ELIGIBLE',
+      },
+      outletReconciliation: {
+        status: 'RECONCILED',
+        aromatic: {
+          basis: 'hydrocarbon_only',
+          componentOrder: ['Mono', 'Di', 'Poly'],
+        },
+      },
+    });
+    expect(diagnostic.increments).toHaveLength(2);
+    expect(diagnostic.increments.map((increment) => increment.compartmentIndex)).toEqual([1, 2]);
+    expect(diagnostic.increments[0].z_bottom_m).toBe(0);
+    expect(diagnostic.increments[0].z_top_m).toBeCloseTo(diagnostic.increments[1].z_bottom_m, 12);
+
+    const summedTransfer = [0, 0, 0, 0, 0];
+    for (const increment of diagnostic.increments) {
+      expect(increment.deltaZ_m).toBeGreaterThan(0);
+      expect(increment.phi_d).not.toBeNull();
+      expect(increment.d32_m).not.toBeNull();
+      expect(increment.interfacialArea_a_m2_m3).not.toBeNull();
+      expect(increment.quantityAvailability).toEqual({
+        phi_d: 'CALCULATED_PRELIMINARY',
+        d32: 'CALCULATED_PRELIMINARY',
+        interfacialArea: 'CALCULATED_PRELIMINARY',
+        drivingForce: 'CALCULATED_PRELIMINARY',
+        Koa: 'CALCULATED_PRELIMINARY',
+        transferAmount: 'CALCULATED_PRELIMINARY',
+      });
+      increment.transferAmount_kg_h!.forEach((amount, index) => {
+        summedTransfer[index] += amount;
+      });
+    }
+    expectVectorsClose(summedTransfer, diagnostic.cumulativeTransfer_kg_h);
+    expectVectorsClose(
+      diagnostic.cumulativeTransfer_kg_h,
+      diagnostic.outletReconciliation.transferFromRaffinate_kg_h,
+      1e-6,
+    );
+    expectVectorsClose(
+      diagnostic.cumulativeTransfer_kg_h,
+      diagnostic.outletReconciliation.transferToExtract_kg_h,
+      1e-6,
+    );
+    expect(diagnostic.outletReconciliation.aromatic.feedAromaticMassFraction).toBeCloseTo(0.5, 12);
+  });
+
   it('keeps local NRTL coordinates and equilibrium isolated from physical molecular weights', () => {
     const baseInput = input(1);
     baseInput.solverOptions = { ...baseInput.solverOptions, transferStrength: 0 };
@@ -471,5 +530,11 @@ describe('ECR-2 counter-current BVP', () => {
     expect(result.status).toBe('non_converged');
     expect(result.failure?.dependency).toBe('convergence');
     expect(result.maximumNormalizedResidual).not.toBeNull();
+    expect(result.axialDiagnostic).toMatchObject({
+      status: 'UNAVAILABLE',
+      acceptanceStatus: 'UNACCEPTED',
+      increments: [],
+      outletReconciliation: { status: 'NOT_AVAILABLE' },
+    });
   });
 });

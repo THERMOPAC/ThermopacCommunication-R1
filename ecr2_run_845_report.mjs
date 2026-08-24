@@ -36,6 +36,19 @@ const trials = [
   { d: 0.80, status: 'feasible_preliminary', h: 0.3856250000, product: 0.09998399833750107, cells: 2, iter: 11, evals: 232, residual: 1.0330827536e-12, balance: 2.4025972323e-9, raff: [2675.5348196086047,133.7988270163466,138.09705111459948,145.76480417097073,32.40800894591864], ext: [255.26518038858094,38.601172983654585,34.30294888540095,26.63519582902941,3971.4719910544914], diag: 'Target bracket refined to [0.3850, 0.3856] m; conservative upper bound selected.'},
   { d: 1.00, status: 'feasible_preliminary', h: 0.4125000000, product: 0.09999863702473795, cells: 2, iter: 11, evals: 232, residual: 4.1177959416e-12, balance: 1.3630288009e-8, raff: [2671.2828851500913,133.54561183350737,137.92122531638043,145.62049562140973,32.848654991364604], ext: [259.5171148390964,38.85438816649725,34.478774683621175,26.77950437859074,3971.0313450058106], diag: 'Target bracket refined to [0.4119, 0.4125] m; conservative upper bound selected.'},
 ];
+const axialDiagnostic = {
+  diameter_m: 0.60,
+  height_m: 0.279375,
+  componentNames,
+  increments: [
+    { cell: 1, zBottom: 0, zCentre: 0.06984375, zTop: 0.1396875, phi: 0.4828240261, d32_m: 0.0009761258603, a: 2967.797775, drivingForce: [430.8219138, 66.8015132, 62.7714227, 51.7775299, -30.3307613], koa: [0.001715665425, 0.002069205890, 0.001990144899, 0.001813449068, 0.003917380189], transfer: [105.0951834, 19.6536145, 17.7622958, 13.3505488, -16.8939600] },
+    { cell: 2, zBottom: 0.1396875, zCentre: 0.20953125, zTop: 0.279375, phi: 0.4560975890, d32_m: 0.0009761258603, a: 2803.517093, drivingForce: [582.4185370, 65.4291291, 60.0274869, 52.5298890, -27.6059788], koa: [0.001588023142, 0.001910396560, 0.001834094897, 0.001672796649, 0.003621526203], transfer: [131.5056595, 17.7724415, 15.6539662, 12.4940161, -14.2150113] },
+  ],
+};
+axialDiagnostic.increments.forEach((increment, index) => {
+  increment.cumulative = increment.transfer.map((value, component) =>
+    value + (index === 0 ? 0 : axialDiagnostic.increments[index - 1].cumulative[component]));
+});
 
 const doc = new PDFDocument({ size: 'A4', margin: 42, info: { Title: 'ECR-2 Simulation Run 845 Report', Author: 'THERMOPAC LLP', Subject: 'Frozen ECR-2 preliminary simulation calculations' } });
 doc.pipe(fs.createWriteStream(outPath));
@@ -169,7 +182,39 @@ for (const t of trials.filter(t=>t.raff)) {
 }
 
 // governance
-newPage('6. Warnings, acceptance and release status');
+newPage('6. Axial transfer diagnostic — D = 0.60 m');
+y=92;
+y=h2('Where transfer occurs through the 0.279375 m active height',y);
+y=para('This diagnostic is transcribed from the accepted D = 0.60 m, H = 0.279375 m frozen BVP state. Each row is a physical axial increment, bottom to top, preserving the frozen Saturates / Mono / Di / Poly / NMP order. Positive transfer is RRBO/dispersed to NMP/continuous. Local quantities are calculated preliminary diagnostics only; governed transfer design values remain unavailable and the run is not release eligible.',y,{size:8,color:amber});
+y+=4;
+y=table(['Cell','z bottom','z centre','z top','Δz','φd','d32','a'],axialDiagnostic.increments.map(c=>[
+  String(c.cell),fmt(c.zBottom,6),fmt(c.zCentre,6),fmt(c.zTop,6),fmt(c.zTop-c.zBottom,6),fmt(c.phi,6),fmt(c.d32_m*1000,6)+' mm',fmt(c.a,3)
+]),[42,62,62,62,58,55,75,78],left,y,{fontSize:7.4,align:['right','right','right','right','right','right','right','right']});
+y+=30;
+y=h2('Per-increment component transfer',y);
+const axialRows=axialDiagnostic.increments.flatMap(c=>axialDiagnostic.componentNames.map((name,index)=>[
+  String(c.cell),name,fmt(c.drivingForce[index],5),fmt(c.koa[index],9),fmt(c.transfer[index],6),fmt(c.cumulative[index],6)
+]));
+y=table(['Cell','Component','Driving force','Koa','Increment transfer','Cumulative transfer'],axialRows,[42,120,100,86,100,100],left,y,{fontSize:7.5,align:['right','left','right','right','right','right']});
+y+=30;
+y=h2('Aromatic outlet reconciliation — hydrocarbon-only basis',y);
+const bestAromaticFeed=feed[1]+feed[2]+feed[3];
+const bestAromaticRaff=best.raff[1]+best.raff[2]+best.raff[3];
+const bestAromaticExtract=best.ext[1]+best.ext[2]+best.ext[3];
+const axialAromatic= axialDiagnostic.increments.map(c=>c.transfer[1]+c.transfer[2]+c.transfer[3]);
+y=table(['Basis / quantity','Value','Interpretation'],[
+  ['Aromatic feed',fmt(bestAromaticFeed,6)+' kg/h (15.000 wt%)','Mono + Di + Poly in RRBO feed'],
+  ['Raffinate aromatics',fmt(bestAromaticRaff,6)+' kg/h','Physical raffinate outlet'],
+  ['Extract aromatics',fmt(bestAromaticExtract,6)+' kg/h','Physical extract outlet'],
+  ['RRBO feed - raffinate',fmt(bestAromaticFeed-bestAromaticRaff,6)+' kg/h','Dispersed-side aromatic transfer'],
+  ['Extract - NMP feed',fmt(bestAromaticExtract,6)+' kg/h','Continuous-side aromatic transfer'],
+  ['Cell 1 aromatic transfer',fmt(axialAromatic[0],6)+' kg/h','0.000000–0.139688 m'],
+  ['Cell 2 aromatic transfer',fmt(axialAromatic[1],6)+' kg/h','0.139688–0.279375 m'],
+  ['Cumulative axial transfer',fmt(axialAromatic[0]+axialAromatic[1],6)+' kg/h','Equals feed minus raffinate and extract minus NMP feed'],
+], [180,150,210],left,y,{fontSize:7.8,align:['left','right','left']});
+
+// governance
+newPage('7. Warnings, acceptance and release status');
 y=92;
 y=h2('Run-level status',y);
 box(left,y,contentW,62,'#FFF7E6','#E5C36A'); y+=12; y=labelValue('Overall run status','WARNING',y,amber); y=labelValue('Governed transfer values','UNAVAILABLE',y,red); y=labelValue('Release status','NOT_RELEASE_ELIGIBLE',y,red); y+=18;
@@ -189,7 +234,7 @@ const warnings=[
 for(const w of warnings){doc.font('Helvetica').fontSize(8).fillColor('#20252B').text('• '+w,left+4,y,{width:contentW-8,lineGap:2});y=doc.y+5;}
 
 // conclusion
-newPage('7. Engineering interpretation');
+newPage('8. Engineering interpretation');
 y=92;
 y=h2('Summary of calculated results',y);
 y=para('Run #845 is a preliminary forward-model evaluation on the current Stage 4 feed basis. The feasible preliminary design set returned by the generated diameter search is:',y);
