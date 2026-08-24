@@ -2010,15 +2010,17 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           previousSolution,
         }),
       });
+      const heightSizingFailure = heightSizing.diagnostics[heightSizing.diagnostics.length - 1]
+        ?? 'the progressive BVP search did not establish an accepted physical height.';
       bvpResult = heightSizing.selectedBvp ?? createECR2BVPBlockedResult(
         'physical_height_not_established',
-        'Required Active Extraction Height = NOT_CALCULATED because the progressive BVP search did not establish an accepted physical height.',
-        ['ECR-2 progressive BVP height search'],
+        `Required Active Extraction Height = NOT_CALCULATED because ${heightSizingFailure}`,
+        ['ECR-2 progressive BVP height search', heightSizingFailure],
       );
       if (heightSizing.status !== 'target_met') {
         pushWarning(
           'ECR2_HEIGHT_NOT_CALCULABLE',
-          `ECR-2 physical height is ${heightSizing.status === 'target_not_met' ? 'not attained' : 'not calculable'}: ${heightSizing.diagnostics[heightSizing.diagnostics.length - 1]}`,
+          `ECR-2 physical height is ${heightSizing.status === 'target_not_met' ? 'not attained' : 'not calculable'}: ${heightSizingFailure}`,
         );
       }
     } else {
