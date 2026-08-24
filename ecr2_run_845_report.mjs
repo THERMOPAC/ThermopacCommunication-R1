@@ -89,8 +89,46 @@ y=h2('ECR-2 generated sizing basis',y);
 y=labelValue('Specific agitation psi',fmt(input.psi,4)+' W/kg',y,amber); y=labelValue('d32 route','DIRECT_TURBULENCE_D32_PRELIMINARY',y,amber); y=labelValue('d32 result',fmt(input.d32Mm,6)+' mm (C = '+fmt(input.d32C,2)+')',y,amber); y=labelValue('C sensitivity', '0.901 to 1.076 mm d32',y,amber); y=labelValue('Diameter trials','0.30, 0.45, 0.60, 0.80, 1.00 m',y); y=labelValue('Height method','Progressive full-BVP trials with conservative upper bracket endpoint',y); y=labelValue('Numerical mesh','Maximum delta-z = 0.25 m; physical height is independent of mesh size',y);
 y+=8; y=para('Equation basis: d32 = C * (gamma / rho_c)^0.6 * epsilon^(-0.4), with epsilon = psi = 0.1 W/kg. The direct-turbulence d32 is preliminary, not pilot validated, and separate from K&H 1996.',y,{size:8,color:gray});
 
+
+// Governing equations
+newPage('2. Governing equations and calculation chain');
+y=92;
+y=h2('Equations used for Run #845',y);
+y=para('The equations below are the implemented calculation structures for this frozen snapshot. Where a correlation or evidence gate is preliminary or blocked, the equation is shown for traceability and is not presented as governed design data.',y,{size:8});
+function eq(name, formula, note) {
+  if (y>735) { newPage('2. Governing equations - continued'); y=92; }
+  const formulaHeight = doc.heightOfString(formula,{width:contentW-28,font:'Courier',fontSize:7.2,lineGap:1});
+  const noteHeight = note ? doc.heightOfString(note,{width:contentW-28,font:'Helvetica',fontSize:7.4,lineGap:1}) : 0;
+  const bh = 28 + formulaHeight + noteHeight;
+  box(left,y,contentW,bh,'#F7F9FB','#D8DEE6');
+  doc.font('Helvetica-Bold').fontSize(8.5).fillColor(navy).text(name,left+10,y+7,{width:contentW-20});
+  doc.font('Courier').fontSize(7.2).fillColor('#20252B').text(formula,left+10,y+21,{width:contentW-20,lineGap:1});
+  if (note) doc.font('Helvetica-Oblique').fontSize(7.4).fillColor(gray).text(note,left+10,y+21+formulaHeight+3,{width:contentW-20,lineGap:1});
+  y += bh + 7;
+}
+eq('1. Physical feed composition', 'm_i,RRBO = w_i,RRBO * m_RRBO;   m_RRBO = 3448 kg/h', 'For Run #845: w = [0.85, 0.05, 0.05, 0.05] for [Sat, Mono, Di, Poly].');
+eq('2. Solvent-to-oil ratio', 'S/O_mass = m_NMP / m_RRBO = 4024 / 3448 = 1.167053', 'The report uses the mass-basis ratio; no legacy manual rotor-power or diameter input is used.');
+eq('3. Physical mass concentration conversion', 'w_i = z_i * MW_i / SUM(z_j * MW_j);       C_i = w_i * rho_phase', 'Physical molecular weights convert NRTL mole fractions to transport concentrations; they do not modify NRTL coordinates.');
+eq('4. K&H 1995 characteristic scale', 'theta = (rho_c / (g * sigma))^0.25', 'theta has units s/m; g = 9.80665 m/s2 and sigma is interfacial tension.');
+eq('5. K&H 1995 dispersed holdup', 'phi_raw = [0.0267 + (psi*theta/g)^0.77] * (Ud*theta)^0.64 * exp(20.7*Uc*theta)^0.90 * ((rho_c-rho_d)/rho_c)^(-0.34) * 2.27*xf^(-0.77)', 'Physical guard: only 0 < phi_raw < 1 is usable. Run #845 records phi_raw = 10.4189 for blocked 0.30/0.45 m initial trials; no clamping is applied.');
+eq('6. Direct-turbulence d32', 'd32 = C * (sigma/rho_c)^0.6 * epsilon^(-0.4);   epsilon = psi = 0.1 W/kg', 'C = 0.39; calculated d32 = 0.000976126 m = 0.976126 mm. Preliminary only; C sensitivity is 0.36 to 0.43.');
+eq('7. Specific interfacial area', 'a = 6 * phi_d / d32', 'a is in m2/m3. It is available only when both usable holdup and usable d32 are present.');
+
+newPage('2. Governing equations - transfer and BVP');
+y=92;
+y=h2('Local K&H transfer equations',y);
+eq('8. Dimensionless groups', 'Re_d = rho_c * U_slip * d32 / mu_c;   kappa = mu_d / mu_c\nSc_c = mu_c/(rho_c*De_c);   Sc_d = mu_d/(rho_d*De_d);   Pe_c = d32*U_slip/De_c', 'These are local, component-aware quantities. Diffusivities and their provenance are required inputs.');
+eq('9. Continuous-phase Sherwood number', 'Sh_c,r = 2.43 + 0.775*Re_d^0.5*Sc_c^(1/3) + 0.0103*Re_d*Sc_c^(1/3)\nSh_c,infinity = 50 + (2/sqrt(pi))*Pe_c^0.5\nR = 0.0526*Re_d^(1/3+0.0659*Re_d^0.25)*Sc_c^(1/3)*(U_slip*mu_c/sigma)^(1/3)\n    * [1/(1+kappa^1.1)] * [1 + C1*((psi/g)*(rho_c/(g*sigma))^0.25)^(1/3)]\nSh_c = (1-phi_d)*(Sh_c,r + R*Sh_c,infinity)/(1+R)', 'Preliminary K&H 1999 local-kernel structure; scoped Kuhni C1 = 7.5.');
+eq('10. Dispersed-phase Sherwood number', 'q = Re_d * Sc_d^(1/3)\nSh_d = 17.7 + [0.00319*q^1.7/(1+0.0143*q^0.7)] * (rho_d/rho_c)^(2/3) / (1+kappa^(2/3))', 'Preliminary K&H 1999 local-kernel structure.');
+eq('11. Film and overall coefficients', 'k_c = Sh_c*De_c/d32;   k_d = Sh_d*De_d/d32\nK_d = C_d,i* / C_c,i*;   K_overall = k_c*k_d/(K_d*k_d + k_c)\nK_oa = K_overall*a', 'K_d is a concentration-basis partition coefficient; it is not substituted by a mole-fraction ratio.');
+eq('12. Local driving force and transfer rate', 'DeltaC_d = C_d - K_d*C_c;   N_i = K_oa*DeltaC_d', 'Positive transfer direction is RRBO/dispersed to NMP/continuous. These outputs remain subject to the governing evidence gates.');
+eq('13. Compartment active volume', 'A_column = pi*D^2/4;   Delta z = H/N;   V_j = A_column*Delta z\nT_i,j = lambda * N_i,j * V_j * 3600', 'T_i,j is the component transfer amount in kg/h; 3600 converts seconds to hours.');
+eq('14. Counter-current BVP residuals', 'D_in,i,j - D_out,i,j - T_i,j = 0\nC_in,i,j - C_out,i,j + T_i,j = 0', 'The nonlinear solver adjusts the 10N internal face-flow variables; local transfer, properties, holdup, and equilibrium are recalculated at every trial state.');
+eq('15. Global mass-balance acceptance', 'B_i = (RRBO_feed_i + NMP_feed_i) - D_out,i - C_out,i\nB_total = SUM(B_i);   pass if component and total tolerances are satisfied', 'Run #845 accepted trials report passed total balance and converged solver status.');
+eq('16. Product quality, recovery, and height selection', 'x_arom,raff = SUM(n_arom,raff) / SUM(n_hydrocarbon,raff)\nRRBO recovery = SUM(m_Sat..m_Poly,raff) / m_RRBO,feed * 100\nH_required = conservative upper endpoint of the refined bracket where x_arom,raff <= 0.10', 'NMP is excluded from both product-quality denominators. Each height trial is a full BVP solve; the selected physical height is independent of numerical cell count.');
+
 // Trial summary
-newPage('2. Diameter and height search');
+newPage('3. Diameter and height search');
 y=92;
 y=h2('Generated diameter trials',y);
 y=para('Each diameter is evaluated independently. Every physical-height trial reruns the full counter-current BVP; no local NRTL, holdup, d32, or transfer value is reused between height trials.',y,{size:8});
@@ -101,7 +139,7 @@ y=para('For accepted trials, the target bracket is refined until the product-qua
 y=table(['D (m)','Selected H (m)','Bracket / selection note'],trials.filter(t=>t.h!==null).map(t=>[fmt(t.d,2),fmt(t.h,6),t.diag]),[70,100,360],left,y,{fontSize:8,align:['right','right','left']});
 
 // accepted detail
-newPage('3. Accepted BVP calculations');
+newPage('4. Accepted BVP calculations');
 y=92;
 y=h2('Accepted preliminary trial diagnostics',y);
 y=para('The following BVP results satisfy convergence and total mass-balance acceptance for the individual diameter trial. They remain preliminary and are not release-eligible.',y,{size:8});
@@ -120,7 +158,7 @@ y=para('RRBO recovery = (Saturates + Mono-aromatics + Di-aromatics + Poly-aromat
 y=table(['Diameter','RRBO raffinate','RRBO transferred to extract','RRBO recovery'],trials.filter(t=>t.raff).map(t=>{const r=t.raff.slice(0,4).reduce((a,b)=>a+b,0);const e=t.ext.slice(0,4).reduce((a,b)=>a+b,0);return[fmt(t.d,2)+' m',fmt(r,3)+' kg/h',fmt(e,3)+' kg/h',fmt(rrboRecovery(t),4)+'%'];}),[95,150,170,100],left,y,{fontSize:8,align:['right','right','right','right']});
 
 // outlet composition
-newPage('4. Outlet composition and component calculations');
+newPage('5. Outlet composition and component calculations');
 y=92;
 y=h2('Accepted raffinate outlet component flows',y);
 y=para('Component order is Saturates / Mono-aromatics / Di-aromatics / Poly-aromatics / NMP. Product-quality aromatics are calculated on the hydrocarbon-only physical raffinate basis; NMP is excluded from both numerator and denominator.',y,{size:8});
@@ -131,7 +169,7 @@ for (const t of trials.filter(t=>t.raff)) {
 }
 
 // governance
-newPage('5. Warnings, acceptance and release status');
+newPage('6. Warnings, acceptance and release status');
 y=92;
 y=h2('Run-level status',y);
 box(left,y,contentW,62,'#FFF7E6','#E5C36A'); y+=12; y=labelValue('Overall run status','WARNING',y,amber); y=labelValue('Governed transfer values','UNAVAILABLE',y,red); y=labelValue('Release status','NOT_RELEASE_ELIGIBLE',y,red); y+=18;
@@ -151,7 +189,7 @@ const warnings=[
 for(const w of warnings){doc.font('Helvetica').fontSize(8).fillColor('#20252B').text('• '+w,left+4,y,{width:contentW-8,lineGap:2});y=doc.y+5;}
 
 // conclusion
-newPage('6. Engineering interpretation');
+newPage('7. Engineering interpretation');
 y=92;
 y=h2('Summary of calculated results',y);
 y=para('Run #845 is a preliminary forward-model evaluation on the current Stage 4 feed basis. The feasible preliminary design set returned by the generated diameter search is:',y);

@@ -552,5 +552,5 @@ description = "Six-page numerical report for the persisted 23 Aug 2026, 10:24:52
 id = "WdIyUPcidJimOr8_IrssJ"
 uri = "file://reports/ecr2-simulation-run-845-report.pdf"
 type = "pdf"
-title = "ECR-2 Simulation Run #845 Report"
-description = "Frozen Run #845 report with diameter and height sizing, N_T, RRBO composition, recovery, outlet component flows, BVP diagnostics, warnings, and release-status limitations."
+title = "ECR-2 Simulation Run #845 Report - Equations Included"
+description = "Updated frozen Run #845 report with governing equations for feed basis, holdup, d32, interfacial area, K&H transfer, BVP balances, product quality, recovery, height selection, and all trial results."
