@@ -251,10 +251,14 @@ export interface D32Result {
   directTurbulence?: {
     equation: 'd32 = C * (gamma / rho_c)^0.6 * epsilon^-0.4';
     epsilon_m2_s3: number;
-    powerNumber_Ne: number;
-    rotorSpeed_s: number;
-    rotorDiameter_m: number;
-    rotorVolume_m3: number;
+    /** ε comes directly from the governed process specific agitation ψ. */
+    epsilonBasis: 'governed_psi';
+    psi_W_kg: number;
+    /** Kept as explicit nulls for snapshot compatibility; never used for ε. */
+    powerNumber_Ne: number | null;
+    rotorSpeed_s: number | null;
+    rotorDiameter_m: number | null;
+    rotorVolume_m3: number | null;
     gamma_N_m: number;
     rho_c_kg_m3: number;
     C_nominal: number;
@@ -330,7 +334,7 @@ function directTurbulenceGovernanceFields() {
     pilotCalibrationStatus: 'NOT_YET_PILOT_VALIDATED',
     calibrationFactor: 1.0,
     localAxialApplication:
-      `${UNIFORM_INLET_BASIS}; ε derived from governed Stage 7 Nₑ, n, d_R, and V_R`,
+      `${UNIFORM_INLET_BASIS}; ε = ψ from the governed ECR-2 process-sizing basis`,
   };
 }
 
@@ -371,17 +375,13 @@ export function computeDropletDiameter(
   // ── Direct-turbulence preliminary route ───────────────────────────────────
   if (config.mode === 'direct_turbulence_preliminary') {
     const cfg = config as DirectTurbulencePreliminaryD32Config;
-    const state = localState.directTurbulence;
     const missing: string[] = [];
     const finitePositive = (value: unknown) =>
       typeof value === 'number' && Number.isFinite(value) && value > 0;
 
     if (!finitePositive(localState.sigma_N_m)) missing.push('gamma_N_m');
     if (!finitePositive(localState.rho_c_kg_m3)) missing.push('rho_c_kg_m3');
-    if (!state || !finitePositive(state.powerNumber_Ne)) missing.push('N_e');
-    if (!state || !finitePositive(state.rotorSpeed_s)) missing.push('n');
-    if (!state || !finitePositive(state.rotorDiameter_m)) missing.push('d_R');
-    if (!state || !finitePositive(state.rotorVolume_m3)) missing.push('V_R');
+    if (!finitePositive(localState.psi_W_kg)) missing.push('psi_W_kg');
     if (!finitePositive(cfg.C_nominal)) missing.push('C_nominal');
     if (!cfg.sourceType?.trim()) missing.push('C_nominal sourceType');
     if (!cfg.sourceReference?.trim()) missing.push('C_nominal sourceReference');
@@ -397,7 +397,7 @@ export function computeDropletDiameter(
         extrapolated: false,
         diagnostics: [
           `DIRECT_TURBULENCE_D32_PRELIMINARY cannot calculate d₃₂ at ${stateLocation(localState)}; missing/invalid: ${missing.join(', ')}.`,
-          'The route requires temperature-matched γ and ρ_c plus governed Stage 7 Nₑ, n, d_R, and V_R.',
+            'The ψ-based process-sizing route requires temperature-matched γ and ρ_c plus governed specific agitation ψ. Rotor power, speed, diameter, and volume are not substitutes.',
         ],
         provenance:
           'Direct-turbulence preliminary route blocked. No nominal C or hydraulic input is silently inferred.',
@@ -426,10 +426,10 @@ export function computeDropletDiameter(
       };
     }
 
-    const epsilon = state.powerNumber_Ne
-      * Math.pow(state.rotorSpeed_s, 3)
-      * Math.pow(state.rotorDiameter_m, 5)
-      / state.rotorVolume_m3;
+    // ψ = (P/V)/ρ has units W/kg = m²/s³. It is already the dissipation
+    // basis required here; reconstructing ε from rotor data would make the
+    // process-sizing model depend on a mechanical fallback.
+    const epsilon = localState.psi_W_kg!;
     const hydrodynamicScale = Math.pow(localState.sigma_N_m! / localState.rho_c_kg_m3!, 0.6)
       * Math.pow(epsilon, -0.4);
     const d32Nominal = cfg.C_nominal * hydrodynamicScale;
@@ -467,7 +467,7 @@ export function computeDropletDiameter(
         'The nominal-C source reference records the selected value only; this result is not design-decision or release eligible pending authoritative range evidence and pilot validation.',
       ],
       provenance:
-        `d₃₂ = C·(γ/ρ_c)^0.6·ε^-0.4, ε = Nₑ·n³·d_R⁵/V_R. ` +
+        `d₃₂ = C·(γ/ρ_c)^0.6·ε^-0.4, ε = ψ = ${epsilon} W/kg = m²/s³. ` +
         `Selected C=${cfg.C_nominal} (${cfg.sourceType}: ${cfg.sourceReference}); ` +
         `sensitivity C=[${DIRECT_TURBULENCE_C_MIN}, ${DIRECT_TURBULENCE_C_MAX}]. ` +
         'DIRECT_TURBULENCE_D32_PRELIMINARY — PRELIMINARY_ENGINEERING / NOT YET PILOT_VALIDATED. ' +
@@ -476,10 +476,12 @@ export function computeDropletDiameter(
       directTurbulence: {
         equation: 'd32 = C * (gamma / rho_c)^0.6 * epsilon^-0.4',
         epsilon_m2_s3: epsilon,
-        powerNumber_Ne: state.powerNumber_Ne,
-        rotorSpeed_s: state.rotorSpeed_s,
-        rotorDiameter_m: state.rotorDiameter_m,
-        rotorVolume_m3: state.rotorVolume_m3,
+        epsilonBasis: 'governed_psi',
+        psi_W_kg: epsilon,
+        powerNumber_Ne: null,
+        rotorSpeed_s: null,
+        rotorDiameter_m: null,
+        rotorVolume_m3: null,
         gamma_N_m: localState.sigma_N_m!,
         rho_c_kg_m3: localState.rho_c_kg_m3!,
         C_nominal: cfg.C_nominal,

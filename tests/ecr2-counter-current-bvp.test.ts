@@ -110,14 +110,9 @@ function expectPhysicalBalancesClose(
 }
 
 describe('ECR-2 counter-current BVP', () => {
-  it('executes the separate direct-turbulence d32 route in every compartment without relabelling it K&H 1996', () => {
+  it('executes the ψ-based direct-turbulence d32 route in every compartment without relabelling it K&H 1996', () => {
     const direct = {
       ...input(2),
-      directTurbulenceRotor: {
-        powerNumber_Ne: 1.2,
-        rotorSpeed_s: 2.5,
-        rotorDiameter_m: 0.12,
-      },
       d32Config: {
         mode: 'direct_turbulence_preliminary' as const,
         correlationId: 'ecr2_d32_direct_turbulence_preliminary' as const,
@@ -139,14 +134,17 @@ describe('ECR-2 counter-current BVP', () => {
     expect(result.compartments).toHaveLength(2);
     for (const compartment of result.compartments) {
       expect(compartment.d32.status).toBe('calculated_preliminary');
-      expect(compartment.d32.directTurbulence?.rotorVolume_m3)
-        .toBeCloseTo(direct.columnCrossSectionArea_m2 * (direct.activeHeight_m / 2), 14);
+      expect(compartment.d32.directTurbulence).toMatchObject({
+        epsilonBasis: 'governed_psi',
+        psi_W_kg: direct.psi_W_kg,
+        powerNumber_Ne: null,
+      });
       expect(compartment.interfacialArea.a_m2_m3).toBeGreaterThan(0);
       expect(compartment.localMassTransfer.status).toBe('MASS_TRANSFER_PRELIMINARY');
     }
   });
 
-  it('blocks the direct-turbulence BVP route when its governed Stage 7 rotor basis is absent', () => {
+  it('does not require a Stage 7 rotor tuple for the ψ-based direct-turbulence BVP route', () => {
     const direct = {
       ...input(1),
       d32Config: {
@@ -158,8 +156,8 @@ describe('ECR-2 counter-current BVP', () => {
       },
     };
     const result = solveECR2CounterCurrentBVP(direct);
-    expect(result.status).toBe('blocked');
-    expect(result.failure?.dependency).toBe('direct_turbulence_d32');
+    expect(result.status).toBe('converged');
+    expect(result.compartments[0].d32.directTurbulence?.epsilonBasis).toBe('governed_psi');
   });
 
   it('solves N=1 with non-negative faces, orientation, and component conservation', () => {

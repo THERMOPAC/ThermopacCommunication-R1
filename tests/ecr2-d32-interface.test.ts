@@ -189,23 +189,23 @@ describe('computeDropletDiameter — engineer_supplied mode — valid input', ()
 });
 
 describe('computeDropletDiameter — direct_turbulence_preliminary', () => {
-  const state: D32LocalState = {
-    ...VALID_LOCAL_STATE,
-    directTurbulence: {
-      powerNumber_Ne: 2,
-      rotorSpeed_s: 2,
-      rotorDiameter_m: 0.1,
-      rotorVolume_m3: 0.002,
-    },
-  };
+  const state: D32LocalState = { ...VALID_LOCAL_STATE };
 
-  it('calculates the stated direct-turbulence equation and preserves C sensitivity', () => {
+  it('calculates from governed ψ and preserves C sensitivity without rotor inputs', () => {
     const result = computeDropletDiameter(state, DIRECT_TURBULENCE_CFG);
-    const epsilon = 2 * (2 ** 3) * (0.1 ** 5) / 0.002;
+    const epsilon = state.psi_W_kg;
     const expected = 0.4 * ((0.015 / 1020) ** 0.6) * (epsilon ** -0.4);
     expect(result.status).toBe('calculated_preliminary');
     expect(result.d32_m).toBeCloseTo(expected, 14);
     expect(result.directTurbulence?.epsilon_m2_s3).toBeCloseTo(epsilon, 14);
+    expect(result.directTurbulence).toMatchObject({
+      epsilonBasis: 'governed_psi',
+      psi_W_kg: epsilon,
+      powerNumber_Ne: null,
+      rotorSpeed_s: null,
+      rotorDiameter_m: null,
+      rotorVolume_m3: null,
+    });
     expect(result.directTurbulence?.d32_at_C_min_m).toBeLessThan(result.d32_m!);
     expect(result.directTurbulence?.d32_at_C_max_m).toBeGreaterThan(result.d32_m!);
     expect(result.label).toContain('NOT YET PILOT_VALIDATED');
@@ -215,6 +215,12 @@ describe('computeDropletDiameter — direct_turbulence_preliminary', () => {
       .toBe(DIRECT_TURBULENCE_C_RANGE_EVIDENCE_STATUS);
     expect(result.directTurbulence?.C_rangeDesignDecisionEligible).toBe(false);
     expect(isD32Usable(result)).toBe(true);
+  });
+
+  it('blocks on ψ rather than attempting a rotor-power fallback', () => {
+    const result = computeDropletDiameter({ ...state, psi_W_kg: Number.NaN }, DIRECT_TURBULENCE_CFG);
+    expect(result.status).toBe('input_missing');
+    expect(result.diagnostics.join(' ')).toContain('psi_W_kg');
   });
 
   it('fails closed without a recorded nominal-C source', () => {

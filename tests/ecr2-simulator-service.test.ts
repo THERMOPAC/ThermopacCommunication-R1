@@ -387,6 +387,41 @@ describe('ECR-2 simulator service run path', () => {
     expect(mapped.governedPsi_W_kg).toBeUndefined();
   });
 
+  it('uses the governed ψ dissipation basis for the explicitly selected direct-turbulence d₃₂ route', async () => {
+    await persistSimulatorInputs({
+      ...simulatorInputs,
+      d32Config: JSON.stringify({
+        mode: 'direct_turbulence_preliminary',
+        correlationId: 'ecr2_d32_direct_turbulence_preliminary',
+        C_nominal: 0.4,
+        sourceType: 'Project-Controlled Preliminary',
+        sourceReference: 'ECR-2 direct-turbulence preliminary sensitivity register',
+      }),
+    });
+    await service.acceptAllEcr2Stage8ResolvedValues(revisionId, userId);
+
+    const execution = await service.runCalculation(revisionId, 'ecr_simulator', userId);
+    const data = execution.result.data as Record<string, any>;
+    expect(data.bvp.status).toBe('converged');
+    expect(data.bvp.compartments[0].d32).toMatchObject({
+      status: 'calculated_preliminary',
+      mode: 'direct_turbulence_preliminary',
+      directTurbulence: {
+        epsilonBasis: 'governed_psi',
+        psi_W_kg: 0.1,
+        powerNumber_Ne: null,
+        rotorSpeed_s: null,
+        rotorDiameter_m: null,
+        rotorVolume_m3: null,
+      },
+    });
+    expect(data.diameterSizing.trials).toHaveLength(5);
+    for (const trial of data.diameterSizing.trials) {
+      expect(trial.governedPsi_W_kg).toBeCloseTo(0.1, 12);
+      expect(trial.powerPerVolume_W_m3).toBeCloseTo(trial.rhoMix_kg_m3 * 0.1, 10);
+    }
+  });
+
   it('persists a structured dependency-blocked snapshot when BVP inputs are missing', async () => {
     await persistSimulatorInputs({ ...simulatorInputs, bvp: null, d32Config: null });
     await service.acceptAllEcr2Stage8ResolvedValues(revisionId, userId);
