@@ -34,6 +34,10 @@ import { getEcr2Stage8LiveDependencies } from "@/lib/ecr2-stage8-live-dependenci
 import { getEcr2D32SnapshotGovernance } from "@/lib/ecr2-d32-snapshot-governance";
 import { canDisplayECR2PreliminaryTransferPerformance } from "@/lib/ecr2-transfer-presentation";
 import {
+  buildEcr2AxialTransferDiagnostic,
+  findEcr2AcceptedAxialDiagnosticTrial,
+} from "@/lib/ecr2-axial-transfer-diagnostic";
+import {
   ECR2_STAGE8_VISIBLE_STATE_LABELS,
   getEcr2Stage8VisibleResolutionState,
 } from "@/lib/ecr2-stage8-display";
@@ -4953,6 +4957,12 @@ export default function DesignSoftwareWorkspacePage() {
     ];
     const profile = bvp?.axialProfile ?? [];
     const compartments = bvp?.compartments ?? [];
+    // The primary/global BVP can be dependency-blocked while an independently
+    // generated diameter trial has an accepted preliminary BVP. Show only the
+    // accepted trial's frozen data in this diagnostic; never promote it to a
+    // governed or release-eligible result.
+    const axialDiagnosticTrial = findEcr2AcceptedAxialDiagnosticTrial(diameterSizing);
+    const axialTransferDiagnostic = buildEcr2AxialTransferDiagnostic(axialDiagnosticTrial);
     const resultOk = bvp?.status === "converged" && bvp?.massBalanceStatus === "passed";
     const staleResult = hasStaleAcceptedSnapshot;
     const hasAcceptedEcrRun = (resultsQ.data ?? []).some((r: any) =>
@@ -5804,6 +5814,102 @@ export default function DesignSoftwareWorkspacePage() {
                 ) : (
                   <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800">
                     <strong>Transfer performance output unavailable.</strong> Any retained outlet, profile, or compartment arrays are unaccepted solver diagnostics and are not shown as calculated results.
+                  </div>
+                )}
+                {axialTransferDiagnostic && (
+                  <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950" data-testid="ecr2-axial-transfer-diagnostic">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-semibold">Axial transfer diagnostic — accepted generated trial</p>
+                      <Badge className="border border-amber-300 bg-amber-100 text-amber-900 text-[10px]">
+                        PRELIMINARY / NOT RELEASE ELIGIBLE
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-[11px]">
+                      D = {fmt(axialTransferDiagnostic.diameter_m, 4)} m · H = {fmt(axialTransferDiagnostic.requiredActiveHeight_m, 6)} m ·
+                      {" "}{axialTransferDiagnostic.selectedNumberOfCells} physical BVP increment{axialTransferDiagnostic.selectedNumberOfCells === 1 ? "" : "s"} ·
+                      {" "}Δz = {fmt(axialTransferDiagnostic.selectedDeltaZ_m, 6)} m.
+                    </p>
+                    <p className="mt-1 text-[11px]">
+                      This is a diagnostic for the lowest accepted preliminary diameter trial. It explains the frozen local model response; it does not validate
+                      d32, holdup, Koa, or NRTL extrapolation and does not select a final column diameter.
+                    </p>
+
+                    <div className="mt-3 overflow-auto rounded border border-amber-200 bg-white">
+                      <table className="min-w-[1280px] text-[11px]">
+                        <thead className="bg-amber-50 text-amber-900">
+                          <tr>
+                            <th className="p-2 text-left">Increment</th>
+                            <th className="p-2 text-left">z interval (m)</th>
+                            <th className="p-2 text-left">φd</th>
+                            <th className="p-2 text-left">d32 (mm)</th>
+                            <th className="p-2 text-left">a (m²/m³)</th>
+                            <th className="p-2 text-left">Component</th>
+                            <th className="p-2 text-left">Koa (1/s)</th>
+                            <th className="p-2 text-left">ΔC (kg/m³)</th>
+                            <th className="p-2 text-left">Rate (kg/m³/s)</th>
+                            <th className="p-2 text-left">This increment (kg/h)</th>
+                            <th className="p-2 text-left">Cumulative (kg/h)</th>
+                            <th className="p-2 text-left">Feed transferred</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {axialTransferDiagnostic.increments.flatMap((increment) => increment.components.map((component, componentIndex) => (
+                            <tr key={`${increment.compartmentIndex}-${component.key}`} className="border-t">
+                              <td className="p-2">{componentIndex === 0 ? increment.compartmentIndex : ""}</td>
+                              <td className="p-2">{componentIndex === 0 ? `${fmt(increment.zBottom_m, 6)}–${fmt(increment.zTop_m, 6)}` : ""}</td>
+                              <td className="p-2">{componentIndex === 0 ? fmt(increment.holdup_phi_d, 5) : ""}</td>
+                              <td className="p-2">{componentIndex === 0 ? fmt(increment.d32_m != null ? increment.d32_m * 1000 : null, 5) : ""}</td>
+                              <td className="p-2">{componentIndex === 0 ? fmt(increment.interfacialArea_m2_m3, 3) : ""}</td>
+                              <td className="p-2 font-medium">{component.label}</td>
+                              <td className="p-2">{fmt(component.Koa_per_s, 8)}</td>
+                              <td className="p-2">{fmt(component.drivingForce_kg_m3, 5)}</td>
+                              <td className="p-2">{fmt(component.transferRate_kg_m3_s, 9)}</td>
+                              <td className="p-2 font-semibold">{fmt(component.transferAmount_kg_h, 6)}</td>
+                              <td className="p-2">{fmt(component.cumulativeTransfer_kg_h, 6)}</td>
+                              <td className="p-2">{component.cumulativeFeedFraction != null ? `${fmt(component.cumulativeFeedFraction * 100, 3)} %` : "—"}</td>
+                            </tr>
+                          )))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <p className="mt-4 text-xs font-semibold text-amber-950">Transfer reconciliation — RRBO feed, axial increments, and physical outlets</p>
+                    <div className="mt-1 overflow-auto rounded border border-amber-200 bg-white">
+                      <table className="min-w-[1040px] text-[11px]">
+                        <thead className="bg-amber-50 text-amber-900">
+                          <tr>
+                            <th className="p-2 text-left">Component</th>
+                            <th className="p-2 text-left">RRBO feed (kg/h)</th>
+                            <th className="p-2 text-left">Raffinate (kg/h)</th>
+                            <th className="p-2 text-left">Extract (kg/h)</th>
+                            <th className="p-2 text-left">Σ axial transfer (kg/h)</th>
+                            <th className="p-2 text-left">Raffinate loss (kg/h)</th>
+                            <th className="p-2 text-left">Extract gain (kg/h)</th>
+                            <th className="p-2 text-left">Feed transferred</th>
+                            <th className="p-2 text-left">Balance residual (kg/h)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[...axialTransferDiagnostic.reconciliation, axialTransferDiagnostic.aromaticReconciliation].map((component: any) => (
+                            <tr key={component.key ?? "total-aromatics"} className={`border-t ${component.key ? "" : "bg-amber-50 font-semibold"}`}>
+                              <td className="p-2">{component.label}</td>
+                              <td className="p-2">{fmt(component.feed_kg_h, 6)}</td>
+                              <td className="p-2">{fmt(component.raffinate_kg_h, 6)}</td>
+                              <td className="p-2">{fmt(component.extract_kg_h, 6)}</td>
+                              <td className="p-2">{fmt(component.transfer_kg_h, 6)}</td>
+                              <td className="p-2">{fmt(component.raffinateLoss_kg_h, 6)}</td>
+                              <td className="p-2">{fmt(component.extractGain_kg_h, 6)}</td>
+                              <td className="p-2">{component.transferFeedFraction != null ? `${fmt(component.transferFeedFraction * 100, 3)} %` : "—"}</td>
+                              <td className="p-2">{fmt(component.componentBalance_kg_h, 9)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="mt-2 text-[11px] text-amber-900">
+                      The total-aromatics row reconciles the 15 wt% RRBO aromatic feed (Mono + Di + Poly) independently of the global/default BVP status.
+                      Positive axial transfer is defined as RRBO/dispersed → NMP/continuous.
+                    </p>
                   </div>
                 )}
                 <div className="grid md:grid-cols-4 gap-3 mb-4">
