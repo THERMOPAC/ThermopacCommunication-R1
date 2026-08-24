@@ -867,6 +867,21 @@ export async function runCalculation(
         c2InputsUpdatedAt: c2InputQ.rows[0]?.updated_at,
       },
     );
+    const c2Stages = c2ResultQ.rows[0]?.data?.stages;
+    const calculatedStages = Number(c2Stages?.theoreticalStages);
+    inputs.c2TheoreticalStageHandoff = {
+      status: c2Stages?.mode === 'auto_calculated' && Number.isFinite(calculatedStages)
+        ? 'auto_calculated'
+        : 'not_available',
+      theoreticalStages: c2Stages?.mode === 'auto_calculated' && Number.isFinite(calculatedStages)
+        ? calculatedStages
+        : null,
+      basis: typeof c2Stages?.basis === 'string' ? c2Stages.basis : null,
+      sourceRevisionId: String(revisionId),
+      sourceComputedAt: c2ResultQ.rows[0]?.computed_at
+        ? new Date(c2ResultQ.rows[0].computed_at).toISOString()
+        : undefined,
+    };
   }
 
   // Governed N_T adoption (Stage 7): when the accepted C2 result carries an

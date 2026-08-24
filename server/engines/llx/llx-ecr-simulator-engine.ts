@@ -143,6 +143,10 @@ import {
   solveECR2ProgressiveHeight,
   type ECR2ProgressiveHeightSolveResult,
 } from './llx-ecr2-progressive-height-solver';
+import {
+  solveECR2ProgressiveCompartments,
+  type ECR2ProgressiveCompartmentResult,
+} from './llx-ecr2-progressive-compartment-solver';
 import { emptyDiffusivityContract } from './llx-ecr2-diffusivity';
 import {
   ECR2_STAGE8_NUMERICAL_PARAMETER_IDS,
@@ -509,6 +513,19 @@ export interface ECR2C2ThermodynamicHandoff {
 }
 
 /**
+ * Read-only provenance for the independently calculated C2 theoretical-stage
+ * result. ECR-2 records it but never converts it to compartment count or
+ * applies a global per-stage efficiency shortcut.
+ */
+export interface ECR2C2TheoreticalStageHandoff {
+  status: 'auto_calculated' | 'not_available';
+  theoreticalStages: number | null;
+  basis: string | null;
+  sourceRevisionId?: string;
+  sourceComputedAt?: string;
+}
+
+/**
  * Immutable trace of the Coto/NRTL coordinate system used by ECR-2.
  *
  * This basis is intentionally separate from ECR2MolecularWeights. It gives
@@ -660,6 +677,7 @@ export interface ECR2SimulatorInputs {
    * feedMoleFractions vector is inherited instead of being regenerated.
    */
   c2ThermodynamicHandoff?: ECR2C2ThermodynamicHandoff;
+  c2TheoreticalStageHandoff?: ECR2C2TheoreticalStageHandoff;
   /** Phase continuity assignment. */
   phaseConfiguration: 'rrbo_continuous_nmp_dispersed' | 'nmp_continuous_rrbo_dispersed';
 
@@ -2087,11 +2105,30 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         }
       : null;
     let heightSizing: ECR2ProgressiveHeightSolveResult | null = null;
+    let progressiveCompartmentSizing: ECR2ProgressiveCompartmentResult | null = null;
     let bvpResult: ECR2CounterCurrentBVPResult;
     let performanceSimulationHeight_m: number | null = null;
     let performanceSimulationLabel: string | null = null;
 
     if (phaseConfig === 'nmp_continuous_rrbo_dispersed' && physicalProductTarget) {
+      // Independent from the rate-based BVP height solver: physical 0.25 m
+      // compartments execute their own local NRTL equilibrium / 30% approach
+      // counter-current calculation, with no N_T-to-compartment shortcut.
+      progressiveCompartmentSizing = solveECR2ProgressiveCompartments({
+        target: physicalProductTarget,
+        operatingTemperature_C: T_C,
+        rrboFeedComponentFlows_kg_h: [
+          mRRBO * rrboNormalized[IDX.SAT],
+          mRRBO * rrboNormalized[IDX.MONO],
+          mRRBO * rrboNormalized[IDX.DI],
+          mRRBO * rrboNormalized[IDX.POLY],
+          0,
+        ],
+        nmpFeedComponentFlows_kg_h: [0, 0, 0, 0, mNMP * purity],
+        physicalMolecularWeights_g_mol: [
+          mwSat.value, mwMono.value, mwDi.value, mwPoly.value, NMP_MW_G_MOL,
+        ],
+      });
       heightSizing = solveECR2ProgressiveHeight({
         target: physicalProductTarget,
         maximumCellHeight_m: hComp,
@@ -2159,7 +2196,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     }
 
     /**
-     * Every configured diameter is an independent physical BVP/height trial.
+     * Every configured diameter is an independent physical BVP and local
+     * 30%-compartment trial. There is deliberately no diameter selection step.
      * The first trial above remains the legacy-detail payload; all remaining
      * trials are evaluated here with their own area and full local BVP closure.
      * There is deliberately no diameter-ranking or selection step.
@@ -2168,6 +2206,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       diameter_m: number,
       area_m2: number,
       sizing: ECR2ProgressiveHeightSolveResult | null,
+      progressiveSizing: ECR2ProgressiveCompartmentResult | null,
       bvp: ECR2CounterCurrentBVPResult,
       reason: string | null = null,
     ) => {
@@ -2182,12 +2221,16 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
             componentMassFlows_kg_h: bvp.outlets.raffinate.componentFlows_kg_h,
           })
         : null;
-      const trialStatus = sizing?.status === 'target_met' && accepted
+      const trialStatus = sizing?.status === 'target_met' && progressiveSizing?.status === 'target_met' && accepted
         ? 'feasible_preliminary'
         : sizing?.status === 'no_feasible_recovery'
           ? 'no_feasible_recovery'
         : sizing?.status === 'target_not_met'
           ? 'target_not_met'
+          : progressiveSizing?.status === 'no_feasible_recovery'
+            ? 'no_feasible_recovery'
+            : progressiveSizing?.status === 'target_not_met'
+              ? 'target_not_met'
           : 'dependency_blocked';
       return {
         diameter_m,
@@ -2203,6 +2246,9 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         status: trialStatus,
         feasible: trialStatus === 'feasible_preliminary',
         requiredActiveHeight_m: sizing?.requiredActiveHeight_m ?? null,
+        requiredBvpHeight_m: sizing?.requiredActiveHeight_m ?? null,
+        requiredProgressiveCompartmentHeight_m: progressiveSizing?.requiredActiveHeight_m ?? null,
+        requiredProgressivePhysicalCompartmentCount: progressiveSizing?.requiredPhysicalCompartmentCount ?? null,
         productQualityResidual: sizing?.residual ?? null,
         productAromaticsMoleFraction: sizing?.achievedProductAromaticsMoleFraction
           ?? quality?.x_A_R_product.value
@@ -2212,8 +2258,10 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         recoveryRequirement: sizing?.recoveryRequirement ?? null,
         bestAromaticsAtRequiredRecovery: sizing?.bestAromaticsAtRequiredRecovery ?? null,
         heightSizing: sizing,
+        progressiveCompartmentSizing: progressiveSizing,
         bvp,
         diagnostic: reason
+          ?? progressiveSizing?.diagnostics.at(-1)
           ?? sizing?.diagnostics.at(-1)
           ?? bvp.failure?.message
           ?? null,
@@ -2226,7 +2274,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     };
 
     const diameterTrials = [
-      summarizeDiameterTrial(D, A_col, heightSizing, bvpResult),
+       summarizeDiameterTrial(D, A_col, heightSizing, progressiveCompartmentSizing, bvpResult),
       ...configuredDiameterTrials.slice(1).map((trialDiameter_m) => {
         const trialArea_m2 = columnCrossSectionArea(trialDiameter_m);
         if (phaseConfig !== 'nmp_continuous_rrbo_dispersed' || !physicalProductTarget) {
@@ -2236,6 +2284,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           return summarizeDiameterTrial(
             trialDiameter_m,
             trialArea_m2,
+            null,
             null,
             createECR2BVPBlockedResult('physical_product_target', `Required Active Extraction Height = NOT_CALCULATED because ${reason}`),
             reason,
@@ -2261,14 +2310,30 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           }`,
           ['ECR-2 progressive BVP height search', ...trialSizing.diagnostics],
         );
-        return summarizeDiameterTrial(trialDiameter_m, trialArea_m2, trialSizing, trialBvp);
+        const trialProgressiveSizing = solveECR2ProgressiveCompartments({
+          target: physicalProductTarget,
+          operatingTemperature_C: T_C,
+          rrboFeedComponentFlows_kg_h: [
+            mRRBO * rrboNormalized[IDX.SAT],
+            mRRBO * rrboNormalized[IDX.MONO],
+            mRRBO * rrboNormalized[IDX.DI],
+            mRRBO * rrboNormalized[IDX.POLY],
+            0,
+          ],
+          nmpFeedComponentFlows_kg_h: [0, 0, 0, 0, mNMP * purity],
+          physicalMolecularWeights_g_mol: [
+            mwSat.value, mwMono.value, mwDi.value, mwPoly.value, NMP_MW_G_MOL,
+          ],
+        });
+        return summarizeDiameterTrial(trialDiameter_m, trialArea_m2, trialSizing, trialProgressiveSizing, trialBvp);
       }),
     ];
     const feasibleDesignSet = diameterTrials
       .filter((trial) => trial.feasible)
       .map((trial) => ({
         diameter_m: trial.diameter_m,
-        requiredActiveHeight_m: trial.requiredActiveHeight_m,
+        requiredBvpHeight_m: trial.requiredBvpHeight_m,
+        requiredProgressiveCompartmentHeight_m: trial.requiredProgressiveCompartmentHeight_m,
         columnCrossSectionArea_m2: trial.columnCrossSectionArea_m2,
         governedPsi_W_kg: trial.governedPsi_W_kg,
         powerPerVolume_W_m3: trial.powerPerVolume_W_m3,
@@ -2541,6 +2606,12 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       engineVersions: { cel: CEL_VERSION, epd: EPD_VERSION, ecrSimulator: ENGINE_VERSION },
       thermodynamicTemperatureValidation: thermodynamicValidity,
       lleFlashAtOperatingTemperature,
+      c2TheoreticalStages: (inputs.c2TheoreticalStageHandoff as ECR2C2TheoreticalStageHandoff | undefined)
+        ?? {
+          status: 'not_available',
+          theoreticalStages: null,
+          basis: null,
+        },
       axialTransferDiagnostic,
       axialTransferDiagnosticBasis,
 
@@ -2638,6 +2709,22 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
                 ?? 'No compatible Stage 4 physical outlet product-quality target was supplied. Required Active Extraction Height is NOT_CALCULATED; no fallback geometry is a design result.',
             performanceSimulationHeight_m,
             performanceSimulationLabel,
+          },
+      progressiveCompartmentSizing: progressiveCompartmentSizing
+        ? {
+            ...progressiveCompartmentSizing,
+            targetBasis: 'hydrocarbon_only_physical_outlet',
+            targetExplanation:
+              'Independent local physical-compartment path: each 0.25 m compartment recomputes local NRTL equilibrium and applies 30% of the equilibrium component-flow change. It does not use N_T/0.30 or a global 0.70ⁿ shortcut.',
+            requiredActiveHeightStatus: progressiveCompartmentSizing.requiredActiveHeight_m === null ? 'NOT_CALCULATED' : 'CALCULATED',
+          }
+        : {
+            status: 'not_calculable',
+            requiredActiveHeight_m: null,
+            requiredActiveHeightStatus: 'NOT_CALCULATED',
+            targetBasis: 'hydrocarbon_only_physical_outlet',
+            targetExplanation:
+              'No compatible Stage 4 physical outlet product-quality target was supplied. The independent 30% local physical-compartment path is NOT_CALCULATED.',
           },
       headlineEngineeringResults,
       massBalanceSummary,

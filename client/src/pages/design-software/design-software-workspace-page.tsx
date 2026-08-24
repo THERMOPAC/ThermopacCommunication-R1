@@ -4917,6 +4917,8 @@ export default function DesignSoftwareWorkspacePage() {
     const simulationPower: any = displayedSnapshot?.power ?? null;
     const simulationArea: any = displayedSnapshot?.interfacialArea ?? null;
     const heightSizing: any = displayedSnapshot?.heightSizing ?? null;
+    const progressiveCompartmentSizing: any = displayedSnapshot?.progressiveCompartmentSizing ?? null;
+    const c2TheoreticalStages: any = displayedSnapshot?.c2TheoreticalStages ?? null;
     const diameterSizing: any = displayedSnapshot?.diameterSizing ?? null;
     const axialDiagnostic: any = displayedSnapshot?.axialTransferDiagnostic ?? bvp?.axialDiagnostic ?? null;
     const axialDiagnosticBasis: any = displayedSnapshot?.axialTransferDiagnosticBasis ?? null;
@@ -5607,14 +5609,15 @@ export default function DesignSoftwareWorkspacePage() {
                 </div>
                 <p className="mt-1 text-[11px]">{diameterSizing.selectionExplanation ?? "No simulator diameter selection is made."}</p>
                 <div className="mt-3 overflow-x-auto rounded border border-violet-200 bg-white">
-                  <div className="min-w-[760px]">
-                    <div className="grid grid-cols-[100px_110px_120px_120px_1fr] gap-2 border-b bg-violet-50 px-3 py-2 text-[10px] font-semibold uppercase text-violet-800">
-                      <span>Diameter</span><span>Required H</span><span>ψ / P·V</span><span>Product xA,R</span><span>Trial status</span>
+                  <div className="min-w-[900px]">
+                    <div className="grid grid-cols-[90px_110px_110px_120px_120px_1fr] gap-2 border-b bg-violet-50 px-3 py-2 text-[10px] font-semibold uppercase text-violet-800">
+                      <span>Diameter</span><span>H BVP</span><span>H local 30%</span><span>ψ / P·V</span><span>Product xA,R</span><span>Trial status</span>
                     </div>
                     {(diameterSizing.trials ?? []).map((trial: any, index: number) => (
-                      <div key={`${trial.diameter_m}-${index}`} className="grid grid-cols-[100px_110px_120px_120px_1fr] gap-2 border-b last:border-0 px-3 py-2 text-[11px]">
+                      <div key={`${trial.diameter_m}-${index}`} className="grid grid-cols-[90px_110px_110px_120px_120px_1fr] gap-2 border-b last:border-0 px-3 py-2 text-[11px]">
                         <span>{fmt(trial.diameter_m, 4)} m</span>
-                        <span>{trial.requiredActiveHeight_m != null ? `${fmt(trial.requiredActiveHeight_m, 4)} m` : "NOT_CALCULATED"}</span>
+                        <span>{trial.requiredBvpHeight_m != null ? `${fmt(trial.requiredBvpHeight_m, 4)} m` : "NOT_CALCULATED"}</span>
+                        <span>{trial.requiredProgressiveCompartmentHeight_m != null ? `${fmt(trial.requiredProgressiveCompartmentHeight_m, 4)} m` : "NOT_CALCULATED"}</span>
                         <span>{trial.governedPsi_W_kg != null ? `${fmt(trial.governedPsi_W_kg, 5)} W/kg · ${fmt(trial.powerPerVolume_W_m3, 2)} W/m³` : "NOT_CALCULATED"}</span>
                         <span>{trial.productAromaticsMoleFraction != null ? `${fmt(trial.productAromaticsMoleFraction * 100, 3)} mol %` : "—"}</span>
                         <span className={trial.feasible ? "font-semibold text-emerald-700" : "text-rose-700"}>{String(trial.status ?? "dependency_blocked").replaceAll("_", " ")}{trial.diagnostic ? ` — ${trial.diagnostic}` : ""}</span>
@@ -5622,7 +5625,7 @@ export default function DesignSoftwareWorkspacePage() {
                     ))}
                   </div>
                 </div>
-                <p className="mt-2 text-[10px] text-violet-800">All entries are preliminary process calculations and are not release eligible. Final diameter selection requires a separate governed hydraulic criterion and belongs to the Optimizer.</p>
+                <p className="mt-2 text-[10px] text-violet-800">H BVP and H local 30% are independent calculations; neither is silently substituted for the other. A point is feasible only when both paths, product quality, recovery, and all acceptance gates pass. All entries are preliminary and not release eligible.</p>
               </div>
             )}
             {!bvp ? (
@@ -5832,6 +5835,50 @@ export default function DesignSoftwareWorkspacePage() {
                     <strong>Transfer performance output unavailable.</strong> Any retained outlet, profile, or compartment arrays are unaccepted solver diagnostics and are not shown as calculated results.
                   </div>
                 )}
+                <div className={`mb-4 rounded-lg border p-3 text-xs ${
+                  progressiveCompartmentSizing?.status === "target_met" ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-rose-200 bg-rose-50 text-rose-950"
+                }`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold">Independent local 30% physical-compartment profile</p>
+                    <Badge className={progressiveCompartmentSizing?.status === "target_met" ? "border border-emerald-300 bg-emerald-100 text-emerald-900 text-[10px]" : "border border-rose-300 bg-rose-100 text-rose-900 text-[10px]"}>
+                      {String(progressiveCompartmentSizing?.status ?? "not_calculable").replaceAll("_", " ")}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-[11px]">{progressiveCompartmentSizing?.targetExplanation ?? "Independent local physical-compartment calculation was not available in this snapshot."}</p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    {[
+                      ["C2 theoretical stages N_T", c2TheoreticalStages?.theoreticalStages != null ? fmt(c2TheoreticalStages.theoreticalStages, 4) : "NOT_AVAILABLE"],
+                      ["N_T source", c2TheoreticalStages?.basis ?? "No accepted auto-calculated C2 result"],
+                      ["Physical compartment", progressiveCompartmentSizing?.basis?.physicalCompartmentHeight_m != null ? `${fmt(progressiveCompartmentSizing.basis.physicalCompartmentHeight_m, 2)} m` : "0.25 m"],
+                      ["Local equilibrium approach", progressiveCompartmentSizing?.basis?.localProgressiveEfficiency != null ? `${fmt(progressiveCompartmentSizing.basis.localProgressiveEfficiency * 100, 1)} %` : "30.0 %"],
+                      ["Ncomp", progressiveCompartmentSizing?.requiredPhysicalCompartmentCount ?? "NOT_CALCULATED"],
+                      ["H progressive,30%", progressiveCompartmentSizing?.requiredActiveHeight_m != null ? `${fmt(progressiveCompartmentSizing.requiredActiveHeight_m, 3)} m` : "NOT_CALCULATED"],
+                      ["Product xA,R", progressiveCompartmentSizing?.achievedProductAromaticsMoleFraction != null ? `${fmt(progressiveCompartmentSizing.achievedProductAromaticsMoleFraction * 100, 4)} mol %` : "—"],
+                      ["RRBO recovery", progressiveCompartmentSizing?.rrboRecoveryMassFraction != null ? `${fmt(progressiveCompartmentSizing.rrboRecoveryMassFraction * 100, 4)} %` : "—"],
+                    ].map(([label, value]) => <div key={String(label)} className="rounded border border-current/15 bg-white/70 px-2.5 py-2"><p className="text-[10px] uppercase opacity-70">{label}</p><p className="mt-0.5 font-semibold break-words">{value}</p></div>)}
+                  </div>
+                  <p className="mt-2 text-[11px] font-medium">Controlling-basis comparison: H<sub>progressive,30%</sub> is reported above independently from H<sub>BVP</sub>. The simulator does not select the shorter result or convert N<sub>T</sub> into compartment count.</p>
+                  {(progressiveCompartmentSizing?.trials?.length ?? 0) > 0 && (
+                    <div className="mt-3 overflow-x-auto rounded border border-current/15 bg-white/70">
+                      <div className="min-w-[900px]">
+                        <div className="grid grid-cols-[90px_105px_110px_120px_120px_100px_1fr] gap-2 border-b bg-black/5 px-3 py-2 text-[10px] font-semibold uppercase opacity-80">
+                          <span>Ncomp</span><span>H</span><span>xA,R</span><span>RRBO recovery</span><span>Sweeps / balance</span><span>Accepted</span><span>Result</span>
+                        </div>
+                        {progressiveCompartmentSizing.trials.map((trial: any, index: number) => (
+                          <div key={`${trial.physicalCompartmentCount}-${index}`} className="grid grid-cols-[90px_105px_110px_120px_120px_100px_1fr] gap-2 border-b last:border-0 px-3 py-2 text-[11px]">
+                            <span>{trial.physicalCompartmentCount}</span><span>{fmt(trial.physicalHeight_m, 3)} m</span><span>{trial.productAromaticsMoleFraction != null ? `${fmt(trial.productAromaticsMoleFraction * 100, 4)} %` : "—"}</span><span>{trial.rrboRecoveryMassFraction != null ? `${fmt(trial.rrboRecoveryMassFraction * 100, 4)} %` : "—"}</span><span>{trial.counterCurrentSweeps ?? "—"} / {trial.massBalancePassed ? "PASS" : "FAIL"}</span><span className={trial.accepted ? "font-semibold text-emerald-700" : "font-semibold text-rose-700"}>{trial.accepted ? "ACCEPT" : "REJECT"}</span><span>{trial.failure ?? "All local/gobal checks passed."}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(progressiveCompartmentSizing?.selectedTrial?.axialProfile?.length ?? 0) > 0 && (
+                    <div className="mt-3 overflow-x-auto rounded border border-current/15 bg-white/70">
+                      <table className="min-w-[1400px] text-[11px]"><thead className="bg-black/5"><tr><th className="p-2 text-left">Comp.</th><th className="p-2 text-left">z range</th><th className="p-2 text-left">Component</th><th className="p-2 text-left">RRBO in</th><th className="p-2 text-left">NMP in</th><th className="p-2 text-left">Eq transfer</th><th className="p-2 text-left">30% actual transfer</th><th className="p-2 text-left">RRBO out</th><th className="p-2 text-left">NMP out</th><th className="p-2 text-left">Balance residual</th><th className="p-2 text-left">Local NRTL</th></tr></thead><tbody>{progressiveCompartmentSizing.selectedTrial.axialProfile.flatMap((cell: any) => ["Sat", "Mono", "Di", "Poly", "NMP"].map((component, componentIndex) => <tr key={`${cell.compartmentIndex}-${component}`} className="border-t"><td className="p-2">{componentIndex === 0 ? cell.compartmentIndex : ""}</td><td className="p-2">{componentIndex === 0 ? `${fmt(cell.z_bottom_m, 2)}–${fmt(cell.z_top_m, 2)} m` : ""}</td><td className="p-2 font-medium">{component}</td><td className="p-2">{fmt(cell.rrboIncoming_kg_h?.[componentIndex], 6)}</td><td className="p-2">{fmt(cell.nmpIncoming_kg_h?.[componentIndex], 6)}</td><td className="p-2">{fmt(cell.equilibriumTransfer_kg_h?.[componentIndex], 6)}</td><td className="p-2">{fmt(cell.actualTransfer_kg_h?.[componentIndex], 6)}</td><td className="p-2">{fmt(cell.rrboOutgoing_kg_h?.[componentIndex], 6)}</td><td className="p-2">{fmt(cell.nmpOutgoing_kg_h?.[componentIndex], 6)}</td><td className="p-2">{fmt(cell.componentMassBalanceResidual_kg_h?.[componentIndex], 9)}</td><td className="p-2">{componentIndex === 0 ? `${cell.localNrtl?.flashConverged ? "CONVERGED" : "NOT CONVERGED"} / ${cell.localNrtl?.thermodynamicClassification ?? "—"}` : ""}</td></tr>))}</tbody></table>
+                    </div>
+                  )}
+                  {progressiveCompartmentSizing?.diagnostics?.length > 0 && <p className="mt-2 text-[11px]">{progressiveCompartmentSizing.diagnostics[progressiveCompartmentSizing.diagnostics.length - 1]}</p>}
+                </div>
                 <div className="grid md:grid-cols-4 gap-3 mb-4">
                   <div className="border rounded-lg p-3 text-xs"><p className="text-gray-500">Iterations</p><p className="font-semibold text-base">{bvp.iterations}</p></div>
                   <div className="border rounded-lg p-3 text-xs"><p className="text-gray-500">Function evaluations</p><p className="font-semibold text-base">{bvp.functionEvaluations}</p></div>

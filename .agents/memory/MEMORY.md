@@ -64,4 +64,5 @@
 - [ECR-2 BVP acceptance flow](ecr2-bvp-acceptance-flow.md) — local residual closure is insufficient; terminal component and total balances are independent unchanged acceptance gates.
 - [ECR-2 progressive height sizing](ecr2-progressive-height-sizing.md) — physical-height trials must rebuild H-dependent agitation inputs and reject any non-monotone accepted residual sequence.
 - [ECR-2 recovery-constrained height](ecr2-recovery-constrained-height.md) — physical design points require aromatic target, BVP/mass balance, and ≥95% NMP-free RRBO recovery together.
+- [ECR-2 local progressive compartments](ecr2-local-progressive-compartments.md) — separate 0.25 m counter-current NRTL/30% component-flow path; never derive it from N_T or replace the BVP.
 - [LLX product-quality basis](llx-product-quality-basis.md) — retain full-phase LLE aromatics while reporting commercial raffinate aromatics on NMP-free hydrocarbon-only molar and mass bases.

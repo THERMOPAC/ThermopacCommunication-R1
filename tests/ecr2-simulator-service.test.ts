@@ -268,14 +268,14 @@ describe('ECR-2 simulator service run path', () => {
     if (pool) await pool.end();
   }, 60_000);
 
-  it('executes from persisted sections and stores a complete accepted run snapshot', async () => {
+  it('persists the complete BVP and independent local physical-compartment safety snapshot', async () => {
     const execution = await service.runCalculation(revisionId, 'ecr_simulator', userId);
     acceptedRun = execution.run;
 
-    expect(execution.result.status).toBe('warning');
+    expect(execution.result.status).toBe('error');
     expect(acceptedRun.calculation_type).toBe('ecr_simulator');
     expect(acceptedRun.engine_name).toBe('llx-ecr-simulator');
-    expect(acceptedRun.calculation_status).toBe('warning');
+    expect(acceptedRun.calculation_status).toBe('error');
 
     const inputSnapshot = acceptedRun.input_snapshot;
     const resultSnapshot = acceptedRun.result_snapshot;
@@ -288,6 +288,17 @@ describe('ECR-2 simulator service run path', () => {
     expect(inputSnapshot.columnDiameterTrials_m).toBeUndefined();
     expect(inputSnapshot.governedPsi_W_kg).toBeUndefined();
     expect(resultSnapshot.calculationRunStatus).toBe('counter_current_bvp_accepted');
+    expect(resultSnapshot.progressiveCompartmentSizing).toMatchObject({
+      requiredActiveHeight_m: null,
+      requiredPhysicalCompartmentCount: null,
+      basis: {
+        physicalCompartmentHeight_m: 0.25,
+        localProgressiveEfficiency: 0.30,
+      },
+    });
+    expect(['no_feasible_recovery', 'not_calculable', 'target_not_met'])
+      .toContain(resultSnapshot.progressiveCompartmentSizing.status);
+    expect(resultSnapshot.progressiveCompartmentSizing.status).not.toBe('target_met');
     expect(resultSnapshot.geometry).toMatchObject({
       nCompartments: 1,
       columnDiameter_m: 0.3,
@@ -386,9 +397,7 @@ describe('ECR-2 simulator service run path', () => {
 
     const accepted = await service.listResults(revisionId);
     const simulatorResult = accepted.find((row: any) => row.section === 'ecr_simulator');
-    expect(simulatorResult?.data).toMatchObject({
-      calculationRunStatus: 'counter_current_bvp_accepted',
-    });
+    expect(simulatorResult).toBeUndefined();
   });
 
   it('ignores legacy manual diameter and ψ values so they cannot alter the generated ECR-2 search', () => {
@@ -459,7 +468,7 @@ describe('ECR-2 simulator service run path', () => {
 
     const accepted = await service.listResults(revisionId);
     const simulatorResult = accepted.find((row: any) => row.section === 'ecr_simulator');
-    expect(simulatorResult?.data.calculationRunStatus).toBe('counter_current_bvp_accepted');
+    expect(simulatorResult).toBeUndefined();
 
     await persistSimulatorInputs();
     await service.acceptAllEcr2Stage8ResolvedValues(revisionId, userId);
@@ -501,7 +510,7 @@ describe('ECR-2 simulator service run path', () => {
 
     const accepted = await service.listResults(revisionId);
     const simulatorResult = accepted.find((row: any) => row.section === 'ecr_simulator');
-    expect(simulatorResult?.data.calculationRunStatus).toBe('counter_current_bvp_accepted');
+    expect(simulatorResult).toBeUndefined();
   });
 
   it('leaves the accepted ECR-1 result unchanged after simulator execution', async () => {
