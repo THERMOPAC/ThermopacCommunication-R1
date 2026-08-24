@@ -170,12 +170,13 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       lle.targetRaffinateAromaticsMolePct = {
         value: tgtV,
         sourceType: SOURCE_TYPES.includes(tgtSrc) ? tgtSrc : 'Assumed',
-        // Engine parseTagged requires a non-blank sourceReference.
-        // Fall back to a descriptive placeholder when the engineer has not yet
-        // entered a reference — never mirror the numeric value itself (A-ref rule).
-        sourceReference: tgtRef !== ''
-          ? tgtRef
-          : 'Target raffinate aromatics — source reference not entered; enter the product-quality specification document (Stage 4)',
+        // Never fabricate target provenance. A blank reference is deliberately
+        // passed through so the target is rejected fail-closed by parseTagged.
+        sourceReference: tgtRef,
+        // A Coto/surrogate stage target cannot be silently reused as an ECR-2
+        // physical product specification. The engineer must explicitly state
+        // the matching hydrocarbon-only physical outlet basis.
+        productQualityBasis: inputs['target_raffinate_aromatics_basis'],
       };
     }
     const sPur = taggedFrom('solvent_nmp_mole_fraction', 'solvent_nmp_mole_fraction_source', 'solvent_nmp_mole_fraction_source_reference');
@@ -603,10 +604,10 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
     if (workspacePhase !== '') out.phaseConfiguration = workspacePhase;
     else if (out.phaseConfiguration === undefined) out.phaseConfiguration = 'nmp_continuous_rrbo_dispersed';
 
-    // Stage 7 is the governed owner of ECR geometry and operating values.
-    // Stage 8 retains only its explicitly simulator-owned BVP inputs and one
-    // permitted diameter override. Legacy simulator geometry keys are retained
-    // in storage for audit/history but must not override the Stage 7 basis.
+    // Stage 7 remains the source of the agitation/rotor operating basis.
+    // ECR-2 physical extraction height is deliberately NOT Stage-7 geometry:
+    // it is solved from the Stage-4 product-quality target by the progressive
+    // BVP height search. Compartment height is retained only as Δz_max.
     const nested = (inputs.ecr2Simulator ?? inputs.ecr2_simulator ?? {}) as Record<string, unknown>;
     // runCalculation merges the ecr_simulator section directly into the input
     // record. Therefore its persisted UI fields are flat, not nested. Prefer a
@@ -624,7 +625,7 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       delete out[key];
     }
     out.columnDiameter_m = simNum('columnDiameter_m') ?? num(inputs.column_diameter);
-    out.activeHeight_m = num(inputs.ecr_active_height_m);
+    delete out.activeHeight_m;
     out.compartmentHeight_m = num(inputs.compartment_height);
     out.rotorToColumnDiameterRatio = num(inputs.rotor_ratio);
     out.rotorSpeed_rpm = num(inputs.rotor_speed);

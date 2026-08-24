@@ -99,6 +99,8 @@ export interface ECR2CounterCurrentBVPInput {
     powerNumber_Ne: number;
     rotorSpeed_s: number;
     rotorDiameter_m: number;
+     /** Physical rotor-agitated liquid volume for a height trial when known. */
+     rotorVolume_m3?: number;
   };
   partitionBasis: ECR2KH1999PartitionBasisApproval | null;
   /**
@@ -305,7 +307,6 @@ function overallThermodynamicMoleFractions(
 }
 
 function resultFailure(
-  input: ECR2CounterCurrentBVPInput,
   failure: ECR2BVPLocalFailure,
   diagnostics: string[],
   functionEvaluations = 0,
@@ -340,6 +341,16 @@ function resultFailure(
     failure,
     governance: ECR2_EFFECTIVE_TRANSFER_VOLUME_GOVERNANCE,
   };
+}
+
+/** Creates an explicit blocked snapshot without inventing a geometry or running the BVP. */
+export function createECR2BVPBlockedResult(
+  dependency: string,
+  message: string,
+  provenance: string[] = [],
+): ECR2CounterCurrentBVPResult {
+  const failure = invalid(dependency, message, null, null, provenance);
+  return resultFailure(failure, [message]);
 }
 
 function validateInput(input: ECR2CounterCurrentBVPInput): ECR2BVPLocalFailure | null {
@@ -491,9 +502,11 @@ function localCompartment(
     directTurbulence: input.directTurbulenceRotor
       ? {
           ...input.directTurbulenceRotor,
-          // V_R is the actual modeled liquid volume for this one axial
-          // compartment. Do not substitute total column liquid volume.
-          rotorVolume_m3: input.columnCrossSectionArea_m2 * height,
+          // In direct BVP usage V_R defaults to the modeled cell volume. The
+          // progressive physical-height solver supplies the physical agitated
+          // volume explicitly so a numerical mesh change cannot alter d32.
+          rotorVolume_m3: input.directTurbulenceRotor.rotorVolume_m3
+            ?? input.columnCrossSectionArea_m2 * height,
         }
       : undefined,
   }, input.d32Config!);
@@ -893,7 +906,7 @@ function resultFromEvaluation(
  */
 export function solveECR2CounterCurrentBVP(input: ECR2CounterCurrentBVPInput): ECR2CounterCurrentBVPResult {
   const inputFailure = validateInput(input);
-  if (inputFailure) return resultFailure(input, inputFailure, [inputFailure.message]);
+  if (inputFailure) return resultFailure(inputFailure, [inputFailure.message]);
   const totalIn = sum(input.rrboFeedComponentFlows_kg_h) + sum(input.nmpFeedComponentFlows_kg_h);
   const scales = COMPONENTS.map((_, index) => Math.max(
     input.rrboFeedComponentFlows_kg_h[index],
@@ -1035,7 +1048,7 @@ export function solveECR2CounterCurrentBVP(input: ECR2CounterCurrentBVPInput): E
   }
   if (!solved.current.valid) {
     const failure = solved.current.failure ?? invalid('solver', 'The nonlinear trial became infeasible.');
-    return resultFailure(input, failure, [...diagnostics, failure.message], evaluations.count);
+    return resultFailure(failure, [...diagnostics, failure.message], evaluations.count);
   }
   return resultFromEvaluation(
     input,

@@ -122,7 +122,7 @@ describe('ECR-2 simulator service run boundary', () => {
     const engineInput = engine.validate.mock.calls[0][0];
 
     expect(engineRegistry.get).toHaveBeenCalledWith('llx', 'ecr_simulator');
-    expect(engineInput.activeHeight_m).toBe(1);
+    expect(engineInput.activeHeight_m).toBeUndefined();
     expect(engineInput.powerNumber).toMatchObject({ value: 1.2 });
     expect(engineInput.d32Config).toMatchObject({ mode: 'engineer_supplied', value_m: 0.0005 });
     expect(engineInput.bvp).toMatchObject({ rrboGradeId: 'rrbo-sn300' });
@@ -146,17 +146,20 @@ describe('ECR-2 simulator service run boundary', () => {
     expect(query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO design_software_results'))).toBe(false);
   });
 
-  it('previews the current Stage 8 candidates without creating a calculation run', async () => {
+  it('previews only the Stage 8 candidates supported by the current evidence without creating a calculation run', async () => {
     configureDatabase();
 
     const preview = await previewEcr2Stage8Resolution(7) as any;
 
     expect(preview).toMatchObject({
       resolver: 'ecr2-stage8-governed-resolver-v1',
-      autoPopulatedCount: 14,
-      unresolvedCount: 0,
+      // This deliberately sparse fixture supplies only the evidence for four
+      // resolvable values. The other ten must remain visible as unresolved,
+      // rather than receiving fabricated Stage 8 evidence.
+      autoPopulatedCount: 4,
+      unresolvedCount: 10,
     });
-    expect(preview.records.diffusivity_sat_c.status).toBe('CALCULATED_PRELIMINARY');
+    expect(preview.records.diffusivity_sat_c.status).toBe('BLOCKED_MISSING_REQUIRED_EVIDENCE');
     expect(query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO design_software_calculation_runs'))).toBe(false);
   });
 });

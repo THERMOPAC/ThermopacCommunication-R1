@@ -61,4 +61,5 @@
 - [LLX thermodynamic temperature validity](llx-thermodynamic-temperature-validity.md) — evidence applicability, model-fit verdict, and optimizer readiness are separate dynamic fields at each operating temperature.
 - [Stage 5 Kühni Vk preliminary route](stage5-kuhni-vk-preliminary.md) — V_k remains audit-only under an explicit engineer rejection; server-owned approval is required before capacity/diameter results can run.
 - [ECR-2 BVP acceptance flow](ecr2-bvp-acceptance-flow.md) — local residual closure is insufficient; terminal component and total balances are independent unchanged acceptance gates.
+- [ECR-2 progressive height sizing](ecr2-progressive-height-sizing.md) — physical-height trials must rebuild H-dependent agitation inputs and reject any non-monotone accepted residual sequence.
 - [LLX product-quality basis](llx-product-quality-basis.md) — retain full-phase LLE aromatics while reporting commercial raffinate aromatics on NMP-free hydrocarbon-only molar and mass bases.

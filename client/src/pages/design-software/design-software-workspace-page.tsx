@@ -1370,7 +1370,15 @@ export default function DesignSoftwareWorkspacePage() {
       qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/results`] });
       qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/design-selection`] });
     },
-    onError: (e: any) => toast({ title: "Calculation error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => {
+      const message = e?.message ?? "Calculation failed";
+      const requiresC2Refresh = /inputs changed after the last accepted run that auto-calculated N_T/i.test(message);
+      toast({
+        title: requiresC2Refresh ? "Stage 4 Material Balance refresh required" : "Calculation error",
+        description: message,
+        variant: "destructive",
+      });
+    },
   });
 
   const dselDecisionMutation = useMutation({
@@ -1410,6 +1418,16 @@ export default function DesignSoftwareWorkspacePage() {
   // auto-writes "ecr" back to the database.
   const showECR = !!(techSelection && techSelection.trim());
   const d = (section: string) => localData[section] ?? {};
+  const currentC2Result = (resultsQ.data ?? []).find((row: any) => row.section === "process_design");
+  const c2InputsUpdatedAt = (inputsQ.data ?? []).find((row: any) => row.section === "process_design")?.updated_at;
+  const c2ResultComputedAt = currentC2Result?.computed_at;
+  const c2AutoCalculatedNtIsStale = !!(
+    currentC2Result?.data?.stages?.mode === "auto_calculated"
+    && Number.isFinite(Number(currentC2Result?.data?.stages?.theoreticalStages))
+    && c2InputsUpdatedAt
+    && c2ResultComputedAt
+    && new Date(c2InputsUpdatedAt).getTime() > new Date(c2ResultComputedAt).getTime()
+  );
   const ecr2Stage8ResolverRecords = stage8ResolutionQ.data?.records;
   const ecr2HasAcceptedEcrRun = (resultsQ.data ?? []).some((r: any) =>
     r.section === "ecr" && r.data?.heightBreakdown?.activeAgitatedHeight?.result,
@@ -1558,6 +1576,8 @@ export default function DesignSoftwareWorkspacePage() {
       // with an error status, so gate it here before the run.
       if (val("target_raffinate_aromatics_mol") && !val("target_raffinate_aromatics_source_reference"))
         errors["target_raffinate_aromatics_source_reference"] = "Target Raffinate Aromatics Source Reference is required — enter the product-quality specification document that sets this threshold (e.g. RRBO product spec sheet, client requirement document)";
+      if (val("target_raffinate_aromatics_mol") && pd.target_raffinate_aromatics_basis !== "hydrocarbon_only_physical_outlet")
+        errors["target_raffinate_aromatics_basis"] = "ECR-2 physical height requires the explicit physical raffinate outlet — hydrocarbon-only molar target basis. A Coto / surrogate basis cannot be reused.";
     }
 
     if (stageKey === "hydraulic_design") {
@@ -3594,6 +3614,17 @@ export default function DesignSoftwareWorkspacePage() {
           <div data-field-key="process_design__target_raffinate_aromatics_mol">
             <FieldRow label="Target Raffinate Aromatics" value={pd.target_raffinate_aromatics_mol ?? ""} onChange={v => f("target_raffinate_aromatics_mol", v)} onBlur={s} unit="mol %" error={fErr4("target_raffinate_aromatics_mol")} />
           </div>
+          <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
+            <label className="text-sm text-gray-700 font-medium pt-1.5">ECR-2 Target Basis</label>
+            <select value={pd.target_raffinate_aromatics_basis ?? ""} onChange={e => cs({ target_raffinate_aromatics_basis: e.target.value })} disabled={isFrozen} className="h-8 text-sm border rounded-md px-2 bg-white">
+              <option value="">Select explicitly…</option>
+              <option value="hydrocarbon_only_physical_outlet">Physical raffinate outlet — hydrocarbon-only molar basis</option>
+              <option value="coto_surrogate_lle">Coto / surrogate LLE basis — not usable for ECR-2 height</option>
+            </select>
+            <span />
+          </div>
+          {fErr4("target_raffinate_aromatics_basis") && <p className="ml-[212px] -mt-1 text-xs text-red-600">{fErr4("target_raffinate_aromatics_basis")}</p>}
+          {statusLine("For ECR-2 height sizing, select the physical outlet basis only: (Mono + Di + Poly) / (Sat + Mono + Di + Poly). NMP is excluded from numerator and denominator. Surrogate-LLE targets remain screening-only.")}
           <FieldRow label="Source Reference (target)" value={pd.target_raffinate_aromatics_source_reference ?? ""} onChange={v => f("target_raffinate_aromatics_source_reference", v)} onBlur={s} unit="" />
           {statusLine("Governed envelope: raffinate locus x1R ∈ [0.641, 0.878] (total aromatics ≈ 6.2–20.1 mol %) at 298.15 K — targets outside fail closed, no extrapolation")}
           <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
@@ -4821,6 +4852,7 @@ export default function DesignSoftwareWorkspacePage() {
     const simulationGeometry: any = displayedSnapshot?.geometry ?? null;
     const simulationPower: any = displayedSnapshot?.power ?? null;
     const simulationArea: any = displayedSnapshot?.interfacialArea ?? null;
+    const heightSizing: any = displayedSnapshot?.heightSizing ?? null;
     const d32Snapshot = displayedSnapshot?.d32;
     const d32SnapshotGovernance = getEcr2D32SnapshotGovernance(displayedSnapshot);
     const transferStatus = bvp?.transferStatus ?? displayedSnapshot?.transferStatus;
@@ -4828,7 +4860,6 @@ export default function DesignSoftwareWorkspacePage() {
     const showPreliminaryTransferPerformance = canDisplayECR2PreliminaryTransferPerformance(bvp, transferStatus);
     const showingFailedSnapshot = !!latestFailedSnapshot;
     const hasStaleAcceptedSnapshot = !!simResult && showingFailedSnapshot;
-    const activeHeight = ecrResult?.heightBreakdown?.activeAgitatedHeight?.result;
     const fmt = (value: any, digits = 4) => typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "—";
     const inherited = [
       ["Operating temperature", d("design_basis").operating_temperature, "Design Basis"],
@@ -4836,8 +4867,7 @@ export default function DesignSoftwareWorkspacePage() {
       ["RRBO composition", d("process_design").rrbo_saturates_wt ? `Sat ${d("process_design").rrbo_saturates_wt}% · Mono ${d("process_design").rrbo_mono_aromatics_wt}% · Di ${d("process_design").rrbo_di_aromatics_wt}% · Poly ${d("process_design").rrbo_poly_aromatics_wt}%` : "Missing", "Stage 4 Process Design"],
       ["NMP feed / S/O ratio", simulationBasis?.nmpSolvent?.massFlow_kg_h ? `${fmt(simulationBasis.nmpSolvent.massFlow_kg_h, 3)} kg/h · S/O ${fmt(simulationBasis.SO_massRatio, 4)} mass basis` : (d("process_design").so_ratio ? `${d("process_design").so_ratio} volume basis` : ""), "Stage 4 Process Design"],
       ["Column diameter", co.diameter !== null ? `${co.diameter} m` : "", co.diameterSource],
-      ["Active agitated height", typeof activeHeight === "number" ? `${activeHeight} m` : "", "Stage 7 — accepted ECR Equipment Design result"],
-      ["Compartment height", ecr.compartment_height ? `${ecr.compartment_height} m` : "", "Stage 7 — ECR Equipment Design"],
+      ["Maximum numerical Δz", ecr.compartment_height ? `${ecr.compartment_height} m` : "", "Stage 7 — numerical mesh control only; not ECR-2 physical height"],
       ["Rotor geometry", ecr.rotor_ratio ? `Dᵣ/D꜀ = ${ecr.rotor_ratio}` : "", "Stage 7 — ECR Equipment Design"],
       ["Rotor speed", ecr.rotor_speed ? `${ecr.rotor_speed} rpm` : "", "Stage 7 — ECR Equipment Design"],
       ["Power number", ecr.power_number ?? "", "Stage 7 — ECR Equipment Design"],
@@ -5566,10 +5596,37 @@ export default function DesignSoftwareWorkspacePage() {
                       </div>
                       <p className="mt-3 text-[11px] text-amber-900"><strong>{headlineResults?.sulfurDbtPredictionNote ?? "SULFUR/DBT PREDICTION = NOT IMPLEMENTED. Aromatic-transfer results are not used as a sulfur or DBT surrogate."}</strong></p>
                     </div>
+                    <div className={`mb-4 rounded-lg border p-3 text-xs ${heightSizing?.status === "target_met" ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-rose-200 bg-rose-50 text-rose-950"}`}>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-semibold">Progressive physical-height solve</p>
+                        <Badge className={heightSizing?.status === "target_met" ? "border border-emerald-300 bg-emerald-100 text-emerald-900 text-[10px]" : "border border-rose-300 bg-rose-100 text-rose-900 text-[10px]"}>
+                          {String(heightSizing?.status ?? "not_calculable").replaceAll("_", " ")}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-[11px]">{heightSizing?.targetExplanation ?? "No physical product-quality target has been evaluated."}</p>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        {[
+                          ["Target xA,R product", heightSizing?.target?.value != null ? `${fmt(heightSizing.target.value * 100, 3)} mol %` : "—"],
+                          ["Achieved xA,R product", heightSizing?.achievedProductAromaticsMoleFraction != null ? `${fmt(heightSizing.achievedProductAromaticsMoleFraction * 100, 3)} mol %` : "—"],
+                          ["Residual F(H)", fmt(heightSizing?.residual, 7)],
+                          ["Required physical height", heightSizing?.requiredActiveHeight_m != null ? `${fmt(heightSizing.requiredActiveHeight_m, 4)} m` : "NOT_CALCULATED"],
+                          ["Target bracket", heightSizing?.lowerBracketHeight_m != null && heightSizing?.upperBracketHeight_m != null ? `[${fmt(heightSizing.lowerBracketHeight_m, 4)}, ${fmt(heightSizing.upperBracketHeight_m, 4)}] m` : "—"],
+                          ["Search tolerance", heightSizing?.searchTolerance_m != null ? `${fmt(heightSizing.searchTolerance_m, 4)} m` : "—"],
+                          ["Numerical cells", heightSizing?.selectedNumberOfCells ?? "—"],
+                          ["Selected Δz", heightSizing?.selectedDeltaZ_m != null ? `${fmt(heightSizing.selectedDeltaZ_m, 5)} m` : "—"],
+                        ].map(([label, value]) => <div key={String(label)} className="rounded border border-current/15 bg-white/70 px-2.5 py-2"><p className="text-[10px] uppercase opacity-70">{label}</p><p className="mt-0.5 font-semibold">{value}</p></div>)}
+                      </div>
+                      {heightSizing?.performanceSimulationLabel && (
+                        <p className="mt-2 rounded border border-amber-300 bg-amber-50 px-2.5 py-2 text-[11px] font-semibold text-amber-950">
+                          {heightSizing.performanceSimulationLabel}
+                        </p>
+                      )}
+                      {heightSizing?.diagnostics?.length > 0 && <p className="mt-2 text-[11px]">{heightSizing.diagnostics[heightSizing.diagnostics.length - 1]}</p>}
+                    </div>
                     <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                       {[
                         ["Numerical BVP compartments", simulationGeometry?.nCompartments],
-                        ["Physical active height", `${fmt(simulationGeometry?.activeHeightActual_m, 4)} m`],
+                        ["Physical active height", simulationGeometry?.activeHeightActual_m != null ? `${fmt(simulationGeometry.activeHeightActual_m, 4)} m` : "NOT_CALCULATED"],
                         ["Column diameter", `${fmt(simulationGeometry?.columnDiameter_m, 4)} m`],
                         ["Rotor speed", `${fmt(simulationPower?.rotorSpeed_rpm, 2)} rpm`],
                         ["Dispersed holdup", fmt(bvp?.axialProfile?.[0]?.phi_d, 5)],
@@ -6370,7 +6427,26 @@ export default function DesignSoftwareWorkspacePage() {
           <FieldRow label="Bottom Head Height" value={er.bottom_head_height ?? ""} onChange={v => f("bottom_head_height", v)} onBlur={s} unit="m" />
         </SectionCard>
         {renderPrelimBanner("ecr")}
-        <Button size="sm" className="gap-2 mb-4" disabled={isFrozen || calculateMutation.isPending} onClick={() => calculateMutation.mutate("ecr")}>
+        {c2AutoCalculatedNtIsStale && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800" data-testid="stage7-c2-refresh-required">
+            <p className="font-semibold">Stage 4 Material Balance refresh required before Equipment Design can recalculate.</p>
+            <p className="mt-1">
+              Process Design inputs changed after the accepted run that auto-calculated N<sub>T</sub>. Stage 7 will not use that stale theoretical-stage count.
+              Run Material Balance to refresh the governed N<sub>T</sub>, then calculate ECR again.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="mt-2 border-red-300 bg-white text-red-800 hover:bg-red-100"
+              disabled={isFrozen || calculateMutation.isPending}
+              onClick={() => calculateMutation.mutate("process_design")}
+            >
+              <Play className="mr-1.5 h-3.5 w-3.5" /> Run Stage 4 Material Balance
+            </Button>
+          </div>
+        )}
+        <Button size="sm" className="gap-2 mb-4" disabled={isFrozen || calculateMutation.isPending || c2AutoCalculatedNtIsStale} onClick={() => calculateMutation.mutate("ecr")}>
           <Play className="h-3.5 w-3.5" /> Calculate ECR
         </Button>
 

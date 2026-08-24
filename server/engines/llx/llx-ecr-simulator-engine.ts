@@ -131,14 +131,18 @@ import {
 
 import {
   createUnavailableKH1999PreliminaryLocalMassTransfer,
-  summarizeECR2PreliminaryTransferStatus,
   type ECR2KH1999LocalMassTransferResult,
 } from './llx-ecr2-kh1999-mass-transfer';
 import {
   solveECR2CounterCurrentBVP,
+  createECR2BVPBlockedResult,
   type ECR2CounterCurrentBVPResult,
   type ECR2CounterCurrentBVPInput,
 } from './llx-ecr2-counter-current-bvp';
+import {
+  solveECR2ProgressiveHeight,
+  type ECR2ProgressiveHeightSolveResult,
+} from './llx-ecr2-progressive-height-solver';
 import { emptyDiffusivityContract } from './llx-ecr2-diffusivity';
 import {
   ECR2_STAGE8_NUMERICAL_PARAMETER_IDS,
@@ -154,8 +158,11 @@ const APPLICABILITY_STATEMENT =
   'ECR-2 PRELIMINARY AGITATED EXTRACTION COLUMN SIMULATOR — COUNTER-CURRENT ' +
   'FIVE-COMPONENT BVP — NOT VENDOR RATING AND NOT FOR FABRICATION.';
 
-/** Fixed by governance — one rotor per compartment in ECR-2. Not an input. */
-const ROTORS_PER_COMPARTMENT = 1;
+/**
+ * Fixed physical basis for the preliminary whole-column ECR-2 model.
+ * Numerical BVP cells are not mechanical stages and must never change this.
+ */
+const PHYSICAL_ROTOR_COUNT = 1;
 
 const G = 9.80665; // m/s²
 const PI = Math.PI;
@@ -312,9 +319,9 @@ export interface ECR2CompartmentState {
   // ── Power (Phase 1) ──────────────────────────────────────────────────────
   /** Power per rotor P₁ = N_P·ρ_mix·N³·D_R⁵ (W). */
   powerPerRotor_W: number;
-  /** Total shaft power for this compartment = P₁ × ROTORS_PER_COMPARTMENT (W). */
+  /** Preliminary whole-column shaft power apportioned only for display. */
   shaftPower_compartment_W: number;
-  /** Power per unit volume P/V = P₁ / (A_column × h_comp) (W/m³). */
+  /** Whole-column physical power density P/V = P₁ / (A_column × H) (W/m³). */
   powerPerVolume_W_m3: number;
 
   // ── Superficial velocities from boundary-condition flows (Phase 1) ───────
@@ -601,7 +608,7 @@ export interface ECR2PhysicalBasis {
  *   feedCompositionMassFraction, nmpPurity
  *
  * Engineer enters once per simulation run:
- *   columnDiameter_m, activeHeight_m, compartmentHeight_m,
+ *   columnDiameter_m, compartmentHeight_m (numerical Δz_max),
  *   rotorToColumnDiameterRatio, rotorSpeed_rpm, rotorType,
  *   powerNumber, statorOpenAreaFraction (optional),
  *   shaftEfficiency, mechanicalDesignMargin,
@@ -609,7 +616,7 @@ export interface ECR2PhysicalBasis {
  *   interfacialTension, molecularWeights
  *
  * Fixed by governance (never an input):
- *   rotorsPerCompartment = 1
+ *   physicalRotorCount = 1
  *   Temperature is not optimized.
  */
 export interface ECR2SimulatorInputs {
@@ -644,9 +651,9 @@ export interface ECR2SimulatorInputs {
   // ── Column geometry ────────────────────────────────────────────────────
   /** Column internal diameter D (m). */
   columnDiameter_m: number;
-  /** Active agitated height H_active (m). */
-  activeHeight_m: number;
-  /** Compartment height h_comp (m). */
+  /** Legacy diagnostic BVP height only; never used for physical sizing. */
+  activeHeight_m?: number;
+  /** Maximum numerical BVP-cell height Δz_max (m), not an equipment stage height. */
   compartmentHeight_m: number;
 
   // ── Rotor ──────────────────────────────────────────────────────────────
@@ -1161,14 +1168,14 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const hComp = num(inputs.compartmentHeight_m);
     if (D === undefined || D <= 0 || D > 10)
       err('columnDiameter_m', 'columnDiameter_m must be > 0 and ≤ 10 (m)');
-    if (H === undefined || H <= 0 || H > 100)
-      err('activeHeight_m', 'activeHeight_m must be > 0 and ≤ 100 (m)');
+    if (H !== undefined && (H <= 0 || H > 100))
+      err('activeHeight_m', 'When supplied for a diagnostic BVP, activeHeight_m must be > 0 and ≤ 100 (m)');
     if (hComp === undefined || hComp <= 0 || hComp > 2)
-      err('compartmentHeight_m', 'compartmentHeight_m must be > 0 and ≤ 2 (m)');
+      err('compartmentHeight_m', 'compartmentHeight_m (maximum numerical Δz) must be > 0 and ≤ 2 (m)');
     if (D !== undefined && H !== undefined && hComp !== undefined) {
       const nComp = Math.ceil(H / hComp); // ceiling — matches calculate() geometry
       if (nComp < 1)
-        err('compartmentHeight_m', `compartmentHeight_m ${hComp} m exceeds activeHeight_m ${H} m — no compartments would result`);
+        err('compartmentHeight_m', `compartmentHeight_m ${hComp} m produces no numerical cells for diagnostic activeHeight_m ${H} m`);
       if (nComp > 500)
         errors.push({ field: 'activeHeight_m', message: `ceil(H/h_comp) = ${nComp} compartments — consider a coarser compartment height for Phase 1 screening`, severity: 'warning' });
     }
@@ -1352,7 +1359,10 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const dispersedPhase  = rrboContinuous ? 'NMP'  : 'RRBO';
 
     const D      = num(inputs.columnDiameter_m)!;
-    const H      = num(inputs.activeHeight_m)!;
+    // A manually supplied height is retained only for an explicitly labelled
+    // diagnostic BVP when no compatible physical product-quality target exists.
+    // It is never used by the progressive physical-height sizing path.
+    const manualDiagnosticHeight_m = num(inputs.activeHeight_m);
     const hComp  = num(inputs.compartmentHeight_m)!;
     const ratio  = num(inputs.rotorToColumnDiameterRatio)!;
     const rpm    = num(inputs.rotorSpeed_rpm)!;
@@ -1492,27 +1502,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       ? null  // computed per compartment using actual flows below
       : null; // not supplied
 
-    // ── Axial grid ───────────────────────────────────────────────────────────
-    //
-    // N_comp = ceil(H_requested / h_comp)  — ceiling, not floor.
-    // H_actual = N_comp × h_comp           — always ≥ H_requested.
-    //
-    // Rationale: N_comp is the realized integer equipment geometry (number of
-    // agitator stages manufactured). Using ceiling ensures the delivered
-    // column NEVER provides less active height than the design specifies.
-    // floor() would under-deliver height and is physically incorrect for
-    // specifying a piece of equipment against a required separation duty.
-    //
-    const N_compartments = Math.ceil(H / hComp);
-    const H_actual = N_compartments * hComp;
-    const H_extension = H_actual - H; // always ≥ 0 by construction
-    if (H_extension > 1e-3)
-      pushWarning(
-        'HEIGHT_CEILING_EXTENSION',
-        `H_requested ${H} m / h_comp ${hComp} m → N_comp = ${N_compartments} (ceil). ` +
-        `H_actual = ${H_actual.toFixed(4)} m (${H_extension.toFixed(4)} m above requested). ` +
-        `H_actual ≥ H_requested is guaranteed — excess height is conservative.`,
-      );
+    // The numerical axial mesh is established only after the progressive
+    // physical-height solve. hComp is Δz_max, never an equipment-stage height.
 
     // ── Physical feed composition → separate thermodynamic coordinates ──────
     const fc = inputs.feedCompositionMassFraction as Record<string, unknown>;
@@ -1592,7 +1583,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         extract_outlet: null,
       },
       top: {
-        z_m: H_actual,
+        // Filled with the selected physical height after the BVP-height search.
+        z_m: 0,
         nmpFeed_kg_h: mNMP,
         y_feed_thermo,
         V_feed_surrogate_mol_h,
@@ -1626,10 +1618,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     // Density basis follows ECR-1 precedent: use continuous-phase density.
     const rhoMix_phase1 = rrboContinuous ? rho : rhoNMP.value;
     const P1_W = powerPerRotor(powerNumber.value, rhoMix_phase1, rpm, D_R);
-    const P_shaft_per_comp_W = P1_W * ROTORS_PER_COMPARTMENT;
+    const P_shaft_physical_W = P1_W * PHYSICAL_ROTOR_COUNT;
     const P_V_W_m3 = P1_W / (A_col * hComp);
-    const P_shaft_total_W = P_shaft_per_comp_W * N_compartments;
-    const P_motor_W = P_shaft_total_W / shaftEff.value * designMargin.value;
 
     const v_st_m_s = fStator
       ? statorVelocity(qTotal_m3_h, A_col, fStator.value)
@@ -1893,9 +1883,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         // dependency block when the governed route cannot be assembled.
       }
     }
-    const bvpInput: ECR2CounterCurrentBVPInput = {
-      numberOfCompartments: N_compartments,
-      activeHeight_m: H_actual,
+    const bvpBaseInput: Omit<ECR2CounterCurrentBVPInput,
+      'numberOfCompartments' | 'activeHeight_m' | 'previousSolution'> = {
       columnCrossSectionArea_m2: A_col,
       psi_W_kg,
       statorOpenAreaFraction: fStator?.value ?? Number.NaN,
@@ -1970,44 +1959,120 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         rotorDiameter_m: D_R,
       },
       partitionBasis: bvpSettings.partitionBasis ?? null,
-      previousSolution: Array.isArray(bvpSettings.previousSolution)
-        ? bvpSettings.previousSolution
-        : null,
       solverOptions: bvpSettings.solverOptions,
     };
-    const bvpResult: ECR2CounterCurrentBVPResult =
-      phaseConfig === 'nmp_continuous_rrbo_dispersed'
-        ? solveECR2CounterCurrentBVP(bvpInput)
-        : (() => {
-            // Keep the Phase-1 correlation payload available for an unsupported
-            // orientation (notably its explicit d₃₂ status), but never begin
-            // numerical BVP work outside the governed NMP-continuous direction.
-            // The solver's early dependency exit supplies the complete frozen
-            // result shape; this engine replaces that dependency with the
-            // governing orientation block before returning it.
-            const blocked = solveECR2CounterCurrentBVP({ ...bvpInput, d32Config: null });
-            const message =
-              `Counter-current BVP is governed only for phaseConfiguration='nmp_continuous_rrbo_dispersed' ` +
-              `(NMP continuous, RRBO dispersed); received '${phaseConfig}'.`;
-            return {
-              ...blocked,
-              diagnostics: [message],
-              transferStatus: summarizeECR2PreliminaryTransferStatus([], {
-                dependency: 'phase_configuration',
-                message,
-              }),
-              failure: {
-                dependency: 'phase_configuration',
-                message,
-                compartmentIndex: null,
-                component: null,
-                provenance: [
-                  'ECR-2 BVP phase-orientation governance',
-                  'Phase-1 d₃₂ applicability is retained separately in data.d32.',
-                ],
-              },
-            };
-          })();
+    const targetInput = (inputs.lleStageInputs as Record<string, unknown> | undefined)
+      ?.targetRaffinateAromaticsMolePct as Record<string, unknown> | undefined;
+    const targetParseIssues: ValidationError[] = [];
+    const targetTagged = targetInput
+      ? parseTagged(
+          targetInput,
+          'lleStageInputs.targetRaffinateAromaticsMolePct',
+          targetParseIssues,
+          { min: 0.0001, max: 99.9999, unit: 'mol %' },
+        )
+      : undefined;
+    const targetBasis = targetInput?.productQualityBasis;
+    const physicalProductTarget = targetTagged
+      && targetBasis === 'hydrocarbon_only_physical_outlet'
+      ? {
+          value: targetTagged.value / 100,
+          sourceType: targetTagged.sourceType,
+          sourceReference: targetTagged.sourceReference,
+        }
+      : null;
+    let heightSizing: ECR2ProgressiveHeightSolveResult | null = null;
+    let bvpResult: ECR2CounterCurrentBVPResult;
+    let performanceSimulationHeight_m: number | null = null;
+    let performanceSimulationLabel: string | null = null;
+
+    if (phaseConfig === 'nmp_continuous_rrbo_dispersed' && physicalProductTarget) {
+      heightSizing = solveECR2ProgressiveHeight({
+        target: physicalProductTarget,
+        maximumCellHeight_m: hComp,
+        physicalMolecularWeights_g_mol: [
+          mwSat.value, mwMono.value, mwDi.value, mwPoly.value, 99.13,
+        ],
+        bvpBaseInput,
+        buildTrialBvpInput: ({
+          physicalHeight_m, numberOfCells, previousSolution,
+        }) => ({
+          ...bvpBaseInput,
+          numberOfCompartments: numberOfCells,
+          activeHeight_m: physicalHeight_m,
+          // Rebuild the physical agitation basis for each H. Numerical Δz_max
+          // must not affect BVP hydrodynamics or the direct-turbulence d32 route.
+          psi_W_kg: P1_W / (A_col * physicalHeight_m) / rhoMix_phase1,
+          directTurbulenceRotor: {
+            ...bvpBaseInput.directTurbulenceRotor!,
+            rotorVolume_m3: A_col * physicalHeight_m,
+          },
+          previousSolution,
+        }),
+      });
+      bvpResult = heightSizing.selectedBvp ?? createECR2BVPBlockedResult(
+        'physical_height_not_established',
+        'Required Active Extraction Height = NOT_CALCULATED because the progressive BVP search did not establish an accepted physical height.',
+        ['ECR-2 progressive BVP height search'],
+      );
+      if (heightSizing.status !== 'target_met') {
+        pushWarning(
+          'ECR2_HEIGHT_NOT_CALCULABLE',
+          `ECR-2 physical height is ${heightSizing.status === 'target_not_met' ? 'not attained' : 'not calculable'}: ${heightSizing.diagnostics[heightSizing.diagnostics.length - 1]}`,
+        );
+      }
+    } else {
+      performanceSimulationHeight_m = manualDiagnosticHeight_m ?? null;
+      const reason = phaseConfig !== 'nmp_continuous_rrbo_dispersed'
+        ? 'the NMP-continuous/RRBO-dispersed phase orientation is not active'
+        : targetInput === undefined
+          ? 'no Stage 4 target has been supplied'
+          : targetParseIssues[0]?.message
+            ?? `target basis '${String(targetBasis ?? 'missing')}' is not the required hydrocarbon_only_physical_outlet basis`;
+      if (
+        performanceSimulationHeight_m !== null &&
+        phaseConfig === 'nmp_continuous_rrbo_dispersed'
+      ) {
+        const performanceCells = Math.max(1, Math.ceil(performanceSimulationHeight_m / hComp));
+        bvpResult = solveECR2CounterCurrentBVP({
+          ...bvpBaseInput,
+          numberOfCompartments: performanceCells,
+          activeHeight_m: performanceSimulationHeight_m,
+          previousSolution: Array.isArray(bvpSettings.previousSolution)
+            ? bvpSettings.previousSolution
+            : null,
+        });
+        performanceSimulationLabel = 'PERFORMANCE SIMULATION ONLY — fixed engineer-supplied height; not an ECR-2 calculated design height.';
+        pushWarning(
+          'ECR2_HEIGHT_TARGET_UNAVAILABLE',
+          `Required Active Extraction Height = NOT_CALCULATED because ${reason}. The ${performanceSimulationHeight_m.toFixed(4)} m result is a PERFORMANCE SIMULATION ONLY and does not establish a design height.`,
+        );
+      } else {
+        bvpResult = createECR2BVPBlockedResult(
+          phaseConfig !== 'nmp_continuous_rrbo_dispersed' ? 'phase_configuration' : 'physical_product_target',
+          `Required Active Extraction Height = NOT_CALCULATED because ${reason}. No fallback geometry or BVP sizing run is permitted without the governed target.`,
+          [
+            'ECR-2 physical height target governance',
+            'A Stage 7 height, legacy manual height, or numerical mesh cap is not an ECR-2 design height.',
+          ],
+        );
+        pushWarning(
+          'ECR2_HEIGHT_TARGET_UNAVAILABLE',
+          `Required Active Extraction Height = NOT_CALCULATED because ${reason}. No ECR-2 sizing BVP was run.`,
+        );
+      }
+    }
+    const H = heightSizing?.requiredActiveHeight_m ?? manualDiagnosticHeight_m ?? hComp;
+    const N_compartments = heightSizing?.selectedNumberOfCells
+      ?? Math.max(1, Math.ceil(H / hComp));
+    const deltaZ_m = heightSizing?.selectedDeltaZ_m ?? H / N_compartments;
+    const selectedPowerPerVolume_W_m3 = P1_W / (A_col * H);
+    const selectedPsi_W_kg = selectedPowerPerVolume_W_m3 / rhoMix_phase1;
+    // N_compartments is a numerical mesh count. It must not create rotors or
+    // installed power; the BVP and reported power use the same physical basis.
+    const P_shaft_total_W = P_shaft_physical_W;
+    const P_motor_W = P_shaft_total_W / shaftEff.value * designMargin.value;
+    boundaryConditions.top.z_m = H;
     const raffinateProductQuality = bvpResult.outlets.raffinate
       ? calculateHydrocarbonProductQuality({
           componentMoleFractions: bvpResult.outlets.raffinate.componentFlows_kg_h.map(
@@ -2064,8 +2129,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     // ── Build compartment grid ───────────────────────────────────────────────
     const compartments: ECR2CompartmentState[] = [];
     for (let k = 1; k <= N_compartments; k++) {
-      const z_bottom = (k - 1) * hComp;
-      const z_top    = k * hComp;
+      const z_bottom = (k - 1) * deltaZ_m;
+      const z_top    = k * deltaZ_m;
       const z_centre = (z_bottom + z_top) / 2;
 
       compartments.push({
@@ -2081,8 +2146,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         statorVelocity_m_s: v_st_m_s,
 
         powerPerRotor_W:          P1_W,
-        shaftPower_compartment_W: P_shaft_per_comp_W,
-        powerPerVolume_W_m3:      P_V_W_m3,
+        shaftPower_compartment_W: P_shaft_physical_W,
+        powerPerVolume_W_m3:      selectedPowerPerVolume_W_m3,
 
         u_raffinate_m_s,
         u_extract_m_s,
@@ -2126,8 +2191,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const bvpAccepted = bvpResult.status === 'converged' && bvpResult.massBalanceStatus === 'passed';
     const componentLabels = ['saturates', 'monoAromatics', 'diAromatics', 'polyAromatics', 'nmp'] as const;
     const componentNames = ['Sat', 'Mono', 'Di', 'Poly', 'NMP'] as const;
-    const feedComponentFlows = bvpInput.rrboFeedComponentFlows_kg_h.map(
-      (flow, index) => flow + bvpInput.nmpFeedComponentFlows_kg_h[index],
+    const feedComponentFlows = bvpBaseInput.rrboFeedComponentFlows_kg_h.map(
+      (flow, index) => flow + bvpBaseInput.nmpFeedComponentFlows_kg_h[index],
     );
     const nullIfInvalid = (value: number | null | undefined): number | null =>
       typeof value === 'number' && Number.isFinite(value) ? value : null;
@@ -2229,7 +2294,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         'Five-component system: [0]=Saturates, [1]=Mono, [2]=Di, [3]=Poly, [4]=NMP. ' +
         'Reuses governed NRTL pseudo-component system and τ parameters. ' +
         'No second characterization model created.',
-      rotorsPerCompartmentFixed: ROTORS_PER_COMPARTMENT,
+      physicalRotorCountFixed: PHYSICAL_ROTOR_COUNT,
       engineVersions: { cel: CEL_VERSION, epd: EPD_VERSION, ecrSimulator: ENGINE_VERSION },
       thermodynamicTemperatureValidation: thermodynamicValidity,
       lleFlashAtOperatingTemperature,
@@ -2310,6 +2375,25 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       thermodynamicBasis,
       physicalBasis,
       bvp: bvpResult,
+      heightSizing: heightSizing
+        ? {
+            ...heightSizing,
+            targetBasis: 'hydrocarbon_only_physical_outlet',
+            targetExplanation:
+              'Target and achieved values use the physical raffinate outlet hydrocarbon-only molar basis: (Mono + Di + Poly) / (Sat + Mono + Di + Poly). NMP is excluded from both numerator and denominator.',
+            requiredActiveHeightStatus: heightSizing.requiredActiveHeight_m === null ? 'NOT_CALCULATED' : 'CALCULATED',
+          }
+        : {
+            status: 'not_calculable',
+            requiredActiveHeight_m: null,
+            requiredActiveHeightStatus: 'NOT_CALCULATED',
+            targetBasis: 'hydrocarbon_only_physical_outlet',
+            targetExplanation:
+              performanceSimulationLabel
+                ?? 'No compatible Stage 4 physical outlet product-quality target was supplied. Required Active Extraction Height is NOT_CALCULATED; no fallback geometry is a design result.',
+            performanceSimulationHeight_m,
+            performanceSimulationLabel,
+          },
       headlineEngineeringResults,
       massBalanceSummary,
       raffinateProductQuality,
@@ -2321,12 +2405,19 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         rotorToColumnDiameterRatio:  ratio,
         rotorDiameter_m:             D_R,
         rotorSweptArea_m2:           A_R,
-        compartmentHeight_m:         hComp,
-        rotorsPerCompartment:        ROTORS_PER_COMPARTMENT,
-        activeHeightInput_m:         H,
+        maximumCellHeight_m:         hComp,
+        numericalDeltaZ_m:           deltaZ_m,
+        physicalRotorCount:          PHYSICAL_ROTOR_COUNT,
+        activeHeightRequired_m:      heightSizing?.requiredActiveHeight_m ?? null,
+        activeHeightDiagnostic_m:    performanceSimulationHeight_m,
         nCompartments:               N_compartments,
-        activeHeightActual_m:        H_actual,
-        heightRoundingLoss_m:        H_extension,
+        activeHeightActual_m:        heightSizing?.requiredActiveHeight_m ?? null,
+        heightRoundingLoss_m:        null,
+        heightMethod:                heightSizing?.status === 'target_met'
+          ? 'progressive_bvp_product_quality_target'
+          : performanceSimulationHeight_m !== null
+            ? 'performance_simulation_only_fixed_height'
+            : 'not_calculated_no_governed_target',
         rotorType,
       },
 
@@ -2354,8 +2445,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         rotorSpeed_rpm:       rpm,
         rotorSpeed_rev_s:     rpm / 60,
         powerPerRotor_W:      P1_W,
-        powerPerCompartment_W: P_shaft_per_comp_W,
-        powerPerVolume_W_m3:  P_V_W_m3,
+        powerPerActiveColumn_W: P_shaft_physical_W,
+        powerPerVolume_W_m3:  selectedPowerPerVolume_W_m3,
         totalShaftPower_W:    P_shaft_total_W,
         totalShaftPower_kW:   P_shaft_total_W / 1000,
         motorDesignPower_W:   P_motor_W,
@@ -2365,10 +2456,10 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         powerFormula:         'P₁ = N_P · ρ_b · N³ · D_R⁵ (per rotor, ECR2-003)',
         motorFormula:         'P_motor = P_shaft_total / η_shaft × design_margin',
         // ── ψ dimensional audit fields ────────────────────────────────────────
-        psi_W_kg,
-        psiFormA_verified: 'P_V_W_m3 = N_P·ρ_b·N³·D_R⁵/(A·h) [W/m³]; ψ = P_V_W_m3/ρ_b [W/kg]; ρ_b cancels → ψ = N_P·N³·D_R⁵/(A·h) — Form A ✓',
+        psi_W_kg: selectedPsi_W_kg,
+        psiFormA_verified: 'P_V_W_m3 = N_P·ρ_b·N³·D_R⁵/(A·H_selected) [W/m³]; ψ = P_V_W_m3/ρ_b [W/kg]; ρ_b cancels — numeric Δz_max is separate from the solved physical height.',
         psiDensityCancellation: 'ρ_b enters once in numerator (powerPerRotor) and once in denominator (÷rhoMix_phase1) — not a double division; net result is density-independent',
-        powerDensityBasis: `Phase 1 continuous-phase inlet density (${continuousPhase}) = ${rhoMix_phase1.toFixed(2)} kg/m³ — same ρ_b in both P₁ and ψ normalisation`,
+        powerDensityBasis: `Physical trial basis: P₁/(A_column × selected H). Continuous-phase inlet density (${continuousPhase}) = ${rhoMix_phase1.toFixed(2)} kg/m³ is used consistently in P₁ and ψ normalisation; Δz_max is not a power-volume basis.`,
         psiMassBasis: 'Laitinen et al. (2019) nomenclature identifies ψ as mechanical power dissipation per unit mass [W/kg]; source supports conversion of P/V to ψ using liquid density.',
         psiDefinitionEvidenceStatus: 'secondary_reproduction_verified',
       },
@@ -2376,7 +2467,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       boundaryConditions,
 
       axialGrid: {
-        note: 'Phase 1: geometry and power calculated per compartment. Compositions null — requires Phase 2 forward simulation loop. Properties null — requires Phase 2 composition-dependent property calculations.',
+        note: 'Numerical BVP mesh: Δz is a numerical discretisation only. Physical active height is selected independently by the outlet hydrocarbon-only product-quality target when the target basis and BVP gates are accepted.',
         compartments,
       },
 
@@ -2532,7 +2623,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         applicabilityDiagnostics: holdupResult != null && holdupResult.status !== 'input_missing'
           ? holdupResult.applicabilityDiagnostics
           : null,
-        extrapolatedRanges: holdupResult != null && holdupResult.status !== 'input_missing'
+        extrapolatedRanges: holdupResult?.status === 'calculated_extrapolated'
           ? holdupResult.extrapolatedRanges
           : null,
         downstreamUsable: holdupResult != null
@@ -2614,7 +2705,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
 
     return {
       ...base,
-      status: bvpResult.status !== 'converged' || bvpResult.massBalanceStatus !== 'passed'
+      status: !heightSizing || heightSizing.status !== 'target_met'
+        || bvpResult.status !== 'converged' || bvpResult.massBalanceStatus !== 'passed'
         ? 'error'
         : warnings.length > 0 ? 'warning' : 'success',
       data,

@@ -24,6 +24,9 @@ description: Stages 5–11 blocking/warning validation rules, UI banner architec
 ## Stage 7 (equipment_design) — blocking
 - ECP: `packing_id` (ecp_design), HETS > 0 + source type + source ref, all 8 height allowances.
 - ECR: rotor_diameter OR rotor_ratio; rotor_speed XOR rotor_speed_range; power_number, compartment_height; compartment_efficiency > 0 + source type + source ref; shaft_efficiency, mechanical_design_margin, drive_seal_bearing_allowance; 6 height allowances.
+- If Stage 4 owns an auto-calculated Nₜ and its Process Design inputs are newer than the accepted result, disable Calculate ECR and show the direct Stage 4 Material Balance refresh action. The server must keep the same stale-Nₜ guard.
+
+**Why:** Equipment Design must never reuse a stale governed theoretical-stage count, but a generic calculation error hides the prerequisite and makes the correct recovery path unclear.
 
 ## Stage 8 (technology_comparison) — blocking only when techSelection === "both"
 - Technology selected; ECP run executed (if ECP); ECR run executed (if ECR).
