@@ -1365,10 +1365,36 @@ export default function DesignSoftwareWorkspacePage() {
   const calculateMutation = useMutation({
     mutationFn: (calculationType: string) =>
       apiRequest("POST", `/api/design-software/revisions/${activeRevisionId}/calculate`, { calculationType }) as Promise<any>,
-    onSuccess: () => {
+    onSuccess: (response: any) => {
       qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/runs`] });
       qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/results`] });
       qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/design-selection`] });
+
+      // Calculation validation failures are persisted as error runs rather than
+      // returned as HTTP failures. Surface them immediately instead of leaving an
+      // Equipment Design refresh action appearing to do nothing.
+      if (response?.run?.calculation_status === "error" && response?.run?.calculation_type === "process_design") {
+        const { errors, warnings } = validateStage("process_design");
+        const issue = Array.isArray(response.run.validation_issues) ? response.run.validation_issues[0] : null;
+        if (issue?.field === "lleStageInputs.targetRaffinateAromaticsMolePct") {
+          errors.target_raffinate_aromatics_source_reference =
+            "Enter a real citation for the target; the target number itself is not a source reference.";
+        }
+        setStageValidationErrors(prev => ({ ...prev, process_design: errors }));
+        setStageValidationWarnings(prev => ({ ...prev, process_design: warnings }));
+        setStageValidationAttempted(prev => new Set(prev).add("process_design"));
+        setActiveStep("process_design");
+        toast({
+          title: "Stage 4 Material Balance blocked",
+          description: issue?.message ?? "Resolve the highlighted Process Design validation issue, then re-run.",
+          variant: "destructive",
+        });
+        requestAnimationFrame(() => {
+          const firstKey = Object.keys(errors)[0];
+          document.querySelector(`[data-field-key="process_design__${firstKey}"]`)
+            ?.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+      }
     },
     onError: (e: any) => {
       const message = e?.message ?? "Calculation failed";
@@ -1576,6 +1602,15 @@ export default function DesignSoftwareWorkspacePage() {
       // with an error status, so gate it here before the run.
       if (val("target_raffinate_aromatics_mol") && !val("target_raffinate_aromatics_source_reference"))
         errors["target_raffinate_aromatics_source_reference"] = "Target Raffinate Aromatics Source Reference is required — enter the product-quality specification document that sets this threshold (e.g. RRBO product spec sheet, client requirement document)";
+      const targetValue = numOrNull(val("target_raffinate_aromatics_mol"));
+      const targetReference = val("target_raffinate_aromatics_source_reference");
+      const targetReferenceRepeatsValue =
+        targetValue !== null &&
+        targetReference !== "" &&
+        Number.isFinite(parseFloat(targetReference)) &&
+        Math.abs(parseFloat(targetReference) - targetValue) < 1e-9;
+      if (targetReferenceRepeatsValue)
+        errors["target_raffinate_aromatics_source_reference"] = "Enter a real source citation, not the target value repeated (for example, the approved product specification or client requirement document).";
       if (val("target_raffinate_aromatics_mol") && pd.target_raffinate_aromatics_basis !== "hydrocarbon_only_physical_outlet")
         errors["target_raffinate_aromatics_basis"] = "ECR-2 physical height requires the explicit physical raffinate outlet — hydrocarbon-only molar target basis. A Coto / surrogate basis cannot be reused.";
     }
@@ -1814,6 +1849,25 @@ export default function DesignSoftwareWorkspacePage() {
     }
 
     setActiveStep(targetKey);
+  }
+
+  function runProcessDesignCalculation() {
+    const { errors, warnings } = validateStage("process_design");
+    setStageValidationErrors(prev => ({ ...prev, process_design: errors }));
+    setStageValidationWarnings(prev => ({ ...prev, process_design: warnings }));
+    setStageValidationAttempted(prev => new Set(prev).add("process_design"));
+
+    if (Object.keys(errors).length > 0) {
+      setActiveStep("process_design");
+      requestAnimationFrame(() => {
+        const firstKey = Object.keys(errors)[0];
+        document.querySelector(`[data-field-key="process_design__${firstKey}"]`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      return;
+    }
+
+    calculateMutation.mutate("process_design");
   }
 
   // Status of a step for the left-nav indicator dot.
@@ -3625,16 +3679,18 @@ export default function DesignSoftwareWorkspacePage() {
           </div>
           {fErr4("target_raffinate_aromatics_basis") && <p className="ml-[212px] -mt-1 text-xs text-red-600">{fErr4("target_raffinate_aromatics_basis")}</p>}
           {statusLine("For ECR-2 height sizing, select the physical outlet basis only: (Mono + Di + Poly) / (Sat + Mono + Di + Poly). NMP is excluded from numerator and denominator. Surrogate-LLE targets remain screening-only.")}
-          <FieldRow
-            label="Source Reference (target)"
-            value={pd.target_raffinate_aromatics_source_reference ?? ""}
-            onChange={v => f("target_raffinate_aromatics_source_reference", v)}
-            onBlur={s}
-            unit=""
-            placeholder="Approved product specification, test report, or design basis"
-            note="Required: cite the governing source for the hydrocarbon-only raffinate aromatics target."
-            error={fErr4("target_raffinate_aromatics_source_reference")}
-          />
+          <div data-field-key="process_design__target_raffinate_aromatics_source_reference">
+            <FieldRow
+              label="Source Reference (target)"
+              value={pd.target_raffinate_aromatics_source_reference ?? ""}
+              onChange={v => f("target_raffinate_aromatics_source_reference", v)}
+              onBlur={s}
+              unit=""
+              placeholder="Approved product specification, test report, or design basis"
+              note="Required: cite the governing source for the hydrocarbon-only raffinate aromatics target."
+              error={fErr4("target_raffinate_aromatics_source_reference")}
+            />
+          </div>
           {statusLine("Governed envelope: raffinate locus x1R ∈ [0.641, 0.878] (total aromatics ≈ 6.2–20.1 mol %) at 298.15 K — targets outside fail closed, no extrapolation")}
           <div className="grid grid-cols-[200px_1fr_auto] items-start gap-3">
             <label className="text-sm text-gray-700 font-medium pt-1.5">Target Source</label>
@@ -3682,7 +3738,7 @@ export default function DesignSoftwareWorkspacePage() {
             size="sm"
             className="gap-2"
             disabled={isFrozen || calculateMutation.isPending}
-            onClick={() => calculateMutation.mutate("process_design")}
+            onClick={runProcessDesignCalculation}
           >
             <Play className="h-3.5 w-3.5" />
             {calculateMutation.isPending ? "Calculating…" : "Run Material Balance"}
@@ -6449,7 +6505,7 @@ export default function DesignSoftwareWorkspacePage() {
               variant="outline"
               className="mt-2 border-red-300 bg-white text-red-800 hover:bg-red-100"
               disabled={isFrozen || calculateMutation.isPending}
-              onClick={() => calculateMutation.mutate("process_design")}
+              onClick={runProcessDesignCalculation}
             >
               <Play className="mr-1.5 h-3.5 w-3.5" /> Run Stage 4 Material Balance
             </Button>
