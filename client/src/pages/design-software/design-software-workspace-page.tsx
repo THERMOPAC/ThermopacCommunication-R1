@@ -4918,6 +4918,7 @@ export default function DesignSoftwareWorkspacePage() {
     const simulationPower: any = displayedSnapshot?.power ?? null;
     const simulationArea: any = displayedSnapshot?.interfacialArea ?? null;
     const heightSizing: any = displayedSnapshot?.heightSizing ?? null;
+    const diameterSizing: any = displayedSnapshot?.diameterSizing ?? null;
     const d32Snapshot = displayedSnapshot?.d32;
     const d32SnapshotGovernance = getEcr2D32SnapshotGovernance(displayedSnapshot);
     const transferStatus = bvp?.transferStatus ?? displayedSnapshot?.transferStatus;
@@ -5254,9 +5255,47 @@ export default function DesignSoftwareWorkspacePage() {
             ))}
           </div>
 
-          <p className="text-xs font-semibold text-gray-700 mb-1">Simulator-only inputs</p>
-          <p className="text-[11px] text-gray-500 mb-3">Stage 7 equipment geometry and operating data are inherited above and cannot be re-entered here. The diameter override below is the only permitted simulator geometry override.</p>
-          <FieldRow label="Simulator-only diameter override" value={sim.columnDiameter_m ?? ""} onChange={v => f("columnDiameter_m", v)} onBlur={s} unit="m" note="Leave blank to inherit the governed Stage 5/Stage 7 diameter." />
+          <p className="text-xs font-semibold text-gray-700 mb-1">ECR-2 process-sizing inputs</p>
+          <p className="text-[11px] text-gray-500 mb-3">
+            Enter the governed process agitation condition and the explicit diameter trials for this simulator.
+            Stage 7 rotor/mechanical geometry remains inherited as context only: it does not determine ECR-2 ψ, P/V, trial diameter, or active height.
+          </p>
+          <TextAreaRow
+            label="ECR-2 diameter trials"
+            value={sim.column_diameter_trials_m ?? sim.columnDiameterTrials_m ?? sim.columnDiameter_m ?? ""}
+            onChange={v => f("column_diameter_trials_m", v)}
+            onBlur={s}
+            rows={2}
+            placeholder="e.g. 0.30, 0.40, 0.50"
+          />
+          <p className="ml-[212px] -mt-2 text-[11px] text-gray-500">m · comma or whitespace separated. Every listed diameter runs its own complete progressive-height BVP. The simulator returns all feasible preliminary (D,H) points and does not choose one.</p>
+          <FieldRow
+            label="Governed specific agitation ψ"
+            value={sim.governed_psi_w_kg ?? sim.governedPsi_W_kg ?? ""}
+            onChange={v => f("governed_psi_w_kg", v)}
+            onBlur={s}
+            unit="W/kg"
+            note="Independent process condition. P/V is calculated as ρmix × ψ and remains constant through every physical-height trial."
+          />
+          <SelectRow
+            label="ψ source type"
+            value={sim.governed_psi_source_type ?? "Assumed"}
+            onChange={v => f("governed_psi_source_type", v)}
+            onBlur={s}
+            options={["Measured", "Vendor", "Literature", "Assumed"]}
+            unit=""
+          />
+          <FieldRow
+            label="ψ source reference"
+            value={sim.governed_psi_source_reference ?? ""}
+            onChange={v => f("governed_psi_source_reference", v)}
+            onBlur={s}
+            unit=""
+            placeholder="Controlled process basis, test report, or approved study"
+          />
+          <div className="ml-[212px] -mt-2 rounded border border-blue-200 bg-blue-50 px-2 py-1.5 text-[11px] text-blue-900">
+            ψ density basis: continuous-phase inlet density. Rotor count, rotor volume, shaft power, motor power, physical height, and numerical cell count are excluded from process D/H sizing.
+          </div>
           <div className="mt-3 flex flex-wrap gap-1.5 text-[10px]">
             <Badge className="border border-blue-200 bg-blue-50 text-blue-700">INHERITED</Badge>
             <Badge className="border border-violet-200 bg-violet-50 text-violet-700">ENGINEER INPUT / APPROVAL</Badge>
@@ -5553,6 +5592,34 @@ export default function DesignSoftwareWorkspacePage() {
               <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-xs text-red-800 mb-4">
                 <strong>{d32SnapshotGovernance.label}</strong>
                 <p className="mt-1">The stored run snapshot has not been changed or recalculated; this display overlay prevents its legacy numerical result from being interpreted as an active design basis.</p>
+              </div>
+            )}
+            {diameterSizing && (
+              <div className="mb-4 rounded-lg border border-violet-200 bg-violet-50 p-3 text-xs text-violet-950">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-semibold">Independent ECR-2 diameter / height trials</p>
+                  <Badge className="border border-violet-300 bg-violet-100 text-violet-900 text-[10px]">
+                    {diameterSizing.feasibleDesignCount ?? 0} feasible preliminary point{Number(diameterSizing.feasibleDesignCount ?? 0) === 1 ? "" : "s"}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-[11px]">{diameterSizing.selectionExplanation ?? "No simulator diameter selection is made."}</p>
+                <div className="mt-3 overflow-x-auto rounded border border-violet-200 bg-white">
+                  <div className="min-w-[760px]">
+                    <div className="grid grid-cols-[100px_110px_120px_120px_1fr] gap-2 border-b bg-violet-50 px-3 py-2 text-[10px] font-semibold uppercase text-violet-800">
+                      <span>Diameter</span><span>Required H</span><span>ψ / P·V</span><span>Product xA,R</span><span>Trial status</span>
+                    </div>
+                    {(diameterSizing.trials ?? []).map((trial: any, index: number) => (
+                      <div key={`${trial.diameter_m}-${index}`} className="grid grid-cols-[100px_110px_120px_120px_1fr] gap-2 border-b last:border-0 px-3 py-2 text-[11px]">
+                        <span>{fmt(trial.diameter_m, 4)} m</span>
+                        <span>{trial.requiredActiveHeight_m != null ? `${fmt(trial.requiredActiveHeight_m, 4)} m` : "NOT_CALCULATED"}</span>
+                        <span>{trial.governedPsi_W_kg != null ? `${fmt(trial.governedPsi_W_kg, 5)} W/kg · ${fmt(trial.powerPerVolume_W_m3, 2)} W/m³` : "NOT_CALCULATED"}</span>
+                        <span>{trial.productAromaticsMoleFraction != null ? `${fmt(trial.productAromaticsMoleFraction * 100, 3)} mol %` : "—"}</span>
+                        <span className={trial.feasible ? "font-semibold text-emerald-700" : "text-rose-700"}>{String(trial.status ?? "dependency_blocked").replaceAll("_", " ")}{trial.diagnostic ? ` — ${trial.diagnostic}` : ""}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <p className="mt-2 text-[10px] text-violet-800">All entries are preliminary process calculations and are not release eligible. Final diameter selection requires a separate governed hydraulic criterion and belongs to the Optimizer.</p>
               </div>
             )}
             {!bvp ? (

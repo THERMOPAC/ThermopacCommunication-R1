@@ -106,7 +106,7 @@ describe('ECR-2 progressive BVP physical-height solver', () => {
       .not.toBeCloseTo(Math.round(result.requiredActiveHeight_m! / result.maximumCellHeight_m), 8);
   });
 
-  it('keeps physical height and trial agitation inputs independent of the Δz maximum', () => {
+  it('keeps governed ψ invariant across physical-height trials and independent of the Δz maximum', () => {
     const runWithMesh = (maximumCellHeight_m: number) => {
       const seen: ECR2CounterCurrentBVPInput[] = [];
       const result = solveECR2ProgressiveHeight({
@@ -120,14 +120,9 @@ describe('ECR-2 progressive BVP physical-height solver', () => {
           ...baseInput,
           numberOfCompartments: numberOfCells,
           activeHeight_m: physicalHeight_m,
-          // P/(A×H×ρ): an H-dependent physical basis, never a cell basis.
-          psi_W_kg: 12 / physicalHeight_m,
-          directTurbulenceRotor: {
-            powerNumber_Ne: 1,
-            rotorSpeed_s: 1,
-            rotorDiameter_m: 0.1,
-            rotorVolume_m3: physicalHeight_m,
-          },
+          // ψ is the governed process condition, not a whole-column rotor
+          // power divided by trial height or a numerical cell volume.
+          psi_W_kg: 12,
           previousSolution,
         }),
         solveBvp: (input) => {
@@ -145,12 +140,12 @@ describe('ECR-2 progressive BVP physical-height solver', () => {
     expect(fine.result.requiredActiveHeight_m).toBeCloseTo(coarse.result.requiredActiveHeight_m!, 12);
     expect(fine.seen.some((input) => input.numberOfCompartments > 1)).toBe(true);
     for (const input of [...coarse.seen, ...fine.seen]) {
-      expect(input.psi_W_kg * input.activeHeight_m).toBeCloseTo(12, 12);
-      expect(input.directTurbulenceRotor!.rotorVolume_m3).toBeCloseTo(input.activeHeight_m, 12);
+      expect(input.psi_W_kg).toBe(12);
+      expect(input.directTurbulenceRotor).toBeUndefined();
     }
   });
 
-  it('expands past an unphysical fixed-power starter height to establish the first accepted BVP trial', () => {
+  it('fails closed instead of changing governed ψ to recover an unphysical starter trial', () => {
     const solveBvp = vi.fn((input: ECR2CounterCurrentBVPInput) => {
       if (input.activeHeight_m < 0.04) {
         return {
@@ -174,12 +169,11 @@ describe('ECR-2 progressive BVP physical-height solver', () => {
       solveBvp,
     });
 
-    expect(result.status).toBe('target_met');
-    expect(result.requiredActiveHeight_m).not.toBeNull();
-    expect(result.trials.slice(0, 2).every((trial) => !trial.accepted)).toBe(true);
-    expect(result.trials.some((trial) => trial.accepted)).toBe(true);
-    expect(result.diagnostics.some((message) => message.includes('expanding physical height'))).toBe(true);
-    expect(solveBvp.mock.calls.some(([input]) => input.activeHeight_m >= 0.04)).toBe(true);
+    expect(result.status).toBe('not_calculable');
+    expect(result.requiredActiveHeight_m).toBeNull();
+    expect(result.trials).toHaveLength(1);
+    expect(result.diagnostics.at(-1)).toContain('initial 0.0100 m physical-height BVP is not accepted');
+    expect(solveBvp).toHaveBeenCalledOnce();
   });
 
   it('refuses to use a converged-but-globally-unbalanced BVP point in the height search', () => {

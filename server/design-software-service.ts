@@ -805,7 +805,7 @@ export async function runCalculation(
   //   3. Stage 5 engineer-entered trial (inputs.column_diameter — existing fallback)
   // Injected into inputs.column_diameter so the mapper picks it up as the
   // selectedTrialDiameter for the engine run.
-  if (rev.module_type === 'llx' && ['ecp', 'ecr', 'ecr_simulator'].includes(calculationType)) {
+  if (rev.module_type === 'llx' && ['ecp', 'ecr'].includes(calculationType)) {
     const [dselD, hydResRow] = await Promise.all([
       getEffectiveDesignDiameterM(revisionId),
       pool.query(
@@ -820,16 +820,6 @@ export async function runCalculation(
     let resolvedD: number | null = null;
     if (dselD !== undefined && (minFeasible === null || dselD >= minFeasible - 0.001)) {
       resolvedD = dselD;           // DS-SEL governs — consistent with current sweep
-    } else if (calculationType === 'ecr_simulator') {
-      // The simulator has its own explicit override, but when it is blank the
-      // inherited Stage 5 trial diameter is the first carry-over source. Only
-      // then fall back to the accepted Common Hydraulics sweep minimum.
-      const stage5Trial = Number(inputs.column_diameter);
-      if (Number.isFinite(stage5Trial) && stage5Trial > 0) {
-        resolvedD = stage5Trial;
-      } else if (minFeasible !== null) {
-        resolvedD = minFeasible;
-      }
     } else if (minFeasible !== null) {
       resolvedD = minFeasible;     // DS-SEL stale or absent — use current sweep minimum
     }

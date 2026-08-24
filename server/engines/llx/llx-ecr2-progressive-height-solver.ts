@@ -75,8 +75,9 @@ export interface ECR2ProgressiveHeightSolveInput {
   /** Test seam only; production deliberately uses the existing full BVP. */
   solveBvp?: (input: ECR2CounterCurrentBVPInput) => ECR2CounterCurrentBVPResult;
   /**
-   * Builds each physical-height trial input. Used when a physical agitation
-   * basis must be recalculated for H rather than inherited from Δz_max.
+   * Builds each physical-height trial input for an explicitly different
+   * physical condition. Production ECR-2 process sizing keeps governed ψ
+   * invariant across H and normally uses bvpBaseInput directly.
    */
   buildTrialBvpInput?: (trial: {
     physicalHeight_m: number;
@@ -183,21 +184,6 @@ function productAromaticMoleFraction(
   } catch {
     return null;
   }
-}
-
-/**
- * A whole-column fixed-power basis makes the artificial 10 mm starter trial
- * extremely energetic. K&H 1995 can therefore produce φd ≥ 1 at a height
- * that is physically too short to represent the installed agitator volume.
- *
- * This is recoverable only while establishing the first accepted lower trial:
- * a larger physical height reduces power density and recomputes all local
- * physics. No other blocked/non-converged BVP condition is skipped.
- */
-function isRecoverableLowHeightHoldupFailure(trial: ECR2HeightTrial): boolean {
-  return trial.bvpStatus === 'blocked'
-    && typeof trial.failure === 'string'
-    && /K&H 1995 holdup is unusable: physically_invalid/i.test(trial.failure);
 }
 
 export function solveECR2ProgressiveHeight(
@@ -317,20 +303,7 @@ export function solveECR2ProgressiveHeight(
       lower = candidate;
       break;
     }
-    if (!isRecoverableLowHeightHoldupFailure(candidate.trial)) {
-      return invalid(`The initial ${lowerHeight.toFixed(4)} m physical-height BVP is not accepted: ${candidate.trial.failure}`);
-    }
-    if (lowerHeight >= maximumPhysicalHeight_m) {
-      return invalid(
-        `No accepted physical-height BVP was established up to the configured ${maximumPhysicalHeight_m.toFixed(3)} m bound; ` +
-        `the lowest-height trials are physically invalid because K&H 1995 holdup is outside 0 < φd < 1.`,
-      );
-    }
-    diagnostics.push(
-      `The ${lowerHeight.toFixed(4)} m starter trial has physically invalid K&H 1995 holdup under the fixed-power whole-column basis; ` +
-      'expanding physical height to establish the first accepted trial.',
-    );
-    lowerHeight = Math.min(maximumPhysicalHeight_m, lowerHeight * 2);
+    return invalid(`The initial ${lowerHeight.toFixed(4)} m physical-height BVP is not accepted: ${candidate.trial.failure}`);
   }
   if (!lower) return invalid('No accepted physical-height BVP was established during initial physical-height expansion.');
   if (monotonicityViolation) return invalid(monotonicityViolation);

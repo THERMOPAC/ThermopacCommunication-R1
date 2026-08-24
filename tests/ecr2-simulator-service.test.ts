@@ -5,6 +5,7 @@
 // input snapshot, an incorrectly promoted result, or ECR-1 cross-contamination.
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { mapWorkspaceProcessDesignInputs } from '../server/llx-process-design-input-mapper';
 
 const ENGINE_VERSION = '1.0.0';
 
@@ -141,6 +142,7 @@ const bvp = {
 
 const processDesignInputs = {
   operating_temperature: '70',
+  extraction_temperature: '70',
   design_capacity_lph: '117.6',
   feed_service: 'Re-Refined Base Oil SN300',
   so_ratio: '1.72',
@@ -148,6 +150,14 @@ const processDesignInputs = {
   rrbo_mono_aromatics_wt: '30',
   rrbo_di_aromatics_wt: '15',
   rrbo_poly_aromatics_wt: '5',
+  // Zero-transfer fixture: this is the governed RRBO SN300 hydrocarbon-only
+  // inlet aromatic mole fraction for 50/30/15/5 mass fractions. It lets the
+  // progressive process-height solver accept its physical lower trial without
+  // inventing a manual Stage 7 height.
+  target_raffinate_aromatics_mol: '43.79949896594715',
+  target_raffinate_aromatics_source: 'Assumed',
+  target_raffinate_aromatics_source_reference: 'ECR-2 service regression target',
+  target_raffinate_aromatics_basis: 'hydrocarbon_only_physical_outlet',
   solvent_nmp_mole_fraction: '1',
   rrbo_viscosity_dynamic_value: '52',
   rrbo_viscosity_dynamic_ref_temp: '40',
@@ -159,6 +169,10 @@ const processDesignInputs = {
 
 const simulatorInputs = {
   column_diameter: '0.2523',
+  column_diameter_trials_m: '0.2523, 0.35',
+  governed_psi_w_kg: '0.1',
+  governed_psi_source_type: 'Assumed',
+  governed_psi_source_reference: 'ECR-2 service regression governed process condition',
   ecr_active_height_m: '0.01',
   compartment_height: '0.01',
   compartment_height_source: 'Assumed',
@@ -274,6 +288,22 @@ describe('ECR-2 simulator service run path', () => {
       nCompartments: 1,
       columnDiameter_m: 0.2523,
     });
+    expect(resultSnapshot.diameterSizing).toMatchObject({
+      method: 'independent_progressive_bvp_trial_per_configured_diameter',
+      selectedDiameter_m: null,
+      selectionStatus: 'NOT_SELECTED_BY_SIMULATOR',
+      trialCount: 2,
+    });
+    expect(resultSnapshot.diameterSizing.trials).toHaveLength(2);
+    expect(resultSnapshot.diameterSizing.trials.map((trial: any) => trial.diameter_m)).toEqual([0.2523, 0.35]);
+    for (const trial of resultSnapshot.diameterSizing.trials) {
+      expect(trial.governedPsi_W_kg).toBeCloseTo(0.1, 12);
+      expect(trial.powerPerVolume_W_m3).toBeCloseTo(trial.rhoMix_kg_m3 * 0.1, 10);
+      expect(trial.governance).toMatchObject({
+        releaseStatus: 'NOT_RELEASE_ELIGIBLE',
+        diameterSelection: 'NOT_SELECTED_BY_SIMULATOR',
+      });
+    }
     expect(resultSnapshot.bvp.status).toBe('converged');
     expect(resultSnapshot.bvp.massBalanceStatus).toBe('passed');
     expect(resultSnapshot.transferStatus).toMatchObject({
@@ -336,6 +366,18 @@ describe('ECR-2 simulator service run path', () => {
     });
   });
 
+  it('preserves malformed diameter-trial text for the engine to reject rather than silently dropping it', () => {
+    const mapped = mapWorkspaceProcessDesignInputs({
+      ...processDesignInputs,
+      ...simulatorInputs,
+      column_diameter_trials_m: '0.2523, malformed',
+    }, 'ecr_simulator');
+    const trials = mapped.columnDiameterTrials_m as number[];
+    expect(trials).toHaveLength(2);
+    expect(trials[0]).toBeCloseTo(0.2523, 12);
+    expect(Number.isNaN(trials[1])).toBe(true);
+  });
+
   it('persists a structured dependency-blocked snapshot when BVP inputs are missing', async () => {
     await persistSimulatorInputs({ ...simulatorInputs, bvp: null, d32Config: null });
     await service.acceptAllEcr2Stage8ResolvedValues(revisionId, userId);
@@ -391,7 +433,10 @@ describe('ECR-2 simulator service run path', () => {
     expect(execution.result.status).toBe('error');
     expect(execution.run.calculation_status).toBe('error');
     expect(snapshot.calculationRunStatus).toBe('counter_current_bvp_not_accepted');
-    expect(snapshot.bvp.massBalanceStatus).toBe('failed');
+    // A failed lower physical-height solve is intentionally retained as a
+    // NOT_CALCULATED blocked snapshot; no unaccepted BVP state is promoted as
+    // a valid mass-balance result.
+    expect(snapshot.bvp.massBalanceStatus).toBe('not_evaluated');
     expect(snapshot.bvp.status).not.toBe('converged');
 
     const accepted = await service.listResults(revisionId);

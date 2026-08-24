@@ -48,12 +48,15 @@ function simulatorInput(overrides: Record<string, unknown> = {}): Record<string,
     nmpPurity: 0.998,
     phaseConfiguration: 'nmp_continuous_rrbo_dispersed',
     columnDiameter_m: 0.6,
+    columnDiameterTrials_m: [0.6],
     activeHeight_m: 4,
     compartmentHeight_m: 0.5,
     rotorToColumnDiameterRatio: 0.5,
     rotorSpeed_rpm: 150,
     rotorType: 'shrouded turbine',
     powerNumber: { value: 5.0, unit: '-', sourceType: 'Assumed', sourceReference: 'test fixture' },
+    governedPsi_W_kg: { value: 0.1, unit: 'W/kg', sourceType: 'Assumed', sourceReference: 'test fixture governed process condition' },
+    psiDensityBasis: 'continuous_phase_inlet',
     shaftEfficiency: { value: 0.85, unit: '-', sourceType: 'Assumed', sourceReference: 'test fixture' },
     mechanicalDesignMargin: { value: 1.2, unit: '-', sourceType: 'Assumed', sourceReference: 'test fixture' },
     feedDensity: { value: 870, unit: 'kg/m3', sourceType: 'Assumed', sourceReference: 'test fixture' },
@@ -86,6 +89,23 @@ function mixWithFreshNmp(feed: ComponentVector, solventMolarRatio: number): Comp
 }
 
 describe('C2 → ECR-2 thermodynamic handoff', () => {
+  it('requires a complete explicit positive ECR-2 diameter-trial list', () => {
+    const engine = new LLXECRSimulatorEngine();
+    const requiredList = engine.validate(simulatorInput({ columnDiameterTrials_m: undefined }));
+    expect(requiredList.errors).toContainEqual(expect.objectContaining({
+      field: 'columnDiameterTrials_m',
+      severity: 'error',
+    }));
+
+    for (const trials of [[0.30, Number.NaN], [0.30, -0.40], [0]]) {
+      const validation = engine.validate(simulatorInput({ columnDiameterTrials_m: trials }));
+      expect(validation.errors).toContainEqual(expect.objectContaining({
+        field: 'columnDiameterTrials_m',
+        severity: 'error',
+      }));
+    }
+  });
+
   it('reconstructs the exact C2 SURROGATE_MW feed vector and produces identical NRTL equilibrium', () => {
     const zC2 = c2FeedMoleFractions(RRBO_W);
     const ecr2Basis = buildECR2ThermodynamicBasis({

@@ -16,6 +16,7 @@ import {
 
 const EXISTING_ECR2_TEST_GEOMETRY = {
   columnDiameter_m: 0.6,
+  columnDiameterTrials_m: [0.6],
   columnCrossSectionArea_m2: Math.PI * 0.6 ** 2 / 4,
   compartmentHeight_m: 0.5,
 };

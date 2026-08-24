@@ -162,8 +162,6 @@ const APPLICABILITY_STATEMENT =
  * Fixed physical basis for the preliminary whole-column ECR-2 model.
  * Numerical BVP cells are not mechanical stages and must never change this.
  */
-const PHYSICAL_ROTOR_COUNT = 1;
-
 const G = 9.80665; // m/s²
 const PI = Math.PI;
 
@@ -651,6 +649,11 @@ export interface ECR2SimulatorInputs {
   // ── Column geometry ────────────────────────────────────────────────────
   /** Column internal diameter D (m). */
   columnDiameter_m: number;
+  /**
+   * Explicit ECR-2 process-sizing diameter trials (m). Every entry is evaluated
+   * independently; no Stage 7/DS-SEL diameter is injected into this list.
+   */
+  columnDiameterTrials_m: readonly number[];
   /** Legacy diagnostic BVP height only; never used for physical sizing. */
   activeHeight_m?: number;
   /** Maximum numerical BVP-cell height Δz_max (m), not an equipment stage height. */
@@ -665,6 +668,16 @@ export interface ECR2SimulatorInputs {
   rotorType: string;
   /** Power number N_P (−). Source-tagged. */
   powerNumber: TaggedValue;
+
+  /**
+   * Governed process specific agitation condition ψ = (P/V)/ρ_mix (W/kg).
+   * This is an independent process input; it is never reconstructed from rotor
+   * geometry, rotor count, shaft power, or active height.
+   */
+  governedPsi_W_kg?: TaggedValue;
+  /** Density basis used with governedPsi_W_kg. Only the continuous-phase inlet
+   * density is currently supported by the Phase-1 property closure. */
+  psiDensityBasis?: 'continuous_phase_inlet';
 
   // ── Stator (optional) ──────────────────────────────────────────────────
   /** Stator open-area fraction f_stator (−). Source-tagged. Optional. */
@@ -748,6 +761,14 @@ function powerPerRotor(
   // P₁ = N_P · ρ · N³ · D_R⁵, N in rev/s
   const N = rpm / 60;
   return N_P * rho_kg_m3 * Math.pow(N, 3) * Math.pow(rotorDiameter_m, 5);
+}
+
+function validDiameterTrials(inputs: Record<string, unknown>): number[] {
+  const raw = inputs.columnDiameterTrials_m;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((value) => num(value))
+    .filter((value): value is number => value !== undefined);
 }
 
 // ── Thermodynamic-coordinate conversion ───────────────────────────────────────
@@ -1163,11 +1184,19 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     }
 
     // Column geometry
-    const D = num(inputs.columnDiameter_m);
+    const diameterTrials = validDiameterTrials(inputs);
+    const D = diameterTrials[0];
     const H = num(inputs.activeHeight_m);
     const hComp = num(inputs.compartmentHeight_m);
-    if (D === undefined || D <= 0 || D > 10)
-      err('columnDiameter_m', 'columnDiameter_m must be > 0 and ≤ 10 (m)');
+    if (!Array.isArray(inputs.columnDiameterTrials_m)) {
+      err('columnDiameterTrials_m', 'An explicit non-empty ECR-2 diameter-trial list is required; a Stage 7/DS-SEL or legacy single-diameter carry-over is not permitted.');
+    } else if (inputs.columnDiameterTrials_m.length === 0) {
+      err('columnDiameterTrials_m', 'columnDiameterTrials_m must contain at least one explicit positive diameter (m)');
+    } else if (diameterTrials.length !== inputs.columnDiameterTrials_m.length) {
+      err('columnDiameterTrials_m', 'Every columnDiameterTrials_m entry must be a finite positive number');
+    } else if (diameterTrials.some((value) => value <= 0 || value > 10)) {
+      err('columnDiameterTrials_m', 'Every columnDiameterTrials_m entry must be > 0 and ≤ 10 m');
+    }
     if (H !== undefined && (H <= 0 || H > 100))
       err('activeHeight_m', 'When supplied for a diagnostic BVP, activeHeight_m must be > 0 and ≤ 100 (m)');
     if (hComp === undefined || hComp <= 0 || hComp > 2)
@@ -1192,6 +1221,24 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
 
     // Power number
     parseTagged(inputs.powerNumber, 'powerNumber', errors, { min: 0.1, max: 20, unit: '-', required: true });
+
+    // Process agitation is an independent governed input. Rotor/mechanical
+    // fields are not an acceptable substitute for this condition.
+    if (inputs.governedPsi_W_kg === undefined || inputs.governedPsi_W_kg === null) {
+      warn(
+        'governedPsi_W_kg',
+        'Governed process specific agitation ψ is required for ECR-2 D/H sizing; rotor-derived ψ/P·V is not permitted.',
+      );
+    } else {
+      parseTagged(inputs.governedPsi_W_kg, 'governedPsi_W_kg', errors, {
+        min: 1e-12,
+        max: 1e6,
+        unit: 'W/kg',
+      });
+    }
+    if (inputs.psiDensityBasis !== undefined && inputs.psiDensityBasis !== 'continuous_phase_inlet') {
+      err('psiDensityBasis', "psiDensityBasis must be 'continuous_phase_inlet'");
+    }
 
     // Stator (optional)
     if (inputs.statorOpenAreaFraction !== undefined && inputs.statorOpenAreaFraction !== null)
@@ -1358,7 +1405,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const continuousPhase = rrboContinuous ? 'RRBO' : 'NMP';
     const dispersedPhase  = rrboContinuous ? 'NMP'  : 'RRBO';
 
-    const D      = num(inputs.columnDiameter_m)!;
+    const configuredDiameterTrials = validDiameterTrials(inputs);
+    const D      = configuredDiameterTrials[0]!;
     // A manually supplied height is retained only for an explicitly labelled
     // diagnostic BVP when no compatible physical product-quality target exists.
     // It is never used by the progressive physical-height sizing path.
@@ -1465,6 +1513,9 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         'Provide γ (N/m) at that temperature or register a governed temperature route.',
       );
     const feedDensity  = parseTagged(inputs.feedDensity,   'feedDensity',   [], { min: 500, max: 1200, unit: 'kg/m3', required: true })!;
+    const governedPsi = inputs.governedPsi_W_kg
+      ? parseTagged(inputs.governedPsi_W_kg, 'governedPsi_W_kg', [], { min: 1e-12, max: 1e6, unit: 'W/kg' })
+      : undefined;
 
     const mwRaw = inputs.molecularWeights as Record<string, unknown>;
     const mwSat  = parseTagged(mwRaw.saturates_g_mol, 'molecularWeights.saturates_g_mol', [], { min: 100, max: 1000, unit: 'g/mol', required: true })!;
@@ -1613,52 +1664,31 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const u_extract_m_s   = qNMP_m3_h  / 3600 / A_col; // downward (NMP)
     const specificThroughput = qTotal_m3_h / A_col;    // m³/(m²·h)
 
-    // ── Power ────────────────────────────────────────────────────────────────
-    // Phase 1 uses inlet-condition mixture density for all compartments.
-    // Density basis follows ECR-1 precedent: use continuous-phase density.
+    // ── Mechanical context (not a process-sizing basis) ─────────────────────
+    // These values remain available as descriptive rotor/mechanical context.
+    // They must not determine process P/V or ψ; mechanical design is a later
+    // consumer of a selected process design.
     const rhoMix_phase1 = rrboContinuous ? rho : rhoNMP.value;
     const P1_W = powerPerRotor(powerNumber.value, rhoMix_phase1, rpm, D_R);
-    const P_shaft_physical_W = P1_W * PHYSICAL_ROTOR_COUNT;
-    const P_V_W_m3 = P1_W / (A_col * hComp);
+    const P_shaft_physical_W = P1_W;
+    const psi_W_kg = governedPsi?.value ?? Number.NaN;
+    const P_V_W_m3 = Number.isFinite(psi_W_kg)
+      ? rhoMix_phase1 * psi_W_kg
+      : Number.NaN;
 
     const v_st_m_s = fStator
       ? statorVelocity(qTotal_m3_h, A_col, fStator.value)
       : null;
 
-    // ── ψ — mechanical specific power dissipation (Form A) ───────────────────
-    //
-    // This implementation uses Form A:
-    //
-    //   P₁      = N_P · ρ_b · N³ · D_R⁵                [W]       ← includes ρ_b
-    //   P/V     = P₁ / (A_col · h_comp)                 [W/m³]    ← includes ρ_b
-    //   ψ       = (P/V) / ρ_b                           [W/kg = m²/s³]
-    //           = N_P · ρ_b · N³ · D_R⁵ / (A·h) / ρ_b
-    //           = N_P · N³ · D_R⁵ / (A_col · h_comp)   ← ρ_b cancels ✓
-    //
-    // Density basis ρ_b: continuous-phase inlet density (rhoMix_phase1).
-    // Same ρ_b appears once in the numerator (powerPerRotor) and once in the
-    // denominator (division below) — it cancels completely.
-    // This is NOT a double division.  The result is density-independent.
-    //
-    // Form B equivalence:
-    //   ψ = N_P · N³ · D_R⁵ / (A_col · h_comp)   [W/kg]
-    // produces the same numerical value because the same ρ_b cancelled.
-    //
-    // Reference verification (N_P=1, N=1 s⁻¹, D_R=0.1 m, A=0.01 m², h=0.1 m):
-    //   Form A:  P = 1×ρ×1³×0.1⁵ = ρ×10⁻⁵ W
-    //            P/V = ρ×10⁻⁵ / 0.001 = ρ×0.01 W/m³
-    //            ψ = ρ×0.01 / ρ = 0.01 W/kg ✓
-    //   Form B:  ψ = 1×1³×0.1⁵ / (0.01×0.1) = 10⁻⁵/10⁻³ = 0.01 W/kg ✓
-    //
-    // Literature uncertainty (unresolved, does NOT affect calculation):
-    //   The exact liquid mass basis K&H 1995 intended for ψ has not been
-    //   confirmed from the primary paper. Since ρ_b cancels, the numerical
-    //   result is the same regardless of whether K&H used total, continuous,
-    //   or dispersed mass basis — provided their density appears consistently
-    //   in both P₁ and the ψ normalisation.
-    //   psiDefinitionEvidenceStatus = 'thermopac_preliminary'
-    //
-    const psi_W_kg = P_V_W_m3 / rhoMix_phase1;
+    // ── Governed process agitation basis ────────────────────────────────────
+    // P/V = ρ_mix × ψ.  ψ is an independent, source-tagged process condition,
+    // so changing physical height or diameter cannot silently change agitation.
+    if (!governedPsi) {
+      pushWarning(
+        'GOVERNED_PSI_MISSING',
+        'ECR-2 D/H sizing is blocked because governedPsi_W_kg is missing; rotor-derived ψ/P·V is not permitted.',
+      );
+    }
 
     // ── K&H 1995 holdup — uniform Phase 1 calculation ─────────────────────────
     //
@@ -1738,12 +1768,6 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       rho_c_kg_m3:    rhoNMP.value,       // NMP = continuous phase
       rho_d_kg_m3:    feedDensity.value,  // RRBO = dispersed phase
       sigma_N_m:      gamma?.value,
-      directTurbulence: {
-        powerNumber_Ne: powerNumber.value,
-        rotorSpeed_s: rpm / 60,
-        rotorDiameter_m: D_R,
-        rotorVolume_m3: A_col * hComp,
-      },
     };
 
     const d32Result: D32Result | null = !d32Config
@@ -1953,11 +1977,6 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         diffusivity: bvpSettings.diffusivity ?? emptyDiffusivityContract(),
       },
       d32Config: d32Config ?? null,
-      directTurbulenceRotor: {
-        powerNumber_Ne: powerNumber.value,
-        rotorSpeed_s: rpm / 60,
-        rotorDiameter_m: D_R,
-      },
       partitionBasis: bvpSettings.partitionBasis ?? null,
       solverOptions: bvpSettings.solverOptions,
     };
@@ -1994,21 +2013,6 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           mwSat.value, mwMono.value, mwDi.value, mwPoly.value, 99.13,
         ],
         bvpBaseInput,
-        buildTrialBvpInput: ({
-          physicalHeight_m, numberOfCells, previousSolution,
-        }) => ({
-          ...bvpBaseInput,
-          numberOfCompartments: numberOfCells,
-          activeHeight_m: physicalHeight_m,
-          // Rebuild the physical agitation basis for each H. Numerical Δz_max
-          // must not affect BVP hydrodynamics or the direct-turbulence d32 route.
-          psi_W_kg: P1_W / (A_col * physicalHeight_m) / rhoMix_phase1,
-          directTurbulenceRotor: {
-            ...bvpBaseInput.directTurbulenceRotor!,
-            rotorVolume_m3: A_col * physicalHeight_m,
-          },
-          previousSolution,
-        }),
       });
       const heightSizingFailure = heightSizing.diagnostics[heightSizing.diagnostics.length - 1]
         ?? 'the progressive BVP search did not establish an accepted physical height.';
@@ -2064,14 +2068,127 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         );
       }
     }
+
+    /**
+     * Every configured diameter is an independent physical BVP/height trial.
+     * The first trial above remains the legacy-detail payload; all remaining
+     * trials are evaluated here with their own area and full local BVP closure.
+     * There is deliberately no diameter-ranking or selection step.
+     */
+    const summarizeDiameterTrial = (
+      diameter_m: number,
+      area_m2: number,
+      sizing: ECR2ProgressiveHeightSolveResult | null,
+      bvp: ECR2CounterCurrentBVPResult,
+      reason: string | null = null,
+    ) => {
+      const accepted = bvp.status === 'converged' && bvp.massBalanceStatus === 'passed';
+      const quality = bvp.outlets.raffinate && accepted
+        ? calculateHydrocarbonProductQuality({
+            componentMoleFractions: bvp.outlets.raffinate.componentFlows_kg_h.map(
+              (flow, index) => (flow * 1000) / [
+                mwSat.value, mwMono.value, mwDi.value, mwPoly.value, NMP_MW_G_MOL,
+              ][index],
+            ),
+            componentMassFlows_kg_h: bvp.outlets.raffinate.componentFlows_kg_h,
+          })
+        : null;
+      const trialStatus = sizing?.status === 'target_met' && accepted
+        ? 'feasible_preliminary'
+        : sizing?.status === 'target_not_met'
+          ? 'target_not_met'
+          : 'dependency_blocked';
+      return {
+        diameter_m,
+        columnCrossSectionArea_m2: area_m2,
+        governedPsi_W_kg: Number.isFinite(psi_W_kg) ? psi_W_kg : null,
+        psiDensityBasis: 'continuous_phase_inlet',
+        rhoMix_kg_m3: rhoMix_phase1,
+        powerPerVolume_W_m3: Number.isFinite(P_V_W_m3) ? P_V_W_m3 : null,
+        superficialVelocities_m_s: {
+          rrbo: qRRBO_m3_h / 3600 / area_m2,
+          nmp: qNMP_m3_h / 3600 / area_m2,
+        },
+        status: trialStatus,
+        feasible: trialStatus === 'feasible_preliminary',
+        requiredActiveHeight_m: sizing?.requiredActiveHeight_m ?? null,
+        productQualityResidual: sizing?.residual ?? null,
+        productAromaticsMoleFraction: sizing?.achievedProductAromaticsMoleFraction
+          ?? quality?.x_A_R_product.value
+          ?? null,
+        heightSizing: sizing,
+        bvp,
+        diagnostic: reason
+          ?? sizing?.diagnostics.at(-1)
+          ?? bvp.failure?.message
+          ?? null,
+        governance: {
+          processCalculation: 'PRELIMINARY_PROCESS_CALCULATION',
+          releaseStatus: 'NOT_RELEASE_ELIGIBLE',
+          diameterSelection: 'NOT_SELECTED_BY_SIMULATOR',
+        },
+      };
+    };
+
+    const diameterTrials = [
+      summarizeDiameterTrial(D, A_col, heightSizing, bvpResult),
+      ...configuredDiameterTrials.slice(1).map((trialDiameter_m) => {
+        const trialArea_m2 = columnCrossSectionArea(trialDiameter_m);
+        if (phaseConfig !== 'nmp_continuous_rrbo_dispersed' || !physicalProductTarget) {
+          const reason = phaseConfig !== 'nmp_continuous_rrbo_dispersed'
+            ? 'The NMP-continuous/RRBO-dispersed phase orientation is not active.'
+            : 'No compatible governed physical product-quality target is available.';
+          return summarizeDiameterTrial(
+            trialDiameter_m,
+            trialArea_m2,
+            null,
+            createECR2BVPBlockedResult('physical_product_target', `Required Active Extraction Height = NOT_CALCULATED because ${reason}`),
+            reason,
+          );
+        }
+        const trialSizing = solveECR2ProgressiveHeight({
+          target: physicalProductTarget,
+          maximumCellHeight_m: hComp,
+          physicalMolecularWeights_g_mol: [
+            mwSat.value, mwMono.value, mwDi.value, mwPoly.value, NMP_MW_G_MOL,
+          ],
+          bvpBaseInput: {
+            ...bvpBaseInput,
+            columnCrossSectionArea_m2: trialArea_m2,
+            psi_W_kg,
+          },
+        });
+        const trialBvp = trialSizing.selectedBvp ?? createECR2BVPBlockedResult(
+          'physical_height_not_established',
+          `Required Active Extraction Height = NOT_CALCULATED because ${
+            trialSizing.diagnostics.at(-1)
+              ?? 'the progressive BVP search did not establish an accepted physical height.'
+          }`,
+          ['ECR-2 progressive BVP height search', ...trialSizing.diagnostics],
+        );
+        return summarizeDiameterTrial(trialDiameter_m, trialArea_m2, trialSizing, trialBvp);
+      }),
+    ];
+    const feasibleDesignSet = diameterTrials
+      .filter((trial) => trial.feasible)
+      .map((trial) => ({
+        diameter_m: trial.diameter_m,
+        requiredActiveHeight_m: trial.requiredActiveHeight_m,
+        columnCrossSectionArea_m2: trial.columnCrossSectionArea_m2,
+        governedPsi_W_kg: trial.governedPsi_W_kg,
+        powerPerVolume_W_m3: trial.powerPerVolume_W_m3,
+        productAromaticsMoleFraction: trial.productAromaticsMoleFraction,
+        productQualityResidual: trial.productQualityResidual,
+        releaseStatus: trial.governance.releaseStatus,
+      }));
     const H = heightSizing?.requiredActiveHeight_m ?? manualDiagnosticHeight_m ?? hComp;
     const N_compartments = heightSizing?.selectedNumberOfCells
       ?? Math.max(1, Math.ceil(H / hComp));
     const deltaZ_m = heightSizing?.selectedDeltaZ_m ?? H / N_compartments;
-    const selectedPowerPerVolume_W_m3 = P1_W / (A_col * H);
-    const selectedPsi_W_kg = selectedPowerPerVolume_W_m3 / rhoMix_phase1;
+    const selectedPowerPerVolume_W_m3 = P_V_W_m3;
+    const selectedPsi_W_kg = psi_W_kg;
     // N_compartments is a numerical mesh count. It must not create rotors or
-    // installed power; the BVP and reported power use the same physical basis.
+    // alter the governed process agitation condition.
     const P_shaft_total_W = P_shaft_physical_W;
     const P_motor_W = P_shaft_total_W / shaftEff.value * designMargin.value;
     boundaryConditions.top.z_m = H;
@@ -2288,6 +2405,18 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         releaseStatus: bvpResult.transferStatus.releaseStatus,
         message: bvpResult.transferStatus.message,
       },
+      diameterSizing: {
+        method: 'independent_progressive_bvp_trial_per_configured_diameter',
+        selectedDiameter_m: null,
+        selectionStatus: 'NOT_SELECTED_BY_SIMULATOR',
+        selectionExplanation:
+          'The ECR-2 simulator has no independent governed hydraulic diameter criterion. ' +
+          'It returns the complete feasible preliminary (D,H) set; final diameter selection belongs to the Optimizer.',
+        trialCount: diameterTrials.length,
+        trials: diameterTrials,
+        feasibleDesignSet,
+        feasibleDesignCount: feasibleDesignSet.length,
+      },
       phaseOrientationNote:
         'z=0=BOTTOM: RRBO enters (upward), extract exits. ' +
         'z=H=TOP: fresh NMP enters (downward), raffinate exits. ' +
@@ -2296,7 +2425,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         'Five-component system: [0]=Saturates, [1]=Mono, [2]=Di, [3]=Poly, [4]=NMP. ' +
         'Reuses governed NRTL pseudo-component system and τ parameters. ' +
         'No second characterization model created.',
-      physicalRotorCountFixed: PHYSICAL_ROTOR_COUNT,
+      mechanicalRotorArrangement: 'NOT_USED_FOR_PROCESS_DH_SIZING',
       engineVersions: { cel: CEL_VERSION, epd: EPD_VERSION, ecrSimulator: ENGINE_VERSION },
       thermodynamicTemperatureValidation: thermodynamicValidity,
       lleFlashAtOperatingTemperature,
@@ -2402,6 +2531,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
 
       geometry: {
         formulaReference: 'ECR2-001',
+        trialDiameter_m:             D,
         columnDiameter_m:            D,
         columnCrossSectionArea_m2:   A_col,
         rotorToColumnDiameterRatio:  ratio,
@@ -2409,7 +2539,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         rotorSweptArea_m2:           A_R,
         maximumCellHeight_m:         hComp,
         numericalDeltaZ_m:           deltaZ_m,
-        physicalRotorCount:          PHYSICAL_ROTOR_COUNT,
+        physicalRotorCount:          null,
         activeHeightRequired_m:      heightSizing?.requiredActiveHeight_m ?? null,
         activeHeightDiagnostic_m:    performanceSimulationHeight_m,
         nCompartments:               N_compartments,
@@ -2443,6 +2573,10 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       power: {
         formulaReference: 'ECR2-003',
         phase1DensityBasis: `Continuous-phase (${continuousPhase}) inlet density ${rhoMix_phase1.toFixed(1)} kg/m³ — Phase 1 uniform; axial variation requires Phase 2`,
+        processSizingBasis: 'P/V = rho_mix × governed ψ; rotor/mechanical power is not used to size D or H.',
+        governedPsi: governedPsi
+          ? { value_W_kg: governedPsi.value, source: sourceOf(governedPsi), densityBasis: 'continuous_phase_inlet' }
+          : null,
         N_P:                  { value: powerNumber.value, source: sourceOf(powerNumber) },
         rotorSpeed_rpm:       rpm,
         rotorSpeed_rev_s:     rpm / 60,
@@ -2455,15 +2589,13 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         motorDesignPower_kW:  P_motor_W / 1000,
         shaftEfficiency:      { value: shaftEff.value,     source: sourceOf(shaftEff) },
         designMargin:         { value: designMargin.value, source: sourceOf(designMargin) },
-        powerFormula:         'P₁ = N_P · ρ_b · N³ · D_R⁵ (per rotor, ECR2-003)',
+        powerFormula:         'Mechanical context only: P₁ = N_P · ρ_b · N³ · D_R⁵ (not used for process D/H sizing)',
         motorFormula:         'P_motor = P_shaft_total / η_shaft × design_margin',
-        // ── ψ dimensional audit fields ────────────────────────────────────────
         psi_W_kg: selectedPsi_W_kg,
-        psiFormA_verified: 'P_V_W_m3 = N_P·ρ_b·N³·D_R⁵/(A·H_selected) [W/m³]; ψ = P_V_W_m3/ρ_b [W/kg]; ρ_b cancels — numeric Δz_max is separate from the solved physical height.',
-        psiDensityCancellation: 'ρ_b enters once in numerator (powerPerRotor) and once in denominator (÷rhoMix_phase1) — not a double division; net result is density-independent',
-        powerDensityBasis: `Physical trial basis: P₁/(A_column × selected H). Continuous-phase inlet density (${continuousPhase}) = ${rhoMix_phase1.toFixed(2)} kg/m³ is used consistently in P₁ and ψ normalisation; Δz_max is not a power-volume basis.`,
-        psiMassBasis: 'Laitinen et al. (2019) nomenclature identifies ψ as mechanical power dissipation per unit mass [W/kg]; source supports conversion of P/V to ψ using liquid density.',
-        psiDefinitionEvidenceStatus: 'secondary_reproduction_verified',
+        psiFormA_verified: 'P/V = rho_mix × governed ψ [W/m³]; ψ is invariant across every physical-height and diameter trial.',
+        powerDensityBasis: `Process trial basis: ρ_mix (${continuousPhase} inlet) × governed ψ. Active height, rotor count, rotor pitch, rotor volume, shaft power, and motor power are excluded.`,
+        psiMassBasis: 'Governed process specific agitation condition [W/kg].',
+        psiDefinitionEvidenceStatus: 'governed_process_input',
       },
 
       boundaryConditions,
@@ -2707,10 +2839,11 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
 
     return {
       ...base,
-      status: !heightSizing || heightSizing.status !== 'target_met'
-        || bvpResult.status !== 'converged' || bvpResult.massBalanceStatus !== 'passed'
+      status: feasibleDesignSet.length === 0
         ? 'error'
-        : warnings.length > 0 ? 'warning' : 'success',
+        : warnings.length > 0 || feasibleDesignSet.length !== diameterTrials.length
+          ? 'warning'
+          : 'success',
       data,
       warnings,
       validationIssues: gate.errors,
