@@ -4939,7 +4939,7 @@ export default function DesignSoftwareWorkspacePage() {
     const hasStaleAcceptedSnapshot = !!simResult && showingFailedSnapshot;
     const fmt = (value: any, digits = 4) => typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "—";
     const inherited = [
-      ["Operating temperature", d("design_basis").operating_temperature, "Design Basis"],
+      ["Operating temperature", d("process_design").extraction_temperature, "Stage 4 Process Design — Extraction Temperature"],
       ["RRBO feed", simulationBasis?.rrboFeed?.massFlow_kg_h ? `${fmt(simulationBasis.rrboFeed.massFlow_kg_h, 3)} kg/h` : (d("process_design").design_capacity_lph ? `${d("process_design").design_capacity_lph} LPH physical feed basis` : ""), "Stage 4 Process Design"],
       ["RRBO composition", d("process_design").rrbo_saturates_wt ? `Sat ${d("process_design").rrbo_saturates_wt}% · Mono ${d("process_design").rrbo_mono_aromatics_wt}% · Di ${d("process_design").rrbo_di_aromatics_wt}% · Poly ${d("process_design").rrbo_poly_aromatics_wt}%` : "Missing", "Stage 4 Process Design"],
       ["NMP feed / S/O ratio", simulationBasis?.nmpSolvent?.massFlow_kg_h ? `${fmt(simulationBasis.nmpSolvent.massFlow_kg_h, 3)} kg/h · S/O ${fmt(simulationBasis.SO_massRatio, 4)} mass basis` : (d("process_design").so_ratio ? `${d("process_design").so_ratio} volume basis` : ""), "Stage 4 Process Design"],
