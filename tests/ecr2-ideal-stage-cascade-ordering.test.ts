@@ -31,7 +31,7 @@ vi.mock('../server/engines/llx/llx-ecr2-local-nrtl', () => ({
 import { solveECR2IdealStageCascade } from '../server/engines/llx/llx-ecr2-ideal-stage-cascade';
 
 describe('ECR-2 ideal-stage minimum-count proof', () => {
-  it('does not establish a later passing N when a lower N was not calculable', () => {
+  it('blocks before a lower-stage NRTL failure can be considered without a governed mapping', () => {
     state.calls = 0;
     state.failFirst = true;
     const result = solveECR2IdealStageCascade({
@@ -43,15 +43,15 @@ describe('ECR-2 ideal-stage minimum-count proof', () => {
       maxIdealStages: 2,
     });
 
-    expect(result.trials[0]).toMatchObject({ idealStageCount: 1, counterCurrentConverged: false });
-    expect(result.trials[1]).toMatchObject({ idealStageCount: 2, accepted: true, massBalancePassed: true });
-    expect(result.status).toBe('not_calculable');
-    expect(result.statusLabel).toBe('NOT_CALCULABLE');
+    expect(state.calls).toBe(0);
+    expect(result.trials).toEqual([]);
+    expect(result.status).toBe('thermodynamic_surrogate_to_physical_mapping_not_closed');
+    expect(result.statusLabel).toBe('THERMODYNAMIC SURROGATE-TO-PHYSICAL MAPPING NOT CLOSED');
     expect(result.establishedTheoreticalStages).toBeNull();
-    expect(result.diagnostics.at(-1)).toContain('every smaller integer stage count');
+    expect(result.diagnostics.at(-1)).toContain('unvalidated historical sensitivity');
   });
 
-  it('establishes the minimum N when every lower count was valid and the first count passes', () => {
+  it('blocks before a seemingly passing first stage can establish N_T without a governed mapping', () => {
     state.calls = 0;
     state.failFirst = false;
     const result = solveECR2IdealStageCascade({
@@ -63,13 +63,10 @@ describe('ECR-2 ideal-stage minimum-count proof', () => {
       maxIdealStages: 2,
     });
 
-    expect(result.status).toBe('target_met');
-    expect(result.establishedTheoreticalStages).toBe(1);
-    expect(result.selectedTrial).toMatchObject({
-      idealStageCount: 1,
-      accepted: true,
-      counterCurrentConverged: true,
-      massBalancePassed: true,
-    });
+    expect(state.calls).toBe(0);
+    expect(result.trials).toEqual([]);
+    expect(result.status).toBe('thermodynamic_surrogate_to_physical_mapping_not_closed');
+    expect(result.establishedTheoreticalStages).toBeNull();
+    expect(result.selectedTrial).toBeNull();
   });
 });

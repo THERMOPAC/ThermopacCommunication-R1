@@ -33,20 +33,21 @@ const nonNegativeVector = (values: readonly number[]) =>
   values.length === N_COMPONENTS && values.every((value) => finite(value) && value >= 0);
 
 export const ECR2_IDEAL_STAGE_CASCADE_BASIS = {
-  method: 'counter_current_complete_local_nrtl_equilibrium_on_conserved_physical_component_molar_flows',
+  method: 'blocked_pending_governed_coto_surrogate_to_physical_pseudocomponent_mapping',
   maximumIdealStages: 40,
   maximumCounterCurrentSweeps: 300,
   relativeConvergenceTolerance: 1e-8,
   componentMassBalanceTolerance_kg_h: 1e-6,
   totalMassBalanceTolerance_kg_h: 5e-6,
   productQualityBasis: 'hydrocarbon_only_physical_outlet',
-  molecularWeightArchitecture: 'physical_component_mw_for_all_kg_h_mol_h_conversions__coto_surrogate_mw_for_nrtl_component_identity_only',
+  molecularWeightArchitecture: 'physical_and_coto_surrogate_mw_define_materially_different_mole_coordinates__no_nrtl_stage_calculation_until_mapping_is_governed',
 } as const;
 
 export type ECR2IdealStageCascadeStatus =
   | 'target_met'
   | 'no_feasible_theoretical_stage_cascade'
-  | 'not_calculable';
+  | 'not_calculable'
+  | 'thermodynamic_surrogate_to_physical_mapping_not_closed';
 
 export interface ECR2IdealStageAxialProfile {
   stageNumber: number;
@@ -74,8 +75,29 @@ export interface ECR2IdealStageMolecularWeightBasis {
   componentOrder: readonly ['Sat', 'Mono', 'Di', 'Poly', 'NMP'];
   physicalMolecularWeights_g_mol: Vector;
   surrogateMolecularWeights_g_mol: Vector;
-  physicalBasisUse: 'all component kg/h to mol/h and mol/h to kg/h conversions, product quality, recovery, and mass balance';
-  surrogateBasisUse: 'NRTL component identity/coordinate only; never a physical mass-flow or recovery conversion';
+  physicalBasisUse: 'physical pseudo-component material-balance and reporting basis; it does not define Coto/NRTL mole fractions without a governed mapping';
+  surrogateBasisUse: 'Coto NRTL component-identity and fitted-mole-coordinate basis; it does not define project physical pseudo-component moles';
+}
+
+export interface ECR2ThermodynamicSurrogatePhysicalMappingAudit {
+  status: 'not_closed';
+  statusLabel: 'THERMODYNAMIC SURROGATE-TO-PHYSICAL MAPPING NOT CLOSED';
+  resolutionRequired: string;
+  componentMappings: readonly {
+    physicalPseudoComponent: 'Sat' | 'Mono' | 'Di' | 'Poly' | 'NMP';
+    cotoSurrogate: 'n-dodecane' | '1,4-xylene' | '1-methylnaphthalene' | 'pyrene' | 'NMP';
+    physicalMolecularWeight_g_mol: number;
+    surrogateMolecularWeight_g_mol: number;
+    hypotheticalMassEquivalentSurrogateMolesPerPhysicalMole: number;
+    conservedQuantity: string;
+  }[];
+  feedCoordinateAudit: {
+    componentFeedMassFlows_kg_h: Vector;
+    physicalPseudoComponentMolarFlows_mol_h: Vector;
+    nrtlZFromPhysicalPseudoComponentMW: Vector;
+    surrogateComponentMolarFlows_mol_h: Vector;
+    nrtlZFromSurrogateMW: Vector;
+  } | null;
 }
 
 export interface ECR2IdealStageCascadeTrial {
@@ -101,6 +123,7 @@ export interface ECR2IdealStageCascadeResult {
   recoveryRequirement: typeof ECR2_RRBO_RECOVERY_REQUIREMENT;
   basis: typeof ECR2_IDEAL_STAGE_CASCADE_BASIS;
   molecularWeightBasis: ECR2IdealStageMolecularWeightBasis;
+  thermodynamicSurrogatePhysicalMapping: ECR2ThermodynamicSurrogatePhysicalMappingAudit;
   establishedTheoreticalStages: number | null;
   achievedProductAromaticsMoleFraction: number | null;
   aromaticResidual: number | null;
@@ -109,6 +132,59 @@ export interface ECR2IdealStageCascadeResult {
   selectedTrial: ECR2IdealStageCascadeTrial | null;
   trials: readonly ECR2IdealStageCascadeTrial[];
   diagnostics: readonly string[];
+}
+
+const COTO_SURROGATE_LABELS = [
+  'n-dodecane',
+  '1,4-xylene',
+  '1-methylnaphthalene',
+  'pyrene',
+  'NMP',
+] as const;
+
+function buildThermodynamicSurrogatePhysicalMappingAudit(
+  input: ECR2IdealStageCascadeInput,
+): ECR2ThermodynamicSurrogatePhysicalMappingAudit {
+  const physicalMolecularWeights = input.physicalMolecularWeights_g_mol;
+  const surrogateMolecularWeights = asVector(SURROGATE_MOLECULAR_WEIGHTS_G_MOL);
+  const feedMassFlows = asVector(input.rrboFeedComponentFlows_kg_h.map(
+    (flow, index) => flow + input.nmpFeedComponentFlows_kg_h[index],
+  ));
+  const validMolecularWeights = physicalMolecularWeights.every((value) => finite(value) && value > 0);
+  const physicalMolarFlows = validMolecularWeights
+    ? asVector(feedMassFlows.map((flow, index) => (flow * 1000) / physicalMolecularWeights[index]))
+    : null;
+  const surrogateMolarFlows = asVector(feedMassFlows.map(
+    (flow, index) => (flow * 1000) / surrogateMolecularWeights[index],
+  ));
+  const physicalTotal = physicalMolarFlows ? sum(physicalMolarFlows) : 0;
+  const surrogateTotal = sum(surrogateMolarFlows);
+
+  return {
+    status: 'not_closed',
+    statusLabel: 'THERMODYNAMIC SURROGATE-TO-PHYSICAL MAPPING NOT CLOSED',
+    resolutionRequired: 'A governed, experimentally supported mapping must define what amount of each RRBO pseudo-component is represented by its Coto surrogate and how surrogate phase allocations convert back to physical component moles and mass. The present one-to-one class analogy is not that mapping.',
+    componentMappings: COMPONENT_LABELS.map((physicalPseudoComponent, index) => ({
+      physicalPseudoComponent,
+      cotoSurrogate: COTO_SURROGATE_LABELS[index],
+      physicalMolecularWeight_g_mol: physicalMolecularWeights[index],
+      surrogateMolecularWeight_g_mol: surrogateMolecularWeights[index],
+      hypotheticalMassEquivalentSurrogateMolesPerPhysicalMole:
+        validMolecularWeights ? physicalMolecularWeights[index] / surrogateMolecularWeights[index] : NaN,
+      conservedQuantity: index === 4
+        ? 'NMP is the same identified component and has the same MW; physical and surrogate moles coincide.'
+        : 'Unresolved. No validated physical-pseudo-mole ↔ Coto-surrogate-mole conversion is available; a mass-equivalent scaling would preserve mass only, not the fitted surrogate-mole identity.',
+    })),
+    feedCoordinateAudit: physicalMolarFlows && physicalTotal > 0 && surrogateTotal > 0
+      ? {
+          componentFeedMassFlows_kg_h: feedMassFlows,
+          physicalPseudoComponentMolarFlows_mol_h: physicalMolarFlows,
+          nrtlZFromPhysicalPseudoComponentMW: asVector(physicalMolarFlows.map((flow) => flow / physicalTotal)),
+          surrogateComponentMolarFlows_mol_h: surrogateMolarFlows,
+          nrtlZFromSurrogateMW: asVector(surrogateMolarFlows.map((flow) => flow / surrogateTotal)),
+        }
+      : null,
+  };
 }
 
 export interface ECR2IdealStageCascadeInput {
@@ -387,18 +463,19 @@ export function solveECR2IdealStageCascade(input: ECR2IdealStageCascadeInput): E
     componentOrder: COMPONENT_LABELS,
     physicalMolecularWeights_g_mol: input.physicalMolecularWeights_g_mol,
     surrogateMolecularWeights_g_mol: asVector(SURROGATE_MOLECULAR_WEIGHTS_G_MOL),
-    physicalBasisUse: 'all component kg/h to mol/h and mol/h to kg/h conversions, product quality, recovery, and mass balance',
-    surrogateBasisUse: 'NRTL component identity/coordinate only; never a physical mass-flow or recovery conversion',
+    physicalBasisUse: 'physical pseudo-component material-balance and reporting basis; it does not define Coto/NRTL mole fractions without a governed mapping',
+    surrogateBasisUse: 'Coto NRTL component-identity and fitted-mole-coordinate basis; it does not define project physical pseudo-component moles',
   };
+  const thermodynamicSurrogatePhysicalMapping = buildThermodynamicSurrogatePhysicalMappingAudit(input);
   const diagnostics = [
-    'Counter-current ideal equilibrium-stage cascade: every stage converts physical component kg/h to mol/h with physical pseudo-component MW, applies the NRTL coordinate split, then converts phase mol/h back to physical kg/h with the same physical MW.',
-    'Coto surrogate MWs identify the fixed NRTL component rows only; they are not used to convert physical flow, recovery, product quality, or mass balance.',
-    'Acceptance requires the ECR-2 hydrocarbon-only raffinate aromatic target and NMP-free RRBO recovery of at least 95% at the same integer stage count.',
+    'The Coto NRTL parameters are fitted to n-dodecane/1,4-xylene/1-methylnaphthalene/pyrene/NMP mole coordinates, while the project RRBO physical pseudo-components have different molecular weights.',
+    'A one-to-one RRBO-class ↔ Coto-surrogate screening analogy does not define a physical-pseudo-mole ↔ surrogate-mole mapping or a valid NRTL material-balance bridge.',
   ];
   const empty = (message: string): ECR2IdealStageCascadeResult => ({
     status: 'not_calculable', statusLabel: 'NOT_CALCULABLE', target: input.target,
     recoveryRequirement: ECR2_RRBO_RECOVERY_REQUIREMENT, basis: ECR2_IDEAL_STAGE_CASCADE_BASIS,
     molecularWeightBasis,
+    thermodynamicSurrogatePhysicalMapping,
     establishedTheoreticalStages: null, achievedProductAromaticsMoleFraction: null, aromaticResidual: null,
     rrboRecoveryMassFraction: null, recoveryResidual: null, selectedTrial: null, trials: [], diagnostics: [...diagnostics, message],
   });
@@ -409,6 +486,27 @@ export function solveECR2IdealStageCascade(input: ECR2IdealStageCascadeInput): E
   }
   const maximum = input.maxIdealStages ?? ECR2_IDEAL_STAGE_CASCADE_BASIS.maximumIdealStages;
   if (!Number.isInteger(maximum) || maximum < 1) return empty('Ideal-stage cascade has an invalid integer-stage safety bound.');
+  return {
+    status: 'thermodynamic_surrogate_to_physical_mapping_not_closed',
+    statusLabel: 'THERMODYNAMIC SURROGATE-TO-PHYSICAL MAPPING NOT CLOSED',
+    target: input.target,
+    recoveryRequirement: ECR2_RRBO_RECOVERY_REQUIREMENT,
+    basis: ECR2_IDEAL_STAGE_CASCADE_BASIS,
+    molecularWeightBasis,
+    thermodynamicSurrogatePhysicalMapping,
+    establishedTheoreticalStages: null,
+    achievedProductAromaticsMoleFraction: null,
+    aromaticResidual: null,
+    rrboRecoveryMassFraction: null,
+    recoveryResidual: null,
+    selectedTrial: null,
+    trials: [],
+    diagnostics: [
+      ...diagnostics,
+      'THERMODYNAMIC SURROGATE-TO-PHYSICAL MAPPING NOT CLOSED: neither the surrogate-MW coordinate nor the physical-pseudo-component-MW coordinate can be supplied to the current Coto NRTL model as a validated physical ECR-2 material balance.',
+      'No ideal-stage NRTL flash, physical product quality, RRBO recovery, or theoretical-stage result is calculated until the mapping is governed. Previously calculated 53.6715% recovery is an unvalidated historical sensitivity, not a validated physical RRBO recovery.',
+    ],
+  };
 
   const trials: ECR2IdealStageCascadeTrial[] = [];
   for (let count = 1; count <= maximum; count++) {

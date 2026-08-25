@@ -3,8 +3,8 @@ name: ECR-2 ideal-cascade two-basis architecture
 description: Governs physical mass/mole closure versus the Coto NRTL coordinate in ECR-2 ideal-stage cascades.
 ---
 
-ECR-2 ideal-stage cascades must convert every component feed and outlet between kg/h and mol/h using the project physical pseudo-component MW table. NRTL x/y/z are the corresponding mole fractions mapped onto the fixed Coto component identities; Coto surrogate MWs must never convert reported phase flow, recovery, product quality, or mass balance.
+ECR-2 ideal-stage cascades must remain fail-closed until a governed mapping establishes how each project RRBO pseudo-component is represented in the Coto NRTL component-mole coordinate. Neither physical pseudo-component MW mole fractions nor Coto surrogate-MW mole fractions can currently be treated as a validated physical ECR-2 NRTL material balance.
 
-**Why:** using surrogate MWs to map a physical feed into and out of the NRTL flash produces a conserved surrogate mass representation, not a physical material balance. It materially changed the N=1 RRBO recovery for the accepted Run #924 input snapshot from the prior 61.0131% result to 53.6715%.
+**Why:** the Coto NRTL parameters are fitted to n-dodecane/xylene/methylnaphthalene/pyrene/NMP mole fractions, while RRBO classes are distinct, broad physical pseudo-components with different MWs. The one-to-one class analogy is a screening analogy, not an experimentally supported pseudo-mole↔surrogate-mole conversion. The historical 61.0131% and 53.6715% N=1 recovery figures arise from two different unvalidated coordinate bridges.
 
-**How to apply:** retain both tables in each cascade snapshot and expose the stage trace: physical feed mol/h, z, oriented x/y, NMP-rich beta, outlet mol/h, outlet physical kg/h, and component balance. Do not change NRTL parameters, operating conditions, BVP, K&H, d32, or hydraulic models to reconcile the result.
+**How to apply:** expose both feed-coordinate vectors and component MW pairs, return `THERMODYNAMIC SURROGATE-TO-PHYSICAL MAPPING NOT CLOSED`, and calculate no ideal-stage NRTL recovery or N_T. A future mapping must define the conserved quantity and phase-flow transformation, then be independently evidenced or calibrated; do not change NRTL parameters, operating conditions, BVP, K&H, d32, or hydraulics to reconcile the result.

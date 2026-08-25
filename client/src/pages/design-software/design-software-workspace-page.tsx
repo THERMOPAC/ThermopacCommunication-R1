@@ -4919,6 +4919,8 @@ export default function DesignSoftwareWorkspacePage() {
     const heightSizing: any = displayedSnapshot?.heightSizing ?? null;
     const progressiveCompartmentSizing: any = displayedSnapshot?.progressiveCompartmentSizing ?? null;
     const idealStageCascade: any = displayedSnapshot?.idealStageCascade ?? null;
+    const idealStageMappingAudit: any = idealStageCascade?.thermodynamicSurrogatePhysicalMapping ?? null;
+    const idealStageMappingClosed = idealStageMappingAudit?.status === "closed";
     const c2TheoreticalStages: any = displayedSnapshot?.c2TheoreticalStages ?? null;
     const diameterSizing: any = displayedSnapshot?.diameterSizing ?? null;
     const axialDiagnostic: any = displayedSnapshot?.axialTransferDiagnostic ?? bvp?.axialDiagnostic ?? null;
@@ -5846,12 +5848,53 @@ export default function DesignSoftwareWorkspacePage() {
                     </Badge>
                   </div>
                   <p className="mt-1 text-[11px]">{idealStageCascade?.targetExplanation ?? "ECR-2 theoretical stages were not calculated for this snapshot."}</p>
+                  {idealStageMappingAudit?.status === "not_closed" && (
+                    <div className="mt-3 rounded border border-rose-300 bg-rose-100/80 p-2 text-[10px] text-rose-950">
+                      <p className="font-semibold">THERMODYNAMIC SURROGATE-TO-PHYSICAL MAPPING NOT CLOSED</p>
+                      <p className="mt-1">
+                        No NRTL ideal-stage split, physical product quality, RRBO recovery, or N<sub>T</sub> is calculated. The current Coto class analogy does not define a governed physical-pseudo-mole ↔ surrogate-mole bridge.
+                      </p>
+                      <p className="mt-1">{idealStageMappingAudit.resolutionRequired}</p>
+                      <div className="mt-2 overflow-x-auto">
+                        <table className="min-w-[980px] text-left">
+                          <thead className="opacity-70"><tr><th>Physical pseudo-component</th><th>Coto surrogate</th><th>Physical MW</th><th>Surrogate MW</th><th>Hypothetical mass-equivalent n<sub>s</sub>/n<sub>p</sub></th><th>Conserved quantity</th></tr></thead>
+                          <tbody>{idealStageMappingAudit.componentMappings?.map((mapping: any) => (
+                            <tr key={mapping.physicalPseudoComponent} className="border-t border-current/15">
+                              <td className="py-1">{mapping.physicalPseudoComponent}</td>
+                              <td>{mapping.cotoSurrogate}</td>
+                              <td>{fmt(mapping.physicalMolecularWeight_g_mol, 5)} g/mol</td>
+                              <td>{fmt(mapping.surrogateMolecularWeight_g_mol, 5)} g/mol</td>
+                              <td>{fmt(mapping.hypotheticalMassEquivalentSurrogateMolesPerPhysicalMole, 8)}</td>
+                              <td>{mapping.conservedQuantity}</td>
+                            </tr>
+                          ))}</tbody>
+                        </table>
+                      </div>
+                      {idealStageMappingAudit.feedCoordinateAudit && (
+                        <div className="mt-2 overflow-x-auto">
+                          <p className="font-semibold">Run feed-coordinate comparison — not interchangeable</p>
+                          <table className="mt-1 min-w-[900px] text-left">
+                            <thead className="opacity-70"><tr><th>Component</th><th>Feed kg/h</th><th>Physical mol/h</th><th>z from physical MW (B)</th><th>Surrogate mol/h</th><th>z from surrogate MW (A)</th></tr></thead>
+                            <tbody>{(idealStageCascade.molecularWeightBasis?.componentOrder ?? ["Sat", "Mono", "Di", "Poly", "NMP"]).map((component: string, index: number) => (
+                              <tr key={component} className="border-t border-current/15">
+                                <td className="py-1">{component}</td>
+                                <td>{fmt(idealStageMappingAudit.feedCoordinateAudit.componentFeedMassFlows_kg_h?.[index], 6)}</td>
+                                <td>{fmt(idealStageMappingAudit.feedCoordinateAudit.physicalPseudoComponentMolarFlows_mol_h?.[index], 6)}</td>
+                                <td>{fmt(idealStageMappingAudit.feedCoordinateAudit.nrtlZFromPhysicalPseudoComponentMW?.[index], 10)}</td>
+                                <td>{fmt(idealStageMappingAudit.feedCoordinateAudit.surrogateComponentMolarFlows_mol_h?.[index], 6)}</td>
+                                <td>{fmt(idealStageMappingAudit.feedCoordinateAudit.nrtlZFromSurrogateMW?.[index], 10)}</td>
+                              </tr>
+                            ))}</tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {idealStageCascade?.molecularWeightBasis && (
                     <div className="mt-3 rounded border border-current/15 bg-white/70 p-2 text-[10px]">
                       <p className="font-semibold">Two-basis molecular-weight audit</p>
                       <p className="mt-1">
-                        Physical pseudo-component MW is used for every kg/h ↔ mol/h conversion, physical product quality, recovery, and mass balance.
-                        Coto surrogate MW identifies the NRTL coordinate rows only and is never used to report physical kg/h.
+                        Physical pseudo-component and Coto surrogate MWs produce different mole coordinates. Until their mapping is governed, neither coordinate may be used as a validated ECR-2 NRTL material balance.
                       </p>
                       <table className="mt-2 min-w-[620px] text-left">
                         <thead className="opacity-70"><tr><th>Component</th><th>Physical MW (g/mol)</th><th>Coto surrogate MW (g/mol)</th></tr></thead>
@@ -5868,12 +5911,12 @@ export default function DesignSoftwareWorkspacePage() {
                   <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     {[
                       ["Established ECR-2 N_T", idealStageCascade?.establishedTheoreticalStages ?? "NOT_ESTABLISHED"],
-                      ["Product xA,R HC", idealStageCascade?.achievedProductAromaticsMoleFraction != null ? `${fmt(idealStageCascade.achievedProductAromaticsMoleFraction * 100, 4)} mol %` : "—"],
-                      ["RRBO recovery", idealStageCascade?.rrboRecoveryMassFraction != null ? `${fmt(idealStageCascade.rrboRecoveryMassFraction * 100, 4)} %` : "—"],
+                      ["Product xA,R HC", idealStageMappingClosed && idealStageCascade?.achievedProductAromaticsMoleFraction != null ? `${fmt(idealStageCascade.achievedProductAromaticsMoleFraction * 100, 4)} mol %` : "NOT CALCULATED — mapping not closed"],
+                      ["RRBO recovery", idealStageMappingClosed && idealStageCascade?.rrboRecoveryMassFraction != null ? `${fmt(idealStageCascade.rrboRecoveryMassFraction * 100, 4)} %` : "NOT CALCULATED — mapping not closed"],
                       ["Required recovery", idealStageCascade?.recoveryRequirement?.minimumMassFraction != null ? `≥ ${fmt(idealStageCascade.recoveryRequirement.minimumMassFraction * 100, 2)} %` : "≥ 95.00 %"],
                     ].map(([label, value]) => <div key={String(label)} className="rounded border border-current/15 bg-white/70 px-2.5 py-2"><p className="text-[10px] uppercase opacity-70">{label}</p><p className="mt-0.5 font-semibold break-words">{value}</p></div>)}
                   </div>
-                  {(idealStageCascade?.trials?.length ?? 0) > 0 && (
+                  {idealStageMappingClosed && (idealStageCascade?.trials?.length ?? 0) > 0 && (
                     <div className="mt-3 overflow-x-auto rounded border border-current/15 bg-white/70">
                       <div className="min-w-[960px]">
                         <div className="grid grid-cols-[72px_112px_122px_120px_100px_1fr] gap-2 border-b bg-black/5 px-3 py-2 text-[10px] font-semibold uppercase opacity-80">
