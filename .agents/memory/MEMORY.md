@@ -67,3 +67,4 @@
 - [ECR-2 local progressive compartments](ecr2-local-progressive-compartments.md) — separate 0.25 m counter-current NRTL/30% component-flow path; never derive it from N_T or replace the BVP.
 - [LLX product-quality basis](llx-product-quality-basis.md) — retain full-phase LLE aromatics while reporting commercial raffinate aromatics on NMP-free hydrocarbon-only molar and mass bases.
 - [ECR-2 ideal-cascade two-basis architecture](ecr2-ideal-cascade-two-basis.md) — no physical RRBO↔Coto mole bridge is governed; ideal NRTL recovery stays fail-closed.
+- [ECR-2 sulfur objective boundary](ecr2-sulfur-objective-boundary.md) — sulfur removal is primary; Coto aromatic transfer cannot imply sulfur/DBT removal.
