@@ -26,4 +26,9 @@ point. Stop as soon as recovery fails before acceptance and retain the
 diagnostics without selecting a height. Keep `H_progressive,30%` and `H_BVP`
 separate; a D/H candidate is feasible only when both independent paths pass.
 Keep ECR-2 `N_T` as `NOT_ESTABLISHED` pending a same-specification ideal-stage
-cascade, while retaining any C2 number only as labeled provenance.
+cascade, while retaining any C2 number only as labeled provenance. Run that
+ideal cascade before the 30% physical-compartment calculation; a failed
+ideal-stage dual gate blocks physical-height selection rather than converting
+or extrapolating a stage count. Establish the minimum N_T only when every
+smaller integer trial is converged and mass-balanced; an invalid lower trial
+makes N_T NOT_CALCULABLE even if a later trial passes both gates.

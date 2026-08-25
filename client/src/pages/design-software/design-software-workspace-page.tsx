@@ -4918,6 +4918,7 @@ export default function DesignSoftwareWorkspacePage() {
     const simulationArea: any = displayedSnapshot?.interfacialArea ?? null;
     const heightSizing: any = displayedSnapshot?.heightSizing ?? null;
     const progressiveCompartmentSizing: any = displayedSnapshot?.progressiveCompartmentSizing ?? null;
+    const idealStageCascade: any = displayedSnapshot?.idealStageCascade ?? null;
     const c2TheoreticalStages: any = displayedSnapshot?.c2TheoreticalStages ?? null;
     const diameterSizing: any = displayedSnapshot?.diameterSizing ?? null;
     const axialDiagnostic: any = displayedSnapshot?.axialTransferDiagnostic ?? bvp?.axialDiagnostic ?? null;
@@ -5836,6 +5837,48 @@ export default function DesignSoftwareWorkspacePage() {
                   </div>
                 )}
                 <div className={`mb-4 rounded-lg border p-3 text-xs ${
+                  idealStageCascade?.status === "target_met" ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-rose-200 bg-rose-50 text-rose-950"
+                }`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold">Same-specification counter-current ideal-stage cascade</p>
+                    <Badge className={idealStageCascade?.status === "target_met" ? "border border-emerald-300 bg-emerald-100 text-emerald-900 text-[10px]" : "border border-rose-300 bg-rose-100 text-rose-900 text-[10px]"}>
+                      {idealStageCascade?.statusLabel ?? "NOT_CALCULABLE"}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-[11px]">{idealStageCascade?.targetExplanation ?? "ECR-2 theoretical stages were not calculated for this snapshot."}</p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    {[
+                      ["Established ECR-2 N_T", idealStageCascade?.establishedTheoreticalStages ?? "NOT_ESTABLISHED"],
+                      ["Product xA,R HC", idealStageCascade?.achievedProductAromaticsMoleFraction != null ? `${fmt(idealStageCascade.achievedProductAromaticsMoleFraction * 100, 4)} mol %` : "—"],
+                      ["RRBO recovery", idealStageCascade?.rrboRecoveryMassFraction != null ? `${fmt(idealStageCascade.rrboRecoveryMassFraction * 100, 4)} %` : "—"],
+                      ["Required recovery", idealStageCascade?.recoveryRequirement?.minimumMassFraction != null ? `≥ ${fmt(idealStageCascade.recoveryRequirement.minimumMassFraction * 100, 2)} %` : "≥ 95.00 %"],
+                    ].map(([label, value]) => <div key={String(label)} className="rounded border border-current/15 bg-white/70 px-2.5 py-2"><p className="text-[10px] uppercase opacity-70">{label}</p><p className="mt-0.5 font-semibold break-words">{value}</p></div>)}
+                  </div>
+                  {(idealStageCascade?.trials?.length ?? 0) > 0 && (
+                    <div className="mt-3 overflow-x-auto rounded border border-current/15 bg-white/70">
+                      <div className="min-w-[960px]">
+                        <div className="grid grid-cols-[72px_112px_122px_120px_100px_1fr] gap-2 border-b bg-black/5 px-3 py-2 text-[10px] font-semibold uppercase opacity-80">
+                          <span>N</span><span>xA,R HC</span><span>RRBO recovery</span><span>Sweeps / balance</span><span>Accepted</span><span>Result</span>
+                        </div>
+                        {idealStageCascade.trials.map((trial: any, index: number) => (
+                          <div key={`${trial.idealStageCount}-${index}`} className="border-b last:border-0">
+                            <div className="grid grid-cols-[72px_112px_122px_120px_100px_1fr] gap-2 px-3 py-2 text-[11px]">
+                              <span>{trial.idealStageCount}</span><span>{trial.productAromaticsMoleFraction != null ? `${fmt(trial.productAromaticsMoleFraction * 100, 4)} %` : "—"}</span><span>{trial.rrboRecoveryMassFraction != null ? `${fmt(trial.rrboRecoveryMassFraction * 100, 4)} %` : "—"}</span><span>{trial.counterCurrentSweeps ?? "—"} / {trial.massBalancePassed ? "PASS" : "FAIL"}</span><span className={trial.accepted ? "font-semibold text-emerald-700" : "font-semibold text-rose-700"}>{trial.accepted ? "ACCEPT" : "REJECT"}</span><span>{trial.failure ?? "Both product and recovery gates passed."}</span>
+                            </div>
+                            {(trial.stageProfile?.length ?? 0) > 0 && (
+                              <details className="mx-3 mb-3 rounded border border-current/15 bg-white/80 px-2 py-1 text-[10px]">
+                                <summary className="cursor-pointer font-medium">Actual equilibrium phase splits for N = {trial.idealStageCount}</summary>
+                                <table className="mt-2 min-w-[920px] text-[10px]"><thead className="text-left opacity-70"><tr><th>Stage</th><th>Component</th><th>RRBO in</th><th>NMP in</th><th>RRBO out</th><th>NMP out</th><th>Balance residual</th><th>NRTL</th></tr></thead><tbody>{trial.stageProfile.flatMap((stage: any) => ["Sat", "Mono", "Di", "Poly", "NMP"].map((component, componentIndex) => <tr key={`${trial.idealStageCount}-${stage.stageNumber}-${component}`} className="border-t"><td className="py-1">{componentIndex === 0 ? stage.stageNumber : ""}</td><td>{component}</td><td>{fmt(stage.rrboIncoming_kg_h?.[componentIndex], 6)}</td><td>{fmt(stage.nmpIncoming_kg_h?.[componentIndex], 6)}</td><td>{fmt(stage.rrboOutgoing_kg_h?.[componentIndex], 6)}</td><td>{fmt(stage.nmpOutgoing_kg_h?.[componentIndex], 6)}</td><td>{fmt(stage.componentMassBalanceResidual_kg_h?.[componentIndex], 9)}</td><td>{componentIndex === 0 ? `${stage.localNrtl?.flashConverged ? "CONVERGED" : "NOT CONVERGED"} / ${stage.localNrtl?.thermodynamicClassification ?? "—"}` : ""}</td></tr>))}</tbody></table>
+                              </details>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {idealStageCascade?.diagnostics?.length > 0 && <p className="mt-2 text-[11px]">{idealStageCascade.diagnostics[idealStageCascade.diagnostics.length - 1]}</p>}
+                </div>
+                <div className={`mb-4 rounded-lg border p-3 text-xs ${
                   progressiveCompartmentSizing?.status === "target_met" ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-rose-200 bg-rose-50 text-rose-950"
                 }`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -5847,8 +5890,8 @@ export default function DesignSoftwareWorkspacePage() {
                   <p className="mt-1 text-[11px]">{progressiveCompartmentSizing?.targetExplanation ?? "Independent local physical-compartment calculation was not available in this snapshot."}</p>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     {[
-                      ["ECR-2 theoretical stages N_T", c2TheoreticalStages?.status === "same_specification_calculated" && c2TheoreticalStages?.theoreticalStages != null ? fmt(c2TheoreticalStages.theoreticalStages, 4) : "NOT_ESTABLISHED"],
-                      ["N_T status", c2TheoreticalStages?.status === "upstream_reference_not_same_specification" ? "Upstream C2 reference only — different target basis" : "No same-specification ideal-stage cascade"],
+                      ["ECR-2 theoretical stages N_T", idealStageCascade?.establishedTheoreticalStages ?? "NOT_ESTABLISHED"],
+                      ["N_T status", idealStageCascade?.statusLabel ?? (c2TheoreticalStages?.status === "upstream_reference_not_same_specification" ? "Upstream C2 reference only — different target basis" : "No same-specification ideal-stage cascade")],
                       ["Physical compartment", progressiveCompartmentSizing?.basis?.physicalCompartmentHeight_m != null ? `${fmt(progressiveCompartmentSizing.basis.physicalCompartmentHeight_m, 2)} m` : "0.25 m"],
                       ["Local equilibrium approach", progressiveCompartmentSizing?.basis?.localProgressiveEfficiency != null ? `${fmt(progressiveCompartmentSizing.basis.localProgressiveEfficiency * 100, 1)} %` : "30.0 %"],
                       ["Ncomp", progressiveCompartmentSizing?.requiredPhysicalCompartmentCount ?? "NOT_CALCULATED"],

@@ -144,9 +144,14 @@ import {
   type ECR2ProgressiveHeightSolveResult,
 } from './llx-ecr2-progressive-height-solver';
 import {
+  createECR2ProgressiveCompartmentBlockedResult,
   solveECR2ProgressiveCompartments,
   type ECR2ProgressiveCompartmentResult,
 } from './llx-ecr2-progressive-compartment-solver';
+import {
+  solveECR2IdealStageCascade,
+  type ECR2IdealStageCascadeResult,
+} from './llx-ecr2-ideal-stage-cascade';
 import { emptyDiffusivityContract } from './llx-ecr2-diffusivity';
 import {
   ECR2_STAGE8_NUMERICAL_PARAMETER_IDS,
@@ -2112,15 +2117,13 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       : null;
     let heightSizing: ECR2ProgressiveHeightSolveResult | null = null;
     let progressiveCompartmentSizing: ECR2ProgressiveCompartmentResult | null = null;
+    let idealStageCascade: ECR2IdealStageCascadeResult | null = null;
     let bvpResult: ECR2CounterCurrentBVPResult;
     let performanceSimulationHeight_m: number | null = null;
     let performanceSimulationLabel: string | null = null;
 
     if (phaseConfig === 'nmp_continuous_rrbo_dispersed' && physicalProductTarget) {
-      // Independent from the rate-based BVP height solver: physical 0.25 m
-      // compartments execute their own local NRTL equilibrium / 30% approach
-      // counter-current calculation, with no N_T-to-compartment shortcut.
-      progressiveCompartmentSizing = solveECR2ProgressiveCompartments({
+      const idealStageInput = {
         target: physicalProductTarget,
         operatingTemperature_C: T_C,
         rrboFeedComponentFlows_kg_h: [
@@ -2134,7 +2137,17 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         physicalMolecularWeights_g_mol: [
           mwSat.value, mwMono.value, mwDi.value, mwPoly.value, NMP_MW_G_MOL,
         ],
-      });
+      } as const;
+      // This must execute before the physical efficiency path. An ideal-stage
+      // count belongs to the same physical outlet target and recovery gate,
+      // never to the C2 full-phase aromatics target.
+      idealStageCascade = solveECR2IdealStageCascade(idealStageInput);
+      progressiveCompartmentSizing = idealStageCascade.status === 'target_met'
+        ? solveECR2ProgressiveCompartments(idealStageInput)
+        : createECR2ProgressiveCompartmentBlockedResult(
+            physicalProductTarget,
+            idealStageCascade.statusLabel,
+          );
       heightSizing = solveECR2ProgressiveHeight({
         target: physicalProductTarget,
         maximumCellHeight_m: hComp,
@@ -2731,6 +2744,22 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
             targetBasis: 'hydrocarbon_only_physical_outlet',
             targetExplanation:
               'No compatible Stage 4 physical outlet product-quality target was supplied. The independent 30% local physical-compartment path is NOT_CALCULATED.',
+          },
+      idealStageCascade: idealStageCascade
+        ? {
+            ...idealStageCascade,
+            targetBasis: 'hydrocarbon_only_physical_outlet',
+            targetExplanation:
+              'ECR-2 N_T is the minimum integer counter-current ideal-stage count for which the same physical hydrocarbon-only raffinate aromatic target is met while NMP-free RRBO recovery remains at least 95%.',
+          }
+        : {
+            status: 'not_calculable',
+            statusLabel: 'NOT_CALCULABLE',
+            establishedTheoreticalStages: null,
+            trials: [],
+            targetBasis: 'hydrocarbon_only_physical_outlet',
+            targetExplanation:
+              'No compatible Stage 4 physical outlet product-quality target was supplied. ECR-2 theoretical stages are NOT_ESTABLISHED.',
           },
       headlineEngineeringResults,
       massBalanceSummary,

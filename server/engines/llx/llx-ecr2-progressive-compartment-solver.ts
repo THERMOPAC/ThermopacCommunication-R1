@@ -38,6 +38,7 @@ export type ECR2ProgressiveCompartmentStatus =
   | 'target_met'
   | 'no_feasible_recovery'
   | 'target_not_met'
+  | 'blocked_by_ideal_stage_cascade'
   | 'not_calculable';
 
 export interface ECR2ProgressiveCompartmentAxialProfile {
@@ -104,6 +105,35 @@ export interface ECR2ProgressiveCompartmentInput {
   nmpFeedComponentFlows_kg_h: Vector;
   physicalMolecularWeights_g_mol: Vector;
   maxPhysicalCompartments?: number;
+}
+
+/**
+ * The physical 30% approach model must not be used to imply a process-stage
+ * result. It is therefore retained as an explicit blocked snapshot until the
+ * same-basis ideal-stage cascade establishes an ECR-2 N_T.
+ */
+export function createECR2ProgressiveCompartmentBlockedResult(
+  target: ECR2HeightQualityTarget,
+  reason: string,
+): ECR2ProgressiveCompartmentResult {
+  return {
+    status: 'blocked_by_ideal_stage_cascade',
+    target,
+    basis: ECR2_PROGRESSIVE_COMPARTMENT_BASIS,
+    recoveryRequirement: ECR2_RRBO_RECOVERY_REQUIREMENT,
+    requiredPhysicalCompartmentCount: null,
+    requiredActiveHeight_m: null,
+    achievedProductAromaticsMoleFraction: null,
+    aromaticResidual: null,
+    rrboRecoveryMassFraction: null,
+    recoveryResidual: null,
+    selectedTrial: null,
+    trials: [],
+    diagnostics: [
+      'The independent local 30% physical-compartment calculation was not run before an ECR-2 same-specification ideal-stage result existed.',
+      reason,
+    ],
+  };
 }
 
 interface LocalEquilibrium {

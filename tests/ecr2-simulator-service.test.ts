@@ -296,9 +296,15 @@ describe('ECR-2 simulator service run path', () => {
         localProgressiveEfficiency: 0.30,
       },
     });
-    expect(['no_feasible_recovery', 'not_calculable', 'target_not_met'])
+    expect(['no_feasible_recovery', 'not_calculable', 'target_not_met', 'blocked_by_ideal_stage_cascade'])
       .toContain(resultSnapshot.progressiveCompartmentSizing.status);
     expect(resultSnapshot.progressiveCompartmentSizing.status).not.toBe('target_met');
+    expect(resultSnapshot.idealStageCascade).toMatchObject({
+      targetBasis: 'hydrocarbon_only_physical_outlet',
+      establishedTheoreticalStages: null,
+      statusLabel: 'NOT_CALCULABLE',
+    });
+    expect(resultSnapshot.idealStageCascade.diagnostics.at(-1)).toContain('not evidence');
     expect(resultSnapshot.geometry).toMatchObject({
       nCompartments: 1,
       columnDiameter_m: 0.3,
