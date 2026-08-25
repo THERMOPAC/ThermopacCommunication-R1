@@ -5846,6 +5846,25 @@ export default function DesignSoftwareWorkspacePage() {
                     </Badge>
                   </div>
                   <p className="mt-1 text-[11px]">{idealStageCascade?.targetExplanation ?? "ECR-2 theoretical stages were not calculated for this snapshot."}</p>
+                  {idealStageCascade?.molecularWeightBasis && (
+                    <div className="mt-3 rounded border border-current/15 bg-white/70 p-2 text-[10px]">
+                      <p className="font-semibold">Two-basis molecular-weight audit</p>
+                      <p className="mt-1">
+                        Physical pseudo-component MW is used for every kg/h ↔ mol/h conversion, physical product quality, recovery, and mass balance.
+                        Coto surrogate MW identifies the NRTL coordinate rows only and is never used to report physical kg/h.
+                      </p>
+                      <table className="mt-2 min-w-[620px] text-left">
+                        <thead className="opacity-70"><tr><th>Component</th><th>Physical MW (g/mol)</th><th>Coto surrogate MW (g/mol)</th></tr></thead>
+                        <tbody>{(idealStageCascade.molecularWeightBasis.componentOrder ?? ["Sat", "Mono", "Di", "Poly", "NMP"]).map((component: string, componentIndex: number) => (
+                          <tr key={component} className="border-t">
+                            <td className="py-1">{component}</td>
+                            <td>{fmt(idealStageCascade.molecularWeightBasis.physicalMolecularWeights_g_mol?.[componentIndex], 5)}</td>
+                            <td>{fmt(idealStageCascade.molecularWeightBasis.surrogateMolecularWeights_g_mol?.[componentIndex], 5)}</td>
+                          </tr>
+                        ))}</tbody>
+                      </table>
+                    </div>
+                  )}
                   <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     {[
                       ["Established ECR-2 N_T", idealStageCascade?.establishedTheoreticalStages ?? "NOT_ESTABLISHED"],
@@ -5868,7 +5887,29 @@ export default function DesignSoftwareWorkspacePage() {
                             {(trial.stageProfile?.length ?? 0) > 0 && (
                               <details className="mx-3 mb-3 rounded border border-current/15 bg-white/80 px-2 py-1 text-[10px]">
                                 <summary className="cursor-pointer font-medium">Actual equilibrium phase splits for N = {trial.idealStageCount}</summary>
-                                <table className="mt-2 min-w-[920px] text-[10px]"><thead className="text-left opacity-70"><tr><th>Stage</th><th>Component</th><th>RRBO in</th><th>NMP in</th><th>RRBO out</th><th>NMP out</th><th>Balance residual</th><th>NRTL</th></tr></thead><tbody>{trial.stageProfile.flatMap((stage: any) => ["Sat", "Mono", "Di", "Poly", "NMP"].map((component, componentIndex) => <tr key={`${trial.idealStageCount}-${stage.stageNumber}-${component}`} className="border-t"><td className="py-1">{componentIndex === 0 ? stage.stageNumber : ""}</td><td>{component}</td><td>{fmt(stage.rrboIncoming_kg_h?.[componentIndex], 6)}</td><td>{fmt(stage.nmpIncoming_kg_h?.[componentIndex], 6)}</td><td>{fmt(stage.rrboOutgoing_kg_h?.[componentIndex], 6)}</td><td>{fmt(stage.nmpOutgoing_kg_h?.[componentIndex], 6)}</td><td>{fmt(stage.componentMassBalanceResidual_kg_h?.[componentIndex], 9)}</td><td>{componentIndex === 0 ? `${stage.localNrtl?.flashConverged ? "CONVERGED" : "NOT CONVERGED"} / ${stage.localNrtl?.thermodynamicClassification ?? "—"}` : ""}</td></tr>))}</tbody></table>
+                                <p className="mt-2">x<sub>eq</sub> is the RRBO-rich phase; y<sub>eq</sub> is the NMP-rich phase; β is the NMP-rich phase fraction. Feed mol/h and both outlet mol/h↔kg/h conversions use the physical MW column above.</p>
+                                <div className="mt-2 overflow-x-auto">
+                                  <table className="min-w-[1160px] text-[10px]">
+                                    <thead className="text-left opacity-70"><tr><th>Stage</th><th>Component</th><th>Feed mol/h</th><th>z</th><th>x<sub>eq</sub></th><th>y<sub>eq</sub></th><th>β</th><th>Raffinate mol/h</th><th>Extract mol/h</th><th>Raffinate kg/h</th><th>Extract kg/h</th><th>Balance residual kg/h</th></tr></thead>
+                                    <tbody>{trial.stageProfile.flatMap((stage: any) => ["Sat", "Mono", "Di", "Poly", "NMP"].map((component, componentIndex) => (
+                                      <tr key={`${trial.idealStageCount}-${stage.stageNumber}-${component}`} className="border-t">
+                                        <td className="py-1">{componentIndex === 0 ? stage.stageNumber : ""}</td>
+                                        <td>{component}</td>
+                                        <td>{fmt(stage.overallIncomingPhysicalMolarFlows_mol_h?.[componentIndex], 6)}</td>
+                                        <td>{fmt(stage.overallIncomingThermodynamicMoleFractions?.[componentIndex], 8)}</td>
+                                        <td>{fmt(stage.rrboEquilibriumThermodynamicMoleFractions?.[componentIndex], 8)}</td>
+                                        <td>{fmt(stage.nmpEquilibriumThermodynamicMoleFractions?.[componentIndex], 8)}</td>
+                                        <td>{componentIndex === 0 ? fmt(stage.nmpRichPhaseFraction_beta, 8) : ""}</td>
+                                        <td>{fmt(stage.rrboOutgoingPhysicalMolarFlows_mol_h?.[componentIndex], 6)}</td>
+                                        <td>{fmt(stage.nmpOutgoingPhysicalMolarFlows_mol_h?.[componentIndex], 6)}</td>
+                                        <td>{fmt(stage.rrboOutgoing_kg_h?.[componentIndex], 6)}</td>
+                                        <td>{fmt(stage.nmpOutgoing_kg_h?.[componentIndex], 6)}</td>
+                                        <td>{fmt(stage.componentMassBalanceResidual_kg_h?.[componentIndex], 9)}</td>
+                                      </tr>
+                                    )))}</tbody>
+                                  </table>
+                                </div>
+                                <p className="mt-2">NRTL: {trial.stageProfile[0]?.localNrtl?.flashConverged ? "CONVERGED" : "NOT CONVERGED"} / {trial.stageProfile[0]?.localNrtl?.thermodynamicClassification ?? "—"}</p>
                               </details>
                             )}
                           </div>

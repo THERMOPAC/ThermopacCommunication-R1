@@ -23,6 +23,7 @@ const SURROGATE_MOLECULAR_WEIGHTS_G_MOL = [
   SURROGATE_MW.pyrene,
   SURROGATE_MW.nmp,
 ] as const;
+const COMPONENT_LABELS = ['Sat', 'Mono', 'Di', 'Poly', 'NMP'] as const;
 
 type Vector = readonly [number, number, number, number, number];
 const asVector = (values: readonly number[]): Vector => [values[0], values[1], values[2], values[3], values[4]];
@@ -32,13 +33,14 @@ const nonNegativeVector = (values: readonly number[]) =>
   values.length === N_COMPONENTS && values.every((value) => finite(value) && value >= 0);
 
 export const ECR2_IDEAL_STAGE_CASCADE_BASIS = {
-  method: 'counter_current_complete_local_nrtl_equilibrium_on_conserved_component_mass_flows',
+  method: 'counter_current_complete_local_nrtl_equilibrium_on_conserved_physical_component_molar_flows',
   maximumIdealStages: 40,
   maximumCounterCurrentSweeps: 300,
   relativeConvergenceTolerance: 1e-8,
   componentMassBalanceTolerance_kg_h: 1e-6,
   totalMassBalanceTolerance_kg_h: 5e-6,
   productQualityBasis: 'hydrocarbon_only_physical_outlet',
+  molecularWeightArchitecture: 'physical_component_mw_for_all_kg_h_mol_h_conversions__coto_surrogate_mw_for_nrtl_component_identity_only',
 } as const;
 
 export type ECR2IdealStageCascadeStatus =
@@ -52,14 +54,28 @@ export interface ECR2IdealStageAxialProfile {
   nmpIncoming_kg_h: Vector;
   rrboOutgoing_kg_h: Vector;
   nmpOutgoing_kg_h: Vector;
+  overallIncomingPhysicalMolarFlows_mol_h: Vector;
+  overallIncomingThermodynamicMoleFractions: Vector;
   rrboEquilibriumThermodynamicMoleFractions: Vector;
   nmpEquilibriumThermodynamicMoleFractions: Vector;
+  nmpRichPhaseFraction_beta: number;
+  rrboRichPhaseFraction: number;
+  rrboOutgoingPhysicalMolarFlows_mol_h: Vector;
+  nmpOutgoingPhysicalMolarFlows_mol_h: Vector;
   componentMassBalanceResidual_kg_h: Vector;
   localNrtl: {
     flashConverged: boolean;
     flashTrivial: boolean;
     thermodynamicClassification: string;
   };
+}
+
+export interface ECR2IdealStageMolecularWeightBasis {
+  componentOrder: readonly ['Sat', 'Mono', 'Di', 'Poly', 'NMP'];
+  physicalMolecularWeights_g_mol: Vector;
+  surrogateMolecularWeights_g_mol: Vector;
+  physicalBasisUse: 'all component kg/h to mol/h and mol/h to kg/h conversions, product quality, recovery, and mass balance';
+  surrogateBasisUse: 'NRTL component identity/coordinate only; never a physical mass-flow or recovery conversion';
 }
 
 export interface ECR2IdealStageCascadeTrial {
@@ -84,6 +100,7 @@ export interface ECR2IdealStageCascadeResult {
   target: ECR2HeightQualityTarget;
   recoveryRequirement: typeof ECR2_RRBO_RECOVERY_REQUIREMENT;
   basis: typeof ECR2_IDEAL_STAGE_CASCADE_BASIS;
+  molecularWeightBasis: ECR2IdealStageMolecularWeightBasis;
   establishedTheoreticalStages: number | null;
   achievedProductAromaticsMoleFraction: number | null;
   aromaticResidual: number | null;
@@ -106,14 +123,35 @@ export interface ECR2IdealStageCascadeInput {
 interface LocalEquilibrium {
   rrboEquilibrium_kg_h: Vector;
   nmpEquilibrium_kg_h: Vector;
+  overallPhysicalMolarFlows_mol_h: Vector;
+  overallThermodynamicMoleFractions: Vector;
   rrboEquilibriumThermodynamicMoleFractions: Vector;
   nmpEquilibriumThermodynamicMoleFractions: Vector;
+  rrboPhaseFraction: number;
+  nmpPhaseFraction: number;
+  rrboEquilibriumPhysicalMolarFlows_mol_h: Vector;
+  nmpEquilibriumPhysicalMolarFlows_mol_h: Vector;
   localNrtl: ECR2LocalNRTLResult;
 }
 
-function normalizedThermodynamicMoleFractions(flows_kg_h: readonly number[]): Vector | null {
+function physicalComponentMolarFlows(
+  flows_kg_h: readonly number[],
+  physicalMolecularWeights_g_mol: Vector,
+): Vector | null {
   if (!nonNegativeVector(flows_kg_h)) return null;
-  const molarFlows = flows_kg_h.map((flow, index) => (flow * 1000) / SURROGATE_MOLECULAR_WEIGHTS_G_MOL[index]);
+  if (!physicalMolecularWeights_g_mol.every((value) => finite(value) && value > 0)) return null;
+  const molarFlows = flows_kg_h.map(
+    (flow, index) => (flow * 1000) / physicalMolecularWeights_g_mol[index],
+  );
+  return nonNegativeVector(molarFlows) ? asVector(molarFlows) : null;
+}
+
+function normalizedThermodynamicMoleFractions(
+  flows_kg_h: readonly number[],
+  physicalMolecularWeights_g_mol: Vector,
+): Vector | null {
+  const molarFlows = physicalComponentMolarFlows(flows_kg_h, physicalMolecularWeights_g_mol);
+  if (!molarFlows) return null;
   const total = sum(molarFlows);
   return total > 0 && finite(total) ? asVector(molarFlows.map((flow) => flow / total)) : null;
 }
@@ -121,11 +159,15 @@ function normalizedThermodynamicMoleFractions(flows_kg_h: readonly number[]): Ve
 function combinedThermodynamicMoleFractions(
   rrbo_kg_h: readonly number[],
   nmp_kg_h: readonly number[],
+  physicalMolecularWeights_g_mol: Vector,
 ): { fractions: Vector; totalMolarFlow_mol_h: number } | null {
   if (!nonNegativeVector(rrbo_kg_h) || !nonNegativeVector(nmp_kg_h)) return null;
-  const componentMolarFlows = rrbo_kg_h.map(
-    (flow, index) => ((flow + nmp_kg_h[index]) * 1000) / SURROGATE_MOLECULAR_WEIGHTS_G_MOL[index],
+  const combinedMassFlows = rrbo_kg_h.map((flow, index) => flow + nmp_kg_h[index]);
+  const componentMolarFlows = physicalComponentMolarFlows(
+    combinedMassFlows,
+    physicalMolecularWeights_g_mol,
   );
+  if (!componentMolarFlows) return null;
   const totalMolarFlow_mol_h = sum(componentMolarFlows);
   return totalMolarFlow_mol_h > 0 && finite(totalMolarFlow_mol_h)
     ? { fractions: asVector(componentMolarFlows.map((flow) => flow / totalMolarFlow_mol_h)), totalMolarFlow_mol_h }
@@ -136,10 +178,21 @@ function localEquilibrium(
   rrboIncoming_kg_h: Vector,
   nmpIncoming_kg_h: Vector,
   operatingTemperature_C: number,
+  physicalMolecularWeights_g_mol: Vector,
 ): { value: LocalEquilibrium | null; error: string | null } {
-  const x = normalizedThermodynamicMoleFractions(rrboIncoming_kg_h);
-  const y = normalizedThermodynamicMoleFractions(nmpIncoming_kg_h);
-  const mixed = combinedThermodynamicMoleFractions(rrboIncoming_kg_h, nmpIncoming_kg_h);
+  const x = normalizedThermodynamicMoleFractions(
+    rrboIncoming_kg_h,
+    physicalMolecularWeights_g_mol,
+  );
+  const y = normalizedThermodynamicMoleFractions(
+    nmpIncoming_kg_h,
+    physicalMolecularWeights_g_mol,
+  );
+  const mixed = combinedThermodynamicMoleFractions(
+    rrboIncoming_kg_h,
+    nmpIncoming_kg_h,
+    physicalMolecularWeights_g_mol,
+  );
   if (!x || !y || !mixed) return { value: null, error: 'Stage flows cannot form valid non-zero thermodynamic compositions.' };
   const localNrtl = computeLocalNRTL({ x_j: x, y_j: y, z_feed: mixed.fractions, T_K: operatingTemperature_C + 273.15 });
   if (!localNrtl.flashConverged || localNrtl.flashTrivial || !localNrtl.x_eq || !localNrtl.y_eq ||
@@ -151,21 +204,40 @@ function localEquilibrium(
   const nmpFractions = rawXIsRrbo ? localNrtl.y_eq : localNrtl.x_eq;
   const rrboPhaseFraction = rawXIsRrbo ? 1 - localNrtl.flashBeta : localNrtl.flashBeta;
   const nmpPhaseFraction = rawXIsRrbo ? localNrtl.flashBeta : 1 - localNrtl.flashBeta;
-  const rrboEquilibrium = rrboFractions.map(
-    (fraction, index) => fraction * rrboPhaseFraction * mixed.totalMolarFlow_mol_h * SURROGATE_MOLECULAR_WEIGHTS_G_MOL[index] / 1000,
+  const rrboEquilibriumMolarFlows = rrboFractions.map(
+    (fraction) => fraction * rrboPhaseFraction * mixed.totalMolarFlow_mol_h,
   );
-  const nmpEquilibrium = nmpFractions.map(
-    (fraction, index) => fraction * nmpPhaseFraction * mixed.totalMolarFlow_mol_h * SURROGATE_MOLECULAR_WEIGHTS_G_MOL[index] / 1000,
+  const nmpEquilibriumMolarFlows = nmpFractions.map(
+    (fraction) => fraction * nmpPhaseFraction * mixed.totalMolarFlow_mol_h,
   );
-  if (!nonNegativeVector(rrboEquilibrium) || !nonNegativeVector(nmpEquilibrium)) {
+  const rrboEquilibrium = rrboEquilibriumMolarFlows.map(
+    (flow, index) => (flow * physicalMolecularWeights_g_mol[index]) / 1000,
+  );
+  const nmpEquilibrium = nmpEquilibriumMolarFlows.map(
+    (flow, index) => (flow * physicalMolecularWeights_g_mol[index]) / 1000,
+  );
+  if (
+    !nonNegativeVector(rrboEquilibriumMolarFlows) ||
+    !nonNegativeVector(nmpEquilibriumMolarFlows) ||
+    !nonNegativeVector(rrboEquilibrium) ||
+    !nonNegativeVector(nmpEquilibrium)
+  ) {
     return { value: null, error: 'NRTL phase split produced an invalid physical component-flow state.' };
   }
   return {
     value: {
       rrboEquilibrium_kg_h: asVector(rrboEquilibrium),
       nmpEquilibrium_kg_h: asVector(nmpEquilibrium),
+      overallPhysicalMolarFlows_mol_h: asVector(mixed.fractions.map(
+        (fraction) => fraction * mixed.totalMolarFlow_mol_h,
+      )),
+      overallThermodynamicMoleFractions: mixed.fractions,
       rrboEquilibriumThermodynamicMoleFractions: asVector(rrboFractions),
       nmpEquilibriumThermodynamicMoleFractions: asVector(nmpFractions),
+      rrboPhaseFraction,
+      nmpPhaseFraction,
+      rrboEquilibriumPhysicalMolarFlows_mol_h: asVector(rrboEquilibriumMolarFlows),
+      nmpEquilibriumPhysicalMolarFlows_mol_h: asVector(nmpEquilibriumMolarFlows),
       localNrtl,
     },
     error: null,
@@ -197,7 +269,12 @@ function trialAtIdealStageCount(
     nextRrbo[0] = [...input.rrboFeedComponentFlows_kg_h];
     nextNmp[idealStageCount] = [...input.nmpFeedComponentFlows_kg_h];
     for (let index = 0; index < idealStageCount; index++) {
-      const equilibrium = localEquilibrium(asVector(rrboFaces[index]), asVector(nmpFaces[index + 1]), input.operatingTemperature_C);
+      const equilibrium = localEquilibrium(
+        asVector(rrboFaces[index]),
+        asVector(nmpFaces[index + 1]),
+        input.operatingTemperature_C,
+        input.physicalMolecularWeights_g_mol,
+      );
       if (!equilibrium.value) return failedTrial(idealStageCount, sweep, `Ideal stage ${index + 1}: ${equilibrium.error}`);
       nextRrbo[index + 1] = [...equilibrium.value.rrboEquilibrium_kg_h];
       nextNmp[index] = [...equilibrium.value.nmpEquilibrium_kg_h];
@@ -231,7 +308,12 @@ function trialAtIdealStageCount(
   for (let index = 0; index < idealStageCount; index++) {
     const rrboIncoming = asVector(rrboFaces[index]);
     const nmpIncoming = asVector(nmpFaces[index + 1]);
-    const equilibrium = localEquilibrium(rrboIncoming, nmpIncoming, input.operatingTemperature_C);
+    const equilibrium = localEquilibrium(
+      rrboIncoming,
+      nmpIncoming,
+      input.operatingTemperature_C,
+      input.physicalMolecularWeights_g_mol,
+    );
     if (!equilibrium.value) return failedTrial(idealStageCount, sweeps, `Ideal stage ${index + 1}: final equilibrium state could not be reconstructed.`);
     const rrboOutgoing = asVector(rrboFaces[index + 1]);
     const nmpOutgoing = asVector(nmpFaces[index]);
@@ -241,8 +323,14 @@ function trialAtIdealStageCount(
       nmpIncoming_kg_h: nmpIncoming,
       rrboOutgoing_kg_h: rrboOutgoing,
       nmpOutgoing_kg_h: nmpOutgoing,
+      overallIncomingPhysicalMolarFlows_mol_h: equilibrium.value.overallPhysicalMolarFlows_mol_h,
+      overallIncomingThermodynamicMoleFractions: equilibrium.value.overallThermodynamicMoleFractions,
       rrboEquilibriumThermodynamicMoleFractions: equilibrium.value.rrboEquilibriumThermodynamicMoleFractions,
       nmpEquilibriumThermodynamicMoleFractions: equilibrium.value.nmpEquilibriumThermodynamicMoleFractions,
+      nmpRichPhaseFraction_beta: equilibrium.value.nmpPhaseFraction,
+      rrboRichPhaseFraction: equilibrium.value.rrboPhaseFraction,
+      rrboOutgoingPhysicalMolarFlows_mol_h: equilibrium.value.rrboEquilibriumPhysicalMolarFlows_mol_h,
+      nmpOutgoingPhysicalMolarFlows_mol_h: equilibrium.value.nmpEquilibriumPhysicalMolarFlows_mol_h,
       componentMassBalanceResidual_kg_h: asVector(rrboIncoming.map(
         (flow, component) => flow + nmpIncoming[component] - rrboOutgoing[component] - nmpOutgoing[component],
       )),
@@ -295,13 +383,22 @@ function trialAtIdealStageCount(
 }
 
 export function solveECR2IdealStageCascade(input: ECR2IdealStageCascadeInput): ECR2IdealStageCascadeResult {
+  const molecularWeightBasis: ECR2IdealStageMolecularWeightBasis = {
+    componentOrder: COMPONENT_LABELS,
+    physicalMolecularWeights_g_mol: input.physicalMolecularWeights_g_mol,
+    surrogateMolecularWeights_g_mol: asVector(SURROGATE_MOLECULAR_WEIGHTS_G_MOL),
+    physicalBasisUse: 'all component kg/h to mol/h and mol/h to kg/h conversions, product quality, recovery, and mass balance',
+    surrogateBasisUse: 'NRTL component identity/coordinate only; never a physical mass-flow or recovery conversion',
+  };
   const diagnostics = [
-    'Counter-current ideal equilibrium-stage cascade: every stage uses a complete local NRTL equilibrium phase split on conserved component mass flows.',
+    'Counter-current ideal equilibrium-stage cascade: every stage converts physical component kg/h to mol/h with physical pseudo-component MW, applies the NRTL coordinate split, then converts phase mol/h back to physical kg/h with the same physical MW.',
+    'Coto surrogate MWs identify the fixed NRTL component rows only; they are not used to convert physical flow, recovery, product quality, or mass balance.',
     'Acceptance requires the ECR-2 hydrocarbon-only raffinate aromatic target and NMP-free RRBO recovery of at least 95% at the same integer stage count.',
   ];
   const empty = (message: string): ECR2IdealStageCascadeResult => ({
     status: 'not_calculable', statusLabel: 'NOT_CALCULABLE', target: input.target,
     recoveryRequirement: ECR2_RRBO_RECOVERY_REQUIREMENT, basis: ECR2_IDEAL_STAGE_CASCADE_BASIS,
+    molecularWeightBasis,
     establishedTheoreticalStages: null, achievedProductAromaticsMoleFraction: null, aromaticResidual: null,
     rrboRecoveryMassFraction: null, recoveryResidual: null, selectedTrial: null, trials: [], diagnostics: [...diagnostics, message],
   });
@@ -330,6 +427,7 @@ export function solveECR2IdealStageCascade(input: ECR2IdealStageCascadeInput): E
         return {
           status: 'not_calculable', statusLabel: 'NOT_CALCULABLE', target: input.target,
           recoveryRequirement: ECR2_RRBO_RECOVERY_REQUIREMENT, basis: ECR2_IDEAL_STAGE_CASCADE_BASIS,
+          molecularWeightBasis,
           establishedTheoreticalStages: null, achievedProductAromaticsMoleFraction: null,
           aromaticResidual: null, rrboRecoveryMassFraction: null, recoveryResidual: null,
           selectedTrial: null, trials,
@@ -343,6 +441,7 @@ export function solveECR2IdealStageCascade(input: ECR2IdealStageCascadeInput): E
       return {
         status: 'target_met', statusLabel: 'THEORETICAL_STAGES_ESTABLISHED', target: input.target,
         recoveryRequirement: ECR2_RRBO_RECOVERY_REQUIREMENT, basis: ECR2_IDEAL_STAGE_CASCADE_BASIS,
+        molecularWeightBasis,
         establishedTheoreticalStages: count, achievedProductAromaticsMoleFraction: trial.productAromaticsMoleFraction,
         aromaticResidual: trial.aromaticResidual, rrboRecoveryMassFraction: trial.rrboRecoveryMassFraction,
         recoveryResidual: trial.recoveryResidual, selectedTrial: trial, trials,
@@ -363,6 +462,7 @@ export function solveECR2IdealStageCascade(input: ECR2IdealStageCascadeInput): E
       status: 'not_calculable',
       statusLabel: 'NOT_CALCULABLE',
       target: input.target, recoveryRequirement: ECR2_RRBO_RECOVERY_REQUIREMENT, basis: ECR2_IDEAL_STAGE_CASCADE_BASIS,
+        molecularWeightBasis,
       establishedTheoreticalStages: null, achievedProductAromaticsMoleFraction: null,
       aromaticResidual: null, rrboRecoveryMassFraction: null, recoveryResidual: null,
       selectedTrial: null, trials,
@@ -378,6 +478,7 @@ export function solveECR2IdealStageCascade(input: ECR2IdealStageCascadeInput): E
     status: 'no_feasible_theoretical_stage_cascade',
     statusLabel: 'NO FEASIBLE THEORETICAL-STAGE CASCADE AT THE SPECIFIED CONDITIONS',
     target: input.target, recoveryRequirement: ECR2_RRBO_RECOVERY_REQUIREMENT, basis: ECR2_IDEAL_STAGE_CASCADE_BASIS,
+    molecularWeightBasis,
     establishedTheoreticalStages: null, achievedProductAromaticsMoleFraction: latest?.productAromaticsMoleFraction ?? null,
     aromaticResidual: latest?.aromaticResidual ?? null, rrboRecoveryMassFraction: latest?.rrboRecoveryMassFraction ?? null,
     recoveryResidual: latest?.recoveryResidual ?? null, selectedTrial: null, trials,

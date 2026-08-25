@@ -46,7 +46,27 @@ describe('ECR-2 same-specification ideal-stage cascade', () => {
       expect(trial.rrboRecoveryMassFraction).toBeLessThan(0.95);
       expect(trial.failure).toContain('RRBO recovery');
     }
-    expect(result.trials[0].productAromaticsMoleFraction).toBeCloseTo(0.0210727, 6);
-    expect(result.trials[0].rrboRecoveryMassFraction).toBeCloseTo(0.610131, 6);
+    expect(result.molecularWeightBasis).toMatchObject({
+      componentOrder: ['Sat', 'Mono', 'Di', 'Poly', 'NMP'],
+      physicalMolecularWeights_g_mol: [269.93, 320, 377.57, 459.45, 99.13],
+      surrogateMolecularWeights_g_mol: [170.34, 106.17, 142.2, 202.25, 99.13],
+    });
+    expect(result.trials[0].productAromaticsMoleFraction).toBeCloseTo(0.0144119915, 9);
+    expect(result.trials[0].rrboRecoveryMassFraction).toBeCloseTo(0.536715177, 9);
+
+    const stage = result.trials[0].stageProfile[0];
+    expect(stage.overallIncomingPhysicalMolarFlows_mol_h).toEqual([
+      expect.closeTo(10857.62975586263, 8),
+      expect.closeTo(538.75, 8),
+      expect.closeTo(456.6040734168499, 8),
+      expect.closeTo(375.23125476112745, 8),
+      expect.closeTo(40390.194693836376, 8),
+    ]);
+    expect(stage.rrboOutgoingPhysicalMolarFlows_mol_h.map(
+      (mol, index) => (mol * result.molecularWeightBasis.physicalMolecularWeights_g_mol[index]) / 1000,
+    )).toEqual(stage.rrboOutgoing_kg_h);
+    expect(stage.nmpOutgoingPhysicalMolarFlows_mol_h.map(
+      (mol, index) => (mol * result.molecularWeightBasis.physicalMolecularWeights_g_mol[index]) / 1000,
+    )).toEqual(stage.nmpOutgoing_kg_h);
   });
 });

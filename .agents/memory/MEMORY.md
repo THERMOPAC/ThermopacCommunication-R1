@@ -66,3 +66,4 @@
 - [ECR-2 recovery-constrained height](ecr2-recovery-constrained-height.md) — physical design points require aromatic target, BVP/mass balance, and ≥95% NMP-free RRBO recovery together.
 - [ECR-2 local progressive compartments](ecr2-local-progressive-compartments.md) — separate 0.25 m counter-current NRTL/30% component-flow path; never derive it from N_T or replace the BVP.
 - [LLX product-quality basis](llx-product-quality-basis.md) — retain full-phase LLE aromatics while reporting commercial raffinate aromatics on NMP-free hydrocarbon-only molar and mass bases.
+- [ECR-2 ideal-cascade two-basis architecture](ecr2-ideal-cascade-two-basis.md) — physical MW closes all kg/h↔mol/h reporting; Coto MW identifies NRTL rows only.
