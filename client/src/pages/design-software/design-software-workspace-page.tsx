@@ -5847,8 +5847,8 @@ export default function DesignSoftwareWorkspacePage() {
                   <p className="mt-1 text-[11px]">{progressiveCompartmentSizing?.targetExplanation ?? "Independent local physical-compartment calculation was not available in this snapshot."}</p>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     {[
-                      ["C2 theoretical stages N_T", c2TheoreticalStages?.theoreticalStages != null ? fmt(c2TheoreticalStages.theoreticalStages, 4) : "NOT_AVAILABLE"],
-                      ["N_T source", c2TheoreticalStages?.basis ?? "No accepted auto-calculated C2 result"],
+                      ["ECR-2 theoretical stages N_T", c2TheoreticalStages?.status === "same_specification_calculated" && c2TheoreticalStages?.theoreticalStages != null ? fmt(c2TheoreticalStages.theoreticalStages, 4) : "NOT_ESTABLISHED"],
+                      ["N_T status", c2TheoreticalStages?.status === "upstream_reference_not_same_specification" ? "Upstream C2 reference only — different target basis" : "No same-specification ideal-stage cascade"],
                       ["Physical compartment", progressiveCompartmentSizing?.basis?.physicalCompartmentHeight_m != null ? `${fmt(progressiveCompartmentSizing.basis.physicalCompartmentHeight_m, 2)} m` : "0.25 m"],
                       ["Local equilibrium approach", progressiveCompartmentSizing?.basis?.localProgressiveEfficiency != null ? `${fmt(progressiveCompartmentSizing.basis.localProgressiveEfficiency * 100, 1)} %` : "30.0 %"],
                       ["Ncomp", progressiveCompartmentSizing?.requiredPhysicalCompartmentCount ?? "NOT_CALCULATED"],

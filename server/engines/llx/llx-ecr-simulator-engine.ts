@@ -518,9 +518,15 @@ export interface ECR2C2ThermodynamicHandoff {
  * applies a global per-stage efficiency shortcut.
  */
 export interface ECR2C2TheoreticalStageHandoff {
-  status: 'auto_calculated' | 'not_available';
+  status:
+    | 'same_specification_calculated'
+    | 'upstream_reference_not_same_specification'
+    | 'not_available';
   theoreticalStages: number | null;
   basis: string | null;
+  /** Retained only as an auditable upstream reference; never an ECR-2 N_T. */
+  upstreamReferenceTheoreticalStages?: number;
+  establishmentNote?: string;
   sourceRevisionId?: string;
   sourceComputedAt?: string;
 }

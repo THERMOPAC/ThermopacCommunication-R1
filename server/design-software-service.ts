@@ -870,13 +870,22 @@ export async function runCalculation(
     const c2Stages = c2ResultQ.rows[0]?.data?.stages;
     const calculatedStages = Number(c2Stages?.theoreticalStages);
     inputs.c2TheoreticalStageHandoff = {
+      // C2's current cascade is an upstream reference on its own full-phase
+      // LLE target. It has not established ECR-2 N_T because ECR-2 uses the
+      // hydrocarbon-only physical raffinate specification. Do not pass the
+      // upstream integer into ECR-2 as if it satisfied that same target.
       status: c2Stages?.mode === 'auto_calculated' && Number.isFinite(calculatedStages)
-        ? 'auto_calculated'
+        ? 'upstream_reference_not_same_specification'
         : 'not_available',
-      theoreticalStages: c2Stages?.mode === 'auto_calculated' && Number.isFinite(calculatedStages)
-        ? calculatedStages
-        : null,
-      basis: typeof c2Stages?.basis === 'string' ? c2Stages.basis : null,
+      theoreticalStages: null,
+      basis: null,
+      ...(c2Stages?.mode === 'auto_calculated' && Number.isFinite(calculatedStages)
+        ? {
+            upstreamReferenceTheoreticalStages: calculatedStages,
+            establishmentNote:
+              'Upstream C2 N_T is retained for provenance only. ECR-2 N_T remains NOT_ESTABLISHED until a counter-current ideal-stage NRTL cascade satisfies the same hydrocarbon-only physical raffinate specification.',
+          }
+        : {}),
       sourceRevisionId: String(revisionId),
       sourceComputedAt: c2ResultQ.rows[0]?.computed_at
         ? new Date(c2ResultQ.rows[0].computed_at).toISOString()
