@@ -66,7 +66,7 @@ interface DesignListResponse {
 const MODULE_CONFIG = {
   llx: {
     route: "/design-software/liquid-liquid-extraction",
-    label: "ECR Pre-Pilot Design",
+    label: "Liquid-Liquid Extraction",
     description: "Extraction column hydraulics and design calculations",
   },
 } as const;
@@ -155,7 +155,7 @@ export default function DesignSoftwareListPage({ moduleType = "llx" }: { moduleT
             </div>
           </div>
           <Button onClick={() => setShowNew(true)} className="gap-2">
-            <Plus className="h-4 w-4" /> New ECR Pre-Pilot Design
+            <Plus className="h-4 w-4" /> New LLX Design
           </Button>
         </div>
 
@@ -208,7 +208,7 @@ export default function DesignSoftwareListPage({ moduleType = "llx" }: { moduleT
             <p className="font-medium">No designs found</p>
             <p className="text-sm mt-1">Create your first engineering design to get started.</p>
             <Button className="mt-4 gap-2" onClick={() => setShowNew(true)}>
-              <Plus className="h-4 w-4" /> New ECR Pre-Pilot Design
+              <Plus className="h-4 w-4" /> New LLX Design
             </Button>
           </div>
         ) : (
@@ -321,7 +321,7 @@ export default function DesignSoftwareListPage({ moduleType = "llx" }: { moduleT
                   <Select value={form.moduleType} onValueChange={v => setForm(f => ({ ...f, moduleType: v }))}>
                     <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="llx">ECR Pre-Pilot Design</SelectItem>
+                      <SelectItem value="llx">Liquid-Liquid Extraction</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
