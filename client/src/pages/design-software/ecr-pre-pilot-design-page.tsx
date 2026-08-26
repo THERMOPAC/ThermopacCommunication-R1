@@ -290,7 +290,7 @@ export default function EcrPrePilotDesignPage() {
     toast({
       title: isCompleteComposition ? "Input data saved" : "Draft input data saved",
       description: isCompleteComposition
-        ? "The entered process and feed characterization is ready for review. No calculations were run."
+        ? "The entered process and feed characterization was captured. No calculations were run."
         : "Complete the six-component composition so it totals exactly 100 wt% before continuing.",
     });
   };
