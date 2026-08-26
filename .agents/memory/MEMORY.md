@@ -70,3 +70,4 @@
 - [ECR-2 sulfur objective boundary](ecr2-sulfur-objective-boundary.md) — sulfur removal is primary; Coto aromatic transfer cannot imply sulfur/DBT removal.
 - [ECR-2 pre-pilot inferred sulfur speciation](ecr2-prepilot-inferred-sulfur-speciation.md) — bounded evidence-based scenarios may run before measured speciation, always labelled inferred.
 - [ECR-2 NMP sulfur LLE evidence](ecr2-nmp-sulfur-lle-evidence.md) — direct LLE, performance, and analogue evidence have different admission roles.
+- [ECR-2 predictive thermodynamic strategy](ecr2-predictive-thermodynamic-strategy.md) — direct NMP regression plus COSMO prediction, UNIFAC cross-check, and explicit uncertainty for missing families.
