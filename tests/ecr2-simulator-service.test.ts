@@ -277,6 +277,7 @@ describe('ECR-2 simulator service run path', () => {
     expect(acceptedRun.calculation_type).toBe('ecr_simulator');
     expect(acceptedRun.engine_name).toBe('llx-ecr-simulator');
     expect(acceptedRun.calculation_status).toBe('error');
+    expect(acceptedRun.outcome_status).toBe('blocked');
 
     const inputSnapshot = acceptedRun.input_snapshot;
     const resultSnapshot = acceptedRun.result_snapshot;
@@ -446,6 +447,7 @@ describe('ECR-2 simulator service run path', () => {
 
     expect(execution.result.status).toBe('error');
     expect(execution.run.calculation_status).toBe('error');
+    expect(execution.run.outcome_status).toBe('blocked');
     expect(snapshot.calculationRunStatus).toBe('counter_current_bvp_not_accepted');
     expect(snapshot.bvp.massBalanceStatus).toBe('not_evaluated');
     expect(snapshot.bvp.status).not.toBe('converged');
@@ -490,6 +492,7 @@ describe('ECR-2 simulator service run path', () => {
 
     expect(execution.result.status).toBe('error');
     expect(execution.run.calculation_status).toBe('error');
+    expect(execution.run.outcome_status).toBe('blocked');
     expect(snapshot.calculationRunStatus).toBe('counter_current_bvp_not_accepted');
     // A failed lower physical-height solve is intentionally retained as a
     // NOT_CALCULATED blocked snapshot; no unaccepted BVP state is promoted as

@@ -525,6 +525,21 @@ export async function listResults(revisionId: number) {
 
 // ── Calculation runs ──────────────────────────────────────────────────────────
 
+function withCalculationOutcomeStatus<T extends Record<string, any>>(run: T): T & { outcome_status: string } {
+  const snapshot = typeof run.result_snapshot === 'string'
+    ? (() => {
+        try { return JSON.parse(run.result_snapshot); } catch { return null; }
+      })()
+    : run.result_snapshot;
+  const dependencyBlocked = run.calculation_type === 'ecr_simulator'
+    && run.calculation_status === 'error'
+    && snapshot?.bvp?.convergenceStatus === 'dependency_blocked';
+  return {
+    ...run,
+    outcome_status: dependencyBlocked ? 'blocked' : run.calculation_status,
+  };
+}
+
 export async function listCalculationRuns(revisionId: number) {
   const result = await pool.query(
     `SELECT cr.*, u.username AS calculated_by_name
@@ -534,7 +549,7 @@ export async function listCalculationRuns(revisionId: number) {
      ORDER BY cr.calculated_at DESC`,
     [revisionId],
   );
-  return result.rows;
+  return result.rows.map(withCalculationOutcomeStatus);
 }
 
 /**
@@ -1146,7 +1161,7 @@ export async function runCalculation(
     }
   }
 
-  return { run: runRow.rows[0], result: calcResult };
+  return { run: withCalculationOutcomeStatus(runRow.rows[0]), result: calcResult };
 }
 
 // ── Assumptions ───────────────────────────────────────────────────────────────

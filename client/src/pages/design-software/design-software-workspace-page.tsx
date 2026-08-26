@@ -593,6 +593,7 @@ interface Approval {
 interface CalcRun {
   id: number; calculation_type: string; engine_name: string; engine_version: string;
   calculation_status: string; calculated_at: string; calculated_by_name: string | null;
+  outcome_status?: string;
   result_snapshot?: {
     maximumCase?: {
       flows?: {
@@ -5590,7 +5591,7 @@ export default function DesignSoftwareWorkspacePage() {
                 {" · "}
                 {new Date(runReceipt.calculated_at).toLocaleString()}
                 {" · "}
-                {runReceipt.calculation_status}
+                {runReceipt.outcome_status ?? runReceipt.calculation_status}
               </p>
               <p className="mt-1 text-[11px] text-blue-800">
                 This run is recorded in the calculation history, including when the simulator reports an error or the BVP is not accepted.
@@ -6420,14 +6421,21 @@ export default function DesignSoftwareWorkspacePage() {
       : null;
     const showsDownstreamFailure = typeof downstreamFailure?.dependency === "string"
       && typeof downstreamFailure?.message === "string";
+    const outcomeStatus = latestRun.outcome_status
+      ?? (options?.useStructuredEcr2Dependencies
+        && latestRun.calculation_status === "error"
+        && resultSnapshot?.bvp?.convergenceStatus === "dependency_blocked"
+        ? "blocked"
+        : latestRun.calculation_status);
+    const dependencyBlocked = outcomeStatus === "blocked";
     return (
       <div className="mt-2 space-y-2">
         <p className="text-[11px] text-gray-500">
-          Last run: #{latestRun.id} · {new Date(latestRun.calculated_at).toLocaleString()} · {latestRun.engine_name} v{latestRun.engine_version} · {latestRun.calculation_status}
+          Last run: #{latestRun.id} · {new Date(latestRun.calculated_at).toLocaleString()} · {latestRun.engine_name} v{latestRun.engine_version} · {outcomeStatus}
         </p>
         {latestRun.calculation_status === "error" && (
-          <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-xs font-semibold text-red-800 mb-1">
+          <div className={`p-2.5 rounded-lg border ${dependencyBlocked ? "border-amber-200 bg-amber-50" : "border-red-200 bg-red-50"}`}>
+            <p className={`text-xs font-semibold mb-1 ${dependencyBlocked ? "text-amber-900" : "text-red-800"}`}>
               {showsDownstreamFailure
                 ? `${label} run blocked by downstream BVP dependency '${downstreamFailure.dependency}': ${downstreamFailure.message}`
                 : blockingIssues.length > 0
@@ -6438,16 +6446,16 @@ export default function DesignSoftwareWorkspacePage() {
               } No results were generated; nothing is defaulted silently.
             </p>
             {legacyEcr2Issues.length > 0 && (
-              <p className="mb-1 text-[11px] text-red-700">
+              <p className={`mb-1 text-[11px] ${dependencyBlocked ? "text-amber-800" : "text-red-700"}`}>
                 This persisted run contains the pre-structured-register generic contract diagnostics. The live Stage 8 dependency register above is the authoritative per-dependency explanation and does not default missing engineering data.
               </p>
             )}
             <ul className="space-y-0.5">
               {showsDownstreamFailure && (
-                <li className="text-[11px] text-red-700"><span className="font-medium">{downstreamFailure.dependency}:</span> {downstreamFailure.message}</li>
+                <li className={`text-[11px] ${dependencyBlocked ? "text-amber-800" : "text-red-700"}`}><span className="font-medium">{downstreamFailure.dependency}:</span> {downstreamFailure.message}</li>
               )}
               {displayedIssues.map((v: any, i: number) => (
-                <li key={i} className="text-[11px] text-red-700"><span className="font-medium">{v.field ?? "input"}:</span> {v.message}</li>
+                <li key={i} className={`text-[11px] ${dependencyBlocked ? "text-amber-800" : "text-red-700"}`}><span className="font-medium">{v.field ?? "input"}:</span> {v.message}</li>
               ))}
             </ul>
           </div>
