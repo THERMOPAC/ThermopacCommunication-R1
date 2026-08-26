@@ -9,6 +9,7 @@ import * as reports from './design-reports/report-service';
 import * as vv from './vv/regression-service';
 import * as vvRegister from './vv/equation-register-service';
 import { getProperty, containsAssumedData, RRBO_GRADE_FLUID_MAP } from './engine-framework/epd/database';
+import { allocateEcrPrePilotDesign } from './ecr-pre-pilot-service';
 
 // Register all LLX engines with the global registry at module load time
 import './engines/llx/index';
@@ -23,6 +24,33 @@ import { registerPreliminaryPackingRecords, ecpDefaultFields, ecrDefaultFields, 
 }
 
 export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
+
+  // ── ECR Pre-Pilot Design foundation ─────────────────────────────────────────
+  // A browser receives a server-issued number only after its draft and
+  // append-only allocation ledger have committed.
+  app.post('/api/design-software/ecr-pre-pilot/designs', ensureAuthenticated, async (req: Request, res: Response) => {
+    const userId = Number((req.user as any)?.id);
+    const allocationKey = String(req.get('Idempotency-Key') ?? '').trim();
+    if (!allocationKey) {
+      return res.status(400).json({ message: 'Idempotency-Key header is required.' });
+    }
+
+    try {
+      const allocation = await allocateEcrPrePilotDesign(userId, allocationKey);
+      return res.status(allocation.existing ? 200 : 201).json({
+        id: allocation.id,
+        projectNumber: String(allocation.projectNumber),
+        status: allocation.status,
+      });
+    } catch (error: any) {
+      const message = error?.message ?? 'ECR Pre-Pilot design could not be allocated.';
+      if (message.includes('Idempotency-Key')) {
+        return res.status(400).json({ message });
+      }
+      console.error('[ECR Pre-Pilot] Project-number allocation failed:', error);
+      return res.status(500).json({ message: 'ECR Pre-Pilot project number could not be allocated.' });
+    }
+  });
 
   // ── Engine registry info ────────────────────────────────────────────────────
   app.get('/api/design-software/engines', ensureAuthenticated, (_req: Request, res: Response) => {

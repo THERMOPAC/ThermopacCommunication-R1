@@ -76,3 +76,4 @@
 - [ECR-2 vs Stage 5 hydraulic boundary](ecr2-stage5-boundary.md) — Stage 5 stays generic C3 screening; ECR-2 must consume an independently approved ECR hydrodynamic route.
 - [ECR-2 blocked run outcomes](ecr2-blocked-run-outcomes.md) — dependency-blocked snapshots are non-accepted holds, not runtime errors or process-infeasibility verdicts.
 - [ECR-2 two-level execution](ecr2-two-level-execution.md) — pre-pilot prediction may calculate with explicit uncertainty; governed/release mode remains independently fail-closed.
+- [ECR Pre-Pilot project numbering](ecr-prepilot-project-numbering.md) — server-issued, sequential, atomic, immutable allocations persist permanently and are never reused.

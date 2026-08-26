@@ -17171,6 +17171,38 @@ export const designSelectionRecords = pgTable('design_selection_records', {
   chkSelectionMode:     check('dsel_records_mode_chk', sql`selection_mode IN ('autonomous', 'user_selected')`),
 }));
 
+// ── ECR Pre-Pilot Design foundation ───────────────────────────────────────────
+// Project numbers are allocated from a dedicated counter and recorded in an
+// append-only ledger. The ledger is separate from the draft so a cancelled or
+// removed draft cannot release a number for reuse.
+export const ecrPrePilotNumberCounters = pgTable('ecr_pre_pilot_number_counters', {
+  id:          integer('id').primaryKey().default(1),
+  nextNumber:  integer('next_number').notNull().default(1),
+});
+
+export const ecrPrePilotNumberAllocations = pgTable('ecr_pre_pilot_number_allocations', {
+  projectNumber: integer('project_number').primaryKey(),
+  allocationKey: varchar('allocation_key', { length: 128 }).notNull(),
+  allocatedBy:   integer('allocated_by').notNull().references(() => users.id),
+  allocatedAt:   timestamp('allocated_at').notNull().defaultNow(),
+}, (table) => ({
+  userAllocationKeyUnique: uniqueIndex('ecr_pre_pilot_alloc_user_key_uidx').on(table.allocatedBy, table.allocationKey),
+}));
+
+export const ecrPrePilotDesigns = pgTable('ecr_pre_pilot_designs', {
+  id:             serial('id').primaryKey(),
+  projectNumber:  integer('project_number').notNull(),
+  allocationKey:  varchar('allocation_key', { length: 128 }).notNull(),
+  createdBy:      integer('created_by').notNull().references(() => users.id),
+  status:         varchar('status', { length: 20 }).notNull().default('draft'),
+  inputData:      jsonb('input_data').notNull().default(sql`'{}'::jsonb`),
+  createdAt:      timestamp('created_at').notNull().defaultNow(),
+  updatedAt:      timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  projectNumberUnique: uniqueIndex('ecr_pre_pilot_design_project_number_uidx').on(table.projectNumber),
+  userAllocationKeyUnique: uniqueIndex('ecr_pre_pilot_design_user_key_uidx').on(table.createdBy, table.allocationKey),
+}));
+
 // ── Zod insert schemas ────────────────────────────────────────────────────────
 export const insertDesignSoftwareDesignSchema = createInsertSchema(designSoftwareDesigns).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDesignSoftwareRevisionSchema = createInsertSchema(designSoftwareRevisions).omit({ id: true, createdAt: true, updatedAt: true });
@@ -17179,6 +17211,7 @@ export const insertDesignSoftwareResultSchema = createInsertSchema(designSoftwar
 export const insertDesignSoftwareCalculationRunSchema = createInsertSchema(designSoftwareCalculationRuns).omit({ id: true, calculatedAt: true });
 export const insertDesignSoftwareAssumptionSchema = createInsertSchema(designSoftwareAssumptions).omit({ id: true, createdAt: true });
 export const insertDesignSoftwareApprovalSchema = createInsertSchema(designSoftwareApprovals).omit({ id: true, performedAt: true });
+export const insertEcrPrePilotDesignSchema = createInsertSchema(ecrPrePilotDesigns).omit({ id: true, createdAt: true, updatedAt: true });
 
 // ── TypeScript types ──────────────────────────────────────────────────────────
 export type DesignSoftwareDesign = typeof designSoftwareDesigns.$inferSelect;
@@ -17188,3 +17221,4 @@ export type DesignSoftwareResult = typeof designSoftwareResults.$inferSelect;
 export type DesignSoftwareCalculationRun = typeof designSoftwareCalculationRuns.$inferSelect;
 export type DesignSoftwareAssumption = typeof designSoftwareAssumptions.$inferSelect;
 export type DesignSoftwareApproval = typeof designSoftwareApprovals.$inferSelect;
+export type EcrPrePilotDesign = typeof ecrPrePilotDesigns.$inferSelect;

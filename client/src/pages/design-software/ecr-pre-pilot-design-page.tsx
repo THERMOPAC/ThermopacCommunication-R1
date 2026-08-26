@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Layout from "@/components/layout";
 import { AlertCircle, ArrowRight, CheckCircle2, FlaskConical, Info, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -587,6 +587,48 @@ export default function EcrPrePilotDesignPage() {
   const [saveState, setSaveState] = useState<"unsaved" | "saved" | "draft">("unsaved");
   const [validationAttempted, setValidationAttempted] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+  const [projectNumberLoading, setProjectNumberLoading] = useState(true);
+  const [projectNumberLoadError, setProjectNumberLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    try {
+      const storageKey = "ecr-pre-pilot-allocation-key";
+      const existingKey = window.sessionStorage.getItem(storageKey);
+      const allocationKey = existingKey ?? window.crypto.randomUUID();
+      if (!existingKey) {
+        window.sessionStorage.setItem(storageKey, allocationKey);
+      }
+      fetch("/api/design-software/ecr-pre-pilot/designs", {
+        method: "POST",
+        headers: { "Idempotency-Key": allocationKey },
+        credentials: "include",
+      })
+        .then(async (response) => {
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(payload.message ?? "Project number could not be generated.");
+          }
+          if (cancelled) return;
+          setForm((current) => ({ ...current, projectReference: String(payload.projectNumber) }));
+          setProjectNumberLoadError(null);
+          setProjectNumberLoading(false);
+        })
+        .catch((error: unknown) => {
+          if (cancelled) return;
+          setProjectNumberLoading(false);
+          setProjectNumberLoadError(error instanceof Error ? error.message : "Project number could not be generated.");
+        });
+    } catch (error: unknown) {
+      if (cancelled) return;
+      setProjectNumberLoading(false);
+      setProjectNumberLoadError(error instanceof Error ? error.message : "Project number could not be generated.");
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     const nextForm = { ...form, [key]: value };
@@ -647,6 +689,15 @@ export default function EcrPrePilotDesignPage() {
   }, [form]);
 
   const validateBeforeAction = () => {
+    if (projectNumberLoading || projectNumberLoadError) {
+      toast({
+        title: "Project number unavailable",
+        description: projectNumberLoadError ?? "Wait for the server to generate the project number before continuing.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
     const errors = validateForm(form);
     setValidationAttempted(true);
     setValidationErrors(errors);
@@ -725,22 +776,31 @@ export default function EcrPrePilotDesignPage() {
             <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2">
               <div className="space-y-1 md:col-span-2">
                 <Label htmlFor="project-reference" className={`text-[13px] font-medium ${validationErrors.projectReference ? "text-red-700" : "text-slate-700"}`}>
-                  Project Number <span className="text-red-600">*</span>
+                  Project Number <span className="text-red-600">*</span>{" "}
+                  <span className="font-normal text-slate-400">(generated automatically)</span>
                 </Label>
                 <Input
                   id="project-reference"
                   required
+                  readOnly
                   value={form.projectReference}
-                  onChange={(event) => setField("projectReference", event.target.value)}
-                  placeholder="Enter project number"
-                  aria-invalid={Boolean(validationErrors.projectReference)}
+                  placeholder={projectNumberLoading ? "Generating project number…" : "Project number unavailable"}
+                  aria-invalid={Boolean(validationErrors.projectReference || projectNumberLoadError)}
                   aria-required="true"
-                  aria-describedby={validationErrors.projectReference ? "project-reference-error" : undefined}
-                  className={`h-8 bg-white text-sm ${validationErrors.projectReference ? "border-red-400 focus-visible:ring-red-400" : ""}`}
+                  aria-describedby={validationErrors.projectReference || projectNumberLoadError ? "project-reference-error" : undefined}
+                  className={`h-8 bg-slate-50 text-sm ${validationErrors.projectReference || projectNumberLoadError ? "border-red-400 focus-visible:ring-red-400" : ""}`}
                 />
-                {validationErrors.projectReference && (
+                {projectNumberLoadError ? (
+                  <p id="project-reference-error" className="text-[11px] font-medium text-red-600">
+                    {projectNumberLoadError}
+                  </p>
+                ) : validationErrors.projectReference ? (
                   <p id="project-reference-error" className="text-[11px] font-medium text-red-600">
                     {validationErrors.projectReference}
+                  </p>
+                ) : (
+                  <p className="text-[11px] leading-4 text-slate-400">
+                    {projectNumberLoading ? "Allocating a permanent project number…" : "Server-generated and read-only."}
                   </p>
                 )}
               </div>
