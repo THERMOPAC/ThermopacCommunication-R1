@@ -73,3 +73,4 @@
 - [ECR-2 NMP sulfur LLE evidence](ecr2-nmp-sulfur-lle-evidence.md) — direct LLE, performance, and analogue evidence have different admission roles.
 - [ECR-2 predictive thermodynamic strategy](ecr2-predictive-thermodynamic-strategy.md) — direct NMP regression plus COSMO prediction, UNIFAC cross-check, and explicit uncertainty for missing families.
 - [PDFKit footer bounds](pdfkit-footer-bounds.md) — page footers must stay inside the configured bottom margin or buffered reports can keep adding pages until Node runs out of memory.
+- [ECR-2 vs Stage 5 hydraulic boundary](ecr2-stage5-boundary.md) — Stage 5 stays generic C3 screening; ECR-2 must consume an independently approved ECR hydrodynamic route.

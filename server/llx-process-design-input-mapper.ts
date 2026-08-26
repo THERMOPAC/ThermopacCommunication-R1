@@ -471,7 +471,30 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
   //   a = 300/350/400/450 m²/m³ → dh = 4/a calculable; cf/ΔP Not Calculable (no governed dataset)
   // No silent defaults — all packing geometry fields fail closed when blank (A-series).
   // Out-of-range policy is enforced in the engine by evaluateDuss2013ReCf().
-  if (out.pressureDropBasis === undefined && calculationType === 'hydraulics_common') {
+  // ECR is an agitated-column technology. Its Stage 5 run remains generic C3
+  // screening only; obsolete packing fields must not reach the optional C3
+  // pressure-drop subsection when an ECR-selected revision is recalculated.
+  // Remove both flat workspace fields and an already engine-shaped basis because
+  // the mapper starts with a pass-through copy for traceability.
+  const selectedTechnology = String(inputs.technology ?? '').trim().toLowerCase();
+  const ecrSelectedForCommonHydraulics =
+    calculationType === 'hydraulics_common' &&
+    ['ecr', 'ecp', 'both'].includes(selectedTechnology);
+  if (ecrSelectedForCommonHydraulics) {
+    for (const key of [
+      'pressureDropBasis',
+      'packing_specific_surface_value',
+      'packing_specific_surface_source_type',
+      'packing_specific_surface_source_ref',
+      'packing_corrugation_angle_value',
+      'packing_corrugation_angle_source_type',
+      'packing_corrugation_angle_source_ref',
+      'vendor_dp_value',
+      'vendor_dp_source_type',
+      'vendor_dp_source_ref',
+    ]) delete out[key];
+  }
+  if (out.pressureDropBasis === undefined && calculationType === 'hydraulics_common' && !ecrSelectedForCommonHydraulics) {
     // Packing geometry — no silent defaults (A-series). Fail closed when blank.
     const psaVal = num(inputs.packing_specific_surface_value);
     const psaSrc = String(inputs.packing_specific_surface_source_type ?? '').trim();
