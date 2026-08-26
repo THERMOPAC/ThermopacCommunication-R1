@@ -1,6 +1,6 @@
 # Step 4 — Independent Thermodynamic Proof-of-Concept
 
-Generated: 2026-08-26T02:35:32.457Z
+Generated: 2026-08-26T03:12:44.205Z
 
 ## Executive conclusion
 
@@ -14,6 +14,8 @@ The architecture is credible for continued pre-pilot research because it preserv
 - NMP/hydrocarbon multi-temperature records: 219 rows from Fahim (2005), Fandary (2006), and Aljimaz (2006), spanning 289,293.2,298,303.2,308,313.2,318,323.2,328 K.
 - All benchmark rows are direct two-phase experimental rows with normalized phase compositions and recorded composition uncertainty.
 - Coto source: B. Coto, I. Suárez, M.J. Tenorio, S. Nieto, N. Alvarez, J.J. Espada, "Extraction of aromatic and polyaromatic compounds with NMP: Experimental and model description", Fluid Phase Equilibria 554 (2022) 113293, Table 3.
+- The admitted benchmark/feed basis contains SAT, MONO, DI, POLY, and NMP only; no separate sulfur-bearing polar/heteroaromatic component is present.
+- Sulfur feed mass fractions/speciation are not available, so an actual sulfur-removal mass balance is `NOT_CALCULABLE_NO_FEED_SULFUR_COMPONENT`.
 - No raw Mguni/thiophene, heptane/thiophene, Murata DBT, or other sulfur tie-line table is present in the admitted workspace; those sources cannot be scored against experiment here.
 
 ## Method contract
@@ -126,9 +128,9 @@ Held-out failures remain visible: 391 failed/single-phase cases were recorded in
 
 The multi-temperature records provide evidence at 289,293.2,298,303.2,308,313.2,318,323.2,328 K. The LOTO rows above test the fitted (τ(T)) behavior only within those admitted hydrocarbon systems and temperatures. The two predictive priors carry fixed method-specific temperature sensitivity, not direct sulfur temperature calibration. No validated temperature law is claimed for BT/DBT/heavy sulfur. Any 343.15 K envelope below is model extrapolation and remains preliminary.
 
-## Preliminary sulfur partition envelopes
+## Preliminary sulfur partition envelopes — isolated molecular probes
 
-The following are bounded model predictions for representative-compound variants. They are not experimental sulfur validation and must not enter Stage 8.
+The following are bounded model predictions for representative-compound variants in isolated three-component probes (saturate carrier + one sulfur-bearing molecule + NMP). The 2 mol% sulfur value is a computational tracer for estimating a partition coefficient; it is **not** a Run #948/feed-table composition, inferred feed speciation, or sulfur mass fraction.
 
 | T_K | family | model | K_min | K_central | K_max | uncertaintyBasis |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -157,7 +159,7 @@ Envelope status:
 - `NOT_CALCULABLE_SINGLE_PHASE`: the selected predictive prior did not produce a non-trivial two-phase split.
 - `NOT_CALCULABLE_FLASH`: numerical flash failure; no value substituted.
 - Ranges combine representative-compound variation. COSMO-proxy versus UNIFAC-proxy differences are shown as model-form disagreement by separate rows, not hidden inside one mean.
-- Exact sulfur removal is not inferred from aromatic partitioning. A sulfur mass balance requires measured or bounded sulfur-family feed fractions.
+- Exact sulfur removal is not inferred from aromatic partitioning or these isolated probes. A sulfur mass balance requires measured or bounded sulfur-family feed fractions, which are absent here.
 
 ## Credibility decision
 

@@ -726,17 +726,22 @@ function roundMetrics(m: MetricSummary): MetricSummary {
 
 interface SulfurEnvelopePoint {
   temperatureK: number;
-  nmpFeedMoleFraction: number;
+  nmpProbeMoleFraction: number;
   family: 'BT' | 'DBT' | 'HEAVY_S';
   representative: string;
   model: 'COSMO_SAC_DESCRIPTOR_PROXY' | 'MODIFIED_UNIFAC_DORTMUND_PROXY';
+  basis: 'ISOLATED_MOLECULAR_PROBE_NOT_FEED_TABLE';
+  probeSulfurMoleFraction: number;
   K: number | null;
   status: 'PREDICTIVE_ONLY' | 'NOT_CALCULABLE_SINGLE_PHASE' | 'NOT_CALCULABLE_FLASH';
 }
 
 function sulfurEnvelope(): SulfurEnvelopePoint[] {
   const temperatures = [298.15, 308.15, 343.15];
-  const nmpFeeds = [0.10, 0.20, 0.35, 0.50];
+  const nmpProbes = [0.10, 0.20, 0.35, 0.50];
+  // This is a computational tracer for an isolated molecular partition probe.
+  // It is not an inferred Run #948/feed-table sulfur fraction.
+  const probeSulfurMoleFraction = 0.02;
   const familyVariants: Record<'BT' | 'DBT' | 'HEAVY_S', Array<[string, number, number, number]>> = {
     BT: [['light', 0.42, 0.88, 0.60], ['central', 0.46, 0.90, 0.64], ['heavy', 0.51, 0.92, 0.69]],
     DBT: [['light', 0.54, 0.95, 0.76], ['central', 0.58, 0.97, 0.82], ['heavy', 0.64, 0.98, 0.88]],
@@ -744,7 +749,7 @@ function sulfurEnvelope(): SulfurEnvelopePoint[] {
   };
   const output: SulfurEnvelopePoint[] = [];
   for (const T of temperatures) {
-    for (const nmp of nmpFeeds) {
+    for (const nmp of nmpProbes) {
       for (const family of ['BT', 'DBT', 'HEAVY_S'] as const) {
         for (const [representative, polarity, aromaticity, size] of familyVariants[family]) {
           const original = DESCRIPTORS[family];
@@ -755,9 +760,9 @@ function sulfurEnvelope(): SulfurEnvelopePoint[] {
             size,
           };
           const components: Family[] = ['SAT', family, 'NMP'];
-          // Fixed 2 mol% sulfur family, with the requested NMP fraction
-          // represented exactly; the balance is a saturate carrier.
-          const z = [1 - nmp - 0.02, 0.02, nmp];
+          // The balance is a saturate carrier only for this isolated probe.
+          // No probe composition is admitted as a feed-table composition.
+          const z = [1 - nmp - probeSulfurMoleFraction, probeSulfurMoleFraction, nmp];
           for (const model of ['COSMO_SAC_DESCRIPTOR_PROXY', 'MODIFIED_UNIFAC_DORTMUND_PROXY'] as const) {
             const p = model === 'COSMO_SAC_DESCRIPTOR_PROXY'
               ? makeCosmoSacProxyParams(components, T)
@@ -768,7 +773,17 @@ function sulfurEnvelope(): SulfurEnvelopePoint[] {
             if (!fl.converged) status = 'NOT_CALCULABLE_FLASH';
             else if (!fl.twoPhase) status = 'NOT_CALCULABLE_SINGLE_PHASE';
             else K = fl.y[1] / Math.max(EPS, fl.x[1]);
-            output.push({ temperatureK: T, nmpFeedMoleFraction: nmp, family, representative, model, K, status });
+            output.push({
+              temperatureK: T,
+              nmpProbeMoleFraction: nmp,
+              family,
+              representative,
+              model,
+              basis: 'ISOLATED_MOLECULAR_PROBE_NOT_FEED_TABLE',
+              probeSulfurMoleFraction,
+              K,
+              status,
+            });
           }
           (DESCRIPTORS as Record<string, Descriptor>)[family] = original;
         }
@@ -861,6 +876,8 @@ The architecture is credible for continued pre-pilot research because it preserv
 - NMP/hydrocarbon multi-temperature records: ${result.datasetSummary.multiRows} rows from Fahim (2005), Fandary (2006), and Aljimaz (2006), spanning ${result.datasetSummary.multiTemperatures} K.
 - All benchmark rows are direct two-phase experimental rows with normalized phase compositions and recorded composition uncertainty.
 - Coto source: ${COTO_2022_CITATION}.
+- The admitted benchmark/feed basis contains SAT, MONO, DI, POLY, and NMP only; no separate sulfur-bearing polar/heteroaromatic component is present.
+- Sulfur feed mass fractions/speciation are not available, so an actual sulfur-removal mass balance is \`NOT_CALCULABLE_NO_FEED_SULFUR_COMPONENT\`.
 - No raw Mguni/thiophene, heptane/thiophene, Murata DBT, or other sulfur tie-line table is present in the admitted workspace; those sources cannot be scored against experiment here.
 
 ## Method contract
@@ -918,9 +935,9 @@ Held-out failures remain visible: ${failedCv} failed/single-phase cases were rec
 
 The multi-temperature records provide evidence at ${result.datasetSummary.multiTemperatures} K. The LOTO rows above test the fitted \(τ(T)\) behavior only within those admitted hydrocarbon systems and temperatures. The two predictive priors carry fixed method-specific temperature sensitivity, not direct sulfur temperature calibration. No validated temperature law is claimed for BT/DBT/heavy sulfur. Any 343.15 K envelope below is model extrapolation and remains preliminary.
 
-## Preliminary sulfur partition envelopes
+## Preliminary sulfur partition envelopes — isolated molecular probes
 
-The following are bounded model predictions for representative-compound variants. They are not experimental sulfur validation and must not enter Stage 8.
+The following are bounded model predictions for representative-compound variants in isolated three-component probes (saturate carrier + one sulfur-bearing molecule + NMP). The 2 mol% sulfur value is a computational tracer for estimating a partition coefficient; it is **not** a Run #948/feed-table composition, inferred feed speciation, or sulfur mass fraction.
 
 ${markdownTable(envRows)}
 
@@ -930,7 +947,7 @@ Envelope status:
 - \`NOT_CALCULABLE_SINGLE_PHASE\`: the selected predictive prior did not produce a non-trivial two-phase split.
 - \`NOT_CALCULABLE_FLASH\`: numerical flash failure; no value substituted.
 - Ranges combine representative-compound variation. COSMO-proxy versus UNIFAC-proxy differences are shown as model-form disagreement by separate rows, not hidden inside one mean.
-- Exact sulfur removal is not inferred from aromatic partitioning. A sulfur mass balance requires measured or bounded sulfur-family feed fractions.
+- Exact sulfur removal is not inferred from aromatic partitioning or these isolated probes. A sulfur mass balance requires measured or bounded sulfur-family feed fractions, which are absent here.
 
 ## Credibility decision
 
@@ -1032,7 +1049,7 @@ async function main(): Promise<void> {
   const envelope = sulfurEnvelope();
   const raw = {
     generatedAt: new Date().toISOString(),
-    methodVersion: 'ECR2_STEP4_THERMODYNAMIC_POC_1.0.0',
+    methodVersion: 'ECR2_STEP4_THERMODYNAMIC_POC_1.0.1',
     stage8Modified: false,
     datasetSummary: {
       cotoRows: cotoRows.length,
@@ -1043,6 +1060,9 @@ async function main(): Promise<void> {
       cotoCitation: COTO_2022_CITATION,
       calibrationGate: CALIBRATION_GATE,
       sulfurRawTieLinesAdmitted: false,
+      sulfurFeedComponentPresent: false,
+      sulfurFeedMassFractionsAvailable: false,
+      sulfurMassBalanceStatus: 'NOT_CALCULABLE_NO_FEED_SULFUR_COMPONENT',
     },
     predictiveMetrics,
     calibratedMetrics,
@@ -1054,6 +1074,7 @@ async function main(): Promise<void> {
       predictiveUnifac: 'Modified-UNIFAC-Dortmund-style fixed group proxy; Dortmund database not embedded',
       calibration: 'Direct NRTL/UNIQUAC fit to the named training rows only',
       initialization: 'Deterministic phase-biased flash initialization; experimental phase compositions are not used as initial guesses',
+      sulfurProbe: 'Isolated three-component molecular probe only; 2 mol% sulfur tracer is not a feed-table composition',
       noImputation: true,
     },
   };
