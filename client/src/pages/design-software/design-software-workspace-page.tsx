@@ -1620,21 +1620,24 @@ export default function DesignSoftwareWorkspacePage() {
       const val = (k: string) => (hd[k] ?? "").trim();
       const VALID_SOURCES = ["Measured", "Vendor", "Literature", "Assumed"];
 
-      // Packing Specific Surface Area — blocking
-      if (!val("packing_specific_surface_value"))
-        errors["packing_specific_surface_value"] = "Packing Specific Surface Area is required — no default (A-5 governed input)";
-      else {
-        if (!VALID_SOURCES.includes(val("packing_specific_surface_source_type")))
-          errors["packing_specific_surface_source_type"] = "Source Type for Packing SSA is required (Measured / Vendor / Literature / Assumed)";
-        if (!val("packing_specific_surface_source_ref"))
-          errors["packing_specific_surface_source_ref"] = "Source Reference for Packing SSA is required — non-blank";
-      }
+      // Packed-column pressure-drop fields belong only to the non-ECR path.
+      // ECR uses its agitated-column hydrodynamic basis and does not need the
+      // Duss/Zogg packing card or its source fields to run Common Hydraulics.
+      if (!showECR) {
+        if (!val("packing_specific_surface_value"))
+          errors["packing_specific_surface_value"] = "Packing Specific Surface Area is required — no default (A-5 governed input)";
+        else {
+          if (!VALID_SOURCES.includes(val("packing_specific_surface_source_type")))
+            errors["packing_specific_surface_source_type"] = "Source Type for Packing SSA is required (Measured / Vendor / Literature / Assumed)";
+          if (!val("packing_specific_surface_source_ref"))
+            errors["packing_specific_surface_source_ref"] = "Source Reference for Packing SSA is required — non-blank";
+        }
 
-      // Corrugation Angle — blocking
-      if (!val("packing_corrugation_angle_value"))
-        errors["packing_corrugation_angle_value"] = "Corrugation Angle is required — no default (30° or 45°)";
-      else if (!val("packing_corrugation_angle_source_ref"))
-        errors["packing_corrugation_angle_source_ref"] = "Corrugation Angle Source Reference is required — non-blank";
+        if (!val("packing_corrugation_angle_value"))
+          errors["packing_corrugation_angle_value"] = "Corrugation Angle is required — no default (30° or 45°)";
+        else if (!val("packing_corrugation_angle_source_ref"))
+          errors["packing_corrugation_angle_source_ref"] = "Corrugation Angle Source Reference is required — non-blank";
+      }
 
       // Droplet / characteristic-velocity model
       const model = val("hydraulic_model") || "d32_terminal";
@@ -1693,10 +1696,13 @@ export default function DesignSoftwareWorkspacePage() {
         }
       }
 
-      // Advisory: SSA with no governed cf dataset and no vendor ΔP override
-      const ssaV = numVal(val("packing_specific_surface_value"));
-      if (ssaV !== null && [300, 350, 400, 450].includes(ssaV) && !val("vendor_dp_value"))
-        warnings["ssa_no_governed_cf"] = `SSA = ${ssaV} m²/m³ has no governed Duss 2013 c_f dataset — pressure drop Not Calculable for this geometry. Enter vendor ΔP data to enable pressure-drop calculation.`;
+      // Advisory: packed-column SSA with no governed cf dataset and no vendor
+      // override. ECR deliberately has no packing pressure-drop basis.
+      if (!showECR) {
+        const ssaV = numVal(val("packing_specific_surface_value"));
+        if (ssaV !== null && [300, 350, 400, 450].includes(ssaV) && !val("vendor_dp_value"))
+          warnings["ssa_no_governed_cf"] = `SSA = ${ssaV} m²/m³ has no governed Duss 2013 c_f dataset — pressure drop Not Calculable for this geometry. Enter vendor ΔP data to enable pressure-drop calculation.`;
+      }
     }
 
     if (stageKey === "technology_selection") {
@@ -4143,7 +4149,7 @@ export default function DesignSoftwareWorkspacePage() {
           )}
         </SectionCard>
 
-        <SectionCard title="Pressure Drop Basis — Duss 2013 / Zogg (Controlled Literature)">
+        {!showECR && <SectionCard title="Pressure Drop Basis — Duss 2013 / Zogg (Controlled Literature)">
           <p className="text-[12px] text-gray-500 mb-3 leading-relaxed">
             Single-phase frictional ΔP/Δz using the Duss 2013 / Zogg framework
             (EQ3–EQ6: d<sub>h</sub> = 4/a; Re = u<sub>s</sub>·ρ·d<sub>h</sub>/η; F<sub>v</sub> = u<sub>s</sub>·√ρ; ΔP/Δz = c<sub>f</sub>·ρ·u<sub>s</sub>²/2d<sub>h</sub>).
@@ -4292,7 +4298,7 @@ export default function DesignSoftwareWorkspacePage() {
               ? `Status: Vendor override active — ΔP/Δz = ${hd.vendor_dp_value} Pa/m will supersede the literature result; literature retained for comparison`
               : "Status: No vendor override — controlled-literature basis will be used"
           )}
-        </SectionCard>
+        </SectionCard>}
 
         <div className="flex items-center gap-3 mb-4">
           <Button
