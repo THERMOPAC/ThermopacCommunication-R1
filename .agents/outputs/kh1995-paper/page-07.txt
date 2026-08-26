@@ -1,0 +1,131 @@
+Ind. Eng. Chem. Res., Vol. 34, No. 11, 1995
+3931
+AARE
+=
+i
+NDP predicted value
+-
+exptl value |
+exptl value
+(20)
+in which NDP is the number of data points. The values
+of AARE in 
+for the different extraction columns
+considered in this work are also shown in Table 2.
+Figure 1 compares the experimental variation in 
+with N measured by Logsdail et al. (1957) during
+transfer of acetone from butyl acetate drops to the
+aqueous phase with that predicted by eq 15 in a rotating
+disk column of 76-mm diameter. Figure 2 displays the
+data of Goldmann (1986) for a butyl acetate (dispersed)-
+water (continuous) system when acetone transfer oc-
+curred from the continuous to the dispersed phase in a
+Kühni column of 150-mm diameter together with the
+variation in with N predicted by eq 15. The decrease
+in with e appears to be well-predicted by the present
+correlation.
+In Figure 3, eq 15 is compared with the
+data of Rincón-Rubio (1992) for n-butyl alcohol (dis-
+persed)-water (continuous) and cyclohexanone (dis-
+persed)-water (continuous) systems in a Wirz-II column
+of 152-mm diameter.
+Figure 4 demonstrates the ap-
+plication of eq 15 to the data of Bell (1964) for a methyl
+isobutyl ketone (dispersed)—water (continuous) system
+in a pulsed perforated-plate column of 51-mm diameter.
+In Figure 5, eq 15 is compared with the experimental
+data of Bensalem (1985) for a toluene (dispersed)—water
+(continuous) system for three different values of the flow
+ratio, R. The application of the present correlation to
+mass-transfer data for an ethyl acetate (dispersed)—
+water (continuous) system during transfer of acetone
+in either direction measured by Gayler and Pratt
+(1957b) in
+a packed column of 104-mm diameter is
+shown in Figure 6. The experimental variation in Va1·39/
+c?32°'74 for a spindle oil (dispersed)-water (continuous)
+system during heat transfer from the continuous to the
+dispersed phase measured by Bühler (1977) in a 100-
+mm diameter spray column together with that predicted
+by eq 15 is displayed in Figure 7.
+The parameters in eq 15 were
+optimized for each type
+of column, since the columns considered have different
+flow characteristics. Nonetheless, attempts were
+made
+to bring together the hold-up data for eight types of
+columns into a single, truly unified correlating proce-
+dure.
+On the basis of data from 7198 measurements,
+the resulting correlation is
+in which the term containing power dissipation per unit
+mass
+is to be neglected for packed and spray columns
+and l is defined as before. For the sake of simplicity,
+the effect of Db/H on in rotating disk and asymmetric
+rotating disk columns was
+neglected, and a constant
+value of Cr was
+determined. The value of n% was fixed
+at —1 for both Kühni and packed columns, and it was
+taken as zero for other agitated columns. Furthermore,
+no provision has been made to account for the effect of
+mass
+transfer on .
+The best values of Cr for different
+types of column are
+listed in Table 3.
+Equation 21
+reproduces the entire set of experimental data with an
+N, 1/s
+Figure 1. Experimental variation in with N for a butyl acetate
+(dispersed)-acetone (solute)-water (continuous) system when
+acetone is transferred from the dispersed to the continuous phase
+with Vc
+=
+3.32 mm/s and Va
+=
+3.23 mm/s measured by Logsdail
+et al. (1957) in
+a 76-mm diameter rotating disk column (O)
+compared with that predicted by eq 15 (full line).
+Figure 2. Experimental variation in with N for a butyl acetate
+(dispersed)
+- acetone (solute)-water (continuous) system when
+acetone is transferred from the continuous to the dispersed phase
+with R
+=
+1.12 measured by Goldmann (1986) in
+a
+150-mm
+diameter Kühni column (indicated by the symbols) compared with
+that predicted by eq 15 (full lines). Data are
+as follows:
+Vz (mm/
+s), e, symbol; 3.28, 0.40, O; 3.93, 1.00, .
+average absolute value of the relative error
+of 29.3%
+(which can be reduced by about 1% if the effect of mass
+transfer on is allowed for). This error
+compares with
+18.1% for all data by using eq 15 in which the param-
+eters
+were
+individually optimized for each type of
+column. This shows that the specific behavior of each
+type of column is very important, because the drop
+motion and continuous-phase flow patterns are signifi-
+cantly influenced by the type of agitation and geo-
+metrical characteristics. Equation 21 may be considered
+to provide rough estimates of hold-up in the different
+types of columns treated in this work.
+Scale-Up
+A breakdown of the average error
+in hold-up, given
+by eq 15, with column diameter is provided in Table 4.
+The experimental data naturally cluster in columns of
+25-, 50-, 75-, 100-, 150-, 225-, 300-, 450-, and 1000-mm
+diameter. The small amount of data lying to either side
+of these column diameters are included with the data
+for the chosen nominal diameters. At the bottom of
+Downloaded from pubs.​acs.​org/​iecred/​article-pdf/​34/​11/​3925/​17832754/​ie00038a032.​pdf by prasad@thermopac.​in on 26 August 2026

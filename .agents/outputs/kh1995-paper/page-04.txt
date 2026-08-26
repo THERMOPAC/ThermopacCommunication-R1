@@ -1,0 +1,193 @@
+3928
+Ind. Eng. Chem. Res., Vol. 34, No. 11, 1995
+Table 1. (Continued)
+Packed Columns
+Data Base: Gayler et al. (1953), Gayler and Pratt (1951, 1957a,b), Smith et al. (1957), Chandrasekaran and Laddha (1964),
+Degaleesan and Laddha (1965), Bailes et al. (1986a), Mackowiak and Billet (1986), Seibert (1986)
+Continuous-Phase Liquids: water, 20% glycerine + 80% water, 30% glycerine + 70% water
+Dispersed-Phase Liquids: isooctane, benzene, toluene, cumene, re-butyl alcohol, dibutyl carbitol, methyl isobutyl ketone, ethyl
+acetate, butyl acetate, dichlorodiethyl ether
+Solutes: acetone, isobutyric acid, succinic acid, uranyl nitrate
+Number of Data Points:
+no mass transfer, 1351; c
+—
+d transfer, 312; d
+—*
+c transfer, 360
+Ranges of Physical Properties:
+pc
+= 985-1357 kg/m3, p¿
+= 692-1220 kg/m3,
+pc
+= 0.86-2.82 mPa s,
+= 0.48-3.93 mPa s, 
+= 0.8-46.5 mN/m
+Ranges of Column Diameter and Packing Properties: Dc
+= 76-305 mm, d?
+=
+6.3—38.1 mm, op
+=
+108-801 m2/m3,
+e
+= 0.410-0.950
+Ranges of Operating Conditions:
+Vc
+= 0.0-14.6 mm/s, Vd
+= 0.2-15.2 mm/s, R
+= 0.02-=, d?y¿
+= 0.89-6.40 mm;
+ 
+= 0.006-0.450, Vsiip
+=
+11.5-161.8 mm/s
+Spray Columns
+Data Base: Garwin and Smith (1953), Weaver (1958), Hazlebeck and Geankoplis (1963), Henton (1967), Loutaty et al.
+(1969), Ferrarini (1972), Perrut (1972), Hupfauf (1973), Horvath (1976), Bühler (1977), Berger (1981), Ugaráic (1981),
+Geankoplis et al. (1982)
+Continuous-Phase Liquids: water, heptane, dimethyl sulfoxide
+Dispersed-Phase Liquids: heptane, benzene, toluene, o-xylene, re-butyl alcohol, isobutyl alcohol, isoamyl alcohol,
+methyl isobutyl ketone, dimethyl sulfoxide, kerosene, spindle oil
+Solutes: benzene, acetone, methyl ethyl ketone, acetic acid, succinic acid
+Number of Data Points:
+no mass
+or heat transfer, 442; c
+—
+d transfer, 463; d
+—
+c transfer, 28
+Ranges of Physical Properties:
+pc
+= 722-1060 kg/m3, p¿
+= 683-1060 kg/m3,
+pc
+= 0.44-2.20 mPa s, pd
+= 0.42-4.88 mPa s, 
+= 1.4-50.0 mN/m
+Ranges of Column and Nozzle Diameters: Dc
+= 27-300 mm, Dn
+=
+1.0—5.0 mm
+Ranges of Operating Conditions:
+Vc
+= 0.0-23.2 mm/s, Vd
+= 1.2-22.1 mm/s, R
+= 0.07-=, (¿32
+=
+1.34-9.09 mm, Re
+= 25-3254;
+ 
+= 0.009-0.452, Vsiip
+=
+19.5-256.5 mm/s
+a The ranges are given in italics when the values of a variable are
+not available for the entire set of data.
+Pulsed Perforated-Plate Columns. For constant
+flow rates, there are three stable regions of operation,
+namely, the mixer-settler, dispersion, and emulsion
+regions depending upon the amplitude and frequency
+of pulsation. In the mixer-settler region, the hold-up
+decreases with increasing agitation, which is at variance
+with the behavior in the dispersion and emulsion
+regions and also with the data for other agitated
+columns in which the hold-up increases with increasing
+agitation. It is therefore pertinent to exclude the data
+in the mixer-settler region. The following dimensional
+equation suggested by Kumar and Hartland (1988b),
+giving the value of the amplitude—frequency product,
+which marks the transition from mixer—settler to
+dispersion region of operation, was
+used to effect this
+task:
+(Af)t
+=
+9.69 x 10~3F^rl
+[nVs]
+(8)
+The final data base embraces 1291 experimental runs
+in the dispersion and emulsion regions of operation from
+17 different groups of investigators.
+In
+19 liquid
+systems, no
+mass transfer took place but it occurred in
+the remaining 10, the number of liquid systems corre-
+sponding to the c
+-*
+d and d
+—
+c cases
+being 8 and 2,
+respectively.
+Karr Reciprocating-Plate Columns. The data on
+19 liquid systems have been taken from 7 different
+groups of investigators. In 14 systems, no mass
+transfer
+took place, but it occurred in the remaining 5, either
+from the continuous to the dispersed phase (2 systems)
+or vice versa
+(3 systems).
+The total number of data
+points is 471, but the data corresponding to
+mass-
+transfer runs
+are meager. Separate values of A and f
+are not available for all the data points, so the individual
+ranges of these variables are
+not included in Table 1.
+Packed Columns.
+The data set considered in this
+work is the same
+as that used by Kumar and Hartland
+(1994a). Important details are listed below.
+(1) The data for the conditions when the continuous
+phase wets the packing only are considered.
+(2) Only those random-packing data for which the
+packing size, dp, is greater than the critical packing size,
+dp,cr, are selected. The critical packing size is calculated
+by using the equation suggested by Gayler et al. (1953).
+(3) The data corresponding to the regions of linearly
+increasing and rapidly increasing hold-up only
+are
+considered, and those corresponding to constant hold-
+up region are
+omitted.
+Further information on this
+selection of data is given in Kumar and Hartland
+(1994a).
+The total number of data points is 2023, including 672
+data with mass transfer. Unfortunately, data from only
+56 experiments corresponding to ordered packing are
+available. The random packings used in the available
+experimental results comprised Raschig rings, Pall
+Rings, Bialecki rings, Berl saddles, Intalox saddles, and
+spheres. The ordered packings studied are Sulzer BX,
+Sulzer SMV, and Montz pack.
+Spray Columns.
+It has been shown experimentally
+and theoretically (see, e.g., Loutaty et al. (1969), and
+Kumar and Hartland (1985)) that two values of or Vsiip
+corresponding to loose and dense regimes of operation,
+respectively, can exist for given values of continuous-
+and dispersed-phase flow rates in continuous sedimen-
+tation and countercurrent
+flow.
+The hold-up of loose
+dispersions increases, but that of dense dispersions
+decreases with increased flow rates of either phase
+(Kumar and Hartland, 1989). Since the hold-up invari-
+ably increases with flow rates in all other types of
+columns, the data corresponding to dense dispersions
+were
+identified by using the procedure given by Kumar
+and Hartland (1989) which predicts a transitional hold-
+up,  , that marks the passage from loose to dense
+regime of operation.
+The runs
+to be excluded were
+determined by comparing the experimental values of 
+with those of
+</>t.
+The total number of data points
+corresponding to loose dispersions obtained by using this
+screening is 933, including 491 data with heat or mass
+Downloaded from pubs.​acs.​org/​iecred/​article-pdf/​34/​11/​3925/​17832754/​ie00038a032.​pdf by prasad@thermopac.​in on 26 August 2026

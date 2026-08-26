@@ -1,0 +1,208 @@
+transfer. The total number of liquid systems is 26. Heat
+or
+mass
+transfer took place in 17 systems (15 and 2
+systems corresponding to c
+—
+d and d
+—
+c directions of
+transfer, respectively), but no transfer occurred in the
+remaining 9 systems.
+Ind. Eng. Chem. Res., Vol. 34, No. 11, 1995
+3929
+The Kiihni extractor is fitted with an assembly of disk
+turbines with shrouds. Fischer (1973) measured the
+power required to operate Kiihni columns and correlated
+his experimental results in a plot of AT? vs Res. His data
+can be expressed in the form
+Correlation
+Before the correlation of the published results on 
+detailed above
+can
+be considered, it is essential to
+establish a common
+agitation parameter for different
+types of columns. For this purpose, the power dissipa-
+tion per unit mass
+of the phases, e, is selected as the
+most appropriate correlating parameter. The methods
+for the estimation of e in various columns are discussed
+below.
+In rotary-agitated columns, the power dissipation per
+unit mass is related to the power input per agitator, P,
+by
+jtDc2Hpc
+2Vp
+=
+1.08 + 10.94
+, 257.37
+Re
+0.5 +
+Re
+1.5
+(12)
+In Wirz-II columns, the dispersion is achieved by
+means
+of turbine agitators with
+a 45° blade angle.
+Literature for pitched-blade turbines (Bates et al., 1966)
+reveal that the power curve
+for agitated tanks fitted
+with such impellers becomes horizontal with Np
+—
+1.3
+at Res "s 1000. Table 1 shows that Res varies between
+2758 and 30 356 for the available data
+on Wirz-II
+columns, so Np may be assumed to be constant. Since
+no information on power dissipation in Wirz-II columns
+is available, the power requirements will be calculated
+from
+2VP
+=
+1.3
+(13)
+The power input, P, is usually obtainable from
+a
+relationship between the power number, Np, and the
+agitator Reynolds number, Res-
+For rotating disk and asymmetric rotating disk
+columns, Mísek and co-workers (Misek, 1964b; Misek
+and Marek, 1983; Míáek et al., 1988) gave the following
+equation:
+Np
+=
+CxReRC2
+(10)
+The values of Ci and C2 have been determined for
+rotating disk columns by Miiek and Marek (1983)
+Jealous and Johnson (1955) were the first to consider
+power dissipation in pulsed perforated-plate columns.
+They derived
+an
+equation for instantaneous power
+dissipation by assuming that the friction effects in a
+perforated plate were similar to those in an orifice. The
+integrated form of the Jealous and Johnson (1955)
+equation for e, as obtained by Hafez and Baird (1978)
+for a sinusoidal wave, is
+€
+= 2  
+~
+e2)
+mc02e2 lAff
+(14)
+C1
+=
+23.1,
+C2
+= -0.568
+if ReR < 6.74 
+104
+C1
+= 0.261,
+C2
+= -0.155
+if Ren > 6.74 
+104
+and for asymmetric rotating disk columns by MiSek et
+al. (1988):
+Cx
+=
+19.157,
+C2
+= -0.568
+iffieR < 3.87 
+104
+C1
+=
+0.244,
+C2
+= -0.155
+if ReR > 3.87 
+104
+The power number thus decreases strongly with the
+Reynolds number in the laminar region, whereas in the
+turbulent region it
+decreases very slowly with the
+Reynolds number. To obviate the discontinuity due to
+different values of the parameters for the two regions,
+eq 10 may be replaced by the following expression
+developed in this work:
+NP
+=
+Ren + C,
+1000 + 1.2ReR
+c3'
+1000 + 3.2RenCs
+Ci
+(ID
+The values of the parameters C1 to C4 are for rotating
+disk columns
+Cx
+=
+109.36,
+C2
+=
+0.74,
+C3
+=
+0.72,
+C4
+=
+3.30
+and for asymmetric rotating disk columns
+C1
+—
+90.00,
+C2
+=
+0.62,
+C3
+=
+0.73,
+C4
+= 3.17
+This equation will be used for the calculation of e for
+both pulsed perforated-plate and Karr reciprocating-
+plate columns. The value of the discharge coefficient,
+Co, is assumed to be 0.6.
+Although the packing elements in packed columns can
+cause
+breakup and distortion of drops, any power
+dissipation due to the presence of packing will
+be
+neglected. Spray columns contain no internals and are
+normally operated without the application of any ad-
+ditional mechanical energy,
+so the value of e can
+be
+taken as zero.
+The dispersed-phase hold-up, , is next considered to
+be a function of power dissipation per unit mass, e,
+continuous- and dispersed-phase velocities, Vc and V¿,
+physical properties, pc,  , µ0, µ&, and y, fractional free
+cross-sectional area,
+e, characteristic length, l, and
+gravitational constant, g. The characteristic length, l,
+is taken as the compartment height, H, for stagewise-
+agitated columns, reciprocal packing surface per unit
+volume of column, l/op, for packed columns, and drop
+size, (¿32, for spray columns. For the rotating disk and
+asymmetric rotating disk columns, the rotor diameter,
+Ds, also had a significant effect as explained below.
+Different combinations of the physical properties were
+considered as the fundamental variables used to for-
+mulate the dimensionless groups. The interfacial ten-
+sion, y, continuous-phase density, pc, and the gravita-
+tional constant, g, were
+found to be the most convenient.
+The grouping [y/(p^)]1/2 has dimensions of length and
+(gy/pc)1/4 dimensions of velocity. Use of the continuous-
+phase density, pc, rather than the density difference,  ,
+isolates the ratio Ap/pc in the physical properties group-
+ing.
+As explained below, this has
+a negative index
+Downloaded from pubs.​acs.​org/​iecred/​article-pdf/​34/​11/​3925/​17832754/​ie00038a032.​pdf by prasad@thermopac.​in on 26 August 2026

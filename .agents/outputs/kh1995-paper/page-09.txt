@@ -1,0 +1,203 @@
+V¿M/d§i7*, ™“s/sU!
+Figure 7. Experimental variation in with Vd1'39/d320 74 for a
+spindle oil (dispersed)-water (continuous) system for heat transfer
+from the continuous to the dispersed phase with Vc
+=
+6.2-6.4
+mm/s measured by Bühler (1977) in a 100-mm diameter spray
+column (O) compared with that predicted by eq 15 (full line).
+Table 3.
+Best Values for Cr for Different Types of
+Columns
+type of column
+Cr
+rotating disk and asymmetric rotating disk
+8.28
+Kiihni
+4.35
+Wirz-II
+21.86
+pulsed perforated-plate
+9.70
+Karr reciprocating-plate
+4.93
+packed
+3.33
+spray
+1.86
+tions covered in the original works, the methods due to
+Ishii and Zuber (1979) and Kumar and Hartland (1985)
+(multiparticle systems) and Baird and Lane (1973) and
+Pilhofer (1974) (packed beds) were
+compared with the
+experimental data for all types of columns. In some of
+the correlations involving characteristic velocity and in
+that of Pilhofer (1974), the values of the terminal
+velocities of single drops
+are
+required.
+These were
+always calculated from the empirical equations sug-
+gested in the original works, except for the data at low
+Reynolds numbers when these equations do not apply,
+for which the correlation of Abdel-Alim and Hamielec
+(1975) was
+used.
+A discussion of the application of
+various correlating approaches to the extraction col-
+umns
+considered is given below.
+Rotating Disk and Asymmetric Rotating Disk
+Columns.
+The average errors
+in and Vsiip for six
+different correlations corresponding to the linear char-
+acteristic velocity approach are given in Table 5. God-
+frey and Slater (1991) have provided equations for the
+calculation of parameters in eq 5.
+However, the cor-
+relating equations are available for the water continu-
+ous phase only. The values of the drop diameter in the
+equation for Vk were
+calculated from the correlation of
+Chang-Kakoti et al. (1985)
+as recommended by the
+original authors. (To be able to compare the results on
+a common
+basis predicted by other implicit correlations
+discussed below, the same drop-size equation was used.)
+For the data of Schenk et al. (1973), obtained in
+a
+rotating disk column of 1000-mm diameter, the equation
+for Vk gave negative values!
+While evaluating eq 7 (coalescence behavior), Vk was
+taken
+as eVr (Míáek and Marek, 1970, 1983).
+This
+procedure was
+tested only with the data corresponding
+to the cases of no mass transfer and c
+—
+d transfer. (As
+mentioned in the Introduction, it is not possible to
+Ind. Eng. Chem. Res., Vol. 34, No. 11, 1995
+3933
+estimate the coefficient of coalescence, a, for the d
+—
+c
+direction of mass transfer.) The values of (¿43 required
+in the correlations for Vt (Misek and Marek, 1970,1983)
+were
+calculated from predicted values of ¿32 by assum-
+ing that
+(¿43
+=
+1.33^32 (Misek et al.,
+1988).
+Two
+solutions for hold-up resulted; the root with the lower
+value was generally taken as the predicted value, since
+it gave lesser deviation when compared with the ex-
+perimental value.
+In evaluating the predictive ability of correlations
+based on drag relationships, the definition of Vsup given
+by eq 3 with Cr
+=
+e was
+adopted to calculate the hold-
+up and slip velocity. Average errors
+quoted in Table 5
+do not support the application of these types of correla-
+tions to rotating disk and asymmetric rotating disk
+columns.
+Furthermore, hold-up values were
+grossly
+underpredicted when Cr was taken as unity, i.e., when
+eq 1 for Vsiip was
+used.
+Ktthni Columns. The only correlation for Vk in eq
+4 (linear equation) has been proposed by Kumar et al.
+(1986). In using this method, Cr in eq 3 is taken as e.
+It can be seen from Table 6 that the method fails to yield
+any solution for hold-up for about half the data points
+tested. Also, for the remaining data, the value of the
+average error
+in hold-up is large.
+On the basis of eq 5, Bailes et al. (1986b) showed that
+Vk/V' tends to unity at low agitations levels and to the
+value of e at high speeds.
+Although
+an
+empirical
+equation for calculating m
+was
+suggested, the charac-
+teristic velocity,
+Vk,
+was
+not correlated.
+Similarly,
+Godfrey and Slater (1991) proposed yet another equa-
+tion for
+m
+but
+once
+again provided
+no
+correlating
+equation for Vi.
+In evaluating approaches involving coalescence be-
+havior and drag equations, Vsup defined in accordance
+with eq 3 has been used to investigate the effect of
+different values of the constriction factor, Cr, on predic-
+tion.
+Three values of Cr were
+chosen, namely, unity
+(implying no effect of column internals), e (minimum
+fractional free cross-sectional area in the column), and
+a linear function of e suggested by Goldmann (1986):
+CR
+=
+0.75e + 0.25
+(22)
+The values of the drop size required in these correlations
+were
+calculated from an equation suggested by Kumar
+and Hartland (1994b). When Cr was taken as unity,
+all the correlations tested were
+found be fairly stable;
+i.e., the solution was possible for most of the data points.
+However, the predicted values of hold-up were generally
+much smaller than the experimental results.
+Worst
+results were
+obtained if Cr was taken as e; no solution
+was possible for more
+than 50% of the data by using all
+the correlations. Furthermore, the predicted values are
+much higher than the experimental data. The values
+of the average errors
+in and VsiiP, when Cr defined by
+eq 22 is used, are listed in Table 6.
+Kumar (1985) presented a correlation for slip velocity
+that does not contain hold-up as
+a variable. Unfortu-
+nately, his equation is unsatisfactory when applied to
+data other than that of the original work.
+The only
+published explicit equation for predicting hold-up is
+provided by Kumar (1985). However, the large negative
+indices on Vc and large positive indices on
+V<j for both c
+—·
+d and d —c
+cases of mass
+transfer are questionable.
+Wirz-II
+Columns.
+Correlations for characteristic
+velocity in eq 4 are not available. However, it may be
+attempted to assess
+the applicability of this approach
+by use of eq 3 for slip velocity, in which the value of Cr
+Downloaded from pubs.​acs.​org/​iecred/​article-pdf/​34/​11/​3925/​17832754/​ie00038a032.​pdf by prasad@thermopac.​in on 26 August 2026

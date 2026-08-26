@@ -1,0 +1,63 @@
+3940
+Ind. Eng. Chem. Res., Vol. 34, No. 11, 1995
+Shirotsuka, T.; Honda, N.; Oya, H. Extraction Characteristics of
+and Flow Properties with Pulsed Extraction Columns either
+Packed or Perforated. Kagaku Kogaku 1958, 22, 687-694.
+Slater, M. J. Liquid-Liquid Extraction Column Design.
+Can. J.
+Chem. Eng. 1985, 63, 1004.
+Smith, L. E.; Thornton, J. D.; Pratt, H. R. C. Liquid-Liquid
+Extraction: Part XI. Mass Transfer Data for the Extraction of
+Uranyl Nitrate in a Packed Column. Trans. Inst. Chem. Eng.
+1957, 35, 292-300.
+Sovilj, M. Slip Velocity and Hydrodynamic Parameters in Liquid-
+Liquid Spray Columns. Collect. Czech. Chem. Commun. 1989,
+54, 990-995.
+Steiner, L. Rechnerische Erfassung der Arbeitsweise von fliissig-
+flüssig Extraktionskolonnen; VDI-Verlag: Dusseldorf, 1988.
+Strand, C. P.; Olney, R. B.; Ackerman, G. H. Fundamental Aspects
+of Rotating Disk Contactor Performance. AIChE J. 1962, 8,
+252-261.
+Taylor, P. A.; Baird, .
+H. L; Kusuma, I. Computer Control of
+Holdup in a Reciprocating Plate Extraction Column.
+Can. J.
+Chem. Eng. 1982, 60, 556-565.
+Thornton, J. D. Liquid-Liquid Extraction Part XIII:
+The Effect
+of Pulse Wave-Form and Plate Geometry on the Performance
+and Throughput of a Pulsed Column. Trans. Inst. Chem. Eng.
+1957, 35, 316-330.
+Tung, L. S.; Luecke, R. H. Mass Transfer and Drop Sizes in Pulsed-
+Plate Extraction Columns. Ind. Eng. Chem. Process Des. Dev.
+1986, 25, 664-673.
+Ugarcic, M. Hydrodynamik und Stoffaustausch in Sprüh- und
+gepulsten Siebbodenkolonnen.
+Ph.D. Thesis No. 6825, Swiss
+Federal Institute of Technology, Zürich, 1981.
+Vassallo, G. The Hydrodynamic Behaviour of a Pulsed Column.
+Report EUR 8597 EN, 1983.
+Vermijs, H. J. A.; Kramers, H. Liquid-Liquid Extraction in a
+“Rotating Disc Contactor”.
+Chem. Eng. Sci. 1954, 3, 55-64.
+Weaver, R. E.
+C. Interface Contact in Liquid-Liquid Spray
+Columns. Ph.D. Thesis, Princeton University, Princeton, NJ,
+1958.
+Wolschner, B. H. Konzentrationsprofile in Drehscheibenextrak-
+toren. Ph.D. Thesis, Technische Universitát Graz, 1980.
+Zhang, S. H.; Ni, X. D.; Su, Y. F. Hydrodynamics, Axial Mixing
+and Mass Transfer in Rotating Disk Contactors. Can. J. Chem.
+Eng. 1981, 59, 573-583.
+Zhang, S. H.; Yu, S. C.; Zhou, Y. C.; Su, Y. F. A Model for Liquid-
+Liquid Extraction Column Performance—The Influence of Drop
+Size Distribution on Extraction Efficiency. Can. J. Chem. Eng.
+1985, 63, 212
+- 226.
+Received for review February 2, 1995
+Revised manuscript received June 1, 1995
+Accepted June 15, 1995®
+IE950097B
+® Abstract published in Advance ACS Abstracts, September
+15, 1995.
+Downloaded from pubs.​acs.​org/​iecred/​article-pdf/​34/​11/​3925/​17832754/​ie00038a032.​pdf by prasad@thermopac.​in on 26 August 2026

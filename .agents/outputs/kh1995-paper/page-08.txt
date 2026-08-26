@@ -1,0 +1,113 @@
+3932
+Ind. Eng. Chem. Res., Vol. 34, No. 11, 1995
+Figure 3.
+Experimental variation in with Vd measured by
+Rincón-Rubio (1992) in
+a
+152-mm diameter Wirz-II
+column
+(indicated by the symbols) compared with that predicted by eq 15
+(full lines). Continuous phase, water; N
+=
+3 1/s; Vc
+=
+1.14 mm/s.
+Data are
+as follows: dispersed phase, symbol; n-butyl alcohol; O;
+cyclohexanone, .
+Figure 4.
+Experimental variation in with Af for a methyl
+isobutyl ketone (dispersed)-water (continuous) system measured
+by Bell (1964) in a 51-mm diameter pulsed perforated-plate column
+(indicated by the symbols) compared with that predicted by eq 15
+(full lines). Data are
+as follows:
+Vc (mm/s), R, symbol; 2.51, 0.95,
+O; 5.38, 0.22, ®.
+Af, mm/s
+Figure 5.
+Experimental variation in with Af for a toluene
+(dispersed)-water (continuous) system measured by Bensalem
+(1985) in
+a 76-mm diameter Karr reciprocating-plate column
+(indicated by the symbols) compared with that predicted by eq 15
+(full lines). Data are
+as follows:
+Vc (mm/s), R, symbol; 6.11, 0.25,
+O; 9.18, 0.33, ®; 6.11, 0.75, 0.
+Figure 6. Experimental variation in with Va for an ethyl acetate
+(dispersed)-acetone (solute)-water (continuous) system with 12.7-
+mm
+ceramic Raschig rings measured by Gayler and Pratt (1957b)
+in a 104-mm diameter packed column (indicated by the symbols)
+compared with that predicted by eq 15 (full lines). Data are
+as
+follows: direction of mass transfer, symbol; c
+—-
+d, O; d
+—
+c, ®.
+Table 4, the breakdown of the errors
+corresponding to
+data for all the column types considered in this work is
+also shown.
+Over 90% of the data are for columns between 50- and
+150-mm diameter, of which almost 40% are for columns
+of 150-mm diameter. Roughly 5% of the data points are
+for columns of 225-mm diameter and 3% for 300-mm
+diameter.
+For columns between 75- and 300-mm di-
+ameter, comprising over
+80% of the data points, the
+error
+is less than the average error
+of 18.1%. Columns
+of 50-mm diameter, encompassing about 16% of the data
+points, have a slightly larger error.
+The high error
+associated with columns of 25-mm diameter suggests
+that these columns are
+not representative because of
+their high wall effects. Furthermore, there is some
+error
+inherent in the data of Cohen and Beyer (1953) for
+pulsed columns as explained by Kumar and Hartland
+(1988b), and in any case, the small number of data
+points makes the error
+of 36% statistically insignificant.
+Data for 450- and 1000-mm columns are only available
+for rotating disk columns, but the errors
+of 29.0 and
+16.4%
+are
+also probably not statistically significant
+because of the small number of data points. It would
+seem that the correlation is suitable for scale-up pur-
+poses for columns between 75- and 225-mm diameter
+and possibly between 50- and 500-mm diameter.
+Comparison with Published Correlations
+The forms of published equations dictate various
+restrictions to be imposed on their application, although
+such limitations have not always explicitly been men-
+tioned in the original references. Wherever possible,
+data selection criteria for literature equations have been
+formulated in the present work.
+These are
+given in
+Tables 5—11, which compare the values of and Vsiip
+predicted by various correlations with those predicted
+by eq 15 in terms of the average absolute value of the
+relative error
+for different types of columns.
+Correlations involving drag relationships have not
+always been recommended or examined for the predic-
+tion of hold-up in various types of columns. A selected
+number of them, however,
+were
+tested to ascertain
+whether these simple approaches could be extended to
+columns other than that for which they were
+derived.
+On the basis of applicability over
+wide ranges of condi-
+Downloaded from pubs.​acs.​org/​iecred/​article-pdf/​34/​11/​3925/​17832754/​ie00038a032.​pdf by prasad@thermopac.​in on 26 August 2026

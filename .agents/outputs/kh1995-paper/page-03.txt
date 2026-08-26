@@ -1,0 +1,217 @@
+Ind. Eng. Chem. Res., Vol. 34, No. 11, 1995
+3927
+Table 1.
+Summary of Experimental Literature
+on Dispersed-Phase Hold-Up in Different Types of Columns0
+Rotating Disk and Asymmetric Rotating Disk Columns
+Data Base: Vermijs and Kramers (1954), Logsdail et al. (1957), Kung and Beckmann (1961), Kasatkin et al. (1962), Olney
+(1964), Schenk et al. (1973), Kamath et al. (1976), Magiera and Zadlo (1977), Blaíej et al. (1978), Murakami et al.
+(1978), Wolschner (1980), Zhang et al. (1981), Al-Aswad (1982), Hartung and Weiss (1982), Kaplan (1982),
+Korchinsky et al. (1982,1983), Háusler (1985), Sarkar et al. (1985), Zhang et al. (1985), Bailes et al. (1986a),
+Korchinsky and Al-Husseini (1986), Korchinsky and Young (1986), Korchinsky and Ismail (1988)
+Continuous-Phase Liquids: water, 40% glycerine + 60% water, 60% glycerine + 40% water, methyl isobutyl ketone,
+trichloroethylene, kerosene
+Dispersed-Phase Liquids: toluene, cumene, re-butyl alcohol, isoamyl alcohol, methyl isobutyl ketone, butyl acetate,
+carbon tetrachloride, trichloroethylene, 68% kerosene + 32% carbon tetrachloride, 37% kerosene + 63% carbon
+tetrachloride, kerosene, Clairsol 350, white oil, water
+Solutes: acetone, re-propyl alcohol, acetic acid, butyric acid, isobutyric acid, succinic acid, caprolactam
+Number of Data Points:
+no mass transfer, 624; c
+—
+d transfer, 270; d
+—
+c transfer, 219
+Ranges of Physical Properties:
+pc
+= 786-1470 kg/m3, pa
+= 783-1595 kg/m3, pc
+= 0.57-9.10 mPa s, ua
+= 0.48-26.00 mPa s,
+y
+= 0.8-50.0 mN/m
+Ranges of Column Dimensions:
+Dc
+= 41-1000 mm, Dr = 20-600 mm, H
+—
+14-225 mm, H/Dc
+= 0.15-0.83, Dr/Dc
+=
+0.25-0.78, Dn/H = 0.60-4.00, e or (Ds/Dc)2
+= 0.21-0.69.
+Ranges of Operating Conditions:
+Vc = 0.0-12.3 mm/s, Vd = 0.1-7.8 mm/s, R
+= 0.05-°°, N
+= 0-32.3 1/s,
+Ren
+= 0-1.86
+x 106, e
+= 0-2.02 W/kg, d32
+= 0.61-5.40 mm;
+ 
+= 0.009-0.560, Vdip
+= 3.7-317.8 mm/s
+Ktihni Columns
+Data Base: Kumar (1985), Bailes et al. (1986a), Goldmann (1986), Ming and Yao (1986), Dongaonkar et al. (1991)
+Continuous-Phase Liquid: water
+Dispersed-Phase Liquids: o-xylene, cumene, re-butyl alcohol, methyl isobutyl ketone, butyl acetate, kerosene
+Solutes: acetone, acetic acid, isobutyric acid, succinic acid
+Number of Data Points:
+no mass transfer, 126; c
+—
+d transfer, 165; d
+—
+c transfer, 54
+Ranges of Physical Properties: pc
+= 994-1003 kg/m3, pd
+= 801-882 kg/m3, pc
+= 0.97-1.61 mPa s, µ&
+= 0.66-3.92 mPa s,
+y
+= 0.8-34.1 mN/m
+Ranges of Column Dimensions: Dc
+= 72-200 mm, Dr = 50-85 mm, 
+= 50-90 mm, H/Dc
+= 0.45-0.69,
+Dr/Dc
+= 0.43-0.69, Dn/H = 0.94-1.21, e
+= 0.16-1.00
+Ranges of Operating Conditions:
+Vc
+—
+0.2-7.9 mm/s, Vd
+= 0.1-8.8 mm/s, R
+= 0.09-5.00, N
+= 0-5.0 1/s, Ren
+= 0-36 058,
+e
+= 0-0.83 W/kg, £¿32
+= 0.35-8.49 mm;
+ 
+= 0.010-0.542, Ysiip
+= 2.3-126.0 mm/s
+Wirz Columns
+Data Base: Háusler (1985), Rincón-Rubio (1992)
+Continuous-Phase Liquid: water
+Dispersed-Phase Liquids: toluene, re-butyl alcohol, re-octanol, cyclohexanone, butyl acetate, 56% butyl acetate + 44%
+diethyl carbonate, 32% butyl acetate + 68% diethyl carbonate
+Solute: acetone
+Number of Data Points:
+no mass transfer, 996; c
+—
+d transfer, 11; d
+—
+c transfer, 15
+Ranges of Physical Properties:
+pc
+= 984-998 kg/m3, pa
+= 828-950 kg/m3, pc
+= 0.98-1.37 mPa s, p¿
+= 0.56-9.85 mPa s,
+y
+=
+1.9—34.8 mN/m
+Ranges of Column Dimensions: Dc
+= 150-152 mm, Dr =
+48 mm, 
+=
+80 mm, H/Dc
+= 0.52-0.53, Dr/Dc
+= 0.31-0.32,
+Dn/H =
+0.60, e
+= 0.16
+Ranges of Operating Conditions:
+Vc
+= 0.5-5.7 mm/s, Vd
+= 0.1-7.9 mm/s, R
+= 0.04-6.40, N
+= 1.7-13.3 1/s,
+Ren
+= 2758-30 356, e
+=
+1.05 x lQ-3-0.56 W/kg, £¿32
+= 0.55-1.99 mm;
+ 
+=
+0.020—0.554, Vsijp
+= 3.8-56.7 mm/s
+Pulsed Perforated-Plate Columns
+Data Base: Cohen and Beyer (1953), Shirotsuka et al. (1958), Biery (1961), Sehmel (1961), Bell (1964), Barame (1972),
+Arthayukti (1975), Khemangkom (1976), Elenkov et al. (1978), Pakdee-Patrakom (1980), Ugaróió (1981), Niebuhr
+(1982), Vassallo (1983), Aufderheide (1985), Reissinger (1985), Fitzpatrick et al. (1986), Lorenz (1990)
+Continuous-Phase Liquids: water, 2 M nitric acid
+Dispersed-Phase Liquids: hexane, benzene, toluene, o-xylene, re-butyl alcohol, isoamyl alcohol, methyl isobutyl ketone,
+butyl acetate, carbon tetrachloride, 30% tributyl phosphate + 70% kerosene, 50% tributyl phosphate + 50% kerosene
+Solutes: acetone, acetic acid, nitric acid, boric acid, iodine
+Number of Data Points:
+no mass transfer, 1142; c
+—
+d transfer, 79; d
+—
+c transfer, 70
+Ranges of Physical Properties:
+pc
+= 986-1060 kg/m3, pd
+= 652-1595 kg/m3,
+pc
+= 0.84-1.43 mPa s, pd
+= 0.29-4.88 mPa s, y
+= 1.8-46.5 mN/m
+Ranges of Column Dimensions:
+Dc
+= 25-215 mm, 
+= 50-120 mm, Do =
+1.0-6.0 mm, e
+= 0.01-0.49
+Ranges of Operating Conditions:
+Vc = 0.0-10.2 mm/s, Vd
+= 0.1-9.8 mm/s,
+R
+= 0.03-=, A
+= 3.0-51.6 mm,f= 0.33-4.75 Hz, Af= 4.6-102.7 mm/s, e
+=
+2.44 x lQ-4-9.49 W/kg, £¿32
+= 0.50-3.35 mm;
+ 
+= 0.002-0.675, Vdip
+= 5.4-110.4 mm/s
+Karr Reciprocating-Plate Columns
+Data Base: Lane (1971) and Baird and Lane (1973), Kim and Baird (1976), Taylor et al. (1982), Baird and Shen (1984), Bensalem
+(1985), Shen et al. (1985), Camurdan et al. (1989)
+Continuous-Phase Liquids: water, aqueous sodium chloride, methyl isobutyl ketone, kerosene, kerosene + mineral oil
+Dispersed-Phase Liquids: heptane, toluene, ethyl acetate, Isopar M, kerosene, kerosene + carbon tetrachloride, water, aqueous
+sodium chloride
+Solutes: acetone, butyric acid
+Number of Data Points:
+no mass transfer, 407; c
+—
+d transfer, 18; d
+—
+c transfer, 46
+Ranges of Physical Properties:
+pc
+= 805-1160 kg/m3, pd
+= 686-1193 kg/m3, pc
+= 0.82-3.20 mPa s, pd
+= 0.40-3.23 mPa s,
+y
+= 6.9-53.0 mN/m
+Ranges of Column Dimensions:
+Dc
+= 51-150 mm, H
+=
+25—51 mm, Do = 6.3-16.0 mm, e
+=
+0.54—0.58
+Ranges of Operating Conditions:
+Vc = 0.0-13.8 mm/s, Vd = 0.6-13.4 mm/s, R
+= 0.10-=, Af
+= 0-123.2 mm/s,
+e
+—
+0-1.32 W/kg, £¿32
+= 1.06-8.54 mm;
+ 
+= 0.009-0.297, Vaiip
+= 8.4-115.6 mm/s
+Downloaded from pubs.​acs.​org/​iecred/​article-pdf/​34/​11/​3925/​17832754/​ie00038a032.​pdf by prasad@thermopac.​in on 26 August 2026

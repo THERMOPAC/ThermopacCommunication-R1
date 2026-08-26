@@ -1,0 +1,149 @@
+Ind. Eng. Chem. Res. 1995, 34, 3925—3940
+3925
+A Unified Correlation for the Prediction of Dispersed-Phase
+Hold-Up in Liquid-Liquid Extraction
+Columns
+Arun Kumar and Stanley Hartland*
+Department of Chemical Engineering and Industrial Chemistry, Swiss Federal Institute of Technology,
+CH-8092 Ziirich, Switzerland
+On the basis of a large bank of published experimental results for eight different types of
+extraction columns, namely, rotating disk, asymmetric rotating disk, Kiihni, Wirz-II, pulsed
+perforated-plate, Karr reciprocating-plate, packed, and spray columns, a unified correlation for
+the prediction of dispersed-phase hold-up is presented. Analysis of data with and without mass
+transfer shows that the hold-up can be expressed in terms of the mechanical power dissipation,
+phase flow rates, physical properties, and column geometry.
+The limitations of previously
+published correlations with regard to their application and solution are demonstrated.
+Introduction
+A knowledge of dispersed-phase hold-up, , and slip
+velocity, Vsiip, is necessary in the design of extraction
+columns. The hold-up is needed to calculate the inter-
+facial area
+per unit volume and the absolute phase
+velocities. The slip velocity is required to calculate the
+mass-transfer and drag coefficients. For countercurrent
+flow of two immiscible phases in an extraction column
+without packing, the slip velocity is defined by
+geometry.
+Such expressions for Vsiip do not contain
+1
+—
+0; neither do the equations for contain VsiiP.
+Characteristic Velocity. A brief discussion of three
+commonly used characteristic velocity equations is given
+below.
+Linear.
+Gayler and Pratt (1951) and Gayler et al.
+(1953) proposed the following empirical equation:
+Vslip
+= V*(l-0)
+(4)
+Vc
+1-0
+and for a packed column of voidage e by
+(1)
+Vc
+e(l
+-
+0)
+(2)
+The effect of column internals on slip velocity is some-
+times allowed for by using a constriction factor, Cr, as
+follows:
+ -= ( + h)
+(3)
+Strand et al. (1962), who first introduced this concept
+for rotating disk columns, showed that Cr is a simple
+function of the column geometry. However, later stud-
+ies (Korchinsky et al., 1982; Godfrey and Slater, 1991)
+reveal that Cr is generally a much more
+complicated
+function of the column geometry, agitation conditions,
+and continuous-phase velocity. In the present work, the
+use
+of eq 3 is restricted to evaluating
+some
+of the
+published correlations for rotating disk, asymmetric
+rotating disk, Kiihni, and Wirz-II columns.
+A wide variety of equations exist for relating V8up with
+continuous-phase hold-up,
+1
+—
+0; those involving
+a
+characteristic velocity, Vk, have been summarized by
+Godfrey and Slater (1991). Other approaches involve
+the
+use
+of drag relationships for liquid drops and
+pressure drop formulas for packed beds.
+All these
+relationships lead to implicit equations from which it
+is difficult to obtain 0. However, explicit correlations
+for both Vsiip and are also available based only on the
+physical properties, operating conditions, and column
+* Author to whom correspondence should be addressed.
+in which Vk is the mean
+velocity of the drops extrapo-
+lated to zero flow rates and may bear some relation to
+the velocity of a single drop in the equipment concerned.
+For
+a given extraction column, liquid system, and
+agitation conditions, an average value of Vk is deter-
+mined from experimental values of Vc, Va, and 0 by
+plotting, for example, Va + 0VJiX
+-
+0) vs 0(1
+- ). Such
+plots are not always necessarily linear, so the values of
+Vk may seriously be in error.
+However, the use of this
+method has persisted, and empirical correlations for V*
+in terms of the physical properties, agitation intensity,
+and column geometry have been suggested for many
+types of column. The predictions of such correlations
+have invariably been compared with the experimental
+data in terms of Vt in the original references, though
+the parameter of interest is 0!
+To obtain 0, eq 4 is
+combined with eq 1 (or other equations defining V8iip)
+and the result rearranged to give a cubic in 0. Although
+the solution of a cubic equation is simple, problems may
+arise in choosing between the three roots of which only
+one represents a reasonable value of hold-up.
+Power Law.
+Slater (1985) and Godfrey and Slater
+(1991) rightly question the general suitability of eq 4
+and recommend that it should be replaced by the
+equation first formulated for solid particles by Richard-
+son and Zaki (1954):
+Vsiip
+= V*(l
+- 0 
+(5)
+with limits of 0
+< 0
+< 0.3. The index m is given as
+a
+function of the Reynolds number, Rek- The value of m,
+which is generally large and positive, decreases and falls
+to
+zero
+and then remains at
+zero
+as the agitation
+increases.
+Negative values of m
+may
+occur
+at low
+energy-input levels due to massive coalescence, chan-
+neling, or the behavior of large oscillating drops. Un-
+fortunately, only the errors
+of prediction in V* and m
+are sometimes quoted in the original references, which
+do not provide any clue on the agreement between the
+0888-5885/95/2634-3925$09.00/0
+&copy; 1995 American Chemical Society
+Downloaded from pubs.​acs.​org/​iecred/​article-pdf/​34/​11/​3925/​17832754/​ie00038a032.​pdf by prasad@thermopac.​in on 26 August 2026

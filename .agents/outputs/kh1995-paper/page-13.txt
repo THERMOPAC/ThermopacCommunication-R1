@@ -1,0 +1,256 @@
+ing the linear characteristic velocity approach, V* in eq
+4 was
+considered to be identical with the terminal
+velocity of a single drop which in turn
+was
+calculated
+from the equations of Grace et al. (1976). Although the
+solution is obtained for all data, the average errors
+of
+prediction on the data set are large.
+Correlations for the parameters V* and m in eq 5 are
+not available.
+The values of d43 required in the cor-
+relation for Vk in the method of Misek (1963b) were
+calculated from the experimental values of
+<¿32
+as
+explained earlier. The predicted values were
+found to
+be much smaller than those experimental values.
+Out of 5 correlations for multiparticle systems, the
+method of Sovilj (1989) is unsatisfactory,
+since it
+predicts flooding for 96 data (13.4% of the data tested).
+The correlation of Ishii and Zuber (1979) is the most
+stable of correlations, but the errors
+of prediction on the
+data set are large. The equations of Kumar et al. (1980)
+and Kumar and Hartland (1985) are acceptable in terms
+of accuracy, but the solution was
+not possible for 2.5
+and 3.8% of the data points, respectively.
+The method of Baird and Lane (1973) is burdened
+with massive errors.
+This is not surprising, since a
+procedure based on pressure drop formula for packed
+beds is least expected to apply to spray columns.
+Despite the complex form of Pilhofer’s (1974) formula,
+the errors
+of prediction are
+large.
+The independent
+correlation for slip velocity suggested by Kumar and
+Hartland (1989) reproduces the entire set of data with
+average errors
+of 14.3 and 12.7% in hold-up and slip
+velocity, respectively.
+Prediction
+of Slip Velocity
+As pointed out in the Introduction, the slip velocity
+is required for the calculation of the mass-transfer and
+drag coefficients. It may be directly calculated from eq
+1, 2, or
+3 using the value of hold-up obtained from eq
+15 or 21. Because of the form of eqs 1, 2, and 3, in which
+Vd is divided by and Vc by 1
+-
+ , the error
+in slip
+velocity is less than that in the hold-up, since a positive
+error
+in decreases the first term but increases the
+second term.
+This fact is borne out by the average
+errors
+for VsiiP and quoted in Tables 5-11 for eq 15.
+However, this is not true when the hold-up is inac-
+curately predicted by many of the published methods.
+Conclusions
+Published experimental data on dispersed-phase hold-
+up for eight different types of differential and stagewise
+extraction columns are brought together into a unified
+correlation. The effect of external agitation is accounted
+for in terms of the power dissipation per unit mass.
+The
+dimensionless correlation contains
+seven
+predictor
+groups, some of which can be redundant for a particular
+type of column due either to lack of variation in the
+parameters involved or to peculiar hydrodynamic condi-
+tions. The average error
+of prediction on the entire data
+set is 18.1%, which is better than that achieved by most
+authors in attempting to correlate their own
+data. The
+highest error
+is 22.7% for rotating disk and asymmetric
+rotating disk columns and the lowest 14.1% for spray
+columns.
+The errors
+for pulsed perforated-plate and
+packed columns are
+19.0 and 18.3%, respectively.
+The predicted values of hold-up may
+be used to
+calculate the slip velocity to an
+even
+better accuracy
+than that achieved in the hold-up.
+Ind. Eng. Chem. Res., Vol. 34, No. 11, 1995
+3937
+Existing methods for predicting hold-up in particular
+columns not only have a higher error
+but cannot be
+extended to other types of column.
+Nomenclature
+A
+=
+stroke (twice the wave
+amplitude), m
+op
+= packing surface area
+per unit volume of column, m2/
+m3
+Cr
+=
+constriction factor, dimensionless
+Co
+=
+discharge coefficient for flow through holes in the
+perforated plate, dimensionless
+Ci, C2,...
+= parameters of the empirical equations, dimen-
+sionless
+Cp, Cn, Cip
+= parameters in eqs 15 and 21, dimensionless
+Dc
+=
+column diameter, m
+Dp
+=
+rotor diameter, m
+Ds
+=
+stator opening diameter, m
+Do
+= perforation diameter, m
+«¿max
+=
+maximum drop size, m
+dp
+=
+packing size, m
+<¿32
+= Sauter mean
+drop diameter, m
+<¿43
+= weight mean
+drop diameter, m
+e = fractional free cross-sectional area
+(CDs/Dc)2 for rotating
+disk columns), dimensionless
+f
+= frequency, Hz
+g
+=
+acceleration due to gravity, m/s2
+ 
+= compartment height, m
+l
+=
+characteristic length, m
+m
+=
+index, dimensionless
+N
+=
+rotor speed, rev/s
+Np
+—
+power number
+=
+P/(N3Dp5pc), dimensionless
+n\—tin
+=
+indexes, dimensionless
+P
+=
+power input per compartment, W
+R
+= flow ratio Vd/Vc, dimensionless
+Re = Reynolds number for multiparticle systems
+=
+<¿32V8uppc/
+pc, dimensionless
+Rek
+=
+Reynolds number
+=
+dwVkpJpc
+or
+dz&VkpJpc for
+packed columns, dimensionless
+Rep
+= rotor Reynolds number
+=
+NDp2pJpc, dimensionless
+Vt
+=
+terminal velocity of a single particle in an infinite
+medium, m/s
+V =
+superficial velocity, m/s
+Vk
+=
+characteristic velocity, m/s
+V8Mp
+=
+slip velocity, m/s
+Greek Symbols
+a
+=
+coefficient of coalescence, dimensionless
+ 
+= interfacial tension, N/m
+Ap
+=
+density difference between phases, kg/m3
+e
+=
+mechanical power dissipation per unit mass, W/kg
+µ
+= viscosity, Pa s
+ 
+=
+3.1416
+p
+=
+density, kg/m3
+ 
+=
+volume fraction hold-up of the dispersed phase,
+dimensionless
+Subscripts
+c
+=
+continuous phase
+cr
+= critical
+d
+=
+dispersed phase
+t
+=
+transition from one region to the other
+Literature
+Cited
+Abdel-Alim, A. H.; Hamielec, A. E. A Theoretical and Experimental
+Investigation of the Effect of Internal Circulation on the Drag
+of Spherical Droplets Falling at Terminal Velocity in Liquid
+Media. Ind. Eng. Chem. Fundam. 1975, 14, 308-312.
+Al-Aswad, K. K. M. Liquid-Liquid Extraction in a Pilot Scale
+Rotating Disc Contactor. Ph.D. Thesis, University of Aston in
+Birmingham, 1982.
+Downloaded from pubs.​acs.​org/​iecred/​article-pdf/​34/​11/​3925/​17832754/​ie00038a032.​pdf by prasad@thermopac.​in on 26 August 2026

@@ -1,0 +1,195 @@
+3926
+Ind. Eng. Chem. Res., Vol. 34, No. 11, 1995
+predicted and experimental values of hold-up. Combi-
+nation of eqs 1 and 5 yields
+^-^1+(vk~vé-vi=0
+(6)
+which is not always soluble analytically (Kumar and
+Hartland, 1994b), since m is a fractional index between
+0 and 4 for various types of columns (Godfrey and Slater,
+1991).
+Coalescence Behavior.
+Misek (1963b) proposed a
+more
+complicated relationship of the form
+VsMp
+= V*(l
+- ) ß  [ ( 
+-
+4.1)]
+(7)
+where a is suggested to be a measure
+of drop coalescence
+and Vk is another characteristic velocity. Unless oth-
+erwise mentioned, the value of V* in the above equation
+is taken to be that of the terminal velocity of a single
+drop for which Míáek and Marek (1970, 1983) have
+provided equations. For the case of no mass
+transfer,
+a is a function of the physical properties of the liquid—
+liquid system and column geometry (Míáek and Marek,
+1970). For systems containing surface-active impurities
+or when mass
+transfer occurs
+from the continuous to
+the dispersed phase, the coalescence is often negligible,
+so the value of a may be taken to be zero (Míáek and
+Marek, 1983). For mass transfer into drops, a must be
+determined experimentally (Míáek and Marek, 1983).
+Despite the complexity involved, eq 7 does not represent
+any improvement on eqs 4 and 5 (Kumar and Hartland,
+1994b).
+Drag Relationships.
+Relationships developed on
+the basis of relative-motion correlations for multiparticle
+systems and friction in a packed bed fall in this category.
+Multiparticle Systems. Using extended definitions
+of the drag coefficient and Reynolds numbers for mul-
+tiparticle systems, the hold-up data for spray columns
+have successfully been correlated (Bamea and Mizrahi,
+1975; Ishii and Zuber, 1979; Kumar and Hartland,
+1985). Furthermore, it has been possible to extend this
+approach to other types of columns (Kumar and Hart-
+land, 1986, 1988a; Rocha et al., 1986).
+Packed Beds. This approach begins with the rela-
+tionship for the pressure drop in
+a packed column
+(Ergun,
+1952).
+Various empirical factors must
+be
+introduced, however, before suitable correlating proce-
+dures are found (Baird and Lane, 1973; Pilhofer, 1974;
+Baird and Shen, 1984). Unfortunately, the final equa-
+tions are complex, and often no solution can be found
+for ,
+as pointed out by Kumar and Hartland (1994b).
+Furthermore, the equations have only been examined
+for a particular type of extraction column.
+Explicit Correlations.
+Slip Velocity. Kumar and
+Hartland (1989, 1994a,b) show that it is possible to
+develop correlations for VaiiP in terms of the physical
+properties, phase throughputs, agitation intensity, and
+column geometry. These equations do not include hold-
+up, enabling the slip velocity to be explicitly calculated.
+The hold-up itself
+can
+also easily be calculated by
+substituting the predicted values of slip velocity in eq 1
+(or eq 2).
+Hold-Up.
+In contrast
+to the foregoing approaches
+involving slip-velocity concept, direct correlations for 
+in terms of the physical properties of liquid systems,
+agitation conditions, and column geometry
+are
+also
+available for various types of columns. Unfortunately,
+many of these correlations are based on limited experi-
+mental ranges of variables, so they only apply to the
+particular liquid systems
+or
+column geometries for
+which they were obtained. The effects of various design
+variables on hold-up are therefore still uncertain.
+Data Bank
+Table 1 describes the experimental dispersed-phase
+hold-up data sources
+for eight different types of extrac-
+tion columns.
+Since the hydrodynamic behavior of
+rotating disk and asymmetric rotating disk columns
+does not markedly differ, the data from these two types
+of column are treated together. The table also lists the
+continuous- and dispersed-phase liquids and solutes
+employed, the number of data points corresponding to
+no
+mass
+(or heat) transfer and for transfer in either
+direction, and the ranges of physical properties, geo-
+metrical characteristics of columns, and operating con-
+ditions. When mass transfer occurs, a degree of uncer-
+tainty surrounds the estimation of physical properties
+(particularly interfacial tension), since these vary not
+only with the inlet solute concentrations but also along
+the column. In the present work, the values of pc, wc,
+pd, and pa have been assumed to correspond to the
+arithmetic-mean concentrations of the continuous and
+dispersed phases at the bottom and top of the columns,
+the values of corresponding to the mixing-cup equi-
+librium conditions. If the end concentrations are
+not
+known, solute-free values are taken. The values of Vsnp
+were
+obtained from experimental values of Vc, Va, and
+ by using eq 1, except for packed columns, for which
+eq 2 was
+used. Further relevant details on the data
+base for various types of column are given below.
+Rotating Disk and Asymmetric Rotating Disk
+Columns. The data from 47 liquid systems (19,15, and
+13 systems, respectively, corresponding to the cases of
+no
+mass
+transfer, transfer from the continuous to the
+dispersed phase (c
+-»
+d), and transfer in the opposite
+direction (d
+—
+c)) have been treated. Unfortunately,
+only a single source
+(Hausler, 1985) furnishes data for
+asymmetric rotating disk columns. Furthermore, the
+data from experiments performed by Míáek (1963a,b)
+for both types of columns had to be omitted, since the
+essential parameters are not available.
+Ktihni
+Columns.
+The data base consists of five
+liquid systems with no
+mass transfer and five and four
+liquid systems with c
+—
+d and d
+—
+c directions of mass
+transfer, respectively. Data for more
+than 73% of the
+runs
+are provided by two sources, namely, Kumar (1985)
+and Goldmann (1986). Kumar (1985) used two different
+stator plates with 23.5 and 40% free area, whereas four
+different stator plates with free area
+ranging from 20
+to 100% (i.e., no stator plate) were
+employed in the work
+of Goldmann (1986). Unfortunately, the data reported
+by Ingham et al. (1974) and Bailes et al. (1986b) could
+not be included because of insufficient details.
+Wirz-II
+Columns. Available data are limited to that
+of Hausler (1985) and Rincón-Rubio (1992).
+Almost
+identical stage geometry has been used in both of the
+studies.
+Hausler (1985) investigated
+a toluene (dis-
+persed)—water (continuous) system of high interfacial
+tension.
+Also, a limited number of mass-transfer ex-
+periments were
+carried out using acetone as solute. The
+data of Rincón-Rubio (1992) on six liquid systems of low-
+to-medium interfacial tension and in the absence of
+mass
+transfer cover
+wide ranges of flow rates of both of
+the phases and agitation intensity. The total number
+of data points is 1022, including 26 runs
+with
+mass
+transfer for both directions of transfer.
+Downloaded from pubs.​acs.​org/​iecred/​article-pdf/​34/​11/​3925/​17832754/​ie00038a032.​pdf by prasad@thermopac.​in on 26 August 2026

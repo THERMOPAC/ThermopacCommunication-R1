@@ -1,0 +1,299 @@
+3930
+Ind. Eng. Chem. Res., Vol. 34, No. 11, 1995
+Table 2.
+Values of Constants Cn, Cv, and Cr, and Indexes m-re7
+in Equation 15 and Error in Hold-Up, , for Various
+Types of Columns"
+_
+AARE,
+column type
+Cn
+c
+—
+d
+d
+— 
+c
+Cr
+m
+n3
+n3
+n
+4
+ns
+ne
+m
+%
+rotating disk/asymmetric rotating disk
+0.19
+1.06
+0.95
+(.Dg/H)0·62
+0.67
+0.69
+7.13
+-0.65
+0.14
+-0.26
+-0.10
+22.7
+Kiihni
+2.67 x  '2
+1
+0.56
+2.27
+0.77
+0.64
+20.7
+-0.34
+0
+-0.77
+0
+21.4
+Wirz
+0.17
+1
+1
+5.13
+0.59
+0.88
+9.35
+-0.81
+0.10
+0
+-0.16
+13.9
+pulsed perforated-plate
+0.13
+1
+0.64
+153.2
+0.80
+1.18
+7.51
+-0.25
+0.88
+0
+-0.54
+19.0
+Karr reciprocating-plate
+0.13
+1
+0.52
+6.87
+1
+0.84
+3.74
+-0.92
+0
+0
+-0.48
+17.9
+packed
+1
+1.20
+0.71
+2.43
+1.03
+5.06
+-0.58
+0.10
+-1
+-0.75
+18.3
+spray
+1
+1
+1
+1.32
+1.39
+3.08
+-1.06
+0
+-0.74
+14.1
+“ For no
+mass
+transfer,  
+=
+1.
+emphasizing the fact that the hold-up decreases as the
+density difference increases. The effects of the resulting
+dimensionless groups were
+elaborated by expressing 
+as a product of a modified power function for the group
+containing e and simple power functions for each of the
+remaining groups.
+Regression analyses were
+carried
+out by using Marquardt’s (1963) algorithm; the standard
+deviations were
+estimated from individual data points
+by assuming a Poisson distribution.
+This was
+found
+necessary to ensure
+unbiased fit. Preliminary calcula-
+tions showed that the index on the group containing µ 
+was either close to zero
+or statistically insignificant for
+all the different types of column considered. This group
+was
+therefore omitted from the subsequent analyses.
+However, it
+was
+found necessary to introduce the
+viscosity of water at 20 °C, «„
+=
+10~3 Pa s, as a dummy
+variable to correctly allow for the effect of µ on .
+The
+final form of the correlation describing hold-up as
+a
+function of various dimensionless groups is
+ 
+=    
+(15)
+in which 
+allows for the power input per unit mass, e,
+ 
+the effect of the phase flow rates, Vd and Vc, 
+the
+physical properties, and the geometrical characteris-
+tics of the column.
+These quantities are
+defined as
+follows:
+ 
+—
+Cn + '«/Pc
+S W
+l/4"|ni
+(16)
+ 
+, 1/41
+ :
+T
+= Cre
+,«eai
+(17)
+(18)
+(19)
+The constant Cn is included in 
+since the hold-up is
+finite even
+when the power input per unit mass, e, is
+zero.
+An exponential term is used to describe the effect
+of Vc, since the hold-up is also finite at zero continuous-
+phase velocity. Such an exponential variation describes
+the effect of Vc better than a simple power function. The
+parameters  
+and Cr allow for the effects of mass
+transfer and geometrical characteristics of columns,
+respectively.
+The value of  
+was taken as unity for the case of no
+mass
+transfer for all types of columns. Its values for c
+—
+d and d
+—·
+c directions of mass transfer together with
+those of Cn, Cr, and \—  
+were
+determined by using
+the experimental data summarized in Table 1 for each
+type of column. For Kiihni, pulsed, and Karr columns,
+the data corresponding to
+c
+—
+d direction of mass
+transfer were
+found not to be appreciably different from
+those without mass
+transfer, so these two cases
+were
+treated together. In the case of Wirz-II columns, the
+data corresponding to mass-transfer runs
+are meager.
+Therefore, optimization of  
+was
+considered to be
+unreliable.
+For spray columns, the effect of mass
+transfer on hold-up has been indirectly but adequately
+taken into account by use of the experimental values of
+the drop size, so  
+is taken as unity for all three cases
+of mass transfer. As mentioned earlier, the hold-up in
+rotating disk and asymmetric rotating disk columns was
+found to be significantly affected by the rotor diameter,
+Dr (the value of the relevant dimensionless group, Dr/
+H, varies from 0.6 to 4.0). However, for the Kiihni and
+Wirz-II columns, the effect of Dr on was found to be
+negligible. This is to be expected, since for the former
+column Dr varies only from 50 to 85 mm and is fixed at
+85 mm for more than 92% of the data points. Available
+data for Wirz-II columns contain only a single value of
+Dr of 48 mm.
+Furthermore, the ratio Dr/ZT varies only
+from 0.9 to 1.2 for Kiihni columns, and it is fixed at 0.6
+for Wirz-II columns in the available data. The effect of
+Dr/H was
+therefore lumped into the value of Cr for
+rotating disk and asymmetric rotating disk columns. In
+the
+case
+of pulsed and Karr columns, the effect of
+perforation diameter, Do (expressed in dimensionless
+form as Do/H), was
+found to be insignificant. This is
+not surprising, since for the former column the data
+corresponding to the mixer-settler region, in which the
+effect of D0 on 
+can
+be expected, have been omitted.
+Moreover, the value of Do varies only from 2 to 3.2 mm
+for more
+than 97% of the data.
+Similarly, in Karr
+columns, the large-diameter holes are not likely to affect
+the mechanism of drop formation.
+Table 2 lists the
+values of the parameters Cn,  ,
+Cr, and  -  
+in eq
+15 for each type of column.
+For rotating disk and
+asymmetric rotating disk columns, the value of Cr is
+given in terms of Dr/Z/, whereas for other columns, fixed
+values are given. The value of a parameter is listed as
+zero when a given dimensionless group did not signifi-
+cantly contribute to prediction, the other parameter
+values naturally being obtained by deleting such
+a
+group. Since the values of (e/,g)[/0c/(gy)]1/4 for packed and
+spray columns have been treated as zero, the values of
+the associated parameter, m,
+are
+irrelevant
+so
+are
+omitted. Likewise, the index no has no relevant value
+for spray columns for which e
+=
+1. This index was
+also
+found to be insignificant for Wirz-II, pulsed, and Karr
+columns, since e was held constant for the first column
+and is included in the definition of e for pulsed and Karr
+columns.
+The average absolute value of the relative error,
+AARE, is adopted to compare the results predicted by
+the present correlation
+as well
+as by the literature
+correlations with the experimental data. This is defined
+as follows:
+Downloaded from pubs.​acs.​org/​iecred/​article-pdf/​34/​11/​3925/​17832754/​ie00038a032.​pdf by prasad@thermopac.​in on 26 August 2026

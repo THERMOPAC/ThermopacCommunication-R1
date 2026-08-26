@@ -1,0 +1,274 @@
+3936
+Ind. Eng. Chem. Res., Vol. 34, No. 11, 1995
+Table 11.
+Comparison of Correlations
+for the Prediction
+of and Vsiip in Spray Columns in Terms of the Average
+Absolute Value of the Relative Error (Total Number of
+Data
+=
+933)
+correlation
+no-of data
+error, %
+(data selection criterion)”
+tested
+no soln
+ 
+VsiiP
+Characteristic Velocity
+Linear
+1. Vk
+= Vt, Vt by Grace
+933
+0
+21.4
+24.2
+et al. (1976)
+Coalescence Behavior
+1. Misek (1963b) and Misek
+and Marek (1970, 1983)
+(c
+—
+d and no transfer)
+905
+99
+43.4
+89.8
+Drag Relationships
+Multiparticle Systems
+1. Barnea and Mizrahi (1975)
+534
+34
+18.7
+12.8
+(Re
+< 405)
+2. Ishii and Zuber (1979)
+933
+1
+21.6
+23.1
+3. Kumar et al. (1980)
+(Re
+> 43)
+926
+23
+14.5
+13.5
+4. Kumar and Hartland (1985)
+933
+35
+14.3
+12.8
+5. Sovilj (1989)
+(58
+< Re
+< 1067)
+714
+96
+14.0
+12.4
+Packed Beds
+1. Baird and Lane (1973)
+933
+150
+77.3
+37.2
+2. Pilhofer (1974)
+933
+50
+25.8
+27.2
+Explicit Correlations
+Slip Velocity
+1. Kumar and Hartland (1989)
+Hold-Up
+933
+0
+14.3
+12.7
+1. Mersmann (1977)
+933
+22
+28.4
+40.7
+2. Kumar and Hartland (1989)
+933
+0
+14.9
+13.8
+3. Present work (eq 15)
+933
+0
+14.1
+13.1
+“ A correlation was
+tested against all available data when no
+selection criterion is given.
+listed in Table 8. Correlating equations for the param-
+eters in eq 5 have been suggested by Hussain et al.
+(1988).
+However, the method has only been recom-
+mended for conditions such that all drops are smaller
+that the plate hole size.
+Therefore, eq 5 was
+tested
+against the data for which dmaJDo < 1, the value of dmax
+being taken as twice that of <¿32. The equation for (¿32
+given by Misek (1964a)
+was
+used
+as
+suggested by
+Hussain et al. (1988).
+(To present a fair comparison
+between various correlations, this drop-size correlation
+has also been used in the evaluation of other published
+correlations discussed below.)
+Misek’s (1963b) coalescence equation fails to predict
+any solution for 33.7% of the 1221 data points tested.
+The predictions by correlations based on drag relation-
+ships once again compare poorly with the experimental
+data.
+The only available direct correlation for slip
+velocity by Kumar and Hartland (1989) yields good
+results corresponding to the slip-velocity data, but the
+hold-up predictions are
+less satisfactory.
+A large number of explicit correlations for hold-up are
+available in the literature (see Kumar and Hartland
+(1988b) for
+an
+extensive review).
+Only the major
+correlations
+were
+selected for comparison with the
+experimental data.
+The best agreement is obtained
+using the correlation of Kumar and Hartland (1988b),
+which predicts the hold-up with
+an
+average absolute
+value of the relative
+error
+of 16.5%.
+This
+error
+is
+smaller than
+19.0% obtained by using the present
+correlation, presumably because eq 14 for the calcula-
+tion of e is only approximate at high frequencies and
+more
+particularly at low amplitudes.
+Karr Reciprocating-Plate Columns. Correlations
+for Vk in eq 4
+are
+not available.
+Slater (1985) and
+Godfrey and Slater (1991) suggested that Vk in eq 5 is
+comparable with the terminal velocity of a single drop,
+which can be estimated by using the equations of Grace
+et al. (1976). (As mentioned earlier, the correlation of
+Abdel-Alim and Hamielec (1975) was
+used for data at
+low Reynolds numbers.) The values of the drop diam-
+eter required in these methods
+as well
+as in other
+published correlations were
+computed from the equation
+of Baird and Lane (1973), which includes the mechanical
+power dissipation as well as the power dissipation due
+to gravitational flows. For c
+—
+d and d
+—
+c cases
+of
+mass transfer, the values of the preconstant in the above
+drop-size equation reported by Kumar and Hartland
+(1988a)
+were
+used.
+Further details may be found
+elsewhere (Kumar and Hartland, 1994b).
+As can be seen from Table 9, the correlations of Slater
+(1985) and Godfrey and Slater (1991) are unsatisfactory.
+Poor results are predicted by eq 7 due to Misek (1963b)
+and Miiek and Marek (1970,1983). Drag relationships
+are also unsatisfactory because of large errors
+associated
+with the prediction.
+The method of Baird and Lane
+(1973), based on friction in the packed beds, may be just
+acceptable in terms of the accuracy, but the solution was
+still not possible for over
+10% of the data points. The
+independent correlation for slip velocity by Kumar and
+Hartland (1994b) is satisfactory for the prediction of
+Vsiip, but it results in an average error
+of 24.4% in hold-
+up because Vsi¡p was
+used as the minimizing function.
+Packed Columns.
+Equation 2
+was
+used in the
+evaluation of correlations based on the concept of slip
+velocity.
+Average
+errors
+in and Vsup obtained by
+comparing predictions of various correlations with the
+experimental data are given in Table 10. Of the three
+alternative methods examined by Gayler et al. (1953)
+for the prediction of Vt, the one based on a drop collision
+theory was
+used for the calculation. The values of Vt
+required in the correlations of Gayler et al. (1953) and
+Moore et al. (1989)
+were
+estimated from the drag
+correlations for a single sphere (Clift et al., 1978) as
+suggested in the original works. Both these two meth-
+ods suffer from the disadvantage of iterative calculation
+ofVt.
+Although the power-law correlation used by Godfrey
+and Slater (1991) is fairly stable, it predicts the hold-
+up with an average error
+of 25.0%. Correlations involv-
+ing coalescence coefficient and drag relationships, whose
+applicability to packed columns has not previously been
+investigated,
+were
+also tested against data for both
+random and ordered packings. The values of the drop
+size needed in these correlations were predicted by using
+the recent correlation of Kumar and Hartland (1994a).
+All the correlations consistently underpredicted hold-
+up.
+The explicit correlation for of Kumar and Hartland
+(1994a) is the best of the available equations. Maék-
+owiak and Billet (1986) have also proposed an explicit
+correlation, but it is not possible to compare it with the
+experimental data, since the value of the preconstant
+in their equation must experimentally be determined
+for each type and size of packing.
+Seibert and Fair’s
+(1988) correlation, which does not fall into any type of
+correlation considered in this work, predicts and VsiiP
+with average errors
+of 47.4 and 89.9%, respectively, for
+1967 data points (no solution
+was
+possible for the
+remaining 56 data points).
+Spray Columns.
+The predictive ability of various
+correlations is compared in terms of the average abso-
+lute value of the relative error
+in Table 11. In evaluat-
+Downloaded from pubs.​acs.​org/​iecred/​article-pdf/​34/​11/​3925/​17832754/​ie00038a032.​pdf by prasad@thermopac.​in on 26 August 2026

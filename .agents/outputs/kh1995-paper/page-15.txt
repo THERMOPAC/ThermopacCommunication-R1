@@ -1,0 +1,197 @@
+Korchinsky, W. J.; Al-Husseini, R. Liquid-Liquid Extraction
+Column (Rotating Disc Contractor)—Model Parameters from
+Drop Size Distribution and Solute Concentration Measure-
+ments. J. Chem. Technol. Biotechnol. 1986, 36, 395-409.
+Korchinsky, W. J.; Young,
+C. H. High Flux Mass Transfer:
+Comparison of Liquid-Liquid Extraction Column and Drop
+(Handlos-Baron) Model Predictions with Rotating Disc Con-
+tactor Performance.
+Chem. Eng. Sci. 1986, 41, 3053-3061.
+Korchinsky, W. J.; Ismail, A. M. Mass-Transfer Parameters in
+Rotating-Disc Contactors: Influence of Column Diameter. J.
+Chem. Technol. Biotechnol. 1988, 43, 147-158.
+Korchinsky, W. J.; Loke, C. T.; Cruz-Pinto, J. J. C. Optimisation
+of Drop Size in Countercurrent Flow Liquid-Liquid Extraction
+Columns.
+Chem. Eng. Sci. 1982, 37, 781-786.
+Korchinsky, W. J.; Al-Husseini, R.; Young, C. H. Liquid—Liquid
+Extraction Column Mass Transfer—Parameters from Concen-
+tration Profiles. Proc. Int. Solvent Extr. Conf. 1983, 106-107.
+Kumar, A. Hydrodynamics and Mass Transfer in Kiihni Extractor.
+Ph.D. Thesis No. 7806, Swiss Federal Institute of Technology,
+Zürich, 1985.
+Kumar, A.; Hartland, S. Gravity Settling in Liquid/Liquid Disper-
+sions. Can J. Chem. Eng. 1985, 63, 368-376.
+Kumar, A.; Hartland, S. Prediction of Drop Size in Rotating Disc
+Extractors. Can. J. Chem. Eng. 1986, 64, 915-924.
+Kumar, A.; Hartland, S. Prediction of Dispersed-Phase Holdup and
+Flooding Velocities in Karr Reciprocating-Plate Extraction
+Columns. Ind. Eng. Chem. Res. 1988a, 27, 131—138.
+Kumar, A.; Hartland, S. Prediction of Dispersed Phase Hold-up
+in Pulsed Perforated-Plate Extraction Columns.
+Chem. Eng.
+Process. 1988b, 23, 41-59.
+Kumar, A.; Hartland, S. Independent Prediction of Slip Velocity
+and Hold-up in Liquid/Liquid Extraction Columns.
+Can. J.
+Chem. Eng. 1989, 67, 17-25.
+Kumar, A.; Hartland, S. Prediction of Drop Size, Dispersed-Phase
+Holdup, Slip Velocity, and Limiting Throughputs in Packed
+Extraction Columns. Chem. Eng. Res. Des. 1994a, 72, 89-104.
+Kumar, A.; Hartland, S. Empirical Prediction of Operating Vari-
+ables. In Liquid-Liquid Extraction Equipment·, Godfrey, J. C.,
+Slater, M. J., Eds.; Wiley: Chichester, 1994b; pp 625-735.
+Kumar, A.; Vohra, D. K.; Hartland, S. Sedimentation of Droplet
+Dispersions in Counter-Current Spray Columns. Can. J. Chem.
+Eng. 1980, 58, 154-159.
+Kumar, A.; Steiner, L.; Hartland, S. Capacity and Hydrodynamics
+of an Agitated Extraction Column. Ind. Eng. Chem. Process
+Des. Dev. 1986, 25, 728-733.
+Kung, E. Y.; Beckmann, R. B. Dispersed-Phase Holdup in
+a
+Rotating Disk Extraction Column. AIChE J. 1961, 7, 319—324.
+Laddha, G. S.; Degaleesan, T. E. Transport Phenomena in Liquid
+Extraction·, Tata McGraw-Hill: New Delhi, 1976.
+Laddha, G. S.; Degaleesan, T. E. Dispersion and Coalescence. In
+Handbook of Solvent Extraction·, Lo, T. C., Baird, .
+ .
+I.,
+Hanson, C., Eds.; Wiley: New York, 1983; pp 125—149.
+Laddha, G. S.; Degaleesan, T. E.; Kannappan, R. Hydrodynamics
+and Mass Transport in Rotary Disk Contactors. Can. J. Chem.
+Eng. 1978, 56, 137-150.
+Lane,
+S. J. M. Eng. Research Report, McMaster University,
+Hamilton, 1971.
+Logsdail, D. H.; Thornton, J. D.; Pratt, H. R. C. Liquid-Liquid
+Extraction. Part XII:
+Flooding Rates and Performance Data
+for a Rotary Disc Contactor. Trans. Inst. Chem. Eng. 1957,35,
+301-315.
+Lorenz, M. Untersuchungen zum
+fluiddynamischen Verhalten von
+pulsierten Siebboden-Extraktionskolonnen. Ph.D. Thesis, Tech-
+nische Universitát Clausthal, 1990.
+Loutaty, R.; Vignes, A.; Goff, P. Le. Transferí de chaleur et
+dispersion axiale dans une
+colonne á pulvérisation liquide-
+liquide en lit láche et en lit dense.
+Chem. Eng. Sci. 1969, 24,
+1795-1811.
+Mackowiak, J.; Billet, R. New Method of Packed Column Design
+for Liquid-Liquid Extraction
+Processes with
+Random and
+Stacked Packings. Ger. Chem. Eng. 1986, 9, 48-64.
+Magiera, J.; Zadlo, J. Holdup of the Dispersed Phase in
+an
+Extraction Column with a Rotating Disk. Inz. Chem. 1977, 7,
+113-126.
+Marquardt, D. W. An Algorithm for Least-Squares Estimation of
+Nonlinear Parameters. J. Soc. Ind. Appl. Math. 1963,11,431—
+441.
+Mersmann, A. Auslegung und Massstabvergrósserung von Blasen-
+und Tropfensáulen.
+Chem. Ing. Tech. 1977, 49, 679—691.
+Ind. Eng. Chem. Res., Vol. 34, No. 11, 1995
+3939
+Miao, Y.-W. Effect of Backmixing on Pulse Column Performance.
+M.S. Thesis, Iowa State University, Ames, 1978.
+Ming, J. Y.; Yao, S. B. Study on Scale Up of Kühni column. Proc.
+Int. Solvent Extr. Conf. 1986, 3, 143-147.
+MíSek, T. Vertical Motion of Drops in Agitated Systems. Collect.
+Czech. Chem. Commun. 1963a, 28, 570-577.
+Mísek, T. Hydrodynamic Behaviour of Agitated Liquid Extractors.
+Collect. Czech. Chem. Commun. 1963b, 28, 1631-1643.
+Mísek, T. The Hydrodynamic Behaviour of Pulsed Liquid-Liquid
+Extractors. Collect. Czech. Chem. Commun. 1964a, 29, 1755—
+1766.
+Míéek, T. Power Consumption of Disc Agitators.
+Collect. Czech.
+Chem. Commun. 1964b, 29, 1767-1772.
+Mísek, T.; Marek, J. Asymmetric Rotating Disk Extractor. Br.
+Chem. Eng. 1970, 15, 202-207.
+Míéek, T.; Marek, J. Asymmetric Rotating Disk Extractor.
+In
+Handbook of Solvent Extraction·, Lo, T. C., Baird, .
+ .
+I.,
+Hanson, C., Eds.; Wiley: New York, 1983; pp 407-417.
+Míiek, T.; Haman, J.; Stangl, D. Analysis of Extractor Perfor-
+mance.
+IV. Mass Transfer.
+Chem. Eng. J. 1988, 39, 79-86.
+Miyauchi, T.; Oya, H. Longitudinal Dispersion in Pulsed-Perfo-
+rated Plate Columns. AIChE J. 1965, 11, 395-402.
+Moore, R. J.; Pratt, H. R. C.; Stevens, G. W. Hydrodynamics of a
+Non-Aqueous System in a. Packed Liquid Extraction Column.
+Solvent Extr. Ion Exch. 1989, 7, 1043-1062.
+Murakami, A.; Misonou, A.; Inoue, K. Dispersed Phase Holdup in
+a Rotating Disc Extraction Column. Int. Chem. Eng. 1978,18,
+16-22.
+Niebuhr, D. Untersuchungen zur
+Fluiddynamik in pulsierten
+Siebbodenextraktionskolonnen. Ph.D. Thesis, Technische Uni-
+versitát Clausthal, 1982.
+Olney, R. B. Droplet Characteristics in a Countercurrent Contac-
+tor. AIChE J. 1964, 10, 827-835.
+Pakdee-Patrakorn,
+S. Etude hydrodynamique d’une colonne
+d’extraction—Analyse de la rupture de la phase disperse. Thése
+de Docteur-Ingénieur, Instituí National Polytechnique, Tou-
+louse, 1980.
+Perrut, M. Extraction liquide-liquide. Hydrodynamique et trans-
+ferí de matiére dans les colonnes á pulvérisation. Ph.D. Thesis,
+University of Nancy, 1972.
+Pilhofer, Th. Hydrodynamik von
+Tropfenschwármen in flüssig/
+flüssig Sprühkolonnen.
+Chem. Ing. Tech. 1974, 46, MS 133/
+74.
+Reissinger, K.-H. Auslegung Pulsierter Siebboden-Extraktoren
+(PSE) unter Beriicksichtigung von
+Tropfengrossen-und Ver-
+wielzeitverteilungen.
+Ph.D. Thesis, Technische Universitát
+Graz, 1985.
+Richardson, J. F.; Zaki, W. N. Sedimentation and Fluidisation:
+Part I. Trans. Inst. Chem. Eng. 1954, 32, 35—53.
+Rincón-Rubio, L. M. On the Hydrodynamics of a Wirz-II Extraction
+Column.
+Ph.D. Thesis No. 9867, Swiss Federal Institute of
+Technology, Zürich, 1992.
+Rincón-Rubio, L. M.; Kumar, A.; Hartland, S. Dispersed-Phase
+Residence Times in a Wirz Extraction Column. Ind. Eng. Chem.
+Res. 1993, 32, 1698-1705.
+Rincón-Rubio, L. M.; Kumar, A.; Hartland, S. Drop-Size Distribu-
+tion and Average Drop Size in
+a Wirz Extraction Column.
+Chem. Eng. Res. Des. 1994, 72, 493 -502.
+Rocha, J. A.; Humphrey, J. L.; Fair, J. R. Mass-Transfer Efficiency
+of Sieve Tray Extractors. Ind. Eng. Chem. Process Des. Dev.
+1986, 25, 862-871.
+Sarkar, S.; Phillips, C. R.; Mumford, C. J. Characterization of
+Hydrodynamic Parameters in Rotating Disc and Oldshue-
+Rushton Columns. Can. J. Chem. Eng. 1985, 63, 701-709.
+Schenk, R.; Kojda, P.; Lifka, W. Einfluss der Hydrodynamik auf
+den Stofftransport in Drehscheibenkolonnen.
+Chem. Tech.
+(Leipzig) 1973,25, 148-152.
+Sehmel, G. A. Longitudinal Mixing and Holdup Studies in a Pulsed
+Sieve-Plate Solvent Extraction Column. Ph.D. Thesis, Univer-
+sity of Washington, Seattle, 1961.
+Seibert, A. F. Hydrodynamics and Mass Transfer in Spray and
+Packed Liquid-Liquid Extraction Columns. Ph.D. Thesis, The
+University of Texas at Austin, Austin, 1986.
+Seibert, A. F.; Fair, J. R. Hydrodynamics and Mass Transfer in
+Spray and Packed Liquid—Liquid Extraction Columns. Ind.
+Eng. Chem. Res. 1988, 27, 470—481.
+Shen, Z. J.; Rama Rao, N. V.; Baird, .
+ .
+I. Mass Transfer in a
+Reciprocating Plate Extraction Column—Effects of Mass Trans-
+fer Direction and Plate Material.
+Can. J. Chem. Eng. 1985,
+63, 29-36.
+Downloaded from pubs.​acs.​org/​iecred/​article-pdf/​34/​11/​3925/​17832754/​ie00038a032.​pdf by prasad@thermopac.​in on 26 August 2026
