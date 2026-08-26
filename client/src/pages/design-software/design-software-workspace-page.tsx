@@ -1022,6 +1022,48 @@ export default function DesignSoftwareWorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeStep, isFrozen, activeRevisionId, hydratedRevision, inputsQ.data, localData, savingSection, upsertMutation.isPending]);
 
+  // ── ECR-2 pre-pilot hydrodynamic basis carry-over ──────────────────────────
+  // Stage 8 owns its own pre-pilot fields, but an explicitly entered Stage 5
+  // characteristic-velocity basis is a valid source for initializing that
+  // review card. Copy only complete, provenance-bearing pairs and only into
+  // blank Stage 8 fields; never create a hidden default or overwrite a Stage 8
+  // value that the engineer has already reviewed.
+  useEffect(() => {
+    if (isFrozen || !activeRevisionId || hydratedRevision !== activeRevisionId) return;
+    if (savingSection !== null || upsertMutation.isPending) return;
+    const sim = localData["ecr_simulator"] ?? {};
+    const hd = localData["hydraulic_design"] ?? {};
+    const updates: Record<string, string> = {};
+    const blank = (value: unknown) => String(value ?? "").trim() === "";
+    const characteristicVelocity = String(hd.characteristic_velocity ?? "").trim();
+    const characteristicVelocityReference = String(hd.characteristic_velocity_source_ref ?? "").trim();
+    const hindranceExponent = String(hd.hindrance_exponent ?? "").trim();
+    const hindranceExponentReference = String(hd.hindrance_exponent_source_ref ?? "").trim();
+
+    if (
+      blank(sim.prepilot_characteristic_slip_velocity_m_s)
+      && characteristicVelocity !== ""
+      && characteristicVelocityReference !== ""
+    ) {
+      updates.prepilot_characteristic_slip_velocity_m_s = characteristicVelocity;
+      if (blank(sim.prepilot_characteristic_slip_source_reference)) {
+        updates.prepilot_characteristic_slip_source_reference = characteristicVelocityReference;
+      }
+    }
+    if (
+      blank(sim.prepilot_hindrance_exponent)
+      && hindranceExponent !== ""
+      && hindranceExponentReference !== ""
+    ) {
+      updates.prepilot_hindrance_exponent = hindranceExponent;
+      if (blank(sim.prepilot_hindrance_source_reference)) {
+        updates.prepilot_hindrance_source_reference = hindranceExponentReference;
+      }
+    }
+    if (Object.keys(updates).length > 0) commitSection("ecr_simulator", updates);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFrozen, activeRevisionId, hydratedRevision, localData, savingSection, upsertMutation.isPending]);
+
   // ── Hydraulic Design C3 screening defaults (Step 5) ──────────────────────────
   // Pre-populate d32 = 3 mm and n = 1 (both Assumed — Preliminary / Pending
   // Validation) for new d32_terminal cases. Values are stored explicitly in the
