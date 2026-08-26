@@ -218,6 +218,10 @@ const COMPOSITION_FIELDS = [
   { key: "nmpInFeedWt", label: "NMP in feed" },
 ] as const;
 
+type ValidationErrors = Partial<Record<keyof FormState, string>> & {
+  compositionTotal?: string;
+};
+
 const SECTION_TONES = {
   blue: {
     card: "border-blue-200",
@@ -255,6 +259,94 @@ function parseNumber(value: string): number | null {
   if (value.trim() === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isAllowedOption(value: string, options: Array<string | { value: string }>) {
+  return options.some((option) => (typeof option === "string" ? option : option.value) === value);
+}
+
+function validateForm(form: FormState): ValidationErrors {
+  const errors: ValidationErrors = {};
+  const requiredText = (key: keyof FormState, label: string) => {
+    if (form[key].trim() === "") {
+      errors[key] = `${label} is required.`;
+    }
+  };
+  const requiredOption = (key: keyof FormState, label: string, options: Array<string | { value: string }>) => {
+    if (form[key].trim() === "") {
+      errors[key] = `${label} is required.`;
+    } else if (!isAllowedOption(form[key], options)) {
+      errors[key] = `Select a valid ${label.toLowerCase()}.`;
+    }
+  };
+  const numeric = (
+    key: keyof FormState,
+    label: string,
+    { min, max, required = true }: { min?: number; max?: number; required?: boolean } = {},
+  ) => {
+    const value = form[key].trim();
+    if (value === "") {
+      if (required) errors[key] = `${label} is required.`;
+      return null;
+    }
+
+    const parsed = parseNumber(value);
+    if (parsed === null) {
+      errors[key] = `${label} must be a valid number.`;
+      return null;
+    }
+    if (min !== undefined && parsed < min) {
+      errors[key] = `${label} must be at least ${min}.`;
+      return null;
+    }
+    if (max !== undefined && parsed > max) {
+      errors[key] = `${label} must be no more than ${max}.`;
+      return null;
+    }
+    return parsed;
+  };
+
+  requiredText("projectReference", "Project number");
+  requiredOption("rrboGrade", "RRBO grade", ["SN150", "SN300", "SN500"]);
+  requiredOption("designFeedRateLph", "Design feed rate", FEED_RATE_OPTIONS);
+  requiredOption("operatingTemperatureC", "Operating temperature", TEMPERATURE_OPTIONS);
+  requiredOption("operatingPressure", "Operating pressure", PRESSURE_OPTIONS);
+  requiredOption("phaseConfiguration", "Phase configuration", PHASE_OPTIONS);
+
+  const compositionValues = COMPOSITION_FIELDS.map(({ key, label }) => ({
+    key,
+    value: numeric(key, label, { min: 0, max: 100 }),
+  }));
+  if (compositionValues.every(({ value }) => value !== null)) {
+    const total = compositionValues.reduce((sum, { value }) => sum + (value ?? 0), 0);
+    if (Math.abs(total - 100) >= 0.005) {
+      errors.compositionTotal = "The six feed components must total exactly 100 wt%.";
+    }
+  }
+
+  numeric("rrboDensityKgM3", "RRBO density", { min: 0.001 });
+  numeric("rrboDynamicViscosityCp", "RRBO dynamic viscosity", { min: 0.001 });
+  numeric("rrboInterfacialTensionMnM", "RRBO interfacial tension", { min: 0.001 });
+  numeric("nmpPurityWt", "NMP purity", { min: 0, max: 100 });
+  numeric("nmpWaterWt", "Water in NMP", { min: 0, max: 100 });
+  numeric("nmpTemperatureC", "NMP temperature", { min: 25, max: 100 });
+  numeric("nmpDensityKgM3", "NMP density", { min: 0.001 });
+  numeric("nmpDynamicViscosityCp", "NMP dynamic viscosity", { min: 0.001 });
+
+  requiredOption("solventOilRatio", "Solvent / Oil ratio", SOLVENT_OIL_RATIO_OPTIONS);
+  requiredOption("targetRaffinateTotalAromaticsWt", "Total aromatics target", TARGET_TOTAL_AROMATICS_OPTIONS);
+  requiredOption("targetRaffinatePolarAromaticsWt", "Polar aromatics target", TARGET_POLAR_AROMATICS_OPTIONS);
+  requiredOption("minimumRecoveryPct", "Minimum recovery", MINIMUM_RECOVERY_OPTIONS);
+  requiredOption("maximumNmpRaffinateWt", "Maximum NMP in raffinate", MAXIMUM_NMP_RAFFINATE_OPTIONS);
+
+  if (form.feedSulfurPpm.trim() !== "" && !isAllowedOption(form.feedSulfurPpm, FEED_SULFUR_OPTIONS)) {
+    errors.feedSulfurPpm = "Select a valid feed sulfur value.";
+  }
+  if (form.designBasisNotes.length > 2000) {
+    errors.designBasisNotes = "Design basis notes must be 2,000 characters or fewer.";
+  }
+
+  return errors;
 }
 
 function interpolateProperty(
@@ -373,6 +465,7 @@ function NumericField({
   max,
   step = "any",
   hint,
+  error,
 }: {
   id: string;
   label: string;
@@ -383,6 +476,7 @@ function NumericField({
   max?: string;
   step?: string;
   hint?: string;
+  error?: string;
 }) {
   return (
     <div className="space-y-1">
@@ -399,11 +493,18 @@ function NumericField({
           step={step}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-8 bg-white text-sm"
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
+          className={`h-8 bg-white text-sm ${error ? "border-red-400 focus-visible:ring-red-400" : ""}`}
         />
         <span className="shrink-0 text-[11px] font-medium text-slate-500">{unit}</span>
       </div>
       {hint && <p className="text-[11px] leading-4 text-slate-400">{hint}</p>}
+      {error && (
+        <p id={`${id}-error`} className="text-[11px] font-medium text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -416,6 +517,7 @@ function SelectField({
   placeholder,
   options,
   unit,
+  error,
 }: {
   id: string;
   label: string;
@@ -424,6 +526,7 @@ function SelectField({
   placeholder: string;
   options: Array<string | { value: string; label: string }>;
   unit?: string;
+  error?: string;
 }) {
   return (
     <div className="space-y-1">
@@ -432,7 +535,12 @@ function SelectField({
       </Label>
       <div className="flex items-center gap-1.5">
         <Select value={value} onValueChange={onChange}>
-          <SelectTrigger id={id} className="h-8 bg-white text-sm">
+          <SelectTrigger
+            id={id}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? `${id}-error` : undefined}
+            className={`h-8 bg-white text-sm ${error ? "border-red-400 focus:ring-red-400" : ""}`}
+          >
             <SelectValue placeholder={placeholder} />
           </SelectTrigger>
           <SelectContent>
@@ -449,6 +557,11 @@ function SelectField({
         </Select>
         {unit && <span className="shrink-0 text-[11px] font-medium text-slate-500">{unit}</span>}
       </div>
+      {error && (
+        <p id={`${id}-error`} className="text-[11px] font-medium text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -472,33 +585,39 @@ export default function EcrPrePilotDesignPage() {
     };
   });
   const [saveState, setSaveState] = useState<"unsaved" | "saved" | "draft">("unsaved");
-  const [projectNumberError, setProjectNumberError] = useState(false);
+  const [validationAttempted, setValidationAttempted] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setForm((current) => ({ ...current, [key]: value }));
+    const nextForm = { ...form, [key]: value };
+    setForm(nextForm);
     setSaveState("unsaved");
-    if (key === "projectReference" && typeof value === "string" && value.trim() !== "") {
-      setProjectNumberError(false);
+    if (validationAttempted) {
+      setValidationErrors(validateForm(nextForm));
     }
   };
 
   const handleRrboGradeChange = (grade: string) => {
     const properties = getStandardRrboProperties(grade, form.operatingTemperatureC);
-    setForm((current) => ({
-      ...current,
+    const nextForm = {
+      ...form,
       rrboGrade: grade,
       rrboDensityKgM3: properties.densityKgM3,
       rrboDynamicViscosityCp: properties.dynamicViscosityCp,
       rrboInterfacialTensionMnM: properties.interfacialTensionMnM,
-    }));
+    };
+    setForm(nextForm);
     setSaveState("unsaved");
+    if (validationAttempted) {
+      setValidationErrors(validateForm(nextForm));
+    }
   };
 
   const handleOperatingTemperatureChange = (operatingTemperature: string) => {
     const nmpProperties = getStandardNmpProperties(operatingTemperature);
     const rrboProperties = getStandardRrboProperties(form.rrboGrade, operatingTemperature);
-    setForm((current) => ({
-      ...current,
+    const nextForm = {
+      ...form,
       operatingTemperatureC: operatingTemperature,
       rrboDensityKgM3: rrboProperties.densityKgM3,
       rrboDynamicViscosityCp: rrboProperties.dynamicViscosityCp,
@@ -508,8 +627,12 @@ export default function EcrPrePilotDesignPage() {
       nmpTemperatureC: nmpProperties.temperatureC,
       nmpDensityKgM3: nmpProperties.densityKgM3,
       nmpDynamicViscosityCp: nmpProperties.dynamicViscosityCp,
-    }));
+    };
+    setForm(nextForm);
     setSaveState("unsaved");
+    if (validationAttempted) {
+      setValidationErrors(validateForm(nextForm));
+    }
   };
 
   const compositionStatus = useMemo(() => {
@@ -517,51 +640,40 @@ export default function EcrPrePilotDesignPage() {
     const populatedCount = values.filter((value): value is number => value !== null).length;
     const total = values.reduce((sum, value) => sum + (value ?? 0), 0);
     const complete = populatedCount === COMPOSITION_FIELDS.length;
-    const valid = complete && Math.abs(total - 100) < 0.005;
+    const valuesInRange = values.every((value) => value !== null && value >= 0 && value <= 100);
+    const valid = complete && valuesInRange && Math.abs(total - 100) < 0.005;
 
     return { populatedCount, total, complete, valid };
   }, [form]);
 
-  const handleSave = () => {
-    if (form.projectReference.trim() === "") {
-      setProjectNumberError(true);
+  const validateBeforeAction = () => {
+    const errors = validateForm(form);
+    setValidationAttempted(true);
+    setValidationErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      const firstError = Object.values(errors).find((error): error is string => Boolean(error));
       toast({
-        title: "Project number required",
-        description: "Enter a project number before saving the input data.",
+        title: "Input validation needed",
+        description: firstError ?? "Review the highlighted fields before continuing.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
+    return true;
+  };
 
-    const isCompleteComposition = compositionStatus.valid;
-    setSaveState(isCompleteComposition ? "saved" : "draft");
+  const handleSave = () => {
+    if (!validateBeforeAction()) return;
+
+    setSaveState("saved");
     toast({
-      title: isCompleteComposition ? "Input data saved" : "Draft input data saved",
-      description: isCompleteComposition
-        ? "The entered process and feed characterization was captured. No calculations were run."
-        : "Complete the six-component composition so it totals exactly 100 wt% before continuing.",
+      title: "Input data saved",
+      description: "The entered process and feed characterization was captured. No calculations were run.",
     });
   };
 
   const handleContinue = () => {
-    if (form.projectReference.trim() === "") {
-      setProjectNumberError(true);
-      toast({
-        title: "Project number required",
-        description: "Enter a project number before continuing.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!compositionStatus.valid) {
-      toast({
-        title: "Composition needs attention",
-        description: "Enter all six feed components and make the total exactly 100 wt% before continuing.",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!validateBeforeAction()) return;
 
     toast({
       title: "Ready for the next step",
@@ -612,7 +724,7 @@ export default function EcrPrePilotDesignPage() {
             />
             <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2">
               <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="project-reference" className={`text-[13px] font-medium ${projectNumberError ? "text-red-700" : "text-slate-700"}`}>
+                <Label htmlFor="project-reference" className={`text-[13px] font-medium ${validationErrors.projectReference ? "text-red-700" : "text-slate-700"}`}>
                   Project Number <span className="text-red-600">*</span>
                 </Label>
                 <Input
@@ -620,13 +732,17 @@ export default function EcrPrePilotDesignPage() {
                   required
                   value={form.projectReference}
                   onChange={(event) => setField("projectReference", event.target.value)}
-                  onBlur={() => setProjectNumberError(form.projectReference.trim() === "")}
                   placeholder="Enter project number"
-                  aria-invalid={projectNumberError}
+                  aria-invalid={Boolean(validationErrors.projectReference)}
                   aria-required="true"
-                  className={`h-8 bg-white text-sm ${projectNumberError ? "border-red-400 focus-visible:ring-red-400" : ""}`}
+                  aria-describedby={validationErrors.projectReference ? "project-reference-error" : undefined}
+                  className={`h-8 bg-white text-sm ${validationErrors.projectReference ? "border-red-400 focus-visible:ring-red-400" : ""}`}
                 />
-                {projectNumberError && <p className="text-[11px] font-medium text-red-600">Project number is required.</p>}
+                {validationErrors.projectReference && (
+                  <p id="project-reference-error" className="text-[11px] font-medium text-red-600">
+                    {validationErrors.projectReference}
+                  </p>
+                )}
               </div>
               <SelectField
                 id="rrbo-grade"
@@ -639,6 +755,7 @@ export default function EcrPrePilotDesignPage() {
                   { value: "SN300", label: "SN300" },
                   { value: "SN500", label: "SN500" },
                 ]}
+                error={validationErrors.rrboGrade}
               />
               <SelectField
                 id="design-feed-rate"
@@ -648,6 +765,7 @@ export default function EcrPrePilotDesignPage() {
                 placeholder="Select design feed rate"
                 options={FEED_RATE_OPTIONS}
                 unit="LPH"
+                error={validationErrors.designFeedRateLph}
               />
               <SelectField
                 id="operating-temperature"
@@ -657,6 +775,7 @@ export default function EcrPrePilotDesignPage() {
                 placeholder="Select operating temperature"
                 options={TEMPERATURE_OPTIONS}
                 unit="°C"
+                error={validationErrors.operatingTemperatureC}
               />
               <SelectField
                 id="operating-pressure"
@@ -665,6 +784,7 @@ export default function EcrPrePilotDesignPage() {
                 onChange={(value) => setField("operatingPressure", value)}
                 placeholder="Select operating pressure"
                 options={PRESSURE_OPTIONS}
+                error={validationErrors.operatingPressure}
               />
               <SelectField
                 id="phase-configuration"
@@ -673,6 +793,7 @@ export default function EcrPrePilotDesignPage() {
                 onChange={(value) => setField("phaseConfiguration", value)}
                 placeholder="Select phase configuration"
                 options={PHASE_OPTIONS}
+                error={validationErrors.phaseConfiguration}
               />
               <div className="space-y-1 md:col-span-2">
                 <Label htmlFor="design-basis-notes" className="text-[13px] font-medium text-slate-700">
@@ -684,8 +805,17 @@ export default function EcrPrePilotDesignPage() {
                   onChange={(event) => setField("designBasisNotes", event.target.value)}
                   placeholder="Add a project-specific note or source reference"
                   rows={1}
-                  className="min-h-8 resize-none bg-white text-sm"
+                  maxLength={2001}
+                  aria-invalid={Boolean(validationErrors.designBasisNotes)}
+                  aria-describedby={validationErrors.designBasisNotes ? "design-basis-notes-error" : undefined}
+                  className={`min-h-8 resize-none bg-white text-sm ${validationErrors.designBasisNotes ? "border-red-400 focus-visible:ring-red-400" : ""}`}
                 />
+                <p className="text-[10px] text-slate-400">{form.designBasisNotes.length}/2,000 characters</p>
+                {validationErrors.designBasisNotes && (
+                  <p id="design-basis-notes-error" className="text-[11px] font-medium text-red-600">
+                    {validationErrors.designBasisNotes}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -708,6 +838,7 @@ export default function EcrPrePilotDesignPage() {
                     onChange={(value) => setField(key, value)}
                     unit="wt%"
                     max="100"
+                    error={validationErrors[key]}
                   />
                 ))}
               </div>
@@ -738,7 +869,9 @@ export default function EcrPrePilotDesignPage() {
                   <div>
                     <p className="text-[13px] font-semibold text-slate-800">Composition validation</p>
                     <p className="mt-0.5 text-[11px] leading-4 text-slate-600">
-                      {compositionStatus.valid
+                      {validationErrors.compositionTotal
+                        ? validationErrors.compositionTotal
+                        : compositionStatus.valid
                         ? "Valid — all six components total exactly 100 wt%."
                         : compositionStatus.populatedCount === 0
                           ? "Enter the six component values to validate the total."
@@ -772,6 +905,7 @@ export default function EcrPrePilotDesignPage() {
                 value={form.rrboDensityKgM3}
                 onChange={(value) => setField("rrboDensityKgM3", value)}
                 unit="kg/m³"
+                error={validationErrors.rrboDensityKgM3}
               />
               <NumericField
                 id="rrbo-dynamic-viscosity"
@@ -779,6 +913,7 @@ export default function EcrPrePilotDesignPage() {
                 value={form.rrboDynamicViscosityCp}
                 onChange={(value) => setField("rrboDynamicViscosityCp", value)}
                 unit="mPa·s (cP)"
+                error={validationErrors.rrboDynamicViscosityCp}
               />
               <NumericField
                 id="rrbo-interfacial-tension"
@@ -786,6 +921,7 @@ export default function EcrPrePilotDesignPage() {
                 value={form.rrboInterfacialTensionMnM}
                 onChange={(value) => setField("rrboInterfacialTensionMnM", value)}
                 unit="mN/m"
+                error={validationErrors.rrboInterfacialTensionMnM}
               />
               <p className="text-[11px] leading-4 text-slate-400 md:col-span-3">
                 Auto-populated screening basis: grade-specific density and viscosity plus preliminary RRBO/NMP interfacial tension at the selected operating temperature (25–100 °C).
@@ -809,6 +945,7 @@ export default function EcrPrePilotDesignPage() {
                 onChange={(value) => setField("nmpPurityWt", value)}
                 unit="wt%"
                 max="100"
+                error={validationErrors.nmpPurityWt}
               />
               <NumericField
                 id="nmp-water"
@@ -817,6 +954,7 @@ export default function EcrPrePilotDesignPage() {
                 onChange={(value) => setField("nmpWaterWt", value)}
                 unit="wt%"
                 max="100"
+                error={validationErrors.nmpWaterWt}
               />
               <NumericField
                 id="nmp-temperature"
@@ -824,6 +962,9 @@ export default function EcrPrePilotDesignPage() {
                 value={form.nmpTemperatureC}
                 onChange={(value) => setField("nmpTemperatureC", value)}
                 unit="°C"
+                min="25"
+                max="100"
+                error={validationErrors.nmpTemperatureC}
               />
               <NumericField
                 id="nmp-density"
@@ -831,6 +972,7 @@ export default function EcrPrePilotDesignPage() {
                 value={form.nmpDensityKgM3}
                 onChange={(value) => setField("nmpDensityKgM3", value)}
                 unit="kg/m³"
+                error={validationErrors.nmpDensityKgM3}
               />
               <NumericField
                 id="nmp-dynamic-viscosity"
@@ -838,6 +980,7 @@ export default function EcrPrePilotDesignPage() {
                 value={form.nmpDynamicViscosityCp}
                 onChange={(value) => setField("nmpDynamicViscosityCp", value)}
                 unit="mPa·s (cP)"
+                error={validationErrors.nmpDynamicViscosityCp}
               />
               <p className="text-[11px] leading-4 text-slate-400 md:col-span-3">
                 Auto-populated basis: NMP purity 99.5 wt% and water 0.05 wt% with temperature-dependent density and viscosity from 25–100 °C.
@@ -862,6 +1005,7 @@ export default function EcrPrePilotDesignPage() {
                 placeholder="Select solvent / oil ratio"
                 options={SOLVENT_OIL_RATIO_OPTIONS}
                 unit="kg/kg"
+                error={validationErrors.solventOilRatio}
               />
               <SelectField
                 id="target-total-aromatics"
@@ -871,6 +1015,7 @@ export default function EcrPrePilotDesignPage() {
                 placeholder="Select total aromatics target"
                 options={TARGET_TOTAL_AROMATICS_OPTIONS}
                 unit="wt% (HC basis)"
+                error={validationErrors.targetRaffinateTotalAromaticsWt}
               />
               <SelectField
                 id="target-polar-aromatics"
@@ -880,6 +1025,7 @@ export default function EcrPrePilotDesignPage() {
                 placeholder="Select polar aromatics target"
                 options={TARGET_POLAR_AROMATICS_OPTIONS}
                 unit="wt% (HC basis)"
+                error={validationErrors.targetRaffinatePolarAromaticsWt}
               />
               <SelectField
                 id="minimum-recovery"
@@ -889,6 +1035,7 @@ export default function EcrPrePilotDesignPage() {
                 placeholder="Select minimum recovery"
                 options={MINIMUM_RECOVERY_OPTIONS}
                 unit="%"
+                error={validationErrors.minimumRecoveryPct}
               />
               <SelectField
                 id="maximum-nmp-raffinate"
@@ -898,6 +1045,7 @@ export default function EcrPrePilotDesignPage() {
                 placeholder="Select maximum NMP"
                 options={MAXIMUM_NMP_RAFFINATE_OPTIONS}
                 unit="wt%"
+                error={validationErrors.maximumNmpRaffinateWt}
               />
             </CardContent>
           </Card>
@@ -927,6 +1075,7 @@ export default function EcrPrePilotDesignPage() {
                   placeholder="Select feed sulfur"
                   options={FEED_SULFUR_OPTIONS}
                   unit="ppm"
+                  error={validationErrors.feedSulfurPpm}
                 />
               </div>
             </CardContent>
