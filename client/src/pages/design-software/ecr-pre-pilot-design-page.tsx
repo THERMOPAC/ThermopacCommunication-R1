@@ -65,11 +65,11 @@ const EMPTY_FORM: FormState = {
   nmpTemperatureC: "",
   nmpDensityKgM3: "",
   nmpDynamicViscosityCp: "",
-  solventOilRatio: "",
-  targetRaffinateTotalAromaticsWt: "",
-  targetRaffinatePolarAromaticsWt: "",
-  minimumRecoveryPct: "",
-  maximumNmpRaffinateWt: "",
+  solventOilRatio: "0.90",
+  targetRaffinateTotalAromaticsWt: "5.0",
+  targetRaffinatePolarAromaticsWt: "0.50",
+  minimumRecoveryPct: "95",
+  maximumNmpRaffinateWt: "0.50",
   feedSulfurPpm: "",
   designBasisNotes: "",
 };
@@ -88,6 +88,11 @@ const PHASE_OPTIONS = [
   { value: "nmp-continuous-rrbo-dispersed", label: "NMP continuous / RRBO dispersed" },
   { value: "rrbo-continuous-nmp-dispersed", label: "RRBO continuous / NMP dispersed" },
 ];
+const SOLVENT_OIL_RATIO_OPTIONS = ["0.50", "0.75", "0.90", "1.00", "1.25", "1.50", "2.00"];
+const TARGET_TOTAL_AROMATICS_OPTIONS = ["2.0", "3.0", "4.0", "5.0", "7.5", "10.0"];
+const TARGET_POLAR_AROMATICS_OPTIONS = ["0.10", "0.25", "0.50", "1.00", "2.00"];
+const MINIMUM_RECOVERY_OPTIONS = ["90", "92.5", "95", "97.5", "99"];
+const MAXIMUM_NMP_RAFFINATE_OPTIONS = ["0.10", "0.25", "0.50", "1.00"];
 
 const NMP_STANDARD_PURPOSE = {
   purityWt: "99.5",
@@ -848,44 +853,50 @@ export default function EcrPrePilotDesignPage() {
               tone="violet"
             />
             <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2 xl:grid-cols-3">
-              <NumericField
+              <SelectField
                 id="solvent-oil-ratio"
                 label="Solvent / Oil ratio"
                 value={form.solventOilRatio}
                 onChange={(value) => setField("solventOilRatio", value)}
+                placeholder="Select solvent / oil ratio"
+                options={SOLVENT_OIL_RATIO_OPTIONS}
                 unit="kg/kg"
               />
-              <NumericField
+              <SelectField
                 id="target-total-aromatics"
                 label="Target raffinate total aromatics"
                 value={form.targetRaffinateTotalAromaticsWt}
                 onChange={(value) => setField("targetRaffinateTotalAromaticsWt", value)}
+                placeholder="Select total aromatics target"
+                options={TARGET_TOTAL_AROMATICS_OPTIONS}
                 unit="wt% (HC basis)"
-                max="100"
               />
-              <NumericField
+              <SelectField
                 id="target-polar-aromatics"
                 label="Target raffinate polar aromatics"
                 value={form.targetRaffinatePolarAromaticsWt}
                 onChange={(value) => setField("targetRaffinatePolarAromaticsWt", value)}
+                placeholder="Select polar aromatics target"
+                options={TARGET_POLAR_AROMATICS_OPTIONS}
                 unit="wt% (HC basis)"
-                max="100"
               />
-              <NumericField
+              <SelectField
                 id="minimum-recovery"
                 label="Minimum NMP-free RRBO recovery"
                 value={form.minimumRecoveryPct}
                 onChange={(value) => setField("minimumRecoveryPct", value)}
+                placeholder="Select minimum recovery"
+                options={MINIMUM_RECOVERY_OPTIONS}
                 unit="%"
-                max="100"
               />
-              <NumericField
+              <SelectField
                 id="maximum-nmp-raffinate"
                 label="Maximum allowable NMP in raffinate"
                 value={form.maximumNmpRaffinateWt}
                 onChange={(value) => setField("maximumNmpRaffinateWt", value)}
+                placeholder="Select maximum NMP"
+                options={MAXIMUM_NMP_RAFFINATE_OPTIONS}
                 unit="wt%"
-                max="100"
               />
             </CardContent>
           </Card>
