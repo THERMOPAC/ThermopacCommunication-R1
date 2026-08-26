@@ -26,7 +26,9 @@ const SURROGATE_MOLECULAR_WEIGHTS_G_MOL = [
 const COMPONENT_LABELS = ['Sat', 'Mono', 'Di', 'Poly', 'NMP'] as const;
 
 type Vector = readonly [number, number, number, number, number];
+type HydrocarbonVector = readonly [number, number, number, number];
 const asVector = (values: readonly number[]): Vector => [values[0], values[1], values[2], values[3], values[4]];
+const asHydrocarbonVector = (values: readonly number[]): HydrocarbonVector => [values[0], values[1], values[2], values[3]];
 const sum = (values: readonly number[]) => values.reduce((total, value) => total + value, 0);
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 const nonNegativeVector = (values: readonly number[]) =>
@@ -109,11 +111,106 @@ export interface ECR2IdealStageCascadeTrial {
   aromaticResidual: number | null;
   rrboRecoveryMassFraction: number | null;
   recoveryResidual: number | null;
+  hydrocarbonRecoveryReconciliation: ECR2HydrocarbonRecoveryReconciliation | null;
   componentMassBalance_kg_h: Vector | null;
   totalMassBalance_kg_h: number | null;
   accepted: boolean;
   failure: string | null;
   stageProfile: readonly ECR2IdealStageAxialProfile[];
+}
+
+/**
+ * Independent hydrocarbon-only balance at the physical cascade boundaries.
+ * This deliberately does not reuse the global five-component mass-balance
+ * residual, so a recovery figure can never silently inherit an accounting
+ * assumption from a different check.
+ */
+export interface ECR2HydrocarbonRecoveryReconciliation {
+  componentOrder: readonly ['Sat', 'Mono', 'Di', 'Poly'];
+  feedBoundary: 'rrbo_feed_inlet';
+  raffinateBoundary: 'rrbo_face_at_ideal_stage_count';
+  extractBoundary: 'nmp_face_at_zero';
+  feedHydrocarbonComponentMassFlows_kg_h: HydrocarbonVector;
+  raffinateHydrocarbonComponentMassFlows_kg_h: HydrocarbonVector;
+  extractHydrocarbonComponentMassFlows_kg_h: HydrocarbonVector;
+  nmpFeedHydrocarbonComponentMassFlows_kg_h: HydrocarbonVector;
+  hydrocarbonComponentBalanceResidual_kg_h: HydrocarbonVector;
+  feedHydrocarbonMassFlow_kg_h: number;
+  raffinateHydrocarbonMassFlow_kg_h: number;
+  extractHydrocarbonMassFlow_kg_h: number;
+  hydrocarbonBalanceResidual_kg_h: number;
+  rrboRecoveryMassFraction: number | null;
+  status: 'passed' | 'not_calculable';
+  failure: string | null;
+}
+
+export interface ECR2HydrocarbonRecoveryReconciliationInput {
+  rrboFeedComponentFlows_kg_h: Vector;
+  nmpFeedComponentFlows_kg_h: Vector;
+  raffinateComponentFlows_kg_h: Vector;
+  extractComponentFlows_kg_h: Vector;
+}
+
+export function reconcileECR2IdealStageHydrocarbonRecovery(
+  input: ECR2HydrocarbonRecoveryReconciliationInput,
+): ECR2HydrocarbonRecoveryReconciliation {
+  const feed = asHydrocarbonVector(input.rrboFeedComponentFlows_kg_h);
+  const raffinate = asHydrocarbonVector(input.raffinateComponentFlows_kg_h);
+  const extract = asHydrocarbonVector(input.extractComponentFlows_kg_h);
+  const nmpFeedHydrocarbons = asHydrocarbonVector(input.nmpFeedComponentFlows_kg_h);
+  const valuesAreUsable = [
+    ...feed,
+    ...raffinate,
+    ...extract,
+    ...nmpFeedHydrocarbons,
+  ].every((value) => finite(value) && value >= 0);
+  const componentResidual = asHydrocarbonVector(feed.map(
+    (flow, component) => flow - raffinate[component] - extract[component],
+  ));
+  const feedTotal = sum(feed);
+  const raffinateTotal = sum(raffinate);
+  const extractTotal = sum(extract);
+  const residual = sum(componentResidual);
+  const unexpectedNmpFeedHydrocarbon = Math.max(...nmpFeedHydrocarbons.map(Math.abs));
+  const componentBalancePassed = Math.max(...componentResidual.map((value) => Math.abs(value))) <=
+    ECR2_IDEAL_STAGE_CASCADE_BASIS.componentMassBalanceTolerance_kg_h;
+  const totalBalancePassed = Math.abs(residual) <= ECR2_IDEAL_STAGE_CASCADE_BASIS.totalMassBalanceTolerance_kg_h;
+  const denominatorPassed = feedTotal > 0 && finite(feedTotal);
+  const solventBoundaryPassed = unexpectedNmpFeedHydrocarbon <=
+    ECR2_IDEAL_STAGE_CASCADE_BASIS.componentMassBalanceTolerance_kg_h;
+  const passed = valuesAreUsable && denominatorPassed && solventBoundaryPassed &&
+    componentBalancePassed && totalBalancePassed;
+  const failures = [
+    !valuesAreUsable ? 'Hydrocarbon boundary component flows must be finite and non-negative.' : null,
+    !denominatorPassed ? 'RRBO hydrocarbon-feed mass is zero or invalid; recovery denominator is not calculable.' : null,
+    !solventBoundaryPassed
+      ? 'NMP feed contains hydrocarbon flow, so RRBO-feed-only recovery and the stated physical boundary are inconsistent.'
+      : null,
+    !componentBalancePassed
+      ? 'Hydrocarbon component split does not close from RRBO feed to raffinate plus extract.'
+      : null,
+    !totalBalancePassed
+      ? 'Hydrocarbon total split does not close from RRBO feed to raffinate plus extract.'
+      : null,
+  ].filter(Boolean).join(' ');
+  return {
+    componentOrder: ['Sat', 'Mono', 'Di', 'Poly'],
+    feedBoundary: 'rrbo_feed_inlet',
+    raffinateBoundary: 'rrbo_face_at_ideal_stage_count',
+    extractBoundary: 'nmp_face_at_zero',
+    feedHydrocarbonComponentMassFlows_kg_h: feed,
+    raffinateHydrocarbonComponentMassFlows_kg_h: raffinate,
+    extractHydrocarbonComponentMassFlows_kg_h: extract,
+    nmpFeedHydrocarbonComponentMassFlows_kg_h: nmpFeedHydrocarbons,
+    hydrocarbonComponentBalanceResidual_kg_h: componentResidual,
+    feedHydrocarbonMassFlow_kg_h: feedTotal,
+    raffinateHydrocarbonMassFlow_kg_h: raffinateTotal,
+    extractHydrocarbonMassFlow_kg_h: extractTotal,
+    hydrocarbonBalanceResidual_kg_h: residual,
+    rrboRecoveryMassFraction: passed ? raffinateTotal / feedTotal : null,
+    status: passed ? 'passed' : 'not_calculable',
+    failure: passed ? null : failures || 'Hydrocarbon recovery reconciliation is not calculable.',
+  };
 }
 
 export interface ECR2IdealStageCascadeResult {
@@ -324,6 +421,7 @@ function failedTrial(idealStageCount: number, sweeps: number, failure: string): 
   return {
     idealStageCount, counterCurrentConverged: false, counterCurrentSweeps: sweeps, massBalancePassed: false,
     productAromaticsMoleFraction: null, aromaticResidual: null, rrboRecoveryMassFraction: null, recoveryResidual: null,
+    hydrocarbonRecoveryReconciliation: null,
     componentMassBalance_kg_h: null, totalMassBalance_kg_h: null, accepted: false, failure, stageProfile: [],
   };
 }
@@ -427,6 +525,12 @@ function trialAtIdealStageCount(
   const massBalancePassed =
     Math.max(...componentMassBalance.map((value) => Math.abs(value))) <= ECR2_IDEAL_STAGE_CASCADE_BASIS.componentMassBalanceTolerance_kg_h &&
     Math.abs(totalMassBalance) <= ECR2_IDEAL_STAGE_CASCADE_BASIS.totalMassBalanceTolerance_kg_h;
+  const hydrocarbonRecoveryReconciliation = reconcileECR2IdealStageHydrocarbonRecovery({
+    rrboFeedComponentFlows_kg_h: input.rrboFeedComponentFlows_kg_h,
+    nmpFeedComponentFlows_kg_h: input.nmpFeedComponentFlows_kg_h,
+    raffinateComponentFlows_kg_h: raffinate,
+    extractComponentFlows_kg_h: extract,
+  });
   let productAromaticsMoleFraction: number | null = null;
   try {
     productAromaticsMoleFraction = calculateHydrocarbonProductQuality({
@@ -436,15 +540,19 @@ function trialAtIdealStageCount(
   } catch {
     // The rejected trial retains its phase/balance trace but cannot claim a product basis.
   }
-  const feedHydrocarbons = sum(input.rrboFeedComponentFlows_kg_h.slice(0, 4));
-  const raffinateHydrocarbons = sum(raffinate.slice(0, 4));
-  const rrboRecoveryMassFraction = feedHydrocarbons > 0 ? raffinateHydrocarbons / feedHydrocarbons : null;
+  const rrboRecoveryMassFraction = hydrocarbonRecoveryReconciliation.rrboRecoveryMassFraction;
   const aromaticResidual = productAromaticsMoleFraction === null ? null : productAromaticsMoleFraction - input.target.value;
   const recoveryResidual = rrboRecoveryMassFraction === null ? null :
     rrboRecoveryMassFraction - ECR2_RRBO_RECOVERY_REQUIREMENT.minimumMassFraction;
-  const accepted = massBalancePassed && aromaticResidual !== null && aromaticResidual <= 0 && recoveryResidual !== null && recoveryResidual >= 0;
+  const accepted = massBalancePassed &&
+    hydrocarbonRecoveryReconciliation.status === 'passed' &&
+    aromaticResidual !== null && aromaticResidual <= 0 &&
+    recoveryResidual !== null && recoveryResidual >= 0;
   const failures = [
     !massBalancePassed ? 'Stage/global component mass balance is outside acceptance tolerance.' : null,
+    hydrocarbonRecoveryReconciliation.status !== 'passed'
+      ? `Hydrocarbon recovery reconciliation is NOT_CALCULABLE: ${hydrocarbonRecoveryReconciliation.failure}`
+      : null,
     aromaticResidual !== null && aromaticResidual > 0 ? `Raffinate aromatic residual ${aromaticResidual.toExponential(3)} is above target.` : null,
     recoveryResidual !== null && recoveryResidual < 0
       ? `RRBO recovery ${(rrboRecoveryMassFraction! * 100).toFixed(4)}% is below the ${(ECR2_RRBO_RECOVERY_REQUIREMENT.minimumMassFraction * 100).toFixed(1)}% requirement.`
@@ -453,6 +561,7 @@ function trialAtIdealStageCount(
   return {
     idealStageCount, counterCurrentConverged: true, counterCurrentSweeps: sweeps, massBalancePassed,
     productAromaticsMoleFraction, aromaticResidual, rrboRecoveryMassFraction, recoveryResidual,
+    hydrocarbonRecoveryReconciliation,
     componentMassBalance_kg_h: componentMassBalance, totalMassBalance_kg_h: totalMassBalance,
     accepted, failure: accepted ? null : failures || 'The physical product-quality basis could not be formed.', stageProfile,
   };
@@ -518,7 +627,8 @@ export function solveECR2IdealStageCascade(input: ECR2IdealStageCascadeInput): E
           !prior.counterCurrentConverged ||
           !prior.massBalancePassed ||
           prior.productAromaticsMoleFraction === null ||
-          prior.rrboRecoveryMassFraction === null,
+           prior.hydrocarbonRecoveryReconciliation?.status !== 'passed' ||
+           prior.rrboRecoveryMassFraction === null,
       );
       if (invalidLowerTrials.length > 0) {
         const firstInvalid = invalidLowerTrials[0];
@@ -526,6 +636,7 @@ export function solveECR2IdealStageCascade(input: ECR2IdealStageCascadeInput): E
           status: 'not_calculable', statusLabel: 'NOT_CALCULABLE', target: input.target,
           recoveryRequirement: ECR2_RRBO_RECOVERY_REQUIREMENT, basis: ECR2_IDEAL_STAGE_CASCADE_BASIS,
           molecularWeightBasis,
+           thermodynamicSurrogatePhysicalMapping,
           establishedTheoreticalStages: null, achievedProductAromaticsMoleFraction: null,
           aromaticResidual: null, rrboRecoveryMassFraction: null, recoveryResidual: null,
           selectedTrial: null, trials,
@@ -540,6 +651,7 @@ export function solveECR2IdealStageCascade(input: ECR2IdealStageCascadeInput): E
         status: 'target_met', statusLabel: 'THEORETICAL_STAGES_ESTABLISHED', target: input.target,
         recoveryRequirement: ECR2_RRBO_RECOVERY_REQUIREMENT, basis: ECR2_IDEAL_STAGE_CASCADE_BASIS,
         molecularWeightBasis,
+        thermodynamicSurrogatePhysicalMapping,
         establishedTheoreticalStages: count, achievedProductAromaticsMoleFraction: trial.productAromaticsMoleFraction,
         aromaticResidual: trial.aromaticResidual, rrboRecoveryMassFraction: trial.rrboRecoveryMassFraction,
         recoveryResidual: trial.recoveryResidual, selectedTrial: trial, trials,
@@ -552,7 +664,8 @@ export function solveECR2IdealStageCascade(input: ECR2IdealStageCascadeInput): E
       !trial.counterCurrentConverged ||
       !trial.massBalancePassed ||
       trial.productAromaticsMoleFraction === null ||
-      trial.rrboRecoveryMassFraction === null,
+       trial.hydrocarbonRecoveryReconciliation?.status !== 'passed' ||
+       trial.rrboRecoveryMassFraction === null,
   );
   if (invalidTrials.length > 0) {
     const firstInvalid = invalidTrials[0];
@@ -560,7 +673,8 @@ export function solveECR2IdealStageCascade(input: ECR2IdealStageCascadeInput): E
       status: 'not_calculable',
       statusLabel: 'NOT_CALCULABLE',
       target: input.target, recoveryRequirement: ECR2_RRBO_RECOVERY_REQUIREMENT, basis: ECR2_IDEAL_STAGE_CASCADE_BASIS,
-        molecularWeightBasis,
+       molecularWeightBasis,
+       thermodynamicSurrogatePhysicalMapping,
       establishedTheoreticalStages: null, achievedProductAromaticsMoleFraction: null,
       aromaticResidual: null, rrboRecoveryMassFraction: null, recoveryResidual: null,
       selectedTrial: null, trials,
@@ -577,6 +691,7 @@ export function solveECR2IdealStageCascade(input: ECR2IdealStageCascadeInput): E
     statusLabel: 'NO FEASIBLE THEORETICAL-STAGE CASCADE AT THE SPECIFIED CONDITIONS',
     target: input.target, recoveryRequirement: ECR2_RRBO_RECOVERY_REQUIREMENT, basis: ECR2_IDEAL_STAGE_CASCADE_BASIS,
     molecularWeightBasis,
+    thermodynamicSurrogatePhysicalMapping,
     establishedTheoreticalStages: null, achievedProductAromaticsMoleFraction: latest?.productAromaticsMoleFraction ?? null,
     aromaticResidual: latest?.aromaticResidual ?? null, rrboRecoveryMassFraction: latest?.rrboRecoveryMassFraction ?? null,
     recoveryResidual: latest?.recoveryResidual ?? null, selectedTrial: null, trials,

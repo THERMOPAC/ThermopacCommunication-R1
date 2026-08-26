@@ -5927,6 +5927,45 @@ export default function DesignSoftwareWorkspacePage() {
                             <div className="grid grid-cols-[72px_112px_122px_120px_100px_1fr] gap-2 px-3 py-2 text-[11px]">
                               <span>{trial.idealStageCount}</span><span>{trial.productAromaticsMoleFraction != null ? `${fmt(trial.productAromaticsMoleFraction * 100, 4)} %` : "—"}</span><span>{trial.rrboRecoveryMassFraction != null ? `${fmt(trial.rrboRecoveryMassFraction * 100, 4)} %` : "—"}</span><span>{trial.counterCurrentSweeps ?? "—"} / {trial.massBalancePassed ? "PASS" : "FAIL"}</span><span className={trial.accepted ? "font-semibold text-emerald-700" : "font-semibold text-rose-700"}>{trial.accepted ? "ACCEPT" : "REJECT"}</span><span>{trial.failure ?? "Both product and recovery gates passed."}</span>
                             </div>
+                            {trial.hydrocarbonRecoveryReconciliation && (
+                              <details className="mx-3 mb-3 rounded border border-current/15 bg-white/80 px-2 py-1 text-[10px]">
+                                <summary className="cursor-pointer font-medium">
+                                  Independent hydrocarbon recovery reconciliation for N = {trial.idealStageCount}
+                                  {" · "}
+                                  {String(trial.hydrocarbonRecoveryReconciliation.status ?? "not_calculable").replaceAll("_", " ").toUpperCase()}
+                                </summary>
+                                <p className="mt-2">
+                                  Recovery = raffinate hydrocarbon mass / RRBO-feed hydrocarbon mass. NMP is excluded from both recovery terms.
+                                  Boundaries: {trial.hydrocarbonRecoveryReconciliation.feedBoundary} → {trial.hydrocarbonRecoveryReconciliation.raffinateBoundary} + {trial.hydrocarbonRecoveryReconciliation.extractBoundary}.
+                                </p>
+                                <div className="mt-2 overflow-x-auto">
+                                  <table className="min-w-[840px] text-left">
+                                    <thead className="opacity-70"><tr><th>Hydrocarbon component</th><th>RRBO feed (kg/h)</th><th>Raffinate (kg/h)</th><th>Extract (kg/h)</th><th>Balance residual (kg/h)</th></tr></thead>
+                                    <tbody>{(trial.hydrocarbonRecoveryReconciliation.componentOrder ?? ["Sat", "Mono", "Di", "Poly"]).map((component: string, componentIndex: number) => (
+                                      <tr key={component} className="border-t border-current/15">
+                                        <td className="py-1">{component}</td>
+                                        <td>{fmt(trial.hydrocarbonRecoveryReconciliation.feedHydrocarbonComponentMassFlows_kg_h?.[componentIndex], 8)}</td>
+                                        <td>{fmt(trial.hydrocarbonRecoveryReconciliation.raffinateHydrocarbonComponentMassFlows_kg_h?.[componentIndex], 8)}</td>
+                                        <td>{fmt(trial.hydrocarbonRecoveryReconciliation.extractHydrocarbonComponentMassFlows_kg_h?.[componentIndex], 8)}</td>
+                                        <td>{fmt(trial.hydrocarbonRecoveryReconciliation.hydrocarbonComponentBalanceResidual_kg_h?.[componentIndex], 10)}</td>
+                                      </tr>
+                                    ))}
+                                      <tr className="border-t border-current/15 bg-slate-50 font-semibold">
+                                        <td className="py-1">Total hydrocarbon</td>
+                                        <td>{fmt(trial.hydrocarbonRecoveryReconciliation.feedHydrocarbonMassFlow_kg_h, 8)}</td>
+                                        <td>{fmt(trial.hydrocarbonRecoveryReconciliation.raffinateHydrocarbonMassFlow_kg_h, 8)}</td>
+                                        <td>{fmt(trial.hydrocarbonRecoveryReconciliation.extractHydrocarbonMassFlow_kg_h, 8)}</td>
+                                        <td>{fmt(trial.hydrocarbonRecoveryReconciliation.hydrocarbonBalanceResidual_kg_h, 10)}</td>
+                                      </tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                                <p className="mt-2">
+                                  RRBO recovery: {trial.hydrocarbonRecoveryReconciliation.rrboRecoveryMassFraction != null ? `${fmt(trial.hydrocarbonRecoveryReconciliation.rrboRecoveryMassFraction * 100, 6)} %` : "NOT_CALCULABLE"}
+                                  {trial.hydrocarbonRecoveryReconciliation.failure ? ` · ${trial.hydrocarbonRecoveryReconciliation.failure}` : ""}
+                                </p>
+                              </details>
+                            )}
                             {(trial.stageProfile?.length ?? 0) > 0 && (
                               <details className="mx-3 mb-3 rounded border border-current/15 bg-white/80 px-2 py-1 text-[10px]">
                                 <summary className="cursor-pointer font-medium">Actual equilibrium phase splits for N = {trial.idealStageCount}</summary>

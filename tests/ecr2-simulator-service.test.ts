@@ -302,9 +302,9 @@ describe('ECR-2 simulator service run path', () => {
     expect(resultSnapshot.idealStageCascade).toMatchObject({
       targetBasis: 'hydrocarbon_only_physical_outlet',
       establishedTheoreticalStages: null,
-      statusLabel: 'NOT_CALCULABLE',
+      statusLabel: 'THERMODYNAMIC SURROGATE-TO-PHYSICAL MAPPING NOT CLOSED',
     });
-    expect(resultSnapshot.idealStageCascade.diagnostics.at(-1)).toContain('not evidence');
+    expect(resultSnapshot.idealStageCascade.diagnostics.at(-1)).toContain('not a validated physical RRBO recovery');
     expect(resultSnapshot.geometry).toMatchObject({
       nCompartments: 1,
       columnDiameter_m: 0.3,

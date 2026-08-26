@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { solveECR2IdealStageCascade } from '../server/engines/llx/llx-ecr2-ideal-stage-cascade';
+import {
+  reconcileECR2IdealStageHydrocarbonRecovery,
+  solveECR2IdealStageCascade,
+} from '../server/engines/llx/llx-ecr2-ideal-stage-cascade';
 
 describe('ECR-2 same-specification ideal-stage cascade', () => {
   it('fails closed until the Coto surrogate-to-physical pseudo-component mapping is governed', () => {
@@ -62,5 +65,68 @@ describe('ECR-2 same-specification ideal-stage cascade', () => {
     expect(audit?.nrtlZFromSurrogateMW).not.toEqual(audit?.nrtlZFromPhysicalPseudoComponentMW);
     expect(result.thermodynamicSurrogatePhysicalMapping.componentMappings[0])
       .toMatchObject({ physicalPseudoComponent: 'Sat', cotoSurrogate: 'n-dodecane' });
+  });
+});
+
+describe('ECR-2 ideal-stage independent hydrocarbon recovery reconciliation', () => {
+  const run924StyleN1 = {
+    rrboFeedComponentFlows_kg_h: [50, 30, 15, 5, 0] as const,
+    nmpFeedComponentFlows_kg_h: [0, 0, 0, 0, 172] as const,
+    raffinateComponentFlows_kg_h: [48, 20, 10, 3, 2] as const,
+    extractComponentFlows_kg_h: [2, 10, 5, 2, 170] as const,
+  };
+
+  it('makes the Run #924-style N=1 RRBO recovery independently reproducible', () => {
+    const reconciliation = reconcileECR2IdealStageHydrocarbonRecovery(run924StyleN1);
+
+    expect(reconciliation.status).toBe('passed');
+    expect(reconciliation.feedBoundary).toBe('rrbo_feed_inlet');
+    expect(reconciliation.raffinateBoundary).toBe('rrbo_face_at_ideal_stage_count');
+    expect(reconciliation.extractBoundary).toBe('nmp_face_at_zero');
+    expect(reconciliation.feedHydrocarbonComponentMassFlows_kg_h).toEqual([50, 30, 15, 5]);
+    expect(reconciliation.raffinateHydrocarbonComponentMassFlows_kg_h).toEqual([48, 20, 10, 3]);
+    expect(reconciliation.extractHydrocarbonComponentMassFlows_kg_h).toEqual([2, 10, 5, 2]);
+    expect(reconciliation.hydrocarbonComponentBalanceResidual_kg_h).toEqual([0, 0, 0, 0]);
+    expect(reconciliation.feedHydrocarbonMassFlow_kg_h).toBe(100);
+    expect(reconciliation.raffinateHydrocarbonMassFlow_kg_h).toBe(81);
+    expect(reconciliation.extractHydrocarbonMassFlow_kg_h).toBe(19);
+    expect(reconciliation.hydrocarbonBalanceResidual_kg_h).toBe(0);
+    expect(reconciliation.rrboRecoveryMassFraction).toBeCloseTo(0.81, 12);
+  });
+
+  it('excludes NMP from the recovery denominator and numerator', () => {
+    const reconciliation = reconcileECR2IdealStageHydrocarbonRecovery({
+      ...run924StyleN1,
+      raffinateComponentFlows_kg_h: [48, 20, 10, 3, 999] as const,
+      extractComponentFlows_kg_h: [2, 10, 5, 2, 1] as const,
+    });
+
+    expect(reconciliation.status).toBe('passed');
+    expect(reconciliation.rrboRecoveryMassFraction).toBeCloseTo(0.81, 12);
+  });
+
+  it('rejects an inconsistent solvent-side hydrocarbon boundary as not calculable', () => {
+    const reconciliation = reconcileECR2IdealStageHydrocarbonRecovery({
+      ...run924StyleN1,
+      nmpFeedComponentFlows_kg_h: [0.01, 0, 0, 0, 172] as const,
+    });
+
+    expect(reconciliation.status).toBe('not_calculable');
+    expect(reconciliation.rrboRecoveryMassFraction).toBeNull();
+    expect(reconciliation.failure).toContain('NMP feed contains hydrocarbon flow');
+  });
+
+  it('rejects summed-stage or wrong-phase outlet flows instead of calling recovery infeasible', () => {
+    const reconciliation = reconcileECR2IdealStageHydrocarbonRecovery({
+      ...run924StyleN1,
+      // These are deliberately non-boundary values that double-count the
+      // N=1 outlets, reproducing a summed-stage-flow accounting regression.
+      raffinateComponentFlows_kg_h: [96, 40, 20, 6, 2] as const,
+      extractComponentFlows_kg_h: [4, 20, 10, 4, 170] as const,
+    });
+
+    expect(reconciliation.status).toBe('not_calculable');
+    expect(reconciliation.rrboRecoveryMassFraction).toBeNull();
+    expect(reconciliation.failure).toContain('Hydrocarbon component split does not close');
   });
 });
