@@ -78,6 +78,7 @@ import {
   BookMarked,
   Grid3X3,
   Cpu,
+  FlaskConical,
   Bell
 } from "lucide-react";
 import { useEffect, useState } from "react";
