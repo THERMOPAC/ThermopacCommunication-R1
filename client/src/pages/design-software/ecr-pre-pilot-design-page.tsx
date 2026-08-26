@@ -40,12 +40,14 @@ type FormState = {
 };
 
 const DEFAULT_PHASE_CONFIGURATION = "nmp-continuous-rrbo-dispersed";
+const DEFAULT_RRBO_GRADE = "SN300";
+const DEFAULT_OPERATING_TEMPERATURE_C = "50";
 
 const EMPTY_FORM: FormState = {
   projectReference: "",
-  rrboGrade: "",
+  rrboGrade: DEFAULT_RRBO_GRADE,
   designFeedRateLph: "",
-  operatingTemperatureC: "",
+  operatingTemperatureC: DEFAULT_OPERATING_TEMPERATURE_C,
   operatingPressure: "",
   phaseConfiguration: DEFAULT_PHASE_CONFIGURATION,
   saturatesWt: "",
@@ -446,7 +448,22 @@ function SelectField({
 
 export default function EcrPrePilotDesignPage() {
   const { toast } = useToast();
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [form, setForm] = useState<FormState>(() => {
+    const rrboProperties = getStandardRrboProperties(EMPTY_FORM.rrboGrade, EMPTY_FORM.operatingTemperatureC);
+    const nmpProperties = getStandardNmpProperties(EMPTY_FORM.operatingTemperatureC);
+
+    return {
+      ...EMPTY_FORM,
+      rrboDensityKgM3: rrboProperties.densityKgM3,
+      rrboDynamicViscosityCp: rrboProperties.dynamicViscosityCp,
+      rrboInterfacialTensionMnM: rrboProperties.interfacialTensionMnM,
+      nmpPurityWt: nmpProperties.purityWt,
+      nmpWaterWt: nmpProperties.waterWt,
+      nmpTemperatureC: nmpProperties.temperatureC,
+      nmpDensityKgM3: nmpProperties.densityKgM3,
+      nmpDynamicViscosityCp: nmpProperties.dynamicViscosityCp,
+    };
+  });
   const [saveState, setSaveState] = useState<"unsaved" | "saved" | "draft">("unsaved");
   const [projectNumberError, setProjectNumberError] = useState(false);
 
@@ -608,7 +625,7 @@ export default function EcrPrePilotDesignPage() {
                 id="rrbo-grade"
                 label="RRBO grade"
                 value={form.rrboGrade}
-                onChange={(value) => setField("rrboGrade", value)}
+                onChange={handleRrboGradeChange}
                 placeholder="Select RRBO grade"
                 options={[
                   { value: "SN150", label: "SN150" },
