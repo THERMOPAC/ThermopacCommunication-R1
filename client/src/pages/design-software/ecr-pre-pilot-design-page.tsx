@@ -104,26 +104,73 @@ const NMP_DYNAMIC_VISCOSITY_POINTS = [
 ];
 
 const RRBO_GRADE_PROPERTIES: Record<string, {
-  densityKgM3: string;
-  dynamicViscosityCp: string;
-  interfacialTensionMnM: string;
+  densityPoints: Array<{ temperatureC: number; value: number }>;
+  dynamicViscosityPoints: Array<{ temperatureC: number; value: number }>;
 }> = {
   SN150: {
-    densityKgM3: "860",
-    dynamicViscosityCp: "27.5",
-    interfacialTensionMnM: "10",
+    densityPoints: [
+      { temperatureC: 25, value: 864 },
+      { temperatureC: 30, value: 861 },
+      { temperatureC: 40, value: 854 },
+      { temperatureC: 50, value: 848 },
+      { temperatureC: 60, value: 841 },
+      { temperatureC: 70, value: 835 },
+    ],
+    dynamicViscosityPoints: [
+      { temperatureC: 25, value: 49.0 },
+      { temperatureC: 30, value: 38.0 },
+      { temperatureC: 40, value: 27.5 },
+      { temperatureC: 50, value: 20.0 },
+      { temperatureC: 60, value: 14.5 },
+      { temperatureC: 70, value: 10.8 },
+    ],
   },
   SN300: {
-    densityKgM3: "880",
-    dynamicViscosityCp: "59.8",
-    interfacialTensionMnM: "10",
+    densityPoints: [
+      { temperatureC: 25, value: 878 },
+      { temperatureC: 30, value: 875 },
+      { temperatureC: 40, value: 869 },
+      { temperatureC: 50, value: 862 },
+      { temperatureC: 60, value: 856 },
+      { temperatureC: 70, value: 849 },
+    ],
+    dynamicViscosityPoints: [
+      { temperatureC: 25, value: 106.0 },
+      { temperatureC: 30, value: 81.0 },
+      { temperatureC: 40, value: 59.8 },
+      { temperatureC: 50, value: 42.0 },
+      { temperatureC: 60, value: 30.0 },
+      { temperatureC: 70, value: 22.0 },
+    ],
   },
   SN500: {
-    densityKgM3: "890",
-    dynamicViscosityCp: "84.6",
-    interfacialTensionMnM: "10",
+    densityPoints: [
+      { temperatureC: 25, value: 885 },
+      { temperatureC: 30, value: 882 },
+      { temperatureC: 40, value: 875 },
+      { temperatureC: 50, value: 869 },
+      { temperatureC: 60, value: 862 },
+      { temperatureC: 70, value: 856 },
+    ],
+    dynamicViscosityPoints: [
+      { temperatureC: 25, value: 158.0 },
+      { temperatureC: 30, value: 121.0 },
+      { temperatureC: 40, value: 84.6 },
+      { temperatureC: 50, value: 59.0 },
+      { temperatureC: 60, value: 42.0 },
+      { temperatureC: 70, value: 30.0 },
+    ],
   },
 };
+
+const RRBO_INTERFACIAL_TENSION_POINTS = [
+  { temperatureC: 25, value: 12.0 },
+  { temperatureC: 30, value: 11.6 },
+  { temperatureC: 40, value: 11.0 },
+  { temperatureC: 50, value: 10.6 },
+  { temperatureC: 60, value: 10.3 },
+  { temperatureC: 70, value: 10.0 },
+];
 
 const COMPOSITION_FIELDS = [
   { key: "saturatesWt", label: "Saturates" },
@@ -226,6 +273,28 @@ function getStandardNmpProperties(operatingTemperature: string) {
     temperatureC: operatingTemperature,
     densityKgM3: densityKgM3 === null ? "" : densityKgM3.toFixed(1),
     dynamicViscosityCp: dynamicViscosityCp === null ? "" : dynamicViscosityCp.toFixed(3),
+  };
+}
+
+function getStandardRrboProperties(rrboGrade: string, operatingTemperature: string) {
+  const gradeProperties = RRBO_GRADE_PROPERTIES[rrboGrade];
+  const temperatureC = parseNumber(operatingTemperature);
+  if (!gradeProperties || temperatureC === null) {
+    return {
+      densityKgM3: "",
+      dynamicViscosityCp: "",
+      interfacialTensionMnM: "",
+    };
+  }
+
+  const densityKgM3 = interpolateProperty(temperatureC, gradeProperties.densityPoints);
+  const dynamicViscosityCp = interpolateProperty(temperatureC, gradeProperties.dynamicViscosityPoints);
+  const interfacialTensionMnM = interpolateProperty(temperatureC, RRBO_INTERFACIAL_TENSION_POINTS);
+
+  return {
+    densityKgM3: densityKgM3 === null ? "" : densityKgM3.toFixed(1),
+    dynamicViscosityCp: dynamicViscosityCp === null ? "" : dynamicViscosityCp.toFixed(2),
+    interfacialTensionMnM: interfacialTensionMnM === null ? "" : interfacialTensionMnM.toFixed(2),
   };
 }
 
@@ -362,22 +431,26 @@ export default function EcrPrePilotDesignPage() {
   };
 
   const handleRrboGradeChange = (grade: string) => {
-    const properties = RRBO_GRADE_PROPERTIES[grade];
+    const properties = getStandardRrboProperties(grade, form.operatingTemperatureC);
     setForm((current) => ({
       ...current,
       rrboGrade: grade,
-      rrboDensityKgM3: properties?.densityKgM3 ?? "",
-      rrboDynamicViscosityCp: properties?.dynamicViscosityCp ?? "",
-      rrboInterfacialTensionMnM: properties?.interfacialTensionMnM ?? "",
+      rrboDensityKgM3: properties.densityKgM3,
+      rrboDynamicViscosityCp: properties.dynamicViscosityCp,
+      rrboInterfacialTensionMnM: properties.interfacialTensionMnM,
     }));
     setSaveState("unsaved");
   };
 
   const handleOperatingTemperatureChange = (operatingTemperature: string) => {
     const nmpProperties = getStandardNmpProperties(operatingTemperature);
+    const rrboProperties = getStandardRrboProperties(form.rrboGrade, operatingTemperature);
     setForm((current) => ({
       ...current,
       operatingTemperatureC: operatingTemperature,
+      rrboDensityKgM3: rrboProperties.densityKgM3,
+      rrboDynamicViscosityCp: rrboProperties.dynamicViscosityCp,
+      rrboInterfacialTensionMnM: rrboProperties.interfacialTensionMnM,
       nmpPurityWt: nmpProperties.purityWt,
       nmpWaterWt: nmpProperties.waterWt,
       nmpTemperatureC: nmpProperties.temperatureC,
@@ -633,7 +706,7 @@ export default function EcrPrePilotDesignPage() {
             <SectionHeading
               number="3"
               title="RRBO Feed Physical Properties"
-              description="Select an RRBO grade above to populate these starting values; measured project data may override them."
+              description="Select an RRBO grade and operating temperature above to populate these starting values; measured project data may override them."
               tone="indigo"
             />
             <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-3">
@@ -659,8 +732,8 @@ export default function EcrPrePilotDesignPage() {
                 unit="mN/m"
               />
               <p className="text-[11px] leading-4 text-slate-400 md:col-span-3">
-                Auto-populated basis: density at 15 °C, dynamic viscosity at 40 °C, and preliminary RRBO/NMP interfacial tension at 70 °C.
-                The interfacial-tension value is assumed and pending laboratory validation.
+                Auto-populated screening basis: grade-specific density and viscosity plus preliminary RRBO/NMP interfacial tension at the selected operating temperature (25–70 °C).
+                All values are editable and should be replaced with measured project data when available.
               </p>
             </CardContent>
           </Card>
