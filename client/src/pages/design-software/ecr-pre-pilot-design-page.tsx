@@ -84,6 +84,28 @@ const PHASE_OPTIONS = [
   { value: "rrbo-continuous-nmp-dispersed", label: "RRBO continuous / NMP dispersed" },
 ];
 
+const RRBO_GRADE_PROPERTIES: Record<string, {
+  densityKgM3: string;
+  dynamicViscosityCp: string;
+  interfacialTensionMnM: string;
+}> = {
+  SN150: {
+    densityKgM3: "860",
+    dynamicViscosityCp: "27.5",
+    interfacialTensionMnM: "10",
+  },
+  SN300: {
+    densityKgM3: "880",
+    dynamicViscosityCp: "59.8",
+    interfacialTensionMnM: "10",
+  },
+  SN500: {
+    densityKgM3: "890",
+    dynamicViscosityCp: "84.6",
+    interfacialTensionMnM: "10",
+  },
+};
+
 const COMPOSITION_FIELDS = [
   { key: "saturatesWt", label: "Saturates" },
   { key: "monoAromaticsWt", label: "Mono-aromatics" },
@@ -262,6 +284,18 @@ export default function EcrPrePilotDesignPage() {
     if (key === "projectReference" && typeof value === "string" && value.trim() !== "") {
       setProjectNumberError(false);
     }
+  };
+
+  const handleRrboGradeChange = (grade: string) => {
+    const properties = RRBO_GRADE_PROPERTIES[grade];
+    setForm((current) => ({
+      ...current,
+      rrboGrade: grade,
+      rrboDensityKgM3: properties?.densityKgM3 ?? "",
+      rrboDynamicViscosityCp: properties?.dynamicViscosityCp ?? "",
+      rrboInterfacialTensionMnM: properties?.interfacialTensionMnM ?? "",
+    }));
+    setSaveState("unsaved");
   };
 
   const compositionStatus = useMemo(() => {
@@ -510,7 +544,7 @@ export default function EcrPrePilotDesignPage() {
             <SectionHeading
               number="3"
               title="RRBO Feed Physical Properties"
-              description="Enter measured or explicitly selected RRBO feed properties for the design basis."
+              description="Select an RRBO grade above to populate these starting values; measured project data may override them."
               tone="indigo"
             />
             <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-3">
@@ -535,6 +569,10 @@ export default function EcrPrePilotDesignPage() {
                 onChange={(value) => setField("rrboInterfacialTensionMnM", value)}
                 unit="mN/m"
               />
+              <p className="text-[11px] leading-4 text-slate-400 md:col-span-3">
+                Auto-populated basis: density at 15 °C, dynamic viscosity at 40 °C, and preliminary RRBO/NMP interfacial tension at 70 °C.
+                The interfacial-tension value is assumed and pending laboratory validation.
+              </p>
             </CardContent>
           </Card>
 
