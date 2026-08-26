@@ -68,3 +68,5 @@
 - [LLX product-quality basis](llx-product-quality-basis.md) — retain full-phase LLE aromatics while reporting commercial raffinate aromatics on NMP-free hydrocarbon-only molar and mass bases.
 - [ECR-2 ideal-cascade two-basis architecture](ecr2-ideal-cascade-two-basis.md) — no physical RRBO↔Coto mole bridge is governed; ideal NRTL recovery stays fail-closed.
 - [ECR-2 sulfur objective boundary](ecr2-sulfur-objective-boundary.md) — sulfur removal is primary; Coto aromatic transfer cannot imply sulfur/DBT removal.
+- [ECR-2 pre-pilot inferred sulfur speciation](ecr2-prepilot-inferred-sulfur-speciation.md) — bounded evidence-based scenarios may run before measured speciation, always labelled inferred.
+- [ECR-2 NMP sulfur LLE evidence](ecr2-nmp-sulfur-lle-evidence.md) — direct LLE, performance, and analogue evidence have different admission roles.
