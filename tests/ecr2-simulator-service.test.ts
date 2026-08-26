@@ -287,7 +287,7 @@ describe('ECR-2 simulator service run path', () => {
     });
     expect(inputSnapshot.columnDiameterTrials_m).toBeUndefined();
     expect(inputSnapshot.governedPsi_W_kg).toBeUndefined();
-    expect(resultSnapshot.calculationRunStatus).toBe('counter_current_bvp_accepted');
+    expect(resultSnapshot.calculationRunStatus).toBe('counter_current_bvp_not_accepted');
     expect(resultSnapshot.progressiveCompartmentSizing).toMatchObject({
       requiredActiveHeight_m: null,
       requiredPhysicalCompartmentCount: null,
@@ -330,75 +330,58 @@ describe('ECR-2 simulator service run path', () => {
         diameterSelection: 'NOT_SELECTED_BY_SIMULATOR',
       });
     }
-    expect(resultSnapshot.bvp.status).toBe('converged');
-    expect(resultSnapshot.bvp.massBalanceStatus).toBe('passed');
-    expect(resultSnapshot.axialTransferDiagnostic).toMatchObject({
-      status: 'CALCULATED_PRELIMINARY',
-      acceptanceStatus: 'ACCEPTED',
-      componentOrder: ['Sat', 'Mono', 'Di', 'Poly', 'NMP'],
-      availability: {
-        governedDesignValues: 'GOVERNED_BLOCKED',
-        releaseStatus: 'NOT_RELEASE_ELIGIBLE',
-      },
+    expect(resultSnapshot.bvp).toMatchObject({
+      status: 'blocked',
+      convergenceStatus: 'dependency_blocked',
+      massBalanceStatus: 'not_evaluated',
+      failure: { dependency: 'kh1995_primary_holdup_dependency' },
     });
-    expect(resultSnapshot.axialTransferDiagnostic.increments).toHaveLength(1);
-    expect(resultSnapshot.axialTransferDiagnostic.outletReconciliation.status).toBe('RECONCILED');
-    expect(resultSnapshot.axialTransferDiagnosticBasis).toMatchObject({
-      diameter_m: 0.3,
-      numberOfCells: 1,
-      selection: 'LOWEST_ACCEPTED_PRELIMINARY_DIAMETER_TRIAL',
+    expect(resultSnapshot.heightSizing).toMatchObject({
+      status: 'not_calculable',
+      requiredActiveHeight_m: null,
+      trials: [],
     });
+    expect(resultSnapshot.holdupCorrelation).toMatchObject({
+      correlationStatus: 'primary_equation_verified',
+      primarySourceVerified: true,
+      validatedForRRBONMP: false,
+      downstreamUsable: false,
+    });
+    expect(resultSnapshot.holdupCorrelation.dependencyBlockers.join('|'))
+      .toContain('kh1995_cpsi_bidirectional_multicomponent_unresolved');
+    expect(resultSnapshot.forwardSimulationStatus.holdup).toContain('NOT_CALCULABLE');
     expect(resultSnapshot.transferStatus).toMatchObject({
-      status: 'LOCAL_PRELIMINARY_CALCULATED',
+      status: 'LOCAL_PRELIMINARY_BLOCKED',
       governedValues: 'UNAVAILABLE',
       releaseStatus: 'NOT_RELEASE_ELIGIBLE',
     });
     expect(resultSnapshot.dependencyGraph.transferStatus).toMatchObject({
-      status: 'LOCAL_PRELIMINARY_CALCULATED',
+      status: 'LOCAL_PRELIMINARY_BLOCKED',
       releaseStatus: 'NOT_RELEASE_ELIGIBLE',
     });
-    expect(resultSnapshot.bvp.componentBalances_kg_h).toHaveLength(5);
-    expect(resultSnapshot.bvp.totalMassBalance_kg_h).toBeCloseTo(0, 8);
     expect(resultSnapshot.headlineEngineeringResults).toMatchObject({
-      status: 'CALCULATED_PRELIMINARY',
+      status: 'NOT_CALCULABLE',
       releaseStatus: 'NOT_RELEASE_ELIGIBLE',
       rrboNmpFeed: {
         rrbo_kg_h: expect.any(Number),
         nmp_kg_h: expect.any(Number),
         soRatio_mass: expect.any(Number),
       },
-      rrboRecovery_percent: expect.closeTo(100, 8),
-      extractOilYield_percent: expect.closeTo(0, 8),
-      totalAromaticRemoval_percent: expect.closeTo(0, 8),
+      rrboRecovery_percent: null,
+      extractOilYield_percent: null,
+      totalAromaticRemoval_percent: null,
       sulfurDbtPrediction: 'NOT_IMPLEMENTED',
       sulfurDbtPredictionNote: expect.stringContaining('must not be interpreted'),
       productQualityBasis: {
         raffinate: expect.stringContaining('Hydrocarbon-only'),
       },
     });
-    expect(resultSnapshot.headlineEngineeringResults.componentPerformance).toMatchObject({
-      saturates: {
-        raffinateRecovery_percent: expect.closeTo(100, 8),
-        removal_percent: expect.closeTo(0, 8),
-      },
-      nmp: {
-        extractRecovery_percent: expect.closeTo(100, 8),
-      },
-    });
     expect(resultSnapshot.massBalanceSummary).toMatchObject({
       componentOrder: ['Sat', 'Mono', 'Di', 'Poly', 'NMP'],
-      status: 'passed',
+      status: 'not_evaluated',
       feed_kg_h: expect.any(Array),
-      raffinate_kg_h: expect.any(Array),
-      extract_kg_h: expect.any(Array),
-    });
-    expect(resultSnapshot.bvp.axialProfile[0]).toMatchObject({
-      k_c_m_s: expect.any(Array),
-      k_d_m_s: expect.any(Array),
-      K_overall_m_s: expect.any(Array),
-      Koa_per_s: expect.any(Array),
-      drivingForce_kg_m3: expect.any(Array),
-      transferRate_kg_m3_s: expect.any(Array),
+      raffinate_kg_h: null,
+      extract_kg_h: null,
     });
 
     const accepted = await service.listResults(revisionId);
@@ -433,10 +416,10 @@ describe('ECR-2 simulator service run path', () => {
 
     const execution = await service.runCalculation(revisionId, 'ecr_simulator', userId);
     const data = execution.result.data as Record<string, any>;
-    expect(data.bvp.status).toBe('converged');
-    expect(data.bvp.compartments[0].d32).toMatchObject({
+    expect(data.bvp.status).toBe('blocked');
+    expect(data.d32).toMatchObject({
       status: 'calculated_preliminary',
-      mode: 'direct_turbulence_preliminary',
+      modeUsed: 'direct_turbulence_preliminary',
       directTurbulence: {
         epsilonBasis: 'governed_psi',
         psi_W_kg: 0.1,
@@ -485,8 +468,7 @@ describe('ECR-2 simulator service run path', () => {
       acceptedRun = (await service.runCalculation(revisionId, 'ecr_simulator', userId)).run;
     }
 
-    const deliberatelyImbalancedPriorState = acceptedRun.result_snapshot.bvp.stateVector
-      .map((value: number) => value * 0.99);
+    const deliberatelyImbalancedPriorState = Array.from({ length: 10 }, () => 0.99);
 
     await persistSimulatorInputs({
       ...simulatorInputs,

@@ -13,6 +13,12 @@ import { createECR2BVPBlockedResult } from '../server/engines/llx/llx-ecr2-count
 const baseInput = {
   columnCrossSectionArea_m2: 1,
   psi_W_kg: 1,
+  powerPerAgitator_W: 1,
+  columnDiameter_m: 0.1,
+  rotorDiameter_m: 0.06,
+  physicalCompartmentHeight_m: 0.06,
+  holdupSystemIdentity: 'published_reference_system',
+  holdupMassTransferDirection: 'no_mass_transfer',
   statorOpenAreaFraction: 0.5,
   operatingTemperature_C: 70,
   physicalMolecularWeights: {

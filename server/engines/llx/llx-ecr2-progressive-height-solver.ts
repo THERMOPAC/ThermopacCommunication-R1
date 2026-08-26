@@ -127,6 +127,37 @@ export interface ECR2ProgressiveHeightSolveInput {
   }) => ECR2CounterCurrentBVPInput;
 }
 
+/** Builds a reportable NOT_CALCULABLE height result without running a BVP trial. */
+export function createECR2ProgressiveHeightBlockedResult(input: {
+  target: ECR2HeightQualityTarget;
+  maximumCellHeight_m: number;
+  reason: string;
+}): ECR2ProgressiveHeightSolveResult {
+  return {
+    status: 'not_calculable',
+    requiredActiveHeight_m: null,
+    achievedProductAromaticsMoleFraction: null,
+    residual: null,
+    rrboRecoveryMassFraction: null,
+    recoveryResidual: null,
+    recoveryRequirement: ECR2_RRBO_RECOVERY_REQUIREMENT,
+    bestAromaticsAtRequiredRecovery: null,
+    target: input.target,
+    maximumCellHeight_m: input.maximumCellHeight_m,
+    searchTolerance_m: ECR2_HEIGHT_SOLVER_NUMERICS.heightTolerance_m,
+    lowerBracketHeight_m: null,
+    upperBracketHeight_m: null,
+    selectedNumberOfCells: null,
+    selectedDeltaZ_m: null,
+    trials: [],
+    selectedBvp: null,
+    diagnostics: [
+      'No physical-height BVP trial was run because a required physical dependency is blocked.',
+      input.reason,
+    ],
+  };
+}
+
 interface AcceptedState {
   height_m: number;
   cells: number;

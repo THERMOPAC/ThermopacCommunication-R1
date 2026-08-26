@@ -75,6 +75,7 @@ export type CorrelationQuantity =
  */
 export type CorrelationStatus =
   | 'governed'
+  | 'primary_equation_verified'
   | 'secondary_equation_verified'
   | 'candidate_governed'
   | 'preliminary_engineering_reconstruction'
@@ -1218,12 +1219,12 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
       'Chemical Engineering Research and Design, 146, 518–527. DOI: 10.1016/j.cherd.2019.04.018. ' +
       'Laitinen validation: 11.2% relative deviation for 2MTHF/water at 298 K.',
 
-    // ── Equations — exact reproduction from Laitinen et al. (2019), Eqs (1)–(2) ──
+    // ── Primary K&H 1995 equation and dependency contract ────────────────────
     //
     //  Eq. (1) — dispersed-phase holdup φ:
     //
-    //   φ = [ 2.67×10⁻² + (ψθ/g)^0.77 ] · (Ud·θ)^0.64 · exp(20.7·Uc·θ)^0.90
-    //       · ((ρc − ρd)/ρc)^(−0.34) · 2.27 · xf^(−0.77)
+    //   φ = [ 2.67×10⁻² + (εθ/g)^0.77 ] · (Ud·θ)^0.64 · exp(20.7·Uc·θ)
+    //       · ((ρc − ρd)/ρc)^(−0.34) · CΨ · 2.27 · xf^(−0.77)
     //
     //  Eq. (2) — characteristic time-length scale θ:
     //
@@ -1231,7 +1232,7 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     //
     //  where the Laitinen (2019) nomenclature is:
     //   φ      hold-up (dispersed phase volume fraction)      [—]
-    //   ψ      mechanical power dissipation per unit mass     [W kg⁻¹]
+    //   ε      P/(Ac·H·ρc), continuous-phase power dissipation [W kg⁻¹]
     //   g      gravitational acceleration                     [m s⁻²]
     //   Ud     dispersed-phase superficial velocity           [m s⁻¹]
     //   Uc     continuous-phase superficial velocity          [m s⁻¹]
@@ -1241,15 +1242,16 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     //   γ      interfacial tension                            [N m⁻¹]
     //   θ      derived characteristic scale = (ρc/(gγ))^0.25 [s m⁻¹]
     //
-    //  ── Assignment of all eight Kühni constants ──────────────────────────
+    //  ── Verified primary constants and CΨ ─────────────────────────────────
     //   2.67×10⁻²  additive constant inside the first bracket [ ] in Eq. (1)
     //   0.77        exponent on (ψθ/g)
     //   0.64        exponent on (Ud·θ)
     //   20.7        linear coefficient inside exp argument: exp(20.7·Uc·θ)
-    //   0.90        exponent on the entire exp(…) factor: [exp(20.7·Uc·θ)]^0.90
     //   −0.34       exponent on ((ρc − ρd)/ρc)
     //   2.27        multiplicative coefficient on xf^(−0.77)
     //   −0.77       exponent on xf
+    //   CΨ         1.00 (no/c→d transfer), 0.56 (d→c transfer); no value is
+    //               admitted for bidirectional multicomponent RRBO/NMP transfer.
     //
     //  ── Dimensional verification of θ ────────────────────────────────────
     //   θ = (ρc/(gγ))^0.25
@@ -1273,13 +1275,12 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     //   The 2.27·xf^(−0.77) factor: smaller free area (more restricted stator) → more holdup.
     //
     equation:
-      'CANDIDATE — DO NOT IMPLEMENT. ' +
-      'Reproduced from Laitinen et al. (2019) Eqs (1) and (2). ' +
-      'Eq.(1): φ = [2.67e-2 + (ψθ/g)^0.77]·(Ud·θ)^0.64·[exp(20.7·Uc·θ)]^0.90' +
-      '·((ρc−ρd)/ρc)^(−0.34)·2.27·xf^(−0.77) ' +
+       'PRIMARY FORM VERIFIED — RRBO/NMP EXECUTION DEPENDENCY-BLOCKED. ' +
+       'K&H 1995 Eq. 15–19: φ = [2.67e-2 + (εθ/g)^0.77]·(Ud·θ)^0.64·exp(20.7·Uc·θ)' +
+       '·((ρc−ρd)/ρc)^(−0.34)·CΨ·2.27·xf^(−0.77) ' +
       'Eq.(2): θ = (ρc/(g·γ))^0.25  [s/m — dimensionless products Ud·θ, Uc·θ, ψθ/g ✓] ' +
-      '| ECR-2: Ud=Q_RRBO/A_col [dispersed], Uc=Q_NMP/A_col [continuous] ' +
-      '| All constants now assigned — see variables section.',
+       '| ε=P/(Ac·H·ρc) using one agitator and physical compartment geometry ' +
+       '| CΨ is direction-specific; RRBO/NMP bidirectional transfer is not assigned a CΨ.',
 
     // ── Symbol definitions ──────────────────────────────────────────────────
     variables: {
@@ -1301,14 +1302,13 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
           'This group is determined entirely by continuous-phase properties and ' +
           'interfacial tension — it is constant along the column at fixed temperature.',
       },
-      psi: {
-        symbol: 'ψ',
+      epsilon: {
+        symbol: 'ε',
         unit: 'W kg⁻¹',
         description:
-          'Mechanical power dissipation per unit mass of liquid in the compartment. ' +
-          'SI: [W/kg] = [m²/s³]. ' +
-          'For Kühni: ψ = N_P · N³ · D_R⁵ / (A_col · h) where N = rotor speed [rev/s]. ' +
-          'N_P is the rotor power number — must be sourced from geometry data.',
+          'Primary K&H power dissipation basis: ε = P/(Ac·H·ρc), where P is one agitator power, ' +
+          'Ac is column cross-sectional area, H is physical compartment height, and ρc is continuous density. ' +
+          'It must not be replaced by a generic governed process ψ.',
       },
       g: {
         symbol: 'g',
@@ -1394,12 +1394,12 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
           'before the exp function is applied. ' +
           'High continuous-phase velocity → exp term → holdup suppressed.',
       },
-      k5_exp_outer: {
-        symbol: '0.90',
+      C_psi: {
+        symbol: 'CΨ',
         unit: '—',
         description:
-          'Exponent on the entire exp(…) factor: [exp(20.7·Uc·θ)]^0.90. ' +
-          'The outer 0.90 power slightly attenuates the exponential sensitivity to Uc.',
+          'K&H 1995 Table 2 mass-transfer factor: 1.00 for no transfer or continuous-to-dispersed transfer; ' +
+          '0.56 for dispersed-to-continuous transfer. It is unresolved for bidirectional multicomponent RRBO/NMP transfer and therefore blocks use.',
       },
       k6_dens_exp: {
         symbol: '−0.34',
@@ -1433,51 +1433,46 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
         min: 0.01,
         max: 0.40,
         unit: '—',
-        note:
-          'Range from Laitinen experiments: φ = 3.98–16.04%. ' +
-          'Flooding occurs as φ → φ_flood; flood margin must be monitored separately. ' +
-          'Confirm upper bound from K&H 1995 Kühni dataset.',
+        note: 'Empirical holdup output must remain strictly within (0,1); no clipping is permitted.',
       },
       Ud: {
-        min: 0.0005,
-        max: 0.02,
+        min: 0.0001,
+        max: 0.0088,
         unit: 'm/s',
         note:
-          'Laitinen: S/F 8.4/9.2 to 12.2/14.0 kg/h. ' +
-          'Confirm K&H 1995 Kühni dataset Ud range from primary paper.',
+          'K&H 1995 primary Table 1 dispersed superficial velocity envelope.',
       },
       Uc: {
-        min: 0.0005,
-        max: 0.02,
+        min: 0.0002,
+        max: 0.0079,
         unit: 'm/s',
-        note: 'Approximate range. Confirm from K&H 1995 primary paper.',
+        note: 'K&H 1995 primary Table 1 continuous superficial velocity envelope.',
       },
-      psi: {
-        min: 0.05,
-        max: 50,
+      epsilon: {
+        min: 0,
+        max: 0.83,
         unit: 'W/kg',
-        note: 'Agitated-column range. Confirm Kühni subset bounds from K&H 1995 primary paper.',
+        note: 'K&H 1995 primary Table 1 ε = P/(Ac·H·ρc) envelope.',
       },
       gamma: {
-        min: 0.001,
-        max: 0.045,
+        min: 0.0008,
+        max: 0.0341,
         unit: 'N/m',
         note:
-          'Laitinen: γ = 3.50 mN/m (2MTHF/water). ' +
-          'NMP/RRBO interfacial tension must be measured and confirmed within range.',
+          'K&H 1995 primary Table 1 envelope; RRBO/NMP remains outside validated system scope.',
       },
       xf: {
-        min: 0.10,
-        max: 0.50,
+        min: 0.16,
+        max: 1.0,
         unit: '—',
         note:
-          'Laitinen ECR60/50G: xf = 0.30. ' +
-          'Confirm Kühni model used in ECR-2 and its stator free area fraction.',
+          'K&H 1995 primary Table 1 stator free-area envelope.',
       },
     },
 
-    applicabilityStatus: 'secondary_equation_verified',
-    primarySourceVerified: false,          // K&H 1995 primary paper not yet inspected
+    applicabilityStatus: 'candidate_governed',
+    correlationStatus: 'primary_equation_verified',
+    primarySourceVerified: true,
     secondaryReproductionVerified: true,   // Eqs (1)–(2) reproduced from Laitinen et al. (2019) — peer-reviewed
     validatedForRRBONMP: false,            // Pilot calibration required for NMP/RRBO system
 
@@ -1497,29 +1492,10 @@ export const ECR2_CORRELATION_REGISTRY: readonly ECR2Correlation[] = [
     },
 
     approvalNote:
-      'secondary_equation_verified: Eqs (1) and (2) accepted as secondary-reproduced K&H 1995 holdup model. ' +
-      'Equation form fully confirmed from Laitinen et al. (2019), peer-reviewed secondary source. ' +
-      'All 8 Kühni constants assigned to exact equation terms. No UNRESOLVED symbols or groupings. ' +
-      'Dimensional verification complete for θ, Ud·θ, Uc·θ, ψθ/g (all dimensionless ✓). ' +
-      'secondaryReproductionVerified=true. Ready for CONTROLLED implementation behind a governance guard. ' +
-      '' +
-      'CONTROLLED IMPLEMENTATION GATE: ' +
-      '  Engine may call Eqs (1)–(2) numerically, but any output used for design decisions ' +
-      '  must carry a clearly labelled "UNVERIFIED — pending primary source" flag. ' +
-      '  Result must not be used for column sizing, flooding margin, or performance guarantees ' +
-      '  until primarySourceVerified = true. ' +
-      '' +
-      'BEFORE advancing to governed: ' +
-      '(1) Read K&H 1995 primary paper (DOI 10.1021/ie00038a032): ' +
-      '    confirm exact equation form and all 8 Kühni constants match Laitinen reproduction. ' +
-      '(2) Confirm K&H 1995 Kühni experimental dataset uses same phase convention ' +
-      '    as Laitinen (aqueous=continuous, organic=dispersed) for Ud and Uc. ' +
-      '    If reversed, Ud and Uc in Eq. (1) must be reassigned for ECR-2. ' +
-      '(3) Verify K&H 1995 Kühni validity ranges cover ECR-2 operating envelope ' +
-      '    (Ud, Uc, ψ, γ, Δρ, xf). ' +
-      '(4) Confirm xf for the specific Kühni model used in ECR-2 (not ECR60/50G). ' +
-      '(5) Set primarySourceVerified = true with engineer name and date. ' +
-      'Numerical output remains UNVERIFIED until governed.',
+      'Primary K&H 1995 Eq. 15–19 and Table 2 have been checked. The secondary outer 0.90 exponent is not accepted. ' +
+      'The primary ε=P/(Ac·H·ρc) geometry/power basis and direction-specific CΨ are mandatory. ' +
+      'RRBO/NMP has neither a resolved bidirectional multicomponent CΨ nor source applicability/pilot validation. ' +
+      'Accordingly the engine exposes NOT_CALCULABLE dependency blocks; it does not clip φ, label flooding, infer infeasibility, or run a physical-height calculation.',
   },
 
   // ── 3. Phase mass-transfer coefficients — Kumar & Hartland (1999) ────────

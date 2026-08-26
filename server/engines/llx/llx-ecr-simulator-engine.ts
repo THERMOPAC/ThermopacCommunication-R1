@@ -140,6 +140,7 @@ import {
   type ECR2CounterCurrentBVPInput,
 } from './llx-ecr2-counter-current-bvp';
 import {
+  createECR2ProgressiveHeightBlockedResult,
   solveECR2ProgressiveHeight,
   type ECR2ProgressiveHeightSolveResult,
 } from './llx-ecr2-progressive-height-solver';
@@ -1764,6 +1765,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     // Phase 2 will replace with composition-dependent values.
     const rho = feedDensity.value; // kg/m³ — RRBO density used for power; NMP from EPD library
     const rhoNMP = getProperty('nmp', 'density', T_C);
+    const muNMP = getProperty('nmp', 'dynamicViscosity', T_C);
     for (const w of rhoNMP.warnings)
       pushWarning(w.code ?? 'EPD_WARNING', w.message);
 
@@ -1817,47 +1819,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     // xf: stator open-area fraction. If statorOpenAreaFraction was not supplied,
     // xf = NaN triggers input_missing in computeKH1995Holdup — no silent default.
     //
-    const holdupResult: KH1995HoldupResult | null = gamma !== undefined
-      ? computeKH1995Holdup({
-          psi_W_kg,
-          Ud_m_s:      u_raffinate_m_s,   // RRBO = dispersed phase
-          Uc_m_s:      u_extract_m_s,     // NMP  = continuous phase
-          rho_c_kg_m3: rhoNMP.value,      // NMP  = continuous phase
-          rho_d_kg_m3: feedDensity.value, // RRBO = dispersed phase
-          gamma_N_m:   gamma.value,
-          xf:          fStator !== undefined ? fStator.value : Number.NaN,
-        })
-      : null;
-
-    if (holdupResult?.status === 'input_missing') {
-      pushWarning(
-        'HOLDUP_INPUT_MISSING',
-        `K&H 1995 holdup: missing or invalid required inputs (${holdupResult.missing.join(', ')}) — holdup_dispersed not calculable. ` +
-        'Supply statorOpenAreaFraction and valid interfacialTension to enable holdup calculation.',
-      );
-    }
-    if (holdupResult?.status === 'calculation_invalid') {
-      pushWarning(
-        'HOLDUP_CALCULATION_INVALID',
-        `K&H 1995 holdup: equation produced a non-finite result (phi_raw = ${holdupResult.phi_raw}) — ${holdupResult.reason}`,
-      );
-    }
-    if (holdupResult?.status === 'physically_invalid') {
-      pushWarning(
-        'HOLDUP_PHYSICALLY_INVALID',
-        `K&H 1995 holdup: phi_raw = ${holdupResult.phi_raw.toFixed(4)} (${holdupResult.physicalViolation}) — ` +
-        'the correlation has produced a physically inadmissible prediction at this operating point. ' +
-        'Review agitation intensity (ψ) and flow conditions.',
-      );
-    }
-    if (holdupResult?.status === 'calculated_extrapolated') {
-      pushWarning(
-        'HOLDUP_EXTRAPOLATED',
-        `K&H 1995 holdup: phi = ${holdupResult.phi.toFixed(4)} calculated but inputs outside diagnostic applicability ranges ` +
-        `(${holdupResult.extrapolatedRanges.join(', ')}). All ranges are source_not_verified. ` +
-        'Result is the best available preliminary engineering estimate — apply engineering judgement.',
-      );
-    }
+    let holdupResult: KH1995HoldupResult | null = null;
 
     // ── d₃₂ computation ──────────────────────────────────────────────────────
     //
@@ -2022,10 +1984,51 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         // dependency block when the governed route cannot be assembled.
       }
     }
+    holdupResult = gamma !== undefined
+      ? computeKH1995Holdup({
+          Ud_m_s: u_raffinate_m_s,
+          Uc_m_s: u_extract_m_s,
+          rho_c_kg_m3: rhoNMP.value,
+          rho_d_kg_m3: feedDensity.value,
+          mu_c_Pa_s: muNMP.value,
+          mu_d_Pa_s: muDGoverned?.value ?? rawFeedViscosity?.value ?? Number.NaN,
+          gamma_N_m: gamma.value,
+          xf: fStator?.value ?? Number.NaN,
+          powerPerAgitator_W: P1_W,
+          columnCrossSectionArea_m2: A_col,
+          compartmentHeight_m: hComp,
+          columnDiameter_m: D,
+          rotorDiameter_m: D_R,
+          massTransferDirection: 'bidirectional_multicomponent',
+          systemIdentity: 'rrbo_nmp',
+        })
+      : null;
+    if (holdupResult?.status === 'dependency_blocked') {
+      pushWarning(
+        'HOLDUP_DEPENDENCY_BLOCKED',
+        `K&H 1995 primary holdup is NOT_CALCULABLE: ${holdupResult.blockedBy.join('; ')}. ` +
+        'This is a physical-dependency/evidence block, not a flooding or process-infeasibility conclusion.',
+      );
+    } else if (holdupResult?.status === 'input_missing') {
+      pushWarning('HOLDUP_INPUT_MISSING',
+        `K&H 1995 primary holdup: missing or invalid required inputs (${holdupResult.missing.join(', ')}) — NOT_CALCULABLE.`);
+    } else if (holdupResult?.status === 'calculation_invalid') {
+      pushWarning('HOLDUP_CALCULATION_INVALID',
+        `K&H 1995 primary holdup produced a non-finite result — ${holdupResult.reason}`);
+    } else if (holdupResult?.status === 'physically_invalid') {
+      pushWarning('HOLDUP_PHYSICALLY_INVALID',
+        `K&H 1995 primary holdup raw result ${holdupResult.phi_raw.toFixed(4)} is inadmissible; it was not clipped and does not establish flooding.`);
+    }
     const bvpBaseInput: Omit<ECR2CounterCurrentBVPInput,
       'numberOfCompartments' | 'activeHeight_m' | 'previousSolution'> = {
       columnCrossSectionArea_m2: A_col,
       psi_W_kg,
+      powerPerAgitator_W: P1_W,
+      columnDiameter_m: D,
+      rotorDiameter_m: D_R,
+      physicalCompartmentHeight_m: hComp,
+      holdupSystemIdentity: 'rrbo_nmp',
+      holdupMassTransferDirection: 'bidirectional_multicomponent',
       statorOpenAreaFraction: fStator?.value ?? Number.NaN,
       operatingTemperature_C: T_C,
       physicalMolecularWeights: {
@@ -2148,18 +2151,32 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
             physicalProductTarget,
             idealStageCascade.statusLabel,
           );
-      heightSizing = solveECR2ProgressiveHeight({
-        target: physicalProductTarget,
-        maximumCellHeight_m: hComp,
-        physicalMolecularWeights_g_mol: [
-          mwSat.value, mwMono.value, mwDi.value, mwPoly.value, 99.13,
-        ],
-        bvpBaseInput,
-      });
+      const holdupBlockReason = holdupResult === null
+        ? 'K&H 1995 primary holdup was not attempted because interfacial tension is unavailable.'
+        : holdupResult.status === 'dependency_blocked'
+          ? `K&H 1995 primary holdup dependency block: ${holdupResult.blockedBy.join('; ')}`
+          : `K&H 1995 primary holdup is not usable: ${holdupResult.status}.`;
+      const holdupUsableForPhysicalSizing = holdupResult !== null && isHoldupUsable(holdupResult);
+      heightSizing = holdupUsableForPhysicalSizing
+        ? solveECR2ProgressiveHeight({
+            target: physicalProductTarget,
+            maximumCellHeight_m: hComp,
+            physicalMolecularWeights_g_mol: [
+              mwSat.value, mwMono.value, mwDi.value, mwPoly.value, 99.13,
+            ],
+            bvpBaseInput,
+          })
+        : createECR2ProgressiveHeightBlockedResult({
+            target: physicalProductTarget,
+            maximumCellHeight_m: hComp,
+            reason: holdupBlockReason,
+          });
       const heightSizingFailure = heightSizing.diagnostics[heightSizing.diagnostics.length - 1]
         ?? 'the progressive BVP search did not establish an accepted physical height.';
       bvpResult = heightSizing.selectedBvp ?? createECR2BVPBlockedResult(
-        'physical_height_not_established',
+        holdupUsableForPhysicalSizing
+          ? 'physical_height_not_established'
+          : 'kh1995_primary_holdup_dependency',
         `Required Active Extraction Height = NOT_CALCULATED because ${heightSizingFailure}`,
         ['ECR-2 progressive BVP height search', heightSizingFailure],
       );
@@ -2296,16 +2313,18 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
        summarizeDiameterTrial(D, A_col, heightSizing, progressiveCompartmentSizing, bvpResult),
       ...configuredDiameterTrials.slice(1).map((trialDiameter_m) => {
         const trialArea_m2 = columnCrossSectionArea(trialDiameter_m);
-        if (phaseConfig !== 'nmp_continuous_rrbo_dispersed' || !physicalProductTarget) {
+        if (phaseConfig !== 'nmp_continuous_rrbo_dispersed' || !physicalProductTarget || !(holdupResult !== null && isHoldupUsable(holdupResult))) {
           const reason = phaseConfig !== 'nmp_continuous_rrbo_dispersed'
             ? 'The NMP-continuous/RRBO-dispersed phase orientation is not active.'
-            : 'No compatible governed physical product-quality target is available.';
+            : !physicalProductTarget
+              ? 'No compatible governed physical product-quality target is available.'
+              : 'K&H 1995 primary holdup is dependency-blocked; no physical BVP height trial was run.';
           return summarizeDiameterTrial(
             trialDiameter_m,
             trialArea_m2,
             null,
             null,
-            createECR2BVPBlockedResult('physical_product_target', `Required Active Extraction Height = NOT_CALCULATED because ${reason}`),
+            createECR2BVPBlockedResult('kh1995_primary_holdup_dependency', `Required Active Extraction Height = NOT_CALCULATED because ${reason}`),
             reason,
           );
         }
@@ -2964,21 +2983,21 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
 
       holdupCorrelation: {
         correlationId:     'ecr2_holdup_kh1995',
-        correlationStatus: 'secondary_equation_verified',
-        engineeringBasis:  'Published Correlation — Preliminary Engineering',
-        governanceStatus:  'UNVERIFIED — pending primary source',
-        primarySourceVerified: false,
+        correlationStatus: 'primary_equation_verified',
+        engineeringBasis:  'Published Correlation — Primary Equation / Dependency-Gated',
+        governanceStatus:  'PRIMARY_FORM_VERIFIED__RRBO_NMP_NOT_VALIDATED',
+        primarySourceVerified: true,
         validatedForRRBONMP:   false,
-        psiBasis: 'Thermopac preliminary interpretation — specific mechanical power dissipation',
-        localAxialApplication: 'Thermopac model extension',
+        powerDissipationBasis: 'ε = P/(Ac·H·ρc); one agitator power, column area, local compartment height, continuous density',
+        localAxialApplication: 'not_governed_for_RRBO_NMP',
         phase1Note: 'Phase 1: uniform inlet-condition properties applied to all compartments. Axial property variation requires Phase 2.',
         phaseMappingFixed: 'RRBO = dispersed (Ud, ρd) | NMP = continuous (Uc, ρc)',
         psi_W_kg,
         gamma_N_m: gamma?.value ?? null,
         xf: fStator?.value ?? null,
         result: holdupResult,
-        // phi is non-null when status ∈ {'calculated', 'calculated_extrapolated'}
-        phi: holdupResult != null && (holdupResult.status === 'calculated' || holdupResult.status === 'calculated_extrapolated')
+        // phi is non-null only when primary evidence and all dependencies are usable.
+        phi: holdupResult?.status === 'calculated'
           ? holdupResult.phi
           : null,
         phi_raw: holdupResult != null && holdupResult.status !== 'input_missing'
@@ -2993,11 +3012,11 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
         applicabilityDiagnostics: holdupResult != null && holdupResult.status !== 'input_missing'
           ? holdupResult.applicabilityDiagnostics
           : null,
-        extrapolatedRanges: holdupResult?.status === 'calculated_extrapolated'
-          ? holdupResult.extrapolatedRanges
+        dependencyBlockers: holdupResult?.status === 'dependency_blocked'
+          ? holdupResult.blockedBy
           : null,
         downstreamUsable: holdupResult != null
-          ? (holdupResult.status === 'calculated' || holdupResult.status === 'calculated_extrapolated')
+          ? holdupResult.status === 'calculated'
           : false,
       },
 
@@ -3013,9 +3032,9 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           if (holdupResult == null) return 'NOT CALCULATED — interfacialTension not supplied';
           if (holdupResult.status === 'calculated')
             return `CALCULATED — φ = ${holdupResult.phi.toFixed(4)} (${(holdupResult.phi * 100).toFixed(2)} %) — Published Correlation Preliminary Engineering (K&H 1995)`;
-          if (holdupResult.status === 'calculated_extrapolated')
-            return `CALCULATED_EXTRAPOLATED — φ = ${holdupResult.phi.toFixed(4)} (${(holdupResult.phi * 100).toFixed(2)} %) — outside ranges: ${holdupResult.extrapolatedRanges.join(', ')}`;
-          return `NOT CALCULABLE — ${holdupResult.status}`;
+          if (holdupResult.status === 'dependency_blocked')
+            return `NOT_CALCULABLE — physical dependency blocked: ${holdupResult.blockedBy.join('; ')}`;
+          return `NOT_CALCULABLE — ${holdupResult.status}`;
         })(),
         slipVelocity: U_slip_m_s !== null
           ? `CALCULATED — U_slip = ${U_slip_m_s.toExponential(4)} m/s (from φ_d, does not require d₃₂)`

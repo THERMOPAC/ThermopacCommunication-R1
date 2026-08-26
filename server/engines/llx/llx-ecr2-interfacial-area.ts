@@ -63,9 +63,8 @@ export interface InterfacialAreaResult {
  * Compute specific interfacial area a = 6·φ_d / d₃₂ (m²/m³).
  *
  * Guards applied before computation (both must pass):
- *   1. isHoldupUsable(holdupResult) — holdup status must be 'calculated' or
- *      'calculated_extrapolated'. 'physically_invalid', 'input_missing', and
- *      'calculation_invalid' all block the computation.
+ *   1. isHoldupUsable(holdupResult) — holdup status must be 'calculated'.
+ *      Dependency, mathematical, and physical failures all block computation.
  *   2. isD32Usable(d32Result) — d₃₂ must be a finite positive number with
    *      a calculated, calculated_extrapolated, or engineer-supplied status.
  *   3. 0 < φ_d < 1 (physical admissibility — belt-and-suspenders after guard 1).
@@ -93,7 +92,7 @@ export function computeInterfacialArea(
     const reason = holdupResult === null
       ? 'Holdup result is null — holdup was not computed (σ and x_f inputs required).'
       : `Holdup status '${holdupResult.status}' is not usable for interfacial area. ` +
-        "Only 'calculated' and 'calculated_extrapolated' are downstream-consumable.";
+         "Only 'calculated' is downstream-consumable.";
     blockingReasons.push(reason);
   }
 
@@ -205,14 +204,6 @@ export function computeInterfacialArea(
 
   // Diagnostics and status
   const isEngineerD32 = d32Result.mode === 'engineer_supplied';
-  const isExtrapolatedHoldup = holdupResult.status === 'calculated_extrapolated';
-
-  if (isExtrapolatedHoldup) {
-    diagnostics.push(
-      `φ_d was computed in extrapolated range (holdup status: 'calculated_extrapolated'). ` +
-      'The interfacial area result carries the same extrapolation caveat.'
-    );
-  }
   if (isEngineerD32) {
     diagnostics.push(
       `d₃₂ = ${(d32_m * 1000).toFixed(3)} mm was engineer-supplied (not from published correlation). ` +

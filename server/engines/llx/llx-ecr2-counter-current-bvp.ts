@@ -10,7 +10,10 @@ import type { ECR2ThermodynamicBasis } from './llx-ecr-simulator-engine';
 import { SURROGATE_MW } from '../../engine-framework/cel/coto2022-nmp-lle';
 import type { D32Config, D32Result } from './llx-ecr2-d32-interface';
 import { computeDropletDiameter, isD32Usable } from './llx-ecr2-d32-interface';
-import { computeKH1995Holdup, isHoldupUsable, type KH1995HoldupResult } from './llx-ecr2-holdup';
+import {
+  computeKH1995Holdup, isHoldupUsable,
+  type KH1995HoldupResult, type KH1995MassTransferDirection, type KH1995SystemIdentity,
+} from './llx-ecr2-holdup';
 import { computeInterfacialArea, computeSlipVelocity, type InterfacialAreaResult } from './llx-ecr2-interfacial-area';
 import { computeDimensionlessNumbers, type ECR2DimensionlessResult } from './llx-ecr2-dimensionless';
 import { computeAllSchmidtNumbers } from './llx-ecr2-diffusivity';
@@ -70,6 +73,21 @@ export interface ECR2CounterCurrentBVPInput {
   columnCrossSectionArea_m2: number;
   /** Fixed per-compartment specific power basis ψ = (P/V)/ρ_mix (W/kg). */
   psi_W_kg: number;
+  /** One mechanical agitator power P used by the primary K&H 1995 ε basis. */
+  powerPerAgitator_W: number;
+  /** Physical column internal diameter Dc required by primary K&H applicability. */
+  columnDiameter_m: number;
+  /** Physical rotor diameter Dr required by primary K&H applicability. */
+  rotorDiameter_m: number;
+  /**
+   * Physical mechanical compartment height for K&H 1995. This is distinct from
+   * a numerical BVP cell height and must not change when the mesh changes.
+   */
+  physicalCompartmentHeight_m: number;
+  /** Explicit source-system contract for the primary K&H dependency calculation. */
+  holdupSystemIdentity: KH1995SystemIdentity;
+  /** Explicit Table 2 CΨ direction contract for the primary K&H calculation. */
+  holdupMassTransferDirection: KH1995MassTransferDirection;
   /** Required K&H 1995 stator open-area fraction x_f. */
   statorOpenAreaFraction: number;
   /** Isothermal operating temperature. */
@@ -425,6 +443,10 @@ function validateInput(input: ECR2CounterCurrentBVPInput): ECR2BVPLocalFailure |
     ['activeHeight_m', input.activeHeight_m],
     ['columnCrossSectionArea_m2', input.columnCrossSectionArea_m2],
     ['psi_W_kg', input.psi_W_kg],
+    ['powerPerAgitator_W', input.powerPerAgitator_W],
+    ['columnDiameter_m', input.columnDiameter_m],
+    ['rotorDiameter_m', input.rotorDiameter_m],
+    ['physicalCompartmentHeight_m', input.physicalCompartmentHeight_m],
     ['statorOpenAreaFraction', input.statorOpenAreaFraction],
   ] as const) {
     if (!finite(value) || value <= 0) return invalid('geometry_or_hydrodynamics', `${name} must be finite and > 0.`);
@@ -531,16 +553,29 @@ function localCompartment(
   const uD = dTotal / (properties.snapshot.rho_d_kg_m3 * input.columnCrossSectionArea_m2 * 3600);
   const uC = cTotal / (properties.snapshot.rho_c_kg_m3 * input.columnCrossSectionArea_m2 * 3600);
   const holdup = computeKH1995Holdup({
-    psi_W_kg: input.psi_W_kg,
     Ud_m_s: uD,
     Uc_m_s: uC,
     rho_c_kg_m3: properties.snapshot.rho_c_kg_m3,
     rho_d_kg_m3: properties.snapshot.rho_d_kg_m3,
+    mu_c_Pa_s: properties.snapshot.mu_c_Pa_s,
+    mu_d_Pa_s: properties.snapshot.mu_d_Pa_s,
     gamma_N_m: properties.snapshot.sigma_N_m,
     xf: input.statorOpenAreaFraction,
+    powerPerAgitator_W: input.powerPerAgitator_W,
+    columnCrossSectionArea_m2: input.columnCrossSectionArea_m2,
+    compartmentHeight_m: input.physicalCompartmentHeight_m,
+    columnDiameter_m: input.columnDiameter_m,
+    rotorDiameter_m: input.rotorDiameter_m,
+    massTransferDirection: input.holdupMassTransferDirection,
+    systemIdentity: input.holdupSystemIdentity,
   });
   if (!isHoldupUsable(holdup)) {
-    return { compartment: null, failure: invalid('holdup', `K&H 1995 holdup is unusable: ${holdup.status}.`, index, null, 'missing' in holdup ? holdup.missing : []) };
+    const provenance = 'missing' in holdup
+      ? holdup.missing
+      : holdup.status === 'dependency_blocked'
+        ? [...holdup.blockedBy]
+        : [];
+    return { compartment: null, failure: invalid('holdup', `K&H 1995 holdup is dependency-blocked: ${holdup.status}.`, index, null, provenance) };
   }
 
   const d32 = computeDropletDiameter({
