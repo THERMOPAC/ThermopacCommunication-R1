@@ -27,13 +27,22 @@ import {
 
 // A representative Kühni operating point that gives a usable holdup
 const HOLDUP_INPUTS = {
-  psi_W_kg:    0.012,     // 12 mW/kg
   Ud_m_s:      0.000278,  // 1 m³/(m²·h) ÷ 3600
   Uc_m_s:      0.000333,  // 1.2 m³/(m²·h) ÷ 3600
   rho_c_kg_m3: 1020,      // NMP
   rho_d_kg_m3: 870,       // RRBO
+  mu_c_Pa_s:   0.0012,
+  mu_d_Pa_s:   0.0010,
   gamma_N_m:   0.015,     // 15 mN/m
   xf:          0.23,      // stator open-area fraction
+  // ε = P/(Ac·H·ρc) with the primary K&H one-agitator basis.
+  powerPerAgitator_W: 0.012 * 0.01 * 0.06 * 1020,
+  columnCrossSectionArea_m2: 0.01,
+  compartmentHeight_m: 0.06,
+  columnDiameter_m: 0.10,
+  rotorDiameter_m: 0.06,
+  massTransferDirection: 'no_mass_transfer' as const,
+  systemIdentity: 'published_reference_system' as const,
 };
 
 const ENGINEER_D32_CFG = {
@@ -50,7 +59,7 @@ const PUBLISHED_D32_CFG = {
 
 const PUBLISHED_D32_STATE = {
   h_comp_m: 0.06,
-  psi_W_kg: HOLDUP_INPUTS.psi_W_kg,
+  psi_W_kg: 0.012,
   rho_c_kg_m3: HOLDUP_INPUTS.rho_c_kg_m3,
   rho_d_kg_m3: HOLDUP_INPUTS.rho_d_kg_m3,
   sigma_N_m: HOLDUP_INPUTS.gamma_N_m,

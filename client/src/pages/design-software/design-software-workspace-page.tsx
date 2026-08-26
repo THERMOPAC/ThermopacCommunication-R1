@@ -5252,6 +5252,29 @@ export default function DesignSoftwareWorkspacePage() {
               <Badge className="bg-amber-100 text-amber-800 border border-amber-200 text-[10px]">Pilot calibration pending</Badge>
             </div>
           </div>
+          <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 text-xs text-violet-950" data-testid="ecr2-prepilot-hydrodynamics-review">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="font-semibold">RRBO/NMP pre-pilot hydrodynamic evidence review</p>
+                <p className="mt-1 text-[11px] text-violet-900">
+                  Read-only comparison of the K&amp;H benchmark with an isolated, sensitivity-only hydrodynamic route. It does not unlock BVP sizing, diameter, height, theoretical stages, flooding, feasibility, or release eligibility.
+                </p>
+              </div>
+              {activeRevisionId && (
+                <a
+                  className="inline-flex shrink-0 items-center rounded-md border border-violet-300 bg-white px-2.5 py-1.5 text-[11px] font-medium text-violet-800 hover:bg-violet-100"
+                  href={`/api/design-software/revisions/${activeRevisionId}/ecr2-prepilot-hydrodynamic-candidates`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open evidence matrix
+                </a>
+              )}
+            </div>
+            <p className="mt-2 text-[10px] text-violet-800">
+              Scenario evaluation is a non-persistent engineering-review API; it requires explicit, provenance-bearing pilot or sensitivity inputs and remains preliminary until independently approved.
+            </p>
+          </div>
           {c2InputsAreStale && (
             <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-xs text-red-800 mb-4" data-testid="ecr2-c2-refresh-required">
               <strong>Stage 4 refresh required before ECR-2 can run.</strong>

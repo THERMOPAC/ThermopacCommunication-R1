@@ -14,6 +14,11 @@ import { mapWorkspaceMechanicalInputs } from './llx-mechanical-design-input-mapp
 import { mergeSectionData } from './section-merge';
 import { generateNozzleSchedule as generateNozzles } from './llx-nozzle-master-data';
 import { injectC2ThermodynamicHandoffForECR2 } from './engines/llx/llx-ecr2-c2-handoff';
+import {
+  ECR2_PREPILOT_HYDRODYNAMIC_CANDIDATES,
+  buildECR2PrePilotHydrodynamicReview,
+  validateECR2PrePilotHydrodynamicInput,
+} from './engines/llx/llx-ecr2-prepilot-hydrodynamics';
 
 // ── Lifecycle transition table ────────────────────────────────────────────────
 // action → { requiredStatus, nextStatus, setsFrozen, setsField }
@@ -566,6 +571,49 @@ export async function previewEcr2Stage8Resolution(revisionId: number) {
     unresolvedCount: 15,
     records: {},
   };
+}
+
+/**
+ * Read-only pre-pilot evidence matrix. This deliberately does not map, save, or
+ * calculate the production simulator; it makes the isolated evidence route
+ * inspectable before an engineer supplies a pilot/sensitivity scenario.
+ */
+export async function previewEcr2PrePilotHydrodynamicCandidates(revisionId: number) {
+  const revRow = await pool.query(
+    `SELECT r.id, d.module_type
+     FROM design_software_revisions r
+     JOIN design_software_designs d ON d.id = r.design_id
+     WHERE r.id = $1`,
+    [revisionId],
+  );
+  const revision = revRow.rows[0];
+  if (!revision) throw new Error('Revision not found');
+  if (revision.module_type !== 'llx') throw new Error('Pre-pilot hydrodynamic review is available only for LLX revisions');
+  return {
+    reviewType: 'ECR2_RRBO_NMP_PREPILOT_HYDRODYNAMIC_COMPARISON',
+    reviewStatus: 'PRELIMINARY_ENGINEERING_ONLY',
+    candidateMatrix: ECR2_PREPILOT_HYDRODYNAMIC_CANDIDATES,
+    instruction:
+      'Submit a fully provenance-bearing pilot or sensitivity input to the read-only evaluation endpoint. ' +
+      'This candidate matrix cannot authorize or alter a production ECR-2 calculation.',
+  };
+}
+
+/**
+ * Executes only the isolated pre-pilot comparison package. The request is
+ * intentionally not persisted and cannot update Stage 8, a calculation run,
+ * an accepted result, or any production dependency gate.
+ */
+export async function previewEcr2PrePilotHydrodynamicReview(
+  revisionId: number,
+  rawInput: unknown,
+) {
+  await previewEcr2PrePilotHydrodynamicCandidates(revisionId);
+  const validation = validateECR2PrePilotHydrodynamicInput(rawInput);
+  if (!validation.valid || !validation.input) {
+    throw new Error(`Invalid pre-pilot hydrodynamic review input: ${validation.errors.join('; ')}`);
+  }
+  return buildECR2PrePilotHydrodynamicReview(validation.input);
 }
 
 /**

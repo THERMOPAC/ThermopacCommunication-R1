@@ -750,6 +750,33 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
     }
   });
 
+  /**
+   * Read-only source matrix for the isolated RRBO/NMP pre-pilot hydrodynamic
+   * model. It is intentionally separate from Stage 8 and simulator results.
+   */
+  app.get('/api/design-software/revisions/:id/ecr2-prepilot-hydrodynamic-candidates', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      res.json(await svc.previewEcr2PrePilotHydrodynamicCandidates(parseInt(req.params.id)));
+    } catch (err: any) {
+      const status = err.message?.includes('not found') ? 404 : err.message?.includes('only for LLX') ? 422 : 500;
+      res.status(status).json({ error: err.message });
+    }
+  });
+
+  /**
+   * Read-only scenario evaluation for engineering review. It never saves the
+   * request, starts a simulator run, or changes an evidence-acceptance state.
+   */
+  app.post('/api/design-software/revisions/:id/ecr2-prepilot-hydrodynamic-review', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!req.body || typeof req.body !== 'object') return res.status(400).json({ error: 'A pre-pilot hydrodynamic input object is required' });
+      res.json(await svc.previewEcr2PrePilotHydrodynamicReview(parseInt(req.params.id), req.body));
+    } catch (err: any) {
+      const status = err.message?.includes('not found') ? 404 : err.message?.includes('only for LLX') ? 422 : 500;
+      res.status(status).json({ error: err.message });
+    }
+  });
+
   /** Accept all current governed Stage 8 candidates in one server-signed audit operation. */
   app.post('/api/design-software/revisions/:id/ecr2-stage8-resolution/accept-all', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
