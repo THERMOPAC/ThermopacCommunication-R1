@@ -96,11 +96,16 @@ const NMP_DENSITY_POINTS = [
   { temperatureC: 50, valueKgM3: 1006 },
   { temperatureC: 60, valueKgM3: 997 },
   { temperatureC: 70, valueKgM3: 988 },
+  { temperatureC: 80, valueKgM3: 979 },
+  { temperatureC: 90, valueKgM3: 970 },
+  { temperatureC: 100, valueKgM3: 961 },
 ];
 
 const NMP_DYNAMIC_VISCOSITY_POINTS = [
   { temperatureC: 25, valueCp: 1.666 },
   { temperatureC: 80, valueCp: 0.75 },
+  { temperatureC: 90, valueCp: 0.585 },
+  { temperatureC: 100, valueCp: 0.420 },
 ];
 
 const RRBO_GRADE_PROPERTIES: Record<string, {
@@ -115,6 +120,9 @@ const RRBO_GRADE_PROPERTIES: Record<string, {
       { temperatureC: 50, value: 848 },
       { temperatureC: 60, value: 841 },
       { temperatureC: 70, value: 835 },
+      { temperatureC: 80, value: 829 },
+      { temperatureC: 90, value: 823 },
+      { temperatureC: 100, value: 817 },
     ],
     dynamicViscosityPoints: [
       { temperatureC: 25, value: 49.0 },
@@ -123,6 +131,9 @@ const RRBO_GRADE_PROPERTIES: Record<string, {
       { temperatureC: 50, value: 20.0 },
       { temperatureC: 60, value: 14.5 },
       { temperatureC: 70, value: 10.8 },
+      { temperatureC: 80, value: 8.1 },
+      { temperatureC: 90, value: 6.2 },
+      { temperatureC: 100, value: 4.9 },
     ],
   },
   SN300: {
@@ -133,6 +144,9 @@ const RRBO_GRADE_PROPERTIES: Record<string, {
       { temperatureC: 50, value: 862 },
       { temperatureC: 60, value: 856 },
       { temperatureC: 70, value: 849 },
+      { temperatureC: 80, value: 842 },
+      { temperatureC: 90, value: 835 },
+      { temperatureC: 100, value: 828 },
     ],
     dynamicViscosityPoints: [
       { temperatureC: 25, value: 106.0 },
@@ -141,6 +155,9 @@ const RRBO_GRADE_PROPERTIES: Record<string, {
       { temperatureC: 50, value: 42.0 },
       { temperatureC: 60, value: 30.0 },
       { temperatureC: 70, value: 22.0 },
+      { temperatureC: 80, value: 17.0 },
+      { temperatureC: 90, value: 13.8 },
+      { temperatureC: 100, value: 11.4 },
     ],
   },
   SN500: {
@@ -151,6 +168,9 @@ const RRBO_GRADE_PROPERTIES: Record<string, {
       { temperatureC: 50, value: 869 },
       { temperatureC: 60, value: 862 },
       { temperatureC: 70, value: 856 },
+      { temperatureC: 80, value: 850 },
+      { temperatureC: 90, value: 844 },
+      { temperatureC: 100, value: 838 },
     ],
     dynamicViscosityPoints: [
       { temperatureC: 25, value: 158.0 },
@@ -159,6 +179,9 @@ const RRBO_GRADE_PROPERTIES: Record<string, {
       { temperatureC: 50, value: 59.0 },
       { temperatureC: 60, value: 42.0 },
       { temperatureC: 70, value: 30.0 },
+      { temperatureC: 80, value: 23.5 },
+      { temperatureC: 90, value: 19.0 },
+      { temperatureC: 100, value: 15.8 },
     ],
   },
 };
@@ -170,6 +193,9 @@ const RRBO_INTERFACIAL_TENSION_POINTS = [
   { temperatureC: 50, value: 10.6 },
   { temperatureC: 60, value: 10.3 },
   { temperatureC: 70, value: 10.0 },
+  { temperatureC: 80, value: 9.7 },
+  { temperatureC: 90, value: 9.4 },
+  { temperatureC: 100, value: 9.1 },
 ];
 
 const COMPOSITION_FIELDS = [
@@ -732,8 +758,8 @@ export default function EcrPrePilotDesignPage() {
                 unit="mN/m"
               />
               <p className="text-[11px] leading-4 text-slate-400 md:col-span-3">
-                Auto-populated screening basis: grade-specific density and viscosity plus preliminary RRBO/NMP interfacial tension at the selected operating temperature (25–70 °C).
-                All values are editable and should be replaced with measured project data when available.
+                Auto-populated screening basis: grade-specific density and viscosity plus preliminary RRBO/NMP interfacial tension at the selected operating temperature (25–100 °C).
+                The 80–100 °C extension is preliminary; all values are editable and should be replaced with measured project data when available.
               </p>
             </CardContent>
           </Card>
@@ -784,8 +810,8 @@ export default function EcrPrePilotDesignPage() {
                 unit="mPa·s (cP)"
               />
               <p className="text-[11px] leading-4 text-slate-400 md:col-span-3">
-                Auto-populated basis: NMP purity 99.5 wt% and water 0.05 wt%; density is available from 25–70 °C and dynamic viscosity from 25–80 °C.
-                Values outside those ranges remain blank for manual project data.
+                Auto-populated basis: NMP purity 99.5 wt% and water 0.05 wt% with temperature-dependent density and viscosity from 25–100 °C.
+                The 80–100 °C extension is preliminary; all values remain editable for manual project data.
               </p>
             </CardContent>
           </Card>
