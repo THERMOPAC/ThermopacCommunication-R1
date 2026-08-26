@@ -1,0 +1,3525 @@
+{
+  "generatedAt": "2026-08-26T02:35:32.457Z",
+  "methodVersion": "ECR2_STEP4_THERMODYNAMIC_POC_1.0.0",
+  "stage8Modified": false,
+  "datasetSummary": {
+    "cotoRows": 17,
+    "multiRows": 219,
+    "totalRows": 236,
+    "multiTemperatures": [
+      289,
+      293.2,
+      298,
+      303.2,
+      308,
+      313.2,
+      318,
+      323.2,
+      328
+    ],
+    "sources": [
+      "Coto2022_Table3",
+      "fahim2005",
+      "fandary2006",
+      "aljimaz2006"
+    ],
+    "cotoCitation": "B. Coto, I. Suárez, M.J. Tenorio, S. Nieto, N. Alvarez, J.J. Espada, \"Extraction of aromatic and polyaromatic compounds with NMP: Experimental and model description\", Fluid Phase Equilibria 554 (2022) 113293, Table 3",
+    "calibrationGate": 0.009000000000000001,
+    "sulfurRawTieLinesAdmitted": false
+  },
+  "predictiveMetrics": [
+    {
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "scope": "Coto2022 17 tie-lines",
+      "nRows": 17,
+      "nTwoPhasePredicted": 17,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.15446,
+      "compositionMae": 0.09901,
+      "nmpInRaffinateRmse": 0.07786,
+      "hydrocarbonInExtractRmse": 0.40274,
+      "logKrmse": 2.59697,
+      "aromaticSelectivityLogRmse": 0.56243,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "scope": "fahim2005",
+      "nRows": 106,
+      "nTwoPhasePredicted": 106,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.16099,
+      "compositionMae": 0.12612,
+      "nmpInRaffinateRmse": 0.2734,
+      "hydrocarbonInExtractRmse": 0.15143,
+      "logKrmse": 2.3022,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "scope": "fandary2006",
+      "nRows": 78,
+      "nTwoPhasePredicted": 78,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.14825,
+      "compositionMae": 0.11453,
+      "nmpInRaffinateRmse": 0.2536,
+      "hydrocarbonInExtractRmse": 0.13866,
+      "logKrmse": 2.18021,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "scope": "aljimaz2006",
+      "nRows": 35,
+      "nTwoPhasePredicted": 35,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.18217,
+      "compositionMae": 0.13737,
+      "nmpInRaffinateRmse": 0.33569,
+      "hydrocarbonInExtractRmse": 0.11322,
+      "logKrmse": 2.20228,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "scope": "Coto2022 17 tie-lines",
+      "nRows": 17,
+      "nTwoPhasePredicted": 17,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.16753,
+      "compositionMae": 0.10909,
+      "nmpInRaffinateRmse": 0.09099,
+      "hydrocarbonInExtractRmse": 0.43935,
+      "logKrmse": 4.95275,
+      "aromaticSelectivityLogRmse": 2.10278,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "scope": "fahim2005",
+      "nRows": 106,
+      "nTwoPhasePredicted": 106,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.17153,
+      "compositionMae": 0.13816,
+      "nmpInRaffinateRmse": 0.2853,
+      "hydrocarbonInExtractRmse": 0.17443,
+      "logKrmse": 3.78286,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "scope": "fandary2006",
+      "nRows": 78,
+      "nTwoPhasePredicted": 78,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.15927,
+      "compositionMae": 0.12675,
+      "nmpInRaffinateRmse": 0.2656,
+      "hydrocarbonInExtractRmse": 0.16216,
+      "logKrmse": 3.67951,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "scope": "aljimaz2006",
+      "nRows": 35,
+      "nTwoPhasePredicted": 35,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.19316,
+      "compositionMae": 0.15065,
+      "nmpInRaffinateRmse": 0.35053,
+      "hydrocarbonInExtractRmse": 0.13806,
+      "logKrmse": 3.6775,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    }
+  ],
+  "calibratedMetrics": [
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "Coto2022 17 tie-lines calibration",
+      "nRows": 17,
+      "nTwoPhasePredicted": 17,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.02498,
+      "compositionMae": 0.01232,
+      "nmpInRaffinateRmse": 0.03223,
+      "hydrocarbonInExtractRmse": 0.03179,
+      "logKrmse": 0.22376,
+      "aromaticSelectivityLogRmse": 0.32393,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "Coto2022 17 tie-lines calibration",
+      "nRows": 17,
+      "nTwoPhasePredicted": 0,
+      "nFailed": 17,
+      "phaseRecall": 0,
+      "phaseFalseSinglePhaseRate": 1,
+      "compositionRmsd": null,
+      "compositionMae": null,
+      "nmpInRaffinateRmse": null,
+      "hydrocarbonInExtractRmse": null,
+      "logKrmse": null,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "fahim2005 calibration",
+      "nRows": 106,
+      "nTwoPhasePredicted": 106,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.07152,
+      "compositionMae": 0.0449,
+      "nmpInRaffinateRmse": 0.11475,
+      "hydrocarbonInExtractRmse": 0.05759,
+      "logKrmse": 0.55697,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "fahim2005 calibration",
+      "nRows": 106,
+      "nTwoPhasePredicted": 4,
+      "nFailed": 102,
+      "phaseRecall": 0.03774,
+      "phaseFalseSinglePhaseRate": 0.96226,
+      "compositionRmsd": 0.04309,
+      "compositionMae": 0.02476,
+      "nmpInRaffinateRmse": 0.07332,
+      "hydrocarbonInExtractRmse": 0.01514,
+      "logKrmse": 0.49014,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "fandary2006 calibration",
+      "nRows": 78,
+      "nTwoPhasePredicted": 78,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.07265,
+      "compositionMae": 0.04189,
+      "nmpInRaffinateRmse": 0.12513,
+      "hydrocarbonInExtractRmse": 0.03845,
+      "logKrmse": 0.50514,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "fandary2006 calibration",
+      "nRows": 78,
+      "nTwoPhasePredicted": 23,
+      "nFailed": 55,
+      "phaseRecall": 0.29487,
+      "phaseFalseSinglePhaseRate": 0.70513,
+      "compositionRmsd": 0.02888,
+      "compositionMae": 0.01598,
+      "nmpInRaffinateRmse": 0.04977,
+      "hydrocarbonInExtractRmse": 0.008,
+      "logKrmse": 0.31855,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "aljimaz2006 calibration",
+      "nRows": 35,
+      "nTwoPhasePredicted": 35,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.06908,
+      "compositionMae": 0.04237,
+      "nmpInRaffinateRmse": 0.12342,
+      "hydrocarbonInExtractRmse": 0.03435,
+      "logKrmse": 0.4875,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "aljimaz2006 calibration",
+      "nRows": 35,
+      "nTwoPhasePredicted": 0,
+      "nFailed": 35,
+      "phaseRecall": 0,
+      "phaseFalseSinglePhaseRate": 1,
+      "compositionRmsd": null,
+      "compositionMae": null,
+      "nmpInRaffinateRmse": null,
+      "hydrocarbonInExtractRmse": null,
+      "logKrmse": null,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    }
+  ],
+  "crossValidationMetrics": [
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "fahim2005 LOTO 289 K",
+      "nRows": 10,
+      "nTwoPhasePredicted": 10,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.04885,
+      "compositionMae": 0.03746,
+      "nmpInRaffinateRmse": 0.08301,
+      "hydrocarbonInExtractRmse": 0.03966,
+      "logKrmse": 0.45084,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "fahim2005 LOTO 289 K",
+      "nRows": 10,
+      "nTwoPhasePredicted": 1,
+      "nFailed": 9,
+      "phaseRecall": 0.1,
+      "phaseFalseSinglePhaseRate": 0.9,
+      "compositionRmsd": 0.02576,
+      "compositionMae": 0.01703,
+      "nmpInRaffinateRmse": 0.04407,
+      "hydrocarbonInExtractRmse": 0.00702,
+      "logKrmse": 0.38106,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "fahim2005 LOTO 298 K",
+      "nRows": 18,
+      "nTwoPhasePredicted": 18,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.05196,
+      "compositionMae": 0.03554,
+      "nmpInRaffinateRmse": 0.08633,
+      "hydrocarbonInExtractRmse": 0.0338,
+      "logKrmse": 0.54617,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "fahim2005 LOTO 298 K",
+      "nRows": 18,
+      "nTwoPhasePredicted": 1,
+      "nFailed": 17,
+      "phaseRecall": 0.05556,
+      "phaseFalseSinglePhaseRate": 0.94444,
+      "compositionRmsd": 0.03192,
+      "compositionMae": 0.02558,
+      "nmpInRaffinateRmse": 0.04587,
+      "hydrocarbonInExtractRmse": 0.03087,
+      "logKrmse": 0.73893,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "fahim2005 LOTO 308 K",
+      "nRows": 28,
+      "nTwoPhasePredicted": 28,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.06291,
+      "compositionMae": 0.04224,
+      "nmpInRaffinateRmse": 0.10836,
+      "hydrocarbonInExtractRmse": 0.04246,
+      "logKrmse": 0.5105,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "fahim2005 LOTO 308 K",
+      "nRows": 28,
+      "nTwoPhasePredicted": 1,
+      "nFailed": 27,
+      "phaseRecall": 0.03571,
+      "phaseFalseSinglePhaseRate": 0.96429,
+      "compositionRmsd": 0.06634,
+      "compositionMae": 0.0388,
+      "nmpInRaffinateRmse": 0.11566,
+      "hydrocarbonInExtractRmse": 0.0003,
+      "logKrmse": 0.43556,
+      "aromaticSelectivityLogRmse": 0.1602,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "fahim2005 LOTO 318 K",
+      "nRows": 27,
+      "nTwoPhasePredicted": 27,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.07898,
+      "compositionMae": 0.05026,
+      "nmpInRaffinateRmse": 0.11579,
+      "hydrocarbonInExtractRmse": 0.08247,
+      "logKrmse": 0.62857,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "fahim2005 LOTO 318 K",
+      "nRows": 27,
+      "nTwoPhasePredicted": 2,
+      "nFailed": 25,
+      "phaseRecall": 0.07407,
+      "phaseFalseSinglePhaseRate": 0.92593,
+      "compositionRmsd": 0.04389,
+      "compositionMae": 0.02578,
+      "nmpInRaffinateRmse": 0.07628,
+      "hydrocarbonInExtractRmse": 0.00184,
+      "logKrmse": 0.3076,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "fahim2005 LOTO 328 K",
+      "nRows": 23,
+      "nTwoPhasePredicted": 23,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.11237,
+      "compositionMae": 0.07341,
+      "nmpInRaffinateRmse": 0.18601,
+      "hydrocarbonInExtractRmse": 0.08056,
+      "logKrmse": 0.80362,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "fahim2005 LOTO 328 K",
+      "nRows": 23,
+      "nTwoPhasePredicted": 0,
+      "nFailed": 23,
+      "phaseRecall": 0,
+      "phaseFalseSinglePhaseRate": 1,
+      "compositionRmsd": null,
+      "compositionMae": null,
+      "nmpInRaffinateRmse": null,
+      "hydrocarbonInExtractRmse": null,
+      "logKrmse": null,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "fandary2006 LOTO 298 K",
+      "nRows": 20,
+      "nTwoPhasePredicted": 20,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.04444,
+      "compositionMae": 0.03064,
+      "nmpInRaffinateRmse": 0.07747,
+      "hydrocarbonInExtractRmse": 0.01603,
+      "logKrmse": 0.44686,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "fandary2006 LOTO 298 K",
+      "nRows": 20,
+      "nTwoPhasePredicted": 3,
+      "nFailed": 17,
+      "phaseRecall": 0.15,
+      "phaseFalseSinglePhaseRate": 0.85,
+      "compositionRmsd": 0.04538,
+      "compositionMae": 0.02521,
+      "nmpInRaffinateRmse": 0.0796,
+      "hydrocarbonInExtractRmse": 0.0049,
+      "logKrmse": 0.44775,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "fandary2006 LOTO 308 K",
+      "nRows": 20,
+      "nTwoPhasePredicted": 20,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.06426,
+      "compositionMae": 0.03691,
+      "nmpInRaffinateRmse": 0.1145,
+      "hydrocarbonInExtractRmse": 0.02489,
+      "logKrmse": 0.44807,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "fandary2006 LOTO 308 K",
+      "nRows": 20,
+      "nTwoPhasePredicted": 5,
+      "nFailed": 15,
+      "phaseRecall": 0.25,
+      "phaseFalseSinglePhaseRate": 0.75,
+      "compositionRmsd": 0.02633,
+      "compositionMae": 0.0129,
+      "nmpInRaffinateRmse": 0.04541,
+      "hydrocarbonInExtractRmse": 0.00658,
+      "logKrmse": 0.25298,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "fandary2006 LOTO 318 K",
+      "nRows": 20,
+      "nTwoPhasePredicted": 20,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.07662,
+      "compositionMae": 0.04516,
+      "nmpInRaffinateRmse": 0.13242,
+      "hydrocarbonInExtractRmse": 0.04207,
+      "logKrmse": 0.53726,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "fandary2006 LOTO 318 K",
+      "nRows": 20,
+      "nTwoPhasePredicted": 4,
+      "nFailed": 16,
+      "phaseRecall": 0.2,
+      "phaseFalseSinglePhaseRate": 0.8,
+      "compositionRmsd": 0.01496,
+      "compositionMae": 0.00971,
+      "nmpInRaffinateRmse": 0.02484,
+      "hydrocarbonInExtractRmse": 0.00688,
+      "logKrmse": 0.15699,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "fandary2006 LOTO 328 K",
+      "nRows": 18,
+      "nTwoPhasePredicted": 18,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.11587,
+      "compositionMae": 0.07118,
+      "nmpInRaffinateRmse": 0.1971,
+      "hydrocarbonInExtractRmse": 0.0618,
+      "logKrmse": 0.74592,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "fandary2006 LOTO 328 K",
+      "nRows": 18,
+      "nTwoPhasePredicted": 1,
+      "nFailed": 17,
+      "phaseRecall": 0.05556,
+      "phaseFalseSinglePhaseRate": 0.94444,
+      "compositionRmsd": 0.05702,
+      "compositionMae": 0.03309,
+      "nmpInRaffinateRmse": 0.09876,
+      "hydrocarbonInExtractRmse": 0.0005,
+      "logKrmse": 0.46487,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "aljimaz2006 LOTO 293.2 K",
+      "nRows": 10,
+      "nTwoPhasePredicted": 8,
+      "nFailed": 2,
+      "phaseRecall": 0.8,
+      "phaseFalseSinglePhaseRate": 0.2,
+      "compositionRmsd": 0.08181,
+      "compositionMae": 0.06313,
+      "nmpInRaffinateRmse": 0.14196,
+      "hydrocarbonInExtractRmse": 0.06312,
+      "logKrmse": 0.84328,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "aljimaz2006 LOTO 293.2 K",
+      "nRows": 10,
+      "nTwoPhasePredicted": 0,
+      "nFailed": 10,
+      "phaseRecall": 0,
+      "phaseFalseSinglePhaseRate": 1,
+      "compositionRmsd": null,
+      "compositionMae": null,
+      "nmpInRaffinateRmse": null,
+      "hydrocarbonInExtractRmse": null,
+      "logKrmse": null,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "aljimaz2006 LOTO 303.2 K",
+      "nRows": 9,
+      "nTwoPhasePredicted": 9,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.06626,
+      "compositionMae": 0.03853,
+      "nmpInRaffinateRmse": 0.12244,
+      "hydrocarbonInExtractRmse": 0.00384,
+      "logKrmse": 0.31929,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "aljimaz2006 LOTO 303.2 K",
+      "nRows": 9,
+      "nTwoPhasePredicted": 0,
+      "nFailed": 9,
+      "phaseRecall": 0,
+      "phaseFalseSinglePhaseRate": 1,
+      "compositionRmsd": null,
+      "compositionMae": null,
+      "nmpInRaffinateRmse": null,
+      "hydrocarbonInExtractRmse": null,
+      "logKrmse": null,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "aljimaz2006 LOTO 313.2 K",
+      "nRows": 8,
+      "nTwoPhasePredicted": 8,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.07932,
+      "compositionMae": 0.05292,
+      "nmpInRaffinateRmse": 0.1435,
+      "hydrocarbonInExtractRmse": 0.03477,
+      "logKrmse": 0.57277,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "aljimaz2006 LOTO 313.2 K",
+      "nRows": 8,
+      "nTwoPhasePredicted": 0,
+      "nFailed": 8,
+      "phaseRecall": 0,
+      "phaseFalseSinglePhaseRate": 1,
+      "compositionRmsd": null,
+      "compositionMae": null,
+      "nmpInRaffinateRmse": null,
+      "hydrocarbonInExtractRmse": null,
+      "logKrmse": null,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "aljimaz2006 LOTO 323.2 K",
+      "nRows": 8,
+      "nTwoPhasePredicted": 8,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.11284,
+      "compositionMae": 0.07746,
+      "nmpInRaffinateRmse": 0.20045,
+      "hydrocarbonInExtractRmse": 0.05407,
+      "logKrmse": 0.86477,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "aljimaz2006 LOTO 323.2 K",
+      "nRows": 8,
+      "nTwoPhasePredicted": 0,
+      "nFailed": 8,
+      "phaseRecall": 0,
+      "phaseFalseSinglePhaseRate": 1,
+      "compositionRmsd": null,
+      "compositionMae": null,
+      "nmpInRaffinateRmse": null,
+      "hydrocarbonInExtractRmse": null,
+      "logKrmse": null,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "LOSO test fahim2005",
+      "nRows": 106,
+      "nTwoPhasePredicted": 106,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.08348,
+      "compositionMae": 0.05146,
+      "nmpInRaffinateRmse": 0.13599,
+      "hydrocarbonInExtractRmse": 0.06162,
+      "logKrmse": 0.65178,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "LOSO test fahim2005",
+      "nRows": 106,
+      "nTwoPhasePredicted": 22,
+      "nFailed": 84,
+      "phaseRecall": 0.20755,
+      "phaseFalseSinglePhaseRate": 0.79245,
+      "compositionRmsd": 0.03649,
+      "compositionMae": 0.02012,
+      "nmpInRaffinateRmse": 0.06047,
+      "hydrocarbonInExtractRmse": 0.0182,
+      "logKrmse": 0.42765,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "LOSO test fandary2006",
+      "nRows": 78,
+      "nTwoPhasePredicted": 78,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.06185,
+      "compositionMae": 0.03796,
+      "nmpInRaffinateRmse": 0.10559,
+      "hydrocarbonInExtractRmse": 0.04116,
+      "logKrmse": 0.47111,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "LOSO test fandary2006",
+      "nRows": 78,
+      "nTwoPhasePredicted": 7,
+      "nFailed": 71,
+      "phaseRecall": 0.08974,
+      "phaseFalseSinglePhaseRate": 0.91026,
+      "compositionRmsd": 0.04363,
+      "compositionMae": 0.02341,
+      "nmpInRaffinateRmse": 0.07598,
+      "hydrocarbonInExtractRmse": 0.00354,
+      "logKrmse": 0.38696,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "LOSO test aljimaz2006",
+      "nRows": 35,
+      "nTwoPhasePredicted": 35,
+      "nFailed": 0,
+      "phaseRecall": 1,
+      "phaseFalseSinglePhaseRate": 0,
+      "compositionRmsd": 0.11047,
+      "compositionMae": 0.07016,
+      "nmpInRaffinateRmse": 0.18454,
+      "hydrocarbonInExtractRmse": 0.04243,
+      "logKrmse": 0.53373,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "LOSO test aljimaz2006",
+      "nRows": 35,
+      "nTwoPhasePredicted": 2,
+      "nFailed": 33,
+      "phaseRecall": 0.05714,
+      "phaseFalseSinglePhaseRate": 0.94286,
+      "compositionRmsd": 0.01711,
+      "compositionMae": 0.01282,
+      "nmpInRaffinateRmse": 0.02391,
+      "hydrocarbonInExtractRmse": 0.01453,
+      "logKrmse": 0.51099,
+      "aromaticSelectivityLogRmse": null,
+      "thiophenicSelectivity": "NOT_ADMITTED_RAW_DATA",
+      "notes": [
+        "Composition errors are absolute mole-fraction errors over both phases.",
+        "K_i errors are RMSE in ln(K_pred/K_exp), excluding zero-composition entries.",
+        "No raw thiophene/benzothiophene/DBT NMP tie-line dataset is present in the admitted workspace; no experimental thiophenic error is claimed."
+      ]
+    }
+  ],
+  "fitRecords": [
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "Coto2022 17 tie-lines",
+      "trainingRows": 17,
+      "excludedRows": 0,
+      "objective": 81280.94883478188,
+      "params": {
+        "tau": [
+          [
+            0,
+            3.410760942089789,
+            -0.6028006651278899,
+            2.3420538467021075,
+            2.5015126194096338
+          ],
+          [
+            -1.0410327020723804,
+            0,
+            -2.775964624279455,
+            1.8692463614242683,
+            1.1685760673481815
+          ],
+          [
+            -0.11774558692168471,
+            1.9663838576543462,
+            0,
+            -1.725620508789055,
+            -2.1778139449270664
+          ],
+          [
+            6.016072175138412,
+            1.6920826945145921,
+            -0.10895462125522604,
+            0,
+            1.863484363370067
+          ],
+          [
+            1.3716017055693692,
+            0.8613954630495564,
+            1.3528307236325903,
+            0.7264730012296029,
+            0
+          ]
+        ],
+        "alpha": [
+          [
+            0,
+            0.2,
+            0.2,
+            0.2,
+            0.2
+          ],
+          [
+            0.2,
+            0,
+            0.2,
+            0.2,
+            0.2
+          ],
+          [
+            0.2,
+            0.2,
+            0,
+            0.2,
+            0.2
+          ],
+          [
+            0.2,
+            0.2,
+            0.2,
+            0,
+            0.2
+          ],
+          [
+            0.2,
+            0.2,
+            0.2,
+            0.2,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "Coto2022 17 tie-lines",
+      "trainingRows": 17,
+      "excludedRows": 0,
+      "objective": 93139.37647482565,
+      "params": {
+        "tau": [
+          [
+            0,
+            -3.544584347800381,
+            -0.2926249199270904,
+            1.451907758664665,
+            1.4467996610118679
+          ],
+          [
+            1.5931685436214775,
+            0,
+            -0.3639054153733377,
+            2.6125722954785173,
+            0.4816324371857734
+          ],
+          [
+            7.017595487004761,
+            -1.9287873576348944,
+            0,
+            -0.47312934408507845,
+            -0.7868594412526024
+          ],
+          [
+            1.4052267984601485,
+            -0.26743826193312237,
+            3.048309956877394,
+            0,
+            0.5646897685660888
+          ],
+          [
+            3.5412168898287586,
+            -2.970305244659184,
+            1.3903526964307695,
+            0.8374607298082544,
+            0
+          ]
+        ],
+        "alpha": [
+          [
+            0,
+            0.2,
+            0.2,
+            0.2,
+            0.2
+          ],
+          [
+            0.2,
+            0,
+            0.2,
+            0.2,
+            0.2
+          ],
+          [
+            0.2,
+            0.2,
+            0,
+            0.2,
+            0.2
+          ],
+          [
+            0.2,
+            0.2,
+            0.2,
+            0,
+            0.2
+          ],
+          [
+            0.2,
+            0.2,
+            0.2,
+            0.2,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "fahim2005",
+      "trainingRows": 106,
+      "excludedRows": 0,
+      "objective": 398552.54403364874,
+      "params": {
+        "tau": [
+          [
+            0,
+            -1.219070554955446,
+            0.6604401570522183
+          ],
+          [
+            0.6128084668615748,
+            0,
+            1.3804763382492908
+          ],
+          [
+            3.4117693974457746,
+            -1.1953325648598365,
+            0
+          ]
+        ],
+        "alpha": [
+          [
+            0,
+            0.2,
+            0.2
+          ],
+          [
+            0.2,
+            0,
+            0.2
+          ],
+          [
+            0.2,
+            0.2,
+            0
+          ]
+        ],
+        "tauSlope": [
+          [
+            0,
+            -151.22286574077077,
+            742.860938636497
+          ],
+          [
+            -97.28399442855692,
+            0,
+            76.15023552471894
+          ],
+          [
+            431.7649081846297,
+            154.8891655840389,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "fahim2005",
+      "trainingRows": 106,
+      "excludedRows": 0,
+      "objective": 115759.42338142324,
+      "params": {
+        "tau": [
+          [
+            0,
+            -0.9993236472253748,
+            0.7037135580503773
+          ],
+          [
+            1.9593155827412874,
+            0,
+            2.0263537186682234
+          ],
+          [
+            4.793806411824082,
+            -0.0813970094711354,
+            0
+          ]
+        ],
+        "alpha": [
+          [
+            0,
+            0.2,
+            0.2
+          ],
+          [
+            0.2,
+            0,
+            0.2
+          ],
+          [
+            0.2,
+            0.2,
+            0
+          ]
+        ],
+        "tauSlope": [
+          [
+            0,
+            -212.81485643430776,
+            471.37881276982165
+          ],
+          [
+            -16.93060311583079,
+            0,
+            15.732258008548314
+          ],
+          [
+            -21.941198403910626,
+            209.6059326794697,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "fandary2006",
+      "trainingRows": 78,
+      "excludedRows": 0,
+      "objective": 245992.25910124878,
+      "params": {
+        "tau": [
+          [
+            0,
+            0.5165631130696652,
+            0.8916909573901155
+          ],
+          [
+            1.0433984237963712,
+            0,
+            0.584979136343572
+          ],
+          [
+            3.35423718079942,
+            1.2678435152121617,
+            0
+          ]
+        ],
+        "alpha": [
+          [
+            0,
+            0.2,
+            0.2
+          ],
+          [
+            0.2,
+            0,
+            0.2
+          ],
+          [
+            0.2,
+            0.2,
+            0
+          ]
+        ],
+        "tauSlope": [
+          [
+            0,
+            -152.7426227395214,
+            883.9522163542366
+          ],
+          [
+            -94.86707428063531,
+            0,
+            160.46826475578573
+          ],
+          [
+            626.4700153759273,
+            231.5747494873412,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "fandary2006",
+      "trainingRows": 78,
+      "excludedRows": 0,
+      "objective": 90187.41890060985,
+      "params": {
+        "tau": [
+          [
+            0,
+            -2.205075714965793,
+            0.9538799142808078
+          ],
+          [
+            1.6125321558324905,
+            0,
+            7.707833149616947
+          ],
+          [
+            4.297837257157285,
+            -1.4630817606287874,
+            0
+          ]
+        ],
+        "alpha": [
+          [
+            0,
+            0.2,
+            0.2
+          ],
+          [
+            0.2,
+            0,
+            0.2
+          ],
+          [
+            0.2,
+            0.2,
+            0
+          ]
+        ],
+        "tauSlope": [
+          [
+            0,
+            -236.58507781220473,
+            462.570149200242
+          ],
+          [
+            18.581237771348263,
+            0,
+            -6.724059839156052
+          ],
+          [
+            99.22752019655984,
+            245.76114189861994,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "model": "NRTL_DIRECT_CALIBRATED",
+      "scope": "aljimaz2006",
+      "trainingRows": 35,
+      "excludedRows": 0,
+      "objective": 25743.11900791317,
+      "params": {
+        "tau": [
+          [
+            0,
+            -0.6715474652372851,
+            0.1763213245481091
+          ],
+          [
+            0.5738064449017733,
+            0,
+            5.28167898036218
+          ],
+          [
+            4.162141853441641,
+            -1.1664122031511692,
+            0
+          ]
+        ],
+        "alpha": [
+          [
+            0,
+            0.2,
+            0.2
+          ],
+          [
+            0.2,
+            0,
+            0.2
+          ],
+          [
+            0.2,
+            0.2,
+            0
+          ]
+        ],
+        "tauSlope": [
+          [
+            0,
+            -53.012574509538695,
+            332.71817305815523
+          ],
+          [
+            -8.650622516492062,
+            0,
+            0.086600054221769
+          ],
+          [
+            239.11342579964926,
+            58.72988224247321,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "model": "UNIQUAC_DIRECT_CALIBRATED",
+      "scope": "aljimaz2006",
+      "trainingRows": 35,
+      "excludedRows": 0,
+      "objective": 10799.910072587458,
+      "params": {
+        "tau": [
+          [
+            0,
+            -6.433945867445602,
+            0.5330676786844208
+          ],
+          [
+            7.98078497102662,
+            0,
+            0.8652252006029866
+          ],
+          [
+            6.8538869075854025,
+            -4.938506711362107,
+            0
+          ]
+        ],
+        "alpha": [
+          [
+            0,
+            0.2,
+            0.2
+          ],
+          [
+            0.2,
+            0,
+            0.2
+          ],
+          [
+            0.2,
+            0.2,
+            0
+          ]
+        ],
+        "tauSlope": [
+          [
+            0,
+            -123.46016350125848,
+            66.25863333596705
+          ],
+          [
+            -0.8163129307520863,
+            0,
+            36.1074103166216
+          ],
+          [
+            -0.2606066266110787,
+            122.64823319646403,
+            0
+          ]
+        ]
+      }
+    }
+  ],
+  "sulfurEnvelope": [
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.504491560145602,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07493267108454602,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.6559708109873366,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07493267108454602,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.9142581121588025,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07493267108454602,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.1186073361606594,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07029469041339052,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.502560107445564,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07029469041339052,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.364441505840592,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07029469041339052,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.029641823709,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06601050183050243,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 3.218833484003307,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06601050183050243,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 5.562848123302284,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06601050183050243,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.5034613329975008,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07440696765311143,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.6553234799912687,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07440696765311143,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.9142034977963319,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07440696765311143,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.11848228324025,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06977604172485505,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.4997450690105263,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06977604172485505,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.3378147380137166,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06977604172485505,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.0154845051670094,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06549960934230459,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 3.1404585512895733,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06549960934230459,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 5.2316099382169865,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06549960934230459,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.5016485725336309,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07335227777221953,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.6542390612657268,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07335227777221953,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.9141193213630157,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07335227777221953,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.1183015147713968,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06873441894116289,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.496112943868716,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06873441894116289,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.310086731226489,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06873441894116289,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.9995710295434046,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.0644726339688356,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 3.0710854395604144,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.0644726339688356,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 5.008495328315943,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.0644726339688356,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.49940862623426713,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07175824271058559,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.6529890746325986,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07175824271058559,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.9140323086543297,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07175824271058559,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.1181284204166941,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06715750815181233,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.493033515267231,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06715750815181233,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.290662967338012,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06715750815181233,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.9876973946151026,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06291566614429114,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 3.0279627818081476,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06291566614429114,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 4.891366286850049,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 298.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06291566614429114,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.5012603801689454,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.0741263152153645,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.6537656508939025,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.0741263152153645,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.914963538534799,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.0741263152153645,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.1224758622872082,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.0694573537586768,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.513983369001554,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.0694573537586768,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.3990245953146414,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.0694573537586768,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.0543448526119557,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.0651469967145441,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 3.2826646427599413,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.0651469967145441,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 5.723124689581633,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.0651469967145441,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.500196201243063,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07359900223586799,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.6530953978414206,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07359900223586799,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.9149087832773902,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07359900223586799,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.1223376000074319,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.0689370174108691,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.5109372777342487,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.0689370174108691,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.37008681720693,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.0689370174108691,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.038990152208564,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06463437347024323,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 3.1971863773338765,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06463437347024323,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 5.361696071788171,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06463437347024323,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.4983211420065232,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07254096300743017,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.6519714567552749,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07254096300743017,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.9148244023125786,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07254096300743017,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.1221380077932503,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06789191032495315,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.5070223298367131,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06789191032495315,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.3402265531122746,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06789191032495315,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.0218560649372606,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06360385232425654,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 3.122482251362122,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06360385232425654,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 5.121994371270979,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06360385232425654,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.4959994649923168,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07094157336290376,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.6506740919513395,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07094157336290376,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.9147371940764145,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07094157336290376,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.121947184365958,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06630949827307003,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.5037158381121745,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06630949827307003,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.319455367918292,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06630949827307003,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.0091492119597834,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.062041356717792116,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 3.0764292654013374,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.062041356717792116,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 4.997188065600288,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 308.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.062041356717792116,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.49204763326396195,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07173128854294367,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.6476230466496328,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07173128854294367,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.917684393845195,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07173128854294367,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.1349652968968995,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06697223686818092,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.5501813449676645,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06697223686818092,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.509450316134815,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06697223686818092,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.132899675986209,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06258629636101239,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 3.4884702889910124,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06258629636101239,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 6.245759278731961,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.1,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06258629636101239,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.49087846831179544,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07119946470503152,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.6468821732283412,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07119946470503152,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.9176304051710934,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07119946470503152,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.134778095222896,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06644725629375388,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.5463166136858275,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06644725629375388,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.472275158166791,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06644725629375388,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.1132903905187197,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06206900981499247,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 3.3775759286468037,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06206900981499247,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 5.777627315532019,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.2,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06206900981499247,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.4888101141271603,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07013203176227438,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.6456361685278534,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07013203176227438,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.9175472585232498,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.07013203176227438,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.1345090546190884,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06539255966251924,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.5414115034726603,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06539255966251924,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.435017815726968,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06539255966251924,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.091913246288104,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.061028943059320835,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 3.284469665206163,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.061028943059320835,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 5.481420311383219,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.35,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.061028943059320835,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.4862334895193971,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06851761356523882,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.6441919486386235,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06851761356523882,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 0.9174613932895372,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "BT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06851761356523882,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.1342531320190279,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06379501290826874,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 1.5373190827119287,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06379501290826874,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.4096621354529595,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "DBT",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.06379501290826874,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 2.0763597059808174,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "light",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.05945159821949322,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 3.2285150972000487,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "central",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.05945159821949322,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "COSMO_SAC_DESCRIPTOR_PROXY",
+      "K": 5.3309192118033,
+      "status": "PREDICTIVE_ONLY"
+    },
+    {
+      "temperatureK": 343.15,
+      "nmpFeedMoleFraction": 0.5,
+      "family": "HEAVY_S",
+      "representative": "heavy",
+      "model": "MODIFIED_UNIFAC_DORTMUND_PROXY",
+      "K": 0.05945159821949322,
+      "status": "PREDICTIVE_ONLY"
+    }
+  ],
+  "provenance": {
+    "predictiveCosmo": "COSMO-SAC-style descriptor proxy; not a full COSMO-RS/COSMO-SAC implementation",
+    "predictiveUnifac": "Modified-UNIFAC-Dortmund-style fixed group proxy; Dortmund database not embedded",
+    "calibration": "Direct NRTL/UNIQUAC fit to the named training rows only",
+    "initialization": "Deterministic phase-biased flash initialization; experimental phase compositions are not used as initial guesses",
+    "noImputation": true
+  }
+}

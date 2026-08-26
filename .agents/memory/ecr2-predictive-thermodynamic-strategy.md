@@ -10,3 +10,9 @@ Never transfer NRTL parameters from glycol or ionic-liquid systems into NMP. Tem
 **Why:** Direct NMP LLE gives the strongest local calibration but cannot predict absent families. COSMO methods provide molecularly informed coverage without invented binary parameters, while Modified UNIFAC provides an independent chemistry-based baseline. Agreement/disagreement across these routes is more informative for pre-pilot uncertainty than selecting the method with the best fit to one dataset.
 
 **How to apply:** Benchmark every candidate on held-out direct NMP tie-lines, including Coto hydrocarbon LLE and thiophene/NMP datasets, using phase composition, distribution ratio, selectivity, phase topology, and closure metrics. Propagate parameter, method-form, temperature, representative-compound, and `PRE_PILOT_INFERRED_SPECIATION` uncertainty through flash, cascade, BVP, recovery, N_T, and effective-height results. Preserve nonconvergence and out-of-domain status; never replace them with imputed values.
+
+Research-only descriptor or group-rule stand-ins may prove result provenance, comparison, and fail-closed plumbing, but must be named as proxies and excluded from governing or release-eligible results. They do not become COSMO-SAC/COSMO-RS or Dortmund merely because they produce a flash result.
+
+**Why:** A numerical proxy can appear physically plausible while lacking the molecular sigma profiles or published group-parameter database needed to substantiate its predictive claim.
+
+**How to apply:** Keep proxy envelopes separate from calibrated and experimentally validated metrics, label them `PREDICTIVE_ONLY`, retain direct model-form disagreement, and preserve the Stage 8 gate until reproducible molecular inputs and sulfur-family validation are admitted.
