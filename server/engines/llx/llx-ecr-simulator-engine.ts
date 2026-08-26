@@ -2422,7 +2422,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       : null;
     if (bvpResult.status !== 'converged')
       pushWarning('BVP_NOT_ACCEPTED', bvpResult.failure?.message ?? bvpResult.diagnostics[0] ?? 'Counter-current BVP did not converge.');
-    if (bvpResult.massBalanceStatus !== 'passed')
+    if (bvpResult.massBalanceStatus === 'failed')
       pushWarning('BVP_MASS_BALANCE_FAILED', 'Counter-current BVP result is not accepted because its mass-balance check did not pass.');
 
     // ── Interfacial area ─────────────────────────────────────────────────────

@@ -273,6 +273,7 @@ describe('ECR-2 simulator service run path', () => {
     acceptedRun = execution.run;
 
     expect(execution.result.status).toBe('error');
+    expect(execution.result.warnings.some((warning: any) => warning.code === 'BVP_MASS_BALANCE_FAILED')).toBe(false);
     expect(acceptedRun.calculation_type).toBe('ecr_simulator');
     expect(acceptedRun.engine_name).toBe('llx-ecr-simulator');
     expect(acceptedRun.calculation_status).toBe('error');
