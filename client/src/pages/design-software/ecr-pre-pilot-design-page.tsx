@@ -93,6 +93,39 @@ const COMPOSITION_FIELDS = [
   { key: "nmpInFeedWt", label: "NMP in feed" },
 ] as const;
 
+const SECTION_TONES = {
+  blue: {
+    card: "border-blue-200",
+    header: "bg-blue-50/70",
+    number: "bg-blue-100 text-blue-700",
+  },
+  emerald: {
+    card: "border-emerald-200",
+    header: "bg-emerald-50/70",
+    number: "bg-emerald-100 text-emerald-700",
+  },
+  indigo: {
+    card: "border-indigo-200",
+    header: "bg-indigo-50/70",
+    number: "bg-indigo-100 text-indigo-700",
+  },
+  cyan: {
+    card: "border-cyan-200",
+    header: "bg-cyan-50/70",
+    number: "bg-cyan-100 text-cyan-700",
+  },
+  violet: {
+    card: "border-violet-200",
+    header: "bg-violet-50/70",
+    number: "bg-violet-100 text-violet-700",
+  },
+  amber: {
+    card: "border-amber-200",
+    header: "bg-amber-50/70",
+    number: "bg-amber-100 text-amber-700",
+  },
+} as const;
+
 function parseNumber(value: string): number | null {
   if (value.trim() === "") return null;
   const parsed = Number(value);
@@ -103,20 +136,24 @@ function SectionHeading({
   number,
   title,
   description,
+  tone,
 }: {
   number: string;
   title: string;
   description: string;
+  tone: keyof typeof SECTION_TONES;
 }) {
+  const styles = SECTION_TONES[tone];
+
   return (
-    <CardHeader className="border-b bg-slate-50/80 px-5 py-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700">
+    <CardHeader className={`border-b px-4 py-2.5 ${styles.header}`}>
+      <div className="flex items-start gap-2.5">
+        <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${styles.number}`}>
           {number}
         </div>
         <div>
-          <CardTitle className="text-base font-semibold text-slate-900">{title}</CardTitle>
-          <CardDescription className="mt-1 text-xs leading-5 text-slate-500">{description}</CardDescription>
+          <CardTitle className="text-[15px] font-semibold text-slate-900">{title}</CardTitle>
+          <CardDescription className="mt-0.5 text-[11px] leading-4 text-slate-500">{description}</CardDescription>
         </div>
       </div>
     </CardHeader>
@@ -145,11 +182,11 @@ function NumericField({
   hint?: string;
 }) {
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id} className="text-sm font-medium text-slate-700">
+    <div className="space-y-1">
+      <Label htmlFor={id} className="text-[13px] font-medium text-slate-700">
         {label}
       </Label>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <Input
           id={id}
           type="number"
@@ -159,11 +196,11 @@ function NumericField({
           step={step}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-9 bg-white"
+          className="h-8 bg-white text-sm"
         />
-        <span className="shrink-0 text-xs font-medium text-slate-500">{unit}</span>
+        <span className="shrink-0 text-[11px] font-medium text-slate-500">{unit}</span>
       </div>
-      {hint && <p className="text-xs leading-4 text-slate-400">{hint}</p>}
+      {hint && <p className="text-[11px] leading-4 text-slate-400">{hint}</p>}
     </div>
   );
 }
@@ -186,13 +223,13 @@ function SelectField({
   unit?: string;
 }) {
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id} className="text-sm font-medium text-slate-700">
+    <div className="space-y-1">
+      <Label htmlFor={id} className="text-[13px] font-medium text-slate-700">
         {label}
       </Label>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <Select value={value} onValueChange={onChange}>
-          <SelectTrigger id={id} className="h-9 bg-white">
+          <SelectTrigger id={id} className="h-8 bg-white text-sm">
             <SelectValue placeholder={placeholder} />
           </SelectTrigger>
           <SelectContent>
@@ -207,7 +244,7 @@ function SelectField({
             })}
           </SelectContent>
         </Select>
-        {unit && <span className="shrink-0 text-xs font-medium text-slate-500">{unit}</span>}
+        {unit && <span className="shrink-0 text-[11px] font-medium text-slate-500">{unit}</span>}
       </div>
     </div>
   );
@@ -262,20 +299,20 @@ export default function EcrPrePilotDesignPage() {
 
   return (
     <Layout>
-      <main className="mx-auto flex min-h-full w-full max-w-6xl flex-col px-4 py-6 sm:px-6 lg:px-8">
-        <header className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-start sm:justify-between">
+      <main className="mx-auto flex min-h-full w-full max-w-6xl flex-col px-4 py-4 sm:px-6 lg:px-8">
+        <header className="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-blue-50 p-3">
-              <FlaskConical className="h-7 w-7 text-blue-600" aria-hidden="true" />
+            <div className="rounded-lg bg-blue-50 p-2.5">
+              <FlaskConical className="h-6 w-6 text-blue-600" aria-hidden="true" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-2xl font-semibold tracking-tight text-slate-900">ECR Pre-Pilot Design</h1>
-                <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-blue-700">
+                <h1 className="text-xl font-semibold tracking-tight text-slate-900">ECR Pre-Pilot Design</h1>
+                <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
                   Input data only
                 </span>
               </div>
-              <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+              <p className="mt-0.5 max-w-2xl text-xs leading-5 text-slate-500">
                 Greenfield process and feed characterization for an ECR pre-pilot design basis.
                 Enter only values supported by your project data.
               </p>
@@ -293,16 +330,17 @@ export default function EcrPrePilotDesignPage() {
           )}
         </header>
 
-        <div className="space-y-5">
-          <Card className="overflow-hidden border-slate-200 shadow-sm">
+        <div className="space-y-3">
+          <Card className={`overflow-hidden shadow-sm ${SECTION_TONES.blue.card}`}>
             <SectionHeading
               number="1"
               title="Project / Design Basis"
               description="Define the project reference and the operating basis for this input case."
+              tone="blue"
             />
-            <CardContent className="grid gap-5 px-5 py-5 md:grid-cols-2">
-              <div className="space-y-1.5 md:col-span-2">
-                <Label htmlFor="project-reference" className="text-sm font-medium text-slate-700">
+            <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2">
+              <div className="space-y-1 md:col-span-2">
+                <Label htmlFor="project-reference" className="text-[13px] font-medium text-slate-700">
                   Project name / reference
                 </Label>
                 <Input
@@ -310,7 +348,7 @@ export default function EcrPrePilotDesignPage() {
                   value={form.projectReference}
                   onChange={(event) => setField("projectReference", event.target.value)}
                   placeholder="Enter project name or reference"
-                  className="h-9 bg-white"
+                  className="h-8 bg-white text-sm"
                 />
               </div>
               <SelectField
@@ -359,8 +397,8 @@ export default function EcrPrePilotDesignPage() {
                 placeholder="Select phase configuration"
                 options={PHASE_OPTIONS}
               />
-              <div className="space-y-1.5 md:col-span-2">
-                <Label htmlFor="design-basis-notes" className="text-sm font-medium text-slate-700">
+              <div className="space-y-1 md:col-span-2">
+                <Label htmlFor="design-basis-notes" className="text-[13px] font-medium text-slate-700">
                   Design basis notes <span className="font-normal text-slate-400">(optional)</span>
                 </Label>
                 <Textarea
@@ -368,21 +406,22 @@ export default function EcrPrePilotDesignPage() {
                   value={form.designBasisNotes}
                   onChange={(event) => setField("designBasisNotes", event.target.value)}
                   placeholder="Add a project-specific note or source reference"
-                  rows={2}
-                  className="resize-none bg-white"
+                  rows={1}
+                  className="min-h-8 resize-none bg-white text-sm"
                 />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden border-slate-200 shadow-sm">
+          <Card className={`overflow-hidden shadow-sm ${SECTION_TONES.emerald.card}`}>
             <SectionHeading
               number="2"
               title="RRBO Feed Composition"
               description="Enter the six-component feed model. Leave unsupported values blank; do not substitute zero."
+              tone="emerald"
             />
-            <CardContent className="px-5 py-5">
-              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <CardContent className="px-4 py-3.5">
+              <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3">
                 {COMPOSITION_FIELDS.map(({ key, label }) => (
                   <NumericField
                     key={key}
@@ -396,7 +435,7 @@ export default function EcrPrePilotDesignPage() {
                 ))}
               </div>
               <div
-                className={`mt-6 flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between ${
+                className={`mt-4 flex flex-col gap-2.5 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between ${
                   compositionStatus.valid
                     ? "border-emerald-200 bg-emerald-50"
                     : compositionStatus.populatedCount === 0
@@ -407,7 +446,7 @@ export default function EcrPrePilotDesignPage() {
                 }`}
                 aria-live="polite"
               >
-                <div className="flex items-start gap-2.5">
+                <div className="flex items-start gap-2">
                   {compositionStatus.valid ? (
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
                   ) : compositionStatus.populatedCount === 0 ? (
@@ -416,8 +455,8 @@ export default function EcrPrePilotDesignPage() {
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
                   )}
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">Composition validation</p>
-                    <p className="mt-0.5 text-xs leading-5 text-slate-600">
+                    <p className="text-[13px] font-semibold text-slate-800">Composition validation</p>
+                    <p className="mt-0.5 text-[11px] leading-4 text-slate-600">
                       {compositionStatus.valid
                         ? "Valid — all six components total exactly 100 wt%."
                         : compositionStatus.populatedCount === 0
@@ -429,8 +468,8 @@ export default function EcrPrePilotDesignPage() {
                   </div>
                 </div>
                 <div className="shrink-0 text-left sm:text-right">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Total</p>
-                  <p className="text-xl font-semibold tabular-nums text-slate-900">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Total</p>
+                  <p className="text-lg font-semibold tabular-nums text-slate-900">
                     {compositionStatus.populatedCount === 0 ? "—" : `${compositionStatus.total.toFixed(2)} wt%`}
                   </p>
                 </div>
@@ -438,13 +477,14 @@ export default function EcrPrePilotDesignPage() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden border-slate-200 shadow-sm">
+          <Card className={`overflow-hidden shadow-sm ${SECTION_TONES.indigo.card}`}>
             <SectionHeading
               number="3"
               title="RRBO Feed Physical Properties"
               description="Enter measured or explicitly selected RRBO feed properties for the design basis."
+              tone="indigo"
             />
-            <CardContent className="grid gap-5 px-5 py-5 md:grid-cols-3">
+            <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-3">
               <NumericField
                 id="rrbo-density"
                 label="Density"
@@ -469,13 +509,14 @@ export default function EcrPrePilotDesignPage() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden border-slate-200 shadow-sm">
+          <Card className={`overflow-hidden shadow-sm ${SECTION_TONES.cyan.card}`}>
             <SectionHeading
               number="4"
               title="NMP Solvent"
               description="Capture the NMP solvent specification and the solvent temperature for this case."
+              tone="cyan"
             />
-            <CardContent className="grid gap-5 px-5 py-5 md:grid-cols-2 xl:grid-cols-3">
+            <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2 xl:grid-cols-3">
               <NumericField
                 id="nmp-purity"
                 label="NMP purity"
@@ -516,13 +557,14 @@ export default function EcrPrePilotDesignPage() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden border-slate-200 shadow-sm">
+          <Card className={`overflow-hidden shadow-sm ${SECTION_TONES.violet.card}`}>
             <SectionHeading
               number="5"
               title="Extraction Process Targets"
               description="Define the product-quality and recovery targets that will govern later design stages."
+              tone="violet"
             />
-            <CardContent className="grid gap-5 px-5 py-5 md:grid-cols-2 xl:grid-cols-3">
+            <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2 xl:grid-cols-3">
               <NumericField
                 id="solvent-oil-ratio"
                 label="Solvent / Oil ratio"
@@ -565,22 +607,23 @@ export default function EcrPrePilotDesignPage() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden border-amber-200 shadow-sm">
+          <Card className={`overflow-hidden shadow-sm ${SECTION_TONES.amber.card}`}>
             <SectionHeading
               number="6"
               title="Optional Sulfur Input"
               description="Sulfur is captured separately and is not derived from the aromatic composition or any target."
+              tone="amber"
             />
-            <CardContent className="px-5 py-5">
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                <div className="flex items-start gap-2.5">
+            <CardContent className="px-4 py-3.5">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <div className="flex items-start gap-2">
                   <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
-                  <p className="text-sm leading-6 text-amber-900">
+                  <p className="text-[13px] leading-5 text-amber-900">
                     Sulfur is an <strong>independent future model input</strong>. It must not be calculated from aromatic removal.
                   </p>
                 </div>
               </div>
-              <div className="mt-5 max-w-md">
+              <div className="mt-3.5 max-w-md">
                 <NumericField
                   id="feed-sulfur"
                   label="Feed sulfur"
@@ -593,18 +636,18 @@ export default function EcrPrePilotDesignPage() {
           </Card>
         </div>
 
-        <div className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs leading-5 text-slate-500">
+        <div className="mt-4 flex flex-col gap-2.5 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[11px] leading-4 text-slate-500">
             This page records input data only. Thermodynamics, NT, hydrodynamics, diameter, height, and optimizer calculations are not enabled.
           </p>
-          <div className="flex flex-col-reverse gap-2 sm:flex-row">
-            <Button type="button" variant="outline" onClick={handleSave} className="gap-2">
-              <Save className="h-4 w-4" aria-hidden="true" />
+          <div className="flex flex-col-reverse gap-1.5 sm:flex-row">
+            <Button type="button" variant="outline" onClick={handleSave} className="h-8 gap-1.5 px-3 text-xs">
+              <Save className="h-3.5 w-3.5" aria-hidden="true" />
               Save Input Data
             </Button>
-            <Button type="button" onClick={handleContinue} className="gap-2">
+            <Button type="button" onClick={handleContinue} className="h-8 gap-1.5 px-3 text-xs">
               Continue
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
           </div>
         </div>
