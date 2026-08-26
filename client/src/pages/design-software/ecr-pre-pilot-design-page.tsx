@@ -70,7 +70,7 @@ const EMPTY_FORM: FormState = {
   targetRaffinatePolarAromaticsWt: "0.50",
   minimumRecoveryPct: "95",
   maximumNmpRaffinateWt: "0.50",
-  feedSulfurPpm: "",
+  feedSulfurPpm: "3500",
   designBasisNotes: "",
 };
 
@@ -93,6 +93,7 @@ const TARGET_TOTAL_AROMATICS_OPTIONS = ["2.0", "3.0", "4.0", "5.0", "7.5", "10.0
 const TARGET_POLAR_AROMATICS_OPTIONS = ["0.10", "0.25", "0.50", "1.00", "2.00"];
 const MINIMUM_RECOVERY_OPTIONS = ["90", "92.5", "95", "97.5", "99"];
 const MAXIMUM_NMP_RAFFINATE_OPTIONS = ["0.10", "0.25", "0.50", "1.00"];
+const FEED_SULFUR_OPTIONS = ["500", "1000", "1500", "2000", "2500", "3000", "3500", "4000", "5000"];
 
 const NMP_STANDARD_PURPOSE = {
   purityWt: "99.5",
@@ -918,11 +919,13 @@ export default function EcrPrePilotDesignPage() {
                 </div>
               </div>
               <div className="mt-3.5 max-w-md">
-                <NumericField
+                <SelectField
                   id="feed-sulfur"
                   label="Feed sulfur"
                   value={form.feedSulfurPpm}
                   onChange={(value) => setField("feedSulfurPpm", value)}
+                  placeholder="Select feed sulfur"
+                  options={FEED_SULFUR_OPTIONS}
                   unit="ppm"
                 />
               </div>
