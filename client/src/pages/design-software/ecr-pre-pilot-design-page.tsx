@@ -42,13 +42,14 @@ type FormState = {
 const DEFAULT_PHASE_CONFIGURATION = "nmp-continuous-rrbo-dispersed";
 const DEFAULT_RRBO_GRADE = "SN300";
 const DEFAULT_OPERATING_TEMPERATURE_C = "50";
+const DEFAULT_OPERATING_PRESSURE = "2.0";
 
 const EMPTY_FORM: FormState = {
   projectReference: "",
   rrboGrade: DEFAULT_RRBO_GRADE,
   designFeedRateLph: "",
   operatingTemperatureC: DEFAULT_OPERATING_TEMPERATURE_C,
-  operatingPressure: "",
+  operatingPressure: DEFAULT_OPERATING_PRESSURE,
   phaseConfiguration: DEFAULT_PHASE_CONFIGURATION,
   saturatesWt: "",
   monoAromaticsWt: "",
