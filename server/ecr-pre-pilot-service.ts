@@ -43,26 +43,29 @@ export async function allocateEcrPrePilotDesign(
 
       const existingAllocation = await client.query<{
         project_number: number;
-        design_id: number | null;
-        status: string | null;
       }>(
-        `SELECT a.project_number, d.id AS design_id, d.status
-           FROM ecr_pre_pilot_number_allocations a
-           LEFT JOIN ecr_pre_pilot_designs d ON d.project_number = a.project_number
-          WHERE a.allocated_by = $1 AND a.allocation_key = $2
+        `SELECT project_number
+           FROM ecr_pre_pilot_number_allocations
+          WHERE allocated_by = $1 AND allocation_key = $2
           FOR UPDATE`,
         [userId, allocationKey],
       );
 
       if (existingAllocation.rows[0]) {
-        const existing = existingAllocation.rows[0];
-        if (existing.design_id === null || existing.status === null) {
+        const existingDesign = await client.query<{ id: number; status: string }>(
+          `SELECT id, status
+             FROM ecr_pre_pilot_designs
+            WHERE project_number = $1`,
+          [existingAllocation.rows[0].project_number],
+        );
+        if (!existingDesign.rows[0]) {
           throw new Error("The existing project-number allocation has no design record.");
         }
+        const existing = existingDesign.rows[0];
         await client.query("COMMIT");
         return {
-          id: existing.design_id,
-          projectNumber: Number(existing.project_number),
+          id: Number(existing.id),
+          projectNumber: Number(existingAllocation.rows[0].project_number),
           status: existing.status,
           existing: true,
         };
