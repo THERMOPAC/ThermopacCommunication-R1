@@ -51,12 +51,12 @@ const EMPTY_FORM: FormState = {
   operatingTemperatureC: DEFAULT_OPERATING_TEMPERATURE_C,
   operatingPressure: DEFAULT_OPERATING_PRESSURE,
   phaseConfiguration: DEFAULT_PHASE_CONFIGURATION,
-  saturatesWt: "",
-  monoAromaticsWt: "",
-  diAromaticsWt: "",
-  polyAromaticsWt: "",
-  polarAromaticsWt: "",
-  nmpInFeedWt: "",
+  saturatesWt: "85.0",
+  monoAromaticsWt: "7.0",
+  diAromaticsWt: "4.0",
+  polyAromaticsWt: "2.0",
+  polarAromaticsWt: "2.0",
+  nmpInFeedWt: "0.0",
   rrboDensityKgM3: "",
   rrboDynamicViscosityCp: "",
   rrboInterfacialTensionMnM: "",
@@ -688,7 +688,7 @@ export default function EcrPrePilotDesignPage() {
             <SectionHeading
               number="2"
               title="RRBO Feed Composition"
-              description="Enter the six-component feed model. Leave unsupported values blank; do not substitute zero."
+              description="Preliminary screening defaults — user editable. Replace them with project-specific feed data when available."
               tone="emerald"
             />
             <CardContent className="px-4 py-3.5">
@@ -705,6 +705,10 @@ export default function EcrPrePilotDesignPage() {
                   />
                 ))}
               </div>
+              <p className="mt-3 text-[11px] leading-4 text-slate-400">
+                Fresh RRBO screening basis: NMP in feed is 0.0 wt%. This gives 13.0 wt% conventional aromatics and 15.0 wt% aromatics including polar aromatics.
+                Adjust the NMP value if the feed is recycled or contains residual NMP.
+              </p>
               <div
                 className={`mt-4 flex flex-col gap-2.5 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between ${
                   compositionStatus.valid
