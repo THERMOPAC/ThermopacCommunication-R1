@@ -651,3 +651,10 @@ mtime_ms = 1787570337769
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/9d629add-1fc5-4731-a7ed-5e652e5be59c/fa5be564-e542-4537-8557-ac10b3f27f59"
 storage_version_token = "1787570458242045"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "EK_L25Gm6XCHdQz01moc6"
+uri = "file://reports/LLX-RND-2026-0003-ECR2-Run-948-Review.pdf"
+type = "pdf"
+title = "ECR-2 Simulation Run #948 Review"
+description = "Four-page frozen-snapshot audit for LLX-RND-2026-0003. It documents the blocked calculation path, unavailable outputs, thermodynamic limitations, warnings, and the NOT CALCULABLE / NOT RELEASE ELIGIBLE disposition."
