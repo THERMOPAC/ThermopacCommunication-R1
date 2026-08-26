@@ -831,6 +831,18 @@ export async function setupDesignSoftwareRoutes(app: Express): Promise<void> {
     }
   });
 
+  /** Auditable predictive ECR-2 run. Mode is fixed by this server route. */
+  app.post('/api/design-software/revisions/:id/ecr2-prepilot-predictive/calculate', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const revisionId = parseInt(req.params.id);
+      if (isNaN(revisionId)) return res.status(400).json({ error: 'Invalid revision id' });
+      res.json(await svc.runPrePilotPredictiveEcr2Calculation(revisionId, (req.user as any).id));
+    } catch (err: any) {
+      const status = err.message?.includes('not found') ? 404 : err.message?.includes('only for LLX') ? 422 : 500;
+      res.status(status).json({ error: err.message });
+    }
+  });
+
   /** List calculation run history for a revision. */
   app.get('/api/design-software/revisions/:id/runs', ensureAuthenticated, async (req: Request, res: Response) => {
     try {

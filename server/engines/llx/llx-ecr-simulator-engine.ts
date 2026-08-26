@@ -94,6 +94,14 @@ import {
   isGoverned,
   ECR2_KH1999_PRELIMINARY_PARAMETERS,
 } from './llx-ecr2-correlation-registry';
+import {
+  isECR2ExecutionMode,
+  resolveECR2Models,
+  type ECR2ExecutionMode,
+} from './llx-ecr2-execution-mode';
+import {
+  validatePrePilotHindranceModel,
+} from './llx-ecr2-prepilot-hydrodynamics';
 
 import {
   computeKH1995Holdup,
@@ -1205,6 +1213,18 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       errors.push({ field, message, severity: 'error' });
     const warn = (field: string, message: string) =>
       errors.push({ field, message, severity: 'warning' });
+    const executionMode: ECR2ExecutionMode = isECR2ExecutionMode(inputs.__ecr2_execution_mode)
+      ? inputs.__ecr2_execution_mode
+      : 'GOVERNED_RELEASE';
+    if (inputs.__ecr2_execution_mode !== undefined && !isECR2ExecutionMode(inputs.__ecr2_execution_mode)) {
+      err('__ecr2_execution_mode', 'ECR-2 execution mode must be selected by the server orchestration boundary.');
+    }
+    if (executionMode === 'PRE_PILOT_PREDICTIVE') {
+      const prePilot = validatePrePilotHindranceModel(inputs.prePilotHydrodynamics);
+      for (const message of prePilot.errors) {
+        err('prePilotHydrodynamics', `Predictive ECR-2 hydrodynamic package is not internally calculable: ${message}.`);
+      }
+    }
 
     // Operating temperature
     const T = num(inputs.operatingTemperatureC);
@@ -1432,8 +1452,8 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       if (!inputs.interfacialTension) warn('interfacialTension', 'interfacialTension is required for the ECR-2 BVP local-property closure.');
       if (!bvp.diffusivity) warn('bvp.diffusivity', 'Five-component, two-phase diffusivity inputs are required for the ECR-2 BVP.');
       if (!bvp.partitionBasis) {
-        warn('bvp.partitionBasis', 'An engineer-approved K_d concentration partition basis is required for the ECR-2 BVP.');
-      } else {
+        warn('bvp.partitionBasis', 'A declared K_d concentration partition basis is required for the ECR-2 BVP.');
+      } else if (executionMode === 'GOVERNED_RELEASE') {
         const approval = bvp.partitionBasis as Record<string, unknown>;
         if (typeof approval.approvedBy !== 'string' || !approval.approvedBy.trim()) {
           err('bvp.partitionBasis.approvedBy', 'Kd concentration-basis approval requires the approving engineer.');
@@ -1454,10 +1474,17 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           && Number.isFinite(record.value)
           && typeof record?.source === 'string'
           && record.source.trim() !== '';
-        if (!accepted && !overridden) {
+        const predictiveResolved = executionMode === 'PRE_PILOT_PREDICTIVE'
+          && typeof record?.value === 'number'
+          && Number.isFinite(record.value)
+          && typeof record?.source === 'string'
+          && record.source.trim() !== '';
+        if (!accepted && !overridden && !predictiveResolved) {
           err(
             `bvp.stage8Evidence.${id}`,
-            `Stage 8 '${id}' must be a current system-resolved value accepted through the Stage 8 bulk action, or a complete engineer override; received '${status || 'missing'}'.`,
+            executionMode === 'PRE_PILOT_PREDICTIVE'
+              ? `Predictive ECR-2 '${id}' is not internally calculable: a finite source-tagged resolved value is required; received '${status || 'missing'}'.`
+              : `Stage 8 '${id}' must be a current system-resolved value accepted through the Stage 8 bulk action, or a complete engineer override; received '${status || 'missing'}'.`,
           );
         }
       }
@@ -1476,6 +1503,15 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     context: CalculationContext,
   ): Promise<CalculationResult> {
     inputs = resolveECR2ProcessSizingInputs(inputs);
+    const executionMode: ECR2ExecutionMode = isECR2ExecutionMode(inputs.__ecr2_execution_mode)
+      ? inputs.__ecr2_execution_mode
+      : 'GOVERNED_RELEASE';
+    const modelResolution = resolveECR2Models(inputs, executionMode, {
+      modelId: TLLE_MODEL_ID,
+      modelVersion: TLLE_MODEL_VERSION,
+      modelName: TLLE_MODEL_NAME,
+      citation: TLLE_MODEL_CITATION,
+    });
     const base = {
       calculationClass: context.calculationClass ?? 'Preliminary Simulator Scaffold',
       engineId:      ENGINE_ID,
@@ -1495,7 +1531,17 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       return {
         ...base,
         status: 'error',
-        data: { calculationRunStatus: 'calculation_blocked', phase: 1 },
+        data: {
+          calculationRunStatus: 'calculation_blocked',
+          calculationStatus: 'NOT_CALCULABLE',
+          evidenceStatus: modelResolution.evidenceStatus,
+          releaseStatus: modelResolution.releaseStatus,
+          executionMode,
+          executionLabel: modelResolution.displayLabel,
+          releaseLabel: modelResolution.releaseLabel,
+          modelResolution,
+          phase: 1,
+        },
         warnings,
         validationIssues: gate.errors,
       };
@@ -1792,6 +1838,9 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const P_V_W_m3 = Number.isFinite(psi_W_kg)
       ? rhoMix_phase1 * psi_W_kg
       : Number.NaN;
+    const processPowerPerCompartment_W = Number.isFinite(P_V_W_m3)
+      ? P_V_W_m3 * A_col * hComp
+      : Number.NaN;
 
     const v_st_m_s = fStator
       ? statorVelocity(qTotal_m3_h, A_col, fStator.value)
@@ -1994,7 +2043,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           mu_d_Pa_s: muDGoverned?.value ?? rawFeedViscosity?.value ?? Number.NaN,
           gamma_N_m: gamma.value,
           xf: fStator?.value ?? Number.NaN,
-          powerPerAgitator_W: P1_W,
+          powerPerAgitator_W: processPowerPerCompartment_W,
           columnCrossSectionArea_m2: A_col,
           compartmentHeight_m: hComp,
           columnDiameter_m: D,
@@ -2023,12 +2072,15 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       'numberOfCompartments' | 'activeHeight_m' | 'previousSolution'> = {
       columnCrossSectionArea_m2: A_col,
       psi_W_kg,
-      powerPerAgitator_W: P1_W,
+      powerPerAgitator_W: processPowerPerCompartment_W,
       columnDiameter_m: D,
       rotorDiameter_m: D_R,
       physicalCompartmentHeight_m: hComp,
       holdupSystemIdentity: 'rrbo_nmp',
       holdupMassTransferDirection: 'bidirectional_multicomponent',
+      prePilotHydrodynamics: executionMode === 'PRE_PILOT_PREDICTIVE'
+        ? inputs.prePilotHydrodynamics as ECR2CounterCurrentBVPInput['prePilotHydrodynamics']
+        : null,
       statorOpenAreaFraction: fStator?.value ?? Number.NaN,
       operatingTemperature_C: T_C,
       physicalMolecularWeights: {
@@ -2124,6 +2176,17 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     let bvpResult: ECR2CounterCurrentBVPResult;
     let performanceSimulationHeight_m: number | null = null;
     let performanceSimulationLabel: string | null = null;
+    const predictiveHydrodynamicsAvailable = executionMode === 'PRE_PILOT_PREDICTIVE'
+      && bvpBaseInput.prePilotHydrodynamics != null;
+    const holdupBlockReason = predictiveHydrodynamicsAvailable
+      ? 'Pre-pilot hydrodynamic closure did not produce an accepted physical BVP result.'
+      : holdupResult === null
+        ? 'K&H 1995 primary holdup was not attempted because interfacial tension is unavailable.'
+        : holdupResult.status === 'dependency_blocked'
+          ? `K&H 1995 primary holdup dependency block: ${holdupResult.blockedBy.join('; ')}`
+          : `K&H 1995 primary holdup is not usable: ${holdupResult.status}.`;
+    const holdupUsableForPhysicalSizing = predictiveHydrodynamicsAvailable
+      || (holdupResult !== null && isHoldupUsable(holdupResult));
 
     if (phaseConfig === 'nmp_continuous_rrbo_dispersed' && physicalProductTarget) {
       const idealStageInput = {
@@ -2151,12 +2214,6 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
             physicalProductTarget,
             idealStageCascade.statusLabel,
           );
-      const holdupBlockReason = holdupResult === null
-        ? 'K&H 1995 primary holdup was not attempted because interfacial tension is unavailable.'
-        : holdupResult.status === 'dependency_blocked'
-          ? `K&H 1995 primary holdup dependency block: ${holdupResult.blockedBy.join('; ')}`
-          : `K&H 1995 primary holdup is not usable: ${holdupResult.status}.`;
-      const holdupUsableForPhysicalSizing = holdupResult !== null && isHoldupUsable(holdupResult);
       heightSizing = holdupUsableForPhysicalSizing
         ? solveECR2ProgressiveHeight({
             target: physicalProductTarget,
@@ -2313,12 +2370,12 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
        summarizeDiameterTrial(D, A_col, heightSizing, progressiveCompartmentSizing, bvpResult),
       ...configuredDiameterTrials.slice(1).map((trialDiameter_m) => {
         const trialArea_m2 = columnCrossSectionArea(trialDiameter_m);
-        if (phaseConfig !== 'nmp_continuous_rrbo_dispersed' || !physicalProductTarget || !(holdupResult !== null && isHoldupUsable(holdupResult))) {
+        if (phaseConfig !== 'nmp_continuous_rrbo_dispersed' || !physicalProductTarget || !holdupUsableForPhysicalSizing) {
           const reason = phaseConfig !== 'nmp_continuous_rrbo_dispersed'
             ? 'The NMP-continuous/RRBO-dispersed phase orientation is not active.'
             : !physicalProductTarget
               ? 'No compatible governed physical product-quality target is available.'
-              : 'K&H 1995 primary holdup is dependency-blocked; no physical BVP height trial was run.';
+              : holdupBlockReason;
           return summarizeDiameterTrial(
             trialDiameter_m,
             trialArea_m2,
@@ -2328,6 +2385,9 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
             reason,
           );
         }
+        const trialPowerPerCompartment_W = Number.isFinite(P_V_W_m3)
+          ? P_V_W_m3 * trialArea_m2 * hComp
+          : Number.NaN;
         const trialSizing = solveECR2ProgressiveHeight({
           target: physicalProductTarget,
           maximumCellHeight_m: hComp,
@@ -2337,7 +2397,10 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           bvpBaseInput: {
             ...bvpBaseInput,
             columnCrossSectionArea_m2: trialArea_m2,
+            columnDiameter_m: trialDiameter_m,
+            rotorDiameter_m: ratio * trialDiameter_m,
             psi_W_kg,
+            powerPerAgitator_W: trialPowerPerCompartment_W,
           },
         });
         const trialBvp = trialSizing.selectedBvp ?? createECR2BVPBlockedResult(
@@ -2607,6 +2670,15 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     const data: Record<string, unknown> = {
       applicabilityStatement: APPLICABILITY_STATEMENT,
       phase: 2,
+      executionMode,
+      executionLabel: modelResolution.displayLabel,
+      calculationStatus: bvpResult.status === 'converged' && bvpResult.massBalanceStatus === 'passed'
+        ? 'CALCULATED'
+        : 'NOT_CALCULABLE',
+      evidenceStatus: modelResolution.evidenceStatus,
+      releaseStatus: modelResolution.releaseStatus,
+      releaseLabel: modelResolution.releaseLabel,
+      modelResolution,
       calculationRunStatus: bvpResult.status === 'converged' && bvpResult.massBalanceStatus === 'passed'
         ? 'counter_current_bvp_accepted'
         : 'counter_current_bvp_not_accepted',

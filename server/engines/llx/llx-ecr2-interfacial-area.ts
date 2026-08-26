@@ -57,6 +57,19 @@ export interface InterfacialAreaResult {
   provenance: string;
 }
 
+export interface PreliminaryCalculatedHoldup {
+  status: 'calculated_pre_pilot';
+  phi: number;
+}
+
+export type InterfacialAreaHoldupResult = KH1995HoldupResult | PreliminaryCalculatedHoldup;
+
+function isInterfacialAreaHoldupUsable(
+  result: InterfacialAreaHoldupResult,
+): result is Extract<InterfacialAreaHoldupResult, { status: 'calculated' | 'calculated_pre_pilot' }> {
+  return result.status === 'calculated_pre_pilot' || isHoldupUsable(result as KH1995HoldupResult);
+}
+
 // ── Main function ──────────────────────────────────────────────────────────
 
 /**
@@ -79,7 +92,7 @@ export interface InterfacialAreaResult {
  * @returns              InterfacialAreaResult with a_m2_m3, status, and diagnostics.
  */
 export function computeInterfacialArea(
-  holdupResult: KH1995HoldupResult | null,
+  holdupResult: InterfacialAreaHoldupResult | null,
   d32Result: D32Result | null,
 ): InterfacialAreaResult {
 
@@ -87,7 +100,7 @@ export function computeInterfacialArea(
   const diagnostics: string[] = [];
 
   // ── Guard 1: holdup usability ────────────────────────────────────────────
-  const holdupUsable = holdupResult !== null && isHoldupUsable(holdupResult);
+  const holdupUsable = holdupResult !== null && isInterfacialAreaHoldupUsable(holdupResult);
   if (!holdupUsable) {
     const reason = holdupResult === null
       ? 'Holdup result is null — holdup was not computed (σ and x_f inputs required).'
@@ -143,7 +156,7 @@ export function computeInterfacialArea(
   // ── d₃₂ blocked only ─────────────────────────────────────────────────────
   if (!d32Usable) {
     // Extract φ_d scalar for reporting
-    const phi_d = (holdupResult as KH1995HoldupResult & { phi: number }).phi;
+    const phi_d = holdupResult.phi;
     return {
       a_m2_m3: null,
       status: 'blocked_d32',

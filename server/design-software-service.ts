@@ -533,7 +533,10 @@ function withCalculationOutcomeStatus<T extends Record<string, any>>(run: T): T 
     : run.result_snapshot;
   const dependencyBlocked = run.calculation_type === 'ecr_simulator'
     && run.calculation_status === 'error'
-    && snapshot?.bvp?.convergenceStatus === 'dependency_blocked';
+    && (
+      snapshot?.bvp?.convergenceStatus === 'dependency_blocked'
+      || snapshot?.calculationStatus === 'NOT_CALCULABLE'
+    );
   return {
     ...run,
     outcome_status: dependencyBlocked ? 'blocked' : run.calculation_status,
@@ -833,6 +836,9 @@ export async function runCalculation(
   revisionId: number,
   calculationType: string,
   userId: number,
+  options: {
+    ecr2ExecutionMode?: 'PRE_PILOT_PREDICTIVE' | 'GOVERNED_RELEASE';
+  } = {},
 ) {
   // Get revision + design info
   const revRow = await pool.query(
@@ -901,6 +907,11 @@ export async function runCalculation(
       inputs.__stage8_server_timestamp = new Date().toISOString();
     }
     inputs = mapWorkspaceProcessDesignInputs(inputs, calculationType);
+  }
+  if (calculationType === 'ecr_simulator') {
+    inputs.__ecr2_execution_mode = options.ecr2ExecutionMode ?? 'GOVERNED_RELEASE';
+  } else if (options.ecr2ExecutionMode) {
+    throw new Error('ECR-2 execution mode is valid only for the ecr_simulator calculation type');
   }
 
   // C2 → ECR-2 thermodynamic handoff: the accepted C2 snapshot owns the
@@ -1056,12 +1067,14 @@ export async function runCalculation(
     });
   }
 
+  const ecr2Predictive = calculationType === 'ecr_simulator'
+    && inputs.__ecr2_execution_mode === 'PRE_PILOT_PREDICTIVE';
   const context: CalculationContext = {
     revisionId,
     designId: rev.design_id,
     moduleType: rev.module_type,
     userId,
-    calculationClass: 'Preliminary Screening',
+    calculationClass: ecr2Predictive ? 'Pre-Pilot Predictive' : 'Preliminary Screening',
   };
 
   // Validate
@@ -1071,10 +1084,23 @@ export async function runCalculation(
   if (validation.errors.some(e => e.severity === 'error')) {
     calcResult = {
       status: 'error' as const,
-      data: {},
+      data: calculationType === 'ecr_simulator'
+        ? {
+            executionMode: inputs.__ecr2_execution_mode,
+            executionLabel: ecr2Predictive
+              ? 'PRE_PILOT_PREDICTIVE — NOT PILOT VALIDATED'
+              : 'GOVERNED_RELEASE',
+            calculationStatus: 'NOT_CALCULABLE',
+            evidenceStatus: ecr2Predictive
+              ? 'PRE_PILOT_PREDICTIVE_NOT_PILOT_VALIDATED'
+              : 'GOVERNED_EVIDENCE_INCOMPLETE',
+            releaseStatus: 'BLOCKED',
+            releaseLabel: 'RELEASE ELIGIBILITY: BLOCKED',
+          }
+        : {},
       warnings: [],
       validationIssues: validation.errors,
-      calculationClass: 'Preliminary Screening',
+      calculationClass: context.calculationClass,
       engineId: engine.getEngineId(),
       engineVersion: engine.getEngineVersion(),
       computedAt: new Date(),
@@ -1111,7 +1137,7 @@ export async function runCalculation(
   }
 
   // If success/warning, upsert the accepted result
-  if (calcResult.status !== 'error') {
+  if (calcResult.status !== 'error' && !ecr2Predictive) {
     await pool.query(
       `INSERT INTO design_software_results
          (revision_id, section, data, engine_version, calculation_class, computed_by)
@@ -1162,6 +1188,16 @@ export async function runCalculation(
   }
 
   return { run: withCalculationOutcomeStatus(runRow.rows[0]), result: calcResult };
+}
+
+/** Server-controlled predictive boundary. The client cannot supply or override the mode. */
+export async function runPrePilotPredictiveEcr2Calculation(
+  revisionId: number,
+  userId: number,
+) {
+  return runCalculation(revisionId, 'ecr_simulator', userId, {
+    ecr2ExecutionMode: 'PRE_PILOT_PREDICTIVE',
+  });
 }
 
 // ── Assumptions ───────────────────────────────────────────────────────────────

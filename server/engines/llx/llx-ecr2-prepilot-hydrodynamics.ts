@@ -309,6 +309,43 @@ export interface PrePilotRoot {
   residual_m_s: number;
 }
 
+export const ECR2_PREPILOT_HINDRANCE_MODEL_ID = 'pilot_calibrated_hindrance_closure';
+export const ECR2_PREPILOT_HINDRANCE_MODEL_VERSION = '1.0.0';
+
+export interface ECR2PrePilotHindranceModel {
+  modelId: typeof ECR2_PREPILOT_HINDRANCE_MODEL_ID;
+  modelVersion: typeof ECR2_PREPILOT_HINDRANCE_MODEL_VERSION;
+  characteristicSlipVelocity_m_s: number;
+  hindranceExponent: number;
+  characteristicSlipEvidence: {
+    sourceReference: string;
+  };
+  hindranceEvidence: {
+    sourceReference: string;
+  };
+}
+
+export function validatePrePilotHindranceModel(
+  value: unknown,
+): { valid: boolean; errors: string[]; model: ECR2PrePilotHindranceModel | null } {
+  const record = isRecord(value) ? value : null;
+  const errors: string[] = [];
+  if (!record) errors.push('model object is required');
+  if (record?.modelId !== ECR2_PREPILOT_HINDRANCE_MODEL_ID) errors.push('modelId is not the reviewed hindrance closure');
+  if (record?.modelVersion !== ECR2_PREPILOT_HINDRANCE_MODEL_VERSION) errors.push('modelVersion is not supported');
+  if (!finitePositive(record?.characteristicSlipVelocity_m_s)) errors.push('characteristicSlipVelocity_m_s must be finite and > 0');
+  if (!finitePositive(record?.hindranceExponent)) errors.push('hindranceExponent must be finite and > 0');
+  const slipEvidence = isRecord(record?.characteristicSlipEvidence) ? record.characteristicSlipEvidence : null;
+  const hindranceEvidence = isRecord(record?.hindranceEvidence) ? record.hindranceEvidence : null;
+  if (!nonBlankString(slipEvidence?.sourceReference)) errors.push('characteristicSlipEvidence.sourceReference is required');
+  if (!nonBlankString(hindranceEvidence?.sourceReference)) errors.push('hindranceEvidence.sourceReference is required');
+  return {
+    valid: errors.length === 0,
+    errors,
+    model: errors.length === 0 ? record as unknown as ECR2PrePilotHindranceModel : null,
+  };
+}
+
 export interface ECR2PrePilotHydrodynamicCore {
   status: PrePilotQuantityStatus;
   diagnostics: readonly string[];
@@ -535,7 +572,12 @@ function bisect(
   return (lo + hi) / 2;
 }
 
-function findPhysicalRoots(Ud: number, Uc: number, uK: number, n: number): PrePilotRoot[] {
+export function findPrePilotHindranceRoots(
+  Ud: number,
+  Uc: number,
+  uK: number,
+  n: number,
+): PrePilotRoot[] {
   const fn = (phi: number) => closureResidual(phi, Ud, Uc, uK, n);
   const roots: number[] = [];
   let previousPhi = ROOT_EPSILON;
@@ -600,7 +642,12 @@ function evaluateCore(input: ECR2PrePilotHydrodynamicInput): ECR2PrePilotHydrody
     'Capacity and flooding have no numerical result because only a documented RRBO/NMP pilot operability envelope can establish them.',
     'This isolated review output cannot feed production BVP, height sizing, diameter, N_T, feasibility, or release gates.',
   ];
-  const roots = findPhysicalRoots(Ud, Uc, input.characteristicSlipVelocity_m_s, input.hindranceExponent);
+  const roots = findPrePilotHindranceRoots(
+    Ud,
+    Uc,
+    input.characteristicSlipVelocity_m_s,
+    input.hindranceExponent,
+  );
   const selectedLowerBranch = roots[0] ?? null;
   const branchStatus = roots.length === 0
     ? 'NO_PHYSICAL_ROOT'

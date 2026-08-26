@@ -106,4 +106,58 @@ describe('ECR-2 counter-current BVP K&H 1995 dependency gating', () => {
     expect(result.transferStatus.message).toContain('holdup');
     expect(result.transferStatus.message).not.toMatch(/infeasible|flood/i);
   });
+
+  it('uses the reviewed pre-pilot holdup closure inside the same BVP core without claiming pilot validation', () => {
+    const predictive = input();
+    predictive.prePilotHydrodynamics = {
+      modelId: 'pilot_calibrated_hindrance_closure',
+      modelVersion: '1.0.0',
+      characteristicSlipVelocity_m_s: 0.013,
+      hindranceExponent: 1.1,
+      characteristicSlipEvidence: {
+        sourceReference: 'Controlled pre-pilot sensitivity basis',
+      },
+      hindranceEvidence: {
+        sourceReference: 'Controlled pre-pilot sensitivity basis',
+      },
+    };
+    predictive.solverOptions = { transferStrength: 0 };
+
+    const result = solveECR2CounterCurrentBVP(predictive);
+
+    expect(result.failure?.dependency).not.toBe('holdup');
+    expect(result.compartments[0]?.holdup).toMatchObject({
+      status: 'calculated_pre_pilot',
+      sourceModel: 'pilot_calibrated_hindrance_closure',
+      pilotValidated: false,
+    });
+  });
+
+  it('fails closed instead of falling back to K&H when an explicit pre-pilot package is invalid', () => {
+    const predictive = input();
+    predictive.prePilotHydrodynamics = {
+      modelId: 'pilot_calibrated_hindrance_closure',
+      modelVersion: '1.0.0',
+      characteristicSlipVelocity_m_s: Number.NaN,
+      hindranceExponent: 1.1,
+      characteristicSlipEvidence: {
+        sourceReference: 'Controlled pre-pilot sensitivity basis',
+      },
+      hindranceEvidence: {
+        sourceReference: 'Controlled pre-pilot sensitivity basis',
+      },
+    };
+
+    const result = solveECR2CounterCurrentBVP(predictive);
+
+    expect(result).toMatchObject({
+      status: 'blocked',
+      convergenceStatus: 'dependency_blocked',
+      failure: {
+        dependency: 'holdup',
+        message: expect.stringContaining('Pre-pilot hindrance package is invalid'),
+      },
+    });
+    expect(result.failure?.message).not.toContain('K&H 1995');
+  });
 });

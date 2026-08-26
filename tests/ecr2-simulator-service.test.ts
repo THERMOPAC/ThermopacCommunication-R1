@@ -438,6 +438,35 @@ describe('ECR-2 simulator service run path', () => {
     }
   });
 
+  it('runs every predictive diameter through the pre-pilot BVP path instead of K&H placeholders', async () => {
+    await persistSimulatorInputs({
+      ...simulatorInputs,
+      prepilot_characteristic_slip_velocity_m_s: '0.013',
+      prepilot_hindrance_exponent: '1.1',
+      prepilot_characteristic_slip_source_reference: 'Controlled predictive service-test basis',
+      prepilot_hindrance_source_reference: 'Controlled predictive service-test basis',
+    });
+
+    const execution = await service.runPrePilotPredictiveEcr2Calculation(revisionId, userId);
+    const data = execution.result.data as Record<string, any>;
+
+    expect(data.executionMode).toBe('PRE_PILOT_PREDICTIVE');
+    expect(data.diameterSizing.trials.map((trial: any) => trial.diameter_m))
+      .toEqual([0.3, 0.45, 0.6, 0.8, 1]);
+    for (const trial of data.diameterSizing.trials) {
+      expect(trial.heightSizing.trials.length).toBeGreaterThan(0);
+      expect(trial.bvp.failure?.dependency).not.toBe('kh1995_primary_holdup_dependency');
+      expect(trial.bvp.compartments[0]?.holdup).toMatchObject({
+        status: 'calculated_pre_pilot',
+        sourceModel: 'pilot_calibrated_hindrance_closure',
+        pilotValidated: false,
+      });
+    }
+
+    await persistSimulatorInputs();
+    await service.acceptAllEcr2Stage8ResolvedValues(revisionId, userId);
+  });
+
   it('persists a structured dependency-blocked snapshot when BVP inputs are missing', async () => {
     await persistSimulatorInputs({ ...simulatorInputs, bvp: null, d32Config: null });
     await service.acceptAllEcr2Stage8ResolvedValues(revisionId, userId);

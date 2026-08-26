@@ -1044,6 +1044,35 @@ export function mapWorkspaceProcessDesignInputs(inputs: Record<string, unknown>,
       records: stage8Resolution.records,
     };
     out.bvp = bvp;
+    const prePilotSlip = num(simValue('prepilot_characteristic_slip_velocity_m_s'));
+    const prePilotExponent = num(simValue('prepilot_hindrance_exponent'));
+    const prePilotSlipReference = String(
+      simValue('prepilot_characteristic_slip_source_reference') ?? '',
+    ).trim();
+    const prePilotExponentReference = String(
+      simValue('prepilot_hindrance_source_reference') ?? '',
+    ).trim();
+    if (
+      prePilotSlip !== undefined
+      && prePilotSlip > 0
+      && prePilotExponent !== undefined
+      && prePilotExponent > 0
+      && prePilotSlipReference !== ''
+      && prePilotExponentReference !== ''
+    ) {
+      out.prePilotHydrodynamics = {
+        modelId: 'pilot_calibrated_hindrance_closure',
+        modelVersion: '1.0.0',
+        characteristicSlipVelocity_m_s: prePilotSlip,
+        hindranceExponent: prePilotExponent,
+        characteristicSlipEvidence: {
+          sourceReference: prePilotSlipReference,
+        },
+        hindranceEvidence: {
+          sourceReference: prePilotExponentReference,
+        },
+      };
+    }
   }
 
   // Generic engineer-entered tagged mapper for Stage 7 flat fields.

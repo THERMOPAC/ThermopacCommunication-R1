@@ -34,6 +34,10 @@ import { getEcr2Stage8LiveDependencies } from "@/lib/ecr2-stage8-live-dependenci
 import { getEcr2D32SnapshotGovernance } from "@/lib/ecr2-d32-snapshot-governance";
 import { canDisplayECR2PreliminaryTransferPerformance } from "@/lib/ecr2-transfer-presentation";
 import {
+  parseEcr2Snapshot,
+  selectEcr2RunPresentation,
+} from "./ecr2-run-presentation";
+import {
   ECR2_STAGE8_VISIBLE_STATE_LABELS,
   getEcr2Stage8VisibleResolutionState,
 } from "@/lib/ecr2-stage8-display";
@@ -594,7 +598,14 @@ interface CalcRun {
   id: number; calculation_type: string; engine_name: string; engine_version: string;
   calculation_status: string; calculated_at: string; calculated_by_name: string | null;
   outcome_status?: string;
+  input_snapshot?: { __ecr2_execution_mode?: "PRE_PILOT_PREDICTIVE" | "GOVERNED_RELEASE" };
   result_snapshot?: {
+    executionMode?: "PRE_PILOT_PREDICTIVE" | "GOVERNED_RELEASE";
+    executionLabel?: string;
+    calculationStatus?: string;
+    evidenceStatus?: string;
+    releaseStatus?: string;
+    releaseLabel?: string;
     maximumCase?: {
       flows?: {
         rrboVolumetricFlow_m3_h?: number;
@@ -4814,11 +4825,12 @@ export default function DesignSoftwareWorkspacePage() {
     const s = save("ecr_simulator");
     const ecrResult = (resultsQ.data ?? []).find((r: any) => r.section === "ecr")?.data;
     const ecr = d("ecr_design");
-    const simResult = (resultsQ.data ?? []).find((r: any) => r.section === "ecr_simulator")?.data;
+    const acceptedGovernedResultRecord = (resultsQ.data ?? []).find((r: any) => r.section === "ecr_simulator");
+    const simResult = acceptedGovernedResultRecord?.data;
     const latestRunFromHistory = runs
       .filter(r => r.calculation_type === "ecr_simulator")
       .sort((a, b) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime())[0];
-    const runReceipt = lastEcr2RunReceipt?.revisionId === activeRevisionId
+    const runReceipt = lastEcr2RunReceipt && lastEcr2RunReceipt.revisionId === activeRevisionId
       ? lastEcr2RunReceipt.run
       : null;
     const latestRun = runReceipt ?? latestRunFromHistory;
@@ -4829,7 +4841,7 @@ export default function DesignSoftwareWorkspacePage() {
       && c2ResultComputedAt
       && new Date(c2InputUpdatedAt).getTime() > new Date(c2ResultComputedAt).getTime()
     );
-    const runEcr2Simulation = async () => {
+    const runEcr2Simulation = async (mode: "PRE_PILOT_PREDICTIVE" | "GOVERNED_RELEASE" = "GOVERNED_RELEASE") => {
       if (isFrozen || !activeRevisionId || ecr2RunPreparing) return;
       setEcr2RunPreparing(true);
       setSavingSection("ecr_simulator");
@@ -4854,7 +4866,19 @@ export default function DesignSoftwareWorkspacePage() {
           });
           return;
         }
-        const calculationResponse = await calculateMutation.mutateAsync("ecr_simulator");
+        const calculationResponse = mode === "PRE_PILOT_PREDICTIVE"
+          ? await apiRequest(
+              "POST",
+              `/api/design-software/revisions/${activeRevisionId}/ecr2-prepilot-predictive/calculate`,
+              {},
+            ) as any
+          : await calculateMutation.mutateAsync("ecr_simulator");
+        if (mode === "PRE_PILOT_PREDICTIVE") {
+          await Promise.all([
+            qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/runs`] }),
+            qc.invalidateQueries({ queryKey: [`/api/design-software/revisions/${activeRevisionId}/results`] }),
+          ]);
+        }
         if (calculationResponse?.run && activeRevisionId) {
           // Show the persisted run identity immediately. The runs query is
           // refreshed by the mutation, but that refetch can complete after the
@@ -4895,17 +4919,12 @@ export default function DesignSoftwareWorkspacePage() {
         setEcr2RunPreparing(false);
       }
     };
-    const parseSnapshot = (value: any) => {
-      if (typeof value !== "string") return value;
-      try { return JSON.parse(value); } catch { return null; }
-    };
-    // Failed calculations are deliberately not upserted into results, but their
-    // structured snapshot is the current safety record and must take precedence
-    // over any earlier accepted result in this simulator panel.
-    const latestFailedSnapshot = latestRun?.calculation_status === "error"
-      ? parseSnapshot(latestRun.result_snapshot)
-      : null;
-    const latestInputSnapshot = parseSnapshot((latestRun as any)?.input_snapshot);
+    const presentation = selectEcr2RunPresentation({
+      latestRun,
+      acceptedGovernedSnapshot: simResult,
+    });
+    const latestRunSnapshot = presentation.runSnapshot;
+    const latestInputSnapshot = parseEcr2Snapshot((latestRun as any)?.input_snapshot);
     const previewResolverRecords = stage8ResolutionQ.data?.records;
     const snapshotResolverRecords = latestInputSnapshot?.bvp?.stage8Resolution?.records;
     // The read-only preview reflects the current saved inputs. A historical run
@@ -4914,12 +4933,14 @@ export default function DesignSoftwareWorkspacePage() {
     const serverResolverRecords = previewResolverRecords && Object.keys(previewResolverRecords).length > 0
       ? previewResolverRecords
       : snapshotResolverRecords ?? {};
-    const displayedSnapshot = latestFailedSnapshot ?? simResult;
+    // The selected run always owns its presentation. Predictive output cannot
+    // inherit BVP or sizing values from an older accepted governed result.
+    const displayedSnapshot = presentation.displayedSnapshot;
     const bvp = displayedSnapshot?.bvp;
     const headlineResults: any = displayedSnapshot?.headlineEngineeringResults ?? null;
     const massBalanceSummary: any = displayedSnapshot?.massBalanceSummary ?? null;
     const ecr2RaffinateProductQuality: any = displayedSnapshot?.raffinateProductQuality ?? null;
-    const simulationBasis: any = displayedSnapshot?.designBasis ?? simResult?.designBasis ?? null;
+    const simulationBasis: any = displayedSnapshot?.designBasis ?? null;
     const simulationGeometry: any = displayedSnapshot?.geometry ?? null;
     const simulationPower: any = displayedSnapshot?.power ?? null;
     const simulationArea: any = displayedSnapshot?.interfacialArea ?? null;
@@ -4949,8 +4970,9 @@ export default function DesignSoftwareWorkspacePage() {
     const transferStatus = bvp?.transferStatus ?? displayedSnapshot?.transferStatus;
     const lleFlashAtOperatingTemperature: any = displayedSnapshot?.lleFlashAtOperatingTemperature ?? null;
     const showPreliminaryTransferPerformance = canDisplayECR2PreliminaryTransferPerformance(bvp, transferStatus);
-    const showingFailedSnapshot = !!latestFailedSnapshot;
-    const hasStaleAcceptedSnapshot = !!simResult && showingFailedSnapshot;
+    const showingFailedSnapshot = presentation.displaySource === "CURRENT_RUN"
+      && latestRun?.calculation_status === "error";
+    const hasStaleAcceptedSnapshot = !!presentation.acceptedGovernedSnapshot && showingFailedSnapshot;
     const fmt = (value: any, digits = 4) => typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "—";
     const inherited = [
       ["Operating temperature", d("process_design").extraction_temperature, "Stage 4 Process Design — Extraction Temperature"],
@@ -4972,8 +4994,8 @@ export default function DesignSoftwareWorkspacePage() {
     const hasAcceptedEcrRun = (resultsQ.data ?? []).some((r: any) =>
       r.section === "ecr" && r.data?.heightBreakdown?.activeAgitatedHeight?.result,
     );
-    const legacyMw = parseSnapshot(sim.molecularWeights) ?? {};
-    const legacyBvp = parseSnapshot(sim.bvp) ?? {};
+    const legacyMw = parseEcr2Snapshot(sim.molecularWeights) ?? {};
+    const legacyBvp = parseEcr2Snapshot(sim.bvp) ?? {};
     const numeric = (value: unknown) => {
       const n = Number(String(value ?? "").trim());
       return String(value ?? "").trim() !== "" && Number.isFinite(n) && n > 0;
@@ -5264,7 +5286,7 @@ export default function DesignSoftwareWorkspacePage() {
               <div>
                 <p className="font-semibold">RRBO/NMP pre-pilot hydrodynamic evidence review</p>
                 <p className="mt-1 text-[11px] text-violet-900">
-                  Read-only comparison of the K&amp;H benchmark with an isolated, sensitivity-only hydrodynamic route. It does not unlock BVP sizing, diameter, height, theoretical stages, flooding, feasibility, or release eligibility.
+                  The predictive mode can pass this reviewed hindrance closure into the same ECR-2 BVP and sizing core. It never unlocks flooding, governed acceptance, DS-SEL, or release eligibility.
                 </p>
               </div>
               {activeRevisionId && (
@@ -5279,8 +5301,14 @@ export default function DesignSoftwareWorkspacePage() {
               )}
             </div>
             <p className="mt-2 text-[10px] text-violet-800">
-              Scenario evaluation is a non-persistent engineering-review API; it requires explicit, provenance-bearing pilot or sensitivity inputs and remains preliminary until independently approved.
+              Enter explicit provenance-bearing pre-pilot values below. No default is supplied; a missing or non-physical closure remains NOT_CALCULABLE.
             </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <FieldRow label="Characteristic slip velocity uK" value={sim.prepilot_characteristic_slip_velocity_m_s ?? ""} onChange={v => f("prepilot_characteristic_slip_velocity_m_s", v)} onBlur={s} unit="m/s" placeholder="Required for predictive mode" />
+              <FieldRow label="Hindrance exponent n" value={sim.prepilot_hindrance_exponent ?? ""} onChange={v => f("prepilot_hindrance_exponent", v)} onBlur={s} unit="—" placeholder="Required for predictive mode" />
+              <FieldRow label="uK source reference" value={sim.prepilot_characteristic_slip_source_reference ?? ""} onChange={v => f("prepilot_characteristic_slip_source_reference", v)} onBlur={s} unit="" placeholder="Test report, reviewed analogy, or controlled basis" />
+              <FieldRow label="n source reference" value={sim.prepilot_hindrance_source_reference ?? ""} onChange={v => f("prepilot_hindrance_source_reference", v)} onBlur={s} unit="" placeholder="Test report, reviewed analogy, or controlled basis" />
+            </div>
           </div>
           {c2InputsAreStale && (
             <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-xs text-red-800 mb-4" data-testid="ecr2-c2-refresh-required">
@@ -5576,10 +5604,42 @@ export default function DesignSoftwareWorkspacePage() {
             <Button size="sm" variant="outline" className="gap-1.5" title="Refresh governed Stage 8 candidates from the current saved inputs without creating a simulation run." disabled={isFrozen || stage8ResolutionQ.isFetching || ecr2RunPreparing} onClick={resolveStage8Candidates}>
               <Calculator className="h-3.5 w-3.5" /> {stage8ResolutionQ.isFetching || ecr2RunPreparing ? "Resolving candidates…" : "Resolve Stage 8 candidates"}
             </Button>
-            <Button size="sm" className="gap-1.5" title="Resolve all mandatory Stage 8 dependencies to run the preliminary ECR-2 counter-current simulation." disabled={isFrozen || calculateMutation.isPending || ecr2RunPreparing || stage8Blocking} onClick={runEcr2Simulation}>
+            <Button size="sm" variant="outline" className="gap-1.5 border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100" title="Run an auditable pre-pilot prediction. Missing pilot validation blocks release, not the calculation, but indispensable numerical dependencies still fail closed." disabled={isFrozen || calculateMutation.isPending || ecr2RunPreparing} onClick={() => runEcr2Simulation("PRE_PILOT_PREDICTIVE")}>
+              <Play className="h-3.5 w-3.5" /> PRE-PILOT PREDICTIVE
+            </Button>
+            <Button size="sm" className="gap-1.5" title="Resolve all mandatory governed Stage 8 dependencies to run the release-path ECR-2 calculation." disabled={isFrozen || calculateMutation.isPending || ecr2RunPreparing || stage8Blocking} onClick={() => runEcr2Simulation("GOVERNED_RELEASE")}>
               <Play className="h-3.5 w-3.5" /> {ecr2RunPreparing ? "Saving simulator inputs…" : c2InputsAreStale ? "Save inputs & refresh C2" : "RUN ECR-2 SIMULATION"}
             </Button>
           </div>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3" data-testid="ecr2-execution-statuses">
+            <div className="rounded border border-slate-200 bg-white px-3 py-2">
+              <p className="text-[10px] uppercase text-slate-500">Calculation status</p>
+              <p className="text-xs font-semibold text-slate-900">{latestRunSnapshot?.calculationStatus ?? "NOT RUN"}</p>
+            </div>
+            <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2">
+              <p className="text-[10px] uppercase text-amber-700">Evidence status</p>
+              <p className="text-xs font-semibold text-amber-900">{latestRunSnapshot?.executionLabel ?? latestRunSnapshot?.evidenceStatus ?? "NOT ASSESSED"}</p>
+            </div>
+            <div className="rounded border border-red-200 bg-red-50 px-3 py-2">
+              <p className="text-[10px] uppercase text-red-700">Release status</p>
+              <p className="text-xs font-semibold text-red-900">{latestRunSnapshot?.releaseLabel ?? "RELEASE ELIGIBILITY: BLOCKED"}</p>
+            </div>
+          </div>
+          {presentation.isPredictive && (
+            <div
+              className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950"
+              data-testid="ecr2-predictive-result-banner"
+            >
+              <p className="font-semibold">Viewing pre-pilot predictive run output — not a governed result</p>
+              <p className="mt-1 text-[11px]">
+                The BVP and sizing values below come from Run #{latestRun?.id}. They are auditable predictive output,
+                not pilot validated, not release eligible, and cannot satisfy governed downstream consumers.
+              </p>
+              <p className="mt-1 text-[11px]">
+                Accepted governed snapshot retained separately: {presentation.acceptedGovernedSnapshot ? "YES — not displayed in this predictive view" : "NONE"}.
+              </p>
+            </div>
+          )}
           {runReceipt && (
             <div
               className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900"

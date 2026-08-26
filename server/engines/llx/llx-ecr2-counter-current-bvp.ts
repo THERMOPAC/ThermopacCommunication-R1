@@ -14,6 +14,11 @@ import {
   computeKH1995Holdup, isHoldupUsable,
   type KH1995HoldupResult, type KH1995MassTransferDirection, type KH1995SystemIdentity,
 } from './llx-ecr2-holdup';
+import {
+  findPrePilotHindranceRoots,
+  validatePrePilotHindranceModel,
+  type ECR2PrePilotHindranceModel,
+} from './llx-ecr2-prepilot-hydrodynamics';
 import { computeInterfacialArea, computeSlipVelocity, type InterfacialAreaResult } from './llx-ecr2-interfacial-area';
 import { computeDimensionlessNumbers, type ECR2DimensionlessResult } from './llx-ecr2-dimensionless';
 import { computeAllSchmidtNumbers } from './llx-ecr2-diffusivity';
@@ -88,6 +93,12 @@ export interface ECR2CounterCurrentBVPInput {
   holdupSystemIdentity: KH1995SystemIdentity;
   /** Explicit Table 2 CΨ direction contract for the primary K&H calculation. */
   holdupMassTransferDirection: KH1995MassTransferDirection;
+  /**
+   * Optional reviewed pre-pilot closure. When present, the same BVP core uses
+   * its lower physical root instead of asking the governed K&H 1995 route to
+   * claim RRBO/NMP pilot validation.
+   */
+  prePilotHydrodynamics?: ECR2PrePilotHindranceModel | null;
   /** Required K&H 1995 stator open-area fraction x_f. */
   statorOpenAreaFraction: number;
   /** Isothermal operating temperature. */
@@ -145,7 +156,7 @@ export interface ECR2BVPCompartment {
   localNRTL: ECR2LocalNRTLResult;
   localProperties: ECR2LocalPropertySnapshot;
   d32: D32Result;
-  holdup: KH1995HoldupResult;
+  holdup: ECR2BVPHoldupResult;
   interfacialArea: InterfacialAreaResult;
   U_slip_m_s: number;
   dimensionless: ECR2DimensionlessResult;
@@ -154,6 +165,27 @@ export interface ECR2BVPCompartment {
   transferRate_kg_m3_s: ECR2Vector;
   transferAmount_kg_h: ECR2Vector;
   localWarnings: readonly string[];
+}
+
+export interface ECR2PrePilotCalculatedHoldup {
+  status: 'calculated_pre_pilot';
+  phi: number;
+  phi_raw: number;
+  sourceModel: ECR2PrePilotHindranceModel['modelId'];
+  sourceModelVersion: ECR2PrePilotHindranceModel['modelVersion'];
+  pilotValidated: false;
+  characteristicSlipVelocity_m_s: number;
+  hindranceExponent: number;
+  roots: ReturnType<typeof findPrePilotHindranceRoots>;
+  diagnostics: string[];
+}
+
+export type ECR2BVPHoldupResult = KH1995HoldupResult | ECR2PrePilotCalculatedHoldup;
+
+function isBvpHoldupUsable(
+  result: ECR2BVPHoldupResult,
+): result is Extract<ECR2BVPHoldupResult, { status: 'calculated' | 'calculated_pre_pilot' }> {
+  return result.status === 'calculated_pre_pilot' || isHoldupUsable(result);
 }
 
 export interface ECR2BVPResidualRecord {
@@ -552,30 +584,82 @@ function localCompartment(
   const height = input.activeHeight_m / input.numberOfCompartments;
   const uD = dTotal / (properties.snapshot.rho_d_kg_m3 * input.columnCrossSectionArea_m2 * 3600);
   const uC = cTotal / (properties.snapshot.rho_c_kg_m3 * input.columnCrossSectionArea_m2 * 3600);
-  const holdup = computeKH1995Holdup({
-    Ud_m_s: uD,
-    Uc_m_s: uC,
-    rho_c_kg_m3: properties.snapshot.rho_c_kg_m3,
-    rho_d_kg_m3: properties.snapshot.rho_d_kg_m3,
-    mu_c_Pa_s: properties.snapshot.mu_c_Pa_s,
-    mu_d_Pa_s: properties.snapshot.mu_d_Pa_s,
-    gamma_N_m: properties.snapshot.sigma_N_m,
-    xf: input.statorOpenAreaFraction,
-    powerPerAgitator_W: input.powerPerAgitator_W,
-    columnCrossSectionArea_m2: input.columnCrossSectionArea_m2,
-    compartmentHeight_m: input.physicalCompartmentHeight_m,
-    columnDiameter_m: input.columnDiameter_m,
-    rotorDiameter_m: input.rotorDiameter_m,
-    massTransferDirection: input.holdupMassTransferDirection,
-    systemIdentity: input.holdupSystemIdentity,
-  });
-  if (!isHoldupUsable(holdup)) {
+  const prePilotValidation = validatePrePilotHindranceModel(input.prePilotHydrodynamics);
+  if (input.prePilotHydrodynamics != null && !prePilotValidation.valid) {
+    return {
+      compartment: null,
+      failure: invalid(
+        'holdup',
+        `Pre-pilot hindrance package is invalid: ${prePilotValidation.errors.join('; ')}.`,
+        index,
+        null,
+        prePilotValidation.errors,
+      ),
+    };
+  }
+  const prePilotModel = prePilotValidation.model;
+  const prePilotRoots = prePilotModel
+    ? findPrePilotHindranceRoots(
+        uD,
+        uC,
+        prePilotModel.characteristicSlipVelocity_m_s,
+        prePilotModel.hindranceExponent,
+      )
+    : [];
+  const prePilotRoot = prePilotRoots[0] ?? null;
+  const holdup: ECR2BVPHoldupResult = prePilotRoot && prePilotModel
+    ? {
+        status: 'calculated_pre_pilot',
+        phi: prePilotRoot.phi_d,
+        phi_raw: prePilotRoot.phi_d,
+        sourceModel: prePilotModel.modelId,
+        sourceModelVersion: prePilotModel.modelVersion,
+        pilotValidated: false,
+        characteristicSlipVelocity_m_s: prePilotModel.characteristicSlipVelocity_m_s,
+        hindranceExponent: prePilotModel.hindranceExponent,
+        roots: prePilotRoots,
+        diagnostics: [
+          'Pre-pilot hindrance closure used by the shared BVP core.',
+          'Lower physical root selected; multiple roots remain explicit in the snapshot.',
+          `uK source: ${prePilotModel.characteristicSlipEvidence.sourceReference}`,
+          `n source: ${prePilotModel.hindranceEvidence.sourceReference}`,
+        ],
+      }
+    : computeKH1995Holdup({
+        Ud_m_s: uD,
+        Uc_m_s: uC,
+        rho_c_kg_m3: properties.snapshot.rho_c_kg_m3,
+        rho_d_kg_m3: properties.snapshot.rho_d_kg_m3,
+        mu_c_Pa_s: properties.snapshot.mu_c_Pa_s,
+        mu_d_Pa_s: properties.snapshot.mu_d_Pa_s,
+        gamma_N_m: properties.snapshot.sigma_N_m,
+        xf: input.statorOpenAreaFraction,
+        powerPerAgitator_W: input.powerPerAgitator_W,
+        columnCrossSectionArea_m2: input.columnCrossSectionArea_m2,
+        compartmentHeight_m: input.physicalCompartmentHeight_m,
+        columnDiameter_m: input.columnDiameter_m,
+        rotorDiameter_m: input.rotorDiameter_m,
+        massTransferDirection: input.holdupMassTransferDirection,
+        systemIdentity: input.holdupSystemIdentity,
+      });
+  if (!isBvpHoldupUsable(holdup)) {
     const provenance = 'missing' in holdup
       ? holdup.missing
       : holdup.status === 'dependency_blocked'
         ? [...holdup.blockedBy]
         : [];
-    return { compartment: null, failure: invalid('holdup', `K&H 1995 holdup is dependency-blocked: ${holdup.status}.`, index, null, provenance) };
+    return {
+      compartment: null,
+      failure: invalid(
+        'holdup',
+        input.prePilotHydrodynamics
+          ? `Pre-pilot hindrance closure is not calculable: ${prePilotValidation.errors.join('; ') || 'no physical holdup root'}.`
+          : `K&H 1995 holdup is dependency-blocked: ${holdup.status}.`,
+        index,
+        null,
+        provenance,
+      ),
+    };
   }
 
   const d32 = computeDropletDiameter({
@@ -613,8 +697,8 @@ function localCompartment(
   const base = evaluateKH1999PreliminaryLocalMassTransfer({
     continuous_bulk: yThermo,
     dispersed_bulk: xThermo,
-    continuous_equilibrium: nrtl.y_eq as FiveComponentVector,
-    dispersed_equilibrium: nrtl.x_eq as FiveComponentVector,
+    continuous_equilibrium: nrtl.y_eq as unknown as FiveComponentVector,
+    dispersed_equilibrium: nrtl.x_eq as unknown as FiveComponentVector,
     rho_c_bulk_kg_m3: properties.snapshot.rho_c_kg_m3,
     rho_d_bulk_kg_m3: properties.snapshot.rho_d_kg_m3,
     rho_c_equilibrium_kg_m3: properties.snapshot.rho_c_kg_m3,
@@ -1248,7 +1332,7 @@ export function solveECR2CounterCurrentBVP(input: ECR2CounterCurrentBVPInput): E
         stateChange: Number.POSITIVE_INFINITY, termination: 'infeasible' as const,
       };
     }
-    let damping = PROPOSED_SOLVER_TOLERANCE.initialDamping;
+    let damping: number = PROPOSED_SOLVER_TOLERANCE.initialDamping;
     let trust = PROPOSED_SOLVER_TOLERANCE.initialTrustRegionRelative * Math.max(1, norm2(state));
     // The zero-transfer profile is an exact λ=0 solution. Its implicit state
     // change is zero, not "unknown", so the residual/state acceptance checks

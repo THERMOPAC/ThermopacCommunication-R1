@@ -1,5 +1,8 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // ECR-2 K&H 1995 Kühni dispersed-phase holdup correlation
+
+export const KH1995_HOLDUP_MODEL_ID = 'kuhni_1995_primary_holdup';
+export const KH1995_HOLDUP_MODEL_VERSION = 'equations_15_to_19';
 //
 // Primary source: Kumar, A. & Hartland, S. (1995), Ind. Eng. Chem. Res. 34,
 // 3925–3940, Eq. 15–19 and Table 2.

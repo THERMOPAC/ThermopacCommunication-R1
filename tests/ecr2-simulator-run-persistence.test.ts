@@ -18,7 +18,11 @@ const { query, engine, engineRegistry } = vi.hoisted(() => {
 vi.mock('../server/db', () => ({ pool: { query } }));
 vi.mock('../server/engine-framework/registry', () => ({ engineRegistry }));
 
-import { previewEcr2Stage8Resolution, runCalculation } from '../server/design-software-service';
+import {
+  previewEcr2Stage8Resolution,
+  runCalculation,
+  runPrePilotPredictiveEcr2Calculation,
+} from '../server/design-software-service';
 
 const flatSimulatorInput = {
   operating_temperature: '70',
@@ -143,6 +147,49 @@ describe('ECR-2 simulator service run boundary', () => {
     expect(result.run.calculation_type).toBe('ecr_simulator');
     expect(engine.calculate).not.toHaveBeenCalled();
     expect(query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO design_software_calculation_runs'))).toBe(true);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO design_software_results'))).toBe(false);
+  });
+
+  it('persists a successful predictive run without replacing the accepted governed result', async () => {
+    configureDatabase({
+      executionMode: 'PRE_PILOT_PREDICTIVE',
+      calculationStatus: 'CALCULATED',
+      evidenceStatus: 'PRE_PILOT_PREDICTIVE_NOT_PILOT_VALIDATED',
+      releaseStatus: 'BLOCKED',
+    });
+    engine.validate.mockReturnValue({ errors: [] });
+    engine.calculate.mockImplementation(async (inputs: Record<string, unknown>, context: Record<string, unknown>) => ({
+      status: 'success',
+      data: {
+        executionMode: inputs.__ecr2_execution_mode,
+        calculationStatus: 'CALCULATED',
+        evidenceStatus: 'PRE_PILOT_PREDICTIVE_NOT_PILOT_VALIDATED',
+        releaseStatus: 'BLOCKED',
+      },
+      warnings: [],
+      validationIssues: [],
+      calculationClass: context.calculationClass,
+      engineId: 'llx-ecr-simulator',
+      engineVersion: '2.1.0',
+      computedAt: new Date(),
+    }));
+
+    const result = await runPrePilotPredictiveEcr2Calculation(7, 3);
+    const engineInput = engine.validate.mock.calls[0][0];
+    const runInsert = query.mock.calls.find(([sql]) =>
+      String(sql).includes('INSERT INTO design_software_calculation_runs'),
+    );
+
+    expect(engineInput.__ecr2_execution_mode).toBe('PRE_PILOT_PREDICTIVE');
+    expect(engine.calculate.mock.calls[0][1]).toMatchObject({
+      calculationClass: 'Pre-Pilot Predictive',
+    });
+    expect(result.result.data).toMatchObject({
+      calculationStatus: 'CALCULATED',
+      evidenceStatus: 'PRE_PILOT_PREDICTIVE_NOT_PILOT_VALIDATED',
+      releaseStatus: 'BLOCKED',
+    });
+    expect(runInsert?.[1]?.[4]).toBe('Pre-Pilot Predictive');
     expect(query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO design_software_results'))).toBe(false);
   });
 
