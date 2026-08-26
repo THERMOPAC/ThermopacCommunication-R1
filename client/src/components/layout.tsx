@@ -501,7 +501,7 @@ function Layout({ children }: LayoutProps) {
       isOpen: isDesignSoftwareMenuOpen,
       toggle: () => setIsDesignSoftwareMenuOpen(!isDesignSoftwareMenuOpen),
       children: [
-        { icon: Cpu, label: "Liquid-Liquid Extraction", href: "/design-software/liquid-liquid-extraction" },
+        { icon: Cpu, label: "ECR Pre-Pilot Design", href: "/design-software/liquid-liquid-extraction" },
         {
           icon: BookOpen,
           label: "CPS Sizing Tool",

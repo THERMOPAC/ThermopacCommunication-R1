@@ -2236,7 +2236,7 @@ export default function DesignSoftwareWorkspacePage() {
         <SectionCard title="Engineering Document">
           {info("Design Number", design?.design_number)}
           {info("Design Title", design?.title)}
-          {info("Module", "Liquid-Liquid Extraction")}
+          {info("Module", "ECR Pre-Pilot Design")}
           {info("Design Type", design?.design_type === "rnd" ? "R&D / Independent Design" : "Project Design")}
           {info("Revision", activeRevision ? `Rev ${activeRevision.revision_number}` : "—")}
           {info("Status", STATUS_LABELS[currentStatus] ?? currentStatus)}
@@ -7885,7 +7885,7 @@ export default function DesignSoftwareWorkspacePage() {
               <ChevronRight className="h-3.5 w-3.5 text-gray-300" />
               <h1 className="font-semibold text-gray-900 truncate">{design.title}</h1>
             </div>
-            <p className="text-xs text-gray-400 mt-0.5">Liquid-Liquid Extraction · Rev {activeRevision?.revision_number ?? "—"}</p>
+            <p className="text-xs text-gray-400 mt-0.5">ECR Pre-Pilot Design · Rev {activeRevision?.revision_number ?? "—"}</p>
           </div>
 
           {/* Revision selector */}
