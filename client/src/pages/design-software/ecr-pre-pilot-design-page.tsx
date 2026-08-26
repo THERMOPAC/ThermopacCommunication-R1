@@ -84,6 +84,25 @@ const PHASE_OPTIONS = [
   { value: "rrbo-continuous-nmp-dispersed", label: "RRBO continuous / NMP dispersed" },
 ];
 
+const NMP_STANDARD_PURPOSE = {
+  purityWt: "99.5",
+  waterWt: "0.05",
+};
+
+const NMP_DENSITY_POINTS = [
+  { temperatureC: 25, valueKgM3: 1028 },
+  { temperatureC: 30, valueKgM3: 1023 },
+  { temperatureC: 40, valueKgM3: 1015 },
+  { temperatureC: 50, valueKgM3: 1006 },
+  { temperatureC: 60, valueKgM3: 997 },
+  { temperatureC: 70, valueKgM3: 988 },
+];
+
+const NMP_DYNAMIC_VISCOSITY_POINTS = [
+  { temperatureC: 25, valueCp: 1.666 },
+  { temperatureC: 80, valueCp: 0.75 },
+];
+
 const RRBO_GRADE_PROPERTIES: Record<string, {
   densityKgM3: string;
   dynamicViscosityCp: string;
@@ -152,6 +171,62 @@ function parseNumber(value: string): number | null {
   if (value.trim() === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function interpolateProperty(
+  temperatureC: number,
+  points: Array<{ temperatureC: number; value: number }>,
+): number | null {
+  if (temperatureC < points[0].temperatureC || temperatureC > points[points.length - 1].temperatureC) {
+    return null;
+  }
+
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+    if (temperatureC <= current.temperatureC) {
+      const fraction = (temperatureC - previous.temperatureC) / (current.temperatureC - previous.temperatureC);
+      return previous.value + fraction * (current.value - previous.value);
+    }
+  }
+
+  return points[points.length - 1].value;
+}
+
+function getStandardNmpProperties(operatingTemperature: string) {
+  const temperatureC = parseNumber(operatingTemperature);
+  if (temperatureC === null) {
+    return {
+      purityWt: "",
+      waterWt: "",
+      temperatureC: "",
+      densityKgM3: "",
+      dynamicViscosityCp: "",
+    };
+  }
+
+  const densityKgM3 = interpolateProperty(
+    temperatureC,
+    NMP_DENSITY_POINTS.map(({ temperatureC: pointTemperature, valueKgM3 }) => ({
+      temperatureC: pointTemperature,
+      value: valueKgM3,
+    })),
+  );
+  const dynamicViscosityCp = interpolateProperty(
+    temperatureC,
+    NMP_DYNAMIC_VISCOSITY_POINTS.map(({ temperatureC: pointTemperature, valueCp }) => ({
+      temperatureC: pointTemperature,
+      value: valueCp,
+    })),
+  );
+
+  return {
+    purityWt: NMP_STANDARD_PURPOSE.purityWt,
+    waterWt: NMP_STANDARD_PURPOSE.waterWt,
+    temperatureC: operatingTemperature,
+    densityKgM3: densityKgM3 === null ? "" : densityKgM3.toFixed(1),
+    dynamicViscosityCp: dynamicViscosityCp === null ? "" : dynamicViscosityCp.toFixed(3),
+  };
 }
 
 function SectionHeading({
@@ -298,6 +373,20 @@ export default function EcrPrePilotDesignPage() {
     setSaveState("unsaved");
   };
 
+  const handleOperatingTemperatureChange = (operatingTemperature: string) => {
+    const nmpProperties = getStandardNmpProperties(operatingTemperature);
+    setForm((current) => ({
+      ...current,
+      operatingTemperatureC: operatingTemperature,
+      nmpPurityWt: nmpProperties.purityWt,
+      nmpWaterWt: nmpProperties.waterWt,
+      nmpTemperatureC: nmpProperties.temperatureC,
+      nmpDensityKgM3: nmpProperties.densityKgM3,
+      nmpDynamicViscosityCp: nmpProperties.dynamicViscosityCp,
+    }));
+    setSaveState("unsaved");
+  };
+
   const compositionStatus = useMemo(() => {
     const values = COMPOSITION_FIELDS.map(({ key }) => parseNumber(form[key]));
     const populatedCount = values.filter((value): value is number => value !== null).length;
@@ -439,7 +528,7 @@ export default function EcrPrePilotDesignPage() {
                 id="operating-temperature"
                 label="Operating temperature"
                 value={form.operatingTemperatureC}
-                onChange={(value) => setField("operatingTemperatureC", value)}
+                onChange={handleOperatingTemperatureChange}
                 placeholder="Select operating temperature"
                 options={TEMPERATURE_OPTIONS}
                 unit="°C"
@@ -580,7 +669,7 @@ export default function EcrPrePilotDesignPage() {
             <SectionHeading
               number="4"
               title="NMP Solvent"
-              description="Capture the NMP solvent specification and the solvent temperature for this case."
+              description="Select the operating temperature above to populate the standard NMP solvent properties; all values remain editable."
               tone="cyan"
             />
             <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2 xl:grid-cols-3">
@@ -621,6 +710,10 @@ export default function EcrPrePilotDesignPage() {
                 onChange={(value) => setField("nmpDynamicViscosityCp", value)}
                 unit="mPa·s (cP)"
               />
+              <p className="text-[11px] leading-4 text-slate-400 md:col-span-3">
+                Auto-populated basis: NMP purity 99.5 wt% and water 0.05 wt%; density is available from 25–70 °C and dynamic viscosity from 25–80 °C.
+                Values outside those ranges remain blank for manual project data.
+              </p>
             </CardContent>
           </Card>
 
