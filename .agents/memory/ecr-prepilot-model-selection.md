@@ -4,7 +4,7 @@ description: Select the LLE model by demonstrated reproduction of relevant evide
 ---
 
 ## Rule
-For the ECR Pre-Pilot simulator, NRTL is a candidate model, not a mandatory model. The governing model must be selected from the candidate methods that reproduce the relevant LLE evidence reliably over the intended temperature, composition, and component domain.
+Do not currently develop NRTL as the governing thermodynamic model for the ECR Pre-Pilot simulator. NRTL remains an evaluated candidate, but the next governing-model work must compare or develop alternatives and select the method that reproduces relevant LLE evidence reliably over the intended temperature, composition, and component domain.
 
 **Why:** the existing NRTL regression exposed a representability and validation gap before the simulator was built around it; hard-coding NRTL would convert a useful finding into a weak foundation.
 
