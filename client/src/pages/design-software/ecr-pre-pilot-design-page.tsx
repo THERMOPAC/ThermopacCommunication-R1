@@ -254,10 +254,14 @@ export default function EcrPrePilotDesignPage() {
   const { toast } = useToast();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saveState, setSaveState] = useState<"unsaved" | "saved" | "draft">("unsaved");
+  const [projectNumberError, setProjectNumberError] = useState(false);
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
     setSaveState("unsaved");
+    if (key === "projectReference" && typeof value === "string" && value.trim() !== "") {
+      setProjectNumberError(false);
+    }
   };
 
   const compositionStatus = useMemo(() => {
@@ -271,6 +275,16 @@ export default function EcrPrePilotDesignPage() {
   }, [form]);
 
   const handleSave = () => {
+    if (form.projectReference.trim() === "") {
+      setProjectNumberError(true);
+      toast({
+        title: "Project number required",
+        description: "Enter a project number before saving the input data.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const isCompleteComposition = compositionStatus.valid;
     setSaveState(isCompleteComposition ? "saved" : "draft");
     toast({
@@ -282,6 +296,16 @@ export default function EcrPrePilotDesignPage() {
   };
 
   const handleContinue = () => {
+    if (form.projectReference.trim() === "") {
+      setProjectNumberError(true);
+      toast({
+        title: "Project number required",
+        description: "Enter a project number before continuing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!compositionStatus.valid) {
       toast({
         title: "Composition needs attention",
@@ -340,16 +364,21 @@ export default function EcrPrePilotDesignPage() {
             />
             <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2">
               <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="project-reference" className="text-[13px] font-medium text-slate-700">
-                  Project name / reference
+                <Label htmlFor="project-reference" className={`text-[13px] font-medium ${projectNumberError ? "text-red-700" : "text-slate-700"}`}>
+                  Project Number <span className="text-red-600">*</span>
                 </Label>
                 <Input
                   id="project-reference"
+                  required
                   value={form.projectReference}
                   onChange={(event) => setField("projectReference", event.target.value)}
-                  placeholder="Enter project name or reference"
-                  className="h-8 bg-white text-sm"
+                  onBlur={() => setProjectNumberError(form.projectReference.trim() === "")}
+                  placeholder="Enter project number"
+                  aria-invalid={projectNumberError}
+                  aria-required="true"
+                  className={`h-8 bg-white text-sm ${projectNumberError ? "border-red-400 focus-visible:ring-red-400" : ""}`}
                 />
+                {projectNumberError && <p className="text-[11px] font-medium text-red-600">Project number is required.</p>}
               </div>
               <SelectField
                 id="rrbo-grade"
