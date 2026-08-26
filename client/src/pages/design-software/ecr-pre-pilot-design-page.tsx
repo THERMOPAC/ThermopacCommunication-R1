@@ -39,13 +39,15 @@ type FormState = {
   designBasisNotes: string;
 };
 
+const DEFAULT_PHASE_CONFIGURATION = "nmp-continuous-rrbo-dispersed";
+
 const EMPTY_FORM: FormState = {
   projectReference: "",
   rrboGrade: "",
   designFeedRateLph: "",
   operatingTemperatureC: "",
   operatingPressure: "",
-  phaseConfiguration: "",
+  phaseConfiguration: DEFAULT_PHASE_CONFIGURATION,
   saturatesWt: "",
   monoAromaticsWt: "",
   diAromaticsWt: "",
