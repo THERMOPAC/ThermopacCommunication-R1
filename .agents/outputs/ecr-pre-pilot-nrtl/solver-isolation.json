@@ -1,0 +1,227 @@
+{
+  "stage": "#168-stage-2",
+  "frozenParameterHash": "ecaf60082eefec144c106f6697cd6650aab69b3b8fa07fb1d62bad5ac9da1d34",
+  "parameterMappingHash": "9cf48a895d8b9b3999bb08239d9e4153ffab74770b53feb488a7b4c3353cd0c9",
+  "fitCalled": false,
+  "fitProof": "main loads frozen-parameters.json and contains no fit(train) invocation",
+  "executionEvidence": {
+    "sequence": [
+      "FROZEN_ARTIFACT_VALIDATED",
+      "SYNTHETIC_QUALIFICATION_COMPLETE",
+      "PRE_HOLDOUT_DATA_QUALIFICATION_EVALUATED",
+      "PRE_HOLDOUT_ISOLATION_PASS",
+      "HOLDOUT_EVALUATED",
+      "TRAIN_RESEARCH_EVALUATED"
+    ],
+    "syntheticFlashCalls": 1,
+    "qualificationFlashCalls": 3,
+    "holdoutFlashCalls": 15,
+    "trainFlashCalls": 221,
+    "holdoutEvaluationStartedAfterIsolationPass": true,
+    "qualificationRowIds": [
+      "coto-1",
+      "analogue-2",
+      "analogue-205"
+    ],
+    "holdoutRowIds": [
+      "coto-2",
+      "coto-9",
+      "coto-13",
+      "coto-14",
+      "coto-15",
+      "coto-16",
+      "coto-17",
+      "analogue-212",
+      "analogue-213",
+      "analogue-214",
+      "analogue-215",
+      "analogue-216",
+      "analogue-217",
+      "analogue-218",
+      "analogue-219"
+    ],
+    "dataTouchedBeforePass": [
+      "coto-1",
+      "analogue-2",
+      "analogue-205"
+    ]
+  },
+  "basins": {
+    "lattice_points": 11045,
+    "competitive_points_refined": 1404,
+    "distinct_refined_basins": 452,
+    "gibbs_start_count": 3096
+  },
+  "clampLog": {
+    "primary": {
+      "calls": 25353600,
+      "activations": 0,
+      "maximum_absolute_raw_exponent": 1.9528771438068064
+    },
+    "standaloneFinalGate": {
+      "calls": 1689325,
+      "activations": 0,
+      "maximum_absolute_raw_exponent": 1.9528771438068064
+    },
+    "standaloneAudit": {
+      "calls": 20100,
+      "activations": 0,
+      "maximum_absolute_raw_exponent": 1.9528771438068064
+    }
+  },
+  "auditStatus": "PASS",
+  "syntheticRecovery": {
+    "knownParameterVector": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      5.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      5.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "truthConstruction": "raw-spec standalone conserved-Gibbs search/refinement; no production evaluator and no fitted-data row",
+    "truth": {
+      "RRBO_rich": [
+        0.9975412075705055,
+        0.0,
+        0.0,
+        0.0,
+        0.002458792429494586
+      ],
+      "NMP_rich": [
+        0.0024587724386168916,
+        0.0,
+        0.0,
+        0.0,
+        0.9975412275613831
+      ],
+      "beta_NMP_rich": 0.49999998995516504,
+      "objective": -0.0023271167663036028
+    },
+    "recovered": {
+      "phaseBehavior": "PREDICTED_TWO_PHASE",
+      "RRBO_rich": [
+        0.9975412175650298,
+        0.0,
+        0.0,
+        0.0,
+        0.0024587824349702556
+      ],
+      "NMP_rich": [
+        0.002458782434970219,
+        0.0,
+        0.0,
+        0.0,
+        0.9975412175650298
+      ],
+      "beta_NMP_rich": 0.5,
+      "materiallyDifferentStarts": 13
+    },
+    "tolerances": {
+      "composition": 0.0002,
+      "beta": 0.0002
+    },
+    "pass": true
+  },
+  "preHoldoutIsolationStatus": "PASS",
+  "preHoldoutAuditStatus": "PASS",
+  "qualificationRowIds": [
+    "coto-1",
+    "analogue-2",
+    "analogue-205"
+  ],
+  "holdoutRowIds": [
+    "coto-2",
+    "coto-9",
+    "coto-13",
+    "coto-14",
+    "coto-15",
+    "coto-16",
+    "coto-17",
+    "analogue-212",
+    "analogue-213",
+    "analogue-214",
+    "analogue-215",
+    "analogue-216",
+    "analogue-217",
+    "analogue-218",
+    "analogue-219"
+  ],
+  "independentFinalPhaseChecksPass": true,
+  "noAmbiguousRequiredAuditCase": true,
+  "fullBasinAccounting": true,
+  "overallStatus": "PASS",
+  "solverIsolationAuditStatus": "PASS",
+  "holdoutComparison": {
+    "status": "RUN",
+    "baseline": {
+      "topologyRecall": 0.9333333333333333,
+      "meanTieLineRMSD": 0.11417738749864874,
+      "maxError": 0.5857221110557862
+    },
+    "after": {
+      "rows": 15,
+      "categories": {
+        "PREDICTED_TWO_PHASE": 9,
+        "PREDICTED_STABLE_SINGLE_PHASE": 0,
+        "NONCONVERGED_OR_BOUNDARY": 6,
+        "AMBIGUOUS_UNRESOLVED": 0
+      },
+      "two_phase_recall": 0.6,
+      "composition_rmsd_mean": 0.12893357920616758,
+      "max_absolute_error": 0.5857210888227891
+    },
+    "cotoBaseline": {
+      "coto-2": {
+        "rmsd": 0.2228632662244973,
+        "maxError": 0.5857221110557862
+      },
+      "coto-9": {
+        "rmsd": 0.2310210139387888,
+        "maxError": 0.5721133140162791
+      },
+      "coto-14": {
+        "rmsd": 0.1512931709889027,
+        "maxError": 0.3436394949445686
+      }
+    },
+    "cotoAfter": {
+      "coto-2": {
+        "rmsd": 0.2228632662244973,
+        "maxError": 0.5857210888227891,
+        "phaseBehavior": "PREDICTED_TWO_PHASE"
+      },
+      "coto-9": {
+        "rmsd": 0.2310210139387888,
+        "maxError": 0.5721133140162791,
+        "phaseBehavior": "PREDICTED_TWO_PHASE"
+      },
+      "coto-14": {
+        "rmsd": null,
+        "maxError": null,
+        "phaseBehavior": "NONCONVERGED_OR_BOUNDARY"
+      }
+    }
+  },
+  "qualification": "Finite lattice/refinement and multistart evidence improve selection confidence; they are not a formal global-optimum proof."
+}

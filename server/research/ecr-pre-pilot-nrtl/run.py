@@ -14,7 +14,13 @@ from scipy.optimize import least_squares, minimize
 OUT=ROOT/".agents/outputs/ecr-pre-pilot-nrtl"
 SRC_COTO=ROOT/"server/engine-framework/cel/coto2022-nmp-lle.ts"
 SRC_MT=ROOT/"server/engine-framework/cel/data/multi-t-nmp-lle.json"
+FROZEN=Path(__file__).with_name("frozen-parameters.json")
 FAM=["SAT","MONO","DI","POLY","NMP"]; CORE={0,1,4}; EPS=1e-14
+CLUSTER_TOL={"phase_composition":1e-5,"beta":1e-6,"scaled_gibbs_ambiguity":1e-8,
+  "post_split_tpd":1e-8}
+EXPECTED_FROZEN_HASH="ecaf60082eefec144c106f6697cd6650aab69b3b8fa07fb1d62bad5ac9da1d34"
+CLAMP_LOG={"calls":0,"activations":0,"maximum_absolute_raw_exponent":0.0}
+STANDALONE_CLAMP_LOG={"calls":0,"activations":0,"maximum_absolute_raw_exponent":0.0}
 
 # Six core directed interactions have a+b/T. Fourteen interactions touching DI
 # or POLY have one isothermal tau and exactly no b: 12+14=26 fitted values.
@@ -37,6 +43,24 @@ DECLARATION={
  "fit_residual":"ln(x_i gamma_i)^R-ln(x_i gamma_i)^E for raw-active components positive in both phases"}
 
 def sha(p): return hashlib.sha256(p.read_bytes()).hexdigest()
+def mapping_digest():
+    return hashlib.sha256(json.dumps(PARAM_MAP,sort_keys=True,separators=(",",":")).encode()).hexdigest()
+def load_frozen_parameters():
+    """Fail closed before a flash if the checked-in model identity changes."""
+    raw=json.loads(FROZEN.read_text()); p=np.asarray(raw.get("parameters"),dtype=np.float64)
+    if len(p)!=NPAR or not np.all(np.isfinite(p)): raise ValueError("invalid frozen parameter vector")
+    h=hashlib.sha256(p.tobytes()).hexdigest()
+    if h!=EXPECTED_FROZEN_HASH or raw.get("parameters_sha256")!=EXPECTED_FROZEN_HASH:
+        raise ValueError("frozen parameter hash mismatch")
+    if raw.get("parameter_mapping_sha256")!=mapping_digest(): raise ValueError("frozen parameter mapping mismatch")
+    return p,{"path":str(FROZEN.relative_to(ROOT)),"parameters_sha256":h,
+      "parameter_mapping_sha256":mapping_digest(),"validated_before_flash":True}
+def nrtl_exp(raw):
+    raw=np.asarray(raw,float); CLAMP_LOG["calls"]+=int(raw.size)
+    mx=float(np.max(np.abs(raw))) if raw.size else 0.
+    CLAMP_LOG["maximum_absolute_raw_exponent"]=max(CLAMP_LOG["maximum_absolute_raw_exponent"],mx)
+    hits=int(np.count_nonzero((raw < -50) | (raw > 50))); CLAMP_LOG["activations"]+=hits
+    return np.exp(np.clip(raw,-50,50))
 def active_normalize(v,active):
     a=np.zeros(5,float); a[active]=np.maximum(np.asarray(v,float)[active],EPS)
     if np.any(a[active]<0) or a[active].sum()<=0: raise ValueError("invalid composition")
@@ -50,7 +74,7 @@ def tau_matrix(T,p):
     return tau
 def lngamma(v,T,p,active):
     """Standard NRTL equation; structural zeros remain exactly zero."""
-    x=active_normalize(v,active); tau=tau_matrix(T,p); G=np.exp(np.clip(-.30*tau,-50,50))
+    x=active_normalize(v,active); tau=tau_matrix(T,p); G=nrtl_exp(-.30*tau)
     den=x@G
     ans=np.zeros(5)
     for i in active:
@@ -173,18 +197,99 @@ def tpd_search(z,T,p,active):
         return float(np.sum(w[active]*(np.log(w[active])+lngamma(w,T,p,active)[active]-muz)))
     den=8 if len(active)==3 else 4
     lattice=simplex_lattice(active,den)
-    vals=[fun(w[active]) for w in lattice]; order=np.argsort(vals)
+    vals=np.asarray([fun(w[active]) for w in lattice]); order=np.argsort(vals)
+    # Search the complete lattice.  Every negative point, and every point
+    # competitive with the lattice best on the declared scaled tolerance, is
+    # refined; refined stationary points are then composition-clustered.
+    competitive=max(float(vals[order[0]])+1e-4,0.0)
+    basin_ix=[int(ix) for ix in order if vals[ix] <= competitive]
     candidates=[]
-    for ix in order[:min(8,len(order))]:
+    for ix in basin_ix:
         w0=np.maximum(lattice[ix][active],1e-10);w0/=w0.sum()
         s=minimize(fun,w0,method="SLSQP",bounds=[(1e-12,1)]*len(active),
           constraints={"type":"eq","fun":lambda w:np.sum(w)-1},options={"maxiter":500,"ftol":1e-12})
-        if s.success:candidates.append((float(s.fun),s.x))
-    if candidates: val,wa=min(candidates,key=lambda q:q[0])
+        if s.success:candidates.append((float(s.fun),s.x,ix))
+    distinct=[]
+    for candidate in sorted(candidates,key=lambda q:q[0]):
+        if not any(np.max(np.abs(candidate[1]-old[1]))<1e-6 for old in distinct): distinct.append(candidate)
+    if distinct: val,wa,_=min(distinct,key=lambda q:q[0])
     else: val,wa=vals[order[0]],lattice[order[0]][active]
     w=np.zeros(5);w[active]=wa
     return val,w,{"denominator":den,"point_count":len(lattice),"expected_point_count":45 if len(active)==3 else 70,
-      "all_points_evaluated":len(vals),"refinement_successes":len(candidates)}
+       "all_points_evaluated":len(vals),"competitive_threshold":competitive,
+       "competitive_lattice_points":len(basin_ix),"refinement_attempts":len(basin_ix),
+       "refinement_successes":len(candidates),"distinct_refined_basins":len(distinct),
+       "refinedBasins":[{"tpd":q[0],"composition":np.eye(5)[active].T@q[1] if False else
+          np.array([q[1][active.index(i)] if i in active else 0. for i in range(5)]).tolist(),
+          "latticeIndex":q[2]} for q in distinct]}
+
+def standalone_state(v,T,p,active,mapping=PARAM_MAP,alpha=.30):
+    """Raw-spec evaluator: deliberately calls none of the production helpers."""
+    ids=list(active); raw=np.asarray(v,float); x=np.zeros(5);x[ids]=np.maximum(raw[ids],1e-14)
+    if not np.all(np.isfinite(x[ids])) or x[ids].sum()<=0: raise ValueError("standalone composition")
+    x[ids]/=x[ids].sum(); tau=np.zeros((5,5));k=0
+    for m in mapping:
+        if m["form"]=="a+b/T":tau[m["i"],m["j"]]=p[k]+p[k+1]/T;k+=2
+        else:
+            if m["b_fixed"]!=0.:raise ValueError("standalone mapping")
+            tau[m["i"],m["j"]]=p[k];k+=1
+    if k!=len(p):raise ValueError("standalone parameter length")
+    eraw=-alpha*tau;STANDALONE_CLAMP_LOG["calls"]+=eraw.size
+    STANDALONE_CLAMP_LOG["activations"]+=int(np.count_nonzero((eraw < -50)|(eraw > 50)))
+    STANDALONE_CLAMP_LOG["maximum_absolute_raw_exponent"]=max(STANDALONE_CLAMP_LOG["maximum_absolute_raw_exponent"],float(np.max(np.abs(eraw))))
+    G=np.exp(np.clip(eraw,-50,50));den=x@G;g=np.zeros(5)
+    for i in ids:
+        g[i]=sum(x[j]*tau[j,i]*G[j,i]/den[i] for j in ids)
+        for j in ids:
+            avg=sum(x[m]*tau[m,j]*G[m,j] for m in ids)/den[j]
+            g[i]+=x[j]*G[i,j]/den[j]*(tau[i,j]-avg)
+    return x,g
+
+def standalone_thermo(z,T,p,active,a,x,b,y):
+    zn,gz=standalone_state(z,T,p,active);xn,gx=standalone_state(x,T,p,active);yn,gy=standalone_state(y,T,p,active)
+    ids=np.asarray(active);bal=a*xn+b*yn-zn;iso=np.log(xn[ids])+gx[ids]-np.log(yn[ids])-gy[ids]
+    gh=float(np.sum(zn[ids]*(np.log(zn[ids])+gz[ids])))
+    gs=float(a*np.sum(xn[ids]*(np.log(xn[ids])+gx[ids]))+b*np.sum(yn[ids]*(np.log(yn[ids])+gy[ids])))
+    return {"normalized":{"feed":zn,"RRBO_rich":xn,"NMP_rich":yn},"massBalanceResiduals":bal.tolist(),
+      "massBalanceMax":float(np.max(np.abs(bal))),"isoactivityResiduals":iso.tolist(),
+      "isoactivityMax":float(np.max(np.abs(iso))),"homogeneousReducedGibbs":gh,
+      "totalReducedGibbs":gs,"gibbsDecrease":gh-gs}
+
+def standalone_phase_check(z,T,p,active,a,x,b,y):
+    """Full independent final gate, including refined post-split TPD."""
+    base=standalone_thermo(z,T,p,active,a,x,b,y);ids=list(active)
+    def lattice(den):
+        out=[]
+        def rec(pos,left,parts):
+            if pos==len(ids)-1:
+                q=np.zeros(5)
+                for i,n in zip(ids,parts+[left]):q[i]=n/den
+                out.append(q);return
+            for n in range(left+1):rec(pos+1,left-n,parts+[n])
+        rec(0,den,[]);return out
+    def phase_tpd(ref):
+        rn,rg=standalone_state(ref,T,p,ids);mu=np.log(rn[ids])+rg[ids]
+        def fun(wa):
+            w=np.zeros(5);w[ids]=np.maximum(wa,1e-14);wn,wg=standalone_state(w,T,p,ids)
+            return float(np.sum(wn[ids]*(np.log(wn[ids])+wg[ids]-mu)))
+        lat=lattice(8 if len(ids)==3 else 4);lv=np.asarray([fun(q[ids]) for q in lat]);best=float(lv.min())
+        threshold=max(0.,best+1e-4);ix=[int(i) for i in np.argsort(lv) if lv[i]<=threshold];refined=[]
+        for i in ix:
+            w0=np.maximum(lat[i][ids],1e-10);w0/=w0.sum()
+            s=minimize(fun,w0,method="SLSQP",bounds=[(1e-12,1)]*len(ids),
+              constraints={"type":"eq","fun":lambda w:np.sum(w)-1},options={"maxiter":500,"ftol":1e-12})
+            if s.success and not any(np.max(np.abs(s.x-q[1]))<1e-6 for q in refined):refined.append((float(s.fun),s.x))
+        val,wa=min(refined,key=lambda q:q[0]) if refined else (best,lat[int(np.argmin(lv))][ids])
+        comp=np.zeros(5);comp[ids]=wa
+        return {"minimum":val,"minimizer":comp.tolist(),"latticePointCount":len(lat),
+          "latticePointsEvaluated":len(lv),"competitivePoints":len(ix),"refinementAttempts":len(ix),
+          "distinctRefinedBasins":len(refined)}
+    ps={"RRBO_rich":phase_tpd(base["normalized"]["RRBO_rich"]),
+      "NMP_rich":phase_tpd(base["normalized"]["NMP_rich"])}
+    base["normalized"]={k:v.tolist() for k,v in base["normalized"].items()};base["postSplitTPD"]=ps
+    base["pass"]=bool(base["massBalanceMax"]<1e-9 and base["isoactivityMax"]<2e-4 and base["gibbsDecrease"]>1e-8 and
+      all(v["minimum"]>=-CLUSTER_TOL["post_split_tpd"] for v in ps.values()))
+    return base
 
 def flash(z,T,p,active):
     """Gibbs minimization in conserved phase-component amounts nA; nB=z-nA."""
@@ -205,20 +310,23 @@ def flash(z,T,p,active):
         _,x,_,y=q
         return np.log(x[active])+lngamma(x,T,p,active)[active]-np.log(y[active])-lngamma(y,T,p,active)[active]
     ghom=float(np.sum(z[active]*(np.log(z[active])+lngamma(z,T,p,active)[active])))
-    # Instability-derived seeds plus generic amount partitions. No observations.
-    # The second instability seed is a genuine physical perturbation toward the
-    # feed, not the exact A/B phase swap of the first.
+    # Every distinct TPD basin seeds conserved-Gibbs minimization, supplemented
+    # only by deterministic interior and near-boundary amount partitions.
     seeds=[];seed_labels=[]
-    for blend in (0.,.20):
-        wb=active_normalize((1-blend)*w+blend*z,active)
-        scale=min(.35*z[i]/wb[i] for i in active if wb[i]>1e-10)
-        if scale>1e-8:
-            seeds.append((scale*wb)[active]);seed_labels.append(f"TPD_WITNESS_BLEND_{blend:.2f}")
+    tpd_seeds=[np.asarray(q["composition"]) for q in tpdmeta["refinedBasins"]]
+    if not tpd_seeds: tpd_seeds=[w]
+    for n,wb in enumerate(tpd_seeds):
+        for blend in (0.,.20):
+            wb=active_normalize((1-blend)*wb+blend*z,active)
+            scale=min(.35*z[i]/wb[i] for i in active if wb[i]>1e-10)
+            if scale>1e-8:
+                seeds.append((scale*wb)[active]);seed_labels.append(f"TPD_BASIN_{n}_BLEND_{blend:.2f}")
     for frac in (.2,.5,.8):
         seeds.append((frac*z)[active]);seed_labels.append(f"HOMOGENEOUS_PARTITION_{frac:.2f}")
     for fav in active:
-        f=np.full(len(active),.35);f[active.index(fav)]=.65
-        seeds.append(z[active]*f);seed_labels.append(f"COMPONENT_FAVORED_{FAM[fav]}")
+        for extent in (.02,.65):
+            f=np.full(len(active),(1-extent)/(len(active)-1));f[active.index(fav)]=extent
+            seeds.append(z[active]*f);seed_labels.append(f"{'BOUNDARY' if extent==.02 else 'INTERIOR'}_FAVORED_{FAM[fav]}")
     bounds=[(1e-10*z[i],(1-1e-10)*z[i]) for i in active]
     sols=[minimize(gmix,s,method="L-BFGS-B",bounds=bounds,options={"maxiter":1500,"ftol":1e-14,"gtol":1e-9}) for s in seeds]
     polish=[]
@@ -271,41 +379,71 @@ def flash(z,T,p,active):
         else:
             rec.update({"selectionEligible":False,"rejectionReasons":["INVALID_PHASE_AMOUNTS"]})
         start_summaries.append(rec)
-    if eligible:
-        # Objective first; canonical phase fraction/compositions provide a
-        # reproducible tie-break independent of optimizer or seed order.
-        rank=lambda c:(round(float(c[0].fun),12),round(float(c[3]),12),
-          tuple(round(float(v),12) for v in c[2]),tuple(round(float(v),12) for v in c[4]))
-        eligible.sort(key=rank)
-        selected=eligible[0]
-        best_obj=float(selected[0].fun)
-        equivalent=sum(abs(float(c[0].fun)-best_obj)<1e-8 for c in eligible)
-        alternate=len(eligible)-equivalent
-        selected[5]["selectedByGlobalRule"]=True
-    else: best_obj=None;equivalent=alternate=0
+    # Cluster all eligible stationary states after phase-swap canonicalization;
+    # physical near-degeneracy is never resolved by lexical ordering.
+    clusters=[]
+    for c in eligible:
+        _,aa,xx,bb,yy,rec=c
+        target=None
+        for cl in clusters:
+            r=cl["representative"]
+            if max(np.max(np.abs(xx-r[2])),np.max(np.abs(yy-r[3])))<=CLUSTER_TOL["phase_composition"] and abs(bb-r[4])<=CLUSTER_TOL["beta"]:
+                target=cl;break
+        if target is None:
+            target={"representative":(c[0],aa,xx,yy,bb,rec),"members":[]};clusters.append(target)
+        target["members"].append(c)
+    cluster_records=[]
+    for n,cl in enumerate(clusters):
+        s,aa,xx,yy,bb,rec=cl["representative"]
+        independent=standalone_thermo(z,T,p,active,aa,xx,bb,yy)
+        members=cl["members"]; objs=[float(v[0].fun) for v in members]
+        cluster_records.append({"clusterIndex":n,"members":[v[5]["start_index"] for v in members],
+          "seedLabels":sorted(set(v[5]["seedLabel"] for v in members)),
+          "representativeCanonicalState":{"RRBO_rich":xx.tolist(),"NMP_rich":yy.tolist(),"beta_NMP_rich":bb},
+          "objectiveRange":[min(objs),max(objs)],"independentTotalReducedGibbs":independent["totalReducedGibbs"],
+          "admissibilityDiagnostics":{k:v for k,v in independent.items() if k!="normalized"}})
+    ranked=sorted(cluster_records,key=lambda c:c["independentTotalReducedGibbs"])
+    selected=None; ambiguous=False
+    if ranked:
+        selected=ranked[0]
+        if len(ranked)>1 and abs(ranked[1]["independentTotalReducedGibbs"]-selected["independentTotalReducedGibbs"])<=CLUSTER_TOL["scaled_gibbs_ambiguity"]:
+            ambiguous=True
+        else:
+            selected_member=next(c for c in eligible if c[5]["start_index"]==selected["members"][0])
+            selected_member[5]["selectedByGlobalRule"]=True
+    best_obj=selected["independentTotalReducedGibbs"] if selected else None
+    equivalent=len(selected["members"]) if selected else 0;alternate=max(0,len(cluster_records)-1)
     common={"stabilityTPDMinimum":tpd,"stabilityLattice":tpdmeta,"activeMask":[i in active for i in range(5)],
       "stabilityTPDWitness":w.tolist(),
-      "optimizer_attempts":len(sols),"optimizer_successes":len(good),"multistartSolutions":start_summaries,
+       "optimizer_attempts":len(sols),"optimizer_successes":len(good),"multistartSolutions":start_summaries,
+       "stationaryClusters":cluster_records,"clusterTolerances":CLUSTER_TOL,
       "multistartAgreement":{"equivalent_best_objective_starts":equivalent,
         "alternate_local_stationary_points":alternate,"multiple_successful_starts":len(good)>=2},
       "globalSelection":{"rule":"minimum reduced Gibbs among thermodynamically eligible stationary candidates; canonical beta/compositions break numerical ties",
-        "eligibleCandidates":len(eligible),"rejectedCandidates":len(sols)-len(eligible),
-        "selectedStartIndex":selected[5]["start_index"] if eligible else None,
+         "eligibleCandidates":len(eligible),"rejectedCandidates":len(sols)-len(eligible),
+         "selectedClusterIndex":selected["clusterIndex"] if selected else None,
+         "selectedStartIndex":selected["members"][0] if selected else None,
         "reproduciblePhaseSwapCopies":equivalent},
       "homogeneousReducedGibbs":ghom}
     if tpd>=-1e-8:
         return {**common,"phaseBehavior":"PREDICTED_STABLE_SINGLE_PHASE","converged":True,"beta_NMP_rich":None,
           "RRBO_rich":None,"NMP_rich":None,"massBalanceMaxResidual":0.,"isoactivityLogResidual":None,
           "objectiveImprovement":0.,"selectedTwoPhaseReducedGibbs":None}
+    if ambiguous:
+        return {**common,"phaseBehavior":"AMBIGUOUS_UNRESOLVED","converged":False,"beta_NMP_rich":None,
+          "RRBO_rich":None,"NMP_rich":None,"massBalanceMaxResidual":None,"isoactivityLogResidual":None,
+          "objectiveImprovement":None,"selectedTwoPhaseReducedGibbs":None}
     if not eligible:
         return {**common,"phaseBehavior":"NONCONVERGED_OR_BOUNDARY","converged":False,"beta_NMP_rich":None,
           "RRBO_rich":None,"NMP_rich":None,"massBalanceMaxResidual":None,"isoactivityLogResidual":None,
           "objectiveImprovement":None,"selectedTwoPhaseReducedGibbs":None}
-    sol,a,x,b,y,_=selected
+    sol,a,x,b,y,_=next(c for c in eligible if c[5]["start_index"]==selected["members"][0])
     mu1=np.log(x[active])+lngamma(x,T,p,active)[active];mu2=np.log(y[active])+lngamma(y,T,p,active)[active]
     iso=float(np.max(np.abs(mu1-mu2))); mb=float(np.max(np.abs(a*x+b*y-z))); imp=ghom-float(sol.fun)
     boundary=min(a,b,np.min(sol.x),np.min(z[active]-sol.x))<1e-7
-    ok=not boundary and mb<1e-9 and iso<2e-4 and imp>1e-8
+    independent=standalone_phase_check(z,T,p,active,a,x,b,y)
+    selected["admissibilityDiagnostics"]=independent
+    ok=not boundary and mb<1e-9 and iso<2e-4 and imp>1e-8 and independent["pass"]
     if not ok:
         return {**common,"phaseBehavior":"NONCONVERGED_OR_BOUNDARY","converged":False,"beta_NMP_rich":None,
           "RRBO_rich":None,"NMP_rich":None,"massBalanceMaxResidual":mb,"isoactivityLogResidual":iso,
@@ -314,7 +452,8 @@ def flash(z,T,p,active):
     return {**common,"phaseBehavior":"PREDICTED_TWO_PHASE","converged":True,"beta_NMP_rich":b,
       "RRBO_rich":x.tolist(),"NMP_rich":y.tolist(),"massBalanceMaxResidual":mb,
       "isoactivityLogResidual":iso,"objectiveImprovement":imp,
-      "selectedTwoPhaseReducedGibbs":float(sol.fun),"gibbsDecrease":imp}
+       "selectedTwoPhaseReducedGibbs":float(sol.fun),"gibbsDecrease":imp,
+       "independentFinalPhaseChecks":independent}
 
 def eqmetrics(p,rows):
     e=raw_equilibrium_residuals(p,rows)
@@ -343,15 +482,16 @@ def validate(rows,p):
     return out
 def summary(vals,label):
     a=[q for q in vals if q["label"]==label];counts={k:sum(q["phaseBehavior"]==k for q in a) for k in
-      ("PREDICTED_TWO_PHASE","PREDICTED_STABLE_SINGLE_PHASE","NONCONVERGED_OR_BOUNDARY")}
+       ("PREDICTED_TWO_PHASE","PREDICTED_STABLE_SINGLE_PHASE","NONCONVERGED_OR_BOUNDARY","AMBIGUOUS_UNRESOLVED")}
     good=[q for q in a if q["phaseBehavior"]=="PREDICTED_TWO_PHASE"]
     return {"rows":len(a),"categories":counts,"two_phase_recall":len(good)/len(a),
       "composition_rmsd_mean":float(np.mean([q["compositionRmsd"] for q in good])) if good else None,
       "max_absolute_error":max([q["maxAbsoluteError"] for q in good],default=None)}
 
-def build_audit(vals,p,mapping,probes):
+def build_audit(vals,p,mapping,probes,manual_ids=None):
     """Standalone audit evaluator; it calls none of the production evaluators."""
     assert len(p)==sum(2 if m["form"]=="a+b/T" else 1 for m in mapping)
+    audit_clamp={"calls":0,"activations":0,"maximum_absolute_raw_exponent":0.0}
     def agamma(v,T,mask):
         active=[i for i,on in enumerate(mask) if on]; x=np.zeros(5);x[active]=np.maximum(np.asarray(v)[active],EPS);x[active]/=x[active].sum()
         tau=np.zeros((5,5));k=0
@@ -360,7 +500,10 @@ def build_audit(vals,p,mapping,probes):
             if m["form"]=="a+b/T":tau[i,j]=p[k]+p[k+1]/T;k+=2
             else: assert m["b_fixed"]==0.;tau[i,j]=p[k];k+=1
         assert k==len(p)
-        G=np.exp(np.clip(-.30*tau,-50,50));d=x@G;out=np.zeros(5)
+        raw=-.30*tau;audit_clamp["calls"]+=raw.size
+        audit_clamp["activations"]+=int(np.count_nonzero((raw < -50)|(raw > 50)))
+        audit_clamp["maximum_absolute_raw_exponent"]=max(audit_clamp["maximum_absolute_raw_exponent"],float(np.max(np.abs(raw))))
+        G=np.exp(np.clip(raw,-50,50));d=x@G;out=np.zeros(5)
         for i in active:
             out[i]=sum(x[j]*tau[j,i]*G[j,i]/d[i] for j in active)
             out[i]+=sum(x[j]*G[i,j]/d[j]*(tau[i,j]-sum(x[k]*tau[k,j]*G[k,j] for k in active)/d[j]) for j in active)
@@ -391,12 +534,7 @@ def build_audit(vals,p,mapping,probes):
         dd=np.abs(gi-gp);gamma_cases.append({"id":probe["id"],"independent":gi.tolist(),
           "primarySerialized":gp.tolist(),"absoluteDifferences":dd.tolist(),"maxDifference":float(dd.max())})
     gamma_max=max(c["maxDifference"] for c in gamma_cases)
-    manual_ids={"coto-2","coto-9","coto-14","coto-1"}
-    # Use an interior ternary row for multistart reproduction. The first
-    # 323.2 K row is a binary endpoint with zero overall MONO and therefore
-    # cannot possess a strictly interior three-component split.
-    manual_ids.add(next(q["id"] for q in vals if q["id"].startswith("analogue-") and
-      abs(q["T_K"]-323.2)<.051 and q["overallMidpoint"][1]>1e-10))
+    manual_ids=set(manual_ids or [q["id"] for q in vals])
     thermo_by_id={t["id"]:t for t in thermo}
     manuals=[]
     for q in vals:
@@ -458,18 +596,84 @@ def build_audit(vals,p,mapping,probes):
     overall="PASS" if all(v["status"]=="PASS" for v in obligations.values()) else "FAIL"
     return {"implementationAuditStatus":overall,"frozenParameterHash":hashlib.sha256(np.asarray(p).tobytes()).hexdigest(),
       "standaloneEvaluator":"serialized vector + mapping + raw arrays only; no primary normalization, tau, gamma, flash, Gibbs, or TPD calls",
-      "frozenSplit":{"train":221,"holdout":15},"gammaComparisons":gamma_cases,"manualReproductions":manuals,
+       "frozenSplit":{"train":221,"holdout":15},"gammaComparisons":gamma_cases,"manualReproductions":manuals,
+       "expClamp":audit_clamp,
       "acceptedTwoPhaseThermodynamics":thermo,"aggregate":{"acceptedTwoPhaseCount":len(thermo),"gammaDifferenceMax":gamma_max,
         "isoactivityMax":iso,"massBalanceMax":mass},"obligations":obligations,
       "causalStatement":"Implementation/flash-selection defects were not found within tested tolerances; this is not formal proof." if overall=="PASS" else "Thermodynamic/model-form blame is not established because one or more implementation audit obligations failed."}
 
+def synthetic_recovery():
+    """A deterministic non-data NRTL case; truth is independently minimized."""
+    pk=np.zeros(NPAR); k=0
+    for m in PARAM_MAP:
+        if {m["i"],m["j"]}=={0,4}: pk[k]=5.0
+        k+=2 if m["form"]=="a+b/T" else 1
+    active=[0,4]; z=np.array([.5,0,0,0,.5])
+    def objective(na):
+        A=np.zeros(5);A[active]=na;B=z-A;a=A.sum();b=B.sum()
+        if min(a,b,np.min(A[active]),np.min(B[active]))<=0:return 1e6
+        x=A/a;y=B/b
+        xn,gx=standalone_state(x,298.15,pk,active);yn,gy=standalone_state(y,298.15,pk,active)
+        return float(a*np.sum(xn[active]*(np.log(xn[active])+gx[active]))+
+          b*np.sum(yn[active]*(np.log(yn[active])+gy[active])))
+    # This independent minimization is synthetic-truth construction, not flash.
+    truth=minimize(objective,np.array([.1,.4]),method="L-BFGS-B",
+      bounds=[(1e-8,z[i]-1e-8) for i in active],options={"ftol":1e-14,"gtol":1e-10})
+    na=truth.x; a=na.sum();b=1-a;x=np.zeros(5);y=np.zeros(5);x[active]=na/a;y[active]=(z[active]-na)/b
+    if x[4]>y[4]:x,y,a,b=y,x,b,a
+    solved=flash(z,298.15,pk,active)
+    tol={"composition":2e-4,"beta":2e-4}; passed=solved["phaseBehavior"]=="PREDICTED_TWO_PHASE"
+    if passed:
+        passed &= max(np.max(np.abs(x-np.asarray(solved["RRBO_rich"]))),np.max(np.abs(y-np.asarray(solved["NMP_rich"]))))<=tol["composition"] and abs(b-solved["beta_NMP_rich"])<=tol["beta"]
+    return {"knownParameterVector":pk.tolist(),"truthConstruction":"raw-spec standalone conserved-Gibbs search/refinement; no production evaluator and no fitted-data row",
+      "truth":{"RRBO_rich":x.tolist(),"NMP_rich":y.tolist(),"beta_NMP_rich":b,"objective":float(truth.fun)},
+      "recovered":{"phaseBehavior":solved["phaseBehavior"],"RRBO_rich":solved["RRBO_rich"],"NMP_rich":solved["NMP_rich"],"beta_NMP_rich":solved["beta_NMP_rich"],
+        "materiallyDifferentStarts":solved["optimizer_attempts"]},"tolerances":tol,"pass":bool(passed)}
+
 def main():
-    OUT.mkdir(parents=True,exist_ok=True);rows=coto_rows()+mt_rows();train=[r for r in rows if not r["holdout"]]
+    OUT.mkdir(parents=True,exist_ok=True);rows=coto_rows()+mt_rows()
+    train=[r for r in rows if not r["holdout"]];holdout=[r for r in rows if r["holdout"]]
     criteria={"holdout_two_phase_recall_min":.90,"holdout_composition_rmsd_max":.03,
       "valid_flash_mass_balance_max":1e-9,"valid_flash_isoactivity_max":2e-4}
-    p,diag,obj=fit(train);vals=validate(rows,p);metrics={"train":summary(vals,"train"),"holdout":summary(vals,"holdout")}
-    topology_pass=metrics["holdout"]["two_phase_recall"]>=criteria["holdout_two_phase_recall_min"]
-    composition_pass=metrics["holdout"]["composition_rmsd_mean"] is not None and \
+    # #168 is solver isolation: fitting is deliberately unreachable here.
+    CLAMP_LOG.update({"calls":0,"activations":0,"maximum_absolute_raw_exponent":0.0})
+    STANDALONE_CLAMP_LOG.update({"calls":0,"activations":0,"maximum_absolute_raw_exponent":0.0})
+    execution={"sequence":[],"syntheticFlashCalls":0,"qualificationFlashCalls":0,"holdoutFlashCalls":0,"trainFlashCalls":0,
+      "holdoutEvaluationStartedAfterIsolationPass":False}
+    p,frozen_provenance=load_frozen_parameters();execution["sequence"].append("FROZEN_ARTIFACT_VALIDATED")
+    qualification=[next(r for r in train if r["id"]=="coto-1")]
+    for target_T in (298.,313.2):
+        qualification.append(next(r for r in train if r["id"].startswith("analogue-") and
+          abs(r["T"]-target_T)<.051 and ((r["x"][1]+r["y"][1])/2)>1e-10))
+    qualification_ids=[r["id"] for r in qualification];holdout_ids=[r["id"] for r in holdout]
+    execution.update({"qualificationRowIds":qualification_ids,"holdoutRowIds":holdout_ids,
+      "dataTouchedBeforePass":[]})
+    synthetic=synthetic_recovery();execution["syntheticFlashCalls"]=1;execution["sequence"].append("SYNTHETIC_QUALIFICATION_COMPLETE")
+    qualification_vals=validate(qualification,p);execution["qualificationFlashCalls"]=len(qualification)
+    execution["dataTouchedBeforePass"]=qualification_ids.copy();execution["sequence"].append("PRE_HOLDOUT_DATA_QUALIFICATION_EVALUATED")
+    pre_probes=[{"id":"interior-ternary-310K","composition":[.25,.25,0,0,.5],"T_K":310.,"activeMask":[True,True,False,False,True],
+      "primaryLnGamma":lngamma([.25,.25,0,0,.5],310.,p,[0,1,4]).tolist()},
+      {"id":"interior-five-298.15K","composition":[.2]*5,"T_K":298.15,"activeMask":[True]*5,
+      "primaryLnGamma":lngamma([.2]*5,298.15,p,[0,1,2,3,4]).tolist()}]
+    pre_audit=build_audit(qualification_vals,p,PARAM_MAP,pre_probes,qualification_ids)
+    q_independent=all(q.get("independentFinalPhaseChecks",{}).get("pass") for q in qualification_vals if q["phaseBehavior"]=="PREDICTED_TWO_PHASE")
+    q_ambiguity=not any(q["phaseBehavior"]=="AMBIGUOUS_UNRESOLVED" for q in qualification_vals)
+    q_basins=all(q["stabilityLattice"]["refinement_attempts"]==q["stabilityLattice"]["competitive_lattice_points"] for q in qualification_vals)
+    preliminary_isolation=bool(frozen_provenance["validated_before_flash"] and synthetic["pass"] and
+      pre_audit["implementationAuditStatus"]=="PASS" and q_independent and q_ambiguity and q_basins and
+      CLAMP_LOG["activations"]==0 and STANDALONE_CLAMP_LOG["activations"]==0 and pre_audit["expClamp"]["activations"]==0)
+    execution["sequence"].append("PRE_HOLDOUT_ISOLATION_PASS" if preliminary_isolation else "PRE_HOLDOUT_ISOLATION_FAIL")
+    if preliminary_isolation:
+        execution["holdoutEvaluationStartedAfterIsolationPass"]=True
+        holdout_vals=validate(holdout,p);execution["holdoutFlashCalls"]=len(holdout)
+        execution["sequence"].append("HOLDOUT_EVALUATED")
+        train_vals=validate(train,p);execution["trainFlashCalls"]=len(train)
+        execution["sequence"].append("TRAIN_RESEARCH_EVALUATED");vals=train_vals+holdout_vals
+        metrics={"train":summary(vals,"train"),"holdout":summary(vals,"holdout")}
+    else:
+        vals=[];metrics={"train":None,"holdout":None}
+    topology_pass=preliminary_isolation and metrics["holdout"]["two_phase_recall"]>=criteria["holdout_two_phase_recall_min"]
+    composition_pass=preliminary_isolation and metrics["holdout"]["composition_rmsd_mean"] is not None and \
       metrics["holdout"]["composition_rmsd_mean"]<=criteria["holdout_composition_rmsd_max"]
     five_gate={"topology_pass":topology_pass,"composition_rmsd_pass":composition_pass,
       "overall_pass":topology_pass and composition_pass}
@@ -487,16 +691,15 @@ def main():
         "restriction":"numerical runtime only; no opencosmorspy or thermodynamic code"},
       "holdout_design":{"Coto":"all four toluene rows plus table orders 2, 9, 13","multi_T":"exact 323.2 K slice",
         "family_holdout":"unavailable; DI/POLY only occur at the Coto anchor"},
-      "fit":{"success":diag["success"],"objective":obj,"solver_diagnostics":diag,
-        "equilibrium_log_activity_residuals":{"train":eqmetrics(p,train),"holdout":eqmetrics(p,[r for r in rows if r["holdout"]])},
-        "parameters":p.tolist(),"parameters_sha256":hashlib.sha256(p.tobytes()).hexdigest()},
+       "fit":{"fitCalled":False,"execution":"frozen parameters loaded; fit(train) is not called on #168 execution path",
+         "parameters":p.tolist(),"parameters_sha256":hashlib.sha256(p.tobytes()).hexdigest(),
+         "frozenArtifact":frozen_provenance,
+         "equilibrium_log_activity_residuals":{"train":eqmetrics(p,train),"holdout":eqmetrics(p,holdout)}
+           if preliminary_isolation else {"train":{"status":"NOT_RUN"},"holdout":{"status":"NOT_RUN"}}},
       "acceptance_criteria_predeclared":criteria,"fiveFamilyCandidateGate":five_gate,
       "sixFamilyStage2Status":six_status,"sixFamilyAdmissionDependencies":six_deps,
       "governingAdmissionEligible":False,"metrics":metrics,"validation":vals,
-      "auditPrimaryProbes":[{"id":"interior-ternary-310K","composition":[.25,.25,0,0,.5],"T_K":310.,"activeMask":[True,True,False,False,True],
-        "primaryLnGamma":lngamma([.25,.25,0,0,.5],310.,p,[0,1,4]).tolist()},
-        {"id":"interior-five-298.15K","composition":[.2]*5,"T_K":298.15,"activeMask":[True]*5,
-        "primaryLnGamma":lngamma([.2]*5,298.15,p,[0,1,2,3,4]).tolist()}],
+       "auditPrimaryProbes":pre_probes,
       "temperature_evidence":{"25 C":"five-family Coto anchor plus SAT/MONO/NMP analogues",
         "50 C":"SAT/MONO/NMP analogue interpolation only; DI/POLY NOT_CALCULABLE",
         "75 C":"NOT_CALCULABLE for DI/POLY and outside analogue evidence","100 C":"NOT_CALCULABLE"},
@@ -510,10 +713,68 @@ def main():
     # train/holdout assignment above remain frozen.
     frozen=np.asarray(json.loads((OUT/"results.json").read_text())["fit"]["parameters"],float)
     saved=json.loads((OUT/"results.json").read_text())
-    audit=build_audit(vals,frozen,saved["parameter_mapping"],saved["auditPrimaryProbes"])
+    if preliminary_isolation:
+        full_manual={"coto-1","coto-2","coto-9","coto-14"}
+        full_manual.add(next(q["id"] for q in vals if q["id"].startswith("analogue-") and
+          abs(q["T_K"]-323.2)<.051 and q["overallMidpoint"][1]>1e-10))
+        audit=build_audit(vals,frozen,saved["parameter_mapping"],saved["auditPrimaryProbes"],full_manual)
+    else:
+        audit=pre_audit
     (OUT/"audit.json").write_text(json.dumps(audit,indent=2,allow_nan=False)+"\n")
+    basin_summary={"lattice_points":sum(q["stabilityLattice"]["point_count"] for q in vals),
+      "competitive_points_refined":sum(q["stabilityLattice"]["refinement_attempts"] for q in vals),
+      "distinct_refined_basins":sum(q["stabilityLattice"]["distinct_refined_basins"] for q in vals),
+      "gibbs_start_count":sum(q["optimizer_attempts"] for q in vals)}
+    required=[q for q in vals if q["label"]=="holdout"]
+    independent_ok=all(q.get("independentFinalPhaseChecks",{}).get("pass") for q in vals if q["phaseBehavior"]=="PREDICTED_TWO_PHASE")
+    ambiguity_free=not any(q["phaseBehavior"]=="AMBIGUOUS_UNRESOLVED" for q in required)
+    full_accounting=all(q["stabilityLattice"]["refinement_attempts"]==q["stabilityLattice"]["competitive_lattice_points"] for q in vals)
+    isolation_pass=bool(preliminary_isolation and audit["implementationAuditStatus"]=="PASS" and independent_ok and ambiguity_free and full_accounting and
+      CLAMP_LOG["activations"]==0 and STANDALONE_CLAMP_LOG["activations"]==0 and audit["expClamp"]["activations"]==0)
+    solver_isolation={"stage":"#168-stage-2","frozenParameterHash":frozen_provenance["parameters_sha256"],
+      "parameterMappingHash":frozen_provenance["parameter_mapping_sha256"],"fitCalled":False,
+      "fitProof":"main loads frozen-parameters.json and contains no fit(train) invocation",
+       "executionEvidence":execution,"basins":basin_summary,"clampLog":{"primary":dict(CLAMP_LOG),
+         "standaloneFinalGate":dict(STANDALONE_CLAMP_LOG),"standaloneAudit":audit["expClamp"]},
+      "auditStatus":audit["implementationAuditStatus"],"syntheticRecovery":synthetic,
+       "preHoldoutIsolationStatus":"PASS" if preliminary_isolation else "FAIL",
+       "preHoldoutAuditStatus":pre_audit["implementationAuditStatus"],
+       "qualificationRowIds":qualification_ids,"holdoutRowIds":holdout_ids,
+      "independentFinalPhaseChecksPass":independent_ok,"noAmbiguousRequiredAuditCase":ambiguity_free,
+       "fullBasinAccounting":full_accounting,"overallStatus":"PASS" if isolation_pass else "FAIL",
+       "solverIsolationAuditStatus":"PASS" if isolation_pass else "FAIL",
+      "holdoutComparison":{"status":"NOT_RUN"} if not isolation_pass else {"status":"RUN",
+        "baseline":{"topologyRecall":.9333333333333333,"meanTieLineRMSD":.11417738749864874,"maxError":.5857221110557862},
+        "after":metrics["holdout"],"cotoBaseline":{"coto-2":{"rmsd":.2228632662244973,"maxError":.5857221110557862},
+          "coto-9":{"rmsd":.2310210139387888,"maxError":.5721133140162791},
+          "coto-14":{"rmsd":.1512931709889027,"maxError":.3436394949445686}},
+        "cotoAfter":{q["id"]:{"rmsd":q["compositionRmsd"],"maxError":q["maxAbsoluteError"],"phaseBehavior":q["phaseBehavior"]}
+          for q in vals if q["id"] in ("coto-2","coto-9","coto-14")}},
+      "qualification":"Finite lattice/refinement and multistart evidence improve selection confidence; they are not a formal global-optimum proof."}
+    (OUT/"solver-isolation.json").write_text(json.dumps(solver_isolation,indent=2,allow_nan=False)+"\n")
+    ambiguous_count=sum(q["phaseBehavior"]=="AMBIGUOUS_UNRESOLVED" for q in vals)
+    holdout_text=("NOT RUN" if not isolation_pass else
+      f'topology {metrics["holdout"]["two_phase_recall"]:.6g} ({"PASS" if topology_pass else "FAIL"} vs 0.90); '
+      f'composition RMSD {metrics["holdout"]["composition_rmsd_mean"]:.6g} ({"PASS" if composition_pass else "FAIL"} vs 0.03)')
+    post_checks=[q["independentFinalPhaseChecks"] for q in vals if q["phaseBehavior"]=="PREDICTED_TWO_PHASE"]
+    post_min=min((v["minimum"] for c in post_checks for v in c["postSplitTPD"].values()),default=None)
+    (OUT/"solver-isolation-report.md").write_text(f"""# #168 solver-isolation stage 2
+
+Frozen parameter SHA-256: `{frozen_provenance["parameters_sha256"]}`. `fitCalled` is **false**.
+
+Overall isolation status: **{"PASS" if isolation_pass else "FAIL"}**. Synthetic recovery: **{"PASS" if synthetic["pass"] else "FAIL"}**. Independent final-phase checks: **{"PASS" if independent_ok else "FAIL"}**; lowest refined post-split TPD is {post_min}. Ambiguous required cases: {ambiguous_count}.
+
+Pre-holdout qualification status: **{"PASS" if preliminary_isolation else "FAIL"}** using only `{", ".join(qualification_ids)}`. These IDs are disjoint from the frozen holdout IDs. The holdout flash count remained zero until `PRE_HOLDOUT_ISOLATION_PASS` was recorded.
+
+All {basin_summary["lattice_points"]} TPD lattice states were evaluated; {basin_summary["competitive_points_refined"]} negative/competitive states were refined into {basin_summary["distinct_refined_basins"]} distinct refined basins, producing {basin_summary["gibbs_start_count"]} deterministic conserved-Gibbs starts. Primary, standalone final-gate, and audit clamp activations are {CLAMP_LOG["activations"]}, {STANDALONE_CLAMP_LOG["activations"]}, and {audit["expClamp"]["activations"]}.
+
+Gated holdout comparison: {holdout_text}. This is finite-candidate evidence, not formal global-optimum proof.
+""")
     payload["implementationAudit"]={"path":"audit.json","status":audit["implementationAuditStatus"],
       "parameterHash":audit["frozenParameterHash"]}
+    payload["expClamp"]={"primary":dict(CLAMP_LOG),"standaloneFinalGate":dict(STANDALONE_CLAMP_LOG),
+      "standaloneAudit":audit["expClamp"],"status":"PASS" if CLAMP_LOG["activations"]==0 and
+      STANDALONE_CLAMP_LOG["activations"]==0 and audit["expClamp"]["activations"]==0 else "FLAGGED"}
     (OUT/"results.json").write_text(json.dumps(payload,indent=2,allow_nan=False)+"\n")
     manifest={"sources":src,"generated_by":"run.py","dependency_path":str(VENDOR.relative_to(ROOT)),
       "numpy":np.__version__,"scipy":scipy.__version__,"parameter_count":NPAR,
@@ -538,13 +799,13 @@ Obligations: {json.dumps({k:v["status"] for k,v in audit["obligations"].items()}
 
 **Final decision: {decision}**
 
-This isolated regularization-constrained estimation fits 26 values: a+b/T for six directed SAT/MONO/NMP interactions and isothermal 298.15 K tau for 14 directed interactions involving DI/POLY (b exactly zero). It is not an identifiability claim. The measurement-only Jacobian rank is {diag["measurement_only_jacobian"]["rank"]}/{NPAR}, condition number {diag["measurement_only_jacobian"]["condition_number"]}, with {diag["measurement_only_jacobian"]["practically_weak_directions"]} practically weak directions, {diag["active_bounds"]} bound hit(s), and pseudo-standard errors up to {max(diag["measurement_only_jacobian"]["pseudo_covariance_standard_errors"]):.6g}. These large uncertainties are explicitly flagged. Polar Aromatics is null. It makes no sulfur-removal claim.
+This #168 solver-isolation execution loads a checked-in frozen 26-value parameter vector and does not call fitting. Its IEEE-754 binary64 SHA-256 is `{payload["fit"]["parameters_sha256"]}`. Polar Aromatics is null. It makes no sulfur-removal claim.
 
 SciPy {scipy.__version__}/NumPy {np.__version__} from `{VENDOR.relative_to(ROOT)}` perform bounded least squares, full-simplex TPD refinement, and conserved-amount multistart Gibbs flashes. No COSMO or other thermodynamic code is imported. Train equilibrium residual RMS/max is {tr["rms"]:.6g}/{tr["max_absolute"]:.6g}; holdout is {ho["rms"]:.6g}/{ho["max_absolute"]:.6g}.
 
 All 219 analogue rows preserve exact SAT/MONO/NMP structural zeros and use all 45 denominator-8 ternary lattice points. Coto uses all five families and all 70 denominator-4 points. Train categories are two-phase {tc["PREDICTED_TWO_PHASE"]}, stable {tc["PREDICTED_STABLE_SINGLE_PHASE"]}, nonconverged/boundary {tc["NONCONVERGED_OR_BOUNDARY"]}; holdout categories are {hc["PREDICTED_TWO_PHASE"]}, {hc["PREDICTED_STABLE_SINGLE_PHASE"]}, and {hc["NONCONVERGED_OR_BOUNDARY"]}, respectively. Nonconvergence is not called a topology failure.
 
-The five-family candidate holdout topology recall {metrics["holdout"]["two_phase_recall"]:.6g} passes the 0.90 gate, while composition RMSD {metrics["holdout"]["composition_rmsd_mean"]:.6g} fails the 0.03 gate. This rejects this specific fresh fitted form, not all NRTL.
+The five-family candidate holdout topology recall {metrics["holdout"]["two_phase_recall"]:.6g} **{"passes" if topology_pass else "fails"}** the 0.90 gate, while composition RMSD {metrics["holdout"]["composition_rmsd_mean"]:.6g} **{"passes" if composition_pass else "fails"}** the 0.03 gate. This rejects this specific frozen form, not all NRTL.
 
 The governing six-family Stage 2 status is **NOT_CALCULABLE** and governing admission is ineligible regardless of numerical metrics: Polar Aromatics is unresolved, sulfur representation where required is unresolved, and applicable DI/POLY temperature evidence is absent. DI/POLY are not predicted at 50, 75, or 100 C. Phase amounts were unavailable, so midpoint validation is not measured phase-split validation.
 """)
