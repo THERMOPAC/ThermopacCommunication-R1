@@ -17,3 +17,11 @@ Do not use the NIST cCOSMO COSMO-SAC-2010 route with the admitted University of 
 **Why:** it reproducibly predicts a homogeneous liquid rather than the observed NMP/hydrocarbon liquid split across the admitted direct and multitemperature evidence. It therefore cannot produce defensible tie-lines or sulfur partitioning, even though the molecular inputs and calculations are reproducible.
 
 **How to apply:** retain the benchmark as rejection evidence. Do not reinterpret unit distribution coefficients from a homogeneous state as partition data, and do not proceed to NT, hydrodynamics, sizing, simulator, or optimizer work using this candidate.
+
+## openCOSMO-RS candidate disposition
+
+Do not use the tested openCOSMO-RS route with LVPP v25 NWChem B3LYP/SVPD surfaces and the unmodified `default_turbomole` parameterization as the governing ECR Pre-Pilot LLE model.
+
+**Why:** the genuine, reproducible molecular calculation produced no accepted two-liquid outcome across the admitted direct and multitemperature benchmarks. The NWChem-surface/Turbomole-parameterization mismatch is an additional limitation, but the governing rejection is the failure to reproduce observed liquid-phase topology.
+
+**How to apply:** retain the benchmark as rejection evidence and keep all phase split, distribution, selectivity, and sulfur-recovery outputs null. Do not tune COSMO-RS parameters against these datasets under the guise of prediction. Any future molecular route requires a QC-compatible parameterization and must pass the topology gate independently.

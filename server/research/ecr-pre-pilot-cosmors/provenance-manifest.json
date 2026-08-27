@@ -1,0 +1,53 @@
+{
+  "model": {
+    "crossQCParameterizationLimitation": "default_turbomole was developed for Turbomole-style inputs; supplied LVPP v25 surfaces are NWChem B3LYP/SVPD. Parameters were not altered.",
+    "lnGamma": "COSMORS('default_turbomole').add_job(x,T,refst='pure_component').calculate()['tot']['lng'][0]",
+    "name": "openCOSMO-RS_py",
+    "parameterization": "default_turbomole",
+    "source": "TUHH-TVT/openCOSMO-RS_py commit 3db6614925ded5fc47a77d1e34f4a1975e518a9b"
+  },
+  "openCOSMORS_py_commit": "3db6614925ded5fc47a77d1e34f4a1975e518a9b",
+  "openCOSMORS_py_sourceSha256": {
+    "opencosmorspy/__init__.py": "b6d35d1e45f21ec0667cf030e0e2fb3c4bd3de17683d10615d05beda8edf4a0b",
+    "opencosmorspy/cosmo_visualizations.py": "20a03164c1c51cb01ab1d509c852b338c5fee8c8f58472cc2cea933c2d4d4fc0",
+    "opencosmorspy/cosmors.py": "c643656090306d52f0867ba545a464744345a0a84e5eba89873d501f9005ec69",
+    "opencosmorspy/helper_functions.py": "1e6955465f9be82be78d0971684e784cda381f6713f2d4a3facefc3c1b8b720d",
+    "opencosmorspy/input_parsers.py": "f320966ed9b07c2fa3ad73426bd343b1904bfce07a5eaba12d60b50cbbfb9027",
+    "opencosmorspy/molecules.py": "5f17246da9129eb06b1e1a12a9bd2ccf870fab1cb5343038da17c6e5f6ee9a3b",
+    "opencosmorspy/parameterization.py": "6349784789d255953146b4326be31cd1068956b006280700e1f4900506e8bcce",
+    "opencosmorspy/segtp_collection.py": "802f6c3ba1a1eb0ac1436a230d1aa9baae9fd6df362ae0301086b609e3e3e60c"
+  },
+  "packages": {
+    "numpy": "2.1.3",
+    "python": "3.12.12 (main, Oct  9 2025, 11:07:00) [GCC 15.2.0]",
+    "scipy": "1.14.1"
+  },
+  "profileDatabase": {
+    "archiveSha256": "bd5b0c92d7ab51c37609b841e4806715198d8927726d19c38d1f4382c3a21beb",
+    "rawProfileSha256": {
+      "1-METHYLNAPHTHALENE.cosmo": "c41f8d374e52097eabcfca7ed6b5cce13c2b0f08fb1f4d72447cad2f13162454",
+      "BENZOTHIOPHENE.cosmo": "42ebe501701aadb283bdf7ae401024de40d46e1e144ad528e37efad8353e1e87",
+      "DIBENZOTHIOPHENE.cosmo": "cfecc170f07cb423f372e7ed0b55a76f575084c0e81ee4e351db51f901125700",
+      "MESITYLENE.cosmo": "dda77667ac3a235f00f0c1bd7565c402f1a7db70362e241c25519f0d51f93225",
+      "N-DODECANE.cosmo": "04fdb538c6f6da9a64dcf3d6e0888a3260c5d6618a7b40fe9bd26df3d32b2209",
+      "N-HEPTADECANE.cosmo": "48754c4279b8f261e8c07a19c6785e6d6e44f25f337b6e9215fda5d0b82e7014",
+      "N-HEXADECANE.cosmo": "0ade386f0b13114c09597090e6448007cd7612d9b41f8e175252bd26b1ac9e0a",
+      "N-METHYLPYRROLIDONE.cosmo": "d93eb1f083ccc25bab7034f5db238fe464494d4b4a830793b238757500c34c15",
+      "N-PENTYLBENZENE.cosmo": "5cd6997e4797f42592dd702841542b2568d637b97b7383fe758e99d0f451fe3e",
+      "N-PROPYLBENZENE.cosmo": "0ed6c40e938b61ffa9846e2f75525d02cda98fc33042f63b1880a5149a567735",
+      "N-TETRADECANE.cosmo": "cdd24c985b008a2ad689183efed265cc56bc19ecdabfb79052134e5ede6c10d6",
+      "P-XYLENE.cosmo": "9bba4ee1c815d43f7ebdc311bd3dc3e47fe7fd4f4d6946cdf9940d2a3fc825a6",
+      "PYRENE.cosmo": "68d5d7492d426ec1dfdf19c5a606172b37f3ec5da11a7af3e73199871323cb35",
+      "THIOPHENE.cosmo": "084be9798323eb9ee8c78761f810446656971522601c0b0d7cce9e40f1a5874a",
+      "TOLUENE.cosmo": "0cc1330cdcb1c45552d71dec02eaff01b9562e1a4bfcc41bb5768d865327f045"
+    },
+    "release": "lvpp sigma-profile database v25",
+    "releaseUrl": "https://github.com/lvpp/sigma/releases/download/v25/nw-b3lyp-svpd.zip",
+    "sourceCommit": "bdd4216d3c83ca49aad781a19105d53f58bbbef0"
+  },
+  "settings": {
+    "TPD": "full-simplex denominator 4 for 5/6 components and 8 for ternaries; deterministic BFGS refinement",
+    "compositionFloor": 1e-10,
+    "flash": "constrained total-Gibbs L-BFGS-B over conserved component amounts; experimental phases used only as initial seeds"
+  }
+}
