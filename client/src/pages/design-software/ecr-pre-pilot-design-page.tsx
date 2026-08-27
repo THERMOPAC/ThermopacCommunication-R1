@@ -31,6 +31,8 @@ type FormState = {
   nmpDensityKgM3: string;
   nmpDynamicViscosityCp: string;
   solventOilRatio: string;
+  targetRaffinateSulfurPpm: string;
+  minimumRaffinateSaturatesWt: string;
   targetRaffinateTotalAromaticsWt: string;
   targetRaffinatePolarAromaticsWt: string;
   minimumRecoveryPct: string;
@@ -66,6 +68,8 @@ const EMPTY_FORM: FormState = {
   nmpDensityKgM3: "",
   nmpDynamicViscosityCp: "",
   solventOilRatio: "0.90",
+  targetRaffinateSulfurPpm: "",
+  minimumRaffinateSaturatesWt: "",
   targetRaffinateTotalAromaticsWt: "5.0",
   targetRaffinatePolarAromaticsWt: "0.50",
   minimumRecoveryPct: "95",
@@ -93,7 +97,6 @@ const TARGET_TOTAL_AROMATICS_OPTIONS = ["2.0", "3.0", "4.0", "5.0", "7.5", "10.0
 const TARGET_POLAR_AROMATICS_OPTIONS = ["0.10", "0.25", "0.50", "1.00", "2.00"];
 const MINIMUM_RECOVERY_OPTIONS = ["90", "92.5", "95", "97.5", "99"];
 const MAXIMUM_NMP_RAFFINATE_OPTIONS = ["0.10", "0.25", "0.50", "1.00"];
-const FEED_SULFUR_OPTIONS = ["500", "1000", "1500", "2000", "2500", "3000", "3500", "4000", "5000"];
 
 const NMP_STANDARD_PURPOSE = {
   purityWt: "99.5",
@@ -334,14 +337,14 @@ function validateForm(form: FormState): ValidationErrors {
   numeric("nmpDynamicViscosityCp", "NMP dynamic viscosity", { min: 0.001 });
 
   requiredOption("solventOilRatio", "Solvent / Oil ratio", SOLVENT_OIL_RATIO_OPTIONS);
+  numeric("targetRaffinateSulfurPpm", "Target raffinate sulfur", { min: 0 });
+  numeric("minimumRaffinateSaturatesWt", "Minimum raffinate saturates", { min: 0, max: 100 });
   requiredOption("targetRaffinateTotalAromaticsWt", "Total aromatics target", TARGET_TOTAL_AROMATICS_OPTIONS);
   requiredOption("targetRaffinatePolarAromaticsWt", "Polar aromatics target", TARGET_POLAR_AROMATICS_OPTIONS);
   requiredOption("minimumRecoveryPct", "Minimum recovery", MINIMUM_RECOVERY_OPTIONS);
   requiredOption("maximumNmpRaffinateWt", "Maximum NMP in raffinate", MAXIMUM_NMP_RAFFINATE_OPTIONS);
 
-  if (form.feedSulfurPpm.trim() !== "" && !isAllowedOption(form.feedSulfurPpm, FEED_SULFUR_OPTIONS)) {
-    errors.feedSulfurPpm = "Select a valid feed sulfur value.";
-  }
+  numeric("feedSulfurPpm", "Feed sulfur", { min: 0 });
   if (form.designBasisNotes.length > 2000) {
     errors.designBasisNotes = "Design basis notes must be 2,000 characters or fewer.";
   }
@@ -465,6 +468,7 @@ function NumericField({
   max,
   step = "any",
   hint,
+  required = false,
   error,
 }: {
   id: string;
@@ -476,18 +480,20 @@ function NumericField({
   max?: string;
   step?: string;
   hint?: string;
+  required?: boolean;
   error?: string;
 }) {
   return (
     <div className="space-y-1">
       <Label htmlFor={id} className="text-[13px] font-medium text-slate-700">
-        {label}
+        {label}{required && <span className="text-red-600"> *</span>}
       </Label>
       <div className="flex items-center gap-1.5">
         <Input
           id={id}
           type="number"
           inputMode="decimal"
+          required={required}
           min={min}
           max={max}
           step={step}
@@ -1067,6 +1073,27 @@ export default function EcrPrePilotDesignPage() {
                 unit="kg/kg"
                 error={validationErrors.solventOilRatio}
               />
+              <NumericField
+                id="target-raffinate-sulfur"
+                label="Target raffinate sulfur"
+                value={form.targetRaffinateSulfurPpm}
+                onChange={(value) => setField("targetRaffinateSulfurPpm", value)}
+                unit="ppm"
+                min="0"
+                required
+                error={validationErrors.targetRaffinateSulfurPpm}
+              />
+              <NumericField
+                id="minimum-raffinate-saturates"
+                label="Minimum raffinate saturates"
+                value={form.minimumRaffinateSaturatesWt}
+                onChange={(value) => setField("minimumRaffinateSaturatesWt", value)}
+                unit="wt% (HC basis)"
+                min="0"
+                max="100"
+                required
+                error={validationErrors.minimumRaffinateSaturatesWt}
+              />
               <SelectField
                 id="target-total-aromatics"
                 label="Target raffinate total aromatics"
@@ -1113,8 +1140,8 @@ export default function EcrPrePilotDesignPage() {
           <Card className={`overflow-hidden shadow-sm ${SECTION_TONES.amber.card}`}>
             <SectionHeading
               number="6"
-              title="Optional Sulfur Input"
-              description="Sulfur is captured separately and is not derived from the aromatic composition or any target."
+              title="Feed Sulfur"
+              description="Provide the feed sulfur basis used to evaluate the primary raffinate sulfur target."
               tone="amber"
             />
             <CardContent className="px-4 py-3.5">
@@ -1122,19 +1149,19 @@ export default function EcrPrePilotDesignPage() {
                 <div className="flex items-start gap-2">
                   <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
                   <p className="text-[13px] leading-5 text-amber-900">
-                    Sulfur is an <strong>independent future model input</strong>. It must not be calculated from aromatic removal.
+                    Feed sulfur is a required process input. Raffinate sulfur is a primary extraction target and must be predicted from the sulfur-bearing Polar Aromatics transfer model.
                   </p>
                 </div>
               </div>
               <div className="mt-3.5 max-w-md">
-                <SelectField
+                <NumericField
                   id="feed-sulfur"
                   label="Feed sulfur"
                   value={form.feedSulfurPpm}
                   onChange={(value) => setField("feedSulfurPpm", value)}
-                  placeholder="Select feed sulfur"
-                  options={FEED_SULFUR_OPTIONS}
                   unit="ppm"
+                  min="0"
+                  required
                   error={validationErrors.feedSulfurPpm}
                 />
               </div>
