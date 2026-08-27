@@ -49,3 +49,11 @@ Do not admit the tested standard UNIQUAC regression as the governing ECR Pre-Pil
 **Why:** under the same data split, gates, and qualified finite-candidate solver procedure, held-out topology recall was 0.667 and mean tie-line RMSD was 0.175; both fail. Maximum error was about 0.848. The measurement Jacobian was also seriously ill-conditioned, with nine practically weak directions.
 
 **How to apply:** retain UNIQUAC as independent rejection evidence. Do not use it for sulfur prediction, stage count, optimization, hydraulics, sizing, or release work. Keep Polar Aromatics and sulfur unresolved, and compare future candidates against the same frozen holdout and unchanged 0.03 RMSD gate.
+
+## Molecular representation boundary
+
+Treat the family-global SAT/MONO/DI/POLY interaction representation as inadequate for predictive equilibrium work. Molecular identity or physically meaningful descriptor information is required, but exact molecular-system dummy interactions are not a governing solution.
+
+**Why:** in a controlled same-equation UNIQUAC comparison, molecular-system indexing materially improved composition on the identical 110-row valid-topology support, but it accepted only about half the phase splits, was severely ill-conditioned, and could not predict unseen molecular systems. This separates composition-representation information from overall model adequacy.
+
+**How to apply:** preserve explicit molecular identities in admitted evidence and develop a hierarchical molecule/descriptor representation that shares parameters through carbon number, aromatic topology, branching/cycloalkane status, condensation, polarity/heteroatoms, and explicit sulfur identity. Require preregistered temperature and unseen-system holdouts to pass both topology and composition gates before simulator use. Do not deploy pair-specific dummy parameters or infer sulfur removal from aromatic transfer.

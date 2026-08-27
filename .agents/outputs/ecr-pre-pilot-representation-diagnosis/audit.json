@@ -1,0 +1,25 @@
+{
+  "status": "PASS",
+  "scope": "representation diagnosis only; no simulator integration",
+  "checks": {
+    "exact_source_hashes_verified": true,
+    "deterministic_byte_reproduction": true,
+    "analogue_row_count_219": true,
+    "coto_row_count_17": true,
+    "six_explicit_ternary_systems": true,
+    "molecular_graph_connected": true,
+    "qualified_nrtl_solver_audit_pass": true,
+    "qualified_uniquac_solver_audit_pass": true,
+    "in_locus_interpolation_benchmark_below_0_03": true,
+    "graph_has_13_unique_undirected_edges": true,
+    "all_20_controlled_cases_complete_and_hash_matched": true,
+    "controlled_pooled_metrics_recomputed": true,
+    "sulfur_inference_prohibited": true
+  },
+  "limitations": [
+    "C and D are direct equilibrium-constraint diagnostics, not admitted flash models.",
+    "The empirical in-locus interpolation benchmark excludes endpoint extrapolation and is not a representation lower bound.",
+    "DI and POLY each have one identity at one temperature.",
+    "Polar Aromatics and explicit sulfur species are unresolved."
+  ]
+}

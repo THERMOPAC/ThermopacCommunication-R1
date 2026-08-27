@@ -1,0 +1,293 @@
+{
+  "case": "A:T=289",
+  "config": {
+    "bounds": {
+      "a": [
+        -8,
+        8
+      ],
+      "b_K": [
+        -2000,
+        2000
+      ]
+    },
+    "controlled_script_sha256": "03457eb5c335d27a1e5da8cb490206e5e96e7b8ddbc8d3f1097695318ac49ec1",
+    "coto_source_sha256": "8253433f5624934b7f9135f223090e8b9e2c5b1cbfaee06c951a3d87b839ea42",
+    "equation": "standard Abrams-Prausnitz UNIQUAC; row-specific Original-UNIFAC R/Q",
+    "flash": "imported qualified full/refined TPD, basin starts, independent final phase checks and original tolerances",
+    "multi_t_sha256": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+    "optimizer": "scipy least_squares, 3-point jacobian, x_scale=jac, max_nfev=4000",
+    "regularization": {
+      "a": 0.001,
+      "b": 1e-07
+    },
+    "structural_sha256": "ec79321c475d13aabb280caca5bbe2bd1d9b50d1011be2f9623881aef58caf43",
+    "uniquac_model_sha256": "c1130eba32c1b84c55309b71ee88c7ce6297b16c5a465486f5f505158c551ebc",
+    "uniquac_run_sha256": "50493678f405ec07bba8a21a3f7a454750233de10ef03e254e5c7467b10ac8a7"
+  },
+  "fit": {
+    "condition_number": 3635049.8377107433,
+    "measurement_rss": 9.451997636559053,
+    "nfev": 25,
+    "rank": 12,
+    "success": true,
+    "weak_directions": 5
+  },
+  "format": "controlled-uniquac-case-v2",
+  "heldout_rows": 10,
+  "metrics": {
+    "accepted_component_count": 90,
+    "accepted_count": 9,
+    "accepted_sse": 0.3858167239875394,
+    "accepted_tie_line_rmsd": 0.06547405966297215,
+    "categories": {
+      "AMBIGUOUS_UNRESOLVED": 0,
+      "NONCONVERGED_OR_BOUNDARY": 1,
+      "PREDICTED_STABLE_SINGLE_PHASE": 0,
+      "PREDICTED_TWO_PHASE": 9
+    },
+    "max_absolute_error": 0.17306573208661627,
+    "rows": 10,
+    "topology_recall": 0.9
+  },
+  "parameter_count": 12,
+  "representation": "family-global directed interaction mapping",
+  "row_records": [
+    {
+      "component_count": 0,
+      "compositionRmsd": null,
+      "id": "analogue-29",
+      "max_absolute_error": null,
+      "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
+      "solver_audit": {
+        "independent_final_phase_check": null,
+        "seed_contract": true
+      },
+      "squared_error_sum": null
+    },
+    {
+      "component_count": 10,
+      "component_errors": [
+        0.11703462218360905,
+        0.0029687511786931006,
+        0.0,
+        0.0,
+        -0.12000337336230209,
+        -0.0055632588633882304,
+        -0.00048600511269343213,
+        0.0,
+        0.0,
+        0.006049263976081742
+      ],
+      "compositionRmsd": 0.053079662335357915,
+      "id": "analogue-30",
+      "max_absolute_error": 0.12000337336230209,
+      "phaseBehavior": "PREDICTED_TWO_PHASE",
+      "solver_audit": {
+        "independent_final_phase_check": true,
+        "seed_contract": true
+      },
+      "squared_error_sum": 0.028174505536356136
+    },
+    {
+      "component_count": 10,
+      "component_errors": [
+        0.12021142477284696,
+        0.006470708828739333,
+        0.0,
+        0.0,
+        -0.1266821336015863,
+        -0.007463332632218468,
+        -0.001162595738480987,
+        0.0,
+        0.0,
+        0.00862592837069942
+      ],
+      "compositionRmsd": 0.05538274035798612,
+      "id": "analogue-31",
+      "max_absolute_error": 0.1266821336015863,
+      "phaseBehavior": "PREDICTED_TWO_PHASE",
+      "solver_audit": {
+        "independent_final_phase_check": true,
+        "seed_contract": true
+      },
+      "squared_error_sum": 0.030672479295601043
+    },
+    {
+      "component_count": 10,
+      "component_errors": [
+        0.12714272048593345,
+        0.010419943239022053,
+        0.0,
+        0.0,
+        -0.13756266372495557,
+        -0.00989776496019041,
+        -0.0018609350072735231,
+        0.0,
+        0.0,
+        0.011758699967463926
+      ],
+      "compositionRmsd": 0.05952900880747735,
+      "id": "analogue-32",
+      "max_absolute_error": 0.13756266372495557,
+      "phaseBehavior": "PREDICTED_TWO_PHASE",
+      "solver_audit": {
+        "independent_final_phase_check": true,
+        "seed_contract": true
+      },
+      "squared_error_sum": 0.03543702889600715
+    },
+    {
+      "component_count": 10,
+      "component_errors": [
+        0.13085664721748558,
+        0.013366495290438263,
+        0.0,
+        0.0,
+        -0.1442231425079239,
+        -0.01200687408970428,
+        -0.002478775882754733,
+        0.0,
+        0.0,
+        0.014485649972459047
+      ],
+      "compositionRmsd": 0.06201820987630911,
+      "id": "analogue-33",
+      "max_absolute_error": 0.1442231425079239,
+      "phaseBehavior": "PREDICTED_TWO_PHASE",
+      "solver_audit": {
+        "independent_final_phase_check": true,
+        "seed_contract": true
+      },
+      "squared_error_sum": 0.03846258356261925
+    },
+    {
+      "component_count": 10,
+      "component_errors": [
+        0.1371907369626577,
+        0.015318945053732103,
+        0.0,
+        0.0,
+        -0.1525096820163898,
+        -0.015072243059183595,
+        -0.0024447200906383137,
+        0.0,
+        0.0,
+        0.017516963149821874
+      ],
+      "compositionRmsd": 0.06546385618018971,
+      "id": "analogue-34",
+      "max_absolute_error": 0.1525096820163898,
+      "phaseBehavior": "PREDICTED_TWO_PHASE",
+      "solver_audit": {
+        "independent_final_phase_check": true,
+        "seed_contract": true
+      },
+      "squared_error_sum": 0.04285516465980563
+    },
+    {
+      "component_count": 10,
+      "component_errors": [
+        0.14262614069826485,
+        0.016328316120719527,
+        0.0,
+        0.0,
+        -0.15895445681898446,
+        -0.01755259158555976,
+        -0.0021817422424886546,
+        0.0,
+        0.0,
+        0.019734333828048567
+      ],
+      "compositionRmsd": 0.06824781803300145,
+      "id": "analogue-35",
+      "max_absolute_error": 0.15895445681898446,
+      "phaseBehavior": "PREDICTED_TWO_PHASE",
+      "solver_audit": {
+        "independent_final_phase_check": true,
+        "seed_contract": true
+      },
+      "squared_error_sum": 0.04657764666265677
+    },
+    {
+      "component_count": 10,
+      "component_errors": [
+        0.15439777427988088,
+        0.018667957806735525,
+        0.0,
+        0.0,
+        -0.17306573208661627,
+        -0.02354814152826072,
+        -0.0030151734117534468,
+        0.0,
+        0.0,
+        0.02656331494001407
+      ],
+      "compositionRmsd": 0.0744366367554794,
+      "id": "analogue-36",
+      "max_absolute_error": 0.17306573208661627,
+      "phaseBehavior": "PREDICTED_TWO_PHASE",
+      "solver_audit": {
+        "independent_final_phase_check": true,
+        "seed_contract": true
+      },
+      "squared_error_sum": 0.05540812891467186
+    },
+    {
+      "component_count": 10,
+      "component_errors": [
+        0.14849607380129892,
+        0.020499108571367386,
+        0.0,
+        0.0,
+        -0.1689951823726663,
+        -0.031039815392855746,
+        -0.0057889164192901355,
+        0.0,
+        0.0,
+        0.036828731812145965
+      ],
+      "compositionRmsd": 0.0730643594590518,
+      "id": "analogue-37",
+      "max_absolute_error": 0.1689951823726663,
+      "phaseBehavior": "PREDICTED_TWO_PHASE",
+      "solver_audit": {
+        "independent_final_phase_check": true,
+        "seed_contract": true
+      },
+      "squared_error_sum": 0.05338400623161534
+    },
+    {
+      "component_count": 10,
+      "component_errors": [
+        0.14811660656231646,
+        0.021333091518882408,
+        0.0,
+        0.0,
+        -0.1694496980811988,
+        -0.039107504769198866,
+        -0.00731867513133555,
+        0.0,
+        0.0,
+        0.04642617990053455
+      ],
+      "compositionRmsd": 0.07405753184396995,
+      "id": "analogue-38",
+      "max_absolute_error": 0.1694496980811988,
+      "phaseBehavior": "PREDICTED_TWO_PHASE",
+      "solver_audit": {
+        "independent_final_phase_check": true,
+        "seed_contract": true
+      },
+      "squared_error_sum": 0.054845180228206225
+    }
+  ],
+  "solver_audit": {
+    "all_seed_contracts_pass": true,
+    "all_two_phase_independent_final_checks_pass": true,
+    "ambiguous_count": 0,
+    "rows_with_full_TPD_refinement": 10,
+    "two_phase_count": 9
+  },
+  "train_rows": 209
+}

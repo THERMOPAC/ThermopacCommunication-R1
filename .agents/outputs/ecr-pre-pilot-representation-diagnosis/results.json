@@ -1,0 +1,1541 @@
+{
+  "controlled_same_equation_uniquac": {
+    "A_family_global_leave_one_temperature": {
+      "accepted_component_count": 1950,
+      "accepted_count": 195,
+      "accepted_sse": 8.292755631846571,
+      "accepted_tie_line_rmsd": 0.06521269198414335,
+      "max_absolute_error": 0.31397575831280256,
+      "rows": 219,
+      "topology_recall": 0.8904109589041096
+    },
+    "A_in_sample": {
+      "accepted_component_count": 1950,
+      "accepted_count": 195,
+      "accepted_sse": 7.8823500983646255,
+      "accepted_tie_line_rmsd": 0.0635785405594857,
+      "categories": {
+        "AMBIGUOUS_UNRESOLVED": 0,
+        "NONCONVERGED_OR_BOUNDARY": 24,
+        "PREDICTED_STABLE_SINGLE_PHASE": 0,
+        "PREDICTED_TWO_PHASE": 195
+      },
+      "max_absolute_error": 0.31143282777048775,
+      "rows": 219,
+      "topology_recall": 0.8904109589041096
+    },
+    "B_exact_system_leave_one_temperature": {
+      "accepted_component_count": 1100,
+      "accepted_count": 110,
+      "accepted_sse": 0.6011714775800887,
+      "accepted_tie_line_rmsd": 0.023377757058212576,
+      "max_absolute_error": 0.1361019231936652,
+      "rows": 219,
+      "topology_recall": 0.502283105022831
+    },
+    "B_in_sample": {
+      "accepted_component_count": 1330,
+      "accepted_count": 133,
+      "accepted_sse": 0.49922411086497104,
+      "accepted_tie_line_rmsd": 0.019374118672460038,
+      "categories": {
+        "AMBIGUOUS_UNRESOLVED": 0,
+        "NONCONVERGED_OR_BOUNDARY": 86,
+        "PREDICTED_STABLE_SINGLE_PHASE": 0,
+        "PREDICTED_TWO_PHASE": 133
+      },
+      "max_absolute_error": 0.12519795388700572,
+      "rows": 219,
+      "topology_recall": 0.6073059360730594
+    },
+    "common_support": {
+      "A_rmsd": 0.07238470978490873,
+      "B_minus_A_row_rmsd": {
+        "A_better_count": 6,
+        "B_better_count": 104,
+        "max": 0.011657115795103184,
+        "mean": -0.04733069377587931,
+        "median": -0.04743847516781913,
+        "min": -0.08239807981782675,
+        "tie_count": 0
+      },
+      "B_rmsd": 0.023377757058212576,
+      "intersection_count": 110
+    },
+    "interpretation": "B changes only interaction indexing. It improves conditional accepted-phase compositions but is not governing because its topology/coverage is poor and its system dummies cannot predict unseen systems."
+  },
+  "coto": {
+    "toluene": {
+      "logK": {
+        "DI": {
+          "mean_logK": 0.905166881902514,
+          "range_logK": [
+            0.4054651081081642,
+            1.2039728043259361
+          ],
+          "sd_logK": 0.3582289554775652
+        },
+        "MONO": {
+          "mean_logK": 0.4170105480545713,
+          "range_logK": [
+            0.29238796348919355,
+            0.5232481437645479
+          ],
+          "sd_logK": 0.11555234223343218
+        },
+        "NMP": {
+          "mean_logK": 1.8073623071082485,
+          "range_logK": [
+            0.6792387505138133,
+            2.50354900059728
+          ],
+          "sd_logK": 0.822861066361936
+        },
+        "POLY": {
+          "mean_logK": 1.201059900020817,
+          "range_logK": [
+            0.47000362924573563,
+            1.4816045409242153
+          ],
+          "sd_logK": 0.4891599426328985
+        },
+        "SAT": {
+          "mean_logK": -1.3005640014971895,
+          "range_logK": [
+            -1.81897203275294,
+            -0.4853140361085821
+          ],
+          "sd_logK": 0.5810317198594348
+        }
+      },
+      "rows": 4
+    },
+    "xylene": {
+      "logK": {
+        "DI": {
+          "mean_logK": 1.0198754590657444,
+          "range_logK": [
+            0.43178241642553766,
+            1.3350010667323402
+          ],
+          "sd_logK": 0.3105635989041916
+        },
+        "MONO": {
+          "mean_logK": 0.3210029555997084,
+          "range_logK": [
+            0.08062973440010901,
+            0.6205764877251098
+          ],
+          "sd_logK": 0.14987103317120867
+        },
+        "NMP": {
+          "mean_logK": 1.9618601391742356,
+          "range_logK": [
+            0.798191190438899,
+            2.589266665112243
+          ],
+          "sd_logK": 0.6249787467431888
+        },
+        "POLY": {
+          "mean_logK": 1.3613566542946611,
+          "range_logK": [
+            0.6418538861723947,
+            1.9095425048844386
+          ],
+          "sd_logK": 0.3917790161525612
+        },
+        "SAT": {
+          "mean_logK": -1.3434079671935393,
+          "range_logK": [
+            -1.872371815196687,
+            -0.49176761713020756
+          ],
+          "sd_logK": 0.42639036700750815
+        }
+      },
+      "rows": 13
+    }
+  },
+  "in_locus_interpolation_benchmark": {
+    "fraction_at_or_below_0.03": 1.0,
+    "mean_row_rmsd": 0.0027791035055633527,
+    "method": "leave-one-row-out interpolation on each exact molecule-pair and temperature locus; endpoints excluded",
+    "rmsd": 0.004366249547694333,
+    "rows": 171
+  },
+  "interpretation": {
+    "direct_tests_are_not_flash_models": true,
+    "in_locus_interpolation_is_not_a_representation_lower_bound": true,
+    "target_rmsd": 0.03
+  },
+  "inventory": {
+    "analogue_rows": 219,
+    "coto_rows": 17,
+    "family_identities": {
+      "DI": [
+        "1-methylnaphthalene (Coto only, 298.15 K)"
+      ],
+      "MONO": [
+        "1,3,5-trimethylbenzene",
+        "pentylbenzene",
+        "propylbenzene",
+        "p-xylene (Coto)",
+        "toluene (Coto)"
+      ],
+      "NMP": [
+        "N-methyl-2-pyrrolidone"
+      ],
+      "POLY": [
+        "pyrene (Coto only, 298.15 K)"
+      ],
+      "SAT": [
+        "dodecane",
+        "heptadecane",
+        "hexadecane",
+        "tetradecane",
+        "n-dodecane (Coto)"
+      ]
+    },
+    "graph": {
+      "connected_components": [
+        [
+          "1,3,5-trimethylbenzene",
+          "N-methylpyrrolidone",
+          "dodecane",
+          "heptadecane",
+          "hexadecane",
+          "pentylbenzene",
+          "propylbenzene",
+          "tetradecane"
+        ]
+      ],
+      "edges": [
+        [
+          "1,3,5-trimethylbenzene",
+          "N-methylpyrrolidone"
+        ],
+        [
+          "1,3,5-trimethylbenzene",
+          "hexadecane"
+        ],
+        [
+          "N-methylpyrrolidone",
+          "dodecane"
+        ],
+        [
+          "N-methylpyrrolidone",
+          "heptadecane"
+        ],
+        [
+          "N-methylpyrrolidone",
+          "hexadecane"
+        ],
+        [
+          "N-methylpyrrolidone",
+          "pentylbenzene"
+        ],
+        [
+          "N-methylpyrrolidone",
+          "propylbenzene"
+        ],
+        [
+          "N-methylpyrrolidone",
+          "tetradecane"
+        ],
+        [
+          "dodecane",
+          "propylbenzene"
+        ],
+        [
+          "heptadecane",
+          "pentylbenzene"
+        ],
+        [
+          "heptadecane",
+          "propylbenzene"
+        ],
+        [
+          "pentylbenzene",
+          "tetradecane"
+        ],
+        [
+          "propylbenzene",
+          "tetradecane"
+        ]
+      ],
+      "nodes": [
+        "1,3,5-trimethylbenzene",
+        "N-methylpyrrolidone",
+        "dodecane",
+        "heptadecane",
+        "hexadecane",
+        "pentylbenzene",
+        "propylbenzene",
+        "tetradecane"
+      ],
+      "system_count": 6
+    },
+    "systems": [
+      {
+        "mono": "propylbenzene",
+        "ranges": {
+          "extract_MONO": [
+            0,
+            0.1586
+          ],
+          "extract_NMP": [
+            0.5238,
+            0.9534
+          ],
+          "extract_SAT": [
+            0.0466,
+            0.3176
+          ],
+          "raffinate_MONO": [
+            0,
+            0.1972
+          ],
+          "raffinate_NMP": [
+            0.1868,
+            0.5106
+          ],
+          "raffinate_SAT": [
+            0.3344,
+            0.8132
+          ]
+        },
+        "rows": 28,
+        "sat": "dodecane",
+        "temperatures_K": [
+          298,
+          308,
+          318,
+          328
+        ]
+      },
+      {
+        "mono": "pentylbenzene",
+        "ranges": {
+          "extract_MONO": [
+            0,
+            0.1631
+          ],
+          "extract_NMP": [
+            0.7745,
+            0.9879
+          ],
+          "extract_SAT": [
+            0.0121,
+            0.0719
+          ],
+          "raffinate_MONO": [
+            0,
+            0.2198
+          ],
+          "raffinate_NMP": [
+            0.0606,
+            0.3265
+          ],
+          "raffinate_SAT": [
+            0.4959,
+            0.9319
+          ]
+        },
+        "rows": 40,
+        "sat": "heptadecane",
+        "temperatures_K": [
+          298,
+          308,
+          318,
+          328
+        ]
+      },
+      {
+        "mono": "propylbenzene",
+        "ranges": {
+          "extract_MONO": [
+            0,
+            0.163
+          ],
+          "extract_NMP": [
+            0.7767,
+            0.9879
+          ],
+          "extract_SAT": [
+            0.0121,
+            0.0631
+          ],
+          "raffinate_MONO": [
+            0,
+            0.2196
+          ],
+          "raffinate_NMP": [
+            0.0711,
+            0.3345
+          ],
+          "raffinate_SAT": [
+            0.4857,
+            0.9289
+          ]
+        },
+        "rows": 40,
+        "sat": "heptadecane",
+        "temperatures_K": [
+          298,
+          308,
+          318,
+          328
+        ]
+      },
+      {
+        "mono": "1,3,5-trimethylbenzene",
+        "ranges": {
+          "extract_MONO": [
+            0,
+            0.2102
+          ],
+          "extract_NMP": [
+            0.7343,
+            0.992
+          ],
+          "extract_SAT": [
+            0.008,
+            0.1269
+          ],
+          "raffinate_MONO": [
+            0,
+            0.3502
+          ],
+          "raffinate_NMP": [
+            0.1231,
+            0.5509
+          ],
+          "raffinate_SAT": [
+            0.2725,
+            0.8769
+          ]
+        },
+        "rows": 35,
+        "sat": "hexadecane",
+        "temperatures_K": [
+          293.2,
+          303.2,
+          313.2,
+          323.2
+        ]
+      },
+      {
+        "mono": "pentylbenzene",
+        "ranges": {
+          "extract_MONO": [
+            0,
+            0.1866
+          ],
+          "extract_NMP": [
+            0.6207,
+            0.9789
+          ],
+          "extract_SAT": [
+            0.0211,
+            0.2184
+          ],
+          "raffinate_MONO": [
+            0,
+            0.2275
+          ],
+          "raffinate_NMP": [
+            0.1815,
+            0.5267
+          ],
+          "raffinate_SAT": [
+            0.3104,
+            0.8185
+          ]
+        },
+        "rows": 38,
+        "sat": "tetradecane",
+        "temperatures_K": [
+          298,
+          308,
+          318,
+          328
+        ]
+      },
+      {
+        "mono": "propylbenzene",
+        "ranges": {
+          "extract_MONO": [
+            0,
+            0.1865
+          ],
+          "extract_NMP": [
+            0.6211,
+            0.9789
+          ],
+          "extract_SAT": [
+            0.0211,
+            0.2182
+          ],
+          "raffinate_MONO": [
+            0,
+            0.2275
+          ],
+          "raffinate_NMP": [
+            0.1815,
+            0.5271
+          ],
+          "raffinate_SAT": [
+            0.3102,
+            0.8185
+          ]
+        },
+        "rows": 38,
+        "sat": "tetradecane",
+        "temperatures_K": [
+          289,
+          308,
+          318,
+          328
+        ]
+      }
+    ]
+  },
+  "nested_direct_constraint_tests": {
+    "A": {
+      "fit_all": {
+        "log_K_residual_rms": 0.23490696908393863,
+        "mean_row_rmsd": 0.01779185619475551,
+        "rows": 219,
+        "tie_line_extract_rmsd": 0.027949257673753034
+      },
+      "leave_one_system": {
+        "dodecane + propylbenzene": {
+          "log_K_residual_rms": 0.47715378205662123,
+          "mean_row_rmsd": 0.05158561752692389,
+          "rows": 28,
+          "tie_line_extract_rmsd": 0.06072662798145508
+        },
+        "heptadecane + pentylbenzene": {
+          "log_K_residual_rms": 0.1088328540829121,
+          "mean_row_rmsd": 0.006416514851698134,
+          "rows": 40,
+          "tie_line_extract_rmsd": 0.008192626252921633
+        },
+        "heptadecane + propylbenzene": {
+          "log_K_residual_rms": 0.1014666469749767,
+          "mean_row_rmsd": 0.006196957436442325,
+          "rows": 40,
+          "tie_line_extract_rmsd": 0.00816542601757697
+        },
+        "hexadecane + 1,3,5-trimethylbenzene": {
+          "log_K_residual_rms": 0.6136223838447988,
+          "mean_row_rmsd": 0.06983450470172602,
+          "rows": 35,
+          "tie_line_extract_rmsd": 0.07796038008308746
+        },
+        "tetradecane + pentylbenzene": {
+          "log_K_residual_rms": 0.14721636446973868,
+          "mean_row_rmsd": 0.014780002433479747,
+          "rows": 38,
+          "tie_line_extract_rmsd": 0.023164664761848263
+        },
+        "tetradecane + propylbenzene": {
+          "log_K_residual_rms": 0.15941853465202144,
+          "mean_row_rmsd": 0.01699614502605353,
+          "rows": 38,
+          "tie_line_extract_rmsd": 0.02478908958230684
+        }
+      },
+      "leave_one_temperature": {
+        "289": {
+          "log_K_residual_rms": 0.20748906422293542,
+          "mean_row_rmsd": 0.020746849289709234,
+          "rows": 10,
+          "tie_line_extract_rmsd": 0.028013603093315836
+        },
+        "293.2": {
+          "log_K_residual_rms": 0.5648036448037387,
+          "mean_row_rmsd": 0.04737665674020574,
+          "rows": 10,
+          "tie_line_extract_rmsd": 0.05327195542533681
+        },
+        "298": {
+          "log_K_residual_rms": 0.2949179762050751,
+          "mean_row_rmsd": 0.017657036562408794,
+          "rows": 38,
+          "tie_line_extract_rmsd": 0.023879528005965694
+        },
+        "303.2": {
+          "log_K_residual_rms": 0.538264895394292,
+          "mean_row_rmsd": 0.04922437028521286,
+          "rows": 9,
+          "tie_line_extract_rmsd": 0.05322539173381308
+        },
+        "308": {
+          "log_K_residual_rms": 0.15703551021851317,
+          "mean_row_rmsd": 0.01121645590710097,
+          "rows": 48,
+          "tie_line_extract_rmsd": 0.016731832548035362
+        },
+        "313.2": {
+          "log_K_residual_rms": 0.3971832240659362,
+          "mean_row_rmsd": 0.04043341242166462,
+          "rows": 8,
+          "tie_line_extract_rmsd": 0.04507334735409718
+        },
+        "318": {
+          "log_K_residual_rms": 0.2610920666102076,
+          "mean_row_rmsd": 0.024309210063747873,
+          "rows": 47,
+          "tie_line_extract_rmsd": 0.04124156432107045
+        },
+        "323.2": {
+          "log_K_residual_rms": 0.46176239181270196,
+          "mean_row_rmsd": 0.055810341808737146,
+          "rows": 8,
+          "tie_line_extract_rmsd": 0.06041368754316194
+        },
+        "328": {
+          "log_K_residual_rms": 0.18738814671215406,
+          "mean_row_rmsd": 0.021798736413739923,
+          "rows": 41,
+          "tie_line_extract_rmsd": 0.03224187549333528
+        }
+      }
+    },
+    "B": {
+      "fit_all": {
+        "log_K_residual_rms": 0.09829490875173802,
+        "mean_row_rmsd": 0.008538820903699819,
+        "rows": 219,
+        "tie_line_extract_rmsd": 0.012818027848581721
+      },
+      "leave_one_system": {
+        "dodecane + propylbenzene": {
+          "log_K_residual_rms": 0.28610033419991643,
+          "mean_row_rmsd": 0.03325613881780259,
+          "rows": 28,
+          "tie_line_extract_rmsd": 0.041891207553728875
+        },
+        "heptadecane + pentylbenzene": {
+          "log_K_residual_rms": 0.1367970045103892,
+          "mean_row_rmsd": 0.009900292989590548,
+          "rows": 40,
+          "tie_line_extract_rmsd": 0.011941412761059962
+        },
+        "heptadecane + propylbenzene": {
+          "log_K_residual_rms": 0.08108276741086377,
+          "mean_row_rmsd": 0.005161683656639087,
+          "rows": 40,
+          "tie_line_extract_rmsd": 0.006278860536551365
+        },
+        "hexadecane + 1,3,5-trimethylbenzene": {
+          "log_K_residual_rms": 0.43379963410870287,
+          "mean_row_rmsd": 0.04640125292455357,
+          "rows": 35,
+          "tie_line_extract_rmsd": 0.0639301754299967
+        },
+        "tetradecane + pentylbenzene": {
+          "log_K_residual_rms": 0.13254965858388698,
+          "mean_row_rmsd": 0.01362219691707534,
+          "rows": 38,
+          "tie_line_extract_rmsd": 0.01652366535462681
+        },
+        "tetradecane + propylbenzene": {
+          "log_K_residual_rms": 0.12044129224169588,
+          "mean_row_rmsd": 0.012853591977658703,
+          "rows": 38,
+          "tie_line_extract_rmsd": 0.01609052316512274
+        }
+      },
+      "leave_one_temperature": {
+        "289": {
+          "log_K_residual_rms": 0.19029733836099436,
+          "mean_row_rmsd": 0.014504275778313005,
+          "rows": 10,
+          "tie_line_extract_rmsd": 0.018390150951604817
+        },
+        "293.2": {
+          "log_K_residual_rms": 0.5129155169156921,
+          "mean_row_rmsd": 0.03495614767568423,
+          "rows": 10,
+          "tie_line_extract_rmsd": 0.04602427280408257
+        },
+        "298": {
+          "log_K_residual_rms": 0.13793496673104508,
+          "mean_row_rmsd": 0.008357303892543747,
+          "rows": 38,
+          "tie_line_extract_rmsd": 0.010502413175520567
+        },
+        "303.2": {
+          "log_K_residual_rms": 0.09955389628303705,
+          "mean_row_rmsd": 0.007313583190377461,
+          "rows": 9,
+          "tie_line_extract_rmsd": 0.00826919149484094
+        },
+        "308": {
+          "log_K_residual_rms": 0.08587655292256045,
+          "mean_row_rmsd": 0.008265624305071736,
+          "rows": 48,
+          "tie_line_extract_rmsd": 0.009792488917736387
+        },
+        "313.2": {
+          "log_K_residual_rms": 0.17135171872021193,
+          "mean_row_rmsd": 0.009235194552434187,
+          "rows": 8,
+          "tie_line_extract_rmsd": 0.014527741366231604
+        },
+        "318": {
+          "log_K_residual_rms": 0.12141422172760379,
+          "mean_row_rmsd": 0.01416413692578959,
+          "rows": 47,
+          "tie_line_extract_rmsd": 0.022955396393125008
+        },
+        "323.2": {
+          "log_K_residual_rms": 0.17245845772372276,
+          "mean_row_rmsd": 0.011718632492199507,
+          "rows": 8,
+          "tie_line_extract_rmsd": 0.018428408783526896
+        },
+        "328": {
+          "log_K_residual_rms": 0.165185544278911,
+          "mean_row_rmsd": 0.020209820462902678,
+          "rows": 41,
+          "tie_line_extract_rmsd": 0.02730057133743101
+        }
+      }
+    },
+    "C": {
+      "fit_all": {
+        "log_K_residual_rms": 0.07564145833008716,
+        "mean_row_rmsd": 0.007361460803558948,
+        "rows": 219,
+        "tie_line_extract_rmsd": 0.01127224835658304
+      },
+      "leave_one_temperature": {
+        "289": {
+          "log_K_residual_rms": 0.23408970771278115,
+          "mean_row_rmsd": 0.012811179752940334,
+          "rows": 10,
+          "tie_line_extract_rmsd": 0.016190799034413263
+        },
+        "293.2": {
+          "log_K_residual_rms": 0.37310923134713914,
+          "mean_row_rmsd": 0.02618998228397815,
+          "rows": 10,
+          "tie_line_extract_rmsd": 0.03475364636689846
+        },
+        "298": {
+          "log_K_residual_rms": 0.13768667161403386,
+          "mean_row_rmsd": 0.008578921629696905,
+          "rows": 38,
+          "tie_line_extract_rmsd": 0.01061438597356726
+        },
+        "303.2": {
+          "log_K_residual_rms": 0.10083274622666816,
+          "mean_row_rmsd": 0.005535725860754929,
+          "rows": 9,
+          "tie_line_extract_rmsd": 0.0063653660942453874
+        },
+        "308": {
+          "log_K_residual_rms": 0.09472810540195999,
+          "mean_row_rmsd": 0.008624569050065076,
+          "rows": 48,
+          "tie_line_extract_rmsd": 0.010492464504530018
+        },
+        "313.2": {
+          "log_K_residual_rms": 0.11692093324905282,
+          "mean_row_rmsd": 0.007233925485492716,
+          "rows": 8,
+          "tie_line_extract_rmsd": 0.011305593367231472
+        },
+        "318": {
+          "log_K_residual_rms": 0.1352296001276599,
+          "mean_row_rmsd": 0.0173820414317698,
+          "rows": 47,
+          "tie_line_extract_rmsd": 0.025779885886057178
+        },
+        "323.2": {
+          "log_K_residual_rms": 0.1684901475711123,
+          "mean_row_rmsd": 0.01383958107952118,
+          "rows": 8,
+          "tie_line_extract_rmsd": 0.0169628336017837
+        },
+        "328": {
+          "log_K_residual_rms": 0.15870730608860695,
+          "mean_row_rmsd": 0.027265319803246188,
+          "rows": 41,
+          "tie_line_extract_rmsd": 0.0377695814199972
+        }
+      }
+    },
+    "D": {
+      "fit_all": {
+        "log_K_residual_rms": 0.09241415780159933,
+        "mean_row_rmsd": 0.008228419836234043,
+        "rows": 219,
+        "tie_line_extract_rmsd": 0.012439603622229102
+      },
+      "leave_one_system": {
+        "dodecane + propylbenzene": {
+          "log_K_residual_rms": 0.25356275191904,
+          "mean_row_rmsd": 0.029089993605649712,
+          "rows": 28,
+          "tie_line_extract_rmsd": 0.040177621036410746
+        },
+        "heptadecane + pentylbenzene": {
+          "log_K_residual_rms": 0.15079921661615647,
+          "mean_row_rmsd": 0.009810508941482807,
+          "rows": 40,
+          "tie_line_extract_rmsd": 0.011773105346926313
+        },
+        "heptadecane + propylbenzene": {
+          "log_K_residual_rms": 0.28318937454360393,
+          "mean_row_rmsd": 0.018115781741688087,
+          "rows": 40,
+          "tie_line_extract_rmsd": 0.020470610867323297
+        },
+        "hexadecane + 1,3,5-trimethylbenzene": {
+          "log_K_residual_rms": 0.45419360952541965,
+          "mean_row_rmsd": 0.047032766400831885,
+          "rows": 35,
+          "tie_line_extract_rmsd": 0.06500330079824135
+        },
+        "tetradecane + pentylbenzene": {
+          "log_K_residual_rms": 0.13858189793766149,
+          "mean_row_rmsd": 0.012133003296352255,
+          "rows": 38,
+          "tie_line_extract_rmsd": 0.015812645007087376
+        },
+        "tetradecane + propylbenzene": {
+          "log_K_residual_rms": 0.1374828422849752,
+          "mean_row_rmsd": 0.01469510148140606,
+          "rows": 38,
+          "tie_line_extract_rmsd": 0.019071276249694343
+        }
+      },
+      "leave_one_temperature": {
+        "289": {
+          "log_K_residual_rms": 0.1600549088810196,
+          "mean_row_rmsd": 0.010425803571295179,
+          "rows": 10,
+          "tie_line_extract_rmsd": 0.014528047965559291
+        },
+        "293.2": {
+          "log_K_residual_rms": 0.5024507504871063,
+          "mean_row_rmsd": 0.03388401869502656,
+          "rows": 10,
+          "tie_line_extract_rmsd": 0.04463116844538493
+        },
+        "298": {
+          "log_K_residual_rms": 0.13510013289839815,
+          "mean_row_rmsd": 0.008277727618156299,
+          "rows": 38,
+          "tie_line_extract_rmsd": 0.010607362587824342
+        },
+        "303.2": {
+          "log_K_residual_rms": 0.09146059120067192,
+          "mean_row_rmsd": 0.0061266836782833765,
+          "rows": 9,
+          "tie_line_extract_rmsd": 0.006924696435173874
+        },
+        "308": {
+          "log_K_residual_rms": 0.08480781280249067,
+          "mean_row_rmsd": 0.008394508566230266,
+          "rows": 48,
+          "tie_line_extract_rmsd": 0.009930432795742494
+        },
+        "313.2": {
+          "log_K_residual_rms": 0.16337899318873123,
+          "mean_row_rmsd": 0.008782180194660264,
+          "rows": 8,
+          "tie_line_extract_rmsd": 0.013710548721489595
+        },
+        "318": {
+          "log_K_residual_rms": 0.14773673582553856,
+          "mean_row_rmsd": 0.016504452717538923,
+          "rows": 47,
+          "tie_line_extract_rmsd": 0.02684923385630837
+        },
+        "323.2": {
+          "log_K_residual_rms": 0.1518828875554701,
+          "mean_row_rmsd": 0.008862588017919098,
+          "rows": 8,
+          "tie_line_extract_rmsd": 0.013547524663472608
+        },
+        "328": {
+          "log_K_residual_rms": 0.16077199607217102,
+          "mean_row_rmsd": 0.0205718953081692,
+          "rows": 41,
+          "tie_line_extract_rmsd": 0.024872582934549605
+        }
+      }
+    }
+  },
+  "observed_equilibrium_constraints": {
+    "by_mono": {
+      "1,3,5-trimethylbenzene": {
+        "MONO": {
+          "mean_logK": -0.6175439275982457,
+          "n": 31,
+          "range_logK": [
+            -1.0599503016338452,
+            -0.23744994696544758
+          ],
+          "sd_logK": 0.19204865908614518
+        },
+        "MONO_over_SAT_selectivity": {
+          "geometric_mean_selectivity": 7.306990803307878,
+          "mean_log_selectivity": 1.9888315341943401,
+          "n": 31,
+          "range_log_selectivity": [
+            0.5289887067938698,
+            3.209372452501875
+          ]
+        },
+        "NMP": {
+          "mean_logK": 0.9935305704313133,
+          "n": 35,
+          "range_logK": [
+            0.28736435997889404,
+            2.086726074094465
+          ],
+          "sd_logK": 0.4162309925647652
+        },
+        "SAT": {
+          "mean_logK": -2.7618682884502928,
+          "n": 35,
+          "range_logK": [
+            -4.696951419105474,
+            -0.7664386537593173
+          ],
+          "sd_logK": 0.9500659186509675
+        }
+      },
+      "pentylbenzene": {
+        "MONO": {
+          "mean_logK": -0.31146948812202246,
+          "n": 70,
+          "range_logK": [
+            -0.5826715642353486,
+            -0.012353461609661888
+          ],
+          "sd_logK": 0.14144517932752979
+        },
+        "MONO_over_SAT_selectivity": {
+          "geometric_mean_selectivity": 9.002806559282098,
+          "mean_log_selectivity": 2.1975363686444904,
+          "n": 70,
+          "range_log_selectivity": [
+            0.3391800828286517,
+            3.5312001415920147
+          ]
+        },
+        "NMP": {
+          "mean_logK": 1.3773963451286249,
+          "n": 78,
+          "range_logK": [
+            0.1642167469302635,
+            2.738921864769297
+          ],
+          "sd_logK": 0.6341400410962449
+        },
+        "SAT": {
+          "mean_logK": -2.623953435835475,
+          "n": 78,
+          "range_logK": [
+            -4.344020060188915,
+            -0.35153354443831364
+          ],
+          "sd_logK": 0.8615051721728049
+        }
+      },
+      "propylbenzene": {
+        "MONO": {
+          "mean_logK": -0.3048817290692153,
+          "n": 94,
+          "range_logK": [
+            -0.6149232063371199,
+            -0.011908633369323013
+          ],
+          "sd_logK": 0.14791352877873293
+        },
+        "MONO_over_SAT_selectivity": {
+          "geometric_mean_selectivity": 7.292680623565414,
+          "mean_log_selectivity": 1.9868711908541614,
+          "n": 94,
+          "range_log_selectivity": [
+            0.03963651846824291,
+            3.5120983819112808
+          ]
+        },
+        "NMP": {
+          "mean_logK": 1.2290217090965527,
+          "n": 106,
+          "range_logK": [
+            0.03635350259960462,
+            2.631494141241233
+          ],
+          "sd_logK": 0.5527378060876517
+        },
+        "SAT": {
+          "mean_logK": -2.3975713791049076,
+          "n": 106,
+          "range_logK": [
+            -4.340795637790779,
+            -0.05154515183756588
+          ],
+          "sd_logK": 0.9027991972535115
+        }
+      }
+    },
+    "by_sat": {
+      "dodecane": {
+        "MONO": {
+          "mean_logK": -0.24760426354011372,
+          "n": 24,
+          "range_logK": [
+            -0.5034156875372856,
+            -0.011908633369323013
+          ],
+          "sd_logK": 0.1404169020445126
+        },
+        "MONO_over_SAT_selectivity": {
+          "geometric_mean_selectivity": 3.9673417276746434,
+          "mean_log_selectivity": 1.378096280417203,
+          "n": 24,
+          "range_log_selectivity": [
+            0.03963651846824291,
+            2.172302231818626
+          ]
+        },
+        "NMP": {
+          "mean_logK": 0.9633333378256124,
+          "n": 28,
+          "range_logK": [
+            0.03635350259960462,
+            1.629996016975983
+          ],
+          "sd_logK": 0.36682099431691073
+        },
+        "SAT": {
+          "mean_logK": -1.7409364215790712,
+          "n": 28,
+          "range_logK": [
+            -2.8593765406225913,
+            -0.05154515183756588
+          ],
+          "sd_logK": 0.6637705811072608
+        }
+      },
+      "heptadecane": {
+        "MONO": {
+          "mean_logK": -0.3688388665276207,
+          "n": 72,
+          "range_logK": [
+            -0.6149232063371199,
+            -0.14518200984449797
+          ],
+          "sd_logK": 0.1173391105471705
+        },
+        "MONO_over_SAT_selectivity": {
+          "geometric_mean_selectivity": 13.633813787040038,
+          "mean_log_selectivity": 2.6125530148628746,
+          "n": 72,
+          "range_log_selectivity": [
+            1.785916018923589,
+            3.5312001415920147
+          ]
+        },
+        "NMP": {
+          "mean_logK": 1.7120808465191313,
+          "n": 80,
+          "range_logK": [
+            0.8534289308125458,
+            2.738921864769297
+          ],
+          "sd_logK": 0.5601837994929029
+        },
+        "SAT": {
+          "mean_logK": -3.087254430676338,
+          "n": 80,
+          "range_logK": [
+            -4.344020060188915,
+            -1.931098028768087
+          ],
+          "sd_logK": 0.6259963211958363
+        }
+      },
+      "hexadecane": {
+        "MONO": {
+          "mean_logK": -0.6175439275982457,
+          "n": 31,
+          "range_logK": [
+            -1.0599503016338452,
+            -0.23744994696544758
+          ],
+          "sd_logK": 0.19204865908614518
+        },
+        "MONO_over_SAT_selectivity": {
+          "geometric_mean_selectivity": 7.306990803307878,
+          "mean_log_selectivity": 1.9888315341943401,
+          "n": 31,
+          "range_log_selectivity": [
+            0.5289887067938698,
+            3.209372452501875
+          ]
+        },
+        "NMP": {
+          "mean_logK": 0.9935305704313133,
+          "n": 35,
+          "range_logK": [
+            0.28736435997889404,
+            2.086726074094465
+          ],
+          "sd_logK": 0.4162309925647652
+        },
+        "SAT": {
+          "mean_logK": -2.7618682884502928,
+          "n": 35,
+          "range_logK": [
+            -4.696951419105474,
+            -0.7664386537593173
+          ],
+          "sd_logK": 0.9500659186509675
+        }
+      },
+      "tetradecane": {
+        "MONO": {
+          "mean_logK": -0.26415949979553516,
+          "n": 68,
+          "range_logK": [
+            -0.6104554647148319,
+            -0.012353461609661888
+          ],
+          "sd_logK": 0.14968258425330597
+        },
+        "MONO_over_SAT_selectivity": {
+          "geometric_mean_selectivity": 5.789856453842373,
+          "mean_log_selectivity": 1.7561074991950834,
+          "n": 68,
+          "range_log_selectivity": [
+            0.3391800828286517,
+            2.821598016463777
+          ]
+        },
+        "NMP": {
+          "mean_logK": 0.9707028276792062,
+          "n": 76,
+          "range_logK": [
+            0.164101815704096,
+            1.6851738385624793
+          ],
+          "sd_logK": 0.3763268981152208
+        },
+        "SAT": {
+          "mean_logK": -2.145846841078503,
+          "n": 76,
+          "range_logK": [
+            -3.6582003563291687,
+            -0.35153354443831364
+          ],
+          "sd_logK": 0.8077183637125862
+        }
+      }
+    },
+    "by_temperature": {
+      "289": {
+        "MONO": {
+          "mean_logK": -0.40142054879239325,
+          "n": 9,
+          "range_logK": [
+            -0.6104554647148319,
+            -0.23197363076248181
+          ],
+          "sd_logK": 0.12709399273456842
+        },
+        "MONO_over_SAT_selectivity": {
+          "geometric_mean_selectivity": 8.267095157249639,
+          "mean_log_selectivity": 2.112283196697778,
+          "n": 9,
+          "range_log_selectivity": [
+            1.499221426782522,
+            2.7884136271877322
+          ]
+        },
+        "NMP": {
+          "mean_logK": 1.2795602365352419,
+          "n": 10,
+          "range_logK": [
+            0.948307880068335,
+            1.6851738385624793
+          ],
+          "sd_logK": 0.2586138208765148
+        },
+        "SAT": {
+          "mean_logK": -2.6281534065740715,
+          "n": 10,
+          "range_logK": [
+            -3.6582003563291687,
+            -1.731195057545004
+          ],
+          "sd_logK": 0.6459841690004946
+        }
+      },
+      "293.2": {
+        "MONO": {
+          "mean_logK": -0.7995361080020846,
+          "n": 9,
+          "range_logK": [
+            -1.0599503016338452,
+            -0.5104449614089008
+          ],
+          "sd_logK": 0.16080448562642086
+        },
+        "MONO_over_SAT_selectivity": {
+          "geometric_mean_selectivity": 11.876185200446821,
+          "mean_log_selectivity": 2.4745351512937988,
+          "n": 9,
+          "range_log_selectivity": [
+            1.6098185747911902,
+            3.209372452501875
+          ]
+        },
+        "NMP": {
+          "mean_logK": 1.3262034040551152,
+          "n": 10,
+          "range_logK": [
+            0.7027064673734015,
+            2.086726074094465
+          ],
+          "sd_logK": 0.44756579671472
+        },
+        "SAT": {
+          "mean_logK": -3.4163592752768426,
+          "n": 10,
+          "range_logK": [
+            -4.696951419105474,
+            -2.120263536200091
+          ],
+          "sd_logK": 0.7992578305621695
+        }
+      },
+      "298": {
+        "MONO": {
+          "mean_logK": -0.4358779821305487,
+          "n": 34,
+          "range_logK": [
+            -0.6149232063371199,
+            -0.23086559740812004
+          ],
+          "sd_logK": 0.0979386595025215
+        },
+        "MONO_over_SAT_selectivity": {
+          "geometric_mean_selectivity": 11.72993882701243,
+          "mean_log_selectivity": 2.462144447563331,
+          "n": 34,
+          "range_log_selectivity": [
+            1.198954605528047,
+            3.5312001415920147
+          ]
+        },
+        "NMP": {
+          "mean_logK": 1.8585541996474695,
+          "n": 38,
+          "range_logK": [
+            0.8954312460315764,
+            2.738921864769297
+          ],
+          "sd_logK": 0.6118994853589254
+        },
+        "SAT": {
+          "mean_logK": -2.993030400119036,
+          "n": 38,
+          "range_logK": [
+            -4.344020060188915,
+            -1.4586348484313345
+          ],
+          "sd_logK": 0.7650560402458764
+        }
+      },
+      "303.2": {
+        "MONO": {
+          "mean_logK": -0.6222873326114777,
+          "n": 8,
+          "range_logK": [
+            -0.8289907129428474,
+            -0.428060537657812
+          ],
+          "sd_logK": 0.12869492725914225
+        },
+        "MONO_over_SAT_selectivity": {
+          "geometric_mean_selectivity": 7.908895656846712,
+          "mean_log_selectivity": 2.0679881584861244,
+          "n": 8,
+          "range_log_selectivity": [
+            1.129533773119966,
+            2.935219510377219
+          ]
+        },
+        "NMP": {
+          "mean_logK": 0.9581771289618664,
+          "n": 9,
+          "range_logK": [
+            0.5025417813010261,
+            1.5331752189457766
+          ],
+          "sd_logK": 0.3317139089629494
+        },
+        "SAT": {
+          "mean_logK": -2.8455794830673216,
+          "n": 9,
+          "range_logK": [
+            -4.0880114188250785,
+            -1.557594310777778
+          ],
+          "sd_logK": 0.8377118890690878
+        }
+      },
+      "308": {
+        "MONO": {
+          "mean_logK": -0.32654575070969644,
+          "n": 43,
+          "range_logK": [
+            -0.54654370636807,
+            -0.1365413276751166
+          ],
+          "sd_logK": 0.11840487820889403
+        },
+        "MONO_over_SAT_selectivity": {
+          "geometric_mean_selectivity": 8.998859406945266,
+          "mean_log_selectivity": 2.1970978367433327,
+          "n": 43,
+          "range_log_selectivity": [
+            1.1058110194101958,
+            3.382215928628505
+          ]
+        },
+        "NMP": {
+          "mean_logK": 1.320192159067407,
+          "n": 48,
+          "range_logK": [
+            0.5911693319753916,
+            2.6680815821501924
+          ],
+          "sd_logK": 0.5236823307809918
+        },
+        "SAT": {
+          "mean_logK": -2.6396162062251673,
+          "n": 48,
+          "range_logK": [
+            -4.123038513929081,
+            -1.2427104362902264
+          ],
+          "sd_logK": 0.8072626035085704
+        }
+      },
+      "313.2": {
+        "MONO": {
+          "mean_logK": -0.5138363965004139,
+          "n": 7,
+          "range_logK": [
+            -0.6957345041248961,
+            -0.2632962309841547
+          ],
+          "sd_logK": 0.14520509453977834
+        },
+        "MONO_over_SAT_selectivity": {
+          "geometric_mean_selectivity": 5.768169661618627,
+          "mean_log_selectivity": 1.752354813839,
+          "n": 7,
+          "range_log_selectivity": [
+            0.8054225274058124,
+            2.6926052408627377
+          ]
+        },
+        "NMP": {
+          "mean_logK": 0.8627788949010368,
+          "n": 8,
+          "range_logK": [
+            0.3952509292729796,
+            1.3797955567687246
+          ],
+          "sd_logK": 0.32543264146087797
+        },
+        "SAT": {
+          "mean_logK": -2.446881629445106,
+          "n": 8,
+          "range_logK": [
+            -3.7117145631849535,
+            -1.0687187583899673
+          ],
+          "sd_logK": 0.9048956317767758
+        }
+      },
+      "318": {
+        "MONO": {
+          "mean_logK": -0.2529800883474197,
+          "n": 42,
+          "range_logK": [
+            -0.49561620510246185,
+            -0.011908633369323013
+          ],
+          "sd_logK": 0.13162710355075719
+        },
+        "MONO_over_SAT_selectivity": {
+          "geometric_mean_selectivity": 6.876072492506271,
+          "mean_log_selectivity": 1.9280476302960734,
+          "n": 42,
+          "range_log_selectivity": [
+            0.03963651846824291,
+            3.184379566068242
+          ]
+        },
+        "NMP": {
+          "mean_logK": 1.1536943066049368,
+          "n": 47,
+          "range_logK": [
+            0.03635350259960462,
+            2.1225359946542337
+          ],
+          "sd_logK": 0.49192482417982464
+        },
+        "SAT": {
+          "mean_logK": -2.2978861926982757,
+          "n": 47,
+          "range_logK": [
+            -4.003599515680422,
+            -0.05154515183756588
+          ],
+          "sd_logK": 0.8954365912324689
+        }
+      },
+      "323.2": {
+        "MONO": {
+          "mean_logK": -0.48184047816173364,
+          "n": 7,
+          "range_logK": [
+            -0.7143493882105483,
+            -0.23744994696544758
+          ],
+          "sd_logK": 0.16057554082923362
+        },
+        "MONO_over_SAT_selectivity": {
+          "geometric_mean_selectivity": 4.528394501274373,
+          "mean_log_selectivity": 1.51036746194548,
+          "n": 7,
+          "range_log_selectivity": [
+            0.5289887067938698,
+            2.2791439590923224
+          ]
+        },
+        "NMP": {
+          "mean_logK": 0.7482138255849653,
+          "n": 8,
+          "range_logK": [
+            0.28736435997889404,
+            1.234225579797027
+          ],
+          "sd_logK": 0.32289199871998675
+        },
+        "SAT": {
+          "mean_logK": -2.1645661199781343,
+          "n": 8,
+          "range_logK": [
+            -3.371073379074577,
+            -0.7664386537593173
+          ],
+          "sd_logK": 0.8943835841982015
+        }
+      },
+      "328": {
+        "MONO": {
+          "mean_logK": -0.2045133160658066,
+          "n": 36,
+          "range_logK": [
+            -0.44538171551360695,
+            -0.012353461609661888
+          ],
+          "sd_logK": 0.12070738079990054
+        },
+        "MONO_over_SAT_selectivity": {
+          "geometric_mean_selectivity": 5.662124500058295,
+          "mean_log_selectivity": 1.7337991751548292,
+          "n": 36,
+          "range_log_selectivity": [
+            0.3391800828286517,
+            3.001712275040325
+          ]
+        },
+        "NMP": {
+          "mean_logK": 0.8951145874791093,
+          "n": 41,
+          "range_logK": [
+            0.164101815704096,
+            1.5584252123982407
+          ],
+          "sd_logK": 0.38607644069244657
+        },
+        "SAT": {
+          "mean_logK": -2.0510247793755165,
+          "n": 41,
+          "range_logK": [
+            -3.6910236183963403,
+            -0.35153354443831364
+          ],
+          "sd_logK": 0.8887305088628468
+        }
+      }
+    }
+  },
+  "qualified_model_evidence": {
+    "A_NRTL_family_global": {
+      "holdout_rmsd": 0.12893357920616758,
+      "holdout_topology_recall": 0.6,
+      "solver_audit": "PASS",
+      "train_rmsd": 0.050462398285253125
+    },
+    "B_UNIQUAC_row_rq_family_interactions": {
+      "condition_number": 3010978.964537565,
+      "holdout_rmsd": 0.17450538878551938,
+      "holdout_topology_recall": 0.6666666666666666,
+      "practically_weak_directions": 9,
+      "solver_audit": "PASS",
+      "train_rmsd": 0.056006861345623764
+    }
+  },
+  "schema_version": 1,
+  "sources": {
+    ".agents/outputs/ecr-pre-pilot-nrtl/results.json": "4e9825ab706c6974160a6bbe662050155f6a71388afa03aa92d21cf5f72177e5",
+    ".agents/outputs/ecr-pre-pilot-nrtl/solver-isolation.json": "c35712aa1acbfe99fe2861e8acb06318010926b57f8f561070e7899ef6aaab45",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_289.json": "c08c9693d08e4cfedb848e364da2814d152ad06ec91f76574e54fca069b93f6b",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_293.2.json": "691477bd3f3214c34568a03115ff16c7b3185e77483dc5f33ffa638b3f133161",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_298.json": "08b028c19b1487af7b8b665879b07566fc353ba1fee1052fdf1477015871f3b5",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_303.2.json": "152dd936a2125f9142c0ab2c32d166fbda9a0f163e9c159773a05b2f24702700",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_308.json": "c3e04c363faf915fa75d39dc93b561dbccb5044ccf7f51c8ee6d962bb2d6a9d6",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_313.2.json": "7b158ea166d2290ae1238ec713710301327c6d6ce3aac8d34d4b1206fb40b908",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_318.json": "f85d75b674e28bd93f84991b53101cfb16518c8ebed08ebb1987353543f472bb",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_323.2.json": "06730de6d0ae99c40bc32478797ca26b9964ce9c95a894f7954d359fe256cc76",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_328.json": "7aa90d12dc8a053b2672404e60e4135bac3fc2554f2712413249131367dd8407",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__in-sample.json": "459eba74209ffd88b47bc7c47a2beb855682cb93f64bbb728e63345830a3f6e2",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_289.json": "7109a559a40c4f7d72d173c13f5016f3e0c491e67b5d78346398a351487f8f84",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_293.2.json": "cff8f14d12eaf8d66ba68f1049637158f012428eb892aaa6275396db45ee8dce",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_298.json": "a6ad2a43164d7d768a014bab53b4c966543bf2b8c2b0b60f1dcd3bd2469c4802",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_303.2.json": "ddd459ef84fe38e78d5addfc4724ba3142ffac92b5cb26178ff00cb2c5559d00",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_308.json": "2f9e8ee9b1833e870ed41fe348ca996f597840fbf959d0a8d9d089f6214be097",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_313.2.json": "31fd8533f4037bd024c2c685c519733186a0e635f6a9502dcd50533ed432e0f5",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_318.json": "5c97d51629985c9c6f561bd134ce1e3403e7eb4f9601c4ed1c1d0b2b4f79aff6",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_323.2.json": "3eff9270525c436cdd05c62583fac522b8e72b2c2af6f2f762f28ba17a9a1d1b",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_328.json": "dd368305739129129fb3e7171dcc8b5f8a66e94a4241a61e7c5c52e77b6eab5c",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__in-sample.json": "7c97498c5ca4f08143b16ca6adaca7af547ee430c0571241bddbd28cd216e9f3",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac.json": "3de4115cbdb884b91f74fc7b0aa935d0d0f6c13be615d1657c4268c1e8a452f6",
+    ".agents/outputs/ecr-pre-pilot-uniquac/results.json": "7af9a7e3187ade82fb2d1a765a2fbe8cb3a7dad3e1282313b48228d8c887bb24",
+    ".agents/outputs/ecr-pre-pilot-uniquac/solver-isolation.json": "a2e881fe34456b06483aecedf065bcef3f18648a428f65e2f83a0a4a7073e18a",
+    "server/engine-framework/cel/coto2022-nmp-lle.ts": "8253433f5624934b7f9135f223090e8b9e2c5b1cbfaee06c951a3d87b839ea42",
+    "server/engine-framework/cel/data/multi-t-nmp-lle.json": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+    "server/research/ecr-pre-pilot-representation-diagnosis/controlled_uniquac.py": "03457eb5c335d27a1e5da8cb490206e5e96e7b8ddbc8d3f1097695318ac49ec1",
+    "server/research/ecr-pre-pilot-uniquac/model.py": "c1130eba32c1b84c55309b71ee88c7ce6297b16c5a465486f5f505158c551ebc",
+    "server/research/ecr-pre-pilot-uniquac/run.py": "50493678f405ec07bba8a21a3f7a454750233de10ef03e254e5c7467b10ac8a7",
+    "server/research/ecr-pre-pilot-uniquac/structural-provenance.json": "ec79321c475d13aabb280caca5bbe2bd1d9b50d1011be2f9623881aef58caf43"
+  }
+}

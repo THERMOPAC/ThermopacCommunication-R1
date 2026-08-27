@@ -1,0 +1,41 @@
+{
+  "generated": "deterministically; no clock or randomness",
+  "inputs": {
+    ".agents/outputs/ecr-pre-pilot-nrtl/results.json": "4e9825ab706c6974160a6bbe662050155f6a71388afa03aa92d21cf5f72177e5",
+    ".agents/outputs/ecr-pre-pilot-nrtl/solver-isolation.json": "c35712aa1acbfe99fe2861e8acb06318010926b57f8f561070e7899ef6aaab45",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_289.json": "c08c9693d08e4cfedb848e364da2814d152ad06ec91f76574e54fca069b93f6b",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_293.2.json": "691477bd3f3214c34568a03115ff16c7b3185e77483dc5f33ffa638b3f133161",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_298.json": "08b028c19b1487af7b8b665879b07566fc353ba1fee1052fdf1477015871f3b5",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_303.2.json": "152dd936a2125f9142c0ab2c32d166fbda9a0f163e9c159773a05b2f24702700",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_308.json": "c3e04c363faf915fa75d39dc93b561dbccb5044ccf7f51c8ee6d962bb2d6a9d6",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_313.2.json": "7b158ea166d2290ae1238ec713710301327c6d6ce3aac8d34d4b1206fb40b908",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_318.json": "f85d75b674e28bd93f84991b53101cfb16518c8ebed08ebb1987353543f472bb",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_323.2.json": "06730de6d0ae99c40bc32478797ca26b9964ce9c95a894f7954d359fe256cc76",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__T_328.json": "7aa90d12dc8a053b2672404e60e4135bac3fc2554f2712413249131367dd8407",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/A__in-sample.json": "459eba74209ffd88b47bc7c47a2beb855682cb93f64bbb728e63345830a3f6e2",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_289.json": "7109a559a40c4f7d72d173c13f5016f3e0c491e67b5d78346398a351487f8f84",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_293.2.json": "cff8f14d12eaf8d66ba68f1049637158f012428eb892aaa6275396db45ee8dce",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_298.json": "a6ad2a43164d7d768a014bab53b4c966543bf2b8c2b0b60f1dcd3bd2469c4802",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_303.2.json": "ddd459ef84fe38e78d5addfc4724ba3142ffac92b5cb26178ff00cb2c5559d00",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_308.json": "2f9e8ee9b1833e870ed41fe348ca996f597840fbf959d0a8d9d089f6214be097",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_313.2.json": "31fd8533f4037bd024c2c685c519733186a0e635f6a9502dcd50533ed432e0f5",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_318.json": "5c97d51629985c9c6f561bd134ce1e3403e7eb4f9601c4ed1c1d0b2b4f79aff6",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_323.2.json": "3eff9270525c436cdd05c62583fac522b8e72b2c2af6f2f762f28ba17a9a1d1b",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__T_328.json": "dd368305739129129fb3e7171dcc8b5f8a66e94a4241a61e7c5c52e77b6eab5c",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac-cases/B__in-sample.json": "7c97498c5ca4f08143b16ca6adaca7af547ee430c0571241bddbd28cd216e9f3",
+    ".agents/outputs/ecr-pre-pilot-representation-diagnosis/controlled-uniquac.json": "3de4115cbdb884b91f74fc7b0aa935d0d0f6c13be615d1657c4268c1e8a452f6",
+    ".agents/outputs/ecr-pre-pilot-uniquac/results.json": "7af9a7e3187ade82fb2d1a765a2fbe8cb3a7dad3e1282313b48228d8c887bb24",
+    ".agents/outputs/ecr-pre-pilot-uniquac/solver-isolation.json": "a2e881fe34456b06483aecedf065bcef3f18648a428f65e2f83a0a4a7073e18a",
+    "server/engine-framework/cel/coto2022-nmp-lle.ts": "8253433f5624934b7f9135f223090e8b9e2c5b1cbfaee06c951a3d87b839ea42",
+    "server/engine-framework/cel/data/multi-t-nmp-lle.json": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+    "server/research/ecr-pre-pilot-representation-diagnosis/controlled_uniquac.py": "03457eb5c335d27a1e5da8cb490206e5e96e7b8ddbc8d3f1097695318ac49ec1",
+    "server/research/ecr-pre-pilot-uniquac/model.py": "c1130eba32c1b84c55309b71ee88c7ce6297b16c5a465486f5f505158c551ebc",
+    "server/research/ecr-pre-pilot-uniquac/run.py": "50493678f405ec07bba8a21a3f7a454750233de10ef03e254e5c7467b10ac8a7",
+    "server/research/ecr-pre-pilot-uniquac/structural-provenance.json": "ec79321c475d13aabb280caca5bbe2bd1d9b50d1011be2f9623881aef58caf43"
+  },
+  "outputs": {
+    "audit.json": "18e08589cc8048cea7e9239581fc87ac706cb98b565485b548c3cac6d7d99a67",
+    "report.md": "c4ec34190e00e02ce872fedac9355e32c98dab5fda3376e6ceadc35a40177f28",
+    "results.json": "a95e45036783d8c8534cda7aec4c24e3a41d17e401b0c78fbf66fd3c9ce2d33b"
+  }
+}
