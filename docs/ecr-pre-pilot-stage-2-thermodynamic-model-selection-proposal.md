@@ -287,6 +287,28 @@ five currently defined surrogate coordinates:
 These values identify the pure-compound surrogate coordinates. They do not
 establish physical RRBO pseudo-component MWs or define Polar Aromatics.
 
+### 4.4 Modified UNIFAC (Dortmund) parameter-completeness review
+
+The public `2026 Published Parameters` package has been reviewed for the
+five-component surrogate basis. The detailed record is:
+
+`docs/ecr-pre-pilot-dortmund-coverage-review.md`
+
+The reviewed assignments require seven subgroups mapped to five main groups:
+`[1] CH2`, `[3] ACH`, `[4] ACCH2`, `[42] CY-CH2`, and `[46] CY-CONC`.
+All seven subgroup R/Q records and all twenty required ordered off-diagonal
+main-group interactions are present.
+
+The parameter-completeness result is therefore **PASS** for n-dodecane,
+toluene or 1,4-xylene, 1-methylnaphthalene, pyrene, and NMP. No missing
+interaction is zero-filled.
+
+This finding establishes coverage only. The reviewed package does not state a
+single global numeric temperature-validity interval for these components, and
+the direct five-family Coto evidence is at 298.15 K. Quantitative LLE accuracy
+and applicability over 25–100 °C remain unvalidated and must pass the common
+validation protocol before design use.
+
 ---
 
 ## 5. Components that can presently be modelled

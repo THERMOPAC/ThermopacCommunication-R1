@@ -62,6 +62,7 @@
 - [ECR-2 inlet LLE trace](ecr2-inlet-lle-trace.md) — run-level NRTL flash records the Stage 4 condition independently; it does not replace compartment-local BVP equilibrium.
 - [LLX thermodynamic temperature validity](llx-thermodynamic-temperature-validity.md) — evidence applicability, model-fit verdict, and optimizer readiness are separate dynamic fields at each operating temperature.
 - [ECR Pre-Pilot model selection](ecr-prepilot-model-selection.md) — select the LLE model by relevant evidence reproduction; NRTL is a candidate, never a mandatory fallback.
+- [ECR Pre-Pilot Dortmund coverage](ecr-prepilot-dortmund-coverage.md) — five representatives have complete public group/pair coverage; accuracy and 25–100 °C validity remain separate gates.
 - [ECR Pre-Pilot Stage 1 properties](ecr-prepilot-stage1-property-authority.md) — Stage 1 owns supported temperature-dependent RRBO/NMP properties; every downstream trial consumes that set.
 - [Stage 5 Kühni Vk preliminary route](stage5-kuhni-vk-preliminary.md) — V_k remains audit-only under an explicit engineer rejection; server-owned approval is required before capacity/diameter results can run.
 - [ECR-2 BVP acceptance flow](ecr2-bvp-acceptance-flow.md) — local residual closure is insufficient; terminal component and total balances are independent unchanged acceptance gates.
