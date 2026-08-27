@@ -25,3 +25,11 @@ Do not use the tested openCOSMO-RS route with LVPP v25 NWChem B3LYP/SVPD surface
 **Why:** the genuine, reproducible molecular calculation produced no accepted two-liquid outcome across the admitted direct and multitemperature benchmarks. The NWChem-surface/Turbomole-parameterization mismatch is an additional limitation, but the governing rejection is the failure to reproduce observed liquid-phase topology.
 
 **How to apply:** retain the benchmark as rejection evidence and keep all phase split, distribution, selectivity, and sulfur-recovery outputs null. Do not tune COSMO-RS parameters against these datasets under the guise of prediction. Any future molecular route requires a QC-compatible parameterization and must pass the topology gate independently.
+
+## Fresh ECR Pre-Pilot NRTL disposition
+
+Do not admit the tested fresh family-level NRTL regression as the governing ECR Pre-Pilot model. This decision applies to the tested fitted form, not to every possible NRTL formulation.
+
+**Why:** the model reproduced held-out two-phase topology but materially failed the predeclared held-out composition-accuracy gate. Its parameter estimation is also practically ill-conditioned, and the public evidence cannot resolve Polar Aromatics or DI/POLY temperature behavior beyond the Coto anchor.
+
+**How to apply:** retain the five-family benchmark as rejection evidence. Keep governing six-family Stage 2 `NOT_CALCULABLE`, with no sulfur-removal inference. Any later empirical model must use independent holdouts and pass the unchanged topology and composition gates.

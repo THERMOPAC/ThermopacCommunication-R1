@@ -1,0 +1,21 @@
+{
+  "sources": {
+    "coto": {
+      "path": "server/engine-framework/cel/coto2022-nmp-lle.ts",
+      "sha256": "8253433f5624934b7f9135f223090e8b9e2c5b1cbfaee06c951a3d87b839ea42",
+      "count": 17
+    },
+    "multi_t": {
+      "path": "server/engine-framework/cel/data/multi-t-nmp-lle.json",
+      "sha256": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+      "count": 219
+    }
+  },
+  "generated_by": "run.py",
+  "dependency_path": "server/research/ecr-pre-pilot-cosmors/vendor/python",
+  "numpy": "2.1.3",
+  "scipy": "1.14.1",
+  "parameter_count": 26,
+  "parameterization": "12 SAT/MONO/NMP a,b values plus 14 DI/POLY-involving isothermal tau values; all latter b=0",
+  "parameter_hash": "ecaf60082eefec144c106f6697cd6650aab69b3b8fa07fb1d62bad5ac9da1d34"
+}
