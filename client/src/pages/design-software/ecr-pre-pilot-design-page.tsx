@@ -68,8 +68,8 @@ const EMPTY_FORM: FormState = {
   nmpDensityKgM3: "",
   nmpDynamicViscosityCp: "",
   solventOilRatio: "0.90",
-  targetRaffinateSulfurPpm: "",
-  minimumRaffinateSaturatesWt: "",
+  targetRaffinateSulfurPpm: "1000",
+  minimumRaffinateSaturatesWt: "90",
   targetRaffinateTotalAromaticsWt: "5.0",
   targetRaffinatePolarAromaticsWt: "0.50",
   minimumRecoveryPct: "95",
@@ -93,6 +93,8 @@ const PHASE_OPTIONS = [
   { value: "rrbo-continuous-nmp-dispersed", label: "RRBO continuous / NMP dispersed" },
 ];
 const SOLVENT_OIL_RATIO_OPTIONS = ["0.50", "0.75", "0.90", "1.00", "1.25", "1.50", "2.00"];
+const TARGET_RAFFINATE_SULFUR_OPTIONS = ["750", "1000", "1500", "2000", "2500"];
+const MINIMUM_RAFFINATE_SATURATES_OPTIONS = ["90", "92.5", "95", "97.5"];
 const TARGET_TOTAL_AROMATICS_OPTIONS = ["2.0", "3.0", "4.0", "5.0", "7.5", "10.0"];
 const TARGET_POLAR_AROMATICS_OPTIONS = ["0.10", "0.25", "0.50", "1.00", "2.00"];
 const MINIMUM_RECOVERY_OPTIONS = ["90", "92.5", "95", "97.5", "99"];
@@ -337,8 +339,8 @@ function validateForm(form: FormState): ValidationErrors {
   numeric("nmpDynamicViscosityCp", "NMP dynamic viscosity", { min: 0.001 });
 
   requiredOption("solventOilRatio", "Solvent / Oil ratio", SOLVENT_OIL_RATIO_OPTIONS);
-  numeric("targetRaffinateSulfurPpm", "Target raffinate sulfur", { min: 0 });
-  numeric("minimumRaffinateSaturatesWt", "Minimum raffinate saturates", { min: 0, max: 100 });
+  requiredOption("targetRaffinateSulfurPpm", "Target raffinate sulfur", TARGET_RAFFINATE_SULFUR_OPTIONS);
+  requiredOption("minimumRaffinateSaturatesWt", "Minimum raffinate saturates", MINIMUM_RAFFINATE_SATURATES_OPTIONS);
   requiredOption("targetRaffinateTotalAromaticsWt", "Total aromatics target", TARGET_TOTAL_AROMATICS_OPTIONS);
   requiredOption("targetRaffinatePolarAromaticsWt", "Polar aromatics target", TARGET_POLAR_AROMATICS_OPTIONS);
   requiredOption("minimumRecoveryPct", "Minimum recovery", MINIMUM_RECOVERY_OPTIONS);
@@ -1082,28 +1084,25 @@ export default function EcrPrePilotDesignPage() {
                 unit="kg/kg"
                 error={validationErrors.solventOilRatio}
               />
-              <NumericField
+              <SelectField
                 id="target-raffinate-sulfur"
                 label="Target raffinate sulfur"
                 value={form.targetRaffinateSulfurPpm}
                 onChange={(value) => setField("targetRaffinateSulfurPpm", value)}
+                placeholder="Select sulfur target"
+                options={TARGET_RAFFINATE_SULFUR_OPTIONS}
                 unit="ppm"
-                min="0"
-                placeholder="Enter target"
-                hint="Required primary sulfur target"
                 required
                 error={validationErrors.targetRaffinateSulfurPpm}
               />
-              <NumericField
+              <SelectField
                 id="minimum-raffinate-saturates"
                 label="Minimum raffinate saturates"
                 value={form.minimumRaffinateSaturatesWt}
                 onChange={(value) => setField("minimumRaffinateSaturatesWt", value)}
+                placeholder="Select minimum saturates"
+                options={MINIMUM_RAFFINATE_SATURATES_OPTIONS}
                 unit="wt% (HC basis)"
-                min="0"
-                max="100"
-                placeholder="Enter minimum"
-                hint="Required HC-basis quality floor"
                 required
                 error={validationErrors.minimumRaffinateSaturatesWt}
               />
