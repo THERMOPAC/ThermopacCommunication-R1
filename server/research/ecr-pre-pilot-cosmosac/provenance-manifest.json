@@ -1,0 +1,146 @@
+{
+  "NIST_COSMOSAC_source_commit": "1b82456be38026719b16cad4076109bef3fcb309",
+  "ThermoSAC_profile_source_commit": "d20f5f4acdbf295a15a7500056fb20cb06ae2e23",
+  "identities": {
+    "1-METHYLNAPHTHALENE": {
+      "CAS": "90-12-0",
+      "InChI": "InChI=1S/C11H10/c1-9-5-4-7-10-6-2-3-8-11(9)10/h2-8H,1H3",
+      "InChIKey": "QPUYECUOLPXSFR-UHFFFAOYSA-N",
+      "MW_g_mol": 142.1971,
+      "SMILES": "c1ccc2c(c1)c(ccc2)C"
+    },
+    "BENZOTHIOPHENE": {
+      "CAS": "95-15-8",
+      "InChI": "InChI=1S/C8H6S/c1-2-4-8-7(3-1)5-6-9-8/h1-6H",
+      "InChIKey": "FCEHBMOGCRZNNI-UHFFFAOYSA-N",
+      "MW_g_mol": 134.201,
+      "SMILES": "c1cc2c(s1)cccc2"
+    },
+    "DIBENZOTHIOPHENE": {
+      "CAS": "132-65-0",
+      "InChI": "InChI=1S/C12H8S/c1-3-7-11-9(5-1)10-6-2-4-8-12(10)13-11/h1-8H",
+      "InChIKey": "IYYZUPMFVPLQIF-UHFFFAOYSA-N",
+      "MW_g_mol": 184.259,
+      "SMILES": "c12c3c(sc1cccc2)cccc3"
+    },
+    "MESITYLENE": {
+      "CAS": "108-67-8",
+      "InChI": "InChI=1S/C9H12/c1-7-4-8(2)6-9(3)5-7/h4-6H,1-3H3",
+      "InChIKey": "AUHZEENZYGFFBQ-UHFFFAOYSA-N",
+      "MW_g_mol": 120.194,
+      "SMILES": "c1(cc(cc(c1)C)C)C"
+    },
+    "N-DODECANE": {
+      "CAS": "112-40-3",
+      "InChI": "InChI=1S/C12H26/c1-3-5-7-9-11-12-10-8-6-4-2/h3-12H2,1-2H3",
+      "InChIKey": "SNRUBQQJIBEYMU-UHFFFAOYSA-N",
+      "MW_g_mol": 170.3348,
+      "SMILES": "CCCCCCCCCCCC"
+    },
+    "N-HEPTADECANE": {
+      "CAS": "629-78-7",
+      "InChI": "InChI=1S/C17H36/c1-3-5-7-9-11-13-15-17-16-14-12-10-8-6-4-2/h3-17H2,1-2H3",
+      "InChIKey": "NDJKXXJCMXVBJW-UHFFFAOYSA-N",
+      "MW_g_mol": 240.468,
+      "SMILES": "C(CCCCCCCCCCCCCCC)C"
+    },
+    "N-HEXADECANE": {
+      "CAS": "544-76-3",
+      "InChI": "InChI=1S/C16H34/c1-3-5-7-9-11-13-15-16-14-12-10-8-6-4-2/h3-16H2,1-2H3",
+      "InChIKey": "DCAYPVUWAIABOU-UHFFFAOYSA-N",
+      "MW_g_mol": 226.441,
+      "SMILES": "CCCCCCCCCCCCCCCC"
+    },
+    "N-METHYL-2-PYRROLIDONE": {
+      "CAS": "872-50-4",
+      "InChI": "InChI=1S/C5H9NO/c1-6-4-2-3-5(6)7/h2-4H2,1H3",
+      "InChIKey": "SECXISVLQFMRJM-UHFFFAOYSA-N",
+      "MW_g_mol": 99.1311,
+      "SMILES": "N1(CCCC1=O)C"
+    },
+    "N-PENTYLBENZENE": {
+      "CAS": "538-68-1",
+      "InChI": "InChI=1S/C11H16/c1-2-3-5-8-11-9-6-4-7-10-11/h4,6-7,9-10H,2-3,5,8H2,1H3",
+      "InChIKey": "PWATWSYOIIXYMA-UHFFFAOYSA-N",
+      "MW_g_mol": 148.248,
+      "SMILES": "c1cccc(c1)CCCCC"
+    },
+    "N-PROPYLBENZENE": {
+      "CAS": "103-65-1",
+      "InChI": "InChI=1S/C9H12/c1-2-6-9-7-4-3-5-8-9/h3-5,7-8H,2,6H2,1H3",
+      "InChIKey": "ODLMAHJVESYWTB-UHFFFAOYSA-N",
+      "MW_g_mol": 120.194,
+      "SMILES": "c1ccc(cc1)CCC"
+    },
+    "N-TETRADECANE": {
+      "CAS": "629-59-4",
+      "InChI": "InChI=1S/C14H30/c1-3-5-7-9-11-13-14-12-10-8-6-4-2/h3-14H2,1-2H3",
+      "InChIKey": "BGHCVCJVXZWKCC-UHFFFAOYSA-N",
+      "MW_g_mol": 198.388,
+      "SMILES": "CCCCCCCCCCCCCC"
+    },
+    "P-XYLENE": {
+      "CAS": "106-42-3",
+      "InChI": "InChI=1S/C8H10/c1-7-3-5-8(2)6-4-7/h3-6H,1-2H3",
+      "InChIKey": "URLKBWYHVLBVBO-UHFFFAOYSA-N",
+      "MW_g_mol": 106.165,
+      "SMILES": "c1(ccc(cc1)C)C"
+    },
+    "PYRENE": {
+      "CAS": "129-00-0",
+      "InChI": "InChI=1S/C16H10/c1-3-11-7-9-13-5-2-6-14-10-8-12(4-1)15(11)16(13)14/h1-10H",
+      "InChIKey": "BBEAQIROQSPTKN-UHFFFAOYSA-N",
+      "MW_g_mol": 202.2506,
+      "SMILES": "c12c3c4ccc1cccc2ccc3ccc4"
+    },
+    "THIOPHENE": {
+      "CAS": "110-02-1",
+      "InChI": "InChI=1S/C4H4S/c1-2-4-5-3-1/h1-4H",
+      "InChIKey": "YTPLMLYBLZKORZ-UHFFFAOYSA-N",
+      "MW_g_mol": 84.139,
+      "SMILES": "c1cccs1"
+    },
+    "TOLUENE": {
+      "CAS": "108-88-3",
+      "InChI": "InChI=1S/C7H8/c1-7-5-3-2-4-6-7/h2-6H,1H3",
+      "InChIKey": "YXFVVABEGXRONW-UHFFFAOYSA-N",
+      "MW_g_mol": 92.1405,
+      "SMILES": "c1cc(ccc1)C"
+    }
+  },
+  "modelVariant": {
+    "excluded": "get_lngamma / multicomponent dispersive mode",
+    "lnGamma": "get_lngamma_comb(T,x)+get_lngamma_resid(T,x)",
+    "name": "COSMO-SAC-2010"
+  },
+  "packages": {
+    "cCOSMO": "vendored cCOSMO.cpython-312-x86_64-linux-gnu.so",
+    "numpy": "2.1.3",
+    "python": "3.12.12 (main, Oct  9 2025, 11:07:00) [GCC 15.2.0]",
+    "scipy": "1.14.1"
+  },
+  "phaseEquilibriumAlgorithm": "constrained total-Gibbs L-BFGS-B over NMP-rich component amounts; experimental split plus three deterministic starts",
+  "settings": {
+    "TPD": "full-simplex lattice (denominator 4 for 5/6 components, 8 for ternaries), then BFGS refinement of three lowest grid seeds and z; acceptance isoactivity <2e-5, mass balance <1e-10",
+    "compositionFloor": 1e-10,
+    "flash": "constrained total-Gibbs L-BFGS-B over NMP-rich component amounts; experimental split plus three deterministic starts"
+  },
+  "sigmaProfileSha256": {
+    "AUHZEENZYGFFBQ-UHFFFAOYSA-N.sigma": "285a6a31fde01eef914c595de3a85d9cb29ae98d3571a1875468bf59d3b0d482",
+    "BBEAQIROQSPTKN-UHFFFAOYSA-N.sigma": "15e94680411dc1dcd1071f9f2edba145c3ee594fb1d05cba8bcd80dd8506f224",
+    "BGHCVCJVXZWKCC-UHFFFAOYSA-N.sigma": "f24aff758fa0898ff3e18a9b8b28a92b66255e0b9b17ab807cbc2a06100d35c1",
+    "DCAYPVUWAIABOU-UHFFFAOYSA-N.sigma": "3a67a52a0be7a3a281cf0481ec20bd59efe0652c14ade20581324f045bd0c260",
+    "FCEHBMOGCRZNNI-UHFFFAOYSA-N.sigma": "a031d265c3af30fcf7b224062cc152da2eca2940edfc947335bf13f419f29a6c",
+    "IYYZUPMFVPLQIF-UHFFFAOYSA-N.sigma": "34f088abdf6310441905ee41ea91a0a6bfe6f7bc7c4e2ee84bf0b49e3c8878cf",
+    "NDJKXXJCMXVBJW-UHFFFAOYSA-N.sigma": "fdd3d69f8d75902021cd79eaf05deaa32ea28852173bbc9718aee3799743c641",
+    "ODLMAHJVESYWTB-UHFFFAOYSA-N.sigma": "20bc1ce2720a043b6b648bc0adf74c28d5e1661d3704e874974e7b0234208db3",
+    "PWATWSYOIIXYMA-UHFFFAOYSA-N.sigma": "724363d43cd73ce175c91470387809a5b54d9cebcd7c6db834c9ee48280034d3",
+    "QPUYECUOLPXSFR-UHFFFAOYSA-N.sigma": "cfccf98adfaa1fd8488337cc6926d583cbf073ffdeb88997bc4b17b6d0ec5561",
+    "SECXISVLQFMRJM-UHFFFAOYSA-N.sigma": "1ad855757ad2573ffcecd670c2ac7117a4f029116d34c93a38703b0f7da543af",
+    "SNRUBQQJIBEYMU-UHFFFAOYSA-N.sigma": "28204dcca800cf08fa3508c4a3aa3283b5f90dd3e4d73b90093f16c178b99e52",
+    "URLKBWYHVLBVBO-UHFFFAOYSA-N.sigma": "5ca6f0b7448d4cbe82b525203ff573a36c1519b93c78cb6dee43f99ccae09ea4",
+    "XQQBUAPQHNYYRS-UHFFFAOYSA-N.sigma": "47769e89eefe8c6c5436e1047649c30c09e67a3b2f19d4b03187f99c7e051013",
+    "YTPLMLYBLZKORZ-UHFFFAOYSA-N.sigma": "09320345aca113f37d7df178873f42493c2b214f7b2c8268d7a2415dfc59d2ab",
+    "YXFVVABEGXRONW-UHFFFAOYSA-N.sigma": "ec6b5cf4bb3901894052bf1f81f09872f48d8335543300f59fa67160560f5a5f"
+  }
+}
