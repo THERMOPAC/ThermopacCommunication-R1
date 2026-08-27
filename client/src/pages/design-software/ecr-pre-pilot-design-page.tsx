@@ -467,6 +467,7 @@ function NumericField({
   min = "0",
   max,
   step = "any",
+  placeholder,
   hint,
   required = false,
   error,
@@ -479,6 +480,7 @@ function NumericField({
   min?: string;
   max?: string;
   step?: string;
+  placeholder?: string;
   hint?: string;
   required?: boolean;
   error?: string;
@@ -497,11 +499,12 @@ function NumericField({
           min={min}
           max={max}
           step={step}
+          placeholder={placeholder}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
-          className={`h-8 bg-white text-sm ${error ? "border-red-400 focus-visible:ring-red-400" : ""}`}
+          className={`h-8 text-sm ${required ? "bg-violet-50/40" : "bg-white"} ${error ? "border-red-400 focus-visible:ring-red-400" : ""}`}
         />
         <span className="shrink-0 text-[11px] font-medium text-slate-500">{unit}</span>
       </div>
@@ -523,6 +526,7 @@ function SelectField({
   placeholder,
   options,
   unit,
+  required = false,
   error,
 }: {
   id: string;
@@ -532,17 +536,19 @@ function SelectField({
   placeholder: string;
   options: Array<string | { value: string; label: string }>;
   unit?: string;
+  required?: boolean;
   error?: string;
 }) {
   return (
     <div className="space-y-1">
       <Label htmlFor={id} className="text-[13px] font-medium text-slate-700">
-        {label}
+        {label}{required && <span className="text-red-600"> *</span>}
       </Label>
       <div className="flex items-center gap-1.5">
         <Select value={value} onValueChange={onChange}>
           <SelectTrigger
             id={id}
+            aria-required={required}
             aria-invalid={Boolean(error)}
             aria-describedby={error ? `${id}-error` : undefined}
             className={`h-8 bg-white text-sm ${error ? "border-red-400 focus:ring-red-400" : ""}`}
@@ -694,6 +700,8 @@ export default function EcrPrePilotDesignPage() {
     return { populatedCount, total, complete, valid };
   }, [form]);
 
+  const designFeedRateIsValid = isAllowedOption(form.designFeedRateLph, FEED_RATE_OPTIONS);
+
   const validateBeforeAction = () => {
     if (projectNumberLoading || projectNumberLoadError) {
       toast({
@@ -831,6 +839,7 @@ export default function EcrPrePilotDesignPage() {
                 placeholder="Select design feed rate"
                 options={FEED_RATE_OPTIONS}
                 unit="LPH"
+                required
                 error={validationErrors.designFeedRateLph}
               />
               <SelectField
@@ -1080,6 +1089,8 @@ export default function EcrPrePilotDesignPage() {
                 onChange={(value) => setField("targetRaffinateSulfurPpm", value)}
                 unit="ppm"
                 min="0"
+                placeholder="Enter target"
+                hint="Required primary sulfur target"
                 required
                 error={validationErrors.targetRaffinateSulfurPpm}
               />
@@ -1091,6 +1102,8 @@ export default function EcrPrePilotDesignPage() {
                 unit="wt% (HC basis)"
                 min="0"
                 max="100"
+                placeholder="Enter minimum"
+                hint="Required HC-basis quality floor"
                 required
                 error={validationErrors.minimumRaffinateSaturatesWt}
               />
@@ -1161,6 +1174,7 @@ export default function EcrPrePilotDesignPage() {
                   onChange={(value) => setField("feedSulfurPpm", value)}
                   unit="ppm"
                   min="0"
+                  placeholder="Enter feed sulfur"
                   required
                   error={validationErrors.feedSulfurPpm}
                 />
@@ -1174,7 +1188,14 @@ export default function EcrPrePilotDesignPage() {
             This page records input data only. Thermodynamics, NT, hydrodynamics, diameter, height, and optimizer calculations are not enabled.
           </p>
           <div className="flex flex-col-reverse gap-1.5 sm:flex-row">
-            <Button type="button" variant="outline" onClick={handleSave} className="h-8 gap-1.5 px-3 text-xs">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSave}
+              disabled={!designFeedRateIsValid}
+              title={designFeedRateIsValid ? undefined : "Select a design feed rate before saving."}
+              className="h-8 gap-1.5 px-3 text-xs"
+            >
               <Save className="h-3.5 w-3.5" aria-hidden="true" />
               Save Input Data
             </Button>
