@@ -5,6 +5,7 @@ import hashlib,json,subprocess,sys
 HERE=Path(__file__).resolve().parent; ROOT=HERE.parents[2]; OUT=ROOT/".agents/outputs/ecr-pre-pilot-nrtl"
 subprocess.run([sys.executable,str(HERE/"run.py")],check=True)
 r=json.loads((OUT/"results.json").read_text()); m=json.loads((OUT/"provenance-manifest.json").read_text())
+a=json.loads((OUT/"audit.json").read_text())
 assert r["sources"]["coto"]["count"]==17 and r["sources"]["multi_t"]["count"]==219
 for k in ("coto","multi_t"):
     p=ROOT/r["sources"][k]["path"]; assert hashlib.sha256(p.read_bytes()).hexdigest()==r["sources"][k]["sha256"]
@@ -30,6 +31,24 @@ assert r["sixFamilyStage2Status"]=="NOT_CALCULABLE"
 assert r["governingAdmissionEligible"] is False
 assert not all(r["sixFamilyAdmissionDependencies"].values())
 assert r["decision"]=="REJECT"
+assert r["implementationAudit"]["status"]==a["implementationAuditStatus"]
+assert a["frozenParameterHash"]==r["fit"]["parameters_sha256"]
+assert set(a["obligations"])=={"independentLngamma","KKT_isoactivity","TPD_and_Gibbs","massBalance","multistartAgreement"}
+assert {"coto-2","coto-9","coto-14"}.issubset({x["id"] for x in a["manualReproductions"]})
+assert any(x["id"].startswith("analogue-") and abs(x["T_K"]-323.2)<.051 for x in a["manualReproductions"])
+for c in a["gammaComparisons"]:
+    ds=[abs(x-y) for x,y in zip(c["primarySerialized"],c["independent"])]
+    assert all(abs(x-y)<1e-15 for x,y in zip(ds,c["absoluteDifferences"]))
+    assert abs(max(ds)-c["maxDifference"])<1e-15
+for t in a["acceptedTwoPhaseThermodynamics"]:
+    assert t["TPDMinimum"]<0 and t["selectedTwoPhaseReducedGibbs"]<t["homogeneousReducedGibbs"]
+    assert abs((t["homogeneousReducedGibbs"]-t["selectedTwoPhaseReducedGibbs"])-t["gibbsDecrease"])<1e-10
+for x in a["manualReproductions"]:
+    assert len(x["multistartSolutions"])>=4
+    if x["componentBalances"] is not None:
+        assert abs(max(abs(v) for v in x["componentBalances"])-x["componentBalanceMax"])<1e-15
+statuses=[v["status"] for v in a["obligations"].values()]
+assert a["implementationAuditStatus"]==("PASS" if all(v=="PASS" for v in statuses) else "FAIL")
 assert r["fiveFamilyCandidateGate"]["topology_pass"] is True
 assert r["fiveFamilyCandidateGate"]["composition_rmsd_pass"] is False
 cats=("PREDICTED_TWO_PHASE","PREDICTED_STABLE_SINGLE_PHASE","NONCONVERGED_OR_BOUNDARY")

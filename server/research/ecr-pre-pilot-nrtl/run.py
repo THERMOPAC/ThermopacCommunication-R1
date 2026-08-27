@@ -60,6 +60,25 @@ def lngamma(v,T,p,active):
             ans[i]+=x[j]*G[i,j]/den[j]*(tau[i,j]-avg)
     return ans
 
+def independent_lngamma(v,T,p,active):
+    """Independent standard NRTL evaluation in column/vector form.
+
+    This audit implementation shares only the declared tau matrix.  It does not
+    call or algebraically delegate to the primary ``lngamma`` routine.
+    """
+    x=active_normalize(v,active); tau=tau_matrix(T,p)
+    G=np.exp(np.clip(-DECLARATION["alpha"]["value"]*tau,-50,50))
+    col_den=np.einsum("k,kj->j",x,G)
+    col_num=np.einsum("k,kj,kj->j",x,G,tau)
+    weighted=col_num/col_den
+    out=np.zeros(5)
+    for i in active:
+        incoming=col_num[i]/col_den[i]
+        correction=np.dot(x[active]*G[i,active]/col_den[active],
+                          tau[i,active]-weighted[active])
+        out[i]=incoming+correction
+    return out
+
 def coto_rows():
     pat=r"\{\s*x:\s*\[([^\]]+)\],\s*y:\s*\[([^\]]+)\],\s*tableOrder:\s*(\d+)"
     rows=[]
@@ -191,14 +210,38 @@ def flash(z,T,p,active):
     bounds=[(1e-10*z[i],(1-1e-10)*z[i]) for i in active]
     sols=[minimize(gmix,s,method="L-BFGS-B",bounds=bounds,options={"maxiter":1500,"ftol":1e-14,"gtol":1e-9}) for s in seeds]
     good=[s for s in sols if s.success and phases(s.x) is not None]
+    start_summaries=[]
+    for n,(seed,s) in enumerate(zip(seeds,sols)):
+        rec={"start_index":n,"seedAmountsActive":np.asarray(seed).tolist(),"success":bool(s.success),
+          "objective":float(s.fun),"message":str(s.message)}
+        q=phases(s.x)
+        if q is not None:
+            aa,xx,bb,yy=q
+            if xx[4]>yy[4]:xx,yy,aa,bb=yy,xx,bb,aa
+            mui=np.log(xx[active])+lngamma(xx,T,p,active)[active]
+            muj=np.log(yy[active])+lngamma(yy,T,p,active)[active]
+            rec.update({"RRBO_rich":xx.tolist(),"NMP_rich":yy.tolist(),"beta_NMP_rich":float(bb),
+              "isoactivityMax":float(np.max(np.abs(mui-muj)))})
+        start_summaries.append(rec)
+    if good:
+        best_obj=min(float(s.fun) for s in good)
+        equivalent=sum(abs(float(s.fun)-best_obj)<1e-8 for s in good)
+        alternate=sum(float(s.fun)>best_obj+1e-8 for s in good)
+    else: best_obj=None;equivalent=alternate=0
     common={"stabilityTPDMinimum":tpd,"stabilityLattice":tpdmeta,"activeMask":[i in active for i in range(5)],
-      "optimizer_attempts":len(sols),"optimizer_successes":len(good)}
+      "stabilityTPDWitness":w.tolist(),
+      "optimizer_attempts":len(sols),"optimizer_successes":len(good),"multistartSolutions":start_summaries,
+      "multistartAgreement":{"equivalent_best_objective_starts":equivalent,
+        "alternate_local_stationary_points":alternate,"multiple_successful_starts":len(good)>=2},
+      "homogeneousReducedGibbs":ghom}
     if tpd>=-1e-8:
         return {**common,"phaseBehavior":"PREDICTED_STABLE_SINGLE_PHASE","converged":True,"beta_NMP_rich":None,
-          "RRBO_rich":None,"NMP_rich":None,"massBalanceMaxResidual":0.,"isoactivityLogResidual":None,"objectiveImprovement":0.}
+          "RRBO_rich":None,"NMP_rich":None,"massBalanceMaxResidual":0.,"isoactivityLogResidual":None,
+          "objectiveImprovement":0.,"selectedTwoPhaseReducedGibbs":None}
     if not good:
         return {**common,"phaseBehavior":"NONCONVERGED_OR_BOUNDARY","converged":False,"beta_NMP_rich":None,
-          "RRBO_rich":None,"NMP_rich":None,"massBalanceMaxResidual":None,"isoactivityLogResidual":None,"objectiveImprovement":None}
+          "RRBO_rich":None,"NMP_rich":None,"massBalanceMaxResidual":None,"isoactivityLogResidual":None,
+          "objectiveImprovement":None,"selectedTwoPhaseReducedGibbs":None}
     sol=min(good,key=lambda s:s.fun);a,x,b,y=phases(sol.x)
     mu1=np.log(x[active])+lngamma(x,T,p,active)[active];mu2=np.log(y[active])+lngamma(y,T,p,active)[active]
     iso=float(np.max(np.abs(mu1-mu2))); mb=float(np.max(np.abs(a*x+b*y-z))); imp=ghom-float(sol.fun)
@@ -206,11 +249,13 @@ def flash(z,T,p,active):
     ok=not boundary and mb<1e-9 and iso<2e-4 and imp>1e-8
     if not ok:
         return {**common,"phaseBehavior":"NONCONVERGED_OR_BOUNDARY","converged":False,"beta_NMP_rich":None,
-          "RRBO_rich":None,"NMP_rich":None,"massBalanceMaxResidual":mb,"isoactivityLogResidual":iso,"objectiveImprovement":imp}
+          "RRBO_rich":None,"NMP_rich":None,"massBalanceMaxResidual":mb,"isoactivityLogResidual":iso,
+          "objectiveImprovement":imp,"selectedTwoPhaseReducedGibbs":float(sol.fun)}
     if x[4]>y[4]:x,y,a,b=y,x,b,a
     return {**common,"phaseBehavior":"PREDICTED_TWO_PHASE","converged":True,"beta_NMP_rich":b,
       "RRBO_rich":x.tolist(),"NMP_rich":y.tolist(),"massBalanceMaxResidual":mb,
-      "isoactivityLogResidual":iso,"objectiveImprovement":imp}
+      "isoactivityLogResidual":iso,"objectiveImprovement":imp,
+      "selectedTwoPhaseReducedGibbs":float(sol.fun),"gibbsDecrease":imp}
 
 def eqmetrics(p,rows):
     e=raw_equilibrium_residuals(p,rows)
@@ -222,13 +267,18 @@ def validate(rows,p):
         q=flash(z,r["T"],p,r["active"])
         q.update({"id":r["id"],"source":r["source"],"T_K":r["T"],"label":"holdout" if r["holdout"] else "train",
           "activeFamilies":[FAM[i] for i in r["active"]],"validation_feed":"unweighted midpoint; phase amounts absent",
+          "overallMidpoint":z.tolist(),
           "experimental":{"RRBO_rich":r["x"].tolist(),"NMP_rich":r["y"].tolist()}})
+        q["primaryMeasuredLnGamma"]={"RRBO_rich":lngamma(r["x"],r["T"],p,r["active"]).tolist(),
+          "NMP_rich":lngamma(r["y"],r["T"],p,r["active"]).tolist()}
         if q["phaseBehavior"]=="PREDICTED_TWO_PHASE":
             pred=np.r_[q["RRBO_rich"],q["NMP_rich"]];obs=np.r_[r["x"],r["y"]];e=np.abs(pred-obs)
             q["compositionRmsd"]=float(np.sqrt(np.mean(e*e)));q["maxAbsoluteError"]=float(e.max())
+            q["primaryLnGamma"]={"RRBO_rich":lngamma(q["RRBO_rich"],r["T"],p,r["active"]).tolist(),
+              "NMP_rich":lngamma(q["NMP_rich"],r["T"],p,r["active"]).tolist()}
             K=np.divide(q["NMP_rich"],q["RRBO_rich"],out=np.full(5,np.nan),where=np.asarray(q["RRBO_rich"])>0)
             q["distributionCoefficients"]=[float(v) if np.isfinite(v) else None for v in K]
-        else:q.update({"compositionRmsd":None,"maxAbsoluteError":None,"distributionCoefficients":None})
+        else:q.update({"compositionRmsd":None,"maxAbsoluteError":None,"distributionCoefficients":None,"primaryLnGamma":None})
         q["uncertaintyComparison"]=None if r["u"] is None else {"u_x":r["u"],"three_u_x":3*r["u"]}
         out.append(q)
     return out
@@ -239,6 +289,97 @@ def summary(vals,label):
     return {"rows":len(a),"categories":counts,"two_phase_recall":len(good)/len(a),
       "composition_rmsd_mean":float(np.mean([q["compositionRmsd"] for q in good])) if good else None,
       "max_absolute_error":max([q["maxAbsoluteError"] for q in good],default=None)}
+
+def build_audit(vals,p,mapping,probes):
+    """Standalone audit evaluator; it calls none of the production evaluators."""
+    assert len(p)==sum(2 if m["form"]=="a+b/T" else 1 for m in mapping)
+    def agamma(v,T,mask):
+        active=[i for i,on in enumerate(mask) if on]; x=np.zeros(5);x[active]=np.maximum(np.asarray(v)[active],EPS);x[active]/=x[active].sum()
+        tau=np.zeros((5,5));k=0
+        for m in mapping:
+            i,j=m["i"],m["j"]
+            if m["form"]=="a+b/T":tau[i,j]=p[k]+p[k+1]/T;k+=2
+            else: assert m["b_fixed"]==0.;tau[i,j]=p[k];k+=1
+        assert k==len(p)
+        G=np.exp(np.clip(-.30*tau,-50,50));d=x@G;out=np.zeros(5)
+        for i in active:
+            out[i]=sum(x[j]*tau[j,i]*G[j,i]/d[i] for j in active)
+            out[i]+=sum(x[j]*G[i,j]/d[j]*(tau[i,j]-sum(x[k]*tau[k,j]*G[k,j] for k in active)/d[j]) for j in active)
+        return x,out
+    accepted=[q for q in vals if q["phaseBehavior"]=="PREDICTED_TWO_PHASE"]
+    thermo=[]; gamma_cases=[]
+    for q in accepted:
+        mask=q["activeMask"];z=np.asarray(q["overallMidpoint"]);x=np.asarray(q["RRBO_rich"]);y=np.asarray(q["NMP_rich"]);b=q["beta_NMP_rich"]
+        zn,gz=agamma(z,q["T_K"],mask);xn,gx=agamma(x,q["T_K"],mask);yn,gy=agamma(y,q["T_K"],mask)
+        act=np.asarray(mask,bool);bal=(1-b)*xn+b*yn-zn;iso=np.log(xn[act])+gx[act]-np.log(yn[act])-gy[act]
+        gh=float(np.sum(zn[act]*(np.log(zn[act])+gz[act])));gs=float((1-b)*np.sum(xn[act]*(np.log(xn[act])+gx[act]))+b*np.sum(yn[act]*(np.log(yn[act])+gy[act])))
+        w=np.asarray(q["stabilityTPDWitness"]);wn,gw=agamma(w,q["T_K"],mask);tpd=float(np.sum(wn[act]*(np.log(wn[act])+gw[act]-np.log(zn[act])-gz[act])))
+        thermo.append({"id":q["id"],"z":zn.tolist(),"beta":b,"RRBO_rich":xn.tolist(),"NMP_rich":yn.tolist(),
+          "componentBalances":bal.tolist(),"massBalanceMax":float(np.max(np.abs(bal))),
+          "logIsoactivityResiduals":iso.tolist(),"isoactivityMax":float(np.max(np.abs(iso))),
+          "xGamma":{"RRBO_rich":(xn*np.exp(gx)).tolist(),"NMP_rich":(yn*np.exp(gy)).tolist()},
+          "homogeneousReducedGibbs":gh,"selectedTwoPhaseReducedGibbs":gs,"gibbsDecrease":gh-gs,
+          "TPDWitness":wn.tolist(),"TPDMinimum":tpd})
+        # Primary values are recomputed from serialized state separately only
+        # for the equation comparison, never used in audit Gibbs/TPD decisions.
+        for suffix,gind,gpri in (("R",gx,q["primaryLnGamma"]["RRBO_rich"]),("E",gy,q["primaryLnGamma"]["NMP_rich"])):
+            d=np.abs(gind-np.asarray(gpri))
+            gamma_cases.append({"id":q["id"]+"-flash-"+suffix,"independent":gind.tolist(),
+              "primarySerialized":gpri,"absoluteDifferences":d.tolist(),"maxDifference":float(d.max())})
+    gamma_max=max(c["maxDifference"] for c in gamma_cases)
+    for probe in probes:
+        _,gi=agamma(probe["composition"],probe["T_K"],probe["activeMask"]);gp=np.asarray(probe["primaryLnGamma"])
+        dd=np.abs(gi-gp);gamma_cases.append({"id":probe["id"],"independent":gi.tolist(),
+          "primarySerialized":gp.tolist(),"absoluteDifferences":dd.tolist(),"maxDifference":float(dd.max())})
+    gamma_max=max(c["maxDifference"] for c in gamma_cases)
+    manual_ids={"coto-2","coto-9","coto-14","coto-1"}
+    manual_ids.add(next(q["id"] for q in vals if q["id"].startswith("analogue-") and abs(q["T_K"]-323.2)<.051))
+    thermo_by_id={t["id"]:t for t in thermo}
+    manuals=[]
+    for q in vals:
+        if q["id"] not in manual_ids:continue
+        for suffix,v in (("experimental-R",q["experimental"]["RRBO_rich"]),("experimental-E",q["experimental"]["NMP_rich"])):
+            _,gi=agamma(v,q["T_K"],q["activeMask"]);gp=q["primaryMeasuredLnGamma"]["RRBO_rich" if suffix.endswith("R") else "NMP_rich"]
+            dd=np.abs(gi-np.asarray(gp));gamma_cases.append({"id":q["id"]+"-"+suffix,
+              "independent":gi.tolist(),"primarySerialized":gp,"absoluteDifferences":dd.tolist(),"maxDifference":float(dd.max())})
+        rec={k:q[k] for k in ("id","T_K","overallMidpoint","experimental","phaseBehavior","RRBO_rich","NMP_rich","beta_NMP_rich","multistartSolutions")}
+        rec["multistartAgreement"]=q["multistartAgreement"]; manuals.append(rec)
+        rec.update({"xGamma":None,"componentBalances":None,"componentBalanceMax":None,
+          "logIsoactivityResiduals":None,"perComponentErrors":None})
+        if q["id"] in thermo_by_id:
+            t=thermo_by_id[q["id"]]
+            rec.update({"xGamma":t["xGamma"],"componentBalances":t["componentBalances"],
+              "componentBalanceMax":t["massBalanceMax"],"logIsoactivityResiduals":t["logIsoactivityResiduals"],
+              "perComponentErrors":{"RRBO_rich":(np.asarray(q["RRBO_rich"])-np.asarray(q["experimental"]["RRBO_rich"])).tolist(),
+                "NMP_rich":(np.asarray(q["NMP_rich"])-np.asarray(q["experimental"]["NMP_rich"])).tolist()}})
+    mass=max(t["massBalanceMax"] for t in thermo);iso=max(t["isoactivityMax"] for t in thermo)
+    tpass=all(t["TPDMinimum"]<0 and t["selectedTwoPhaseReducedGibbs"]<t["homogeneousReducedGibbs"] for t in thermo)
+    # Canonical phases are already NMP-rich labelled. Agreement checks objective,
+    # beta and both canonical phase vectors, not objective alone.
+    mtol={"objective":1e-8,"beta":1e-6,"composition":1e-6}; mp=True
+    for m in manuals:
+        ss=[s for s in m["multistartSolutions"] if s["success"] and "RRBO_rich" in s]
+        if not ss:mp=False;continue
+        best=min(s["objective"] for s in ss)
+        agree=[s for s in ss if abs(s["objective"]-best)<=mtol["objective"]]
+        ref=agree[0]; same=[s for s in agree if abs(s["beta_NMP_rich"]-ref["beta_NMP_rich"])<=mtol["beta"] and
+          max(abs(a-b) for a,b in zip(s["RRBO_rich"],ref["RRBO_rich"]))<=mtol["composition"] and
+          max(abs(a-b) for a,b in zip(s["NMP_rich"],ref["NMP_rich"]))<=mtol["composition"]]
+        m["independentMultistart"]={"successful_materially_distinct_starts":len(ss),"agreeing_global_best_starts":len(same),
+          "alternate_stationary_starts":len(ss)-len(agree),"agreement":len(same)>=2}
+        mp &= len(same)>=2
+    obligations={"independentLngamma":{"status":"PASS" if gamma_max<1e-11 else "FAIL","maximum":gamma_max},
+      "KKT_isoactivity":{"status":"PASS" if iso<2e-4 else "FAIL","maximum":iso},
+      "TPD_and_Gibbs":{"status":"PASS" if tpass else "FAIL","acceptedCount":len(thermo)},
+      "massBalance":{"status":"PASS" if mass<5e-13 else "FAIL","maximum":mass},
+      "multistartAgreement":{"status":"PASS" if mp else "FAIL","tolerances":mtol}}
+    overall="PASS" if all(v["status"]=="PASS" for v in obligations.values()) else "FAIL"
+    return {"implementationAuditStatus":overall,"frozenParameterHash":hashlib.sha256(np.asarray(p).tobytes()).hexdigest(),
+      "standaloneEvaluator":"serialized vector + mapping + raw arrays only; no primary normalization, tau, gamma, flash, Gibbs, or TPD calls",
+      "frozenSplit":{"train":221,"holdout":15},"gammaComparisons":gamma_cases,"manualReproductions":manuals,
+      "acceptedTwoPhaseThermodynamics":thermo,"aggregate":{"acceptedTwoPhaseCount":len(thermo),"gammaDifferenceMax":gamma_max,
+        "isoactivityMax":iso,"massBalanceMax":mass},"obligations":obligations,
+      "causalStatement":"Implementation/flash-selection defects were not found within tested tolerances; this is not formal proof." if overall=="PASS" else "Thermodynamic/model-form blame is not established because one or more implementation audit obligations failed."}
 
 def main():
     OUT.mkdir(parents=True,exist_ok=True);rows=coto_rows()+mt_rows();train=[r for r in rows if not r["holdout"]]
@@ -270,6 +411,10 @@ def main():
       "acceptance_criteria_predeclared":criteria,"fiveFamilyCandidateGate":five_gate,
       "sixFamilyStage2Status":six_status,"sixFamilyAdmissionDependencies":six_deps,
       "governingAdmissionEligible":False,"metrics":metrics,"validation":vals,
+      "auditPrimaryProbes":[{"id":"interior-ternary-310K","composition":[.25,.25,0,0,.5],"T_K":310.,"activeMask":[True,True,False,False,True],
+        "primaryLnGamma":lngamma([.25,.25,0,0,.5],310.,p,[0,1,4]).tolist()},
+        {"id":"interior-five-298.15K","composition":[.2]*5,"T_K":298.15,"activeMask":[True]*5,
+        "primaryLnGamma":lngamma([.2]*5,298.15,p,[0,1,2,3,4]).tolist()}],
       "temperature_evidence":{"25 C":"five-family Coto anchor plus SAT/MONO/NMP analogues",
         "50 C":"SAT/MONO/NMP analogue interpolation only; DI/POLY NOT_CALCULABLE",
         "75 C":"NOT_CALCULABLE for DI/POLY and outside analogue evidence","100 C":"NOT_CALCULABLE"},
@@ -279,11 +424,32 @@ def main():
         "Nonconverged flashes are reported separately and are not counted as topology predictions."],
       "decision":decision}
     (OUT/"results.json").write_text(json.dumps(payload,indent=2,allow_nan=False)+"\n")
+    # Audit intentionally reloads only the serialized fitted vector; fitting and
+    # train/holdout assignment above remain frozen.
+    frozen=np.asarray(json.loads((OUT/"results.json").read_text())["fit"]["parameters"],float)
+    saved=json.loads((OUT/"results.json").read_text())
+    audit=build_audit(vals,frozen,saved["parameter_mapping"],saved["auditPrimaryProbes"])
+    (OUT/"audit.json").write_text(json.dumps(audit,indent=2,allow_nan=False)+"\n")
+    payload["implementationAudit"]={"path":"audit.json","status":audit["implementationAuditStatus"],
+      "parameterHash":audit["frozenParameterHash"]}
+    (OUT/"results.json").write_text(json.dumps(payload,indent=2,allow_nan=False)+"\n")
     manifest={"sources":src,"generated_by":"run.py","dependency_path":str(VENDOR.relative_to(ROOT)),
       "numpy":np.__version__,"scipy":scipy.__version__,"parameter_count":NPAR,
       "parameterization":"12 SAT/MONO/NMP a,b values plus 14 DI/POLY-involving isothermal tau values; all latter b=0",
       "parameter_hash":payload["fit"]["parameters_sha256"]}
     (OUT/"provenance-manifest.json").write_text(json.dumps(manifest,indent=2)+"\n")
+    (OUT/"audit-report.md").write_text(f"""# Independent equation-level implementation audit
+
+Overall implementation audit: **{audit["implementationAuditStatus"]}**
+
+The fitted parameter vector and 221/15 train/holdout split were frozen. An independent column/vector NRTL implementation was compared with the primary implementation over experimental, flash, structural-zero ternary, temperature, and interior-probe states. Maximum ln-gamma difference was {audit["aggregate"]["gammaDifferenceMax"]:.6g}.
+
+All {audit["aggregate"]["acceptedTwoPhaseCount"]} accepted flashes carry homogeneous and selected two-phase reduced Gibbs values, Gibbs decrease, TPD minimum, isoactivity, and component closure. Aggregate isoactivity maximum is {audit["aggregate"]["isoactivityMax"]:.6g}; mass-balance maximum is {audit["aggregate"]["massBalanceMax"]:.6g}. All individual multistart summaries are retained and canonically labelled by NMP richness; alternate objectives are distinguished from equivalent best-objective starts.
+
+Obligations: {json.dumps({k:v["status"] for k,v in audit["obligations"].items()},sort_keys=True)}.
+
+{audit["causalStatement"]}
+""")
     tr=payload["fit"]["equilibrium_log_activity_residuals"]["train"];ho=payload["fit"]["equilibrium_log_activity_residuals"]["holdout"]
     tc=metrics["train"]["categories"];hc=metrics["holdout"]["categories"]
     (OUT/"report.md").write_text(f"""# Fresh regularization-constrained ECR Pre-Pilot NRTL regression

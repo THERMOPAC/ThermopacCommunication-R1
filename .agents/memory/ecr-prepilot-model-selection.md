@@ -33,3 +33,11 @@ Do not admit the tested fresh family-level NRTL regression as the governing ECR 
 **Why:** the model reproduced held-out two-phase topology but materially failed the predeclared held-out composition-accuracy gate. Its parameter estimation is also practically ill-conditioned, and the public evidence cannot resolve Polar Aromatics or DI/POLY temperature behavior beyond the Coto anchor.
 
 **How to apply:** retain the five-family benchmark as rejection evidence. Keep governing six-family Stage 2 `NOT_CALCULABLE`, with no sulfur-removal inference. Any later empirical model must use independent holdouts and pass the unchanged topology and composition gates.
+
+## Fresh NRTL implementation-audit boundary
+
+Do not attribute the fresh NRTL tie-line error primarily to model form until materially different flash starts reproduce the same canonical equilibrium.
+
+**Why:** independent equation, isoactivity, TPD/Gibbs, and machine-precision balance checks pass, but multistart flash selection exposes competing stationary solutions and fails the reproducibility gate.
+
+**How to apply:** keep the fitted model rejected for admission, but classify the cause as unresolved. Resolve global flash selection without changing the frozen parameters, holdout split, or accuracy threshold before diagnosing representation error.
