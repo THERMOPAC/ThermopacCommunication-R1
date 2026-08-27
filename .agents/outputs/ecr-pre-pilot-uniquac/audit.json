@@ -1,0 +1,26 @@
+{
+  "implementationAuditStatus": "PASS",
+  "frozenParameterHash": "591a2892db6cc9c3e347e39c568b0c1bf546dfd5d74152bebd51e818e634feb3",
+  "independentEquationAudit": {
+    "status": "PASS",
+    "maximumLnGammaDifference": 2.9976021664879227e-15,
+    "rawSpecEvaluatorNoProductionHelperCalls": true
+  },
+  "obligations": {
+    "independentLngamma": {
+      "status": "PASS"
+    },
+    "KKT_isoactivity": {
+      "status": "PASS"
+    },
+    "TPD_and_Gibbs": {
+      "status": "PASS"
+    },
+    "massBalance": {
+      "status": "PASS"
+    },
+    "multistartAgreement": {
+      "status": "PASS"
+    }
+  }
+}

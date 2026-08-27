@@ -1,0 +1,3 @@
+# UNIQUAC isolated comparison
+
+**Verdict: REJECT.** Standard UNIQUAC with Original-UNIFAC row-specific R/Q, frozen vector `591a2892db6cc9c3e347e39c568b0c1bf546dfd5d74152bebd51e818e634feb3`, has holdout topology 0.666667 and mean tie-line RMSD 0.17450538878551938. Gates are unchanged at 0.90 and 0.03; RMSD fails, so topology does not alter REJECT. NRTL comparator: 0.60 / 0.12893357920616758 / 0.5857210888227891. The measurement-only condition number is 3.01098e+06, with 9 weak directions: serious practical ill-conditioning and a model limitation. Finite lattice/refinement and multistarts are evidence, not continuous global certification.

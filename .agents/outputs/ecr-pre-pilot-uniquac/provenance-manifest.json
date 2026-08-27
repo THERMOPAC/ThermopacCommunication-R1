@@ -1,0 +1,18 @@
+{
+  "sources": {
+    "coto": {
+      "path": "server/engine-framework/cel/coto2022-nmp-lle.ts",
+      "sha256": "8253433f5624934b7f9135f223090e8b9e2c5b1cbfaee06c951a3d87b839ea42",
+      "count": 17
+    },
+    "multi_t": {
+      "path": "server/engine-framework/cel/data/multi-t-nmp-lle.json",
+      "sha256": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+      "count": 219
+    }
+  },
+  "frozenParameterHash": "591a2892db6cc9c3e347e39c568b0c1bf546dfd5d74152bebd51e818e634feb3",
+  "parameterMappingHash": "9cf48a895d8b9b3999bb08239d9e4153ffab74770b53feb488a7b4c3353cd0c9",
+  "structuralProvenanceSha256": "ec79321c475d13aabb280caca5bbe2bd1d9b50d1011be2f9623881aef58caf43",
+  "modelSourceSha256": "c1130eba32c1b84c55309b71ee88c7ce6297b16c5a465486f5f505158c551ebc"
+}

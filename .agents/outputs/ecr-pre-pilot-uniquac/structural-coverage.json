@@ -1,0 +1,121 @@
+{
+  "requiredRows": 236,
+  "rowsFullyResolved": 236,
+  "allRowsResolvedWithoutFallback": true,
+  "basis": "Original-UNIFAC R/Q only; no Dortmund R/Q",
+  "identityTable": [
+    {
+      "identity": "n-dodecane",
+      "groups": {
+        "1": 2,
+        "2": 10
+      },
+      "r": 8.5462,
+      "q": 7.096
+    },
+    {
+      "identity": "n-tetradecane",
+      "groups": {
+        "1": 2,
+        "2": 12
+      },
+      "r": 9.895,
+      "q": 8.176
+    },
+    {
+      "identity": "n-hexadecane",
+      "groups": {
+        "1": 2,
+        "2": 14
+      },
+      "r": 11.2438,
+      "q": 9.256
+    },
+    {
+      "identity": "n-heptadecane",
+      "groups": {
+        "1": 2,
+        "2": 15
+      },
+      "r": 11.9182,
+      "q": 9.796
+    },
+    {
+      "identity": "n-propylbenzene",
+      "groups": {
+        "9": 5,
+        "12": 1,
+        "2": 1,
+        "1": 1
+      },
+      "r": 5.2716,
+      "q": 4.048
+    },
+    {
+      "identity": "n-pentylbenzene",
+      "groups": {
+        "9": 5,
+        "12": 1,
+        "2": 3,
+        "1": 1
+      },
+      "r": 6.6204,
+      "q": 5.128
+    },
+    {
+      "identity": "1,3,5-trimethylbenzene",
+      "groups": {
+        "9": 3,
+        "11": 3
+      },
+      "r": 5.3928,
+      "q": 4.104
+    },
+    {
+      "identity": "p-xylene",
+      "groups": {
+        "9": 4,
+        "11": 2
+      },
+      "r": 4.6578,
+      "q": 3.536
+    },
+    {
+      "identity": "toluene",
+      "groups": {
+        "9": 5,
+        "11": 1
+      },
+      "r": 3.9228,
+      "q": 2.968
+    },
+    {
+      "identity": "1-methylnaphthalene",
+      "groups": {
+        "9": 7,
+        "10": 2,
+        "11": 1
+      },
+      "r": 5.7158,
+      "q": 4.008
+    },
+    {
+      "identity": "pyrene",
+      "groups": {
+        "9": 10,
+        "10": 6
+      },
+      "r": 7.5042,
+      "q": 4.72
+    },
+    {
+      "identity": "N-methyl-2-pyrrolidone",
+      "groups": {
+        "85": 1
+      },
+      "r": 3.981,
+      "q": 3.2
+    }
+  ],
+  "structuralProvenanceSha256": "ec79321c475d13aabb280caca5bbe2bd1d9b50d1011be2f9623881aef58caf43"
+}

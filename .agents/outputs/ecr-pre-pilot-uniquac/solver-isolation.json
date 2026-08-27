@@ -1,0 +1,270 @@
+{
+  "frozenParameterHash": "591a2892db6cc9c3e347e39c568b0c1bf546dfd5d74152bebd51e818e634feb3",
+  "parameterMappingHash": "9cf48a895d8b9b3999bb08239d9e4153ffab74770b53feb488a7b4c3353cd0c9",
+  "fitCalled": false,
+  "fitProof": "main loads frozen artifact and has no fit(train) invocation",
+  "executionEvidence": {
+    "sequence": [
+      "FROZEN_ARTIFACT_VALIDATED",
+      "SYNTHETIC_QUALIFICATION_COMPLETE",
+      "PRE_HOLDOUT_DATA_QUALIFICATION_EVALUATED",
+      "PRE_HOLDOUT_ISOLATION_PASS",
+      "HOLDOUT_EVALUATED",
+      "TRAIN_RESEARCH_EVALUATED"
+    ],
+    "syntheticFlashCalls": 1,
+    "qualificationFlashCalls": 3,
+    "holdoutFlashCalls": 15,
+    "trainFlashCalls": 221,
+    "holdoutEvaluationStartedAfterIsolationPass": true,
+    "qualificationRowIds": [
+      "coto-1",
+      "analogue-2",
+      "analogue-205"
+    ],
+    "holdoutRowIds": [
+      "coto-2",
+      "coto-9",
+      "coto-13",
+      "coto-14",
+      "coto-15",
+      "coto-16",
+      "coto-17",
+      "analogue-212",
+      "analogue-213",
+      "analogue-214",
+      "analogue-215",
+      "analogue-216",
+      "analogue-217",
+      "analogue-218",
+      "analogue-219"
+    ],
+    "thermodynamicRowIdsEvaluatedBeforePass": [
+      "coto-1",
+      "analogue-2",
+      "analogue-205"
+    ],
+    "dataTouchedBeforePass": [
+      "coto-1",
+      "analogue-2",
+      "analogue-205"
+    ]
+  },
+  "basins": {
+    "lattice_points": 11205,
+    "competitive_points_refined": 1538,
+    "distinct_refined_basins": 440,
+    "gibbs_start_count": 2663
+  },
+  "clampLog": {
+    "primary": {
+      "calls": 38416320,
+      "activations": 0,
+      "maximum_absolute_raw_exponent": 5.0,
+      "status": "PASS"
+    },
+    "standaloneFinalGate": {
+      "calls": 1370860,
+      "activations": 0,
+      "maximum_absolute_raw_exponent": 5.0,
+      "status": "PASS"
+    },
+    "standaloneAudit": {
+      "calls": 40,
+      "activations": 0,
+      "maximum_absolute_raw_exponent": 2.698852011866442,
+      "status": "PASS"
+    },
+    "status": "PASS"
+  },
+  "syntheticRecovery": {
+    "knownParameterVector": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      5.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "truthConstruction": "standalone_truth raw-spec conserved-Gibbs multistart; production flash is invoked only after truth is frozen in memory",
+    "truth": {
+      "RRBO_rich": [
+        0.9999998597630783,
+        0.0,
+        0.0,
+        0.0,
+        1.4023692173955248e-07
+      ],
+      "NMP_rich": [
+        0.0012742475609816093,
+        0.0,
+        0.0,
+        0.0,
+        0.9987257524390183
+      ],
+      "beta_NMP_rich": 0.5006378665513798,
+      "objective": -0.0006317211832632912,
+      "selectedStartId": 4,
+      "selectedStartLabel": "INTERIOR_SAT",
+      "seedCount": 7,
+      "seedLabels": [
+        "HOMOGENEOUS_0.2",
+        "HOMOGENEOUS_0.5",
+        "HOMOGENEOUS_0.8",
+        "BOUNDARY_SAT",
+        "INTERIOR_SAT",
+        "BOUNDARY_NMP",
+        "INTERIOR_NMP"
+      ],
+      "admissibleCandidates": 2,
+      "independentChecks": {
+        "massBalanceResiduals": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          1.1102230246251565e-16
+        ],
+        "massBalanceMax": 1.1102230246251565e-16,
+        "isoactivityResiduals": [
+          2.074197258394861e-08,
+          -1.8412884358151203e-08
+        ],
+        "isoactivityMax": 2.074197258394861e-08,
+        "homogeneousReducedGibbs": 1.0845562079752862,
+        "totalReducedGibbs": -0.0006317211832632357,
+        "gibbsDecrease": 1.0851879291585493,
+        "postSplitTPD": {
+          "RRBO_rich": {
+            "minimum": 1.6057980483316195e-12,
+            "latticePointCount": 5,
+            "latticePointsEvaluated": 5,
+            "competitivePoints": 1,
+            "refinementAttempts": 1,
+            "refinementSuccesses": 1,
+            "distinctRefinedBasins": 1,
+            "refinedBasins": [
+              {
+                "tpd": 1.6057980483316195e-12,
+                "composition": [
+                  0.9999998590914058,
+                  0.0,
+                  0.0,
+                  0.0,
+                  1.409085941949081e-07
+                ],
+                "latticeIndex": 4
+              }
+            ]
+          },
+          "NMP_rich": {
+            "minimum": 2.0743573656378854e-08,
+            "latticePointCount": 5,
+            "latticePointsEvaluated": 5,
+            "competitivePoints": 1,
+            "refinementAttempts": 1,
+            "refinementSuccesses": 1,
+            "distinctRefinedBasins": 1,
+            "refinedBasins": [
+              {
+                "tpd": 2.0743573656378854e-08,
+                "composition": [
+                  0.9999998590916501,
+                  0.0,
+                  0.0,
+                  0.0,
+                  1.4090834993628026e-07
+                ],
+                "latticeIndex": 4
+              }
+            ]
+          }
+        },
+        "pass": true
+      }
+    },
+    "recovered": {
+      "phaseBehavior": "PREDICTED_TWO_PHASE",
+      "RRBO_rich": [
+        0.9999998597473629,
+        0.0,
+        0.0,
+        0.0,
+        1.402526370067386e-07
+      ],
+      "NMP_rich": [
+        0.00127424758485447,
+        0.0,
+        0.0,
+        0.0,
+        0.9987257524151455
+      ],
+      "beta_NMP_rich": 0.500637866555489,
+      "compositionMaxDelta": 2.3872860719503786e-11,
+      "betaDelta": 4.109268481045092e-12
+    },
+    "tolerances": {
+      "composition": 0.0002,
+      "beta": 0.0002
+    },
+    "pass": true
+  },
+  "preHoldoutIsolationStatus": "PASS",
+  "preHoldoutAuditStatus": "PASS",
+  "fullBasinAccounting": true,
+  "noAmbiguousRequiredAuditCase": true,
+  "independentFinalPhaseChecksPass": true,
+  "overallStatus": "PASS",
+  "holdoutComparison": {
+    "status": "RUN",
+    "after": {
+      "rows": 15,
+      "categories": {
+        "PREDICTED_TWO_PHASE": 10,
+        "PREDICTED_STABLE_SINGLE_PHASE": 0,
+        "NONCONVERGED_OR_BOUNDARY": 5,
+        "AMBIGUOUS_UNRESOLVED": 0
+      },
+      "topology_recall": 0.6666666666666666,
+      "mean_tie_line_rmsd": 0.17450538878551938,
+      "max_absolute_error": 0.847955566422807
+    },
+    "cotoAfter": {
+      "coto-2": {
+        "rmsd": 0.34309733639817086,
+        "maxError": 0.8463778495588405,
+        "phaseBehavior": "PREDICTED_TWO_PHASE"
+      },
+      "coto-9": {
+        "rmsd": 0.3557208227200514,
+        "maxError": 0.847955566422807,
+        "phaseBehavior": "PREDICTED_TWO_PHASE"
+      },
+      "coto-14": {
+        "rmsd": 0.34081376761365634,
+        "maxError": 0.8384738311937036,
+        "phaseBehavior": "PREDICTED_TWO_PHASE"
+      }
+    }
+  }
+}

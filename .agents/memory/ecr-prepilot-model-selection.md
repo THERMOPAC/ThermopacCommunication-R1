@@ -30,14 +30,22 @@ Do not use the tested openCOSMO-RS route with LVPP v25 NWChem B3LYP/SVPD surface
 
 Do not admit the tested fresh family-level NRTL regression as the governing ECR Pre-Pilot model. This decision applies to the tested fitted form, not to every possible NRTL formulation.
 
-**Why:** the model reproduced held-out two-phase topology but materially failed the predeclared held-out composition-accuracy gate. Its parameter estimation is also practically ill-conditioned, and the public evidence cannot resolve Polar Aromatics or DI/POLY temperature behavior beyond the Coto anchor.
+**Why:** after frozen-parameter solver isolation passed, held-out topology recall was 0.60 and mean tie-line RMSD was 0.1289; both fail the unchanged 0.90 and 0.03 gates. Its parameter estimation is also practically ill-conditioned, and the public evidence cannot resolve Polar Aromatics or DI/POLY temperature behavior beyond the Coto anchor.
 
 **How to apply:** retain the five-family benchmark as rejection evidence. Keep governing six-family Stage 2 `NOT_CALCULABLE`, with no sulfur-removal inference. Any later empirical model must use independent holdouts and pass the unchanged topology and composition gates.
 
-## Fresh NRTL implementation-audit boundary
+## Fresh NRTL solver-isolation boundary
 
-Do not attribute the fresh NRTL tie-line error primarily to model form until materially different flash starts reproduce the same canonical equilibrium.
+Treat the tested NRTL flash-selection implementation as excluded within its qualified finite-candidate procedure, not as formally globally certified.
 
-**Why:** independent equation, isoactivity, TPD/Gibbs, and machine-precision balance checks pass, but multistart flash selection exposes competing stationary solutions and fails the reproducibility gate.
+**Why:** frozen-hash, no-refit, independent equation/final-phase checks, synthetic recovery, all-basin multistart selection, ambiguity handling, and pre-holdout isolation passed; the resulting holdout metrics worsened.
 
-**How to apply:** keep the fitted model rejected for admission, but classify the cause as unresolved. Resolve global flash selection without changing the frozen parameters, holdout split, or accuracy threshold before diagnosing representation error.
+**How to apply:** do not restore the earlier optimistic holdout metrics or keep tuning this frozen vector. Preserve the finite-candidate—not formal global proof—qualification.
+
+## Fresh ECR Pre-Pilot UNIQUAC disposition
+
+Do not admit the tested standard UNIQUAC regression as the governing ECR Pre-Pilot model. This decision applies to the tested family-interaction form with row-specific Original-UNIFAC structural constants.
+
+**Why:** under the same data split, gates, and qualified finite-candidate solver procedure, held-out topology recall was 0.667 and mean tie-line RMSD was 0.175; both fail. Maximum error was about 0.848. The measurement Jacobian was also seriously ill-conditioned, with nine practically weak directions.
+
+**How to apply:** retain UNIQUAC as independent rejection evidence. Do not use it for sulfur prediction, stage count, optimization, hydraulics, sizing, or release work. Keep Polar Aromatics and sulfur unresolved, and compare future candidates against the same frozen holdout and unchanged 0.03 RMSD gate.

@@ -1,0 +1,69 @@
+{
+  "status": "AUTHORITATIVE_STRUCTURAL_GAP_RESOLUTION_RECEIVED",
+  "source": {
+    "publisher": "DDBST GmbH",
+    "title": "Published Parameters UNIFAC",
+    "url": "https://www.ddbst.com/published-parameters-unifac.html",
+    "retrieval_date": "2026-08-27",
+    "publication_provenance": "Original UNIFAC subgroup table; published references span Skjold-Joergensen (1979) through Wittig (2003).",
+    "scope": "Structural UNIFAC/UNIQUAC size and surface group contributions only. No Dortmund interaction parameters are used or implied."
+  },
+  "subgroups": {
+    "1": {"name": "CH3", "R": 0.9011, "Q": 0.848},
+    "2": {"name": "CH2", "R": 0.6744, "Q": 0.54},
+    "9": {"name": "ACH", "R": 0.5313, "Q": 0.4},
+    "11": {"name": "ACCH3", "R": 1.2663, "Q": 0.968},
+    "12": {"name": "ACCH2", "R": 1.0396, "Q": 0.66},
+    "10": {"name": "AC", "R": 0.3652, "Q": 0.12},
+    "85": {"name": "NMP", "R": 3.981, "Q": 3.2}
+  },
+  "newly_resolved_molecules": [
+    {
+      "identity": "n-tetradecane",
+      "unifac_subgroups": {"1": 2, "2": 12},
+      "derived_r": 9.895,
+      "derived_q": 8.176,
+      "molecular_formula": "C14H30",
+      "atom_balance": {"from_groups": "2 CH3 + 12 CH2", "carbon": 14, "hydrogen": 30, "pass": true}
+    },
+    {
+      "identity": "n-heptadecane",
+      "unifac_subgroups": {"1": 2, "2": 15},
+      "derived_r": 11.9182,
+      "derived_q": 9.796,
+      "molecular_formula": "C17H36",
+      "atom_balance": {"from_groups": "2 CH3 + 15 CH2", "carbon": 17, "hydrogen": 36, "pass": true}
+    },
+    {
+      "identity": "n-propylbenzene",
+      "unifac_subgroups": {"9": 5, "12": 1, "2": 1, "1": 1},
+      "derived_r": 5.2716,
+      "derived_q": 4.048,
+      "molecular_formula": "C9H12",
+      "atom_balance": {"from_groups": "5 ACH + 1 ACCH2 + 1 CH2 + 1 CH3", "carbon": 9, "hydrogen": 12, "pass": true}
+    },
+    {
+      "identity": "n-pentylbenzene",
+      "unifac_subgroups": {"9": 5, "12": 1, "2": 3, "1": 1},
+      "derived_r": 6.6204,
+      "derived_q": 5.128,
+      "molecular_formula": "C11H16",
+      "atom_balance": {"from_groups": "5 ACH + 1 ACCH2 + 3 CH2 + 1 CH3", "carbon": 11, "hydrogen": 16, "pass": true}
+    }
+  ],
+  "all_molecules": [
+    {"identity":"n-dodecane","groups":{"1":2,"2":10},"r":8.5462,"q":7.096},
+    {"identity":"n-tetradecane","groups":{"1":2,"2":12},"r":9.895,"q":8.176},
+    {"identity":"n-hexadecane","groups":{"1":2,"2":14},"r":11.2438,"q":9.256},
+    {"identity":"n-heptadecane","groups":{"1":2,"2":15},"r":11.9182,"q":9.796},
+    {"identity":"n-propylbenzene","groups":{"9":5,"12":1,"2":1,"1":1},"r":5.2716,"q":4.048},
+    {"identity":"n-pentylbenzene","groups":{"9":5,"12":1,"2":3,"1":1},"r":6.6204,"q":5.128},
+    {"identity":"1,3,5-trimethylbenzene","groups":{"9":3,"11":3},"r":5.3928,"q":4.104},
+    {"identity":"p-xylene","groups":{"9":4,"11":2},"r":4.6578,"q":3.536},
+    {"identity":"toluene","groups":{"9":5,"11":1},"r":3.9228,"q":2.968},
+    {"identity":"1-methylnaphthalene","groups":{"9":7,"10":2,"11":1},"r":5.7158,"q":4.008},
+    {"identity":"pyrene","groups":{"9":10,"10":6},"r":7.5042,"q":4.72},
+    {"identity":"N-methyl-2-pyrrolidone","groups":{"85":1},"r":3.981,"q":3.2}
+  ],
+  "policy": "These decompositions are traceable standard Original-UNIFAC group-contribution structural assignments, not fallback substitutions. Dortmund group numbering/values are not used."
+}
