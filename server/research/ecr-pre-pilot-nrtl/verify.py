@@ -45,6 +45,14 @@ for t in a["acceptedTwoPhaseThermodynamics"]:
     assert abs((t["homogeneousReducedGibbs"]-t["selectedTwoPhaseReducedGibbs"])-t["gibbsDecrease"])<1e-10
 for x in a["manualReproductions"]:
     assert len(x["multistartSolutions"])>=4
+    assert x["independentMultistart"]["agreement"] is True
+    assert x["independentMultistart"]["eligible_stationary_candidates"]>=2
+    assert x["independentMultistart"]["reproduced_global_equilibrium_copies"]>=2
+    assert x["independentMultistart"]["canonical_output_agreement"] is True
+    assert x["independentMultistart"]["materially_distinct_reproduction"] is True
+    assert x["independentMultistart"]["maximum_phase_swap_invariant_seed_distance"]>=a["obligations"]["multistartAgreement"]["tolerances"]["seed_state_distance"]
+    assert len(x["independentMultistart"]["maximum_distance_start_pair"])==2
+    assert x["independentMultistart"]["rejected_stationary_candidates"]>=0
     if x["componentBalances"] is not None:
         assert abs(max(abs(v) for v in x["componentBalances"])-x["componentBalanceMax"])<1e-15
 statuses=[v["status"] for v in a["obligations"].values()]
@@ -61,6 +69,8 @@ for q in r["validation"]:
     assert q["stabilityLattice"]["denominator"]==(8 if analog else 4)
     assert q["stabilityLattice"]["point_count"]==(45 if analog else 70)
     assert q["stabilityLattice"]["all_points_evaluated"]==q["stabilityLattice"]["point_count"]
+    assert q["globalSelection"]["eligibleCandidates"]+q["globalSelection"]["rejectedCandidates"]==q["optimizer_attempts"]
+    assert sum(bool(s.get("selectedByGlobalRule")) for s in q["multistartSolutions"])==(1 if q["globalSelection"]["eligibleCandidates"] else 0)
     if q["phaseBehavior"]=="PREDICTED_TWO_PHASE":
         assert q["massBalanceMaxResidual"] < 1e-9 and q["isoactivityLogResidual"] < 2e-4
         assert abs(sum(q["RRBO_rich"])-1)<1e-9 and abs(sum(q["NMP_rich"])-1)<1e-9

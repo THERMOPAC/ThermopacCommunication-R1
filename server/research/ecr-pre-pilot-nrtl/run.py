@@ -199,50 +199,109 @@ def flash(z,T,p,active):
         a,x,b,y=q
         return float(a*np.sum(x[active]*(np.log(x[active])+lngamma(x,T,p,active)[active]))+
                      b*np.sum(y[active]*(np.log(y[active])+lngamma(y,T,p,active)[active])))
+    def iso_residual(na):
+        q=phases(na)
+        if q is None:return np.full(len(active),1e6)
+        _,x,_,y=q
+        return np.log(x[active])+lngamma(x,T,p,active)[active]-np.log(y[active])-lngamma(y,T,p,active)[active]
     ghom=float(np.sum(z[active]*(np.log(z[active])+lngamma(z,T,p,active)[active])))
     # Instability-derived seeds plus generic amount partitions. No observations.
-    seeds=[]
-    scale=min(.35*z[i]/w[i] for i in active if w[i]>1e-10)
-    if scale>1e-8:seeds.append((scale*w)[active])
-    for frac in (.2,.5,.8):seeds.append((frac*z)[active])
+    # The second instability seed is a genuine physical perturbation toward the
+    # feed, not the exact A/B phase swap of the first.
+    seeds=[];seed_labels=[]
+    for blend in (0.,.20):
+        wb=active_normalize((1-blend)*w+blend*z,active)
+        scale=min(.35*z[i]/wb[i] for i in active if wb[i]>1e-10)
+        if scale>1e-8:
+            seeds.append((scale*wb)[active]);seed_labels.append(f"TPD_WITNESS_BLEND_{blend:.2f}")
+    for frac in (.2,.5,.8):
+        seeds.append((frac*z)[active]);seed_labels.append(f"HOMOGENEOUS_PARTITION_{frac:.2f}")
     for fav in active:
-        f=np.full(len(active),.35);f[active.index(fav)]=.65;seeds.append(z[active]*f)
+        f=np.full(len(active),.35);f[active.index(fav)]=.65
+        seeds.append(z[active]*f);seed_labels.append(f"COMPONENT_FAVORED_{FAM[fav]}")
     bounds=[(1e-10*z[i],(1-1e-10)*z[i]) for i in active]
     sols=[minimize(gmix,s,method="L-BFGS-B",bounds=bounds,options={"maxiter":1500,"ftol":1e-14,"gtol":1e-9}) for s in seeds]
+    polish=[]
+    for s in sols:
+        meta={"attempted":False,"success":False,"maximumIsoactivityResidual":None}
+        if s.success and phases(s.x) is not None:
+            # A direct KKT root polish removes optimizer-gradient stopping
+            # differences between phase-swapped and materially different seeds.
+            root=least_squares(iso_residual,s.x,bounds=np.asarray(bounds).T,
+              method="trf",jac="3-point",x_scale="jac",max_nfev=3000,
+              ftol=1e-14,xtol=1e-14,gtol=1e-14)
+            meta.update({"attempted":True,"success":bool(root.success),
+              "maximumIsoactivityResidual":float(np.max(np.abs(root.fun)))})
+            if root.success and phases(root.x) is not None:
+                s.x=root.x;s.fun=gmix(root.x)
+        polish.append(meta)
     good=[s for s in sols if s.success and phases(s.x) is not None]
     start_summaries=[]
+    eligible=[]
     for n,(seed,s) in enumerate(zip(seeds,sols)):
-        rec={"start_index":n,"seedAmountsActive":np.asarray(seed).tolist(),"success":bool(s.success),
-          "objective":float(s.fun),"message":str(s.message)}
+        sq=phases(seed)
+        if sq is None: seed_state=None
+        else:
+            sa,sx,sb,sy=sq
+            if sx[4]>sy[4]:sx,sy,sa,sb=sy,sx,sb,sa
+            seed_state={"beta_NMP_rich":float(sb),"RRBO_rich":sx.tolist(),"NMP_rich":sy.tolist()}
+        rec={"start_index":n,"seedLabel":seed_labels[n],"seedAmountsActive":np.asarray(seed).tolist(),
+          "seedCanonicalState":seed_state,"success":bool(s.success),
+          "objective":float(s.fun),"message":str(s.message),"chemicalPotentialPolish":polish[n]}
         q=phases(s.x)
         if q is not None:
             aa,xx,bb,yy=q
             if xx[4]>yy[4]:xx,yy,aa,bb=yy,xx,bb,aa
             mui=np.log(xx[active])+lngamma(xx,T,p,active)[active]
             muj=np.log(yy[active])+lngamma(yy,T,p,active)[active]
+            iso_i=float(np.max(np.abs(mui-muj)))
+            mb_i=float(np.max(np.abs(aa*xx+bb*yy-z)))
+            improvement_i=ghom-float(s.fun)
+            boundary_i=min(aa,bb,np.min(s.x),np.min(z[active]-s.x))<1e-7
+            reasons=[]
+            if not s.success: reasons.append("OPTIMIZER_DID_NOT_CONVERGE")
+            if boundary_i: reasons.append("BOUNDARY_SOLUTION")
+            if mb_i>=1e-9: reasons.append("COMPONENT_BALANCE")
+            if iso_i>=2e-4: reasons.append("KKT_ISOACTIVITY")
+            if improvement_i<=1e-8: reasons.append("NO_GIBBS_DECREASE")
             rec.update({"RRBO_rich":xx.tolist(),"NMP_rich":yy.tolist(),"beta_NMP_rich":float(bb),
-              "isoactivityMax":float(np.max(np.abs(mui-muj)))})
+              "isoactivityMax":iso_i,"massBalanceMax":mb_i,"objectiveImprovement":improvement_i,
+              "selectionEligible":not reasons,"rejectionReasons":reasons})
+            if not reasons: eligible.append((s,aa,xx,bb,yy,rec))
+        else:
+            rec.update({"selectionEligible":False,"rejectionReasons":["INVALID_PHASE_AMOUNTS"]})
         start_summaries.append(rec)
-    if good:
-        best_obj=min(float(s.fun) for s in good)
-        equivalent=sum(abs(float(s.fun)-best_obj)<1e-8 for s in good)
-        alternate=sum(float(s.fun)>best_obj+1e-8 for s in good)
+    if eligible:
+        # Objective first; canonical phase fraction/compositions provide a
+        # reproducible tie-break independent of optimizer or seed order.
+        rank=lambda c:(round(float(c[0].fun),12),round(float(c[3]),12),
+          tuple(round(float(v),12) for v in c[2]),tuple(round(float(v),12) for v in c[4]))
+        eligible.sort(key=rank)
+        selected=eligible[0]
+        best_obj=float(selected[0].fun)
+        equivalent=sum(abs(float(c[0].fun)-best_obj)<1e-8 for c in eligible)
+        alternate=len(eligible)-equivalent
+        selected[5]["selectedByGlobalRule"]=True
     else: best_obj=None;equivalent=alternate=0
     common={"stabilityTPDMinimum":tpd,"stabilityLattice":tpdmeta,"activeMask":[i in active for i in range(5)],
       "stabilityTPDWitness":w.tolist(),
       "optimizer_attempts":len(sols),"optimizer_successes":len(good),"multistartSolutions":start_summaries,
       "multistartAgreement":{"equivalent_best_objective_starts":equivalent,
         "alternate_local_stationary_points":alternate,"multiple_successful_starts":len(good)>=2},
+      "globalSelection":{"rule":"minimum reduced Gibbs among thermodynamically eligible stationary candidates; canonical beta/compositions break numerical ties",
+        "eligibleCandidates":len(eligible),"rejectedCandidates":len(sols)-len(eligible),
+        "selectedStartIndex":selected[5]["start_index"] if eligible else None,
+        "reproduciblePhaseSwapCopies":equivalent},
       "homogeneousReducedGibbs":ghom}
     if tpd>=-1e-8:
         return {**common,"phaseBehavior":"PREDICTED_STABLE_SINGLE_PHASE","converged":True,"beta_NMP_rich":None,
           "RRBO_rich":None,"NMP_rich":None,"massBalanceMaxResidual":0.,"isoactivityLogResidual":None,
           "objectiveImprovement":0.,"selectedTwoPhaseReducedGibbs":None}
-    if not good:
+    if not eligible:
         return {**common,"phaseBehavior":"NONCONVERGED_OR_BOUNDARY","converged":False,"beta_NMP_rich":None,
           "RRBO_rich":None,"NMP_rich":None,"massBalanceMaxResidual":None,"isoactivityLogResidual":None,
           "objectiveImprovement":None,"selectedTwoPhaseReducedGibbs":None}
-    sol=min(good,key=lambda s:s.fun);a,x,b,y=phases(sol.x)
+    sol,a,x,b,y,_=selected
     mu1=np.log(x[active])+lngamma(x,T,p,active)[active];mu2=np.log(y[active])+lngamma(y,T,p,active)[active]
     iso=float(np.max(np.abs(mu1-mu2))); mb=float(np.max(np.abs(a*x+b*y-z))); imp=ghom-float(sol.fun)
     boundary=min(a,b,np.min(sol.x),np.min(z[active]-sol.x))<1e-7
@@ -333,7 +392,11 @@ def build_audit(vals,p,mapping,probes):
           "primarySerialized":gp.tolist(),"absoluteDifferences":dd.tolist(),"maxDifference":float(dd.max())})
     gamma_max=max(c["maxDifference"] for c in gamma_cases)
     manual_ids={"coto-2","coto-9","coto-14","coto-1"}
-    manual_ids.add(next(q["id"] for q in vals if q["id"].startswith("analogue-") and abs(q["T_K"]-323.2)<.051))
+    # Use an interior ternary row for multistart reproduction. The first
+    # 323.2 K row is a binary endpoint with zero overall MONO and therefore
+    # cannot possess a strictly interior three-component split.
+    manual_ids.add(next(q["id"] for q in vals if q["id"].startswith("analogue-") and
+      abs(q["T_K"]-323.2)<.051 and q["overallMidpoint"][1]>1e-10))
     thermo_by_id={t["id"]:t for t in thermo}
     manuals=[]
     for q in vals:
@@ -354,20 +417,39 @@ def build_audit(vals,p,mapping,probes):
                 "NMP_rich":(np.asarray(q["NMP_rich"])-np.asarray(q["experimental"]["NMP_rich"])).tolist()}})
     mass=max(t["massBalanceMax"] for t in thermo);iso=max(t["isoactivityMax"] for t in thermo)
     tpass=all(t["TPDMinimum"]<0 and t["selectedTwoPhaseReducedGibbs"]<t["homogeneousReducedGibbs"] for t in thermo)
-    # Canonical phases are already NMP-rich labelled. Agreement checks objective,
-    # beta and both canonical phase vectors, not objective alone.
-    mtol={"objective":1e-8,"beta":1e-6,"composition":1e-6}; mp=True
+    # Independent reproduction requires both matching canonical outcomes and
+    # physically distinct phase-swap-canonical initial states.
+    mtol={"objective":1e-8,"beta":1e-6,"composition":1e-6,"seed_state_distance":1e-3}; mp=True
     for m in manuals:
-        ss=[s for s in m["multistartSolutions"] if s["success"] and "RRBO_rich" in s]
-        if not ss:mp=False;continue
-        best=min(s["objective"] for s in ss)
-        agree=[s for s in ss if abs(s["objective"]-best)<=mtol["objective"]]
-        ref=agree[0]; same=[s for s in agree if abs(s["beta_NMP_rich"]-ref["beta_NMP_rich"])<=mtol["beta"] and
-          max(abs(a-b) for a,b in zip(s["RRBO_rich"],ref["RRBO_rich"]))<=mtol["composition"] and
-          max(abs(a-b) for a,b in zip(s["NMP_rich"],ref["NMP_rich"]))<=mtol["composition"]]
-        m["independentMultistart"]={"successful_materially_distinct_starts":len(ss),"agreeing_global_best_starts":len(same),
-          "alternate_stationary_starts":len(ss)-len(agree),"agreement":len(same)>=2}
-        mp &= len(same)>=2
+        ss=[s for s in m["multistartSolutions"] if s.get("selectionEligible")]
+        key=lambda s:(round(s["objective"],12),round(s["beta_NMP_rich"],12),
+          tuple(round(v,12) for v in s["RRBO_rich"]),tuple(round(v,12) for v in s["NMP_rich"]))
+        chosen=min(ss,key=key) if ss else None
+        reproducers=[] if chosen is None else [s for s in ss if
+          abs(s["objective"]-chosen["objective"])<=mtol["objective"] and
+          abs(s["beta_NMP_rich"]-chosen["beta_NMP_rich"])<=mtol["beta"] and
+          max(abs(a-b) for a,b in zip(s["RRBO_rich"],chosen["RRBO_rich"]))<=mtol["composition"] and
+          max(abs(a-b) for a,b in zip(s["NMP_rich"],chosen["NMP_rich"]))<=mtol["composition"]]
+        def seed_distance(a,b):
+            aa=a["seedCanonicalState"];bb=b["seedCanonicalState"]
+            return max(abs(aa["beta_NMP_rich"]-bb["beta_NMP_rich"]),
+              max(abs(x-y) for x,y in zip(aa["RRBO_rich"],bb["RRBO_rich"])),
+              max(abs(x-y) for x,y in zip(aa["NMP_rich"],bb["NMP_rich"])))
+        pairs=[(seed_distance(a,b),a["start_index"],b["start_index"]) for i,a in enumerate(reproducers)
+          for b in reproducers[i+1:] if a["seedCanonicalState"] and b["seedCanonicalState"]]
+        max_pair=max(pairs,default=(0.,None,None))
+        materially_distinct=max_pair[0]>=mtol["seed_state_distance"]
+        rejected=len(m["multistartSolutions"])-len(ss)
+        agreement=len(reproducers)>=2 and materially_distinct
+        m["independentMultistart"]={"materially_distinct_starts":len(m["multistartSolutions"]),
+          "eligible_stationary_candidates":len(ss),"rejected_stationary_candidates":rejected,
+          "reproduced_global_equilibrium_copies":len(reproducers),
+          "reproducing_start_indices":[s["start_index"] for s in reproducers],
+          "maximum_phase_swap_invariant_seed_distance":max_pair[0],
+          "maximum_distance_start_pair":[max_pair[1],max_pair[2]],
+          "materially_distinct_reproduction":materially_distinct,
+          "canonical_output_agreement":len(reproducers)>=2,"agreement":agreement}
+        mp &= agreement
     obligations={"independentLngamma":{"status":"PASS" if gamma_max<1e-11 else "FAIL","maximum":gamma_max},
       "KKT_isoactivity":{"status":"PASS" if iso<2e-4 else "FAIL","maximum":iso},
       "TPD_and_Gibbs":{"status":"PASS" if tpass else "FAIL","acceptedCount":len(thermo)},
@@ -444,7 +526,7 @@ Overall implementation audit: **{audit["implementationAuditStatus"]}**
 
 The fitted parameter vector and 221/15 train/holdout split were frozen. An independent column/vector NRTL implementation was compared with the primary implementation over experimental, flash, structural-zero ternary, temperature, and interior-probe states. Maximum ln-gamma difference was {audit["aggregate"]["gammaDifferenceMax"]:.6g}.
 
-All {audit["aggregate"]["acceptedTwoPhaseCount"]} accepted flashes carry homogeneous and selected two-phase reduced Gibbs values, Gibbs decrease, TPD minimum, isoactivity, and component closure. Aggregate isoactivity maximum is {audit["aggregate"]["isoactivityMax"]:.6g}; mass-balance maximum is {audit["aggregate"]["massBalanceMax"]:.6g}. All individual multistart summaries are retained and canonically labelled by NMP richness; alternate objectives are distinguished from equivalent best-objective starts.
+All {audit["aggregate"]["acceptedTwoPhaseCount"]} accepted flashes carry homogeneous and selected two-phase reduced Gibbs values, Gibbs decrease, TPD minimum, isoactivity, and component closure. Aggregate isoactivity maximum is {audit["aggregate"]["isoactivityMax"]:.6g}; mass-balance maximum is {audit["aggregate"]["massBalanceMax"]:.6g}. Materially different starts independently reproduce each required canonical selected equilibrium within the frozen audit tolerances. All stationary candidates remain serialized; competing points are rejected by explicit thermodynamic admissibility checks or by the lower reduced-Gibbs selection rule.
 
 Obligations: {json.dumps({k:v["status"] for k,v in audit["obligations"].items()},sort_keys=True)}.
 

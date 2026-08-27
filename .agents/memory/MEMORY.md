@@ -36,6 +36,7 @@
 - [CPS Knowledge Engine governance](cps-knowledge-engine.md) — frozen 7×5 structure; NULL = not defined (never placeholder); decimal-string values; Superuser-only writes; Excel-model units.
 - [LLX TLLE governance](llx-tlle-governance.md) — extraction T never fails closed; in-range = experimental tie-lines exact; out-of-range = NRTL τ(T) family labelled "Temperature Extrapolation — Preliminary / Pending Validation"; gate honestly failed (0.092 vs 0.009).
 - [LLX direct NRTL cascade](llx-nrtl-direct-cascade.md) — replaces Hunter-Nash locus for extrapolation temps; nrtlFlash() per stage, no x1R envelope; interpolation path unchanged; verified LLX-RND-2026-0002 at 60°C → N_T = 1 (frac 0.189).
+- [NRTL equilibrium selection evidence](nrtl-equilibrium-selection.md) — finite-candidate minima require independent KKT-polished reproduction; never call this formal global certification.
 - [LLX density architecture](llx-density-architecture.md) — NMP+RRBO SN300 densities are EPD-library-calculated (6-pt tabular, Assumed); no user input; feedDensity removed; density-pair API at /api/design-software/epd/density-pair?tc=T.
 - [Coto 2022 LLE dataset governance](coto2022-lle-governance.md) — tie-lines valid, nominal r/feed labels fail mass balance; interpolate on x1R; envelope too narrow for design N_T; fail-closed.
 - [Coto NRTL source boundary](coto-nrtl-source-boundary.md) — Coto publishes UNIFAC comparisons, not NRTL parameters; active 2/13 result is LLX’s own xylene-only regression.
