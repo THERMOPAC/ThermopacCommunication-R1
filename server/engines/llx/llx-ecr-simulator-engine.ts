@@ -102,6 +102,10 @@ import {
 import {
   validatePrePilotHindranceModel,
 } from './llx-ecr2-prepilot-hydrodynamics';
+import {
+  PRE_PILOT_MODEL,
+  startPrePilotNt,
+} from './llx-ecr2-prepilot-nt';
 
 import {
   computeKH1995Holdup,
@@ -918,6 +922,20 @@ function isComponentVector(value: unknown): value is ComponentVector {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function hasDeclaredPrePilotSulfurObjective(inputs: Record<string, unknown>): boolean {
+  const lle = isRecord(inputs.lleStageInputs) ? inputs.lleStageInputs : {};
+  return [
+    lle.targetRaffinateSulfurPpm,
+    lle.targetRaffinateSulphurPpm,
+    inputs.targetRaffinateSulfurPpm,
+    inputs.targetRaffinateSulphurPpm,
+    inputs.target_raffinate_sulfur_ppm,
+    inputs.target_raffinate_sulphur_ppm,
+    inputs.sulfurTargetPpm,
+    inputs.sulphurTargetPpm,
+  ].some((value) => value !== undefined && value !== null && String(value).trim() !== '');
 }
 
 /**
@@ -2173,6 +2191,19 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
     let heightSizing: ECR2ProgressiveHeightSolveResult | null = null;
     let progressiveCompartmentSizing: ECR2ProgressiveCompartmentResult | null = null;
     let idealStageCascade: ECR2IdealStageCascadeResult | null = null;
+    const prePilotNtStart = executionMode === 'PRE_PILOT_PREDICTIVE'
+      ? startPrePilotNt({
+          executionMode,
+          requestedModelHash: PRE_PILOT_MODEL.modelHash,
+          feedCompositionMassFraction: {
+            saturates: rrboNormalized[IDX.SAT],
+            mono: rrboNormalized[IDX.MONO],
+            di: rrboNormalized[IDX.DI],
+            poly: rrboNormalized[IDX.POLY],
+          },
+          sulfurObjectiveRequested: hasDeclaredPrePilotSulfurObjective(inputs),
+        })
+      : null;
     let bvpResult: ECR2CounterCurrentBVPResult;
     let performanceSimulationHeight_m: number | null = null;
     let performanceSimulationLabel: string | null = null;
@@ -2207,13 +2238,20 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       // This must execute before the physical efficiency path. An ideal-stage
       // count belongs to the same physical outlet target and recovery gate,
       // never to the C2 full-phase aromatics target.
-      idealStageCascade = solveECR2IdealStageCascade(idealStageInput);
-      progressiveCompartmentSizing = idealStageCascade.status === 'target_met'
-        ? solveECR2ProgressiveCompartments(idealStageInput)
-        : createECR2ProgressiveCompartmentBlockedResult(
-            physicalProductTarget,
-            idealStageCascade.statusLabel,
-          );
+      if (executionMode === 'GOVERNED_RELEASE') {
+        idealStageCascade = solveECR2IdealStageCascade(idealStageInput);
+        progressiveCompartmentSizing = idealStageCascade.status === 'target_met'
+          ? solveECR2ProgressiveCompartments(idealStageInput)
+          : createECR2ProgressiveCompartmentBlockedResult(
+              physicalProductTarget,
+              idealStageCascade.statusLabel,
+            );
+      } else {
+        progressiveCompartmentSizing = createECR2ProgressiveCompartmentBlockedResult(
+          physicalProductTarget,
+          prePilotNtStart?.diagnostics.join(' ') ?? 'PRE_PILOT_MODEL N_T binding is unavailable.',
+        );
+      }
       heightSizing = holdupUsableForPhysicalSizing
         ? solveECR2ProgressiveHeight({
             target: physicalProductTarget,
@@ -2411,21 +2449,26 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
           }`,
           ['ECR-2 progressive BVP height search', ...trialSizing.diagnostics],
         );
-        const trialProgressiveSizing = solveECR2ProgressiveCompartments({
-          target: physicalProductTarget,
-          operatingTemperature_C: T_C,
-          rrboFeedComponentFlows_kg_h: [
-            mRRBO * rrboNormalized[IDX.SAT],
-            mRRBO * rrboNormalized[IDX.MONO],
-            mRRBO * rrboNormalized[IDX.DI],
-            mRRBO * rrboNormalized[IDX.POLY],
-            0,
-          ],
-          nmpFeedComponentFlows_kg_h: [0, 0, 0, 0, mNMP * purity],
-          physicalMolecularWeights_g_mol: [
-            mwSat.value, mwMono.value, mwDi.value, mwPoly.value, NMP_MW_G_MOL,
-          ],
-        });
+        const trialProgressiveSizing = executionMode === 'GOVERNED_RELEASE'
+          ? solveECR2ProgressiveCompartments({
+              target: physicalProductTarget,
+              operatingTemperature_C: T_C,
+              rrboFeedComponentFlows_kg_h: [
+                mRRBO * rrboNormalized[IDX.SAT],
+                mRRBO * rrboNormalized[IDX.MONO],
+                mRRBO * rrboNormalized[IDX.DI],
+                mRRBO * rrboNormalized[IDX.POLY],
+                0,
+              ],
+              nmpFeedComponentFlows_kg_h: [0, 0, 0, 0, mNMP * purity],
+              physicalMolecularWeights_g_mol: [
+                mwSat.value, mwMono.value, mwDi.value, mwPoly.value, NMP_MW_G_MOL,
+              ],
+            })
+          : createECR2ProgressiveCompartmentBlockedResult(
+              physicalProductTarget,
+              prePilotNtStart?.diagnostics.join(' ') ?? 'PRE_PILOT_MODEL N_T binding is unavailable.',
+            );
         return summarizeDiameterTrial(trialDiameter_m, trialArea_m2, trialSizing, trialProgressiveSizing, trialBvp);
       }),
     ];
@@ -2679,6 +2722,7 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
       releaseStatus: modelResolution.releaseStatus,
       releaseLabel: modelResolution.releaseLabel,
       modelResolution,
+      prePilotNtStart,
       calculationRunStatus: bvpResult.status === 'converged' && bvpResult.massBalanceStatus === 'passed'
         ? 'counter_current_bvp_accepted'
         : 'counter_current_bvp_not_accepted',
@@ -2844,13 +2888,21 @@ export class LLXECRSimulatorEngine implements IDesignEngine {
               'ECR-2 N_T is the minimum integer counter-current ideal-stage count for which the same physical hydrocarbon-only raffinate aromatic target is met while NMP-free RRBO recovery remains at least 95%.',
           }
         : {
-            status: 'not_calculable',
-            statusLabel: 'NOT_CALCULABLE',
+            status: prePilotNtStart?.status === 'READY_FOR_PREDICTIVE_NT'
+              ? 'pre_pilot_predictive_nt_ready'
+              : 'not_calculable',
+            statusLabel: prePilotNtStart?.status ?? 'NOT_CALCULABLE',
             establishedTheoreticalStages: null,
             trials: [],
+            modelHash: prePilotNtStart?.model.modelHash ?? null,
+            operationalDecision: prePilotNtStart?.model.operationalDecision ?? null,
+            calibrationStatus: prePilotNtStart?.model.calibrationStatus ?? null,
+            releaseEligibility: prePilotNtStart?.model.releaseEligibility ?? 'BLOCKED',
             targetBasis: 'hydrocarbon_only_physical_outlet',
             targetExplanation:
-              'No compatible Stage 4 physical outlet product-quality target was supplied. ECR-2 theoretical stages are NOT_ESTABLISHED.',
+              prePilotNtStart
+                ? 'Frozen PRE_PILOT_MODEL N_T lineage only. No established theoretical-stage value is written; unsupported components and sulfur remain fail-closed.'
+                : 'No compatible Stage 4 physical outlet product-quality target was supplied. ECR-2 theoretical stages are NOT_ESTABLISHED.',
           },
       headlineEngineeringResults,
       massBalanceSummary,

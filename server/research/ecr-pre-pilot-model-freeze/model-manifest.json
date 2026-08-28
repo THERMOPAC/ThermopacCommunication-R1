@@ -1,0 +1,84 @@
+{
+  "format": "ecr-pre-pilot-model-freeze-v1",
+  "packageId": "PRE_PILOT_MODEL",
+  "packageVersion": "1.0.0",
+  "modelHashAlgorithm": "sha256 of UTF-8 lines name:sha256, sorted by name and joined with LF",
+  "modelHash": "cb8b2945499ea65cd071f99695ea14c5a3396fba475aa6bb8ed8bdfe6f3198c7",
+  "disposition": {
+    "operationalDecision": "ACCEPT_WITH_LIMITATIONS",
+    "calibrationStatus": "CALIBRATION_REQUIRED",
+    "qualificationDecision": "REJECT",
+    "qualificationGoverningStatus": "FAIL_CLOSED",
+    "releaseEligibility": "BLOCKED",
+    "pilotValidated": false
+  },
+  "gates": {
+    "topologyRecallMinimum": 0.9,
+    "tieLineRmsdMaximum": 0.03,
+    "thermodynamicQualification": "Every held row must pass refined TPD, multistart Gibbs decrease/minimization, conservation, isoactivity, ambiguity rejection, seed accounting, and independent final-phase checks.",
+    "thresholdsChanged": false
+  },
+  "artifacts": {
+    "augmentation-dataset": {
+      "path": "server/research/ecr-pre-pilot-new-analogue/molecular-pair-augmentation.json",
+      "sha256": "d38d00d1d17deafa5cbf715a8c03031041a07def2444979e84f7f410fdddd184"
+    },
+    "baseline-dataset": {
+      "path": "server/engine-framework/cel/data/multi-t-nmp-lle.json",
+      "sha256": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28"
+    },
+    "descriptor-registry": {
+      "path": "server/research/ecr-pre-pilot-new-analogue/descriptor-registry.json",
+      "sha256": "51b749fd7697abec8639c44c2f153bbf346a48625cecc21785c5cbdcc7bffdb7"
+    },
+    "descriptor-transfer-solver": {
+      "path": "server/research/ecr-pre-pilot-descriptor-transfer/run.py",
+      "sha256": "c2ebc34ce6b4ff44ed414c8466fe20970a28be6594cd6ad4a5f74b67eab4f1bc"
+    },
+    "fit-checkpoint": {
+      "path": ".agents/outputs/ecr-pre-pilot-new-analogue/fit-checkpoint.json",
+      "sha256": "699d43ad2b52b6c3a83b356b9287b3cf4913c9f790e5f8e167fb220974c8a808"
+    },
+    "fit-start": {
+      "path": "server/research/ecr-pre-pilot-descriptor-transfer/fit-start.json",
+      "sha256": "f61225f0ed53cbf927eab607d45beb94bf316b311bdec2e42a25ef9e4b02c38c"
+    },
+    "frozen-holdouts": {
+      "path": "server/research/ecr-pre-pilot-new-analogue/frozen-holdouts.json",
+      "sha256": "5d990ab82e39c3223834015a4481b0440aae04a93001a7a7c4e57a61db0261c5"
+    },
+    "frozen-protocol": {
+      "path": "server/research/ecr-pre-pilot-new-analogue/frozen-protocol.json",
+      "sha256": "ef13dc88750483565f359e84f0a2de13c1d3230982be7a3420ea2fb8acce1464"
+    },
+    "qualification-runner": {
+      "path": "server/research/ecr-pre-pilot-new-analogue/run.py",
+      "sha256": "ad90026e664bbfbd14ece4239565045c4ca5dd4e675667c1ad4c36e7f97e4fd1"
+    },
+    "uniquac-thermodynamics": {
+      "path": "server/research/ecr-pre-pilot-uniquac/run.py",
+      "sha256": "50493678f405ec07bba8a21a3f7a454750233de10ef03e254e5c7467b10ac8a7"
+    }
+  },
+  "qualificationEvidence": {
+    "path": ".agents/outputs/ecr-pre-pilot-new-analogue/results.json",
+    "sha256": "bf9257dc77ae1b8b05f7b0f3f497efb768fb28a32eed347bfd6836fc4c5b735b",
+    "untouchedMolecularPair": {
+      "topologyRecall": 0.868421052631579,
+      "tieLineRmsd": 0.0682088789287185
+    },
+    "leaveTemperatureOut": {
+      "topologyRecall": 0.875,
+      "tieLineRmsd": 0.1375605820585463
+    }
+  },
+  "limitations": {
+    "supportedOperationalScope": "Pre-pilot predictive SAT/MONO/NMP screening using the frozen molecular-pair model only.",
+    "branching": "SCREEN_ONLY",
+    "cycloalkane": "FAIL_CLOSED",
+    "DI_POLY": "FAIL_CLOSED",
+    "sulfur": "FAIL_CLOSED",
+    "governedTheoreticalStages": "NOT_ESTABLISHED",
+    "simulatorReleaseIntegration": "BLOCKED"
+  }
+}

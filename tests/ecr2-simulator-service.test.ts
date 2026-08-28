@@ -445,16 +445,37 @@ describe('ECR-2 simulator service run path', () => {
       prepilot_hindrance_exponent: '1.1',
       prepilot_characteristic_slip_source_reference: 'Controlled predictive service-test basis',
       prepilot_hindrance_source_reference: 'Controlled predictive service-test basis',
+      target_raffinate_sulphur_ppm: '1000',
     });
 
     const execution = await service.runPrePilotPredictiveEcr2Calculation(revisionId, userId);
     const data = execution.result.data as Record<string, any>;
 
     expect(data.executionMode).toBe('PRE_PILOT_PREDICTIVE');
+    expect(data.modelResolution.thermodynamicModel).toMatchObject({
+      packageId: 'LLX_TLLE_NRTL_TAU_B_OVER_T',
+      pilotValidated: false,
+    });
+    expect(data.prePilotNtStart).toMatchObject({
+      status: 'SULFUR_MODEL_UNAVAILABLE',
+      mayRunPredictiveNt: false,
+      mayWriteEstablishedTheoreticalStages: false,
+      establishedTheoreticalStages: null,
+      model: {
+        operationalDecision: 'ACCEPT_WITH_LIMITATIONS',
+        calibrationStatus: 'CALIBRATION_REQUIRED',
+        releaseEligibility: 'BLOCKED',
+      },
+    });
+    expect(data.idealStageCascade.establishedTheoreticalStages).toBeNull();
     expect(data.diameterSizing.trials.map((trial: any) => trial.diameter_m))
       .toEqual([0.3, 0.45, 0.6, 0.8, 1]);
     for (const trial of data.diameterSizing.trials) {
       expect(trial.heightSizing.trials.length).toBeGreaterThan(0);
+      expect(trial.progressiveCompartmentSizing).toMatchObject({
+        status: 'blocked_by_ideal_stage_cascade',
+        requiredPhysicalCompartmentCount: null,
+      });
       expect(trial.bvp.failure?.dependency).not.toBe('kh1995_primary_holdup_dependency');
       expect(trial.bvp.compartments[0]?.holdup).toMatchObject({
         status: 'calculated_pre_pilot',

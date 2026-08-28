@@ -73,3 +73,11 @@ One additional multitemperature branched-aromatic NMP edge can improve condition
 **Why:** adding direct dodecane + sec-butylbenzene evidence reduced one practically weak direction and moved an untouched pair holdout inside the fitted descriptor box, yet the unchanged topology and composition gates still failed. With only one branched MONO identity, branch count remains confounded with carbon number.
 
 **How to apply:** preserve the negative qualification and keep simulator use fail-closed. Before fitting a branching descriptor, require a same-carbon straight/branched comparison or another independent branching edge, ideally across multiple temperatures. Represent sec-butylbenzene with Original-UNIFAC ACCH subgroup 13, not separate AC and CH groups.
+
+## Frozen pre-pilot operating disposition
+
+Treat operational model acceptance and formal qualification as separate statuses. The frozen molecular-pair model is the selected `PRE_PILOT_MODEL` for predictive work with `ACCEPT_WITH_LIMITATIONS / CALIBRATION_REQUIRED`; its unchanged qualification outcome remains `REJECT / FAIL_CLOSED`.
+
+**Why:** the user ended further SAT/MONO molecular-pair research and accepted the current equations, parameters, evidence, and solver for bounded pre-pilot use without waiving the failed topology, tie-line RMSD, or row-level thermodynamic gates.
+
+**How to apply:** bind predictive N_T work to the immutable model hash. Keep topology recall ≥0.90 and tie-line RMSD ≤0.03 unchanged. Never promote predictive N_T into an established stage value or governed release; DI/POLY and sulfur remain fail-closed until separately supported.
