@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Layout from "@/components/layout";
-import { AlertCircle, ArrowRight, CheckCircle2, FlaskConical, Info, Save } from "lucide-react";
+import { AlertCircle, CheckCircle2, FlaskConical, Info, Loader2, Play, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +39,78 @@ type FormState = {
   maximumNmpRaffinateWt: string;
   feedSulfurPpm: string;
   designBasisNotes: string;
+  satIdentity: string;
+  monoIdentity: string;
+};
+
+type MolecularIdentity = { identity: string; label: string; molecularWeightGmol: number };
+type PredictiveNtBasis = {
+  model: {
+    modelHash: string;
+    calibrationStatus: string;
+    releaseEligibility: string;
+    pilotValidated: boolean;
+  };
+  molecularRegistry: {
+    saturates: MolecularIdentity[];
+    monoAromatics: MolecularIdentity[];
+  };
+  maximumStages: number;
+};
+type ThermodynamicChecks = {
+  independentFinalPhaseChecksPass?: boolean;
+  [key: string]: unknown;
+};
+type PredictiveStage = {
+  stageNumber: number;
+  raffinateFlowMolarBasis: number;
+  raffinateComposition: Record<string, number>;
+  extractFlowMolarBasis: number;
+  extractComposition: Record<string, number>;
+  localComponentBalanceResiduals: Record<string, number>;
+  localComponentBalanceMaximum: number;
+  localComponentBalanceAccepted: boolean;
+  thermodynamicChecks: ThermodynamicChecks;
+};
+type PredictiveTrial = {
+  stageCount: number;
+  sweeps: number;
+  maximumConvergenceDelta: number;
+  raffinateFlowMolarBasis: number;
+  extractFlowMolarBasis: number;
+  raffinateComposition: Record<string, number>;
+  extractComposition: Record<string, number>;
+  overallComponentBalanceResiduals: Record<string, number>;
+  accepted: boolean;
+  monotonicFromPrevious: boolean;
+  balanceAccepted: boolean;
+  overallComponentBalanceMaximum: number;
+  raffinateMonoHydrocarbonMoleFraction: number;
+  raffinateSaturatesHydrocarbonMoleFraction: number;
+  nmpFreeHydrocarbonRecovery: number;
+  targetChecks: Record<string, boolean>;
+  stages: PredictiveStage[];
+};
+type PredictiveNtResult = {
+  status: string;
+  predictiveNt: number | null;
+  establishedTheoreticalStages: null;
+  calibrationRequired: boolean;
+  pilotValidated: boolean;
+  releaseEligible: boolean;
+  monotonicSequence: boolean;
+  model?: { modelHash?: string; runtimeVerification?: string };
+  engine?: { engineId?: string; engineVersion?: string; engineHash?: string };
+  trials?: PredictiveTrial[];
+};
+type PredictiveNtJob = {
+  id: string;
+  status: "pending" | "running" | "completed" | "failed";
+  progress: { completedStageTrials: number; maximumStages: number };
+  modelHash: string;
+  engineHash: string;
+  result: PredictiveNtResult | null;
+  error: string | null;
 };
 
 const DEFAULT_PHASE_CONFIGURATION = "nmp-continuous-rrbo-dispersed";
@@ -76,6 +148,8 @@ const EMPTY_FORM: FormState = {
   maximumNmpRaffinateWt: "0.50",
   feedSulfurPpm: "3500",
   designBasisNotes: "",
+  satIdentity: "",
+  monoIdentity: "",
 };
 
 const FEED_RATE_OPTIONS = Array.from({ length: 15 }, (_, index) => String((index + 1) * 1000));
@@ -317,6 +391,8 @@ function validateForm(form: FormState): ValidationErrors {
   requiredOption("operatingTemperatureC", "Operating temperature", TEMPERATURE_OPTIONS);
   requiredOption("operatingPressure", "Operating pressure", PRESSURE_OPTIONS);
   requiredOption("phaseConfiguration", "Phase configuration", PHASE_OPTIONS);
+  requiredText("satIdentity", "SAT molecular identity");
+  requiredText("monoIdentity", "MONO molecular identity");
 
   const compositionValues = COMPOSITION_FIELDS.map(({ key, label }) => ({
     key,
@@ -603,6 +679,13 @@ export default function EcrPrePilotDesignPage() {
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [projectNumberLoading, setProjectNumberLoading] = useState(true);
   const [projectNumberLoadError, setProjectNumberLoadError] = useState<string | null>(null);
+  const [designId, setDesignId] = useState<number | null>(null);
+  const [predictiveBasis, setPredictiveBasis] = useState<PredictiveNtBasis | null>(null);
+  const [predictiveBasisError, setPredictiveBasisError] = useState<string | null>(null);
+  const [predictiveJob, setPredictiveJob] = useState<PredictiveNtJob | null>(null);
+  const [predictiveSubmitting, setPredictiveSubmitting] = useState(false);
+  const [predictivePollingPaused, setPredictivePollingPaused] = useState(false);
+  const [predictivePollingError, setPredictivePollingError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -625,6 +708,7 @@ export default function EcrPrePilotDesignPage() {
           }
           if (cancelled) return;
           setForm((current) => ({ ...current, projectReference: String(payload.projectNumber) }));
+          setDesignId(Number(payload.id));
           setProjectNumberLoadError(null);
           setProjectNumberLoading(false);
         })
@@ -643,6 +727,65 @@ export default function EcrPrePilotDesignPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/ecr-pre-pilot/predictive-nt/basis", { credentials: "include" })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error ?? "Predictive molecular basis could not be loaded.");
+        if (cancelled) return;
+        const basis = payload as PredictiveNtBasis;
+        setPredictiveBasis(basis);
+        setForm((current) => ({
+          ...current,
+          satIdentity: current.satIdentity || basis.molecularRegistry.saturates[0]?.identity || "",
+          monoIdentity: current.monoIdentity || basis.molecularRegistry.monoAromatics[0]?.identity || "",
+        }));
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setPredictiveBasisError(error instanceof Error ? error.message : "Predictive molecular basis could not be loaded.");
+        }
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!designId || !predictiveJob || predictivePollingPaused || !["pending", "running"].includes(predictiveJob.status)) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const response = await fetch(
+          `/api/ecr-pre-pilot/designs/${designId}/predictive-nt/jobs/${predictiveJob.id}`,
+          { credentials: "include" },
+        );
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error ?? "Predictive N_T job status could not be loaded.");
+        if (!cancelled) {
+          setPredictiveJob(payload as PredictiveNtJob);
+          setPredictivePollingError(null);
+        }
+      } catch (error: unknown) {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : "Job status could not be loaded.";
+          setPredictivePollingError(message);
+          setPredictivePollingPaused(true);
+          toast({
+            title: "Predictive N_T monitoring interrupted",
+            description: "Automatic polling paused. Resume monitoring when the connection is available.",
+            variant: "destructive",
+          });
+        }
+      }
+    };
+    const timer = window.setInterval(() => void poll(), 1_500);
+    void poll();
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [designId, predictiveJob?.id, predictiveJob?.status, predictivePollingPaused, toast]);
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     const nextForm = { ...form, [key]: value };
@@ -739,13 +882,95 @@ export default function EcrPrePilotDesignPage() {
     });
   };
 
-  const handleContinue = () => {
-    if (!validateBeforeAction()) return;
-
-    toast({
-      title: "Ready for the next step",
-      description: "The next calculation stage is not enabled yet. No calculations were run.",
-    });
+  const handleRunPredictiveNt = async () => {
+    if (!validateBeforeAction() || !designId || !predictiveBasis) return;
+    const unsupportedFeed = [
+      ["Di-aromatics", Number(form.diAromaticsWt)],
+      ["Poly-aromatics", Number(form.polyAromaticsWt)],
+      ["Polar aromatics", Number(form.polarAromaticsWt)],
+      ["NMP in feed", Number(form.nmpInFeedWt)],
+    ].filter(([, value]) => value > 1e-12);
+    if (unsupportedFeed.length > 0) {
+      toast({
+        title: "Predictive scope is SAT/MONO only",
+        description: `Set ${unsupportedFeed.map(([label]) => label).join(", ")} to 0 wt% before running. These components cannot be discarded or folded into SAT/MONO.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    const sat = predictiveBasis.molecularRegistry.saturates.find(({ identity }) => identity === form.satIdentity);
+    const mono = predictiveBasis.molecularRegistry.monoAromatics.find(({ identity }) => identity === form.monoIdentity);
+    if (!sat || !mono) {
+      toast({ title: "Molecular basis unavailable", description: "Select admitted SAT and MONO identities.", variant: "destructive" });
+      return;
+    }
+    const satMoles = Number(form.saturatesWt) / sat.molecularWeightGmol;
+    const monoMoles = Number(form.monoAromaticsWt) / mono.molecularWeightGmol;
+    const hydrocarbonMoles = satMoles + monoMoles;
+    const solventMoles = (Number(form.solventOilRatio) * 100) / 99.13;
+    const targetMonoMassFraction = Number(form.targetRaffinateTotalAromaticsWt) / 100;
+    const targetMonoMoles = targetMonoMassFraction / mono.molecularWeightGmol;
+    const targetSatMoles = (1 - targetMonoMassFraction) / sat.molecularWeightGmol;
+    const targetMonoMoleFraction = targetMonoMoles / (targetMonoMoles + targetSatMoles);
+    const minimumSatMassFraction = Number(form.minimumRaffinateSaturatesWt) / 100;
+    const minimumSatMoles = minimumSatMassFraction / sat.molecularWeightGmol;
+    const correspondingMonoMoles = (1 - minimumSatMassFraction) / mono.molecularWeightGmol;
+    const minimumSatMoleFraction = minimumSatMoles / (minimumSatMoles + correspondingMonoMoles);
+    setPredictiveSubmitting(true);
+    setPredictiveJob(null);
+    setPredictivePollingPaused(false);
+    setPredictivePollingError(null);
+    try {
+      const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/predictive-nt/jobs`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modelHash: predictiveBasis.model.modelHash,
+          temperatureK: Number(form.operatingTemperatureC) + 273.15,
+          solventMolarRatio: solventMoles / hydrocarbonMoles,
+          feedMoleFractions: [satMoles / hydrocarbonMoles, monoMoles / hydrocarbonMoles, 0],
+          satIdentity: sat.identity,
+          monoIdentity: mono.identity,
+          sourceFeedCompositionMassFraction: {
+            saturates: Number(form.saturatesWt) / 100,
+            mono: Number(form.monoAromaticsWt) / 100,
+            di: Number(form.diAromaticsWt) / 100,
+            poly: Number(form.polyAromaticsWt) / 100,
+            polar: Number(form.polarAromaticsWt) / 100,
+            nmp: Number(form.nmpInFeedWt) / 100,
+          },
+          sourceProductTargetsMassFraction: {
+            maximumMono: targetMonoMassFraction,
+            minimumSaturates: minimumSatMassFraction,
+          },
+          sourceSolventOilMassRatio: Number(form.solventOilRatio),
+          targetRaffinateMonoHydrocarbonMoleFraction: targetMonoMoleFraction,
+          minimumRaffinateSaturatesHydrocarbonMoleFraction: minimumSatMoleFraction,
+          maximumStages: predictiveBasis.maximumStages,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? "Predictive N_T job could not be submitted.");
+      setPredictiveJob({
+        id: String(payload.jobId),
+        status: payload.status,
+        progress: { completedStageTrials: 0, maximumStages: predictiveBasis.maximumStages },
+        modelHash: predictiveBasis.model.modelHash,
+        engineHash: "",
+        result: null,
+        error: null,
+      });
+      toast({ title: "Predictive N_T queued", description: "Stage trials will update here while the isolated solver runs." });
+    } catch (error: unknown) {
+      toast({
+        title: "Predictive N_T could not start",
+        description: error instanceof Error ? error.message : "The job could not be submitted.",
+        variant: "destructive",
+      });
+    } finally {
+      setPredictiveSubmitting(false);
+    }
   };
 
   return (
@@ -872,6 +1097,48 @@ export default function EcrPrePilotDesignPage() {
                 options={PHASE_OPTIONS}
                 error={validationErrors.phaseConfiguration}
               />
+              <div className="md:col-span-2 rounded-lg border border-blue-200 bg-blue-50/60 p-3">
+                <p className="text-[12px] font-semibold text-blue-900">Predictive SAT / MONO molecular basis</p>
+                <p className="mb-3 mt-0.5 text-[11px] leading-4 text-blue-800">
+                  Select one admitted registry identity for each representative hydrocarbon family. Only the frozen model registry is available.
+                </p>
+                {predictiveBasisError ? (
+                  <p className="text-[11px] font-medium text-red-600">{predictiveBasisError}</p>
+                ) : predictiveBasis ? (
+                  <div className="grid gap-3.5 md:grid-cols-2">
+                    <SelectField
+                      id="sat-identity"
+                      label="SAT representative"
+                      value={form.satIdentity}
+                      onChange={(value) => setField("satIdentity", value)}
+                      placeholder="Select admitted SAT identity"
+                      options={predictiveBasis.molecularRegistry.saturates.map((item) => ({
+                        value: item.identity,
+                        label: `${item.label} (${item.molecularWeightGmol.toFixed(2)} g/mol)`,
+                      }))}
+                      required
+                      error={validationErrors.satIdentity}
+                    />
+                    <SelectField
+                      id="mono-identity"
+                      label="MONO representative"
+                      value={form.monoIdentity}
+                      onChange={(value) => setField("monoIdentity", value)}
+                      placeholder="Select admitted MONO identity"
+                      options={predictiveBasis.molecularRegistry.monoAromatics.map((item) => ({
+                        value: item.identity,
+                        label: `${item.label} (${item.molecularWeightGmol.toFixed(2)} g/mol)`,
+                      }))}
+                      required
+                      error={validationErrors.monoIdentity}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-[11px] text-blue-700">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading admitted molecular identities…
+                  </div>
+                )}
+              </div>
               <div className="space-y-1 md:col-span-2">
                 <Label htmlFor="design-basis-notes" className="text-[13px] font-medium text-slate-700">
                   Design basis notes <span className="font-normal text-slate-400">(optional)</span>
@@ -1180,11 +1447,212 @@ export default function EcrPrePilotDesignPage() {
               </div>
             </CardContent>
           </Card>
+
+          <Card className="overflow-hidden border-slate-300 shadow-sm">
+            <CardHeader className="border-b bg-slate-50 px-4 py-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-[15px]">Predictive N_T screening</CardTitle>
+                  <CardDescription className="mt-0.5 text-[11px]">
+                    Runs the dedicated frozen SAT/MONO/NMP solver. This result cannot write to established theoretical stages.
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleRunPredictiveNt}
+                  disabled={predictiveSubmitting || !predictiveBasis || !designId || predictiveJob?.status === "pending" || predictiveJob?.status === "running"}
+                  className="h-8 gap-1.5 px-3 text-xs"
+                >
+                  {predictiveSubmitting || predictiveJob?.status === "pending" || predictiveJob?.status === "running" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Play className="h-3.5 w-3.5" />
+                  )}
+                  Run Predictive N_T
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 px-4 py-4">
+              {(Number(form.diAromaticsWt) > 0
+                || Number(form.polyAromaticsWt) > 0
+                || Number(form.polarAromaticsWt) > 0
+                || Number(form.nmpInFeedWt) > 0) && (
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
+                  <p className="font-semibold">Current feed is outside the predictive solver scope</p>
+                  <p>
+                    Predictive N_T can run only when Di-aromatics, Poly-aromatics, Polar aromatics, and NMP in feed are each 0 wt%.
+                    The solver will not silently discard or combine those components. SAT and MONO must total 100 wt%.
+                  </p>
+                </div>
+              )}
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-md border bg-white p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Queue status</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{predictiveJob?.status ?? "Not submitted"}</p>
+                </div>
+                <div className="rounded-md border bg-white p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Stage trials</p>
+                  <p className="mt-1 text-sm font-semibold tabular-nums text-slate-900">
+                    {predictiveJob ? `${predictiveJob.progress.completedStageTrials} / ${predictiveJob.progress.maximumStages}` : "—"}
+                  </p>
+                </div>
+                <div className="rounded-md border bg-white p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Established theoretical stages</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">—</p>
+                </div>
+              </div>
+              {predictiveJob && ["pending", "running"].includes(predictiveJob.status) && (
+                <div aria-live="polite">
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-blue-600 transition-all"
+                      style={{ width: `${Math.min(100, (predictiveJob.progress.completedStageTrials / predictiveJob.progress.maximumStages) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-slate-500">
+                    {predictiveJob.status === "pending" ? "Waiting for an available solver worker…" : "Evaluating every configured stage trial…"}
+                  </p>
+                </div>
+              )}
+              {predictivePollingPaused && predictiveJob && (
+                <div className="flex flex-col gap-2 rounded-md border border-red-200 bg-red-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-[11px] text-red-800">
+                    Monitoring paused: {predictivePollingError ?? "The latest job status could not be loaded."}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-7 px-2 text-[11px]"
+                    onClick={() => {
+                      setPredictivePollingError(null);
+                      setPredictivePollingPaused(false);
+                    }}
+                  >
+                    Resume monitoring
+                  </Button>
+                </div>
+              )}
+              {predictiveJob?.error && (
+                <div className="rounded-md border border-red-200 bg-red-50 p-3 text-[12px] text-red-800">
+                  <strong>Job failed:</strong> {predictiveJob.error}
+                </div>
+              )}
+              {predictiveJob?.result && (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-blue-700">Predictive N_T</p>
+                      <p className="mt-1 text-2xl font-semibold text-blue-950">{predictiveJob.result.predictiveNt ?? "Not reached"}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Result status</p>
+                      <p className="mt-1 break-words text-xs font-semibold text-slate-900">{predictiveJob.result.status}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Sequence check</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-900">{predictiveJob.result.monotonicSequence ? "PASS" : "FAIL"}</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Runtime verification</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-900">{predictiveJob.result.model?.runtimeVerification ?? "—"}</p>
+                    </div>
+                  </div>
+                  <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
+                    <p className="font-semibold">Predictive-only limitations</p>
+                    <p>Calibration required: {predictiveJob.result.calibrationRequired ? "Yes" : "No"} · Pilot validated: {predictiveJob.result.pilotValidated ? "Yes" : "No"} · Release eligible: {predictiveJob.result.releaseEligible ? "Yes" : "No"}</p>
+                    <p>DI/POLY and sulfur prediction remain unavailable. This screening result does not populate established theoretical stages.</p>
+                  </div>
+                  <div className="grid gap-2 text-[11px] md:grid-cols-2">
+                    <div className="rounded-md border bg-slate-50 p-3">
+                      <p className="font-semibold text-slate-700">Model hash</p>
+                      <p className="mt-1 break-all font-mono text-[10px] text-slate-600">{predictiveJob.result.model?.modelHash ?? predictiveJob.modelHash}</p>
+                    </div>
+                    <div className="rounded-md border bg-slate-50 p-3">
+                      <p className="font-semibold text-slate-700">Engine hash</p>
+                      <p className="mt-1 break-all font-mono text-[10px] text-slate-600">{predictiveJob.result.engine?.engineHash ?? predictiveJob.engineHash}</p>
+                      <p className="mt-1 text-slate-500">{predictiveJob.result.engine?.engineId} {predictiveJob.result.engine?.engineVersion}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-slate-900">All stage trials and diagnostics</h3>
+                    {(predictiveJob.result.trials ?? []).map((trial) => (
+                      <details key={trial.stageCount} className="rounded-md border bg-white" open={trial.accepted}>
+                        <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800">
+                          Trial {trial.stageCount}: {trial.accepted ? "ACCEPTED" : "NOT ACCEPTED"} · balance {trial.balanceAccepted ? "PASS" : "FAIL"} · max residual {trial.overallComponentBalanceMaximum.toExponential(3)}
+                        </summary>
+                        <div className="space-y-3 border-t px-3 py-3 text-[11px]">
+                          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                            <p>Raffinate MONO: <strong>{(trial.raffinateMonoHydrocarbonMoleFraction * 100).toFixed(4)} mol%</strong></p>
+                            <p>Raffinate SAT: <strong>{(trial.raffinateSaturatesHydrocarbonMoleFraction * 100).toFixed(4)} mol%</strong></p>
+                            <p>NMP-free recovery: <strong>{(trial.nmpFreeHydrocarbonRecovery * 100).toFixed(4)}%</strong></p>
+                            <p>Monotonic: <strong>{trial.monotonicFromPrevious ? "PASS" : "FAIL"}</strong></p>
+                          </div>
+                          <p>
+                            Solver convergence: <strong>{trial.sweeps} sweeps</strong> · maximum delta{" "}
+                            <strong className="font-mono">{trial.maximumConvergenceDelta.toExponential(3)}</strong> ·
+                            raffinate flow <strong>{trial.raffinateFlowMolarBasis.toFixed(6)}</strong> ·
+                            extract flow <strong>{trial.extractFlowMolarBasis.toFixed(6)}</strong>
+                          </p>
+                          <div className="grid gap-2 md:grid-cols-2">
+                            <div className="rounded border bg-slate-50 p-2">
+                              <p className="font-semibold">Outlet phase compositions</p>
+                              <p className="mt-1 font-mono text-[10px]">
+                                Raffinate: {Object.entries(trial.raffinateComposition).map(([key, value]) => `${key}=${value.toExponential(5)}`).join(" · ")}
+                              </p>
+                              <p className="mt-1 font-mono text-[10px]">
+                                Extract: {Object.entries(trial.extractComposition).map(([key, value]) => `${key}=${value.toExponential(5)}`).join(" · ")}
+                              </p>
+                            </div>
+                            <div className="rounded border bg-slate-50 p-2">
+                              <p className="font-semibold">Overall component-balance residuals</p>
+                              <p className="mt-1 font-mono text-[10px]">
+                                {Object.entries(trial.overallComponentBalanceResiduals).map(([key, value]) => `${key}=${value.toExponential(5)}`).join(" · ")}
+                              </p>
+                            </div>
+                          </div>
+                          <p>Target checks: {Object.entries(trial.targetChecks).map(([key, value]) => `${key}=${value ? "PASS" : "FAIL"}`).join(" · ")}</p>
+                          <div className="overflow-x-auto">
+                            <table className="w-full min-w-[680px] border-collapse text-left">
+                              <thead><tr className="border-b bg-slate-50">
+                                <th className="p-2">Stage</th><th className="p-2">Local balance max</th><th className="p-2">Balance</th><th className="p-2">Thermodynamic checks</th>
+                              </tr></thead>
+                              <tbody>{trial.stages.map((stage) => (
+                                <tr key={stage.stageNumber} className="border-b last:border-0">
+                                  <td className="p-2">{stage.stageNumber}</td>
+                                  <td className="p-2 font-mono">{stage.localComponentBalanceMaximum.toExponential(3)}</td>
+                                  <td className="p-2">{stage.localComponentBalanceAccepted ? "PASS" : "FAIL"}</td>
+                                  <td className="p-2">
+                                    <p className="font-mono text-[10px]">{Object.entries(stage.thermodynamicChecks).map(([key, value]) => `${key}=${String(value)}`).join(" · ")}</p>
+                                    <p className="mt-1 font-mono text-[10px]">
+                                      R flow={stage.raffinateFlowMolarBasis.toFixed(6)} · E flow={stage.extractFlowMolarBasis.toFixed(6)}
+                                    </p>
+                                    <p className="mt-1 font-mono text-[10px]">
+                                      R: {Object.entries(stage.raffinateComposition).map(([key, value]) => `${key}=${value.toExponential(4)}`).join(" · ")}
+                                    </p>
+                                    <p className="mt-1 font-mono text-[10px]">
+                                      E: {Object.entries(stage.extractComposition).map(([key, value]) => `${key}=${value.toExponential(4)}`).join(" · ")}
+                                    </p>
+                                    <p className="mt-1 font-mono text-[10px]">
+                                      Residuals: {Object.entries(stage.localComponentBalanceResiduals).map(([key, value]) => `${key}=${value.toExponential(4)}`).join(" · ")}
+                                    </p>
+                                  </td>
+                                </tr>
+                              ))}</tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         <div className="mt-4 flex flex-col gap-2.5 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[11px] leading-4 text-slate-500">
-            This page records input data only. Thermodynamics, NT, hydrodynamics, diameter, height, and optimizer calculations are not enabled.
+            Input data can be used for predictive SAT/MONO/NMP N_T screening only. Hydrodynamics, diameter, height, sulfur prediction, and governed-release calculations remain disabled.
           </p>
           <div className="flex flex-col-reverse gap-1.5 sm:flex-row">
             <Button
@@ -1197,10 +1665,6 @@ export default function EcrPrePilotDesignPage() {
             >
               <Save className="h-3.5 w-3.5" aria-hidden="true" />
               Save Input Data
-            </Button>
-            <Button type="button" onClick={handleContinue} className="h-8 gap-1.5 px-3 text-xs">
-              Continue
-              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
           </div>
         </div>

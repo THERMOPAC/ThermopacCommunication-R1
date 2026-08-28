@@ -4,11 +4,21 @@ import { allocateEcrPrePilotDesign } from '../ecr-pre-pilot-service';
 import {
   enqueuePredictiveNtJob,
   getPredictiveNtJob,
+  PREDICTIVE_NT_MOLECULAR_REGISTRY,
   startPredictiveNtWorker,
 } from './predictive-nt-job-service';
+import { PRE_PILOT_MODEL } from './model';
 
 export function setupEcrPrePilotRoutes(app: Express): void {
   startPredictiveNtWorker();
+  app.get('/api/ecr-pre-pilot/predictive-nt/basis', ensureAuthenticated, (_req: Request, res: Response) => {
+    return res.json({
+      model: PRE_PILOT_MODEL,
+      molecularRegistry: PREDICTIVE_NT_MOLECULAR_REGISTRY,
+      maximumStages: 10,
+    });
+  });
+
   app.post('/api/ecr-pre-pilot/designs', ensureAuthenticated, async (req: Request, res: Response) => {
     const userId = Number((req.user as any)?.id);
     const allocationKey = String(req.get('Idempotency-Key') ?? '').trim();

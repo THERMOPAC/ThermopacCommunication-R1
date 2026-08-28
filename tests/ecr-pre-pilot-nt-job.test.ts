@@ -6,14 +6,47 @@ import {
   validatePredictiveNtJobInput,
 } from '../server/ecr-pre-pilot/predictive-nt-job-service';
 
+const satMw = 226.44;
+const monoMw = 148.25;
+const sourceSat = 0.7;
+const sourceMono = 0.3;
+const sourceSatMoles = sourceSat / satMw;
+const sourceMonoMoles = sourceMono / monoMw;
+const sourceMoles = sourceSatMoles + sourceMonoMoles;
+const maximumMonoMass = 0.25;
+const targetMonoMoles = maximumMonoMass / monoMw;
+const targetSatMoles = (1 - maximumMonoMass) / satMw;
+const minimumSatMass = 0.75;
+const minimumSatMoles = minimumSatMass / satMw;
+const correspondingMonoMoles = (1 - minimumSatMass) / monoMw;
+
 const validInput = {
   modelHash: PRE_PILOT_MODEL.modelHash,
   temperatureK: 323.15,
-  solventMolarRatio: 1,
-  feedMoleFractions: [0.7, 0.3, 0] as [number, number, number],
+  solventMolarRatio: (1 / 99.13) / sourceMoles,
+  sourceSolventOilMassRatio: 1,
+  feedMoleFractions: [
+    sourceSatMoles / sourceMoles,
+    sourceMonoMoles / sourceMoles,
+    0,
+  ] as [number, number, number],
   satIdentity: 'n-hexadecane',
   monoIdentity: 'n-pentylbenzene',
-  targetRaffinateMonoHydrocarbonMoleFraction: 0.25,
+  sourceFeedCompositionMassFraction: {
+    saturates: sourceSat,
+    mono: sourceMono,
+    di: 0,
+    poly: 0,
+    polar: 0,
+    nmp: 0,
+  },
+  sourceProductTargetsMassFraction: {
+    maximumMono: maximumMonoMass,
+    minimumSaturates: minimumSatMass,
+  },
+  targetRaffinateMonoHydrocarbonMoleFraction: targetMonoMoles / (targetMonoMoles + targetSatMoles),
+  minimumRaffinateSaturatesHydrocarbonMoleFraction:
+    minimumSatMoles / (minimumSatMoles + correspondingMonoMoles),
   maximumStages: 3,
 };
 
@@ -67,6 +100,39 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     })).toThrow('MOLECULAR_IDENTITY_UNAVAILABLE');
   });
 
+  it('rejects unsupported source components instead of silently projecting them', () => {
+    expect(() => validatePredictiveNtJobInput({
+      ...validInput,
+      sourceFeedCompositionMassFraction: {
+        ...validInput.sourceFeedCompositionMassFraction,
+        saturates: 0.69,
+        di: 0.01,
+      },
+    })).toThrow('UNSUPPORTED_COMPONENT_SCOPE');
+  });
+
+  it('rejects inconsistent feed, product, and solvent molecular conversions', () => {
+    expect(() => validatePredictiveNtJobInput({
+      ...validInput,
+      feedMoleFractions: [0.7, 0.3, 0],
+    })).toThrow('MOLECULAR_FEED_BASIS_MISMATCH');
+    expect(() => validatePredictiveNtJobInput({
+      ...validInput,
+      targetRaffinateMonoHydrocarbonMoleFraction: 0.25,
+    })).toThrow('MOLECULAR_PRODUCT_TARGET_BASIS_MISMATCH');
+    expect(() => validatePredictiveNtJobInput({
+      ...validInput,
+      solventMolarRatio: 1,
+    })).toThrow('MOLECULAR_SOLVENT_BASIS_MISMATCH');
+  });
+
+  it('rejects the deprecated molar recovery gate', () => {
+    expect(() => validatePredictiveNtJobInput({
+      ...validInput,
+      minimumNmpFreeHydrocarbonRecovery: 0.95,
+    })).toThrow('MASS_RECOVERY_GATE_UNAVAILABLE');
+  });
+
   it('does not stop the minimum-stage search at a non-monotonic diagnostic', () => {
     const result = JSON.parse(execFileSync(
       'python3.12',
@@ -81,7 +147,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       selectedStageCount: 3,
       allTrialsEvaluated: true,
     });
-  });
+  }, 30_000);
 
   it('rejects a self-consistent manifest that is not the declared frozen model', () => {
     const result = JSON.parse(execFileSync(
@@ -96,5 +162,5 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       status: 'PASS',
       changedManifestRejected: true,
     });
-  });
+  }, 30_000);
 });

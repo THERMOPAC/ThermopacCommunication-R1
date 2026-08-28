@@ -13,9 +13,21 @@ export interface PredictiveNtJobInput {
   feedMoleFractions: [number, number, number];
   satIdentity: string;
   monoIdentity: string;
+  sourceFeedCompositionMassFraction: {
+    saturates: number;
+    mono: number;
+    di: number;
+    poly: number;
+    polar: number;
+    nmp: number;
+  };
+  sourceProductTargetsMassFraction: {
+    maximumMono: number;
+    minimumSaturates: number;
+  };
+  sourceSolventOilMassRatio: number;
   targetRaffinateMonoHydrocarbonMoleFraction: number;
   minimumRaffinateSaturatesHydrocarbonMoleFraction?: number;
-  minimumNmpFreeHydrocarbonRecovery?: number;
   maximumStages?: number;
 }
 
@@ -40,27 +52,39 @@ const MAX_ACTIVE_JOBS_PER_USER = 2;
 const JOB_TIMEOUT_MS = 30 * 60 * 1000;
 const LEASE_MS = 45 * 1000;
 const POLL_MS = 1_000;
-const PREDICTIVE_NT_ENGINE_SHA256 = '1db1e575d03db871b180bcbb5d4ab015ce84af41a8a7bc0f64910623fd25353d';
+const PREDICTIVE_NT_ENGINE_SHA256 = '2812b1e0fe537d869bfed26471b89dbae22eaa2ba5ffc503eb83b7f46b4ffa86';
 const WORKER_OWNER = `${os.hostname()}:${process.pid}:${randomUUID()}`;
 let workerStarted = false;
 let workerBusy = false;
 
-const SAT_IDENTITIES = new Set([
-  'n-dodecane',
-  'n-tetradecane',
-  'n-hexadecane',
-  'n-heptadecane',
-]);
-const MONO_IDENTITIES = new Set([
-  'n-propylbenzene',
-  'n-pentylbenzene',
-  'sec-butylbenzene',
-  '1,3,5-trimethylbenzene',
-  'p-xylene',
-  'toluene',
-]);
+export const PREDICTIVE_NT_MOLECULAR_REGISTRY = {
+  saturates: [
+    { identity: 'n-dodecane', label: 'n-Dodecane', molecularWeightGmol: 170.34 },
+    { identity: 'n-tetradecane', label: 'n-Tetradecane', molecularWeightGmol: 198.39 },
+    { identity: 'n-hexadecane', label: 'n-Hexadecane', molecularWeightGmol: 226.44 },
+    { identity: 'n-heptadecane', label: 'n-Heptadecane', molecularWeightGmol: 240.47 },
+  ],
+  monoAromatics: [
+    { identity: 'n-propylbenzene', label: 'n-Propylbenzene', molecularWeightGmol: 120.19 },
+    { identity: 'n-pentylbenzene', label: 'n-Pentylbenzene', molecularWeightGmol: 148.25 },
+    { identity: 'sec-butylbenzene', label: 'sec-Butylbenzene', molecularWeightGmol: 134.22 },
+    { identity: '1,3,5-trimethylbenzene', label: '1,3,5-Trimethylbenzene', molecularWeightGmol: 120.19 },
+    { identity: 'p-xylene', label: 'p-Xylene', molecularWeightGmol: 106.17 },
+    { identity: 'toluene', label: 'Toluene', molecularWeightGmol: 92.14 },
+  ],
+} as const;
+
+const SAT_IDENTITIES = new Set<string>(
+  PREDICTIVE_NT_MOLECULAR_REGISTRY.saturates.map(({ identity }) => identity),
+);
+const MONO_IDENTITIES = new Set<string>(
+  PREDICTIVE_NT_MOLECULAR_REGISTRY.monoAromatics.map(({ identity }) => identity),
+);
 
 export function validatePredictiveNtJobInput(input: PredictiveNtJobInput) {
+  if ('minimumNmpFreeHydrocarbonRecovery' in input) {
+    throw new Error('MASS_RECOVERY_GATE_UNAVAILABLE');
+  }
   if (!Array.isArray(input.feedMoleFractions) || input.feedMoleFractions.length !== 3) {
     throw new Error('INVALID_FEED_COMPOSITION');
   }
@@ -100,6 +124,58 @@ export function validatePredictiveNtJobInput(input: PredictiveNtJobInput) {
   }
   if (!SAT_IDENTITIES.has(input.satIdentity) || !MONO_IDENTITIES.has(input.monoIdentity)) {
     throw new Error('MOLECULAR_IDENTITY_UNAVAILABLE');
+  }
+  const sourceFeed = input.sourceFeedCompositionMassFraction;
+  if (!sourceFeed || Object.values(sourceFeed).some((value) => !Number.isFinite(value) || value < 0)) {
+    throw new Error('SOURCE_FEED_BASIS_REQUIRED');
+  }
+  const sourceFeedSum = Object.values(sourceFeed).reduce((sum, value) => sum + value, 0);
+  if (Math.abs(sourceFeedSum - 1) > 1e-6) throw new Error('INVALID_SOURCE_FEED_BASIS');
+  if (sourceFeed.di > 1e-12 || sourceFeed.poly > 1e-12 || sourceFeed.polar > 1e-12 || sourceFeed.nmp > 1e-12) {
+    throw new Error('UNSUPPORTED_COMPONENT_SCOPE');
+  }
+  const sat = PREDICTIVE_NT_MOLECULAR_REGISTRY.saturates.find(({ identity }) => identity === input.satIdentity)!;
+  const mono = PREDICTIVE_NT_MOLECULAR_REGISTRY.monoAromatics.find(({ identity }) => identity === input.monoIdentity)!;
+  const sourceSatMoles = sourceFeed.saturates / sat.molecularWeightGmol;
+  const sourceMonoMoles = sourceFeed.mono / mono.molecularWeightGmol;
+  const sourceMoles = sourceSatMoles + sourceMonoMoles;
+  if (
+    sourceMoles <= 0
+    || Math.abs(input.feedMoleFractions[0] - sourceSatMoles / sourceMoles) > 1e-6
+    || Math.abs(input.feedMoleFractions[1] - sourceMonoMoles / sourceMoles) > 1e-6
+  ) {
+    throw new Error('MOLECULAR_FEED_BASIS_MISMATCH');
+  }
+  if (!Number.isFinite(input.sourceSolventOilMassRatio) || input.sourceSolventOilMassRatio <= 0) {
+    throw new Error('SOURCE_SOLVENT_MASS_BASIS_REQUIRED');
+  }
+  const expectedSolventMolarRatio = (input.sourceSolventOilMassRatio / 99.13) / sourceMoles;
+  if (Math.abs(input.solventMolarRatio - expectedSolventMolarRatio) > 1e-6) {
+    throw new Error('MOLECULAR_SOLVENT_BASIS_MISMATCH');
+  }
+  const sourceTargets = input.sourceProductTargetsMassFraction;
+  if (
+    !sourceTargets
+    || !Number.isFinite(sourceTargets.maximumMono)
+    || !Number.isFinite(sourceTargets.minimumSaturates)
+    || sourceTargets.maximumMono <= 0
+    || sourceTargets.maximumMono >= 1
+    || sourceTargets.minimumSaturates <= 0
+    || sourceTargets.minimumSaturates >= 1
+  ) {
+    throw new Error('SOURCE_PRODUCT_TARGET_BASIS_REQUIRED');
+  }
+  const targetMonoMoles = sourceTargets.maximumMono / mono.molecularWeightGmol;
+  const targetSatMoles = (1 - sourceTargets.maximumMono) / sat.molecularWeightGmol;
+  const expectedTargetMono = targetMonoMoles / (targetMonoMoles + targetSatMoles);
+  const minimumSatMoles = sourceTargets.minimumSaturates / sat.molecularWeightGmol;
+  const correspondingMonoMoles = (1 - sourceTargets.minimumSaturates) / mono.molecularWeightGmol;
+  const expectedMinimumSat = minimumSatMoles / (minimumSatMoles + correspondingMonoMoles);
+  if (
+    Math.abs(input.targetRaffinateMonoHydrocarbonMoleFraction - expectedTargetMono) > 1e-6
+    || Math.abs((input.minimumRaffinateSaturatesHydrocarbonMoleFraction ?? 0) - expectedMinimumSat) > 1e-6
+  ) {
+    throw new Error('MOLECULAR_PRODUCT_TARGET_BASIS_MISMATCH');
   }
   return gate;
 }

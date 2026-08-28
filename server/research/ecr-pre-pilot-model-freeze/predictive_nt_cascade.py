@@ -251,10 +251,9 @@ def main():
     solvent_ratio = float(request["solventMolarRatio"])
     target = float(request["targetRaffinateMonoHydrocarbonMoleFraction"])
     minimum_sat = float(request.get("minimumRaffinateSaturatesHydrocarbonMoleFraction", 0.0))
-    minimum_recovery = float(request.get("minimumNmpFreeHydrocarbonRecovery", 0.0))
     max_stages = int(request.get("maximumStages", 10))
     if not (temperature_k > 0 and solvent_ratio > 0 and 0 < target < 1 and
-            0 <= minimum_sat <= 1 and 0 <= minimum_recovery <= 1 and 1 <= max_stages <= 20):
+            0 <= minimum_sat <= 1 and 1 <= max_stages <= 20):
         raise ValueError("INVALID_CASCADE_INPUT")
     feed = normalize(request["feedMoleFractions"])
     if feed[2] > 1e-12:
@@ -271,7 +270,6 @@ def main():
             trial["targetChecks"] = {
                 "monoTarget": current_mono <= target + 1e-9,
                 "minimumSaturates": trial["raffinateSaturatesHydrocarbonMoleFraction"] >= minimum_sat - 1e-9,
-                "minimumRecovery": trial["nmpFreeHydrocarbonRecovery"] >= minimum_recovery - 1e-9,
             }
             trial["accepted"] = bool(
                 trial["balanceAccepted"]
