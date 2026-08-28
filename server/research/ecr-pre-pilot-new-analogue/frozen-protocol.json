@@ -1,0 +1,29 @@
+{
+  "format": "ecr-new-analogue-protocol-v1",
+  "frozenBeforeFit": true,
+  "freezeClaim": "Task-local SHA-256 input freeze. No external timestamp or independent preregistration claim is made.",
+  "population": "219 baseline direct SAT+MONO+NMP tie-lines plus 31 direct dodecane+sec-butylbenzene+NMP tie-lines",
+  "representation": "Unchanged standard Abrams-Prausnitz UNIQUAC with row-specific Original-UNIFAC R/Q and directed family-pair a+b/T intercepts plus shared source/target molecular-descriptor slopes",
+  "fitFeatures": ["carbonNumber","longestSideChainCarbons"],
+  "screenOnlyFeatures": ["aromaticRingCount","condensedAromaticRingCount","branchPointCount","cycloalkaneRingCount","polarityClass","heteroatomCount","sulfurAtomCount"],
+  "holdout": "Entire tetradecane+pentylbenzene molecular-pair edge, plus a disjoint complete 323.2 K temperature holdout",
+  "gates": {
+    "topologyRecallMinimum": 0.9,
+    "tieLineRmsdMaximum": 0.03,
+    "thermodynamicQualification": "Unchanged: every held row must pass refined TPD, multistart Gibbs decrease/minimization, conservation, isoactivity, ambiguity rejection, seed accounting, and independent final-phase checks."
+  },
+  "regularization": {
+    "pairInterceptA": 0.001,
+    "pairInterceptB": 1e-7,
+    "descriptorSlopeA": 0.003,
+    "descriptorSlopeB": 3e-7
+  },
+  "sha256Links": {
+    "baselineTieLines": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+    "augmentation": "d38d00d1d17deafa5cbf715a8c03031041a07def2444979e84f7f410fdddd184",
+    "descriptorRegistry": "51b749fd7697abec8639c44c2f153bbf346a48625cecc21785c5cbdcc7bffdb7",
+    "frozenHoldouts": "5d990ab82e39c3223834015a4481b0440aae04a93001a7a7c4e57a61db0261c5",
+    "fitStart": "f61225f0ed53cbf927eab607d45beb94bf316b311bdec2e42a25ef9e4b02c38c",
+    "qualifiedUniquacImplementation": "50493678f405ec07bba8a21a3f7a454750233de10ef03e254e5c7467b10ac8a7"
+  }
+}

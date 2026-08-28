@@ -1,0 +1,14 @@
+{
+  "format": "ecr-new-analogue-holdouts-v1",
+  "frozenBeforeFit": true,
+  "sourcePopulation": "219 baseline plus 31 newly admitted direct SAT+MONO+NMP tie-lines",
+  "unseenSystem": {
+    "identities": ["n-tetradecane","n-pentylbenzene"],
+    "ids": ["analogue-107","analogue-108","analogue-109","analogue-110","analogue-111","analogue-112","analogue-113","analogue-114","analogue-115","analogue-116","analogue-117","analogue-118","analogue-119","analogue-120","analogue-121","analogue-122","analogue-123","analogue-124","analogue-125","analogue-126","analogue-127","analogue-128","analogue-129","analogue-130","analogue-131","analogue-132","analogue-133","analogue-134","analogue-135","analogue-136","analogue-137","analogue-138","analogue-139","analogue-140","analogue-141","analogue-142","analogue-143","analogue-144"]
+  },
+  "leaveTemperatureOut": {
+    "temperature_K": 323.2,
+    "ids": ["analogue-212","analogue-213","analogue-214","analogue-215","analogue-216","analogue-217","analogue-218","analogue-219"]
+  },
+  "policy": "The entire molecular pair and disjoint temperature rows are removed before the sole fit. Holdout compositions are unavailable until the fitted parameter vector is frozen."
+}

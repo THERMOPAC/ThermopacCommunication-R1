@@ -1,0 +1,14 @@
+{
+  "format": "ecr-new-analogue-provenance-v1",
+  "inputs": {
+    "augmentation": "d38d00d1d17deafa5cbf715a8c03031041a07def2444979e84f7f410fdddd184",
+    "baselineTieLines": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+    "descriptorRegistry": "51b749fd7697abec8639c44c2f153bbf346a48625cecc21785c5cbdcc7bffdb7",
+    "fitStart": "f61225f0ed53cbf927eab607d45beb94bf316b311bdec2e42a25ef9e4b02c38c",
+    "frozenHoldouts": "5d990ab82e39c3223834015a4481b0440aae04a93001a7a7c4e57a61db0261c5",
+    "qualifiedUniquacImplementation": "50493678f405ec07bba8a21a3f7a454750233de10ef03e254e5c7467b10ac8a7"
+  },
+  "reportSha256": "4af291ae4bb9601f3554d64ed69d57f96d920b7b6b8b5456235ea9c6c1df4674",
+  "resultSha256": "bf9257dc77ae1b8b05f7b0f3f497efb768fb28a32eed347bfd6836fc4c5b735b",
+  "runSha256": "ad90026e664bbfbd14ece4239565045c4ca5dd4e675667c1ad4c36e7f97e4fd1"
+}

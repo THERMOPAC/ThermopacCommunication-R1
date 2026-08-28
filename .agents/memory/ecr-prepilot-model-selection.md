@@ -65,3 +65,11 @@ Keep DI/POLY transfer away from 298.15 K fail-closed. Heating used to dissolve a
 **Why:** the admitted Coto system provides one DI identity and one POLY identity at one equilibrium temperature. For an interaction form `a+b/T`, that gives rank 1 of 2, so intercept and temperature slope are structurally confounded. The existing hierarchical descriptor fit did not estimate ring-count or condensation effects and was itself rejected.
 
 **How to apply:** do not calculate off-anchor DI/POLY partitioning, sulfur transfer, stage count, optimization, or sizing from the current evidence. Require direct conjugate-phase NMP measurements at multiple operating temperatures and multiple DI/POLY identities, followed by independent topology and tie-line qualification.
+
+## Molecular-pair graph density boundary
+
+One additional multitemperature branched-aromatic NMP edge can improve conditioning and eliminate descriptor extrapolation for a recombined pair, but it is not enough to qualify pair transfer or identify branching independently.
+
+**Why:** adding direct dodecane + sec-butylbenzene evidence reduced one practically weak direction and moved an untouched pair holdout inside the fitted descriptor box, yet the unchanged topology and composition gates still failed. With only one branched MONO identity, branch count remains confounded with carbon number.
+
+**How to apply:** preserve the negative qualification and keep simulator use fail-closed. Before fitting a branching descriptor, require a same-carbon straight/branched comparison or another independent branching edge, ideally across multiple temperatures. Represent sec-butylbenzene with Original-UNIFAC ACCH subgroup 13, not separate AC and CH groups.
