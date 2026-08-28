@@ -83,3 +83,4 @@
 - [ECR Pre-Pilot project numbering](ecr-prepilot-project-numbering.md) — server-issued, sequential, atomic, immutable allocations persist permanently and are never reused.
 - [ECR Pre-Pilot Predictive N_T basis](ecr-prepilot-predictive-nt-basis.md) — server rechecks every mass→mole conversion; non-SAT/MONO feed and mass recovery gates fail closed.
 - [Predictive N_T runtime freeze](predictive-nt-runtime-freeze.md) — deployment must bundle and hash-check transitive Python support beyond the scientific model manifest.
+- [Predictive cascade stability](predictive-cascade-stability.md) — damp component-flow vectors with directional sweeps; persist and ACK each stage before advancing.

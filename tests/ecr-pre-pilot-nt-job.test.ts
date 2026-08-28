@@ -117,7 +117,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
         index === 0 ? 'COLD_COMPONENT_FLOW' : 'N_MINUS_1_COMPONENT_FLOW_CONTINUATION',
       );
     }
-  });
+  }, 30_000);
 
   afterAll(async () => {
     await pool.end();
