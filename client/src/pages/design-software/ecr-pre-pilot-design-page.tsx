@@ -613,7 +613,7 @@ export default function EcrPrePilotDesignPage() {
       if (!existingKey) {
         window.sessionStorage.setItem(storageKey, allocationKey);
       }
-      fetch("/api/design-software/ecr-pre-pilot/designs", {
+      fetch("/api/ecr-pre-pilot/designs", {
         method: "POST",
         headers: { "Idempotency-Key": allocationKey },
         credentials: "include",

@@ -3,12 +3,12 @@ import fs from 'node:fs';
 import {
   PRE_PILOT_MODEL,
   startPrePilotNt,
-} from '../server/engines/llx/llx-ecr2-prepilot-nt';
+} from '../server/ecr-pre-pilot/model';
 
-describe('ECR-2 frozen pre-pilot N_T start', () => {
+describe('ECR Pre-Pilot frozen N_T start', () => {
   it('starts predictive N_T only against the frozen model hash', () => {
     const result = startPrePilotNt({
-      executionMode: 'PRE_PILOT_PREDICTIVE',
+      executionMode: 'ECR_PRE_PILOT_PREDICTIVE',
       requestedModelHash: PRE_PILOT_MODEL.modelHash,
       feedCompositionMassFraction: { saturates: 0.7, mono: 0.3, di: 0, poly: 0 },
       sulfurObjectiveRequested: false,
@@ -37,7 +37,7 @@ describe('ECR-2 frozen pre-pilot N_T start', () => {
 
   it('fails closed when any mutable or unidentified model is requested', () => {
     expect(startPrePilotNt({
-      executionMode: 'PRE_PILOT_PREDICTIVE',
+      executionMode: 'ECR_PRE_PILOT_PREDICTIVE',
       requestedModelHash: 'changed',
       feedCompositionMassFraction: { saturates: 0.7, mono: 0.3, di: 0, poly: 0 },
       sulfurObjectiveRequested: false,
@@ -86,7 +86,7 @@ describe('ECR-2 frozen pre-pilot N_T start', () => {
 
   it('fails closed for DI/POLY or sulfur use', () => {
     const base = {
-      executionMode: 'PRE_PILOT_PREDICTIVE' as const,
+      executionMode: 'ECR_PRE_PILOT_PREDICTIVE' as const,
       requestedModelHash: PRE_PILOT_MODEL.modelHash,
       sulfurObjectiveRequested: false,
     };

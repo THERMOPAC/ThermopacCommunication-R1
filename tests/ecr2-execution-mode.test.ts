@@ -56,10 +56,6 @@ describe('ECR-2 two-level execution resolver', () => {
       evidenceStatus: 'GOVERNED_EVIDENCE_INCOMPLETE',
       releaseStatus: 'BLOCKED',
       uncertaintyRequired: false,
-      thermodynamicModel: {
-        packageId: 'UNSPECIFIED_SHARED_ECR2_THERMODYNAMIC_MODEL',
-        pilotValidated: false,
-      },
     });
   });
 

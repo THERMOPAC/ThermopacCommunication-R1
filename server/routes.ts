@@ -4035,6 +4035,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.error('❌ Design Software routes FAILED to register:', err?.message, err?.stack?.split('\n').slice(0,5).join('\n'));
   }
 
+  // ── ECR Pre-Pilot Design (independent from legacy LLX Design Software) ─────
+  try {
+    const { setupEcrPrePilotRoutes } = await import('./ecr-pre-pilot/routes');
+    setupEcrPrePilotRoutes(app);
+    console.log('✅ ECR Pre-Pilot Design routes registered');
+  } catch (err: any) {
+    console.error('❌ ECR Pre-Pilot Design routes FAILED to register:', err?.message, err?.stack?.split('\n').slice(0,5).join('\n'));
+  }
+
   const httpServer = createServer(app);
   
   // Extend timeout for SAP B1 integration routes - default is 2 minutes, extend to 6 minutes

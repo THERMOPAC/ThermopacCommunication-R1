@@ -30,7 +30,7 @@ export type PrePilotNtStartStatus =
 
 export interface PrePilotNtStartResult {
   status: PrePilotNtStartStatus;
-  executionMode: 'PRE_PILOT_PREDICTIVE' | 'GOVERNED_RELEASE';
+  executionMode: 'ECR_PRE_PILOT_PREDICTIVE' | 'GOVERNED_RELEASE';
   model: typeof PRE_PILOT_MODEL;
   establishedTheoreticalStages: null;
   mayRunPredictiveNt: boolean;
@@ -39,13 +39,8 @@ export interface PrePilotNtStartResult {
   diagnostics: readonly string[];
 }
 
-/**
- * Starts an N_T calculation lineage by binding it to the immutable pre-pilot
- * package. Numerical stage solving is deliberately downstream of this check.
- * This contract never turns a predictive N_T into an established design value.
- */
 export function startPrePilotNt(input: {
-  executionMode: 'PRE_PILOT_PREDICTIVE' | 'GOVERNED_RELEASE';
+  executionMode: 'ECR_PRE_PILOT_PREDICTIVE' | 'GOVERNED_RELEASE';
   requestedModelHash: string;
   feedCompositionMassFraction: {
     saturates: number;
@@ -73,7 +68,7 @@ export function startPrePilotNt(input: {
       ],
     };
   }
-  if (input.executionMode !== 'PRE_PILOT_PREDICTIVE') {
+  if (input.executionMode !== 'ECR_PRE_PILOT_PREDICTIVE') {
     return {
       ...common,
       status: 'GOVERNED_RELEASE_BLOCKED',
