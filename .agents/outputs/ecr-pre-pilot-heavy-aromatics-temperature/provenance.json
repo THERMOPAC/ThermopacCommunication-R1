@@ -1,0 +1,13 @@
+{
+  "format": "ecr-heavy-aromatics-temperature-provenance-v1",
+  "inputs": {
+    ".agents/outputs/ecr-pre-pilot-descriptor-transfer/results.json": "1df9bb562189ce76081d0ab6e619a2daee686e92405513e66fb6e989272f39c2",
+    "server/engine-framework/cel/coto2022-nmp-lle.ts": "8253433f5624934b7f9135f223090e8b9e2c5b1cbfaee06c951a3d87b839ea42",
+    "server/research/ecr-pre-pilot-descriptor-transfer/descriptor-registry.json": "ea91b8dd73cc78c99cd293b43ebeb226e3a21c89baea67fdb666fd5eaf54b38b",
+    "server/research/ecr-pre-pilot-descriptor-transfer/frozen-protocol.json": "56e8f0a5aeeca7e151b099c29a04374ddbe8678cd14db8d0ec4e9225d1d5f943",
+    "server/research/ecr-pre-pilot-heavy-aromatics-temperature/evidence-registry.json": "bc73b323b0e454f1940466346f49e13bbb1272f0ba4e1100b1369b81527b14f7"
+  },
+  "reportSha256": "2d1873649c5b58e5415d2eb2d94387ff33f58b87ba6ad34ee408abbbe66ab226",
+  "resultSha256": "6a0ad57f1a2bd2c40a3333ef5dd5c3880fcedfd3ec22adfd60b2e752084eb7d8",
+  "runSha256": "caaa84bac059f1e0f789c8a0c9359572128ee0f59a362cef58bef31e265e2d90"
+}

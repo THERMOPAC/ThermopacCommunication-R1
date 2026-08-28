@@ -1,0 +1,80 @@
+{
+  "format": "ecr-heavy-aromatics-temperature-evidence-v1",
+  "operatingTemperatures_K": [298.15, 323.15, 348.15, 373.15],
+  "sources": [
+    {
+      "id": "coto-2022",
+      "title": "Extraction of aromatic and polyaromatic compounds with NMP: experimental and model description",
+      "doi": "10.1016/j.fluid.2021.113293",
+      "primaryUrl": "https://burjcdigital.urjc.es/bitstreams/1805e766-b3cf-41d1-9fbd-5fc2bd7babc3/download",
+      "temperatureCoverage_K": [298.15],
+      "components": [
+        "n-dodecane",
+        "p-xylene or toluene",
+        "1-methylnaphthalene",
+        "pyrene",
+        "N-methyl-2-pyrrolidone"
+      ],
+      "evidenceType": "direct multicomponent liquid-liquid equilibrium tie-lines",
+      "admission": "DIRECT_SINGLE_TEMPERATURE",
+      "note": "All equilibrium experiments were performed at 298.15 K. Heating at 50-70 C was sample preparation to dissolve pyrene, not an equilibrium-temperature series."
+    },
+    {
+      "id": "fandary-2006",
+      "title": "Extraction of pentylbenzene from high molar mass alkanes (C14 and C17) by N-methyl-2-pyrrolidone",
+      "doi": "10.1016/j.jct.2005.06.012",
+      "primaryUrl": "https://trc.nist.gov/ThermoML/10.1016/j.jct.2005.06.012.html",
+      "temperatureCoverage_K": [298, 308, 318, 328],
+      "components": [
+        "n-tetradecane or n-heptadecane",
+        "pentylbenzene",
+        "N-methyl-2-pyrrolidone"
+      ],
+      "evidenceType": "direct ternary liquid-liquid equilibrium tie-lines",
+      "admission": "MONOAROMATIC_TEMPERATURE_ONLY",
+      "note": "Provides temperature dependence for a monoaromatic, not a diaromatic or polyaromatic."
+    },
+    {
+      "id": "fahim-2007",
+      "title": "Extraction of Aromatics from Middle Distillate Using N-Methyl-2-pyrrolidone: Experiment, Modeling, and Optimization",
+      "doi": "10.1021/ie060960f",
+      "primaryUrl": "https://doi.org/10.1021/ie060960f",
+      "temperatureCoverage_K": [293, 303, 313, 323],
+      "components": [
+        "n-tetradecane",
+        "n-hexadecane",
+        "n-heptadecane",
+        "ethylbenzene",
+        "1,3,5-trimethylbenzene",
+        "butylbenzene",
+        "N-methyl-2-pyrrolidone"
+      ],
+      "evidenceType": "multicomponent aromatic extraction and phase equilibrium",
+      "admission": "MONOAROMATIC_TEMPERATURE_ONLY",
+      "note": "All listed aromatic solutes are monoaromatics; this cannot identify heavy-aromatic temperature response."
+    }
+  ],
+  "repositoryEvidence": {
+    "cotoPath": "server/engine-framework/cel/coto2022-nmp-lle.ts",
+    "descriptorRegistryPath": "server/research/ecr-pre-pilot-descriptor-transfer/descriptor-registry.json",
+    "descriptorProtocolPath": "server/research/ecr-pre-pilot-descriptor-transfer/frozen-protocol.json",
+    "descriptorResultsPath": ".agents/outputs/ecr-pre-pilot-descriptor-transfer/results.json"
+  },
+  "admissionRule": "A heavy-aromatic temperature model requires direct NMP equilibrium or partition evidence for DI or POLY at two or more equilibrium temperatures. Sample-preparation temperature, monoaromatic temperature data, solubility-only data, and another solvent do not qualify.",
+  "requiredExperiment": {
+    "temperatures_K": [298.15, 323.15, 348.15, 373.15],
+    "minimumIdentityCoverage": {
+      "DI": 2,
+      "POLY": 2
+    },
+    "requiredMeasurements": [
+      "both conjugate liquid-phase compositions",
+      "phase amounts or independently closed total material balance",
+      "temperature and pressure",
+      "analytical uncertainty and replicate precision",
+      "feed composition and solvent-to-oil ratio",
+      "explicit molecular identities"
+    ],
+    "qualification": "Predeclare molecule/system and temperature holdouts; require topology recall >=0.90, tie-line RMSD <=0.03, conservation, isoactivity, stability, ambiguity rejection, and independent final-phase checks."
+  }
+}

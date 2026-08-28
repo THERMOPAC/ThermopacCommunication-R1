@@ -57,3 +57,11 @@ Treat the family-global SAT/MONO/DI/POLY interaction representation as inadequat
 **Why:** in a controlled same-equation UNIQUAC comparison, molecular-system indexing materially improved composition on the identical 110-row valid-topology support, but it accepted only about half the phase splits, was severely ill-conditioned, and could not predict unseen molecular systems. This separates composition-representation information from overall model adequacy.
 
 **How to apply:** preserve explicit molecular identities in admitted evidence and develop a hierarchical molecule/descriptor representation that shares parameters through carbon number, aromatic topology, branching/cycloalkane status, condensation, polarity/heteroatoms, and explicit sulfur identity. Require preregistered temperature and unseen-system holdouts to pass both topology and composition gates before simulator use. Do not deploy pair-specific dummy parameters or infer sulfur removal from aromatic transfer.
+
+## Heavy-aromatics temperature boundary
+
+Keep DI/POLY transfer away from 298.15 K fail-closed. Heating used to dissolve a heavy aromatic during sample preparation is not equilibrium-temperature evidence, and monoaromatic temperature trends cannot supply DI/POLY slopes.
+
+**Why:** the admitted Coto system provides one DI identity and one POLY identity at one equilibrium temperature. For an interaction form `a+b/T`, that gives rank 1 of 2, so intercept and temperature slope are structurally confounded. The existing hierarchical descriptor fit did not estimate ring-count or condensation effects and was itself rejected.
+
+**How to apply:** do not calculate off-anchor DI/POLY partitioning, sulfur transfer, stage count, optimization, or sizing from the current evidence. Require direct conjugate-phase NMP measurements at multiple operating temperatures and multiple DI/POLY identities, followed by independent topology and tie-line qualification.

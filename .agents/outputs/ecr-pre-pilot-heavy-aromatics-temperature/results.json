@@ -1,0 +1,234 @@
+{
+  "conclusions": {
+    "directEvidence": "Only the 298.15 K Coto tie-lines directly contain DI/POLY with NMP.",
+    "modelExtrapolation": "No DI/POLY temperature coefficient, descriptor slope, or operating-temperature partition value is identified.",
+    "monoAromaticAnalogy": "The 293-328 K monoaromatic studies cannot determine DI/POLY temperature response.",
+    "samplePreparation": "Coto heating at 50-70 C dissolved pyrene before equilibration; it is not equilibrium evidence at those temperatures.",
+    "sulfurBoundary": "No conclusion about sulfur-species transfer follows from DI/POLY aromatic transfer."
+  },
+  "decision": "NOT_ESTABLISHED",
+  "descriptorTransfer": {
+    "featuresFittedByTask169": [
+      "carbonNumber",
+      "longestSideChainCarbons"
+    ],
+    "featuresScreenOnlyByTask169": [
+      "aromaticRingCount",
+      "condensedAromaticRingCount",
+      "branchPointCount",
+      "cycloalkaneRingCount",
+      "polarityClass",
+      "heteroatomCount",
+      "sulfurAtomCount"
+    ],
+    "heavyAromaticDefiningFeaturesWereFitted": false,
+    "heavyMoleculeDescriptors": {
+      "1-methylnaphthalene": [
+        11,
+        2,
+        2,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "pyrene": [
+        16,
+        4,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "task169Decision": "REJECT",
+    "task169HeavyTemperatureGap": {
+      "reason": "DI and POLY have only one admitted 298.15 K Coto identity each and no multi-temperature direct evidence in the fit population",
+      "status": "FAIL_CLOSED"
+    }
+  },
+  "evidenceInventory": {
+    "cotoHeavyIdentities": [
+      "1-methylnaphthalene",
+      "pyrene"
+    ],
+    "cotoLogKAt298_15K": {
+      "DI": {
+        "count": 17,
+        "maximum": 1.3350010667323402,
+        "mean": 0.9928852056155726,
+        "minimum": 0.4054651081081642
+      },
+      "MONO": {
+        "count": 17,
+        "maximum": 0.6205764877251098,
+        "mean": 0.3435929773537938,
+        "minimum": 0.08062973440010901
+      },
+      "NMP": {
+        "count": 17,
+        "maximum": 2.589266665112243,
+        "mean": 1.925507708099886,
+        "minimum": 0.6792387505138133
+      },
+      "POLY": {
+        "count": 17,
+        "maximum": 1.9095425048844386,
+        "mean": 1.3236397709361096,
+        "minimum": 0.47000362924573563
+      },
+      "SAT": {
+        "count": 17,
+        "maximum": -0.4853140361085821,
+        "mean": -1.333327034088516,
+        "minimum": -1.872371815196687
+      },
+      "definition": "ln(y_i/x_i) on measured conjugate phases"
+    },
+    "cotoTieLineCount": 17,
+    "directHeavyAromaticTemperatureCount": 1,
+    "directHeavyAromaticTemperatures_K": [
+      298.15
+    ],
+    "sources": [
+      {
+        "admission": "DIRECT_SINGLE_TEMPERATURE",
+        "components": [
+          "n-dodecane",
+          "p-xylene or toluene",
+          "1-methylnaphthalene",
+          "pyrene",
+          "N-methyl-2-pyrrolidone"
+        ],
+        "doi": "10.1016/j.fluid.2021.113293",
+        "evidenceType": "direct multicomponent liquid-liquid equilibrium tie-lines",
+        "id": "coto-2022",
+        "note": "All equilibrium experiments were performed at 298.15 K. Heating at 50-70 C was sample preparation to dissolve pyrene, not an equilibrium-temperature series.",
+        "primaryUrl": "https://burjcdigital.urjc.es/bitstreams/1805e766-b3cf-41d1-9fbd-5fc2bd7babc3/download",
+        "temperatureCoverage_K": [
+          298.15
+        ],
+        "title": "Extraction of aromatic and polyaromatic compounds with NMP: experimental and model description"
+      },
+      {
+        "admission": "MONOAROMATIC_TEMPERATURE_ONLY",
+        "components": [
+          "n-tetradecane or n-heptadecane",
+          "pentylbenzene",
+          "N-methyl-2-pyrrolidone"
+        ],
+        "doi": "10.1016/j.jct.2005.06.012",
+        "evidenceType": "direct ternary liquid-liquid equilibrium tie-lines",
+        "id": "fandary-2006",
+        "note": "Provides temperature dependence for a monoaromatic, not a diaromatic or polyaromatic.",
+        "primaryUrl": "https://trc.nist.gov/ThermoML/10.1016/j.jct.2005.06.012.html",
+        "temperatureCoverage_K": [
+          298,
+          308,
+          318,
+          328
+        ],
+        "title": "Extraction of pentylbenzene from high molar mass alkanes (C14 and C17) by N-methyl-2-pyrrolidone"
+      },
+      {
+        "admission": "MONOAROMATIC_TEMPERATURE_ONLY",
+        "components": [
+          "n-tetradecane",
+          "n-hexadecane",
+          "n-heptadecane",
+          "ethylbenzene",
+          "1,3,5-trimethylbenzene",
+          "butylbenzene",
+          "N-methyl-2-pyrrolidone"
+        ],
+        "doi": "10.1021/ie060960f",
+        "evidenceType": "multicomponent aromatic extraction and phase equilibrium",
+        "id": "fahim-2007",
+        "note": "All listed aromatic solutes are monoaromatics; this cannot identify heavy-aromatic temperature response.",
+        "primaryUrl": "https://doi.org/10.1021/ie060960f",
+        "temperatureCoverage_K": [
+          293,
+          303,
+          313,
+          323
+        ],
+        "title": "Extraction of Aromatics from Middle Distillate Using N-Methyl-2-pyrrolidone: Experiment, Modeling, and Optimization"
+      }
+    ]
+  },
+  "format": "ecr-heavy-aromatics-temperature-audit-v1",
+  "governingStatus": "FAIL_CLOSED",
+  "identifiability": {
+    "boundedCounterfactual": {
+      "anchorTemperature_K": 298.15,
+      "departures": [
+        {
+          "maximumAbsoluteTauDepartureFromAnchorWithinOneSlopeBound": 0.0,
+          "temperature_K": 298.15
+        },
+        {
+          "maximumAbsoluteTauDepartureFromAnchorWithinOneSlopeBound": 0.5189565889959051,
+          "temperature_K": 323.15
+        },
+        {
+          "maximumAbsoluteTauDepartureFromAnchorWithinOneSlopeBound": 0.9633825749477323,
+          "temperature_K": 348.15
+        },
+        {
+          "maximumAbsoluteTauDepartureFromAnchorWithinOneSlopeBound": 1.3482579799064176,
+          "temperature_K": 373.15
+        }
+      ],
+      "interpretation": "These are unresolved ranges, not predictions or uncertainty intervals.",
+      "slopeBound_K": 2000.0
+    },
+    "designMatrixColumns": [
+      "1",
+      "1/T"
+    ],
+    "designMatrixRank": 1,
+    "interceptSlopeSeparatelyIdentifiable": false,
+    "proof": "At one temperature, a and b are confounded because a'=a-delta/T0 and b'=b+delta reproduce the same tau(T0).",
+    "requiredRank": 2,
+    "temperatureModel": "tau(T)=a+b/T"
+  },
+  "question": "Can DI/POLY transfer into NMP be predicted across the 298.15-373.15 K operating range?",
+  "requiredEvidence": {
+    "minimumIdentityCoverage": {
+      "DI": 2,
+      "POLY": 2
+    },
+    "qualification": "Predeclare molecule/system and temperature holdouts; require topology recall >=0.90, tie-line RMSD <=0.03, conservation, isoactivity, stability, ambiguity rejection, and independent final-phase checks.",
+    "requiredMeasurements": [
+      "both conjugate liquid-phase compositions",
+      "phase amounts or independently closed total material balance",
+      "temperature and pressure",
+      "analytical uncertainty and replicate precision",
+      "feed composition and solvent-to-oil ratio",
+      "explicit molecular identities"
+    ],
+    "temperatures_K": [
+      298.15,
+      323.15,
+      348.15,
+      373.15
+    ]
+  },
+  "simulatorIntegration": {
+    "performed": false,
+    "permitted": false,
+    "status": "PROHIBITED"
+  },
+  "sources": {
+    ".agents/outputs/ecr-pre-pilot-descriptor-transfer/results.json": "1df9bb562189ce76081d0ab6e619a2daee686e92405513e66fb6e989272f39c2",
+    "server/engine-framework/cel/coto2022-nmp-lle.ts": "8253433f5624934b7f9135f223090e8b9e2c5b1cbfaee06c951a3d87b839ea42",
+    "server/research/ecr-pre-pilot-descriptor-transfer/descriptor-registry.json": "ea91b8dd73cc78c99cd293b43ebeb226e3a21c89baea67fdb666fd5eaf54b38b",
+    "server/research/ecr-pre-pilot-descriptor-transfer/frozen-protocol.json": "56e8f0a5aeeca7e151b099c29a04374ddbe8678cd14db8d0ec4e9225d1d5f943",
+    "server/research/ecr-pre-pilot-heavy-aromatics-temperature/evidence-registry.json": "bc73b323b0e454f1940466346f49e13bbb1272f0ba4e1100b1369b81527b14f7"
+  }
+}
