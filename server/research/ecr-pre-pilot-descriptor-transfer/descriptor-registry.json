@@ -1,0 +1,44 @@
+{
+  "format": "ecr-descriptor-preregistration-v1",
+  "frozenBeforeFit": true,
+  "descriptorOrder": [
+    "carbonNumber",
+    "aromaticRingCount",
+    "condensedAromaticRingCount",
+    "longestSideChainCarbons",
+    "branchPointCount",
+    "cycloalkaneRingCount",
+    "polarityClass",
+    "heteroatomCount",
+    "sulfurAtomCount"
+  ],
+  "classRules": {
+    "SAT": "acyclic or cycloalkane hydrocarbon; aromaticRingCount=0",
+    "MONO": "one aromatic ring",
+    "DI": "two aromatic rings; condensation recorded separately",
+    "POLY": "three or more aromatic rings; condensation recorded separately",
+    "polar heteroatom": "non-NMP molecule with one or more N/O/halogen heteroatoms",
+    "sulfur": "molecule with sulfurAtomCount>0, independent of hydrocarbon aromatic class",
+    "NMP": "N-methyl-2-pyrrolidone only"
+  },
+  "molecules": {
+    "n-dodecane": [12, 0, 0, 12, 0, 0, 0, 0, 0],
+    "n-tetradecane": [14, 0, 0, 14, 0, 0, 0, 0, 0],
+    "n-hexadecane": [16, 0, 0, 16, 0, 0, 0, 0, 0],
+    "n-heptadecane": [17, 0, 0, 17, 0, 0, 0, 0, 0],
+    "n-propylbenzene": [9, 1, 0, 3, 0, 0, 0, 0, 0],
+    "n-pentylbenzene": [11, 1, 0, 5, 0, 0, 0, 0, 0],
+    "1,3,5-trimethylbenzene": [9, 1, 0, 1, 0, 0, 0, 0, 0],
+    "p-xylene": [8, 1, 0, 1, 0, 0, 0, 0, 0],
+    "toluene": [7, 1, 0, 1, 0, 0, 0, 0, 0],
+    "1-methylnaphthalene": [11, 2, 2, 1, 0, 0, 0, 0, 0],
+    "pyrene": [16, 4, 4, 0, 0, 0, 0, 0, 0],
+    "N-methyl-2-pyrrolidone": [5, 0, 0, 1, 0, 1, 2, 2, 0]
+  },
+  "modelUse": {
+    "hierarchy": "directed family-pair intercepts plus shared source/target molecular descriptor slopes",
+    "scaledFitDescriptors": ["carbonNumber", "longestSideChainCarbons"],
+    "screenOnlyDescriptors": ["aromaticRingCount", "condensedAromaticRingCount", "branchPointCount", "cycloalkaneRingCount", "polarityClass", "heteroatomCount", "sulfurAtomCount"],
+    "reasonScreenOnly": "the admitted SAT/MONO/NMP population has no independent within-family contrast for these effects; fitting them would falsely imply identifiability"
+  }
+}

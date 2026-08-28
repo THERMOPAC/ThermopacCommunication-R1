@@ -1,0 +1,5 @@
+{
+  "format": "ecr-descriptor-transfer-neutral-initialization-v1",
+  "provenance": "Neutral all-zero initialization frozen before fitting. It contains no fitted information and is not a frozen fitted model.",
+  "parameters": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+}

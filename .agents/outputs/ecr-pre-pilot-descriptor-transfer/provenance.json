@@ -1,0 +1,38 @@
+{
+  "format": "ecr-descriptor-transfer-provenance-v1",
+  "inputs": {
+    "descriptorRegistry": {
+      "path": "server/research/ecr-pre-pilot-descriptor-transfer/descriptor-registry.json",
+      "sha256": "ea91b8dd73cc78c99cd293b43ebeb226e3a21c89baea67fdb666fd5eaf54b38b"
+    },
+    "fitStart": {
+      "path": "server/research/ecr-pre-pilot-descriptor-transfer/fit-start.json",
+      "role": "neutral all-zero initialization; not accepted as fitted parameters",
+      "sha256": "f61225f0ed53cbf927eab607d45beb94bf316b311bdec2e42a25ef9e4b02c38c"
+    },
+    "frozenHoldouts": {
+      "path": "server/research/ecr-pre-pilot-descriptor-transfer/frozen-holdouts.json",
+      "sha256": "4f6c6a4397ff9751b25281ea1ee58680c42b4542e468fb995b0883cd6016c7db"
+    },
+    "frozenProtocol": {
+      "claim": "Task-local pre-fit protocol declaration that must be frozen by a dedicated repository commit before the final evidence run. Repository content identity is enforced by SHA-256; no external timestamp or independent preregistration claim is made.",
+      "path": "server/research/ecr-pre-pilot-descriptor-transfer/frozen-protocol.json",
+      "sha256": "56e8f0a5aeeca7e151b099c29a04374ddbe8678cd14db8d0ec4e9225d1d5f943"
+    },
+    "qualifiedUniquac": {
+      "path": "server/research/ecr-pre-pilot-uniquac/run.py",
+      "sha256": "50493678f405ec07bba8a21a3f7a454750233de10ef03e254e5c7467b10ac8a7"
+    },
+    "registrationReference": {
+      "freezeCommit": "fa83d54bdb3cd7e180be8a0c881f23d536a66b41",
+      "path": "server/research/ecr-pre-pilot-descriptor-transfer/registration-commit.txt"
+    },
+    "tieLines": {
+      "path": "server/engine-framework/cel/data/multi-t-nmp-lle.json",
+      "sha256": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28"
+    }
+  },
+  "parameterBinary64Sha256": "ea25299ad05aa2f541bb97a1279705429b8e13cb02467e256569d05d91c512b0",
+  "resultSha256": "1df9bb562189ce76081d0ab6e619a2daee686e92405513e66fb6e989272f39c2",
+  "runSha256": "c2ebc34ce6b4ff44ed414c8466fe20970a28be6594cd6ad4a5f74b67eab4f1bc"
+}

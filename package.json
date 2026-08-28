@@ -10,7 +10,9 @@
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "research:ecr-dortmund-benchmark": "tsx server/research/ecr-pre-pilot-dortmund-benchmark/run.ts",
-    "verify:ecr-dortmund-benchmark": "tsx server/research/ecr-pre-pilot-dortmund-benchmark/verify.ts"
+    "verify:ecr-dortmund-benchmark": "tsx server/research/ecr-pre-pilot-dortmund-benchmark/verify.ts",
+    "research:ecr-descriptor-transfer": "python3 server/research/ecr-pre-pilot-descriptor-transfer/run.py",
+    "verify:ecr-descriptor-transfer": "python3 server/research/ecr-pre-pilot-descriptor-transfer/verify.py"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",

@@ -1,0 +1,3914 @@
+{
+  "applicabilityDomain": {
+    "leaveTemperatureOut": {
+      "allHydrocarbonSystemsSeenInTraining": true,
+      "allMoleculesInsideSameFamilyCoordinateBox": true,
+      "descriptorStatus": "INTERPOLATION",
+      "identityDetails": [
+        {
+          "family": "SAT",
+          "fitFeatureTrainingRanges": {
+            "carbonNumber": [
+              14,
+              17
+            ],
+            "longestSideChainCarbons": [
+              14,
+              17
+            ]
+          },
+          "identity": "n-hexadecane",
+          "insideSameFamilyCoordinateBox": true,
+          "nearestTrainingNormalizedDescriptorDistance": 0.0,
+          "seenIdentityInTraining": true
+        },
+        {
+          "family": "MONO",
+          "fitFeatureTrainingRanges": {
+            "carbonNumber": [
+              9,
+              11
+            ],
+            "longestSideChainCarbons": [
+              1,
+              5
+            ]
+          },
+          "identity": "1,3,5-trimethylbenzene",
+          "insideSameFamilyCoordinateBox": true,
+          "nearestTrainingNormalizedDescriptorDistance": 0.0,
+          "seenIdentityInTraining": true
+        },
+        {
+          "family": "NMP",
+          "fitFeatureTrainingRanges": {
+            "carbonNumber": [
+              5,
+              5
+            ],
+            "longestSideChainCarbons": [
+              1,
+              1
+            ]
+          },
+          "identity": "N-methyl-2-pyrrolidone",
+          "insideSameFamilyCoordinateBox": true,
+          "nearestTrainingNormalizedDescriptorDistance": 0.0,
+          "seenIdentityInTraining": true
+        }
+      ],
+      "maximumNearestNormalizedDescriptorDistance": 0.0,
+      "novelHydrocarbonSystems": [],
+      "temperatureInsideCoordinateRange": true,
+      "temperatureStatus": "INTERPOLATION",
+      "temperatureTrainingRange_K": [
+        289,
+        328
+      ],
+      "temperatures_K": [
+        323.2
+      ]
+    },
+    "rule": "each molecule is compared only with admitted training molecules in its family; Euclidean distance uses preregistered fit features divided by their model scales",
+    "status": "NOT_QUALIFIED",
+    "temperatureRange_K": [
+      289,
+      328
+    ],
+    "trainingRanges": {
+      "aromaticRingCount": [
+        0,
+        1
+      ],
+      "branchPointCount": [
+        0,
+        0
+      ],
+      "carbonNumber": [
+        5,
+        17
+      ],
+      "condensedAromaticRingCount": [
+        0,
+        0
+      ],
+      "cycloalkaneRingCount": [
+        0,
+        1
+      ],
+      "heteroatomCount": [
+        0,
+        2
+      ],
+      "longestSideChainCarbons": [
+        1,
+        17
+      ],
+      "polarityClass": [
+        0,
+        2
+      ],
+      "sulfurAtomCount": [
+        0,
+        0
+      ]
+    },
+    "trueUnseenSystem": {
+      "allHydrocarbonSystemsSeenInTraining": false,
+      "allMoleculesInsideSameFamilyCoordinateBox": false,
+      "descriptorStatus": "EXTRAPOLATION",
+      "identityDetails": [
+        {
+          "family": "SAT",
+          "fitFeatureTrainingRanges": {
+            "carbonNumber": [
+              14,
+              17
+            ],
+            "longestSideChainCarbons": [
+              14,
+              17
+            ]
+          },
+          "identity": "n-dodecane",
+          "insideSameFamilyCoordinateBox": false,
+          "nearestTrainingNormalizedDescriptorDistance": 0.5656854249492379,
+          "seenIdentityInTraining": false
+        },
+        {
+          "family": "MONO",
+          "fitFeatureTrainingRanges": {
+            "carbonNumber": [
+              9,
+              11
+            ],
+            "longestSideChainCarbons": [
+              1,
+              5
+            ]
+          },
+          "identity": "n-propylbenzene",
+          "insideSameFamilyCoordinateBox": true,
+          "nearestTrainingNormalizedDescriptorDistance": 0.0,
+          "seenIdentityInTraining": true
+        },
+        {
+          "family": "NMP",
+          "fitFeatureTrainingRanges": {
+            "carbonNumber": [
+              5,
+              5
+            ],
+            "longestSideChainCarbons": [
+              1,
+              1
+            ]
+          },
+          "identity": "N-methyl-2-pyrrolidone",
+          "insideSameFamilyCoordinateBox": true,
+          "nearestTrainingNormalizedDescriptorDistance": 0.0,
+          "seenIdentityInTraining": true
+        }
+      ],
+      "maximumNearestNormalizedDescriptorDistance": 0.5656854249492379,
+      "novelHydrocarbonSystems": [
+        [
+          "n-dodecane",
+          "n-propylbenzene"
+        ]
+      ],
+      "temperatureInsideCoordinateRange": true,
+      "temperatureStatus": "INTERPOLATION",
+      "temperatureTrainingRange_K": [
+        289,
+        328
+      ],
+      "temperatures_K": [
+        298,
+        308,
+        318,
+        328
+      ]
+    }
+  },
+  "dataGaps": {
+    "DI_POLY_temperature_transfer": {
+      "reason": "DI and POLY have only one admitted 298.15 K Coto identity each and no multi-temperature direct evidence in the fit population",
+      "status": "FAIL_CLOSED"
+    },
+    "polar_heteroatom": {
+      "reason": "no non-NMP polar-heteroatom direct tie-lines admitted",
+      "status": "FAIL_CLOSED"
+    },
+    "simulatorIntegration": {
+      "performed": false,
+      "reason": "research pipeline never modifies simulator; integration requires all gates and separate review",
+      "status": "PROHIBITED"
+    },
+    "sulfur": {
+      "reason": "no sulfur-containing direct NMP tie-lines admitted",
+      "status": "FAIL_CLOSED"
+    }
+  },
+  "decision": "REJECT",
+  "fit": {
+    "calledOnceBeforeHoldout": true,
+    "identifiability": {
+      "conditionNumber": 74280470.84359168,
+      "measurementRows": 530,
+      "measurementRss": 8.91259673930483,
+      "message": "`ftol` termination condition is satisfied.",
+      "nfev": 197,
+      "parameterCount": 20,
+      "practicallyWeakDirections": 10,
+      "rank": 20,
+      "singularValues": [
+        621.1152529359924,
+        95.05455668462257,
+        33.088001527281214,
+        8.22184719300099,
+        7.613382568784093,
+        3.4028998201827982,
+        2.1323235498215616,
+        1.4398975283179414,
+        0.8219814261482291,
+        0.09320145031108157,
+        0.054652881287161933,
+        0.005640314889278865,
+        0.00330659885702524,
+        0.0010081344550625217,
+        0.0006560440469837404,
+        0.0003025908385718912,
+        0.0002172098694764738,
+        0.00013780993328828842,
+        8.794341298640276e-05,
+        8.361757079378789e-06
+      ],
+      "standardErrors": [
+        0.8053118327993963,
+        0.03229430368466223,
+        0.4064333867637531,
+        0.1942226782650738,
+        0.06568190843259067,
+        0.027904329775965724,
+        0.5646377514944623,
+        0.013559373311249389,
+        0.03985530583735211,
+        0.4187259406745526,
+        0.7701233253023003,
+        0.030705028216775173,
+        0.052153343453657464,
+        0.045374286278348434,
+        0.5095537202057621,
+        0.509739443198053,
+        0.9850651912590443,
+        0.6316265309195226,
+        1.5067751751759224,
+        1.3383884541166753
+      ],
+      "success": true,
+      "uncertaintyCaveat": "linearized local covariance; weak/rank-deficient directions make extrapolation uncertainty non-Gaussian",
+      "unidentifiableDirections": 0
+    },
+    "parameterBinary64Sha256": "ea25299ad05aa2f541bb97a1279705429b8e13cb02467e256569d05d91c512b0",
+    "parameters": [
+      -1.8744968304489098,
+      -194.91348396630278,
+      -1.3830670108337342,
+      302.54710138384456,
+      0.09866490221568817,
+      -161.187277074645,
+      -1.2264991059731654,
+      187.33965214699197,
+      0.5376682825350227,
+      -214.2546341518295,
+      -4.022930663212892,
+      146.20321139700863,
+      -0.25542193700996024,
+      0.09402408005312733,
+      1.3488806291274007,
+      -1.458361937641135,
+      49.140107285582765,
+      -12.16668291052793,
+      177.4314098132518,
+      -131.22065997297304
+    ],
+    "trainingIdsSha256": "2d1d24b78c73a251a41c8cfa38df27ee336509d8a0bd5ab046af331c7c54846e"
+  },
+  "fitEvidencePolicy": "admitted direct tie-lines only",
+  "format": "ecr-pre-pilot-descriptor-transfer-v1",
+  "gates": {
+    "thermodynamicQualification": {
+      "pass": false
+    },
+    "tieLineRmsd": {
+      "pass": false,
+      "threshold": 0.03,
+      "value": 0.12988000025238497
+    },
+    "topologyRecall": {
+      "pass": false,
+      "threshold": 0.9,
+      "value": 0.8571428571428571
+    }
+  },
+  "holdouts": {
+    "leaveTemperatureOut": {
+      "metrics": {
+        "activeEndpointComponentCount": 42,
+        "rows": 8,
+        "tieLineRmsd": 0.12988000025238497,
+        "tieLineRmsdFormula": "sqrt(sum((predicted-measured)^2) / N) over both endpoints and active components only",
+        "topologyRecall": 0.875,
+        "twoPhase": 7
+      },
+      "rows": [
+        {
+          "T_K": 323.2,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": null,
+          "ambiguityComparisons": [],
+          "compositionRmsd": null,
+          "conservationMax": null,
+          "diagnosticStatus": "FAIL_NONCONVERGED_OR_BOUNDARY",
+          "gibbsDecrease": null,
+          "id": "analogue-212",
+          "independentFinalPhaseChecks": null,
+          "isoactivityMax": null,
+          "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
+          "qualificationOutcome": "FAIL",
+          "qualified": false,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.11184716876857526,
+            "refinementAttempts": 8
+          }
+        },
+        {
+          "T_K": 323.2,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.04527290185034353,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.0868647433756868,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.07930223983608162,
+          "id": "analogue-213",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.07930223983607806,
+            "homogeneousReducedGibbs": -0.15097130484048824,
+            "isoactivityMax": 1.0036416142611415e-13,
+            "isoactivityResiduals": [
+              1.0036416142611415e-13,
+              7.238654120556021e-14,
+              1.1997347559855598e-14
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 1.025653469917002e-13,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7759868277389496,
+                      0.04078806434305328,
+                      0.0,
+                      0.0,
+                      0.1832251079179972
+                    ],
+                    "latticeIndex": 42,
+                    "tpd": 1.025653469917002e-13
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 2.0275159616338954e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7759869085803227,
+                      0.04078805163047694,
+                      0.0,
+                      0.0,
+                      0.18322503978920035
+                    ],
+                    "latticeIndex": 42,
+                    "tpd": 2.0275159616338954e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.2302735446765663
+          },
+          "isoactivityMax": 1.021405182655144e-13,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.09341154652972428,
+            "refinementAttempts": 5
+          }
+        },
+        {
+          "T_K": 323.2,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.060663967556183786,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.10055178396907717,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.0630580346661675,
+          "id": "analogue-214",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.0630580346661676,
+            "homogeneousReducedGibbs": -0.2670845703388863,
+            "isoactivityMax": 2.3908652835302746e-12,
+            "isoactivityResiduals": [
+              9.42801392511683e-13,
+              1.7892354264859023e-12,
+              2.3908652835302746e-12
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 1.3062808178912107e-12,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7296738422141504,
+                      0.07479169457916414,
+                      0.0,
+                      0.0,
+                      0.19553446320668544
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": 1.3062808178912107e-12
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 4.9247800659083173e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7296737742660793,
+                      0.07479170780353224,
+                      0.0,
+                      0.0,
+                      0.19553451793038845
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": 4.9247800659083173e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.3301426050050539
+          },
+          "isoactivityMax": 2.3919755065548998e-12,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 1,
+            "latticePoints": 45,
+            "minimum": -0.09564416538866494,
+            "refinementAttempts": 5
+          }
+        },
+        {
+          "T_K": 323.2,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.07157230245759964,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.10921866633623854,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.05211931075957288,
+          "id": "analogue-215",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.05211931075957288,
+            "homogeneousReducedGibbs": -0.3394387989322435,
+            "isoactivityMax": 1.9294774111777713e-11,
+            "isoactivityResiduals": [
+              8.1556983388964e-12,
+              4.3539616356724764e-12,
+              1.9294774111777713e-11
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 1.010036431945542e-11,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.696275376420134,
+                      0.09853959020732243,
+                      0.0,
+                      0.0,
+                      0.2051850333725435
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": 1.010036431945542e-11
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 5.417032327498445e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.6962754658545395,
+                      0.09853959023077168,
+                      0.0,
+                      0.0,
+                      0.20518494391468878
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": 5.417032327498445e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.39155810969181637
+          },
+          "isoactivityMax": 1.92918216124216e-11,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 1,
+            "latticePoints": 45,
+            "minimum": -0.09484650380464318,
+            "refinementAttempts": 5
+          }
+        },
+        {
+          "T_K": 323.2,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.08714432446362795,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.12051578351930226,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.04235978805498858,
+          "id": "analogue-216",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.04235978805498841,
+            "homogeneousReducedGibbs": -0.3996621649063503,
+            "isoactivityMax": 6.794080575911465e-11,
+            "isoactivityResiduals": [
+              4.1317615995239976e-11,
+              4.139799614222284e-11,
+              6.794080575911465e-11
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 4.705397472320612e-11,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.6650198370351346,
+                      0.12011078928804769,
+                      0.0,
+                      0.0,
+                      0.2148693736768178
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": 4.705397472320612e-11
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": -2.451519797091226e-15,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.6650198899130755,
+                      0.12011074194214835,
+                      0.0,
+                      0.0,
+                      0.2148693681447762
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": -2.451519797091226e-15
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.4420219529613387
+          },
+          "isoactivityMax": 6.793825224615802e-11,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 1,
+            "latticePoints": 45,
+            "minimum": -0.09440218120225966,
+            "refinementAttempts": 5
+          }
+        },
+        {
+          "T_K": 323.2,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.12255963996258504,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.14292168016235618,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.026836785401422036,
+          "id": "analogue-217",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.026836785401418872,
+            "homogeneousReducedGibbs": -0.4914569233761128,
+            "isoactivityMax": 3.164402073707606e-11,
+            "isoactivityResiduals": [
+              -2.899858131399924e-11,
+              -1.9188761690713818e-11,
+              -3.164402073707606e-11
+            ],
+            "massBalanceMax": 1.1102230246251565e-16,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.1102230246251565e-16
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": -2.808461486927212e-11,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.6099967564702012,
+                      0.15635679996844976,
+                      0.0,
+                      0.0,
+                      0.23364644356134906
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": -2.808461486927212e-11
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 1.0380641721756258e-13,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.6099964596363147,
+                      0.156356879123015,
+                      0.0,
+                      0.0,
+                      0.23364666124067038
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": 1.0380641721756258e-13
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.5182937087775317
+          },
+          "isoactivityMax": 3.1644881159920146e-11,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.08876749469593512,
+            "refinementAttempts": 6
+          }
+        },
+        {
+          "T_K": 323.2,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.15073846886878972,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.15850261242262945,
+          "conservationMax": 2.7755575615628914e-17,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.019634838576586877,
+          "id": "analogue-218",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.019634838576590763,
+            "homogeneousReducedGibbs": -0.5434498706549409,
+            "isoactivityMax": 3.4865443865328416e-12,
+            "isoactivityResiduals": [
+              -3.4865443865328416e-12,
+              -1.4301893003221267e-12,
+              -3.3950064981524974e-12
+            ],
+            "massBalanceMax": 2.7755575615628914e-17,
+            "massBalanceResiduals": [
+              2.7755575615628914e-17,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 1.6325789467455896e-13,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.059986424060800105,
+                      0.13006416266597,
+                      0.0,
+                      0.0,
+                      0.8099494132732299
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 1.6325789467455896e-13
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 3.287288548058991e-12,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.05998642844660888,
+                      0.13006417564188774,
+                      0.0,
+                      0.0,
+                      0.8099493959115034
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 3.287288548058991e-12
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.5630847092315316
+          },
+          "isoactivityMax": 3.496314349149543e-12,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.0757453307508916,
+            "refinementAttempts": 7
+          }
+        },
+        {
+          "T_K": 323.2,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.17053860239437,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.16859151935688124,
+          "conservationMax": 5.551115123125783e-17,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.015829522275314534,
+          "id": "analogue-219",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.015829522275314534,
+            "homogeneousReducedGibbs": -0.5817818614107556,
+            "isoactivityMax": 1.407346461590464e-13,
+            "isoactivityResiduals": [
+              -6.217248937900877e-15,
+              -3.3639757646142243e-14,
+              -1.407346461590464e-13
+            ],
+            "massBalanceMax": 5.551115123125783e-17,
+            "massBalanceResiduals": [
+              5.551115123125783e-17,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 9.785643626480822e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.06517811880907749,
+                      0.1437660398907754,
+                      0.0,
+                      0.0,
+                      0.7910558413001472
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 9.785643626480822e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 2.195791431608429e-13,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.06517809827377453,
+                      0.14376604009818764,
+                      0.0,
+                      0.0,
+                      0.7910558616280379
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 2.195791431608429e-13
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.5976113836860701
+          },
+          "isoactivityMax": 1.4162282457874653e-13,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.06178483647768304,
+            "refinementAttempts": 7
+          }
+        }
+      ],
+      "temperature_K": 323.2
+    },
+    "trueUnseenSystem": {
+      "identities": [
+        "n-dodecane",
+        "n-propylbenzene"
+      ],
+      "metrics": {
+        "activeEndpointComponentCount": 144,
+        "rows": 28,
+        "tieLineRmsd": 0.09826348296302705,
+        "tieLineRmsdFormula": "sqrt(sum((predicted-measured)^2) / N) over both endpoints and active components only",
+        "topologyRecall": 0.8571428571428571,
+        "twoPhase": 24
+      },
+      "rows": [
+        {
+          "T_K": 298,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": null,
+          "ambiguityComparisons": [],
+          "compositionRmsd": null,
+          "conservationMax": null,
+          "diagnosticStatus": "FAIL_NONCONVERGED_OR_BOUNDARY",
+          "gibbsDecrease": null,
+          "id": "analogue-1",
+          "independentFinalPhaseChecks": null,
+          "isoactivityMax": null,
+          "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
+          "qualificationOutcome": "FAIL",
+          "qualified": false,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.1333894149042279,
+            "refinementAttempts": 9
+          }
+        },
+        {
+          "T_K": 298,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.026035673092452298,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.06587320281223656,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.08600584123091021,
+          "id": "analogue-2",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.08600584123091032,
+            "homogeneousReducedGibbs": -0.2615053248859959,
+            "isoactivityMax": 1.5289991495137656e-12,
+            "isoactivityResiduals": [
+              1.5289991495137656e-12,
+              9.352518759442319e-13,
+              7.220612996405862e-13
+            ],
+            "massBalanceMax": 6.938893903907228e-18,
+            "massBalanceResiduals": [
+              0.0,
+              6.938893903907228e-18,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 6.128139536602507e-15,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.05762995912274071,
+                      0.03158330384272712,
+                      0.0,
+                      0.0,
+                      0.9107867370345322
+                    ],
+                    "latticeIndex": 9,
+                    "tpd": 6.128139536602507e-15
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": -7.731034432831714e-13,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.057629981892439223,
+                      0.031583302132482095,
+                      0.0,
+                      0.0,
+                      0.9107867159750788
+                    ],
+                    "latticeIndex": 9,
+                    "tpd": -7.731034432831714e-13
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.34751116611690624
+          },
+          "isoactivityMax": 1.5289991495137656e-12,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.12434496465203365,
+            "refinementAttempts": 6
+          }
+        },
+        {
+          "T_K": 298,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.023621909846462577,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.0627453980337238,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.06941771999526403,
+          "id": "analogue-3",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.0694177199952637,
+            "homogeneousReducedGibbs": -0.44868805492870045,
+            "isoactivityMax": 8.29771806820645e-11,
+            "isoactivityResiduals": [
+              8.29771806820645e-11,
+              3.111422230972494e-11,
+              4.450748797291126e-12
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 6.978987467236574e-11,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.803354253590428,
+                      0.08403197391002146,
+                      0.0,
+                      0.0,
+                      0.11261377249955047
+                    ],
+                    "latticeIndex": 40,
+                    "tpd": 6.978987467236574e-11
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 3.412130283820835e-16,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.803354222151753,
+                      0.08403198331321404,
+                      0.0,
+                      0.0,
+                      0.11261379453503294
+                    ],
+                    "latticeIndex": 40,
+                    "tpd": 3.412130283820835e-16
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.5181057749239641
+          },
+          "isoactivityMax": 8.29771806820645e-11,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 1,
+            "latticePoints": 45,
+            "minimum": -0.1063334030816434,
+            "refinementAttempts": 3
+          }
+        },
+        {
+          "T_K": 298,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.025454183745080575,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.06513343194944843,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.050822519073635,
+          "id": "analogue-4",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.05082251907363522,
+            "homogeneousReducedGibbs": -0.655181451233076,
+            "isoactivityMax": 2.6556534749033744e-12,
+            "isoactivityResiduals": [
+              2.6556534749033744e-12,
+              1.4388490399142029e-12,
+              3.3373998009622596e-13
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 2.2626731140012943e-12,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7506934693788169,
+                      0.12326942180636499,
+                      0.0,
+                      0.0,
+                      0.12603710881481814
+                    ],
+                    "latticeIndex": 40,
+                    "tpd": 2.2626731140012943e-12
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 2.0633998850278292e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7506935954300178,
+                      0.1232694096987579,
+                      0.0,
+                      0.0,
+                      0.12603699487122427
+                    ],
+                    "latticeIndex": 40,
+                    "tpd": 2.0633998850278292e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.7060039703067112
+          },
+          "isoactivityMax": 2.6547652964836743e-12,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.08625110541816382,
+            "refinementAttempts": 4
+          }
+        },
+        {
+          "T_K": 298,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.02831102218314577,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.06869136552137366,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.042850877614633576,
+          "id": "analogue-5",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.04285087761463979,
+            "homogeneousReducedGibbs": -0.7429025947017273,
+            "isoactivityMax": 1.2954082251326327e-12,
+            "isoactivityResiduals": [
+              1.2954082251326327e-12,
+              6.572520305780927e-13,
+              -1.7554707687494897e-13
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 1.009309791802576e-12,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7261912340427601,
+                      0.14082815725219705,
+                      0.0,
+                      0.0,
+                      0.13298060870504297
+                    ],
+                    "latticeIndex": 40,
+                    "tpd": 1.009309791802576e-12
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 1.7356956851735423e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7261913239983115,
+                      0.14082813201142463,
+                      0.0,
+                      0.0,
+                      0.13298054399026393
+                    ],
+                    "latticeIndex": 40,
+                    "tpd": 1.7356956851735423e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.785753472316367
+          },
+          "isoactivityMax": 1.2922996006636822e-12,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.07866108203799824,
+            "refinementAttempts": 6
+          }
+        },
+        {
+          "T_K": 298,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.03002913299676751,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.07074500335331996,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.034286078587886015,
+          "id": "analogue-6",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.034286078587886015,
+            "homogeneousReducedGibbs": -0.8440803545172373,
+            "isoactivityMax": 3.537378723272866e-11,
+            "isoactivityResiduals": [
+              3.5158542743829457e-12,
+              1.5059065106015623e-12,
+              -3.537378723272866e-11
+            ],
+            "massBalanceMax": 1.1102230246251565e-16,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              -1.1102230246251565e-16
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 2.3242544698860844e-13,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.08642771127439795,
+                      0.1269734694564611,
+                      0.0,
+                      0.0,
+                      0.786598819269141
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 2.3242544698860844e-13
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 2.7692166718980122e-11,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.08642777696314782,
+                      0.12697350403328517,
+                      0.0,
+                      0.0,
+                      0.786598719003567
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 2.7692166718980122e-11
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.8783664331051233
+          },
+          "isoactivityMax": 3.537623666227674e-11,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.067086519613211,
+            "refinementAttempts": 5
+          }
+        },
+        {
+          "T_K": 298,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.03248903960625137,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.07358559597078242,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.029015278864773064,
+          "id": "analogue-7",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.0290152788647694,
+            "homogeneousReducedGibbs": -0.9124039418396093,
+            "isoactivityMax": 1.4984014029550963e-11,
+            "isoactivityResiduals": [
+              1.4984014029550963e-11,
+              1.1660894472242944e-11,
+              1.1565068347429985e-11
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 2.1868815746219734e-15,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.09212429353637086,
+                      0.1412792906184841,
+                      0.0,
+                      0.0,
+                      0.7665964158451452
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 2.1868815746219734e-15
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": -1.1890191611255464e-11,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.09212422126142308,
+                      0.141279258551819,
+                      0.0,
+                      0.0,
+                      0.766596520186758
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": -1.1890191611255464e-11
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.9414192207043787
+          },
+          "isoactivityMax": 1.4991563546118414e-11,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.05769005819145651,
+            "refinementAttempts": 5
+          }
+        },
+        {
+          "T_K": 298,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.039484975214178916,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.08112231013946258,
+          "conservationMax": 1.1102230246251565e-16,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.021954442971320764,
+          "id": "analogue-8",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.021954442971320542,
+            "homogeneousReducedGibbs": -1.0017826807923877,
+            "isoactivityMax": 2.2651147624230816e-10,
+            "isoactivityResiduals": [
+              2.2651147624230816e-10,
+              1.2029044427208646e-10,
+              1.589414849734183e-10
+            ],
+            "massBalanceMax": 1.1102230246251565e-16,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              1.1102230246251565e-16
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 6.826634840697493e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.10112848112933326,
+                      0.16173980927929985,
+                      0.0,
+                      0.0,
+                      0.7371317095913669
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 6.826634840697493e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": -1.59504557821869e-10,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.10112856910407082,
+                      0.16173985503665436,
+                      0.0,
+                      0.0,
+                      0.7371315758592748
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": -1.59504557821869e-10
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -1.0237371237637083
+          },
+          "isoactivityMax": 2.2651236442072786e-10,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.048054401034539576,
+            "refinementAttempts": 4
+          }
+        },
+        {
+          "T_K": 308,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": null,
+          "ambiguityComparisons": [],
+          "compositionRmsd": null,
+          "conservationMax": null,
+          "diagnosticStatus": "FAIL_NONCONVERGED_OR_BOUNDARY",
+          "gibbsDecrease": null,
+          "id": "analogue-9",
+          "independentFinalPhaseChecks": null,
+          "isoactivityMax": null,
+          "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
+          "qualificationOutcome": "FAIL",
+          "qualified": false,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.11232732786628148,
+            "refinementAttempts": 9
+          }
+        },
+        {
+          "T_K": 308,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.028584920384868286,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.06902284692388491,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.06830277079351166,
+          "id": "analogue-10",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.06830277079351177,
+            "homogeneousReducedGibbs": -0.2643101447213562,
+            "isoactivityMax": 2.669982290814943e-13,
+            "isoactivityResiduals": [
+              1.545430450278218e-13,
+              4.218847493575595e-14,
+              -2.669982290814943e-13
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 9.613963979779124e-15,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.06619120107134412,
+                      0.02969786052659733,
+                      0.0,
+                      0.0,
+                      0.9041109384020585
+                    ],
+                    "latticeIndex": 9,
+                    "tpd": 9.613963979779124e-15
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 2.4104674666382126e-13,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.06619118055308731,
+                      0.02969786174747084,
+                      0.0,
+                      0.0,
+                      0.9041109576994419
+                    ],
+                    "latticeIndex": 9,
+                    "tpd": 2.4104674666382126e-13
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.332612915514868
+          },
+          "isoactivityMax": 2.6688720677903177e-13,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.10048646215722985,
+            "refinementAttempts": 3
+          }
+        },
+        {
+          "T_K": 308,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.04044817268636336,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.08210579829947391,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.05049201584177576,
+          "id": "analogue-11",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.05049201584177576,
+            "homogeneousReducedGibbs": -0.4794539454370311,
+            "isoactivityMax": 2.567723811353062e-12,
+            "isoactivityResiduals": [
+              2.5002222514558525e-12,
+              1.1466383398328617e-12,
+              -2.567723811353062e-12
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 1.7065337445780158e-12,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7827981587556101,
+                      0.07787090019186597,
+                      0.0,
+                      0.0,
+                      0.13933094105252405
+                    ],
+                    "latticeIndex": 40,
+                    "tpd": 1.7065337445780158e-12
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 5.5574643007804107e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7827983347852542,
+                      0.0778708542522906,
+                      0.0,
+                      0.0,
+                      0.1393308109624552
+                    ],
+                    "latticeIndex": 40,
+                    "tpd": 5.5574643007804107e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.5299459612788069
+          },
+          "isoactivityMax": 2.567723811353062e-12,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 1,
+            "latticePoints": 45,
+            "minimum": -0.09027132352421793,
+            "refinementAttempts": 3
+          }
+        },
+        {
+          "T_K": 308,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.04831901360378898,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.08973945026555952,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.03633322778247572,
+          "id": "analogue-12",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.03633322778247572,
+            "homogeneousReducedGibbs": -0.6578023144277108,
+            "isoactivityMax": 2.3700569284912376e-11,
+            "isoactivityResiduals": [
+              1.729638654524024e-11,
+              9.598100092489403e-12,
+              2.3700569284912376e-11
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 1.7727070581359157e-11,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7368405142401321,
+                      0.10962148057747564,
+                      0.0,
+                      0.0,
+                      0.15353800518239227
+                    ],
+                    "latticeIndex": 40,
+                    "tpd": 1.7727070581359157e-11
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 3.3039746031673436e-13,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7368404827584645,
+                      0.10962147058819123,
+                      0.0,
+                      0.0,
+                      0.15353804665334433
+                    ],
+                    "latticeIndex": 40,
+                    "tpd": 3.3039746031673436e-13
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.6941355422101865
+          },
+          "isoactivityMax": 2.3708986163217816e-11,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 1,
+            "latticePoints": 45,
+            "minimum": -0.07553062671256816,
+            "refinementAttempts": 3
+          }
+        },
+        {
+          "T_K": 308,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.054900340685440634,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.09565592914663874,
+          "conservationMax": 5.551115123125783e-17,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.02769705246306764,
+          "id": "analogue-13",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.027697052463067418,
+            "homogeneousReducedGibbs": -0.7732700152783877,
+            "isoactivityMax": 2.3233148738199816e-10,
+            "isoactivityResiduals": [
+              2.3233148738199816e-10,
+              1.099351720768027e-10,
+              1.8404799906335256e-10
+            ],
+            "massBalanceMax": 1.1102230246251565e-16,
+            "massBalanceResiduals": [
+              5.551115123125783e-17,
+              0.0,
+              0.0,
+              0.0,
+              1.1102230246251565e-16
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 5.365853751115882e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.09552030546045231,
+                      0.10930885911422637,
+                      0.0,
+                      0.0,
+                      0.7951708354253213
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 5.365853751115882e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": -1.8050788501279795e-10,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.09552032709396277,
+                      0.10930886098888774,
+                      0.0,
+                      0.0,
+                      0.7951708119171494
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": -1.8050788501279795e-10
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.8009670677414551
+          },
+          "isoactivityMax": 2.3232971102515876e-10,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.0643723506244586,
+            "refinementAttempts": 6
+          }
+        },
+        {
+          "T_K": 308,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.05903352451804817,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.0991913340620441,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.023471732129585976,
+          "id": "analogue-14",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.023471732129585976,
+            "homogeneousReducedGibbs": -0.8331052836657531,
+            "isoactivityMax": 5.247136058983415e-12,
+            "isoactivityResiduals": [
+              -5.247136058983415e-12,
+              -1.972200180944128e-12,
+              -3.5036973322633003e-12
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 1.4742075874995511e-15,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.10098559289249472,
+                      0.12084451112746604,
+                      0.0,
+                      0.0,
+                      0.7781698959800393
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 1.4742075874995511e-15
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 3.5019316699957176e-12,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.10098564804734488,
+                      0.12084453285203745,
+                      0.0,
+                      0.0,
+                      0.7781698191006176
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 3.5019316699957176e-12
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.8565770157953391
+          },
+          "isoactivityMax": 5.254241486341016e-12,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.05813258176428419,
+            "refinementAttempts": 6
+          }
+        },
+        {
+          "T_K": 308,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.0669511869118972,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.10563394886106865,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.01757990586958591,
+          "id": "analogue-15",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.017579905869585022,
+            "homogeneousReducedGibbs": -0.9221922799792549,
+            "isoactivityMax": 2.0834692304738667e-10,
+            "isoactivityResiduals": [
+              -7.769496157550293e-11,
+              -4.898925709539981e-11,
+              -2.0834692304738667e-10
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 1.2053802213145868e-13,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.11041775731595861,
+                      0.13896938588854135,
+                      0.0,
+                      0.0,
+                      0.7506128567955
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 1.2053802213145868e-13
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 1.7187194564896168e-10,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.1104177833459526,
+                      0.13896940320026982,
+                      0.0,
+                      0.0,
+                      0.7506128134537776
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 1.7187194564896168e-10
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.9397721858488399
+          },
+          "isoactivityMax": 2.0834621528020847e-10,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.04838245478536217,
+            "refinementAttempts": 4
+          }
+        },
+        {
+          "T_K": 308,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.07189094777776255,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.10946152122836175,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.014965071556694576,
+          "id": "analogue-16",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.014965071556694576,
+            "homogeneousReducedGibbs": -0.9648880411044809,
+            "isoactivityMax": 4.941938247515765e-10,
+            "isoactivityResiduals": [
+              2.590589964768242e-10,
+              2.2184032388850028e-10,
+              4.941938247515765e-10
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 2.2736456237457123e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.11560233391472526,
+                      0.14807558230942577,
+                      0.0,
+                      0.0,
+                      0.7363220837758491
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 2.2736456237457123e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": -4.2657425175129213e-10,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.11560218660015412,
+                      0.14807553619352634,
+                      0.0,
+                      0.0,
+                      0.7363222772063196
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": -4.2657425175129213e-10
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.9798531126611755
+          },
+          "isoactivityMax": 4.941948239522986e-10,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.043520491893896035,
+            "refinementAttempts": 4
+          }
+        },
+        {
+          "T_K": 318,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": null,
+          "ambiguityComparisons": [],
+          "compositionRmsd": null,
+          "conservationMax": null,
+          "diagnosticStatus": "FAIL_NONCONVERGED_OR_BOUNDARY",
+          "gibbsDecrease": null,
+          "id": "analogue-17",
+          "independentFinalPhaseChecks": null,
+          "isoactivityMax": null,
+          "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
+          "qualificationOutcome": "FAIL",
+          "qualified": false,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.08296341557734685,
+            "refinementAttempts": 8
+          }
+        },
+        {
+          "T_K": 318,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.02354394050104585,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.06264175990110464,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.05123845480241268,
+          "id": "analogue-18",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.05123845480240813,
+            "homogeneousReducedGibbs": -0.29520100064233923,
+            "isoactivityMax": 1.1008349787289262e-10,
+            "isoactivityResiduals": [
+              1.1008349787289262e-10,
+              4.466782499434885e-11,
+              8.239413318289479e-11
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 5.295101381522795e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.07754553507858318,
+                      0.03084450314742203,
+                      0.0,
+                      0.0,
+                      0.8916099617739948
+                    ],
+                    "latticeIndex": 9,
+                    "tpd": 5.295101381522795e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": -8.326143463610574e-11,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.07754558847198505,
+                      0.03084452196428045,
+                      0.0,
+                      0.0,
+                      0.8916098895637345
+                    ],
+                    "latticeIndex": 9,
+                    "tpd": -8.326143463610574e-11
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.34643945544474736
+          },
+          "isoactivityMax": 1.1008260969447292e-10,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.06735700060760919,
+            "refinementAttempts": 3
+          }
+        },
+        {
+          "T_K": 318,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.025396512000181927,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.06505960344200018,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.03582457504288772,
+          "id": "analogue-19",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.03582457504288772,
+            "homogeneousReducedGibbs": -0.5260078805190301,
+            "isoactivityMax": 4.633005090681763e-11,
+            "isoactivityResiduals": [
+              4.633005090681763e-11,
+              -2.0947688028627454e-12,
+              -7.787451239416043e-13
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 3.4768298669275413e-11,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7537555982136092,
+                      0.07413750934263046,
+                      0.0,
+                      0.0,
+                      0.1721068924437605
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": 3.4768298669275413e-11
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 7.816683492302548e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.753755624842369,
+                      0.07413747562138409,
+                      0.0,
+                      0.0,
+                      0.17210689953624692
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": 7.816683492302548e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.5618324555619179
+          },
+          "isoactivityMax": 4.632072503341078e-11,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 1,
+            "latticePoints": 45,
+            "minimum": -0.05065053932875092,
+            "refinementAttempts": 1
+          }
+        },
+        {
+          "T_K": 318,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.034976594021513575,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.07635071929536047,
+          "conservationMax": 1.3877787807814457e-17,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.028798414146730344,
+          "id": "analogue-20",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.028798414146730233,
+            "homogeneousReducedGibbs": -0.6328494533868649,
+            "isoactivityMax": 4.514791318577238e-13,
+            "isoactivityResiduals": [
+              -4.347633364432113e-13,
+              -3.2374103398069565e-13,
+              -4.514791318577238e-13
+            ],
+            "massBalanceMax": 1.3877787807814457e-17,
+            "massBalanceResiduals": [
+              0.0,
+              -1.3877787807814457e-17,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": -4.29299049309278e-13,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7259348274531396,
+                      0.09179001724028912,
+                      0.0,
+                      0.0,
+                      0.18227515530657118
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": -4.29299049309278e-13
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 4.4289376823027763e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7259350531794332,
+                      0.09178996054930497,
+                      0.0,
+                      0.0,
+                      0.18227498627126182
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": 4.4289376823027763e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.6616478675335952
+          },
+          "isoactivityMax": 4.5236731027742394e-13,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 1,
+            "latticePoints": 45,
+            "minimum": -0.04481056057151967,
+            "refinementAttempts": 2
+          }
+        },
+        {
+          "T_K": 318,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.04994406322656476,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.09123601557368007,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.01668995047943811,
+          "id": "analogue-21",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.016689950479438553,
+            "homogeneousReducedGibbs": -0.8447935803815676,
+            "isoactivityMax": 3.3987396230727995e-12,
+            "isoactivityResiduals": [
+              -1.5414336473895673e-12,
+              -1.0240697179142444e-12,
+              -3.3987396230727995e-12
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 3.7953499802515734e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.11970563122790008,
+                      0.11646273366138833,
+                      0.0,
+                      0.0,
+                      0.7638316351107116
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 3.7953499802515734e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 2.9127844489139145e-12,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.11970551954773861,
+                      0.1164626821674854,
+                      0.0,
+                      0.0,
+                      0.7638317982847761
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 2.9127844489139145e-12
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.8614835308610062
+          },
+          "isoactivityMax": 3.3972269442017478e-12,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.026676465605866086,
+            "refinementAttempts": 6
+          }
+        },
+        {
+          "T_K": 318,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.07526573654012736,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.11200129206109437,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.014211277587432347,
+          "id": "analogue-22",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.014211277587431903,
+            "homogeneousReducedGibbs": -0.8912755648770929,
+            "isoactivityMax": 1.4411954962767481e-10,
+            "isoactivityResiduals": [
+              6.212030889685138e-11,
+              4.354339111500849e-11,
+              1.4411954962767481e-10
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 4.965572655163893e-15,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.12561905527600864,
+                      0.12531301754319688,
+                      0.0,
+                      0.0,
+                      0.7490679271807945
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 4.965572655163893e-15
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": -1.212113124833609e-10,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.12561902952949955,
+                      0.12531301444652224,
+                      0.0,
+                      0.0,
+                      0.7490679560239782
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": -1.212113124833609e-10
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.9054868424645248
+          },
+          "isoactivityMax": 1.4412228355187295e-10,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.023898207408269718,
+            "refinementAttempts": 5
+          }
+        },
+        {
+          "T_K": 318,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.19476363678545064,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.18016827170983363,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.0072188790947098624,
+          "id": "analogue-23",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.00721887909470964,
+            "homogeneousReducedGibbs": -1.040496922625362,
+            "isoactivityMax": 1.2217171718731379e-12,
+            "isoactivityResiduals": [
+              4.989342272665453e-13,
+              8.881784197001252e-14,
+              -1.2217171718731379e-12
+            ],
+            "massBalanceMax": 1.1102230246251565e-16,
+            "massBalanceResiduals": [
+              5.551115123125783e-17,
+              2.7755575615628914e-17,
+              0.0,
+              0.0,
+              1.1102230246251565e-16
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 1.7579305685748818e-13,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.14947349827663325,
+                      0.15563331314036294,
+                      0.0,
+                      0.0,
+                      0.6948931885830038
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 1.7579305685748818e-13
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 9.785903936116777e-13,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.14947381448034433,
+                      0.15563338594161047,
+                      0.0,
+                      0.0,
+                      0.6948927995780452
+                    ],
+                    "latticeIndex": 10,
+                    "tpd": 9.785903936116777e-13
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -1.0477158017200716
+          },
+          "isoactivityMax": 1.2225498391416068e-12,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.014970361257612617,
+            "refinementAttempts": 3
+          }
+        },
+        {
+          "T_K": 328,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": null,
+          "ambiguityComparisons": [],
+          "compositionRmsd": null,
+          "conservationMax": null,
+          "diagnosticStatus": "FAIL_NONCONVERGED_OR_BOUNDARY",
+          "gibbsDecrease": null,
+          "id": "analogue-24",
+          "independentFinalPhaseChecks": null,
+          "isoactivityMax": null,
+          "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
+          "qualificationOutcome": "FAIL",
+          "qualified": false,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 2,
+            "latticePoints": 45,
+            "minimum": -0.08000348425706766,
+            "refinementAttempts": 7
+          }
+        },
+        {
+          "T_K": 328,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.07627040473230627,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.11274632642375114,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.03329854232724383,
+          "id": "analogue-25",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.03329854232724383,
+            "homogeneousReducedGibbs": -0.33455841749460535,
+            "isoactivityMax": 4.6274006848534555e-10,
+            "isoactivityResiduals": [
+              4.6274006848534555e-10,
+              4.6572523615395767e-11,
+              3.4561781214748066e-10
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 7.977850951909052e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.09243753042077173,
+                      0.03352948602057505,
+                      0.0,
+                      0.0,
+                      0.8740329835586532
+                    ],
+                    "latticeIndex": 9,
+                    "tpd": 7.977850951909052e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": -3.4628576156377273e-10,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.09243747207362242,
+                      0.03352947967190922,
+                      0.0,
+                      0.0,
+                      0.8740330482544684
+                    ],
+                    "latticeIndex": 9,
+                    "tpd": -3.4628576156377273e-10
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.3678569598218492
+          },
+          "isoactivityMax": 4.6274628573428345e-10,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 1,
+            "latticePoints": 45,
+            "minimum": -0.06650717741230569,
+            "refinementAttempts": 2
+          }
+        },
+        {
+          "T_K": 328,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.08103003502203393,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.11621104008228157,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.02191734199267492,
+          "id": "analogue-26",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.02191734199267492,
+            "homogeneousReducedGibbs": -0.5384228978493218,
+            "isoactivityMax": 3.2311930908690556e-12,
+            "isoactivityResiduals": [
+              3.2311930908690556e-12,
+              -4.303224443447107e-13,
+              5.394157343019401e-13
+            ],
+            "massBalanceMax": 1.3877787807814457e-17,
+            "massBalanceResiduals": [
+              0.0,
+              1.3877787807814457e-17,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 2.419466613711991e-12,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7233261629721565,
+                      0.0675018936159755,
+                      0.0,
+                      0.0,
+                      0.20917194341186798
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": 2.419466613711991e-12
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 3.075815322717923e-15,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.7233260265645826,
+                      0.06750188487642425,
+                      0.0,
+                      0.0,
+                      0.20917208855899325
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": 3.075815322717923e-15
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.5603402398419968
+          },
+          "isoactivityMax": 3.2303049124493555e-12,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 1,
+            "latticePoints": 45,
+            "minimum": -0.0511642320147035,
+            "refinementAttempts": 2
+          }
+        },
+        {
+          "T_K": 328,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.0945841092019587,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.12555484140536538,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.01514984304566791,
+          "id": "analogue-27",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.015149843045663691,
+            "homogeneousReducedGibbs": -0.6704653432818044,
+            "isoactivityMax": 9.315862248282514e-10,
+            "isoactivityResiduals": [
+              8.355052205644142e-10,
+              5.019855642274251e-10,
+              9.315862248282514e-10
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 8.27715143044046e-10,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.6867890031633308,
+                      0.08818711638317069,
+                      0.0,
+                      0.0,
+                      0.22502388045349853
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": 8.27715143044046e-10
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 4.983078188470102e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.6867886784937179,
+                      0.08818715378215175,
+                      0.0,
+                      0.0,
+                      0.2250241677241304
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": 4.983078188470102e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.6856151863274681
+          },
+          "isoactivityMax": 9.315868909620661e-10,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 1,
+            "latticePoints": 45,
+            "minimum": -0.040787161829584015,
+            "refinementAttempts": 3
+          }
+        },
+        {
+          "T_K": 328,
+          "activeEndpointComponentCount": 6,
+          "activeEndpointSquaredError": 0.15909346481592415,
+          "ambiguityComparisons": [],
+          "compositionRmsd": 0.16283604474845456,
+          "conservationMax": 0.0,
+          "diagnosticStatus": "PASS",
+          "gibbsDecrease": 0.01052298093276327,
+          "id": "analogue-28",
+          "independentFinalPhaseChecks": {
+            "gibbsDecrease": 0.010522980932763049,
+            "homogeneousReducedGibbs": -0.7688797722256423,
+            "isoactivityMax": 2.091976591955813e-11,
+            "isoactivityResiduals": [
+              -9.308775972272088e-12,
+              -2.112088282046898e-12,
+              -2.091976591955813e-11
+            ],
+            "massBalanceMax": 0.0,
+            "massBalanceResiduals": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "pass": true,
+            "postSplitTPD": {
+              "NMP_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": -1.133391547848466e-11,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.6565160069137401,
+                      0.10435472314576277,
+                      0.0,
+                      0.0,
+                      0.2391292699404972
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": -1.133391547848466e-11
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              },
+              "RRBO_rich": {
+                "competitivePoints": 1,
+                "distinctRefinedBasins": 1,
+                "latticePointCount": 45,
+                "latticePointsEvaluated": 45,
+                "minimum": 3.525750549490887e-14,
+                "refinedBasins": [
+                  {
+                    "composition": [
+                      0.6565163006229289,
+                      0.10435470667687667,
+                      0.0,
+                      0.0,
+                      0.23912899270019447
+                    ],
+                    "latticeIndex": 36,
+                    "tpd": 3.525750549490887e-14
+                  }
+                ],
+                "refinementAttempts": 1,
+                "refinementSuccesses": 1
+              }
+            },
+            "totalReducedGibbs": -0.7794027531584053
+          },
+          "isoactivityMax": 2.0919044274592125e-11,
+          "phaseBehavior": "PREDICTED_TWO_PHASE",
+          "qualificationOutcome": "PASS",
+          "qualified": true,
+          "seedContractPass": true,
+          "tpd": {
+            "distinctRefinedBasins": 1,
+            "latticePoints": 45,
+            "minimum": -0.033182552624470264,
+            "refinementAttempts": 3
+          }
+        }
+      ]
+    }
+  },
+  "integratedIntoSimulator": false,
+  "leakageChecks": {
+    "heldTemperaturePresentInTrain": false,
+    "leaveTemperatureOutCount": 8,
+    "status": "PASS",
+    "trainCount": 183,
+    "trainHoldoutIdIntersection": [],
+    "unseenIdentityPresentInTrain": false,
+    "unseenSystemCount": 28
+  },
+  "model": {
+    "flashRequirements": [
+      "TPD lattice and refinement",
+      "Gibbs minimization and decrease",
+      "component conservation",
+      "isoactivity",
+      "ambiguity rejection",
+      "independent final-phase TPD/Gibbs checks"
+    ],
+    "parameterCount": 20,
+    "parameterization": "directed family-pair intercepts plus shared source/target molecular descriptor slopes",
+    "qualifiedFlashImplementation": "server/research/ecr-pre-pilot-uniquac/run.py",
+    "thermodynamics": "standard Abrams-Prausnitz UNIQUAC"
+  },
+  "sources": {
+    "descriptorRegistry": {
+      "path": "server/research/ecr-pre-pilot-descriptor-transfer/descriptor-registry.json",
+      "sha256": "ea91b8dd73cc78c99cd293b43ebeb226e3a21c89baea67fdb666fd5eaf54b38b"
+    },
+    "fitStart": {
+      "path": "server/research/ecr-pre-pilot-descriptor-transfer/fit-start.json",
+      "role": "neutral all-zero initialization; not accepted as fitted parameters",
+      "sha256": "f61225f0ed53cbf927eab607d45beb94bf316b311bdec2e42a25ef9e4b02c38c"
+    },
+    "frozenHoldouts": {
+      "path": "server/research/ecr-pre-pilot-descriptor-transfer/frozen-holdouts.json",
+      "sha256": "4f6c6a4397ff9751b25281ea1ee58680c42b4542e468fb995b0883cd6016c7db"
+    },
+    "frozenProtocol": {
+      "claim": "Task-local pre-fit protocol declaration that must be frozen by a dedicated repository commit before the final evidence run. Repository content identity is enforced by SHA-256; no external timestamp or independent preregistration claim is made.",
+      "path": "server/research/ecr-pre-pilot-descriptor-transfer/frozen-protocol.json",
+      "sha256": "56e8f0a5aeeca7e151b099c29a04374ddbe8678cd14db8d0ec4e9225d1d5f943"
+    },
+    "qualifiedUniquac": {
+      "path": "server/research/ecr-pre-pilot-uniquac/run.py",
+      "sha256": "50493678f405ec07bba8a21a3f7a454750233de10ef03e254e5c7467b10ac8a7"
+    },
+    "registrationReference": {
+      "freezeCommit": "fa83d54bdb3cd7e180be8a0c881f23d536a66b41",
+      "path": "server/research/ecr-pre-pilot-descriptor-transfer/registration-commit.txt"
+    },
+    "tieLines": {
+      "path": "server/engine-framework/cel/data/multi-t-nmp-lle.json",
+      "sha256": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28"
+    }
+  },
+  "uncertainty": {
+    "conclusion": "not decision-grade outside admitted coordinate support; sensitivity is local and intentionally bounded",
+    "method": "linearized fit covariance plus frozen external holdouts",
+    "predictionSensitivity": {
+      "boundMarginCapFactor": 1.0,
+      "leadingCovarianceEigenvalue": 5.850701687100758,
+      "limitations": "Local covariance, one leading direction, and five preregistered sentinels are a bounded sensitivity analysis, not calibrated predictive intervals; no sensitivity result can rescue nominal gates.",
+      "method": "Leading local-covariance eigenvector, plus/minus one local standard error capped to 25% of parameter-bound margin",
+      "minus": {
+        "metrics": {
+          "activeEndpointComponentCount": 18,
+          "rows": 5,
+          "tieLineRmsd": 0.14718672493139057,
+          "tieLineRmsdFormula": "sqrt(sum((predicted-measured)^2) / N) over both endpoints and active components only",
+          "topologyRecall": 0.6,
+          "twoPhase": 3
+        },
+        "rows": [
+          {
+            "T_K": 298,
+            "activeEndpointComponentCount": 6,
+            "activeEndpointSquaredError": null,
+            "ambiguityComparisons": [],
+            "compositionRmsd": null,
+            "conservationMax": null,
+            "diagnosticStatus": "FAIL_NONCONVERGED_OR_BOUNDARY",
+            "gibbsDecrease": null,
+            "id": "analogue-1",
+            "independentFinalPhaseChecks": null,
+            "isoactivityMax": null,
+            "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
+            "qualificationOutcome": "FAIL",
+            "qualified": false,
+            "seedContractPass": true,
+            "tpd": {
+              "distinctRefinedBasins": 2,
+              "latticePoints": 45,
+              "minimum": -0.1307467221455095,
+              "refinementAttempts": 9
+            }
+          },
+          {
+            "T_K": 308,
+            "activeEndpointComponentCount": 6,
+            "activeEndpointSquaredError": 0.05832683909651302,
+            "ambiguityComparisons": [],
+            "compositionRmsd": 0.09859584093367649,
+            "conservationMax": 0.0,
+            "diagnosticStatus": "PASS",
+            "gibbsDecrease": 0.023429960711196518,
+            "id": "analogue-14",
+            "independentFinalPhaseChecks": {
+              "gibbsDecrease": 0.023429960711196518,
+              "homogeneousReducedGibbs": -0.7986999928860079,
+              "isoactivityMax": 2.4005797349957447e-13,
+              "isoactivityResiduals": [
+                -1.3988810110276972e-14,
+                -8.348877145181177e-14,
+                -2.4005797349957447e-13
+              ],
+              "massBalanceMax": 0.0,
+              "massBalanceResiduals": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "pass": true,
+              "postSplitTPD": {
+                "NMP_rich": {
+                  "competitivePoints": 1,
+                  "distinctRefinedBasins": 1,
+                  "latticePointCount": 45,
+                  "latticePointsEvaluated": 45,
+                  "minimum": 3.1134126634832056e-15,
+                  "refinedBasins": [
+                    {
+                      "composition": [
+                        0.10063283567435088,
+                        0.12097820581295379,
+                        0.0,
+                        0.0,
+                        0.7783889585126954
+                      ],
+                      "latticeIndex": 10,
+                      "tpd": 3.1134126634832056e-15
+                    }
+                  ],
+                  "refinementAttempts": 1,
+                  "refinementSuccesses": 1
+                },
+                "RRBO_rich": {
+                  "competitivePoints": 1,
+                  "distinctRefinedBasins": 1,
+                  "latticePointCount": 45,
+                  "latticePointsEvaluated": 45,
+                  "minimum": 1.9940820673086965e-13,
+                  "refinedBasins": [
+                    {
+                      "composition": [
+                        0.10063278170193476,
+                        0.12097818983257483,
+                        0.0,
+                        0.0,
+                        0.7783890284654903
+                      ],
+                      "latticeIndex": 10,
+                      "tpd": 1.9940820673086965e-13
+                    }
+                  ],
+                  "refinementAttempts": 1,
+                  "refinementSuccesses": 1
+                }
+              },
+              "totalReducedGibbs": -0.8221299535972044
+            },
+            "isoactivityMax": 2.3650525982077397e-13,
+            "phaseBehavior": "PREDICTED_TWO_PHASE",
+            "qualificationOutcome": "PASS",
+            "qualified": true,
+            "seedContractPass": true,
+            "tpd": {
+              "distinctRefinedBasins": 2,
+              "latticePoints": 45,
+              "minimum": -0.05772973129456793,
+              "refinementAttempts": 6
+            }
+          },
+          {
+            "T_K": 328,
+            "activeEndpointComponentCount": 6,
+            "activeEndpointSquaredError": 0.16084511873305565,
+            "ambiguityComparisons": [],
+            "compositionRmsd": 0.163730021037202,
+            "conservationMax": 0.0,
+            "diagnosticStatus": "PASS",
+            "gibbsDecrease": 0.011043193837567356,
+            "id": "analogue-28",
+            "independentFinalPhaseChecks": {
+              "gibbsDecrease": 0.011043193837567356,
+              "homogeneousReducedGibbs": -0.7379223198685336,
+              "isoactivityMax": 2.7789903711550323e-10,
+              "isoactivityResiduals": [
+                2.7789903711550323e-10,
+                9.473755113731386e-11,
+                2.7671578917143336e-10
+              ],
+              "massBalanceMax": 0.0,
+              "massBalanceResiduals": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "pass": true,
+              "postSplitTPD": {
+                "NMP_rich": {
+                  "competitivePoints": 1,
+                  "distinctRefinedBasins": 1,
+                  "latticePointCount": 45,
+                  "latticePointsEvaluated": 45,
+                  "minimum": 2.5852486135695897e-10,
+                  "refinedBasins": [
+                    {
+                      "composition": [
+                        0.6572897098353192,
+                        0.10434046315341468,
+                        0.0,
+                        0.0,
+                        0.23836982701126616
+                      ],
+                      "latticeIndex": 36,
+                      "tpd": 2.5852486135695897e-10
+                    }
+                  ],
+                  "refinementAttempts": 1,
+                  "refinementSuccesses": 1
+                },
+                "RRBO_rich": {
+                  "competitivePoints": 1,
+                  "distinctRefinedBasins": 1,
+                  "latticePointCount": 45,
+                  "latticePointsEvaluated": 45,
+                  "minimum": 1.3304989565966384e-14,
+                  "refinedBasins": [
+                    {
+                      "composition": [
+                        0.6572894032283596,
+                        0.1043404957607072,
+                        0.0,
+                        0.0,
+                        0.23837010101093326
+                      ],
+                      "latticeIndex": 36,
+                      "tpd": 1.3304989565966384e-14
+                    }
+                  ],
+                  "refinementAttempts": 1,
+                  "refinementSuccesses": 1
+                }
+              },
+              "totalReducedGibbs": -0.748965513706101
+            },
+            "isoactivityMax": 2.7789903711550323e-10,
+            "phaseBehavior": "PREDICTED_TWO_PHASE",
+            "qualificationOutcome": "PASS",
+            "qualified": true,
+            "seedContractPass": true,
+            "tpd": {
+              "distinctRefinedBasins": 1,
+              "latticePoints": 45,
+              "minimum": -0.03409993249271356,
+              "refinementAttempts": 3
+            }
+          },
+          {
+            "T_K": 323.2,
+            "activeEndpointComponentCount": 6,
+            "activeEndpointSquaredError": null,
+            "ambiguityComparisons": [],
+            "compositionRmsd": null,
+            "conservationMax": null,
+            "diagnosticStatus": "FAIL_NONCONVERGED_OR_BOUNDARY",
+            "gibbsDecrease": null,
+            "id": "analogue-212",
+            "independentFinalPhaseChecks": null,
+            "isoactivityMax": null,
+            "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
+            "qualificationOutcome": "FAIL",
+            "qualified": false,
+            "seedContractPass": true,
+            "tpd": {
+              "distinctRefinedBasins": 2,
+              "latticePoints": 45,
+              "minimum": -0.11372644595207453,
+              "refinementAttempts": 8
+            }
+          },
+          {
+            "T_K": 323.2,
+            "activeEndpointComponentCount": 6,
+            "activeEndpointSquaredError": 0.17077881809895018,
+            "ambiguityComparisons": [],
+            "compositionRmsd": 0.16871021412417517,
+            "conservationMax": 0.0,
+            "diagnosticStatus": "PASS",
+            "gibbsDecrease": 0.01626599858867961,
+            "id": "analogue-219",
+            "independentFinalPhaseChecks": {
+              "gibbsDecrease": 0.01626599858867972,
+              "homogeneousReducedGibbs": -0.5796159543257472,
+              "isoactivityMax": 7.187943296127486e-11,
+              "isoactivityResiduals": [
+                3.4577674057345575e-11,
+                3.5579872381674704e-11,
+                7.187943296127486e-11
+              ],
+              "massBalanceMax": 0.0,
+              "massBalanceResiduals": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "pass": true,
+              "postSplitTPD": {
+                "NMP_rich": {
+                  "competitivePoints": 1,
+                  "distinctRefinedBasins": 1,
+                  "latticePointCount": 45,
+                  "latticePointsEvaluated": 45,
+                  "minimum": 6.6754095653052626e-15,
+                  "refinedBasins": [
+                    {
+                      "composition": [
+                        0.06402372557411061,
+                        0.14349776789477534,
+                        0.0,
+                        0.0,
+                        0.7924785065311141
+                      ],
+                      "latticeIndex": 10,
+                      "tpd": 6.6754095653052626e-15
+                    }
+                  ],
+                  "refinementAttempts": 1,
+                  "refinementSuccesses": 1
+                },
+                "RRBO_rich": {
+                  "competitivePoints": 1,
+                  "distinctRefinedBasins": 1,
+                  "latticePointCount": 45,
+                  "latticePointsEvaluated": 45,
+                  "minimum": -6.428178694889842e-11,
+                  "refinedBasins": [
+                    {
+                      "composition": [
+                        0.06402365345749794,
+                        0.14349772769259658,
+                        0.0,
+                        0.0,
+                        0.7924786188499054
+                      ],
+                      "latticeIndex": 10,
+                      "tpd": -6.428178694889842e-11
+                    }
+                  ],
+                  "refinementAttempts": 1,
+                  "refinementSuccesses": 1
+                }
+              },
+              "totalReducedGibbs": -0.5958819529144269
+            },
+            "isoactivityMax": 7.187943296127486e-11,
+            "phaseBehavior": "PREDICTED_TWO_PHASE",
+            "qualificationOutcome": "PASS",
+            "qualified": true,
+            "seedContractPass": true,
+            "tpd": {
+              "distinctRefinedBasins": 2,
+              "latticePoints": 45,
+              "minimum": -0.06258635279747672,
+              "refinementAttempts": 7
+            }
+          }
+        ]
+      },
+      "plus": {
+        "metrics": {
+          "activeEndpointComponentCount": 18,
+          "rows": 5,
+          "tieLineRmsd": 0.1466027635852809,
+          "tieLineRmsdFormula": "sqrt(sum((predicted-measured)^2) / N) over both endpoints and active components only",
+          "topologyRecall": 0.6,
+          "twoPhase": 3
+        },
+        "rows": [
+          {
+            "T_K": 298,
+            "activeEndpointComponentCount": 6,
+            "activeEndpointSquaredError": null,
+            "ambiguityComparisons": [],
+            "compositionRmsd": null,
+            "conservationMax": null,
+            "diagnosticStatus": "FAIL_NONCONVERGED_OR_BOUNDARY",
+            "gibbsDecrease": null,
+            "id": "analogue-1",
+            "independentFinalPhaseChecks": null,
+            "isoactivityMax": null,
+            "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
+            "qualificationOutcome": "FAIL",
+            "qualified": false,
+            "seedContractPass": true,
+            "tpd": {
+              "distinctRefinedBasins": 2,
+              "latticePoints": 45,
+              "minimum": -0.1360412209396224,
+              "refinementAttempts": 9
+            }
+          },
+          {
+            "T_K": 308,
+            "activeEndpointComponentCount": 6,
+            "activeEndpointSquaredError": 0.05952748116944489,
+            "ambiguityComparisons": [],
+            "compositionRmsd": 0.09960545598296384,
+            "conservationMax": 0.0,
+            "diagnosticStatus": "PASS",
+            "gibbsDecrease": 0.0231795659253603,
+            "id": "analogue-14",
+            "independentFinalPhaseChecks": {
+              "gibbsDecrease": 0.0231795659253603,
+              "homogeneousReducedGibbs": -0.8706008277096093,
+              "isoactivityMax": 8.13527439857964e-11,
+              "isoactivityResiduals": [
+                -4.73401318146216e-11,
+                -2.4856117164517855e-11,
+                -8.13527439857964e-11
+              ],
+              "massBalanceMax": 0.0,
+              "massBalanceResiduals": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "pass": true,
+              "postSplitTPD": {
+                "NMP_rich": {
+                  "competitivePoints": 1,
+                  "distinctRefinedBasins": 1,
+                  "latticePointCount": 45,
+                  "latticePointsEvaluated": 45,
+                  "minimum": 5.392605281669104e-16,
+                  "refinedBasins": [
+                    {
+                      "composition": [
+                        0.10212776863181479,
+                        0.12121229663960215,
+                        0.0,
+                        0.0,
+                        0.7766599347285831
+                      ],
+                      "latticeIndex": 10,
+                      "tpd": 5.392605281669104e-16
+                    }
+                  ],
+                  "refinementAttempts": 1,
+                  "refinementSuccesses": 1
+                },
+                "RRBO_rich": {
+                  "competitivePoints": 1,
+                  "distinctRefinedBasins": 1,
+                  "latticePointCount": 45,
+                  "latticePointsEvaluated": 45,
+                  "minimum": 7.103967927278832e-11,
+                  "refinedBasins": [
+                    {
+                      "composition": [
+                        0.10212774370756515,
+                        0.12121228447626334,
+                        0.0,
+                        0.0,
+                        0.7766599718161715
+                      ],
+                      "latticeIndex": 10,
+                      "tpd": 7.103967927278832e-11
+                    }
+                  ],
+                  "refinementAttempts": 1,
+                  "refinementSuccesses": 1
+                }
+              },
+              "totalReducedGibbs": -0.8937803936349696
+            },
+            "isoactivityMax": 8.13534656307624e-11,
+            "phaseBehavior": "PREDICTED_TWO_PHASE",
+            "qualificationOutcome": "PASS",
+            "qualified": true,
+            "seedContractPass": true,
+            "tpd": {
+              "distinctRefinedBasins": 2,
+              "latticePoints": 45,
+              "minimum": -0.05812301816317818,
+              "refinementAttempts": 6
+            }
+          },
+          {
+            "T_K": 328,
+            "activeEndpointComponentCount": 6,
+            "activeEndpointSquaredError": 0.1570132802796491,
+            "ambiguityComparisons": [],
+            "compositionRmsd": 0.16176798214296975,
+            "conservationMax": 0.0,
+            "diagnosticStatus": "PASS",
+            "gibbsDecrease": 0.009881877976670284,
+            "id": "analogue-28",
+            "independentFinalPhaseChecks": {
+              "gibbsDecrease": 0.009881877976670395,
+              "homogeneousReducedGibbs": -0.8025314625478788,
+              "isoactivityMax": 1.485214728980111e-12,
+              "isoactivityResiduals": [
+                -1.0196288258157438e-12,
+                -5.084821452783217e-13,
+                -1.485214728980111e-12
+              ],
+              "massBalanceMax": 0.0,
+              "massBalanceResiduals": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "pass": true,
+              "postSplitTPD": {
+                "NMP_rich": {
+                  "competitivePoints": 1,
+                  "distinctRefinedBasins": 1,
+                  "latticePointCount": 45,
+                  "latticePointsEvaluated": 45,
+                  "minimum": -1.0305633383488112e-12,
+                  "refinedBasins": [
+                    {
+                      "composition": [
+                        0.6560388640684287,
+                        0.10366856584733349,
+                        0.0,
+                        0.0,
+                        0.24029257008423777
+                      ],
+                      "latticeIndex": 36,
+                      "tpd": -1.0305633383488112e-12
+                    }
+                  ],
+                  "refinementAttempts": 1,
+                  "refinementSuccesses": 1
+                },
+                "RRBO_rich": {
+                  "competitivePoints": 1,
+                  "distinctRefinedBasins": 1,
+                  "latticePointCount": 45,
+                  "latticePointsEvaluated": 45,
+                  "minimum": 1.8127900321448974e-14,
+                  "refinedBasins": [
+                    {
+                      "composition": [
+                        0.6560387271447385,
+                        0.10366859621350671,
+                        0.0,
+                        0.0,
+                        0.24029267664175474
+                      ],
+                      "latticeIndex": 36,
+                      "tpd": 1.8127900321448974e-14
+                    }
+                  ],
+                  "refinementAttempts": 1,
+                  "refinementSuccesses": 1
+                }
+              },
+              "totalReducedGibbs": -0.8124133405245492
+            },
+            "isoactivityMax": 1.4841045059554858e-12,
+            "phaseBehavior": "PREDICTED_TWO_PHASE",
+            "qualificationOutcome": "PASS",
+            "qualified": true,
+            "seedContractPass": true,
+            "tpd": {
+              "distinctRefinedBasins": 1,
+              "latticePoints": 45,
+              "minimum": -0.03211672393372924,
+              "refinementAttempts": 3
+            }
+          },
+          {
+            "T_K": 323.2,
+            "activeEndpointComponentCount": 6,
+            "activeEndpointSquaredError": null,
+            "ambiguityComparisons": [],
+            "compositionRmsd": null,
+            "conservationMax": null,
+            "diagnosticStatus": "FAIL_NONCONVERGED_OR_BOUNDARY",
+            "gibbsDecrease": null,
+            "id": "analogue-212",
+            "independentFinalPhaseChecks": null,
+            "isoactivityMax": null,
+            "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
+            "qualificationOutcome": "FAIL",
+            "qualified": false,
+            "seedContractPass": true,
+            "tpd": {
+              "distinctRefinedBasins": 2,
+              "latticePoints": 45,
+              "minimum": -0.10997114622289547,
+              "refinementAttempts": 8
+            }
+          },
+          {
+            "T_K": 323.2,
+            "activeEndpointComponentCount": 6,
+            "activeEndpointSquaredError": 0.17032190378605774,
+            "ambiguityComparisons": [],
+            "compositionRmsd": 0.1684843730568,
+            "conservationMax": 0.0,
+            "diagnosticStatus": "PASS",
+            "gibbsDecrease": 0.015111164882036121,
+            "id": "analogue-219",
+            "independentFinalPhaseChecks": {
+              "gibbsDecrease": 0.015111164882036121,
+              "homogeneousReducedGibbs": -0.5881521574256968,
+              "isoactivityMax": 2.4555912858659212e-11,
+              "isoactivityResiduals": [
+                2.4555912858659212e-11,
+                -3.015365734881925e-12,
+                1.8063800455436763e-11
+              ],
+              "massBalanceMax": 0.0,
+              "massBalanceResiduals": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "pass": true,
+              "postSplitTPD": {
+                "NMP_rich": {
+                  "competitivePoints": 1,
+                  "distinctRefinedBasins": 1,
+                  "latticePointCount": 45,
+                  "latticePointsEvaluated": 45,
+                  "minimum": 1.6333352795372009e-13,
+                  "refinedBasins": [
+                    {
+                      "composition": [
+                        0.06715187762887541,
+                        0.14485503537493802,
+                        0.0,
+                        0.0,
+                        0.7879930869961866
+                      ],
+                      "latticeIndex": 10,
+                      "tpd": 1.6333352795372009e-13
+                    }
+                  ],
+                  "refinementAttempts": 1,
+                  "refinementSuccesses": 1
+                },
+                "RRBO_rich": {
+                  "competitivePoints": 1,
+                  "distinctRefinedBasins": 1,
+                  "latticePointCount": 45,
+                  "latticePointsEvaluated": 45,
+                  "minimum": -1.5299815136773324e-11,
+                  "refinedBasins": [
+                    {
+                      "composition": [
+                        0.06715186686124537,
+                        0.14485502900498012,
+                        0.0,
+                        0.0,
+                        0.7879931041337744
+                      ],
+                      "latticeIndex": 10,
+                      "tpd": -1.5299815136773324e-11
+                    }
+                  ],
+                  "refinementAttempts": 1,
+                  "refinementSuccesses": 1
+                }
+              },
+              "totalReducedGibbs": -0.6032633223077329
+            },
+            "isoactivityMax": 2.4557689215498613e-11,
+            "phaseBehavior": "PREDICTED_TWO_PHASE",
+            "qualificationOutcome": "PASS",
+            "qualified": true,
+            "seedContractPass": true,
+            "tpd": {
+              "distinctRefinedBasins": 2,
+              "latticePoints": 45,
+              "minimum": -0.060699096146742126,
+              "refinementAttempts": 7
+            }
+          }
+        ]
+      },
+      "sentinelIds": [
+        "analogue-1",
+        "analogue-14",
+        "analogue-28",
+        "analogue-212",
+        "analogue-219"
+      ],
+      "tieLineRmsdRange": [
+        0.1466027635852809,
+        0.14718672493139057
+      ],
+      "topologyRecallRange": [
+        0.6,
+        0.6
+      ]
+    }
+  }
+}

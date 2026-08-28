@@ -1,0 +1,14 @@
+{
+  "format": "ecr-descriptor-transfer-holdouts-v1",
+  "frozenBeforeFit": true,
+  "sourcePopulation": "219 admitted direct SAT+MONO+NMP tie-lines in multi-t-nmp-lle.json",
+  "unseenSystem": {
+    "identities": ["n-dodecane", "n-propylbenzene"],
+    "ids": ["analogue-1", "analogue-2", "analogue-3", "analogue-4", "analogue-5", "analogue-6", "analogue-7", "analogue-8", "analogue-9", "analogue-10", "analogue-11", "analogue-12", "analogue-13", "analogue-14", "analogue-15", "analogue-16", "analogue-17", "analogue-18", "analogue-19", "analogue-20", "analogue-21", "analogue-22", "analogue-23", "analogue-24", "analogue-25", "analogue-26", "analogue-27", "analogue-28"]
+  },
+  "leaveTemperatureOut": {
+    "temperature_K": 323.2,
+    "ids": ["analogue-212", "analogue-213", "analogue-214", "analogue-215", "analogue-216", "analogue-217", "analogue-218", "analogue-219"]
+  },
+  "policy": "The union is removed before every optimizer call. Holdout compositions are unavailable to fitting and are flashed only after fit freeze and leakage checks pass."
+}
