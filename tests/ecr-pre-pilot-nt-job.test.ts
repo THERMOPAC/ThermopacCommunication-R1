@@ -98,6 +98,27 @@ function validStage1(projectNumber: number) {
 }
 
 describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
+  it('converges the damped component-flow cascade through N=5 with bounded streams and closed balances', () => {
+    const output = execFileSync(
+      'python3.12',
+      [path.join(process.cwd(), 'tests/fixtures/predictive_nt_component_flow_check.py')],
+      { cwd: process.cwd(), encoding: 'utf8' },
+    );
+    const trials = JSON.parse(output);
+    expect(trials).toHaveLength(5);
+    for (const [index, trial] of trials.entries()) {
+      expect(trial.stageCount).toBe(index + 1);
+      expect(trial.sweeps).toBeLessThanOrEqual(300);
+      expect(trial.balanceAccepted).toBe(true);
+      expect(trial.overallMaximum).toBeLessThanOrEqual(1e-8);
+      expect(trial.localMaximum).toBeLessThanOrEqual(1e-8);
+      expect(trial.bounded).toBe(true);
+      expect(trial.initialization).toBe(
+        index === 0 ? 'COLD_COMPONENT_FLOW' : 'N_MINUS_1_COMPONENT_FLOW_CONTINUATION',
+      );
+    }
+  });
+
   afterAll(async () => {
     await pool.end();
   });
@@ -357,7 +378,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       expect(completed?.status, completed?.error ?? 'job did not complete').toBe('completed');
       expect(completed?.modelHash).toBe(PRE_PILOT_MODEL.modelHash);
       expect(completed?.engineHash).toBe(
-        'c3d9dfce2bb41c34bce0a5847a3bd975b66f73d80bf2e6af34407dee16175e6e',
+        '70a39141ed6ed3dfb9f0e95b38db459f95752fb9e75beefe767e95b64b35fa32',
       );
       expect(completed?.result).toMatchObject({
         status: 'ACCEPTED_PREDICTIVE_NT',
@@ -374,12 +395,62 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       });
       const result = completed?.result as any;
       expect(result.trials).toHaveLength(1);
+      expect(result.checkpoint).toMatchObject({
+        protocol: 'ACK_V1',
+        acknowledgedStageCount: 1,
+      });
+      expect(result.checkpoint.trialHashes).toHaveLength(1);
       expect(result.trials[0].balanceAccepted).toBe(true);
       expect(result.trials[0].overallComponentBalanceMaximum).toBeLessThanOrEqual(1e-8);
       expect(Math.abs(Object.values(result.trials[0].overallComponentBalanceResiduals)
         .reduce((sum: number, value) => sum + Number(value), 0))).toBeLessThanOrEqual(1e-8);
+      const checkpointHistory = await pool.query(
+        `SELECT COUNT(*)::int AS total
+           FROM ecr_pre_pilot_predictive_nt_job_history
+          WHERE job_id = $1
+            AND details->>'event' = 'trial_checkpoint_acknowledged'`,
+        [submitted.jobId],
+      );
+      expect(checkpointHistory.rows[0].total).toBeGreaterThanOrEqual(1);
     } finally {
       delete process.env.PREDICTIVE_NT_RUNTIME_ROOT;
     }
+  }, 150_000);
+
+  it.each([
+    {
+      name: 'retains the acknowledged prefix when the worker dies before N+1',
+      hooks: { killAfterAcknowledgedStage: 1 },
+      error: 'PREDICTIVE_NT_TEST_TERMINATED_AFTER_ACK',
+    },
+    {
+      name: 'rejects a mismatched replay without losing the committed trial',
+      hooks: { replayMismatchAtStage: 1 },
+      error: 'PREDICTIVE_NT_CHECKPOINT_REPLAY_MISMATCH',
+    },
+  ])('$name', async ({ hooks, error }) => {
+    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
+    if (!user.rows[0]) throw new Error('No user available for checkpoint fault test');
+    const userId = Number(user.rows[0].id);
+    const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-checkpoint-fault-v1');
+    const submitted = await enqueuePredictiveNtRuntimeTestJob(
+      { ...validInput, maximumStages: 2 },
+      userId,
+      design.id,
+      hooks,
+    );
+    let terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    const deadline = Date.now() + 120_000;
+    while (terminal?.status !== 'completed' && terminal?.status !== 'failed' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    }
+    expect(terminal?.status).toBe('failed');
+    expect(terminal?.error).toContain(error);
+    expect((terminal?.result as any)?.trials).toHaveLength(1);
+    expect((terminal?.result as any)?.checkpoint).toMatchObject({
+      protocol: 'ACK_V1',
+      acknowledgedStageCount: 1,
+    });
   }, 150_000);
 });

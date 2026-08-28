@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import base64
 import hashlib
 import json
 import sys
@@ -17,13 +18,13 @@ NEW = ROOT / "server/research/ecr-pre-pilot-new-analogue"
 CHECKPOINT = ROOT / ".agents/outputs/ecr-pre-pilot-new-analogue/fit-checkpoint.json"
 MODEL_HASH = "cb8b2945499ea65cd071f99695ea14c5a3396fba475aa6bb8ed8bdfe6f3198c7"
 ENGINE_ID = "ECR2_PREDICTIVE_NT_BACKGROUND"
-ENGINE_VERSION = "1.0.0"
+ENGINE_VERSION = "1.1.0"
 COMPONENTS = ["SAT", "MONO", "NMP"]
 EPS = 1e-14
 BALANCE_TOL = 1e-8
 CONVERGENCE_TOL = 1e-8
-MAX_SWEEPS = 60
-DAMPING = 0.5
+MAX_SWEEPS = 300
+DAMPING = 0.75
 
 sys.path[:0] = [str(UQ), str(OLD)]
 spec = importlib.util.spec_from_file_location("predictive_nt_descriptor_transfer", OLD / "run.py")
@@ -164,63 +165,134 @@ def select_minimum_accepted_trial(trials):
     return min(accepted, key=lambda trial: trial["stageCount"]) if accepted else None
 
 
-def run_trial(stage_count, feed, solvent_ratio, row):
+def initialize_component_flows(stage_count, feed, solvent_ratio, continuation_state=None):
     solvent = np.asarray([0.0, 0.0, 1.0])
-    l_flow = np.full(stage_count + 2, (1.0 + solvent_ratio) / 2.0)
-    e_flow = np.full(stage_count + 2, (1.0 + solvent_ratio) / 2.0)
-    x = [feed.copy() for _ in range(stage_count + 2)]
-    y = [solvent.copy() for _ in range(stage_count + 2)]
-    l_flow[stage_count + 1], x[stage_count + 1] = 1.0, feed.copy()
-    e_flow[0], y[0] = solvent_ratio, solvent.copy()
+    liquid = np.zeros((stage_count + 2, 3), dtype=float)
+    extract = np.zeros((stage_count + 2, 3), dtype=float)
+    liquid[stage_count + 1] = feed
+    extract[0] = solvent_ratio * solvent
+    if continuation_state is None:
+        midpoint_flow = (1.0 + solvent_ratio) / 2.0
+        for stage in range(1, stage_count + 1):
+            liquid[stage] = midpoint_flow * feed
+            extract[stage] = midpoint_flow * solvent
+        return liquid, extract, "COLD_COMPONENT_FLOW"
+
+    prior_liquid, prior_extract = continuation_state
+    prior_stages = prior_liquid.shape[0] - 2
+    prior_liquid_grid = np.arange(1, prior_stages + 2, dtype=float) / (prior_stages + 1)
+    prior_extract_grid = np.arange(0, prior_stages + 1, dtype=float) / (prior_stages + 1)
+    liquid_grid = np.arange(1, stage_count + 1, dtype=float) / (stage_count + 1)
+    extract_grid = np.arange(1, stage_count + 1, dtype=float) / (stage_count + 1)
+    for component in range(3):
+        liquid[1:stage_count + 1, component] = np.interp(
+            liquid_grid,
+            prior_liquid_grid,
+            prior_liquid[1:prior_stages + 2, component],
+        )
+        extract[1:stage_count + 1, component] = np.interp(
+            extract_grid,
+            prior_extract_grid,
+            prior_extract[0:prior_stages + 1, component],
+        )
+    return liquid, extract, "N_MINUS_1_COMPONENT_FLOW_CONTINUATION"
+
+
+def component_state(liquid, extract, stage_count):
+    return np.r_[
+        liquid[1:stage_count + 1].ravel(),
+        extract[1:stage_count + 1].ravel(),
+    ]
+
+
+def balance_residuals(liquid, extract, stage_count, feed, solvent_ratio):
+    solvent = np.asarray([0.0, 0.0, 1.0])
+    local = []
+    for stage in range(1, stage_count + 1):
+        local.append(
+            liquid[stage + 1] + extract[stage - 1]
+            - liquid[stage] - extract[stage]
+        )
+    overall = feed + solvent_ratio * solvent - liquid[1] - extract[stage_count]
+    local_maximum = max(float(np.max(np.abs(value))) for value in local)
+    return local, overall, local_maximum, float(np.max(np.abs(overall)))
+
+
+def run_trial(stage_count, feed, solvent_ratio, row, continuation_state=None):
+    liquid, extract, initialization = initialize_component_flows(
+        stage_count,
+        feed,
+        solvent_ratio,
+        continuation_state,
+    )
     final_checks = [None] * (stage_count + 2)
     flash_cache = {}
+    convergence_trace = []
 
     for sweep in range(1, MAX_SWEEPS + 1):
-        previous = np.r_[l_flow[1:stage_count + 1], e_flow[1:stage_count + 1],
-                         *x[1:stage_count + 1], *y[1:stage_count + 1]]
-        calculated = []
+        previous = component_state(liquid, extract, stage_count)
         for stage in range(stage_count, 0, -1):
-            lin = 1.0 if stage == stage_count else l_flow[stage + 1]
-            xin = feed if stage == stage_count else x[stage + 1]
-            ein = solvent_ratio if stage == 1 else e_flow[stage - 1]
-            yin = solvent if stage == 1 else y[stage - 1]
-            mixed_flow = lin + ein
-            mixed = (lin * xin + ein * yin) / mixed_flow
+            incoming = liquid[stage + 1] + extract[stage - 1]
+            mixed_flow = float(incoming.sum())
+            if mixed_flow <= EPS or np.any(incoming < -EPS) or not np.all(np.isfinite(incoming)):
+                raise RuntimeError("CASCADE_INVALID_COMPONENT_FLOW_STATE")
+            mixed = incoming / mixed_flow
             cache_key = tuple(np.round(mixed, 12))
             if cache_key not in flash_cache:
                 flash_cache[cache_key] = flash(mixed, row)
             xr, ye, beta, checks = flash_cache[cache_key]
-            calculated.append((stage, mixed_flow * (1.0 - beta), xr, mixed_flow * beta, ye, checks))
-        for stage, lf, xr, ef, ye, checks in calculated:
-            l_flow[stage] = DAMPING * lf + (1.0 - DAMPING) * l_flow[stage]
-            e_flow[stage] = DAMPING * ef + (1.0 - DAMPING) * e_flow[stage]
-            x[stage] = DAMPING * xr + (1.0 - DAMPING) * x[stage]
-            y[stage] = DAMPING * ye + (1.0 - DAMPING) * y[stage]
-            x[stage] /= x[stage].sum()
-            y[stage] /= y[stage].sum()
+            target_liquid = mixed_flow * (1.0 - beta) * xr
+            target_extract = mixed_flow * beta * ye
+            if (
+                np.any(target_liquid < -EPS)
+                or np.any(target_extract < -EPS)
+                or not np.all(np.isfinite(target_liquid))
+                or not np.all(np.isfinite(target_extract))
+            ):
+                raise RuntimeError("CASCADE_INVALID_FLASH_COMPONENT_FLOW")
+            liquid[stage] = DAMPING * target_liquid + (1.0 - DAMPING) * liquid[stage]
+            extract[stage] = DAMPING * target_extract + (1.0 - DAMPING) * extract[stage]
             final_checks[stage] = checks
-        current = np.r_[l_flow[1:stage_count + 1], e_flow[1:stage_count + 1],
-                        *x[1:stage_count + 1], *y[1:stage_count + 1]]
+        current = component_state(liquid, extract, stage_count)
         maximum_delta = float(np.max(np.abs(current - previous)))
-        if maximum_delta < CONVERGENCE_TOL:
+        _, overall, local_maximum, overall_maximum = balance_residuals(
+            liquid,
+            extract,
+            stage_count,
+            feed,
+            solvent_ratio,
+        )
+        convergence_trace.append({
+            "sweep": sweep,
+            "maximumStateDelta": maximum_delta,
+            "maximumLocalComponentBalanceResidual": local_maximum,
+            "overallComponentBalanceMaximum": overall_maximum,
+        })
+        if (
+            maximum_delta <= CONVERGENCE_TOL
+            and local_maximum <= BALANCE_TOL
+            and overall_maximum <= BALANCE_TOL
+        ):
             break
     else:
         raise RuntimeError("CASCADE_DID_NOT_CONVERGE")
 
-    inlet = feed + solvent_ratio * solvent
-    outlet = l_flow[1] * x[1] + e_flow[stage_count] * y[stage_count]
-    residuals = inlet - outlet
-    max_balance = float(np.max(np.abs(residuals)))
+    local_residuals, residuals, _, max_balance = balance_residuals(
+        liquid,
+        extract,
+        stage_count,
+        feed,
+        solvent_ratio,
+    )
+    l_flow = liquid.sum(axis=1)
+    e_flow = extract.sum(axis=1)
+    x = [normalize(liquid[stage]) if l_flow[stage] > EPS else None for stage in range(stage_count + 2)]
+    y = [normalize(extract[stage]) if e_flow[stage] > EPS else None for stage in range(stage_count + 2)]
     mono, sat, recovery = product_metrics(l_flow[1], x[1], feed)
     stage_records = []
     local_balance_accepted = True
     for stage in range(1, stage_count + 1):
-        lin = 1.0 if stage == stage_count else l_flow[stage + 1]
-        xin = feed if stage == stage_count else x[stage + 1]
-        ein = solvent_ratio if stage == 1 else e_flow[stage - 1]
-        yin = solvent if stage == 1 else y[stage - 1]
-        local_residuals = lin * xin + ein * yin - l_flow[stage] * x[stage] - e_flow[stage] * y[stage]
-        local_maximum = float(np.max(np.abs(local_residuals)))
+        local_maximum = float(np.max(np.abs(local_residuals[stage - 1])))
         local_accepted = local_maximum <= BALANCE_TOL
         local_balance_accepted &= local_accepted
         stage_records.append({
@@ -229,7 +301,7 @@ def run_trial(stage_count, feed, solvent_ratio, row):
             "raffinateComposition": dict(zip(COMPONENTS, map(float, x[stage]))),
             "extractFlowMolarBasis": float(e_flow[stage]),
             "extractComposition": dict(zip(COMPONENTS, map(float, y[stage]))),
-            "localComponentBalanceResiduals": dict(zip(COMPONENTS, map(float, local_residuals))),
+            "localComponentBalanceResiduals": dict(zip(COMPONENTS, map(float, local_residuals[stage - 1]))),
             "localComponentBalanceMaximum": local_maximum,
             "localComponentBalanceAccepted": local_accepted,
             "thermodynamicChecks": final_checks[stage],
@@ -248,12 +320,40 @@ def run_trial(stage_count, feed, solvent_ratio, row):
         "overallComponentBalanceResiduals": dict(zip(COMPONENTS, map(float, residuals))),
         "overallComponentBalanceMaximum": max_balance,
         "balanceAccepted": max_balance <= BALANCE_TOL and local_balance_accepted,
+        "solverDiagnostics": {
+            "method": "DAMPED_DIRECTIONAL_COMPONENT_FLOW",
+            "initialization": initialization,
+            "damping": DAMPING,
+            "maximumSweeps": MAX_SWEEPS,
+            "convergenceTolerance": CONVERGENCE_TOL,
+            "balanceTolerance": BALANCE_TOL,
+            "flashEvaluations": len(flash_cache),
+            "convergenceTrace": convergence_trace,
+        },
         "stages": stage_records,
-    }
+    }, (liquid.copy(), extract.copy())
+
+
+def emit_trial_checkpoint(trial, checkpoint_protocol):
+    if checkpoint_protocol != "ACK_V1":
+        return
+    canonical = json.dumps(trial, sort_keys=True, separators=(",", ":"))
+    digest = hashlib.sha256(canonical.encode()).hexdigest()
+    encoded = base64.b64encode(canonical.encode()).decode()
+    print(
+        f"PREDICTIVE_NT_CHECKPOINT {trial['stageCount']} {digest} {encoded}",
+        file=sys.stderr,
+        flush=True,
+    )
+    acknowledgement = sys.stdin.readline().strip()
+    if acknowledgement != f"PREDICTIVE_NT_ACK {trial['stageCount']} {digest}":
+        raise RuntimeError("PREDICTIVE_NT_CHECKPOINT_NOT_ACKNOWLEDGED")
 
 
 def main():
-    request = json.load(sys.stdin)
+    request_line = sys.stdin.readline()
+    request = json.loads(request_line)
+    checkpoint_protocol = request.pop("_checkpointProtocol", None)
     manifest = verify_frozen_model()
     if request.get("modelHash") != MODEL_HASH:
         raise ValueError("MODEL_HASH_MISMATCH")
@@ -273,11 +373,18 @@ def main():
         raise ValueError("FEED_NMP_NOT_SUPPORTED")
 
     row, previous = setup_model(request["satIdentity"], request["monoIdentity"], temperature_k)
+    trials = []
     try:
-        trials = []
         last_mono = float(feed[1] / (feed[0] + feed[1]))
+        continuation_state = None
         for stage_count in range(1, max_stages + 1):
-            trial = run_trial(stage_count, feed, solvent_ratio, row)
+            trial, continuation_state = run_trial(
+                stage_count,
+                feed,
+                solvent_ratio,
+                row,
+                continuation_state,
+            )
             current_mono = trial["raffinateMonoHydrocarbonMoleFraction"]
             trial["monotonicFromPrevious"] = current_mono <= last_mono + 1e-9
             trial["targetChecks"] = {
@@ -291,6 +398,7 @@ def main():
                         for stage in trial["stages"])
             )
             trials.append(trial)
+            emit_trial_checkpoint(trial, checkpoint_protocol)
             print(f"PREDICTIVE_NT_PROGRESS {stage_count} {max_stages}", file=sys.stderr, flush=True)
             last_mono = current_mono
         selected = select_minimum_accepted_trial(trials)
@@ -322,8 +430,26 @@ def main():
             "input": request,
             "trials": trials,
         }, sys.stdout, separators=(",", ":"))
+    except Exception as exc:
+        message = f"{type(exc).__name__}: {exc}"
+        status = (
+            "THERMODYNAMIC_FLASH_FAILED" if "FLASH_" in message
+            else "CASCADE_DID_NOT_CONVERGE" if "CASCADE_DID_NOT_CONVERGE" in message
+            else "ENGINE_ERROR"
+        )
+        json.dump({
+            "status": status,
+            "error": message,
+            "predictiveNt": None,
+            "establishedTheoreticalStages": None,
+            "releaseEligible": False,
+            "input": request,
+            "trials": trials,
+        }, sys.stdout, separators=(",", ":"))
+        return 1
     finally:
         restore_model(previous)
+    return 0
 
 
 if __name__ == "__main__":
@@ -354,7 +480,7 @@ if __name__ == "__main__":
         }, sys.stdout, separators=(",", ":"))
         sys.exit(0 if selected and selected["stageCount"] == 3 else 1)
     try:
-        main()
+        sys.exit(main())
     except Exception as exc:
         message = f"{type(exc).__name__}: {exc}"
         status = (

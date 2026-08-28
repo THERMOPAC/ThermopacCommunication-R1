@@ -70,10 +70,10 @@ type PredictiveNtJob = {
 
 const MAX_QUEUED_JOBS = 10;
 const MAX_ACTIVE_JOBS_PER_USER = 2;
-const JOB_TIMEOUT_MS = 30 * 60 * 1000;
+const JOB_TIMEOUT_MS = 4 * 60 * 60 * 1000;
 const LEASE_MS = 45 * 1000;
 const POLL_MS = 1_000;
-const PREDICTIVE_NT_ENGINE_SHA256 = 'c3d9dfce2bb41c34bce0a5847a3bd975b66f73d80bf2e6af34407dee16175e6e';
+const PREDICTIVE_NT_ENGINE_SHA256 = '70a39141ed6ed3dfb9f0e95b38db459f95752fb9e75beefe767e95b64b35fa32';
 const PREDICTIVE_NT_RUNTIME_SUPPORT_SHA256 = {
   'server/research/ecr-pre-pilot-uniquac/model.py':
     'c1130eba32c1b84c55309b71ee88c7ce6297b16c5a465486f5f505158c551ebc',
@@ -83,6 +83,11 @@ const PREDICTIVE_NT_RUNTIME_SUPPORT_SHA256 = {
 const WORKER_OWNER = `${os.hostname()}:${process.pid}:${randomUUID()}`;
 let workerStarted = false;
 let workerBusy = false;
+type RuntimeTestHooks = {
+  killAfterAcknowledgedStage?: number;
+  replayMismatchAtStage?: number;
+};
+const runtimeTestHooks = new Map<string, RuntimeTestHooks>();
 
 function runtimeRoot() {
   if (process.env.PREDICTIVE_NT_RUNTIME_ROOT) {
@@ -469,6 +474,111 @@ async function updateProgress(jobId: string, claimToken: string, completed: numb
   if (updated.rows[0]) await recordHistory(pool, updated.rows[0], { event: 'progress' });
 }
 
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+      .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+async function persistTrialCheckpoint(
+  jobId: string,
+  claimToken: string,
+  stageCount: number,
+  trialHash: string,
+  canonicalTrial: string,
+) {
+  if (!/^[a-f0-9]{64}$/.test(trialHash) || canonicalTrial.length > 5_000_000) {
+    throw new Error('PREDICTIVE_NT_CHECKPOINT_INVALID');
+  }
+  if (createHash('sha256').update(canonicalTrial).digest('hex') !== trialHash) {
+    throw new Error('PREDICTIVE_NT_CHECKPOINT_HASH_MISMATCH');
+  }
+  let trial: any;
+  try {
+    trial = JSON.parse(canonicalTrial);
+  } catch {
+    throw new Error('PREDICTIVE_NT_CHECKPOINT_INVALID');
+  }
+  if (!Number.isInteger(stageCount) || stageCount < 1 || trial?.stageCount !== stageCount) {
+    throw new Error('PREDICTIVE_NT_CHECKPOINT_SEQUENCE_INVALID');
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const locked = await client.query(
+      `SELECT * FROM ecr_pre_pilot_predictive_nt_jobs
+        WHERE id = $1 AND status = 'running' AND claim_token = $2
+        FOR UPDATE`,
+      [jobId, claimToken],
+    );
+    const row = locked.rows[0];
+    if (!row) throw new Error('PREDICTIVE_NT_CHECKPOINT_STALE_OWNER');
+    const existingResult = row.result_snapshot && typeof row.result_snapshot === 'object'
+      ? row.result_snapshot as Record<string, any>
+      : {};
+    const existingTrials = Array.isArray(existingResult.trials) ? [...existingResult.trials] : [];
+    const existingHashes = Array.isArray(existingResult.checkpoint?.trialHashes)
+      ? [...existingResult.checkpoint.trialHashes]
+      : [];
+    const completed = Number(row.completed_trials);
+
+    if (stageCount <= completed) {
+      if (existingHashes[stageCount - 1] !== trialHash) {
+        throw new Error('PREDICTIVE_NT_CHECKPOINT_REPLAY_MISMATCH');
+      }
+      await client.query('COMMIT');
+      return;
+    }
+    if (stageCount !== completed + 1 || existingTrials.length !== completed) {
+      throw new Error('PREDICTIVE_NT_CHECKPOINT_SEQUENCE_INVALID');
+    }
+
+    existingTrials.push(trial);
+    existingHashes.push(trialHash);
+    const checkpointResult = attachStage1ResultGovernance({
+      status: 'RUNNING',
+      predictiveNt: null,
+      establishedTheoreticalStages: null,
+      releaseEligible: false,
+      calibrationRequired: true,
+      trials: existingTrials,
+      checkpoint: {
+        protocol: 'ACK_V1',
+        acknowledgedStageCount: stageCount,
+        trialHashes: existingHashes,
+      },
+    }, row.input_snapshot);
+    const updated = await client.query(
+      `UPDATE ecr_pre_pilot_predictive_nt_jobs
+          SET completed_trials = $3,
+              result_snapshot = $4,
+              lease_expires_at = NOW() + ($5 * INTERVAL '1 millisecond'),
+              updated_at = NOW()
+        WHERE id = $1 AND status = 'running' AND claim_token = $2
+        RETURNING *`,
+      [jobId, claimToken, stageCount, checkpointResult, LEASE_MS],
+    );
+    if (!updated.rows[0]) throw new Error('PREDICTIVE_NT_CHECKPOINT_STALE_OWNER');
+    await recordHistory(client, updated.rows[0], {
+      event: 'trial_checkpoint_acknowledged',
+      stageCount,
+      trialHash,
+    });
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function renewLease(jobId: string, claimToken: string) {
   await pool.query(
     `UPDATE ecr_pre_pilot_predictive_nt_jobs
@@ -489,13 +599,62 @@ async function finishJob(
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    const locked = await client.query(
+      `SELECT * FROM ecr_pre_pilot_predictive_nt_jobs
+        WHERE id = $1 AND status = 'running' AND claim_token = $2
+        FOR UPDATE`,
+      [jobId, claimToken],
+    );
+    const current = locked.rows[0];
+    if (!current) {
+      await client.query('ROLLBACK');
+      return;
+    }
+    const checkpointTrials = Array.isArray(current.result_snapshot?.trials)
+      ? current.result_snapshot.trials
+      : [];
+    const checkpointHashes = Array.isArray(current.result_snapshot?.checkpoint?.trialHashes)
+      ? current.result_snapshot.checkpoint.trialHashes
+      : [];
+    const suppliedTrials = result && typeof result === 'object' && Array.isArray((result as any).trials)
+      ? (result as any).trials
+      : [];
+    const suppliedMatchesCheckpoints = checkpointTrials.every(
+      (trial: unknown, index: number) => (
+        canonicalJson(suppliedTrials[index]) === canonicalJson(trial)
+      ),
+    );
+    let finalStatus = status;
+    let finalError = error;
+    if (
+      status === 'completed'
+      && (
+        Number(current.completed_trials) !== Number(current.maximum_stages)
+        || checkpointHashes.length !== Number(current.maximum_stages)
+        || suppliedTrials.length !== Number(current.maximum_stages)
+        || !suppliedMatchesCheckpoints
+      )
+    ) {
+      finalStatus = 'failed';
+      finalError = 'PREDICTIVE_NT_FINAL_CHECKPOINT_MISMATCH';
+    }
+    const finalResult = result && typeof result === 'object'
+      ? {
+        ...(result as Record<string, unknown>),
+        trials: suppliedMatchesCheckpoints
+          && suppliedTrials.length >= checkpointTrials.length
+          ? (result as any).trials
+          : checkpointTrials,
+        checkpoint: current.result_snapshot?.checkpoint,
+      }
+      : current.result_snapshot;
     const updated = await client.query(
       `UPDATE ecr_pre_pilot_predictive_nt_jobs
           SET status = $3, result_snapshot = $4, error = $5,
               completed_at = NOW(), lease_expires_at = NULL, updated_at = NOW()
         WHERE id = $1 AND status = 'running' AND claim_token = $2
         RETURNING *`,
-      [jobId, claimToken, status, result, error],
+      [jobId, claimToken, finalStatus, finalResult, finalError],
     );
     if (updated.rows[0]) await recordHistory(client, updated.rows[0], { event: 'finished' });
     await client.query('COMMIT');
@@ -523,8 +682,10 @@ function execute(job: PredictiveNtJob, claimToken: string) {
   });
   let stdout = '';
   let stderr = '';
+  let stderrLineBuffer = '';
   let timedOut = false;
-  let lastProgress = -1;
+  let checkpointFailure: Error | null = null;
+  let checkpointQueue = Promise.resolve();
   const heartbeat = setInterval(() => {
     void renewLease(job.id, claimToken)
       .catch((error) => console.error('[Predictive N_T] Lease renewal failed:', error));
@@ -541,30 +702,77 @@ function execute(job: PredictiveNtJob, claimToken: string) {
   });
   child.stderr.on('data', (chunk) => {
     const text = String(chunk);
-    stderr += text;
-    for (const match of text.matchAll(/PREDICTIVE_NT_PROGRESS\s+(\d+)\s+(\d+)/g)) {
-      job.progress = {
-        completedStageTrials: Number(match[1]),
-        maximumStages: Number(match[2]),
-      };
-      if (job.progress.completedStageTrials !== lastProgress) {
-        lastProgress = job.progress.completedStageTrials;
-        void updateProgress(
-          job.id,
-          claimToken,
-          job.progress.completedStageTrials,
-          job.progress.maximumStages,
-        ).catch((error) => console.error('[Predictive N_T] Progress persistence failed:', error));
+    stderrLineBuffer += text;
+    const lines = stderrLineBuffer.split('\n');
+    stderrLineBuffer = lines.pop() ?? '';
+    for (const line of lines) {
+      const checkpoint = /^PREDICTIVE_NT_CHECKPOINT\s+(\d+)\s+([a-f0-9]{64})\s+([A-Za-z0-9+/=]+)$/.exec(line);
+      if (checkpoint) {
+        const stageCount = Number(checkpoint[1]);
+        const trialHash = checkpoint[2];
+        const canonicalTrial = Buffer.from(checkpoint[3], 'base64').toString('utf8');
+        checkpointQueue = checkpointQueue
+          .then(() => persistTrialCheckpoint(
+            job.id,
+            claimToken,
+            stageCount,
+            trialHash,
+            canonicalTrial,
+          ))
+          .then(async () => {
+            const testHooks = runtimeTestHooks.get(job.id);
+            if (
+              process.env.NODE_ENV === 'test'
+              && testHooks?.replayMismatchAtStage === stageCount
+            ) {
+              const mismatchedTrial = canonicalTrial.replace(/}$/, ',"testReplayMismatch":true}');
+              const mismatchedHash = createHash('sha256').update(mismatchedTrial).digest('hex');
+              await persistTrialCheckpoint(
+                job.id,
+                claimToken,
+                stageCount,
+                mismatchedHash,
+                mismatchedTrial,
+              );
+            }
+            if (!child.killed) {
+              child.stdin.write(`PREDICTIVE_NT_ACK ${stageCount} ${trialHash}\n`);
+              if (
+                process.env.NODE_ENV === 'test'
+                && testHooks?.killAfterAcknowledgedStage === stageCount
+              ) {
+                checkpointFailure = new Error('PREDICTIVE_NT_TEST_TERMINATED_AFTER_ACK');
+                child.kill('SIGKILL');
+              }
+            }
+          })
+          .catch((error) => {
+            checkpointFailure = error instanceof Error ? error : new Error(String(error));
+            child.kill('SIGKILL');
+          });
+        continue;
       }
+      stderr += `${line}\n`;
+      const progress = /^PREDICTIVE_NT_PROGRESS\s+(\d+)\s+(\d+)$/.exec(line);
+      if (!progress) continue;
+      job.progress = {
+        completedStageTrials: Number(progress[1]),
+        maximumStages: Number(progress[2]),
+      };
     }
     if (stderr.length > 1_000_000) stderr = stderr.slice(-1_000_000);
   });
   child.on('error', (error) => {
     stderr = error.message;
   });
+  child.stdin.on('error', (error) => {
+    if (!checkpointFailure) checkpointFailure = error;
+  });
   child.on('close', async (code) => {
     clearTimeout(timeout);
     clearInterval(heartbeat);
+    await checkpointQueue;
+    if (stderrLineBuffer) stderr += stderrLineBuffer;
     let result: unknown = null;
     try {
       result = stdout ? JSON.parse(stdout) : null;
@@ -572,23 +780,31 @@ function execute(job: PredictiveNtJob, claimToken: string) {
     } catch {
       result = null;
     }
-    const status = code === 0 ? 'completed' : 'failed';
-    const error = code === 0 ? null : timedOut
+    const status = code === 0 && !checkpointFailure ? 'completed' : 'failed';
+    const error = status === 'completed' ? null : timedOut
       ? 'PREDICTIVE_NT_JOB_TIMEOUT'
       : (
+        checkpointFailure?.message
+        || (
         (result as { error?: string } | null)?.error
         || stderr.trim()
         || `Python worker exited with code ${code}`
+        )
       );
     try {
       await finishJob(job.id, claimToken, status, result, error);
     } catch (failure) {
       console.error('[Predictive N_T] Completion persistence failed:', failure);
     } finally {
+      runtimeTestHooks.delete(job.id);
       workerBusy = false;
     }
   });
-  child.stdin.end(JSON.stringify({ ...job.input, engineHash }));
+  child.stdin.write(`${JSON.stringify({
+    ...job.input,
+    engineHash,
+    _checkpointProtocol: 'ACK_V1',
+  })}\n`);
 }
 
 async function pollWorker() {
@@ -620,6 +836,7 @@ async function enqueueRawPredictiveNtJob(
   input: PredictiveNtJobInput,
   userId: number,
   designId: number,
+  testHooks?: RuntimeTestHooks,
 ) {
   const gate = validatePredictiveNtJobInput(input);
   const immutableInput = { ...input, modelHash: PRE_PILOT_MODEL.modelHash };
@@ -665,6 +882,7 @@ async function enqueueRawPredictiveNtJob(
   } finally {
     client.release();
   }
+  if (testHooks) runtimeTestHooks.set(job.id, testHooks);
   startPredictiveNtWorker();
   return {
     jobId: job.id,
@@ -678,11 +896,12 @@ export async function enqueuePredictiveNtRuntimeTestJob(
   input: unknown,
   userId: number,
   designId: number,
+  testHooks?: RuntimeTestHooks,
 ) {
   if (process.env.NODE_ENV !== 'test') {
     throw new Error('RAW_PREDICTIVE_NT_ENQUEUE_DISABLED');
   }
-  return enqueueRawPredictiveNtJob(input, userId, designId);
+  return enqueueRawPredictiveNtJob(input, userId, designId, testHooks);
 }
 
 export async function enqueuePredictiveNtJobFromSavedStage1(
