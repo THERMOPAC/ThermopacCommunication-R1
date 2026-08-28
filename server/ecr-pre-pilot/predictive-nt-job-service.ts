@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import os from 'node:os';
 import fs from 'node:fs';
@@ -52,10 +52,74 @@ const MAX_ACTIVE_JOBS_PER_USER = 2;
 const JOB_TIMEOUT_MS = 30 * 60 * 1000;
 const LEASE_MS = 45 * 1000;
 const POLL_MS = 1_000;
-const PREDICTIVE_NT_ENGINE_SHA256 = '2812b1e0fe537d869bfed26471b89dbae22eaa2ba5ffc503eb83b7f46b4ffa86';
+const PREDICTIVE_NT_ENGINE_SHA256 = 'c3d9dfce2bb41c34bce0a5847a3bd975b66f73d80bf2e6af34407dee16175e6e';
+const PREDICTIVE_NT_RUNTIME_SUPPORT_SHA256 = {
+  'server/research/ecr-pre-pilot-uniquac/model.py':
+    'c1130eba32c1b84c55309b71ee88c7ce6297b16c5a465486f5f505158c551ebc',
+  'server/research/ecr-pre-pilot-uniquac/structural-provenance.json':
+    'ec79321c475d13aabb280caca5bbe2bd1d9b50d1011be2f9623881aef58caf43',
+} as const;
 const WORKER_OWNER = `${os.hostname()}:${process.pid}:${randomUUID()}`;
 let workerStarted = false;
 let workerBusy = false;
+
+function runtimeRoot() {
+  if (process.env.PREDICTIVE_NT_RUNTIME_ROOT) {
+    return path.resolve(process.env.PREDICTIVE_NT_RUNTIME_ROOT);
+  }
+  return process.env.NODE_ENV === 'production'
+    ? path.resolve(process.cwd(), 'dist/predictive-nt-runtime')
+    : process.cwd();
+}
+
+function workerScript() {
+  return path.join(
+    runtimeRoot(),
+    'server/research/ecr-pre-pilot-model-freeze/predictive_nt_cascade.py',
+  );
+}
+
+export function preflightPredictiveNtRuntime() {
+  const script = workerScript();
+  if (!fs.existsSync(script)) throw new Error(`PREDICTIVE_NT_RUNTIME_MISSING: ${script}`);
+  const engineHash = createHash('sha256').update(fs.readFileSync(script)).digest('hex');
+  if (engineHash !== PREDICTIVE_NT_ENGINE_SHA256) {
+    throw new Error('PREDICTIVE_NT_RUNTIME_PREFLIGHT_FAILED: engine hash mismatch');
+  }
+  for (const [relativePath, expectedHash] of Object.entries(PREDICTIVE_NT_RUNTIME_SUPPORT_SHA256)) {
+    const supportPath = path.join(runtimeRoot(), relativePath);
+    if (!fs.existsSync(supportPath)) {
+      throw new Error(`PREDICTIVE_NT_RUNTIME_MISSING: ${supportPath}`);
+    }
+    const actualHash = createHash('sha256').update(fs.readFileSync(supportPath)).digest('hex');
+    if (actualHash !== expectedHash) {
+      throw new Error(`PREDICTIVE_NT_RUNTIME_PREFLIGHT_FAILED: ${relativePath} hash mismatch`);
+    }
+  }
+  const check = spawnSync('python3.12', [script, '--preflight'], {
+    cwd: runtimeRoot(),
+    encoding: 'utf8',
+    timeout: 60_000,
+  });
+  if (check.error || check.status !== 0) {
+    const detail = check.error?.message || check.stderr.trim() || `exit ${check.status}`;
+    throw new Error(`PREDICTIVE_NT_RUNTIME_PREFLIGHT_FAILED: ${detail}`);
+  }
+  let result: any;
+  try {
+    result = JSON.parse(check.stdout);
+  } catch {
+    throw new Error('PREDICTIVE_NT_RUNTIME_PREFLIGHT_FAILED: invalid worker response');
+  }
+  if (
+    result.status !== 'PASS'
+    || result.python !== '3.12'
+    || result.modelHash !== PRE_PILOT_MODEL.modelHash
+  ) {
+    throw new Error('PREDICTIVE_NT_RUNTIME_PREFLIGHT_FAILED: invalid evidence');
+  }
+  return result;
+}
 
 export const PREDICTIVE_NT_MOLECULAR_REGISTRY = {
   saturates: [
@@ -328,10 +392,7 @@ async function finishJob(
 }
 
 function execute(job: PredictiveNtJob, claimToken: string) {
-  const script = path.resolve(
-    process.cwd(),
-    'server/research/ecr-pre-pilot-model-freeze/predictive_nt_cascade.py',
-  );
+  const script = workerScript();
   const engineHash = createHash('sha256').update(fs.readFileSync(script)).digest('hex');
   const evidenceError = validatePredictiveNtExecutionEvidence(job, engineHash);
   if (evidenceError) {
@@ -341,7 +402,7 @@ function execute(job: PredictiveNtJob, claimToken: string) {
   }
 
   const child = spawn('python3.12', [script], {
-    cwd: process.cwd(),
+    cwd: runtimeRoot(),
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   let stdout = '';
@@ -431,6 +492,7 @@ async function pollWorker() {
 
 export function startPredictiveNtWorker() {
   if (workerStarted) return;
+  preflightPredictiveNtRuntime();
   workerStarted = true;
   const timer = setInterval(() => void pollWorker(), POLL_MS);
   timer.unref();

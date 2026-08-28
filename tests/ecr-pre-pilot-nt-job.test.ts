@@ -1,10 +1,18 @@
 import { execFileSync } from 'node:child_process';
-import { describe, expect, it } from 'vitest';
+import { cpSync, mkdtempSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { afterAll, describe, expect, it } from 'vitest';
 import { PRE_PILOT_MODEL } from '../server/ecr-pre-pilot/model';
 import {
+  enqueuePredictiveNtJob,
+  getPredictiveNtJob,
+  preflightPredictiveNtRuntime,
   validatePredictiveNtExecutionEvidence,
   validatePredictiveNtJobInput,
 } from '../server/ecr-pre-pilot/predictive-nt-job-service';
+import { allocateEcrPrePilotDesign } from '../server/ecr-pre-pilot-service';
+import { pool } from '../server/db';
 
 const satMw = 226.44;
 const monoMw = 148.25;
@@ -51,6 +59,10 @@ const validInput = {
 };
 
 describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
+  afterAll(async () => {
+    await pool.end();
+  });
+
   it('fails closed instead of running queued work against changed evidence', () => {
     const persisted = {
       input: validInput,
@@ -163,4 +175,74 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       changedManifestRejected: true,
     });
   }, 30_000);
+
+  it('fails preflight before submission when a packaged runtime artifact is missing', () => {
+    execFileSync('node', ['scripts/package-predictive-nt-runtime.mjs']);
+    const temporaryRoot = mkdtempSync(path.join(os.tmpdir(), 'predictive-nt-runtime-'));
+    cpSync('dist/predictive-nt-runtime', temporaryRoot, { recursive: true });
+    rmSync(path.join(temporaryRoot, 'server/research/ecr-pre-pilot-uniquac/model.py'));
+    process.env.PREDICTIVE_NT_RUNTIME_ROOT = temporaryRoot;
+    try {
+      expect(() => preflightPredictiveNtRuntime()).toThrow('PREDICTIVE_NT_RUNTIME_MISSING');
+    } finally {
+      delete process.env.PREDICTIVE_NT_RUNTIME_ROOT;
+      rmSync(temporaryRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('runs a one-stage job to completion from the production runtime bundle', async () => {
+    execFileSync('node', ['scripts/package-predictive-nt-runtime.mjs']);
+    process.env.PREDICTIVE_NT_RUNTIME_ROOT = 'dist/predictive-nt-runtime';
+    expect(preflightPredictiveNtRuntime()).toMatchObject({
+      status: 'PASS',
+      python: '3.12',
+      modelHash: PRE_PILOT_MODEL.modelHash,
+    });
+
+    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
+    if (!user.rows[0]) throw new Error('No user available for Predictive N_T integration test');
+    const userId = Number(user.rows[0].id);
+    const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-prod-integration-v1');
+    try {
+      const submitted = await enqueuePredictiveNtJob(
+        { ...validInput, maximumStages: 1 },
+        userId,
+        design.id,
+      );
+
+      let completed = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+      const deadline = Date.now() + 120_000;
+      while (completed?.status !== 'completed' && completed?.status !== 'failed' && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        completed = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+      }
+
+      expect(completed?.status, completed?.error ?? 'job did not complete').toBe('completed');
+      expect(completed?.modelHash).toBe(PRE_PILOT_MODEL.modelHash);
+      expect(completed?.engineHash).toBe(
+        'c3d9dfce2bb41c34bce0a5847a3bd975b66f73d80bf2e6af34407dee16175e6e',
+      );
+      expect(completed?.result).toMatchObject({
+        status: 'ACCEPTED_PREDICTIVE_NT',
+        establishedTheoreticalStages: null,
+        releaseEligible: false,
+        calibrationRequired: true,
+        model: {
+          modelHash: PRE_PILOT_MODEL.modelHash,
+          runtimeVerification: 'PASS',
+        },
+        engine: {
+          engineHash: completed?.engineHash,
+        },
+      });
+      const result = completed?.result as any;
+      expect(result.trials).toHaveLength(1);
+      expect(result.trials[0].balanceAccepted).toBe(true);
+      expect(result.trials[0].overallComponentBalanceMaximum).toBeLessThanOrEqual(1e-8);
+      expect(Math.abs(Object.values(result.trials[0].overallComponentBalanceResiduals)
+        .reduce((sum: number, value) => sum + Number(value), 0))).toBeLessThanOrEqual(1e-8);
+    } finally {
+      delete process.env.PREDICTIVE_NT_RUNTIME_ROOT;
+    }
+  }, 150_000);
 });

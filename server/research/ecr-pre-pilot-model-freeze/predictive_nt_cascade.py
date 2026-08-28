@@ -62,6 +62,19 @@ def verify_frozen_model():
     return manifest
 
 
+def verify_runtime():
+    manifest = verify_frozen_model()
+    row, previous = setup_model("n-hexadecane", "n-pentylbenzene", 323.15)
+    restore_model(previous)
+    assert row is not None
+    return {
+        "status": "PASS",
+        "python": f"{sys.version_info.major}.{sys.version_info.minor}",
+        "modelHash": manifest["modelHash"],
+        "verifiedArtifactCount": len(manifest["artifacts"]) + 1,
+    }
+
+
 def setup_model(sat_identity: str, mono_identity: str, temperature_k: float):
     registry = json.loads((NEW / "descriptor-registry.json").read_text())
     theta = np.asarray(json.loads(CHECKPOINT.read_text())["parameters"], dtype=np.float64)
@@ -314,6 +327,9 @@ def main():
 
 
 if __name__ == "__main__":
+    if "--preflight" in sys.argv:
+        print(json.dumps(verify_runtime(), sort_keys=True))
+        sys.exit(0)
     if "--self-test-manifest-binding" in sys.argv:
         rejected = False
         try:

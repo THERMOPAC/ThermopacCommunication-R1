@@ -82,3 +82,4 @@
 - [ECR-2 two-level execution](ecr2-two-level-execution.md) — pre-pilot prediction may calculate with explicit uncertainty; governed/release mode remains independently fail-closed.
 - [ECR Pre-Pilot project numbering](ecr-prepilot-project-numbering.md) — server-issued, sequential, atomic, immutable allocations persist permanently and are never reused.
 - [ECR Pre-Pilot Predictive N_T basis](ecr-prepilot-predictive-nt-basis.md) — server rechecks every mass→mole conversion; non-SAT/MONO feed and mass recovery gates fail closed.
+- [Predictive N_T runtime freeze](predictive-nt-runtime-freeze.md) — deployment must bundle and hash-check transitive Python support beyond the scientific model manifest.
