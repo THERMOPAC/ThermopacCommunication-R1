@@ -4,9 +4,11 @@ import { allocateEcrPrePilotDesign } from '../ecr-pre-pilot-service';
 import {
   enqueuePredictiveNtJob,
   getPredictiveNtJob,
+  startPredictiveNtWorker,
 } from './predictive-nt-job-service';
 
 export function setupEcrPrePilotRoutes(app: Express): void {
+  startPredictiveNtWorker();
   app.post('/api/ecr-pre-pilot/designs', ensureAuthenticated, async (req: Request, res: Response) => {
     const userId = Number((req.user as any)?.id);
     const allocationKey = String(req.get('Idempotency-Key') ?? '').trim();
@@ -55,14 +57,19 @@ export function setupEcrPrePilotRoutes(app: Express): void {
   app.get(
     '/api/ecr-pre-pilot/designs/:id/predictive-nt/jobs/:jobId',
     ensureAuthenticated,
-    (req: Request, res: Response) => {
-      const designId = Number(req.params.id);
-      if (!Number.isInteger(designId) || designId <= 0) {
-        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+    async (req: Request, res: Response) => {
+      try {
+        const designId = Number(req.params.id);
+        if (!Number.isInteger(designId) || designId <= 0) {
+          return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+        }
+        const job = await getPredictiveNtJob(req.params.jobId, Number((req.user as any).id), designId);
+        if (!job) return res.status(404).json({ error: 'Predictive N_T job not found' });
+        return res.json(job);
+      } catch (error) {
+        console.error('[ECR Pre-Pilot] Predictive N_T job lookup failed:', error);
+        return res.status(500).json({ error: 'Predictive N_T job lookup failed' });
       }
-      const job = getPredictiveNtJob(req.params.jobId, Number((req.user as any).id), designId);
-      if (!job) return res.status(404).json({ error: 'Predictive N_T job not found' });
-      return res.json(job);
     },
   );
 }

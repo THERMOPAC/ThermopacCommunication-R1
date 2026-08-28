@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, bigint, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, unique, real, check, pgEnum, index, smallint } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, bigserial, integer, bigint, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, unique, real, check, pgEnum, index, smallint } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -17203,6 +17203,53 @@ export const ecrPrePilotDesigns = pgTable('ecr_pre_pilot_designs', {
   userAllocationKeyUnique: uniqueIndex('ecr_pre_pilot_design_user_key_uidx').on(table.createdBy, table.allocationKey),
 }));
 
+export const ecrPrePilotPredictiveNtJobs = pgTable('ecr_pre_pilot_predictive_nt_jobs', {
+  id:              uuid('id').primaryKey(),
+  designId:        integer('design_id').notNull().references(() => ecrPrePilotDesigns.id),
+  createdBy:       integer('created_by').notNull().references(() => users.id),
+  inputSnapshot:   jsonb('input_snapshot').notNull(),
+  modelHash:       varchar('model_hash', { length: 64 }).notNull(),
+  engineHash:      varchar('engine_hash', { length: 64 }).notNull(),
+  status:          varchar('status', { length: 20 }).notNull().default('pending'),
+  completedTrials: integer('completed_trials').notNull().default(0),
+  maximumStages:   integer('maximum_stages').notNull(),
+  resultSnapshot:  jsonb('result_snapshot'),
+  error:           text('error'),
+  workerOwner:     varchar('worker_owner', { length: 160 }),
+  claimToken:      uuid('claim_token'),
+  attemptCount:    integer('attempt_count').notNull().default(0),
+  leaseExpiresAt:  timestamp('lease_expires_at'),
+  createdAt:       timestamp('created_at').notNull().defaultNow(),
+  startedAt:       timestamp('started_at'),
+  completedAt:     timestamp('completed_at'),
+  updatedAt:       timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  queueIndex: index('ecr_pre_pilot_predictive_nt_jobs_queue_idx').on(table.status, table.createdAt),
+  ownerIndex: index('ecr_pre_pilot_predictive_nt_jobs_owner_idx').on(table.createdBy, table.status),
+  designIndex: index('ecr_pre_pilot_predictive_nt_jobs_design_idx').on(table.designId, table.createdAt),
+  statusCheck: check('ecr_pre_pilot_predictive_nt_jobs_status_chk', sql`status IN ('pending', 'running', 'completed', 'failed')`),
+}));
+
+export const ecrPrePilotPredictiveNtJobHistory = pgTable('ecr_pre_pilot_predictive_nt_job_history', {
+  id:              bigserial('id', { mode: 'number' }).primaryKey(),
+  jobId:           uuid('job_id').notNull().references(() => ecrPrePilotPredictiveNtJobs.id),
+  inputSnapshot:   jsonb('input_snapshot').notNull(),
+  modelHash:       varchar('model_hash', { length: 64 }).notNull(),
+  engineHash:      varchar('engine_hash', { length: 64 }).notNull(),
+  status:          varchar('status', { length: 20 }).notNull(),
+  completedTrials: integer('completed_trials').notNull(),
+  maximumStages:   integer('maximum_stages').notNull(),
+  workerOwner:     varchar('worker_owner', { length: 160 }),
+  attemptCount:    integer('attempt_count').notNull(),
+  resultSnapshot:  jsonb('result_snapshot'),
+  error:           text('error'),
+  details:         jsonb('details').notNull().default(sql`'{}'::jsonb`),
+  recordedAt:      timestamp('recorded_at').notNull().defaultNow(),
+}, (table) => ({
+  jobHistoryIndex: index('ecr_pre_pilot_predictive_nt_job_history_job_idx').on(table.jobId, table.recordedAt),
+  statusCheck: check('ecr_pre_pilot_predictive_nt_job_history_status_chk', sql`status IN ('pending', 'running', 'completed', 'failed')`),
+}));
+
 // ── Zod insert schemas ────────────────────────────────────────────────────────
 export const insertDesignSoftwareDesignSchema = createInsertSchema(designSoftwareDesigns).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDesignSoftwareRevisionSchema = createInsertSchema(designSoftwareRevisions).omit({ id: true, createdAt: true, updatedAt: true });
@@ -17212,6 +17259,7 @@ export const insertDesignSoftwareCalculationRunSchema = createInsertSchema(desig
 export const insertDesignSoftwareAssumptionSchema = createInsertSchema(designSoftwareAssumptions).omit({ id: true, createdAt: true });
 export const insertDesignSoftwareApprovalSchema = createInsertSchema(designSoftwareApprovals).omit({ id: true, performedAt: true });
 export const insertEcrPrePilotDesignSchema = createInsertSchema(ecrPrePilotDesigns).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertEcrPrePilotPredictiveNtJobSchema = createInsertSchema(ecrPrePilotPredictiveNtJobs).omit({ createdAt: true, updatedAt: true });
 
 // ── TypeScript types ──────────────────────────────────────────────────────────
 export type DesignSoftwareDesign = typeof designSoftwareDesigns.$inferSelect;
@@ -17222,3 +17270,5 @@ export type DesignSoftwareCalculationRun = typeof designSoftwareCalculationRuns.
 export type DesignSoftwareAssumption = typeof designSoftwareAssumptions.$inferSelect;
 export type DesignSoftwareApproval = typeof designSoftwareApprovals.$inferSelect;
 export type EcrPrePilotDesign = typeof ecrPrePilotDesigns.$inferSelect;
+export type EcrPrePilotPredictiveNtJob = typeof ecrPrePilotPredictiveNtJobs.$inferSelect;
+export type EcrPrePilotPredictiveNtJobHistory = typeof ecrPrePilotPredictiveNtJobHistory.$inferSelect;

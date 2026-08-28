@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { PRE_PILOT_MODEL } from '../server/ecr-pre-pilot/model';
 import {
+  validatePredictiveNtExecutionEvidence,
   validatePredictiveNtJobInput,
 } from '../server/ecr-pre-pilot/predictive-nt-job-service';
 
@@ -17,6 +18,21 @@ const validInput = {
 };
 
 describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
+  it('fails closed instead of running queued work against changed evidence', () => {
+    const persisted = {
+      input: validInput,
+      modelHash: PRE_PILOT_MODEL.modelHash,
+      engineHash: 'persisted-engine',
+    };
+    expect(validatePredictiveNtExecutionEvidence(persisted, 'changed-engine'))
+      .toBe('PREDICTIVE_NT_ENGINE_HASH_MISMATCH');
+    expect(validatePredictiveNtExecutionEvidence({
+      ...persisted,
+      modelHash: 'changed-model',
+    }, 'persisted-engine')).toBe('PREDICTIVE_NT_MODEL_HASH_MISMATCH');
+    expect(validatePredictiveNtExecutionEvidence(persisted, 'persisted-engine')).toBeNull();
+  });
+
   it('binds every job input to the frozen package and never establishes N_T at validation', () => {
     const gate = validatePredictiveNtJobInput(validInput);
     expect(gate).toMatchObject({

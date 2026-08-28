@@ -8,7 +8,7 @@ channel = "stable-24_05"
 [deployment]
 deploymentTarget = "autoscale"
 build = ["npm", "run", "build"]
-run = ["bash", "-c", "NODE_ENV=production node dist/index.js"]
+run = ["bash", "-c", "node scripts/apply-ecr-pre-pilot-predictive-nt-schema.mjs && NODE_ENV=production node dist/index.js"]
 
 [workflows]
 runButton = "Project"

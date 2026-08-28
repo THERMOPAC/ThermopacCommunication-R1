@@ -12,3 +12,4 @@ npm install --prefer-offline --no-audit --no-fund 2>/dev/null || npm install
 # drift). Non-additive changes (renames, drops, constraint changes) must be
 # applied deliberately via SQL by the agent.
 npx tsx scripts/db-additive-sync.ts
+node scripts/apply-ecr-pre-pilot-predictive-nt-schema.mjs
