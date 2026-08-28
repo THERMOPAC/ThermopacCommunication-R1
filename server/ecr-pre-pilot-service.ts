@@ -1,4 +1,9 @@
 import { pool } from "./db";
+import {
+  canonicalizeStage1Input,
+  makeStage1Snapshot,
+  type EcrPrePilotStage1Snapshot,
+} from "./ecr-pre-pilot/stage1";
 
 const COUNTER_ROW_ID = 1;
 const MAX_ALLOCATION_ATTEMPTS = 3;
@@ -9,6 +14,7 @@ export type EcrPrePilotDesignAllocation = {
   projectNumber: number;
   status: string;
   existing: boolean;
+  inputData: unknown;
 };
 
 function isUniqueViolation(error: unknown): boolean {
@@ -52,8 +58,8 @@ export async function allocateEcrPrePilotDesign(
       );
 
       if (existingAllocation.rows[0]) {
-        const existingDesign = await client.query<{ id: number; status: string }>(
-          `SELECT id, status
+        const existingDesign = await client.query<{ id: number; status: string; input_data: unknown }>(
+          `SELECT id, status, input_data
              FROM ecr_pre_pilot_designs
             WHERE project_number = $1`,
           [existingAllocation.rows[0].project_number],
@@ -68,6 +74,7 @@ export async function allocateEcrPrePilotDesign(
           projectNumber: Number(existingAllocation.rows[0].project_number),
           status: existing.status,
           existing: true,
+          inputData: existing.input_data,
         };
       }
 
@@ -114,6 +121,7 @@ export async function allocateEcrPrePilotDesign(
         projectNumber,
         status: design.rows[0].status,
         existing: false,
+        inputData: {},
       };
     } catch (error) {
       await client.query("ROLLBACK").catch(() => undefined);
@@ -127,4 +135,29 @@ export async function allocateEcrPrePilotDesign(
   }
 
   throw new Error("Project-number allocation could not be completed.");
+}
+
+export async function saveEcrPrePilotStage1(
+  userId: number,
+  designId: number,
+  rawInput: unknown,
+): Promise<EcrPrePilotStage1Snapshot> {
+  const design = await pool.query<{ project_number: number }>(
+    `SELECT project_number
+       FROM ecr_pre_pilot_designs
+      WHERE id = $1 AND created_by = $2`,
+    [designId, userId],
+  );
+  if (!design.rows[0]) throw new Error("ECR_PRE_PILOT_DESIGN_NOT_FOUND");
+  const stage1 = canonicalizeStage1Input(rawInput, Number(design.rows[0].project_number));
+  const snapshot = makeStage1Snapshot(stage1);
+  const updated = await pool.query(
+    `UPDATE ecr_pre_pilot_designs
+        SET input_data = $3, updated_at = NOW()
+      WHERE id = $1 AND created_by = $2
+      RETURNING id`,
+    [designId, userId, snapshot],
+  );
+  if (!updated.rows[0]) throw new Error("ECR_PRE_PILOT_DESIGN_NOT_FOUND");
+  return snapshot;
 }

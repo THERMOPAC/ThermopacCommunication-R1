@@ -1,8 +1,8 @@
 import type { Express, Request, Response } from 'express';
 import { ensureAuthenticated } from '../auth-middleware';
-import { allocateEcrPrePilotDesign } from '../ecr-pre-pilot-service';
+import { allocateEcrPrePilotDesign, saveEcrPrePilotStage1 } from '../ecr-pre-pilot-service';
 import {
-  enqueuePredictiveNtJob,
+  enqueuePredictiveNtJobFromSavedStage1,
   getPredictiveNtJob,
   PREDICTIVE_NT_MOLECULAR_REGISTRY,
   startPredictiveNtWorker,
@@ -32,6 +32,11 @@ export function setupEcrPrePilotRoutes(app: Express): void {
         id: allocation.id,
         projectNumber: String(allocation.projectNumber),
         status: allocation.status,
+        inputData: allocation.inputData,
+        sulfurPrediction: {
+          status: 'NOT_CALCULABLE',
+          calibrationStatus: 'CALIBRATION_REQUIRED',
+        },
       });
     } catch (error: any) {
       const message = error?.message ?? 'ECR Pre-Pilot design could not be allocated.';
@@ -40,6 +45,24 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       }
       console.error('[ECR Pre-Pilot] Project-number allocation failed:', error);
       return res.status(500).json({ message: 'ECR Pre-Pilot project number could not be allocated.' });
+    }
+  });
+
+  app.put('/api/ecr-pre-pilot/designs/:id/stage-1', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      const snapshot = await saveEcrPrePilotStage1(
+        Number((req.user as any).id),
+        designId,
+        req.body,
+      );
+      return res.json(snapshot);
+    } catch (error: any) {
+      const status = error.message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404 : 422;
+      return res.status(status).json({ error: error.message });
     }
   });
 
@@ -52,7 +75,10 @@ export function setupEcrPrePilotRoutes(app: Express): void {
         if (!Number.isInteger(designId) || designId <= 0) {
           return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
         }
-        const job = await enqueuePredictiveNtJob(req.body, Number((req.user as any).id), designId);
+        const job = await enqueuePredictiveNtJobFromSavedStage1(
+          Number((req.user as any).id),
+          designId,
+        );
         return res.status(202).json(job);
       } catch (error: any) {
         const status = error.message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404

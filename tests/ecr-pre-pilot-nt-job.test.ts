@@ -5,13 +5,15 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { PRE_PILOT_MODEL } from '../server/ecr-pre-pilot/model';
 import {
-  enqueuePredictiveNtJob,
+  enqueuePredictiveNtRuntimeTestJob,
+  derivePredictiveNtInputFromStage1,
+  attachStage1ResultGovernance,
   getPredictiveNtJob,
   preflightPredictiveNtRuntime,
   validatePredictiveNtExecutionEvidence,
   validatePredictiveNtJobInput,
 } from '../server/ecr-pre-pilot/predictive-nt-job-service';
-import { allocateEcrPrePilotDesign } from '../server/ecr-pre-pilot-service';
+import { allocateEcrPrePilotDesign, saveEcrPrePilotStage1 } from '../server/ecr-pre-pilot-service';
 import { pool } from '../server/db';
 
 const satMw = 226.44;
@@ -57,6 +59,43 @@ const validInput = {
     minimumSatMoles / (minimumSatMoles + correspondingMonoMoles),
   maximumStages: 3,
 };
+
+function validStage1(projectNumber: number) {
+  return {
+    projectReference: String(projectNumber),
+    rrboGrade: 'SN300',
+    designFeedRateLph: '1000',
+    operatingTemperatureC: '50',
+    operatingPressure: '2.0',
+    phaseConfiguration: 'nmp-continuous-rrbo-dispersed',
+    saturatesWt: '70',
+    monoAromaticsWt: '30',
+    diAromaticsWt: '0',
+    polyAromaticsWt: '0',
+    polarAromaticsWt: '0',
+    nmpInFeedWt: '0',
+    rrboDensityKgM3: '850',
+    rrboDynamicViscosityCp: '20',
+    rrboInterfacialTensionMnM: '8',
+    nmpPurityWt: '99.5',
+    nmpWaterWt: '0.05',
+    nmpTemperatureC: '50',
+    nmpDensityKgM3: '1000',
+    nmpDynamicViscosityCp: '1.2',
+    solventOilRatio: '1.00',
+    targetRaffinateSulfurPpm: '1000',
+    minimumRaffinateSaturatesWt: '90',
+    targetRaffinateTotalAromaticsWt: '10.0',
+    targetRaffinatePolarAromaticsWt: '0.50',
+    minimumRecoveryPct: '95',
+    maximumNmpRaffinateWt: '0.50',
+    feedSulfurPpm: '3500',
+    designBasisNotes: 'Stage 1 authority integration fixture',
+    satIdentity: 'n-hexadecane',
+    monoIdentity: 'n-pentylbenzene',
+    maximumStages: '10',
+  };
+}
 
 describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
   afterAll(async () => {
@@ -145,6 +184,104 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     })).toThrow('MASS_RECOVERY_GATE_UNAVAILABLE');
   });
 
+  it('derives the complete solver request from the saved Stage 1 snapshot', async () => {
+    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
+    if (!user.rows[0]) throw new Error('No user available for Stage 1 authority test');
+    const userId = Number(user.rows[0].id);
+    const design = await allocateEcrPrePilotDesign(userId, `stage1-authority-${Date.now()}`);
+    const snapshot = await saveEcrPrePilotStage1(userId, design.id, validStage1(design.projectNumber));
+    const derived = derivePredictiveNtInputFromStage1(snapshot, design.projectNumber);
+
+    expect(derived).toMatchObject({
+      modelHash: PRE_PILOT_MODEL.modelHash,
+      temperatureK: 323.15,
+      satIdentity: 'n-hexadecane',
+      monoIdentity: 'n-pentylbenzene',
+      sourceFeedCompositionMassFraction: {
+        saturates: 0.7,
+        mono: 0.3,
+        di: 0,
+        poly: 0,
+        polar: 0,
+        nmp: 0,
+      },
+      sourceProductTargetsMassFraction: {
+        maximumMono: 0.1,
+        minimumSaturates: 0.9,
+      },
+      maximumStages: 10,
+      stage1Authority: {
+        schemaVersion: 'ECR_PRE_PILOT_STAGE_1_V1',
+        sulfurPrediction: {
+          status: 'NOT_CALCULABLE',
+          calibrationStatus: 'CALIBRATION_REQUIRED',
+        },
+        minimumMassRecovery: {
+          targetPercent: 95,
+          status: 'NOT_CALCULABLE',
+        },
+      },
+    });
+    expect(derived.stage1Authority?.snapshotHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(() => validatePredictiveNtJobInput(derived)).not.toThrow();
+    expect(attachStage1ResultGovernance({
+      status: 'ACCEPTED_PREDICTIVE_NT',
+      predictiveNt: 3,
+    }, derived)).toMatchObject({
+      status: 'ACCEPTED_PREDICTIVE_NT',
+      predictiveNt: 3,
+      stage1TargetGovernance: {
+        predictiveNtAuthority: 'FROZEN_PYTHON_THERMODYNAMIC_ENGINE',
+        sulfurPrediction: {
+          status: 'NOT_CALCULABLE',
+          calibrationStatus: 'CALIBRATION_REQUIRED',
+        },
+        minimumMassRecovery: {
+          targetPercent: 95,
+          status: 'NOT_CALCULABLE',
+        },
+        overallEcrProductAcceptance: false,
+        overallEcrProductAcceptanceStatus: 'BLOCKED_BY_NOT_CALCULABLE_TARGETS',
+      },
+    });
+  });
+
+  it('fails closed when the saved Stage 1 scope includes unsupported feed', async () => {
+    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
+    if (!user.rows[0]) throw new Error('No user available for Stage 1 scope test');
+    const userId = Number(user.rows[0].id);
+    const design = await allocateEcrPrePilotDesign(userId, `stage1-scope-${Date.now()}`);
+    const stage1 = validStage1(design.projectNumber);
+    stage1.saturatesWt = '69';
+    stage1.diAromaticsWt = '1';
+    const snapshot = await saveEcrPrePilotStage1(userId, design.id, stage1);
+    expect(() => derivePredictiveNtInputFromStage1(snapshot, design.projectNumber))
+      .toThrow('UNSUPPORTED_COMPONENT_SCOPE');
+  });
+
+  it('fails closed for an unsupported saved phase configuration', async () => {
+    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
+    if (!user.rows[0]) throw new Error('No user available for Stage 1 phase test');
+    const userId = Number(user.rows[0].id);
+    const design = await allocateEcrPrePilotDesign(userId, `stage1-phase-${Date.now()}`);
+    const stage1 = validStage1(design.projectNumber);
+    stage1.phaseConfiguration = 'rrbo-continuous-nmp-dispersed';
+    const snapshot = await saveEcrPrePilotStage1(userId, design.id, stage1);
+    expect(() => derivePredictiveNtInputFromStage1(snapshot, design.projectNumber))
+      .toThrow('UNSUPPORTED_PHASE_CONFIGURATION');
+  });
+
+  it('disables the raw scientific enqueue outside the test runtime', async () => {
+    const prior = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      await expect(enqueuePredictiveNtRuntimeTestJob(validInput, 1, 1))
+        .rejects.toThrow('RAW_PREDICTIVE_NT_ENQUEUE_DISABLED');
+    } finally {
+      process.env.NODE_ENV = prior;
+    }
+  });
+
   it('does not stop the minimum-stage search at a non-monotonic diagnostic', () => {
     const result = JSON.parse(execFileSync(
       'python3.12',
@@ -204,7 +341,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-prod-integration-v1');
     try {
-      const submitted = await enqueuePredictiveNtJob(
+      const submitted = await enqueuePredictiveNtRuntimeTestJob(
         { ...validInput, maximumStages: 1 },
         userId,
         design.id,

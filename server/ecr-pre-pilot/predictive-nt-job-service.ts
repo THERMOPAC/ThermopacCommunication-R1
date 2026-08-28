@@ -5,6 +5,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pool } from '../db';
 import { PRE_PILOT_MODEL, startPrePilotNt } from './model';
+import {
+  canonicalizeStage1Input,
+  ECR_PRE_PILOT_STAGE1_SCHEMA,
+  PREDICTIVE_NT_MOLECULAR_REGISTRY,
+  stage1SnapshotHash,
+  type EcrPrePilotStage1Snapshot,
+} from './stage1';
 
 export interface PredictiveNtJobInput {
   modelHash: string;
@@ -29,6 +36,20 @@ export interface PredictiveNtJobInput {
   targetRaffinateMonoHydrocarbonMoleFraction: number;
   minimumRaffinateSaturatesHydrocarbonMoleFraction?: number;
   maximumStages?: number;
+  stage1Authority?: {
+    schemaVersion: typeof ECR_PRE_PILOT_STAGE1_SCHEMA;
+    savedAt: string;
+    snapshotHash: string;
+    source: EcrPrePilotStage1Snapshot;
+    sulfurPrediction: {
+      status: 'NOT_CALCULABLE';
+      calibrationStatus: 'CALIBRATION_REQUIRED';
+    };
+    minimumMassRecovery: {
+      targetPercent: number;
+      status: 'NOT_CALCULABLE';
+    };
+  };
 }
 
 type PredictiveNtJob = {
@@ -121,22 +142,7 @@ export function preflightPredictiveNtRuntime() {
   return result;
 }
 
-export const PREDICTIVE_NT_MOLECULAR_REGISTRY = {
-  saturates: [
-    { identity: 'n-dodecane', label: 'n-Dodecane', molecularWeightGmol: 170.34 },
-    { identity: 'n-tetradecane', label: 'n-Tetradecane', molecularWeightGmol: 198.39 },
-    { identity: 'n-hexadecane', label: 'n-Hexadecane', molecularWeightGmol: 226.44 },
-    { identity: 'n-heptadecane', label: 'n-Heptadecane', molecularWeightGmol: 240.47 },
-  ],
-  monoAromatics: [
-    { identity: 'n-propylbenzene', label: 'n-Propylbenzene', molecularWeightGmol: 120.19 },
-    { identity: 'n-pentylbenzene', label: 'n-Pentylbenzene', molecularWeightGmol: 148.25 },
-    { identity: 'sec-butylbenzene', label: 'sec-Butylbenzene', molecularWeightGmol: 134.22 },
-    { identity: '1,3,5-trimethylbenzene', label: '1,3,5-Trimethylbenzene', molecularWeightGmol: 120.19 },
-    { identity: 'p-xylene', label: 'p-Xylene', molecularWeightGmol: 106.17 },
-    { identity: 'toluene', label: 'Toluene', molecularWeightGmol: 92.14 },
-  ],
-} as const;
+export { PREDICTIVE_NT_MOLECULAR_REGISTRY };
 
 const SAT_IDENTITIES = new Set<string>(
   PREDICTIVE_NT_MOLECULAR_REGISTRY.saturates.map(({ identity }) => identity),
@@ -144,6 +150,92 @@ const SAT_IDENTITIES = new Set<string>(
 const MONO_IDENTITIES = new Set<string>(
   PREDICTIVE_NT_MOLECULAR_REGISTRY.monoAromatics.map(({ identity }) => identity),
 );
+
+export function derivePredictiveNtInputFromStage1(
+  rawSnapshot: unknown,
+  projectNumber: number,
+): PredictiveNtJobInput {
+  if (!rawSnapshot || typeof rawSnapshot !== 'object') throw new Error('STAGE1_INPUT_NOT_SAVED');
+  const snapshot = rawSnapshot as EcrPrePilotStage1Snapshot;
+  if (
+    snapshot.schemaVersion !== ECR_PRE_PILOT_STAGE1_SCHEMA
+    || !snapshot.savedAt
+    || snapshot.sulfurPrediction?.status !== 'NOT_CALCULABLE'
+    || snapshot.sulfurPrediction?.calibrationStatus !== 'CALIBRATION_REQUIRED'
+  ) {
+    throw new Error('STAGE1_INPUT_NOT_SAVED');
+  }
+  const stage1 = canonicalizeStage1Input(snapshot.stage1, projectNumber);
+  if (
+    stage1.diAromaticsWt > 1e-12
+    || stage1.polyAromaticsWt > 1e-12
+    || stage1.polarAromaticsWt > 1e-12
+    || stage1.nmpInFeedWt > 1e-12
+  ) {
+    throw new Error('UNSUPPORTED_COMPONENT_SCOPE');
+  }
+  if (stage1.phaseConfiguration !== 'nmp-continuous-rrbo-dispersed') {
+    throw new Error('UNSUPPORTED_PHASE_CONFIGURATION');
+  }
+  const sat = PREDICTIVE_NT_MOLECULAR_REGISTRY.saturates
+    .find(({ identity }) => identity === stage1.satIdentity)!;
+  const mono = PREDICTIVE_NT_MOLECULAR_REGISTRY.monoAromatics
+    .find(({ identity }) => identity === stage1.monoIdentity)!;
+  const sourceSat = stage1.saturatesWt / 100;
+  const sourceMono = stage1.monoAromaticsWt / 100;
+  const sourceSatMoles = sourceSat / sat.molecularWeightGmol;
+  const sourceMonoMoles = sourceMono / mono.molecularWeightGmol;
+  const sourceMoles = sourceSatMoles + sourceMonoMoles;
+  if (sourceMoles <= 0) throw new Error('INVALID_STAGE1_COMPOSITION_TOTAL');
+  const maximumMono = stage1.targetRaffinateTotalAromaticsWt / 100;
+  const minimumSaturates = stage1.minimumRaffinateSaturatesWt / 100;
+  const targetMonoMoles = maximumMono / mono.molecularWeightGmol;
+  const targetSatMoles = (1 - maximumMono) / sat.molecularWeightGmol;
+  const minimumSatMoles = minimumSaturates / sat.molecularWeightGmol;
+  const correspondingMonoMoles = (1 - minimumSaturates) / mono.molecularWeightGmol;
+
+  return {
+    modelHash: PRE_PILOT_MODEL.modelHash,
+    temperatureK: stage1.operatingTemperatureC + 273.15,
+    solventMolarRatio: (stage1.solventOilRatio / 99.13) / sourceMoles,
+    feedMoleFractions: [
+      sourceSatMoles / sourceMoles,
+      sourceMonoMoles / sourceMoles,
+      0,
+    ],
+    satIdentity: stage1.satIdentity,
+    monoIdentity: stage1.monoIdentity,
+    sourceFeedCompositionMassFraction: {
+      saturates: sourceSat,
+      mono: sourceMono,
+      di: 0,
+      poly: 0,
+      polar: 0,
+      nmp: 0,
+    },
+    sourceProductTargetsMassFraction: {
+      maximumMono,
+      minimumSaturates,
+    },
+    sourceSolventOilMassRatio: stage1.solventOilRatio,
+    targetRaffinateMonoHydrocarbonMoleFraction:
+      targetMonoMoles / (targetMonoMoles + targetSatMoles),
+    minimumRaffinateSaturatesHydrocarbonMoleFraction:
+      minimumSatMoles / (minimumSatMoles + correspondingMonoMoles),
+    maximumStages: stage1.maximumStages,
+    stage1Authority: {
+      schemaVersion: ECR_PRE_PILOT_STAGE1_SCHEMA,
+      savedAt: snapshot.savedAt,
+      snapshotHash: stage1SnapshotHash(snapshot),
+      source: snapshot,
+      sulfurPrediction: snapshot.sulfurPrediction,
+      minimumMassRecovery: {
+        targetPercent: stage1.minimumRecoveryPct,
+        status: 'NOT_CALCULABLE',
+      },
+    },
+  };
+}
 
 export function validatePredictiveNtJobInput(input: PredictiveNtJobInput) {
   if ('minimumNmpFreeHydrocarbonRecovery' in input) {
@@ -175,10 +267,10 @@ export function validatePredictiveNtJobInput(input: PredictiveNtJobInput) {
     executionMode: 'ECR_PRE_PILOT_PREDICTIVE',
     requestedModelHash: input.modelHash,
     feedCompositionMassFraction: {
-      saturates: input.feedMoleFractions[0],
-      mono: input.feedMoleFractions[1],
-      di: 0,
-      poly: 0,
+      saturates: input.sourceFeedCompositionMassFraction.saturates,
+      mono: input.sourceFeedCompositionMassFraction.mono,
+      di: input.sourceFeedCompositionMassFraction.di,
+      poly: input.sourceFeedCompositionMassFraction.poly,
     },
     sulfurObjectiveRequested: false,
   });
@@ -256,6 +348,30 @@ export function validatePredictiveNtExecutionEvidence(
     return 'PREDICTIVE_NT_MODEL_HASH_MISMATCH';
   }
   return null;
+}
+
+export function attachStage1ResultGovernance(
+  pythonResult: unknown,
+  input: PredictiveNtJobInput,
+) {
+  if (!pythonResult || typeof pythonResult !== 'object' || !input.stage1Authority) return pythonResult;
+  return {
+    ...(pythonResult as Record<string, unknown>),
+    stage1TargetGovernance: {
+      stage1SnapshotHash: input.stage1Authority.snapshotHash,
+      predictiveNtAuthority: 'FROZEN_PYTHON_THERMODYNAMIC_ENGINE',
+      supportedAcceptanceBasis: [
+        'MAXIMUM_RAFFINATE_MONO_AROMATICS',
+        'MINIMUM_RAFFINATE_SATURATES',
+        'COMPONENT_BALANCES',
+        'INDEPENDENT_THERMODYNAMIC_CHECKS',
+      ],
+      sulfurPrediction: input.stage1Authority.sulfurPrediction,
+      minimumMassRecovery: input.stage1Authority.minimumMassRecovery,
+      overallEcrProductAcceptance: false,
+      overallEcrProductAcceptanceStatus: 'BLOCKED_BY_NOT_CALCULABLE_TARGETS',
+    },
+  };
 }
 
 function mapJob(row: any): PredictiveNtJob {
@@ -452,6 +568,7 @@ function execute(job: PredictiveNtJob, claimToken: string) {
     let result: unknown = null;
     try {
       result = stdout ? JSON.parse(stdout) : null;
+      result = attachStage1ResultGovernance(result, job.input);
     } catch {
       result = null;
     }
@@ -499,7 +616,7 @@ export function startPredictiveNtWorker() {
   void pollWorker();
 }
 
-export async function enqueuePredictiveNtJob(
+async function enqueueRawPredictiveNtJob(
   input: PredictiveNtJobInput,
   userId: number,
   designId: number,
@@ -554,6 +671,91 @@ export async function enqueuePredictiveNtJob(
     status: job.status,
     model: PRE_PILOT_MODEL,
     gate,
+  };
+}
+
+export async function enqueuePredictiveNtRuntimeTestJob(
+  input: unknown,
+  userId: number,
+  designId: number,
+) {
+  if (process.env.NODE_ENV !== 'test') {
+    throw new Error('RAW_PREDICTIVE_NT_ENQUEUE_DISABLED');
+  }
+  return enqueueRawPredictiveNtJob(input, userId, designId);
+}
+
+export async function enqueuePredictiveNtJobFromSavedStage1(
+  userId: number,
+  designId: number,
+) {
+  const jobId = randomUUID();
+  const client = await pool.connect();
+  let job: PredictiveNtJob;
+  let gate: ReturnType<typeof validatePredictiveNtJobInput>;
+  try {
+    await client.query('BEGIN');
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext('ecr_pre_pilot_predictive_nt_enqueue'))`);
+    const design = await client.query<{
+      id: number;
+      project_number: number;
+      input_data: unknown;
+    }>(
+      `SELECT id, project_number, input_data
+         FROM ecr_pre_pilot_designs
+        WHERE id = $1 AND created_by = $2
+        FOR SHARE`,
+      [designId, userId],
+    );
+    if (!design.rows[0]) throw new Error('ECR_PRE_PILOT_DESIGN_NOT_FOUND');
+    const input = derivePredictiveNtInputFromStage1(
+      design.rows[0].input_data,
+      Number(design.rows[0].project_number),
+    );
+    gate = validatePredictiveNtJobInput(input);
+    const immutableInput = { ...input, modelHash: PRE_PILOT_MODEL.modelHash };
+    const counts = await client.query(
+      `SELECT COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE created_by = $1)::int AS user_total
+         FROM ecr_pre_pilot_predictive_nt_jobs
+        WHERE status IN ('pending', 'running')`,
+      [userId],
+    );
+    if (counts.rows[0].total >= MAX_QUEUED_JOBS) throw new Error('PREDICTIVE_NT_QUEUE_FULL');
+    if (counts.rows[0].user_total >= MAX_ACTIVE_JOBS_PER_USER) {
+      throw new Error('PREDICTIVE_NT_USER_JOB_LIMIT');
+    }
+    const inserted = await client.query(
+      `INSERT INTO ecr_pre_pilot_predictive_nt_jobs
+         (id, design_id, created_by, input_snapshot, model_hash, engine_hash,
+          maximum_stages)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [
+        jobId, designId, userId, immutableInput, PRE_PILOT_MODEL.modelHash,
+        PREDICTIVE_NT_ENGINE_SHA256, input.maximumStages ?? 10,
+      ],
+    );
+    await recordHistory(client, inserted.rows[0], {
+      event: 'enqueued_from_saved_stage1',
+      stage1SnapshotHash: input.stage1Authority?.snapshotHash,
+      stage1SavedAt: input.stage1Authority?.savedAt,
+    });
+    await client.query('COMMIT');
+    job = mapJob(inserted.rows[0]);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+  startPredictiveNtWorker();
+  return {
+    jobId: job.id,
+    status: job.status,
+    model: PRE_PILOT_MODEL,
+    gate,
+    stage1Authority: job.input.stage1Authority,
   };
 }
 

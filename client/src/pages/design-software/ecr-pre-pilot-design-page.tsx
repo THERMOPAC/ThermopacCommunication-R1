@@ -41,6 +41,7 @@ type FormState = {
   designBasisNotes: string;
   satIdentity: string;
   monoIdentity: string;
+  maximumStages: string;
 };
 
 type MolecularIdentity = { identity: string; label: string; molecularWeightGmol: number };
@@ -101,6 +102,14 @@ type PredictiveNtResult = {
   monotonicSequence: boolean;
   model?: { modelHash?: string; runtimeVerification?: string };
   engine?: { engineId?: string; engineVersion?: string; engineHash?: string };
+  stage1TargetGovernance?: {
+    stage1SnapshotHash?: string;
+    predictiveNtAuthority?: string;
+    sulfurPrediction?: { status?: string; calibrationStatus?: string };
+    minimumMassRecovery?: { targetPercent?: number; status?: string };
+    overallEcrProductAcceptance?: boolean;
+    overallEcrProductAcceptanceStatus?: string;
+  };
   trials?: PredictiveTrial[];
 };
 type PredictiveNtJob = {
@@ -117,6 +126,10 @@ const DEFAULT_PHASE_CONFIGURATION = "nmp-continuous-rrbo-dispersed";
 const DEFAULT_RRBO_GRADE = "SN300";
 const DEFAULT_OPERATING_TEMPERATURE_C = "50";
 const DEFAULT_OPERATING_PRESSURE = "2.0";
+const MAXIMUM_STAGE_OPTIONS = Array.from({ length: 9 }, (_, index) => {
+  const value = String(index + 2);
+  return { value, label: `${value} stages` };
+});
 
 const EMPTY_FORM: FormState = {
   projectReference: "",
@@ -150,7 +163,22 @@ const EMPTY_FORM: FormState = {
   designBasisNotes: "",
   satIdentity: "",
   monoIdentity: "",
+  maximumStages: "10",
 };
+
+function hydrateSavedStage1(current: FormState, inputData: unknown): FormState {
+  if (!inputData || typeof inputData !== "object") return current;
+  const stage1 = (inputData as { stage1?: unknown }).stage1;
+  if (!stage1 || typeof stage1 !== "object") return current;
+  const source = stage1 as Record<string, unknown>;
+  const next = { ...current };
+  for (const key of Object.keys(EMPTY_FORM) as Array<keyof FormState>) {
+    if (source[key] !== undefined && source[key] !== null) {
+      next[key] = String(source[key]);
+    }
+  }
+  return next;
+}
 
 const FEED_RATE_OPTIONS = Array.from({ length: 15 }, (_, index) => String((index + 1) * 1000));
 const TEMPERATURE_OPTIONS = ["25", "30", ...Array.from({ length: 7 }, (_, index) => String((index + 4) * 10))];
@@ -393,6 +421,7 @@ function validateForm(form: FormState): ValidationErrors {
   requiredOption("phaseConfiguration", "Phase configuration", PHASE_OPTIONS);
   requiredText("satIdentity", "SAT molecular identity");
   requiredText("monoIdentity", "MONO molecular identity");
+  requiredOption("maximumStages", "maximum stage search", MAXIMUM_STAGE_OPTIONS);
 
   const compositionValues = COMPOSITION_FIELDS.map(({ key, label }) => ({
     key,
@@ -675,6 +704,7 @@ export default function EcrPrePilotDesignPage() {
     };
   });
   const [saveState, setSaveState] = useState<"unsaved" | "saved" | "draft">("unsaved");
+  const [stage1Saving, setStage1Saving] = useState(false);
   const [validationAttempted, setValidationAttempted] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [projectNumberLoading, setProjectNumberLoading] = useState(true);
@@ -707,7 +737,12 @@ export default function EcrPrePilotDesignPage() {
             throw new Error(payload.message ?? "Project number could not be generated.");
           }
           if (cancelled) return;
-          setForm((current) => ({ ...current, projectReference: String(payload.projectNumber) }));
+          const hasSavedStage1 = Boolean(payload.inputData?.stage1);
+          setForm((current) => hydrateSavedStage1(
+            { ...current, projectReference: String(payload.projectNumber) },
+            payload.inputData,
+          ));
+          setSaveState(hasSavedStage1 ? "saved" : "unsaved");
           setDesignId(Number(payload.id));
           setProjectNumberLoadError(null);
           setProjectNumberLoading(false);
@@ -872,18 +907,46 @@ export default function EcrPrePilotDesignPage() {
     return true;
   };
 
-  const handleSave = () => {
-    if (!validateBeforeAction()) return;
-
-    setSaveState("saved");
-    toast({
-      title: "Input data saved",
-      description: "The entered process and feed characterization was captured. No calculations were run.",
-    });
+  const handleSave = async () => {
+    if (!validateBeforeAction() || !designId) return;
+    setStage1Saving(true);
+    try {
+      const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/stage-1`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? "Stage 1 input data could not be saved.");
+      setForm((current) => hydrateSavedStage1(current, payload));
+      setSaveState("saved");
+      toast({
+        title: "Stage 1 saved",
+        description: "The complete owner-controlled input snapshot is now the authority for Predictive N_T.",
+      });
+    } catch (error: unknown) {
+      setSaveState("unsaved");
+      toast({
+        title: "Stage 1 could not be saved",
+        description: error instanceof Error ? error.message : "The Stage 1 snapshot was not persisted.",
+        variant: "destructive",
+      });
+    } finally {
+      setStage1Saving(false);
+    }
   };
 
   const handleRunPredictiveNt = async () => {
     if (!validateBeforeAction() || !designId || !predictiveBasis) return;
+    if (saveState !== "saved") {
+      toast({
+        title: "Save Stage 1 before running",
+        description: "Predictive N_T can run only from the persisted Stage 1 snapshot.",
+        variant: "destructive",
+      });
+      return;
+    }
     const unsupportedFeed = [
       ["Di-aromatics", Number(form.diAromaticsWt)],
       ["Poly-aromatics", Number(form.polyAromaticsWt)],
@@ -904,18 +967,6 @@ export default function EcrPrePilotDesignPage() {
       toast({ title: "Molecular basis unavailable", description: "Select admitted SAT and MONO identities.", variant: "destructive" });
       return;
     }
-    const satMoles = Number(form.saturatesWt) / sat.molecularWeightGmol;
-    const monoMoles = Number(form.monoAromaticsWt) / mono.molecularWeightGmol;
-    const hydrocarbonMoles = satMoles + monoMoles;
-    const solventMoles = (Number(form.solventOilRatio) * 100) / 99.13;
-    const targetMonoMassFraction = Number(form.targetRaffinateTotalAromaticsWt) / 100;
-    const targetMonoMoles = targetMonoMassFraction / mono.molecularWeightGmol;
-    const targetSatMoles = (1 - targetMonoMassFraction) / sat.molecularWeightGmol;
-    const targetMonoMoleFraction = targetMonoMoles / (targetMonoMoles + targetSatMoles);
-    const minimumSatMassFraction = Number(form.minimumRaffinateSaturatesWt) / 100;
-    const minimumSatMoles = minimumSatMassFraction / sat.molecularWeightGmol;
-    const correspondingMonoMoles = (1 - minimumSatMassFraction) / mono.molecularWeightGmol;
-    const minimumSatMoleFraction = minimumSatMoles / (minimumSatMoles + correspondingMonoMoles);
     setPredictiveSubmitting(true);
     setPredictiveJob(null);
     setPredictivePollingPaused(false);
@@ -924,38 +975,13 @@ export default function EcrPrePilotDesignPage() {
       const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/predictive-nt/jobs`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          modelHash: predictiveBasis.model.modelHash,
-          temperatureK: Number(form.operatingTemperatureC) + 273.15,
-          solventMolarRatio: solventMoles / hydrocarbonMoles,
-          feedMoleFractions: [satMoles / hydrocarbonMoles, monoMoles / hydrocarbonMoles, 0],
-          satIdentity: sat.identity,
-          monoIdentity: mono.identity,
-          sourceFeedCompositionMassFraction: {
-            saturates: Number(form.saturatesWt) / 100,
-            mono: Number(form.monoAromaticsWt) / 100,
-            di: Number(form.diAromaticsWt) / 100,
-            poly: Number(form.polyAromaticsWt) / 100,
-            polar: Number(form.polarAromaticsWt) / 100,
-            nmp: Number(form.nmpInFeedWt) / 100,
-          },
-          sourceProductTargetsMassFraction: {
-            maximumMono: targetMonoMassFraction,
-            minimumSaturates: minimumSatMassFraction,
-          },
-          sourceSolventOilMassRatio: Number(form.solventOilRatio),
-          targetRaffinateMonoHydrocarbonMoleFraction: targetMonoMoleFraction,
-          minimumRaffinateSaturatesHydrocarbonMoleFraction: minimumSatMoleFraction,
-          maximumStages: predictiveBasis.maximumStages,
-        }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error ?? "Predictive N_T job could not be submitted.");
       setPredictiveJob({
         id: String(payload.jobId),
         status: payload.status,
-        progress: { completedStageTrials: 0, maximumStages: predictiveBasis.maximumStages },
+        progress: { completedStageTrials: 0, maximumStages: Number(form.maximumStages) },
         modelHash: predictiveBasis.model.modelHash,
         engineHash: "",
         result: null,
@@ -1131,6 +1157,16 @@ export default function EcrPrePilotDesignPage() {
                       }))}
                       required
                       error={validationErrors.monoIdentity}
+                    />
+                    <SelectField
+                      id="maximum-stages"
+                      label="Maximum stage count to search"
+                      value={form.maximumStages}
+                      onChange={(value) => setField("maximumStages", value)}
+                      placeholder="Select N_max"
+                      options={MAXIMUM_STAGE_OPTIONS}
+                      required
+                      error={validationErrors.maximumStages}
                     />
                   </div>
                 ) : (
@@ -1460,7 +1496,8 @@ export default function EcrPrePilotDesignPage() {
                 <Button
                   type="button"
                   onClick={handleRunPredictiveNt}
-                  disabled={predictiveSubmitting || !predictiveBasis || !designId || predictiveJob?.status === "pending" || predictiveJob?.status === "running"}
+                  disabled={predictiveSubmitting || !predictiveBasis || !designId || saveState !== "saved" || predictiveJob?.status === "pending" || predictiveJob?.status === "running"}
+                  title={saveState === "saved" ? undefined : "Save the authoritative Stage 1 snapshot before running."}
                   className="h-8 gap-1.5 px-3 text-xs"
                 >
                   {predictiveSubmitting || predictiveJob?.status === "pending" || predictiveJob?.status === "running" ? (
@@ -1473,6 +1510,25 @@ export default function EcrPrePilotDesignPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4 px-4 py-4">
+              <div className={`rounded-md border p-3 text-[11px] leading-5 ${
+                saveState === "saved"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+                  : "border-amber-300 bg-amber-50 text-amber-950"
+              }`}>
+                <p className="font-semibold">
+                  Stage 1 authority: {saveState === "saved" ? "SAVED" : "UNSAVED / STALE"}
+                </p>
+                <p>
+                  The server derives the complete molecular solver request from the saved owner-controlled Stage 1 snapshot.
+                  Browser-calculated fractions are not accepted by the job endpoint.
+                </p>
+                <p className="mt-1 font-semibold">
+                  Sulfur prediction: NOT_CALCULABLE · CALIBRATION_REQUIRED
+                </p>
+                <p>
+                  The sulfur basis is retained in Stage 1 for audit only and is never passed into the frozen Python thermodynamic solver.
+                </p>
+              </div>
               {(Number(form.diAromaticsWt) > 0
                 || Number(form.polyAromaticsWt) > 0
                 || Number(form.polarAromaticsWt) > 0
@@ -1560,7 +1616,22 @@ export default function EcrPrePilotDesignPage() {
                   <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
                     <p className="font-semibold">Predictive-only limitations</p>
                     <p>Calibration required: {predictiveJob.result.calibrationRequired ? "Yes" : "No"} · Pilot validated: {predictiveJob.result.pilotValidated ? "Yes" : "No"} · Release eligible: {predictiveJob.result.releaseEligible ? "Yes" : "No"}</p>
-                    <p>DI/POLY and sulfur prediction remain unavailable. This screening result does not populate established theoretical stages.</p>
+                    <p>DI/POLY remain unavailable. Sulfur prediction is NOT_CALCULABLE / CALIBRATION_REQUIRED. This screening result does not populate established theoretical stages.</p>
+                    {predictiveJob.result.stage1TargetGovernance && (
+                      <>
+                        <p>
+                          N_T numerical authority: <strong>{predictiveJob.result.stage1TargetGovernance.predictiveNtAuthority}</strong>
+                        </p>
+                        <p>
+                          Minimum mass recovery target: <strong>{predictiveJob.result.stage1TargetGovernance.minimumMassRecovery?.targetPercent ?? "—"}%</strong>
+                          {" · "}
+                          <strong>{predictiveJob.result.stage1TargetGovernance.minimumMassRecovery?.status ?? "NOT_CALCULABLE"}</strong>
+                        </p>
+                        <p>
+                          Overall ECR product acceptance: <strong>{predictiveJob.result.stage1TargetGovernance.overallEcrProductAcceptanceStatus}</strong>
+                        </p>
+                      </>
+                    )}
                   </div>
                   <div className="grid gap-2 text-[11px] md:grid-cols-2">
                     <div className="rounded-md border bg-slate-50 p-3">
@@ -1659,12 +1730,16 @@ export default function EcrPrePilotDesignPage() {
               type="button"
               variant="outline"
               onClick={handleSave}
-              disabled={!designFeedRateIsValid}
+              disabled={!designFeedRateIsValid || stage1Saving || !designId}
               title={designFeedRateIsValid ? undefined : "Select a design feed rate before saving."}
               className="h-8 gap-1.5 px-3 text-xs"
             >
-              <Save className="h-3.5 w-3.5" aria-hidden="true" />
-              Save Input Data
+              {stage1Saving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              ) : (
+                <Save className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+              {stage1Saving ? "Saving Stage 1…" : "Save Input Data"}
             </Button>
           </div>
         </div>
