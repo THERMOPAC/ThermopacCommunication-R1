@@ -1,0 +1,36 @@
+{
+  "componentIdentityKeys": {
+    "DI": "QPUYECUOLPXSFR-UHFFFAOYSA-N",
+    "MONO": "ODLMAHJVESYWTB-UHFFFAOYSA-N",
+    "NMP": "SECXISVLQFMRJM-UHFFFAOYSA-N",
+    "PA": "UJAWGGOCYUPCPS-UHFFFAOYSA-N",
+    "POLY": "BBEAQIROQSPTKN-UHFFFAOYSA-N",
+    "SAT": "SNRUBQQJIBEYMU-UHFFFAOYSA-N"
+  },
+  "decision": "STOPPED_NON_PA_TOPOLOGY_GATE_FAILED",
+  "licenseEvidenceSha256": "3a6f189e3549724a789b73c2c624e3863732f2f29e224c1fcea9f111ac40aa1d",
+  "nistCosmoSacSourceCommit": "1b82456be38026719b16cad4076109bef3fcb309",
+  "runnerSha256": "b56653e11173efae2bac2351b73282bd61d2296aeded305bd82d36c507883d20",
+  "schemaVersion": "1.0.0",
+  "thermoSacReviewedCommit": "d20f5f4acdbf295a15a7500056fb20cb06ae2e23",
+  "upstreamEvidence": {
+    "directory": ".agents/outputs/ecr-pre-pilot-cosmosac",
+    "integrity": {
+      "manifestSha256": "df65017ef1c8cb0ee33ca5e88111b5295c183e6d12badd4d3c85020f80173b59",
+      "pinnedInputSha256": {
+        ".agents/outputs/ecr-pre-pilot-cosmosac/report.md": "2a6b8c65ffff77caefdcce5e7342d9eb3d55f067af4444a462e8f9315c6ddce2",
+        ".agents/outputs/ecr-pre-pilot-cosmosac/results.json": "efce43eee40cac52c837696e6f918958f2659b1ca88ae4db27ac4e4442acd869",
+        "server/engine-framework/cel/coto2022-nmp-lle.ts": "8253433f5624934b7f9135f223090e8b9e2c5b1cbfaee06c951a3d87b839ea42",
+        "server/engine-framework/cel/data/multi-t-nmp-lle.json": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+        "server/research/ecr-pre-pilot-cosmosac/provenance-manifest.json": "df65017ef1c8cb0ee33ca5e88111b5295c183e6d12badd4d3c85020f80173b59",
+        "server/research/ecr-pre-pilot-cosmosac/run.py": "049a18474732c5e30efb442a390fade82d26fdcaff85f76983a9feb79c7505de",
+        "server/research/ecr-pre-pilot-cosmosac/vendor/python/cCOSMO.cpython-312-x86_64-linux-gnu.so": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
+        "server/research/ecr-pre-pilot-cosmosac/verify.py": "53a8f1ddc0d19cdc8a4256876250f5eb6fdf8b4816393c4b06f961335bbaa0b0",
+        "server/research/ecr-pre-pilot-pa-anchor/evidence.ts": "bc94349623ff967062907c1e8b46609b1f49f02958b90883bcc73dfc75d2be36"
+      },
+      "reportSha256": "2a6b8c65ffff77caefdcce5e7342d9eb3d55f067af4444a462e8f9315c6ddce2",
+      "resultsSha256": "efce43eee40cac52c837696e6f918958f2659b1ca88ae4db27ac4e4442acd869",
+      "sigmaProfileHashMapCanonicalSha256": "82aa80150f05bdfe17ae2c64df1af02d74dbbd1c4c215881cdfead6156f441c1"
+    }
+  }
+}

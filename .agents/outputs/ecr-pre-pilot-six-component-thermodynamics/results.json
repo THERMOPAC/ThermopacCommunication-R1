@@ -1,0 +1,222 @@
+{
+  "blockers": [
+    {
+      "code": "NON_PA_PHASE_TOPOLOGY_NOT_REPRODUCED",
+      "detail": "The NIST COSMO-SAC-2010 candidate predicted no two-liquid split for 236/236 experimentally two-phase records."
+    },
+    {
+      "code": "OPEN_SOURCE_PROFILE_GENERATION_ROUTE_NOT_QUALIFIED",
+      "detail": "No legally admitted open-source molecular surface/profile route has been shown compatible with the selected NIST COSMO-SAC parameterization for all six representatives."
+    },
+    {
+      "code": "EXACT_PA_SIGMA_PROFILE_UNAVAILABLE",
+      "detail": "The exact PA identity is admitted, but no compatible, legally admitted sigma profile for CAS 10081-67-1 is present."
+    }
+  ],
+  "calibrationStatus": "CALIBRATION_REQUIRED",
+  "decision": "STOPPED_NON_PA_TOPOLOGY_GATE_FAILED",
+  "licenseEvidence": {
+    "path": "server/research/ecr-pre-pilot-six-component-thermodynamics/license-evidence.json",
+    "sha256": "3a6f189e3549724a789b73c2c624e3863732f2f29e224c1fcea9f111ac40aa1d"
+  },
+  "mission": {
+    "components": [
+      {
+        "cas": "112-40-3",
+        "family": "SAT",
+        "inchiKey": "SNRUBQQJIBEYMU-UHFFFAOYSA-N",
+        "name": "n-dodecane"
+      },
+      {
+        "cas": "103-65-1",
+        "family": "MONO",
+        "inchiKey": "ODLMAHJVESYWTB-UHFFFAOYSA-N",
+        "name": "n-propylbenzene"
+      },
+      {
+        "cas": "90-12-0",
+        "family": "DI",
+        "inchiKey": "QPUYECUOLPXSFR-UHFFFAOYSA-N",
+        "name": "1-methylnaphthalene"
+      },
+      {
+        "cas": "129-00-0",
+        "family": "POLY",
+        "inchiKey": "BBEAQIROQSPTKN-UHFFFAOYSA-N",
+        "name": "pyrene"
+      },
+      {
+        "canonicalSmiles": "CC(C)(C1=CC=CC=C1)C2=CC=C(C=C2)NC3=CC=C(C=C3)C(C)(C)C4=CC=CC=C4",
+        "cas": "10081-67-1",
+        "conformerTreatment": "NOT_FROZEN",
+        "family": "PA",
+        "formalCharge": 0,
+        "formula": "C30H31N",
+        "identityStatus": "IDENTITY_ADMITTED_THERMODYNAMICS_BLOCKED",
+        "inchi": "InChI=1S/C30H31N/c1-29(2,23-11-7-5-8-12-23)25-15-19-27(20-16-25)31-28-21-17-26(18-22-28)30(3,4)24-13-9-6-10-14-24/h5-22,31H,1-4H3",
+        "inchiKey": "UJAWGGOCYUPCPS-UHFFFAOYSA-N",
+        "molecularWeightGmol": 405.58,
+        "name": "4,4'-Bis(alpha,alpha-dimethylbenzyl)diphenylamine",
+        "pubchemCid": 82343,
+        "spinMultiplicity": 1
+      },
+      {
+        "cas": "872-50-4",
+        "family": "NMP",
+        "inchiKey": "SECXISVLQFMRJM-UHFFFAOYSA-N",
+        "name": "N-methyl-2-pyrrolidone"
+      }
+    ],
+    "paDirectedUniquacTermsArePrimaryObjective": false,
+    "primaryObjective": "SIMULTANEOUS_SIX_COMPONENT_THERMODYNAMIC_CLOSURE",
+    "primaryStage1TemperatureK": 323.15,
+    "system": "SAT+MONO+DI+POLY+PA+NMP",
+    "temperaturesK": [
+      298.15,
+      313.15,
+      323.15,
+      333.15,
+      348.15
+    ]
+  },
+  "nonPaBenchmarkGate": {
+    "acceptanceGatePassed": false,
+    "combinedTopologyRecall": 0.0,
+    "coto": {
+      "predictedStableSinglePhase": 17,
+      "predictedTwoPhase": 0,
+      "records": 17
+    },
+    "multiTemperature": {
+      "predictedStableSinglePhase": 219,
+      "predictedTwoPhase": 0,
+      "records": 219
+    },
+    "requiredObservedTopology": "TWO_LIQUID_PHASES",
+    "status": "FAIL"
+  },
+  "productionImpact": {
+    "positivePaGateChanged": false,
+    "releaseEligibilityChanged": false,
+    "runtimeChanged": false,
+    "stage1Changed": false,
+    "sulfurStatusChanged": false
+  },
+  "profileQualification": {
+    "exactPaProfilePresent": false,
+    "generatedProfiles": [],
+    "nistBundledUdVtProfiles": {
+      "commercialUseAdmitted": false,
+      "licenseAssessment": {
+        "assessment": "NOT_ADMITTED_FOR_PROJECT_CALCULATIONS",
+        "evidence": [
+          "The repository states that UD and VT2005 molecular files have less-permissive licenses separate from the MIT software.",
+          "The UD terms state that the database may be used for non-profit academic purposes and prohibit redistribution without author consent.",
+          "No permission for this project's calculations or redistribution has been established."
+        ],
+        "repositoryNotice": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/README.md#license",
+        "udTerms": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/profiles/UD/Readme.txt"
+      },
+      "redistributionAdmitted": false,
+      "status": "NOT_ADMITTED_FOR_PROJECT_CALCULATIONS"
+    },
+    "selectedOpenSourceGenerationRoute": null,
+    "selectedRouteStatus": "NOT_QUALIFIED"
+  },
+  "releaseEligible": false,
+  "researchOnly": true,
+  "runtimeRepresentation": {
+    "fittedInteractions": [],
+    "paDirectedInteractionCount": 0,
+    "status": "NOT_EXECUTED",
+    "uniquacMatrixAudit": "NOT_EXECUTED_AFTER_MANDATORY_GATE_FAILURE"
+  },
+  "schemaVersion": "1.0.0",
+  "sixComponentCalculation": {
+    "execution": "NOT_EXECUTED_AFTER_MANDATORY_NON_PA_GATE_FAILURE",
+    "outputs": {
+      "chemicalPotentialMaxResidual": null,
+      "diExtraction": null,
+      "distributionCoefficients": {
+        "DI": null,
+        "MONO": null,
+        "NMP": null,
+        "PA": null,
+        "POLY": null,
+        "SAT": null
+      },
+      "gibbsEnergyReduction": null,
+      "massBalanceMaxResidual": null,
+      "monoExtraction": null,
+      "nmpCarryover": null,
+      "nmpFreeRrboRecovery": null,
+      "nmpRichComposition": null,
+      "nmpRichPhaseFraction": null,
+      "paExtraction": null,
+      "phaseBehavior": null,
+      "polyExtraction": null,
+      "rrboRichComposition": null,
+      "satLoss": null,
+      "totalAromaticExtraction": null
+    },
+    "status": "NOT_CALCULABLE"
+  },
+  "softwareQualification": {
+    "nistCosmoSac": {
+      "compositionDependentActivityCoefficients": "HISTORICALLY_EXECUTED",
+      "gibbsMixingEnergy": "HISTORICALLY_EXECUTED",
+      "model": {
+        "excluded": "get_lngamma / multicomponent dispersive mode",
+        "lnGamma": "get_lngamma_comb(T,x)+get_lngamma_resid(T,x)",
+        "name": "COSMO-SAC-2010"
+      },
+      "multicomponentTpdAndFlash": "HISTORICALLY_EXECUTED_RESEARCH_IMPLEMENTATION",
+      "softwareLicenseAssessment": {
+        "assessment": "MIT_LICENSED_SOFTWARE",
+        "evidence": "Permission is granted to use, modify, distribute, sublicense, and sell copies of the software subject to retaining the notice.",
+        "reviewedCommit": "1b82456be38026719b16cad4076109bef3fcb309",
+        "source": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/LICENSE"
+      },
+      "sourceCommit": "1b82456be38026719b16cad4076109bef3fcb309",
+      "status": "FROZEN_HISTORICAL_EXECUTABLE_EVIDENCE_NOT_ADMITTED_FOR_PROJECT_CALCULATIONS"
+    },
+    "thermoSac": {
+      "licenseAssessment": {
+        "assessment": "NO_DECLARED_LICENSE_NOT_ADMITTED",
+        "evidence": [
+          "The reviewed repository contains no LICENSE, COPYING, or NOTICE file.",
+          "The reviewed Python package metadata declares no license."
+        ],
+        "reviewedCommit": "d20f5f4acdbf295a15a7500056fb20cb06ae2e23",
+        "source": "https://github.com/ivanantolo/thermosac/tree/d20f5f4acdbf295a15a7500056fb20cb06ae2e23"
+      },
+      "reason": "No software license is declared in the reviewed repository or package metadata.",
+      "requiredForCurrentGate": false,
+      "status": "NOT_ADMITTED"
+    }
+  },
+  "sulfur": {
+    "independentOfPa": true,
+    "status": "NOT_CALCULABLE"
+  },
+  "upstreamEvidence": {
+    "directory": ".agents/outputs/ecr-pre-pilot-cosmosac",
+    "integrity": {
+      "manifestSha256": "df65017ef1c8cb0ee33ca5e88111b5295c183e6d12badd4d3c85020f80173b59",
+      "pinnedInputSha256": {
+        ".agents/outputs/ecr-pre-pilot-cosmosac/report.md": "2a6b8c65ffff77caefdcce5e7342d9eb3d55f067af4444a462e8f9315c6ddce2",
+        ".agents/outputs/ecr-pre-pilot-cosmosac/results.json": "efce43eee40cac52c837696e6f918958f2659b1ca88ae4db27ac4e4442acd869",
+        "server/engine-framework/cel/coto2022-nmp-lle.ts": "8253433f5624934b7f9135f223090e8b9e2c5b1cbfaee06c951a3d87b839ea42",
+        "server/engine-framework/cel/data/multi-t-nmp-lle.json": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+        "server/research/ecr-pre-pilot-cosmosac/provenance-manifest.json": "df65017ef1c8cb0ee33ca5e88111b5295c183e6d12badd4d3c85020f80173b59",
+        "server/research/ecr-pre-pilot-cosmosac/run.py": "049a18474732c5e30efb442a390fade82d26fdcaff85f76983a9feb79c7505de",
+        "server/research/ecr-pre-pilot-cosmosac/vendor/python/cCOSMO.cpython-312-x86_64-linux-gnu.so": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
+        "server/research/ecr-pre-pilot-cosmosac/verify.py": "53a8f1ddc0d19cdc8a4256876250f5eb6fdf8b4816393c4b06f961335bbaa0b0",
+        "server/research/ecr-pre-pilot-pa-anchor/evidence.ts": "bc94349623ff967062907c1e8b46609b1f49f02958b90883bcc73dfc75d2be36"
+      },
+      "reportSha256": "2a6b8c65ffff77caefdcce5e7342d9eb3d55f067af4444a462e8f9315c6ddce2",
+      "resultsSha256": "efce43eee40cac52c837696e6f918958f2659b1ca88ae4db27ac4e4442acd869",
+      "sigmaProfileHashMapCanonicalSha256": "82aa80150f05bdfe17ae2c64df1af02d74dbbd1c4c215881cdfead6156f441c1"
+    }
+  }
+}

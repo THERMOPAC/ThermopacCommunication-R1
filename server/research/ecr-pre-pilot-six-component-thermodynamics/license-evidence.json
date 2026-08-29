@@ -1,0 +1,27 @@
+{
+  "nistCosmoSacSoftware": {
+    "assessment": "MIT_LICENSED_SOFTWARE",
+    "source": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/LICENSE",
+    "reviewedCommit": "1b82456be38026719b16cad4076109bef3fcb309",
+    "evidence": "Permission is granted to use, modify, distribute, sublicense, and sell copies of the software subject to retaining the notice."
+  },
+  "nistBundledProfiles": {
+    "assessment": "NOT_ADMITTED_FOR_PROJECT_CALCULATIONS",
+    "repositoryNotice": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/README.md#license",
+    "udTerms": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/profiles/UD/Readme.txt",
+    "evidence": [
+      "The repository states that UD and VT2005 molecular files have less-permissive licenses separate from the MIT software.",
+      "The UD terms state that the database may be used for non-profit academic purposes and prohibit redistribution without author consent.",
+      "No permission for this project's calculations or redistribution has been established."
+    ]
+  },
+  "thermoSacSoftware": {
+    "assessment": "NO_DECLARED_LICENSE_NOT_ADMITTED",
+    "source": "https://github.com/ivanantolo/thermosac/tree/d20f5f4acdbf295a15a7500056fb20cb06ae2e23",
+    "reviewedCommit": "d20f5f4acdbf295a15a7500056fb20cb06ae2e23",
+    "evidence": [
+      "The reviewed repository contains no LICENSE, COPYING, or NOTICE file.",
+      "The reviewed Python package metadata declares no license."
+    ]
+  }
+}

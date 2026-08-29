@@ -7,4 +7,4 @@ The NIST COSMO-SAC implementation is MIT-licensed, but its bundled UD and VT2005
 
 **Why:** A permissive engine license does not grant commercial rights to separately licensed molecular profiles, and a public source repository without a license grants no general reuse permission.
 
-**How to apply:** Treat these assets as research-preflight inputs only. For commercial calculations, use independently generated profiles with documented rights and either obtain an explicit ThermoSAC license or implement the required equilibrium algorithms under a clearly compatible license.
+**How to apply:** Do not execute restricted profile data during project verification unless permission is established. Historical results may be reviewed only as fully hash-pinned artifacts, including the generating code, model binary, inputs, profile inventory, manifest, results, and report. For project calculations, use independently generated profiles with documented rights and either obtain an explicit ThermoSAC license or implement the required equilibrium algorithms under a clearly compatible license.
