@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0.0",
+  "frozenBeforeRun": true,
+  "modelIdentity": "COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL",
+  "temperaturesK": [298.15, 323.15],
+  "stageTrials": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  "componentOrder": ["SAT", "MONO", "DI", "POLY", "PA", "NMP"],
+  "flowConvention": {
+    "feed": "enters stage 1",
+    "raffinate": "flows stage 1 toward stage N",
+    "freshSolvent": "enters stage N",
+    "extract": "flows stage N toward stage 1"
+  },
+  "equations": {
+    "stageBalance": "R_(j-1,i)+E_(j+1,i)=R_(j,i)+E_(j,i)",
+    "equilibrium": "ln(x_j,i)+ln(gamma_i(T,x_j))=ln(y_j,i)+ln(gamma_i(T,y_j))"
+  },
+  "numericalAcceptance": {
+    "maximumScaledEquationResidual": 1e-8,
+    "maximumOverallComponentBalanceResidualMol": 1e-8,
+    "maximumIsoactivityLogResidual": 2e-5,
+    "minimumStreamComponentMoles": 1e-12,
+    "minimumPhaseCompositionSeparation": 1e-4,
+    "minimumStageGibbsReduction": 1e-9,
+    "minimumLocalStabilityCurvature": -1e-6,
+    "multistartProductRelativeTolerance": 1e-6
+  },
+  "prohibited": [
+    "fixed K_i",
+    "constant-flow Kremser",
+    "independent component stepping",
+    "forced two-phase answers",
+    "assumed stage compositions",
+    "refitting equilibrium parameters"
+  ],
+  "governance": {
+    "researchOnly": true,
+    "calibrationRequired": true,
+    "pilotValidated": false,
+    "releaseEligible": false,
+    "equilibriumModelQualification": "NOT_QUALIFIED",
+    "sulfurPrediction": "NOT_CALCULABLE",
+    "paTransferStatus": "PROVISIONAL_NO_DIRECT_PA_LLE_EVIDENCE"
+  }
+}
