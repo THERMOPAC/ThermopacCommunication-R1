@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "frozenBeforeFit": true,
+  "modelIdentity": "COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL",
+  "baseActivityDefinition": "get_lngamma_comb(T,x)+get_lngamma_resid(T,x)",
+  "residualEquation": "gE_residual/RT = sum over admitted pairs x_i*x_j*[A_ref+A_temperature*(T-313.15)/20+A_asymmetry*(x_i-x_j)]",
+  "evidencePartition": {
+    "heldOutTemperatureK": 328.0,
+    "heldOutMolecularSystem": ["hexadecane", "1,3,5-trimethylbenzene"],
+    "stage1ExcludedFromFit": true
+  },
+  "fit": {
+    "absoluteParameterBound": 20.0,
+    "ridgePenalty": 1e-7,
+    "quantitativeCompositionRmsdCeiling": 0.03
+  },
+  "numericalAcceptance": {
+    "negativeTpdThreshold": -1e-7,
+    "minimumGibbsReduction": 1e-8,
+    "maximumIsoactivityLogResidual": 2e-5,
+    "maximumMaterialBalanceResidual": 1e-8,
+    "minimumPhaseCompositionSeparation": 1e-4,
+    "postSplitTpdThreshold": -1e-7
+  },
+  "governance": {
+    "researchOnly": true,
+    "calibrationRequired": true,
+    "pilotValidated": false,
+    "releaseEligible": false,
+    "sulfurPrediction": "NOT_CALCULABLE",
+    "paTransferStatus": "PROVISIONAL_NO_DIRECT_PA_LLE_EVIDENCE"
+  }
+}

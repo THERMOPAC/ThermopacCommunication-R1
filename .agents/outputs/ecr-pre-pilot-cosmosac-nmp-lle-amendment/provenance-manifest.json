@@ -1,0 +1,20 @@
+{
+  "implementation": {
+    "model": "d39f5f5a3243b5534e55ec33c51e29483c7471e84a741a4888d30fbb800c7c90",
+    "runner": "842a030c42db2adfa6c035aa4425d89251f5be6a7305541e1b232a189f965f2a"
+  },
+  "inputs": {
+    "baseEngine": "2ab508b252435dd61cea8c601c8bbf4ba0456847de6f5dad73004bf4299732a6",
+    "cotoEvidenceModule": "8253433f5624934b7f9135f223090e8b9e2c5b1cbfaee06c951a3d87b839ea42",
+    "lleEvidence": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+    "priorStage1Protocol": "b49fa1a72e095bc0169aa7f8c0d6f0e2f72f7470e590b8128266d845f0e0e04f",
+    "protocol": "e046ee5a806a868c40ae5d1accc7fc1b8e5785c6af6a137745bcd8d4c1c52546",
+    "stage1Snapshot": "39a70552a8c7134223fe54e9c9a122b57b8781b275df42370e0e08eec51c505a"
+  },
+  "outputs": {
+    "report": "85ab73d2193bc428fdb32df9c5450c010ba5b2a3ddbc5ff1056dec1fdf08995c",
+    "results": "5504833e5fca593feb71f799d3c703ce62ae0b1b32d43bde0a788a056b4a10c9"
+  },
+  "parameterVectorSha256": "a5238d68b53a3aa080b08f9f7a7313367db72ec810fcbd31942313f0fff1e698",
+  "schemaVersion": "1.0.0"
+}

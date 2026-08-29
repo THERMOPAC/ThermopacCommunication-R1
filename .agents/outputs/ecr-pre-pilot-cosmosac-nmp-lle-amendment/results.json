@@ -1,0 +1,429 @@
+{
+  "calibrationRequired": true,
+  "evidence": {
+    "citation": {
+      "aljimaz2006": "Aljimaz et al., J. Chem. Eng. Data 51 (2006) 1026-1030 (NIST ThermoML 10.1021/je050513r)",
+      "fahim2005": "Fahim et al., Fluid Phase Equilib. 231 (2005) 163-170 (NIST ThermoML 10.1016/j.fluid.2005.01.012)",
+      "fandary2006": "Fandary et al., J. Chem. Thermodyn. 38 (2006) 455-460 (NIST ThermoML 10.1016/j.jct.2005.06.012)"
+    },
+    "partition": {
+      "heldOutMolecularSystem": [
+        "hexadecane",
+        "1,3,5-trimethylbenzene"
+      ],
+      "heldOutTemperatureK": 328.0,
+      "stage1ExcludedFromFit": true
+    },
+    "sourceSha256": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+    "validation": {
+      "cotoFiveComponentTransfer": {
+        "activityEqualityRms": 0.6223938183888572,
+        "role": "EXTERNAL_DI_POLY_TRANSFER_CHECK_NOT_FITTED_NOT_RECONSTRUCTED_AS_FEEDS",
+        "rows": 17
+      },
+      "heldOutMolecularSystem": {
+        "activityEqualityRms": 0.30712473850470634,
+        "ceiling": 0.03,
+        "compositionRmsd": 0.06944244443913729,
+        "rows": 35,
+        "status": "FAIL"
+      },
+      "heldOutTemperature": {
+        "activityEqualityRms": 0.16898369016556222,
+        "ceiling": 0.03,
+        "compositionRmsd": 0.07856508126243697,
+        "rows": 41,
+        "status": "FAIL"
+      },
+      "training": {
+        "activityEqualityRms": 0.21942289558690914,
+        "ceiling": 0.03,
+        "compositionRmsd": 0.3502450827232224,
+        "rows": 143,
+        "status": "FAIL"
+      }
+    }
+  },
+  "model": {
+    "baseActivityDefinition": "get_lngamma_comb(T,x)+get_lngamma_resid(T,x)",
+    "identity": "COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL",
+    "parameterFitDiagnostics": {
+      "activeMask": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "cost": 9.966308362112933,
+      "optimality": 2.264016109493419e-06,
+      "success": true
+    },
+    "parameters": {
+      "A_MONO_NMP_asymmetry": -0.6495884884278694,
+      "A_MONO_NMP_ref": 3.198951081736172,
+      "A_MONO_NMP_temperature": -0.6467578770733512,
+      "A_SAT_MONO_asymmetry": -0.8242546229992771,
+      "A_SAT_MONO_ref": 4.567445606087435,
+      "A_SAT_MONO_temperature": -0.5824286889853156,
+      "A_SAT_NMP_asymmetry": -0.5735178632858521,
+      "A_SAT_NMP_ref": 2.912280182396665,
+      "A_SAT_NMP_temperature": -0.22841674286074476
+    },
+    "residualEquation": "gE_residual/RT = sum over admitted pairs x_i*x_j*[A_ref+A_temperature*(T-313.15)/20+A_asymmetry*(x_i-x_j)]"
+  },
+  "paTransferStatus": "PROVISIONAL_NO_DIRECT_PA_LLE_EVIDENCE",
+  "pilotValidated": false,
+  "qualification": {
+    "fullSixComponentModelQualification": "NOT_QUALIFIED",
+    "quantitativeLleGate": "FAILED",
+    "reason": "Blind analogue composition RMSD exceeds the frozen 0.03 ceiling.",
+    "stage1TwoLiquidNumericalGate": "PASSED"
+  },
+  "releaseEligible": false,
+  "researchOnly": true,
+  "schemaVersion": "1.0.0",
+  "stage1Authority": {
+    "charge": {
+      "chargeMassBasis": {
+        "DI": 4.0,
+        "MONO": 7.0,
+        "NMP": 90.0,
+        "PA": 2.0,
+        "POLY": 2.0,
+        "SAT": 85.0
+      },
+      "effectiveFreshNmpMassBasis": 90.0,
+      "excludedWaterMassBasis": 0.0,
+      "feedMassPercent": {
+        "DI": 4.0,
+        "MONO": 7.0,
+        "NMP": 0.0,
+        "PA": 2.0,
+        "POLY": 2.0,
+        "SAT": 85.0
+      },
+      "freshSolventMassBasis": 90.0,
+      "molecularWeightsGmol": {
+        "DI": 142.1971,
+        "MONO": 120.194,
+        "NMP": 99.1311,
+        "PA": 405.58,
+        "POLY": 202.2506,
+        "SAT": 170.3348
+      },
+      "overallMolarComposition": {
+        "DI": 0.018652651019531213,
+        "MONO": 0.038617714228717064,
+        "NMP": 0.602010265713899,
+        "PA": 0.003269827015988686,
+        "POLY": 0.006557095213288322,
+        "SAT": 0.33089244680857566
+      },
+      "targets": {
+        "maximumNmpRaffinateWt": 0.5,
+        "maximumRaffinatePolarAromaticsWt": 0.5,
+        "maximumRaffinateTotalAromaticsWt": 5.0,
+        "maximumStages": 10.0,
+        "minimumNmpFreeRecoveryPct": 95.0,
+        "minimumRaffinateSaturatesWt": 90.0,
+        "targetRaffinateSulfurPpm": 1000.0
+      },
+      "temperatureK": 323.15,
+      "totalChargeMoles": 1.5080949547510414,
+      "unrepresentedFreshSolventImpurityMassBasis": 0.0,
+      "waterTreatment": "EXCLUDED_BASIS_CORRECTION_NOT_A_SEVENTH_FLASH_COMPONENT"
+    },
+    "snapshotPath": "server/research/ecr-pre-pilot-cosmosac-nmp-lle-amendment/stage1-qualification-snapshot.json",
+    "snapshotSha256": "39a70552a8c7134223fe54e9c9a122b57b8781b275df42370e0e08eec51c505a",
+    "sourceStatement": "Previously frozen Stage 1 design basis plus declared process targets; not a live database row"
+  },
+  "stage1Prediction": {
+    "downstreamProcessConstraint": {
+      "maximumTheoreticalStages": 10.0,
+      "process": "COUNTER_CURRENT_MULTISTAGE_EXTRACTION",
+      "status": "NOT_EVALUATED_BY_SINGLE_STAGE_EQUILIBRIUM_FLASH",
+      "theoreticalStageRequirement": "N_T <= 10"
+    },
+    "flash": {
+      "K": [
+        0.0643243310080951,
+        0.8147770719654223,
+        0.7946700438046566,
+        0.8948592359822383,
+        1.649638529076607,
+        5.512298507363674
+      ],
+      "accepted": true,
+      "betaExtract": 0.6062868455943757,
+      "equilibriumPolishResidual": 2.4868995751603507e-14,
+      "equilibriumPolishSuccess": true,
+      "extract": [
+        0.0491884391721806,
+        0.0354452688991338,
+        0.016930341809209395,
+        0.006267181600381111,
+        0.0038698322645219275,
+        0.8882989362545731
+      ],
+      "gibbsReduction": 0.07185283689894512,
+      "isoactivityLogResidual": 2.4868995751603507e-14,
+      "materialBalanceMaxResidual": 3.469446951953614e-18,
+      "maximumCompositionSeparation": 0.7271503817871531,
+      "minimumTpd": -0.10000666719812958,
+      "optimizerMessage": "CONVERGENCE: REL_REDUCTION_OF_F_<=_FACTR*EPSMCH",
+      "optimizerSuccess": true,
+      "phaseDirection": {
+        "aromaticSelectivityOverSat": {
+          "DI": 12.35411284269165,
+          "MONO": 12.666701063130901,
+          "PA": 25.645638333479173,
+          "POLY": 13.911675752517686
+        },
+        "extractNmpRicher": true,
+        "raffinateSatRicher": true
+      },
+      "postSplitTpd": {
+        "extract": -4.94305084401697e-15,
+        "raffinate": -5.1916092486143565e-15
+      },
+      "raffinate": [
+        0.764694142967306,
+        0.04350302692444693,
+        0.021304869789921466,
+        0.0070035390465652035,
+        0.002345866804340515,
+        0.16114855446742002
+      ],
+      "tpd": {
+        "allRefinementsAccepted": true,
+        "coarseMinimum": -0.05318807542038091,
+        "gridDenominator": 4,
+        "gridPointCount": 126,
+        "minimizingComposition": [
+          0.8460233511140857,
+          0.02034944493841493,
+          5.345088157839854e-13,
+          5.345088157839854e-13,
+          5.345088157839854e-13,
+          0.13362720394589614
+        ],
+        "minimum": -0.10000666719812958,
+        "refinements": [
+          {
+            "composition": [
+              0.8687401605351747,
+              5.250393578514247e-13,
+              5.250393578514247e-13,
+              5.250393578514247e-13,
+              5.250393578514247e-13,
+              0.1312598394627249
+            ],
+            "gradientInfinityNorm": 2.7939677238464355e-08,
+            "success": true,
+            "value": -0.0803875043953467
+          },
+          {
+            "composition": [
+              9.999999999962514e-13,
+              9.999999999962514e-13,
+              9.999999999962514e-13,
+              9.999999999962514e-13,
+              9.999999999962514e-13,
+              0.999999999995
+            ],
+            "gradientInfinityNorm": 0.0,
+            "success": true,
+            "value": 0.0041694219659494216
+          },
+          {
+            "composition": [
+              0.9999999999949996,
+              9.99999999996251e-13,
+              9.99999999996251e-13,
+              9.99999999996251e-13,
+              9.99999999996251e-13,
+              9.99999999996251e-13
+            ],
+            "gradientInfinityNorm": 0.0,
+            "success": true,
+            "value": 0.03647534213441941
+          },
+          {
+            "composition": [
+              0.8687387519706183,
+              2.625224960569252e-13,
+              2.625224960569252e-13,
+              2.625224960569252e-13,
+              2.6252249939188594e-13,
+              0.1312612480283314
+            ],
+            "gradientInfinityNorm": 9.313225746154785e-10,
+            "success": true,
+            "value": -0.08038750439555631
+          },
+          {
+            "composition": [
+              0.04147971607820177,
+              1.278027045532557e-12,
+              1.278027045532557e-12,
+              1.278027045532557e-12,
+              1.2780267707150129e-12,
+              0.958520283916686
+            ],
+            "gradientInfinityNorm": 2.3399479687213898e-07,
+            "success": true,
+            "value": -0.03009692059176751
+          },
+          {
+            "composition": [
+              0.8460233511140857,
+              0.02034944493841493,
+              5.345088157839854e-13,
+              5.345088157839854e-13,
+              5.345088157839854e-13,
+              0.13362720394589614
+            ],
+            "gradientInfinityNorm": 1.239590346813202e-06,
+            "success": true,
+            "value": -0.10000666719812958
+          },
+          {
+            "composition": [
+              0.33089236822389173,
+              0.03861773373434024,
+              0.0186526533424818,
+              0.006557094888892624,
+              0.0032698267630203843,
+              0.6020103230473733
+            ],
+            "gradientInfinityNorm": 5.464316408243519e-07,
+            "success": true,
+            "value": -6.258146765706193e-15
+          }
+        ],
+        "seedCount": 7,
+        "verdict": "UNSTABLE_NEGATIVE_TPD"
+      }
+    },
+    "phaseCompositions": {
+      "KExtractOverRaffinate": {
+        "DI": 0.7946700438046566,
+        "MONO": 0.8147770719654223,
+        "NMP": 5.512298507363674,
+        "PA": 1.649638529076607,
+        "POLY": 0.8948592359822383,
+        "SAT": 0.0643243310080951
+      },
+      "componentOrder": [
+        "SAT",
+        "MONO",
+        "DI",
+        "POLY",
+        "PA",
+        "NMP"
+      ],
+      "extractMolarPhaseFraction": 0.6062868455943757,
+      "nmpRichExtract": [
+        0.0491884391721806,
+        0.0354452688991338,
+        0.016930341809209395,
+        0.006267181600381111,
+        0.0038698322645219275,
+        0.8882989362545731
+      ],
+      "oilRichRaffinate": [
+        0.764694142967306,
+        0.04350302692444693,
+        0.021304869789921466,
+        0.0070035390465652035,
+        0.002345866804340515,
+        0.16114855446742002
+      ]
+    },
+    "processMetrics": {
+      "targetCompliance": {
+        "maximumNmpRaffinateWt": {
+          "basis": "total raffinate mass",
+          "calculated": 10.184455458505875,
+          "status": "FAIL",
+          "target": 0.5
+        },
+        "maximumRaffinatePolarAromaticsWt": {
+          "basis": "PA on NMP-free hydrocarbon mass",
+          "calculated": 0.6753514660344373,
+          "status": "FAIL",
+          "target": 0.5
+        },
+        "maximumRaffinateTotalAromaticsWt": {
+          "basis": "MONO+DI+POLY on NMP-free hydrocarbon mass",
+          "calculated": 6.867368047847777,
+          "status": "FAIL",
+          "target": 5.0
+        },
+        "maximumStages": {
+          "basis": "counter-current multistage extraction requirement N_T <= 10",
+          "calculated": null,
+          "status": "NOT_EVALUATED_BY_EQUILIBRIUM_FLASH",
+          "target": 10.0
+        },
+        "minimumNmpFreeRecoveryPct": {
+          "basis": "recovered five-family hydrocarbon mass / oil-feed hydrocarbon mass",
+          "calculated": 83.64859408598518,
+          "status": "FAIL",
+          "target": 95.0
+        },
+        "minimumRaffinateSaturatesWt": {
+          "basis": "NMP-free five-family hydrocarbon mass",
+          "calculated": 92.4572804861178,
+          "status": "PASS",
+          "target": 90.0
+        },
+        "targetRaffinateSulfurPpm": {
+          "basis": "independent sulfur model required",
+          "calculated": null,
+          "status": "NOT_CALCULABLE",
+          "target": 1000.0
+        }
+      },
+      "values": {
+        "componentExtractionPct": {
+          "DI": 55.03048075896567,
+          "MONO": 55.64803795694303,
+          "PA": 71.75389967615516,
+          "POLY": 57.948064496026376
+        },
+        "nmpFreeHydrocarbonRecoveryPct": 83.64859408598518,
+        "nmpInTotalRaffinateWt": 10.184455458505875,
+        "phaseMassesOn100OilBasis": {
+          "extract": {
+            "DI": 2.201219230358627,
+            "MONO": 3.895362656986012,
+            "NMP": 80.51483365174305,
+            "PA": 1.435077993523103,
+            "POLY": 1.1589612899205275,
+            "SAT": 7.660784743226543
+          },
+          "raffinate": {
+            "DI": 1.798780769641372,
+            "MONO": 3.104637343013988,
+            "NMP": 9.485166348256959,
+            "PA": 0.5649220064768965,
+            "POLY": 0.8410387100794718,
+            "SAT": 77.33921525677346
+          }
+        },
+        "raffinatePolarAromaticsWtNmpFree": 0.6753514660344373,
+        "raffinateSaturatesWtNmpFree": 92.4572804861178,
+        "raffinateTotalAromaticsWtNmpFree": 6.867368047847777,
+        "satLossPct": 9.012687933207697
+      }
+    },
+    "status": "ACCEPTED_TWO_LIQUID_RESEARCH_PREDICTION"
+  },
+  "sulfurPrediction": "NOT_CALCULABLE"
+}

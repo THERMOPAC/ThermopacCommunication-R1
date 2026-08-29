@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "ecr-pre-pilot-stage1-qualification-v1",
+  "source": "Previously frozen Stage 1 design basis plus declared process targets; not a live database row",
+  "authoritativePriorProtocol": {
+    "path": "server/research/ecr-pre-pilot-cosmosac-qualification/protocol.json",
+    "sha256": "b49fa1a72e095bc0169aa7f8c0d6f0e2f72f7470e590b8128266d845f0e0e04f"
+  },
+  "stage1": {
+    "operatingTemperatureC": 50.0,
+    "saturatesWt": 85.0,
+    "monoAromaticsWt": 7.0,
+    "diAromaticsWt": 4.0,
+    "polyAromaticsWt": 2.0,
+    "polarAromaticsWt": 2.0,
+    "nmpInFeedWt": 0.0,
+    "nmpPurityWt": 100.0,
+    "nmpWaterWt": 0.0,
+    "solventOilRatio": 0.9,
+    "satIdentity": "n-dodecane",
+    "monoIdentity": "n-propylbenzene",
+    "diIdentity": "1-methylnaphthalene",
+    "polyIdentity": "pyrene",
+    "paCas": "10081-67-1",
+    "nmpIdentity": "N-methyl-2-pyrrolidone",
+    "minimumRaffinateSaturatesWt": 90.0,
+    "targetRaffinateTotalAromaticsWt": 5.0,
+    "targetRaffinatePolarAromaticsWt": 0.5,
+    "minimumRecoveryPct": 95.0,
+    "maximumNmpRaffinateWt": 0.5,
+    "targetRaffinateSulfurPpm": 1000.0,
+    "maximumStages": 10
+  }
+}

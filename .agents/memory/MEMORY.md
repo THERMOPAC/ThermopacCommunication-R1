@@ -87,3 +87,4 @@
 - [ECR Pre-Pilot PA admission boundary](ecr-prepilot-pa-admission-boundary.md) — exact non-sulfur PA identity is admitted, but positive-PA thermodynamics and full recovery remain fail-closed.
 - [COSMO-SAC licensing boundary](cosmosac-licensing-boundary.md) — NIST code is MIT; exclude UD/VT; project profiles use the qualified open RDKit→xTB→CPCM-X route.
 - [COSMO profile conversion semantics](cosmo-profile-conversion-semantics.md) — never relabel CPCM-X sigma3 rows as NIST Hsieh; averaging and charge-sign mapping need independent proof.
+- [NMP LLE residual qualification boundary](nmp-lle-residual-qualification-boundary.md) — a stable Stage 1 split stays research-only when frozen blind LLE RMSD fails; never promote split metrics to design.
