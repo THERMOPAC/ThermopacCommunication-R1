@@ -1,9 +1,0 @@
-prefix=/home/froitzheim/Workspace/xTB/test_cpcm-x/install
-includedir=${prefix}/include
-libdir=${prefix}/lib
-
-Name: cpx
-Description: cpx: cpx
-Version: 1.1.0
-Libs: -L${libdir} -lcpx -qopenmp -pthread -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -qopenmp -qopenmp -qopenmp
-Cflags: -I${includedir} -I${includedir}/cpx/intel-2021.9.0 -qopenmp -pthread
