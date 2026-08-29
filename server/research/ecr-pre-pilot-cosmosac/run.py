@@ -35,6 +35,14 @@ TEMPERATURES_K=(298.15,313.15,323.15,333.15,348.15)
 COMPOSITIONS=((.45,.12,.10,.06,.07,.20),(.20,.20,.20,.10,.10,.20),(.70,.05,.05,.05,.05,.10),(.10,.05,.05,.05,.05,.70))
 KEY={k:v[3] for k,v in COMP.items()}
 profile_provenance=json.loads(PROFILE_PROVENANCE.read_text())
+if profile_provenance.get("profileSemanticsGate") != "PASSED":
+    raise RuntimeError("six-component profile semantics gate is not passed")
+profile_verification_path=ROOT/"server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profile-verification.json"
+if hashlib.sha256(profile_verification_path.read_bytes()).hexdigest() != profile_provenance.get("profileVerificationSha256"):
+    raise RuntimeError("six-component profile verification hash mismatch")
+profile_verification=json.loads(profile_verification_path.read_text())
+if profile_verification.get("decision") != "PROFILE_SEMANTICS_GATE_PASSED" or profile_verification.get("allComponentsPassed") is not True:
+    raise RuntimeError("six-component segment-level profile gate failed")
 if set(profile_provenance["componentIdentityKeys"]) != set(FAMILIES):
     raise RuntimeError("six-component profile family coverage changed")
 if any(KEY[family] != profile_provenance["componentIdentityKeys"][family] for family in FAMILIES):
@@ -139,7 +147,8 @@ def main():
       cases.append(q)
   counts={c:sum(q["phaseBehavior"]==c for q in cases) for c in ("TWO_PHASE","PREDICTED_STABLE_SINGLE_PHASE","NONCONVERGED_OR_BOUNDARY")}
   topology_pass=counts["TWO_PHASE"]==len(cases)
-  result={"schemaVersion":"2.0.0","deterministic":True,"researchOnly":True,"releaseEligible":False,
+  result={"schemaVersion":"2.0.0","deterministic":True,"researchOnly":True,"calibrationRequired":True,
+          "pilotValidated":False,"releaseEligible":False,"sulfurPrediction":"NOT_CALCULABLE",
           "profileSource":{"directory":"server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles",
           "complistSha256":hashlib.sha256((PROFILES/"complist.txt").read_bytes()).hexdigest(),
           "profileSha256ByFamily":{f:hashlib.sha256((PROFILES/"sigma3"/f"{KEY[f]}.sigma").read_bytes()).hexdigest() for f in FAMILIES},
@@ -154,7 +163,9 @@ def main():
           "sulfurPrediction":{"status":"NOT_EVALUATED_SEPARATE_GATE","admitted":False}},
           "finalDecision":"ACCEPT_FOR_QUANTITATIVE_LLE_GATE" if topology_pass else "REJECT"}
   (OUT/"results.json").write_text(json.dumps(result,indent=2,sort_keys=True)+"\n")
-  man={"schemaVersion":"2.0.0","NIST_COSMOSAC_source_commit":"1b82456be38026719b16cad4076109bef3fcb309","runnerSha256":hashlib.sha256((HERE/"run.py").read_bytes()).hexdigest(),"sixComponentProfileProvenanceSha256":hashlib.sha256(PROFILE_PROVENANCE.read_bytes()).hexdigest(),"runtime":result["runtime"],"identities":{k:{"CAS":v[0],"SMILES":v[1],"InChI":v[2],"InChIKey":v[3],"MW_g_mol":v[4]} for k,v in COMP.items()},"profileSource":result["profileSource"],"frozenGridSha256":hashlib.sha256(json.dumps({"temperaturesK":list(TEMPERATURES_K),"compositions":[list(z) for z in COMPOSITIONS]},sort_keys=True,separators=(",",":")).encode()).hexdigest(),"caseInputSha256":{q["caseId"]:q["pinnedInputSha256"] for q in cases},"settings":result["numerics"],"modelVariant":result["model"],"phaseEquilibriumAlgorithm":result["numerics"]["flash"]}
+  man={"schemaVersion":"2.0.0","researchOnly":True,"calibrationRequired":True,"pilotValidated":False,
+       "releaseEligible":False,"sulfurPrediction":"NOT_CALCULABLE",
+       "NIST_COSMOSAC_source_commit":"1b82456be38026719b16cad4076109bef3fcb309","runnerSha256":hashlib.sha256((HERE/"run.py").read_bytes()).hexdigest(),"sixComponentProfileProvenanceSha256":hashlib.sha256(PROFILE_PROVENANCE.read_bytes()).hexdigest(),"runtime":result["runtime"],"identities":{k:{"CAS":v[0],"SMILES":v[1],"InChI":v[2],"InChIKey":v[3],"MW_g_mol":v[4]} for k,v in COMP.items()},"profileSource":result["profileSource"],"frozenGridSha256":hashlib.sha256(json.dumps({"temperaturesK":list(TEMPERATURES_K),"compositions":[list(z) for z in COMPOSITIONS]},sort_keys=True,separators=(",",":")).encode()).hexdigest(),"caseInputSha256":{q["caseId"]:q["pinnedInputSha256"] for q in cases},"settings":result["numerics"],"modelVariant":result["model"],"phaseEquilibriumAlgorithm":result["numerics"]["flash"]}
   (HERE/"provenance-manifest.json").write_text(json.dumps(man,indent=2,sort_keys=True)+"\n")
   report=f"""# Six-component COSMO-SAC-2010 topology evaluation
 

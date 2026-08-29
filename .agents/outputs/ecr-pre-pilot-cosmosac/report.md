@@ -5,8 +5,8 @@ This reproducible research-only calculation uses NIST cCOSMO `COSMO3` with only 
 ## Results
 * Frozen points evaluated: 20
 * Two phase: 0
-* Stable single phase: 17
-* Nonconverged or boundary: 3
+* Stable single phase: 15
+* Nonconverged or boundary: 5
 * Required behavior: two phases at every declared temperature/composition point
 * Topology decision: QUALITATIVE_TOPOLOGY_FAILED
 

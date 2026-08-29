@@ -22,6 +22,10 @@ def sha256(path: Path) -> str:
 
 
 subprocess.run([sys.executable, str(HERE / "run.py")], check=True)
+subprocess.run(
+    [sys.executable, str(HERE / "verify_profile_semantics.py")],
+    check=True,
+)
 
 result = json.loads((OUT / "results.json").read_text(encoding="utf-8"))
 manifest = json.loads((HERE / "provenance-manifest.json").read_text(encoding="utf-8"))
@@ -73,8 +77,17 @@ assert generation["restrictedProfileInputs"] == []
 assert generation["software"]["rdkitVersion"] == "2023.09.5"
 assert generation["software"]["xtbVersion"] == "6.7.1"
 assert generation["software"]["cpcmXVersion"] == "1.1.0"
-assert protocol["status"] == "EXECUTED_QUALIFIED_PROFILE_BASIS"
-assert protocol["runtimeAcceptance"]["executionStatus"] == "PASSED_20_OF_20"
+assert protocol["status"] == "PROFILE_SEMANTICS_GATE_PASSED_RESEARCH_ONLY"
+assert protocol["runtimeAcceptance"]["executionStatus"] == "NOT_RERUN_BY_PROFILE_REGENERATION_TASK"
+assert generation["profileConversion"]["decision"] == "PROFILE_SEMANTICS_GATE_PASSED"
+assert generation["profileConversion"]["benchmarkExecuted"] is False
+assert generation["status"] == {
+    "researchOnly": True,
+    "calibrationRequired": True,
+    "pilotValidated": False,
+    "releaseEligible": False,
+    "sulfurPrediction": "NOT_CALCULABLE",
+}
 
 rights = result["rightsQualification"]
 assert rights["nistCosmoSacSoftware"]["assessment"] == "MIT_LICENSED_SOFTWARE"
@@ -97,6 +110,10 @@ assert result["scopeBoundary"] == {
     "reason": "Profile/runtime compatibility is qualified here; LLE topology and quantitative validation are separate downstream gates.",
 }
 assert result["releaseEligible"] is False
+assert result["researchOnly"] is True
+assert result["calibrationRequired"] is True
+assert result["pilotValidated"] is False
+assert result["sulfurPrediction"] == "NOT_CALCULABLE"
 assert manifest["decision"] == result["decision"]
 assert manifest["runnerSha256"] == sha256(HERE / "run.py")
 assert manifest["generationManifestSha256"] == sha256(GENERATED / "generation-manifest.json")
@@ -104,6 +121,10 @@ assert manifest["generationProtocolSha256"] == sha256(HERE / "generation-protoco
 assert manifest["licenseEvidenceSha256"] == sha256(HERE / "license-evidence.json")
 assert manifest["releaseProvenanceSha256"] == sha256(HERE / "vendor/release-provenance.json")
 assert manifest["complistSha256"] == sha256(GENERATED / "profiles/complist.txt")
+assert manifest["profileSemanticsGate"] == "PASSED"
+assert manifest["profileVerificationSha256"] == sha256(
+    GENERATED / "profile-verification.json"
+)
 assert "NIST UD/VT and ThermoSAC profiles were not used" in report
 assert "does\nnot itself validate phase topology" in report
 

@@ -46,10 +46,13 @@
   },
   "profileConversion": {
     "assessment": "QUALIFIED_FOR_NIST_DELAWARE_SIGMA3_CONTRACT",
-    "softwareLicense": "CPCM-X LGPL-3.0 plus project-authored wrapper code",
+    "softwareLicense": "NIST MIT reference algorithm plus project-authored implementation; CPCM-X/xTB LGPL-3.0 source evidence",
     "evidence": [
-      "CPCM-X emits the 153-row three-part sigma profile directly; the wrapper preserves its bins and adds NIST loader metadata.",
-      "The verifier enforces the -0.025 to +0.025 e/A^2 grid, 0.001 spacing, NHB/OH/OT order, finite nonnegative bins, surface-area conservation, identity matching, and per-file hashes.",
+      "The project converter reads only project-generated CPCM-X/xTB surface segments; it does not copy CPCM-X sigma-profile bins.",
+      "Exact source excerpts for the sign bridge and NIST equations are retained under reference-source/ with pinned commits, upstream full-file hashes, applicable license identifiers, and local integrity hashes.",
+      "Pinned xTB source establishes that --tmcosmo negates native zeta to TM convention, while pinned CPCM-X invokes native --cosmo. Pinned NIST source consumes the charge directly and applies the positive-acceptor mask, establishing the -1 native-xTB to TM/NIST conversion.",
+      "The project converter directly executes the pinned NIST Hsieh constants, atom classification, NHB/OH/OT masks, linear area interpolation, and post-binning hydrogen-bond probability.",
+      "The verifier enforces segment-level sign, bin, area, probability, heteroatom-partition, identity, and per-file hash assertions.",
       "Molecular volume is frozen by deterministic 0.05 A midpoint integration of the union of CPCM-X cavity spheres retained in each surface file."
     ]
   },

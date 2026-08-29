@@ -9,6 +9,7 @@
       "status": "NOT_EVALUATED_SEPARATE_GATE"
     }
   },
+  "calibrationRequired": true,
   "deterministic": true,
   "finalDecision": "REJECT",
   "frozenGrid": {
@@ -19,7 +20,7 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.2878143836870459,
+          "coarseMinimum": 0.2879827206190988,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
@@ -34,34 +35,34 @@
           "refinementConverged": true,
           "refinements": [
             {
-              "gradientInfinityNorm": 9.350478649139404e-07,
+              "gradientInfinityNorm": 5.140900611877441e-07,
               "iterations": 11,
               "message": "Optimization terminated successfully.",
-              "objective": 0.2508051652835771,
+              "objective": 0.2509452730088255,
               "seed": "GRID_1",
               "success": true
             },
             {
-              "gradientInfinityNorm": 4.507601261138916e-07,
+              "gradientInfinityNorm": 3.948807716369629e-07,
               "iterations": 11,
               "message": "Optimization terminated successfully.",
-              "objective": 0.27869255414699795,
+              "objective": 0.27889450650050196,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 8.586794137954712e-07,
-              "iterations": 16,
+              "gradientInfinityNorm": 8.065253496170044e-07,
+              "iterations": 18,
               "message": "Optimization terminated successfully.",
-              "objective": 0.135294433329468,
+              "objective": 0.13532085237685915,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 3.1867254302042625e-07,
-              "iterations": 1,
+              "gradientInfinityNorm": 9.588245768116232e-07,
+              "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 3.908587676211809e-16,
+              "objective": 5.087831198014036e-15,
               "seed": "FEED",
               "success": true
             }
@@ -71,26 +72,26 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 1.1268032497346869e-07,
+          "isoactivityLogResidual": 2.0032114740609064e-07,
           "massBalanceMaxResidual": 0.0,
-          "maximumCompositionSeparation": 2.642748264669592e-08,
+          "maximumCompositionSeparation": 3.416907995434926e-08,
           "phaseAComposition": [
-            0.44999998678625924,
-            0.12000000681550836,
-            0.10000000434662523,
-            0.060000003060024155,
-            0.07000000299047816,
-            0.19999999600110474
+            0.44999998291546095,
+            0.12000000342999946,
+            0.1000000054984724,
+            0.06000000282778581,
+            0.07000000781568577,
+            0.19999999751259587
           ],
           "phaseBComposition": [
-            0.4500000132137419,
-            0.11999999318449106,
-            0.09999999565337442,
-            0.05999999693997558,
-            0.0699999970095216,
-            0.20000000399889561
+            0.4500000170845409,
+            0.1199999965700002,
+            0.09999999450152705,
+            0.05999999717221391,
+            0.06999999218431345,
+            0.20000000248740443
           ],
-          "phaseBFraction": 0.49999997913619787
+          "phaseBFraction": 0.49999997447137695
         },
         "caseId": "T01-Z01",
         "components": [
@@ -106,9 +107,9 @@
         "iterations": 1,
         "massBalanceMaxResidual": 0.0,
         "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.4840021340973217,
-        "objectiveImprovement": 8.215650382226158e-15,
-        "objectiveSplit": -1.48400213409733,
+        "objectiveHomogeneous": -1.49694386395551,
+        "objectiveImprovement": 4.218847493575595e-15,
+        "objectiveSplit": -1.4969438639555142,
         "optimizerSuccess": true,
         "overallComposition": [
           0.45,
@@ -137,49 +138,49 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.2243850425344388,
+          "coarseMinimum": 0.2246102409822797,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
-            0.2,
-            0.2,
-            0.2,
-            0.1,
-            0.1,
-            0.2
+            0.1999999927281183,
+            0.19999999611113844,
+            0.20000001854486266,
+            0.10000000137229453,
+            0.10000000217519292,
+            0.1999999890683931
           ],
-          "refinedMinimum": -1.4571677198205183e-17,
+          "refinedMinimum": -2.2911013025455305e-16,
           "refinementConverged": true,
           "refinements": [
             {
-              "gradientInfinityNorm": 6.537884473800659e-07,
-              "iterations": 11,
+              "gradientInfinityNorm": 4.973262548446655e-07,
+              "iterations": 12,
               "message": "Optimization terminated successfully.",
-              "objective": 0.22305935836975965,
+              "objective": 0.22322281286700826,
               "seed": "GRID_1",
               "success": true
             },
             {
-              "gradientInfinityNorm": 7.860362529754639e-07,
-              "iterations": 14,
+              "gradientInfinityNorm": 7.934868335723877e-07,
+              "iterations": 15,
               "message": "Optimization terminated successfully.",
-              "objective": 0.3506500843586419,
+              "objective": 0.35130279994669716,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 9.57399606704712e-07,
+              "gradientInfinityNorm": 7.860362529754639e-07,
               "iterations": 12,
               "message": "Optimization terminated successfully.",
-              "objective": 0.3423821462724139,
+              "objective": 0.34505460799052556,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 6.742252092642454e-07,
-              "iterations": 0,
+              "gradientInfinityNorm": 6.758483648283686e-07,
+              "iterations": 1,
               "message": "Optimization terminated successfully.",
-              "objective": -1.4571677198205183e-17,
+              "objective": -2.2911013025455305e-16,
               "seed": "FEED",
               "success": true
             }
@@ -189,26 +190,26 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 1.9081958235744878e-16,
+          "isoactivityLogResidual": 1.8229026728031061e-07,
           "massBalanceMaxResidual": 0.0,
-          "maximumCompositionSeparation": 0.0,
+          "maximumCompositionSeparation": 3.708972051708059e-08,
           "phaseAComposition": [
-            0.2,
-            0.2,
-            0.2,
-            0.1,
-            0.1,
-            0.2
+            0.1999999927281196,
+            0.19999999611114233,
+            0.20000001854486027,
+            0.10000000137229174,
+            0.1000000021751926,
+            0.1999999890683935
           ],
           "phaseBComposition": [
-            0.2,
-            0.2,
-            0.2,
-            0.1,
-            0.1,
-            0.2
+            0.20000000727188041,
+            0.2000000038888577,
+            0.19999998145513975,
+            0.09999999862770827,
+            0.09999999782480741,
+            0.20000001093160652
           ],
-          "phaseBFraction": 0.5
+          "phaseBFraction": 0.49999999999999634
         },
         "caseId": "T01-Z02",
         "components": [
@@ -221,12 +222,12 @@
         ],
         "converged": false,
         "isoactivityLogResidual": null,
-        "iterations": 0,
+        "iterations": 1,
         "massBalanceMaxResidual": 0.0,
         "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.7276239313342987,
-        "objectiveImprovement": 0.0,
-        "objectiveSplit": -1.7276239313342987,
+        "objectiveHomogeneous": -1.740462635716553,
+        "objectiveImprovement": 1.5543122344752192e-15,
+        "objectiveSplit": -1.7404626357165545,
         "optimizerSuccess": true,
         "overallComposition": [
           0.2,
@@ -255,25 +256,25 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.27391431063005844,
+          "coarseMinimum": 0.27512057045239957,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
-            0.7000000283071613,
-            0.04999999360175395,
-            0.05000001349020214,
-            0.050000007367704644,
-            0.04999999456194758,
-            0.09999996267123018
+            0.7,
+            0.049999999999999996,
+            0.049999999999999996,
+            0.049999999999999996,
+            0.049999999999999996,
+            0.09999999999999999
           ],
-          "refinedMinimum": -1.400414341170808e-14,
-          "refinementConverged": false,
+          "refinedMinimum": 0.0,
+          "refinementConverged": true,
           "refinements": [
             {
-              "gradientInfinityNorm": 2.682209014892578e-07,
+              "gradientInfinityNorm": 5.587935447692871e-08,
               "iterations": 7,
               "message": "Optimization terminated successfully.",
-              "objective": 0.21543502129695713,
+              "objective": 0.21543496975098092,
               "seed": "GRID_1",
               "success": true
             },
@@ -281,25 +282,25 @@
               "gradientInfinityNorm": 3.725290298461914e-09,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 0.345099070169786,
+              "objective": 0.3456646283755441,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 1.3969838619232178e-07,
-              "iterations": 13,
+              "gradientInfinityNorm": 5.029141902923584e-07,
+              "iterations": 21,
               "message": "Optimization terminated successfully.",
-              "objective": 0.16207345892038616,
+              "objective": 0.16208876210699072,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 1.7876135660621628e-06,
-              "iterations": 1,
-              "message": "Desired error not necessarily achieved due to precision loss.",
-              "objective": -1.400414341170808e-14,
+              "gradientInfinityNorm": 5.74768620226554e-07,
+              "iterations": 0,
+              "message": "Optimization terminated successfully.",
+              "objective": 7.571200610900775e-16,
               "seed": "FEED",
-              "success": false
+              "success": true
             }
           ],
           "verdict": "STABLE_NO_NEGATIVE_TPD"
@@ -307,26 +308,26 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 6.729989782683354e-07,
+          "isoactivityLogResidual": 1.0196704591791672e-14,
           "massBalanceMaxResidual": 0.0,
-          "maximumCompositionSeparation": 1.0536996308818658e-07,
+          "maximumCompositionSeparation": 2.7755575615628914e-17,
           "phaseAComposition": [
-            0.7000000526849832,
-            0.04999999059638972,
-            0.05000000343413125,
-            0.04999999643029512,
-            0.0499999913803157,
-            0.09999996547388507
+            0.6999999999999998,
+            0.04999999999999998,
+            0.04999999999999998,
+            0.04999999999999998,
+            0.04999999999999998,
+            0.09999999999999996
           ],
           "phaseBComposition": [
-            0.6999999473150201,
-            0.05000000940360959,
-            0.04999999656586896,
-            0.050000003569704604,
-            0.050000008619683664,
-            0.10000003452611246
+            0.6999999999999998,
+            0.049999999999999996,
+            0.049999999999999996,
+            0.049999999999999996,
+            0.049999999999999996,
+            0.09999999999999999
           ],
-          "phaseBFraction": 0.5000000175386341
+          "phaseBFraction": 0.4999999999999999
         },
         "caseId": "T01-Z03",
         "components": [
@@ -339,14 +340,12 @@
         ],
         "converged": false,
         "isoactivityLogResidual": null,
-        "iterations": 1,
+        "iterations": 0,
         "massBalanceMaxResidual": 0.0,
-        "numericalFailureReasons": [
-          "TPD_REFINEMENT_NOT_CONVERGED"
-        ],
-        "objectiveHomogeneous": -1.0488677962565005,
-        "objectiveImprovement": 1.1324274851176597e-14,
-        "objectiveSplit": -1.0488677962565118,
+        "numericalFailureReasons": [],
+        "objectiveHomogeneous": -1.0559110364460618,
+        "objectiveImprovement": -2.220446049250313e-15,
+        "objectiveSplit": -1.0559110364460595,
         "optimizerSuccess": true,
         "overallComposition": [
           0.7,
@@ -356,11 +355,18 @@
           0.05,
           0.1
         ],
-        "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
+        "phaseBehavior": "PREDICTED_STABLE_SINGLE_PHASE",
         "pinnedInputSha256": "2c745b754311a43164f55b3d3ab42a5397645b7c13f132b45bfddf8e881bd7d1",
         "selectivityRelativeToSaturate": null,
-        "singleLiquidComposition": null,
-        "singleLiquidFraction": null,
+        "singleLiquidComposition": [
+          0.6999999999999998,
+          0.04999999999999999,
+          0.04999999999999999,
+          0.04999999999999999,
+          0.04999999999999999,
+          0.09999999999999998
+        ],
+        "singleLiquidFraction": 1.0,
         "temperatureK": 298.15
       },
       {
@@ -368,7 +374,7 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.27079028523942184,
+          "coarseMinimum": 0.27104011960880947,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
@@ -379,14 +385,14 @@
             0.05,
             0.7
           ],
-          "refinedMinimum": -1.8041124150158794e-17,
+          "refinedMinimum": 0.0,
           "refinementConverged": true,
           "refinements": [
             {
-              "gradientInfinityNorm": 1.2479722499847412e-07,
+              "gradientInfinityNorm": 2.849847078323364e-07,
               "iterations": 7,
               "message": "Optimization terminated successfully.",
-              "objective": 0.20923605106946036,
+              "objective": 0.21331632963402838,
               "seed": "GRID_1",
               "success": true
             },
@@ -394,23 +400,23 @@
               "gradientInfinityNorm": 0.0,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 0.325118489627673,
+              "objective": 0.33692811556589686,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 8.475035429000854e-07,
-              "iterations": 14,
+              "gradientInfinityNorm": 9.98377799987793e-07,
+              "iterations": 13,
               "message": "Optimization terminated successfully.",
-              "objective": 0.15513255421752528,
+              "objective": 0.15759267704513213,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 2.979994249377449e-07,
+              "gradientInfinityNorm": 5.099431406044297e-07,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": -1.8041124150158794e-17,
+              "objective": 1.387778780781447e-18,
               "seed": "FEED",
               "success": true
             }
@@ -420,7 +426,7 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 1.6653345369377348e-16,
+          "isoactivityLogResidual": 1.3877787807814457e-16,
           "massBalanceMaxResidual": 0.0,
           "maximumCompositionSeparation": 0.0,
           "phaseAComposition": [
@@ -455,9 +461,9 @@
         "iterations": 0,
         "massBalanceMaxResidual": 0.0,
         "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.031777157705444,
+        "objectiveHomogeneous": -1.0526797082252746,
         "objectiveImprovement": 0.0,
-        "objectiveSplit": -1.031777157705444,
+        "objectiveSplit": -1.0526797082252746,
         "optimizerSuccess": true,
         "overallComposition": [
           0.1,
@@ -486,7 +492,7 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.2878695926473041,
+          "coarseMinimum": 0.28802545222273285,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
@@ -501,34 +507,34 @@
           "refinementConverged": true,
           "refinements": [
             {
-              "gradientInfinityNorm": 3.129243850708008e-07,
+              "gradientInfinityNorm": 8.530914783477783e-07,
               "iterations": 11,
               "message": "Optimization terminated successfully.",
-              "objective": 0.25083893389708717,
+              "objective": 0.25096644093284626,
               "seed": "GRID_1",
               "success": true
             },
             {
-              "gradientInfinityNorm": 8.009374141693115e-07,
-              "iterations": 12,
+              "gradientInfinityNorm": 4.5821070671081543e-07,
+              "iterations": 11,
               "message": "Optimization terminated successfully.",
-              "objective": 0.2787523435513879,
+              "objective": 0.27893413536780676,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 4.954636096954346e-07,
-              "iterations": 17,
+              "gradientInfinityNorm": 9.071081876754761e-07,
+              "iterations": 15,
               "message": "Optimization terminated successfully.",
-              "objective": 0.13529710175201987,
+              "objective": 0.13532302062844,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 9.409491126760594e-07,
+              "gradientInfinityNorm": 9.879464889034351e-07,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 1.3237154428136223e-15,
+              "objective": 5.0277490504235795e-15,
               "seed": "FEED",
               "success": true
             }
@@ -538,26 +544,26 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 1.2640493400606356e-07,
+          "isoactivityLogResidual": 2.0122792321330962e-16,
           "massBalanceMaxResidual": 0.0,
-          "maximumCompositionSeparation": 1.8733125828340746e-08,
+          "maximumCompositionSeparation": 0.0,
           "phaseAComposition": [
-            0.45000000936656337,
-            0.11999999855480238,
-            0.10000000527101188,
-            0.05999999915366852,
-            0.06999999517690042,
-            0.1999999924770535
+            0.45,
+            0.12,
+            0.1,
+            0.06,
+            0.07,
+            0.2
           ],
           "phaseBComposition": [
-            0.44999999063343754,
-            0.12000000144519747,
-            0.09999999472898864,
-            0.06000000084633139,
-            0.07000000482309914,
-            0.2000000075229458
+            0.45,
+            0.12,
+            0.1,
+            0.06,
+            0.07,
+            0.2
           ],
-          "phaseBFraction": 0.5000000238804048
+          "phaseBFraction": 0.5
         },
         "caseId": "T02-Z01",
         "components": [
@@ -570,13 +576,15 @@
         ],
         "converged": false,
         "isoactivityLogResidual": null,
-        "iterations": 1,
+        "iterations": 0,
         "massBalanceMaxResidual": 0.0,
-        "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.4904647756491507,
-        "objectiveImprovement": 6.8833827526759706e-15,
-        "objectiveSplit": -1.4904647756491576,
-        "optimizerSuccess": true,
+        "numericalFailureReasons": [
+          "SPLIT_OPTIMIZER_NOT_CONVERGED"
+        ],
+        "objectiveHomogeneous": -1.5022554611548922,
+        "objectiveImprovement": -4.440892098500626e-15,
+        "objectiveSplit": -1.5022554611548877,
+        "optimizerSuccess": false,
         "overallComposition": [
           0.45,
           0.12,
@@ -585,18 +593,11 @@
           0.07,
           0.2
         ],
-        "phaseBehavior": "PREDICTED_STABLE_SINGLE_PHASE",
+        "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
         "pinnedInputSha256": "29dec05048634fe9e1473a6365c6ecf863631033456c3a3d76f9a841d471f356",
         "selectivityRelativeToSaturate": null,
-        "singleLiquidComposition": [
-          0.45,
-          0.12,
-          0.1,
-          0.06,
-          0.07,
-          0.2
-        ],
-        "singleLiquidFraction": 1.0,
+        "singleLiquidComposition": null,
+        "singleLiquidFraction": null,
         "temperatureK": 313.15
       },
       {
@@ -604,7 +605,7 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.22447182443043284,
+          "coarseMinimum": 0.22468225190072472,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
@@ -619,34 +620,34 @@
           "refinementConverged": true,
           "refinements": [
             {
-              "gradientInfinityNorm": 9.331852197647095e-07,
-              "iterations": 12,
+              "gradientInfinityNorm": 7.394701242446899e-07,
+              "iterations": 11,
               "message": "Optimization terminated successfully.",
-              "objective": 0.2231159986872303,
+              "objective": 0.2232666295348358,
               "seed": "GRID_1",
               "success": true
             },
             {
-              "gradientInfinityNorm": 7.152557373046875e-07,
-              "iterations": 14,
+              "gradientInfinityNorm": 8.568167686462402e-07,
+              "iterations": 15,
               "message": "Optimization terminated successfully.",
-              "objective": 0.3510224720125293,
+              "objective": 0.35158558418250496,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 3.501772880554199e-07,
-              "iterations": 12,
+              "gradientInfinityNorm": 9.834766387939453e-07,
+              "iterations": 11,
               "message": "Optimization terminated successfully.",
-              "objective": 0.3436591481151201,
+              "objective": 0.34601886624196726,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 5.260754861638462e-07,
+              "gradientInfinityNorm": 6.62197247158769e-07,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 3.2265856653168614e-17,
+              "objective": 2.185751579730777e-17,
               "seed": "FEED",
               "success": true
             }
@@ -656,26 +657,26 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 1.942890293094024e-16,
+          "isoactivityLogResidual": 2.0815665893389457e-07,
           "massBalanceMaxResidual": 0.0,
-          "maximumCompositionSeparation": 0.0,
+          "maximumCompositionSeparation": 2.0668895664432974e-08,
           "phaseAComposition": [
-            0.2,
-            0.2,
-            0.2,
-            0.1,
-            0.1,
-            0.2
+            0.19999999682515415,
+            0.20000000006479274,
+            0.20000000881181704,
+            0.0999999896655528,
+            0.10000000553978203,
+            0.1999999990929012
           ],
           "phaseBComposition": [
-            0.2,
-            0.2,
-            0.2,
-            0.1,
-            0.1,
-            0.2
+            0.20000000317484626,
+            0.19999999993520726,
+            0.1999999911881819,
+            0.10000001033444847,
+            0.0999999944602173,
+            0.20000000090709893
           ],
-          "phaseBFraction": 0.5
+          "phaseBFraction": 0.49999996938541313
         },
         "caseId": "T02-Z02",
         "components": [
@@ -688,12 +689,12 @@
         ],
         "converged": false,
         "isoactivityLogResidual": null,
-        "iterations": 0,
+        "iterations": 1,
         "massBalanceMaxResidual": 0.0,
         "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.733831002820101,
-        "objectiveImprovement": 0.0,
-        "objectiveSplit": -1.733831002820101,
+        "objectiveHomogeneous": -1.7455357860097305,
+        "objectiveImprovement": 4.440892098500626e-15,
+        "objectiveSplit": -1.745535786009735,
         "optimizerSuccess": true,
         "overallComposition": [
           0.2,
@@ -722,51 +723,51 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.2744197647290911,
+          "coarseMinimum": 0.2755019788437254,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
-            0.699999996220828,
-            0.05000000493267296,
-            0.0500000033116861,
-            0.05000000000120945,
-            0.05000000408469837,
-            0.09999999144890505
+            0.7000000140380148,
+            0.04999999134565721,
+            0.04999999720812951,
+            0.049999996200698324,
+            0.04999999615527194,
+            0.10000000505222802
           ],
-          "refinedMinimum": -2.4646579466305114e-14,
-          "refinementConverged": false,
+          "refinedMinimum": -8.498917152977372e-15,
+          "refinementConverged": true,
           "refinements": [
             {
-              "gradientInfinityNorm": 5.941838026046753e-07,
-              "iterations": 8,
+              "gradientInfinityNorm": 6.05359673500061e-07,
+              "iterations": 7,
               "message": "Optimization terminated successfully.",
-              "objective": 0.2154302679722075,
+              "objective": 0.21543141467204074,
               "seed": "GRID_1",
               "success": true
             },
             {
-              "gradientInfinityNorm": 3.725290298461914e-09,
+              "gradientInfinityNorm": 7.450580596923828e-09,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 0.34547151008582244,
+              "objective": 0.34596856868154013,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 5.960464477539062e-07,
-              "iterations": 18,
+              "gradientInfinityNorm": 6.537884473800659e-07,
+              "iterations": 14,
               "message": "Optimization terminated successfully.",
-              "objective": 0.1620762742155313,
+              "objective": 0.1620896527470684,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 1.9818069239008196e-06,
-              "iterations": 3,
-              "message": "Desired error not necessarily achieved due to precision loss.",
-              "objective": -2.4646579466305114e-14,
+              "gradientInfinityNorm": 9.1245221489622e-07,
+              "iterations": 1,
+              "message": "Optimization terminated successfully.",
+              "objective": -8.498917152977372e-15,
               "seed": "FEED",
-              "success": false
+              "success": true
             }
           ],
           "verdict": "STABLE_NO_NEGATIVE_TPD"
@@ -774,26 +775,26 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 3.543837283903617e-07,
+          "isoactivityLogResidual": 4.3127297755934935e-07,
           "massBalanceMaxResidual": 0.0,
-          "maximumCompositionSeparation": 3.33880060265912e-08,
+          "maximumCompositionSeparation": 3.681882188022456e-08,
           "phaseAComposition": [
-            0.6999999833059976,
-            0.0500000028119955,
-            0.050000006046454853,
-            0.04999999860044764,
-            0.050000009576036106,
-            0.099999999659068
+            0.6999999815905891,
+            0.0500000108535118,
+            0.050000002869329686,
+            0.05000000461767542,
+            0.05000000496620322,
+            0.09999999510269048
           ],
           "phaseBComposition": [
-            0.7000000166940036,
-            0.04999999718800424,
-            0.049999993953544625,
-            0.05000000139955246,
-            0.04999999042396307,
-            0.10000000034093198
+            0.700000018409411,
+            0.04999998914648799,
+            0.04999999713067024,
+            0.04999999538232448,
+            0.04999999503379667,
+            0.10000000489730956
           ],
-          "phaseBFraction": 0.49999997884558106
+          "phaseBFraction": 0.4999999957229022
         },
         "caseId": "T02-Z03",
         "components": [
@@ -808,12 +809,10 @@
         "isoactivityLogResidual": null,
         "iterations": 1,
         "massBalanceMaxResidual": 0.0,
-        "numericalFailureReasons": [
-          "TPD_REFINEMENT_NOT_CONVERGED"
-        ],
-        "objectiveHomogeneous": -1.0524590335820472,
-        "objectiveImprovement": 1.865174681370263e-14,
-        "objectiveSplit": -1.0524590335820658,
+        "numericalFailureReasons": [],
+        "objectiveHomogeneous": -1.0588613726577514,
+        "objectiveImprovement": 6.439293542825908e-15,
+        "objectiveSplit": -1.0588613726577578,
         "optimizerSuccess": true,
         "overallComposition": [
           0.7,
@@ -823,11 +822,18 @@
           0.05,
           0.1
         ],
-        "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
+        "phaseBehavior": "PREDICTED_STABLE_SINGLE_PHASE",
         "pinnedInputSha256": "36ebd179acb3f4d57cceea865b25ac94b28204696925fbafdb9095a19f5cb5a8",
         "selectivityRelativeToSaturate": null,
-        "singleLiquidComposition": null,
-        "singleLiquidFraction": null,
+        "singleLiquidComposition": [
+          0.6999999999999998,
+          0.04999999999999999,
+          0.04999999999999999,
+          0.04999999999999999,
+          0.04999999999999999,
+          0.09999999999999998
+        ],
+        "singleLiquidFraction": 1.0,
         "temperatureK": 313.15
       },
       {
@@ -835,7 +841,7 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.2708582266843743,
+          "coarseMinimum": 0.27109033425855406,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
@@ -846,14 +852,14 @@
             0.05,
             0.7
           ],
-          "refinedMinimum": 0.0,
+          "refinedMinimum": -9.020562075079394e-18,
           "refinementConverged": true,
           "refinements": [
             {
-              "gradientInfinityNorm": 1.825392246246338e-07,
+              "gradientInfinityNorm": 8.121132850646973e-07,
               "iterations": 7,
               "message": "Optimization terminated successfully.",
-              "objective": 0.21113794292268528,
+              "objective": 0.21483031568449362,
               "seed": "GRID_1",
               "success": true
             },
@@ -861,23 +867,23 @@
               "gradientInfinityNorm": 0.0,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 0.33095630548287774,
+              "objective": 0.342043756824583,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 3.6135315895080566e-07,
+              "gradientInfinityNorm": 5.029141902923584e-07,
               "iterations": 13,
               "message": "Optimization terminated successfully.",
-              "objective": 0.15627335177868087,
+              "objective": 0.15848921666097368,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 6.154647682943271e-07,
+              "gradientInfinityNorm": 5.217217029035437e-07,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 3.95516952522712e-17,
+              "objective": -9.020562075079394e-18,
               "seed": "FEED",
               "success": true
             }
@@ -887,7 +893,7 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 2.220446049250313e-16,
+          "isoactivityLogResidual": 1.942890293094024e-16,
           "massBalanceMaxResidual": 0.0,
           "maximumCompositionSeparation": 0.0,
           "phaseAComposition": [
@@ -922,9 +928,9 @@
         "iterations": 0,
         "massBalanceMaxResidual": 0.0,
         "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.0419903952353695,
+        "objectiveHomogeneous": -1.0612791591784387,
         "objectiveImprovement": 0.0,
-        "objectiveSplit": -1.0419903952353695,
+        "objectiveSplit": -1.0612791591784387,
         "optimizerSuccess": true,
         "overallComposition": [
           0.1,
@@ -953,49 +959,162 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.2879023182279719,
+          "coarseMinimum": 0.28805041072399906,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
-            0.45,
+            0.44999999999999996,
             0.12,
-            0.1,
-            0.06,
-            0.07,
-            0.2
+            0.09999999999999999,
+            0.05999999999999997,
+            0.06999999999999999,
+            0.19999999999999998
           ],
-          "refinedMinimum": 0.0,
-          "refinementConverged": true,
+          "refinedMinimum": -6.772239019570136e-15,
+          "refinementConverged": false,
           "refinements": [
             {
-              "gradientInfinityNorm": 3.3527612686157227e-07,
-              "iterations": 13,
+              "gradientInfinityNorm": 9.08970832824707e-07,
+              "iterations": 11,
               "message": "Optimization terminated successfully.",
-              "objective": 0.25085883503742534,
+              "objective": 0.2509788328671574,
               "seed": "GRID_1",
               "success": true
             },
             {
-              "gradientInfinityNorm": 1.0803341865539551e-07,
+              "gradientInfinityNorm": 7.115304470062256e-07,
               "iterations": 11,
               "message": "Optimization terminated successfully.",
-              "objective": 0.2787868805809023,
+              "objective": 0.2789569224065745,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 4.861503839492798e-07,
-              "iterations": 17,
+              "gradientInfinityNorm": 9.741634130477905e-07,
+              "iterations": 15,
               "message": "Optimization terminated successfully.",
-              "objective": 0.13529912137650948,
+              "objective": 0.1353244917176448,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 8.569450017241464e-07,
+              "gradientInfinityNorm": 1.4020547902732217e-06,
+              "iterations": 0,
+              "message": "Desired error not necessarily achieved due to precision loss.",
+              "objective": -6.772239019570136e-15,
+              "seed": "FEED",
+              "success": false
+            }
+          ],
+          "verdict": "STABLE_NO_NEGATIVE_TPD"
+        },
+        "beta_NMP_rich": null,
+        "boundarySolution": false,
+        "candidateSplitDiagnostics": {
+          "isoactivityLogResidual": 6.414840741930661e-09,
+          "massBalanceMaxResidual": 5.551115123125783e-17,
+          "maximumCompositionSeparation": 8.359555825343534e-10,
+          "phaseAComposition": [
+            0.4500000004179778,
+            0.11999999997827389,
+            0.09999999986327536,
+            0.06000000004532512,
+            0.06999999975633048,
+            0.19999999993881726
+          ],
+          "phaseBComposition": [
+            0.4499999995820222,
+            0.12000000002172609,
+            0.10000000013672464,
+            0.059999999954674865,
+            0.07000000024366952,
+            0.20000000006118274
+          ],
+          "phaseBFraction": 0.5000000008459446
+        },
+        "caseId": "T03-Z01",
+        "components": [
+          "SAT",
+          "MONO",
+          "DI",
+          "POLY",
+          "PA",
+          "NMP"
+        ],
+        "converged": false,
+        "isoactivityLogResidual": null,
+        "iterations": 1,
+        "massBalanceMaxResidual": 5.551115123125783e-17,
+        "numericalFailureReasons": [
+          "TPD_REFINEMENT_NOT_CONVERGED"
+        ],
+        "objectiveHomogeneous": -1.5053158947421688,
+        "objectiveImprovement": -3.1086244689504383e-15,
+        "objectiveSplit": -1.5053158947421656,
+        "optimizerSuccess": true,
+        "overallComposition": [
+          0.45,
+          0.12,
+          0.1,
+          0.06,
+          0.07,
+          0.2
+        ],
+        "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
+        "pinnedInputSha256": "7158ce511d8d8dfa77c98a96ffa24886e51e4abbc6dde5756847d159a21f77c2",
+        "selectivityRelativeToSaturate": null,
+        "singleLiquidComposition": null,
+        "singleLiquidFraction": null,
+        "temperatureK": 323.15
+      },
+      {
+        "K_NMPrich_over_RRBO": null,
+        "NMP_rich": null,
+        "RRBO_rich": null,
+        "TPD": {
+          "coarseMinimum": 0.22472422573045803,
+          "gridDenominator": 4,
+          "gridPointCount": 126,
+          "minimizingComposition": [
+            0.2,
+            0.2,
+            0.2,
+            0.1,
+            0.1,
+            0.2
+          ],
+          "refinedMinimum": -1.8041124150158797e-17,
+          "refinementConverged": true,
+          "refinements": [
+            {
+              "gradientInfinityNorm": 2.60770320892334e-07,
+              "iterations": 11,
+              "message": "Optimization terminated successfully.",
+              "objective": 0.22329193595984173,
+              "seed": "GRID_1",
+              "success": true
+            },
+            {
+              "gradientInfinityNorm": 9.872019290924072e-07,
+              "iterations": 15,
+              "message": "Optimization terminated successfully.",
+              "objective": 0.3517436566130459,
+              "seed": "GRID_2",
+              "success": true
+            },
+            {
+              "gradientInfinityNorm": 6.221234798431396e-07,
+              "iterations": 13,
+              "message": "Optimization terminated successfully.",
+              "objective": 0.34656597179591664,
+              "seed": "GRID_3",
+              "success": true
+            },
+            {
+              "gradientInfinityNorm": 6.930609908827046e-07,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 7.603119522858749e-16,
+              "objective": -1.8041124150158797e-17,
               "seed": "FEED",
               "success": true
             }
@@ -1005,28 +1124,28 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 2.220446049250313e-16,
+          "isoactivityLogResidual": 9.71445146547012e-17,
           "massBalanceMaxResidual": 0.0,
           "maximumCompositionSeparation": 0.0,
           "phaseAComposition": [
-            0.45,
-            0.12,
+            0.2,
+            0.2,
+            0.2,
             0.1,
-            0.06,
-            0.07,
+            0.1,
             0.2
           ],
           "phaseBComposition": [
-            0.45,
-            0.12,
+            0.2,
+            0.2,
+            0.2,
             0.1,
-            0.06,
-            0.07,
+            0.1,
             0.2
           ],
           "phaseBFraction": 0.5
         },
-        "caseId": "T03-Z01",
+        "caseId": "T03-Z02",
         "components": [
           "SAT",
           "MONO",
@@ -1040,127 +1159,9 @@
         "iterations": 0,
         "massBalanceMaxResidual": 0.0,
         "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.4942095333242338,
+        "objectiveHomogeneous": -1.7484619342803507,
         "objectiveImprovement": 0.0,
-        "objectiveSplit": -1.4942095333242338,
-        "optimizerSuccess": true,
-        "overallComposition": [
-          0.45,
-          0.12,
-          0.1,
-          0.06,
-          0.07,
-          0.2
-        ],
-        "phaseBehavior": "PREDICTED_STABLE_SINGLE_PHASE",
-        "pinnedInputSha256": "7158ce511d8d8dfa77c98a96ffa24886e51e4abbc6dde5756847d159a21f77c2",
-        "selectivityRelativeToSaturate": null,
-        "singleLiquidComposition": [
-          0.45,
-          0.12,
-          0.1,
-          0.06,
-          0.07,
-          0.2
-        ],
-        "singleLiquidFraction": 1.0,
-        "temperatureK": 323.15
-      },
-      {
-        "K_NMPrich_over_RRBO": null,
-        "NMP_rich": null,
-        "RRBO_rich": null,
-        "TPD": {
-          "coarseMinimum": 0.2245232873948878,
-          "gridDenominator": 4,
-          "gridPointCount": 126,
-          "minimizingComposition": [
-            0.2,
-            0.2,
-            0.2,
-            0.1,
-            0.1,
-            0.2
-          ],
-          "refinedMinimum": -4.718447854656916e-17,
-          "refinementConverged": true,
-          "refinements": [
-            {
-              "gradientInfinityNorm": 8.23289155960083e-07,
-              "iterations": 13,
-              "message": "Optimization terminated successfully.",
-              "objective": 0.22314918868443018,
-              "seed": "GRID_1",
-              "success": true
-            },
-            {
-              "gradientInfinityNorm": 6.332993507385254e-07,
-              "iterations": 16,
-              "message": "Optimization terminated successfully.",
-              "objective": 0.35122974360795156,
-              "seed": "GRID_2",
-              "success": true
-            },
-            {
-              "gradientInfinityNorm": 7.562339305877686e-07,
-              "iterations": 11,
-              "message": "Optimization terminated successfully.",
-              "objective": 0.34438354346921596,
-              "seed": "GRID_3",
-              "success": true
-            },
-            {
-              "gradientInfinityNorm": 4.1483068309450257e-07,
-              "iterations": 0,
-              "message": "Optimization terminated successfully.",
-              "objective": -4.718447854656916e-17,
-              "seed": "FEED",
-              "success": true
-            }
-          ],
-          "verdict": "STABLE_NO_NEGATIVE_TPD"
-        },
-        "beta_NMP_rich": null,
-        "boundarySolution": false,
-        "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 2.4916799920560173e-07,
-          "massBalanceMaxResidual": 0.0,
-          "maximumCompositionSeparation": 5.328934943316099e-08,
-          "phaseAComposition": [
-            0.1999999733553239,
-            0.20000000115846417,
-            0.20000001274310594,
-            0.10000000868848133,
-            0.10000001332233803,
-            0.19999999073228658
-          ],
-          "phaseBComposition": [
-            0.20000002664467334,
-            0.19999999884153596,
-            0.1999999872568954,
-            0.0999999913115196,
-            0.09999998667766337,
-            0.2000000092677125
-          ],
-          "phaseBFraction": 0.5000000260654426
-        },
-        "caseId": "T03-Z02",
-        "components": [
-          "SAT",
-          "MONO",
-          "DI",
-          "POLY",
-          "PA",
-          "NMP"
-        ],
-        "converged": false,
-        "isoactivityLogResidual": null,
-        "iterations": 1,
-        "massBalanceMaxResidual": 0.0,
-        "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.7374322915169156,
-        "objectiveImprovement": 4.884981308350689e-15,
-        "objectiveSplit": -1.7374322915169205,
+        "objectiveSplit": -1.7484619342803507,
         "optimizerSuccess": true,
         "overallComposition": [
           0.2,
@@ -1189,7 +1190,7 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.2747097656594075,
+          "coarseMinimum": 0.27571998723768815,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
@@ -1200,38 +1201,38 @@
             0.05000000000000002,
             0.10000000000000003
           ],
-          "refinedMinimum": -5.842548667089888e-16,
+          "refinedMinimum": -1.1423501034002473e-14,
           "refinementConverged": true,
           "refinements": [
             {
-              "gradientInfinityNorm": 4.954636096954346e-07,
+              "gradientInfinityNorm": 3.4086406230926514e-07,
               "iterations": 7,
               "message": "Optimization terminated successfully.",
-              "objective": 0.21542783087912293,
+              "objective": 0.21542952606912263,
               "seed": "GRID_1",
               "success": true
             },
             {
-              "gradientInfinityNorm": 1.1175870895385742e-08,
+              "gradientInfinityNorm": 7.450580596923828e-09,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 0.3456818828194832,
+              "objective": 0.3461403710467548,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 8.065253496170044e-07,
+              "gradientInfinityNorm": 7.916241884231567e-07,
               "iterations": 14,
               "message": "Optimization terminated successfully.",
-              "objective": 0.16207787163981133,
+              "objective": 0.1620901696659476,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 8.833002423576722e-07,
+              "gradientInfinityNorm": 6.388436169509767e-07,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": -5.842548667089888e-16,
+              "objective": -1.1423501034002473e-14,
               "seed": "FEED",
               "success": true
             }
@@ -1241,26 +1242,26 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 5.245145642523291e-07,
+          "isoactivityLogResidual": 8.552186736565659e-15,
           "massBalanceMaxResidual": 0.0,
-          "maximumCompositionSeparation": 4.7598520014346946e-08,
+          "maximumCompositionSeparation": 2.220446049250313e-16,
           "phaseAComposition": [
-            0.7000000237992607,
-            0.0499999972996675,
-            0.04999998672955859,
-            0.04999999862093111,
-            0.049999993996508466,
-            0.09999999955407354
+            0.6999999999999997,
+            0.049999999999999975,
+            0.049999999999999975,
+            0.049999999999999975,
+            0.049999999999999975,
+            0.09999999999999995
           ],
           "phaseBComposition": [
-            0.6999999762007407,
-            0.05000000270033229,
-            0.05000001327044046,
-            0.05000000137906877,
-            0.050000006003491096,
-            0.10000000044592638
+            0.7,
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            0.1
           ],
-          "phaseBFraction": 0.5000000175893211
+          "phaseBFraction": 0.5000000000000001
         },
         "caseId": "T03-Z03",
         "components": [
@@ -1273,12 +1274,12 @@
         ],
         "converged": false,
         "isoactivityLogResidual": null,
-        "iterations": 1,
+        "iterations": 0,
         "massBalanceMaxResidual": 0.0,
         "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.0545355546657258,
-        "objectiveImprovement": 1.1102230246251565e-14,
-        "objectiveSplit": -1.054535554665737,
+        "objectiveHomogeneous": -1.060558515927233,
+        "objectiveImprovement": -2.886579864025407e-15,
+        "objectiveSplit": -1.0605585159272302,
         "optimizerSuccess": true,
         "overallComposition": [
           0.7,
@@ -1307,7 +1308,7 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.2708991955696031,
+          "coarseMinimum": 0.2711202992914361,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
@@ -1318,14 +1319,14 @@
             0.05,
             0.7
           ],
-          "refinedMinimum": 0.0,
-          "refinementConverged": true,
+          "refinedMinimum": -3.122502256758253e-17,
+          "refinementConverged": false,
           "refinements": [
             {
-              "gradientInfinityNorm": 2.4586915969848633e-07,
+              "gradientInfinityNorm": 4.880130290985107e-07,
               "iterations": 7,
               "message": "Optimization terminated successfully.",
-              "objective": 0.21223178294322337,
+              "objective": 0.21569466142975402,
               "seed": "GRID_1",
               "success": true
             },
@@ -1333,25 +1334,25 @@
               "gradientInfinityNorm": 0.0,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 0.33441464206159993,
+              "objective": 0.3450395399242514,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 7.80448317527771e-07,
+              "gradientInfinityNorm": 3.110617399215698e-07,
               "iterations": 13,
               "message": "Optimization terminated successfully.",
-              "objective": 0.1569267199930363,
+              "objective": 0.15899958385536975,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 2.991912418794096e-07,
+              "gradientInfinityNorm": 1.1507353296982825e-06,
               "iterations": 0,
-              "message": "Optimization terminated successfully.",
-              "objective": 2.3592239273284576e-17,
+              "message": "Desired error not necessarily achieved due to precision loss.",
+              "objective": -3.122502256758253e-17,
               "seed": "FEED",
-              "success": true
+              "success": false
             }
           ],
           "verdict": "STABLE_NO_NEGATIVE_TPD"
@@ -1359,7 +1360,7 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 1.8041124150158794e-16,
+          "isoactivityLogResidual": 2.220446049250313e-16,
           "massBalanceMaxResidual": 0.0,
           "maximumCompositionSeparation": 0.0,
           "phaseAComposition": [
@@ -1393,11 +1394,14 @@
         "isoactivityLogResidual": null,
         "iterations": 0,
         "massBalanceMaxResidual": 0.0,
-        "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.0479675441969984,
+        "numericalFailureReasons": [
+          "TPD_REFINEMENT_NOT_CONVERGED",
+          "SPLIT_OPTIMIZER_NOT_CONVERGED"
+        ],
+        "objectiveHomogeneous": -1.0662712120423437,
         "objectiveImprovement": 0.0,
-        "objectiveSplit": -1.0479675441969984,
-        "optimizerSuccess": true,
+        "objectiveSplit": -1.0662712120423437,
+        "optimizerSuccess": false,
         "overallComposition": [
           0.1,
           0.05,
@@ -1406,18 +1410,11 @@
           0.05,
           0.7
         ],
-        "phaseBehavior": "PREDICTED_STABLE_SINGLE_PHASE",
+        "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
         "pinnedInputSha256": "23ffdf7f4cf6957fc87a297640705665683dc400c259a75fd7f0c374e33a99b1",
         "selectivityRelativeToSaturate": null,
-        "singleLiquidComposition": [
-          0.1,
-          0.05,
-          0.05,
-          0.05,
-          0.05,
-          0.7
-        ],
-        "singleLiquidFraction": 1.0,
+        "singleLiquidComposition": null,
+        "singleLiquidFraction": null,
         "temperatureK": 323.15
       },
       {
@@ -1425,7 +1422,7 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.2879321767000321,
+          "coarseMinimum": 0.2880729592807224,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
@@ -1440,34 +1437,34 @@
           "refinementConverged": true,
           "refinements": [
             {
-              "gradientInfinityNorm": 9.238719940185547e-07,
-              "iterations": 10,
+              "gradientInfinityNorm": 5.587935447692871e-07,
+              "iterations": 11,
               "message": "Optimization terminated successfully.",
-              "objective": 0.25087692968258457,
+              "objective": 0.25099005282963804,
               "seed": "GRID_1",
               "success": true
             },
             {
-              "gradientInfinityNorm": 9.08970832824707e-07,
-              "iterations": 11,
+              "gradientInfinityNorm": 5.327165126800537e-07,
+              "iterations": 12,
               "message": "Optimization terminated successfully.",
-              "objective": 0.27881785796051356,
+              "objective": 0.2789772980747207,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 5.308538675308228e-07,
-              "iterations": 16,
+              "gradientInfinityNorm": 4.0605664253234863e-07,
+              "iterations": 15,
               "message": "Optimization terminated successfully.",
-              "objective": 0.13530122585339283,
+              "objective": 0.13532594736180065,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 8.925038995230561e-07,
+              "gradientInfinityNorm": 8.017038905802632e-07,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 1.8276612862022642e-15,
+              "objective": 4.892232452480271e-15,
               "seed": "FEED",
               "success": true
             }
@@ -1477,7 +1474,7 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 1.457167719820518e-16,
+          "isoactivityLogResidual": 2.0122792321330962e-16,
           "massBalanceMaxResidual": 0.0,
           "maximumCompositionSeparation": 0.0,
           "phaseAComposition": [
@@ -1511,11 +1508,13 @@
         "isoactivityLogResidual": null,
         "iterations": 0,
         "massBalanceMaxResidual": 0.0,
-        "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.497574431275022,
-        "objectiveImprovement": 0.0,
-        "objectiveSplit": -1.497574431275022,
-        "optimizerSuccess": true,
+        "numericalFailureReasons": [
+          "SPLIT_OPTIMIZER_NOT_CONVERGED"
+        ],
+        "objectiveHomogeneous": -1.5080545280249382,
+        "objectiveImprovement": -5.10702591327572e-15,
+        "objectiveSplit": -1.5080545280249331,
+        "optimizerSuccess": false,
         "overallComposition": [
           0.45,
           0.12,
@@ -1524,18 +1523,11 @@
           0.07,
           0.2
         ],
-        "phaseBehavior": "PREDICTED_STABLE_SINGLE_PHASE",
+        "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
         "pinnedInputSha256": "b9100fa61c9a94ff5060fbd98443df50653bf7f1cbbc17778c047c740f055b7d",
         "selectivityRelativeToSaturate": null,
-        "singleLiquidComposition": [
-          0.45,
-          0.12,
-          0.1,
-          0.06,
-          0.07,
-          0.2
-        ],
-        "singleLiquidFraction": 1.0,
+        "singleLiquidComposition": null,
+        "singleLiquidFraction": null,
         "temperatureK": 333.15
       },
       {
@@ -1543,49 +1535,49 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.2245702489972325,
+          "coarseMinimum": 0.22476208856589366,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
-            0.2,
-            0.2,
-            0.2,
-            0.1,
-            0.1,
-            0.2
+            0.20000000743563703,
+            0.2000000050306406,
+            0.1999999864414718,
+            0.09999999547663335,
+            0.09999999718283108,
+            0.20000000843278612
           ],
-          "refinedMinimum": 0.0,
+          "refinedMinimum": -5.854970574006216e-16,
           "refinementConverged": true,
           "refinements": [
             {
-              "gradientInfinityNorm": 2.4400651454925537e-07,
-              "iterations": 11,
+              "gradientInfinityNorm": 8.549541234970093e-07,
+              "iterations": 12,
               "message": "Optimization terminated successfully.",
-              "objective": 0.2231792413897727,
+              "objective": 0.2233146294754651,
               "seed": "GRID_1",
               "success": true
             },
             {
-              "gradientInfinityNorm": 6.705522537231445e-07,
+              "gradientInfinityNorm": 8.67992639541626e-07,
               "iterations": 15,
               "message": "Optimization terminated successfully.",
-              "objective": 0.3514108322063433,
+              "objective": 0.35188215030702863,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 7.264316082000732e-07,
-              "iterations": 11,
+              "gradientInfinityNorm": 9.94652509689331e-07,
+              "iterations": 13,
               "message": "Optimization terminated successfully.",
-              "objective": 0.34502476512219576,
+              "objective": 0.34705026833258285,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 5.549011235658763e-07,
-              "iterations": 0,
+              "gradientInfinityNorm": 9.604531610030165e-07,
+              "iterations": 1,
               "message": "Optimization terminated successfully.",
-              "objective": 1.595945597898663e-17,
+              "objective": -5.854970574006216e-16,
               "seed": "FEED",
               "success": true
             }
@@ -1595,26 +1587,26 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 1.942890293094024e-16,
+          "isoactivityLogResidual": 1.541972579535006e-07,
           "massBalanceMaxResidual": 0.0,
-          "maximumCompositionSeparation": 0.0,
+          "maximumCompositionSeparation": 3.1694088381550856e-08,
           "phaseAComposition": [
-            0.2,
-            0.2,
-            0.2,
-            0.1,
-            0.1,
-            0.2
+            0.19999999341053706,
+            0.1999999923539127,
+            0.20000001584704385,
+            0.10000000345603348,
+            0.10000000444220748,
+            0.19999999049026534
           ],
           "phaseBComposition": [
-            0.2,
-            0.2,
-            0.2,
-            0.1,
-            0.1,
-            0.2
+            0.2000000065894632,
+            0.20000000764608764,
+            0.19999998415295547,
+            0.09999999654396638,
+            0.09999999555779232,
+            0.20000000950973504
           ],
-          "phaseBFraction": 0.5
+          "phaseBFraction": 0.49999998937474716
         },
         "caseId": "T04-Z02",
         "components": [
@@ -1627,12 +1619,12 @@
         ],
         "converged": false,
         "isoactivityLogResidual": null,
-        "iterations": 0,
+        "iterations": 1,
         "massBalanceMaxResidual": 0.0,
         "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.740671170214494,
-        "objectiveImprovement": 0.0,
-        "objectiveSplit": -1.740671170214494,
+        "objectiveHomogeneous": -1.7510823590193294,
+        "objectiveImprovement": -8.881784197001252e-16,
+        "objectiveSplit": -1.7510823590193285,
         "optimizerSuccess": true,
         "overallComposition": [
           0.2,
@@ -1661,51 +1653,51 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.2749685392667269,
+          "coarseMinimum": 0.2759139946829757,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
-            0.7000000215828881,
-            0.05000001000815707,
-            0.05000000705643656,
-            0.049999998101806754,
-            0.04999999390307586,
-            0.09999996934763569
+            0.6999999999999973,
+            0.050000000000000724,
+            0.05000000000000055,
+            0.05000000000000046,
+            0.0500000000000001,
+            0.10000000000000096
           ],
-          "refinedMinimum": -9.54883684400077e-15,
-          "refinementConverged": true,
+          "refinedMinimum": -1.0400447864045104e-14,
+          "refinementConverged": false,
           "refinements": [
             {
-              "gradientInfinityNorm": 5.122274160385132e-07,
+              "gradientInfinityNorm": 3.725290298461914e-08,
               "iterations": 7,
               "message": "Optimization terminated successfully.",
-              "objective": 0.21542583541237004,
+              "objective": 0.2154279359265269,
               "seed": "GRID_1",
               "success": true
             },
             {
-              "gradientInfinityNorm": 0.0,
+              "gradientInfinityNorm": 3.725290298461914e-09,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 0.34586753452600727,
+              "objective": 0.3462920380619625,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 9.96515154838562e-07,
-              "iterations": 16,
+              "gradientInfinityNorm": 5.401670932769775e-07,
+              "iterations": 15,
               "message": "Optimization terminated successfully.",
-              "objective": 0.16207928726119553,
+              "objective": 0.16209063552865255,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 9.613726148494095e-07,
+              "gradientInfinityNorm": 1.262062423328447e-06,
               "iterations": 2,
-              "message": "Optimization terminated successfully.",
-              "objective": -9.54883684400077e-15,
+              "message": "Desired error not necessarily achieved due to precision loss.",
+              "objective": -1.0400447864045104e-14,
               "seed": "FEED",
-              "success": true
+              "success": false
             }
           ],
           "verdict": "STABLE_NO_NEGATIVE_TPD"
@@ -1713,26 +1705,26 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 5.988671922807498e-07,
-          "massBalanceMaxResidual": 1.1102230246251565e-16,
-          "maximumCompositionSeparation": 6.129845851743365e-08,
+          "isoactivityLogResidual": 3.66720542821497e-14,
+          "massBalanceMaxResidual": 0.0,
+          "maximumCompositionSeparation": 5.329070518200751e-15,
           "phaseAComposition": [
-            0.7000000222788634,
-            0.050000009768719655,
-            0.05000000680916159,
-            0.04999999792115103,
-            0.04999999387133374,
-            0.0999999693507707
+            0.7000000000000025,
+            0.04999999999999927,
+            0.04999999999999944,
+            0.04999999999999953,
+            0.04999999999999989,
+            0.09999999999999902
           ],
           "phaseBComposition": [
-            0.6999999777211364,
-            0.04999999023128034,
-            0.04999999319083841,
-            0.05000000207884895,
-            0.05000000612866623,
-            0.10000003064922922
+            0.6999999999999972,
+            0.05000000000000071,
+            0.05000000000000054,
+            0.05000000000000045,
+            0.050000000000000086,
+            0.10000000000000094
           ],
-          "phaseBFraction": 0.5000000005055225
+          "phaseBFraction": 0.5000000000000001
         },
         "caseId": "T04-Z03",
         "components": [
@@ -1745,13 +1737,16 @@
         ],
         "converged": false,
         "isoactivityLogResidual": null,
-        "iterations": 1,
-        "massBalanceMaxResidual": 1.1102230246251565e-16,
-        "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.0563986815147173,
-        "objectiveImprovement": 1.1546319456101628e-14,
-        "objectiveSplit": -1.0563986815147288,
-        "optimizerSuccess": true,
+        "iterations": 0,
+        "massBalanceMaxResidual": 0.0,
+        "numericalFailureReasons": [
+          "TPD_REFINEMENT_NOT_CONVERGED",
+          "SPLIT_OPTIMIZER_NOT_CONVERGED"
+        ],
+        "objectiveHomogeneous": -1.0620754703239699,
+        "objectiveImprovement": -4.6629367034256575e-15,
+        "objectiveSplit": -1.0620754703239652,
+        "optimizerSuccess": false,
         "overallComposition": [
           0.7,
           0.05,
@@ -1760,18 +1755,11 @@
           0.05,
           0.1
         ],
-        "phaseBehavior": "PREDICTED_STABLE_SINGLE_PHASE",
+        "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
         "pinnedInputSha256": "bf851caba5bb31bd4a6e2ec8fd610cb94dd3b22c2e84a1f7c0ac78557ef42720",
         "selectivityRelativeToSaturate": null,
-        "singleLiquidComposition": [
-          0.6999999999999998,
-          0.04999999999999999,
-          0.04999999999999999,
-          0.04999999999999999,
-          0.04999999999999999,
-          0.09999999999999998
-        ],
-        "singleLiquidFraction": 1.0,
+        "singleLiquidComposition": null,
+        "singleLiquidFraction": null,
         "temperatureK": 333.15
       },
       {
@@ -1779,7 +1767,7 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.2709370366993226,
+          "coarseMinimum": 0.27114777642467003,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
@@ -1790,38 +1778,38 @@
             0.05,
             0.7
           ],
-          "refinedMinimum": 0.0,
+          "refinedMinimum": -3.122502256758253e-17,
           "refinementConverged": true,
           "refinements": [
             {
-              "gradientInfinityNorm": 5.941838026046753e-07,
+              "gradientInfinityNorm": 2.1792948246002197e-07,
               "iterations": 7,
               "message": "Optimization terminated successfully.",
-              "objective": 0.21320924435138572,
+              "objective": 0.21646314483947168,
               "seed": "GRID_1",
               "success": true
             },
             {
-              "gradientInfinityNorm": 3.725290298461914e-09,
+              "gradientInfinityNorm": 0.0,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 0.33757042178432306,
+              "objective": 0.3477508214807199,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 6.966292858123779e-07,
+              "gradientInfinityNorm": 3.7997961044311523e-07,
               "iterations": 13,
               "message": "Optimization terminated successfully.",
-              "objective": 0.15750896453868024,
+              "objective": 0.1594524918929773,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 6.316125951449924e-07,
+              "gradientInfinityNorm": 5.814714973476076e-07,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 9.71445146547012e-18,
+              "objective": -3.122502256758253e-17,
               "seed": "FEED",
               "success": true
             }
@@ -1831,7 +1819,7 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 1.1102230246251565e-16,
+          "isoactivityLogResidual": 1.6653345369377348e-16,
           "massBalanceMaxResidual": 0.0,
           "maximumCompositionSeparation": 0.0,
           "phaseAComposition": [
@@ -1866,9 +1854,9 @@
         "iterations": 0,
         "massBalanceMaxResidual": 0.0,
         "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.0533758733952974,
+        "objectiveHomogeneous": -1.0707617956541562,
         "objectiveImprovement": 0.0,
-        "objectiveSplit": -1.0533758733952974,
+        "objectiveSplit": -1.0707617956541562,
         "optimizerSuccess": true,
         "overallComposition": [
           0.1,
@@ -1897,49 +1885,49 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.2879722417789786,
+          "coarseMinimum": 0.28810289995064126,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
-            0.45000000656392186,
-            0.11999999757106068,
-            0.10000000191568426,
-            0.059999998016518334,
-            0.06999999916890894,
-            0.19999999676390598
+            0.45,
+            0.12,
+            0.1,
+            0.06,
+            0.07,
+            0.2
           ],
-          "refinedMinimum": -1.4098555465076569e-14,
+          "refinedMinimum": 0.0,
           "refinementConverged": true,
           "refinements": [
             {
-              "gradientInfinityNorm": 6.258487701416016e-07,
-              "iterations": 10,
+              "gradientInfinityNorm": 3.762543201446533e-07,
+              "iterations": 11,
               "message": "Optimization terminated successfully.",
-              "objective": 0.25090112984070007,
+              "objective": 0.25100499558711403,
               "seed": "GRID_1",
               "success": true
             },
             {
-              "gradientInfinityNorm": 3.3527612686157227e-07,
-              "iterations": 11,
+              "gradientInfinityNorm": 3.7997961044311523e-07,
+              "iterations": 12,
               "message": "Optimization terminated successfully.",
-              "objective": 0.27885868440607264,
+              "objective": 0.2790040635720811,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 6.612390279769897e-07,
-              "iterations": 16,
+              "gradientInfinityNorm": 7.841736078262329e-07,
+              "iterations": 18,
               "message": "Optimization terminated successfully.",
-              "objective": 0.13530441722698144,
+              "objective": 0.13532806264208927,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 8.63549406010522e-07,
-              "iterations": 2,
+              "gradientInfinityNorm": 8.249498142018363e-07,
+              "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": -1.4098555465076569e-14,
+              "objective": 1.111541414466899e-15,
               "seed": "FEED",
               "success": true
             }
@@ -1949,26 +1937,26 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 6.455408824157516e-08,
+          "isoactivityLogResidual": 5.441857520230298e-07,
           "massBalanceMaxResidual": 0.0,
-          "maximumCompositionSeparation": 1.312784370099962e-08,
+          "maximumCompositionSeparation": 5.659613000474906e-08,
           "phaseAComposition": [
-            0.45000000656392186,
-            0.11999999757106068,
-            0.10000000191568426,
-            0.059999998016518334,
-            0.06999999916890894,
-            0.19999999676390598
+            0.44999997170193845,
+            0.1200000101823593,
+            0.09999998690133395,
+            0.060000012505518924,
+            0.07000002019171733,
+            0.19999999851713218
           ],
           "phaseBComposition": [
-            0.44999999343607816,
-            0.12000000242893931,
-            0.09999999808431576,
-            0.06000000198348166,
-            0.07000000083109108,
-            0.20000000323609404
+            0.45000002829806846,
+            0.11999998981763822,
+            0.10000001309866924,
+            0.05999998749447804,
+            0.06999997980827778,
+            0.2000000014828682
           ],
-          "phaseBFraction": 0.5
+          "phaseBFraction": 0.49999993944955523
         },
         "caseId": "T05-Z01",
         "components": [
@@ -1981,15 +1969,13 @@
         ],
         "converged": false,
         "isoactivityLogResidual": null,
-        "iterations": 0,
+        "iterations": 1,
         "massBalanceMaxResidual": 0.0,
-        "numericalFailureReasons": [
-          "SPLIT_OPTIMIZER_NOT_CONVERGED"
-        ],
-        "objectiveHomogeneous": -1.5020163883538573,
-        "objectiveImprovement": 1.0436096431476471e-14,
-        "objectiveSplit": -1.5020163883538677,
-        "optimizerSuccess": false,
+        "numericalFailureReasons": [],
+        "objectiveHomogeneous": -1.5116525926636708,
+        "objectiveImprovement": 2.886579864025407e-15,
+        "objectiveSplit": -1.5116525926636737,
+        "optimizerSuccess": true,
         "overallComposition": [
           0.45,
           0.12,
@@ -1998,11 +1984,18 @@
           0.07,
           0.2
         ],
-        "phaseBehavior": "NONCONVERGED_OR_BOUNDARY",
+        "phaseBehavior": "PREDICTED_STABLE_SINGLE_PHASE",
         "pinnedInputSha256": "3b32e9e1d7f0aa49280339caeb9df330956d51365106332f85a01cbdfd92720a",
         "selectivityRelativeToSaturate": null,
-        "singleLiquidComposition": null,
-        "singleLiquidFraction": null,
+        "singleLiquidComposition": [
+          0.45,
+          0.12,
+          0.1,
+          0.06,
+          0.07,
+          0.2
+        ],
+        "singleLiquidFraction": 1.0,
         "temperatureK": 348.15
       },
       {
@@ -2010,49 +2003,49 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.22463326571193087,
+          "coarseMinimum": 0.22481227389181596,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
-            0.19999999547834943,
-            0.20000001415311494,
-            0.20000000012722488,
-            0.09999999553363198,
-            0.10000000180882461,
-            0.19999999289885415
+            0.19999999590875103,
+            0.20000000287081077,
+            0.2000000129760983,
+            0.10000000061912645,
+            0.1000000085151839,
+            0.19999997911002948
           ],
-          "refinedMinimum": -1.3243674398569571e-14,
+          "refinedMinimum": -7.008086400785709e-15,
           "refinementConverged": true,
           "refinements": [
             {
-              "gradientInfinityNorm": 4.544854164123535e-07,
-              "iterations": 11,
+              "gradientInfinityNorm": 8.23289155960083e-07,
+              "iterations": 12,
               "message": "Optimization terminated successfully.",
-              "objective": 0.22321924619218259,
+              "objective": 0.22334452818069772,
               "seed": "GRID_1",
               "success": true
             },
             {
-              "gradientInfinityNorm": 3.8370490074157715e-07,
+              "gradientInfinityNorm": 9.201467037200928e-07,
               "iterations": 15,
               "message": "Optimization terminated successfully.",
-              "objective": 0.351642597813097,
+              "objective": 0.35205992059934976,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 9.723007678985596e-07,
+              "gradientInfinityNorm": 7.227063179016113e-07,
               "iterations": 11,
               "message": "Optimization terminated successfully.",
-              "objective": 0.3458572221422722,
+              "objective": 0.34767892255976723,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 6.968079956370943e-07,
+              "gradientInfinityNorm": 6.939080416934473e-07,
               "iterations": 1,
               "message": "Optimization terminated successfully.",
-              "objective": -1.3243674398569571e-14,
+              "objective": -7.008086400785709e-15,
               "seed": "FEED",
               "success": true
             }
@@ -2062,26 +2055,26 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 1.408041321003528e-07,
+          "isoactivityLogResidual": 2.018734711894954e-07,
           "massBalanceMaxResidual": 0.0,
-          "maximumCompositionSeparation": 2.8306229860053378e-08,
+          "maximumCompositionSeparation": 4.031995709530278e-08,
           "phaseAComposition": [
-            0.19999999547834943,
-            0.20000001415311494,
-            0.20000000012722488,
-            0.09999999553363198,
-            0.10000000180882461,
-            0.19999999289885415
+            0.19999999639541233,
+            0.2000000026477577,
+            0.20000001299637593,
+            0.10000000043662846,
+            0.1000000076838042,
+            0.19999997984002132
           ],
           "phaseBComposition": [
-            0.2000000045216506,
-            0.19999998584688508,
-            0.19999999987277514,
-            0.10000000446636803,
-            0.0999999981911754,
-            0.20000000710114588
+            0.20000000360458764,
+            0.19999999735224236,
+            0.19999998700362426,
+            0.09999999956337155,
+            0.09999999231619591,
+            0.20000002015997842
           ],
-          "phaseBFraction": 0.5
+          "phaseBFraction": 0.5000000032444089
         },
         "caseId": "T05-Z02",
         "components": [
@@ -2094,12 +2087,12 @@
         ],
         "converged": false,
         "isoactivityLogResidual": null,
-        "iterations": 0,
+        "iterations": 1,
         "massBalanceMaxResidual": 0.0,
         "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.7449509851137885,
-        "objectiveImprovement": 1.4654943925052066e-14,
-        "objectiveSplit": -1.7449509851138032,
+        "objectiveHomogeneous": -1.7545279768327569,
+        "objectiveImprovement": 1.2878587085651816e-14,
+        "objectiveSplit": -1.7545279768327697,
         "optimizerSuccess": true,
         "overallComposition": [
           0.2,
@@ -2128,49 +2121,49 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.2753075133868913,
+          "coarseMinimum": 0.2761673492064572,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
-            0.7000000018224338,
-            0.050000001890666286,
-            0.050000000301220746,
-            0.05000000024755962,
-            0.050000001473997,
-            0.09999999426412241
+            0.7,
+            0.049999999999999996,
+            0.049999999999999996,
+            0.049999999999999996,
+            0.049999999999999996,
+            0.09999999999999999
           ],
-          "refinedMinimum": -1.1621691308138874e-14,
+          "refinedMinimum": 0.0,
           "refinementConverged": true,
           "refinements": [
             {
-              "gradientInfinityNorm": 9.611248970031738e-07,
-              "iterations": 7,
+              "gradientInfinityNorm": 6.798654794692993e-07,
+              "iterations": 8,
               "message": "Optimization terminated successfully.",
-              "objective": 0.215423478772445,
+              "objective": 0.2154259916263374,
               "seed": "GRID_1",
               "success": true
             },
             {
-              "gradientInfinityNorm": 0.0,
+              "gradientInfinityNorm": 3.725290298461914e-09,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 0.3461077276716626,
+              "objective": 0.34648830909967504,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 6.556510925292969e-07,
-              "iterations": 14,
+              "gradientInfinityNorm": 2.1979212760925293e-07,
+              "iterations": 15,
               "message": "Optimization terminated successfully.",
-              "objective": 0.16208112912184827,
+              "objective": 0.1620912534984739,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 3.602221115839299e-07,
-              "iterations": 1,
+              "gradientInfinityNorm": 9.90175709184027e-07,
+              "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": -1.1621691308138874e-14,
+              "objective": 7.182622552281969e-16,
               "seed": "FEED",
               "success": true
             }
@@ -2180,26 +2173,26 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 1.1503976254934045e-07,
-          "massBalanceMaxResidual": 1.1102230246251565e-16,
-          "maximumCompositionSeparation": 1.1471755115288751e-08,
+          "isoactivityLogResidual": 8.854028621385623e-15,
+          "massBalanceMaxResidual": 0.0,
+          "maximumCompositionSeparation": 2.7755575615628914e-17,
           "phaseAComposition": [
-            0.7000000018224339,
-            0.05000000189066629,
-            0.05000000030122075,
-            0.05000000024755963,
-            0.050000001473997004,
-            0.09999999426412243
+            0.6999999999999998,
+            0.04999999999999998,
+            0.04999999999999998,
+            0.04999999999999998,
+            0.04999999999999998,
+            0.09999999999999996
           ],
           "phaseBComposition": [
-            0.6999999981775659,
-            0.04999999810933369,
-            0.04999999969877923,
-            0.049999999752440356,
-            0.04999999852600298,
-            0.10000000573587754
+            0.6999999999999998,
+            0.049999999999999996,
+            0.049999999999999996,
+            0.049999999999999996,
+            0.049999999999999996,
+            0.09999999999999999
           ],
-          "phaseBFraction": 0.5
+          "phaseBFraction": 0.4999999999999999
         },
         "caseId": "T05-Z03",
         "components": [
@@ -2213,11 +2206,11 @@
         "converged": false,
         "isoactivityLogResidual": null,
         "iterations": 0,
-        "massBalanceMaxResidual": 1.1102230246251565e-16,
+        "massBalanceMaxResidual": 0.0,
         "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.0588541734397663,
-        "objectiveImprovement": 8.881784197001252e-15,
-        "objectiveSplit": -1.0588541734397752,
+        "objectiveHomogeneous": -1.064065958228455,
+        "objectiveImprovement": -2.6645352591003757e-15,
+        "objectiveSplit": -1.0640659582284524,
         "optimizerSuccess": true,
         "overallComposition": [
           0.7,
@@ -2246,7 +2239,7 @@
         "NMP_rich": null,
         "RRBO_rich": null,
         "TPD": {
-          "coarseMinimum": 0.2709885166338815,
+          "coarseMinimum": 0.2711848593680511,
           "gridDenominator": 4,
           "gridPointCount": 126,
           "minimizingComposition": [
@@ -2257,14 +2250,14 @@
             0.05,
             0.7
           ],
-          "refinedMinimum": -1.3183898417423736e-17,
+          "refinedMinimum": 0.0,
           "refinementConverged": true,
           "refinements": [
             {
-              "gradientInfinityNorm": 8.530914783477783e-07,
+              "gradientInfinityNorm": 5.029141902923584e-08,
               "iterations": 7,
               "message": "Optimization terminated successfully.",
-              "objective": 0.21449140793891172,
+              "objective": 0.21746563357552134,
               "seed": "GRID_1",
               "success": true
             },
@@ -2272,23 +2265,23 @@
               "gradientInfinityNorm": 0.0,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": 0.34180747545036844,
+              "objective": 0.35135751337290827,
               "seed": "GRID_2",
               "success": true
             },
             {
-              "gradientInfinityNorm": 7.059425115585327e-07,
+              "gradientInfinityNorm": 3.2782554626464844e-07,
               "iterations": 13,
               "message": "Optimization terminated successfully.",
-              "objective": 0.1582705136727053,
+              "objective": 0.16004215446969974,
               "seed": "GRID_3",
               "success": true
             },
             {
-              "gradientInfinityNorm": 3.245169072102483e-07,
+              "gradientInfinityNorm": 5.442216100895458e-07,
               "iterations": 0,
               "message": "Optimization terminated successfully.",
-              "objective": -1.3183898417423736e-17,
+              "objective": 1.0408340855860843e-17,
               "seed": "FEED",
               "success": true
             }
@@ -2298,7 +2291,7 @@
         "beta_NMP_rich": null,
         "boundarySolution": false,
         "candidateSplitDiagnostics": {
-          "isoactivityLogResidual": 1.6653345369377348e-16,
+          "isoactivityLogResidual": 2.0816681711721685e-16,
           "massBalanceMaxResidual": 0.0,
           "maximumCompositionSeparation": 0.0,
           "phaseAComposition": [
@@ -2333,9 +2326,9 @@
         "iterations": 0,
         "massBalanceMaxResidual": 0.0,
         "numericalFailureReasons": [],
-        "objectiveHomogeneous": -1.0605703403558182,
+        "objectiveHomogeneous": -1.0766957381577191,
         "objectiveImprovement": 0.0,
-        "objectiveSplit": -1.0605703403558182,
+        "objectiveSplit": -1.0766957381577191,
         "optimizerSuccess": true,
         "overallComposition": [
           0.1,
@@ -2412,16 +2405,17 @@
     "compositionFloor": 1e-10,
     "flash": "constrained total-Gibbs L-BFGS-B over conserved NMP-rich component amounts; four deterministic starts"
   },
+  "pilotValidated": false,
   "profileSource": {
     "complistSha256": "365a84301ee4ab5aa1a9811851468672aea736760239c63de7ad087b3ac633f1",
     "directory": "server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles",
     "profileSha256ByFamily": {
-      "DI": "f58a8f4114242b2072a08f7b51320dde572dc5c5531339fc8df26c763a1d8436",
-      "MONO": "40431b8d5be1b6cd1541742dd189b6e677c877dc5b1e0e00f2f45026b5b26a96",
-      "NMP": "6e9318b0a76297bb78da0c9fa19d3dd61101f03c399cd4dd4508eac7b6594566",
-      "PA": "37da08f756f00c20e61472ab71c1129ce3502750f1082ec8d460477f04710585",
-      "POLY": "aee7911343cd85fafbeb90a30aed4a71f6657b3132166bdc16b428ed5c35b66f",
-      "SAT": "d01fda25cf270c9386130ed3eb1b480446fd391236e967ca9ce2e0a69fd44009"
+      "DI": "7e8664f594afa70a232f845dfafbfbb1efd2e10e13c586187b556102a97503ed",
+      "MONO": "0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275",
+      "NMP": "58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69",
+      "PA": "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e",
+      "POLY": "682828484416f124e3207f246d23954197502cba83d9b4744ace239d91fe8854",
+      "SAT": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2"
     },
     "restrictedOrVendoredProfileInputsUsed": false
   },
@@ -2436,10 +2430,11 @@
     "vendorDirectory": "server/research/ecr-pre-pilot-cosmosac/vendor/python"
   },
   "schemaVersion": "2.0.0",
+  "sulfurPrediction": "NOT_CALCULABLE",
   "topologyGate": {
     "counts": {
-      "NONCONVERGED_OR_BOUNDARY": 3,
-      "PREDICTED_STABLE_SINGLE_PHASE": 17,
+      "NONCONVERGED_OR_BOUNDARY": 5,
+      "PREDICTED_STABLE_SINGLE_PHASE": 15,
       "TWO_PHASE": 0
     },
     "decision": "QUALITATIVE_TOPOLOGY_FAILED",

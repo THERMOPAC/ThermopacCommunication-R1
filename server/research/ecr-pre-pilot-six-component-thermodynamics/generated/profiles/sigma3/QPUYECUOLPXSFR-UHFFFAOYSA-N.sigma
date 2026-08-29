@@ -1,4 +1,4 @@
-# meta: {"area [A^2]": 380.0112004031827, "averaging": "CPCM-X-1.1.0", "disp. e/kB [K]": 0.0, "disp. flag": "NHB", "f_decay": 3.57, "name": "1-METHYLNAPHTHALENE", "r_av [A]": 1.5191269449366247, "sigma_hb [e/A^2]": 0.0084, "standard_INCHIKEY": "QPUYECUOLPXSFR-UHFFFAOYSA-N", "volume [A^3]": 217.01725000000005}
+# meta: {"area [A^2]": 380.0112004031827, "averaging": "NIST-Hsieh", "charge_sign_conversion": "multiply by -1 to xTB TM convention for NIST positive-acceptor mask", "disp. e/kB [K]": 0.0, "disp. flag": "NHB", "f_decay": 3.57, "input_charge_convention": "xTB-ddCOSMO-native", "name": "1-METHYLNAPHTHALENE", "r_av [A]": 1.5191269449366247, "sigma_hb [e/A^2]": 0.0084, "standard_INCHIKEY": "QPUYECUOLPXSFR-UHFFFAOYSA-N", "volume [A^3]": 217.01725000000005}
 # Rows are given as: sigma [e/A^2] followed by a space, then psigmaA [A^2]
 # In the case of three sigma profiles, the order is NHB, OH, then OT
 -0.025 0.00000000000000e+00
@@ -24,11 +24,11 @@
 -0.005 0.00000000000000e+00
 -0.004 0.00000000000000e+00
 -0.003 0.00000000000000e+00
--0.002 0.00000000000000e+00
--0.001 8.55780340000000e+01
-0.000 2.12533105000000e+02
-0.001 7.88081730000000e+01
-0.002 3.09193300000000e+00
+-0.002 8.21965397533235e-01
+-0.001 7.89546846649771e+01
+0.000 2.21595107884688e+02
+0.001 7.86394424368019e+01
+0.002 0.00000000000000e+00
 0.003 0.00000000000000e+00
 0.004 0.00000000000000e+00
 0.005 0.00000000000000e+00

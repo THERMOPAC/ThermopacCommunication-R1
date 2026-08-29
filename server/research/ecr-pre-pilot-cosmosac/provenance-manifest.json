@@ -1,5 +1,6 @@
 {
   "NIST_COSMOSAC_source_commit": "1b82456be38026719b16cad4076109bef3fcb309",
+  "calibrationRequired": true,
   "caseInputSha256": {
     "T01-Z01": "a94deb29aece0230b8dc250d2b7e97c3707683d8e105aa995723c6df9fe27140",
     "T01-Z02": "3ec0205a876cfa21f41a0c9f1dfaee4d7906b696d61855e65fdc1fccd9fdb4c6",
@@ -73,20 +74,23 @@
     "name": "COSMO-SAC-2010"
   },
   "phaseEquilibriumAlgorithm": "constrained total-Gibbs L-BFGS-B over conserved NMP-rich component amounts; four deterministic starts",
+  "pilotValidated": false,
   "profileSource": {
     "complistSha256": "365a84301ee4ab5aa1a9811851468672aea736760239c63de7ad087b3ac633f1",
     "directory": "server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles",
     "profileSha256ByFamily": {
-      "DI": "f58a8f4114242b2072a08f7b51320dde572dc5c5531339fc8df26c763a1d8436",
-      "MONO": "40431b8d5be1b6cd1541742dd189b6e677c877dc5b1e0e00f2f45026b5b26a96",
-      "NMP": "6e9318b0a76297bb78da0c9fa19d3dd61101f03c399cd4dd4508eac7b6594566",
-      "PA": "37da08f756f00c20e61472ab71c1129ce3502750f1082ec8d460477f04710585",
-      "POLY": "aee7911343cd85fafbeb90a30aed4a71f6657b3132166bdc16b428ed5c35b66f",
-      "SAT": "d01fda25cf270c9386130ed3eb1b480446fd391236e967ca9ce2e0a69fd44009"
+      "DI": "7e8664f594afa70a232f845dfafbfbb1efd2e10e13c586187b556102a97503ed",
+      "MONO": "0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275",
+      "NMP": "58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69",
+      "PA": "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e",
+      "POLY": "682828484416f124e3207f246d23954197502cba83d9b4744ace239d91fe8854",
+      "SAT": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2"
     },
     "restrictedOrVendoredProfileInputsUsed": false
   },
-  "runnerSha256": "1c01314bd05d01f36da2455179fb37ec36cc6799fc4f01c97c420ff7eb999251",
+  "releaseEligible": false,
+  "researchOnly": true,
+  "runnerSha256": "aa42f6617ee115db248e6bb473d7f07ac9f72d4214ea1faf670e17ae8e37524d",
   "runtime": {
     "cCOSMOBinarySha256": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
     "cCOSMOModulePath": "server/research/ecr-pre-pilot-cosmosac/vendor/python/cCOSMO.cpython-312-x86_64-linux-gnu.so",
@@ -101,5 +105,6 @@
     "compositionFloor": 1e-10,
     "flash": "constrained total-Gibbs L-BFGS-B over conserved NMP-rich component amounts; four deterministic starts"
   },
-  "sixComponentProfileProvenanceSha256": "e79cb43907b11a3700f02225da6b6a15c2534aef111f02c1c7e47325e0095795"
+  "sixComponentProfileProvenanceSha256": "c3a6f2c3c0277ce81c02e7fd8d900e5864ac6891a0c34934e631a14aa9093012",
+  "sulfurPrediction": "NOT_CALCULABLE"
 }

@@ -1,0 +1,155 @@
+{
+  "allComponentsPassed": true,
+  "broaderLleBenchmarkExecuted": false,
+  "broaderLleBenchmarkReady": true,
+  "calibrationRequired": true,
+  "components": [
+    {
+      "atomCount": 38,
+      "family": "SAT",
+      "finalPartitionAreaSquareAngstrom": {
+        "NHB": 554.5597323559997,
+        "OH": 0.0,
+        "OT": 0.0
+      },
+      "maximumIndependentBinAreaErrorSquareAngstrom": 5.684341886080802e-14,
+      "passed": true,
+      "profileAreaSquareAngstrom": 554.5597323559997,
+      "profileSha256": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2",
+      "segmentAuditSha256": "a37bbabae3a37149a2a8421b2aba05d15eeaeed35ee96f0baf9f8e94fbd06d39",
+      "segmentCount": 1679,
+      "sourceAreaSquareAngstrom": 554.5597323878009,
+      "surfaceSha256": "81bd1e4ddba823a3276c4aef0841b10446181183877ac77889c0215b44400fdf"
+    },
+    {
+      "atomCount": 21,
+      "family": "MONO",
+      "finalPartitionAreaSquareAngstrom": {
+        "NHB": 360.99773190399986,
+        "OH": 0.0,
+        "OT": 0.0
+      },
+      "maximumIndependentBinAreaErrorSquareAngstrom": 1.9895196601282805e-13,
+      "passed": true,
+      "profileAreaSquareAngstrom": 360.99773190399986,
+      "profileSha256": "0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275",
+      "segmentAuditSha256": "ab68defe3f89d655c489ba603874b109813d49bfa328a051e7e68beb10fbfecd",
+      "segmentCount": 977,
+      "sourceAreaSquareAngstrom": 360.997731931743,
+      "surfaceSha256": "77733c6aec2cb649d1272c13f0325d3c433db36da59834a95e7754f2379e5057"
+    },
+    {
+      "atomCount": 21,
+      "family": "DI",
+      "finalPartitionAreaSquareAngstrom": {
+        "NHB": 380.01120038400023,
+        "OH": 0.0,
+        "OT": 0.0
+      },
+      "maximumIndependentBinAreaErrorSquareAngstrom": 2.2737367544323206e-13,
+      "passed": true,
+      "profileAreaSquareAngstrom": 380.01120038400023,
+      "profileSha256": "7e8664f594afa70a232f845dfafbfbb1efd2e10e13c586187b556102a97503ed",
+      "segmentAuditSha256": "ee16fadae3b9b9bd154e82d2df877bafa8bf77b975fddee4a21e277d4320c4e3",
+      "segmentCount": 945,
+      "sourceAreaSquareAngstrom": 380.0112004031827,
+      "surfaceSha256": "21233caaf6d73dadc8c3b1531c8e86860ae92f07c0bd9297ab0ba7b46c325e33"
+    },
+    {
+      "atomCount": 26,
+      "family": "POLY",
+      "finalPartitionAreaSquareAngstrom": {
+        "NHB": 479.0325818080001,
+        "OH": 0.0,
+        "OT": 0.0
+      },
+      "maximumIndependentBinAreaErrorSquareAngstrom": 3.410605131648481e-13,
+      "passed": true,
+      "profileAreaSquareAngstrom": 479.0325818080001,
+      "profileSha256": "682828484416f124e3207f246d23954197502cba83d9b4744ace239d91fe8854",
+      "segmentAuditSha256": "c8f3e37fe661a9f6cc6608b2f6a22866b48085ade8be1c926c245e6f8272a5c1",
+      "segmentCount": 1124,
+      "sourceAreaSquareAngstrom": 479.0325818357789,
+      "surfaceSha256": "ee2fa575ae0daef7513cc14e414c5de6eb8ba08633dc3f851ab544a45d67b232"
+    },
+    {
+      "atomCount": 62,
+      "family": "PA",
+      "finalPartitionAreaSquareAngstrom": {
+        "NHB": 950.0241403294257,
+        "OH": 0.0,
+        "OT": 0.6283358685758529
+      },
+      "maximumIndependentBinAreaErrorSquareAngstrom": 4.547473508864641e-13,
+      "passed": true,
+      "profileAreaSquareAngstrom": 950.6524761980015,
+      "profileSha256": "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e",
+      "segmentAuditSha256": "7ddb8a2c04936ddc816a2aa2fb7b065438e95930f53de72af4291669288686e9",
+      "segmentCount": 2473,
+      "sourceAreaSquareAngstrom": 950.6524762854414,
+      "surfaceSha256": "3022c951ebb62a131d2eb969de7ba4956078c2ec3200c2bc0fa4ba4b3f43467e"
+    },
+    {
+      "atomCount": 16,
+      "family": "NMP",
+      "finalPartitionAreaSquareAngstrom": {
+        "NHB": 264.32375871049135,
+        "OH": 0.0,
+        "OT": 9.270791929508569
+      },
+      "maximumIndependentBinAreaErrorSquareAngstrom": 4.263256414560601e-14,
+      "passed": true,
+      "profileAreaSquareAngstrom": 273.5945506399999,
+      "profileSha256": "58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69",
+      "segmentAuditSha256": "c3ffac89e6d45e7a961e15580a35f7aca5e2eb58bda74d57c0df10db5fccf6a9",
+      "segmentCount": 757,
+      "sourceAreaSquareAngstrom": 273.5945506560466,
+      "surfaceSha256": "837958143169284b19e2678ad65d6a39349a059c80057b300df3e1868d761d76"
+    }
+  ],
+  "decision": "PROFILE_SEMANTICS_GATE_PASSED",
+  "pilotValidated": false,
+  "profileSemantics": {
+    "averaging": "NIST Hsieh",
+    "fDecay": 3.57,
+    "gridElectronPerSquareAngstrom": {
+      "linearAreaInterpolation": true,
+      "maximum": 0.025,
+      "minimum": -0.025,
+      "step": 0.001
+    },
+    "hydrogenBondProbability": "1-exp(-sigma_grid^2/(2*0.007^2)); applied after linear binning",
+    "partitionOrder": [
+      "NHB",
+      "OH",
+      "OT"
+    ],
+    "rAvAngstrom": 1.5191269449366247,
+    "rAvSquaredSquareAngstrom": 2.3077466748324826
+  },
+  "releaseEligible": false,
+  "researchOnly": true,
+  "restrictedProfileInputsUsed": false,
+  "schemaVersion": "2.0.0",
+  "signConvention": {
+    "input": "xTB ddCOSMO native convention emitted by --cosmo",
+    "multiplier": -1.0,
+    "output": "xTB TM convention consumed directly by pinned NIST to_sigma.py"
+  },
+  "sourceEvidenceSha256": {
+    "authenticatedUpstreamFullFileSha256": {
+      "CPCM-X src/cpcmx/qc_calc.f90": "4b718c1c512071b07cf39e1211a756b22e20410ca430933f0e29cdd67560a46b",
+      "NIST profiles/to_sigma.py": "73cd7b526568ee921e2fcd83b5d8653fccf37878fe4690abafdcd785334ace2a",
+      "xTB src/solv/cosmo.f90": "32b32edd43ea1eec8158192bd4676a7110bc50d55e56d36b6a2ccaf25d49aea1",
+      "xTB src/xhelp.f90": "d52e2f312ebecc03baca00977fbf6c361706d7ac2e6a98d1c6ca9b8894fec3b8"
+    },
+    "retainedExcerptSha256": {
+      "cpcmx-xtb-invocation.f90": "4c0793aa5da4820e6994567de9a0116a3288c86411cba0950106877d1def12d3",
+      "nist-to-sigma.py": "27dc521186af74d741a713a81769c6bfa41e241b3b22300ad7ebdb73aae2a875",
+      "xtb-cosmo-sign.f90": "8943fa4cb001c21e4dae269f516f624e6c0c81d0ca7d0a551504e2fcc8e5be08",
+      "xtb-tmcosmo-help.f90": "873adb14ed50224f86f1d36bcaa82b83470539c5731d78555c2c4c61d01f5f10"
+    }
+  },
+  "sulfurPrediction": "NOT_CALCULABLE",
+  "verifier": "independent full segment/profile recomputation; does not import generator"
+}

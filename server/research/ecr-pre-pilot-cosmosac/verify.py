@@ -11,7 +11,14 @@ source_provenance_path=ROOT/"server/research/ecr-pre-pilot-six-component-thermod
 source_provenance=json.loads(source_provenance_path.read_text())
 artifact_provenance=json.loads((ROOT/"server/research/ecr-pre-pilot-cosmosac/provenance-manifest.json").read_text())
 assert artifact_provenance["runnerSha256"]==hashlib.sha256(runner.read_bytes()).hexdigest()
-assert r["researchOnly"] is True and r["releaseEligible"] is False
+assert r["researchOnly"] is True and r["calibrationRequired"] is True
+assert r["pilotValidated"] is False and r["releaseEligible"] is False
+assert r["sulfurPrediction"]=="NOT_CALCULABLE"
+assert artifact_provenance["researchOnly"] is True
+assert artifact_provenance["calibrationRequired"] is True
+assert artifact_provenance["pilotValidated"] is False
+assert artifact_provenance["releaseEligible"] is False
+assert artifact_provenance["sulfurPrediction"]=="NOT_CALCULABLE"
 assert r["profileSource"]["directory"]=="server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles"
 assert r["profileSource"]["restrictedOrVendoredProfileInputsUsed"] is False
 assert set(r["profileSource"]["profileSha256ByFamily"])=={"SAT","MONO","DI","POLY","PA","NMP"}

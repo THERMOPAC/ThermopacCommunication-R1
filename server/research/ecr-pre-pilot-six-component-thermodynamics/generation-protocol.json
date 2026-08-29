@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
-  "status": "EXECUTED_QUALIFIED_PROFILE_BASIS",
-  "admissionRule": "Qualification is limited to a legally reviewed, internally consistent profile basis that loads in NIST cCOSMO and produces finite composition-dependent activities. Phase-topology and quantitative thermodynamic validation remain separate gates.",
+  "status": "PROFILE_SEMANTICS_GATE_PASSED_RESEARCH_ONLY",
+  "admissionRule": "The profile gate requires a legally usable, source-supported native-xTB to TM/NIST charge-sign conversion and direct execution of the pinned NIST Hsieh averaging, partitioning, linear binning, and hydrogen-bond probability equations. Phase-topology and quantitative LLE validation remain separate gates.",
   "molecularMethod": {
     "engine": "xTB plus CPCM-X",
     "engineVersionOrCommit": {
@@ -34,9 +34,22 @@
   },
   "surfaceAndConversion": {
     "surfaceFormat": "CPCM-X .cosmo with atom, segment position, charge, area, charge density, and potential",
-    "converter": "CPCM-X 1.1.0 onlyprof/sigma3 output; project wrapper adds NIST metadata without changing bins",
+    "converter": "Project-authored conversion from retained CPCM-X/xTB native surface segments; CPCM-X-emitted bins are not copied",
     "converterSha256": "see generated/generation-manifest.json software.generatorSha256",
+    "inputChargeConvention": "xTB ddCOSMO native convention emitted by --cosmo",
+    "outputChargeConvention": "xTB TM convention consumed directly by the pinned NIST converter",
+    "chargeSignMultiplier": -1.0,
+    "chargeSignEvidence": [
+      "Exact licensed excerpts and upstream full-file hashes are retained under reference-source/ and verified byte-for-byte.",
+      "Pinned xTB src/solv/cosmo.f90 explicitly negates native zeta when tmcosmo is selected.",
+      "Pinned xTB src/xhelp.f90 states that --tmcosmo uses TM convention for written .cosmo files.",
+      "Pinned CPCM-X src/cpcmx/qc_calc.f90 invokes xTB --cosmo, not --tmcosmo.",
+      "Pinned NIST profiles/to_sigma.py consumes charge/area directly and applies the positive O/N/F acceptor mask."
+    ],
+    "averaging": "NIST Hsieh",
+    "smoothingRadiusSquaredSquareAngstrom": 2.3077466748324826,
     "smoothingRadiusAngstrom": 1.5191269449366247,
+    "decayCoefficient": 3.57,
     "sigmaGridElectronPerSquareAngstrom": {
       "minimum": -0.025,
       "maximum": 0.025,
@@ -52,7 +65,16 @@
     "profileAreaUnit": "square angstrom",
     "molecularVolumeUnit": "cubic angstrom",
     "profileContract": "NIST DelawareProfileDatabase sigma3",
-    "validationStatus": "AREA_CONSERVED_AND_NIST_LOADER_VALIDATED",
+    "validationStatus": "SEGMENT_LEVEL_PROFILE_SEMANTICS_GATE_PASSED",
+    "segmentLevelAssertions": [
+      "independent recomputation without importing the generator",
+      "surface and final profile area closure",
+      "native-xTB to TM/NIST sign inversion",
+      "exact Hsieh constants",
+      "linear two-bin area interpolation",
+      "post-binning P_hb equation",
+      "chemically meaningful heteroatom partitions"
+    ],
     "volume": "deterministic union of retained CPCM cavity spheres on a 0.05 angstrom midpoint grid"
   },
   "requiredIdentities": [
@@ -124,7 +146,16 @@
       "repeat execution is bitwise identical",
       "profile grids, partition counts, area integrals, metadata identities, and hashes match the manifest"
     ],
-    "executionStatus": "PASSED_20_OF_20"
+    "executionStatus": "NOT_RERUN_BY_PROFILE_REGENERATION_TASK"
+  },
+  "governanceStatus": {
+    "researchOnly": true,
+    "calibrationRequired": true,
+    "pilotValidated": false,
+    "releaseEligible": false,
+    "sulfurPrediction": "NOT_CALCULABLE",
+    "profileGate": "PASSED",
+    "measuredLleBenchmark236Cases": "NOT_EXECUTED"
   },
   "prohibitedInputs": [
     "NIST UD profiles",

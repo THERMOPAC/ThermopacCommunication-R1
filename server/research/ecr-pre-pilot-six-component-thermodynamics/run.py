@@ -20,6 +20,7 @@ GENERATED = HERE / "generated"
 PROFILES = GENERATED / "profiles"
 SIGMA3 = PROFILES / "sigma3"
 GENERATION_MANIFEST = GENERATED / "generation-manifest.json"
+PROFILE_VERIFICATION = GENERATED / "profile-verification.json"
 LICENSE_EVIDENCE = HERE / "license-evidence.json"
 GENERATION_PROTOCOL = HERE / "generation-protocol.json"
 RELEASE_PROVENANCE = HERE / "vendor/release-provenance.json"
@@ -36,12 +37,12 @@ COMPOSITIONS = [
     [0.10, 0.05, 0.05, 0.05, 0.05, 0.70],
 ]
 EXPECTED_PROFILE_HASHES = {
-    "SAT": "d01fda25cf270c9386130ed3eb1b480446fd391236e967ca9ce2e0a69fd44009",
-    "MONO": "40431b8d5be1b6cd1541742dd189b6e677c877dc5b1e0e00f2f45026b5b26a96",
-    "DI": "f58a8f4114242b2072a08f7b51320dde572dc5c5531339fc8df26c763a1d8436",
-    "POLY": "aee7911343cd85fafbeb90a30aed4a71f6657b3132166bdc16b428ed5c35b66f",
-    "PA": "37da08f756f00c20e61472ab71c1129ce3502750f1082ec8d460477f04710585",
-    "NMP": "6e9318b0a76297bb78da0c9fa19d3dd61101f03c399cd4dd4508eac7b6594566",
+    "SAT": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2",
+    "MONO": "0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275",
+    "DI": "7e8664f594afa70a232f845dfafbfbb1efd2e10e13c586187b556102a97503ed",
+    "POLY": "682828484416f124e3207f246d23954197502cba83d9b4744ace239d91fe8854",
+    "PA": "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e",
+    "NMP": "58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69",
 }
 
 
@@ -90,6 +91,10 @@ def main() -> None:
         json.loads(GENERATION_MANIFEST.read_text(encoding="utf-8")),
         "generation manifest",
     )
+    profile_verification = require_mapping(
+        json.loads(PROFILE_VERIFICATION.read_text(encoding="utf-8")),
+        "profile verification",
+    )
     protocol = require_mapping(
         json.loads(GENERATION_PROTOCOL.read_text(encoding="utf-8")),
         "generation protocol",
@@ -102,12 +107,20 @@ def main() -> None:
         json.loads(RELEASE_PROVENANCE.read_text(encoding="utf-8")),
         "release provenance",
     )
-    if protocol.get("status") != "EXECUTED_QUALIFIED_PROFILE_BASIS":
-        raise RuntimeError("generation protocol is not qualified")
+    if protocol.get("status") != "PROFILE_SEMANTICS_GATE_PASSED_RESEARCH_ONLY":
+        raise RuntimeError("profile semantics gate is not passed")
     if licenses["nistBundledProfiles"]["assessment"] != "NOT_ADMITTED_FOR_PROJECT_CALCULATIONS":
         raise RuntimeError("restricted NIST profile boundary changed without review")
     if generation.get("restrictedProfileInputs") != []:
         raise RuntimeError("restricted profile inputs are prohibited")
+    if generation.get("profileConversion", {}).get("decision") != "PROFILE_SEMANTICS_GATE_PASSED":
+        raise RuntimeError("generated profile semantics gate is not passed")
+    if profile_verification.get("decision") != "PROFILE_SEMANTICS_GATE_PASSED":
+        raise RuntimeError("profile verification gate is not passed")
+    if profile_verification.get("allComponentsPassed") is not True:
+        raise RuntimeError("one or more component profile checks failed")
+    if generation["profileConversion"].get("profileVerificationSha256") != sha256(PROFILE_VERIFICATION):
+        raise RuntimeError("profile verification integrity failure")
     software = require_mapping(generation.get("software"), "generation software")
     if software.get("generatorSha256") != sha256(HERE / "generate_profiles.py"):
         raise RuntimeError("profile generator integrity failure")
@@ -193,7 +206,10 @@ def main() -> None:
     result = {
         "schemaVersion": "2.0.0",
         "researchOnly": True,
+        "calibrationRequired": True,
+        "pilotValidated": False,
         "releaseEligible": False,
+        "sulfurPrediction": "NOT_CALCULABLE",
         "decision": "PROFILE_BASIS_QUALIFIED_FOR_NIST_TOPOLOGY_GATE",
         "mission": {
             "system": "SAT+MONO+DI+POLY+PA+NMP",
@@ -241,6 +257,7 @@ def main() -> None:
             "licenseEvidenceSha256": sha256(LICENSE_EVIDENCE),
             "releaseProvenanceSha256": sha256(RELEASE_PROVENANCE),
             "complistSha256": sha256(PROFILES / "complist.txt"),
+            "profileVerificationSha256": sha256(PROFILE_VERIFICATION),
         },
     }
     OUT.mkdir(parents=True, exist_ok=True)
@@ -293,6 +310,8 @@ release eligibility.
             component["family"]: component["inchiKey"] for component in components
         },
         "profileSha256ByFamily": EXPECTED_PROFILE_HASHES,
+        "profileSemanticsGate": "PASSED",
+        "profileVerificationSha256": sha256(PROFILE_VERIFICATION),
         "nistCosmoSacSourceCommit": NIST_COSMOSAC_COMMIT,
     }
     (HERE / "provenance-manifest.json").write_text(
