@@ -22,5 +22,29 @@
     "scaledFitDescriptors": ["carbonNumber","longestSideChainCarbons"],
     "screenOnlyDescriptors": ["aromaticRingCount","condensedAromaticRingCount","branchPointCount","cycloalkaneRingCount","polarityClass","heteroatomCount","sulfurAtomCount"],
     "reasonScreenOnly": "One branched MONO identity adds a graph contrast but does not independently identify branching apart from carbon number; no cycloalkane evidence was found."
+  },
+  "governedComponentAdmissions": {
+    "DI": {
+      "identity": "1-methylnaphthalene",
+      "molecularWeightGmol": 142.1971,
+      "status": "FIXED_GOVERNED_SURROGATE",
+      "provenance": "NIST Chemistry WebBook molecular weight and frozen descriptor-transfer structural assignment",
+      "applicability": "Predictive five-component surrogate screening only"
+    },
+    "POLY": {
+      "identity": "pyrene",
+      "molecularWeightGmol": 202.2506,
+      "status": "FIXED_GOVERNED_SURROGATE",
+      "provenance": "NIST Chemistry WebBook molecular weight and frozen descriptor-transfer structural assignment",
+      "applicability": "Predictive five-component surrogate screening only"
+    },
+    "PA": {
+      "identity": null,
+      "molecularWeightGmol": null,
+      "parameters": null,
+      "lleEvidence": null,
+      "status": "NOT_ADMITTED",
+      "blocker": "POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE"
+    }
   }
 }

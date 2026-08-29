@@ -17,7 +17,7 @@ export interface PredictiveNtJobInput {
   modelHash: string;
   temperatureK: number;
   solventMolarRatio: number;
-  feedMoleFractions: [number, number, number];
+  feedMoleFractions: [number, number, number, number, number];
   satIdentity: string;
   monoIdentity: string;
   sourceFeedCompositionMassFraction: {
@@ -29,8 +29,11 @@ export interface PredictiveNtJobInput {
     nmp: number;
   };
   sourceProductTargetsMassFraction: {
-    maximumMono: number;
+    maximumTotalAromatics: number;
+    maximumPolarAromatics: number;
     minimumSaturates: number;
+    maximumNmp: number;
+    minimumRrboRecovery: number;
   };
   sourceSolventOilMassRatio: number;
   targetRaffinateMonoHydrocarbonMoleFraction: number;
@@ -47,8 +50,9 @@ export interface PredictiveNtJobInput {
     };
     minimumMassRecovery: {
       targetPercent: number;
-      status: 'NOT_CALCULABLE';
+      status: 'CALCULABLE' | 'NOT_CALCULABLE';
     };
+    polarAromaticsAdmission: typeof PREDICTIVE_NT_MOLECULAR_REGISTRY.polarAromatics;
   };
 }
 
@@ -189,14 +193,10 @@ export function derivePredictiveNtInputFromStage1(
     throw new Error('STAGE1_INPUT_NOT_SAVED');
   }
   const stage1 = canonicalizeStage1Input(snapshot.stage1, projectNumber);
-  if (
-    stage1.diAromaticsWt > 1e-12
-    || stage1.polyAromaticsWt > 1e-12
-    || stage1.polarAromaticsWt > 1e-12
-    || stage1.nmpInFeedWt > 1e-12
-  ) {
-    throw new Error('UNSUPPORTED_COMPONENT_SCOPE');
+  if (stage1.polarAromaticsWt > 1e-12) {
+    throw new Error('POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE');
   }
+  if (stage1.nmpInFeedWt > 1e-12) throw new Error('FEED_NMP_NOT_SUPPORTED');
   if (stage1.phaseConfiguration !== 'nmp-continuous-rrbo-dispersed') {
     throw new Error('UNSUPPORTED_PHASE_CONFIGURATION');
   }
@@ -206,24 +206,30 @@ export function derivePredictiveNtInputFromStage1(
     .find(({ identity }) => identity === stage1.monoIdentity)!;
   const sourceSat = stage1.saturatesWt / 100;
   const sourceMono = stage1.monoAromaticsWt / 100;
+  const sourceDi = stage1.diAromaticsWt / 100;
+  const sourcePoly = stage1.polyAromaticsWt / 100;
   const sourceSatMoles = sourceSat / sat.molecularWeightGmol;
   const sourceMonoMoles = sourceMono / mono.molecularWeightGmol;
-  const sourceMoles = sourceSatMoles + sourceMonoMoles;
+  const sourceDiMoles = sourceDi / PREDICTIVE_NT_MOLECULAR_REGISTRY.diAromatics.molecularWeightGmol;
+  const sourcePolyMoles = sourcePoly / PREDICTIVE_NT_MOLECULAR_REGISTRY.polyAromatics.molecularWeightGmol;
+  const sourceMoles = sourceSatMoles + sourceMonoMoles + sourceDiMoles + sourcePolyMoles;
   if (sourceMoles <= 0) throw new Error('INVALID_STAGE1_COMPOSITION_TOTAL');
-  const maximumMono = stage1.targetRaffinateTotalAromaticsWt / 100;
+  const maximumTotalAromatics = stage1.targetRaffinateTotalAromaticsWt / 100;
   const minimumSaturates = stage1.minimumRaffinateSaturatesWt / 100;
-  const targetMonoMoles = maximumMono / mono.molecularWeightGmol;
-  const targetSatMoles = (1 - maximumMono) / sat.molecularWeightGmol;
+  const targetMonoMoles = maximumTotalAromatics / mono.molecularWeightGmol;
+  const targetSatMoles = (1 - maximumTotalAromatics) / sat.molecularWeightGmol;
   const minimumSatMoles = minimumSaturates / sat.molecularWeightGmol;
   const correspondingMonoMoles = (1 - minimumSaturates) / mono.molecularWeightGmol;
 
   return {
     modelHash: PRE_PILOT_MODEL.modelHash,
     temperatureK: stage1.operatingTemperatureC + 273.15,
-    solventMolarRatio: (stage1.solventOilRatio / 99.13) / sourceMoles,
+    solventMolarRatio: (stage1.solventOilRatio / PREDICTIVE_NT_MOLECULAR_REGISTRY.nmp.molecularWeightGmol) / sourceMoles,
     feedMoleFractions: [
       sourceSatMoles / sourceMoles,
       sourceMonoMoles / sourceMoles,
+      sourceDiMoles / sourceMoles,
+      sourcePolyMoles / sourceMoles,
       0,
     ],
     satIdentity: stage1.satIdentity,
@@ -231,14 +237,17 @@ export function derivePredictiveNtInputFromStage1(
     sourceFeedCompositionMassFraction: {
       saturates: sourceSat,
       mono: sourceMono,
-      di: 0,
-      poly: 0,
+      di: sourceDi,
+      poly: sourcePoly,
       polar: 0,
       nmp: 0,
     },
     sourceProductTargetsMassFraction: {
-      maximumMono,
+      maximumTotalAromatics,
+      maximumPolarAromatics: stage1.targetRaffinatePolarAromaticsWt / 100,
       minimumSaturates,
+      maximumNmp: stage1.maximumNmpRaffinateWt / 100,
+      minimumRrboRecovery: stage1.minimumRecoveryPct / 100,
     },
     sourceSolventOilMassRatio: stage1.solventOilRatio,
     targetRaffinateMonoHydrocarbonMoleFraction:
@@ -252,9 +261,10 @@ export function derivePredictiveNtInputFromStage1(
       snapshotHash: stage1SnapshotHash(snapshot),
       source: snapshot,
       sulfurPrediction: snapshot.sulfurPrediction,
+      polarAromaticsAdmission: PREDICTIVE_NT_MOLECULAR_REGISTRY.polarAromatics,
       minimumMassRecovery: {
         targetPercent: stage1.minimumRecoveryPct,
-        status: 'NOT_CALCULABLE',
+        status: 'CALCULABLE',
       },
     },
   };
@@ -264,14 +274,14 @@ export function validatePredictiveNtJobInput(input: PredictiveNtJobInput) {
   if ('minimumNmpFreeHydrocarbonRecovery' in input) {
     throw new Error('MASS_RECOVERY_GATE_UNAVAILABLE');
   }
-  if (!Array.isArray(input.feedMoleFractions) || input.feedMoleFractions.length !== 3) {
+  if (!Array.isArray(input.feedMoleFractions) || input.feedMoleFractions.length !== 5) {
     throw new Error('INVALID_FEED_COMPOSITION');
   }
   const feedSum = input.feedMoleFractions.reduce((sum, value) => sum + value, 0);
   if (
     input.feedMoleFractions.some((value) => !Number.isFinite(value) || value < 0)
     || Math.abs(feedSum - 1) > 1e-6
-    || input.feedMoleFractions[2] > 1e-12
+    || input.feedMoleFractions[4] > 1e-12
   ) {
     throw new Error('INVALID_FEED_COMPOSITION');
   }
@@ -294,6 +304,7 @@ export function validatePredictiveNtJobInput(input: PredictiveNtJobInput) {
       mono: input.sourceFeedCompositionMassFraction.mono,
       di: input.sourceFeedCompositionMassFraction.di,
       poly: input.sourceFeedCompositionMassFraction.poly,
+      polar: input.sourceFeedCompositionMassFraction.polar,
     },
     sulfurObjectiveRequested: false,
   });
@@ -310,42 +321,54 @@ export function validatePredictiveNtJobInput(input: PredictiveNtJobInput) {
   }
   const sourceFeedSum = Object.values(sourceFeed).reduce((sum, value) => sum + value, 0);
   if (Math.abs(sourceFeedSum - 1) > 1e-6) throw new Error('INVALID_SOURCE_FEED_BASIS');
-  if (sourceFeed.di > 1e-12 || sourceFeed.poly > 1e-12 || sourceFeed.polar > 1e-12 || sourceFeed.nmp > 1e-12) {
-    throw new Error('UNSUPPORTED_COMPONENT_SCOPE');
-  }
+  if (sourceFeed.polar > 1e-12) throw new Error('POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE');
+  if (sourceFeed.nmp > 1e-12) throw new Error('FEED_NMP_NOT_SUPPORTED');
   const sat = PREDICTIVE_NT_MOLECULAR_REGISTRY.saturates.find(({ identity }) => identity === input.satIdentity)!;
   const mono = PREDICTIVE_NT_MOLECULAR_REGISTRY.monoAromatics.find(({ identity }) => identity === input.monoIdentity)!;
   const sourceSatMoles = sourceFeed.saturates / sat.molecularWeightGmol;
   const sourceMonoMoles = sourceFeed.mono / mono.molecularWeightGmol;
-  const sourceMoles = sourceSatMoles + sourceMonoMoles;
+  const sourceDiMoles = sourceFeed.di / PREDICTIVE_NT_MOLECULAR_REGISTRY.diAromatics.molecularWeightGmol;
+  const sourcePolyMoles = sourceFeed.poly / PREDICTIVE_NT_MOLECULAR_REGISTRY.polyAromatics.molecularWeightGmol;
+  const sourceMoles = sourceSatMoles + sourceMonoMoles + sourceDiMoles + sourcePolyMoles;
   if (
     sourceMoles <= 0
     || Math.abs(input.feedMoleFractions[0] - sourceSatMoles / sourceMoles) > 1e-6
     || Math.abs(input.feedMoleFractions[1] - sourceMonoMoles / sourceMoles) > 1e-6
+    || Math.abs(input.feedMoleFractions[2] - sourceDiMoles / sourceMoles) > 1e-6
+    || Math.abs(input.feedMoleFractions[3] - sourcePolyMoles / sourceMoles) > 1e-6
   ) {
     throw new Error('MOLECULAR_FEED_BASIS_MISMATCH');
   }
   if (!Number.isFinite(input.sourceSolventOilMassRatio) || input.sourceSolventOilMassRatio <= 0) {
     throw new Error('SOURCE_SOLVENT_MASS_BASIS_REQUIRED');
   }
-  const expectedSolventMolarRatio = (input.sourceSolventOilMassRatio / 99.13) / sourceMoles;
+  const expectedSolventMolarRatio = (input.sourceSolventOilMassRatio / PREDICTIVE_NT_MOLECULAR_REGISTRY.nmp.molecularWeightGmol) / sourceMoles;
   if (Math.abs(input.solventMolarRatio - expectedSolventMolarRatio) > 1e-6) {
     throw new Error('MOLECULAR_SOLVENT_BASIS_MISMATCH');
   }
   const sourceTargets = input.sourceProductTargetsMassFraction;
   if (
     !sourceTargets
-    || !Number.isFinite(sourceTargets.maximumMono)
+    || !Number.isFinite(sourceTargets.maximumTotalAromatics)
+    || !Number.isFinite(sourceTargets.maximumPolarAromatics)
     || !Number.isFinite(sourceTargets.minimumSaturates)
-    || sourceTargets.maximumMono <= 0
-    || sourceTargets.maximumMono >= 1
+    || !Number.isFinite(sourceTargets.maximumNmp)
+    || !Number.isFinite(sourceTargets.minimumRrboRecovery)
+    || sourceTargets.maximumTotalAromatics <= 0
+    || sourceTargets.maximumTotalAromatics >= 1
+    || sourceTargets.maximumPolarAromatics < 0
+    || sourceTargets.maximumPolarAromatics >= 1
+    || sourceTargets.maximumNmp < 0
+    || sourceTargets.maximumNmp >= 1
+    || sourceTargets.minimumRrboRecovery <= 0
+    || sourceTargets.minimumRrboRecovery > 1
     || sourceTargets.minimumSaturates <= 0
     || sourceTargets.minimumSaturates >= 1
   ) {
     throw new Error('SOURCE_PRODUCT_TARGET_BASIS_REQUIRED');
   }
-  const targetMonoMoles = sourceTargets.maximumMono / mono.molecularWeightGmol;
-  const targetSatMoles = (1 - sourceTargets.maximumMono) / sat.molecularWeightGmol;
+  const targetMonoMoles = sourceTargets.maximumTotalAromatics / mono.molecularWeightGmol;
+  const targetSatMoles = (1 - sourceTargets.maximumTotalAromatics) / sat.molecularWeightGmol;
   const expectedTargetMono = targetMonoMoles / (targetMonoMoles + targetSatMoles);
   const minimumSatMoles = sourceTargets.minimumSaturates / sat.molecularWeightGmol;
   const correspondingMonoMoles = (1 - sourceTargets.minimumSaturates) / mono.molecularWeightGmol;
@@ -385,12 +408,16 @@ export function attachStage1ResultGovernance(
       predictiveNtAuthority: 'FROZEN_PYTHON_THERMODYNAMIC_ENGINE',
       supportedAcceptanceBasis: [
         'MAXIMUM_RAFFINATE_MONO_AROMATICS',
+        'MAXIMUM_RAFFINATE_TOTAL_AROMATICS',
         'MINIMUM_RAFFINATE_SATURATES',
+        'MAXIMUM_RAFFINATE_NMP',
+        'MINIMUM_RRBO_MASS_RECOVERY',
         'COMPONENT_BALANCES',
         'INDEPENDENT_THERMODYNAMIC_CHECKS',
       ],
       sulfurPrediction: input.stage1Authority.sulfurPrediction,
       minimumMassRecovery: input.stage1Authority.minimumMassRecovery,
+      polarAromaticsAdmission: input.stage1Authority.polarAromaticsAdmission,
       overallEcrProductAcceptance: false,
       overallEcrProductAcceptanceStatus: 'BLOCKED_BY_NOT_CALCULABLE_TARGETS',
     },

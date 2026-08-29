@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Background SAT/MONO/NMP counter-current cascade using the frozen flash."""
+"""Background SAT/MONO/DI/POLY/NMP counter-current cascade using the frozen flash."""
 from __future__ import annotations
 
 import importlib.util
@@ -16,14 +16,15 @@ OLD = ROOT / "server/research/ecr-pre-pilot-descriptor-transfer"
 UQ = ROOT / "server/research/ecr-pre-pilot-uniquac"
 NEW = ROOT / "server/research/ecr-pre-pilot-new-analogue"
 CHECKPOINT = ROOT / ".agents/outputs/ecr-pre-pilot-new-analogue/fit-checkpoint.json"
-MODEL_HASH = "cb8b2945499ea65cd071f99695ea14c5a3396fba475aa6bb8ed8bdfe6f3198c7"
+MODEL_HASH = "2f22d47cb35c59bc0e6a28ac2aa02a431a79adcd6c454a51d62989928a907dc3"
 ENGINE_ID = "ECR2_PREDICTIVE_NT_BACKGROUND"
-ENGINE_VERSION = "1.2.0"
+ENGINE_VERSION = "2.0.0"
 RUNTIME_SUPPORT_PATHS = [
     "server/research/ecr-pre-pilot-uniquac/model.py",
     "server/research/ecr-pre-pilot-uniquac/structural-provenance.json",
 ]
-COMPONENTS = ["SAT", "MONO", "NMP"]
+COMPONENTS = ["SAT", "MONO", "DI", "POLY", "NMP"]
+MOLECULAR_WEIGHTS = np.asarray([226.44, np.nan, 142.1971, 202.2506, 99.1311])
 EPS = 1e-14
 BALANCE_TOL = 1e-8
 CONVERGENCE_TOL = 1e-8
@@ -98,18 +99,22 @@ def setup_model(sat_identity: str, mono_identity: str, temperature_k: float):
             "r": 5.9452,
             "q": 4.584,
         }
-    for identity in (sat_identity, mono_identity, "N-methyl-2-pyrrolidone"):
+    identities = (
+        sat_identity, mono_identity, "1-methylnaphthalene", "pyrene",
+        "N-methyl-2-pyrrolidone",
+    )
+    for identity in identities:
         if identity not in registry["molecules"] or identity not in table:
             raise ValueError(f"MOLECULAR_IDENTITY_UNAVAILABLE: {identity}")
     row = dt.uq.row(
         "predictive-nt-runtime",
         "PRE_PILOT_MODEL",
         temperature_k,
-        [0.7, 0.3, 0.0, 0.0, 0.0],
-        [0.05, 0.15, 0.0, 0.0, 0.8],
-        [0, 1, 4],
+        [0.7, 0.2, 0.05, 0.05, 0.0],
+        [0.05, 0.08, 0.03, 0.04, 0.8],
+        [0, 1, 2, 3, 4],
         False,
-        [sat_identity, mono_identity, "N-methyl-2-pyrrolidone"],
+        list(identities),
         table,
         None,
     )
@@ -131,25 +136,17 @@ def restore_model(previous):
 def normalize(value):
     vector = np.asarray(value, dtype=float)
     total = float(vector.sum())
-    if vector.shape != (3,) or not np.all(np.isfinite(vector)) or np.any(vector < 0) or total <= 0:
+    if vector.shape != (5,) or not np.all(np.isfinite(vector)) or np.any(vector < 0) or total <= 0:
         raise ValueError("INVALID_FEED_COMPOSITION")
     return vector / total
 
 
-def to_five(value):
-    return np.asarray([value[0], value[1], 0.0, 0.0, value[2]], dtype=float)
-
-
-def from_five(value):
-    return np.asarray([value[0], value[1], value[4]], dtype=float)
-
-
 def flash(mixture, row):
-    result = dt.uq.flash(to_five(mixture), row, np.zeros(1))
+    result = dt.uq.flash(mixture, row, np.zeros(1))
     if result["phaseBehavior"] != "PREDICTED_TWO_PHASE" or not result.get("converged"):
         raise RuntimeError(f"FLASH_{result['phaseBehavior']}")
-    rrbo = from_five(result["RRBO_rich"])
-    nmp = from_five(result["NMP_rich"])
+    rrbo = np.asarray(result["RRBO_rich"], dtype=float)
+    nmp = np.asarray(result["NMP_rich"], dtype=float)
     return rrbo, nmp, float(result["beta_NMP_rich"]), {
         "phaseBehavior": result["phaseBehavior"],
         "stabilityTPDMinimum": result["stabilityTPDMinimum"],
@@ -162,13 +159,42 @@ def flash(mixture, row):
     }
 
 
-def product_metrics(flow, composition, feed):
-    hydrocarbons = float(composition[0] + composition[1])
+def product_metrics(flow, composition, feed, molecular_weights):
+    hydrocarbons = float(composition[:4].sum())
     hydrocarbon_fraction_mono = float(composition[1] / hydrocarbons) if hydrocarbons > EPS else None
     hydrocarbon_fraction_sat = float(composition[0] / hydrocarbons) if hydrocarbons > EPS else None
-    feed_hydrocarbons = float(feed[0] + feed[1])
+    feed_hydrocarbons = float(feed[:4].sum())
     recovery = float(flow * hydrocarbons / feed_hydrocarbons) if feed_hydrocarbons > EPS else None
-    return hydrocarbon_fraction_mono, hydrocarbon_fraction_sat, recovery
+    outlet_mass_flows = flow * composition * molecular_weights
+    outlet_mass = float(outlet_mass_flows.sum())
+    hydrocarbon_mass = float(outlet_mass_flows[:4].sum())
+    feed_mass = float(np.dot(feed[:4], molecular_weights[:4]))
+    mass_profile = outlet_mass_flows / outlet_mass
+    hc_mass_profile = outlet_mass_flows[:4] / hydrocarbon_mass
+    rrbo_recovery = hydrocarbon_mass / feed_mass if feed_mass > EPS else None
+    mole_profile = {
+        **dict(zip(COMPONENTS, map(float, composition))),
+        "PA": None,
+        "totalAromatics": float(composition[1:4].sum()),
+    }
+    mass_profile_record = {
+        **dict(zip(COMPONENTS, map(float, mass_profile))),
+        "PA": None,
+        "totalAromatics": float(mass_profile[1:4].sum()),
+    }
+    hc_mass_profile_record = {
+        "SAT": float(hc_mass_profile[0]),
+        "MONO": float(hc_mass_profile[1]),
+        "DI": float(hc_mass_profile[2]),
+        "POLY": float(hc_mass_profile[3]),
+        "PA": None,
+        "totalAromatics": float(hc_mass_profile[1:4].sum()),
+        "NMP": None,
+    }
+    return (
+        hydrocarbon_fraction_mono, hydrocarbon_fraction_sat, recovery,
+        rrbo_recovery, mole_profile, mass_profile_record, hc_mass_profile_record,
+    )
 
 
 def select_minimum_accepted_trial(trials):
@@ -177,9 +203,9 @@ def select_minimum_accepted_trial(trials):
 
 
 def initialize_component_flows(stage_count, feed, solvent_ratio, continuation_state=None):
-    solvent = np.asarray([0.0, 0.0, 1.0])
-    liquid = np.zeros((stage_count + 2, 3), dtype=float)
-    extract = np.zeros((stage_count + 2, 3), dtype=float)
+    solvent = np.asarray([0.0, 0.0, 0.0, 0.0, 1.0])
+    liquid = np.zeros((stage_count + 2, 5), dtype=float)
+    extract = np.zeros((stage_count + 2, 5), dtype=float)
     liquid[stage_count + 1] = feed
     extract[0] = solvent_ratio * solvent
     if continuation_state is None:
@@ -195,7 +221,7 @@ def initialize_component_flows(stage_count, feed, solvent_ratio, continuation_st
     prior_extract_grid = np.arange(0, prior_stages + 1, dtype=float) / (prior_stages + 1)
     liquid_grid = np.arange(1, stage_count + 1, dtype=float) / (stage_count + 1)
     extract_grid = np.arange(1, stage_count + 1, dtype=float) / (stage_count + 1)
-    for component in range(3):
+    for component in range(5):
         liquid[1:stage_count + 1, component] = np.interp(
             liquid_grid,
             prior_liquid_grid,
@@ -217,7 +243,7 @@ def component_state(liquid, extract, stage_count):
 
 
 def balance_residuals(liquid, extract, stage_count, feed, solvent_ratio):
-    solvent = np.asarray([0.0, 0.0, 1.0])
+    solvent = np.asarray([0.0, 0.0, 0.0, 0.0, 1.0])
     local = []
     for stage in range(1, stage_count + 1):
         local.append(
@@ -229,7 +255,7 @@ def balance_residuals(liquid, extract, stage_count, feed, solvent_ratio):
     return local, overall, local_maximum, float(np.max(np.abs(overall)))
 
 
-def run_trial(stage_count, feed, solvent_ratio, row, continuation_state=None):
+def run_trial(stage_count, feed, solvent_ratio, row, molecular_weights, targets, continuation_state=None):
     liquid, extract, initialization = initialize_component_flows(
         stage_count,
         feed,
@@ -299,7 +325,9 @@ def run_trial(stage_count, feed, solvent_ratio, row, continuation_state=None):
     e_flow = extract.sum(axis=1)
     x = [normalize(liquid[stage]) if l_flow[stage] > EPS else None for stage in range(stage_count + 2)]
     y = [normalize(extract[stage]) if e_flow[stage] > EPS else None for stage in range(stage_count + 2)]
-    mono, sat, recovery = product_metrics(l_flow[1], x[1], feed)
+    mono, sat, recovery, rrbo_recovery, mole_profile, mass_profile, hc_mass_profile = product_metrics(
+        l_flow[1], x[1], feed, molecular_weights
+    )
     stage_records = []
     local_balance_accepted = True
     for stage in range(1, stage_count + 1):
@@ -328,6 +356,21 @@ def run_trial(stage_count, feed, solvent_ratio, row, continuation_state=None):
         "raffinateMonoHydrocarbonMoleFraction": mono,
         "raffinateSaturatesHydrocarbonMoleFraction": sat,
         "nmpFreeHydrocarbonRecovery": recovery,
+        "rrboMassRecovery": rrbo_recovery,
+        "rrboMassRecoveryGovernance": {
+            "status": "CALCULABLE",
+            "basis": "COMPLETE_ZERO_PA_FEED_SAT_MONO_DI_POLY_MASS",
+            "deprecatedNmpFreeHydrocarbonRecoveryUsedForAcceptance": False,
+        },
+        "raffinateMoleProfile": mole_profile,
+        "raffinateMassProfile": mass_profile,
+        "raffinateHydrocarbonMassProfile": hc_mass_profile,
+        "polarAromaticsProfile": {
+            "moleFraction": None,
+            "massFraction": None,
+            "status": "NOT_CALCULABLE",
+            "blocker": "POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE",
+        },
         "overallComponentBalanceResiduals": dict(zip(COMPONENTS, map(float, residuals))),
         "overallComponentBalanceMaximum": max_balance,
         "balanceAccepted": max_balance <= BALANCE_TOL and local_balance_accepted,
@@ -358,7 +401,7 @@ def restore_continuation_state(value, stage_count):
         raise ValueError("PREDICTIVE_NT_RESUME_STATE_INVALID")
     liquid = np.asarray(value.get("liquidComponentFlows"), dtype=float)
     extract = np.asarray(value.get("extractComponentFlows"), dtype=float)
-    expected_shape = (stage_count + 2, 3)
+    expected_shape = (stage_count + 2, 5)
     if (
         liquid.shape != expected_shape
         or extract.shape != expected_shape
@@ -409,18 +452,43 @@ def main():
     solvent_ratio = float(request["solventMolarRatio"])
     target = float(request["targetRaffinateMonoHydrocarbonMoleFraction"])
     minimum_sat = float(request.get("minimumRaffinateSaturatesHydrocarbonMoleFraction", 0.0))
+    source_targets = request["sourceProductTargetsMassFraction"]
+    targets = {
+        "maximumTotalAromatics": float(source_targets["maximumTotalAromatics"]),
+        "maximumPolarAromatics": float(source_targets["maximumPolarAromatics"]),
+        "minimumSaturates": float(source_targets["minimumSaturates"]),
+        "maximumNmp": float(source_targets["maximumNmp"]),
+        "minimumRrboRecovery": float(source_targets["minimumRrboRecovery"]),
+    }
     max_stages = int(request.get("maximumStages", 10))
     if not (temperature_k > 0 and solvent_ratio > 0 and 0 < target < 1 and
             0 <= minimum_sat <= 1 and 1 <= max_stages <= 20):
         raise ValueError("INVALID_CASCADE_INPUT")
     feed = normalize(request["feedMoleFractions"])
-    if feed[2] > 1e-12:
+    if feed[4] > 1e-12:
         raise ValueError("FEED_NMP_NOT_SUPPORTED")
+    if float(request["sourceFeedCompositionMassFraction"]["polar"]) > 1e-12:
+        raise ValueError("POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE")
 
     row, previous = setup_model(request["satIdentity"], request["monoIdentity"], temperature_k)
+    mono_mw = next(
+        item["molecularWeightGmol"]
+        for item in request.get("molecularBasis", {}).get("components", [])
+        if item.get("family") == "MONO"
+    ) if request.get("molecularBasis") else None
+    if mono_mw is None:
+        registry = json.loads((NEW / "descriptor-registry.json").read_text())
+        mono_weights = {
+            "n-propylbenzene": 120.19, "n-pentylbenzene": 148.25,
+            "sec-butylbenzene": 134.22, "1,3,5-trimethylbenzene": 120.19,
+            "p-xylene": 106.17, "toluene": 92.14,
+        }
+        mono_mw = mono_weights[request["monoIdentity"]]
+    molecular_weights = MOLECULAR_WEIGHTS.copy()
+    molecular_weights[1] = mono_mw
     trials = []
     try:
-        last_mono = float(feed[1] / (feed[0] + feed[1]))
+        last_mono = float(feed[1] / feed[:4].sum())
         continuation_state = None
         start_stage = 1
         if resume is not None:
@@ -452,17 +520,34 @@ def main():
                 feed,
                 solvent_ratio,
                 row,
+                molecular_weights,
+                targets,
                 continuation_state,
             )
             current_mono = trial["raffinateMonoHydrocarbonMoleFraction"]
             trial["monotonicFromPrevious"] = current_mono <= last_mono + 1e-9
-            trial["targetChecks"] = {
-                "monoTarget": current_mono <= target + 1e-9,
-                "minimumSaturates": trial["raffinateSaturatesHydrocarbonMoleFraction"] >= minimum_sat - 1e-9,
+            hc_mass = trial["raffinateHydrocarbonMassProfile"]
+            mass = trial["raffinateMassProfile"]
+            residuals = {
+                "totalAromatics": targets["maximumTotalAromatics"] - hc_mass["totalAromatics"],
+                "polarAromatics": None,
+                "minimumSaturates": hc_mass["SAT"] - targets["minimumSaturates"],
+                "maximumNmp": targets["maximumNmp"] - mass["NMP"],
+                "minimumRrboRecovery": trial["rrboMassRecovery"] - targets["minimumRrboRecovery"],
             }
+            trial["targetResidualsMassFraction"] = residuals
+            trial["targetChecks"] = {
+                "totalAromatics": residuals["totalAromatics"] >= -1e-9,
+                "polarAromatics": None,
+                "minimumSaturates": residuals["minimumSaturates"] >= -1e-9,
+                "maximumNmp": residuals["maximumNmp"] >= -1e-9,
+                "minimumRrboRecovery": residuals["minimumRrboRecovery"] >= -1e-9,
+            }
+            if feed[2] <= EPS and feed[3] <= EPS:
+                trial["targetChecks"]["monoTarget"] = current_mono <= target + 1e-9
             trial["accepted"] = bool(
                 trial["balanceAccepted"]
-                and all(trial["targetChecks"].values())
+                and all(value for value in trial["targetChecks"].values() if value is not None)
                 and all(stage["thermodynamicChecks"]["independentFinalPhaseChecksPass"]
                         for stage in trial["stages"])
             )

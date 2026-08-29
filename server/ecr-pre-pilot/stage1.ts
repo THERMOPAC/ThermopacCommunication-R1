@@ -17,6 +17,35 @@ export const PREDICTIVE_NT_MOLECULAR_REGISTRY = {
     { identity: 'p-xylene', label: 'p-Xylene', molecularWeightGmol: 106.17 },
     { identity: 'toluene', label: 'Toluene', molecularWeightGmol: 92.14 },
   ],
+  diAromatics: {
+    identity: '1-methylnaphthalene',
+    label: '1-Methylnaphthalene',
+    molecularWeightGmol: 142.1971,
+    admission: 'FIXED_GOVERNED_SURROGATE',
+    provenance: 'NIST Chemistry WebBook molecular weight; frozen descriptor-transfer registry',
+    applicability: 'Predictive five-component surrogate screening only',
+  },
+  polyAromatics: {
+    identity: 'pyrene',
+    label: 'Pyrene',
+    molecularWeightGmol: 202.2506,
+    admission: 'FIXED_GOVERNED_SURROGATE',
+    provenance: 'NIST Chemistry WebBook molecular weight; frozen descriptor-transfer registry',
+    applicability: 'Predictive five-component surrogate screening only',
+  },
+  nmp: {
+    identity: 'N-methyl-2-pyrrolidone',
+    label: 'N-Methyl-2-pyrrolidone',
+    molecularWeightGmol: 99.1311,
+  },
+  polarAromatics: {
+    admission: 'NOT_ADMITTED',
+    representative: null,
+    molecularWeightGmol: null,
+    parameters: null,
+    lleEvidence: null,
+    blocker: 'POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE',
+  },
 } as const;
 
 export interface EcrPrePilotStage1Input {
@@ -62,6 +91,7 @@ export interface EcrPrePilotStage1Snapshot {
     status: 'NOT_CALCULABLE';
     calibrationStatus: 'CALIBRATION_REQUIRED';
   };
+  polarAromaticsAdmission: typeof PREDICTIVE_NT_MOLECULAR_REGISTRY.polarAromatics;
 }
 
 const RRBO_GRADES = new Set(['SN150', 'SN300', 'SN500']);
@@ -183,6 +213,7 @@ export function makeStage1Snapshot(stage1: EcrPrePilotStage1Input): EcrPrePilotS
       status: 'NOT_CALCULABLE',
       calibrationStatus: 'CALIBRATION_REQUIRED',
     },
+    polarAromaticsAdmission: PREDICTIVE_NT_MOLECULAR_REGISTRY.polarAromatics,
   };
 }
 

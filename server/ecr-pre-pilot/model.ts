@@ -1,7 +1,7 @@
 export const PRE_PILOT_MODEL = {
   packageId: 'PRE_PILOT_MODEL',
-  packageVersion: '1.0.0',
-  modelHash: 'cb8b2945499ea65cd071f99695ea14c5a3396fba475aa6bb8ed8bdfe6f3198c7',
+  packageVersion: '1.1.0',
+  modelHash: '2f22d47cb35c59bc0e6a28ac2aa02a431a79adcd6c454a51d62989928a907dc3',
   operationalDecision: 'ACCEPT_WITH_LIMITATIONS',
   calibrationStatus: 'CALIBRATION_REQUIRED',
   qualificationDecision: 'REJECT',
@@ -13,10 +13,11 @@ export const PRE_PILOT_MODEL = {
     tieLineRmsdMaximum: 0.03,
   },
   limitations: {
-    supportedOperationalScope: 'SAT_MONO_NMP_PRE_PILOT_SCREENING',
+    supportedOperationalScope: 'SAT_MONO_DI_POLY_NMP_PRE_PILOT_SCREENING',
     branching: 'SCREEN_ONLY',
     cycloalkane: 'FAIL_CLOSED',
-    diPoly: 'FAIL_CLOSED',
+    diPoly: 'FIXED_GOVERNED_SURROGATES',
+    polarAromatics: 'FAIL_CLOSED',
     sulfur: 'FAIL_CLOSED',
   },
 } as const;
@@ -25,6 +26,7 @@ export type PrePilotNtStartStatus =
   | 'READY_FOR_PREDICTIVE_NT'
   | 'MODEL_HASH_MISMATCH'
   | 'UNSUPPORTED_COMPONENT_SCOPE'
+  | 'POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE'
   | 'SULFUR_MODEL_UNAVAILABLE'
   | 'GOVERNED_RELEASE_BLOCKED';
 
@@ -47,6 +49,7 @@ export function startPrePilotNt(input: {
     mono: number;
     di: number;
     poly: number;
+    polar?: number;
   };
   sulfurObjectiveRequested: boolean;
 }): PrePilotNtStartResult {
@@ -90,17 +93,27 @@ export function startPrePilotNt(input: {
       ],
     };
   }
+  if ((input.feedCompositionMassFraction.polar ?? 0) > 1e-12) {
+    return {
+      ...common,
+      status: 'POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE',
+      mayRunPredictiveNt: false,
+      diagnostics: [
+        'Polar Aromatics has no admitted representative, molecular weight, parameters, or LLE evidence.',
+        'The component is not substituted with zero or folded into another aromatic family.',
+      ],
+    };
+  }
   const composition = input.feedCompositionMassFraction;
   const finiteComposition = Object.values(composition)
     .every((value) => Number.isFinite(value) && value >= 0);
-  if (!finiteComposition || composition.di > 1e-12 || composition.poly > 1e-12) {
+  if (!finiteComposition) {
     return {
       ...common,
       status: 'UNSUPPORTED_COMPONENT_SCOPE',
       mayRunPredictiveNt: false,
       diagnostics: [
-        'PRE_PILOT_MODEL operational use is limited to SAT/MONO/NMP screening.',
-        'DI and POLY remain fail-closed and cannot be folded into SAT or MONO for N_T.',
+        'PRE_PILOT_MODEL requires finite nonnegative SAT/MONO/DI/POLY feed fractions.',
       ],
     };
   }
@@ -111,7 +124,7 @@ export function startPrePilotNt(input: {
     diagnostics: [
       'N_T lineage is bound to the frozen PRE_PILOT_MODEL equations, parameters, dataset and solver settings.',
       'Any result is predictive pre-pilot screening, calibration-required and not pilot validated.',
-      'DI/POLY, sulfur prediction, governed-release use and write-through to established theoretical stages remain fail-closed.',
+      'Polar Aromatics, sulfur prediction, governed-release use and write-through to established theoretical stages remain fail-closed.',
     ],
   };
 }

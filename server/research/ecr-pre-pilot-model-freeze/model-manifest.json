@@ -1,9 +1,9 @@
 {
   "format": "ecr-pre-pilot-model-freeze-v1",
   "packageId": "PRE_PILOT_MODEL",
-  "packageVersion": "1.0.0",
+  "packageVersion": "1.1.0",
   "modelHashAlgorithm": "sha256 of UTF-8 lines name:sha256, sorted by name and joined with LF",
-  "modelHash": "cb8b2945499ea65cd071f99695ea14c5a3396fba475aa6bb8ed8bdfe6f3198c7",
+  "modelHash": "2f22d47cb35c59bc0e6a28ac2aa02a431a79adcd6c454a51d62989928a907dc3",
   "disposition": {
     "operationalDecision": "ACCEPT_WITH_LIMITATIONS",
     "calibrationStatus": "CALIBRATION_REQUIRED",
@@ -29,7 +29,7 @@
     },
     "descriptor-registry": {
       "path": "server/research/ecr-pre-pilot-new-analogue/descriptor-registry.json",
-      "sha256": "51b749fd7697abec8639c44c2f153bbf346a48625cecc21785c5cbdcc7bffdb7"
+      "sha256": "ab0c3b0f8b8339f4387e6b6ec31f8d509ec73a09e296b2ad1128afd58de313df"
     },
     "descriptor-transfer-solver": {
       "path": "server/research/ecr-pre-pilot-descriptor-transfer/run.py",
@@ -73,10 +73,11 @@
     }
   },
   "limitations": {
-    "supportedOperationalScope": "Pre-pilot predictive SAT/MONO/NMP screening using the frozen molecular-pair model only.",
+    "supportedOperationalScope": "Pre-pilot predictive SAT/MONO/DI/POLY/NMP screening using the frozen five-component molecular-pair model only.",
     "branching": "SCREEN_ONLY",
     "cycloalkane": "FAIL_CLOSED",
-    "DI_POLY": "FAIL_CLOSED",
+    "DI_POLY": "FIXED_GOVERNED_SURROGATES",
+    "polarAromatics": "FAIL_CLOSED: POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE",
     "sulfur": "FAIL_CLOSED",
     "governedTheoreticalStages": "NOT_ESTABLISHED",
     "simulatorReleaseIntegration": "BLOCKED"
