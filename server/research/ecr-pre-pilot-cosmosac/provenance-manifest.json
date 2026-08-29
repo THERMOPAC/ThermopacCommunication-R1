@@ -50,7 +50,7 @@
       "CAS": "10081-67-1",
       "InChI": "InChI=1S/C30H31N/c1-29(2,23-11-7-5-8-12-23)25-15-19-27(20-16-25)31-28-21-17-26(18-22-28)30(3,4)24-13-9-6-10-14-24/h5-22,31H,1-4H3",
       "InChIKey": "UJAWGGOCYUPCPS-UHFFFAOYSA-N",
-      "MW_g_mol": 429.608,
+      "MW_g_mol": 405.58,
       "SMILES": "CC(C)(c1ccccc1)c2ccc(Nc3ccc(C(C)(C)c4ccccc4)cc3)cc2"
     },
     "POLY": {
@@ -90,7 +90,7 @@
   },
   "releaseEligible": false,
   "researchOnly": true,
-  "runnerSha256": "aa42f6617ee115db248e6bb473d7f07ac9f72d4214ea1faf670e17ae8e37524d",
+  "runnerSha256": "2ab508b252435dd61cea8c601c8bbf4ba0456847de6f5dad73004bf4299732a6",
   "runtime": {
     "cCOSMOBinarySha256": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
     "cCOSMOModulePath": "server/research/ecr-pre-pilot-cosmosac/vendor/python/cCOSMO.cpython-312-x86_64-linux-gnu.so",

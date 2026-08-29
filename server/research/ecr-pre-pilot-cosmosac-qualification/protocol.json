@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0.0",
+  "frozenBeforeQualificationInterpretation": true,
+  "governingTarget": "SAT + MONO + DI + POLY + PA + NMP",
+  "temperatureK": 323.15,
+  "componentOrder": ["SAT", "MONO", "DI", "POLY", "PA", "NMP"],
+  "stage1Basis": {
+    "feedMassPercent": {
+      "SAT": 85.0,
+      "MONO": 7.0,
+      "DI": 4.0,
+      "POLY": 2.0,
+      "PA": 2.0,
+      "NMP": 0.0
+    },
+    "solventOilMassRatio": 0.9,
+    "satIdentity": "n-dodecane",
+    "monoIdentity": "n-propylbenzene",
+    "diIdentity": "1-methylnaphthalene",
+    "polyIdentity": "pyrene",
+    "paCas": "10081-67-1",
+    "nmpIdentity": "N-methyl-2-pyrrolidone"
+  },
+  "model": {
+    "name": "COSMO-SAC-2010",
+    "activityDefinition": "get_lngamma_comb(T,x)+get_lngamma_resid(T,x)",
+    "parameterFittingPermitted": false
+  },
+  "numericalAcceptance": {
+    "negativeTpdThreshold": -1e-7,
+    "minimumGibbsReduction": 1e-8,
+    "maximumIsoactivityLogResidual": 2e-5,
+    "maximumMaterialBalanceResidual": 1e-8,
+    "minimumPhaseCompositionSeparation": 1e-4
+  },
+  "qualificationRule": {
+    "designPredictionMayExecuteWithoutExperimentalQualification": true,
+    "fullQualificationRequiresIndependentObservedSixComponentPhaseData": true,
+    "missingExperimentalEvidenceOutcome": "INPUT_NOT_AVAILABLE",
+    "quantitativeRmsdCeiling": 0.03
+  }
+}

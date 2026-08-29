@@ -1,0 +1,171 @@
+{
+  "activityAtOverallComposition": {
+    "executed": true,
+    "lnGamma": {
+      "DI": 0.09465346495134516,
+      "MONO": 0.06160586722705505,
+      "NMP": 0.023151987461955334,
+      "PA": -0.1251001382321278,
+      "POLY": 0.13462121148980463,
+      "SAT": 0.012034485201438253
+    }
+  },
+  "calibrationRequired": true,
+  "derivedProcessMetrics": {
+    "extraction": null,
+    "loss": null,
+    "nmpCarryover": null,
+    "nmpFreeRecovery": null,
+    "status": "NOT_CALCULABLE_SINGLE_LIQUID"
+  },
+  "engineSha256": "2ab508b252435dd61cea8c601c8bbf4ba0456847de6f5dad73004bf4299732a6",
+  "flash": {
+    "NMP_rich": null,
+    "RRBO_rich": null,
+    "acceptedTwoLiquidSolution": false,
+    "attempted": true,
+    "betaNmpRich": null,
+    "candidateDiagnostics": {
+      "isoactivityLogResidual": 1.0333849540244966e-06,
+      "massBalanceMaxResidual": 0.0,
+      "maximumCompositionSeparation": 3.4400841064652354e-09,
+      "phaseAComposition": [
+        0.33089244589992683,
+        0.03861771415867315,
+        0.01865265133322468,
+        0.006557095905132075,
+        0.0032698287091862625,
+        0.602010263993857
+      ],
+      "phaseBComposition": [
+        0.33089244771722454,
+        0.03861771429876098,
+        0.01865265070583775,
+        0.006557094521444565,
+        0.0032698253227911,
+        0.6020102674339411
+      ],
+      "phaseBFraction": 0.4999999985199434
+    },
+    "distributionRatios": null,
+    "gibbsReduction": 4.440892098500626e-15,
+    "isoactivityLogResidual": null,
+    "materialBalanceMaxResidual": 0.0,
+    "numericalFailureReasons": [],
+    "optimizerConverged": true,
+    "phaseBehavior": "PREDICTED_STABLE_SINGLE_PHASE",
+    "predictedPhaseCount": 1
+  },
+  "phaseStability": {
+    "details": {
+      "coarseMinimum": 0.09180814207363763,
+      "gridDenominator": 4,
+      "gridPointCount": 126,
+      "minimizingComposition": [
+        0.33089244680857566,
+        0.038617714228717064,
+        0.01865265101953121,
+        0.006557095213288324,
+        0.0032698270159886864,
+        0.602010265713899
+      ],
+      "refinedMinimum": -1.8072460538056337e-18,
+      "refinementConverged": true,
+      "refinements": [
+        {
+          "gradientInfinityNorm": 8.093193173408508e-07,
+          "iterations": 6,
+          "message": "Optimization terminated successfully.",
+          "objective": 0.0689389107092668,
+          "seed": "GRID_1",
+          "success": true
+        },
+        {
+          "gradientInfinityNorm": 9.043142199516296e-07,
+          "iterations": 5,
+          "message": "Optimization terminated successfully.",
+          "objective": 0.06893890984914192,
+          "seed": "GRID_2",
+          "success": true
+        },
+        {
+          "gradientInfinityNorm": 3.3387914299964905e-07,
+          "iterations": 12,
+          "message": "Optimization terminated successfully.",
+          "objective": 0.028752251021591547,
+          "seed": "GRID_3",
+          "success": true
+        },
+        {
+          "gradientInfinityNorm": 4.246469462118961e-07,
+          "iterations": 0,
+          "message": "Optimization terminated successfully.",
+          "objective": -1.8072460538056337e-18,
+          "seed": "FEED",
+          "success": true
+        }
+      ],
+      "verdict": "STABLE_NO_NEGATIVE_TPD"
+    },
+    "executed": true,
+    "minimumTpd": -1.8072460538056337e-18,
+    "refinementConverged": true,
+    "verdict": "STABLE_NO_NEGATIVE_TPD"
+  },
+  "pilotValidated": false,
+  "protocolSha256": "b49fa1a72e095bc0169aa7f8c0d6f0e2f72f7470e590b8128266d845f0e0e04f",
+  "qualification": {
+    "designPredictionStatus": "CALCULATED_RESEARCH_ONLY",
+    "designUseAdmission": "BLOCKED_CALIBRATION_REQUIRED",
+    "fullSixComponentQualification": "INPUT_NOT_AVAILABLE",
+    "reason": "No independent experimental six-component observed phase outcome is registered for this Stage-1 charge."
+  },
+  "releaseEligible": false,
+  "researchOnly": true,
+  "schemaVersion": "1.0.0",
+  "stage1Charge": {
+    "chargeMassBasis": {
+      "DI": 4.0,
+      "MONO": 7.0,
+      "NMP": 90.0,
+      "PA": 2.0,
+      "POLY": 2.0,
+      "SAT": 85.0
+    },
+    "componentOrder": [
+      "SAT",
+      "MONO",
+      "DI",
+      "POLY",
+      "PA",
+      "NMP"
+    ],
+    "feedMassPercent": {
+      "DI": 4.0,
+      "MONO": 7.0,
+      "NMP": 0.0,
+      "PA": 2.0,
+      "POLY": 2.0,
+      "SAT": 85.0
+    },
+    "molecularWeightsGmol": {
+      "DI": 142.1971,
+      "MONO": 120.194,
+      "NMP": 99.1311,
+      "PA": 405.58,
+      "POLY": 202.2506,
+      "SAT": 170.3348
+    },
+    "overallMolarComposition": {
+      "DI": 0.018652651019531213,
+      "MONO": 0.038617714228717064,
+      "NMP": 0.602010265713899,
+      "PA": 0.003269827015988686,
+      "POLY": 0.006557095213288322,
+      "SAT": 0.33089244680857566
+    },
+    "solventOilMassRatio": 0.9,
+    "temperatureK": 323.15
+  },
+  "sulfurPrediction": "NOT_CALCULABLE"
+}
