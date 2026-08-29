@@ -1,0 +1,1116 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "temperature cases exact",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "single default execution mode",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C has stages 1-10",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT1 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT1 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT1 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT1 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT1 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT1 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 5 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 5 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 5 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 7 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 5 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 7 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 8 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 5 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 7 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 8 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 9 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 5 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 7 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 8 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 9 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 10 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C has stages 1-10",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT1 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT1 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT1 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT1 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT1 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT1 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 5 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 5 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 5 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 7 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 5 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 7 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 8 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 5 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 7 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 8 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 9 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 overall balance gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 1 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 5 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 7 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 8 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 9 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 10 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 target aggregation",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 rejection evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 multistart evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "protocolSha256",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "stage1SnapshotSha256",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "amendmentModelSha256",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "amendmentResultsSha256",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "runnerSha256",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "resultsSha256",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "governance remains research-only",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "reportSha256",
+      "status": "PASS",
+      "detail": ""
+    }
+  ],
+  "failed": []
+}

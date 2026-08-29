@@ -665,3 +665,10 @@ uri = "file://.agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/report.md
 type = "text"
 title = "Task #199 — COSMO-SAC Two-Liquid NMP/Base-Oil Equilibrium Report"
 description = "Verified research report covering the amended model, six-component Stage 1 equilibrium, TPD/Gibbs/closure results, blind validation, extraction-target checks, qualification verdict, and N_T ≤ 10 boundary."
+
+[[outputs]]
+id = "WRYM1UL6tq2FvvqXbGB2Q"
+uri = "file://.agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/report.md"
+type = "text"
+title = "Final Task #202 Report — Counter-Current Extraction at 25°C and 50°C"
+description = "Regenerated from the single frozen default workflow. Includes NT 1–10 primary and multistart closure status, stage metrics, stability-screen results, and the bounded theoretical-stage verdict."

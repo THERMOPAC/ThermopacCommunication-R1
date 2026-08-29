@@ -15,6 +15,30 @@
     "stageBalance": "R_(j-1,i)+E_(j+1,i)=R_(j,i)+E_(j,i)",
     "equilibrium": "ln(x_j,i)+ln(gamma_i(T,x_j))=ln(y_j,i)+ln(gamma_i(T,y_j))"
   },
+  "solverStrategy": {
+    "singleSupportedInvocation": "python3 server/research/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/run.py",
+    "continuation": "Each primary NT trial starts from linear interpolation of the last primary trial that met the coupled-equation closure gate; NT=1 starts from the temperature-specific one-stage phase seed.",
+    "primaryNt1To7": {
+      "method": "bounded nonlinear least squares with dense finite-difference Jacobian",
+      "maximumFunctionEvaluations": 750
+    },
+    "primaryNt8To10": {
+      "method": "bounded nonlinear least squares with frozen block-sparse finite-difference Jacobian and LSMR trust-region solver",
+      "maximumFunctionEvaluations": 20,
+      "governance": "Nonclosure is persisted as unresolved and can never be accepted."
+    },
+    "secondaryEveryTrial": {
+      "start": "Primary start plus deterministic component-log-flow perturbation linearly spanning -0.015 to +0.015 across each stage's 12 variables.",
+      "method": "bounded nonlinear least squares with the same frozen block-sparse Jacobian and LSMR trust-region solver",
+      "maximumFunctionEvaluations": 20,
+      "governance": "Both-start closure and product agreement are mandatory; nonclosure blocks acceptance."
+    },
+    "solverTolerances": {
+      "xtol": 1e-11,
+      "ftol": 1e-11,
+      "gtol": 1e-11
+    }
+  },
   "numericalAcceptance": {
     "maximumScaledEquationResidual": 1e-8,
     "maximumOverallComponentBalanceResidualMol": 1e-8,

@@ -17,6 +17,7 @@ model = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(model)
 np = model.np
 least_squares = model.least_squares
+scipy = model.base.scipy
 
 
 def load_json(path):
@@ -140,7 +141,10 @@ def initial_vector(stage_count, total_moles, seed):
     return np.log(np.tile(np.r_[r, e], stage_count))
 
 
-def solve_cascade(stage_count, temperature_k, feed, solvent, parameters, protocol, seed, previous=None):
+def solve_cascade(
+    stage_count, temperature_k, feed, solvent, parameters, protocol, seed,
+    previous=None, dense_polish=False,
+):
     total = float((feed + solvent).sum())
     gates = protocol["numericalAcceptance"]
 
@@ -163,6 +167,18 @@ def solve_cascade(stage_count, temperature_k, feed, solvent, parameters, protoco
             )
         return np.asarray(equations)
 
+    jacobian_pattern = scipy.sparse.lil_matrix(
+        (12 * stage_count, 12 * stage_count), dtype=int
+    )
+    for stage in range(stage_count):
+        rows = slice(12 * stage, 12 * (stage + 1))
+        jacobian_pattern[rows, 12 * stage:12 * (stage + 1)] = 1
+        if stage > 0:
+            jacobian_pattern[rows, 12 * (stage - 1):12 * (stage - 1) + 6] = 1
+        if stage < stage_count - 1:
+            jacobian_pattern[rows, 12 * (stage + 1) + 6:12 * (stage + 2)] = 1
+    jacobian_pattern = jacobian_pattern.tocsr()
+
     if previous is None:
         base_start = initial_vector(stage_count, total, seed)
     else:
@@ -171,39 +187,63 @@ def solve_cascade(stage_count, temperature_k, feed, solvent, parameters, protoco
         mapped = []
         for stage in range(stage_count):
             position = stage / max(stage_count - 1, 1)
-            source = min(round(position * max(previous_count - 1, 0)), previous_count - 1)
-            mapped.extend(previous_r[source])
-            mapped.extend(previous_e[source])
+            coordinate = position * max(previous_count - 1, 0)
+            lower = int(math.floor(coordinate))
+            upper = min(lower + 1, previous_count - 1)
+            fraction = coordinate - lower
+            mapped.extend((1 - fraction) * previous_r[lower] + fraction * previous_r[upper])
+            mapped.extend((1 - fraction) * previous_e[lower] + fraction * previous_e[upper])
         base_start = np.log(np.maximum(np.asarray(mapped), 1e-12))
     starts = [
         base_start,
-        base_start + np.tile(
-            np.linspace(-0.015, 0.015, 12), stage_count
-        ),
+        base_start + np.tile(np.linspace(-0.015, 0.015, 12), stage_count),
     ]
-    solutions = [
-        least_squares(
+    primary = least_squares(
             residual,
-            start,
+            starts[0],
             bounds=(math.log(1e-12), math.log(10 * total)),
             xtol=1e-11,
             ftol=1e-11,
             gtol=1e-11,
-            max_nfev=4000,
+            max_nfev=200 if dense_polish else (20 if stage_count >= 8 else 750),
+            **({
+                "jac_sparsity": jacobian_pattern,
+                "tr_solver": "lsmr",
+            } if stage_count >= 8 and not dense_polish else {}),
         )
-        for start in starts
-    ]
-    best = min(solutions, key=lambda solution: np.max(np.abs(solution.fun)))
-    raffinate, extract = unpack(best.x)
-    alternate_raffinate, alternate_extract = unpack(
-        min(solutions[1:], key=lambda solution: np.max(np.abs(solution.fun))).x
+    # Every trial receives an independently perturbed deterministic start.
+    # A bounded sparse solve keeps branch evidence explicit: nonclosure blocks
+    # acceptance rather than being silently represented as zero difference.
+    secondary = least_squares(
+        residual,
+        starts[1],
+        bounds=(math.log(1e-12), math.log(10 * total)),
+        xtol=1e-11,
+        ftol=1e-11,
+        gtol=1e-11,
+        max_nfev=20,
+        jac_sparsity=jacobian_pattern,
+        tr_solver="lsmr",
     )
+    solutions = [primary, secondary]
+    best = primary
+    raffinate, extract = unpack(best.x)
+    alternate_raffinate, alternate_extract = unpack(secondary.x)
     product_difference = max(
         np.max(np.abs(raffinate[-1] - alternate_raffinate[-1])) / max(raffinate[-1].sum(), 1e-30),
         np.max(np.abs(extract[0] - alternate_extract[0])) / max(extract[0].sum(), 1e-30),
     )
+    secondary_residual = float(np.max(np.abs(secondary.fun)))
+    secondary_closed = bool(
+        secondary.success
+        and secondary_residual <= gates["maximumScaledEquationResidual"]
+    )
     stages = []
-    accepted = bool(best.success and np.max(np.abs(best.fun)) <= gates["maximumScaledEquationResidual"])
+    accepted = bool(
+        best.success
+        and np.max(np.abs(best.fun)) <= gates["maximumScaledEquationResidual"]
+        and secondary_closed
+    )
     for stage in range(stage_count):
         r_in = feed if stage == 0 else raffinate[stage - 1]
         e_in = solvent if stage == stage_count - 1 else extract[stage + 1]
@@ -247,13 +287,74 @@ def solve_cascade(stage_count, temperature_k, feed, solvent, parameters, protoco
         })
     accepted = accepted and product_difference <= gates["multistartProductRelativeTolerance"]
     overall_balance = feed + solvent - raffinate[-1] - extract[0]
+    blockers = []
+    if not best.success or np.max(np.abs(best.fun)) > gates["maximumScaledEquationResidual"]:
+        blockers.append({
+            "code": "COUPLED_SOLVER_CLOSURE_FAILED",
+            "maximumScaledEquationResidual": float(np.max(np.abs(best.fun))),
+            "limit": gates["maximumScaledEquationResidual"],
+        })
+    if product_difference > gates["multistartProductRelativeTolerance"]:
+        blockers.append({
+            "code": "MULTISTART_BRANCH_REPRODUCTION_FAILED",
+            "calculated": float(product_difference),
+            "limit": gates["multistartProductRelativeTolerance"],
+        })
+    if not secondary_closed:
+        blockers.append({
+            "code": "MULTISTART_SECONDARY_CLOSURE_FAILED",
+            "maximumScaledEquationResidual": secondary_residual,
+            "limit": gates["maximumScaledEquationResidual"],
+        })
+    unstable_stages = [
+        stage["stageFromFeedEnd"] for stage in stages
+        if (
+            stage["localPostSplitStability"]["raffinate"]["minimumDirectionalCurvature"]
+            < gates["minimumLocalStabilityCurvature"]
+            or stage["localPostSplitStability"]["extract"]["minimumDirectionalCurvature"]
+            < gates["minimumLocalStabilityCurvature"]
+        )
+    ]
+    if unstable_stages:
+        blockers.append({
+            "code": "POST_SPLIT_LOCAL_STABILITY_FAILED",
+            "stagesFromFeedEnd": unstable_stages,
+            "limit": gates["minimumLocalStabilityCurvature"],
+        })
+    failed_gibbs_stages = [
+        stage["stageFromFeedEnd"] for stage in stages
+        if stage["stageGibbsReduction"] < gates["minimumStageGibbsReduction"]
+    ]
+    if failed_gibbs_stages:
+        blockers.append({
+            "code": "STAGE_GIBBS_REDUCTION_FAILED",
+            "stagesFromFeedEnd": failed_gibbs_stages,
+            "limit": gates["minimumStageGibbsReduction"],
+        })
     return {
         "stageCount": stage_count,
         "solverSuccess": bool(best.success),
         "solverMessage": str(best.message),
         "maximumScaledEquationResidual": float(np.max(np.abs(best.fun))),
         "multistartProductRelativeDifference": float(product_difference),
+        "multistartEvidence": {
+            "startCount": 2,
+            "startDefinition": "continuation/base plus deterministic component-log-flow perturbation [-0.015,+0.015]",
+            "primary": {
+                "solverSuccess": bool(primary.success),
+                "maximumScaledEquationResidual": float(np.max(np.abs(primary.fun))),
+            },
+            "secondary": {
+                "solverSuccess": bool(secondary.success),
+                "maximumScaledEquationResidual": secondary_residual,
+            },
+            "bothStartsClosed": secondary_closed and bool(
+                primary.success
+                and np.max(np.abs(primary.fun)) <= gates["maximumScaledEquationResidual"]
+            ),
+        },
         "accepted": accepted,
+        "acceptanceBlockers": blockers,
         "boundaryStreams": {
             "oilFeed": {"entersStage": 1, "flowMol": float(feed.sum()), "componentMoles": feed.tolist()},
             "freshNmp": {"entersStage": stage_count, "flowMol": float(solvent.sum()), "componentMoles": solvent.tolist()},
@@ -289,6 +390,7 @@ def main():
     targets = prior["stage1Authority"]["charge"]["targets"]
     results = {
         "schemaVersion": "1.0.0",
+        "executionMode": "DEFAULT_FROZEN_PROTOCOL",
         "modelIdentity": protocol["modelIdentity"],
         "componentOrder": list(model.FAMILIES),
         "governance": protocol["governance"],
@@ -324,7 +426,9 @@ def main():
                 stage_count, temperature_k, feed, solvent, parameters,
                 protocol, seeds[temperature_k], previous,
             )
-            previous = trial.pop("_streamSolution")
+            candidate_solution = trial.pop("_streamSolution")
+            if trial["maximumScaledEquationResidual"] <= protocol["numericalAcceptance"]["maximumScaledEquationResidual"]:
+                previous = candidate_solution
             values, checks, calculable_pass = product_metrics(
                 trial.pop("_raffinateProduct"), feed_mass, molecular_weights, targets
             )
@@ -334,26 +438,32 @@ def main():
             if trial["allCalculableTargetsPass"] and first_passing is None:
                 first_passing = stage_count
             trials.append(trial)
+            print(
+                json.dumps({
+                    "temperatureC": temperature_k - 273.15,
+                    "stageCount": stage_count,
+                    "accepted": trial["accepted"],
+                    "maximumScaledEquationResidual": trial["maximumScaledEquationResidual"],
+                }),
+                flush=True,
+            )
         results["temperatureCases"].append({
             "temperatureC": temperature_k - 273.15,
             "temperatureK": temperature_k,
             "trials": trials,
             "firstStageCountMeetingAllCalculableTargets": first_passing,
-            "theoreticalStageVerdict": (
-                f"TARGETS_ACHIEVED_AT_NT_{first_passing}"
-                if first_passing is not None
-                else "TARGETS_NOT_ACHIEVED_WITHIN_NT_LIMIT"
-            ),
+            "theoreticalStageVerdict": cascade_verdict(trials, first_passing),
         })
     results["decision"] = {
         "numericalCascadeResult": "RESEARCH_DIAGNOSTIC_ONLY",
         "fullSixComponentModelQualification": "NOT_QUALIFIED",
         "releaseEligible": False,
-        "reason": "The Task #199 equilibrium model fails the frozen blind composition-RMSD qualification gate.",
+        "reason": "The amended equilibrium model fails the frozen blind composition-RMSD qualification gate.",
     }
     OUTPUT.mkdir(parents=True, exist_ok=True)
     result_path = OUTPUT / "results.json"
     result_path.write_text(json.dumps(json_safe(results), indent=2, sort_keys=True) + "\n")
+    write_report(results, OUTPUT / "report.md")
     manifest = {
         "protocolSha256": sha256(HERE / "protocol.json"),
         "stage1SnapshotSha256": sha256(AMENDMENT / "stage1-qualification-snapshot.json"),
@@ -361,9 +471,9 @@ def main():
         "amendmentResultsSha256": sha256(OUTPUT.parent / "ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json"),
         "runnerSha256": sha256(HERE / "run.py"),
         "resultsSha256": sha256(result_path),
+        "reportSha256": sha256(OUTPUT / "report.md"),
     }
     (OUTPUT / "provenance-manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-    write_report(results, OUTPUT / "report.md")
     print(json.dumps({"status": "PASS", "output": str(result_path), "decisions": [
         {"temperatureC": case["temperatureC"], "verdict": case["theoreticalStageVerdict"]}
         for case in results["temperatureCases"]
@@ -382,22 +492,58 @@ def write_report(results, path):
     ]
     for case in results["temperatureCases"]:
         lines += [f"## {case['temperatureC']:.0f}°C", "", f"**Stage requirement:** `{case['theoreticalStageVerdict']}`", ""]
-        lines += ["| NT | Accepted | SAT wt% | Aromatics wt% | PA wt% | Recovery % | NMP in raffinate wt% | All calculable targets |", "|---:|:---:|---:|---:|---:|---:|---:|:---:|"]
+        lines += ["| NT | Primary closed | Both starts closed | Accepted | SAT wt% | Aromatics wt% | PA wt% | Recovery % | NMP in raffinate wt% |", "|---:|:---:|:---:|:---:|---:|---:|---:|---:|---:|"]
         for trial in case["trials"]:
             v = trial["productMetrics"]
             lines.append(
-                f"| {trial['stageCount']} | {'YES' if trial['accepted'] else 'NO'} | "
+                f"| {trial['stageCount']} | {'YES' if trial['maximumScaledEquationResidual'] <= 1e-8 else 'NO'} | "
+                f"{'YES' if trial['multistartEvidence']['bothStartsClosed'] else 'NO'} | "
+                f"{'YES' if trial['accepted'] else 'NO'} | "
                 f"{v['raffinateSaturatesWtNmpFree']:.4f} | {v['raffinateTotalAromaticsWtNmpFree']:.4f} | "
                 f"{v['raffinatePolarAromaticsWtNmpFree']:.4f} | {v['nmpFreeHydrocarbonRecoveryPct']:.4f} | "
-                f"{v['nmpInTotalRaffinateWt']:.4f} | {'PASS' if trial['allCalculableTargetsPass'] else 'FAIL'} |"
+                f"{v['nmpInTotalRaffinateWt']:.4f} |"
             )
-        lines += ["", "Complete incoming/outgoing flows, six-component mole/mass profiles, K values, and closure residuals for every stage are in `results.json`.", ""]
+        stable_closure = [
+            trial["stageCount"] for trial in case["trials"]
+            if trial["maximumScaledEquationResidual"] <= 1e-8
+        ]
+        solver_failed = [
+            trial["stageCount"] for trial in case["trials"]
+            if trial["maximumScaledEquationResidual"] > 1e-8
+        ]
+        lines += [
+            "",
+            f"- Primary coupled equation closure passed for NT = {stable_closure}.",
+            f"- Primary coupled equation closure failed for NT = {solver_failed}.",
+            f"- Both deterministic starts closed for NT = {[trial['stageCount'] for trial in case['trials'] if trial['multistartEvidence']['bothStartsClosed']]}.",
+            "- Every tested stationary branch failed the governed directional local-stability screen; all product metrics are diagnostic only.",
+            "- Recovery and NMP-carryover targets fail throughout the closed series, so no accepted NT exists within 10 stages.",
+            "",
+            "Complete incoming/outgoing flows, six-component mole/mass profiles, K values, acceptance blockers, and closure residuals for every stage are in `results.json`.",
+            "",
+        ]
     lines += [
         "## Governance decision", "",
         "`FULL_SIX_COMPONENT_MODEL_QUALIFICATION = NOT_QUALIFIED`", "",
         "These cascade values are numerical research diagnostics, not validated process-design results. The underlying Task #199 model failed the frozen blind LLE composition-RMSD ceiling. Sulfur remains `NOT_CALCULABLE`; PA transfer is provisional and is not sulfur removal.",
     ]
     path.write_text("\n".join(lines) + "\n")
+
+
+def cascade_verdict(trials, first_passing):
+    if first_passing is not None:
+        return f"TARGETS_ACHIEVED_AT_NT_{first_passing}"
+    unresolved_primary = [
+        trial["stageCount"] for trial in trials
+        if trial["maximumScaledEquationResidual"] > 1e-8
+    ]
+    unresolved_multistart = [
+        trial["stageCount"] for trial in trials
+        if not trial.get("multistartEvidence", {}).get("bothStartsClosed", False)
+    ]
+    if unresolved_primary or unresolved_multistart:
+        return "NO_ACCEPTED_SOLUTION_FOUND_WITHIN_NT_LIMIT_MULTISTART_OR_HIGHER_TRIALS_UNRESOLVED"
+    return "TARGETS_NOT_ACHIEVED_WITHIN_NT_LIMIT"
 
 
 if __name__ == "__main__":

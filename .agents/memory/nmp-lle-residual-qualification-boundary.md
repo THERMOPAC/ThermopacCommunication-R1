@@ -8,3 +8,9 @@ An evidence-fitted residual excess-Gibbs correction may produce a genuine, stabl
 **Why:** The amended COSMO-SAC route passed TPD, Gibbs reduction, isoactivity, post-split stability, and balance checks at the design point, but both complete-temperature and complete-molecular-system holdouts exceeded the frozen 0.03 composition RMSD ceiling. Numerical validity at one design charge is not predictive qualification.
 
 **How to apply:** Keep the model identity separate from unmodified COSMO-SAC, retain `CALIBRATION_REQUIRED`, PA-provisional, sulfur-`NOT_CALCULABLE`, and non-release labels, and require direct full-mixture evidence before using the result in a counter-current stage design.
+
+A later coupled counter-current calculation exposed negative directional curvature around the amended model's stationary phase compositions at both 25°C and 50°C. Treat the earlier flash as an activity-equality stationary split, not a locally stable accepted phase pair, until a full tangent-space Hessian or independently seeded post-split TPD analysis resolves this conflict.
+
+**Why:** The original coarse-simplex TPD search and its remote refinement seeds did not test sufficiently small perturbations around each returned phase. The counter-current study's deterministic local screen found materially negative curvature despite excellent activity and balance closure.
+
+**How to apply:** Do not infer thermodynamic stability from chemical-potential equality, material balance, or Gibbs reduction alone. Include local perturbation or Hessian directions around each returned phase in every future acceptance gate.
