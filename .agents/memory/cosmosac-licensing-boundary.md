@@ -3,7 +3,7 @@ name: COSMO-SAC licensing boundary
 description: Commercial-admission limits for the NIST COSMO-SAC implementation, bundled molecular profiles, and ThermoSAC.
 ---
 
-The NIST COSMO-SAC implementation is MIT-licensed, but its bundled UD and VT2005 molecular profile databases are not covered by that permissive grant. Their published terms limit use to non-profit academic work and restrict redistribution. ThermoSAC's repository and published package declare no software license, so its code is not admitted for commercial reuse without explicit permission.
+The NIST COSMO-SAC implementation is MIT-licensed, but its bundled UD and VT2005 `.cosmo` files are not covered by that grant. NIST says BioVia permitted them for academic, non-commercial use; all other use requires separate permission. ThermoSAC's repository and package declare no software license, so its code is not admitted for reuse without explicit permission.
 
 **Why:** A permissive engine license does not grant commercial rights to separately licensed molecular profiles, and a public source repository without a license grants no general reuse permission.
 

@@ -17,7 +17,7 @@
   "decision": "STOPPED_NON_PA_TOPOLOGY_GATE_FAILED",
   "licenseEvidence": {
     "path": "server/research/ecr-pre-pilot-six-component-thermodynamics/license-evidence.json",
-    "sha256": "3a6f189e3549724a789b73c2c624e3863732f2f29e224c1fcea9f111ac40aa1d"
+    "sha256": "77c327c85718e6f668e44448b218839c83b77a8802292936b304494abc27cc23"
   },
   "mission": {
     "components": [
@@ -111,8 +111,8 @@
         "assessment": "NOT_ADMITTED_FOR_PROJECT_CALCULATIONS",
         "evidence": [
           "The repository states that UD and VT2005 molecular files have less-permissive licenses separate from the MIT software.",
-          "The UD terms state that the database may be used for non-profit academic purposes and prohibit redistribution without author consent.",
-          "No permission for this project's calculations or redistribution has been established."
+          "NIST states that BioVia permitted the .cosmo files for academic, non-commercial use; all other use requires separate permission.",
+          "No permission for this project's non-academic or commercial calculations or redistribution has been established."
         ],
         "repositoryNotice": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/README.md#license",
         "udTerms": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/profiles/UD/Readme.txt"
@@ -173,7 +173,7 @@
       "multicomponentTpdAndFlash": "HISTORICALLY_EXECUTED_RESEARCH_IMPLEMENTATION",
       "softwareLicenseAssessment": {
         "assessment": "MIT_LICENSED_SOFTWARE",
-        "evidence": "Permission is granted to use, modify, distribute, sublicense, and sell copies of the software subject to retaining the notice.",
+        "evidence": "MIT licensed; NIST states that the software is not subject to copyright in the USA, with foreign rights reserved by the Secretary of Commerce.",
         "reviewedCommit": "1b82456be38026719b16cad4076109bef3fcb309",
         "source": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/LICENSE"
       },
