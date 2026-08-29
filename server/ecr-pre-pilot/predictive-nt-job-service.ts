@@ -73,7 +73,7 @@ const MAX_ACTIVE_JOBS_PER_USER = 2;
 const JOB_TIMEOUT_MS = 4 * 60 * 60 * 1000;
 const LEASE_MS = 45 * 1000;
 const POLL_MS = 1_000;
-const PREDICTIVE_NT_ENGINE_SHA256 = '70a39141ed6ed3dfb9f0e95b38db459f95752fb9e75beefe767e95b64b35fa32';
+const PREDICTIVE_NT_ENGINE_SHA256 = 'e5b54770ec212238f34cc62971c3b826fb3310e9ff4589dd09159285044973cc';
 const PREDICTIVE_NT_RUNTIME_SUPPORT_SHA256 = {
   'server/research/ecr-pre-pilot-uniquac/model.py':
     'c1130eba32c1b84c55309b71ee88c7ce6297b16c5a465486f5f505158c551ebc',
@@ -86,6 +86,7 @@ let workerBusy = false;
 type RuntimeTestHooks = {
   killAfterAcknowledgedStage?: number;
   replayMismatchAtStage?: number;
+  restartAfterAcknowledgedStage?: number;
 };
 const runtimeTestHooks = new Map<string, RuntimeTestHooks>();
 
@@ -105,10 +106,27 @@ function workerScript() {
   );
 }
 
+function currentPredictiveNtEngineHash() {
+  const relativePaths = [
+    path.relative(runtimeRoot(), workerScript()).split(path.sep).join('/'),
+    ...Object.keys(PREDICTIVE_NT_RUNTIME_SUPPORT_SHA256),
+  ].sort();
+  const payload = relativePaths
+    .map((relativePath) => {
+      const absolutePath = path.join(runtimeRoot(), relativePath);
+      if (!fs.existsSync(absolutePath)) {
+        throw new Error(`PREDICTIVE_NT_RUNTIME_MISSING: ${absolutePath}`);
+      }
+      return `${relativePath}:${createHash('sha256').update(fs.readFileSync(absolutePath)).digest('hex')}`;
+    })
+    .join('\n');
+  return createHash('sha256').update(payload).digest('hex');
+}
+
 export function preflightPredictiveNtRuntime() {
   const script = workerScript();
   if (!fs.existsSync(script)) throw new Error(`PREDICTIVE_NT_RUNTIME_MISSING: ${script}`);
-  const engineHash = createHash('sha256').update(fs.readFileSync(script)).digest('hex');
+  const engineHash = currentPredictiveNtEngineHash();
   if (engineHash !== PREDICTIVE_NT_ENGINE_SHA256) {
     throw new Error('PREDICTIVE_NT_RUNTIME_PREFLIGHT_FAILED: engine hash mismatch');
   }
@@ -489,13 +507,30 @@ async function persistTrialCheckpoint(
   jobId: string,
   claimToken: string,
   stageCount: number,
-  trialHash: string,
-  canonicalTrial: string,
+  payloadHash: string,
+  canonicalPayload: string,
 ) {
-  if (!/^[a-f0-9]{64}$/.test(trialHash) || canonicalTrial.length > 5_000_000) {
+  if (!/^[a-f0-9]{64}$/.test(payloadHash) || canonicalPayload.length > 10_000_000) {
     throw new Error('PREDICTIVE_NT_CHECKPOINT_INVALID');
   }
-  if (createHash('sha256').update(canonicalTrial).digest('hex') !== trialHash) {
+  if (createHash('sha256').update(canonicalPayload).digest('hex') !== payloadHash) {
+    throw new Error('PREDICTIVE_NT_CHECKPOINT_HASH_MISMATCH');
+  }
+  let payload: any;
+  try {
+    payload = JSON.parse(canonicalPayload);
+  } catch {
+    throw new Error('PREDICTIVE_NT_CHECKPOINT_INVALID');
+  }
+  const canonicalTrial = payload?.trialCanonical;
+  const trialHash = payload?.trialHash;
+  const continuationState = payload?.continuationState;
+  if (
+    typeof canonicalTrial !== 'string'
+    || !/^[a-f0-9]{64}$/.test(trialHash)
+    || createHash('sha256').update(canonicalTrial).digest('hex') !== trialHash
+    || !continuationState
+  ) {
     throw new Error('PREDICTIVE_NT_CHECKPOINT_HASH_MISMATCH');
   }
   let trial: any;
@@ -526,10 +561,22 @@ async function persistTrialCheckpoint(
     const existingHashes = Array.isArray(existingResult.checkpoint?.trialHashes)
       ? [...existingResult.checkpoint.trialHashes]
       : [];
+    const existingCanonicals = Array.isArray(existingResult.checkpoint?.trialCanonicals)
+      ? [...existingResult.checkpoint.trialCanonicals]
+      : [];
+    const existingPayloadHashes = Array.isArray(existingResult.checkpoint?.payloadHashes)
+      ? [...existingResult.checkpoint.payloadHashes]
+      : [];
+    const existingPayloadCanonicals = Array.isArray(existingResult.checkpoint?.payloadCanonicals)
+      ? [...existingResult.checkpoint.payloadCanonicals]
+      : [];
     const completed = Number(row.completed_trials);
 
     if (stageCount <= completed) {
-      if (existingHashes[stageCount - 1] !== trialHash) {
+      if (
+        existingHashes[stageCount - 1] !== trialHash
+        || existingPayloadHashes[stageCount - 1] !== payloadHash
+      ) {
         throw new Error('PREDICTIVE_NT_CHECKPOINT_REPLAY_MISMATCH');
       }
       await client.query('COMMIT');
@@ -549,9 +596,16 @@ async function persistTrialCheckpoint(
       calibrationRequired: true,
       trials: existingTrials,
       checkpoint: {
-        protocol: 'ACK_V1',
+        protocol: 'ACK_V2',
         acknowledgedStageCount: stageCount,
         trialHashes: existingHashes,
+        trialCanonicals: [...existingCanonicals, canonicalTrial],
+        payloadHashes: [...existingPayloadHashes, payloadHash],
+        payloadCanonicals: [...existingPayloadCanonicals, canonicalPayload],
+        latestContinuationState: continuationState,
+        inputHash: createHash('sha256').update(canonicalJson(row.input_snapshot)).digest('hex'),
+        modelHash: row.model_hash,
+        engineHash: row.engine_hash,
       },
     }, row.input_snapshot);
     const updated = await client.query(
@@ -577,6 +631,63 @@ async function persistTrialCheckpoint(
   } finally {
     client.release();
   }
+}
+
+function buildResumeRequest(job: PredictiveNtJob) {
+  const result = job.result as any;
+  const checkpoint = result?.checkpoint;
+  const completed = job.progress.completedStageTrials;
+  if (completed === 0) return null;
+  if (
+    checkpoint?.protocol !== 'ACK_V2'
+    || checkpoint.acknowledgedStageCount !== completed
+    || checkpoint.inputHash !== createHash('sha256').update(canonicalJson(job.input)).digest('hex')
+    || checkpoint.modelHash !== job.modelHash
+    || checkpoint.engineHash !== job.engineHash
+    || !Array.isArray(result?.trials)
+    || !Array.isArray(checkpoint.trialHashes)
+    || !Array.isArray(checkpoint.trialCanonicals)
+    || !Array.isArray(checkpoint.payloadHashes)
+    || !Array.isArray(checkpoint.payloadCanonicals)
+    || result.trials.length !== completed
+    || checkpoint.trialHashes.length !== completed
+    || checkpoint.trialCanonicals.length !== completed
+    || checkpoint.payloadHashes.length !== completed
+    || checkpoint.payloadCanonicals.length !== completed
+    || !checkpoint.latestContinuationState
+  ) {
+    throw new Error('PREDICTIVE_NT_RESUME_CHECKPOINT_INVALID');
+  }
+  for (let index = 0; index < completed; index += 1) {
+    const canonical = checkpoint.trialCanonicals[index];
+    const canonicalPayload = checkpoint.payloadCanonicals[index];
+    let payload;
+    try {
+      payload = JSON.parse(canonicalPayload);
+    } catch {
+      throw new Error('PREDICTIVE_NT_RESUME_CHECKPOINT_HASH_MISMATCH');
+    }
+    if (
+      typeof canonical !== 'string'
+      || typeof canonicalPayload !== 'string'
+      || createHash('sha256').update(canonical).digest('hex') !== checkpoint.trialHashes[index]
+      || createHash('sha256').update(canonicalPayload).digest('hex') !== checkpoint.payloadHashes[index]
+      || payload.trialCanonical !== canonical
+      || payload.trialHash !== checkpoint.trialHashes[index]
+      || canonicalJson(JSON.parse(canonical)) !== canonicalJson(result.trials[index])
+      || (
+        index === completed - 1
+        && canonicalJson(payload.continuationState) !== canonicalJson(checkpoint.latestContinuationState)
+      )
+    ) {
+      throw new Error('PREDICTIVE_NT_RESUME_CHECKPOINT_HASH_MISMATCH');
+    }
+  }
+  return {
+    acknowledgedStageCount: completed,
+    trials: result.trials,
+    continuationState: checkpoint.latestContinuationState,
+  };
 }
 
 async function renewLease(jobId: string, claimToken: string) {
@@ -668,7 +779,14 @@ async function finishJob(
 
 function execute(job: PredictiveNtJob, claimToken: string) {
   const script = workerScript();
-  const engineHash = createHash('sha256').update(fs.readFileSync(script)).digest('hex');
+  let engineHash: string;
+  try {
+    engineHash = currentPredictiveNtEngineHash();
+  } catch (error) {
+    void finishJob(job.id, claimToken, 'failed', job.result, (error as Error).message)
+      .finally(() => { workerBusy = false; });
+    return;
+  }
   const evidenceError = validatePredictiveNtExecutionEvidence(job, engineHash);
   if (evidenceError) {
     void finishJob(job.id, claimToken, 'failed', null, evidenceError)
@@ -676,6 +794,14 @@ function execute(job: PredictiveNtJob, claimToken: string) {
     return;
   }
 
+  let resumeRequest;
+  try {
+    resumeRequest = buildResumeRequest(job);
+  } catch (error) {
+    void finishJob(job.id, claimToken, 'failed', job.result, (error as Error).message)
+      .finally(() => { workerBusy = false; });
+    return;
+  }
   const child = spawn('python3.12', [script], {
     cwd: runtimeRoot(),
     stdio: ['pipe', 'pipe', 'pipe'],
@@ -685,6 +811,7 @@ function execute(job: PredictiveNtJob, claimToken: string) {
   let stderrLineBuffer = '';
   let timedOut = false;
   let checkpointFailure: Error | null = null;
+  let simulatedRestart = false;
   let checkpointQueue = Promise.resolve();
   const heartbeat = setInterval(() => {
     void renewLease(job.id, claimToken)
@@ -709,15 +836,15 @@ function execute(job: PredictiveNtJob, claimToken: string) {
       const checkpoint = /^PREDICTIVE_NT_CHECKPOINT\s+(\d+)\s+([a-f0-9]{64})\s+([A-Za-z0-9+/=]+)$/.exec(line);
       if (checkpoint) {
         const stageCount = Number(checkpoint[1]);
-        const trialHash = checkpoint[2];
-        const canonicalTrial = Buffer.from(checkpoint[3], 'base64').toString('utf8');
+        const payloadHash = checkpoint[2];
+        const canonicalPayload = Buffer.from(checkpoint[3], 'base64').toString('utf8');
         checkpointQueue = checkpointQueue
           .then(() => persistTrialCheckpoint(
             job.id,
             claimToken,
             stageCount,
-            trialHash,
-            canonicalTrial,
+            payloadHash,
+            canonicalPayload,
           ))
           .then(async () => {
             const testHooks = runtimeTestHooks.get(job.id);
@@ -725,18 +852,27 @@ function execute(job: PredictiveNtJob, claimToken: string) {
               process.env.NODE_ENV === 'test'
               && testHooks?.replayMismatchAtStage === stageCount
             ) {
-              const mismatchedTrial = canonicalTrial.replace(/}$/, ',"testReplayMismatch":true}');
-              const mismatchedHash = createHash('sha256').update(mismatchedTrial).digest('hex');
+              const mismatchedPayload = canonicalPayload.replace(/}$/, ',"testReplayMismatch":true}');
+              const mismatchedHash = createHash('sha256').update(mismatchedPayload).digest('hex');
               await persistTrialCheckpoint(
                 job.id,
                 claimToken,
                 stageCount,
                 mismatchedHash,
-                mismatchedTrial,
+                mismatchedPayload,
               );
             }
             if (!child.killed) {
-              child.stdin.write(`PREDICTIVE_NT_ACK ${stageCount} ${trialHash}\n`);
+              child.stdin.write(`PREDICTIVE_NT_ACK ${stageCount} ${payloadHash}\n`);
+              if (
+                process.env.NODE_ENV === 'test'
+                && testHooks?.restartAfterAcknowledgedStage === stageCount
+              ) {
+                simulatedRestart = true;
+                delete testHooks.restartAfterAcknowledgedStage;
+                child.kill('SIGKILL');
+                return;
+              }
               if (
                 process.env.NODE_ENV === 'test'
                 && testHooks?.killAfterAcknowledgedStage === stageCount
@@ -772,6 +908,17 @@ function execute(job: PredictiveNtJob, claimToken: string) {
     clearTimeout(timeout);
     clearInterval(heartbeat);
     await checkpointQueue;
+    if (simulatedRestart) {
+      await pool.query(
+        `UPDATE ecr_pre_pilot_predictive_nt_jobs
+            SET lease_expires_at = NOW() - INTERVAL '1 second'
+          WHERE id = $1 AND status = 'running' AND claim_token = $2`,
+        [job.id, claimToken],
+      );
+      workerBusy = false;
+      void pollWorker();
+      return;
+    }
     if (stderrLineBuffer) stderr += stderrLineBuffer;
     let result: unknown = null;
     try {
@@ -803,7 +950,8 @@ function execute(job: PredictiveNtJob, claimToken: string) {
   child.stdin.write(`${JSON.stringify({
     ...job.input,
     engineHash,
-    _checkpointProtocol: 'ACK_V1',
+    _checkpointProtocol: 'ACK_V2',
+    _resume: resumeRequest,
   })}\n`);
 }
 

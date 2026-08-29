@@ -18,7 +18,11 @@ NEW = ROOT / "server/research/ecr-pre-pilot-new-analogue"
 CHECKPOINT = ROOT / ".agents/outputs/ecr-pre-pilot-new-analogue/fit-checkpoint.json"
 MODEL_HASH = "cb8b2945499ea65cd071f99695ea14c5a3396fba475aa6bb8ed8bdfe6f3198c7"
 ENGINE_ID = "ECR2_PREDICTIVE_NT_BACKGROUND"
-ENGINE_VERSION = "1.1.0"
+ENGINE_VERSION = "1.2.0"
+RUNTIME_SUPPORT_PATHS = [
+    "server/research/ecr-pre-pilot-uniquac/model.py",
+    "server/research/ecr-pre-pilot-uniquac/structural-provenance.json",
+]
 COMPONENTS = ["SAT", "MONO", "NMP"]
 EPS = 1e-14
 BALANCE_TOL = 1e-8
@@ -36,6 +40,13 @@ spec.loader.exec_module(dt)
 
 def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def runtime_engine_hash():
+    relative_script = Path(__file__).resolve().relative_to(ROOT).as_posix()
+    paths = [relative_script, *RUNTIME_SUPPORT_PATHS]
+    payload = "\n".join(f"{path}:{sha256(ROOT / path)}" for path in sorted(paths))
+    return hashlib.sha256(payload.encode()).hexdigest()
 
 
 def verify_declared_model_hash(manifest):
@@ -334,19 +345,52 @@ def run_trial(stage_count, feed, solvent_ratio, row, continuation_state=None):
     }, (liquid.copy(), extract.copy())
 
 
-def emit_trial_checkpoint(trial, checkpoint_protocol):
-    if checkpoint_protocol != "ACK_V1":
+def serialize_continuation_state(continuation_state):
+    liquid, extract = continuation_state
+    return {
+        "liquidComponentFlows": liquid.tolist(),
+        "extractComponentFlows": extract.tolist(),
+    }
+
+
+def restore_continuation_state(value, stage_count):
+    if not isinstance(value, dict):
+        raise ValueError("PREDICTIVE_NT_RESUME_STATE_INVALID")
+    liquid = np.asarray(value.get("liquidComponentFlows"), dtype=float)
+    extract = np.asarray(value.get("extractComponentFlows"), dtype=float)
+    expected_shape = (stage_count + 2, 3)
+    if (
+        liquid.shape != expected_shape
+        or extract.shape != expected_shape
+        or not np.all(np.isfinite(liquid))
+        or not np.all(np.isfinite(extract))
+        or np.any(liquid < -EPS)
+        or np.any(extract < -EPS)
+    ):
+        raise ValueError("PREDICTIVE_NT_RESUME_STATE_INVALID")
+    return liquid, extract
+
+
+def emit_trial_checkpoint(trial, continuation_state, checkpoint_protocol):
+    if checkpoint_protocol != "ACK_V2":
         return
-    canonical = json.dumps(trial, sort_keys=True, separators=(",", ":"))
-    digest = hashlib.sha256(canonical.encode()).hexdigest()
-    encoded = base64.b64encode(canonical.encode()).decode()
+    canonical_trial = json.dumps(trial, sort_keys=True, separators=(",", ":"))
+    trial_digest = hashlib.sha256(canonical_trial.encode()).hexdigest()
+    payload = {
+        "continuationState": serialize_continuation_state(continuation_state),
+        "trialCanonical": canonical_trial,
+        "trialHash": trial_digest,
+    }
+    canonical_payload = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    payload_digest = hashlib.sha256(canonical_payload.encode()).hexdigest()
+    encoded = base64.b64encode(canonical_payload.encode()).decode()
     print(
-        f"PREDICTIVE_NT_CHECKPOINT {trial['stageCount']} {digest} {encoded}",
+        f"PREDICTIVE_NT_CHECKPOINT {trial['stageCount']} {payload_digest} {encoded}",
         file=sys.stderr,
         flush=True,
     )
     acknowledgement = sys.stdin.readline().strip()
-    if acknowledgement != f"PREDICTIVE_NT_ACK {trial['stageCount']} {digest}":
+    if acknowledgement != f"PREDICTIVE_NT_ACK {trial['stageCount']} {payload_digest}":
         raise RuntimeError("PREDICTIVE_NT_CHECKPOINT_NOT_ACKNOWLEDGED")
 
 
@@ -354,10 +398,11 @@ def main():
     request_line = sys.stdin.readline()
     request = json.loads(request_line)
     checkpoint_protocol = request.pop("_checkpointProtocol", None)
+    resume = request.pop("_resume", None)
     manifest = verify_frozen_model()
     if request.get("modelHash") != MODEL_HASH:
         raise ValueError("MODEL_HASH_MISMATCH")
-    engine_hash = sha256(Path(__file__))
+    engine_hash = runtime_engine_hash()
     if request.get("engineHash") != engine_hash:
         raise ValueError("PREDICTIVE_NT_ENGINE_HASH_MISMATCH")
     temperature_k = float(request["temperatureK"])
@@ -377,7 +422,31 @@ def main():
     try:
         last_mono = float(feed[1] / (feed[0] + feed[1]))
         continuation_state = None
-        for stage_count in range(1, max_stages + 1):
+        start_stage = 1
+        if resume is not None:
+            trials = resume.get("trials")
+            acknowledged = resume.get("acknowledgedStageCount")
+            if (
+                not isinstance(trials, list)
+                or not isinstance(acknowledged, int)
+                or acknowledged < 1
+                or acknowledged > max_stages
+                or len(trials) != acknowledged
+                or any(trial.get("stageCount") != index + 1 for index, trial in enumerate(trials))
+            ):
+                raise ValueError("PREDICTIVE_NT_RESUME_PREFIX_INVALID")
+            continuation_state = restore_continuation_state(
+                resume.get("continuationState"),
+                acknowledged,
+            )
+            last_mono = float(trials[-1]["raffinateMonoHydrocarbonMoleFraction"])
+            start_stage = acknowledged + 1
+            print(
+                f"PREDICTIVE_NT_RESUME {acknowledged} {start_stage}",
+                file=sys.stderr,
+                flush=True,
+            )
+        for stage_count in range(start_stage, max_stages + 1):
             trial, continuation_state = run_trial(
                 stage_count,
                 feed,
@@ -398,7 +467,7 @@ def main():
                         for stage in trial["stages"])
             )
             trials.append(trial)
-            emit_trial_checkpoint(trial, checkpoint_protocol)
+            emit_trial_checkpoint(trial, continuation_state, checkpoint_protocol)
             print(f"PREDICTIVE_NT_PROGRESS {stage_count} {max_stages}", file=sys.stderr, flush=True)
             last_mono = current_mono
         selected = select_minimum_accepted_trial(trials)

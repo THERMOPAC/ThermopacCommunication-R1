@@ -265,7 +265,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
         overallEcrProductAcceptanceStatus: 'BLOCKED_BY_NOT_CALCULABLE_TARGETS',
       },
     });
-  });
+  }, 30_000);
 
   it('fails closed when the saved Stage 1 scope includes unsupported feed', async () => {
     const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
@@ -378,7 +378,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       expect(completed?.status, completed?.error ?? 'job did not complete').toBe('completed');
       expect(completed?.modelHash).toBe(PRE_PILOT_MODEL.modelHash);
       expect(completed?.engineHash).toBe(
-        '70a39141ed6ed3dfb9f0e95b38db459f95752fb9e75beefe767e95b64b35fa32',
+        'e5b54770ec212238f34cc62971c3b826fb3310e9ff4589dd09159285044973cc',
       );
       expect(completed?.result).toMatchObject({
         status: 'ACCEPTED_PREDICTIVE_NT',
@@ -396,10 +396,15 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       const result = completed?.result as any;
       expect(result.trials).toHaveLength(1);
       expect(result.checkpoint).toMatchObject({
-        protocol: 'ACK_V1',
+        protocol: 'ACK_V2',
         acknowledgedStageCount: 1,
+        modelHash: PRE_PILOT_MODEL.modelHash,
+        engineHash: completed?.engineHash,
       });
       expect(result.checkpoint.trialHashes).toHaveLength(1);
+      expect(result.checkpoint.trialCanonicals).toHaveLength(1);
+      expect(result.checkpoint.payloadHashes).toHaveLength(1);
+      expect(result.checkpoint.payloadCanonicals).toHaveLength(1);
       expect(result.trials[0].balanceAccepted).toBe(true);
       expect(result.trials[0].overallComponentBalanceMaximum).toBeLessThanOrEqual(1e-8);
       expect(Math.abs(Object.values(result.trials[0].overallComponentBalanceResiduals)
@@ -449,8 +454,96 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     expect(terminal?.error).toContain(error);
     expect((terminal?.result as any)?.trials).toHaveLength(1);
     expect((terminal?.result as any)?.checkpoint).toMatchObject({
-      protocol: 'ACK_V1',
+      protocol: 'ACK_V2',
       acknowledgedStageCount: 1,
     });
   }, 150_000);
+
+  it('resumes at the next stage after a worker restart without rewriting acknowledged evidence', async () => {
+    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
+    if (!user.rows[0]) throw new Error('No user available for checkpoint restart test');
+    const userId = Number(user.rows[0].id);
+    const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-checkpoint-resume-v2');
+    const submitted = await enqueuePredictiveNtRuntimeTestJob(
+      { ...validInput, maximumStages: 2 },
+      userId,
+      design.id,
+      { restartAfterAcknowledgedStage: 1 },
+    );
+    let terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    const deadline = Date.now() + 180_000;
+    while (terminal?.status !== 'completed' && terminal?.status !== 'failed' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    }
+
+    expect(terminal?.status, terminal?.error ?? 'job did not complete').toBe('completed');
+    const result = terminal?.result as any;
+    expect(result.trials.map((trial: any) => trial.stageCount)).toEqual([1, 2]);
+    expect(result.trials[1].solverDiagnostics.initialization)
+      .toBe('N_MINUS_1_COMPONENT_FLOW_CONTINUATION');
+    expect(result.checkpoint).toMatchObject({
+      protocol: 'ACK_V2',
+      acknowledgedStageCount: 2,
+      modelHash: PRE_PILOT_MODEL.modelHash,
+      engineHash: terminal?.engineHash,
+    });
+    expect(result.checkpoint.trialHashes).toHaveLength(2);
+    expect(result.checkpoint.trialCanonicals).toHaveLength(2);
+    expect(result.checkpoint.payloadHashes).toHaveLength(2);
+    expect(result.checkpoint.payloadCanonicals).toHaveLength(2);
+
+    const history = await pool.query(
+      `SELECT details->>'stageCount' AS stage_count,
+              details->>'trialHash' AS trial_hash,
+              COUNT(*)::int AS total
+         FROM ecr_pre_pilot_predictive_nt_job_history
+        WHERE job_id = $1
+          AND details->>'event' = 'trial_checkpoint_acknowledged'
+        GROUP BY details->>'stageCount', details->>'trialHash'
+        ORDER BY (details->>'stageCount')::int`,
+      [submitted.jobId],
+    );
+    expect(history.rows).toEqual([
+      { stage_count: '1', trial_hash: result.checkpoint.trialHashes[0], total: 1 },
+      { stage_count: '2', trial_hash: result.checkpoint.trialHashes[1], total: 1 },
+    ]);
+  }, 210_000);
+
+  it('finalizes from checkpoints when the worker restarts after the final acknowledgement', async () => {
+    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
+    if (!user.rows[0]) throw new Error('No user available for final checkpoint restart test');
+    const userId = Number(user.rows[0].id);
+    const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-final-checkpoint-resume-v2');
+    const submitted = await enqueuePredictiveNtRuntimeTestJob(
+      { ...validInput, maximumStages: 2 },
+      userId,
+      design.id,
+      { restartAfterAcknowledgedStage: 2 },
+    );
+    let terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    const deadline = Date.now() + 180_000;
+    while (terminal?.status !== 'completed' && terminal?.status !== 'failed' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    }
+
+    expect(terminal?.status, terminal?.error ?? 'job did not complete').toBe('completed');
+    const result = terminal?.result as any;
+    expect(result.trials.map((trial: any) => trial.stageCount)).toEqual([1, 2]);
+    expect(result.checkpoint.acknowledgedStageCount).toBe(2);
+    const history = await pool.query(
+      `SELECT details->>'stageCount' AS stage_count, COUNT(*)::int AS total
+         FROM ecr_pre_pilot_predictive_nt_job_history
+        WHERE job_id = $1
+          AND details->>'event' = 'trial_checkpoint_acknowledged'
+        GROUP BY details->>'stageCount'
+        ORDER BY (details->>'stageCount')::int`,
+      [submitted.jobId],
+    );
+    expect(history.rows).toEqual([
+      { stage_count: '1', total: 1 },
+      { stage_count: '2', total: 1 },
+    ]);
+  }, 210_000);
 });
