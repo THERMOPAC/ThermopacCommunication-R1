@@ -7,12 +7,13 @@
   },
   "nistBundledProfiles": {
     "assessment": "NOT_ADMITTED_FOR_PROJECT_CALCULATIONS",
+    "projectUseCategory": "COMMERCIAL_OR_ENGINEERING_USE",
     "repositoryNotice": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/README.md#license",
     "udTerms": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/profiles/UD/Readme.txt",
     "evidence": [
       "The repository states that UD and VT2005 molecular files have less-permissive licenses separate from the MIT software.",
       "NIST states that BioVia permitted the .cosmo files for academic, non-commercial use; all other use requires separate permission.",
-      "No permission for this project's non-academic or commercial calculations or redistribution has been established."
+      "The project owner confirmed commercial or engineering use; no separate permission for this use or redistribution has been established."
     ]
   },
   "thermoSacSoftware": {

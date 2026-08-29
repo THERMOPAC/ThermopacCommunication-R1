@@ -17,7 +17,7 @@
   "decision": "STOPPED_NON_PA_TOPOLOGY_GATE_FAILED",
   "licenseEvidence": {
     "path": "server/research/ecr-pre-pilot-six-component-thermodynamics/license-evidence.json",
-    "sha256": "77c327c85718e6f668e44448b218839c83b77a8802292936b304494abc27cc23"
+    "sha256": "adcc0a47f207a8bebb4bea318559bb43b2fa099c803c1dadb06bd26d20b877dd"
   },
   "mission": {
     "components": [
@@ -112,8 +112,9 @@
         "evidence": [
           "The repository states that UD and VT2005 molecular files have less-permissive licenses separate from the MIT software.",
           "NIST states that BioVia permitted the .cosmo files for academic, non-commercial use; all other use requires separate permission.",
-          "No permission for this project's non-academic or commercial calculations or redistribution has been established."
+          "The project owner confirmed commercial or engineering use; no separate permission for this use or redistribution has been established."
         ],
+        "projectUseCategory": "COMMERCIAL_OR_ENGINEERING_USE",
         "repositoryNotice": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/README.md#license",
         "udTerms": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/profiles/UD/Readme.txt"
       },
