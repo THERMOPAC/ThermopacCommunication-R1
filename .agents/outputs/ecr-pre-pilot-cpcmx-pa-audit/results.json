@@ -1,0 +1,154 @@
+{
+  "benchmark": {
+    "acceptanceGatePassed": false,
+    "availableEvidence": {
+      "cotoTieLines": 17,
+      "multiTemperatureTieLines": 219
+    },
+    "compositionRmsd": null,
+    "evaluatedRecords": 0,
+    "status": "NOT_EXECUTED_CAPABILITY_BLOCKED",
+    "topologyRecall": null
+  },
+  "capabilityAudit": {
+    "blocker": "CPCM-X v1.1.0 with its published xTB parameterization accepts an xTB COSMO surface for a solute and a selected pure solvent, but the released CRS implementation does not accept arbitrary mixture compositions or return composition-dependent component activity coefficients. The source explicitly marks mixed-solvent mole-fraction handling as not introduced. The separate COSMO-SAC routines are not the published CPCM-X route, are disconnected from the executable, and do not provide the requested grid.",
+    "evidence": {
+      "cosmoSacDisconnected": {
+        "commentedCallCount": 2,
+        "description": "The only app references to COSMO-SAC 2010/2013 calls are commented out.",
+        "liveCallCount": 0
+      },
+      "cosmoSacFixedComposition": {
+        "description": "The separate COSMO-SAC 2010 routine fixes one dilute binary composition.",
+        "matchedSourceText": "subroutine sac_2010(profil,profil2,vcosmo1,vcosmo2) use globals implicit none real(wp), dimension(3,0:50) :: profil,profil2 !real(wp), dimension(1:9), intent(in) :: param ! real(wp), dimension(1:2,0:49) :: sigma_profiles real(wp) :: gam(3,0:50),maxsig,punit,profile(3,0:50), gam_saved(3,0:50),gam_sol(3,0:50) real(wp) :: gamma_solv, gamma_sol,gamma_test, summ, mix_prof(3,0:50), mix_gam(3,0:50) real(wp) :: VNORM, ANORM, RNORM(2), QNORM(2), vcosmo1, z(2),vcosmo2 real(wp) :: Theta(2), Phi(2), L(2), coord, gammasg(2), bt, bp !SG Equation ! integer :: comp_num integer :: i,j,s,t, cycles logical :: not_conv z(1)=0.995_wp z(2)=0.005_wp"
+      },
+      "documentedPurpose": {
+        "description": "The standalone program declares a single-compound solvation-free-energy purpose.",
+        "matchedSourceText": "Calculates the solvation free energy of a compound in a solvent."
+      },
+      "mixedSolventNotImplementedInSoluteCalculation": {
+        "description": "Both relevant CRS loops contain the same unimplemented mixed-solvent note.",
+        "occurrences": "2"
+      },
+      "mixedSolventNotImplementedInSolventIteration": {
+        "description": "The CRS solvent iteration marks mixture mole-fraction handling as work still to be introduced.",
+        "matchedSourceText": "For mixed solvent, mole fraction needs to be introduced in the following loop"
+      },
+      "publishedXtbBasis": {
+        "description": "The published CPCM-X basis is GFN2-xTB.",
+        "matchedSourceText": "published version of this model was built to be run with the semi-empirical [GFN2-xTB](https://github.com/grimme-lab/xtb) method"
+      },
+      "xtbCosmoLoading": {
+        "description": "The documented xTB route loads xtb.cosmo as a solute in a selected solvent.",
+        "matchedSourceText": "load the specified solvent from an internal database. If you would use this with an unknown or new method, you would need to load the solvent using the ``read_cosmo`` routine (same as the solute). Next, the solute is loaded from the ``xtb.cosmo`` file created by xTB"
+      }
+    },
+    "publishedCapability": "single-solute solvation free energy in a selected solvent",
+    "requiredCapability": "arbitrary-composition multicomponent ln(gamma_i) or chemical potentials suitable for LLE stability/flash calculations",
+    "status": "FAIL"
+  },
+  "decision": "STOPPED_PUBLISHED_MODEL_LACKS_MIXTURE_ACTIVITY_CAPABILITY",
+  "decisionBasis": "CPCM-X v1.1.0 with its published xTB parameterization accepts an xTB COSMO surface for a solute and a selected pure solvent, but the released CRS implementation does not accept arbitrary mixture compositions or return composition-dependent component activity coefficients. The source explicitly marks mixed-solvent mole-fraction handling as not introduced. The separate COSMO-SAC routines are not the published CPCM-X route, are disconnected from the executable, and do not provide the requested grid.",
+  "model": {
+    "cpcmxCommit": "e7f894c76d41ee1f703cf6f03e931cbcf046bc7f",
+    "cpcmxRelease": "v1.1.0",
+    "globalCpcmxParametersRefitted": false,
+    "label": "GFN2-xTB + ddCOSMO/CPCM-X published parameterization",
+    "openCosmoRs24a": false
+  },
+  "molecularGeneration": {
+    "generatedProfiles": [],
+    "status": "NOT_EXECUTED_AFTER_PRE_BENCHMARK_CAPABILITY_FAILURE"
+  },
+  "paReferenceData": {
+    "binaryPairs": [
+      "PA+SAT",
+      "PA+MONO",
+      "PA+DI",
+      "PA+POLY",
+      "PA+NMP"
+    ],
+    "records": [],
+    "status": "NOT_EXECUTED",
+    "temperaturesK": [
+      298.15,
+      313.15,
+      323.15,
+      333.15,
+      348.15
+    ]
+  },
+  "productionImpact": {
+    "positivePaGateChanged": false,
+    "releaseEligibilityChanged": false,
+    "runtimeChanged": false,
+    "stage1Changed": false,
+    "sulfurStatusChanged": false
+  },
+  "requestedRepresentatives": [
+    {
+      "family": "SAT",
+      "name": "n-dodecane"
+    },
+    {
+      "family": "MONO",
+      "name": "n-propylbenzene"
+    },
+    {
+      "family": "DI",
+      "name": "1-methylnaphthalene"
+    },
+    {
+      "family": "POLY",
+      "name": "pyrene"
+    },
+    {
+      "cas": "10081-67-1",
+      "family": "PA",
+      "name": "4,4'-Bis(alpha,alpha-dimethylbenzyl)diphenylamine"
+    },
+    {
+      "family": "NMP",
+      "name": "N-methyl-2-pyrrolidone"
+    }
+  ],
+  "researchOnly": true,
+  "schemaVersion": "1.0.0",
+  "sourceIntegrity": {
+    "files": [
+      {
+        "path": "README.md",
+        "sha256": "c1bccfc3203c57702361e1a86c2349856ba9a1f2c5a7ad3391f4090b93af0bdd",
+        "url": "https://raw.githubusercontent.com/grimme-lab/CPCM-X/e7f894c76d41ee1f703cf6f03e931cbcf046bc7f/README.md"
+      },
+      {
+        "path": "app/main.f90",
+        "sha256": "a5af7274ee5d9542deea16adb1f8a8a518be5f6d8ae061e50de0552a48c84b86",
+        "url": "https://raw.githubusercontent.com/grimme-lab/CPCM-X/e7f894c76d41ee1f703cf6f03e931cbcf046bc7f/app/main.f90"
+      },
+      {
+        "path": "src/cpcmx/crs.f90",
+        "sha256": "dd0564981dd05f9d4cdfae6d50e6ee12cd55e856b3b689b8e95ac6e4bfb3de3e",
+        "url": "https://raw.githubusercontent.com/grimme-lab/CPCM-X/e7f894c76d41ee1f703cf6f03e931cbcf046bc7f/src/cpcmx/crs.f90"
+      },
+      {
+        "path": "src/cpcmx/sac.f90",
+        "sha256": "606bafa6527a1eca52a58f5f3726a9e5b264806310ef2a3a5f19585396200de3",
+        "url": "https://raw.githubusercontent.com/grimme-lab/CPCM-X/e7f894c76d41ee1f703cf6f03e931cbcf046bc7f/src/cpcmx/sac.f90"
+      },
+      {
+        "path": "src/cpcmx/internaldb.f90",
+        "sha256": "bfc0d1997240f2d03b7cfec11b2f1b2864a86be0f591a2a8f809e40d3ad85279",
+        "url": "https://raw.githubusercontent.com/grimme-lab/CPCM-X/e7f894c76d41ee1f703cf6f03e931cbcf046bc7f/src/cpcmx/internaldb.f90"
+      }
+    ],
+    "rawBaseUrl": "https://raw.githubusercontent.com/grimme-lab/CPCM-X/e7f894c76d41ee1f703cf6f03e931cbcf046bc7f",
+    "status": "PASS"
+  },
+  "uniquacRegression": {
+    "expectedDirectedTerms": 10,
+    "fittedParameters": [],
+    "status": "NOT_EXECUTED",
+    "temperatureLaw": "tau_ij(T)=exp[-(a_ij+b_ij/T)]"
+  }
+}

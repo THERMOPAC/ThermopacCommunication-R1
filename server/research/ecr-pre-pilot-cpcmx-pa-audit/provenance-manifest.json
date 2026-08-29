@@ -1,0 +1,34 @@
+{
+  "auditMethod": "Fetch exact release-commit sources, verify SHA-256, and inspect the published interface and mixture implementation markers.",
+  "commit": "e7f894c76d41ee1f703cf6f03e931cbcf046bc7f",
+  "modelLabel": "GFN2-xTB + ddCOSMO/CPCM-X published parameterization",
+  "release": "v1.1.0",
+  "schemaVersion": "1.0.0",
+  "sourceFiles": [
+    {
+      "path": "README.md",
+      "sha256": "c1bccfc3203c57702361e1a86c2349856ba9a1f2c5a7ad3391f4090b93af0bdd",
+      "url": "https://raw.githubusercontent.com/grimme-lab/CPCM-X/e7f894c76d41ee1f703cf6f03e931cbcf046bc7f/README.md"
+    },
+    {
+      "path": "app/main.f90",
+      "sha256": "a5af7274ee5d9542deea16adb1f8a8a518be5f6d8ae061e50de0552a48c84b86",
+      "url": "https://raw.githubusercontent.com/grimme-lab/CPCM-X/e7f894c76d41ee1f703cf6f03e931cbcf046bc7f/app/main.f90"
+    },
+    {
+      "path": "src/cpcmx/crs.f90",
+      "sha256": "dd0564981dd05f9d4cdfae6d50e6ee12cd55e856b3b689b8e95ac6e4bfb3de3e",
+      "url": "https://raw.githubusercontent.com/grimme-lab/CPCM-X/e7f894c76d41ee1f703cf6f03e931cbcf046bc7f/src/cpcmx/crs.f90"
+    },
+    {
+      "path": "src/cpcmx/sac.f90",
+      "sha256": "606bafa6527a1eca52a58f5f3726a9e5b264806310ef2a3a5f19585396200de3",
+      "url": "https://raw.githubusercontent.com/grimme-lab/CPCM-X/e7f894c76d41ee1f703cf6f03e931cbcf046bc7f/src/cpcmx/sac.f90"
+    },
+    {
+      "path": "src/cpcmx/internaldb.f90",
+      "sha256": "bfc0d1997240f2d03b7cfec11b2f1b2864a86be0f591a2a8f809e40d3ad85279",
+      "url": "https://raw.githubusercontent.com/grimme-lab/CPCM-X/e7f894c76d41ee1f703cf6f03e931cbcf046bc7f/src/cpcmx/internaldb.f90"
+    }
+  ]
+}
