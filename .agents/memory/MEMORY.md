@@ -85,4 +85,4 @@
 - [Predictive N_T runtime freeze](predictive-nt-runtime-freeze.md) — deployment must bundle and hash-check transitive Python support beyond the scientific model manifest.
 - [Predictive cascade stability](predictive-cascade-stability.md) — damp component-flow vectors with directional sweeps; persist and ACK each stage before advancing.
 - [ECR Pre-Pilot PA admission boundary](ecr-prepilot-pa-admission-boundary.md) — exact non-sulfur PA identity is admitted, but positive-PA thermodynamics and full recovery remain fail-closed.
-- [COSMO-SAC licensing boundary](cosmosac-licensing-boundary.md) — NIST code is MIT, but UD/VT profiles are non-commercial research only; ThermoSAC has no declared license.
+- [COSMO-SAC licensing boundary](cosmosac-licensing-boundary.md) — NIST code is MIT; exclude UD/VT; project profiles use the qualified open RDKit→xTB→CPCM-X route.

@@ -60,7 +60,7 @@ export const ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE = {
         'DIRECT_LLE_EVIDENCE_REGISTRY',
       ],
       requiredGateResults: {
-        exactMolecularRepresentation: 'FAIL',
+        exactMolecularRepresentation: 'PASS_PROFILE_BASIS_ONLY',
         completeDirectedInteractions: 'FAIL',
         matchingTwoPhaseEquilibriumEvidence: 'FAIL',
         stage1TemperatureCoverage: 'FAIL',
@@ -71,14 +71,13 @@ export const ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE = {
         'No candidate can be evaluated as an exact PA/NMP/heavy-hydrocarbon equilibrium model without an undocumented substitution or missing parameter.',
     },
     missing: [
-      'EXACT_ALKYLATED_DIPHENYLAMINE_SIGMA_PROFILE',
       'COMPLETE_PA_GROUP_DECOMPOSITION_AND_DIRECTED_INTERACTION_SET',
       'DIRECT_MATCHING_PA_NMP_HEAVY_HYDROCARBON_LLE',
     ],
     routesReviewed: {
       frozenMolecularPairUniquac: 'BLOCKED_NO_PA_DIRECTED_PAIR_PARAMETERS',
       modifiedUnifacDortmund: 'BLOCKED_NO_REVIEWED_AROMATIC_SECONDARY_AMINE_GROUP_AND_PAIR_CLOSURE',
-      cosmoSac2010: 'BLOCKED_EXACT_PROFILE_ABSENT_AND_CANDIDATE_REJECTED_ON_PHASE_TOPOLOGY',
+      cosmoSac2010: 'PROFILE_BASIS_QUALIFIED_TOPOLOGY_AND_LLE_GATES_PENDING',
       openCosmoRs: 'BLOCKED_EXACT_PROFILE_ABSENT_AND_CANDIDATE_REJECTED_ON_PHASE_TOPOLOGY',
     },
     prohibitedSubstitutions: [

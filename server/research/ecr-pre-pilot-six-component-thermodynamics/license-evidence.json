@@ -1,9 +1,63 @@
 {
+  "schemaVersion": "2.0.0",
   "nistCosmoSacSoftware": {
     "assessment": "MIT_LICENSED_SOFTWARE",
     "source": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/LICENSE",
     "reviewedCommit": "1b82456be38026719b16cad4076109bef3fcb309",
     "evidence": "MIT licensed; NIST states that the software is not subject to copyright in the USA, with foreign rights reserved by the Secretary of Commerce."
+  },
+  "quantumGenerationSoftware": {
+    "assessment": "OPEN_SOURCE_COMMERCIAL_USE_AND_REDISTRIBUTION_ADMITTED",
+    "source": [
+      "https://github.com/grimme-lab/xtb/tree/26b28010e805f7d1aeeef39813feb473e69cc4be",
+      "https://github.com/grimme-lab/CPCM-X/tree/e7f894c76d41ee1f703cf6f03e931cbcf046bc7f",
+      "https://github.com/rdkit/rdkit/tree/Release_2023_09_5"
+    ],
+    "reviewedCommit": {
+      "xTB": "26b28010e805f7d1aeeef39813feb473e69cc4be",
+      "CPCM-X": "e7f894c76d41ee1f703cf6f03e931cbcf046bc7f",
+      "RDKit": "Release_2023_09_5"
+    },
+    "licenses": {
+      "xTB": "GNU LGPL-3.0",
+      "CPCM-X": "GNU LGPL-3.0",
+      "RDKit": "BSD-3-Clause"
+    },
+    "evidence": [
+      "Pinned upstream release binaries and local license texts are retained under vendor/.",
+      "Official release URLs, publisher archive checksums, extracted executable checksums, source commits, and local license hashes are frozen in vendor/release-provenance.json.",
+      "LGPL-3.0 permits use, modification, and redistribution under its stated conditions; BSD-3-Clause permits source/binary use and redistribution subject to notice conditions.",
+      "The generated-data admission does not rely on a right to the NIST UD/VT or ThermoSAC profile databases."
+    ]
+  },
+  "quantumMethod": {
+    "assessment": "FROZEN_PROJECT_GENERATION_METHOD",
+    "evidence": [
+      "All six molecules use GFN2-xTB 6.7.1 with tight gas-phase geometry optimization and CPCM-X 1.1.0 xTB conductor surfaces at epsilon=infinity.",
+      "GFN2-xTB is a parameterized semiempirical tight-binding method and therefore has no separately selected orbital basis set.",
+      "The method is qualified for an internally consistent NIST loader/topology-gate input basis only; accuracy and LLE topology are not admitted by this record."
+    ]
+  },
+  "molecularSurfaceFiles": {
+    "assessment": "PROJECT_GENERATED_FROM_USER_DIRECTED_STRUCTURES",
+    "ownership": "PROJECT_GENERATED_OUTPUT",
+    "redistributionAdmitted": true,
+    "evidence": "Six retained CPCM-X .cosmo surfaces were computed in this project from exact molecular structures without restricted profile or surface database input. Integrity hashes are frozen in generated/generation-manifest.json."
+  },
+  "profileConversion": {
+    "assessment": "QUALIFIED_FOR_NIST_DELAWARE_SIGMA3_CONTRACT",
+    "softwareLicense": "CPCM-X LGPL-3.0 plus project-authored wrapper code",
+    "evidence": [
+      "CPCM-X emits the 153-row three-part sigma profile directly; the wrapper preserves its bins and adds NIST loader metadata.",
+      "The verifier enforces the -0.025 to +0.025 e/A^2 grid, 0.001 spacing, NHB/OH/OT order, finite nonnegative bins, surface-area conservation, identity matching, and per-file hashes.",
+      "Molecular volume is frozen by deterministic 0.05 A midpoint integration of the union of CPCM-X cavity spheres retained in each surface file."
+    ]
+  },
+  "resultingProfileData": {
+    "assessment": "PROJECT_GENERATED_DATA_ADMITTED",
+    "projectGenerated": true,
+    "redistributionAdmitted": true,
+    "evidence": "The six surfaces/profiles are newly computed project output. No UD, VT2005, ThermoSAC, LVPP, or other profile/surface database file was used as a calculation input. License notices for the generating software are retained separately."
   },
   "nistBundledProfiles": {
     "assessment": "NOT_ADMITTED_FOR_PROJECT_CALCULATIONS",

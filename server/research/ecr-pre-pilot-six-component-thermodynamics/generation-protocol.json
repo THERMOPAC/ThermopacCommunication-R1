@@ -1,0 +1,136 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "EXECUTED_QUALIFIED_PROFILE_BASIS",
+  "admissionRule": "Qualification is limited to a legally reviewed, internally consistent profile basis that loads in NIST cCOSMO and produces finite composition-dependent activities. Phase-topology and quantitative thermodynamic validation remain separate gates.",
+  "molecularMethod": {
+    "engine": "xTB plus CPCM-X",
+    "engineVersionOrCommit": {
+      "xTB": "6.7.1 / 26b28010e805f7d1aeeef39813feb473e69cc4be",
+      "CPCM-X": "1.1.0 / e7f894c76d41ee1f703cf6f03e931cbcf046bc7f"
+    },
+    "electronicStructureMethod": "GFN2-xTB",
+    "basisSet": "GFN2-xTB parametrization; no orbital basis-set selection",
+    "cosmoBoundaryCondition": "epsilon=infinity",
+    "cavityRadii": "CPCM-X 1.1.0 xTB element radii, retained in each .cosmo $coord_rad block",
+    "tessellation": "CPCM-X 1.1.0 ddCOSMO surface, retained per-segment in each .cosmo file",
+    "scfConvergence": "xTB 6.7.1 default CPCM-X single-point convergence",
+    "geometryConvergence": "xTB --opt tight --gfn 2",
+    "referenceState": "neutral isolated molecule with COSMO conductor boundary",
+    "profileGenerationTemperatureK": 298.15
+  },
+  "commonMolecularState": {
+    "formalCharge": 0,
+    "spinMultiplicity": 1
+  },
+  "conformers": {
+    "status": "LOWEST_CONFORMER_FROZEN",
+    "enumerationSoftware": "RDKit ETKDGv3 and MMFF94s",
+    "enumerationVersionOrCommit": "2023.09.5",
+    "requestedConformerCount": 32,
+    "randomSeed": 20260829,
+    "rmsdPruningAngstrom": 0.25,
+    "selection": "lowest converged MMFF94s energy; one conformer retained and then optimized with GFN2-xTB",
+    "retainedConformerGeometrySha256": "see generated/generation-manifest.json"
+  },
+  "surfaceAndConversion": {
+    "surfaceFormat": "CPCM-X .cosmo with atom, segment position, charge, area, charge density, and potential",
+    "converter": "CPCM-X 1.1.0 onlyprof/sigma3 output; project wrapper adds NIST metadata without changing bins",
+    "converterSha256": "see generated/generation-manifest.json software.generatorSha256",
+    "smoothingRadiusAngstrom": 1.5191269449366247,
+    "sigmaGridElectronPerSquareAngstrom": {
+      "minimum": -0.025,
+      "maximum": 0.025,
+      "step": 0.001,
+      "pointsPerPartition": 51
+    },
+    "hydrogenBondPartitionOrder": [
+      "NHB",
+      "OH",
+      "OT"
+    ],
+    "hydrogenBondThresholdElectronPerSquareAngstrom": 0.0084,
+    "profileAreaUnit": "square angstrom",
+    "molecularVolumeUnit": "cubic angstrom",
+    "profileContract": "NIST DelawareProfileDatabase sigma3",
+    "validationStatus": "AREA_CONSERVED_AND_NIST_LOADER_VALIDATED",
+    "volume": "deterministic union of retained CPCM cavity spheres on a 0.05 angstrom midpoint grid"
+  },
+  "requiredIdentities": [
+    {
+      "family": "SAT",
+      "name": "n-dodecane",
+      "cas": "112-40-3",
+      "inchiKey": "SNRUBQQJIBEYMU-UHFFFAOYSA-N"
+    },
+    {
+      "family": "MONO",
+      "name": "n-propylbenzene",
+      "cas": "103-65-1",
+      "inchiKey": "ODLMAHJVESYWTB-UHFFFAOYSA-N"
+    },
+    {
+      "family": "DI",
+      "name": "1-methylnaphthalene",
+      "cas": "90-12-0",
+      "inchiKey": "QPUYECUOLPXSFR-UHFFFAOYSA-N"
+    },
+    {
+      "family": "POLY",
+      "name": "pyrene",
+      "cas": "129-00-0",
+      "inchiKey": "BBEAQIROQSPTKN-UHFFFAOYSA-N"
+    },
+    {
+      "family": "PA",
+      "name": "4,4'-Bis(alpha,alpha-dimethylbenzyl)diphenylamine",
+      "cas": "10081-67-1",
+      "inchiKey": "UJAWGGOCYUPCPS-UHFFFAOYSA-N"
+    },
+    {
+      "family": "NMP",
+      "name": "N-methyl-2-pyrrolidone",
+      "cas": "872-50-4",
+      "inchiKey": "SECXISVLQFMRJM-UHFFFAOYSA-N"
+    }
+  ],
+  "requiredIntegrity": {
+    "quantumInputSha256ByConformer": "see generated/generation-manifest.json components[].conformers.selectedGeometrySha256",
+    "surfaceOutputSha256ByConformer": "see generated/generation-manifest.json components[].surfaceSha256",
+    "profileSha256ByIdentity": "see generated/generation-manifest.json components[].profileSha256",
+    "complistSha256": "365a84301ee4ab5aa1a9811851468672aea736760239c63de7ad087b3ac633f1"
+  },
+  "runtimeAcceptance": {
+    "software": "NIST cCOSMO",
+    "sourceCommit": "1b82456be38026719b16cad4076109bef3fcb309",
+    "model": "COSMO-SAC-2010",
+    "lnGammaDefinition": "get_lngamma_comb(T,x)+get_lngamma_resid(T,x)",
+    "temperatureGridK": [
+      298.15,
+      313.15,
+      323.15,
+      333.15,
+      348.15
+    ],
+    "compositionGrid": [
+      [0.45, 0.12, 0.1, 0.06, 0.07, 0.2],
+      [0.2, 0.2, 0.2, 0.1, 0.1, 0.2],
+      [0.7, 0.05, 0.05, 0.05, 0.05, 0.1],
+      [0.1, 0.05, 0.05, 0.05, 0.05, 0.7]
+    ],
+    "requiredAssertions": [
+      "all six exact profiles load from the project-generated directory",
+      "every ln(gamma) is finite",
+      "activities change on at least two distinct compositions",
+      "repeat execution is bitwise identical",
+      "profile grids, partition counts, area integrals, metadata identities, and hashes match the manifest"
+    ],
+    "executionStatus": "PASSED_20_OF_20"
+  },
+  "prohibitedInputs": [
+    "NIST UD profiles",
+    "NIST VT2005 profiles",
+    "ThermoSAC profiles",
+    "profiles copied or transformed from a restricted database",
+    "mixed quantum methods across the six identities"
+  ]
+}

@@ -1,0 +1,8 @@
+prog="xtb"
+smd_h2o="smd_h2o"
+crs_h2o="crs.param_h2o"
+smd_ot="smd_ot"
+crs_ot="crs.param_ot"
+DB="DB"
+Temperature=298.15
+r_probe=0.4

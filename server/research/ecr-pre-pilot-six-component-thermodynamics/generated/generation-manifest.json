@@ -1,0 +1,489 @@
+{
+  "complistSha256": "365a84301ee4ab5aa1a9811851468672aea736760239c63de7ad087b3ac633f1",
+  "components": [
+    {
+      "areaSquareAngstrom": 554.5597323878009,
+      "cas": "112-40-3",
+      "conformers": {
+        "energies": [
+          {
+            "conformerId": 0,
+            "converged": true,
+            "energyKcalMol": -1.363481601682508
+          },
+          {
+            "conformerId": 1,
+            "converged": true,
+            "energyKcalMol": -2.1439385920418665
+          },
+          {
+            "conformerId": 2,
+            "converged": true,
+            "energyKcalMol": -3.532077553809952
+          },
+          {
+            "conformerId": 3,
+            "converged": true,
+            "energyKcalMol": -0.44387862766255304
+          },
+          {
+            "conformerId": 4,
+            "converged": true,
+            "energyKcalMol": -0.41836217408562587
+          },
+          {
+            "conformerId": 5,
+            "converged": true,
+            "energyKcalMol": -3.290842398293075
+          },
+          {
+            "conformerId": 6,
+            "converged": true,
+            "energyKcalMol": -0.04500243173086987
+          },
+          {
+            "conformerId": 7,
+            "converged": true,
+            "energyKcalMol": -5.026075241982854
+          },
+          {
+            "conformerId": 8,
+            "converged": true,
+            "energyKcalMol": -4.083534428659334
+          },
+          {
+            "conformerId": 9,
+            "converged": true,
+            "energyKcalMol": -2.986528261452012
+          },
+          {
+            "conformerId": 10,
+            "converged": true,
+            "energyKcalMol": -1.3794715218692966
+          },
+          {
+            "conformerId": 11,
+            "converged": true,
+            "energyKcalMol": 0.3849400134002052
+          },
+          {
+            "conformerId": 12,
+            "converged": true,
+            "energyKcalMol": -0.8777553545539827
+          },
+          {
+            "conformerId": 13,
+            "converged": true,
+            "energyKcalMol": -3.4486943312035954
+          },
+          {
+            "conformerId": 14,
+            "converged": true,
+            "energyKcalMol": -3.958104824904565
+          },
+          {
+            "conformerId": 15,
+            "converged": true,
+            "energyKcalMol": -0.7270813556964801
+          },
+          {
+            "conformerId": 16,
+            "converged": true,
+            "energyKcalMol": -4.009626843772327
+          },
+          {
+            "conformerId": 17,
+            "converged": true,
+            "energyKcalMol": -0.6458521945084433
+          },
+          {
+            "conformerId": 18,
+            "converged": true,
+            "energyKcalMol": -2.989891372823015
+          },
+          {
+            "conformerId": 19,
+            "converged": true,
+            "energyKcalMol": 0.6354102021127989
+          },
+          {
+            "conformerId": 20,
+            "converged": true,
+            "energyKcalMol": -1.2476652830601465
+          },
+          {
+            "conformerId": 21,
+            "converged": true,
+            "energyKcalMol": 0.08720571140363198
+          },
+          {
+            "conformerId": 22,
+            "converged": true,
+            "energyKcalMol": -4.746455875273747
+          },
+          {
+            "conformerId": 23,
+            "converged": true,
+            "energyKcalMol": -4.293700251167099
+          },
+          {
+            "conformerId": 24,
+            "converged": true,
+            "energyKcalMol": -2.5637179275105137
+          },
+          {
+            "conformerId": 25,
+            "converged": true,
+            "energyKcalMol": -3.1378921191481597
+          },
+          {
+            "conformerId": 26,
+            "converged": true,
+            "energyKcalMol": -5.848347310778095
+          },
+          {
+            "conformerId": 27,
+            "converged": true,
+            "energyKcalMol": -2.563717927352717
+          },
+          {
+            "conformerId": 28,
+            "converged": true,
+            "energyKcalMol": -3.48605097137126
+          },
+          {
+            "conformerId": 29,
+            "converged": true,
+            "energyKcalMol": -0.37911701645778484
+          },
+          {
+            "conformerId": 30,
+            "converged": true,
+            "energyKcalMol": -3.0569293816775422
+          },
+          {
+            "conformerId": 31,
+            "converged": true,
+            "energyKcalMol": -0.5608280188837508
+          }
+        ],
+        "enumerated": 32,
+        "forceField": "MMFF94s",
+        "pruneRmsThreshAngstrom": 0.25,
+        "randomSeed": 20260829,
+        "requested": 32,
+        "selectedConformerId": 26,
+        "selectedGeometrySha256": "f851df422e229e35863f9419242ce5c0d85dff525061fac8b4bd7bf9fed9210b"
+      },
+      "family": "SAT",
+      "formalCharge": 0,
+      "inchiKey": "SNRUBQQJIBEYMU-UHFFFAOYSA-N",
+      "name": "N-DODECANE",
+      "optimizedGeometrySha256": "5e6932017e292e36b6fedc08d49c063723c2f22a6c89a7cd498118a4b99e2780",
+      "profileSha256": "d01fda25cf270c9386130ed3eb1b480446fd391236e967ca9ce2e0a69fd44009",
+      "selectedConformerGeometrySha256": "f851df422e229e35863f9419242ce5c0d85dff525061fac8b4bd7bf9fed9210b",
+      "spinMultiplicity": 1,
+      "surfaceSha256": "81bd1e4ddba823a3276c4aef0841b10446181183877ac77889c0215b44400fdf",
+      "volumeCubicAngstrom": 295.5977500000001,
+      "volumeIntegrationGridAngstrom": 0.05
+    },
+    {
+      "areaSquareAngstrom": 360.997731931743,
+      "cas": "103-65-1",
+      "conformers": {
+        "energies": [
+          {
+            "conformerId": 0,
+            "converged": true,
+            "energyKcalMol": 17.830090349661873
+          },
+          {
+            "conformerId": 1,
+            "converged": true,
+            "energyKcalMol": 17.830090346972145
+          },
+          {
+            "conformerId": 2,
+            "converged": true,
+            "energyKcalMol": 17.75750066131123
+          }
+        ],
+        "enumerated": 3,
+        "forceField": "MMFF94s",
+        "pruneRmsThreshAngstrom": 0.25,
+        "randomSeed": 20260829,
+        "requested": 32,
+        "selectedConformerId": 2,
+        "selectedGeometrySha256": "6d7c704a90f84d0c568f3c0ae85d0f1cb62b5fb22b04c4643115fe3662113f96"
+      },
+      "family": "MONO",
+      "formalCharge": 0,
+      "inchiKey": "ODLMAHJVESYWTB-UHFFFAOYSA-N",
+      "name": "N-PROPYLBENZENE",
+      "optimizedGeometrySha256": "c9c920c752fc4ea0dae8156d222035afdfed555462e73a2d71eaaf770d1262e3",
+      "profileSha256": "40431b8d5be1b6cd1541742dd189b6e677c877dc5b1e0e00f2f45026b5b26a96",
+      "selectedConformerGeometrySha256": "6d7c704a90f84d0c568f3c0ae85d0f1cb62b5fb22b04c4643115fe3662113f96",
+      "spinMultiplicity": 1,
+      "surfaceSha256": "77733c6aec2cb649d1272c13f0325d3c433db36da59834a95e7754f2379e5057",
+      "volumeCubicAngstrom": 198.89575000000005,
+      "volumeIntegrationGridAngstrom": 0.05
+    },
+    {
+      "areaSquareAngstrom": 380.0112004031827,
+      "cas": "90-12-0",
+      "conformers": {
+        "energies": [
+          {
+            "conformerId": 0,
+            "converged": true,
+            "energyKcalMol": 35.87142383912618
+          }
+        ],
+        "enumerated": 1,
+        "forceField": "MMFF94s",
+        "pruneRmsThreshAngstrom": 0.25,
+        "randomSeed": 20260829,
+        "requested": 32,
+        "selectedConformerId": 0,
+        "selectedGeometrySha256": "8b793ff83dedd8efa084919409ec99961b0b930220769e0782673e836640c6e8"
+      },
+      "family": "DI",
+      "formalCharge": 0,
+      "inchiKey": "QPUYECUOLPXSFR-UHFFFAOYSA-N",
+      "name": "1-METHYLNAPHTHALENE",
+      "optimizedGeometrySha256": "a06e943ab6c44586469a1d7aee09e69b5bc4f0cfc617f62ed1c42e1e0faf5b7a",
+      "profileSha256": "f58a8f4114242b2072a08f7b51320dde572dc5c5531339fc8df26c763a1d8436",
+      "selectedConformerGeometrySha256": "8b793ff83dedd8efa084919409ec99961b0b930220769e0782673e836640c6e8",
+      "spinMultiplicity": 1,
+      "surfaceSha256": "21233caaf6d73dadc8c3b1531c8e86860ae92f07c0bd9297ab0ba7b46c325e33",
+      "volumeCubicAngstrom": 217.01725000000005,
+      "volumeIntegrationGridAngstrom": 0.05
+    },
+    {
+      "areaSquareAngstrom": 479.0325818357789,
+      "cas": "129-00-0",
+      "conformers": {
+        "energies": [
+          {
+            "conformerId": 0,
+            "converged": true,
+            "energyKcalMol": 59.53920586237845
+          }
+        ],
+        "enumerated": 1,
+        "forceField": "MMFF94s",
+        "pruneRmsThreshAngstrom": 0.25,
+        "randomSeed": 20260829,
+        "requested": 32,
+        "selectedConformerId": 0,
+        "selectedGeometrySha256": "b61f6cf9be2fe7757efd008a5f296f94c4bef77cc111e5c8f9a769cacc5683cc"
+      },
+      "family": "POLY",
+      "formalCharge": 0,
+      "inchiKey": "BBEAQIROQSPTKN-UHFFFAOYSA-N",
+      "name": "PYRENE",
+      "optimizedGeometrySha256": "43982af9f0d9094e97cec443acdd879d8d9c345ff49b6fd02f6a86fb19903796",
+      "profileSha256": "aee7911343cd85fafbeb90a30aed4a71f6657b3132166bdc16b428ed5c35b66f",
+      "selectedConformerGeometrySha256": "b61f6cf9be2fe7757efd008a5f296f94c4bef77cc111e5c8f9a769cacc5683cc",
+      "spinMultiplicity": 1,
+      "surfaceSha256": "ee2fa575ae0daef7513cc14e414c5de6eb8ba08633dc3f851ab544a45d67b232",
+      "volumeCubicAngstrom": 281.9083750000001,
+      "volumeIntegrationGridAngstrom": 0.05
+    },
+    {
+      "areaSquareAngstrom": 950.6524762854414,
+      "cas": "10081-67-1",
+      "conformers": {
+        "energies": [
+          {
+            "conformerId": 0,
+            "converged": true,
+            "energyKcalMol": 123.5483416635735
+          },
+          {
+            "conformerId": 1,
+            "converged": true,
+            "energyKcalMol": 123.5483369913791
+          },
+          {
+            "conformerId": 2,
+            "converged": true,
+            "energyKcalMol": 123.42962252656099
+          },
+          {
+            "conformerId": 3,
+            "converged": true,
+            "energyKcalMol": 123.5732233016708
+          },
+          {
+            "conformerId": 4,
+            "converged": true,
+            "energyKcalMol": 123.40437772261593
+          },
+          {
+            "conformerId": 5,
+            "converged": true,
+            "energyKcalMol": 123.47552821363838
+          },
+          {
+            "conformerId": 6,
+            "converged": true,
+            "energyKcalMol": 123.42962225285962
+          },
+          {
+            "conformerId": 7,
+            "converged": true,
+            "energyKcalMol": 123.57322343782948
+          },
+          {
+            "conformerId": 8,
+            "converged": true,
+            "energyKcalMol": 123.42962293336052
+          },
+          {
+            "conformerId": 9,
+            "converged": true,
+            "energyKcalMol": 123.4043833406954
+          },
+          {
+            "conformerId": 10,
+            "converged": true,
+            "energyKcalMol": 123.42962720893857
+          },
+          {
+            "conformerId": 11,
+            "converged": true,
+            "energyKcalMol": 123.47552828030081
+          },
+          {
+            "conformerId": 12,
+            "converged": true,
+            "energyKcalMol": 123.54833668195974
+          },
+          {
+            "conformerId": 13,
+            "converged": true,
+            "energyKcalMol": 123.6130627288044
+          },
+          {
+            "conformerId": 14,
+            "converged": true,
+            "energyKcalMol": 123.57322350334667
+          },
+          {
+            "conformerId": 15,
+            "converged": true,
+            "energyKcalMol": 123.47552816087845
+          },
+          {
+            "conformerId": 16,
+            "converged": true,
+            "energyKcalMol": 123.70980050537914
+          },
+          {
+            "conformerId": 17,
+            "converged": true,
+            "energyKcalMol": 123.50166829931956
+          },
+          {
+            "conformerId": 18,
+            "converged": true,
+            "energyKcalMol": 123.54833669751035
+          },
+          {
+            "conformerId": 19,
+            "converged": true,
+            "energyKcalMol": 123.54833742139743
+          }
+        ],
+        "enumerated": 20,
+        "forceField": "MMFF94s",
+        "pruneRmsThreshAngstrom": 0.25,
+        "randomSeed": 20260829,
+        "requested": 32,
+        "selectedConformerId": 4,
+        "selectedGeometrySha256": "6ebaebdbd58f461f63f4f806c7853ae2d23f6520cb4518740f192634de5cd23c"
+      },
+      "family": "PA",
+      "formalCharge": 0,
+      "inchiKey": "UJAWGGOCYUPCPS-UHFFFAOYSA-N",
+      "name": "BIS-P-CUMYLPHENYL-AMINE",
+      "optimizedGeometrySha256": "18297ad328e27487a186808d9bcb5cbc660ffd3595250f05c83c19a3d8c971dd",
+      "profileSha256": "37da08f756f00c20e61472ab71c1129ce3502750f1082ec8d460477f04710585",
+      "selectedConformerGeometrySha256": "6ebaebdbd58f461f63f4f806c7853ae2d23f6520cb4518740f192634de5cd23c",
+      "spinMultiplicity": 1,
+      "surfaceSha256": "3022c951ebb62a131d2eb969de7ba4956078c2ec3200c2bc0fa4ba4b3f43467e",
+      "volumeCubicAngstrom": 586.7901250000001,
+      "volumeIntegrationGridAngstrom": 0.05
+    },
+    {
+      "areaSquareAngstrom": 273.5945506560466,
+      "cas": "872-50-4",
+      "conformers": {
+        "energies": [
+          {
+            "conformerId": 0,
+            "converged": true,
+            "energyKcalMol": -17.27885074052229
+          },
+          {
+            "conformerId": 1,
+            "converged": true,
+            "energyKcalMol": -17.278850742763666
+          },
+          {
+            "conformerId": 2,
+            "converged": true,
+            "energyKcalMol": -17.278850742766338
+          }
+        ],
+        "enumerated": 3,
+        "forceField": "MMFF94s",
+        "pruneRmsThreshAngstrom": 0.25,
+        "randomSeed": 20260829,
+        "requested": 32,
+        "selectedConformerId": 2,
+        "selectedGeometrySha256": "28c54e4d8a760039e9b03c5438d823abc777fca5561478a4fdecf3a7d4b4d282"
+      },
+      "family": "NMP",
+      "formalCharge": 0,
+      "inchiKey": "SECXISVLQFMRJM-UHFFFAOYSA-N",
+      "name": "N-METHYL-2-PYRROLIDONE",
+      "optimizedGeometrySha256": "ec8ff8189bda773187773b174e982cc012e800266022aa3197b4019c923ffba6",
+      "profileSha256": "6e9318b0a76297bb78da0c9fa19d3dd61101f03c399cd4dd4508eac7b6594566",
+      "selectedConformerGeometrySha256": "28c54e4d8a760039e9b03c5438d823abc777fca5561478a4fdecf3a7d4b4d282",
+      "spinMultiplicity": 1,
+      "surfaceSha256": "837958143169284b19e2678ad65d6a39349a059c80057b300df3e1868d761d76",
+      "volumeCubicAngstrom": 146.85862500000005,
+      "volumeIntegrationGridAngstrom": 0.05
+    }
+  ],
+  "method": "RDKit ETKDGv3/MMFF94s lowest conformer; xTB 6.7.1 GFN2-xTB tight gas geometry; CPCM-X 1.1.0 xTB conductor surface",
+  "referenceState": "neutral singlet; epsilon=infinity conductor; 298.15 K profile generation",
+  "restrictedProfileInputs": [],
+  "schemaVersion": "1.0.0",
+  "sigmaGrid": {
+    "maximum": 0.025,
+    "minimum": -0.025,
+    "partitionOrder": [
+      "NHB",
+      "OH",
+      "OT"
+    ],
+    "step": 0.001
+  },
+  "software": {
+    "cpcmXBinarySha256": "0da39b6f371786f41a46ec2c5f0de023c234687c36d747a7dcae351dec45f8ad",
+    "cpcmXPublisherArchiveSha256": "7d16b0bcedf0fe94f22305dbe9ee991c2c91c28719defc3dd265ed4800aca1c3",
+    "cpcmXReleaseCommit": "e7f894c76d41ee1f703cf6f03e931cbcf046bc7f",
+    "cpcmXVersion": "1.1.0",
+    "generatorSha256": "a441d3e83bfadc5c943076ba98fb19a683d77722ea95efab1052ad0c6ee18c66",
+    "rdkitVersion": "2023.09.5",
+    "releaseProvenanceSha256": "7f064394a21b9105665349f2b4234e7c1df2fba6c0b93d3e4cfce2fe38c435f8",
+    "xtbBinarySha256": "debf27a9e0fa4bfb5ca75aafe4b90d8211f08ec2f4a482f375a4987212eaa12a",
+    "xtbPublisherArchiveSha256": "62a8d18778286e815292ee53d76ce447daf460a4dea3782c0f25cbac7019b5df",
+    "xtbReleaseCommit": "26b28010e805f7d1aeeef39813feb473e69cc4be",
+    "xtbVersion": "6.7.1"
+  },
+  "volumeMethod": "deterministic union-of-CPCM-cavity-spheres midpoint grid at 0.05 angstrom"
+}

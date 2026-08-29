@@ -1,75 +1,505 @@
 {
-  "blockers": [
-    {
-      "code": "NON_PA_PHASE_TOPOLOGY_NOT_REPRODUCED",
-      "detail": "The NIST COSMO-SAC-2010 candidate predicted no two-liquid split for 236/236 experimentally two-phase records."
-    },
-    {
-      "code": "OPEN_SOURCE_PROFILE_GENERATION_ROUTE_NOT_QUALIFIED",
-      "detail": "No legally admitted open-source molecular surface/profile route has been shown compatible with the selected NIST COSMO-SAC parameterization for all six representatives."
-    },
-    {
-      "code": "EXACT_PA_SIGMA_PROFILE_UNAVAILABLE",
-      "detail": "The exact PA identity is admitted, but no compatible, legally admitted sigma profile for CAS 10081-67-1 is present."
-    }
-  ],
-  "calibrationStatus": "CALIBRATION_REQUIRED",
-  "decision": "STOPPED_NON_PA_TOPOLOGY_GATE_FAILED",
-  "licenseEvidence": {
-    "path": "server/research/ecr-pre-pilot-six-component-thermodynamics/license-evidence.json",
-    "sha256": "adcc0a47f207a8bebb4bea318559bb43b2fa099c803c1dadb06bd26d20b877dd"
+  "decision": "PROFILE_BASIS_QUALIFIED_FOR_NIST_TOPOLOGY_GATE",
+  "integrity": {
+    "complistSha256": "365a84301ee4ab5aa1a9811851468672aea736760239c63de7ad087b3ac633f1",
+    "generationManifestSha256": "c58318271c70cb51f9f75e8863dabfdcb9a38c27a0882b39a63f979005aa1058",
+    "generationProtocolSha256": "987f9fb3b91c9cd586f9e506ec3609a68f70d8441161cbb1db64169a8427c675",
+    "licenseEvidenceSha256": "58d629243064d52f91fbfc637c43b4aa3c3c5486954cd4ab68fe798f62f8b7ce",
+    "releaseProvenanceSha256": "7f064394a21b9105665349f2b4234e7c1df2fba6c0b93d3e4cfce2fe38c435f8"
   },
   "mission": {
     "components": [
       {
+        "areaSquareAngstrom": 554.5597323878009,
         "cas": "112-40-3",
+        "conformers": {
+          "energies": [
+            {
+              "conformerId": 0,
+              "converged": true,
+              "energyKcalMol": -1.363481601682508
+            },
+            {
+              "conformerId": 1,
+              "converged": true,
+              "energyKcalMol": -2.1439385920418665
+            },
+            {
+              "conformerId": 2,
+              "converged": true,
+              "energyKcalMol": -3.532077553809952
+            },
+            {
+              "conformerId": 3,
+              "converged": true,
+              "energyKcalMol": -0.44387862766255304
+            },
+            {
+              "conformerId": 4,
+              "converged": true,
+              "energyKcalMol": -0.41836217408562587
+            },
+            {
+              "conformerId": 5,
+              "converged": true,
+              "energyKcalMol": -3.290842398293075
+            },
+            {
+              "conformerId": 6,
+              "converged": true,
+              "energyKcalMol": -0.04500243173086987
+            },
+            {
+              "conformerId": 7,
+              "converged": true,
+              "energyKcalMol": -5.026075241982854
+            },
+            {
+              "conformerId": 8,
+              "converged": true,
+              "energyKcalMol": -4.083534428659334
+            },
+            {
+              "conformerId": 9,
+              "converged": true,
+              "energyKcalMol": -2.986528261452012
+            },
+            {
+              "conformerId": 10,
+              "converged": true,
+              "energyKcalMol": -1.3794715218692966
+            },
+            {
+              "conformerId": 11,
+              "converged": true,
+              "energyKcalMol": 0.3849400134002052
+            },
+            {
+              "conformerId": 12,
+              "converged": true,
+              "energyKcalMol": -0.8777553545539827
+            },
+            {
+              "conformerId": 13,
+              "converged": true,
+              "energyKcalMol": -3.4486943312035954
+            },
+            {
+              "conformerId": 14,
+              "converged": true,
+              "energyKcalMol": -3.958104824904565
+            },
+            {
+              "conformerId": 15,
+              "converged": true,
+              "energyKcalMol": -0.7270813556964801
+            },
+            {
+              "conformerId": 16,
+              "converged": true,
+              "energyKcalMol": -4.009626843772327
+            },
+            {
+              "conformerId": 17,
+              "converged": true,
+              "energyKcalMol": -0.6458521945084433
+            },
+            {
+              "conformerId": 18,
+              "converged": true,
+              "energyKcalMol": -2.989891372823015
+            },
+            {
+              "conformerId": 19,
+              "converged": true,
+              "energyKcalMol": 0.6354102021127989
+            },
+            {
+              "conformerId": 20,
+              "converged": true,
+              "energyKcalMol": -1.2476652830601465
+            },
+            {
+              "conformerId": 21,
+              "converged": true,
+              "energyKcalMol": 0.08720571140363198
+            },
+            {
+              "conformerId": 22,
+              "converged": true,
+              "energyKcalMol": -4.746455875273747
+            },
+            {
+              "conformerId": 23,
+              "converged": true,
+              "energyKcalMol": -4.293700251167099
+            },
+            {
+              "conformerId": 24,
+              "converged": true,
+              "energyKcalMol": -2.5637179275105137
+            },
+            {
+              "conformerId": 25,
+              "converged": true,
+              "energyKcalMol": -3.1378921191481597
+            },
+            {
+              "conformerId": 26,
+              "converged": true,
+              "energyKcalMol": -5.848347310778095
+            },
+            {
+              "conformerId": 27,
+              "converged": true,
+              "energyKcalMol": -2.563717927352717
+            },
+            {
+              "conformerId": 28,
+              "converged": true,
+              "energyKcalMol": -3.48605097137126
+            },
+            {
+              "conformerId": 29,
+              "converged": true,
+              "energyKcalMol": -0.37911701645778484
+            },
+            {
+              "conformerId": 30,
+              "converged": true,
+              "energyKcalMol": -3.0569293816775422
+            },
+            {
+              "conformerId": 31,
+              "converged": true,
+              "energyKcalMol": -0.5608280188837508
+            }
+          ],
+          "enumerated": 32,
+          "forceField": "MMFF94s",
+          "pruneRmsThreshAngstrom": 0.25,
+          "randomSeed": 20260829,
+          "requested": 32,
+          "selectedConformerId": 26,
+          "selectedGeometrySha256": "f851df422e229e35863f9419242ce5c0d85dff525061fac8b4bd7bf9fed9210b"
+        },
         "family": "SAT",
+        "formalCharge": 0,
         "inchiKey": "SNRUBQQJIBEYMU-UHFFFAOYSA-N",
-        "name": "n-dodecane"
+        "name": "N-DODECANE",
+        "optimizedGeometrySha256": "5e6932017e292e36b6fedc08d49c063723c2f22a6c89a7cd498118a4b99e2780",
+        "profileSha256": "d01fda25cf270c9386130ed3eb1b480446fd391236e967ca9ce2e0a69fd44009",
+        "selectedConformerGeometrySha256": "f851df422e229e35863f9419242ce5c0d85dff525061fac8b4bd7bf9fed9210b",
+        "spinMultiplicity": 1,
+        "surfaceSha256": "81bd1e4ddba823a3276c4aef0841b10446181183877ac77889c0215b44400fdf",
+        "volumeCubicAngstrom": 295.5977500000001,
+        "volumeIntegrationGridAngstrom": 0.05
       },
       {
+        "areaSquareAngstrom": 360.997731931743,
         "cas": "103-65-1",
+        "conformers": {
+          "energies": [
+            {
+              "conformerId": 0,
+              "converged": true,
+              "energyKcalMol": 17.830090349661873
+            },
+            {
+              "conformerId": 1,
+              "converged": true,
+              "energyKcalMol": 17.830090346972145
+            },
+            {
+              "conformerId": 2,
+              "converged": true,
+              "energyKcalMol": 17.75750066131123
+            }
+          ],
+          "enumerated": 3,
+          "forceField": "MMFF94s",
+          "pruneRmsThreshAngstrom": 0.25,
+          "randomSeed": 20260829,
+          "requested": 32,
+          "selectedConformerId": 2,
+          "selectedGeometrySha256": "6d7c704a90f84d0c568f3c0ae85d0f1cb62b5fb22b04c4643115fe3662113f96"
+        },
         "family": "MONO",
+        "formalCharge": 0,
         "inchiKey": "ODLMAHJVESYWTB-UHFFFAOYSA-N",
-        "name": "n-propylbenzene"
+        "name": "N-PROPYLBENZENE",
+        "optimizedGeometrySha256": "c9c920c752fc4ea0dae8156d222035afdfed555462e73a2d71eaaf770d1262e3",
+        "profileSha256": "40431b8d5be1b6cd1541742dd189b6e677c877dc5b1e0e00f2f45026b5b26a96",
+        "selectedConformerGeometrySha256": "6d7c704a90f84d0c568f3c0ae85d0f1cb62b5fb22b04c4643115fe3662113f96",
+        "spinMultiplicity": 1,
+        "surfaceSha256": "77733c6aec2cb649d1272c13f0325d3c433db36da59834a95e7754f2379e5057",
+        "volumeCubicAngstrom": 198.89575000000005,
+        "volumeIntegrationGridAngstrom": 0.05
       },
       {
+        "areaSquareAngstrom": 380.0112004031827,
         "cas": "90-12-0",
+        "conformers": {
+          "energies": [
+            {
+              "conformerId": 0,
+              "converged": true,
+              "energyKcalMol": 35.87142383912618
+            }
+          ],
+          "enumerated": 1,
+          "forceField": "MMFF94s",
+          "pruneRmsThreshAngstrom": 0.25,
+          "randomSeed": 20260829,
+          "requested": 32,
+          "selectedConformerId": 0,
+          "selectedGeometrySha256": "8b793ff83dedd8efa084919409ec99961b0b930220769e0782673e836640c6e8"
+        },
         "family": "DI",
+        "formalCharge": 0,
         "inchiKey": "QPUYECUOLPXSFR-UHFFFAOYSA-N",
-        "name": "1-methylnaphthalene"
+        "name": "1-METHYLNAPHTHALENE",
+        "optimizedGeometrySha256": "a06e943ab6c44586469a1d7aee09e69b5bc4f0cfc617f62ed1c42e1e0faf5b7a",
+        "profileSha256": "f58a8f4114242b2072a08f7b51320dde572dc5c5531339fc8df26c763a1d8436",
+        "selectedConformerGeometrySha256": "8b793ff83dedd8efa084919409ec99961b0b930220769e0782673e836640c6e8",
+        "spinMultiplicity": 1,
+        "surfaceSha256": "21233caaf6d73dadc8c3b1531c8e86860ae92f07c0bd9297ab0ba7b46c325e33",
+        "volumeCubicAngstrom": 217.01725000000005,
+        "volumeIntegrationGridAngstrom": 0.05
       },
       {
+        "areaSquareAngstrom": 479.0325818357789,
         "cas": "129-00-0",
+        "conformers": {
+          "energies": [
+            {
+              "conformerId": 0,
+              "converged": true,
+              "energyKcalMol": 59.53920586237845
+            }
+          ],
+          "enumerated": 1,
+          "forceField": "MMFF94s",
+          "pruneRmsThreshAngstrom": 0.25,
+          "randomSeed": 20260829,
+          "requested": 32,
+          "selectedConformerId": 0,
+          "selectedGeometrySha256": "b61f6cf9be2fe7757efd008a5f296f94c4bef77cc111e5c8f9a769cacc5683cc"
+        },
         "family": "POLY",
+        "formalCharge": 0,
         "inchiKey": "BBEAQIROQSPTKN-UHFFFAOYSA-N",
-        "name": "pyrene"
+        "name": "PYRENE",
+        "optimizedGeometrySha256": "43982af9f0d9094e97cec443acdd879d8d9c345ff49b6fd02f6a86fb19903796",
+        "profileSha256": "aee7911343cd85fafbeb90a30aed4a71f6657b3132166bdc16b428ed5c35b66f",
+        "selectedConformerGeometrySha256": "b61f6cf9be2fe7757efd008a5f296f94c4bef77cc111e5c8f9a769cacc5683cc",
+        "spinMultiplicity": 1,
+        "surfaceSha256": "ee2fa575ae0daef7513cc14e414c5de6eb8ba08633dc3f851ab544a45d67b232",
+        "volumeCubicAngstrom": 281.9083750000001,
+        "volumeIntegrationGridAngstrom": 0.05
       },
       {
-        "canonicalSmiles": "CC(C)(C1=CC=CC=C1)C2=CC=C(C=C2)NC3=CC=C(C=C3)C(C)(C)C4=CC=CC=C4",
+        "areaSquareAngstrom": 950.6524762854414,
         "cas": "10081-67-1",
-        "conformerTreatment": "NOT_FROZEN",
+        "conformers": {
+          "energies": [
+            {
+              "conformerId": 0,
+              "converged": true,
+              "energyKcalMol": 123.5483416635735
+            },
+            {
+              "conformerId": 1,
+              "converged": true,
+              "energyKcalMol": 123.5483369913791
+            },
+            {
+              "conformerId": 2,
+              "converged": true,
+              "energyKcalMol": 123.42962252656099
+            },
+            {
+              "conformerId": 3,
+              "converged": true,
+              "energyKcalMol": 123.5732233016708
+            },
+            {
+              "conformerId": 4,
+              "converged": true,
+              "energyKcalMol": 123.40437772261593
+            },
+            {
+              "conformerId": 5,
+              "converged": true,
+              "energyKcalMol": 123.47552821363838
+            },
+            {
+              "conformerId": 6,
+              "converged": true,
+              "energyKcalMol": 123.42962225285962
+            },
+            {
+              "conformerId": 7,
+              "converged": true,
+              "energyKcalMol": 123.57322343782948
+            },
+            {
+              "conformerId": 8,
+              "converged": true,
+              "energyKcalMol": 123.42962293336052
+            },
+            {
+              "conformerId": 9,
+              "converged": true,
+              "energyKcalMol": 123.4043833406954
+            },
+            {
+              "conformerId": 10,
+              "converged": true,
+              "energyKcalMol": 123.42962720893857
+            },
+            {
+              "conformerId": 11,
+              "converged": true,
+              "energyKcalMol": 123.47552828030081
+            },
+            {
+              "conformerId": 12,
+              "converged": true,
+              "energyKcalMol": 123.54833668195974
+            },
+            {
+              "conformerId": 13,
+              "converged": true,
+              "energyKcalMol": 123.6130627288044
+            },
+            {
+              "conformerId": 14,
+              "converged": true,
+              "energyKcalMol": 123.57322350334667
+            },
+            {
+              "conformerId": 15,
+              "converged": true,
+              "energyKcalMol": 123.47552816087845
+            },
+            {
+              "conformerId": 16,
+              "converged": true,
+              "energyKcalMol": 123.70980050537914
+            },
+            {
+              "conformerId": 17,
+              "converged": true,
+              "energyKcalMol": 123.50166829931956
+            },
+            {
+              "conformerId": 18,
+              "converged": true,
+              "energyKcalMol": 123.54833669751035
+            },
+            {
+              "conformerId": 19,
+              "converged": true,
+              "energyKcalMol": 123.54833742139743
+            }
+          ],
+          "enumerated": 20,
+          "forceField": "MMFF94s",
+          "pruneRmsThreshAngstrom": 0.25,
+          "randomSeed": 20260829,
+          "requested": 32,
+          "selectedConformerId": 4,
+          "selectedGeometrySha256": "6ebaebdbd58f461f63f4f806c7853ae2d23f6520cb4518740f192634de5cd23c"
+        },
         "family": "PA",
         "formalCharge": 0,
-        "formula": "C30H31N",
-        "identityStatus": "IDENTITY_ADMITTED_THERMODYNAMICS_BLOCKED",
-        "inchi": "InChI=1S/C30H31N/c1-29(2,23-11-7-5-8-12-23)25-15-19-27(20-16-25)31-28-21-17-26(18-22-28)30(3,4)24-13-9-6-10-14-24/h5-22,31H,1-4H3",
         "inchiKey": "UJAWGGOCYUPCPS-UHFFFAOYSA-N",
-        "molecularWeightGmol": 405.58,
-        "name": "4,4'-Bis(alpha,alpha-dimethylbenzyl)diphenylamine",
-        "pubchemCid": 82343,
-        "spinMultiplicity": 1
+        "name": "BIS-P-CUMYLPHENYL-AMINE",
+        "optimizedGeometrySha256": "18297ad328e27487a186808d9bcb5cbc660ffd3595250f05c83c19a3d8c971dd",
+        "profileSha256": "37da08f756f00c20e61472ab71c1129ce3502750f1082ec8d460477f04710585",
+        "selectedConformerGeometrySha256": "6ebaebdbd58f461f63f4f806c7853ae2d23f6520cb4518740f192634de5cd23c",
+        "spinMultiplicity": 1,
+        "surfaceSha256": "3022c951ebb62a131d2eb969de7ba4956078c2ec3200c2bc0fa4ba4b3f43467e",
+        "volumeCubicAngstrom": 586.7901250000001,
+        "volumeIntegrationGridAngstrom": 0.05
       },
       {
+        "areaSquareAngstrom": 273.5945506560466,
         "cas": "872-50-4",
+        "conformers": {
+          "energies": [
+            {
+              "conformerId": 0,
+              "converged": true,
+              "energyKcalMol": -17.27885074052229
+            },
+            {
+              "conformerId": 1,
+              "converged": true,
+              "energyKcalMol": -17.278850742763666
+            },
+            {
+              "conformerId": 2,
+              "converged": true,
+              "energyKcalMol": -17.278850742766338
+            }
+          ],
+          "enumerated": 3,
+          "forceField": "MMFF94s",
+          "pruneRmsThreshAngstrom": 0.25,
+          "randomSeed": 20260829,
+          "requested": 32,
+          "selectedConformerId": 2,
+          "selectedGeometrySha256": "28c54e4d8a760039e9b03c5438d823abc777fca5561478a4fdecf3a7d4b4d282"
+        },
         "family": "NMP",
+        "formalCharge": 0,
         "inchiKey": "SECXISVLQFMRJM-UHFFFAOYSA-N",
-        "name": "N-methyl-2-pyrrolidone"
+        "name": "N-METHYL-2-PYRROLIDONE",
+        "optimizedGeometrySha256": "ec8ff8189bda773187773b174e982cc012e800266022aa3197b4019c923ffba6",
+        "profileSha256": "6e9318b0a76297bb78da0c9fa19d3dd61101f03c399cd4dd4508eac7b6594566",
+        "selectedConformerGeometrySha256": "28c54e4d8a760039e9b03c5438d823abc777fca5561478a4fdecf3a7d4b4d282",
+        "spinMultiplicity": 1,
+        "surfaceSha256": "837958143169284b19e2678ad65d6a39349a059c80057b300df3e1868d761d76",
+        "volumeCubicAngstrom": 146.85862500000005,
+        "volumeIntegrationGridAngstrom": 0.05
       }
     ],
-    "paDirectedUniquacTermsArePrimaryObjective": false,
-    "primaryObjective": "SIMULTANEOUS_SIX_COMPONENT_THERMODYNAMIC_CLOSURE",
-    "primaryStage1TemperatureK": 323.15,
+    "compositionGrid": [
+      [
+        0.45,
+        0.12,
+        0.1,
+        0.06,
+        0.07,
+        0.2
+      ],
+      [
+        0.2,
+        0.2,
+        0.2,
+        0.1,
+        0.1,
+        0.2
+      ],
+      [
+        0.7,
+        0.05,
+        0.05,
+        0.05,
+        0.05,
+        0.1
+      ],
+      [
+        0.1,
+        0.05,
+        0.05,
+        0.05,
+        0.05,
+        0.7
+      ]
+    ],
     "system": "SAT+MONO+DI+POLY+PA+NMP",
     "temperaturesK": [
       298.15,
@@ -79,145 +509,696 @@
       348.15
     ]
   },
-  "nonPaBenchmarkGate": {
-    "acceptanceGatePassed": false,
-    "combinedTopologyRecall": 0.0,
-    "coto": {
-      "predictedStableSinglePhase": 17,
-      "predictedTwoPhase": 0,
-      "records": 17
-    },
-    "multiTemperature": {
-      "predictedStableSinglePhase": 219,
-      "predictedTwoPhase": 0,
-      "records": 219
-    },
-    "requiredObservedTopology": "TWO_LIQUID_PHASES",
-    "status": "FAIL"
-  },
-  "productionImpact": {
-    "positivePaGateChanged": false,
-    "releaseEligibilityChanged": false,
-    "runtimeChanged": false,
-    "stage1Changed": false,
-    "sulfurStatusChanged": false
+  "nistRuntimeQualification": {
+    "activityGrid": [
+      {
+        "composition": [
+          0.45,
+          0.12,
+          0.1,
+          0.06,
+          0.07,
+          0.2
+        ],
+        "gamma": [
+          1.031388104224104,
+          0.9690022940583468,
+          0.998167729017456,
+          1.068025493583697,
+          0.9625596051627692,
+          1.1367452639919184
+        ],
+        "lnGamma": [
+          0.030905568947987804,
+          -0.031488299644898965,
+          -0.0018339516442864873,
+          0.06581161064982977,
+          -0.03815928729578455,
+          0.12816914744372404
+        ],
+        "temperatureK": 298.15
+      },
+      {
+        "composition": [
+          0.2,
+          0.2,
+          0.2,
+          0.1,
+          0.1,
+          0.2
+        ],
+        "gamma": [
+          1.0710184674901864,
+          0.9853380959225657,
+          0.9933958448958702,
+          1.0305046996771088,
+          0.808606692437373,
+          1.1574282804463691
+        ],
+        "lnGamma": [
+          0.06861003453841162,
+          -0.014770452113559264,
+          -0.006626059027650521,
+          0.03004868191741331,
+          -0.21244264523616657,
+          0.1462005443211284
+        ],
+        "temperatureK": 298.15
+      },
+      {
+        "composition": [
+          0.7,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.1
+        ],
+        "gamma": [
+          1.0116431305881801,
+          0.9453505677460586,
+          0.9913887484831301,
+          1.0945692111063083,
+          1.151518999186312,
+          1.1477089972548296
+        ],
+        "lnGamma": [
+          0.011575870915242946,
+          -0.05619944912133172,
+          -0.00864854257936116,
+          0.090360871345884,
+          0.14108193965296248,
+          0.13776777905236687
+        ],
+        "temperatureK": 298.15
+      },
+      {
+        "composition": [
+          0.1,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.7
+        ],
+        "gamma": [
+          1.1595136579872594,
+          1.145402462897176,
+          1.1515316617681939,
+          1.1772312807457168,
+          0.7931042449478258,
+          1.0320596352422322
+        ],
+        "lnGamma": [
+          0.14800065684826602,
+          0.1357560712260293,
+          0.1410929360084459,
+          0.1631653091832678,
+          -0.23180060955839626,
+          0.031556451477253736
+        ],
+        "temperatureK": 298.15
+      },
+      {
+        "composition": [
+          0.45,
+          0.12,
+          0.1,
+          0.06,
+          0.07,
+          0.2
+        ],
+        "gamma": [
+          1.0297520349573137,
+          0.9682346047697973,
+          0.9975913586535763,
+          1.066999772056131,
+          0.9626179332173329,
+          1.1056786206351767
+        ],
+        "lnGamma": [
+          0.02931803049846486,
+          -0.032280860770695634,
+          -0.002411546789376012,
+          0.06485075868897597,
+          -0.03809869230813407,
+          0.10045928278660668
+        ],
+        "temperatureK": 313.15
+      },
+      {
+        "composition": [
+          0.2,
+          0.2,
+          0.2,
+          0.1,
+          0.1,
+          0.2
+        ],
+        "gamma": [
+          1.0688926649767896,
+          0.9843236560061002,
+          0.9926009751013062,
+          1.0291985739187983,
+          0.8083192194861176,
+          1.1272651340489903
+        ],
+        "lnGamma": [
+          0.06662322005772386,
+          -0.015800517306395964,
+          -0.007426533458428785,
+          0.028780415803425573,
+          -0.2127982248606435,
+          0.11979446386565135
+        ],
+        "temperatureK": 313.15
+      },
+      {
+        "composition": [
+          0.7,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.1
+        ],
+        "gamma": [
+          1.01126642445992,
+          0.9452264459232712,
+          0.9913536513498732,
+          1.0944238763206509,
+          1.1520606736521268,
+          1.1100189510222478
+        ],
+        "lnGamma": [
+          0.011203430999010104,
+          -0.05633075487832373,
+          -0.008683945194712064,
+          0.09022808446162588,
+          0.14155222898758832,
+          0.10437708817151686
+        ],
+        "temperatureK": 313.15
+      },
+      {
+        "composition": [
+          0.1,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.7
+        ],
+        "gamma": [
+          1.1324989903275382,
+          1.1290199767658047,
+          1.1354687072128258,
+          1.1553325950776505,
+          0.7710843962132841,
+          1.0260522133074166
+        ],
+        "lnGamma": [
+          0.12442668683164201,
+          0.12134997922338879,
+          0.12704552358648363,
+          0.1443882636271061,
+          -0.25995744809782617,
+          0.025718635616891444
+        ],
+        "temperatureK": 313.15
+      },
+      {
+        "composition": [
+          0.45,
+          0.12,
+          0.1,
+          0.06,
+          0.07,
+          0.2
+        ],
+        "gamma": [
+          1.0288251665808978,
+          0.9677987855140116,
+          0.9972628779356904,
+          1.0664173400687416,
+          0.9626130619163383,
+          1.0880226599973846
+        ],
+        "lnGamma": [
+          0.02841753627521613,
+          -0.03273107951726742,
+          -0.0027408748323275124,
+          0.06430475012970338,
+          -0.03810375279283116,
+          0.08436197542034624
+        ],
+        "temperatureK": 323.15
+      },
+      {
+        "composition": [
+          0.2,
+          0.2,
+          0.2,
+          0.1,
+          0.1,
+          0.2
+        ],
+        "gamma": [
+          1.0676898282105058,
+          0.9837486560120707,
+          0.9921492794575318,
+          1.0284582146006638,
+          0.808124740193172,
+          1.110081659279455
+        ],
+        "lnGamma": [
+          0.06549727533319866,
+          -0.016384845439949697,
+          -0.007881699694619129,
+          0.02806080177040062,
+          -0.21303885094943475,
+          0.10443357953675747
+        ],
+        "temperatureK": 323.15
+      },
+      {
+        "composition": [
+          0.7,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.1
+        ],
+        "gamma": [
+          1.011053703953694,
+          0.9451562371808265,
+          0.9913335024057376,
+          1.094341739596718,
+          1.1523470442818697,
+          1.0887661085885258
+        ],
+        "lnGamma": [
+          0.010993058265215967,
+          -0.05640503480386947,
+          -0.008704270079652306,
+          0.09015303145149647,
+          0.14180077062281068,
+          0.08504504456401041
+        ],
+        "temperatureK": 323.15
+      },
+      {
+        "composition": [
+          0.1,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.7
+        ],
+        "gamma": [
+          1.1171641367249405,
+          1.1196445296686721,
+          1.1262603122973707,
+          1.142840924481776,
+          0.7584604525882507,
+          1.0225099081755367
+        ],
+        "lnGamma": [
+          0.11079345353974757,
+          0.11301125070557082,
+          0.1189026862113625,
+          0.1335172014453824,
+          -0.27646462052679455,
+          0.022260299035094674
+        ],
+        "temperatureK": 323.15
+      },
+      {
+        "composition": [
+          0.45,
+          0.12,
+          0.1,
+          0.06,
+          0.07,
+          0.2
+        ],
+        "gamma": [
+          1.0280055080502444,
+          0.967412750454479,
+          0.9969710437667852,
+          1.065901330275118,
+          0.9625850636773563,
+          1.0723707505936917
+        ],
+        "lnGamma": [
+          0.027620525044148782,
+          -0.03313003855350501,
+          -0.0030335528053701054,
+          0.06382076074211981,
+          -0.03813283887868569,
+          0.06987185229089421
+        ],
+        "temperatureK": 333.15
+      },
+      {
+        "composition": [
+          0.2,
+          0.2,
+          0.2,
+          0.1,
+          0.1,
+          0.2
+        ],
+        "gamma": [
+          1.0666271010862032,
+          0.9832399457751902,
+          0.9917488578159958,
+          1.0278031583398028,
+          0.8079330283854438,
+          1.094823484577602
+        ],
+        "lnGamma": [
+          0.06450142771793434,
+          -0.01690209322446671,
+          -0.008285371273769663,
+          0.02742366848409697,
+          -0.21327610955782736,
+          0.09059314897514462
+        ],
+        "temperatureK": 333.15
+      },
+      {
+        "composition": [
+          0.7,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.1
+        ],
+        "gamma": [
+          1.0108660175307642,
+          0.9450941898610221,
+          0.9913154689183724,
+          1.094269183066274,
+          1.1525876025187074,
+          1.070027173384442
+        ],
+        "lnGamma": [
+          0.010807406558598031,
+          -0.05647068464469371,
+          -0.008722461385956636,
+          0.09008672772458065,
+          0.1420095038622064,
+          0.06768404383774435
+        ],
+        "temperatureK": 333.15
+      },
+      {
+        "composition": [
+          0.1,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.7
+        ],
+        "gamma": [
+          1.103581506982038,
+          1.1112930489763377,
+          1.118047546156459,
+          1.131738542015062,
+          0.7472040390298688,
+          1.0192881783467393
+        ],
+        "lnGamma": [
+          0.09856080622715246,
+          0.1055242463319318,
+          0.11158390169665457,
+          0.12375498315196545,
+          -0.29141698652822123,
+          0.019104519309551822
+        ],
+        "temperatureK": 333.15
+      },
+      {
+        "composition": [
+          0.45,
+          0.12,
+          0.1,
+          0.06,
+          0.07,
+          0.2
+        ],
+        "gamma": [
+          1.0269425804965258,
+          0.9669111572117883,
+          0.9965904780974041,
+          1.0652306568153196,
+          0.9625144902913788,
+          1.0520138289915533
+        ],
+        "lnGamma": [
+          0.026586019448179263,
+          -0.03364866240129549,
+          -0.003415347567989874,
+          0.06319135488082012,
+          -0.03820615808533518,
+          0.05070625965835096
+        ],
+        "temperatureK": 348.15
+      },
+      {
+        "composition": [
+          0.2,
+          0.2,
+          0.2,
+          0.1,
+          0.1,
+          0.2
+        ],
+        "gamma": [
+          1.065250454292649,
+          0.9825798905267151,
+          0.9912280442091145,
+          1.0269531013474922,
+          0.8076559230254943,
+          1.0749429609526313
+        ],
+        "lnGamma": [
+          0.06320993986355185,
+          -0.017573625031289324,
+          -0.008810655878269836,
+          0.02659626422454215,
+          -0.21361914899545775,
+          0.07226760059296933
+        ],
+        "temperatureK": 348.15
+      },
+      {
+        "composition": [
+          0.7,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.1
+        ],
+        "gamma": [
+          1.010623243599522,
+          0.9450137499220085,
+          0.9912917090669765,
+          1.0941751507180686,
+          1.1528813555940762,
+          1.0457983562890814
+        ],
+        "lnGamma": [
+          0.010567213412804387,
+          -0.056555801412227574,
+          -0.008746429675450296,
+          0.09000079238977514,
+          0.14226433538004132,
+          0.04478057104478439
+        ],
+        "temperatureK": 348.15
+      },
+      {
+        "composition": [
+          0.1,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.7
+        ],
+        "gamma": [
+          1.0859330824184845,
+          1.1003735268720516,
+          1.1072945035380046,
+          1.117257802809782,
+          0.732473091573749,
+          1.0149785361700847
+        ],
+        "lnGamma": [
+          0.08243960121406663,
+          0.09564969204720349,
+          0.10191965586783257,
+          0.11087729274955743,
+          -0.31132867381856577,
+          0.01486746563969913
+        ],
+        "temperatureK": 348.15
+      }
+    ],
+    "allFinite": true,
+    "bitwiseRepeatableWithinProcess": true,
+    "compositionDependent": true,
+    "lnGamma": "get_lngamma_comb(T,x)+get_lngamma_resid(T,x)",
+    "loadedProfileCount": 6,
+    "model": "COSMO-SAC-2010",
+    "sourceCommit": "1b82456be38026719b16cad4076109bef3fcb309",
+    "testPointCount": 20
   },
   "profileQualification": {
-    "exactPaProfilePresent": false,
-    "generatedProfiles": [],
-    "nistBundledUdVtProfiles": {
-      "commercialUseAdmitted": false,
-      "licenseAssessment": {
-        "assessment": "NOT_ADMITTED_FOR_PROJECT_CALCULATIONS",
-        "evidence": [
-          "The repository states that UD and VT2005 molecular files have less-permissive licenses separate from the MIT software.",
-          "NIST states that BioVia permitted the .cosmo files for academic, non-commercial use; all other use requires separate permission.",
-          "The project owner confirmed commercial or engineering use; no separate permission for this use or redistribution has been established."
-        ],
-        "projectUseCategory": "COMMERCIAL_OR_ENGINEERING_USE",
-        "repositoryNotice": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/README.md#license",
-        "udTerms": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/profiles/UD/Readme.txt"
+    "exactPaProfilePresent": true,
+    "generatedProfileCount": 6,
+    "profileContract": "NIST DelawareProfileDatabase sigma3",
+    "profileIntegrity": {
+      "DI": {
+        "areaSumSquareAngstrom": 380.01124500000003,
+        "partitionAreaSquareAngstrom": {
+          "NHB": 380.01124500000003,
+          "OH": 0.0,
+          "OT": 0.0
+        },
+        "sha256": "f58a8f4114242b2072a08f7b51320dde572dc5c5531339fc8df26c763a1d8436",
+        "volumeCubicAngstrom": 217.01725000000005
       },
-      "redistributionAdmitted": false,
-      "status": "NOT_ADMITTED_FOR_PROJECT_CALCULATIONS"
+      "MONO": {
+        "areaSumSquareAngstrom": 360.997773,
+        "partitionAreaSquareAngstrom": {
+          "NHB": 360.997773,
+          "OH": 0.0,
+          "OT": 0.0
+        },
+        "sha256": "40431b8d5be1b6cd1541742dd189b6e677c877dc5b1e0e00f2f45026b5b26a96",
+        "volumeCubicAngstrom": 198.89575000000005
+      },
+      "NMP": {
+        "areaSumSquareAngstrom": 273.594562,
+        "partitionAreaSquareAngstrom": {
+          "NHB": 273.519651,
+          "OH": 0.0,
+          "OT": 0.074911
+        },
+        "sha256": "6e9318b0a76297bb78da0c9fa19d3dd61101f03c399cd4dd4508eac7b6594566",
+        "volumeCubicAngstrom": 146.85862500000005
+      },
+      "PA": {
+        "areaSumSquareAngstrom": 950.6525859999999,
+        "partitionAreaSquareAngstrom": {
+          "NHB": 949.639548,
+          "OH": 0.0,
+          "OT": 1.0130379999999999
+        },
+        "sha256": "37da08f756f00c20e61472ab71c1129ce3502750f1082ec8d460477f04710585",
+        "volumeCubicAngstrom": 586.7901250000001
+      },
+      "POLY": {
+        "areaSumSquareAngstrom": 479.032637,
+        "partitionAreaSquareAngstrom": {
+          "NHB": 479.032637,
+          "OH": 0.0,
+          "OT": 0.0
+        },
+        "sha256": "aee7911343cd85fafbeb90a30aed4a71f6657b3132166bdc16b428ed5c35b66f",
+        "volumeCubicAngstrom": 281.9083750000001
+      },
+      "SAT": {
+        "areaSumSquareAngstrom": 554.559798,
+        "partitionAreaSquareAngstrom": {
+          "NHB": 554.559798,
+          "OH": 0.0,
+          "OT": 0.0
+        },
+        "sha256": "d01fda25cf270c9386130ed3eb1b480446fd391236e967ca9ce2e0a69fd44009",
+        "volumeCubicAngstrom": 295.5977500000001
+      }
     },
-    "selectedOpenSourceGenerationRoute": null,
-    "selectedRouteStatus": "NOT_QUALIFIED"
+    "restrictedProfileUsedAsCalculationInput": false,
+    "selectedRoute": "RDKit-2023.09.5_ETKDGv3_MMFF94s__xTB-6.7.1_GFN2-xTB__CPCM-X-1.1.0",
+    "selectedRouteStatus": "QUALIFIED_FOR_NIST_TOPOLOGY_GATE"
   },
   "releaseEligible": false,
   "researchOnly": true,
-  "runtimeRepresentation": {
-    "fittedInteractions": [],
-    "paDirectedInteractionCount": 0,
-    "status": "NOT_EXECUTED",
-    "uniquacMatrixAudit": "NOT_EXECUTED_AFTER_MANDATORY_GATE_FAILURE"
-  },
-  "schemaVersion": "1.0.0",
-  "sixComponentCalculation": {
-    "execution": "NOT_EXECUTED_AFTER_MANDATORY_NON_PA_GATE_FAILURE",
-    "outputs": {
-      "chemicalPotentialMaxResidual": null,
-      "diExtraction": null,
-      "distributionCoefficients": {
-        "DI": null,
-        "MONO": null,
-        "NMP": null,
-        "PA": null,
-        "POLY": null,
-        "SAT": null
-      },
-      "gibbsEnergyReduction": null,
-      "massBalanceMaxResidual": null,
-      "monoExtraction": null,
-      "nmpCarryover": null,
-      "nmpFreeRrboRecovery": null,
-      "nmpRichComposition": null,
-      "nmpRichPhaseFraction": null,
-      "paExtraction": null,
-      "phaseBehavior": null,
-      "polyExtraction": null,
-      "rrboRichComposition": null,
-      "satLoss": null,
-      "totalAromaticExtraction": null
+  "rightsQualification": {
+    "molecularSurfaceFiles": {
+      "assessment": "PROJECT_GENERATED_FROM_USER_DIRECTED_STRUCTURES",
+      "evidence": "Six retained CPCM-X .cosmo surfaces were computed in this project from exact molecular structures without restricted profile or surface database input. Integrity hashes are frozen in generated/generation-manifest.json.",
+      "ownership": "PROJECT_GENERATED_OUTPUT",
+      "redistributionAdmitted": true
     },
-    "status": "NOT_CALCULABLE"
-  },
-  "softwareQualification": {
-    "nistCosmoSac": {
-      "compositionDependentActivityCoefficients": "HISTORICALLY_EXECUTED",
-      "gibbsMixingEnergy": "HISTORICALLY_EXECUTED",
-      "model": {
-        "excluded": "get_lngamma / multicomponent dispersive mode",
-        "lnGamma": "get_lngamma_comb(T,x)+get_lngamma_resid(T,x)",
-        "name": "COSMO-SAC-2010"
-      },
-      "multicomponentTpdAndFlash": "HISTORICALLY_EXECUTED_RESEARCH_IMPLEMENTATION",
-      "softwareLicenseAssessment": {
-        "assessment": "MIT_LICENSED_SOFTWARE",
-        "evidence": "MIT licensed; NIST states that the software is not subject to copyright in the USA, with foreign rights reserved by the Secretary of Commerce.",
-        "reviewedCommit": "1b82456be38026719b16cad4076109bef3fcb309",
-        "source": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/LICENSE"
-      },
-      "sourceCommit": "1b82456be38026719b16cad4076109bef3fcb309",
-      "status": "FROZEN_HISTORICAL_EXECUTABLE_EVIDENCE_NOT_ADMITTED_FOR_PROJECT_CALCULATIONS"
+    "nistCosmoSacSoftware": {
+      "assessment": "MIT_LICENSED_SOFTWARE",
+      "evidence": "MIT licensed; NIST states that the software is not subject to copyright in the USA, with foreign rights reserved by the Secretary of Commerce.",
+      "reviewedCommit": "1b82456be38026719b16cad4076109bef3fcb309",
+      "source": "https://github.com/usnistgov/COSMOSAC/blob/1b82456be38026719b16cad4076109bef3fcb309/LICENSE"
     },
-    "thermoSac": {
-      "licenseAssessment": {
-        "assessment": "NO_DECLARED_LICENSE_NOT_ADMITTED",
-        "evidence": [
-          "The reviewed repository contains no LICENSE, COPYING, or NOTICE file.",
-          "The reviewed Python package metadata declares no license."
-        ],
-        "reviewedCommit": "d20f5f4acdbf295a15a7500056fb20cb06ae2e23",
-        "source": "https://github.com/ivanantolo/thermosac/tree/d20f5f4acdbf295a15a7500056fb20cb06ae2e23"
+    "profileConversion": {
+      "assessment": "QUALIFIED_FOR_NIST_DELAWARE_SIGMA3_CONTRACT",
+      "evidence": [
+        "CPCM-X emits the 153-row three-part sigma profile directly; the wrapper preserves its bins and adds NIST loader metadata.",
+        "The verifier enforces the -0.025 to +0.025 e/A^2 grid, 0.001 spacing, NHB/OH/OT order, finite nonnegative bins, surface-area conservation, identity matching, and per-file hashes.",
+        "Molecular volume is frozen by deterministic 0.05 A midpoint integration of the union of CPCM-X cavity spheres retained in each surface file."
+      ],
+      "softwareLicense": "CPCM-X LGPL-3.0 plus project-authored wrapper code"
+    },
+    "quantumGenerationSoftware": {
+      "assessment": "OPEN_SOURCE_COMMERCIAL_USE_AND_REDISTRIBUTION_ADMITTED",
+      "evidence": [
+        "Pinned upstream release binaries and local license texts are retained under vendor/.",
+        "Official release URLs, publisher archive checksums, extracted executable checksums, source commits, and local license hashes are frozen in vendor/release-provenance.json.",
+        "LGPL-3.0 permits use, modification, and redistribution under its stated conditions; BSD-3-Clause permits source/binary use and redistribution subject to notice conditions.",
+        "The generated-data admission does not rely on a right to the NIST UD/VT or ThermoSAC profile databases."
+      ],
+      "licenses": {
+        "CPCM-X": "GNU LGPL-3.0",
+        "RDKit": "BSD-3-Clause",
+        "xTB": "GNU LGPL-3.0"
       },
-      "reason": "No software license is declared in the reviewed repository or package metadata.",
-      "requiredForCurrentGate": false,
-      "status": "NOT_ADMITTED"
+      "reviewedCommit": {
+        "CPCM-X": "e7f894c76d41ee1f703cf6f03e931cbcf046bc7f",
+        "RDKit": "Release_2023_09_5",
+        "xTB": "26b28010e805f7d1aeeef39813feb473e69cc4be"
+      },
+      "source": [
+        "https://github.com/grimme-lab/xtb/tree/26b28010e805f7d1aeeef39813feb473e69cc4be",
+        "https://github.com/grimme-lab/CPCM-X/tree/e7f894c76d41ee1f703cf6f03e931cbcf046bc7f",
+        "https://github.com/rdkit/rdkit/tree/Release_2023_09_5"
+      ]
+    },
+    "quantumMethod": {
+      "assessment": "FROZEN_PROJECT_GENERATION_METHOD",
+      "evidence": [
+        "All six molecules use GFN2-xTB 6.7.1 with tight gas-phase geometry optimization and CPCM-X 1.1.0 xTB conductor surfaces at epsilon=infinity.",
+        "GFN2-xTB is a parameterized semiempirical tight-binding method and therefore has no separately selected orbital basis set.",
+        "The method is qualified for an internally consistent NIST loader/topology-gate input basis only; accuracy and LLE topology are not admitted by this record."
+      ]
+    },
+    "resultingProfileData": {
+      "assessment": "PROJECT_GENERATED_DATA_ADMITTED",
+      "evidence": "The six surfaces/profiles are newly computed project output. No UD, VT2005, ThermoSAC, LVPP, or other profile/surface database file was used as a calculation input. License notices for the generating software are retained separately.",
+      "projectGenerated": true,
+      "redistributionAdmitted": true
     }
   },
-  "sulfur": {
-    "independentOfPa": true,
-    "status": "NOT_CALCULABLE"
-  },
-  "upstreamEvidence": {
-    "directory": ".agents/outputs/ecr-pre-pilot-cosmosac",
-    "integrity": {
-      "manifestSha256": "df65017ef1c8cb0ee33ca5e88111b5295c183e6d12badd4d3c85020f80173b59",
-      "pinnedInputSha256": {
-        ".agents/outputs/ecr-pre-pilot-cosmosac/report.md": "2a6b8c65ffff77caefdcce5e7342d9eb3d55f067af4444a462e8f9315c6ddce2",
-        ".agents/outputs/ecr-pre-pilot-cosmosac/results.json": "efce43eee40cac52c837696e6f918958f2659b1ca88ae4db27ac4e4442acd869",
-        "server/engine-framework/cel/coto2022-nmp-lle.ts": "8253433f5624934b7f9135f223090e8b9e2c5b1cbfaee06c951a3d87b839ea42",
-        "server/engine-framework/cel/data/multi-t-nmp-lle.json": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
-        "server/research/ecr-pre-pilot-cosmosac/provenance-manifest.json": "df65017ef1c8cb0ee33ca5e88111b5295c183e6d12badd4d3c85020f80173b59",
-        "server/research/ecr-pre-pilot-cosmosac/run.py": "049a18474732c5e30efb442a390fade82d26fdcaff85f76983a9feb79c7505de",
-        "server/research/ecr-pre-pilot-cosmosac/vendor/python/cCOSMO.cpython-312-x86_64-linux-gnu.so": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
-        "server/research/ecr-pre-pilot-cosmosac/verify.py": "53a8f1ddc0d19cdc8a4256876250f5eb6fdf8b4816393c4b06f961335bbaa0b0",
-        "server/research/ecr-pre-pilot-pa-anchor/evidence.ts": "bc94349623ff967062907c1e8b46609b1f49f02958b90883bcc73dfc75d2be36"
-      },
-      "reportSha256": "2a6b8c65ffff77caefdcce5e7342d9eb3d55f067af4444a462e8f9315c6ddce2",
-      "resultsSha256": "efce43eee40cac52c837696e6f918958f2659b1ca88ae4db27ac4e4442acd869",
-      "sigmaProfileHashMapCanonicalSha256": "82aa80150f05bdfe17ae2c64df1af02d74dbbd1c4c215881cdfead6156f441c1"
-    }
+  "schemaVersion": "2.0.0",
+  "scopeBoundary": {
+    "phaseTopologyGateRerun": "ENABLED",
+    "phaseTopologyValidated": false,
+    "reason": "Profile/runtime compatibility is qualified here; LLE topology and quantitative validation are separate downstream gates.",
+    "thermodynamicsAdmitted": false
   }
 }

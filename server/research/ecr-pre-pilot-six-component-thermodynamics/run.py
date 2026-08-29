@@ -1,83 +1,48 @@
 #!/usr/bin/env python3
-"""Fail-closed qualification for the complete ECR pre-pilot thermodynamic basis."""
+"""Verify the project-generated six-molecule COSMO profile basis in NIST cCOSMO."""
 
 from __future__ import annotations
 
 import hashlib
 import json
+import math
+import sys
 from pathlib import Path
 from typing import Any
+
+import numpy as np
 
 
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
 OUT = ROOT / ".agents/outputs/ecr-pre-pilot-six-component-thermodynamics"
-COSMOSAC_OUT = ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac"
+GENERATED = HERE / "generated"
+PROFILES = GENERATED / "profiles"
+SIGMA3 = PROFILES / "sigma3"
+GENERATION_MANIFEST = GENERATED / "generation-manifest.json"
 LICENSE_EVIDENCE = HERE / "license-evidence.json"
-
+GENERATION_PROTOCOL = HERE / "generation-protocol.json"
+RELEASE_PROVENANCE = HERE / "vendor/release-provenance.json"
+CCOSMO_VENDOR = ROOT / "server/research/ecr-pre-pilot-cosmosac/vendor/python"
 NIST_COSMOSAC_COMMIT = "1b82456be38026719b16cad4076109bef3fcb309"
-THERMOSAC_REVIEWED_COMMIT = "d20f5f4acdbf295a15a7500056fb20cb06ae2e23"
-PINNED_INPUT_SHA256 = {
-    "server/research/ecr-pre-pilot-cosmosac/run.py": "049a18474732c5e30efb442a390fade82d26fdcaff85f76983a9feb79c7505de",
-    "server/research/ecr-pre-pilot-cosmosac/verify.py": "53a8f1ddc0d19cdc8a4256876250f5eb6fdf8b4816393c4b06f961335bbaa0b0",
-    "server/research/ecr-pre-pilot-cosmosac/provenance-manifest.json": "df65017ef1c8cb0ee33ca5e88111b5295c183e6d12badd4d3c85020f80173b59",
-    ".agents/outputs/ecr-pre-pilot-cosmosac/results.json": "efce43eee40cac52c837696e6f918958f2659b1ca88ae4db27ac4e4442acd869",
-    ".agents/outputs/ecr-pre-pilot-cosmosac/report.md": "2a6b8c65ffff77caefdcce5e7342d9eb3d55f067af4444a462e8f9315c6ddce2",
-    "server/engine-framework/cel/coto2022-nmp-lle.ts": "8253433f5624934b7f9135f223090e8b9e2c5b1cbfaee06c951a3d87b839ea42",
-    "server/engine-framework/cel/data/multi-t-nmp-lle.json": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
-    "server/research/ecr-pre-pilot-cosmosac/vendor/python/cCOSMO.cpython-312-x86_64-linux-gnu.so": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
-    "server/research/ecr-pre-pilot-pa-anchor/evidence.ts": "bc94349623ff967062907c1e8b46609b1f49f02958b90883bcc73dfc75d2be36",
-}
-PINNED_PROFILE_HASH_MAP_SHA256 = "82aa80150f05bdfe17ae2c64df1af02d74dbbd1c4c215881cdfead6156f441c1"
-
+EXPECTED_XTB_BINARY_SHA256 = "debf27a9e0fa4bfb5ca75aafe4b90d8211f08ec2f4a482f375a4987212eaa12a"
+EXPECTED_CPX_BINARY_SHA256 = "0da39b6f371786f41a46ec2c5f0de023c234687c36d747a7dcae351dec45f8ad"
+FAMILIES = ["SAT", "MONO", "DI", "POLY", "PA", "NMP"]
 TEMPERATURES_K = [298.15, 313.15, 323.15, 333.15, 348.15]
-COMPONENTS = [
-    {
-        "family": "SAT",
-        "name": "n-dodecane",
-        "cas": "112-40-3",
-        "inchiKey": "SNRUBQQJIBEYMU-UHFFFAOYSA-N",
-    },
-    {
-        "family": "MONO",
-        "name": "n-propylbenzene",
-        "cas": "103-65-1",
-        "inchiKey": "ODLMAHJVESYWTB-UHFFFAOYSA-N",
-    },
-    {
-        "family": "DI",
-        "name": "1-methylnaphthalene",
-        "cas": "90-12-0",
-        "inchiKey": "QPUYECUOLPXSFR-UHFFFAOYSA-N",
-    },
-    {
-        "family": "POLY",
-        "name": "pyrene",
-        "cas": "129-00-0",
-        "inchiKey": "BBEAQIROQSPTKN-UHFFFAOYSA-N",
-    },
-    {
-        "family": "PA",
-        "name": "4,4'-Bis(alpha,alpha-dimethylbenzyl)diphenylamine",
-        "cas": "10081-67-1",
-        "pubchemCid": 82343,
-        "formula": "C30H31N",
-        "molecularWeightGmol": 405.58,
-        "canonicalSmiles": "CC(C)(C1=CC=CC=C1)C2=CC=C(C=C2)NC3=CC=C(C=C3)C(C)(C)C4=CC=CC=C4",
-        "inchi": "InChI=1S/C30H31N/c1-29(2,23-11-7-5-8-12-23)25-15-19-27(20-16-25)31-28-21-17-26(18-22-28)30(3,4)24-13-9-6-10-14-24/h5-22,31H,1-4H3",
-        "inchiKey": "UJAWGGOCYUPCPS-UHFFFAOYSA-N",
-        "formalCharge": 0,
-        "spinMultiplicity": 1,
-        "identityStatus": "IDENTITY_ADMITTED_THERMODYNAMICS_BLOCKED",
-        "conformerTreatment": "NOT_FROZEN",
-    },
-    {
-        "family": "NMP",
-        "name": "N-methyl-2-pyrrolidone",
-        "cas": "872-50-4",
-        "inchiKey": "SECXISVLQFMRJM-UHFFFAOYSA-N",
-    },
+COMPOSITIONS = [
+    [0.45, 0.12, 0.10, 0.06, 0.07, 0.20],
+    [0.20, 0.20, 0.20, 0.10, 0.10, 0.20],
+    [0.70, 0.05, 0.05, 0.05, 0.05, 0.10],
+    [0.10, 0.05, 0.05, 0.05, 0.05, 0.70],
 ]
+EXPECTED_PROFILE_HASHES = {
+    "SAT": "d01fda25cf270c9386130ed3eb1b480446fd391236e967ca9ce2e0a69fd44009",
+    "MONO": "40431b8d5be1b6cd1541742dd189b6e677c877dc5b1e0e00f2f45026b5b26a96",
+    "DI": "f58a8f4114242b2072a08f7b51320dde572dc5c5531339fc8df26c763a1d8436",
+    "POLY": "aee7911343cd85fafbeb90a30aed4a71f6657b3132166bdc16b428ed5c35b66f",
+    "PA": "37da08f756f00c20e61472ab71c1129ce3502750f1082ec8d460477f04710585",
+    "NMP": "6e9318b0a76297bb78da0c9fa19d3dd61101f03c399cd4dd4508eac7b6594566",
+}
 
 
 def sha256(path: Path) -> str:
@@ -90,308 +55,248 @@ def require_mapping(value: Any, label: str) -> dict[str, Any]:
     return value
 
 
-def load_upstream() -> tuple[dict[str, Any], dict[str, Any], dict[str, str]]:
-    results_path = COSMOSAC_OUT / "results.json"
-    report_path = COSMOSAC_OUT / "report.md"
-    manifest_path = ROOT / "server/research/ecr-pre-pilot-cosmosac/provenance-manifest.json"
-    for path in (results_path, report_path, manifest_path):
-        if not path.is_file():
-            raise RuntimeError(f"required upstream evidence is missing: {path}")
-
-    results = require_mapping(
-        json.loads(results_path.read_text(encoding="utf-8")),
-        "COSMO-SAC results",
-    )
-    manifest = require_mapping(
-        json.loads(manifest_path.read_text(encoding="utf-8")),
-        "COSMO-SAC provenance manifest",
-    )
-    if manifest.get("NIST_COSMOSAC_source_commit") != NIST_COSMOSAC_COMMIT:
-        raise RuntimeError("unreviewed NIST COSMO-SAC source commit")
-    if manifest.get("ThermoSAC_profile_source_commit") != THERMOSAC_REVIEWED_COMMIT:
-        raise RuntimeError("unreviewed ThermoSAC profile-source commit")
-
-    pinned_inputs: dict[str, str] = {}
-    for relative_path, expected in PINNED_INPUT_SHA256.items():
-        path = ROOT / relative_path
-        actual = sha256(path)
-        if actual != expected:
-            raise RuntimeError(
-                f"pinned input changed without review: {relative_path}: {actual} != {expected}"
-            )
-        pinned_inputs[relative_path] = actual
-
-    profile_hashes = require_mapping(
-        manifest.get("sigmaProfileSha256"),
-        "upstream sigma-profile hashes",
-    )
-    profile_map_digest = hashlib.sha256(
-        json.dumps(profile_hashes, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
-    if profile_map_digest != PINNED_PROFILE_HASH_MAP_SHA256:
-        raise RuntimeError("restricted benchmark profile inventory changed without review")
-
-    integrity = {
-        "resultsSha256": sha256(results_path),
-        "reportSha256": sha256(report_path),
-        "manifestSha256": sha256(manifest_path),
-        "pinnedInputSha256": pinned_inputs,
-        "sigmaProfileHashMapCanonicalSha256": profile_map_digest,
-    }
-    return results, manifest, integrity
-
-
-def null_six_component_outputs() -> dict[str, Any]:
+def validate_profile(path: Path, identity_key: str, expected_area: float) -> dict[str, Any]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    if len(lines) != 156 or not lines[0].startswith("# meta: "):
+        raise RuntimeError(f"invalid NIST sigma3 profile structure: {path}")
+    meta = require_mapping(json.loads(lines[0][8:]), f"{path.name} metadata")
+    if meta.get("standard_INCHIKEY") != identity_key:
+        raise RuntimeError(f"profile identity mismatch: {path}")
+    rows = [tuple(map(float, line.split())) for line in lines[3:]]
+    if len(rows) != 153:
+        raise RuntimeError(f"profile must contain three 51-point partitions: {path}")
+    expected_grid = [round(-0.025 + index * 0.001, 3) for index in range(51)] * 3
+    if any(abs(row[0] - expected) > 1e-12 for row, expected in zip(rows, expected_grid)):
+        raise RuntimeError(f"profile sigma grid mismatch: {path}")
+    if any(not math.isfinite(area) or area < 0 for _, area in rows):
+        raise RuntimeError(f"profile contains invalid area: {path}")
+    area_sum = sum(area for _, area in rows)
+    if abs(area_sum - expected_area) / expected_area > 2e-7:
+        raise RuntimeError(f"profile area does not close to source surface: {path}")
     return {
-        "phaseBehavior": None,
-        "rrboRichComposition": None,
-        "nmpRichComposition": None,
-        "nmpRichPhaseFraction": None,
-        "distributionCoefficients": {family: None for family in ("SAT", "MONO", "DI", "POLY", "PA", "NMP")},
-        "satLoss": None,
-        "monoExtraction": None,
-        "diExtraction": None,
-        "polyExtraction": None,
-        "paExtraction": None,
-        "totalAromaticExtraction": None,
-        "nmpCarryover": None,
-        "nmpFreeRrboRecovery": None,
-        "massBalanceMaxResidual": None,
-        "gibbsEnergyReduction": None,
-        "chemicalPotentialMaxResidual": None,
+        "sha256": sha256(path),
+        "areaSumSquareAngstrom": area_sum,
+        "partitionAreaSquareAngstrom": {
+            "NHB": sum(area for _, area in rows[0:51]),
+            "OH": sum(area for _, area in rows[51:102]),
+            "OT": sum(area for _, area in rows[102:153]),
+        },
+        "volumeCubicAngstrom": meta["volume [A^3]"],
     }
 
 
 def main() -> None:
-    upstream, upstream_manifest, upstream_integrity = load_upstream()
-    license_evidence = require_mapping(
+    generation = require_mapping(
+        json.loads(GENERATION_MANIFEST.read_text(encoding="utf-8")),
+        "generation manifest",
+    )
+    protocol = require_mapping(
+        json.loads(GENERATION_PROTOCOL.read_text(encoding="utf-8")),
+        "generation protocol",
+    )
+    licenses = require_mapping(
         json.loads(LICENSE_EVIDENCE.read_text(encoding="utf-8")),
         "license evidence",
     )
-    coto = require_mapping(upstream["benchmark"]["cotoMetrics"], "Coto metrics")
-    multi = require_mapping(upstream["benchmark"]["multiTMetrics"], "multi-temperature metrics")
+    release_provenance = require_mapping(
+        json.loads(RELEASE_PROVENANCE.read_text(encoding="utf-8")),
+        "release provenance",
+    )
+    if protocol.get("status") != "EXECUTED_QUALIFIED_PROFILE_BASIS":
+        raise RuntimeError("generation protocol is not qualified")
+    if licenses["nistBundledProfiles"]["assessment"] != "NOT_ADMITTED_FOR_PROJECT_CALCULATIONS":
+        raise RuntimeError("restricted NIST profile boundary changed without review")
+    if generation.get("restrictedProfileInputs") != []:
+        raise RuntimeError("restricted profile inputs are prohibited")
+    software = require_mapping(generation.get("software"), "generation software")
+    if software.get("generatorSha256") != sha256(HERE / "generate_profiles.py"):
+        raise RuntimeError("profile generator integrity failure")
+    if software.get("xtbBinarySha256") != EXPECTED_XTB_BINARY_SHA256:
+        raise RuntimeError("xTB binary integrity failure")
+    if software.get("cpcmXBinarySha256") != EXPECTED_CPX_BINARY_SHA256:
+        raise RuntimeError("CPCM-X binary integrity failure")
+    if software.get("releaseProvenanceSha256") != sha256(RELEASE_PROVENANCE):
+        raise RuntimeError("release provenance integrity failure")
+    if release_provenance["xTB"]["retainedExecutableSha256"] != EXPECTED_XTB_BINARY_SHA256:
+        raise RuntimeError("xTB publisher provenance mismatch")
+    if release_provenance["cpcmX"]["retainedExecutableSha256"] != EXPECTED_CPX_BINARY_SHA256:
+        raise RuntimeError("CPCM-X publisher provenance mismatch")
+    if sha256(HERE / "vendor/xtb-6.7.1/bin/xtb") != EXPECTED_XTB_BINARY_SHA256:
+        raise RuntimeError("vendored xTB binary changed")
+    if sha256(HERE / "vendor/cpx-1.1.0/bin/cpx") != EXPECTED_CPX_BINARY_SHA256:
+        raise RuntimeError("vendored CPCM-X binary changed")
 
-    coto_records = int(coto["records"])
-    multi_records = int(multi["records"])
-    coto_two_phase = int(coto["categories"]["TWO_PHASE"])
-    multi_two_phase = int(multi["categories"]["TWO_PHASE"])
-    observed_two_phase = coto_records + multi_records
-    predicted_two_phase = coto_two_phase + multi_two_phase
-    topology_recall = predicted_two_phase / observed_two_phase if observed_two_phase else None
-    topology_pass = bool(observed_two_phase and predicted_two_phase == observed_two_phase)
+    components = generation.get("components")
+    if not isinstance(components, list) or [row["family"] for row in components] != FAMILIES:
+        raise RuntimeError("six-component order or coverage mismatch")
+    if components[4]["cas"] != "10081-67-1":
+        raise RuntimeError("exact PA identity is not present")
 
-    if upstream["finalDecision"] != "REJECT":
-        raise RuntimeError("upstream COSMO-SAC benchmark no longer has the reviewed REJECT decision")
-    if coto_records != 17 or multi_records != 219:
-        raise RuntimeError(
-            f"unexpected benchmark coverage: Coto={coto_records}, multi-temperature={multi_records}"
+    profile_integrity: dict[str, Any] = {}
+    keys = []
+    for component in components:
+        family = component["family"]
+        key = component["inchiKey"]
+        keys.append(key)
+        profile_path = SIGMA3 / f"{key}.sigma"
+        surface_path = GENERATED / "surfaces" / f"{key}.cosmo"
+        selected_geometry_path = GENERATED / "surfaces" / f"{key}.rdkit-selected.xyz"
+        geometry_path = GENERATED / "surfaces" / f"{key}.xyz"
+        if sha256(profile_path) != EXPECTED_PROFILE_HASHES[family]:
+            raise RuntimeError(f"unexpected generated profile hash for {family}")
+        if sha256(surface_path) != component["surfaceSha256"]:
+            raise RuntimeError(f"surface integrity failure for {family}")
+        if sha256(selected_geometry_path) != component["selectedConformerGeometrySha256"]:
+            raise RuntimeError(f"selected-conformer integrity failure for {family}")
+        if sha256(geometry_path) != component["optimizedGeometrySha256"]:
+            raise RuntimeError(f"geometry integrity failure for {family}")
+        profile_integrity[family] = validate_profile(
+            profile_path, key, component["areaSquareAngstrom"]
         )
-    if topology_pass:
-        raise RuntimeError("qualification runner is stale: the topology gate now passes")
 
-    profile_hashes = require_mapping(
-        upstream_manifest.get("sigmaProfileSha256"),
-        "upstream sigma-profile hashes",
-    )
-    profile_identity_keys = {Path(filename).stem for filename in profile_hashes}
-    pa_identity_key = next(
-        component["inchiKey"] for component in COMPONENTS if component["family"] == "PA"
-    )
-    pa_profile_present = pa_identity_key in profile_identity_keys
-    if pa_profile_present:
-        raise RuntimeError("unexpected exact PA profile in the restricted benchmark profile set")
+    if sha256(PROFILES / "complist.txt") != generation["complistSha256"]:
+        raise RuntimeError("generated complist integrity failure")
 
-    blockers = [
-        {
-            "code": "NON_PA_PHASE_TOPOLOGY_NOT_REPRODUCED",
-            "detail": (
-                "The NIST COSMO-SAC-2010 candidate predicted no two-liquid split for "
-                f"{observed_two_phase}/{observed_two_phase} experimentally two-phase records."
-            ),
-        },
-        {
-            "code": "OPEN_SOURCE_PROFILE_GENERATION_ROUTE_NOT_QUALIFIED",
-            "detail": (
-                "No legally admitted open-source molecular surface/profile route has been "
-                "shown compatible with the selected NIST COSMO-SAC parameterization for all six representatives."
-            ),
-        },
-        {
-            "code": "EXACT_PA_SIGMA_PROFILE_UNAVAILABLE",
-            "detail": (
-                "The exact PA identity is admitted, but no compatible, legally admitted sigma profile "
-                "for CAS 10081-67-1 is present."
-            ),
-        },
-    ]
+    sys.path.insert(0, str(CCOSMO_VENDOR))
+    import cCOSMO  # type: ignore
+
+    database = cCOSMO.DelawareProfileDatabase(str(PROFILES / "complist.txt"), str(SIGMA3))
+    for key in keys:
+        database.add_profile(key)
+    model = cCOSMO.COSMO3(keys, database)
+
+    activity_grid = []
+    signatures = []
+    for temperature in TEMPERATURES_K:
+        for composition in COMPOSITIONS:
+            x = np.asarray(composition, dtype=float)
+            first = np.asarray(model.get_lngamma_comb(temperature, x)) + np.asarray(
+                model.get_lngamma_resid(temperature, x)
+            )
+            second = np.asarray(model.get_lngamma_comb(temperature, x)) + np.asarray(
+                model.get_lngamma_resid(temperature, x)
+            )
+            if first.shape != (6,) or not np.isfinite(first).all():
+                raise RuntimeError("NIST cCOSMO returned non-finite six-component activities")
+            if not np.array_equal(first, second):
+                raise RuntimeError("NIST cCOSMO activity execution is not repeatable")
+            signatures.append(first)
+            activity_grid.append({
+                "temperatureK": temperature,
+                "composition": composition,
+                "lnGamma": first.tolist(),
+                "gamma": np.exp(first).tolist(),
+            })
+    if max(float(np.max(np.abs(a - b))) for a in signatures for b in signatures) <= 1e-8:
+        raise RuntimeError("activities are not composition/temperature dependent")
 
     result = {
-        "schemaVersion": "1.0.0",
+        "schemaVersion": "2.0.0",
         "researchOnly": True,
-        "calibrationStatus": "CALIBRATION_REQUIRED",
         "releaseEligible": False,
+        "decision": "PROFILE_BASIS_QUALIFIED_FOR_NIST_TOPOLOGY_GATE",
         "mission": {
             "system": "SAT+MONO+DI+POLY+PA+NMP",
-            "components": COMPONENTS,
+            "components": components,
             "temperaturesK": TEMPERATURES_K,
-            "primaryStage1TemperatureK": 323.15,
-            "primaryObjective": "SIMULTANEOUS_SIX_COMPONENT_THERMODYNAMIC_CLOSURE",
-            "paDirectedUniquacTermsArePrimaryObjective": False,
+            "compositionGrid": COMPOSITIONS,
         },
-        "softwareQualification": {
-            "nistCosmoSac": {
-                "status": "FROZEN_HISTORICAL_EXECUTABLE_EVIDENCE_NOT_ADMITTED_FOR_PROJECT_CALCULATIONS",
-                "sourceCommit": upstream_manifest["NIST_COSMOSAC_source_commit"],
-                "model": upstream["model"],
-                "compositionDependentActivityCoefficients": "HISTORICALLY_EXECUTED",
-                "gibbsMixingEnergy": "HISTORICALLY_EXECUTED",
-                "multicomponentTpdAndFlash": "HISTORICALLY_EXECUTED_RESEARCH_IMPLEMENTATION",
-                "softwareLicenseAssessment": license_evidence["nistCosmoSacSoftware"],
-            },
-            "thermoSac": {
-                "status": "NOT_ADMITTED",
-                "reason": "No software license is declared in the reviewed repository or package metadata.",
-                "licenseAssessment": license_evidence["thermoSacSoftware"],
-                "requiredForCurrentGate": False,
-            },
+        "rightsQualification": {
+            "nistCosmoSacSoftware": licenses["nistCosmoSacSoftware"],
+            "quantumGenerationSoftware": licenses["quantumGenerationSoftware"],
+            "quantumMethod": licenses["quantumMethod"],
+            "molecularSurfaceFiles": licenses["molecularSurfaceFiles"],
+            "profileConversion": licenses["profileConversion"],
+            "resultingProfileData": licenses["resultingProfileData"],
         },
         "profileQualification": {
-            "nistBundledUdVtProfiles": {
-                "status": "NOT_ADMITTED_FOR_PROJECT_CALCULATIONS",
-                "commercialUseAdmitted": False,
-                "redistributionAdmitted": False,
-                "licenseAssessment": license_evidence["nistBundledProfiles"],
-            },
-            "selectedOpenSourceGenerationRoute": None,
-            "selectedRouteStatus": "NOT_QUALIFIED",
-            "exactPaProfilePresent": pa_profile_present,
-            "generatedProfiles": [],
+            "selectedRoute": "RDKit-2023.09.5_ETKDGv3_MMFF94s__xTB-6.7.1_GFN2-xTB__CPCM-X-1.1.0",
+            "selectedRouteStatus": "QUALIFIED_FOR_NIST_TOPOLOGY_GATE",
+            "profileContract": "NIST DelawareProfileDatabase sigma3",
+            "generatedProfileCount": 6,
+            "exactPaProfilePresent": True,
+            "restrictedProfileUsedAsCalculationInput": False,
+            "profileIntegrity": profile_integrity,
         },
-        "nonPaBenchmarkGate": {
-            "status": "FAIL",
-            "requiredObservedTopology": "TWO_LIQUID_PHASES",
-            "coto": {
-                "records": coto_records,
-                "predictedTwoPhase": coto_two_phase,
-                "predictedStableSinglePhase": int(coto["categories"]["PREDICTED_STABLE_SINGLE_PHASE"]),
-            },
-            "multiTemperature": {
-                "records": multi_records,
-                "predictedTwoPhase": multi_two_phase,
-                "predictedStableSinglePhase": int(
-                    multi["categories"]["PREDICTED_STABLE_SINGLE_PHASE"]
-                ),
-            },
-            "combinedTopologyRecall": topology_recall,
-            "acceptanceGatePassed": False,
+        "nistRuntimeQualification": {
+            "sourceCommit": NIST_COSMOSAC_COMMIT,
+            "model": "COSMO-SAC-2010",
+            "lnGamma": "get_lngamma_comb(T,x)+get_lngamma_resid(T,x)",
+            "loadedProfileCount": 6,
+            "testPointCount": len(activity_grid),
+            "allFinite": True,
+            "compositionDependent": True,
+            "bitwiseRepeatableWithinProcess": True,
+            "activityGrid": activity_grid,
         },
-        "sixComponentCalculation": {
-            "status": "NOT_CALCULABLE",
-            "execution": "NOT_EXECUTED_AFTER_MANDATORY_NON_PA_GATE_FAILURE",
-            "outputs": null_six_component_outputs(),
+        "scopeBoundary": {
+            "phaseTopologyGateRerun": "ENABLED",
+            "phaseTopologyValidated": False,
+            "thermodynamicsAdmitted": False,
+            "reason": "Profile/runtime compatibility is qualified here; LLE topology and quantitative validation are separate downstream gates.",
         },
-        "runtimeRepresentation": {
-            "status": "NOT_EXECUTED",
-            "uniquacMatrixAudit": "NOT_EXECUTED_AFTER_MANDATORY_GATE_FAILURE",
-            "fittedInteractions": [],
-            "paDirectedInteractionCount": 0,
+        "integrity": {
+            "generationManifestSha256": sha256(GENERATION_MANIFEST),
+            "generationProtocolSha256": sha256(GENERATION_PROTOCOL),
+            "licenseEvidenceSha256": sha256(LICENSE_EVIDENCE),
+            "releaseProvenanceSha256": sha256(RELEASE_PROVENANCE),
+            "complistSha256": sha256(PROFILES / "complist.txt"),
         },
-        "sulfur": {
-            "status": "NOT_CALCULABLE",
-            "independentOfPa": True,
-        },
-        "blockers": blockers,
-        "upstreamEvidence": {
-            "directory": ".agents/outputs/ecr-pre-pilot-cosmosac",
-            "integrity": upstream_integrity,
-        },
-        "licenseEvidence": {
-            "path": "server/research/ecr-pre-pilot-six-component-thermodynamics/license-evidence.json",
-            "sha256": sha256(LICENSE_EVIDENCE),
-        },
-        "productionImpact": {
-            "stage1Changed": False,
-            "runtimeChanged": False,
-            "positivePaGateChanged": False,
-            "sulfurStatusChanged": False,
-            "releaseEligibilityChanged": False,
-        },
-        "decision": "STOPPED_NON_PA_TOPOLOGY_GATE_FAILED",
     }
-
     OUT.mkdir(parents=True, exist_ok=True)
-    results_path = OUT / "results.json"
-    report_path = OUT / "report.md"
-    results_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
-    report = f"""# Six-component thermodynamics qualification
+    (OUT / "results.json").write_text(
+        json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    report = f"""# Six-component COSMO profile-basis qualification
 
 ## Decision
 
 `{result["decision"]}`
 
-The required system is **SAT + MONO + DI + POLY + PA + NMP**. The primary objective is
-simultaneous six-component thermodynamic closure; fitting ten PA-directed UNIQUAC terms is
-not a substitute for that closure.
+Six exact neutral-singlet molecular profiles were generated with one route:
+RDKit ETKDGv3/MMFF94s conformer selection, GFN2-xTB geometry optimization,
+and CPCM-X 1.1.0 conductor surfaces/profiles. The exact PA is CAS 10081-67-1.
 
-## Executable qualification
+## Rights boundary
 
-- NIST COSMO-SAC implementation: **FROZEN HISTORICAL EXECUTABLE EVIDENCE**
-- Composition-dependent activity coefficients: **HISTORICALLY EXECUTED**
-- Gibbs mixing energy: **HISTORICALLY EXECUTED**
-- Research multicomponent TPD and constrained Gibbs flash: **HISTORICALLY EXECUTED**
-- Restricted profiles executed during this verification: **NO**
-- NIST UD/VT profile admission for project calculations: **NOT ADMITTED**
-- ThermoSAC admission: **NOT ADMITTED** because no declared software license was found
-- Exact PA sigma profile: **UNAVAILABLE**
-- Qualified open-source six-profile generation route: **UNAVAILABLE**
+Rights are documented separately for NIST cCOSMO software, generation software,
+the quantum method, generated surfaces, profile conversion, and resulting data.
+NIST UD/VT and ThermoSAC profiles were not used as generation or calculation inputs.
 
-## Mandatory non-PA topology gate
+## Frozen profile contract
 
-| evidence set | experimentally two-phase records | predicted two-phase | predicted stable single phase |
-|---|---:|---:|---:|
-| Coto | {coto_records} | {coto_two_phase} | {coto["categories"]["PREDICTED_STABLE_SINGLE_PHASE"]} |
-| Multi-temperature | {multi_records} | {multi_two_phase} | {multi["categories"]["PREDICTED_STABLE_SINGLE_PHASE"]} |
+- charge/spin: 0 / singlet for all six identities
+- conformers: deterministic ETKDGv3 seed 20260829, MMFF94s minimum, retained geometry hashes
+- geometry/surface method: GFN2-xTB 6.7.1 and CPCM-X 1.1.0, epsilon=infinity
+- sigma grid: -0.025 to +0.025 e/A2, 0.001 step, 51 points per NHB/OH/OT partition
+- area/volume: frozen per molecule with source/profile integrity hashes
+- reference state: neutral singlet conductor surface at 298.15 K
 
-Combined two-phase topology recall: **{topology_recall:.6f}**
+## NIST runtime test
 
-The previously generated NIST COSMO-SAC-2010/restricted-profile candidate therefore fails the prerequisite
-qualitative phase-topology test. This rejects the candidate basis; it does not prove that
-every possible independently generated NIST-compatible profile basis must fail.
+All six project-generated profiles loaded in pinned NIST cCOSMO commit
+`{NIST_COSMOSAC_COMMIT}`. All {len(activity_grid)} temperature/composition test
+points produced finite, composition-dependent activities and repeated bitwise
+within the process.
 
-## Six-component status
-
-The six-component calculation was not executed after the mandatory gate failure. Both
-liquid compositions, phase fraction, all six distribution coefficients, SAT loss,
-MONO/DI/POLY/PA extraction, total aromatic extraction, NMP carryover, NMP-free RRBO
-recovery, and all equilibrium residuals remain explicitly null.
-
-No molecular profiles were generated. No PA activities were estimated. No UNIQUAC
-interactions were fitted. Sulfur remains independently `NOT_CALCULABLE`.
-
-## Production boundary
-
-Stage 1, the production thermodynamic runtime, positive-PA gating, sulfur status, and
-release eligibility are unchanged. Results remain `CALIBRATION_REQUIRED`, research-only,
-non-pilot-validated, and non-release-eligible.
+This qualifies the profile basis for the separate phase-topology gate. It does
+not itself validate phase topology, quantitative LLE, sulfur prediction, or
+release eligibility.
 """
-    report_path.write_text(report, encoding="utf-8")
-
-    manifest = {
-        "schemaVersion": "1.0.0",
-        "runnerSha256": sha256(HERE / "run.py"),
-        "upstreamEvidence": result["upstreamEvidence"],
-        "nistCosmoSacSourceCommit": upstream_manifest["NIST_COSMOSAC_source_commit"],
-        "thermoSacReviewedCommit": upstream_manifest["ThermoSAC_profile_source_commit"],
-        "licenseEvidenceSha256": sha256(LICENSE_EVIDENCE),
-        "componentIdentityKeys": {
-            component["family"]: component["inchiKey"] for component in COMPONENTS
-        },
+    (OUT / "report.md").write_text(report, encoding="utf-8")
+    provenance = {
+        "schemaVersion": "2.0.0",
         "decision": result["decision"],
+        "runnerSha256": sha256(HERE / "run.py"),
+        **result["integrity"],
+        "componentIdentityKeys": {
+            component["family"]: component["inchiKey"] for component in components
+        },
+        "profileSha256ByFamily": EXPECTED_PROFILE_HASHES,
+        "nistCosmoSacSourceCommit": NIST_COSMOSAC_COMMIT,
     }
     (HERE / "provenance-manifest.json").write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+        json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
 
 

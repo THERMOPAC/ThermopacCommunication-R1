@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0.0",
+  "cpcmX": {
+    "release": "v1.1.0",
+    "releaseCommit": "e7f894c76d41ee1f703cf6f03e931cbcf046bc7f",
+    "releasePage": "https://github.com/grimme-lab/CPCM-X/releases/tag/v1.1.0",
+    "linuxArchiveUrl": "https://github.com/grimme-lab/CPCM-X/releases/download/v1.1.0/cpx-1.1.0-linux-x86_64.tar.xz",
+    "publisherChecksumUrl": "https://github.com/grimme-lab/CPCM-X/releases/download/v1.1.0/cpx-1.1.0-linux-x86_64.tar.xz.sha256",
+    "publisherArchiveSha256": "7d16b0bcedf0fe94f22305dbe9ee991c2c91c28719defc3dd265ed4800aca1c3",
+    "retainedExecutable": "cpx-1.1.0/bin/cpx",
+    "retainedExecutableSha256": "0da39b6f371786f41a46ec2c5f0de023c234687c36d747a7dcae351dec45f8ad",
+    "license": "LGPL-3.0",
+    "localLicenseSha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+  },
+  "xTB": {
+    "release": "v6.7.1",
+    "releaseCommit": "26b28010e805f7d1aeeef39813feb473e69cc4be",
+    "releasePage": "https://github.com/grimme-lab/xtb/releases/tag/v6.7.1",
+    "linuxArchiveUrl": "https://github.com/grimme-lab/xtb/releases/download/v6.7.1/xtb-6.7.1-linux-x86_64.tar.xz",
+    "publisherChecksumUrl": "https://github.com/grimme-lab/xtb/releases/download/v6.7.1/xtb-6.7.1-linux-x86_64.tar.xz.sha256",
+    "publisherArchiveSha256": "62a8d18778286e815292ee53d76ce447daf460a4dea3782c0f25cbac7019b5df",
+    "retainedExecutable": "xtb-6.7.1/bin/xtb",
+    "retainedExecutableSha256": "debf27a9e0fa4bfb5ca75aafe4b90d8211f08ec2f4a482f375a4987212eaa12a",
+    "license": "LGPL-3.0",
+    "localLicenseSha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  "rdkit": {
+    "release": "2023.09.5",
+    "source": "https://github.com/rdkit/rdkit/tree/Release_2023_09_5",
+    "installation": "Replit Nix python312Packages.rdkit",
+    "license": "BSD-3-Clause",
+    "localLicenseSha256": "daeb8d194502cbcf34c05c39541a0d02be65bc9bada5b891c1974cd24e9fca30"
+  },
+  "verification": "The CPCM-X and xTB archives were downloaded from the official GitHub release URLs and matched the publisher-provided SHA-256 files before extraction. Only the required executables, runtime parameters, and notices are retained."
+}
