@@ -1,33 +1,51 @@
 #!/usr/bin/env python3
-"""Deterministic, research-only COSMO-SAC-2010 molecular LLE evaluation."""
-import hashlib, json, math, os, re, sys
+"""Deterministic six-component COSMO-SAC-2010 phase-topology evaluation."""
+import hashlib, json, math, sys
 from pathlib import Path
-import numpy as np
-import scipy
-import cCOSMO
-from scipy.optimize import minimize
 
 ROOT=Path(__file__).resolve().parents[3]
 HERE=Path(__file__).resolve().parent
 OUT=ROOT/".agents/outputs/ecr-pre-pilot-cosmosac"; OUT.mkdir(parents=True,exist_ok=True)
-UD=HERE/"vendor/profiles/UD"
-COMP={"N-DODECANE":("112-40-3","CCCCCCCCCCCC","InChI=1S/C12H26/c1-3-5-7-9-11-12-10-8-6-4-2/h3-12H2,1-2H3","SNRUBQQJIBEYMU-UHFFFAOYSA-N",170.3348),
-"P-XYLENE":("106-42-3","c1(ccc(cc1)C)C","InChI=1S/C8H10/c1-7-3-5-8(2)6-4-7/h3-6H,1-2H3","URLKBWYHVLBVBO-UHFFFAOYSA-N",106.165),
-"TOLUENE":("108-88-3","c1cc(ccc1)C","InChI=1S/C7H8/c1-7-5-3-2-4-6-7/h2-6H,1H3","YXFVVABEGXRONW-UHFFFAOYSA-N",92.1405),
-"1-METHYLNAPHTHALENE":("90-12-0","c1ccc2c(c1)c(ccc2)C","InChI=1S/C11H10/c1-9-5-4-7-10-6-2-3-8-11(9)10/h2-8H,1H3","QPUYECUOLPXSFR-UHFFFAOYSA-N",142.1971),
-"PYRENE":("129-00-0","c12c3c4ccc1cccc2ccc3ccc4","InChI=1S/C16H10/c1-3-11-7-9-13-5-2-6-14-10-8-12(4-1)15(11)16(13)14/h1-10H","BBEAQIROQSPTKN-UHFFFAOYSA-N",202.2506),
-"N-METHYL-2-PYRROLIDONE":("872-50-4","N1(CCCC1=O)C","InChI=1S/C5H9NO/c1-6-4-2-3-5(6)7/h2-4H2,1H3","SECXISVLQFMRJM-UHFFFAOYSA-N",99.1311),
-"DIBENZOTHIOPHENE":("132-65-0","c12c3c(sc1cccc2)cccc3","InChI=1S/C12H8S/c1-3-7-11-9(5-1)10-6-2-4-8-12(10)13-11/h1-8H","IYYZUPMFVPLQIF-UHFFFAOYSA-N",184.259),
-"BENZOTHIOPHENE":("95-15-8","c1cc2c(s1)cccc2","InChI=1S/C8H6S/c1-2-4-8-7(3-1)5-6-9-8/h1-6H","FCEHBMOGCRZNNI-UHFFFAOYSA-N",134.201),
-"THIOPHENE":("110-02-1","c1cccs1","InChI=1S/C4H4S/c1-2-4-5-3-1/h1-4H","YTPLMLYBLZKORZ-UHFFFAOYSA-N",84.139),
-"N-TETRADECANE":("629-59-4","CCCCCCCCCCCCCC","InChI=1S/C14H30/c1-3-5-7-9-11-13-14-12-10-8-6-4-2/h3-14H2,1-2H3","BGHCVCJVXZWKCC-UHFFFAOYSA-N",198.388),
-"N-HEXADECANE":("544-76-3","CCCCCCCCCCCCCCCC","InChI=1S/C16H34/c1-3-5-7-9-11-13-15-16-14-12-10-8-6-4-2/h3-16H2,1-2H3","DCAYPVUWAIABOU-UHFFFAOYSA-N",226.441),
-"N-HEPTADECANE":("629-78-7","C(CCCCCCCCCCCCCCC)C","InChI=1S/C17H36/c1-3-5-7-9-11-13-15-17-16-14-12-10-8-6-4-2/h3-17H2,1-2H3","NDJKXXJCMXVBJW-UHFFFAOYSA-N",240.468),
-"N-PROPYLBENZENE":("103-65-1","c1ccc(cc1)CCC","InChI=1S/C9H12/c1-2-6-9-7-4-3-5-8-9/h3-5,7-8H,2,6H2,1H3","ODLMAHJVESYWTB-UHFFFAOYSA-N",120.194),
-"N-PENTYLBENZENE":("538-68-1","c1cccc(c1)CCCCC","InChI=1S/C11H16/c1-2-3-5-8-11-9-6-4-7-10-11/h4,6-7,9-10H,2-3,5,8H2,1H3","PWATWSYOIIXYMA-UHFFFAOYSA-N",148.248),
-"MESITYLENE":("108-67-8","c1(cc(cc(c1)C)C)C","InChI=1S/C9H12/c1-7-4-8(2)6-9(3)5-7/h4-6H,1-3H3","AUHZEENZYGFFBQ-UHFFFAOYSA-N",120.194)}
+CCOSMO_VENDOR=HERE/"vendor/python"
+CCOSMO_BINARY=CCOSMO_VENDOR/"cCOSMO.cpython-312-x86_64-linux-gnu.so"
+CCOSMO_BINARY_SHA256="a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61"
+if hashlib.sha256(CCOSMO_BINARY.read_bytes()).hexdigest() != CCOSMO_BINARY_SHA256:
+    raise RuntimeError("vendored cCOSMO binary hash mismatch")
+sys.path.insert(0,str(CCOSMO_VENDOR))
+import cCOSMO
+import numpy as np
+import scipy
+from scipy.optimize import minimize
+if Path(cCOSMO.__file__).resolve() != CCOSMO_BINARY.resolve():
+    raise RuntimeError("cCOSMO did not load from the pinned vendored binary")
+if np.__version__ != "2.1.3" or not Path(np.__file__).resolve().is_relative_to(CCOSMO_VENDOR.resolve()):
+    raise RuntimeError("NumPy did not load from the pinned vendored runtime")
+if scipy.__version__ != "1.14.1" or not Path(scipy.__file__).resolve().is_relative_to(CCOSMO_VENDOR.resolve()):
+    raise RuntimeError("SciPy did not load from the pinned vendored runtime")
+PROFILES=ROOT/"server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles"
+PROFILE_PROVENANCE=ROOT/"server/research/ecr-pre-pilot-six-component-thermodynamics/provenance-manifest.json"
+FAMILIES=("SAT","MONO","DI","POLY","PA","NMP")
+COMP={"SAT":("112-40-3","CCCCCCCCCCCC","InChI=1S/C12H26/c1-3-5-7-9-11-12-10-8-6-4-2/h3-12H2,1-2H3","SNRUBQQJIBEYMU-UHFFFAOYSA-N",170.3348),
+"MONO":("103-65-1","CCCc1ccccc1","InChI=1S/C9H12/c1-2-6-9-7-4-3-5-8-9/h3-5,7-8H,2,6H2,1H3","ODLMAHJVESYWTB-UHFFFAOYSA-N",120.194),
+"DI":("90-12-0","Cc1cccc2ccccc12","InChI=1S/C11H10/c1-9-5-4-7-10-6-2-3-8-11(9)10/h2-8H,1H3","QPUYECUOLPXSFR-UHFFFAOYSA-N",142.1971),
+"POLY":("129-00-0","c1cc2ccc3cccc4ccc(c1)c2c34","InChI=1S/C16H10/c1-3-11-7-9-13-5-2-6-14-10-8-12(4-1)15(11)16(13)14/h1-10H","BBEAQIROQSPTKN-UHFFFAOYSA-N",202.2506),
+"PA":("10081-67-1","CC(C)(c1ccccc1)c2ccc(Nc3ccc(C(C)(C)c4ccccc4)cc3)cc2","InChI=1S/C30H31N/c1-29(2,23-11-7-5-8-12-23)25-15-19-27(20-16-25)31-28-21-17-26(18-22-28)30(3,4)24-13-9-6-10-14-24/h5-22,31H,1-4H3","UJAWGGOCYUPCPS-UHFFFAOYSA-N",429.608),
+"NMP":("872-50-4","CN1CCCC1=O","InChI=1S/C5H9NO/c1-6-4-2-3-5(6)7/h2-4H2,1H3","SECXISVLQFMRJM-UHFFFAOYSA-N",99.1311)}
+TEMPERATURES_K=(298.15,313.15,323.15,333.15,348.15)
+COMPOSITIONS=((.45,.12,.10,.06,.07,.20),(.20,.20,.20,.10,.10,.20),(.70,.05,.05,.05,.05,.10),(.10,.05,.05,.05,.05,.70))
 KEY={k:v[3] for k,v in COMP.items()}
-db=cCOSMO.DelawareProfileDatabase(str(UD/"complist.txt"),str(UD/"sigma3"))
+profile_provenance=json.loads(PROFILE_PROVENANCE.read_text())
+if set(profile_provenance["componentIdentityKeys"]) != set(FAMILIES):
+    raise RuntimeError("six-component profile family coverage changed")
+if any(KEY[family] != profile_provenance["componentIdentityKeys"][family] for family in FAMILIES):
+    raise RuntimeError("six-component profile identity mismatch")
+if hashlib.sha256((PROFILES/"complist.txt").read_bytes()).hexdigest() != profile_provenance["complistSha256"]:
+    raise RuntimeError("six-component complist hash mismatch")
+for family in FAMILIES:
+    profile_path=PROFILES/"sigma3"/f"{KEY[family]}.sigma"
+    if hashlib.sha256(profile_path.read_bytes()).hexdigest() != profile_provenance["profileSha256ByFamily"][family]:
+        raise RuntimeError(f"six-component profile hash mismatch for {family}")
+db=cCOSMO.DelawareProfileDatabase(str(PROFILES/"complist.txt"),str(PROFILES/"sigma3"))
 for k in KEY.values(): db.add_profile(k)
 MODELS={}
 def lngamma(names,T,x):
@@ -37,15 +55,6 @@ def lngamma(names,T,x):
     # Required COSMO-SAC-2010 definition; intentionally never call get_lngamma.
     return np.asarray(m.get_lngamma_comb(T,x))+np.asarray(m.get_lngamma_resid(T,x))
 def norm(x): x=np.maximum(np.asarray(x,float),1e-10); return x/x.sum()
-def beta_rr(z,K):
-    f=lambda b:sum(z*(K-1)/(1+b*(K-1)))
-    a,b=1e-9,1-1e-9; fa,fb=f(a),f(b)
-    if fa*fb>0:return .5
-    for _ in range(70):
-        c=(a+b)/2
-        if f(c)*fa>0:a=c;fa=f(a)
-        else:b=c
-    return (a+b)/2
 def softmax(y):
     y=np.r_[y,0.]; y-=max(y); return np.exp(y)/np.exp(y).sum()
 def tpd_search(names,T,z):
@@ -58,14 +67,19 @@ def tpd_search(names,T,z):
             grid.append((val,w)); return
         for q in range(left+1): rec(left-q,k+1,a+[q])
     rec(den,0,[])
-    grid.sort(key=lambda x:x[0]); refined=[]
-    for _,w in grid[:2]+[(0.0,z)]:
+    grid.sort(key=lambda x:x[0]); refined=[]; refinement_diagnostics=[]
+    for seed_index,(_,w) in enumerate(grid[:3]+[(0.0,z)]):
         sol=minimize(lambda y: float(sum((ww:=softmax(y))*(np.log(ww)+lngamma(names,T,ww)-np.log(z)-gz))),
-                     np.log(w[:-1]/w[-1]),method="BFGS",options={"gtol":1e-6,"maxiter":5})
+                     np.log(w[:-1]/w[-1]),method="BFGS",options={"gtol":1e-6,"maxiter":200})
         ww=softmax(sol.x); refined.append((float(sol.fun),ww))
+        refinement_diagnostics.append({"seed":"FEED" if seed_index==3 else f"GRID_{seed_index+1}",
+            "success":bool(sol.success),"iterations":int(sol.nit),"objective":float(sol.fun),
+            "gradientInfinityNorm":float(max(abs(sol.jac))),"message":str(sol.message)})
     val,w=min(refined+grid+[(0.0,z)],key=lambda x:x[0])
     return {"gridDenominator":den,"gridPointCount":len(grid),"coarseMinimum":grid[0][0],"refinedMinimum":val,
-            "minimizingComposition":w.tolist(),"verdict":"UNSTABLE_NEGATIVE_TPD" if val < -1e-7 else "STABLE_NO_NEGATIVE_TPD"}
+            "minimizingComposition":w.tolist(),"refinements":refinement_diagnostics,
+            "refinementConverged":all(d["success"] or d["gradientInfinityNorm"]<=1e-6 for d in refinement_diagnostics),
+            "verdict":"UNSTABLE_NEGATIVE_TPD" if val < -1e-7 else "STABLE_NO_NEGATIVE_TPD"}
 def flash(names,T,z,experimental=None):
     """Constrained total-Gibbs minimization in NMP-rich component amounts."""
     z=norm(z); n=len(z); eps=1e-12; gh=float(sum(z*(np.log(z)+lngamma(names,T,z))))
@@ -86,116 +100,81 @@ def flash(names,T,z,experimental=None):
     ne=best.x; b=float(ne.sum()); e=ne/b; r=(z-ne)/(1-b)
     resid=float(max(abs(np.log(r)+lngamma(names,T,r)-np.log(e)-lngamma(names,T,e))))
     improvement=gh-float(best.fun); boundary=any(ne<=eps*1.01)|any(ne>=z-eps*1.01)
-    two=bool(best.success and tpd["refinedMinimum"]<-1e-7 and improvement>1e-8 and not boundary and resid<2e-5 and max(abs(e-r))>1e-4)
-    ni=names.index("N-METHYL-2-PYRROLIDONE")
+    numerical_success=bool(tpd["refinementConverged"] and best.success)
+    two=bool(numerical_success and tpd["refinedMinimum"]<-1e-7 and improvement>1e-8 and not boundary and resid<2e-5 and max(abs(e-r))>1e-4)
+    ni=names.index("NMP")
     if r[ni]>e[ni]:r,e,b=e,r,1-b
-    category="TWO_PHASE" if two else ("PREDICTED_STABLE_SINGLE_PHASE" if tpd["refinedMinimum"]>=-1e-7 else "NONCONVERGED_OR_BOUNDARY")
+    category="TWO_PHASE" if two else ("PREDICTED_STABLE_SINGLE_PHASE" if numerical_success and tpd["refinedMinimum"]>=-1e-7 and not boundary else "NONCONVERGED_OR_BOUNDARY")
+    stable=category=="PREDICTED_STABLE_SINGLE_PHASE"
+    failure_reasons=[]
+    if not tpd["refinementConverged"]: failure_reasons.append("TPD_REFINEMENT_NOT_CONVERGED")
+    if not best.success: failure_reasons.append("SPLIT_OPTIMIZER_NOT_CONVERGED")
+    if boundary: failure_reasons.append("CANDIDATE_SPLIT_ON_BOUNDARY")
+    if tpd["refinedMinimum"]<-1e-7 and not two: failure_reasons.append("NEGATIVE_TPD_WITHOUT_ACCEPTED_SPLIT")
     K=(e/r).tolist() if two else None
     selectivity=({names[i]:K[i]/K[0] for i in range(1,n)} if two else None)
     return {"phaseBehavior":category,"converged":two,
-            "singleLiquidComposition":None if two else z.tolist(),
-            "singleLiquidFraction":None if two else 1.0,
+            "singleLiquidComposition":z.tolist() if stable else None,
+            "singleLiquidFraction":1.0 if stable else None,
             "RRBO_rich":r.tolist() if two else None,"NMP_rich":e.tolist() if two else None,
             "beta_NMP_rich":b if two else None,
             "K_NMPrich_over_RRBO":K,"selectivityRelativeToSaturate":selectivity,
             "isoactivityLogResidual":resid if two else None,
-            "massBalanceMaxResidual":float(max(abs(z-((1-b)*r+b*e)))) if two else 0.0,
+            "massBalanceMaxResidual":float(max(abs(z-((1-b)*r+b*e)))),
             "iterations":int(best.nit),"objectiveHomogeneous":gh,"objectiveSplit":float(best.fun),"objectiveImprovement":improvement,
-            "optimizerSuccess":bool(best.success),"boundarySolution":bool(boundary),"TPD":tpd}
-def coto_rows():
-    s=(ROOT/"server/engine-framework/cel/coto2022-nmp-lle.ts").read_text()
-    groups=[("xylene",re.search(r"COTO_2022_XYLENE_TIELINES.*?= \[(.*?)\] as const",s,re.S).group(1),"P-XYLENE"),
-    ("toluene",re.search(r"COTO_2022_TOLUENE_TIELINES.*?= \[(.*?)\] as const",s,re.S).group(1),"TOLUENE")]
-    out=[]
-    for family,g,mono in groups:
-      for x,y,order in re.findall(r"x: \[([^]]+)\], y: \[([^]]+)\], tableOrder: (\d+)",g):
-        conv=lambda q:[float(v) for v in q.split(",")]
-        out.append((f"coto-2022-{family}-{order}",["N-DODECANE",mono,"1-METHYLNAPHTHALENE","PYRENE","N-METHYL-2-PYRROLIDONE"],conv(x),conv(y),.003))
-    return out
-def evaluate_row(id,names,ra,ex,u,source,T=298.15):
-    z=norm((np.array(ra)+np.array(ex))/2); q=flash(names,T,z,(ra,ex))
-    if q["converged"]:
-        outcome_err=np.r_[abs(np.array(q["RRBO_rich"])-ra),abs(np.array(q["NMP_rich"])-ex)]
-        valid_err=outcome_err
-    else:
-        # This is explicitly a failure diagnostic: one predicted liquid compared
-        # with both observed phases. It is not a successful tie-line RMSD.
-        outcome_err=np.r_[abs(z-ra),abs(z-ex)]
-        valid_err=np.array([])
-    q.update({"id":id,"source":source,"T_K":T,"components":names,
-              "experimental":{"RRBO_rich":ra,"NMP_rich":ex},"overall_z_midpoint":z.tolist(),
-              "componentAbsoluteErrors":valid_err.tolist(),
-              "compositionRmsd":float(np.sqrt(np.mean(np.square(valid_err)))) if len(valid_err) else None,
-              "maxAbsoluteError":float(max(valid_err)) if len(valid_err) else None,
-              "outcomeDiagnosticAbsoluteErrors":outcome_err.tolist(),
-              "outcomeDiagnosticRmsd":float(np.sqrt(np.mean(np.square(outcome_err)))),
-              "outcomeDiagnosticMaxAbsoluteError":float(max(outcome_err)),
-              "uncertaintyComparison":{"uX":u,"threeUX":3*u,"valuesOverUX":int(sum(outcome_err>u)),"valuesOver3UX":int(sum(outcome_err>3*u)),
-                                       "basis":"predicted phases when two-phase; otherwise predicted homogeneous liquid versus both observed phases"}})
-    return q
+            "optimizerSuccess":bool(best.success),"boundarySolution":bool(boundary),"numericalFailureReasons":failure_reasons,
+            "candidateSplitDiagnostics":{"phaseAComposition":r.tolist(),"phaseBComposition":e.tolist(),"phaseBFraction":b,
+              "isoactivityLogResidual":resid,"massBalanceMaxResidual":float(max(abs(z-((1-b)*r+b*e)))),
+              "maximumCompositionSeparation":float(max(abs(e-r)))},
+            "TPD":tpd}
 def main():
-  rows=[evaluate_row(i,n,r,e,u,"Coto 2022") for i,n,r,e,u in coto_rows()]
-  data=json.loads((ROOT/"server/engine-framework/cel/data/multi-t-nmp-lle.json").read_text())
-  # All entries are inspected; mappings with profiles are evaluated, nothing is silently dropped.
-  mapn={"dodecane":"N-DODECANE","tetradecane":"N-TETRADECANE","hexadecane":"N-HEXADECANE","heptadecane":"N-HEPTADECANE","propylbenzene":"N-PROPYLBENZENE","pentylbenzene":"N-PENTYLBENZENE","1,3,5-trimethylbenzene":"MESITYLENE","N-methylpyrrolidone":"N-METHYL-2-PYRROLIDONE"}
-  supported=[]; blocked=[]
-  for j,t in enumerate(data["tieLines"]):
-    try:
-      names=[mapn[t["components"][x]] for x in ("SAT","MONO","NMP")]
-      r=[t["raffinate"][x] for x in ("SAT","MONO","NMP")];e=[t["extract"][x] for x in ("SAT","MONO","NMP")]
-      supported.append(evaluate_row("multi-%04d"%j,names,r,e,t.get("u_x"),t["source"],t["T_K"]))
-    except (KeyError,TypeError) as exc: blocked.append({"index":j,"source":t.get("source"),"reason":"unsupported or incomplete molecular mapping: "+str(exc)})
-  def metrics(a):
-    es=[x for r in a for x in r["componentAbsoluteErrors"]]
-    cats={c:sum(r["phaseBehavior"]==c for r in a) for c in ("TWO_PHASE","PREDICTED_STABLE_SINGLE_PHASE","NONCONVERGED_OR_BOUNDARY")}
-    diagnostics=[x for r in a for x in r["outcomeDiagnosticAbsoluteErrors"]]
-    return {"twoPhaseCompositionRMSD":float(np.sqrt(np.mean(np.square(es)))) if es else None,"twoPhaseMaxAbsoluteError":max(es) if es else None,
-            "outcomeDiagnosticRMSD":float(np.sqrt(np.mean(np.square(diagnostics)))),
-            "outcomeDiagnosticMaxAbsoluteError":max(diagnostics),
-            "outcomeDiagnosticBasis":"predicted phases when two-phase; otherwise predicted homogeneous liquid versus both observed phases",
-            "twoPhaseValueCount":len(es),"records":len(a),"converged":sum(r["converged"] for r in a),"categories":cats}
-  reps=[]
-  base=["N-DODECANE","P-XYLENE","1-METHYLNAPHTHALENE","PYRENE","DIBENZOTHIOPHENE","N-METHYL-2-PYRROLIDONE"]; z=[.45,.12,.10,.06,.07,.20]
-  for T in (298.15,323.15,348.15,373.15):
-    evidence={298.15:"DIRECT_FIVE_COMPONENT_COTO_EVIDENCE",323.15:"INTERPOLATED_WITHIN_MULTITEMPERATURE_ANALOGUE_RANGE",348.15:"EXTRAPOLATED_ABOVE_ADMITTED_328_K_DATA",373.15:"EXTRAPOLATED_ABOVE_ADMITTED_328_K_DATA"}[T]
-    q=flash(base,T,z);q.update({"case":"six-family DBT","T_C":T-273.15,"components":base,"overall_z":z,"temperatureEvidence":evidence}); reps.append(q)
-  for sulfur in ("BENZOTHIOPHENE","THIOPHENE"):
-    n=base[:4]+[sulfur]+base[5:];q=flash(n,298.15,z);q.update({"case":"limited sulfur sensitivity","substitution":sulfur,"T_C":25,"components":n,"overall_z":z});reps.append(q)
-  for q in reps:
-    if q["converged"]:
-      si=q["components"].index(next(x for x in q["components"] if "THIOPHENE" in x)); ni=q["components"].index("N-METHYL-2-PYRROLIDONE"); rec=q["beta_NMP_rich"]*q["NMP_rich"][si]/q["overall_z"][si]
-      q["sulfurPartitioning"]={"moleDistributionCoefficient":q["K_NMPrich_over_RRBO"][si],"sulfurMassRecoveryToNMPrich":rec,"definition":"beta*x_sulfur,NMP-rich/z_sulfur; elemental sulfur mass cancels for a molecular sulfur species"}
-    else:
-      q["sulfurPartitioning"]={"moleDistributionCoefficient":None,"sulfurMassRecoveryToNMPrich":None,
-                               "reason":"Unavailable: COSMO-SAC-2010 predicts one stable liquid, so no NMP-rich/RRBO-rich partition exists."}
-  dort=json.loads((ROOT/".agents/outputs/ecr-pre-pilot-dortmund-benchmark/results.json").read_text())
-  dm=dort.get("summary",dort.get("metrics",{}))
-  result={"schemaVersion":"1.0.0","deterministic":True,"model":{"name":"COSMO-SAC-2010","lnGamma":"get_lngamma_comb(T,x)+get_lngamma_resid(T,x)","excluded":"get_lngamma / multicomponent dispersive mode"},"numerics":{"flash":"constrained total-Gibbs L-BFGS-B over NMP-rich component amounts; experimental split plus three deterministic starts","TPD":"full-simplex lattice (denominator 4 for 5/6 components, 8 for ternaries), then BFGS refinement of three lowest grid seeds and z; acceptance isoactivity <2e-5, mass balance <1e-10","compositionFloor":1e-10},"benchmark":{"coto":rows,"cotoMetrics":metrics(rows),"multiT_supported":supported,"multiTMetrics":metrics(supported),"multiT_blocked":blocked},"representatives":reps,"dortmundComparison":{"file":str(ROOT/".agents/outputs/ecr-pre-pilot-dortmund-benchmark/results.json"),"reportedSummary":dm,"knownReference":{"Coto_RMSD":.093210,"Coto_max":.335025,"Aljimaz_RMSD":.077157,"Aljimaz_max":.256329}},"finalDecision":"REJECT"}
+  cases=[]
+  names=list(FAMILIES)
+  for ti,T in enumerate(TEMPERATURES_K):
+    for ci,z in enumerate(COMPOSITIONS):
+      q=flash(names,T,z)
+      pinned={"temperatureK":T,"composition":list(z),"components":names}
+      q.update({"caseId":f"T{ti+1:02d}-Z{ci+1:02d}","temperatureK":T,"components":names,
+                "overallComposition":list(z),"pinnedInputSha256":hashlib.sha256(json.dumps(pinned,sort_keys=True,separators=(",",":")).encode()).hexdigest()})
+      cases.append(q)
+  counts={c:sum(q["phaseBehavior"]==c for q in cases) for c in ("TWO_PHASE","PREDICTED_STABLE_SINGLE_PHASE","NONCONVERGED_OR_BOUNDARY")}
+  topology_pass=counts["TWO_PHASE"]==len(cases)
+  result={"schemaVersion":"2.0.0","deterministic":True,"researchOnly":True,"releaseEligible":False,
+          "profileSource":{"directory":"server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles",
+          "complistSha256":hashlib.sha256((PROFILES/"complist.txt").read_bytes()).hexdigest(),
+          "profileSha256ByFamily":{f:hashlib.sha256((PROFILES/"sigma3"/f"{KEY[f]}.sigma").read_bytes()).hexdigest() for f in FAMILIES},
+          "restrictedOrVendoredProfileInputsUsed":False},
+          "model":{"name":"COSMO-SAC-2010","lnGamma":"get_lngamma_comb(T,x)+get_lngamma_resid(T,x)","excluded":"get_lngamma / multicomponent dispersive mode"},
+          "runtime":{"vendorDirectory":"server/research/ecr-pre-pilot-cosmosac/vendor/python","cCOSMOModulePath":"server/research/ecr-pre-pilot-cosmosac/vendor/python/cCOSMO.cpython-312-x86_64-linux-gnu.so","cCOSMOBinarySha256":CCOSMO_BINARY_SHA256,"python":sys.version,"numpy":np.__version__,"scipy":scipy.__version__},
+          "numerics":{"flash":"constrained total-Gibbs L-BFGS-B over conserved NMP-rich component amounts; four deterministic starts","TPD":"full-simplex denominator 4, then deterministic BFGS refinement; two-phase acceptance requires negative TPD, objective improvement, interior solution, and isoactivity closure","compositionFloor":1e-10},
+          "frozenGrid":{"temperaturesK":list(TEMPERATURES_K),"compositions":[list(z) for z in COMPOSITIONS],"caseCount":len(cases),"cases":cases},
+          "topologyGate":{"requiredBehavior":"TWO_PHASE_AT_EVERY_DECLARED_GRID_POINT","passed":topology_pass,"counts":counts,
+          "decision":"QUALITATIVE_TOPOLOGY_CONFIRMED" if topology_pass else "QUALITATIVE_TOPOLOGY_FAILED"},
+          "admissionGates":{"quantitativeLle":{"status":"NOT_EVALUATED_SEPARATE_GATE","admitted":False},
+          "sulfurPrediction":{"status":"NOT_EVALUATED_SEPARATE_GATE","admitted":False}},
+          "finalDecision":"ACCEPT_FOR_QUANTITATIVE_LLE_GATE" if topology_pass else "REJECT"}
   (OUT/"results.json").write_text(json.dumps(result,indent=2,sort_keys=True)+"\n")
-  man={"NIST_COSMOSAC_source_commit":"1b82456be38026719b16cad4076109bef3fcb309","ThermoSAC_profile_source_commit":"d20f5f4acdbf295a15a7500056fb20cb06ae2e23","packages":{"python":sys.version,"numpy":np.__version__,"scipy":scipy.__version__,"cCOSMO":"vendored cCOSMO.cpython-312-x86_64-linux-gnu.so"},"identities":{k:{"CAS":v[0],"SMILES":v[1],"InChI":v[2],"InChIKey":v[3],"MW_g_mol":v[4]} for k,v in COMP.items()},"sigmaProfileSha256":{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((UD/"sigma3").glob("*.sigma"))},"settings":result["numerics"],"modelVariant":result["model"],"phaseEquilibriumAlgorithm":result["numerics"]["flash"]}
+  man={"schemaVersion":"2.0.0","NIST_COSMOSAC_source_commit":"1b82456be38026719b16cad4076109bef3fcb309","runnerSha256":hashlib.sha256((HERE/"run.py").read_bytes()).hexdigest(),"sixComponentProfileProvenanceSha256":hashlib.sha256(PROFILE_PROVENANCE.read_bytes()).hexdigest(),"runtime":result["runtime"],"identities":{k:{"CAS":v[0],"SMILES":v[1],"InChI":v[2],"InChIKey":v[3],"MW_g_mol":v[4]} for k,v in COMP.items()},"profileSource":result["profileSource"],"frozenGridSha256":hashlib.sha256(json.dumps({"temperaturesK":list(TEMPERATURES_K),"compositions":[list(z) for z in COMPOSITIONS]},sort_keys=True,separators=(",",":")).encode()).hexdigest(),"caseInputSha256":{q["caseId"]:q["pinnedInputSha256"] for q in cases},"settings":result["numerics"],"modelVariant":result["model"],"phaseEquilibriumAlgorithm":result["numerics"]["flash"]}
   (HERE/"provenance-manifest.json").write_text(json.dumps(man,indent=2,sort_keys=True)+"\n")
-  report=f"""# COSMO-SAC-2010 molecular LLE research evaluation
+  report=f"""# Six-component COSMO-SAC-2010 topology evaluation
 
-This reproducible research-only calculation uses genuine vendored NIST cCOSMO `COSMO3`; ln(gamma) is exactly `get_lngamma_comb(T,x)+get_lngamma_resid(T,x)`. No NRTL, Dortmund runner, or simulator code was used.
+This reproducible research-only calculation uses NIST cCOSMO `COSMO3` with only the six project-generated profiles. No NIST UD/VT, ThermoSAC, NRTL, Dortmund, or simulator profile/model inputs were used.
 
 ## Results
-* Coto: {len(rows)} / 17 records; predicted two-phase 0, predicted stable single-phase 17. A valid tie-line RMSD/max cannot be calculated. The failed-outcome diagnostic (one predicted liquid versus both observed phases) is RMSD {result['benchmark']['cotoMetrics']['outcomeDiagnosticRMSD']:.6f}, max {result['benchmark']['cotoMetrics']['outcomeDiagnosticMaxAbsoluteError']:.6f}. Maximum mass-balance residual is {max(q['massBalanceMaxResidual'] for q in rows):.3e}.
-* Multi-temperature: {len(supported)} / {len(supported)+len(blocked)} supported records, predicted two-phase 0, predicted stable single-phase {len(supported)}, blocked {len(blocked)}. Valid tie-line RMSD/max are unavailable. Failed-outcome diagnostic RMSD {result['benchmark']['multiTMetrics']['outcomeDiagnosticRMSD']:.6f}, max {result['benchmark']['multiTMetrics']['outcomeDiagnosticMaxAbsoluteError']:.6f}. Maximum mass-balance residual is {max(q['massBalanceMaxResidual'] for q in supported):.3e}.
-* Dortmund directly outperforms this route: it accepted all 17 Coto rows with RMSD 0.093210 and max 0.335025; its Aljimaz analogue result was RMSD 0.077157 and max 0.256329. COSMO-SAC-2010 produced no LLE tie-line to score.
-
-The fixed six-family overall composition is [0.45,0.12,0.10,0.06,0.07,0.20] for [dodecane,p-xylene,1-methylnaphthalene,pyrene,sulfur,NMP]. DBT is primary; benzothiophene and thiophene are limited 25 C sensitivities.
-
-| sulfur molecule | T (C) | temperature status | coarse full-simplex TPD minimum | result |
-|---|---:|---|---:|---|
-{chr(10).join(f"| {q['components'][4]} | {q['T_C']:.0f} | {q.get('temperatureEvidence','SENSITIVITY_AT_25_C')} | {q['TPD']['coarseMinimum']:.9f} | {q['phaseBehavior']} |" for q in reps)}
-
-All refined TPD minima were zero within numerical precision at the feed composition; no negative TPD was found. Therefore there are no two liquid compositions, phase fraction, distribution coefficients, selectivities, or sulfur recovery values to report: those fields are explicitly null rather than fabricated. The single predicted liquid composition is the overall composition above, with fraction 1.0 and exact material-balance closure. The 75 and 100 C cases are extrapolated above the admitted 328 K evidence range.
+* Frozen points evaluated: {len(cases)}
+* Two phase: {counts['TWO_PHASE']}
+* Stable single phase: {counts['PREDICTED_STABLE_SINGLE_PHASE']}
+* Nonconverged or boundary: {counts['NONCONVERGED_OR_BOUNDARY']}
+* Required behavior: two phases at every declared temperature/composition point
+* Topology decision: {result['topologyGate']['decision']}
 
 ## Decision basis
 
-This COSMO-SAC-2010/profile route is reproducible, but it fails the essential qualitative test: it predicts one stable liquid for every experimentally two-phase benchmark record (17/17 Coto and 219/219 multitemperature). It also cannot calculate sulfur partitioning for the six-family case because it predicts no NMP-rich phase.
+Every case records its pinned-input hash, TPD search, Gibbs objectives, optimizer status, boundary status, isoactivity residual, and material-balance residual. A failed or nonconverged case fails the topology gate honestly.
 
-REJECT
+This result is qualitative only. Quantitative LLE validation and sulfur-prediction admission remain separate, not evaluated, and not admitted. This artifact is never release eligible.
+
+{result['finalDecision']}
 """
   (OUT/"report.md").write_text(report)
 if __name__=="__main__": main()
