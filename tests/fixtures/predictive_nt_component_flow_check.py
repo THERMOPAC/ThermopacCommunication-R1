@@ -20,9 +20,9 @@ SPEC.loader.exec_module(ENGINE)
 
 def deterministic_flash(mixed, _row):
     z = np.asarray(mixed, dtype=float)
-    shift = min(0.08 * z[1], 0.08 * z[2], 0.20 * z[0])
-    liquid = z + np.asarray([shift, -shift, 0.0])
-    extract = z - np.asarray([shift, -shift, 0.0])
+    shift = min(0.08 * z[1], 0.20 * z[0])
+    liquid = z + np.asarray([shift, -shift, 0.0, 0.0, 0.0])
+    extract = z - np.asarray([shift, -shift, 0.0, 0.0, 0.0])
     checks = {
         "converged": True,
         "massBalance": 0.0,
@@ -43,7 +43,7 @@ def deterministic_flash(mixed, _row):
 ENGINE.flash = deterministic_flash
 ENGINE.DAMPING = float(os.environ.get("CASCADE_TEST_DAMPING", ENGINE.DAMPING))
 ENGINE.MAX_SWEEPS = int(os.environ.get("CASCADE_TEST_MAX_SWEEPS", ENGINE.MAX_SWEEPS))
-feed = np.asarray([0.75, 0.25, 0.0])
+feed = np.asarray([0.75, 0.25, 0.0, 0.0, 0.0])
 continuation = None
 summary = []
 for stage_count in range(1, int(os.environ.get("CASCADE_TEST_STAGES", "5")) + 1):
@@ -53,6 +53,14 @@ for stage_count in range(1, int(os.environ.get("CASCADE_TEST_STAGES", "5")) + 1)
             feed,
             1.0,
             {},
+            np.asarray([226.44, 148.25, 142.1971, 202.2506, 99.1311]),
+            {
+                "maximumTotalAromatics": 0.25,
+                "maximumPolarAromatics": 0.0,
+                "minimumSaturates": 0.75,
+                "maximumNmp": 0.01,
+                "minimumRrboRecovery": 0.90,
+            },
             continuation,
         )
     except RuntimeError as error:

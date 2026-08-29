@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE } from '../research/ecr-pre-pilot-pa-anchor/evidence';
 
 export const ECR_PRE_PILOT_STAGE1_SCHEMA = 'ECR_PRE_PILOT_STAGE_1_V1' as const;
 
@@ -39,12 +40,15 @@ export const PREDICTIVE_NT_MOLECULAR_REGISTRY = {
     molecularWeightGmol: 99.1311,
   },
   polarAromatics: {
-    admission: 'NOT_ADMITTED',
-    representative: null,
-    molecularWeightGmol: null,
-    parameters: null,
+    admission: ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE.admission,
+    representative: ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE.identity,
+    molecularWeightGmol: ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE.identity.molecularWeightGmol,
+    representativePurpose: ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE.representativePurpose,
+    sulfurRelationship: ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE.sulfurRelationship,
+    parameters: ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE.thermodynamicClosure,
     lleEvidence: null,
-    blocker: 'POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE',
+    applicability: ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE.applicability,
+    blocker: ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE.thermodynamicClosure.primaryBlocker,
   },
 } as const;
 

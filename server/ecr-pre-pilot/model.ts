@@ -17,7 +17,7 @@ export const PRE_PILOT_MODEL = {
     branching: 'SCREEN_ONLY',
     cycloalkane: 'FAIL_CLOSED',
     diPoly: 'FIXED_GOVERNED_SURROGATES',
-    polarAromatics: 'FAIL_CLOSED',
+    polarAromatics: 'IDENTITY_ADMITTED_THERMODYNAMIC_CLOSURE_FAIL_CLOSED',
     sulfur: 'FAIL_CLOSED',
   },
 } as const;
@@ -26,7 +26,7 @@ export type PrePilotNtStartStatus =
   | 'READY_FOR_PREDICTIVE_NT'
   | 'MODEL_HASH_MISMATCH'
   | 'UNSUPPORTED_COMPONENT_SCOPE'
-  | 'POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE'
+  | 'POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE'
   | 'SULFUR_MODEL_UNAVAILABLE'
   | 'GOVERNED_RELEASE_BLOCKED';
 
@@ -96,11 +96,12 @@ export function startPrePilotNt(input: {
   if ((input.feedCompositionMassFraction.polar ?? 0) > 1e-12) {
     return {
       ...common,
-      status: 'POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE',
+      status: 'POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE',
       mayRunPredictiveNt: false,
       diagnostics: [
-        'Polar Aromatics has no admitted representative, molecular weight, parameters, or LLE evidence.',
-        'The component is not substituted with zero or folded into another aromatic family.',
+        "The exact 4,4'-bis(alpha,alpha-dimethylbenzyl)diphenylamine PA anchor is identified, but its thermodynamic representation is not closed.",
+        'No exact sigma profile, complete PA interaction set, or direct matching PA/NMP/heavy-hydrocarbon LLE evidence is admitted.',
+        'Unsubstituted diphenylamine, zero-filled interactions, DI/POLY parameters, and sulfur-bearing molecules are prohibited substitutes.',
       ],
     };
   }
@@ -124,7 +125,7 @@ export function startPrePilotNt(input: {
     diagnostics: [
       'N_T lineage is bound to the frozen PRE_PILOT_MODEL equations, parameters, dataset and solver settings.',
       'Any result is predictive pre-pilot screening, calibration-required and not pilot validated.',
-      'Polar Aromatics, sulfur prediction, governed-release use and write-through to established theoretical stages remain fail-closed.',
+      'Positive Polar Aromatics feed, sulfur prediction, governed-release use and write-through to established theoretical stages remain fail-closed.',
     ],
   };
 }

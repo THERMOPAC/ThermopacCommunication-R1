@@ -4,6 +4,7 @@ import {
   PRE_PILOT_MODEL,
   startPrePilotNt,
 } from '../server/ecr-pre-pilot/model';
+import { PREDICTIVE_NT_MOLECULAR_REGISTRY } from '../server/ecr-pre-pilot/stage1';
 
 describe('ECR Pre-Pilot frozen N_T start', () => {
   it('starts predictive N_T only against the frozen model hash', () => {
@@ -84,7 +85,7 @@ describe('ECR Pre-Pilot frozen N_T start', () => {
     });
   });
 
-  it('fails closed for DI/POLY or sulfur use', () => {
+  it('admits the frozen DI/POLY scope but fails closed for PA or sulfur use', () => {
     const base = {
       executionMode: 'ECR_PRE_PILOT_PREDICTIVE' as const,
       requestedModelHash: PRE_PILOT_MODEL.modelHash,
@@ -93,11 +94,43 @@ describe('ECR Pre-Pilot frozen N_T start', () => {
     expect(startPrePilotNt({
       ...base,
       feedCompositionMassFraction: { saturates: 0.6, mono: 0.3, di: 0.1, poly: 0 },
-    }).status).toBe('UNSUPPORTED_COMPONENT_SCOPE');
+    }).status).toBe('READY_FOR_PREDICTIVE_NT');
+    expect(startPrePilotNt({
+      ...base,
+      feedCompositionMassFraction: {
+        saturates: 0.58,
+        mono: 0.3,
+        di: 0.1,
+        poly: 0,
+        polar: 0.02,
+      },
+    }).status).toBe('POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE');
     expect(startPrePilotNt({
       ...base,
       sulfurObjectiveRequested: true,
       feedCompositionMassFraction: { saturates: 0.7, mono: 0.3, di: 0, poly: 0 },
     }).status).toBe('SULFUR_MODEL_UNAVAILABLE');
+  });
+
+  it('freezes one exact non-sulfur PA anchor without admitting missing thermodynamics', () => {
+    expect(PREDICTIVE_NT_MOLECULAR_REGISTRY.polarAromatics).toMatchObject({
+      admission: 'IDENTITY_ADMITTED_THERMODYNAMICS_BLOCKED',
+      molecularWeightGmol: 405.58,
+      blocker: 'POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE',
+      representative: {
+        commonName: "4,4'-Bis(alpha,alpha-dimethylbenzyl)diphenylamine",
+        cas: '10081-67-1',
+        formula: 'C30H31N',
+        inchiKey: 'UJAWGGOCYUPCPS-UHFFFAOYSA-N',
+        containsSulfur: false,
+      },
+      parameters: {
+        status: 'BLOCKED',
+        prohibitedSubstitutions: expect.arrayContaining([
+          'UNSUBSTITUTED_DIPHENYLAMINE_PROFILE',
+          'SULFUR_BEARING_REPRESENTATIVE',
+        ]),
+      },
+    });
   });
 });

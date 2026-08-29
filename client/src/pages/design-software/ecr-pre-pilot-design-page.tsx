@@ -55,6 +55,18 @@ type PredictiveNtBasis = {
   molecularRegistry: {
     saturates: MolecularIdentity[];
     monoAromatics: MolecularIdentity[];
+    polarAromatics: {
+      admission: string;
+      representative: {
+        commonName: string;
+        cas: string;
+        formula: string;
+        molecularWeightGmol: number;
+        inchiKey: string;
+      };
+      blocker: string;
+      sulfurRelationship: string;
+    };
   };
   maximumStages: number;
 };
@@ -1490,14 +1502,20 @@ export default function EcrPrePilotDesignPage() {
                 <div>
                   <CardTitle className="text-[15px]">Predictive N_T screening</CardTitle>
                   <CardDescription className="mt-0.5 text-[11px]">
-                    Runs the dedicated frozen SAT/MONO/NMP solver. This result cannot write to established theoretical stages.
+                    Runs the frozen SAT/MONO/DI/POLY/NMP solver. Positive PA feed remains fail-closed. Results cannot write to established theoretical stages.
                   </CardDescription>
                 </div>
                 <Button
                   type="button"
                   onClick={handleRunPredictiveNt}
-                  disabled={predictiveSubmitting || !predictiveBasis || !designId || saveState !== "saved" || predictiveJob?.status === "pending" || predictiveJob?.status === "running"}
-                  title={saveState === "saved" ? undefined : "Save the authoritative Stage 1 snapshot before running."}
+                  disabled={predictiveSubmitting || !predictiveBasis || !designId || saveState !== "saved" || Number(form.polarAromaticsWt) > 0 || Number(form.nmpInFeedWt) > 0 || predictiveJob?.status === "pending" || predictiveJob?.status === "running"}
+                  title={Number(form.polarAromaticsWt) > 0
+                    ? "POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE"
+                    : Number(form.nmpInFeedWt) > 0
+                      ? "NMP in the RRBO feed is not supported."
+                      : saveState === "saved"
+                        ? undefined
+                        : "Save the authoritative Stage 1 snapshot before running."}
                   className="h-8 gap-1.5 px-3 text-xs"
                 >
                   {predictiveSubmitting || predictiveJob?.status === "pending" || predictiveJob?.status === "running" ? (
@@ -1529,16 +1547,24 @@ export default function EcrPrePilotDesignPage() {
                   The sulfur basis is retained in Stage 1 for audit only and is never passed into the frozen Python thermodynamic solver.
                 </p>
               </div>
-              {(Number(form.diAromaticsWt) > 0
-                || Number(form.polyAromaticsWt) > 0
-                || Number(form.polarAromaticsWt) > 0
-                || Number(form.nmpInFeedWt) > 0) && (
+              {Number(form.polarAromaticsWt) > 0 && predictiveBasis && (
                 <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
-                  <p className="font-semibold">Current feed is outside the predictive solver scope</p>
+                  <p className="font-semibold">PA identity admitted; thermodynamic closure unavailable</p>
                   <p>
-                    Predictive N_T can run only when Di-aromatics, Poly-aromatics, Polar aromatics, and NMP in feed are each 0 wt%.
-                    The solver will not silently discard or combine those components. SAT and MONO must total 100 wt%.
+                    {predictiveBasis.molecularRegistry.polarAromatics.representative.commonName} (CAS{" "}
+                    {predictiveBasis.molecularRegistry.polarAromatics.representative.cas},{" "}
+                    {predictiveBasis.molecularRegistry.polarAromatics.representative.formula},{" "}
+                    {predictiveBasis.molecularRegistry.polarAromatics.representative.molecularWeightGmol.toFixed(2)} g/mol)
+                    is the bounded non-sulfur molecular anchor. The exact PA profile and interaction closure are unavailable, so
+                    six-component N_T and full-basis RRBO recovery are NOT_CALCULABLE. PA is never used to infer sulfur removal.
                   </p>
+                  <p className="mt-1 font-mono text-[10px]">{predictiveBasis.molecularRegistry.polarAromatics.blocker}</p>
+                </div>
+              )}
+              {Number(form.nmpInFeedWt) > 0 && (
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
+                  <p className="font-semibold">NMP in RRBO feed is outside the solver scope</p>
+                  <p>The solvent inlet is modeled independently; feed NMP is not silently combined with it.</p>
                 </div>
               )}
               <div className="grid gap-3 sm:grid-cols-3">

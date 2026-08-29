@@ -77,7 +77,7 @@ const MAX_ACTIVE_JOBS_PER_USER = 2;
 const JOB_TIMEOUT_MS = 4 * 60 * 60 * 1000;
 const LEASE_MS = 45 * 1000;
 const POLL_MS = 1_000;
-const PREDICTIVE_NT_ENGINE_SHA256 = 'e5b54770ec212238f34cc62971c3b826fb3310e9ff4589dd09159285044973cc';
+const PREDICTIVE_NT_ENGINE_SHA256 = '5af4ade3777068a4b2aac4afdd0956b9c5f52ca55c1f96f33c28e91f0ac5ece2';
 const PREDICTIVE_NT_RUNTIME_SUPPORT_SHA256 = {
   'server/research/ecr-pre-pilot-uniquac/model.py':
     'c1130eba32c1b84c55309b71ee88c7ce6297b16c5a465486f5f505158c551ebc',
@@ -194,7 +194,7 @@ export function derivePredictiveNtInputFromStage1(
   }
   const stage1 = canonicalizeStage1Input(snapshot.stage1, projectNumber);
   if (stage1.polarAromaticsWt > 1e-12) {
-    throw new Error('POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE');
+    throw new Error('POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE');
   }
   if (stage1.nmpInFeedWt > 1e-12) throw new Error('FEED_NMP_NOT_SUPPORTED');
   if (stage1.phaseConfiguration !== 'nmp-continuous-rrbo-dispersed') {
@@ -321,7 +321,7 @@ export function validatePredictiveNtJobInput(input: PredictiveNtJobInput) {
   }
   const sourceFeedSum = Object.values(sourceFeed).reduce((sum, value) => sum + value, 0);
   if (Math.abs(sourceFeedSum - 1) > 1e-6) throw new Error('INVALID_SOURCE_FEED_BASIS');
-  if (sourceFeed.polar > 1e-12) throw new Error('POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE');
+  if (sourceFeed.polar > 1e-12) throw new Error('POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE');
   if (sourceFeed.nmp > 1e-12) throw new Error('FEED_NMP_NOT_SUPPORTED');
   const sat = PREDICTIVE_NT_MOLECULAR_REGISTRY.saturates.find(({ identity }) => identity === input.satIdentity)!;
   const mono = PREDICTIVE_NT_MOLECULAR_REGISTRY.monoAromatics.find(({ identity }) => identity === input.monoIdentity)!;
@@ -469,8 +469,14 @@ async function claimNextJob() {
       `WITH candidate AS (
          SELECT id, status AS previous_status
            FROM ecr_pre_pilot_predictive_nt_jobs
-          WHERE status = 'pending'
-             OR (status = 'running' AND lease_expires_at < NOW())
+          WHERE (
+                  status = 'pending'
+                  OR (status = 'running' AND lease_expires_at < NOW())
+                )
+            AND (
+                  input_snapshot->>'_runtimeTestOwner' IS NULL
+                  OR input_snapshot->>'_runtimeTestOwner' = $4
+                )
           ORDER BY CASE WHEN status = 'running' THEN 0 ELSE 1 END, created_at
           FOR UPDATE SKIP LOCKED
           LIMIT 1
@@ -487,7 +493,7 @@ async function claimNextJob() {
          FROM candidate
         WHERE job.id = candidate.id
       RETURNING job.*, candidate.previous_status`,
-      [WORKER_OWNER, claimToken, LEASE_MS],
+      [WORKER_OWNER, claimToken, LEASE_MS, WORKER_OWNER],
     );
     const row = claimed.rows[0];
     if (row) await recordHistory(client, row, {
@@ -1014,7 +1020,11 @@ async function enqueueRawPredictiveNtJob(
   testHooks?: RuntimeTestHooks,
 ) {
   const gate = validatePredictiveNtJobInput(input);
-  const immutableInput = { ...input, modelHash: PRE_PILOT_MODEL.modelHash };
+  const immutableInput = {
+    ...input,
+    modelHash: PRE_PILOT_MODEL.modelHash,
+    ...(testHooks ? { _runtimeTestOwner: WORKER_OWNER } : {}),
+  };
   const jobId = randomUUID();
   const client = await pool.connect();
   let job: PredictiveNtJob;

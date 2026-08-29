@@ -88,6 +88,13 @@ def verify_runtime():
     }
 
 
+def runtime_local_parameters(theta, row, registry):
+    descriptor_row = row
+    if len(row["identities"]) == len(COMPONENTS):
+        descriptor_row = {**row, "active": list(range(len(COMPONENTS)))}
+    return dt.local_parameters(theta, descriptor_row, registry)
+
+
 def setup_model(sat_identity: str, mono_identity: str, temperature_k: float):
     registry = json.loads((NEW / "descriptor-registry.json").read_text())
     theta = np.asarray(json.loads(CHECKPOINT.read_text())["parameters"], dtype=np.float64)
@@ -121,10 +128,10 @@ def setup_model(sat_identity: str, mono_identity: str, temperature_k: float):
     old_pm, old_gamma, old_stand = dt.uq.PM, dt.uq.gamma, dt.uq.stand_gamma
     dt.uq.PM = dt.BASE_PM
     dt.uq.gamma = lambda value, active_row, ignored: old_gamma(
-        value, active_row, dt.local_parameters(theta, active_row, registry)
+        value, active_row, runtime_local_parameters(theta, active_row, registry)
     )
     dt.uq.stand_gamma = lambda value, active_row, ignored, log_name="standaloneFinalGate": old_stand(
-        value, active_row, dt.local_parameters(theta, active_row, registry), log_name
+        value, active_row, runtime_local_parameters(theta, active_row, registry), log_name
     )
     return row, (old_pm, old_gamma, old_stand)
 
@@ -369,7 +376,7 @@ def run_trial(stage_count, feed, solvent_ratio, row, molecular_weights, targets,
             "moleFraction": None,
             "massFraction": None,
             "status": "NOT_CALCULABLE",
-            "blocker": "POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE",
+            "blocker": "POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE",
         },
         "overallComponentBalanceResiduals": dict(zip(COMPONENTS, map(float, residuals))),
         "overallComponentBalanceMaximum": max_balance,
@@ -468,9 +475,13 @@ def main():
     if feed[4] > 1e-12:
         raise ValueError("FEED_NMP_NOT_SUPPORTED")
     if float(request["sourceFeedCompositionMassFraction"]["polar"]) > 1e-12:
-        raise ValueError("POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE")
+        raise ValueError("POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE")
 
     row, previous = setup_model(request["satIdentity"], request["monoIdentity"], temperature_k)
+    row["active"] = [
+        *[index for index in range(4) if float(feed[index]) > EPS],
+        4,
+    ]
     mono_mw = next(
         item["molecularWeightGmol"]
         for item in request.get("molecularBasis", {}).get("components", [])
@@ -633,6 +644,21 @@ if __name__ == "__main__":
             "allTrialsEvaluated": True,
         }, sys.stdout, separators=(",", ":"))
         sys.exit(0 if selected and selected["stageCount"] == 3 else 1)
+    if "--self-test-active-mapping" in sys.argv:
+        row, previous = setup_model("n-hexadecane", "n-pentylbenzene", 323.15)
+        registry = json.loads((NEW / "descriptor-registry.json").read_text())
+        theta = np.asarray(json.loads(CHECKPOINT.read_text())["parameters"], dtype=np.float64)
+        full = runtime_local_parameters(theta, row, registry)
+        row["active"] = [0, 1, 4]
+        reduced = runtime_local_parameters(theta, row, registry)
+        restore_model(previous)
+        preserved = bool(np.array_equal(full, reduced))
+        json.dump({
+            "status": "PASS" if preserved else "FAIL",
+            "activeFamilies": [COMPONENTS[index] for index in row["active"]],
+            "identityMappingPreserved": preserved,
+        }, sys.stdout, separators=(",", ":"))
+        sys.exit(0 if preserved else 1)
     try:
         sys.exit(main())
     except Exception as exc:

@@ -33,13 +33,15 @@ const correspondingMonoMoles = (1 - minimumSatMass) / monoMw;
 const validInput = {
   modelHash: PRE_PILOT_MODEL.modelHash,
   temperatureK: 323.15,
-  solventMolarRatio: (1 / 99.13) / sourceMoles,
+  solventMolarRatio: (1 / 99.1311) / sourceMoles,
   sourceSolventOilMassRatio: 1,
   feedMoleFractions: [
     sourceSatMoles / sourceMoles,
     sourceMonoMoles / sourceMoles,
     0,
-  ] as [number, number, number],
+    0,
+    0,
+  ] as [number, number, number, number, number],
   satIdentity: 'n-hexadecane',
   monoIdentity: 'n-pentylbenzene',
   sourceFeedCompositionMassFraction: {
@@ -51,8 +53,11 @@ const validInput = {
     nmp: 0,
   },
   sourceProductTargetsMassFraction: {
-    maximumMono: maximumMonoMass,
+    maximumTotalAromatics: maximumMonoMass,
+    maximumPolarAromatics: 0,
     minimumSaturates: minimumSatMass,
+    maximumNmp: 0.01,
+    minimumRrboRecovery: 0.88,
   },
   targetRaffinateMonoHydrocarbonMoleFraction: targetMonoMoles / (targetMonoMoles + targetSatMoles),
   minimumRaffinateSaturatesHydrocarbonMoleFraction:
@@ -172,21 +177,21 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     })).toThrow('MOLECULAR_IDENTITY_UNAVAILABLE');
   });
 
-  it('rejects unsupported source components instead of silently projecting them', () => {
+  it('rejects positive PA source mass instead of silently projecting it', () => {
     expect(() => validatePredictiveNtJobInput({
       ...validInput,
       sourceFeedCompositionMassFraction: {
         ...validInput.sourceFeedCompositionMassFraction,
         saturates: 0.69,
-        di: 0.01,
+        polar: 0.01,
       },
-    })).toThrow('UNSUPPORTED_COMPONENT_SCOPE');
+    })).toThrow('POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE');
   });
 
   it('rejects inconsistent feed, product, and solvent molecular conversions', () => {
     expect(() => validatePredictiveNtJobInput({
       ...validInput,
-      feedMoleFractions: [0.7, 0.3, 0],
+      feedMoleFractions: [0.7, 0.3, 0, 0, 0],
     })).toThrow('MOLECULAR_FEED_BASIS_MISMATCH');
     expect(() => validatePredictiveNtJobInput({
       ...validInput,
@@ -227,8 +232,11 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
         nmp: 0,
       },
       sourceProductTargetsMassFraction: {
-        maximumMono: 0.1,
+        maximumTotalAromatics: 0.1,
+        maximumPolarAromatics: 0.005,
         minimumSaturates: 0.9,
+        maximumNmp: 0.005,
+        minimumRrboRecovery: 0.95,
       },
       maximumStages: 10,
       stage1Authority: {
@@ -239,7 +247,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
         },
         minimumMassRecovery: {
           targetPercent: 95,
-          status: 'NOT_CALCULABLE',
+          status: 'CALCULABLE',
         },
       },
     });
@@ -259,7 +267,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
         },
         minimumMassRecovery: {
           targetPercent: 95,
-          status: 'NOT_CALCULABLE',
+          status: 'CALCULABLE',
         },
         overallEcrProductAcceptance: false,
         overallEcrProductAcceptanceStatus: 'BLOCKED_BY_NOT_CALCULABLE_TARGETS',
@@ -267,17 +275,17 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     });
   }, 30_000);
 
-  it('fails closed when the saved Stage 1 scope includes unsupported feed', async () => {
+  it('fails closed when the saved Stage 1 scope includes positive PA feed', async () => {
     const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
     if (!user.rows[0]) throw new Error('No user available for Stage 1 scope test');
     const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, `stage1-scope-${Date.now()}`);
     const stage1 = validStage1(design.projectNumber);
     stage1.saturatesWt = '69';
-    stage1.diAromaticsWt = '1';
+    stage1.polarAromaticsWt = '1';
     const snapshot = await saveEcrPrePilotStage1(userId, design.id, stage1);
     expect(() => derivePredictiveNtInputFromStage1(snapshot, design.projectNumber))
-      .toThrow('UNSUPPORTED_COMPONENT_SCOPE');
+      .toThrow('POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE');
   });
 
   it('fails closed for an unsupported saved phase configuration', async () => {
@@ -378,10 +386,10 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       expect(completed?.status, completed?.error ?? 'job did not complete').toBe('completed');
       expect(completed?.modelHash).toBe(PRE_PILOT_MODEL.modelHash);
       expect(completed?.engineHash).toBe(
-        'e5b54770ec212238f34cc62971c3b826fb3310e9ff4589dd09159285044973cc',
+        '5af4ade3777068a4b2aac4afdd0956b9c5f52ca55c1f96f33c28e91f0ac5ece2',
       );
       expect(completed?.result).toMatchObject({
-        status: 'ACCEPTED_PREDICTIVE_NT',
+        status: 'TARGET_NOT_REACHED',
         establishedTheoreticalStages: null,
         releaseEligible: false,
         calibrationRequired: true,

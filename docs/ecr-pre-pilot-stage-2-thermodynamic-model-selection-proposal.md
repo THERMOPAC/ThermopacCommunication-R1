@@ -33,7 +33,7 @@ All Stage 2 thermodynamic vectors use this six-component order:
 | 2 | Mono-aromatics | Partially covered by public surrogate data |
 | 3 | Di-aromatics | Partially covered by public surrogate data |
 | 4 | Poly-aromatics | Partially covered by public surrogate data |
-| 5 | Polar aromatics | **Not currently modelable** |
+| 5 | Polar aromatics | Exact molecular anchor identified; thermodynamic closure blocked |
 | 6 | NMP | Covered in several public LLE systems |
 
 The four hydrocarbon families support hydrocarbon-only raffinate quality and
@@ -42,6 +42,32 @@ silently into mono-, di-, or poly-aromatics.
 
 Sulfur removal is outside this Stage 2 thermodynamic basis. Aromatic transfer
 must not be used to infer sulfur or DBT removal.
+
+### 2.1 Bounded Polar Aromatics molecular anchor
+
+The selected non-sulfur PA anchor is
+**4,4'-bis(alpha,alpha-dimethylbenzyl)diphenylamine** (CAS 10081-67-1,
+PubChem CID 82343, C30H31N, 405.58 g/mol, InChIKey
+UJAWGGOCYUPCPS-UHFFFAOYSA-N). It is one exact alkylated-diphenylamine
+antioxidant molecule, not an undefined commercial mixture and not a
+sulfur-bearing species. Its use is limited to representing one bounded PA
+partition coordinate; it does not characterize the complete RRBO polar
+fraction.
+
+Identity admission does not constitute thermodynamic admission. The reviewed
+frozen molecular-pair UNIQUAC package has no directed PA pair parameters, the
+reviewed Dortmund subset has no admitted aromatic-secondary-amine subgroup and
+complete directed interaction closure, and the vendored COSMO libraries have
+no exact profile for this alkylated molecule. The available unsubstituted
+diphenylamine profile is not a valid substitute. Direct matching
+PA/NMP/heavy-hydrocarbon LLE is also absent.
+
+Accordingly, positive-PA feeds fail closed with
+`POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE`. Six-component predictive
+N_T and full-basis RRBO recovery remain `NOT_CALCULABLE`; sulfur remains
+independently `NOT_CALCULABLE`. No temperature, composition, solvent-ratio,
+pressure, or phase-region applicability is claimed until a reproducible PA
+thermodynamic representation passes the existing physical checks.
 
 ---
 

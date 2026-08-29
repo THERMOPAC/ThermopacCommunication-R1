@@ -77,7 +77,7 @@
     "branching": "SCREEN_ONLY",
     "cycloalkane": "FAIL_CLOSED",
     "DI_POLY": "FIXED_GOVERNED_SURROGATES",
-    "polarAromatics": "FAIL_CLOSED: POLAR_AROMATICS_THERMODYNAMIC_REPRESENTATION_UNAVAILABLE",
+    "polarAromatics": "EXACT IDENTITY ADMITTED; FAIL_CLOSED: POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE",
     "sulfur": "FAIL_CLOSED",
     "governedTheoreticalStages": "NOT_ESTABLISHED",
     "simulatorReleaseIntegration": "BLOCKED"
