@@ -658,3 +658,10 @@ uri = "file://reports/LLX-RND-2026-0003-ECR2-Run-948-Review.pdf"
 type = "pdf"
 title = "ECR-2 Simulation Run #948 Review"
 description = "Four-page frozen-snapshot audit for LLX-RND-2026-0003. It documents the blocked calculation path, unavailable outputs, thermodynamic limitations, warnings, and the NOT CALCULABLE / NOT RELEASE ELIGIBLE disposition."
+
+[[outputs]]
+id = "Gn-uI4D5ibg-WF1t0aV3b"
+uri = "file://.agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/report.md"
+type = "text"
+title = "Task #199 — COSMO-SAC Two-Liquid NMP/Base-Oil Equilibrium Report"
+description = "Verified research report covering the amended model, six-component Stage 1 equilibrium, TPD/Gibbs/closure results, blind validation, extraction-target checks, qualification verdict, and N_T ≤ 10 boundary."
