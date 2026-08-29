@@ -69,6 +69,17 @@ independently `NOT_CALCULABLE`. No temperature, composition, solvent-ratio,
 pressure, or phase-region applicability is claimed until a reproducible PA
 thermodynamic representation passes the existing physical checks.
 
+The completed evidence review used the pre-declared gates in Section 8 against
+the exact-identity record, frozen UNIQUAC pair inventory, published Dortmund
+group/interaction inventory, vendored COSMO profile inventories, and direct LLE
+registry. It found no exact molecular representation with complete directed
+interactions and no matching two-phase PA/NMP/heavy-hydrocarbon measurements
+over the requested 25–100 °C Stage 1 range. Hold-out composition reproduction
+and phase-topology reproduction are therefore not testable, rather than failed
+numerical fits. No PA-directed parameter is admitted. This is an evidence
+unavailability result, not evidence of zero PA transfer or process
+infeasibility.
+
 ---
 
 ## 3. Candidate LLE modelling approaches
@@ -356,14 +367,14 @@ claim that these pure compounds fully represent their RRBO families.
 ### 5.2 Not presently modelable as the complete Pre-Pilot basis
 
 The six-component ECR Pre-Pilot system is not currently calculable because
-Polar Aromatics lacks all of the following:
+Polar Aromatics lacks the following thermodynamic dependencies:
 
-- an approved chemical or pseudo-component definition;
-- an approved molecular weight;
-- a declared polarity or functional-group basis;
 - NMP/RRBO equilibrium evidence;
 - temperature applicability evidence; and
 - model parameters or predictive representation.
+
+The exact anchor identity and molecular weight are admitted, but those identity
+facts do not supply the missing equilibrium closure.
 
 The existing five-component evidence may be used to design validation work,
 but it must not be padded with invented Polar Aromatics parameters.

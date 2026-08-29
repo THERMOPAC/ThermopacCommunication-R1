@@ -1,5 +1,5 @@
 export const ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE = {
-  recordVersion: '1.0.0',
+  recordVersion: '1.1.0',
   reviewedAt: '2026-08-29',
   admission: 'IDENTITY_ADMITTED_THERMODYNAMICS_BLOCKED',
   calibrationStatus: 'CALIBRATION_REQUIRED',
@@ -49,6 +49,27 @@ export const ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE = {
   thermodynamicClosure: {
     status: 'BLOCKED',
     primaryBlocker: 'POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE',
+    assessment: {
+      decision: 'NO_PARAMETER_ADMISSION',
+      independentlyCheckableRoute: 'EVIDENCE_INVENTORY_AND_PREDECLARED_GATE_REVIEW',
+      evidenceBasis: [
+        'EXACT_IDENTITY_AND_STRUCTURE_RECORD',
+        'FROZEN_MOLECULAR_PAIR_UNIQUAC_PARAMETER_INVENTORY',
+        'PUBLISHED_MODIFIED_UNIFAC_DORTMUND_GROUP_AND_INTERACTION_INVENTORY',
+        'VENDORED_COSMO_PROFILE_INVENTORY',
+        'DIRECT_LLE_EVIDENCE_REGISTRY',
+      ],
+      requiredGateResults: {
+        exactMolecularRepresentation: 'FAIL',
+        completeDirectedInteractions: 'FAIL',
+        matchingTwoPhaseEquilibriumEvidence: 'FAIL',
+        stage1TemperatureCoverage: 'FAIL',
+        independentHoldoutReproduction: 'NOT_TESTABLE',
+        phaseTopologyReproduction: 'NOT_TESTABLE',
+      },
+      conclusion:
+        'No candidate can be evaluated as an exact PA/NMP/heavy-hydrocarbon equilibrium model without an undocumented substitution or missing parameter.',
+    },
     missing: [
       'EXACT_ALKYLATED_DIPHENYLAMINE_SIGMA_PROFILE',
       'COMPLETE_PA_GROUP_DECOMPOSITION_AND_DIRECTED_INTERACTION_SET',
@@ -68,7 +89,8 @@ export const ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE = {
     ],
   },
   applicability: {
-    temperatureC: null,
+    requestedTemperatureC: { minimum: 25, maximum: 100 },
+    admittedTemperatureC: null,
     composition: null,
     solventOilMassRatio: null,
     pressure: null,
@@ -79,6 +101,7 @@ export const ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE = {
     predictiveNtWithPositivePaFeed: 'NOT_CALCULABLE',
     fullBasisRrboRecoveryWithPositivePaFeed: 'NOT_CALCULABLE',
     sulfurRemoval: 'NOT_CALCULABLE',
+    fiveComponentZeroPaDiagnostic: 'UNCHANGED',
     releaseEligible: false,
   },
 } as const;

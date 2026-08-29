@@ -5,6 +5,7 @@ import {
   startPrePilotNt,
 } from '../server/ecr-pre-pilot/model';
 import { PREDICTIVE_NT_MOLECULAR_REGISTRY } from '../server/ecr-pre-pilot/stage1';
+import { ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE } from '../server/research/ecr-pre-pilot-pa-anchor/evidence';
 
 describe('ECR Pre-Pilot frozen N_T start', () => {
   it('starts predictive N_T only against the frozen model hash', () => {
@@ -130,6 +131,33 @@ describe('ECR Pre-Pilot frozen N_T start', () => {
           'UNSUBSTITUTED_DIPHENYLAMINE_PROFILE',
           'SULFUR_BEARING_REPRESENTATIVE',
         ]),
+      },
+    });
+    expect(ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE).toMatchObject({
+      thermodynamicClosure: {
+        status: 'BLOCKED',
+        assessment: {
+          decision: 'NO_PARAMETER_ADMISSION',
+          independentlyCheckableRoute: 'EVIDENCE_INVENTORY_AND_PREDECLARED_GATE_REVIEW',
+          requiredGateResults: {
+            exactMolecularRepresentation: 'FAIL',
+            completeDirectedInteractions: 'FAIL',
+            matchingTwoPhaseEquilibriumEvidence: 'FAIL',
+            stage1TemperatureCoverage: 'FAIL',
+            independentHoldoutReproduction: 'NOT_TESTABLE',
+            phaseTopologyReproduction: 'NOT_TESTABLE',
+          },
+        },
+      },
+      applicability: {
+        requestedTemperatureC: { minimum: 25, maximum: 100 },
+        admittedTemperatureC: null,
+      },
+      outputPolicy: {
+        predictiveNtWithPositivePaFeed: 'NOT_CALCULABLE',
+        fullBasisRrboRecoveryWithPositivePaFeed: 'NOT_CALCULABLE',
+        sulfurRemoval: 'NOT_CALCULABLE',
+        fiveComponentZeroPaDiagnostic: 'UNCHANGED',
       },
     });
   });
