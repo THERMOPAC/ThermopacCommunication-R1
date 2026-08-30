@@ -672,3 +672,10 @@ uri = "file://.agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/repo
 type = "text"
 title = "Task #204 — Full Liquid-Phase Stability Report"
 description = "Merged tangent-Hessian and seeded TPD stability results for the single-stage prediction and all counter-current phase candidates at 25°C and 50°C."
+
+[[outputs]]
+id = "y3KjCpsK27DS5zEFFcRKu"
+uri = "file://.agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/screening-scenario-report.md"
+type = "text"
+title = "Alternative Product-Gate Screening Report"
+description = "Scenario-only comparison using NMP <6.5 wt%, total aromatics <1.5 wt%, and polar aromatics <0.1 wt%. Official targets and governed acceptance remain unchanged."
