@@ -679,3 +679,10 @@ uri = "file://.agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/scre
 type = "text"
 title = "Alternative Product-Gate Screening Report"
 description = "Scenario-only comparison using NMP <6.5 wt%, total aromatics <1.5 wt%, and polar aromatics <0.1 wt%. Official targets and governed acceptance remain unchanged."
+
+[[outputs]]
+id = "97HE-9TznutlVT5Z-sZZq"
+uri = "file://.agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/fixed-nt7-feed-composition-sensitivity-report.md"
+type = "text"
+title = "Fixed NT=7 RRBO Feed-Composition Sensitivity Report"
+description = "Direct 25°C calculations for 85%, 88%, and 90% saturates feeds, including mole fractions, raffinate and extract results, balances, multistart diagnostics, TPD stability, screening gates, and final comparison."
