@@ -13,7 +13,8 @@
     "verify:ecr-dortmund-benchmark": "tsx server/research/ecr-pre-pilot-dortmund-benchmark/verify.ts",
     "research:ecr-descriptor-transfer": "python3 server/research/ecr-pre-pilot-descriptor-transfer/run.py",
     "verify:ecr-descriptor-transfer": "python3 server/research/ecr-pre-pilot-descriptor-transfer/verify.py",
-    "export:ecr-pre-pilot-stage1": "tsx scripts/export-ecr-pre-pilot-stage1.ts"
+    "export:ecr-pre-pilot-stage1": "tsx scripts/export-ecr-pre-pilot-stage1.ts",
+    "validate:ecr-pre-pilot-stage1": "tsx scripts/validate-ecr-pre-pilot-stage1.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",

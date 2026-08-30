@@ -1,21 +1,56 @@
 """Independent structural, balance, equilibrium, target, and provenance checks."""
 import hashlib
 import importlib.util
+import argparse
 import json
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
-OUT = ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent"
+DEFAULT_OUT = ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent"
 AMEND = ROOT / "server/research/ecr-pre-pilot-cosmosac-nmp-lle-amendment"
 spec = importlib.util.spec_from_file_location("m", AMEND / "model.py")
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
 np = m.np
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUT)
+args = parser.parse_args()
+OUT = args.output_dir.resolve()
 data = json.loads((OUT / "results.json").read_text())
 manifest = json.loads((OUT / "provenance-manifest.json").read_text())
-prior = json.loads((ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json").read_text())
+
+
+def resolve_source(value):
+    path = Path(value)
+    return path if path.is_absolute() else ROOT / path
+
+
+def validate_snapshot_with_application(path):
+    completed = subprocess.run(
+        [
+            str(ROOT / "node_modules/.bin/tsx"),
+            str(ROOT / "scripts/validate-ecr-pre-pilot-stage1.ts"),
+            str(Path(path).resolve()),
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return None, completed.stderr.strip() or completed.stdout.strip()
+    return json.loads(completed.stdout.strip().splitlines()[-1]), ""
+
+
+stage1_snapshot_path = resolve_source(manifest["sources"]["stage1Snapshot"])
+amendment_results_path = resolve_source(manifest["sources"]["amendmentResults"])
+stage1_snapshot = json.loads(stage1_snapshot_path.read_text())
+validated_authority, authority_error = validate_snapshot_with_application(stage1_snapshot_path)
+saved_stage1 = stage1_snapshot["stage1"]
+prior = json.loads(amendment_results_path.read_text())
 p = np.asarray([prior["model"]["parameters"][name] for name in m.PARAMETER_NAMES])
 protocol = json.loads((HERE / "protocol.json").read_text())
 gates = protocol["numericalAcceptance"]
@@ -77,10 +112,33 @@ def independent_tangent_spectra(composition, temperature_k, step):
     return np.linalg.eigvalsh(direct_hessian), np.linalg.eigvalsh(chemical_hessian)
 
 
-check("temperature cases exact", [case["temperatureK"] for case in data["temperatureCases"]] == [298.15, 323.15])
-check("single default execution mode", data["executionMode"] == "DEFAULT_FROZEN_PROTOCOL")
+expected_temperature_c = float(saved_stage1["operatingTemperatureC"])
+expected_temperature_k = expected_temperature_c + 273.15
+expected_stage_min = 1
+expected_stage_max = int(saved_stage1["maximumStages"])
+snapshot_sha256 = hashlib.sha256(stage1_snapshot_path.read_bytes()).hexdigest()
+check("Stage-1 source schema", stage1_snapshot["schemaVersion"] == "ECR_PRE_PILOT_STAGE_1_V1")
+check(
+    "Stage-1 application validator",
+    validated_authority is not None
+    and validated_authority["immutableHash"] == stage1_snapshot["immutableHash"],
+    authority_error,
+)
+check("Stage-1 source hash", data["stage1Authority"]["snapshotSha256"] == snapshot_sha256)
+check("Stage-1 project reference", data["stage1Authority"]["projectReference"] == saved_stage1["projectReference"])
+check("Stage-1 operating temperature", float(data["stage1Authority"]["operatingTemperatureC"]) == expected_temperature_c)
+check(
+    "Stage-1 stage range",
+    data["stage1Authority"]["stageRange"] == {"minimum": expected_stage_min, "maximum": expected_stage_max},
+)
+check("single Stage-1 temperature case", [case["temperatureK"] for case in data["temperatureCases"]] == [expected_temperature_k])
+check("user-saved Stage-1 execution mode", data["executionMode"] == "USER_SAVED_STAGE1_RESEARCH_DIAGNOSTIC")
 for case in data["temperatureCases"]:
-    check(f"{case['temperatureC']:.0f}C has stages 1-10", [x["stageCount"] for x in case["trials"]] == list(range(1, 11)))
+    check(
+        f"{case['temperatureC']:.0f}C has saved Stage-1 range",
+        [x["stageCount"] for x in case["trials"]]
+        == list(range(expected_stage_min, expected_stage_max + 1)),
+    )
     for trial in case["trials"]:
         n = trial["stageCount"]
         rejected_for_closure = any(
@@ -180,9 +238,9 @@ for case in data["temperatureCases"]:
 
 paths = {
     "protocolSha256": HERE / "protocol.json",
-    "stage1SnapshotSha256": AMEND / "stage1-qualification-snapshot.json",
+    "stage1SnapshotSha256": stage1_snapshot_path,
     "amendmentModelSha256": AMEND / "model.py",
-    "amendmentResultsSha256": ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json",
+    "amendmentResultsSha256": amendment_results_path,
     "runnerSha256": HERE / "run.py",
     "resultsSha256": OUT / "results.json",
 }

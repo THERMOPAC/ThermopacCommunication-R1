@@ -1,3 +1,7 @@
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   SIX_COMPONENT_COSMO_SAC_BASIS,
@@ -39,6 +43,32 @@ const savedStage1: EcrPrePilotStage1Input = {
 };
 
 describe('six-component COSMO-SAC gate contract', () => {
+  function runSixComponentPreflight(stage1: EcrPrePilotStage1Input): {
+    status: number;
+    stdout: string;
+    stderr: string;
+  } {
+    const directory = mkdtempSync(join(tmpdir(), 'ecr-stage1-'));
+    const snapshotPath = join(directory, 'stage1.json');
+    writeFileSync(snapshotPath, JSON.stringify(makeStage1Snapshot(stage1)));
+    try {
+      const stdout = execFileSync('python3', [
+        'server/research/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/run.py',
+        '--stage1-snapshot', snapshotPath,
+        '--preflight-only',
+      ], { cwd: process.cwd(), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      return { status: 0, stdout, stderr: '' };
+    } catch (error: any) {
+      return {
+        status: Number(error.status ?? 1),
+        stdout: String(error.stdout ?? ''),
+        stderr: String(error.stderr ?? ''),
+      };
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  }
+
   it('freezes the exact SAT, MONO, DI, POLY, PA, NMP order and stable hash', () => {
     expect(SIX_COMPONENT_COSMO_SAC_BASIS.componentOrder).toEqual(SIX_COMPONENT_COSMO_SAC_ORDER);
     expect(SIX_COMPONENT_COSMO_SAC_BASIS.components.map(({ family }) => family))
@@ -139,6 +169,87 @@ describe('six-component COSMO-SAC gate contract', () => {
     expect(() => verifyStage1SixComponentCosmoSacProfileFiles(binding, () => Buffer.from('corrupt')))
       .toThrow('SIX_COMPONENT_COSMO_SAC_SAT_PROFILE_HASH_MISMATCH');
   });
+
+  it('keeps PA mandatory and preserves separate counter-current NMP and oil inlets', () => {
+    const result = runSixComponentPreflight({
+      ...savedStage1,
+      saturatesWt: 69,
+      monoAromaticsWt: 20,
+      diAromaticsWt: 5,
+      polyAromaticsWt: 3,
+      polarAromaticsWt: 3,
+      nmpPurityWt: 100,
+      nmpWaterWt: 0,
+    });
+    expect(result.status).toBe(0);
+    const output = JSON.parse(result.stdout);
+    expect(output.componentOrder).toEqual(['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP']);
+    expect(output.oilFeedNmpMassBasis).toBe(0);
+    expect(output.freshSolventNmpMassBasis).toBeGreaterThan(0);
+    expect(output.overallInletNmpMassBasis).toBeGreaterThan(0);
+    expect(output.flowConvention).toMatchObject({
+      feed: 'enters stage 1',
+      freshSolvent: 'enters stage N',
+    });
+  }, 30_000);
+
+  it('keeps Project-111-style solvent purity as a separate representation blocker', () => {
+    const result = runSixComponentPreflight({
+      ...savedStage1,
+      saturatesWt: 85,
+      monoAromaticsWt: 7,
+      diAromaticsWt: 4,
+      polyAromaticsWt: 2,
+      polarAromaticsWt: 2,
+      solventOilRatio: 0.75,
+      nmpPurityWt: 99.5,
+      nmpWaterWt: 0.05,
+    });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(
+      'STAGE1_SOLVENT_PURITY_REPRESENTATION_UNAVAILABLE:waterWt=0.05;unspecifiedWt=0.45',
+    );
+    expect(result.stderr).not.toContain('POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE');
+  }, 30_000);
+
+  it('rejects a tampered Stage-1 file before six-component preflight', () => {
+    const snapshot = makeStage1Snapshot({
+      ...savedStage1,
+      nmpPurityWt: 100,
+      nmpWaterWt: 0,
+      polarAromaticsWt: 3,
+      saturatesWt: 67,
+    });
+    (snapshot.stage1 as EcrPrePilotStage1Input).operatingTemperatureC = 30;
+    const directory = mkdtempSync(join(tmpdir(), 'ecr-stage1-tampered-'));
+    const snapshotPath = join(directory, 'stage1.json');
+    writeFileSync(snapshotPath, JSON.stringify(snapshot));
+    try {
+      expect(() => execFileSync('python3', [
+        'server/research/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/run.py',
+        '--stage1-snapshot', snapshotPath,
+        '--preflight-only',
+      ], { cwd: process.cwd(), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }))
+        .toThrow(/STAGE1_SNAPSHOT_HASH_MISMATCH/);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  }, 30_000);
+
+  it('uses the application hash validator for scientific notation and negative zero', () => {
+    const result = runSixComponentPreflight({
+      ...savedStage1,
+      saturatesWt: 67,
+      polarAromaticsWt: 3,
+      nmpInFeedWt: -0,
+      nmpPurityWt: 99.9999999,
+      nmpWaterWt: 1e-7,
+    });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('STAGE1_SOLVENT_PURITY_REPRESENTATION_UNAVAILABLE');
+    expect(result.stderr).not.toContain('STAGE1_SNAPSHOT_HASH_MISMATCH');
+    expect(result.stderr).not.toContain('STAGE1_APPLICATION_VALIDATION_FAILED');
+  }, 30_000);
 
   it('calculates positive PA removal only from accepted complete six-component flows', () => {
     expect(deriveSixComponentCosmoSacRemoval({

@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import json
 import math
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -28,6 +29,32 @@ def load_json(path):
 
 def sha256(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def source_path(path):
+    resolved = Path(path).resolve()
+    try:
+        return str(resolved.relative_to(ROOT))
+    except ValueError:
+        return str(resolved)
+
+
+def validate_snapshot_with_application(path):
+    completed = subprocess.run(
+        [
+            str(ROOT / "node_modules/.bin/tsx"),
+            str(ROOT / "scripts/validate-ecr-pre-pilot-stage1.ts"),
+            str(Path(path).resolve()),
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or completed.stdout.strip()
+        raise ValueError("STAGE1_APPLICATION_VALIDATION_FAILED:" + detail)
+    return json.loads(completed.stdout.strip().splitlines()[-1])
 
 
 def validate_authoritative_stage1_snapshot(snapshot):
@@ -485,14 +512,21 @@ def main():
     parser.add_argument(
         "--equilibrium-result",
         type=Path,
-        required=True,
         help="Six-component equilibrium result generated from the exact same Stage-1 snapshot",
+    )
+    parser.add_argument(
+        "--preflight-only",
+        action="store_true",
+        help="Validate Stage-1 authority, mandatory profiles, inlet streams, and solvent representation without solving",
     )
     args = parser.parse_args()
     protocol = load_json(HERE / "protocol.json")
     snapshot_path = args.stage1_snapshot.resolve()
+    validated_authority = validate_snapshot_with_application(snapshot_path)
     snapshot = load_json(snapshot_path)
     stage1 = validate_authoritative_stage1_snapshot(snapshot)
+    if validated_authority["immutableHash"] != snapshot["immutableHash"]:
+        raise ValueError("STAGE1_VALIDATOR_RESULT_MISMATCH")
     temperature_c = float(stage1["operatingTemperatureC"])
     temperature_k = temperature_c + 273.15
     maximum_stages = int(stage1["maximumStages"])
@@ -513,11 +547,31 @@ def main():
     if represented_solvent_wt > 100.0 + 1e-10:
         raise ValueError("STAGE1_INVALID_FRESH_SOLVENT_COMPOSITION: NMP and water exceed 100 wt%")
     unspecified_solvent_wt = max(0.0, 100.0 - represented_solvent_wt)
+    fresh_solvent_mass = 100.0 * solvent_oil_ratio
+    fresh_nmp_mass = fresh_solvent_mass * nmp_purity_wt / 100.0
+    overall_inlet_nmp_mass = float(feed_mass[model.FAMILIES.index("NMP")]) + fresh_nmp_mass
+    if fresh_solvent_mass <= 0.0 or fresh_nmp_mass <= 0.0 or overall_inlet_nmp_mass <= 0.0:
+        raise ValueError("STAGE1_SOLVENT_SIDE_NMP_INLET_MUST_BE_POSITIVE")
     if nmp_water_wt > 1e-10 or unspecified_solvent_wt > 1e-10:
         raise ValueError(
             "STAGE1_SOLVENT_PURITY_REPRESENTATION_UNAVAILABLE:"
             f"waterWt={nmp_water_wt:g};unspecifiedWt={unspecified_solvent_wt:g}"
         )
+    if args.preflight_only:
+        print(json.dumps({
+            "status": "PASS",
+            "projectReference": stage1["projectReference"],
+            "componentOrder": list(model.FAMILIES),
+            "oilFeedNmpMassBasis": float(feed_mass[model.FAMILIES.index("NMP")]),
+            "freshSolventNmpMassBasis": fresh_nmp_mass,
+            "overallInletNmpMassBasis": overall_inlet_nmp_mass,
+            "flowConvention": protocol["flowConvention"],
+            "stageRange": {"minimum": 1, "maximum": maximum_stages},
+            "temperatureC": temperature_c,
+        }, sort_keys=True))
+        return
+    if args.equilibrium_result is None:
+        raise ValueError("MATCHING_SIX_COMPONENT_EQUILIBRIUM_RESULT_REQUIRED")
     prior = load_json(args.equilibrium_result.resolve())
     if prior.get("stage1Authority", {}).get("snapshotSha256") != sha256(snapshot_path):
         raise ValueError("STAGE1_AUTHORITY_MISMATCH: equilibrium result uses another Stage-1 snapshot")
@@ -527,9 +581,8 @@ def main():
         prior["stage1Authority"]["charge"]["molecularWeightsGmol"][name]
         for name in model.FAMILIES
     ], dtype=float)
-    fresh_solvent_mass = 100.0 * solvent_oil_ratio
     solvent_mass = np.asarray([
-        0, 0, 0, 0, 0, fresh_solvent_mass * nmp_purity_wt / 100.0
+        0, 0, 0, 0, 0, fresh_nmp_mass
     ], dtype=float)
     feed = feed_mass / molecular_weights
     solvent = solvent_mass / molecular_weights
@@ -550,17 +603,21 @@ def main():
         raise ValueError("STAGE1_AUTHORITY_MISMATCH: equilibrium seed solvent charge differs from saved Stage 1")
     results = {
         "schemaVersion": "1.0.0",
-        "executionMode": "DEFAULT_FROZEN_PROTOCOL",
+        "executionMode": "USER_SAVED_STAGE1_RESEARCH_DIAGNOSTIC",
         "modelIdentity": protocol["modelIdentity"],
         "componentOrder": list(model.FAMILIES),
         "governance": protocol["governance"],
         "stage1Authority": {
             "source": "USER_SAVED_ECR_PRE_PILOT_STAGE_1_V1",
             "projectReference": stage1["projectReference"],
-            "snapshotPath": str(snapshot_path),
+            "snapshotPath": source_path(snapshot_path),
             "snapshotSha256": sha256(snapshot_path),
-            "feedMassBasis": dict(zip(model.FAMILIES, feed_mass.tolist())),
+            "oilFeedMassBasis": dict(zip(model.FAMILIES, feed_mass.tolist())),
             "freshSolventMassBasis": dict(zip(model.FAMILIES, solvent_mass.tolist())),
+            "overallInletMassBalanceBasis": dict(zip(
+                model.FAMILIES,
+                (feed_mass + solvent_mass).tolist(),
+            )),
             "freshSolventCompositionWt": {
                 "NMP": nmp_purity_wt,
                 "WATER": nmp_water_wt,
@@ -639,6 +696,10 @@ def main():
     result_path.write_text(json.dumps(json_safe(results), indent=2, sort_keys=True) + "\n")
     write_report(results, OUTPUT / "report.md")
     manifest = {
+        "sources": {
+            "stage1Snapshot": source_path(snapshot_path),
+            "amendmentResults": source_path(args.equilibrium_result),
+        },
         "protocolSha256": sha256(HERE / "protocol.json"),
         "stage1SnapshotSha256": sha256(snapshot_path),
         "amendmentModelSha256": sha256(AMENDMENT / "model.py"),
@@ -721,7 +782,11 @@ def write_report(results, path):
             f"- Stability evidence covers {len(phase_evidence)} phases: minimum tangent eigenvalue = {minimum_eigenvalue:.6e}; minimum post-split TPD = {minimum_tpd:.6e}.",
             f"- Formal stability failures: negative TPD = {negative_tpd_count}; step-size convergence = {step_convergence_failures}; independent reconstruction agreement = {reconstruction_failures}.",
             "- Any negative tangent eigenvalue, derivative-reconstruction disagreement, or negative post-split TPD formally downgrades that stationary phase pair; all product metrics remain diagnostic only.",
-            "- Recovery and NMP-carryover targets fail throughout the closed series, so no accepted NT exists within 10 stages.",
+            (
+                f"- The first accepted target-satisfying trial is NT = {case['firstStageCountMeetingAllCalculableTargets']}."
+                if case["firstStageCountMeetingAllCalculableTargets"] is not None
+                else f"- No accepted target-satisfying trial exists within the saved Stage-1 range NT = 1–{case['trials'][-1]['stageCount']}."
+            ),
             "",
             "Complete incoming/outgoing flows, six-component mole/mass profiles, K values, acceptance blockers, and closure residuals for every stage are in `results.json`.",
             "",
