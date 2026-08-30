@@ -1,4 +1,4 @@
-"""Coupled six-component counter-current cascade at 25 and 50 degC."""
+"""Stage-1-authoritative coupled six-component counter-current cascade."""
 from __future__ import annotations
 
 import hashlib
@@ -27,6 +27,57 @@ def load_json(path):
 
 def sha256(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def validate_authoritative_stage1_snapshot(snapshot):
+    if snapshot.get("schemaVersion") != "ECR_PRE_PILOT_STAGE_1_V1":
+        raise ValueError(
+            "STAGE1_AUTHORITY_INVALID: complete immutable ECR_PRE_PILOT_STAGE_1_V1 snapshot required"
+        )
+    if not isinstance(snapshot.get("immutableHash"), str) or not snapshot["immutableHash"]:
+        raise ValueError("STAGE1_AUTHORITY_INVALID: immutableHash is required")
+    if snapshot.get("sixComponentCosmoSacBinding", {}).get("status") != "VERIFIED":
+        raise ValueError("STAGE1_SIX_COMPONENT_BINDING_NOT_VERIFIED")
+    if snapshot["sixComponentCosmoSacBinding"].get("componentOrder") != list(model.FAMILIES):
+        raise ValueError("STAGE1_SIX_COMPONENT_ORDER_MISMATCH")
+    stage1 = snapshot.get("stage1")
+    if not isinstance(stage1, dict):
+        raise ValueError("STAGE1_AUTHORITY_INVALID: stage1 object is required")
+    required = (
+        "operatingTemperatureC",
+        "saturatesWt",
+        "monoAromaticsWt",
+        "diAromaticsWt",
+        "polyAromaticsWt",
+        "polarAromaticsWt",
+        "nmpInFeedWt",
+        "rrboDensityKgM3",
+        "rrboDynamicViscosityCp",
+        "rrboInterfacialTensionMnM",
+        "nmpPurityWt",
+        "nmpWaterWt",
+        "nmpTemperatureC",
+        "nmpDensityKgM3",
+        "nmpDynamicViscosityCp",
+        "solventOilRatio",
+        "maximumStages",
+    )
+    missing = [key for key in required if key not in stage1]
+    if missing:
+        raise ValueError(
+            "STAGE1_AUTHORITY_INCOMPLETE: missing saved fields " + ",".join(missing)
+        )
+    positive_properties = (
+        "rrboDensityKgM3",
+        "rrboDynamicViscosityCp",
+        "rrboInterfacialTensionMnM",
+        "nmpDensityKgM3",
+        "nmpDynamicViscosityCp",
+    )
+    if any(not math.isfinite(float(stage1[key])) or float(stage1[key]) <= 0
+           for key in positive_properties):
+        raise ValueError("STAGE1_PHYSICAL_PROPERTIES_INVALID")
+    return stage1
 
 
 def json_safe(value):
@@ -398,11 +449,17 @@ def solve_cascade(
 
 def main():
     protocol = load_json(HERE / "protocol.json")
-    snapshot = load_json(AMENDMENT / "stage1-qualification-snapshot.json")
+    snapshot_path = AMENDMENT / "stage1-qualification-snapshot.json"
+    snapshot = load_json(snapshot_path)
     prior = load_json(OUTPUT.parent / "ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json")
     p_map = prior["model"]["parameters"]
     parameters = np.asarray([p_map[name] for name in model.PARAMETER_NAMES])
-    stage1 = snapshot["stage1"]
+    stage1 = validate_authoritative_stage1_snapshot(snapshot)
+    temperature_c = float(stage1["operatingTemperatureC"])
+    temperature_k = temperature_c + 273.15
+    maximum_stages = int(stage1["maximumStages"])
+    if maximum_stages < 1 or float(maximum_stages) != float(stage1["maximumStages"]):
+        raise ValueError("STAGE1_INVALID_NT_RANGE: maximumStages must be a positive integer")
     molecular_weights = np.asarray([
         prior["stage1Authority"]["charge"]["molecularWeightsGmol"][name]
         for name in model.FAMILIES
@@ -411,10 +468,40 @@ def main():
         stage1["saturatesWt"], stage1["monoAromaticsWt"], stage1["diAromaticsWt"],
         stage1["polyAromaticsWt"], stage1["polarAromaticsWt"], stage1["nmpInFeedWt"],
     ])
-    solvent_mass = np.asarray([0, 0, 0, 0, 0, 100 * stage1["solventOilRatio"]], dtype=float)
+    if not np.isclose(feed_mass.sum(), 100.0, rtol=0.0, atol=1e-10):
+        raise ValueError("STAGE1_INVALID_FEED_COMPOSITION: six-component feed wt% must sum to 100")
+    solvent_oil_ratio = float(stage1["solventOilRatio"])
+    nmp_purity_wt = float(stage1["nmpPurityWt"])
+    nmp_water_wt = float(stage1["nmpWaterWt"])
+    if solvent_oil_ratio < 0:
+        raise ValueError("STAGE1_INVALID_SOLVENT_RATIO: solventOilRatio must be non-negative")
+    if not np.isclose(nmp_purity_wt + nmp_water_wt, 100.0, rtol=0.0, atol=1e-10):
+        raise ValueError("STAGE1_INVALID_FRESH_SOLVENT_COMPOSITION: NMP and water wt% must sum to 100")
+    if nmp_water_wt != 0.0:
+        raise ValueError(
+            "STAGE1_FRESH_SOLVENT_COMPONENT_UNSUPPORTED: water is not represented in the six-component model"
+        )
+    fresh_solvent_mass = 100.0 * solvent_oil_ratio
+    solvent_mass = np.asarray([
+        0, 0, 0, 0, 0, fresh_solvent_mass * nmp_purity_wt / 100.0
+    ], dtype=float)
     feed = feed_mass / molecular_weights
     solvent = solvent_mass / molecular_weights
     targets = prior["stage1Authority"]["charge"]["targets"]
+    prior_charge = prior["stage1Authority"]["charge"]
+    if not np.isclose(float(prior_charge["temperatureK"]), temperature_k, rtol=0.0, atol=1e-10):
+        raise ValueError("STAGE1_AUTHORITY_MISMATCH: equilibrium seed temperature differs from saved Stage 1")
+    prior_feed = prior_charge["feedMassPercent"]
+    if any(not np.isclose(float(prior_feed[name]), feed_mass[index], rtol=0.0, atol=1e-10)
+           for index, name in enumerate(model.FAMILIES)):
+        raise ValueError("STAGE1_AUTHORITY_MISMATCH: equilibrium seed feed differs from saved Stage 1")
+    if not np.isclose(
+        float(prior_charge["freshSolventMassBasis"]),
+        fresh_solvent_mass,
+        rtol=0.0,
+        atol=1e-10,
+    ):
+        raise ValueError("STAGE1_AUTHORITY_MISMATCH: equilibrium seed solvent charge differs from saved Stage 1")
     results = {
         "schemaVersion": "1.0.0",
         "executionMode": "DEFAULT_FROZEN_PROTOCOL",
@@ -423,35 +510,46 @@ def main():
         "governance": protocol["governance"],
         "stage1Authority": {
             "snapshotPath": str((AMENDMENT / "stage1-qualification-snapshot.json").relative_to(ROOT)),
-            "snapshotSha256": sha256(AMENDMENT / "stage1-qualification-snapshot.json"),
+            "snapshotSha256": sha256(snapshot_path),
             "feedMassBasis": dict(zip(model.FAMILIES, feed_mass.tolist())),
             "freshSolventMassBasis": dict(zip(model.FAMILIES, solvent_mass.tolist())),
-            "solventOilMassRatio": stage1["solventOilRatio"],
+            "freshSolventCompositionWt": {
+                "NMP": nmp_purity_wt,
+                "WATER": nmp_water_wt,
+            },
+            "operatingTemperatureC": temperature_c,
+            "rrboPhysicalProperties": {
+                "densityKgM3": float(stage1["rrboDensityKgM3"]),
+                "dynamicViscosityCp": float(stage1["rrboDynamicViscosityCp"]),
+                "interfacialTensionMnM": float(stage1["rrboInterfacialTensionMnM"]),
+                "temperatureC": temperature_c,
+            },
+            "nmpPhysicalProperties": {
+                "densityKgM3": float(stage1["nmpDensityKgM3"]),
+                "dynamicViscosityCp": float(stage1["nmpDynamicViscosityCp"]),
+                "temperatureC": float(stage1["nmpTemperatureC"]),
+            },
+            "solventOilMassRatio": solvent_oil_ratio,
+            "stageRange": {"minimum": 1, "maximum": maximum_stages},
             "targets": targets,
         },
         "flowConvention": protocol["flowConvention"],
         "temperatureCases": [],
     }
-    seeds = {
-        298.15: {
-            "raffinate": np.asarray([0.80839275, 0.04805118, 0.02223209, 0.00732792, 0.00245580, 0.11154027]),
-            "extract": np.asarray([0.03166653, 0.03270623, 0.01640959, 0.00607406, 0.00377994, 0.90936365]),
-            "beta": 0.614761, "mw": molecular_weights,
-        },
-        323.15: {
-            "raffinate": np.asarray(prior["stage1Prediction"]["flash"]["raffinate"]),
-            "extract": np.asarray(prior["stage1Prediction"]["flash"]["extract"]),
-            "beta": prior["stage1Prediction"]["flash"]["betaExtract"], "mw": molecular_weights,
-        },
+    seed = {
+        "raffinate": np.asarray(prior["stage1Prediction"]["flash"]["raffinate"]),
+        "extract": np.asarray(prior["stage1Prediction"]["flash"]["extract"]),
+        "beta": prior["stage1Prediction"]["flash"]["betaExtract"],
+        "mw": molecular_weights,
     }
-    for temperature_k in protocol["temperaturesK"]:
+    for selected_temperature_k in [temperature_k]:
         trials = []
         first_passing = None
         previous = None
-        for stage_count in protocol["stageTrials"]:
+        for stage_count in range(1, maximum_stages + 1):
             trial = solve_cascade(
-                stage_count, temperature_k, feed, solvent, parameters,
-                protocol, seeds[temperature_k], previous,
+                stage_count, selected_temperature_k, feed, solvent, parameters,
+                protocol, seed, previous,
             )
             candidate_solution = trial.pop("_streamSolution")
             if trial["maximumScaledEquationResidual"] <= protocol["numericalAcceptance"]["maximumScaledEquationResidual"]:
@@ -467,7 +565,7 @@ def main():
             trials.append(trial)
             print(
                 json.dumps({
-                    "temperatureC": temperature_k - 273.15,
+                    "temperatureC": selected_temperature_k - 273.15,
                     "stageCount": stage_count,
                     "accepted": trial["accepted"],
                     "maximumScaledEquationResidual": trial["maximumScaledEquationResidual"],
@@ -475,8 +573,8 @@ def main():
                 flush=True,
             )
         results["temperatureCases"].append({
-            "temperatureC": temperature_k - 273.15,
-            "temperatureK": temperature_k,
+            "temperatureC": selected_temperature_k - 273.15,
+            "temperatureK": selected_temperature_k,
             "trials": trials,
             "firstStageCountMeetingAllCalculableTargets": first_passing,
             "theoreticalStageVerdict": cascade_verdict(trials, first_passing),

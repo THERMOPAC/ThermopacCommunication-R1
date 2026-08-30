@@ -2,8 +2,13 @@
   "schemaVersion": "1.0.0",
   "frozenBeforeRun": true,
   "modelIdentity": "COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL",
-  "temperaturesK": [298.15, 323.15],
-  "stageTrials": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  "caseAuthority": {
+    "temperature": "saved Stage-1 operatingTemperatureC only",
+    "solventOilRatio": "saved Stage-1 solventOilRatio only",
+    "feedComposition": "saved Stage-1 six-component feed wt% only",
+    "freshSolventComposition": "saved Stage-1 NMP purity and water wt% only",
+    "stageRange": "integer NT values from 1 through saved Stage-1 maximumStages"
+  },
   "componentOrder": ["SAT", "MONO", "DI", "POLY", "PA", "NMP"],
   "flowConvention": {
     "feed": "enters stage 1",
