@@ -68,6 +68,13 @@ type PredictiveNtBasis = {
       sulfurRelationship: string;
     };
   };
+  predictiveEngineComponentContract: {
+    componentCount: 5;
+    families: string[];
+    thermodynamicModel: "FROZEN_PRE_PILOT_UNIQUAC";
+    sixComponentCosmoSacGate: "INCOMPATIBLE";
+  };
+  sixComponentCosmoSacBasisManifestSha256: string;
   maximumStages: number;
 };
 type ThermodynamicChecks = {
@@ -1502,7 +1509,7 @@ export default function EcrPrePilotDesignPage() {
                 <div>
                   <CardTitle className="text-[15px]">Predictive N_T screening</CardTitle>
                   <CardDescription className="mt-0.5 text-[11px]">
-                    Runs the frozen SAT/MONO/DI/POLY/NMP solver. Positive PA feed remains fail-closed. Results cannot write to established theoretical stages.
+                    Runs the frozen five-component SAT/MONO/DI/POLY/NMP UNIQUAC solver. It is not the six-component COSMO-SAC runner and cannot satisfy that gate.
                   </CardDescription>
                 </div>
                 <Button
@@ -1549,14 +1556,15 @@ export default function EcrPrePilotDesignPage() {
               </div>
               {Number(form.polarAromaticsWt) > 0 && predictiveBasis && (
                 <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
-                  <p className="font-semibold">PA identity admitted; thermodynamic closure unavailable</p>
+                  <p className="font-semibold">PA is outside this five-component predictive engine</p>
                   <p>
                     {predictiveBasis.molecularRegistry.polarAromatics.representative.commonName} (CAS{" "}
                     {predictiveBasis.molecularRegistry.polarAromatics.representative.cas},{" "}
                     {predictiveBasis.molecularRegistry.polarAromatics.representative.formula},{" "}
                     {predictiveBasis.molecularRegistry.polarAromatics.representative.molecularWeightGmol.toFixed(2)} g/mol)
-                    is the bounded non-sulfur molecular anchor. The exact PA profile and interaction closure are unavailable, so
-                    six-component N_T and full-basis RRBO recovery are NOT_CALCULABLE. PA is never used to infer sulfur removal.
+                    is the bounded non-sulfur molecular anchor. A separately governed six-component profile basis is bound to
+                    Stage 1, but this live five-component UNIQUAC runner cannot execute or claim COSMO-SAC results.
+                    Six-component N_T, full-basis RRBO recovery, and PA removal are NOT_CALCULABLE here.
                   </p>
                   <p className="mt-1 font-mono text-[10px]">{predictiveBasis.molecularRegistry.polarAromatics.blocker}</p>
                 </div>
@@ -1642,7 +1650,7 @@ export default function EcrPrePilotDesignPage() {
                   <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
                     <p className="font-semibold">Predictive-only limitations</p>
                     <p>Calibration required: {predictiveJob.result.calibrationRequired ? "Yes" : "No"} · Pilot validated: {predictiveJob.result.pilotValidated ? "Yes" : "No"} · Release eligible: {predictiveJob.result.releaseEligible ? "Yes" : "No"}</p>
-                    <p>DI/POLY remain unavailable. Sulfur prediction is NOT_CALCULABLE / CALIBRATION_REQUIRED. This screening result does not populate established theoretical stages.</p>
+                    <p>This is a five-component UNIQUAC screening result, never a six-component COSMO-SAC result. Six-component MONO/DI/POLY/PA removal and sulfur prediction are NOT_CALCULABLE. This result does not populate established theoretical stages.</p>
                     {predictiveJob.result.stage1TargetGovernance && (
                       <>
                         <p>

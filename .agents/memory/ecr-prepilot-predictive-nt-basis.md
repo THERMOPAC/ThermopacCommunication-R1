@@ -20,3 +20,9 @@ description: Scientific input-boundary rules for predictive SAT/MONO/NMP cascade
 **Why:** Progressive acceptance attempts can pass N=1 and then fail closed at N=2 with a stable-single-phase or nonconverged/boundary verdict. Such a run is thermodynamic failure evidence, not an accepted lower stage count.
 
 **How to apply:** Preserve the failed run and its completed-trial progress. Never select an earlier accepted-looking trial after a later requested trial aborts; use another independently valid saved Stage 1 case without changing the frozen model.
+
+**Rule:** The immutable saved Stage 1 snapshot is the sole authority for every queued execution field. Reconstruct the full request from that snapshot at enqueue and worker execution, and reject any canonical mismatch.
+
+**Why:** Checking only the snapshot hash and molecular identities still permits a self-consistent substituted feed, solvent ratio, temperature, target, or stage limit to run under the original authority label.
+
+**How to apply:** Bind the exact six-family profile order and hashes to Stage 1, preserve unsupported selected identities as blocked rather than substituting them, and keep five-component UNIQUAC/NRTL results explicitly separate from six-component COSMO-SAC claims.

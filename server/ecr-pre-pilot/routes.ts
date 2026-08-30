@@ -8,6 +8,10 @@ import {
   startPredictiveNtWorker,
 } from './predictive-nt-job-service';
 import { PRE_PILOT_MODEL } from './model';
+import {
+  SIX_COMPONENT_COSMO_SAC_BASIS,
+  SIX_COMPONENT_COSMO_SAC_BASIS_MANIFEST_SHA256,
+} from './six-component-cosmo-sac-basis';
 
 export function setupEcrPrePilotRoutes(app: Express): void {
   startPredictiveNtWorker();
@@ -15,6 +19,15 @@ export function setupEcrPrePilotRoutes(app: Express): void {
     return res.json({
       model: PRE_PILOT_MODEL,
       molecularRegistry: PREDICTIVE_NT_MOLECULAR_REGISTRY,
+      predictiveEngineComponentContract: {
+        componentCount: 5,
+        families: ['SAT', 'MONO', 'DI', 'POLY', 'NMP'],
+        thermodynamicModel: 'FROZEN_PRE_PILOT_UNIQUAC',
+        sixComponentCosmoSacGate: 'INCOMPATIBLE',
+      },
+      sixComponentCosmoSacBasis: SIX_COMPONENT_COSMO_SAC_BASIS,
+      sixComponentCosmoSacBasisManifestSha256:
+        SIX_COMPONENT_COSMO_SAC_BASIS_MANIFEST_SHA256,
       maximumStages: 10,
     });
   });

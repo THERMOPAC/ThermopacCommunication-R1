@@ -15,55 +15,7 @@ import {
 } from '../server/ecr-pre-pilot/predictive-nt-job-service';
 import { allocateEcrPrePilotDesign, saveEcrPrePilotStage1 } from '../server/ecr-pre-pilot-service';
 import { pool } from '../server/db';
-
-const satMw = 226.44;
-const monoMw = 148.25;
-const sourceSat = 0.7;
-const sourceMono = 0.3;
-const sourceSatMoles = sourceSat / satMw;
-const sourceMonoMoles = sourceMono / monoMw;
-const sourceMoles = sourceSatMoles + sourceMonoMoles;
-const maximumMonoMass = 0.25;
-const targetMonoMoles = maximumMonoMass / monoMw;
-const targetSatMoles = (1 - maximumMonoMass) / satMw;
-const minimumSatMass = 0.75;
-const minimumSatMoles = minimumSatMass / satMw;
-const correspondingMonoMoles = (1 - minimumSatMass) / monoMw;
-
-const validInput = {
-  modelHash: PRE_PILOT_MODEL.modelHash,
-  temperatureK: 323.15,
-  solventMolarRatio: (1 / 99.1311) / sourceMoles,
-  sourceSolventOilMassRatio: 1,
-  feedMoleFractions: [
-    sourceSatMoles / sourceMoles,
-    sourceMonoMoles / sourceMoles,
-    0,
-    0,
-    0,
-  ] as [number, number, number, number, number],
-  satIdentity: 'n-hexadecane',
-  monoIdentity: 'n-pentylbenzene',
-  sourceFeedCompositionMassFraction: {
-    saturates: sourceSat,
-    mono: sourceMono,
-    di: 0,
-    poly: 0,
-    polar: 0,
-    nmp: 0,
-  },
-  sourceProductTargetsMassFraction: {
-    maximumTotalAromatics: maximumMonoMass,
-    maximumPolarAromatics: 0,
-    minimumSaturates: minimumSatMass,
-    maximumNmp: 0.01,
-    minimumRrboRecovery: 0.88,
-  },
-  targetRaffinateMonoHydrocarbonMoleFraction: targetMonoMoles / (targetMonoMoles + targetSatMoles),
-  minimumRaffinateSaturatesHydrocarbonMoleFraction:
-    minimumSatMoles / (minimumSatMoles + correspondingMonoMoles),
-  maximumStages: 3,
-};
+import { canonicalizeStage1Input, makeStage1Snapshot } from '../server/ecr-pre-pilot/stage1';
 
 function validStage1(projectNumber: number) {
   return {
@@ -87,7 +39,7 @@ function validStage1(projectNumber: number) {
     nmpTemperatureC: '50',
     nmpDensityKgM3: '1000',
     nmpDynamicViscosityCp: '1.2',
-    solventOilRatio: '1.00',
+    solventOilRatio: '1.50',
     targetRaffinateSulfurPpm: '1000',
     minimumRaffinateSaturatesWt: '90',
     targetRaffinateTotalAromaticsWt: '10.0',
@@ -96,10 +48,25 @@ function validStage1(projectNumber: number) {
     maximumNmpRaffinateWt: '0.50',
     feedSulfurPpm: '3500',
     designBasisNotes: 'Stage 1 authority integration fixture',
-    satIdentity: 'n-hexadecane',
-    monoIdentity: 'n-pentylbenzene',
+    satIdentity: 'n-dodecane',
+    monoIdentity: 'n-propylbenzene',
     maximumStages: '10',
   };
+}
+
+const validInput = derivePredictiveNtInputFromStage1(
+  makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
+  209,
+);
+
+function validInputWithMaximumStages(maximumStages: number) {
+  return derivePredictiveNtInputFromStage1(
+    makeStage1Snapshot(canonicalizeStage1Input({
+      ...validStage1(209),
+      maximumStages: String(maximumStages),
+    }, 209)),
+    209,
+  );
 }
 
 describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
@@ -203,6 +170,70 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     })).toThrow('MOLECULAR_SOLVENT_BASIS_MISMATCH');
   });
 
+  it.each([
+    ['temperature', () => ({ ...validInput, temperatureK: validInput.temperatureK + 1 })],
+    ['maximum stages', () => ({ ...validInput, maximumStages: validInput.maximumStages - 1 })],
+    ['self-consistent solvent basis', () => {
+      const sourceSolventOilMassRatio = validInput.sourceSolventOilMassRatio * 0.9;
+      return {
+        ...validInput,
+        sourceSolventOilMassRatio,
+        solventMolarRatio: validInput.solventMolarRatio * 0.9,
+      };
+    }],
+    ['self-consistent feed basis', () => {
+      const saturates = 0.6;
+      const mono = 0.4;
+      const moles = saturates / 170.34 + mono / 120.19;
+      return {
+        ...validInput,
+        sourceFeedCompositionMassFraction: {
+          ...validInput.sourceFeedCompositionMassFraction,
+          saturates,
+          mono,
+        },
+        feedMoleFractions: [
+          (saturates / 170.34) / moles,
+          (mono / 120.19) / moles,
+          0, 0, 0,
+        ] as [number, number, number, number, number],
+        solventMolarRatio: (validInput.sourceSolventOilMassRatio / 99.1311) / moles,
+      };
+    }],
+    ['self-consistent product target basis', () => {
+      const maximumTotalAromatics = 0.07;
+      const monoMoles = maximumTotalAromatics / 120.19;
+      const satMoles = (1 - maximumTotalAromatics) / 170.34;
+      return {
+        ...validInput,
+        sourceProductTargetsMassFraction: {
+          ...validInput.sourceProductTargetsMassFraction,
+          maximumTotalAromatics,
+        },
+        targetRaffinateMonoHydrocarbonMoleFraction: monoMoles / (monoMoles + satMoles),
+      };
+    }],
+    ['authority recovery governance', () => ({
+      ...validInput,
+      stage1Authority: {
+        ...validInput.stage1Authority!,
+        minimumMassRecovery: { targetPercent: 90, status: 'CALCULABLE' as const },
+      },
+    })],
+  ])('rejects valid-looking %s mutations not reconstructed from Stage 1', (_name, mutate) => {
+    expect(() => validatePredictiveNtJobInput(mutate())).toThrow('STAGE1_AUTHORITY_MISMATCH');
+  });
+
+  it('rejects a changed five-component engine contract', () => {
+    expect(() => validatePredictiveNtJobInput({
+      ...validInput,
+      engineComponentContract: {
+        ...validInput.engineComponentContract,
+        thermodynamicModel: 'COSMO-SAC-2010',
+      },
+    } as any)).toThrow('PREDICTIVE_NT_FIVE_COMPONENT_CONTRACT_REQUIRED');
+  });
+
   it('rejects the deprecated molar recovery gate', () => {
     expect(() => validatePredictiveNtJobInput({
       ...validInput,
@@ -221,8 +252,8 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     expect(derived).toMatchObject({
       modelHash: PRE_PILOT_MODEL.modelHash,
       temperatureK: 323.15,
-      satIdentity: 'n-hexadecane',
-      monoIdentity: 'n-pentylbenzene',
+      satIdentity: 'n-dodecane',
+      monoIdentity: 'n-propylbenzene',
       sourceFeedCompositionMassFraction: {
         saturates: 0.7,
         mono: 0.3,
@@ -356,7 +387,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     }
   });
 
-  it('runs a one-stage job to completion from the production runtime bundle', async () => {
+  it('runs a saved Stage-1 stage search to completion from the production runtime bundle', async () => {
     execFileSync('node', ['scripts/package-predictive-nt-runtime.mjs']);
     process.env.PREDICTIVE_NT_RUNTIME_ROOT = 'dist/predictive-nt-runtime';
     expect(preflightPredictiveNtRuntime()).toMatchObject({
@@ -371,7 +402,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-prod-integration-v1');
     try {
       const submitted = await enqueuePredictiveNtRuntimeTestJob(
-        { ...validInput, maximumStages: 1 },
+        validInputWithMaximumStages(2),
         userId,
         design.id,
       );
@@ -402,17 +433,17 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
         },
       });
       const result = completed?.result as any;
-      expect(result.trials).toHaveLength(1);
+      expect(result.trials).toHaveLength(2);
       expect(result.checkpoint).toMatchObject({
         protocol: 'ACK_V2',
-        acknowledgedStageCount: 1,
+        acknowledgedStageCount: 2,
         modelHash: PRE_PILOT_MODEL.modelHash,
         engineHash: completed?.engineHash,
       });
-      expect(result.checkpoint.trialHashes).toHaveLength(1);
-      expect(result.checkpoint.trialCanonicals).toHaveLength(1);
-      expect(result.checkpoint.payloadHashes).toHaveLength(1);
-      expect(result.checkpoint.payloadCanonicals).toHaveLength(1);
+      expect(result.checkpoint.trialHashes).toHaveLength(2);
+      expect(result.checkpoint.trialCanonicals).toHaveLength(2);
+      expect(result.checkpoint.payloadHashes).toHaveLength(2);
+      expect(result.checkpoint.payloadCanonicals).toHaveLength(2);
       expect(result.trials[0].balanceAccepted).toBe(true);
       expect(result.trials[0].overallComponentBalanceMaximum).toBeLessThanOrEqual(1e-8);
       expect(Math.abs(Object.values(result.trials[0].overallComponentBalanceResiduals)
@@ -447,7 +478,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-checkpoint-fault-v1');
     const submitted = await enqueuePredictiveNtRuntimeTestJob(
-      { ...validInput, maximumStages: 2 },
+      validInputWithMaximumStages(2),
       userId,
       design.id,
       hooks,
@@ -473,7 +504,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-checkpoint-resume-v2');
     const submitted = await enqueuePredictiveNtRuntimeTestJob(
-      { ...validInput, maximumStages: 2 },
+      validInputWithMaximumStages(2),
       userId,
       design.id,
       { restartAfterAcknowledgedStage: 1 },
@@ -524,7 +555,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-final-checkpoint-resume-v2');
     const submitted = await enqueuePredictiveNtRuntimeTestJob(
-      { ...validInput, maximumStages: 2 },
+      validInputWithMaximumStages(2),
       userId,
       design.id,
       { restartAfterAcknowledgedStage: 2 },

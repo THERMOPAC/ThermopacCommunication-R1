@@ -140,7 +140,7 @@ describe('ECR Pre-Pilot frozen N_T start', () => {
           decision: 'NO_PARAMETER_ADMISSION',
           independentlyCheckableRoute: 'EVIDENCE_INVENTORY_AND_PREDECLARED_GATE_REVIEW',
           requiredGateResults: {
-            exactMolecularRepresentation: 'FAIL',
+            exactMolecularRepresentation: 'PASS_PROFILE_BASIS_ONLY',
             completeDirectedInteractions: 'FAIL',
             matchingTwoPhaseEquilibriumEvidence: 'FAIL',
             stage1TemperatureCoverage: 'FAIL',

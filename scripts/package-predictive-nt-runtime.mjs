@@ -13,6 +13,12 @@ const files = new Set([
   'server/research/ecr-pre-pilot-model-freeze/predictive_nt_cascade.py',
   'server/research/ecr-pre-pilot-uniquac/model.py',
   'server/research/ecr-pre-pilot-uniquac/structural-provenance.json',
+  'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles/sigma3/SNRUBQQJIBEYMU-UHFFFAOYSA-N.sigma',
+  'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles/sigma3/ODLMAHJVESYWTB-UHFFFAOYSA-N.sigma',
+  'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles/sigma3/QPUYECUOLPXSFR-UHFFFAOYSA-N.sigma',
+  'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles/sigma3/BBEAQIROQSPTKN-UHFFFAOYSA-N.sigma',
+  'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles/sigma3/UJAWGGOCYUPCPS-UHFFFAOYSA-N.sigma',
+  'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles/sigma3/SECXISVLQFMRJM-UHFFFAOYSA-N.sigma',
   manifest.qualificationEvidence.path,
   ...Object.values(manifest.artifacts).map((artifact) => artifact.path),
 ]);

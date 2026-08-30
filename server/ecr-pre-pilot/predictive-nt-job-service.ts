@@ -10,10 +10,22 @@ import {
   ECR_PRE_PILOT_STAGE1_SCHEMA,
   PREDICTIVE_NT_MOLECULAR_REGISTRY,
   stage1SnapshotHash,
+  validateStage1Snapshot,
   type EcrPrePilotStage1Snapshot,
 } from './stage1';
+import {
+  SIX_COMPONENT_COSMO_SAC_BASIS_MANIFEST_SHA256,
+  type SixComponentProfileFileReader,
+  verifyStage1SixComponentCosmoSacProfileFiles,
+} from './six-component-cosmo-sac-basis';
 
 export interface PredictiveNtJobInput {
+  engineComponentContract: {
+    componentCount: 5;
+    families: readonly ['SAT', 'MONO', 'DI', 'POLY', 'NMP'];
+    thermodynamicModel: 'FROZEN_PRE_PILOT_UNIQUAC';
+    sixComponentCosmoSacGate: 'INCOMPATIBLE';
+  };
   modelHash: string;
   temperatureK: number;
   solventMolarRatio: number;
@@ -53,6 +65,8 @@ export interface PredictiveNtJobInput {
       status: 'CALCULABLE' | 'NOT_CALCULABLE';
     };
     polarAromaticsAdmission: typeof PREDICTIVE_NT_MOLECULAR_REGISTRY.polarAromatics;
+    sixComponentCosmoSacBasisManifestSha256: string;
+    sixComponentCosmoSacBindingSha256: string;
   };
 }
 
@@ -181,9 +195,10 @@ const MONO_IDENTITIES = new Set<string>(
 export function derivePredictiveNtInputFromStage1(
   rawSnapshot: unknown,
   projectNumber: number,
+  profileReader?: SixComponentProfileFileReader,
 ): PredictiveNtJobInput {
-  if (!rawSnapshot || typeof rawSnapshot !== 'object') throw new Error('STAGE1_INPUT_NOT_SAVED');
-  const snapshot = rawSnapshot as EcrPrePilotStage1Snapshot;
+  const snapshot = validateStage1Snapshot(rawSnapshot);
+  verifyStage1SixComponentCosmoSacProfileFiles(snapshot.sixComponentCosmoSacBinding, profileReader);
   if (
     snapshot.schemaVersion !== ECR_PRE_PILOT_STAGE1_SCHEMA
     || !snapshot.savedAt
@@ -222,6 +237,12 @@ export function derivePredictiveNtInputFromStage1(
   const correspondingMonoMoles = (1 - minimumSaturates) / mono.molecularWeightGmol;
 
   return {
+    engineComponentContract: {
+      componentCount: 5,
+      families: ['SAT', 'MONO', 'DI', 'POLY', 'NMP'],
+      thermodynamicModel: 'FROZEN_PRE_PILOT_UNIQUAC',
+      sixComponentCosmoSacGate: 'INCOMPATIBLE',
+    },
     modelHash: PRE_PILOT_MODEL.modelHash,
     temperatureK: stage1.operatingTemperatureC + 273.15,
     solventMolarRatio: (stage1.solventOilRatio / PREDICTIVE_NT_MOLECULAR_REGISTRY.nmp.molecularWeightGmol) / sourceMoles,
@@ -258,10 +279,13 @@ export function derivePredictiveNtInputFromStage1(
     stage1Authority: {
       schemaVersion: ECR_PRE_PILOT_STAGE1_SCHEMA,
       savedAt: snapshot.savedAt,
-      snapshotHash: stage1SnapshotHash(snapshot),
+      snapshotHash: snapshot.immutableHash,
       source: snapshot,
       sulfurPrediction: snapshot.sulfurPrediction,
       polarAromaticsAdmission: PREDICTIVE_NT_MOLECULAR_REGISTRY.polarAromatics,
+      sixComponentCosmoSacBasisManifestSha256:
+        snapshot.sixComponentCosmoSacBasisManifestSha256,
+      sixComponentCosmoSacBindingSha256: snapshot.sixComponentCosmoSacBindingSha256,
       minimumMassRecovery: {
         targetPercent: stage1.minimumRecoveryPct,
         status: 'CALCULABLE',
@@ -270,7 +294,45 @@ export function derivePredictiveNtInputFromStage1(
   };
 }
 
-export function validatePredictiveNtJobInput(input: PredictiveNtJobInput) {
+export function validatePredictiveNtJobInput(
+  input: PredictiveNtJobInput,
+  profileReader?: SixComponentProfileFileReader,
+) {
+  if (
+    input.engineComponentContract?.componentCount !== 5
+    || input.engineComponentContract?.thermodynamicModel !== 'FROZEN_PRE_PILOT_UNIQUAC'
+    || input.engineComponentContract?.sixComponentCosmoSacGate !== 'INCOMPATIBLE'
+    || JSON.stringify(input.engineComponentContract?.families) !==
+      JSON.stringify(['SAT', 'MONO', 'DI', 'POLY', 'NMP'])
+  ) {
+    throw new Error('PREDICTIVE_NT_FIVE_COMPONENT_CONTRACT_REQUIRED');
+  }
+  if (!input.stage1Authority) throw new Error('STAGE1_AUTHORITY_REQUIRED');
+  const authoritySnapshot = validateStage1Snapshot(input.stage1Authority.source);
+  if (!input.satIdentity?.trim() || !input.monoIdentity?.trim()) {
+    throw new Error('MOLECULAR_BASIS_REQUIRED');
+  }
+  if (!SAT_IDENTITIES.has(input.satIdentity) || !MONO_IDENTITIES.has(input.monoIdentity)) {
+    throw new Error('MOLECULAR_IDENTITY_UNAVAILABLE');
+  }
+  if (
+    input.stage1Authority.schemaVersion !== ECR_PRE_PILOT_STAGE1_SCHEMA
+    || input.stage1Authority.savedAt !== authoritySnapshot.savedAt
+    || input.stage1Authority.snapshotHash !== authoritySnapshot.immutableHash
+    || input.stage1Authority.snapshotHash !== stage1SnapshotHash(authoritySnapshot)
+    || input.stage1Authority.sixComponentCosmoSacBasisManifestSha256 !==
+      SIX_COMPONENT_COSMO_SAC_BASIS_MANIFEST_SHA256
+    || input.stage1Authority.sixComponentCosmoSacBindingSha256 !==
+      authoritySnapshot.sixComponentCosmoSacBindingSha256
+    || input.satIdentity !== authoritySnapshot.stage1.satIdentity
+    || input.monoIdentity !== authoritySnapshot.stage1.monoIdentity
+  ) {
+    throw new Error('STAGE1_AUTHORITY_MISMATCH');
+  }
+  verifyStage1SixComponentCosmoSacProfileFiles(
+    authoritySnapshot.sixComponentCosmoSacBinding,
+    profileReader,
+  );
   if ('minimumNmpFreeHydrocarbonRecovery' in input) {
     throw new Error('MASS_RECOVERY_GATE_UNAVAILABLE');
   }
@@ -309,12 +371,6 @@ export function validatePredictiveNtJobInput(input: PredictiveNtJobInput) {
     sulfurObjectiveRequested: false,
   });
   if (!gate.mayRunPredictiveNt) throw new Error(gate.status);
-  if (!input.satIdentity?.trim() || !input.monoIdentity?.trim()) {
-    throw new Error('MOLECULAR_BASIS_REQUIRED');
-  }
-  if (!SAT_IDENTITIES.has(input.satIdentity) || !MONO_IDENTITIES.has(input.monoIdentity)) {
-    throw new Error('MOLECULAR_IDENTITY_UNAVAILABLE');
-  }
   const sourceFeed = input.sourceFeedCompositionMassFraction;
   if (!sourceFeed || Object.values(sourceFeed).some((value) => !Number.isFinite(value) || value < 0)) {
     throw new Error('SOURCE_FEED_BASIS_REQUIRED');
@@ -379,6 +435,29 @@ export function validatePredictiveNtJobInput(input: PredictiveNtJobInput) {
   ) {
     throw new Error('MOLECULAR_PRODUCT_TARGET_BASIS_MISMATCH');
   }
+  const projectNumber = Number(authoritySnapshot.stage1.projectReference);
+  if (!Number.isInteger(projectNumber) || projectNumber < 1) {
+    throw new Error('STAGE1_AUTHORITY_MISMATCH');
+  }
+  let expected: PredictiveNtJobInput;
+  try {
+    expected = derivePredictiveNtInputFromStage1(
+      authoritySnapshot,
+      projectNumber,
+      profileReader,
+    );
+  } catch (error) {
+    throw error;
+  }
+  const { _runtimeTestOwner, ...authorityComparableInput } = input as PredictiveNtJobInput & {
+    _runtimeTestOwner?: unknown;
+  };
+  if (
+    (_runtimeTestOwner !== undefined && process.env.NODE_ENV !== 'test')
+    || canonicalJson(authorityComparableInput) !== canonicalJson(expected)
+  ) {
+    throw new Error('STAGE1_AUTHORITY_MISMATCH');
+  }
   return gate;
 }
 
@@ -401,11 +480,29 @@ export function attachStage1ResultGovernance(
   input: PredictiveNtJobInput,
 ) {
   if (!pythonResult || typeof pythonResult !== 'object' || !input.stage1Authority) return pythonResult;
+  const {
+    sixComponentRemoval: _discardedSixComponentRemoval,
+    sixComponentCosmoSac: _discardedCosmoSacClaim,
+    removalClaims: _discardedRemovalClaims,
+    ...admittedResult
+  } = pythonResult as Record<string, unknown>;
   return {
-    ...(pythonResult as Record<string, unknown>),
+    ...admittedResult,
+    resultThermodynamicClassification: 'FIVE_COMPONENT_FROZEN_PRE_PILOT_UNIQUAC',
     stage1TargetGovernance: {
       stage1SnapshotHash: input.stage1Authority.snapshotHash,
       predictiveNtAuthority: 'FROZEN_PYTHON_THERMODYNAMIC_ENGINE',
+      predictiveNtEngineScope: {
+        componentCount: 5,
+        thermodynamicModel: 'FROZEN_PRE_PILOT_UNIQUAC',
+        sixComponentCosmoSacGate: 'INCOMPATIBLE',
+        mayEmitSixComponentRemovalClaims: false,
+      },
+      sixComponentCosmoSacBasisManifestSha256:
+        input.stage1Authority.sixComponentCosmoSacBasisManifestSha256,
+      sixComponentCosmoSacBindingSha256:
+        input.stage1Authority.sixComponentCosmoSacBindingSha256,
+      sixComponentRemoval: deriveSixComponentCosmoSacRemoval(pythonResult, false),
       supportedAcceptanceBasis: [
         'MAXIMUM_RAFFINATE_MONO_AROMATICS',
         'MAXIMUM_RAFFINATE_TOTAL_AROMATICS',
@@ -421,6 +518,72 @@ export function attachStage1ResultGovernance(
       overallEcrProductAcceptance: false,
       overallEcrProductAcceptanceStatus: 'BLOCKED_BY_NOT_CALCULABLE_TARGETS',
     },
+  };
+}
+
+type RemovalFamily = 'MONO' | 'DI' | 'POLY' | 'PA';
+type SixFlowFamily = 'SAT' | RemovalFamily | 'NMP';
+
+function notCalculableRemoval(diagnostic: string) {
+  return {
+    status: 'NOT_CALCULABLE' as const,
+    valuePercent: null,
+    diagnostic,
+  };
+}
+
+export function deriveSixComponentCosmoSacRemoval(
+  result: unknown,
+  sixComponentCosmoSacEngine = true,
+) {
+  const blocked = (diagnostic: string) => ({
+    status: 'NOT_CALCULABLE' as const,
+    removals: {
+      MONO: notCalculableRemoval(diagnostic),
+      DI: notCalculableRemoval(diagnostic),
+      POLY: notCalculableRemoval(diagnostic),
+      PA: notCalculableRemoval(diagnostic),
+    },
+  });
+  if (!sixComponentCosmoSacEngine) {
+    return blocked('FIVE_COMPONENT_ENGINE_INCOMPATIBLE_WITH_SIX_COMPONENT_COSMO_SAC_GATE');
+  }
+  if (!result || typeof result !== 'object') return blocked('SIX_COMPONENT_RESULT_MISSING');
+  const source = result as Record<string, any>;
+  if (source.status !== 'ACCEPTED_SIX_COMPONENT_COSMO_SAC' || source.accepted !== true) {
+    return blocked('SIX_COMPONENT_RESULT_NOT_ACCEPTED');
+  }
+  const feed = source.feedComponentFlows;
+  const raffinate = source.raffinateComponentFlows;
+  const families: readonly SixFlowFamily[] = ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP'];
+  if (
+    !feed || !raffinate
+    || families.some((family) =>
+      !Number.isFinite(feed[family])
+      || !Number.isFinite(raffinate[family])
+      || feed[family] < 0
+      || raffinate[family] < 0)
+  ) {
+    return blocked('COMPLETE_SIX_COMPONENT_FLOWS_REQUIRED');
+  }
+  const removalFamilies: readonly RemovalFamily[] = ['MONO', 'DI', 'POLY', 'PA'];
+  if (removalFamilies.some((family) => feed[family] <= 0)) {
+    return blocked('POSITIVE_COMPONENT_FEED_FLOW_REQUIRED');
+  }
+  return {
+    status: 'CALCULABLE' as const,
+    removals: Object.fromEntries(removalFamilies.map((family) => [
+      family,
+      {
+        status: 'CALCULABLE',
+        valuePercent: ((feed[family] - raffinate[family]) / feed[family]) * 100,
+        diagnostic: null,
+      },
+    ])) as Record<RemovalFamily, {
+      status: 'CALCULABLE';
+      valuePercent: number;
+      diagnostic: null;
+    }>,
   };
 }
 
@@ -823,6 +986,14 @@ function execute(job: PredictiveNtJob, claimToken: string) {
   const evidenceError = validatePredictiveNtExecutionEvidence(job, engineHash);
   if (evidenceError) {
     void finishJob(job.id, claimToken, 'failed', null, evidenceError)
+      .finally(() => { workerBusy = false; });
+    return;
+  }
+  try {
+    validatePredictiveNtJobInput(job.input, (relativePath) =>
+      fs.readFileSync(path.join(runtimeRoot(), relativePath)));
+  } catch (error) {
+    void finishJob(job.id, claimToken, 'failed', job.result, (error as Error).message)
       .finally(() => { workerBusy = false; });
     return;
   }

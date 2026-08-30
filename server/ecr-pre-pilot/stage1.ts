@@ -1,5 +1,15 @@
 import { createHash } from 'node:crypto';
 import { ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE } from '../research/ecr-pre-pilot-pa-anchor/evidence';
+import {
+  SIX_COMPONENT_COSMO_SAC_BASIS,
+  SIX_COMPONENT_COSMO_SAC_BASIS_MANIFEST_SHA256,
+  resolveStage1SixComponentCosmoSacBinding,
+  stage1SixComponentCosmoSacBindingHash,
+  type SixComponentCosmoSacBasis,
+  type SixComponentCosmoSacStage1Binding,
+  validateStage1SixComponentCosmoSacBinding,
+  validateSixComponentCosmoSacBasis,
+} from './six-component-cosmo-sac-basis';
 
 export const ECR_PRE_PILOT_STAGE1_SCHEMA = 'ECR_PRE_PILOT_STAGE_1_V1' as const;
 
@@ -96,6 +106,11 @@ export interface EcrPrePilotStage1Snapshot {
     calibrationStatus: 'CALIBRATION_REQUIRED';
   };
   polarAromaticsAdmission: typeof PREDICTIVE_NT_MOLECULAR_REGISTRY.polarAromatics;
+  sixComponentCosmoSacBasis: SixComponentCosmoSacBasis;
+  sixComponentCosmoSacBasisManifestSha256: string;
+  sixComponentCosmoSacBinding: SixComponentCosmoSacStage1Binding;
+  sixComponentCosmoSacBindingSha256: string;
+  immutableHash: string;
 }
 
 const RRBO_GRADES = new Set(['SN150', 'SN300', 'SN500']);
@@ -209,7 +224,8 @@ export function canonicalizeStage1Input(
 }
 
 export function makeStage1Snapshot(stage1: EcrPrePilotStage1Input): EcrPrePilotStage1Snapshot {
-  return {
+  const sixComponentCosmoSacBinding = resolveStage1SixComponentCosmoSacBinding(stage1);
+  const snapshot: Omit<EcrPrePilotStage1Snapshot, 'immutableHash'> = {
     schemaVersion: ECR_PRE_PILOT_STAGE1_SCHEMA,
     savedAt: new Date().toISOString(),
     stage1,
@@ -218,9 +234,52 @@ export function makeStage1Snapshot(stage1: EcrPrePilotStage1Input): EcrPrePilotS
       calibrationStatus: 'CALIBRATION_REQUIRED',
     },
     polarAromaticsAdmission: PREDICTIVE_NT_MOLECULAR_REGISTRY.polarAromatics,
+    sixComponentCosmoSacBasis: SIX_COMPONENT_COSMO_SAC_BASIS,
+    sixComponentCosmoSacBasisManifestSha256: SIX_COMPONENT_COSMO_SAC_BASIS_MANIFEST_SHA256,
+    sixComponentCosmoSacBinding,
+    sixComponentCosmoSacBindingSha256:
+      stage1SixComponentCosmoSacBindingHash(sixComponentCosmoSacBinding),
   };
+  return { ...snapshot, immutableHash: stage1SnapshotHash(snapshot) };
 }
 
-export function stage1SnapshotHash(snapshot: EcrPrePilotStage1Snapshot): string {
-  return createHash('sha256').update(JSON.stringify(snapshot)).digest('hex');
+export function stage1SnapshotHash(snapshot: Omit<EcrPrePilotStage1Snapshot, 'immutableHash'> | EcrPrePilotStage1Snapshot): string {
+  const { immutableHash: _ignored, ...immutableSnapshot } = snapshot as EcrPrePilotStage1Snapshot;
+  const canonicalJson = (value: unknown): string => {
+    if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+    if (value && typeof value === 'object') {
+      return `{${Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+        .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)
+        .join(',')}}`;
+    }
+    return JSON.stringify(value);
+  };
+  return createHash('sha256').update(canonicalJson(immutableSnapshot)).digest('hex');
+}
+
+export function validateStage1Snapshot(rawSnapshot: unknown): EcrPrePilotStage1Snapshot {
+  if (!rawSnapshot || typeof rawSnapshot !== 'object') throw new Error('STAGE1_INPUT_NOT_SAVED');
+  const snapshot = rawSnapshot as EcrPrePilotStage1Snapshot;
+  if (
+    snapshot.schemaVersion !== ECR_PRE_PILOT_STAGE1_SCHEMA
+    || typeof snapshot.savedAt !== 'string'
+    || !snapshot.savedAt
+    || !/^[a-f0-9]{64}$/.test(snapshot.immutableHash)
+  ) {
+    throw new Error('STAGE1_SNAPSHOT_INVALID');
+  }
+  validateSixComponentCosmoSacBasis(
+    snapshot.sixComponentCosmoSacBasis,
+    snapshot.sixComponentCosmoSacBasisManifestSha256,
+  );
+  validateStage1SixComponentCosmoSacBinding(
+    snapshot.sixComponentCosmoSacBinding,
+    snapshot.sixComponentCosmoSacBindingSha256,
+    snapshot.stage1,
+  );
+  if (stage1SnapshotHash(snapshot) !== snapshot.immutableHash) {
+    throw new Error('STAGE1_SNAPSHOT_HASH_MISMATCH');
+  }
+  return snapshot;
 }
