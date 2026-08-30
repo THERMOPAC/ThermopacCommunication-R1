@@ -32,6 +32,56 @@
       "detail": ""
     },
     {
+      "name": "25C NT1 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT1 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT1 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT1 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT1 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT1 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT1 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT1 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT1 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT1 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT1 target aggregation",
       "status": "PASS",
       "detail": ""
@@ -62,7 +112,107 @@
       "detail": ""
     },
     {
+      "name": "25C NT2 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT2 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 2 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 2 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT2 stage 2 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -97,12 +247,162 @@
       "detail": ""
     },
     {
+      "name": "25C NT3 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT3 stage 2 equilibrium gate",
       "status": "PASS",
       "detail": ""
     },
     {
+      "name": "25C NT3 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 2 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 2 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 2 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT3 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 3 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 3 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 3 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 3 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 3 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 3 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 3 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 3 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 3 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT3 stage 3 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -137,7 +437,107 @@
       "detail": ""
     },
     {
+      "name": "25C NT4 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT4 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 2 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 2 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 2 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -147,7 +547,97 @@
       "detail": ""
     },
     {
+      "name": "25C NT4 stage 3 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 3 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 3 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 3 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 3 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 3 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 3 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 3 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 3 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 3 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT4 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 4 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 4 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 4 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 4 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 4 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 4 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 4 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT4 stage 4 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -182,7 +672,107 @@
       "detail": ""
     },
     {
+      "name": "25C NT5 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT5 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 2 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 2 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 2 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -192,12 +782,152 @@
       "detail": ""
     },
     {
+      "name": "25C NT5 stage 3 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 3 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 3 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 3 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 3 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 3 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 3 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 3 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 3 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 3 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT5 stage 4 equilibrium gate",
       "status": "PASS",
       "detail": ""
     },
     {
+      "name": "25C NT5 stage 4 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 4 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 4 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 4 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 4 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 4 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 4 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 4 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 4 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 4 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT5 stage 5 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 5 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 5 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 5 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 5 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 5 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 5 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 5 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT5 stage 5 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -232,7 +962,107 @@
       "detail": ""
     },
     {
+      "name": "25C NT6 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT6 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 2 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 2 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 2 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -242,7 +1072,107 @@
       "detail": ""
     },
     {
+      "name": "25C NT6 stage 3 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 3 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 3 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 3 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 3 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 3 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 3 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 3 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 3 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 3 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT6 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 4 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 4 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 4 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 4 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 4 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 4 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 4 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 4 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 4 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 4 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -252,7 +1182,87 @@
       "detail": ""
     },
     {
+      "name": "25C NT6 stage 5 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 5 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 5 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 5 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 5 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 5 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 5 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 5 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT6 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 6 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 6 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 6 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 6 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 6 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 6 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 6 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT6 stage 6 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -287,7 +1297,107 @@
       "detail": ""
     },
     {
+      "name": "25C NT7 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT7 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 2 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 2 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 2 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -297,7 +1407,107 @@
       "detail": ""
     },
     {
+      "name": "25C NT7 stage 3 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 3 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 3 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 3 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 3 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 3 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 3 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 3 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 3 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 3 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT7 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 4 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 4 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 4 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 4 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 4 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 4 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 4 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 4 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 4 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 4 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -307,12 +1517,147 @@
       "detail": ""
     },
     {
+      "name": "25C NT7 stage 5 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 5 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 5 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 5 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 5 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 5 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 5 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 5 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 5 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 5 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT7 stage 6 equilibrium gate",
       "status": "PASS",
       "detail": ""
     },
     {
+      "name": "25C NT7 stage 6 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 6 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 6 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 6 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 6 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 6 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 6 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 6 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT7 stage 7 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 7 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 7 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 7 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 7 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 7 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 7 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 7 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 7 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT7 stage 7 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -347,7 +1692,107 @@
       "detail": ""
     },
     {
+      "name": "25C NT8 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT8 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 2 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 2 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 2 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -357,7 +1802,107 @@
       "detail": ""
     },
     {
+      "name": "25C NT8 stage 3 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 3 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 3 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 3 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 3 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 3 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 3 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 3 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 3 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 3 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT8 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 4 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 4 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 4 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 4 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 4 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 4 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 4 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 4 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 4 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 4 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -367,7 +1912,107 @@
       "detail": ""
     },
     {
+      "name": "25C NT8 stage 5 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 5 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 5 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 5 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 5 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 5 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 5 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 5 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 5 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 5 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT8 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 6 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 6 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 6 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 6 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 6 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 6 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 6 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 6 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 6 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 6 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -377,7 +2022,97 @@
       "detail": ""
     },
     {
+      "name": "25C NT8 stage 7 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 7 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 7 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 7 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 7 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 7 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 7 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 7 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 7 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT8 stage 8 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 8 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 8 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 8 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 8 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 8 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 8 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 8 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 8 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT8 stage 8 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -412,7 +2147,107 @@
       "detail": ""
     },
     {
+      "name": "25C NT9 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT9 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 2 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 2 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 2 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -422,7 +2257,107 @@
       "detail": ""
     },
     {
+      "name": "25C NT9 stage 3 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 3 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 3 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 3 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 3 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 3 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 3 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 3 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 3 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 3 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT9 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 4 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 4 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 4 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 4 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 4 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 4 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 4 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 4 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 4 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 4 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -432,7 +2367,107 @@
       "detail": ""
     },
     {
+      "name": "25C NT9 stage 5 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 5 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 5 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 5 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 5 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 5 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 5 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 5 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 5 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 5 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT9 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 6 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 6 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 6 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 6 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 6 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 6 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 6 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 6 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 6 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 6 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -442,12 +2477,142 @@
       "detail": ""
     },
     {
+      "name": "25C NT9 stage 7 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 7 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 7 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 7 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 7 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 7 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 7 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 7 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 7 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 7 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT9 stage 8 equilibrium gate",
       "status": "PASS",
       "detail": ""
     },
     {
+      "name": "25C NT9 stage 8 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 8 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 8 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 8 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 8 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 8 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 8 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 8 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT9 stage 9 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 9 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 9 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 9 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 9 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 9 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 9 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 9 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT9 stage 9 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -482,7 +2647,107 @@
       "detail": ""
     },
     {
+      "name": "25C NT10 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT10 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 2 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 2 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 2 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -492,7 +2757,107 @@
       "detail": ""
     },
     {
+      "name": "25C NT10 stage 3 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 3 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 3 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 3 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 3 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 3 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 3 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 3 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 3 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 3 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT10 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 4 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 4 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 4 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 4 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 4 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 4 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 4 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 4 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 4 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 4 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -502,7 +2867,107 @@
       "detail": ""
     },
     {
+      "name": "25C NT10 stage 5 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 5 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 5 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 5 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 5 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 5 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 5 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 5 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 5 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 5 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT10 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 6 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 6 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 6 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 6 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 6 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 6 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 6 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 6 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 6 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 6 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -512,7 +2977,102 @@
       "detail": ""
     },
     {
+      "name": "25C NT10 stage 7 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 7 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 7 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 7 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 7 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 7 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 7 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 7 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 7 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 7 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT10 stage 8 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 8 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 8 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 8 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 8 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 8 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 8 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 8 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 8 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 8 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -522,7 +3082,97 @@
       "detail": ""
     },
     {
+      "name": "25C NT10 stage 9 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 9 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 9 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 9 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 9 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 9 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 9 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 9 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 9 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "25C NT10 stage 10 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 10 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 10 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 10 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 10 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 10 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 10 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 10 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 10 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "25C NT10 stage 10 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -562,6 +3212,46 @@
       "detail": ""
     },
     {
+      "name": "50C NT1 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT1 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT1 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT1 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT1 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT1 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT1 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT1 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT1 target aggregation",
       "status": "PASS",
       "detail": ""
@@ -592,7 +3282,87 @@
       "detail": ""
     },
     {
+      "name": "50C NT2 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT2 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT2 stage 2 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -627,12 +3397,142 @@
       "detail": ""
     },
     {
+      "name": "50C NT3 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT3 stage 2 equilibrium gate",
       "status": "PASS",
       "detail": ""
     },
     {
+      "name": "50C NT3 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 2 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT3 stage 3 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 3 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 3 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 3 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 3 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 3 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 3 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 3 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT3 stage 3 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -667,7 +3567,97 @@
       "detail": ""
     },
     {
+      "name": "50C NT4 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT4 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 2 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -677,7 +3667,87 @@
       "detail": ""
     },
     {
+      "name": "50C NT4 stage 3 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 3 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 3 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 3 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 3 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 3 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 3 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 3 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT4 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 4 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 4 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 4 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 4 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 4 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 4 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 4 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT4 stage 4 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -712,7 +3782,97 @@
       "detail": ""
     },
     {
+      "name": "50C NT5 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT5 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 2 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -722,12 +3882,137 @@
       "detail": ""
     },
     {
+      "name": "50C NT5 stage 3 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 3 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 3 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 3 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 3 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 3 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 3 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 3 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT5 stage 4 equilibrium gate",
       "status": "PASS",
       "detail": ""
     },
     {
+      "name": "50C NT5 stage 4 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 4 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 4 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 4 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 4 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 4 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 4 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 4 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT5 stage 5 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 5 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 5 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 5 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 5 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 5 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 5 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 5 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 5 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT5 stage 5 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -762,7 +4047,97 @@
       "detail": ""
     },
     {
+      "name": "50C NT6 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT6 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 2 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -772,7 +4147,87 @@
       "detail": ""
     },
     {
+      "name": "50C NT6 stage 3 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 3 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 3 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 3 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 3 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 3 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 3 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 3 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT6 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 4 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 4 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 4 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 4 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 4 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 4 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 4 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 4 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -782,7 +4237,92 @@
       "detail": ""
     },
     {
+      "name": "50C NT6 stage 5 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 5 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 5 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 5 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 5 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 5 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 5 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 5 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT6 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 6 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 6 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 6 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 6 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 6 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 6 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 6 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 6 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT6 stage 6 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -817,7 +4357,97 @@
       "detail": ""
     },
     {
+      "name": "50C NT7 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT7 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 2 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -827,7 +4457,87 @@
       "detail": ""
     },
     {
+      "name": "50C NT7 stage 3 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 3 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 3 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 3 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 3 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 3 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 3 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 3 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT7 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 4 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 4 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 4 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 4 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 4 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 4 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 4 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 4 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -837,12 +4547,142 @@
       "detail": ""
     },
     {
+      "name": "50C NT7 stage 5 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 5 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 5 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 5 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 5 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 5 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 5 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 5 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT7 stage 6 equilibrium gate",
       "status": "PASS",
       "detail": ""
     },
     {
+      "name": "50C NT7 stage 6 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 6 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 6 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 6 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 6 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 6 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 6 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 6 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 6 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT7 stage 7 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 7 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 7 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 7 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 7 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 7 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 7 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 7 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 7 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT7 stage 7 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -877,7 +4717,97 @@
       "detail": ""
     },
     {
+      "name": "50C NT8 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT8 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 2 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -887,7 +4817,87 @@
       "detail": ""
     },
     {
+      "name": "50C NT8 stage 3 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 3 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 3 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 3 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 3 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 3 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 3 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 3 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT8 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 4 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 4 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 4 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 4 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 4 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 4 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 4 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 4 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -897,7 +4907,92 @@
       "detail": ""
     },
     {
+      "name": "50C NT8 stage 5 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 5 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 5 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 5 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 5 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 5 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 5 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 5 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT8 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 6 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 6 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 6 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 6 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 6 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 6 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 6 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 6 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 6 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -907,7 +5002,97 @@
       "detail": ""
     },
     {
+      "name": "50C NT8 stage 7 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 7 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 7 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 7 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 7 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 7 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 7 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 7 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 7 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT8 stage 8 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 8 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 8 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 8 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 8 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 8 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 8 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 8 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 8 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT8 stage 8 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -942,7 +5127,97 @@
       "detail": ""
     },
     {
+      "name": "50C NT9 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT9 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 2 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -952,7 +5227,87 @@
       "detail": ""
     },
     {
+      "name": "50C NT9 stage 3 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 3 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 3 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 3 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 3 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 3 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 3 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 3 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT9 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 4 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 4 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 4 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 4 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 4 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 4 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 4 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 4 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -962,7 +5317,87 @@
       "detail": ""
     },
     {
+      "name": "50C NT9 stage 5 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 5 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 5 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 5 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 5 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 5 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 5 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 5 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT9 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 6 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 6 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 6 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 6 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 6 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 6 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 6 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 6 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -972,12 +5407,152 @@
       "detail": ""
     },
     {
+      "name": "50C NT9 stage 7 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 7 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 7 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 7 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 7 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 7 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 7 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 7 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 7 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT9 stage 8 equilibrium gate",
       "status": "PASS",
       "detail": ""
     },
     {
+      "name": "50C NT9 stage 8 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 8 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 8 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 8 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 8 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 8 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 8 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 8 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 8 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT9 stage 9 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 9 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 9 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 9 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 9 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 9 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 9 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 9 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 9 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 9 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT9 stage 9 extract instability blocks acceptance",
       "status": "PASS",
       "detail": ""
     },
@@ -1012,7 +5587,97 @@
       "detail": ""
     },
     {
+      "name": "50C NT10 stage 1 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 1 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 1 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 1 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 1 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 1 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 1 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 1 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 1 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 1 extract instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT10 stage 2 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 2 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 2 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 2 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 2 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 2 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 2 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 2 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 2 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -1022,7 +5687,87 @@
       "detail": ""
     },
     {
+      "name": "50C NT10 stage 3 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 3 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 3 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 3 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 3 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 3 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 3 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 3 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT10 stage 4 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 4 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 4 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 4 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 4 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 4 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 4 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 4 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 4 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -1032,7 +5777,87 @@
       "detail": ""
     },
     {
+      "name": "50C NT10 stage 5 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 5 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 5 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 5 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 5 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 5 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 5 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 5 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT10 stage 6 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 6 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 6 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 6 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 6 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 6 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 6 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 6 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 6 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -1042,7 +5867,97 @@
       "detail": ""
     },
     {
+      "name": "50C NT10 stage 7 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 7 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 7 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 7 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 7 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 7 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 7 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 7 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 7 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT10 stage 8 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 8 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 8 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 8 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 8 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 8 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 8 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 8 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 8 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 8 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -1052,7 +5967,92 @@
       "detail": ""
     },
     {
+      "name": "50C NT10 stage 9 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 9 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 9 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 9 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 9 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 9 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 9 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 9 extract independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "name": "50C NT10 stage 10 equilibrium gate",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 10 raffinate complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 10 raffinate independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 10 raffinate independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 10 raffinate independent Hessian reproduction h=0.00025",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 10 raffinate instability blocks acceptance",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 10 extract complete stability evidence",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 10 extract independent Hessian reproduction h=0.001",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 10 extract independent Hessian reproduction h=0.0005",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "50C NT10 stage 10 extract independent Hessian reproduction h=0.00025",
       "status": "PASS",
       "detail": ""
     },
@@ -1103,6 +6103,11 @@
     },
     {
       "name": "governance remains research-only",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "frozen blind-validation verdict unchanged",
       "status": "PASS",
       "detail": ""
     },

@@ -40,6 +40,7 @@
     }
   },
   "numericalAcceptance": {
+    "negativeTpdThreshold": -1e-8,
     "maximumScaledEquationResidual": 1e-8,
     "maximumOverallComponentBalanceResidualMol": 1e-8,
     "maximumIsoactivityLogResidual": 2e-5,
@@ -47,6 +48,9 @@
     "minimumPhaseCompositionSeparation": 1e-4,
     "minimumStageGibbsReduction": 1e-9,
     "minimumLocalStabilityCurvature": -1e-6,
+    "hessianEigenvalueAbsoluteTolerance": 1e-7,
+    "hessianEigenvalueRelativeTolerance": 5e-3,
+    "postSplitTpdThreshold": -1e-8,
     "multistartProductRelativeTolerance": 1e-6
   },
   "prohibited": [

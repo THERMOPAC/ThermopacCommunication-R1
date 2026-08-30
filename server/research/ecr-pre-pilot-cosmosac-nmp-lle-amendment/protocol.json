@@ -20,7 +20,10 @@
     "maximumIsoactivityLogResidual": 2e-5,
     "maximumMaterialBalanceResidual": 1e-8,
     "minimumPhaseCompositionSeparation": 1e-4,
-    "postSplitTpdThreshold": -1e-7
+    "postSplitTpdThreshold": -1e-7,
+    "minimumLocalStabilityCurvature": -1e-6,
+    "hessianEigenvalueAbsoluteTolerance": 1e-7,
+    "hessianEigenvalueRelativeTolerance": 5e-3
   },
   "governance": {
     "researchOnly": true,

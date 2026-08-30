@@ -67,6 +67,22 @@ assert flash["isoactivityLogResidual"] <= g["maximumIsoactivityLogResidual"]
 assert flash["materialBalanceMaxResidual"] <= g["maximumMaterialBalanceResidual"]
 assert flash["postSplitTpd"]["raffinate"] >= g["postSplitTpdThreshold"]
 assert flash["postSplitTpd"]["extract"] >= g["postSplitTpdThreshold"]
+for phase in ("raffinate", "extract"):
+    search = flash["postSplitTpdSearch"][phase]
+    assert search["seedClasses"]["globalSimplexAndReference"] == 7
+    assert search["seedClasses"]["phaseLocalLogRatioPerturbations"] == 10
+    assert search["seedClasses"]["localPerturbationStep"] == 1e-3
+    stability = flash["postSplitTangentStability"][phase]
+    assert stability["dimension"] == 5
+    assert len(stability["stepSizeConvergence"]) == 3
+    assert [
+        item["stepLogRatio"] for item in stability["stepSizeConvergence"]
+    ] == [1e-3, 5e-4, 2.5e-4]
+    assert len(stability["freeEnergyDifferenceEigenvalues"]) == 5
+    assert len(stability["chemicalPotentialJacobianEigenvalues"]) == 5
+    assert stability["minimumEigenvalue"] >= g["minimumLocalStabilityCurvature"]
+    assert stability["independentReconstructionsAgree"]
+    assert stability["stepSizeConverged"]
 assert all(v > 0 for v in flash["raffinate"] + flash["extract"])
 assert flash["phaseDirection"]["raffinateSatRicher"]
 assert flash["phaseDirection"]["extractNmpRicher"]
@@ -110,6 +126,62 @@ def reduced_g(x):
 independent_reduction = reduced_g(z) - ((1 - beta) * reduced_g(r) + beta * reduced_g(e))
 assert abs(independent_reduction - flash["gibbsReduction"]) < 1e-11
 assert independent_reduction > g["minimumGibbsReduction"]
+
+# Independently reconstruct both Hessian routes at every persisted step without
+# calling the model's stability helper.
+for phase_name, composition in (("raffinate", r), ("extract", e)):
+    persisted = flash["postSplitTangentStability"][phase_name]
+    logits = np.log(composition[:-1] / composition[-1])
+    tangent = np.empty((6, 5))
+    for i in range(6):
+        for j in range(5):
+            tangent[i, j] = composition[i] * (
+                (1.0 if i == j else 0.0) - composition[j]
+            )
+    reference_mu = np.log(composition) + m.total_lngamma(
+        m.FAMILIES, temperature, composition, params
+    )
+    def local_tpd(log_ratio):
+        value = m.base.softmax(log_ratio)
+        return float(np.sum(value * (
+            np.log(value)
+            + m.total_lngamma(m.FAMILIES, temperature, value, params)
+            - reference_mu
+        )))
+    for step_result in persisted["stepSizeConvergence"]:
+        h = step_result["stepLogRatio"]
+        columns = []
+        direct_hessian = np.zeros((5, 5))
+        center = local_tpd(logits)
+        for i, direction in enumerate(np.eye(5)):
+            plus = m.base.softmax(logits + h * direction)
+            minus = m.base.softmax(logits - h * direction)
+            mu_plus = np.log(plus) + m.total_lngamma(m.FAMILIES, temperature, plus, params)
+            mu_minus = np.log(minus) + m.total_lngamma(m.FAMILIES, temperature, minus, params)
+            columns.append((mu_plus - mu_minus) / (2 * h))
+            direct_hessian[i, i] = (
+                local_tpd(logits + h * direction)
+                - 2 * center
+                + local_tpd(logits - h * direction)
+            ) / h ** 2
+            for j in range(i):
+                other = np.eye(5)[j]
+                direct_hessian[i, j] = direct_hessian[j, i] = (
+                    local_tpd(logits + h * direction + h * other)
+                    - local_tpd(logits + h * direction - h * other)
+                    - local_tpd(logits - h * direction + h * other)
+                    + local_tpd(logits - h * direction - h * other)
+                ) / (4 * h ** 2)
+        chemical_hessian = tangent.T @ np.asarray(columns).T
+        chemical_hessian = 0.5 * (chemical_hessian + chemical_hessian.T)
+        assert np.max(np.abs(
+            np.linalg.eigvalsh(direct_hessian)
+            - np.asarray(step_result["freeEnergyDifferenceEigenvalues"])
+        )) < 1e-10
+        assert np.max(np.abs(
+            np.linalg.eigvalsh(chemical_hessian)
+            - np.asarray(step_result["chemicalPotentialJacobianEigenvalues"])
+        )) < 1e-10
 
 validation = result["evidence"]["validation"]
 assert validation["training"]["status"] == "FAIL"

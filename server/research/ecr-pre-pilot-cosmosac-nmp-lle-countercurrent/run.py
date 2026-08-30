@@ -49,33 +49,10 @@ def phase_g(names, temperature_k, composition, parameters):
     )))
 
 
-def local_stability(names, temperature_k, composition, parameters):
-    """Deterministic directional curvature screen in five log-ratio directions."""
-    composition = model.normalize(composition)
-    logits = np.log(composition[:-1] / composition[-1])
-    directions = list(np.eye(5))
-    directions += [
-        (np.eye(5)[i] + np.eye(5)[i + 1]) / math.sqrt(2)
-        for i in range(4)
-    ]
-    directions.append(np.ones(5) / math.sqrt(5))
-    step = 1e-4
-    center = phase_g(names, temperature_k, composition, parameters)
-    curvatures = []
-    for direction in directions:
-        plus = model.base.softmax(logits + step * direction)
-        minus = model.base.softmax(logits - step * direction)
-        curvature = (
-            phase_g(names, temperature_k, plus, parameters)
-            - 2 * center
-            + phase_g(names, temperature_k, minus, parameters)
-        ) / (step * step)
-        curvatures.append(float(curvature))
-    return {
-        "minimumDirectionalCurvature": min(curvatures),
-        "directionCount": len(directions),
-        "coordinate": "five independent log mole-fraction ratios",
-    }
+def local_stability(names, temperature_k, composition, parameters, protocol):
+    return model.tangent_stability(
+        names, temperature_k, composition, parameters, protocol
+    )
 
 
 def product_metrics(raffinate_component_moles, feed_mass, molecular_weights, targets):
@@ -251,8 +228,20 @@ def solve_cascade(
         y = extract[stage] / extract[stage].sum()
         mu_residual = np.log(x) + model.total_lngamma(model.FAMILIES, temperature_k, x, parameters) - np.log(y) - model.total_lngamma(model.FAMILIES, temperature_k, y, parameters)
         component_balance = r_in + e_in - raffinate[stage] - extract[stage]
-        stability_r = local_stability(model.FAMILIES, temperature_k, x, parameters)
-        stability_e = local_stability(model.FAMILIES, temperature_k, y, parameters)
+        stability_r = local_stability(
+            model.FAMILIES, temperature_k, x, parameters, protocol
+        )
+        stability_e = local_stability(
+            model.FAMILIES, temperature_k, y, parameters, protocol
+        )
+        post_tpd_r = model.tpd_search(
+            model.FAMILIES, temperature_k, x, parameters, protocol,
+            include_local_seeds=True, refine_best_global_and_local=True,
+        )
+        post_tpd_e = model.tpd_search(
+            model.FAMILIES, temperature_k, y, parameters, protocol,
+            include_local_seeds=True, refine_best_global_and_local=True,
+        )
         mixed = (r_in + e_in) / (r_in + e_in).sum()
         homogeneous_g = phase_g(model.FAMILIES, temperature_k, mixed, parameters)
         split_g = (
@@ -265,8 +254,16 @@ def solve_cascade(
             np.max(np.abs(component_balance)) <= gates["maximumOverallComponentBalanceResidualMol"]
             and np.max(np.abs(mu_residual)) <= gates["maximumIsoactivityLogResidual"]
             and separation >= gates["minimumPhaseCompositionSeparation"]
-            and stability_r["minimumDirectionalCurvature"] >= gates["minimumLocalStabilityCurvature"]
-            and stability_e["minimumDirectionalCurvature"] >= gates["minimumLocalStabilityCurvature"]
+            and stability_r["minimumEigenvalue"] >= gates["minimumLocalStabilityCurvature"]
+            and stability_e["minimumEigenvalue"] >= gates["minimumLocalStabilityCurvature"]
+            and stability_r["independentReconstructionsAgree"]
+            and stability_e["independentReconstructionsAgree"]
+            and stability_r["stepSizeConverged"]
+            and stability_e["stepSizeConverged"]
+            and post_tpd_r["minimum"] >= gates["postSplitTpdThreshold"]
+            and post_tpd_e["minimum"] >= gates["postSplitTpdThreshold"]
+            and post_tpd_r["allRefinementsAccepted"]
+            and post_tpd_e["allRefinementsAccepted"]
             and gibbs_reduction >= gates["minimumStageGibbsReduction"]
             and y[5] > x[5]
         )
@@ -282,6 +279,7 @@ def solve_cascade(
             "isoactivityLogResidual": float(np.max(np.abs(mu_residual))),
             "phaseCompositionSeparation": separation,
             "localPostSplitStability": {"raffinate": stability_r, "extract": stability_e},
+            "postSplitTpdSearch": {"raffinate": post_tpd_r, "extract": post_tpd_e},
             "stageGibbsReduction": gibbs_reduction,
             "accepted": stage_accepted,
         })
@@ -309,10 +307,14 @@ def solve_cascade(
     unstable_stages = [
         stage["stageFromFeedEnd"] for stage in stages
         if (
-            stage["localPostSplitStability"]["raffinate"]["minimumDirectionalCurvature"]
+            stage["localPostSplitStability"]["raffinate"]["minimumEigenvalue"]
             < gates["minimumLocalStabilityCurvature"]
-            or stage["localPostSplitStability"]["extract"]["minimumDirectionalCurvature"]
+            or stage["localPostSplitStability"]["extract"]["minimumEigenvalue"]
             < gates["minimumLocalStabilityCurvature"]
+            or not stage["localPostSplitStability"]["raffinate"]["independentReconstructionsAgree"]
+            or not stage["localPostSplitStability"]["extract"]["independentReconstructionsAgree"]
+            or not stage["localPostSplitStability"]["raffinate"]["stepSizeConverged"]
+            or not stage["localPostSplitStability"]["extract"]["stepSizeConverged"]
         )
     ]
     if unstable_stages:
@@ -320,6 +322,31 @@ def solve_cascade(
             "code": "POST_SPLIT_LOCAL_STABILITY_FAILED",
             "stagesFromFeedEnd": unstable_stages,
             "limit": gates["minimumLocalStabilityCurvature"],
+        })
+    negative_tpd_stages = [
+        stage["stageFromFeedEnd"] for stage in stages
+        if (
+            stage["postSplitTpdSearch"]["raffinate"]["minimum"] < gates["postSplitTpdThreshold"]
+            or stage["postSplitTpdSearch"]["extract"]["minimum"] < gates["postSplitTpdThreshold"]
+        )
+    ]
+    if negative_tpd_stages:
+        blockers.append({
+            "code": "POST_SPLIT_TPD_STABILITY_FAILED",
+            "stagesFromFeedEnd": negative_tpd_stages,
+            "limit": gates["postSplitTpdThreshold"],
+        })
+    failed_tpd_refinement_stages = [
+        stage["stageFromFeedEnd"] for stage in stages
+        if (
+            not stage["postSplitTpdSearch"]["raffinate"]["allRefinementsAccepted"]
+            or not stage["postSplitTpdSearch"]["extract"]["allRefinementsAccepted"]
+        )
+    ]
+    if failed_tpd_refinement_stages:
+        blockers.append({
+            "code": "POST_SPLIT_TPD_REFINEMENT_FAILED",
+            "stagesFromFeedEnd": failed_tpd_refinement_stages,
         })
     failed_gibbs_stages = [
         stage["stageFromFeedEnd"] for stage in stages
@@ -458,7 +485,7 @@ def main():
         "numericalCascadeResult": "RESEARCH_DIAGNOSTIC_ONLY",
         "fullSixComponentModelQualification": "NOT_QUALIFIED",
         "releaseEligible": False,
-        "reason": "The amended equilibrium model fails the frozen blind composition-RMSD qualification gate.",
+        "reason": "The amended equilibrium model fails the frozen blind composition-RMSD qualification gate; stationary phase pairs are independently gated by full tangent Hessians and locally seeded post-split TPD.",
     }
     OUTPUT.mkdir(parents=True, exist_ok=True)
     result_path = OUTPUT / "results.json"
@@ -481,6 +508,7 @@ def main():
 
 
 def write_report(results, path):
+    gates = load_json(HERE / "protocol.json")["numericalAcceptance"]
     lines = [
         "# Six-Component Counter-Current NMP/RRBO Extraction",
         "",
@@ -511,12 +539,41 @@ def write_report(results, path):
             trial["stageCount"] for trial in case["trials"]
             if trial["maximumScaledEquationResidual"] > 1e-8
         ]
+        phase_evidence = [
+            (
+                stage["localPostSplitStability"][phase],
+                stage["postSplitTpdSearch"][phase],
+            )
+            for trial in case["trials"]
+            for stage in trial["stages"]
+            for phase in ("raffinate", "extract")
+        ]
+        negative_tpd_count = sum(
+            search["minimum"] < gates["postSplitTpdThreshold"]
+            for _, search in phase_evidence
+        )
+        step_convergence_failures = sum(
+            not stability["stepSizeConverged"]
+            for stability, _ in phase_evidence
+        )
+        reconstruction_failures = sum(
+            not stability["independentReconstructionsAgree"]
+            for stability, _ in phase_evidence
+        )
+        minimum_eigenvalue = min(
+            stability["minimumEigenvalue"] for stability, _ in phase_evidence
+        )
+        minimum_tpd = min(search["minimum"] for _, search in phase_evidence)
         lines += [
             "",
             f"- Primary coupled equation closure passed for NT = {stable_closure}.",
             f"- Primary coupled equation closure failed for NT = {solver_failed}.",
             f"- Both deterministic starts closed for NT = {[trial['stageCount'] for trial in case['trials'] if trial['multistartEvidence']['bothStartsClosed']]}.",
-            "- Every tested stationary branch failed the governed directional local-stability screen; all product metrics are diagnostic only.",
+            "- Every candidate raffinate and extract has a complete five-dimensional tangent-Hessian eigenspectrum from free-energy differences and an independent chemical-potential-Jacobian reconstruction, with three persisted step sizes.",
+            "- Every post-split TPD search combines global simplex seeds with explicit local perturbations around the returned phase.",
+            f"- Stability evidence covers {len(phase_evidence)} phases: minimum tangent eigenvalue = {minimum_eigenvalue:.6e}; minimum post-split TPD = {minimum_tpd:.6e}.",
+            f"- Formal stability failures: negative TPD = {negative_tpd_count}; step-size convergence = {step_convergence_failures}; independent reconstruction agreement = {reconstruction_failures}.",
+            "- Any negative tangent eigenvalue, derivative-reconstruction disagreement, or negative post-split TPD formally downgrades that stationary phase pair; all product metrics remain diagnostic only.",
             "- Recovery and NMP-carryover targets fail throughout the closed series, so no accepted NT exists within 10 stages.",
             "",
             "Complete incoming/outgoing flows, six-component mole/mass profiles, K values, acceptance blockers, and closure residuals for every stage are in `results.json`.",
@@ -525,7 +582,7 @@ def write_report(results, path):
     lines += [
         "## Governance decision", "",
         "`FULL_SIX_COMPONENT_MODEL_QUALIFICATION = NOT_QUALIFIED`", "",
-        "These cascade values are numerical research diagnostics, not validated process-design results. The underlying Task #199 model failed the frozen blind LLE composition-RMSD ceiling. Sulfur remains `NOT_CALCULABLE`; PA transfer is provisional and is not sulfur removal.",
+        "These cascade values are numerical research diagnostics, not validated process-design results. The prior single-stage stationary split is not accepted as a stable phase pair unless the full tangent-Hessian and locally seeded TPD gates pass. The frozen blind LLE composition-RMSD verdict remains failed and unchanged. Sulfur remains `NOT_CALCULABLE`; PA transfer is provisional and is not sulfur removal.",
     ]
     path.write_text("\n".join(lines) + "\n")
 

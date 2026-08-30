@@ -267,6 +267,24 @@ def main():
     ]
     for i, name in enumerate(model.FAMILIES):
         report.append(f"- {name}: raffinate={flash['raffinate'][i]:.10f}; extract={flash['extract'][i]:.10f}; K={flash['K'][i]:.10f}")
+    report += [
+        "",
+        "## Full tangent-space phase stability",
+        "",
+        "Each returned phase was checked in all five independent composition-tangent dimensions. "
+        "The eigenspectrum was reconstructed independently from reduced-Gibbs differences and "
+        "from the projected chemical-potential Jacobian at log-ratio steps 1e-3, 5e-4, and 2.5e-4.",
+    ]
+    for phase in ("raffinate", "extract"):
+        stability = flash["postSplitTangentStability"][phase]
+        search = flash["postSplitTpdSearch"][phase]
+        report += [
+            f"- {phase}: minimum eigenvalue={stability['minimumEigenvalue']:.12e}; "
+            f"maximum modewise relative reconstruction difference={stability['maximumModewiseRelativeEigenvalueDifference']:.12e}; "
+            f"post-split minimum TPD={search['minimum']:.12e}; "
+            f"global/reference seeds={search['seedClasses']['globalSimplexAndReference']}; "
+            f"local seeds={search['seedClasses']['phaseLocalLogRatioPerturbations']}.",
+        ]
     report += ["", "## Blind validation"]
     for key, value in validation.items():
         report.append(f"- {key}: {value}")

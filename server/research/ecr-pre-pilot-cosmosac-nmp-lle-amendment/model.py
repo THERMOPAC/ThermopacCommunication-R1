@@ -72,6 +72,132 @@ def total_lngamma(names, temperature_k, x, parameters):
     )
 
 
+def tangent_stability(names, temperature_k, composition, parameters, protocol):
+    """Full simplex-tangent Hessian from two independent derivative routes."""
+    composition = normalize(composition)
+    dimensions = len(composition) - 1
+    logits = np.log(composition[:-1] / composition[-1])
+    tangent = np.empty((len(composition), dimensions))
+    for i in range(len(composition)):
+        for j in range(dimensions):
+            tangent[i, j] = composition[i] * (
+                (1.0 if i == j else 0.0) - composition[j]
+            )
+    steps = (1e-3, 5e-4, 2.5e-4)
+    reference_mu = (
+        np.log(composition)
+        + total_lngamma(names, temperature_k, composition, parameters)
+    )
+
+    def local_tpd(log_ratio):
+        value = base.softmax(log_ratio)
+        return float(np.sum(value * (
+            np.log(value)
+            + total_lngamma(names, temperature_k, value, parameters)
+            - reference_mu
+        )))
+
+    def free_energy_hessian(step):
+        center = local_tpd(logits)
+        hessian = np.zeros((dimensions, dimensions))
+        for i in range(dimensions):
+            di = step * np.eye(dimensions)[i]
+            hessian[i, i] = (
+                local_tpd(logits + di)
+                - 2 * center
+                + local_tpd(logits - di)
+            ) / step ** 2
+            for j in range(i):
+                dj = step * np.eye(dimensions)[j]
+                value = (
+                    local_tpd(logits + di + dj)
+                    - local_tpd(logits + di - dj)
+                    - local_tpd(logits - di + dj)
+                    + local_tpd(logits - di - dj)
+                ) / (4 * step ** 2)
+                hessian[i, j] = hessian[j, i] = value
+        return hessian
+
+    def chemical_potential(value):
+        return np.log(value) + total_lngamma(
+            names, temperature_k, value, parameters
+        )
+
+    def chemical_potential_hessian(step):
+        jacobian_times_tangent = np.zeros((len(composition), dimensions))
+        for j in range(dimensions):
+            delta = step * np.eye(dimensions)[j]
+            jacobian_times_tangent[:, j] = (
+                chemical_potential(base.softmax(logits + delta))
+                - chemical_potential(base.softmax(logits - delta))
+            ) / (2 * step)
+        projected = tangent.T @ jacobian_times_tangent
+        return 0.5 * (projected + projected.T)
+
+    convergence = []
+    for step in steps:
+        direct = free_energy_hessian(step)
+        reconstructed = chemical_potential_hessian(step)
+        convergence.append({
+            "stepLogRatio": step,
+            "freeEnergyDifferenceEigenvalues": np.linalg.eigvalsh(direct).tolist(),
+            "chemicalPotentialJacobianEigenvalues": np.linalg.eigvalsh(reconstructed).tolist(),
+            "maximumMatrixDifference": float(np.max(np.abs(direct - reconstructed))),
+        })
+    direct_eigenvalues = np.asarray(
+        convergence[-1]["freeEnergyDifferenceEigenvalues"]
+    )
+    reconstructed_eigenvalues = np.asarray(
+        convergence[-1]["chemicalPotentialJacobianEigenvalues"]
+    )
+    gates = protocol["numericalAcceptance"]
+    absolute_tolerance = gates["hessianEigenvalueAbsoluteTolerance"]
+    relative_tolerance = gates["hessianEigenvalueRelativeTolerance"]
+
+    def spectra_agree(left, right):
+        left = np.asarray(left)
+        right = np.asarray(right)
+        allowed = absolute_tolerance + relative_tolerance * np.maximum(
+            np.abs(left), np.abs(right)
+        )
+        return bool(np.all(np.abs(left - right) <= allowed))
+
+    previous = convergence[-2]
+    direct_step_converged = spectra_agree(
+        previous["freeEnergyDifferenceEigenvalues"], direct_eigenvalues
+    )
+    reconstructed_step_converged = spectra_agree(
+        previous["chemicalPotentialJacobianEigenvalues"],
+        reconstructed_eigenvalues,
+    )
+    maximum_modewise_relative_difference = float(np.max(
+        np.abs(direct_eigenvalues - reconstructed_eigenvalues)
+        / np.maximum(
+            absolute_tolerance,
+            np.maximum(np.abs(direct_eigenvalues), np.abs(reconstructed_eigenvalues)),
+        )
+    ))
+    return {
+        "dimension": dimensions,
+        "coordinate": "five independent log mole-fraction ratios ln(x_i/x_6)",
+        "tangentBasis": tangent.tolist(),
+        "stepSizeConvergence": convergence,
+        "selectedStepLogRatio": steps[-1],
+        "freeEnergyDifferenceEigenvalues": direct_eigenvalues.tolist(),
+        "chemicalPotentialJacobianEigenvalues": reconstructed_eigenvalues.tolist(),
+        "minimumEigenvalue": float(min(direct_eigenvalues[0], reconstructed_eigenvalues[0])),
+        "maximumModewiseRelativeEigenvalueDifference": maximum_modewise_relative_difference,
+        "independentReconstructionsAgree": spectra_agree(
+            direct_eigenvalues, reconstructed_eigenvalues
+        ),
+        "freeEnergyStepSizeConverged": direct_step_converged,
+        "chemicalPotentialStepSizeConverged": reconstructed_step_converged,
+        "stepSizeConverged": bool(
+            direct_step_converged and reconstructed_step_converged
+        ),
+    }
+
+
 def _row_equilibrium(parameters, row):
     names = ("SAT", "MONO", "NMP")
     xr3 = normalize([row["raffinate"][n] for n in names])
@@ -163,7 +289,10 @@ def validation_metrics(parameters, rows):
     }
 
 
-def tpd_search(names, temperature_k, z, parameters, protocol):
+def tpd_search(
+    names, temperature_k, z, parameters, protocol,
+    include_local_seeds=True, refine_best_global_and_local=False,
+):
     z = normalize(z)
     gz = total_lngamma(names, temperature_k, z, parameters)
 
@@ -186,11 +315,52 @@ def tpd_search(names, temperature_k, z, parameters, protocol):
 
     enumerate_simplex(denominator, len(z), [])
     coarse = sorted(((tpd(w), w) for w in grid), key=lambda item: item[0])
-    # Governed deterministic refinements: the six best full-simplex lattice
-    # points plus the feed. The lattice itself spans all independent directions.
-    seeds = [w for _, w in coarse[:6]] + [z]
+    # Governed deterministic refinements include both remote full-simplex
+    # searches and explicit perturbations around the tested phase. Remote
+    # lattice seeds alone can miss a negative-curvature basin local to z.
+    global_seeds = [w for _, w in coarse[:6]] + [z]
+    local_seeds = []
+    local_step = 1e-3
+    if include_local_seeds:
+        logits = np.log(z[:-1] / z[-1])
+        for direction in np.eye(len(z) - 1):
+            local_seeds.extend([
+                base.softmax(logits + local_step * direction),
+                base.softmax(logits - local_step * direction),
+            ])
+    seeds = global_seeds + local_seeds
+    seed_evaluations = [
+        {
+            "seedClass": (
+                "GLOBAL_SIMPLEX"
+                if index < len(global_seeds) - 1
+                else (
+                    "REFERENCE_PHASE"
+                    if index == len(global_seeds) - 1
+                    else "PHASE_LOCAL_LOG_RATIO_PERTURBATION"
+                )
+            ),
+            "value": float(tpd(seed)),
+            "composition": seed.tolist(),
+        }
+        for index, seed in enumerate(seeds)
+    ]
+    ordered_evaluations = sorted(seed_evaluations, key=lambda item: item["value"])
+    refinement_seeds = ordered_evaluations
+    if refine_best_global_and_local:
+        refinement_seeds = [
+            min(
+                (item for item in seed_evaluations if item["seedClass"] == seed_class),
+                key=lambda item: item["value"],
+            )
+            for seed_class in (
+                "GLOBAL_SIMPLEX",
+                "PHASE_LOCAL_LOG_RATIO_PERTURBATION",
+            )
+        ]
     refined = []
-    for seed in seeds:
+    for seed_evaluation in refinement_seeds:
+        seed = np.asarray(seed_evaluation["composition"])
         y0 = np.log(normalize(seed)[:-1] / normalize(seed)[-1])
         sol = minimize(
             lambda y: tpd(base.softmax(y)),
@@ -200,12 +370,13 @@ def tpd_search(names, temperature_k, z, parameters, protocol):
         )
         w = base.softmax(sol.x)
         refined.append({
+            "seedClass": seed_evaluation["seedClass"],
             "value": float(tpd(w)),
             "composition": w.tolist(),
-            "success": bool(sol.success or np.max(np.abs(sol.jac)) <= 2e-6),
+            "success": bool(sol.success or np.max(np.abs(sol.jac)) <= 5e-6),
             "gradientInfinityNorm": float(np.max(np.abs(sol.jac))),
         })
-    best = min(refined, key=lambda item: item["value"])
+    best = min(refined + seed_evaluations, key=lambda item: item["value"])
     threshold = protocol["numericalAcceptance"]["negativeTpdThreshold"]
     return {
         "minimum": best["value"],
@@ -215,6 +386,14 @@ def tpd_search(names, temperature_k, z, parameters, protocol):
         "minimizingComposition": best["composition"],
         "verdict": "UNSTABLE_NEGATIVE_TPD" if best["value"] < threshold else "STABLE_NO_NEGATIVE_TPD",
         "seedCount": len(seeds),
+        "seedEvaluations": seed_evaluations,
+        "refinementSeedCount": len(refinement_seeds),
+        "seedScanMinimum": ordered_evaluations[0]["value"],
+        "seedClasses": {
+            "globalSimplexAndReference": len(global_seeds),
+            "phaseLocalLogRatioPerturbations": len(local_seeds),
+            "localPerturbationStep": local_step if include_local_seeds else None,
+        },
         "allRefinementsAccepted": all(item["success"] for item in refined),
         "refinements": refined,
     }
@@ -292,8 +471,20 @@ def flash(names, temperature_k, z, parameters, protocol):
     improvement = homogeneous - float(best.fun)
     balance = float(np.max(np.abs(z - ((1.0 - beta) * raffinate + beta * extract))))
     separation = float(np.max(np.abs(extract - raffinate)))
-    post_r = tpd_search(names, temperature_k, raffinate, parameters, protocol)
-    post_e = tpd_search(names, temperature_k, extract, parameters, protocol)
+    post_r = tpd_search(
+        names, temperature_k, raffinate, parameters, protocol,
+        refine_best_global_and_local=True,
+    )
+    post_e = tpd_search(
+        names, temperature_k, extract, parameters, protocol,
+        refine_best_global_and_local=True,
+    )
+    stability_r = tangent_stability(
+        names, temperature_k, raffinate, parameters, protocol
+    )
+    stability_e = tangent_stability(
+        names, temperature_k, extract, parameters, protocol
+    )
     gates = protocol["numericalAcceptance"]
     accepted = bool(
         tpd["minimum"] < gates["negativeTpdThreshold"]
@@ -304,6 +495,12 @@ def flash(names, temperature_k, z, parameters, protocol):
         and np.all(raffinate > eps) and np.all(extract > eps)
         and post_r["minimum"] >= gates["postSplitTpdThreshold"]
         and post_e["minimum"] >= gates["postSplitTpdThreshold"]
+        and stability_r["minimumEigenvalue"] >= gates["minimumLocalStabilityCurvature"]
+        and stability_e["minimumEigenvalue"] >= gates["minimumLocalStabilityCurvature"]
+        and stability_r["independentReconstructionsAgree"]
+        and stability_e["independentReconstructionsAgree"]
+        and stability_r["stepSizeConverged"]
+        and stability_e["stepSizeConverged"]
         and tpd["allRefinementsAccepted"]
         and post_r["allRefinementsAccepted"]
         and post_e["allRefinementsAccepted"]
@@ -326,6 +523,11 @@ def flash(names, temperature_k, z, parameters, protocol):
         "materialBalanceMaxResidual": balance,
         "maximumCompositionSeparation": separation,
         "postSplitTpd": {"raffinate": post_r["minimum"], "extract": post_e["minimum"]},
+        "postSplitTpdSearch": {"raffinate": post_r, "extract": post_e},
+        "postSplitTangentStability": {
+            "raffinate": stability_r,
+            "extract": stability_e,
+        },
         "phaseDirection": {
             "raffinateSatRicher": bool(raffinate[0] > extract[0]),
             "extractNmpRicher": bool(extract[5] > raffinate[5]),
