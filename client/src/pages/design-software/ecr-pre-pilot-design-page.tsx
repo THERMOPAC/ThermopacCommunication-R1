@@ -167,10 +167,10 @@ const EMPTY_FORM: FormState = {
   solventOilRatio: "0.90",
   targetRaffinateSulfurPpm: "1000",
   minimumRaffinateSaturatesWt: "90",
-  targetRaffinateTotalAromaticsWt: "5.0",
-  targetRaffinatePolarAromaticsWt: "0.50",
+  targetRaffinateTotalAromaticsWt: "1.5",
+  targetRaffinatePolarAromaticsWt: "0.10",
   minimumRecoveryPct: "95",
-  maximumNmpRaffinateWt: "0.50",
+  maximumNmpRaffinateWt: "6.50",
   feedSulfurPpm: "3500",
   designBasisNotes: "",
   satIdentity: "",
@@ -209,10 +209,21 @@ const PHASE_OPTIONS = [
 const SOLVENT_OIL_RATIO_OPTIONS = ["0.50", "0.75", "0.90", "1.00", "1.25", "1.50", "2.00"];
 const TARGET_RAFFINATE_SULFUR_OPTIONS = ["750", "1000", "1500", "2000", "2500"];
 const MINIMUM_RAFFINATE_SATURATES_OPTIONS = ["90", "92.5", "95", "97.5"];
-const TARGET_TOTAL_AROMATICS_OPTIONS = ["2.0", "3.0", "4.0", "5.0", "7.5", "10.0"];
+const TARGET_TOTAL_AROMATICS_OPTIONS = ["1.5", "2.0", "3.0", "4.0", "5.0", "7.5", "10.0"];
 const TARGET_POLAR_AROMATICS_OPTIONS = ["0.10", "0.25", "0.50", "1.00", "2.00"];
 const MINIMUM_RECOVERY_OPTIONS = ["90", "92.5", "95", "97.5", "99"];
-const MAXIMUM_NMP_RAFFINATE_OPTIONS = ["0.10", "0.25", "0.50", "1.00"];
+const MAXIMUM_NMP_RAFFINATE_OPTIONS = [
+  "0.10",
+  "0.25",
+  "0.50",
+  "1.00",
+  "2.00",
+  "3.00",
+  "4.00",
+  "5.00",
+  "6.00",
+  "6.50",
+];
 
 const NMP_STANDARD_PURPOSE = {
   purityWt: "99.5",
@@ -1417,7 +1428,7 @@ export default function EcrPrePilotDesignPage() {
                 onChange={(value) => setField("minimumRaffinateSaturatesWt", value)}
                 placeholder="Select minimum saturates"
                 options={MINIMUM_RAFFINATE_SATURATES_OPTIONS}
-                unit="wt% (HC basis)"
+                unit="wt% (NMP-free HC basis)"
                 required
                 error={validationErrors.minimumRaffinateSaturatesWt}
               />
@@ -1428,7 +1439,7 @@ export default function EcrPrePilotDesignPage() {
                 onChange={(value) => setField("targetRaffinateTotalAromaticsWt", value)}
                 placeholder="Select total aromatics target"
                 options={TARGET_TOTAL_AROMATICS_OPTIONS}
-                unit="wt% (HC basis)"
+                unit="wt% (NMP-free HC basis)"
                 error={validationErrors.targetRaffinateTotalAromaticsWt}
               />
               <SelectField
@@ -1458,7 +1469,7 @@ export default function EcrPrePilotDesignPage() {
                 onChange={(value) => setField("maximumNmpRaffinateWt", value)}
                 placeholder="Select maximum NMP"
                 options={MAXIMUM_NMP_RAFFINATE_OPTIONS}
-                unit="wt%"
+                unit="wt% (total raffinate)"
                 error={validationErrors.maximumNmpRaffinateWt}
               />
             </CardContent>
