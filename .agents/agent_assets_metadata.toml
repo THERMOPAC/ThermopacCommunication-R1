@@ -670,5 +670,5 @@ description = "Verified research report covering the amended model, six-componen
 id = "WRYM1UL6tq2FvvqXbGB2Q"
 uri = "file://.agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/report.md"
 type = "text"
-title = "Final Task #202 Report — Counter-Current Extraction at 25°C and 50°C"
-description = "Regenerated from the single frozen default workflow. Includes NT 1–10 primary and multistart closure status, stage metrics, stability-screen results, and the bounded theoretical-stage verdict."
+title = "Task #204 — Full Liquid-Phase Stability Report"
+description = "Merged tangent-Hessian and seeded TPD stability results for the single-stage prediction and all counter-current phase candidates at 25°C and 50°C."
