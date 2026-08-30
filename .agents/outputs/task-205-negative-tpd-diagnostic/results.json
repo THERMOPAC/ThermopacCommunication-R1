@@ -1,0 +1,2741 @@
+{
+  "task": 205,
+  "analysis": "ISOLATED_NEGATIVE_TPD_SOURCE_DIAGNOSTIC",
+  "governance": {
+    "researchOnly": true,
+    "calibrationRequired": true,
+    "pilotValidated": false,
+    "releaseEligible": false,
+    "branchRule": "BRANCH_SELECTION_DRIVEN is forbidden unless a lower-Gibbs admissible stationary split is demonstrated."
+  },
+  "inputImmutableSha256": "b8cf60bf73550c039cf2df3081b6a408282e15a315fa111faade67598cbec4a7",
+  "modelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+  "protocolSha256": "079f27c75cb3c8d8abb669fc261dbeb25b99d09800cbd0f17e91d9eeb5c46dc7",
+  "scenarios": [
+    {
+      "scenario": "Scenario 1",
+      "referenceStage": "Stage 1 extract",
+      "referenceComposition": [
+        0.037267142373791196,
+        0.05412203118118662,
+        0.02687453969586041,
+        0.00969067982718575,
+        0.004988082104223211,
+        0.8670575248177528
+      ],
+      "persistedHelper": {
+        "minimum": -0.7255044366979921,
+        "composition": [
+          2.499999999996875e-13,
+          0.9999999999987499,
+          2.499999999996875e-13,
+          2.499999999996875e-13,
+          2.499999999996875e-13,
+          2.499999999996875e-13
+        ]
+      },
+      "directMoleFractionTpd": {
+        "ideal": 2.916513945179016,
+        "pinnedBaseCosmoSac": -0.19468517661820958,
+        "residualAmendment": -3.4473332052587993,
+        "total": -0.7255044366979928
+      },
+      "exactTangentPlane": {
+        "direct": -0.7255044366979928,
+        "identity": -0.7255044366979919,
+        "difference": -8.881784197001252e-16
+      },
+      "validation": {
+        "identityAtZ": true,
+        "tangentPlaneIdentity": true,
+        "finiteDifferenceTangentGradientAtZ": true,
+        "gibbsDuhemChemicalPotentialConsistencyAtZ": true,
+        "boundaryApproach": true,
+        "slsqpKkt": true
+      },
+      "finiteDifferenceGradientAtZ": [
+        1.5645395775792589e-09,
+        1.9237011593515587e-09,
+        2.969960676268612e-09,
+        -3.829272354276927e-09,
+        -2.23098775360195e-08
+      ],
+      "finiteDifferenceGradientAtDecisiveBoundaryCandidate": [
+        1.2926523726974892,
+        5.018347360552511,
+        0.21535909500158823,
+        0.7211495616221697,
+        1.0758162600765786
+      ],
+      "chemicalPotentialConsistencyMaxResidualAtZ": 2.2303498603548633e-08,
+      "boundaryApproachPureMono": [
+        {
+          "floor": 1e-05,
+          "tpd": -0.7258597029640912
+        },
+        {
+          "floor": 1e-08,
+          "tpd": -0.725505137233212
+        },
+        {
+          "floor": 1e-10,
+          "tpd": -0.725504445890961
+        },
+        {
+          "floor": 1e-12,
+          "tpd": -0.7255044366979924
+        }
+      ],
+      "comparisonMatrix": {
+        "baseKernelOnly": {
+          "ideal": 2.916513945179016,
+          "pinnedBaseCosmoSac": -0.19468517661820958,
+          "residualAmendment": 0.0,
+          "total": 2.7218287685608065
+        },
+        "residualContributionOnly": {
+          "ideal": 2.916513945179016,
+          "residualAmendment": -3.4473332052587993,
+          "total": -0.5308192600797832
+        },
+        "completeModel": {
+          "ideal": 2.916513945179016,
+          "pinnedBaseCosmoSac": -0.19468517661820958,
+          "residualAmendment": -3.4473332052587993,
+          "total": -0.7255044366979928
+        },
+        "persistedHelperSearchReported": -0.7255044366979921,
+        "currentHelperObjectiveAtSameComposition": -0.7255044366979921,
+        "directObjectiveAtSameComposition": -0.7255044366979928,
+        "sameCompositionObjectiveDifference": 6.661338147750939e-16,
+        "independentSLSQP": -0.761456930211128,
+        "searchCompletenessGapFromPersistedBoundary": 0.03595249351313523,
+        "searchIncomplete": true
+      },
+      "independentSLSQP": {
+        "best": {
+          "start": "uniform",
+          "success": true,
+          "message": "Optimization terminated successfully",
+          "composition": [
+            0.0015566929615723794,
+            0.9629164318306683,
+            0.011129259691576233,
+            0.004048046821088429,
+            0.0019960923467360627,
+            0.018353476348358697
+          ],
+          "tpd": -0.761456930211128,
+          "kktProjectedGradientInfinityNorm": 1.2385902755013161e-05,
+          "iterations": 23
+        },
+        "allDeterministicStarts": [
+          {
+            "start": "persisted-near-pure-MONO",
+            "success": true,
+            "message": "Optimization terminated successfully",
+            "composition": [
+              0.001556634830377702,
+              0.9629163704323394,
+              0.011129429181871226,
+              0.00404804606740842,
+              0.001996079958589001,
+              0.018353439529414376
+            ],
+            "tpd": -0.761456930210751,
+            "kktProjectedGradientInfinityNorm": 2.0068846340720933e-05,
+            "iterations": 21
+          },
+          {
+            "start": "reference-extract",
+            "success": true,
+            "message": "Optimization terminated successfully",
+            "composition": [
+              0.037267142373791196,
+              0.05412203118118662,
+              0.02687453969586041,
+              0.00969067982718575,
+              0.004988082104223211,
+              0.8670575248177528
+            ],
+            "tpd": 0.0,
+            "kktProjectedGradientInfinityNorm": 1.1976270778324349e-08,
+            "iterations": 1
+          },
+          {
+            "start": "uniform",
+            "success": true,
+            "message": "Optimization terminated successfully",
+            "composition": [
+              0.0015566929615723794,
+              0.9629164318306683,
+              0.011129259691576233,
+              0.004048046821088429,
+              0.0019960923467360627,
+              0.018353476348358697
+            ],
+            "tpd": -0.761456930211128,
+            "kktProjectedGradientInfinityNorm": 1.2385902755013161e-05,
+            "iterations": 23
+          }
+        ],
+        "tpdDifferenceFromHelper": 0.0359524935131359,
+        "compositionInfinityDifferenceFromHelper": 0.03708356816808156
+      },
+      "tpdSearchAssessment": {
+        "objectiveImplementation": "SAME_COMPOSITION_ALGEBRAIC_AGREEMENT",
+        "searchCompleteness": "INCOMPLETE_MORE_NEGATIVE_CONSTRAINED_MINIMUM_FOUND",
+        "causedNegativeVerdict": false,
+        "reason": "Two algebraic assembly paths agree at identical compositions, but share the same activity-coefficient kernel and therefore do not constitute fully independent implementation validation. The helper still finds a materially negative basin, while independent SLSQP refines it lower."
+      },
+      "splitReseed": {
+        "executed": true,
+        "reseededStationarySplits": [
+          {
+            "seed": "persisted-near-pure-MONO",
+            "solverSuccess": true,
+            "raffinate": [
+              0.9999999999999984,
+              1.649552981613618e-15,
+              2.3150454495327147e-19,
+              1.8435154094573718e-20,
+              7.963181505632877e-21,
+              1.6195673723918837e-17
+            ],
+            "extract": [
+              0.9999999999999827,
+              1.7227946322831976e-14,
+              3.27863256362587e-18,
+              2.5720503404858264e-19,
+              1.0321732467525424e-19,
+              3.2321317190018944e-21
+            ],
+            "betaExtract": 3.576672207598968e-06,
+            "isoactivityLogResidual": 1.4210854715202004e-14,
+            "materialBalanceMaxResidual": 0.9627328576262073,
+            "gibbsReduction": -0.22371926606972914,
+            "stationary": false,
+            "admissibleLowerGibbsPhaseSplit": false
+          },
+          {
+            "seed": "independent-global-SLSQP",
+            "solverSuccess": true,
+            "raffinate": [
+              0.03867388841072194,
+              0.01612801251387058,
+              0.026693257392093626,
+              0.009619750803132082,
+              0.004959209379666338,
+              0.9039258815005154
+            ],
+            "extract": [
+              0.006095262245379738,
+              0.8960259458907717,
+              0.030891547808248338,
+              0.011262385719636697,
+              0.005627868593923315,
+              0.050096989742040084
+            ],
+            "betaExtract": 0.0431800294398935,
+            "isoactivityLogResidual": 1.687538997430238e-14,
+            "materialBalanceMaxResidual": 2.0816681711721685e-17,
+            "gibbsReduction": 0.02039153137189556,
+            "stationary": true,
+            "admissibleLowerGibbsPhaseSplit": true
+          }
+        ],
+        "phaseMetastabilityDemonstrated": true,
+        "fullCascadeAlternateBranchDemonstrated": false,
+        "note": "A lower-Gibbs split of the isolated persisted phase is phase-metastability evidence, not proof of a closed alternate cascade branch."
+      },
+      "multistartCascade": {
+        "equations": "per stage: 6 scaled component balances followed by 6 isoactivity equations",
+        "variableLayout": "log([R_1..R_6,E_1..E_6]) per stage",
+        "starts": {
+          "baseStartSha256": "88f063cda8cce1d28d6a691a7b66ddfd4dd5ce9d3b3ea5522532260dfecbd205",
+          "secondaryStartSha256": "6a3b37bcb2812b5692d8cb923e6f5832659357ee951595e38d3ae2ae1a856259",
+          "definition": "exact direct-NT7 one-stage seed repeated; secondary adds tiled linspace(-0.015,+0.015,12)"
+        },
+        "persistedTargets": {
+          "primaryMaximum": 3.5860203695392556e-14,
+          "secondary20Maximum": 0.001187493871875201
+        },
+        "runs": [
+          {
+            "run": "persisted-primary-reconstruction",
+            "solverSuccess": true,
+            "status": 1,
+            "message": "persisted closed primary",
+            "nfev": 0,
+            "maximumResidual": 3.5860203695392556e-14,
+            "rmsResidual": 9.729363450544432e-15,
+            "productDifferenceFromPrimary": 0.0,
+            "byEquationFamily": {
+              "scaledComponentBalances": {
+                "maximum": 1.9510860658357736e-16,
+                "rms": 4.2834047038889165e-17
+              },
+              "isoactivity": {
+                "maximum": 3.5860203695392556e-14,
+                "rms": 1.3759331072039584e-14
+              }
+            },
+            "classification": "PRIMARY_BRANCH",
+            "byStage": [
+              {
+                "stageFromFeedEnd": 1,
+                "balanceMaximum": 7.361758098371424e-17,
+                "balanceRms": 3.1783819776590504e-17,
+                "isoactivityMaximum": 1.44953493652622e-14,
+                "isoactivityRms": 9.581196711715926e-15
+              },
+              {
+                "stageFromFeedEnd": 2,
+                "balanceMaximum": 7.361758098371424e-17,
+                "balanceRms": 3.155424743837125e-17,
+                "isoactivityMaximum": 2.731148640577885e-14,
+                "isoactivityRms": 1.440019274828133e-14
+              },
+              {
+                "stageFromFeedEnd": 3,
+                "balanceMaximum": 4.6010988114821403e-17,
+                "balanceRms": 1.8880513338365965e-17,
+                "isoactivityMaximum": 2.3092638912203256e-14,
+                "isoactivityRms": 1.3371012168034652e-14
+              },
+              {
+                "stageFromFeedEnd": 4,
+                "balanceMaximum": 5.291263633204461e-17,
+                "balanceRms": 2.211600678467116e-17,
+                "isoactivityMaximum": 3.5860203695392556e-14,
+                "isoactivityRms": 1.6996758547172797e-14
+              },
+              {
+                "stageFromFeedEnd": 5,
+                "balanceMaximum": 4.371043870908033e-17,
+                "balanceRms": 2.1616711520885758e-17,
+                "isoactivityMaximum": 8.881784197001252e-15,
+                "isoactivityRms": 5.579878214560408e-15
+              },
+              {
+                "stageFromFeedEnd": 6,
+                "balanceMaximum": 7.85871271609596e-17,
+                "balanceRms": 5.3792369726658014e-17,
+                "isoactivityMaximum": 1.4654943925052066e-14,
+                "isoactivityRms": 7.84390607600787e-15
+              },
+              {
+                "stageFromFeedEnd": 7,
+                "balanceMaximum": 1.9510860658357736e-16,
+                "balanceRms": 8.143042779765522e-17,
+                "isoactivityMaximum": 3.2862601528904634e-14,
+                "isoactivityRms": 2.1580866254775923e-14
+              }
+            ],
+            "logFlowVariables": [
+              -0.6993117746305648,
+              -3.054546436043231,
+              -3.767115810463898,
+              -4.898261935145083,
+              -6.1527263851211,
+              -2.5291358175235805,
+              -3.3018910669398123,
+              -2.9287617701985353,
+              -3.628823745155648,
+              -4.6488385228148505,
+              -5.312951615829103,
+              -0.15489778001061344,
+              -0.7065093843927613,
+              -3.3119140083970633,
+              -4.05339085247139,
+              -5.271555553518126,
+              -7.095839570208296,
+              -2.631955101354802,
+              -3.360340338769716,
+              -3.1613591879781717,
+              -3.8380261014449286,
+              -4.94154840548132,
+              -6.154536604637564,
+              -0.06589344964950125,
+              -0.7115702563227259,
+              -3.5663546640211643,
+              -4.357767066419025,
+              -5.6609710098538395,
+              -8.052151947670415,
+              -2.711023437506668,
+              -3.468633144537122,
+              -3.4523738857133206,
+              -4.14895989652929,
+              -5.335062809134644,
+              -7.100494761586801,
+              -0.07424908558546434,
+              -0.7154325070750969,
+              -3.84275882164788,
+              -4.697974488453689,
+              -6.083481405451868,
+              -9.0283388053956,
+              -2.7756904285667874,
+              -3.5519370993028403,
+              -3.751491493479729,
+              -4.489667394748547,
+              -5.7561936345022895,
+              -8.064310610169231,
+              -0.08015695503921111,
+              -0.7185245648276732,
+              -4.169556435350452,
+              -5.099123799509266,
+              -6.56357996318003,
+              -10.037484795978875,
+              -2.8304592707750174,
+              -3.6202181806407947,
+              -4.094840507559083,
+              -4.888708586597338,
+              -6.232661999381628,
+              -9.06094208598567,
+              -0.08467682955395517,
+              -0.7210822349948511,
+              -4.600508177023446,
+              -5.613268574103072,
+              -7.152869396178309,
+              -11.118399799964646,
+              -2.877945553251006,
+              -3.6782476683564216,
+              -4.53908917115537,
+              -5.399350694979539,
+              -6.817167404543488,
+              -10.129596682760097,
+              -0.08829749635396796,
+              -0.7717494789970879,
+              -5.344155443143292,
+              -6.448701161657706,
+              -8.05974225609434,
+              -12.46793851945989,
+              -2.9683910793976387,
+              -3.7287845459714846,
+              -5.245583401097574,
+              -6.1818766298774355,
+              -7.6700232407394635,
+              -11.418640227070401,
+              -0.09129004621360812
+            ],
+            "residualTrajectory": {
+              "available": false,
+              "reason": "scipy least_squares does not expose iteration callbacks"
+            }
+          },
+          {
+            "run": "same-secondary-sparse-continuation-20",
+            "solverSuccess": false,
+            "status": 0,
+            "message": "The maximum number of function evaluations is exceeded.",
+            "nfev": 20,
+            "maximumResidual": 0.001187493871875201,
+            "rmsResidual": 0.00030501680321279176,
+            "productDifferenceFromPrimary": 0.003310494001573801,
+            "byEquationFamily": {
+              "scaledComponentBalances": {
+                "maximum": 0.001187493871875201,
+                "rms": 0.0004308055873232889
+              },
+              "isoactivity": {
+                "maximum": 7.07987589874115e-05,
+                "rms": 2.18413922481606e-05
+              }
+            },
+            "classification": "UNRESOLVED",
+            "byStage": [
+              {
+                "stageFromFeedEnd": 1,
+                "balanceMaximum": 0.000313170776884638,
+                "balanceRms": 0.00017155079335064998,
+                "isoactivityMaximum": 7.677222738866618e-06,
+                "isoactivityRms": 3.736838742518057e-06
+              },
+              {
+                "stageFromFeedEnd": 2,
+                "balanceMaximum": 0.0006649254812887942,
+                "balanceRms": 0.0003546922578072099,
+                "isoactivityMaximum": 3.62941373812653e-05,
+                "isoactivityRms": 1.9457008702603986e-05
+              },
+              {
+                "stageFromFeedEnd": 3,
+                "balanceMaximum": 0.0005231288902638801,
+                "balanceRms": 0.0002868219355946932,
+                "isoactivityMaximum": 5.320940314801348e-05,
+                "isoactivityRms": 2.9237158102967985e-05
+              },
+              {
+                "stageFromFeedEnd": 4,
+                "balanceMaximum": 0.00034988193139162726,
+                "balanceRms": 0.000171134351861942,
+                "isoactivityMaximum": 2.7704553645868657e-05,
+                "isoactivityRms": 1.5867023643639895e-05
+              },
+              {
+                "stageFromFeedEnd": 5,
+                "balanceMaximum": 0.0006878294439768034,
+                "balanceRms": 0.0003891238564594235,
+                "isoactivityMaximum": 1.0410560491891374e-05,
+                "isoactivityRms": 6.538893866071747e-06
+              },
+              {
+                "stageFromFeedEnd": 6,
+                "balanceMaximum": 0.0009455089638573436,
+                "balanceRms": 0.0006445825487348792,
+                "isoactivityMaximum": 3.481493673218594e-05,
+                "isoactivityRms": 1.8985368425993552e-05
+              },
+              {
+                "stageFromFeedEnd": 7,
+                "balanceMaximum": 0.001187493871875201,
+                "balanceRms": 0.0006822463478174384,
+                "isoactivityMaximum": 7.07987589874115e-05,
+                "isoactivityRms": 3.7907922066726915e-05
+              }
+            ],
+            "logFlowVariables": [
+              -0.6980363790901044,
+              -3.0271611932935105,
+              -3.70179127831927,
+              -4.947024170483335,
+              -6.060439910807503,
+              -2.515381267816776,
+              -3.2839393480378862,
+              -2.8942616061987687,
+              -3.5634720576924517,
+              -4.698030388185739,
+              -5.2238397337238,
+              -0.15710300477484657,
+              -0.7039143510590821,
+              -3.2514273186811273,
+              -3.909843313327268,
+              -5.328732119055271,
+              -6.660501686881041,
+              -2.604907446326784,
+              -3.325253619229506,
+              -3.090439805017528,
+              -3.694573214212631,
+              -4.999741973025826,
+              -5.725702351026888,
+              -0.06673394153447336,
+              -0.7079349778518081,
+              -3.4654029629876577,
+              -4.121419992241081,
+              -5.530638746459275,
+              -6.746137474307175,
+              -2.6690682354493798,
+              -3.4114959889602514,
+              -3.3342681298554195,
+              -3.9115260725146914,
+              -5.205163541061187,
+              -5.804041021294502,
+              -0.07415965504512526,
+              -0.711329838433687,
+              -3.6921537562446582,
+              -4.362086880816261,
+              -5.550924001137055,
+              -6.633934704272814,
+              -2.72118540773599,
+              -3.4750521075063916,
+              -3.577315006549136,
+              -4.151261391081311,
+              -5.223150175187982,
+              -5.681733893420992,
+              -0.07909262771630855,
+              -0.7150762953837114,
+              -3.9616641263455175,
+              -4.631830461072931,
+              -5.525114677792237,
+              -6.5732918224043075,
+              -2.7689897089598245,
+              -3.5310213679177336,
+              -3.859389762496197,
+              -4.417490184076449,
+              -5.192594934558155,
+              -5.6093245045764,
+              -0.08285778994350469,
+              -0.7195901915274964,
+              -4.345838962426094,
+              -4.98946557958367,
+              -5.65230123608503,
+              -6.663894194761959,
+              -2.8228086953295097,
+              -3.594864486462198,
+              -4.257568063809189,
+              -4.77023675422312,
+              -5.3134236671801975,
+              -5.68504554220767,
+              -0.08614766664648503,
+              -0.7729914431025665,
+              -5.07237276256602,
+              -5.720160260941952,
+              -6.195613344890538,
+              -7.133835398564948,
+              -2.9370472949996875,
+              -3.6768048544512717,
+              -4.9545074487017216,
+              -5.447593793412025,
+              -5.801459697538538,
+              -6.088254621245199,
+              -0.08965850804254555
+            ],
+            "residualTrajectory": {
+              "available": false,
+              "reason": "scipy least_squares does not expose iteration callbacks"
+            },
+            "cumulativeFunctionEvaluations": 20
+          },
+          {
+            "run": "same-secondary-sparse-continuation-80",
+            "solverSuccess": false,
+            "status": 0,
+            "message": "The maximum number of function evaluations is exceeded.",
+            "nfev": 80,
+            "maximumResidual": 0.0006501461657312087,
+            "rmsResidual": 0.0001291598156230166,
+            "productDifferenceFromPrimary": 0.001564452519405405,
+            "byEquationFamily": {
+              "scaledComponentBalances": {
+                "maximum": 0.0006501461657312087,
+                "rms": 0.00018265822496424966
+              },
+              "isoactivity": {
+                "maximum": 2.0505154832012318e-06,
+                "rms": 6.991397949358517e-07
+              }
+            },
+            "classification": "UNRESOLVED",
+            "byStage": [
+              {
+                "stageFromFeedEnd": 1,
+                "balanceMaximum": 7.000730989388878e-05,
+                "balanceRms": 3.2921182475079926e-05,
+                "isoactivityMaximum": 1.6149020689582017e-06,
+                "isoactivityRms": 9.998744444336093e-07
+              },
+              {
+                "stageFromFeedEnd": 2,
+                "balanceMaximum": 0.0001447587200327792,
+                "balanceRms": 6.97537929826835e-05,
+                "isoactivityMaximum": 1.2131128732661978e-06,
+                "isoactivityRms": 7.720442088675153e-07
+              },
+              {
+                "stageFromFeedEnd": 3,
+                "balanceMaximum": 0.0001289422007511385,
+                "balanceRms": 7.42918857118716e-05,
+                "isoactivityMaximum": 1.0048655045072352e-06,
+                "isoactivityRms": 6.355675508949481e-07
+              },
+              {
+                "stageFromFeedEnd": 4,
+                "balanceMaximum": 0.00018375752714403976,
+                "balanceRms": 8.805154620357936e-05,
+                "isoactivityMaximum": 6.80995343161489e-07,
+                "isoactivityRms": 4.3768765261010227e-07
+              },
+              {
+                "stageFromFeedEnd": 5,
+                "balanceMaximum": 0.00024017366707837804,
+                "balanceRms": 0.00016598121659906285,
+                "isoactivityMaximum": 6.209212908281359e-07,
+                "isoactivityRms": 3.935158285740727e-07
+              },
+              {
+                "stageFromFeedEnd": 6,
+                "balanceMaximum": 0.0005387644284520013,
+                "balanceRms": 0.0002901027521910437,
+                "isoactivityMaximum": 2.0505154832012318e-06,
+                "isoactivityRms": 9.969076704950607e-07
+              },
+              {
+                "stageFromFeedEnd": 7,
+                "balanceMaximum": 0.0006501461657312087,
+                "balanceRms": 0.0003203389829143724,
+                "isoactivityMaximum": 5.965616525216433e-07,
+                "isoactivityRms": 2.856182787133116e-07
+              }
+            ],
+            "logFlowVariables": [
+              -0.6986482893408922,
+              -3.056578171792147,
+              -3.7342901054264805,
+              -4.816687440744742,
+              -5.935124233108544,
+              -2.52015375262846,
+              -3.284797202938319,
+              -2.922191569547728,
+              -3.5928116074365044,
+              -4.564592485570739,
+              -5.095831071304546,
+              -0.1555863056728462,
+              -0.7054822363779634,
+              -3.3165486827860526,
+              -3.981748159900939,
+              -5.084666989805989,
+              -6.4762842265367695,
+              -2.6169955706808046,
+              -3.333847714124908,
+              -3.1552654451143716,
+              -3.7620670152844062,
+              -4.751118587601496,
+              -5.536199317103037,
+              -0.06575192303023777,
+              -0.7103527958874112,
+              -3.573789426253909,
+              -4.238535256194948,
+              -5.324388436183735,
+              -6.740999748144504,
+              -2.691374363322897,
+              -3.4345470418427304,
+              -3.4470366222608404,
+              -4.024565020788709,
+              -4.994289565776924,
+              -5.791167182230083,
+              -0.0737080656815925,
+              -0.7142836718492495,
+              -3.8538903059602414,
+              -4.5228082154442015,
+              -5.5470149600442085,
+              -6.811542018874871,
+              -2.7532376699300163,
+              -3.512695979673184,
+              -3.7480270221205987,
+              -4.308594231982655,
+              -5.214918375307337,
+              -5.849562458596957,
+              -0.07935003701965564,
+              -0.7177694508338229,
+              -4.184764011433779,
+              -4.862106009436001,
+              -5.784153677900412,
+              -6.862604994671808,
+              -2.8080522401622128,
+              -3.5801905867275705,
+              -4.094790027022991,
+              -4.645461005825212,
+              -5.44810820390863,
+              -5.8878841580441135,
+              -0.08375094028827008,
+              -0.7211027601961667,
+              -4.617610285850727,
+              -5.311873617246314,
+              -6.110827839690954,
+              -7.037987425969562,
+              -2.859374466906726,
+              -3.6437565522376403,
+              -4.542339002381685,
+              -5.092117076039968,
+              -5.770220683115574,
+              -6.050223535505514,
+              -0.08743929895691717,
+              -0.7728611897214321,
+              -5.359208287489854,
+              -6.09066844986977,
+              -6.785588131603655,
+              -7.6378981534547625,
+              -2.9583984658071976,
+              -3.708205224040857,
+              -5.251323155243331,
+              -5.819399587256603,
+              -6.391967125026726,
+              -6.5881868114166915,
+              -0.0907174534256724
+            ],
+            "residualTrajectory": {
+              "available": false,
+              "reason": "scipy least_squares does not expose iteration callbacks"
+            },
+            "cumulativeFunctionEvaluations": 100
+          },
+          {
+            "run": "same-secondary-dense-final-15",
+            "solverSuccess": false,
+            "status": 0,
+            "message": "The maximum number of function evaluations is exceeded.",
+            "nfev": 15,
+            "maximumResidual": 0.0001996883462410469,
+            "rmsResidual": 4.430654058274064e-05,
+            "productDifferenceFromPrimary": 0.0009571837023561553,
+            "byEquationFamily": {
+              "scaledComponentBalances": {
+                "maximum": 0.0001996883462410469,
+                "rms": 6.262144080219098e-05
+              },
+              "isoactivity": {
+                "maximum": 6.4349112682826615e-06,
+                "rms": 2.166616873786288e-06
+              }
+            },
+            "classification": "UNRESOLVED",
+            "byStage": [
+              {
+                "stageFromFeedEnd": 1,
+                "balanceMaximum": 1.185934382708649e-05,
+                "balanceRms": 5.57421502892329e-06,
+                "isoactivityMaximum": 4.950602825459782e-07,
+                "isoactivityRms": 2.4902335926609704e-07
+              },
+              {
+                "stageFromFeedEnd": 2,
+                "balanceMaximum": 2.778331427107672e-05,
+                "balanceRms": 1.4682661986037567e-05,
+                "isoactivityMaximum": 1.432148767577246e-06,
+                "isoactivityRms": 7.347217200991027e-07
+              },
+              {
+                "stageFromFeedEnd": 3,
+                "balanceMaximum": 5.5498058603151265e-05,
+                "balanceRms": 3.05244264350586e-05,
+                "isoactivityMaximum": 3.1374436542108697e-06,
+                "isoactivityRms": 1.6175324537637028e-06
+              },
+              {
+                "stageFromFeedEnd": 4,
+                "balanceMaximum": 0.00010475864272934791,
+                "balanceRms": 5.341629551972945e-05,
+                "isoactivityMaximum": 5.096938577420218e-06,
+                "isoactivityRms": 2.627072814666047e-06
+              },
+              {
+                "stageFromFeedEnd": 5,
+                "balanceMaximum": 0.00015958203884528123,
+                "balanceRms": 7.902166832963183e-05,
+                "isoactivityMaximum": 6.4349112682826615e-06,
+                "isoactivityRms": 3.3197327823305367e-06
+              },
+              {
+                "stageFromFeedEnd": 6,
+                "balanceMaximum": 0.0001996883462410469,
+                "balanceRms": 9.760749591845249e-05,
+                "isoactivityMaximum": 5.878744578691197e-06,
+                "isoactivityRms": 3.0362645665281492e-06
+              },
+              {
+                "stageFromFeedEnd": 7,
+                "balanceMaximum": 0.00018076166530715514,
+                "balanceRms": 8.744582859977847e-05,
+                "isoactivityMaximum": 3.0687180769817246e-06,
+                "isoactivityRms": 1.581240344922962e-06
+              }
+            ],
+            "logFlowVariables": [
+              -0.6991722510292706,
+              -3.059228863260632,
+              -3.767537617432546,
+              -4.851165107598021,
+              -5.978423948952697,
+              -2.5266710704339936,
+              -3.2934815770736607,
+              -2.926378861360132,
+              -3.626079124148254,
+              -4.598837452561197,
+              -5.137407863770756,
+              -0.1549846850062785,
+              -0.7063696918925692,
+              -3.32194535014306,
+              -4.054278379640744,
+              -5.1646655451709425,
+              -6.607471621857906,
+              -2.6284337740728434,
+              -3.349530018213827,
+              -3.1635259532776985,
+              -3.835201196748148,
+              -4.831295301673647,
+              -5.665036539792575,
+              -0.06576237103396425,
+              -0.7114798607339956,
+              -3.5816781354229903,
+              -4.358443337127158,
+              -5.474086468887639,
+              -7.0500956204497,
+              -2.7068419266719053,
+              -3.4566772027495114,
+              -3.4597976158236263,
+              -4.145813542368004,
+              -5.144739120103788,
+              -6.097469776435799,
+              -0.07405470999844614,
+              -0.715445748497351,
+              -3.863026924764831,
+              -4.697464319763212,
+              -5.795157994542369,
+              -7.352669115750618,
+              -2.77126173338654,
+              -3.5398493563917866,
+              -3.7643099431069174,
+              -4.485483107623197,
+              -5.464575343176237,
+              -6.387808709875245,
+              -0.07993343368813655,
+              -0.7187021988479263,
+              -4.194113042989205,
+              -5.096247968750188,
+              -6.154763095825381,
+              -7.624601726528517,
+              -2.8263454661070657,
+              -3.6091929995917584,
+              -4.112890317630609,
+              -4.882549585345775,
+              -5.820898189274832,
+              -6.647311878225436,
+              -0.08445294225886087,
+              -0.7214772616967308,
+              -4.628313840228138,
+              -5.606863085028999,
+              -6.613579100930811,
+              -7.997938871890286,
+              -2.874865568198518,
+              -3.6697207867355073,
+              -4.561888113532679,
+              -5.390302087665944,
+              -6.275485747012945,
+              -7.0084040346233465,
+              -0.08810755658257417,
+              -0.7724054020182238,
+              -5.373804654398443,
+              -6.438225725856048,
+              -7.400686265050181,
+              -8.75422124698038,
+              -2.967102942501775,
+              -3.7241768977366534,
+              -5.272217145097907,
+              -6.1695933203455375,
+              -7.009290412257474,
+              -7.704117063040619,
+              -0.09117409500214756
+            ],
+            "residualTrajectory": {
+              "available": false,
+              "reason": "scipy least_squares does not expose iteration callbacks"
+            },
+            "cumulativeFunctionEvaluations": 115
+          }
+        ]
+      },
+      "classification": [
+        "RESIDUAL_AMENDMENT_DRIVEN"
+      ]
+    },
+    {
+      "scenario": "Scenario 2",
+      "referenceStage": "Stage 1 extract",
+      "referenceComposition": [
+        0.034319321549184274,
+        0.04341152192318153,
+        0.02179025747374475,
+        0.007899701813793741,
+        0.004099187328329608,
+        0.888480009911766
+      ],
+      "persistedHelper": {
+        "minimum": -0.6629353607985385,
+        "composition": [
+          2.499999999996875e-13,
+          0.9999999999987499,
+          2.499999999996875e-13,
+          2.499999999996875e-13,
+          2.499999999996875e-13,
+          2.499999999996875e-13
+        ]
+      },
+      "directMoleFractionTpd": {
+        "ideal": 3.1370303908677712,
+        "pinnedBaseCosmoSac": -0.20670367832504696,
+        "residualAmendment": -3.593262073341263,
+        "total": -0.6629353607985387
+      },
+      "exactTangentPlane": {
+        "direct": -0.6629353607985387,
+        "identity": -0.6629353607985382,
+        "difference": -4.440892098500626e-16
+      },
+      "validation": {
+        "identityAtZ": true,
+        "tangentPlaneIdentity": true,
+        "finiteDifferenceTangentGradientAtZ": true,
+        "gibbsDuhemChemicalPotentialConsistencyAtZ": true,
+        "boundaryApproach": true,
+        "slsqpKkt": true
+      },
+      "finiteDifferenceGradientAtZ": [
+        2.382936639565268e-09,
+        1.3552323437559027e-09,
+        1.65939351379396e-09,
+        -7.536021246193305e-09,
+        -3.3090048498722765e-08
+      ],
+      "finiteDifferenceGradientAtDecisiveBoundaryCandidate": [
+        1.2909186286602647,
+        5.05422910301867,
+        0.2951347132240656,
+        0.7978275281539382,
+        1.1479934661773328
+      ],
+      "chemicalPotentialConsistencyMaxResidualAtZ": 3.313353946765574e-08,
+      "boundaryApproachPureMono": [
+        {
+          "floor": 1e-05,
+          "tpd": -0.6632896772886063
+        },
+        {
+          "floor": 1e-08,
+          "tpd": -0.6629360603840766
+        },
+        {
+          "floor": 1e-10,
+          "tpd": -0.6629353699821046
+        },
+        {
+          "floor": 1e-12,
+          "tpd": -0.6629353607985382
+        }
+      ],
+      "comparisonMatrix": {
+        "baseKernelOnly": {
+          "ideal": 3.1370303908677712,
+          "pinnedBaseCosmoSac": -0.20670367832504696,
+          "residualAmendment": 0.0,
+          "total": 2.9303267125427244
+        },
+        "residualContributionOnly": {
+          "ideal": 3.1370303908677712,
+          "residualAmendment": -3.593262073341263,
+          "total": -0.4562316824734918
+        },
+        "completeModel": {
+          "ideal": 3.1370303908677712,
+          "pinnedBaseCosmoSac": -0.20670367832504696,
+          "residualAmendment": -3.593262073341263,
+          "total": -0.6629353607985387
+        },
+        "persistedHelperSearchReported": -0.6629353607985385,
+        "currentHelperObjectiveAtSameComposition": -0.6629353607985385,
+        "directObjectiveAtSameComposition": -0.6629353607985387,
+        "sameCompositionObjectiveDifference": 1.1102230246251565e-16,
+        "independentSLSQP": -0.6989819342887644,
+        "searchCompletenessGapFromPersistedBoundary": 0.036046573490225775,
+        "searchIncomplete": true
+      },
+      "independentSLSQP": {
+        "best": {
+          "start": "persisted-near-pure-MONO",
+          "success": true,
+          "message": "Optimization terminated successfully",
+          "composition": [
+            0.0016813830106224145,
+            0.9626942923055439,
+            0.010235542048261412,
+            0.003746368886740643,
+            0.001865098858454626,
+            0.01977731489037708
+          ],
+          "tpd": -0.6989819342887644,
+          "kktProjectedGradientInfinityNorm": 3.563570022763649e-06,
+          "iterations": 20
+        },
+        "allDeterministicStarts": [
+          {
+            "start": "persisted-near-pure-MONO",
+            "success": true,
+            "message": "Optimization terminated successfully",
+            "composition": [
+              0.0016813830106224145,
+              0.9626942923055439,
+              0.010235542048261412,
+              0.003746368886740643,
+              0.001865098858454626,
+              0.01977731489037708
+            ],
+            "tpd": -0.6989819342887644,
+            "kktProjectedGradientInfinityNorm": 3.563570022763649e-06,
+            "iterations": 20
+          },
+          {
+            "start": "reference-extract",
+            "success": true,
+            "message": "Optimization terminated successfully",
+            "composition": [
+              0.03431932154918428,
+              0.04341152192318154,
+              0.021790257473744752,
+              0.007899701813793743,
+              0.004099187328329609,
+              0.8884800099117661
+            ],
+            "tpd": 0.0,
+            "kktProjectedGradientInfinityNorm": 9.736465388876407e-09,
+            "iterations": 1
+          },
+          {
+            "start": "uniform",
+            "success": true,
+            "message": "Optimization terminated successfully",
+            "composition": [
+              0.0016813893820227395,
+              0.9626942831951691,
+              0.01023554630345236,
+              0.003746363700607904,
+              0.0018651064600090405,
+              0.019777310958738865
+            ],
+            "tpd": -0.6989819342887049,
+            "kktProjectedGradientInfinityNorm": 5.180195964309377e-06,
+            "iterations": 22
+          }
+        ],
+        "tpdDifferenceFromHelper": 0.036046573490225886,
+        "compositionInfinityDifferenceFromHelper": 0.03730570769320596
+      },
+      "tpdSearchAssessment": {
+        "objectiveImplementation": "SAME_COMPOSITION_ALGEBRAIC_AGREEMENT",
+        "searchCompleteness": "INCOMPLETE_MORE_NEGATIVE_CONSTRAINED_MINIMUM_FOUND",
+        "causedNegativeVerdict": false,
+        "reason": "Two algebraic assembly paths agree at identical compositions, but share the same activity-coefficient kernel and therefore do not constitute fully independent implementation validation. The helper still finds a materially negative basin, while independent SLSQP refines it lower."
+      },
+      "splitReseed": {
+        "executed": true,
+        "reseededStationarySplits": [
+          {
+            "seed": "persisted-near-pure-MONO",
+            "solverSuccess": true,
+            "raffinate": [
+              1.0,
+              2.2120883440511363e-18,
+              7.549651090309466e-20,
+              8.387656212944237e-21,
+              3.853689960794956e-21,
+              1.8503015128325743e-17
+            ],
+            "extract": [
+              0.9999999999999993,
+              5.701898940049648e-16,
+              1.0926863870718287e-18,
+              1.2353679620359475e-19,
+              5.677884726101007e-20,
+              1.0917066883338613e-21
+            ],
+            "betaExtract": 0.008220665328445469,
+            "isoactivityLogResidual": 0.0,
+            "materialBalanceMaxResidual": 0.9656806784508157,
+            "gibbsReduction": -0.19881464787936506,
+            "stationary": false,
+            "admissibleLowerGibbsPhaseSplit": false
+          },
+          {
+            "seed": "independent-global-SLSQP",
+            "solverSuccess": true,
+            "raffinate": [
+              0.035256733845186294,
+              0.015278890718856415,
+              0.021669334771626886,
+              0.00785236203003582,
+              0.004079279339674996,
+              0.9158633992946196
+            ],
+            "extract": [
+              0.0055867736350741345,
+              0.9057025090114448,
+              0.025496649364801706,
+              0.009350709668990138,
+              0.00470938546667797,
+              0.049153972853011256
+            ],
+            "betaExtract": 0.03159465969501768,
+            "isoactivityLogResidual": 7.283063041541027e-13,
+            "materialBalanceMaxResidual": 3.5534075681908917e-14,
+            "gibbsReduction": 0.013235516980687478,
+            "stationary": true,
+            "admissibleLowerGibbsPhaseSplit": true
+          }
+        ],
+        "phaseMetastabilityDemonstrated": true,
+        "fullCascadeAlternateBranchDemonstrated": false,
+        "note": "A lower-Gibbs split of the isolated persisted phase is phase-metastability evidence, not proof of a closed alternate cascade branch."
+      },
+      "multistartCascade": {
+        "equations": "per stage: 6 scaled component balances followed by 6 isoactivity equations",
+        "variableLayout": "log([R_1..R_6,E_1..E_6]) per stage",
+        "starts": {
+          "baseStartSha256": "67d720679cb6d80b9bc3287a8ca9be0373444188e1d71fa36c0056492cfcc956",
+          "secondaryStartSha256": "15b7190ca8f60baca5c8ab43526758a52e641b87ed36ca3efa2bb824bfb77993",
+          "definition": "exact direct-NT7 one-stage seed repeated; secondary adds tiled linspace(-0.015,+0.015,12)"
+        },
+        "persistedTargets": {
+          "primaryMaximum": 2.3092638912203256e-14,
+          "secondary20Maximum": 0.0011005702710535526
+        },
+        "runs": [
+          {
+            "run": "persisted-primary-reconstruction",
+            "solverSuccess": true,
+            "status": 1,
+            "message": "persisted closed primary",
+            "nfev": 0,
+            "maximumResidual": 2.3092638912203256e-14,
+            "rmsResidual": 6.727037196252814e-15,
+            "productDifferenceFromPrimary": 9.021747058089619e-19,
+            "byEquationFamily": {
+              "scaledComponentBalances": {
+                "maximum": 3.218806138632578e-15,
+                "rms": 5.676660758436415e-16
+              },
+              "isoactivity": {
+                "maximum": 2.3092638912203256e-14,
+                "rms": 9.496515892993288e-15
+              }
+            },
+            "classification": "PRIMARY_BRANCH",
+            "byStage": [
+              {
+                "stageFromFeedEnd": 1,
+                "balanceMaximum": 7.374596537534632e-17,
+                "balanceRms": 3.579651099034439e-17,
+                "isoactivityMaximum": 8.104628079763643e-15,
+                "isoactivityRms": 5.997870743515342e-15
+              },
+              {
+                "stageFromFeedEnd": 2,
+                "balanceMaximum": 3.6728947599049436e-17,
+                "balanceRms": 1.7832548388346103e-17,
+                "isoactivityMaximum": 8.1601392309949e-15,
+                "isoactivityRms": 4.0581163083761184e-15
+              },
+              {
+                "stageFromFeedEnd": 3,
+                "balanceMaximum": 9.830394798569114e-17,
+                "balanceRms": 5.074719040715597e-17,
+                "isoactivityMaximum": 1.7430501486614958e-14,
+                "isoactivityRms": 8.522663423641538e-15
+              },
+              {
+                "stageFromFeedEnd": 4,
+                "balanceMaximum": 2.536457910663767e-16,
+                "balanceRms": 1.0360707675299056e-16,
+                "isoactivityMaximum": 1.5432100042289676e-14,
+                "isoactivityRms": 9.276738460995787e-15
+              },
+              {
+                "stageFromFeedEnd": 5,
+                "balanceMaximum": 6.44412986502538e-16,
+                "balanceRms": 2.6376054371239103e-16,
+                "isoactivityMaximum": 7.105427357601002e-15,
+                "isoactivityRms": 4.087851731677458e-15
+              },
+              {
+                "stageFromFeedEnd": 6,
+                "balanceMaximum": 1.630792279976912e-15,
+                "balanceRms": 6.664548993611895e-16,
+                "isoactivityMaximum": 1.865174681370263e-14,
+                "isoactivityRms": 1.2213895195176262e-14
+              },
+              {
+                "stageFromFeedEnd": 7,
+                "balanceMaximum": 3.218806138632578e-15,
+                "balanceRms": 1.3141813286892407e-15,
+                "isoactivityMaximum": 2.3092638912203256e-14,
+                "isoactivityRms": 1.5945548011516237e-14
+              }
+            ],
+            "logFlowVariables": [
+              -0.6614147668722903,
+              -3.212578788886296,
+              -3.951160243494374,
+              -5.079350077913137,
+              -6.340028908562783,
+              -2.5636951187665105,
+              -3.411398842117258,
+              -3.1763824601880315,
+              -3.865644383132007,
+              -4.880282334489999,
+              -5.536318606700197,
+              -0.15759519951204518,
+              -0.6663767241311499,
+              -3.42687042077255,
+              -4.203927039654184,
+              -5.41607127848057,
+              -7.246750671650461,
+              -2.638392331081417,
+              -3.426944875296543,
+              -3.341108503732053,
+              -4.035444639660244,
+              -5.131474243334717,
+              -6.34227551690297,
+              -0.07126497780658113,
+              -0.6701477698443357,
+              -3.6487687050075537,
+              -4.4790428721517666,
+              -5.77306299747019,
+              -8.166496255371145,
+              -2.699206691382104,
+              -3.508846750246697,
+              -3.588727257099905,
+              -4.313826256988929,
+              -5.489849478776772,
+              -7.252322956590881,
+              -0.07723577477807281,
+              -0.673206578653555,
+              -3.8976651256675456,
+              -4.791964575954656,
+              -6.165288234848839,
+              -9.105371081976182,
+              -2.7513735297063677,
+              -3.5756086585321776,
+              -3.8552565196214195,
+              -4.626423507110248,
+              -5.880242368700067,
+              -8.180534379469282,
+              -0.0818020534537304,
+              -0.6757900785773867,
+              -4.1997987290645185,
+              -5.1671444019259605,
+              -6.616802572727875,
+              -10.077399216284737,
+              -2.7975792150650083,
+              -3.633036778828063,
+              -4.171166192984771,
+              -4.999459999379136,
+              -6.328334439393524,
+              -9.141668054880679,
+              -0.0855191032652212,
+              -0.6780353941247259,
+              -4.607837951057402,
+              -5.656520758761706,
+              -7.1792772156959686,
+              -11.123089064451715,
+              -2.839440230691959,
+              -3.6841022130219336,
+              -4.590910675374141,
+              -5.485546534600448,
+              -6.886392123258063,
+              -10.17636183237058,
+              -0.08866408037819057,
+              -0.7264256385196921,
+              -5.327750569837438,
+              -6.4665649949246085,
+              -8.059425567915843,
+              -12.439485604597827,
+              -2.9244697774427144,
+              -3.7305899985663853,
+              -5.27491744696817,
+              -6.245016773312561,
+              -7.714944491219768,
+              -11.435199971833299,
+              -0.09139858225284338
+            ],
+            "residualTrajectory": {
+              "available": false,
+              "reason": "scipy least_squares does not expose iteration callbacks"
+            }
+          },
+          {
+            "run": "same-secondary-sparse-continuation-20",
+            "solverSuccess": false,
+            "status": 0,
+            "message": "The maximum number of function evaluations is exceeded.",
+            "nfev": 20,
+            "maximumResidual": 0.0011005702710535526,
+            "rmsResidual": 0.0003021520977014724,
+            "productDifferenceFromPrimary": 0.003664707813748369,
+            "byEquationFamily": {
+              "scaledComponentBalances": {
+                "maximum": 0.0011005702710535526,
+                "rms": 0.0004173058393608628
+              },
+              "isoactivity": {
+                "maximum": 0.0002945692012663592,
+                "rms": 9.191091733916049e-05
+              }
+            },
+            "classification": "UNRESOLVED",
+            "byStage": [
+              {
+                "stageFromFeedEnd": 1,
+                "balanceMaximum": 0.0003476256320435324,
+                "balanceRms": 0.000227069285266461,
+                "isoactivityMaximum": 3.077802622275527e-05,
+                "isoactivityRms": 1.7811557705363725e-05
+              },
+              {
+                "stageFromFeedEnd": 2,
+                "balanceMaximum": 0.0003903532487175935,
+                "balanceRms": 0.000280892929620807,
+                "isoactivityMaximum": 6.448828757843472e-05,
+                "isoactivityRms": 3.312577735199819e-05
+              },
+              {
+                "stageFromFeedEnd": 3,
+                "balanceMaximum": 0.00044701194132321705,
+                "balanceRms": 0.0002943906024252491,
+                "isoactivityMaximum": 0.00011087692335909338,
+                "isoactivityRms": 6.144866037004676e-05
+              },
+              {
+                "stageFromFeedEnd": 4,
+                "balanceMaximum": 0.00040929824929919673,
+                "balanceRms": 0.00021641500101413506,
+                "isoactivityMaximum": 0.00013537452889877954,
+                "isoactivityRms": 7.512243160296747e-05
+              },
+              {
+                "stageFromFeedEnd": 5,
+                "balanceMaximum": 0.0008174318897765897,
+                "balanceRms": 0.0004849000078340221,
+                "isoactivityMaximum": 7.940649659410326e-05,
+                "isoactivityRms": 4.618864291502931e-05
+              },
+              {
+                "stageFromFeedEnd": 6,
+                "balanceMaximum": 0.0009124684218108138,
+                "balanceRms": 0.000542167892730099,
+                "isoactivityMaximum": 0.00028534461233276076,
+                "isoactivityRms": 0.00014898488980720124
+              },
+              {
+                "stageFromFeedEnd": 7,
+                "balanceMaximum": 0.0011005702710535526,
+                "balanceRms": 0.0006526657075143894,
+                "isoactivityMaximum": 0.0002945692012663592,
+                "isoactivityRms": 0.00015482100197778214
+              }
+            ],
+            "logFlowVariables": [
+              -0.6591753219801486,
+              -3.1657776466569736,
+              -3.8683409917455367,
+              -5.081918373113649,
+              -6.1540562298823875,
+              -2.543720365661975,
+              -3.3874910519332513,
+              -3.122688206978909,
+              -3.78501263501394,
+              -4.885714970214868,
+              -5.357270697885445,
+              -0.1607989583805645,
+              -0.6624930540607549,
+              -3.3321377110995445,
+              -4.0075226073980055,
+              -5.337278440305031,
+              -6.624944042489526,
+              -2.59979593830997,
+              -3.3781129951200373,
+              -3.233779910001278,
+              -3.8405815348367884,
+              -5.055516843086571,
+              -5.73103205266969,
+              -0.07251119344633866,
+              -0.665091231597511,
+              -3.5089077521178753,
+              -4.149286424928088,
+              -5.4735884270052795,
+              -6.713497996295777,
+              -2.6446315600350045,
+              -3.437391216727785,
+              -3.4309577536209153,
+              -3.9847185500659337,
+              -5.192891656997454,
+              -5.8130511750261284,
+              -0.07705401723622186,
+              -0.6677373012324501,
+              -3.7090676652371193,
+              -4.331882733123614,
+              -5.48869499176544,
+              -6.612885931848734,
+              -2.685692922785492,
+              -3.486456275385726,
+              -3.643288271523703,
+              -4.1654962508432645,
+              -5.205113310283824,
+              -5.703470395364684,
+              -0.08044430093450372,
+              -0.671289158440457,
+              -3.9538659467119266,
+              -4.570643223862235,
+              -5.5010683828535605,
+              -6.551104718693189,
+              -2.7283216024256296,
+              -3.53559561749593,
+              -3.8980170650141512,
+              -4.400358897788673,
+              -5.212503310061838,
+              -5.630475965941291,
+              -0.08338260872260377,
+              -0.6755886548686646,
+              -4.318904811999931,
+              -4.972465589172511,
+              -5.645750405939581,
+              -6.639722303218469,
+              -2.7820458649995126,
+              -3.599381834248944,
+              -4.275882754853361,
+              -4.79744085541516,
+              -5.350969230981964,
+              -5.704334799067139,
+              -0.08636786909146811,
+              -0.7266234385394346,
+              -5.014887420911283,
+              -5.641267587850827,
+              -6.218295847373103,
+              -7.133564078766099,
+              -2.890896048631821,
+              -3.677877383061118,
+              -4.944228902562396,
+              -5.415623947383689,
+              -5.871037241359201,
+              -6.13469096804086,
+              -0.08990087606562118
+            ],
+            "residualTrajectory": {
+              "available": false,
+              "reason": "scipy least_squares does not expose iteration callbacks"
+            },
+            "cumulativeFunctionEvaluations": 20
+          },
+          {
+            "run": "same-secondary-sparse-continuation-80",
+            "solverSuccess": false,
+            "status": 0,
+            "message": "The maximum number of function evaluations is exceeded.",
+            "nfev": 80,
+            "maximumResidual": 0.0007124106921431638,
+            "rmsResidual": 0.0001532226526021646,
+            "productDifferenceFromPrimary": 0.001963449658958911,
+            "byEquationFamily": {
+              "scaledComponentBalances": {
+                "maximum": 0.0007124106921431638,
+                "rms": 0.00021668709904507837
+              },
+              "isoactivity": {
+                "maximum": 2.195521799475131e-06,
+                "rms": 1.0313332708834085e-06
+              }
+            },
+            "classification": "UNRESOLVED",
+            "byStage": [
+              {
+                "stageFromFeedEnd": 1,
+                "balanceMaximum": 9.691645000236148e-05,
+                "balanceRms": 4.967026070900137e-05,
+                "isoactivityMaximum": 2.195521799475131e-06,
+                "isoactivityRms": 1.341334497600276e-06
+              },
+              {
+                "stageFromFeedEnd": 2,
+                "balanceMaximum": 0.0001791627197954537,
+                "balanceRms": 9.306809073412662e-05,
+                "isoactivityMaximum": 1.723902960382162e-06,
+                "isoactivityRms": 1.0464483033648165e-06
+              },
+              {
+                "stageFromFeedEnd": 3,
+                "balanceMaximum": 0.00020532912242783862,
+                "balanceRms": 0.00010752522338456772,
+                "isoactivityMaximum": 1.1459263062410519e-06,
+                "isoactivityRms": 7.244365924541789e-07
+              },
+              {
+                "stageFromFeedEnd": 4,
+                "balanceMaximum": 0.0002414783739069155,
+                "balanceRms": 0.00011993338515344843,
+                "isoactivityMaximum": 9.018628834844833e-07,
+                "isoactivityRms": 6.114036796373418e-07
+              },
+              {
+                "stageFromFeedEnd": 5,
+                "balanceMaximum": 0.00033965543840609887,
+                "balanceRms": 0.00022264380785242205,
+                "isoactivityMaximum": 2.1513998822858538e-06,
+                "isoactivityRms": 1.3147199966282716e-06
+              },
+              {
+                "stageFromFeedEnd": 6,
+                "balanceMaximum": 0.0005651372817627291,
+                "balanceRms": 0.00033320954227063747,
+                "isoactivityMaximum": 2.1416817280756756e-06,
+                "isoactivityRms": 1.134767469094338e-06
+              },
+              {
+                "stageFromFeedEnd": 7,
+                "balanceMaximum": 0.0007124106921431638,
+                "balanceRms": 0.0003619388527951991,
+                "isoactivityMaximum": 1.568747657907342e-06,
+                "isoactivityRms": 7.978077518676342e-07
+              }
+            ],
+            "logFlowVariables": [
+              -0.6604062142998226,
+              -3.205941236130357,
+              -3.8927217328890156,
+              -4.969486654441595,
+              -6.075858311595977,
+              -2.550460721455638,
+              -3.3905565523128027,
+              -3.1620544251168816,
+              -3.8053594777371846,
+              -4.769197041190855,
+              -5.274721463371774,
+              -0.1586947115851326,
+              -0.6647571926682042,
+              -3.414756968133855,
+              -4.080307064874536,
+              -5.169299504786835,
+              -6.522832700945239,
+              -2.616119900332327,
+              -3.3921315503281284,
+              -3.317549346013034,
+              -3.908365185963546,
+              -4.882220907409857,
+              -5.621835902720745,
+              -0.0711664531342202,
+              -0.6681936855520447,
+              -3.630671571914799,
+              -4.280073250078244,
+              -5.339497067816109,
+              -6.699272346413976,
+              -2.6699329944816586,
+              -3.4630518903345817,
+              -3.5561375859565523,
+              -4.110316064808814,
+              -5.052995424568448,
+              -5.789489373158906,
+              -0.076497443065942,
+              -0.6712645784761401,
+              -3.8741858654600536,
+              -4.511288375284523,
+              -5.494595172926632,
+              -6.718871093906685,
+              -2.7181383724890527,
+              -3.522795605316419,
+              -3.8148304919723945,
+              -4.3402824866277685,
+              -5.205505211106773,
+              -5.798769406462323,
+              -0.08062728054980382,
+              -0.6743235129509101,
+              -4.170648608334537,
+              -4.797809585093611,
+              -5.676521174163295,
+              -6.744563992321308,
+              -2.7644581828813086,
+              -3.5791614935543064,
+              -4.124104856985046,
+              -4.6241533558772945,
+              -5.383510690511777,
+              -5.813199803196767,
+              -0.08414960121354083,
+              -0.6775361658184392,
+              -4.572350510148404,
+              -5.20282853207505,
+              -5.9680650634716415,
+              -6.916552365518933,
+              -2.8122320824497975,
+              -3.6382440652566124,
+              -4.539269680755366,
+              -5.026138033763902,
+              -5.670661410046755,
+              -5.972839488953887,
+              -0.08737766174626808,
+              -0.7272568591384022,
+              -5.2859478844359655,
+              -5.943518285247826,
+              -6.618282641937775,
+              -7.499117972944425,
+              -2.9095192212368577,
+              -3.70333670230139,
+              -5.222346299720964,
+              -5.717547858393541,
+              -6.2700748710776,
+              -6.495525337040361,
+              -0.09055466152679305
+            ],
+            "residualTrajectory": {
+              "available": false,
+              "reason": "scipy least_squares does not expose iteration callbacks"
+            },
+            "cumulativeFunctionEvaluations": 100
+          },
+          {
+            "run": "same-secondary-dense-final-15",
+            "solverSuccess": false,
+            "status": 0,
+            "message": "The maximum number of function evaluations is exceeded.",
+            "nfev": 15,
+            "maximumResidual": 0.00021653674783573594,
+            "rmsResidual": 5.1411031205320235e-05,
+            "productDifferenceFromPrimary": 0.0010670149001142252,
+            "byEquationFamily": {
+              "scaledComponentBalances": {
+                "maximum": 0.00021653674783573594,
+                "rms": 7.264981934082352e-05
+              },
+              "isoactivity": {
+                "maximum": 8.534613930244461e-06,
+                "rms": 2.86216857199714e-06
+              }
+            },
+            "classification": "UNRESOLVED",
+            "byStage": [
+              {
+                "stageFromFeedEnd": 1,
+                "balanceMaximum": 1.8091803716830363e-05,
+                "balanceRms": 8.333350895540458e-06,
+                "isoactivityMaximum": 5.942958849480817e-07,
+                "isoactivityRms": 2.953939498671696e-07
+              },
+              {
+                "stageFromFeedEnd": 2,
+                "balanceMaximum": 4.103872941663234e-05,
+                "balanceRms": 2.0491551541389326e-05,
+                "isoactivityMaximum": 1.671263641700449e-06,
+                "isoactivityRms": 8.356078874486765e-07
+              },
+              {
+                "stageFromFeedEnd": 3,
+                "balanceMaximum": 7.081818265349469e-05,
+                "balanceRms": 3.946919674819926e-05,
+                "isoactivityMaximum": 3.6964929179816863e-06,
+                "isoactivityRms": 1.8553322994423534e-06
+              },
+              {
+                "stageFromFeedEnd": 4,
+                "balanceMaximum": 0.0001162625225236992,
+                "balanceRms": 6.515200671935939e-05,
+                "isoactivityMaximum": 6.2771493611890605e-06,
+                "isoactivityRms": 3.1672378472387037e-06
+              },
+              {
+                "stageFromFeedEnd": 5,
+                "balanceMaximum": 0.00017447186564944372,
+                "balanceRms": 9.279682885964979e-05,
+                "isoactivityMaximum": 8.534613930244461e-06,
+                "isoactivityRms": 4.325894936801026e-06
+              },
+              {
+                "stageFromFeedEnd": 6,
+                "balanceMaximum": 0.00021653674783573594,
+                "balanceRms": 0.00011163872630059191,
+                "isoactivityMaximum": 8.465459585771384e-06,
+                "isoactivityRms": 4.30031459288998e-06
+              },
+              {
+                "stageFromFeedEnd": 7,
+                "balanceMaximum": 0.00019408686371908304,
+                "balanceRms": 9.78752634843213e-05,
+                "isoactivityMaximum": 4.8048021219493364e-06,
+                "isoactivityRms": 2.4246315782225313e-06
+              }
+            ],
+            "logFlowVariables": [
+              -0.6611562719939231,
+              -3.2161047335709214,
+              -3.946930247066301,
+              -5.0033303426075095,
+              -6.109091660516226,
+              -2.5594703820015354,
+              -3.401048790526668,
+              -3.173025876291655,
+              -3.8586028935479244,
+              -4.801780619574199,
+              -5.304969508213517,
+              -0.1577553810683959,
+              -0.6660722252980446,
+              -3.4355122691774422,
+              -4.195246201227361,
+              -5.250881942098729,
+              -6.639357550645801,
+              -2.6322632624069655,
+              -3.4124926060765772,
+              -3.3411358372517306,
+              -4.022956641319929,
+              -4.962926247737323,
+              -5.734363749041742,
+              -0.07106107078165011,
+              -0.669886698040984,
+              -3.6627648415052296,
+              -4.464283103198996,
+              -5.497471195273226,
+              -6.999040703264855,
+              -2.6920223573048614,
+              -3.492510843637512,
+              -3.593775714743843,
+              -4.294985717671854,
+              -5.210672583842743,
+              -6.084443771098342,
+              -0.07690698588705694,
+              -0.6730728713993637,
+              -3.916778637928426,
+              -4.7691246606743585,
+              -5.759892619907402,
+              -7.252123084707427,
+              -2.7439249780480246,
+              -3.559025579192449,
+              -3.865810174220506,
+              -4.599581565306494,
+              -5.471335073264915,
+              -6.326923362140375,
+              -0.08142059518522272,
+              -0.6758679193987239,
+              -4.22338197231795,
+              -5.134157523668137,
+              -6.068070405358585,
+              -7.501413623345036,
+              -2.79078766925459,
+              -3.61795607780817,
+              -4.187221968960822,
+              -4.962850552357293,
+              -5.776413279984583,
+              -6.565296512688057,
+              -0.08514233626188432,
+              -0.6783939428116882,
+              -4.634784770064793,
+              -5.611843455483516,
+              -6.485348880114871,
+              -7.8656709542152985,
+              -2.8343640352055854,
+              -3.672483433909877,
+              -4.612046502652194,
+              -5.4379261227788,
+              -6.189844532524481,
+              -6.918433037912178,
+              -0.08835124588933985,
+              -0.7271154891010007,
+              -5.35653861333065,
+              -6.410501604271933,
+              -7.239456252959269,
+              -8.616431643974533,
+              -2.9221479617867323,
+              -3.7242978574432932,
+              -5.30020800360522,
+              -6.1869304531669,
+              -6.89312123966717,
+              -7.611400782848969,
+              -0.09121158878869552
+            ],
+            "residualTrajectory": {
+              "available": false,
+              "reason": "scipy least_squares does not expose iteration callbacks"
+            },
+            "cumulativeFunctionEvaluations": 115
+          }
+        ]
+      },
+      "classification": [
+        "RESIDUAL_AMENDMENT_DRIVEN"
+      ]
+    },
+    {
+      "scenario": "Scenario 3",
+      "referenceStage": "Stage 1 extract",
+      "referenceComposition": [
+        0.03249251586402361,
+        0.03641008651733234,
+        0.018533636544119922,
+        0.00649384648580655,
+        0.0033889648707220235,
+        0.9026809497179956
+      ],
+      "persistedHelper": {
+        "minimum": -0.5941698753445852,
+        "composition": [
+          2.499999999996875e-13,
+          0.9999999999987499,
+          2.499999999996875e-13,
+          2.499999999996875e-13,
+          2.499999999996875e-13,
+          2.499999999996875e-13
+        ]
+      },
+      "directMoleFractionTpd": {
+        "ideal": 3.312909440459151,
+        "pinnedBaseCosmoSac": -0.21501502430946454,
+        "residualAmendment": -3.6920642914942707,
+        "total": -0.5941698753445843
+      },
+      "exactTangentPlane": {
+        "direct": -0.5941698753445843,
+        "identity": -0.5941698753445848,
+        "difference": 4.440892098500626e-16
+      },
+      "validation": {
+        "identityAtZ": true,
+        "tangentPlaneIdentity": true,
+        "finiteDifferenceTangentGradientAtZ": true,
+        "gibbsDuhemChemicalPotentialConsistencyAtZ": true,
+        "boundaryApproach": true,
+        "slsqpKkt": true
+      },
+      "finiteDifferenceGradientAtZ": [
+        4.693346562492605e-09,
+        9.220408015875377e-10,
+        6.063694298774952e-10,
+        -1.3096416588563496e-08,
+        -4.980304315366214e-08
+      ],
+      "finiteDifferenceGradientAtDecisiveBoundaryCandidate": [
+        1.2894608288904763,
+        5.092234299453047,
+        0.35940467413286825,
+        0.8788374478152505,
+        1.2257111169367008
+      ],
+      "chemicalPotentialConsistencyMaxResidualAtZ": 4.979699319562769e-08,
+      "boundaryApproachPureMono": [
+        {
+          "floor": 1e-05,
+          "tpd": -0.5945235615506461
+        },
+        {
+          "floor": 1e-08,
+          "tpd": -0.5941705742999024
+        },
+        {
+          "floor": 1e-10,
+          "tpd": -0.5941698845219108
+        },
+        {
+          "floor": 1e-12,
+          "tpd": -0.5941698753445839
+        }
+      ],
+      "comparisonMatrix": {
+        "baseKernelOnly": {
+          "ideal": 3.312909440459151,
+          "pinnedBaseCosmoSac": -0.21501502430946454,
+          "residualAmendment": 0.0,
+          "total": 3.0978944161496864
+        },
+        "residualContributionOnly": {
+          "ideal": 3.312909440459151,
+          "residualAmendment": -3.6920642914942707,
+          "total": -0.3791548510351199
+        },
+        "completeModel": {
+          "ideal": 3.312909440459151,
+          "pinnedBaseCosmoSac": -0.21501502430946454,
+          "residualAmendment": -3.6920642914942707,
+          "total": -0.5941698753445843
+        },
+        "persistedHelperSearchReported": -0.5941698753445852,
+        "currentHelperObjectiveAtSameComposition": -0.5941698753445852,
+        "directObjectiveAtSameComposition": -0.5941698753445843,
+        "sameCompositionObjectiveDifference": 8.881784197001252e-16,
+        "independentSLSQP": -0.6309432025323813,
+        "searchCompletenessGapFromPersistedBoundary": 0.03677332718779702,
+        "searchIncomplete": true
+      },
+      "independentSLSQP": {
+        "best": {
+          "start": "persisted-near-pure-MONO",
+          "success": true,
+          "message": "Optimization terminated successfully",
+          "composition": [
+            0.00182968146482671,
+            0.9618020264393595,
+            0.00975187479569597,
+            0.0034521748867053365,
+            0.0017311121363734999,
+            0.021433130277039015
+          ],
+          "tpd": -0.6309432025323813,
+          "kktProjectedGradientInfinityNorm": 1.5056180635528552e-06,
+          "iterations": 18
+        },
+        "allDeterministicStarts": [
+          {
+            "start": "persisted-near-pure-MONO",
+            "success": true,
+            "message": "Optimization terminated successfully",
+            "composition": [
+              0.00182968146482671,
+              0.9618020264393595,
+              0.00975187479569597,
+              0.0034521748867053365,
+              0.0017311121363734999,
+              0.021433130277039015
+            ],
+            "tpd": -0.6309432025323813,
+            "kktProjectedGradientInfinityNorm": 1.5056180635528552e-06,
+            "iterations": 18
+          },
+          {
+            "start": "reference-extract",
+            "success": true,
+            "message": "Optimization terminated successfully",
+            "composition": [
+              0.03249251586402361,
+              0.03641008651733234,
+              0.018533636544119922,
+              0.00649384648580655,
+              0.0033889648707220235,
+              0.9026809497179956
+            ],
+            "tpd": 0.0,
+            "kktProjectedGradientInfinityNorm": 3.0087136968999934e-09,
+            "iterations": 1
+          },
+          {
+            "start": "uniform",
+            "success": true,
+            "message": "Optimization terminated successfully",
+            "composition": [
+              0.0018296727001760687,
+              0.9618019527805447,
+              0.009751939238268156,
+              0.003452168488384496,
+              0.0017311110633169556,
+              0.021433155729309775
+            ],
+            "tpd": -0.6309432025321327,
+            "kktProjectedGradientInfinityNorm": 6.415780370682604e-06,
+            "iterations": 24
+          }
+        ],
+        "tpdDifferenceFromHelper": 0.036773327187796134,
+        "compositionInfinityDifferenceFromHelper": 0.038197973559390364
+      },
+      "tpdSearchAssessment": {
+        "objectiveImplementation": "SAME_COMPOSITION_ALGEBRAIC_AGREEMENT",
+        "searchCompleteness": "INCOMPLETE_MORE_NEGATIVE_CONSTRAINED_MINIMUM_FOUND",
+        "causedNegativeVerdict": false,
+        "reason": "Two algebraic assembly paths agree at identical compositions, but share the same activity-coefficient kernel and therefore do not constitute fully independent implementation validation. The helper still finds a materially negative basin, while independent SLSQP refines it lower."
+      },
+      "splitReseed": {
+        "executed": true,
+        "reseededStationarySplits": [
+          {
+            "seed": "persisted-near-pure-MONO",
+            "solverSuccess": true,
+            "raffinate": [
+              1.0,
+              9.730109886785444e-19,
+              5.683297033549157e-20,
+              7.637817146275474e-21,
+              3.816097272651722e-21,
+              2.5384181699839908e-17
+            ],
+            "extract": [
+              0.9999999999999996,
+              4.105873391048269e-16,
+              6.878480062317107e-19,
+              9.394490605703994e-20,
+              4.6208549600713524e-20,
+              8.966579019688601e-22
+            ],
+            "betaExtract": 0.013059584370718235,
+            "isoactivityLogResidual": 0.0,
+            "materialBalanceMaxResidual": 0.9675074841359764,
+            "gibbsReduction": -0.17957811618167138,
+            "stationary": false,
+            "admissibleLowerGibbsPhaseSplit": false
+          },
+          {
+            "seed": "independent-global-SLSQP",
+            "solverSuccess": true,
+            "raffinate": [
+              0.0331662426006465,
+              0.014735017481570889,
+              0.018449354369524537,
+              0.006462020571096433,
+              0.003375289170585581,
+              0.923812075806576
+            ],
+            "extract": [
+              0.005258198436357655,
+              0.9125898168121758,
+              0.0219406076076923,
+              0.007780357791543232,
+              0.0039417830064978525,
+              0.048489236345733426
+            ],
+            "betaExtract": 0.02414095135641214,
+            "isoactivityLogResidual": 6.981082378842984e-13,
+            "materialBalanceMaxResidual": 4.440892098500626e-16,
+            "gibbsReduction": 0.008889875808825609,
+            "stationary": true,
+            "admissibleLowerGibbsPhaseSplit": true
+          }
+        ],
+        "phaseMetastabilityDemonstrated": true,
+        "fullCascadeAlternateBranchDemonstrated": false,
+        "note": "A lower-Gibbs split of the isolated persisted phase is phase-metastability evidence, not proof of a closed alternate cascade branch."
+      },
+      "multistartCascade": {
+        "equations": "per stage: 6 scaled component balances followed by 6 isoactivity equations",
+        "variableLayout": "log([R_1..R_6,E_1..E_6]) per stage",
+        "starts": {
+          "baseStartSha256": "c030a5c34c86578c20af1d6a44a6603478c0233e5639927ae82ba47412529bda",
+          "secondaryStartSha256": "8fa73f3cc94a2132fa8321a5e26e0b2cd3f8c4fc64cde10cceaea68f42f77d5d",
+          "definition": "exact direct-NT7 one-stage seed repeated; secondary adds tiled linspace(-0.015,+0.015,12)"
+        },
+        "persistedTargets": {
+          "primaryMaximum": 5.795364188543317e-14,
+          "secondary20Maximum": 0.0010843356821723144
+        },
+        "runs": [
+          {
+            "run": "persisted-primary-reconstruction",
+            "solverSuccess": true,
+            "status": 1,
+            "message": "persisted closed primary",
+            "nfev": 0,
+            "maximumResidual": 5.795364188543317e-14,
+            "rmsResidual": 1.3032579924639553e-14,
+            "productDifferenceFromPrimary": 3.672531109954348e-18,
+            "byEquationFamily": {
+              "scaledComponentBalances": {
+                "maximum": 8.160979137742851e-16,
+                "rms": 1.4501976334603427e-16
+              },
+              "isoactivity": {
+                "maximum": 5.795364188543317e-14,
+                "rms": 1.843028074263859e-14
+              }
+            },
+            "classification": "PRIMARY_BRANCH",
+            "byStage": [
+              {
+                "stageFromFeedEnd": 1,
+                "balanceMaximum": 7.381880738509974e-17,
+                "balanceRms": 3.083845505873069e-17,
+                "isoactivityMaximum": 5.795364188543317e-14,
+                "isoactivityRms": 3.340256058209788e-14
+              },
+              {
+                "stageFromFeedEnd": 2,
+                "balanceMaximum": 7.612564511588411e-17,
+                "balanceRms": 4.3526322214466105e-17,
+                "isoactivityMaximum": 2.55351295663786e-14,
+                "isoactivityRms": 1.6853294459824922e-14
+              },
+              {
+                "stageFromFeedEnd": 3,
+                "balanceMaximum": 7.381880738509974e-17,
+                "balanceRms": 3.207446689631924e-17,
+                "isoactivityMaximum": 2.5757174171303632e-14,
+                "isoactivityRms": 1.247877613880891e-14
+              },
+              {
+                "stageFromFeedEnd": 4,
+                "balanceMaximum": 7.381880738509974e-17,
+                "balanceRms": 4.936951457294427e-17,
+                "isoactivityMaximum": 1.6372320166269105e-14,
+                "isoactivityRms": 7.66005711807558e-15
+              },
+              {
+                "stageFromFeedEnd": 5,
+                "balanceMaximum": 1.510347937721749e-16,
+                "balanceRms": 8.053031882828355e-17,
+                "isoactivityMaximum": 6.855627177060342e-15,
+                "isoactivityRms": 4.560454893364185e-15
+              },
+              {
+                "stageFromFeedEnd": 6,
+                "balanceMaximum": 3.6513817066059896e-16,
+                "balanceRms": 1.4997207316518494e-16,
+                "isoactivityMaximum": 2.2926105458509483e-14,
+                "isoactivityRms": 1.189260952671572e-14
+              },
+              {
+                "stageFromFeedEnd": 7,
+                "balanceMaximum": 8.160979137742851e-16,
+                "balanceRms": 3.3455447376287137e-16,
+                "isoactivityMaximum": 3.6415315207705135e-14,
+                "isoactivityRms": 2.452211065575339e-14
+              }
+            ],
+            "logFlowVariables": [
+              -0.6375508814011888,
+              -3.3537641354772227,
+              -4.101025049182505,
+              -5.265006374639324,
+              -6.529937520853605,
+              -2.590881828640371,
+              -3.483631395942522,
+              -3.369795339270975,
+              -4.045053904903643,
+              -5.093786143640441,
+              -5.744116650757886,
+              -0.1592720092400565,
+              -0.6412498826686444,
+              -3.5416065467201805,
+              -4.3341806534763805,
+              -5.580147666696621,
+              -7.415688830025658,
+              -2.648794712672955,
+              -3.4766766828196674,
+              -3.4983990406279473,
+              -4.194602908374694,
+              -5.323339944167383,
+              -6.532493635734281,
+              -0.07502716765442306,
+              -0.644210268624521,
+              -3.742786585249475,
+              -4.591827548265208,
+              -5.917694450294591,
+              -8.313872747544721,
+              -2.6977975913777206,
+              -3.5418971092193337,
+              -3.7189271962893757,
+              -4.453853925193434,
+              -5.660985127963353,
+              -7.4218982351676175,
+              -0.07958362710497563,
+              -0.6467151791345498,
+              -3.9740322283261285,
+              -4.888353805976829,
+              -6.291680377905128,
+              -9.230523793716086,
+              -2.741240299106702,
+              -3.597153728622579,
+              -3.96430472041361,
+              -4.749577386706053,
+              -6.032921090126251,
+              -8.329187144275547,
+              -0.08325329381859789,
+              -0.6489110784598975,
+              -4.260367648337705,
+              -5.247827048617095,
+              -6.725893050817522,
+              -10.180243593130623,
+              -2.780908031642575,
+              -3.646280649809708,
+              -4.262239477673811,
+              -5.106896301037622,
+              -6.463886938263124,
+              -9.269272950118387,
+              -0.08637011614046691,
+              -0.6508857653232,
+              -4.6538112042634605,
+              -5.72207601832631,
+              -7.271992505170232,
+              -11.204529968882856,
+              -2.817911983208715,
+              -3.691318065029567,
+              -4.665946388514566,
+              -5.578040471206636,
+              -7.005888290187029,
+              -10.283661717659616,
+              -0.08910822731835571,
+              -0.6978071327504503,
+              -5.358752711597825,
+              -6.516410608650669,
+              -8.135608924550558,
+              -12.500482103464998,
+              -2.8981650645686075,
+              -3.7335368285913173,
+              -5.335301544211497,
+              -6.323340379305998,
+              -7.81954178761571,
+              -11.524235634342146,
+              -0.09157278414368687
+            ],
+            "residualTrajectory": {
+              "available": false,
+              "reason": "scipy least_squares does not expose iteration callbacks"
+            }
+          },
+          {
+            "run": "same-secondary-sparse-continuation-20",
+            "solverSuccess": false,
+            "status": 0,
+            "message": "The maximum number of function evaluations is exceeded.",
+            "nfev": 20,
+            "maximumResidual": 0.0010843356821723144,
+            "rmsResidual": 0.000293746532793929,
+            "productDifferenceFromPrimary": 0.0038387492592317184,
+            "byEquationFamily": {
+              "scaledComponentBalances": {
+                "maximum": 0.0010843356821723144,
+                "rms": 0.0004098353193869539
+              },
+              "isoactivity": {
+                "maximum": 0.00021490383390165846,
+                "rms": 6.789007320590479e-05
+              }
+            },
+            "classification": "UNRESOLVED",
+            "byStage": [
+              {
+                "stageFromFeedEnd": 1,
+                "balanceMaximum": 0.0003021317266925326,
+                "balanceRms": 0.00017205541419061446,
+                "isoactivityMaximum": 4.7286427739212655e-05,
+                "isoactivityRms": 2.590503183164362e-05
+              },
+              {
+                "stageFromFeedEnd": 2,
+                "balanceMaximum": 0.00033394779933983013,
+                "balanceRms": 0.00020878177985136974,
+                "isoactivityMaximum": 0.0001092821116226439,
+                "isoactivityRms": 5.859745108346481e-05
+              },
+              {
+                "stageFromFeedEnd": 3,
+                "balanceMaximum": 0.00035886617230619194,
+                "balanceRms": 0.00021443291294676362,
+                "isoactivityMaximum": 0.00012454141096274185,
+                "isoactivityRms": 6.73510325359356e-05
+              },
+              {
+                "stageFromFeedEnd": 4,
+                "balanceMaximum": 0.0008611234157708287,
+                "balanceRms": 0.0004184990453944273,
+                "isoactivityMaximum": 9.822380792101626e-05,
+                "isoactivityRms": 5.5397856517043825e-05
+              },
+              {
+                "stageFromFeedEnd": 5,
+                "balanceMaximum": 0.0005300322211474096,
+                "balanceRms": 0.0003789786392907772,
+                "isoactivityMaximum": 0.00012974695609102582,
+                "isoactivityRms": 7.02998793000688e-05
+              },
+              {
+                "stageFromFeedEnd": 6,
+                "balanceMaximum": 0.0009015756756489339,
+                "balanceRms": 0.0006135119919959525,
+                "isoactivityMaximum": 9.600227388872895e-05,
+                "isoactivityRms": 5.184840829181171e-05
+              },
+              {
+                "stageFromFeedEnd": 7,
+                "balanceMaximum": 0.0010843356821723144,
+                "balanceRms": 0.0006011799459865772,
+                "isoactivityMaximum": 0.00021490383390165846,
+                "isoactivityRms": 0.00011368063937762656
+              }
+            ],
+            "logFlowVariables": [
+              -0.6356293329235444,
+              -3.2985630020433474,
+              -3.969841081270681,
+              -5.188796897677511,
+              -6.243542251132405,
+              -2.565328347313635,
+              -3.45166212392186,
+              -3.3069017048433555,
+              -3.915723625195368,
+              -5.020345743940512,
+              -5.4659540203174295,
+              -0.1622662538437405,
+              -0.6378626802284513,
+              -3.4299153387528545,
+              -4.08371879162162,
+              -5.366561445108143,
+              -6.603153784819971,
+              -2.6045846319004333,
+              -3.418610004471175,
+              -3.37160124693838,
+              -3.9445241508206808,
+              -5.111673065137427,
+              -5.731053567257481,
+              -0.0756813471920989,
+              -0.6397899441451022,
+              -3.571119164182658,
+              -4.196140746636659,
+              -5.436573604023457,
+              -6.658631326009695,
+              -2.6364457701229664,
+              -3.4597041843832277,
+              -3.5259706782291365,
+              -4.0576588103203814,
+              -5.18147832470001,
+              -5.781024726593113,
+              -0.07883150890685957,
+              -0.6422509156497586,
+              -3.740816998823192,
+              -4.328609559235262,
+              -5.439077324410583,
+              -6.58534171729939,
+              -2.667696277164909,
+              -3.49605730902425,
+              -3.704270022878465,
+              -4.1877672355552615,
+              -5.180830943223597,
+              -5.700058312497997,
+              -0.08125055817887201,
+              -0.6453714139061927,
+              -3.9697939256890287,
+              -4.566087302125953,
+              -5.46499822799608,
+              -6.535547320429475,
+              -2.707275858819936,
+              -3.5415906188253405,
+              -3.9418163307074607,
+              -4.42140521408222,
+              -5.201889992423011,
+              -5.639547501969774,
+              -0.08354623134214109,
+              -0.6494260464003684,
+              -4.302500850159015,
+              -4.924320949069851,
+              -5.6393709719311795,
+              -6.626404685121819,
+              -2.7559433235276605,
+              -3.599606610619506,
+              -4.286107088617858,
+              -4.77543847898391,
+              -5.370721950751774,
+              -5.717078223468203,
+              -0.08634921095912554,
+              -0.6989406046036735,
+              -4.996304273453568,
+              -5.6196494473250125,
+              -6.206501493254831,
+              -7.116570968311481,
+              -2.8637826673091635,
+              -3.67844412085878,
+              -4.953342580588827,
+              -5.421441086288973,
+              -5.886658081356309,
+              -6.144990291506628,
+              -0.0896717095089562
+            ],
+            "residualTrajectory": {
+              "available": false,
+              "reason": "scipy least_squares does not expose iteration callbacks"
+            },
+            "cumulativeFunctionEvaluations": 20
+          },
+          {
+            "run": "same-secondary-sparse-continuation-80",
+            "solverSuccess": false,
+            "status": 0,
+            "message": "The maximum number of function evaluations is exceeded.",
+            "nfev": 80,
+            "maximumResidual": 0.0005839282180746301,
+            "rmsResidual": 0.00012635280009203046,
+            "productDifferenceFromPrimary": 0.0016444959995567559,
+            "byEquationFamily": {
+              "scaledComponentBalances": {
+                "maximum": 0.0005839282180746301,
+                "rms": 0.0001786893820206373
+              },
+              "isoactivity": {
+                "maximum": 9.595341725621154e-07,
+                "rms": 4.061222426568322e-07
+              }
+            },
+            "classification": "UNRESOLVED",
+            "byStage": [
+              {
+                "stageFromFeedEnd": 1,
+                "balanceMaximum": 5.198977899264158e-05,
+                "balanceRms": 3.143210941060816e-05,
+                "isoactivityMaximum": 9.595341725621154e-07,
+                "isoactivityRms": 6.630521518183542e-07
+              },
+              {
+                "stageFromFeedEnd": 2,
+                "balanceMaximum": 9.917181502839585e-05,
+                "balanceRms": 5.9309939055888236e-05,
+                "isoactivityMaximum": 7.835402033862238e-07,
+                "isoactivityRms": 5.398347446188393e-07
+              },
+              {
+                "stageFromFeedEnd": 3,
+                "balanceMaximum": 0.0001656544619369649,
+                "balanceRms": 8.915278516464316e-05,
+                "isoactivityMaximum": 7.275399534732718e-07,
+                "isoactivityRms": 5.009042469492049e-07
+              },
+              {
+                "stageFromFeedEnd": 4,
+                "balanceMaximum": 0.00021932200582048763,
+                "balanceRms": 0.00013315339655838498,
+                "isoactivityMaximum": 3.9708961122042474e-07,
+                "isoactivityRms": 2.6584952665440785e-07
+              },
+              {
+                "stageFromFeedEnd": 5,
+                "balanceMaximum": 0.0003020334119095803,
+                "balanceRms": 0.0001979786293241145,
+                "isoactivityMaximum": 3.477883477112642e-07,
+                "isoactivityRms": 2.1139400894777277e-07
+              },
+              {
+                "stageFromFeedEnd": 6,
+                "balanceMaximum": 0.00048173177866806725,
+                "balanceRms": 0.00027122303071602815,
+                "isoactivityMaximum": 2.0874554973460135e-07,
+                "isoactivityRms": 1.4777964673970615e-07
+              },
+              {
+                "stageFromFeedEnd": 7,
+                "balanceMaximum": 0.0005839282180746301,
+                "balanceRms": 0.0002838452116526135,
+                "isoactivityMaximum": 2.6276181031015255e-07,
+                "isoactivityRms": 1.880955552160143e-07
+              }
+            ],
+            "logFlowVariables": [
+              -0.6366997576975905,
+              -3.3498967008945804,
+              -4.045758735533159,
+              -5.0860207651108835,
+              -6.156164195455132,
+              -2.577492748884193,
+              -3.461121446480102,
+              -3.3569151573975176,
+              -3.9871479327686488,
+              -4.91284263774492,
+              -5.372570840431052,
+              -0.1600695524354235,
+              -0.6400108140369255,
+              -3.536496406539745,
+              -4.219820827678485,
+              -5.212925619313567,
+              -6.499534294161286,
+              -2.6272812657186613,
+              -3.4406308787445745,
+              -3.479999647558877,
+              -4.075539165990529,
+              -4.952434791106725,
+              -5.618945017057629,
+              -0.07466790190510887,
+              -0.6428661175420652,
+              -3.7367386365596555,
+              -4.409678217409725,
+              -5.3406151657394245,
+              -6.657506569458665,
+              -2.670883863735717,
+              -3.497086071886546,
+              -3.6971896770431827,
+              -4.265933447382336,
+              -5.0793650223048425,
+              -5.768607157993455,
+              -0.0786454401768791,
+              -0.6455790571423047,
+              -3.9669492322410216,
+              -4.632802865691125,
+              -5.490370446680836,
+              -6.725000134237107,
+              -2.712059613776645,
+              -3.5481985030382504,
+              -3.9402065234369377,
+              -4.487615898872213,
+              -5.226517019413778,
+              -5.826767224353087,
+              -0.0819781255794703,
+              -0.648313759319185,
+              -4.252114531394963,
+              -4.916800043198379,
+              -5.6967939835600605,
+              -6.814724805400913,
+              -2.7532758917690763,
+              -3.5989952169006925,
+              -4.237162989043584,
+              -4.76934508423921,
+              -5.429514277184002,
+              -5.906324086981599,
+              -0.08500175333144194,
+              -0.6511443077137014,
+              -4.643365092531229,
+              -5.319282223619889,
+              -6.027802754519337,
+              -7.030589132061601,
+              -2.7962016894714155,
+              -3.6526934648000426,
+              -4.640947570442854,
+              -5.169293702304789,
+              -5.75675092005756,
+              -6.111132100944594,
+              -0.08791325715667882,
+              -0.6991695824270171,
+              -5.344826730580479,
+              -6.055757875139885,
+              -6.714940796049469,
+              -7.637167401710309,
+              -2.8868922646479778,
+              -3.711231166081027,
+              -5.311729925156456,
+              -5.8581225135915025,
+              -6.394877011894562,
+              -6.660553938070966,
+              -0.09082978914124809
+            ],
+            "residualTrajectory": {
+              "available": false,
+              "reason": "scipy least_squares does not expose iteration callbacks"
+            },
+            "cumulativeFunctionEvaluations": 100
+          },
+          {
+            "run": "same-secondary-dense-final-15",
+            "solverSuccess": false,
+            "status": 0,
+            "message": "The maximum number of function evaluations is exceeded.",
+            "nfev": 15,
+            "maximumResidual": 0.0002046087644809036,
+            "rmsResidual": 5.0731254667537905e-05,
+            "productDifferenceFromPrimary": 0.0010709439701125558,
+            "byEquationFamily": {
+              "scaledComponentBalances": {
+                "maximum": 0.0002046087644809036,
+                "rms": 6.991672309887459e-05
+              },
+              "isoactivity": {
+                "maximum": 4.596912929200059e-05,
+                "rms": 1.6092614187895944e-05
+              }
+            },
+            "classification": "UNRESOLVED",
+            "byStage": [
+              {
+                "stageFromFeedEnd": 1,
+                "balanceMaximum": 2.1642773344818126e-05,
+                "balanceRms": 1.008348248252627e-05,
+                "isoactivityMaximum": 5.338101213059332e-06,
+                "isoactivityRms": 2.6993889102006894e-06
+              },
+              {
+                "stageFromFeedEnd": 2,
+                "balanceMaximum": 4.7550703003269087e-05,
+                "balanceRms": 2.4036643215247955e-05,
+                "isoactivityMaximum": 1.638657360381046e-05,
+                "isoactivityRms": 8.297572766547958e-06
+              },
+              {
+                "stageFromFeedEnd": 3,
+                "balanceMaximum": 7.770954808730366e-05,
+                "balanceRms": 4.281433820639603e-05,
+                "isoactivityMaximum": 2.9579898368492508e-05,
+                "isoactivityRms": 1.4886523234898892e-05
+              },
+              {
+                "stageFromFeedEnd": 4,
+                "balanceMaximum": 0.00011461337684172788,
+                "balanceRms": 6.528567712767768e-05,
+                "isoactivityMaximum": 4.063108761132028e-05,
+                "isoactivityRms": 2.0330646241376157e-05
+              },
+              {
+                "stageFromFeedEnd": 5,
+                "balanceMaximum": 0.00016449522917334546,
+                "balanceRms": 8.797085688497007e-05,
+                "isoactivityMaximum": 4.596912929200059e-05,
+                "isoactivityRms": 2.2879967563853656e-05
+              },
+              {
+                "stageFromFeedEnd": 6,
+                "balanceMaximum": 0.0002046087644809036,
+                "balanceRms": 0.00010357334666521921,
+                "isoactivityMaximum": 4.158828693512362e-05,
+                "isoactivityRms": 2.0598713033222278e-05
+              },
+              {
+                "stageFromFeedEnd": 7,
+                "balanceMaximum": 0.0001978059015767907,
+                "balanceRms": 9.474916016292586e-05,
+                "isoactivityMaximum": 2.523047651470378e-05,
+                "isoactivityRms": 1.2406674031964101e-05
+              }
+            ],
+            "logFlowVariables": [
+              -0.637286162803368,
+              -3.3564664251219196,
+              -4.096763238532025,
+              -5.173562422991366,
+              -6.255409043670638,
+              -2.5864560128793133,
+              -3.4734225055806003,
+              -3.366112527957236,
+              -4.038317649453719,
+              -5.000196199452447,
+              -5.469512851104152,
+              -0.15942863486530084,
+              -0.6409326704343018,
+              -3.5489169470470134,
+              -4.325729192935961,
+              -5.385837075771312,
+              -6.7224465228211745,
+              -2.642405700306139,
+              -3.462160766450507,
+              -3.4973236345906793,
+              -4.182592255229765,
+              -5.125918319403259,
+              -5.838987525037855,
+              -0.07481216417497807,
+              -0.6439363439560482,
+              -3.755102362768574,
+              -4.577983576876507,
+              -5.602177204627945,
+              -7.036686583716786,
+              -2.6904403622358837,
+              -3.5255620222001935,
+              -3.722430162700572,
+              -4.4361328785583725,
+              -5.342082458152627,
+              -6.144470503563006,
+              -0.07923565188690206,
+              -0.6465664685589715,
+              -3.9911791378974386,
+              -4.86765586751368,
+              -5.840692999997601,
+              -7.2684920368687616,
+              -2.7337794089080827,
+              -3.580782945401946,
+              -3.9730348178552948,
+              -4.72506850401508,
+              -5.578603552903545,
+              -6.366918657473751,
+              -0.08285471590706205,
+              -0.6489630067637313,
+              -4.28173235433258,
+              -5.21887257913447,
+              -6.132452985246018,
+              -7.509193472788713,
+              -2.7742531315895027,
+              -3.6316083651089626,
+              -4.276242070541099,
+              -5.074499990916681,
+              -5.867425536495995,
+              -6.597924379063918,
+              -0.08598410185523657,
+              -0.6511975298194806,
+              -4.678339192717029,
+              -5.683996440887807,
+              -6.540377930482276,
+              -7.862975456769568,
+              -2.8130225912024382,
+              -3.680138470173001,
+              -4.684807187641024,
+              -5.537171295558384,
+              -6.271796506210153,
+              -6.94166703682843,
+              -0.08879457255312537,
+              -0.6984257597713495,
+              -5.384995718098237,
+              -6.46977346499633,
+              -7.28777396694091,
+              -8.586589844514712,
+              -2.8959306787591372,
+              -3.7274879762752007,
+              -5.35812770250481,
+              -6.274791095976709,
+              -6.969958937417177,
+              -7.609674781688086,
+              -0.09138896413954926
+            ],
+            "residualTrajectory": {
+              "available": false,
+              "reason": "scipy least_squares does not expose iteration callbacks"
+            },
+            "cumulativeFunctionEvaluations": 115
+          }
+        ]
+      },
+      "classification": [
+        "RESIDUAL_AMENDMENT_DRIVEN"
+      ]
+    }
+  ],
+  "rootCauseSynthesis": {
+    "phaseStability": "Residual-amendment-driven remote MONO-rich basin with lower-Gibbs isolated-phase split evidence; base COSMO-SAC is positive at the same compositions.",
+    "tpdImplementation": "No same-composition objective mismatch was found between two algebraic assembly paths sharing the same activity kernel; current helper search is incomplete but correctly detects the negative basin.",
+    "cascadeMultistart": "The unchanged deterministic secondary start is continued under larger diagnostic budgets and classified only from its final closure and product agreement.",
+    "relationship": "INDEPENDENT_EVIDENCE_TRACKS_UNRESOLVED: secondary cascade starts remain unclosed, so no causal link to the residual-driven phase instability is demonstrated."
+  },
+  "failClosed": true
+}

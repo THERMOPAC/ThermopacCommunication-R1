@@ -1,0 +1,13 @@
+{
+  "files": {
+    "server/research/task-205-negative-tpd-diagnostic/protocol.json": "079f27c75cb3c8d8abb669fc261dbeb25b99d09800cbd0f17e91d9eeb5c46dc7",
+    "server/research/task-205-negative-tpd-diagnostic/run.py": "a3b4c53486c78ed672ada61d554d3368507c105ae8794a934a4e0070590cfb62",
+    "server/research/task-205-negative-tpd-diagnostic/verify.py": "a6e9420b858fbc9260ac7ab24a4b7c9790e627b65793e59d41a90d622fb6267c",
+    ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/fixed-nt7-feed-sensitivity-results.json": "b8cf60bf73550c039cf2df3081b6a408282e15a315fa111faade67598cbec4a7",
+    ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+    "server/research/ecr-pre-pilot-cosmosac-nmp-lle-amendment/model.py": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+    ".agents/outputs/task-205-negative-tpd-diagnostic/results.json": "113bdf0911ff0f75319aca3ef043c67ff4bab069b1d2bd916da45f3e4f7dcebf",
+    ".agents/outputs/task-205-negative-tpd-diagnostic/report.md": "f4bacda9873f2419187a1e37904eaaf92dc8310e50d94a4cc56871adff681e3a",
+    ".agents/outputs/task-205-negative-tpd-diagnostic/verification.json": "75ea01ac1e1351081fe1f77b294f2cd65c1bec4659febacfc32a2e26656b431c"
+  }
+}

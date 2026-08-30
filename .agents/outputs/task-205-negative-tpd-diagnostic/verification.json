@@ -1,0 +1,2802 @@
+{
+  "passed": true,
+  "checkCount": 699,
+  "checks": [
+    {
+      "name": "immutable input hash",
+      "passed": true
+    },
+    {
+      "name": "model hash",
+      "passed": true
+    },
+    {
+      "name": "protocol hash",
+      "passed": true
+    },
+    {
+      "name": "governance fail closed",
+      "passed": true
+    },
+    {
+      "name": "three scenarios",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 exists in immutable source",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 reference composition source match",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 helper composition source match",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 helper TPD source match",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 ideal recomputation",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 base recomputation",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 amendment recomputation",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 total TPD recomputation",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 identity at reference",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 tangent-plane identity",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 tangent gradient at reference",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 chemical-potential consistency",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 reported tangent identity",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 reported reference gradient",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 reported chemical consistency",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 boundary value 1e-05",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 boundary value 1e-08",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 boundary value 1e-10",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 boundary value 1e-12",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 boundary approach",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-composition algebraic agreement",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 assessment wording",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 no implementation overclaim",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 SLSQP simplex persisted-near-pure-MONO",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 SLSQP objective persisted-near-pure-MONO",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 SLSQP simplex reference-extract",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 SLSQP objective reference-extract",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 SLSQP simplex uniform",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 SLSQP objective uniform",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 SLSQP best is minimum stored run",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 SLSQP KKT recomputation",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 stored validation booleans",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 independent SLSQP rerun success",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 independent SLSQP rerun objective",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 split persisted-near-pure-MONO isoactivity",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 split persisted-near-pure-MONO balance",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 split persisted-near-pure-MONO Gibbs reduction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 split persisted-near-pure-MONO stationary rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 split persisted-near-pure-MONO admissibility rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 split independent-global-SLSQP isoactivity",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 split independent-global-SLSQP balance",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 split independent-global-SLSQP Gibbs reduction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 split independent-global-SLSQP stationary rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 split independent-global-SLSQP admissibility rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 phase-metastability aggregate",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 no full cascade branch overclaim",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 base-start hash",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 secondary-start hash",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 multistart budget structure",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 cascade maximum persisted-primary-reconstruction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 cascade RMS persisted-primary-reconstruction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 cascade product difference persisted-primary-reconstruction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction scaledComponentBalances maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction scaledComponentBalances RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction isoactivity maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction isoactivity RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 cascade classification persisted-primary-reconstruction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 persisted primary vector",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 cascade maximum same-secondary-sparse-continuation-20",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 cascade RMS same-secondary-sparse-continuation-20",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 cascade product difference same-secondary-sparse-continuation-20",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 scaledComponentBalances maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 scaledComponentBalances RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 isoactivity maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 isoactivity RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 cascade classification same-secondary-sparse-continuation-20",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 cascade maximum same-secondary-sparse-continuation-80",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 cascade RMS same-secondary-sparse-continuation-80",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 cascade product difference same-secondary-sparse-continuation-80",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 scaledComponentBalances maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 scaledComponentBalances RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 isoactivity maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 isoactivity RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 cascade classification same-secondary-sparse-continuation-80",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 cascade maximum same-secondary-dense-final-15",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 cascade RMS same-secondary-dense-final-15",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 cascade product difference same-secondary-dense-final-15",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 scaledComponentBalances maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 scaledComponentBalances RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 isoactivity maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 isoactivity RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 cascade classification same-secondary-dense-final-15",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 original sparse budget",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 sparse budget 20",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 sparse budget 80",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 dense budget",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 primary residual persisted match",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 original secondary residual persisted match",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 residual classification rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 base classification rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 1 mismatch classification rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 exists in immutable source",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 reference composition source match",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 helper composition source match",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 helper TPD source match",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 ideal recomputation",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 base recomputation",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 amendment recomputation",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 total TPD recomputation",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 identity at reference",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 tangent-plane identity",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 tangent gradient at reference",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 chemical-potential consistency",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 reported tangent identity",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 reported reference gradient",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 reported chemical consistency",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 boundary value 1e-05",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 boundary value 1e-08",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 boundary value 1e-10",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 boundary value 1e-12",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 boundary approach",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-composition algebraic agreement",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 assessment wording",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 no implementation overclaim",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 SLSQP simplex persisted-near-pure-MONO",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 SLSQP objective persisted-near-pure-MONO",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 SLSQP simplex reference-extract",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 SLSQP objective reference-extract",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 SLSQP simplex uniform",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 SLSQP objective uniform",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 SLSQP best is minimum stored run",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 SLSQP KKT recomputation",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 stored validation booleans",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 independent SLSQP rerun success",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 independent SLSQP rerun objective",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 split persisted-near-pure-MONO isoactivity",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 split persisted-near-pure-MONO balance",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 split persisted-near-pure-MONO Gibbs reduction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 split persisted-near-pure-MONO stationary rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 split persisted-near-pure-MONO admissibility rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 split independent-global-SLSQP isoactivity",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 split independent-global-SLSQP balance",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 split independent-global-SLSQP Gibbs reduction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 split independent-global-SLSQP stationary rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 split independent-global-SLSQP admissibility rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 phase-metastability aggregate",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 no full cascade branch overclaim",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 base-start hash",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 secondary-start hash",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 multistart budget structure",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 cascade maximum persisted-primary-reconstruction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 cascade RMS persisted-primary-reconstruction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 cascade product difference persisted-primary-reconstruction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction scaledComponentBalances maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction scaledComponentBalances RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction isoactivity maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction isoactivity RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 cascade classification persisted-primary-reconstruction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 persisted primary vector",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 cascade maximum same-secondary-sparse-continuation-20",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 cascade RMS same-secondary-sparse-continuation-20",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 cascade product difference same-secondary-sparse-continuation-20",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 scaledComponentBalances maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 scaledComponentBalances RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 isoactivity maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 isoactivity RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 cascade classification same-secondary-sparse-continuation-20",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 cascade maximum same-secondary-sparse-continuation-80",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 cascade RMS same-secondary-sparse-continuation-80",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 cascade product difference same-secondary-sparse-continuation-80",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 scaledComponentBalances maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 scaledComponentBalances RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 isoactivity maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 isoactivity RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 cascade classification same-secondary-sparse-continuation-80",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 cascade maximum same-secondary-dense-final-15",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 cascade RMS same-secondary-dense-final-15",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 cascade product difference same-secondary-dense-final-15",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 scaledComponentBalances maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 scaledComponentBalances RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 isoactivity maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 isoactivity RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 cascade classification same-secondary-dense-final-15",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 original sparse budget",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 sparse budget 20",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 sparse budget 80",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 dense budget",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 primary residual persisted match",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 original secondary residual persisted match",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 residual classification rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 base classification rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 2 mismatch classification rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 exists in immutable source",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 reference composition source match",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 helper composition source match",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 helper TPD source match",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 ideal recomputation",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 base recomputation",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 amendment recomputation",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 total TPD recomputation",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 identity at reference",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 tangent-plane identity",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 tangent gradient at reference",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 chemical-potential consistency",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 reported tangent identity",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 reported reference gradient",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 reported chemical consistency",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 boundary value 1e-05",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 boundary value 1e-08",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 boundary value 1e-10",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 boundary value 1e-12",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 boundary approach",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-composition algebraic agreement",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 assessment wording",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 no implementation overclaim",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 SLSQP simplex persisted-near-pure-MONO",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 SLSQP objective persisted-near-pure-MONO",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 SLSQP simplex reference-extract",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 SLSQP objective reference-extract",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 SLSQP simplex uniform",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 SLSQP objective uniform",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 SLSQP best is minimum stored run",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 SLSQP KKT recomputation",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 stored validation booleans",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 independent SLSQP rerun success",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 independent SLSQP rerun objective",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 split persisted-near-pure-MONO isoactivity",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 split persisted-near-pure-MONO balance",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 split persisted-near-pure-MONO Gibbs reduction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 split persisted-near-pure-MONO stationary rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 split persisted-near-pure-MONO admissibility rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 split independent-global-SLSQP isoactivity",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 split independent-global-SLSQP balance",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 split independent-global-SLSQP Gibbs reduction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 split independent-global-SLSQP stationary rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 split independent-global-SLSQP admissibility rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 phase-metastability aggregate",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 no full cascade branch overclaim",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 base-start hash",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 secondary-start hash",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 multistart budget structure",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 cascade maximum persisted-primary-reconstruction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 cascade RMS persisted-primary-reconstruction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 cascade product difference persisted-primary-reconstruction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction scaledComponentBalances maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction scaledComponentBalances RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction isoactivity maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction isoactivity RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted-primary-reconstruction stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 cascade classification persisted-primary-reconstruction",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 persisted primary vector",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 cascade maximum same-secondary-sparse-continuation-20",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 cascade RMS same-secondary-sparse-continuation-20",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 cascade product difference same-secondary-sparse-continuation-20",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 scaledComponentBalances maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 scaledComponentBalances RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 isoactivity maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 isoactivity RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-20 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 cascade classification same-secondary-sparse-continuation-20",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 cascade maximum same-secondary-sparse-continuation-80",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 cascade RMS same-secondary-sparse-continuation-80",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 cascade product difference same-secondary-sparse-continuation-80",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 scaledComponentBalances maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 scaledComponentBalances RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 isoactivity maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 isoactivity RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-sparse-continuation-80 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 cascade classification same-secondary-sparse-continuation-80",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 cascade maximum same-secondary-dense-final-15",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 cascade RMS same-secondary-dense-final-15",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 cascade product difference same-secondary-dense-final-15",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 scaledComponentBalances maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 scaledComponentBalances RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 isoactivity maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 isoactivity RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage index",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage balance maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage balance RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage iso maximum",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 same-secondary-dense-final-15 stage iso RMS",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 cascade classification same-secondary-dense-final-15",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 original sparse budget",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 sparse budget 20",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 sparse budget 80",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 dense budget",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 primary residual persisted match",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 original secondary residual persisted match",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 residual classification rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 base classification rule",
+      "passed": true
+    },
+    {
+      "name": "Scenario 3 mismatch classification rule",
+      "passed": true
+    },
+    {
+      "name": "two-track synthesis decision rule",
+      "passed": true
+    }
+  ]
+}
