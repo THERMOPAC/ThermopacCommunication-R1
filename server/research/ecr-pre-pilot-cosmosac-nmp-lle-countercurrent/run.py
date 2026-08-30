@@ -1,6 +1,7 @@
 """Stage-1-authoritative coupled six-component counter-current cascade."""
 from __future__ import annotations
 
+import argparse
 import hashlib
 import importlib.util
 import json
@@ -40,6 +41,15 @@ def validate_authoritative_stage1_snapshot(snapshot):
         raise ValueError("STAGE1_SIX_COMPONENT_BINDING_NOT_VERIFIED")
     if snapshot["sixComponentCosmoSacBinding"].get("componentOrder") != list(model.FAMILIES):
         raise ValueError("STAGE1_SIX_COMPONENT_ORDER_MISMATCH")
+    pa_admission = snapshot.get("polarAromaticsAdmission", {})
+    if (
+        pa_admission.get("parameters", {}).get("status") == "BLOCKED"
+        or pa_admission.get("blocker")
+    ):
+        raise ValueError(
+            "STAGE1_PA_THERMODYNAMIC_CLOSURE_BLOCKED:"
+            + str(pa_admission.get("blocker") or "PA_PARAMETERS_BLOCKED")
+        )
     stage1 = snapshot.get("stage1")
     if not isinstance(stage1, dict):
         raise ValueError("STAGE1_AUTHORITY_INVALID: stage1 object is required")
@@ -448,13 +458,29 @@ def solve_cascade(
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--stage1-snapshot",
+        type=Path,
+        required=True,
+        help="Validated user-saved ECR_PRE_PILOT_STAGE_1_V1 snapshot exported from ecr_pre_pilot_designs.input_data",
+    )
+    parser.add_argument(
+        "--equilibrium-result",
+        type=Path,
+        required=True,
+        help="Six-component equilibrium result generated from the exact same Stage-1 snapshot",
+    )
+    args = parser.parse_args()
     protocol = load_json(HERE / "protocol.json")
-    snapshot_path = AMENDMENT / "stage1-qualification-snapshot.json"
+    snapshot_path = args.stage1_snapshot.resolve()
     snapshot = load_json(snapshot_path)
-    prior = load_json(OUTPUT.parent / "ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json")
+    stage1 = validate_authoritative_stage1_snapshot(snapshot)
+    prior = load_json(args.equilibrium_result.resolve())
+    if prior.get("stage1Authority", {}).get("snapshotSha256") != sha256(snapshot_path):
+        raise ValueError("STAGE1_AUTHORITY_MISMATCH: equilibrium result uses another Stage-1 snapshot")
     p_map = prior["model"]["parameters"]
     parameters = np.asarray([p_map[name] for name in model.PARAMETER_NAMES])
-    stage1 = validate_authoritative_stage1_snapshot(snapshot)
     temperature_c = float(stage1["operatingTemperatureC"])
     temperature_k = temperature_c + 273.15
     maximum_stages = int(stage1["maximumStages"])
@@ -509,7 +535,9 @@ def main():
         "componentOrder": list(model.FAMILIES),
         "governance": protocol["governance"],
         "stage1Authority": {
-            "snapshotPath": str((AMENDMENT / "stage1-qualification-snapshot.json").relative_to(ROOT)),
+            "source": "USER_SAVED_ECR_PRE_PILOT_STAGE_1_V1",
+            "projectReference": stage1["projectReference"],
+            "snapshotPath": str(snapshot_path),
             "snapshotSha256": sha256(snapshot_path),
             "feedMassBasis": dict(zip(model.FAMILIES, feed_mass.tolist())),
             "freshSolventMassBasis": dict(zip(model.FAMILIES, solvent_mass.tolist())),
@@ -591,9 +619,9 @@ def main():
     write_report(results, OUTPUT / "report.md")
     manifest = {
         "protocolSha256": sha256(HERE / "protocol.json"),
-        "stage1SnapshotSha256": sha256(AMENDMENT / "stage1-qualification-snapshot.json"),
+        "stage1SnapshotSha256": sha256(snapshot_path),
         "amendmentModelSha256": sha256(AMENDMENT / "model.py"),
-        "amendmentResultsSha256": sha256(OUTPUT.parent / "ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json"),
+        "amendmentResultsSha256": sha256(args.equilibrium_result.resolve()),
         "runnerSha256": sha256(HERE / "run.py"),
         "resultsSha256": sha256(result_path),
         "reportSha256": sha256(OUTPUT / "report.md"),

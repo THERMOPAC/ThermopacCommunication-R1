@@ -21,7 +21,7 @@
     "equilibrium": "ln(x_j,i)+ln(gamma_i(T,x_j))=ln(y_j,i)+ln(gamma_i(T,y_j))"
   },
   "solverStrategy": {
-    "singleSupportedInvocation": "python3 server/research/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/run.py",
+    "singleSupportedInvocation": "Export a validated user-saved Stage-1 snapshot, generate its matching equilibrium result, then pass both explicitly with --stage1-snapshot and --equilibrium-result.",
     "continuation": "Each primary NT trial starts from linear interpolation of the last primary trial that met the coupled-equation closure gate; NT=1 starts from the temperature-specific one-stage phase seed.",
     "primaryNt1To7": {
       "method": "bounded nonlinear least squares with dense finite-difference Jacobian",

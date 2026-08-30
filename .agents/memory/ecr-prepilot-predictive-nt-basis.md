@@ -26,3 +26,9 @@ description: Scientific input-boundary rules for predictive SAT/MONO/NMP cascade
 **Why:** Checking only the snapshot hash and molecular identities still permits a self-consistent substituted feed, solvent ratio, temperature, target, or stage limit to run under the original authority label.
 
 **How to apply:** Bind the exact six-family profile order and hashes to Stage 1, preserve unsupported selected identities as blocked rather than substituting them, and keep five-component UNIQUAC/NRTL results explicitly separate from six-component COSMO-SAC claims.
+
+**Rule:** “Authoritative Stage 1” means the immutable application snapshot created from user input and saved with the design, never a manually frozen research JSON or test fixture.
+
+**Why:** Research snapshots may omit user-entered physical properties or retain obsolete temperatures, solvent ratios, compositions, and stage limits while appearing superficially similar to the design basis.
+
+**How to apply:** Export by project number through the application’s Stage-1 validator, pass the validated snapshot explicitly to research tools, and require every derived equilibrium seed to carry the same snapshot hash.
