@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "modelIdentity": "COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL",
+  "componentOrder": ["SAT", "MONO", "DI", "POLY", "PA", "NMP"],
+  "globalStabilityConstraints": {
+    "definition": "Complete-model TPD(reference, trial) >= 0 for each immutable demonstrated MONO-rich candidate",
+    "minimumTpd": 0.0,
+    "candidateOrder": ["persisted-helper", "independent-slsqp"],
+    "scope": "finite demonstrated Task-205 basins; not a proof over the continuous simplex"
+  },
+  "pinnedInputs": {
+    "baseProtocolSha256": "247a1b5dbbefc7bba6779409751bf5486a28a159b3aecaaff36394a2ab594c44",
+    "modelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+    "evidenceSha256": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+    "task205DiagnosticSha256": "113bdf0911ff0f75319aca3ef043c67ff4bab069b1d2bd916da45f3e4f7dcebf",
+    "candidateSetSha256": "fd1b512715f2316a21237300304f58d301c28b8b5db84dc3c4dc823f92e6ccd4",
+    "candidateCount": 6
+  },
+  "frozenAcceptance": {
+    "quantitativeCompositionRmsdCeiling": 0.03,
+    "limitsMayBeWidened": false
+  },
+  "governance": {
+    "researchOnly": true,
+    "calibrationRequired": true,
+    "pilotValidated": false,
+    "releaseEligible": false
+  }
+}

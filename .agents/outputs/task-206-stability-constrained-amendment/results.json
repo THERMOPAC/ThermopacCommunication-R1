@@ -1,0 +1,239 @@
+{
+  "admittedReturnedPhases": [],
+  "blockers": [
+    "FROZEN_COMPOSITION_VALIDATION_FAILED"
+  ],
+  "calibrationRequired": true,
+  "decision": "No phase or cascade result is admitted while any blocker remains.",
+  "fitDiagnostics": {
+    "constraintMargins": [
+      0.0822107267908021,
+      0.0,
+      0.1741761877695005,
+      0.0895595575016892,
+      0.2628451906780631,
+      0.17470420310648382
+    ],
+    "feasible": true,
+    "iterations": 27,
+    "message": "Optimization terminated successfully",
+    "minimumConstraintMargin": 0.0,
+    "objective": 9.971016876323796,
+    "success": true
+  },
+  "frozenValidation": {
+    "heldOutMolecularSystem": {
+      "activityEqualityRms": 0.274420017323645,
+      "ceiling": 0.03,
+      "compositionRmsd": 0.057212805012628466,
+      "rows": 35,
+      "status": "FAIL"
+    },
+    "heldOutTemperature": {
+      "activityEqualityRms": 0.16892740343929935,
+      "ceiling": 0.03,
+      "compositionRmsd": 0.07037166804893295,
+      "rows": 41,
+      "status": "FAIL"
+    },
+    "training": {
+      "activityEqualityRms": 0.21947472975780483,
+      "ceiling": 0.03,
+      "compositionRmsd": 0.2769292446447198,
+      "rows": 143,
+      "status": "FAIL"
+    }
+  },
+  "modelIdentity": "COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL",
+  "parameters": {
+    "A_MONO_NMP_asymmetry": -0.5504559074973014,
+    "A_MONO_NMP_ref": 2.308305427722423,
+    "A_MONO_NMP_temperature": -0.6803810065383272,
+    "A_SAT_MONO_asymmetry": -0.6737091975915357,
+    "A_SAT_MONO_ref": 3.4310769906645633,
+    "A_SAT_MONO_temperature": -0.5881302146627425,
+    "A_SAT_NMP_asymmetry": -0.5732426055972536,
+    "A_SAT_NMP_ref": 2.9139023384729708,
+    "A_SAT_NMP_temperature": -0.22674891736339947
+  },
+  "pilotValidated": false,
+  "qualified": false,
+  "releaseEligible": false,
+  "researchOnly": true,
+  "schemaVersion": "1.0.0",
+  "sourceHashes": {
+    "baseProtocol": "247a1b5dbbefc7bba6779409751bf5486a28a159b3aecaaff36394a2ab594c44",
+    "evidence": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+    "model": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+    "task205Diagnostic": "113bdf0911ff0f75319aca3ef043c67ff4bab069b1d2bd916da45f3e4f7dcebf",
+    "task206Protocol": "2f00753d362e2a299955f51cf3853bb083c3ef4afefae2884d170d5906493ff1"
+  },
+  "stabilityAudits": [
+    {
+      "amendmentTpd": -2.6396180417700044,
+      "baseAndIdealTpd": 2.7218287685608065,
+      "candidateId": "persisted-helper",
+      "completeTpd": 0.0822107267908021,
+      "margin": 0.0822107267908021,
+      "referenceComposition": [
+        0.037267142373791196,
+        0.05412203118118662,
+        0.02687453969586041,
+        0.00969067982718575,
+        0.004988082104223211,
+        0.8670575248177528
+      ],
+      "scenario": "Scenario 1",
+      "status": "PASS",
+      "temperatureK": 298.15,
+      "trialComposition": [
+        2.499999999996875e-13,
+        0.9999999999987499,
+        2.499999999996875e-13,
+        2.499999999996875e-13,
+        2.499999999996875e-13,
+        2.499999999996875e-13
+      ]
+    },
+    {
+      "amendmentTpd": -2.494249126233289,
+      "baseAndIdealTpd": 2.494249126233289,
+      "candidateId": "independent-slsqp",
+      "completeTpd": 0.0,
+      "margin": 0.0,
+      "referenceComposition": [
+        0.037267142373791196,
+        0.05412203118118662,
+        0.02687453969586041,
+        0.00969067982718575,
+        0.004988082104223211,
+        0.8670575248177528
+      ],
+      "scenario": "Scenario 1",
+      "status": "PASS",
+      "temperatureK": 298.15,
+      "trialComposition": [
+        0.0015566929615723794,
+        0.9629164318306683,
+        0.011129259691576233,
+        0.004048046821088429,
+        0.0019960923467360627,
+        0.018353476348358697
+      ]
+    },
+    {
+      "amendmentTpd": -2.7561505247732234,
+      "baseAndIdealTpd": 2.930326712542724,
+      "candidateId": "persisted-helper",
+      "completeTpd": 0.1741761877695005,
+      "margin": 0.1741761877695005,
+      "referenceComposition": [
+        0.034319321549184274,
+        0.04341152192318153,
+        0.02179025747374475,
+        0.007899701813793741,
+        0.004099187328329608,
+        0.888480009911766
+      ],
+      "scenario": "Scenario 2",
+      "status": "PASS",
+      "temperatureK": 298.15,
+      "trialComposition": [
+        2.499999999996875e-13,
+        0.9999999999987499,
+        2.499999999996875e-13,
+        2.499999999996875e-13,
+        2.499999999996875e-13,
+        2.499999999996875e-13
+      ]
+    },
+    {
+      "amendmentTpd": -2.603498072275965,
+      "baseAndIdealTpd": 2.693057629777654,
+      "candidateId": "independent-slsqp",
+      "completeTpd": 0.0895595575016892,
+      "margin": 0.0895595575016892,
+      "referenceComposition": [
+        0.034319321549184274,
+        0.04341152192318153,
+        0.02179025747374475,
+        0.007899701813793741,
+        0.004099187328329608,
+        0.888480009911766
+      ],
+      "scenario": "Scenario 2",
+      "status": "PASS",
+      "temperatureK": 298.15,
+      "trialComposition": [
+        0.0016813830106224145,
+        0.9626942923055439,
+        0.010235542048261412,
+        0.003746368886740643,
+        0.001865098858454626,
+        0.01977731489037708
+      ]
+    },
+    {
+      "amendmentTpd": -2.835049225471623,
+      "baseAndIdealTpd": 3.097894416149686,
+      "candidateId": "persisted-helper",
+      "completeTpd": 0.2628451906780631,
+      "margin": 0.2628451906780631,
+      "referenceComposition": [
+        0.03249251586402361,
+        0.03641008651733234,
+        0.018533636544119922,
+        0.00649384648580655,
+        0.0033889648707220235,
+        0.9026809497179956
+      ],
+      "scenario": "Scenario 3",
+      "status": "PASS",
+      "temperatureK": 298.15,
+      "trialComposition": [
+        2.499999999996875e-13,
+        0.9999999999987499,
+        2.499999999996875e-13,
+        2.499999999996875e-13,
+        2.499999999996875e-13,
+        2.499999999996875e-13
+      ]
+    },
+    {
+      "amendmentTpd": -2.673723667338763,
+      "baseAndIdealTpd": 2.848427870445247,
+      "candidateId": "independent-slsqp",
+      "completeTpd": 0.17470420310648382,
+      "margin": 0.17470420310648382,
+      "referenceComposition": [
+        0.03249251586402361,
+        0.03641008651733234,
+        0.018533636544119922,
+        0.00649384648580655,
+        0.0033889648707220235,
+        0.9026809497179956
+      ],
+      "scenario": "Scenario 3",
+      "status": "PASS",
+      "temperatureK": 298.15,
+      "trialComposition": [
+        0.00182968146482671,
+        0.9618020264393595,
+        0.00975187479569597,
+        0.0034521748867053365,
+        0.0017311121363734999,
+        0.021433130277039015
+      ]
+    }
+  ],
+  "stabilityConstraintDefinition": {
+    "candidateOrder": [
+      "persisted-helper",
+      "independent-slsqp"
+    ],
+    "definition": "Complete-model TPD(reference, trial) >= 0 for each immutable demonstrated MONO-rich candidate",
+    "minimumTpd": 0.0,
+    "scope": "finite demonstrated Task-205 basins; not a proof over the continuous simplex"
+  },
+  "status": "INCOMPATIBLE_FAIL_CLOSED"
+}

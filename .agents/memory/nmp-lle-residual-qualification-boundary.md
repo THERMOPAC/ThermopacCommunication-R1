@@ -20,3 +20,9 @@ For the 25 °C fixed-seven-stage feed sensitivities, the remote MONO-rich negati
 **Why:** Identical-composition decomposition leaves base-plus-ideal TPD strongly positive while the amendment contribution drives the total negative. Independent constrained searches, tangent identities, KKT checks, and split balances confirm the remote basin, but extended cascade continuations still do not satisfy closure.
 
 **How to apply:** Treat residual-amendment refitting/stability constraints and cascade multistart convergence as separate workstreams. Do not label the TPD formula mismatched, do not infer a full cascade branch from an isolated-phase split, and do not assume fixing either workstream fixes the other without direct evidence.
+
+A stability-constrained refit may remove every pinned demonstrated MONO-rich basin yet remain incompatible with the frozen blind LLE evidence. Stability candidates, source artifacts, and the original composition ceiling must be digest-pinned; qualification requires strict non-negative TPD and every unchanged composition gate simultaneously.
+
+**Why:** A deterministic constrained refit made all six demonstrated 25 °C candidate TPD values non-negative, but training and both holdout composition RMSDs still exceeded 0.03. Either criterion alone would create a false qualification path.
+
+**How to apply:** Derive qualification and blockers from independently recomputed pinned inputs. If any stability or composition gate fails, admit no returned phase and retain research-only, calibration-required, and non-release status.
