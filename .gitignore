@@ -13,6 +13,7 @@ vite.config.ts.*
 attached_assets
 temp
 wpqr_documents
+.sap-session-cache.json
 
 # ── Environment / secrets — NEVER commit these ───────────────────────────────
 .env
