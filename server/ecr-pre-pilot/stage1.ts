@@ -109,10 +109,10 @@ const PHASE_CONFIGURATIONS = new Set([
 const SOLVENT_RATIOS = new Set([0.5, 0.75, 0.9, 1, 1.25, 1.5, 2]);
 const SULFUR_TARGETS = new Set([750, 1000, 1500, 2000, 2500]);
 const SATURATES_TARGETS = new Set([90, 92.5, 95, 97.5]);
-const AROMATICS_TARGETS = new Set([1.5, 2, 3, 4, 5, 7.5, 10]);
+const AROMATICS_TARGETS = new Set([2, 3, 4, 5, 7.5, 10]);
 const POLAR_TARGETS = new Set([0.1, 0.25, 0.5, 1, 2]);
 const RECOVERY_TARGETS = new Set([90, 92.5, 95, 97.5, 99]);
-const NMP_TARGETS = new Set([0.1, 0.25, 0.5, 1, 2, 3, 4, 5, 6, 6.5]);
+const NMP_TARGETS = new Set([0.1, 0.25, 0.5, 1]);
 const SAT_IDENTITIES = new Set(PREDICTIVE_NT_MOLECULAR_REGISTRY.saturates.map(({ identity }) => identity));
 const MONO_IDENTITIES = new Set(PREDICTIVE_NT_MOLECULAR_REGISTRY.monoAromatics.map(({ identity }) => identity));
 const MAXIMUM_STAGE_OPTIONS = new Set(Array.from({ length: 9 }, (_, index) => index + 2));

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "1.0.0",
+  "analysis": "seven-stage deterministic secondary-start closure diagnosis",
+  "immutableInputs": [
+    ".agents/outputs/task-205-negative-tpd-diagnostic/results.json",
+    ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/fixed-nt7-feed-sensitivity-results.json",
+    ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json"
+  ],
+  "stageCount": 7,
+  "temperatureK": 298.15,
+  "componentOrder": ["SAT", "MONO", "DI", "POLY", "PA", "NMP"],
+  "equationAcceptanceLimit": 1e-8,
+  "branchProductRelativeTolerance": 1e-6,
+  "bounds": {"minimumComponentMoles": 1e-12, "maximumMultipleOfTotalFeed": 10.0},
+  "strategies": {
+    "sparseTrustRegionContinuation": {
+      "evidence": "Task 205 immutable 20- and 80-evaluation sparse continuation runs",
+      "trustRegionSolver": "lsmr",
+      "start": "exact deterministic secondary start and its continued point"
+    },
+    "denseExactTrustRegion": {
+      "evidence": "Task 205 immutable 15-evaluation dense final run",
+      "start": "Task 205 sparse continuation point"
+    },
+    "rowEquilibratedDampedNewton": {
+      "maximumIterations": 8,
+      "maximumBacktracks": 16,
+      "start": "Task 205 final dense point after 115 cumulative evaluations on the exact secondary-start lineage",
+      "scaling": "divide each unchanged equation and its Jacobian row by that row's finite-difference 2-norm"
+    }
+  },
+  "solverTolerances": {"xtol": 1e-12, "ftol": 1e-12, "gtol": 1e-12},
+  "jacobian": {
+    "finiteDifferenceRelativeStep": 1e-6,
+    "finiteDifferenceMethod": "2-point",
+    "rankRelativeTolerance": 1e-10,
+    "activeBoundLogDistance": 1e-7
+  },
+  "governance": {
+    "researchOnly": true,
+    "governedEquationsChanged": false,
+    "acceptanceLimitsChanged": false,
+    "officialStageConclusionsChanged": false,
+    "phaseStabilityCausalityClaimed": false,
+    "releaseEligible": false
+  }
+}
