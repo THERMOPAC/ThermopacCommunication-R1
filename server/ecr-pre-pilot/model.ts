@@ -100,7 +100,8 @@ export function startPrePilotNt(input: {
       mayRunPredictiveNt: false,
       diagnostics: [
         "The exact 4,4'-bis(alpha,alpha-dimethylbenzyl)diphenylamine PA anchor is identified, but its thermodynamic representation is not closed.",
-        'No exact sigma profile, complete PA interaction set, or direct matching PA/NMP/heavy-hydrocarbon LLE evidence is admitted.',
+        'This five-component UNIQUAC route has no PA state variable or complete PA directed interaction set.',
+        'The separate exact-profile six-component COSMO-SAC route may run research diagnostics under its own LLE, closure, multistart, and TPD gates; it is not qualified for promotion or release.',
         'Unsubstituted diphenylamine, zero-filled interactions, DI/POLY parameters, and sulfur-bearing molecules are prohibited substitutes.',
       ],
     };

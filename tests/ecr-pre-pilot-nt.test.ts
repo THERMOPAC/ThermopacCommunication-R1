@@ -136,6 +136,18 @@ describe('ECR Pre-Pilot frozen N_T start', () => {
     expect(ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE).toMatchObject({
       thermodynamicClosure: {
         status: 'BLOCKED',
+        routeApplicability: {
+          frozenFiveComponentUniquacNrtl: {
+            status: 'BLOCKED',
+            executionAllowed: false,
+          },
+          sixComponentCosmoSac2010: {
+            status: 'RESEARCH_DIAGNOSTIC_ALLOWED_NOT_QUALIFIED',
+            executionAllowed: true,
+            profileEvaluation: 'PASSED',
+            releaseEligible: false,
+          },
+        },
         assessment: {
           decision: 'NO_PARAMETER_ADMISSION',
           independentlyCheckableRoute: 'EVIDENCE_INVENTORY_AND_PREDECLARED_GATE_REVIEW',
@@ -155,6 +167,9 @@ describe('ECR Pre-Pilot frozen N_T start', () => {
       },
       outputPolicy: {
         predictiveNtWithPositivePaFeed: 'NOT_CALCULABLE',
+        fiveComponentPredictiveNtWithPositivePaFeed: 'NOT_CALCULABLE',
+        sixComponentCosmoSacDiagnosticWithPositivePaFeed: 'ALLOWED_SUBJECT_TO_OWN_ACCEPTANCE_GATES',
+        sixComponentCosmoSacQualifiedResultWithPositivePaFeed: 'NOT_CALCULABLE_UNTIL_LLE_QUALIFIED',
         fullBasisRrboRecoveryWithPositivePaFeed: 'NOT_CALCULABLE',
         sulfurRemoval: 'NOT_CALCULABLE',
         fiveComponentZeroPaDiagnostic: 'UNCHANGED',

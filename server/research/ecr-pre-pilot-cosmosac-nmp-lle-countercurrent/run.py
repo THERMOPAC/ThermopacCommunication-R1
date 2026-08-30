@@ -41,15 +41,32 @@ def validate_authoritative_stage1_snapshot(snapshot):
         raise ValueError("STAGE1_SIX_COMPONENT_BINDING_NOT_VERIFIED")
     if snapshot["sixComponentCosmoSacBinding"].get("componentOrder") != list(model.FAMILIES):
         raise ValueError("STAGE1_SIX_COMPONENT_ORDER_MISMATCH")
-    pa_admission = snapshot.get("polarAromaticsAdmission", {})
+    basis_qualification = snapshot.get("sixComponentCosmoSacBasis", {}).get("qualification", {})
+    if basis_qualification.get("profileSemanticsGate") != "PASSED":
+        raise ValueError("STAGE1_SIX_COMPONENT_PROFILE_SEMANTICS_NOT_VERIFIED")
+    components = snapshot["sixComponentCosmoSacBinding"].get("components", [])
+    if len(components) != len(model.FAMILIES):
+        raise ValueError("STAGE1_SIX_COMPONENT_BINDING_INCOMPLETE")
+    for expected_family, component in zip(model.FAMILIES, components):
+        profile = component.get("profile", {})
+        if (
+            component.get("family") != expected_family
+            or component.get("blocker") is not None
+            or profile.get("available") is not True
+            or not isinstance(profile.get("sha256"), str)
+        ):
+            raise ValueError(
+                "STAGE1_SIX_COMPONENT_PROFILE_INVALID:" + expected_family
+            )
+    pa_component = components[model.FAMILIES.index("PA")]
     if (
-        pa_admission.get("parameters", {}).get("status") == "BLOCKED"
-        or pa_admission.get("blocker")
+        pa_component.get("identity")
+        != "4,4'-Bis(alpha,alpha-dimethylbenzyl)diphenylamine"
+        or pa_component.get("inchiKey") != "UJAWGGOCYUPCPS-UHFFFAOYSA-N"
+        or pa_component.get("profile", {}).get("sha256")
+        != "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e"
     ):
-        raise ValueError(
-            "STAGE1_PA_THERMODYNAMIC_CLOSURE_BLOCKED:"
-            + str(pa_admission.get("blocker") or "PA_PARAMETERS_BLOCKED")
-        )
+        raise ValueError("STAGE1_MANDATORY_PA_PROFILE_MISMATCH")
     stage1 = snapshot.get("stage1")
     if not isinstance(stage1, dict):
         raise ValueError("STAGE1_AUTHORITY_INVALID: stage1 object is required")
@@ -476,20 +493,11 @@ def main():
     snapshot_path = args.stage1_snapshot.resolve()
     snapshot = load_json(snapshot_path)
     stage1 = validate_authoritative_stage1_snapshot(snapshot)
-    prior = load_json(args.equilibrium_result.resolve())
-    if prior.get("stage1Authority", {}).get("snapshotSha256") != sha256(snapshot_path):
-        raise ValueError("STAGE1_AUTHORITY_MISMATCH: equilibrium result uses another Stage-1 snapshot")
-    p_map = prior["model"]["parameters"]
-    parameters = np.asarray([p_map[name] for name in model.PARAMETER_NAMES])
     temperature_c = float(stage1["operatingTemperatureC"])
     temperature_k = temperature_c + 273.15
     maximum_stages = int(stage1["maximumStages"])
     if maximum_stages < 1 or float(maximum_stages) != float(stage1["maximumStages"]):
         raise ValueError("STAGE1_INVALID_NT_RANGE: maximumStages must be a positive integer")
-    molecular_weights = np.asarray([
-        prior["stage1Authority"]["charge"]["molecularWeightsGmol"][name]
-        for name in model.FAMILIES
-    ], dtype=float)
     feed_mass = np.asarray([
         stage1["saturatesWt"], stage1["monoAromaticsWt"], stage1["diAromaticsWt"],
         stage1["polyAromaticsWt"], stage1["polarAromaticsWt"], stage1["nmpInFeedWt"],
@@ -501,12 +509,24 @@ def main():
     nmp_water_wt = float(stage1["nmpWaterWt"])
     if solvent_oil_ratio < 0:
         raise ValueError("STAGE1_INVALID_SOLVENT_RATIO: solventOilRatio must be non-negative")
-    if not np.isclose(nmp_purity_wt + nmp_water_wt, 100.0, rtol=0.0, atol=1e-10):
-        raise ValueError("STAGE1_INVALID_FRESH_SOLVENT_COMPOSITION: NMP and water wt% must sum to 100")
-    if nmp_water_wt != 0.0:
+    represented_solvent_wt = nmp_purity_wt + nmp_water_wt
+    if represented_solvent_wt > 100.0 + 1e-10:
+        raise ValueError("STAGE1_INVALID_FRESH_SOLVENT_COMPOSITION: NMP and water exceed 100 wt%")
+    unspecified_solvent_wt = max(0.0, 100.0 - represented_solvent_wt)
+    if nmp_water_wt > 1e-10 or unspecified_solvent_wt > 1e-10:
         raise ValueError(
-            "STAGE1_FRESH_SOLVENT_COMPONENT_UNSUPPORTED: water is not represented in the six-component model"
+            "STAGE1_SOLVENT_PURITY_REPRESENTATION_UNAVAILABLE:"
+            f"waterWt={nmp_water_wt:g};unspecifiedWt={unspecified_solvent_wt:g}"
         )
+    prior = load_json(args.equilibrium_result.resolve())
+    if prior.get("stage1Authority", {}).get("snapshotSha256") != sha256(snapshot_path):
+        raise ValueError("STAGE1_AUTHORITY_MISMATCH: equilibrium result uses another Stage-1 snapshot")
+    p_map = prior["model"]["parameters"]
+    parameters = np.asarray([p_map[name] for name in model.PARAMETER_NAMES])
+    molecular_weights = np.asarray([
+        prior["stage1Authority"]["charge"]["molecularWeightsGmol"][name]
+        for name in model.FAMILIES
+    ], dtype=float)
     fresh_solvent_mass = 100.0 * solvent_oil_ratio
     solvent_mass = np.asarray([
         0, 0, 0, 0, 0, fresh_solvent_mass * nmp_purity_wt / 100.0
@@ -544,6 +564,7 @@ def main():
             "freshSolventCompositionWt": {
                 "NMP": nmp_purity_wt,
                 "WATER": nmp_water_wt,
+                "UNSPECIFIED": unspecified_solvent_wt,
             },
             "operatingTemperatureC": temperature_c,
             "rrboPhysicalProperties": {

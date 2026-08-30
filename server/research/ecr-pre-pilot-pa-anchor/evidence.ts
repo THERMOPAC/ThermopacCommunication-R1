@@ -1,5 +1,5 @@
 export const ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE = {
-  recordVersion: '1.1.0',
+  recordVersion: '1.2.0',
   reviewedAt: '2026-08-29',
   admission: 'IDENTITY_ADMITTED_THERMODYNAMICS_BLOCKED',
   calibrationStatus: 'CALIBRATION_REQUIRED',
@@ -49,6 +49,22 @@ export const ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE = {
   thermodynamicClosure: {
     status: 'BLOCKED',
     primaryBlocker: 'POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE',
+    routeApplicability: {
+      frozenFiveComponentUniquacNrtl: {
+        status: 'BLOCKED',
+        executionAllowed: false,
+        reason: 'PA is absent from the five-component state vector and has no admitted directed interaction set.',
+      },
+      sixComponentCosmoSac2010: {
+        status: 'RESEARCH_DIAGNOSTIC_ALLOWED_NOT_QUALIFIED',
+        executionAllowed: true,
+        profileEvaluation: 'PASSED',
+        lleQualification: 'FAILED_OR_PENDING',
+        releaseEligible: false,
+        reason:
+          'The exact PA sigma profile and six-component activity evaluation are valid; LLE reproduction, multistart, closure, and TPD acceptance remain independent fail-closed gates.',
+      },
+    },
     assessment: {
       decision: 'NO_PARAMETER_ADMISSION',
       independentlyCheckableRoute: 'EVIDENCE_INVENTORY_AND_PREDECLARED_GATE_REVIEW',
@@ -68,7 +84,7 @@ export const ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE = {
         phaseTopologyReproduction: 'NOT_TESTABLE',
       },
       conclusion:
-        'No candidate can be evaluated as an exact PA/NMP/heavy-hydrocarbon equilibrium model without an undocumented substitution or missing parameter.',
+        'Molecular-pair UNIQUAC and Dortmund routes remain blocked. Exact-profile six-component COSMO-SAC activity evaluation is admitted for research diagnostics only; matching LLE qualification remains failed or pending.',
     },
     missing: [
       'COMPLETE_PA_GROUP_DECOMPOSITION_AND_DIRECTED_INTERACTION_SET',
@@ -98,6 +114,9 @@ export const ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE = {
   },
   outputPolicy: {
     predictiveNtWithPositivePaFeed: 'NOT_CALCULABLE',
+    fiveComponentPredictiveNtWithPositivePaFeed: 'NOT_CALCULABLE',
+    sixComponentCosmoSacDiagnosticWithPositivePaFeed: 'ALLOWED_SUBJECT_TO_OWN_ACCEPTANCE_GATES',
+    sixComponentCosmoSacQualifiedResultWithPositivePaFeed: 'NOT_CALCULABLE_UNTIL_LLE_QUALIFIED',
     fullBasisRrboRecoveryWithPositivePaFeed: 'NOT_CALCULABLE',
     sulfurRemoval: 'NOT_CALCULABLE',
     fiveComponentZeroPaDiagnostic: 'UNCHANGED',
