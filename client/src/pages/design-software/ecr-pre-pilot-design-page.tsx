@@ -214,7 +214,7 @@ const EMPTY_FORM: FormState = {
   targetRaffinateTotalAromaticsWt: "5.0",
   targetRaffinatePolarAromaticsWt: "0.50",
   minimumRecoveryPct: "95",
-  maximumNmpRaffinateWt: "0.50",
+  maximumNmpRaffinateWt: "6.50",
   feedSulfurPpm: "3500",
   sulfurAllocationSatPct: "0",
   sulfurAllocationMonoPct: "5",
@@ -274,7 +274,10 @@ const TARGET_TOTAL_AROMATICS_OPTIONS = Array.from(
 );
 const TARGET_POLAR_AROMATICS_OPTIONS = ["0.10", "0.25", "0.50", "1.00", "2.00"];
 const MINIMUM_RECOVERY_OPTIONS = Array.from({ length: 11 }, (_, index) => String(80 + index));
-const MAXIMUM_NMP_RAFFINATE_OPTIONS = ["0.10", "0.25", "0.50", "1.00"];
+const MAXIMUM_NMP_RAFFINATE_OPTIONS = Array.from(
+  { length: 19 },
+  (_, index) => (1 + index * 0.5).toFixed(2),
+);
 
 const NMP_STANDARD_PURPOSE = {
   purityWt: "99.5",
