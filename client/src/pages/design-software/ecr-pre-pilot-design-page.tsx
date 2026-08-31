@@ -191,9 +191,18 @@ function hydrateSavedStage1(current: FormState, inputData: unknown): FormState {
   if (!stage1 || typeof stage1 !== "object") return current;
   const source = stage1 as Record<string, unknown>;
   const next = { ...current };
+  const numericSelectPrecision: Partial<Record<keyof FormState, number>> = {
+    targetRaffinateTotalAromaticsWt: 1,
+    targetRaffinatePolarAromaticsWt: 2,
+    maximumNmpRaffinateWt: 2,
+  };
   for (const key of Object.keys(EMPTY_FORM) as Array<keyof FormState>) {
     if (source[key] !== undefined && source[key] !== null) {
-      next[key] = String(source[key]);
+      const precision = numericSelectPrecision[key];
+      const numericValue = Number(source[key]);
+      next[key] = precision !== undefined && Number.isFinite(numericValue)
+        ? numericValue.toFixed(precision)
+        : String(source[key]);
     }
   }
   return next;
