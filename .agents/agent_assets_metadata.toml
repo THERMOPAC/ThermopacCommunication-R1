@@ -686,3 +686,10 @@ uri = "file://.agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/fixe
 type = "text"
 title = "Fixed NT=7 RRBO Feed-Composition Sensitivity Report"
 description = "Direct 25°C calculations for 85%, 88%, and 90% saturates feeds, including mole fractions, raffinate and extract results, balances, multistart diagnostics, TPD stability, screening gates, and final comparison."
+
+[[outputs]]
+id = "s-EgpWn_D1IADQEyjHCnE"
+uri = "file://reports/task-209-persisted-six-component-stage-compositions.csv"
+type = "table"
+title = "Task 209 persisted six-component stage compositions"
+description = "All 220 persisted counter-current stage-phase rows for the 25°C and 50°C legacy research cases, NT 1–10. Values are stored phase mass fractions expressed as wt%; every row is RESEARCH DIAGNOSTIC — NOT ACCEPTED. These artifacts are not Project 111-authoritative."
