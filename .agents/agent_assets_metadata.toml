@@ -705,5 +705,5 @@ description = "72-page frozen report for the completed 10-trial six-component CO
 id = "4bYaQTux8jTw2GIdn0lw-"
 uri = "file://reports/project-111-predictive-nt-engineering-report.pdf"
 type = "pdf"
-title = "Revised Project 111 Predictive N_T Report"
-description = "Redesigned 8-page engineering report with a clear executive verdict, compact trial dashboard, readable compliance cards, stream tables, diagnostics, and governance."
+title = "Detailed Project 111 Predictive N_T Report"
+description = "Expanded 35-page report matching the UI diagnostics: full six-component comparison, per-trial overview, every internal stage diagnostic, and all SAT/MONO/DI/POLY/PA/NMP outlet compositions."
