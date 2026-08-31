@@ -123,6 +123,208 @@ function runtimeRoot() {
     : process.cwd();
 }
 
+type Task216GlobalStabilityEvidenceExpectation = {
+  evidenceArtifacts: {
+    protocolSha256: string;
+    runnerSha256: string;
+    resultsSha256: string;
+    reportSha256: string;
+    provenanceSha256: string;
+  };
+  status: string;
+  qualified: boolean;
+  postSplitTpdThreshold: number;
+  exactReferenceJobId: string;
+  coverage: {
+    expectedPhaseEndpoints: number;
+    returnedPhaseEndpoints: number;
+    failingPhaseCount: number;
+    negativeOrUnresolvedPhaseCount: number;
+    optimizerRefinementFailureCount: number;
+  };
+  blockers: string[];
+  worstMinimum: number;
+  worstFullyReproducedMinimum: number | null;
+  classificationCounts: Record<string, number>;
+  comparisonCandidate: {
+    disposition: string;
+    qualified: boolean;
+    frozenValidationPassed: boolean;
+    classificationCounts: Record<string, number>;
+    worstMinimum: number;
+  };
+};
+
+function sha256RuntimeFile(relativePath: string) {
+  return createHash('sha256')
+    .update(fs.readFileSync(path.join(runtimeRoot(), relativePath)))
+    .digest('hex');
+}
+
+export function expectedTask216GlobalStabilityEvidence(): Task216GlobalStabilityEvidenceExpectation {
+  const resultPath = path.join(
+    runtimeRoot(),
+    '.agents/outputs/task-216-mono-rich-global-stability/results.json',
+  );
+  const result = JSON.parse(fs.readFileSync(resultPath, 'utf8'));
+  const phases = Array.isArray(result.phases) ? result.phases : [];
+  const classificationCounts = phases.reduce(
+    (counts: Record<string, number>, phase: any) => {
+      const classification = String(phase?.classification ?? 'UNCLASSIFIED');
+      counts[classification] = (counts[classification] ?? 0) + 1;
+      return counts;
+    },
+    {},
+  );
+  const minima = phases
+    .map((phase: any) => Number(phase?.minimum))
+    .filter((minimum: number) => Number.isFinite(minimum));
+  const fullyReproducedMinima = phases
+    .filter((phase: any) => phase?.fullyReproducedNegative === true)
+    .map((phase: any) => Number(phase?.minimum))
+    .filter((minimum: number) => Number.isFinite(minimum));
+  const candidate = result.task206CandidateComparison ?? {};
+  const candidatePhases = Array.isArray(candidate.sameEndpointFullGlobalSearches)
+    ? candidate.sameEndpointFullGlobalSearches
+    : [];
+  const phaseKeys = phases
+    .map((phase: any) => `${phase?.trialStageCount}:${phase?.stageFromFeedEnd}:${phase?.phase}`)
+    .sort();
+  const candidatePhaseKeys = candidatePhases
+    .map((phase: any) => `${phase?.trialStageCount}:${phase?.stageFromFeedEnd}:${phase?.phase}`)
+    .sort();
+  const candidateClassificationCounts = candidatePhases.reduce(
+    (counts: Record<string, number>, phase: any) => {
+      const classification = String(phase?.classification ?? 'UNCLASSIFIED');
+      counts[classification] = (counts[classification] ?? 0) + 1;
+      return counts;
+    },
+    {},
+  );
+  const candidateMinima = candidatePhases
+    .map((phase: any) => Number(phase?.minimum))
+    .filter((minimum: number) => Number.isFinite(minimum));
+  const frozenValidationRows = Object.values(candidate.frozenValidation ?? {}) as any[];
+  const frozenValidationPassed = frozenValidationRows.length > 0
+    && frozenValidationRows.every((row) => row?.status === 'PASS');
+  if (
+    phases.length !== result.coverage?.expectedPhaseEndpoints
+    || phases.length !== result.coverage?.returnedPhaseEndpoints
+    || minima.length !== phases.length
+    || candidatePhases.length !== phases.length
+    || candidateMinima.length !== candidatePhases.length
+    || canonicalJson(candidatePhaseKeys) !== canonicalJson(phaseKeys)
+  ) {
+    throw new Error('TASK216_GLOBAL_STABILITY_FROZEN_EVIDENCE_INCOMPLETE');
+  }
+  return {
+    evidenceArtifacts: {
+      protocolSha256: sha256RuntimeFile(
+        'server/research/task-216-mono-rich-global-stability/protocol.json',
+      ),
+      runnerSha256: sha256RuntimeFile(
+        'server/research/task-216-mono-rich-global-stability/run.py',
+      ),
+      resultsSha256: sha256RuntimeFile(
+        '.agents/outputs/task-216-mono-rich-global-stability/results.json',
+      ),
+      reportSha256: sha256RuntimeFile(
+        '.agents/outputs/task-216-mono-rich-global-stability/report.md',
+      ),
+      provenanceSha256: sha256RuntimeFile(
+        '.agents/outputs/task-216-mono-rich-global-stability/provenance-manifest.json',
+      ),
+    },
+    status: String(result.status),
+    qualified: result.qualified === true,
+    postSplitTpdThreshold: Number(result.postSplitTpdThreshold),
+    exactReferenceJobId: String(result.referenceJob?.id ?? ''),
+    coverage: {
+      expectedPhaseEndpoints: Number(result.coverage.expectedPhaseEndpoints),
+      returnedPhaseEndpoints: Number(result.coverage.returnedPhaseEndpoints),
+      failingPhaseCount: Number(result.coverage.failingPhaseCount),
+      negativeOrUnresolvedPhaseCount: Number(result.coverage.negativeOrUnresolvedPhaseCount),
+      optimizerRefinementFailureCount:
+        Number(classificationCounts.OPTIMIZER_REFINEMENT_FAILURE ?? 0),
+    },
+    blockers: Array.isArray(result.blockers) ? result.blockers.map(String) : [],
+    worstMinimum: Math.min(...minima),
+    worstFullyReproducedMinimum: fullyReproducedMinima.length > 0
+      ? Math.min(...fullyReproducedMinima)
+      : null,
+    classificationCounts,
+    comparisonCandidate: {
+      disposition: 'REJECTED_FROZEN_VALIDATION_AND_GLOBAL_INSTABILITY',
+      qualified: candidate.qualifiedForThisHarness === true,
+      frozenValidationPassed,
+      classificationCounts: candidateClassificationCounts,
+      worstMinimum: Math.min(...candidateMinima),
+    },
+  };
+}
+
+export function validateTask216GlobalStabilityEvidence(
+  evidence: unknown,
+  expected = expectedTask216GlobalStabilityEvidence(),
+) {
+  if (!evidence || typeof evidence !== 'object') {
+    return 'TASK216_GLOBAL_STABILITY_EVIDENCE_MISSING';
+  }
+  const actual = evidence as Record<string, any>;
+  if (
+    actual.evidenceId !== 'TASK_216_MONO_RICH_GLOBAL_STABILITY_V1'
+    || actual.researchOnly !== true
+    || actual.calibrationRequired !== true
+    || actual.releaseEligible !== false
+    || actual.predictiveNt !== null
+  ) {
+    return 'TASK216_GLOBAL_STABILITY_GOVERNANCE_VIOLATION';
+  }
+  if (canonicalJson(actual.evidenceArtifacts) !== canonicalJson(expected.evidenceArtifacts)) {
+    return 'TASK216_GLOBAL_STABILITY_EVIDENCE_HASH_MISMATCH';
+  }
+  if (
+    actual.coverage?.expectedPhaseEndpoints !== expected.coverage.expectedPhaseEndpoints
+    || actual.coverage?.returnedPhaseEndpoints !== expected.coverage.returnedPhaseEndpoints
+    || actual.coverage?.returnedPhaseEndpoints !== actual.coverage?.expectedPhaseEndpoints
+  ) {
+    return 'TASK216_GLOBAL_STABILITY_PHASE_COVERAGE_INCOMPLETE';
+  }
+  const actualBlockers = Array.isArray(actual.blockers) ? actual.blockers.map(String) : [];
+  if (
+    actual.coverage?.negativeOrUnresolvedPhaseCount > 0
+    && !actualBlockers.includes('POST_SPLIT_TPD_STABILITY_FAILED')
+  ) {
+    return 'TASK216_GLOBAL_STABILITY_FALSE_BLOCKER_FREE_CLAIM';
+  }
+  if (
+    actual.status !== expected.status
+    || actual.qualified !== expected.qualified
+    || actual.postSplitTpdThreshold !== expected.postSplitTpdThreshold
+    || actual.exactReferenceJobId !== expected.exactReferenceJobId
+    || actual.coverage?.failingPhaseCount !== expected.coverage.failingPhaseCount
+    || actual.coverage?.negativeOrUnresolvedPhaseCount
+      !== expected.coverage.negativeOrUnresolvedPhaseCount
+    || actual.coverage?.optimizerRefinementFailureCount
+      !== expected.coverage.optimizerRefinementFailureCount
+    || actual.worstMinimum !== expected.worstMinimum
+    || actual.worstFullyReproducedMinimum !== expected.worstFullyReproducedMinimum
+    || canonicalJson(actual.classificationCounts) !== canonicalJson(expected.classificationCounts)
+    || canonicalJson(actual.comparisonCandidate)
+      !== canonicalJson(expected.comparisonCandidate)
+    || canonicalJson(actualBlockers) !== canonicalJson(expected.blockers)
+  ) {
+    return 'TASK216_GLOBAL_STABILITY_FROZEN_SUMMARY_MISMATCH';
+  }
+  if (
+    (actualBlockers.length > 0 && actual.qualified !== false)
+    || (actualBlockers.length === 0 && actual.status === 'BLOCKED_FAIL_CLOSED')
+  ) {
+    return 'TASK216_GLOBAL_STABILITY_FALSE_BLOCKER_FREE_CLAIM';
+  }
+  return null;
+}
+
 function workerScript() {
   if (process.env.NODE_ENV === 'test' && process.env.PREDICTIVE_NT_TEST_WORKER_SCRIPT) {
     return path.resolve(process.env.PREDICTIVE_NT_TEST_WORKER_SCRIPT);
@@ -516,6 +718,14 @@ export function attachStage1ResultGovernance(
     removalClaims: _discardedRemovalClaims,
     ...admittedResult
   } = pythonResult as Record<string, unknown>;
+  const isIntermediateCheckpoint = admittedResult.status === 'RUNNING'
+    && (admittedResult.checkpoint as Record<string, unknown> | undefined)?.protocol === 'ACK_V2';
+  if (!isIntermediateCheckpoint) {
+    const evidenceError = validateTask216GlobalStabilityEvidence(
+      admittedResult.globalStabilityQualification,
+    );
+    if (evidenceError) throw new Error(evidenceError);
+  }
   return {
     ...admittedResult,
     model: {
@@ -523,6 +733,7 @@ export function attachStage1ResultGovernance(
       runtimeVerification: 'PASS',
     },
     resultThermodynamicClassification: 'SIX_COMPONENT_COSMO_SAC_2010_RESEARCH_DIAGNOSTIC',
+    predictiveNt: null,
     releaseEligible: false,
     establishedTheoreticalStages: null,
     calibrationRequired: true,

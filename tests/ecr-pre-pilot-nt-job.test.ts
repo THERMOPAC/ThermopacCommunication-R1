@@ -8,8 +8,10 @@ import {
   enqueuePredictiveNtRuntimeTestJob,
   derivePredictiveNtInputFromStage1,
   attachStage1ResultGovernance,
+  expectedTask216GlobalStabilityEvidence,
   getPredictiveNtJob,
   preflightPredictiveNtRuntime,
+  validateTask216GlobalStabilityEvidence,
   validatePredictiveNtExecutionEvidence,
   validatePredictiveNtJobInput,
 } from '../server/ecr-pre-pilot/predictive-nt-job-service';
@@ -74,6 +76,17 @@ function validInputWithMaximumStages(maximumStages: number) {
   );
 }
 
+function validTask216Evidence() {
+  return {
+    evidenceId: 'TASK_216_MONO_RICH_GLOBAL_STABILITY_V1',
+    researchOnly: true,
+    calibrationRequired: true,
+    releaseEligible: false,
+    predictiveNt: null,
+    ...expectedTask216GlobalStabilityEvidence(),
+  };
+}
+
 function useAckProtocolFixture() {
   process.env.PREDICTIVE_NT_TEST_WORKER_SCRIPT =
     path.join(process.cwd(), 'tests/fixtures/predictive_nt_ack_protocol_worker.py');
@@ -122,6 +135,102 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       modelHash: 'changed-model',
     }, 'persisted-engine')).toBe('PREDICTIVE_NT_MODEL_HASH_MISMATCH');
     expect(validatePredictiveNtExecutionEvidence(persisted, 'persisted-engine')).toBeNull();
+  });
+
+  it('rejects Task 216 hash, coverage, and false blocker-free evidence mutations', () => {
+    const hashes = {
+      protocolSha256: '1'.repeat(64),
+      runnerSha256: '2'.repeat(64),
+      resultsSha256: '3'.repeat(64),
+      reportSha256: '4'.repeat(64),
+      provenanceSha256: '5'.repeat(64),
+    };
+    const expected = {
+      evidenceArtifacts: hashes,
+      status: 'BLOCKED_FAIL_CLOSED',
+      qualified: false,
+      postSplitTpdThreshold: -1e-8,
+      exactReferenceJobId: 'reference-job',
+      coverage: {
+        expectedPhaseEndpoints: 110,
+        returnedPhaseEndpoints: 110,
+        failingPhaseCount: 42,
+        negativeOrUnresolvedPhaseCount: 73,
+        optimizerRefinementFailureCount: 31,
+      },
+      blockers: [
+        'POST_SPLIT_TPD_STABILITY_FAILED',
+        'FROZEN_COMPOSITION_VALIDATION_FAILED',
+      ],
+      worstMinimum: -0.62,
+      worstFullyReproducedMinimum: -0.61,
+      classificationCounts: {
+        GENUINE_LOWER_GIBBS_BASIN: 42,
+        OPTIMIZER_REFINEMENT_FAILURE: 31,
+        STABLE_PHASE: 37,
+      },
+      comparisonCandidate: {
+        disposition: 'REJECTED_FROZEN_VALIDATION_AND_GLOBAL_INSTABILITY',
+        qualified: false,
+        frozenValidationPassed: false,
+        classificationCounts: {
+          GENUINE_LOWER_GIBBS_BASIN: 10,
+          STABLE_PHASE: 100,
+        },
+        worstMinimum: -0.1,
+      },
+    };
+    const evidence = {
+      evidenceId: 'TASK_216_MONO_RICH_GLOBAL_STABILITY_V1',
+      researchOnly: true,
+      calibrationRequired: true,
+      releaseEligible: false,
+      predictiveNt: null,
+      ...expected,
+    };
+    expect(validateTask216GlobalStabilityEvidence(evidence, expected)).toBeNull();
+    expect(validateTask216GlobalStabilityEvidence({
+      ...evidence,
+      evidenceArtifacts: { ...hashes, resultsSha256: '0'.repeat(64) },
+    }, expected)).toBe('TASK216_GLOBAL_STABILITY_EVIDENCE_HASH_MISMATCH');
+    expect(validateTask216GlobalStabilityEvidence({
+      ...evidence,
+      coverage: { ...evidence.coverage, returnedPhaseEndpoints: 109 },
+    }, expected)).toBe('TASK216_GLOBAL_STABILITY_PHASE_COVERAGE_INCOMPLETE');
+    expect(validateTask216GlobalStabilityEvidence({
+      ...evidence,
+      blockers: ['FROZEN_COMPOSITION_VALIDATION_FAILED'],
+    }, expected)).toBe('TASK216_GLOBAL_STABILITY_FALSE_BLOCKER_FREE_CLAIM');
+    expect(validateTask216GlobalStabilityEvidence(undefined, expected))
+      .toBe('TASK216_GLOBAL_STABILITY_EVIDENCE_MISSING');
+    for (const mutation of [
+      { ...evidence, exactReferenceJobId: 'other-job' },
+      {
+        ...evidence,
+        coverage: { ...evidence.coverage, negativeOrUnresolvedPhaseCount: 72 },
+      },
+      {
+        ...evidence,
+        coverage: { ...evidence.coverage, optimizerRefinementFailureCount: 30 },
+      },
+      {
+        ...evidence,
+        comparisonCandidate: {
+          ...evidence.comparisonCandidate,
+          disposition: 'QUALIFIED',
+        },
+      },
+      {
+        ...evidence,
+        comparisonCandidate: {
+          ...evidence.comparisonCandidate,
+          worstMinimum: 0,
+        },
+      },
+    ]) {
+      expect(validateTask216GlobalStabilityEvidence(mutation, expected))
+        .toBe('TASK216_GLOBAL_STABILITY_FROZEN_SUMMARY_MISMATCH');
+    }
   });
 
   it('binds every job input to the frozen package and never establishes N_T at validation', () => {
@@ -305,6 +414,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     expect(attachStage1ResultGovernance({
       status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
       predictiveNt: null,
+      globalStabilityQualification: validTask216Evidence(),
     }, derived)).toMatchObject({
       status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
       predictiveNt: null,
@@ -327,6 +437,10 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
         overallEcrProductAcceptanceStatus: 'RESEARCH_DIAGNOSTIC_NOT_RELEASE_ELIGIBLE',
       },
     });
+    expect(() => attachStage1ResultGovernance({
+      status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
+      predictiveNt: null,
+    }, derived)).toThrow('TASK216_GLOBAL_STABILITY_EVIDENCE_MISSING');
   }, 60_000);
 
   it('admits positive PA and feed NMP in the saved six-component Stage 1 scope', async () => {
@@ -451,6 +565,33 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
           engineId: 'ECR2_PREDICTIVE_NT_SIX_COMPONENT_COSMOSAC',
           engineHash: completed?.engineHash,
         },
+        globalStabilityQualification: {
+          evidenceId: 'TASK_216_MONO_RICH_GLOBAL_STABILITY_V1',
+          status: 'BLOCKED_FAIL_CLOSED',
+          qualified: false,
+          researchOnly: true,
+          calibrationRequired: true,
+          releaseEligible: false,
+          predictiveNt: null,
+          postSplitTpdThreshold: -1e-8,
+          coverage: {
+            expectedPhaseEndpoints: 110,
+            returnedPhaseEndpoints: 110,
+            failingPhaseCount: 57,
+            negativeOrUnresolvedPhaseCount: 96,
+            optimizerRefinementFailureCount: 39,
+          },
+          comparisonCandidate: {
+            disposition: 'REJECTED_FROZEN_VALIDATION_AND_GLOBAL_INSTABILITY',
+            qualified: false,
+            frozenValidationPassed: false,
+          },
+          blockers: [
+            'FROZEN_COMPOSITION_VALIDATION_FAILED',
+            'POST_SPLIT_TPD_STABILITY_FAILED',
+            'DIRECT_MATCHING_SIX_COMPONENT_LLE_EVIDENCE_MISSING',
+          ],
+        },
         stage1Authority: {
           freshModeledNmpMassBasis: 150,
           nmpPurityAndWaterSpecificationOnly: {
@@ -460,6 +601,13 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
         },
       });
       const result = completed?.result as any;
+      expect(result.globalStabilityQualification.evidenceArtifacts.resultsSha256)
+        .toMatch(/^[a-f0-9]{64}$/);
+      expect(result.globalStabilityQualification.classificationCounts).toEqual({
+        GENUINE_LOWER_GIBBS_BASIN: 57,
+        LOCAL_HESSIAN_ONLY_ARTIFACT: 14,
+        OPTIMIZER_REFINEMENT_FAILURE: 39,
+      });
       expect(result.stage1TargetGovernance.overallEcrProductAcceptance).toBe(false);
       expect(result.trials).toHaveLength(2);
       expect(result.trials[0]).toMatchObject({

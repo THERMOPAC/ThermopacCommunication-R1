@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "1.0.0",
+  "analysis": "frozen Task-215 exact-endpoint independent global TPD harness",
+  "referenceJob": {
+    "id": "00d1468d-7130-41ff-b897-3b6b6303047e",
+    "project": 170,
+    "inputSnapshotSha256": "f35a4693cd2727073245fdcf26ad7b0fb25e0b62dc0e24dd64ff93f3a101512a",
+    "priorResultSnapshotSha256": "b66a4bff770cd1081d0533ac3e0e00e3e85cb906cb9b9f9a40c2cdf3a1173790",
+    "priorEngineHash": "6aaca50648a7e3432d98c50f2b43dbe721cd196ffa137539b70706ca1f6fef8e",
+    "priorModelHash": "9666ff67194102ca9c3dc139695bead8ff133fbfe24c2d786ce1deca49456196"
+  },
+  "pinnedInputs": {
+    "task215ProtocolSha256": "4f188682dd9865c7b977eaea7ac421cb9393b67a15d40a5cad842dbed30c845e",
+    "task215ResultsSha256": "5b80d13e221db5b4153655774b0e05b5bb4b8e74e8d848fc76c6270177950287",
+    "task215ProvenanceSha256": "b83b0cf11d029e6c6eeb67a596db828a11c108b59e6300b8d7f7f392a5533e3d",
+    "task206ProtocolSha256": "2f00753d362e2a299955f51cf3853bb083c3ef4afefae2884d170d5906493ff1",
+    "task206ResultsSha256": "a6176f4c5f36640b3e03832c9b0e1b355bd908a655bd8d242640d73038120c10",
+    "task213ProtocolSha256": "f0fa0d4d56383a73a0b0aeae0a0c8d1a4bbcc9481b6ed1a217b6a57c5c4f6676",
+    "task213ResultsSha256": "788652e47749f168467410123016a09535e2fe9563b1b6b689151410736a7bf2",
+    "amendmentModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+    "amendmentProtocolSha256": "247a1b5dbbefc7bba6779409751bf5486a28a159b3aecaaff36394a2ab594c44",
+    "amendmentResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+    "countercurrentProtocolSha256": "a2e203e3dfd352ff8a10574be2a56d231e38b7a7fb2402ff8545ac347c4ebdcc",
+    "countercurrentRunnerSha256": "6bf2cf8b07ef8b7aae61aeef1c75d9e7a3961c075fd6cc67f8e863e85db21981",
+    "productionWorkerSha256": "93f0ee848a152a6a770c0e314a93f9ec17583aef1780260ebacf9e81cb21ab98",
+    "cosmoSacRunnerSha256": "2ab508b252435dd61cea8c601c8bbf4ba0456847de6f5dad73004bf4299732a6",
+    "cosmoSacProvenanceSha256": "3476498d39f96b9761495f11a9e93e626d42aed2eda9f9082fa0a0e29bdd2f5e",
+    "sixComponentProvenanceSha256": "c3a6f2c3c0277ce81c02e7fd8d900e5864ac6891a0c34934e631a14aa9093012",
+    "profileVerificationSha256": "d07ea132252d1a56549629c630b658dcc4d9538e44ca6767f6b9b1fbdb15a0e9",
+    "multiTemperatureLleDataSha256": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28"
+  },
+  "componentOrder": ["SAT", "MONO", "DI", "POLY", "PA", "NMP"],
+  "stageRange": {"minimum": 1, "maximum": 10},
+  "expectedReturnedPhaseEndpoints": 110,
+  "postSplitTpdThreshold": -1e-8,
+  "methods": {
+    "productionHelper": "unchanged model.tpd_search callable saved before cascade stubbing",
+    "directObjective": "sum_i trial_i*(mu_i(trial)-mu_i(reference)); mu=log(x)+total_lngamma",
+    "globalLatticeDenominator": 4,
+    "localRefinementDenominator": 8,
+    "seedClasses": ["global-simplex", "reference", "phase-local-log-ratio"],
+    "optimizers": ["BFGS-log-ratio", "SLSQP-simplex", "trust-constr-simplex"],
+    "finiteDifferenceStep": 1e-6,
+    "compositionFloor": 1e-10,
+    "splitWitnessFractions": [0.02, 0.1, 0.25],
+    "adaptiveSplitWitness": {
+      "maximumFraction": 1e-4,
+      "feasibilitySafetyFactor": 0.25,
+      "minimumFraction": 1e-10
+    },
+    "perturbationMagnitude": 1e-4,
+    "acceptanceTolerances": {
+      "optimizerAgreement": 1e-7,
+      "productionHelperObjectiveReproduction": 1e-6,
+      "simplexProjectedKktInfinityNorm": 2e-5,
+      "logitKktInfinityNorm": 2e-5,
+      "analyticFiniteDifferenceGradientMaximumAbsoluteDifference": 2e-6,
+      "localPerturbationObjectiveTolerance": 1e-9,
+      "lowerGibbsWitness": -1e-10
+    }
+  },
+  "frozenGates": {
+    "task206FrozenValidationMustPassToQualify": true,
+    "task206TopologyAndTieLineGatesCarriedUnchanged": true,
+    "task213TopologyAndTieLineGatesCarriedUnchanged": true,
+    "minimumTopologyRecall": 0.9,
+    "maximumTieLineCompositionRmsd": 0.03
+  },
+  "governance": {
+    "researchOnly": true,
+    "calibrationRequired": true,
+    "predictiveNt": null,
+    "sulfurPrediction": "NOT_CALCULABLE",
+    "releaseEligible": false
+  }
+}

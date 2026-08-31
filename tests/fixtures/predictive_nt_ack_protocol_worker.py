@@ -17,6 +17,77 @@ def digest_text(value):
     return hashlib.sha256(value.encode()).hexdigest()
 
 
+def file_hash(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def task216_evidence():
+    root = Path.cwd()
+    output = root / ".agents/outputs/task-216-mono-rich-global-stability"
+    research = root / "server/research/task-216-mono-rich-global-stability"
+    result = json.loads((output / "results.json").read_text())
+    phases = result["phases"]
+    classifications = {}
+    for phase in phases:
+        classification = phase["classification"]
+        classifications[classification] = classifications.get(classification, 0) + 1
+    fully_reproduced = [
+        phase["minimum"] for phase in phases
+        if phase["fullyReproducedNegative"]
+    ]
+    candidate = result["task206CandidateComparison"]
+    candidate_phases = candidate["sameEndpointFullGlobalSearches"]
+    candidate_classifications = {}
+    for phase in candidate_phases:
+        classification = phase["classification"]
+        candidate_classifications[classification] = (
+            candidate_classifications.get(classification, 0) + 1
+        )
+    frozen_validation_passed = all(
+        row["status"] == "PASS"
+        for row in candidate["frozenValidation"].values()
+    )
+    return {
+        "evidenceId": "TASK_216_MONO_RICH_GLOBAL_STABILITY_V1",
+        "status": result["status"],
+        "qualified": result["qualified"],
+        "researchOnly": True,
+        "calibrationRequired": True,
+        "releaseEligible": False,
+        "predictiveNt": None,
+        "postSplitTpdThreshold": result["postSplitTpdThreshold"],
+        "exactReferenceJobId": result["referenceJob"]["id"],
+        "evidenceArtifacts": {
+            "protocolSha256": file_hash(research / "protocol.json"),
+            "runnerSha256": file_hash(research / "run.py"),
+            "resultsSha256": file_hash(output / "results.json"),
+            "reportSha256": file_hash(output / "report.md"),
+            "provenanceSha256": file_hash(output / "provenance-manifest.json"),
+        },
+        "coverage": {
+            "expectedPhaseEndpoints": result["coverage"]["expectedPhaseEndpoints"],
+            "returnedPhaseEndpoints": result["coverage"]["returnedPhaseEndpoints"],
+            "failingPhaseCount": result["coverage"]["failingPhaseCount"],
+            "negativeOrUnresolvedPhaseCount":
+                result["coverage"]["negativeOrUnresolvedPhaseCount"],
+            "optimizerRefinementFailureCount":
+                classifications.get("OPTIMIZER_REFINEMENT_FAILURE", 0),
+        },
+        "worstMinimum": min(phase["minimum"] for phase in phases),
+        "worstFullyReproducedMinimum": min(fully_reproduced),
+        "classificationCounts": classifications,
+        "comparisonCandidate": {
+            "disposition":
+                "REJECTED_FROZEN_VALIDATION_AND_GLOBAL_INSTABILITY",
+            "qualified": candidate["qualifiedForThisHarness"],
+            "frozenValidationPassed": frozen_validation_passed,
+            "classificationCounts": candidate_classifications,
+            "worstMinimum": min(phase["minimum"] for phase in candidate_phases),
+        },
+        "blockers": result["blockers"],
+    }
+
+
 def preflight():
     engine_hash = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     print(canonical({
@@ -163,6 +234,7 @@ def main():
         "pilotValidated": False,
         "componentOrder": ORDER,
         "modelIdentity": "TEST_ACK_PROTOCOL_FIXTURE_NOT_SCIENTIFIC",
+        "globalStabilityQualification": task216_evidence(),
         "trials": trials,
     }), end="")
 

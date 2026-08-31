@@ -40,6 +40,9 @@ TASK213_RUNNER = ROOT / "server/research/task-213-mono-rich-qualification/run.py
 TASK215 = ROOT / ".agents/outputs/task-215-multistart-resolution"
 TASK215_PROTOCOL = ROOT / "server/research/task-215-multistart-resolution/protocol.json"
 TASK215_RUNNER = ROOT / "server/research/task-215-multistart-resolution/run.py"
+TASK216 = ROOT / ".agents/outputs/task-216-mono-rich-global-stability"
+TASK216_PROTOCOL = ROOT / "server/research/task-216-mono-rich-global-stability/protocol.json"
+TASK216_RUNNER = ROOT / "server/research/task-216-mono-rich-global-stability/run.py"
 
 
 def canonical(value):
@@ -126,6 +129,12 @@ def scientific_runtime_inputs():
         TASK215 / "results.json",
         TASK215 / "report.md",
         TASK215 / "provenance-manifest.json",
+        TASK216_PROTOCOL,
+        TASK216_RUNNER,
+        ROOT / "server/research/task-216-mono-rich-global-stability/verify.py",
+        TASK216 / "results.json",
+        TASK216 / "report.md",
+        TASK216 / "provenance-manifest.json",
         ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json",
         ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/fixed-nt7-feed-sensitivity-results.json",
         ROOT / ".agents/outputs/task-205-negative-tpd-diagnostic/results.json",
@@ -275,62 +284,153 @@ def engine_hash():
     return engine_evidence()["engineHash"]
 
 
-def thermodynamic_qualification(counter_protocol):
-    """Verify the pinned Task-213 decision before permitting N_T assignment."""
+def task216_global_stability_qualification(counter_protocol):
+    """Verify and summarize the frozen 110-phase Project-170 TPD matrix."""
     required = (
-        TASK213_PROTOCOL, TASK213_RUNNER, TASK213 / "results.json",
-        TASK213 / "report.md", TASK213 / "provenance-manifest.json",
+        TASK216_PROTOCOL, TASK216_RUNNER, TASK216 / "results.json",
+        TASK216 / "report.md", TASK216 / "provenance-manifest.json",
     )
     if not all(path.is_file() for path in required):
-        return False, "TASK213_QUALIFICATION_EVIDENCE_MISSING"
-    protocol = json.loads(TASK213_PROTOCOL.read_text())
-    result = json.loads((TASK213 / "results.json").read_text())
-    provenance = json.loads((TASK213 / "provenance-manifest.json").read_text())
-    if (
-        provenance.get("runnerSha256") != file_hash(TASK213_RUNNER)
-        or provenance.get("resultsSha256") != file_hash(TASK213 / "results.json")
-        or provenance.get("reportSha256") != file_hash(TASK213 / "report.md")
-    ):
-        return False, "TASK213_QUALIFICATION_PROVENANCE_MISMATCH"
-    expected_inputs = protocol.get("pinnedInputs", {})
-    actual_inputs = {
-        "amendmentModelSha256": file_hash(AMENDMENT / "model.py"),
-        "amendmentResultsSha256": file_hash(
-            ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json"
-        ),
-        "negativeTpdDiagnosticSha256": file_hash(
-            ROOT / ".agents/outputs/task-205-negative-tpd-diagnostic/results.json"
-        ),
-        "stabilityConstrainedAmendmentSha256": file_hash(
-            ROOT / ".agents/outputs/task-206-stability-constrained-amendment/results.json"
-        ),
-        "multistartClosureSha256": file_hash(
-            ROOT / ".agents/outputs/task-207-seven-stage-multistart-closure/results.json"
-        ),
-        "frozenTrialsSha256": file_hash(
-            ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/fixed-nt7-feed-sensitivity-results.json"
-        ),
-        "countercurrentProtocolSha256": file_hash(COUNTER / "protocol.json"),
+        raise ValueError("TASK216_GLOBAL_STABILITY_EVIDENCE_MISSING")
+    protocol = json.loads(TASK216_PROTOCOL.read_text())
+    result = json.loads((TASK216 / "results.json").read_text())
+    provenance = json.loads((TASK216 / "provenance-manifest.json").read_text())
+    hashes = {
+        "protocolSha256": file_hash(TASK216_PROTOCOL),
+        "runnerSha256": file_hash(TASK216_RUNNER),
+        "resultsSha256": file_hash(TASK216 / "results.json"),
+        "reportSha256": file_hash(TASK216 / "report.md"),
+        "provenanceSha256": file_hash(TASK216 / "provenance-manifest.json"),
     }
-    if expected_inputs != actual_inputs:
-        return False, "TASK213_QUALIFICATION_INPUT_MISMATCH"
-    coverage = result.get("completeAllStageAllTrialCoverage", {})
-    accepted = bool(
-        result.get("qualified") is True
-        and result.get("status") == "QUALIFIED"
-        and result.get("blockers") == []
-        and coverage.get("demonstratedForFrozenTrials") is True
-        and coverage.get("everyPhaseStableAtFrozenThreshold") is True
-        and coverage.get("expectedPhaseCount") == 42
-        and coverage.get("coveredPhaseCount") == 42
-        and result.get("postSplitTpdThreshold")
-        == counter_protocol["numericalAcceptance"]["postSplitTpdThreshold"]
-        and counter_protocol["governance"]["equilibriumModelQualification"] == "QUALIFIED"
+    for key in ("protocolSha256", "runnerSha256", "resultsSha256", "reportSha256"):
+        if provenance.get(key) != hashes[key]:
+            raise ValueError("TASK216_GLOBAL_STABILITY_EVIDENCE_HASH_MISMATCH")
+    threshold = counter_protocol["numericalAcceptance"]["postSplitTpdThreshold"]
+    if (
+        protocol.get("postSplitTpdThreshold") != threshold
+        or result.get("postSplitTpdThreshold") != threshold
+    ):
+        raise ValueError("TASK216_GLOBAL_STABILITY_THRESHOLD_MISMATCH")
+    phases = result.get("phases")
+    expected = protocol.get("expectedReturnedPhaseEndpoints")
+    coverage = result.get("coverage", {})
+    if (
+        not isinstance(phases, list)
+        or len(phases) != expected
+        or coverage.get("expectedPhaseEndpoints") != expected
+        or coverage.get("returnedPhaseEndpoints") != expected
+    ):
+        raise ValueError("TASK216_GLOBAL_STABILITY_PHASE_COVERAGE_INCOMPLETE")
+    expected_keys = {
+        (trial, stage, phase)
+        for trial in range(
+            protocol["stageRange"]["minimum"],
+            protocol["stageRange"]["maximum"] + 1,
+        )
+        for stage in range(1, trial + 1)
+        for phase in ("raffinate", "extract")
+    }
+    actual_keys = {
+        (
+            row.get("trialStageCount"),
+            row.get("stageFromFeedEnd"),
+            row.get("phase"),
+        )
+        for row in phases
+    }
+    if actual_keys != expected_keys:
+        raise ValueError("TASK216_GLOBAL_STABILITY_PHASE_IDENTITY_INCOMPLETE")
+    classifications = {}
+    negative_or_unresolved = []
+    fully_reproduced = []
+    for row in phases:
+        minimum = row.get("minimum")
+        classification = row.get("classification")
+        if not isinstance(minimum, (int, float)) or not math.isfinite(minimum):
+            raise ValueError("TASK216_GLOBAL_STABILITY_NONFINITE_MINIMUM")
+        classifications[classification] = classifications.get(classification, 0) + 1
+        if (
+            minimum < threshold
+            or row.get("productionHelper", {}).get("minimum", 0) < threshold
+        ):
+            negative_or_unresolved.append(row)
+        if row.get("fullyReproducedNegative") is True:
+            fully_reproduced.append(row)
+    blockers = result.get("blockers")
+    if (
+        not isinstance(blockers, list)
+        or (
+            negative_or_unresolved
+            and "POST_SPLIT_TPD_STABILITY_FAILED" not in blockers
+        )
+        or (
+            fully_reproduced
+            and coverage.get("failingPhaseCount") != len(fully_reproduced)
+        )
+    ):
+        raise ValueError("TASK216_GLOBAL_STABILITY_FALSE_BLOCKER_FREE_CLAIM")
+    candidate = result.get("task206CandidateComparison", {})
+    candidate_phases = candidate.get("sameEndpointFullGlobalSearches")
+    if (
+        not isinstance(candidate_phases, list)
+        or len(candidate_phases) != expected
+        or candidate.get("qualifiedForThisHarness") is not False
+    ):
+        raise ValueError("TASK216_COMPARISON_CANDIDATE_EVIDENCE_INCOMPLETE")
+    candidate_classifications = {}
+    for row in candidate_phases:
+        classification = row.get("classification")
+        candidate_classifications[classification] = (
+            candidate_classifications.get(classification, 0) + 1
+        )
+    frozen_validation = candidate.get("frozenValidation", {})
+    frozen_validation_passed = bool(frozen_validation) and all(
+        row.get("status") == "PASS" for row in frozen_validation.values()
     )
-    return (
-        (True, "TASK213_QUALIFICATION_VERIFIED")
-        if accepted else (False, "TASK213_QUALIFICATION_NOT_ACCEPTED")
-    )
+    if frozen_validation_passed:
+        raise ValueError("TASK216_COMPARISON_CANDIDATE_GATE_DISPOSITION_INVALID")
+    return {
+        "evidenceId": "TASK_216_MONO_RICH_GLOBAL_STABILITY_V1",
+        "status": result.get("status"),
+        "qualified": result.get("qualified") is True,
+        "researchOnly": True,
+        "calibrationRequired": True,
+        "releaseEligible": False,
+        "predictiveNt": None,
+        "postSplitTpdThreshold": threshold,
+        "exactReferenceJobId": protocol["referenceJob"]["id"],
+        "evidenceArtifacts": hashes,
+        "coverage": {
+            "expectedPhaseEndpoints": expected,
+            "returnedPhaseEndpoints": len(phases),
+            "failingPhaseCount": len(fully_reproduced),
+            "negativeOrUnresolvedPhaseCount": len(negative_or_unresolved),
+            "optimizerRefinementFailureCount":
+                classifications.get("OPTIMIZER_REFINEMENT_FAILURE", 0),
+        },
+        "worstMinimum": min(row["minimum"] for row in phases),
+        "worstFullyReproducedMinimum": min(
+            row["minimum"] for row in fully_reproduced
+        ) if fully_reproduced else None,
+        "classificationCounts": classifications,
+        "comparisonCandidate": {
+            "disposition": "REJECTED_FROZEN_VALIDATION_AND_GLOBAL_INSTABILITY",
+            "qualified": False,
+            "frozenValidationPassed": False,
+            "classificationCounts": candidate_classifications,
+            "worstMinimum": min(row["minimum"] for row in candidate_phases),
+        },
+        "blockers": blockers,
+    }
+
+
+def thermodynamic_qualification(counter_protocol):
+    qualification = task216_global_stability_qualification(counter_protocol)
+    if qualification["qualified"] and not qualification["blockers"]:
+        return True, "ASSIGNED_FROM_VERIFIED_THERMODYNAMIC_QUALIFICATION"
+    if "POST_SPLIT_TPD_STABILITY_FAILED" in qualification["blockers"]:
+        return False, "POST_SPLIT_TPD_STABILITY_FAILED"
+    return False, "NOT_ASSIGNED_THERMODYNAMIC_MODEL_NOT_QUALIFIED"
 
 
 def plain(value):
@@ -569,6 +669,9 @@ def main():
     thermodynamic_qualification_accepted, qualification_status = (
         thermodynamic_qualification(counter_protocol)
     )
+    global_stability_qualification = task216_global_stability_qualification(
+        counter_protocol
+    )
     sequence_evidence_available = bool(trials) and all(
         isinstance(trial.get("monotonicFromPrevious"), bool) for trial in trials
     )
@@ -584,6 +687,7 @@ def main():
         "engine": ending_engine,
         "stage1Authority": {"snapshotSha256": snapshot_hash, "immutableHash": snapshot["immutableHash"], "stageRange": {"minimum": 1, "maximum": maximum}, "feedMassBasis": dict(zip(FAMILIES, feed_mass.tolist())), "freshModeledNmpMassBasis": fresh_nmp_mass, "nmpPurityAndWaterSpecificationOnly": {"nmpPurityWt": purity, "nmpWaterWt": water}},
         "inputHash": input_hash,
+        "globalStabilityQualification": global_stability_qualification,
         "predictiveNt": (
             diagnostic_selection["stageCount"]
             if thermodynamic_qualification_accepted and diagnostic_selection

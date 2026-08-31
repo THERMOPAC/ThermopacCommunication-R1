@@ -409,7 +409,50 @@ export async function generatePredictiveNtReport(
     42, 100, [45, 95, 610], 40, 6.2,
   );
 
-  page('7. Governance and provenance', false, 'Immutable identifiers for the frozen completed snapshot');
+  const stability = o.globalStabilityQualification;
+  page(
+    '7. Frozen global TPD qualification',
+    false,
+    'Task 216 evidence reconstructed from the closed Project 170 endpoints; never recalculated during PDF generation',
+  );
+  if (stability) {
+    const classifications = Object.entries(stability.classificationCounts ?? {})
+      .map(([classification, count]) => `${classification}: ${count}`)
+      .join(' · ');
+    grid([
+      ['Evidence status', stability.status],
+      ['Evidence qualified', stability.qualified ? 'Yes' : 'No'],
+      ['Exact phase coverage', `${stability.coverage?.returnedPhaseEndpoints ?? '—'} / ${stability.coverage?.expectedPhaseEndpoints ?? '—'}`],
+      ['Fully reproduced negative phases', stability.coverage?.failingPhaseCount],
+      ['Negative or unresolved phases', stability.coverage?.negativeOrUnresolvedPhaseCount],
+      ['Optimizer/refinement failures', stability.coverage?.optimizerRefinementFailureCount],
+      ['Worst frozen TPD minimum', stability.worstMinimum],
+      ['Unchanged TPD threshold', stability.postSplitTpdThreshold],
+      ['Task 206 comparison candidate', stability.comparisonCandidate?.disposition],
+      ['Frozen results SHA-256', stability.evidenceArtifacts?.resultsSha256],
+      ['Frozen protocol SHA-256', stability.evidenceArtifacts?.protocolSha256],
+    ], 42, 100, 510, 20);
+    text('Frozen phase classifications', 42, 330, 510, 11, COLORS.navy, true);
+    text(classifications || 'No classification summary persisted.', 42, 355, 510, 8.2);
+    text('Exact governing blockers', 42, 410, 510, 11, COLORS.navy, true);
+    const stabilityBlockers = Array.isArray(stability.blockers)
+      ? stability.blockers.join(' · ')
+      : 'TASK216_GLOBAL_STABILITY_EVIDENCE_INVALID';
+    doc.roundedRect(42, 435, 510, 145, 4).fill('#FFF3E5');
+    text(stabilityBlockers || 'None', 55, 450, 480, 8.2, COLORS.red, true);
+    text(
+      'A completed evidence run with blockers is a controlled negative scientific finding, not a software error. Predictive N_T remains unassigned and the output remains calibration-required and non-release-eligible.',
+      55, 525, 480, 8,
+    );
+  } else {
+    pill('TASK 216 FROZEN EVIDENCE NOT ATTACHED', 42, 105, 510);
+    text(
+      'This legacy completed snapshot predates the frozen global-stability evidence attachment. No current evidence has been substituted into this report.',
+      42, 160, 510, 9,
+    );
+  }
+
+  page('8. Governance and provenance', false, 'Immutable identifiers for the frozen completed snapshot');
   pill('CONTROLLED RESEARCH OUTPUT — CALIBRATION REQUIRED', 42, 98, 510);
   grid([
     ['Thermodynamic classification', o.resultThermodynamicClassification],

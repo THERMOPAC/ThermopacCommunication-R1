@@ -175,6 +175,27 @@ type PredictiveNtResult = {
   diagnosticSelectionBasis?: string;
   model?: { modelHash?: string; runtimeVerification?: string };
   engine?: { engineId?: string; engineVersion?: string; engineHash?: string };
+  globalStabilityQualification?: {
+    evidenceId?: string;
+    status?: string;
+    qualified?: boolean;
+    postSplitTpdThreshold?: number;
+    worstMinimum?: number;
+    coverage?: {
+      expectedPhaseEndpoints?: number;
+      returnedPhaseEndpoints?: number;
+      failingPhaseCount?: number;
+      negativeOrUnresolvedPhaseCount?: number;
+      optimizerRefinementFailureCount?: number;
+    };
+    comparisonCandidate?: { disposition?: string };
+    blockers?: string[];
+    evidenceArtifacts?: {
+      protocolSha256?: string;
+      resultsSha256?: string;
+      provenanceSha256?: string;
+    };
+  };
   stage1TargetGovernance?: {
     stage1SnapshotHash?: string;
     predictiveNtAuthority?: string;
@@ -1895,6 +1916,54 @@ export default function EcrPrePilotDesignPage() {
                       </>
                     )}
                   </div>
+                  {predictiveJob.result.globalStabilityQualification && (
+                    <div className="rounded-md border border-red-300 bg-red-50 p-3 text-[11px] leading-5 text-red-950">
+                      <p className="font-semibold">Frozen global TPD qualification</p>
+                      <p>
+                        Status: <strong>{predictiveJob.result.globalStabilityQualification.status ?? "NOT RECORDED"}</strong>
+                        {" · "}
+                        Evidence qualified: <strong>{predictiveJob.result.globalStabilityQualification.qualified ? "Yes" : "No"}</strong>
+                      </p>
+                      <p>
+                        Exact phase coverage:{" "}
+                        <strong>
+                          {predictiveJob.result.globalStabilityQualification.coverage?.returnedPhaseEndpoints ?? "—"}
+                          {" / "}
+                          {predictiveJob.result.globalStabilityQualification.coverage?.expectedPhaseEndpoints ?? "—"}
+                        </strong>
+                        {" · "}
+                        fully reproduced negative phases:{" "}
+                        <strong>{predictiveJob.result.globalStabilityQualification.coverage?.failingPhaseCount ?? "—"}</strong>
+                        {" · "}
+                        negative or unresolved phases:{" "}
+                        <strong>{predictiveJob.result.globalStabilityQualification.coverage?.negativeOrUnresolvedPhaseCount ?? "—"}</strong>
+                        {" · "}
+                        refinement failures:{" "}
+                        <strong>{predictiveJob.result.globalStabilityQualification.coverage?.optimizerRefinementFailureCount ?? "—"}</strong>
+                        {" · "}
+                        worst TPD:{" "}
+                        <strong className="font-mono">
+                          {Number(predictiveJob.result.globalStabilityQualification.worstMinimum).toExponential(4)}
+                        </strong>
+                      </p>
+                      <p>
+                        Task 206 candidate:{" "}
+                        <strong>
+                          {predictiveJob.result.globalStabilityQualification.comparisonCandidate?.disposition ?? "NOT RECORDED"}
+                        </strong>
+                      </p>
+                      <p>
+                        Exact blockers:{" "}
+                        <strong>
+                          {predictiveJob.result.globalStabilityQualification.blockers?.join(" · ") || "None recorded"}
+                        </strong>
+                      </p>
+                      <p className="break-all font-mono text-[10px]">
+                        Evidence results SHA-256:{" "}
+                        {predictiveJob.result.globalStabilityQualification.evidenceArtifacts?.resultsSha256 ?? "—"}
+                      </p>
+                    </div>
+                  )}
                   <div className="grid gap-2 text-[11px] md:grid-cols-2">
                     <div className="rounded-md border bg-slate-50 p-3">
                       <p className="font-semibold text-slate-700">Model hash</p>

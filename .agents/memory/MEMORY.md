@@ -90,3 +90,4 @@
 - [NMP LLE residual qualification boundary](nmp-lle-residual-qualification-boundary.md) — a stable Stage 1 split stays research-only when frozen blind LLE RMSD fails; never promote split metrics to design.
 - [Cascade equation row scaling](cascade-equation-row-scaling.md) — mixed balance/isoactivity cascades may need row-equilibrated Newton; always judge closure on the original residuals.
 - [Predictive N_T endpoint semantics](predictive-nt-endpoint-semantics.md) — raw residual closure is independent of optimizer success; compare branches only after both endpoints close.
+- [Post-split TPD qualification](post-split-tpd-qualification.md) — boundary minima require active-set simplex KKT; genuine lower-Gibbs basins keep the current six-component N_T model fail-closed.
