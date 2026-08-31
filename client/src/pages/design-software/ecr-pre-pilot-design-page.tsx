@@ -234,6 +234,7 @@ function hydrateSavedStage1(current: FormState, inputData: unknown): FormState {
   const source = stage1 as Record<string, unknown>;
   const next = { ...current };
   const numericSelectPrecision: Partial<Record<keyof FormState, number>> = {
+    solventOilRatio: 2,
     targetRaffinateTotalAromaticsWt: 1,
     targetRaffinatePolarAromaticsWt: 2,
     maximumNmpRaffinateWt: 2,
