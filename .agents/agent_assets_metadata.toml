@@ -705,5 +705,5 @@ description = "72-page frozen report for the completed 10-trial six-component CO
 id = "4bYaQTux8jTw2GIdn0lw-"
 uri = "file://reports/project-111-predictive-nt-engineering-report.pdf"
 type = "pdf"
-title = "Detailed Project 111 Predictive N_T Report"
-description = "Expanded 35-page report matching the UI diagnostics: full six-component comparison, per-trial overview, every internal stage diagnostic, and all SAT/MONO/DI/POLY/PA/NMP outlet compositions."
+title = "Project 111 Predictive N_T Controlled Report — Expert Review Revision"
+description = "36-page revised controlled report incorporating the expert review: corrected Stage-1 snapshot hash, exact blocker sets, stage-qualification naming, un-converged warnings, SAT loss, NMP not-applicable treatment, and explicit mole-vs-mass composition bases."
