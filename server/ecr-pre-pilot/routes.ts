@@ -4,6 +4,7 @@ import { allocateEcrPrePilotDesign, saveEcrPrePilotStage1 } from '../ecr-pre-pil
 import {
   enqueuePredictiveNtJobFromSavedStage1,
   getPredictiveNtJob,
+  getPredictiveNtJobReport,
   PREDICTIVE_NT_MOLECULAR_REGISTRY,
   startPredictiveNtWorker,
 } from './predictive-nt-job-service';
@@ -118,6 +119,34 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       } catch (error) {
         console.error('[ECR Pre-Pilot] Predictive N_T job lookup failed:', error);
         return res.status(500).json({ error: 'Predictive N_T job lookup failed' });
+      }
+    },
+  );
+
+  app.get(
+    '/api/ecr-pre-pilot/designs/:id/predictive-nt/jobs/:jobId/report',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const designId = Number(req.params.id);
+        if (!Number.isInteger(designId) || designId <= 0) {
+          return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+        }
+        const report = await getPredictiveNtJobReport(
+          req.params.jobId,
+          Number((req.user as any).id),
+          designId,
+        );
+        if (!report) return res.status(404).json({ error: 'Predictive N_T report not found' });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`);
+        res.setHeader('Content-Length', String(report.pdf.length));
+        res.setHeader('Digest', `sha-256=${Buffer.from(report.sha256, 'hex').toString('base64')}`);
+        res.setHeader('Cache-Control', 'private, no-store');
+        return res.send(report.pdf);
+      } catch (error) {
+        console.error('[ECR Pre-Pilot] Predictive N_T report download failed:', error);
+        return res.status(500).json({ error: 'Predictive N_T report download failed' });
       }
     },
   );

@@ -18,6 +18,7 @@ import {
   type SixComponentProfileFileReader,
   verifyStage1SixComponentCosmoSacProfileFiles,
 } from './six-component-cosmo-sac-basis';
+import { generatePredictiveNtReport } from './predictive-nt-report';
 
 export interface PredictiveNtJobInput {
   engineComponentContract: {
@@ -87,6 +88,13 @@ type PredictiveNtJob = {
   input: PredictiveNtJobInput;
   progress: { completedStageTrials: number; maximumStages: number };
   result: unknown;
+  report: {
+    available: boolean;
+    filename: string | null;
+    sha256: string | null;
+    generatedAt: string | null;
+    downloadUrl: string | null;
+  };
   error: string | null;
 };
 
@@ -637,6 +645,17 @@ function mapJob(row: any): PredictiveNtJob {
       maximumStages: Number(row.maximum_stages),
     },
     result: row.result_snapshot,
+    report: {
+      available: Boolean(row.report_generated_at && row.report_filename),
+      filename: row.report_filename ?? null,
+      sha256: row.report_sha256 ?? null,
+      generatedAt: row.report_generated_at
+        ? new Date(row.report_generated_at).toISOString()
+        : null,
+      downloadUrl: row.report_generated_at
+        ? `/api/ecr-pre-pilot/designs/${Number(row.design_id)}/predictive-nt/jobs/${row.id}/report`
+        : null,
+    },
     error: row.error,
   };
 }
@@ -776,8 +795,10 @@ async function persistTrialCheckpoint(
   try {
     await client.query('BEGIN');
     const locked = await client.query(
-      `SELECT * FROM ecr_pre_pilot_predictive_nt_jobs
-        WHERE id = $1 AND status = 'running' AND claim_token = $2
+      `SELECT job.*, design.project_number
+         FROM ecr_pre_pilot_predictive_nt_jobs AS job
+         JOIN ecr_pre_pilot_designs AS design ON design.id = job.design_id
+        WHERE job.id = $1 AND job.status = 'running' AND job.claim_token = $2
         FOR UPDATE`,
       [jobId, claimToken],
     );
@@ -1006,13 +1027,41 @@ async function finishJob(
         checkpoint: current.result_snapshot?.checkpoint,
       }
       : current.result_snapshot;
+    let reportPdf: Buffer | null = null;
+    let reportFilename: string | null = null;
+    let reportSha256: string | null = null;
+    if (finalStatus === 'completed') {
+      try {
+        reportPdf = await generatePredictiveNtReport({
+          id: current.id,
+          projectNumber: Number(current.project_number),
+          modelHash: current.model_hash,
+          engineHash: current.engine_hash,
+          completedAt: new Date(),
+          input: current.input_snapshot,
+          result: finalResult,
+        });
+        reportFilename = `Project-${Number(current.project_number)}-Predictive-NT-Run-${current.id}.pdf`;
+        reportSha256 = createHash('sha256').update(reportPdf).digest('hex');
+      } catch (reportError) {
+        finalStatus = 'failed';
+        finalError = `PREDICTIVE_NT_REPORT_GENERATION_FAILED: ${
+          reportError instanceof Error ? reportError.message : String(reportError)
+        }`;
+      }
+    }
     const updated = await client.query(
       `UPDATE ecr_pre_pilot_predictive_nt_jobs
           SET status = $3, result_snapshot = $4, error = $5,
-              completed_at = NOW(), lease_expires_at = NULL, updated_at = NOW()
+               report_pdf = $6, report_filename = $7, report_sha256 = $8,
+               report_generated_at = CASE WHEN $6::bytea IS NULL THEN NULL ELSE NOW() END,
+               completed_at = NOW(), lease_expires_at = NULL, updated_at = NOW()
         WHERE id = $1 AND status = 'running' AND claim_token = $2
         RETURNING *`,
-      [jobId, claimToken, finalStatus, finalResult, finalError],
+      [
+        jobId, claimToken, finalStatus, finalResult, finalError,
+        reportPdf, reportFilename, reportSha256,
+      ],
     );
     if (updated.rows[0]) await recordHistory(client, updated.rows[0], { event: 'finished' });
     await client.query('COMMIT');
@@ -1407,4 +1456,24 @@ export async function getPredictiveNtJob(jobId: string, userId: number, designId
     [jobId, userId, designId],
   );
   return found.rows[0] ? mapJob(found.rows[0]) : null;
+}
+
+export async function getPredictiveNtJobReport(
+  jobId: string,
+  userId: number,
+  designId: number,
+) {
+  const found = await pool.query(
+    `SELECT report_pdf, report_filename, report_sha256
+       FROM ecr_pre_pilot_predictive_nt_jobs
+      WHERE id = $1 AND created_by = $2 AND design_id = $3
+        AND status = 'completed' AND report_generated_at IS NOT NULL`,
+    [jobId, userId, designId],
+  );
+  if (!found.rows[0]?.report_pdf) return null;
+  return {
+    pdf: Buffer.from(found.rows[0].report_pdf),
+    filename: String(found.rows[0].report_filename),
+    sha256: String(found.rows[0].report_sha256),
+  };
 }

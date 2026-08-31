@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Layout from "@/components/layout";
-import { AlertCircle, CheckCircle2, FlaskConical, Info, Loader2, Play, Save } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, FlaskConical, Info, Loader2, Play, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -163,6 +163,13 @@ type PredictiveNtJob = {
   modelHash: string;
   engineHash: string;
   result: PredictiveNtResult | null;
+  report: {
+    available: boolean;
+    filename: string | null;
+    sha256: string | null;
+    generatedAt: string | null;
+    downloadUrl: string | null;
+  };
   error: string | null;
 };
 
@@ -1024,6 +1031,13 @@ export default function EcrPrePilotDesignPage() {
         modelHash: predictiveBasis.model.modelHash,
         engineHash: "",
         result: null,
+        report: {
+          available: false,
+          filename: null,
+          sha256: null,
+          generatedAt: null,
+          downloadUrl: null,
+        },
         error: null,
       });
       toast({ title: "Predictive N_T queued", description: "Stage trials will update here while the isolated solver runs." });
@@ -1638,6 +1652,21 @@ export default function EcrPrePilotDesignPage() {
               {predictiveJob?.error && (
                 <div className="rounded-md border border-red-200 bg-red-50 p-3 text-[12px] text-red-800">
                   <strong>Job failed:</strong> {predictiveJob.error}
+                </div>
+              )}
+              {predictiveJob?.status === "completed" && predictiveJob.report?.available && predictiveJob.report.downloadUrl && (
+                <div className="flex flex-col gap-3 rounded-md border border-emerald-300 bg-emerald-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-[11px] leading-5 text-emerald-950">
+                    <p className="font-semibold">Complete run report ready</p>
+                    <p>The frozen-snapshot engineering report was generated automatically with this execution.</p>
+                    <p className="break-all font-mono text-[10px] text-emerald-800">SHA-256: {predictiveJob.report.sha256}</p>
+                  </div>
+                  <Button asChild type="button" className="h-8 shrink-0 gap-1.5 px-3 text-xs">
+                    <a href={predictiveJob.report.downloadUrl} download={predictiveJob.report.filename ?? undefined}>
+                      <Download className="h-3.5 w-3.5" />
+                      Download complete PDF
+                    </a>
+                  </Button>
                 </div>
               )}
               {predictiveJob?.result && (

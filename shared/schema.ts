@@ -1,4 +1,4 @@
-import { pgTable, text, serial, bigserial, integer, bigint, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, unique, real, check, pgEnum, index, smallint } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, bigserial, integer, bigint, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, unique, real, check, pgEnum, index, smallint, customType } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -17203,6 +17203,12 @@ export const ecrPrePilotDesigns = pgTable('ecr_pre_pilot_designs', {
   userAllocationKeyUnique: uniqueIndex('ecr_pre_pilot_design_user_key_uidx').on(table.createdBy, table.allocationKey),
 }));
 
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return 'bytea';
+  },
+});
+
 export const ecrPrePilotPredictiveNtJobs = pgTable('ecr_pre_pilot_predictive_nt_jobs', {
   id:              uuid('id').primaryKey(),
   designId:        integer('design_id').notNull().references(() => ecrPrePilotDesigns.id),
@@ -17214,6 +17220,10 @@ export const ecrPrePilotPredictiveNtJobs = pgTable('ecr_pre_pilot_predictive_nt_
   completedTrials: integer('completed_trials').notNull().default(0),
   maximumStages:   integer('maximum_stages').notNull(),
   resultSnapshot:  jsonb('result_snapshot'),
+  reportPdf:       bytea('report_pdf'),
+  reportFilename:  varchar('report_filename', { length: 240 }),
+  reportSha256:    varchar('report_sha256', { length: 64 }),
+  reportGeneratedAt: timestamp('report_generated_at'),
   error:           text('error'),
   workerOwner:     varchar('worker_owner', { length: 160 }),
   claimToken:      uuid('claim_token'),

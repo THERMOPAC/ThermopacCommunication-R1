@@ -9,6 +9,10 @@ CREATE TABLE IF NOT EXISTS ecr_pre_pilot_predictive_nt_jobs (
   completed_trials integer NOT NULL DEFAULT 0,
   maximum_stages integer NOT NULL,
   result_snapshot jsonb,
+  report_pdf bytea,
+  report_filename varchar(240),
+  report_sha256 varchar(64),
+  report_generated_at timestamp,
   error text,
   worker_owner varchar(160),
   claim_token uuid,
@@ -21,6 +25,12 @@ CREATE TABLE IF NOT EXISTS ecr_pre_pilot_predictive_nt_jobs (
   CONSTRAINT ecr_pre_pilot_predictive_nt_jobs_status_chk
     CHECK (status IN ('pending', 'running', 'completed', 'failed'))
 );
+
+ALTER TABLE ecr_pre_pilot_predictive_nt_jobs
+  ADD COLUMN IF NOT EXISTS report_pdf bytea,
+  ADD COLUMN IF NOT EXISTS report_filename varchar(240),
+  ADD COLUMN IF NOT EXISTS report_sha256 varchar(64),
+  ADD COLUMN IF NOT EXISTS report_generated_at timestamp;
 
 CREATE INDEX IF NOT EXISTS ecr_pre_pilot_predictive_nt_jobs_queue_idx
   ON ecr_pre_pilot_predictive_nt_jobs(status, created_at);
