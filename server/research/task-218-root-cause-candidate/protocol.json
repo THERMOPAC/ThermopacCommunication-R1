@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "1.0.0",
+  "analysis": "root-cause-informed stability-constrained candidate recalibration",
+  "modelIdentity": "COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL / TASK218_RESEARCH_CANDIDATE",
+  "componentOrder": ["SAT", "MONO", "DI", "POLY", "PA", "NMP"],
+  "parameterOrder": [
+    "A_SAT_MONO_ref",
+    "A_SAT_MONO_temperature",
+    "A_SAT_MONO_asymmetry",
+    "A_SAT_NMP_ref",
+    "A_SAT_NMP_temperature",
+    "A_SAT_NMP_asymmetry",
+    "A_MONO_NMP_ref",
+    "A_MONO_NMP_temperature",
+    "A_MONO_NMP_asymmetry"
+  ],
+  "mathematicalForm": "gE_residual/RT=sum_(i,j in {SAT-MONO,SAT-NMP,MONO-NMP}) x_i*x_j*[A_ref+A_temperature*(T-313.15)/20+A_asymmetry*(x_i-x_j)]",
+  "fit": {
+    "objective": "original frozen training equilibrium residual sum of squares / 2 plus unchanged ridgePenalty*||p||^2/2",
+    "absoluteParameterBound": 20.0,
+    "ridgePenalty": 1e-7,
+    "constraintDefinition": "complete-model TPD(z,w*) >= 0 at each exact proven Task216 pair",
+    "constraintNumericalSafetyMargin": 1e-9,
+    "constraintCount": 57,
+    "developmentConstraintsOnly": true,
+    "candidateGeneratedEndpoints": false
+  },
+  "frozenGates": {
+    "quantitativeCompositionRmsdCeiling": 0.03,
+    "minimumTopologyRecall": 0.9,
+    "maximumTieLineCompositionRmsd": 0.03,
+    "minimumPhaseCompositionSeparation": 0.0001
+  },
+  "pinnedInputs": {
+    "rootCauseProtocolSha256": "6c7ee4efe508956ae44b326fd469fae73cbccf7f8fdf5d72372686f40cc5b5cc",
+    "rootCauseResultsSha256": "6c4aab21bd0a4468dd0615fd5f5d6bee21f3a124d5ccf0db6b9118ed8e3f0280",
+    "rootCauseProvenanceSha256": "0624ec160d07166ae8308de306c89ba114c5c16b204e3d384961929c3ae2cb47",
+    "task216ProtocolSha256": "6876c02629b76d2e564a965b3076390c8e74886ca8eef5d9c67a28b6f8e3b558",
+    "task216ResultsSha256": "a8b09497e6d6f087ce417ffcdb6113a59659bfe1de8daa928d923743ce08b5bb",
+    "amendmentModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+    "amendmentProtocolSha256": "247a1b5dbbefc7bba6779409751bf5486a28a159b3aecaaff36394a2ab594c44",
+    "task206ProtocolSha256": "2f00753d362e2a299955f51cf3853bb083c3ef4afefae2884d170d5906493ff1",
+    "task206ResultsSha256": "a6176f4c5f36640b3e03832c9b0e1b355bd908a655bd8d242640d73038120c10",
+    "task213ProtocolSha256": "f0fa0d4d56383a73a0b0aeae0a0c8d1a4bbcc9481b6ed1a217b6a57c5c4f6676",
+    "task213ResultsSha256": "788652e47749f168467410123016a09535e2fe9563b1b6b689151410736a7bf2",
+    "evidenceSha256": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+    "referenceJobExportSha256": "5ec258b876427f15cfa0d1ec91b18c398a88a4b00dc7e88674329eff737968eb",
+    "referenceInputSnapshotSha256": "f35a4693cd2727073245fdcf26ad7b0fb25e0b62dc0e24dd64ff93f3a101512a",
+    "referenceResultSnapshotSha256": "7b5c22c94f4f76c82c1ee694d66787ec180316b73165e7cdff6179ba7f237dde",
+    "task216PriorResultSnapshotSha256": "b66a4bff770cd1081d0533ac3e0e00e3e85cb906cb9b9f9a40c2cdf3a1173790"
+  },
+  "governance": {
+    "researchOnly": true,
+    "developmentCandidate": true,
+    "qualified": false,
+    "qualificationPerformed": false,
+    "productionCodeModified": false,
+    "releaseEligible": false,
+    "predictiveNt": null,
+    "candidateCascadeRun": false,
+    "sulfurPrediction": "NOT_CALCULABLE"
+  },
+  "prohibitedFitInputs": ["cascade stage count", "products", "sulfur", "desired outcomes"]
+}

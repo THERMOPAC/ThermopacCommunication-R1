@@ -1,0 +1,16 @@
+{
+  "pinnedInputs": {
+    "amendmentModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+    "baseCosmoSacProvenanceSha256": "3476498d39f96b9761495f11a9e93e626d42aed2eda9f9082fa0a0e29bdd2f5e",
+    "baseCosmoSacSourceSha256": "2ab508b252435dd61cea8c601c8bbf4ba0456847de6f5dad73004bf4299732a6",
+    "task216ProtocolSha256": "6876c02629b76d2e564a965b3076390c8e74886ca8eef5d9c67a28b6f8e3b558",
+    "task216ProvenanceSha256": "ca7c6da0de15171b16f2a413eaa98be9ff2caf3e1a5fb7e9b3bdc78d8c6acf2b",
+    "task216ResultsSha256": "a8b09497e6d6f087ce417ffcdb6113a59659bfe1de8daa928d923743ce08b5bb",
+    "task216RunnerSha256": "bc60949c803edd31521702c257482868b15696ba7ce35ae53b46d4110f3ae9eb"
+  },
+  "protocolSha256": "6c7ee4efe508956ae44b326fd469fae73cbccf7f8fdf5d72372686f40cc5b5cc",
+  "reportSha256": "4ed4dadfb6ae5f75c90b4da3194dfb41b9e0475dd8902b6495b2b70874c65386",
+  "resultsSha256": "6c4aab21bd0a4468dd0615fd5f5d6bee21f3a124d5ccf0db6b9118ed8e3f0280",
+  "runnerSha256": "00ec71294fd901cece945f20b49129324a7ada0cab15e4c81f47a75270e8c6d0",
+  "tableSha256": "eff7df9728bba7c4e354ae60c3f195e9c572dc274187bd2a985dfa6945f7ec3f"
+}

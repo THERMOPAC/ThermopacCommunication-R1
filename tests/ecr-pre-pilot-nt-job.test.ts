@@ -9,9 +9,11 @@ import {
   derivePredictiveNtInputFromStage1,
   attachStage1ResultGovernance,
   expectedTask216GlobalStabilityEvidence,
+  expectedTask218CandidateGeneratedStabilityEvidence,
   getPredictiveNtJob,
   preflightPredictiveNtRuntime,
   validateTask216GlobalStabilityEvidence,
+  validateTask218CandidateGeneratedStabilityEvidence,
   validatePredictiveNtExecutionEvidence,
   validatePredictiveNtJobInput,
 } from '../server/ecr-pre-pilot/predictive-nt-job-service';
@@ -233,6 +235,62 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     }
   });
 
+  it('rejects Task218 candidate lineage, endpoint, verdict, and governance mutations', () => {
+    const evidence = expectedTask218CandidateGeneratedStabilityEvidence();
+    expect(validateTask218CandidateGeneratedStabilityEvidence(evidence)).toBeNull();
+    for (const mutation of [
+      { ...evidence, evidenceId: 'TASK_216_MONO_RICH_GLOBAL_STABILITY_V1' },
+      {
+        ...evidence,
+        evidenceArtifacts: {
+          ...evidence.evidenceArtifacts,
+          resultsSha256: '0'.repeat(64),
+        },
+      },
+      { ...evidence, candidateModelSha256: '0'.repeat(64) },
+      { ...evidence, auditHash: '0'.repeat(64) },
+      { ...evidence, candidateParameterSha256: '0'.repeat(64) },
+      { ...evidence, candidateFlashHash: '0'.repeat(64) },
+      { ...evidence, cascadeExecutionHash: '0'.repeat(64) },
+      { ...evidence, endpointMatrixHash: '0'.repeat(64) },
+      { ...evidence, qualificationHash: '0'.repeat(64) },
+      { ...evidence, componentOrder: [...evidence.componentOrder].reverse() },
+      { ...evidence, coverage: { ...evidence.coverage, returned: 109 } },
+      {
+        ...evidence,
+        coverage: {
+          ...evidence.coverage,
+          classifications: { STABLE_PHASE: 110 },
+        },
+      },
+      { ...evidence, endpointOrder: 'reordered' },
+      {
+        ...evidence,
+        gates: { ...evidence.gates, allGlobalTpdPassed: false },
+      },
+      { ...evidence, blockers: evidence.blockers.slice(1) },
+      {
+        ...evidence,
+        historicalComparisons: {
+          ...evidence.historicalComparisons,
+          disposition: 'QUALIFICATION_EVIDENCE',
+        },
+      },
+      { ...evidence, status: 'QUALIFIED' },
+      { ...evidence, qualified: true },
+      { ...evidence, releaseEligible: true },
+      { ...evidence, pilotValidated: true },
+      { ...evidence, release: true },
+      { ...evidence, predictiveNt: 1 },
+      { ...evidence, sulfurPrediction: 'CALCULABLE' },
+    ]) {
+      expect(validateTask218CandidateGeneratedStabilityEvidence(mutation))
+        .toMatch(/TASK218_CANDIDATE_(?:FROZEN_SUMMARY_MISMATCH|GOVERNANCE_VIOLATION)/);
+    }
+    expect(validateTask218CandidateGeneratedStabilityEvidence(undefined))
+      .toBe('TASK218_CANDIDATE_EVIDENCE_MISSING');
+  }, 30_000);
+
   it('binds every job input to the frozen package and never establishes N_T at validation', () => {
     const gate = validatePredictiveNtJobInput(validInput);
     expect(gate).toMatchObject({
@@ -415,6 +473,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
       predictiveNt: null,
       globalStabilityQualification: validTask216Evidence(),
+      task218CandidateGeneratedStability: expectedTask218CandidateGeneratedStabilityEvidence(),
     }, derived)).toMatchObject({
       status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
       predictiveNt: null,
@@ -441,6 +500,24 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
       predictiveNt: null,
     }, derived)).toThrow('TASK216_GLOBAL_STABILITY_EVIDENCE_MISSING');
+    expect(() => attachStage1ResultGovernance({
+      status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
+      predictiveNt: null,
+      globalStabilityQualification: validTask216Evidence(),
+    }, derived)).toThrow('TASK218_CANDIDATE_EVIDENCE_MISSING');
+    expect(() => attachStage1ResultGovernance({
+      status: 'RUNNING',
+      checkpoint: { protocol: 'ACK_V2' },
+    }, derived)).toThrow('PREDICTIVE_NT_TERMINAL_RUNNING_ACK_PAYLOAD_FORBIDDEN');
+    expect(attachStage1ResultGovernance({
+      status: 'RUNNING',
+      checkpoint: { protocol: 'ACK_V2' },
+    }, derived, { allowAckCheckpoint: true })).toMatchObject({
+      status: 'RUNNING',
+      checkpoint: { protocol: 'ACK_V2' },
+      predictiveNt: null,
+      releaseEligible: false,
+    });
   }, 60_000);
 
   it('admits positive PA and feed NMP in the saved six-component Stage 1 scope', async () => {
@@ -684,7 +761,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     } finally {
       delete process.env.PREDICTIVE_NT_RUNTIME_ROOT;
     }
-  }, 295_000);
+  }, 420_000);
 
   it.each([
     {
@@ -722,6 +799,103 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       protocol: 'ACK_V2',
       acknowledgedStageCount: 1,
     });
+    expect((terminal?.result as any)?.globalStabilityQualification).toMatchObject({
+      evidenceId: 'TASK_216_MONO_RICH_GLOBAL_STABILITY_V1',
+      predictiveNt: null,
+      releaseEligible: false,
+    });
+    expect((terminal?.result as any)?.task218CandidateGeneratedStability).toMatchObject({
+      evidenceId: 'TASK_218_CANDIDATE_GENERATED_CONTROLLED_NEGATIVE_V1',
+      predictiveNt: null,
+      sulfurPrediction: 'NOT_CALCULABLE',
+      pilotValidated: false,
+      releaseEligible: false,
+    });
+  }, 150_000);
+
+  it('fails a zero-exit final RUNNING ACK payload and persists server evidence', async () => {
+    useAckProtocolFixture();
+    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
+    if (!user.rows[0]) throw new Error('No user available for terminal ACK bypass test');
+    const userId = Number(user.rows[0].id);
+    const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-terminal-ack-bypass-v1');
+    const submitted = await enqueuePredictiveNtRuntimeTestJob(
+      validInputWithMaximumStages(2),
+      userId,
+      design.id,
+      { replaceFinalPayloadWithRunningAck: true },
+    );
+    let terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    const deadline = Date.now() + 120_000;
+    while (terminal?.status !== 'completed' && terminal?.status !== 'failed' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    }
+    expect(terminal?.status).toBe('failed');
+    expect(terminal?.error).toContain('PREDICTIVE_NT_TERMINAL_RUNNING_ACK_PAYLOAD_FORBIDDEN');
+    expect(terminal?.result).toMatchObject({
+      status: 'ENGINE_ERROR',
+      predictiveNt: null,
+      releaseEligible: false,
+      calibrationRequired: true,
+      globalStabilityQualification: {
+        evidenceId: 'TASK_216_MONO_RICH_GLOBAL_STABILITY_V1',
+        predictiveNt: null,
+        releaseEligible: false,
+      },
+      task218CandidateGeneratedStability: {
+        evidenceId: 'TASK_218_CANDIDATE_GENERATED_CONTROLLED_NEGATIVE_V1',
+        predictiveNt: null,
+        sulfurPrediction: 'NOT_CALCULABLE',
+        pilotValidated: false,
+        releaseEligible: false,
+      },
+    });
+  }, 150_000);
+
+  it('replaces an admitted completed result when report generation fails', async () => {
+    useAckProtocolFixture();
+    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
+    if (!user.rows[0]) throw new Error('No user available for report failure test');
+    const userId = Number(user.rows[0].id);
+    const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-report-failure-v1');
+    const submitted = await enqueuePredictiveNtRuntimeTestJob(
+      validInputWithMaximumStages(2),
+      userId,
+      design.id,
+      { forceReportGenerationFailure: true },
+    );
+    let terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    const deadline = Date.now() + 120_000;
+    while (terminal?.status !== 'completed' && terminal?.status !== 'failed' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    }
+    expect(terminal?.status).toBe('failed');
+    expect(terminal?.error).toContain(
+      'PREDICTIVE_NT_REPORT_GENERATION_FAILED: PREDICTIVE_NT_TEST_FORCED_REPORT_GENERATION_FAILURE',
+    );
+    expect(terminal?.result).toMatchObject({
+      status: 'ENGINE_ERROR',
+      predictiveNt: null,
+      releaseEligible: false,
+      calibrationRequired: true,
+      globalStabilityQualification: {
+        evidenceId: 'TASK_216_MONO_RICH_GLOBAL_STABILITY_V1',
+        predictiveNt: null,
+        releaseEligible: false,
+      },
+      task218CandidateGeneratedStability: {
+        evidenceId: 'TASK_218_CANDIDATE_GENERATED_CONTROLLED_NEGATIVE_V1',
+        status: 'BLOCKED_FAIL_CLOSED',
+        qualified: false,
+        predictiveNt: null,
+        sulfurPrediction: 'NOT_CALCULABLE',
+        pilotValidated: false,
+        releaseEligible: false,
+      },
+    });
+    expect(terminal?.report.available).toBe(false);
   }, 150_000);
 
   it('resumes at the next stage after a worker restart without rewriting acknowledged evidence', async () => {

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0.0",
+  "analysis": "frozen Task-216 lower-Gibbs root-cause investigation",
+  "task216": {
+    "results": ".agents/outputs/task-216-mono-rich-global-stability/results.json",
+    "protocol": "server/research/task-216-mono-rich-global-stability/protocol.json",
+    "runner": "server/research/task-216-mono-rich-global-stability/run.py",
+    "provenance": ".agents/outputs/task-216-mono-rich-global-stability/provenance-manifest.json",
+    "expectedEndpoints": 110,
+    "expectedGenuine": 57,
+    "expectedUnresolvedNegative": 39,
+    "expectedLocalArtifactControls": 14
+  },
+  "componentOrder": ["SAT", "MONO", "DI", "POLY", "PA", "NMP"],
+  "threshold": -1e-8,
+  "clustering": {"features": ["CLR(z)", "CLR(w)", "w-z", "direction", "NT", "stage", "phase", "log10(-TPD/threshold)"], "kRange": [2, 6], "algorithm": "deterministic-kmeans++-free"},
+  "governance": {"researchOnly": true, "candidateParametersFit": false, "productionModelModified": false, "releaseEligible": false}
+}

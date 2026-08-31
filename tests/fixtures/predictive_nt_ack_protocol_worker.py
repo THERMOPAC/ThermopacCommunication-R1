@@ -88,6 +88,46 @@ def task216_evidence():
     }
 
 
+def task218_evidence():
+    """Fixture terminal payload mirrors the immutable production attachment."""
+    root = Path.cwd()
+    research = root / "server/research/task-218-candidate-generated-stability"
+    output = root / ".agents/outputs/task-218-candidate-generated-stability"
+    protocol = json.loads((research / "protocol.json").read_text())
+    result = json.loads((output / "results.json").read_text())
+    return {
+        "evidenceId": "TASK_218_CANDIDATE_GENERATED_CONTROLLED_NEGATIVE_V1",
+        "schemaVersion": result["schemaVersion"],
+        "evidenceArtifacts": {
+            "protocolSha256": file_hash(research / "protocol.json"),
+            "runnerSha256": file_hash(research / "run.py"),
+            "verifierSha256": file_hash(research / "verify.py"),
+            "resultsSha256": file_hash(output / "results.json"),
+            "reportSha256": file_hash(output / "report.md"),
+            "provenanceSha256": file_hash(output / "provenance-manifest.json"),
+        },
+        "candidateModelSha256": result["candidateModelSha256"],
+        "candidateParameterSha256": result["candidateParameterSha256"],
+        "candidateFlashHash": result["candidateFlashHash"],
+        "cascadeExecutionHash": result["cascadeExecutionHash"],
+        "endpointMatrixHash": result["endpointMatrixHash"],
+        "auditHash": result["auditHash"],
+        "qualificationHash": result["qualificationHash"],
+        "componentOrder": protocol["componentOrder"],
+        "endpointOrder": protocol["endpointOrder"],
+        "coverage": result["coverage"], "gates": result["gates"],
+        "blockers": result["blockers"], "status": result["status"],
+        "qualified": result["qualified"],
+        "historicalComparisons": result["historicalComparisons"],
+        "researchOnly": result["researchOnly"],
+        "calibrationRequired": result["calibration"],
+        "pilotValidated": result["pilot"], "release": result["release"],
+        "releaseEligible": result["releaseEligible"],
+        "predictiveNt": result["predictiveNt"],
+        "sulfurPrediction": result["sulfurPrediction"],
+    }
+
+
 def preflight():
     engine_hash = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     print(canonical({
@@ -235,6 +275,7 @@ def main():
         "componentOrder": ORDER,
         "modelIdentity": "TEST_ACK_PROTOCOL_FIXTURE_NOT_SCIENTIFIC",
         "globalStabilityQualification": task216_evidence(),
+        "task218CandidateGeneratedStability": task218_evidence(),
         "trials": trials,
     }), end="")
 

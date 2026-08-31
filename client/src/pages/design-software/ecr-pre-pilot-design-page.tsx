@@ -196,6 +196,20 @@ type PredictiveNtResult = {
       provenanceSha256?: string;
     };
   };
+  task218CandidateGeneratedStability?: {
+    status?: string;
+    qualified?: boolean;
+    endpointOrder?: string;
+    coverage?: { expected?: number; returned?: number };
+    blockers?: string[];
+    candidateModelSha256?: string;
+    candidateParameterSha256?: string;
+    candidateFlashHash?: string;
+    cascadeExecutionHash?: string;
+    endpointMatrixHash?: string;
+    auditHash?: string;
+    qualificationHash?: string;
+  };
   stage1TargetGovernance?: {
     stage1SnapshotHash?: string;
     predictiveNtAuthority?: string;
@@ -1961,6 +1975,26 @@ export default function EcrPrePilotDesignPage() {
                       <p className="break-all font-mono text-[10px]">
                         Evidence results SHA-256:{" "}
                         {predictiveJob.result.globalStabilityQualification.evidenceArtifacts?.resultsSha256 ?? "—"}
+                      </p>
+                    </div>
+                  )}
+                  {predictiveJob.result.task218CandidateGeneratedStability && (
+                    <div className="rounded-md border border-red-300 bg-red-50 p-3 text-[11px] leading-5 text-red-950">
+                      <p className="font-semibold">Task218 candidate-generated controlled-negative evidence</p>
+                      <p>
+                        Status: <strong>{predictiveJob.result.task218CandidateGeneratedStability.status ?? "NOT RECORDED"}</strong>
+                        {" · "}qualification: <strong>{predictiveJob.result.task218CandidateGeneratedStability.qualified ? "Qualified" : "BLOCKED — controlled negative"}</strong>
+                      </p>
+                      <p>
+                        Exact endpoint coverage: <strong>{predictiveJob.result.task218CandidateGeneratedStability.coverage?.returned ?? "—"} / {predictiveJob.result.task218CandidateGeneratedStability.coverage?.expected ?? "—"}</strong>
+                        {" · "}{predictiveJob.result.task218CandidateGeneratedStability.endpointOrder ?? "endpoint order not recorded"}
+                      </p>
+                      <p>Blockers: <strong>{predictiveJob.result.task218CandidateGeneratedStability.blockers?.join(" · ") || "None recorded"}</strong></p>
+                      <p className="break-all font-mono text-[10px]">
+                        Candidate model / parameter: {predictiveJob.result.task218CandidateGeneratedStability.candidateModelSha256 ?? "—"} / {predictiveJob.result.task218CandidateGeneratedStability.candidateParameterSha256 ?? "—"}
+                      </p>
+                      <p className="break-all font-mono text-[10px]">
+                        Flash / cascade / audit / qualification: {predictiveJob.result.task218CandidateGeneratedStability.candidateFlashHash ?? "—"} / {predictiveJob.result.task218CandidateGeneratedStability.cascadeExecutionHash ?? "—"} / {predictiveJob.result.task218CandidateGeneratedStability.auditHash ?? "—"} / {predictiveJob.result.task218CandidateGeneratedStability.qualificationHash ?? "—"}
                       </p>
                     </div>
                   )}

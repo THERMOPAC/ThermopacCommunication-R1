@@ -43,6 +43,10 @@ TASK215_RUNNER = ROOT / "server/research/task-215-multistart-resolution/run.py"
 TASK216 = ROOT / ".agents/outputs/task-216-mono-rich-global-stability"
 TASK216_PROTOCOL = ROOT / "server/research/task-216-mono-rich-global-stability/protocol.json"
 TASK216_RUNNER = ROOT / "server/research/task-216-mono-rich-global-stability/run.py"
+TASK218 = ROOT / ".agents/outputs/task-218-candidate-generated-stability"
+TASK218_PROTOCOL = ROOT / "server/research/task-218-candidate-generated-stability/protocol.json"
+TASK218_RUNNER = ROOT / "server/research/task-218-candidate-generated-stability/run.py"
+TASK218_VERIFIER = ROOT / "server/research/task-218-candidate-generated-stability/verify.py"
 
 
 def canonical(value):
@@ -140,6 +144,20 @@ def scientific_runtime_inputs():
         ROOT / ".agents/outputs/task-205-negative-tpd-diagnostic/results.json",
         ROOT / ".agents/outputs/task-206-stability-constrained-amendment/results.json",
         ROOT / ".agents/outputs/task-207-seven-stage-multistart-closure/results.json",
+        TASK218_PROTOCOL, TASK218_RUNNER, TASK218_VERIFIER,
+        TASK218 / "results.json", TASK218 / "report.md",
+        TASK218 / "provenance-manifest.json",
+        ROOT / "server/research/task-218-root-cause-candidate/protocol.json",
+        ROOT / ".agents/outputs/task-218-root-cause-candidate/results.json",
+        ROOT / ".agents/outputs/task-218-root-cause-candidate/provenance-manifest.json",
+        ROOT / "server/research/task-218-task216-root-cause/protocol.json",
+        ROOT / "server/research/task-218-task216-root-cause/run.py",
+        ROOT / ".agents/outputs/task-218-task216-root-cause/results.json",
+        ROOT / ".agents/outputs/task-218-task216-root-cause/provenance-manifest.json",
+        ROOT / "server/research/task-206-stability-constrained-amendment/protocol.json",
+        ROOT / "server/research/task-206-stability-constrained-amendment/run.py",
+        ROOT / ".agents/outputs/task-206-stability-constrained-amendment/results.json",
+        ROOT / ".agents/outputs/task-206-stability-constrained-amendment/provenance-manifest.json",
     ]
     for directory in (vendor, PROFILES):
         inputs.extend(
@@ -282,6 +300,141 @@ def engine_evidence():
 
 def engine_hash():
     return engine_evidence()["engineHash"]
+
+
+def task218_candidate_generated_controlled_negative():
+    """Bind terminal output to the pre-generated, immutable candidate audit."""
+    required = (
+        TASK218_PROTOCOL, TASK218_RUNNER, TASK218_VERIFIER,
+        TASK218 / "results.json", TASK218 / "report.md",
+        TASK218 / "provenance-manifest.json",
+    )
+    if not all(path.is_file() for path in required):
+        raise ValueError("TASK218_CANDIDATE_EVIDENCE_MISSING")
+    protocol = json.loads(TASK218_PROTOCOL.read_text())
+    result = json.loads((TASK218 / "results.json").read_text())
+    manifest = json.loads((TASK218 / "provenance-manifest.json").read_text())
+    artifacts = {
+        "protocolSha256": file_hash(TASK218_PROTOCOL),
+        "runnerSha256": file_hash(TASK218_RUNNER),
+        "verifierSha256": file_hash(TASK218_VERIFIER),
+        "resultsSha256": file_hash(TASK218 / "results.json"),
+        "reportSha256": file_hash(TASK218 / "report.md"),
+        "provenanceSha256": file_hash(TASK218 / "provenance-manifest.json"),
+    }
+    if any(manifest.get(key) != artifacts[key] for key in (
+        "protocolSha256", "runnerSha256", "verifierSha256", "resultsSha256", "reportSha256"
+    )):
+        raise ValueError("TASK218_CANDIDATE_EVIDENCE_HASH_MISMATCH")
+    if (
+        protocol.get("pinnedInputs") != result.get("pinnedInputs")
+        or result.get("pinnedInputs") != manifest.get("pinnedInputs")
+    ):
+        raise ValueError("TASK218_CANDIDATE_PIN_SET_MISMATCH")
+    phases, endpoints = result.get("phases"), result.get("endpointMatrix")
+    if (
+        protocol.get("componentOrder") != FAMILIES
+        or protocol.get("expectedEndpointCount") != 110
+        or not isinstance(phases, list) or not isinstance(endpoints, list)
+        or len(phases) != 110 or len(endpoints) != 110
+    ):
+        raise ValueError("TASK218_CANDIDATE_ENDPOINT_COVERAGE_INCOMPLETE")
+    # Task218 was authored with Python's canonical JSON number spelling
+    # (notably ``0.0``).  Verify its complete hash chain here once; a JS
+    # reserialization would silently change those bytes to ``0``.
+    # Task218's archived harness used Python json.dumps directly, rather than
+    # the Stage-1 interoperable canonicalizer used by this worker.
+    def task218_digest(value):
+        return hashlib.sha256(json.dumps(
+            value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode()).hexdigest()
+    parameter_hash = task218_digest(result.get("candidateParameterVector"))
+    flash_hash = task218_digest({
+        "candidateModelSha256": result.get("candidateModelSha256"),
+        "flash": result.get("candidateStage1Flash"),
+    })
+    trials = result.get("cascadeTrials")
+    if not isinstance(trials, list) or [trial.get("stageCount") for trial in trials] != list(range(1, 11)):
+        raise ValueError("TASK218_CANDIDATE_TRIAL_ORDER_INVALID")
+    for trial in trials:
+        core = {key: trial.get(key) for key in ("stageCount", "trial", "generatedStreams")}
+        if trial.get("trialHash") != task218_digest({
+            "candidateModelSha256": result.get("candidateModelSha256"),
+            "candidateFlashHash": flash_hash, **core,
+        }):
+            raise ValueError("TASK218_CANDIDATE_TRIAL_HASH_MISMATCH")
+    cascade_hash = task218_digest({
+        "candidateModelSha256": result.get("candidateModelSha256"),
+        "candidateFlashHash": flash_hash, "trials": trials,
+    })
+    for endpoint in endpoints:
+        trial = trials[endpoint["trialStageCount"] - 1]
+        payload = {
+            "candidateModelSha256": result.get("candidateModelSha256"),
+            "cascadeExecutionHash": cascade_hash, "trialHash": trial.get("trialHash"),
+            "trialStageCount": endpoint.get("trialStageCount"),
+            "stageFromFeedEnd": endpoint.get("stageFromFeedEnd"),
+            "phase": endpoint.get("phase"), "composition": endpoint.get("composition"),
+        }
+        if endpoint.get("trialHash") != trial.get("trialHash") or endpoint.get("endpointHash") != task218_digest(payload):
+            raise ValueError("TASK218_CANDIDATE_ENDPOINT_HASH_MISMATCH")
+    matrix_hash = task218_digest({
+        "candidateModelSha256": result.get("candidateModelSha256"),
+        "cascadeExecutionHash": cascade_hash, "orderedEndpoints": endpoints,
+    })
+    audit_hash = task218_digest({
+        "candidateModelSha256": result.get("candidateModelSha256"),
+        "cascadeExecutionHash": cascade_hash, "endpointMatrixHash": matrix_hash,
+        "task216ProtocolSha256": protocol["pinnedInputs"]["task216ProtocolSha256"],
+        "task216RunnerSha256": protocol["pinnedInputs"]["task216RunnerSha256"],
+        "phases": phases,
+    })
+    qualification_hash = task218_digest({
+        "candidateModelSha256": result.get("candidateModelSha256"),
+        "candidateFlashHash": flash_hash, "cascadeExecutionHash": cascade_hash,
+        "endpointMatrixHash": matrix_hash, "auditHash": audit_hash,
+        "gates": result.get("gates"), "blockers": result.get("blockers"),
+    })
+    if (
+        result.get("candidateParameterSha256") != parameter_hash
+        or result.get("candidateFlashHash") != flash_hash
+        or result.get("cascadeExecutionHash") != cascade_hash
+        or result.get("endpointMatrixHash") != matrix_hash
+        or result.get("auditHash") != audit_hash
+        or result.get("qualificationHash") != qualification_hash
+        or manifest.get("cascadeExecutionHash") != cascade_hash
+        or manifest.get("endpointMatrixHash") != matrix_hash
+        or manifest.get("auditHash") != audit_hash
+        or manifest.get("qualificationHash") != qualification_hash
+    ):
+        raise ValueError("TASK218_CANDIDATE_CRYPTOGRAPHIC_LINEAGE_MISMATCH")
+    return {
+        "evidenceId": "TASK_218_CANDIDATE_GENERATED_CONTROLLED_NEGATIVE_V1",
+        "schemaVersion": result.get("schemaVersion"),
+        "evidenceArtifacts": artifacts,
+        "candidateModelSha256": result.get("candidateModelSha256"),
+        "candidateParameterSha256": result.get("candidateParameterSha256"),
+        "candidateFlashHash": result.get("candidateFlashHash"),
+        "cascadeExecutionHash": result.get("cascadeExecutionHash"),
+        "endpointMatrixHash": result.get("endpointMatrixHash"),
+        "auditHash": result.get("auditHash"),
+        "qualificationHash": result.get("qualificationHash"),
+        "componentOrder": protocol.get("componentOrder"),
+        "endpointOrder": protocol.get("endpointOrder"),
+        "coverage": result.get("coverage"),
+        "gates": result.get("gates"),
+        "blockers": result.get("blockers"),
+        "status": result.get("status"),
+        "qualified": result.get("qualified"),
+        "historicalComparisons": result.get("historicalComparisons"),
+        "researchOnly": result.get("researchOnly"),
+        "calibrationRequired": result.get("calibration"),
+        "pilotValidated": result.get("pilot"),
+        "release": result.get("release"),
+        "releaseEligible": result.get("releaseEligible"),
+        "predictiveNt": result.get("predictiveNt"),
+        "sulfurPrediction": result.get("sulfurPrediction"),
+    }
 
 
 def task216_global_stability_qualification(counter_protocol):
@@ -672,6 +825,7 @@ def main():
     global_stability_qualification = task216_global_stability_qualification(
         counter_protocol
     )
+    task218_candidate_generated_stability = task218_candidate_generated_controlled_negative()
     sequence_evidence_available = bool(trials) and all(
         isinstance(trial.get("monotonicFromPrevious"), bool) for trial in trials
     )
@@ -688,6 +842,7 @@ def main():
         "stage1Authority": {"snapshotSha256": snapshot_hash, "immutableHash": snapshot["immutableHash"], "stageRange": {"minimum": 1, "maximum": maximum}, "feedMassBasis": dict(zip(FAMILIES, feed_mass.tolist())), "freshModeledNmpMassBasis": fresh_nmp_mass, "nmpPurityAndWaterSpecificationOnly": {"nmpPurityWt": purity, "nmpWaterWt": water}},
         "inputHash": input_hash,
         "globalStabilityQualification": global_stability_qualification,
+        "task218CandidateGeneratedStability": task218_candidate_generated_stability,
         "predictiveNt": (
             diagnostic_selection["stageCount"]
             if thermodynamic_qualification_accepted and diagnostic_selection
@@ -719,7 +874,12 @@ def main():
 
 
 if __name__ == "__main__":
-    if "--preflight" in sys.argv:
+    if "--task218-evidence" in sys.argv:
+        json.dump(
+            task218_candidate_generated_controlled_negative(),
+            sys.stdout, separators=(",", ":"), allow_nan=False,
+        )
+    elif "--preflight" in sys.argv:
         # Importing the real cascade is itself the guard against accidentally
         # deploying the legacy five-component UNIQUAC path.
         evidence = engine_evidence()
@@ -741,5 +901,21 @@ if __name__ == "__main__":
         try:
             main()
         except Exception as exc:
-            json.dump({"status": "ENGINE_ERROR", "error": f"{type(exc).__name__}: {exc}", "releaseEligible": False, "sulfurPrediction": {"status": "NOT_CALCULABLE"}}, sys.stdout, separators=(",", ":"))
+            terminal = {
+                "status": "ENGINE_ERROR", "error": f"{type(exc).__name__}: {exc}",
+                "releaseEligible": False, "calibrationRequired": True,
+                "pilotValidated": False, "predictiveNt": None,
+                "sulfurPrediction": {"status": "NOT_CALCULABLE"},
+            }
+            # A solver failure is terminal evidence too; attach the frozen
+            # controlled-negative record without rerunning its harness.
+            try:
+                terminal["globalStabilityQualification"] = task216_global_stability_qualification(
+                    json.loads((COUNTER / "protocol.json").read_text())
+                )
+                terminal["task218CandidateGeneratedStability"] = \
+                    task218_candidate_generated_controlled_negative()
+            except Exception as evidence_exc:
+                terminal["evidenceError"] = f"{type(evidence_exc).__name__}: {evidence_exc}"
+            json.dump(terminal, sys.stdout, separators=(",", ":"))
             sys.exit(1)

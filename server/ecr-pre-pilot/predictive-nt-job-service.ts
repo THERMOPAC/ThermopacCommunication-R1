@@ -107,10 +107,13 @@ const PREDICTIVE_NT_ENGINE_SHA256 = process.env.PREDICTIVE_NT_ENGINE_SHA256 ?? '
 const WORKER_OWNER = `${os.hostname()}:${process.pid}:${randomUUID()}`;
 let workerStarted = false;
 let workerBusy = false;
+const task218EvidenceCache = new Map<string, unknown>();
 type RuntimeTestHooks = {
   killAfterAcknowledgedStage?: number;
   replayMismatchAtStage?: number;
   restartAfterAcknowledgedStage?: number;
+  replaceFinalPayloadWithRunningAck?: boolean;
+  forceReportGenerationFailure?: boolean;
 };
 const runtimeTestHooks = new Map<string, RuntimeTestHooks>();
 
@@ -323,6 +326,192 @@ export function validateTask216GlobalStabilityEvidence(
     return 'TASK216_GLOBAL_STABILITY_FALSE_BLOCKER_FREE_CLAIM';
   }
   return null;
+}
+
+/** Reconstruct, rather than trust, the compact Task218 terminal attachment. */
+export function expectedTask218CandidateGeneratedStabilityEvidence() {
+  const base = runtimeRoot();
+  const read = (relative: string) => JSON.parse(fs.readFileSync(path.join(base, relative), 'utf8'));
+  const protocolPath = 'server/research/task-218-candidate-generated-stability/protocol.json';
+  const runnerPath = 'server/research/task-218-candidate-generated-stability/run.py';
+  const verifierPath = 'server/research/task-218-candidate-generated-stability/verify.py';
+  const resultsPath = '.agents/outputs/task-218-candidate-generated-stability/results.json';
+  const reportPath = '.agents/outputs/task-218-candidate-generated-stability/report.md';
+  const manifestPath = '.agents/outputs/task-218-candidate-generated-stability/provenance-manifest.json';
+  const protocol = read(protocolPath);
+  const result = read(resultsPath);
+  const manifest = read(manifestPath);
+  const artifacts = Object.fromEntries([
+    ['protocolSha256', protocolPath], ['runnerSha256', runnerPath],
+    ['verifierSha256', verifierPath], ['resultsSha256', resultsPath],
+    ['reportSha256', reportPath], ['provenanceSha256', manifestPath],
+  ].map(([key, file]) => [key, sha256RuntimeFile(file)]));
+  if (
+    !['protocolSha256', 'runnerSha256', 'verifierSha256', 'resultsSha256', 'reportSha256']
+      .every((key) => manifest[key] === artifacts[key])
+    || canonicalJson(protocol.pinnedInputs) !== canonicalJson(result.pinnedInputs)
+    || canonicalJson(result.pinnedInputs) !== canonicalJson(manifest.pinnedInputs)
+    || protocol.expectedEndpointCount !== 110
+    || canonicalJson(protocol.componentOrder) !== canonicalJson(['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP'])
+  ) throw new Error('TASK218_CANDIDATE_FROZEN_ARTIFACT_INVALID');
+  const pinnedPaths: Record<string, string> = {
+    candidateProtocolSha256: 'server/research/task-218-root-cause-candidate/protocol.json',
+    candidateResultsSha256: '.agents/outputs/task-218-root-cause-candidate/results.json',
+    candidateProvenanceSha256: '.agents/outputs/task-218-root-cause-candidate/provenance-manifest.json',
+    rootCauseProtocolSha256: 'server/research/task-218-task216-root-cause/protocol.json',
+    rootCauseRunnerSha256: 'server/research/task-218-task216-root-cause/run.py',
+    rootCauseResultsSha256: '.agents/outputs/task-218-task216-root-cause/results.json',
+    rootCauseProvenanceSha256: '.agents/outputs/task-218-task216-root-cause/provenance-manifest.json',
+    task216ProtocolSha256: 'server/research/task-216-mono-rich-global-stability/protocol.json',
+    task216RunnerSha256: 'server/research/task-216-mono-rich-global-stability/run.py',
+    task216ResultsSha256: '.agents/outputs/task-216-mono-rich-global-stability/results.json',
+    task216ProvenanceSha256: '.agents/outputs/task-216-mono-rich-global-stability/provenance-manifest.json',
+    task206ProtocolSha256: 'server/research/task-206-stability-constrained-amendment/protocol.json',
+    task206RunnerSha256: 'server/research/task-206-stability-constrained-amendment/run.py',
+    task206ResultsSha256: '.agents/outputs/task-206-stability-constrained-amendment/results.json',
+    task206ProvenanceSha256: '.agents/outputs/task-206-stability-constrained-amendment/provenance-manifest.json',
+    task213ProtocolSha256: 'server/research/task-213-mono-rich-qualification/protocol.json',
+    task213RunnerSha256: 'server/research/task-213-mono-rich-qualification/run.py',
+    task213ResultsSha256: '.agents/outputs/task-213-mono-rich-qualification/results.json',
+    task213ProvenanceSha256: '.agents/outputs/task-213-mono-rich-qualification/provenance-manifest.json',
+    amendmentModelSha256: 'server/research/ecr-pre-pilot-cosmosac-nmp-lle-amendment/model.py',
+    amendmentProtocolSha256: 'server/research/ecr-pre-pilot-cosmosac-nmp-lle-amendment/protocol.json',
+    countercurrentRunnerSha256: 'server/research/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/run.py',
+    countercurrentProtocolSha256: 'server/research/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/protocol.json',
+    productionWorkerSha256: 'server/research/ecr-pre-pilot-model-freeze/predictive_nt_six_component.py',
+    evidenceSha256: 'server/engine-framework/cel/data/multi-t-nmp-lle.json',
+  };
+  if (!Object.entries(pinnedPaths).every(([key, file]) => result.pinnedInputs?.[key] === sha256RuntimeFile(file))) {
+    throw new Error('TASK218_CANDIDATE_PINNED_LINEAGE_MISMATCH');
+  }
+  const endpoints = result.endpointMatrix;
+  const phases = result.phases;
+  if (!Array.isArray(endpoints) || !Array.isArray(phases) || endpoints.length !== 110 || phases.length !== 110) {
+    throw new Error('TASK218_CANDIDATE_ENDPOINT_COVERAGE_INCOMPLETE');
+  }
+  let index = 0;
+  for (let trialStageCount = 1; trialStageCount <= 10; trialStageCount += 1) {
+    for (let stageFromFeedEnd = 1; stageFromFeedEnd <= trialStageCount; stageFromFeedEnd += 1) {
+      for (const phase of ['raffinate', 'extract']) {
+        const endpoint = endpoints[index];
+        const audit = phases[index++];
+        if (
+          endpoint?.trialStageCount !== trialStageCount || endpoint?.stageFromFeedEnd !== stageFromFeedEnd
+          || endpoint?.phase !== phase || !/^[a-f0-9]{64}$/.test(endpoint?.endpointHash ?? '')
+          || !Array.isArray(endpoint?.composition) || endpoint.composition.length !== 6
+          || audit?.endpointHash !== endpoint.endpointHash || audit?.trialStageCount !== trialStageCount
+          || audit?.stageFromFeedEnd !== stageFromFeedEnd || audit?.phase !== phase
+          || audit?.modelSha256 !== result.candidateModelSha256
+          || audit?.parameterVectorSha256 !== result.candidateParameterSha256
+          || typeof audit?.classification !== 'string' || typeof audit?.fullyReproducedNegative !== 'boolean'
+        ) throw new Error('TASK218_CANDIDATE_ENDPOINT_LINEAGE_INVALID');
+      }
+    }
+  }
+  const trials = result.cascadeTrials;
+  const trialByCount = new Map<number, any>(
+    (Array.isArray(trials) ? trials : []).map((trial: any) => [trial.stageCount, trial] as [number, any]),
+  );
+  const endpointDerivationValid = endpoints.every((endpoint: any) => {
+    const trial = trialByCount.get(endpoint.trialStageCount);
+    const streams = endpoint.phase === 'raffinate'
+      ? trial?.generatedStreams?.raffinateComponentMoles
+      : trial?.generatedStreams?.extractComponentMoles;
+    const flow = streams?.[endpoint.stageFromFeedEnd - 1];
+    const total = Array.isArray(flow) ? flow.reduce((sum: number, item: number) => sum + item, 0) : NaN;
+    const compositionMatches = Array.isArray(flow) && Array.isArray(endpoint.composition)
+      && flow.length === 6 && endpoint.composition.length === 6
+      && flow.every((item: number, component: number) => Number.isFinite(item) && item > 0
+        && Math.abs(item / total - endpoint.composition[component]) <= 2e-15);
+    return compositionMatches && endpoint.trialHash === trial?.trialHash;
+  });
+  if (!Array.isArray(trials) || trials.length !== 10 || !endpointDerivationValid) {
+    throw new Error('TASK218_CANDIDATE_CRYPTOGRAPHIC_LINEAGE_INVALID');
+  }
+  const expectedBlockers = [
+    'FROZEN_COMPOSITION_VALIDATION_FAILED',
+    'CARRIED_TIE_LINE_GATE_FAILED',
+    'DIRECT_MATCHING_SIX_COMPONENT_LLE_EVIDENCE_MISSING',
+    'CANDIDATE_CASCADE_LOCAL_OR_GLOBAL_STABILITY_FAILED',
+  ];
+  if (
+    result.candidateModelSha256 !== '92700b3b8e24ba63253c33fab7349d605e88101235121a3c5b96cda696860c6b'
+    || result.cascadeExecutionHash !== '8c634ea01cb580a3f49ba7d57a4951c00cace1632b791201803b4a2dcbb13f20'
+    || result.endpointMatrixHash !== '21463f68f2c06ed4d5b9927202bc940e13072c77892bfed6fad2db2fa59ec948'
+    || result.auditHash !== '95bd2f2d8629e03c900ab6d8bce9728101e2624a669b231583cd89fb15f30ffa'
+    || result.qualificationHash !== 'b33f00aa1f1b3aca51abc7fd7e5d4634dde8753dd041ce00721b9b4bef10254a'
+    || result.status !== 'BLOCKED_FAIL_CLOSED' || result.qualified !== false
+    || canonicalJson(result.coverage) !== canonicalJson({
+      expected: 110, returned: 110, negativeOrUnresolved: 0,
+      fullyReproducedNegative: 0, classifications: { LOCAL_HESSIAN_ONLY_ARTIFACT: 110 },
+    })
+    || canonicalJson(result.blockers) !== canonicalJson(expectedBlockers)
+    || result.gates?.candidateValidationPassed !== false || result.gates?.tieLinePassed !== false
+    || result.gates?.directEvidenceAvailable !== false || result.gates?.allCascadeStagesAccepted !== false
+    || result.gates?.flashAccepted !== true || result.gates?.allGlobalTpdPassed !== true
+    || !trials.every((trial: any, index: number) => (
+      trial.trial?.accepted === (index < 6)
+      && (index < 6 || trial.trial?.acceptanceBlockers?.some(
+        (blocker: any) => blocker?.code === 'POST_SPLIT_LOCAL_STABILITY_FAILED',
+      ))
+    ))
+  ) throw new Error('TASK218_CANDIDATE_APPROVED_FACTS_MISMATCH');
+  if (
+    result.coverage?.expected !== 110 || result.coverage?.returned !== 110
+    || result.historicalComparisons?.disposition !== 'DIAGNOSTIC_ONLY_HISTORICAL'
+    || result.historicalComparisons?.task216?.phaseCount !== 110
+  ) throw new Error('TASK218_CANDIDATE_COVERAGE_OR_HISTORY_INVALID');
+  const expectedSummary = {
+    evidenceId: 'TASK_218_CANDIDATE_GENERATED_CONTROLLED_NEGATIVE_V1',
+    schemaVersion: result.schemaVersion, evidenceArtifacts: artifacts,
+    candidateModelSha256: result.candidateModelSha256, candidateParameterSha256: result.candidateParameterSha256,
+    candidateFlashHash: result.candidateFlashHash, cascadeExecutionHash: result.cascadeExecutionHash,
+    endpointMatrixHash: result.endpointMatrixHash, auditHash: result.auditHash,
+    qualificationHash: result.qualificationHash, componentOrder: protocol.componentOrder,
+    endpointOrder: protocol.endpointOrder, coverage: result.coverage, gates: result.gates,
+    blockers: result.blockers, status: result.status, qualified: result.qualified,
+    historicalComparisons: result.historicalComparisons, researchOnly: result.researchOnly,
+    calibrationRequired: result.calibration, pilotValidated: result.pilot, release: result.release,
+    releaseEligible: result.releaseEligible, predictiveNt: result.predictiveNt,
+    sulfurPrediction: result.sulfurPrediction,
+  };
+  const cacheKey = base;
+  if (!task218EvidenceCache.has(cacheKey)) {
+    const check = spawnSync('python3.12', [
+      path.join(base, 'server/research/ecr-pre-pilot-model-freeze/predictive_nt_six_component.py'),
+      '--task218-evidence',
+    ], { cwd: base, encoding: 'utf8', timeout: 60_000 });
+    if (check.error || check.status !== 0) {
+      throw new Error(`TASK218_CANDIDATE_CRYPTOGRAPHIC_LINEAGE_INVALID: ${check.error?.message ?? check.stderr.trim()}`);
+    }
+    try { task218EvidenceCache.set(cacheKey, JSON.parse(check.stdout)); } catch {
+      throw new Error('TASK218_CANDIDATE_CRYPTOGRAPHIC_LINEAGE_INVALID');
+    }
+  }
+  const pythonEvidence = task218EvidenceCache.get(cacheKey);
+  if (canonicalJson(pythonEvidence) !== canonicalJson(expectedSummary)) {
+    throw new Error('TASK218_CANDIDATE_PYTHON_LINEAGE_SUMMARY_MISMATCH');
+  }
+  return pythonEvidence;
+}
+
+export function validateTask218CandidateGeneratedStabilityEvidence(evidence: unknown) {
+  if (!evidence || typeof evidence !== 'object') return 'TASK218_CANDIDATE_EVIDENCE_MISSING';
+  const actual = evidence as Record<string, unknown>;
+  if (
+    actual.evidenceId !== 'TASK_218_CANDIDATE_GENERATED_CONTROLLED_NEGATIVE_V1'
+    || actual.status !== 'BLOCKED_FAIL_CLOSED' || actual.qualified !== false
+    || actual.researchOnly !== true || actual.calibrationRequired !== true
+    || actual.pilotValidated !== false || actual.release !== false || actual.releaseEligible !== false
+    || actual.predictiveNt !== null || actual.sulfurPrediction !== 'NOT_CALCULABLE'
+  ) return 'TASK218_CANDIDATE_GOVERNANCE_VIOLATION';
+  let expected: unknown;
+  try { expected = expectedTask218CandidateGeneratedStabilityEvidence(); } catch (error) {
+    return error instanceof Error ? error.message : 'TASK218_CANDIDATE_FROZEN_ARTIFACT_INVALID';
+  }
+  return canonicalJson(actual) === canonicalJson(expected)
+    ? null
+    : 'TASK218_CANDIDATE_FROZEN_SUMMARY_MISMATCH';
 }
 
 function workerScript() {
@@ -710,6 +899,7 @@ export function validatePredictiveNtExecutionEvidence(
 export function attachStage1ResultGovernance(
   pythonResult: unknown,
   input: PredictiveNtJobInput,
+  options: { allowAckCheckpoint?: boolean } = {},
 ) {
   if (!pythonResult || typeof pythonResult !== 'object' || !input.stage1Authority) return pythonResult;
   const {
@@ -718,13 +908,21 @@ export function attachStage1ResultGovernance(
     removalClaims: _discardedRemovalClaims,
     ...admittedResult
   } = pythonResult as Record<string, unknown>;
-  const isIntermediateCheckpoint = admittedResult.status === 'RUNNING'
+  const isIntermediateCheckpoint = options.allowAckCheckpoint === true
+    && admittedResult.status === 'RUNNING'
     && (admittedResult.checkpoint as Record<string, unknown> | undefined)?.protocol === 'ACK_V2';
+  if (admittedResult.status === 'RUNNING' && !isIntermediateCheckpoint) {
+    throw new Error('PREDICTIVE_NT_TERMINAL_RUNNING_ACK_PAYLOAD_FORBIDDEN');
+  }
   if (!isIntermediateCheckpoint) {
     const evidenceError = validateTask216GlobalStabilityEvidence(
       admittedResult.globalStabilityQualification,
     );
     if (evidenceError) throw new Error(evidenceError);
+    const task218EvidenceError = validateTask218CandidateGeneratedStabilityEvidence(
+      admittedResult.task218CandidateGeneratedStability,
+    );
+    if (task218EvidenceError) throw new Error(task218EvidenceError);
   }
   return {
     ...admittedResult,
@@ -767,6 +965,23 @@ export function attachStage1ResultGovernance(
       overallEcrProductAcceptanceStatus: 'RESEARCH_DIAGNOSTIC_NOT_RELEASE_ELIGIBLE',
     },
   };
+}
+
+function terminalFailureEvidence(result: unknown, input: PredictiveNtJobInput, error: string | null) {
+  const payload = result && typeof result === 'object' ? result as Record<string, unknown> : {};
+  // Never accept worker-owned terminal evidence after a crash, timeout, or
+  // parse failure.  The server reconstructs the frozen envelope itself.
+  return attachStage1ResultGovernance({
+    ...payload,
+    status: 'ENGINE_ERROR',
+    error: error ?? payload.error ?? 'PREDICTIVE_NT_TERMINAL_RESULT_UNAVAILABLE',
+    globalStabilityQualification: {
+      evidenceId: 'TASK_216_MONO_RICH_GLOBAL_STABILITY_V1',
+      researchOnly: true, calibrationRequired: true, releaseEligible: false, predictiveNt: null,
+      ...expectedTask216GlobalStabilityEvidence(),
+    },
+    task218CandidateGeneratedStability: expectedTask218CandidateGeneratedStabilityEvidence(),
+  }, input);
 }
 
 type RemovalFamily = 'MONO' | 'DI' | 'POLY' | 'PA';
@@ -1068,7 +1283,7 @@ async function persistTrialCheckpoint(
         modelHash: row.model_hash,
         engineHash: row.engine_hash,
       },
-    }, row.input_snapshot);
+    }, row.input_snapshot, { allowAckCheckpoint: true });
     const updated = await client.query(
       `UPDATE ecr_pre_pilot_predictive_nt_jobs
           SET completed_trials = $3,
@@ -1228,7 +1443,7 @@ async function finishJob(
       finalStatus = 'failed';
       finalError = 'PREDICTIVE_NT_FINAL_CHECKPOINT_MISMATCH';
     }
-    const finalResult = result && typeof result === 'object'
+    let finalResult = result && typeof result === 'object'
       ? {
         ...(result as Record<string, unknown>),
         trials: suppliedMatchesCheckpoints
@@ -1238,11 +1453,29 @@ async function finishJob(
         checkpoint: current.result_snapshot?.checkpoint,
       }
       : current.result_snapshot;
+    try {
+      finalResult = finalStatus === 'completed'
+        ? attachStage1ResultGovernance(finalResult, current.input_snapshot)
+        : terminalFailureEvidence(finalResult, current.input_snapshot, finalError);
+    } catch (evidenceError) {
+      finalStatus = 'failed';
+      finalError = `PREDICTIVE_NT_TERMINAL_EVIDENCE_INVALID: ${
+        evidenceError instanceof Error ? evidenceError.message : String(evidenceError)
+      }`;
+      // A malformed worker payload is never authoritative on a failed job.
+      finalResult = terminalFailureEvidence(null, current.input_snapshot, finalError);
+    }
     let reportPdf: Buffer | null = null;
     let reportFilename: string | null = null;
     let reportSha256: string | null = null;
     if (finalStatus === 'completed') {
       try {
+        if (
+          process.env.NODE_ENV === 'test'
+          && runtimeTestHooks.get(jobId)?.forceReportGenerationFailure === true
+        ) {
+          throw new Error('PREDICTIVE_NT_TEST_FORCED_REPORT_GENERATION_FAILURE');
+        }
         reportPdf = await generatePredictiveNtReport({
           id: current.id,
           projectNumber: Number(current.project_number),
@@ -1259,6 +1492,7 @@ async function finishJob(
         finalError = `PREDICTIVE_NT_REPORT_GENERATION_FAILED: ${
           reportError instanceof Error ? reportError.message : String(reportError)
         }`;
+        finalResult = terminalFailureEvidence(finalResult, current.input_snapshot, finalError);
       }
     }
     const updated = await client.query(
@@ -1447,6 +1681,18 @@ function execute(job: PredictiveNtJob, claimToken: string) {
     let result: unknown = null;
     try {
       result = stdout ? JSON.parse(stdout) : null;
+      const finalPayloadTestHooks = runtimeTestHooks.get(job.id);
+      if (
+        process.env.NODE_ENV === 'test'
+        && finalPayloadTestHooks?.replaceFinalPayloadWithRunningAck === true
+        && result && typeof result === 'object'
+      ) {
+        result = {
+          ...(result as Record<string, unknown>),
+          status: 'RUNNING',
+          checkpoint: { protocol: 'ACK_V2' },
+        };
+      }
       result = attachStage1ResultGovernance(result, job.input);
     } catch (resultError) {
       checkpointFailure = resultError instanceof Error

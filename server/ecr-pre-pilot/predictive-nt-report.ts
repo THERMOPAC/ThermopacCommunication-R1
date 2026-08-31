@@ -452,7 +452,36 @@ export async function generatePredictiveNtReport(
     );
   }
 
-  page('8. Governance and provenance', false, 'Immutable identifiers for the frozen completed snapshot');
+  const task218 = o.task218CandidateGeneratedStability;
+  page(
+    '8. Task218 candidate-generated controlled-negative evidence',
+    false,
+    'Immutable candidate cascade lineage; historical Task216/206 comparisons remain diagnostic only',
+  );
+  if (task218) {
+    grid([
+      ['Evidence status', task218.status],
+      ['Candidate qualification', task218.qualified ? 'Qualified' : 'BLOCKED — CONTROLLED NEGATIVE'],
+      ['Exact endpoint coverage', `${task218.coverage?.returned ?? '—'} / ${task218.coverage?.expected ?? '—'}`],
+      ['Endpoint order', task218.endpointOrder],
+      ['Candidate model SHA-256', task218.candidateModelSha256],
+      ['Candidate parameter SHA-256', task218.candidateParameterSha256],
+      ['Candidate flash SHA-256', task218.candidateFlashHash],
+      ['Cascade / matrix SHA-256', `${task218.cascadeExecutionHash ?? '—'} / ${task218.endpointMatrixHash ?? '—'}`],
+      ['Audit / qualification SHA-256', `${task218.auditHash ?? '—'} / ${task218.qualificationHash ?? '—'}`],
+    ], 42, 100, 510, 24);
+    text('Exact controlling blockers', 42, 340, 510, 11, COLORS.navy, true);
+    doc.roundedRect(42, 365, 510, 100, 4).fill('#FFF3E5');
+    text((task218.blockers ?? []).join(' · ') || 'None recorded', 55, 382, 480, 8.2, COLORS.red, true);
+    text(
+      'Task218 is candidate-generated controlled-negative evidence. It is research-only, calibration-required, not pilot validated, not release eligible; predictive N_T remains unassigned and sulfur remains NOT CALCULABLE.',
+      55, 425, 480, 8,
+    );
+  } else {
+    pill('TASK218 IMMUTABLE EVIDENCE NOT ATTACHED', 42, 105, 510);
+  }
+
+  page('9. Governance and provenance', false, 'Immutable identifiers for the frozen completed snapshot');
   pill('CONTROLLED RESEARCH OUTPUT — CALIBRATION REQUIRED', 42, 98, 510);
   grid([
     ['Thermodynamic classification', o.resultThermodynamicClassification],
