@@ -1,0 +1,918 @@
+{
+  "analysis": "MONO_RICH_PHASE_INSTABILITY_QUALIFICATION",
+  "blockers": [
+    "DIRECT_MATCHING_SIX_COMPONENT_LLE_EVIDENCE_MISSING",
+    "FROZEN_COMPOSITION_VALIDATION_FAILED",
+    "POST_SPLIT_TPD_STABILITY_FAILED"
+  ],
+  "calibrationRequired": true,
+  "completeAllStageAllTrialCoverage": {
+    "coveredPhaseCount": 42,
+    "demonstratedForFrozenTrials": true,
+    "everyPhaseStableAtFrozenThreshold": false,
+    "expectedPhaseCount": 42,
+    "failingPhases": [
+      {
+        "minimum": -0.7255044366979837,
+        "phase": "raffinate",
+        "scenario": "Scenario 1",
+        "stageFromFeedEnd": 1,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.7255044366979921,
+        "phase": "extract",
+        "scenario": "Scenario 1",
+        "stageFromFeedEnd": 1,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.6508435363421454,
+        "phase": "raffinate",
+        "scenario": "Scenario 1",
+        "stageFromFeedEnd": 2,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.6508435363421383,
+        "phase": "extract",
+        "scenario": "Scenario 1",
+        "stageFromFeedEnd": 2,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.54124034234374,
+        "phase": "raffinate",
+        "scenario": "Scenario 1",
+        "stageFromFeedEnd": 3,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.5412403423437298,
+        "phase": "extract",
+        "scenario": "Scenario 1",
+        "stageFromFeedEnd": 3,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.38698067439921596,
+        "phase": "raffinate",
+        "scenario": "Scenario 1",
+        "stageFromFeedEnd": 4,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.3869806743992044,
+        "phase": "extract",
+        "scenario": "Scenario 1",
+        "stageFromFeedEnd": 4,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.16690144717751798,
+        "phase": "raffinate",
+        "scenario": "Scenario 1",
+        "stageFromFeedEnd": 5,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.1669014471775136,
+        "phase": "extract",
+        "scenario": "Scenario 1",
+        "stageFromFeedEnd": 5,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.6629353607985359,
+        "phase": "raffinate",
+        "scenario": "Scenario 2",
+        "stageFromFeedEnd": 1,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.6629353607985385,
+        "phase": "extract",
+        "scenario": "Scenario 2",
+        "stageFromFeedEnd": 1,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.5836279570828351,
+        "phase": "raffinate",
+        "scenario": "Scenario 2",
+        "stageFromFeedEnd": 2,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.5836279570828347,
+        "phase": "extract",
+        "scenario": "Scenario 2",
+        "stageFromFeedEnd": 2,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.47457943842344275,
+        "phase": "raffinate",
+        "scenario": "Scenario 2",
+        "stageFromFeedEnd": 3,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.4745794384234534,
+        "phase": "extract",
+        "scenario": "Scenario 2",
+        "stageFromFeedEnd": 3,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.3251874341136958,
+        "phase": "raffinate",
+        "scenario": "Scenario 2",
+        "stageFromFeedEnd": 4,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.32518743411369044,
+        "phase": "extract",
+        "scenario": "Scenario 2",
+        "stageFromFeedEnd": 4,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.11374728856685393,
+        "phase": "raffinate",
+        "scenario": "Scenario 2",
+        "stageFromFeedEnd": 5,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.11374728856686063,
+        "phase": "extract",
+        "scenario": "Scenario 2",
+        "stageFromFeedEnd": 5,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.5941698753445612,
+        "phase": "raffinate",
+        "scenario": "Scenario 3",
+        "stageFromFeedEnd": 1,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.5941698753445852,
+        "phase": "extract",
+        "scenario": "Scenario 3",
+        "stageFromFeedEnd": 1,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.5122569932243553,
+        "phase": "raffinate",
+        "scenario": "Scenario 3",
+        "stageFromFeedEnd": 2,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.5122569932243481,
+        "phase": "extract",
+        "scenario": "Scenario 3",
+        "stageFromFeedEnd": 2,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.40292416280477844,
+        "phase": "raffinate",
+        "scenario": "Scenario 3",
+        "stageFromFeedEnd": 3,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.4029241628047873,
+        "phase": "extract",
+        "scenario": "Scenario 3",
+        "stageFromFeedEnd": 3,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.2552232529739104,
+        "phase": "raffinate",
+        "scenario": "Scenario 3",
+        "stageFromFeedEnd": 4,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.2552232529739082,
+        "phase": "extract",
+        "scenario": "Scenario 3",
+        "stageFromFeedEnd": 4,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.047258946029598375,
+        "phase": "raffinate",
+        "scenario": "Scenario 3",
+        "stageFromFeedEnd": 5,
+        "trialStageCount": 7
+      },
+      {
+        "minimum": -0.04725894602960283,
+        "phase": "extract",
+        "scenario": "Scenario 3",
+        "stageFromFeedEnd": 5,
+        "trialStageCount": 7
+      }
+    ],
+    "phases": [
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.7255044366979837,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 1",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 1,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.7255044366979921,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 1",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 1,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.6508435363421454,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 1",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 2,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.6508435363421383,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 1",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 2,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.54124034234374,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 1",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 3,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.5412403423437298,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 1",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 3,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.38698067439921596,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 1",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 4,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.3869806743992044,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 1",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 4,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.16690144717751798,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 1",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 5,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.1669014471775136,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 1",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 5,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": 5.456776590840895e-18,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 1",
+        "stableAtFrozenThreshold": true,
+        "stageFromFeedEnd": 6,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -2.696782422787713e-18,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 1",
+        "stableAtFrozenThreshold": true,
+        "stageFromFeedEnd": 6,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": 1.659824272639501e-19,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 1",
+        "stableAtFrozenThreshold": true,
+        "stageFromFeedEnd": 7,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -1.5894969017608506e-18,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 1",
+        "stableAtFrozenThreshold": true,
+        "stageFromFeedEnd": 7,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.6629353607985359,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 2",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 1,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.6629353607985385,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 2",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 1,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.5836279570828351,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 2",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 2,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.5836279570828347,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 2",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 2,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.47457943842344275,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 2",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 3,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.4745794384234534,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 2",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 3,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.3251874341136958,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 2",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 4,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.32518743411369044,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 2",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 4,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.11374728856685393,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 2",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 5,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.11374728856686063,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 2",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 5,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -1.3106899836610102e-18,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 2",
+        "stableAtFrozenThreshold": true,
+        "stageFromFeedEnd": 6,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": 5.7600997185356615e-19,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 2",
+        "stableAtFrozenThreshold": true,
+        "stageFromFeedEnd": 6,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": 6.516848960066043e-18,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 2",
+        "stableAtFrozenThreshold": true,
+        "stageFromFeedEnd": 7,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -1.8118160701748018e-18,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 2",
+        "stableAtFrozenThreshold": true,
+        "stageFromFeedEnd": 7,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.5941698753445612,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 3",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 1,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.5941698753445852,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 3",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 1,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.5122569932243553,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 3",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 2,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.5122569932243481,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 3",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 2,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.40292416280477844,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 3",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 3,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.4029241628047873,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 3",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 3,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.2552232529739104,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 3",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 4,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.2552232529739082,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 3",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 4,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.047258946029598375,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 3",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 5,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -0.04725894602960283,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 3",
+        "stableAtFrozenThreshold": false,
+        "stageFromFeedEnd": 5,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": -2.352268893970202e-18,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 3",
+        "stableAtFrozenThreshold": true,
+        "stageFromFeedEnd": 6,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": 4.143932627741563e-18,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 3",
+        "stableAtFrozenThreshold": true,
+        "stageFromFeedEnd": 6,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": 4.529905558600962e-19,
+        "phase": "raffinate",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 3",
+        "stableAtFrozenThreshold": true,
+        "stageFromFeedEnd": 7,
+        "trialStageCount": 7
+      },
+      {
+        "allRefinementsAccepted": true,
+        "covered": true,
+        "globalAndReferenceSeedCount": 7,
+        "localPerturbationSeedCount": 10,
+        "minimum": 3.7027818545331157e-19,
+        "phase": "extract",
+        "refinementSeedCount": 2,
+        "scenario": "Scenario 3",
+        "stableAtFrozenThreshold": true,
+        "stageFromFeedEnd": 7,
+        "trialStageCount": 7
+      }
+    ],
+    "stablePhaseCount": 12
+  },
+  "constrainedTpdEvidence": [
+    {
+      "allKktAccepted": false,
+      "allStarts": 3,
+      "independentConstrainedMinimum": -0.761456930211128,
+      "metastableSplitDemonstrated": true,
+      "scenario": "Scenario 1"
+    },
+    {
+      "allKktAccepted": true,
+      "allStarts": 3,
+      "independentConstrainedMinimum": -0.6989819342887644,
+      "metastableSplitDemonstrated": true,
+      "scenario": "Scenario 2"
+    },
+    {
+      "allKktAccepted": true,
+      "allStarts": 3,
+      "independentConstrainedMinimum": -0.6309432025323813,
+      "metastableSplitDemonstrated": true,
+      "scenario": "Scenario 3"
+    }
+  ],
+  "decision": "Predictive N_T remains unassigned until every blocker is cleared without changing the -1e-8 threshold.",
+  "independentAmendmentDerivativeReproduction": {
+    "importsProductionKernel": false,
+    "rows": [
+      {
+        "activityAndChemicalPotentialMaximumAbsoluteDifference": 6.014477804683338e-11,
+        "compositionClass": "reference",
+        "passed": true,
+        "scenario": "Scenario 1",
+        "tpdGradientFiniteDifferenceApplicable": true,
+        "tpdGradientMaximumAbsoluteDifference": 4.587159865414867e-12
+      },
+      {
+        "activityAndChemicalPotentialMaximumAbsoluteDifference": 7.914913169315696e-11,
+        "compositionClass": "mono-rich-minimum",
+        "passed": true,
+        "scenario": "Scenario 1",
+        "tpdGradientFiniteDifferenceApplicable": true,
+        "tpdGradientMaximumAbsoluteDifference": 1.7150725284409418e-10
+      },
+      {
+        "activityAndChemicalPotentialMaximumAbsoluteDifference": 7.358558207215538e-11,
+        "compositionClass": "reference",
+        "passed": true,
+        "scenario": "Scenario 2",
+        "tpdGradientFiniteDifferenceApplicable": true,
+        "tpdGradientMaximumAbsoluteDifference": 6.795163000670014e-12
+      },
+      {
+        "activityAndChemicalPotentialMaximumAbsoluteDifference": 8.987388611103597e-11,
+        "compositionClass": "mono-rich-minimum",
+        "passed": true,
+        "scenario": "Scenario 2",
+        "tpdGradientFiniteDifferenceApplicable": true,
+        "tpdGradientMaximumAbsoluteDifference": 2.533537823978804e-10
+      },
+      {
+        "activityAndChemicalPotentialMaximumAbsoluteDifference": 6.890710224638497e-11,
+        "compositionClass": "reference",
+        "passed": true,
+        "scenario": "Scenario 3",
+        "tpdGradientFiniteDifferenceApplicable": true,
+        "tpdGradientMaximumAbsoluteDifference": 1.655589422879574e-11
+      },
+      {
+        "activityAndChemicalPotentialMaximumAbsoluteDifference": 8.252598604485684e-11,
+        "compositionClass": "mono-rich-minimum",
+        "passed": true,
+        "scenario": "Scenario 3",
+        "tpdGradientFiniteDifferenceApplicable": true,
+        "tpdGradientMaximumAbsoluteDifference": 2.85002244027055e-10
+      }
+    ]
+  },
+  "lowerGibbsFullCascadeBranchFound": false,
+  "molecularAndPhaseEquilibriumEvidence": {
+    "directMatchingSixComponentEvidenceAvailable": false,
+    "stabilityConstrainedCandidateFrozenValidation": {
+      "heldOutMolecularSystem": {
+        "activityEqualityRms": 0.274420017323645,
+        "ceiling": 0.03,
+        "compositionRmsd": 0.057212805012628466,
+        "rows": 35,
+        "status": "FAIL"
+      },
+      "heldOutTemperature": {
+        "activityEqualityRms": 0.16892740343929935,
+        "ceiling": 0.03,
+        "compositionRmsd": 0.07037166804893295,
+        "rows": 41,
+        "status": "FAIL"
+      },
+      "training": {
+        "activityEqualityRms": 0.21947472975780483,
+        "ceiling": 0.03,
+        "compositionRmsd": 0.2769292446447198,
+        "rows": 143,
+        "status": "FAIL"
+      }
+    }
+  },
+  "pilotValidated": false,
+  "postSplitTpdThreshold": -1e-08,
+  "predictiveNt": null,
+  "qualified": false,
+  "releaseEligible": false,
+  "researchOnly": true,
+  "schemaVersion": "1.0.0",
+  "secondaryMultistartBranchEvidence": [
+    {
+      "bestMaximumResidual": 5.118927504099702e-11,
+      "disposition": "REACHED_PRIMARY_BRANCH",
+      "distinctClosedBranchFound": false,
+      "scenario": "Scenario 1"
+    },
+    {
+      "bestMaximumResidual": 1.4035395068390244e-10,
+      "disposition": "REACHED_PRIMARY_BRANCH",
+      "distinctClosedBranchFound": false,
+      "scenario": "Scenario 2"
+    },
+    {
+      "bestMaximumResidual": 2.9165692083665817e-10,
+      "disposition": "REACHED_PRIMARY_BRANCH",
+      "distinctClosedBranchFound": false,
+      "scenario": "Scenario 3"
+    }
+  ],
+  "sourceHashes": {
+    ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+    ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/fixed-nt7-feed-sensitivity-results.json": "b8cf60bf73550c039cf2df3081b6a408282e15a315fa111faade67598cbec4a7",
+    ".agents/outputs/task-205-negative-tpd-diagnostic/results.json": "113bdf0911ff0f75319aca3ef043c67ff4bab069b1d2bd916da45f3e4f7dcebf",
+    ".agents/outputs/task-206-stability-constrained-amendment/results.json": "a6176f4c5f36640b3e03832c9b0e1b355bd908a655bd8d242640d73038120c10",
+    ".agents/outputs/task-207-seven-stage-multistart-closure/results.json": "f5fafed1bf3940721d94fb3f12d3fc9eb6d18346bc6ff6ce269f5cfa23fd1e2d",
+    "server/research/ecr-pre-pilot-cosmosac-nmp-lle-amendment/model.py": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+    "server/research/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/protocol.json": "a19e28bd0971a2669b015490249ac01927694ec87dfccf8de71bea6cbd3e6e57",
+    "server/research/task-213-mono-rich-qualification/protocol.json": "f0fa0d4d56383a73a0b0aeae0a0c8d1a4bbcc9481b6ed1a217b6a57c5c4f6676"
+  },
+  "status": "BLOCKED_FAIL_CLOSED"
+}

@@ -34,6 +34,9 @@ FAMILIES = list(model.FAMILIES)
 THERMO = ROOT / "server/research/ecr-pre-pilot-six-component-thermodynamics"
 PROFILES = THERMO / "generated/profiles"
 RUNTIME_MANIFEST = ROOT / "predictive-nt-runtime-manifest.json"
+TASK213 = ROOT / ".agents/outputs/task-213-mono-rich-qualification"
+TASK213_PROTOCOL = ROOT / "server/research/task-213-mono-rich-qualification/protocol.json"
+TASK213_RUNNER = ROOT / "server/research/task-213-mono-rich-qualification/run.py"
 
 
 def canonical(value):
@@ -110,6 +113,16 @@ def scientific_runtime_inputs():
         ROOT / "server/engine-framework/cel/data/multi-t-nmp-lle.json",
         THERMO / "provenance-manifest.json",
         THERMO / "generated/profile-verification.json",
+        TASK213_PROTOCOL,
+        TASK213_RUNNER,
+        TASK213 / "results.json",
+        TASK213 / "report.md",
+        TASK213 / "provenance-manifest.json",
+        ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json",
+        ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/fixed-nt7-feed-sensitivity-results.json",
+        ROOT / ".agents/outputs/task-205-negative-tpd-diagnostic/results.json",
+        ROOT / ".agents/outputs/task-206-stability-constrained-amendment/results.json",
+        ROOT / ".agents/outputs/task-207-seven-stage-multistart-closure/results.json",
     ]
     for directory in (vendor, PROFILES):
         inputs.extend(
@@ -252,6 +265,64 @@ def engine_evidence():
 
 def engine_hash():
     return engine_evidence()["engineHash"]
+
+
+def thermodynamic_qualification(counter_protocol):
+    """Verify the pinned Task-213 decision before permitting N_T assignment."""
+    required = (
+        TASK213_PROTOCOL, TASK213_RUNNER, TASK213 / "results.json",
+        TASK213 / "report.md", TASK213 / "provenance-manifest.json",
+    )
+    if not all(path.is_file() for path in required):
+        return False, "TASK213_QUALIFICATION_EVIDENCE_MISSING"
+    protocol = json.loads(TASK213_PROTOCOL.read_text())
+    result = json.loads((TASK213 / "results.json").read_text())
+    provenance = json.loads((TASK213 / "provenance-manifest.json").read_text())
+    if (
+        provenance.get("runnerSha256") != file_hash(TASK213_RUNNER)
+        or provenance.get("resultsSha256") != file_hash(TASK213 / "results.json")
+        or provenance.get("reportSha256") != file_hash(TASK213 / "report.md")
+    ):
+        return False, "TASK213_QUALIFICATION_PROVENANCE_MISMATCH"
+    expected_inputs = protocol.get("pinnedInputs", {})
+    actual_inputs = {
+        "amendmentModelSha256": file_hash(AMENDMENT / "model.py"),
+        "amendmentResultsSha256": file_hash(
+            ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json"
+        ),
+        "negativeTpdDiagnosticSha256": file_hash(
+            ROOT / ".agents/outputs/task-205-negative-tpd-diagnostic/results.json"
+        ),
+        "stabilityConstrainedAmendmentSha256": file_hash(
+            ROOT / ".agents/outputs/task-206-stability-constrained-amendment/results.json"
+        ),
+        "multistartClosureSha256": file_hash(
+            ROOT / ".agents/outputs/task-207-seven-stage-multistart-closure/results.json"
+        ),
+        "frozenTrialsSha256": file_hash(
+            ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/fixed-nt7-feed-sensitivity-results.json"
+        ),
+        "countercurrentProtocolSha256": file_hash(COUNTER / "protocol.json"),
+    }
+    if expected_inputs != actual_inputs:
+        return False, "TASK213_QUALIFICATION_INPUT_MISMATCH"
+    coverage = result.get("completeAllStageAllTrialCoverage", {})
+    accepted = bool(
+        result.get("qualified") is True
+        and result.get("status") == "QUALIFIED"
+        and result.get("blockers") == []
+        and coverage.get("demonstratedForFrozenTrials") is True
+        and coverage.get("everyPhaseStableAtFrozenThreshold") is True
+        and coverage.get("expectedPhaseCount") == 42
+        and coverage.get("coveredPhaseCount") == 42
+        and result.get("postSplitTpdThreshold")
+        == counter_protocol["numericalAcceptance"]["postSplitTpdThreshold"]
+        and counter_protocol["governance"]["equilibriumModelQualification"] == "QUALIFIED"
+    )
+    return (
+        (True, "TASK213_QUALIFICATION_VERIFIED")
+        if accepted else (False, "TASK213_QUALIFICATION_NOT_ACCEPTED")
+    )
 
 
 def plain(value):
@@ -482,6 +553,14 @@ def main():
         trial for trial in trials
         if trial.get("numericalAcceptancePassed") and trial.get("allCalculableTargetsPass")
     ), None)
+    # The amended six-component model remains explicitly NOT_QUALIFIED.  A
+    # numerically closed research trial is useful diagnostic evidence, but it
+    # must never be surfaced as predictive N_T until the frozen thermodynamic
+    # qualification (including post-split TPD stability) is accepted.
+    counter_protocol = cc.load_json(COUNTER / "protocol.json")
+    thermodynamic_qualification_accepted, qualification_status = (
+        thermodynamic_qualification(counter_protocol)
+    )
     sequence_evidence_available = bool(trials) and all(
         isinstance(trial.get("monotonicFromPrevious"), bool) for trial in trials
     )
@@ -497,7 +576,23 @@ def main():
         "engine": ending_engine,
         "stage1Authority": {"snapshotSha256": snapshot_hash, "immutableHash": snapshot["immutableHash"], "stageRange": {"minimum": 1, "maximum": maximum}, "feedMassBasis": dict(zip(FAMILIES, feed_mass.tolist())), "freshModeledNmpMassBasis": fresh_nmp_mass, "nmpPurityAndWaterSpecificationOnly": {"nmpPurityWt": purity, "nmpWaterWt": water}},
         "inputHash": input_hash,
-        "predictiveNt": diagnostic_selection["stageCount"] if diagnostic_selection else None,
+        "predictiveNt": (
+            diagnostic_selection["stageCount"]
+            if thermodynamic_qualification_accepted and diagnostic_selection
+            else None
+        ),
+        "predictiveNtAssignment": {
+            "status": (
+                "ASSIGNED_FROM_VERIFIED_THERMODYNAMIC_QUALIFICATION"
+                if thermodynamic_qualification_accepted and diagnostic_selection
+                else qualification_status
+            ),
+            "thermodynamicQualificationAccepted": thermodynamic_qualification_accepted,
+            "postSplitTpdThreshold": counter_protocol["numericalAcceptance"]["postSplitTpdThreshold"],
+            "numericalDiagnosticCandidateStageCount": (
+                diagnostic_selection["stageCount"] if diagnostic_selection else None
+            ),
+        },
         "monotonicSequence": (
             all(trial["monotonicFromPrevious"] for trial in trials)
             if sequence_evidence_available else False

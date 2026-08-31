@@ -1,0 +1,15 @@
+{
+  "inputs": {
+    ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+    ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/fixed-nt7-feed-sensitivity-results.json": "b8cf60bf73550c039cf2df3081b6a408282e15a315fa111faade67598cbec4a7",
+    ".agents/outputs/task-205-negative-tpd-diagnostic/results.json": "113bdf0911ff0f75319aca3ef043c67ff4bab069b1d2bd916da45f3e4f7dcebf",
+    ".agents/outputs/task-206-stability-constrained-amendment/results.json": "a6176f4c5f36640b3e03832c9b0e1b355bd908a655bd8d242640d73038120c10",
+    ".agents/outputs/task-207-seven-stage-multistart-closure/results.json": "f5fafed1bf3940721d94fb3f12d3fc9eb6d18346bc6ff6ce269f5cfa23fd1e2d",
+    "server/research/ecr-pre-pilot-cosmosac-nmp-lle-amendment/model.py": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+    "server/research/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/protocol.json": "a19e28bd0971a2669b015490249ac01927694ec87dfccf8de71bea6cbd3e6e57",
+    "server/research/task-213-mono-rich-qualification/protocol.json": "f0fa0d4d56383a73a0b0aeae0a0c8d1a4bbcc9481b6ed1a217b6a57c5c4f6676"
+  },
+  "reportSha256": "448ff6c3fc02555672ea83e0b89f9a5d32d36cde8fb31fb25580d272c18d3816",
+  "resultsSha256": "788652e47749f168467410123016a09535e2fe9563b1b6b689151410736a7bf2",
+  "runnerSha256": "cc245646f63379d24f9ce4b00904d0528af8b1d1c13d85904dbf866fe8698f41"
+}

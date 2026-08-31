@@ -17,6 +17,16 @@ const files = new Set([
   'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profile-verification.json',
   'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles',
   'server/engine-framework/cel/data/multi-t-nmp-lle.json',
+  'server/research/task-213-mono-rich-qualification/protocol.json',
+  'server/research/task-213-mono-rich-qualification/run.py',
+  '.agents/outputs/task-213-mono-rich-qualification/results.json',
+  '.agents/outputs/task-213-mono-rich-qualification/report.md',
+  '.agents/outputs/task-213-mono-rich-qualification/provenance-manifest.json',
+  '.agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json',
+  '.agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/fixed-nt7-feed-sensitivity-results.json',
+  '.agents/outputs/task-205-negative-tpd-diagnostic/results.json',
+  '.agents/outputs/task-206-stability-constrained-amendment/results.json',
+  '.agents/outputs/task-207-seven-stage-multistart-closure/results.json',
 ]);
 
 await rm(bundleRoot, { recursive: true, force: true });

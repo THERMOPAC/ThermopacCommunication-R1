@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "analysis": "MONO_RICH_PHASE_INSTABILITY_QUALIFICATION",
+  "componentOrder": ["SAT", "MONO", "DI", "POLY", "PA", "NMP"],
+  "postSplitTpdThreshold": -1e-8,
+  "frozenCompositionRmsdCeiling": 0.03,
+  "pinnedInputs": {
+    "amendmentModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+    "amendmentResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+    "negativeTpdDiagnosticSha256": "113bdf0911ff0f75319aca3ef043c67ff4bab069b1d2bd916da45f3e4f7dcebf",
+    "stabilityConstrainedAmendmentSha256": "a6176f4c5f36640b3e03832c9b0e1b355bd908a655bd8d242640d73038120c10",
+    "multistartClosureSha256": "f5fafed1bf3940721d94fb3f12d3fc9eb6d18346bc6ff6ce269f5cfa23fd1e2d",
+    "frozenTrialsSha256": "b8cf60bf73550c039cf2df3081b6a408282e15a315fa111faade67598cbec4a7",
+    "countercurrentProtocolSha256": "a19e28bd0971a2669b015490249ac01927694ec87dfccf8de71bea6cbd3e6e57"
+  },
+  "governance": {
+    "researchOnly": true,
+    "calibrationRequired": true,
+    "pilotValidated": false,
+    "releaseEligible": false
+  }
+}
