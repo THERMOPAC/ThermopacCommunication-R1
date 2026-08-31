@@ -268,9 +268,12 @@ const PHASE_OPTIONS = [
 const SOLVENT_OIL_RATIO_OPTIONS = ["0.50", "0.75", "0.90", "1.00", "1.25", "1.50", "2.00"];
 const TARGET_RAFFINATE_SULFUR_OPTIONS = ["750", "1000", "1500", "2000", "2500"];
 const MINIMUM_RAFFINATE_SATURATES_OPTIONS = ["90", "92.5", "95", "97.5"];
-const TARGET_TOTAL_AROMATICS_OPTIONS = ["2.0", "3.0", "4.0", "5.0", "7.5", "10.0"];
+const TARGET_TOTAL_AROMATICS_OPTIONS = Array.from(
+  { length: 17 },
+  (_, index) => (2 + index * 0.5).toFixed(1),
+);
 const TARGET_POLAR_AROMATICS_OPTIONS = ["0.10", "0.25", "0.50", "1.00", "2.00"];
-const MINIMUM_RECOVERY_OPTIONS = ["90", "92.5", "95", "97.5", "99"];
+const MINIMUM_RECOVERY_OPTIONS = Array.from({ length: 11 }, (_, index) => String(80 + index));
 const MAXIMUM_NMP_RAFFINATE_OPTIONS = ["0.10", "0.25", "0.50", "1.00"];
 
 const NMP_STANDARD_PURPOSE = {
