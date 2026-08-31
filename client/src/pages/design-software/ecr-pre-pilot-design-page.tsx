@@ -38,6 +38,11 @@ type FormState = {
   minimumRecoveryPct: string;
   maximumNmpRaffinateWt: string;
   feedSulfurPpm: string;
+  sulfurAllocationSatPct: string;
+  sulfurAllocationMonoPct: string;
+  sulfurAllocationDiPct: string;
+  sulfurAllocationPolyPct: string;
+  sulfurAllocationPaPct: string;
   designBasisNotes: string;
   satIdentity: string;
   monoIdentity: string;
@@ -211,6 +216,11 @@ const EMPTY_FORM: FormState = {
   minimumRecoveryPct: "95",
   maximumNmpRaffinateWt: "0.50",
   feedSulfurPpm: "3500",
+  sulfurAllocationSatPct: "0",
+  sulfurAllocationMonoPct: "5",
+  sulfurAllocationDiPct: "25",
+  sulfurAllocationPolyPct: "35",
+  sulfurAllocationPaPct: "35",
   designBasisNotes: "",
   satIdentity: "",
   monoIdentity: "",
@@ -385,8 +395,17 @@ const COMPOSITION_FIELDS = [
   { key: "nmpInFeedWt", label: "NMP in feed" },
 ] as const;
 
+const SULFUR_ALLOCATION_FIELDS = [
+  { key: "sulfurAllocationSatPct", compositionKey: "saturatesWt", label: "SAT" },
+  { key: "sulfurAllocationMonoPct", compositionKey: "monoAromaticsWt", label: "MONO" },
+  { key: "sulfurAllocationDiPct", compositionKey: "diAromaticsWt", label: "DI" },
+  { key: "sulfurAllocationPolyPct", compositionKey: "polyAromaticsWt", label: "POLY" },
+  { key: "sulfurAllocationPaPct", compositionKey: "polarAromaticsWt", label: "PA" },
+] as const;
+
 type ValidationErrors = Partial<Record<keyof FormState, string>> & {
   compositionTotal?: string;
+  sulfurAllocationTotal?: string;
 };
 
 const SECTION_TONES = {
@@ -512,6 +531,16 @@ function validateForm(form: FormState): ValidationErrors {
   requiredOption("maximumNmpRaffinateWt", "Maximum NMP in raffinate", MAXIMUM_NMP_RAFFINATE_OPTIONS);
 
   numeric("feedSulfurPpm", "Feed sulfur", { min: 0 });
+  const sulfurAllocationValues = SULFUR_ALLOCATION_FIELDS.map(({ key, label }) => ({
+    key,
+    value: numeric(key, `${label} sulfur allocation`, { min: 0, max: 100 }),
+  }));
+  if (sulfurAllocationValues.every(({ value }) => value !== null)) {
+    const total = sulfurAllocationValues.reduce((sum, { value }) => sum + (value ?? 0), 0);
+    if (Math.abs(total - 100) > 1e-9) {
+      errors.sulfurAllocationTotal = "Sulfur allocation must total exactly 100%.";
+    }
+  }
   if (form.designBasisNotes.length > 2000) {
     errors.designBasisNotes = "Design basis notes must be 2,000 characters or fewer.";
   }
@@ -797,12 +826,16 @@ export default function EcrPrePilotDesignPage() {
             throw new Error(payload.message ?? "Project number could not be generated.");
           }
           if (cancelled) return;
-          const hasSavedStage1 = Boolean(payload.inputData?.stage1);
+          const savedStage1 = payload.inputData?.stage1 as Record<string, unknown> | undefined;
+          const hasSavedSulfurAllocation = Boolean(
+            savedStage1
+            && SULFUR_ALLOCATION_FIELDS.every(({ key }) => savedStage1[key] !== undefined),
+          );
           setForm((current) => hydrateSavedStage1(
             { ...current, projectReference: String(payload.projectNumber) },
             payload.inputData,
           ));
-          setSaveState(hasSavedStage1 ? "saved" : "unsaved");
+          setSaveState(hasSavedSulfurAllocation ? "saved" : "unsaved");
           setDesignId(Number(payload.id));
           setProjectNumberLoadError(null);
           setProjectNumberLoading(false);
@@ -938,6 +971,35 @@ export default function EcrPrePilotDesignPage() {
     const valid = complete && valuesInRange && Math.abs(total - 100) < 0.005;
 
     return { populatedCount, total, complete, valid };
+  }, [form]);
+
+  const sulfurDistribution = useMemo(() => {
+    const feedSulfurPpm = parseNumber(form.feedSulfurPpm);
+    const rows = SULFUR_ALLOCATION_FIELDS.map(({ key, compositionKey, label }) => {
+      const allocationPct = parseNumber(form[key]);
+      const feedComponentKg = parseNumber(form[compositionKey]);
+      const sulfurMassKg = feedSulfurPpm !== null && allocationPct !== null
+        ? (feedSulfurPpm / 10_000) * (allocationPct / 100)
+        : null;
+      const componentSulfurWt = sulfurMassKg !== null && feedComponentKg !== null && feedComponentKg > 0
+        ? (sulfurMassKg / feedComponentKg) * 100
+        : allocationPct === 0 && feedComponentKg === 0
+          ? 0
+          : null;
+      return { key, label, allocationPct, feedComponentKg, sulfurMassKg, componentSulfurWt };
+    });
+    const populatedCount = rows.filter(({ allocationPct }) => allocationPct !== null).length;
+    const totalAllocationPct = rows.reduce((sum, { allocationPct }) => sum + (allocationPct ?? 0), 0);
+    const valid = populatedCount === rows.length
+      && rows.every(({ allocationPct }) => allocationPct !== null && allocationPct >= 0 && allocationPct <= 100)
+      && Math.abs(totalAllocationPct - 100) <= 1e-9;
+    return {
+      rows,
+      populatedCount,
+      totalAllocationPct,
+      valid,
+      totalSulfurMassKg: feedSulfurPpm === null ? null : feedSulfurPpm / 10_000,
+    };
   }, [form]);
 
   const designFeedRateIsValid = isAllowedOption(form.designFeedRateLph, FEED_RATE_OPTIONS);
@@ -1509,7 +1571,7 @@ export default function EcrPrePilotDesignPage() {
             <SectionHeading
               number="6"
               title="Feed Sulfur"
-              description="Provide the feed sulfur basis used to evaluate the primary raffinate sulfur target."
+              description="Allocate total feed sulfur across the user-entered Stage-1 RRBO composition on a 100 kg feed basis."
               tone="amber"
             />
             <CardContent className="px-4 py-3.5">
@@ -1517,7 +1579,8 @@ export default function EcrPrePilotDesignPage() {
                 <div className="flex items-start gap-2">
                   <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
                   <p className="text-[13px] leading-5 text-amber-900">
-                    Feed sulfur is a required process input. Raffinate sulfur is a primary extraction target and must be predicted from the sulfur-bearing Polar Aromatics transfer model.
+                    <span className="font-semibold">Literature-informed pre-pilot assumption:</span>{" "}
+                    SAT / MONO / DI / POLY / PA = 0 / 5 / 25 / 35 / 35% of total feed sulfur. These starting values are user-editable and are saved with Stage 1.
                   </p>
                 </div>
               </div>
@@ -1534,6 +1597,98 @@ export default function EcrPrePilotDesignPage() {
                   error={validationErrors.feedSulfurPpm}
                 />
               </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-5">
+                {SULFUR_ALLOCATION_FIELDS.map(({ key, label }) => (
+                  <NumericField
+                    key={key}
+                    id={key}
+                    label={`${label} sulfur allocation`}
+                    value={form[key]}
+                    onChange={(value) => setField(key, value)}
+                    unit="%"
+                    min="0"
+                    max="100"
+                    required
+                    error={validationErrors[key]}
+                  />
+                ))}
+              </div>
+              <div
+                className={`mt-4 flex items-center justify-between rounded-lg border p-3 ${
+                  sulfurDistribution.valid ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"
+                }`}
+                aria-live="polite"
+              >
+                <div className="flex items-start gap-2">
+                  {sulfurDistribution.valid
+                    ? <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" aria-hidden="true" />
+                    : <AlertCircle className="mt-0.5 h-4 w-4 text-red-600" aria-hidden="true" />}
+                  <div>
+                    <p className="text-[13px] font-semibold text-slate-800">Sulfur allocation validation</p>
+                    <p className="text-[11px] text-slate-600">
+                      {sulfurDistribution.valid
+                        ? "Valid — the five sulfur shares total exactly 100%."
+                        : validationErrors.sulfurAllocationTotal
+                          ?? "Calculation is blocked until all five sulfur shares total exactly 100%."}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Total</p>
+                  <p className="text-lg font-semibold tabular-nums text-slate-900">
+                    {sulfurDistribution.populatedCount === 0 ? "—" : `${sulfurDistribution.totalAllocationPct.toFixed(4)}%`}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full min-w-[720px] text-left text-xs">
+                  <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2 font-semibold">Component</th>
+                      <th className="px-3 py-2 text-right font-semibold">Feed mass, kg/100 kg</th>
+                      <th className="px-3 py-2 text-right font-semibold">Share of total sulfur, %</th>
+                      <th className="px-3 py-2 text-right font-semibold">Sulfur mass, kg/100 kg RRBO</th>
+                      <th className="px-3 py-2 text-right font-semibold">Sulfur in component, wt%</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {sulfurDistribution.rows.map((row) => (
+                      <tr key={row.key}>
+                        <td className="px-3 py-2 font-semibold text-slate-700">{row.label}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+                          {row.feedComponentKg === null ? "—" : row.feedComponentKg.toFixed(4)}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+                          {row.allocationPct === null ? "—" : row.allocationPct.toFixed(4)}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+                          {sulfurDistribution.valid && row.sulfurMassKg !== null ? row.sulfurMassKg.toFixed(6) : "—"}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+                          {sulfurDistribution.valid && row.componentSulfurWt !== null ? row.componentSulfurWt.toFixed(6) : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="border-t bg-slate-50 font-semibold text-slate-700">
+                    <tr>
+                      <td className="px-3 py-2" colSpan={2}>Total feed sulfur</td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {sulfurDistribution.valid ? `${sulfurDistribution.totalAllocationPct.toFixed(4)}%` : "Blocked"}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {sulfurDistribution.valid && sulfurDistribution.totalSulfurMassKg !== null
+                          ? sulfurDistribution.totalSulfurMassKg.toFixed(6)
+                          : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right">—</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <p className="mt-3 text-[11px] leading-4 text-slate-500">
+                Component feed mass is taken directly from the Stage-1 SAT / MONO / DI / POLY / PA feed wt%. No RRBO composition or component sulfur concentration is fixed in the calculation.
+              </p>
             </CardContent>
           </Card>
 

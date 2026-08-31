@@ -91,6 +91,11 @@ export interface EcrPrePilotStage1Input {
   minimumRecoveryPct: number;
   maximumNmpRaffinateWt: number;
   feedSulfurPpm: number;
+  sulfurAllocationSatPct: number;
+  sulfurAllocationMonoPct: number;
+  sulfurAllocationDiPct: number;
+  sulfurAllocationPolyPct: number;
+  sulfurAllocationPaPct: number;
   designBasisNotes: string;
   satIdentity: string;
   monoIdentity: string;
@@ -211,6 +216,11 @@ export function canonicalizeStage1Input(
     minimumRecoveryPct: requireOption(numberValue(source, 'minimumRecoveryPct', 0, 100), RECOVERY_TARGETS, 'minimumRecoveryPct'),
     maximumNmpRaffinateWt: requireOption(numberValue(source, 'maximumNmpRaffinateWt', 0, 100), NMP_TARGETS, 'maximumNmpRaffinateWt'),
     feedSulfurPpm: numberValue(source, 'feedSulfurPpm', 0),
+    sulfurAllocationSatPct: numberValue(source, 'sulfurAllocationSatPct', 0, 100),
+    sulfurAllocationMonoPct: numberValue(source, 'sulfurAllocationMonoPct', 0, 100),
+    sulfurAllocationDiPct: numberValue(source, 'sulfurAllocationDiPct', 0, 100),
+    sulfurAllocationPolyPct: numberValue(source, 'sulfurAllocationPolyPct', 0, 100),
+    sulfurAllocationPaPct: numberValue(source, 'sulfurAllocationPaPct', 0, 100),
     designBasisNotes: optionalText(source, 'designBasisNotes'),
     satIdentity: requireOption(text(source, 'satIdentity', 80), SAT_IDENTITIES, 'satIdentity'),
     monoIdentity: requireOption(text(source, 'monoIdentity', 80), MONO_IDENTITIES, 'monoIdentity'),
@@ -220,6 +230,11 @@ export function canonicalizeStage1Input(
   const compositionTotal = stage1.saturatesWt + stage1.monoAromaticsWt + stage1.diAromaticsWt
     + stage1.polyAromaticsWt + stage1.polarAromaticsWt + stage1.nmpInFeedWt;
   if (Math.abs(compositionTotal - 100) >= 0.005) throw new Error('INVALID_STAGE1_COMPOSITION_TOTAL');
+  const sulfurAllocationTotal = stage1.sulfurAllocationSatPct + stage1.sulfurAllocationMonoPct
+    + stage1.sulfurAllocationDiPct + stage1.sulfurAllocationPolyPct + stage1.sulfurAllocationPaPct;
+  if (Math.abs(sulfurAllocationTotal - 100) > 1e-9) {
+    throw new Error('INVALID_STAGE1_SULFUR_ALLOCATION_TOTAL');
+  }
   return stage1;
 }
 
