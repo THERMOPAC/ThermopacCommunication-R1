@@ -700,3 +700,10 @@ uri = "file://reports/project-111-predictive-nt-research-diagnostic.pdf"
 type = "pdf"
 title = "Project 111 Predictive N_T Report"
 description = "72-page frozen report for the completed 10-trial six-component COSMO-SAC run. Clearly marked research diagnostic, not accepted, and not release eligible."
+
+[[outputs]]
+id = "4bYaQTux8jTw2GIdn0lw-"
+uri = "file://reports/project-111-predictive-nt-engineering-report.pdf"
+type = "pdf"
+title = "Revised Project 111 Predictive N_T Report"
+description = "Redesigned 8-page engineering report with a clear executive verdict, compact trial dashboard, readable compliance cards, stream tables, diagnostics, and governance."
