@@ -1,8 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdtempSync, rmSync } from 'node:fs';
+import { appendFileSync, copyFileSync, cpSync, mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PRE_PILOT_MODEL } from '../server/ecr-pre-pilot/model';
 import {
   enqueuePredictiveNtRuntimeTestJob,
@@ -25,12 +25,12 @@ function validStage1(projectNumber: number) {
     operatingTemperatureC: '50',
     operatingPressure: '2.0',
     phaseConfiguration: 'nmp-continuous-rrbo-dispersed',
-    saturatesWt: '70',
-    monoAromaticsWt: '30',
-    diAromaticsWt: '0',
-    polyAromaticsWt: '0',
-    polarAromaticsWt: '0',
-    nmpInFeedWt: '0',
+    saturatesWt: '65',
+    monoAromaticsWt: '20',
+    diAromaticsWt: '5',
+    polyAromaticsWt: '3',
+    polarAromaticsWt: '5',
+    nmpInFeedWt: '2',
     rrboDensityKgM3: '850',
     rrboDynamicViscosityCp: '20',
     rrboInterfacialTensionMnM: '8',
@@ -69,29 +69,38 @@ function validInputWithMaximumStages(maximumStages: number) {
   );
 }
 
+function useAckProtocolFixture() {
+  process.env.PREDICTIVE_NT_TEST_WORKER_SCRIPT =
+    path.join(process.cwd(), 'tests/fixtures/predictive_nt_ack_protocol_worker.py');
+}
+
 describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
-  it('converges the damped component-flow cascade through N=5 with bounded streams and closed balances', () => {
-    const output = execFileSync(
-      'python3.12',
-      [path.join(process.cwd(), 'tests/fixtures/predictive_nt_component_flow_check.py')],
-      { cwd: process.cwd(), encoding: 'utf8' },
+  beforeAll(async () => {
+    await pool.query(
+      `UPDATE ecr_pre_pilot_predictive_nt_jobs
+          SET status = 'failed',
+              error = 'TEST_RUN_INTERRUPTED_CLEANUP',
+              lease_expires_at = NULL,
+              completed_at = NOW(),
+              updated_at = NOW()
+        WHERE status IN ('pending', 'running')
+          AND input_snapshot ? '_runtimeTestOwner'`,
     );
-    const trials = JSON.parse(output);
-    expect(trials).toHaveLength(5);
-    for (const [index, trial] of trials.entries()) {
-      expect(trial.stageCount).toBe(index + 1);
-      expect(trial.sweeps).toBeLessThanOrEqual(300);
-      expect(trial.balanceAccepted).toBe(true);
-      expect(trial.overallMaximum).toBeLessThanOrEqual(1e-8);
-      expect(trial.localMaximum).toBeLessThanOrEqual(1e-8);
-      expect(trial.bounded).toBe(true);
-      expect(trial.initialization).toBe(
-        index === 0 ? 'COLD_COMPONENT_FLOW' : 'N_MINUS_1_COMPONENT_FLOW_CONTINUATION',
-      );
-    }
-  }, 30_000);
+  });
 
   afterAll(async () => {
+    await pool.query(
+      `UPDATE ecr_pre_pilot_predictive_nt_jobs
+          SET status = 'failed',
+              error = 'TEST_RUN_INTERRUPTED_CLEANUP',
+              lease_expires_at = NULL,
+              completed_at = NOW(),
+              updated_at = NOW()
+        WHERE status IN ('pending', 'running')
+          AND input_snapshot ? '_runtimeTestOwner'`,
+    );
+    delete process.env.PREDICTIVE_NT_TEST_WORKER_SCRIPT;
+    delete process.env.PREDICTIVE_NT_RUNTIME_ROOT;
     await pool.end();
   });
 
@@ -144,7 +153,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     })).toThrow('MOLECULAR_IDENTITY_UNAVAILABLE');
   });
 
-  it('rejects positive PA source mass instead of silently projecting it', () => {
+  it('rejects a PA source mutation that is not reconstructed from Stage 1', () => {
     expect(() => validatePredictiveNtJobInput({
       ...validInput,
       sourceFeedCompositionMassFraction: {
@@ -152,13 +161,13 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
         saturates: 0.69,
         polar: 0.01,
       },
-    })).toThrow('POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE');
+    })).toThrow('MOLECULAR_FEED_BASIS_MISMATCH');
   });
 
   it('rejects inconsistent feed, product, and solvent molecular conversions', () => {
     expect(() => validatePredictiveNtJobInput({
       ...validInput,
-      feedMoleFractions: [0.7, 0.3, 0, 0, 0],
+      feedMoleFractions: [0.7, 0.3, 0, 0, 0, 0],
     })).toThrow('MOLECULAR_FEED_BASIS_MISMATCH');
     expect(() => validatePredictiveNtJobInput({
       ...validInput,
@@ -191,12 +200,16 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
           ...validInput.sourceFeedCompositionMassFraction,
           saturates,
           mono,
+          di: 0,
+          poly: 0,
+          polar: 0,
+          nmp: 0,
         },
         feedMoleFractions: [
           (saturates / 170.34) / moles,
           (mono / 120.19) / moles,
-          0, 0, 0,
-        ] as [number, number, number, number, number],
+           0, 0, 0, 0,
+        ] as [number, number, number, number, number, number],
         solventMolarRatio: (validInput.sourceSolventOilMassRatio / 99.1311) / moles,
       };
     }],
@@ -224,14 +237,14 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     expect(() => validatePredictiveNtJobInput(mutate())).toThrow('STAGE1_AUTHORITY_MISMATCH');
   });
 
-  it('rejects a changed five-component engine contract', () => {
+  it('rejects a changed six-component engine contract', () => {
     expect(() => validatePredictiveNtJobInput({
       ...validInput,
       engineComponentContract: {
         ...validInput.engineComponentContract,
         thermodynamicModel: 'COSMO-SAC-2010',
       },
-    } as any)).toThrow('PREDICTIVE_NT_FIVE_COMPONENT_CONTRACT_REQUIRED');
+    } as any)).toThrow('PREDICTIVE_NT_SIX_COMPONENT_CONTRACT_REQUIRED');
   });
 
   it('rejects the deprecated molar recovery gate', () => {
@@ -255,12 +268,12 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       satIdentity: 'n-dodecane',
       monoIdentity: 'n-propylbenzene',
       sourceFeedCompositionMassFraction: {
-        saturates: 0.7,
-        mono: 0.3,
-        di: 0,
-        poly: 0,
-        polar: 0,
-        nmp: 0,
+        saturates: 0.65,
+        mono: 0.2,
+        di: 0.05,
+        poly: 0.03,
+        polar: 0.05,
+        nmp: 0.02,
       },
       sourceProductTargetsMassFraction: {
         maximumTotalAromatics: 0.1,
@@ -285,13 +298,18 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     expect(derived.stage1Authority?.snapshotHash).toMatch(/^[a-f0-9]{64}$/);
     expect(() => validatePredictiveNtJobInput(derived)).not.toThrow();
     expect(attachStage1ResultGovernance({
-      status: 'ACCEPTED_PREDICTIVE_NT',
-      predictiveNt: 3,
+      status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
+      predictiveNt: null,
     }, derived)).toMatchObject({
-      status: 'ACCEPTED_PREDICTIVE_NT',
-      predictiveNt: 3,
+      status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
+      predictiveNt: null,
       stage1TargetGovernance: {
-        predictiveNtAuthority: 'FROZEN_PYTHON_THERMODYNAMIC_ENGINE',
+        predictiveNtAuthority: 'FROZEN_SIX_COMPONENT_COSMO_SAC_RESEARCH_ENGINE',
+        predictiveNtEngineScope: {
+          componentCount: 6,
+          thermodynamicModel: 'COSMO-SAC-2010',
+          researchDiagnosticOnly: true,
+        },
         sulfurPrediction: {
           status: 'NOT_CALCULABLE',
           calibrationStatus: 'CALIBRATION_REQUIRED',
@@ -301,22 +319,21 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
           status: 'CALCULABLE',
         },
         overallEcrProductAcceptance: false,
-        overallEcrProductAcceptanceStatus: 'BLOCKED_BY_NOT_CALCULABLE_TARGETS',
+        overallEcrProductAcceptanceStatus: 'RESEARCH_DIAGNOSTIC_NOT_RELEASE_ELIGIBLE',
       },
     });
-  }, 30_000);
+  }, 60_000);
 
-  it('fails closed when the saved Stage 1 scope includes positive PA feed', async () => {
+  it('admits positive PA and feed NMP in the saved six-component Stage 1 scope', async () => {
     const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
     if (!user.rows[0]) throw new Error('No user available for Stage 1 scope test');
     const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, `stage1-scope-${Date.now()}`);
     const stage1 = validStage1(design.projectNumber);
-    stage1.saturatesWt = '69';
-    stage1.polarAromaticsWt = '1';
+    stage1.saturatesWt = '64';
+    stage1.polarAromaticsWt = '6';
     const snapshot = await saveEcrPrePilotStage1(userId, design.id, stage1);
-    expect(() => derivePredictiveNtInputFromStage1(snapshot, design.projectNumber))
-      .toThrow('POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE');
+    expect(() => derivePredictiveNtInputFromStage1(snapshot, design.projectNumber)).not.toThrow();
   });
 
   it('fails closed for an unsupported saved phase configuration', async () => {
@@ -342,50 +359,31 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     }
   });
 
-  it('does not stop the minimum-stage search at a non-monotonic diagnostic', () => {
-    const result = JSON.parse(execFileSync(
-      'python3.12',
-      [
-        'server/research/ecr-pre-pilot-model-freeze/predictive_nt_cascade.py',
-        '--self-test-selection',
-      ],
-      { encoding: 'utf8' },
-    ));
-    expect(result).toEqual({
-      status: 'PASS',
-      selectedStageCount: 3,
-      allTrialsEvaluated: true,
-    });
-  }, 30_000);
-
-  it('rejects a self-consistent manifest that is not the declared frozen model', () => {
-    const result = JSON.parse(execFileSync(
-      'python3.12',
-      [
-        'server/research/ecr-pre-pilot-model-freeze/predictive_nt_cascade.py',
-        '--self-test-manifest-binding',
-      ],
-      { encoding: 'utf8' },
-    ));
-    expect(result).toEqual({
-      status: 'PASS',
-      changedManifestRejected: true,
-    });
-  }, 30_000);
-
   it('fails preflight before submission when a packaged runtime artifact is missing', () => {
     execFileSync('node', ['scripts/package-predictive-nt-runtime.mjs']);
     const temporaryRoot = mkdtempSync(path.join(os.tmpdir(), 'predictive-nt-runtime-'));
     cpSync('dist/predictive-nt-runtime', temporaryRoot, { recursive: true });
-    rmSync(path.join(temporaryRoot, 'server/research/ecr-pre-pilot-uniquac/model.py'));
     process.env.PREDICTIVE_NT_RUNTIME_ROOT = temporaryRoot;
     try {
-      expect(() => preflightPredictiveNtRuntime()).toThrow('PREDICTIVE_NT_RUNTIME_MISSING');
+      const relativeScipyPath =
+        'server/research/ecr-pre-pilot-cosmosac/vendor/python/scipy/optimize/_lsq/least_squares.py';
+      const temporaryScipyPath = path.join(temporaryRoot, relativeScipyPath);
+      appendFileSync(temporaryScipyPath, '\n# tampered scientific optimizer\n');
+      expect(() => preflightPredictiveNtRuntime())
+        .toThrow(/SCIENTIFIC_RUNTIME_MANIFEST_FILE_MISMATCH/);
+      copyFileSync(path.join('dist/predictive-nt-runtime', relativeScipyPath), temporaryScipyPath);
+
+      rmSync(path.join(
+        temporaryRoot,
+        'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles/sigma3/BBEAQIROQSPTKN-UHFFFAOYSA-N.sigma',
+      ));
+      expect(() => preflightPredictiveNtRuntime())
+        .toThrow(/(?:SCIENTIFIC_RUNTIME_(?:INPUT_MISSING|MANIFEST_FILE_MISMATCH)|FileNotFoundError)/);
     } finally {
       delete process.env.PREDICTIVE_NT_RUNTIME_ROOT;
       rmSync(temporaryRoot, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 
   it('runs a saved Stage-1 stage search to completion from the production runtime bundle', async () => {
     execFileSync('node', ['scripts/package-predictive-nt-runtime.mjs']);
@@ -393,8 +391,17 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     expect(preflightPredictiveNtRuntime()).toMatchObject({
       status: 'PASS',
       python: '3.12',
-      modelHash: PRE_PILOT_MODEL.modelHash,
+      engineId: 'ECR2_PREDICTIVE_NT_SIX_COMPONENT_COSMOSAC',
+      componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP'],
+      modelIdentity: 'COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL',
     });
+    const preflight = preflightPredictiveNtRuntime();
+    expect(preflight.engineHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(preflight.verifiedScientificInputCount).toBeGreaterThanOrEqual(2_000);
+    expect(preflight.verifiedScientificInputAggregateSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(preflight.verifiedNativeDependencyCount).toBeGreaterThan(0);
+    expect(preflight.verifiedNativeDependencyAggregateSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(preflight.runtimeManifestStatus).toBe('PACKAGED_MANIFEST_VERIFIED');
 
     const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
     if (!user.rows[0]) throw new Error('No user available for Predictive N_T integration test');
@@ -405,10 +412,11 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
         validInputWithMaximumStages(2),
         userId,
         design.id,
+        { restartAfterAcknowledgedStage: 1 },
       );
 
       let completed = await getPredictiveNtJob(submitted.jobId, userId, design.id);
-      const deadline = Date.now() + 120_000;
+      const deadline = Date.now() + 270_000;
       while (completed?.status !== 'completed' && completed?.status !== 'failed' && Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 250));
         completed = await getPredictiveNtJob(submitted.jobId, userId, design.id);
@@ -416,24 +424,56 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
 
       expect(completed?.status, completed?.error ?? 'job did not complete').toBe('completed');
       expect(completed?.modelHash).toBe(PRE_PILOT_MODEL.modelHash);
+      const restartHistory = await pool.query(
+        `SELECT COUNT(*)::int AS total
+           FROM ecr_pre_pilot_predictive_nt_job_history
+          WHERE job_id = $1
+            AND details->>'event' = 'stale_job_reclaimed'`,
+        [submitted.jobId],
+      );
+      expect(restartHistory.rows[0].total).toBeGreaterThanOrEqual(1);
       expect(completed?.engineHash).toBe(
-        '5af4ade3777068a4b2aac4afdd0956b9c5f52ca55c1f96f33c28e91f0ac5ece2',
+        preflight.engineHash,
       );
       expect(completed?.result).toMatchObject({
-        status: 'TARGET_NOT_REACHED',
+        status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
         establishedTheoreticalStages: null,
         releaseEligible: false,
         calibrationRequired: true,
-        model: {
-          modelHash: PRE_PILOT_MODEL.modelHash,
-          runtimeVerification: 'PASS',
-        },
+        componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP'],
+        modelIdentity: 'COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL',
         engine: {
+          engineId: 'ECR2_PREDICTIVE_NT_SIX_COMPONENT_COSMOSAC',
           engineHash: completed?.engineHash,
+        },
+        stage1Authority: {
+          freshModeledNmpMassBasis: 150,
+          nmpPurityAndWaterSpecificationOnly: {
+            nmpPurityWt: 99.5,
+            nmpWaterWt: 0.05,
+          },
         },
       });
       const result = completed?.result as any;
+      expect(result.stage1TargetGovernance.overallEcrProductAcceptance).toBe(false);
       expect(result.trials).toHaveLength(2);
+      expect(result.trials[0]).toMatchObject({
+        stageCount: 1,
+        researchStatus: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
+        releaseEligible: false,
+        numericalAcceptancePassed: expect.any(Boolean),
+        boundaryStreams: {
+          oilFeed: { componentMoles: expect.any(Array) },
+          freshNmp: { componentMoles: expect.any(Array) },
+        },
+      });
+      expect(result.trials[0].boundaryStreams.oilFeed.componentMass).toHaveLength(6);
+      expect(result.trials[0].boundaryStreams.freshNmp.componentMass).toHaveLength(6);
+      expect(result.trials[0].boundaryStreams.oilFeed.componentMass[4]).toBeGreaterThan(0);
+      expect(result.trials[0].boundaryStreams.oilFeed.componentMass[5]).toBeGreaterThan(0);
+      expect(result.trials[0].boundaryStreams.freshNmp.componentMass.slice(0, 5))
+        .toEqual([0, 0, 0, 0, 0]);
+      expect(result.trials[0].boundaryStreams.freshNmp.componentMass[5]).toBeGreaterThan(0);
       expect(result.checkpoint).toMatchObject({
         protocol: 'ACK_V2',
         acknowledgedStageCount: 2,
@@ -444,9 +484,8 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       expect(result.checkpoint.trialCanonicals).toHaveLength(2);
       expect(result.checkpoint.payloadHashes).toHaveLength(2);
       expect(result.checkpoint.payloadCanonicals).toHaveLength(2);
-      expect(result.trials[0].balanceAccepted).toBe(true);
-      expect(result.trials[0].overallComponentBalanceMaximum).toBeLessThanOrEqual(1e-8);
-      expect(Math.abs(Object.values(result.trials[0].overallComponentBalanceResiduals)
+      expect(result.trials[0].maximumOverallComponentBalanceResidualMol).toBeLessThanOrEqual(1e-8);
+      expect(Math.abs(Object.values(result.trials[0].overallComponentBalanceResidualMol)
         .reduce((sum: number, value) => sum + Number(value), 0))).toBeLessThanOrEqual(1e-8);
       const checkpointHistory = await pool.query(
         `SELECT COUNT(*)::int AS total
@@ -459,7 +498,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     } finally {
       delete process.env.PREDICTIVE_NT_RUNTIME_ROOT;
     }
-  }, 150_000);
+  }, 295_000);
 
   it.each([
     {
@@ -473,12 +512,13 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       error: 'PREDICTIVE_NT_CHECKPOINT_REPLAY_MISMATCH',
     },
   ])('$name', async ({ hooks, error }) => {
+    useAckProtocolFixture();
     const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
     if (!user.rows[0]) throw new Error('No user available for checkpoint fault test');
     const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-checkpoint-fault-v1');
     const submitted = await enqueuePredictiveNtRuntimeTestJob(
-      validInputWithMaximumStages(2),
+        validInputWithMaximumStages(2),
       userId,
       design.id,
       hooks,
@@ -499,12 +539,13 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
   }, 150_000);
 
   it('resumes at the next stage after a worker restart without rewriting acknowledged evidence', async () => {
+    useAckProtocolFixture();
     const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
     if (!user.rows[0]) throw new Error('No user available for checkpoint restart test');
     const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-checkpoint-resume-v2');
     const submitted = await enqueuePredictiveNtRuntimeTestJob(
-      validInputWithMaximumStages(2),
+        validInputWithMaximumStages(2),
       userId,
       design.id,
       { restartAfterAcknowledgedStage: 1 },
@@ -519,8 +560,6 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     expect(terminal?.status, terminal?.error ?? 'job did not complete').toBe('completed');
     const result = terminal?.result as any;
     expect(result.trials.map((trial: any) => trial.stageCount)).toEqual([1, 2]);
-    expect(result.trials[1].solverDiagnostics.initialization)
-      .toBe('N_MINUS_1_COMPONENT_FLOW_CONTINUATION');
     expect(result.checkpoint).toMatchObject({
       protocol: 'ACK_V2',
       acknowledgedStageCount: 2,
@@ -550,12 +589,13 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
   }, 210_000);
 
   it('finalizes from checkpoints when the worker restarts after the final acknowledgement', async () => {
+    useAckProtocolFixture();
     const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
     if (!user.rows[0]) throw new Error('No user available for final checkpoint restart test');
     const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-final-checkpoint-resume-v2');
     const submitted = await enqueuePredictiveNtRuntimeTestJob(
-      validInputWithMaximumStages(2),
+        validInputWithMaximumStages(2),
       userId,
       design.id,
       { restartAfterAcknowledgedStage: 2 },

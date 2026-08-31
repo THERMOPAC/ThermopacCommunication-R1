@@ -3,8 +3,8 @@ name: Predictive N_T runtime freeze
 description: Why deployment packaging must cover Python runtime dependencies outside the scientific artifact manifest.
 ---
 
-**Rule:** Treat the scientific model manifest and the executable deployment bundle as related but distinct integrity boundaries. Bundle every transitive Python support file and hash-check non-manifest solver support before starting the queue worker.
+**Rule:** Treat the scientific model manifest and executable deployment bundle as distinct integrity boundaries. Hash the complete vendored scientific tree plus linked native dependencies; packaged runs must verify an exact path/size/content manifest.
 
-**Why:** The scientific manifest binds admitted model evidence, but dynamically imported flash code can depend on additional source and structural files. A build can therefore preserve the model hash while still producing an incomplete or altered executable runtime.
+**Why:** Hashing only package entry points and one principal binary missed executed SciPy optimizer/sparse code and native libraries. Also, Python checkpoint serialization can preserve integral-float spelling (`100.0`) that JavaScript normalizes to `100`, breaking strict ACK/final equality despite equal values.
 
-**How to apply:** Any change to the Predictive N_T Python import graph must update deployment packaging and its runtime support hashes atomically. Startup preflight must import and initialize the exact packaged runtime before jobs can be accepted.
+**How to apply:** Any import-graph change must update packaging and runtime closure atomically. Exclude derived bytecode caches. Keep source/package hashes location-invariant, require packaged-manifest verification in production, recheck the hash after a solve, and normalize ACK payloads to JavaScript number semantics before persistence.

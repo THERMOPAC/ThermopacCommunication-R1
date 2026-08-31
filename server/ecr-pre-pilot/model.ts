@@ -1,8 +1,8 @@
 export const PRE_PILOT_MODEL = {
   packageId: 'PRE_PILOT_MODEL',
-  packageVersion: '1.1.0',
-  modelHash: '2f22d47cb35c59bc0e6a28ac2aa02a431a79adcd6c454a51d62989928a907dc3',
-  operationalDecision: 'ACCEPT_WITH_LIMITATIONS',
+  packageVersion: '2.0.0',
+  modelHash: '9666ff67194102ca9c3dc139695bead8ff133fbfe24c2d786ce1deca49456196',
+  operationalDecision: 'RESEARCH_DIAGNOSTIC_ONLY',
   calibrationStatus: 'CALIBRATION_REQUIRED',
   qualificationDecision: 'REJECT',
   qualificationGoverningStatus: 'FAIL_CLOSED',
@@ -13,11 +13,11 @@ export const PRE_PILOT_MODEL = {
     tieLineRmsdMaximum: 0.03,
   },
   limitations: {
-    supportedOperationalScope: 'SAT_MONO_DI_POLY_NMP_PRE_PILOT_SCREENING',
+    supportedOperationalScope: 'SAT_MONO_DI_POLY_PA_NMP_COSMO_SAC_RESEARCH_DIAGNOSTIC',
     branching: 'SCREEN_ONLY',
     cycloalkane: 'FAIL_CLOSED',
     diPoly: 'FIXED_GOVERNED_SURROGATES',
-    polarAromatics: 'IDENTITY_ADMITTED_THERMODYNAMIC_CLOSURE_FAIL_CLOSED',
+    polarAromatics: 'EXACT_PA_ANCHOR_SIX_COMPONENT_RESEARCH_ONLY',
     sulfur: 'FAIL_CLOSED',
   },
 } as const;
@@ -93,19 +93,6 @@ export function startPrePilotNt(input: {
       ],
     };
   }
-  if ((input.feedCompositionMassFraction.polar ?? 0) > 1e-12) {
-    return {
-      ...common,
-      status: 'POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE',
-      mayRunPredictiveNt: false,
-      diagnostics: [
-        "The exact 4,4'-bis(alpha,alpha-dimethylbenzyl)diphenylamine PA anchor is identified, but its thermodynamic representation is not closed.",
-        'This five-component UNIQUAC route has no PA state variable or complete PA directed interaction set.',
-        'The separate exact-profile six-component COSMO-SAC route may run research diagnostics under its own LLE, closure, multistart, and TPD gates; it is not qualified for promotion or release.',
-        'Unsubstituted diphenylamine, zero-filled interactions, DI/POLY parameters, and sulfur-bearing molecules are prohibited substitutes.',
-      ],
-    };
-  }
   const composition = input.feedCompositionMassFraction;
   const finiteComposition = Object.values(composition)
     .every((value) => Number.isFinite(value) && value >= 0);
@@ -115,7 +102,7 @@ export function startPrePilotNt(input: {
       status: 'UNSUPPORTED_COMPONENT_SCOPE',
       mayRunPredictiveNt: false,
       diagnostics: [
-        'PRE_PILOT_MODEL requires finite nonnegative SAT/MONO/DI/POLY feed fractions.',
+        'PRE_PILOT_MODEL requires finite nonnegative SAT/MONO/DI/POLY/PA feed fractions.',
       ],
     };
   }
@@ -124,9 +111,9 @@ export function startPrePilotNt(input: {
     status: 'READY_FOR_PREDICTIVE_NT',
     mayRunPredictiveNt: true,
     diagnostics: [
-      'N_T lineage is bound to the frozen PRE_PILOT_MODEL equations, parameters, dataset and solver settings.',
-      'Any result is predictive pre-pilot screening, calibration-required and not pilot validated.',
-      'Positive Polar Aromatics feed, sulfur prediction, governed-release use and write-through to established theoretical stages remain fail-closed.',
+      'N_T lineage is bound to the frozen exact-profile six-family COSMO-SAC research engine and Stage 1 evidence.',
+      'Any result is a research diagnostic, calibration-required, not pilot validated, and never release eligible.',
+      'Sulfur remains NOT_CALCULABLE; governed-release use and write-through to established theoretical stages remain fail-closed.',
     ],
   };
 }

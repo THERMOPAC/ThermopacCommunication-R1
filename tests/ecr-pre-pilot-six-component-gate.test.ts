@@ -170,21 +170,22 @@ describe('six-component COSMO-SAC gate contract', () => {
       .toThrow('SIX_COMPONENT_COSMO_SAC_SAT_PROFILE_HASH_MISMATCH');
   });
 
-  it('keeps PA mandatory and preserves separate counter-current NMP and oil inlets', () => {
+  it('keeps PA and feed NMP mandatory in the exact six-component inlet order', () => {
     const result = runSixComponentPreflight({
       ...savedStage1,
-      saturatesWt: 69,
+      saturatesWt: 67,
       monoAromaticsWt: 20,
       diAromaticsWt: 5,
       polyAromaticsWt: 3,
       polarAromaticsWt: 3,
+      nmpInFeedWt: 2,
       nmpPurityWt: 100,
       nmpWaterWt: 0,
     });
     expect(result.status).toBe(0);
     const output = JSON.parse(result.stdout);
     expect(output.componentOrder).toEqual(['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP']);
-    expect(output.oilFeedNmpMassBasis).toBe(0);
+    expect(output.oilFeedNmpMassBasis).toBeGreaterThan(0);
     expect(output.freshSolventNmpMassBasis).toBeGreaterThan(0);
     expect(output.overallInletNmpMassBasis).toBeGreaterThan(0);
     expect(output.flowConvention).toMatchObject({
@@ -193,7 +194,7 @@ describe('six-component COSMO-SAC gate contract', () => {
     });
   }, 30_000);
 
-  it('keeps Project-111-style solvent purity as a separate representation blocker', () => {
+  it('keeps Project-111-style purity and water as audit specifications without adding a component', () => {
     const result = runSixComponentPreflight({
       ...savedStage1,
       saturatesWt: 85,
@@ -205,11 +206,18 @@ describe('six-component COSMO-SAC gate contract', () => {
       nmpPurityWt: 99.5,
       nmpWaterWt: 0.05,
     });
-    expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain(
-      'STAGE1_SOLVENT_PURITY_REPRESENTATION_UNAVAILABLE:waterWt=0.05;unspecifiedWt=0.45',
-    );
-    expect(result.stderr).not.toContain('POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE');
+    expect(result.status).toBe(0);
+    const output = JSON.parse(result.stdout);
+    expect(output.componentOrder).toEqual(['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP']);
+    expect(output.modeledComponentCount).toBe(6);
+    expect(output.freshSolventNmpMassBasis).toBe(75);
+    expect(output.freshSolventModelingBasis).toBe('PURE_NMP_FROM_SAVED_SOLVENT_OIL_RATIO');
+    expect(output.nmpPurityAndWaterSpecificationOnly).toEqual({
+      nmpPurityWt: 99.5,
+      nmpWaterWt: 0.05,
+    });
+    expect(result.stdout).not.toContain('UNSPECIFIED');
+    expect(result.stdout).not.toContain('"WATER"');
   }, 30_000);
 
   it('rejects a tampered Stage-1 file before six-component preflight', () => {
@@ -245,8 +253,13 @@ describe('six-component COSMO-SAC gate contract', () => {
       nmpPurityWt: 99.9999999,
       nmpWaterWt: 1e-7,
     });
-    expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain('STAGE1_SOLVENT_PURITY_REPRESENTATION_UNAVAILABLE');
+    expect(result.status).toBe(0);
+    const output = JSON.parse(result.stdout);
+    expect(output.modeledComponentCount).toBe(6);
+    expect(output.nmpPurityAndWaterSpecificationOnly).toEqual({
+      nmpPurityWt: 99.9999999,
+      nmpWaterWt: 1e-7,
+    });
     expect(result.stderr).not.toContain('STAGE1_SNAPSHOT_HASH_MISMATCH');
     expect(result.stderr).not.toContain('STAGE1_APPLICATION_VALIDATION_FAILED');
   }, 30_000);
@@ -255,6 +268,7 @@ describe('six-component COSMO-SAC gate contract', () => {
     expect(deriveSixComponentCosmoSacRemoval({
       status: 'ACCEPTED_SIX_COMPONENT_COSMO_SAC',
       accepted: true,
+      numericallyAccepted: true,
       feedComponentFlows: { SAT: 60, MONO: 10, DI: 8, POLY: 6, PA: 4, NMP: 20 },
       raffinateComponentFlows: { SAT: 58, MONO: 4, DI: 2, POLY: 1, PA: 1, NMP: 0.5 },
     })).toMatchObject({
@@ -278,6 +292,7 @@ describe('six-component COSMO-SAC gate contract', () => {
     const fiveComponent = deriveSixComponentCosmoSacRemoval({
       status: 'ACCEPTED_SIX_COMPONENT_COSMO_SAC',
       accepted: true,
+      numericallyAccepted: true,
       ...completeFlows,
     }, false);
     expect(fiveComponent.status).toBe('NOT_CALCULABLE');
@@ -285,7 +300,7 @@ describe('six-component COSMO-SAC gate contract', () => {
 
     const snapshot = makeStage1Snapshot(savedStage1);
     const governed = attachStage1ResultGovernance({
-      status: 'ACCEPTED_PREDICTIVE_NT',
+      status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
       sixComponentRemoval: { PA: 99 },
       removalClaims: { PA: 99 },
     }, {

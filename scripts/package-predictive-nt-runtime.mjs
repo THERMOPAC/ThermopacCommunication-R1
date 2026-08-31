@@ -1,26 +1,22 @@
-import { cp, mkdir, readFile, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const root = process.cwd();
 const bundleRoot = path.join(root, 'dist', 'predictive-nt-runtime');
-const manifestPath = path.join(
-  root,
-  'server/research/ecr-pre-pilot-model-freeze/model-manifest.json',
-);
-const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 const files = new Set([
-  'server/research/ecr-pre-pilot-model-freeze/model-manifest.json',
-  'server/research/ecr-pre-pilot-model-freeze/predictive_nt_cascade.py',
-  'server/research/ecr-pre-pilot-uniquac/model.py',
-  'server/research/ecr-pre-pilot-uniquac/structural-provenance.json',
-  'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles/sigma3/SNRUBQQJIBEYMU-UHFFFAOYSA-N.sigma',
-  'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles/sigma3/ODLMAHJVESYWTB-UHFFFAOYSA-N.sigma',
-  'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles/sigma3/QPUYECUOLPXSFR-UHFFFAOYSA-N.sigma',
-  'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles/sigma3/BBEAQIROQSPTKN-UHFFFAOYSA-N.sigma',
-  'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles/sigma3/UJAWGGOCYUPCPS-UHFFFAOYSA-N.sigma',
-  'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles/sigma3/SECXISVLQFMRJM-UHFFFAOYSA-N.sigma',
-  manifest.qualificationEvidence.path,
-  ...Object.values(manifest.artifacts).map((artifact) => artifact.path),
+  'server/research/ecr-pre-pilot-model-freeze/predictive_nt_six_component.py',
+  'server/research/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/run.py',
+  'server/research/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/protocol.json',
+  'server/research/ecr-pre-pilot-cosmosac-nmp-lle-amendment/model.py',
+  'server/research/ecr-pre-pilot-cosmosac-nmp-lle-amendment/protocol.json',
+  'server/research/ecr-pre-pilot-cosmosac/run.py',
+  'server/research/ecr-pre-pilot-cosmosac/provenance-manifest.json',
+  'server/research/ecr-pre-pilot-cosmosac/vendor/python',
+  'server/research/ecr-pre-pilot-six-component-thermodynamics/provenance-manifest.json',
+  'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profile-verification.json',
+  'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles',
+  'server/engine-framework/cel/data/multi-t-nmp-lle.json',
 ]);
 
 await rm(bundleRoot, { recursive: true, force: true });
@@ -28,7 +24,49 @@ for (const relativePath of [...files].sort()) {
   const source = path.join(root, relativePath);
   const destination = path.join(bundleRoot, relativePath);
   await mkdir(path.dirname(destination), { recursive: true });
-  await cp(source, destination);
+  await cp(source, destination, {
+    recursive: true,
+    filter: (candidate) => (
+      !candidate.split(path.sep).includes('__pycache__')
+      && !candidate.endsWith('.pyc')
+      && !candidate.endsWith('.pyo')
+    ),
+  });
 }
 
-console.log(`Packaged Predictive N_T runtime (${files.size} files)`);
+async function bundledFiles(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const found = [];
+  for (const entry of entries) {
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) found.push(...await bundledFiles(absolute));
+    else if (entry.isFile() && entry.name !== 'predictive-nt-runtime-manifest.json') found.push(absolute);
+  }
+  return found;
+}
+
+const packagedFiles = (await bundledFiles(bundleRoot)).sort();
+const records = [];
+for (const absolute of packagedFiles) {
+  const content = await readFile(absolute);
+  const metadata = await stat(absolute);
+  records.push({
+    path: path.relative(bundleRoot, absolute).split(path.sep).join('/'),
+    bytes: metadata.size,
+    sha256: createHash('sha256').update(content).digest('hex'),
+  });
+}
+const recordText = records.map((record) => `${record.path}:${record.bytes}:${record.sha256}`).join('\n');
+const manifest = {
+  schemaVersion: 'PREDICTIVE_NT_RUNTIME_MANIFEST_V1',
+  hashAlgorithm: 'sha256',
+  fileCount: records.length,
+  aggregateSha256: createHash('sha256').update(recordText).digest('hex'),
+  files: records,
+};
+await writeFile(
+  path.join(bundleRoot, 'predictive-nt-runtime-manifest.json'),
+  `${JSON.stringify(manifest, null, 2)}\n`,
+);
+
+console.log(`Packaged Predictive N_T runtime (${records.length} hashed files)`);

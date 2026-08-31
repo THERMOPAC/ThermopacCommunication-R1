@@ -69,46 +69,68 @@ type PredictiveNtBasis = {
     };
   };
   predictiveEngineComponentContract: {
-    componentCount: 5;
+    componentCount: 6;
     families: string[];
-    thermodynamicModel: "FROZEN_PRE_PILOT_UNIQUAC";
-    sixComponentCosmoSacGate: "INCOMPATIBLE";
+    thermodynamicModel: string;
+    sixComponentCosmoSacGate: string;
   };
   sixComponentCosmoSacBasisManifestSha256: string;
   maximumStages: number;
 };
-type ThermodynamicChecks = {
-  independentFinalPhaseChecksPass?: boolean;
-  [key: string]: unknown;
+type PredictiveStream = {
+  flowMol: number;
+  mass: number;
+  componentMoles: number[];
+  componentMass: number[];
+  moleFractions: number[];
+  massFractions: number[];
 };
 type PredictiveStage = {
-  stageNumber: number;
-  raffinateFlowMolarBasis: number;
-  raffinateComposition: Record<string, number>;
-  extractFlowMolarBasis: number;
-  extractComposition: Record<string, number>;
-  localComponentBalanceResiduals: Record<string, number>;
-  localComponentBalanceMaximum: number;
-  localComponentBalanceAccepted: boolean;
-  thermodynamicChecks: ThermodynamicChecks;
+  stageFromFeedEnd: number;
+  raffinateIncoming: PredictiveStream;
+  extractIncoming: PredictiveStream;
+  raffinateLeaving: PredictiveStream;
+  extractLeaving: PredictiveStream;
+  maximumComponentBalanceResidualMol: number;
+  isoactivityLogResidual: number;
+  phaseCompositionSeparation: number;
+  localPostSplitStability: {
+    raffinate?: { minimumEigenvalue?: number };
+    extract?: { minimumEigenvalue?: number };
+  };
+  postSplitTpdSearch: {
+    raffinate?: { minimum?: number; allRefinementsAccepted?: boolean };
+    extract?: { minimum?: number; allRefinementsAccepted?: boolean };
+  };
+  stageGibbsReduction: number;
+  accepted: boolean;
 };
 type PredictiveTrial = {
   stageCount: number;
-  sweeps: number;
-  maximumConvergenceDelta: number;
-  raffinateFlowMolarBasis: number;
-  extractFlowMolarBasis: number;
-  raffinateComposition: Record<string, number>;
-  extractComposition: Record<string, number>;
-  overallComponentBalanceResiduals: Record<string, number>;
+  solverSuccess: boolean;
+  solverMessage: string;
+  maximumScaledEquationResidual: number;
+  multistartProductRelativeDifference: number;
+  multistartEvidence: {
+    startCount?: number;
+    bothStartsClosed?: boolean;
+  };
+  acceptanceBlockers: Array<{ code?: string; [key: string]: unknown }>;
+  boundaryStreams: {
+    oilFeed: PredictiveStream;
+    freshNmp: PredictiveStream;
+    finalRaffinate: PredictiveStream;
+    finalExtract: PredictiveStream;
+  };
+  overallComponentBalanceResidualMol: number[];
+  overallComponentBalanceResidualMass: number[];
+  maximumOverallComponentBalanceResidualMol: number;
+  productMetrics: Record<string, number | Record<string, number>>;
+  targetCompliance: Record<string, { status?: string; calculated?: number | null; target?: number }>;
+  numericalAcceptancePassed: boolean;
+  allCalculableTargetsPass: boolean;
+  researchStatus: string;
   accepted: boolean;
-  monotonicFromPrevious: boolean;
-  balanceAccepted: boolean;
-  overallComponentBalanceMaximum: number;
-  raffinateMonoHydrocarbonMoleFraction: number;
-  raffinateSaturatesHydrocarbonMoleFraction: number;
-  nmpFreeHydrocarbonRecovery: number;
-  targetChecks: Record<string, boolean>;
   stages: PredictiveStage[];
 };
 type PredictiveNtResult = {
@@ -119,6 +141,9 @@ type PredictiveNtResult = {
   pilotValidated: boolean;
   releaseEligible: boolean;
   monotonicSequence: boolean;
+  componentOrder?: string[];
+  modelIdentity?: string;
+  diagnosticSelectionBasis?: string;
   model?: { modelHash?: string; runtimeVerification?: string };
   engine?: { engineId?: string; engineVersion?: string; engineHash?: string };
   stage1TargetGovernance?: {
@@ -975,20 +1000,6 @@ export default function EcrPrePilotDesignPage() {
       });
       return;
     }
-    const unsupportedFeed = [
-      ["Di-aromatics", Number(form.diAromaticsWt)],
-      ["Poly-aromatics", Number(form.polyAromaticsWt)],
-      ["Polar aromatics", Number(form.polarAromaticsWt)],
-      ["NMP in feed", Number(form.nmpInFeedWt)],
-    ].filter(([, value]) => value > 1e-12);
-    if (unsupportedFeed.length > 0) {
-      toast({
-        title: "Predictive scope is SAT/MONO only",
-        description: `Set ${unsupportedFeed.map(([label]) => label).join(", ")} to 0 wt% before running. These components cannot be discarded or folded into SAT/MONO.`,
-        variant: "destructive",
-      });
-      return;
-    }
     const sat = predictiveBasis.molecularRegistry.saturates.find(({ identity }) => identity === form.satIdentity);
     const mono = predictiveBasis.molecularRegistry.monoAromatics.find(({ identity }) => identity === form.monoIdentity);
     if (!sat || !mono) {
@@ -1518,20 +1529,14 @@ export default function EcrPrePilotDesignPage() {
                 <div>
                   <CardTitle className="text-[15px]">Predictive N_T screening</CardTitle>
                   <CardDescription className="mt-0.5 text-[11px]">
-                    Runs the frozen five-component SAT/MONO/DI/POLY/NMP UNIQUAC solver. It is not the six-component COSMO-SAC runner and cannot satisfy that gate.
+                    Runs the exact six-component SAT/MONO/DI/POLY/PA/NMP COSMO-SAC research-diagnostic cascade from the saved Stage 1 authority.
                   </CardDescription>
                 </div>
                 <Button
                   type="button"
                   onClick={handleRunPredictiveNt}
-                  disabled={predictiveSubmitting || !predictiveBasis || !designId || saveState !== "saved" || Number(form.polarAromaticsWt) > 0 || Number(form.nmpInFeedWt) > 0 || predictiveJob?.status === "pending" || predictiveJob?.status === "running"}
-                  title={Number(form.polarAromaticsWt) > 0
-                    ? "POLAR_AROMATICS_THERMODYNAMIC_CLOSURE_UNAVAILABLE"
-                    : Number(form.nmpInFeedWt) > 0
-                      ? "NMP in the RRBO feed is not supported."
-                      : saveState === "saved"
-                        ? undefined
-                        : "Save the authoritative Stage 1 snapshot before running."}
+                  disabled={predictiveSubmitting || !predictiveBasis || !designId || saveState !== "saved" || predictiveJob?.status === "pending" || predictiveJob?.status === "running"}
+                  title={saveState === "saved" ? undefined : "Save the authoritative Stage 1 snapshot before running."}
                   className="h-8 gap-1.5 px-3 text-xs"
                 >
                   {predictiveSubmitting || predictiveJob?.status === "pending" || predictiveJob?.status === "running" ? (
@@ -1564,24 +1569,23 @@ export default function EcrPrePilotDesignPage() {
                 </p>
               </div>
               {Number(form.polarAromaticsWt) > 0 && predictiveBasis && (
-                <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
-                  <p className="font-semibold">PA is outside this five-component predictive engine</p>
+                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-[11px] leading-5 text-blue-950">
+                  <p className="font-semibold">PA included as the sixth thermodynamic family</p>
                   <p>
                     {predictiveBasis.molecularRegistry.polarAromatics.representative.commonName} (CAS{" "}
                     {predictiveBasis.molecularRegistry.polarAromatics.representative.cas},{" "}
                     {predictiveBasis.molecularRegistry.polarAromatics.representative.formula},{" "}
                     {predictiveBasis.molecularRegistry.polarAromatics.representative.molecularWeightGmol.toFixed(2)} g/mol)
-                    is the bounded non-sulfur molecular anchor. A separately governed six-component profile basis is bound to
-                    Stage 1, but this live five-component UNIQUAC runner cannot execute or claim COSMO-SAC results.
-                    Six-component N_T, full-basis RRBO recovery, and PA removal are NOT_CALCULABLE here.
+                    is the bounded non-sulfur molecular anchor in the six-component COSMO-SAC profile basis.
+                    Numerical results remain research diagnostics and cannot establish release-ready N_T.
                   </p>
-                  <p className="mt-1 font-mono text-[10px]">{predictiveBasis.molecularRegistry.polarAromatics.blocker}</p>
+                  <p className="mt-1 font-semibold">PA transfer must never be interpreted as sulfur removal.</p>
                 </div>
               )}
               {Number(form.nmpInFeedWt) > 0 && (
-                <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
-                  <p className="font-semibold">NMP in RRBO feed is outside the solver scope</p>
-                  <p>The solvent inlet is modeled independently; feed NMP is not silently combined with it.</p>
+                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-[11px] leading-5 text-blue-950">
+                  <p className="font-semibold">Feed NMP retained independently</p>
+                  <p>The saved RRBO-feed NMP fraction remains in the six-component feed vector; the fresh counter-current NMP inlet is modeled separately.</p>
                 </div>
               )}
               <div className="grid gap-3 sm:grid-cols-3">
@@ -1659,7 +1663,7 @@ export default function EcrPrePilotDesignPage() {
                   <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
                     <p className="font-semibold">Predictive-only limitations</p>
                     <p>Calibration required: {predictiveJob.result.calibrationRequired ? "Yes" : "No"} · Pilot validated: {predictiveJob.result.pilotValidated ? "Yes" : "No"} · Release eligible: {predictiveJob.result.releaseEligible ? "Yes" : "No"}</p>
-                    <p>This is a five-component UNIQUAC screening result, never a six-component COSMO-SAC result. Six-component MONO/DI/POLY/PA removal and sulfur prediction are NOT_CALCULABLE. This result does not populate established theoretical stages.</p>
+                    <p>This is a six-component COSMO-SAC research diagnostic. Numerical acceptance does not make it pilot validated or release eligible. Sulfur prediction remains NOT_CALCULABLE, and PA transfer must never be interpreted as sulfur removal. This result does not populate established theoretical stages.</p>
                     {predictiveJob.result.stage1TargetGovernance && (
                       <>
                         <p>
@@ -1689,74 +1693,82 @@ export default function EcrPrePilotDesignPage() {
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-sm font-semibold text-slate-900">All stage trials and diagnostics</h3>
-                    {(predictiveJob.result.trials ?? []).map((trial) => (
-                      <details key={trial.stageCount} className="rounded-md border bg-white" open={trial.accepted}>
-                        <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800">
-                          Trial {trial.stageCount}: {trial.accepted ? "ACCEPTED" : "NOT ACCEPTED"} · balance {trial.balanceAccepted ? "PASS" : "FAIL"} · max residual {trial.overallComponentBalanceMaximum.toExponential(3)}
-                        </summary>
-                        <div className="space-y-3 border-t px-3 py-3 text-[11px]">
-                          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                            <p>Raffinate MONO: <strong>{(trial.raffinateMonoHydrocarbonMoleFraction * 100).toFixed(4)} mol%</strong></p>
-                            <p>Raffinate SAT: <strong>{(trial.raffinateSaturatesHydrocarbonMoleFraction * 100).toFixed(4)} mol%</strong></p>
-                            <p>NMP-free recovery: <strong>{(trial.nmpFreeHydrocarbonRecovery * 100).toFixed(4)}%</strong></p>
-                            <p>Monotonic: <strong>{trial.monotonicFromPrevious ? "PASS" : "FAIL"}</strong></p>
-                          </div>
-                          <p>
-                            Solver convergence: <strong>{trial.sweeps} sweeps</strong> · maximum delta{" "}
-                            <strong className="font-mono">{trial.maximumConvergenceDelta.toExponential(3)}</strong> ·
-                            raffinate flow <strong>{trial.raffinateFlowMolarBasis.toFixed(6)}</strong> ·
-                            extract flow <strong>{trial.extractFlowMolarBasis.toFixed(6)}</strong>
-                          </p>
-                          <div className="grid gap-2 md:grid-cols-2">
-                            <div className="rounded border bg-slate-50 p-2">
-                              <p className="font-semibold">Outlet phase compositions</p>
-                              <p className="mt-1 font-mono text-[10px]">
-                                Raffinate: {Object.entries(trial.raffinateComposition).map(([key, value]) => `${key}=${value.toExponential(5)}`).join(" · ")}
-                              </p>
-                              <p className="mt-1 font-mono text-[10px]">
-                                Extract: {Object.entries(trial.extractComposition).map(([key, value]) => `${key}=${value.toExponential(5)}`).join(" · ")}
-                              </p>
+                    {(predictiveJob.result.trials ?? []).map((trial) => {
+                      const order = predictiveJob.result?.componentOrder ?? ["SAT", "MONO", "DI", "POLY", "PA", "NMP"];
+                      const formatVector = (values: number[] | undefined) =>
+                        order.map((family, index) => `${family}=${Number(values?.[index] ?? 0).toExponential(4)}`).join(" · ");
+                      return (
+                        <details key={trial.stageCount} className="rounded-md border bg-white" open={trial.numericalAcceptancePassed}>
+                          <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800">
+                            Trial {trial.stageCount}: RESEARCH DIAGNOSTIC — NOT ACCEPTED · numerical gates {trial.numericalAcceptancePassed ? "PASS" : "FAIL"} · max balance residual {trial.maximumOverallComponentBalanceResidualMol.toExponential(3)}
+                          </summary>
+                          <div className="space-y-3 border-t px-3 py-3 text-[11px]">
+                            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                              <p>Total aromatics: <strong>{Number(trial.productMetrics.raffinateTotalAromaticsWtNmpFree).toFixed(4)} wt%</strong></p>
+                              <p>Polar aromatics: <strong>{Number(trial.productMetrics.raffinatePolarAromaticsWtNmpFree).toFixed(4)} wt%</strong></p>
+                              <p>NMP-free recovery: <strong>{Number(trial.productMetrics.nmpFreeHydrocarbonRecoveryPct).toFixed(4)}%</strong></p>
+                              <p>All calculable targets: <strong>{trial.allCalculableTargetsPass ? "PASS" : "FAIL"}</strong></p>
                             </div>
-                            <div className="rounded border bg-slate-50 p-2">
-                              <p className="font-semibold">Overall component-balance residuals</p>
-                              <p className="mt-1 font-mono text-[10px]">
-                                {Object.entries(trial.overallComponentBalanceResiduals).map(([key, value]) => `${key}=${value.toExponential(5)}`).join(" · ")}
+                            <p>
+                              Coupled solver: <strong>{trial.solverSuccess ? "CONVERGED" : "NOT CONVERGED"}</strong> · maximum scaled equation residual{" "}
+                              <strong className="font-mono">{trial.maximumScaledEquationResidual.toExponential(3)}</strong> · multistart outlet difference{" "}
+                              <strong className="font-mono">{trial.multistartProductRelativeDifference.toExponential(3)}</strong>
+                            </p>
+                            {trial.acceptanceBlockers.length > 0 && (
+                              <p className="rounded border border-amber-200 bg-amber-50 p-2 text-amber-950">
+                                Blockers: {trial.acceptanceBlockers.map(({ code }) => code ?? "UNSPECIFIED_GATE_FAILURE").join(" · ")}
                               </p>
+                            )}
+                            <div className="grid gap-2 md:grid-cols-2">
+                              <div className="rounded border bg-slate-50 p-2">
+                                <p className="font-semibold">Complete six-component boundary streams</p>
+                                <p className="mt-1 font-mono text-[10px]">Oil feed: {formatVector(trial.boundaryStreams.oilFeed.componentMoles)}</p>
+                                <p className="mt-1 font-mono text-[10px]">Fresh NMP: {formatVector(trial.boundaryStreams.freshNmp.componentMoles)}</p>
+                                <p className="mt-1 font-mono text-[10px]">Final raffinate: {formatVector(trial.boundaryStreams.finalRaffinate.componentMoles)}</p>
+                                <p className="mt-1 font-mono text-[10px]">Final extract: {formatVector(trial.boundaryStreams.finalExtract.componentMoles)}</p>
+                              </div>
+                              <div className="rounded border bg-slate-50 p-2">
+                                <p className="font-semibold">Overall component-balance residuals</p>
+                                <p className="mt-1 font-mono text-[10px]">{formatVector(trial.overallComponentBalanceResidualMol)}</p>
+                              </div>
+                            </div>
+                            <p>
+                              Target checks: {Object.entries(trial.targetCompliance)
+                                .map(([key, value]) => `${key}=${value.status ?? "UNKNOWN"}`).join(" · ")}
+                            </p>
+                            <p>
+                              Component extraction diagnostics: {Object.entries(
+                                (trial.productMetrics.componentExtractionPct as Record<string, number> | undefined) ?? {},
+                              ).map(([family, value]) => `${family}=${value.toFixed(4)}%`).join(" · ") || "Not calculable"}
+                            </p>
+                            <div className="overflow-x-auto">
+                              <table className="w-full min-w-[760px] border-collapse text-left">
+                                <thead><tr className="border-b bg-slate-50">
+                                  <th className="p-2">Stage</th><th className="p-2">Local balance</th><th className="p-2">Isoactivity</th><th className="p-2">Stability / TPD</th><th className="p-2">Outlet compositions</th>
+                                </tr></thead>
+                                <tbody>{trial.stages.map((stage) => (
+                                  <tr key={stage.stageFromFeedEnd} className="border-b align-top last:border-0">
+                                    <td className="p-2">{stage.stageFromFeedEnd}</td>
+                                    <td className="p-2 font-mono">{stage.maximumComponentBalanceResidualMol.toExponential(3)} · {stage.accepted ? "PASS" : "FAIL"}</td>
+                                    <td className="p-2 font-mono">{stage.isoactivityLogResidual.toExponential(3)}</td>
+                                    <td className="p-2 font-mono text-[10px]">
+                                      R eig={Number(stage.localPostSplitStability.raffinate?.minimumEigenvalue).toExponential(3)} ·
+                                      E eig={Number(stage.localPostSplitStability.extract?.minimumEigenvalue).toExponential(3)}<br />
+                                      R TPD={Number(stage.postSplitTpdSearch.raffinate?.minimum).toExponential(3)} ·
+                                      E TPD={Number(stage.postSplitTpdSearch.extract?.minimum).toExponential(3)}
+                                    </td>
+                                    <td className="p-2 font-mono text-[10px]">
+                                      R mole: {formatVector(stage.raffinateLeaving.moleFractions)}<br />
+                                      E mole: {formatVector(stage.extractLeaving.moleFractions)}
+                                    </td>
+                                  </tr>
+                                ))}</tbody>
+                              </table>
                             </div>
                           </div>
-                          <p>Target checks: {Object.entries(trial.targetChecks).map(([key, value]) => `${key}=${value ? "PASS" : "FAIL"}`).join(" · ")}</p>
-                          <div className="overflow-x-auto">
-                            <table className="w-full min-w-[680px] border-collapse text-left">
-                              <thead><tr className="border-b bg-slate-50">
-                                <th className="p-2">Stage</th><th className="p-2">Local balance max</th><th className="p-2">Balance</th><th className="p-2">Thermodynamic checks</th>
-                              </tr></thead>
-                              <tbody>{trial.stages.map((stage) => (
-                                <tr key={stage.stageNumber} className="border-b last:border-0">
-                                  <td className="p-2">{stage.stageNumber}</td>
-                                  <td className="p-2 font-mono">{stage.localComponentBalanceMaximum.toExponential(3)}</td>
-                                  <td className="p-2">{stage.localComponentBalanceAccepted ? "PASS" : "FAIL"}</td>
-                                  <td className="p-2">
-                                    <p className="font-mono text-[10px]">{Object.entries(stage.thermodynamicChecks).map(([key, value]) => `${key}=${String(value)}`).join(" · ")}</p>
-                                    <p className="mt-1 font-mono text-[10px]">
-                                      R flow={stage.raffinateFlowMolarBasis.toFixed(6)} · E flow={stage.extractFlowMolarBasis.toFixed(6)}
-                                    </p>
-                                    <p className="mt-1 font-mono text-[10px]">
-                                      R: {Object.entries(stage.raffinateComposition).map(([key, value]) => `${key}=${value.toExponential(4)}`).join(" · ")}
-                                    </p>
-                                    <p className="mt-1 font-mono text-[10px]">
-                                      E: {Object.entries(stage.extractComposition).map(([key, value]) => `${key}=${value.toExponential(4)}`).join(" · ")}
-                                    </p>
-                                    <p className="mt-1 font-mono text-[10px]">
-                                      Residuals: {Object.entries(stage.localComponentBalanceResiduals).map(([key, value]) => `${key}=${value.toExponential(4)}`).join(" · ")}
-                                    </p>
-                                  </td>
-                                </tr>
-                              ))}</tbody>
-                            </table>
-                          </div>
-                        </div>
-                      </details>
-                    ))}
+                        </details>
+                      );
+                    })}
                   </div>
                 </>
               )}
@@ -1766,7 +1778,7 @@ export default function EcrPrePilotDesignPage() {
 
         <div className="mt-4 flex flex-col gap-2.5 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[11px] leading-4 text-slate-500">
-            Input data can be used for predictive SAT/MONO/NMP N_T screening only. Hydrodynamics, diameter, height, sulfur prediction, and governed-release calculations remain disabled.
+            Input data can be used for the six-component SAT/MONO/DI/POLY/PA/NMP research-diagnostic N_T cascade only. Hydrodynamics, diameter, height, sulfur prediction, and governed-release calculations remain disabled.
           </p>
           <div className="flex flex-col-reverse gap-1.5 sm:flex-row">
             <Button

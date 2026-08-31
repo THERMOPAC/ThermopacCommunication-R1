@@ -543,20 +543,13 @@ def main():
     nmp_water_wt = float(stage1["nmpWaterWt"])
     if solvent_oil_ratio < 0:
         raise ValueError("STAGE1_INVALID_SOLVENT_RATIO: solventOilRatio must be non-negative")
-    represented_solvent_wt = nmp_purity_wt + nmp_water_wt
-    if represented_solvent_wt > 100.0 + 1e-10:
-        raise ValueError("STAGE1_INVALID_FRESH_SOLVENT_COMPOSITION: NMP and water exceed 100 wt%")
-    unspecified_solvent_wt = max(0.0, 100.0 - represented_solvent_wt)
+    if not (0.0 < nmp_purity_wt <= 100.0 and 0.0 <= nmp_water_wt <= 100.0):
+        raise ValueError("STAGE1_INVALID_FRESH_SOLVENT_SPECIFICATION")
     fresh_solvent_mass = 100.0 * solvent_oil_ratio
-    fresh_nmp_mass = fresh_solvent_mass * nmp_purity_wt / 100.0
+    fresh_nmp_mass = fresh_solvent_mass
     overall_inlet_nmp_mass = float(feed_mass[model.FAMILIES.index("NMP")]) + fresh_nmp_mass
     if fresh_solvent_mass <= 0.0 or fresh_nmp_mass <= 0.0 or overall_inlet_nmp_mass <= 0.0:
         raise ValueError("STAGE1_SOLVENT_SIDE_NMP_INLET_MUST_BE_POSITIVE")
-    if nmp_water_wt > 1e-10 or unspecified_solvent_wt > 1e-10:
-        raise ValueError(
-            "STAGE1_SOLVENT_PURITY_REPRESENTATION_UNAVAILABLE:"
-            f"waterWt={nmp_water_wt:g};unspecifiedWt={unspecified_solvent_wt:g}"
-        )
     if args.preflight_only:
         print(json.dumps({
             "status": "PASS",
@@ -565,6 +558,12 @@ def main():
             "oilFeedNmpMassBasis": float(feed_mass[model.FAMILIES.index("NMP")]),
             "freshSolventNmpMassBasis": fresh_nmp_mass,
             "overallInletNmpMassBasis": overall_inlet_nmp_mass,
+            "modeledComponentCount": len(model.FAMILIES),
+            "freshSolventModelingBasis": "PURE_NMP_FROM_SAVED_SOLVENT_OIL_RATIO",
+            "nmpPurityAndWaterSpecificationOnly": {
+                "nmpPurityWt": nmp_purity_wt,
+                "nmpWaterWt": nmp_water_wt,
+            },
             "flowConvention": protocol["flowConvention"],
             "stageRange": {"minimum": 1, "maximum": maximum_stages},
             "temperatureC": temperature_c,
@@ -618,10 +617,10 @@ def main():
                 model.FAMILIES,
                 (feed_mass + solvent_mass).tolist(),
             )),
-            "freshSolventCompositionWt": {
-                "NMP": nmp_purity_wt,
-                "WATER": nmp_water_wt,
-                "UNSPECIFIED": unspecified_solvent_wt,
+            "freshSolventModelingBasis": "PURE_NMP_FROM_SAVED_SOLVENT_OIL_RATIO",
+            "nmpPurityAndWaterSpecificationOnly": {
+                "nmpPurityWt": nmp_purity_wt,
+                "nmpWaterWt": nmp_water_wt,
             },
             "operatingTemperatureC": temperature_c,
             "rrboPhysicalProperties": {

@@ -6,7 +6,7 @@
     "temperature": "saved Stage-1 operatingTemperatureC only",
     "solventOilRatio": "saved Stage-1 solventOilRatio only",
     "feedComposition": "saved Stage-1 six-component feed wt% only",
-    "freshSolventComposition": "saved Stage-1 NMP purity and water wt% only",
+    "freshSolventComposition": "pure modeled NMP charge from saved Stage-1 solventOilRatio; saved NMP purity and water remain independent commercial/audit specifications only and do not add modeled components",
     "stageRange": "integer NT values from 1 through saved Stage-1 maximumStages"
   },
   "componentOrder": ["SAT", "MONO", "DI", "POLY", "PA", "NMP"],

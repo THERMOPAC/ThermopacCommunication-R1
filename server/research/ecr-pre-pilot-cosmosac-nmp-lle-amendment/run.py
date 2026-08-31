@@ -62,7 +62,7 @@ def resolve_stage1(snapshot):
     solvent_ratio = require_number(s, "solventOilRatio", 1e-12)
     purity = require_number(s, "nmpPurityWt") / 100.0
     water = require_number(s, "nmpWaterWt") / 100.0
-    if purity > 1.0 or water > 1.0 or purity + water > 1.000001:
+    if purity > 1.0 or water > 1.0:
         raise ValueError("STAGE1_NMP_PURITY_WATER_BASIS_INVALID")
     targets = {
         "minimumRaffinateSaturatesWt": require_number(s, "minimumRaffinateSaturatesWt"),
@@ -75,7 +75,7 @@ def resolve_stage1(snapshot):
     }
     masses = dict(feed)
     fresh_solvent_mass = 100.0 * solvent_ratio
-    masses["NMP"] += fresh_solvent_mass * purity
+    masses["NMP"] += fresh_solvent_mass
     mws = {name: float(model.base.COMP[name][4]) for name in model.FAMILIES}
     moles = {name: masses[name] / mws[name] for name in model.FAMILIES}
     total_moles = sum(moles.values())
@@ -85,10 +85,12 @@ def resolve_stage1(snapshot):
         "feedMassPercent": feed,
         "chargeMassBasis": masses,
         "freshSolventMassBasis": fresh_solvent_mass,
-        "effectiveFreshNmpMassBasis": fresh_solvent_mass * purity,
-        "excludedWaterMassBasis": fresh_solvent_mass * water,
-        "unrepresentedFreshSolventImpurityMassBasis": fresh_solvent_mass * max(0.0, 1.0 - purity - water),
-        "waterTreatment": "EXCLUDED_BASIS_CORRECTION_NOT_A_SEVENTH_FLASH_COMPONENT",
+        "freshModeledNmpMassBasis": fresh_solvent_mass,
+        "nmpPurityAndWaterSpecificationOnly": {
+            "nmpPurityWt": purity * 100.0,
+            "nmpWaterWt": water * 100.0,
+        },
+        "freshSolventModelingBasis": "PURE_NMP_FROM_SAVED_SOLVENT_OIL_RATIO",
         "molecularWeightsGmol": mws,
         "totalChargeMoles": total_moles,
         "overallMolarComposition": dict(zip(model.FAMILIES, z)),
