@@ -1,0 +1,11 @@
+{
+  "runnerSha256": "3df55d6850f24677df6ae139f2857b0753a843ad1b03c965e6ccc30ff25724c8",
+  "protocolSha256": "4f188682dd9865c7b977eaea7ac421cb9393b67a15d40a5cad842dbed30c845e",
+  "productionCountercurrentRunnerSha256": "6bf2cf8b07ef8b7aae61aeef1c75d9e7a3961c075fd6cc67f8e863e85db21981",
+  "productionCountercurrentProtocolSha256": "a2e203e3dfd352ff8a10574be2a56d231e38b7a7fb2402ff8545ac347c4ebdcc",
+  "productionWorkerSha256": "e7976c1a5db79f597e96e82950a708c426626bf75c7a7c460a8a58890e74638c",
+  "inputSnapshotSha256": "f35a4693cd2727073245fdcf26ad7b0fb25e0b62dc0e24dd64ff93f3a101512a",
+  "priorResultSnapshotSha256": "b66a4bff770cd1081d0533ac3e0e00e3e85cb906cb9b9f9a40c2cdf3a1173790",
+  "resultsSha256": "5b80d13e221db5b4153655774b0e05b5bb4b8e74e8d848fc76c6270177950287",
+  "reportSha256": "b364823fcdcbb5ea304788364436e46e267f976c6ad84adb459a32c43f6f29c7"
+}

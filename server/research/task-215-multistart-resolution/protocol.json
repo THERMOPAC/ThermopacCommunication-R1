@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0.0",
+  "analysis": "exact frozen-job multistart closure and branch-reproduction verification",
+  "referenceJobId": "00d1468d-7130-41ff-b897-3b6b6303047e",
+  "referenceProject": 170,
+  "referenceExport": {
+    "inputSnapshotSha256": "f35a4693cd2727073245fdcf26ad7b0fb25e0b62dc0e24dd64ff93f3a101512a",
+    "priorResultSnapshotSha256": "b66a4bff770cd1081d0533ac3e0e00e3e85cb906cb9b9f9a40c2cdf3a1173790",
+    "priorEngineHash": "6aaca50648a7e3432d98c50f2b43dbe721cd196ffa137539b70706ca1f6fef8e",
+    "priorModelHash": "9666ff67194102ca9c3dc139695bead8ff133fbfe24c2d786ce1deca49456196"
+  },
+  "parameterProvenanceInputs": {
+    "server/research/ecr-pre-pilot-cosmosac-nmp-lle-amendment/model.py": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+    "server/research/ecr-pre-pilot-cosmosac-nmp-lle-amendment/protocol.json": "247a1b5dbbefc7bba6779409751bf5486a28a159b3aecaaff36394a2ab594c44",
+    "server/engine-framework/cel/data/multi-t-nmp-lle.json": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28"
+  },
+  "componentOrder": ["SAT", "MONO", "DI", "POLY", "PA", "NMP"],
+  "equationAcceptanceLimit": 1e-8,
+  "branchProductRelativeTolerance": 1e-6,
+  "expectedStageRange": {"minimum": 1, "maximum": 10},
+  "solverOnlyBoundary": {
+    "thermodynamicParametersChanged": false,
+    "equationsChanged": false,
+    "phaseStabilityEvaluated": false,
+    "productTargetsEvaluated": false,
+    "completedJobMutated": false
+  },
+  "requiredEvidence": [
+    "independent primary and secondary deterministic starts",
+    "per-attempt optimizer termination and evaluation counts",
+    "finite original-residual closure at or below 1e-8",
+    "original component-balance and isoactivity residual maxima",
+    "branch comparison only after both endpoints close",
+    "boundary-product relative agreement at or below 1e-6",
+    "immutable input, prior result, protocol, runner, and production solver hashes"
+  ],
+  "governance": {
+    "researchOnly": true,
+    "calibrationRequired": true,
+    "officialThermodynamicQualificationChanged": false,
+    "postSplitTpdDispositionChanged": false,
+    "sulfurPrediction": "NOT_CALCULABLE",
+    "releaseEligible": false
+  }
+}

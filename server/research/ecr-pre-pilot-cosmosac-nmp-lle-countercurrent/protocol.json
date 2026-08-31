@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "frozenBeforeRun": true,
   "modelIdentity": "COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL",
   "caseAuthority": {
@@ -28,15 +28,31 @@
       "maximumFunctionEvaluations": 750
     },
     "primaryNt8To10": {
-      "method": "bounded nonlinear least squares with frozen block-sparse finite-difference Jacobian and LSMR trust-region solver",
-      "maximumFunctionEvaluations": 20,
+      "method": "bounded nonlinear least squares with frozen block-sparse finite-difference Jacobian and LSMR trust-region solver, followed only when unclosed by the governed continuation/polish sequence",
+      "initialMaximumFunctionEvaluations": 20,
       "governance": "Nonclosure is persisted as unresolved and can never be accepted."
     },
     "secondaryEveryTrial": {
       "start": "Primary start plus deterministic component-log-flow perturbation linearly spanning -0.015 to +0.015 across each stage's 12 variables.",
-      "method": "bounded nonlinear least squares with the same frozen block-sparse Jacobian and LSMR trust-region solver",
-      "maximumFunctionEvaluations": 20,
+      "method": "independent bounded sparse-LSMR lineage with deterministic continuation, dense exact trust-region polish, and row-equilibrated damped-Newton polish only while the unchanged raw equations remain unclosed",
+      "initialMaximumFunctionEvaluations": 20,
       "governance": "Both-start closure and product agreement are mandatory; nonclosure blocks acceptance."
+    },
+    "unclosedLineagePolish": {
+      "sparseLsmrContinuationMaximumFunctionEvaluations": 80,
+      "denseExactTrustRegionMaximumFunctionEvaluations": 15,
+      "rowEquilibratedDampedNewtonMaximumIterations": 8,
+      "maximumBacktracksPerNewtonIteration": 16,
+      "finiteDifferenceMethod": "2-point",
+      "finiteDifferenceRelativeStep": 1e-6,
+      "rankRelativeTolerance": 1e-10,
+      "scaling": "divide each unchanged residual and finite-difference Jacobian row by that row's 2-norm for step construction only",
+      "acceptance": "always evaluated on the original unscaled residual function and unchanged numericalAcceptance limits"
+    },
+    "terminationAndClosure": {
+      "termination": "optimizer stop status is retained as diagnostic evidence",
+      "closure": "CLOSED only when the finite maximum absolute original residual is <= numericalAcceptance.maximumScaledEquationResidual",
+      "branchComparison": "evaluated only when both independently continued endpoints are CLOSED"
     },
     "solverTolerances": {
       "xtol": 1e-11,

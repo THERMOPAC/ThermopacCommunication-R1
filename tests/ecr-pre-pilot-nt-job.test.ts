@@ -44,9 +44,14 @@ function validStage1(projectNumber: number) {
     minimumRaffinateSaturatesWt: '90',
     targetRaffinateTotalAromaticsWt: '10.0',
     targetRaffinatePolarAromaticsWt: '0.50',
-    minimumRecoveryPct: '95',
-    maximumNmpRaffinateWt: '0.50',
+    minimumRecoveryPct: '90',
+    maximumNmpRaffinateWt: '1.0',
     feedSulfurPpm: '3500',
+    sulfurAllocationSatPct: '0',
+    sulfurAllocationMonoPct: '20',
+    sulfurAllocationDiPct: '30',
+    sulfurAllocationPolyPct: '40',
+    sulfurAllocationPaPct: '10',
     designBasisNotes: 'Stage 1 authority integration fixture',
     satIdentity: 'n-dodecane',
     monoIdentity: 'n-propylbenzene',
@@ -230,7 +235,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       ...validInput,
       stage1Authority: {
         ...validInput.stage1Authority!,
-        minimumMassRecovery: { targetPercent: 90, status: 'CALCULABLE' as const },
+        minimumMassRecovery: { targetPercent: 85, status: 'CALCULABLE' as const },
       },
     })],
   ])('rejects valid-looking %s mutations not reconstructed from Stage 1', (_name, mutate) => {
@@ -279,8 +284,8 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
         maximumTotalAromatics: 0.1,
         maximumPolarAromatics: 0.005,
         minimumSaturates: 0.9,
-        maximumNmp: 0.005,
-        minimumRrboRecovery: 0.95,
+        maximumNmp: 0.01,
+        minimumRrboRecovery: 0.9,
       },
       maximumStages: 10,
       stage1Authority: {
@@ -290,7 +295,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
           calibrationStatus: 'CALIBRATION_REQUIRED',
         },
         minimumMassRecovery: {
-          targetPercent: 95,
+          targetPercent: 90,
           status: 'CALCULABLE',
         },
       },
@@ -315,7 +320,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
           calibrationStatus: 'CALIBRATION_REQUIRED',
         },
         minimumMassRecovery: {
-          targetPercent: 95,
+          targetPercent: 90,
           status: 'CALCULABLE',
         },
         overallEcrProductAcceptance: false,
@@ -487,6 +492,39 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       expect(result.trials[0].maximumOverallComponentBalanceResidualMol).toBeLessThanOrEqual(1e-8);
       expect(Math.abs(Object.values(result.trials[0].overallComponentBalanceResidualMol)
         .reduce((sum: number, value) => sum + Number(value), 0))).toBeLessThanOrEqual(1e-8);
+      for (const trial of result.trials) {
+        expect(trial.residualClosureStatus).toMatch(/^(CLOSED|UNCLOSED)$/);
+        expect(trial.solverTerminationStatus).toMatch(
+          /^(MAX_NFEV|GTOL|FTOL|XTOL|FTOL_AND_XTOL|RESIDUAL_CLOSURE|NEWTON_STOPPED_UNCLOSED|NUMERICAL_ERROR|UNKNOWN)$/,
+        );
+        expect(trial.multistartEvidence.primary).toMatchObject({
+          terminationStatus: expect.any(String),
+          terminationMessage: expect.any(String),
+          functionEvaluations: expect.any(Number),
+          maximumScaledEquationResidual: expect.any(Number),
+          closureLimit: 1e-8,
+          residualClosureStatus: expect.stringMatching(/^(CLOSED|UNCLOSED)$/),
+        });
+        expect(trial.multistartEvidence.secondary).toMatchObject({
+          terminationStatus: expect.any(String),
+          terminationMessage: expect.any(String),
+          functionEvaluations: expect.any(Number),
+          maximumScaledEquationResidual: expect.any(Number),
+          closureLimit: 1e-8,
+          residualClosureStatus: expect.stringMatching(/^(CLOSED|UNCLOSED)$/),
+        });
+        const bothClosed = trial.multistartEvidence.primary.residualClosureStatus === 'CLOSED'
+          && trial.multistartEvidence.secondary.residualClosureStatus === 'CLOSED';
+        expect(trial.multistartEvidence.bothStartsClosed).toBe(bothClosed);
+        expect(trial.branchComparisonStatus).toBe(
+          bothClosed ? 'EVALUATED' : 'NOT_EVALUABLE_ENDPOINT_UNCLOSED',
+        );
+        expect(trial.multistartProductRelativeDifference == null).toBe(!bothClosed);
+        if (!bothClosed) {
+          expect(trial.acceptanceBlockers.map(({ code }: { code: string }) => code))
+            .not.toContain('MULTISTART_BRANCH_REPRODUCTION_FAILED');
+        }
+      }
       const checkpointHistory = await pool.query(
         `SELECT COUNT(*)::int AS total
            FROM ecr_pre_pilot_predictive_nt_job_history

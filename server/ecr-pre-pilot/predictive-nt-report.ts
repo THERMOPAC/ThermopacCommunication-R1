@@ -177,7 +177,7 @@ export async function generatePredictiveNtReport(
     'Boundary-mole removal diagnostics and final-raffinate phase mole fractions; un-converged rows are explicitly flagged',
   );
   table(
-    ['N_T', 'Solver', 'SAT loss %', 'MONO removal %', 'DI removal %', 'POLY removal %', 'PA removal %', 'NMP'],
+    ['N_T', 'Residual closure', 'SAT loss %', 'MONO removal %', 'DI removal %', 'POLY removal %', 'PA removal %', 'NMP'],
     o.trials.map((trial: any) => {
       const metrics = trial.productMetrics ?? {};
       const extraction = metrics.componentExtractionPct ?? {};
@@ -187,7 +187,7 @@ export async function generatePredictiveNtReport(
       const satLoss = satFeed > 0 ? 100 * satExtract / satFeed : null;
       return [
         String(trial.stageCount),
-        trial.solverSuccess ? 'CONVERGED' : 'UNCONVERGED',
+        trial.residualClosureStatus ?? (trial.solverSuccess ? 'CLOSED' : 'UNCLOSED'),
         value(satLoss, 3),
         value(extraction.MONO, 3),
         value(extraction.DI, 3),
@@ -203,10 +203,10 @@ export async function generatePredictiveNtReport(
     42, 323, 750, 10, COLORS.navy, true,
   );
   table(
-    ['N_T', 'Solver', ...COMPONENTS],
+    ['N_T', 'Residual closure', ...COMPONENTS],
     o.trials.map((trial: any) => [
       String(trial.stageCount),
-      trial.solverSuccess ? 'CONVERGED' : 'UNCONVERGED',
+      trial.residualClosureStatus ?? (trial.solverSuccess ? 'CLOSED' : 'UNCLOSED'),
       ...(trial.boundaryStreams?.finalRaffinate?.moleFractions ?? [])
         .map((entry: number) => value(entry, 5)),
     ]),
@@ -214,20 +214,30 @@ export async function generatePredictiveNtReport(
   );
 
   for (const trial of o.trials) {
+    const trialClosed = (trial.residualClosureStatus
+      ?? (trial.solverSuccess ? 'CLOSED' : 'UNCLOSED')) === 'CLOSED';
+    const branchComparisonEvaluated = (trial.branchComparisonStatus
+      ?? trial.multistartEvidence?.branchComparisonStatus
+      ?? (trial.multistartEvidence?.bothStartsClosed ? 'EVALUATED' : 'NOT_EVALUABLE_ENDPOINT_UNCLOSED'))
+      === 'EVALUATED';
+    const branchDifference = branchComparisonEvaluated
+      && typeof trial.multistartProductRelativeDifference === 'number'
+      ? trial.multistartProductRelativeDifference
+      : null;
     page(
       `3. Trial ${trial.stageCount} — complete diagnostic overview`,
       true,
       `RESEARCH DIAGNOSTIC — NOT ACCEPTED · numerical gates ${trial.numericalAcceptancePassed ? 'PASS' : 'FAIL'} · maximum component-balance residual ${Number(trial.maximumOverallComponentBalanceResidualMol).toExponential(3)}`,
     );
-    const shift = trial.solverSuccess ? 0 : 22;
-    if (!trial.solverSuccess) {
-      pill('UNCONVERGED DIAGNOSTIC — DO NOT INTERPRET AS AN EQUILIBRIUM RESULT', 42, 82, 755);
+    const shift = trialClosed ? 0 : 22;
+    if (!trialClosed) {
+      pill('RESIDUAL-UNCLOSED DIAGNOSTIC — DO NOT INTERPRET AS AN EQUILIBRIUM RESULT', 42, 82, 755);
     }
     const streams = trial.boundaryStreams ?? {};
     const metrics = trial.productMetrics ?? {};
     const extraction = metrics.componentExtractionPct ?? {};
     text(
-      `Coupled solver ${trial.solverSuccess ? 'CONVERGED' : 'NOT CONVERGED'}   ·   Maximum scaled equation residual ${Number(trial.maximumScaledEquationResidual).toExponential(3)}   ·   Multistart outlet difference ${Number(trial.multistartProductRelativeDifference).toExponential(3)}`,
+      `Primary termination ${trial.solverTerminationStatus ?? (trial.solverSuccess ? 'SUCCESS' : 'NOT RECORDED')}   ·   Residual closure ${trialClosed ? 'CLOSED' : 'UNCLOSED'}   ·   Maximum scaled equation residual ${Number(trial.maximumScaledEquationResidual).toExponential(3)}   ·   Branch comparison ${branchComparisonEvaluated && branchDifference !== null ? `EVALUATED (${branchDifference.toExponential(3)})` : 'NOT EVALUABLE — ENDPOINT UNCLOSED'}`,
       42, 90 + shift, 755, 8, COLORS.ink, true,
     );
     const blockers = (trial.acceptanceBlockers ?? [])
@@ -256,7 +266,7 @@ export async function generatePredictiveNtReport(
           value(entry.calculated, 4),
         ];
       }),
-      42, 158 + shift, [310, 130, 130, 130], trial.solverSuccess ? 18 : 16, 7,
+      42, 158 + shift, [310, 130, 130, 130], trialClosed ? 18 : 16, 7,
     );
     const satFeed = streams.oilFeed?.componentMoles?.[0];
     const satExtract = streams.finalExtract?.componentMoles?.[0];
@@ -285,7 +295,7 @@ export async function generatePredictiveNtReport(
         ...(streams[key]?.componentMoles ?? []).map((entry: number) => Number(entry).toExponential(4)),
       ]),
       42, 370 + shift, [90, 110, 110, 110, 110, 110, 110],
-      trial.solverSuccess ? 19 : 16, 6.5,
+      trialClosed ? 19 : 16, 6.5,
     );
     text('Overall six-component balance residual — component moles', 42, 480 + shift, 755, 10, COLORS.navy, true);
     table(
@@ -303,8 +313,8 @@ export async function generatePredictiveNtReport(
       true,
       'Stage qualification combines local balance, isoactivity, local-Hessian stability, and global TPD; raw diagnostics remain separate',
     );
-    if (!trial.solverSuccess) {
-      pill('UNCONVERGED DIAGNOSTIC — DO NOT INTERPRET AS AN EQUILIBRIUM RESULT', 42, 82, 755);
+    if (!trialClosed) {
+      pill('RESIDUAL-UNCLOSED DIAGNOSTIC — DO NOT INTERPRET AS AN EQUILIBRIUM RESULT', 42, 82, 755);
     }
     const diagnosticRows = (trial.stages ?? []).map((stage: any) => [
       String(stage.stageFromFeedEnd),
@@ -318,7 +328,7 @@ export async function generatePredictiveNtReport(
     ]);
     table(
       ['Stage', 'Local balance', 'Stage qualification', 'Isoactivity', 'R min eig', 'E min eig', 'R TPD min', 'E TPD min'],
-      diagnosticRows, 42, trial.solverSuccess ? 100 : 115,
+      diagnosticRows, 42, trialClosed ? 100 : 115,
       [55, 105, 90, 90, 100, 100, 100, 100], 23, 6.3,
     );
 
@@ -327,8 +337,8 @@ export async function generatePredictiveNtReport(
       true,
       'PHASE MOLE FRACTIONS — each raffinate and extract row sums to 1; these are not product mass fractions',
     );
-    if (!trial.solverSuccess) {
-      pill('UNCONVERGED DIAGNOSTIC — DO NOT INTERPRET AS AN EQUILIBRIUM RESULT', 42, 82, 755);
+    if (!trialClosed) {
+      pill('RESIDUAL-UNCLOSED DIAGNOSTIC — DO NOT INTERPRET AS AN EQUILIBRIUM RESULT', 42, 82, 755);
     }
     const outletRows: string[][] = [];
     for (const stage of trial.stages ?? []) {
@@ -343,7 +353,7 @@ export async function generatePredictiveNtReport(
     }
     table(
       ['Stage / phase', ...COMPONENTS],
-      outletRows, 42, trial.solverSuccess ? 100 : 115,
+      outletRows, 42, trialClosed ? 100 : 115,
       [90, 110, 110, 110, 110, 110, 110], 20, 6.5,
     );
   }
@@ -355,36 +365,44 @@ export async function generatePredictiveNtReport(
   );
   const multistartLimit = 1e-6;
   table(
-    ['N_T', 'Primary residual', 'Secondary residual', 'Both closed', 'Branch difference', 'Limit', 'Gate'],
+    ['N_T', 'P termination', 'P closure / residual', 'S termination', 'S closure / residual', 'Branch difference', 'Gate'],
     o.trials.map((trial: any) => {
       const evidence = trial.multistartEvidence ?? {};
-      const difference = Number(trial.multistartProductRelativeDifference);
-      const passed = evidence.bothStartsClosed === true && difference <= multistartLimit;
+      const evaluated = (evidence.branchComparisonStatus
+        ?? trial.branchComparisonStatus
+        ?? (evidence.bothStartsClosed ? 'EVALUATED' : 'NOT_EVALUABLE_ENDPOINT_UNCLOSED'))
+        === 'EVALUATED';
+      const difference = evaluated && typeof trial.multistartProductRelativeDifference === 'number'
+        ? trial.multistartProductRelativeDifference
+        : null;
+      const passed = evidence.bothStartsClosed === true
+        && difference !== null
+        && difference <= multistartLimit;
       return [
         String(trial.stageCount),
-        Number(evidence.primary?.maximumScaledEquationResidual).toExponential(3),
-        Number(evidence.secondary?.maximumScaledEquationResidual).toExponential(3),
-        evidence.bothStartsClosed ? 'YES' : 'NO',
-        difference.toExponential(3),
-        multistartLimit.toExponential(1),
+        evidence.primary?.terminationStatus ?? (evidence.primary?.solverSuccess ? 'SUCCESS' : 'LEGACY'),
+        `${evidence.primary?.residualClosureStatus ?? (evidence.bothStartsClosed ? 'CLOSED' : 'LEGACY')} / ${Number(evidence.primary?.maximumScaledEquationResidual).toExponential(3)}`,
+        evidence.secondary?.terminationStatus ?? (evidence.secondary?.solverSuccess ? 'SUCCESS' : 'LEGACY'),
+        `${evidence.secondary?.residualClosureStatus ?? (evidence.bothStartsClosed ? 'CLOSED' : 'LEGACY')} / ${Number(evidence.secondary?.maximumScaledEquationResidual).toExponential(3)}`,
+        difference === null ? 'NOT EVALUABLE' : difference.toExponential(3),
         passed ? 'PASS' : 'FAIL',
       ];
     }),
-    42, 100, [35, 82, 82, 66, 85, 65, 55], 36, 6.3,
+    42, 100, [35, 68, 94, 68, 94, 92, 55], 36, 5.8,
   );
   doc.roundedRect(42, 510, 510, 110, 4).fill('#FFF3E5');
   text('MULTISTART INTERPRETATION BOUNDARY', 54, 525, 480, 8, COLORS.amber, true);
   text(
-    'An unclosed secondary endpoint proves failed reproduction, not two distinct converged branches. Primary convergence alone never passes this gate. The equation-closure tolerance remains 1e-8 and the multistart boundary-product agreement tolerance remains 1e-6.',
+    'Optimizer termination and numerical residual closure are separate evidence. An unclosed endpoint is not a branch, so branch comparison is not evaluable until both starts close. The equation-closure tolerance remains 1e-8 and the boundary-product agreement tolerance remains 1e-6.',
     54, 546, 480, 8.1,
   );
 
   page('6. Exact qualification blockers', true, 'Complete frozen blocker set for every trial — no truncation');
   table(
-    ['N_T', 'Solver', 'Exact blocker codes'],
+    ['N_T', 'Residual closure', 'Exact blocker codes'],
     o.trials.map((trial: any) => [
       String(trial.stageCount),
-      trial.solverSuccess ? 'CONVERGED' : 'UNCONVERGED',
+      trial.residualClosureStatus ?? (trial.solverSuccess ? 'CLOSED' : 'UNCLOSED'),
       (trial.acceptanceBlockers ?? [])
         .map((blocker: any) => blocker.code ?? 'UNSPECIFIED_GATE_FAILURE').join('; ') || 'None recorded',
     ]),

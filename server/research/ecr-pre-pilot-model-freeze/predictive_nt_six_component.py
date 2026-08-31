@@ -37,6 +37,9 @@ RUNTIME_MANIFEST = ROOT / "predictive-nt-runtime-manifest.json"
 TASK213 = ROOT / ".agents/outputs/task-213-mono-rich-qualification"
 TASK213_PROTOCOL = ROOT / "server/research/task-213-mono-rich-qualification/protocol.json"
 TASK213_RUNNER = ROOT / "server/research/task-213-mono-rich-qualification/run.py"
+TASK215 = ROOT / ".agents/outputs/task-215-multistart-resolution"
+TASK215_PROTOCOL = ROOT / "server/research/task-215-multistart-resolution/protocol.json"
+TASK215_RUNNER = ROOT / "server/research/task-215-multistart-resolution/run.py"
 
 
 def canonical(value):
@@ -118,6 +121,11 @@ def scientific_runtime_inputs():
         TASK213 / "results.json",
         TASK213 / "report.md",
         TASK213 / "provenance-manifest.json",
+        TASK215_PROTOCOL,
+        TASK215_RUNNER,
+        TASK215 / "results.json",
+        TASK215 / "report.md",
+        TASK215 / "provenance-manifest.json",
         ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json",
         ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/fixed-nt7-feed-sensitivity-results.json",
         ROOT / ".agents/outputs/task-205-negative-tpd-diagnostic/results.json",

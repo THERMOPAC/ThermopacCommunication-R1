@@ -227,12 +227,56 @@ for case in data["temperatureCases"]:
             trial["multistartEvidence"]["startCount"] == 2
             and trial["multistartEvidence"]["primary"]["maximumScaledEquationResidual"] >= 0
             and trial["multistartEvidence"]["secondary"]["maximumScaledEquationResidual"] >= 0
+            and trial["multistartEvidence"]["primary"]["residualClosureStatus"]
+                in ("CLOSED", "UNCLOSED")
+            and trial["multistartEvidence"]["secondary"]["residualClosureStatus"]
+                in ("CLOSED", "UNCLOSED")
+            and trial["multistartEvidence"]["primary"]["terminationStatus"]
+                in ("MAX_NFEV", "GTOL", "FTOL", "XTOL", "FTOL_AND_XTOL",
+                    "RESIDUAL_CLOSURE", "NEWTON_STOPPED_UNCLOSED",
+                    "NUMERICAL_ERROR", "UNKNOWN")
+            and trial["multistartEvidence"]["secondary"]["terminationStatus"]
+                in ("MAX_NFEV", "GTOL", "FTOL", "XTOL", "FTOL_AND_XTOL",
+                    "RESIDUAL_CLOSURE", "NEWTON_STOPPED_UNCLOSED",
+                    "NUMERICAL_ERROR", "UNKNOWN"),
+        )
+        primary_closed = (
+            trial["multistartEvidence"]["primary"]["residualClosureStatus"]
+            == "CLOSED"
+        )
+        secondary_closed = (
+            trial["multistartEvidence"]["secondary"]["residualClosureStatus"]
+            == "CLOSED"
+        )
+        both_closed = primary_closed and secondary_closed
+        blocker_codes = {
+            blocker["code"] for blocker in trial["acceptanceBlockers"]
+        }
+        check(
+            f"{case['temperatureC']:.0f}C NT{n} residual closure semantics",
+            trial["multistartEvidence"]["bothStartsClosed"] == both_closed
             and (
-                trial["multistartEvidence"]["bothStartsClosed"]
-                or any(
-                    blocker["code"] == "MULTISTART_SECONDARY_CLOSURE_FAILED"
-                    for blocker in trial["acceptanceBlockers"]
-                )
+                ("COUPLED_SOLVER_CLOSURE_FAILED" in blocker_codes)
+                == (not primary_closed)
+            )
+            and (
+                ("MULTISTART_SECONDARY_CLOSURE_FAILED" in blocker_codes)
+                == (not secondary_closed)
+            ),
+        )
+        comparison_evaluated = (
+            trial["multistartEvidence"]["branchComparisonStatus"]
+            == "EVALUATED"
+        )
+        check(
+            f"{case['temperatureC']:.0f}C NT{n} branch comparison semantics",
+            comparison_evaluated == both_closed
+            and (
+                trial["multistartProductRelativeDifference"] is not None
+            ) == comparison_evaluated
+            and (
+                "MULTISTART_BRANCH_REPRODUCTION_FAILED" not in blocker_codes
+                or comparison_evaluated
             ),
         )
 

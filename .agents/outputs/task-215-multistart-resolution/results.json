@@ -1,0 +1,1862 @@
+{
+  "schemaVersion": "1.0.0",
+  "referenceJob": {
+    "id": "00d1468d-7130-41ff-b897-3b6b6303047e",
+    "project": 170,
+    "inputSnapshotSha256": "f35a4693cd2727073245fdcf26ad7b0fb25e0b62dc0e24dd64ff93f3a101512a",
+    "priorResultSnapshotSha256": "b66a4bff770cd1081d0533ac3e0e00e3e85cb906cb9b9f9a40c2cdf3a1173790",
+    "priorEngineHash": "6aaca50648a7e3432d98c50f2b43dbe721cd196ffa137539b70706ca1f6fef8e",
+    "priorModelHash": "9666ff67194102ca9c3dc139695bead8ff133fbfe24c2d786ce1deca49456196",
+    "stage1ImmutableHash": "01456d11b49067e096066550511b4078b5c25bf0ee45359549ccab044b58011f"
+  },
+  "parameterProvenance": {
+    "inputHashes": {
+      "server/research/ecr-pre-pilot-cosmosac-nmp-lle-amendment/model.py": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+      "server/research/ecr-pre-pilot-cosmosac-nmp-lle-amendment/protocol.json": "247a1b5dbbefc7bba6779409751bf5486a28a159b3aecaaff36394a2ab594c44",
+      "server/engine-framework/cel/data/multi-t-nmp-lle.json": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28"
+    },
+    "parameterVectorSha256": "fa2227aa99c8bd134525304e68b8f8be5b9fb4b79427fdc520db7920df82827d",
+    "parameterNames": [
+      "A_SAT_MONO_ref",
+      "A_SAT_MONO_temperature",
+      "A_SAT_MONO_asymmetry",
+      "A_SAT_NMP_ref",
+      "A_SAT_NMP_temperature",
+      "A_SAT_NMP_asymmetry",
+      "A_MONO_NMP_ref",
+      "A_MONO_NMP_temperature",
+      "A_MONO_NMP_asymmetry"
+    ]
+  },
+  "componentOrder": [
+    "SAT",
+    "MONO",
+    "DI",
+    "POLY",
+    "PA",
+    "NMP"
+  ],
+  "equationsChanged": false,
+  "thermodynamicParametersChanged": false,
+  "phaseStabilityEvaluated": false,
+  "closureLimit": 1e-08,
+  "branchProductRelativeTolerance": 1e-06,
+  "priorTrials": [
+    {
+      "stageCount": 1,
+      "primary": {
+        "solverSuccess": true,
+        "maximumScaledEquationResidual": 2.7755575615628914e-14
+      },
+      "secondary": {
+        "solverSuccess": false,
+        "maximumScaledEquationResidual": 4.359541449071358e-09
+      },
+      "bothStartsClosed": false,
+      "multistartProductRelativeDifference": 5.1512425814423466e-09,
+      "numericalBlockers": [
+        "MULTISTART_SECONDARY_CLOSURE_FAILED"
+      ]
+    },
+    {
+      "stageCount": 2,
+      "primary": {
+        "solverSuccess": true,
+        "maximumScaledEquationResidual": 1.9984014443252818e-14
+      },
+      "secondary": {
+        "solverSuccess": false,
+        "maximumScaledEquationResidual": 0.00018048348917315663
+      },
+      "bothStartsClosed": false,
+      "multistartProductRelativeDifference": 0.00030466746543906186,
+      "numericalBlockers": [
+        "MULTISTART_BRANCH_REPRODUCTION_FAILED",
+        "MULTISTART_SECONDARY_CLOSURE_FAILED"
+      ]
+    },
+    {
+      "stageCount": 3,
+      "primary": {
+        "solverSuccess": true,
+        "maximumScaledEquationResidual": 3.3306690738754696e-14
+      },
+      "secondary": {
+        "solverSuccess": false,
+        "maximumScaledEquationResidual": 0.0004497742928713832
+      },
+      "bothStartsClosed": false,
+      "multistartProductRelativeDifference": 0.0006190356420230379,
+      "numericalBlockers": [
+        "MULTISTART_BRANCH_REPRODUCTION_FAILED",
+        "MULTISTART_SECONDARY_CLOSURE_FAILED"
+      ]
+    },
+    {
+      "stageCount": 4,
+      "primary": {
+        "solverSuccess": true,
+        "maximumScaledEquationResidual": 3.885780586188048e-14
+      },
+      "secondary": {
+        "solverSuccess": false,
+        "maximumScaledEquationResidual": 0.0001974281794164476
+      },
+      "bothStartsClosed": false,
+      "multistartProductRelativeDifference": 0.0005121141187574409,
+      "numericalBlockers": [
+        "MULTISTART_BRANCH_REPRODUCTION_FAILED",
+        "MULTISTART_SECONDARY_CLOSURE_FAILED"
+      ]
+    },
+    {
+      "stageCount": 5,
+      "primary": {
+        "solverSuccess": true,
+        "maximumScaledEquationResidual": 5.502265310042276e-13
+      },
+      "secondary": {
+        "solverSuccess": false,
+        "maximumScaledEquationResidual": 0.00020785696415809323
+      },
+      "bothStartsClosed": false,
+      "multistartProductRelativeDifference": 0.0005177073498673413,
+      "numericalBlockers": [
+        "MULTISTART_BRANCH_REPRODUCTION_FAILED",
+        "MULTISTART_SECONDARY_CLOSURE_FAILED"
+      ]
+    },
+    {
+      "stageCount": 6,
+      "primary": {
+        "solverSuccess": true,
+        "maximumScaledEquationResidual": 6.705747068735946e-14
+      },
+      "secondary": {
+        "solverSuccess": false,
+        "maximumScaledEquationResidual": 0.00012894792437264708
+      },
+      "bothStartsClosed": false,
+      "multistartProductRelativeDifference": 0.00039354772895426154,
+      "numericalBlockers": [
+        "MULTISTART_BRANCH_REPRODUCTION_FAILED",
+        "MULTISTART_SECONDARY_CLOSURE_FAILED"
+      ]
+    },
+    {
+      "stageCount": 7,
+      "primary": {
+        "solverSuccess": true,
+        "maximumScaledEquationResidual": 3.3861802251067274e-14
+      },
+      "secondary": {
+        "solverSuccess": false,
+        "maximumScaledEquationResidual": 9.3717210581e-05
+      },
+      "bothStartsClosed": false,
+      "multistartProductRelativeDifference": 0.00038230202777971223,
+      "numericalBlockers": [
+        "MULTISTART_BRANCH_REPRODUCTION_FAILED",
+        "MULTISTART_SECONDARY_CLOSURE_FAILED"
+      ]
+    },
+    {
+      "stageCount": 8,
+      "primary": {
+        "solverSuccess": false,
+        "maximumScaledEquationResidual": 7.1699166197e-05
+      },
+      "secondary": {
+        "solverSuccess": false,
+        "maximumScaledEquationResidual": 7.4771122488e-05
+      },
+      "bothStartsClosed": false,
+      "multistartProductRelativeDifference": 4.3335401326e-05,
+      "numericalBlockers": [
+        "COUPLED_SOLVER_CLOSURE_FAILED",
+        "MULTISTART_BRANCH_REPRODUCTION_FAILED",
+        "MULTISTART_SECONDARY_CLOSURE_FAILED"
+      ]
+    },
+    {
+      "stageCount": 9,
+      "primary": {
+        "solverSuccess": false,
+        "maximumScaledEquationResidual": 0.0011792291894535355
+      },
+      "secondary": {
+        "solverSuccess": false,
+        "maximumScaledEquationResidual": 0.0011971703619590517
+      },
+      "bothStartsClosed": false,
+      "multistartProductRelativeDifference": 0.001313975335318391,
+      "numericalBlockers": [
+        "COUPLED_SOLVER_CLOSURE_FAILED",
+        "MULTISTART_BRANCH_REPRODUCTION_FAILED",
+        "MULTISTART_SECONDARY_CLOSURE_FAILED"
+      ]
+    },
+    {
+      "stageCount": 10,
+      "primary": {
+        "solverSuccess": false,
+        "maximumScaledEquationResidual": 0.0012166258449400693
+      },
+      "secondary": {
+        "solverSuccess": false,
+        "maximumScaledEquationResidual": 0.0013175263051930827
+      },
+      "bothStartsClosed": false,
+      "multistartProductRelativeDifference": 0.000986861193350754,
+      "numericalBlockers": [
+        "COUPLED_SOLVER_CLOSURE_FAILED",
+        "MULTISTART_BRANCH_REPRODUCTION_FAILED",
+        "MULTISTART_SECONDARY_CLOSURE_FAILED"
+      ]
+    }
+  ],
+  "trials": [
+    {
+      "stageCount": 1,
+      "primary": {
+        "strategy": "DENSE_TRUST_REGION",
+        "selectedStrategy": "DENSE_TRUST_REGION",
+        "selectedAttemptIndex": 0,
+        "solverSuccess": true,
+        "terminationStatus": "GTOL",
+        "terminationMessage": "`gtol` termination condition is satisfied.",
+        "attemptCount": 1,
+        "cumulativeFunctionEvaluations": 1,
+        "maximumScaledEquationResidual": 2.7755575615628914e-14,
+        "rmsScaledEquationResidual": 9.95340848664971e-15,
+        "maximumOriginalComponentBalanceResidualMol": 6.938893903907228e-18,
+        "maximumIsoactivityLogResidual": 2.7755575615628914e-14,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "DENSE_TRUST_REGION",
+            "solverSuccess": true,
+            "terminationStatus": "GTOL",
+            "terminationMessage": "`gtol` termination condition is satisfied.",
+            "functionEvaluations": 1,
+            "jacobianEvaluations": 1,
+            "maximumScaledEquationResidual": 2.7755575615628914e-14,
+            "rmsScaledEquationResidual": 9.95340848664971e-15,
+            "maximumOriginalComponentBalanceResidualMol": 6.938893903907228e-18,
+            "maximumIsoactivityLogResidual": 2.7755575615628914e-14,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED"
+          }
+        ]
+      },
+      "secondary": {
+        "strategy": "SPARSE_LSMR_INITIAL",
+        "selectedStrategy": "SPARSE_LSMR_INITIAL",
+        "selectedAttemptIndex": 0,
+        "solverSuccess": false,
+        "terminationStatus": "MAX_NFEV",
+        "terminationMessage": "The maximum number of function evaluations is exceeded.",
+        "attemptCount": 1,
+        "cumulativeFunctionEvaluations": 20,
+        "maximumScaledEquationResidual": 4.359541449071358e-09,
+        "rmsScaledEquationResidual": 1.3118179512388842e-09,
+        "maximumOriginalComponentBalanceResidualMol": 5.914939434949196e-09,
+        "maximumIsoactivityLogResidual": 5.3356451201747035e-12,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "SPARSE_LSMR_INITIAL",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 20,
+            "jacobianEvaluations": 20,
+            "maximumScaledEquationResidual": 4.359541449071358e-09,
+            "rmsScaledEquationResidual": 1.3118179512388842e-09,
+            "maximumOriginalComponentBalanceResidualMol": 5.914939434949196e-09,
+            "maximumIsoactivityLogResidual": 5.3356451201747035e-12,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED"
+          }
+        ]
+      },
+      "bothStartsClosed": true,
+      "branchComparisonStatus": "EVALUATED",
+      "branchReproduced": true,
+      "multistartProductRelativeDifference": 5.1512425814423466e-09,
+      "numericalBlockers": []
+    },
+    {
+      "stageCount": 2,
+      "primary": {
+        "strategy": "DENSE_TRUST_REGION",
+        "selectedStrategy": "DENSE_TRUST_REGION",
+        "selectedAttemptIndex": 0,
+        "solverSuccess": true,
+        "terminationStatus": "GTOL",
+        "terminationMessage": "`gtol` termination condition is satisfied.",
+        "attemptCount": 1,
+        "cumulativeFunctionEvaluations": 10,
+        "maximumScaledEquationResidual": 1.9984014443252818e-14,
+        "rmsScaledEquationResidual": 7.39620181829501e-15,
+        "maximumOriginalComponentBalanceResidualMol": 1.1102230246251565e-16,
+        "maximumIsoactivityLogResidual": 1.9984014443252818e-14,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "DENSE_TRUST_REGION",
+            "solverSuccess": true,
+            "terminationStatus": "GTOL",
+            "terminationMessage": "`gtol` termination condition is satisfied.",
+            "functionEvaluations": 10,
+            "jacobianEvaluations": 10,
+            "maximumScaledEquationResidual": 1.9984014443252818e-14,
+            "rmsScaledEquationResidual": 7.39620181829501e-15,
+            "maximumOriginalComponentBalanceResidualMol": 1.1102230246251565e-16,
+            "maximumIsoactivityLogResidual": 1.9984014443252818e-14,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED"
+          }
+        ]
+      },
+      "secondary": {
+        "strategy": "DENSE_TRUST_REGION_POLISH",
+        "selectedStrategy": "DENSE_TRUST_REGION_POLISH",
+        "selectedAttemptIndex": 2,
+        "solverSuccess": true,
+        "terminationStatus": "GTOL",
+        "terminationMessage": "`gtol` termination condition is satisfied.",
+        "attemptCount": 3,
+        "cumulativeFunctionEvaluations": 103,
+        "maximumScaledEquationResidual": 1.3766765505351941e-14,
+        "rmsScaledEquationResidual": 5.4019347814441784e-15,
+        "maximumOriginalComponentBalanceResidualMol": 9.49977943531799e-16,
+        "maximumIsoactivityLogResidual": 1.3766765505351941e-14,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "SPARSE_LSMR_INITIAL",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 20,
+            "jacobianEvaluations": 20,
+            "maximumScaledEquationResidual": 0.00018048348917315663,
+            "rmsScaledEquationResidual": 4.059458419424481e-05,
+            "maximumOriginalComponentBalanceResidualMol": 0.0002448764210499553,
+            "maximumIsoactivityLogResidual": 6.817356862608148e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "SPARSE_LSMR_CONTINUATION",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 80,
+            "jacobianEvaluations": 80,
+            "maximumScaledEquationResidual": 3.2734347972192717e-07,
+            "rmsScaledEquationResidual": 7.673561898564813e-08,
+            "maximumOriginalComponentBalanceResidualMol": 4.441331455612516e-07,
+            "maximumIsoactivityLogResidual": 2.3997723808122373e-09,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "DENSE_TRUST_REGION_POLISH",
+            "solverSuccess": true,
+            "terminationStatus": "GTOL",
+            "terminationMessage": "`gtol` termination condition is satisfied.",
+            "functionEvaluations": 3,
+            "jacobianEvaluations": 3,
+            "maximumScaledEquationResidual": 1.3766765505351941e-14,
+            "rmsScaledEquationResidual": 5.4019347814441784e-15,
+            "maximumOriginalComponentBalanceResidualMol": 9.49977943531799e-16,
+            "maximumIsoactivityLogResidual": 1.3766765505351941e-14,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED"
+          }
+        ]
+      },
+      "bothStartsClosed": true,
+      "branchComparisonStatus": "EVALUATED",
+      "branchReproduced": true,
+      "multistartProductRelativeDifference": 1.1026896617641486e-15,
+      "numericalBlockers": []
+    },
+    {
+      "stageCount": 3,
+      "primary": {
+        "strategy": "DENSE_TRUST_REGION",
+        "selectedStrategy": "DENSE_TRUST_REGION",
+        "selectedAttemptIndex": 0,
+        "solverSuccess": true,
+        "terminationStatus": "GTOL",
+        "terminationMessage": "`gtol` termination condition is satisfied.",
+        "attemptCount": 1,
+        "cumulativeFunctionEvaluations": 13,
+        "maximumScaledEquationResidual": 3.3306690738754696e-14,
+        "rmsScaledEquationResidual": 1.0064887302059448e-14,
+        "maximumOriginalComponentBalanceResidualMol": 7.979727989493313e-17,
+        "maximumIsoactivityLogResidual": 3.3306690738754696e-14,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "DENSE_TRUST_REGION",
+            "solverSuccess": true,
+            "terminationStatus": "GTOL",
+            "terminationMessage": "`gtol` termination condition is satisfied.",
+            "functionEvaluations": 13,
+            "jacobianEvaluations": 13,
+            "maximumScaledEquationResidual": 3.3306690738754696e-14,
+            "rmsScaledEquationResidual": 1.0064887302059448e-14,
+            "maximumOriginalComponentBalanceResidualMol": 7.979727989493313e-17,
+            "maximumIsoactivityLogResidual": 3.3306690738754696e-14,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED"
+          }
+        ]
+      },
+      "secondary": {
+        "strategy": "DENSE_TRUST_REGION_POLISH",
+        "selectedStrategy": "DENSE_TRUST_REGION_POLISH",
+        "selectedAttemptIndex": 2,
+        "solverSuccess": true,
+        "terminationStatus": "GTOL",
+        "terminationMessage": "`gtol` termination condition is satisfied.",
+        "attemptCount": 3,
+        "cumulativeFunctionEvaluations": 110,
+        "maximumScaledEquationResidual": 2.6978419498391304e-14,
+        "rmsScaledEquationResidual": 7.33498845172183e-15,
+        "maximumOriginalComponentBalanceResidualMol": 1.513546232789764e-16,
+        "maximumIsoactivityLogResidual": 2.6978419498391304e-14,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "SPARSE_LSMR_INITIAL",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 20,
+            "jacobianEvaluations": 20,
+            "maximumScaledEquationResidual": 0.0004497742928713832,
+            "rmsScaledEquationResidual": 8.574125263630043e-05,
+            "maximumOriginalComponentBalanceResidualMol": 0.0006102448463468634,
+            "maximumIsoactivityLogResidual": 1.5528910061457513e-06,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "SPARSE_LSMR_CONTINUATION",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 80,
+            "jacobianEvaluations": 80,
+            "maximumScaledEquationResidual": 0.00014484135439107363,
+            "rmsScaledEquationResidual": 2.8887679267550055e-05,
+            "maximumOriginalComponentBalanceResidualMol": 0.00019651787898053083,
+            "maximumIsoactivityLogResidual": 5.291365541282289e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "DENSE_TRUST_REGION_POLISH",
+            "solverSuccess": true,
+            "terminationStatus": "GTOL",
+            "terminationMessage": "`gtol` termination condition is satisfied.",
+            "functionEvaluations": 10,
+            "jacobianEvaluations": 9,
+            "maximumScaledEquationResidual": 2.6978419498391304e-14,
+            "rmsScaledEquationResidual": 7.33498845172183e-15,
+            "maximumOriginalComponentBalanceResidualMol": 1.513546232789764e-16,
+            "maximumIsoactivityLogResidual": 2.6978419498391304e-14,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED"
+          }
+        ]
+      },
+      "bothStartsClosed": true,
+      "branchComparisonStatus": "EVALUATED",
+      "branchReproduced": true,
+      "multistartProductRelativeDifference": 1.506650508156457e-15,
+      "numericalBlockers": []
+    },
+    {
+      "stageCount": 4,
+      "primary": {
+        "strategy": "DENSE_TRUST_REGION",
+        "selectedStrategy": "DENSE_TRUST_REGION",
+        "selectedAttemptIndex": 0,
+        "solverSuccess": true,
+        "terminationStatus": "GTOL",
+        "terminationMessage": "`gtol` termination condition is satisfied.",
+        "attemptCount": 1,
+        "cumulativeFunctionEvaluations": 16,
+        "maximumScaledEquationResidual": 3.885780586188048e-14,
+        "rmsScaledEquationResidual": 1.15854925313673e-14,
+        "maximumOriginalComponentBalanceResidualMol": 6.280783185208527e-15,
+        "maximumIsoactivityLogResidual": 3.885780586188048e-14,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "DENSE_TRUST_REGION",
+            "solverSuccess": true,
+            "terminationStatus": "GTOL",
+            "terminationMessage": "`gtol` termination condition is satisfied.",
+            "functionEvaluations": 16,
+            "jacobianEvaluations": 16,
+            "maximumScaledEquationResidual": 3.885780586188048e-14,
+            "rmsScaledEquationResidual": 1.15854925313673e-14,
+            "maximumOriginalComponentBalanceResidualMol": 6.280783185208527e-15,
+            "maximumIsoactivityLogResidual": 3.885780586188048e-14,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED"
+          }
+        ]
+      },
+      "secondary": {
+        "strategy": "DENSE_TRUST_REGION_POLISH",
+        "selectedStrategy": "DENSE_TRUST_REGION_POLISH",
+        "selectedAttemptIndex": 2,
+        "solverSuccess": false,
+        "terminationStatus": "MAX_NFEV",
+        "terminationMessage": "The maximum number of function evaluations is exceeded.",
+        "attemptCount": 3,
+        "cumulativeFunctionEvaluations": 115,
+        "maximumScaledEquationResidual": 1.6568689646142796e-10,
+        "rmsScaledEquationResidual": 3.0135150349253145e-11,
+        "maximumOriginalComponentBalanceResidualMol": 2.2480069731710062e-10,
+        "maximumIsoactivityLogResidual": 3.986633245744997e-11,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "SPARSE_LSMR_INITIAL",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 20,
+            "jacobianEvaluations": 20,
+            "maximumScaledEquationResidual": 0.0001974281794164476,
+            "rmsScaledEquationResidual": 5.3282597208282334e-05,
+            "maximumOriginalComponentBalanceResidualMol": 0.00026786664093979957,
+            "maximumIsoactivityLogResidual": 1.1003135536036268e-06,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "SPARSE_LSMR_CONTINUATION",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 80,
+            "jacobianEvaluations": 80,
+            "maximumScaledEquationResidual": 0.0001682305403541134,
+            "rmsScaledEquationResidual": 3.216757713844545e-05,
+            "maximumOriginalComponentBalanceResidualMol": 0.00022825186293740172,
+            "maximumIsoactivityLogResidual": 1.7045265897092793e-06,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "DENSE_TRUST_REGION_POLISH",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 15,
+            "jacobianEvaluations": 13,
+            "maximumScaledEquationResidual": 1.6568689646142796e-10,
+            "rmsScaledEquationResidual": 3.0135150349253145e-11,
+            "maximumOriginalComponentBalanceResidualMol": 2.2480069731710062e-10,
+            "maximumIsoactivityLogResidual": 3.986633245744997e-11,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED"
+          }
+        ]
+      },
+      "bothStartsClosed": true,
+      "branchComparisonStatus": "EVALUATED",
+      "branchReproduced": true,
+      "multistartProductRelativeDifference": 3.7513281218172824e-10,
+      "numericalBlockers": []
+    },
+    {
+      "stageCount": 5,
+      "primary": {
+        "strategy": "DENSE_TRUST_REGION",
+        "selectedStrategy": "DENSE_TRUST_REGION",
+        "selectedAttemptIndex": 0,
+        "solverSuccess": true,
+        "terminationStatus": "GTOL",
+        "terminationMessage": "`gtol` termination condition is satisfied.",
+        "attemptCount": 1,
+        "cumulativeFunctionEvaluations": 20,
+        "maximumScaledEquationResidual": 5.502265310042276e-13,
+        "rmsScaledEquationResidual": 1.0208135543711714e-13,
+        "maximumOriginalComponentBalanceResidualMol": 3.3043419346220904e-14,
+        "maximumIsoactivityLogResidual": 5.502265310042276e-13,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "DENSE_TRUST_REGION",
+            "solverSuccess": true,
+            "terminationStatus": "GTOL",
+            "terminationMessage": "`gtol` termination condition is satisfied.",
+            "functionEvaluations": 20,
+            "jacobianEvaluations": 19,
+            "maximumScaledEquationResidual": 5.502265310042276e-13,
+            "rmsScaledEquationResidual": 1.0208135543711714e-13,
+            "maximumOriginalComponentBalanceResidualMol": 3.3043419346220904e-14,
+            "maximumIsoactivityLogResidual": 5.502265310042276e-13,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED"
+          }
+        ]
+      },
+      "secondary": {
+        "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedStrategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedAttemptIndex": 3,
+        "solverSuccess": true,
+        "terminationStatus": "RESIDUAL_CLOSURE",
+        "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+        "attemptCount": 4,
+        "cumulativeFunctionEvaluations": 241,
+        "maximumScaledEquationResidual": 6.053957335439009e-10,
+        "rmsScaledEquationResidual": 1.2895592605539706e-10,
+        "maximumOriginalComponentBalanceResidualMol": 1.429396398878839e-10,
+        "maximumIsoactivityLogResidual": 6.053957335439009e-10,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "SPARSE_LSMR_INITIAL",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 20,
+            "jacobianEvaluations": 20,
+            "maximumScaledEquationResidual": 0.00020785696415809323,
+            "rmsScaledEquationResidual": 4.538906179593601e-05,
+            "maximumOriginalComponentBalanceResidualMol": 0.0002820162093858333,
+            "maximumIsoactivityLogResidual": 1.012655000298679e-06,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "SPARSE_LSMR_CONTINUATION",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 80,
+            "jacobianEvaluations": 80,
+            "maximumScaledEquationResidual": 9.936228565072066e-05,
+            "rmsScaledEquationResidual": 2.1912698784959946e-05,
+            "maximumOriginalComponentBalanceResidualMol": 0.00013481277987787614,
+            "maximumIsoactivityLogResidual": 7.555831289286774e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "DENSE_TRUST_REGION_POLISH",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 15,
+            "jacobianEvaluations": 14,
+            "maximumScaledEquationResidual": 2.017576874457916e-07,
+            "rmsScaledEquationResidual": 4.9318671489605284e-08,
+            "maximumOriginalComponentBalanceResidualMol": 1.525823512622728e-07,
+            "maximumIsoactivityLogResidual": 2.017576874457916e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+            "solverSuccess": true,
+            "terminationStatus": "RESIDUAL_CLOSURE",
+            "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+            "functionEvaluations": 126,
+            "jacobianEvaluations": 2,
+            "maximumScaledEquationResidual": 6.053957335439009e-10,
+            "rmsScaledEquationResidual": 1.2895592605539706e-10,
+            "maximumOriginalComponentBalanceResidualMol": 1.429396398878839e-10,
+            "maximumIsoactivityLogResidual": 6.053957335439009e-10,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED",
+            "iterationTrace": [
+              {
+                "iteration": 1,
+                "rawMaximumResidualBefore": 2.017576874457916e-07,
+                "rowEquilibratedL2Before": 0.0005914476213918643,
+                "linearizedRank": 60,
+                "linearizedConditionNumber": 71.8348030840398,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              }
+            ],
+            "jacobianDiagnostics": {
+              "shape": [
+                60,
+                60
+              ],
+              "numericalRank": 60,
+              "rankRelativeTolerance": 1e-10,
+              "rankDeficiency": 0,
+              "largestSingularValue": 2.4948717219021646,
+              "smallestSingularValue": 5.869473033000637e-05,
+              "conditionNumber": 42505.88950447426,
+              "rowNormMinimum": 0.00019219609603364228,
+              "rowNormMaximum": 1.7609360531097478,
+              "rowNormRatio": 9162.184297445412,
+              "columnNormMinimum": 0.6795764631868058,
+              "columnNormMaximum": 1.8084271209723333,
+              "columnNormRatio": 2.6611091156569717
+            }
+          }
+        ]
+      },
+      "bothStartsClosed": true,
+      "branchComparisonStatus": "EVALUATED",
+      "branchReproduced": true,
+      "multistartProductRelativeDifference": 9.866437658823067e-11,
+      "numericalBlockers": []
+    },
+    {
+      "stageCount": 6,
+      "primary": {
+        "strategy": "DENSE_TRUST_REGION",
+        "selectedStrategy": "DENSE_TRUST_REGION",
+        "selectedAttemptIndex": 0,
+        "solverSuccess": true,
+        "terminationStatus": "GTOL",
+        "terminationMessage": "`gtol` termination condition is satisfied.",
+        "attemptCount": 1,
+        "cumulativeFunctionEvaluations": 24,
+        "maximumScaledEquationResidual": 6.705747068735946e-14,
+        "rmsScaledEquationResidual": 2.069444052695001e-14,
+        "maximumOriginalComponentBalanceResidualMol": 5.4466142967307674e-14,
+        "maximumIsoactivityLogResidual": 6.705747068735946e-14,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "DENSE_TRUST_REGION",
+            "solverSuccess": true,
+            "terminationStatus": "GTOL",
+            "terminationMessage": "`gtol` termination condition is satisfied.",
+            "functionEvaluations": 24,
+            "jacobianEvaluations": 24,
+            "maximumScaledEquationResidual": 6.705747068735946e-14,
+            "rmsScaledEquationResidual": 2.069444052695001e-14,
+            "maximumOriginalComponentBalanceResidualMol": 5.4466142967307674e-14,
+            "maximumIsoactivityLogResidual": 6.705747068735946e-14,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED"
+          }
+        ]
+      },
+      "secondary": {
+        "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedStrategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedAttemptIndex": 3,
+        "solverSuccess": true,
+        "terminationStatus": "RESIDUAL_CLOSURE",
+        "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+        "attemptCount": 4,
+        "cumulativeFunctionEvaluations": 415,
+        "maximumScaledEquationResidual": 2.3137047833188262e-12,
+        "rmsScaledEquationResidual": 4.109485498561789e-13,
+        "maximumOriginalComponentBalanceResidualMol": 7.529084099884217e-13,
+        "maximumIsoactivityLogResidual": 2.3137047833188262e-12,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "SPARSE_LSMR_INITIAL",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 20,
+            "jacobianEvaluations": 20,
+            "maximumScaledEquationResidual": 0.00012894792437264708,
+            "rmsScaledEquationResidual": 2.8761167941590117e-05,
+            "maximumOriginalComponentBalanceResidualMol": 0.00017495398812851894,
+            "maximumIsoactivityLogResidual": 1.299234191343146e-06,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "SPARSE_LSMR_CONTINUATION",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 80,
+            "jacobianEvaluations": 80,
+            "maximumScaledEquationResidual": 7.516749876907917e-05,
+            "rmsScaledEquationResidual": 1.7079302222038293e-05,
+            "maximumOriginalComponentBalanceResidualMol": 0.00010198577256110955,
+            "maximumIsoactivityLogResidual": 1.6554953696790164e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "DENSE_TRUST_REGION_POLISH",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 15,
+            "jacobianEvaluations": 13,
+            "maximumScaledEquationResidual": 7.046381302303056e-06,
+            "rmsScaledEquationResidual": 1.0523087299358148e-06,
+            "maximumOriginalComponentBalanceResidualMol": 9.560390496472787e-06,
+            "maximumIsoactivityLogResidual": 3.705481965710078e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+            "solverSuccess": true,
+            "terminationStatus": "RESIDUAL_CLOSURE",
+            "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+            "functionEvaluations": 300,
+            "jacobianEvaluations": 4,
+            "maximumScaledEquationResidual": 2.3137047833188262e-12,
+            "rmsScaledEquationResidual": 4.109485498561789e-13,
+            "maximumOriginalComponentBalanceResidualMol": 7.529084099884217e-13,
+            "maximumIsoactivityLogResidual": 2.3137047833188262e-12,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED",
+            "iterationTrace": [
+              {
+                "iteration": 1,
+                "rawMaximumResidualBefore": 7.046381302303056e-06,
+                "rowEquilibratedL2Before": 0.07197965190146728,
+                "linearizedRank": 72,
+                "linearizedConditionNumber": 99.13833095898009,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 2,
+                "rawMaximumResidualBefore": 5.40593844133852e-06,
+                "rowEquilibratedL2Before": 0.009158014003286233,
+                "linearizedRank": 72,
+                "linearizedConditionNumber": 102.58248708672491,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 3,
+                "rawMaximumResidualBefore": 4.319566304644695e-08,
+                "rowEquilibratedL2Before": 9.646701607559166e-05,
+                "linearizedRank": 72,
+                "linearizedConditionNumber": 102.9134245715976,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              }
+            ],
+            "jacobianDiagnostics": {
+              "shape": [
+                72,
+                72
+              ],
+              "numericalRank": 72,
+              "rankRelativeTolerance": 1e-10,
+              "rankDeficiency": 0,
+              "largestSingularValue": 2.536674653363295,
+              "smallestSingularValue": 2.6688973198243597e-05,
+              "conditionNumber": 95045.7941757847,
+              "rowNormMinimum": 8.850711862317476e-05,
+              "rowNormMaximum": 1.770273432934179,
+              "rowNormRatio": 20001.480790163805,
+              "columnNormMinimum": 0.6798582404543039,
+              "columnNormMaximum": 1.839820336341201,
+              "columnNormRatio": 2.706182299286057
+            }
+          }
+        ]
+      },
+      "bothStartsClosed": true,
+      "branchComparisonStatus": "EVALUATED",
+      "branchReproduced": true,
+      "multistartProductRelativeDifference": 3.619066506670373e-13,
+      "numericalBlockers": []
+    },
+    {
+      "stageCount": 7,
+      "primary": {
+        "strategy": "DENSE_TRUST_REGION",
+        "selectedStrategy": "DENSE_TRUST_REGION",
+        "selectedAttemptIndex": 0,
+        "solverSuccess": true,
+        "terminationStatus": "GTOL",
+        "terminationMessage": "`gtol` termination condition is satisfied.",
+        "attemptCount": 1,
+        "cumulativeFunctionEvaluations": 33,
+        "maximumScaledEquationResidual": 3.3861802251067274e-14,
+        "rmsScaledEquationResidual": 8.960507303297641e-15,
+        "maximumOriginalComponentBalanceResidualMol": 1.454999315475547e-16,
+        "maximumIsoactivityLogResidual": 3.3861802251067274e-14,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "DENSE_TRUST_REGION",
+            "solverSuccess": true,
+            "terminationStatus": "GTOL",
+            "terminationMessage": "`gtol` termination condition is satisfied.",
+            "functionEvaluations": 33,
+            "jacobianEvaluations": 32,
+            "maximumScaledEquationResidual": 3.3861802251067274e-14,
+            "rmsScaledEquationResidual": 8.960507303297641e-15,
+            "maximumOriginalComponentBalanceResidualMol": 1.454999315475547e-16,
+            "maximumIsoactivityLogResidual": 3.3861802251067274e-14,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED"
+          }
+        ]
+      },
+      "secondary": {
+        "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedStrategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedAttemptIndex": 3,
+        "solverSuccess": true,
+        "terminationStatus": "RESIDUAL_CLOSURE",
+        "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+        "attemptCount": 4,
+        "cumulativeFunctionEvaluations": 376,
+        "maximumScaledEquationResidual": 1.4431646988555258e-09,
+        "rmsScaledEquationResidual": 2.291216519752454e-10,
+        "maximumOriginalComponentBalanceResidualMol": 3.9040719328154935e-10,
+        "maximumIsoactivityLogResidual": 1.4431646988555258e-09,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "SPARSE_LSMR_INITIAL",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 20,
+            "jacobianEvaluations": 20,
+            "maximumScaledEquationResidual": 9.371721058131009e-05,
+            "rmsScaledEquationResidual": 2.3762024806751983e-05,
+            "maximumOriginalComponentBalanceResidualMol": 0.00012715365390525402,
+            "maximumIsoactivityLogResidual": 1.3730368921827107e-06,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "SPARSE_LSMR_CONTINUATION",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 80,
+            "jacobianEvaluations": 80,
+            "maximumScaledEquationResidual": 6.334086905168771e-05,
+            "rmsScaledEquationResidual": 1.4716687109886438e-05,
+            "maximumOriginalComponentBalanceResidualMol": 8.5939635756322e-05,
+            "maximumIsoactivityLogResidual": 1.5908167569356202e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "DENSE_TRUST_REGION_POLISH",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 15,
+            "jacobianEvaluations": 14,
+            "maximumScaledEquationResidual": 2.5364963867069434e-06,
+            "rmsScaledEquationResidual": 6.091107226139864e-07,
+            "maximumOriginalComponentBalanceResidualMol": 2.3402270229645156e-06,
+            "maximumIsoactivityLogResidual": 2.5364963867069434e-06,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+            "solverSuccess": true,
+            "terminationStatus": "RESIDUAL_CLOSURE",
+            "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+            "functionEvaluations": 261,
+            "jacobianEvaluations": 3,
+            "maximumScaledEquationResidual": 1.4431646988555258e-09,
+            "rmsScaledEquationResidual": 2.291216519752454e-10,
+            "maximumOriginalComponentBalanceResidualMol": 3.9040719328154935e-10,
+            "maximumIsoactivityLogResidual": 1.4431646988555258e-09,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED",
+            "iterationTrace": [
+              {
+                "iteration": 1,
+                "rawMaximumResidualBefore": 2.5364963867069434e-06,
+                "rowEquilibratedL2Before": 0.04031611844073016,
+                "linearizedRank": 84,
+                "linearizedConditionNumber": 137.64647891061145,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 2,
+                "rawMaximumResidualBefore": 6.696755741053551e-07,
+                "rowEquilibratedL2Before": 0.0026581416212407743,
+                "linearizedRank": 84,
+                "linearizedConditionNumber": 140.12848917041333,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              }
+            ],
+            "jacobianDiagnostics": {
+              "shape": [
+                84,
+                84
+              ],
+              "numericalRank": 84,
+              "rankRelativeTolerance": 1e-10,
+              "rankDeficiency": 0,
+              "largestSingularValue": 2.5692336914842575,
+              "smallestSingularValue": 1.2255690043959778e-05,
+              "conditionNumber": 209635.98804055146,
+              "rowNormMinimum": 4.080877605690216e-05,
+              "rowNormMaximum": 1.7774839465317864,
+              "rowNormRatio": 43556.414043227676,
+              "columnNormMinimum": 0.6802309628886362,
+              "columnNormMaximum": 1.8635850915287442,
+              "columnNormRatio": 2.739635790195338
+            }
+          }
+        ]
+      },
+      "bothStartsClosed": true,
+      "branchComparisonStatus": "EVALUATED",
+      "branchReproduced": true,
+      "multistartProductRelativeDifference": 2.316908482615655e-10,
+      "numericalBlockers": []
+    },
+    {
+      "stageCount": 8,
+      "primary": {
+        "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedStrategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedAttemptIndex": 3,
+        "solverSuccess": true,
+        "terminationStatus": "RESIDUAL_CLOSURE",
+        "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+        "attemptCount": 4,
+        "cumulativeFunctionEvaluations": 511,
+        "maximumScaledEquationResidual": 1.8126811163199363e-09,
+        "rmsScaledEquationResidual": 2.679267984945764e-10,
+        "maximumOriginalComponentBalanceResidualMol": 4.977297506659611e-10,
+        "maximumIsoactivityLogResidual": 1.8126811163199363e-09,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "SPARSE_LSMR_INITIAL",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 20,
+            "jacobianEvaluations": 20,
+            "maximumScaledEquationResidual": 7.169916619719619e-05,
+            "rmsScaledEquationResidual": 1.8176593396946367e-05,
+            "maximumOriginalComponentBalanceResidualMol": 9.728000766757484e-05,
+            "maximumIsoactivityLogResidual": 6.342054441610401e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "SPARSE_LSMR_CONTINUATION",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 80,
+            "jacobianEvaluations": 80,
+            "maximumScaledEquationResidual": 5.329026003296248e-05,
+            "rmsScaledEquationResidual": 1.1593537643675378e-05,
+            "maximumOriginalComponentBalanceResidualMol": 7.230316863596068e-05,
+            "maximumIsoactivityLogResidual": 1.491161607525271e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "DENSE_TRUST_REGION_POLISH",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 15,
+            "jacobianEvaluations": 14,
+            "maximumScaledEquationResidual": 4.664257654654309e-06,
+            "rmsScaledEquationResidual": 7.090933620477799e-07,
+            "maximumOriginalComponentBalanceResidualMol": 6.32837234341589e-06,
+            "maximumIsoactivityLogResidual": 1.7400392238187123e-09,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+            "solverSuccess": true,
+            "terminationStatus": "RESIDUAL_CLOSURE",
+            "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+            "functionEvaluations": 396,
+            "jacobianEvaluations": 4,
+            "maximumScaledEquationResidual": 1.8126811163199363e-09,
+            "rmsScaledEquationResidual": 2.679267984945764e-10,
+            "maximumOriginalComponentBalanceResidualMol": 4.977297506659611e-10,
+            "maximumIsoactivityLogResidual": 1.8126811163199363e-09,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED",
+            "iterationTrace": [
+              {
+                "iteration": 1,
+                "rawMaximumResidualBefore": 4.664257654654309e-06,
+                "rowEquilibratedL2Before": 0.1742552055024711,
+                "linearizedRank": 96,
+                "linearizedConditionNumber": 168.0316292971009,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 2,
+                "rawMaximumResidualBefore": 1.1209301777892478e-05,
+                "rowEquilibratedL2Before": 0.05778685557064405,
+                "linearizedRank": 96,
+                "linearizedConditionNumber": 180.0660253741385,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 3,
+                "rawMaximumResidualBefore": 5.125592230648124e-07,
+                "rowEquilibratedL2Before": 0.004678903143946131,
+                "linearizedRank": 96,
+                "linearizedConditionNumber": 183.75866070505066,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              }
+            ],
+            "jacobianDiagnostics": {
+              "shape": [
+                96,
+                96
+              ],
+              "numericalRank": 96,
+              "rankRelativeTolerance": 1e-10,
+              "rankDeficiency": 0,
+              "largestSingularValue": 2.5952042902607735,
+              "smallestSingularValue": 5.651184350340627e-06,
+              "conditionNumber": 459231.9289857084,
+              "rowNormMinimum": 1.8819557121107572e-05,
+              "rowNormMaximum": 1.7831969267947458,
+              "rowNormRatio": 94752.33212553945,
+              "columnNormMinimum": 0.6806065678985093,
+              "columnNormMaximum": 1.8821464122717124,
+              "columnNormRatio": 2.7653956059859452
+            }
+          }
+        ]
+      },
+      "secondary": {
+        "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedStrategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedAttemptIndex": 3,
+        "solverSuccess": true,
+        "terminationStatus": "RESIDUAL_CLOSURE",
+        "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+        "attemptCount": 4,
+        "cumulativeFunctionEvaluations": 511,
+        "maximumScaledEquationResidual": 1.1432277347012132e-10,
+        "rmsScaledEquationResidual": 1.6920506417127372e-11,
+        "maximumOriginalComponentBalanceResidualMol": 3.2515699139616856e-11,
+        "maximumIsoactivityLogResidual": 1.1432277347012132e-10,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "SPARSE_LSMR_INITIAL",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 20,
+            "jacobianEvaluations": 20,
+            "maximumScaledEquationResidual": 7.477112248782582e-05,
+            "rmsScaledEquationResidual": 1.8716094549358816e-05,
+            "maximumOriginalComponentBalanceResidualMol": 0.00010144797707861372,
+            "maximumIsoactivityLogResidual": 9.56668356977275e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "SPARSE_LSMR_CONTINUATION",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 80,
+            "jacobianEvaluations": 80,
+            "maximumScaledEquationResidual": 5.4144018592437006e-05,
+            "rmsScaledEquationResidual": 1.1893795991190854e-05,
+            "maximumOriginalComponentBalanceResidualMol": 7.346153132854088e-05,
+            "maximumIsoactivityLogResidual": 2.0005461509597922e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "DENSE_TRUST_REGION_POLISH",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 15,
+            "jacobianEvaluations": 14,
+            "maximumScaledEquationResidual": 3.2130650881324787e-06,
+            "rmsScaledEquationResidual": 5.222747659937984e-07,
+            "maximumOriginalComponentBalanceResidualMol": 4.3594230308101904e-06,
+            "maximumIsoactivityLogResidual": 1.3356730232949587e-06,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+            "solverSuccess": true,
+            "terminationStatus": "RESIDUAL_CLOSURE",
+            "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+            "functionEvaluations": 396,
+            "jacobianEvaluations": 4,
+            "maximumScaledEquationResidual": 1.1432277347012132e-10,
+            "rmsScaledEquationResidual": 1.6920506417127372e-11,
+            "maximumOriginalComponentBalanceResidualMol": 3.2515699139616856e-11,
+            "maximumIsoactivityLogResidual": 1.1432277347012132e-10,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED",
+            "iterationTrace": [
+              {
+                "iteration": 1,
+                "rawMaximumResidualBefore": 3.2130650881324787e-06,
+                "rowEquilibratedL2Before": 0.13492997178865404,
+                "linearizedRank": 96,
+                "linearizedConditionNumber": 172.48424146662794,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 2,
+                "rawMaximumResidualBefore": 4.487303690403621e-06,
+                "rowEquilibratedL2Before": 0.03228047299330493,
+                "linearizedRank": 96,
+                "linearizedConditionNumber": 182.05708958818448,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 3,
+                "rawMaximumResidualBefore": 1.294346585467565e-07,
+                "rowEquilibratedL2Before": 0.0012848378138904449,
+                "linearizedRank": 96,
+                "linearizedConditionNumber": 183.91415101334152,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              }
+            ],
+            "jacobianDiagnostics": {
+              "shape": [
+                96,
+                96
+              ],
+              "numericalRank": 96,
+              "rankRelativeTolerance": 1e-10,
+              "rankDeficiency": 0,
+              "largestSingularValue": 2.595204314722998,
+              "smallestSingularValue": 5.65108220531411e-06,
+              "conditionNumber": 459240.23407101474,
+              "rowNormMinimum": 1.8819383987728835e-05,
+              "rowNormMaximum": 1.7831969409197697,
+              "rowNormRatio": 94753.20457260992,
+              "columnNormMinimum": 0.6806065609451962,
+              "columnNormMaximum": 1.8821464425609535,
+              "columnNormRatio": 2.765395678741492
+            }
+          }
+        ]
+      },
+      "bothStartsClosed": true,
+      "branchComparisonStatus": "EVALUATED",
+      "branchReproduced": true,
+      "multistartProductRelativeDifference": 2.710965919368152e-10,
+      "numericalBlockers": []
+    },
+    {
+      "stageCount": 9,
+      "primary": {
+        "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedStrategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedAttemptIndex": 3,
+        "solverSuccess": true,
+        "terminationStatus": "RESIDUAL_CLOSURE",
+        "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+        "attemptCount": 4,
+        "cumulativeFunctionEvaluations": 670,
+        "maximumScaledEquationResidual": 9.057643524101877e-12,
+        "rmsScaledEquationResidual": 1.283329599413951e-12,
+        "maximumOriginalComponentBalanceResidualMol": 2.619391454871431e-12,
+        "maximumIsoactivityLogResidual": 9.057643524101877e-12,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "SPARSE_LSMR_INITIAL",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 20,
+            "jacobianEvaluations": 20,
+            "maximumScaledEquationResidual": 6.896257760066908e-05,
+            "rmsScaledEquationResidual": 1.696219298325108e-05,
+            "maximumOriginalComponentBalanceResidualMol": 9.356705849713435e-05,
+            "maximumIsoactivityLogResidual": 5.069654904765741e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "SPARSE_LSMR_CONTINUATION",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 80,
+            "jacobianEvaluations": 80,
+            "maximumScaledEquationResidual": 4.691846851376341e-05,
+            "rmsScaledEquationResidual": 9.144048027006362e-06,
+            "maximumOriginalComponentBalanceResidualMol": 6.365804818729201e-05,
+            "maximumIsoactivityLogResidual": 2.474141544972497e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "DENSE_TRUST_REGION_POLISH",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 15,
+            "jacobianEvaluations": 14,
+            "maximumScaledEquationResidual": 4.067936006257701e-06,
+            "rmsScaledEquationResidual": 7.067601257249129e-07,
+            "maximumOriginalComponentBalanceResidualMol": 5.519294949561464e-06,
+            "maximumIsoactivityLogResidual": 3.6669880465467486e-09,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+            "solverSuccess": true,
+            "terminationStatus": "RESIDUAL_CLOSURE",
+            "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+            "functionEvaluations": 555,
+            "jacobianEvaluations": 5,
+            "maximumScaledEquationResidual": 9.057643524101877e-12,
+            "rmsScaledEquationResidual": 1.283329599413951e-12,
+            "maximumOriginalComponentBalanceResidualMol": 2.619391454871431e-12,
+            "maximumIsoactivityLogResidual": 9.057643524101877e-12,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED",
+            "iterationTrace": [
+              {
+                "iteration": 1,
+                "rawMaximumResidualBefore": 4.067936006257701e-06,
+                "rowEquilibratedL2Before": 0.22825612463976563,
+                "linearizedRank": 108,
+                "linearizedConditionNumber": 204.95437801544048,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 2,
+                "rawMaximumResidualBefore": 1.772437866121024e-05,
+                "rowEquilibratedL2Before": 0.1117574632822239,
+                "linearizedRank": 108,
+                "linearizedConditionNumber": 222.90718057904542,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 3,
+                "rawMaximumResidualBefore": 1.3288797613419945e-06,
+                "rowEquilibratedL2Before": 0.021392289124193012,
+                "linearizedRank": 108,
+                "linearizedConditionNumber": 232.7797652484409,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 4,
+                "rawMaximumResidualBefore": 2.5197619990535713e-08,
+                "rowEquilibratedL2Before": 0.0005469357161396137,
+                "linearizedRank": 108,
+                "linearizedConditionNumber": 234.19707627534456,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              }
+            ],
+            "jacobianDiagnostics": {
+              "shape": [
+                108,
+                108
+              ],
+              "numericalRank": 108,
+              "rankRelativeTolerance": 1e-10,
+              "rankDeficiency": 0,
+              "largestSingularValue": 2.6163498583985305,
+              "smallestSingularValue": 2.609402650698805e-06,
+              "conditionNumber": 1002662.3747384731,
+              "rowNormMinimum": 8.676708606844363e-06,
+              "rowNormMaximum": 1.7878209271286938,
+              "rowNormRatio": 206048.28491283258,
+              "columnNormMinimum": 0.6809557921682412,
+              "columnNormMaximum": 1.8970121907762385,
+              "columnNormRatio": 2.7858081428985786
+            }
+          }
+        ]
+      },
+      "secondary": {
+        "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedStrategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedAttemptIndex": 3,
+        "solverSuccess": true,
+        "terminationStatus": "RESIDUAL_CLOSURE",
+        "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+        "attemptCount": 4,
+        "cumulativeFunctionEvaluations": 559,
+        "maximumScaledEquationResidual": 8.9232554678631e-09,
+        "rmsScaledEquationResidual": 1.2496134785509874e-09,
+        "maximumOriginalComponentBalanceResidualMol": 2.415628910268735e-09,
+        "maximumIsoactivityLogResidual": 8.9232554678631e-09,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "SPARSE_LSMR_INITIAL",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 20,
+            "jacobianEvaluations": 20,
+            "maximumScaledEquationResidual": 7.90371066389947e-05,
+            "rmsScaledEquationResidual": 1.839743493703581e-05,
+            "maximumOriginalComponentBalanceResidualMol": 0.00010723597982601092,
+            "maximumIsoactivityLogResidual": 4.96958592055563e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "SPARSE_LSMR_CONTINUATION",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 80,
+            "jacobianEvaluations": 80,
+            "maximumScaledEquationResidual": 4.7103258968006015e-05,
+            "rmsScaledEquationResidual": 9.354142708083066e-06,
+            "maximumOriginalComponentBalanceResidualMol": 6.390876821318707e-05,
+            "maximumIsoactivityLogResidual": 2.5725528862707847e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "DENSE_TRUST_REGION_POLISH",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 15,
+            "jacobianEvaluations": 14,
+            "maximumScaledEquationResidual": 3.4779773720396874e-06,
+            "rmsScaledEquationResidual": 5.161142760633344e-07,
+            "maximumOriginalComponentBalanceResidualMol": 4.718850767233934e-06,
+            "maximumIsoactivityLogResidual": 8.764433907515468e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+            "solverSuccess": true,
+            "terminationStatus": "RESIDUAL_CLOSURE",
+            "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+            "functionEvaluations": 444,
+            "jacobianEvaluations": 4,
+            "maximumScaledEquationResidual": 8.9232554678631e-09,
+            "rmsScaledEquationResidual": 1.2496134785509874e-09,
+            "maximumOriginalComponentBalanceResidualMol": 2.415628910268735e-09,
+            "maximumIsoactivityLogResidual": 8.9232554678631e-09,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED",
+            "iterationTrace": [
+              {
+                "iteration": 1,
+                "rawMaximumResidualBefore": 3.4779773720396874e-06,
+                "rowEquilibratedL2Before": 0.23522977179557972,
+                "linearizedRank": 108,
+                "linearizedConditionNumber": 209.36390645757535,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 2,
+                "rawMaximumResidualBefore": 1.0518443940288336e-05,
+                "rowEquilibratedL2Before": 0.1022076688566366,
+                "linearizedRank": 108,
+                "linearizedConditionNumber": 226.06761624335738,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 3,
+                "rawMaximumResidualBefore": 7.842311062766782e-07,
+                "rowEquilibratedL2Before": 0.01479238388422032,
+                "linearizedRank": 108,
+                "linearizedConditionNumber": 233.42913946415138,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              }
+            ],
+            "jacobianDiagnostics": {
+              "shape": [
+                108,
+                108
+              ],
+              "numericalRank": 108,
+              "rankRelativeTolerance": 1e-10,
+              "rankDeficiency": 0,
+              "largestSingularValue": 2.6163498549863693,
+              "smallestSingularValue": 2.6099402486706753e-06,
+              "conditionNumber": 1002455.8440826216,
+              "rowNormMinimum": 8.677630071902589e-06,
+              "rowNormMaximum": 1.7878209298164314,
+              "rowNormRatio": 206026.40525150293,
+              "columnNormMinimum": 0.6809557822342567,
+              "columnNormMaximum": 1.8970121569551661,
+              "columnNormRatio": 2.7858081338717113
+            }
+          }
+        ]
+      },
+      "bothStartsClosed": true,
+      "branchComparisonStatus": "EVALUATED",
+      "branchReproduced": true,
+      "multistartProductRelativeDifference": 1.4228014896436598e-09,
+      "numericalBlockers": []
+    },
+    {
+      "stageCount": 10,
+      "primary": {
+        "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedStrategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedAttemptIndex": 3,
+        "solverSuccess": true,
+        "terminationStatus": "RESIDUAL_CLOSURE",
+        "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+        "attemptCount": 4,
+        "cumulativeFunctionEvaluations": 730,
+        "maximumScaledEquationResidual": 2.7350566256245656e-11,
+        "rmsScaledEquationResidual": 3.6803950527998496e-12,
+        "maximumOriginalComponentBalanceResidualMol": 7.647158826194143e-12,
+        "maximumIsoactivityLogResidual": 2.7350566256245656e-11,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "SPARSE_LSMR_INITIAL",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 20,
+            "jacobianEvaluations": 20,
+            "maximumScaledEquationResidual": 5.910405188012705e-05,
+            "rmsScaledEquationResidual": 1.3003406480938453e-05,
+            "maximumOriginalComponentBalanceResidualMol": 8.019120618878747e-05,
+            "maximumIsoactivityLogResidual": 3.8558743975514176e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "SPARSE_LSMR_CONTINUATION",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 80,
+            "jacobianEvaluations": 80,
+            "maximumScaledEquationResidual": 4.2118146812406205e-05,
+            "rmsScaledEquationResidual": 7.885459673141487e-06,
+            "maximumOriginalComponentBalanceResidualMol": 5.714506684200663e-05,
+            "maximumIsoactivityLogResidual": 2.2959592982374488e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "DENSE_TRUST_REGION_POLISH",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 15,
+            "jacobianEvaluations": 13,
+            "maximumScaledEquationResidual": 2.8594929692034566e-06,
+            "rmsScaledEquationResidual": 4.7097415581173393e-07,
+            "maximumOriginalComponentBalanceResidualMol": 3.879703387406569e-06,
+            "maximumIsoactivityLogResidual": 3.507670598423829e-08,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+            "solverSuccess": true,
+            "terminationStatus": "RESIDUAL_CLOSURE",
+            "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+            "functionEvaluations": 615,
+            "jacobianEvaluations": 5,
+            "maximumScaledEquationResidual": 2.7350566256245656e-11,
+            "rmsScaledEquationResidual": 3.6803950527998496e-12,
+            "maximumOriginalComponentBalanceResidualMol": 7.647158826194143e-12,
+            "maximumIsoactivityLogResidual": 2.7350566256245656e-11,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED",
+            "iterationTrace": [
+              {
+                "iteration": 1,
+                "rawMaximumResidualBefore": 2.8594929692034566e-06,
+                "rowEquilibratedL2Before": 0.22284133185118468,
+                "linearizedRank": 120,
+                "linearizedConditionNumber": 250.6480222842949,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 2,
+                "rawMaximumResidualBefore": 1.5258808591767092e-05,
+                "rowEquilibratedL2Before": 0.11987066384930864,
+                "linearizedRank": 120,
+                "linearizedConditionNumber": 273.3616122213505,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 3,
+                "rawMaximumResidualBefore": 1.3191472065798848e-06,
+                "rowEquilibratedL2Before": 0.02882844302853133,
+                "linearizedRank": 120,
+                "linearizedConditionNumber": 288.2193787803037,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 4,
+                "rawMaximumResidualBefore": 2.976729573944681e-08,
+                "rowEquilibratedL2Before": 0.001231921842455396,
+                "linearizedRank": 120,
+                "linearizedConditionNumber": 291.0457509643444,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              }
+            ],
+            "jacobianDiagnostics": {
+              "shape": [
+                120,
+                120
+              ],
+              "numericalRank": 120,
+              "rankRelativeTolerance": 1e-10,
+              "rankDeficiency": 0,
+              "largestSingularValue": 2.6338697188224947,
+              "smallestSingularValue": 1.2051256508647772e-06,
+              "conditionNumber": 2185556.1010857876,
+              "rowNormMinimum": 3.9989104751385855e-06,
+              "rowNormMaximum": 1.7916305360497427,
+              "rowNormRatio": 448029.6688781592,
+              "columnNormMinimum": 0.6812707480112674,
+              "columnNormMaximum": 1.9091633790362879,
+              "columnNormRatio": 2.8023563093079003
+            }
+          }
+        ]
+      },
+      "secondary": {
+        "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedStrategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+        "selectedAttemptIndex": 3,
+        "solverSuccess": true,
+        "terminationStatus": "RESIDUAL_CLOSURE",
+        "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+        "attemptCount": 4,
+        "cumulativeFunctionEvaluations": 730,
+        "maximumScaledEquationResidual": 1.0347278589506459e-11,
+        "rmsScaledEquationResidual": 2.0879938190442762e-12,
+        "maximumOriginalComponentBalanceResidualMol": 3.4192730188504768e-12,
+        "maximumIsoactivityLogResidual": 1.0347278589506459e-11,
+        "closureLimit": 1e-08,
+        "residualClosureStatus": "CLOSED",
+        "attempts": [
+          {
+            "strategy": "SPARSE_LSMR_INITIAL",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 20,
+            "jacobianEvaluations": 20,
+            "maximumScaledEquationResidual": 6.328383221031142e-05,
+            "rmsScaledEquationResidual": 1.382744303787876e-05,
+            "maximumOriginalComponentBalanceResidualMol": 8.58622493003741e-05,
+            "maximumIsoactivityLogResidual": 4.0060793704554953e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "SPARSE_LSMR_CONTINUATION",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 80,
+            "jacobianEvaluations": 80,
+            "maximumScaledEquationResidual": 4.2072254787301405e-05,
+            "rmsScaledEquationResidual": 8.311943809233296e-06,
+            "maximumOriginalComponentBalanceResidualMol": 5.708280145189321e-05,
+            "maximumIsoactivityLogResidual": 2.494016242415853e-07,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "DENSE_TRUST_REGION_POLISH",
+            "solverSuccess": false,
+            "terminationStatus": "MAX_NFEV",
+            "terminationMessage": "The maximum number of function evaluations is exceeded.",
+            "functionEvaluations": 15,
+            "jacobianEvaluations": 13,
+            "maximumScaledEquationResidual": 3.924658585976359e-06,
+            "rmsScaledEquationResidual": 6.451419441900447e-07,
+            "maximumOriginalComponentBalanceResidualMol": 5.324898985384904e-06,
+            "maximumIsoactivityLogResidual": 6.702093102717299e-09,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "UNCLOSED"
+          },
+          {
+            "strategy": "ROW_EQUILIBRATED_DAMPED_NEWTON",
+            "solverSuccess": true,
+            "terminationStatus": "RESIDUAL_CLOSURE",
+            "terminationMessage": "raw residual closure reached by row-equilibrated damped Newton",
+            "functionEvaluations": 615,
+            "jacobianEvaluations": 5,
+            "maximumScaledEquationResidual": 1.0347278589506459e-11,
+            "rmsScaledEquationResidual": 2.0879938190442762e-12,
+            "maximumOriginalComponentBalanceResidualMol": 3.4192730188504768e-12,
+            "maximumIsoactivityLogResidual": 1.0347278589506459e-11,
+            "closureLimit": 1e-08,
+            "residualClosureStatus": "CLOSED",
+            "iterationTrace": [
+              {
+                "iteration": 1,
+                "rawMaximumResidualBefore": 3.924658585976359e-06,
+                "rowEquilibratedL2Before": 0.1748404997881474,
+                "linearizedRank": 120,
+                "linearizedConditionNumber": 248.84166904536633,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 2,
+                "rawMaximumResidualBefore": 2.098345135870261e-05,
+                "rowEquilibratedL2Before": 0.08819631891145217,
+                "linearizedRank": 120,
+                "linearizedConditionNumber": 272.19243300217505,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 3,
+                "rawMaximumResidualBefore": 1.7470930027130294e-06,
+                "rowEquilibratedL2Before": 0.01875886052244151,
+                "linearizedRank": 120,
+                "linearizedConditionNumber": 288.12450918800675,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              },
+              {
+                "iteration": 4,
+                "rawMaximumResidualBefore": 3.1118467802571104e-08,
+                "rowEquilibratedL2Before": 0.000662741314256225,
+                "linearizedRank": 120,
+                "linearizedConditionNumber": 291.05359479747875,
+                "stepAccepted": true,
+                "stepLength": 1.0,
+                "backtracks": 0
+              }
+            ],
+            "jacobianDiagnostics": {
+              "shape": [
+                120,
+                120
+              ],
+              "numericalRank": 120,
+              "rankRelativeTolerance": 1e-10,
+              "rankDeficiency": 0,
+              "largestSingularValue": 2.6338696050613253,
+              "smallestSingularValue": 1.2051249270523354e-06,
+              "conditionNumber": 2185557.3193590934,
+              "rowNormMinimum": 3.998909613678508e-06,
+              "rowNormMaximum": 1.7916305125186074,
+              "rowNormRatio": 448029.7595099996,
+              "columnNormMinimum": 0.6812707485936084,
+              "columnNormMaximum": 1.9091632075959426,
+              "columnNormRatio": 2.802356055264596
+            }
+          }
+        ]
+      },
+      "bothStartsClosed": true,
+      "branchComparisonStatus": "EVALUATED",
+      "branchReproduced": true,
+      "multistartProductRelativeDifference": 2.037090186056807e-12,
+      "numericalBlockers": []
+    }
+  ],
+  "conclusion": {
+    "allPrimaryAndSecondaryEndpointsClosed": true,
+    "allClosedEndpointsReproduceBoundaryProducts": true,
+    "numericalBlockersRemaining": false,
+    "status": "PASS",
+    "thermodynamicQualification": "UNCHANGED_NOT_QUALIFIED",
+    "postSplitTpdDisposition": "NOT_EVALUATED_UNCHANGED",
+    "releaseEligible": false,
+    "sulfurPrediction": "NOT_CALCULABLE"
+  }
+}

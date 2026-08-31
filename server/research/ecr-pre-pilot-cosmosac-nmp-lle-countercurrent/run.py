@@ -8,6 +8,7 @@ import json
 import math
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
@@ -223,6 +224,338 @@ def initial_vector(stage_count, total_moles, seed):
     return np.log(np.tile(np.r_[r, e], stage_count))
 
 
+def residual_is_closed(maximum_residual, limit):
+    return bool(
+        math.isfinite(float(maximum_residual))
+        and float(maximum_residual) <= float(limit)
+    )
+
+
+def classify_multistart(primary_residual, secondary_residual, product_difference, gates):
+    closure_limit = gates["maximumScaledEquationResidual"]
+    primary_closed = residual_is_closed(primary_residual, closure_limit)
+    secondary_closed = residual_is_closed(secondary_residual, closure_limit)
+    both_closed = primary_closed and secondary_closed
+    branch_evaluated = bool(
+        both_closed and math.isfinite(float(product_difference))
+    )
+    branch_reproduced = bool(
+        branch_evaluated
+        and float(product_difference)
+        <= gates["multistartProductRelativeTolerance"]
+    )
+    blockers = []
+    if not primary_closed:
+        blockers.append({
+            "code": "COUPLED_SOLVER_CLOSURE_FAILED",
+            "maximumScaledEquationResidual": float(primary_residual),
+            "limit": closure_limit,
+        })
+    if not secondary_closed:
+        blockers.append({
+            "code": "MULTISTART_SECONDARY_CLOSURE_FAILED",
+            "maximumScaledEquationResidual": float(secondary_residual),
+            "limit": closure_limit,
+        })
+    if branch_evaluated and not branch_reproduced:
+        blockers.append({
+            "code": "MULTISTART_BRANCH_REPRODUCTION_FAILED",
+            "calculated": float(product_difference),
+            "limit": gates["multistartProductRelativeTolerance"],
+        })
+    return {
+        "primaryResidualClosureStatus":
+            "CLOSED" if primary_closed else "UNCLOSED",
+        "secondaryResidualClosureStatus":
+            "CLOSED" if secondary_closed else "UNCLOSED",
+        "bothEndpointsClosed": both_closed,
+        "branchComparisonStatus": (
+            "EVALUATED" if branch_evaluated
+            else "NOT_EVALUABLE_ENDPOINT_UNCLOSED"
+        ),
+        "branchReproduced": branch_reproduced,
+        "reportedProductRelativeDifference": (
+            float(product_difference) if branch_evaluated else None
+        ),
+        "blockers": blockers,
+    }
+
+
+def termination_status(solution):
+    explicit = getattr(solution, "terminationStatus", None)
+    if explicit:
+        return str(explicit)
+    status = int(getattr(solution, "status", 0))
+    return {
+        -1: "NUMERICAL_ERROR",
+        0: "MAX_NFEV",
+        1: "GTOL",
+        2: "FTOL",
+        3: "XTOL",
+        4: "FTOL_AND_XTOL",
+    }.get(status, "UNKNOWN")
+
+
+def residual_diagnostics(values, stage_count, total):
+    residual = np.asarray(values, dtype=float)
+    matrix = residual.reshape(stage_count, 12)
+    maximum = float(np.max(np.abs(residual)))
+    return {
+        "maximumScaledEquationResidual": maximum,
+        "rmsScaledEquationResidual": float(np.sqrt(np.mean(residual * residual))),
+        "maximumOriginalComponentBalanceResidualMol": float(
+            total * np.max(np.abs(matrix[:, :6]))
+        ),
+        "maximumIsoactivityLogResidual": float(
+            np.max(np.abs(matrix[:, 6:]))
+        ),
+    }
+
+
+def attempt_evidence(strategy, solution, stage_count, total, closure_limit):
+    diagnostics = residual_diagnostics(solution.fun, stage_count, total)
+    return {
+        "strategy": strategy,
+        "solverSuccess": bool(solution.success),
+        "terminationStatus": termination_status(solution),
+        "terminationMessage": str(solution.message),
+        "functionEvaluations": int(getattr(solution, "nfev", 0)),
+        "jacobianEvaluations": int(getattr(solution, "njev", 0) or 0),
+        "cost": float(getattr(solution, "cost", 0.5 * np.sum(np.asarray(solution.fun) ** 2))),
+        "optimality": (
+            float(solution.optimality)
+            if math.isfinite(float(getattr(solution, "optimality", math.nan)))
+            else None
+        ),
+        **diagnostics,
+        "closureLimit": closure_limit,
+        "residualClosureStatus": (
+            "CLOSED"
+            if residual_is_closed(
+                diagnostics["maximumScaledEquationResidual"], closure_limit
+            )
+            else "UNCLOSED"
+        ),
+    }
+
+
+def finite_difference_jacobian(residual, vector):
+    return np.asarray(scipy.optimize._numdiff.approx_derivative(
+        residual, vector, method="2-point", rel_step=1e-6,
+    ))
+
+
+def row_equilibrated_damped_newton(
+    residual, start, lower_bound, upper_bound, closure_limit,
+    maximum_iterations=8, maximum_backtracks=16,
+):
+    """Polish unchanged equations; scaling controls steps, never acceptance."""
+    vector = np.asarray(start, dtype=float).copy()
+    nfev = 0
+    njev = 0
+    trace = []
+    final_jacobian = None
+    for iteration in range(maximum_iterations):
+        values = residual(vector)
+        nfev += 1
+        maximum = float(np.max(np.abs(values)))
+        if residual_is_closed(maximum, closure_limit):
+            break
+        jacobian = finite_difference_jacobian(residual, vector)
+        nfev += len(vector) + 1
+        njev += 1
+        final_jacobian = jacobian
+        row_norm = np.maximum(np.linalg.norm(jacobian, axis=1), 1e-14)
+        scaled_values = values / row_norm
+        scaled_jacobian = jacobian / row_norm[:, None]
+        step, _, rank, singular = np.linalg.lstsq(
+            scaled_jacobian, -scaled_values, rcond=1e-10
+        )
+        objective = float(np.linalg.norm(scaled_values))
+        accepted_step = False
+        step_length = 1.0
+        backtracks = 0
+        for backtracks in range(maximum_backtracks):
+            candidate = vector + step_length * step
+            if (
+                np.any(candidate <= lower_bound)
+                or np.any(candidate >= upper_bound)
+            ):
+                step_length *= 0.5
+                continue
+            candidate_values = residual(candidate)
+            nfev += 1
+            candidate_objective = float(
+                np.linalg.norm(candidate_values / row_norm)
+            )
+            if candidate_objective < objective:
+                vector = candidate
+                accepted_step = True
+                break
+            step_length *= 0.5
+        trace.append({
+            "iteration": iteration + 1,
+            "rawMaximumResidualBefore": maximum,
+            "rowEquilibratedL2Before": objective,
+            "linearizedRank": int(rank),
+            "linearizedConditionNumber": (
+                float(singular[0] / singular[-1])
+                if singular[-1] > 0 else None
+            ),
+            "stepAccepted": accepted_step,
+            "stepLength": step_length if accepted_step else 0.0,
+            "backtracks": backtracks if accepted_step else maximum_backtracks,
+        })
+        if not accepted_step:
+            break
+    final_values = residual(vector)
+    nfev += 1
+    maximum = float(np.max(np.abs(final_values)))
+    # Recompute at the final endpoint; a Jacobian from before the last accepted
+    # damped step is not endpoint conditioning evidence.
+    final_jacobian = finite_difference_jacobian(residual, vector)
+    nfev += len(vector) + 1
+    njev += 1
+    singular = np.linalg.svd(final_jacobian, compute_uv=False)
+    threshold = 1e-10 * singular[0]
+    rank = int(np.count_nonzero(singular > threshold))
+    row_norm = np.linalg.norm(final_jacobian, axis=1)
+    column_norm = np.linalg.norm(final_jacobian, axis=0)
+    closed = residual_is_closed(maximum, closure_limit)
+    return SimpleNamespace(
+        x=vector,
+        fun=final_values,
+        success=closed,
+        status=1 if closed else 0,
+        terminationStatus=(
+            "RESIDUAL_CLOSURE"
+            if closed else "NEWTON_STOPPED_UNCLOSED"
+        ),
+        message=(
+            "raw residual closure reached by row-equilibrated damped Newton"
+            if closed
+            else "row-equilibrated damped Newton stopped without raw residual closure"
+        ),
+        nfev=nfev,
+        njev=njev,
+        cost=0.5 * float(np.sum(final_values * final_values)),
+        optimality=float(np.max(np.abs(final_jacobian.T @ final_values))),
+        newtonTrace=trace,
+        jacobianDiagnostics={
+            "shape": list(final_jacobian.shape),
+            "numericalRank": rank,
+            "rankRelativeTolerance": 1e-10,
+            "rankDeficiency": int(final_jacobian.shape[1] - rank),
+            "largestSingularValue": float(singular[0]),
+            "smallestSingularValue": float(singular[-1]),
+            "conditionNumber": (
+                float(singular[0] / singular[-1])
+                if singular[-1] > 0 else None
+            ),
+            "rowNormMinimum": float(row_norm.min()),
+            "rowNormMaximum": float(row_norm.max()),
+            "rowNormRatio": float(row_norm.max() / row_norm.min()),
+            "columnNormMinimum": float(column_norm.min()),
+            "columnNormMaximum": float(column_norm.max()),
+            "columnNormRatio": float(column_norm.max() / column_norm.min()),
+        },
+    )
+
+
+def solve_branch(
+    residual, start, stage_count, total, bounds, jacobian_pattern,
+    closure_limit, branch,
+):
+    attempts = []
+    solutions = []
+
+    def run(strategy, vector, **options):
+        solution = least_squares(
+            residual,
+            vector,
+            bounds=bounds,
+            xtol=1e-11,
+            ftol=1e-11,
+            gtol=1e-11,
+            **options,
+        )
+        evidence = attempt_evidence(
+            strategy, solution, stage_count, total, closure_limit
+        )
+        attempts.append(evidence)
+        solutions.append(solution)
+        return solution
+
+    if branch == "primary" and stage_count < 8:
+        solution = run("DENSE_TRUST_REGION", start, max_nfev=750)
+    else:
+        solution = run(
+            "SPARSE_LSMR_INITIAL",
+            start,
+            max_nfev=20,
+            jac_sparsity=jacobian_pattern,
+            tr_solver="lsmr",
+        )
+    if not residual_is_closed(
+        np.max(np.abs(solution.fun)), closure_limit
+    ):
+        solution = run(
+            "SPARSE_LSMR_CONTINUATION",
+            solution.x,
+            max_nfev=80,
+            jac_sparsity=jacobian_pattern,
+            tr_solver="lsmr",
+        )
+    if not residual_is_closed(
+        np.max(np.abs(solution.fun)), closure_limit
+    ):
+        solution = run(
+            "DENSE_TRUST_REGION_POLISH",
+            solution.x,
+            max_nfev=15,
+        )
+    if not residual_is_closed(
+        np.max(np.abs(solution.fun)), closure_limit
+    ):
+        solution = row_equilibrated_damped_newton(
+            residual,
+            solution.x,
+            bounds[0],
+            bounds[1],
+            closure_limit,
+        )
+        evidence = attempt_evidence(
+            "ROW_EQUILIBRATED_DAMPED_NEWTON",
+            solution,
+            stage_count,
+            total,
+            closure_limit,
+        )
+        evidence["iterationTrace"] = solution.newtonTrace
+        evidence["jacobianDiagnostics"] = solution.jacobianDiagnostics
+        attempts.append(evidence)
+        solutions.append(solution)
+    selected_index = (
+        len(attempts) - 1
+        if attempts[-1]["residualClosureStatus"] == "CLOSED"
+        else min(
+            range(len(attempts)),
+            key=lambda index:
+                attempts[index]["maximumScaledEquationResidual"],
+        )
+    )
+    solution = solutions[selected_index]
+    final = dict(attempts[selected_index])
+    final["attemptCount"] = len(attempts)
+    final["cumulativeFunctionEvaluations"] = sum(
+        attempt["functionEvaluations"] for attempt in attempts
+    )
+    final["selectedAttemptIndex"] = selected_index
+    final["selectedStrategy"] = attempts[selected_index]["strategy"]
+    final["attempts"] = attempts
+    return solution, final
+
+
 def solve_cascade(
     stage_count, temperature_k, feed, solvent, parameters, protocol, seed,
     previous=None, dense_polish=False,
@@ -280,52 +613,44 @@ def solve_cascade(
         base_start,
         base_start + np.tile(np.linspace(-0.015, 0.015, 12), stage_count),
     ]
-    primary = least_squares(
-            residual,
-            starts[0],
-            bounds=(math.log(1e-12), math.log(10 * total)),
-            xtol=1e-11,
-            ftol=1e-11,
-            gtol=1e-11,
-            max_nfev=200 if dense_polish else (20 if stage_count >= 8 else 750),
-            **({
-                "jac_sparsity": jacobian_pattern,
-                "tr_solver": "lsmr",
-            } if stage_count >= 8 and not dense_polish else {}),
-        )
-    # Every trial receives an independently perturbed deterministic start.
-    # A bounded sparse solve keeps branch evidence explicit: nonclosure blocks
-    # acceptance rather than being silently represented as zero difference.
-    secondary = least_squares(
-        residual,
-        starts[1],
-        bounds=(math.log(1e-12), math.log(10 * total)),
-        xtol=1e-11,
-        ftol=1e-11,
-        gtol=1e-11,
-        max_nfev=20,
-        jac_sparsity=jacobian_pattern,
-        tr_solver="lsmr",
+    bounds = (math.log(1e-12), math.log(10 * total))
+    closure_limit = gates["maximumScaledEquationResidual"]
+    primary, primary_evidence = solve_branch(
+        residual, starts[0], stage_count, total, bounds, jacobian_pattern,
+        closure_limit, "primary",
+    )
+    # The secondary lineage remains independent: every attempt continues only
+    # from its deterministic perturbed start, never from the primary endpoint.
+    secondary, secondary_evidence = solve_branch(
+        residual, starts[1], stage_count, total, bounds, jacobian_pattern,
+        closure_limit, "secondary",
     )
     solutions = [primary, secondary]
     best = primary
     raffinate, extract = unpack(best.x)
     alternate_raffinate, alternate_extract = unpack(secondary.x)
-    product_difference = max(
+    diagnostic_product_difference = max(
         np.max(np.abs(raffinate[-1] - alternate_raffinate[-1])) / max(raffinate[-1].sum(), 1e-30),
         np.max(np.abs(extract[0] - alternate_extract[0])) / max(extract[0].sum(), 1e-30),
     )
-    secondary_residual = float(np.max(np.abs(secondary.fun)))
-    secondary_closed = bool(
-        secondary.success
-        and secondary_residual <= gates["maximumScaledEquationResidual"]
+    multistart_gate = classify_multistart(
+        primary_evidence["maximumScaledEquationResidual"],
+        secondary_evidence["maximumScaledEquationResidual"],
+        diagnostic_product_difference,
+        gates,
     )
+    primary_closed = (
+        multistart_gate["primaryResidualClosureStatus"] == "CLOSED"
+    )
+    secondary_closed = (
+        multistart_gate["secondaryResidualClosureStatus"] == "CLOSED"
+    )
+    both_endpoints_closed = multistart_gate["bothEndpointsClosed"]
+    branch_comparison_status = multistart_gate["branchComparisonStatus"]
+    product_difference = multistart_gate["reportedProductRelativeDifference"]
+    branch_reproduced = multistart_gate["branchReproduced"]
     stages = []
-    accepted = bool(
-        best.success
-        and np.max(np.abs(best.fun)) <= gates["maximumScaledEquationResidual"]
-        and secondary_closed
-    )
+    accepted = bool(both_endpoints_closed and branch_reproduced)
     for stage in range(stage_count):
         r_in = feed if stage == 0 else raffinate[stage - 1]
         e_in = solvent if stage == stage_count - 1 else extract[stage + 1]
@@ -388,27 +713,8 @@ def solve_cascade(
             "stageGibbsReduction": gibbs_reduction,
             "accepted": stage_accepted,
         })
-    accepted = accepted and product_difference <= gates["multistartProductRelativeTolerance"]
     overall_balance = feed + solvent - raffinate[-1] - extract[0]
-    blockers = []
-    if not best.success or np.max(np.abs(best.fun)) > gates["maximumScaledEquationResidual"]:
-        blockers.append({
-            "code": "COUPLED_SOLVER_CLOSURE_FAILED",
-            "maximumScaledEquationResidual": float(np.max(np.abs(best.fun))),
-            "limit": gates["maximumScaledEquationResidual"],
-        })
-    if product_difference > gates["multistartProductRelativeTolerance"]:
-        blockers.append({
-            "code": "MULTISTART_BRANCH_REPRODUCTION_FAILED",
-            "calculated": float(product_difference),
-            "limit": gates["multistartProductRelativeTolerance"],
-        })
-    if not secondary_closed:
-        blockers.append({
-            "code": "MULTISTART_SECONDARY_CLOSURE_FAILED",
-            "maximumScaledEquationResidual": secondary_residual,
-            "limit": gates["maximumScaledEquationResidual"],
-        })
+    blockers = list(multistart_gate["blockers"])
     unstable_stages = [
         stage["stageFromFeedEnd"] for stage in stages
         if (
@@ -467,23 +773,21 @@ def solve_cascade(
         "stageCount": stage_count,
         "solverSuccess": bool(best.success),
         "solverMessage": str(best.message),
+        "solverTerminationStatus": primary_evidence["terminationStatus"],
+        "residualClosureStatus": primary_evidence["residualClosureStatus"],
         "maximumScaledEquationResidual": float(np.max(np.abs(best.fun))),
-        "multistartProductRelativeDifference": float(product_difference),
+        "multistartProductRelativeDifference": product_difference,
+        "multistartDiagnosticProductRelativeDifference":
+            float(diagnostic_product_difference),
+        "branchComparisonStatus": branch_comparison_status,
         "multistartEvidence": {
             "startCount": 2,
             "startDefinition": "continuation/base plus deterministic component-log-flow perturbation [-0.015,+0.015]",
-            "primary": {
-                "solverSuccess": bool(primary.success),
-                "maximumScaledEquationResidual": float(np.max(np.abs(primary.fun))),
-            },
-            "secondary": {
-                "solverSuccess": bool(secondary.success),
-                "maximumScaledEquationResidual": secondary_residual,
-            },
-            "bothStartsClosed": secondary_closed and bool(
-                primary.success
-                and np.max(np.abs(primary.fun)) <= gates["maximumScaledEquationResidual"]
-            ),
+            "primary": primary_evidence,
+            "secondary": secondary_evidence,
+            "bothStartsClosed": both_endpoints_closed,
+            "branchComparisonStatus": branch_comparison_status,
+            "branchReproduced": branch_reproduced,
         },
         "accepted": accepted,
         "acceptanceBlockers": blockers,

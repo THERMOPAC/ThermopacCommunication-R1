@@ -114,11 +114,35 @@ type PredictiveTrial = {
   stageCount: number;
   solverSuccess: boolean;
   solverMessage: string;
+  solverTerminationStatus?: string;
+  residualClosureStatus?: "CLOSED" | "UNCLOSED";
   maximumScaledEquationResidual: number;
-  multistartProductRelativeDifference: number;
+  multistartProductRelativeDifference: number | null;
+  multistartDiagnosticProductRelativeDifference?: number;
+  branchComparisonStatus?: "EVALUATED" | "NOT_EVALUABLE_ENDPOINT_UNCLOSED";
   multistartEvidence: {
     startCount?: number;
     bothStartsClosed?: boolean;
+    branchComparisonStatus?: "EVALUATED" | "NOT_EVALUABLE_ENDPOINT_UNCLOSED";
+    branchReproduced?: boolean;
+    primary?: {
+      solverSuccess?: boolean;
+      terminationStatus?: string;
+      terminationMessage?: string;
+      functionEvaluations?: number;
+      maximumScaledEquationResidual?: number;
+      closureLimit?: number;
+      residualClosureStatus?: "CLOSED" | "UNCLOSED";
+    };
+    secondary?: {
+      solverSuccess?: boolean;
+      terminationStatus?: string;
+      terminationMessage?: string;
+      functionEvaluations?: number;
+      maximumScaledEquationResidual?: number;
+      closureLimit?: number;
+      residualClosureStatus?: "CLOSED" | "UNCLOSED";
+    };
   };
   acceptanceBlockers: Array<{ code?: string; [key: string]: unknown }>;
   boundaryStreams: {
@@ -1900,10 +1924,38 @@ export default function EcrPrePilotDesignPage() {
                               <p>NMP-free recovery: <strong>{Number(trial.productMetrics.nmpFreeHydrocarbonRecoveryPct).toFixed(4)}%</strong></p>
                               <p>All calculable targets: <strong>{trial.allCalculableTargetsPass ? "PASS" : "FAIL"}</strong></p>
                             </div>
+                            <div className="grid gap-2 md:grid-cols-2">
+                              {(["primary", "secondary"] as const).map((branch) => {
+                                const evidence = trial.multistartEvidence?.[branch];
+                                return (
+                                  <p key={branch} className="rounded border bg-slate-50 p-2">
+                                    <strong className="capitalize">{branch}</strong>: termination{" "}
+                                    <strong>{evidence?.terminationStatus ?? (evidence?.solverSuccess ? "SUCCESS" : "NOT RECORDED")}</strong>
+                                    {" "}· residual closure{" "}
+                                    <strong>{evidence?.residualClosureStatus ?? "NOT RECORDED"}</strong>
+                                    {" "}· residual{" "}
+                                    <strong className="font-mono">
+                                      {Number(evidence?.maximumScaledEquationResidual ?? trial.maximumScaledEquationResidual).toExponential(3)}
+                                    </strong>
+                                  </p>
+                                );
+                              })}
+                            </div>
                             <p>
-                              Coupled solver: <strong>{trial.solverSuccess ? "CONVERGED" : "NOT CONVERGED"}</strong> · maximum scaled equation residual{" "}
-                              <strong className="font-mono">{trial.maximumScaledEquationResidual.toExponential(3)}</strong> · multistart outlet difference{" "}
-                              <strong className="font-mono">{trial.multistartProductRelativeDifference.toExponential(3)}</strong>
+                              Branch comparison:{" "}
+                              {trial.branchComparisonStatus === "NOT_EVALUABLE_ENDPOINT_UNCLOSED"
+                                || trial.multistartEvidence?.branchComparisonStatus === "NOT_EVALUABLE_ENDPOINT_UNCLOSED" ? (
+                                  <strong>NOT EVALUABLE — ENDPOINT UNCLOSED</strong>
+                                ) : (
+                                  <>
+                                    <strong>EVALUATED</strong> · boundary-product difference{" "}
+                                    <strong className="font-mono">
+                                      {trial.multistartProductRelativeDifference == null
+                                        ? "NOT RECORDED"
+                                        : trial.multistartProductRelativeDifference.toExponential(3)}
+                                    </strong>
+                                  </>
+                                )}
                             </p>
                             {trial.acceptanceBlockers.length > 0 && (
                               <p className="rounded border border-amber-200 bg-amber-50 p-2 text-amber-950">
