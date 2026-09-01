@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0.0",
+  "disposition": "RESEARCH ONLY — TASK206 PARAMETERS — NOT ACCEPTED FOR DESIGN",
+  "referenceJob": {"id": "a72e53d4-6747-4bc1-a36f-80bffdf2dc18", "projectNumber": 223, "designId": 256, "completedAt": "2026-09-01T10:30:39.831"},
+  "pins": {
+    "sourceExportSha256": "a210874fb83bc4ff0e05d95338a60ac627046f54567fcf69ffee0ee92dfb1aea",
+    "task206ResultsSha256": "a6176f4c5f36640b3e03832c9b0e1b355bd908a655bd8d242640d73038120c10",
+    "workerSha256": "06cd20c1a31c692b3a58d4cada8c149c00c2a97a46e58837052e804ef4ca1c45",
+    "modelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+    "countercurrentProtocolSha256": "a2e203e3dfd352ff8a10574be2a56d231e38b7a7fb2402ff8545ac347c4ebdcc",
+    "amendmentProtocolSha256": "247a1b5dbbefc7bba6779409751bf5486a28a159b3aecaaff36394a2ab594c44"
+  },
+  "stageNumbering": "bottom-to-top: Stage 1 = RRBO-feed/bottom; final stage = fresh-NMP/top",
+  "maximumStages": 10,
+  "releaseEligible": false
+}

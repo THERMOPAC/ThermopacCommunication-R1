@@ -1,0 +1,230 @@
+# RESEARCH ONLY — TASK206 PARAMETERS — NOT ACCEPTED FOR DESIGN
+
+Project 223; source job a72e53d4-6747-4bc1-a36f-80bffdf2dc18; design 256.
+
+## Executive conclusion
+All 10 N_T systems numerically closed and reproduced the recorded branch. N_T=1 and N_T=2 have no replay-stage post-split TPD blocker; they are replay trials, **not accepted design results**. N_T=3 through N_T=10 fail post-split TPD stability. **Accepted Predictive N_T: NOT ASSIGNED. Formal COSMO-SAC sulfur: NOT CALCULABLE.**
+
+Stage numbering is bottom-to-top: Stage 1 = RRBO-feed/bottom; final stage = fresh-NMP/top.
+
+## N_T product, closure, and target summary
+|N_T|Max scaled residual|Worst stage/phase TPD|Stability verdict|NMP-free recovery %|Saturates %|Total aromatics %|Polar aromatics %|NMP raffinate %|Targets|
+|---:|---:|---|---|---:|---:|---:|---:|---:|---|
+|1|2.53131e-14|S1/R -1.65447e-17|No replay-stage TPD blocker|91.299|89.980|9.029|0.991|7.271|1 pass / 4 fail / 1 NC|
+|2|5.21805e-14|S1/E -3.41239e-18|No replay-stage TPD blocker|88.790|92.023|7.400|0.578|6.981|2 pass / 3 fail / 1 NC|
+|3|7.68274e-14|S1/R -0.0242752|FAIL: post-split TPD|87.504|93.101|6.535|0.363|6.835|3 pass / 2 fail / 1 NC|
+|4|3.71370e-14|S1/E -0.0369368|FAIL: post-split TPD|86.748|93.746|6.016|0.238|6.749|3 pass / 2 fail / 1 NC|
+|5|2.88658e-14|S1/E -0.0438881|FAIL: post-split TPD|86.267|94.160|5.679|0.161|6.695|3 pass / 2 fail / 1 NC|
+|6|8.41549e-14|S1/R -0.0481886|FAIL: post-split TPD|85.945|94.439|5.451|0.110|6.658|3 pass / 2 fail / 1 NC|
+|7|1.21791e-13|S1/R -0.0510682|FAIL: post-split TPD|85.721|94.633|5.290|0.076|6.633|3 pass / 2 fail / 1 NC|
+|8|3.20188e-13|S1/E -0.0531058|FAIL: post-split TPD|85.562|94.772|5.174|0.053|6.615|3 pass / 2 fail / 1 NC|
+|9|5.33040e-12|S1/R -0.0546056|FAIL: post-split TPD|85.447|94.873|5.089|0.038|6.601|3 pass / 2 fail / 1 NC|
+|10|8.36398e-12|S1/E -0.0557421|FAIL: post-split TPD|85.361|94.947|5.026|0.027|6.592|3 pass / 2 fail / 1 NC|
+
+## Fresh Stage 1 flash
+|Metric|Value|
+|---|---:|
+|Equilibrium polish residual|2.84217e-14|
+|Extract fraction|0.440490|
+|Pre-split minimum TPD|-0.207414 (UNSTABLE_NEGATIVE_TPD)|
+|Post-split TPD, raffinate / extract|1.62926e-17 / 5.89704e-18|
+
+## Stage-level post-split TPD and local stability
+|N_T|Stage (bottom-to-top)|Phase|TPD minimum|TPD verdict|Local minimum eigenvalue|
+|---:|---:|---|---:|---|---:|
+|1|1|raffinate|-1.65447e-17|STABLE_NO_NEGATIVE_TPD|0.00348631|
+|1|1|extract|4.25420e-18|STABLE_NO_NEGATIVE_TPD|0.00536014|
+|2|1|raffinate|1.32882e-18|STABLE_NO_NEGATIVE_TPD|0.00450508|
+|2|1|extract|-3.41239e-18|STABLE_NO_NEGATIVE_TPD|0.00667818|
+|2|2|raffinate|1.67355e-18|STABLE_NO_NEGATIVE_TPD|0.00207686|
+|2|2|extract|7.64336e-18|STABLE_NO_NEGATIVE_TPD|0.00322657|
+|3|1|raffinate|-0.0242752|UNSTABLE_NEGATIVE_TPD|0.00496739|
+|3|1|extract|-0.0242752|UNSTABLE_NEGATIVE_TPD|0.00710740|
+|3|2|raffinate|-1.11484e-17|STABLE_NO_NEGATIVE_TPD|0.00293690|
+|3|2|extract|5.82207e-18|STABLE_NO_NEGATIVE_TPD|0.00450353|
+|3|3|raffinate|2.38435e-18|STABLE_NO_NEGATIVE_TPD|0.00132028|
+|3|3|extract|1.04546e-17|STABLE_NO_NEGATIVE_TPD|0.00205375|
+|4|1|raffinate|-0.0369368|UNSTABLE_NEGATIVE_TPD|0.00521650|
+|4|1|extract|-0.0369368|UNSTABLE_NEGATIVE_TPD|0.00725292|
+|4|2|raffinate|1.03974e-17|STABLE_NO_NEGATIVE_TPD|0.00338517|
+|4|2|extract|5.86376e-18|STABLE_NO_NEGATIVE_TPD|0.00512970|
+|4|3|raffinate|9.03568e-17|STABLE_NO_NEGATIVE_TPD|0.00196714|
+|4|3|extract|-2.20335e-18|STABLE_NO_NEGATIVE_TPD|0.00303306|
+|4|4|raffinate|1.28124e-17|STABLE_NO_NEGATIVE_TPD|0.000871556|
+|4|4|extract|-7.88676e-18|STABLE_NO_NEGATIVE_TPD|0.00135624|
+|5|1|raffinate|-0.0438881|UNSTABLE_NEGATIVE_TPD|0.00536332|
+|5|1|extract|-0.0438881|UNSTABLE_NEGATIVE_TPD|0.00729797|
+|5|2|raffinate|-0.0195240|UNSTABLE_NEGATIVE_TPD|0.00364444|
+|5|2|extract|-0.0195240|UNSTABLE_NEGATIVE_TPD|0.00546582|
+|5|3|raffinate|1.90262e-18|STABLE_NO_NEGATIVE_TPD|0.00233406|
+|5|3|extract|-4.99336e-18|STABLE_NO_NEGATIVE_TPD|0.00357528|
+|5|4|raffinate|8.23922e-18|STABLE_NO_NEGATIVE_TPD|0.00134248|
+|5|4|extract|3.25462e-18|STABLE_NO_NEGATIVE_TPD|0.00207254|
+|5|5|raffinate|-1.70854e-17|STABLE_NO_NEGATIVE_TPD|0.000589456|
+|5|5|extract|4.41353e-18|STABLE_NO_NEGATIVE_TPD|0.000917283|
+|6|1|raffinate|-0.0481886|UNSTABLE_NEGATIVE_TPD|0.00545441|
+|6|1|extract|-0.0481886|UNSTABLE_NEGATIVE_TPD|0.00730566|
+|6|2|raffinate|-0.0309519|UNSTABLE_NEGATIVE_TPD|0.00380343|
+|6|2|extract|-0.0309519|UNSTABLE_NEGATIVE_TPD|0.00565642|
+|6|3|raffinate|-0.00608823|UNSTABLE_NEGATIVE_TPD|0.00255695|
+|6|3|extract|-0.00608823|UNSTABLE_NEGATIVE_TPD|0.00389644|
+|6|4|raffinate|-3.59525e-18|STABLE_NO_NEGATIVE_TPD|0.00162456|
+|6|4|extract|-4.10782e-19|STABLE_NO_NEGATIVE_TPD|0.00249587|
+|6|5|raffinate|6.48987e-18|STABLE_NO_NEGATIVE_TPD|0.000928288|
+|6|5|extract|-2.20040e-18|STABLE_NO_NEGATIVE_TPD|0.00143362|
+|6|6|raffinate|2.49913e-18|STABLE_NO_NEGATIVE_TPD|0.000404779|
+|6|6|extract|1.97722e-18|STABLE_NO_NEGATIVE_TPD|0.000630515|
+|7|1|raffinate|-0.0510682|UNSTABLE_NEGATIVE_TPD|0.00551344|
+|7|1|extract|-0.0510682|UNSTABLE_NEGATIVE_TPD|0.00729926|
+|7|2|raffinate|-0.0379788|UNSTABLE_NEGATIVE_TPD|0.00390575|
+|7|2|extract|-0.0379788|UNSTABLE_NEGATIVE_TPD|0.00576860|
+|7|3|raffinate|-0.0209928|UNSTABLE_NEGATIVE_TPD|0.00269832|
+|7|3|extract|-0.0209928|UNSTABLE_NEGATIVE_TPD|0.00409488|
+|7|4|raffinate|2.03014e-16|STABLE_NO_NEGATIVE_TPD|0.00180206|
+|7|4|extract|1.57869e-18|STABLE_NO_NEGATIVE_TPD|0.00275874|
+|7|5|raffinate|-1.72543e-17|STABLE_NO_NEGATIVE_TPD|0.00113842|
+|7|5|extract|1.06668e-17|STABLE_NO_NEGATIVE_TPD|0.00175157|
+|7|6|raffinate|4.84050e-18|STABLE_NO_NEGATIVE_TPD|0.000647658|
+|7|6|extract|4.84464e-18|STABLE_NO_NEGATIVE_TPD|0.00100063|
+|7|7|raffinate|6.63419e-18|STABLE_NO_NEGATIVE_TPD|0.000281671|
+|7|7|extract|-6.58206e-18|STABLE_NO_NEGATIVE_TPD|0.000438221|
+|8|1|raffinate|-0.0531058|UNSTABLE_NEGATIVE_TPD|0.00555208|
+|8|1|extract|-0.0531058|UNSTABLE_NEGATIVE_TPD|0.00728853|
+|8|2|raffinate|-0.0426598|UNSTABLE_NEGATIVE_TPD|0.00397249|
+|8|2|extract|-0.0426598|UNSTABLE_NEGATIVE_TPD|0.00583599|
+|8|3|raffinate|-0.0301681|UNSTABLE_NEGATIVE_TPD|0.00279032|
+|8|3|extract|-0.0301681|UNSTABLE_NEGATIVE_TPD|0.00422071|
+|8|4|raffinate|-0.0132498|UNSTABLE_NEGATIVE_TPD|0.00191641|
+|8|4|extract|-0.0132498|UNSTABLE_NEGATIVE_TPD|0.00292731|
+|8|5|raffinate|-1.44561e-17|STABLE_NO_NEGATIVE_TPD|0.00127501|
+|8|5|extract|-5.39617e-18|STABLE_NO_NEGATIVE_TPD|0.00195491|
+|8|6|raffinate|1.64048e-18|STABLE_NO_NEGATIVE_TPD|0.000802741|
+|8|6|extract|1.39131e-16|STABLE_NO_NEGATIVE_TPD|0.00123526|
+|8|7|raffinate|-1.80640e-18|STABLE_NO_NEGATIVE_TPD|0.000455406|
+|8|7|extract|-1.07661e-18|STABLE_NO_NEGATIVE_TPD|0.000703354|
+|8|8|raffinate|8.64656e-18|STABLE_NO_NEGATIVE_TPD|0.000197380|
+|8|8|extract|9.19300e-19|STABLE_NO_NEGATIVE_TPD|0.000307143|
+|9|1|raffinate|-0.0546056|UNSTABLE_NEGATIVE_TPD|0.00557756|
+|9|1|extract|-0.0546056|UNSTABLE_NEGATIVE_TPD|0.00727688|
+|9|2|raffinate|-0.0459610|UNSTABLE_NEGATIVE_TPD|0.00401653|
+|9|2|extract|-0.0459610|UNSTABLE_NEGATIVE_TPD|0.00587701|
+|9|3|raffinate|-0.0362809|UNSTABLE_NEGATIVE_TPD|0.00285177|
+|9|3|extract|-0.0362809|UNSTABLE_NEGATIVE_TPD|0.00430271|
+|9|4|raffinate|-0.0240962|UNSTABLE_NEGATIVE_TPD|0.00199350|
+|9|4|extract|-0.0240962|UNSTABLE_NEGATIVE_TPD|0.00303776|
+|9|5|raffinate|-0.00718116|UNSTABLE_NEGATIVE_TPD|0.00136430|
+|9|5|extract|-0.00718116|UNSTABLE_NEGATIVE_TPD|0.00208830|
+|9|6|raffinate|2.14546e-18|STABLE_NO_NEGATIVE_TPD|0.000904955|
+|9|6|extract|9.24209e-18|STABLE_NO_NEGATIVE_TPD|0.00138837|
+|9|7|raffinate|-1.23199e-17|STABLE_NO_NEGATIVE_TPD|0.000568604|
+|9|7|extract|-1.20795e-18|STABLE_NO_NEGATIVE_TPD|0.000874651|
+|9|8|raffinate|3.37021e-18|STABLE_NO_NEGATIVE_TPD|0.000321360|
+|9|8|extract|-1.10831e-17|STABLE_NO_NEGATIVE_TPD|0.000496871|
+|9|9|raffinate|4.31172e-18|STABLE_NO_NEGATIVE_TPD|0.000138890|
+|9|9|extract|1.68109e-19|STABLE_NO_NEGATIVE_TPD|0.000216567|
+|10|1|raffinate|-0.0557421|UNSTABLE_NEGATIVE_TPD|0.00559573|
+|10|1|extract|-0.0557421|UNSTABLE_NEGATIVE_TPD|0.00726562|
+|10|2|raffinate|-0.0483875|UNSTABLE_NEGATIVE_TPD|0.00404674|
+|10|2|extract|-0.0483875|UNSTABLE_NEGATIVE_TPD|0.00590202|
+|10|3|raffinate|-0.0405929|UNSTABLE_NEGATIVE_TPD|0.00289293|
+|10|3|extract|-0.0405929|UNSTABLE_NEGATIVE_TPD|0.00435619|
+|10|4|raffinate|-0.0313371|UNSTABLE_NEGATIVE_TPD|0.00204474|
+|10|4|extract|-0.0313371|UNSTABLE_NEGATIVE_TPD|0.00311116|
+|10|5|raffinate|-0.0193232|UNSTABLE_NEGATIVE_TPD|0.00142488|
+|10|5|extract|-0.0193232|UNSTABLE_NEGATIVE_TPD|0.00217715|
+|10|6|raffinate|-0.00239142|UNSTABLE_NEGATIVE_TPD|0.000973064|
+|10|6|extract|-0.00239142|UNSTABLE_NEGATIVE_TPD|0.00149032|
+|10|7|raffinate|8.96347e-18|STABLE_NO_NEGATIVE_TPD|0.000643338|
+|10|7|extract|1.37748e-18|STABLE_NO_NEGATIVE_TPD|0.000987874|
+|10|8|raffinate|-4.91172e-15|STABLE_NO_NEGATIVE_TPD|0.000403848|
+|10|8|extract|-8.93717e-18|STABLE_NO_NEGATIVE_TPD|0.000621281|
+|10|9|raffinate|6.66823e-18|STABLE_NO_NEGATIVE_TPD|0.000228151|
+|10|9|extract|8.62131e-19|STABLE_NO_NEGATIVE_TPD|0.000352332|
+|10|10|raffinate|1.17326e-17|STABLE_NO_NEGATIVE_TPD|0.0000985580|
+|10|10|extract|-5.45908e-18|STABLE_NO_NEGATIVE_TPD|0.000153265|
+
+## Target-compliance details
+|N_T|Target|Calculated|Limit|Status|
+|---:|---|---:|---:|---|
+|1|maximumNmpRaffinateWt|7.27146|6.50000|FAIL|
+|1|maximumRaffinatePolarAromaticsWt|0.991123|0.500000|FAIL|
+|1|maximumRaffinateTotalAromaticsWt|9.02916|5.00000|FAIL|
+|1|minimumNmpFreeRecoveryPct|91.2987|85.0000|PASS|
+|1|minimumRaffinateSaturatesWt|89.9797|90.0000|FAIL|
+|1|targetRaffinateSulfurPpm|NOT CALCULABLE|1000.00|NOT_CALCULABLE|
+|2|maximumNmpRaffinateWt|6.98108|6.50000|FAIL|
+|2|maximumRaffinatePolarAromaticsWt|0.577788|0.500000|FAIL|
+|2|maximumRaffinateTotalAromaticsWt|7.39954|5.00000|FAIL|
+|2|minimumNmpFreeRecoveryPct|88.7898|85.0000|PASS|
+|2|minimumRaffinateSaturatesWt|92.0227|90.0000|PASS|
+|2|targetRaffinateSulfurPpm|NOT CALCULABLE|1000.00|NOT_CALCULABLE|
+|3|maximumNmpRaffinateWt|6.83467|6.50000|FAIL|
+|3|maximumRaffinatePolarAromaticsWt|0.363316|0.500000|PASS|
+|3|maximumRaffinateTotalAromaticsWt|6.53543|5.00000|FAIL|
+|3|minimumNmpFreeRecoveryPct|87.5042|85.0000|PASS|
+|3|minimumRaffinateSaturatesWt|93.1013|90.0000|PASS|
+|3|targetRaffinateSulfurPpm|NOT CALCULABLE|1000.00|NOT_CALCULABLE|
+|4|maximumNmpRaffinateWt|6.74914|6.50000|FAIL|
+|4|maximumRaffinatePolarAromaticsWt|0.238382|0.500000|PASS|
+|4|maximumRaffinateTotalAromaticsWt|6.01587|5.00000|FAIL|
+|4|minimumNmpFreeRecoveryPct|86.7484|85.0000|PASS|
+|4|minimumRaffinateSaturatesWt|93.7458|90.0000|PASS|
+|4|targetRaffinateSulfurPpm|NOT CALCULABLE|1000.00|NOT_CALCULABLE|
+|5|maximumNmpRaffinateWt|6.69478|6.50000|FAIL|
+|5|maximumRaffinatePolarAromaticsWt|0.160602|0.500000|PASS|
+|5|maximumRaffinateTotalAromaticsWt|5.67944|5.00000|FAIL|
+|5|minimumNmpFreeRecoveryPct|86.2673|85.0000|PASS|
+|5|minimumRaffinateSaturatesWt|94.1600|90.0000|PASS|
+|5|targetRaffinateSulfurPpm|NOT CALCULABLE|1000.00|NOT_CALCULABLE|
+|6|maximumNmpRaffinateWt|6.65832|6.50000|FAIL|
+|6|maximumRaffinatePolarAromaticsWt|0.110112|0.500000|PASS|
+|6|maximumRaffinateTotalAromaticsWt|5.45082|5.00000|FAIL|
+|6|minimumNmpFreeRecoveryPct|85.9450|85.0000|PASS|
+|6|minimumRaffinateSaturatesWt|94.4391|90.0000|PASS|
+|6|targetRaffinateSulfurPpm|NOT CALCULABLE|1000.00|NOT_CALCULABLE|
+|7|maximumNmpRaffinateWt|6.63292|6.50000|FAIL|
+|7|maximumRaffinatePolarAromaticsWt|0.0764140|0.500000|PASS|
+|7|maximumRaffinateTotalAromaticsWt|5.29013|5.00000|FAIL|
+|7|minimumNmpFreeRecoveryPct|85.7214|85.0000|PASS|
+|7|minimumRaffinateSaturatesWt|94.6335|90.0000|PASS|
+|7|targetRaffinateSulfurPpm|NOT CALCULABLE|1000.00|NOT_CALCULABLE|
+|8|maximumNmpRaffinateWt|6.61476|6.50000|FAIL|
+|8|maximumRaffinatePolarAromaticsWt|0.0534880|0.500000|PASS|
+|8|maximumRaffinateTotalAromaticsWt|5.17435|5.00000|FAIL|
+|8|minimumNmpFreeRecoveryPct|85.5622|85.0000|PASS|
+|8|minimumRaffinateSaturatesWt|94.7722|90.0000|PASS|
+|8|targetRaffinateSulfurPpm|NOT CALCULABLE|1000.00|NOT_CALCULABLE|
+|9|maximumNmpRaffinateWt|6.60149|6.50000|FAIL|
+|9|maximumRaffinatePolarAromaticsWt|0.0376762|0.500000|PASS|
+|9|maximumRaffinateTotalAromaticsWt|5.08932|5.00000|FAIL|
+|9|minimumNmpFreeRecoveryPct|85.4465|85.0000|PASS|
+|9|minimumRaffinateSaturatesWt|94.8730|90.0000|PASS|
+|9|targetRaffinateSulfurPpm|NOT CALCULABLE|1000.00|NOT_CALCULABLE|
+|10|maximumNmpRaffinateWt|6.59164|6.50000|FAIL|
+|10|maximumRaffinatePolarAromaticsWt|0.0266624|0.500000|PASS|
+|10|maximumRaffinateTotalAromaticsWt|5.02592|5.00000|FAIL|
+|10|minimumNmpFreeRecoveryPct|85.3612|85.0000|PASS|
+|10|minimumRaffinateSaturatesWt|94.9474|90.0000|PASS|
+|10|targetRaffinateSulfurPpm|NOT CALCULABLE|1000.00|NOT_CALCULABLE|
+
+## Task206 parameter vector
+|Parameter|Value|
+|---|---:|
+|A_MONO_NMP_asymmetry|-0.550455907497|
+|A_MONO_NMP_ref|2.308305427722|
+|A_MONO_NMP_temperature|-0.680381006538|
+|A_SAT_MONO_asymmetry|-0.673709197592|
+|A_SAT_MONO_ref|3.431076990665|
+|A_SAT_MONO_temperature|-0.588130214663|
+|A_SAT_NMP_asymmetry|-0.573242605597|
+|A_SAT_NMP_ref|2.913902338473|
+|A_SAT_NMP_temperature|-0.226748917363|
+
+## Provenance and limitations
+Task206 parameter vector SHA256: `4b778e4a3695abec88742b8b4987e1fa11695baede98049dadb346014c556023`.
+Source completion time: 2026-09-01T10:30:39.831.
+Stage-1 immutable snapshot SHA256: `e2c451e05d4016b7540800fa284a71114ccc3e7f13631aebf6fc9bca1aec6c55`.
+- Task206 frozen validation is INCOMPATIBLE_FAIL_CLOSED.
+- No active-model global qualification is attributed to Task206.
+- Formal COSMO-SAC sulfur remains NOT_CALCULABLE.
+Worker-carried active-model global qualification was segregated and is not attributed to Task206.

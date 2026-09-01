@@ -91,3 +91,4 @@
 - [Cascade equation row scaling](cascade-equation-row-scaling.md) — mixed balance/isoactivity cascades may need row-equilibrated Newton; always judge closure on the original residuals.
 - [Predictive N_T endpoint semantics](predictive-nt-endpoint-semantics.md) — raw residual closure is independent of optimizer success; compare branches only after both endpoints close.
 - [Post-split TPD qualification](post-split-tpd-qualification.md) — boundary minima require active-set simplex KKT; genuine lower-Gibbs basins keep the current six-component N_T model fail-closed.
+- [Stability-constrained Predictive N_T replay](stability-constrained-predictive-nt-replay.md) — Project 223 closes N_T 1–10; only 1–2 lack a replay TPD blocker; no N_T is accepted.

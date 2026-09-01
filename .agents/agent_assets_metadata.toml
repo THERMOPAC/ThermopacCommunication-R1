@@ -743,3 +743,17 @@ mtime_ms = 1788265942911
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/8a600507-4a10-4adb-95ef-aeda80392534/e6177f73-fcc9-436a-bf13-87981c9fb562"
 storage_version_token = "1788266004672629"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "uVTXBpXCIcf32IkFXKgtY"
+uri = "file://.agents/outputs/project-223-task206-predictive-nt-replay/report.pdf"
+type = "pdf"
+title = "Project 223 — Task206 Predictive N_T Research Replay"
+description = "Verified six-page research-only report covering N_T 1–10 closure, stage-level TPD, product targets, Task206 parameters, and provenance. Not accepted for design."
+logical_id = "878575cc-8adc-4c98-8222-e42969757390"
+content_hash = "sha256:1c4794a83f2e45ace327a66a20de4e746fbcdb6853b5813085e7201844a176f0"
+size = 24851
+mtime_ms = 1788270722244
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/878575cc-8adc-4c98-8222-e42969757390/09659838-f1d9-41f4-a0dc-fa11faafcdb2"
+storage_version_token = "1788271409476382"
+content_type = "application/pdf"
