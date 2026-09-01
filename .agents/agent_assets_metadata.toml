@@ -729,3 +729,17 @@ mtime_ms = 1788252830221
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/eba7039b-ebbe-435e-9963-cfb24e2c564e/7381e822-48da-4d68-8a5d-bc7bcd23f1be"
 storage_version_token = "1788252888494955"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "fTEJMOCy0KBu4XFj0QL60"
+uri = "file://.agents/outputs/stability-accuracy-causal-audit/report.md"
+type = "text"
+title = "Stability–Accuracy Causal Audit"
+description = "Pinned research audit separating exact coefficient attribution from model-form interpretation across 512 hybrids and 57 frozen TPD states."
+logical_id = "8a600507-4a10-4adb-95ef-aeda80392534"
+content_hash = "sha256:f4de9d2b9378cd5f409888214c1764faeaff79e7fdf7409aff4a5111af962bb1"
+size = 2208
+mtime_ms = 1788265942911
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/8a600507-4a10-4adb-95ef-aeda80392534/e6177f73-fcc9-436a-bf13-87981c9fb562"
+storage_version_token = "1788266004672629"
+content_type = "text/markdown"

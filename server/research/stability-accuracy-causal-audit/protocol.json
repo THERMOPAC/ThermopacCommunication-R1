@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0.0",
+  "analysis": "Research-only exhaustive endpoint-hybrid causal audit",
+  "pinnedInputs": {
+    "model.py": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+    "amendmentProtocol": "247a1b5dbbefc7bba6779409751bf5486a28a159b3aecaaff36394a2ab594c44",
+    "evidence": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+    "activeResults": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+    "task206Results": "a6176f4c5f36640b3e03832c9b0e1b355bd908a655bd8d242640d73038120c10",
+    "rootCauseResults": "6c4aab21bd0a4468dd0615fd5f5d6bee21f3a124d5ccf0db6b9118ed8e3f0280",
+    "rootCauseProvenance": "0624ec160d07166ae8308de306c89ba114c5c16b204e3d384961929c3ae2cb47"
+  },
+  "frozenStateDefinition": "The 57 genuine Task216 z,w* records pinned through the Task218 root-cause result",
+  "hybridDefinition": "Each of nine coefficients independently takes its active or Task206 endpoint value",
+  "stableThreshold": -1e-8,
+  "shapleyDefinition": "Exact exhaustive 2^9 coalition value function with factorial coalition weights",
+  "governance": {
+    "researchOnly": true,
+    "productionModelModified": false,
+    "candidateModelProposed": false,
+    "candidateModelAdmitted": false,
+    "releaseEligible": false
+  }
+}
