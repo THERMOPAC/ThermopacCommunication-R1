@@ -1468,6 +1468,7 @@ async function finishJob(
     let reportPdf: Buffer | null = null;
     let reportFilename: string | null = null;
     let reportSha256: string | null = null;
+    const terminalCompletedAt = current.completed_at ?? new Date();
     if (finalStatus === 'completed') {
       try {
         if (
@@ -1481,7 +1482,7 @@ async function finishJob(
           projectNumber: Number(current.project_number),
           modelHash: current.model_hash,
           engineHash: current.engine_hash,
-          completedAt: new Date(),
+          completedAt: terminalCompletedAt,
           input: current.input_snapshot,
           result: finalResult,
         });
@@ -1499,13 +1500,13 @@ async function finishJob(
       `UPDATE ecr_pre_pilot_predictive_nt_jobs
           SET status = $3, result_snapshot = $4, error = $5,
                report_pdf = $6, report_filename = $7, report_sha256 = $8,
-               report_generated_at = CASE WHEN $6::bytea IS NULL THEN NULL ELSE NOW() END,
-               completed_at = NOW(), lease_expires_at = NULL, updated_at = NOW()
+                report_generated_at = CASE WHEN $6::bytea IS NULL THEN NULL ELSE $9::timestamptz END,
+                completed_at = $9::timestamptz, lease_expires_at = NULL, updated_at = NOW()
         WHERE id = $1 AND status = 'running' AND claim_token = $2
         RETURNING *`,
       [
         jobId, claimToken, finalStatus, finalResult, finalError,
-        reportPdf, reportFilename, reportSha256,
+        reportPdf, reportFilename, reportSha256, terminalCompletedAt,
       ],
     );
     if (updated.rows[0]) await recordHistory(client, updated.rows[0], { event: 'finished' });

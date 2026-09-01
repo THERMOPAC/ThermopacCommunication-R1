@@ -658,6 +658,7 @@ uri = "file://reports/LLX-RND-2026-0003-ECR2-Run-948-Review.pdf"
 type = "pdf"
 title = "ECR-2 Simulation Run #948 Review"
 description = "Four-page frozen-snapshot audit for LLX-RND-2026-0003. It documents the blocked calculation path, unavailable outputs, thermodynamic limitations, warnings, and the NOT CALCULABLE / NOT RELEASE ELIGIBLE disposition."
+logical_id = "9c52b1ee-0d79-4887-8179-83613ed2676a"
 
 [[outputs]]
 id = "Gn-uI4D5ibg-WF1t0aV3b"
@@ -665,6 +666,7 @@ uri = "file://.agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/report.md
 type = "text"
 title = "Task #199 — COSMO-SAC Two-Liquid NMP/Base-Oil Equilibrium Report"
 description = "Verified research report covering the amended model, six-component Stage 1 equilibrium, TPD/Gibbs/closure results, blind validation, extraction-target checks, qualification verdict, and N_T ≤ 10 boundary."
+logical_id = "9ff2cc32-a48c-414e-8070-90a830862fb5"
 
 [[outputs]]
 id = "WRYM1UL6tq2FvvqXbGB2Q"
@@ -672,6 +674,7 @@ uri = "file://.agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/repo
 type = "text"
 title = "Task #204 — Full Liquid-Phase Stability Report"
 description = "Merged tangent-Hessian and seeded TPD stability results for the single-stage prediction and all counter-current phase candidates at 25°C and 50°C."
+logical_id = "fccc9454-d0a2-4add-8fde-2b27e1cbcd46"
 
 [[outputs]]
 id = "y3KjCpsK27DS5zEFFcRKu"
@@ -679,6 +682,7 @@ uri = "file://.agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/scre
 type = "text"
 title = "Alternative Product-Gate Screening Report"
 description = "Scenario-only comparison using NMP <6.5 wt%, total aromatics <1.5 wt%, and polar aromatics <0.1 wt%. Official targets and governed acceptance remain unchanged."
+logical_id = "bd7aade2-5a1c-444b-9344-ac1f9543f913"
 
 [[outputs]]
 id = "97HE-9TznutlVT5Z-sZZq"
@@ -686,6 +690,7 @@ uri = "file://.agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/fixe
 type = "text"
 title = "Fixed NT=7 RRBO Feed-Composition Sensitivity Report"
 description = "Direct 25°C calculations for 85%, 88%, and 90% saturates feeds, including mole fractions, raffinate and extract results, balances, multistart diagnostics, TPD stability, screening gates, and final comparison."
+logical_id = "31c18171-2236-48bd-add0-6e6a5ae7fac9"
 
 [[outputs]]
 id = "s-EgpWn_D1IADQEyjHCnE"
@@ -693,6 +698,7 @@ uri = "file://reports/task-209-persisted-six-component-stage-compositions.csv"
 type = "table"
 title = "Task 209 persisted six-component stage compositions"
 description = "All 220 persisted counter-current stage-phase rows for the 25°C and 50°C legacy research cases, NT 1–10. Values are stored phase mass fractions expressed as wt%; every row is RESEARCH DIAGNOSTIC — NOT ACCEPTED. These artifacts are not Project 111-authoritative."
+logical_id = "7dfefe3f-cee9-4cab-84d4-4a836d369a90"
 
 [[outputs]]
 id = "YQUTVv8DT4KXIpZtHhn_P"
@@ -700,6 +706,7 @@ uri = "file://reports/project-111-predictive-nt-research-diagnostic.pdf"
 type = "pdf"
 title = "Project 111 Predictive N_T Report"
 description = "72-page frozen report for the completed 10-trial six-component COSMO-SAC run. Clearly marked research diagnostic, not accepted, and not release eligible."
+logical_id = "9ac7403c-c251-4713-9fdc-304915523ff1"
 
 [[outputs]]
 id = "4bYaQTux8jTw2GIdn0lw-"
@@ -707,3 +714,18 @@ uri = "file://reports/project-111-predictive-nt-engineering-report.pdf"
 type = "pdf"
 title = "Project 111 Predictive N_T Report — Multistart-Corrected Revision"
 description = "Corrected 36-page controlled report. Page 34 now shows primary and secondary residuals, both-starts-closed status, authoritative nonzero branch differences, the unchanged 1e-6 limit, and multistart gate verdicts."
+logical_id = "b27c1b59-e653-4090-a01d-c52adbcabc7d"
+
+[[outputs]]
+id = "XJ1RuTwhdBmALxxxzXrPD"
+uri = "file://reports/project-209-predictive-nt-engineering-report-restructured.pdf"
+type = "pdf"
+title = "Restructured Predictive N_T Engineering Report"
+description = "Regenerated from a real persisted completed Project 209 run. Includes the engineering report, scientific appendices, fail-closed sulfur allocation estimate, and explicit bottom-to-top stage-numbering note."
+logical_id = "eba7039b-ebbe-435e-9963-cfb24e2c564e"
+content_hash = "sha256:87f2beae6d88df6268888f922c41b60d94ca69e87869cfec7948d95f339b6fef"
+size = 35242
+mtime_ms = 1788252830221
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/eba7039b-ebbe-435e-9963-cfb24e2c564e/7381e822-48da-4d68-8a5d-bc7bcd23f1be"
+storage_version_token = "1788252888494955"
+content_type = "application/pdf"
