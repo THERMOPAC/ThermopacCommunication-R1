@@ -110,7 +110,8 @@ export function isResetTokenValid(expiresAt: Date): boolean {
 export async function sendPasswordResetEmail(
   email: string,
   username: string,
-  resetToken: string
+  resetToken: string,
+  resetBaseUrl?: string
 ): Promise<void> {
   const transporter = createMailTransporter();
   if (!transporter) {
@@ -118,8 +119,13 @@ export async function sendPasswordResetEmail(
     return;
   }
 
-  // Always use production URL for reset links to avoid localhost issues
-  const resetUrl = `https://thermopac-communication-thermopacllp.replit.app/reset-password?token=${resetToken}`;
+  // Keep the reset link in the same environment that issued and stores the
+  // token. Preview and production use separate databases.
+  const baseUrl = resetBaseUrl
+    ?? (process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : 'https://thermopac-communication-thermopacllp.replit.app');
+  const resetUrl = `${baseUrl.replace(/\/+$/, '')}/reset-password?token=${resetToken}`;
   
   const emailContent = {
     from: process.env.GMAIL_USER,

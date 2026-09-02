@@ -744,7 +744,12 @@ export function setupAuth(app: Express) {
 
       // 5. Send email with raw token — never stored, never returned in response
       try {
-        await sendPasswordResetEmail(user.email, user.username, rawToken);
+        const resetBaseUrl = process.env.REPLIT_DEPLOYMENT
+          ? 'https://thermopac-communication-thermopacllp.replit.app'
+          : process.env.REPLIT_DEV_DOMAIN
+            ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+            : undefined;
+        await sendPasswordResetEmail(user.email, user.username, rawToken, resetBaseUrl);
       } catch (emailErr) {
         console.error('[ForgotPassword] Email send failed:', emailErr);
         // Clear token so a corrupt state isn't left in DB
