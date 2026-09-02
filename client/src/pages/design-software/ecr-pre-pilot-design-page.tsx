@@ -513,6 +513,27 @@ function parseNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function nmpComplement(value: string): string | null {
+  const trimmed = value.trim();
+  const match = /^(\d+)(?:\.(\d*))?$/.exec(trimmed);
+  if (!match) return null;
+
+  const fractionalDigits = match[2]?.length ?? 0;
+  const scale = 10n ** BigInt(fractionalDigits);
+  const entered = BigInt(match[1]) * scale + BigInt(match[2] || "0");
+  const total = 100n * scale;
+  if (entered < 0n || entered > total) return null;
+
+  const complement = total - entered;
+  if (fractionalDigits === 0) return complement.toString();
+  const whole = complement / scale;
+  const fractional = (complement % scale)
+    .toString()
+    .padStart(fractionalDigits, "0")
+    .replace(/0+$/, "");
+  return fractional ? `${whole}.${fractional}` : whole.toString();
+}
+
 function isAllowedOption(value: string, options: Array<string | { value: string }>) {
   return options.some((option) => (typeof option === "string" ? option : option.value) === value);
 }
@@ -582,8 +603,11 @@ function validateForm(form: FormState): ValidationErrors {
   numeric("rrboDensityKgM3", "RRBO density", { min: 0.001 });
   numeric("rrboDynamicViscosityCp", "RRBO dynamic viscosity", { min: 0.001 });
   numeric("rrboInterfacialTensionMnM", "RRBO interfacial tension", { min: 0.001 });
-  numeric("nmpPurityWt", "NMP purity", { min: 0, max: 100 });
-  numeric("nmpWaterWt", "Water in NMP", { min: 0, max: 100 });
+  const nmpPurity = numeric("nmpPurityWt", "NMP purity", { min: 0, max: 100 });
+  const nmpWater = numeric("nmpWaterWt", "Water in NMP", { min: 0, max: 100 });
+  if (nmpPurity !== null && nmpWater !== null && Math.abs(nmpPurity + nmpWater - 100) > 1e-9) {
+    errors.nmpWaterWt = "NMP purity and water must total exactly 100 wt%.";
+  }
   numeric("nmpTemperatureC", "NMP temperature", { min: 25, max: 100 });
   numeric("nmpDensityKgM3", "NMP density", { min: 0.001 });
   numeric("nmpDynamicViscosityCp", "NMP dynamic viscosity", { min: 0.001 });
@@ -663,7 +687,7 @@ function getStandardNmpProperties(operatingTemperature: string) {
 
   return {
     purityWt: NMP_STANDARD_PURPOSE.purityWt,
-    waterWt: NMP_STANDARD_PURPOSE.waterWt,
+    waterWt: nmpComplement(NMP_STANDARD_PURPOSE.purityWt) as string,
     temperatureC: operatingTemperature,
     densityKgM3: densityKgM3 === null ? "" : densityKgM3.toFixed(1),
     dynamicViscosityCp: dynamicViscosityCp === null ? "" : dynamicViscosityCp.toFixed(3),
@@ -990,6 +1014,21 @@ export default function EcrPrePilotDesignPage() {
     }
   };
 
+  const setLinkedNmpField = (key: "nmpPurityWt" | "nmpWaterWt", value: string) => {
+    const complement = nmpComplement(value);
+    const counterpart = key === "nmpPurityWt" ? "nmpWaterWt" : "nmpPurityWt";
+    const nextForm = {
+      ...form,
+      [key]: value,
+      ...(complement === null ? {} : { [counterpart]: complement }),
+    };
+    setForm(nextForm);
+    setSaveState("unsaved");
+    if (validationAttempted) {
+      setValidationErrors(validateForm(nextForm));
+    }
+  };
+
   const handleRrboGradeChange = (grade: string) => {
     const properties = getStandardRrboProperties(grade, form.operatingTemperatureC);
     const nextForm = {
@@ -1015,8 +1054,6 @@ export default function EcrPrePilotDesignPage() {
       rrboDensityKgM3: rrboProperties.densityKgM3,
       rrboDynamicViscosityCp: rrboProperties.dynamicViscosityCp,
       rrboInterfacialTensionMnM: rrboProperties.interfacialTensionMnM,
-      nmpPurityWt: nmpProperties.purityWt,
-      nmpWaterWt: nmpProperties.waterWt,
       nmpTemperatureC: nmpProperties.temperatureC,
       nmpDensityKgM3: nmpProperties.densityKgM3,
       nmpDynamicViscosityCp: nmpProperties.dynamicViscosityCp,
@@ -1503,7 +1540,7 @@ export default function EcrPrePilotDesignPage() {
                 id="nmp-purity"
                 label="NMP purity"
                 value={form.nmpPurityWt}
-                onChange={(value) => setField("nmpPurityWt", value)}
+                onChange={(value) => setLinkedNmpField("nmpPurityWt", value)}
                 unit="wt%"
                 max="100"
                 error={validationErrors.nmpPurityWt}
@@ -1512,7 +1549,7 @@ export default function EcrPrePilotDesignPage() {
                 id="nmp-water"
                 label="Water in NMP"
                 value={form.nmpWaterWt}
-                onChange={(value) => setField("nmpWaterWt", value)}
+                onChange={(value) => setLinkedNmpField("nmpWaterWt", value)}
                 unit="wt%"
                 max="100"
                 error={validationErrors.nmpWaterWt}
