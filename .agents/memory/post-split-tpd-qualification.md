@@ -14,3 +14,9 @@ A candidate with zero negative or unresolved global-TPD endpoints is still a con
 **Why:** Global TPD success alone did not overcome independent validation failures or local-stability rejection at higher stage counts. Treating that partial success as qualification would silently enable unsupported stage, sulfur, pilot, or release claims.
 
 **How to apply:** Bind the approved verdict and all lineage hashes to immutable expected facts. Every terminal outcome, including runtime and report failures, must retain the server-owned evidence envelope; intermediate checkpoint omission must never be accepted as terminal output.
+
+A dense finite TPD search that finds no negative basin is not a proof of global single-phase stability. Report it as “no negative TPD found” with the search coverage and explicitly keep global exclusion false.
+
+**Why:** Coarse or basin-correlated starts can miss boundary or interfacial minima even when local Hessians are positive and multiple optimizers agree near the feed.
+
+**How to apply:** Combine diverse interior starts with explicit face and edge refinements, retain active-set KKT diagnostics, and use fail-closed phase wording until an independently justified global certification route exists.

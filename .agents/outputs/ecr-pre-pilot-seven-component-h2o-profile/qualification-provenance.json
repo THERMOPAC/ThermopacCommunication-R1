@@ -1,0 +1,32 @@
+{
+  "caseInputSha256": {
+    "WATER_0.5_WT_PCT": "095edcc127ce7eb6834447b736125ddfb7888fd039af27f15681ce784ed3e198",
+    "WATER_1.0_WT_PCT": "8780a417e68fc9fb8d068676398007c9fe12bb9b412785c9d3bd3f0264f72ee0",
+    "WATER_2.0_WT_PCT": "02647cff7f79322143990145ff51fd0a50060795ad7f8b251c40581059fb1f60",
+    "WATER_3.0_WT_PCT": "105b3ebd0c71a381c0ee087acb12bdb84f6f269e88970edc618b9a3d2c5f47fd"
+  },
+  "pinnedInputs": {
+    "frozenSixComponentProvenanceSha256": "3476498d39f96b9761495f11a9e93e626d42aed2eda9f9082fa0a0e29bdd2f5e",
+    "frozenSixComponentRunnerSha256": "2ab508b252435dd61cea8c601c8bbf4ba0456847de6f5dad73004bf4299732a6",
+    "h2oGenerationManifestSha256": "943b753db28b910e1b672f74571769ec09a781009deccc88db151b64fb780eba",
+    "h2oProfileVerificationSha256": "a60f687e1ef953f036c095281bd2461ca212193c35f1d6558e59104441070bf5",
+    "isolatedComplistSha256": "ce310440998304063a952323df84b98e4bccc2352a292679bcb70c920fc591a0",
+    "profileSha256ByFamily": {
+      "DI": "7e8664f594afa70a232f845dfafbfbb1efd2e10e13c586187b556102a97503ed",
+      "H2O": "82fc9cc17f71b4b8d28db01b7a25453ae03bea66b4af8adc21d4b85615cd7bb1",
+      "MONO": "0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275",
+      "NMP": "58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69",
+      "PA": "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e",
+      "POLY": "682828484416f124e3207f246d23954197502cba83d9b4744ace239d91fe8854",
+      "SAT": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2"
+    },
+    "sevenComponentRuntimeCompatibilitySha256": "0129f65b9c1c63604dd01bd8516b91e7b742deb7e2cd15b344a2388f24c22e1a",
+    "sixGenerationManifestSha256": "65baa44c36ffae817e52f60a32591f3fc1be7c140517c8b37c95458c834d1fa9"
+  },
+  "releaseEligible": false,
+  "reportSha256": "d1dcae232655a3c8142965330971965ea03a7b74109009690c8f3da0b6b47535",
+  "researchOnly": true,
+  "resultsSha256": "f2d01801783d4fbcac8cab8355d8f369d8277da4d3ce739072edf7c3788e048d",
+  "runnerSha256": "59bef04bf40f97034fb8ac3a45e9350c76e38b093d874018040a99d5be1d34ff",
+  "schemaVersion": "1.0.0"
+}
