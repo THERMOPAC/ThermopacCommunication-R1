@@ -1,0 +1,18 @@
+{
+  "inputs": {
+    "activeResults": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+    "amendmentProtocol": "247a1b5dbbefc7bba6779409751bf5486a28a159b3aecaaff36394a2ab594c44",
+    "model": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+    "nativeProvenance": "3476498d39f96b9761495f11a9e93e626d42aed2eda9f9082fa0a0e29bdd2f5e",
+    "nativeSource": "2ab508b252435dd61cea8c601c8bbf4ba0456847de6f5dad73004bf4299732a6",
+    "rootCauseProvenance": "0624ec160d07166ae8308de306c89ba114c5c16b204e3d384961929c3ae2cb47",
+    "rootCauseResults": "6c4aab21bd0a4468dd0615fd5f5d6bee21f3a124d5ccf0db6b9118ed8e3f0280",
+    "task206Results": "a6176f4c5f36640b3e03832c9b0e1b355bd908a655bd8d242640d73038120c10"
+  },
+  "outputs": {
+    "report": "9a4a1b478fd741d35aea27cb17eba9d3ff3b616da47106a1618c5e5d4077a1f9",
+    "results": "dd3032aff6d7dcde0776c15ab70d059b8abf2093ef961313c108c63eb74711aa"
+  },
+  "protocol": "57204597a33feb2e8c4e1f8d76a961671bd410db09794c76f37ef8858a927da5",
+  "runner": "20def5d360b76a38e62eb31c022df4ef87140ac37f3d12fc3e488408c81b33b4"
+}

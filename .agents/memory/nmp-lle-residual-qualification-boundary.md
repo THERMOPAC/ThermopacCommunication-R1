@@ -32,3 +32,9 @@ The approved causal sequence is to compare native COSMO-SAC, the current residua
 **Why:** Frozen-state comparisons isolate which thermodynamic layer creates or amplifies a Gibbs basin; independently solved cascades instead combine model-surface and composition-trajectory effects.
 
 **How to apply:** Keep both analyses reproducible and distinct. Do not attribute failure to native COSMO-SAC—or modify it—until the identical-composition decomposition implicates the native layer.
+
+The complete identical-composition decomposition found no governed negative TPD minima for native COSMO-SAC across the frozen 57-state cohort. The current residual amendment was negative throughout; the stability-constrained amendment removed most, but not all, negative minima.
+
+**Why:** This isolates the systematic frozen-cohort instability to the project residual layer rather than the pinned native surface, while also showing that the constrained coefficient vector is only a partial repair.
+
+**How to apply:** Preserve native COSMO-SAC during the next model-form investigation. Do not admit the constrained amendment: it still fails both frozen stability and blind LLE accuracy gates. Test richer molecular-system-dependent residual forms before self-consistent cascade qualification.

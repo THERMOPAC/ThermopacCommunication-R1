@@ -325,6 +325,7 @@ const PHASE_OPTIONS = [
   { value: "rrbo-continuous-nmp-dispersed", label: "RRBO continuous / NMP dispersed" },
 ];
 const SOLVENT_OIL_RATIO_OPTIONS = ["0.50", "0.75", "0.90", "1.00", "1.25", "1.50", "2.00"];
+const NMP_WATER_OPTIONS = ["0.5", "1.0", "1.5", "2.0", "2.5", "3.0"];
 const TARGET_RAFFINATE_SULFUR_OPTIONS = ["750", "1000", "1500", "2000", "2500"];
 const MINIMUM_RAFFINATE_SATURATES_OPTIONS = ["90", "92.5", "95", "97.5"];
 const TARGET_TOTAL_AROMATICS_OPTIONS = Array.from(
@@ -339,8 +340,8 @@ const MAXIMUM_NMP_RAFFINATE_OPTIONS = Array.from(
 );
 
 const NMP_STANDARD_PURPOSE = {
-  purityWt: "99.5",
-  waterWt: "0.05",
+  purityWt: "98.0",
+  waterWt: "2.0",
 };
 
 const NMP_DENSITY_POINTS = [
@@ -527,11 +528,8 @@ function nmpComplement(value: string): string | null {
   const complement = total - entered;
   if (fractionalDigits === 0) return complement.toString();
   const whole = complement / scale;
-  const fractional = (complement % scale)
-    .toString()
-    .padStart(fractionalDigits, "0")
-    .replace(/0+$/, "");
-  return fractional ? `${whole}.${fractional}` : whole.toString();
+  const fractional = (complement % scale).toString().padStart(fractionalDigits, "0");
+  return `${whole}.${fractional}`;
 }
 
 function isAllowedOption(value: string, options: Array<string | { value: string }>) {
@@ -757,6 +755,7 @@ function NumericField({
   hint,
   required = false,
   error,
+  readOnly = false,
 }: {
   id: string;
   label: string;
@@ -770,6 +769,7 @@ function NumericField({
   hint?: string;
   required?: boolean;
   error?: string;
+  readOnly?: boolean;
 }) {
   return (
     <div className="space-y-1">
@@ -788,6 +788,7 @@ function NumericField({
           placeholder={placeholder}
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          readOnly={readOnly}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
           className={`h-8 text-sm ${required ? "bg-violet-50/40" : "bg-white"} ${error ? "border-red-400 focus-visible:ring-red-400" : ""}`}
@@ -1014,13 +1015,12 @@ export default function EcrPrePilotDesignPage() {
     }
   };
 
-  const setLinkedNmpField = (key: "nmpPurityWt" | "nmpWaterWt", value: string) => {
+  const setNmpWater = (value: string) => {
     const complement = nmpComplement(value);
-    const counterpart = key === "nmpPurityWt" ? "nmpWaterWt" : "nmpPurityWt";
     const nextForm = {
       ...form,
-      [key]: value,
-      ...(complement === null ? {} : { [counterpart]: complement }),
+      nmpWaterWt: value,
+      ...(complement === null ? {} : { nmpPurityWt: complement }),
     };
     setForm(nextForm);
     setSaveState("unsaved");
@@ -1540,18 +1540,20 @@ export default function EcrPrePilotDesignPage() {
                 id="nmp-purity"
                 label="NMP purity"
                 value={form.nmpPurityWt}
-                onChange={(value) => setLinkedNmpField("nmpPurityWt", value)}
+                onChange={() => undefined}
                 unit="wt%"
                 max="100"
+                readOnly
                 error={validationErrors.nmpPurityWt}
               />
-              <NumericField
+              <SelectField
                 id="nmp-water"
                 label="Water in NMP"
                 value={form.nmpWaterWt}
-                onChange={(value) => setLinkedNmpField("nmpWaterWt", value)}
+                onChange={setNmpWater}
+                placeholder="Select water content"
+                options={NMP_WATER_OPTIONS}
                 unit="wt%"
-                max="100"
                 error={validationErrors.nmpWaterWt}
               />
               <NumericField
