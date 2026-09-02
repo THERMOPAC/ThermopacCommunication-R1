@@ -26,3 +26,9 @@ A stability-constrained refit may remove every pinned demonstrated MONO-rich bas
 **Why:** A deterministic constrained refit made all six demonstrated 25 °C candidate TPD values non-negative, but training and both holdout composition RMSDs still exceeded 0.03. Either criterion alone would create a false qualification path.
 
 **How to apply:** Derive qualification and blockers from independently recomputed pinned inputs. If any stability or composition gate fails, admit no returned phase and retain research-only, calibration-required, and non-release status.
+
+The approved causal sequence is to compare native COSMO-SAC, the current residual amendment, and the stability-constrained amendment at identical frozen compositions before changing native COSMO-SAC. Self-consistent cascade replays follow as a separate predictive-qualification test.
+
+**Why:** Frozen-state comparisons isolate which thermodynamic layer creates or amplifies a Gibbs basin; independently solved cascades instead combine model-surface and composition-trajectory effects.
+
+**How to apply:** Keep both analyses reproducible and distinct. Do not attribute failure to native COSMO-SAC—or modify it—until the identical-composition decomposition implicates the native layer.
