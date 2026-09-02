@@ -1,0 +1,124 @@
+{
+  "complistSha256": "dbafcbabb5884c715f965cbd495b6f9109e1caa992176da869dc8b8593ff91fb",
+  "component": {
+    "areaSquareAngstrom": 59.50887842245376,
+    "cas": "7732-18-5",
+    "conformers": {
+      "energies": [
+        {
+          "conformerId": 0,
+          "converged": true,
+          "energyKcalMol": 6.664040062894255e-13
+        }
+      ],
+      "enumerated": 1,
+      "forceField": "MMFF94s",
+      "pruneRmsThreshAngstrom": 0.25,
+      "randomSeed": 20260829,
+      "requested": 32,
+      "selectedConformerId": 0,
+      "selectedGeometrySha256": "98b149d2b02abe9342371262116dbe95e91597a263834f6b0a9c89796c21f65f"
+    },
+    "family": "H2O",
+    "formalCharge": 0,
+    "formula": "H2O",
+    "inchi": "InChI=1S/H2O/h1H2",
+    "inchiKey": "XLYOFNOQVPJJNP-UHFFFAOYSA-N",
+    "name": "WATER",
+    "optimizedGeometrySha256": "52e69af7d53aff3f3d673d7aaf00829da2332cf1c2ba9d77780194ed05d930dd",
+    "profileSha256": "82fc9cc17f71b4b8d28db01b7a25453ae03bea66b4af8adc21d4b85615cd7bb1",
+    "profileVerification": {
+      "atomCount": 3,
+      "averagedSigmaRangeElectronPerSquareAngstrom": {
+        "maximum": 0.010032568978534105,
+        "minimum": -0.008433285489073055
+      },
+      "family": "H2O",
+      "finalPartitionAreaSquareAngstrom": {
+        "NHB": 47.676794526770905,
+        "OH": 11.832083893229097,
+        "OT": 0.0
+      },
+      "passed": true,
+      "preProbabilityPartitionAreaSquareAngstrom": {
+        "NHB": 17.766659098999998,
+        "OH": 41.74221932100001,
+        "OT": 0.0
+      },
+      "profileAreaSquareAngstrom": 59.50887842,
+      "segmentAuditSha256": "7acbcf8703f9bc25ba80a4ea51c0420ade934848f7b1afde3dba73a6e0f5c560",
+      "segmentCount": 224,
+      "sourceAreaSquareAngstrom": 59.50887842,
+      "waterSpecificChecks": {
+        "allAtomsClassifiedOH": true,
+        "hydrogenNegativeAssignedOH": true,
+        "ohPartitionNonzero": true,
+        "otPartitionEmpty": true,
+        "oxygenBondedToBothHydrogens": true,
+        "oxygenPositiveAssignedOH": true,
+        "surfaceAreaClosure": true,
+        "waterHasOneOxygenTwoHydrogens": true
+      }
+    },
+    "rawArtifacts": {
+      "cpcmXLogSha256": "8bb1258c1da8f6988e702d847f172a07319e8ad4c6192df42df631a9f09ff02c",
+      "retainedArtifactSha256ByPath": {
+        "raw-artifacts/H2O/cpcmx-execution-output.txt": "8bb1258c1da8f6988e702d847f172a07319e8ad4c6192df42df631a9f09ff02c",
+        "raw-artifacts/H2O/cpcmx-input.toml": "164e0a85ba75197d6bb35acfd0ef2787ff6f900dedc07f20ed5523ac74b15f07",
+        "raw-artifacts/H2O/cpcmx-native-surface.cosmo": "2c4a345271076f9a812f1813422be7152f015b687f6fd1d51968f6e381f5c043",
+        "raw-artifacts/H2O/cpx-db/xtb/crs.param_h2o": "533d58bca9cb8939c607cec4927df3c5c8deee9679098666351ef66ca68ea004",
+        "raw-artifacts/H2O/cpx-db/xtb/crs.param_ot": "48fec2c65f86c04c6e06e45474f3f500a5477868bccd422100a9887aca6927a6",
+        "raw-artifacts/H2O/cpx-db/xtb/smd_h2o": "2258bd24758c4a4968359fb6133976cd1fbdd534e81138ab567834b87bc051d8",
+        "raw-artifacts/H2O/cpx-db/xtb/smd_ot": "4bcd27093b5069f1f10e6bc20677b57dd158b65e67d1cb1ab84bcae4486de3d7",
+        "raw-artifacts/H2O/cpx-db/xtb/water.cosmo": "c97314bafbe4426a5c34a58f9dc3c3c46eea817782e3dea0a84413d38fd8aa0c",
+        "raw-artifacts/H2O/cpx-db/xtb/water.fh": "0cc0e1c557d2c28daf7d5f0d522145e985698ee9bce34defa2537440513eae2a",
+        "raw-artifacts/H2O/rdkit-selected-geometry.xyz": "98b149d2b02abe9342371262116dbe95e91597a263834f6b0a9c89796c21f65f",
+        "raw-artifacts/H2O/segment-audit.csv": "7acbcf8703f9bc25ba80a4ea51c0420ade934848f7b1afde3dba73a6e0f5c560",
+        "raw-artifacts/H2O/xtb-optimization-output.txt": "fc7941d20484159fdba412eae88cb0782e051b6abfc7150bebbe7ce038cc77e1",
+        "raw-artifacts/H2O/xtb-optimized-geometry.xyz": "52e69af7d53aff3f3d673d7aaf00829da2332cf1c2ba9d77780194ed05d930dd"
+      },
+      "segmentAuditSha256": "7acbcf8703f9bc25ba80a4ea51c0420ade934848f7b1afde3dba73a6e0f5c560",
+      "xtbLogSha256": "fc7941d20484159fdba412eae88cb0782e051b6abfc7150bebbe7ce038cc77e1"
+    },
+    "selectedConformerGeometrySha256": "98b149d2b02abe9342371262116dbe95e91597a263834f6b0a9c89796c21f65f",
+    "smiles": "O",
+    "spinMultiplicity": 1,
+    "surfaceSha256": "2c4a345271076f9a812f1813422be7152f015b687f6fd1d51968f6e381f5c043",
+    "volumeCubicAngstrom": 27.341625000000008,
+    "volumeIntegrationGridAngstrom": 0.05
+  },
+  "lleQualification": "SEVEN_COMPONENT_LLE_NOT_QUALIFIED",
+  "method": "RDKit ETKDGv3/MMFF94s; pinned xTB 6.7.1 GFN2 tight; pinned CPCM-X 1.1.0; native-xTB sign conversion; NIST-Hsieh sigma3",
+  "profileConversion": {
+    "averaging": "NIST Hsieh",
+    "fDecay": 3.57,
+    "partitionOrder": [
+      "NHB",
+      "OH",
+      "OT"
+    ],
+    "profileVerificationSha256": "a60f687e1ef953f036c095281bd2461ca212193c35f1d6558e59104441070bf5",
+    "rAvSquaredSquareAngstrom": 2.3077466748324826,
+    "signMultiplierNativeXtbToTmNist": -1.0
+  },
+  "referenceState": "neutral singlet; epsilon=infinity conductor; 298.15 K profile generation",
+  "restrictedProfileInputs": [],
+  "schemaVersion": "1.0.0",
+  "software": {
+    "cpcmXBinarySha256": "0da39b6f371786f41a46ec2c5f0de023c234687c36d747a7dcae351dec45f8ad",
+    "cpcmXPublisherArchiveSha256": "7d16b0bcedf0fe94f22305dbe9ee991c2c91c28719defc3dd265ed4800aca1c3",
+    "cpcmXReleaseCommit": "e7f894c76d41ee1f703cf6f03e931cbcf046bc7f",
+    "cpcmXVersion": "1.1.0",
+    "generationProtocolSha256": "df53baeaf599cf5b3dbfcace83be58eefc27480f82bda9e2ca0ffaeaa85a0443",
+    "generatorSha256": "396f0bde7022cd895d6ff914bbbd275aadba4a9093848d866fb0fc5a605ccd19",
+    "independentVerifierSha256": "ff5dc1735b8235583fb319601e75ce1f70d4f293caa6e0969027fd45850c1bc7",
+    "rdkitVersion": "2023.09.5",
+    "vendorReleaseProvenancePath": "server/research/ecr-pre-pilot-six-component-thermodynamics/vendor/release-provenance.json",
+    "vendorReleaseProvenanceSha256": "7f064394a21b9105665349f2b4234e7c1df2fba6c0b93d3e4cfce2fe38c435f8",
+    "xtbBinarySha256": "debf27a9e0fa4bfb5ca75aafe4b90d8211f08ec2f4a482f375a4987212eaa12a",
+    "xtbPublisherArchiveSha256": "62a8d18778286e815292ee53d76ce447daf460a4dea3782c0f25cbac7019b5df",
+    "xtbReleaseCommit": "26b28010e805f7d1aeeef39813feb473e69cc4be",
+    "xtbVersion": "6.7.1"
+  },
+  "status": "PROFILE_ESTABLISHED_RESEARCH_ONLY"
+}

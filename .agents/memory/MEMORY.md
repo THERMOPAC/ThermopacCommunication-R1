@@ -93,4 +93,4 @@
 - [Post-split TPD qualification](post-split-tpd-qualification.md) — boundary minima require active-set simplex KKT; genuine lower-Gibbs basins keep the current six-component N_T model fail-closed.
 - [Stability-constrained Predictive N_T replay](stability-constrained-predictive-nt-replay.md) — Project 223 closes N_T 1–10; only 1–2 lack a replay TPD blocker; no N_T is accepted.
 - [Password reset environment boundary](password-reset-environment-boundary.md) — reset links must open the environment whose database issued the token; Preview tokens cannot validate in production.
-- [ECR Pre-Pilot water admission boundary](ecr-prepilot-water-admission-boundary.md) — Stage-1 water remains an impurity scalar until H₂O profiles and water-bearing LLE evidence qualify a seven-component model.
+- [ECR Pre-Pilot water admission boundary](ecr-prepilot-water-admission-boundary.md) — H₂O is a controlled co-solvent; predictive admission requires a traceable profile and water-bearing LLE qualification.

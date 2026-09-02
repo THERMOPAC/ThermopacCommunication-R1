@@ -1,0 +1,61 @@
+{
+  "allChecksPassed": true,
+  "decision": "PROFILE_ESTABLISHED_RESEARCH_ONLY",
+  "identity": {
+    "cas": "7732-18-5",
+    "formalCharge": 0,
+    "formula": "H2O",
+    "inchi": "InChI=1S/H2O/h1H2",
+    "inchiKey": "XLYOFNOQVPJJNP-UHFFFAOYSA-N",
+    "name": "WATER",
+    "smiles": "O",
+    "spinMultiplicity": 1
+  },
+  "lleQualification": "SEVEN_COMPONENT_LLE_NOT_QUALIFIED",
+  "maximumIndependentBinAreaErrorSquareAngstrom": 4.884981308350689e-15,
+  "partitionAreaSquareAngstrom": {
+    "NHB": 47.6767945267709,
+    "OH": 11.8320838932291,
+    "OT": 0.0
+  },
+  "profileAreaSquareAngstrom": 59.50887842,
+  "profileSha256": "82fc9cc17f71b4b8d28db01b7a25453ae03bea66b4af8adc21d4b85615cd7bb1",
+  "releaseProvenance": {
+    "path": "server/research/ecr-pre-pilot-six-component-thermodynamics/vendor/release-provenance.json",
+    "sha256": "7f064394a21b9105665349f2b4234e7c1df2fba6c0b93d3e4cfce2fe38c435f8",
+    "verified": true
+  },
+  "retainedRawArtifacts": {
+    "allArtifactHashesVerified": true,
+    "artifactCount": 13,
+    "artifactSha256ByPath": {
+      "raw-artifacts/H2O/cpcmx-execution-output.txt": "8bb1258c1da8f6988e702d847f172a07319e8ad4c6192df42df631a9f09ff02c",
+      "raw-artifacts/H2O/cpcmx-input.toml": "164e0a85ba75197d6bb35acfd0ef2787ff6f900dedc07f20ed5523ac74b15f07",
+      "raw-artifacts/H2O/cpcmx-native-surface.cosmo": "2c4a345271076f9a812f1813422be7152f015b687f6fd1d51968f6e381f5c043",
+      "raw-artifacts/H2O/cpx-db/xtb/crs.param_h2o": "533d58bca9cb8939c607cec4927df3c5c8deee9679098666351ef66ca68ea004",
+      "raw-artifacts/H2O/cpx-db/xtb/crs.param_ot": "48fec2c65f86c04c6e06e45474f3f500a5477868bccd422100a9887aca6927a6",
+      "raw-artifacts/H2O/cpx-db/xtb/smd_h2o": "2258bd24758c4a4968359fb6133976cd1fbdd534e81138ab567834b87bc051d8",
+      "raw-artifacts/H2O/cpx-db/xtb/smd_ot": "4bcd27093b5069f1f10e6bc20677b57dd158b65e67d1cb1ab84bcae4486de3d7",
+      "raw-artifacts/H2O/cpx-db/xtb/water.cosmo": "c97314bafbe4426a5c34a58f9dc3c3c46eea817782e3dea0a84413d38fd8aa0c",
+      "raw-artifacts/H2O/cpx-db/xtb/water.fh": "0cc0e1c557d2c28daf7d5f0d522145e985698ee9bce34defa2537440513eae2a",
+      "raw-artifacts/H2O/rdkit-selected-geometry.xyz": "98b149d2b02abe9342371262116dbe95e91597a263834f6b0a9c89796c21f65f",
+      "raw-artifacts/H2O/segment-audit.csv": "7acbcf8703f9bc25ba80a4ea51c0420ade934848f7b1afde3dba73a6e0f5c560",
+      "raw-artifacts/H2O/xtb-optimization-output.txt": "fc7941d20484159fdba412eae88cb0782e051b6abfc7150bebbe7ce038cc77e1",
+      "raw-artifacts/H2O/xtb-optimized-geometry.xyz": "52e69af7d53aff3f3d673d7aaf00829da2332cf1c2ba9d77780194ed05d930dd"
+    }
+  },
+  "schemaVersion": "1.0.0",
+  "segmentAuditSha256": "7acbcf8703f9bc25ba80a4ea51c0420ade934848f7b1afde3dba73a6e0f5c560",
+  "sourceAreaSquareAngstrom": 59.50887842245376,
+  "surfaceSha256": "2c4a345271076f9a812f1813422be7152f015b687f6fd1d51968f6e381f5c043",
+  "verifier": "independent full segment/profile recomputation; does not import generator",
+  "waterSpecificChecks": {
+    "allAtomsClassifiedOH": true,
+    "hydrogenNegativeSegmentsAssignedOH": true,
+    "noOTAssignment": true,
+    "ohProfileAreaNonzero": true,
+    "otProfileAreaZero": true,
+    "oxygenBondedToTwoHydrogens": true,
+    "oxygenPositiveSegmentsAssignedOH": true
+  }
+}

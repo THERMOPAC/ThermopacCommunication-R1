@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PROFILE_ESTABLISHED_RESEARCH_ONLY",
+  "lleQualification": "SEVEN_COMPONENT_LLE_NOT_QUALIFIED",
+  "scope": "A separate research-only H2O profile and isolated seven-component runtime compatibility check. The frozen six-component generated artifact is read-only.",
+  "identity": {
+    "family": "H2O",
+    "name": "WATER",
+    "formula": "H2O",
+    "cas": "7732-18-5",
+    "smiles": "O",
+    "inchi": "InChI=1S/H2O/h1H2",
+    "inchiKey": "XLYOFNOQVPJJNP-UHFFFAOYSA-N",
+    "formalCharge": 0,
+    "spinMultiplicity": 1
+  },
+  "molecularMethod": {
+    "conformerEnumeration": "RDKit 2023.09.5 ETKDGv3, seed 20260829, 32 requested conformers, 0.25 angstrom pruning, MMFF94s minimum",
+    "geometryOptimization": "pinned xTB 6.7.1 GFN2-xTB --opt tight --chrg 0 --uhf 0",
+    "surfaceGeneration": "pinned CPCM-X 1.1.0 xTB conductor surface, water invocation, epsilon=infinity",
+    "profileGenerationTemperatureK": 298.15,
+    "retainedRawArtifacts": [
+      "RDKit selected geometry",
+      "xTB optimized geometry",
+      "xTB optimization log",
+      "CPCM-X log",
+      "non-.log retained copies of xTB and CPCM-X execution output",
+      "CPCM-X TOML input and every copied CPCM-X DB input",
+      "raw CPCM-X/xTB COSMO surface",
+      "segment audit",
+      "sigma3 profile",
+      "generation manifest",
+      "independent verification manifest",
+      "runtime compatibility manifest"
+    ]
+  },
+  "surfaceAndConversion": {
+    "inputChargeConvention": "xTB ddCOSMO native convention emitted by --cosmo",
+    "outputChargeConvention": "xTB TM convention consumed by the pinned NIST converter",
+    "chargeSignMultiplier": -1.0,
+    "averaging": "NIST Hsieh",
+    "smoothingRadiusSquaredSquareAngstrom": 2.3077466748324826,
+    "smoothingRadiusAngstrom": 1.5191269449366247,
+    "decayCoefficient": 3.57,
+    "sigmaGridElectronPerSquareAngstrom": {
+      "minimum": -0.025,
+      "maximum": 0.025,
+      "step": 0.001,
+      "pointsPerPartition": 51
+    },
+    "partitionOrder": [
+      "NHB",
+      "OH",
+      "OT"
+    ],
+    "hydrogenBondProbability": "1-exp(-sigma_grid^2/(2*0.007^2)), applied after linear two-bin area interpolation",
+    "volume": "deterministic union of retained CPCM cavity spheres on a 0.05 angstrom midpoint grid"
+  },
+  "waterSpecificAssertions": [
+    "the retained surface contains exactly one oxygen and two hydrogens",
+    "the oxygen is geometrically bonded to both hydrogens",
+    "oxygen and hydrogen atoms are classified as OH",
+    "positive averaged oxygen segments contribute to OH",
+    "negative averaged hydrogen segments contribute to OH",
+    "OT has no segment assignment and zero profile area",
+    "OH final profile area is nonzero",
+    "surface and profile areas close"
+  ],
+  "independentVerification": {
+    "implementation": "verify_profile_semantics.py independently parses and recomputes every segment without importing the generator",
+    "assertions": [
+      "native charge divided by area matches the surface column",
+      "native-xTB sigma is multiplied by -1",
+      "NIST-Hsieh averaging is independently evaluated",
+      "partitioning, linear binning, and post-binning probability are independently evaluated",
+      "segment audit and emitted profile match the independent trace",
+      "water-specific OH assertions pass",
+      "every manifest-listed retained raw artifact path and SHA-256 passes independent verification",
+      "pinned executable/release-provenance identifiers and hashes pass independent verification"
+    ]
+  },
+  "runtimeAcceptance": {
+    "software": "NIST cCOSMO",
+    "sourceCommit": "1b82456be38026719b16cad4076109bef3fcb309",
+    "model": "COSMO-SAC-2010",
+    "isolation": "Copy the six frozen profiles into a temporary tree, append only generated H2O, execute, then delete the tree",
+    "requiredAssertions": [
+      "all seven profiles load",
+      "each test point returns exactly seven finite ln-gamma and gamma values",
+      "repeat execution is bitwise identical",
+      "a fresh interpreter process reproduces the complete activity grid bitwise",
+      "multiple temperatures are exercised",
+      "low-water and near-boundary compositions are exercised",
+      "activities vary across the grid"
+    ]
+  },
+  "governance": {
+    "researchOnly": true,
+    "profileEstablished": true,
+    "sevenComponentRuntimeCompatible": true,
+    "sevenComponentLleQualified": false,
+    "productionAdmitted": false,
+    "stage1Changed": false,
+    "cascadeChanged": false,
+    "solverChanged": false,
+    "tolerancesChanged": false,
+    "oldManifestChanged": false
+  }
+}

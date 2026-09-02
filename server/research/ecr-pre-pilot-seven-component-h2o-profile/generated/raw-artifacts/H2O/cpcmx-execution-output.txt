@@ -1,0 +1,71 @@
+           ------------------------------------------------- 
+          |                 Initialization                  |
+           ------------------------------------------------- 
+          
+     Configuration File used:     /home/runner/workspace/server/research/ecr-pre-pilot-seven-component-h2o-profile/generated/work/H2O/cpx-home/cpcmx.toml
+     SMD Parameter Path:          /home/runner/workspace/server/research/ecr-pre-pilot-seven-component-h2o-profile/generated/work/H2O/cpx-home/DB/xtb/smd_h2o
+     CPCM-X Parameter Path:       /home/runner/workspace/server/research/ecr-pre-pilot-seven-component-h2o-profile/generated/work/H2O/cpx-home/DB/xtb/crs.param_h2o
+     Solvent:                     water
+     Corresponding COSMO File:    water.cosmo
+     QC Program:                  xtb
+      -----------------------------------------------------------      
+     |                   =====================                   |     
+     |                           x T B                           |     
+     |                   =====================                   |     
+     |                         S. Grimme                         |     
+     |          Mulliken Center for Theoretical Chemistry        |     
+     |                    University of Bonn                     |     
+      -----------------------------------------------------------      
+
+   * xtb version 6.7.1 (edcfbbe) compiled by 'albert@albert-system' on 2024-07-22
+
+
+           ------------------------------------------------- 
+          |                   XTB Driver                    |
+           ------------------------------------------------- 
+
+     Done! Gas phase calculation terminated normally.
+     
+     Done! Solvent phase calculation terminated normally.
+     
+           ------------------------------------------------- 
+          |                   Calculation                   |
+           ------------------------------------------------- 
+          
+     Reading COSMO data.
+     Creating Sigma Profile from COSMO data.
+     Determine Ring atoms and HB groups.
+     Calculating Solvent Phase Energies.
+     
+           ------------------------------------------------- 
+          |                Gas Phase Results                |
+           ------------------------------------------------- 
+          
+     E_COSMO:                    -5.07997834  Eh
+     E_COSMO+dE:                 -5.08017812  Eh
+     E_gas:                      -5.07997834  Eh
+     E_COSMO-E_gas               -0.96524067  Eh
+     E_COSMO-E_gas+dE:           -0.96544045  Eh
+     Averaging corr dE:          -0.00019978  Eh
+     thermostatic correction:    -6.28563272  Eh
+     Area:                       59.50887842  Å
+     Solvent density:           998.00000000  g/l
+     Solvent atomic mass:        18.01528642  a.u.
+     State correction            -0.00682127  Eh
+     
+           ------------------------------------------------- 
+          |                     Results                     |
+           ------------------------------------------------- 
+          
+    -------------------------------------------------------------------------
+     Free Energy contributions:                       [Eh]        [kcal/mol]
+     Ideal State (dG_is):                          0.58290E-03     0.36578
+     Averaging correction (dG_cc):                -0.19978E-03    -0.12536
+     restoring free energy (dG_res):               0.33952E-02     2.13049
+     Resulting chemical potential in mixture:      0.37783E-02     2.37091
+     SMD Contribution (dG_CDS):                   -0.47355E-02    -2.97157
+     Standard state correction:                   -0.68213E-02    -4.28041
+     Systematic empirical shift (dG_shift)         0.00000E+00     0.00000
+    -------------------------------------------------------------------------
+     solvation free energy:                       -0.77785E-02    -4.88107
+ 
