@@ -2181,11 +2181,14 @@ export default function EcrPrePilotDesignPage() {
                     <h3 className="text-sm font-semibold text-slate-900">All stage trials and diagnostics</h3>
                     {(predictiveJob.result.trials ?? []).map((trial) => {
                       const order = predictiveJob.result?.componentOrder ?? ["SAT", "MONO", "DI", "POLY", "PA", "NMP"];
+                       const isSevenComponent = predictiveJob.result?.engineContractVersion === "7C-1.1.0";
                       const formatVector = (values: number[] | undefined) =>
                         order.map((family, index) => `${family}=${Number(values?.[index] ?? 0).toExponential(4)}`).join(" · ");
                        const acceptanceBlockers = trial.acceptanceBlockers ?? [];
                        const freshSolvent = trial.boundaryStreams?.freshWetSolvent
                          ?? trial.boundaryStreams?.freshNmp;
+                       const calculableTargets = Object.values(trial.targetCompliance ?? {})
+                         .filter(({ status }) => status !== "NOT_CALCULABLE");
                       return (
                         <details key={trial.stageCount} className="rounded-md border bg-white" open={trial.numericalAcceptancePassed}>
                           <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800">
@@ -2196,41 +2199,61 @@ export default function EcrPrePilotDesignPage() {
                               <p>Total aromatics: <strong>{Number(trial.productMetrics.raffinateTotalAromaticsWtNmpFree).toFixed(4)} wt%</strong></p>
                               <p>Polar aromatics: <strong>{Number(trial.productMetrics.raffinatePolarAromaticsWtNmpFree).toFixed(4)} wt%</strong></p>
                               <p>NMP-free recovery: <strong>{Number(trial.productMetrics.nmpFreeHydrocarbonRecoveryPct).toFixed(4)}%</strong></p>
-                              <p>All calculable targets: <strong>{trial.allCalculableTargetsPass ? "PASS" : "FAIL"}</strong></p>
+                              <p>
+                                All calculable targets:{" "}
+                                <strong>
+                                  {calculableTargets.length === 0
+                                    ? "NOT CALCULABLE"
+                                    : trial.allCalculableTargetsPass ? "PASS" : "FAIL"}
+                                </strong>
+                              </p>
                             </div>
-                            <div className="grid gap-2 md:grid-cols-2">
-                              {(["primary", "secondary"] as const).map((branch) => {
-                                const evidence = trial.multistartEvidence?.[branch];
-                                return (
-                                  <p key={branch} className="rounded border bg-slate-50 p-2">
-                                    <strong className="capitalize">{branch}</strong>: termination{" "}
-                                    <strong>{evidence?.terminationStatus ?? (evidence?.solverSuccess ? "SUCCESS" : "NOT RECORDED")}</strong>
-                                    {" "}· residual closure{" "}
-                                    <strong>{evidence?.residualClosureStatus ?? "NOT RECORDED"}</strong>
-                                    {" "}· residual{" "}
-                                    <strong className="font-mono">
-                                      {Number(evidence?.maximumScaledEquationResidual ?? trial.maximumScaledEquationResidual).toExponential(3)}
-                                    </strong>
-                                  </p>
-                                );
-                              })}
-                            </div>
-                            <p>
-                              Branch comparison:{" "}
-                              {trial.branchComparisonStatus === "NOT_EVALUABLE_ENDPOINT_UNCLOSED"
-                                || trial.multistartEvidence?.branchComparisonStatus === "NOT_EVALUABLE_ENDPOINT_UNCLOSED" ? (
-                                  <strong>NOT EVALUABLE — ENDPOINT UNCLOSED</strong>
-                                ) : (
-                                  <>
-                                    <strong>EVALUATED</strong> · boundary-product difference{" "}
-                                    <strong className="font-mono">
-                                      {trial.multistartProductRelativeDifference == null
-                                        ? "NOT RECORDED"
-                                        : trial.multistartProductRelativeDifference.toExponential(3)}
-                                    </strong>
-                                  </>
-                                )}
-                            </p>
+                            {isSevenComponent ? (
+                              <p className="rounded border bg-slate-50 p-2">
+                                <strong>Seven-component cascade solver</strong>: termination{" "}
+                                <strong>{trial.solverTerminationStatus ?? "NOT RECORDED"}</strong>
+                                {" "}· residual closure{" "}
+                                <strong>{trial.residualClosureStatus ?? "NOT RECORDED"}</strong>
+                                {" "}· residual{" "}
+                                <strong className="font-mono">{trial.maximumScaledEquationResidual.toExponential(3)}</strong>
+                              </p>
+                            ) : (
+                              <>
+                                <div className="grid gap-2 md:grid-cols-2">
+                                  {(["primary", "secondary"] as const).map((branch) => {
+                                    const evidence = trial.multistartEvidence?.[branch];
+                                    return (
+                                      <p key={branch} className="rounded border bg-slate-50 p-2">
+                                        <strong className="capitalize">{branch}</strong>: termination{" "}
+                                        <strong>{evidence?.terminationStatus ?? (evidence?.solverSuccess ? "SUCCESS" : "NOT RECORDED")}</strong>
+                                        {" "}· residual closure{" "}
+                                        <strong>{evidence?.residualClosureStatus ?? "NOT RECORDED"}</strong>
+                                        {" "}· residual{" "}
+                                        <strong className="font-mono">
+                                          {Number(evidence?.maximumScaledEquationResidual ?? trial.maximumScaledEquationResidual).toExponential(3)}
+                                        </strong>
+                                      </p>
+                                    );
+                                  })}
+                                </div>
+                                <p>
+                                  Branch comparison:{" "}
+                                  {trial.branchComparisonStatus === "NOT_EVALUABLE_ENDPOINT_UNCLOSED"
+                                    || trial.multistartEvidence?.branchComparisonStatus === "NOT_EVALUABLE_ENDPOINT_UNCLOSED" ? (
+                                      <strong>NOT EVALUABLE — ENDPOINT UNCLOSED</strong>
+                                    ) : (
+                                      <>
+                                        <strong>EVALUATED</strong> · boundary-product difference{" "}
+                                        <strong className="font-mono">
+                                          {trial.multistartProductRelativeDifference == null
+                                            ? "NOT RECORDED"
+                                            : trial.multistartProductRelativeDifference.toExponential(3)}
+                                        </strong>
+                                      </>
+                                    )}
+                                </p>
+                              </>
+                            )}
                             {acceptanceBlockers.length > 0 && (
                               <p className="rounded border border-amber-200 bg-amber-50 p-2 text-amber-950">
                                 Blockers: {acceptanceBlockers.map(({ code }) => code ?? "UNSPECIFIED_GATE_FAILURE").join(" · ")}
@@ -2268,7 +2291,10 @@ export default function EcrPrePilotDesignPage() {
                                 <tbody>{(trial.stages ?? []).map((stage) => (
                                   <tr key={stage.stageFromFeedEnd} className="border-b align-top last:border-0">
                                     <td className="p-2">{stage.stageFromFeedEnd}</td>
-                                    <td className="p-2 font-mono">{stage.maximumComponentBalanceResidualMol.toExponential(3)} · {stage.accepted ? "PASS" : "FAIL"}</td>
+                                    <td className="p-2 font-mono">
+                                      {stage.maximumComponentBalanceResidualMol.toExponential(3)} ·{" "}
+                                      {stage.maximumComponentBalanceResidualMol <= 1e-8 ? "PASS" : "FAIL"}
+                                    </td>
                                     <td className="p-2 font-mono">{stage.isoactivityLogResidual.toExponential(3)}</td>
                                     <td className="p-2 font-mono text-[10px]">
                                       R eig={Number(stage.localPostSplitStability.raffinate?.minimumEigenvalue).toExponential(3)} ·
