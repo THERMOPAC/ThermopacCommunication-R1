@@ -464,9 +464,17 @@ def engine(np, scipy, model, temperature_k, water_wt_pct):
         homogeneous = float(z @ mu(z))
         search = overall_search if overall_search is not None else tpd(z)
         candidate = np.asarray(search["minimizingComposition"])
-        starts = [0.5 * candidate, 0.25 * candidate, 0.5 * normalize(np, np.arange(1, 8))]
+        starts = [
+            ("TPD_HALF_LBFGSB", "L-BFGS-B", 0.5 * candidate),
+            ("TPD_QUARTER_LBFGSB", "L-BFGS-B", 0.25 * candidate),
+            ("TPD_HALF_SLSQP", "SLSQP", 0.5 * candidate),
+            ("TPD_QUARTER_SLSQP", "SLSQP", 0.25 * candidate),
+            ("HOMOGENEOUS_HALF_LBFGSB", "L-BFGS-B", 0.5 * z),
+            ("DIVERSE_HALF_LBFGSB", "L-BFGS-B",
+             0.5 * normalize(np, np.arange(1, 8))),
+        ]
         route_results = []
-        for route_index, start in enumerate(starts):
+        for route_index, (seed_name, method, start) in enumerate(starts):
             start = np.clip(start, FLOOR, z - FLOOR)
 
             def total_gibbs(ne):
@@ -478,52 +486,213 @@ def engine(np, scipy, model, temperature_k, water_wt_pct):
                 return float(ne @ mu(e) + (z - ne) @ mu(r))
 
             solution = scipy.optimize.minimize(
-                total_gibbs, start, method="L-BFGS-B",
+                total_gibbs, start, method=method,
                 bounds=[(FLOOR, float(value - FLOOR)) for value in z],
-                options={"ftol": 1e-12, "gtol": 1e-7, "maxiter": 300, "maxls": 30},
+                options=(
+                    {"ftol": 1e-12, "gtol": 1e-7, "maxiter": 300, "maxls": 30}
+                    if method == "L-BFGS-B"
+                    else {"ftol": 1e-12, "maxiter": 500}
+                ),
             )
-            route_results.append((solution, {
+            ne = np.asarray(solution.x)
+            beta = float(ne.sum())
+            finite = bool(np.all(np.isfinite(ne)) and np.isfinite(solution.fun))
+            feasible = bool(
+                finite and beta > FLOOR and beta < 1.0 - FLOOR
+                and np.all(ne >= FLOOR) and np.all(ne <= z - FLOOR)
+            )
+            extract = normalize(np, ne / beta) if feasible else None
+            raffinate = normalize(np, (z - ne) / (1.0 - beta)) if feasible else None
+            boundary = bool(
+                not feasible
+                or np.any(ne <= 10 * FLOOR)
+                or np.any(ne >= z - 10 * FLOOR)
+            )
+            residual = (
+                float(np.max(np.abs(
+                    (mu(extract) - mu(raffinate))
+                    - np.mean(mu(extract) - mu(raffinate))
+                )))
+                if feasible else float("inf")
+            )
+            separation = (
+                float(np.max(np.abs(extract - raffinate)))
+                if feasible else 0.0
+            )
+            improvement = homogeneous - float(solution.fun)
+            closed = bool(
+                solution.success and feasible and not boundary
+                and separation > 1e-6 and improvement > 1e-8
+                and residual <= 2e-5
+            )
+            if feasible and extract[5] < raffinate[5]:
+                extract, raffinate = raffinate, extract
+                beta = 1.0 - beta
+            evidence = {
                 "route": f"CONSERVED_AMOUNT_{route_index+1}",
+                "seed": seed_name, "method": method,
                 "success": bool(solution.success), "message": str(solution.message),
                 "iterations": int(solution.nit), "objective": float(solution.fun),
-            }))
-        successful = [row for solution, row in route_results if solution.success]
-        independent_convergence = bool(
-            len(successful) >= 2
-            and max(row["objective"] for row in successful)
-                - min(row["objective"] for row in successful) <= 2e-7)
-        successful_results = [item for item in route_results if item[0].success]
-        best, _ = min(
-            successful_results if independent_convergence else route_results,
-            key=lambda item: item[0].fun)
-        ne = best.x
-        beta = float(ne.sum())
-        extract = normalize(np, ne / beta)
-        raffinate = normalize(np, (z - ne) / (1.0 - beta))
-        residual = float(np.max(np.abs((mu(extract) - mu(raffinate)) -
-                                       np.mean(mu(extract) - mu(raffinate)))))
-        boundary = bool(np.any(ne <= 10 * FLOOR) or np.any(ne >= z - 10 * FLOOR))
-        improvement = homogeneous - float(best.fun)
-        accepted = bool(independent_convergence and best.success and not boundary and search["minimum"] < -1e-7
-                        and improvement > 1e-8 and residual <= 2e-5)
-        post = {"raffinate": tpd(raffinate), "extract": tpd(extract)} if accepted else None
-        post_stable = bool(accepted and all(row["minimum"] >= -1e-7 for row in post.values()))
+                "feasible": feasible, "boundarySolution": boundary,
+                "materiallySeparated": separation > 1e-6,
+                "phaseSeparationInfinityNorm": separation,
+                "isoactivityTangentResidual": residual if feasible else None,
+                "objectiveImprovement": improvement, "closed": closed,
+                "realizedSeed": start.tolist(),
+                "phaseFractionExtract": beta if feasible else None,
+                "raffinateComposition": raffinate.tolist() if feasible else None,
+                "extractComposition": extract.tolist() if feasible else None,
+            }
+            route_results.append((solution, evidence))
+
+        def unordered_pair_distance(left, right):
+            lr, le = (np.asarray(left["raffinateComposition"]),
+                      np.asarray(left["extractComposition"]))
+            rr, re = (np.asarray(right["raffinateComposition"]),
+                      np.asarray(right["extractComposition"]))
+            direct = max(float(np.max(np.abs(lr - rr))),
+                         float(np.max(np.abs(le - re))))
+            swapped = max(float(np.max(np.abs(lr - re))),
+                          float(np.max(np.abs(le - rr))))
+            return min(direct, swapped)
+
+        closed_routes = [row for _, row in route_results if row["closed"]]
+        clusters = []
+        for row in sorted(closed_routes, key=lambda item: item["objective"]):
+            cluster = next((
+                group for group in clusters
+                if abs(group[0]["objective"] - row["objective"]) <= 2e-7
+                and unordered_pair_distance(group[0], row) <= 2e-5
+            ), None)
+            if cluster is None:
+                clusters.append([row])
+            else:
+                cluster.append(row)
+        reproduced_clusters = [group for group in clusters if len(group) >= 2]
+        selected_cluster = min(
+            reproduced_clusters,
+            key=lambda group: min(row["objective"] for row in group),
+            default=None,
+        )
+        independent_convergence = selected_cluster is not None
+        if selected_cluster is not None:
+            selected_row = min(selected_cluster, key=lambda row: row["objective"])
+            best = next(
+                solution for solution, row in route_results
+                if row["route"] == selected_row["route"]
+            )
+        else:
+            best, selected_row = min(
+                route_results, key=lambda item: item[1]["objective"])
+
+        def chemical_potential_gap(ne):
+            beta_local = float(ne.sum())
+            extract_local = ne / beta_local
+            raffinate_local = (z - ne) / (1.0 - beta_local)
+            return mu(extract_local) - mu(raffinate_local)
+
+        polish = scipy.optimize.least_squares(
+            chemical_potential_gap,
+            np.asarray(best.x),
+            bounds=(np.full(7, FLOOR), z - FLOOR),
+            xtol=1e-13, ftol=1e-13, gtol=1e-13,
+            max_nfev=2000, x_scale="jac",
+        )
+        polished_ne = np.asarray(polish.x)
+        beta = float(polished_ne.sum())
+        feasible = bool(
+            polish.success and np.all(np.isfinite(polished_ne))
+            and beta > FLOOR and beta < 1.0 - FLOOR
+            and np.all(polished_ne >= FLOOR)
+            and np.all(polished_ne <= z - FLOOR)
+        )
+        extract = normalize(np, polished_ne / beta) if feasible else None
+        raffinate = (
+            normalize(np, (z - polished_ne) / (1.0 - beta))
+            if feasible else None
+        )
+        boundary = bool(
+            not feasible
+            or np.any(polished_ne <= 10 * FLOOR)
+            or np.any(polished_ne >= z - 10 * FLOOR)
+        )
+        full_gap = (
+            float(np.max(np.abs(chemical_potential_gap(polished_ne))))
+            if feasible else float("inf")
+        )
+        residual = (
+            float(np.max(np.abs(
+                chemical_potential_gap(polished_ne)
+                - np.mean(chemical_potential_gap(polished_ne))
+            )))
+            if feasible else float("inf")
+        )
+        separation = (
+            float(np.max(np.abs(extract - raffinate)))
+            if feasible else 0.0
+        )
+        polished_objective = float(total_gibbs(polished_ne)) if feasible else float(best.fun)
+        improvement = homogeneous - polished_objective
+        polished_closed = bool(
+            feasible and not boundary and separation > 1e-6
+            and improvement > 1e-8 and residual <= 2e-5
+            and full_gap <= 2e-5
+        )
+        if feasible and extract[5] < raffinate[5]:
+            extract, raffinate = raffinate, extract
+            beta = 1.0 - beta
+        split_reproduced_and_closed = bool(
+            independent_convergence and polished_closed
+            and search["minimum"] < -1e-7
+        )
+        post = (
+            {"raffinate": tpd(raffinate), "extract": tpd(extract)}
+            if split_reproduced_and_closed else None
+        )
+        post_stable = bool(
+            split_reproduced_and_closed
+            and all(row["minimum"] >= -1e-7 for row in post.values())
+        )
+        accepted = bool(split_reproduced_and_closed and post_stable)
         return {
             "phaseBehavior": "TWO_PHASE_RESEARCH_DIAGNOSTIC" if accepted else (
                 "NO_SPLIT_FOUND_DENSE_RESEARCH_SEARCH"
                 if independent_convergence and search["minimum"] >= -1e-7 else "UNRESOLVED"),
             "optimizerSuccess": bool(best.success), "optimizerMessage": str(best.message),
             "optimizerIterations": int(best.nit), "boundarySolution": boundary,
+            "equilibriumPolish": {
+                "method": "BOUNDED_CHEMICAL_POTENTIAL_LEAST_SQUARES",
+                "success": bool(polish.success),
+                "message": str(polish.message),
+                "functionEvaluations": int(polish.nfev),
+                "fullChemicalPotentialGapInfinityNorm": full_gap,
+                "tangentChemicalPotentialGapInfinityNorm": residual,
+                "closed": polished_closed,
+            },
             "independentRouteConvergence": independent_convergence,
+            "reproducedSplitClusterSize": len(selected_cluster or []),
+            "reproducedSplitMethods": sorted({
+                row["method"] for row in (selected_cluster or [])
+            }),
+            "competingClosedClusterCount": len(reproduced_clusters),
             "optimizerRoutes": [row for _, row in route_results],
             "overallTpd": search, "homogeneousObjective": homogeneous,
-            "splitObjective": float(best.fun), "objectiveImprovement": improvement,
+            "splitObjective": polished_objective, "objectiveImprovement": improvement,
             "phaseFractionExtract": beta if accepted else None,
             "raffinateComposition": raffinate.tolist() if accepted else None,
             "extractComposition": extract.tolist() if accepted else None,
-            "isoactivityTangentResidual": residual if accepted else None,
-            "moleBalanceMaximumResidual": float(np.max(np.abs(z - ((1-beta)*raffinate + beta*extract)))),
-            "postSplitTpd": post, "postSplitGloballyStable": post_stable if accepted else None,
+            "isoactivityTangentResidual": (
+                residual if split_reproduced_and_closed else None
+            ),
+            "moleBalanceMaximumResidual": (
+                float(np.max(np.abs(
+                    z - ((1-beta)*raffinate + beta*extract)
+                ))) if feasible else None
+            ),
+            "postSplitTpd": post,
+            "postSplitGloballyStable": (
+                post_stable if split_reproduced_and_closed else None
+            ),
         }
     return flash, tpd, hessian
 
