@@ -1171,6 +1171,8 @@ export function validateSevenComponentPersistedResult(
       * Number(options.input.wetSolventConstruction?.dryNmpMassPerUnitFeedMass);
     const expectedWaterMass = governedFeedMass
       * Number(options.input.wetSolventConstruction?.waterMassPerUnitFeedMass);
+    const expectedTemperatureC = Number(stage1?.operatingTemperatureC);
+    const expectedTemperatureK = expectedTemperatureC + 273.15;
     if (
       !stage1 || !Number.isFinite(governedFeedMass) || governedFeedMass <= 0
       || Math.abs(governedFeedMass - 100) > 1e-9
@@ -1183,6 +1185,12 @@ export function validateSevenComponentPersistedResult(
       || Math.abs(Number(wet?.massClosureResidual)) > 1e-12
       || canonicalJson(wet?.componentOrder) !== canonicalJson(SEVEN_COMPONENT_ORDER)
     ) return 'PREDICTIVE_NT_7C_WET_SOLVENT_AUTHORITY_MISMATCH';
+    if (
+      !Number.isFinite(expectedTemperatureC)
+      || Math.abs(Number(value.thermodynamicCondition?.temperatureC) - expectedTemperatureC) > 1e-9
+      || Math.abs(Number(value.thermodynamicCondition?.temperatureK) - expectedTemperatureK) > 1e-9
+      || value.thermodynamicCondition?.authority !== 'IMMUTABLE_STAGE1_OPERATING_TEMPERATURE'
+    ) return 'PREDICTIVE_NT_7C_TEMPERATURE_AUTHORITY_MISMATCH';
   }
   return null;
 }

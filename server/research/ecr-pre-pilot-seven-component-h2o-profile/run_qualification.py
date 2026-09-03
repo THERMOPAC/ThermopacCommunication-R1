@@ -146,15 +146,17 @@ def wet_charge(np, water_wt_pct: float):
     }
 
 
-def engine(np, scipy, model):
+def engine(np, scipy, model, temperature_k=TEMPERATURE_K):
+    if not math.isfinite(float(temperature_k)) or temperature_k <= 0.0:
+        raise ValueError("SEVEN_COMPONENT_TEMPERATURE_INVALID")
     cache = {}
 
     def lngamma(x):
         x = normalize(np, x)
         key = tuple(x.tolist())
         if key not in cache:
-            cache[key] = (np.asarray(model.get_lngamma_comb(TEMPERATURE_K, x))
-                          + np.asarray(model.get_lngamma_resid(TEMPERATURE_K, x)))
+            cache[key] = (np.asarray(model.get_lngamma_comb(temperature_k, x))
+                          + np.asarray(model.get_lngamma_resid(temperature_k, x)))
         return cache[key]
 
     def mu(x):

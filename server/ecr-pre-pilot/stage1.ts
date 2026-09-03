@@ -230,6 +230,9 @@ export function canonicalizeStage1Input(
   const compositionTotal = stage1.saturatesWt + stage1.monoAromaticsWt + stage1.diAromaticsWt
     + stage1.polyAromaticsWt + stage1.polarAromaticsWt + stage1.nmpInFeedWt;
   if (Math.abs(compositionTotal - 100) >= 0.005) throw new Error('INVALID_STAGE1_COMPOSITION_TOTAL');
+  if (Math.abs(stage1.nmpPurityWt + stage1.nmpWaterWt - 100) > 1e-9) {
+    throw new Error('INVALID_STAGE1_WET_SOLVENT_COMPOSITION_TOTAL');
+  }
   const sulfurAllocationTotal = stage1.sulfurAllocationSatPct + stage1.sulfurAllocationMonoPct
     + stage1.sulfurAllocationDiPct + stage1.sulfurAllocationPolyPct + stage1.sulfurAllocationPaPct;
   if (Math.abs(sulfurAllocationTotal - 100) > 1e-9) {

@@ -234,6 +234,11 @@ type PredictiveNtResult = {
   blockingMessage?: string;
   blockedCascadeTrialCount?: number;
   blockedStageFromFeedEnd?: number;
+  thermodynamicCondition?: {
+    temperatureC?: number;
+    temperatureK?: number;
+    authority?: string;
+  };
 };
 type PredictiveNtJob = {
   id: string;
@@ -2013,6 +2018,9 @@ export default function EcrPrePilotDesignPage() {
                       <p>
                         Cascade trial: <strong>{predictiveJob.result.blockedCascadeTrialCount}</strong>
                         {" · "}Physical stage from feed end: <strong>{predictiveJob.result.blockedStageFromFeedEnd}</strong>
+                        {Number.isFinite(predictiveJob.result.thermodynamicCondition?.temperatureC)
+                          ? <>{" · "}Temperature: <strong>{predictiveJob.result.thermodynamicCondition?.temperatureC} °C</strong></>
+                          : null}
                       </p>
                       <p>This is a thermodynamic no-split result, not a software failure. No raffinate/extract phases were fabricated.</p>
                     </div>

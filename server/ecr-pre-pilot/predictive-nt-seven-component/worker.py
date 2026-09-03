@@ -299,11 +299,16 @@ def main():
     maximum = int(stage1["maximumStages"])
     if maximum < 1 or maximum > 10:
         raise ValueError("STAGE1_INVALID_NT_RANGE")
+    operating_temperature_c = float(stage1["operatingTemperatureC"])
+    if not math.isfinite(operating_temperature_c):
+        raise ValueError("STAGE1_OPERATING_TEMPERATURE_INVALID")
+    operating_temperature_k = operating_temperature_c + 273.15
     feed, solvent, wet = wet_charge(stage1)
     qualification = load_qualification()
     temporary, np, scipy, model, integrity, runtime = qualification.build_model()
     try:
-        flash, tpd, hessian = qualification.engine(np, scipy, model)
+        flash, tpd, hessian = qualification.engine(
+            np, scipy, model, operating_temperature_k)
         trials, previous, start = [], None, 1
         blocked = None
         resume = request.get("_resume")
@@ -345,6 +350,11 @@ def main():
             "releaseEligible": False, "predictiveNt": None, "establishedTheoreticalStages": None,
             "pilotValidated": False, "calibrationRequired": True,
             "sulfurPrediction": {"status": "NOT_CALCULABLE"},
+            "thermodynamicCondition": {
+                "temperatureC": operating_temperature_c,
+                "temperatureK": operating_temperature_k,
+                "authority": "IMMUTABLE_STAGE1_OPERATING_TEMPERATURE",
+            },
             "wetSolventConstruction": wet, "engine": engine_evidence(),
             "qualificationEvidence": {"directWaterBearingLleValidated": False,
                                       "independentBlindQualificationPassed": False},
