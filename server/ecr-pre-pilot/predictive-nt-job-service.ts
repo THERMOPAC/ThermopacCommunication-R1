@@ -607,8 +607,8 @@ function readPredictiveNtRuntimePreflight(input?: PredictiveNtJobInput) {
                 || result.modelInheritanceEvidence?.modelComponentCheckCount !== 4
                 || result.modelInheritanceEvidence?.profileIdentityCheckCount !== 6
                 || result.modelInheritanceEvidence?.h2oZeroProductionStatePermitted !== false
-                || JSON.stringify(result.modelInheritanceEvidence?.actualSevenComponentWaterWtPctRange)
-                  !== JSON.stringify({ minimum: 0.5, maximum: 3.0 })
+                || result.modelInheritanceEvidence?.actualSevenComponentWaterWtPctRange?.minimum !== 0.5
+                || result.modelInheritanceEvidence?.actualSevenComponentWaterWtPctRange?.maximum !== 3.0
                 || !/^[a-f0-9]{64}$/.test(result.modelInheritanceEvidence?.sha256 ?? '')
                 || JSON.stringify(result.componentOrder) !== JSON.stringify(
                   ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
