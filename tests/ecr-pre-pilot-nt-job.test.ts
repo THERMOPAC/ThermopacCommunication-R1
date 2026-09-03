@@ -554,6 +554,27 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       })),
     };
     expect(validateSevenComponentPersistedResult(result, { input: seven })).toBeNull();
+    const unresolvedPhaseTopology = {
+      ...result,
+      trials: [result.trials[0]],
+      executionStatus: 'BLOCKED_PHASE_TOPOLOGY_UNRESOLVED',
+      blockingCode: 'SEVEN_COMPONENT_PHASE_TOPOLOGY_UNRESOLVED',
+      blockingMessage: 'Raffinate/extract phase topology could not be resolved.',
+      blockedCascadeTrialCount: 2,
+      blockedStageFromFeedEnd: 2,
+      flashEvidence: {
+        phaseBehavior: 'UNRESOLVED',
+        phaseFractionExtract: null,
+      },
+    };
+    expect(validateSevenComponentPersistedResult(
+      unresolvedPhaseTopology,
+      { input: seven },
+    )).toBeNull();
+    expect(validateSevenComponentPersistedResult({
+      ...unresolvedPhaseTopology,
+      blockingCode: 'SEVEN_COMPONENT_NO_LIQUID_SPLIT',
+    }, { input: seven })).toBe('PREDICTIVE_NT_7C_BLOCKED_RESULT_INVALID');
     const rescaled = {
       ...result,
       wetSolventConstruction: {

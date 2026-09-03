@@ -229,7 +229,7 @@ type PredictiveNtResult = {
     overallEcrProductAcceptanceStatus?: string;
   };
   trials?: PredictiveTrial[];
-  executionStatus?: "BLOCKED_NO_LIQUID_SPLIT";
+  executionStatus?: "BLOCKED_NO_LIQUID_SPLIT" | "BLOCKED_PHASE_TOPOLOGY_UNRESOLVED";
   blockingCode?: string;
   blockingMessage?: string;
   blockedCascadeTrialCount?: number;
@@ -2023,6 +2023,20 @@ export default function EcrPrePilotDesignPage() {
                           : null}
                       </p>
                       <p>This is a thermodynamic no-split result, not a software failure. No raffinate/extract phases were fabricated.</p>
+                    </div>
+                  )}
+                  {predictiveJob.result.executionStatus === "BLOCKED_PHASE_TOPOLOGY_UNRESOLVED" && (
+                    <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[12px] leading-5 text-amber-950">
+                      <p className="font-semibold">Predictive N_T blocked — phase topology unresolved</p>
+                      <p>{predictiveJob.result.blockingMessage}</p>
+                      <p>
+                        Cascade trial: <strong>{predictiveJob.result.blockedCascadeTrialCount}</strong>
+                        {" · "}Physical stage from feed end: <strong>{predictiveJob.result.blockedStageFromFeedEnd}</strong>
+                        {Number.isFinite(predictiveJob.result.thermodynamicCondition?.temperatureC)
+                          ? <>{" · "}Temperature: <strong>{predictiveJob.result.thermodynamicCondition?.temperatureC} °C</strong></>
+                          : null}
+                      </p>
+                      <p>This is a completed scientific hold, not a software failure. No raffinate/extract phases were fabricated.</p>
                     </div>
                   )}
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

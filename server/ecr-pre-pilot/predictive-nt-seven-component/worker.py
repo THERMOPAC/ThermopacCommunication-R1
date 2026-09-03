@@ -357,15 +357,29 @@ def emit_checkpoint(trial, protocol):
 def validate_final(result, maximum):
     if result.get("engineContractVersion") != ENGINE_VERSION:
         raise ValueError("PREDICTIVE_NT_7C_RESULT_CONTRACT_INVALID")
-    blocked = result.get("executionStatus") == "BLOCKED_NO_LIQUID_SPLIT"
+    execution_status = result.get("executionStatus")
+    blocked = execution_status in {
+        "BLOCKED_NO_LIQUID_SPLIT",
+        "BLOCKED_PHASE_TOPOLOGY_UNRESOLVED",
+    }
     expected_trials = result.get("blockedCascadeTrialCount", 0) - 1 if blocked else maximum
     if result.get("componentOrder") != list(FAMILIES) or len(result.get("trials", [])) != expected_trials:
         raise ValueError("PREDICTIVE_NT_7C_RESULT_VECTOR_INTEGRITY_INVALID")
+    expected_block = {
+        "BLOCKED_NO_LIQUID_SPLIT": (
+            "SEVEN_COMPONENT_NO_LIQUID_SPLIT",
+            "NO_SPLIT_FOUND_DENSE_RESEARCH_SEARCH",
+        ),
+        "BLOCKED_PHASE_TOPOLOGY_UNRESOLVED": (
+            "SEVEN_COMPONENT_PHASE_TOPOLOGY_UNRESOLVED",
+            "UNRESOLVED",
+        ),
+    }.get(execution_status)
     if blocked and (
-            result.get("blockingCode") != "SEVEN_COMPONENT_NO_LIQUID_SPLIT"
+            expected_block is None
+            or result.get("blockingCode") != expected_block[0]
             or not isinstance(result.get("blockedStageFromFeedEnd"), int)
-            or result.get("flashEvidence", {}).get("phaseBehavior")
-            != "NO_SPLIT_FOUND_DENSE_RESEARCH_SEARCH"
+            or result.get("flashEvidence", {}).get("phaseBehavior") != expected_block[1]
             or result.get("flashEvidence", {}).get("phaseFractionExtract") is not None):
         raise ValueError("PREDICTIVE_NT_7C_BLOCKED_RESULT_INVALID")
     for trial in result["trials"]:
@@ -423,11 +437,22 @@ def main():
             try:
                 trial = solve_cascade(np, flash, hessian, count, feed, solvent, previous)
             except NoLiquidSplit as no_split:
+                phase_behavior = no_split.evidence.get("phaseBehavior")
+                if phase_behavior == "NO_SPLIT_FOUND_DENSE_RESEARCH_SEARCH":
+                    execution_status = "BLOCKED_NO_LIQUID_SPLIT"
+                    blocking_code = "SEVEN_COMPONENT_NO_LIQUID_SPLIT"
+                    blocking_summary = "No admissible raffinate/extract liquid split was predicted"
+                elif phase_behavior == "UNRESOLVED":
+                    execution_status = "BLOCKED_PHASE_TOPOLOGY_UNRESOLVED"
+                    blocking_code = "SEVEN_COMPONENT_PHASE_TOPOLOGY_UNRESOLVED"
+                    blocking_summary = "Raffinate/extract phase topology could not be resolved"
+                else:
+                    raise ValueError("PREDICTIVE_NT_7C_FLASH_EVIDENCE_INVALID")
                 blocked = {
-                    "executionStatus": "BLOCKED_NO_LIQUID_SPLIT",
-                    "blockingCode": "SEVEN_COMPONENT_NO_LIQUID_SPLIT",
+                    "executionStatus": execution_status,
+                    "blockingCode": blocking_code,
                     "blockingMessage": (
-                        "No admissible raffinate/extract liquid split was predicted at "
+                        f"{blocking_summary} at "
                         f"cascade trial {count}, physical stage {no_split.stage}. "
                         "Predictive N_T is unavailable; no phases were fabricated."
                     ),

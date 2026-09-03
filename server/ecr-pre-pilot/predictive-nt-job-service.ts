@@ -1107,9 +1107,19 @@ export function validateSevenComponentPersistedResult(
   // that successful trial, stream, or wet-solvent output exists.
   if (value.status === 'ENGINE_ERROR') return null;
   if (!Array.isArray(value.trials)) return 'PREDICTIVE_NT_7C_RESULT_TRIALS_INVALID';
-  const blockedNoSplit = value.executionStatus === 'BLOCKED_NO_LIQUID_SPLIT';
-  if (blockedNoSplit && (
-    value.blockingCode !== 'SEVEN_COMPONENT_NO_LIQUID_SPLIT'
+  const blockedResultContract = {
+    BLOCKED_NO_LIQUID_SPLIT: {
+      blockingCode: 'SEVEN_COMPONENT_NO_LIQUID_SPLIT',
+      phaseBehavior: 'NO_SPLIT_FOUND_DENSE_RESEARCH_SEARCH',
+    },
+    BLOCKED_PHASE_TOPOLOGY_UNRESOLVED: {
+      blockingCode: 'SEVEN_COMPONENT_PHASE_TOPOLOGY_UNRESOLVED',
+      phaseBehavior: 'UNRESOLVED',
+    },
+  }[value.executionStatus as 'BLOCKED_NO_LIQUID_SPLIT' | 'BLOCKED_PHASE_TOPOLOGY_UNRESOLVED'];
+  const blockedPhaseResult = Boolean(blockedResultContract);
+  if (blockedPhaseResult && (
+    value.blockingCode !== blockedResultContract.blockingCode
     || !Number.isInteger(value.blockedCascadeTrialCount)
     || value.blockedCascadeTrialCount < 1
     || value.blockedCascadeTrialCount > (options.input?.maximumStages ?? 10)
@@ -1117,13 +1127,13 @@ export function validateSevenComponentPersistedResult(
     || value.blockedStageFromFeedEnd < 1
     || value.blockedStageFromFeedEnd > value.blockedCascadeTrialCount
     || value.trials.length !== value.blockedCascadeTrialCount - 1
-    || value.flashEvidence?.phaseBehavior !== 'NO_SPLIT_FOUND_DENSE_RESEARCH_SEARCH'
+    || value.flashEvidence?.phaseBehavior !== blockedResultContract.phaseBehavior
     || value.flashEvidence?.phaseFractionExtract !== null
   )) return 'PREDICTIVE_NT_7C_BLOCKED_RESULT_INVALID';
   if (
     !options.intermediate
     && options.input
-    && !blockedNoSplit
+    && !blockedPhaseResult
     && value.trials.length !== options.input.maximumStages
   ) return 'PREDICTIVE_NT_7C_RESULT_TRIALS_INVALID';
   const finiteVector = (vector: unknown, nonnegative = false) => (
@@ -1789,12 +1799,13 @@ async function finishJob(
         canonicalJson(suppliedTrials[index]) === canonicalJson(trial)
       ),
     );
-    const blockedNoLiquidSplit = (
+    const blockedPhaseResult = (
       result
       && typeof result === 'object'
-      && (result as any).executionStatus === 'BLOCKED_NO_LIQUID_SPLIT'
+      && ['BLOCKED_NO_LIQUID_SPLIT', 'BLOCKED_PHASE_TOPOLOGY_UNRESOLVED']
+        .includes((result as any).executionStatus)
     );
-    const expectedTerminalTrials = blockedNoLiquidSplit
+    const expectedTerminalTrials = blockedPhaseResult
       ? Number((result as any).blockedCascadeTrialCount) - 1
       : Number(current.maximum_stages);
     let finalStatus = status;
