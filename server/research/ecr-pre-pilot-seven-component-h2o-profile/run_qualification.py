@@ -656,8 +656,10 @@ def engine(np, scipy, model, temperature_k, water_wt_pct):
         accepted = bool(split_reproduced_and_closed and post_stable)
         return {
             "phaseBehavior": "TWO_PHASE_RESEARCH_DIAGNOSTIC" if accepted else (
+                "TWO_PHASE_STATIONARY_DIAGNOSTIC_METASTABLE"
+                if split_reproduced_and_closed else (
                 "NO_SPLIT_FOUND_DENSE_RESEARCH_SEARCH"
-                if independent_convergence and search["minimum"] >= -1e-7 else "UNRESOLVED"),
+                if independent_convergence and search["minimum"] >= -1e-7 else "UNRESOLVED")),
             "optimizerSuccess": bool(best.success), "optimizerMessage": str(best.message),
             "optimizerIterations": int(best.nit), "boundarySolution": boundary,
             "equilibriumPolish": {
@@ -681,6 +683,19 @@ def engine(np, scipy, model, temperature_k, water_wt_pct):
             "phaseFractionExtract": beta if accepted else None,
             "raffinateComposition": raffinate.tolist() if accepted else None,
             "extractComposition": extract.tolist() if accepted else None,
+            "diagnosticPhaseFractionExtract": (
+                beta if split_reproduced_and_closed else None
+            ),
+            "diagnosticRaffinateComposition": (
+                raffinate.tolist() if split_reproduced_and_closed else None
+            ),
+            "diagnosticExtractComposition": (
+                extract.tolist() if split_reproduced_and_closed else None
+            ),
+            "diagnosticClassification": (
+                "NON_GOVERNED_METASTABLE_OR_UNRESOLVED_NOT_RELEASE_ELIGIBLE"
+                if split_reproduced_and_closed and not accepted else None
+            ),
             "isoactivityTangentResidual": (
                 residual if split_reproduced_and_closed else None
             ),

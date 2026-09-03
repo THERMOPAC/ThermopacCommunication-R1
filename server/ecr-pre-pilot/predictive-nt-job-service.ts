@@ -1107,6 +1107,21 @@ export function validateSevenComponentPersistedResult(
   // that successful trial, stream, or wet-solvent output exists.
   if (value.status === 'ENGINE_ERROR') return null;
   if (!Array.isArray(value.trials)) return 'PREDICTIVE_NT_7C_RESULT_TRIALS_INVALID';
+  const governedTrialsAccepted = value.trials.filter(
+    (trial: any) => trial?.numericalAcceptancePassed === true,
+  ).length;
+  const diagnosticTrialsCalculated = value.trials.filter(
+    (trial: any) => trial?.diagnosticContinuationUsed === true,
+  ).length;
+  if (
+    value.trialsAttempted !== value.trials.length
+    || value.governedTrialsAccepted !== governedTrialsAccepted
+    || value.diagnosticTrialsCalculated !== diagnosticTrialsCalculated
+    || value.governedTrialsAccepted < 0
+    || value.governedTrialsAccepted > value.trialsAttempted
+    || value.diagnosticTrialsCalculated < 0
+    || value.diagnosticTrialsCalculated > value.trialsAttempted
+  ) return 'PREDICTIVE_NT_7C_TRIAL_CLASSIFICATION_INVALID';
   const blockedResultContract = {
     BLOCKED_NO_LIQUID_SPLIT: {
       blockingCode: 'SEVEN_COMPONENT_NO_LIQUID_SPLIT',
@@ -1136,6 +1151,13 @@ export function validateSevenComponentPersistedResult(
     && !blockedPhaseResult
     && value.trials.length !== options.input.maximumStages
   ) return 'PREDICTIVE_NT_7C_RESULT_TRIALS_INVALID';
+  if (
+    !options.intermediate
+    && options.input
+    && !blockedPhaseResult
+    && !['COMPLETED_GOVERNED_SEQUENCE', 'COMPLETED_DIAGNOSTIC_SEQUENCE']
+      .includes(value.executionStatus)
+  ) return 'PREDICTIVE_NT_7C_TRIAL_CLASSIFICATION_INVALID';
   const finiteVector = (vector: unknown, nonnegative = false) => (
     Array.isArray(vector) && vector.length === 7
     && vector.every((entry) => (
@@ -1161,6 +1183,10 @@ export function validateSevenComponentPersistedResult(
       || !Array.isArray(trial?.stages) || trial.stages.length !== trial.stageCount
       || !finiteVector(trial?.overallComponentBalanceResidualMol)
       || !finiteVector(trial?.overallComponentBalanceResidualMass)
+      || !['GOVERNED_RESULT',
+        'NON_GOVERNED_METASTABLE_OR_UNRESOLVED_NOT_RELEASE_ELIGIBLE']
+        .includes(trial?.governanceClassification)
+      || typeof trial?.diagnosticContinuationUsed !== 'boolean'
     ) return 'PREDICTIVE_NT_7C_RESULT_TRIALS_INVALID';
     for (const streamName of ['oilFeed', 'freshWetSolvent', 'finalRaffinate', 'finalExtract']) {
       if (!validStream(trial?.boundaryStreams?.[streamName])) {
@@ -1168,6 +1194,11 @@ export function validateSevenComponentPersistedResult(
       }
     }
     for (const stage of trial.stages) {
+      if (!['GOVERNED_EQUILIBRIUM',
+        'NON_GOVERNED_METASTABLE_OR_UNRESOLVED_NOT_RELEASE_ELIGIBLE']
+        .includes(stage?.governanceClassification)) {
+        return 'PREDICTIVE_NT_7C_TRIAL_CLASSIFICATION_INVALID';
+      }
       for (const stream of ['raffinateIncoming', 'extractIncoming', 'raffinateLeaving', 'extractLeaving']) {
         if (!validStream(stage?.[stream])) {
           return 'PREDICTIVE_NT_7C_RESULT_VECTOR_INTEGRITY_INVALID';

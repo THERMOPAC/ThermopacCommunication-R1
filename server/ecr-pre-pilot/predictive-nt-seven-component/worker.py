@@ -268,11 +268,32 @@ def solve_cascade(np, flash, hessian, count, feed, solvent, previous=None):
             incoming_e = np.asarray(solvent) if i == count - 1 else e[i + 1]
             total = incoming_r + incoming_e
             result = flash(total / total.sum())
-            if result["phaseFractionExtract"] is None:
+            governed = result["phaseFractionExtract"] is not None
+            beta = (
+                result["phaseFractionExtract"] if governed
+                else result.get("diagnosticPhaseFractionExtract")
+            )
+            raffinate_composition = (
+                result["raffinateComposition"] if governed
+                else result.get("diagnosticRaffinateComposition")
+            )
+            extract_composition = (
+                result["extractComposition"] if governed
+                else result.get("diagnosticExtractComposition")
+            )
+            if (
+                beta is None
+                or raffinate_composition is None
+                or extract_composition is None
+            ):
                 raise NoLiquidSplit(i + 1, result)
-            beta = result["phaseFractionExtract"]
-            new_r[i] = total.sum() * (1.0 - beta) * np.asarray(result["raffinateComposition"])
-            new_e[i] = total.sum() * beta * np.asarray(result["extractComposition"])
+            new_r[i] = total.sum() * (1.0 - beta) * np.asarray(raffinate_composition)
+            new_e[i] = total.sum() * beta * np.asarray(extract_composition)
+            result["cascadePropagationClassification"] = (
+                "GOVERNED_EQUILIBRIUM"
+                if governed
+                else "NON_GOVERNED_METASTABLE_OR_UNRESOLVED_NOT_RELEASE_ELIGIBLE"
+            )
             stage_flash[i] = result
         residual = max(float(np.max(np.abs(new_r - r))), float(np.max(np.abs(new_e - e))))
         r, e = 0.55 * new_r + 0.45 * r, 0.55 * new_e + 0.45 * e
@@ -304,7 +325,9 @@ def solve_cascade(np, flash, hessian, count, feed, solvent, previous=None):
                 "raffinate": hessian(r[i] / r[i].sum()),
                 "extract": hessian(e[i] / e[i].sum())},
             "accepted": bool(result["postSplitGloballyStable"]),
+            "governanceClassification": result["cascadePropagationClassification"],
         })
+    governed = bool(converged and all(s["accepted"] for s in stages))
     return {
         "stageCount": count, "solverTerminationStatus": "CONVERGED" if converged else "MAX_ITERATIONS",
         "residualClosureStatus": "CLOSED" if converged else "UNCLOSED",
@@ -327,7 +350,15 @@ def solve_cascade(np, flash, hessian, count, feed, solvent, previous=None):
             "targetRaffinateSulfurPpm": {"status": "NOT_CALCULABLE",
                                          "calculated": None, "target": None}},
         "allCalculableTargetsPass": False,
-        "numericalAcceptancePassed": bool(converged and all(s["accepted"] for s in stages)),
+        "numericalAcceptancePassed": governed,
+        "governanceClassification": (
+            "GOVERNED_RESULT" if governed
+            else "NON_GOVERNED_METASTABLE_OR_UNRESOLVED_NOT_RELEASE_ELIGIBLE"
+        ),
+        "diagnosticContinuationUsed": any(
+            s["governanceClassification"] != "GOVERNED_EQUILIBRIUM"
+            for s in stages
+        ),
         "accepted": False, "releaseEligible": False,
         "qualificationStatus": STATUS,
         "_continuation": {"raffinateComponentMoles": r.tolist(), "extractComponentMoles": e.tolist()},
@@ -392,6 +423,27 @@ def validate_final(result, maximum):
                         stage.get(name, {}).get("componentMoles"),
                         nonnegative=True):
                     raise ValueError("PREDICTIVE_NT_7C_RESULT_VECTOR_INTEGRITY_INVALID")
+    governed_count = sum(
+        1 for trial in result["trials"]
+        if trial.get("numericalAcceptancePassed") is True
+    )
+    diagnostic_count = sum(
+        1 for trial in result["trials"]
+        if trial.get("diagnosticContinuationUsed") is True
+    )
+    if (
+        result.get("trialsAttempted") != len(result["trials"])
+        or result.get("governedTrialsAccepted") != governed_count
+        or result.get("diagnosticTrialsCalculated") != diagnostic_count
+        or (
+            not blocked and len(result["trials"]) == maximum
+            and result.get("executionStatus") not in {
+                "COMPLETED_GOVERNED_SEQUENCE",
+                "COMPLETED_DIAGNOSTIC_SEQUENCE",
+            }
+        )
+    ):
+        raise ValueError("PREDICTIVE_NT_7C_TRIAL_CLASSIFICATION_INVALID")
     if (result.get("status") != STATUS or result.get("releaseEligible") is not False
             or result.get("predictiveNt") is not None
             or result.get("establishedTheoreticalStages") is not None
@@ -483,6 +535,23 @@ def main():
             "wetSolventConstruction": wet, "engine": engine_evidence(),
             "qualificationEvidence": {"directWaterBearingLleValidated": False,
                                       "independentBlindQualificationPassed": False},
+            "executionStatus": (
+                "COMPLETED_GOVERNED_SEQUENCE"
+                if len(trials) == maximum
+                and all(t.get("numericalAcceptancePassed") for t in trials)
+                else "COMPLETED_DIAGNOSTIC_SEQUENCE"
+                if len(trials) == maximum
+                else (blocked or {}).get("executionStatus")
+            ),
+            "trialsAttempted": len(trials),
+            "governedTrialsAccepted": sum(
+                1 for trial in trials
+                if trial.get("numericalAcceptancePassed") is True
+            ),
+            "diagnosticTrialsCalculated": sum(
+                1 for trial in trials
+                if trial.get("diagnosticContinuationUsed") is True
+            ),
             "trials": trials,
             **(blocked or {}),
         }

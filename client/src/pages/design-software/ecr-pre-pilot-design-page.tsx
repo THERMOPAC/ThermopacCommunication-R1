@@ -172,6 +172,9 @@ type PredictiveNtResult = {
   calibrationRequired: boolean;
   pilotValidated: boolean;
   releaseEligible: boolean;
+  trialsAttempted?: number;
+  governedTrialsAccepted?: number;
+  diagnosticTrialsCalculated?: number;
   monotonicSequence: boolean;
   componentOrder?: string[];
   wetSolventConstruction?: {
@@ -1942,15 +1945,21 @@ export default function EcrPrePilotDesignPage() {
                   <p>The saved RRBO-feed NMP fraction remains in the six-component feed vector; the fresh counter-current NMP inlet is modeled separately.</p>
                 </div>
               )}
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-4">
                 <div className="rounded-md border bg-white p-3">
                   <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Queue status</p>
                   <p className="mt-1 text-sm font-semibold text-slate-900">{predictiveJob?.status ?? "Not submitted"}</p>
                 </div>
                 <div className="rounded-md border bg-white p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Stage trials</p>
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Trials attempted</p>
                   <p className="mt-1 text-sm font-semibold tabular-nums text-slate-900">
-                    {predictiveJob ? `${predictiveJob.progress.completedStageTrials} / ${predictiveJob.progress.maximumStages}` : "—"}
+                    {predictiveJob ? `${predictiveJob.result?.trialsAttempted ?? predictiveJob.progress.completedStageTrials} / ${predictiveJob.progress.maximumStages}` : "—"}
+                  </p>
+                </div>
+                <div className="rounded-md border bg-white p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Governed trials accepted</p>
+                  <p className="mt-1 text-sm font-semibold tabular-nums text-slate-900">
+                    {predictiveJob?.result ? `${predictiveJob.result.governedTrialsAccepted ?? 0} / ${predictiveJob.progress.maximumStages}` : "—"}
                   </p>
                 </div>
                 <div className="rounded-md border bg-white p-3">

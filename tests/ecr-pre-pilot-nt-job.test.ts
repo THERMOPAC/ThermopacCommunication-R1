@@ -520,6 +520,10 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
         directWaterBearingLleValidated: false,
         independentBlindQualificationPassed: false,
       },
+      executionStatus: 'COMPLETED_GOVERNED_SEQUENCE',
+      trialsAttempted: 2,
+      governedTrialsAccepted: 2,
+      diagnosticTrialsCalculated: 0,
       thermodynamicCondition: {
         temperatureC: 50,
         temperatureK: 323.15,
@@ -537,6 +541,9 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       },
       trials: [1, 2].map((stageCount) => ({
         stageCount,
+        numericalAcceptancePassed: true,
+        diagnosticContinuationUsed: false,
+        governanceClassification: 'GOVERNED_RESULT',
         overallComponentBalanceResidualMol: Array(7).fill(0),
         overallComponentBalanceResidualMass: Array(7).fill(0),
         boundaryStreams: {
@@ -546,6 +553,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
           finalExtract: stream,
         },
         stages: Array.from({ length: stageCount }, () => ({
+          governanceClassification: 'GOVERNED_EQUILIBRIUM',
           raffinateIncoming: stream,
           extractIncoming: stream,
           raffinateLeaving: stream,
@@ -557,6 +565,9 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     const unresolvedPhaseTopology = {
       ...result,
       trials: [result.trials[0]],
+      trialsAttempted: 1,
+      governedTrialsAccepted: 1,
+      diagnosticTrialsCalculated: 0,
       executionStatus: 'BLOCKED_PHASE_TOPOLOGY_UNRESOLVED',
       blockingCode: 'SEVEN_COMPONENT_PHASE_TOPOLOGY_UNRESOLVED',
       blockingMessage: 'Raffinate/extract phase topology could not be resolved.',
