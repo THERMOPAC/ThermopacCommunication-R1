@@ -13,7 +13,10 @@ import hashlib
 import importlib.util
 import json
 import math
+import os
+import resource
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -259,6 +262,8 @@ def solve_cascade(np, flash, hessian, count, feed, solvent, previous=None):
     else:
         r = np.tile(np.asarray(feed) / count, (count, 1))
         e = np.tile(np.asarray(solvent) / count, (count, 1))
+    trial_started = time.perf_counter()
+    starting_metrics = flash.performance_metrics()
     converged = False
     stage_flash = [None] * count
     for iteration in range(1, 81):
@@ -328,6 +333,30 @@ def solve_cascade(np, flash, hessian, count, feed, solvent, previous=None):
             "governanceClassification": result["cascadePropagationClassification"],
         })
     governed = bool(converged and all(s["accepted"] for s in stages))
+    ending_metrics = flash.performance_metrics()
+    performance = {
+        "schemaVersion": "PREDICTIVE_NT_7C_TRIAL_PERFORMANCE_V1",
+        "routeWorkers": ending_metrics["routeWorkers"],
+        "wallSeconds": time.perf_counter() - trial_started,
+        "cascadeIterations": iteration,
+        "peakResidentMemoryKb": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+        "counters": {
+            key: ending_metrics[key] - starting_metrics[key]
+            for key in (
+                "lngammaCalls", "lngammaCacheHits", "lngammaCacheMisses",
+                "lngammaCacheEvictions",
+                "tpdCalls", "flashCalls", "latticeEvaluations",
+                "tpdInteriorRoutes", "tpdFaceRoutes", "tpdEdgeRoutes",
+                "equilibriumRoutes",
+            )
+        },
+        "timingSeconds": {
+            key: ending_metrics["timingSeconds"][key]
+            - starting_metrics["timingSeconds"][key]
+            for key in ending_metrics["timingSeconds"]
+        },
+        "maximumLngammaCacheEntries": ending_metrics["maximumLngammaCacheEntries"],
+    }
     return {
         "stageCount": count, "solverTerminationStatus": "CONVERGED" if converged else "MAX_ITERATIONS",
         "residualClosureStatus": "CLOSED" if converged else "UNCLOSED",
@@ -361,6 +390,7 @@ def solve_cascade(np, flash, hessian, count, feed, solvent, previous=None):
         ),
         "accepted": False, "releaseEligible": False,
         "qualificationStatus": STATUS,
+        "_performance": performance,
         "_continuation": {"raffinateComponentMoles": r.tolist(), "extractComponentMoles": e.tolist()},
     }
 
@@ -453,6 +483,11 @@ def validate_final(result, maximum):
 
 def main():
     request = json.loads(sys.stdin.readline())
+    requested_workers = request.get("performanceRouteWorkers")
+    if requested_workers is not None:
+        if requested_workers not in (1, 2, 4):
+            raise ValueError("PREDICTIVE_NT_ROUTE_WORKERS_INVALID")
+        os.environ["PREDICTIVE_NT_ROUTE_WORKERS"] = str(requested_workers)
     if request.get("engineContractVersion") != ENGINE_VERSION:
         raise ValueError("PREDICTIVE_NT_7C_ENGINE_CONTRACT_REQUIRED")
     if request.get("engineHash") != engine_evidence()["engineHash"]:
@@ -476,6 +511,7 @@ def main():
             np, scipy, model, operating_temperature_k,
             wet["waterWeightPercentOfWetSolvent"])
         trials, previous, start = [], None, 1
+        performance_by_trial = []
         blocked = None
         resume = request.get("_resume")
         if resume:
@@ -515,9 +551,16 @@ def main():
                     "flashEvidence": no_split.evidence,
                 }
                 break
+            performance = trial.pop("_performance")
             trial, continuation = emit_checkpoint(trial, request.get("_checkpointProtocol"))
             previous = decode_continuation(np, continuation, count)
             trials.append(trial)
+            performance_by_trial.append({"stageCount": count, **performance})
+            print(
+                f"PREDICTIVE_NT_PERFORMANCE {count} "
+                f"{base64.b64encode(canonical(performance).encode()).decode()}",
+                file=sys.stderr, flush=True,
+            )
             print(f"PREDICTIVE_NT_PROGRESS {count} {maximum}", file=sys.stderr, flush=True)
         final = {
             "schemaVersion": "ECR_PRE_PILOT_PREDICTIVE_NT_RESULT_V1",
@@ -552,6 +595,7 @@ def main():
                 1 for trial in trials
                 if trial.get("diagnosticContinuationUsed") is True
             ),
+            "performanceMetricsByTrial": performance_by_trial,
             "trials": trials,
             **(blocked or {}),
         }

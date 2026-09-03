@@ -96,3 +96,4 @@
 - [Password reset environment boundary](password-reset-environment-boundary.md) — reset links must open the environment whose database issued the token; Preview tokens cannot validate in production.
 - [ECR Pre-Pilot water admission boundary](ecr-prepilot-water-admission-boundary.md) — H₂O is a controlled co-solvent; predictive admission requires a traceable profile and water-bearing LLE qualification.
 - [Predictive N_T cancellation](predictive-nt-cancellation.md) — terminal DB stop must also make the lease-owning process kill its Python child; an HTTP process-local child map is insufficient.
+- [Predictive route parallelism](predictive-route-parallelism.md) — fork only independent routes; restore canonical order, merge bounded exact caches, and kill every descendant on cancellation/failure.

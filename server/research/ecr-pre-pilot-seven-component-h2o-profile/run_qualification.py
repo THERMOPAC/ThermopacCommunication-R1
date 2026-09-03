@@ -8,10 +8,58 @@ import importlib.util
 import itertools
 import json
 import math
+import multiprocessing
+import os
+import queue
 import shutil
+import signal
 import sys
 import tempfile
+import threading
+import time
+from collections import OrderedDict
 from pathlib import Path
+
+_ORDERED_ROUTE_FUNCTIONS = {}
+_ORDERED_ROUTE_METRICS = {}
+_ORDERED_ROUTE_CACHES = {}
+
+
+def _execute_ordered_route_worker(token, input_queue, output_queue):
+    signal.signal(signal.SIGTERM, signal.SIG_DFL)
+    function = _ORDERED_ROUTE_FUNCTIONS[token]
+    metric_snapshot = _ORDERED_ROUTE_METRICS[token]
+    cache_snapshot = _ORDERED_ROUTE_CACHES[token]
+    inherited_cache_keys = set(cache_snapshot())
+    while True:
+        item = input_queue.get()
+        if item is None:
+            output_queue.put((
+                "cache",
+                {
+                    key: value
+                    for key, value in cache_snapshot().items()
+                    if key not in inherited_cache_keys
+                },
+            ))
+            return
+        index, value = item
+        before = metric_snapshot()
+        result = function(value)
+        after = metric_snapshot()
+        output_queue.put((
+            "result",
+            index,
+            result,
+            {
+                key: after[key] - before[key]
+                for key in (
+                    "lngammaCalls", "lngammaCacheHits", "lngammaCacheMisses",
+                    "lngammaCacheEvictions",
+                )
+            },
+            after["maximumLngammaCacheEntries"],
+        ))
 
 ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
@@ -238,20 +286,179 @@ def engine(np, scipy, model, temperature_k, water_wt_pct):
         or float(water_wt_pct) > 3.0
     ):
         raise ValueError("SEVEN_COMPONENT_WATER_OUTSIDE_GOVERNED_RANGE")
-    cache = {}
+    cache = OrderedDict()
+    cache_limit = 50000
+    cache_lock = threading.Lock()
+    metric_lock = threading.Lock()
+    route_workers = max(1, min(4, int(os.environ.get("PREDICTIVE_NT_ROUTE_WORKERS", "4"))))
+    metrics = {
+        "schemaVersion": "PREDICTIVE_NT_7C_PERFORMANCE_V1",
+        "routeWorkers": route_workers,
+        "lngammaCalls": 0, "lngammaCacheHits": 0, "lngammaCacheMisses": 0,
+        "lngammaCacheEvictions": 0,
+        "maximumLngammaCacheEntries": 0, "maximumWorkerLngammaCacheEntries": 0,
+        "tpdCalls": 0, "flashCalls": 0, "latticeEvaluations": 0,
+        "tpdInteriorRoutes": 0, "tpdFaceRoutes": 0, "tpdEdgeRoutes": 0,
+        "equilibriumRoutes": 0,
+        "timingSeconds": {
+            "latticeEvaluations": 0.0, "tpdInteriorRoutes": 0.0,
+            "tpdFaceRoutes": 0.0, "tpdEdgeRoutes": 0.0,
+            "tpdSerialRefinement": 0.0, "equilibriumRoutes": 0.0,
+            "equilibriumPolish": 0.0, "postSplitTpd": 0.0,
+        },
+    }
+
+    def add_metric(name, value=1):
+        with metric_lock:
+            metrics[name] += value
+
+    def add_timing(name, started):
+        with metric_lock:
+            metrics["timingSeconds"][name] += time.perf_counter() - started
+
+    def ordered_map(function, values):
+        values = list(values)
+        if route_workers == 1 or len(values) < 2:
+            return [function(value) for value in values]
+        token = f"{os.getpid()}-{id(function)}"
+        _ORDERED_ROUTE_FUNCTIONS[token] = function
+        _ORDERED_ROUTE_METRICS[token] = performance_metrics
+        _ORDERED_ROUTE_CACHES[token] = cache_snapshot
+        processes = []
+        input_queue = None
+        output_queue = None
+        previous_sigterm = signal.getsignal(signal.SIGTERM)
+
+        def stop_route_workers(signum, _frame):
+            for process in processes:
+                if process.is_alive():
+                    process.terminate()
+            for process in processes:
+                process.join(timeout=1.0)
+                if process.is_alive():
+                    process.kill()
+                    process.join(timeout=1.0)
+            os._exit(128 + signum)
+
+        try:
+            signal.signal(signal.SIGTERM, stop_route_workers)
+            context = multiprocessing.get_context("fork")
+            input_queue = context.Queue()
+            output_queue = context.Queue()
+            for indexed_value in enumerate(values):
+                input_queue.put(indexed_value)
+            for _ in range(route_workers):
+                input_queue.put(None)
+            processes = [
+                context.Process(
+                    target=_execute_ordered_route_worker,
+                    args=(token, input_queue, output_queue),
+                )
+                for _ in range(route_workers)
+            ]
+            for process in processes:
+                process.start()
+            expected_messages = len(values) + route_workers
+            messages = []
+            while len(messages) < expected_messages:
+                try:
+                    messages.append(output_queue.get(timeout=0.5))
+                except queue.Empty:
+                    if any(
+                        process.exitcode not in (None, 0)
+                        for process in processes
+                    ):
+                        raise RuntimeError(
+                            "PREDICTIVE_NT_PARALLEL_ROUTE_WORKER_FAILED")
+            for process in processes:
+                process.join()
+                if process.exitcode != 0:
+                    raise RuntimeError("PREDICTIVE_NT_PARALLEL_ROUTE_WORKER_FAILED")
+            completed = [row[1:] for row in messages if row[0] == "result"]
+            worker_caches = [row[1] for row in messages if row[0] == "cache"]
+            completed.sort(key=lambda row: row[0])
+            with cache_lock:
+                for worker_cache in worker_caches:
+                    for key, value in worker_cache.items():
+                        if key not in cache:
+                            cache[key] = value
+                        cache.move_to_end(key)
+                        if len(cache) > cache_limit:
+                            cache.popitem(last=False)
+                            metrics["lngammaCacheEvictions"] += 1
+                cache_size = len(cache)
+            with metric_lock:
+                for _, _, delta, worker_maximum in completed:
+                    for key, value in delta.items():
+                        metrics[key] += value
+                    metrics["maximumWorkerLngammaCacheEntries"] = max(
+                        metrics["maximumWorkerLngammaCacheEntries"], worker_maximum)
+                metrics["maximumLngammaCacheEntries"] = max(
+                    metrics["maximumLngammaCacheEntries"], cache_size)
+            return [result for _, result, _, _ in completed]
+        finally:
+            signal.signal(signal.SIGTERM, previous_sigterm)
+            for process in processes:
+                if process.is_alive():
+                    process.terminate()
+            for process in processes:
+                process.join(timeout=1.0)
+                if process.is_alive():
+                    process.kill()
+                    process.join(timeout=1.0)
+            if input_queue is not None:
+                input_queue.close()
+            if output_queue is not None:
+                output_queue.close()
+            _ORDERED_ROUTE_FUNCTIONS.pop(token, None)
+            _ORDERED_ROUTE_METRICS.pop(token, None)
+            _ORDERED_ROUTE_CACHES.pop(token, None)
+
+    def performance_metrics():
+        with metric_lock, cache_lock:
+            snapshot = json.loads(json.dumps(metrics))
+            snapshot["currentLngammaCacheEntries"] = len(cache)
+        return snapshot
+
+    def cache_snapshot():
+        with cache_lock:
+            return dict(cache)
 
     def lngamma(x):
         x = normalize(np, x)
         key = tuple(x.tolist())
-        if key not in cache:
-            cache[key] = model.wet_lngamma(np, temperature_k, x)
-        return cache[key]
+        add_metric("lngammaCalls")
+        with cache_lock:
+            cached = cache.get(key)
+            if cached is not None:
+                cache.move_to_end(key)
+        if cached is not None:
+            add_metric("lngammaCacheHits")
+            return cached
+        calculated = model.wet_lngamma(np, temperature_k, x)
+        with cache_lock:
+            cached = cache.get(key)
+            if cached is None:
+                cache[key] = calculated
+                cached = calculated
+            cache.move_to_end(key)
+            evicted = len(cache) > cache_limit
+            if evicted:
+                cache.popitem(last=False)
+            size = len(cache)
+        with metric_lock:
+            metrics["lngammaCacheMisses"] += 1
+            metrics["lngammaCacheEvictions"] += int(evicted)
+            metrics["maximumLngammaCacheEntries"] = max(
+                metrics["maximumLngammaCacheEntries"], size)
+        return cached
 
     def mu(x):
         x = normalize(np, x)
         return np.log(x) + lngamma(x)
 
     def tpd(reference):
+        add_metric("tpdCalls")
         reference = normalize(np, reference)
         reference_mu = mu(reference)
 
@@ -284,7 +491,10 @@ def engine(np, scipy, model, temperature_k, water_wt_pct):
         # vertex.  Starts are then deliberately diversified rather than all
         # being taken from one coarse basin.
         grid = list(lattice(np, 6, 7))
-        values = np.asarray([objective(x) for x in grid])
+        started = time.perf_counter()
+        values = np.asarray(ordered_map(objective, grid))
+        add_metric("latticeEvaluations", len(grid))
+        add_timing("latticeEvaluations", started)
         order = np.argsort(values)
         diverse = []
         for index in order:
@@ -310,61 +520,86 @@ def engine(np, scipy, model, temperature_k, water_wt_pct):
                     adaptive.append((f"ADAPTIVE_{i+1}_{target_name}_{fraction}", normalize(
                         np, (1.0-fraction)*x + fraction*target)))
         starts += adaptive
-        routes = []
         constraints = {"type": "eq", "fun": lambda x: float(x.sum() - 1.0), "jac": lambda x: np.ones(7)}
-        for label, start in starts:
+
+        def solve_interior(item):
+            label, start = item
             solution = scipy.optimize.minimize(
                 objective, start, method="SLSQP", bounds=[(FLOOR, 1.0)] * 7,
                 constraints=constraints, options={"ftol": 1e-12, "maxiter": 500},
             )
             x = normalize(np, solution.x)
-            routes.append({"method": "SLSQP-simplex", "seed": label, "success": bool(solution.success),
-                           "objective": objective(x), "composition": x.tolist(), **kkt(x)})
+            return {"method": "SLSQP-simplex", "seed": label, "success": bool(solution.success),
+                    "objective": objective(x), "composition": x.tolist(), **kkt(x)}
+
+        started = time.perf_counter()
+        routes = ordered_map(solve_interior, starts)
+        add_metric("tpdInteriorRoutes", len(starts))
+        add_timing("tpdInteriorRoutes", started)
         # Explicit active-set searches.  Each six-component face is refined
         # from both a uniform and projected-reference start with the omitted
         # component fixed at FLOOR.  Every binary edge is independently
         # minimized with the other five components fixed at FLOOR.
-        face_routes = []
+        face_inputs = []
         for omitted in range(7):
             subset = [i for i in range(7) if i != omitted]
-            available = 1.0 - FLOOR
+            projected = reference[subset] / reference[subset].sum()
+            face_inputs.extend((
+                (omitted, "UNIFORM", np.ones(6) / 6.0),
+                (omitted, "PROJECTED_REFERENCE", projected),
+            ))
 
+        def solve_face(item):
+            omitted, seed_name, seed = item
+            subset = [i for i in range(7) if i != omitted]
+            available = 1.0 - FLOOR
             def face_comp(u, subset=subset, omitted=omitted):
                 x = np.full(7, FLOOR); x[subset] = u
                 return x
 
-            projected = reference[subset] / reference[subset].sum()
-            for seed_name, seed in (("UNIFORM", np.ones(6)/6.0), ("PROJECTED_REFERENCE", projected)):
-                solution = scipy.optimize.minimize(
-                    lambda u: objective(face_comp(u)), available * seed,
-                    method="SLSQP", bounds=[(FLOOR, 1.0)] * 6,
-                    constraints={"type": "eq", "fun": lambda u: float(u.sum() - available),
-                                 "jac": lambda u: np.ones(6)},
-                    options={"ftol": 1e-12, "maxiter": 500})
-                x = face_comp(solution.x)
-                face_routes.append({
-                    "method": "SLSQP-active-face", "seed": seed_name,
-                    "fixedComponents": [FAMILIES[omitted]], "success": bool(solution.success),
-                    "objective": objective(x), "composition": x.tolist(), **kkt(x)})
-        edge_routes = []
+            solution = scipy.optimize.minimize(
+                lambda u: objective(face_comp(u)), available * seed,
+                method="SLSQP", bounds=[(FLOOR, 1.0)] * 6,
+                constraints={"type": "eq", "fun": lambda u: float(u.sum() - available),
+                             "jac": lambda u: np.ones(6)},
+                options={"ftol": 1e-12, "maxiter": 500})
+            x = face_comp(solution.x)
+            return {
+                "method": "SLSQP-active-face", "seed": seed_name,
+                "fixedComponents": [FAMILIES[omitted]], "success": bool(solution.success),
+                "objective": objective(x), "composition": x.tolist(), **kkt(x)}
+
+        started = time.perf_counter()
+        face_routes = ordered_map(solve_face, face_inputs)
+        add_metric("tpdFaceRoutes", len(face_inputs))
+        add_timing("tpdFaceRoutes", started)
+
         available_edge = 1.0 - 7.0 * FLOOR
-        for i in range(7):
-            for j in range(i + 1, 7):
-                def edge_comp(t, i=i, j=j):
-                    x = np.full(7, FLOOR)
-                    x[i] = FLOOR + available_edge * t
-                    x[j] = FLOOR + available_edge * (1.0-t)
-                    return x
-                solution = scipy.optimize.minimize_scalar(
-                    lambda t: objective(edge_comp(t)), bounds=(0.0, 1.0),
-                    method="bounded", options={"xatol": 1e-12, "maxiter": 500})
-                x = edge_comp(float(solution.x))
-                edge_routes.append({
-                    "method": "bounded-active-edge", "seed": "EDGE_MIDPOINT",
-                    "fixedComponents": [FAMILIES[k] for k in range(7) if k not in (i, j)],
-                    "success": bool(solution.success), "objective": objective(x),
-                    "composition": x.tolist(), **kkt(x)})
+        edge_inputs = [(i, j) for i in range(7) for j in range(i + 1, 7)]
+
+        def solve_edge(item):
+            i, j = item
+            def edge_comp(t):
+                x = np.full(7, FLOOR)
+                x[i] = FLOOR + available_edge * t
+                x[j] = FLOOR + available_edge * (1.0-t)
+                return x
+            solution = scipy.optimize.minimize_scalar(
+                lambda t: objective(edge_comp(t)), bounds=(0.0, 1.0),
+                method="bounded", options={"xatol": 1e-12, "maxiter": 500})
+            x = edge_comp(float(solution.x))
+            return {
+                "method": "bounded-active-edge", "seed": "EDGE_MIDPOINT",
+                "fixedComponents": [FAMILIES[k] for k in range(7) if k not in (i, j)],
+                "success": bool(solution.success), "objective": objective(x),
+                "composition": x.tolist(), **kkt(x)}
+
+        started = time.perf_counter()
+        edge_routes = ordered_map(solve_edge, edge_inputs)
+        add_metric("tpdEdgeRoutes", len(edge_inputs))
+        add_timing("tpdEdgeRoutes", started)
         routes += face_routes + edge_routes
+        started = time.perf_counter()
         best_start = np.asarray(min(routes, key=lambda row: row["objective"])["composition"])
         log_solution = scipy.optimize.minimize(
             lambda y: objective(logits(y)), np.log(best_start[:-1] / best_start[-1]),
@@ -384,6 +619,7 @@ def engine(np, scipy, model, temperature_k, water_wt_pct):
         routes.append({"method": "trust-constr-simplex", "seed": "BEST_CONSTRAINED",
                        "success": bool(trust_solution.success), "objective": objective(trust_x),
                        "composition": trust_x.tolist(), **kkt(trust_x)})
+        add_timing("tpdSerialRefinement", started)
         qualified = [row for row in routes if row["success"] and row["passed"]]
         accepted = min(qualified or routes, key=lambda row: row["objective"])
         agreeing = [row for row in qualified if abs(row["objective"] - accepted["objective"]) <= 2e-7]
@@ -460,6 +696,7 @@ def engine(np, scipy, model, temperature_k, water_wt_pct):
         }
 
     def flash(z, overall_search=None):
+        add_metric("flashCalls")
         z = normalize(np, z)
         homogeneous = float(z @ mu(z))
         search = overall_search if overall_search is not None else tpd(z)
@@ -473,17 +710,18 @@ def engine(np, scipy, model, temperature_k, water_wt_pct):
             ("DIVERSE_HALF_LBFGSB", "L-BFGS-B",
              0.5 * normalize(np, np.arange(1, 8))),
         ]
-        route_results = []
-        for route_index, (seed_name, method, start) in enumerate(starts):
-            start = np.clip(start, FLOOR, z - FLOOR)
 
-            def total_gibbs(ne):
-                beta = float(ne.sum())
-                if beta <= FLOOR or beta >= 1.0 - FLOOR:
-                    return 1e6
-                e = ne / beta
-                r = (z - ne) / (1.0 - beta)
-                return float(ne @ mu(e) + (z - ne) @ mu(r))
+        def total_gibbs(ne):
+            beta = float(ne.sum())
+            if beta <= FLOOR or beta >= 1.0 - FLOOR:
+                return 1e6
+            e = ne / beta
+            r = (z - ne) / (1.0 - beta)
+            return float(ne @ mu(e) + (z - ne) @ mu(r))
+
+        def solve_equilibrium(item):
+            route_index, (seed_name, method, start) = item
+            start = np.clip(start, FLOOR, z - FLOOR)
 
             solution = scipy.optimize.minimize(
                 total_gibbs, start, method=method,
@@ -543,7 +781,12 @@ def engine(np, scipy, model, temperature_k, water_wt_pct):
                 "raffinateComposition": raffinate.tolist() if feasible else None,
                 "extractComposition": extract.tolist() if feasible else None,
             }
-            route_results.append((solution, evidence))
+            return solution, evidence
+
+        started = time.perf_counter()
+        route_results = ordered_map(solve_equilibrium, enumerate(starts))
+        add_metric("equilibriumRoutes", len(starts))
+        add_timing("equilibriumRoutes", started)
 
         def unordered_pair_distance(left, right):
             lr, le = (np.asarray(left["raffinateComposition"]),
@@ -591,6 +834,7 @@ def engine(np, scipy, model, temperature_k, water_wt_pct):
             raffinate_local = (z - ne) / (1.0 - beta_local)
             return mu(extract_local) - mu(raffinate_local)
 
+        started = time.perf_counter()
         polish = scipy.optimize.least_squares(
             chemical_potential_gap,
             np.asarray(best.x),
@@ -598,6 +842,7 @@ def engine(np, scipy, model, temperature_k, water_wt_pct):
             xtol=1e-13, ftol=1e-13, gtol=1e-13,
             max_nfev=2000, x_scale="jac",
         )
+        add_timing("equilibriumPolish", started)
         polished_ne = np.asarray(polish.x)
         beta = float(polished_ne.sum())
         feasible = bool(
@@ -645,10 +890,12 @@ def engine(np, scipy, model, temperature_k, water_wt_pct):
             independent_convergence and polished_closed
             and search["minimum"] < -1e-7
         )
+        started = time.perf_counter()
         post = (
             {"raffinate": tpd(raffinate), "extract": tpd(extract)}
             if split_reproduced_and_closed else None
         )
+        add_timing("postSplitTpd", started)
         post_stable = bool(
             split_reproduced_and_closed
             and all(row["minimum"] >= -1e-7 for row in post.values())
@@ -709,6 +956,7 @@ def engine(np, scipy, model, temperature_k, water_wt_pct):
                 post_stable if split_reproduced_and_closed else None
             ),
         }
+    flash.performance_metrics = performance_metrics
     return flash, tpd, hessian
 
 
