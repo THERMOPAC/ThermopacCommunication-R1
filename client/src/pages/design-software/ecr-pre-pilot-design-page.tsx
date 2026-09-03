@@ -147,7 +147,8 @@ type PredictiveTrial = {
   acceptanceBlockers: Array<{ code?: string; [key: string]: unknown }>;
   boundaryStreams: {
     oilFeed: PredictiveStream;
-    freshNmp: PredictiveStream;
+    freshNmp?: PredictiveStream;
+    freshWetSolvent?: PredictiveStream;
     finalRaffinate: PredictiveStream;
     finalExtract: PredictiveStream;
   };
@@ -163,6 +164,8 @@ type PredictiveTrial = {
   stages: PredictiveStage[];
 };
 type PredictiveNtResult = {
+  engineContractVersion?: string;
+  implementationStatus?: string;
   status: string;
   predictiveNt: number | null;
   establishedTheoreticalStages: null;
@@ -171,6 +174,13 @@ type PredictiveNtResult = {
   releaseEligible: boolean;
   monotonicSequence: boolean;
   componentOrder?: string[];
+  wetSolventConstruction?: {
+    totalWetSolventMass?: number;
+    dryNmpMass?: number;
+    waterMass?: number;
+    waterWeightPercentOfWetSolvent?: number;
+    massClosureResidual?: number;
+  };
   modelIdentity?: string;
   diagnosticSelectionBasis?: string;
   model?: { modelHash?: string; runtimeVerification?: string };
@@ -328,6 +338,7 @@ const PHASE_OPTIONS = [
 ];
 const SOLVENT_OIL_RATIO_OPTIONS = ["0.50", "0.75", "0.90", "1.00", "1.25", "1.50", "2.00"];
 const NMP_WATER_OPTIONS = ["0.5", "1.0", "1.5", "2.0", "2.5", "3.0"];
+const NMP_PURITY_OPTIONS = NMP_WATER_OPTIONS.map((water) => (100 - Number(water)).toFixed(1)).reverse();
 const TARGET_RAFFINATE_SULFUR_OPTIONS = ["750", "1000", "1500", "2000", "2500"];
 const MINIMUM_RAFFINATE_SATURATES_OPTIONS = ["90", "92.5", "95", "97.5"];
 const TARGET_TOTAL_AROMATICS_OPTIONS = Array.from(
@@ -1032,6 +1043,20 @@ export default function EcrPrePilotDesignPage() {
     }
   };
 
+  const setNmpPurity = (value: string) => {
+    const complement = nmpComplement(value);
+    const nextForm = {
+      ...form,
+      nmpPurityWt: value,
+      ...(complement === null ? {} : { nmpWaterWt: complement }),
+    };
+    setForm(nextForm);
+    setSaveState("unsaved");
+    if (validationAttempted) {
+      setValidationErrors(validateForm(nextForm));
+    }
+  };
+
   const handleRrboGradeChange = (grade: string) => {
     const properties = getStandardRrboProperties(grade, form.operatingTemperatureC);
     const nextForm = {
@@ -1567,14 +1592,14 @@ export default function EcrPrePilotDesignPage() {
               tone="cyan"
             />
             <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2 xl:grid-cols-3">
-              <NumericField
+              <SelectField
                 id="nmp-purity"
                 label="NMP purity"
                 value={form.nmpPurityWt}
-                onChange={() => undefined}
+                onChange={setNmpPurity}
+                placeholder="Select NMP purity"
+                options={NMP_PURITY_OPTIONS}
                 unit="wt%"
-                max="100"
-                readOnly
                 error={validationErrors.nmpPurityWt}
               />
               <SelectField
@@ -1999,7 +2024,19 @@ export default function EcrPrePilotDesignPage() {
                   <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
                     <p className="font-semibold">Predictive-only limitations</p>
                     <p>Calibration required: {predictiveJob.result.calibrationRequired ? "Yes" : "No"} · Pilot validated: {predictiveJob.result.pilotValidated ? "Yes" : "No"} · Release eligible: {predictiveJob.result.releaseEligible ? "Yes" : "No"}</p>
-                    <p>This is a six-component COSMO-SAC research diagnostic. Numerical acceptance does not make it pilot validated or release eligible. Sulfur prediction remains NOT_CALCULABLE, and PA transfer must never be interpreted as sulfur removal. This result does not populate established theoretical stages.</p>
+                    <p>
+                      {predictiveJob.result.engineContractVersion === "7C-1.0.0"
+                        ? "The seven-component cCOSMO production implementation includes H2O. Predictive qualification remains pending governed water-bearing LLE and blind qualification; this is not a claim that implementation is research-only."
+                        : "This historical six-component COSMO-SAC result remains readable under its original research-diagnostic contract."}
+                      {" "}Sulfur prediction remains NOT_CALCULABLE, and PA transfer must never be interpreted as sulfur removal. This result does not populate established theoretical stages.
+                    </p>
+                    {predictiveJob.result.wetSolventConstruction && (
+                      <p>
+                        Wet solvent: <strong>{predictiveJob.result.wetSolventConstruction.dryNmpMass ?? "—"} NMP + {predictiveJob.result.wetSolventConstruction.waterMass ?? "—"} H2O</strong>
+                        {" · "}H2O {predictiveJob.result.wetSolventConstruction.waterWeightPercentOfWetSolvent ?? "—"} wt%
+                        {" · "}closure {Number(predictiveJob.result.wetSolventConstruction.massClosureResidual ?? NaN).toExponential(3)}
+                      </p>
+                    )}
                     {predictiveJob.result.stage1TargetGovernance && (
                       <>
                         <p>
@@ -2104,7 +2141,7 @@ export default function EcrPrePilotDesignPage() {
                       return (
                         <details key={trial.stageCount} className="rounded-md border bg-white" open={trial.numericalAcceptancePassed}>
                           <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800">
-                            Trial {trial.stageCount}: RESEARCH DIAGNOSTIC — NOT ACCEPTED · numerical gates {trial.numericalAcceptancePassed ? "PASS" : "FAIL"} · max balance residual {trial.maximumOverallComponentBalanceResidualMol.toExponential(3)}
+                            Trial {trial.stageCount}: {predictiveJob.result?.engineContractVersion === "7C-1.0.0" ? "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING" : "RESEARCH DIAGNOSTIC"} — NOT ACCEPTED · numerical gates {trial.numericalAcceptancePassed ? "PASS" : "FAIL"} · max balance residual {trial.maximumOverallComponentBalanceResidualMol.toExponential(3)}
                           </summary>
                           <div className="space-y-3 border-t px-3 py-3 text-[11px]">
                             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">

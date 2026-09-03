@@ -21,16 +21,20 @@ import {
 import { generatePredictiveNtReport } from './predictive-nt-report';
 
 export interface PredictiveNtJobInput {
+  engineContractVersion?: '6C-1.0.0' | '7C-1.0.0';
   engineComponentContract: {
-    componentCount: 6;
-    families: readonly ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP'];
-    thermodynamicModel: 'FROZEN_SIX_COMPONENT_COSMO_SAC_2010';
-    researchDiagnosticOnly: true;
+    componentCount: 6 | 7;
+    families: readonly string[];
+    thermodynamicModel:
+      | 'FROZEN_SIX_COMPONENT_COSMO_SAC_2010'
+      | 'CCOSMO_COSMO_SAC_2010_SEVEN_COMPONENT';
+    researchDiagnosticOnly?: true;
+    qualificationStatus?: 'PENDING_GOVERNED_WATER_BEARING_LLE_AND_BLIND_QUALIFICATION';
   };
   modelHash: string;
   temperatureK: number;
   solventMolarRatio: number;
-  feedMoleFractions: [number, number, number, number, number, number];
+  feedMoleFractions: number[];
   satIdentity: string;
   monoIdentity: string;
   sourceFeedCompositionMassFraction: {
@@ -52,6 +56,13 @@ export interface PredictiveNtJobInput {
   solventSpecificationAudit: {
     nmpPurityMassPercent: number;
     nmpWaterMassPercent: number;
+  };
+  wetSolventConstruction?: {
+    basis: 'FIXED_TOTAL_WET_SOLVENT_MASS';
+    totalWetSolventMassPerUnitFeedMass: number;
+    dryNmpMassPerUnitFeedMass: number;
+    waterMassPerUnitFeedMass: number;
+    massClosureResidual: number;
   };
   targetRaffinateMonoHydrocarbonMoleFraction: number;
   minimumRaffinateSaturatesHydrocarbonMoleFraction?: number;
@@ -104,6 +115,7 @@ const JOB_TIMEOUT_MS = 4 * 60 * 60 * 1000;
 const LEASE_MS = 45 * 1000;
 const POLL_MS = 1_000;
 const PREDICTIVE_NT_ENGINE_SHA256 = process.env.PREDICTIVE_NT_ENGINE_SHA256 ?? '';
+const PREDICTIVE_NT_7C_ENGINE_SHA256 = process.env.PREDICTIVE_NT_7C_ENGINE_SHA256 ?? '';
 const WORKER_OWNER = `${os.hostname()}:${process.pid}:${randomUUID()}`;
 let workerStarted = false;
 let workerBusy = false;
@@ -118,12 +130,15 @@ type RuntimeTestHooks = {
 };
 const runtimeTestHooks = new Map<string, RuntimeTestHooks>();
 
-function runtimeRoot() {
+function runtimeRoot(input?: PredictiveNtJobInput) {
   if (process.env.PREDICTIVE_NT_RUNTIME_ROOT) {
     return path.resolve(process.env.PREDICTIVE_NT_RUNTIME_ROOT);
   }
   return process.env.NODE_ENV === 'production'
-    ? path.resolve(process.cwd(), 'dist/predictive-nt-runtime')
+    ? path.resolve(
+      process.cwd(),
+      isSevenComponentInput(input) ? 'dist/predictive-nt-runtime-7c' : 'dist/predictive-nt-runtime',
+    )
     : process.cwd();
 }
 
@@ -515,21 +530,52 @@ export function validateTask218CandidateGeneratedStabilityEvidence(evidence: unk
     : 'TASK218_CANDIDATE_FROZEN_SUMMARY_MISMATCH';
 }
 
-function workerScript() {
+function isSevenComponentInput(input?: PredictiveNtJobInput) {
+  return input?.engineContractVersion === '7C-1.0.0';
+}
+
+export function predictiveNtCheckpointProtocol(input: PredictiveNtJobInput) {
+  return isSevenComponentInput(input) ? 'ACK_V3_ENGINE_CONTRACT' as const : 'ACK_V2' as const;
+}
+
+export function validatePredictiveNtCheckpointContract(
+  input: PredictiveNtJobInput,
+  protocol: unknown,
+  engineContractVersion: unknown,
+) {
+  const expectedProtocol = predictiveNtCheckpointProtocol(input);
+  if (
+    protocol !== expectedProtocol
+    || (
+      isSevenComponentInput(input)
+      && engineContractVersion !== '7C-1.0.0'
+    )
+    || (
+      !isSevenComponentInput(input)
+      && engineContractVersion != null
+      && engineContractVersion !== '6C-LEGACY'
+    )
+  ) throw new Error('PREDICTIVE_NT_CROSS_ENGINE_CHECKPOINT_FORBIDDEN');
+  return expectedProtocol;
+}
+
+function workerScript(input?: PredictiveNtJobInput) {
   if (process.env.NODE_ENV === 'test' && process.env.PREDICTIVE_NT_TEST_WORKER_SCRIPT) {
     return path.resolve(process.env.PREDICTIVE_NT_TEST_WORKER_SCRIPT);
   }
   return path.join(
-    runtimeRoot(),
-    'server/research/ecr-pre-pilot-model-freeze/predictive_nt_six_component.py',
+    runtimeRoot(input),
+    isSevenComponentInput(input as PredictiveNtJobInput)
+      ? 'server/ecr-pre-pilot/predictive-nt-seven-component/worker.py'
+      : 'server/research/ecr-pre-pilot-model-freeze/predictive_nt_six_component.py',
   );
 }
 
-function readPredictiveNtRuntimePreflight() {
-  const script = workerScript();
+function readPredictiveNtRuntimePreflight(input?: PredictiveNtJobInput) {
+  const script = workerScript(input);
   if (!fs.existsSync(script)) throw new Error(`PREDICTIVE_NT_RUNTIME_MISSING: ${script}`);
   const check = spawnSync('python3.12', [script, '--preflight'], {
-    cwd: runtimeRoot(),
+    cwd: runtimeRoot(input),
     encoding: 'utf8',
     timeout: 60_000,
   });
@@ -551,9 +597,23 @@ function readPredictiveNtRuntimePreflight() {
       result.testProtocolFixture === true
         ? process.env.NODE_ENV !== 'test'
         : (
-          result.engineId !== 'ECR2_PREDICTIVE_NT_SIX_COMPONENT_COSMOSAC'
-          || JSON.stringify(result.componentOrder) !== JSON.stringify(['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP'])
-          || result.modelIdentity !== 'COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL'
+          (
+            isSevenComponentInput(input as PredictiveNtJobInput)
+              ? (
+                result.engineId !== 'ECR2_PREDICTIVE_NT_SEVEN_COMPONENT_CCOSMO'
+                || result.engineContractVersion !== '7C-1.0.0'
+                || JSON.stringify(result.componentOrder) !== JSON.stringify(
+                  ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+                )
+                || result.checkpointProtocol !== 'ACK_V3_ENGINE_CONTRACT'
+                || result.governanceStatus !== 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING'
+              )
+              : (
+                result.engineId !== 'ECR2_PREDICTIVE_NT_SIX_COMPONENT_COSMOSAC'
+                || JSON.stringify(result.componentOrder) !== JSON.stringify(['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP'])
+                || result.modelIdentity !== 'COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL'
+              )
+          )
           || !Number.isInteger(result.verifiedScientificInputCount)
           || result.verifiedScientificInputCount < 2_000
           || !/^[a-f0-9]{64}$/.test(result.verifiedScientificInputAggregateSha256)
@@ -571,14 +631,17 @@ function readPredictiveNtRuntimePreflight() {
   ) {
     throw new Error('PREDICTIVE_NT_RUNTIME_PREFLIGHT_FAILED: invalid evidence');
   }
-  if (PREDICTIVE_NT_ENGINE_SHA256 && result.engineHash !== PREDICTIVE_NT_ENGINE_SHA256) {
+  const configuredHash = isSevenComponentInput(input as PredictiveNtJobInput)
+    ? PREDICTIVE_NT_7C_ENGINE_SHA256
+    : PREDICTIVE_NT_ENGINE_SHA256;
+  if (configuredHash && result.engineHash !== configuredHash) {
     throw new Error('PREDICTIVE_NT_RUNTIME_PREFLIGHT_FAILED: engine hash mismatch');
   }
   return result;
 }
 
-function currentPredictiveNtEngineHash() {
-  return readPredictiveNtRuntimePreflight().engineHash as string;
+function currentPredictiveNtEngineHash(input?: PredictiveNtJobInput) {
+  return readPredictiveNtRuntimePreflight(input).engineHash as string;
 }
 
 export function preflightPredictiveNtRuntime() {
@@ -594,7 +657,7 @@ const MONO_IDENTITIES = new Set<string>(
   PREDICTIVE_NT_MOLECULAR_REGISTRY.monoAromatics.map(({ identity }) => identity),
 );
 
-export function derivePredictiveNtInputFromStage1(
+export function derivePredictiveNtSixComponentInputFromStage1(
   rawSnapshot: unknown,
   projectNumber: number,
   profileReader?: SixComponentProfileFileReader,
@@ -705,10 +768,123 @@ export function derivePredictiveNtInputFromStage1(
   };
 }
 
+/** All newly submitted controlled-water jobs are bound to the production 7C contract. */
+export function derivePredictiveNtInputFromStage1(
+  rawSnapshot: unknown,
+  projectNumber: number,
+  profileReader?: SixComponentProfileFileReader,
+): PredictiveNtJobInput {
+  const legacy = derivePredictiveNtSixComponentInputFromStage1(
+    rawSnapshot,
+    projectNumber,
+    profileReader,
+  );
+  const waterFraction = legacy.solventSpecificationAudit.nmpWaterMassPercent / 100;
+  const nmpFraction = legacy.solventSpecificationAudit.nmpPurityMassPercent / 100;
+  const wet = legacy.sourceSolventOilMassRatio;
+  if (Math.abs(waterFraction + nmpFraction - 1) > 1e-9) {
+    throw new Error('STAGE1_INVALID_WET_SOLVENT_COMPOSITION');
+  }
+  const stage1 = legacy.stage1Authority!.source.stage1;
+  const masses = [
+    stage1.saturatesWt, stage1.monoAromaticsWt, stage1.diAromaticsWt,
+    stage1.polyAromaticsWt, stage1.polarAromaticsWt, stage1.nmpInFeedWt, 0,
+  ];
+  const molecularWeights = [
+    PREDICTIVE_NT_MOLECULAR_REGISTRY.saturates
+      .find(({ identity }) => identity === stage1.satIdentity)!.molecularWeightGmol,
+    PREDICTIVE_NT_MOLECULAR_REGISTRY.monoAromatics
+      .find(({ identity }) => identity === stage1.monoIdentity)!.molecularWeightGmol,
+    PREDICTIVE_NT_MOLECULAR_REGISTRY.diAromatics.molecularWeightGmol,
+    PREDICTIVE_NT_MOLECULAR_REGISTRY.polyAromatics.molecularWeightGmol,
+    PREDICTIVE_NT_MOLECULAR_REGISTRY.polarAromatics.molecularWeightGmol,
+    PREDICTIVE_NT_MOLECULAR_REGISTRY.nmp.molecularWeightGmol,
+    18.01528,
+  ];
+  const moles = masses.map((mass, index) => mass / molecularWeights[index]);
+  const moleTotal = moles.reduce((sum, value) => sum + value, 0);
+  return {
+    ...legacy,
+    engineContractVersion: '7C-1.0.0',
+    engineComponentContract: {
+      componentCount: 7,
+      families: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+      thermodynamicModel: 'CCOSMO_COSMO_SAC_2010_SEVEN_COMPONENT',
+      qualificationStatus: 'PENDING_GOVERNED_WATER_BEARING_LLE_AND_BLIND_QUALIFICATION',
+    },
+    feedMoleFractions: moles.map((value) => value / moleTotal),
+    solventMolarRatio: (
+      wet * nmpFraction / molecularWeights[5] + wet * waterFraction / molecularWeights[6]
+    ) / (moleTotal / 100),
+    wetSolventConstruction: {
+      basis: 'FIXED_TOTAL_WET_SOLVENT_MASS',
+      totalWetSolventMassPerUnitFeedMass: wet,
+      dryNmpMassPerUnitFeedMass: wet * nmpFraction,
+      waterMassPerUnitFeedMass: wet * waterFraction,
+      massClosureResidual: Math.abs(wet - wet * nmpFraction - wet * waterFraction),
+    },
+  };
+}
+
 export function validatePredictiveNtJobInput(
   input: PredictiveNtJobInput,
   profileReader?: SixComponentProfileFileReader,
 ) {
+  if (isSevenComponentInput(input)) {
+    const expectedOrder = ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'];
+    if (
+      input.engineComponentContract?.componentCount !== 7
+      || input.engineComponentContract?.thermodynamicModel
+        !== 'CCOSMO_COSMO_SAC_2010_SEVEN_COMPONENT'
+      || input.engineComponentContract?.qualificationStatus
+        !== 'PENDING_GOVERNED_WATER_BEARING_LLE_AND_BLIND_QUALIFICATION'
+      || canonicalJson(input.engineComponentContract?.families) !== canonicalJson(expectedOrder)
+      || !Array.isArray(input.feedMoleFractions)
+      || input.feedMoleFractions.length !== 7
+      || input.feedMoleFractions.some((value) => !Number.isFinite(value) || value < 0)
+      || Math.abs(input.feedMoleFractions.reduce((sum, value) => sum + value, 0) - 1) > 1e-9
+      || input.wetSolventConstruction?.basis !== 'FIXED_TOTAL_WET_SOLVENT_MASS'
+      || !Number.isFinite(input.wetSolventConstruction.massClosureResidual)
+      || input.wetSolventConstruction.massClosureResidual > 1e-12
+      || Math.abs(
+        input.wetSolventConstruction.totalWetSolventMassPerUnitFeedMass
+        - input.wetSolventConstruction.dryNmpMassPerUnitFeedMass
+        - input.wetSolventConstruction.waterMassPerUnitFeedMass
+      ) > 1e-12
+    ) {
+      throw new Error('PREDICTIVE_NT_SEVEN_COMPONENT_CONTRACT_REQUIRED');
+    }
+    if (!input.stage1Authority) throw new Error('STAGE1_AUTHORITY_REQUIRED');
+    const snapshot = validateStage1Snapshot(input.stage1Authority.source);
+    verifyStage1SixComponentCosmoSacProfileFiles(snapshot.sixComponentCosmoSacBinding, profileReader);
+    const projectNumber = Number(snapshot.stage1.projectReference);
+    const { _runtimeTestOwner, ...comparable } = input as PredictiveNtJobInput & {
+      _runtimeTestOwner?: unknown;
+    };
+    const expected = derivePredictiveNtInputFromStage1(snapshot, projectNumber, profileReader);
+    if (
+      (_runtimeTestOwner !== undefined && process.env.NODE_ENV !== 'test')
+      || canonicalJson(comparable) !== canonicalJson(expected)
+    ) {
+      // The authority remains immutable, but callers need to distinguish a
+      // malformed 7C derived vector/wet charge from a legacy snapshot error.
+      throw new Error('PREDICTIVE_NT_7C_INPUT_RECONSTRUCTION_MISMATCH');
+    }
+    const gate = startPrePilotNt({
+      executionMode: 'ECR_PRE_PILOT_PREDICTIVE',
+      requestedModelHash: input.modelHash,
+      feedCompositionMassFraction: {
+        saturates: input.sourceFeedCompositionMassFraction.saturates,
+        mono: input.sourceFeedCompositionMassFraction.mono,
+        di: input.sourceFeedCompositionMassFraction.di,
+        poly: input.sourceFeedCompositionMassFraction.poly,
+        polar: input.sourceFeedCompositionMassFraction.polar,
+      },
+      sulfurObjectiveRequested: false,
+    });
+    if (!gate.mayRunPredictiveNt) throw new Error(gate.status);
+    return gate;
+  }
   if (
     input.engineComponentContract?.componentCount !== 6
     || input.engineComponentContract?.thermodynamicModel !== 'FROZEN_SIX_COMPONENT_COSMO_SAC_2010'
@@ -863,7 +1039,7 @@ export function validatePredictiveNtJobInput(
   }
   let expected: PredictiveNtJobInput;
   try {
-    expected = derivePredictiveNtInputFromStage1(
+    expected = derivePredictiveNtSixComponentInputFromStage1(
       authoritySnapshot,
       projectNumber,
       profileReader,
@@ -897,6 +1073,106 @@ export function validatePredictiveNtExecutionEvidence(
   return null;
 }
 
+const SEVEN_COMPONENT_ORDER = ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'] as const;
+
+export function validateSevenComponentPersistedResult(
+  result: unknown,
+  options: { intermediate?: boolean; input?: PredictiveNtJobInput } = {},
+) {
+  const value = result as any;
+  if (
+    !value || typeof value !== 'object'
+    || value.engineContractVersion !== '7C-1.0.0'
+    || canonicalJson(value.componentOrder) !== canonicalJson(SEVEN_COMPONENT_ORDER)
+    || value.releaseEligible !== false
+    || value.predictiveNt !== null
+    || value.establishedTheoreticalStages !== null
+  ) return 'PREDICTIVE_NT_7C_RESULT_CONTRACT_INVALID';
+  if (!options.intermediate && value.status !== 'ENGINE_ERROR' && (
+    value.status !== 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING'
+    || value.implementationStatus !== 'IMPLEMENTED'
+    || value.sulfurPrediction?.status !== 'NOT_CALCULABLE'
+    || value.qualificationEvidence?.directWaterBearingLleValidated !== false
+    || value.qualificationEvidence?.independentBlindQualificationPassed !== false
+  )) return 'PREDICTIVE_NT_7C_RESULT_GOVERNANCE_INVALID';
+  // Terminal engine failures must persist their evidence without pretending
+  // that successful trial, stream, or wet-solvent output exists.
+  if (value.status === 'ENGINE_ERROR') return null;
+  if (!Array.isArray(value.trials)) return 'PREDICTIVE_NT_7C_RESULT_TRIALS_INVALID';
+  if (
+    !options.intermediate
+    && options.input
+    && value.trials.length !== options.input.maximumStages
+  ) return 'PREDICTIVE_NT_7C_RESULT_TRIALS_INVALID';
+  const finiteVector = (vector: unknown, nonnegative = false) => (
+    Array.isArray(vector) && vector.length === 7
+    && vector.every((entry) => (
+      typeof entry === 'number' && Number.isFinite(entry) && (!nonnegative || entry >= 0)
+    ))
+  );
+  const validStream = (stream: any) => {
+    if (
+      !stream || !finiteVector(stream.componentMoles, true)
+      || !finiteVector(stream.componentMass, true)
+      || !finiteVector(stream.moleFractions, true)
+      || !finiteVector(stream.massFractions, true)
+      || !Number.isFinite(stream.flowMol) || stream.flowMol < 0
+      || !Number.isFinite(stream.mass) || stream.mass < 0
+    ) return false;
+    const moleSum = stream.moleFractions.reduce((sum: number, entry: number) => sum + entry, 0);
+    const massSum = stream.massFractions.reduce((sum: number, entry: number) => sum + entry, 0);
+    return Math.abs(moleSum - 1) <= 1e-8 && Math.abs(massSum - 1) <= 1e-8;
+  };
+  for (const trial of value.trials) {
+    if (
+      !Number.isInteger(trial?.stageCount) || trial.stageCount < 1
+      || !Array.isArray(trial?.stages) || trial.stages.length !== trial.stageCount
+      || !finiteVector(trial?.overallComponentBalanceResidualMol)
+      || !finiteVector(trial?.overallComponentBalanceResidualMass)
+    ) return 'PREDICTIVE_NT_7C_RESULT_TRIALS_INVALID';
+    for (const streamName of ['oilFeed', 'freshWetSolvent', 'finalRaffinate', 'finalExtract']) {
+      if (!validStream(trial?.boundaryStreams?.[streamName])) {
+        return 'PREDICTIVE_NT_7C_RESULT_VECTOR_INTEGRITY_INVALID';
+      }
+    }
+    for (const stage of trial.stages) {
+      for (const stream of ['raffinateIncoming', 'extractIncoming', 'raffinateLeaving', 'extractLeaving']) {
+        if (!validStream(stage?.[stream])) {
+          return 'PREDICTIVE_NT_7C_RESULT_VECTOR_INTEGRITY_INVALID';
+        }
+      }
+    }
+  }
+  if (!options.intermediate && options.input) {
+    const stage1 = options.input.stage1Authority?.source.stage1;
+    const wet = value.wetSolventConstruction;
+    const rrboFeedMass = Number(wet?.rrboFeedMass);
+    const governedFeedMass = stage1
+      ? stage1.saturatesWt + stage1.monoAromaticsWt + stage1.diAromaticsWt
+        + stage1.polyAromaticsWt + stage1.polarAromaticsWt + stage1.nmpInFeedWt
+      : Number.NaN;
+    const expectedWetMass = governedFeedMass
+      * Number(options.input.wetSolventConstruction?.totalWetSolventMassPerUnitFeedMass);
+    const expectedNmpMass = governedFeedMass
+      * Number(options.input.wetSolventConstruction?.dryNmpMassPerUnitFeedMass);
+    const expectedWaterMass = governedFeedMass
+      * Number(options.input.wetSolventConstruction?.waterMassPerUnitFeedMass);
+    if (
+      !stage1 || !Number.isFinite(governedFeedMass) || governedFeedMass <= 0
+      || Math.abs(governedFeedMass - 100) > 1e-9
+      || !Number.isFinite(rrboFeedMass) || Math.abs(rrboFeedMass - governedFeedMass) > 1e-9
+      || Math.abs(Number(wet?.totalWetSolventMass) - expectedWetMass) > 1e-9
+      || Math.abs(Number(wet?.dryNmpMass) - expectedNmpMass) > 1e-9
+      || Math.abs(Number(wet?.waterMass) - expectedWaterMass) > 1e-9
+      || Math.abs(Number(wet?.nmpWeightPercentOfWetSolvent) - stage1.nmpPurityWt) > 1e-9
+      || Math.abs(Number(wet?.waterWeightPercentOfWetSolvent) - stage1.nmpWaterWt) > 1e-9
+      || Math.abs(Number(wet?.massClosureResidual)) > 1e-12
+      || canonicalJson(wet?.componentOrder) !== canonicalJson(SEVEN_COMPONENT_ORDER)
+    ) return 'PREDICTIVE_NT_7C_WET_SOLVENT_AUTHORITY_MISMATCH';
+  }
+  return null;
+}
+
 export function attachStage1ResultGovernance(
   pythonResult: unknown,
   input: PredictiveNtJobInput,
@@ -911,11 +1187,14 @@ export function attachStage1ResultGovernance(
   } = pythonResult as Record<string, unknown>;
   const isIntermediateCheckpoint = options.allowAckCheckpoint === true
     && admittedResult.status === 'RUNNING'
-    && (admittedResult.checkpoint as Record<string, unknown> | undefined)?.protocol === 'ACK_V2';
+    && ['ACK_V2', 'ACK_V3_ENGINE_CONTRACT'].includes(
+      String((admittedResult.checkpoint as Record<string, unknown> | undefined)?.protocol),
+    );
   if (admittedResult.status === 'RUNNING' && !isIntermediateCheckpoint) {
     throw new Error('PREDICTIVE_NT_TERMINAL_RUNNING_ACK_PAYLOAD_FORBIDDEN');
   }
-  if (!isIntermediateCheckpoint) {
+  const sevenComponent = isSevenComponentInput(input);
+  if (!isIntermediateCheckpoint && !sevenComponent) {
     const evidenceError = validateTask216GlobalStabilityEvidence(
       admittedResult.globalStabilityQualification,
     );
@@ -924,6 +1203,39 @@ export function attachStage1ResultGovernance(
       admittedResult.task218CandidateGeneratedStability,
     );
     if (task218EvidenceError) throw new Error(task218EvidenceError);
+  }
+  if (sevenComponent) {
+    const governed = {
+      ...admittedResult,
+      engineContractVersion: '7C-1.0.0',
+      componentOrder: [...SEVEN_COMPONENT_ORDER],
+      model: { modelHash: PRE_PILOT_MODEL.modelHash, runtimeVerification: 'PASS' },
+      resultThermodynamicClassification: 'SEVEN_COMPONENT_CCOSMO_IMPLEMENTED_QUALIFICATION_PENDING',
+      predictiveNt: null,
+      establishedTheoreticalStages: null,
+      releaseEligible: false,
+      calibrationRequired: true,
+      stage1TargetGovernance: {
+        stage1SnapshotHash: input.stage1Authority.snapshotHash,
+        predictiveNtAuthority: 'VERSIONED_SEVEN_COMPONENT_CCOSMO_PRODUCTION_ENGINE',
+        predictiveNtEngineScope: {
+          componentCount: 7,
+          componentOrder: [...SEVEN_COMPONENT_ORDER],
+          thermodynamicModel: 'COSMO-SAC-2010',
+          implementationStatus: 'IMPLEMENTED',
+          predictiveQualification: 'PENDING',
+        },
+        sulfurPrediction: input.stage1Authority.sulfurPrediction,
+        overallEcrProductAcceptance: false,
+        overallEcrProductAcceptanceStatus: 'PREDICTIVE_QUALIFICATION_PENDING_NOT_RELEASE_ELIGIBLE',
+      },
+    };
+    const validationError = validateSevenComponentPersistedResult(
+      governed,
+      { intermediate: isIntermediateCheckpoint, input },
+    );
+    if (validationError) throw new Error(validationError);
+    return governed;
   }
   return {
     ...admittedResult,
@@ -970,6 +1282,20 @@ export function attachStage1ResultGovernance(
 
 function terminalFailureEvidence(result: unknown, input: PredictiveNtJobInput, error: string | null) {
   const payload = result && typeof result === 'object' ? result as Record<string, unknown> : {};
+  if (isSevenComponentInput(input)) {
+    return attachStage1ResultGovernance({
+      ...payload,
+      status: 'ENGINE_ERROR',
+      implementationStatus: 'IMPLEMENTED',
+      error: error ?? payload.error ?? 'PREDICTIVE_NT_TERMINAL_RESULT_UNAVAILABLE',
+      trials: Array.isArray(payload.trials) ? payload.trials : [],
+      sulfurPrediction: { status: 'NOT_CALCULABLE' },
+      qualificationEvidence: {
+        directWaterBearingLleValidated: false,
+        independentBlindQualificationPassed: false,
+      },
+    }, input);
+  }
   // Never accept worker-owned terminal evidence after a crash, timeout, or
   // parse failure.  The server reconstructs the frozen envelope itself.
   return attachStage1ResultGovernance({
@@ -1231,6 +1557,19 @@ async function persistTrialCheckpoint(
     );
     const row = locked.rows[0];
     if (!row) throw new Error('PREDICTIVE_NT_CHECKPOINT_STALE_OWNER');
+    const sevenComponent = isSevenComponentInput(row.input_snapshot);
+    const expectedProtocol = validatePredictiveNtCheckpointContract(
+      row.input_snapshot,
+      sevenComponent ? payload.protocol : 'ACK_V2',
+      sevenComponent ? payload.engineContractVersion : null,
+    );
+    if (
+      sevenComponent
+      && (
+        payload.engineContractVersion !== '7C-1.0.0'
+        || canonicalJson(payload.componentOrder) !== canonicalJson(SEVEN_COMPONENT_ORDER)
+      )
+    ) throw new Error('PREDICTIVE_NT_CROSS_ENGINE_CHECKPOINT_FORBIDDEN');
     const existingResult = row.result_snapshot && typeof row.result_snapshot === 'object'
       ? row.result_snapshot as Record<string, any>
       : {};
@@ -1273,7 +1612,8 @@ async function persistTrialCheckpoint(
       calibrationRequired: true,
       trials: existingTrials,
       checkpoint: {
-        protocol: 'ACK_V2',
+        protocol: expectedProtocol,
+        engineContractVersion: sevenComponent ? '7C-1.0.0' : '6C-LEGACY',
         acknowledgedStageCount: stageCount,
         trialHashes: existingHashes,
         trialCanonicals: [...existingCanonicals, canonicalTrial],
@@ -1315,9 +1655,14 @@ function buildResumeRequest(job: PredictiveNtJob) {
   const checkpoint = result?.checkpoint;
   const completed = job.progress.completedStageTrials;
   if (completed === 0) return null;
+  const sevenComponent = isSevenComponentInput(job.input);
+  const expectedProtocol = validatePredictiveNtCheckpointContract(
+    job.input,
+    checkpoint?.protocol,
+    checkpoint?.engineContractVersion,
+  );
   if (
-    checkpoint?.protocol !== 'ACK_V2'
-    || checkpoint.acknowledgedStageCount !== completed
+    checkpoint.acknowledgedStageCount !== completed
     || checkpoint.inputHash !== createHash('sha256').update(canonicalJson(job.input)).digest('hex')
     || checkpoint.modelHash !== job.modelHash
     || checkpoint.engineHash !== job.engineHash
@@ -1361,6 +1706,7 @@ function buildResumeRequest(job: PredictiveNtJob) {
     }
   }
   return {
+    engineContractVersion: sevenComponent ? '7C-1.0.0' : '6C-LEGACY',
     acknowledgedStageCount: completed,
     trials: result.trials,
     continuationState: checkpoint.latestContinuationState,
@@ -1522,10 +1868,10 @@ async function finishJob(
 }
 
 function execute(job: PredictiveNtJob, claimToken: string) {
-  const script = workerScript();
+  const script = workerScript(job.input);
   let engineHash: string;
   try {
-    engineHash = currentPredictiveNtEngineHash();
+    engineHash = currentPredictiveNtEngineHash(job.input);
   } catch (error) {
     void finishJob(job.id, claimToken, 'failed', job.result, (error as Error).message)
       .finally(() => { workerBusy = false; });
@@ -1540,7 +1886,7 @@ function execute(job: PredictiveNtJob, claimToken: string) {
       persistedModelHash: job.modelHash,
       inputModelHash: job.input.modelHash,
       currentModelHash: PRE_PILOT_MODEL.modelHash,
-      runtimeRoot: runtimeRoot(),
+      runtimeRoot: runtimeRoot(job.input),
     });
     void finishJob(job.id, claimToken, 'failed', null, evidenceError)
       .finally(() => { workerBusy = false; });
@@ -1548,7 +1894,7 @@ function execute(job: PredictiveNtJob, claimToken: string) {
   }
   try {
     validatePredictiveNtJobInput(job.input, (relativePath) =>
-      fs.readFileSync(path.join(runtimeRoot(), relativePath)));
+      fs.readFileSync(path.join(runtimeRoot(job.input), relativePath)));
   } catch (error) {
     void finishJob(job.id, claimToken, 'failed', job.result, (error as Error).message)
       .finally(() => { workerBusy = false; });
@@ -1564,7 +1910,7 @@ function execute(job: PredictiveNtJob, claimToken: string) {
     return;
   }
   const child = spawn('python3.12', [script], {
-    cwd: runtimeRoot(),
+    cwd: runtimeRoot(job.input),
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   activeWorkerChildren.set(job.id, child);
@@ -1739,7 +2085,7 @@ function execute(job: PredictiveNtJob, claimToken: string) {
   child.stdin.write(`${JSON.stringify({
     ...job.input,
     engineHash,
-    _checkpointProtocol: 'ACK_V2',
+    _checkpointProtocol: predictiveNtCheckpointProtocol(job.input),
     _resume: resumeRequest,
   })}\n`);
 }
@@ -1777,7 +2123,7 @@ async function enqueueRawPredictiveNtJob(
   runtimeTestOwner = false,
 ) {
   const gate = validatePredictiveNtJobInput(input);
-  const engineHash = currentPredictiveNtEngineHash();
+  const engineHash = currentPredictiveNtEngineHash(input);
   const immutableInput = {
     ...input,
     modelHash: PRE_PILOT_MODEL.modelHash,
@@ -1844,7 +2190,7 @@ export async function enqueuePredictiveNtRuntimeTestJob(
   if (process.env.NODE_ENV !== 'test') {
     throw new Error('RAW_PREDICTIVE_NT_ENQUEUE_DISABLED');
   }
-  return enqueueRawPredictiveNtJob(input, userId, designId, testHooks, true);
+  return enqueueRawPredictiveNtJob(input as PredictiveNtJobInput, userId, designId, testHooks, true);
 }
 
 export async function enqueuePredictiveNtJobFromSavedStage1(
@@ -1875,7 +2221,7 @@ export async function enqueuePredictiveNtJobFromSavedStage1(
       Number(design.rows[0].project_number),
     );
     gate = validatePredictiveNtJobInput(input);
-    const engineHash = currentPredictiveNtEngineHash();
+    const engineHash = currentPredictiveNtEngineHash(input);
     const immutableInput = { ...input, modelHash: PRE_PILOT_MODEL.modelHash };
     const counts = await client.query(
       `SELECT COUNT(*)::int AS total,

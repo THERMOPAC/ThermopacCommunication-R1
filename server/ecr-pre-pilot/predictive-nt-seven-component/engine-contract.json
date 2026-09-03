@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "ECR_PRE_PILOT_PREDICTIVE_NT_ENGINE_CONTRACT_V1",
+  "engineContractVersion": "7C-1.0.0",
+  "engineId": "ECR2_PREDICTIVE_NT_SEVEN_COMPONENT_CCOSMO",
+  "componentOrder": ["SAT", "MONO", "DI", "POLY", "PA", "NMP", "H2O"],
+  "thermodynamicModel": "CCOSMO_COSMO_SAC_2010_SEVEN_COMPONENT",
+  "wetSolventRule": "NMP and H2O split the fixed total wet-solvent mass; H2O is not added on top",
+  "stageRange": {"minimum": 1, "maximum": 10},
+  "checkpointProtocol": "ACK_V3_ENGINE_CONTRACT",
+  "governanceStatus": "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING",
+  "releaseEligible": false
+}

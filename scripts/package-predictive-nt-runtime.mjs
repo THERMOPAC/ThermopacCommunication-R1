@@ -108,3 +108,45 @@ await writeFile(
 );
 
 console.log(`Packaged Predictive N_T runtime (${records.length} hashed files)`);
+
+// The frozen 6C worker validates an exact manifest and must not see 7C files.
+// Build a separately versioned 7C closure from that immutable 6C base.
+const sevenBundleRoot = path.join(root, 'dist', 'predictive-nt-runtime-7c');
+const sevenFiles = [
+  'server/ecr-pre-pilot/predictive-nt-seven-component',
+  'server/research/ecr-pre-pilot-seven-component-h2o-profile/run_qualification.py',
+  'server/research/ecr-pre-pilot-seven-component-h2o-profile/evidence-registry.json',
+  'server/research/ecr-pre-pilot-seven-component-h2o-profile/generated',
+  'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/generation-manifest.json',
+];
+await rm(sevenBundleRoot, { recursive: true, force: true });
+await cp(bundleRoot, sevenBundleRoot, { recursive: true });
+for (const relativePath of sevenFiles) {
+  const source = path.join(root, relativePath);
+  const destination = path.join(sevenBundleRoot, relativePath);
+  await mkdir(path.dirname(destination), { recursive: true });
+  await cp(source, destination, {
+    recursive: true,
+    filter: (candidate) => !candidate.split(path.sep).includes('__pycache__')
+      && !candidate.endsWith('.pyc') && !candidate.endsWith('.pyo'),
+  });
+}
+const sevenPackagedFiles = (await bundledFiles(sevenBundleRoot)).sort();
+const sevenRecords = [];
+for (const absolute of sevenPackagedFiles) {
+  const content = await readFile(absolute);
+  const metadata = await stat(absolute);
+  sevenRecords.push({
+    path: path.relative(sevenBundleRoot, absolute).split(path.sep).join('/'),
+    bytes: metadata.size,
+    sha256: createHash('sha256').update(content).digest('hex'),
+  });
+}
+const sevenRecordText = sevenRecords.map((record) => `${record.path}:${record.bytes}:${record.sha256}`).join('\n');
+await writeFile(path.join(sevenBundleRoot, 'predictive-nt-runtime-manifest.json'), `${JSON.stringify({
+  schemaVersion: 'PREDICTIVE_NT_RUNTIME_MANIFEST_V1',
+  hashAlgorithm: 'sha256', fileCount: sevenRecords.length,
+  aggregateSha256: createHash('sha256').update(sevenRecordText).digest('hex'),
+  files: sevenRecords,
+}, null, 2)}\n`);
+console.log(`Packaged Predictive N_T 7C runtime (${sevenRecords.length} hashed files)`);

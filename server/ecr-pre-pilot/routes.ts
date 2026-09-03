@@ -22,10 +22,20 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       model: PRE_PILOT_MODEL,
       molecularRegistry: PREDICTIVE_NT_MOLECULAR_REGISTRY,
       predictiveEngineComponentContract: {
+        engineContractVersion: '7C-1.0.0',
+        componentCount: 7,
+        families: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+        thermodynamicModel: 'CCOSMO_COSMO_SAC_2010_SEVEN_COMPONENT',
+        implementationStatus: 'IMPLEMENTED',
+        predictiveQualification: 'PENDING',
+        governanceStatus: 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING',
+        releaseEligible: false,
+      },
+      historicalSixComponentContract: {
+        replayable: true,
         componentCount: 6,
         families: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP'],
         thermodynamicModel: 'FROZEN_SIX_COMPONENT_COSMO_SAC_2010',
-        sixComponentCosmoSacGate: 'RESEARCH_DIAGNOSTIC_ONLY',
       },
       sixComponentCosmoSacBasis: SIX_COMPONENT_COSMO_SAC_BASIS,
       sixComponentCosmoSacBasisManifestSha256:

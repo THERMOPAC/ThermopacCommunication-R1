@@ -1,6 +1,6 @@
 import PDFDocument from 'pdfkit';
 
-const COMPONENTS = ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP'] as const;
+const SIX_COMPONENTS = ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP'] as const;
 const COLORS = {
   navy: '#17365D',
   teal: '#087E8B',
@@ -155,6 +155,10 @@ export async function generatePredictiveNtReport(
 ): Promise<Buffer> {
   const r = snapshot;
   const o = r.result;
+  const components: string[] = Array.isArray(o?.componentOrder)
+    ? o.componentOrder
+    : [...SIX_COMPONENTS];
+  const sevenComponent = components.length === 7 && components[6] === 'H2O';
   const s = r.input?.stage1Authority?.source?.stage1 ?? {};
   if (!o || !Array.isArray(o.trials)) throw new Error('PREDICTIVE_NT_REPORT_RESULT_MISSING');
   const projectRef = projectReference(r, s);
@@ -192,7 +196,7 @@ export async function generatePredictiveNtReport(
     doc.rect(0, 0, doc.page.width, 12).fill(COLORS.teal);
     text(pageNumber, 42, 19, 40, 7, COLORS.muted);
     text(
-      `PROJECT ${projectRef}  •  ${controlledNegative ? 'RESEARCH DIAGNOSTIC' : String(o.status ?? 'MISSING EVIDENCE')}`,
+      `PROJECT ${projectRef}  •  ${String(o.status ?? 'MISSING EVIDENCE')}`,
       doc.page.width - 292, 19, 250, 7, COLORS.muted, false, 'right',
     );
     text(title, 42, 39, doc.page.width - 84, 17, COLORS.navy, true);
@@ -236,10 +240,12 @@ export async function generatePredictiveNtReport(
     });
   };
 
-  page('Predictive N_T — Six-Component COSMO-SAC-2010');
+  page(`Predictive N_T — ${sevenComponent ? 'Seven-Component cCOSMO (with H2O)' : 'Six-Component COSMO-SAC-2010'}`);
   pill(
     controlledNegative
-      ? 'RESEARCH DIAGNOSTIC — NOT ACCEPTED — NOT RELEASE ELIGIBLE'
+      ? (sevenComponent
+        ? 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING — NOT RELEASE ELIGIBLE'
+        : 'RESEARCH DIAGNOSTIC — NOT ACCEPTED — NOT RELEASE ELIGIBLE')
       : `PERSISTED QUALIFICATION STATUS — ${String(o.status ?? 'MISSING_EVIDENCE')}`,
     42, 98, 510, controlledNegative ? COLORS.red : COLORS.teal,
   );
@@ -282,9 +288,13 @@ export async function generatePredictiveNtReport(
   ], 42, 100, 510, 25);
   text('Feed composition — mass basis', 42, 350, 510, 12, COLORS.navy, true);
   table(
-    [...COMPONENTS],
-    [[s.saturatesWt, s.monoAromaticsWt, s.diAromaticsWt, s.polyAromaticsWt, s.polarAromaticsWt, s.nmpInFeedWt].map((v) => `${value(Number(v), 5)} wt%`)],
-    42, 380, [85, 85, 85, 85, 85, 85], 32, 7,
+    [...components],
+    [[
+      s.saturatesWt, s.monoAromaticsWt, s.diAromaticsWt, s.polyAromaticsWt,
+      s.polarAromaticsWt, s.nmpInFeedWt,
+      ...(sevenComponent ? [0] : []),
+    ].map((v) => `${value(Number(v), 5)} wt%`)],
+    42, 380, components.map(() => 510 / components.length), 32, 7,
   );
   text('Saved product targets', 42, 475, 510, 12, COLORS.navy, true);
   grid([
@@ -442,11 +452,14 @@ export async function generatePredictiveNtReport(
     o.trials.flatMap((trial: any) => (trial.acceptanceBlockers ?? []).map((blocker: any) => blocker.code ?? String(blocker))),
   ));
   grid([
-    ['Six-component molecular basis', o.stage1TargetGovernance?.sixComponentCosmoSacBasisManifestSha256 ? 'PERSISTED' : 'MISSING_EVIDENCE'],
+    [sevenComponent ? 'Seven-component molecular basis incl. H2O' : 'Six-component molecular basis',
+      sevenComponent ? 'PERSISTED' : (o.stage1TargetGovernance?.sixComponentCosmoSacBasisManifestSha256 ? 'PERSISTED' : 'MISSING_EVIDENCE')],
     ['Stage-1 authority', r.input?.stage1Authority?.snapshotHash ? 'PERSISTED' : 'MISSING_EVIDENCE'],
     ['Primary solver closure', explicitClosureSummary(o.trials)],
     ['Secondary / multistart closure', explicitClosureSummary(o.trials, true)],
-    ['Global TPD stability', o.globalStabilityQualification?.status ?? 'NOT_CALCULABLE / MISSING_EVIDENCE'],
+    ['Global TPD stability', sevenComponent
+      ? 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING'
+      : (o.globalStabilityQualification?.status ?? 'NOT_CALCULABLE / MISSING_EVIDENCE')],
     ['Sulfur thermodynamic prediction', 'NOT CALCULABLE'],
     ['Pilot validation', o.pilotValidated ? 'PASS' : 'NOT VALIDATED'],
     ['Calibration requirement', o.calibrationRequired ? 'REQUIRED' : 'NOT REQUIRED'],
@@ -470,7 +483,7 @@ export async function generatePredictiveNtReport(
     page(
       `Appendix A — N_T=${trial.stageCount} Numerical Diagnostics`,
       true,
-      `RESEARCH DIAGNOSTIC — NOT ACCEPTED · numerical gates ${trial.numericalAcceptancePassed ? 'PASS' : 'FAIL'} · maximum component-balance residual ${Number(trial.maximumOverallComponentBalanceResidualMol).toExponential(3)}`,
+      `${sevenComponent ? 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING' : 'RESEARCH DIAGNOSTIC'} — NOT ACCEPTED · numerical gates ${trial.numericalAcceptancePassed ? 'PASS' : 'FAIL'} · maximum component-balance residual ${Number(trial.maximumOverallComponentBalanceResidualMol).toExponential(3)}`,
     );
     const shift = trialClosed ? 0 : 22;
     if (!trialClosed) {
@@ -524,7 +537,7 @@ export async function generatePredictiveNtReport(
       42, 296 + shift, 755, 10, COLORS.navy, true,
     );
     table(
-      ['Basis', ...COMPONENTS],
+      ['Basis', ...components],
       [[
         'Removal / loss',
         value(satLoss, 4),
@@ -533,27 +546,28 @@ export async function generatePredictiveNtReport(
         value(extraction.POLY, 4),
         value(extraction.PA, 4),
         'NOT APPLICABLE',
+        ...(sevenComponent ? ['NOT APPLICABLE'] : []),
       ]],
-      42, 315 + shift, [90, 110, 110, 110, 110, 110, 110], 20, 7,
+      42, 315 + shift, [90, ...components.map(() => 660 / components.length)], 20, 7,
     );
     table(
-      ['Component moles', ...COMPONENTS],
-      ['oilFeed', 'freshNmp', 'finalRaffinate', 'finalExtract'].map((key) => [
+      ['Component moles', ...components],
+      ['oilFeed', sevenComponent ? 'freshWetSolvent' : 'freshNmp', 'finalRaffinate', 'finalExtract'].map((key) => [
         label(key),
         ...(streams[key]?.componentMoles ?? []).map((entry: number) => Number(entry).toExponential(4)),
       ]),
-      42, 370 + shift, [90, 110, 110, 110, 110, 110, 110],
+      42, 370 + shift, [90, ...components.map(() => 660 / components.length)],
       trialClosed ? 19 : 16, 6.5,
     );
-    text('Overall six-component balance residual — component moles', 42, 480 + shift, 755, 10, COLORS.navy, true);
+    text(`Overall ${sevenComponent ? 'seven' : 'six'}-component balance residual — component moles`, 42, 480 + shift, 755, 10, COLORS.navy, true);
     table(
-      ['Basis', ...COMPONENTS],
+      ['Basis', ...components],
       [[
         'Residual',
         ...(trial.overallComponentBalanceResidualMol ?? [])
           .map((entry: number) => Number(entry).toExponential(3)),
       ]],
-      42, 500 + shift, [90, 110, 110, 110, 110, 110, 110], 18, 6.5,
+      42, 500 + shift, [90, ...components.map(() => 660 / components.length)], 18, 6.5,
     );
 
     page(
@@ -586,7 +600,7 @@ export async function generatePredictiveNtReport(
     );
 
     page(
-      `Appendix B — N_T=${trial.stageCount} Six-Component Stage Outlet Compositions`,
+      `Appendix B — N_T=${trial.stageCount} ${sevenComponent ? 'Seven-Component' : 'Six-Component'} Stage Outlet Compositions`,
       true,
       'Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.',
     );
@@ -611,9 +625,9 @@ export async function generatePredictiveNtReport(
     }
     text('PHASE MOLE FRACTIONS — NOT PRODUCT MASS FRACTIONS', 42, trialClosed ? 83 : 98, 755, 8, COLORS.amber, true);
     table(
-      ['Stage / phase', ...COMPONENTS],
+      ['Stage / phase', ...components],
       outletRows, 42, trialClosed ? 105 : 120,
-      [90, 110, 110, 110, 110, 110, 110], 20, 6.5,
+      [90, ...components.map(() => 660 / components.length)], 20, 6.5,
     );
   }
 

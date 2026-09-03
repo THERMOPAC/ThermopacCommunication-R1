@@ -7,15 +7,19 @@ import { PRE_PILOT_MODEL } from '../server/ecr-pre-pilot/model';
 import {
   enqueuePredictiveNtRuntimeTestJob,
   derivePredictiveNtInputFromStage1,
+  derivePredictiveNtSixComponentInputFromStage1,
   attachStage1ResultGovernance,
   expectedTask216GlobalStabilityEvidence,
   expectedTask218CandidateGeneratedStabilityEvidence,
   getPredictiveNtJob,
   preflightPredictiveNtRuntime,
+  predictiveNtCheckpointProtocol,
   validateTask216GlobalStabilityEvidence,
   validateTask218CandidateGeneratedStabilityEvidence,
   validatePredictiveNtExecutionEvidence,
+  validatePredictiveNtCheckpointContract,
   validatePredictiveNtJobInput,
+  validateSevenComponentPersistedResult,
 } from '../server/ecr-pre-pilot/predictive-nt-job-service';
 import { allocateEcrPrePilotDesign, saveEcrPrePilotStage1 } from '../server/ecr-pre-pilot-service';
 import { pool } from '../server/db';
@@ -39,7 +43,7 @@ function validStage1(projectNumber: number) {
     rrboDynamicViscosityCp: '20',
     rrboInterfacialTensionMnM: '8',
     nmpPurityWt: '99.5',
-    nmpWaterWt: '0.05',
+    nmpWaterWt: '0.5',
     nmpTemperatureC: '50',
     nmpDensityKgM3: '1000',
     nmpDynamicViscosityCp: '1.2',
@@ -63,13 +67,15 @@ function validStage1(projectNumber: number) {
   };
 }
 
-const validInput = derivePredictiveNtInputFromStage1(
+// Existing queue/checkpoint fixtures exercise the immutable 6C archive
+// contract. New submissions use the default 7C derivation below.
+const validInput = derivePredictiveNtSixComponentInputFromStage1(
   makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
   209,
 );
 
 function validInputWithMaximumStages(maximumStages: number) {
-  return derivePredictiveNtInputFromStage1(
+  return derivePredictiveNtSixComponentInputFromStage1(
     makeStage1Snapshot(canonicalizeStage1Input({
       ...validStage1(209),
       maximumStages: String(maximumStages),
@@ -419,6 +425,160 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     } as any)).toThrow('PREDICTIVE_NT_SIX_COMPONENT_CONTRACT_REQUIRED');
   });
 
+  it('routes new controlled-water derivations to the 7C contract with an exact wet-solvent closure', () => {
+    const seven = derivePredictiveNtInputFromStage1(
+      makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
+      209,
+    );
+    expect(seven.engineContractVersion).toBe('7C-1.0.0');
+    expect(seven.engineComponentContract).toMatchObject({
+      componentCount: 7,
+      families: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+      thermodynamicModel: 'CCOSMO_COSMO_SAC_2010_SEVEN_COMPONENT',
+    });
+    expect(seven.feedMoleFractions).toHaveLength(7);
+    expect(seven.solventSpecificationAudit).toEqual({
+      nmpPurityMassPercent: 99.5,
+      nmpWaterMassPercent: 0.5,
+    });
+    expect(seven.wetSolventConstruction?.dryNmpMassPerUnitFeedMass).toBeCloseTo(1.4925, 12);
+    expect(seven.wetSolventConstruction?.waterMassPerUnitFeedMass).toBeCloseTo(0.0075, 12);
+    expect(seven.wetSolventConstruction?.massClosureResidual).toBeLessThanOrEqual(1e-12);
+    expect(
+      seven.wetSolventConstruction!.totalWetSolventMassPerUnitFeedMass
+      - seven.wetSolventConstruction!.dryNmpMassPerUnitFeedMass
+      - seven.wetSolventConstruction!.waterMassPerUnitFeedMass,
+    ).toBeCloseTo(0, 12);
+    expect(() => validatePredictiveNtJobInput({
+      ...seven,
+      feedMoleFractions: [...seven.feedMoleFractions.slice(0, 6), 0.2],
+    })).toThrow('PREDICTIVE_NT_SEVEN_COMPONENT_CONTRACT_REQUIRED');
+  });
+
+  it('rejects a 7C input reconstructed under another engine contract', () => {
+    const seven = derivePredictiveNtInputFromStage1(
+      makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
+      209,
+    );
+    expect(() => validatePredictiveNtJobInput({
+      ...seven,
+      engineContractVersion: '6C-1.0.0',
+    })).toThrow('PREDICTIVE_NT_SIX_COMPONENT_CONTRACT_REQUIRED');
+  });
+
+  it('uses ACK_V3 for 7C and rejects cross-engine checkpoint contracts', () => {
+    const seven = derivePredictiveNtInputFromStage1(
+      makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
+      209,
+    );
+    expect(predictiveNtCheckpointProtocol(seven)).toBe('ACK_V3_ENGINE_CONTRACT');
+    expect(validatePredictiveNtCheckpointContract(
+      seven,
+      'ACK_V3_ENGINE_CONTRACT',
+      '7C-1.0.0',
+    )).toBe('ACK_V3_ENGINE_CONTRACT');
+    expect(() => validatePredictiveNtCheckpointContract(
+      seven,
+      'ACK_V2',
+      '6C-LEGACY',
+    )).toThrow('PREDICTIVE_NT_CROSS_ENGINE_CHECKPOINT_FORBIDDEN');
+    expect(predictiveNtCheckpointProtocol(validInput)).toBe('ACK_V2');
+    expect(() => validatePredictiveNtCheckpointContract(
+      validInput,
+      'ACK_V3_ENGINE_CONTRACT',
+      '7C-1.0.0',
+    )).toThrow('PREDICTIVE_NT_CROSS_ENGINE_CHECKPOINT_FORBIDDEN');
+  });
+
+  it('rejects an internally closed but rescaled 7C wet-solvent result', () => {
+    const seven = derivePredictiveNtInputFromStage1(
+      makeStage1Snapshot(canonicalizeStage1Input({
+        ...validStage1(209),
+        maximumStages: '2',
+      }, 209)),
+      209,
+    );
+    const fractions = Array(7).fill(1 / 7);
+    const stream = {
+      componentMoles: Array(7).fill(1),
+      componentMass: Array(7).fill(1),
+      flowMol: 7,
+      mass: 7,
+      moleFractions: fractions,
+      massFractions: fractions,
+    };
+    const result: any = {
+      engineContractVersion: '7C-1.0.0',
+      componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+      status: 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING',
+      implementationStatus: 'IMPLEMENTED',
+      releaseEligible: false,
+      predictiveNt: null,
+      establishedTheoreticalStages: null,
+      sulfurPrediction: { status: 'NOT_CALCULABLE' },
+      qualificationEvidence: {
+        directWaterBearingLleValidated: false,
+        independentBlindQualificationPassed: false,
+      },
+      wetSolventConstruction: {
+        rrboFeedMass: 100,
+        totalWetSolventMass: 150,
+        dryNmpMass: 149.25,
+        waterMass: 0.75,
+        nmpWeightPercentOfWetSolvent: 99.5,
+        waterWeightPercentOfWetSolvent: 0.5,
+        massClosureResidual: 0,
+        componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+      },
+      trials: [1, 2].map((stageCount) => ({
+        stageCount,
+        overallComponentBalanceResidualMol: Array(7).fill(0),
+        overallComponentBalanceResidualMass: Array(7).fill(0),
+        boundaryStreams: {
+          oilFeed: stream,
+          freshWetSolvent: stream,
+          finalRaffinate: stream,
+          finalExtract: stream,
+        },
+        stages: Array.from({ length: stageCount }, () => ({
+          raffinateIncoming: stream,
+          extractIncoming: stream,
+          raffinateLeaving: stream,
+          extractLeaving: stream,
+        })),
+      })),
+    };
+    expect(validateSevenComponentPersistedResult(result, { input: seven })).toBeNull();
+    const rescaled = {
+      ...result,
+      wetSolventConstruction: {
+        ...result.wetSolventConstruction,
+        rrboFeedMass: 200,
+        totalWetSolventMass: 300,
+        dryNmpMass: 298.5,
+        waterMass: 1.5,
+      },
+    };
+    expect(validateSevenComponentPersistedResult(rescaled, { input: seven }))
+      .toBe('PREDICTIVE_NT_7C_WET_SOLVENT_AUTHORITY_MISMATCH');
+  });
+
+  it('persists a fail-closed 7C engine error without fabricating successful trials', () => {
+    const seven = derivePredictiveNtInputFromStage1(
+      makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
+      209,
+    );
+    expect(validateSevenComponentPersistedResult({
+      engineContractVersion: '7C-1.0.0',
+      componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+      status: 'ENGINE_ERROR',
+      releaseEligible: false,
+      predictiveNt: null,
+      establishedTheoreticalStages: null,
+      error: 'RuntimeError: SEVEN_COMPONENT_STAGE_FLASH_UNRESOLVED:1',
+    }, { input: seven })).toBeNull();
+  });
+
   it('rejects the deprecated molar recovery gate', () => {
     expect(() => validatePredictiveNtJobInput({
       ...validInput,
@@ -432,7 +592,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, `stage1-authority-${Date.now()}`);
     const snapshot = await saveEcrPrePilotStage1(userId, design.id, validStage1(design.projectNumber));
-    const derived = derivePredictiveNtInputFromStage1(snapshot, design.projectNumber);
+    const derived = derivePredictiveNtSixComponentInputFromStage1(snapshot, design.projectNumber);
 
     expect(derived).toMatchObject({
       modelHash: PRE_PILOT_MODEL.modelHash,
@@ -529,7 +689,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     stage1.saturatesWt = '64';
     stage1.polarAromaticsWt = '6';
     const snapshot = await saveEcrPrePilotStage1(userId, design.id, stage1);
-    expect(() => derivePredictiveNtInputFromStage1(snapshot, design.projectNumber)).not.toThrow();
+    expect(() => derivePredictiveNtSixComponentInputFromStage1(snapshot, design.projectNumber)).not.toThrow();
   });
 
   it('fails closed for an unsupported saved phase configuration', async () => {
@@ -540,7 +700,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     const stage1 = validStage1(design.projectNumber);
     stage1.phaseConfiguration = 'rrbo-continuous-nmp-dispersed';
     const snapshot = await saveEcrPrePilotStage1(userId, design.id, stage1);
-    expect(() => derivePredictiveNtInputFromStage1(snapshot, design.projectNumber))
+    expect(() => derivePredictiveNtSixComponentInputFromStage1(snapshot, design.projectNumber))
       .toThrow('UNSUPPORTED_PHASE_CONFIGURATION');
   });
 
@@ -673,7 +833,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
           freshModeledNmpMassBasis: 150,
           nmpPurityAndWaterSpecificationOnly: {
             nmpPurityWt: 99.5,
-            nmpWaterWt: 0.05,
+            nmpWaterWt: 0.5,
           },
         },
       });

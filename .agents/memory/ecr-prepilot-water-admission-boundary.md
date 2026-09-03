@@ -3,11 +3,17 @@ name: ECR Pre-Pilot water admission boundary
 description: Governs whether Stage-1 solvent water may enter predictive COSMO-SAC as a seventh component.
 ---
 
-Stage-1 water is a deliberate controlled addition to the NMP/H₂O extraction-solvent formulation, not an impurity. Until the seven-component model is qualified, preserve it as a governed formulation input while excluding it from admitted predictive flash and cascade results.
+Stage-1 water is a deliberate controlled addition to the NMP/H₂O extraction-solvent formulation, not an impurity. Both NMP purity wt% and water-in-NMP wt% are governed Stage-1 user inputs linked by exact 100 wt% closure; selecting either updates the other.
 
-**Why:** A traceable, independently verified H₂O sigma3 profile and isolated seven-component cCOSMO runtime compatibility are now established for research use. However, no direct water–NMP, water–hydrocarbon, or water-bearing multicomponent LLE evidence yet qualifies partition, selectivity, phase topology, temperature dependence, or global stability. A valid molecular profile is not equilibrium evidence.
+**Why:** Both values define the controlled wet-solvent formulation. Treating purity as a derived display-only value would hide one of the user's governed formulation choices, while allowing them to diverge would violate mass closure.
 
-**How to apply:** Use “controlled water addition,” “water content of extraction solvent,” or “NMP/H₂O solvent formulation,” never “water impurity.” The established profile may be used in the parallel native seven-component research basis. Admit H₂O predictions only after direct or explicitly qualified water-bearing equilibrium evidence, blind validation, mass/mole closure, local stability, global TPD, and self-consistent cascade qualification.
+**How to apply:** Persist both values in the immutable Stage-1 snapshot and bind both into every successor-engine job contract. Use “controlled water addition,” “water content of extraction solvent,” or “NMP/H₂O solvent formulation,” never “water impurity.”
+
+The native seven-component cCOSMO engine is the production successor architecture for all new controlled-water jobs, but its outputs remain **IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING**, never release-eligible or an assigned Predictive N_T.
+
+**Why:** A traceable H₂O sigma3 profile and complete seven-component numerical path establish implementation readiness, but no direct water-bearing multicomponent LLE evidence yet qualifies partition, selectivity, phase topology, temperature dependence, or global stability. A valid molecular profile and converged solver are not equilibrium validation.
+
+**How to apply:** Run new wet-solvent jobs only through 7C and preserve honest flash/cascade diagnostics, including stable-single-phase or unresolved-split outcomes. Admit an N_T only after governed water-bearing equilibrium evidence, blind validation, mass/mole closure, local stability, global TPD, and self-consistent cascade qualification.
 
 For the seven-component qualification path, S/O is governed as total wet-solvent mass divided by RRBO feed mass:
 
