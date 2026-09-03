@@ -350,7 +350,18 @@ const PHASE_OPTIONS = [
   { value: "rrbo-continuous-nmp-dispersed", label: "RRBO continuous / NMP dispersed" },
 ];
 const SOLVENT_OIL_RATIO_OPTIONS = ["0.50", "0.75", "0.90", "1.00", "1.25", "1.50", "2.00"];
-const NMP_WATER_OPTIONS = ["0.5", "1.0", "1.5", "2.0", "2.5", "3.0"];
+const NMP_WATER_OPTIONS = [
+  "0.5",
+  "1.0",
+  "1.5",
+  "2.0",
+  "2.5",
+  "3.0",
+  "3.5",
+  "4.0",
+  "4.5",
+  "5.0",
+];
 const NMP_PURITY_OPTIONS = NMP_WATER_OPTIONS.map((water) => (100 - Number(water)).toFixed(1)).reverse();
 const TARGET_RAFFINATE_SULFUR_OPTIONS = ["750", "1000", "1500", "2000", "2500"];
 const MINIMUM_RAFFINATE_SATURATES_OPTIONS = ["90", "92.5", "95", "97.5"];
