@@ -1773,14 +1773,24 @@ async function finishJob(
         canonicalJson(suppliedTrials[index]) === canonicalJson(trial)
       ),
     );
+    const blockedNoLiquidSplit = (
+      result
+      && typeof result === 'object'
+      && (result as any).executionStatus === 'BLOCKED_NO_LIQUID_SPLIT'
+    );
+    const expectedTerminalTrials = blockedNoLiquidSplit
+      ? Number((result as any).blockedCascadeTrialCount) - 1
+      : Number(current.maximum_stages);
     let finalStatus = status;
     let finalError = error;
     if (
       status === 'completed'
       && (
-        Number(current.completed_trials) !== Number(current.maximum_stages)
-        || checkpointHashes.length !== Number(current.maximum_stages)
-        || suppliedTrials.length !== Number(current.maximum_stages)
+        !Number.isInteger(expectedTerminalTrials)
+        || expectedTerminalTrials < 0
+        || Number(current.completed_trials) !== expectedTerminalTrials
+        || checkpointHashes.length !== expectedTerminalTrials
+        || suppliedTrials.length !== expectedTerminalTrials
         || !suppliedMatchesCheckpoints
       )
     ) {
