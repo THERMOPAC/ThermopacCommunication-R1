@@ -144,7 +144,7 @@ type PredictiveTrial = {
       residualClosureStatus?: "CLOSED" | "UNCLOSED";
     };
   };
-  acceptanceBlockers: Array<{ code?: string; [key: string]: unknown }>;
+  acceptanceBlockers?: Array<{ code?: string; [key: string]: unknown }>;
   boundaryStreams: {
     oilFeed: PredictiveStream;
     freshNmp?: PredictiveStream;
@@ -2160,6 +2160,9 @@ export default function EcrPrePilotDesignPage() {
                       const order = predictiveJob.result?.componentOrder ?? ["SAT", "MONO", "DI", "POLY", "PA", "NMP"];
                       const formatVector = (values: number[] | undefined) =>
                         order.map((family, index) => `${family}=${Number(values?.[index] ?? 0).toExponential(4)}`).join(" · ");
+                       const acceptanceBlockers = trial.acceptanceBlockers ?? [];
+                       const freshSolvent = trial.boundaryStreams?.freshWetSolvent
+                         ?? trial.boundaryStreams?.freshNmp;
                       return (
                         <details key={trial.stageCount} className="rounded-md border bg-white" open={trial.numericalAcceptancePassed}>
                           <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800">
@@ -2205,18 +2208,18 @@ export default function EcrPrePilotDesignPage() {
                                   </>
                                 )}
                             </p>
-                            {trial.acceptanceBlockers.length > 0 && (
+                            {acceptanceBlockers.length > 0 && (
                               <p className="rounded border border-amber-200 bg-amber-50 p-2 text-amber-950">
-                                Blockers: {trial.acceptanceBlockers.map(({ code }) => code ?? "UNSPECIFIED_GATE_FAILURE").join(" · ")}
+                                Blockers: {acceptanceBlockers.map(({ code }) => code ?? "UNSPECIFIED_GATE_FAILURE").join(" · ")}
                               </p>
                             )}
                             <div className="grid gap-2 md:grid-cols-2">
                               <div className="rounded border bg-slate-50 p-2">
                                 <p className="font-semibold">Complete six-component boundary streams</p>
-                                <p className="mt-1 font-mono text-[10px]">Oil feed: {formatVector(trial.boundaryStreams.oilFeed.componentMoles)}</p>
-                                <p className="mt-1 font-mono text-[10px]">Fresh NMP: {formatVector(trial.boundaryStreams.freshNmp.componentMoles)}</p>
-                                <p className="mt-1 font-mono text-[10px]">Final raffinate: {formatVector(trial.boundaryStreams.finalRaffinate.componentMoles)}</p>
-                                <p className="mt-1 font-mono text-[10px]">Final extract: {formatVector(trial.boundaryStreams.finalExtract.componentMoles)}</p>
+                                <p className="mt-1 font-mono text-[10px]">Oil feed: {formatVector(trial.boundaryStreams?.oilFeed?.componentMoles)}</p>
+                                <p className="mt-1 font-mono text-[10px]">Fresh solvent: {formatVector(freshSolvent?.componentMoles)}</p>
+                                <p className="mt-1 font-mono text-[10px]">Final raffinate: {formatVector(trial.boundaryStreams?.finalRaffinate?.componentMoles)}</p>
+                                <p className="mt-1 font-mono text-[10px]">Final extract: {formatVector(trial.boundaryStreams?.finalExtract?.componentMoles)}</p>
                               </div>
                               <div className="rounded border bg-slate-50 p-2">
                                 <p className="font-semibold">Overall component-balance residuals</p>
@@ -2237,7 +2240,7 @@ export default function EcrPrePilotDesignPage() {
                                 <thead><tr className="border-b bg-slate-50">
                                   <th className="p-2">Stage</th><th className="p-2">Local balance</th><th className="p-2">Isoactivity</th><th className="p-2">Stability / TPD</th><th className="p-2">Outlet compositions</th>
                                 </tr></thead>
-                                <tbody>{trial.stages.map((stage) => (
+                                <tbody>{(trial.stages ?? []).map((stage) => (
                                   <tr key={stage.stageFromFeedEnd} className="border-b align-top last:border-0">
                                     <td className="p-2">{stage.stageFromFeedEnd}</td>
                                     <td className="p-2 font-mono">{stage.maximumComponentBalanceResidualMol.toExponential(3)} · {stage.accepted ? "PASS" : "FAIL"}</td>
