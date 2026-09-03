@@ -913,48 +913,46 @@ export default function EcrPrePilotDesignPage() {
 
   useEffect(() => {
     let cancelled = false;
-    try {
-      const storageKey = "ecr-pre-pilot-allocation-key";
-      const existingKey = window.sessionStorage.getItem(storageKey);
-      const allocationKey = existingKey ?? window.crypto.randomUUID();
-      if (!existingKey) {
-        window.sessionStorage.setItem(storageKey, allocationKey);
-      }
-      fetch("/api/ecr-pre-pilot/designs", {
-        method: "POST",
-        headers: { "Idempotency-Key": allocationKey },
-        credentials: "include",
-      })
-        .then(async (response) => {
-          const payload = await response.json().catch(() => ({}));
-          if (!response.ok) {
-            throw new Error(payload.message ?? "Project number could not be generated.");
-          }
-          if (cancelled) return;
-          const savedStage1 = payload.inputData?.stage1 as Record<string, unknown> | undefined;
-          const hasSavedSulfurAllocation = Boolean(
-            savedStage1
-            && SULFUR_ALLOCATION_FIELDS.every(({ key }) => savedStage1[key] !== undefined),
-          );
-          setForm((current) => hydrateSavedStage1(
-            { ...current, projectReference: String(payload.projectNumber) },
-            payload.inputData,
-          ));
-          setSaveState(hasSavedSulfurAllocation ? "saved" : "unsaved");
-          setDesignId(Number(payload.id));
-          setProjectNumberLoadError(null);
-          setProjectNumberLoading(false);
-        })
-        .catch((error: unknown) => {
-          if (cancelled) return;
-          setProjectNumberLoading(false);
-          setProjectNumberLoadError(error instanceof Error ? error.message : "Project number could not be generated.");
+    const initializeDesign = async () => {
+      try {
+        let response = await fetch("/api/ecr-pre-pilot/designs/latest-saved", {
+          credentials: "include",
         });
-    } catch (error: unknown) {
-      if (cancelled) return;
-      setProjectNumberLoading(false);
-      setProjectNumberLoadError(error instanceof Error ? error.message : "Project number could not be generated.");
-    }
+        let payload = await response.json().catch(() => ({}));
+        if (response.status === 404) {
+          const storageKey = "ecr-pre-pilot-allocation-key";
+          const existingKey = window.sessionStorage.getItem(storageKey);
+          const allocationKey = existingKey ?? window.crypto.randomUUID();
+          if (!existingKey) {
+            window.sessionStorage.setItem(storageKey, allocationKey);
+          }
+          response = await fetch("/api/ecr-pre-pilot/designs", {
+            method: "POST",
+            headers: { "Idempotency-Key": allocationKey },
+            credentials: "include",
+          });
+          payload = await response.json().catch(() => ({}));
+        }
+        if (!response.ok) {
+          throw new Error(payload.message ?? "Project number could not be loaded.");
+        }
+        if (cancelled) return;
+        const savedStage1 = payload.inputData?.stage1 as Record<string, unknown> | undefined;
+        setForm((current) => hydrateSavedStage1(
+          { ...current, projectReference: String(payload.projectNumber) },
+          payload.inputData,
+        ));
+        setSaveState(savedStage1 ? "saved" : "unsaved");
+        setDesignId(Number(payload.id));
+        setProjectNumberLoadError(null);
+        setProjectNumberLoading(false);
+      } catch (error: unknown) {
+        if (cancelled) return;
+        setProjectNumberLoading(false);
+        setProjectNumberLoadError(error instanceof Error ? error.message : "Project number could not be loaded.");
+      }
+    };
+    void initializeDesign();
 
     return () => {
       cancelled = true;

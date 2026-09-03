@@ -17,6 +17,37 @@ export type EcrPrePilotDesignAllocation = {
   inputData: unknown;
 };
 
+export async function getLatestSavedEcrPrePilotDesign(
+  userId: number,
+): Promise<EcrPrePilotDesignAllocation | null> {
+  if (!Number.isInteger(userId) || userId < 1) {
+    throw new Error("Authenticated user is required.");
+  }
+  const result = await pool.query<{
+    id: number;
+    project_number: number;
+    status: string;
+    input_data: unknown;
+  }>(
+    `SELECT id, project_number, status, input_data
+       FROM ecr_pre_pilot_designs
+      WHERE created_by = $1
+        AND input_data ? 'stage1'
+      ORDER BY updated_at DESC, id DESC
+      LIMIT 1`,
+    [userId],
+  );
+  const design = result.rows[0];
+  if (!design) return null;
+  return {
+    id: Number(design.id),
+    projectNumber: Number(design.project_number),
+    status: design.status,
+    existing: true,
+    inputData: design.input_data,
+  };
+}
+
 function isUniqueViolation(error: unknown): boolean {
   return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "23505");
 }

@@ -1,6 +1,10 @@
 import type { Express, Request, Response } from 'express';
 import { ensureAuthenticated } from '../auth-middleware';
-import { allocateEcrPrePilotDesign, saveEcrPrePilotStage1 } from '../ecr-pre-pilot-service';
+import {
+  allocateEcrPrePilotDesign,
+  getLatestSavedEcrPrePilotDesign,
+  saveEcrPrePilotStage1,
+} from '../ecr-pre-pilot-service';
 import {
   enqueuePredictiveNtJobFromSavedStage1,
   getPredictiveNtJob,
@@ -70,6 +74,22 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       }
       console.error('[ECR Pre-Pilot] Project-number allocation failed:', error);
       return res.status(500).json({ message: 'ECR Pre-Pilot project number could not be allocated.' });
+    }
+  });
+
+  app.get('/api/ecr-pre-pilot/designs/latest-saved', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const design = await getLatestSavedEcrPrePilotDesign(Number((req.user as any)?.id));
+      if (!design) return res.status(404).json({ message: 'No saved ECR Pre-Pilot design found.' });
+      return res.json({
+        id: design.id,
+        projectNumber: String(design.projectNumber),
+        status: design.status,
+        inputData: design.inputData,
+      });
+    } catch (error) {
+      console.error('[ECR Pre-Pilot] Latest saved design lookup failed:', error);
+      return res.status(500).json({ message: 'Saved ECR Pre-Pilot design could not be loaded.' });
     }
   });
 
