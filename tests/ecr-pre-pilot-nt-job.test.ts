@@ -562,6 +562,18 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       })),
     };
     expect(validateSevenComponentPersistedResult(result, { input: seven })).toBeNull();
+    const intermediate = {
+      ...result,
+      trials: [result.trials[0]],
+      trialsAttempted: undefined,
+      governedTrialsAccepted: undefined,
+      diagnosticTrialsCalculated: undefined,
+      executionStatus: undefined,
+    };
+    expect(validateSevenComponentPersistedResult(
+      intermediate,
+      { input: seven, intermediate: true },
+    )).toBeNull();
     const unresolvedPhaseTopology = {
       ...result,
       trials: [result.trials[0]],

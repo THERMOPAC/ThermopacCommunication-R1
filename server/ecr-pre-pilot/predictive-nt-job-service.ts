@@ -1113,7 +1113,7 @@ export function validateSevenComponentPersistedResult(
   const diagnosticTrialsCalculated = value.trials.filter(
     (trial: any) => trial?.diagnosticContinuationUsed === true,
   ).length;
-  if (
+  if (!options.intermediate && (
     value.trialsAttempted !== value.trials.length
     || value.governedTrialsAccepted !== governedTrialsAccepted
     || value.diagnosticTrialsCalculated !== diagnosticTrialsCalculated
@@ -1121,7 +1121,7 @@ export function validateSevenComponentPersistedResult(
     || value.governedTrialsAccepted > value.trialsAttempted
     || value.diagnosticTrialsCalculated < 0
     || value.diagnosticTrialsCalculated > value.trialsAttempted
-  ) return 'PREDICTIVE_NT_7C_TRIAL_CLASSIFICATION_INVALID';
+  )) return 'PREDICTIVE_NT_7C_TRIAL_CLASSIFICATION_INVALID';
   const blockedResultContract = {
     BLOCKED_NO_LIQUID_SPLIT: {
       blockingCode: 'SEVEN_COMPONENT_NO_LIQUID_SPLIT',
