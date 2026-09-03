@@ -2101,7 +2101,7 @@ export default function EcrPrePilotDesignPage() {
                     <p className="font-semibold">Predictive-only limitations</p>
                     <p>Calibration required: {predictiveJob.result.calibrationRequired ? "Yes" : "No"} · Pilot validated: {predictiveJob.result.pilotValidated ? "Yes" : "No"} · Release eligible: {predictiveJob.result.releaseEligible ? "Yes" : "No"}</p>
                     <p>
-                      {predictiveJob.result.engineContractVersion === "7C-1.1.0"
+                      {String(predictiveJob.result.engineContractVersion).startsWith("7C-")
                         ? "The seven-component cCOSMO production implementation includes H2O. Predictive qualification remains pending governed water-bearing LLE and blind qualification; this is not a claim that implementation is research-only."
                         : "This historical six-component COSMO-SAC result remains readable under its original research-diagnostic contract."}
                       {" "}Sulfur prediction remains NOT_CALCULABLE, and PA transfer must never be interpreted as sulfur removal. This result does not populate established theoretical stages.
@@ -2212,7 +2212,9 @@ export default function EcrPrePilotDesignPage() {
                     <h3 className="text-sm font-semibold text-slate-900">All stage trials and diagnostics</h3>
                     {(predictiveJob.result.trials ?? []).map((trial) => {
                       const order = predictiveJob.result?.componentOrder ?? ["SAT", "MONO", "DI", "POLY", "PA", "NMP"];
-                       const isSevenComponent = predictiveJob.result?.engineContractVersion === "7C-1.1.0";
+                       const isSevenComponent = String(
+                         predictiveJob.result?.engineContractVersion ?? "",
+                       ).startsWith("7C-");
                       const formatVector = (values: number[] | undefined) =>
                         order.map((family, index) => `${family}=${Number(values?.[index] ?? 0).toExponential(4)}`).join(" · ");
                        const acceptanceBlockers = trial.acceptanceBlockers ?? [];
@@ -2223,7 +2225,7 @@ export default function EcrPrePilotDesignPage() {
                       return (
                         <details key={trial.stageCount} className="rounded-md border bg-white" open={trial.numericalAcceptancePassed}>
                           <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800">
-                            Trial {trial.stageCount}: {predictiveJob.result?.engineContractVersion === "7C-1.1.0" ? "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING" : "RESEARCH DIAGNOSTIC"} — NOT ACCEPTED · numerical gates {trial.numericalAcceptancePassed ? "PASS" : "FAIL"} · max balance residual {trial.maximumOverallComponentBalanceResidualMol.toExponential(3)}
+                            Trial {trial.stageCount}: {String(predictiveJob.result?.engineContractVersion ?? "").startsWith("7C-") ? "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING" : "RESEARCH DIAGNOSTIC"} — NOT ACCEPTED · numerical gates {trial.numericalAcceptancePassed ? "PASS" : "FAIL"} · max balance residual {trial.maximumOverallComponentBalanceResidualMol.toExponential(3)}
                           </summary>
                           <div className="space-y-3 border-t px-3 py-3 text-[11px]">
                             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -2293,7 +2295,7 @@ export default function EcrPrePilotDesignPage() {
                             <div className="grid gap-2 md:grid-cols-2">
                               <div className="rounded border bg-slate-50 p-2">
                                 <p className="font-semibold">
-                                  Complete {predictiveJob.result.engineContractVersion === "7C-1.1.0" ? "seven" : "six"}-component boundary streams
+                                  Complete {String(predictiveJob.result.engineContractVersion).startsWith("7C-") ? "seven" : "six"}-component boundary streams
                                 </p>
                                 <p className="mt-1 font-mono text-[10px]">Oil feed: {formatVector(trial.boundaryStreams?.oilFeed?.componentMoles)}</p>
                                 <p className="mt-1 font-mono text-[10px]">Fresh solvent: {formatVector(freshSolvent?.componentMoles)}</p>

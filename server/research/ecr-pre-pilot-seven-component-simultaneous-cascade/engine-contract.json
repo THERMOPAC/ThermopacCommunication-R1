@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "ECR_PRE_PILOT_PREDICTIVE_NT_ENGINE_CONTRACT_V1",
+  "engineContractVersion": "7C-1.2.0",
+  "engineId": "ECR2_PREDICTIVE_NT_SEVEN_COMPONENT_SIMULTANEOUS_COUPLED_CASCADE",
+  "componentOrder": ["SAT", "MONO", "DI", "POLY", "PA", "NMP", "H2O"],
+  "cascadeEquations": "14*N simultaneous component-balance plus isoactivity equations",
+  "routineTpd": {
+    "latticeDenominator": 4,
+    "latticePointCount": 210,
+    "postSplitSearchesPerStage": 2
+  },
+  "exhaustiveEscalation": {
+    "engineContractVersion": "7C-1.1.0",
+    "routineUse": false,
+    "trigger": "routine ambiguity only"
+  },
+  "wetSolventRule": "NMP and dissolved H2O split fixed total wet-solvent mass",
+  "checkpointProtocol": "ACK_V3_ENGINE_CONTRACT",
+  "continuationRule": "only the latest both-endpoint-closed and branch-reproduced coupled solution may seed the next trial; diagnostic trials retain the prior valid lineage",
+  "governanceStatus": "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING",
+  "releaseEligible": false
+}

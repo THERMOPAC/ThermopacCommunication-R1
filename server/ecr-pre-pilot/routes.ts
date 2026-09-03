@@ -27,7 +27,7 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       model: PRE_PILOT_MODEL,
       molecularRegistry: PREDICTIVE_NT_MOLECULAR_REGISTRY,
       predictiveEngineComponentContract: {
-        engineContractVersion: '7C-1.1.0',
+        engineContractVersion: '7C-1.2.0',
         componentCount: 7,
         families: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
         thermodynamicModel: 'COSMO_SAC_2010_PROJECT_NMP_LLE_RESIDUAL_H2O_EXTENSION',

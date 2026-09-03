@@ -430,7 +430,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
       209,
     );
-    expect(seven.engineContractVersion).toBe('7C-1.1.0');
+    expect(seven.engineContractVersion).toBe('7C-1.2.0');
     expect(seven.engineComponentContract).toMatchObject({
       componentCount: 7,
       families: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
@@ -475,7 +475,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     expect(validatePredictiveNtCheckpointContract(
       seven,
       'ACK_V3_ENGINE_CONTRACT',
-      '7C-1.1.0',
+      '7C-1.2.0',
     )).toBe('ACK_V3_ENGINE_CONTRACT');
     expect(() => validatePredictiveNtCheckpointContract(
       seven,
@@ -485,6 +485,34 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     expect(predictiveNtCheckpointProtocol(validInput)).toBe('ACK_V2');
     expect(() => validatePredictiveNtCheckpointContract(
       validInput,
+      'ACK_V3_ENGINE_CONTRACT',
+      '7C-1.2.0',
+    )).toThrow('PREDICTIVE_NT_CROSS_ENGINE_CHECKPOINT_FORBIDDEN');
+  });
+
+  it('keeps historical 7C-1.1 checkpoints exact-contract resumable only', () => {
+    const current = derivePredictiveNtInputFromStage1(
+      makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
+      209,
+    );
+    const historical = {
+      ...current,
+      engineContractVersion: '7C-1.1.0' as const,
+    };
+    expect(predictiveNtCheckpointProtocol(historical))
+      .toBe('ACK_V3_ENGINE_CONTRACT');
+    expect(validatePredictiveNtCheckpointContract(
+      historical,
+      'ACK_V3_ENGINE_CONTRACT',
+      '7C-1.1.0',
+    )).toBe('ACK_V3_ENGINE_CONTRACT');
+    expect(() => validatePredictiveNtCheckpointContract(
+      historical,
+      'ACK_V3_ENGINE_CONTRACT',
+      '7C-1.2.0',
+    )).toThrow('PREDICTIVE_NT_CROSS_ENGINE_CHECKPOINT_FORBIDDEN');
+    expect(() => validatePredictiveNtCheckpointContract(
+      current,
       'ACK_V3_ENGINE_CONTRACT',
       '7C-1.1.0',
     )).toThrow('PREDICTIVE_NT_CROSS_ENGINE_CHECKPOINT_FORBIDDEN');
@@ -508,7 +536,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       massFractions: fractions,
     };
     const result: any = {
-      engineContractVersion: '7C-1.1.0',
+      engineContractVersion: '7C-1.2.0',
       componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
       status: 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING',
       implementationStatus: 'IMPLEMENTED',
@@ -562,6 +590,18 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       })),
     };
     expect(validateSevenComponentPersistedResult(result, { input: seven })).toBeNull();
+    const historicalInput = {
+      ...seven,
+      engineContractVersion: '7C-1.1.0' as const,
+    };
+    expect(validateSevenComponentPersistedResult({
+      ...result,
+      engineContractVersion: '7C-1.1.0',
+    }, { input: historicalInput })).toBeNull();
+    expect(validateSevenComponentPersistedResult({
+      ...result,
+      engineContractVersion: '7C-1.1.0',
+    }, { input: seven })).toBe('PREDICTIVE_NT_7C_RESULT_CONTRACT_INVALID');
     const intermediate = {
       ...result,
       trials: [result.trials[0]],
@@ -618,7 +658,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       209,
     );
     expect(validateSevenComponentPersistedResult({
-      engineContractVersion: '7C-1.1.0',
+      engineContractVersion: '7C-1.2.0',
       componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
       status: 'ENGINE_ERROR',
       releaseEligible: false,
