@@ -430,11 +430,11 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
       209,
     );
-    expect(seven.engineContractVersion).toBe('7C-1.0.0');
+    expect(seven.engineContractVersion).toBe('7C-1.1.0');
     expect(seven.engineComponentContract).toMatchObject({
       componentCount: 7,
       families: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
-      thermodynamicModel: 'CCOSMO_COSMO_SAC_2010_SEVEN_COMPONENT',
+      thermodynamicModel: 'COSMO_SAC_2010_PROJECT_NMP_LLE_RESIDUAL_H2O_EXTENSION',
     });
     expect(seven.feedMoleFractions).toHaveLength(7);
     expect(seven.solventSpecificationAudit).toEqual({
@@ -475,7 +475,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     expect(validatePredictiveNtCheckpointContract(
       seven,
       'ACK_V3_ENGINE_CONTRACT',
-      '7C-1.0.0',
+      '7C-1.1.0',
     )).toBe('ACK_V3_ENGINE_CONTRACT');
     expect(() => validatePredictiveNtCheckpointContract(
       seven,
@@ -486,7 +486,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     expect(() => validatePredictiveNtCheckpointContract(
       validInput,
       'ACK_V3_ENGINE_CONTRACT',
-      '7C-1.0.0',
+      '7C-1.1.0',
     )).toThrow('PREDICTIVE_NT_CROSS_ENGINE_CHECKPOINT_FORBIDDEN');
   });
 
@@ -508,7 +508,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       massFractions: fractions,
     };
     const result: any = {
-      engineContractVersion: '7C-1.0.0',
+      engineContractVersion: '7C-1.1.0',
       componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
       status: 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING',
       implementationStatus: 'IMPLEMENTED',
@@ -519,6 +519,11 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       qualificationEvidence: {
         directWaterBearingLleValidated: false,
         independentBlindQualificationPassed: false,
+      },
+      thermodynamicCondition: {
+        temperatureC: 50,
+        temperatureK: 323.15,
+        authority: 'IMMUTABLE_STAGE1_OPERATING_TEMPERATURE',
       },
       wetSolventConstruction: {
         rrboFeedMass: 100,
@@ -569,7 +574,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       209,
     );
     expect(validateSevenComponentPersistedResult({
-      engineContractVersion: '7C-1.0.0',
+      engineContractVersion: '7C-1.1.0',
       componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
       status: 'ENGINE_ERROR',
       releaseEligible: false,

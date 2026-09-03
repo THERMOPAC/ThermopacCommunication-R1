@@ -2047,7 +2047,7 @@ export default function EcrPrePilotDesignPage() {
                     <p className="font-semibold">Predictive-only limitations</p>
                     <p>Calibration required: {predictiveJob.result.calibrationRequired ? "Yes" : "No"} · Pilot validated: {predictiveJob.result.pilotValidated ? "Yes" : "No"} · Release eligible: {predictiveJob.result.releaseEligible ? "Yes" : "No"}</p>
                     <p>
-                      {predictiveJob.result.engineContractVersion === "7C-1.0.0"
+                      {predictiveJob.result.engineContractVersion === "7C-1.1.0"
                         ? "The seven-component cCOSMO production implementation includes H2O. Predictive qualification remains pending governed water-bearing LLE and blind qualification; this is not a claim that implementation is research-only."
                         : "This historical six-component COSMO-SAC result remains readable under its original research-diagnostic contract."}
                       {" "}Sulfur prediction remains NOT_CALCULABLE, and PA transfer must never be interpreted as sulfur removal. This result does not populate established theoretical stages.
@@ -2163,7 +2163,7 @@ export default function EcrPrePilotDesignPage() {
                       return (
                         <details key={trial.stageCount} className="rounded-md border bg-white" open={trial.numericalAcceptancePassed}>
                           <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800">
-                            Trial {trial.stageCount}: {predictiveJob.result?.engineContractVersion === "7C-1.0.0" ? "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING" : "RESEARCH DIAGNOSTIC"} — NOT ACCEPTED · numerical gates {trial.numericalAcceptancePassed ? "PASS" : "FAIL"} · max balance residual {trial.maximumOverallComponentBalanceResidualMol.toExponential(3)}
+                            Trial {trial.stageCount}: {predictiveJob.result?.engineContractVersion === "7C-1.1.0" ? "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING" : "RESEARCH DIAGNOSTIC"} — NOT ACCEPTED · numerical gates {trial.numericalAcceptancePassed ? "PASS" : "FAIL"} · max balance residual {trial.maximumOverallComponentBalanceResidualMol.toExponential(3)}
                           </summary>
                           <div className="space-y-3 border-t px-3 py-3 text-[11px]">
                             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">

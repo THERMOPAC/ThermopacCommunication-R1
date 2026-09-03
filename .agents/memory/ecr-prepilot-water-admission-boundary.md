@@ -9,11 +9,17 @@ Stage-1 water is a deliberate controlled addition to the NMP/H₂O extraction-so
 
 **How to apply:** Persist both values in the immutable Stage-1 snapshot and bind both into every successor-engine job contract. Use “controlled water addition,” “water content of extraction solvent,” or “NMP/H₂O solvent formulation,” never “water impurity.”
 
-The native seven-component cCOSMO engine is the production successor architecture for all new controlled-water jobs, but its outputs remain **IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING**, never release-eligible or an assigned Predictive N_T.
+The seven-component engine is an extension of the exact assembled six-component thermodynamic basis, not a replacement with bare native cCOSMO. It must preserve the six molecular identities/profiles, native kernel, and unchanged nine-parameter `PROJECT_NMP_LLE_RESIDUAL`; only H₂O is added.
+
+**Why:** Removing the residual amendment erased the negative-TPD basin even with H₂O absent, confounding model replacement with water addition. Water effects are interpretable only after the dry extension reproduces the assembled 6C model.
+
+**How to apply:** Verify inheritance at the code/model-component level: identical six profiles/native kernel and exact residual parameters/equation. Never execute or label H₂O=0 as 7C. Apply the old residual to the normalized first-six submixture; H₂O has no new residual correction until separately governed.
+
+The assembled seven-component engine is the production successor architecture for all new controlled-water jobs, but its outputs remain **IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING**, never release-eligible or an assigned Predictive N_T.
 
 **Why:** A traceable H₂O sigma3 profile and complete seven-component numerical path establish implementation readiness, but no direct water-bearing multicomponent LLE evidence yet qualifies partition, selectivity, phase topology, temperature dependence, or global stability. A valid molecular profile and converged solver are not equilibrium validation.
 
-**How to apply:** Run new wet-solvent jobs only through 7C and preserve honest flash/cascade diagnostics, including stable-single-phase or unresolved-split outcomes. Admit an N_T only after governed water-bearing equilibrium evidence, blind validation, mass/mole closure, local stability, global TPD, and self-consistent cascade qualification.
+**How to apply:** Run new wet-solvent jobs only through the dry-limit-qualified assembled 7C extension and preserve honest flash/cascade diagnostics, including stable-single-phase or unresolved-split outcomes. Admit an N_T only after governed water-bearing equilibrium evidence, blind validation, mass/mole closure, local stability, global TPD, and self-consistent cascade qualification.
 
 For the seven-component qualification path, S/O is governed as total wet-solvent mass divided by RRBO feed mass:
 

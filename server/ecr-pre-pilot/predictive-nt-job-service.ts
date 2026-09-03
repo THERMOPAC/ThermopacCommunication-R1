@@ -21,13 +21,13 @@ import {
 import { generatePredictiveNtReport } from './predictive-nt-report';
 
 export interface PredictiveNtJobInput {
-  engineContractVersion?: '6C-1.0.0' | '7C-1.0.0';
+  engineContractVersion?: '6C-1.0.0' | '7C-1.1.0';
   engineComponentContract: {
     componentCount: 6 | 7;
     families: readonly string[];
     thermodynamicModel:
       | 'FROZEN_SIX_COMPONENT_COSMO_SAC_2010'
-      | 'CCOSMO_COSMO_SAC_2010_SEVEN_COMPONENT';
+      | 'COSMO_SAC_2010_PROJECT_NMP_LLE_RESIDUAL_H2O_EXTENSION';
     researchDiagnosticOnly?: true;
     qualificationStatus?: 'PENDING_GOVERNED_WATER_BEARING_LLE_AND_BLIND_QUALIFICATION';
   };
@@ -531,7 +531,7 @@ export function validateTask218CandidateGeneratedStabilityEvidence(evidence: unk
 }
 
 function isSevenComponentInput(input?: PredictiveNtJobInput) {
-  return input?.engineContractVersion === '7C-1.0.0';
+  return input?.engineContractVersion === '7C-1.1.0';
 }
 
 export function predictiveNtCheckpointProtocol(input: PredictiveNtJobInput) {
@@ -548,7 +548,7 @@ export function validatePredictiveNtCheckpointContract(
     protocol !== expectedProtocol
     || (
       isSevenComponentInput(input)
-      && engineContractVersion !== '7C-1.0.0'
+      && engineContractVersion !== '7C-1.1.0'
     )
     || (
       !isSevenComponentInput(input)
@@ -600,8 +600,16 @@ function readPredictiveNtRuntimePreflight(input?: PredictiveNtJobInput) {
           (
             isSevenComponentInput(input as PredictiveNtJobInput)
               ? (
-                result.engineId !== 'ECR2_PREDICTIVE_NT_SEVEN_COMPONENT_CCOSMO'
-                || result.engineContractVersion !== '7C-1.0.0'
+                result.engineId !== 'ECR2_PREDICTIVE_NT_SEVEN_COMPONENT_ASSEMBLED_RESIDUAL_EXTENSION'
+                || result.engineContractVersion !== '7C-1.1.0'
+                || result.modelIdentity !== 'COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL + H2O_EXTENSION'
+                || result.modelInheritanceEvidence?.status !== 'PASS'
+                || result.modelInheritanceEvidence?.modelComponentCheckCount !== 4
+                || result.modelInheritanceEvidence?.profileIdentityCheckCount !== 6
+                || result.modelInheritanceEvidence?.h2oZeroProductionStatePermitted !== false
+                || JSON.stringify(result.modelInheritanceEvidence?.actualSevenComponentWaterWtPctRange)
+                  !== JSON.stringify({ minimum: 0.5, maximum: 3.0 })
+                || !/^[a-f0-9]{64}$/.test(result.modelInheritanceEvidence?.sha256 ?? '')
                 || JSON.stringify(result.componentOrder) !== JSON.stringify(
                   ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
                 )
@@ -805,11 +813,11 @@ export function derivePredictiveNtInputFromStage1(
   const moleTotal = moles.reduce((sum, value) => sum + value, 0);
   return {
     ...legacy,
-    engineContractVersion: '7C-1.0.0',
+    engineContractVersion: '7C-1.1.0',
     engineComponentContract: {
       componentCount: 7,
       families: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
-      thermodynamicModel: 'CCOSMO_COSMO_SAC_2010_SEVEN_COMPONENT',
+      thermodynamicModel: 'COSMO_SAC_2010_PROJECT_NMP_LLE_RESIDUAL_H2O_EXTENSION',
       qualificationStatus: 'PENDING_GOVERNED_WATER_BEARING_LLE_AND_BLIND_QUALIFICATION',
     },
     feedMoleFractions: moles.map((value) => value / moleTotal),
@@ -835,7 +843,7 @@ export function validatePredictiveNtJobInput(
     if (
       input.engineComponentContract?.componentCount !== 7
       || input.engineComponentContract?.thermodynamicModel
-        !== 'CCOSMO_COSMO_SAC_2010_SEVEN_COMPONENT'
+        !== 'COSMO_SAC_2010_PROJECT_NMP_LLE_RESIDUAL_H2O_EXTENSION'
       || input.engineComponentContract?.qualificationStatus
         !== 'PENDING_GOVERNED_WATER_BEARING_LLE_AND_BLIND_QUALIFICATION'
       || canonicalJson(input.engineComponentContract?.families) !== canonicalJson(expectedOrder)
@@ -1082,7 +1090,7 @@ export function validateSevenComponentPersistedResult(
   const value = result as any;
   if (
     !value || typeof value !== 'object'
-    || value.engineContractVersion !== '7C-1.0.0'
+    || value.engineContractVersion !== '7C-1.1.0'
     || canonicalJson(value.componentOrder) !== canonicalJson(SEVEN_COMPONENT_ORDER)
     || value.releaseEligible !== false
     || value.predictiveNt !== null
@@ -1229,7 +1237,7 @@ export function attachStage1ResultGovernance(
   if (sevenComponent) {
     const governed = {
       ...admittedResult,
-      engineContractVersion: '7C-1.0.0',
+      engineContractVersion: '7C-1.1.0',
       componentOrder: [...SEVEN_COMPONENT_ORDER],
       model: { modelHash: PRE_PILOT_MODEL.modelHash, runtimeVerification: 'PASS' },
       resultThermodynamicClassification: 'SEVEN_COMPONENT_CCOSMO_IMPLEMENTED_QUALIFICATION_PENDING',
@@ -1588,7 +1596,7 @@ async function persistTrialCheckpoint(
     if (
       sevenComponent
       && (
-        payload.engineContractVersion !== '7C-1.0.0'
+        payload.engineContractVersion !== '7C-1.1.0'
         || canonicalJson(payload.componentOrder) !== canonicalJson(SEVEN_COMPONENT_ORDER)
       )
     ) throw new Error('PREDICTIVE_NT_CROSS_ENGINE_CHECKPOINT_FORBIDDEN');
@@ -1635,7 +1643,7 @@ async function persistTrialCheckpoint(
       trials: existingTrials,
       checkpoint: {
         protocol: expectedProtocol,
-        engineContractVersion: sevenComponent ? '7C-1.0.0' : '6C-LEGACY',
+        engineContractVersion: sevenComponent ? '7C-1.1.0' : '6C-LEGACY',
         acknowledgedStageCount: stageCount,
         trialHashes: existingHashes,
         trialCanonicals: [...existingCanonicals, canonicalTrial],
@@ -1728,7 +1736,7 @@ function buildResumeRequest(job: PredictiveNtJob) {
     }
   }
   return {
-    engineContractVersion: sevenComponent ? '7C-1.0.0' : '6C-LEGACY',
+    engineContractVersion: sevenComponent ? '7C-1.1.0' : '6C-LEGACY',
     acknowledgedStageCount: completed,
     trials: result.trials,
     continuationState: checkpoint.latestContinuationState,

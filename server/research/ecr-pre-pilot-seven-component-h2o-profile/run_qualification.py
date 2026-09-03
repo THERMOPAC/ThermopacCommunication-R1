@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import itertools
 import json
 import math
@@ -20,6 +21,9 @@ FROZEN = HERE.parent / "ecr-pre-pilot-cosmosac"
 VENDOR = FROZEN / "vendor/python"
 H2O_KEY = "XLYOFNOQVPJJNP-UHFFFAOYSA-N"
 FAMILIES = ("SAT", "MONO", "DI", "POLY", "PA", "NMP", "H2O")
+FAMILIES6 = FAMILIES[:6]
+AMENDMENT_PATH = HERE.parent / "ecr-pre-pilot-cosmosac-nmp-lle-amendment/model.py"
+AMENDMENT_RESULTS = ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json"
 MW = {
     "SAT": 170.3348, "MONO": 120.194, "DI": 142.1971,
     "POLY": 202.2506, "PA": 405.58, "NMP": 99.1311, "H2O": 18.01528,
@@ -29,6 +33,78 @@ WATER_WT_PCT = (0.5, 1.0, 2.0, 3.0)
 TEMPERATURE_K = 323.15
 SOLVENT_OIL_RATIO = 0.9
 FLOOR = 1e-10
+
+
+class AssembledSevenComponentModel:
+    """Native 7C base plus the immutable governed 6C assembled model."""
+
+    def __init__(self, native_six, native_seven, amendment, residual_parameters):
+        self.native_six = native_six
+        self.native_seven = native_seven
+        self.amendment = amendment
+        self.residual_parameters = residual_parameters
+
+    def residual_lngamma(self, np, x6, temperature_k):
+        """Independent reproduction of the governed nine-parameter equation."""
+        x = np.maximum(np.asarray(x6, dtype=float), 1e-12)
+        x = x / x.sum()
+        tau = (float(temperature_k) - 313.15) / 20.0
+        q_features = np.zeros(9)
+        gradient_features = np.zeros((6, 9))
+        for pair_index, (i, j) in enumerate(((0, 1), (0, 5), (1, 5))):
+            for offset, factor in ((0, 1.0), (1, tau)):
+                column = 3 * pair_index + offset
+                q_features[column] = x[i] * x[j] * factor
+                gradient_features[i, column] += x[j] * factor
+                gradient_features[j, column] += x[i] * factor
+            column = 3 * pair_index + 2
+            q_features[column] = x[i] * x[j] * (x[i] - x[j])
+            gradient_features[i, column] = 2 * x[i] * x[j] - x[j] ** 2
+            gradient_features[j, column] = x[i] ** 2 - 2 * x[i] * x[j]
+        degrees = np.asarray([2, 2, 3] * 3)
+        return (gradient_features + (1.0 - degrees) * q_features) @ self.residual_parameters
+
+    def inherited_six_lngamma(self, temperature_k, x6):
+        """Code-level reproduction of the inherited 6C assembled basis."""
+        np = self.amendment.np
+        x = np.maximum(np.asarray(x6, dtype=float), 1e-12)
+        x = x / x.sum()
+        native = (
+            np.asarray(self.native_six.get_lngamma_comb(temperature_k, x))
+            + np.asarray(self.native_six.get_lngamma_resid(temperature_k, x))
+        )
+        return native + self.residual_lngamma(np, x, temperature_k)
+
+    def wet_lngamma(self, np, temperature_k, x7):
+        """7C base with the established 6C residual chemical potentials only."""
+        x7 = normalize(np, x7)
+        dry_total = float(np.sum(x7[:6]))
+        if dry_total <= 0.0:
+            raise ValueError("SEVEN_COMPONENT_DRY_SUBMIXTURE_EMPTY")
+        y = x7[:6] / dry_total
+        native = (
+            np.asarray(self.native_seven.get_lngamma_comb(temperature_k, x7))
+            + np.asarray(self.native_seven.get_lngamma_resid(temperature_k, x7))
+        )
+        residual = self.residual_lngamma(np, y, temperature_k)
+        return native + np.r_[residual, 0.0]
+
+
+def load_frozen_residual(np):
+    """Load, validate, and order the nine governed parameters without refitting."""
+    spec = importlib.util.spec_from_file_location("governed_nmp_lle_amendment", AMENDMENT_PATH)
+    amendment = importlib.util.module_from_spec(spec)
+    assert spec.loader
+    spec.loader.exec_module(amendment)
+    governed = json.loads(AMENDMENT_RESULTS.read_text())
+    if governed.get("model", {}).get("identity") != "COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL":
+        raise RuntimeError("FROZEN_RESIDUAL_MODEL_IDENTITY_MISMATCH")
+    if amendment.T_REF_K != 313.15 or amendment.T_SCALE_K != 20.0:
+        raise RuntimeError("FROZEN_RESIDUAL_TEMPERATURE_CONVENTION_MISMATCH")
+    values = governed["model"]["parameters"]
+    if set(values) != set(amendment.PARAMETER_NAMES) or len(values) != 9:
+        raise RuntimeError("FROZEN_RESIDUAL_PARAMETER_SET_MISMATCH")
+    return amendment, np.asarray([values[name] for name in amendment.PARAMETER_NAMES], float)
 
 
 def sha(path: Path) -> str:
@@ -105,7 +181,11 @@ def build_model():
     database = cCOSMO.DelawareProfileDatabase(str(complist), str(sigma))
     for key in keys:
         database.add_profile(key)
-    model = cCOSMO.COSMO3(keys, database)
+    native_six = cCOSMO.COSMO3(keys[:6], database)
+    native_seven = cCOSMO.COSMO3(keys, database)
+    amendment, residual_parameters = load_frozen_residual(np)
+    model = AssembledSevenComponentModel(
+        native_six, native_seven, amendment, residual_parameters)
     integrity = {
         "sixGenerationManifestSha256": sha(six_manifest_path),
         "h2oGenerationManifestSha256": sha(h2o_manifest_path),
@@ -113,6 +193,9 @@ def build_model():
         "sevenComponentRuntimeCompatibilitySha256": sha(runtime_check_path),
         "frozenSixComponentRunnerSha256": sha(FROZEN / "run.py"),
         "frozenSixComponentProvenanceSha256": sha(FROZEN / "provenance-manifest.json"),
+        "frozenResidualModelSha256": sha(AMENDMENT_PATH),
+        "frozenResidualResultsSha256": sha(AMENDMENT_RESULTS),
+        "frozenResidualParameterVectorSha256": digest(residual_parameters.tolist()),
         "profileSha256ByFamily": profile_hashes,
         "isolatedComplistSha256": sha(complist),
     }
@@ -146,17 +229,22 @@ def wet_charge(np, water_wt_pct: float):
     }
 
 
-def engine(np, scipy, model, temperature_k=TEMPERATURE_K):
+def engine(np, scipy, model, temperature_k, water_wt_pct):
     if not math.isfinite(float(temperature_k)) or temperature_k <= 0.0:
         raise ValueError("SEVEN_COMPONENT_TEMPERATURE_INVALID")
+    if (
+        not math.isfinite(float(water_wt_pct))
+        or float(water_wt_pct) < 0.5
+        or float(water_wt_pct) > 3.0
+    ):
+        raise ValueError("SEVEN_COMPONENT_WATER_OUTSIDE_GOVERNED_RANGE")
     cache = {}
 
     def lngamma(x):
         x = normalize(np, x)
         key = tuple(x.tolist())
         if key not in cache:
-            cache[key] = (np.asarray(model.get_lngamma_comb(temperature_k, x))
-                          + np.asarray(model.get_lngamma_resid(temperature_k, x)))
+            cache[key] = model.wet_lngamma(np, temperature_k, x)
         return cache[key]
 
     def mu(x):
@@ -442,7 +530,8 @@ def engine(np, scipy, model, temperature_k=TEMPERATURE_K):
 
 def run_case(np, scipy, model, water_wt_pct):
     z, conversion = wet_charge(np, water_wt_pct)
-    flash, tpd, hessian = engine(np, scipy, model)
+    flash, tpd, hessian = engine(
+        np, scipy, model, TEMPERATURE_K, water_wt_pct)
     overall_tpd = tpd(z)
     result = {
         "caseId": f"WATER_{water_wt_pct:.1f}_WT_PCT",
@@ -509,9 +598,18 @@ def main():
         "researchOnly": True, "calibrationRequired": True, "pilotValidated": False,
         "directWaterBearingLleValidated": False, "designUseBlocked": True,
         "releaseEligible": False, "predictiveNt": None, "sulfurPrediction": "NOT_CALCULABLE",
-        "model": {"name": "COSMO-SAC-2010", "componentCount": 7,
-                  "lnGamma": "get_lngamma_comb(T,x)+get_lngamma_resid(T,x)",
-                  "residualAmendmentUsed": False},
+        "model": {
+            "name": "COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL + H2O_EXTENSION",
+            "componentCount": 7,
+            "lnGamma": "native 7C cCOSMO + unchanged governed 6C residual mu(y) for first six; zero residual mu for H2O",
+            "residualAmendmentUsed": True,
+            "sixComponentInheritanceVerification": (
+                "code/model-component verification only; H2O=0 is not a "
+                "seven-component calculation or production state"
+            ),
+            "governedWaterWeightPercentRange": {"minimum": 0.5, "maximum": 3.0},
+            "h2oResidualCorrection": "UNESTABLISHED_ZERO_BY_EXTENSION_CONTRACT",
+        },
         "runtime": runtime, "integrity": integrity,
         "evidenceQualification": evidence_qualification,
         "governedBasis": {"rrboFeedMass": 100.0, "solventOilMassRatio": SOLVENT_OIL_RATIO,

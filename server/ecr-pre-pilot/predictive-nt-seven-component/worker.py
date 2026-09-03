@@ -20,10 +20,12 @@ ROOT = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
 QUALIFICATION = ROOT / "server/research/ecr-pre-pilot-seven-component-h2o-profile/run_qualification.py"
 CONTRACT_PATH = HERE / "engine-contract.json"
+DRY_LIMIT_RUNNER = ROOT / "server/research/ecr-pre-pilot-seven-component-dry-limit/run.py"
+DRY_LIMIT_EVIDENCE = ROOT / ".agents/outputs/ecr-pre-pilot-seven-component-dry-limit/evidence.json"
 FAMILIES = ("SAT", "MONO", "DI", "POLY", "PA", "NMP", "H2O")
 MW = (170.3348, 120.194, 142.1971, 202.2506, 405.58, 99.1311, 18.01528)
-ENGINE_ID = "ECR2_PREDICTIVE_NT_SEVEN_COMPONENT_CCOSMO"
-ENGINE_VERSION = "7C-1.0.0"
+ENGINE_ID = "ECR2_PREDICTIVE_NT_SEVEN_COMPONENT_ASSEMBLED_RESIDUAL_EXTENSION"
+ENGINE_VERSION = "7C-1.1.0"
 CHECKPOINT_PROTOCOL = "ACK_V3_ENGINE_CONTRACT"
 STATUS = "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING"
 
@@ -48,7 +50,12 @@ def sha_file(path):
 
 
 def scientific_files():
-    paths = [Path(__file__), CONTRACT_PATH, QUALIFICATION]
+    paths = [
+        Path(__file__), CONTRACT_PATH, QUALIFICATION, DRY_LIMIT_RUNNER,
+        DRY_LIMIT_EVIDENCE,
+        ROOT / "server/research/ecr-pre-pilot-cosmosac-nmp-lle-amendment/model.py",
+        ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json",
+    ]
     for directory in (
         ROOT / "server/research/ecr-pre-pilot-seven-component-h2o-profile/generated",
         ROOT / "server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles",
@@ -59,7 +66,90 @@ def scientific_files():
     return sorted(set(p.resolve() for p in paths))
 
 
+def model_inheritance_evidence():
+    if not DRY_LIMIT_EVIDENCE.is_file():
+        raise RuntimeError("SEVEN_COMPONENT_MODEL_INHERITANCE_EVIDENCE_MISSING")
+    evidence = json.loads(DRY_LIMIT_EVIDENCE.read_text())
+    supplied = evidence.get("canonicalPayloadSha256")
+    payload = dict(evidence)
+    payload.pop("canonicalPayloadSha256", None)
+    expected_pins = {
+        "runnerSha256": sha_file(DRY_LIMIT_RUNNER),
+        "qualificationRunnerSha256": sha_file(QUALIFICATION),
+        "amendmentModelSha256": sha_file(
+            ROOT / "server/research/ecr-pre-pilot-cosmosac-nmp-lle-amendment/model.py"
+        ),
+        "amendmentResultsSha256": sha_file(
+            ROOT / ".agents/outputs/ecr-pre-pilot-cosmosac-nmp-lle-amendment/results.json"
+        ),
+    }
+    pins = evidence.get("pinnedInputs", {})
+    checks = evidence.get("modelComponentChecks", [])
+    profiles = evidence.get("profileIdentityChecks", [])
+    if (
+        evidence.get("status") != "PASS"
+        or evidence.get("schemaVersion")
+        != "ECR_7C_SIX_COMPONENT_MODEL_INHERITANCE_V1"
+        or evidence.get("verificationType")
+        != "CODE_AND_MODEL_COMPONENT_INHERITANCE"
+        or evidence.get("notASevenComponentCalculation") is not True
+        or evidence.get("h2oZeroProductionStatePermitted") is not False
+        or evidence.get("actualSevenComponentWaterWtPctRange")
+        != {"minimum": 0.5, "maximum": 3.0}
+        or evidence.get("inheritedComponentOrder")
+        != ["SAT", "MONO", "DI", "POLY", "PA", "NMP"]
+        or evidence.get("nativeSixComponentModelInstantiatedIndependently") is not True
+        or evidence.get("residualEquationImplementedIndependently") is not True
+        or evidence.get("residualModel") != "PROJECT_NMP_LLE_RESIDUAL"
+        or evidence.get("activityCoefficientTolerance") != 2e-13
+        or len(checks) != 4
+        or any(
+            row.get("scope") != "SIX_COMPONENT_MODEL_INHERITANCE_UNIT_CHECK"
+            or row.get("componentOrder") != ["SAT", "MONO", "DI", "POLY", "PA", "NMP"]
+            or row.get("status") != "PASS"
+            or not math.isfinite(float(
+                row.get("maximumActivityCoefficientAbsoluteDifference", math.inf)
+            ))
+            or float(row.get(
+                "maximumActivityCoefficientAbsoluteDifference", math.inf
+            )) > 2e-13
+            for row in checks
+        )
+        or len(profiles) != 6
+        or [row.get("family") for row in profiles]
+        != ["SAT", "MONO", "DI", "POLY", "PA", "NMP"]
+        or any(
+            row.get("identical") is not True
+            or row.get("sixComponentSha256")
+            != row.get("sevenComponentInheritedSha256")
+            for row in profiles
+        )
+        or evidence.get("directWaterBearingLleValidated") is not False
+        or evidence.get("releaseEligible") is not False
+        or evidence.get("predictiveNt") is not None
+        or pins.get("parameterVectorSha256")
+        != sha_bytes(canonical([
+            4.567445606087435, -0.5824286889853156, -0.8242546229992771,
+            2.912280182396665, -0.22841674286074476, -0.5735178632858521,
+            3.198951081736172, -0.6467578770733512, -0.6495884884278694,
+        ]).encode())
+        or any(pins.get(key) != value for key, value in expected_pins.items())
+        or supplied != sha_bytes(canonical(payload).encode())
+    ):
+        raise RuntimeError("SEVEN_COMPONENT_MODEL_INHERITANCE_EVIDENCE_INVALID")
+    return {
+        "status": "PASS",
+        "sha256": sha_file(DRY_LIMIT_EVIDENCE),
+        "canonicalPayloadSha256": supplied,
+        "modelComponentCheckCount": len(checks),
+        "profileIdentityCheckCount": len(profiles),
+        "h2oZeroProductionStatePermitted": False,
+        "actualSevenComponentWaterWtPctRange": {"minimum": 0.5, "maximum": 3.0},
+    }
+
+
 def engine_evidence():
+    inheritance = model_inheritance_evidence()
     records = [{"path": p.relative_to(ROOT).as_posix(), "bytes": p.stat().st_size,
                 "sha256": sha_file(p)} for p in scientific_files()]
     aggregate = sha_bytes("\n".join(
@@ -77,6 +167,8 @@ def engine_evidence():
         manifest_status = "PACKAGED_MANIFEST_VERIFIED"
     return {"engineId": ENGINE_ID, "engineVersion": ENGINE_VERSION,
             "engineContractVersion": ENGINE_VERSION, "engineHash": aggregate,
+            "modelIdentity": "COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL + H2O_EXTENSION",
+            "modelInheritanceEvidence": inheritance,
             "scientificRuntimeFileCount": len(records),
             "scientificRuntimeAggregateSha256": aggregate,
             "verifiedScientificInputCount": len(records),
@@ -111,7 +203,12 @@ def wet_charge(stage1):
     ratio = float(stage1["solventOilRatio"])
     nmp_pct = float(stage1["nmpPurityWt"])
     water_pct = float(stage1["nmpWaterWt"])
-    if ratio <= 0 or abs(nmp_pct + water_pct - 100.0) > 1e-9:
+    if (
+        ratio <= 0
+        or water_pct < 0.5
+        or water_pct > 3.0
+        or abs(nmp_pct + water_pct - 100.0) > 1e-9
+    ):
         raise ValueError("STAGE1_INVALID_WET_SOLVENT_COMPOSITION")
     wet = sum(feed_mass) * ratio
     nmp_mass, water_mass = wet * nmp_pct / 100.0, wet * water_pct / 100.0
@@ -308,7 +405,8 @@ def main():
     temporary, np, scipy, model, integrity, runtime = qualification.build_model()
     try:
         flash, tpd, hessian = qualification.engine(
-            np, scipy, model, operating_temperature_k)
+            np, scipy, model, operating_temperature_k,
+            wet["waterWeightPercentOfWetSolvent"])
         trials, previous, start = [], None, 1
         blocked = None
         resume = request.get("_resume")

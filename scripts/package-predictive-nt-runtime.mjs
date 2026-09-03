@@ -114,6 +114,8 @@ console.log(`Packaged Predictive N_T runtime (${records.length} hashed files)`);
 const sevenBundleRoot = path.join(root, 'dist', 'predictive-nt-runtime-7c');
 const sevenFiles = [
   'server/ecr-pre-pilot/predictive-nt-seven-component',
+  'server/research/ecr-pre-pilot-seven-component-dry-limit/run.py',
+  '.agents/outputs/ecr-pre-pilot-seven-component-dry-limit/evidence.json',
   'server/research/ecr-pre-pilot-seven-component-h2o-profile/run_qualification.py',
   'server/research/ecr-pre-pilot-seven-component-h2o-profile/evidence-registry.json',
   'server/research/ecr-pre-pilot-seven-component-h2o-profile/generated',

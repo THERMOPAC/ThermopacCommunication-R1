@@ -1,0 +1,156 @@
+{
+  "activityCoefficientTolerance": 2e-13,
+  "actualSevenComponentWaterWtPctRange": {
+    "maximum": 3.0,
+    "minimum": 0.5
+  },
+  "canonicalPayloadSha256": "eebd5913d1e700bad3a4a85359a55fd11484f6374d887439c9bc52d67fa2a06b",
+  "directWaterBearingLleValidated": false,
+  "h2oZeroProductionStatePermitted": false,
+  "inheritedComponentOrder": [
+    "SAT",
+    "MONO",
+    "DI",
+    "POLY",
+    "PA",
+    "NMP"
+  ],
+  "modelComponentChecks": [
+    {
+      "checkId": "PROJECT_236_LEDGER",
+      "componentOrder": [
+        "SAT",
+        "MONO",
+        "DI",
+        "POLY",
+        "PA",
+        "NMP"
+      ],
+      "maximumActivityCoefficientAbsoluteDifference": 0.0,
+      "scope": "SIX_COMPONENT_MODEL_INHERITANCE_UNIT_CHECK",
+      "status": "PASS",
+      "temperatureK": 298.15
+    },
+    {
+      "checkId": "STAGE1_50C_LEDGER",
+      "componentOrder": [
+        "SAT",
+        "MONO",
+        "DI",
+        "POLY",
+        "PA",
+        "NMP"
+      ],
+      "maximumActivityCoefficientAbsoluteDifference": 0.0,
+      "scope": "SIX_COMPONENT_MODEL_INHERITANCE_UNIT_CHECK",
+      "status": "PASS",
+      "temperatureK": 323.15
+    },
+    {
+      "checkId": "MONO_RICH_LEDGER",
+      "componentOrder": [
+        "SAT",
+        "MONO",
+        "DI",
+        "POLY",
+        "PA",
+        "NMP"
+      ],
+      "maximumActivityCoefficientAbsoluteDifference": 0.0,
+      "scope": "SIX_COMPONENT_MODEL_INHERITANCE_UNIT_CHECK",
+      "status": "PASS",
+      "temperatureK": 313.15
+    },
+    {
+      "checkId": "NMP_LEAN_LEDGER",
+      "componentOrder": [
+        "SAT",
+        "MONO",
+        "DI",
+        "POLY",
+        "PA",
+        "NMP"
+      ],
+      "maximumActivityCoefficientAbsoluteDifference": 0.0,
+      "scope": "SIX_COMPONENT_MODEL_INHERITANCE_UNIT_CHECK",
+      "status": "PASS",
+      "temperatureK": 328.15
+    }
+  ],
+  "nativeSixComponentModelInstantiatedIndependently": true,
+  "notASevenComponentCalculation": true,
+  "pinnedInputs": {
+    "amendmentModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+    "amendmentResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+    "parameterVectorSha256": "fa2227aa99c8bd134525304e68b8f8be5b9fb4b79427fdc520db7920df82827d",
+    "qualificationRunnerSha256": "884bda5ea6204b7145ba58540a56f55056f963a7e1c6fdd9adabb3cb027646b8",
+    "runnerSha256": "c12b6da74a2ab8e97fe85c42bf71d0fdec16ddbfda4b0f3dde700e0027b2e988"
+  },
+  "predictiveNt": null,
+  "profileIdentityChecks": [
+    {
+      "family": "SAT",
+      "identical": true,
+      "sevenComponentInheritedSha256": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2",
+      "sixComponentSha256": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2"
+    },
+    {
+      "family": "MONO",
+      "identical": true,
+      "sevenComponentInheritedSha256": "0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275",
+      "sixComponentSha256": "0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275"
+    },
+    {
+      "family": "DI",
+      "identical": true,
+      "sevenComponentInheritedSha256": "7e8664f594afa70a232f845dfafbfbb1efd2e10e13c586187b556102a97503ed",
+      "sixComponentSha256": "7e8664f594afa70a232f845dfafbfbb1efd2e10e13c586187b556102a97503ed"
+    },
+    {
+      "family": "POLY",
+      "identical": true,
+      "sevenComponentInheritedSha256": "682828484416f124e3207f246d23954197502cba83d9b4744ace239d91fe8854",
+      "sixComponentSha256": "682828484416f124e3207f246d23954197502cba83d9b4744ace239d91fe8854"
+    },
+    {
+      "family": "PA",
+      "identical": true,
+      "sevenComponentInheritedSha256": "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e",
+      "sixComponentSha256": "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e"
+    },
+    {
+      "family": "NMP",
+      "identical": true,
+      "sevenComponentInheritedSha256": "58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69",
+      "sixComponentSha256": "58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69"
+    }
+  ],
+  "releaseEligible": false,
+  "residualEquationImplementedIndependently": true,
+  "residualModel": "PROJECT_NMP_LLE_RESIDUAL",
+  "residualParameterNames": [
+    "A_SAT_MONO_ref",
+    "A_SAT_MONO_temperature",
+    "A_SAT_MONO_asymmetry",
+    "A_SAT_NMP_ref",
+    "A_SAT_NMP_temperature",
+    "A_SAT_NMP_asymmetry",
+    "A_MONO_NMP_ref",
+    "A_MONO_NMP_temperature",
+    "A_MONO_NMP_asymmetry"
+  ],
+  "residualParameterVector": [
+    4.567445606087435,
+    -0.5824286889853156,
+    -0.8242546229992771,
+    2.912280182396665,
+    -0.22841674286074476,
+    -0.5735178632858521,
+    3.198951081736172,
+    -0.6467578770733512,
+    -0.6495884884278694
+  ],
+  "schemaVersion": "ECR_7C_SIX_COMPONENT_MODEL_INHERITANCE_V1",
+  "status": "PASS",
+  "verificationType": "CODE_AND_MODEL_COMPONENT_INHERITANCE"
+}
