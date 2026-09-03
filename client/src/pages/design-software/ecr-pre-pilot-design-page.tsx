@@ -2229,7 +2229,9 @@ export default function EcrPrePilotDesignPage() {
                             )}
                             <div className="grid gap-2 md:grid-cols-2">
                               <div className="rounded border bg-slate-50 p-2">
-                                <p className="font-semibold">Complete six-component boundary streams</p>
+                                <p className="font-semibold">
+                                  Complete {predictiveJob.result.engineContractVersion === "7C-1.1.0" ? "seven" : "six"}-component boundary streams
+                                </p>
                                 <p className="mt-1 font-mono text-[10px]">Oil feed: {formatVector(trial.boundaryStreams?.oilFeed?.componentMoles)}</p>
                                 <p className="mt-1 font-mono text-[10px]">Fresh solvent: {formatVector(freshSolvent?.componentMoles)}</p>
                                 <p className="mt-1 font-mono text-[10px]">Final raffinate: {formatVector(trial.boundaryStreams?.finalRaffinate?.componentMoles)}</p>
