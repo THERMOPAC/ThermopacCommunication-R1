@@ -495,8 +495,14 @@ def main():
     blockers = ["DIRECT_WATER_BEARING_LLE_VALIDATION_MISSING", "DESIGN_AND_RELEASE_ADMISSION_BLOCKED"]
     if not numerical:
         blockers.insert(0, "SEVEN_COMPONENT_NUMERICAL_QUALIFICATION_FAILED")
+    evidence_path = HERE / "evidence-registry.json"
+    evidence = json.loads(evidence_path.read_text())
+    evidence_qualification = evidence["qualification"]
+    if evidence_qualification["decision"] != "FAIL_CLOSED_DIRECT_WATER_BEARING_LLE_EVIDENCE_INSUFFICIENT":
+        raise RuntimeError("WATER_EVIDENCE_REGISTRY_DECISION_UNSUPPORTED")
+    integrity["waterEvidenceRegistrySha256"] = sha(evidence_path)
     result = {
-        "schemaVersion": "1.0.0", "task": 222,
+        "schemaVersion": "1.1.0", "task": 223,
         "title": "Native SAT+MONO+DI+POLY+PA+NMP+H2O COSMO-SAC research qualification",
         "researchOnly": True, "calibrationRequired": True, "pilotValidated": False,
         "directWaterBearingLleValidated": False, "designUseBlocked": True,
@@ -505,6 +511,7 @@ def main():
                   "lnGamma": "get_lngamma_comb(T,x)+get_lngamma_resid(T,x)",
                   "residualAmendmentUsed": False},
         "runtime": runtime, "integrity": integrity,
+        "evidenceQualification": evidence_qualification,
         "governedBasis": {"rrboFeedMass": 100.0, "solventOilMassRatio": SOLVENT_OIL_RATIO,
                           "waterWeightPercentRange": [0.5, 3.0],
                           "rule": "water splits fixed total wet-solvent mass; it is not added on top"},
@@ -518,6 +525,11 @@ def main():
     report = [
         "# RESEARCH ONLY — seven-component native COSMO-SAC qualification", "",
         "**Blocked from design and release. Direct water-bearing LLE validation has not passed.**", "",
+        f"Frozen evidence decision: `{evidence_qualification['decision']}`", "",
+        f"Training bibliography sources: `{evidence_qualification['trainingBibliographySourceCount']}`; "
+        f"training numeric records: `{evidence_qualification['trainingNumericRecordCount']}`; "
+        f"blind numeric records: `{evidence_qualification['blindNumericRecordCount']}`; "
+        f"admissible direct water-bearing LLE records: `{evidence_qualification['admissibleDirectWaterBearingLleRecordCount']}`", "",
         f"Numerical research checks passed: `{numerical}`", "",
         "| H2O wt% of wet solvent | overall TPD | flash | post-split stable | minimum Hessian eigenvalue |",
         "|---:|---:|---|---|---:|",
@@ -539,6 +551,7 @@ def main():
         "resultsSha256": sha(results_path), "reportSha256": sha(report_path),
         "pinnedInputs": integrity, "caseInputSha256": {
             row["caseId"]: row["pinnedInputSha256"] for row in cases},
+        "waterEvidenceRegistrySha256": sha(evidence_path),
     }
     (OUT / "qualification-provenance.json").write_text(json.dumps(provenance, indent=2, sort_keys=True) + "\n")
     print(json.dumps({"decision": result["finalDecision"], "cases": len(cases),

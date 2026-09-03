@@ -2,6 +2,10 @@
 
 **Blocked from design and release. Direct water-bearing LLE validation has not passed.**
 
+Frozen evidence decision: `FAIL_CLOSED_DIRECT_WATER_BEARING_LLE_EVIDENCE_INSUFFICIENT`
+
+Training bibliography sources: `1`; training numeric records: `0`; blind numeric records: `0`; admissible direct water-bearing LLE records: `0`
+
 Numerical research checks passed: `True`
 
 | H2O wt% of wet solvent | overall TPD | flash | post-split stable | minimum Hessian eigenvalue |

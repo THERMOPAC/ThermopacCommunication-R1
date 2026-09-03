@@ -21,12 +21,14 @@
       "SAT": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2"
     },
     "sevenComponentRuntimeCompatibilitySha256": "0129f65b9c1c63604dd01bd8516b91e7b742deb7e2cd15b344a2388f24c22e1a",
-    "sixGenerationManifestSha256": "65baa44c36ffae817e52f60a32591f3fc1be7c140517c8b37c95458c834d1fa9"
+    "sixGenerationManifestSha256": "65baa44c36ffae817e52f60a32591f3fc1be7c140517c8b37c95458c834d1fa9",
+    "waterEvidenceRegistrySha256": "e54d9299f01db498439bedb1a27e721d7888c8841a76b4e56680411423ae6658"
   },
   "releaseEligible": false,
-  "reportSha256": "d1dcae232655a3c8142965330971965ea03a7b74109009690c8f3da0b6b47535",
+  "reportSha256": "f1e91c16c9b9cbc6550a799b1805dbcc882634975ec31d1e11df216f94be816a",
   "researchOnly": true,
-  "resultsSha256": "f2d01801783d4fbcac8cab8355d8f369d8277da4d3ce739072edf7c3788e048d",
-  "runnerSha256": "59bef04bf40f97034fb8ac3a45e9350c76e38b093d874018040a99d5be1d34ff",
-  "schemaVersion": "1.0.0"
+  "resultsSha256": "f3642a56ca0ff2cf5632a01071d2c004eb4cfa8bfa9397971a7e4109beb01834",
+  "runnerSha256": "60d0b4e67a202910a5cdcfdc29711727174866e74775b9bb7e9445df393b3429",
+  "schemaVersion": "1.0.0",
+  "waterEvidenceRegistrySha256": "e54d9299f01db498439bedb1a27e721d7888c8841a76b4e56680411423ae6658"
 }

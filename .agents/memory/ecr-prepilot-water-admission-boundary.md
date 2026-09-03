@@ -22,3 +22,9 @@ The Stage-1 water wt% splits the fixed total wet-solvent flow between dry NMP an
 **How to apply:** Calculate total wet solvent first, then derive dry NMP and water from the selected water mass fraction. Persist and report total wet-solvent mass flow, dry NMP mass flow, and water mass flow separately.
 
 The 0.5–3.0 wt% formulation range is a sensitivity variable. The model must determine whether water improves or worsens selectivity, aromatic and polar-aromatic removal, recovery, NMP carryover, phase topology, global stability, and stage performance; no beneficial effect or optimum may be encoded in advance.
+
+The available direct water–NMP–hydrocarbon source measures VLE and infinite-dilution activity for light C5/C6 hydrocarbons at 90–140 °C. It is training-context evidence only, not water-bearing LLE validation. Dry NMP ternary tie lines also cannot validate the wet-solvent model.
+
+**Why:** Neither source provides governed coexisting-liquid compositions for controlled-water extraction. Without closed water-bearing tie lines, water partition and selectivity are not testable, phase topology and temperature transfer are not qualified, and numerical TPD searches remain research diagnostics rather than experimental validation.
+
+**How to apply:** Count bibliography sources separately from governed numeric records. Keep the blind partition reserved and empty until independently held-out water-bearing tie lines are acquired; do not interpret an empty blind set as a passed blind validation.

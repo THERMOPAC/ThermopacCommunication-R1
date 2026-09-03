@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed verifier for the Task 222 research qualification artifact."""
+"""Fail-closed verifier for the Task 223 research qualification artifact."""
 import hashlib
 import json
 import math
@@ -29,6 +29,7 @@ def main():
     require(provenance["resultsSha256"] == sha(result_path), "RESULT_HASH_MISMATCH")
     require(provenance["reportSha256"] == sha(report_path), "REPORT_HASH_MISMATCH")
     require(result["researchOnly"] is True and result["designUseBlocked"] is True, "RESEARCH_BOUNDARY_INVALID")
+    require(result["task"] == 223, "TASK_ID_INVALID")
     require(result["releaseEligible"] is False and result["pilotValidated"] is False, "RELEASE_BOUNDARY_INVALID")
     require(result["directWaterBearingLleValidated"] is False, "UNSUPPORTED_LLE_VALIDATION_CLAIM")
     require(result["qualifiedForDesignOrRelease"] is False and result["predictiveNt"] is None, "DESIGN_ADMISSION_INVALID")
@@ -44,6 +45,7 @@ def main():
         "sevenComponentRuntimeCompatibilitySha256": HERE / "generated/seven-component-runtime-compatibility.json",
         "frozenSixComponentRunnerSha256": ROOT / "server/research/ecr-pre-pilot-cosmosac/run.py",
         "frozenSixComponentProvenanceSha256": ROOT / "server/research/ecr-pre-pilot-cosmosac/provenance-manifest.json",
+        "waterEvidenceRegistrySha256": HERE / "evidence-registry.json",
     }
     for key, path in paths.items():
         require(pinned[key] == sha(path), key + ":PINNED_HASH_MISMATCH")
@@ -93,6 +95,17 @@ def main():
             require(flash["postSplitTpd"] is not None, "POST_SPLIT_TPD_MISSING")
             require(set(flash["postSplitTpd"]) == {"raffinate", "extract"}, "POST_SPLIT_PHASE_COVERAGE_INVALID")
     require("DIRECT_WATER_BEARING_LLE_VALIDATION_MISSING" in result["blockers"], "WATER_LLE_BLOCKER_MISSING")
+    evidence = result["evidenceQualification"]
+    require(evidence["admissibleDirectWaterBearingLleRecordCount"] == 0, "UNSUPPORTED_DIRECT_LLE_ADMISSION")
+    require(evidence["trainingNumericRecordCount"] == 0, "UNSUPPORTED_TRAINING_DATA_CLAIM")
+    require(evidence["blindNumericRecordCount"] == 0, "UNSUPPORTED_BLIND_VALIDATION")
+    require(evidence["waterGridWeightPercent"] == [0.5, 1.0, 2.0, 3.0], "EVIDENCE_WATER_GRID_INVALID")
+    require(evidence["beneficialEffectClaim"] is False and evidence["optimumClaim"] is False,
+            "UNSUPPORTED_WATER_BENEFIT_CLAIM")
+    require(evidence["waterPartition"].startswith("NOT_TESTABLE"), "WATER_PARTITION_GATE_WIDENED")
+    require(evidence["selectivity"].startswith("NOT_TESTABLE"), "SELECTIVITY_GATE_WIDENED")
+    require(evidence["phaseTopology"].startswith("NOT_QUALIFIED"), "TOPOLOGY_GATE_WIDENED")
+    require(evidence["temperatureTransfer"].startswith("NOT_QUALIFIED"), "TEMPERATURE_GATE_WIDENED")
     expected_numerical = all(
         row["tangentSpaceHessian"]["stepSizeConverged"]
         and row["tangentSpaceHessian"]["independentDerivativeAgreement"]
@@ -104,6 +117,8 @@ def main():
     require(result["numericalResearchChecksPassed"] is expected_numerical, "NUMERICAL_GATE_DERIVATION_INVALID")
     require(result["finalDecision"] == "RESEARCH_ONLY_BLOCKED_PENDING_DIRECT_WATER_BEARING_LLE_VALIDATION", "FINAL_DECISION_INVALID")
     require("Blocked from design and release" in report_path.read_text(), "REPORT_WARNING_MISSING")
+    require(provenance["waterEvidenceRegistrySha256"] == sha(HERE / "evidence-registry.json"),
+            "EVIDENCE_PROVENANCE_HASH_MISMATCH")
     print(json.dumps({"status": "PASS", "cases": len(cases),
                       "flashOutcomes": {row["caseId"]: row["standaloneFlash"]["phaseBehavior"] for row in cases},
                       "decision": result["finalDecision"]}, sort_keys=True))

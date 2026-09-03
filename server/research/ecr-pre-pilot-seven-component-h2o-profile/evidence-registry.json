@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "1.0.0",
+  "task": 223,
+  "frozenOn": "2026-09-02",
+  "scope": {
+    "system": "controlled water addition to NMP for hydrocarbon extraction",
+    "waterWeightPercentOfWetSolvent": [0.5, 3.0],
+    "requiredTemperatureC": [25, 100],
+    "requiredObservables": [
+      "coexisting liquid compositions",
+      "water partition",
+      "hydrocarbon selectivity",
+      "phase topology",
+      "temperature transfer"
+    ]
+  },
+  "partitionPolicy": {
+    "immutableRule": "A source identity belongs to exactly one partition. Blind records may not be used for fitting, parameter selection, or model changes.",
+    "training": [
+      "FISCHER_GMEHLING_2004"
+    ],
+    "blind": [],
+    "blindPartitionStatus": "RESERVED_EMPTY_NO_ADMISSIBLE_DIRECT_WATER_BEARING_LLE_RECORDS"
+  },
+  "sources": [
+    {
+      "sourceId": "FISCHER_GMEHLING_2004",
+      "citation": "K. Fischer and J. Gmehling, Influence of water on the vapor-liquid equilibria, activity coefficients at infinite dilution and enthalpies of mixing for mixtures of N-methyl-2-pyrrolidone with C5 or C6 hydrocarbons, Fluid Phase Equilibria 218 (2004) 69-76.",
+      "doi": "10.1016/j.fluid.2003.11.015",
+      "url": "https://doi.org/10.1016/j.fluid.2003.11.015",
+      "evidenceType": "DIRECT_TERNARY_VLE_AND_INFINITE_DILUTION_ACTIVITY",
+      "systems": [
+        "1-hexene + water + NMP",
+        "3-methylcyclopentene + water + NMP",
+        "3-methylpentane + water + NMP",
+        "1-pentene + water + NMP",
+        "2-methylbutane + water + NMP"
+      ],
+      "temperatureC": [90, 140],
+      "waterWeightPercentRange": [0, 6],
+      "numericRecordAvailability": "PRIMARY_NUMERIC_TABLES_NOT_PRESENT_IN_GOVERNED_REPOSITORY",
+      "admission": {
+        "trainingDiagnostic": true,
+        "liquidLiquidTieLineValidation": false,
+        "waterPartitionValidation": false,
+        "selectivityValidation": false,
+        "phaseTopologyValidation": false,
+        "temperatureTransferValidation": false
+      },
+      "reason": "Directly measures water effects on hydrocarbon activity in NMP, but reports VLE/infinite-dilution observables rather than coexisting liquid-phase tie lines; 140 C is outside the required range and 90 C alone cannot establish temperature transfer."
+    },
+    {
+      "sourceId": "AL_JIMAZ_ET_AL_2005",
+      "citation": "A. S. Al-Jimaz et al., Liquid-liquid equilibria for n-alkanes (C12, C14, C17) + propylbenzene + NMP mixtures at temperatures between 298 and 328 K, Fluid Phase Equilibria (2005).",
+      "url": "https://www.sciencedirect.com/science/article/abs/pii/S0378381205000154",
+      "evidenceType": "DIRECT_DRY_NMP_TERNARY_LLE",
+      "systems": [
+        "n-alkane + propylbenzene + NMP"
+      ],
+      "temperatureK": [298, 328],
+      "waterWeightPercentRange": [0, 0],
+      "admission": {
+        "trainingDiagnostic": false,
+        "liquidLiquidTieLineValidation": false,
+        "waterPartitionValidation": false,
+        "selectivityValidation": false,
+        "phaseTopologyValidation": false,
+        "temperatureTransferValidation": false
+      },
+      "reason": "Useful dry-solvent LLE context only; it contains no controlled water and cannot validate a seven-component wet-solvent prediction."
+    }
+  ],
+  "qualification": {
+    "admissibleDirectWaterBearingLleRecordCount": 0,
+    "trainingBibliographySourceCount": 1,
+    "trainingNumericRecordCount": 0,
+    "blindNumericRecordCount": 0,
+    "waterGridWeightPercent": [0.5, 1.0, 2.0, 3.0],
+    "waterPartition": "NOT_TESTABLE_NO_CLOSED_TIE_LINES",
+    "selectivity": "NOT_TESTABLE_NO_CLOSED_TIE_LINES",
+    "phaseTopology": "NOT_QUALIFIED_NO_WATER_BEARING_BINODAL_OR_TIE_LINES",
+    "temperatureTransfer": "NOT_QUALIFIED_NO_WATER_BEARING_LLE_AT_MULTIPLE_ADMISSIBLE_TEMPERATURES",
+    "globalStability": "RESEARCH_NUMERICAL_SEARCH_ONLY_NO_EXPERIMENTAL_TOPOLOGY_VALIDATION",
+    "beneficialEffectClaim": false,
+    "optimumClaim": false,
+    "decision": "FAIL_CLOSED_DIRECT_WATER_BEARING_LLE_EVIDENCE_INSUFFICIENT"
+  }
+}
