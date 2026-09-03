@@ -17754,16 +17754,22 @@
   "directWaterBearingLleValidated": false,
   "evidenceQualification": {
     "admissibleDirectWaterBearingLleRecordCount": 0,
+    "admissibleTemperatureCount": 0,
     "beneficialEffectClaim": false,
     "blindNumericRecordCount": 0,
+    "blindPartitionFrozen": false,
+    "compositionClosure": "NOT_TESTABLE_NO_NUMERIC_TIE_LINES",
+    "coveredHydrocarbonFamilies": [],
     "decision": "FAIL_CLOSED_DIRECT_WATER_BEARING_LLE_EVIDENCE_INSUFFICIENT",
     "globalStability": "RESEARCH_NUMERICAL_SEARCH_ONLY_NO_EXPERIMENTAL_TOPOLOGY_VALIDATION",
+    "independentBlindPartitionPassed": false,
     "optimumClaim": false,
     "phaseTopology": "NOT_QUALIFIED_NO_WATER_BEARING_BINODAL_OR_TIE_LINES",
     "selectivity": "NOT_TESTABLE_NO_CLOSED_TIE_LINES",
     "temperatureTransfer": "NOT_QUALIFIED_NO_WATER_BEARING_LLE_AT_MULTIPLE_ADMISSIBLE_TEMPERATURES",
     "trainingBibliographySourceCount": 1,
     "trainingNumericRecordCount": 0,
+    "trainingPartitionFrozen": false,
     "waterGridWeightPercent": [
       0.5,
       1.0,
@@ -17799,7 +17805,7 @@
     },
     "sevenComponentRuntimeCompatibilitySha256": "0129f65b9c1c63604dd01bd8516b91e7b742deb7e2cd15b344a2388f24c22e1a",
     "sixGenerationManifestSha256": "65baa44c36ffae817e52f60a32591f3fc1be7c140517c8b37c95458c834d1fa9",
-    "waterEvidenceRegistrySha256": "e54d9299f01db498439bedb1a27e721d7888c8841a76b4e56680411423ae6658"
+    "waterEvidenceRegistrySha256": "29b4ff79ccf4b3034c0fead551b44ab6541fe97fc0dc6417b60487c5857b9669"
   },
   "model": {
     "componentCount": 7,
@@ -17820,8 +17826,8 @@
     "scipy": "1.14.1",
     "vendorDirectory": "server/research/ecr-pre-pilot-cosmosac/vendor/python"
   },
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "sulfurPrediction": "NOT_CALCULABLE",
-  "task": 223,
+  "task": 224,
   "title": "Native SAT+MONO+DI+POLY+PA+NMP+H2O COSMO-SAC research qualification"
 }

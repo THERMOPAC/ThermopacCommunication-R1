@@ -502,7 +502,7 @@ def main():
         raise RuntimeError("WATER_EVIDENCE_REGISTRY_DECISION_UNSUPPORTED")
     integrity["waterEvidenceRegistrySha256"] = sha(evidence_path)
     result = {
-        "schemaVersion": "1.1.0", "task": 223,
+        "schemaVersion": "1.2.0", "task": 224,
         "title": "Native SAT+MONO+DI+POLY+PA+NMP+H2O COSMO-SAC research qualification",
         "researchOnly": True, "calibrationRequired": True, "pilotValidated": False,
         "directWaterBearingLleValidated": False, "designUseBlocked": True,
@@ -530,6 +530,14 @@ def main():
         f"training numeric records: `{evidence_qualification['trainingNumericRecordCount']}`; "
         f"blind numeric records: `{evidence_qualification['blindNumericRecordCount']}`; "
         f"admissible direct water-bearing LLE records: `{evidence_qualification['admissibleDirectWaterBearingLleRecordCount']}`", "",
+        "## Evidence acceptance matrix", "",
+        "| Requirement | Required | Governed evidence | Status |",
+        "|---|---|---|---|",
+        f"| Wet-solvent water grid | 0.5, 1.0, 2.0, 3.0 wt% | {evidence_qualification['admissibleDirectWaterBearingLleRecordCount']} closed tie lines | NOT TESTABLE |",
+        f"| Temperature transfer | ≥2 admissible temperatures | {evidence_qualification['admissibleTemperatureCount']} temperatures | NOT QUALIFIED |",
+        f"| Hydrocarbon-family coverage | SAT, MONO, DI, POLY, PA | {', '.join(evidence_qualification['coveredHydrocarbonFamilies']) or 'none'} | NOT QUALIFIED |",
+        f"| Immutable training/blind numeric partitions | both frozen with provenance and closure | training={evidence_qualification['trainingPartitionFrozen']}; blind={evidence_qualification['blindPartitionFrozen']} | NOT ESTABLISHED |",
+        f"| Independent blind validation | unchanged gates pass | {evidence_qualification['independentBlindPartitionPassed']} | FAILED CLOSED |", "",
         f"Numerical research checks passed: `{numerical}`", "",
         "| H2O wt% of wet solvent | overall TPD | flash | post-split stable | minimum Hessian eigenvalue |",
         "|---:|---:|---|---|---:|",

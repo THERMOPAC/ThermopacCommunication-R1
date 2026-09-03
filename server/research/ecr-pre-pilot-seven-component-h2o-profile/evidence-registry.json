@@ -1,21 +1,27 @@
 {
   "schemaVersion": "1.0.0",
-  "task": 223,
-  "frozenOn": "2026-09-02",
+  "task": 224,
+  "frozenOn": "2026-09-03",
   "scope": {
     "system": "controlled water addition to NMP for hydrocarbon extraction",
-    "waterWeightPercentOfWetSolvent": [0.5, 3.0],
-    "requiredTemperatureC": [25, 100],
+    "requiredWaterGridWeightPercent": [0.5, 1.0, 2.0, 3.0],
+    "minimumAdmissibleTemperatureCount": 2,
+    "admissibleTemperatureRangeC": [25, 100],
+    "requiredHydrocarbonFamilies": ["SAT", "MONO", "DI", "POLY", "PA"],
     "requiredObservables": [
       "coexisting liquid compositions",
       "water partition",
       "hydrocarbon selectivity",
       "phase topology",
-      "temperature transfer"
+      "temperature transfer",
+      "post-split global stability"
     ]
   },
   "partitionPolicy": {
     "immutableRule": "A source identity belongs to exactly one partition. Blind records may not be used for fitting, parameter selection, or model changes.",
+    "partitionUnit": "source-table-condition record fixed before model fitting",
+    "requiredRecordProvenance": ["sourceId", "tableId", "conditionId", "temperature", "compositionBasis"],
+    "requiredClosure": ["phase composition normalization", "overall component mass balance", "mass-to-mole reproducibility"],
     "training": [
       "FISCHER_GMEHLING_2004"
     ],
@@ -76,11 +82,17 @@
     "trainingNumericRecordCount": 0,
     "blindNumericRecordCount": 0,
     "waterGridWeightPercent": [0.5, 1.0, 2.0, 3.0],
+    "admissibleTemperatureCount": 0,
+    "coveredHydrocarbonFamilies": [],
+    "trainingPartitionFrozen": false,
+    "blindPartitionFrozen": false,
+    "compositionClosure": "NOT_TESTABLE_NO_NUMERIC_TIE_LINES",
     "waterPartition": "NOT_TESTABLE_NO_CLOSED_TIE_LINES",
     "selectivity": "NOT_TESTABLE_NO_CLOSED_TIE_LINES",
     "phaseTopology": "NOT_QUALIFIED_NO_WATER_BEARING_BINODAL_OR_TIE_LINES",
     "temperatureTransfer": "NOT_QUALIFIED_NO_WATER_BEARING_LLE_AT_MULTIPLE_ADMISSIBLE_TEMPERATURES",
     "globalStability": "RESEARCH_NUMERICAL_SEARCH_ONLY_NO_EXPERIMENTAL_TOPOLOGY_VALIDATION",
+    "independentBlindPartitionPassed": false,
     "beneficialEffectClaim": false,
     "optimumClaim": false,
     "decision": "FAIL_CLOSED_DIRECT_WATER_BEARING_LLE_EVIDENCE_INSUFFICIENT"

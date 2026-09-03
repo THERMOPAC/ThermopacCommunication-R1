@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed verifier for the Task 223 research qualification artifact."""
+"""Fail-closed verifier for the Task 224 research qualification artifact."""
 import hashlib
 import json
 import math
@@ -29,7 +29,7 @@ def main():
     require(provenance["resultsSha256"] == sha(result_path), "RESULT_HASH_MISMATCH")
     require(provenance["reportSha256"] == sha(report_path), "REPORT_HASH_MISMATCH")
     require(result["researchOnly"] is True and result["designUseBlocked"] is True, "RESEARCH_BOUNDARY_INVALID")
-    require(result["task"] == 223, "TASK_ID_INVALID")
+    require(result["task"] == 224, "TASK_ID_INVALID")
     require(result["releaseEligible"] is False and result["pilotValidated"] is False, "RELEASE_BOUNDARY_INVALID")
     require(result["directWaterBearingLleValidated"] is False, "UNSUPPORTED_LLE_VALIDATION_CLAIM")
     require(result["qualifiedForDesignOrRelease"] is False and result["predictiveNt"] is None, "DESIGN_ADMISSION_INVALID")
@@ -102,6 +102,12 @@ def main():
     require(evidence["waterGridWeightPercent"] == [0.5, 1.0, 2.0, 3.0], "EVIDENCE_WATER_GRID_INVALID")
     require(evidence["beneficialEffectClaim"] is False and evidence["optimumClaim"] is False,
             "UNSUPPORTED_WATER_BENEFIT_CLAIM")
+    require(evidence["admissibleTemperatureCount"] == 0, "UNSUPPORTED_TEMPERATURE_COVERAGE")
+    require(evidence["coveredHydrocarbonFamilies"] == [], "UNSUPPORTED_FAMILY_COVERAGE")
+    require(evidence["trainingPartitionFrozen"] is False and evidence["blindPartitionFrozen"] is False,
+            "EMPTY_PARTITION_CANNOT_BE_FROZEN")
+    require(evidence["compositionClosure"].startswith("NOT_TESTABLE"), "UNSUPPORTED_CLOSURE_CLAIM")
+    require(evidence["independentBlindPartitionPassed"] is False, "UNSUPPORTED_BLIND_PASS")
     require(evidence["waterPartition"].startswith("NOT_TESTABLE"), "WATER_PARTITION_GATE_WIDENED")
     require(evidence["selectivity"].startswith("NOT_TESTABLE"), "SELECTIVITY_GATE_WIDENED")
     require(evidence["phaseTopology"].startswith("NOT_QUALIFIED"), "TOPOLOGY_GATE_WIDENED")

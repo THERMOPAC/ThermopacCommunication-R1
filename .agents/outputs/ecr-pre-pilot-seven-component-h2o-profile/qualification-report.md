@@ -6,6 +6,16 @@ Frozen evidence decision: `FAIL_CLOSED_DIRECT_WATER_BEARING_LLE_EVIDENCE_INSUFFI
 
 Training bibliography sources: `1`; training numeric records: `0`; blind numeric records: `0`; admissible direct water-bearing LLE records: `0`
 
+## Evidence acceptance matrix
+
+| Requirement | Required | Governed evidence | Status |
+|---|---|---|---|
+| Wet-solvent water grid | 0.5, 1.0, 2.0, 3.0 wt% | 0 closed tie lines | NOT TESTABLE |
+| Temperature transfer | ≥2 admissible temperatures | 0 temperatures | NOT QUALIFIED |
+| Hydrocarbon-family coverage | SAT, MONO, DI, POLY, PA | none | NOT QUALIFIED |
+| Immutable training/blind numeric partitions | both frozen with provenance and closure | training=False; blind=False | NOT ESTABLISHED |
+| Independent blind validation | unchanged gates pass | False | FAILED CLOSED |
+
 Numerical research checks passed: `True`
 
 | H2O wt% of wet solvent | overall TPD | flash | post-split stable | minimum Hessian eigenvalue |

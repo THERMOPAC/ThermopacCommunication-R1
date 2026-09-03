@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed verifier for the frozen Task 223 water-equilibrium evidence partition."""
+"""Fail-closed verifier for the Task 224 water-equilibrium evidence partition."""
 import json
 from pathlib import Path
 
@@ -13,7 +13,14 @@ def require(value, code):
 
 def main():
     registry = json.loads((HERE / "evidence-registry.json").read_text())
-    require(registry["task"] == 223, "TASK_ID_INVALID")
+    require(registry["task"] == 224, "TASK_ID_INVALID")
+    scope = registry["scope"]
+    require(scope["requiredWaterGridWeightPercent"] == [0.5, 1.0, 2.0, 3.0],
+            "REQUIRED_WATER_GRID_INVALID")
+    require(scope["minimumAdmissibleTemperatureCount"] >= 2,
+            "TEMPERATURE_COVERAGE_REQUIREMENT_INVALID")
+    require(scope["requiredHydrocarbonFamilies"] == ["SAT", "MONO", "DI", "POLY", "PA"],
+            "HYDROCARBON_FAMILY_REQUIREMENT_INVALID")
     policy = registry["partitionPolicy"]
     training = policy["training"]
     blind = policy["blind"]
@@ -58,6 +65,14 @@ def main():
         require(qualification["temperatureTransfer"].startswith("NOT_QUALIFIED"), "TEMPERATURE_MUST_FAIL_CLOSED")
         require(qualification["globalStability"].startswith("RESEARCH_NUMERICAL_SEARCH_ONLY"),
                 "GLOBAL_STABILITY_MUST_REMAIN_RESEARCH_ONLY")
+        require(qualification["admissibleTemperatureCount"] == 0, "UNSUPPORTED_TEMPERATURE_COVERAGE")
+        require(qualification["coveredHydrocarbonFamilies"] == [], "UNSUPPORTED_FAMILY_COVERAGE")
+        require(qualification["trainingPartitionFrozen"] is False, "EMPTY_TRAINING_PARTITION_CANNOT_BE_FROZEN")
+        require(qualification["blindPartitionFrozen"] is False, "EMPTY_BLIND_PARTITION_CANNOT_BE_FROZEN")
+        require(qualification["compositionClosure"].startswith("NOT_TESTABLE"),
+                "COMPOSITION_CLOSURE_MUST_FAIL_CLOSED")
+        require(qualification["independentBlindPartitionPassed"] is False,
+                "EMPTY_BLIND_PARTITION_CANNOT_PASS")
         require(qualification["decision"] ==
                 "FAIL_CLOSED_DIRECT_WATER_BEARING_LLE_EVIDENCE_INSUFFICIENT",
                 "EVIDENCE_DECISION_INVALID")
