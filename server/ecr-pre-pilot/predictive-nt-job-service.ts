@@ -2359,6 +2359,17 @@ export async function getPredictiveNtJob(jobId: string, userId: number, designId
   return found.rows[0] ? mapJob(found.rows[0]) : null;
 }
 
+export async function getLatestPredictiveNtJob(userId: number, designId: number) {
+  const found = await pool.query(
+    `SELECT * FROM ecr_pre_pilot_predictive_nt_jobs
+      WHERE created_by = $1 AND design_id = $2
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [userId, designId],
+  );
+  return found.rows[0] ? mapJob(found.rows[0]) : null;
+}
+
 export async function stopPredictiveNtJob(jobId: string, userId: number, designId: number) {
   const client = await pool.connect();
   let stopped: PredictiveNtJob | null = null;

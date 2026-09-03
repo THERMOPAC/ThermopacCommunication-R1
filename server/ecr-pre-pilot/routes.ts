@@ -7,6 +7,7 @@ import {
 } from '../ecr-pre-pilot-service';
 import {
   enqueuePredictiveNtJobFromSavedStage1,
+  getLatestPredictiveNtJob,
   getPredictiveNtJob,
   getPredictiveNtJobReport,
   PREDICTIVE_NT_MOLECULAR_REGISTRY,
@@ -133,6 +134,25 @@ export function setupEcrPrePilotRoutes(app: Express): void {
           : error.message === 'PREDICTIVE_NT_USER_JOB_LIMIT' ? 429
           : 422;
         return res.status(status).json({ error: error.message });
+      }
+    },
+  );
+
+  app.get(
+    '/api/ecr-pre-pilot/designs/:id/predictive-nt/jobs/latest',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      try {
+        const designId = Number(req.params.id);
+        if (!Number.isInteger(designId) || designId <= 0) {
+          return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+        }
+        const job = await getLatestPredictiveNtJob(Number((req.user as any).id), designId);
+        if (!job) return res.status(404).json({ error: 'Predictive N_T job not found' });
+        return res.json(job);
+      } catch (error) {
+        console.error('[ECR Pre-Pilot] Latest Predictive N_T job lookup failed:', error);
+        return res.status(500).json({ error: 'Predictive N_T job lookup failed' });
       }
     },
   );

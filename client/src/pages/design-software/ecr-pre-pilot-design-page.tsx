@@ -996,6 +996,37 @@ export default function EcrPrePilotDesignPage() {
   }, []);
 
   useEffect(() => {
+    if (!designId) return;
+    let cancelled = false;
+    const restoreLatestJob = async () => {
+      try {
+        const response = await fetch(
+          `/api/ecr-pre-pilot/designs/${designId}/predictive-nt/jobs/latest`,
+          { credentials: "include" },
+        );
+        if (response.status === 404) return;
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Latest Predictive N_T job could not be loaded.");
+        }
+        if (!cancelled) {
+          setPredictiveJob(payload as PredictiveNtJob);
+          setPredictivePollingPaused(false);
+          setPredictivePollingError(null);
+        }
+      } catch (error: unknown) {
+        if (!cancelled) {
+          setPredictivePollingError(
+            error instanceof Error ? error.message : "Latest Predictive N_T job could not be loaded.",
+          );
+        }
+      }
+    };
+    void restoreLatestJob();
+    return () => { cancelled = true; };
+  }, [designId]);
+
+  useEffect(() => {
     if (!designId || !predictiveJob || predictivePollingPaused || !["pending", "running"].includes(predictiveJob.status)) return;
     let cancelled = false;
     const poll = async () => {
