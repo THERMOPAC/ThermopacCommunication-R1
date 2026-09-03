@@ -187,11 +187,11 @@ def load_qualification():
     return module
 
 
-def finite_vector(value, length=7, positive=False):
+def finite_vector(value, length=7, nonnegative=False):
     if not isinstance(value, list) or len(value) != length:
         return False
     return all(isinstance(x, (int, float)) and math.isfinite(x)
-               and (x > 0 if positive else x >= 0) for x in value)
+               and (x >= 0 if nonnegative else True) for x in value)
 
 
 def wet_charge(stage1):
@@ -388,7 +388,9 @@ def validate_final(result, maximum):
             raise ValueError("PREDICTIVE_NT_7C_RESULT_VECTOR_INTEGRITY_INVALID")
         for stage in trial.get("stages", []):
             for name in ("raffinateIncoming", "extractIncoming", "raffinateLeaving", "extractLeaving"):
-                if not finite_vector(stage.get(name, {}).get("componentMoles")):
+                if not finite_vector(
+                        stage.get(name, {}).get("componentMoles"),
+                        nonnegative=True):
                     raise ValueError("PREDICTIVE_NT_7C_RESULT_VECTOR_INTEGRITY_INVALID")
     if (result.get("status") != STATUS or result.get("releaseEligible") is not False
             or result.get("predictiveNt") is not None
