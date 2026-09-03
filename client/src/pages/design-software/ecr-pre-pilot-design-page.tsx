@@ -229,6 +229,11 @@ type PredictiveNtResult = {
     overallEcrProductAcceptanceStatus?: string;
   };
   trials?: PredictiveTrial[];
+  executionStatus?: "BLOCKED_NO_LIQUID_SPLIT";
+  blockingCode?: string;
+  blockingMessage?: string;
+  blockedCascadeTrialCount?: number;
+  blockedStageFromFeedEnd?: number;
 };
 type PredictiveNtJob = {
   id: string;
@@ -2001,6 +2006,17 @@ export default function EcrPrePilotDesignPage() {
               )}
               {predictiveJob?.result && (
                 <>
+                  {predictiveJob.result.executionStatus === "BLOCKED_NO_LIQUID_SPLIT" && (
+                    <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[12px] leading-5 text-amber-950">
+                      <p className="font-semibold">Predictive N_T blocked — no liquid split predicted</p>
+                      <p>{predictiveJob.result.blockingMessage}</p>
+                      <p>
+                        Cascade trial: <strong>{predictiveJob.result.blockedCascadeTrialCount}</strong>
+                        {" · "}Physical stage from feed end: <strong>{predictiveJob.result.blockedStageFromFeedEnd}</strong>
+                      </p>
+                      <p>This is a thermodynamic no-split result, not a software failure. No raffinate/extract phases were fabricated.</p>
+                    </div>
+                  )}
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
                       <p className="text-[10px] font-medium uppercase tracking-wide text-blue-700">Predictive N_T</p>

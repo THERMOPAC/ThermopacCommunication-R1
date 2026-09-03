@@ -1099,9 +1099,23 @@ export function validateSevenComponentPersistedResult(
   // that successful trial, stream, or wet-solvent output exists.
   if (value.status === 'ENGINE_ERROR') return null;
   if (!Array.isArray(value.trials)) return 'PREDICTIVE_NT_7C_RESULT_TRIALS_INVALID';
+  const blockedNoSplit = value.executionStatus === 'BLOCKED_NO_LIQUID_SPLIT';
+  if (blockedNoSplit && (
+    value.blockingCode !== 'SEVEN_COMPONENT_NO_LIQUID_SPLIT'
+    || !Number.isInteger(value.blockedCascadeTrialCount)
+    || value.blockedCascadeTrialCount < 1
+    || value.blockedCascadeTrialCount > (options.input?.maximumStages ?? 10)
+    || !Number.isInteger(value.blockedStageFromFeedEnd)
+    || value.blockedStageFromFeedEnd < 1
+    || value.blockedStageFromFeedEnd > value.blockedCascadeTrialCount
+    || value.trials.length !== value.blockedCascadeTrialCount - 1
+    || value.flashEvidence?.phaseBehavior !== 'NO_SPLIT_FOUND_DENSE_RESEARCH_SEARCH'
+    || value.flashEvidence?.phaseFractionExtract !== null
+  )) return 'PREDICTIVE_NT_7C_BLOCKED_RESULT_INVALID';
   if (
     !options.intermediate
     && options.input
+    && !blockedNoSplit
     && value.trials.length !== options.input.maximumStages
   ) return 'PREDICTIVE_NT_7C_RESULT_TRIALS_INVALID';
   const finiteVector = (vector: unknown, nonnegative = false) => (

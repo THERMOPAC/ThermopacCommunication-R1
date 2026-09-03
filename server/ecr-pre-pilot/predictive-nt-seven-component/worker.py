@@ -28,6 +28,13 @@ CHECKPOINT_PROTOCOL = "ACK_V3_ENGINE_CONTRACT"
 STATUS = "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING"
 
 
+class NoLiquidSplit(Exception):
+    def __init__(self, stage, evidence):
+        super().__init__(f"SEVEN_COMPONENT_NO_LIQUID_SPLIT:{stage}")
+        self.stage = stage
+        self.evidence = evidence
+
+
 def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
@@ -165,7 +172,7 @@ def solve_cascade(np, flash, hessian, count, feed, solvent, previous=None):
             total = incoming_r + incoming_e
             result = flash(total / total.sum())
             if result["phaseFractionExtract"] is None:
-                raise RuntimeError(f"SEVEN_COMPONENT_STAGE_FLASH_UNRESOLVED:{i + 1}")
+                raise NoLiquidSplit(i + 1, result)
             beta = result["phaseFractionExtract"]
             new_r[i] = total.sum() * (1.0 - beta) * np.asarray(result["raffinateComposition"])
             new_e[i] = total.sum() * beta * np.asarray(result["extractComposition"])
@@ -253,8 +260,17 @@ def emit_checkpoint(trial, protocol):
 def validate_final(result, maximum):
     if result.get("engineContractVersion") != ENGINE_VERSION:
         raise ValueError("PREDICTIVE_NT_7C_RESULT_CONTRACT_INVALID")
-    if result.get("componentOrder") != list(FAMILIES) or len(result.get("trials", [])) != maximum:
+    blocked = result.get("executionStatus") == "BLOCKED_NO_LIQUID_SPLIT"
+    expected_trials = result.get("blockedCascadeTrialCount", 0) - 1 if blocked else maximum
+    if result.get("componentOrder") != list(FAMILIES) or len(result.get("trials", [])) != expected_trials:
         raise ValueError("PREDICTIVE_NT_7C_RESULT_VECTOR_INTEGRITY_INVALID")
+    if blocked and (
+            result.get("blockingCode") != "SEVEN_COMPONENT_NO_LIQUID_SPLIT"
+            or not isinstance(result.get("blockedStageFromFeedEnd"), int)
+            or result.get("flashEvidence", {}).get("phaseBehavior")
+            != "NO_SPLIT_FOUND_DENSE_RESEARCH_SEARCH"
+            or result.get("flashEvidence", {}).get("phaseFractionExtract") is not None):
+        raise ValueError("PREDICTIVE_NT_7C_BLOCKED_RESULT_INVALID")
     for trial in result["trials"]:
         residual = trial.get("overallComponentBalanceResidualMol")
         if not finite_vector(residual):
@@ -289,6 +305,7 @@ def main():
     try:
         flash, tpd, hessian = qualification.engine(np, scipy, model)
         trials, previous, start = [], None, 1
+        blocked = None
         resume = request.get("_resume")
         if resume:
             if resume.get("engineContractVersion") != ENGINE_VERSION:
@@ -300,7 +317,22 @@ def main():
             previous = decode_continuation(np, resume.get("continuationState"), acknowledged)
             start = acknowledged + 1
         for count in range(start, maximum + 1):
-            trial = solve_cascade(np, flash, hessian, count, feed, solvent, previous)
+            try:
+                trial = solve_cascade(np, flash, hessian, count, feed, solvent, previous)
+            except NoLiquidSplit as no_split:
+                blocked = {
+                    "executionStatus": "BLOCKED_NO_LIQUID_SPLIT",
+                    "blockingCode": "SEVEN_COMPONENT_NO_LIQUID_SPLIT",
+                    "blockingMessage": (
+                        "No admissible raffinate/extract liquid split was predicted at "
+                        f"cascade trial {count}, physical stage {no_split.stage}. "
+                        "Predictive N_T is unavailable; no phases were fabricated."
+                    ),
+                    "blockedCascadeTrialCount": count,
+                    "blockedStageFromFeedEnd": no_split.stage,
+                    "flashEvidence": no_split.evidence,
+                }
+                break
             trial, continuation = emit_checkpoint(trial, request.get("_checkpointProtocol"))
             previous = decode_continuation(np, continuation, count)
             trials.append(trial)
@@ -317,6 +349,7 @@ def main():
             "qualificationEvidence": {"directWaterBearingLleValidated": False,
                                       "independentBlindQualificationPassed": False},
             "trials": trials,
+            **(blocked or {}),
         }
         validate_final(final, maximum)
         print(canonical(final), end="")
