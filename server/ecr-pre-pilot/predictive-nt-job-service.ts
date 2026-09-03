@@ -107,6 +107,7 @@ const PREDICTIVE_NT_ENGINE_SHA256 = process.env.PREDICTIVE_NT_ENGINE_SHA256 ?? '
 const WORKER_OWNER = `${os.hostname()}:${process.pid}:${randomUUID()}`;
 let workerStarted = false;
 let workerBusy = false;
+const activeWorkerChildren = new Map<string, ReturnType<typeof spawn>>();
 const task218EvidenceCache = new Map<string, unknown>();
 type RuntimeTestHooks = {
   killAfterAcknowledgedStage?: number;
@@ -1367,13 +1368,14 @@ function buildResumeRequest(job: PredictiveNtJob) {
 }
 
 async function renewLease(jobId: string, claimToken: string) {
-  await pool.query(
+  const renewed = await pool.query(
     `UPDATE ecr_pre_pilot_predictive_nt_jobs
         SET lease_expires_at = NOW() + ($3 * INTERVAL '1 millisecond'),
             updated_at = NOW()
       WHERE id = $1 AND status = 'running' AND claim_token = $2`,
     [jobId, claimToken, LEASE_MS],
   );
+  return (renewed.rowCount ?? 0) === 1;
 }
 
 async function finishJob(
@@ -1565,6 +1567,7 @@ function execute(job: PredictiveNtJob, claimToken: string) {
     cwd: runtimeRoot(),
     stdio: ['pipe', 'pipe', 'pipe'],
   });
+  activeWorkerChildren.set(job.id, child);
   let stdout = '';
   let stderr = '';
   let stderrLineBuffer = '';
@@ -1574,6 +1577,15 @@ function execute(job: PredictiveNtJob, claimToken: string) {
   let checkpointQueue = Promise.resolve();
   const heartbeat = setInterval(() => {
     void renewLease(job.id, claimToken)
+      .then((renewed) => {
+        if (!renewed && child.exitCode === null && child.signalCode === null) {
+          child.kill('SIGTERM');
+          const forceStop = setTimeout(() => {
+            if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+          }, 2_000);
+          forceStop.unref();
+        }
+      })
       .catch((error) => console.error('[Predictive N_T] Lease renewal failed:', error));
   }, Math.floor(LEASE_MS / 3));
   heartbeat.unref();
@@ -1664,6 +1676,9 @@ function execute(job: PredictiveNtJob, claimToken: string) {
     if (!checkpointFailure) checkpointFailure = error;
   });
   child.on('close', async (code) => {
+    if (activeWorkerChildren.get(job.id) === child) {
+      activeWorkerChildren.delete(job.id);
+    }
     clearTimeout(timeout);
     clearInterval(heartbeat);
     await checkpointQueue;
@@ -1914,6 +1929,61 @@ export async function getPredictiveNtJob(jobId: string, userId: number, designId
     [jobId, userId, designId],
   );
   return found.rows[0] ? mapJob(found.rows[0]) : null;
+}
+
+export async function stopPredictiveNtJob(jobId: string, userId: number, designId: number) {
+  const client = await pool.connect();
+  let stopped: PredictiveNtJob | null = null;
+  try {
+    await client.query('BEGIN');
+    const found = await client.query(
+      `SELECT *
+         FROM ecr_pre_pilot_predictive_nt_jobs
+        WHERE id = $1 AND created_by = $2 AND design_id = $3
+        FOR UPDATE`,
+      [jobId, userId, designId],
+    );
+    const row = found.rows[0];
+    if (!row) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+    if (!['pending', 'running'].includes(row.status)) {
+      await client.query('COMMIT');
+      return mapJob(row);
+    }
+    const updated = await client.query(
+      `UPDATE ecr_pre_pilot_predictive_nt_jobs
+          SET status = 'failed',
+              error = 'PREDICTIVE_NT_STOPPED_BY_USER',
+              worker_owner = NULL,
+              claim_token = NULL,
+              lease_expires_at = NULL,
+              completed_at = NOW(),
+              updated_at = NOW()
+        WHERE id = $1
+        RETURNING *`,
+      [jobId],
+    );
+    await recordHistory(client, updated.rows[0], { event: 'stopped_by_user' });
+    await client.query('COMMIT');
+    stopped = mapJob(updated.rows[0]);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  const child = activeWorkerChildren.get(jobId);
+  if (child && !child.killed) {
+    child.kill('SIGTERM');
+    const forceStop = setTimeout(() => {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+    }, 2_000);
+    forceStop.unref();
+  }
+  return stopped;
 }
 
 export async function getPredictiveNtJobReport(

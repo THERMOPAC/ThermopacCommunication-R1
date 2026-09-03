@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Layout from "@/components/layout";
-import { AlertCircle, CheckCircle2, Download, FlaskConical, Info, Loader2, Play, Save } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, FlaskConical, Info, Loader2, Play, Save, Square } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -894,6 +894,7 @@ export default function EcrPrePilotDesignPage() {
   const [predictiveBasisError, setPredictiveBasisError] = useState<string | null>(null);
   const [predictiveJob, setPredictiveJob] = useState<PredictiveNtJob | null>(null);
   const [predictiveSubmitting, setPredictiveSubmitting] = useState(false);
+  const [predictiveStopping, setPredictiveStopping] = useState(false);
   const [predictivePollingPaused, setPredictivePollingPaused] = useState(false);
   const [predictivePollingError, setPredictivePollingError] = useState<string | null>(null);
 
@@ -1214,6 +1215,34 @@ export default function EcrPrePilotDesignPage() {
       });
     } finally {
       setPredictiveSubmitting(false);
+    }
+  };
+
+  const handleStopPredictiveNt = async () => {
+    if (!designId || !predictiveJob || !["pending", "running"].includes(predictiveJob.status)) return;
+    setPredictiveStopping(true);
+    try {
+      const response = await fetch(
+        `/api/ecr-pre-pilot/designs/${designId}/predictive-nt/jobs/${predictiveJob.id}/stop`,
+        { method: "POST", credentials: "include" },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? "Predictive N_T solver could not be stopped.");
+      setPredictiveJob(payload as PredictiveNtJob);
+      setPredictivePollingPaused(false);
+      setPredictivePollingError(null);
+      toast({
+        title: "Predictive N_T stop requested",
+        description: "The job is terminal and cannot restart. Its owning worker will terminate the solver process immediately.",
+      });
+    } catch (error: unknown) {
+      toast({
+        title: "Predictive N_T solver could not be stopped",
+        description: error instanceof Error ? error.message : "The stop request failed.",
+        variant: "destructive",
+      });
+    } finally {
+      setPredictiveStopping(false);
     }
   };
 
@@ -1806,20 +1835,36 @@ export default function EcrPrePilotDesignPage() {
                     Runs the exact six-component SAT/MONO/DI/POLY/PA/NMP COSMO-SAC research-diagnostic cascade from the saved Stage 1 authority.
                   </CardDescription>
                 </div>
-                <Button
-                  type="button"
-                  onClick={handleRunPredictiveNt}
-                  disabled={predictiveSubmitting || !predictiveBasis || !designId || saveState !== "saved" || predictiveJob?.status === "pending" || predictiveJob?.status === "running"}
-                  title={saveState === "saved" ? undefined : "Save the authoritative Stage 1 snapshot before running."}
-                  className="h-8 gap-1.5 px-3 text-xs"
-                >
-                  {predictiveSubmitting || predictiveJob?.status === "pending" || predictiveJob?.status === "running" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Play className="h-3.5 w-3.5" />
-                  )}
-                  Run Predictive N_T
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    onClick={handleRunPredictiveNt}
+                    disabled={predictiveSubmitting || !predictiveBasis || !designId || saveState !== "saved" || predictiveJob?.status === "pending" || predictiveJob?.status === "running"}
+                    title={saveState === "saved" ? undefined : "Save the authoritative Stage 1 snapshot before running."}
+                    className="h-8 gap-1.5 px-3 text-xs"
+                  >
+                    {predictiveSubmitting || predictiveJob?.status === "pending" || predictiveJob?.status === "running" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Play className="h-3.5 w-3.5" />
+                    )}
+                    Run Predictive N_T
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={handleStopPredictiveNt}
+                    disabled={predictiveStopping || !predictiveJob || !["pending", "running"].includes(predictiveJob.status)}
+                    className="h-8 gap-1.5 px-3 text-xs"
+                  >
+                    {predictiveStopping ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Square className="h-3.5 w-3.5" />
+                    )}
+                    Stop Solver
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4 px-4 py-4">

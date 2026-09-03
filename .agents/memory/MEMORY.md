@@ -94,3 +94,4 @@
 - [Stability-constrained Predictive N_T replay](stability-constrained-predictive-nt-replay.md) — Project 223 closes N_T 1–10; only 1–2 lack a replay TPD blocker; no N_T is accepted.
 - [Password reset environment boundary](password-reset-environment-boundary.md) — reset links must open the environment whose database issued the token; Preview tokens cannot validate in production.
 - [ECR Pre-Pilot water admission boundary](ecr-prepilot-water-admission-boundary.md) — H₂O is a controlled co-solvent; predictive admission requires a traceable profile and water-bearing LLE qualification.
+- [Predictive N_T cancellation](predictive-nt-cancellation.md) — terminal DB stop must also make the lease-owning process kill its Python child; an HTTP process-local child map is insufficient.
