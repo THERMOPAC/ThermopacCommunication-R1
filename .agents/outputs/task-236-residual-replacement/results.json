@@ -1,0 +1,213 @@
+{
+  "decision": {
+    "cascadeSolverChanged": false,
+    "residualDisposition": "SCOPED_OUT_NOT_REFIT",
+    "selectedRoute": "7C-1.3.0",
+    "thermodynamicModel": "NATIVE_SEVEN_COMPONENT_CCOSMO_2010",
+    "tpdThresholdsChanged": false,
+    "whyNotRefit": "The declared dry training and blind partitions do not qualify the nine-parameter residual, and no admissible direct water-bearing LLE training or blind partition exists."
+  },
+  "engineLineage": {
+    "7C-1.1.0": {
+      "engineHash": "ab96c840b77ca2409d94e93cc83093b86ecbd0333cf997a88fa6aedb7097566a",
+      "preservedHistoricalResidualRoute": true,
+      "workerSha256": "373df1929dfe25eb566a319f6e3f5a40531442bcdabd1039fb1a03506ec91563"
+    },
+    "7C-1.2.0": {
+      "cascadeSha256": "cc11a0131096f43cecc871de7273f85a92adfbd5c03167ede1b77387fd442d74",
+      "contractSha256": "cd2b517e6f170dfcde8929002c71aa9cf3d5cce9768101730b5a3545a9a7be99",
+      "engineHash": "2cd41180477347ad5cd7d57b505b2521b944443317652db76ce522b7be44f8ca",
+      "preservedHistoricalResidualRoute": true,
+      "workerSha256": "a6c200db4e17afa6e58b63bbec1d41fedaab1f10abc7efac0ac30140e2cf6456"
+    },
+    "7C-1.3.0": {
+      "cascadeSha256": "0cc514909d4f8451ecb5a00d9ebb4b5b7c2e2bd5b4ceced47e3b886bc8ea5406",
+      "contractSha256": "995d8590d33c3a12d99f2d88e3c7194c7c1232b2946ed487a6a1eecdac82a5cc",
+      "engineHash": "8e9e9c0e81b478738c49d66e0de4f29796b5174fa6081144cb1ad4245b940e3c",
+      "newJobDefault": true,
+      "residualAmendmentApplied": false,
+      "workerSha256": "240e021276bf3b5b2d603d8dca88010b23bf1c3e4173215e6f6347e49747e625"
+    }
+  },
+  "pinnedInputHashes": {
+    "cascadeNumericalProtocol": "a2e203e3dfd352ff8a10574be2a56d231e38b7a7fb2402ff8545ac347c4ebdcc",
+    "frozenSixComponentResults": "a6176f4c5f36640b3e03832c9b0e1b355bd908a655bd8d242640d73038120c10",
+    "lleEvidence": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+    "residualModel": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+    "residualProtocol": "247a1b5dbbefc7bba6779409751bf5486a28a159b3aecaaff36394a2ab594c44",
+    "residualResults": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+    "sevenComponent11Worker": "373df1929dfe25eb566a319f6e3f5a40531442bcdabd1039fb1a03506ec91563",
+    "sevenComponent12Cascade": "cc11a0131096f43cecc871de7273f85a92adfbd5c03167ede1b77387fd442d74",
+    "sevenComponent12Contract": "cd2b517e6f170dfcde8929002c71aa9cf3d5cce9768101730b5a3545a9a7be99",
+    "sevenComponent12Worker": "a6c200db4e17afa6e58b63bbec1d41fedaab1f10abc7efac0ac30140e2cf6456",
+    "sevenComponent13Cascade": "0cc514909d4f8451ecb5a00d9ebb4b5b7c2e2bd5b4ceced47e3b886bc8ea5406",
+    "sevenComponent13Contract": "995d8590d33c3a12d99f2d88e3c7194c7c1232b2946ed487a6a1eecdac82a5cc",
+    "sevenComponent13Worker": "240e021276bf3b5b2d603d8dca88010b23bf1c3e4173215e6f6347e49747e625",
+    "termAblationResults": "6c4aab21bd0a4468dd0615fd5f5d6bee21f3a124d5ccf0db6b9118ed8e3f0280",
+    "wetDaughterStates": "d7ee41c197a08a16f201b0c8f69628e415b3f4e9ed4bbb3113242a7734db648d",
+    "wetReplay": "d5aeba231fd18994ab13d282217dfbe8c04edca1421d21f30ae2babc17ea00bc",
+    "wetReplayRunner": "18a295cb82289d9726b96958faf1136182169f37071766f7337f03fe4d197d30"
+  },
+  "releaseGate": {
+    "blockers": [
+      "DECLARED_TRAINING_AND_BLIND_LLE_REPRODUCTION_FAILED",
+      "DIRECT_WATER_BEARING_LLE_QUALIFICATION_MISSING"
+    ],
+    "bothRequired": true,
+    "declaredDryLleReproductionPassed": false,
+    "directWaterBearingLleQualificationPassed": false,
+    "lleReproductionGatePassed": false,
+    "postSplitStabilityPassed": true,
+    "releaseEligible": false,
+    "status": "FAIL_CLOSED_NOT_QUALIFIED"
+  },
+  "schemaVersion": "TASK_236_RESIDUAL_REPLACEMENT_QUALIFICATION_V1",
+  "sixComponentQualificationMatrix": {
+    "frozenConstrainedCandidate": {
+      "frozenValidation": {
+        "heldOutMolecularSystem": {
+          "activityEqualityRms": 0.274420017323645,
+          "ceiling": 0.03,
+          "compositionRmsd": 0.057212805012628466,
+          "rows": 35,
+          "status": "FAIL"
+        },
+        "heldOutTemperature": {
+          "activityEqualityRms": 0.16892740343929935,
+          "ceiling": 0.03,
+          "compositionRmsd": 0.07037166804893295,
+          "rows": 41,
+          "status": "FAIL"
+        },
+        "training": {
+          "activityEqualityRms": 0.21947472975780483,
+          "ceiling": 0.03,
+          "compositionRmsd": 0.2769292446447198,
+          "rows": 143,
+          "status": "FAIL"
+        }
+      },
+      "qualified": false,
+      "releaseEligible": false,
+      "sourceSha256": "a6176f4c5f36640b3e03832c9b0e1b355bd908a655bd8d242640d73038120c10",
+      "status": "INCOMPATIBLE_FAIL_CLOSED"
+    },
+    "historicalNineParameterResidual": {
+      "declaredLleGatePassed": false,
+      "metrics": {
+        "heldOutMolecularSystem": {
+          "activityEqualityRms": 0.30712473850470634,
+          "ceiling": 0.03,
+          "compositionRmsd": 0.06944244443913729,
+          "rows": 35,
+          "status": "FAIL"
+        },
+        "heldOutTemperature": {
+          "activityEqualityRms": 0.16898369016556222,
+          "ceiling": 0.03,
+          "compositionRmsd": 0.07856508126243697,
+          "rows": 41,
+          "status": "FAIL"
+        },
+        "training": {
+          "activityEqualityRms": 0.21942289558690914,
+          "ceiling": 0.03,
+          "compositionRmsd": 0.3502450827232224,
+          "rows": 143,
+          "status": "FAIL"
+        }
+      }
+    },
+    "nativeReplacementOnSameDeclaredEvidence": {
+      "declaredLleGatePassed": false,
+      "metrics": {
+        "heldOutMolecularSystem": {
+          "activityEqualityRms": 1.7690462419062365,
+          "ceiling": 0.03,
+          "compositionRmsd": 0.4377614997531565,
+          "rows": 35,
+          "status": "FAIL"
+        },
+        "heldOutTemperature": {
+          "activityEqualityRms": 1.399913143696248,
+          "ceiling": 0.03,
+          "compositionRmsd": 0.4133831571722228,
+          "rows": 41,
+          "status": "FAIL"
+        },
+        "training": {
+          "activityEqualityRms": 1.780105957154853,
+          "ceiling": 0.03,
+          "compositionRmsd": 0.5132239680665991,
+          "rows": 143,
+          "status": "FAIL"
+        }
+      },
+      "parameters": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "termDiagnosis": {
+    "allFrozenStatesStabilizedWhenBlockRemoved": true,
+    "dominantBlock": "MONO_NMP",
+    "fixedStateCount": 57,
+    "largestSingleTerm": {
+      "ablation": "A_MONO_NMP_ref",
+      "maximumDeltaTPD": 2.7138997820947512,
+      "medianDeltaTPD": 2.395364977717788,
+      "minimumDeltaTPD": 0.18488955184487932,
+      "name": "A_MONO_NMP_ref",
+      "positiveDeltaCount": 57
+    },
+    "monoNmpBlock": {
+      "ablation": "MONO_NMP_block",
+      "maximumDeltaTPD": 3.6489449175134268,
+      "medianDeltaTPD": 3.1020353179150435,
+      "minimumDeltaTPD": 0.23866610361735155,
+      "positiveDeltaCount": 57
+    },
+    "satNmpDisposition": "STABILIZING_REMOVAL_MAKES_TPD_MORE_NEGATIVE",
+    "sourceSha256": "6c4aab21bd0a4468dd0615fd5f5d6bee21f3a124d5ccf0db6b9118ed8e3f0280"
+  },
+  "wetSevenComponentQualificationMatrix": {
+    "cascadeSolverChanged": false,
+    "daughterStateCount": 110,
+    "inheritedResidualBaseline": {
+      "falseInstabilityReproduced": true,
+      "minimumStats": {
+        "maximum": -0.3074623139973606,
+        "mean": -0.6557273674749103,
+        "minimum": -0.781736196094959
+      },
+      "negativeCount": 110
+    },
+    "nativeSevenComponent": {
+      "minimumStats": {
+        "maximum": 8.777767236548427e-15,
+        "mean": -1.5249254361185527e-16,
+        "minimum": -1.1186892614685652e-14
+      },
+      "negativeCount": 0,
+      "postSplitDaughterStateStabilityPassed": true,
+      "stableOrNearZeroCount": 110
+    },
+    "negativeTpdThreshold": -1e-08,
+    "sourceDaughterStatesSha256": "d7ee41c197a08a16f201b0c8f69628e415b3f4e9ed4bbb3113242a7734db648d",
+    "sourceReplaySha256": "d5aeba231fd18994ab13d282217dfbe8c04edca1421d21f30ae2babc17ea00bc",
+    "stageCount": 55,
+    "temperatureK": 298.15,
+    "tpdThresholdAuthoritySha256": "a2e203e3dfd352ff8a10574be2a56d231e38b7a7fb2402ff8545ac347c4ebdcc",
+    "tpdThresholdChanged": false,
+    "trialCount": 10,
+    "waterWtPct": 3.0
+  }
+}

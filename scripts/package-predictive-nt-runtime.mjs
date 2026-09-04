@@ -198,3 +198,49 @@ await writeFile(
 console.log(
   `Packaged Predictive N_T 7C-1.2 runtime (${sevenTwelveRecords.length} hashed files)`,
 );
+
+// 7C-1.3.0 keeps both historical bundles immutable and layers only the native
+// thermodynamic wrapper, unchanged 1.2 cascade contract, and versioned worker.
+const sevenThirteenBundleRoot = path.join(root, 'dist', 'predictive-nt-runtime-7c-1-3');
+await rm(sevenThirteenBundleRoot, { recursive: true, force: true });
+await cp(sevenTwelveBundleRoot, sevenThirteenBundleRoot, { recursive: true });
+for (const relativePath of [
+  'server/ecr-pre-pilot/predictive-nt-seven-component-v1-3',
+  'server/research/ecr-pre-pilot-seven-component-native',
+  'server/research/ecr-pre-pilot-seven-component-native-cascade',
+]) {
+  const source = path.join(root, relativePath);
+  const destination = path.join(sevenThirteenBundleRoot, relativePath);
+  await mkdir(path.dirname(destination), { recursive: true });
+  await cp(source, destination, {
+    recursive: true,
+    filter: (candidate) => !candidate.split(path.sep).includes('__pycache__')
+      && !candidate.endsWith('.pyc') && !candidate.endsWith('.pyo'),
+  });
+}
+const sevenThirteenPackagedFiles = (await bundledFiles(sevenThirteenBundleRoot)).sort();
+const sevenThirteenRecords = [];
+for (const absolute of sevenThirteenPackagedFiles) {
+  const content = await readFile(absolute);
+  const metadata = await stat(absolute);
+  sevenThirteenRecords.push({
+    path: path.relative(sevenThirteenBundleRoot, absolute).split(path.sep).join('/'),
+    bytes: metadata.size,
+    sha256: createHash('sha256').update(content).digest('hex'),
+  });
+}
+const sevenThirteenRecordText = sevenThirteenRecords
+  .map((record) => `${record.path}:${record.bytes}:${record.sha256}`).join('\n');
+await writeFile(
+  path.join(sevenThirteenBundleRoot, 'predictive-nt-runtime-manifest.json'),
+  `${JSON.stringify({
+    schemaVersion: 'PREDICTIVE_NT_RUNTIME_MANIFEST_V1',
+    hashAlgorithm: 'sha256',
+    fileCount: sevenThirteenRecords.length,
+    aggregateSha256: createHash('sha256').update(sevenThirteenRecordText).digest('hex'),
+    files: sevenThirteenRecords,
+  }, null, 2)}\n`,
+);
+console.log(
+  `Packaged Predictive N_T 7C-1.3 runtime (${sevenThirteenRecords.length} hashed files)`,
+);

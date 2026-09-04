@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "ECR_PRE_PILOT_PREDICTIVE_NT_ENGINE_CONTRACT_V1",
+  "engineContractVersion": "7C-1.3.0",
+  "engineId": "ECR2_PREDICTIVE_NT_SEVEN_COMPONENT_NATIVE_CCOSMO_CASCADE",
+  "componentOrder": ["SAT", "MONO", "DI", "POLY", "PA", "NMP", "H2O"],
+  "thermodynamicModel": "NATIVE_SEVEN_COMPONENT_CCOSMO_2010",
+  "residualAmendmentApplied": false,
+  "cascadeParentContract": "7C-1.2.0",
+  "cascadeEquations": "unchanged 14*N simultaneous component-balance plus isoactivity equations",
+  "routineTpd": {
+    "latticeDenominator": 4,
+    "latticePointCount": 210,
+    "postSplitSearchesPerStage": 2,
+    "thresholdsChanged": false
+  },
+  "exhaustiveEscalation": {
+    "model": "NATIVE_SEVEN_COMPONENT_CCOSMO_2010",
+    "routineUse": false,
+    "trigger": "routine ambiguity only"
+  },
+  "wetSolventRule": "NMP and dissolved H2O split fixed total wet-solvent mass",
+  "checkpointProtocol": "ACK_V3_ENGINE_CONTRACT",
+  "governanceStatus": "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING",
+  "directWaterBearingLleValidated": false,
+  "independentBlindQualificationPassed": false,
+  "releaseEligible": false
+}

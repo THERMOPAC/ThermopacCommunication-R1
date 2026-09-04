@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "TASK_236_RESIDUAL_REPLACEMENT_PROTOCOL_V1",
+  "replacementEngineContract": "7C-1.3.0",
+  "replacementThermodynamicModel": "NATIVE_SEVEN_COMPONENT_CCOSMO_2010",
+  "residualDisposition": "SCOPED_OUT_NOT_REFIT",
+  "componentOrder": ["SAT", "MONO", "DI", "POLY", "PA", "NMP", "H2O"],
+  "frozenAcceptance": {
+    "quantitativeCompositionRmsdCeiling": 0.03,
+    "tpdThresholdAuthority": "server/research/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/protocol.json",
+    "thresholdsMayBeChanged": false,
+    "cascadeSolverMayBeChanged": false
+  },
+  "pinnedInputs": {
+    "residualModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+    "residualProtocolSha256": "247a1b5dbbefc7bba6779409751bf5486a28a159b3aecaaff36394a2ab594c44",
+    "residualResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+    "termAblationResultsSha256": "6c4aab21bd0a4468dd0615fd5f5d6bee21f3a124d5ccf0db6b9118ed8e3f0280",
+    "frozenSixComponentResultsSha256": "a6176f4c5f36640b3e03832c9b0e1b355bd908a655bd8d242640d73038120c10",
+    "wetDaughterStatesSha256": "d7ee41c197a08a16f201b0c8f69628e415b3f4e9ed4bbb3113242a7734db648d",
+    "wetReplayRunnerSha256": "18a295cb82289d9726b96958faf1136182169f37071766f7337f03fe4d197d30",
+    "wetReplayEvidenceSha256": "d5aeba231fd18994ab13d282217dfbe8c04edca1421d21f30ae2babc17ea00bc",
+    "cascadeNumericalProtocolSha256": "a2e203e3dfd352ff8a10574be2a56d231e38b7a7fb2402ff8545ac347c4ebdcc",
+    "historicalSevenComponent11WorkerSha256": "373df1929dfe25eb566a319f6e3f5a40531442bcdabd1039fb1a03506ec91563",
+    "historicalSevenComponent12WorkerSha256": "a6c200db4e17afa6e58b63bbec1d41fedaab1f10abc7efac0ac30140e2cf6456",
+    "historicalSevenComponent12CascadeSha256": "cc11a0131096f43cecc871de7273f85a92adfbd5c03167ede1b77387fd442d74",
+    "historicalSevenComponent12ContractSha256": "cd2b517e6f170dfcde8929002c71aa9cf3d5cce9768101730b5a3545a9a7be99"
+  },
+  "governance": {
+    "directWaterBearingLleValidated": false,
+    "releaseRequiresLleReproductionAndPostSplitStability": true,
+    "releaseEligible": false
+  }
+}

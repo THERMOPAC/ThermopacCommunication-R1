@@ -29,7 +29,15 @@ QUALIFICATION_PATH = (
 )
 CASCADE_PATH = (
     ROOT
-    / "server/research/ecr-pre-pilot-seven-component-simultaneous-cascade/engine.py"
+    / "server/research/ecr-pre-pilot-seven-component-native-cascade/engine.py"
+)
+CASCADE_CONTRACT_PATH = (
+    ROOT
+    / "server/research/ecr-pre-pilot-seven-component-native-cascade/engine-contract.json"
+)
+CASCADE_WORKER_PATH = (
+    ROOT
+    / "server/ecr-pre-pilot/predictive-nt-seven-component-v1-3/worker.py"
 )
 FAMILIES = ("SAT", "MONO", "DI", "POLY", "PA", "NMP", "H2O")
 EXPECTED_JOB = "cd5d9f6e-1340-4da0-a9a2-1e29d2617258"
@@ -264,14 +272,10 @@ def main() -> None:
     qualification = load_module("tpd_ab_qualification", QUALIFICATION_PATH)
     cascade = load_module("tpd_ab_cascade", CASCADE_PATH)
     temporary, np, scipy, assembled, integrity, runtime = qualification.build_model()
+    native_temporary, native_engine, native_integrity, native_runtime = (
+        cascade.build_engine(float(source["temperatureK"]), 3.0)
+    )
     try:
-        native = NativeSevenComponentModel(assembled)
-        native_exhaustive = qualification.engine(
-            np, scipy, native, float(source["temperatureK"]), 3.0
-        )[1]
-        native_engine = cascade.SevenComponentEngine(
-            np, scipy, native, exhaustive_tpd=native_exhaustive
-        )
         residual_engine = cascade.SevenComponentEngine(np, scipy, assembled)
         threshold = float(native_engine.gates["negativeTpdThreshold"])
         rows = []
@@ -407,11 +411,18 @@ def main() -> None:
             "modelDefinitions": {
                 "A": "NATIVE_SEVEN_COMPONENT_CCOSMO_ONLY",
                 "B": "NATIVE_SEVEN_COMPONENT_CCOSMO_PLUS_INHERITED_SIX_COMPONENT_NMP_LLE_RESIDUAL",
+                "activeEngineContractVersion": cascade.ENGINE_VERSION,
+                "activeEngineSourceSha256": sha256(CASCADE_PATH),
+                "activeEngineContractSha256": sha256(CASCADE_CONTRACT_PATH),
+                "activeWorkerSha256": sha256(CASCADE_WORKER_PATH),
+                "residualAmendmentAppliedByActiveEngine": False,
                 "frozenInputIntegrity": integrity,
                 "runtime": runtime,
+                "activeNativeIntegrity": native_integrity,
+                "activeNativeRuntime": native_runtime,
             },
             "method": {
-                "nativeSearch": "7C-1.2.0 denominator-4 routine TPD with unchanged ambiguity escalation",
+                "nativeSearch": "7C-1.3.0 native-cCOSMO denominator-4 routine TPD with unchanged ambiguity escalation",
                 "residualAddedSearch": "persisted 7C-1.2.0 production TPD minimum and minimizer",
                 "residualAddedReplay": "independent evaluation of the B TPD objective at every persisted minimizer",
                 "negativeTpdThreshold": threshold,
@@ -447,6 +458,7 @@ def main() -> None:
             indent=2,
         ))
     finally:
+        native_temporary.cleanup()
         temporary.cleanup()
 
 

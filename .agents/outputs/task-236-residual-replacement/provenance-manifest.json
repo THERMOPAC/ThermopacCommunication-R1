@@ -1,0 +1,9 @@
+{
+  "outputs": {
+    "report": "bac81ca5101f7c3639876624c6f923e7c38c89c4eaf92158f380e2e59b5f80f1",
+    "results": "19a168616420e7b61576cfa3710a02a8a0788ca9206d1f3f7b55966ee9903591"
+  },
+  "protocolSha256": "85bcb01a2f2590af99b5a8513330785df74859e674ab4934edf9da9d21932207",
+  "runnerSha256": "8d757114bf7a7fdff4f8cf87d994f1b014e3e2c5c486a0c248c5960110d19160",
+  "schemaVersion": "TASK_236_OUTPUT_MANIFEST_V1"
+}
