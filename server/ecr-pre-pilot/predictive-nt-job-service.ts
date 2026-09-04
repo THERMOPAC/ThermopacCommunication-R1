@@ -70,6 +70,7 @@ export interface PredictiveNtJobInput {
   targetRaffinateMonoHydrocarbonMoleFraction: number;
   minimumRaffinateSaturatesHydrocarbonMoleFraction?: number;
   maximumStages?: number;
+  ntTest?: number;
   stage1Authority?: {
     schemaVersion: typeof ECR_PRE_PILOT_STAGE1_SCHEMA;
     savedAt: string;
@@ -1085,6 +1086,7 @@ export function validatePredictiveNtJobInput(
     throw new Error('INVALID_FEED_COMPOSITION');
   }
   const maximumStages = input.maximumStages ?? 10;
+  const ntTest = input.ntTest;
   if (
     !Number.isFinite(input.temperatureK) || input.temperatureK <= 0
     || !Number.isFinite(input.solventMolarRatio) || input.solventMolarRatio <= 0
@@ -1092,6 +1094,10 @@ export function validatePredictiveNtJobInput(
     || input.targetRaffinateMonoHydrocarbonMoleFraction <= 0
     || input.targetRaffinateMonoHydrocarbonMoleFraction >= 1
     || !Number.isInteger(maximumStages) || maximumStages < 1 || maximumStages > 20
+    || (ntTest !== undefined && (
+      !Number.isInteger(ntTest) || ntTest < 1 || ntTest > 10
+      || !isReplacementSevenComponentInput(input)
+    ))
   ) {
     throw new Error('INVALID_CASCADE_INPUT');
   }
@@ -1308,7 +1314,7 @@ export function validateSevenComponentPersistedResult(
     !options.intermediate
     && options.input
     && !blockedPhaseResult
-    && value.trials.length !== options.input.maximumStages
+    && value.trials.length !== (options.input.ntTest === undefined ? options.input.maximumStages : 1)
   ) return 'PREDICTIVE_NT_7C_RESULT_TRIALS_INVALID';
   if (
     !options.intermediate
@@ -1890,18 +1896,20 @@ async function persistTrialCheckpoint(
       ? [...existingResult.checkpoint.payloadCanonicals]
       : [];
     const completed = Number(row.completed_trials);
+    const singleTestStage = Number(row.input_snapshot?.ntTest);
+    const checkpointOrdinal = Number.isInteger(singleTestStage) ? 1 : stageCount;
 
-    if (stageCount <= completed) {
+    if (checkpointOrdinal <= completed) {
       if (
-        existingHashes[stageCount - 1] !== trialHash
-        || existingPayloadHashes[stageCount - 1] !== payloadHash
+        existingHashes[checkpointOrdinal - 1] !== trialHash
+        || existingPayloadHashes[checkpointOrdinal - 1] !== payloadHash
       ) {
         throw new Error('PREDICTIVE_NT_CHECKPOINT_REPLAY_MISMATCH');
       }
       await client.query('COMMIT');
       return;
     }
-    if (stageCount !== completed + 1 || existingTrials.length !== completed) {
+    if (checkpointOrdinal !== completed + 1 || existingTrials.length !== completed) {
       throw new Error('PREDICTIVE_NT_CHECKPOINT_SEQUENCE_INVALID');
     }
 
@@ -1919,13 +1927,15 @@ async function persistTrialCheckpoint(
         engineContractVersion: sevenComponent
           ? row.input_snapshot.engineContractVersion
           : '6C-LEGACY',
-        acknowledgedStageCount: stageCount,
+        acknowledgedStageCount: checkpointOrdinal,
         trialHashes: existingHashes,
         trialCanonicals: [...existingCanonicals, canonicalTrial],
         payloadHashes: [...existingPayloadHashes, payloadHash],
         payloadCanonicals: [...existingPayloadCanonicals, canonicalPayload],
         latestContinuationState: continuationState,
-        latestContinuationStageCount: usesSimultaneousSevenComponentCascade(row.input_snapshot)
+        latestContinuationStageCount: Number.isInteger(singleTestStage)
+          ? 0
+          : usesSimultaneousSevenComponentCascade(row.input_snapshot)
           ? continuationStageCount
           : stageCount,
         inputHash: createHash('sha256').update(canonicalJson(row.input_snapshot)).digest('hex'),
@@ -1941,7 +1951,7 @@ async function persistTrialCheckpoint(
               updated_at = NOW()
         WHERE id = $1 AND status = 'running' AND claim_token = $2
         RETURNING *`,
-      [jobId, claimToken, stageCount, checkpointResult, LEASE_MS],
+      [jobId, claimToken, checkpointOrdinal, checkpointResult, LEASE_MS],
     );
     if (!updated.rows[0]) throw new Error('PREDICTIVE_NT_CHECKPOINT_STALE_OWNER');
     await recordHistory(client, updated.rows[0], {
@@ -2542,6 +2552,7 @@ export async function enqueuePredictiveNtRuntimeTestJob(
 export async function enqueuePredictiveNtJobFromSavedStage1(
   userId: number,
   designId: number,
+  ntTest: number = 7,
 ) {
   const jobId = randomUUID();
   const client = await pool.connect();
@@ -2562,10 +2573,14 @@ export async function enqueuePredictiveNtJobFromSavedStage1(
       [designId, userId],
     );
     if (!design.rows[0]) throw new Error('ECR_PRE_PILOT_DESIGN_NOT_FOUND');
-    const input = derivePredictiveNtInputFromStage1(
+    const derivedInput = derivePredictiveNtInputFromStage1(
       design.rows[0].input_data,
       Number(design.rows[0].project_number),
     );
+    if (!Number.isInteger(ntTest) || ntTest < 1 || ntTest > 10) {
+      throw new Error('INVALID_NT_TEST');
+    }
+    const input = { ...derivedInput, ntTest };
     gate = validatePredictiveNtJobInput(input);
     const engineHash = currentPredictiveNtEngineHash(input);
     const immutableInput = { ...input, modelHash: PRE_PILOT_MULTISTAGE_MODEL.modelHash };
@@ -2588,7 +2603,7 @@ export async function enqueuePredictiveNtJobFromSavedStage1(
        RETURNING *`,
       [
         jobId, designId, userId, immutableInput, PRE_PILOT_MULTISTAGE_MODEL.modelHash,
-        engineHash, input.maximumStages ?? 10,
+        engineHash, 1,
       ],
     );
     await recordHistory(client, inserted.rows[0], {

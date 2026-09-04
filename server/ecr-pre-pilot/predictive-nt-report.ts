@@ -262,13 +262,14 @@ export async function generatePredictiveNtReport(
   grid([
     ['Project reference', projectRef],
     ['Job status', 'COMPLETED — report generated automatically'],
-    ['Trials completed', `${o.trials.length} / ${r.input.maximumStages ?? o.trials.length}`],
+    ['N_T tested', r.input.ntTest ?? 'Sequence'],
+    ['Trials completed', `${o.trials.length} / ${r.input.ntTest == null ? (r.input.maximumStages ?? o.trials.length) : 1}`],
     ['Accepted Predictive N_T', o.predictiveNt ?? 'NOT ASSIGNED'],
     ['Established theoretical stages', o.establishedTheoreticalStages ?? 'Not established'],
     ['Pilot validated', o.pilotValidated ? 'Yes' : 'No'],
     ['Calibration required', o.calibrationRequired ? 'Yes' : 'No'],
     ['Release eligible', o.releaseEligible ? 'Yes' : 'No'],
-  ], 42, 215, 510, 20);
+  ], 42, 215, 510, 18);
   doc.roundedRect(42, 390, 510, 128, 4).fill('#FFF3E5');
   text('ENGINEERING RESULT', 55, 404, 480, 9, COLORS.amber, true);
   text(
@@ -295,6 +296,7 @@ export async function generatePredictiveNtReport(
     ['Phase configuration', s.phaseConfiguration],
     ['Solvent/oil mass ratio', s.solventOilRatio],
     ['Maximum stages', s.maximumStages],
+    ['N_T tested', r.input.ntTest ?? 'Historical sequence'],
     ['SAT identity', s.satIdentity],
     ['MONO identity', s.monoIdentity],
   ], 42, 100, 510, 25);

@@ -198,6 +198,97 @@ def canonical(value):
     return original_canonical(value)
 
 
+def single_test_main():
+    request = json.loads(sys.stdin.readline())
+    if request.get("engineContractVersion") != ENGINE_VERSION:
+        raise ValueError("PREDICTIVE_NT_7C_ENGINE_CONTRACT_REQUIRED")
+    evidence = engine_evidence()
+    if request.get("engineHash") != evidence["engineHash"]:
+        raise ValueError("PREDICTIVE_NT_REQUEST_ENGINE_HASH_MISMATCH")
+    stage1 = request.get("stage1Authority", {}).get("source", {}).get("stage1")
+    if not isinstance(stage1, dict):
+        raise ValueError("STAGE1_AUTHORITY_INVALID")
+    nt_test = request.get("ntTest")
+    if not isinstance(nt_test, int) or nt_test < 1 or nt_test > 10:
+        raise ValueError("INVALID_NT_TEST")
+    temperature_c = float(stage1["operatingTemperatureC"])
+    if not parent.math.isfinite(temperature_c):
+        raise ValueError("STAGE1_OPERATING_TEMPERATURE_INVALID")
+    temperature_k = temperature_c + 273.15
+    feed, solvent, wet = wet_charge(stage1)
+    temporary, engine, integrity, runtime = scientific.build_engine(
+        temperature_k, wet["waterWeightPercentOfWetSolvent"]
+    )
+    np = engine.np
+    try:
+        resume = request.get("_resume")
+        if resume:
+            trials = resume.get("trials")
+            if (
+                resume.get("engineContractVersion") != ENGINE_VERSION
+                or resume.get("acknowledgedStageCount") != 1
+                or not isinstance(trials, list) or len(trials) != 1
+                or trials[0].get("stageCount") != nt_test
+            ):
+                raise ValueError("PREDICTIVE_NT_7C_RESUME_PREFIX_INVALID")
+        else:
+            raw = engine.solve_cascade(
+                nt_test, temperature_k, feed, solvent, None
+            )
+            trial = complete_trial(
+                np, raw, feed, solvent, temperature_k
+            )
+            parent.emit_checkpoint(
+                trial,
+                {"raffinateComponentMoles": [], "extractComponentMoles": []},
+                0,
+            )
+            trials = [trial]
+            print(
+                "PREDICTIVE_NT_PERFORMANCE "
+                f"{nt_test} "
+                f"{parent.base64.b64encode(canonical(engine.metrics).encode()).decode()}",
+                file=sys.stderr, flush=True,
+            )
+            print("PREDICTIVE_NT_PROGRESS 1 1", file=sys.stderr, flush=True)
+        final = {
+            "schemaVersion": "ECR_PRE_PILOT_PREDICTIVE_NT_RESULT_V1",
+            "engineContractVersion": ENGINE_VERSION,
+            "componentOrder": list(parent.FAMILIES),
+            "status": STATUS,
+            "implementationStatus": "IMPLEMENTED",
+            "predictiveQualification": "PRE_PILOT_MULTISTAGE_PREDICTIVE",
+            "releaseEligible": False,
+            "predictiveNt": None,
+            "establishedTheoreticalStages": None,
+            "pilotValidated": False,
+            "calibrationRequired": False,
+            "sulfurPrediction": {"status": "NOT_CALCULABLE"},
+            "ntTested": nt_test,
+            "thermodynamicCondition": {
+                "temperatureC": temperature_c,
+                "temperatureK": temperature_k,
+                "authority": "IMMUTABLE_STAGE1_OPERATING_TEMPERATURE",
+            },
+            "wetSolventConstruction": wet,
+            "engine": evidence,
+            "scientificRuntime": runtime,
+            "scientificIntegrity": integrity,
+            "executionStatus": "COMPLETED_PRE_PILOT_MULTISTAGE_MATRIX",
+            "trialsAttempted": len(trials),
+            "governedTrialsAccepted": sum(
+                bool(trial.get("accepted")) for trial in trials
+            ),
+            "diagnosticTrialsCalculated": sum(
+                bool(trial.get("diagnosticContinuationUsed")) for trial in trials
+            ),
+            "trials": trials,
+        }
+        print(canonical(final), end="")
+    finally:
+        temporary.cleanup()
+
+
 parent.scientific = scientific
 parent.ENGINE_ID = ENGINE_ID
 parent.ENGINE_VERSION = ENGINE_VERSION
@@ -218,4 +309,4 @@ if __name__ == "__main__":
             "governanceStatus": STATUS,
         }))
     else:
-        parent.main()
+        single_test_main()
