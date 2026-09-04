@@ -974,7 +974,7 @@ export function validatePredictiveNtJobInput(
     const snapshot = validateStage1Snapshot(input.stage1Authority.source);
     verifyStage1SixComponentCosmoSacProfileFiles(snapshot.sixComponentCosmoSacBinding, profileReader);
     const projectNumber = Number(snapshot.stage1.projectReference);
-    const { _runtimeTestOwner, ...comparable } = input as PredictiveNtJobInput & {
+    const { _runtimeTestOwner, ntTest, ...comparable } = input as PredictiveNtJobInput & {
       _runtimeTestOwner?: unknown;
     };
     const expected = derivePredictiveNtInputFromStage1(snapshot, projectNumber, profileReader);
@@ -994,6 +994,10 @@ export function validatePredictiveNtJobInput(
     }
     if (
       (_runtimeTestOwner !== undefined && process.env.NODE_ENV !== 'test')
+      || (ntTest !== undefined && (
+        input.engineContractVersion !== '7C-1.4.0'
+        || !Number.isInteger(ntTest) || ntTest < 1 || ntTest > 10
+      ))
       || canonicalJson(comparable) !== canonicalJson(expected)
     ) {
       // The authority remains immutable, but callers need to distinguish a
