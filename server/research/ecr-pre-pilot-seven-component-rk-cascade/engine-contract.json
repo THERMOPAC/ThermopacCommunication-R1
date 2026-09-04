@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "ECR_PRE_PILOT_PREDICTIVE_NT_ENGINE_CONTRACT_V1",
+  "engineContractVersion": "7C-1.4.0",
+  "engineId": "ECR2_PRE_PILOT_MULTISTAGE_SEVEN_COMPONENT_NATIVE_RK_CASCADE",
+  "componentOrder": ["SAT", "MONO", "DI", "POLY", "PA", "NMP", "H2O"],
+  "thermodynamicModel": "NATIVE_SEVEN_COMPONENT_CCOSMO_2010_PLUS_ADDITIVE_REDLICH_KISTER",
+  "nativeGibbsContributionRetained": true,
+  "interactionArtifact": "TASK-238-NMP-OIL-RK-0.2.0",
+  "cascadeParentContract": "7C-1.2.0",
+  "cascadeEquations": "14*N simultaneous component-balance plus chemical-potential-equality equations",
+  "stageRange": [1, 10],
+  "singleStageIsMatrixMember": true,
+  "separateGoverningFlashWorkflow": false,
+  "postSplitTpdThreshold": -1e-8,
+  "explicitMonoRichSearch": "x_MONO >= 0.5 including persisted historical false-basin seed",
+  "collapsedClassification": "NO_PHYSICAL_LLE",
+  "checkpointProtocol": "ACK_V3_ENGINE_CONTRACT",
+  "governanceStatus": "PRE-PILOT MULTISTAGE PREDICTIVE MODEL",
+  "experimentalWetLleExecutionBlocker": false,
+  "releaseEligible": false
+}

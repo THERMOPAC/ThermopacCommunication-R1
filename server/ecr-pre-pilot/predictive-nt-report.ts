@@ -163,6 +163,7 @@ export async function generatePredictiveNtReport(
   if (!o || !Array.isArray(o.trials)) throw new Error('PREDICTIVE_NT_REPORT_RESULT_MISSING');
   const projectRef = projectReference(r, s);
   const controlledNegative = o.releaseEligible === false && o.predictiveNt == null;
+  const prePilotMultistage = o.engineContractVersion === '7C-1.4.0';
 
   const doc = new PDFDocument({
     autoFirstPage: false,
@@ -244,14 +245,18 @@ export async function generatePredictiveNtReport(
   pill(
     controlledNegative
       ? (sevenComponent
-        ? 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING — NOT RELEASE ELIGIBLE'
+        ? (prePilotMultistage
+          ? 'PRE-PILOT MULTISTAGE PREDICTIVE MODEL — NO FULLY ACCEPTED TRIAL — NOT RELEASE ELIGIBLE'
+          : 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING — NOT RELEASE ELIGIBLE')
         : 'RESEARCH DIAGNOSTIC — NOT ACCEPTED — NOT RELEASE ELIGIBLE')
       : `PERSISTED QUALIFICATION STATUS — ${String(o.status ?? 'MISSING_EVIDENCE')}`,
     42, 98, 510, controlledNegative ? COLORS.red : COLORS.teal,
   );
   text('Executive summary', 42, 140, 510, 16, COLORS.navy, true);
   text(
-    `Project ${projectRef} completed ${o.trials.length} frozen candidate stage-count trials. A converged process-sensitivity trial is not an accepted Predictive N_T unless the separate scientific qualification is satisfied.`,
+    prePilotMultistage
+      ? `Project ${projectRef} completed ${o.trials.length} simultaneous counter-current matrix trials. Predictive N_T is assigned only from a fully accepted physical multistage trial.`
+      : `Project ${projectRef} completed ${o.trials.length} frozen candidate stage-count trials. A converged process-sensitivity trial is not an accepted Predictive N_T unless the separate scientific qualification is satisfied.`,
     42, 166, 510, 8.5,
   );
   grid([
@@ -266,9 +271,16 @@ export async function generatePredictiveNtReport(
   ], 42, 215, 510, 20);
   doc.roundedRect(42, 390, 510, 128, 4).fill('#FFF3E5');
   text('ENGINEERING RESULT', 55, 404, 480, 9, COLORS.amber, true);
-  text('Preferred engineering candidate: NOT ASSIGNED', 55, 428, 480, 10, COLORS.ink, true);
   text(
-    'No governed preferred-candidate selection rule is persisted for this run. The report therefore does not invent or hardcode a stage selection. Accepted Predictive N_T remains a separate scientific qualification result.',
+    `Preferred engineering candidate: ${prePilotMultistage
+      ? (o.predictiveNt == null ? 'NOT ASSIGNED — NO FULLY ACCEPTED TRIAL' : `N_T = ${o.predictiveNt}`)
+      : 'NOT ASSIGNED'}`,
+    55, 428, 480, 10, COLORS.ink, true,
+  );
+  text(
+    prePilotMultistage
+      ? 'Selection is reproducible: choose the smallest stage count whose complete simultaneous solution passes closure, positive-flow, phase, post-split TPD, branch-reproduction, and Stage-1 target gates. Experimental wet LLE is not an execution gate.'
+      : 'No governed preferred-candidate selection rule is persisted for this run. The report therefore does not invent or hardcode a stage selection. Accepted Predictive N_T remains a separate scientific qualification result.',
     55, 452, 480, 8.2,
   );
   text('COSMO-SAC sulfur prediction: NOT CALCULABLE', 55, 492, 480, 8.2, COLORS.red, true);
@@ -303,9 +315,12 @@ export async function generatePredictiveNtReport(
     ['Minimum saturates', `${value(s.minimumRaffinateSaturatesWt)} wt% NMP-free`],
     ['Minimum RRBO recovery', `${value(s.minimumRecoveryPct)} wt%`],
     ['Maximum NMP in raffinate', `${value(s.maximumNmpRaffinateWt)} wt% full stream`],
-    ['Raffinate sulfur target', `${value(s.targetRaffinateSulfurPpm)} ppm (pre-pilot estimate only)`],
+    ...(!prePilotMultistage
+      ? [['Raffinate sulfur target', `${value(s.targetRaffinateSulfurPpm)} ppm (pre-pilot estimate only)`]]
+      : []),
   ], 42, 505, 510, 24);
 
+  if (!prePilotMultistage) {
   page('1. Frozen Design Basis — Sulfur Allocation', false, 'PRE-PILOT ASSUMPTION — saved with the completed Stage-1 snapshot');
   const sulfurAllocations = [
     s.sulfurAllocationSatPct,
@@ -348,6 +363,7 @@ export async function generatePredictiveNtReport(
     'This allocation is an owner-controlled pre-pilot engineering assumption. It is not a hidden report constant and it does not make sulfur a COSMO-SAC component.',
     42, 425, 510, 8.5, COLORS.amber, true,
   );
+  }
 
   page(
     '2. Overall N_T Engineering Comparison',
@@ -355,11 +371,13 @@ export async function generatePredictiveNtReport(
     'Primary process comparison. Product composition is wt% on an NMP-free hydrocarbon basis; NMP is wt% of total raffinate.',
   );
   table(
-    ['N_T', 'Solver', 'Recovery %', 'NMP %', 'SAT %', 'Arom %', 'PA %', 'SAT loss %', 'MONO rem %', 'DI rem %', 'POLY rem %', 'PA rem %', 'Sulfur ppm', 'Target', 'Scientific'],
+    prePilotMultistage
+      ? ['N_T', 'Solver', 'Recovery %', 'NMP %', 'SAT %', 'Arom %', 'PA %', 'SAT loss %', 'MONO rem %', 'DI rem %', 'POLY rem %', 'PA rem %', 'Target', 'Scientific']
+      : ['N_T', 'Solver', 'Recovery %', 'NMP %', 'SAT %', 'Arom %', 'PA %', 'SAT loss %', 'MONO rem %', 'DI rem %', 'POLY rem %', 'PA rem %', 'Sulfur ppm', 'Target', 'Scientific'],
     o.trials.map((trial: any) => {
       const metrics = trial.productMetrics ?? {};
       const extraction = metrics.componentExtractionPct ?? {};
-      const sulfur = calculatePrePilotSulfurEstimate(s, trial);
+      const sulfur = prePilotMultistage ? null : calculatePrePilotSulfurEstimate(s, trial);
       const closed = trialIsClosed(trial);
       return [
         String(trial.stageCount),
@@ -374,7 +392,7 @@ export async function generatePredictiveNtReport(
         value(extraction.DI, 2),
         value(extraction.POLY, 2),
         value(extraction.PA, 2),
-        sulfur.status === 'CALCULABLE' ? value(sulfur.totalPpm, 1) : 'N/C',
+        ...(!prePilotMultistage ? [sulfur?.status === 'CALCULABLE' ? value(sulfur.totalPpm, 1) : 'N/C'] : []),
         closed
           ? (trial.allCalculableTargetsPass ? 'PASS' : 'FAIL')
           : trial?.residualClosureStatus === 'UNCLOSED'
@@ -383,11 +401,15 @@ export async function generatePredictiveNtReport(
         trial.accepted ? 'QUALIFIED' : 'NOT QUALIFIED',
       ];
     }),
-    30, 96, [30, 48, 48, 40, 40, 44, 38, 46, 51, 46, 48, 44, 48, 48, 58], 30, 4.6,
+    30, 96, prePilotMultistage
+      ? [30, 48, 48, 40, 40, 44, 38, 46, 51, 46, 48, 44, 48, 58]
+      : [30, 48, 48, 40, 40, 44, 38, 46, 51, 46, 48, 44, 48, 48, 58], 30, 4.6,
   );
   const comparisonNoteY = 96 + 30 * (o.trials.length + 1) + 14;
   text(
-    'Recovery = NMP-free RRBO recovery. Removal/loss = component-relative boundary removal. Sulfur = PRE-PILOT ALLOCATION ESTIMATE ONLY. Unconverged values are diagnostic only and receive no engineering PASS/FAIL.',
+    prePilotMultistage
+      ? 'Recovery = NMP-free RRBO recovery. Removal/loss = component-relative boundary removal. Sulfur is strictly NOT_CALCULABLE. Unconverged values are diagnostic only and receive no engineering PASS/FAIL.'
+      : 'Recovery = NMP-free RRBO recovery. Removal/loss = component-relative boundary removal. Sulfur = PRE-PILOT ALLOCATION ESTIMATE ONLY. Unconverged values are diagnostic only and receive no engineering PASS/FAIL.',
     30, comparisonNoteY, 780, 7.5, COLORS.muted, true,
   );
 
@@ -412,6 +434,7 @@ export async function generatePredictiveNtReport(
   );
   text('SAT is reported as SAT LOSS. NMP removal/extraction percentage is NOT APPLICABLE.', 42, 420, 755, 8.5, COLORS.amber, true);
 
+  if (!prePilotMultistage) {
   page('4. Pre-Pilot Sulfur Allocation Estimate', true, 'ESTIMATE ONLY — NOT A COSMO-SAC SULFUR PREDICTION — NOT PILOT VALIDATED');
   table(
     ['N_T', 'Solver', 'SAT ppm', 'MONO ppm', 'DI ppm', 'POLY ppm', 'PA ppm', 'Total ppm', 'Target ppm', 'Estimate Target Status'],
@@ -433,17 +456,21 @@ export async function generatePredictiveNtReport(
     30, 105, [34, 65, 58, 64, 58, 60, 58, 88, 62, 150], 27, 5.5,
   );
   text('Formal COSMO-SAC sulfur prediction: NOT CALCULABLE', 42, 420, 755, 9, COLORS.red, true);
+  }
 
   page('5. Engineering Stage Selection', false, 'Preferred engineering candidate, accepted Predictive N_T, and established theoretical stages are separate states');
   grid([
-    ['Preferred engineering/process-sensitivity candidate', 'NOT ASSIGNED'],
+    ['Preferred engineering/process-sensitivity candidate',
+      prePilotMultistage && o.predictiveNt != null ? `N_T = ${o.predictiveNt}` : 'NOT ASSIGNED'],
     ['Accepted Predictive N_T', o.predictiveNt ?? 'NOT ASSIGNED'],
     ['Established theoretical stages', o.establishedTheoreticalStages ?? 'NOT ESTABLISHED'],
   ], 42, 110, 510, 38);
   doc.roundedRect(42, 260, 510, 120, 4).fill('#FFF3E5');
   text('SELECTION GOVERNANCE', 55, 278, 480, 9, COLORS.amber, true);
   text(
-    'No explicit deterministic preferred-candidate selection rule is persisted for this completed run. No stage is selected by this report. Unconverged trials and scientifically unqualified trials can never become an accepted Predictive N_T through presentation logic.',
+    prePilotMultistage
+      ? 'The persisted deterministic rule selects the smallest fully accepted simultaneous trial. Collapsed stages are NO_PHYSICAL_LLE and remain unselected; numerical or target failures cannot become Predictive N_T through presentation logic.'
+      : 'No explicit deterministic preferred-candidate selection rule is persisted for this completed run. No stage is selected by this report. Unconverged trials and scientifically unqualified trials can never become an accepted Predictive N_T through presentation logic.',
     55, 305, 480, 8.5,
   );
 
@@ -458,7 +485,9 @@ export async function generatePredictiveNtReport(
     ['Primary solver closure', explicitClosureSummary(o.trials)],
     ['Secondary / multistart closure', explicitClosureSummary(o.trials, true)],
     ['Global TPD stability', sevenComponent
-      ? 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING'
+      ? (prePilotMultistage
+        ? 'POST-SPLIT TPD >= -1e-8 + EXPLICIT MONO-RICH SEARCH'
+        : 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING')
       : (o.globalStabilityQualification?.status ?? 'NOT_CALCULABLE / MISSING_EVIDENCE')],
     ['Sulfur thermodynamic prediction', 'NOT CALCULABLE'],
     ['Pilot validation', o.pilotValidated ? 'PASS' : 'NOT VALIDATED'],
@@ -483,7 +512,7 @@ export async function generatePredictiveNtReport(
     page(
       `Appendix A — N_T=${trial.stageCount} Numerical Diagnostics`,
       true,
-      `${sevenComponent ? 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING' : 'RESEARCH DIAGNOSTIC'} — NOT ACCEPTED · numerical gates ${trial.numericalAcceptancePassed ? 'PASS' : 'FAIL'} · maximum component-balance residual ${Number(trial.maximumOverallComponentBalanceResidualMol).toExponential(3)}`,
+      `${prePilotMultistage ? 'PRE-PILOT MULTISTAGE PREDICTIVE MODEL' : sevenComponent ? 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING' : 'RESEARCH DIAGNOSTIC'} — ${trial.accepted ? 'ACCEPTED' : 'NOT ACCEPTED'} · numerical gates ${trial.numericalAcceptancePassed ? 'PASS' : 'FAIL'} · maximum component-balance residual ${Number(trial.maximumOverallComponentBalanceResidualMol).toExponential(3)}`,
     );
     const shift = trialClosed ? 0 : 22;
     if (!trialClosed) {

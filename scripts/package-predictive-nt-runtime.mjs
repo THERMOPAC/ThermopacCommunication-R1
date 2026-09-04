@@ -244,3 +244,47 @@ await writeFile(
 console.log(
   `Packaged Predictive N_T 7C-1.3 runtime (${sevenThirteenRecords.length} hashed files)`,
 );
+
+// 7C-1.4.0 layers the immutable Task-238 native-plus-RK model and worker while
+// retaining every historical runtime byte-for-byte.
+const sevenFourteenBundleRoot = path.join(root, 'dist', 'predictive-nt-runtime-7c-1-4');
+await rm(sevenFourteenBundleRoot, { recursive: true, force: true });
+await cp(sevenThirteenBundleRoot, sevenFourteenBundleRoot, { recursive: true });
+for (const relativePath of [
+  'server/ecr-pre-pilot/predictive-nt-seven-component-v1-4',
+  'server/research/ecr-pre-pilot-seven-component-rk-cascade',
+  'server/research/task-238-nmp-oil-interaction-model/model.py',
+  'server/research/task-238-nmp-oil-interaction-model/protocol.json',
+]) {
+  const source = path.join(root, relativePath);
+  const destination = path.join(sevenFourteenBundleRoot, relativePath);
+  await mkdir(path.dirname(destination), { recursive: true });
+  await cp(source, destination, { recursive: true });
+}
+const sevenFourteenPackagedFiles = (await bundledFiles(sevenFourteenBundleRoot)).sort();
+const sevenFourteenRecords = [];
+for (const absolute of sevenFourteenPackagedFiles) {
+  const content = await readFile(absolute);
+  const metadata = await stat(absolute);
+  sevenFourteenRecords.push({
+    path: path.relative(sevenFourteenBundleRoot, absolute).split(path.sep).join('/'),
+    bytes: metadata.size,
+    sha256: createHash('sha256').update(content).digest('hex'),
+  });
+}
+await writeFile(
+  path.join(sevenFourteenBundleRoot, 'predictive-nt-runtime-manifest.json'),
+  `${JSON.stringify({
+    schemaVersion: 'PREDICTIVE_NT_RUNTIME_MANIFEST_V1',
+    hashAlgorithm: 'sha256',
+    fileCount: sevenFourteenRecords.length,
+    aggregateSha256: createHash('sha256').update(
+      sevenFourteenRecords.map((record) =>
+        `${record.path}:${record.bytes}:${record.sha256}`).join('\n'),
+    ).digest('hex'),
+    files: sevenFourteenRecords,
+  }, null, 2)}\n`,
+);
+console.log(
+  `Packaged Predictive N_T 7C-1.4 runtime (${sevenFourteenRecords.length} hashed files)`,
+);

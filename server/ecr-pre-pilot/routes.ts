@@ -14,7 +14,7 @@ import {
   startPredictiveNtWorker,
   stopPredictiveNtJob,
 } from './predictive-nt-job-service';
-import { PRE_PILOT_MODEL } from './model';
+import { PRE_PILOT_MODEL, PRE_PILOT_MULTISTAGE_MODEL } from './model';
 import {
   SIX_COMPONENT_COSMO_SAC_BASIS,
   SIX_COMPONENT_COSMO_SAC_BASIS_MANIFEST_SHA256,
@@ -24,20 +24,19 @@ export function setupEcrPrePilotRoutes(app: Express): void {
   startPredictiveNtWorker();
   app.get('/api/ecr-pre-pilot/predictive-nt/basis', ensureAuthenticated, (_req: Request, res: Response) => {
     return res.json({
-      model: PRE_PILOT_MODEL,
+      model: PRE_PILOT_MULTISTAGE_MODEL,
       molecularRegistry: PREDICTIVE_NT_MOLECULAR_REGISTRY,
       predictiveEngineComponentContract: {
-        engineContractVersion: '7C-1.3.0',
+        engineContractVersion: '7C-1.4.0',
         componentCount: 7,
         families: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
-        thermodynamicModel: 'NATIVE_SEVEN_COMPONENT_COSMO_SAC_2010_H2O',
-        modelIdentity: 'NATIVE_SEVEN_COMPONENT_CCOSMO_2010',
-        inheritedSixComponentResidualApplied: false,
-        residualScopeDecision:
-          'SCOPED_OUT_AFTER_FAILED_DECLARED_LLE_VALIDATION_AND_REPRODUCED_MONO_RICH_FALSE_INSTABILITY',
+        thermodynamicModel: 'NATIVE_SEVEN_COMPONENT_COSMO_SAC_2010_ADDITIVE_RK_H2O',
+        modelIdentity: 'NATIVE_SEVEN_COMPONENT_CCOSMO_2010_PLUS_ADDITIVE_REDLICH_KISTER',
+        nativeGibbsContributionRetained: true,
+        interactionArtifact: 'TASK-238-NMP-OIL-RK-0.2.0',
         implementationStatus: 'IMPLEMENTED',
-        predictiveQualification: 'PENDING',
-        governanceStatus: 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING',
+        predictiveQualification: 'PRE_PILOT_MULTISTAGE',
+        governanceStatus: 'PRE-PILOT MULTISTAGE PREDICTIVE MODEL',
         releaseEligible: false,
       },
       historicalSixComponentContract: {
