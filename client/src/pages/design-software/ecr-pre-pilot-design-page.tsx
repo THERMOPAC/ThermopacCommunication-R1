@@ -59,6 +59,10 @@ type PredictiveNtBasis = {
   molecularRegistry: {
     saturates: MolecularIdentity[];
     monoAromatics: MolecularIdentity[];
+    diAromatics: MolecularIdentity & { admission: string };
+    polyAromatics: MolecularIdentity & { admission: string };
+    nmp: MolecularIdentity;
+    water?: MolecularIdentity;
     polarAromatics: {
       admission: string;
       representative: {
@@ -1523,59 +1527,95 @@ export default function EcrPrePilotDesignPage() {
                 error={validationErrors.phaseConfiguration}
               />
               <div className="md:col-span-2 rounded-lg border border-blue-200 bg-blue-50/60 p-3">
-                <p className="text-[12px] font-semibold text-blue-900">Predictive SAT / MONO molecular basis</p>
+                <p className="text-[12px] font-semibold text-blue-900">Predictive molecular component basis</p>
                 <p className="mb-3 mt-0.5 text-[11px] leading-4 text-blue-800">
-                  Select one admitted registry identity for each representative hydrocarbon family. Only the frozen model registry is available.
+                  Select the admitted SAT and MONO representatives. DI, POLY, PA, NMP, and H₂O identities are fixed by the active seven-component predictive model contract.
                 </p>
                 {predictiveBasisError ? (
                   <p className="text-[11px] font-medium text-red-600">{predictiveBasisError}</p>
                 ) : predictiveBasis ? (
-                  <div className="grid gap-3.5 md:grid-cols-2">
-                    <SelectField
-                      id="sat-identity"
-                      label="SAT representative"
-                      value={form.satIdentity}
-                      onChange={(value) => setField("satIdentity", value)}
-                      placeholder="Select admitted SAT identity"
-                      options={predictiveBasis.molecularRegistry.saturates.map((item) => ({
-                        value: item.identity,
-                        label: `${item.label} (${item.molecularWeightGmol.toFixed(2)} g/mol)`,
-                      }))}
-                      required
-                      error={validationErrors.satIdentity}
-                    />
-                    <SelectField
-                      id="mono-identity"
-                      label="MONO representative"
-                      value={form.monoIdentity}
-                      onChange={(value) => setField("monoIdentity", value)}
-                      placeholder="Select admitted MONO identity"
-                      options={predictiveBasis.molecularRegistry.monoAromatics.map((item) => ({
-                        value: item.identity,
-                        label: `${item.label} (${item.molecularWeightGmol.toFixed(2)} g/mol)`,
-                      }))}
-                      required
-                      error={validationErrors.monoIdentity}
-                    />
-                    <SelectField
-                      id="maximum-stages"
-                      label="Theoretical stage count to test"
-                      value={form.maximumStages}
-                      onChange={(value) => setField("maximumStages", value)}
-                      placeholder="Select exact N_T"
-                      options={MAXIMUM_STAGE_OPTIONS}
-                      required
-                      error={validationErrors.maximumStages}
-                    />
-                    <p className="text-[11px] leading-4 text-blue-700 md:col-span-3">
-                      Authoritative Stage 1 value. The predictive engine solves exactly this theoretical-stage count; it does not search from 1 through N_T.
-                    </p>
+                  <div className="space-y-3.5">
+                    <div className="grid gap-3.5 md:grid-cols-2">
+                      <SelectField
+                        id="sat-identity"
+                        label="SAT representative"
+                        value={form.satIdentity}
+                        onChange={(value) => setField("satIdentity", value)}
+                        placeholder="Select admitted SAT identity"
+                        options={predictiveBasis.molecularRegistry.saturates.map((item) => ({
+                          value: item.identity,
+                          label: `${item.label} (${item.molecularWeightGmol.toFixed(2)} g/mol)`,
+                        }))}
+                        required
+                        error={validationErrors.satIdentity}
+                      />
+                      <SelectField
+                        id="mono-identity"
+                        label="MONO representative"
+                        value={form.monoIdentity}
+                        onChange={(value) => setField("monoIdentity", value)}
+                        placeholder="Select admitted MONO identity"
+                        options={predictiveBasis.molecularRegistry.monoAromatics.map((item) => ({
+                          value: item.identity,
+                          label: `${item.label} (${item.molecularWeightGmol.toFixed(2)} g/mol)`,
+                        }))}
+                        required
+                        error={validationErrors.monoIdentity}
+                      />
+                    </div>
+                    <div className="overflow-x-auto rounded-md border border-blue-200 bg-white">
+                      <table className="w-full min-w-[620px] text-left text-[11px]">
+                        <thead className="bg-blue-100/70 text-blue-950">
+                          <tr>
+                            <th className="px-3 py-2 font-semibold">Component</th>
+                            <th className="px-3 py-2 font-semibold">Molecular representative</th>
+                            <th className="px-3 py-2 font-semibold">Molecular weight</th>
+                            <th className="px-3 py-2 font-semibold">Authority</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-blue-100 text-slate-700">
+                          {[
+                            ["SAT", predictiveBasis.molecularRegistry.saturates.find(({ identity }) => identity === form.satIdentity)?.label ?? "Select above", predictiveBasis.molecularRegistry.saturates.find(({ identity }) => identity === form.satIdentity)?.molecularWeightGmol, "Stage 1 selection"],
+                            ["MONO", predictiveBasis.molecularRegistry.monoAromatics.find(({ identity }) => identity === form.monoIdentity)?.label ?? "Select above", predictiveBasis.molecularRegistry.monoAromatics.find(({ identity }) => identity === form.monoIdentity)?.molecularWeightGmol, "Stage 1 selection"],
+                            ["DI", predictiveBasis.molecularRegistry.diAromatics.label, predictiveBasis.molecularRegistry.diAromatics.molecularWeightGmol, "Frozen model surrogate"],
+                            ["POLY", predictiveBasis.molecularRegistry.polyAromatics.label, predictiveBasis.molecularRegistry.polyAromatics.molecularWeightGmol, "Frozen model surrogate"],
+                            ["PA", predictiveBasis.molecularRegistry.polarAromatics.representative.commonName, predictiveBasis.molecularRegistry.polarAromatics.representative.molecularWeightGmol, "Frozen model representative"],
+                            ["NMP", predictiveBasis.molecularRegistry.nmp.label, predictiveBasis.molecularRegistry.nmp.molecularWeightGmol, "Fixed solvent"],
+                            ["H₂O", predictiveBasis.molecularRegistry.water?.label ?? "Water", predictiveBasis.molecularRegistry.water?.molecularWeightGmol ?? 18.01528, "Fixed co-solvent"],
+                          ].map(([family, representative, molecularWeight, authority]) => (
+                            <tr key={String(family)}>
+                              <td className="px-3 py-2 font-semibold text-slate-900">{family}</td>
+                              <td className="px-3 py-2">{representative}</td>
+                              <td className="px-3 py-2 tabular-nums">
+                                {typeof molecularWeight === "number" ? `${molecularWeight.toFixed(3)} g/mol` : "—"}
+                              </td>
+                              <td className="px-3 py-2">{authority}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-[11px] text-blue-700">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading admitted molecular identities…
                   </div>
                 )}
+              </div>
+              <div className="space-y-1">
+                <SelectField
+                  id="maximum-stages"
+                  label="Theoretical stage count to test"
+                  value={form.maximumStages}
+                  onChange={(value) => setField("maximumStages", value)}
+                  placeholder="Select exact N_T"
+                  options={MAXIMUM_STAGE_OPTIONS}
+                  required
+                  error={validationErrors.maximumStages}
+                />
+                <p className="text-[11px] leading-4 text-slate-500">
+                  Authoritative Stage 1 value. The predictive engine solves exactly this theoretical-stage count; it does not search from 1 through N_T.
+                </p>
               </div>
               <div className="space-y-1 md:col-span-2">
                 <Label htmlFor="design-basis-notes" className="text-[13px] font-medium text-slate-700">

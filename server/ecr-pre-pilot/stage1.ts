@@ -49,6 +49,11 @@ export const PREDICTIVE_NT_MOLECULAR_REGISTRY = {
     label: 'N-Methyl-2-pyrrolidone',
     molecularWeightGmol: 99.1311,
   },
+  water: {
+    identity: 'water',
+    label: 'Water',
+    molecularWeightGmol: 18.01528,
+  },
   polarAromatics: {
     admission: ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE.admission,
     representative: ECR_PRE_PILOT_PA_ANCHOR_EVIDENCE.identity,
