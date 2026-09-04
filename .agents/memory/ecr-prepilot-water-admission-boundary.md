@@ -41,8 +41,8 @@ The available direct water–NMP–hydrocarbon source measures VLE and infinite-
 
 **How to apply:** Count bibliography sources separately from governed numeric records. Keep the blind partition reserved and empty until independently held-out water-bearing tie lines are acquired; do not interpret an empty blind set as a passed blind validation.
 
-The production thermodynamic model must explicitly represent the controlled NMP + H₂O solvent formulation. Dry NMP is only a diagnostic zero-water limiting case, never a standalone production-model candidate. Successful dry-NMP fitting or dry held-out validation is never sufficient for production admission.
+The pre-pilot thermodynamic model must explicitly represent the controlled NMP + H₂O solvent formulation. Dry NMP is only a diagnostic zero-water limiting case, never the operating predictive model. Experimental wet LLE evidence is not required to execute the pre-pilot predictor.
 
-**Why:** Dry evidence can constrain the baseline NMP–hydrocarbon interactions, but it cannot validate water partition, wet phase topology, selectivity, or the stability of water-bearing daughter phases at the production formulation.
+**Why:** Stage 1 already governs the wet solvent and operating properties, while the simulator is intended to predict before pilot data exist. Absence of experimental wet tie-lines is expected and must not be presented as an execution blocker.
 
-**How to apply:** Fit and qualify the explicit seven-component SAT + MONO + DI + POLY + PA + NMP + H₂O formulation. Use dry calculations only to isolate baseline interaction errors. Production admission requires governed water-bearing tie-line evidence, independently held-out wet validation at the intended formulation and temperature range, stable coexisting phases, and complete cascade acceptance.
+**How to apply:** Execute the explicit SAT + MONO + DI + POLY + PA + NMP + H₂O formulation from governed Stage-1 inputs. Use dry calculations only to isolate baseline interaction errors. Keep strict split, closure, Gibbs-reduction, daughter-stability, no-false-basin, and branch-reproduction gates.
