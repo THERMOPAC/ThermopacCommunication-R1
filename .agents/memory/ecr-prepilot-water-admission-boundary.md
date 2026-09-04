@@ -41,8 +41,8 @@ The available direct water–NMP–hydrocarbon source measures VLE and infinite-
 
 **How to apply:** Count bibliography sources separately from governed numeric records. Keep the blind partition reserved and empty until independently held-out water-bearing tie lines are acquired; do not interpret an empty blind set as a passed blind validation.
 
-Successful dry-NMP fitting or dry held-out validation is never sufficient for production admission of the controlled NMP/H₂O solvent model.
+The production thermodynamic model must explicitly represent the controlled NMP + H₂O solvent formulation. Dry NMP is only a diagnostic zero-water limiting case, never a standalone production-model candidate. Successful dry-NMP fitting or dry held-out validation is never sufficient for production admission.
 
 **Why:** Dry evidence can constrain the baseline NMP–hydrocarbon interactions, but it cannot validate water partition, wet phase topology, selectivity, or the stability of water-bearing daughter phases at the production formulation.
 
-**How to apply:** Treat dry qualification as a prerequisite only. Production admission additionally requires governed water-bearing tie-line evidence, independently held-out wet validation at the intended formulation and temperature range, stable coexisting phases, and complete cascade acceptance.
+**How to apply:** Fit and qualify the explicit seven-component SAT + MONO + DI + POLY + PA + NMP + H₂O formulation. Use dry calculations only to isolate baseline interaction errors. Production admission requires governed water-bearing tie-line evidence, independently held-out wet validation at the intended formulation and temperature range, stable coexisting phases, and complete cascade acceptance.
