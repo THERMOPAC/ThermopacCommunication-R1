@@ -2291,20 +2291,25 @@ export default function EcrPrePilotDesignPage() {
                       .map((family, index) => `${family}=${Number(values[index]).toExponential(4)}`)
                       .join(" · ");
                     return (
-                      <div className="space-y-3 rounded-md border-2 border-amber-300 bg-amber-50 p-3 text-[11px] text-amber-950">
+                      <div className="space-y-3 rounded-md border-2 border-red-400 bg-red-50 p-3 text-[11px] text-red-950">
                         <div>
-                          <h3 className="text-sm font-semibold">Research-only replacement thermodynamics — shown on live result</h3>
+                          <h3 className="text-sm font-semibold">Offline development calibration — not live-engine evidence</h3>
                           <p className="mt-1">
                             <strong>{candidate.status}</strong> · {candidate.artifactVersion} · used by active cascade:{" "}
                             <strong>{candidate.usedByActiveCascade ? "YES" : "NO"}</strong>
                           </p>
+                          <p className="mt-2 rounded border border-red-400 bg-white p-2 font-semibold">
+                            This panel does not prove that the live Predictive N_T engine restored the NMP/oil split.
+                            The active trial remains authoritative: identical R/E compositions are a thermodynamic collapse,
+                            and UNCLOSED residual status is a separate numerical closure failure.
+                          </p>
                           <p className="mt-1">
-                            This governed comparison is displayed with the live result, but does not replace its persisted streams,
-                            targets, stage count, or acceptance state.
+                            The values below reproduce one offline development/calibration state only. They do not replace the
+                            live job&apos;s persisted streams, targets, stage count, solver status, or acceptance state.
                           </p>
                         </div>
                         <div className="grid gap-2 md:grid-cols-2">
-                          <div className="rounded border border-amber-200 bg-white p-2">
+                          <div className="rounded border border-red-200 bg-white p-2">
                             <p className="font-semibold">Model and exact parent state</p>
                             <p>{candidate.model.identity}</p>
                             <p>{candidate.model.totalScalarGibbs} · {candidate.model.parameterCount} parameters · {candidate.model.declaredPairCount} pairs</p>
@@ -2315,8 +2320,8 @@ export default function EcrPrePilotDesignPage() {
                               {" / "}{candidate.parent.extractDevelopmentBranchTpd.toExponential(4)}
                             </p>
                           </div>
-                          <div className="rounded border border-amber-200 bg-white p-2">
-                            <p className="font-semibold">Research two-phase split</p>
+                          <div className="rounded border border-red-200 bg-white p-2">
+                            <p className="font-semibold">Offline fitted two-phase calibration state</p>
                             <p>Raffinate fraction: <strong>{candidate.split.betaRaffinate.toFixed(6)}</strong> · Extract fraction: <strong>{candidate.split.betaExtract.toFixed(6)}</strong></p>
                             <p className="mt-1 font-mono text-[10px]">Oil-rich R mole: {formatCandidate(candidate.split.raffinateMoleFractions)}</p>
                             <p className="mt-1 font-mono text-[10px]">NMP-rich E mole: {formatCandidate(candidate.split.extractMoleFractions)}</p>
