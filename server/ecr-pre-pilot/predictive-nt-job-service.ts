@@ -2642,7 +2642,6 @@ export async function enqueuePredictiveNtRuntimeTestJob(
 export async function enqueuePredictiveNtJobFromSavedStage1(
   userId: number,
   designId: number,
-  ntTest: number = 7,
 ) {
   const jobId = randomUUID();
   const client = await pool.connect();
@@ -2667,8 +2666,9 @@ export async function enqueuePredictiveNtJobFromSavedStage1(
       design.rows[0].input_data,
       Number(design.rows[0].project_number),
     );
+    const ntTest = derivedInput.maximumStages;
     if (!Number.isInteger(ntTest) || ntTest < 1 || ntTest > 10) {
-      throw new Error('INVALID_NT_TEST');
+      throw new Error('INVALID_STAGE1_THEORETICAL_STAGE_COUNT');
     }
     const input = { ...derivedInput, ntTest };
     gate = validatePredictiveNtJobInput(input);

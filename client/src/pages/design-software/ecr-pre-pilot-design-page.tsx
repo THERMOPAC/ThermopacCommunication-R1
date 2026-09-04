@@ -341,8 +341,8 @@ const DEFAULT_PHASE_CONFIGURATION = "nmp-continuous-rrbo-dispersed";
 const DEFAULT_RRBO_GRADE = "SN300";
 const DEFAULT_OPERATING_TEMPERATURE_C = "50";
 const DEFAULT_OPERATING_PRESSURE = "2.0";
-const MAXIMUM_STAGE_OPTIONS = Array.from({ length: 9 }, (_, index) => {
-  const value = String(index + 2);
+const MAXIMUM_STAGE_OPTIONS = Array.from({ length: 10 }, (_, index) => {
+  const value = String(index + 1);
   return { value, label: `${value} stages` };
 });
 
@@ -698,7 +698,7 @@ function validateForm(form: FormState): ValidationErrors {
   requiredOption("phaseConfiguration", "Phase configuration", PHASE_OPTIONS);
   requiredText("satIdentity", "SAT molecular identity");
   requiredText("monoIdentity", "MONO molecular identity");
-  requiredOption("maximumStages", "maximum stage search", MAXIMUM_STAGE_OPTIONS);
+  requiredOption("maximumStages", "theoretical stage count to test", MAXIMUM_STAGE_OPTIONS);
 
   const compositionValues = COMPOSITION_FIELDS.map(({ key, label }) => ({
     key,
@@ -1003,7 +1003,6 @@ export default function EcrPrePilotDesignPage() {
   const [predictiveBasisError, setPredictiveBasisError] = useState<string | null>(null);
   const [predictiveJob, setPredictiveJob] = useState<PredictiveNtJob | null>(null);
   const [predictiveSubmitting, setPredictiveSubmitting] = useState(false);
-  const [ntTest, setNtTest] = useState("7");
   const [predictiveStopping, setPredictiveStopping] = useState(false);
   const [predictivePollingPaused, setPredictivePollingPaused] = useState(false);
   const [predictivePollingError, setPredictivePollingError] = useState<string | null>(null);
@@ -1339,15 +1338,13 @@ export default function EcrPrePilotDesignPage() {
       const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/predictive-nt/jobs`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ntTest: Number(ntTest) }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error ?? "Predictive N_T job could not be submitted.");
       setPredictiveJob({
         id: String(payload.jobId),
         status: payload.status,
-        input: { ntTest: Number(ntTest) },
+        input: { ntTest: Number(form.maximumStages) },
         progress: { completedStageTrials: 0, maximumStages: 1 },
         modelHash: predictiveBasis.model.modelHash,
         engineHash: "",
@@ -1562,14 +1559,17 @@ export default function EcrPrePilotDesignPage() {
                     />
                     <SelectField
                       id="maximum-stages"
-                      label="Maximum stage count to search"
+                      label="Theoretical stage count to test"
                       value={form.maximumStages}
                       onChange={(value) => setField("maximumStages", value)}
-                      placeholder="Select N_max"
+                      placeholder="Select exact N_T"
                       options={MAXIMUM_STAGE_OPTIONS}
                       required
                       error={validationErrors.maximumStages}
                     />
+                    <p className="text-[11px] leading-4 text-blue-700 md:col-span-3">
+                      Authoritative Stage 1 value. The predictive engine solves exactly this theoretical-stage count; it does not search from 1 through N_T.
+                    </p>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-[11px] text-blue-700">
@@ -2029,20 +2029,6 @@ export default function EcrPrePilotDesignPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4 px-4 py-4">
-              <div className="max-w-xs">
-                <SelectField
-                  label="N_T Test"
-                  value={ntTest}
-                  onChange={setNtTest}
-                  options={Array.from({ length: 10 }, (_, index) => {
-                    const value = String(index + 1);
-                    return { value, label: value };
-                  })}
-                />
-                <p className="mt-1 text-[11px] text-slate-500">
-                  Solves exactly this theoretical-stage count; it does not run stages 1 through N_T.
-                </p>
-              </div>
               <div className={`rounded-md border p-3 text-[11px] leading-5 ${
                 saveState === "saved"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-950"

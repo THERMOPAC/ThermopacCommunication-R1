@@ -135,7 +135,7 @@ const RECOVERY_TARGETS = new Set(Array.from({ length: 11 }, (_, index) => 80 + i
 const NMP_TARGETS = new Set(Array.from({ length: 19 }, (_, index) => 1 + index * 0.5));
 const SAT_IDENTITIES = new Set(PREDICTIVE_NT_MOLECULAR_REGISTRY.saturates.map(({ identity }) => identity));
 const MONO_IDENTITIES = new Set(PREDICTIVE_NT_MOLECULAR_REGISTRY.monoAromatics.map(({ identity }) => identity));
-const MAXIMUM_STAGE_OPTIONS = new Set(Array.from({ length: 9 }, (_, index) => index + 2));
+const MAXIMUM_STAGE_OPTIONS = new Set(Array.from({ length: 10 }, (_, index) => index + 1));
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -235,7 +235,7 @@ export function canonicalizeStage1Input(
     designBasisNotes: optionalText(source, 'designBasisNotes'),
     satIdentity: requireOption(text(source, 'satIdentity', 80), SAT_IDENTITIES, 'satIdentity'),
     monoIdentity: requireOption(text(source, 'monoIdentity', 80), MONO_IDENTITIES, 'monoIdentity'),
-    maximumStages: requireOption(numberValue(source, 'maximumStages', 2, 10), MAXIMUM_STAGE_OPTIONS, 'maximumStages'),
+    maximumStages: requireOption(numberValue(source, 'maximumStages', 1, 10), MAXIMUM_STAGE_OPTIONS, 'maximumStages'),
   };
 
   const compositionTotal = stage1.saturatesWt + stage1.monoAromaticsWt + stage1.diAromaticsWt

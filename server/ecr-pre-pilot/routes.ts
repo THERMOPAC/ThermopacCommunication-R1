@@ -127,7 +127,6 @@ export function setupEcrPrePilotRoutes(app: Express): void {
         const job = await enqueuePredictiveNtJobFromSavedStage1(
           Number((req.user as any).id),
           designId,
-          Number(req.body?.ntTest ?? 7),
         );
         return res.status(202).json(job);
       } catch (error: any) {
