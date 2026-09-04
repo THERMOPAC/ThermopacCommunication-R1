@@ -1535,65 +1535,68 @@ export default function EcrPrePilotDesignPage() {
                   <p className="text-[11px] font-medium text-red-600">{predictiveBasisError}</p>
                 ) : predictiveBasis ? (
                   <div className="space-y-3.5">
-                    <div className="grid gap-3.5 md:grid-cols-2">
-                      <SelectField
-                        id="sat-identity"
-                        label="SAT representative"
-                        value={form.satIdentity}
-                        onChange={(value) => setField("satIdentity", value)}
-                        placeholder="Select admitted SAT identity"
-                        options={predictiveBasis.molecularRegistry.saturates.map((item) => ({
-                          value: item.identity,
-                          label: `${item.label} (${item.molecularWeightGmol.toFixed(2)} g/mol)`,
-                        }))}
-                        required
-                        error={validationErrors.satIdentity}
-                      />
-                      <SelectField
-                        id="mono-identity"
-                        label="MONO representative"
-                        value={form.monoIdentity}
-                        onChange={(value) => setField("monoIdentity", value)}
-                        placeholder="Select admitted MONO identity"
-                        options={predictiveBasis.molecularRegistry.monoAromatics.map((item) => ({
-                          value: item.identity,
-                          label: `${item.label} (${item.molecularWeightGmol.toFixed(2)} g/mol)`,
-                        }))}
-                        required
-                        error={validationErrors.monoIdentity}
-                      />
-                    </div>
-                    <div className="overflow-x-auto rounded-md border border-blue-200 bg-white">
-                      <table className="w-full min-w-[620px] text-left text-[11px]">
-                        <thead className="bg-blue-100/70 text-blue-950">
-                          <tr>
-                            <th className="px-3 py-2 font-semibold">Component</th>
-                            <th className="px-3 py-2 font-semibold">Molecular representative</th>
-                            <th className="px-3 py-2 font-semibold">Molecular weight</th>
-                            <th className="px-3 py-2 font-semibold">Authority</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-blue-100 text-slate-700">
-                          {[
-                            ["SAT", predictiveBasis.molecularRegistry.saturates.find(({ identity }) => identity === form.satIdentity)?.label ?? "Select above", predictiveBasis.molecularRegistry.saturates.find(({ identity }) => identity === form.satIdentity)?.molecularWeightGmol, "Stage 1 selection"],
-                            ["MONO", predictiveBasis.molecularRegistry.monoAromatics.find(({ identity }) => identity === form.monoIdentity)?.label ?? "Select above", predictiveBasis.molecularRegistry.monoAromatics.find(({ identity }) => identity === form.monoIdentity)?.molecularWeightGmol, "Stage 1 selection"],
-                            ["DI", predictiveBasis.molecularRegistry.diAromatics.label, predictiveBasis.molecularRegistry.diAromatics.molecularWeightGmol, "Frozen model surrogate"],
-                            ["POLY", predictiveBasis.molecularRegistry.polyAromatics.label, predictiveBasis.molecularRegistry.polyAromatics.molecularWeightGmol, "Frozen model surrogate"],
-                            ["PA", predictiveBasis.molecularRegistry.polarAromatics.representative.commonName, predictiveBasis.molecularRegistry.polarAromatics.representative.molecularWeightGmol, "Frozen model representative"],
-                            ["NMP", predictiveBasis.molecularRegistry.nmp.label, predictiveBasis.molecularRegistry.nmp.molecularWeightGmol, "Fixed solvent"],
-                            ["H₂O", predictiveBasis.molecularRegistry.water?.label ?? "Water", predictiveBasis.molecularRegistry.water?.molecularWeightGmol ?? 18.01528, "Fixed co-solvent"],
-                          ].map(([family, representative, molecularWeight, authority]) => (
-                            <tr key={String(family)}>
-                              <td className="px-3 py-2 font-semibold text-slate-900">{family}</td>
-                              <td className="px-3 py-2">{representative}</td>
-                              <td className="px-3 py-2 tabular-nums">
-                                {typeof molecularWeight === "number" ? `${molecularWeight.toFixed(3)} g/mol` : "—"}
-                              </td>
-                              <td className="px-3 py-2">{authority}</td>
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] font-semibold text-blue-900">Seven-component molecular basis</p>
+                      <div className="overflow-x-auto rounded-md border border-blue-200 bg-white">
+                        <table className="w-full min-w-[680px] text-left text-[11px]">
+                          <thead className="bg-blue-100/70 text-blue-950">
+                            <tr>
+                              <th className="px-3 py-2 font-semibold">Component</th>
+                              <th className="px-3 py-2 font-semibold">Molecular representative</th>
+                              <th className="px-3 py-2 font-semibold">Molecular weight</th>
+                              <th className="px-3 py-2 font-semibold">Authority</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-blue-100 text-slate-700">
+                            {[
+                              ["SAT", form.satIdentity, predictiveBasis.molecularRegistry.saturates, validationErrors.satIdentity],
+                              ["MONO", form.monoIdentity, predictiveBasis.molecularRegistry.monoAromatics, validationErrors.monoIdentity],
+                            ].map(([family, selectedIdentity, options, error]) => {
+                              const identities = options as MolecularIdentity[];
+                              const selected = identities.find(({ identity }) => identity === selectedIdentity);
+                              return (
+                                <tr key={String(family)}>
+                                  <td className="px-3 py-2 font-semibold text-slate-900">{family}</td>
+                                  <td className="px-3 py-2">
+                                    <select
+                                      aria-label={`${family} representative`}
+                                      value={String(selectedIdentity)}
+                                      onChange={(event) => setField(family === "SAT" ? "satIdentity" : "monoIdentity", event.target.value)}
+                                      className={`h-8 w-full rounded-md border bg-white px-2 text-xs shadow-sm outline-none focus:ring-2 focus:ring-blue-400 ${error ? "border-red-400" : "border-slate-200"}`}
+                                    >
+                                      <option value="">Select admitted identity</option>
+                                      {identities.map((item) => (
+                                        <option key={item.identity} value={item.identity}>{item.label}</option>
+                                      ))}
+                                    </select>
+                                    {error && <p className="mt-1 font-medium text-red-600">{String(error)}</p>}
+                                  </td>
+                                  <td className="px-3 py-2 tabular-nums">
+                                    {selected ? `${selected.molecularWeightGmol.toFixed(3)} g/mol` : "—"}
+                                  </td>
+                                  <td className="px-3 py-2">Stage 1 selection</td>
+                                </tr>
+                              );
+                            })}
+                            {[
+                              ["DI", predictiveBasis.molecularRegistry.diAromatics.label, predictiveBasis.molecularRegistry.diAromatics.molecularWeightGmol, "Frozen model surrogate"],
+                              ["POLY", predictiveBasis.molecularRegistry.polyAromatics.label, predictiveBasis.molecularRegistry.polyAromatics.molecularWeightGmol, "Frozen model surrogate"],
+                              ["PA", predictiveBasis.molecularRegistry.polarAromatics.representative.commonName, predictiveBasis.molecularRegistry.polarAromatics.representative.molecularWeightGmol, "Frozen model representative"],
+                              ["NMP", predictiveBasis.molecularRegistry.nmp.label, predictiveBasis.molecularRegistry.nmp.molecularWeightGmol, "Fixed solvent"],
+                              ["H₂O", predictiveBasis.molecularRegistry.water?.label ?? "Water", predictiveBasis.molecularRegistry.water?.molecularWeightGmol ?? 18.01528, "Fixed co-solvent"],
+                            ].map(([family, representative, molecularWeight, authority]) => (
+                              <tr key={String(family)}>
+                                <td className="px-3 py-2 font-semibold text-slate-900">{family}</td>
+                                <td className="px-3 py-2">{representative}</td>
+                                <td className="px-3 py-2 tabular-nums">
+                                  {typeof molecularWeight === "number" ? `${molecularWeight.toFixed(3)} g/mol` : "—"}
+                                </td>
+                                <td className="px-3 py-2">{authority}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 ) : (
