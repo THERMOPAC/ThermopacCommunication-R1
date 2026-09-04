@@ -1620,28 +1620,6 @@ export default function EcrPrePilotDesignPage() {
                   Authoritative Stage 1 value. The predictive engine solves exactly this theoretical-stage count; it does not search from 1 through N_T.
                 </p>
               </div>
-              <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="design-basis-notes" className="text-[13px] font-medium text-slate-700">
-                  Design basis notes <span className="font-normal text-slate-400">(optional)</span>
-                </Label>
-                <Textarea
-                  id="design-basis-notes"
-                  value={form.designBasisNotes}
-                  onChange={(event) => setField("designBasisNotes", event.target.value)}
-                  placeholder="Add a project-specific note or source reference"
-                  rows={1}
-                  maxLength={2001}
-                  aria-invalid={Boolean(validationErrors.designBasisNotes)}
-                  aria-describedby={validationErrors.designBasisNotes ? "design-basis-notes-error" : undefined}
-                  className={`min-h-8 resize-none bg-white text-sm ${validationErrors.designBasisNotes ? "border-red-400 focus-visible:ring-red-400" : ""}`}
-                />
-                <p className="text-[10px] text-slate-400">{form.designBasisNotes.length}/2,000 characters</p>
-                {validationErrors.designBasisNotes && (
-                  <p id="design-basis-notes-error" className="text-[11px] font-medium text-red-600">
-                    {validationErrors.designBasisNotes}
-                  </p>
-                )}
-              </div>
             </CardContent>
           </Card>
 
