@@ -19,6 +19,7 @@ import {
   verifyStage1SixComponentCosmoSacProfileFiles,
 } from './six-component-cosmo-sac-basis';
 import { generatePredictiveNtReport } from './predictive-nt-report';
+import { PREDICTIVE_NT_RESEARCH_CANDIDATE } from './predictive-nt-research-candidate';
 
 export interface PredictiveNtJobInput {
   engineContractVersion?: '6C-1.0.0' | '7C-1.1.0' | '7C-1.2.0' | '7C-1.3.0';
@@ -1536,6 +1537,15 @@ export function deriveSixComponentCosmoSacRemoval(
 }
 
 function mapJob(row: any): PredictiveNtJob {
+  const persistedResult = row.result_snapshot;
+  const result = (
+    persistedResult
+    && typeof persistedResult === 'object'
+    && isSevenComponentInput(row.input_snapshot)
+  ) ? {
+      ...persistedResult,
+      researchOnlyReplacementModel: PREDICTIVE_NT_RESEARCH_CANDIDATE,
+    } : persistedResult;
   return {
     id: row.id,
     designId: Number(row.design_id),
@@ -1551,7 +1561,7 @@ function mapJob(row: any): PredictiveNtJob {
       completedStageTrials: Number(row.completed_trials),
       maximumStages: Number(row.maximum_stages),
     },
-    result: row.result_snapshot,
+    result,
     report: {
       available: Boolean(row.report_generated_at && row.report_filename),
       filename: row.report_filename ?? null,

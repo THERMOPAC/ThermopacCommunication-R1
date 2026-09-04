@@ -223,6 +223,71 @@ type PredictiveNtResult = {
     auditHash?: string;
     qualificationHash?: string;
   };
+  researchOnlyReplacementModel?: {
+    artifactVersion: string;
+    status: string;
+    usedByActiveCascade: boolean;
+    componentOrder: string[];
+    model: {
+      identity: string;
+      totalScalarGibbs: string;
+      nativeRetainedInAllCalculations: boolean;
+      parameterCount: number;
+      declaredPairCount: number;
+      polynomialOrders: number[];
+    };
+    provenance: {
+      resultsSha256: string;
+      modelSha256: string;
+      protocolSha256: string;
+      evidenceSha256: string;
+    };
+    parent: {
+      temperatureK: number;
+      waterWeightPercentOfWetSolvent: number;
+      composition: number[];
+      unstableTowardDistinctNmpOilBranch: boolean;
+      raffinateDevelopmentBranchTpd: number;
+      extractDevelopmentBranchTpd: number;
+    };
+    split: {
+      betaRaffinate: number;
+      betaExtract: number;
+      raffinateMoleFractions: number[];
+      extractMoleFractions: number[];
+      gibbsReduction: number;
+      materialClosureMaxResidual: number;
+      chemicalPotentialMaxResidual: number;
+      maximumIndependentPhaseCompositionDifference: number;
+      independentBetaAbsoluteDifference: number;
+      positivePhaseAmounts: boolean;
+      positiveComponentAmounts: boolean;
+      oilRichRaffinate: boolean;
+      nmpRichExtract: boolean;
+    };
+    stability: {
+      raffinateTpdMinimum: number;
+      extractTpdMinimum: number;
+      postSplitVerdict: string;
+      formerMonoRichConstrainedMinimum: number;
+      formerMonoRichNegativeBasinFound: boolean;
+      globalExclusionClaimed: boolean;
+    };
+    evidenceFit: {
+      ceiling: number;
+      trainingRows: number;
+      trainingChemicalPotentialEqualityRms: number;
+      trainingStatus: string;
+      heldOutRows: number;
+      heldOutChemicalPotentialEqualityRms: number;
+      heldOutStatus: string;
+    };
+    releaseGate: {
+      predictiveEligible: boolean;
+      releaseEligible: boolean;
+      blockers: string[];
+    };
+  };
   stage1TargetGovernance?: {
     stage1SnapshotHash?: string;
     predictiveNtAuthority?: string;
@@ -2219,6 +2284,78 @@ export default function EcrPrePilotDesignPage() {
                       <p className="mt-1 text-slate-500">{predictiveJob.result.engine?.engineId} {predictiveJob.result.engine?.engineVersion}</p>
                     </div>
                   </div>
+                  {predictiveJob.result.researchOnlyReplacementModel && (() => {
+                    const candidate = predictiveJob.result.researchOnlyReplacementModel;
+                    const candidateOrder = candidate.componentOrder;
+                    const formatCandidate = (values: number[]) => candidateOrder
+                      .map((family, index) => `${family}=${Number(values[index]).toExponential(4)}`)
+                      .join(" · ");
+                    return (
+                      <div className="space-y-3 rounded-md border-2 border-amber-300 bg-amber-50 p-3 text-[11px] text-amber-950">
+                        <div>
+                          <h3 className="text-sm font-semibold">Research-only replacement thermodynamics — shown on live result</h3>
+                          <p className="mt-1">
+                            <strong>{candidate.status}</strong> · {candidate.artifactVersion} · used by active cascade:{" "}
+                            <strong>{candidate.usedByActiveCascade ? "YES" : "NO"}</strong>
+                          </p>
+                          <p className="mt-1">
+                            This governed comparison is displayed with the live result, but does not replace its persisted streams,
+                            targets, stage count, or acceptance state.
+                          </p>
+                        </div>
+                        <div className="grid gap-2 md:grid-cols-2">
+                          <div className="rounded border border-amber-200 bg-white p-2">
+                            <p className="font-semibold">Model and exact parent state</p>
+                            <p>{candidate.model.identity}</p>
+                            <p>{candidate.model.totalScalarGibbs} · {candidate.model.parameterCount} parameters · {candidate.model.declaredPairCount} pairs</p>
+                            <p>{candidate.parent.temperatureK.toFixed(2)} K · H2O={candidate.parent.waterWeightPercentOfWetSolvent.toFixed(2)} wt% of wet solvent</p>
+                            <p className="mt-1 font-mono text-[10px]">Parent mole: {formatCandidate(candidate.parent.composition)}</p>
+                            <p className="mt-1 font-mono text-[10px]">
+                              Parent TPD toward R/E branches: {candidate.parent.raffinateDevelopmentBranchTpd.toExponential(4)}
+                              {" / "}{candidate.parent.extractDevelopmentBranchTpd.toExponential(4)}
+                            </p>
+                          </div>
+                          <div className="rounded border border-amber-200 bg-white p-2">
+                            <p className="font-semibold">Research two-phase split</p>
+                            <p>Raffinate fraction: <strong>{candidate.split.betaRaffinate.toFixed(6)}</strong> · Extract fraction: <strong>{candidate.split.betaExtract.toFixed(6)}</strong></p>
+                            <p className="mt-1 font-mono text-[10px]">Oil-rich R mole: {formatCandidate(candidate.split.raffinateMoleFractions)}</p>
+                            <p className="mt-1 font-mono text-[10px]">NMP-rich E mole: {formatCandidate(candidate.split.extractMoleFractions)}</p>
+                          </div>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                          <p>Gibbs reduction: <strong className="font-mono">{candidate.split.gibbsReduction.toExponential(4)}</strong></p>
+                          <p>Material closure: <strong className="font-mono">{candidate.split.materialClosureMaxResidual.toExponential(4)}</strong></p>
+                          <p>Chemical-potential residual: <strong className="font-mono">{candidate.split.chemicalPotentialMaxResidual.toExponential(4)}</strong></p>
+                          <p>Independent phase agreement: <strong className="font-mono">{candidate.split.maximumIndependentPhaseCompositionDifference.toExponential(4)}</strong></p>
+                          <p>Post-split R TPD: <strong className="font-mono">{candidate.stability.raffinateTpdMinimum.toExponential(4)}</strong></p>
+                          <p>Post-split E TPD: <strong className="font-mono">{candidate.stability.extractTpdMinimum.toExponential(4)}</strong></p>
+                          <p>Former MONO-rich constrained minimum: <strong className="font-mono">{candidate.stability.formerMonoRichConstrainedMinimum.toExponential(4)}</strong></p>
+                          <p>Global exclusion claimed: <strong>{candidate.stability.globalExclusionClaimed ? "YES" : "NO"}</strong></p>
+                        </div>
+                        <div className="grid gap-2 md:grid-cols-2">
+                          <p>
+                            Dry training fit: <strong>{candidate.evidenceFit.trainingStatus}</strong> · RMS{" "}
+                            {candidate.evidenceFit.trainingChemicalPotentialEqualityRms.toFixed(6)} / {candidate.evidenceFit.ceiling.toFixed(2)}
+                            {" "}· {candidate.evidenceFit.trainingRows} rows
+                          </p>
+                          <p>
+                            Dry held-out fit: <strong>{candidate.evidenceFit.heldOutStatus}</strong> · RMS{" "}
+                            {candidate.evidenceFit.heldOutChemicalPotentialEqualityRms.toFixed(6)} / {candidate.evidenceFit.ceiling.toFixed(2)}
+                            {" "}· {candidate.evidenceFit.heldOutRows} rows
+                          </p>
+                        </div>
+                        <p className="rounded border border-red-300 bg-red-50 p-2 text-red-900">
+                          Evidence blockers: <strong>{candidate.releaseGate.blockers.join(" · ")}</strong>
+                        </p>
+                        <div className="space-y-1 break-all font-mono text-[10px]">
+                          <p>Results SHA-256: {candidate.provenance.resultsSha256}</p>
+                          <p>Model SHA-256: {candidate.provenance.modelSha256}</p>
+                          <p>Protocol SHA-256: {candidate.provenance.protocolSha256}</p>
+                          <p>Evidence SHA-256: {candidate.provenance.evidenceSha256}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <div className="space-y-2">
                     <h3 className="text-sm font-semibold text-slate-900">All stage trials and diagnostics</h3>
                     {(predictiveJob.result.trials ?? []).map((trial) => {
