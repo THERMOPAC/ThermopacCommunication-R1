@@ -101,3 +101,4 @@
 - [Predictive 7C coupled cascade](predictive-7c-coupled-cascade.md) — 7C production inherits the frozen simultaneous 6C cascade; exhaustive 7C search is ambiguity-only audit.
 - [Wet 7C residual propagation diagnosis](wet-7c-residual-propagation.md) — native 7C is stable on all 3 wt% daughter states; inherited 6C residual alone creates the MONO-rich negative basin.
 - [Additive thermodynamic amendments](additive-thermodynamic-amendments.md) — a claimed native-plus amendment must retain native Gibbs everywhere; target wells and baseline cancellation are invalid.
+- [Wet 7C qualification roadmap](wet-7c-qualification-roadmap.md) — wet evidence and single-contact qualification precede immutable-engine and multistage admission; sulfur remains independent.
