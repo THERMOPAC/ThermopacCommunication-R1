@@ -158,6 +158,16 @@ type PredictiveTrial = {
   targetCompliance: Record<string, { status?: string; calculated?: number | null; target?: number }>;
   numericalAcceptancePassed: boolean;
   allCalculableTargetsPass: boolean;
+  sulfurPrediction?: {
+    status: "CALCULABLE" | "NOT_CALCULABLE";
+    reason?: string;
+    predictedRaffinateSulfurPpm: number | null;
+    sulfurRemovalPct: number | null;
+    targetRaffinateSulfurPpm: number;
+    targetStatus: "PASS" | "FAIL" | "NOT_CALCULABLE";
+    retainedFractions: Record<string, number | null>;
+    remainingContributionsPpm: Record<string, number | null>;
+  };
   researchStatus: string;
   accepted: boolean;
   stages: PredictiveStage[];
@@ -171,6 +181,7 @@ type PredictiveNtResult = {
   calibrationRequired: boolean;
   pilotValidated: boolean;
   releaseEligible: boolean;
+  sulfurPrediction?: PredictiveTrial["sulfurPrediction"];
   trialsAttempted?: number;
   governedTrialsAccepted?: number;
   diagnosticTrialsCalculated?: number;
@@ -2418,6 +2429,31 @@ export default function EcrPrePilotDesignPage() {
                                 </strong>
                               </p>
                             </div>
+                            {predictiveJob.result?.engineContractVersion === "7C-1.4.0" && (
+                              <div className="rounded border border-violet-200 bg-violet-50 p-2 text-violet-950">
+                                <p className="font-semibold">Governed sulfur post-processing</p>
+                                {trial.sulfurPrediction?.status === "CALCULABLE" ? (
+                                  <>
+                                    <p className="mt-1">
+                                      Predicted raffinate sulfur:{" "}
+                                      <strong>{Number(trial.sulfurPrediction.predictedRaffinateSulfurPpm).toFixed(2)} ppm</strong>
+                                      {" "}· sulfur removal:{" "}
+                                      <strong>{Number(trial.sulfurPrediction.sulfurRemovalPct).toFixed(4)}%</strong>
+                                      {" "}· target: <strong>{trial.sulfurPrediction.targetStatus}</strong>
+                                    </p>
+                                    <p className="mt-1 font-mono text-[10px]">
+                                      Remaining contribution: {["SAT", "MONO", "DI", "POLY", "PA"].map((component) =>
+                                        `${component}=${Number(trial.sulfurPrediction?.remainingContributionsPpm?.[component]).toFixed(2)} ppm`,
+                                      ).join(" · ")}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <p className="mt-1">
+                                    NOT CALCULABLE — {trial.sulfurPrediction?.reason ?? "trial is not physically/numerically valid"}
+                                  </p>
+                                )}
+                              </div>
+                            )}
                             {isSevenComponent ? (
                               <p className="rounded border bg-slate-50 p-2">
                                 <strong>Seven-component cascade solver</strong>: termination{" "}

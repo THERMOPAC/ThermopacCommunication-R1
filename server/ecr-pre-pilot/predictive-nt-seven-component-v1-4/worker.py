@@ -18,6 +18,7 @@ TASK238_PROTOCOL = ROOT / "server/research/task-238-nmp-oil-interaction-model/pr
 ENGINE_ID = "ECR2_PRE_PILOT_MULTISTAGE_SEVEN_COMPONENT_NATIVE_RK_CASCADE"
 ENGINE_VERSION = "7C-1.4.0"
 STATUS = "PRE-PILOT MULTISTAGE PREDICTIVE MODEL"
+SULFUR_COMPONENTS = ("SAT", "MONO", "DI", "POLY", "PA")
 
 
 def load(path, name):
@@ -92,10 +93,92 @@ def wet_charge(stage1):
     return original_wet_charge(stage1)
 
 
+def sulfur_prediction(trial, physically_numerically_valid):
+    assert stage1_authority is not None
+    empty = {component: None for component in SULFUR_COMPONENTS}
+    target = float(stage1_authority["targetRaffinateSulfurPpm"])
+    if not physically_numerically_valid:
+        return {
+            "status": "NOT_CALCULABLE",
+            "reason": "TRIAL_NOT_PHYSICALLY_NUMERICALLY_VALID",
+            "basis": "GOVERNED_STAGE1_SULFUR_ALLOCATION_POST_PROCESSING",
+            "predictedRaffinateSulfurPpm": None,
+            "sulfurRemovalPct": None,
+            "targetRaffinateSulfurPpm": target,
+            "targetStatus": "NOT_CALCULABLE",
+            "retainedFractions": empty,
+            "remainingContributionsPpm": empty,
+        }
+    feed_sulfur = float(stage1_authority["feedSulfurPpm"])
+    allocations = {
+        "SAT": float(stage1_authority["sulfurAllocationSatPct"]) / 100.0,
+        "MONO": float(stage1_authority["sulfurAllocationMonoPct"]) / 100.0,
+        "DI": float(stage1_authority["sulfurAllocationDiPct"]) / 100.0,
+        "POLY": float(stage1_authority["sulfurAllocationPolyPct"]) / 100.0,
+        "PA": float(stage1_authority["sulfurAllocationPaPct"]) / 100.0,
+    }
+    if abs(sum(allocations.values()) - 1.0) > 1e-12:
+        raise ValueError("INVALID_STAGE1_SULFUR_ALLOCATION_TOTAL")
+    feed_mass = trial["boundaryStreams"]["oilFeed"]["componentMass"]
+    raffinate_mass = trial["boundaryStreams"]["finalRaffinate"]["componentMass"]
+    retained = {}
+    contributions = {}
+    feed_basis = {}
+    raffinate_basis = {}
+    for index, component in enumerate(SULFUR_COMPONENTS):
+        component_feed = float(feed_mass[index])
+        component_raffinate = float(raffinate_mass[index])
+        if (
+            not parent.math.isfinite(component_feed)
+            or not parent.math.isfinite(component_raffinate)
+            or component_feed <= 0.0
+            or component_raffinate < 0.0
+        ):
+            raise ValueError("SULFUR_COMPONENT_MASS_BASIS_INVALID")
+        retained[component] = component_raffinate / component_feed
+        contributions[component] = (
+            feed_sulfur * allocations[component] * retained[component]
+        )
+        feed_basis[component] = component_feed
+        raffinate_basis[component] = component_raffinate
+    predicted = sum(contributions.values())
+    removal = 100.0 * (1.0 - predicted / feed_sulfur)
+    return {
+        "status": "CALCULABLE",
+        "basis": "GOVERNED_STAGE1_SULFUR_ALLOCATION_POST_PROCESSING",
+        "feedSulfurPpm": feed_sulfur,
+        "allocationFractions": allocations,
+        "componentMassBasis": {
+            "oilFeed": feed_basis,
+            "finalRaffinate": raffinate_basis,
+        },
+        "retainedFractions": retained,
+        "remainingContributionsPpm": contributions,
+        "predictedRaffinateSulfurPpm": predicted,
+        "sulfurRemovalPct": removal,
+        "targetRaffinateSulfurPpm": target,
+        "targetStatus": "PASS" if predicted <= target else "FAIL",
+    }
+
+
 def complete_trial(np, raw, feed, solvent, temperature_k):
     trial = original_complete_trial(np, raw, feed, solvent, temperature_k)
     assert stage1_authority is not None
     metrics = trial["productMetrics"]
+    physical = all(
+        stage["maximumCompositionSeparation"] >=
+        scientific.protocol()["numericalAcceptance"]["minimumPhaseCompositionSeparation"]
+        for stage in raw["stages"]
+    )
+    mono_audit_accepted = all(
+        stage["postSplitTpdSearch"][phase]["explicitMonoRichBasinSearch"]
+        .get("allRequiredSearchesAccepted") is True
+        for stage in raw["stages"] for phase in ("raffinate", "extract")
+    )
+    physically_numerically_valid = bool(
+        trial["numericalAcceptancePassed"] and physical and mono_audit_accepted
+    )
+    sulfur = sulfur_prediction(trial, physically_numerically_valid)
     checks = {
         "minimumRaffinateSaturatesWt": (
             metrics["raffinateSaturatesWtNmpFree"],
@@ -126,21 +209,13 @@ def complete_trial(np, raw, feed, solvent, temperature_k):
             "calculated": calculated, "target": target, "direction": direction,
         }
     compliance["targetRaffinateSulfurPpm"] = {
-        "status": "NOT_CALCULABLE", "calculated": None,
-        "target": float(stage1_authority["targetRaffinateSulfurPpm"]),
+        "status": sulfur["targetStatus"],
+        "calculated": sulfur["predictedRaffinateSulfurPpm"],
+        "target": sulfur["targetRaffinateSulfurPpm"],
+        "direction": "MAXIMUM",
     }
     targets_pass = all(row["status"] == "PASS" for row in compliance.values()
                        if row["status"] != "NOT_CALCULABLE")
-    physical = all(
-        stage["maximumCompositionSeparation"] >=
-        scientific.protocol()["numericalAcceptance"]["minimumPhaseCompositionSeparation"]
-        for stage in raw["stages"]
-    )
-    mono_audit_accepted = all(
-        stage["postSplitTpdSearch"][phase]["explicitMonoRichBasinSearch"]
-        .get("allRequiredSearchesAccepted") is True
-        for stage in raw["stages"] for phase in ("raffinate", "extract")
-    )
     for stage in trial["stages"]:
         stage_mono_audit = all(
             stage["postSplitTpdSearch"][phase]["explicitMonoRichBasinSearch"]
@@ -157,6 +232,7 @@ def complete_trial(np, raw, feed, solvent, temperature_k):
     )
     trial.update({
         "targetCompliance": compliance,
+        "sulfurPrediction": sulfur,
         "allCalculableTargetsPass": targets_pass,
         "physicalLleClassification":
             "PHYSICAL_LLE" if physical and mono_audit_accepted else "NO_PHYSICAL_LLE",
@@ -268,7 +344,7 @@ def single_test_main():
             "establishedTheoreticalStages": None,
             "pilotValidated": False,
             "calibrationRequired": False,
-            "sulfurPrediction": {"status": "NOT_CALCULABLE"},
+            "sulfurPrediction": trials[0]["sulfurPrediction"],
             "ntTested": nt_test,
             "thermodynamicCondition": {
                 "temperatureC": temperature_c,

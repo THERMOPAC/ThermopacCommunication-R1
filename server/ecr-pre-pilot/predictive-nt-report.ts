@@ -284,7 +284,18 @@ export async function generatePredictiveNtReport(
       : 'No governed preferred-candidate selection rule is persisted for this run. The report therefore does not invent or hardcode a stage selection. Accepted Predictive N_T remains a separate scientific qualification result.',
     55, 452, 480, 8.2,
   );
-  text('COSMO-SAC sulfur prediction: NOT CALCULABLE', 55, 492, 480, 8.2, COLORS.red, true);
+  text(
+    prePilotMultistage
+      ? (
+        o.sulfurPrediction?.status === 'CALCULABLE'
+          ? `Governed sulfur post-processing: ${value(o.sulfurPrediction.predictedRaffinateSulfurPpm, 2)} ppm · removal ${value(o.sulfurPrediction.sulfurRemovalPct, 3)}% · target ${o.sulfurPrediction.targetStatus}`
+          : `Governed sulfur post-processing: NOT CALCULABLE — ${o.sulfurPrediction?.reason ?? 'invalid trial'}`
+      )
+      : 'COSMO-SAC sulfur prediction: NOT CALCULABLE',
+    55, 492, 480, 8.2,
+    o.sulfurPrediction?.targetStatus === 'PASS' ? COLORS.green : COLORS.red,
+    true,
+  );
   text(`Completed ${new Date(r.completedAt).toISOString()}  •  Job ${r.id}`, 42, 720, 510, 7, COLORS.muted);
 
   page('1. Frozen Design Basis', false, 'OWNER-CONTROLLED / SAVED STAGE-1 INPUT AUTHORITY');
@@ -317,13 +328,14 @@ export async function generatePredictiveNtReport(
     ['Minimum saturates', `${value(s.minimumRaffinateSaturatesWt)} wt% NMP-free`],
     ['Minimum RRBO recovery', `${value(s.minimumRecoveryPct)} wt%`],
     ['Maximum NMP in raffinate', `${value(s.maximumNmpRaffinateWt)} wt% full stream`],
-    ...(!prePilotMultistage
-      ? [['Raffinate sulfur target', `${value(s.targetRaffinateSulfurPpm)} ppm (pre-pilot estimate only)`]]
-      : []),
+    ['Raffinate sulfur target', `${value(s.targetRaffinateSulfurPpm)} ppm`],
   ], 42, 505, 510, 24);
 
-  if (!prePilotMultistage) {
-  page('1. Frozen Design Basis — Sulfur Allocation', false, 'PRE-PILOT ASSUMPTION — saved with the completed Stage-1 snapshot');
+  page(
+    '1. Frozen Design Basis — Sulfur Allocation',
+    false,
+    'OWNER-CONTROLLED MASS ALLOCATION — saved with the completed Stage-1 snapshot',
+  );
   const sulfurAllocations = [
     s.sulfurAllocationSatPct,
     s.sulfurAllocationMonoPct,
@@ -362,10 +374,9 @@ export async function generatePredictiveNtReport(
       : 'NOT CALCULABLE'],
   ], 42, 325, 510, 25);
   text(
-    'This allocation is an owner-controlled pre-pilot engineering assumption. It is not a hidden report constant and it does not make sulfur a COSMO-SAC component.',
+    'This allocation is an owner-controlled mass-allocation basis. It is not a hidden factor, does not make sulfur a thermodynamic component, and does not alter the seven-component equilibrium solution.',
     42, 425, 510, 8.5, COLORS.amber, true,
   );
-  }
 
   page(
     '2. Overall N_T Engineering Comparison',
@@ -373,13 +384,11 @@ export async function generatePredictiveNtReport(
     'Primary process comparison. Product composition is wt% on an NMP-free hydrocarbon basis; NMP is wt% of total raffinate.',
   );
   table(
-    prePilotMultistage
-      ? ['N_T', 'Solver', 'Recovery %', 'NMP %', 'SAT %', 'Arom %', 'PA %', 'SAT loss %', 'MONO rem %', 'DI rem %', 'POLY rem %', 'PA rem %', 'Target', 'Scientific']
-      : ['N_T', 'Solver', 'Recovery %', 'NMP %', 'SAT %', 'Arom %', 'PA %', 'SAT loss %', 'MONO rem %', 'DI rem %', 'POLY rem %', 'PA rem %', 'Sulfur ppm', 'Target', 'Scientific'],
+    ['N_T', 'Solver', 'Recovery %', 'NMP %', 'SAT %', 'Arom %', 'PA %', 'SAT loss %', 'MONO rem %', 'DI rem %', 'POLY rem %', 'PA rem %', 'Sulfur ppm', 'Target', 'Scientific'],
     o.trials.map((trial: any) => {
       const metrics = trial.productMetrics ?? {};
       const extraction = metrics.componentExtractionPct ?? {};
-      const sulfur = prePilotMultistage ? null : calculatePrePilotSulfurEstimate(s, trial);
+      const sulfur = prePilotMultistage ? trial.sulfurPrediction : calculatePrePilotSulfurEstimate(s, trial);
       const closed = trialIsClosed(trial);
       return [
         String(trial.stageCount),
@@ -394,7 +403,9 @@ export async function generatePredictiveNtReport(
         value(extraction.DI, 2),
         value(extraction.POLY, 2),
         value(extraction.PA, 2),
-        ...(!prePilotMultistage ? [sulfur?.status === 'CALCULABLE' ? value(sulfur.totalPpm, 1) : 'N/C'] : []),
+        sulfur?.status === 'CALCULABLE'
+          ? value(prePilotMultistage ? sulfur.predictedRaffinateSulfurPpm : sulfur.totalPpm, 1)
+          : 'N/C',
         closed
           ? (trial.allCalculableTargetsPass ? 'PASS' : 'FAIL')
           : trial?.residualClosureStatus === 'UNCLOSED'
@@ -403,14 +414,12 @@ export async function generatePredictiveNtReport(
         trial.accepted ? 'QUALIFIED' : 'NOT QUALIFIED',
       ];
     }),
-    30, 96, prePilotMultistage
-      ? [30, 48, 48, 40, 40, 44, 38, 46, 51, 46, 48, 44, 48, 58]
-      : [30, 48, 48, 40, 40, 44, 38, 46, 51, 46, 48, 44, 48, 48, 58], 30, 4.6,
+    30, 96, [30, 48, 48, 40, 40, 44, 38, 46, 51, 46, 48, 44, 48, 48, 58], 30, 4.6,
   );
   const comparisonNoteY = 96 + 30 * (o.trials.length + 1) + 14;
   text(
     prePilotMultistage
-      ? 'Recovery = NMP-free RRBO recovery. Removal/loss = component-relative boundary removal. Sulfur is strictly NOT_CALCULABLE. Unconverged values are diagnostic only and receive no engineering PASS/FAIL.'
+      ? 'Recovery = NMP-free RRBO recovery. Sulfur is persisted post-processing from actual component feed/final-raffinate masses and the saved Stage-1 allocation. Invalid trials remain NOT CALCULABLE.'
       : 'Recovery = NMP-free RRBO recovery. Removal/loss = component-relative boundary removal. Sulfur = PRE-PILOT ALLOCATION ESTIMATE ONLY. Unconverged values are diagnostic only and receive no engineering PASS/FAIL.',
     30, comparisonNoteY, 780, 7.5, COLORS.muted, true,
   );
@@ -436,29 +445,47 @@ export async function generatePredictiveNtReport(
   );
   text('SAT is reported as SAT LOSS. NMP removal/extraction percentage is NOT APPLICABLE.', 42, 420, 755, 8.5, COLORS.amber, true);
 
-  if (!prePilotMultistage) {
-  page('4. Pre-Pilot Sulfur Allocation Estimate', true, 'ESTIMATE ONLY — NOT A COSMO-SAC SULFUR PREDICTION — NOT PILOT VALIDATED');
+  page(
+    prePilotMultistage ? '4. Governed Sulfur Post-Processing' : '4. Pre-Pilot Sulfur Allocation Estimate',
+    true,
+    prePilotMultistage
+      ? 'POST-PROCESSING MASS ALLOCATION — DOES NOT MODIFY THERMODYNAMICS OR EQUILIBRIUM'
+      : 'ESTIMATE ONLY — NOT A COSMO-SAC SULFUR PREDICTION — NOT PILOT VALIDATED',
+  );
   table(
-    ['N_T', 'Solver', 'SAT ppm', 'MONO ppm', 'DI ppm', 'POLY ppm', 'PA ppm', 'Total ppm', 'Target ppm', 'Estimate Target Status'],
+    ['N_T', 'Solver', 'SAT ppm', 'MONO ppm', 'DI ppm', 'POLY ppm', 'PA ppm', 'Total ppm', 'Removal %', 'Target ppm', 'Target Status'],
     o.trials.map((trial: any) => {
-      const estimate = calculatePrePilotSulfurEstimate(s, trial);
+      const estimate = prePilotMultistage ? trial.sulfurPrediction : calculatePrePilotSulfurEstimate(s, trial);
+      const contributions = prePilotMultistage
+        ? estimate?.remainingContributionsPpm
+        : estimate?.contributionsPpm;
+      const total = prePilotMultistage
+        ? estimate?.predictedRaffinateSulfurPpm
+        : estimate?.totalPpm;
       return [
         String(trial.stageCount),
         solverDisplayStatus(trial),
-        value(estimate.contributionsPpm.SAT, 2),
-        value(estimate.contributionsPpm.MONO, 2),
-        value(estimate.contributionsPpm.DI, 2),
-        value(estimate.contributionsPpm.POLY, 2),
-        value(estimate.contributionsPpm.PA, 2),
-        estimate.status === 'CALCULABLE' ? value(estimate.totalPpm, 2) : `NOT CALCULABLE: ${estimate.reason}`,
+        value(contributions?.SAT, 2),
+        value(contributions?.MONO, 2),
+        value(contributions?.DI, 2),
+        value(contributions?.POLY, 2),
+        value(contributions?.PA, 2),
+        estimate?.status === 'CALCULABLE' ? value(total, 2) : `NOT CALCULABLE: ${estimate?.reason}`,
+        prePilotMultistage && estimate?.status === 'CALCULABLE'
+          ? value(estimate.sulfurRemovalPct, 3)
+          : '—',
         value(finiteNumber(s.targetRaffinateSulfurPpm), 2),
-        estimate.status === 'CALCULABLE' ? String(estimate.targetStatus) : 'NOT_CALCULABLE',
+        estimate?.status === 'CALCULABLE' ? String(estimate.targetStatus) : 'NOT_CALCULABLE',
       ];
     }),
-    30, 105, [34, 65, 58, 64, 58, 60, 58, 88, 62, 150], 27, 5.5,
+    30, 105, [32, 55, 52, 55, 52, 55, 52, 80, 60, 60, 92], 27, 5.2,
   );
-  text('Formal COSMO-SAC sulfur prediction: NOT CALCULABLE', 42, 420, 755, 9, COLORS.red, true);
-  }
+  text(
+    prePilotMultistage
+      ? 'S_R = S_F Σ(f_S,i × m_i,R / m_i,F), using persisted cascade component masses. No total-aromatics proxy or hardcoded sulfur-removal factor is used.'
+      : 'Formal COSMO-SAC sulfur prediction: NOT CALCULABLE',
+    42, 420, 755, 9, prePilotMultistage ? COLORS.navy : COLORS.red, true,
+  );
 
   page('5. Engineering Stage Selection', false, 'Preferred engineering candidate, accepted Predictive N_T, and established theoretical stages are separate states');
   grid([

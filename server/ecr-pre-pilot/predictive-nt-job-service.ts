@@ -1258,7 +1258,11 @@ export function validateSevenComponentPersistedResult(
         : 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING'
     )
     || value.implementationStatus !== 'IMPLEMENTED'
-    || value.sulfurPrediction?.status !== 'NOT_CALCULABLE'
+    || (
+      replacement
+        ? !['CALCULABLE', 'NOT_CALCULABLE'].includes(value.sulfurPrediction?.status)
+        : value.sulfurPrediction?.status !== 'NOT_CALCULABLE'
+    )
     || (
       replacement
         ? value.qualificationEvidence?.experimentalWetLleRequiredForExecution !== false
@@ -1436,6 +1440,86 @@ export function validateSevenComponentPersistedResult(
       || value.thermodynamicCondition?.authority !== 'IMMUTABLE_STAGE1_OPERATING_TEMPERATURE'
     ) return 'PREDICTIVE_NT_7C_TEMPERATURE_AUTHORITY_MISMATCH';
     if (replacement) {
+      const sulfurComponents = ['SAT', 'MONO', 'DI', 'POLY', 'PA'] as const;
+      const sulfurAllocationPct = [
+        stage1.sulfurAllocationSatPct,
+        stage1.sulfurAllocationMonoPct,
+        stage1.sulfurAllocationDiPct,
+        stage1.sulfurAllocationPolyPct,
+        stage1.sulfurAllocationPaPct,
+      ];
+      if (
+        !Number.isFinite(stage1.feedSulfurPpm) || stage1.feedSulfurPpm <= 0
+        || !Number.isFinite(stage1.targetRaffinateSulfurPpm)
+        || Math.abs(sulfurAllocationPct.reduce((sum, entry) => sum + entry, 0) - 100) > 1e-9
+      ) return 'PREDICTIVE_NT_7C_SULFUR_AUTHORITY_INVALID';
+      for (const trial of value.trials) {
+        const sulfur = trial.sulfurPrediction;
+        const physicallyNumericallyValid = (
+          trial.numericalAcceptancePassed === true
+          && trial.physicalLleClassification === 'PHYSICAL_LLE'
+          && trial.explicitMonoRichBasinAuditAccepted === true
+        );
+        if (!physicallyNumericallyValid) {
+          if (
+            sulfur?.status !== 'NOT_CALCULABLE'
+            || sulfur?.reason !== 'TRIAL_NOT_PHYSICALLY_NUMERICALLY_VALID'
+            || sulfur?.basis !== 'GOVERNED_STAGE1_SULFUR_ALLOCATION_POST_PROCESSING'
+            || sulfur?.predictedRaffinateSulfurPpm !== null
+            || sulfur?.sulfurRemovalPct !== null
+            || sulfur?.targetStatus !== 'NOT_CALCULABLE'
+            || sulfurComponents.some((component) => (
+              sulfur?.retainedFractions?.[component] !== null
+              || sulfur?.remainingContributionsPpm?.[component] !== null
+            ))
+            || trial.targetCompliance?.targetRaffinateSulfurPpm?.status !== 'NOT_CALCULABLE'
+          ) return 'PREDICTIVE_NT_7C_SULFUR_INVALID_TRIAL_MUST_NOT_CALCULATE';
+          continue;
+        }
+        const feedMass = trial.boundaryStreams?.oilFeed?.componentMass;
+        const raffinateMass = trial.boundaryStreams?.finalRaffinate?.componentMass;
+        const expectedContributions: Record<string, number> = {};
+        const expectedRetained: Record<string, number> = {};
+        for (let index = 0; index < sulfurComponents.length; index += 1) {
+          const component = sulfurComponents[index];
+          const feed = Number(feedMass?.[index]);
+          const raffinate = Number(raffinateMass?.[index]);
+          if (!Number.isFinite(feed) || feed <= 0 || !Number.isFinite(raffinate) || raffinate < 0) {
+            return 'PREDICTIVE_NT_7C_SULFUR_COMPONENT_MASS_BASIS_INVALID';
+          }
+          expectedRetained[component] = raffinate / feed;
+          expectedContributions[component] = stage1.feedSulfurPpm
+            * (sulfurAllocationPct[index] / 100) * expectedRetained[component];
+        }
+        const predicted = Object.values(expectedContributions).reduce((sum, entry) => sum + entry, 0);
+        const removal = 100 * (1 - predicted / stage1.feedSulfurPpm);
+        const expectedStatus = predicted <= stage1.targetRaffinateSulfurPpm ? 'PASS' : 'FAIL';
+        const close = (actual: unknown, expected: number) => (
+          typeof actual === 'number' && Number.isFinite(actual)
+          && Math.abs(actual - expected) <= 1e-9 * Math.max(1, Math.abs(expected))
+        );
+        if (
+          sulfur?.status !== 'CALCULABLE'
+          || sulfur?.basis !== 'GOVERNED_STAGE1_SULFUR_ALLOCATION_POST_PROCESSING'
+          || !close(sulfur.feedSulfurPpm, stage1.feedSulfurPpm)
+          || !close(sulfur.predictedRaffinateSulfurPpm, predicted)
+          || !close(sulfur.sulfurRemovalPct, removal)
+          || !close(sulfur.targetRaffinateSulfurPpm, stage1.targetRaffinateSulfurPpm)
+          || sulfur.targetStatus !== expectedStatus
+          || sulfurComponents.some((component, index) => (
+            !close(sulfur.allocationFractions?.[component], sulfurAllocationPct[index] / 100)
+            || !close(sulfur.componentMassBasis?.oilFeed?.[component], Number(feedMass[index]))
+            || !close(sulfur.componentMassBasis?.finalRaffinate?.[component], Number(raffinateMass[index]))
+            || !close(sulfur.retainedFractions?.[component], expectedRetained[component])
+            || !close(sulfur.remainingContributionsPpm?.[component], expectedContributions[component])
+          ))
+          || trial.targetCompliance?.targetRaffinateSulfurPpm?.status !== expectedStatus
+          || !close(trial.targetCompliance?.targetRaffinateSulfurPpm?.calculated, predicted)
+        ) return 'PREDICTIVE_NT_7C_SULFUR_POST_PROCESSING_INVALID';
+      }
+      if (canonicalJson(value.sulfurPrediction) !== canonicalJson(value.trials[0]?.sulfurPrediction)) {
+        return 'PREDICTIVE_NT_7C_SULFUR_RESULT_SUMMARY_INVALID';
+      }
       const accepted = value.trials.filter((trial: any) => trial?.accepted === true);
       const selected = accepted.length
         ? Math.min(...accepted.map((trial: any) => trial.stageCount))
@@ -1517,7 +1601,9 @@ export function attachStage1ResultGovernance(
           implementationStatus: 'IMPLEMENTED',
           predictiveQualification: replacement ? 'PRE_PILOT_MULTISTAGE' : 'PENDING',
         },
-        sulfurPrediction: input.stage1Authority.sulfurPrediction,
+        sulfurPrediction: replacement
+          ? admittedResult.sulfurPrediction
+          : input.stage1Authority.sulfurPrediction,
         overallEcrProductAcceptance: false,
         overallEcrProductAcceptanceStatus: replacement
           ? 'PRE_PILOT_MULTISTAGE_PREDICTIVE_MODEL'
