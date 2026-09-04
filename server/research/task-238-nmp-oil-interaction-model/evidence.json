@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "TASK_238_EVIDENCE_DECLARATION_V1",
+  "dryEvidence": {
+    "path": "server/engine-framework/cel/data/multi-t-nmp-lle.json",
+    "classification": "DECLARED_DRY_FIT_EVIDENCE",
+    "partition": "Source/temperature/component-sorted rows with every fifth row held out before fitting.",
+    "use": "All remaining rows fit native-plus-RK chemical-potential equality with bounded ridge regression. Held-out rows are evaluated independently and are not claimed as water-bearing validation.",
+    "qualificationDisposition": "Dry training and held-out chemical-potential equality RMS values exceed the frozen 0.03 criterion. Dry LLE reproduction therefore fails and remains release-blocking."
+  },
+  "waterBearingDevelopmentTopology": {
+    "path": ".agents/outputs/three-percent-water-7c-tpd-ab/source-daughter-states.json",
+    "selector": {"trialIndex": 0, "stageFromFeedEnd": 1},
+    "classification": "DEVELOPMENT_TOPOLOGY_TARGET_NOT_BLIND_NOT_DIRECT_QUALIFICATION",
+    "use": "Only the historical N_T=1 daughter direction is used as a development topology target. The exact parent is reconstructed independently from the declared component masses and molecular weights."
+  },
+  "directWaterBearingEvidence": null,
+  "blindWaterBearingEvidence": null
+}

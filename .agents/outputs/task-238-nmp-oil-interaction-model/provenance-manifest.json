@@ -1,0 +1,24 @@
+{
+  "artifactFiles": {
+    "evidence.json": "e07b2af3a96c0f75180204fc818f463ef26aa82d5c059c72d5a7567269418644",
+    "model.py": "cb826e81e11143c667dc745677179df76bde0107bcc676d0d52a62078113e1ba",
+    "protocol.json": "7ea9fdc6e893af039a9b1786d1c154b3e9d9cc09bd2aa9fba66d8d023a5e039d",
+    "run.py": "56e1db739d65be0e09c54562990db5fdb7c8a057f41e613796cd9cc52be20a1f",
+    "verify.py": "3e1d111a45a568b3e0ccf72a6dc9e9a446b39fae1f4cfcf42ab5236755f4fd25"
+  },
+  "inputs": {
+    "dryEvidence": "72d16b9544cebb3f5d55def342684fd3414707e9e84b27c558b6a7e6f6409c28",
+    "frozen12Engine": "cc11a0131096f43cecc871de7273f85a92adfbd5c03167ede1b77387fd442d74",
+    "frozen12Worker": "a6c200db4e17afa6e58b63bbec1d41fedaab1f10abc7efac0ac30140e2cf6456",
+    "frozen13Engine": "0cc514909d4f8451ecb5a00d9ebb4b5b7c2e2bd5b4ceced47e3b886bc8ea5406",
+    "frozen13Worker": "240e021276bf3b5b2d603d8dca88010b23bf1c3e4173215e6f6347e49747e625",
+    "nativeModel": "f61c255ac38aad12cb8c887ad3542f565b486ce3dbfbcf7544dfca3acf80e8b6",
+    "tpdThresholdAuthority": "a2e203e3dfd352ff8a10574be2a56d231e38b7a7fb2402ff8545ac347c4ebdcc",
+    "wetDevelopmentEvidence": "d7ee41c197a08a16f201b0c8f69628e415b3f4e9ed4bbb3113242a7734db648d"
+  },
+  "outputs": {
+    "report.md": "5d9e999a804a4cfcd85c0e73d527bfde6d461c189123a9c2ba90b65db337fb8c",
+    "results.json": "a014064f61e37c8030af34c1893ef1c25c747ccd6750d53147b23f6dcb4955ec"
+  },
+  "schemaVersion": "TASK_238_PROVENANCE_MANIFEST_V2"
+}
