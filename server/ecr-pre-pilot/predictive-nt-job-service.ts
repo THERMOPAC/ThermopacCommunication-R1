@@ -820,7 +820,7 @@ export function derivePredictiveNtSixComponentInputFromStage1(
       researchDiagnosticOnly: true,
     },
     modelHash: PRE_PILOT_MODEL.modelHash,
-    temperatureK: stage1.operatingTemperatureC + 273.15,
+    temperatureK: stage1.temperatureK,
     solventMolarRatio: (stage1.solventOilRatio / PREDICTIVE_NT_MOLECULAR_REGISTRY.nmp.molecularWeightGmol) / sourceMoles,
     feedMoleFractions: [
       sourceSatMoles / sourceMoles,

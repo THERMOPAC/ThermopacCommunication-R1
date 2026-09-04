@@ -27,7 +27,6 @@ type FormState = {
   rrboInterfacialTensionMnM: string;
   nmpPurityWt: string;
   nmpWaterWt: string;
-  nmpTemperatureC: string;
   nmpDensityKgM3: string;
   nmpDynamicViscosityCp: string;
   solventOilRatio: string;
@@ -354,7 +353,6 @@ const EMPTY_FORM: FormState = {
   rrboInterfacialTensionMnM: "",
   nmpPurityWt: "",
   nmpWaterWt: "",
-  nmpTemperatureC: "",
   nmpDensityKgM3: "",
   nmpDynamicViscosityCp: "",
   solventOilRatio: "0.90",
@@ -710,7 +708,6 @@ function validateForm(form: FormState): ValidationErrors {
   if (nmpPurity !== null && nmpWater !== null && Math.abs(nmpPurity + nmpWater - 100) > 1e-9) {
     errors.nmpWaterWt = "NMP purity and water must total exactly 100 wt%.";
   }
-  numeric("nmpTemperatureC", "NMP temperature", { min: 25, max: 100 });
   numeric("nmpDensityKgM3", "NMP density", { min: 0.001 });
   numeric("nmpDynamicViscosityCp", "NMP dynamic viscosity", { min: 0.001 });
 
@@ -766,7 +763,6 @@ function getStandardNmpProperties(operatingTemperature: string) {
     return {
       purityWt: "",
       waterWt: "",
-      temperatureC: "",
       densityKgM3: "",
       dynamicViscosityCp: "",
     };
@@ -790,7 +786,6 @@ function getStandardNmpProperties(operatingTemperature: string) {
   return {
     purityWt: NMP_STANDARD_PURPOSE.purityWt,
     waterWt: nmpComplement(NMP_STANDARD_PURPOSE.purityWt) as string,
-    temperatureC: operatingTemperature,
     densityKgM3: densityKgM3 === null ? "" : densityKgM3.toFixed(1),
     dynamicViscosityCp: dynamicViscosityCp === null ? "" : dynamicViscosityCp.toFixed(3),
   };
@@ -982,7 +977,6 @@ export default function EcrPrePilotDesignPage() {
       rrboInterfacialTensionMnM: rrboProperties.interfacialTensionMnM,
       nmpPurityWt: nmpProperties.purityWt,
       nmpWaterWt: nmpProperties.waterWt,
-      nmpTemperatureC: nmpProperties.temperatureC,
       nmpDensityKgM3: nmpProperties.densityKgM3,
       nmpDynamicViscosityCp: nmpProperties.dynamicViscosityCp,
     };
@@ -1203,7 +1197,6 @@ export default function EcrPrePilotDesignPage() {
       rrboDensityKgM3: rrboProperties.densityKgM3,
       rrboDynamicViscosityCp: rrboProperties.dynamicViscosityCp,
       rrboInterfacialTensionMnM: rrboProperties.interfacialTensionMnM,
-      nmpTemperatureC: nmpProperties.temperatureC,
       nmpDensityKgM3: nmpProperties.densityKgM3,
       nmpDynamicViscosityCp: nmpProperties.dynamicViscosityCp,
     };
@@ -1673,7 +1666,7 @@ export default function EcrPrePilotDesignPage() {
             <SectionHeading
               number="3"
               title="RRBO Feed Physical Properties"
-              description="Select an RRBO grade and operating temperature above to populate these starting values; measured project data may override them."
+              description="The selected RRBO grade and authoritative operating temperature determine these Stage-1 values."
               tone="indigo"
             />
             <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-3">
@@ -1684,6 +1677,7 @@ export default function EcrPrePilotDesignPage() {
                 onChange={(value) => setField("rrboDensityKgM3", value)}
                 unit="kg/m³"
                 error={validationErrors.rrboDensityKgM3}
+                readOnly
               />
               <NumericField
                 id="rrbo-dynamic-viscosity"
@@ -1692,6 +1686,7 @@ export default function EcrPrePilotDesignPage() {
                 onChange={(value) => setField("rrboDynamicViscosityCp", value)}
                 unit="mPa·s (cP)"
                 error={validationErrors.rrboDynamicViscosityCp}
+                readOnly
               />
               <NumericField
                 id="rrbo-interfacial-tension"
@@ -1700,10 +1695,11 @@ export default function EcrPrePilotDesignPage() {
                 onChange={(value) => setField("rrboInterfacialTensionMnM", value)}
                 unit="mN/m"
                 error={validationErrors.rrboInterfacialTensionMnM}
+                readOnly
               />
               <p className="text-[11px] leading-4 text-slate-400 md:col-span-3">
                 Auto-populated screening basis: grade-specific density and viscosity plus preliminary RRBO/NMP interfacial tension at the selected operating temperature (25–100 °C).
-                The 80–100 °C extension is preliminary; all values are editable and should be replaced with measured project data when available.
+                The 80–100 °C extension is preliminary. These values are recalculated whenever the operating temperature changes.
               </p>
             </CardContent>
           </Card>
@@ -1712,7 +1708,7 @@ export default function EcrPrePilotDesignPage() {
             <SectionHeading
               number="4"
               title="NMP Solvent"
-              description="Select the operating temperature above to populate the standard NMP solvent properties; all values remain editable."
+              description="NMP temperature follows the authoritative operating temperature; solvent properties update automatically."
               tone="cyan"
             />
             <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2 xl:grid-cols-3">
@@ -1738,13 +1734,14 @@ export default function EcrPrePilotDesignPage() {
               />
               <NumericField
                 id="nmp-temperature"
-                label="NMP temperature"
-                value={form.nmpTemperatureC}
-                onChange={(value) => setField("nmpTemperatureC", value)}
+                label="NMP temperature (operating condition)"
+                value={form.operatingTemperatureC}
+                onChange={() => undefined}
                 unit="°C"
                 min="25"
                 max="100"
-                error={validationErrors.nmpTemperatureC}
+                hint={`${(Number(form.operatingTemperatureC) + 273.15).toFixed(2)} K · controlled by Operating Temperature`}
+                readOnly
               />
               <NumericField
                 id="nmp-density"
@@ -1753,6 +1750,7 @@ export default function EcrPrePilotDesignPage() {
                 onChange={(value) => setField("nmpDensityKgM3", value)}
                 unit="kg/m³"
                 error={validationErrors.nmpDensityKgM3}
+                readOnly
               />
               <NumericField
                 id="nmp-dynamic-viscosity"
@@ -1761,10 +1759,11 @@ export default function EcrPrePilotDesignPage() {
                 onChange={(value) => setField("nmpDynamicViscosityCp", value)}
                 unit="mPa·s (cP)"
                 error={validationErrors.nmpDynamicViscosityCp}
+                readOnly
               />
               <p className="text-[11px] leading-4 text-slate-400 md:col-span-3">
                 Auto-populated basis: NMP purity 99.5 wt% and water 0.05 wt% with temperature-dependent density and viscosity from 25–100 °C.
-                The 80–100 °C extension is preliminary; all values remain editable for manual project data.
+                The 80–100 °C extension is preliminary. Density and viscosity are recalculated from the operating temperature.
               </p>
             </CardContent>
           </Card>

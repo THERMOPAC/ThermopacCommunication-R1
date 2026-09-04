@@ -67,6 +67,7 @@ export interface EcrPrePilotStage1Input {
   rrboGrade: string;
   designFeedRateLph: number;
   operatingTemperatureC: number;
+  temperatureK: number;
   operatingPressure: string;
   phaseConfiguration: string;
   saturatesWt: number;
@@ -80,7 +81,6 @@ export interface EcrPrePilotStage1Input {
   rrboInterfacialTensionMnM: number;
   nmpPurityWt: number;
   nmpWaterWt: number;
-  nmpTemperatureC: number;
   nmpDensityKgM3: number;
   nmpDynamicViscosityCp: number;
   solventOilRatio: number;
@@ -186,12 +186,24 @@ export function canonicalizeStage1Input(
   const source = record(raw);
   const projectReference = text(source, 'projectReference', 32);
   if (projectReference !== String(projectNumber)) throw new Error('STAGE1_PROJECT_REFERENCE_MISMATCH');
+  const operatingTemperatureC = requireOption(
+    numberValue(source, 'operatingTemperatureC', 25, 100),
+    TEMPERATURES,
+    'operatingTemperatureC',
+  );
+  if (
+    source.nmpTemperatureC !== undefined
+    && Number(source.nmpTemperatureC) !== operatingTemperatureC
+  ) {
+    throw new Error('STAGE1_NMP_TEMPERATURE_MUST_MATCH_OPERATING_TEMPERATURE');
+  }
 
   const stage1: EcrPrePilotStage1Input = {
     projectReference,
     rrboGrade: requireOption(text(source, 'rrboGrade', 16), RRBO_GRADES, 'rrboGrade'),
     designFeedRateLph: requireOption(numberValue(source, 'designFeedRateLph', 1), FEED_RATES, 'designFeedRateLph'),
-    operatingTemperatureC: requireOption(numberValue(source, 'operatingTemperatureC', 25, 100), TEMPERATURES, 'operatingTemperatureC'),
+    operatingTemperatureC,
+    temperatureK: operatingTemperatureC + 273.15,
     operatingPressure: requireOption(text(source, 'operatingPressure', 32), PRESSURES, 'operatingPressure'),
     phaseConfiguration: requireOption(text(source, 'phaseConfiguration', 64), PHASE_CONFIGURATIONS, 'phaseConfiguration'),
     saturatesWt: numberValue(source, 'saturatesWt', 0, 100),
@@ -205,7 +217,6 @@ export function canonicalizeStage1Input(
     rrboInterfacialTensionMnM: numberValue(source, 'rrboInterfacialTensionMnM', 0.001),
     nmpPurityWt: numberValue(source, 'nmpPurityWt', 0, 100),
     nmpWaterWt: numberValue(source, 'nmpWaterWt', 0, 100),
-    nmpTemperatureC: numberValue(source, 'nmpTemperatureC', 25, 100),
     nmpDensityKgM3: numberValue(source, 'nmpDensityKgM3', 0.001),
     nmpDynamicViscosityCp: numberValue(source, 'nmpDynamicViscosityCp', 0.001),
     solventOilRatio: requireOption(numberValue(source, 'solventOilRatio', 0.01), SOLVENT_RATIOS, 'solventOilRatio'),
@@ -286,6 +297,18 @@ export function validateStage1Snapshot(rawSnapshot: unknown): EcrPrePilotStage1S
     || !/^[a-f0-9]{64}$/.test(snapshot.immutableHash)
   ) {
     throw new Error('STAGE1_SNAPSHOT_INVALID');
+  }
+  if (
+    snapshot.stage1.temperatureK !== undefined
+    && (
+      !Number.isFinite(snapshot.stage1.temperatureK)
+      || Math.abs(
+        snapshot.stage1.temperatureK
+        - (snapshot.stage1.operatingTemperatureC + 273.15)
+      ) > 1e-12
+    )
+  ) {
+    throw new Error('STAGE1_TEMPERATURE_AUTHORITY_MISMATCH');
   }
   validateSixComponentCosmoSacBasis(
     snapshot.sixComponentCosmoSacBasis,

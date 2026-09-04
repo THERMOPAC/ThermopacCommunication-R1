@@ -214,7 +214,12 @@ def single_test_main():
     temperature_c = float(stage1["operatingTemperatureC"])
     if not parent.math.isfinite(temperature_c):
         raise ValueError("STAGE1_OPERATING_TEMPERATURE_INVALID")
-    temperature_k = temperature_c + 273.15
+    temperature_k = float(stage1["temperatureK"])
+    if (
+        not parent.math.isfinite(temperature_k)
+        or abs(temperature_k - (temperature_c + 273.15)) > 1e-12
+    ):
+        raise ValueError("STAGE1_TEMPERATURE_AUTHORITY_MISMATCH")
     feed, solvent, wet = wet_charge(stage1)
     temporary, engine, integrity, runtime = scientific.build_engine(
         temperature_k, wet["waterWeightPercentOfWetSolvent"]
