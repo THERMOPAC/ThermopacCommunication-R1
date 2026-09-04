@@ -1,0 +1,5342 @@
+{
+  "daughterStateComparisons": [
+    {
+      "minimizerL1Distance": 1.761993105155666,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.027010901394260878,
+          "H2O": 0.0676360172289532,
+          "MONO": 0.05682624603572271,
+          "NMP": 0.10821418705241563,
+          "PA": 0.0034527562773692495,
+          "POLY": 0.009106373176870682,
+          "SAT": 0.7277535188344075
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.5688103683340273
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009939119181714848,
+          "H2O": 0.025412442268864147,
+          "MONO": 0.9378227986135558,
+          "NMP": 0.019007400853443164,
+          "PA": 0.0024240944731290306,
+          "POLY": 0.003764367614353866,
+          "SAT": 0.0016297769949390418
+        },
+        "persistedMinimum": -0.6706026634520525,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.6706026634520525,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.027010901394260885,
+        "H2O": 0.06763601722895321,
+        "MONO": 0.05682624603572273,
+        "NMP": 0.10821418705241566,
+        "PA": 0.0034527562773692504,
+        "POLY": 0.009106373176870684,
+        "SAT": 0.7277535188344076
+      },
+      "stageCount": 1,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.794995810772448,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.020046195044812316,
+          "H2O": 0.07538293115386503,
+          "MONO": 0.040324861754449076,
+          "NMP": 0.8198474513540681,
+          "PA": 0.005185151541533126,
+          "POLY": 0.007553854463803669,
+          "SAT": 0.03165955468746864
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.6259714026597916
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009939125500211306,
+          "H2O": 0.025412421870419984,
+          "MONO": 0.937822767140673,
+          "NMP": 0.019007427485513134,
+          "PA": 0.002424097027173611,
+          "POLY": 0.0037643732149877118,
+          "SAT": 0.0016297877610212737
+        },
+        "persistedMinimum": -0.67060266345209,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.67060266345209,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.020046195044812316,
+        "H2O": 0.07538293115386503,
+        "MONO": 0.040324861754449076,
+        "NMP": 0.8198474513540681,
+        "PA": 0.005185151541533126,
+        "POLY": 0.007553854463803669,
+        "SAT": 0.03165955468746864
+      },
+      "stageCount": 1,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.7516359907217804,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03469980507594744,
+          "H2O": 0.04651931841007156,
+          "MONO": 0.07047082615358098,
+          "NMP": 0.11667152262755452,
+          "PA": 0.004567032226218909,
+          "POLY": 0.01181142715416321,
+          "SAT": 0.7152600683524636
+        },
+        "minimum": 5.697071421723227e-16,
+        "tpdAtResidualModelMinimizer": 2.4023170335362276
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.0111803830370373,
+          "H2O": 0.016201733596521335,
+          "MONO": 0.946288821514471,
+          "NMP": 0.017773626264855593,
+          "PA": 0.0027701674962611993,
+          "POLY": 0.00426503186386027,
+          "SAT": 0.0015202362269931167
+        },
+        "persistedMinimum": -0.7453728793129166,
+        "replayAbsoluteDifference": 5.10702591327572e-15,
+        "replayedObjectiveAtPersistedMinimizer": -0.7453728793129115,
+        "tpdAtNativeModelMinimizer": 5.024847688585197e-16
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.034699805075947436,
+        "H2O": 0.04651931841007155,
+        "MONO": 0.07047082615358097,
+        "NMP": 0.11667152262755451,
+        "PA": 0.004567032226218908,
+        "POLY": 0.011811427154163208,
+        "SAT": 0.7152600683524635
+      },
+      "stageCount": 2,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.7839346407830685,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.026578939855685813,
+          "H2O": 0.05171272926144133,
+          "MONO": 0.05432150274961933,
+          "NMP": 0.8140438227044414,
+          "PA": 0.006952197950736855,
+          "POLY": 0.010087234662130221,
+          "SAT": 0.03630357281594501
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.405382344145975
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011180382138062973,
+          "H2O": 0.016201720844212168,
+          "MONO": 0.9462888231411537,
+          "NMP": 0.01777363555141699,
+          "PA": 0.0027701631375226937,
+          "POLY": 0.0042650370208062,
+          "SAT": 0.0015202381668254926
+        },
+        "persistedMinimum": -0.7453728793129192,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7453728793129192,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.026578939855685813,
+        "H2O": 0.05171272926144133,
+        "MONO": 0.05432150274961933,
+        "NMP": 0.8140438227044414,
+        "PA": 0.006952197950736855,
+        "POLY": 0.010087234662130221,
+        "SAT": 0.03630357281594501
+      },
+      "stageCount": 2,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.762184054231942,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.021927407708842866,
+          "H2O": 0.08632445077574405,
+          "MONO": 0.04595899870662686,
+          "NMP": 0.10186622851152931,
+          "PA": 0.0020220268639382505,
+          "POLY": 0.007117323186817331,
+          "SAT": 0.7347835642465013
+        },
+        "minimum": -1.3313650890491383e-16,
+        "tpdAtResidualModelMinimizer": 2.719838368216268
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009359131676737943,
+          "H2O": 0.035804729744324026,
+          "MONO": 0.9270510258225979,
+          "NMP": 0.020894388871497346,
+          "PA": 0.001668313702914882,
+          "POLY": 0.003420588128362134,
+          "SAT": 0.0018018220535658636
+        },
+        "persistedMinimum": -0.5743009750250019,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.5743009750250019,
+        "tpdAtNativeModelMinimizer": -1.3313650890491383e-16
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.02192740770884287,
+        "H2O": 0.08632445077574406,
+        "MONO": 0.04595899870662687,
+        "NMP": 0.10186622851152934,
+        "PA": 0.002022026863938251,
+        "POLY": 0.0071173231868173325,
+        "SAT": 0.7347835642465014
+      },
+      "stageCount": 2,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.7922869663676924,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.015965751892039654,
+          "H2O": 0.09631234688493596,
+          "MONO": 0.03090757103468936,
+          "NMP": 0.8194344586043543,
+          "PA": 0.0030195056769000044,
+          "POLY": 0.005802827287019317,
+          "SAT": 0.02855753862006143
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.8060340710103446
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009359120636456643,
+          "H2O": 0.03580470330748837,
+          "MONO": 0.9270510542185356,
+          "NMP": 0.02089439639422351,
+          "PA": 0.001668320354511823,
+          "POLY": 0.0034205896053335245,
+          "SAT": 0.001801815483450644
+        },
+        "persistedMinimum": -0.5743009750249773,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.5743009750249773,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.015965751892039654,
+        "H2O": 0.09631234688493596,
+        "MONO": 0.03090757103468936,
+        "NMP": 0.8194344586043543,
+        "PA": 0.0030195056769000044,
+        "POLY": 0.005802827287019317,
+        "SAT": 0.02855753862006143
+      },
+      "stageCount": 2,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.7468531204242501,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03814256056595205,
+          "H2O": 0.03565246936440516,
+          "MONO": 0.07605579348823902,
+          "NMP": 0.12066180249079443,
+          "PA": 0.005075016419875126,
+          "POLY": 0.013068531394672676,
+          "SAT": 0.7113438262760613
+        },
+        "minimum": -1.7204714868071738e-16,
+        "tpdAtResidualModelMinimizer": 2.3442246780109226
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011796361784567569,
+          "H2O": 0.012175522928268092,
+          "MONO": 0.9494823537003642,
+          "NMP": 0.017571361655617332,
+          "PA": 0.0029440192085222745,
+          "POLY": 0.0045264727156298125,
+          "SAT": 0.0015039080070307978
+        },
+        "persistedMinimum": -0.764445226716756,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.764445226716756,
+        "tpdAtNativeModelMinimizer": -1.7204714868071738e-16
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03814256056595206,
+        "H2O": 0.03565246936440517,
+        "MONO": 0.07605579348823904,
+        "NMP": 0.12066180249079449,
+        "PA": 0.0050750164198751285,
+        "POLY": 0.013068531394672681,
+        "SAT": 0.7113438262760616
+      },
+      "stageCount": 3,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.7757080285121019,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.029803585893701346,
+          "H2O": 0.03956183541538016,
+          "MONO": 0.061628336921270455,
+          "NMP": 0.8109522558489122,
+          "PA": 0.00781923507518012,
+          "POLY": 0.011373503765143258,
+          "SAT": 0.03886124708041244
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.310256389436492
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011796374051360699,
+          "H2O": 0.012175516619592593,
+          "MONO": 0.9494823511773214,
+          "NMP": 0.017571362371833432,
+          "PA": 0.0029440220095704405,
+          "POLY": 0.004526466371644776,
+          "SAT": 0.0015039073986767057
+        },
+        "persistedMinimum": -0.7644452267167111,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7644452267167111,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.029803585893701346,
+        "H2O": 0.03956183541538016,
+        "MONO": 0.061628336921270455,
+        "NMP": 0.8109522558489122,
+        "PA": 0.00781923507518012,
+        "POLY": 0.011373503765143258,
+        "SAT": 0.03886124708041244
+      },
+      "stageCount": 3,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.756509245580885,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.030544604750304374,
+          "H2O": 0.06564753435506443,
+          "MONO": 0.060971272403515284,
+          "NMP": 0.11040882100944352,
+          "PA": 0.0029045434540215615,
+          "POLY": 0.01005807101544881,
+          "SAT": 0.7194651530122022
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.506893705083899
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.010759104509485879,
+          "H2O": 0.024059299912692934,
+          "MONO": 0.9392258951939578,
+          "NMP": 0.018461631043003954,
+          "PA": 0.0019379964986315236,
+          "POLY": 0.003975122109739764,
+          "SAT": 0.0015809507324881778
+        },
+        "persistedMinimum": -0.696337901994388,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.696337901994388,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.030544604750304374,
+        "H2O": 0.06564753435506443,
+        "MONO": 0.060971272403515284,
+        "NMP": 0.11040882100944352,
+        "PA": 0.0029045434540215615,
+        "POLY": 0.01005807101544881,
+        "SAT": 0.7194651530122022
+      },
+      "stageCount": 3,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.7907479696880173,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.022788700177734544,
+          "H2O": 0.07311571964879521,
+          "MONO": 0.0438519224032522,
+          "NMP": 0.814806267266151,
+          "PA": 0.0043628156780364325,
+          "POLY": 0.008381156778329563,
+          "SAT": 0.03269341804770107
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.5580186068773654
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.010759097059017548,
+          "H2O": 0.024059308824473945,
+          "MONO": 0.9392259072472608,
+          "NMP": 0.01846161887778924,
+          "PA": 0.0019379917125862491,
+          "POLY": 0.003975116765969136,
+          "SAT": 0.0015809595129030647
+        },
+        "persistedMinimum": -0.6963379019944042,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.6963379019944042,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.022788700177734544,
+        "H2O": 0.07311571964879521,
+        "MONO": 0.0438519224032522,
+        "NMP": 0.814806267266151,
+        "PA": 0.0043628156780364325,
+        "POLY": 0.008381156778329563,
+        "SAT": 0.03269341804770107
+      },
+      "stageCount": 3,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.757673701765817,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.01928033475470726,
+          "H2O": 0.09643784587267351,
+          "MONO": 0.03997860776819286,
+          "NMP": 0.09857866972932823,
+          "PA": 0.001280376908838606,
+          "POLY": 0.00605238109209813,
+          "SAT": 0.7383917838741613
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.8129808584571543
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009137170687467047,
+          "H2O": 0.0431161720837857,
+          "MONO": 0.9188154586511015,
+          "NMP": 0.022555650360898776,
+          "PA": 0.001184547078744011,
+          "POLY": 0.00323516299654761,
+          "SAT": 0.001955838141455368
+        },
+        "persistedMinimum": -0.501362637357379,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.501362637357379,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.01928033475470726,
+        "H2O": 0.09643784587267351,
+        "MONO": 0.03997860776819286,
+        "NMP": 0.09857866972932823,
+        "PA": 0.001280376908838606,
+        "POLY": 0.00605238109209813,
+        "SAT": 0.7383917838741613
+      },
+      "stageCount": 3,
+      "stageFromFeedEnd": 3
+    },
+    {
+      "minimizerL1Distance": 1.785225105192213,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.013917848376206712,
+          "H2O": 0.10763224852172246,
+          "MONO": 0.026202824057609805,
+          "NMP": 0.8183878501807983,
+          "PA": 0.001908647413236777,
+          "POLY": 0.004896723397009512,
+          "SAT": 0.027053858053416435
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.909931918386926
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009137178262667732,
+          "H2O": 0.04311621605315965,
+          "MONO": 0.9188153766537163,
+          "NMP": 0.022555668713011547,
+          "PA": 0.001184558403756833,
+          "POLY": 0.0032351607929648986,
+          "SAT": 0.0019558411207231466
+        },
+        "persistedMinimum": -0.5013626373574239,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.5013626373574239,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.01391784837620671,
+        "H2O": 0.10763224852172244,
+        "MONO": 0.026202824057609802,
+        "NMP": 0.8183878501807982,
+        "PA": 0.0019086474132367767,
+        "POLY": 0.004896723397009511,
+        "SAT": 0.02705385805341643
+      },
+      "stageCount": 3,
+      "stageFromFeedEnd": 3
+    },
+    {
+      "minimizerL1Distance": 1.7447799307188214,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03998603860939912,
+          "H2O": 0.029010613578229153,
+          "MONO": 0.07887059859791432,
+          "NMP": 0.12287972489464355,
+          "PA": 0.0053438379861801095,
+          "POLY": 0.013771294876544812,
+          "SAT": 0.7101378914570889
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.317815984879033
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012145552463571446,
+          "H2O": 0.009829255938447058,
+          "MONO": 0.9512605639573251,
+          "NMP": 0.017537471834472493,
+          "PA": 0.003041402126250599,
+          "POLY": 0.0046836620996812605,
+          "SAT": 0.001502091580252098
+        },
+        "persistedMinimum": -0.7718792497953626,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7718792497953626,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03998603860939912,
+        "H2O": 0.029010613578229153,
+        "MONO": 0.07887059859791432,
+        "NMP": 0.12287972489464355,
+        "PA": 0.0053438379861801095,
+        "POLY": 0.013771294876544812,
+        "SAT": 0.7101378914570889
+      },
+      "stageCount": 4,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.7704323043963588,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.031661995155392024,
+          "H2O": 0.03215242212254553,
+          "MONO": 0.0660443952804036,
+          "NMP": 0.8092474134508497,
+          "PA": 0.008310167049293708,
+          "POLY": 0.012139287651403352,
+          "SAT": 0.040444319290112156
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.258212608142371
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012145570406890937,
+          "H2O": 0.009829262846865626,
+          "MONO": 0.9512605474785829,
+          "NMP": 0.017537468242339,
+          "PA": 0.003041397041043418,
+          "POLY": 0.004683666019306643,
+          "SAT": 0.0015020879649712585
+        },
+        "persistedMinimum": -0.7718792497953775,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7718792497953775,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.031661995155392024,
+        "H2O": 0.03215242212254553,
+        "MONO": 0.0660443952804036,
+        "NMP": 0.8092474134508497,
+        "PA": 0.008310167049293708,
+        "POLY": 0.012139287651403352,
+        "SAT": 0.040444319290112156
+      },
+      "stageCount": 4,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.7515681627732944,
+      "native7c": {
+        "classification": "EXHAUSTIVE_ESCALATION_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": true,
+        "minimizingComposition": {
+          "DI": 0.034939304606739635,
+          "H2O": 0.05323529705055531,
+          "MONO": 0.0679358460956147,
+          "NMP": 0.11507471543675923,
+          "PA": 0.0033670418377868922,
+          "POLY": 0.011631847314263394,
+          "SAT": 0.7138159476582809
+        },
+        "minimum": -1.1186892614685652e-14,
+        "tpdAtResidualModelMinimizer": 2.424586551144697
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011547240817228415,
+          "H2O": 0.018837658520910145,
+          "MONO": 0.9437199274822619,
+          "NMP": 0.01795491806949031,
+          "PA": 0.0020949349545902347,
+          "POLY": 0.004308436638871749,
+          "SAT": 0.0015368835166471733
+        },
+        "persistedMinimum": -0.7307552934807511,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7307552934807511,
+        "tpdAtNativeModelMinimizer": -1.1153140170210135e-14
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.034939301980900554,
+        "H2O": 0.05323529736540335,
+        "MONO": 0.0679358446447796,
+        "NMP": 0.11507471658230906,
+        "PA": 0.003367048273613227,
+        "POLY": 0.011631846358419129,
+        "SAT": 0.7138159447945749
+      },
+      "stageCount": 4,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.7856723539230204,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.02648693390346401,
+          "H2O": 0.0592194812805446,
+          "MONO": 0.05088377102033042,
+          "NMP": 0.8133229456291199,
+          "PA": 0.005092143791286679,
+          "POLY": 0.009836211070149576,
+          "SAT": 0.03515851330510495
+        },
+        "minimum": -3.0105570087369476e-15,
+        "tpdAtResidualModelMinimizer": 2.44994997387768
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011547240662148045,
+          "H2O": 0.018837657194782708,
+          "MONO": 0.9437199479818404,
+          "NMP": 0.017954903644030393,
+          "PA": 0.002094932062204662,
+          "POLY": 0.004308442480482111,
+          "SAT": 0.001536875974511445
+        },
+        "persistedMinimum": -0.7307552934807299,
+        "replayAbsoluteDifference": 1.2878587085651816e-14,
+        "replayedObjectiveAtPersistedMinimizer": -0.7307552934807428,
+        "tpdAtNativeModelMinimizer": -3.044916503952098e-15
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.026486933903464006,
+        "H2O": 0.05921948128054459,
+        "MONO": 0.05088377102033041,
+        "NMP": 0.8133229456291198,
+        "PA": 0.005092143791286678,
+        "POLY": 0.009836211070149575,
+        "SAT": 0.035158513305104944
+      },
+      "stageCount": 4,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.7573556510578139,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.02807110047003642,
+          "H2O": 0.07774332462501765,
+          "MONO": 0.05512277370568959,
+          "NMP": 0.10667648751050841,
+          "PA": 0.0019285114295029106,
+          "POLY": 0.008981376975146886,
+          "SAT": 0.7214764252840982
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.5769613253893655
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.010567620155870618,
+          "H2O": 0.029703135073674423,
+          "MONO": 0.9338005992345965,
+          "NMP": 0.019110584067940643,
+          "PA": 0.0013815511297917684,
+          "POLY": 0.0037968009511076704,
+          "SAT": 0.00163970938701829
+        },
+        "persistedMinimum": -0.6562438025189749,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.6562438025189749,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.02807110047003642,
+        "H2O": 0.07774332462501765,
+        "MONO": 0.05512277370568959,
+        "NMP": 0.10667648751050841,
+        "PA": 0.0019285114295029106,
+        "POLY": 0.008981376975146886,
+        "SAT": 0.7214764252840982
+      },
+      "stageCount": 4,
+      "stageFromFeedEnd": 3
+    },
+    {
+      "minimizerL1Distance": 1.79095501962695,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.02068247381587329,
+          "H2O": 0.08664660979057687,
+          "MONO": 0.038323114985443676,
+          "NMP": 0.8132855667714735,
+          "PA": 0.0028818442854398668,
+          "POLY": 0.007398008014781077,
+          "SAT": 0.03078238233641184
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.648891723094195
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.010567611295033759,
+          "H2O": 0.029703126521005145,
+          "MONO": 0.9338006247989186,
+          "NMP": 0.01911058441598476,
+          "PA": 0.001381551674992924,
+          "POLY": 0.0037968004364918487,
+          "SAT": 0.00163970085757291
+        },
+        "persistedMinimum": -0.656243802518983,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.656243802518983,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.02068247381587329,
+        "H2O": 0.08664660979057687,
+        "MONO": 0.038323114985443676,
+        "NMP": 0.8132855667714735,
+        "PA": 0.0028818442854398668,
+        "POLY": 0.007398008014781077,
+        "SAT": 0.03078238233641184
+      },
+      "stageCount": 4,
+      "stageFromFeedEnd": 3
+    },
+    {
+      "minimizerL1Distance": 1.752136011441965,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.017710889954817857,
+          "H2O": 0.1027657534851999,
+          "MONO": 0.03626508118468545,
+          "NMP": 0.09660259846866982,
+          "PA": 0.000847996880664158,
+          "POLY": 0.005401009813857235,
+          "SAT": 0.7404066702121056
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.8743325768722494
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009057026429303791,
+          "H2O": 0.04861993062626353,
+          "MONO": 0.9123281008499154,
+          "NMP": 0.023937230695809476,
+          "PA": 0.000852982936416748,
+          "POLY": 0.0031192383944907225,
+          "SAT": 0.0020854900678003454
+        },
+        "persistedMinimum": -0.4465084279208884,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.4465084279208884,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.017710889954817854,
+        "H2O": 0.10276575348519988,
+        "MONO": 0.036265081184685445,
+        "NMP": 0.09660259846866981,
+        "PA": 0.0008479968806641579,
+        "POLY": 0.005401009813857234,
+        "SAT": 0.7404066702121055
+      },
+      "stageCount": 4,
+      "stageFromFeedEnd": 4
+    },
+    {
+      "minimizerL1Distance": 1.7778219774256974,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.01272358084876113,
+          "H2O": 0.1147098444683806,
+          "MONO": 0.02341713271908904,
+          "NMP": 0.8173545246892481,
+          "PA": 0.0012630915231493366,
+          "POLY": 0.004351087493730165,
+          "SAT": 0.026180738257641587
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.9760321468083
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009057030774241411,
+          "H2O": 0.04861993017508299,
+          "MONO": 0.9123281214319379,
+          "NMP": 0.02393720427392702,
+          "PA": 0.0008529765726836048,
+          "POLY": 0.003119243725219487,
+          "SAT": 0.0020854930469078855
+        },
+        "persistedMinimum": -0.44650842792085516,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.44650842792085516,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.01272358084876113,
+        "H2O": 0.1147098444683806,
+        "MONO": 0.02341713271908904,
+        "NMP": 0.8173545246892481,
+        "PA": 0.0012630915231493366,
+        "POLY": 0.004351087493730165,
+        "SAT": 0.026180738257641587
+      },
+      "stageCount": 4,
+      "stageFromFeedEnd": 4
+    },
+    {
+      "minimizerL1Distance": 1.7439044049967227,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.04107916810709568,
+          "H2O": 0.024516609438504654,
+          "MONO": 0.08048373928477634,
+          "NMP": 0.12425064268261357,
+          "PA": 0.005499587821975263,
+          "POLY": 0.01420922670106867,
+          "SAT": 0.7099610259639657
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.304022326457414
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012358534722067127,
+          "H2O": 0.00827280768860788,
+          "MONO": 0.9524359417831376,
+          "NMP": 0.01754329713910005,
+          "PA": 0.0030997624040386075,
+          "POLY": 0.004786275951424509,
+          "SAT": 0.0015033803116240082
+        },
+        "persistedMinimum": -0.7755576928012827,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7755576928012827,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.041079168107095686,
+        "H2O": 0.02451660943850466,
+        "MONO": 0.08048373928477635,
+        "NMP": 0.1242506426826136,
+        "PA": 0.005499587821975264,
+        "POLY": 0.014209226701068674,
+        "SAT": 0.7099610259639658
+      },
+      "stageCount": 5,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.7670029656158732,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03282790446845301,
+          "H2O": 0.02714887797284713,
+          "MONO": 0.06893450140555721,
+          "NMP": 0.8083452485759104,
+          "PA": 0.008611917107617793,
+          "POLY": 0.01263753908661385,
+          "SAT": 0.041494011383000684
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.226336328676373
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012358522148955069,
+          "H2O": 0.008272802450468799,
+          "MONO": 0.9524359842134938,
+          "NMP": 0.017543279313246937,
+          "PA": 0.003099760069841649,
+          "POLY": 0.004786273491850066,
+          "SAT": 0.0015033783121436678
+        },
+        "persistedMinimum": -0.7755576928012728,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7755576928012728,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.03282790446845301,
+        "H2O": 0.02714887797284713,
+        "MONO": 0.06893450140555721,
+        "NMP": 0.8083452485759104,
+        "PA": 0.008611917107617793,
+        "POLY": 0.01263753908661385,
+        "SAT": 0.041494011383000684
+      },
+      "stageCount": 5,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.749060638999161,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03746519822348453,
+          "H2O": 0.044917899238151496,
+          "MONO": 0.07173782217080266,
+          "NMP": 0.1179114459203358,
+          "PA": 0.003633657588186232,
+          "POLY": 0.012586205079847488,
+          "SAT": 0.7117477717791917
+        },
+        "minimum": 8.777767236548427e-15,
+        "tpdAtResidualModelMinimizer": 2.3845784042776104
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.01202215318017872,
+          "H2O": 0.015660452123006183,
+          "MONO": 0.9462681416703833,
+          "NMP": 0.017809282201380373,
+          "PA": 0.0021903874686581134,
+          "POLY": 0.004524579520526402,
+          "SAT": 0.0015250038358670054
+        },
+        "persistedMinimum": -0.7450236852041591,
+        "replayAbsoluteDifference": 6.994405055138486e-15,
+        "replayedObjectiveAtPersistedMinimizer": -0.7450236852041521,
+        "tpdAtNativeModelMinimizer": 8.754812972377313e-15
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.037465198223484535,
+        "H2O": 0.0449178992381515,
+        "MONO": 0.07173782217080267,
+        "NMP": 0.11791144592033583,
+        "PA": 0.003633657588186233,
+        "POLY": 0.012586205079847491,
+        "SAT": 0.7117477717791918
+      },
+      "stageCount": 5,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.7821935079069589,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.028708566917097486,
+          "H2O": 0.04992690550311917,
+          "MONO": 0.05517136226661985,
+          "NMP": 0.8131729885874664,
+          "PA": 0.005526933829354707,
+          "POLY": 0.010750996880439437,
+          "SAT": 0.03674224601590273
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.391886069020534
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.0120221664281086,
+          "H2O": 0.015660470054176312,
+          "MONO": 0.9462681162200994,
+          "NMP": 0.017809292314101756,
+          "PA": 0.0021903811727919656,
+          "POLY": 0.004524574775794948,
+          "SAT": 0.0015249990349270653
+        },
+        "persistedMinimum": -0.7450236852041536,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7450236852041536,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.028708566917097493,
+        "H2O": 0.049926905503119186,
+        "MONO": 0.05517136226661987,
+        "NMP": 0.8131729885874667,
+        "PA": 0.005526933829354708,
+        "POLY": 0.010750996880439439,
+        "SAT": 0.03674224601590274
+      },
+      "stageCount": 5,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.752963230889873,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03289964612660728,
+          "H2O": 0.06541818185338044,
+          "MONO": 0.06271712110552287,
+          "NMP": 0.11148973111324707,
+          "PA": 0.0022990581386004424,
+          "POLY": 0.010687213138478644,
+          "SAT": 0.7144890485241633
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.4790188848266372
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.01142638172951884,
+          "H2O": 0.023829279463637713,
+          "MONO": 0.9391987365504594,
+          "NMP": 0.01830857206877962,
+          "PA": 0.00150674309417564,
+          "POLY": 0.004161870229414035,
+          "SAT": 0.0015684168640147371
+        },
+        "persistedMinimum": -0.7032816778643616,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7032816778643616,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03289964612660727,
+        "H2O": 0.06541818185338043,
+        "MONO": 0.06271712110552286,
+        "NMP": 0.11148973111324705,
+        "PA": 0.002299058138600442,
+        "POLY": 0.010687213138478643,
+        "SAT": 0.7144890485241632
+      },
+      "stageCount": 5,
+      "stageFromFeedEnd": 3
+    },
+    {
+      "minimizerL1Distance": 1.78793638549217,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.024585001976996153,
+          "H2O": 0.07283656521305082,
+          "MONO": 0.04523055863366967,
+          "NMP": 0.8118323525686654,
+          "PA": 0.0034510823393295947,
+          "POLY": 0.008916509079670041,
+          "SAT": 0.03314793018861837
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.530344943959334
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011426373449649274,
+          "H2O": 0.0238292701795897,
+          "MONO": 0.9391987513797546,
+          "NMP": 0.018308572276702868,
+          "PA": 0.0015067521980496475,
+          "POLY": 0.004161866125619597,
+          "SAT": 0.0015684143906342144
+        },
+        "persistedMinimum": -0.7032816778643651,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7032816778643651,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.024585001976996153,
+        "H2O": 0.07283656521305082,
+        "MONO": 0.04523055863366967,
+        "NMP": 0.8118323525686654,
+        "PA": 0.0034510823393295947,
+        "POLY": 0.008916509079670041,
+        "SAT": 0.03314793018861837
+      },
+      "stageCount": 5,
+      "stageFromFeedEnd": 3
+    },
+    {
+      "minimizerL1Distance": 1.7565039699027316,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.02648923760199222,
+          "H2O": 0.08605574765990213,
+          "MONO": 0.051257108894439185,
+          "NMP": 0.10424698010519985,
+          "PA": 0.0013172101979007811,
+          "POLY": 0.00826919350602281,
+          "SAT": 0.722364522034543
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.62548311750279
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.01048320048384207,
+          "H2O": 0.03397959296833111,
+          "MONO": 0.9295090938458049,
+          "NMP": 0.019664994356113855,
+          "PA": 0.000995383940084511,
+          "POLY": 0.0036771505522616562,
+          "SAT": 0.0016905838535616613
+        },
+        "persistedMinimum": -0.624560354756828,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.624560354756828,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.02648923760199222,
+        "H2O": 0.08605574765990213,
+        "MONO": 0.051257108894439185,
+        "NMP": 0.10424698010519985,
+        "PA": 0.0013172101979007811,
+        "POLY": 0.00826919350602281,
+        "SAT": 0.722364522034543
+      },
+      "stageCount": 5,
+      "stageFromFeedEnd": 4
+    },
+    {
+      "minimizerL1Distance": 1.7891649230761302,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.019375161571262282,
+          "H2O": 0.09593926363819857,
+          "MONO": 0.03492658142049094,
+          "NMP": 0.8114203863785461,
+          "PA": 0.001962942062380059,
+          "POLY": 0.006765924746918616,
+          "SAT": 0.029609740182203467
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.708585307987762
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.010483199958663899,
+          "H2O": 0.03397964856621981,
+          "MONO": 0.9295090429585561,
+          "NMP": 0.019665001964295097,
+          "PA": 0.0009953845534078718,
+          "POLY": 0.0036771445431839386,
+          "SAT": 0.0016905774556734041
+        },
+        "persistedMinimum": -0.6245603547568155,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.6245603547568155,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.019375161571262282,
+        "H2O": 0.09593926363819857,
+        "MONO": 0.03492658142049094,
+        "NMP": 0.8114203863785461,
+        "PA": 0.001962942062380059,
+        "POLY": 0.006765924746918616,
+        "SAT": 0.029609740182203467
+      },
+      "stageCount": 5,
+      "stageFromFeedEnd": 4
+    },
+    {
+      "minimizerL1Distance": 1.746840277666091,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.016711624965879506,
+          "H2O": 0.10708480140797812,
+          "MONO": 0.033801772151055905,
+          "NMP": 0.09531060620826359,
+          "PA": 0.0005783813647765323,
+          "POLY": 0.004971757813635483,
+          "SAT": 0.7415410560884109
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.916171627454966
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009040295340562011,
+          "H2O": 0.0528732795319386,
+          "MONO": 0.907181291772747,
+          "NMP": 0.02505435937569309,
+          "PA": 0.0006190005761309858,
+          "POLY": 0.0030403646641418117,
+          "SAT": 0.0021914087387865464
+        },
+        "persistedMinimum": -0.40523380485481036,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.40523380485481036,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.016711624965879506,
+        "H2O": 0.10708480140797812,
+        "MONO": 0.033801772151055905,
+        "NMP": 0.09531060620826359,
+        "PA": 0.0005783813647765323,
+        "POLY": 0.004971757813635483,
+        "SAT": 0.7415410560884109
+      },
+      "stageCount": 5,
+      "stageFromFeedEnd": 5
+    },
+    {
+      "minimizerL1Distance": 1.7711211742445776,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.011969926713692037,
+          "H2O": 0.11953672415700835,
+          "MONO": 0.02162071885334634,
+          "NMP": 0.8163934725075338,
+          "PA": 0.0008610890835054366,
+          "POLY": 0.003994666688430859,
+          "SAT": 0.025623401996483212
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 3.0200831780931248
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.00904029387201906,
+          "H2O": 0.052873266758955796,
+          "MONO": 0.9071813059756352,
+          "NMP": 0.025054366196685697,
+          "PA": 0.0006189983475534999,
+          "POLY": 0.003040364520581771,
+          "SAT": 0.0021914043285690687
+        },
+        "persistedMinimum": -0.4052338048547942,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.4052338048547942,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.011969926713692037,
+        "H2O": 0.11953672415700835,
+        "MONO": 0.02162071885334634,
+        "NMP": 0.8163934725075338,
+        "PA": 0.0008610890835054366,
+        "POLY": 0.003994666688430859,
+        "SAT": 0.025623401996483212
+      },
+      "stageCount": 5,
+      "stageFromFeedEnd": 5
+    },
+    {
+      "minimizerL1Distance": 1.7435927389081056,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.04177108453789339,
+          "H2O": 0.021263687987388116,
+          "MONO": 0.08149559102821376,
+          "NMP": 0.12516370478856087,
+          "PA": 0.005595555865315908,
+          "POLY": 0.014502068440566845,
+          "SAT": 0.7102083073520611
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.2961606137637367
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012494085063151042,
+          "H2O": 0.007157216013136891,
+          "MONO": 0.9532919604822665,
+          "NMP": 0.017558375225501646,
+          "PA": 0.003136356650232362,
+          "POLY": 0.004856817742297793,
+          "SAT": 0.0015051888234136601
+        },
+        "persistedMinimum": -0.7777163049759609,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7777163049759609,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.04177108453789339,
+        "H2O": 0.021263687987388116,
+        "MONO": 0.08149559102821376,
+        "NMP": 0.12516370478856087,
+        "PA": 0.005595555865315908,
+        "POLY": 0.014502068440566845,
+        "SAT": 0.7102083073520611
+      },
+      "stageCount": 6,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.7647334893328983,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03359950275950457,
+          "H2O": 0.023532893753483962,
+          "MONO": 0.07092520859340609,
+          "NMP": 0.8079311237688556,
+          "PA": 0.008807742408704265,
+          "POLY": 0.012980482741596053,
+          "SAT": 0.04222304597444951
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.2054836985878503
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012494069377968093,
+          "H2O": 0.007157225075821527,
+          "MONO": 0.9532919532598552,
+          "NMP": 0.01755838194407119,
+          "PA": 0.003136369425248509,
+          "POLY": 0.004856814662250201,
+          "SAT": 0.0015051862547852018
+        },
+        "persistedMinimum": -0.7777163049759901,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7777163049759901,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.03359950275950456,
+        "H2O": 0.02353289375348396,
+        "MONO": 0.07092520859340608,
+        "NMP": 0.8079311237688555,
+        "PA": 0.008807742408704263,
+        "POLY": 0.012980482741596052,
+        "SAT": 0.0422230459744495
+      },
+      "stageCount": 6,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.74790312879427,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03902998885762174,
+          "H2O": 0.03893186283859725,
+          "MONO": 0.07405145055114605,
+          "NMP": 0.11977592626803028,
+          "PA": 0.0037975954025530043,
+          "POLY": 0.013213188961285765,
+          "SAT": 0.7111999871207659
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.362496343119771
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.01232052050019755,
+          "H2O": 0.01346613305621998,
+          "MONO": 0.948003014948281,
+          "NMP": 0.017765819835686,
+          "PA": 0.002250582300276571,
+          "POLY": 0.004672063624989719,
+          "SAT": 0.0015218657343491536
+        },
+        "persistedMinimum": -0.7524451073796976,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7524451073796976,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03902998885762174,
+        "H2O": 0.03893186283859725,
+        "MONO": 0.07405145055114605,
+        "NMP": 0.11977592626803028,
+        "PA": 0.0037975954025530043,
+        "POLY": 0.013213188961285765,
+        "SAT": 0.7111999871207659
+      },
+      "stageCount": 6,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.7800305898635673,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.030131377907977035,
+          "H2O": 0.043250383864884716,
+          "MONO": 0.057987755584090264,
+          "NMP": 0.8136447258361056,
+          "PA": 0.005802368979873451,
+          "POLY": 0.011366622838344814,
+          "SAT": 0.03781676498872426
+        },
+        "minimum": -1.8145147229401867e-15,
+        "tpdAtResidualModelMinimizer": 2.3570191611234277
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012320529827336089,
+          "H2O": 0.013466115466497999,
+          "MONO": 0.948003050515874,
+          "NMP": 0.01776578765807655,
+          "PA": 0.002250590424906291,
+          "POLY": 0.0046720630114204225,
+          "SAT": 0.0015218630958887468
+        },
+        "persistedMinimum": -0.7524451073796864,
+        "replayAbsoluteDifference": 3.6637359812630166e-15,
+        "replayedObjectiveAtPersistedMinimizer": -0.7524451073796901,
+        "tpdAtNativeModelMinimizer": -1.8145147229401867e-15
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.03013137790797703,
+        "H2O": 0.04325038386488471,
+        "MONO": 0.05798775558409026,
+        "NMP": 0.8136447258361055,
+        "PA": 0.00580236897987345,
+        "POLY": 0.011366622838344812,
+        "SAT": 0.03781676498872425
+      },
+      "stageCount": 6,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.7503494543744504,
+      "native7c": {
+        "classification": "EXHAUSTIVE_ESCALATION_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": true,
+        "minimizingComposition": {
+          "DI": 0.035797281758119234,
+          "H2O": 0.05662706320774707,
+          "MONO": 0.06708238726761856,
+          "NMP": 0.1145849395850871,
+          "PA": 0.002525399084092851,
+          "POLY": 0.011777457225559099,
+          "SAT": 0.7116054718717761
+        },
+        "minimum": -1.238752658081312e-15,
+        "tpdAtResidualModelMinimizer": 2.4292019095212294
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011961778020564548,
+          "H2O": 0.020199541272235277,
+          "MONO": 0.9422571144548437,
+          "NMP": 0.018039204753863034,
+          "PA": 0.0015871496782045417,
+          "POLY": 0.004410013661174057,
+          "SAT": 0.001545198159114791
+        },
+        "persistedMinimum": -0.7236538403425966,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7236538403425966,
+        "tpdAtNativeModelMinimizer": -1.3087483238811033e-15
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03579728173437972,
+        "H2O": 0.05662706319988729,
+        "MONO": 0.06708238726266186,
+        "NMP": 0.11458493959028487,
+        "PA": 0.0025253991215740406,
+        "POLY": 0.011777457224709907,
+        "SAT": 0.7116054718665022
+      },
+      "stageCount": 6,
+      "stageFromFeedEnd": 3
+    },
+    {
+      "minimizerL1Distance": 1.7853633172584793,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.027015215536162714,
+          "H2O": 0.06300602814045539,
+          "MONO": 0.04957545315113736,
+          "NMP": 0.8119468225808204,
+          "PA": 0.0038071935982121217,
+          "POLY": 0.009915932726279598,
+          "SAT": 0.03473335426693238
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.4654261900962844
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011961783087201529,
+          "H2O": 0.020199554618219415,
+          "MONO": 0.942257111780377,
+          "NMP": 0.018039192297411896,
+          "PA": 0.0015871503577665465,
+          "POLY": 0.004410011716344281,
+          "SAT": 0.0015451961426793418
+        },
+        "persistedMinimum": -0.723653840342581,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.723653840342581,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.027015215536162714,
+        "H2O": 0.06300602814045539,
+        "MONO": 0.04957545315113736,
+        "NMP": 0.8119468225808204,
+        "PA": 0.0038071935982121217,
+        "POLY": 0.009915932726279598,
+        "SAT": 0.03473335426693238
+      },
+      "stageCount": 6,
+      "stageFromFeedEnd": 3
+    },
+    {
+      "minimizerL1Distance": 1.7528171871354468,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03153427374442519,
+          "H2O": 0.07432172506372266,
+          "MONO": 0.05915893693973881,
+          "NMP": 0.10903538947712636,
+          "PA": 0.0016014371446628727,
+          "POLY": 0.010033421281836414,
+          "SAT": 0.7143148163484877
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.5170424920734793
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011371733501383409,
+          "H2O": 0.027706535263307883,
+          "MONO": 0.9355675305074622,
+          "NMP": 0.01860891404491823,
+          "PA": 0.0010914002739718302,
+          "POLY": 0.004058147163281804,
+          "SAT": 0.0015957392456745392
+        },
+        "persistedMinimum": -0.681380040306271,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.681380040306271,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03153427374442519,
+        "H2O": 0.07432172506372266,
+        "MONO": 0.05915893693973881,
+        "NMP": 0.10903538947712636,
+        "PA": 0.0016014371446628727,
+        "POLY": 0.010033421281836414,
+        "SAT": 0.7143148163484877
+      },
+      "stageCount": 6,
+      "stageFromFeedEnd": 4
+    },
+    {
+      "minimizerL1Distance": 1.7877080485410488,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.023365119433876015,
+          "H2O": 0.08278209922007838,
+          "MONO": 0.041713552488412416,
+          "NMP": 0.8095639571131529,
+          "PA": 0.0023939020126573208,
+          "POLY": 0.008304795211542258,
+          "SAT": 0.03187657452028071
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.582760071090171
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011371715499366702,
+          "H2O": 0.027706522177237923,
+          "MONO": 0.9355675767589369,
+          "NMP": 0.018608897152269443,
+          "PA": 0.0010914016295269044,
+          "POLY": 0.00405814792426304,
+          "SAT": 0.001595738858399187
+        },
+        "persistedMinimum": -0.6813800403063024,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.6813800403063024,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.02336511943387601,
+        "H2O": 0.08278209922007837,
+        "MONO": 0.04171355248841241,
+        "NMP": 0.8095639571131528,
+        "PA": 0.0023939020126573203,
+        "POLY": 0.008304795211542256,
+        "SAT": 0.031876574520280705
+      },
+      "stageCount": 6,
+      "stageFromFeedEnd": 4
+    },
+    {
+      "minimizerL1Distance": 1.7549667442117143,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.025430663680610484,
+          "H2O": 0.09209952845667646,
+          "MONO": 0.048583456465486424,
+          "NMP": 0.102571633067684,
+          "PA": 0.0009178066129388322,
+          "POLY": 0.007775348581275545,
+          "SAT": 0.7226215631353282
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.6597743415563166
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.010452327145743501,
+          "H2O": 0.03731490486893888,
+          "MONO": 0.9260668285713435,
+          "NMP": 0.020118696717985687,
+          "PA": 0.0007221283636101157,
+          "POLY": 0.003592476833170717,
+          "SAT": 0.0017326374992075386
+        },
+        "persistedMinimum": -0.599837133618231,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.599837133618231,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.025430663680610484,
+        "H2O": 0.09209952845667646,
+        "MONO": 0.048583456465486424,
+        "NMP": 0.102571633067684,
+        "PA": 0.0009178066129388322,
+        "POLY": 0.007775348581275545,
+        "SAT": 0.7226215631353282
+      },
+      "stageCount": 6,
+      "stageFromFeedEnd": 5
+    },
+    {
+      "minimizerL1Distance": 1.786779343494061,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.018514158641283706,
+          "H2O": 0.10269043672486682,
+          "MONO": 0.03267714743309815,
+          "NMP": 0.8095862554925066,
+          "PA": 0.0013653469865477048,
+          "POLY": 0.00633459995376823,
+          "SAT": 0.028832054767928814
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.749518015259051
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.010452345096219645,
+          "H2O": 0.03731488241691333,
+          "MONO": 0.9260668191801287,
+          "NMP": 0.020118708966126404,
+          "PA": 0.0007221287812950163,
+          "POLY": 0.0035924791365739084,
+          "SAT": 0.0017326364227430331
+        },
+        "persistedMinimum": -0.5998371336182611,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.5998371336182611,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.018514158641283703,
+        "H2O": 0.1026904367248668,
+        "MONO": 0.032677147433098144,
+        "NMP": 0.8095862554925065,
+        "PA": 0.0013653469865477046,
+        "POLY": 0.006334599953768229,
+        "SAT": 0.02883205476792881
+      },
+      "stageCount": 6,
+      "stageFromFeedEnd": 5
+    },
+    {
+      "minimizerL1Distance": 1.7420785850647122,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.01604632882970754,
+          "H2O": 0.11021025041193865,
+          "MONO": 0.032096484845769505,
+          "NMP": 0.09441811178484599,
+          "PA": 0.00040270692291778345,
+          "POLY": 0.004675190581833846,
+          "SAT": 0.7421509266229865
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.945361191672301
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009052900148109768,
+          "H2O": 0.0562048117733464,
+          "MONO": 0.9030870071720374,
+          "NMP": 0.025943468494871808,
+          "PA": 0.0004514771290060782,
+          "POLY": 0.0029839095128512713,
+          "SAT": 0.002276425769777143
+        },
+        "persistedMinimum": -0.3740643344620184,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.3740643344620184,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.016046328829707544,
+        "H2O": 0.11021025041193867,
+        "MONO": 0.03209648484576951,
+        "NMP": 0.09441811178484602,
+        "PA": 0.00040270692291778355,
+        "POLY": 0.004675190581833847,
+        "SAT": 0.7421509266229867
+      },
+      "stageCount": 6,
+      "stageFromFeedEnd": 6
+    },
+    {
+      "minimizerL1Distance": 1.7653745625660795,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.01147067115685111,
+          "H2O": 0.1230268196955137,
+          "MONO": 0.020399706719947903,
+          "NMP": 0.8155079295953631,
+          "PA": 0.0005993403428306952,
+          "POLY": 0.0037497562424939307,
+          "SAT": 0.025245776246999457
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 3.050296542248479
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009052896653661437,
+          "H2O": 0.056204807124546244,
+          "MONO": 0.9030869880029877,
+          "NMP": 0.0259434929227263,
+          "PA": 0.00045147757693727935,
+          "POLY": 0.00298391008129401,
+          "SAT": 0.0022764276378468323
+        },
+        "persistedMinimum": -0.3740643344620221,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.3740643344620221,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.011470671156851112,
+        "H2O": 0.12302681969551373,
+        "MONO": 0.020399706719947907,
+        "NMP": 0.8155079295953633,
+        "PA": 0.0005993403428306953,
+        "POLY": 0.0037497562424939315,
+        "SAT": 0.025245776246999464
+      },
+      "stageCount": 6,
+      "stageFromFeedEnd": 6
+    },
+    {
+      "minimizerL1Distance": 1.7435596781027252,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.04222946029786661,
+          "H2O": 0.018793379887735395,
+          "MONO": 0.08217464224012641,
+          "NMP": 0.12580645110979838,
+          "PA": 0.005657365086550722,
+          "POLY": 0.014707627490645251,
+          "SAT": 0.7106310738872774
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.291405782905697
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.0125827190156663,
+          "H2O": 0.006314737316634537,
+          "MONO": 0.9539544812914889,
+          "NMP": 0.017574157156944437,
+          "PA": 0.003160028900146055,
+          "POLY": 0.004907018401073624,
+          "SAT": 0.001506857918046086
+        },
+        "persistedMinimum": -0.7791587437955906,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7791587437955906,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.04222946029786661,
+        "H2O": 0.018793379887735395,
+        "MONO": 0.08217464224012641,
+        "NMP": 0.12580645110979838,
+        "PA": 0.005657365086550722,
+        "POLY": 0.014707627490645251,
+        "SAT": 0.7106310738872774
+      },
+      "stageCount": 7,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.7632134136691828,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.034129646272917036,
+          "H2O": 0.020790367335900794,
+          "MONO": 0.07234777788656448,
+          "NMP": 0.8078193710678655,
+          "PA": 0.008939897041103559,
+          "POLY": 0.013225855575045692,
+          "SAT": 0.04274708482060288
+        },
+        "minimum": -4.128514034624841e-15,
+        "tpdAtResidualModelMinimizer": 2.1912354332432433
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012582702896865394,
+          "H2O": 0.006314736049473068,
+          "MONO": 0.953954484721156,
+          "NMP": 0.017574160851021346,
+          "PA": 0.0031600317477603777,
+          "POLY": 0.004907018127126278,
+          "SAT": 0.0015068656065976185
+        },
+        "persistedMinimum": -0.7791587437955894,
+        "replayAbsoluteDifference": 7.438494264988549e-15,
+        "replayedObjectiveAtPersistedMinimizer": -0.7791587437955968,
+        "tpdAtNativeModelMinimizer": -4.1660921339080866e-15
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.03412964627291704,
+        "H2O": 0.020790367335900797,
+        "MONO": 0.07234777788656449,
+        "NMP": 0.8078193710678657,
+        "PA": 0.00893989704110356,
+        "POLY": 0.013225855575045695,
+        "SAT": 0.04274708482060289
+      },
+      "stageCount": 7,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.7474605550253035,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.04004983482520541,
+          "H2O": 0.0344021535550243,
+          "MONO": 0.07557286770908438,
+          "NMP": 0.12107432335145184,
+          "PA": 0.0039031058441829736,
+          "POLY": 0.013647976118225786,
+          "SAT": 0.7113497385968254
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.3492814866969365
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012512962460858144,
+          "H2O": 0.011840152987700078,
+          "MONO": 0.949303145221736,
+          "NMP": 0.01775637960216279,
+          "PA": 0.0022895654233366066,
+          "POLY": 0.004776330859464683,
+          "SAT": 0.0015214634447415273
+        },
+        "persistedMinimum": -0.7569648027788968,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7569648027788968,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.04004983482520541,
+        "H2O": 0.0344021535550243,
+        "MONO": 0.07557286770908438,
+        "NMP": 0.12107432335145184,
+        "PA": 0.0039031058441829736,
+        "POLY": 0.013647976118225786,
+        "SAT": 0.7113497385968254
+      },
+      "stageCount": 7,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.7787317878426443,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.031083454107927014,
+          "H2O": 0.0382048718137145,
+          "MONO": 0.05993726653822481,
+          "NMP": 0.8144129192933003,
+          "PA": 0.005984474370203609,
+          "POLY": 0.0118004867935242,
+          "SAT": 0.03857652708310557
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.3345903038589633
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012512951984684727,
+          "H2O": 0.01184016028643171,
+          "MONO": 0.949303160459547,
+          "NMP": 0.017756377867984195,
+          "PA": 0.0022895612038250582,
+          "POLY": 0.004776324302656924,
+          "SAT": 0.0015214638948703137
+        },
+        "persistedMinimum": -0.7569648027789,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7569648027789,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.031083454107927014,
+        "H2O": 0.0382048718137145,
+        "MONO": 0.05993726653822481,
+        "NMP": 0.8144129192933003,
+        "PA": 0.005984474370203609,
+        "POLY": 0.0118004867935242,
+        "SAT": 0.03857652708310557
+      },
+      "stageCount": 7,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.7490526861411293,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03764153541597199,
+          "H2O": 0.05001049069311473,
+          "MONO": 0.06983848883162015,
+          "NMP": 0.11670078124135169,
+          "PA": 0.0026703435089263897,
+          "POLY": 0.012519081618826079,
+          "SAT": 0.710619278690189
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.4007752580284314
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.01230405862564298,
+          "H2O": 0.017636377871271137,
+          "MONO": 0.9443648319021848,
+          "NMP": 0.017934093331402615,
+          "PA": 0.0016397137276443873,
+          "POLY": 0.0045845173499912874,
+          "SAT": 0.0015364071918628848
+        },
+        "persistedMinimum": -0.7345484709873625,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7345484709873625,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03764153541597199,
+        "H2O": 0.05001049069311473,
+        "MONO": 0.06983848883162015,
+        "NMP": 0.11670078124135169,
+        "PA": 0.0026703435089263897,
+        "POLY": 0.012519081618826079,
+        "SAT": 0.710619278690189
+      },
+      "stageCount": 7,
+      "stageFromFeedEnd": 3
+    },
+    {
+      "minimizerL1Distance": 1.7837336527638892,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.028607338954276713,
+          "H2O": 0.05561953676942359,
+          "MONO": 0.05249799659376633,
+          "NMP": 0.8127816391945444,
+          "PA": 0.004040431383018607,
+          "POLY": 0.010609887576715037,
+          "SAT": 0.03584316952825543
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.425967019067271
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012304065563600697,
+          "H2O": 0.017636384841052354,
+          "MONO": 0.9443648229757109,
+          "NMP": 0.017934088507773966,
+          "PA": 0.0016397142264605571,
+          "POLY": 0.004584513625900882,
+          "SAT": 0.001536410259500715
+        },
+        "persistedMinimum": -0.734548470987372,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.734548470987372,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.02860733895427671,
+        "H2O": 0.055619536769423585,
+        "MONO": 0.052497996593766326,
+        "NMP": 0.8127816391945443,
+        "PA": 0.004040431383018606,
+        "POLY": 0.010609887576715035,
+        "SAT": 0.03584316952825542
+      },
+      "stageCount": 7,
+      "stageFromFeedEnd": 3
+    },
+    {
+      "minimizerL1Distance": 1.750238638189633,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.034644674467451286,
+          "H2O": 0.06556692859036645,
+          "MONO": 0.06385435597818918,
+          "NMP": 0.11222849748569247,
+          "PA": 0.0017821305715765231,
+          "POLY": 0.011201427012467591,
+          "SAT": 0.7107219858942566
+        },
+        "minimum": 1.440554326217127e-16,
+        "tpdAtResidualModelMinimizer": 2.460206728263441
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011936993561462394,
+          "H2O": 0.023818997138729127,
+          "MONO": 0.9389736750730057,
+          "NMP": 0.01822729157625677,
+          "PA": 0.0011554461542855321,
+          "POLY": 0.004325407377907216,
+          "SAT": 0.0015621891183532288
+        },
+        "persistedMinimum": -0.7066951764313981,
+        "replayAbsoluteDifference": 6.661338147750939e-16,
+        "replayedObjectiveAtPersistedMinimizer": -0.7066951764313988,
+        "tpdAtNativeModelMinimizer": 9.609170708219013e-17
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03464467446745128,
+        "H2O": 0.06556692859036643,
+        "MONO": 0.06385435597818917,
+        "NMP": 0.11222849748569244,
+        "PA": 0.0017821305715765227,
+        "POLY": 0.01120142701246759,
+        "SAT": 0.7107219858942565
+      },
+      "stageCount": 7,
+      "stageFromFeedEnd": 4
+    },
+    {
+      "minimizerL1Distance": 1.7857837663523861,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.025908557901740636,
+          "H2O": 0.07298575409485757,
+          "MONO": 0.04608178229772316,
+          "NMP": 0.80955943062427,
+          "PA": 0.002673102140273642,
+          "POLY": 0.009350309195459618,
+          "SAT": 0.033441063745675216
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.512665272767161
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011936994166007896,
+          "H2O": 0.023819005807648,
+          "MONO": 0.9389736654739164,
+          "NMP": 0.01822729677379697,
+          "PA": 0.001155442980769683,
+          "POLY": 0.004325414963232185,
+          "SAT": 0.0015621798346289817
+        },
+        "persistedMinimum": -0.706695176431397,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.706695176431397,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.025908557901740643,
+        "H2O": 0.07298575409485758,
+        "MONO": 0.04608178229772317,
+        "NMP": 0.8095594306242703,
+        "PA": 0.0026731021402736426,
+        "POLY": 0.00935030919545962,
+        "SAT": 0.03344106374567522
+      },
+      "stageCount": 7,
+      "stageFromFeedEnd": 4
+    },
+    {
+      "minimizerL1Distance": 1.7519445466377876,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03058790276596553,
+          "H2O": 0.08109040804739875,
+          "MONO": 0.056635744977585105,
+          "NMP": 0.1072771993773964,
+          "PA": 0.0011318509012791847,
+          "POLY": 0.00956492909935434,
+          "SAT": 0.7137119648310205
+        },
+        "minimum": -2.0162504837988356e-16,
+        "tpdAtResidualModelMinimizer": 2.5441081091897826
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011352270201906581,
+          "H2O": 0.030790216811822802,
+          "MONO": 0.932608018296479,
+          "NMP": 0.01885417019281025,
+          "PA": 0.0007946400987076181,
+          "POLY": 0.003982290961081004,
+          "SAT": 0.0016183934371926674
+        },
+        "persistedMinimum": -0.6640636798881309,
+        "replayAbsoluteDifference": 3.3306690738754696e-16,
+        "replayedObjectiveAtPersistedMinimizer": -0.6640636798881312,
+        "tpdAtNativeModelMinimizer": -2.4124402119517655e-16
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.030587902765965538,
+        "H2O": 0.08109040804739877,
+        "MONO": 0.05663574497758512,
+        "NMP": 0.10727719937739642,
+        "PA": 0.001131850901279185,
+        "POLY": 0.009564929099354342,
+        "SAT": 0.7137119648310206
+      },
+      "stageCount": 7,
+      "stageFromFeedEnd": 5
+    },
+    {
+      "minimizerL1Distance": 1.7865136704272717,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.022538474714660826,
+          "H2O": 0.09033708871088837,
+          "MONO": 0.03935116606735198,
+          "NMP": 0.8071983800928726,
+          "PA": 0.0016873450736320076,
+          "POLY": 0.00787603134973485,
+          "SAT": 0.031011513990859413
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.6186751686862313
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011352290354408191,
+          "H2O": 0.030790210199538186,
+          "MONO": 0.9326080012809879,
+          "NMP": 0.018854173405385696,
+          "PA": 0.0007946335928194198,
+          "POLY": 0.0039822909850721075,
+          "SAT": 0.0016184001817886341
+        },
+        "persistedMinimum": -0.6640636798881168,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.6640636798881168,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.022538474714660826,
+        "H2O": 0.09033708871088837,
+        "MONO": 0.03935116606735198,
+        "NMP": 0.8071983800928726,
+        "PA": 0.0016873450736320076,
+        "POLY": 0.00787603134973485,
+        "SAT": 0.031011513990859413
+      },
+      "stageCount": 7,
+      "stageFromFeedEnd": 5
+    },
+    {
+      "minimizerL1Distance": 1.7532137598788566,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.024699151280233096,
+          "H2O": 0.0966783580962497,
+          "MONO": 0.04667267898612555,
+          "NMP": 0.10136721030868648,
+          "PA": 0.0006489339743440335,
+          "POLY": 0.007421507152390875,
+          "SAT": 0.7225121602019702
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.684374234866075
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.010448982190814894,
+          "H2O": 0.03996549658002521,
+          "MONO": 0.923279558925554,
+          "NMP": 0.020482263454494658,
+          "PA": 0.0005264991101230373,
+          "POLY": 0.0035305615286287573,
+          "SAT": 0.0017666382103595187
+        },
+        "persistedMinimum": -0.5806014264289007,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.5806014264289007,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.024699151280233103,
+        "H2O": 0.09667835809624972,
+        "MONO": 0.04667267898612556,
+        "NMP": 0.1013672103086865,
+        "PA": 0.0006489339743440336,
+        "POLY": 0.007421507152390877,
+        "SAT": 0.7225121602019703
+      },
+      "stageCount": 7,
+      "stageFromFeedEnd": 6
+    },
+    {
+      "minimizerL1Distance": 1.7843294791314521,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.017924539484687783,
+          "H2O": 0.1078009408385398,
+          "MONO": 0.031114808999038502,
+          "NMP": 0.8078774740018434,
+          "PA": 0.0009641659126446005,
+          "POLY": 0.006028628588488028,
+          "SAT": 0.028289442174757845
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.778318104775652
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.010448983641329776,
+          "H2O": 0.039965486118570495,
+          "MONO": 0.9232795485647646,
+          "NMP": 0.020482279472339326,
+          "PA": 0.0005264978112126583,
+          "POLY": 0.0035305656686485127,
+          "SAT": 0.001766638723134762
+        },
+        "persistedMinimum": -0.5806014264288933,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.5806014264288933,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.017924539484687783,
+        "H2O": 0.1078009408385398,
+        "MONO": 0.031114808999038502,
+        "NMP": 0.8078774740018434,
+        "PA": 0.0009641659126446005,
+        "POLY": 0.006028628588488028,
+        "SAT": 0.028289442174757845
+      },
+      "stageCount": 7,
+      "stageFromFeedEnd": 6
+    },
+    {
+      "minimizerL1Distance": 1.7379730476936877,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.015589338872156203,
+          "H2O": 0.11257009295416498,
+          "MONO": 0.03087872515206312,
+          "NMP": 0.09377651666627052,
+          "PA": 0.0002846423333755745,
+          "POLY": 0.004463490140193813,
+          "SAT": 0.7424371938817759
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.9660819107468517
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009078512724431229,
+          "H2O": 0.05884005002196741,
+          "MONO": 0.8998193751016842,
+          "NMP": 0.02664524415875362,
+          "PA": 0.00033051623059823744,
+          "POLY": 0.0029422691187462437,
+          "SAT": 0.002344032643818995
+        },
+        "persistedMinimum": -0.3503886345997404,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.3503886345997404,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.015589338872156201,
+        "H2O": 0.11257009295416497,
+        "MONO": 0.030878725152063115,
+        "NMP": 0.0937765166662705,
+        "PA": 0.0002846423333755744,
+        "POLY": 0.004463490140193812,
+        "SAT": 0.7424371938817758
+      },
+      "stageCount": 7,
+      "stageFromFeedEnd": 7
+    },
+    {
+      "minimizerL1Distance": 1.7605612635781354,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.01112867733544623,
+          "H2O": 0.12565987289558417,
+          "MONO": 0.019538708253792718,
+          "NMP": 0.8146947768612405,
+          "PA": 0.0004235084867482128,
+          "POLY": 0.0035755454869803127,
+          "SAT": 0.02497891068020785
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 3.071456891350414
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009078532991956625,
+          "H2O": 0.05884001675820305,
+          "MONO": 0.8998193400428605,
+          "NMP": 0.02664527676561788,
+          "PA": 0.0003305235687299888,
+          "POLY": 0.002942269557271779,
+          "SAT": 0.0023440403153602357
+        },
+        "persistedMinimum": -0.35038863459972047,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.35038863459972047,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.01112867733544623,
+        "H2O": 0.12565987289558417,
+        "MONO": 0.019538708253792718,
+        "NMP": 0.8146947768612405,
+        "PA": 0.0004235084867482128,
+        "POLY": 0.0035755454869803127,
+        "SAT": 0.02497891068020785
+      },
+      "stageCount": 7,
+      "stageFromFeedEnd": 7
+    },
+    {
+      "minimizerL1Distance": 1.7436673345007083,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.042543784084494815,
+          "H2O": 0.016849089234872883,
+          "MONO": 0.08265474981896345,
+          "NMP": 0.126278681383858,
+          "PA": 0.0056985080370031945,
+          "POLY": 0.01485703360891143,
+          "SAT": 0.7111181538318962
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.288408655489579
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012641720511064908,
+          "H2O": 0.005653977329782886,
+          "MONO": 0.9544884170693176,
+          "NMP": 0.017588326616374796,
+          "PA": 0.0031756628456649696,
+          "POLY": 0.004943638131499141,
+          "SAT": 0.001508257496295657
+        },
+        "persistedMinimum": -0.7802193557938242,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7802193557938242,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.042543784084494815,
+        "H2O": 0.016849089234872883,
+        "MONO": 0.08265474981896345,
+        "NMP": 0.126278681383858,
+        "PA": 0.0056985080370031945,
+        "POLY": 0.01485703360891143,
+        "SAT": 0.7111181538318962
+      },
+      "stageCount": 8,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.7621896223227116,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03450453330489136,
+          "H2O": 0.01863400555479223,
+          "MONO": 0.07339360208685565,
+          "NMP": 0.8078954390379184,
+          "PA": 0.009031779016210007,
+          "POLY": 0.013406463115074421,
+          "SAT": 0.04313417788425789
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.1811910777728247
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012641727769996433,
+          "H2O": 0.005653985421709632,
+          "MONO": 0.9544884132482114,
+          "NMP": 0.01758831821820266,
+          "PA": 0.0031756639168104193,
+          "POLY": 0.004943639367711252,
+          "SAT": 0.001508252057358246
+        },
+        "persistedMinimum": -0.7802193557938284,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7802193557938284,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.03450453330489136,
+        "H2O": 0.01863400555479223,
+        "MONO": 0.07339360208685565,
+        "NMP": 0.8078954390379184,
+        "PA": 0.009031779016210007,
+        "POLY": 0.013406463115074421,
+        "SAT": 0.04313417788425789
+      },
+      "stageCount": 8,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.7474029111838767,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.04073963665373916,
+          "H2O": 0.03084501984882623,
+          "MONO": 0.0766325200529461,
+          "NMP": 0.1220194276861771,
+          "PA": 0.003973301852389332,
+          "POLY": 0.013961166931309164,
+          "SAT": 0.711828926974613
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.3409285786357343
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012639178122353106,
+          "H2O": 0.010578769236063398,
+          "MONO": 0.9503339756448844,
+          "NMP": 0.017759017705433457,
+          "PA": 0.0023152598271537696,
+          "POLY": 0.004851890127902695,
+          "SAT": 0.0015219093362091997
+        },
+        "persistedMinimum": -0.7600479229368483,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7600479229368483,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.04073963665373917,
+        "H2O": 0.030845019848826236,
+        "MONO": 0.07663252005294612,
+        "NMP": 0.12201942768617713,
+        "PA": 0.003973301852389333,
+        "POLY": 0.013961166931309167,
+        "SAT": 0.7118289269746131
+      },
+      "stageCount": 8,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.777986986948828,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03174175075189704,
+          "H2O": 0.03424671596214759,
+          "MONO": 0.06134048239412828,
+          "NMP": 0.8153142578551955,
+          "PA": 0.006108747418569072,
+          "POLY": 0.01211650241442426,
+          "SAT": 0.039131543203638326
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.319477227340492
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012639189060698676,
+          "H2O": 0.010578768898189374,
+          "MONO": 0.9503339758685422,
+          "NMP": 0.017759011299041345,
+          "PA": 0.002315257370113839,
+          "POLY": 0.004851887745086369,
+          "SAT": 0.001521909758328081
+        },
+        "persistedMinimum": -0.7600479229368714,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7600479229368714,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.03174175075189704,
+        "H2O": 0.03424671596214759,
+        "MONO": 0.06134048239412828,
+        "NMP": 0.8153142578551955,
+        "PA": 0.006108747418569072,
+        "POLY": 0.01211650241442426,
+        "SAT": 0.039131543203638326
+      },
+      "stageCount": 8,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.7485369222271483,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.038865362673554664,
+          "H2O": 0.04483215422463531,
+          "MONO": 0.07170094282695731,
+          "NMP": 0.11821722154757047,
+          "PA": 0.0027663853301007767,
+          "POLY": 0.013045864956062329,
+          "SAT": 0.7105720684411193
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.3833167068931473
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012526491158063431,
+          "H2O": 0.015695803000787927,
+          "MONO": 0.9459694039405313,
+          "NMP": 0.01789054448123416,
+          "PA": 0.0016745739288248007,
+          "POLY": 0.00471033189147473,
+          "SAT": 0.0015328515990835655
+        },
+        "persistedMinimum": -0.7412890840133551,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7412890840133551,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03886536267355466,
+        "H2O": 0.0448321542246353,
+        "MONO": 0.0717009428269573,
+        "NMP": 0.11821722154757046,
+        "PA": 0.0027663853301007763,
+        "POLY": 0.013045864956062327,
+        "SAT": 0.7105720684411192
+      },
+      "stageCount": 8,
+      "stageFromFeedEnd": 3
+    },
+    {
+      "minimizerL1Distance": 1.7828170766153484,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.02968921351435118,
+          "H2O": 0.04984624756655603,
+          "MONO": 0.05456091525686108,
+          "NMP": 0.8139478276952781,
+          "PA": 0.004198313227296309,
+          "POLY": 0.011110068882898994,
+          "SAT": 0.03664741385675845
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.400358143501732
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012526480375849079,
+          "H2O": 0.01569579350159296,
+          "MONO": 0.9459694535645351,
+          "NMP": 0.017890522480675304,
+          "PA": 0.0016745640506525528,
+          "POLY": 0.004710337577349804,
+          "SAT": 0.0015328484493449684
+        },
+        "persistedMinimum": -0.7412890840133434,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7412890840133434,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.02968921351435118,
+        "H2O": 0.04984624756655603,
+        "MONO": 0.05456091525686108,
+        "NMP": 0.8139478276952781,
+        "PA": 0.004198313227296309,
+        "POLY": 0.011110068882898994,
+        "SAT": 0.03664741385675845
+      },
+      "stageCount": 8,
+      "stageFromFeedEnd": 3
+    },
+    {
+      "minimizerL1Distance": 1.748882368910844,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03665835647863297,
+          "H2O": 0.05875102542420823,
+          "MONO": 0.06688944997699842,
+          "NMP": 0.11446911857388185,
+          "PA": 0.0019011653386089115,
+          "POLY": 0.01201506533048137,
+          "SAT": 0.7093158188771883
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.4270839638295936
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012302059282213774,
+          "H2O": 0.02103976770011382,
+          "MONO": 0.9413306344324204,
+          "NMP": 0.018063802065677925,
+          "PA": 0.0011984067405434989,
+          "POLY": 0.004517329770433772,
+          "SAT": 0.001548000008596851
+        },
+        "persistedMinimum": -0.7204598216492956,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7204598216492956,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03665835647863296,
+        "H2O": 0.05875102542420822,
+        "MONO": 0.0668894499769984,
+        "NMP": 0.11446911857388184,
+        "PA": 0.0019011653386089113,
+        "POLY": 0.012015065330481368,
+        "SAT": 0.7093158188771882
+      },
+      "stageCount": 8,
+      "stageFromFeedEnd": 4
+    },
+    {
+      "minimizerL1Distance": 1.78451940447016,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.027599979939942475,
+          "H2O": 0.06537238714070698,
+          "MONO": 0.049070930462589965,
+          "NMP": 0.8104431177848235,
+          "PA": 0.002860514370841232,
+          "POLY": 0.010092405234734512,
+          "SAT": 0.034560665066361455
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.469609357931496
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012302065805249712,
+          "H2O": 0.02103976983501029,
+          "MONO": 0.9413306326976698,
+          "NMP": 0.018063797743666756,
+          "PA": 0.0011984136913853478,
+          "POLY": 0.004517319463287694,
+          "SAT": 0.001548000763730278
+        },
+        "persistedMinimum": -0.7204598216493284,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7204598216493284,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.027599979939942475,
+        "H2O": 0.06537238714070698,
+        "MONO": 0.049070930462589965,
+        "NMP": 0.8104431177848235,
+        "PA": 0.002860514370841232,
+        "POLY": 0.010092405234734512,
+        "SAT": 0.034560665066361455
+      },
+      "stageCount": 8,
+      "stageFromFeedEnd": 4
+    },
+    {
+      "minimizerL1Distance": 1.7494443342533679,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.033822954591389946,
+          "H2O": 0.07259345523435815,
+          "MONO": 0.06152766350865138,
+          "NMP": 0.11049207856422522,
+          "PA": 0.0012718494726191869,
+          "POLY": 0.010779045522339712,
+          "SAT": 0.7095129531064166
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.482216458407465
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011931815469137701,
+          "H2O": 0.026758435255684217,
+          "MONO": 0.9362498306353352,
+          "NMP": 0.018377763926908108,
+          "PA": 0.0008443241550240306,
+          "POLY": 0.004261756649459784,
+          "SAT": 0.0015760739084509558
+        },
+        "persistedMinimum": -0.6932298373259808,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.6932298373259808,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03382295459138994,
+        "H2O": 0.07259345523435813,
+        "MONO": 0.061527663508651374,
+        "NMP": 0.1104920785642252,
+        "PA": 0.0012718494726191867,
+        "POLY": 0.01077904552233971,
+        "SAT": 0.7095129531064165
+      },
+      "stageCount": 8,
+      "stageFromFeedEnd": 5
+    },
+    {
+      "minimizerL1Distance": 1.7850686834984688,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.025142631832969217,
+          "H2O": 0.08082362144109917,
+          "MONO": 0.04371544246980652,
+          "NMP": 0.8069242538470796,
+          "PA": 0.001901301313014988,
+          "POLY": 0.008946804726722893,
+          "SAT": 0.03254594436930773
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.5448133727481674
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011931829094471985,
+          "H2O": 0.026758464045479095,
+          "MONO": 0.9362497842190409,
+          "NMP": 0.018377760960211088,
+          "PA": 0.0008443207445730886,
+          "POLY": 0.004261760766586336,
+          "SAT": 0.0015760801696375055
+        },
+        "persistedMinimum": -0.6932298373259244,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.6932298373259244,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.025142631832969213,
+        "H2O": 0.08082362144109916,
+        "MONO": 0.04371544246980651,
+        "NMP": 0.8069242538470794,
+        "PA": 0.0019013013130149878,
+        "POLY": 0.008946804726722891,
+        "SAT": 0.032545944369307724
+      },
+      "stageCount": 8,
+      "stageFromFeedEnd": 5
+    },
+    {
+      "minimizerL1Distance": 1.7507502199977618,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.029914014502768385,
+          "H2O": 0.0863956736088961,
+          "MONO": 0.054793435321905365,
+          "NMP": 0.105973672058577,
+          "PA": 0.0008087517977435703,
+          "POLY": 0.009220570669146501,
+          "SAT": 0.712893882040963
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.56363452028815
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.01135151756573792,
+          "H2O": 0.03328621856418122,
+          "MONO": 0.9301685453207863,
+          "NMP": 0.01905048146046532,
+          "PA": 0.000580872265267892,
+          "POLY": 0.003925588834604577,
+          "SAT": 0.0016367759889568264
+        },
+        "persistedMinimum": -0.6503856137624136,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.6503856137624136,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.029914014502768385,
+        "H2O": 0.0863956736088961,
+        "MONO": 0.054793435321905365,
+        "NMP": 0.105973672058577,
+        "PA": 0.0008087517977435703,
+        "POLY": 0.009220570669146501,
+        "SAT": 0.712893882040963
+      },
+      "stageCount": 8,
+      "stageFromFeedEnd": 6
+    },
+    {
+      "minimizerL1Distance": 1.7849621928626354,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.021957515138082726,
+          "H2O": 0.09625377602688004,
+          "MONO": 0.03768744580318745,
+          "NMP": 0.804938219437051,
+          "PA": 0.0012033176550687009,
+          "POLY": 0.007565170715273898,
+          "SAT": 0.030394555224456235
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.643984083373511
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011351532902667988,
+          "H2O": 0.03328622274916687,
+          "MONO": 0.9301685422345052,
+          "NMP": 0.019050470725263984,
+          "PA": 0.0005808673453800881,
+          "POLY": 0.003925592192658074,
+          "SAT": 0.001636771850357867
+        },
+        "persistedMinimum": -0.6503856137623867,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.6503856137623867,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.021957515138082726,
+        "H2O": 0.09625377602688004,
+        "MONO": 0.03768744580318745,
+        "NMP": 0.804938219437051,
+        "PA": 0.0012033176550687009,
+        "POLY": 0.007565170715273898,
+        "SAT": 0.030394555224456235
+      },
+      "stageCount": 8,
+      "stageFromFeedEnd": 6
+    },
+    {
+      "minimizerL1Distance": 1.7514639473333395,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.024180854666304232,
+          "H2O": 0.10025869308605762,
+          "MONO": 0.045271854531703404,
+          "NMP": 0.10047297607697671,
+          "PA": 0.00046390046883562473,
+          "POLY": 0.007161773458533718,
+          "SAT": 0.7221899477115888
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.7022355739129718
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.010459433799668204,
+          "H2O": 0.04210277825581905,
+          "MONO": 0.9210038281983731,
+          "NMP": 0.020770490005703163,
+          "PA": 0.00038534089944935416,
+          "POLY": 0.003484322572523932,
+          "SAT": 0.0017938062684632432
+        },
+        "persistedMinimum": -0.5656049358847149,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.5656049358847149,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.024180854666304232,
+        "H2O": 0.10025869308605762,
+        "MONO": 0.045271854531703404,
+        "NMP": 0.10047297607697671,
+        "PA": 0.00046390046883562473,
+        "POLY": 0.007161773458533718,
+        "SAT": 0.7221899477115888
+      },
+      "stageCount": 8,
+      "stageFromFeedEnd": 7
+    },
+    {
+      "minimizerL1Distance": 1.7820233490171429,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.01750890172871397,
+          "H2O": 0.11179368774070272,
+          "MONO": 0.02999219643364231,
+          "NMP": 0.8063145582102808,
+          "PA": 0.0006885927688821974,
+          "POLY": 0.005805492966225213,
+          "SAT": 0.027896570151552925
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.7989517958513037
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.010459435208478725,
+          "H2O": 0.04210273225570616,
+          "MONO": 0.9210038709422136,
+          "NMP": 0.02077048644372422,
+          "PA": 0.000385338441463131,
+          "POLY": 0.003484323724283714,
+          "SAT": 0.0017938129841303543
+        },
+        "persistedMinimum": -0.5656049358847244,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.5656049358847244,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.01750890172871397,
+        "H2O": 0.11179368774070272,
+        "MONO": 0.02999219643364231,
+        "NMP": 0.8063145582102808,
+        "PA": 0.0006885927688821974,
+        "POLY": 0.005805492966225213,
+        "SAT": 0.027896570151552925
+      },
+      "stageCount": 8,
+      "stageFromFeedEnd": 7
+    },
+    {
+      "minimizerL1Distance": 1.7345021031710968,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.015267841406470783,
+          "H2O": 0.11441076518196831,
+          "MONO": 0.02998776781909047,
+          "NMP": 0.09330077178406679,
+          "PA": 0.00020346966959541884,
+          "POLY": 0.004308701922035219,
+          "SAT": 0.7425206822167729
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.9810014674861574
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009108842923343585,
+          "H2O": 0.060943144032204584,
+          "MONO": 0.8971996181567654,
+          "NMP": 0.027197205189904906,
+          "PA": 0.00024267091746891367,
+          "POLY": 0.0029109619425889658,
+          "SAT": 0.002397556837723701
+        },
+        "persistedMinimum": -0.33227653441557314,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.33227653441557314,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.015267841406470783,
+        "H2O": 0.11441076518196831,
+        "MONO": 0.02998776781909047,
+        "NMP": 0.09330077178406679,
+        "PA": 0.00020346966959541884,
+        "POLY": 0.004308701922035219,
+        "SAT": 0.7425206822167729
+      },
+      "stageCount": 8,
+      "stageFromFeedEnd": 8
+    },
+    {
+      "minimizerL1Distance": 1.7565705541113328,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.010888390358262195,
+          "H2O": 0.12771206151161257,
+          "MONO": 0.018914449645789717,
+          "NMP": 0.8139498115524028,
+          "PA": 0.0003026608596332179,
+          "POLY": 0.003448461687785403,
+          "SAT": 0.024784164384514164
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 3.0865242924103966
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009108833775242405,
+          "H2O": 0.06094306053564646,
+          "MONO": 0.8971997267014562,
+          "NMP": 0.02719717658251381,
+          "PA": 0.00024266934354959875,
+          "POLY": 0.00291097978646873,
+          "SAT": 0.0023975532751229637
+        },
+        "persistedMinimum": -0.3322765344156166,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.3322765344156166,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.010888390358262195,
+        "H2O": 0.12771206151161257,
+        "MONO": 0.018914449645789717,
+        "NMP": 0.8139498115524028,
+        "PA": 0.0003026608596332179,
+        "POLY": 0.003448461687785403,
+        "SAT": 0.024784164384514164
+      },
+      "stageCount": 8,
+      "stageFromFeedEnd": 8
+    },
+    {
+      "minimizerL1Distance": 1.7438452726334315,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.0427655238755697,
+          "H2O": 0.015276004364844088,
+          "MONO": 0.08300842279835159,
+          "NMP": 0.1266376865153514,
+          "PA": 0.005726596275765039,
+          "POLY": 0.01496848435182287,
+          "SAT": 0.7116172818182954
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.2864658685402848
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012681525640994035,
+          "H2O": 0.005120683265981784,
+          "MONO": 0.9549310591150674,
+          "NMP": 0.01760035052414173,
+          "PA": 0.0031861506646452013,
+          "POLY": 0.004970846241103547,
+          "SAT": 0.0015093845480663966
+        },
+        "persistedMinimum": -0.78105256793014,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.78105256793014,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.04276552387556969,
+        "H2O": 0.015276004364844087,
+        "MONO": 0.08300842279835158,
+        "NMP": 0.12663768651535137,
+        "PA": 0.005726596275765038,
+        "POLY": 0.014968484351822868,
+        "SAT": 0.7116172818182953
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.7615015641082201,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.034776043689376,
+          "H2O": 0.01689073355369218,
+          "MONO": 0.07418027004172807,
+          "NMP": 0.8080867746475524,
+          "PA": 0.009097194311743528,
+          "POLY": 0.013542321234359965,
+          "SAT": 0.04342666252154784
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.1739423855038873
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012681534698616218,
+          "H2O": 0.005120684017814814,
+          "MONO": 0.9549310520958382,
+          "NMP": 0.017600359801755193,
+          "PA": 0.0031861487826065874,
+          "POLY": 0.004970841704710291,
+          "SAT": 0.001509378898658721
+        },
+        "persistedMinimum": -0.7810525679301292,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7810525679301292,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.034776043689376,
+        "H2O": 0.01689073355369218,
+        "MONO": 0.07418027004172807,
+        "NMP": 0.8080867746475524,
+        "PA": 0.009097194311743528,
+        "POLY": 0.013542321234359965,
+        "SAT": 0.04342666252154784
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.7475548124700429,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.04122013802443036,
+          "H2O": 0.027971105937430962,
+          "MONO": 0.07740361580071549,
+          "NMP": 0.12273191510754877,
+          "PA": 0.004021172147948448,
+          "POLY": 0.014193127141757453,
+          "SAT": 0.7124589258401686
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.335445142037253
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012722941015997778,
+          "H2O": 0.009567661177346799,
+          "MONO": 0.9511810220357368,
+          "NMP": 0.017765727607827422,
+          "PA": 0.0023323858030392555,
+          "POLY": 0.0049076918072484405,
+          "SAT": 0.0015225705528032294
+        },
+        "persistedMinimum": -0.7623263331670629,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7623263331670629,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.04122013802443036,
+        "H2O": 0.027971105937430962,
+        "MONO": 0.07740361580071549,
+        "NMP": 0.12273191510754877,
+        "PA": 0.004021172147948448,
+        "POLY": 0.014193127141757453,
+        "SAT": 0.7124589258401686
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.7775987323646627,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03220915161748121,
+          "H2O": 0.031051286432367414,
+          "MONO": 0.06238165283946251,
+          "NMP": 0.8162618455030879,
+          "PA": 0.006195654207140998,
+          "POLY": 0.01235241964781491,
+          "SAT": 0.039547989752645014
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.3089517252342446
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012722935065434633,
+          "H2O": 0.00956768253854926,
+          "MONO": 0.9511810190217939,
+          "NMP": 0.017765719683619445,
+          "PA": 0.0023323831974471124,
+          "POLY": 0.00490768830333286,
+          "SAT": 0.0015225721898229098
+        },
+        "persistedMinimum": -0.7623263331670417,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7623263331670417,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.03220915161748121,
+        "H2O": 0.031051286432367414,
+        "MONO": 0.06238165283946251,
+        "NMP": 0.8162618455030879,
+        "PA": 0.006195654207140998,
+        "POLY": 0.01235241964781491,
+        "SAT": 0.039547989752645014
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.7484717681216904,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03970383431150968,
+          "H2O": 0.04065750214303061,
+          "MONO": 0.07302511546178261,
+          "NMP": 0.11934555521987238,
+          "PA": 0.0028316380263604638,
+          "POLY": 0.013431864564889293,
+          "SAT": 0.711004490272555
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.3720462563219855
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012672556242582551,
+          "H2O": 0.014161617084435335,
+          "MONO": 0.9472609995226279,
+          "NMP": 0.017872805202825564,
+          "PA": 0.0016978778776471244,
+          "POLY": 0.004802775957607501,
+          "SAT": 0.0015313681122741578
+        },
+        "persistedMinimum": -0.7459167573086302,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7459167573086302,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03970383431150968,
+        "H2O": 0.04065750214303061,
+        "MONO": 0.07302511546178261,
+        "NMP": 0.11934555521987238,
+        "PA": 0.0028316380263604638,
+        "POLY": 0.013431864564889293,
+        "SAT": 0.711004490272555
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 3
+    },
+    {
+      "minimizerL1Distance": 1.7823802606120478,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.030445668085956026,
+          "H2O": 0.04519666591573083,
+          "MONO": 0.05607081935833138,
+          "NMP": 0.8152515059086825,
+          "PA": 0.00430785781328215,
+          "POLY": 0.01148053451531857,
+          "SAT": 0.03724694840269864
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.382983251879065
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012672561221308734,
+          "H2O": 0.014161634652308366,
+          "MONO": 0.9472609496643553,
+          "NMP": 0.017872818550789944,
+          "PA": 0.0016978820464066508,
+          "POLY": 0.004802782906651943,
+          "SAT": 0.001531370958179106
+        },
+        "persistedMinimum": -0.7459167573086177,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7459167573086177,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.030445668085956026,
+        "H2O": 0.04519666591573083,
+        "MONO": 0.05607081935833138,
+        "NMP": 0.8152515059086825,
+        "PA": 0.00430785781328215,
+        "POLY": 0.01148053451531857,
+        "SAT": 0.03724694840269864
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 3
+    },
+    {
+      "minimizerL1Distance": 1.7483309007027599,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03800998992450703,
+          "H2O": 0.053274248372517846,
+          "MONO": 0.0689764017023078,
+          "NMP": 0.11610702255079404,
+          "PA": 0.0019816527264506175,
+          "POLY": 0.012602679401613467,
+          "SAT": 0.7090480053218093
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.4064181659160493
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012540154773708824,
+          "H2O": 0.018905005351122814,
+          "MONO": 0.9431418520536876,
+          "NMP": 0.017986632644624297,
+          "PA": 0.0012273852392420065,
+          "POLY": 0.004657657772714661,
+          "SAT": 0.0015413121648997115
+        },
+        "persistedMinimum": -0.729051523725619,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.729051523725619,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03800998992450703,
+        "H2O": 0.053274248372517846,
+        "MONO": 0.0689764017023078,
+        "NMP": 0.11610702255079404,
+        "PA": 0.0019816527264506175,
+        "POLY": 0.012602679401613467,
+        "SAT": 0.7090480053218093
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 4
+    },
+    {
+      "minimizerL1Distance": 1.7838631778265268,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.028761181065374352,
+          "H2O": 0.05926334077433105,
+          "MONO": 0.0512102719604855,
+          "NMP": 0.8117534303938355,
+          "PA": 0.0029896028642220924,
+          "POLY": 0.010635828355741093,
+          "SAT": 0.03538634458601038
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.441463394249286
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012540157557920194,
+          "H2O": 0.018905010185318247,
+          "MONO": 0.943141860873749,
+          "NMP": 0.017986629513321133,
+          "PA": 0.0012273849314100157,
+          "POLY": 0.0046576551149176935,
+          "SAT": 0.0015413018233638935
+        },
+        "persistedMinimum": -0.7290515237255929,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7290515237255929,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.028761181065374352,
+        "H2O": 0.05926334077433105,
+        "MONO": 0.0512102719604855,
+        "NMP": 0.8117534303938355,
+        "PA": 0.0029896028642220924,
+        "POLY": 0.010635828355741093,
+        "SAT": 0.03538634458601038
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 4
+    },
+    {
+      "minimizerL1Distance": 1.7480613924725121,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.035940349459327545,
+          "H2O": 0.06580133868543932,
+          "MONO": 0.06474005674188833,
+          "NMP": 0.11278892454537741,
+          "PA": 0.0013659687376418228,
+          "POLY": 0.011639076099592286,
+          "SAT": 0.7077242857307333
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.4456249763307123
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012308150019131008,
+          "H2O": 0.023856703996927138,
+          "MONO": 0.9387707529781444,
+          "NMP": 0.01816354678073394,
+          "PA": 0.0008782680306033911,
+          "POLY": 0.004465376922790415,
+          "SAT": 0.0015572012716697314
+        },
+        "persistedMinimum": -0.7092635565876908,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7092635565876908,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.035940349459327545,
+        "H2O": 0.06580133868543932,
+        "MONO": 0.06474005674188833,
+        "NMP": 0.11278892454537741,
+        "PA": 0.0013659687376418228,
+        "POLY": 0.011639076099592286,
+        "SAT": 0.7077242857307333
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 5
+    },
+    {
+      "minimizerL1Distance": 1.7840661722510498,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.02689118692700063,
+          "H2O": 0.07323338688097862,
+          "MONO": 0.04673767051002058,
+          "NMP": 0.8077105069166135,
+          "PA": 0.002047521052286482,
+          "POLY": 0.009718734266303347,
+          "SAT": 0.033660993446796905
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.499077761288915
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012308156417859175,
+          "H2O": 0.023856695084277194,
+          "MONO": 0.9387707566355454,
+          "NMP": 0.01816355101701875,
+          "PA": 0.0008782707099024304,
+          "POLY": 0.004465370538818937,
+          "SAT": 0.0015571995965781755
+        },
+        "persistedMinimum": -0.7092635565877179,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7092635565877179,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.026891186927000627,
+        "H2O": 0.07323338688097861,
+        "MONO": 0.046737670510020576,
+        "NMP": 0.8077105069166134,
+        "PA": 0.0020475210522864816,
+        "POLY": 0.009718734266303345,
+        "SAT": 0.0336609934467969
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 5
+    },
+    {
+      "minimizerL1Distance": 1.7483272031266046,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03322214288472108,
+          "H2O": 0.0782477274339755,
+          "MONO": 0.059802350680202614,
+          "NMP": 0.10917324724824798,
+          "PA": 0.000915468278679602,
+          "POLY": 0.010462505657064624,
+          "SAT": 0.7081765578171088
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.498060664744441
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011936943856219568,
+          "H2O": 0.029181391212338943,
+          "MONO": 0.9339659522435049,
+          "NMP": 0.01849642885859726,
+          "PA": 0.0006188608024162549,
+          "POLY": 0.004213159037667311,
+          "SAT": 0.0015872639892559528
+        },
+        "persistedMinimum": -0.6825014830934664,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.6825014830934664,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03322214288472108,
+        "H2O": 0.0782477274339755,
+        "MONO": 0.059802350680202614,
+        "NMP": 0.10917324724824798,
+        "PA": 0.000915468278679602,
+        "POLY": 0.010462505657064624,
+        "SAT": 0.7081765578171088
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 6
+    },
+    {
+      "minimizerL1Distance": 1.783866278104092,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.024592562682098928,
+          "H2O": 0.08712564516630752,
+          "MONO": 0.04203284774288253,
+          "NMP": 0.8043373244728623,
+          "PA": 0.0013652019336884969,
+          "POLY": 0.0086495269380548,
+          "SAT": 0.0318968910641055
+        },
+        "minimum": 1.3029056129128054e-16,
+        "tpdAtResidualModelMinimizer": 2.567381075364163
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011936943454957482,
+          "H2O": 0.02918138460618847,
+          "MONO": 0.9339659867949285,
+          "NMP": 0.018496399040112202,
+          "PA": 0.0006188604892638695,
+          "POLY": 0.004213162267400428,
+          "SAT": 0.0015872633471490586
+        },
+        "persistedMinimum": -0.6825014830934699,
+        "replayAbsoluteDifference": 4.440892098500626e-16,
+        "replayedObjectiveAtPersistedMinimizer": -0.6825014830934695,
+        "tpdAtNativeModelMinimizer": 1.0796571586140138e-16
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.024592562682098924,
+        "H2O": 0.08712564516630751,
+        "MONO": 0.042032847742882525,
+        "NMP": 0.8043373244728622,
+        "PA": 0.0013652019336884967,
+        "POLY": 0.008649526938054798,
+        "SAT": 0.031896891064105495
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 6
+    },
+    {
+      "minimizerL1Distance": 1.7494427103845567,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.0294231415160784,
+          "H2O": 0.09065690945060856,
+          "MONO": 0.053416699165753735,
+          "NMP": 0.10498024882200799,
+          "PA": 0.0005827390373270415,
+          "POLY": 0.008962423182915083,
+          "SAT": 0.7119778388253092
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.577867684138277
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011360322089937704,
+          "H2O": 0.03533570234179363,
+          "MONO": 0.9281380543580321,
+          "NMP": 0.019205850777535775,
+          "PA": 0.00042597067691812227,
+          "POLY": 0.0038825797407321294,
+          "SAT": 0.0016515200150505162
+        },
+        "persistedMinimum": -0.6395502457144135,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.6395502457144135,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.029423141516078406,
+        "H2O": 0.09065690945060857,
+        "MONO": 0.05341669916575375,
+        "NMP": 0.10498024882200802,
+        "PA": 0.0005827390373270416,
+        "POLY": 0.008962423182915085,
+        "SAT": 0.7119778388253093
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 7
+    },
+    {
+      "minimizerL1Distance": 1.7833242378191558,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.021537676119807142,
+          "H2O": 0.10100218163630874,
+          "MONO": 0.036475934103822646,
+          "NMP": 0.8028450668138721,
+          "PA": 0.000865742585875806,
+          "POLY": 0.007334219955285954,
+          "SAT": 0.029939178785027665
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.6621516872372073
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011360328467112284,
+          "H2O": 0.03533571614044971,
+          "MONO": 0.9281380530134005,
+          "NMP": 0.019205861190403274,
+          "PA": 0.0004259641380644241,
+          "POLY": 0.0038825676630648513,
+          "SAT": 0.0016515093875050057
+        },
+        "persistedMinimum": -0.6395502457143829,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.6395502457143829,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.02153767611980714,
+        "H2O": 0.10100218163630872,
+        "MONO": 0.03647593410382264,
+        "NMP": 0.802845066813872,
+        "PA": 0.0008657425858758058,
+        "POLY": 0.007334219955285953,
+        "SAT": 0.02993917878502766
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 7
+    },
+    {
+      "minimizerL1Distance": 1.7498145685599769,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.02380582201323895,
+          "H2O": 0.10312966495204492,
+          "MONO": 0.04422330948209435,
+          "NMP": 0.09979141734934716,
+          "PA": 0.00033442522658172925,
+          "POLY": 0.006967510715063771,
+          "SAT": 0.721747850261629
+        },
+        "minimum": -3.15819361605824e-15,
+        "tpdAtResidualModelMinimizer": 2.7153334715088304
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.010476235104417215,
+          "H2O": 0.043847617358559035,
+          "MONO": 0.9191305937620828,
+          "NMP": 0.0209979195148729,
+          "PA": 0.00028288835187375465,
+          "POLY": 0.0034493137788700365,
+          "SAT": 0.001815432129324306
+        },
+        "persistedMinimum": -0.5538594135288978,
+        "replayAbsoluteDifference": 2.220446049250313e-15,
+        "replayedObjectiveAtPersistedMinimizer": -0.5538594135288956,
+        "tpdAtNativeModelMinimizer": -3.195388355986666e-15
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.023805822013238956,
+        "H2O": 0.10312966495204495,
+        "MONO": 0.04422330948209436,
+        "NMP": 0.09979141734934718,
+        "PA": 0.0003344252265817293,
+        "POLY": 0.006967510715063773,
+        "SAT": 0.7217478502616291
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 8
+    },
+    {
+      "minimizerL1Distance": 1.7799327940566938,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.01720893974830504,
+          "H2O": 0.11499278122130689,
+          "MONO": 0.02916424326901816,
+          "NMP": 0.8048949296997994,
+          "PA": 0.000496025611216601,
+          "POLY": 0.005639319120075973,
+          "SAT": 0.02760376133027808
+        },
+        "minimum": 2.1793413887197085e-15,
+        "tpdAtResidualModelMinimizer": 2.813937787974871
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.010476226367314611,
+          "H2O": 0.04384762123882247,
+          "MONO": 0.919130640297365,
+          "NMP": 0.02099789994854698,
+          "PA": 0.0002828818285541785,
+          "POLY": 0.0034493083770851048,
+          "SAT": 0.0018154219423116855
+        },
+        "persistedMinimum": -0.5538594135288818,
+        "replayAbsoluteDifference": 1.6653345369377348e-15,
+        "replayedObjectiveAtPersistedMinimizer": -0.5538594135288801,
+        "tpdAtNativeModelMinimizer": 2.1793413887197085e-15
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.017208939748305035,
+        "H2O": 0.11499278122130688,
+        "MONO": 0.029164243269018158,
+        "NMP": 0.8048949296997993,
+        "PA": 0.0004960256112166009,
+        "POLY": 0.005639319120075972,
+        "SAT": 0.027603761330278077
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 8
+    },
+    {
+      "minimizerL1Distance": 1.7315917780379448,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.015037150434724682,
+          "H2O": 0.11588406758082377,
+          "MONO": 0.029322873428675025,
+          "NMP": 0.09293896022011663,
+          "PA": 0.00014669718164479894,
+          "POLY": 0.004193419011058814,
+          "SAT": 0.7424768321429561
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.991870922612486
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009139602883299543,
+          "H2O": 0.06263666034650214,
+          "MONO": 0.8950868609177028,
+          "NMP": 0.027631164325579178,
+          "PA": 0.000178598711589454,
+          "POLY": 0.00288722302773008,
+          "SAT": 0.0024398897875968087
+        },
+        "persistedMinimum": -0.3183130646735496,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.3183130646735496,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.01503715043472469,
+        "H2O": 0.11588406758082383,
+        "MONO": 0.02932287342867504,
+        "NMP": 0.09293896022011668,
+        "PA": 0.000146697181644799,
+        "POLY": 0.004193419011058816,
+        "SAT": 0.7424768321429565
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 9
+    },
+    {
+      "minimizerL1Distance": 1.7532703761562423,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.0107160193659949,
+          "H2O": 0.12935346057107075,
+          "MONO": 0.01845169986803079,
+          "NMP": 0.8132683838943854,
+          "PA": 0.0002181639219749091,
+          "POLY": 0.003353951150541139,
+          "SAT": 0.024638321228002268
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 3.0973947142454334
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009139607788012052,
+          "H2O": 0.06263662945946294,
+          "MONO": 0.8950868879461519,
+          "NMP": 0.027631157712097225,
+          "PA": 0.00017859850372049685,
+          "POLY": 0.0028872258327676844,
+          "SAT": 0.002439892757787724
+        },
+        "persistedMinimum": -0.31831306467355686,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.31831306467355686,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.0107160193659949,
+        "H2O": 0.12935346057107075,
+        "MONO": 0.01845169986803079,
+        "NMP": 0.8132683838943854,
+        "PA": 0.0002181639219749091,
+        "POLY": 0.003353951150541139,
+        "SAT": 0.024638321228002268
+      },
+      "stageCount": 9,
+      "stageFromFeedEnd": 9
+    },
+    {
+      "minimizerL1Distance": 1.7440556655143276,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.0429259194274652,
+          "H2O": 0.013975137838422363,
+          "MONO": 0.08327764977582904,
+          "NMP": 0.12691837484912827,
+          "PA": 0.005746161502660159,
+          "POLY": 0.01505331533531939,
+          "SAT": 0.7121034412711756
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.285184143494875
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012708675295203413,
+          "H2O": 0.004680491477678888,
+          "MONO": 0.9553054825329929,
+          "NMP": 0.01761049332411684,
+          "PA": 0.0031932484705616683,
+          "POLY": 0.004991326060474311,
+          "SAT": 0.001510282838972036
+        },
+        "persistedMinimum": -0.781736196094959,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.781736196094959,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.042925919427465195,
+        "H2O": 0.013975137838422361,
+        "MONO": 0.08327764977582902,
+        "NMP": 0.12691837484912824,
+        "PA": 0.005746161502660158,
+        "POLY": 0.015053315335319388,
+        "SAT": 0.7121034412711755
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.7610440649134884,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03497687937587421,
+          "H2O": 0.015450040678164821,
+          "MONO": 0.07478343120145892,
+          "NMP": 0.8083466285119627,
+          "PA": 0.009144694589839955,
+          "POLY": 0.013646313359847674,
+          "SAT": 0.04365201228285177
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.1686143946551257
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012708671780752539,
+          "H2O": 0.004680492097858956,
+          "MONO": 0.9553054636582031,
+          "NMP": 0.01761051269280011,
+          "PA": 0.0031932557767059312,
+          "POLY": 0.004991325858357112,
+          "SAT": 0.0015102781353222607
+        },
+        "persistedMinimum": -0.7817361960949558,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7817361960949558,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.03497687937587421,
+        "H2O": 0.015450040678164821,
+        "MONO": 0.07478343120145892,
+        "NMP": 0.8083466285119627,
+        "PA": 0.009144694589839955,
+        "POLY": 0.013646313359847674,
+        "SAT": 0.04365201228285177
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 1
+    },
+    {
+      "minimizerL1Distance": 1.7478191564204182,
+      "native7c": {
+        "classification": "EXHAUSTIVE_ESCALATION_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": true,
+        "minimizingComposition": {
+          "DI": 0.04156341274523015,
+          "H2O": 0.025596568671934657,
+          "MONO": 0.07798427671604596,
+          "NMP": 0.12328464992914015,
+          "PA": 0.004054436836069429,
+          "POLY": 0.014368601643687117,
+          "SAT": 0.7131480534578926
+        },
+        "minimum": -5.256520624033627e-15,
+        "tpdAtResidualModelMinimizer": 2.331749756947554
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.01277904375823569,
+          "H2O": 0.00873692792234746,
+          "MONO": 0.951893854926255,
+          "NMP": 0.01777353922644571,
+          "PA": 0.002343886865156725,
+          "POLY": 0.004949507497980433,
+          "SAT": 0.001523239803578954
+        },
+        "persistedMinimum": -0.7641051128124465,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7641051128124465,
+        "tpdAtNativeModelMinimizer": -5.25044927053872e-15
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.04156341699038525,
+        "H2O": 0.025596566521771846,
+        "MONO": 0.07798427500842547,
+        "NMP": 0.12328464945410171,
+        "PA": 0.004054441935664834,
+        "POLY": 0.01436859930483426,
+        "SAT": 0.7131480507848165
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.7774411397860572,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03254876138598534,
+          "H2O": 0.0284126547607298,
+          "MONO": 0.06317332101276035,
+          "NMP": 0.8172080270245541,
+          "PA": 0.006257639314842528,
+          "POLY": 0.012531955482246511,
+          "SAT": 0.03986764101888154
+        },
+        "minimum": 8.428755213712968e-16,
+        "tpdAtResidualModelMinimizer": 2.3014400579064183
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012779037086459067,
+          "H2O": 0.008736922576701663,
+          "MONO": 0.9518938909057889,
+          "NMP": 0.01777353420427241,
+          "PA": 0.002343884171234432,
+          "POLY": 0.004949492299872333,
+          "SAT": 0.001523238755671251
+        },
+        "persistedMinimum": -0.7641051128124233,
+        "replayAbsoluteDifference": 3.4416913763379853e-15,
+        "replayedObjectiveAtPersistedMinimizer": -0.7641051128124268,
+        "tpdAtNativeModelMinimizer": 8.655576005590756e-16
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.032548761385985336,
+        "H2O": 0.028412654760729794,
+        "MONO": 0.06317332101276034,
+        "NMP": 0.8172080270245539,
+        "PA": 0.006257639314842526,
+        "POLY": 0.012531955482246507,
+        "SAT": 0.03986764101888153
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 2
+    },
+    {
+      "minimizerL1Distance": 1.7486644017178732,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.04029371991599922,
+          "H2O": 0.0372130156266652,
+          "MONO": 0.07400406693111156,
+          "NMP": 0.12021112151866627,
+          "PA": 0.0028768102157109717,
+          "POLY": 0.013721351776943537,
+          "SAT": 0.7116799140149033
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.3645128427889333
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012769179763419784,
+          "H2O": 0.012911774232775956,
+          "MONO": 0.9483362677900482,
+          "NMP": 0.017866763644371415,
+          "PA": 0.0017135413982178303,
+          "POLY": 0.00487168575589769,
+          "SAT": 0.0015307874152692103
+        },
+        "persistedMinimum": -0.7493359676578144,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7493359676578144,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.04029371991599921,
+        "H2O": 0.037213015626665194,
+        "MONO": 0.07400406693111154,
+        "NMP": 0.12021112151866624,
+        "PA": 0.0028768102157109713,
+        "POLY": 0.013721351776943534,
+        "SAT": 0.7116799140149032
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 3
+    },
+    {
+      "minimizerL1Distance": 1.7822571679997175,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.030987526285760347,
+          "H2O": 0.041363264307254295,
+          "MONO": 0.057207700047973875,
+          "NMP": 0.8165908227344545,
+          "PA": 0.004385340328098397,
+          "POLY": 0.011760673360849122,
+          "SAT": 0.03770467293560944
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.3708179527939413
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012769171451765754,
+          "H2O": 0.012911774367684675,
+          "MONO": 0.9483362840478327,
+          "NMP": 0.01786676059299315,
+          "PA": 0.0017135437680444582,
+          "POLY": 0.0048716755986598975,
+          "SAT": 0.001530790173019541
+        },
+        "persistedMinimum": -0.7493359676578073,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7493359676578073,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.030987526285760347,
+        "H2O": 0.041363264307254295,
+        "MONO": 0.057207700047973875,
+        "NMP": 0.8165908227344545,
+        "PA": 0.004385340328098397,
+        "POLY": 0.011760673360849122,
+        "SAT": 0.03770467293560944
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 3
+    },
+    {
+      "minimizerL1Distance": 1.7482699890199056,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03894376839419013,
+          "H2O": 0.048764834181970515,
+          "MONO": 0.0704801049376825,
+          "NMP": 0.11734492076363319,
+          "PA": 0.002037131564956424,
+          "POLY": 0.013038434706465062,
+          "SAT": 0.7093908054511022
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.3929096392097797
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012696402440927458,
+          "H2O": 0.017193662143603274,
+          "MONO": 0.9446150994476352,
+          "NMP": 0.017948220692020005,
+          "PA": 0.0012469704575854659,
+          "POLY": 0.004761770124432774,
+          "SAT": 0.0015378746937957854
+        },
+        "persistedMinimum": -0.73497084439968,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.73497084439968,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03894376839419013,
+        "H2O": 0.048764834181970515,
+        "MONO": 0.0704801049376825,
+        "NMP": 0.11734492076363319,
+        "PA": 0.002037131564956424,
+        "POLY": 0.013038434706465062,
+        "SAT": 0.7093908054511022
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 4
+    },
+    {
+      "minimizerL1Distance": 1.783641032633221,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.029579343639624417,
+          "H2O": 0.05423871934523464,
+          "MONO": 0.05279459368351686,
+          "NMP": 0.8132530540519809,
+          "PA": 0.0030802658483685443,
+          "POLY": 0.011043105527706492,
+          "SAT": 0.036010917903568154
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.4222648127339292
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012696377320316856,
+          "H2O": 0.017193664885586973,
+          "MONO": 0.9446151100001274,
+          "NMP": 0.017948234728614905,
+          "PA": 0.0012469809801098416,
+          "POLY": 0.004761761892895503,
+          "SAT": 0.0015378701923484757
+        },
+        "persistedMinimum": -0.7349708443996656,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7349708443996656,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.029579343639624417,
+        "H2O": 0.05423871934523464,
+        "MONO": 0.05279459368351686,
+        "NMP": 0.8132530540519809,
+        "PA": 0.0030802658483685443,
+        "POLY": 0.011043105527706492,
+        "SAT": 0.036010917903568154
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 4
+    },
+    {
+      "minimizerL1Distance": 1.7474882530453544,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03737214323461289,
+          "H2O": 0.06022699138502479,
+          "MONO": 0.06697523825138625,
+          "NMP": 0.11449166655264496,
+          "PA": 0.001430539776667708,
+          "POLY": 0.012267577553511018,
+          "SAT": 0.7072358432461523
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.4225496335010472
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012553871848930923,
+          "H2O": 0.021605329996385415,
+          "MONO": 0.9407193647740634,
+          "NMP": 0.018056504544437246,
+          "PA": 0.0009014481187816473,
+          "POLY": 0.004615758750169233,
+          "SAT": 0.0015477219672319867
+        },
+        "persistedMinimum": -0.7193304627630944,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7193304627630944,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03737214323461289,
+        "H2O": 0.06022699138502479,
+        "MONO": 0.06697523825138625,
+        "NMP": 0.11449166655264496,
+        "PA": 0.001430539776667708,
+        "POLY": 0.012267577553511018,
+        "SAT": 0.7072358432461523
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 5
+    },
+    {
+      "minimizerL1Distance": 1.7835952600956055,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.02809964653224096,
+          "H2O": 0.06701342141427366,
+          "MONO": 0.048921742155936886,
+          "NMP": 0.8090316137487786,
+          "PA": 0.0021495244648708288,
+          "POLY": 0.010290416170047336,
+          "SAT": 0.0344936355138518
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.4690160790737603
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012553865170774243,
+          "H2O": 0.02160534696245871,
+          "MONO": 0.9407193722037396,
+          "NMP": 0.018056487518423533,
+          "PA": 0.0009014519272345642,
+          "POLY": 0.004615760757389987,
+          "SAT": 0.0015477154599793073
+        },
+        "persistedMinimum": -0.719330462763104,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.719330462763104,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.02809964653224096,
+        "H2O": 0.06701342141427366,
+        "MONO": 0.048921742155936886,
+        "NMP": 0.8090316137487786,
+        "PA": 0.0021495244648708288,
+        "POLY": 0.010290416170047336,
+        "SAT": 0.0344936355138518
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 5
+    },
+    {
+      "minimizerL1Distance": 1.7469255963538908,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.035402679388223134,
+          "H2O": 0.0715955195502425,
+          "MONO": 0.06312772453337263,
+          "NMP": 0.11148813385824097,
+          "PA": 0.000988287018957961,
+          "POLY": 0.011352862965357756,
+          "SAT": 0.706044792685605
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.458888837744556
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012318113246874962,
+          "H2O": 0.026217061337988793,
+          "MONO": 0.936590522710318,
+          "NMP": 0.018239786756714456,
+          "PA": 0.0006451763142013299,
+          "POLY": 0.004424867281627341,
+          "SAT": 0.0015644723522750654
+        },
+        "persistedMinimum": -0.7002935589690585,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7002935589690585,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03540267938822313,
+        "H2O": 0.07159551955024249,
+        "MONO": 0.06312772453337262,
+        "NMP": 0.11148813385824095,
+        "PA": 0.0009882870189579609,
+        "POLY": 0.011352862965357754,
+        "SAT": 0.7060447926856049
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 6
+    },
+    {
+      "minimizerL1Distance": 1.7830468483928734,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.026372748396928793,
+          "H2O": 0.07968863165753555,
+          "MONO": 0.04506712426429732,
+          "NMP": 0.8049538287273188,
+          "PA": 0.0014773077599792592,
+          "POLY": 0.009439993477949592,
+          "SAT": 0.033000365715990715
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.519654461423789
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.012318121034034065,
+          "H2O": 0.02621705956588975,
+          "MONO": 0.9365905484607341,
+          "NMP": 0.018239767229856707,
+          "PA": 0.0006451696677201264,
+          "POLY": 0.004424869638625143,
+          "SAT": 0.001564464403140261
+        },
+        "persistedMinimum": -0.7002935589690473,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.7002935589690473,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.026372748396928793,
+        "H2O": 0.07968863165753555,
+        "MONO": 0.04506712426429732,
+        "NMP": 0.8049538287273188,
+        "PA": 0.0014773077599792592,
+        "POLY": 0.009439993477949592,
+        "SAT": 0.033000365715990715
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 6
+    },
+    {
+      "minimizerL1Distance": 1.747078194422656,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.03277304826871838,
+          "H2O": 0.08288737421565827,
+          "MONO": 0.05849395745483853,
+          "NMP": 0.10814667330613807,
+          "PA": 0.0006633163898368798,
+          "POLY": 0.010221123683093105,
+          "SAT": 0.7068145066817167
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.50957726636556
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011947006356027261,
+          "H2O": 0.03120419079137813,
+          "MONO": 0.9320330546661666,
+          "NMP": 0.01858911041468442,
+          "PA": 0.00045476051779071326,
+          "POLY": 0.0041756804339501226,
+          "SAT": 0.0015961968200027814
+        },
+        "persistedMinimum": -0.6739091376929484,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.6739091376929484,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.03277304826871838,
+        "H2O": 0.08288737421565827,
+        "MONO": 0.05849395745483853,
+        "NMP": 0.10814667330613807,
+        "PA": 0.0006633163898368798,
+        "POLY": 0.010221123683093105,
+        "SAT": 0.7068145066817167
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 7
+    },
+    {
+      "minimizerL1Distance": 1.7824755127006477,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.024186205713434036,
+          "H2O": 0.09229257889725563,
+          "MONO": 0.040795360461341024,
+          "NMP": 0.80190267679954,
+          "PA": 0.000987317509952994,
+          "POLY": 0.008425371119700929,
+          "SAT": 0.031410489498775486
+        },
+        "minimum": 8.825369050974924e-16,
+        "tpdAtResidualModelMinimizer": 2.583534050885144
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011947000680182875,
+          "H2O": 0.03120416450431445,
+          "MONO": 0.9320331168116648,
+          "NMP": 0.018589101225984256,
+          "PA": 0.00045475968069852825,
+          "POLY": 0.004175668255643369,
+          "SAT": 0.0015961888415116734
+        },
+        "persistedMinimum": -0.6739091376929508,
+        "replayAbsoluteDifference": 3.3306690738754696e-15,
+        "replayedObjectiveAtPersistedMinimizer": -0.6739091376929541,
+        "tpdAtNativeModelMinimizer": 9.047941754797772e-16
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.024186205713434033,
+        "H2O": 0.09229257889725562,
+        "MONO": 0.04079536046134102,
+        "NMP": 0.8019026767995399,
+        "PA": 0.0009873175099529938,
+        "POLY": 0.008425371119700927,
+        "SAT": 0.03141048949877548
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 7
+    },
+    {
+      "minimizerL1Distance": 1.748130156450839,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.029058255050754753,
+          "H2O": 0.09414910565944208,
+          "MONO": 0.05236789405049624,
+          "NMP": 0.10420557101096586,
+          "PA": 0.0004226204710251836,
+          "POLY": 0.008765790274867045,
+          "SAT": 0.7110307634824489
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.5883264025859942
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011373378581346285,
+          "H2O": 0.03703949744411579,
+          "MONO": 0.9264329722759157,
+          "NMP": 0.019328145420558607,
+          "PA": 0.0003131789239673765,
+          "POLY": 0.0038495696984814144,
+          "SAT": 0.001663257655614862
+        },
+        "persistedMinimum": -0.6309243901318907,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.6309243901318907,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.029058255050754746,
+        "H2O": 0.09414910565944205,
+        "MONO": 0.05236789405049622,
+        "NMP": 0.10420557101096584,
+        "PA": 0.0004226204710251835,
+        "POLY": 0.008765790274867043,
+        "SAT": 0.7110307634824488
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 8
+    },
+    {
+      "minimizerL1Distance": 1.7817241970193978,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.021227104765180294,
+          "H2O": 0.10489050522073001,
+          "MONO": 0.035570862556633866,
+          "NMP": 0.8009312015858181,
+          "PA": 0.000627112534513365,
+          "POLY": 0.007159353218041335,
+          "SAT": 0.029593860119083056
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.675366850944112
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.011373362600640773,
+          "H2O": 0.03703951598442968,
+          "MONO": 0.9264329610663328,
+          "NMP": 0.019328139647748113,
+          "PA": 0.0003131857021816626,
+          "POLY": 0.0038495754138053923,
+          "SAT": 0.001663259584861615
+        },
+        "persistedMinimum": -0.6309243901319312,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.6309243901319312,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.021227104765180294,
+        "H2O": 0.10489050522073001,
+        "MONO": 0.035570862556633866,
+        "NMP": 0.8009312015858181,
+        "PA": 0.000627112534513365,
+        "POLY": 0.007159353218041335,
+        "SAT": 0.029593860119083056
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 8
+    },
+    {
+      "minimizerL1Distance": 1.7483033745859213,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.023529299661113025,
+          "H2O": 0.10547976768453954,
+          "MONO": 0.04342455956878004,
+          "NMP": 0.09926035234243066,
+          "PA": 0.00024265997931360292,
+          "POLY": 0.006819995269817392,
+          "SAT": 0.7212433654940058
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.7250181800549838
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.010495198489816258,
+          "H2O": 0.04528822741445916,
+          "MONO": 0.9175762468617407,
+          "NMP": 0.02117702733234111,
+          "PA": 0.00020818574650274233,
+          "POLY": 0.0034225336238156824,
+          "SAT": 0.001832580531324446
+        },
+        "persistedMinimum": -0.5446052060386654,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.5446052060386654,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.023529299661113022,
+        "H2O": 0.10547976768453952,
+        "MONO": 0.04342455956878003,
+        "NMP": 0.09926035234243065,
+        "PA": 0.0002426599793136029,
+        "POLY": 0.006819995269817391,
+        "SAT": 0.7212433654940057
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 9
+    },
+    {
+      "minimizerL1Distance": 1.7780711340276873,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.016987992767451294,
+          "H2O": 0.11760947052813346,
+          "MONO": 0.028540634057779214,
+          "NMP": 0.8036084587241408,
+          "PA": 0.00035968848048475375,
+          "POLY": 0.005513482143058976,
+          "SAT": 0.027380273298951586
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.8249393329609447
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.01049519232980251,
+          "H2O": 0.04528828154490621,
+          "MONO": 0.9175762010716229,
+          "NMP": 0.02117702834413903,
+          "PA": 0.0002081856907038066,
+          "POLY": 0.0034225297471765673,
+          "SAT": 0.0018325812716489794
+        },
+        "persistedMinimum": -0.5446052060386508,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.5446052060386508,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.01698799276745129,
+        "H2O": 0.11760947052813345,
+        "MONO": 0.02854063405777921,
+        "NMP": 0.8036084587241407,
+        "PA": 0.0003596884804847537,
+        "POLY": 0.005513482143058975,
+        "SAT": 0.027380273298951582
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 9
+    },
+    {
+      "minimizerL1Distance": 1.7291567082406414,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "SAT",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.014868710444688146,
+          "H2O": 0.11708846624854392,
+          "MONO": 0.028818326579674817,
+          "NMP": 0.09265782929410322,
+          "PA": 0.00010646652879031365,
+          "POLY": 0.004106281172955234,
+          "SAT": 0.7423539197312443
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 2.999867223768539
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009168626059988262,
+          "H2O": 0.06401278562032413,
+          "MONO": 0.8933714387381927,
+          "NMP": 0.027972959527570573,
+          "PA": 0.00013170849059322405,
+          "POLY": 0.002869065127679396,
+          "SAT": 0.002473416435651831
+        },
+        "persistedMinimum": -0.3074623139973606,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.3074623139973606,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "raffinate",
+      "referenceComposition": {
+        "DI": 0.014868710444688146,
+        "H2O": 0.11708846624854392,
+        "MONO": 0.028818326579674817,
+        "NMP": 0.09265782929410322,
+        "PA": 0.00010646652879031365,
+        "POLY": 0.004106281172955234,
+        "SAT": 0.7423539197312443
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 10
+    },
+    {
+      "minimizerL1Distance": 1.7505381681620815,
+      "native7c": {
+        "classification": "ROUTINE_STABLE",
+        "dominantMinimizerFamily": "NMP",
+        "escalationUsed": false,
+        "minimizingComposition": {
+          "DI": 0.010590104220363744,
+          "H2O": 0.1306943545799536,
+          "MONO": 0.018102333291746566,
+          "NMP": 0.8126456316145908,
+          "PA": 0.0001583022317788934,
+          "POLY": 0.003282575094612868,
+          "SAT": 0.02452669896695336
+        },
+        "minimum": 0.0,
+        "tpdAtResidualModelMinimizer": 3.1053222354860788
+      },
+      "native7cPlusInherited6cResidual": {
+        "dominantMinimizerFamily": "MONO",
+        "minimizingComposition": {
+          "DI": 0.009168635700926818,
+          "H2O": 0.06401278362043092,
+          "MONO": 0.8933714173727874,
+          "NMP": 0.02797297296057929,
+          "PA": 0.00013170828552901633,
+          "POLY": 0.0028690637803713646,
+          "SAT": 0.0024734182793751626
+        },
+        "persistedMinimum": -0.30746231399737417,
+        "replayAbsoluteDifference": 0.0,
+        "replayedObjectiveAtPersistedMinimizer": -0.30746231399737417,
+        "tpdAtNativeModelMinimizer": 0.0
+      },
+      "phase": "extract",
+      "referenceComposition": {
+        "DI": 0.010590104220363746,
+        "H2O": 0.13069435457995363,
+        "MONO": 0.01810233329174657,
+        "NMP": 0.812645631614591,
+        "PA": 0.00015830223177889342,
+        "POLY": 0.003282575094612869,
+        "SAT": 0.024526698966953368
+      },
+      "stageCount": 10,
+      "stageFromFeedEnd": 10
+    }
+  ],
+  "diagnosticConclusion": "SAME_INHERITED_6C_RESIDUAL_NEGATIVE_BASIN_PROPAGATED_INTO_WET_7C",
+  "method": {
+    "cascadeSolverModified": false,
+    "nativeSearch": "7C-1.2.0 denominator-4 routine TPD with unchanged ambiguity escalation",
+    "negativeTpdThreshold": -1e-08,
+    "residualAddedReplay": "independent evaluation of the B TPD objective at every persisted minimizer",
+    "residualAddedSearch": "persisted 7C-1.2.0 production TPD minimum and minimizer",
+    "tpdThresholdModified": false
+  },
+  "modelDefinitions": {
+    "A": "NATIVE_SEVEN_COMPONENT_CCOSMO_ONLY",
+    "B": "NATIVE_SEVEN_COMPONENT_CCOSMO_PLUS_INHERITED_SIX_COMPONENT_NMP_LLE_RESIDUAL",
+    "frozenInputIntegrity": {
+      "frozenResidualModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+      "frozenResidualParameterVectorSha256": "fa2227aa99c8bd134525304e68b8f8be5b9fb4b79427fdc520db7920df82827d",
+      "frozenResidualResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+      "frozenSixComponentProvenanceSha256": "3476498d39f96b9761495f11a9e93e626d42aed2eda9f9082fa0a0e29bdd2f5e",
+      "frozenSixComponentRunnerSha256": "2ab508b252435dd61cea8c601c8bbf4ba0456847de6f5dad73004bf4299732a6",
+      "h2oGenerationManifestSha256": "943b753db28b910e1b672f74571769ec09a781009deccc88db151b64fb780eba",
+      "h2oProfileVerificationSha256": "a60f687e1ef953f036c095281bd2461ca212193c35f1d6558e59104441070bf5",
+      "isolatedComplistSha256": "ce310440998304063a952323df84b98e4bccc2352a292679bcb70c920fc591a0",
+      "profileSha256ByFamily": {
+        "DI": "7e8664f594afa70a232f845dfafbfbb1efd2e10e13c586187b556102a97503ed",
+        "H2O": "82fc9cc17f71b4b8d28db01b7a25453ae03bea66b4af8adc21d4b85615cd7bb1",
+        "MONO": "0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275",
+        "NMP": "58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69",
+        "PA": "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e",
+        "POLY": "682828484416f124e3207f246d23954197502cba83d9b4744ace239d91fe8854",
+        "SAT": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2"
+      },
+      "sevenComponentRuntimeCompatibilitySha256": "0129f65b9c1c63604dd01bd8516b91e7b742deb7e2cd15b344a2388f24c22e1a",
+      "sixGenerationManifestSha256": "65baa44c36ffae817e52f60a32591f3fc1be7c140517c8b37c95458c834d1fa9"
+    },
+    "runtime": {
+      "cCOSMOBinarySha256": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
+      "numpy": "2.1.3",
+      "python": "3.12.12 (main, Oct  9 2025, 11:07:00) [GCC 15.2.0]",
+      "scipy": "1.14.1",
+      "vendorDirectory": "server/research/ecr-pre-pilot-cosmosac/vendor/python"
+    }
+  },
+  "releaseEligible": false,
+  "researchOnly": true,
+  "schemaVersion": "7C_TPD_AB_DIAGNOSTIC_V1",
+  "source": {
+    "completedAt": "2026-09-03T17:54:31.886",
+    "componentOrder": [
+      "SAT",
+      "MONO",
+      "DI",
+      "POLY",
+      "PA",
+      "NMP",
+      "H2O"
+    ],
+    "daughterStateCount": 110,
+    "designId": 269,
+    "engineHash": "2cd41180477347ad5cd7d57b505b2521b944443317652db76ce522b7be44f8ca",
+    "jobId": "cd5d9f6e-1340-4da0-a9a2-1e29d2617258",
+    "modelHash": "9666ff67194102ca9c3dc139695bead8ff133fbfe24c2d786ce1deca49456196",
+    "sourceDaughterStatesCanonicalSha256": "78ad054a2938b82777e2348af889e5f5cd18aefb0a578a2e060955e08cc9d50e",
+    "sourceDaughterStatesFile": ".agents/outputs/three-percent-water-7c-tpd-ab/source-daughter-states.json",
+    "sourceDaughterStatesFileSha256": "d7ee41c197a08a16f201b0c8f69628e415b3f4e9ed4bbb3113242a7734db648d",
+    "stage1ImmutableHash": "6f37985f193771b410f56ecc70f018d912ea365ec015c714d6144eda27f8c175",
+    "stageCount": 55,
+    "temperatureK": 298.15,
+    "trialCount": 10
+  },
+  "status": "RESEARCH_DIAGNOSTIC_ONLY_NOT_RELEASE_ELIGIBLE",
+  "summary": {
+    "meanMinimizerL1Distance": 1.7635538708824054,
+    "nativeMinimumStats": {
+      "maximum": 8.777767236548427e-15,
+      "mean": -1.5249254361185527e-16,
+      "minimum": -1.1186892614685652e-14
+    },
+    "nativeNegativeCount": 0,
+    "nativeStableOrNearZeroCount": 110,
+    "residualAddedMinimumStats": {
+      "maximum": -0.3074623139973606,
+      "mean": -0.6557273674749103,
+      "minimum": -0.781736196094959
+    },
+    "residualAddedNegativeCount": 110,
+    "residualReplayMaximumAbsoluteDifference": 1.2878587085651816e-14
+  },
+  "trialSummaries": [
+    {
+      "daughterStateCount": 2,
+      "nativeMaximum": 0.0,
+      "nativeMinimum": 0.0,
+      "residualAddedMaximum": -0.6706026634520525,
+      "residualAddedMinimum": -0.67060266345209,
+      "stageCount": 1
+    },
+    {
+      "daughterStateCount": 4,
+      "nativeMaximum": 5.697071421723227e-16,
+      "nativeMinimum": -1.3313650890491383e-16,
+      "residualAddedMaximum": -0.5743009750249773,
+      "residualAddedMinimum": -0.7453728793129192,
+      "stageCount": 2
+    },
+    {
+      "daughterStateCount": 6,
+      "nativeMaximum": 0.0,
+      "nativeMinimum": -1.7204714868071738e-16,
+      "residualAddedMaximum": -0.501362637357379,
+      "residualAddedMinimum": -0.764445226716756,
+      "stageCount": 3
+    },
+    {
+      "daughterStateCount": 8,
+      "nativeMaximum": 0.0,
+      "nativeMinimum": -1.1186892614685652e-14,
+      "residualAddedMaximum": -0.44650842792085516,
+      "residualAddedMinimum": -0.7718792497953775,
+      "stageCount": 4
+    },
+    {
+      "daughterStateCount": 10,
+      "nativeMaximum": 8.777767236548427e-15,
+      "nativeMinimum": 0.0,
+      "residualAddedMaximum": -0.4052338048547942,
+      "residualAddedMinimum": -0.7755576928012827,
+      "stageCount": 5
+    },
+    {
+      "daughterStateCount": 12,
+      "nativeMaximum": 0.0,
+      "nativeMinimum": -1.8145147229401867e-15,
+      "residualAddedMaximum": -0.3740643344620184,
+      "residualAddedMinimum": -0.7777163049759901,
+      "stageCount": 6
+    },
+    {
+      "daughterStateCount": 14,
+      "nativeMaximum": 1.440554326217127e-16,
+      "nativeMinimum": -4.128514034624841e-15,
+      "residualAddedMaximum": -0.35038863459972047,
+      "residualAddedMinimum": -0.7791587437955906,
+      "stageCount": 7
+    },
+    {
+      "daughterStateCount": 16,
+      "nativeMaximum": 0.0,
+      "nativeMinimum": 0.0,
+      "residualAddedMaximum": -0.33227653441557314,
+      "residualAddedMinimum": -0.7802193557938284,
+      "stageCount": 8
+    },
+    {
+      "daughterStateCount": 18,
+      "nativeMaximum": 2.1793413887197085e-15,
+      "nativeMinimum": -3.15819361605824e-15,
+      "residualAddedMaximum": -0.3183130646735496,
+      "residualAddedMinimum": -0.78105256793014,
+      "stageCount": 9
+    },
+    {
+      "daughterStateCount": 20,
+      "nativeMaximum": 8.825369050974924e-16,
+      "nativeMinimum": -5.256520624033627e-15,
+      "residualAddedMaximum": -0.3074623139973606,
+      "residualAddedMinimum": -0.781736196094959,
+      "stageCount": 10
+    }
+  ]
+}

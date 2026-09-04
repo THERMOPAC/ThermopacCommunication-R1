@@ -757,3 +757,31 @@ mtime_ms = 1788270722244
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/878575cc-8adc-4c98-8222-e42969757390/09659838-f1d9-41f4-a0dc-fa11faafcdb2"
 storage_version_token = "1788271409476382"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "QDnHP9UYHHoIEIWND99Bx"
+uri = "file://.agents/outputs/three-percent-water-7c-tpd-ab/report.md"
+type = "text"
+title = "3% Water 7C TPD A/B Report"
+description = "Concise controlled comparison of native 7C cCOSMO against the inherited 6C residual amendment across all 110 persisted daughter states."
+logical_id = "5b3ee89a-578b-4c23-8c54-76e685132ef3"
+content_hash = "sha256:9a9ee57ea5909bd5940c0b210cdb4ad2871fd9099f3f78c61655ebb587dcc811"
+size = 2131
+mtime_ms = 1788491981243
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/5b3ee89a-578b-4c23-8c54-76e685132ef3/72e1ec95-5358-494d-b6e2-ebddc1b7cf1e"
+storage_version_token = "1788492010276254"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "Sk_sFA3_t_c1FLoIWacgb"
+uri = "file://.agents/outputs/three-percent-water-7c-tpd-ab/evidence.json"
+type = "unspecified"
+title = "3% Water 7C TPD A/B Evidence"
+description = "Full state-by-state minima, minimizer compositions, cross-model evaluations, and provenance hashes for the diagnostic replay."
+logical_id = "8ca731e7-b19f-46d7-8794-fb6260bc6bbd"
+content_hash = "sha256:cc3ebaed14bf3f073fa0f7354d742cf1057185c68f7f46fceddb91531274e0d4"
+size = 182643
+mtime_ms = 1788491899898
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/8ca731e7-b19f-46d7-8794-fb6260bc6bbd/e5a6c842-82af-4569-9d28-e51fa04b7e72"
+storage_version_token = "1788492012763644"
+content_type = "application/octet-stream"

@@ -98,3 +98,4 @@
 - [Predictive N_T cancellation](predictive-nt-cancellation.md) — terminal DB stop must also make the lease-owning process kill its Python child; an HTTP process-local child map is insufficient.
 - [Predictive route parallelism](predictive-route-parallelism.md) — fork only independent routes; restore canonical order, merge bounded exact caches, and kill every descendant on cancellation/failure.
 - [Predictive 7C coupled cascade](predictive-7c-coupled-cascade.md) — 7C production inherits the frozen simultaneous 6C cascade; exhaustive 7C search is ambiguity-only audit.
+- [Wet 7C residual propagation diagnosis](wet-7c-residual-propagation.md) — native 7C is stable on all 3 wt% daughter states; inherited 6C residual alone creates the MONO-rich negative basin.
