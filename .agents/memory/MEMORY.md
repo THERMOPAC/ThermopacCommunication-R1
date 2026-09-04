@@ -83,6 +83,7 @@
 - [ECR Pre-Pilot project numbering](ecr-prepilot-project-numbering.md) — server-issued, sequential, atomic, immutable allocations persist permanently and are never reused.
 - [ECR Pre-Pilot Predictive N_T basis](ecr-prepilot-predictive-nt-basis.md) — recovery stays fail-closed until DI/POLY and Polar Aromatics propagate; sulfur remains independent.
 - [Predictive N_T runtime freeze](predictive-nt-runtime-freeze.md) — deployment must bundle and hash-check transitive Python support beyond the scientific model manifest.
+- [Predictive job contract rollover](predictive-job-contract-rollover.md) — jobs enqueued before a restarted server adopts a new engine stay immutably bound to the historical worker across restart/reclaim.
 - [Predictive cascade stability](predictive-cascade-stability.md) — damp component-flow vectors with directional sweeps; persist and ACK each stage before advancing.
 - [ECR Pre-Pilot PA admission boundary](ecr-prepilot-pa-admission-boundary.md) — exact non-sulfur PA identity is admitted, but positive-PA thermodynamics and full recovery remain fail-closed.
 - [COSMO-SAC licensing boundary](cosmosac-licensing-boundary.md) — NIST code is MIT; exclude UD/VT; project profiles use the qualified open RDKit→xTB→CPCM-X route.
