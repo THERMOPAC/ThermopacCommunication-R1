@@ -1,0 +1,107 @@
+{
+  "laitinen-2019": {
+    "title": "Axial dispersion and CFD models for extraction in a Kühni column",
+    "year": 2019,
+    "tier": 1,
+    "url": "https://doi.org/10.1016/j.cherd.2019.04.018",
+    "evidence": "research/sources/kuhni-mass-transfer/laitinen-2019.md"
+  },
+  "weber-2019": {
+    "title": "Performance Map for the Design of Liquid-Liquid Extraction Columns",
+    "year": 2019,
+    "tier": 1,
+    "url": "https://doi.org/10.1002/cite.201900057",
+    "evidence": "research/sources/kuhni-mass-transfer/weber-2019.md"
+  },
+  "asadollahzadeh-2017": {
+    "title": "Experimental Determination of Continuous Phase Overall Mass Transfer Coefficients: Kühni Column",
+    "year": 2017,
+    "tier": 1,
+    "url": "https://www.ijcce.ac.ir/article_26471_73b33dd0fbb7a616c8563e5ff6be32a5.pdf",
+    "evidence": "research/sources/kuhni-mass-transfer/asadollahzadeh-2017.md"
+  },
+  "fells-2022": {
+    "title": "Predicting Mass Transfer in Liquid-Liquid Extraction Columns",
+    "year": 2022,
+    "tier": 1,
+    "url": "https://doi.org/10.3390/pr10050968",
+    "evidence": "research/sources/kuhni-mass-transfer/fells-2022.md"
+  },
+  "dongaonkar-1991": {
+    "title": "Effect of mass transfer on axial mixing in a Kühni column",
+    "year": 1991,
+    "tier": 1,
+    "url": "https://doi.org/10.1002/aic.690370508",
+    "evidence": null
+  },
+  "tahershamsi-2016": {
+    "title": "Modeling and Simulation of Kühni Extraction Column",
+    "year": 2016,
+    "tier": 1,
+    "url": "https://ijogst.put.ac.ir/article_41600_21cdf688f400d856a6f3a37f87db1eae.pdf",
+    "evidence": null
+  },
+  "hemmati-2015": {
+    "title": "Mass transfer coefficients in a Kühni extraction column",
+    "year": 2015,
+    "tier": 1,
+    "url": "https://doi.org/10.1016/j.cherd.2014.07.011",
+    "evidence": null
+  },
+  "garthe-2006": {
+    "title": "Fluid dynamics and mass transfer in liquid-liquid extraction columns",
+    "year": 2006,
+    "tier": 1,
+    "url": "https://mediatum.ub.tum.de/601973",
+    "evidence": null
+  },
+  "kumar-hartland-1999": {
+    "title": "Correlations for prediction of mass transfer coefficients in single drop systems and liquid-liquid extraction columns",
+    "year": 1999,
+    "tier": 1,
+    "url": "https://www.sciencedirect.com/science/article/pii/S0263876299718022",
+    "evidence": null
+  },
+  "wegener-2014": {
+    "title": "Fluid dynamics and mass transfer at single droplets in liquid/liquid systems",
+    "year": 2014,
+    "tier": 1,
+    "url": "https://doi.org/10.1016/j.ijheatmasstransfer.2013.10.070",
+    "evidence": null
+  },
+  "kronig-brink-1951": {
+    "title": "On the theory of extraction from falling droplets",
+    "year": 1951,
+    "tier": 1,
+    "url": "https://link.springer.com/article/10.1007/BF00411978",
+    "evidence": null
+  },
+  "bothe-2010": {
+    "title": "On the Maxwell-Stefan approach to multicomponent diffusion",
+    "year": 2010,
+    "tier": 1,
+    "url": "https://arxiv.org/pdf/1007.1775",
+    "evidence": null
+  },
+  "sanpui-2004": {
+    "title": "Rate-based nonisothermal LLX model and its experimental validation",
+    "year": 2004,
+    "tier": 1,
+    "url": "https://doi.org/10.1002/aic.10033",
+    "evidence": null
+  },
+  "torkaman-2024": {
+    "title": "Forward mixing model for mass transfer in a multi-impeller agitated extraction column",
+    "year": 2024,
+    "tier": 1,
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10901875/",
+    "evidence": null
+  },
+  "sulzer-ecr": {
+    "title": "Kühni agitated columns ECR",
+    "year": null,
+    "tier": 3,
+    "url": "https://www.sulzer.com/en/shared/products/kuehni-agitated-columns-ecr",
+    "evidence": null
+  }
+}

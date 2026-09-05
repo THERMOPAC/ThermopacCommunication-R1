@@ -112,3 +112,4 @@
 - [Project 236 bounded hydraulic search](project236-bounded-hydraulic-search.md) — calculate a pre-pilot RPM/diameter envelope, but final RPM waits for coupled transfer/efficiency.
 - [Project 236 deformed-drop gate](project236-deformed-drop-gate.md) — persist extrapolated trials for audit only; show/select only CALCULATED_IN_RANGE results.
 - [ECR Pre-Pilot stage ownership](ecr-prepilot-stage-ownership.md) — Inputs → thermodynamics → hydrodynamics → future mass transfer; downstream stages consume upstream authority without duplicating ownership.
+- [ECR mass-transfer admission](ecr-mass-transfer-admission.md) — physical height needs calculated Stage-2 duty, operating (not flood) hydraulics, closed diffusion, and governed hardware pitch.

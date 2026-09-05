@@ -905,3 +905,31 @@ mtime_ms = 1788622585852
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/dc2d2693-9fe1-441f-9b03-d2ab87a861da/5826c79b-384d-45c0-acac-45e762ba2b41"
 storage_version_token = "1788622600554445"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "2mHbyvxhSoj7Cqm3U9y5E"
+uri = "file://research/kuhni-mass-transfer-plan-notes.md"
+type = "text"
+title = "Kühni mass-transfer research notes"
+description = "Live evidence plan and findings log for the rate-based mass-transfer and physical-compartment model."
+logical_id = "12fe8c1f-177a-4411-8bd3-ec5460176308"
+content_hash = "sha256:c4652f446cff456aefa9b14b1c6acd3961be7020f826acd9bac8b68a86181e6c"
+size = 2892
+mtime_ms = 1788623540936
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/12fe8c1f-177a-4411-8bd3-ec5460176308/97e4155f-53fe-4cef-84a6-0b1768b46ecf"
+storage_version_token = "1788623556814832"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "_WAk7uVXzZ8SqSmb0oJa_"
+uri = "file://research/kuhni-ecr-mass-transfer-development-plan.md"
+type = "text"
+title = "Kühni/ECR Mass-Transfer Development & Qualification Plan"
+description = "Evidence-first plan for a rate-based seven-component compartment model, active-height sizing, applicability gates, experimental qualification, immutable software architecture, and fail-closed release boundaries."
+logical_id = "06fc5c08-b84d-4638-b89a-4c55337e3500"
+content_hash = "sha256:dff66a6ca85ad44fbab7ccf0eb857363f092d61e89b34dff365267186ca02ed8"
+size = 31993
+mtime_ms = 1788624233713
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/06fc5c08-b84d-4638-b89a-4c55337e3500/2c82ab11-e784-4dbe-8e3d-57d310117aea"
+storage_version_token = "1788624247316809"
+content_type = "text/markdown"
