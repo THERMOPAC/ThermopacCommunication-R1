@@ -1,0 +1,606 @@
+Source: https://pubs.acs.org/doi/10.1021/acs.iecr.2c03757
+Title: Experimental Study
+of Unsteady Drag Coefficient of
+Droplets in a Liquid–Liquid System | Industrial & Engineering Chemistry Research | ACS Publications
+Fetched: 2026-09-05T14:38:58.139Z
+
+close advertisement
+
+Advertisement
+
+Site Notice
+
+Update: [RSS feeds](https://pubs.acs.org/pages/rss) and article metrics are now available. Learn more on our [Platform Migration page](https://pubs.acs.org/pages/platform-migration).
+
+Dismiss
+
+[ACS](http://www.acs.org/)
+
+[ACS Publications](https://pubs.acs.org/)
+
+[C&EN](https://cen.acs.org/)
+
+[CAS](https://www.cas.org/)
+
+_User Tools Dropdown_
+
+[Access through Institution](https://pubs.acs.org/institutional-login?returnUrl=https%3a%2f%2fpubs.acs.org%2fiecred%2farticle-abstract%2f62%2f3%2f1614%2f986141%2fExperimental-Study-of-Unsteady-Drag-Coefficient-of%3fredirectedFrom%3dfulltext)
+
+\|
+
+[Sign In](https://pubs.acs.org/ExternalAuthentication/OIDCLogin?returnUrl=https%3a%2f%2fpubs.acs.org%2fiecred%2farticle-abstract%2f62%2f3%2f1614%2f986141%2fExperimental-Study-of-Unsteady-Drag-Coefficient-of%3fredirectedFrom%3dfulltext)
+
+[![ACS Publications. Most Cited. Most Trusted. Most Read.](https://acs.silverchair-cdn.com/data/SiteBuilderAssetsOriginals/Live/Images/umbrella/ACSPubs_logo_tagline_RGB_rebrand.svg)](https://pubs.acs.org/)
+
+Search Dropdown Menu
+
+header search
+
+Search input auto suggest
+
+filter your searchAll ContentJournalsIndustrial & Engineering Chemistry Research
+
+Search
+
+[Advanced Search](https://pubs.acs.org/advanced-search)
+
+_Toggle Menu_ Menu
+
+[Industrial & Engineering Chemistry Research](https://pubs.acs.org/iecred)
+
+Menu
+
+Close navigation menu
+
+Article navigation
+
+[![Industrial & Engineering Chemistry Research Cover Image for Volume 62, Issue 3](https://acs.silverchair-cdn.com/acs/content_public/journal/iecred/issue/62/3/3/m_iecred.2023.62.issue-3.xlargecover.jpeg?Expires=1791643134&Signature=G5N2Fpm~yRfqYaMkVcqdn0vN8JJu-HBj6CHuaz~uUerzzxp~yrGBLXNqGfVLHWPT0aCQ06jbIx4PVLC-wpOLvT~9yYE-JqCeH5IDXWKLpvVK-g4Zg-cZqoZwAacuCTzapuyyDxdzSrHSXryADV9lNl2ZsZMi-2VUbqaB9n54klBshPXHPXW6Gq4vgV-OOE4I4ZF5MrF4MxxsyzQ99e~heyVJMthVRvTPKO8fWCoVnrsnCBdi6FpIb4jmSVC2ZHdfsVfl0UHlZHrfhozXzyTGTOQGMMnjsH9UEEy44VCiRJfhU~~3Ou~5Y5LTNFR3Y0xaXfr3q4IHuFdZyS7dLAoh8Q__&Key-Pair-Id=APKAIE5G5CRDK6RD3PGA)](https://pubs.acs.org/iecred/issue/62/3)
+
+[Volume 62, Issue 3](https://pubs.acs.org/iecred/issue/62/3)
+
+January 25, 2023
+
+Article Contents
+
+- [Abstract](https://pubs.acs.org/iecred/article-abstract/62/3/1614/986141/Experimental-Study-of-Unsteady-Drag-Coefficient-of?redirectedFrom=fulltext#204914489)
+
+- [Supporting Information](https://pubs.acs.org/iecred/article-abstract/62/3/1614/986141/Experimental-Study-of-Unsteady-Drag-Coefficient-of?redirectedFrom=fulltext#supplementary-data)
+
+
+Article Navigation
+
+Thermodynamics,
+Transport, and Fluid Mechanics\|January 17, 2023
+
+_Available to Purchase_
+
+# Experimental Study of Unsteady Drag Coefficient of Droplets in a Liquid–Liquid System
+
+Boren Tan;
+
+Close author information for Boren Tan
+
+Boren Tan
+
+National
+Engineering Research Center of Green Recycling for Strategic Metal
+Resources, Institute of Process Engineering
+
+,
+
+Chinese Academy of Sciences
+
+, Beijing100190,
+
+China
+
+Search for other works by this author on:
+
+
+[This Site](https://pubs.acs.org/iecred/search-results?f_AllAuthors=Boren+Tan)
+
+[![ORCID logo](https://acs.silverchair-cdn.com/Themes/Silver/app/img/mini-icon.png)  https://orcid.org/0000-0001-5343-9891](https://orcid.org/0000-0001-5343-9891)
+
+Yong Wang\*;
+
+Close author information for Yong Wang
+
+Yong Wang
+\*
+
+National
+Engineering Research Center of Green Recycling for Strategic Metal
+Resources, Institute of Process Engineering
+
+,
+
+Chinese Academy of Sciences
+
+, Beijing100190,
+
+China
+
+University
+of Chinese Academy of Sciences
+
+, Beijing101400,
+
+China
+
+Ganjiang
+Innovation Academy
+
+,
+
+Chinese Academy of Sciences
+
+, Ganzhou341000,
+
+China
+
+\*Email: [wangyong@ipe.ac.cn](mailto:wangyong@ipe.ac.cn).
+
+Search for other works by this author on:
+
+
+[This Site](https://pubs.acs.org/iecred/search-results?f_AllAuthors=Yong+Wang)
+
+[![ORCID logo](https://acs.silverchair-cdn.com/Themes/Silver/app/img/mini-icon.png)  https://orcid.org/0000-0001-8779-8956](https://orcid.org/0000-0001-8779-8956)
+
+Yanlin Zhang;
+
+Close author information for Yanlin Zhang
+
+Yanlin Zhang
+
+Nanjing
+IPE Institute of Green Manufacturing Industry
+
+, Nanjing211135,
+
+China
+
+Search for other works by this author on:
+
+
+[This Site](https://pubs.acs.org/iecred/search-results?f_AllAuthors=Yanlin+Zhang)
+
+Quanzhong Cheng;
+
+Close author information for Quanzhong Cheng
+
+Quanzhong Cheng
+
+National
+Engineering Research Center of Green Recycling for Strategic Metal
+Resources, Institute of Process Engineering
+
+,
+
+Chinese Academy of Sciences
+
+, Beijing100190,
+
+China
+
+University
+of Chinese Academy of Sciences
+
+, Beijing101400,
+
+China
+
+Search for other works by this author on:
+
+
+[This Site](https://pubs.acs.org/iecred/search-results?f_AllAuthors=Quanzhong+Cheng)
+
+[![ORCID logo](https://acs.silverchair-cdn.com/Themes/Silver/app/img/mini-icon.png)  https://orcid.org/0000-0001-5090-177X](https://orcid.org/0000-0001-5090-177X)
+
+Dongbing Xu;
+
+Close author information for Dongbing Xu
+
+Dongbing Xu
+
+National
+Engineering Research Center of Green Recycling for Strategic Metal
+Resources, Institute of Process Engineering
+
+,
+
+Chinese Academy of Sciences
+
+, Beijing100190,
+
+China
+
+University
+of Chinese Academy of Sciences
+
+, Beijing101400,
+
+China
+
+Search for other works by this author on:
+
+
+[This Site](https://pubs.acs.org/iecred/search-results?f_AllAuthors=Dongbing+Xu)
+
+Chi Wang;
+
+Close author information for Chi Wang
+
+Chi Wang
+
+National
+Engineering Research Center of Green Recycling for Strategic Metal
+Resources, Institute of Process Engineering
+
+,
+
+Chinese Academy of Sciences
+
+, Beijing100190,
+
+China
+
+Chinese
+National Engineering Research Center of Coal Preparation and Purification
+
+,
+
+China University of Mining and Technology
+
+, Xuzhou221116,
+
+China
+
+Search for other works by this author on:
+
+
+[This Site](https://pubs.acs.org/iecred/search-results?f_AllAuthors=Chi+Wang)
+
+Tao Qi
+
+Close author information for Tao Qi
+
+Tao Qi
+
+National
+Engineering Research Center of Green Recycling for Strategic Metal
+Resources, Institute of Process Engineering
+
+,
+
+Chinese Academy of Sciences
+
+, Beijing100190,
+
+China
+
+Ganjiang
+Innovation Academy
+
+,
+
+Chinese Academy of Sciences
+
+, Ganzhou341000,
+
+China
+
+Search for other works by this author on:
+
+
+[This Site](https://pubs.acs.org/iecred/search-results?f_AllAuthors=Tao+Qi)
+
+Author & Article Information
+
+
+\*Email: [wangyong@ipe.ac.cn](mailto:wangyong@ipe.ac.cn).
+
+
+**COI Statement:** The authors declare
+no
+competing financial interest.
+
+Publisher: American Chemical Society
+
+
+Received:October 19, 2022
+
+Revision Received:January 03, 2023
+
+Accepted:January 04, 2023
+
+Published Online:January 17, 2023
+
+Published in Issue:January 25, 2023
+
+Online ISSN: 1520-5045
+
+Print ISSN: 0888-5885
+
+Funding
+
+**Funding Group:**
+
+- **Award Group:**
+
+
+
+  - **Funder(s):**
+     National Natural Science Foundation of China
+
+  - **Award Id(s):**
+    22178350
+
+
+**Funding Group:**
+
+- **Award Group:**
+
+
+
+  - **Funder(s):**
+     National Natural Science Foundation of China
+
+  - **Award Id(s):**
+    92262305
+
+
+**Funding Group:**
+
+- **Award Group:**
+
+
+
+  - **Funder(s):**
+     Chinese Academy of Sciences
+
+  - **Award Id(s):**
+    YSBR-038
+
+
+**Funding Group:**
+
+- **Award Group:**
+
+
+
+  - **Funder(s):**
+     Major Technological Achievements in Hebei Province
+
+  - **Award Id(s):**
+    22293601Z
+
+
+© 2023 American Chemical Society
+
+_Ind. Eng. Chem. Res._ (2023) 62 (3): 1614–1626.
+
+[https://doi.org/10.1021/acs.iecr.2c03757](https://doi.org/10.1021/acs.iecr.2c03757)
+
+Article history
+
+Received:
+
+October 19, 2022
+
+Revision Received:
+
+January 03, 2023
+
+Accepted:
+
+January 04, 2023
+
+Published Online:
+
+January 17, 2023
+
+Published in Issue:
+
+January 25, 2023
+
+- _Views Icon_Views _Open Menu_  - Article contents
+  - Figures & tables
+  - Video
+  - Audio
+  - Supporting Information
+  - Peer Review
+- _Cite Icon_ Cite
+
+- [Permissions](https://marketplace.copyright.com/rs-ui-web/mp/search/all/10.1021%2Facs.iecr.2c03757)
+
+- _Share Icon_Share  - Facebook
+  - X
+  - LinkedIn
+  - Email
+  - Reddit
+  - Bluesky
+  - WeChat
+
+Citation
+
+Boren Tan, Yong Wang, Yanlin Zhang, Quanzhong Cheng, Dongbing Xu, Chi Wang, Tao Qi; Experimental Study
+of Unsteady Drag Coefficient of
+Droplets in a Liquid–Liquid System. _Ind. Eng. Chem. Res._ 25 January 2023; 62 (3): 1614–1626. [https://doi.org/10.1021/acs.iecr.2c03757](https://doi.org/10.1021/acs.iecr.2c03757)
+
+Download citation file:
+
+- [Ris (Zotero)](https://pubs.acs.org/Citation/Download?resourceId=986141&resourceType=3&citationFormat=0)
+- [Reference Manager](https://pubs.acs.org/Citation/Download?resourceId=986141&resourceType=3&citationFormat=0)
+- [EasyBib](https://pubs.acs.org/Citation/Download?resourceId=986141&resourceType=3&citationFormat=0)
+- [Bookends](https://pubs.acs.org/Citation/Download?resourceId=986141&resourceType=3&citationFormat=0)
+- [Mendeley](https://pubs.acs.org/Citation/Download?resourceId=986141&resourceType=3&citationFormat=0)
+- [Papers](https://pubs.acs.org/Citation/Download?resourceId=986141&resourceType=3&citationFormat=0)
+- [EndNote](https://pubs.acs.org/Citation/Download?resourceId=986141&resourceType=3&citationFormat=1)
+- [RefWorks](https://pubs.acs.org/Citation/Download?resourceId=986141&resourceType=3&citationFormat=3)
+- [BibTex](https://pubs.acs.org/Citation/Download?resourceId=986141&resourceType=3&citationFormat=2)
+
+toolbar search
+
+Search Dropdown Menu
+
+toolbar search
+
+Search input auto suggest
+
+filter your searchAll ContentJournalsIndustrial & Engineering Chemistry Research
+
+Search
+
+[Advanced Search](https://pubs.acs.org/advanced-search)
+
+Open figure viewer
+
+## Abstract
+
+In liquid–liquid contact process, the motion of
+droplets
+relative to the surrounding fluid always involves accelerating and
+decelerating, which affects the mass, heat, and momentum transfer.
+The lack of experimental data of the unsteady drag coefficient has
+been one of the limitations on the prediction of the unsteady flow
+field. In this study, the accelerated and decelerated water droplets
+in an organic phase were measured by a high-speed camera. The results
+show that with a decrease in droplet diameter, the acceleration becomes
+more significant, while the absolute relative velocity decreases,
+causing a lower Reynolds number. The Basset force and add mass force
+were solved numerically and compared with drag force. The unsteady
+drag coefficient is always smaller than the corresponding steady drag
+coefficient in the case of accelerating relative flow and larger than
+that in the case of decelerating relative flow. A new unsteady drag
+coefficient model has been established, which has an acceptable agreement
+with the experimental data.
+
+## Visual Abstract
+
+![Graphic. Refer to the image caption for details.](https://acs.silverchair-cdn.com/acs/content_public/journal/iecred/62/3/10.1021_acs.iecr.2c03757/3/m_ie2c03757_0001.png?Expires=1791643135&Signature=xV~y6-OWvQs9PeQ4vbeR7TuULIzkLdvd7kc7~SRLUHN0CwNfDdJpOYX8Hzg7qtg993BHyxmRDgpfj5tjI2kigGLdX3p4ssYN9zml9xKjf1BhNt4MP3k-l7sqsYoKDWooiNQ51i~mt3YpXs3~UCy5WnfLFXZFwwg2qPbgoTG3owAg5WRrEiEAQD4Pls8Y2V6PoymMzz~j0ua57scqxZFXxj5TuHWavBZCSY~3LKi3HKrgmmtXIR73tf51K3wVt5s84w9gkKY2i~bqVypwog3Ia-TLdKdEf2tKE6LNLTmpHGcXKpmfamFJaZFeO0asH5SCaONUJKmotvCmj~1yr0JtAg__&Key-Pair-Id=APKAIE5G5CRDK6RD3PGA)
+
+**Subjects** [Theoretical and computational chemistry](https://pubs.acs.org/search-results?page=1&tax=12), [Liquids](https://pubs.acs.org/search-results?page=1&tax=1813), [Extraction](https://pubs.acs.org/search-results?page=1&tax=21), [Analytical apparatus](https://pubs.acs.org/search-results?page=1&tax=229), [Fluids](https://pubs.acs.org/search-results?page=1&tax=3785)
+
+## Supporting Information
+
+The Supporting Information
+is available free of charge at [https://pubs.acs.org/doi/10.1021/acs.iecr.2c03757](https://pubs.acs.org/doi/10.1021/acs.iecr.2c03757?goto=supporting-info).
+
+- Measurement of droplet velocity ( [MP4](https://pubs.acs.org/iecred/article-supplement/986141/mp4/ie2c03757_si_001/))
+
+- Effect of the dimensionless
+slip parameter λ on
+the magnitude of the Basset force at _Af_ = 0.0148
+m s–1 with different droplet diameters ( [PDF](https://pubs.acs.org/iecred/article-supplement/986141/pdf/ie2c03757_si_002/))
+
+
+© 2023 American Chemical Society
+
+## Supporting Information
+
+Skip to fig **share** navigation
+
+Sorry we could not load your data.
+
+[sifile1](https://pubs.acs.org/iecred/article-supplement/986141/mp4/ie2c03757_si_001/)\- mp4 file
+
+
+[sifile2](https://pubs.acs.org/iecred/article-supplement/986141/pdf/ie2c03757_si_002/)\- pdf file
+
+
+You do not currently have access to this content.
+
+### ACS Login
+
+[Log In](https://pubs.acs.org/ExternalAuthentication/OIDCLogin?returnUrl=https%3a%2f%2fpubs.acs.org%2fiecred%2farticle-abstract%2f62%2f3%2f1614%2f986141%2fExperimental-Study-of-Unsteady-Drag-Coefficient-of%3fredirectedFrom%3dfulltext)
+
+Purchased this content as a guest? Enter your email address to restore access.
+
+Please enter valid email address.
+
+
+Email address must be 94 characters or fewer.
+
+
+Email Address
+
+Restore Access
+
+Pay-Per-View Access
+
+$48.00
+
+[Buy This Article](https://pubs.acs.org/store/add/986141/3)
+
+### READ
+
+- [Journals](https://pubs.acs.org/journals)
+- [Books & References](https://pubs.acs.org/books)
+- [C&EN](https://cen.acs.org/)
+
+### PUBLISH
+
+- [Submit a Manuscript](https://publish.acs.org/)
+- [Author Resources](https://researcher-resources.acs.org/)
+- [Peer Review](https://researcher-resources.acs.org/publish/peer_reviews)
+- [Purchase Author Services](https://authoringservices.acs.org/)
+- [Explore Open Access](https://acsopenscience.org/)
+
+### SUBSCRIBE
+
+- [Librarians & Account Managers](https://solutions.acs.org/)
+- [Open Science for Institutions](https://acsopenscience.org/institutions)
+- [Inquire About Access](https://solutions.acs.org/contact-us/inquire-about-subscriptions/)
+
+### HELP
+
+- [Support FAQ](https://acs.service-now.com/acs?id=kb_home)
+- [Live Chat with Agent](https://acs.service-now.com/acs)
+
+### RESOURCES
+
+- [About ACS Publications](https://pubs.acs.org/pages/about)
+- [ChemRxiv](https://chemrxiv.org/engage/chemrxiv/public-dashboard)
+- [Blog](https://axial.acs.org/)
+- [Events](https://www.acs.org/events.html)
+- [Join ACS](https://www.acs.org/membership.html)
+- [For Advertisers](https://acsmediakit.org/products/acs-journals)
+
+[![American Chemical Society logo](https://acs.silverchair-cdn.com/ImageLibrary/ACSPubs_logo_tagline_Knockout.svg?versionId=3826)](https://pubs.acs.org/iecred/article-abstract/62/3/1614/986141/Experimental-Study-of-Unsteady-Drag-Coefficient-of?redirectedFrom=fulltext#)
+
+1155 Sixteenth Street N.W.
+
+Washington, DC 20036
+
+- Copyright © 2026 American Chemical Society.
+
+
+- [Terms of use](https://www.acs.org/terms.html)
+- [Privacy Policy](https://www.acs.org/privacy.html)
+- Manage Cookies
+- [Accessibility](https://pubs.acs.org/pages/accessibility)
+
+- [Facebook](https://www.facebook.com/ACSPublications/)
+- [X](https://x.com/ACSPublications)
+- [BlueSky](https://bsky.app/profile/pubs.acs.org)
+- [YouTube](https://www.youtube.com/user/AmerChemSoc)
+- [RSS Feed](https://pubs.acs.org/pages/rss)
+
+Close dialog
+
+Close dialog
+
+This Feature Is Available To Subscribers Only
+
+[Sign In](https://pubs.acs.org/sign-in?returnUrl=%2fiecred%2farticle-abstract%2f62%2f3%2f1614%2f986141%2fExperimental-Study-of-Unsteady-Drag-Coefficient-of%3fredirectedFrom%3dfulltext) or [Create an Account](https://pubs.acs.org/my-account/register?siteId=1000165&returnUrl=%2fiecred%2farticle-abstract%2f62%2f3%2f1614%2f986141%2fExperimental-Study-of-Unsteady-Drag-Coefficient-of%3fredirectedFrom%3dfulltext)
+
+Close subscription notice
+
+Close access options
+
+## Sharing Unavailable
+
+Sharing content requires targeting cookies to be enabled. Please update your cookie preferences to use this feature.
+
+Update Cookie PreferencesCancel

@@ -1,0 +1,534 @@
+||||Universal Expression for the Drag on a Fluid Sphere|
+|---|---|---|---|
+|||D. A. Barry|1* 2 , J.-Y. Parlange|
+|1|||Ecological Engineering Laboratory (ECOL), Environmental Engineering Institute (IIE), Faculty of Architecture, Civil and Environmental Engineering (ENAC), Ecole polytechnique fédérale de Lausanne (EPFL), 1015 Lausanne, Switzerland. Email: andrew.barry@epfl.ch|
+|2|||Department of Biological and Environmental Engineering, Cornell University, Ithaca, New York 14853 USA. Email: jp58@cornell.edu Submitted to PLOS ONE, 17 July 2017, revised 10 November 2017, 16 February 15, 2018 Keywords: Viscosity ratio, Density ratio, Padé approximant, Small Re, Moderate Re, Hadamard-Rybczynski|
+|*||To whom correspondence should be addressed. Tel. +41 (21) 693-5576, Fax. +41 (21) 693-8035||
+||||1|
+
+---
+
+Abstract
+
+An expression was developed for prediction of drag coefficients for any spherical particle, drop 
+or bubble in an infinite, homogeneous liquid. The formula reproduces the limiting cases for gas 
+bubbles and solid spheres, as well as the exact Hadamard-Rybczynski solution. The accuracy of 
+the expression, which is valid for Reynolds numbers up to a few hundred, is confirmed by 
+comparison with published numerical predictions of the drag coefficient for a range of physical 
+circumstances.
+
+Introduction
+
+Bubbles, drops and particles are widespread in science and engineering phenomena. Knowledge 
+of the behavior of single bubbles and drops is not only directly relevant to many applications; it 
+also supports understanding of the corresponding swarms [e.g., 1].
+
+We consider the drag on a single spherical solid particle, liquid drop or gas bubble (collectively 
+referred to as a particle) moving in an otherwise quiescent, infinite, homogeneous liquid, without 
+interphase mass transfer (i.e., Sherwood number of zero). Spherical particles will occur if surface 
+tension is dominant, or if inertia is negligible. Clift et al. [3] and Bhaga and Weber [4] provide 
+systematic characterizations of particle shape as it varies with Reynolds, Eötvös and Morton
+
+C_{d}.
+
+---
+
+numbers. These authors show, for instance, that spherical shapes for Reynolds numbers of about 
+100 or higher are found for sufficiently small Eötvös and Morton numbers.
+
+Below, we develop and test a new expression for Cd applicable to spherical particles. Our 
+approach is to build an interpolation based on known limiting cases (e.g., small Reynolds 
+number), as well as a validated large Reynolds number drag expression.
+
+C_{d}
+
+Theory
+
+Drag formula interpolations between gas bubbles and solid spheres There are several 
+approximations for Cd in the literature for the limiting cases of bubbles or solid spheres [5-8]. As 
+mentioned, Wegener et al. [2] provide a summary of these approximations, remarking that they 
+“approximate only certain intervals of the standard drag curveh
+
+C_{d}
+
+A well-known interpolation is that of Rivkind and Ryskin [9]:
+
+(1)
+
+C_{d}\simeq\frac{X\left(24R_{0}^{-1}+4R_{0}^{-1/3}\left)\!+\!14.9R_{0}^{-0.78}\right.\right.}{1+X},
+
+where r is the density, m the viscosity, U the (steady) velocity of the sphere, R0 the Reynolds 
+number, X the viscosity ratio (X ® 0 for a gas bubble and ¥ for a solid sphere) and a the sphere 
+radius. Subscript “0” refers to the material outside the sphere and “1” to that within. Although 
+Eq. (1) is straightforward, it does not approach known limits, as given below.
+
+\mu
+
+\rho
+
+(2)
+
+R_{0}
+
+R_{0}\!=\!2U\rho_{0}a\,\mu_{0}^{-1};X\!=\!\mu_{1}\,\mu_{0}^{-1},
+
+---
+
+*Analytical drag results for small Reynolds number For R0* ® 0, the exact Hadamard-Rybczynski limit [e.g., 3], valid for all X, is:
+
+16 æö 3 *C* *d*( *R0* 11)=+ ç÷
+
+*X*. (3)
+*RX*(12+)èø 0
+
+For the solid sphere, the small-R0 limit is [10]:
+
+24 9 *C* *d*( *X ®¥, R0* 1) = + + O(*R0* ln R0). (4) *R* 2 0
+
+Oliver and Chung [11] recommended using Eq. (1) for 2 < R0 £ 50 and, for R0 £ 2 :
+
+2 16 æ 3 ö c æ 3 ö *C* *d*( *R0* £ 2) ç1+ *X ÷ +* 2 ç1+ *X ÷ ,* (5) *RX*(1+) è 2 ø 1+ X è 2 ø 0 ()
+
+with c = 8/5 [12]. If we instead take c = 2 in Eq. (5), then it gives the exact small-R0 result for a solid sphere, Eq. (4).
+
+*Analytical drag results for large Reynolds number Unlike the situation for R*0 ≪ 1, exact results for R0 ≫ 1 do not exist. For laminar flow (i.e., oscillations of the particle do not occur), Harper and Moore [13] as well as Parlange [14] obtained approximate expressions for the drag for this case, however. In both [13] and [14], it was observed that, to a first approximation, flow inside the particle is described by a Hill’s vortex, and outside by a potential flow. Both approaches give drag predictions that are “numerically indistinguishable” [14]. This conclusion follows from the minor effect on the drag made by slightly different assumptions in [13] and [14]. Barry and Parlange [15] compared predictions of both theories to experimental results on recirculation within the particle [4], and found that the theory of Parlange [14] is more accurate. Thus, this 
+theory is the starting point for the developments presented below.
+
+The drag formula of Parlange [14] is:
+
+(6)
+
+where P = r1r is the density ratio. The two constants, a and b, are defined by integrals. 
+0-1
+
+P\,=\,\rho_{\mathrm{l}}\,\rho_{0}^{-1}
+
+\alpha
+
+\beta,
+
+Parlange [14] simplified Z by taking a = 2 and b = 1. Numerical evaluations (Appendix) give a
+and b as:
+
+\alpha\!=\!2
+
+\beta
+
+a=2.5891,\beta=.9979.
+
+(7)
+
+In the following, we use a and b as given by Eq. (7). For later convenience in manipulating Eq. 
+(6), we define A as:
+
+(8)
+
+A\!=\!\frac{2}{5}\sqrt{\frac{2}{\pi}}\,\Bigl(6\!\sqrt{3}\!+\!5\sqrt{2}\!-\!14\Bigr)\!\simeq\!1.10535.
+
+New drag formula Equation (6) holds for R0 ≫ 1, so it is not surprising that Eq. (3) (the 
+Hadamard-Rybczynski limit) is not obtained for R0 ≪ 1. However, we can force Eq. (6) to do so 
+by using standard Padé approximations [16]. First, we rewrite Eq. (6) as:
+
+which is identical in order to Eq. (6) but additionally approaches Eq. (3) as R0 ® 0. Next, we
+
+C_{d}\!=\!\frac{16}{R_{0}\left11\!+\!X\right)}\!\left(1\!+\!\frac{3}{2}\,X\right)\!\left(\\!{!\cal R}_{0}^{1/!2}+A\!Z\right)\!\left[\!\frac{R_{0}^{1/2}}{3}\!\left(1\!+\!X\right)\^^{-1}+A\!Z\right]^{-1},
+
+R_{0}\gg1
+
+R_{0}\ll1
+
+R_{0}\!\rightarrow\!0 modify Eq. (9) so that it will reduce to Eq. (5) (with c = 2), in which case it must be corrected for 
+R0 ≪ 1 without affecting predictions for R0 ≫ 1. This occurs with a Padé approximant that
+maintains the first two orders of Eqs. (4) and (6) for R0 small and large, respectively. We proceed 
+stepwise and satisfy the different limiting cases given above. First, to ensure that the predictions 
+of Eq. (9) are not affected for R0 ≫ 1, we take corrections that are exponentially small in that 
+limit, and so replace Eq. (9) with:
+
+\chi\!=2)
+
+R_{0}\gg1
+
+R_{0}\!\ll\!1
+
+R_{0}
+
+R_{0}\gg1
+
+C_{d}\!=\!\frac{48}{R_{0}\left1\\!+\!X\right)}\!(\!1\!+\!\frac{3}{2}\,X\,\!\)!frac R_{{}}^11!\ +!\!Z Z+!\tau\exp\left(-\lambda R_{0}^{1/2}\right)\,R_{0}^{1/2}\left(1!\ \!+\!X\right)^{-!}\!+\!3A Z+!3\tau\exp\left(-\omega R_{0}^{1/2}\right)\,,
+
+(10)
+
+which reduces to Eq. (9) for R0 ≫ 1 (or for τ = 0) and Eq. (3) for R0 ® 0. Second, the parameters 
+τ, λ and ω (all > 0) are chosen to ensure that Eq. (10) reduces to the other limits given above. For 
+this purpose, we observe that Eq. (5) requires a Padé approximant in powers of R0, rather than 
+1/ 2 1/ 2
+R0, appearing in Eq. (10). The initial appearance of R0 is removed from the small-R0 expansion 
+of Eq. (10) if:
+
+R_{0}\gg1
+
+\tau=0)
+
+R_{0}\!\rightarrow\!0
+
+\tau,\lambda
+
+\omega
+
+R_{0},
+
+R_{0}^{1/2}
+
+R_{0}^{1/2}
+
+\mathcal{X}\!\tau=\!1\,\mathrm{a n d}\,\,\omega\tau\!=\!\frac{1}{3\big(1\!+\!X\big)}\,.
+
+In addition, to satisfy Eq. (5) (with c = 2) for R0 ≪ 1 requires that τ is given by:
+
+Once τ is obtained using Eq. (12), l and w follow straightforwardly from Eq. (11).
+
+\lambda
+
+\tau\ \!(\tau+A Z\!)\!=\!\frac{8}{9}\!\!(\frac{4\!+\!3X}{1\!+X}\!\!)
+
+\ R R_{0}\ll1
+
+---
+
+The only arbitrary element in the deviation of Eq. (10) is the form of the exponential corrections. 
+-1
+Alternative functional forms were investigated, with the most promising being b(1+l R). 
+01/ 2
+However, based on comparisons with published numerical results (below), we found that only 
+the exponential form reduced to Eq. (9) rapidly enough for R0 ≫ 1.
+
+\beta(!1!+\!\lambda R_{0}^{1/2})^{-1}
+
+R_{0}\gg1
+
+Equation (10) constitutes a new, fully analytical, expression for the drag of a spherical particle. It 
+reduces quickly to Eq. (9) for R0 ≫ 1. All coefficients are determined by the behavior of Cd
+under different conditions, i.e., no empirical coefficient is determined by curve fitting of 
+numerical results.
+
+C_{d}
+
+R_{0}\gg1
+
+Because the bubble (X = 0) and the solid sphere (X → ∞) are oft-investigated special cases, we 
+present Eq. (10) for these limits.
+
+(X\!=\!0)
+
+(X\!\to\!\infty)
+
+Bubble (X = 0)
+
+(X\!=\!0)
+
+(13)
+
+Comparison with numerical results
+
+Equation (10) is compared with numerical results from the literature. For convenience, numerous
+comparisons are collected in the Supplementary Material. Specifically, tables of results from Eq. 
+(10) are compared with those from [3, 11, 17-27]. Representative results are presented below.
+
+(X\!\to\!\infty)
+
+Solid Sphere (X → ∞)
+
+---
+
+First, we consider in Fig. 1 the gas bubble (X = 0), where results from the literature are collected. The figure compares Eq. (10) with values given by Clift et al. [3], Oliver and Chung [11], Brabston and Keller [18] and Magnaudet et al. [25]. For the data of Clift et al. [3], the predictions agree well with the published values except for R0 ³ 200. This is not surprising as Clift et al. [3] obtained values at R0 = 300 and 400 by interpolation with higher Reynolds numbers, when Eq. (10) does not apply. Equations (1) and (5) are accurate over their reported ranges of validity. The numerical simulations of Brabston and Keller [18] for R0 up to 200 are in close agreement with Eq. (10). The accuracy of the numerical results of Brabston and Keller is confirmed from their agreement with the numerical results of Oliver and Chung [11] over the narrower range of 1/2 < *R0* £ 50. The results of Magnaudet et al. [25] agree well with Eq. (10) for the entire range of R0 considered.
+
+Figure 1. Comparison of various numerical data sets with predictions of drag
+
+formulas for the case of the gas bubble.
+
+Figure 2 makes the same comparison for a solid sphere. Interestingly, the disagreement with the
+
+Clift et al. [3] values, and the predictions of the Rivkind and Ryskin [9] formula, Eq. (1), is very small and is limited to R0 between approximately 10 and 100. Again, the drag values reported by Oliver and Chung [11], Chang et al. [23] and Chang and Maxey [24] are all similar, and agree more closely with Eq. (10) than the results reported by Clift et al., although the results from Eq. (10) seem slightly high. This figure includes results calculated from the formula of Flemmer and Banks [28, Eq. (7)], which tends to be slightly lower than the numerical results. Besides the Flemmer and Banks [28] formula, there are several expressions for the solid sphere drag coefficient available. However, as shown by Mikhailov and Silva Freire [29], the largest variations between them occur at about R0 = 100, with a maximum deviation of about 5%, so the 
+Flemmer and Banks formula can be taken as representative.
+
+R_{0}=100
+
+5\%
+
+Figure 2. Comparison of various numerical data sets with predictions of drag 
+formulas for the case of the solid sphere.
+
+Table 1. Drag coefficient, Cd, estimated by Oliver and Chung [11] for various 
+viscosity ratios (X) over a range of Reynolds numbers (R0) compared with 
+predictions of Eqs. (1) and (10).
+
+\ R_{0})
+
+| $R_{0}$
+↓ | X→ | 0 |
+| --- | --- | --- |
+| 0.5 | O&amp;C^{†}$ | 33.8 |
+| Eq.(1) | 25.6 |  |
+| Eq.(10) | 33.7 |  |
+| 1 | O&amp;C | 17.6 |
+| Eq.(1) | 14.9 |  |
+| Eq.(10) | 17.5 |  |
+| 2 | O&amp;C | 9.4 |
+| Eq.(1) | 8.68 |  |
+| Eq.(10) | 9.39 |  |
+| 5 | O&amp;C | 4.33 |
+| Eq.(1) | 4.25 |  |
+| Eq.(10) | 4.33 |  |
+| 10 | O&amp;C | 2.48 |
+| Eq.(1) | 2.47 |  |
+| Eq.(10) | 2.50 |  |
+| 20 | O&amp;C | 1.43 |
+| Eq.(1) | 1.44 |  |
+| Eq.(10) | 1.46 |  |
+| 50 | O&amp;C | 0.70 |
+| Eq.(1) | 0.705 |  |
+| Eq.(10) | 0.703 |  |
+
+| 0.333 | 1 | 3 | $\infty$ |
+| --- | --- | --- | --- |
+| 38.2 | 42.7 | 47.2 | 51.8 |
+| 32.4 | 39.3 | 46.2 | 53.0 |
+| 38.1 | 42.6 | 47.1 | 51.7 |
+| 20.0 | 22.5 | 25.0 | 27.5 |
+| 18.2 | 21.5 | 24.7 | 28.0 |
+| 19.9 | 22.4 | 24.9 | 27.5 |
+| 10.8 | 12.2 | 13.6 | 15.1 |
+| 10.3 | 11.9 | 13.6 | 15.2 |
+| 10.8 | 12.2 | 13.6 | 15.1 |
+| 5.02 | 5.75 | 6.50 | 7.28 |
+| 4.97 | 5.69 | 6.42 | 7.14 |
+| 5.04 | 5.80 | 6.59 | 7.42 |
+| 2.94 | 3.43 | 3.93 | 4.45 |
+| 2.92 | 3.37 | 3.81 | 4.26 |
+| 2.96 | 3.48 | 4.02 | 4.59 |
+| 1.74 | 2.09 | 2.45 | 2.81 |
+| 1.75 | 2.06 | 2.37 | 2.67 |
+| 1.78 | 2.14 | 2.55 | 2.96 |
+| 0.90 | 1.15 | 1.44 | 1.72 |
+| 0.920 | 1.14 | 1.35 | 1.56 |
+| 0.896 | 1.14 | 1.44 | 1.73 |
+
+†
+Oliver and Chung [11]
+
+---
+
+Comparisons for various X are given in Table 1, which lists drag values computed by Oliver and 
+Chung [11] for X = 0, 0.333, 1, 3, ¥ and 1/2 £ R0 £ 50. The results for X = 0 and X ® ¥ were 
+already presented in the figures, of course. As expected, the agreement for intermediate X values 
+is excellent and is similar to that shown in Figs. 1 and 2. Table 1 includes the estimates 
+calculated with Eq. (1), which are less accurate than those from Eq. (10).
+
+1/2\leq R_{0}\!\leq50
+
+Table 2. Drag coefficient, Cd, for R0 = 100 for different viscosity (X) and density (P) ratios. 
+Roman values (dashes: no values provided) from Juncu [30], results from Eq. (10) are in italics, 
+results in the rightmost column are from Eq. (1).
+X  P® 0.01 0.1 0.2 0.5 1.0 2.0 5.0 10.0 100.0 Eq. (1)
+
+C_{d}.
+
+R_{0}=100
+
+| $X P \rightarrow\downarrow | 0.01 | 0.1 | 0.2 | 0.5 |
+| --- | --- | --- | --- | --- |
+| 0.01 | 0.384 | - | - | - |
+|  | 0.393 | 0.392 | 0.392 | 0.392 |
+| 0.1 | - | 0.421 | 0.421 | 0.422 |
+|  | 0.432 | 0.430 | 0.429 | 0.428 |
+| 0.2 | - | 0.461 | 0.461 | 0.462 |
+|  | 0.472 | 0.470 | 0.468 | 0.467 |
+| 0.5 | - | 0.558 | 0.558 | 0.558 |
+|  | 0.576 | 0.571 | 0.570 | 0.568 |
+| 1.0 | - | 0.676 | 0.676 | 0.676 |
+|  | 0.704 | 0.697 | 0.694 | 0.692 |
+| 2.0 | - | 0.812 | 0.812 | 0.812 |
+|  | 0.856 | 0.846 | 0.844 | 0.843 |
+| 3.0 | - | 0.883 | 0.883 | 0.883 |
+|  | 0.937 | 0.926 | 0.925 | 0.925 |
+| 5.0 | - | 0.951 | 0.951 | 0.951 |
+|  | 1.017 | 1.006 | 1.005 | 1.007 |
+| 10.0 | - | 1.008 | 1.008 | 1.008 |
+|  | 1.082 | 1.073 | 1.074 | 1.079 |
+| 100.0 | - | - | - | - |
+|  | 1.129 | 1.140 | 1.145 | 1.151 |
+
+| 1.0 | 2.0 | 5.0 | 10.0 | 100.0 | Eq.(1) |
+| --- | --- | --- | --- | --- | --- |
+| - | - | - | - | - | 0.417 |
+| 0.391 | 0.390 | 0.389 | 0.388 | 0.387 |  |
+| 0.423 | 0.425 | 0.427 | 0.430 | - | 0.473 |
+| 0.427 | 0.426 | 0.425 | 0.425 | 0.427 |  |
+| 0.462 | 0.464 | 0.464 | 0.466 | - | 0.526 |
+| 0.466 | 0.465 | 0.465 | 0.465 | 0.469 |  |
+| 0.559 | 0.560 | 0.562 | 0.566 | - | 0.641 |
+| 0.567 | 0.566 | 0.567 | 0.568 | 0.574 |  |
+| 0.674 | 0.670 | 0.667 | 0.665 | - | 0.756 |
+| 0.692 | 0.693 | 0.695 | 0.697 | 0.705 |  |
+| 0.811 | 0.810 | 0.807 | 0.799 | - | 0.871 |
+| 0.843 | 0.846 | 0.850 | 0.853 | 0.862 |  |
+| 0.882 | 0.881 | 0.875 | 0.867 | - | 0.929 |
+| 0.927 | 0.930 | 0.935 | 0.939 | 0.948 |  |
+| 0.951 | 0.951 | 0.948 | 0.944 | - | 0.987 |
+| 1.011 | 1.015 | 1.020 | 1.024 | 1.033 |  |
+| 1.008 | 1.008 | 1.008 | 1.007 | - | 1.039 |
+| 1.083 | 1.088 | 1.094 | 1.098 | 1.105 |  |
+| - | - | - | - | 1.06 | 1.095 |
+| 1.155 | 1.159 | 1.162 | 1.164 | 1.167 |  |
+
+---
+
+Table 2 lists numerical results from Juncu [30], who considered different density ratios, P, for R0
+
+= 100. We mention, in passing, that C*d* is largely insensitive to changes in P, and if P is not specified typically P = X is assumed. The agreement between the numerical results and Eq. (10) is excellent. Again, the estimates of Eq. (10) are usually slightly above the numerical values.
+
+Table 2 includes predictions from Eq. (1), although this expression does not account for
+
+variations of C*d* with P.
+
+**Conclusion**
+
+We developed a formula, Eq. (10), to predict the drag for a spherical particle, for all viscosity ratios between gas bubbles and solid spheres. It was derived as a Padé approximant that interpolates between known analytical results at low and moderate Reynolds numbers assuming that the particle does not oscillate or wobble. The formula can be used to predict the drag coefficient for spherical bubbles, drops and particles for any viscosity and density ratios. Surface tension is assumed sufficient to maintain the spherical shape of the particle. Both Fig. 2.5 of Clift et al. [3] and Fig. 8 of Bhaga and Weber [4] show how the particle shape changes (spherical, ellipsoidal, spherical cap, etc.) with the Eötvös, Morton and Reynolds numbers, and thus indicate the range of conditions for which Eq. (10) applies. Equation (10) is more theoretically based than, for instance, the formula of Rivkind and Ryskin [9] and appears to be more accurate as well, especially at low Reynolds numbers.
+
+---
+
+References
+
+1. Bozzano G, Dente M. Shape and terminal velocity of single bubble motion: A novel 
+approach. Comput Chem Eng. 2001;25:571-6. doi: 10.1016/S0098-1354(01)00636-6.
+2. Wegener M, Paul N, Kraume M. Fluid dynamics and mass transfer at single droplets in 
+liquid/liquid systems. Int J Heat Mass Transf. 2014;71:475-95. doi: 
+10.1016/j.ijheatmasstransfer.2013.12.024.
+3. Clift R, Grace J, Weber ME. Bubbles, Drops, and Particles. New York, New York, USA: 
+Academic Press; 1978.
+4. Bhaga D, Weber ME. Bubbles in viscous liquids: Shapes, wakes and velocities. J Fluid 
+Mech. 1981;105:61-85. doi: 10.1017/S002211208100311X.
+5. Turton R, Clark NN. An explicit relationship to predict spherical particle terminal velocity. 
+Powder Tech. 1987;53:127-9. doi: 10.1016/0032-5910(87)85007-6.
+6. Karamanev DG. Equations for calculation of the terminal velocity and drag coefficient of 
+solid spheres and gas bubbles. Chem Eng Comm. 1996;147:75-84. doi: 
+10.1080/00986449608936496.
+7. Brown PP, Lawler DF. Sphere drag and settling velocity revisited. J Environ Eng. 
+2003;129:222-31. doi: 10.1061/(ASCE)0733-9372(2003)129:3(222).
+8. Kelbaliyev GI, Ceylan K. Drag coefficients of variously shaped solid particles, drops, and 
+bubbles. Theor Found Chem Eng. 2011;45:248-66. doi: 10.1134/s0040579511020084.
+9. Rivkind VY, Ryskin GM. Flow structure in motion of a spherical drop in a fluid medium at 
+intermediate Reynolds numbers. Fluid Dyn. 1976;11:5-12. doi: 10.1007/bf01023387.
+
+---
+
+10. Proudman I, Pearson JRA. Expansions at small Reynolds numbers for the flow past a sphere and a circular cylinder. J Fluid Mech. 1957;2:237-62. doi:
+10.1017/S0022112057000105.
+11. Oliver DLR, Chung JN. Flow about a fluid sphere at low to moderate Reynolds numbers. J Fluid Mech. 1987;177:1-18. doi: 10.1017/S002211208700082X.
+12. Oliver DLR, Chung JN. Steady flows inside and around a fluid sphere at low Reynolds numbers. J Fluid Mech. 1985;154:215-30. doi: 10.1017/S0022112085001495.
+13. Harper JF, Moore DW. The motion of a spherical liquid drop at high Reynolds number. J Fluid Mech. 1968;32:367-91. doi: 10.1017/S0022112068000789.
+14. Parlange J-Y. Motion of spherical drops at large Reynolds numbers. Acta Mech. 1970;9:323-8. doi: 10.1007/bf01179829.
+15. Barry DA, Parlange J-Y. Recirculation within a fluid sphere at moderate Reynolds numbers. J Fluid Mech. 2002;465:293-300. doi: 10.1017/S0022112002001167.
+16. Baker GA, Graves-Morris P. Padé Approximants. Second ed. Rota G-C, editor. Cambridge, United Kingdom: Cambridge University Press; 1996. 746 p.
+17. Abdel-Alim AH, Hamielec AE. A theoretical and experimental investigation of the effect of internal circulation on the drag of spherical droplets falling at terminal velocity in liquid media. Ind Eng Chem Fund. 1975;14:308-12. doi: 10.1021/i160056a004.
+18. Brabston DC, Keller HB. Viscous flows past spherical gas bubbles. J Fluid Mech. 2006;69:179-89. doi: 10.1017/S0022112075001371.
+19. Rivkind VI, Ryskin GM, Fishbein GA. Flow around a spherical drop at intermediate Reynolds numbers. J Appl Math Mech. 1976;40:687-91. doi: 10.1016/0021- 8928(76)90181-7.
+
+---
+
+20. Cliffe KA, Lever DA. A comparison of finite-element methods for solving flow past a sphere. J Comp Phys. 1986;62:321-30. doi: 10.1016/0021-9991(86)90130-0.
+21. Fornberg B. Steady viscous flow past a sphere at high Reynolds numbers. J Fluid Mech. 1988;190:471-89. doi: 10.1017/S0022112088001417.
+22. Dandy DS, Leal LG. Buoyancy-driven motion of a deformable drop through a quiescent liquid at intermediate Reynolds numbers. J Fluid Mech. 1989;208:161-92. doi:
+10.1017/S0022112089002818.
+23. Chang C-C, Liou B-H, Chern R-L. An analytical and numerical study of axisymmetric flow around spheroids. J Fluid Mech. 1992;234:219-46. doi:
+10.1017/S0022112092000764.
+24. Chang EJ, Maxey MR. Unsteady flow about a sphere at low to moderate Reynolds number. Part 1. Oscillatory motion. J Fluid Mech. 2006;277:347-79. doi:
+10.1017/S002211209400279X.
+25. Magnaudet J, Rivero M, Fabre J. Accelerated flows past a rigid sphere or a spherical bubble. Part 1. Steady straining flow. J Fluid Mech. 1995;284:97-135. doi:
+10.1017/S0022112095000280.
+26. Feng Z-G, Michaelides EE. Drag coefficients of viscous spheres at intermediate and high Reynolds numbers. J Fluids Eng. 2001;123:841-9. doi: 10.1115/1.1412458.
+27. Saboni A, Alexandrova S. Numerical study of the drag on a fluid sphere. AICHE J. 2002;48:2992-4. doi: 10.1002/aic.690481225.
+28. Flemmer RLC, Banks CL. On the drag coefficient of a sphere. Powder Tech. 1986;48:217-
+21. doi: 10.1016/0032-5910(86)80044-4.
+
+---
+
+29. Mikhailov MD, Silva Freire AP. The drag coefficient of a sphere: An approximation using Shanks transform. Powder Tech. 2013;237:432-5. doi: 10.1016/j.powtec.2012.12.033.
+30. Juncu G. A numerical study of steady viscous flow past a fluid sphere. Int J Heat Fluid Flow. 1999;20:414-21. doi: 10.1016/S0142-727X(99)00003-X.
+31. Gautschi W. Error function and Fresnel integrals. In: Abramowitz M, Stegun IA, editors. Handbook of Mathematical Functions with Formulas, Graphs, and Mathematical Tables. Washington, DC, USA: US Dept. of Commerce, National Bureau of Standards; 1964. p. 295-329.
+32. Homeier HHH, Steinborn EO. Numerical integration of functions with a sharp peak at or near one boundary using Möbius transformations. J Comp Phys. 1990;87:61-72. doi:
+10.1016/0021-9991(90)90225-P.
+33. Davis PJ, Polonsky I. Numerical interpolation, differentiation and integration. In: Abramowitz M, Stegun IA, editors. Handbook of Mathematical Functions with Formulas, Graphs, and Mathematical Tables. Washington, DC, USA: US Dept. of Commerce, National Bureau of Standards; 1964. p. 875-924.
+
+---
+
+Appendix: Computation of α and β, Eq. (7)
+
+\beta
+
+The definitions of a and b, which appear in Eq. (6), are, respectively:
+
+\beta
+
+\begin{array}{l l}{{\displaystyle2\pi^{1/2}A\alpha=\!\biggl[\biggl(\sqrt3\!-\!\frac{2}{3}\biggl)\frac{24}{5}\sqrt2\,+\!\frac{8}{\sqrt3}\biggr]-\!\sqrt\frac2\pi\!\!\!\int\!\!\!\!\!\!\int\!\!\!\!\!\!\!\!\!\!\int_{0}^{\infty}
+
+(A1)
+
+(A2)
+
+where ierfc is the integral of the coerror function [31]. Equations (A1) and (A2) are obtained
+from the general definition of Cd [13, Eq. (8.1)], with the velocity field of Parlange [14, Eqs. 
+(18), (19) and (25)]. N is defined as:
+
+C_{d}
+
+N\left(W,Y\right)=\frac{Y}{2\sqrt{\pi}}\!_{0}^{\pi}\!\left(W-\overline{{W}}\right)^{-1}\sin^{2}\theta\!(\overline{{W}})\exp\left[-\frac{Y^{2}}{4}\!\left(W-\overline{{W}}\right)^{-1}\right]d\overline{{W}}\,,,\,\00\leq W\leq Y,\quad(\beta,\gamma)\,.
+
+(A3)
+
+with sin2q(W) = 1 – 4cos2 éù (9W / 4 -+1) / 3 p / 3, and where q, W and r are related by:
+ëûarccos
+
+(A4)
+
+The integrals appearing in Eqs. (A1) and (A2) contain integrands that vary rapidly, viz., those 
+2
+containing N2 and (¶N/¶Y). However, the integral containing N and ierfc varies smoothly, and 
+integrates to:
+
+r\,=\,\cos\left(\theta\right)\,\mathrm{a n d}\,=\,\frac{2}{9}\big(1\!-\!r\big)^{2}\,\big(2\!+\!r\big)\,.
+
+---
+
+\frac{1}{\sqrt{\pi}}\!\!\!_{0}^{\infty}\!\ \ \int\!\!N\\!\left(frac88,Y\right)\,\mathrm{i e r f c}\!left((fracfrac{33}{4\sqrt{2}}\right)d Y\simeq0!..1591
+
+(A5)
+
+2
+The integrands containing of N2 and (¶N/¶Y) contain sharp peaks. To circumvent inaccuracies 
+caused by these peaks, Möbius transformations of the integrands were used to make the integrals 
+more amenable to quadrature [32]. Following transformation of the integrand to smooth forms, 
+the standard 61-point Gauss-Kronrod rule was used, as it was for Eq. (A5). We then find:
+
+N^{2}
+
+(\partial{\cal N}/\partial{\cal Y})^{2}
+
+\oint_{0}^{\infty}N^{2}\Bigg({frac8{}9{}}},Y{\\Bigg)d Y\simeq0.26020.
+
+(A6)
+
+2
+The final integral involving (¶N/¶Y) requires an additional step, i.e., calculation of the derivative 
+¶N/¶Y. We first used different finite-difference approximations [33]. However, the results were 
+not reliable as Y ® 0 so an additional Möbius transformation as used in that region, accounting 
+for the case of W ® 8/9, which again involves a rapidly varying integrand. The result obtained 
+is:
+
+(\partial N/\partial Y)^{2}
+
+Y\!\to\!0
+
+W\!\to8/9
+
+\int\!\!\!\int_!limits_{0\,-1}^{\infty\,}\!\left(\frac{\hat{\sigma}N}{\partial Y}\right)^{2}d Y\!d r\simeq\!0.49823.

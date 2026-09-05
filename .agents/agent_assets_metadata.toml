@@ -835,3 +835,45 @@ mtime_ms = 1788611248576
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/70c1471c-6b81-4646-ba5e-127954e0ea28/9551b322-80c9-42d6-9407-1df9b1f76ea7"
 storage_version_token = "1788611277391796"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "saH1kf6D-_m6WMu08s5Mi"
+uri = "file://research/kuhni-drag-shape/notes.md"
+type = "text"
+title = "Kühni Drag/Shape Qualification Notes"
+description = "Live research plan and evidence log for the Project 236 non-spherical drop closure."
+logical_id = "5e7163ce-7a72-4bfc-a28a-a8ea1069eb76"
+content_hash = "sha256:692137b10167605d6d6e63364f4c012c415649a41475f150d14f6fb944c1c2a4"
+size = 2446
+mtime_ms = 1788619067156
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/5e7163ce-7a72-4bfc-a28a-a8ea1069eb76/758edb1f-6002-4e56-8d8b-c7d431a5528d"
+storage_version_token = "1788619073645891"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "bWChDUqXvZCtk5SQioZM_"
+uri = "file://research/kuhni-drag-shape/project236-myint-garthe-final.md"
+type = "text"
+title = "Corrected Project 236 Myint–Garthe Recommendation"
+description = "Primary-source reconciliation, exact equations, 0.5–5 mm mapping, Garthe Eq. 8.3 compatibility, proposed pre-pilot closure, and remaining release blocker."
+logical_id = "85a75e6e-195c-4f30-b738-e175a5ca7f7d"
+content_hash = "sha256:faccb97b505ea400b881ccd884660582a5fd5cea384d72e4b7604cb9e7721ac1"
+size = 15341
+mtime_ms = 1788620071412
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/85a75e6e-195c-4f30-b738-e175a5ca7f7d/5de4c2fe-0f2b-43a9-858e-064789c976b4"
+storage_version_token = "1788620103101473"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "dcJhgjNNiqnw7IkY_TGPQ"
+uri = "file://research/kuhni-drag-shape/project236-myint-closure-map.csv"
+type = "table"
+title = "Project 236 Myint Closure Map"
+description = "Clean and fully contaminated Myint terminal roots, shape metrics, and applicability gates across 0.5–5 mm at the frozen 50 °C basis."
+logical_id = "996151df-f758-4da0-9833-fd88c5248c03"
+content_hash = "sha256:4b78fb51cf4b330ee44df1d9c9d065606b6c21002d3900024f156fd94f62a8c7"
+size = 1781
+mtime_ms = 1788619884493
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/996151df-f758-4da0-9833-fd88c5248c03/a47668be-247b-4f7c-9b13-ed21c0a3951d"
+storage_version_token = "1788620104511860"
+content_type = "text/csv"

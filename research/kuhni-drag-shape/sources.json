@@ -1,0 +1,156 @@
+{
+  "depth": "standard-primary-source-audit",
+  "scope": "Project 236 RRBO/NMP drop shape, drag, and Garthe/Stichlmair compatibility at the frozen 50 C property basis",
+  "sources": [
+    {
+      "id": "garthe-2005",
+      "title": "Fluid Dynamics and Mass Transfer of Single Particles and Swarms of Particles in Extraction Columns",
+      "authors": "Garthe",
+      "year": 2005,
+      "url": "https://mediatum.ub.tum.de/601973",
+      "quality": "primary doctoral thesis",
+      "usedFor": "Kuhni characteristic-velocity Eq. 5.6/5.7 and rendered swarm Eq. 8.3 with the complete square root",
+      "limits": "Benchmark liquid systems are not RRBO/NMP; swarm validation is strongest for rigid spheres and lower-viscosity drops"
+    },
+    {
+      "id": "myint-terminal-2006",
+      "title": "Terminal Velocities of Single Drops in Stagnant Liquids",
+      "authors": "Myint, Hosokawa, Tomiyama",
+      "year": 2006,
+      "url": "https://doi.org/10.1299/jfst.1.72",
+      "quality": "primary peer-reviewed experimental study",
+      "usedFor": "Liquid-drop Cd(Re,kappa,interface) Eq. 9 and exact applicability ranges",
+      "limits": "Validated with isolated terminal drops in stagnant liquids, not forced-slip drops in an agitated swarm"
+    },
+    {
+      "id": "myint-shape-2007",
+      "title": "Shapes of Single Drops Rising Through Stagnant Liquids",
+      "authors": "Myint, Hosokawa, Tomiyama",
+      "year": 2007,
+      "url": "https://doi.org/10.1299/jfst.2.184",
+      "quality": "primary peer-reviewed experimental study",
+      "usedFor": "Clean-drop aspect ratio E(Ta) Eq. 14 and exact applicability ranges",
+      "limits": "Terminal isolated clean drops; does not supply a shape multiplier for drag"
+    },
+    {
+      "id": "wellek-1966",
+      "title": "Shape of Liquid Drops Moving in Liquid Media",
+      "authors": "Wellek, Agrawal, Skelland",
+      "year": 1966,
+      "url": "https://doi.org/10.1002/aic.690120506",
+      "quality": "primary peer-reviewed experimental study",
+      "usedFor": "Contaminated/non-oscillating drop aspect-ratio correlation",
+      "limits": "Shape only; no constitutive drag equation"
+    },
+    {
+      "id": "barry-parlange-2018",
+      "title": "Universal Expression for the Drag on a Fluid Sphere",
+      "authors": "Barry, Parlange",
+      "year": 2018,
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5901779",
+      "quality": "primary peer-reviewed analytical study",
+      "usedFor": "Existing spherical-fluid reference curve and comparison trajectory",
+      "limits": "Requires a spherical, non-wobbling particle"
+    },
+    {
+      "id": "grace-1976",
+      "title": "Shapes and Velocities of Single Drops and Bubbles Moving Freely Through Immiscible Liquids",
+      "authors": "Grace, Wairegi, Nguyen",
+      "year": 1976,
+      "url": "https://jlc.jst.go.jp/DN/JALC/00292339765?from=CiNii",
+      "quality": "primary conference/experimental correlation source",
+      "usedFor": "Terminal-regime sensitivity and Morton/Eotvos coverage",
+      "limits": "Returns a buoyancy-selected terminal point, not Cd at an independently supplied Reynolds number"
+    },
+    {
+      "id": "thorsen-1968",
+      "title": "On the Terminal Velocity of Circulating and Oscillating Liquid Drops",
+      "authors": "Thorsen, Stordalen, Terjesen",
+      "year": 1968,
+      "url": "https://www.sciencedirect.com/science/article/pii/0009250968870174",
+      "quality": "primary peer-reviewed experimental study",
+      "usedFor": "Oscillating-drop terminal-velocity alternative",
+      "limits": "Terminal velocity only; not an arbitrary-slip drag curve"
+    },
+    {
+      "id": "loth-2008",
+      "title": "Quasi-steady Shape and Drag of Deformable Bubbles and Drops",
+      "authors": "Loth",
+      "year": 2008,
+      "url": "https://www.sciencedirect.com/science/article/abs/pii/S0301932207001711",
+      "quality": "peer-reviewed synthesis",
+      "usedFor": "Assessment of shape/drag coupling candidates and bubble/drop scope",
+      "limits": "Broad synthesis; many explicit deformed branches are bubble-dominated"
+    },
+    {
+      "id": "liu-tang-quan-2013",
+      "title": "Shapes and Terminal Velocities of a Drop Rising in Stagnant Liquids",
+      "authors": "Liu, Tang, Quan",
+      "year": 2013,
+      "url": "https://doi.org/10.1016/j.compfluid.2013.03.022",
+      "quality": "primary peer-reviewed numerical study",
+      "usedFor": "Check for a deformation-aware liquid-drop equation",
+      "limits": "Published range has kappa below Project 236 and the fitted equation body was not openly recoverable"
+    },
+    {
+      "id": "adinata-2011",
+      "title": "Single-Drop Based Modelling of Solvent Extraction in High-Viscosity Systems",
+      "authors": "Adinata",
+      "year": 2011,
+      "url": "http://publications.rwth-aachen.de/record/64211/files/3738.pdf",
+      "quality": "primary doctoral dissertation",
+      "usedFor": "Henschke/ReDrop deformation and oscillation crossover architecture",
+      "limits": "Requires system-fitted transition/deformation parameters and supplies terminal trajectories"
+    },
+    {
+      "id": "zhang-2019",
+      "title": "An Experimental Study on Single Drop Rising in a Low Interfacial Tension Liquid-Liquid System",
+      "authors": "Zhang, Wang, Stevens, Fei",
+      "year": 2019,
+      "url": "https://www.sciencedirect.com/science/article/abs/pii/S0263876219303065",
+      "quality": "primary peer-reviewed experimental study",
+      "usedFor": "Low-interfacial-tension liquid-liquid terminal and fitted-model evidence",
+      "limits": "Different liquid system and fitted terminal-model parameters"
+    },
+    {
+      "id": "dandy-leal-1989",
+      "title": "Buoyancy-Driven Motion of a Deformable Drop Through a Quiescent Liquid at Intermediate Reynolds Numbers",
+      "authors": "Dandy, Leal",
+      "year": 1989,
+      "url": "https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/buoyancydriven-motion-of-a-deformable-drop-through-a-quiescent-liquid-at-intermediate-reynolds-numbers/A22A01E99BD5B969174A4F2AF9C460BF",
+      "quality": "primary peer-reviewed numerical study",
+      "usedFor": "Coupled deformation/flow theory check",
+      "limits": "Solution family, not a source-native closed arbitrary-Re constitutive law"
+    },
+    {
+      "id": "taylor-acrivos-1964",
+      "title": "On the Deformation and Drag of a Falling Viscous Drop at Low Reynolds Number",
+      "authors": "Taylor, Acrivos",
+      "year": 1964,
+      "url": "https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/796C11570B8A109A0C65F9E7304DC1D8",
+      "quality": "primary peer-reviewed asymptotic theory",
+      "usedFor": "Weak-deformation liquid-drop theory check",
+      "limits": "Low-Re, weak-deformation asymptote; does not span the Project trajectory"
+    },
+    {
+      "id": "gomes-stichlmair-2006",
+      "title": "Simulated and Experimental Dispersed-Phase Breakage and Coalescence Behavior in a Rotating Disc Contactor",
+      "authors": "Gomes, Stichlmair",
+      "year": 2006,
+      "url": "https://doi.org/10.1021/ie051453l",
+      "quality": "primary peer-reviewed extraction-column study",
+      "usedFor": "Independent context for Stichlmair swarm/column modeling",
+      "limits": "Different equipment and fluids; not an RRBO/NMP drag qualification source"
+    },
+    {
+      "id": "weber-2019",
+      "title": "Performance Map for the Design of Liquid-Liquid Extraction Columns",
+      "authors": "Weber and co-authors",
+      "year": 2019,
+      "url": "https://doi.org/10.1002/cite.201900057",
+      "quality": "peer-reviewed extraction-column design study",
+      "usedFor": "Modern column-design context and separation of hydraulic/model validity",
+      "limits": "Does not supply the missing high-kappa arbitrary-slip deformed-drop drag law"
+    }
+  ]
+}

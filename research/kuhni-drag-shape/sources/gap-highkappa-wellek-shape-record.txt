@@ -1,0 +1,423 @@
+[Skip to search form](https://www.semanticscholar.org/paper/Shape-of-liquid-drops-moving-in-liquid-media-Wellek-Agrawal/f3ca292d65e38d8d0ca5757c58101f33df4dc403#search-form) [Skip to main content](https://www.semanticscholar.org/paper/Shape-of-liquid-drops-moving-in-liquid-media-Wellek-Agrawal/f3ca292d65e38d8d0ca5757c58101f33df4dc403#main-content) [Skip to account menu](https://www.semanticscholar.org/paper/Shape-of-liquid-drops-moving-in-liquid-media-Wellek-Agrawal/f3ca292d65e38d8d0ca5757c58101f33df4dc403#account-menu)
+
+- DOI: [10.1002/AIC.690120506](https://doi.org/10.1002/AIC.690120506)
+- Corpus ID: 98716321
+
+# Shape of liquid drops moving in liquid media
+
+```
+@article{Wellek1966ShapeOL,
+  title={Shape of liquid drops moving in liquid media},
+  author={Robert M. Wellek and Adesh Kumar Agrawal and A. H. P. Skelland},
+  journal={Aiche Journal},
+  year={1966},
+  volume={12},
+  pages={854-862},
+  url={https://api.semanticscholar.org/CorpusID:98716321}
+}
+```
+
+- [R. Wellek](https://www.semanticscholar.org/author/R.-Wellek/92049285), [A. K. Agrawal](https://www.semanticscholar.org/author/A.-K.-Agrawal/2411787449), [A. H. P. Skelland](https://www.semanticscholar.org/author/A.-H.-P.-Skelland/2246555673)
+- Published1 September 1966
+- Physics, Engineering
+- Aiche Journal
+
+An investigation of the effects of various physical properties, drop size, and drop velocity on drop shape was carried out for nonoscillating liquid drops falling through stationary liquid continuous phases. The data of forty-five dispersed-continuous phase systems were studied with continuous phase viscosities varying from 0.3 to 46 centipoise and interfacial tensions varying from 0.3 to 42 dyne/cm. A theoretical relation was obtained from the Taylor and Acrivos analysis which quite accurately… Expand
+
+[View via Publisher](https://doi.org/10.1002/AIC.690120506 "https://doi.org/10.1002/AIC.690120506")
+
+Save to LibrarySave
+
+Create AlertAlert
+
+Cite
+
+Share
+
+420 Citations
+
+[Highly Influential Citations](https://www.semanticscholar.org/paper/Shape-of-liquid-drops-moving-in-liquid-media-Wellek-Agrawal/f3ca292d65e38d8d0ca5757c58101f33df4dc403#citing-papers)[Learn more about highly influenced citations](https://www.semanticscholar.org/faq#influential-citations)
+
+24
+
+[Background Citations](https://www.semanticscholar.org/paper/Shape-of-liquid-drops-moving-in-liquid-media-Wellek-Agrawal/f3ca292d65e38d8d0ca5757c58101f33df4dc403#citing-papers)
+
+39
+
+[Methods Citations](https://www.semanticscholar.org/paper/Shape-of-liquid-drops-moving-in-liquid-media-Wellek-Agrawal/f3ca292d65e38d8d0ca5757c58101f33df4dc403#citing-papers)
+
+29
+
+[Results Citations](https://www.semanticscholar.org/paper/Shape-of-liquid-drops-moving-in-liquid-media-Wellek-Agrawal/f3ca292d65e38d8d0ca5757c58101f33df4dc403#citing-papers)
+
+3
+
+[View All](https://www.semanticscholar.org/paper/Shape-of-liquid-drops-moving-in-liquid-media-Wellek-Agrawal/f3ca292d65e38d8d0ca5757c58101f33df4dc403#citing-papers)
+
+## 420 Citations
+
+Citation Type
+
+Has PDF
+
+Author
+
+More Filters
+
+More Filters
+
+Filters
+
+Sort by RelevanceSort by Most Influenced PapersSort by Citation CountSort by Recency
+
+[**Shapes of Single Drops Rising Through Stagnant Liquids**](https://www.semanticscholar.org/paper/Shapes-of-Single-Drops-Rising-Through-Stagnant-Myint-Hosokawa/5186af550b2e22dc26df2cfecf87dce9341c1b8c)
+
+[W. Myint](https://www.semanticscholar.org/author/W.-Myint/116085096)[S. Hosokawa](https://www.semanticscholar.org/author/S.-Hosokawa/92976521)[A. Tomiyama](https://www.semanticscholar.org/author/A.-Tomiyama/34172156)
+
+Physics, Materials Science
+
+- 2007
+
+Shapes of single drops rising through infinite stagnant liquids under terminal conditions were measured using a high-speed camera for a wide range of fluid properties. Aspect ratios E and distortion… Expand
+
+- [26](https://www.semanticscholar.org/paper/5186af550b2e22dc26df2cfecf87dce9341c1b8c#citing-papers)
+- [PDF](https://www.semanticscholar.org/paper/5186af550b2e22dc26df2cfecf87dce9341c1b8c)
+
+
+Save
+
+[**Effect of solute transfer and interfacial instabilities on scalar and velocity field around a drop rising in quiescent liquid channel**](https://www.semanticscholar.org/paper/Effect-of-solute-transfer-and-interfacial-on-scalar-Khanwale-Khadamkar/eebfd390dbb290254e6a2e763690ece58fbd31ac)
+
+[Makrand A. Khanwale](https://www.semanticscholar.org/author/Makrand-A.-Khanwale/73602404)[Hrushikesh P. Khadamkar](https://www.semanticscholar.org/author/Hrushikesh-P.-Khadamkar/93307851)[C. Mathpati](https://www.semanticscholar.org/author/C.-Mathpati/35271416)
+
+Physics, Chemistry
+
+- 2015
+
+Physics of development of flow structures around the drop rising with solute transfer is highly influenced by the interfacial behaviour and is remarkably different than a particle rising under the… Expand
+
+- [9](https://www.semanticscholar.org/paper/eebfd390dbb290254e6a2e763690ece58fbd31ac#citing-papers)
+
+Save
+
+[**Hydrodynamic Behavior of a Single Bubble Rising in Viscous Liquids**](https://www.semanticscholar.org/paper/Hydrodynamic-Behavior-of-a-Single-Bubble-Rising-in-Cai-Bao/a70cfc9be01765ba03203dca14f502cce7eed236)
+
+[Ziqi Cai](https://www.semanticscholar.org/author/Ziqi-Cai/35349856)[Y. Bao](https://www.semanticscholar.org/author/Y.-Bao/92308102)[Zhengming Gao](https://www.semanticscholar.org/author/Zhengming-Gao/9489493)
+
+Physics, Engineering
+
+- 2010
+
+Abstract The rising behavior of single bubbles has been investigated in six systems with different viscosity and Morton number (Mo) from 3.21×10−11 to 163. Bubbles with maximum equivalent diameter of… Expand
+
+- [38](https://www.semanticscholar.org/paper/a70cfc9be01765ba03203dca14f502cce7eed236#citing-papers)
+
+Save
+
+[**Quasi-steady shape and drag of deformable bubbles and drops**](https://www.semanticscholar.org/paper/Quasi-steady-shape-and-drag-of-deformable-bubbles-Loth/30ea3778557d5b05597cb435f23e5fd2c3de1b4e)
+
+[E. Loth](https://www.semanticscholar.org/author/E.-Loth/49650166)
+
+Physics, Engineering
+
+- 2008
+
+Abstract The quasi-steady shape and drag of isolated drops and bubbles are reviewed in terms of quantitative results, particularly for deformed conditions. Data in the literature were investigated to… Expand
+
+- [255](https://www.semanticscholar.org/paper/30ea3778557d5b05597cb435f23e5fd2c3de1b4e#citing-papers)
+
+Save
+
+[**Dynamics of formation and oscillation of non-spherical drops**](https://www.semanticscholar.org/paper/Dynamics-of-formation-and-oscillation-of-drops-Deka-Tsai/459d35249204ce690b52bfd5eaa8b6e2fafd0554)
+
+[Hiranya Deka](https://www.semanticscholar.org/author/Hiranya-Deka/87652393)[P. Tsai](https://www.semanticscholar.org/author/P.-Tsai/4982815)[G. Biswas](https://www.semanticscholar.org/author/G.-Biswas/83096492)[A. Dalal](https://www.semanticscholar.org/author/A.-Dalal/40532993)[Bahni Ray](https://www.semanticscholar.org/author/Bahni-Ray/145795629)[An-Bang Wang](https://www.semanticscholar.org/author/An-Bang-Wang/2230013399)
+
+Physics, Engineering
+
+[Chemical Engineering and Science](https://www.semanticscholar.org/venue?name=Chemical%20Engineering%20and%20Science)
+
+- 2019
+
+Abstract Present study focuses on the shape of a drop during pinch-off and how the shape of a drop is affected by the flow parameters and different physical properties of the fluids. Both… Expand
+
+- [11](https://www.semanticscholar.org/paper/459d35249204ce690b52bfd5eaa8b6e2fafd0554#citing-papers)
+
+Save
+
+[**Motion and shape of a viscoelastic drop falling through a viscous fluid**](https://www.semanticscholar.org/paper/Motion-and-shape-of-a-viscoelastic-drop-falling-a-Sostarecz-Belmonte/e2622886d551053246530a76f552f5adfd8c34cd)
+
+[M. Sostarecz](https://www.semanticscholar.org/author/M.-Sostarecz/14089475)[A. Belmonte](https://www.semanticscholar.org/author/A.-Belmonte/144880511)
+
+Materials Science, Physics
+
+[Journal of Fluid Mechanics](https://www.semanticscholar.org/venue?name=Journal%20of%20Fluid%20Mechanics)
+
+- 2003
+
+The steady shape of a drop of dilute polymer solution falling through a quiescent viscous Newtonian fluid is considered. Experimentally, we find that an immiscible drop of 0.16% xanthan gum in 80:20… Expand
+
+- [63](https://www.semanticscholar.org/paper/e2622886d551053246530a76f552f5adfd8c34cd#citing-papers)
+- [PDF](https://www.semanticscholar.org/paper/e2622886d551053246530a76f552f5adfd8c34cd)
+
+
+- 1 Excerpt
+
+Save
+
+[**DEVELOPMENT OF NEW EMPIRICAL EQUATIONS FOR ESTIMATION OF DRAG COEFFICIENT, SHAPE DEFORMATION, AND RISING VELOCITY OF GAS BUBBLES OR LIQUID DROPS**](https://www.semanticscholar.org/paper/DEVELOPMENT-OF-NEW-EMPIRICAL-EQUATIONS-FOR-OF-DRAG-Kelbaliyev-Ceylan/057e7195677a087c98041d2bdcf9f8830b65f389)
+
+[G. Kelbaliyev](https://www.semanticscholar.org/author/G.-Kelbaliyev/1753090741)[K. Ceylan](https://www.semanticscholar.org/author/K.-Ceylan/144258137)
+
+Physics, Engineering
+
+- 2007
+
+Some new correlations are derived to estimate the drag coefficient, the shape deformation, and the rising velocity of particles moving in an infinite liquid medium. The correlations are derived in… Expand
+
+- [84](https://www.semanticscholar.org/paper/057e7195677a087c98041d2bdcf9f8830b65f389#citing-papers)
+
+- 2 Excerpts
+
+Save
+
+[**Confined drop motion in viscoelastic two-phase systems**](https://www.semanticscholar.org/paper/Confined-drop-motion-in-viscoelastic-two-phase-You-Haj-Hariri/48a0a01c55addded19756c92e17764fa1a259dca)
+
+[R. You](https://www.semanticscholar.org/author/R.-You/98571963)[H. Haj-Hariri](https://www.semanticscholar.org/author/H.-Haj-Hariri/1441460477)[A. Borhan](https://www.semanticscholar.org/author/A.-Borhan/2342404)
+
+Physics, Engineering
+
+- 2009
+
+In this study, we numerically examine the buoyancy-driven, axisymmetric motion of drops through vertical cylindrical capillaries. Combinations of Newtonian and viscoelastic drop and suspending fluid… Expand
+
+- [14](https://www.semanticscholar.org/paper/48a0a01c55addded19756c92e17764fa1a259dca#citing-papers)
+
+Save
+
+[**Characterization of Bubble Shapes in Non‐Newtonian Fluids by Parametric Equations**](https://www.semanticscholar.org/paper/Characterization-of-Bubble-Shapes-in-Non%E2%80%90Newtonian-Xu-Midoux/ca1bbee1d141224a653eaffaa6fc2a7b75db401e)
+
+[Feishi Xu](https://www.semanticscholar.org/author/Feishi-Xu/48101349)[N. Midoux](https://www.semanticscholar.org/author/N.-Midoux/15754100)[Huai Z. Li](https://www.semanticscholar.org/author/Huai-Z.-Li/2109043059)[G. Hébrard](https://www.semanticscholar.org/author/G.-H%C3%A9brard/40950965)[N. Dietrich](https://www.semanticscholar.org/author/N.-Dietrich/39133398)
+
+Engineering, Physics
+
+[Chemical Engineering & Technology](https://www.semanticscholar.org/venue?name=Chemical%20Engineering%20%26%20Technology)
+
+- 2019
+
+11 Based on the experiment of single air bubbles rising in stagnant non-Newtonian fluids, an 12 innovative model containing the aspect ratio ( ) and two parameters ( , ) was proposed 13 and proved to… Expand
+
+- [12](https://www.semanticscholar.org/paper/ca1bbee1d141224a653eaffaa6fc2a7b75db401e#citing-papers)
+- [PDF](https://www.semanticscholar.org/paper/ca1bbee1d141224a653eaffaa6fc2a7b75db401e)
+
+
+Save
+
+[**Steady axisymmetric motion of deformable drops falling or rising through a homoviscous fluid in a tube at intermediate Reynolds number**](https://www.semanticscholar.org/paper/Steady-axisymmetric-motion-of-deformable-drops-or-a-Bozzi-Mantle/d6a6b0b6f17e1fb06a6e59e04e3c61eabb78569c)
+
+[L. A. Bozzi](https://www.semanticscholar.org/author/L.-A.-Bozzi/1451898232)[W. J. Mantle](https://www.semanticscholar.org/author/W.-J.-Mantle/102080866)[Arne J. Pearlstein](https://www.semanticscholar.org/author/Arne-J.-Pearlstein/10441352)[James Q. Feng](https://www.semanticscholar.org/author/James-Q.-Feng/37335533)
+
+Physics, Engineering
+
+[Journal of Fluid Mechanics](https://www.semanticscholar.org/venue?name=Journal%20of%20Fluid%20Mechanics)
+
+- 1997
+
+The steady axisymmetric flow in and around a deformable drop moving under the action of gravity along the axis of a vertical tube at intermediate Reynolds number is studied by solving the nonlinear… Expand
+
+- [48](https://www.semanticscholar.org/paper/d6a6b0b6f17e1fb06a6e59e04e3c61eabb78569c#citing-papers)
+
+Save
+
+...
+
+1
+
+2
+
+3
+
+4
+
+5
+
+...
+
+## 25 References
+
+Citation Type
+
+Has PDF
+
+Author
+
+More Filters
+
+More Filters
+
+Filters
+
+Sort by RelevanceSort by Most Influential PapersSort by Citation CountSort by Recency
+
+[**Rate of rise or fall of liquid drops**](https://www.semanticscholar.org/paper/Rate-of-rise-or-fall-of-liquid-drops-Klee-Treybal/4275b757f185885ce8c195b52f79721e4d4cec1d)
+
+[A. Klee](https://www.semanticscholar.org/author/A.-Klee/72693097)[R. E. Treybal](https://www.semanticscholar.org/author/R.-E.-Treybal/91697646)
+
+Physics
+
+- 1956
+
+Measurements of the terminal velocity of liquid drops immersed in an insoluble liquid were made for eleven liquid systems, covering a wide range of physical properties: continuous-phase density 0.960… Expand
+
+- [164](https://www.semanticscholar.org/paper/4275b757f185885ce8c195b52f79721e4d4cec1d#citing-papers)
+
+Save
+
+[**The fall of single liquid drops through water**](https://www.semanticscholar.org/paper/The-fall-of-single-liquid-drops-through-water-Hu-Kinter/64caae9f390e4088156b44d03b09035c34f80d27)
+
+[Shegen Hu](https://www.semanticscholar.org/author/Shegen-Hu/93960607)[R. Kinter](https://www.semanticscholar.org/author/R.-Kinter/2268135732)
+
+Chemistry, Engineering
+
+- 1955
+
+The steady motion of single drops of ten organic liquids falling through a stationary water field is discussed. A correlation is presented for nine systems with the exception of the aniline-water… Expand
+
+- [182](https://www.semanticscholar.org/paper/64caae9f390e4088156b44d03b09035c34f80d27#citing-papers)
+
+Save
+
+[**Ultimate velocity of drops in stationary liquid media**](https://www.semanticscholar.org/paper/Ultimate-velocity-of-drops-in-stationary-liquid-Warshay-Bogusz/b94034a6830cb4ec81dd64bd6a558a5f0aace9b4)
+
+[M. Warshay](https://www.semanticscholar.org/author/M.-Warshay/92000837)[E. Bogusz](https://www.semanticscholar.org/author/E.-Bogusz/92146420)[M. Johnson](https://www.semanticscholar.org/author/M.-Johnson/2232033374)[R. C. Kintner](https://www.semanticscholar.org/author/R.-C.-Kintner/92563666)
+
+Chemistry
+
+- 1959
+
+The effects of high field viscosity and of low inter-facial tension on the terminal velocity of single liquid drops falling through stationary liquid fields were investigated. Drops of… Expand
+
+- [26](https://www.semanticscholar.org/paper/b94034a6830cb4ec81dd64bd6a558a5f0aace9b4#citing-papers)
+
+Save
+
+[**Circulation in liquid drops**](https://www.semanticscholar.org/paper/Circulation-in-liquid-drops-Haycock-Garner/a9cf522a406e037bb241fd07f6262a4e13fd953c)
+
+[P. J. Haycock](https://www.semanticscholar.org/author/P.-J.-Haycock/34134222)[F. H. Garner](https://www.semanticscholar.org/author/F.-H.-Garner/40704719)
+
+Physics
+
+[Proceedings of the Royal Society of London…](https://www.semanticscholar.org/venue?name=Proceedings%20of%20the%20Royal%20Society%20of%20London.%20Series%20A%2C%20Mathematical%20and%20physical%20sciences)
+
+- 1959
+
+A number of aspects of the motion of drops through liquids are discussed with a view to clarifying the physical picture of the mechanism by which the liquid/liquid interface influences the transfer… Expand
+
+- [20](https://www.semanticscholar.org/paper/a9cf522a406e037bb241fd07f6262a4e13fd953c#citing-papers)
+- [PDF](https://www.semanticscholar.org/paper/a9cf522a406e037bb241fd07f6262a4e13fd953c)
+
+
+Save
+
+[**Resistance to mass transfer inside droplets**](https://www.semanticscholar.org/paper/Resistance-to-mass-transfer-inside-droplets-Skelland-Wellek/90bfe1095ad44084e6252f9649a7f9793eeaf262)
+
+[A. H. P. Skelland](https://www.semanticscholar.org/author/A.-H.-P.-Skelland/2246555673)[R. Wellek](https://www.semanticscholar.org/author/R.-Wellek/92049285)
+
+Engineering, Chemistry
+
+- 1964
+
+An experimental investigation of the effects of various physical properties on the dispersedphase mass transfer coefficient was carried out for both nonoscillating and oscillating liquid droplets… Expand
+
+- [71](https://www.semanticscholar.org/paper/90bfe1095ad44084e6252f9649a7f9793eeaf262#citing-papers)
+
+Save
+
+[**Distortion of Fluid Drops in the Stokesian Region**](https://www.semanticscholar.org/paper/Distortion-of-Fluid-Drops-in-the-Stokesian-Region-Garner-Mathur/13e74b355ea24176f941d7b1321c90705ec20838)
+
+[F. H. Garner](https://www.semanticscholar.org/author/F.-H.-Garner/40704719)[K. B. Mathur](https://www.semanticscholar.org/author/K.-B.-Mathur/92201515)[V. G. Jenson](https://www.semanticscholar.org/author/V.-G.-Jenson/40756963)
+
+Engineering, Physics
+
+[Nature](https://www.semanticscholar.org/venue?name=Nature)
+
+- 1957
+
+IN an investigation of circulation inside drops moving in a viscous medium, the drop size has been varied in order to determine the factors affecting the minimum size at which circulation can be… Expand
+
+- [7](https://www.semanticscholar.org/paper/13e74b355ea24176f941d7b1321c90705ec20838#citing-papers)
+
+Save
+
+[**Some observations on the mechanics of drops in liquid-liquid systems**](https://www.semanticscholar.org/paper/Some-observations-on-the-mechanics-of-drops-in-Elzinga-Banchero/691c514a8de78808066cea3d569f1099ad06b08f)
+
+[E. Elzinga](https://www.semanticscholar.org/author/E.-Elzinga/91739868)[J. T. Banchero](https://www.semanticscholar.org/author/J.-T.-Banchero/80610958)
+
+Physics, Engineering
+
+- 1961
+
+Data on the rate of rise and distortion of drops in several liquid-liquid systems have been collected. These are compared with correlations developed by other investigators, and in some cases… Expand
+
+- [68](https://www.semanticscholar.org/paper/691c514a8de78808066cea3d569f1099ad06b08f#citing-papers)
+
+Save
+
+[**Velocity of large drops and bubbles in media of infinite or restricted extent**](https://www.semanticscholar.org/paper/Velocity-of-large-drops-and-bubbles-in-media-of-or-Harmathy/84ba2a01408993416a8d80e823cc78a1d4a06011)
+
+[T. Z. Harmathy](https://www.semanticscholar.org/author/T.-Z.-Harmathy/92368981)
+
+Physics, Engineering
+
+- 1960
+
+A new theory gives a simple method of calculating the terminal velocity of fluid particles moving in media of either infinite or restricted extent.
+
+Empirical and semiempirical formulas \[Equations… Expand\
+\
+- [509](https://www.semanticscholar.org/paper/84ba2a01408993416a8d80e823cc78a1d4a06011#citing-papers)\
+\
+Save\
+\
+[**Some factors affecting droplet behaviour in liquid-liquid systems**](https://www.semanticscholar.org/paper/Some-factors-affecting-droplet-behaviour-in-systems-Garner-Skelland/e6ab7d78eaf362ec54c2dab3161f7534b47ed8c7)\
+\
+[F. H. Garner](https://www.semanticscholar.org/author/F.-H.-Garner/40704719)[A. Skelland](https://www.semanticscholar.org/author/A.-Skelland/46490221)\
+\
+Chemistry, Engineering\
+\
+- 1955\
+\
+Abstract In an earlier paper \[8\] it was shown by visual observation of colour-change reactions that circulation currents within a droplet were caused by the frictional drag of the outer fluid, but… Expand\
+\
+- [87](https://www.semanticscholar.org/paper/e6ab7d78eaf362ec54c2dab3161f7534b47ed8c7#citing-papers)\
+\
+Save\
+\
+[**On the deformation and drag of a falling viscous drop at low Reynolds number**](https://www.semanticscholar.org/paper/On-the-deformation-and-drag-of-a-falling-viscous-at-Taylor-Acrivos/7ec4ae051ece5c5cd3669e56805c20be79582802)\
+\
+[T. Taylor](https://www.semanticscholar.org/author/T.-Taylor/144344772)[A. Acrivos](https://www.semanticscholar.org/author/A.-Acrivos/6007160)\
+\
+Physics\
+\
+[Journal of Fluid Mechanics](https://www.semanticscholar.org/venue?name=Journal%20of%20Fluid%20Mechanics)\
+\
+- 1964\
+\
+The motion at low Reynolds number of a drop in a quiescent unbounded fluid is investigated theoretically by means of a singular-perturbation solution of the axisymmetric equations of motion. Special… Expand\
+\
+- [392](https://www.semanticscholar.org/paper/7ec4ae051ece5c5cd3669e56805c20be79582802#citing-papers)\
+\
+Save\
+\
+...\
+\
+1\
+\
+2\
+\
+3\
+\
+...\
+\
+## Related Papers\
+\
+Showing 1 through 3 of 0 Related Papers

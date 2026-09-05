@@ -1,0 +1,1241 @@
+# An experimental study on single drop rising in a low interfacial tension liquid-liquid system
+
+Jiyizhe Zhang<u><sup>1</sup>, Yundong Wang<sup>*1</sup></u>, Geoffrey W. Stevens², Weiyang Fei¹
+
+<sup>1</sup>The State Key Laboratory of Chemical Engineering, Department of Chemical Engineering, 
+Tsinghua University, Beijing 100084, China,
+
+<sup>2</sup>Department of Chemical and Biomolecular Engineering, The University of Melbourne, Parkville, 
+Victoria 3010, Australia
+
+## Abstract
+
+Terminal velocity of liquid drops is one of the key parameters in liquid-liquid extraction 
+column design.  It is important in determining residence time, droplet lifetime, and mass transfer 
+rate. In present paper, the rising behavior of a single drops are investigated in a low interfacial 
+tension system by high speed camera. An n-butanol/water system was used as test system. 
+Correlations for terminal velocity were evaluated and compared, both explicitly and implicitly. 
+Moreover, the influence of salt addition in aqueous phase was also studied, including salt 
+concentrations and types. A Weber-Reynolds correlation was derived on the basis of experimental 
+data. Drag coefficient  was  then calculated and showed a  good agreement compared to the 
+correlations in literatures.
+
+**Keywords:** terminal drop rise velocity, low interfacial tension system, liquid-liquid extraction
+
+## 1. Introduction
+
+Liquid-liquid extraction plays an important role in petrochemical, pharmaceutical, 
+hydrometallurgical, as well as post-processing in nuclear industry (Müller et al., 2008). It is a 
+complicated process due to droplets dynamic behavior, including drop rising, breakage, 
+coalescence and mass transfer characteristics (Kopriwa et al., 2012). One of the most fundamental 
+behaviors is single drop rising in a quiescent ambient fluid, which influences the residence time of
+droplet in an extraction apparatus and affects the overall mass transfer rate subsequently (Kalem et 
+al., 2010). This process is governed by physical properties of the two immiscible phases and is 
+sensitive to contaminations, like ions, surfactants (Edge and Grant, 1972; Griffith, 1962; Leven 
+and Newman, 1999; Li et al., 2003) or solid particles, which are usually unavoidable in industrial 
+operations.
+
+Terminal velocity  and drag coefficient of a rising drop are the important parameters and 
+unlike rigid particles, fluid particles rise with fully mobile interface, which can be divided into 
+several periods (Wegener et al., 2014). When diameters are relatively small, drops behave like 
+rigid sphere. As the droplets become larger, inner circulation within droplets occurs, then the 
+droplets enter in a transition stage. During this stage, droplets change their shape and reach 
+maximum terminal velocity and minimum drag coefficient as the diameter increase. As  drop 
+diameter increases further, droplets begin to oscillate and deform, resulting in more resistance to 
+motion, therefore slightly reducing the terminal velocity.
+
+In order to determine the terminal velocity of a rising drop, an analytical solution for 
+Navier-Stokes equations was derived by Hadamard (Hadamard, 1911) and Rybczynski 
+(Rybczynski, 1911) which is applicable only for creeping flows (Re<1). For higher Re, 
+correlations or models are developed to evaluate terminal velocity for a given system. There are
+several options:
+
+---
+
+(1) Explicit correlation for terminal velocity. In an explicit expression, the terminal velocity 
+is derived by dimensional analysis based on experimental data. Hu and Kintner (Hu and Kintner, 
+1955) investigated ten organic liquids drops in water. A correlation to predict terminal velocity 
+was proposed based on these test systems except one with very low interfacial tension. Klee and 
+Treybal (Klee and Treybal, 1956) measured the terminal velocity of eleven organic-water systems, 
+covering a wide range of physical properties. By considering velocity-diameter curve as two 
+separate regions, the terminal velocity can be obtained for each region. Thorsen *et al.* (Thorsen et 
+al., 1968) proposed the equation for terminal velocity of circulating and oscillating liquid drops on 
+the basis of seven high interfacial tension systems with extreme care to avoid contamination. A 
+comparison was made with Hu-Kintner correlation, it was found that the previous one was not 
+generally valid for system for highly purified liquids. Grace *et al.* (Grace et al., 1976) presented an 
+explicit equations for terminal velocity by applying three previous types of correlation to a large 
+number of experimental data. This correlation was suggested to be applied in the situation where 
+surface-active contamination  was  inevitable. Henschke *et al.* (Henschke, 2003) considered 
+different correlations for all droplet rising regions and combined them by crossover functions, 
+resulting in a single model which intends to predict terminal velocities over the entire diameter 
+range. These crossover functions add more complexity to the equations and at least three 
+parameters need to be determined based from experimental data for a given system.
+
+(2) Implicit correlation of terminal velocity. Unlike explicit correlations which present a 
+function of vt=f(de), the terminal velocity can only be calculated through an indirect way from 
+CD=f(Re). A large number of correlations have been proposed in the past few decades, including 
+Hamielec (Hamielec et al., 1963), Saboni and Alexandrova (Saboni and Alexandrova, 2002), 
+Brauer (Brauer, 1979), Polyanin (Polyanin et al., 2001) and so on. However, these correlations 
+were confined into certain range of Reynolds number and some were restricted to spherical drop 
+only, which limit their application. In practice, the terminal velocity has to be calculated by an 
+iteration way. (Wegener et al., 2014)
+
+$$
+\mathrm{C_D=f(Re)}
+$$
+
+(3) Generalized graphical correlation in terms of Eo-Re-Mo. These can be applied for 
+preliminary rough estimation of terminal velocity as well as the shape regime. However,  as 
+suggested by Clift *et al.* (Clift et al., 1978), since the viscosity of dispersed phase is not considered 
+in any of the three parameters, very pure systems or larger fluid particles in high Morton liquids 
+are not covered in the diagram.
+
+Although different approaches have been adopted for terminal velocity, few of them are valid 
+in low interfacial tension system. In addition, contaminations like surfactants have been taken into 
+consideration, but limited work has been done to determine the influence caused by simple ions 
+such as sodium chloride. Gebauer (Gebauer, 2018) investigated five different types of salts with 
+0.1M in continuous phase. His work revealed that a toluene drop was slowed down because the 
+addition of salt. Also in toluene-water test system, Chen *et al.* (Chen et al., 2010) found that the 
+terminal velocity was increased as the salt concentration increased from 0.01M to 2M. Zameek *et* 
+*al.* (Zameek et al., 2016) derived the same trend as Chen *et al.*, they studied the single crude oil 
+drop rising in electrolytes with low, moderate and high concentration. It seems that opposite
+conclusions were derived for addition of salt. Therefore, further work is needed to investigate the 
+salt effects, especially in low interfacial tension system.
+
+In this study, single drop rising in low interfacial tension system (i.e. butanol-water system) 
+was recorded by high speed camera to obtain terminal velocity. Then the terminal velocities were compared to the predictions by correlations from literature, both explicitly and implicitly. 
+Furthermore, salt effects were determined by adding different salts with various concentrations 
+into continuous phase. Finally, Re-We-Mo correlation was developed on the basis of experimental 
+data, which was applied to predict drag coefficient for the low interfacial system.
+
+## 2. Materials and Methods
+
+To observe single drop rising, a column filled with continuous phase is commonly utilized 
+with dispersed phase injected from bottom  (Bhavasar et al., 1996; Kamp and Kraume, 2014). 
+Droplets are recorded by high speed camera to estimate the terminal velocity as well as shape 
+information.
+
+## 2.1 Test system
+
+As proposed by European Federation of Chemical Engineering (EFCE) (Misek et al., 1985), 
+n-butanol/water was chosen as the standard low interfacial tension system in this study. Ultrapure 
+water, with a conductivity less than <0.05 μS/cm,  was  degassed to eliminate the influence of 
+solute gases. N-butanol with analytical-reagent grade was used to minimize contaminations. Since 
+n-butanol is moderately soluble in water, the two phases were mutually saturated in a stirred tank 
+before experiment to avoid additional mass transfer.
+
+Physical properties of the two phases are summarized in Table 1. To explore the influence of 
+salt ions, salt with certain concentration was firstly dissolved in ultrapure water. After fully 
+dissolved, the salt solution was then mutually saturated with n-butanol as the standard system.
+
+Table 1 - Physical properties of saturated n-butanol/water system
+
+|  |  | Density (kg/m³ ) | Viscosity (mPa·s) | Interfacial tension (mN/m) |
+| --- | --- | --- | --- | --- |
+|  |  | Density (kg/m³ ) | Viscosity (mPa·s) | Interfacial tension (mN/m) |
+| Continuous phase | water | 992.9 | 1.69 | 1.50 |
+| Disperse phase | n-Butanol | 820.54 | 3.58 | 1.50 |
+
+$$
+(\mathrm{kg/m^3})
+$$
+
+Note: Density is calculated by measuring the mass over a specific volume of liquid; the viscosity is measured by viscometer; the 
+interfacial tension is measured by pendant drop method.
+
+Table 2 - Experimental Materials
+
+| Salt type | Purity | Company |
+| --- | --- | --- |
+| NaCl | A.R. | Beijing Chemical Works |
+| Na₂ SO₄ | A.R. | Beijing Chemical Works |
+| NaAc | A.R. | Beijing Chemical Works |
+| NaI | A.R. | Macklin |
+| MgCl₂ ·6H₂ O | A.R. | Tianjin Guangfu Technology Development Company |
+| MgSO₄ ·7H₂ O | A.R. | Beijing Tongguang Fine Chemicals Company |
+| AlCl₃ ·6H₂ O | A.R. | Beijing Tongguang Fine Chemicals Company |
+
+$$
+\mathrm{Na_{2}SO_{4}}
+$$
+
+$$
+NaAc
+$$
+
+$$
+\mathrm{MgCl_{2}\cdot6H_{2}O}
+$$
+
+$$
+\mathrm{MgSO_{4}\cdot7H_{2}O}
+$$
+
+$$
+\mathrm{AlCl_{3}^{-}6H_{2}O}
+$$
+
+## 2.2 Experimental setup
+
+The Experimental setup is shown in Fig. 1 (1) is a small scale glass made measurement cell 
+with diameter 80mm and effective height 180mm. Nozzle (2) made of stainless steel was located 
+at the bottom of the column and connected to a syringe pump (8) by PTFE tubing (12). Inner diameter of nozzle varies from 0.13mm to 2.40mm.
+
+(12)
+(11)
+(3)
+(1)
+(8)
+(4)
+(2)
+(7)
+(6)
+(5)
+(10)
+(9)
+
+Fig. 1 - Experimental setup
+
+As the experiment were carried out in containers of finite dimensions, wall effects may exist 
+greater of lesser extent. To estimate wall effect, a new diameter ratio is defined as in literature 
+(Clift et al., 1978):
+
+$$
+\lambda=\frac{d_e}{D}
+$$
+
+(1)
+
+The following conditions should be satisfied if wall effects are negligible:
+
+$$
+\begin{aligned}\operatorname{Re}&\leq0.1\quad\lambda\leq0.06\\0.1<\operatorname{Re}\leq1&00\quad\lambda\leq0.08+0.02\log_{10}Re\\\operatorname{Re}&\geq100\quad\lambda\leq0.12\end{aligned}
+$$
+
+𝑅𝑒                    (2)
+
+Take the standard test system as an example, λ ranges between 0.014 and 0.025, which is far 
+lower than the range of  0.08 + 0.02 log₁₀ 𝑅𝑒 from 0.105 to 0.115, which means that the wall 
+effect has negligible influence less than 2%. Other systems were tested in the same way. Therefore, 
+single drop rising in the test cell are dominated by gravity force, buoyancy force and drag force, 
+where wall effects caused by containers can be ignored.
+
+$$
+0.08+0.02\log_{10}
+$$
+
+## 2.3 Experimental procedure
+
+To keep the test system extremely pure without contaminations, a cleaning procedure has 
+been performed before each test series. All containers including column, tanks, tubing and 
+syringes were cleaned and rinsed at least three times. During the experiment, the motion of droplet
+was tracked by high speed camera device. A Photon FASTCAM Mini WX50 high-speed camera 
+(4) has been used (2000fps, 1024×1024 pixels resolution). LED light (7) was placed against the 
+high-speed camera with a soft light curtain (6) in between to provide sufficient light for recording. 
+The entire trajectory of droplet can be captured, and images were transferred from camera and 
+saved in computer (5). For each nozzle, at least ten single drops were recorded and then averaged 
+in the following analysis. After the experiment, the organic phase was collected at the funnel (3) 
+and then extracted by syringe pump for disposal.
+
+---
+
+## 2.4 Image analysis
+
+For the analysis of the experimental data, image processing was done by software ImageJ 
+1.52a. The images were analyzed through several procedures to derive (1) drop diameter, (2) drop 
+rise velocity and (3) drop aspect ratio. (ImageJ, 2012; Quinn et al., 2014)
+
+## (1) Drop diameter
+
+The equivalent diameter which has same surface area as particle was calculated by the semi 
+major (a) and minor (b) axes of the fitted ellipse to the projected drop area.
+1/2 1/2
+
+$$
+d_{e}=a^{1/2}b^{1/2}
+$$
+
+(3)
+
+## (2) Drop rise velocity
+
+The vertical displacement of the drop center can be tracked by the software. Therefore, the 
+rise velocity was calculated from displacement difference (∆ℎ)  between two consecutive frames. 
+Since the time internal between two frames was very short, the calculated velocity can be regarded 
+as the instantaneous velocity.
+
+$$
+v_{ins}=\frac{\Delta h}{(1/fps)}
+$$
+
+(4)
+
+As the drop was released from nozzle, it accelerated at a short time to reach its terminal
+velocity. In this study, the velocity fluctuations within average ±5% were considered as steady 
+state.
+
+## 3. Results and Discussion
+
+When the standard low interfacial tension system was chosen as the test system, correlations 
+to predict terminal velocity should be applied with caution (Wegener et al., 2014). This is probably
+due to the higher viscosity ratio with high absolute viscosities combined with very low interfacial 
+tension (Bäumler et al., 2011). Despite these factors, refractive index of butanol is not much 
+higher than water and droplets start to deform at a relatively small diameter, which may add
+difficulties in image analysis stage. Considering this, correlations from literature were evaluated 
+and compared.
+
+## 3.1 Terminal velocity
+
+Correlations for terminal velocity were evaluated both explicitly and implicitly. For implicit 
+correlation given as  𝐶𝐷 = 𝑓(𝑅𝑒), the application range of Reynolds number should be considered 
+carefully.
+
+$$
+C_{D}=f(Re)
+$$
+
+## 3.1.1 Explicit correlation
+
+Some of the existing explicit correlations are summarized as Table 3.
+
+Table 3 - Explicit correlations in literatures
+
+| Author(s) | Time | Correlation | Description | Equation |
+| --- | --- | --- | --- | --- |
+| Klee et 0.70 0.58 |  |  |  |  |
+| al. (Klee and | 1956 | 𝑣 = 38.3𝜌 △ 𝜌 𝜇 𝑑 𝑡1 𝑐−0.45 𝑐−0.11 𝑒 −0.55 0.28 0.10 0.18 | low interfacial | (5) |
+| Treybal, |  | 𝑣 = 17.6𝜌 △ 𝜌 𝜇 𝜎 𝑡2 𝑐 𝑐 |  |  |
+| 1956) |  |  |  |  |
+
+$$
+v_{t1}=38.3\rho_c^{-0.45}\Delta\rho^{0.58}\mu_c^{-0.11}d_e^{0.70}
+$$
+
+$$
+v_{t2}=17.6\rho_c^{-0.55}\Delta\rho^{0.28}\mu_c^{0.10}\sigma^{0.18}
+$$
+
+---
+
+| Thorsen et (Thorsen et al., 1968) | 1968 | $v_{t}=\frac{6.8}{1.65-\frac{\Delta\rho}{\rho_{d}}}\frac{\sqrt{\sigma}}{\sqrt{d_{e}}}$High interfacial tension system without contamination(6) |  |
+| --- | --- | --- | --- |
+| Grace et al.(Grace et al., 1976) | 1976 | $v_{t}=\frac{\mu_{c}}{\rho_{c}d_{e}}Mo^{-0.149}(J-0.857)$for $Mo&lt;10^{-2},E\textcircled{o}<40$ and $Re&gt;1$ |  |
+| Grace et al.(Grace et al., 1976) | 1976 | $J=0.94H^{0.757} for 2&lt;H \leq 59.3$
+$J=3.42H^{0.441} for H&gt;59.3$ | System with contamination(7) |
+| Grace et al.(Grace et al., 1976) | 1976 | $H=\frac{4}{3}E\textcircled{o}Mo^{-0.149}\left(\frac{\mu_{c}}{\omega_{w}}\right)^{-0.14}(\mu_{w}=9\times 10^{-4}Nsm^{-2})$ | System with contamination(7) |
+| Grace et al.(Grace et al., 1976) | 1976 | $v_{t}=\frac{v_{\infty,oscillating or deformed}v_{\infty,spherical}}{(v_{\infty,oscillating or deformed}+v_{\infty,spherical})^{1/p_{s}}}$$v_{\infty,spherical}=\frac{Re_{\infty,spherical}\mu_{c}}{\rho_{c}d}$ | System with contamination(7) |
+| Henschke(Henschke,2003) | 2003 | $\begin{cases} Re_{\infty,spherical}=(1-f_{1}^{*})Re_{\infty,rigid}+f_{1}^{*}Re_{\infty,ideally mobile}\\ Re_{\infty,rigid}=\frac{\rho_{c}v_{\infty,d}}{\mu_{c}}\\ Re_{\infty,ideally mobile}=\frac{Ar}{p_{5}(0.065Ar+1)^{1/6}}\\ C_{D}=\frac{432}{Ar}+\frac{20}{Ar^{1/3}}+\frac{0.51Ar^{\frac{1}{3}}}{140+Ar^{1/3}}\\ f_{1}^{*}=2(K_{HR}^{*}-1)K_{HR}^{*}=\frac{3(\mu_{c}+\mu_{d}/f_{2})}{2\mu_{c}+3\mu_{d}/f_{2}}f_{2}=1-\frac{1}{1+(d/p_{1})^{p_{4}}}\end{cases}$Parameters should be fitted based on experimental data(8) |  |
+| Henschke(Henschke,2003) | 2003 | $v_{\infty,oscillating or deformed}=\left(v_{\infty,oscillating}^{8}+v_{\infty,deformed}^{8}\right)^{1/8}$ |  |
+| Henschke(Henschke,2003) | 2003 | $\begin{cases} v_{\infty,oscillating}=\sqrt{\frac{2p_{2}\sigma}{\rho_{c}d}} \\ v_{\infty,deformed}=\sqrt{\frac{\Delta\rho g d}{2\rho_{c}}} \end{cases}$ |  |
+| Henschke(Henschke,2003) | 2003 | Details also see Reference (Adekojo Waheed et al., 2004; Adinata, 2011) |  |
+
+$$
+v_{t}=\frac{6.8}{1.65-\frac{\triangle\rho}{\rho_{d}}}\frac{\sqrt{\frac{\sigma}{3\rho_{d}+2\rho_{c}}}}{\sqrt{d_{e}}}
+$$
+
+$$
+v_{t}=\frac{\mu_{c}}{\rho_{c}d_{e}}Mo^{-0.149}(J-0.857)
+$$
+
+$$
+\mathrm {f o r} M o < 1 0 ^ {- 3}, E \ddot {\mathrm {o}} < 4 0 \mathrm {a n d} R e > 1
+$$
+
+$$
+J=0.94H^{0.757}\quad for2<H\leq59.3
+$$
+
+$$
+J=3.42H^{0.441}\quad for H>59.3
+$$
+
+$$
+H=\frac{4}{3}E\ddot{\mathrm{o}}M o^{-0.149}\left(\frac{\mu_c}{\mu_w}\right)^{-0.14}
+$$
+
+$$
+(\mu_{w}=9\times10^{-4}N s m^{-2})
+$$
+
+$$
+v_{t}=\frac{v_{\infty,oscillation\ or\_defromed}v_{\infty,spherical}}{(v_{\infty,osculating\ or\_defromed}^{p_{3}}+v_{\infty,spherical}^{p_{4}})^{1/p_{5}}}
+$$
+
+$$
+v_{\infty,spherical}=\frac{Re_{\infty,spherical}\mu_c}{\rho_c d}
+$$
+
+$$
+Re_{\infty,spherical}=(1-f_1^*)Re_{\infty,right}+\underbrace{f_1^*Re_{\infty,idealy\;mobile}}_{}
+$$
+
+$$
+Re_{\infty,rigid}=\frac{\rho_c v_{\infty}d}{\mu_c}
+$$
+
+$$
+Re_{\infty,ideally mobile}=\frac{Ar}{p_{5}(0.065Ar+1)^{1/6}}
+$$
+
+$$
+C_{D}=\frac{432}{Ar}+\frac{20}{Ar^{1/3}}+\frac{0.51Ar^{\frac{1}{3}}}{140+Ar^{1/3}}
+$$
+
+$$
+f_{1}^{*}=2(K_{HR}^{*}-1)\quad K_{HR}^{*}=\frac{3(\mu_{c}+\mu_{d}/f_{2})}{2\mu_{c}+3\mu_{d}/f_{2}}\quad f_{2}=1-\frac{1}{1+(d/p_{1})^{p_{4}}}
+$$
+
+$$
+v_{\infty,o s c i l l a t i n g\;o r\;d e f o r m e d}=(v_{\infty,o s c i l l a t i n g}^{8}+v_{\infty,d e f o r m e d}^{8})^{1/8}
+$$
+
+$$
+\left(v_{\infty,osculating}=\sqrt{\frac{2p_2\sigma}{\rho_c d}}\right)
+$$
+
+$$
+v_{\infty,deformed}=\sqrt{\frac{\triangle\rho g d}{2\rho_c}}
+$$
+
+Fig. 2 (a) shows how the terminal velocity varies with drop diameter. Experimental data in 
+this study were well consistent with the simulation result for the same system from  literature 
+(Engberg and Kenig, 2014). Models proposed by Henschke (Henschke, 2003) was able to predict 
+the terminal velocity over the whole drop diameter range and are applicable for low interfacial
+tension systems. However, five parameters were involved in this model and needed to be fitted 
+(p₁=1.28, p₂=4, p₃=2.471, p₄=1.594 and p₅=1.842). Grace model (Grace et al., 1976) gave 
+prediction with deviations because the test system were kept extremely clean without any 
+contamination. Although Klee *et al.* (Klee and Treybal, 1956) derived their correlation covering a 
+wide range of interfacial tension (from 0.3 to 42.4 mPa·s), it seemed that it presented the
+
+$$
+\left(\mathrm{p}_{1}=1.28,\ \mathrm{p}_{2}=4,\ \mathrm{p}_{3}=2.471,\ \mathrm{p}_{4}=1.594\ \mathrm{and}\ \mathrm{p}_{5}=1.842\right)
+$$ predictions with errors. Correlation by Thorsen *et al.* (Thorsen et al., 1968) was proposed for the 
+high interfacial tension system with drop oscillation, which  was not suitable for low interfacial 
+system with small diameters.
+
+$v(\mathrm{mm/s})$
+1.0 1.2 1.4 1.6 1.8 2.0 2.2
+d(mm)
+Experimental Data Simulation data in literature Simulation data in literature Henschke Model Grace Model Klee correlation Haper correlation
+
++20%
+-20%
+Hamielec model
+Brauer model
+Rivkind model
+Feng model
+Polyanin model
+Saboni model
+C$_D$ predicted
+C$_D$ experimental
+
+(a)                                      (b)
+
+Fig. 2 Prediction of terminal velocity and drag coefficient
+
+((a) terminal velocity predicted by explicit correlations and models; (b) Drag coefficient predicted 
+by correlations)
+
+## 3.1.2 Implicit correlation
+
+𝐶𝐷 = 𝑓(𝑅𝑒) gave an implicit way to plot terminal velocity versus drop diameter by iteration 
+method. Several correlations from literatures were compared in this section, as summarized in 
+Table 4.
+
+$$
+C_{D}=f(Re)
+$$
+
+Table 4 - Drag coefficient correlations in literature
+
+| Authors | Year | Correlation | Application | Re range | Equation |
+| --- | --- | --- | --- | --- | --- |
+| Hamielec et al. (Hamielec et al., 1963) | 1963 | ∗2 ∗ 3.05(783𝜇 + 2142𝜇 + 1080) 𝐶 = 𝐷 ∗ ∗ 0.74 (60 + 29𝜇 )(4 + 3𝜇 )𝑅𝑒 | Drop | 4 &lt; Re &lt;100 | (9) |
+| Brauer et al. (Brauer, 1979) | 1973 | 16 14.9 1 𝐶𝐷 = + ( ) 0.78 −0.6 𝑅𝑒 𝑅𝑒 1 + 10𝑅𝑒 | Drop and bubble | 5 Re &lt; 3 × 10 | (10) |
+| Feng et al. (Feng and Michaelides, 2001) | 2001 | ∗ ∗ 2 − 𝜇 48 2.21 2.14 4𝜇 −2⁄3 𝐶𝐷 = [ (1 + − ) + (17 × 𝑅𝑒 )] ∗ 1⁄2 𝑅𝑒 𝑅𝑒 2 6 + 𝜇 𝑅𝑒 | Drop | 0.1 &lt; Re &lt;10 | (11) |
+| Polyanin et al .(Polyanin et al., 2001) | 2002 | ∗2 ∗ 1.83(783𝜇 + 2142𝜇 + 1080) −0.74 𝐶 = 𝑅𝑒 𝐷 ∗ ∗ (60 + 29𝜇 )(4 + 3𝜇 ) | Drop | 2 &lt; Re &lt;50 | (12) |
+| Saboni et | 2002 | ∗ 14 .9 4 + 2 + 15𝜇 ∗ ∗ (24 + ) + [𝜇 ] 𝑅𝑒² + 40 3𝜇 + 10 0. 78 1⁄3 𝑅𝑒 𝑅𝑒 𝑅𝑒 𝑅𝑒 | Drop, | 0.01 ≤ Re | (13) |
+| al. (Saboni and |  | 𝐶𝐷 = ∗ ) )(5 + 𝑅𝑒² (1 + 𝜇 | bubble and | &lt; 400 |  |
+| Alexandrova, |  |  | solid |  |  |
+| 2002) |  |  | particle |  |  |
+
+$$
+C_{D}=\frac{3.05\left(783\mu^{*2}+2142\mu^{*}+1080\right)}{\left(60+29\mu^{*}\right)\left(4+3\mu^{*}\right)Re^{0.74}}
+$$
+
+$$
+4<\mathrm{Re}<100
+$$
+
+$$
+\mathrm{Re}<3\times10^{5}
+$$
+
+$$
+C_{D}=\frac{16}{Re}+\frac{14.9}{Re^{0.78}}\left(\frac{1}{1+10Re^{-0.6}}\right)
+$$
+
+$$
+C_{D}=\frac{2-\mu^{*}}{2}\left[\frac{48}{Re}\left(1+\frac{2.21}{Re^{1/2}}-\frac{2.14}{Re}\right)+\frac{4\mu^{*}}{6+\mu^{*}}\left(17\times Re^{-2/3}\right)\right]
+$$
+
+$$
+0.1<Re<10
+$$
+
+$$
+C_{D}=\frac{1.83(783\mu^{*2}+2142\mu^{*}+1080)}{(60+29\mu^{*})(4+3\mu^{*})}Re^{-0.74}
+$$
+
+$$
+2<\mathrm{Re}<50
+$$
+
+$$
+C_{D}=\frac{\left[\mu^{*}\left(\frac{24}{Re}+\frac{4}{Re^{1/3}}\right)+\frac{14.9}{Re^{0.78}}\right]Re^{2}+40\frac{3\mu^{*}+2}{Re}+15\mu^{*}+10}{\left(1+\mu^{*}\right)\left(5+Re^{2}\right)}
+$$
+
+$$
+0.01\leq Re
+$$ were unable to accurately predict the data from low interfacial systems, some predictions  were 
+even outside 20% range. It seemed that these  𝐶𝐷 = 𝑓(𝑅𝑒) correlations were less accurate for low 
+interfacial tension case.
+
+$$
+20\%
+$$
+
+$$
+C_{D}=f(Re)
+$$
+
+Since drop diameter and terminal velocity coexist  on  each side of the correlations, the 
+terminal velocity has to be calculated by an iteration procedure. Each of the correlation is 
+validated on specific Reynolds number range, it is necessary to consider the application range and 
+introduce Reynolds number range to the plot.
+
+Traditionally, to calculate the terminal velocity from CD-Re correlations required a tedious 
+trial-and-error procedure (Briens, 1991; Haider and Levenspiel, 1989; Song et al., 2017) because 
+vt was present in both variables. However, in this study, vt-de was first plot in a two-dimensional 
+figure with the help of implicit function plot in MATLAB 2014b. Then the data points were 
+extracted from the two-dimensional figure to calculate Reynolds number correspondingly and plot 
+in three-dimensional way, as shown in Fig. 3 (a). Compared with trial-and-error iteration 
+procedure, this method is more convenient and can avoid large amount of computations.
+
+$$
+\mathrm{C_{D}-Re}
+$$
+
+$$
+\mathrm{V}_{\mathrm{t}}
+$$
+
+$$
+\mathrm{v_{t}-d_{e}}
+$$
+
+As is shown in Fig. 3 (b)-(i), two parallel planes represent upper and lower range of Reynolds 
+number, respectively. The curve in between demonstrates the prediction of terminal velocity by 
+the corresponding correlation. Red points are experimental data. The two-dimensional plot can be 
+viewed as projection of points and curve on *xoy* plane. Four correlations are presented here, 
+namely, Hamielec (Hamielec et al., 1963), Saboni and Alexandrova (Saboni and Alexandrova, 
+2002), Brauer (Brauer, 1979) and Polyanin (Polyanin et al., 2001).
+
+From 2D to 3D plot $C_{D}$ Re $C_{D}=f(\mathrm{Re})$
+
+Re o d $ C_{D}=f(\mathrm{Re}) $ Re=g(d, $ v_{t} $ )
+
+(a)
+
+$v_{e}^{2} (\mathrm{m/s})$
+$d_{e} / \mathrm{m}$
+$x 10^{-3}$
+
+(b)                                          (c)
+
+Re
+Experimental data
+Predicted terminal velocity
+Re lower bound
+Re upper bound
+$v_i / (\mathrm{m/s})$
+$d_v / \mathrm{m}$
+$> 10^{-3}$
+
+---
+
+$v_x^2(\text{m/s})$
+$d_x/\text{m}$
+$\times 10^{-3}$
+
+(d)                                          (e)
+
+Re
+Experimental data
+Predicted terminal velocity
+Re lower bound
+Re upper bound
+$v_i / (\mathrm{m/s})$
+$d_e / \mathrm{m}$
+$x \times 10^{-3}$
+
+$v_1^i(\text{ms})$
+$d_n/\text{m}$
+$x 10^{-3}$
+
+$Re$
+$x 10^{5}$
+3
+2.5
+2
+1.5
+1
+0.5
+0
+0.06
+0.04
+0.02
+0
+0.8
+1
+1.2
+1.4
+1.6
+1.8
+2
+2.2
+$v_i / (\mathrm{m/s})$
+$d_j / \mathrm{m}$
+Experimental data
+Predicted terminal velocity
+Re lower bound
+Re upper bound
+
+(f)                                          (g)
+
+$v_y(\text{m/s})$
+$d_y/\text{m}$
+$x \times 10^{-3}$
+
+(h)                                         (i)
+
+Re
+Experimental data
+Predicted terminal velocity
+Re lower bound
+Re upper bound
+v<sub>i</sub>/(m/s)
+d<sub>i</sub>/m
+× 10<sup>-3</sup>
+
+Fig. 3 Terminal velocity predicted from  𝐶𝐷 = 𝑓(𝑅𝑒) correlation
+
+((a) Sketch of two-dimensional and three-dimensional plot (b),(d),(f),(h) are two dimensional plots; (c),(e),(g),(i), 
+are three dimensional plots involving Reynolds number; (b),(c) Hamielec correlation(Hamielec et al., 1963); (d),(e) 
+Saboni and Alexandrova correlation(Saboni and Alexandrova, 2002); (f),(g) Brauer correlation(Brauer, 1979); 
+(h),(i) Polyanin correlation(Polyanin et al., 2001))
+
+$$
+C_{D}=f(Re)
+$$
+
+$$
+\mathrm{(b),(d),(f),(h)}
+$$
+
+Correlation by Hamielec (Hamielec et al., 1963) can be used within 10< Re<100 for solid 
+particles and drops and bubbles which are only slightly deformed. The effect of dispersed phase
+viscosity on total drag is presented. However, it can only predicted well in small diameter range, 
+deviations occur as diameter increases, which has been reported by Bäumler (Bäumler et al., 2011). 
+Saboni and Alexandrova (Saboni and Alexandrova, 2002) proposed a correlation for droplet in a 
+range: 0.01< Re<400，viscosity ratio range: 0<μ<1000. The experimental data are all below the 
+predicted terminal velocity, suggesting it may be used with caution in low interfacial tension
+system. As proposed by Brauer (Brauer, 1979), the correlation is valid in a wide Re range (Re＜
+
+---
+
+300000) for both bubbles and drops. The application range is so broad that deviations may occur 
+in a relative narrow diameter range. Correlation by Polyanin (Polyanin et al., 2001) is validated in 
+a rather narrow Re range (2<Re<50) compared to the former correlation. It shows good agreement 
+with experimental data points. Although several data points exceed the Re range, it can be used as 
+a rough estimation.
+
+## 3.2 Salt effect on drop motion
+
+The addition of salt changes the physical properties of the system and influences the 
+hydrodynamic behavior of droplet consequently. In this section, the influence of salt concentration 
+and type were investigated.
+
+## 3.2.1 Change of physical properties
+
+When salt is added into the continuous phase, physical properties changes of the system 
+arises from three aspects: density difference (△ρ), interfacial tension (σ) and viscosity of 
+continuous phase (ρc). Among these three changes, change of density difference is obvious and the 
+other two changes can be illustrated from a molecular perspective. A well-known series to rank the 
+relative influence of salt ions on physical behavior of aqueous solution is the Hofmeister series 
+(Cacace et al., 1997; Zhang and Cremer, 2006), which was originally used to describe the ability 
+for stabilizing proteins. A theory accounting for this is the ions contribute to “making” or 
+“breaking” bulk water structure. In general, the trend for anions is more pronounced than for 
+cations. The typical order of Hofmeister series are:
+
+$$
+(\triangle \rho)
+$$
+
+$$
+(\rho_{\mathrm{c}})
+$$
+
+$$
+\begin{aligned}&For\;\mathrm{anions},\quad SO_{4}^{2-}>HPO_{4}^{2-}>CH_{3}COO^{-}>Cl^{-}>NO_{3}^{-}>ClO_{3}^{-}>I^{-}>ClO_{4}^{-}>SCN^{-}\\ &For\;\mathrm{caions},\quad NH_{4}^{+}>K^{+}>Na^{+}>Li^{+}>Mg^{2+}>Ca^{2+}\\ \end{aligned}
+$$
+
+Complex changes for drop motion will be caused by addition of ions and sometimes the 
+changes may lead to opposite contributions. As shown in Fig. 4, with the addition of salt and 
+increase of salt concentration, density difference, viscosity and interfacial tension increase in most 
+cases. (Except for NaI solution, where iodide is attracted to the interface (Lima et al.,  2013), 
+decreases the interfacial tension as the concentration increases) However, as can be concluded 
+from literature (Engberg and Kenig, 2014; Huang and Wang, 2018), the increase of △ρ and σ will 
+increase the terminal velocity while increase of ρc will slow down the motion. Since the physical 
+properties play a decisive role on the terminal velocity, it is necessary to combine all changes 
+together for analysis.
+
+$$
+\Delta \rho
+$$
+
+$$
+\rho_{\mathrm{c}}
+$$
+
+ΔP
+NaCl
+Na₂SO₄
+NaAc
+Nal
+MgCl₂
+MgSO₄
+AlCl₃
+
+Salt concentration(mol/L)
+0 0.1 0.2 0.4 0.6 0.8 1 1.2
+
+Viscosity(mPa·s)
+NaCl
+Na₂SO₄
+NaAc
+NaCl
+MgCl₂
+MgSO₄
+AlCl₃
+Salt concentration[mM/L]
+0.0 0.2 0.4 0.6 0.8 1.0 1.2
+
+Interfacial tension(mN/mm²)
+NaCl
+Na₂IO₄
+NaAc
+NaH
+MgF₂
+MgSO₄
+AlO₃
+Salt concentration(mu/L)
+0.0 0.2 0.4 0.6 0.8 1.0 1.2
+
+Fig. 4 - Physical properties varies with salt concentration
+
+((a) density difference of the two phases; (b) viscosity of the continuous phase; (c) interfacial tension)
+
+---
+
+## 3.2.2 Influence of salt concentration
+
+Four concentrations of salt solution were tested in this study, i.e. 0.05mol/L, 0.1 mol/L, 0.5 
+mol/L and 1 mol/L. From a general view in Figure 5 (a) and (b), the terminal velocity increases 
+with concentration. When the concentration is low, like 0.05mol/L or 0.1 mol/L, the increase of 
+terminal velocity is not obvious. However, as the concentration increases increased terminal 
+velocity becomes apparent and the trend is more obvious for Na₂SO₄ than for NaCl.
+
+$$
+\mathrm{Na_{2}SO_{4}}
+$$
+
+Terminal velocity(mm/s)
+Water
+0.05mol/L NaCl
+0.1mol/L NaCl
+0.5mol/L NaCl
+1mol/L NaCl
+Drop diameter(mm)
+1.2 1.4 1.6 1.8 2.0 2.2
+
+Terminal velocity/(mm/s)
+Water
+$0.05\text{mol/L Na}_2\text{SO}_4$
+$0.1\text{mol/L Na}_2\text{SO}_4$
+$0.5\text{mol/L Na}_2\text{SO}_4$
+$1\text{mol/L Na}_2\text{SO}_4$
+Drop diameter/(mm)
+1.2 1.4 1.6 1.8 2.0 2.2
+
+(a)                                           (b)
+
+Increase salt concentration
+
+Continuous phase Disperse phase Salt ions
+
+(c)
+
+Fig. 5 Influence of salt concentration on terminal velocity
+
+((a) Salt type: NaCl; (b) Salt type: Na₂SO4 (c) Sketch of increasing salt concentration)
+
+$$
+\mathrm{Na_{2}SO_{4}(c)}
+$$
+
+This can be explained by this, as Fig.5 (c) shows: when the salt concentration is low (e.g. 
+<0.1mol/L), ions absorb at the interface and slightly decrease the interfacial tension, which blocks
+the inner circulation of the droplet. In this case, the terminal velocities of droplet slow down or 
+remain little change. This is consistent with the conclusions made by Gebauer (Gebauer, 2018). As 
+the concentration increase, the interface becomes saturated with ions and subsequently addition of 
+salt increases the bulk concentration. As a result, increase of density difference becomes the major 
+factor to influence terminal velocity. Therefore, terminal velocity increase obviously at high 
+concentrations, which also accounts for the same trend in literature (Chen et al., 2010).  But the 
+difference is that the butanol/water system shows a very small variation at low concentration due
+to limit interfacial tension change.
+
+## 3.2.3 Influence of salt type
+
+As mentioned before, the increase of terminal velocity is more apparent for Na₂SO₄ than
+
+$$
+\mathrm{Na_{2}SO_{4}}
+$$
+
+---
+
+NaCl, which suggests the salt type could make a difference. Here, a specific nozzle was chosen 
+with inner diameter of 2.7mm. The terminal velocities at various concentrations are summarized in 
+histogram as shown in Fig. 6.
+
+Terminal velocity/(mm/s)
+Na₂SO₄ MgSO₄ MgCl₂ NaAc NaCl AlCl₃ NaI
+0.05mol/L 0.1mol/L 0.5mol/L 1mol/L Water
+
+Fig. 6 Influence of salt type and concentration on terminal velocity
+
+For the influence of anions, it reveals that the ability to influence terminal velocity ranks: 
+− − −
+𝑆𝑂<sub>42−</sub>>𝐴𝑐 ≈𝐶𝑙 > 𝐼, which is consistent with Hofmeister series. It can be illustrated from both 
+the influence of density difference as well as interfacial tension of the system. For NaI, although
+the density difference was increased after the addition of ions, the terminal velocity decreases 
+when concentration increases. It is because  𝐼<sup>−</sup> break the structure of water and reduce the 
+interfacial tension, which consequently decreases the drop diameter and results in a lower terminal
+
+$$
+SO_{4}^{2-}>Ac^{-}\approx Cl^{-}>I^{-}
+$$
+
+velocity. For the influence of cations, there seems no obvious trend, like  𝐴𝑙 *<sup>3+</sup>>* 𝑀𝑔<sup>2+</sup> *>* 𝑁𝑎<sup>+</sup>*.* 
+This may be attributed to the viscosity increase becoming dominated when AlCl3 added into the 
+solution, which slows down the terminal velocity. Therefore, terminal velocity influenced by ions 
+is a complicated case and changes in physical properties should be examined carefully.
+
+$$
+Al^{3+}>Mg^{2+}>Na^{+}
+$$
+
+## 3.3 Weber-Reynolds correlation
+
+For rising bubbles in clean liquids, Maxworthy *et al.* (Maxworthy et al., 1996) proposed a 
+correlation for Weber number versus Reynolds number followed by a power law 
+5/3
+
+$$
+We=f(Mo)Re^{5/3}
+$$
+
+(14)
+
+Where f(Mo) was found by cross-plotting the experimental data:
+0.358
+
+$$
+f(Mo)=0.526Mo^{0.358}
+$$
+
+(15)
+
+And drag coefficient can be derived:
+
+$$
+C_{D}=\frac{4Eo}{3We}=\frac{4}{3f(Mo)}\frac{Eo}{Re^{5/3}}
+$$
+
+(16)
+
+It is valid for low values of Morton number (Mo<3.8×10<sup>-4</sup>) and can be applied to where 
+extreme precision is not required. Raymond *et al.* (Raymond and Rosant, 2000) followed the same 
+procedure and correlated their data to obtain the function f(Mo) as
+0.35
+ 𝑓(𝑀𝑜) = 0.42𝑀𝑜
+
+$$
+(\mathrm{Mo}<3.8\times10^{-4})
+$$
+
+$$
+f(Mo)=0.42Mo^{0.35}
+$$
+
+(17)
+
+---
+
+Good agreement was found and shown that the correlation is also valid for large Morton numbers, 
+Mo=9×10<sup>-7</sup>-7. More recently, Cano-Lozano *et al.* (Cano-Lozano et al., 2015) correlated Reynolds 
+number with Weber number in such a way:
+
+$$
+Mo=9\times10^{-7}-7
+$$
+
+$$
+Re=2.05We^{2/3}Mo^{-1/5}
+$$
+
+(18)
+
+It was noticed that the experimental data are consistent within the correlation in a stable rectilinear 
+regime, but discrepancies were detected at high Reynold numbers.
+
+For liquid-liquid system, attempts has been made by Wegener *et al.* (Wegener et al., 2009) in 
+toluene-water system. They utilized the same correlation by Maxworthy *et al.* (Maxworthy et al., 
+1996) without any changes. Up to the minimum drag point, the correlation can be used for a rough 
+approximation. However, the correlation is not useful for higher Reynolds numbers where 
+deviations can up to 150%.
+
+Following the suggestion of Raymond and Rosant (Raymond and Rosant, 2000), all the 
+experimental data are firstly plotted in We-Re diagram with double logarithmic coordinates and 
+are fitted by a power law. Then function of Mo is determined by curve fitting. Finally, correlation 
+for this study is derived:
+0.3243 1.526
+
+$$
+We=0.4015Mo^{0.3243}Re^{1.526}
+$$
+
+(19)
+
+And correlation for drag coefficient:
+
+$$
+C_{D}=\frac{4Eo}{1.2045Mo^{0.3243}Re^{1.526}}
+$$
+
+(20)
+
+A comparison is made between various correlations in Fig. 7. It can be observed that all 
+prediction values by the correlation falls within ±20%. Other correlations show larger deviations.
+
+$C_{10}$ penetration +20%
+-20%
+$C_{10}$ experimental 0 0.5 1 1.5 2 2.5 3 3.5 4 4.5 5
+
+$C_{D_0}$ prediction +20%
+-20%
+$C_{D_0}$ experimental 0 0.5 1 1.5 2 2.5 3 3.5 4 4.5 5
+
+$C_0$-prediction +20%
+-20%
+$C_0$-experimental 0 0.5 1 1.5 2 2.5 3 3.5 4 4.5 5
+
+(a)                       (b)
+
+(c)
+
++20%
+-20%
+$C_{D}$ evolution
+$C_{D}$ experimental
+
+(d)
+
+$C_0$-prediction +20%
+-20%
+$C_0$-experimental
+
+(e)
+
+Fig. 7 Drag coefficient predicted by proposed correlation and correlations from literature
+((a) Hamielec correlation(Hamielec et al., 1963); (b) Brauer correlation(Brauer, 1979); (c) Saboni and Alexandrova 
+correlation(Saboni and Alexandrova, 2002); (d) Polyanin correlation(Polyanin et al., 2001))
+
+The correlation is also tested in high interfacial tension system, as shown in Fig.8. Compared 
+with previous correlations in literature, this correlation can reduce the mean absolute deviation from 44.46% to 16.32%. Although derived on the basis of data from low interfacial tension system, 
+the correlation can also be extended to high interfacial tension system. However, deviations still
+arises when the Reynolds numbers are high, as mentioned by Wegener *et al.* (Wegener et al., 
+2009)
+
+Weber number (We)
+$10^{1}$
+$10^{0}$
+$10^{-1}$
+$10^{-2}$
+Experimental data from literature
+Correlation in this paper
+Correlation from literature
+$10^{2}$ $10^{3}$ Reynolds number (Re)
+
+Fig.8 Correlation tested in high interfacial tension system
+
+(Experimental data and correlation are from Wegener (Wegener et al., 2009))
+
+## 4. Conclusions
+
+In this paper, hydrodynamic behavior of an n-butanol drop rising in water as well as in salt 
+solution have been investigated experimentally.
+
+The rising velocity and shape information were recorded by high speed camera. Various 
+correlations for the terminal velocity were evaluated and compared. Explicit vt-de correlations 
+were shown not to be accurate for this system with the exception of the model by Henschke  
+which showed agreement with the experimental data, but relies on the experimental data to 
+determine parameters in model. For implicit vt-de relationship derived from CD=f(Re), application 
+range of Re should be considered carefully. Correlations are evaluated and compared in a vt-de-Re 
+three-dimensional plot these.
+
+$$
+\mathrm{v_{t}-d_{e}}
+$$
+
+$$
+\mathrm{v_{t}-d_{e}}
+$$
+
+$$
+\mathrm{C_D=f(Re)}
+$$
+
+$$
+\mathrm{v_{t}-d_{e}-Re}
+$$
+
+The influence caused by salt ions was also investigated. The addition of salt changed the test
+system  in three aspects: density difference, viscosity and interfacial tension. When the salt 
+concentration is low, ions absorb at the interface and thus slow down the inner circulation  and 
+terminal velocity. But this change is small for low interfacial tension systems. As the concentration 
+of added salt increases, the absorption of ions at the interface becomes saturated. In this case, 
+density increase in bulk solution is the dominated factor, which increases the terminal velocity. 
+Physical properties changed by different types of ions follows the Hofmeister series. Results 
+shows that anions exhibit more influence than cations. Influences by ions are complicated and 
+physical properties change should be considered carefully.
+
+A We-Re correlation was proposed for all the experimental liquid-liquid systems in this study. 
+It was interesting to find that the new correlation could be extended  to high interfacial tension 
+system. However, small deviations arise when Re numbers are high.
+
+Low interfacial tension system is of great interest for bio-extraction process such as aqueous two-phase systems. So future work is needed on the influence of this on mass transfer rates.  In 
+addition, contaminations caused by coexistence of salt ions and surfactants should be studied in 
+detail.
+
+## Nomenclature
+
+𝑎 Major axis of the fitted ellipse, m
+𝑏 Minor axis of the fitted ellipse, m
+𝐶𝐷 Drag coefficient
+𝑑<sub>𝑒</sub>Equivalent drop diameter, m
+𝐷 Diameter of the container, m
+𝐸𝑜 Eötvös number
+𝑓𝑝𝑠 Frames per second, s<sup>-1</sup>
+𝜆 Parameter to estimate wall effects
+𝑀𝑜 Morton number
+𝑅𝑒 Reynolds number
+𝑡 Time, s
+𝜇<sup>∗</sup> Viscosity ratio
+𝑣<sub>𝑡</sub>Terminal velocity, m/s
+𝑣<sub>𝑖𝑛𝑠</sub>Instantaneous velocity, m/s
+𝑊𝑒 Weber number
+
+$$
+a
+$$
+
+$$
+b
+$$
+
+$$
+C_{D}
+$$
+
+$$
+d_{e}
+$$
+
+$$
+D
+$$
+
+$$
+E o
+$$
+
+$$
+\mathbf{s}^{-1}
+$$
+
+$$
+fps
+$$
+
+$$
+\lambda
+$$
+
+$$
+Mo
+$$
+
+$$
+Re
+$$
+
+$$
+t
+$$
+
+$$
+\mu^{*}
+$$
+
+$$
+v_{t}
+$$
+
+$$
+v_{ins}
+$$
+
+$$
+We
+$$
+
+## Acknowledgements
+
+This research was carried out under the National Natural Science Foundation of China 
+(21636004), the National Safety Academy Foundation (U1530107), the National Key Basic 
+Research Program of China (No.2012CBA01203) in the State Key Laboratory of Chemical 
+Engineering of Tsinghua University, Beijing, China. The authors gratefully acknowledge these 
+grants.
+
+## References
+
+Adekojo Waheed, M., Henschke, M., Pfennig, A., 2004. Simulating sedimentation of liquid drops. Int. J. Numer. 
+Methods Eng. 59, 1821-1837.
+Adinata, D., 2011. Single-Drop Based Modelling of Solvent Extraction in High-Viscosity Systems. RWTH Aachen 
+University, Germany.
+Bäumler, K., Wegener, M., Paschedag, A.R., Bänsch, E., 2011. Drop rise velocities and fluid dynamic behavior in 
+standard test systems for liquid/liquid extraction—experimental and numerical investigations. Chem. Eng. Sci. 66, 
+426-439.
+Bhavasar, P.M., Jafarabad, K.R., Pandit, A.B., Sawant, S.B., Joshi, J.B., 1996. Drop Volumes and Terminal 
+Velocities in Aqueous Two Phase Systems. Can. J. Chem. Eng. 74, 852-860.
+Brauer, H., 1979. Particle/fluid transport processes, in: Fortschritte in der Verfahrenstechnik, VDI Verlag, 
+Düsseldorf.
+
+---
+
+Briens, C.L., 1991. Correlation for the direct calculation of the terminal velocity of spherical particles in newtonian 
+and pseu-doplastic (power-law) fluids. Powder Technol. 67, 87-91.
+Cacace, M.G., Landau, E.M., Ramsden, J.J., 1997. The Hofmeister series: salt and solvent effects on interfacial 
+phenomena. Q. Rev. Biophys. 30, 241-277.
+Cano-Lozano, J.C., Bolaños-Jiménez, R., Gutiérrez-Montes, C., Martínez-Bazán, C., 2015. The use of Volume of 
+Fluid technique to analyze multiphase flows: Specific case of bubble rising in still liquids. Appl. Math. Modell. 39, 
+3290-3305.
+Chen, C. T., Maa, J. R., Yang, Y. M., Chang, C.H., 2010. Salt Effects on Single Aqueous Drops Falling through an 
+Immiscible Organic Liquid. Chem. Eng. Commun. 189, 1297-1313.
+Clift, R., Grace, J. R., Weber, M. E., 1978. Bubbles, Drops and Particles. Academic Press New York.
+Edge, R. M., Grant, C.D., 1972. The motion of drops in water contaminated with a surface-active agent. Chem. 
+Eng. Sci. 27, 1709-1721.
+Engberg, R. F., Kenig, E.Y., 2014. Numerical simulation of rising droplets in liquid–liquid systems: A comparison 
+of continuous and sharp interfacial force models. Int. J. Heat Fluid Flow 50, 16-26.
+Feng, Z. G., Michaelides, E. E., 2001. Drag Coefficients of Viscous Spheres at Intermediate and High Reynolds 
+Numbers. J. Fluids Eng. 123, 841-849.
+Gebauer, F., 2018. Fundamentals of Binary Droplet Coalescence in  Liquid-Liquid Systems. Technischen 
+Universität Kaiserslautern, Germany.
+Grace, J.R., Wairegi, T., Nguyen, T.H., 1976. Shapes and Velocities of Single Drops and Bubbles Moving Freely 
+through Immiscible Liquids. Chem. Eng. Res. Des. 54, 167-173.
+Griffith, R. M., 1962. The effect of surfactants on the terminal velocity of drops and bubbles. Chem. Eng. Sci. 17, 
+1057-1070.
+Hadamard, J. S., 1911. Mouvement permanent lent d'une sphere liquid et visqueuse dans un liquide visqueux. CR 
+Hebd. Seances Acad. Sci. 152, 1735-1738.
+Haider, A., Levenspiel, O., 1989. Drag Coefficient and Terminal Velocity of Spherical and Nonspherical Particles. 
+Powder Technology 58, 63-70.
+Hamielec, A. E., Storey, S.H., Whitehead, J.M., 1963. Viscous flow around fluid spheres at intermediate reynolds 
+numbers (II). Can. J. Chem. Eng. 41, 246-251.
+Henschke, M., 2003. Auslegung pulsierter Siebboden-Extraktionskolonnen. Shaker Verlag, Germany.
+Hu, S., Kintner, R.C., 1955. The Fall of Single Liquid Drops Through Water. AICHE J. 1, 42-48.
+Huang, Z.Q., Wang, H., 2018. VOF Simulation Studies on Single Droplet Fluid Dynamic Behavior in Liquid–
+Liquid Flow Process. J. Chem. Eng. Jpn. 51, 33-48.
+ImageJ, 2012. ImageJ User Guide.
+Kalem, M., Mehmet, Y. A., Pfennig, A., 2010. Sedimentation Behavior of Droplets for the Reactive Extraction of 
+Zinc with D₂EHPA. AICHE J. 56, 7.
+Kamp, J., Kraume, M., 2014. Influence of drop size and superimposed mass transfer on coalescence in 
+liquid/liquid dispersions – Test cell design for single drop investigations. Chem. Eng. Res. Des. 92, 635-643.
+Klee, A. J., Treybal, R.E., 1956. Rate of Rise or Fall of Liquid Drops. AICHE J.
+Kopriwa, N., Buchbender, F., Ayesterán, J., Kalem, M., Pfennig, A., 2012. A Critical Review of the Application of 
+Drop-Population Balances for the Design of Solvent Extraction Columns: I. Concept of Solving Drop-Population 
+Balances and Modelling Breakage and Coalescence. Solvent Extr. Ion Exch. 30, 683-723.
+Leven, M. D., Newman, J., 1999. The Effect of Surfactant on the Terminal and Interfacial Velocities of a Bubble or 
+Drop. AICHE J. 22, 695-701.
+Li, X. J., Mao, Z. S., Fei, W. Y., 2003. Effects of surface-active agents on mass transfer of a solute into single buoyancy driven drops in solvent extraction systems. Chem. Eng. Sci. 58, 3793-3806.
+Lima, E.  R. A., De Melo, B. M., Baptista, L. T., Paredes, M.L.L., 2013. Specific ion effects on the interfacial 
+tension of water/hydrocarbon systems. Braz. J. Chem. Eng. 30, 55-62.
+Müller, E., Berger, R., Blass, E., Sluyts, D., Pfennig, A., 2008. Liquid-Liquid Extraction. Ullmann's Encyclopedia 
+of Industrial Chemistry.
+Maxworthy, T., Gnann, C., Kürten, M., Durst, F., 1996. Experiments on the rise of air bubbles in clean viscous 
+liquids. J. Fluid Mech. 321, 421-441.
+Misek, T., Berger, R., Schröter, J., 1985. Standard test systems for liquid extraction, EFCE Publ. Ser. No. 46, The 
+Institution of Chemical Engineers, England
+Polyanin, A.D., Kutepov, A.M., Kazenin, D.A., Vyazmin, A.V., 2001. Hydrodynamics, mass and heat transfer in 
+chemical engineering. CRC Press.
+Quinn, J. J., Maldonado, M., Gomez, C.O., Finch, J.A., 2014. Experimental study on the shape–velocity 
+relationship of an ellipsoidal bubble in inorganic salt solutions. Miner. Eng. 55, 5-10.
+Raymond, F., Rosant, J.-M., 2000. A numerical and experimental study of the terminal velocity and shape of 
+bubbles in viscous liquids. Chem. Eng. Sci. 55, 943-955.
+Rybczynski, W., 1911. On the translatory motion of a fluid sphere in a viscous medium. Bull. Acad. Sci., Cracow, 
+Series A 40.
+Saboni, A., Alexandrova, S., 2002. Numerical study of drag on a fluid sphere. AICHE J. 48, 2992-2994.
+Song, X., Xu, Z., Li, G., Pang, Z., Zhu, Z., 2017. A new model for predicting drag coefficient and settling velocity 
+of spherical and non-spherical particle in Newtonian fluid. Powder Technol. 321, 242-250.
+Thorsen, G., Stordalen, R.M., Terjesen, S.G., 1968. On the terminal velocity of circulating and oscillating liquid 
+drops. Chem. Eng. Sci. 23, 413-426.
+Wegener, M., Kraume, M., Paschedag, A.R., 2009. Terminal and transient drop rise velocity of single toluene 
+droplets in water. AICHE J. 56, 2-10.
+Wegener, M., Paul, N., Kraume, M., 2014. Fluid dynamics and mass transfer at single droplets in liquid/liquid 
+systems. Int. J. Heat Mass Transfer 71, 475-495.
+Zameek, M.A.Z., Lim, M.W., Lau, E.V., 2016. Terminal Velocity of Heavy Crude Oil in Aqueous Solution: Effects 
+of pH and Salinity. Int. Proc. Chem., Biol. Environ. Eng.
+Zhang, Y., Cremer, P.S., 2006. Interactions between macromolecules and ions: The Hofmeister series. Curr. Opin. 
+Chem. Biol. 10, 658-663.
+
+---
+
+## Minerva Access is the Institutional Repository of The University of Melbourne
+
+Author/s:
+Zhang, J;Wang, Y;Stevens, GW;Fei, W
+
+Title:
+An experimental study on single drop rising in a low interfacial tension liquid–liquid system
+
+Date:
+2019-08-01
+
+Citation:
+Zhang, J., Wang, Y., Stevens, G. W. & Fei, W. (2019). An experimental study on single drop
+rising in a low interfacial tension liquid–liquid system. Chemical Engineering Research and
+Design, 148, pp.349-360. https://doi.org/10.1016/j.cherd.2019.06.024.
+
+Persistent Link:
+http://hdl.handle.net/11343/241451

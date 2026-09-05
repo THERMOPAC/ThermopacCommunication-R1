@@ -1,0 +1,874 @@
+[Logo for Cambridge Core from Cambridge University Press. Click to return to homepage.](https://www.cambridge.org/core/ "Cambridge Core homepage")
+
+Search
+
+[Logo for Cambridge Core from Cambridge University Press. Click to return to homepage.](https://www.cambridge.org/core/ "Cambridge Core homepage")
+
+* * *
+
+Institution Login
+
+Search
+
+[Logo for Cambridge Core from Cambridge University Press. Click to return to homepage.](https://www.cambridge.org/core/ "Cambridge Core homepage")
+
+[Log in by institution](https://shibboleth.cambridge.org/CJOShibb2/index?app=https%3A%2F%2Fwww.cambridge.org%2Fcore%2Fshibboleth%3Fref%3D%2Fcore%2Fjournals%2Fjournal-of-fluid-mechanics%2Farticle%2Fabs%2Fon-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number%2F7355CD7D516D8DB0EEA728CFEE664590)
+
+Search
+
+[Logo for Cambridge Core from Cambridge University Press. Click to return to homepage.](https://www.cambridge.org/core/ "Cambridge Core homepage")
+
+* * *
+
+[Institution Login](https://shibboleth.cambridge.org/CJOShibb2/index?app=https%3A%2F%2Fwww.cambridge.org%2Fcore%2Fshibboleth%3Fref%3D%2Fcore%2Fjournals%2Fjournal-of-fluid-mechanics%2Farticle%2Fabs%2Fon-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number%2F7355CD7D516D8DB0EEA728CFEE664590)
+
+Search
+
+Hostname: page-component-5d84bcc8dc-kbn2r
+Total loading time: 0
+Render date: 2026-09-04T08:19:40.990Z
+Has data issue: false
+hasContentIssue false
+
+
+- [Home](https://www.cambridge.org/core)
+- > [Journals](https://www.cambridge.org/core/publications/journals)
+- > [Journal of Fluid Mechanics](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics)
+- > [Volume 18 Issue 3](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/issue/144305EB723163D912BDB6C79B2F472D)
+- >On the deformation and drag of a falling viscous drop...
+
+![](https://static.cambridge.org/covers/FLM_0_0_0/journal-of-fluid-mechanics.jpg)[Journal of Fluid Mechanics](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics)
+
+* * *
+
+## Article contents
+
+- [Abstract](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#sec0)
+- [References](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#references-list)
+
+# On the deformation and drag of a falling viscous drop at low Reynolds number
+
+Published online by Cambridge University Press:
+**28 March 2006**
+
+[T. D. Taylor](https://www.cambridge.org/core/search?filters%5BauthorTerms%5D=T.%20D.%20Taylor&eventCode=SE-AU) and
+
+[Andreas Acrivos](https://www.cambridge.org/core/search?filters%5BauthorTerms%5D=Andreas%20Acrivos&eventCode=SE-AU)
+
+[![](<Base64-Image-Removed>)Show author details](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#authors-details)
+
+* * *
+
+T. D. TaylorAffiliation:
+
+Picatinny Arsenal, Dover, New Jersey
+
+Andreas AcrivosAffiliation:
+
+Stanford University, Stanford, California
+
+* * *
+
+[Article](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#appTabs)
+
+- [Article](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#article-tab)
+- [Metrics](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#metrics-tab)
+
+[Article contents](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#toc-list-mobile)
+
+- [Abstract](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#sec0)
+- [References](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#references-list)
+
+[Get access](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#access-block)
+
+Share
+
+- [Copy to Copy Link](https://www.cambridge.org/#shr-copy_link)
+Copy
+
+
+- [Share to WhatsApp](https://www.cambridge.org/#shr-whatsapp)
+Share
+
+
+- [Share to WeChat](https://www.cambridge.org/#shr-wechat)
+Share
+
+
+- [Share to Facebook](https://www.cambridge.org/#shr-facebook)
+Share
+
+
+- [Share to Facebook Messenger](https://www.cambridge.org/#shr-facebook_messenger)
+Share
+
+
+- [Post to X (Twitter)](https://www.cambridge.org/#shr-twitter)
+Post
+
+
+- [Share to LinkedIn](https://www.cambridge.org/#shr-linkedin)
+Share
+
+
+- [Mail to Email This](https://www.cambridge.org/#shr-email_this)
+Mail
+
+
+- [Share to More Options](https://www.cambridge.org/#shr-all)
+Share
+
+
+
+![](https://www.cambridge.org/core/page-component/img/close-icon.194b28a.svg)
+
+![](https://www.cambridge.org/core/page-component/img/cite-icon.44eaaa4.svg)Cite [![](https://www.cambridge.org/core/page-component/img/rights-icon.d4a677c.svg)Rights & Permissions\\
+\[Opens in a new window\]](https://s100.copyright.com/AppDispatchServlet?publisherName=CUP&publication=FLM&title=On%20the%20deformation%20and%20drag%20of%20a%20falling%20viscous%20drop%20at%20low%20Reynolds%20number&publicationDate=28%20March%202006&author=T.%20D.%20Taylor%2C%20Andreas%20Acrivos&copyright=%C2%A9%201964%20Cambridge%20University%20Press&contentID=10.1017%2FS0022112064000349&startPage=466&endPage=476&orderBeanReset=True&volumeNum=18&issueNum=3&oa=)
+
+* * *
+
+## Abstract
+
+The motion at low Reynolds number of a drop in a quiescent unbounded fluid is investigated theoretically by means of a singular-perturbation solution of the axisymmetric equations of motion. Special attention is paid to the deformation of the drop. It is shown that for small values of the Weber number _W_ _e_ the drop will first deform exactly into an oblate spheroid and then, with a further increase in _W_ _e_, into a geometry approaching that of a spherical cap. These results are quite insensitive to the ratio of the viscosities of the two fluid phases. The first-order effect of the deformation on the drag of the drop is also included in the analysis.
+
+* * *
+
+## Information
+
+Type
+Research Article
+
+Information
+
+
+[Journal of Fluid Mechanics](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics)
+,
+[Volume 18](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/volume/33E787C54F0879A28511DA830798B05E)
+,
+[Issue 3](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/issue/144305EB723163D912BDB6C79B2F472D), March 1964, pp. 466 - 476
+
+DOI: [https://doi.org/10.1017/S0022112064000349\\
+\[Opens in a new window\]](https://doi.org/10.1017/S0022112064000349)
+
+Copyright
+
+
+© 1964 Cambridge University Press
+
+
+* * *
+
+## Access options
+
+Get access to the full version of this content by using one of the access options below. (Log in options will check for institutional or personal access. Content may require purchase if you do not have access.)
+
+### Check access
+
+#### Institutional login
+
+We recognised you are associated with one or more institutions that don't have access to this content. If you should have access, please contact your librarian. [![Provided by Seamless Access](https://service.seamlessaccess.org/sa-white.svg)Access through your institution](https://shibboleth.cambridge.org/Shibboleth.sso/discovery?target=https://shibboleth.cambridge.org/CJOShibb2/index?app=https://www.cambridge.org/core/shibboleth/seamless-access?ref=/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590)
+
+[![](<Base64-Image-Removed>)Change institution](https://shibboleth.cambridge.org/Shibboleth.sso/discovery?target=https://shibboleth.cambridge.org/CJOShibb2/index?app=https://www.cambridge.org/core/shibboleth/seamless-access?ref=/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590)
+
+#### Personal login
+
+Log in with your [Cambridge Core](https://www.cambridge.org/core/login?ref=/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590) account or [society details](https://www.cambridge.org/core/login?ref=/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590). [Log in](https://www.cambridge.org/core/login?ref=/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590)
+
+### Article purchase
+
+### Temporarily unavailable
+
+* * *
+
+## References
+
+Brenner, H. & Cox, R. G.1963J. Fluid Mech.17,
+561.
+
+Frumkin, A. N. & Levich, V. G.1947Zhur. Fiz. Khim.21,
+1183.
+
+Griffith, R. M.1962Chem. Engng Sci.17,
+1057.
+
+Haberman, W. L. & Morton, R. K.1953David Taylor Model Basin Rep. no. 802.
+
+Hadamard, J.1911Compt. Rend.152,
+1735.
+
+Kaplun, S. & Lagerstrom, P. A.1957J. Math. Mech.6,
+585.
+
+Landau, L. D. & Lifschitz, E. M.1959_Fluid Mechanics_.
+London:
+Pergamon Press.
+
+Levich, V. G.1962_Physicochemical Hydrodynamics_, Ch. 8.
+New York:
+Prentice-Hall.
+
+Pai, S. I.1956_Viscous Flow Theory. I. Laminar Flow_.
+New York:
+Van Nostrand.
+
+Payne, L. E. & Pell, W. H.1960J. Fluid Mech.7,
+529.
+
+Proudman, I. & Pearson, J. R. A.1957J. Fluid Mech.2,
+237.
+
+Rybczynski, W.1911Bull. Acad. Sci. de Cracovie,
+A, p.
+40.
+
+Saito, S.1913Science Rep. Tóhoku Imp. Univ., Sendai, Japan,
+2,
+179.
+
+Scriven, L. E.1960Chem. Engng Sci.12,
+98.
+
+Taylor, T. D.1962Ph.D. Dissertation,
+Univ. of California,
+Berkeley.
+
+371Cited by
+
+* * *
+
+Crossref Citations
+
+[![Crossref logo](https://assets.crossref.org/logo/crossref-logo-100.png)](http://www.crossref.org/citedby/index.html)
+
+##### This article has been cited by the following publications. This list is generated based on data provided by   [Crossref](http://www.crossref.org/citedby/index.html).
+
+* * *
+
+
+
+Street, James R.
+and
+Tek, M. Rasin
+1965.
+_Dynamics of bullet shaped bubbles encountered in vertical gas liquid slug flow_.
+
+
+AIChE Journal,
+Vol. 11,
+Issue. 4,
+
+p.
+644.
+
+
+
+- [CrossRef](https://doi.org/10.1002/aic.690110415)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=Dynamics+of+bullet+shaped+bubbles+encountered+in+vertical+gas+liquid+slug+flow&author=Street+James+R.&author=Tek+M.+Rasin&publication_year=1965)
+
+* * *
+
+
+
+Astarita, Gianni
+and
+Apuzzo, Gennaro
+1965.
+_Motion of gas bubbles in non‐Newtonian liquids_.
+
+
+AIChE Journal,
+Vol. 11,
+Issue. 5,
+
+p.
+815.
+
+
+
+- [CrossRef](https://doi.org/10.1002/aic.690110514)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=Motion+of+gas+bubbles+in+non%E2%80%90Newtonian+liquids&author=Astarita+Gianni&author=Apuzzo+Gennaro&publication_year=1965)
+
+* * *
+
+
+
+Brenner, Howard
+1966.
+_Advances in Chemical Engineering Volume 6_.
+
+
+
+Vol. 6,
+Issue. ,
+
+p.
+287.
+
+
+
+- [CrossRef](https://doi.org/10.1016/S0065-2377(08)60277-X)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=Advances+in+Chemical+Engineering+Volume+6&author=Brenner+Howard&publication_year=1966)
+
+* * *
+
+
+
+Wellek, R. M.
+
+Agrawal, A. K.
+and
+Skelland, A. H. P.
+1966.
+_Shape of liquid drops moving in liquid media_.
+
+
+AIChE Journal,
+Vol. 12,
+Issue. 5,
+
+p.
+854.
+
+
+
+- [CrossRef](https://doi.org/10.1002/aic.690120506)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=Shape+of+liquid+drops+moving+in+liquid+media&author=Wellek+R.+M.&author=Agrawal+A.+K.&author=Skelland+A.+H.+P.&publication_year=1966)
+
+* * *
+
+
+
+Matunobu, Yaso'o
+1966.
+_Motion of a Deformed Drop in Stokes Flow_.
+
+
+Journal of the Physical Society of Japan,
+Vol. 21,
+Issue. 8,
+
+p.
+1596.
+
+
+
+- [CrossRef](https://doi.org/10.1143/JPSJ.21.1596)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=Motion+of+a+Deformed+Drop+in+Stokes+Flow&author=Matunobu+Yaso%27o&publication_year=1966)
+
+* * *
+
+
+
+Goddard, J. D.
+and
+Acrivos, Andreas
+1966.
+_Asymptotic expansions for laminar forced-convection heat and mass transfer Part 2. Boundary-layer flows_.
+
+
+Journal of Fluid Mechanics,
+Vol. 24,
+Issue. 2,
+
+p.
+339.
+
+
+
+- [CrossRef](https://doi.org/10.1017/S0022112066000697)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=Asymptotic+expansions+for+laminar+forced-convection+heat+and+mass+transfer+Part+2.+Boundary-layer+flows&author=Goddard+J.+D.&author=Acrivos+Andreas&publication_year=1966)
+
+* * *
+
+
+
+Davis, R.E.
+and
+Acrivos, Andreas
+1966.
+_The influence of surfactants on the creeping motion of bubbles_.
+
+
+Chemical Engineering Science,
+Vol. 21,
+Issue. 8,
+
+p.
+681.
+
+
+
+- [CrossRef](https://doi.org/10.1016/0009-2509(66)80017-9)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=The+influence+of+surfactants+on+the+creeping+motion+of+bubbles&author=Davis+R.E.&author=Acrivos+Andreas&publication_year=1966)
+
+* * *
+
+
+
+Buzzard, J.L.
+and
+Nedderman, R.M.
+1967.
+_The drag coefficients of liquid droplets accelerating through air_.
+
+
+Chemical Engineering Science,
+Vol. 22,
+Issue. 12,
+
+p.
+1577.
+
+
+
+- [CrossRef](https://doi.org/10.1016/0009-2509(67)80196-9)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=The+drag+coefficients+of+liquid+droplets+accelerating+through+air&author=Buzzard+J.L.&author=Nedderman+R.M.&publication_year=1967)
+
+* * *
+
+
+
+Hayashi, Shigeru
+and
+Matunobu, Yaso'o
+1967.
+_Experimental Study on a Deformed Drop Moving through Viscous Media_.
+
+
+Journal of the Physical Society of Japan,
+Vol. 22,
+Issue. 3,
+
+p.
+905.
+
+
+
+- [CrossRef](https://doi.org/10.1143/JPSJ.22.905)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=Experimental+Study+on+a+Deformed+Drop+Moving+through+Viscous+Media&author=Hayashi+Shigeru&author=Matunobu+Yaso%27o&publication_year=1967)
+
+* * *
+
+
+
+Nakano, Yoshisuke
+and
+Tien, Chi
+1967.
+_Approximate solutions of viscous incompressible flow around fluid spheres at intermediate reynoldc's numbers_.
+
+
+The Canadian Journal of Chemical Engineering,
+Vol. 45,
+Issue. 3,
+
+p.
+135.
+
+
+
+- [CrossRef](https://doi.org/10.1002/cjce.5450450303)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=Approximate+solutions+of+viscous+incompressible+flow+around+fluid+spheres+at+intermediate+reynoldc%27s+numbers&author=Nakano+Yoshisuke&author=Tien+Chi&publication_year=1967)
+
+* * *
+
+
+
+O'Brien, Vivian
+and
+Weinbaum, Sheldon
+1967.
+_Class of Exact Magnetohydrodynamic Solutions_.
+
+
+The Physics of Fluids,
+Vol. 10,
+Issue. 12,
+
+p.
+2556.
+
+
+
+- [CrossRef](https://doi.org/10.1063/1.1762076)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=Class+of+Exact+Magnetohydrodynamic+Solutions&author=O%27Brien+Vivian&author=Weinbaum+Sheldon&publication_year=1967)
+
+* * *
+
+
+
+Sy, Francisco
+and
+Lightfoot, E. N.
+1968.
+_The effect of distortion on mass transfer to spheroidal drops_.
+
+
+AIChE Journal,
+Vol. 14,
+Issue. 5,
+
+p.
+835.
+
+
+
+- [CrossRef](https://doi.org/10.1002/aic.690140535)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=The+effect+of+distortion+on+mass+transfer+to+spheroidal+drops&author=Sy+Francisco&author=Lightfoot+E.+N.&publication_year=1968)
+
+* * *
+
+
+
+Nakano, Yoshisuke
+and
+Tien, Chi
+1968.
+_Creeping flow of power‐law fluid over newtonian fluid sphere_.
+
+
+AIChE Journal,
+Vol. 14,
+Issue. 1,
+
+p.
+145.
+
+
+
+- [CrossRef](https://doi.org/10.1002/aic.690140125)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=Creeping+flow+of+power%E2%80%90law+fluid+over+newtonian+fluid+sphere&author=Nakano+Yoshisuke&author=Tien+Chi&publication_year=1968)
+
+* * *
+
+
+
+Bart, Ernest
+1968.
+_The slow unsteady settling of a fluid sphere toward a flat fluid interface_.
+
+
+Chemical Engineering Science,
+Vol. 23,
+Issue. 3,
+
+p.
+193.
+
+
+
+- [CrossRef](https://doi.org/10.1016/0009-2509(86)85144-2)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=The+slow+unsteady+settling+of+a+fluid+sphere+toward+a+flat+fluid+interface&author=Bart+Ernest&publication_year=1968)
+
+* * *
+
+
+
+Arakawa, Mieko
+and
+Matunobu, Yaso'o
+1968.
+_Experimental Study on the Motion of a Deformed Drop in a Circular Tube at Low Reynolds Numbers_.
+
+
+Journal of the Physical Society of Japan,
+Vol. 25,
+Issue. 5,
+
+p.
+1495.
+
+
+
+- [CrossRef](https://doi.org/10.1143/JPSJ.25.1495)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=Experimental+Study+on+the+Motion+of+a+Deformed+Drop+in+a+Circular+Tube+at+Low+Reynolds+Numbers&author=Arakawa+Mieko&author=Matunobu+Yaso%27o&publication_year=1968)
+
+* * *
+
+
+
+Taylor, Thomas D.
+1968.
+_Basic Developments in Fluid Dynamics_.
+
+
+
+
+
+
+p.
+183.
+
+
+
+- [CrossRef](https://doi.org/10.1016/B978-0-12-395520-3.50009-8)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=Basic+Developments+in+Fluid+Dynamics&author=Taylor+Thomas+D.&publication_year=1968)
+
+* * *
+
+
+
+Tanaka, Hiroshi
+1969.
+_On Breakings and Oscillations of Water Drops_.
+
+
+Journal of the Meteorological Society of Japan. Ser. II,
+Vol. 47,
+Issue. 5,
+
+p.
+384.
+
+
+
+- [CrossRef](https://doi.org/10.2151/jmsj1965.47.5_384)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=On+Breakings+and+Oscillations+of+Water+Drops&author=Tanaka+Hiroshi&publication_year=1969)
+
+* * *
+
+
+
+Wasserman, Melvin L.
+and
+Slattery, John C.
+1969.
+_Creeping flow past a fluid globule when a trace of surfactant is present_.
+
+
+AIChE Journal,
+Vol. 15,
+Issue. 4,
+
+p.
+533.
+
+
+
+- [CrossRef](https://doi.org/10.1002/aic.690150413)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=Creeping+flow+past+a+fluid+globule+when+a+trace+of+surfactant+is+present&author=Wasserman+Melvin+L.&author=Slattery+John+C.&publication_year=1969)
+
+* * *
+
+
+
+HO, P.
+and
+HOGLUND, R.
+1969.
+_Dynamics of bag-type breakup of droplets in various flow fields_.
+
+
+
+
+
+
+
+
+
+- [CrossRef](https://doi.org/10.2514/6.1969-669)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=Dynamics+of+bag-type+breakup+of+droplets+in+various+flow+fields&author=HO+P.&author=HOGLUND+R.&publication_year=1969)
+
+* * *
+
+
+
+Subramanyam, S. V.
+1969.
+_A note on the damping and oscillations of a fluid drop moving in another fluid_.
+
+
+Journal of Fluid Mechanics,
+Vol. 37,
+Issue. 4,
+
+p.
+715.
+
+
+
+- [CrossRef](https://doi.org/10.1017/S0022112069000838)
+- [Google Scholar](https://scholar.google.com/scholar_lookup?title=A+note+on+the+damping+and+oscillations+of+a+fluid+drop+moving+in+another+fluid&author=Subramanyam+S.+V.&publication_year=1969)
+
+* * *
+
+[Download full list](https://www.cambridge.org/core/services/aop-cambridge-core/download/cited-by?doi=10.1017/S0022112064000349&productType=JOURNAL_ARTICLE&productId=7355CD7D516D8DB0EEA728CFEE664590)
+
+Google Scholar Citations
+
+View all [Google Scholar citations](https://scholar.google.com/scholar?hl=en&lr=&cites=https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590)
+for this article.
+
+
+[×](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#)
+
+[Cancel](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#)
+
+[Confirm](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#)
+
+[×](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#)
+
+To send this article to your Kindle, first ensure no-reply@cambridge.org is added to your Approved Personal Document E-mail List under your Personal Document Settings on the Manage Your Content and Devices page of your Amazon account. Then enter the ‘name’ part of your Kindle email address below. Find out more about sending to your Kindle.
+[Find out more about saving to your Kindle](https://www.cambridge.org/core/help).
+
+
+Note you can select to save to either the @free.kindle.com or @kindle.com variations. ‘@free.kindle.com’ emails are free but can only be saved to your device when it is connected to wi-fi. ‘@kindle.com’ emails can be delivered even when you are not connected to wi-fi, but note that service fees apply.
+
+
+Find out more about the [Kindle Personal Document Service.](https://www.amazon.com/gp/help/customer/display.html/ref=kinw_myk_wl_ln?ie=UTF8&nodeId=200767340#fees)
+
+On the deformation and drag of a falling viscous drop at low Reynolds number
+
+- Volume 18, [Issue 3](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590)
+- [T. D. Taylor](https://www.cambridge.org/core/search?filters%5BauthorTerms%5D=T.%20D.%20Taylor&eventCode=SE-AU)(a1) and [Andreas Acrivos](https://www.cambridge.org/core/search?filters%5BauthorTerms%5D=Andreas%20Acrivos&eventCode=SE-AU)(a2)
+- DOI: [https://doi.org/10.1017/S0022112064000349](https://doi.org/10.1017/S0022112064000349)
+
+Your Kindle email address
+
+Please provide your Kindle email.
+
+@free.kindle.com@kindle.com ( [service fees apply](https://www.amazon.com/gp/help/customer/display.html/ref=kinw_myk_wl_ln?ie=UTF8&nodeId=200767340#fees))
+
+Available formats PDF
+Please select a format to save.
+
+By using this service, you agree that you will only keep content for personal use, and will not openly distribute them via Dropbox, Google Drive or other file sharing services
+Please confirm that you accept the terms of use.
+
+Cancel
+
+Save
+
+
+×
+
+To save this article to your Dropbox account, please select one or more formats and confirm that you agree to abide by our usage policies. If this is the first time you used this feature, you will be asked to authorise Cambridge Core to connect with your Dropbox account.
+[Find out more about saving content to Dropbox](https://www.cambridge.org/core/help).
+
+
+On the deformation and drag of a falling viscous drop at low Reynolds number
+
+- Volume 18, [Issue 3](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590)
+- [T. D. Taylor](https://www.cambridge.org/core/search?filters%5BauthorTerms%5D=T.%20D.%20Taylor&eventCode=SE-AU)(a1) and [Andreas Acrivos](https://www.cambridge.org/core/search?filters%5BauthorTerms%5D=Andreas%20Acrivos&eventCode=SE-AU)(a2)
+- DOI: [https://doi.org/10.1017/S0022112064000349](https://doi.org/10.1017/S0022112064000349)
+
+Available formats PDF
+Please select a format to save.
+
+By using this service, you agree that you will only keep content for personal use, and will not openly distribute them via Dropbox, Google Drive or other file sharing services
+Please confirm that you accept the terms of use.
+
+Cancel
+
+Save
+
+
+×
+
+To save this article to your Google Drive account, please select one or more formats and confirm that you agree to abide by our usage policies. If this is the first time you used this feature, you will be asked to authorise Cambridge Core to connect with your Google Drive account.
+[Find out more about saving content to Google Drive](https://www.cambridge.org/core/help).
+
+
+On the deformation and drag of a falling viscous drop at low Reynolds number
+
+- Volume 18, [Issue 3](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590)
+- [T. D. Taylor](https://www.cambridge.org/core/search?filters%5BauthorTerms%5D=T.%20D.%20Taylor&eventCode=SE-AU)(a1) and [Andreas Acrivos](https://www.cambridge.org/core/search?filters%5BauthorTerms%5D=Andreas%20Acrivos&eventCode=SE-AU)(a2)
+- DOI: [https://doi.org/10.1017/S0022112064000349](https://doi.org/10.1017/S0022112064000349)
+
+Available formats PDF
+Please select a format to save.
+
+By using this service, you agree that you will only keep content for personal use, and will not openly distribute them via Dropbox, Google Drive or other file sharing services
+Please confirm that you accept the terms of use.
+
+Cancel
+
+Save
+
+
+×
+
+×
+
+#### Reply to:Submit a response
+
+Title \*
+Please enter a title for your response.
+
+Contents \*[Contents help](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#)
+
+[Close Contents help](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#)
+
+\- No HTML tags allowed
+
+\- Web page URLs will display as text only
+
+\- Lines and paragraphs break automatically
+
+\- Attachments, images or tables are not permitted
+
+Please enter your response.
+
+* * *
+
+#### Your details
+
+First name \*
+Please enter a valid first name. Only letters, spaces, hyphens, apostrophes, and periods are allowed.
+
+Last name \*
+Please enter a valid last name. Only letters, spaces, hyphens, apostrophes, and periods are allowed.
+
+Email \*[Email help](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#)
+
+[Close Email help](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#)
+
+Your email address will be used in order to notify you when your comment has been reviewed by the moderator and in case the author(s) of the article or the moderator need to contact you directly.
+
+Please enter a valid email address.
+
+Occupation
+Please enter your occupation.
+
+Affiliation
+Please enter any affiliation.
+
+* * *
+
+##### You have entered the maximum number of contributors
+
+* * *
+
+#### Conflicting interests
+
+Do you have any conflicting interests? \*
+[Conflicting interests help](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#)
+
+[Close Conflicting interests help](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#)
+
+Please list any fees and grants from, employment by, consultancy for, shared ownership in or any close relationship with, at any time over the preceding 36 months, any organisation whose interests may be affected by the publication of the response. Please also list any non-financial associations or interests (personal, professional, political, institutional, religious or other) that a reasonable reader would want to know about in relation to the submitted work. This pertains to all the authors of the piece, their spouses or partners.
+
+Yes
+No
+
+
+More information \*
+Please enter details of the conflict of interest or select 'No'.
+
+* * *
+
+Please tick the box to confirm you agree to our [Terms of use](https://www.cambridge.org/core/legal-notices/terms). \*
+
+Please accept terms of use.
+
+Please tick the box to confirm you agree that your name, comment and conflicts of interest (if accepted) will be visible on the website and your comment may be printed in the journal at the Editor’s discretion. \*
+
+Please confirm you agree that your details will be displayed.
+
+* * *
+
+The Identity Selector: Persistence Service
+
+![](https://www.cambridge.org/core/system/public/img/ajax_loader_gray_256.gif)Loading citation...
+
+[×](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/abs/on-the-deformation-and-drag-of-a-falling-viscous-drop-at-low-reynolds-number/7355CD7D516D8DB0EEA728CFEE664590#)

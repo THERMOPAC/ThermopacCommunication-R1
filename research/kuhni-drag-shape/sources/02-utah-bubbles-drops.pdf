@@ -1,0 +1,752 @@
+Source: https://my.che.utah.edu/~ring/ChE-6960/Bubble%20and%20Drops.pdf
+Title: 
+Fetched: 2026-09-05T14:39:20.334Z
+
+## 11. Accelerated Motion without Volume Change
+
+M14. Murray, J. D., J. Fluid Mech. 28, 417-428 (1967).
+O1. Odar, F., J. Fluid Mech. 25, 591-592 (1966).
+O2. Odar, F., U.S. Army, Corps Eng., Cold Rep., Res. Lab., Res. Rep. 190 (1966).
+O3. Odar, F., J. Appl. Mech. 90, 238-241 (1968).
+O4. Odar, F., J. Appl. Mech. 90, 652-654 (1968).
+O5. Odar, F., personal communication (1973).
+O6. Odar, F., and Hamilton, W. S., J. Fluid Mech. 18, 302-314 (1964).
+O7. Ogden, T. L., and Jayaweera, K. O. L. F., Q. J. R. Meterol. Soc. 97, 571-574 (1971); 98, 861 (1972).
+P1. Pedley, T. J., J. Fluid Mech. 32, 97-112 (1968).
+P2. Plesset, M. S., and Hsieh, D. Y., Phys. Fluids 3, 882-892 (1960).
+P3. Plesset, M. S., and Prosperetti, A., Annu. Rev. Fluid Mech. 9, 145-185 (1977).
+R1. Rafique, K., Ph.D. Thesis, Imperial College, London, 1971.
+R2. Reichman, J. M., and Temkin, S., Bull. Am. Phys. Soc. 17, 1117 (1972).
+R3. Richards, W. D., Course 302-495B Final Rep., McGill Univ., Montreal, 1973.
+R4. Rimon, Y., and Cheng, S. I., Phys. Fluids 12, 949-959 (1969).
+R5. Rschevkin, S. N., “The Theory of Sound.” Academic Press, New York, 1963.
+R6. Rudinger, G., J. Basic Eng. 92, 165-172 (1970).
+R7. Rudinger, G., AIAA J. 12, 1138-1140 (1974).
+S1. Sartor, J. D., and Abbott, C. E., J. Appl. Meteorol. 14, 232-239 (1975).
+S2. Schmiedel, J., Phys. Z. 29, 593-610 (1928).
+S3. Schmidt, F. S., Ann. Phys. (Leipzig) 61, 633-664 (1920).
+S4. Schöneborn, P.-R., Doktor-Ing. Dissertation, Univ. Erlangen, 1973; Chem.-Ing.-Tech. 47, 305 (1975).
+S5. Schroeder, R. R., and Kintner, R. C., AIChE J. 11, 5-8 (1965).
+S6. Schwartzberg, H. G., and Beckerman, G., Chem. Eng. Prog., Symp. Ser. 66, No. 105, 127-132 (1970).
+S7. Soo, S. L., “Fluid Dynamics of Multiphase Systems.” Ginn (Blaisdell), Boston, Massacetedts, 1967.
+S8. Sy, F., Taunton, J. W., and Lightfoot, E. N., AIChE J. 16, 386-391 (1970).
+S9. Sy, F., and Lightfoot, E. N., AIChE J. 17, 177-181 (1971).
+T1. Tchen, C. M., Ph.D. Thesis, Univ. Delft, 1947.
+T2. Torobin, L., and Gauvin, W. H., Can. J. Chem. Eng. 37, 224-236 (1959).
+T3. Tudose, R. Z., Int. Chem. Eng. 4, 664-666 (1964).
+T4. Tunstall, E. B., and Houghton, G., Chem. Eng. Sci. 23, 1067-1081 (1968).
+T1. Van Oeveren, R. M., and Houghton, G., Chem. Eng. Sci. 26, 1958-1961 (1971).
+T2. Viets, H., AIAA J. 9, 2087-2089 (1971).
+T1. Walters, J. K., and Davidson, J. F., J. Fluid Mech. 12, 408-416 (1962).
+T2. Walters, J. K., and Davidson, J. F., J. Fluid Mech. 17, 321-336 (1963).
+T3. Wang, C. C., M. Eng. Thesis, McGill Univ., Montreal, 1969.
+T4. Weiner, A., Ph.D. Thesis, Univ. of Pennsylvania, Philadelphia, 1974.
+T5. Winnikow, S., and Chao, B. T., Phys. Fluids 9, 50-61 (1966).
+
+## Chapter 12
+Formation and Breakup of Fluid Particles
+
+## I. INTRODUCTION
+
+In earlier chapters, we have considered steady and unsteady motion and transfer processes for fluid and rigid particles without treating the initiation or termination of these processes. This final chapter is concerned with formation and breakup of fluid particles. The problems are distinct from those encountered in Chapter 11 for the unsteady motion of rigid particles. A single rigid particle can be launched, dropped, or suspended in a fluid flow,$^\dagger$ but a fluid particle must be formed at the same time as it is launched. In keeping with earlier chapters, we consider here only cases where single particles or very dilute dispersions are generated. This division is necessarily arbitrary, since many techniques can be used to produce dilute or concentrated clouds of particles. Space limitations have severely restricted treatment, but the reader is referred to relevant reviews where these exist.
+
+## II. FORMATION OF BUBBLES AND DROPS
+
+Generation of small bubbles and drops is essential in a wide range of phase-contacting equipment. In bubble columns, fermentation vessels, extraction equipment, etc., bubbles and drops are usually formed by forcing the dispersed phase through orifices or a porous sparging device into the continuous phase, frequently with mechanical agitation to aid dispersion. A variety of atomizers, spray nozzles, and sprinklers have been devised for dispersing liquids into gases. In most of these applications, the objective is to produce a cloud of
+
+---
+
+## II. Formation of Bubbles and Drops
+
+## 12. Formation and Breakup of Fluid Particles
+
+where $ \bar{Q} $ is the time-mean flow rate, K the "orifice constant," and H the submergence. For most practical purposes, $ \mu_{\mathrm{p}} \ll\mu $ and $ \mu_{\mathrm{p}} $ can be omitted. Usually $ \rho_{\mathrm{p}} $ can also be removed (D5), since $ \rho_{\mathrm{p}} \ll\rho $ for bubble formation except for cases, such as high pressure formation, where the momentum of the incoming gas must be considered (L2).
+
+small fluid particles. Since we are concerned here only with single particles, discussion is limited to simple techniques, capable of producing single or widely spaced drops or bubbles. Mechanically agitated or rotated delivery devices are not considered, nor are devices using impinging jets, impaction, ultrasonic or mechanical vibrations, electrical forces, etc. For general reviews of spraying atomization, and injection devices, see (G2, G6, H16, L7, O1, S19).
+
+## A. FORMATION AT AN ORIFICE
+
+a. Theoretical Models The many models proposed to describe bubble formation in liquids are summarized in Table 12.1. All are mechanistic in the sense that they are based on a sequence of events suggested by photographic observation. All depend on some form of force balance for predicting one or more stages in bubble growth. Almost all approximate the bubble as spherical throughout the growth period. The simplest group may be termed "one-stage models." In these, bubbles originating at the orifice are assumed to grow smoothly until detachment, which occurs when the rear of the bubble passes
+
+## TABLE 12.1
+
+A number of workers (H11, J1, K2, K6, K15, L7, S25, V1) have reviewed the formation of bubbles or drops by flow through orifices or nozzles. Here, we consider only injection at modest flow rates through single orifices of diameter $ d_{\mathrm{or}} $ less than about 0.65 cm. At high velocities and for large orifices, significant jetting and multiple particle formation occur (J2, S25). Sections 1 and 2 are concerned only with single orifices of circular cross section facing in the flow direction, i.e., upward for $ \rho_{\mathrm{p}} < \rho $ and downward for $ \rho_{\mathrm{p}} > \rho $ . The continuous phase is stagnant except for motion caused by flow of the dispersed phase. More complex situations are treated briefly in Sections 3 and 4, and mass transfer during formation is discussed in Section 5.
+
+## 1. Bubble Formation
+
+| Ref. | Conditions | Number of stages | Forces includeda | Comments |
+| --- | --- | --- | --- | --- |
+| (H8) | Constant flow | 1 | B, Dd, I, P, S | Same as (H8) but includes cross flowLow flow rates |
+| (S22) | Constant flow | 1 | B, Dd, I, P, S | Same as (H8) but includes cross flowLow flow rates |
+| (D5) | Constant flow | 1 | B, Da | Higher flow rates |
+| (D5) | Constant flow | 1 | B, Da, Ia | High flow rate, low-viscosity liquid |
+| (D6) | Constant flow | 1 | B, Ia | High flow rate, low-viscosity liquid |
+| (D3) | Constant flow | 1 | B, Ib |  |
+| (W4) | Constant flow | 1 | B, Iab, S, W | Low-viscosity fluid |
+| (K13) | Constant flow | 2 | B, Da, S |  |
+| (K16) | Constant flow | 2 | B, Da, Ia |  |
+| (R2) | Constant flow | 2 | B, Da, Ia, S |  |
+| (C1) | Constant flow | 2 | B, Dc, Ib, S, W | Also extended to coflowing stream |
+| (W8) | Constant flow | 2 | B, Ia, M | Hemispherical in first stage |
+| (R11) | Constant flow | 2 | B, Dc, Ia, S |  |
+| (T7) | Constant flow | 1 | B, Dbc, S |  |
+| (D5) | Constant pressure | 1 | B, Da | Low flow |
+| (D5) | Constant pressure | 1 | B, Da, Ia | High flow |
+| (D6) | Constant pressure | 1 | B, Ia | High flow, low-viscosity liquids |
+| (S3) | Constant pressure | 2 | B, Da, Ia, S |  |
+| (L3) | Constant pressure | 1 | B, Ia | Extension of(D6) |
+| (K4) | Intermediate | 2 | B, D, Ia, S |  |
+| (K17) | Intermediate | 3 | B, I |  |
+| (M5) | Intermediate | - | B, Ib, W | Shape originally hemispherical |
+| (S24) | Intermediate | 1 | B, Db, M, P, S |  |
+| (L2) | Intermediate | 1 | B, Ia, M |  |
+| (M2) | Intermediate | 1 | B, Ic, S | Shape varies; numerical solution |
+
+B: buoyancy; D: drag (a: Stokes; b: Hadamard; c: empirical expression; d: kept as constant to fit to data); I: inertia (a: $ C_{\mathrm{A}}=1 1 / 1 6 $ ; b: $ C_{\mathrm{A}}=1/2 $ ; c: $ C_{\mathrm{A}} $ kept as constant to fit to data); M: gas momentum; P: excess pressure term; S: surface tension force; W: wake effect from previous bubble.
+
+$ V=f(\bar{Q}, d_{\mathrm{or}}, \rho ,\mu ,\sigma ,\rho_{\mathrm{p}}, K, V_{\mathrm{ch}}, g,H), $ (12-1) $ ^{\dagger}$ Even this list is not always complete. For example, if the orifice is a tube projecting into and closely wetted by the liquid, the outer tube diameter is also important (S2).
+
+As a bubble is formed by flow of gas through an upward-facing orifice, the pressure within the bubble decreases due to upward displacement of its centroid and to decrease in the capillary pressure, $ 2 \sigma / r $ . Thus, the gas flow rate may vary with time. If there is a high pressure drop restriction, such as a long capillary, between the gas reservoir and the orifice, the pressure fluctuations due to forming bubbles are much smaller than the pressure drop between the gas reservoir and the orifice. In this case, the gas flow rate can be taken as constant. Otherwise, account must be taken of both the "line" pressure drop and the reservoir volume. If the volume of the reservoir or "plenum chamber" upstream of the orifice is very large by comparison with the volume of bubbles being formed, the varying gas efflux will not significantly change the pressure in the chamber. This corresponds to the other limiting case of bubble formation under constant pressure conditions. For conditions intermediate between theimits of constant flow and constant pressure, the chamber volume $ V_{\mathrm{ch}} $ must be aken into account. Unfortunately, some workers have failed to report the characteristics of their orifices and chambers so that their results are hard to interpret.
+
+Thus bubble formation at an orifice is a surprisingly complex phenomenon. or intermediate conditions and a perfectly wetted orifice, the volume of the bubble formed may be written $ ^{\dagger} $ :
+
+---
+
+## 12. Formation and Breakup of Fluid Particles
+
+| ii. Formation of Bubbles and Drops |  |
+| --- | --- |
+| oe orifice or when buoyancy exceeds the retarding forces. In “multiple-stage nodes”, it is assumed that there is a basic change in the growth mechanism (one or more points in the growth process). Typically, it is assumed that the bubble resides on the office during the first stage, and that the second stage signs at “life-off”. The bubble subsequently be taut by a tongue of gas from fig. K5, K7) | II. Formation of Bubbles and Drops
+205
+forces relative to surface tension forces, and to aid comparison with drop formation. If it is assumed that bubbles remain essentially spherical throughout formation, then $\sigma$ and the orifice diameter $d_0\sigma$ enter only as $d_0\sigma$ which can be treated as a single quantity. Hence $M$ can be omitted, so that all the simple models take the form
+$V' = f(Q,\mu)$ |
+| There is some photographic evidence for this sequence of events | (12-5) |
+| In view of the complexity of the bubble formation process, it is not surprising at the models are successful only under restricted conditions. The simplest odels and the only ones to give simple analytic expressions for the volume the bubble produced, apply for constant flow formation. All the models we inherent limitations: | For very low gas rates, $i, Q \rightarrow 0,$
+(12-6)
+where $w_p$ is the Harkins correction factor (H5) given in Fig. 12.4 and discussed below. This correction factor makes allowance for dispersed phase fluid retained at the office when detachment occurs. Equation (12-8) is frequently employed in measuring surface and interfacial tensions by the bubble pressure or “drop-weight” method with liquids of low viscosity (i.e., relatively large $Q$, small $\mu$), a simple equation developed by Davidson and Schiller (D6) is commonly used, i.e. |
+| (i) The assumption that bubbles remain spherical is reasonable for most $W$ systems, but can significantly in error for large systems (M2, W8) events and only ones to give simple analytic expressions for the volume the bubble produced, apply for constant flow formation. All the models we inherent limitations: | At high flow rates with liquids of low viscosity (i.e., relatively large $Q$, small $\mu$), a simple equation developed by Davidson and Schiller (D6) is commonly used, i.e. |
+| (ii) When surface tension forces and contact angles are included, the $\sigma$ and used are invariably determined under static conditions, even though bubble motion is dynamic process. | (12-7)
+or, in dimensional form,
+$V = 1.378(Q)^2, 1.2$
+(12-8) |
+| (iv) Expressions used for drag and added mass are at best approximate, allowance is made in any of the models for history effects, which may well importance since $\rho \gg \rho_b$ (see Chapter 11). | (12-8)
+The numerical coefficient in Eq. (12-7) is obtained using an added mass coefficient, $C_w$, of $1/11/6$, for a spherical bubble forming at a perforation in a flat plate. For a nozzle protruding into a fluid $C_w = 1/2$ and the coefficient becomes $1.138(D_3)$. An early empirical correlation $V_g$ gave a value of $1.72$. The mean frequency of bubble formation is $Q/V$, Eq. (12-8) predicts that the frequency becomes only weakly dependent on flow rate at relatively high flow. In practice, the dependence becomes even weaker than the -0.2 power predicted, with the mean frequency of bubble formation becoming essentially independent of $Q$ (e.g. see Fig. 12.8). Hence, for bubble formation in low viscosity like water, it is common (Fig. V) to describe formation at low flow rates where Eq. (12-6) applies as “constant volume form” and that the high $Q$ as “constant frequency form” with an “intermediate region” for the range where neither result applies. For viscous liquids (high $\mu$) and intermediate $Q$, another equation developed by Davidson and Schiller (D5) gives
+$Q^2 = a dimensionless flow rate;
+Q' = (p_d/\rho_d)\sigma = f(Q,\mu,M)$
+(12-3)
+$\mu$ is a dimensionless viscosity:
+$\mu' = \mu/\sqrt{d_0\sigma}$
+(bubble formation with $p_b \approx \rho_d$. $\Delta p$ is taken as $\rho$. However, $V'$ is defined in terms of $\Delta p$ to facilitate its interpretation as the magnitude of gravitational force or if buoyancy exceeds the retarding forces. In “multiple-stage nodes”, it is assumed that there is a basic change in the growth mechanism (one or more points in the growth process). Typically, it is assumed that the bubble resides on the office during the first stage, and that the second stage signs at “life-off”. The bubble subsequently be taut by a tongue of gas from fig. K5, K7) |
+
+---
+
+in improvement on the model of Kumar and Kuloor (K15) with a better expression for the drag coefficient and an empirical correlation rather than an arbitrary model to describe the second stage of growth. Two successive stages in bubble formation are considered, with
+
+$$V' = V_1' + V_2'.$$  
+## (12-10)
+
+the bubble volume achieved in the first stage is predicted from a force balance:
+
+$$V_1' - 0.0578(V_1')^{-2/3}(Q')^2 - 2.417(V')^{-1/3}Q'\mu' - 0.204Q'\sqrt{\mu'Q}/V_1' = \pi,$$  
+## (12-11)
+
+where the first term arises from gravitational forces, the second results fromertia and drag, the third and fourth from drag, and that on the right-handde from surface tension. The volume added in the second stage was correlatedinpirically as
+
+$$V_2' = (Q')^{1/2} + 4.0(Q'\mu')^{3/4}.$$  
+## (12-12)
+
+dimensionless bubble volumes predicted by solving Eq. (12-11) numericallyand adding the second stage increment are plotted in Fig. 12.1 as functions ofthe dimensionless flow rate $Q',$ with $\mu'$ as parameter. It is important to noteat $\mu'$ is constant for a given orifice in a given gas-liquid system. Hence, Fig.2.1 or Eqs. (12-10) to (12-12) give a convenient means of predicting bubbleformation in any liquid-gas system whose properties are known. Over most of
+
+Deviations from the theories tend to occur at large $Q$ where the frequencyof bubble formation becomes essentially independent of $Q$, whereas theorypredicts $f \propto Q^{-0.2}$. For example, the frequency in air-water systems levels outat about 17 s$^{-1}$ as shown in Fig. 12.2. This almost certainly results from theupdraught caused by preceding bubbles, ignored in almost all the models. Atstill higher flow rates, bubble pairing occurs at the orifice, when a bubble
+
+## II. Formation of Bubbles and Drops
+
+the range of $Q'$, the correlation agrees within ±15% with most data appearingin the literature [e.g. (B5, D5, D6, K13, K16, R2, S11, S22, W8)]. Discrepanciesfor bubbles formed in liquid metals (A2, S2) are more serious, possibly because ofexperimental difficulties, surface effects, or bubble deformation at the lowvalues of $M$ characteristic of liquid metal-gas systems. Also shown in Fig. 12.1are lines corresponding to Eqs. (12-6), (12-7), and (12-9). These simplifiedequations may be viewed as limiting cases, with the ranges of $Q'$ and $\mu'$ fortheir application indicated by Fig. 12.1.
+
+Predictions of Ruff's model for air bubbles forming in water are shown in dimensional form by the two solid lines in Fig. 12.2 for two commonly usedorifice diameters, 0.63 and 0.32 cm (1/4 and 1/8 inch). Some data are also shownfor the larger orifice and agreement is generally very favorable. Note that theorifice diameter plays an important role only at low $Q$, where surface tensionprovides the major restraining force.
+
+FIG. 12.2 Bubble volume as a function of flow rate for air injection into water at 20°C. Curves forconstant flow obtained from Ruff model, Eqs. (12-10) to (12-12): $(1) d_{or} = 0.63 \text{ cm}, \mu' = 1.5 \times 10^{-3};$
+$(2) d_{or} = 0.32 \text{ cm}, \mu' = 2.1 \times 10^{-3}$. Experimental results shown for constant flow, intermediate,andconstant pressure conditions.
+
+---
+
+coalesces with that just formed before it can escape. Incipient pairing occurs for $Q > Cg^{1/2}d_{or}^{5/2}$, (12-13) where the constant coefficient $C$ has been given values from 1.3 to 6.2 (W2, W8).
+
+c. Constant Pressure Conditions Bubble formation under constant pressure conditions is of practical interest for sieve trays and other multiorifice distributors. As noted above, the flow rate through the orifice varies with time.
+
+The “orifice equation” may be written
+
+$$Q = K(p_{ch} - \rho gH + \rho ga - 2\sigma/a)^{1/2},$$ (12-14)
+
+where $a$ is the instantaneous radius of the forming bubble and $p_{ch}$ the pressure in the chamber behind the orifice. In general, Eq. (12-14), or a more complete orifice equation like that proposed by Potter (P10), must be solved simultaneously with a force balance equation to predict initial bubble volumes. Models are outlined in Table 12.1. Due to the added complexity of the formation process, analytic results cannot be summarized neatly. Dimensional quantities $K$ and $p(= p_{ch} - \rho gH)$ are required in addition to those needed for the constant flow case, so that dimensionless presentation of the results also becomes cumbersome. Furthermore, fewer experimental studies have been reported for constant pressure than for constant flow conditions.
+
+If accurate predictions of bubble volume are required, the original models should be consulted. The Marmur model (M2) appears to work well for low viscosity liquids over a broad range of $V_{ch}$ and $Q$, but is too complex to be useful for normal predictive purposes. Of the relatively simple models, the most reliable are those of Lanaue and Harris for low $\mu$ (L3, L4), and those of Kumar and Kuloor (K15, S3) and Davidson and Schüler (D5) for viscous liquids.
+
+For many purposes, approximate predictions suffice, and may be obtained from the results for constant flow formation using some simple guidelines. Bubbles obtained under constant pressure tend to be larger than under constant flow conditions at the same time-mean flow rate, $\bar{Q}$, because most of the flow with variable $Q$ occurs during the latter stages of formation. It is convenient to define a ratio of bubble volumes formed under constant pressure and constant flow conditions as
+
+$$Y = V_{CP}/V_{CF} = f_{CF}/f_{CP}.$$ (12-15)
+
+For large $Q', \mu' \rightarrow 0$, and large values of the dimensionless orifice constant,
+
+$$K' = Kg^{0.4}\rho^{0.5}/Q^{0.8},$$ (12-16)
+
+$Y$ approaches approximately 1.5 (D6). As $K' \rightarrow 0$, constant flow conditions are approached and $Y \rightarrow 1$. For intermediate and low flow rates, $Y$ may be as high as 10, as shown by the curve for approximately constant pressure conditions in Fig. 12.2.
+
+d. Intermediate Conditions The importance of the chamber volume, $V_{ch}$, was first recognized by Hughes et al. (H23) and Davidson and Amick (D7).
+
+If $V_{ch}$ is relatively small and the orifice constant relatively large, then both the flow rate through the orifice and the pressure in the chamber vary with time. Practical interest, lies as much in reverse passage of the continuous phase (“weeping”) as in bubble formation.
+
+Models used to describe bubble formation under intermediate conditions are listed in Table 12.1. Generally, they must be solved numerically. Reasonable agreement has been obtained (K18, M2, M5) for low-viscosity liquids so long as “pairing” at the orifice did not occur. In addition to pairing, six other flow regimes have been identified, and charted for formation in water at three sizes of orifice (M6). Following Hughes et al. (H23), many workers have used a capacitance number
+
+$$N_{ch} = 4g \Delta\rho V_{ch}/\pi d_{or}^2 p_{p} c^2,$$ (12-17)
+
+where $c$ is the velocity of sound in the gas, but in other studies [e.g. (K17)] this group was found to have no significance. In general, bubbles produced under intermediate conditions are intermediate in size between those formed at constant pressure and constant flow at the same $Q$. The results in Fig. 12.2 for a 0.63 cm diameter orifice illustrate the effect of increasing chamber volume and thus going from constant flow to constant pressure.
+
+e. Bubble Formation in Fluidized Beds As noted in Chapter 8, the surface tension between the bubble and dense phase of a fluidized bed is generally taken to be zero. Equations (12-10) to (12-12) can be rewritten as
+
+$$V'' = V_1'' + V_2'' ,$$ (12-18)
+
+$$V_1'' - 0.0578(Q')^2(V'')^{-2/3} - 2.417Q'(V'')^{-1/3} - 0.204(Q')^{1.5}(V'')^{-1/2} = 0,$$ (12-19)
+
+and
+
+$$V_2'' = (Q')^{1.2} + 4.0(Q')^{0.75},$$ (12-20)
+
+where
+
+## $$V'' = V_g/v^2$$ (12-21)
+
+and
+
+$$Q'' = Qg^{1/3}/v^{5/3}.$$ (12-22)
+
+Hence bubble formation in fluidized beds may be predicted in a manner similar to that employed for liquids using an effective dense phase kinematic viscosity $v$. The equations reduce to the Davidson and Schüler forms, Eqs. (12-7) and (12-9), for large and small $Q'$, respectively, and show reasonable agreement with
+
+---
+
+## II. Formation of Bubbles and Drops
+
+experimental results (H7). For bubble formation, it is best to take the effective kinematic viscosity of the bed as about 0.5 cm²/s, a value an order of magnitude less than the value derived from bubble shape measurements (see Chapter 8).
+
+At flow rates greater than about 100 cm³/s, the frequency becomes essentially constant at a value of about 20 s⁻¹, close to the value for bubble formation in real liquids (B4, H7). The volume of bubbles formed, however, is generally less than $Q/f$ due to leakage of gas into the dense phase (N3). The length of jets, when these occur, feeding forming bubbles is correlated (M12) by the equation
+
+$$\frac{L_{\text{jet}}}{d_{\text{or}}} = 5.2 \left( \frac{\rho_g d_{\text{or}}}{\rho_s d_{\text{s}}} \right)^{0.3} \left[ 1.3 \left( \frac{u_{\text{or}}^2}{g d_{\text{or}}} \right)^{0.2} - 1 \right].$$
+
+## (12-23)
+
+## Some effect of chamber volume has been demonstrated (H21) for low pressure drop orifices, as for bubbles forming in liquids.
+
+## 2. Drop Formation
+
+a. Regimes of Jet Formation When a liquid of density $\rho_p$ issues steadily from a horizontal orifice into an immiscible fluid of density $\rho$, drops may form at the orifice or at the end of a disintegrating cylindrical jet as shown schematically in Fig. 12.3. At low flow rates, formation occurs close to the orifice, as for gas bubbles. As $Q$ is increased, a critical flow, $Q_{\text{jet}}$, is reached at which a jet forms. At higher flow rates, drops form by jet breakup. At flow rates between $Q_{\text{jet}}$ and a value labeled $Q_{\text{max}}$, break up occurs by Rayleigh instability (i.e., axisymmetric amplification of surface perturbations), while the jet length increases with increasing $Q$. Above $Q_{\text{max}}$, the jet length decreases again, and breakup results primarily from growth of asymmetric disturbances. The jet length decreases until, for $Q > Q_{\text{at}}$, the liquid shatters at or very near the orifice to give many droplets of nonuniform size. Atomization of liquids by forcing through an orifice (“pressure atomization”) is treated in a number of reviews [e.g. (B6, F6, G2, G6, H16)]. Only drop formation at much lower flow rates is discussed here.
+
+The condition for incipient jetting has been derived by Scheele and Meister (S4) as
+
+$$Q_{\text{jet}} = 1.36 \sqrt{\frac{\sigma d_{\text{or}}}{\rho_p}} \left[ 1 - d_{\text{or}}/(1.24V^{1/3}) \right],$$
+
+## (12-24)
+
+where $V$ is the volume of drops which would form if jetting did not occur, obtained from Eq. (12-28) below. The numerical coefficient, 1.36, applies when the velocity profile in the jet at the orifice is parabolic; a coefficient of 1.57 should be used for a flat velocity profile.
+
+b. Formation at Low Flow Rates Drop formation with $Q < Q_{\text{jet}}$ occurs at the orifice, and is qualitatively similar to bubble formation. Quantitative differences arise because the momentum and viscosity of the entering fluid are often appreciable for drops, but rarely for bubbles. The momentum effect is particularly important, and causes drops to be smaller than those formed under near-static conditions ($Q' \to 0$) where
+
+$$V = \psi_H \pi d_{\text{or}} \sigma/\Delta \rho g,$$
+
+## (12-25)
+
+which is the dimensional form of Eq. (12-6) given above for bubbles. The Harkins factor, $\psi_H$, accounts for the fact that a residual drop remains at the orifice when detachment occurs, causing the volume of the detached drop, $V$, to be less than the volume at which the net gravity force exactly balances the interfacial tension forces. Smoothed values of $\psi_H$ (H5) are shown in Fig. 12.4 as a function of $d_{\text{or}}/V^{1/3}$, together with the fitted equations (H13, L5):
+
+$$\psi_H = \begin{cases} 0.92878 + 0.87638 \frac{d_{\text{or}}}{V^{1/3}} - 0.261 \left(\frac{d_{\text{or}}}{V^{1/3}}\right)^2 \\ 0.6 < d_{\text{or}}/V^{1/3} < 2.4 \end{cases}$$
+
+## (12-26)
+
+$$\psi_H = 1.000 - 0.66023 \frac{d_{\text{or}}}{V^{1/3}} + 0.33936 \left(\frac{d_{\text{or}}}{V^{1/3}}\right)^2$$
+
+(0 ≤ $d_{\text{or}}/V^{1/3}$ ≤ 0.6)
+
+If the continuous fluid does not wet the orifice material, corrections must be made as for bubbles.
+
+As $Q'$ is increased slowly, modifications in shape occur (H3). As for bubble formation, many equations and models have been proposed for predicting
+
+Fig. 12.3 Typical jet development for injection of a liquid through an orifice into another liquid: experimental results of Meister and Scheele (M10) for heptane injection into water with $d_{\text{or}} = 16$ cm, $\mu_p = 0.00393$ poise, $\rho_p = 0.683$ gm/cm³, $\sigma = 36.2$ dynes/cm.
+
+---
+
+## investigated the initial amplitude was well approximated by
+
+$$a'_0 = \frac{d_{or}}{2} \exp\left(-6.0\right) = 0.00124d_{or}$$
+
+(12-31)
+
+At somewhat higher $Q$, drops in many liquid–liquid systems merge since their terminal velocity is less than the jet velocity; as a result, the jet lengthens abruptly. This occurs, for example, at a flow rate of about 0.7 cm$^3$/s for the experimental results shown in Fig. 12.3. Sinuous disturbances are shown to be unimportant at low $Q$, but at higher $Q$ they account for the attainment of maximum jet length since they are capable of ejecting drops sideways, out of the path of the oncoming jet. Mass transfer affects jet breakup if concentration variations are sufficient to cause significant gradients of interfacial tension (B9).
+
+For low-viscosity liquid–liquid systems, tables presented by Hozawa and Padaki (H19) offer an alternative means of predicting initial drop sizes for $2_{jet} < Q < Q_{at}$. This method also has the advantage of giving an estimate of the spread in drop sizes caused by pairing and other complex interaction effects. Empirical expressions are also available for predicting the size of drops produced by jet break up [e.g. (P2, T1)].
+
+## Influence of Orifice Shape and Orientation
+
+Kumar and Kuloor (K15) have surveyed work on the influence of orifice shape and orientation. For very low flow rates, where surface tension effects are dominant, bubbles appear to form from an equisided orifice, such as an equilateral triangle or regular hexagon, as from the inscribed circular orifice. At higher flow rates, an orifice with a shape not too far removed from circular gives roughly the same bubble volume as the circular orifice of the same area at the same flow rate. Irregular geometries, such as elongated rectangular slots, how more complex behavior.
+
+Inclining an orifice may increase or decrease the volume of bubbles formed, although the effect of orientation is often rather small (S22). Kumar and Kuloor K15) extended their two-stage model to an orifice inclined at an arbitrary angle to the horizontal. Equations are given both for constant flow and constant chamber pressure, and agreement with experiment is favorable. Analogous equations are suggested for drops forming at inclined orifices.
+
+## Influence of Flow of Continuous Fluid
+
+If the continuous fluid has a net vertical velocity component, the additional drag causes earlier or later detachment and hence reduces or increases the volume of particle formed according to whether the drag force assists or impedes detachment. Significantly smaller bubbles or drops can be produced by causing he continuous fluid to flow cocurrently with the dispersed phase (C1).
+
+Horizontal components of velocity also tend to affect the volume of bubbles and drops produced at an orifice. At low $Q$ there is little effect, but larger bubbles end to be produced as the horizontal mean velocity is increased at intermediate $2(S22)$, presumably because of a reduction in the updraught effect noted above.
+
+Mass transfer during formation of drops or bubbles at an orifice can be a very significant fraction of the total mass transfer in industrial extraction or absorption operations. Transfer tends to be particularly favorable because of the exposure of fresh surface and because of vigorous internal circulation during the formation period. In discussing mass transfer in extraction, it has become conventional (H12) to distinguish four steps: (1) formation, (2) release, (3) free rise or fall, (4) coalescence. Free rise or fall has been treated in previous chapters. Steps 1 and 2 are considered here.
+
+By making mass transfer during coalescence negligible and by varying column heights, one can determine mass transfer during formation and release by extrapolation to zero column height. However, it is difficult to apportion this transfer between formation and release. In the period immediately after detachment, mass transfer rates may be high due to internal circulation, shape oscillations, and acceleration. Theoretical models have been proposed for formation, but not for release. Empirical correlations also exist for the formation step, but usually include transfer during release. We consider here models for “slow formation,” i.e., formation without internal circulation, and “fast formation” in which the momentum of the entering fluid causes circulation within the forming bubble or drop. Both situations correspond to flow rates below $Q_{jet}$.
+
+a. Slow Formation The most realistic models for slow formation are based upon one of two assumptions: “surface stretch,” in which the fluid at the interface is assumed to remain there throughout formation, and “fresh surface,” in which fresh fluid elements are assumed to arrive at the interface to provide the increase in area. The interfacial area during formation is assumed to be
+
+$$A = A_R + \beta t^n$$
+
+(12-32)
+
+where $A_R$ is the surface area of the residual drop or bubble left at the orifice after detachment. Values of $n$ of 2/3 (R4) and 1 (H10) have been reported for drop formation at constant flow rate. Combining Eq. (12-32) with Eq. (7-52) yields
+
+$$kA = 2BA_f\sqrt{\Phi/\pi t_f}$$
+
+(12-33)
+
+where $A_f$ is the surface area of the drop or bubble at detachment and $t_f$ is the duration of the formation process. Values for the constant $B$ are given in Table 12.2. Equation (12-33) can be used when resistance in the dispersed phase controls if $kA$ is replaced by $(kA)_p$ and $\Phi$ by $\Phi_p$. The predicted values of $kA$ are not strongly sensitive to $n$, and differ little between the two models. Experimental data are not sufficiently accurate to differentiate between them, and good agreement has been found for drops with the controlling resistance in either phase as long as there is no circulation during formation (G9, H12, P8, P9, R4). Corrections have been given to account for changing concentration within the forming drop (W3) and for curvature of the interface for very small drops (N2).
+
+---
+
+II. Formation of Bubbles and Drops
+
+for the controlling resistance in the dispersed phase. Agreement with their data was satisfactory when the constant was reduced from 0.01 to 0.0062.
+
+c. Empirical Correlations Skelland and co-workers proposed empirical equations for transfer during formation and release, with the mass transfer coefficient based on the arithmetic mean of the driving forces at the beginning and end of the whole process. For the continuous phase (S16):
+
+$$\bar{kA} = 0.386 A_e \left( \frac{\mathcal{D}}{t_f} \right)^{1/2} \left( \frac{\rho \sigma}{\Delta \rho g \mu t_f} \right)^0.407 \left( \frac{g t_f^2}{d_e} \right)^0.148$$
+
+(12-39)
+
+## while for the dispersed phase (S17)
+
+$$\left( \bar{kA} \right)_p = 0.0432 \frac{A_e d_e}{t_f} \left( \frac{u_{or}}{g d_e} \right)^{0.089} \left( \frac{t_f \mathcal{D}_p}{d_e^2} \right)^{0.334} \left( \sqrt{\rho_p d_e \sigma} \right)^{0.601}$$
+
+(12-40)
+
+where $d_e$ and $A_e$ refer to a sphere with the same volume as the drop at detachment. Equations (12-39) and (12-40) should be used with caution outside the limited range of properties covered by the original experiments.
+
+d. Effect of Surface Active Agents Skelland and Caenepeel (S15) added surface-active materials to examine their effect on transfer during formation and coalescence. By comparison with Eq. (12-40), addition of surfactant reduced $(kA)_p/A_e$ by a factor of five during formation with dispersed phase resistance controlling, but increasing surfactant concentration returned the transfer rate almost to its value in the pure system. No quantitative explanation for this behavior is available. As in the work of Rajan and Heideger (R1), surfactants had relatively little effect when the resistance in the continuous phase controlled, reducing $\bar{kA}/A_e$ by at most 50%.
+
+b. Fast Formation On the basis of flow visualization, Humphrey et al. (H26) proposed that circulation occurs in a forming drop if
+
+$$u_{or}^3 \rho_p^2 d_{or}^4 / \sigma \mu e d_e^2 > 0.7$$
+
+(12-34)
+
+where $d_e$ is the equivalent diameter of the drop at detachment and the effective viscosity is
+
+$$\mu_e = \mu_p + \mu[1 - \exp\left(-1/(1 + \kappa)\right)]$$
+
+(12-35)
+
+Circulation increases transfer, and two models have been proposed. Zheleznyak (Z2) assumed that the fluid from the orifice moves along the axis of the drop to the stagnation point, and then travels with the orifice velocity, $u_{or}$, back to the base of the drop and into the interior. If the drop is spherical, the instantaneous mass transfer product with the external resistance controlling is
+
+$$kA = 2\pi(u_{or}\mathcal{D})^{1/2}a^{3/2}$$
+
+(12-36)
+
+## If it is assumed further that the surface area of the residual drop is negligible and that formation occurs at constant flow, the time-average product is
+
+$$\bar{kA} = \frac{4A_r}{d_{or}} \sqrt{\frac{\mathcal{D}}{3}} \left(\frac{Q}{36\pi \sqrt{t_f}}\right)^{1/3}$$
+
+## (12-37)
+
+Equation (12-37) correctly predicts the effect of $d_{or}$ and $Q$, and Zheleznyak found that it agreed closely with his own data. Although proposed for the external resistance, Eq. (12-37) should also apply to the internal resistance if written in terms of dispersed phase properties.
+
+Siskovic and Narsimhan (S14) modified the model of Handlos and Baron discussed in Chapter 7, using an estimate for internal circulation, to obtain
+
+$$\bar{kA}_p = 0.01 u_{or} A_f$$
+
+## (12-38)
+
+Bubbles, drops, and solid particles are of importance in many processes, such as boiling, condensation, sublimation, crystallization, cavitation, electrolysis, and effervescence, in which a change of phase occurs. A detailed review of these subjects is beyond the scope of this book, but a few basic points and useful references will be given.
+
+All the above processes involve an initiation stage, called nucleation, followed by particle growth. Both homogeneous and heterogeneous nucleation are possible, although the latter is generally more important, except in certain processes in the atmosphere or in ultrapure systems with large driving forces. The surface tensions of pure liquids are so high that preexisting nuclei must generally be present for vapor bubbles to form in cavitation, boiling, or electrolysis. Frequently microscopic scratches, pits, or crevices on solid surfaces trap gas pockets at which vapor bubble growth may begin. The equilibrium diameter
+
+---
+
+## of a spherical bubble at a point in a liquid where the local pressure is $p_1$ is $d_{eq} = 4\sigma/(p_v + p_g - p_i)$, (12-41)
+
+here $p_g$ is the partial pressure of any noncondensable gas and $p_v$ the vaporessure of the liquid at the given temperature. Bubbles smaller than $d_{eq}$ decrease size while larger pockets grow. Growth may be promoted by lowering the cal $p_i$, as in cavitation or effervescence, or by raising $p_v$ as in nucleate boiling. atmospheric nucleation, nuclei are commonly provided by sodium chloride potassium iodide crystals or by airborne dust or droplets. Microscopic solid articles may also be important for heterogeneous nucleation in liquids or liquid–liquid interfaces. [For discussions and reviews of nucleation, see 1, B10, C4, H15, H16, K5, R9, Z1].]
+
+Bubble growth in vaporization is usually controlled by diffusion of mass heat, although chemical steps can be rate-controlling for electrolytic processes (2). Thorough reviews of diffusion-controlled bubble growth are available (1, H20). Theoretical treatments [e.g. (F4, P7, S8)] generally consider spherical immetry with spherical or hemispherical bubbles in a liquid of large extent and fluid properties assumed uniform within each phase, although extensions have been made, e.g., to show the effect of other contact angles (B8) and bubble anlation (R10). Sideman (S10) reviewed studies of heat transfer to drops and bubbles undergoing simultaneous change of phase.
+
+The growth and collapse of cavitation bubbles is commonly described by considering irrotational expansion of a spherical cavity in an incompressible liquid of infinite extent, subject to the unsteady form of Bernoulli's equation (3, P5). Effects of compressibility and bubble migration must also be considered or oscillating bubbles produced by underwater explosions (B3, C5).
+
+## OTHER MEANS OF FORMING BUBBLES AND DROPS
+
+A horizontal interface between two fluids such that the lower fluid is the lessense tends to deform by the process known as Rayleigh–Taylor instability (ee Section III.A). Spikes of the denser fluid penetrate downwards, until the interface is broken up and one fluid is dispersed into the other. This is observed, or example, in formation of drops from a wet ceiling, and of bubbles in film oiling. For low-viscosity fluids, the equivalent diameter of the particle formed of order $\sqrt{\sigma/g}\Delta\rho$.
+
+Various experimental techniques have been devised for introducing relatively urge single drops or bubbles into liquids. The most common method is inversion of a cup, immersed in the fluid for $\rho_p < \rho$ or at the surface for $\rho_p > \rho$. Otherariants are opening a shutter (C6), withdrawal of a solid cylindrical tube (W1), and bursting of a stretched balloon containing the dispersed phase (W2). The mode of injection sometimes plays an important role, for example, in affecting wake shedding from large bubbles (C9). Smaller bubbles may be engerated by a focused laser beam (L10), enabling the exact bubble position to be predetermined. Flow visualization using hydrogen bubbles generated by electrolysis is described by Schraub et al. (S6) and by Tory and Haywood (T9). Bubbles are entrained when a jet of liquid enters a pool from above (L13, V2). Formation of bubbles at the surface of liquids in turbulent flow, associated with “white water,” has also received some attention (F3).
+
+Kintner et al. (K7) and Damon et al. (D1) have discussed photographic techniques applicable to the study of bubbles and drops. Sometimes it is desirable to hold a bubble or drop stationary, to study internal or external flow patterns and transfer processes. To prevent the particle from migrating to the wall, it is desirable to establish a minimum in the velocity profile at the position where the particle is to reside, and various techniques have been devised (D4, F1, G1, M15, R15, S20) to do this. Vertical wandering of such particles may occur (W7), and may be reduced by using a duct tapered so that the area decreases towards the top (D4). Acoustic levitation of liquid drops may also be used (A3).
+
+## III. BREAKUP OF DROPS AND BUBBLES
+
+In multiphase flow equipment, the size distribution of drops and bubbles is commonly determined by the dynamics of break up and coalescence. Coalescence involves multiple fluid–particle systems and hence is beyond the scope of this book. A number of processes may cause breakup and these are discussed here.
+
+## A. BREAKUP IN STAGNANT MEDIA
+
+When one fluid overlays a less dense fluid, perturbations at the interface tend to grow by Rayleigh–Taylor instability (L1, T4). Surface tension tends to stabilize the interface while viscous forces slow the rate of growth of unstable surface waves (B2). The leading surface of a drop or bubble may therefore become unstable if the wavelength of a disturbance at the surface exceeds a critical value
+
+$$\lambda_{\text{cr}} = 2\pi \sqrt{\sigma/g}\Delta\rho.$$  
+
+(12-42)
+
+For rising bubbles and drops, instability manifests itself as an indentation at the upper surface which grows deeper as time advances. Splitting tends to occur if the disturbance grows sufficiently quickly relative to the velocity at which it is swept around to the equator by tangential movement along the interface. A typical sequence of events is shown in Fig. 12.5. This mechanism of splitting applies to bubbles in liquids and in fluidized beds (C2, C3, H14) and to drops in gases and liquids (G5, K8, K10, P12, R15). For unstable drops falling in air, an indentation develops at the front leading to a hollow rim with an “inverted bag” of liquid attached (H1, H4, L6). This mode of breakup is shown in Fig. 12.6. The bag is inflated as time progresses with the penetration velocity given
+
+---
+
+## III. Breakup of Drops and Bubbles
+
+## where $ k^{\prime}=2\pi /\lambda $ is the wavenumber and
+
+## m = (k'^{2} + \alpha / v)^{1/2},
+
+Comparison of the computed values of $ t_{\mathrm{a}} $ and $ t_{\mathrm{g}} $ gives an indication of the likelihood of splitting. Values of U may be obtained using the correlations given in Chapters 7 and 8. Experimental evidence shows that splitting occurs when $ t_{\mathrm{a}}>1.4 t_{\mathrm{g}} $ for liquid drops, and when $ t_{\mathrm{a}}>3.8 t_{\mathrm{g}} $ for gas bubbles (G5). Maximum stable drop and bubble sizes predicted with this procedure are given in Table 12.3. For $ \kappa >0.5 $ i.e., for liquid drops falling in gases and for many liquid-liquid systems, the maximum stable diameter is given approximately (G5, L12) by
+
+On intuitive grounds $ \lambda $ cannot be larger than about half the circumference. Maximum values of $ t_{\mathrm{g}} $ may be obtained by solving Eq. (12-44) for $ \lambda_{\mathrm{cr}} < \lambda \leq \pi d_{\mathrm{e}} / 2. $ If the density and/or viscosity of one of the phases is much larger than that of the other phase, simpler approximate forms of Eq. (12-44) may be solved (P6, W5).
+
+## FIG. 12.5 Breakup of a large two-dimensional bubble in viscous sugar solution, traced from photographs by Clift and Grace (C2). (1) 0 s; (2) 0.16 s; (3) 0.32 s; (4) 0.56 s; (5) 0.84 s.
+
+## Maximum Stable Drop and Bubble Sizes for Systems at Room Temperature
+
+Equation (12-46) implies that the Eotvos number cannot exceed a value of about 16. Since the spherical-cap regime requires Eo $ \geq $ 40(see Fig. 2.5), stability considerations explain why drops falling in gases and drops in many liquid systems never attain the spherical-cap regime. Moreover, since We = $ 4\mathrm{Eo}/3 C_{\mathrm{D}} $ and $ C_{\mathrm{D}} $ is nearly constant for large drops in air, it is also possible to
+
+1 cm.
+
+## FIG. 12.6 Breakup of a water drop in an air stream moving downwards relative to a particle, traced from photographs by Lane (L6).
+
+| System | Experimental ($d_e)_{\max}$ (cm) | Ref. | Predicted ($d_e)_{\max}$ (cm) |
+| --- | --- | --- | --- |
+| Water drops in air | 1.0 | (M11) | 1.21 |
+| Isobutanol drops in air | 0.45 | (F1) | 0.69 |
+| Carbon tetrachloride drops in air | 0.36 | (M11) | 0.65 |
+| Carbon tetrachloride drops in water | 1.04 | (H22) | 1.34 |
+| Nitrobenzene drops in water | 1.54 | (H22) | 1.56 |
+| Chlorobenzene drops in water | 3.16 | (K12) | 3.00 |
+| Bromoform drops in water | 0.56 | (K12) | 0.69 |
+| Diphenyl ether drops in water | 3.25 | (K12) | 3.17 |
+| Carbon tetrachloride drops in 31p aq. sucrose solution | 13.5 | (G5) | 13.5 |
+| Air bubbles in 0.5p aq. sucrose solution | 4.6 | (G5) | 5.0 |
+| Air bubbles in 2p paraffin oil | 6.3 | (G5) | 6.7 |
+| Air bubbles in water |  |  | 4.9 |
+| Air bubbles in mercury |  |  | 3.4 |
+| Air bubbles in fluidized bed |  |  | 8.4 |
+
+approximately (F2) by 0.3 $ \sqrt{U\lambda} $ similar to Eq. (9-37) for bubbles in tubes, where U is the drop acceleration. The wall of the bag thins until the film shatters into as many as several hundred fragments (M1, M3). The toroidal rim also breaks up into larger droplets containing about 75% of the original drop mass (B6). The time available for a disturbance to grow is approximately (G5)
+
+## The time available for a disturbance to grow is approximately (G5)
+
+## $ t_{\mathrm{a}}=\frac{d_{\mathrm{e}}}{2 U}\left(\frac{2+3 \kappa}{2}\right)\ln \left\{\cot (\lambda /4 d_{\mathrm{e}})\right\}. $
+
+The time required for growth, $ t_{\mathrm{g}}=1 / \alpha $ may be estimated, to a first approximation, from the linearized theory which leads to the equation $ [\sigma k^{\prime 3}-gk^{\prime}\Delta\rho+\alpha^{2}(\rho+\rho_{\mathrm{p}})][k^{\prime}+m+\kappa(k^{\prime}+m_{\mathrm{p}})]+4\alpha k^{\prime}\mu(k^{\prime}+\kappa m_{\mathrm{p}})(\kappa k^{\prime}+m)=0 $ use a critical We criterion for breakup [e.g., see (T11)]. Experimental maximum stable bubble and drop sizes for stagnant media are given in Table 12.3 for some systems. [For other systems, see (F1, G5, H22, K12, M11)].
+
+## B. BREAKUP DUE TO RESONANCE
+
+There is some evidence that isolated drops may shake themselves apart if shape oscillations become sufficiently violent (L7). It has been suggested (E1, 311, H22) that breakup occurs when the exciting frequency of eddy shedding matches the natural frequency of the drop. However, other workers (S7) have found that oscillations give way to random wobbling before breakup occurs.
+
+While it is possible that resonance may produce breakup in isolated cases, this mechanism appears to be less important than the Taylor instability mechanism described above.
+
+Sevik and Park (S9) suggested that resonance can cause bubble and drop breakup in turbulent flow fields when the characteristic turbulence frequency matches the lowest or natural frequency mode of an entrained fluid particle. Breakup in turbulent flow fields is discussed below.
+
+## C. BREAKUP DUE TO VELOCITY GRADIENTS
+
+A drop or bubble in a shear field tends to rotate and deform. If the velocity gradients are large enough, interfacial tension forces are no longer able to maintain the fluid particle intact, and it ruptures into two or more smaller particles (A1, K1, R12, T3, T10). Observations of drop and bubble breakup have also been obtained in hyperbolic flows (R12, T3). Figure 12.7 shows racings of photographs showing the effect of increasing shear rate; further sequences appear in (R12, T3, T10).
+
+(a)
+
+(b)
+
+Fig. 12.7 Breakup of liquid drops in simple shear. Velocity gradient $G$ increases in each sequence. (a) Rumscheidt and Mason (R12): $\kappa = 1$, $\sigma = 4.8$ dynes/cm; (b) Torza et al. (T10): $\kappa = 1.1$, $r = 1.3$ dynes/cm.
+
+Theoretical predictions relating to the orientation and deformation of fluid particles in shear and hyperbolic flow fields are restricted to low Reynolds numbers and small deformations (B7, C8, T3, T10). The fluid particle may be considered initially spherical with radius $a_0$. If the surrounding fluid is initially at rest, but at time $t = 0$, the fluid is impulsively given a constant velocity gradient $G$, the particle undergoes damped shape oscillations, finally deforming into an ellipsoid (C8, T10) with axes in the ratio $E^{-1/2}:1:E^{1/2}$, where
+
+$$\frac{1 - E}{1 + E} = \frac{5(19\kappa + 16)}{4(\kappa + 1)\sqrt{(19\kappa)^2 + (20/N)^2}}.$$  
+
+with
+
+## $$N = a_0 G\mu/\sigma.$$
+
+The corresponding orientation at large time is given by
+
+## $$\theta = \frac{\pi}{4} + \frac{1}{2} \tan^{-1}\left(\frac{19\kappa N}{20}\right).$$
+
+## The relaxation time for the oscillations is approximately
+
+## $$\tau_r = a_0 \mu_p/\sigma.$$
+
+For the limiting cases, $N \to 0$ and $\kappa \to \infty$, Eqs. (12-47) and (12-49) reduce to equations derived by Taylor (T2, T3) for fluid particles in steady-state shear or hyperbolic flows, i.e.,
+
+as $N \to 0,$ $$\theta \approx \frac{\pi}{4}$$ and $$\frac{1 - E}{1 + E} = N\left(\frac{1 + 19\kappa/16}{1 + \kappa}\right),$$  
+
+as $\kappa \to \infty,$ $$\theta \approx \frac{\pi}{2}$$ and $$\frac{1 - E}{1 + E} = \frac{5}{4\kappa}.$$
+
+Rumscheidt and Mason (R12) proposed that breakup occurs if $N$ exceeds a critical value
+
+$$N_{\text{crit}} = \frac{1}{2}\left(\frac{1 + \kappa}{1 + 19\kappa/16}\right),$$
+
+which varies only between 0.5 and 0.42 as $\kappa$ varies from zero to infinity. The corresponding value of $E$ would be 1/3 if Eq. (12-47) continued to apply up to such aspect ratios.
+
+Experimental results show reasonable agreement with the above equations even for deformations considerably larger than those for which the theory might be expected to apply. In practice, breakup occurs for $E \leq 0.26 \pm 0.05$ (R12), whereas observed relaxation times are longer than predicted from Eq. (12-50) (T10). Experimentally no breakup occurs when $\kappa > 3$; instead a drop becomes aligned and elongated in the flow direction with its aspect ratio given approximately by Eq. (12-52). There is also a lower limit of $\kappa$ below which no breakup occurs, $\kappa = 0.005$ for simple shear fields (K1).
+
+The mode of breakup depends upon the rate at which the shear rate is applied T10). If $dG/dt$ is too large, a fluid particle develops pointed ends for $\kappa$ less than about 0.2 and fragments break off both ends. On the other hand, if $G$ is increased gradually, necking occurs in the center until rupture produces two large droplets of nearly equal size separated by tiny satellite droplets (Fig. 12.7a). With large $I/G/dt$ and 0.2 < $\kappa$ < 3, a drop is pulled out into a long thread which eventually breaks up due to Rayleigh instability (Fig. 12.7b).
+
+In the experiments referred to above, the systems were relatively free of surface-active agents and Reynolds numbers were small. Care must be exercised, therefore, when applying these results to drops or bubbles under other conditions.
+
+## D. BREAKUP IN TURBULENT FLOW FIELDS
+
+Two-phase systems are often exposed to turbulent flow conditions in order to maximize the interfacial area of the fluids being contacted. In addition, turbulence is often present in wind tunnels and other laboratory equipment, as well as in nature where it can influence breakup processes (F5). Prediction of drop or bubble sizes in turbulent contacting equipment for any geometry and operating conditions is a formidable problem, primarily because of the inherent theoretical and experimental difficulties in treating turbulent flows. To these difficulties, which exist in single phase systems, must be added the complexity of interaction of dispersed particles with turbulent flow fields.
+
+Work in this field tends to follow directly from two simple concepts proposed by Hinze (H17):
+
+(a) The total local shear stress, $\tau$, imposed by the continuous phase acts to eform a drop or bubble, and to break it if the counterbalancing surface tension forces and viscous stresses inside the fluid particle are overcome. The condition or breakup is then:
+
+$$\tau > (\sigma + \mu_p \sqrt{\tau/\rho_p})/d_e.$$  
+
+## (12-54)
+
+(b) Only the energy associated with eddies with length scales smaller than is available to cause splitting; larger eddies merely transport the drop or bubble. Hence, the turbulent energy available to cause breakup of a fluid article of diameter $d_e$ is given by
+
+$$\frac{\pi}{6} \rho d_e^3 \int_1^{\infty} E(k')dk'$$
+
+where $k'$ is the wavenumber and $E(k')$ the energy spectrum.
+
+Equation (12-54) leads to a prediction of a critical (or “maximum stable”) ze if $\tau$ can be evaluated. For example, Hughmark (H24) applied Eq. (12-54) with some success to experimental data obtained in fully developed turbulent pipe flow by Paul and Sleicher (P1, S18). These workers arbitrarily specified the maximum stable size as that for which 20% breakage occurs. It was found that drops usually split into two daughters of approximately equal size, though much smaller drops were stripped off larger ones in some cases. There is some evidence (C7, S18) that most of the breakup occurs in the wall region of the pipe, where it is possible for the time-mean velocity gradients to cause distortion and breakup as discussed in the previous subsection. For developing pipe flow, on the other hand, breakup tends to occur near the center of the pipe, and may be due to pressure fluctuations which cause one or two small fluid particles to detach from the original particle (S23).
+
+Concept (b) is less useful, except in rare cases where the energy spectrum has been measured. It is common to assume that the turbulence is homogeneous and isotropic and that the eddies in question are in the inertial $(-5/3)$ power subrange. This assumption is unlikely to be valid in an overall sense though it may be reasonable locally (G10) or for the high wavenumber (small) eddies which are of primary interest. For an example of the application of the theory, see Middleman (M13).
+
+There is little evidence showing the mode of breakup in turbulent flow fields. Hinze (H17) speaks of a “bulgy” mode of breakup. Published photographs (C7, T12) show highly deformed bubbles and necking drops, protuberances and cell-like surface structures (see Fig. 12.8). Experimental evidence regarding single bubbles and drops in well-characterized turbulent fields would be most welcome.
+
+---
+
+## E. BREAKUP OF DROPS IN AIR BLASTS
+
+Break up of drops accelerated by air blasts (including shock waves) can occur by an "inverted bag" mechanism similar to that described in Section A above, for $E_{oac} = \dot{U}\Delta\rho d_e^2/\sigma$ between about 16 and 10$^5$ (H1, H2, H4, L6). Reichman and Temkin (R7) give a detailed description of four stages of bag-type breakup. Under some circumstances, deformation preceding breakup appears more like a parasol than an inflating bag (S12). The distance $x$ moved by the drop is given approximately by
+
+## $$x/a_0 = 1.6T^2,$$
+
+## (12-55)
+
+where $a_0$ is the radius of the drop before exposure to the air blast,
+
+$$T = tu/2a_0^{1/2}$$
+
+## (12-56)
+
+is a dimensionless time, and $u$ is the air velocity (R8, S13). Equation (12-55), corresponds to constant acceleration with a $C_D$ value of 2.1. A criterion for breakup has been derived based on a critical thickness beyond which deformation is irreversible (R7). For water drops accelerated by a shock wave of velocity $t$, breakup occurs for
+
+## $$We = u^2d_e\rho/\sigma \geq 6.5.$$
+
+## (12-57)
+
+For higher accelerations with $10^2 < E_{oac} < 10^5$, liquid tends to be stripped from the surface of the drop as a spray (F2, R3, T5), this phenomenon usually being called "boundary layer stripping." The time for the drop to disintegrate completely by this stripping mechanism is of order $T = 3.5$ (R8). Breakup becomes increasingly chaotic with increasing $E_{oac}$. For $E_{oac}$ of order $10^5$ and higher, the drop tends to shatter due to development of a series of indentations on the windward surface (R8), in a time interval given approximately by
+
+$$T_{crit} = 45We^{-1/4}.$$
+
+(12-58)
+
+## for theoretical analyses of instability of accelerating drops, see (H6, K11, T5).
+
+2. OTHER CAUSES OF BREAKUP
+
+Breakup of water drops due to strong electrical forces has been studied in connection with rain phenomena [e.g. (A4, L8, L9, M4, M7)]. As a strong electrical field is imposed on a freely falling drop, marked elongation occurs in the direction of the field and can lead to stripping of charge-bearing liquid.
+
+A simple criterion derived by Taylor (T6) can be used to predict the critical condition for instability. It has also been shown (W6) that soap bubbles can be rendered unstable by electric fields.
+
+Raindrop breakup also occurs when drops collide, and this has been studied by a number of workers [see (M8)]. It is probable that the collision mode of
+
+## REFERENCES
+
+A1. Acrivos, A., Proc. Int. Colloq. Drops Bubbles, Calif. Inst. Technol. Jet Propul. Lab. 2, 390-404 (1974).
+A2. Andreini, R J., Foster, J S., and Callan, R W., Metall. Trans. 8B, 625-631 (1977).
+A3. Apfel, R E., Proc. Int. Colloq. Drops Bubbles, Calif. Inst. Technol. Jet Propul. Lab. 1, 246-265 (1974).
+A4. Ausman, E L., and Brook, M., J. Geophys. Res. 72, 6131-6135 (1967).
+B1. Bankoff, S G., Adv. Chem. Eng. 6, 1-60 (1966).
+B2. Bellman, R, and Pennington, R H, Q. Appl. Math. 12, 151-162 (1954).
+B3. Birkhoff, G, and Zarantello, E H., “Jets, Wakes, and Cavities.” Academic Press, New York, 1957.
+B4. Bloore, P. D., and Botterill, J S. M., Nature (London) 190, 250-251 (1961).
+B5. Bondarev, G S., and Romanov, V F., Khim. Tekhnol. Topl. Masel No. 2, 40-43 (1973).
+B6. Brodkey, R S., “The Phenomena of Fluid Motions.” Addison-Wesley, Reading, Massachusetts, 1967.
+B7. Buckmaster, J D., J. Appl. Mech. 95, 18-24 (1973).
+B8. Buehl, W M., and Westwater, J W., AIChE J. 12, 571-576 (1966).
+B9. Burkholder, H C, and Berg, J C., AIChE J. 20, 863-880 (1974).
+B10. Byers, H R., Ind. Eng. Chem. 57(11), 32-40 (1965).
+C1. Chuang, S C., and Goldschmidt, V W., J. Basic Eng. 92, 705-711 (1970).
+C2. Clift, R, and Grace, J R., Chem. Eng. Sci. 27, 2309-2310 (1972).
+C3. Clift, R, Grace, J R, and Weber, M E., Ind. Eng. Chem., Fundam. 13, 45-51 (1974).
+C4. Cole, R., Adv. Heat Transfer 10, 86-166 (1974).
+C5. Cole, R.H., “Underwater Explosions.” Dover, New York, 1965.
+C6. Collins, R, Chem. Eng. Sci. 20, 851-855 (1965).
+C7. Collins, S B., and Knudsen, J G., AIChE J. 16, 1072-1080 (1970).
+C8. Cox, R G., J. Fluid Mech. 37, 601-623 (1969).
+C9. Crabtree, J R., and Bridgewater, J., Chem. Eng. Sci. 22, 1517-1520 (1967).
+D1. Damon, K G., Angelo, J B, and Park, R W., Chem. Eng. Sci. 21, 813 (1966).
+D2. Darby, R, and Haque, M S., Chem. Eng. Sci. 28, 1129-1138 (1973).
+D3. Davidson, J F, and Harrison, D., “Fluidised Particles.” Cambridge Univ. Press, London and New York, 1963.
+D4. Davidson, J F, and Kirk, F A., Chem. Eng. Sci. 24, 1529-1530 (1969).
+D5. Davidson, J F, and Schüler, B O G., Trans. Inst. Chem. Eng. 38, 144-154 (1960).
+D6. Davidson, J F, and Schüler, B O G., Trans. Inst. Chem. Eng. 38, 335-342 (1960).
+D7. Davidson, L, and Amick, E H., AIChE J. 2, 337-342 (1956).
+D8. Davies, J T., and Rideal, E K., “Interfacial Phenomena.” Academic Press, New York, 1963.
+
+---
+
+12. Formation and Breakup of Fluid Particles
+
+D9. De Chazal, L. E. M., and Ryan, J. T., AIChE J. 17, 1226-1229 (1971).
+E1. Elzinga, E. R., and Banchero, J. T., AIChE J. 7, 394-399 (1961).
+F1. Finlay, B. A., Ph.D. Thesis, Univ. of Birmingham, 1957.
+F2. Fishburn, B. D., Acta Astron. I, 1267-1284 (1974).
+F3. Flack, J. E., Kveisengen, J. I., and Nath, J. H., Science 134, 392-393 (1961).
+F4. Forster, H. K., and Zuber, N. J. Appl. Phys. 25, 474-478 (1954).
+F5. Fournier D'Albe, E. M., and Hidayetulla, M. S., Q. J. R. Meiteorol. Soc. 81, 610-613 (1955).
+F6. Fraser, R. P., and Eisenklam, P., Trans. Inst. Chem. Eng. 34, 294-319 (1956).
+G1. Garner, F. H., and Kendrick, P., Trans. Inst. Chem. Eng. 37, 155-163 (1959).
+G2. Giffen, E., and Muraszen, A., "Atomization of Liquid Fuels." Chapman & Hall, London, 1953.
+G3. Gillespie, T., and Rideal, E., J. Colloid Sci. 10, 281-298 (1955).
+G4. Glass, D. H., Ph.D. Thesis, Cambridge Univ., 1967.
+G5. Grace, J. R., Wairegi, T., and Brophy, J., Can. J. Chem. Eng. 56, 3-8 (1978).
+G6. Green, H., and Lane, W., "Particulate Clouds: Dusts, Smokes and Mists," 2nd ed. Van Nostrand, Princeton, New Jersey, 1964.
+G7. Grigar, K., Prochazka, J., and Landau, J., Chem. Eng. Sci. 25, 1773-1783 (1970).
+G8. Grigar, K., Prochazka, J., and Landau, J., Collect. Czech Chem. Commun. 37, 1943-1951 (1972).
+G9. Groothuis, H., and Kramers, H., Chem. Eng. Sci. 4, 17-25 (1955).
+G10. Guenkel, A., Ph.D. Thesis, McGill University, Montreal, 1973.
+G11. Gunn, R., J. Geophys. Res. 54, 383-385 (1949).
+H1. Haas, F. C., AIChE J. 10, 920-924 (1964).
+H2. Habler, G., Forsch. Ingenieures. 38, 183-192 (1972).
+H3. Halligan, J. E., and Burkhart, L. E., AIChE J. 14, 411-414 (1968).
+H4. Hanson, A. R., Domich, E. G., and Adams, H. S., Phys. Fluids 6, 1070-1080 (1963).
+H5. Harkins, W. D., and Brown, F. E., J. Am. Chem. Soc. 41, 499-524 (1919).
+H6. Harper, E. Y., Grube, G. W., and Chang, J., J. Fluid Mech. 52, 565-591 (1972).
+H7. Harrison, J. L., Trans. Inst. Chem. Eng. 39, 409-414 (1961).
+H8. Hayes, W. B., Hardy, B. W., and Holland, C. D., AIChE J. 5, 319-324 (1959).
+H9. Hayworth, C. B., and Treybal, R. E., Ind. Eng. Chem. 42, 1174-1181 (1950).
+H10. Heertjes, P. M., and De Nie, L. H., Chem. Eng. Sci. 21, 755-768 (1966).
+H11. Heertjes, P. M., and De Nie, L. H., in "Recent Advances in Liquid-Liquid Extraction" (C. Hanson, ed.), pp. 367-406. Pergamon, Oxford, 1971.
+H12. Heertjes, P. M., and De Nie, L. H., Chem. Eng. Sci. 26, 697-703 (1971).
+H13. Heertjes, P. M., De Nie, L. H., and DeVries, H. J., Chem. Eng. Sci. 26, 441-459 (1971).
+H14. Henriksen, H. K., and Ostergaard, K., Chem. Eng. Sci. 29, 626-629 (1974).
+H15. Hidy, G. M., ed., "Aerosols and Atmospheric Chemistry." Academic Press, New York, 1972.
+H16. Hidy, G. M., and Brock, J. R., "The Dynamics of Aerocolloidal Systems." Pergamon, Oxford, 1970.
+H17. Hinze, J. O., AIChE J. 1, 289-295 (1955).
+H18. Holl, J. W., J. Basic Eng. 92, 681-688 (1970).
+H19. Hozawa, M., and Tadaki, T., Kagaku Kogaku 37, 827-833 (1973).
+H20. Hsieh, D. Y., J. Basic Eng. 87, 991-1005 (1965).
+H21. Hsiung, T. P., M. Eng. Thesis, McGill University, Montreal, 1974.
+H22. Hu, S., and Kintner, R. C., AIChE J. 1, 42-50 (1955).
+H23. Hughes, R. R., Handlos, A. E., Evans, H. D., and Maycock, R. L., Chem. Eng. Prog. 51, 557-563 (1955).
+H24. Hughmark, G. A., AIChE J. 17, 1000 (1971).
+H25. Humphrey, J. A. C., Hummel, R. L., and Smith, J. W., Can. J. Chem. Eng. 52, 449-456 (1974).
+
+H26. Humphrey, J. A. C., Hummel, R. L., and Smith, J. W., Chem. Eng. Sci. 29, 1496-1499 (1974).
+J1. Jackson, R., Chem. Engr. No. 178, 107-118 (1964).
+J2. Jeffreys, G. V., Chem. and Process Eng. (London) 49(11), 111-122 (1968).
+K1. Karam, H. J., and Bellinger, J. C., Ind. Eng. Chem., Fundam. 7, 576-581 (1968).
+K2. Kehat, E., and Sideman, S., in "Recent Advances in Liquid-Liquid Extraction" (C. Hanson, ed.). pp. 455-494. Pergamon, Oxford, 1971.
+K3. Kennedy, T. D. A., and Collier, J. G., Symp. Multi-Phase Flow Syst., Paper J4, I. Chem. E. Symp. Ser. No. 38 (1974).
+K4. Khurana, A. K., and Kumar, R., Chem. Eng. Sci. 24, 1711-1723 (1969).
+K5. Kiang, C. S., Stauffer, D., Mohnen, V. A., Hamill, P., and Walker, G. H., Proc. Int. Colloq. Drops Bubbles, Calif. Inst. Technol. Jet Propul. Lab. 2, 506-528 (1974).
+K6. Kintner, R. C., Adv. Chem. Eng. 4, 51-94 (1963).
+K7. Kintner, R. C., Horton, T. J., Graumann, R. E., and Amberkar, S., Can. J. Chem. Eng. 39, Nostrand, Princeton, New Jersey, 1964.
+K8. Klett, J. D., J. Atmos. Sci. 28, 646-647 (1971).
+K9. Kohli, A., Ph.D. Thesis, Univ. of Maryland, College Park, 1974.
+K10. Komabayasi, M., Gonda, K., J. Meteorol. Soc. Jpn. 42, 330-340 (1964).
+K11. Korner, W., Acta Mech. 13, 87-115 (1972).
+K12. Krishna, P. M., Venkateswarlu, D., and Narasimhamurty, G. S. R., J. Chem. Eng. Data 4, 336-343 (1959).
+K13. Krishnamurthi, S., Kumar, R., and Kuloor, N. R., Ind. Eng. Chem., Fundam. 7, 549-554 (1968).
+K14. Kumar, R., Chem. Eng. Sci. 26, 177-184 (1971).
+K15. Kumar, R., and Kuloor, N. R., Adv. Chem. Eng. 8, 256-368 (1970).
+K16. Kumar, R., and Kuloor, N. R., Can. J. Chem. Eng. 48, 383-388 (1970).
+K17. Kuperberg, A., and Jameson, G. J., Trans. Inst. Chem. Eng. 47, 241-250 (1969).
+K18. Kuperberg, A., and Jameson, G. J., Trans. Inst. Chem. Eng. 48, 140-150 (1970).
+L1. Lamb, H., "Hydrodynamics," 6th ed. Cambridge Univ. Press, London, 1932.
+L2. Lanauze, R. D., and Harris, I. J., Trans. Inst. Chem. Eng. 52, 337-348 (1974).
+L3. Lanauze, R. D., and Harris, I. J., Chem. Eng. Sci. 27, 2102-2105 (1972).
+L4. Lanauze, R. D., and Harris, I. J., Chem. Eng. Sci. 29, 1663-1668 (1974).
+L5. Lando, J. H., and Oakley, H. T., J. Colloid Interface Sci. 25, 526-530 (1967).
+L6. Lane, W. R., Ind. Eng. Chem. 43, 1312-1317 (1951).
+L7. Lane, W. R., and Green, H. L., in "Surveys in Mechanics" (G. K. Batchelor and R. M. Davies, eds.). pp. 162-215. Cambridge Univ. Press, London and New York, 1956.
+L8. Latham, Q. J. R. Meteorol. Soc. 91, 87-90 (1965).
+L9. Latham, J., and Myers, V. J. Geophys. Res. 75, 515-520 (1970).
+L10. Lauterborn, W., and Bolle, H., Proc. Int. Colloq. Drops Bubbles, Calif. Inst. Technol. Jet Propul. Lab. 2, 322-337 (1974).
+L11. Lee, H. C., IBM J. Res. Dev. 19, 364-369 (1974).
+L12. Lehrer, I. H., Isr. J. Technol. 13, 246-252 (1975).
+L13. Lin, T. J., and Donnelly, H. G., AIChE J. 12, 563-571 (1966).
+L14. Liu, B. Y. H., ed., "Fine Particles: Aerosol Generation, Measurement, Sampling and Analysis." Academic Press, New York, 1976.
+M1. Magarvey, R. H., and Taylor, B. W., J. Appl. Phys. 27, 1129-1135 (1956).
+M2. Marmur, A., and Rubin, E., Chem. Eng. Sci. 31, 453-463 (1976).
+M3. Mason, B. J., Endeavour 23, 136-141 (1964).
+M4. Matthews, B. J., J. Geophys. Res. 72, 3007-3013 (1967).
+M5. McCann, D. J., and Prince, R. G. H., Chem. Eng. Sci. 24, 801-814 (1969).
+M6. McCann, D. J., and Prince, R. G. H., Chem. Eng. Sci. 26, 1505-1512 (1971).
+M7. McDonald, J. E., J. Meteorol. 11, 478-494 (1954).
+
+---
+
+12. Formation and Breakup of Fluid Particles
+
+S9. Sevik, M., and Park, S. H., J. Fluids Eng. 95, 53-60 (1973).
+S10. Sideman, S., Adb. Chem. Eng. 6, 207-286 (1966).
+S11. Siemes, W., and Kauffmann, J. F., Chem. Eng. Sci. 5, 127-139 (1956).
+S12. Simpkins, P. G., Proc. Int. Colloq. Drops Bubbles, Calf. Inst. Technol. Jet Propul. Lab. 2, 372-389 (1974).
+S13. Simpkins, P. G., and Bales, E. L., J. Fluid Mech. 55, 629-639 (1972).
+S14. Siskovic, N., and Narsimhan, G., Proc. Chemeca 70, Butterworths, Melbourne, 1, 63-75 (1970).
+S15. Skelland, A. H. P., and Caenepeel, C. L., AIChE J. 18, 1154-1163 (1972).
+S16. Skelland, A. H. P., and Hemler, C. L., Unpublished work, Univ. of Notre Dame, South Bend, Indiana; cited in Skelland, A. H. P., “Diffusional Mass Transfer,” Ch. 8. Wiley, New York, 1974.
+S17. Skelland, A. H. P., and Minhas, S. S., AIChE J. 17, 1316-1324 (1971).
+S18. Sleicher, C. A., AIChE J. 8, 471-477 (1962).
+S19. Soo, S. L., “Fluid Dynamics of Multiphase Systems.” Ginn (Blaisdell), Boston, Massachusetts, 1967.
+S20. Srikrishna, M., and Narasimhamurty, G. S. R., Indian Chem. Eng. 13, 4-11 (1971).
+S21. Strube, H. W., Acustica 25, 289-303 (1971).
+S22. Sullivan, S. L., Hardy, B. W., and Holland, C. D., AIChE J. 10, 848-854 (1964).
+S23. Swartz, J. E., and Kessler, D. P., AIChE J 16, 254-260 (1970).
+S24. Swope, R. D., Can. J. Chem. Eng. 49, 169-174 (1971).
+S25. Szekely, J., and Themelis, N. J., “Rate Phenomena in Process Metallurgy.” Wiley (Inter-science), New York, 1971.
+T1. Takahashi, T., and Yoshiro, K., Kagaku Kogaku 36, 527-533 (1972).
+T2. Taylor, Sir G. I., Proc. R. Soc., Ser. A 138, 41-48 (1932).
+T3. Taylor, Sir G. I., Proc. R. Soc., Ser. A 146, 501-523 (1934).
+T4. Taylor, Sir G. I., Proc. R. Soc., Ser. A 201, 192-196 (1950).
+T5. Taylor, Sir G. I., in “The Scientific Papers of G. I. Taylor” (G. K. Batchelor ed.), pp. 457-464, Cambridge Univ. Press, London and New York, 1963.
+T6. Taylor, Sir G. I., Proc. R. Soc., Ser. A 280, 383-397 (1964).
+T7. Tien, R. H., and Turkdogan, E. T., AIME Annu. Meet., 104th, New York, 1975.
+T8. Tomotika, S., Proc. R. Soc., Ser. A 150, 322-337 (1935).
+T9. Tory, A. C., and Haywood, K. Mech. Eng. 93, 53 (1971).
+T10. Torza, S., Cox, R. G., and Mason, S. G., J. Colloid Interface Sci. 38, 395-411 (1972).
+T11. Tovbin, M. V., Panasyuk, O. A., and Oleinik, L. N., Colloid J. USSR 27, 516-519 (1965).
+T12. Towell, G. D., Strand, C. P., and Ackerman, G. H., AIChE—I. Chem. E. Symp. Ser. No. 10, 97-105 (1965).
+V1. Valentin, F. H. H., “Absorption in Gas-Liquid Dispersions: Some Aspects of Bubble Technology.” Spon, London, 1967.
+V2. Van de Sande, E., and Smith, J. M., Chem. Eng. Sci. 28, 1161-1168 (1973).
+V3. Van Krevelen, D. W., and Hoftijzer, P. J., Chem. Eng. Prog. 46, 29-35 (1950).
+V4. Vijayan, S. Ponter, A. B., and Jeffreys, G. V., Chem. Eng. J. 10, 145-154 (1975).
+W1. Walia, D. S., and Vir D., Chem. Eng. Sci. 31, 525-534 (1976).
+W2. Walters, J. K., and Davidson, J. F., J. Fluid Mech. 12, 408-416 (1962).
+W3. Walters, J. K., and Davidson, J. F., J. Fluid Mech. 17, 321-336 (1963).
+W4. Weber, M. E., unpublished calculations, McGill Univ., Montreal (1975).
+W5. Willson, A. J., Proc. Cambridge Philos. Soc. 22, 728-730 (1925).
+W6. Wilson, C. T. R., and Taylor, Sir G. I., Proc. Cambridge Philos. Soc. 22, 728-730 (1925).
+W7. Woodward, M. C., and Stow, C. D., J. Appl. Meteorol. 14, 571-577 (1975).
+W8. Wraith, A. E., Chem. Eng. Sci. 26, 1659-1671 (1971).
+Y1. Yuen, M. C., J. Fluid Mech. 33, 151-163 (1968).
+Z1. Zettlemoyer, A. C., ed., “Nucleation.” Dekker, New York, 1969.
+Z2. Zheleznyak, A. S., J. Appl. Chem. USSR 40, 834-837 (1967).
+
+---
+
+1. What is the purpose of a data warehouse?
+2. How does a data warehouse differ from a traditional database?
+3. Describe the process of building a data warehouse.
+4. What are the key components of a data warehouse?
+5. Why is it important to maintain a well-structured data warehouse?
+6. What are some challenges in building a data warehouse?
+7. How can you ensure that your data warehouse is properly maintained?
+8. What are some best practices for maintaining a data warehouse?
+9. What are some potential risks associated with data warehousing?
+10. How can you prevent errors and miscommunications in a data warehouse?

@@ -1,0 +1,518 @@
+Source: https://www.sciencedirect.com/science/article/abs/pii/S0301932207001711
+Title: Quasi-steady shape and drag of deformable bubbles and drops - ScienceDirect
+Fetched: 2026-09-05T14:39:05.122Z
+
+[Skip to main content](https://www.sciencedirect.com/science/article/abs/pii/S0301932207001711#main) [Skip to article](https://www.sciencedirect.com/science/article/abs/pii/S0301932207001711#article)
+
+[![International Journal of Multiphase Flow](https://ars.els-cdn.com/content/image/1-s2.0-S0301932208X00059-cov200h.gif)](https://www.sciencedirect.com/journal/international-journal-of-multiphase-flow/vol/34/issue/6)
+
+## [International Journal of Multiphase Flow](https://www.sciencedirect.com/journal/international-journal-of-multiphase-flow "Go to International Journal of Multiphase Flow on ScienceDirect")
+
+Date: June 2008
+
+Pages: 523-546
+
+Volume: [Volume 34, Issue 6](https://www.sciencedirect.com/journal/international-journal-of-multiphase-flow/vol/34/issue/6 "Go to table of contents for this volume/issue")
+
+## Published by: Elsevier
+
+### Published by
+
+[![Elsevier](https://www.sciencedirect.com/us-east-1/prod/37834fd080facdba7538c37e43470f24e23b0896/image/elsevier-non-solus.svg)](https://www.sciencedirect.com/journal/international-journal-of-multiphase-flow "Go to International Journal of Multiphase Flow on ScienceDirect")
+
+Show more
+
+Review article
+
+[Get rights and content](https://s100.copyright.com/AppDispatchServlet?publisherName=ELS&contentID=S0301932207001711&orderBeanReset=true)
+
+# Review  Quasi-steady shape and drag of deformable bubbles and drops
+
+Author links open overlay panelE.Loth
+
+Show more
+
+Cite
+
+Add to Mendeley
+
+Share
+
+[10.1016/j.ijmultiphaseflow.2007.08.010](https://doi.org/10.1016/j.ijmultiphaseflow.2007.08.010)
+
+[Access through **your organization**](https://www.sciencedirect.com/user/institution/login?targetUrl=%2Fscience%2Farticle%2Fpii%2FS0301932207001711) [Purchase PDF](https://www.sciencedirect.com/getaccess/pii/S0301932207001711/purchase)
+
+More actions
+
+## Article preview
+
+- [Abstract](https://www.sciencedirect.com/science/article/abs/pii/S0301932207001711#abstracts)
+- [Section snippets](https://www.sciencedirect.com/science/article/abs/pii/S0301932207001711#section-snippets)
+- [References (57)](https://www.sciencedirect.com/science/article/abs/pii/S0301932207001711#references)
+
+## Abstract
+
+The quasi-steady shape and drag of isolated drops and bubbles are reviewed in terms of quantitative results, particularly for deformed conditions. Data in the literature were investigated to provide a comprehensive description of observed theoretical, experimental and numerical trends. New descriptions of the aspect ratio and quasi-steady [drag coefficient](https://www.sciencedirect.com/topics/engineering/drag-coefficient) were developed which approach the theoretical limits for [creeping flow](https://www.sciencedirect.com/topics/engineering/creeping-flow) and attached thin boundary layer conditions, while representing experimental data and resolved-surface simulations at other conditions (many of which are only recently available). These relationships are novel in the sense that they are formulated in terms of the local Weber and [Reynolds numbers](https://www.sciencedirect.com/topics/engineering/reynolds-number) (as well as density and [viscosity](https://www.sciencedirect.com/topics/engineering/fluid-viscosity) ratios), as opposed to static parameters only valid at [terminal velocity](https://www.sciencedirect.com/topics/earth-and-planetary-sciences/terminal-velocity) conditions (e.g. [Bond number](https://www.sciencedirect.com/topics/earth-and-planetary-sciences/bond-number) and Morton numbers). The results indicate that aspect ratio is a unique function of Weber number for fluid [particle Reynolds numbers](https://www.sciencedirect.com/topics/engineering/particle-reynolds-number) over 100 (especially for clean bubbles and liquid drops in a gas). This is consistent with theoretical results for [small deformations](https://www.sciencedirect.com/topics/physics-and-astronomy/small-deformation). General relations were developed for [minimum drag](https://www.sciencedirect.com/topics/earth-and-planetary-sciences/minimum-drag) (for a sphere) maximum drag (at maximum-deformation), from which drag increments for intermediate deformation could be defined. These increments correlated especially well with Weber number for clean bubbles and liquid drops in a gas in terms of a group parameter WeRep0.2. Further research is necessary to integrate these results with effects of neighboring fluid particles and/or walls.
+
+## Keywords
+
+Weber number
+
+;
+
+Reynolds number
+
+;
+
+Aspect ratio
+
+;
+
+Spheroid
+
+## Organizational access
+
+Get full-text access by signing in with your organisation [Access through **your organization**](https://www.sciencedirect.com/user/institution/login?targetUrl=%2Fscience%2Farticle%2Fpii%2FS0301932207001711)
+
+### Other access options
+
+[Purchase PDF](https://www.sciencedirect.com/getaccess/pii/S0301932207001711/purchase)
+
+[Need help with access?](https://service.elsevier.com/app/answers/list/c/10543/supporthub/sciencedirect/)
+
+## Section snippets
+
+### Spherical solid particles
+
+With respect to the velocities of the different phases, the particle velocity ( **v**) is defined as the translational velocity of the particle center of mass ( **x** p). The continuous-fluid velocity ( **u**) is generally defined in all areas of the domain unoccupied by particles. However, a hypothetical continuous-phase velocity can be extrapolated to the particle centroid as **u** and termed the “unhindered velocity”. The relative velocity of the particles ( **w**) is then based on the unhindered velocity, i.e.
+
+### Spherical fluid particles
+
+If the instantaneous Weber number is sufficiently low, fluid particles are generally spherical in shape. Therefore, the drag is dependent primarily on the surface conditions arising from the influence of viscosity ratio ( _μ_ = _μ_ p/ _μ_ f), density ratio ( _ρ_ = _ρ_ p/ _ρ_ f), and surfactants. If the particle is fully-contaminated, its surface can be considered as a no-slip condition. In this case, the expressions for a solid particle are appropriate. However, if the particle is pure, there is a slip flow along the
+
+### Deformed fluid particle shapes and parameters
+
+Dispersed fluid particles (bubbles and drops away from walls) can deform based on the interplay of surface tension and the fluid-dynamic stresses on the particle surface. Thus, the shape of a fluid particle is not permanent and deforms according to the local stresses imparted by the surrounding environment. The surface tension forces will always drive a free particle toward a spherical shape, whereas initial conditions and/or fluid-dynamic forces are the primary sources of non-sphericity. Fluid
+
+### Aspect ratios for clean bubbles
+
+To analyze uncontaminated fluid particles, Taylor and Acrivos (1964) considered the geometry of deformation under the assumptions of clean conditions, linearized inertial terms, and small deformations. They obtained a first-order solution for particle shape and showed that the initial deformation is consistent with that of an oblate spheroid. The resulting aspect ratio can be expressed in terms of the particle Weber number ( _We_) and a viscosity ratio function (λμ∗) asE=1-2λμ∗We1+λμ∗We≈1-3λμ∗Weλμ∗
+
+### Drag of deformed clean bubbles
+
+Increasing the bubble or drop size at terminal conditions (as in Fig. 2), will result in an increase in _Re_ p, which by itself is known to reduce _C_ D for a spherical shape, e.g. via Eqs. (7) or (11). However, if this increase in size also corresponds to a transition to an ellipsoidal shape, the increase in frontal area and an increased probability of wake separation will cause an increase in _C_ D for a given _Re_ p. As shown in Fig. 10, the combined result of these two effects can be either an increase
+
+### Aspect ratios and drag for drops in a gas
+
+For quasi-steady conditions, one can expect the shape of a drop in a gas to be dominated by the instantaneous Weber number. Unfortunately, there is no quantitative theory for deformation (or drag) for drops in a gas. This is because the flow over the surface is generally separated since the high-viscosity ratio results in nearly a no-slip boundary condition and since deformation typically occurs at _Re_ p > 1000 (Fig. 2). As such, one must rely upon empirical correlations. Experiments for drops of
+
+### Aspect ratios and drag for contaminated bubbles and drops in liquids
+
+Like drops in a gas, contaminated bubbles and drops in liquids yield a separated wake for even modest _Re_ p values so that no theoretical solutions for the deformation and drag are available, and again we must rely upon experimental evidence and empirical correlations. For the aspect ratio trends, there is reasonable correlation with Weber number for a wide variety of drop and bubble conditions as indicated in Fig. 18, whereby the results can be approximated (ca. within ±5%) asE=1-0.75tanh(0.11We)
+
+### Aspect ratios and drag for pure drops in liquids
+
+The final fluid particle condition examined for isolated drag behavior is that of pure drops in liquids. Clift et al. (1978) suggested that the aspect ratio for such particles may be related to _μ_ ∗ and Bo. However, when data is considered in terms of Weber number as in Fig. 22, no substantial dependence on viscosity ratio is observed for 0.8 < _μ_ ∗ < 2.4. When compared to other fluid particle cases, the aspect ratio trends for pure drops in a liquid ( _μ_ ∗ ∼ 1) are similar to those for contaminated
+
+### Conclusions
+
+In summary, fluid particles exhibit deformations and drags which depend strongly on Reynolds number and Weber number consistent with theoretical results. Experimental data and resolved-surface simulations agree well with available theoretical predictions (Taylor and Acrivos, 1964, Moore, 1963, Moore, 1965; and Davies and Taylor, 1950) in their respective applicable conditions. The above results also agree reasonably well with the correlations developed herein, which may be helpful to simulate
+
+## Acknowledgement
+
+The author would like to thank Mr. Chung Wang for creating several of the figures as well as assisting in the data collection and analysis. The work was supported, in part, by a grant from the National Science Foundation.
+
+## References (57)
+
+- R.M. Edge _et al._
+
+### [Motion of drops in water contaminated with a surface-active agent](https://www.sciencedirect.com/science/article/pii/000925097280085X)
+
+
+
+
+### Chem. Eng. Sci.
+
+
+
+(1972)
+
+- F. Raymond _et al._
+
+### [A numerical and experimental study of the terminal velocity and shape of bubbles in viscous liquids](https://www.sciencedirect.com/science/article/pii/S0009250999003851)
+
+
+
+
+### Chem. Eng. Sci.
+
+
+
+(2000)
+
+- G. Thorsen _et al._
+
+### [On the terminal velocity of circulating and oscillating liquid drops](https://www.sciencedirect.com/science/article/pii/0009250968870174)
+
+
+
+
+### Chem. Eng. Sci.
+
+
+
+(1968)
+
+- A. Tomiyama _et al._
+
+### [Terminal velocity of single bubbles in surface tension force dominant regime](https://www.sciencedirect.com/science/article/pii/S0301932202000320)
+
+
+
+
+### Int. J. Multiphase Flow
+
+
+
+(2002)
+
+- G.B. Wallis
+
+### [The terminal speed of single drops in an infinite medium](https://www.sciencedirect.com/science/article/pii/0301932274900032)
+
+
+
+
+### Intl. J. Multiphase Flow
+
+
+
+(1974)
+
+- K.V. Beard
+
+### Terminal velocity and shape of cloud and precipitation drops aloft
+
+
+
+
+### J. Atm. Sci.
+
+
+
+(1976)
+
+- K.V. Beard _et al._
+
+### A determination of the terminal velocity and drag of small water drops by means of a wind tunnel
+
+
+
+
+### J. Atm. Sci.
+
+
+
+(1969)
+
+- R. Bel Fdhila _et al._
+
+### Effect of surfactant on the rise of a spherical bubble at high Reynolds and Peclet numbers
+
+
+
+
+### Phys. Fluid
+
+
+
+(1996)
+
+- D. Bhaga _et al._
+
+### Bubbles in viscous liquids: shapes, wakes and velocities
+
+
+
+
+### J. Fluid Mech.
+
+
+
+(1981)
+
+- A. Blanco _et al._
+
+### The structure of the axisymmetric high Reynolds number flow around an ellipsoidal bubble of fixed shape
+
+
+
+
+### Phys. Fluid
+
+
+
+(1995)
+
+
+T. Bonometti _et al._
+
+### Transition from spherical cap to toroidal bubbles
+
+### Phys. Fluid
+
+(2006)
+
+H. Brenner _et al._
+
+### The resistance to a particle of arbitrary shape in translational motion at small Reynolds numbers
+
+### J. Fluid Mech.
+
+(1963)
+
+Clift, R., Gauvin W.H., 1970. The motion of particles in turbulent gas streams. In: Proceedings of the CHEMECA’70, vol.…
+R. Clift _et al._
+
+### Bubbles, Drops and Particles
+
+(1978)
+
+R.C. Darton _et al._
+
+### The rise of single gas bubbles in liquid fluidized beds
+
+### Trans. Inst. Chem. Eng.
+
+(1974)
+
+R. Davies _et al._
+
+### The mechanics of large bubble rising through extended liquids and though liquids in tubes
+
+### Proc. R. Soc. London
+
+(1950)
+
+P.C. Duineveld
+
+### Rise velocity and shape of bubbles in pure water at high Reynolds number
+
+### J. Fluid Mech.
+
+(1995)
+
+S. Elghobashi
+
+### On predicting particle-laden turbulent flows
+
+### Appl. Sci. Res.
+
+(1994)
+
+L.-S. Fan _et al._
+
+### Bubble Wake Dynamics in Liquids and Liquid–Solid Suspension
+
+(1990)
+
+Z.-G. Feng _et al._
+
+### Drag coefficients of viscous spheres at intermediate and high Reynolds numbers
+
+### J. Fluid Eng.
+
+(2001)
+
+J.R. Grace
+
+### Shapes and velocities of bubbles rising in infinite liquids
+
+### Trans. Inst. Chem. Eng.
+
+(1973)
+
+J.R. Grace _et al._
+
+### Shapes and velocities of single drops and bubbles moving freely through immiscible liquids
+
+### Trans. Inst. Chem. Eng.
+
+(1976)
+
+Haberman, W.L., Morton, R.K., 1953. Experimental investigation of drag and shape of air bubbles. In: David W. Taylor…
+Haberman, W.L., Morton, R.K., 1954. Experimental study of bubbles moving in liquids. American Society of Civil…
+T.Z. Harmathy
+
+### Velocity of large drops and bubbles in media of infinite or restricted extent
+
+### AIChE J.
+
+(1960)
+
+S. Hu _et al._
+
+### The fall of single drops through water
+
+### AIChE J.
+
+(1955)
+
+Ishii, M., Chawla, T.C., 1979. Local Drag Laws in Dispersed Two-Phase Flow.…
+D.D. Joseph
+
+### Rise velocity of a spherical cap bubble
+
+### J. Fluid Mech.
+
+(2006)
+
+View more references
+
+[View full text](https://www.sciencedirect.com/science/article/pii/S0301932207001711)
+
+## Recommended articles
+
+### Based on reading popularity
+
+- Research articleOpen access
+
+
+
+[Stability mechanisms of oscillating vapor bubbles in acoustic fields](https://www.sciencedirect.com/science/article/pii/S1350417717303863)
+
+YuningZhang, …, XiaozeDu
+
+Ultrasonics Sonochemistry • Volume 40, Part A • 2018 • Pages 808-814
+
+- Research article
+
+
+
+[Application of the parallel diagonal dominant algorithm for the incompressible Navier-Stokes equations](https://www.sciencedirect.com/science/article/pii/S0021999120305696)
+
+HojunMoon, …, DonghyunYou
+
+Journal of Computational Physics • Volume 423 • 2020 • Article 109795
+
+- Research article
+
+
+
+[Development of a CFD model for the simulation of a novel multiphase counter-current loop reactor](https://www.sciencedirect.com/science/article/pii/S0009250916307138)
+
+AndreasBednarz, …, AndreasJupke
+
+Chemical Engineering Science • Volume 161 • 2017 • Pages 350-359
+
+- Research article
+
+
+
+[Simultaneous biodegradability enhancement and high-efficient nitrogen removal in an innovative single stage anaerobic/anoxic/aerobic hybrid airlift bioreactor (HALBR) for composting leachate treatment: Process modeling and optimization](https://www.sciencedirect.com/science/article/pii/S1385894720331478)
+
+MahsaMirghorayshi, …, Markvan Loosdrecht
+
+Chemical Engineering Journal • Volume 407 • 2021 • Article 127019
+
+- Short communicationOpen access
+
+
+
+[Effect of the filling position and filling rate of the insulation material on the insulation performance of the hollow block](https://www.sciencedirect.com/science/article/pii/S2214157X21001866)
+
+WentaoHu, …, XiMeng
+
+Case Studies in Thermal Engineering • Volume 26 • 2021 • Article 101023
+
+- Research articleOpen access
+
+
+
+[The hybrid intelligent information system approach as the basis for cognitive architecture](https://www.sciencedirect.com/science/article/pii/S187705091832307X)
+
+ValeriyChernenkiy, …, YuriyKaganov
+
+Procedia Computer Science • Volume 145 • 2018 • Pages 143-152
+
+
+## Cited by (246)
+
+- Review article
+
+
+
+[Two-phase bubbly flow simulation using CFD method: A review of models for interfacial forces](https://www.sciencedirect.com/science/article/pii/S014919702030113X)
+
+Khan I., …, Qiu S.
+
+Progress in Nuclear Energy • Volume 125 • 2020 • Article 103360
+
+
+Show abstract
+
+
+
+
+The computational fluid dynamics (CFD) method has been widely adopted and accepted in the nuclear reactor safety analysis in the recent years. Especially, the application of computational multiphases fluid dynamics (CMFD) is very common in different industrial applications, and definitely in the pressurized water reactor (PWR). In two-phase bubbly flow simulation, the momentum exchange between the phases requires interfacial forces i.e., interfacial drag, lift, turbulent dispersion, wall lubrication, and virtual mass. In the past, numerous models were developed for these interfacial forces with reasonable accuracy. However, agreement on the generally applicable combination of models for these interfacial forces is yet to be achieved. The selection of proper models for these interfacial forces is very important to successfully predict the bubbles concentration distribution and velocity profile. Currently, the practice of interfacial forces model selection from numerous models is mostly ad-hoc based. Therefore, in this article current status of interfacial forces models within the prospect of two-phase bubbly flow CFD simulation are summarized and then parametric dependence, and ranges of applicability of these models are reviewed. Furthermore, some of the limitations of the models for these interfacial forces are determined and future recommendations are made.
+
+- Research article
+
+
+
+[Multiscale multiphase phenomena in bubble column reactors: A review](https://www.sciencedirect.com/science/article/pii/S0960148119305038)
+
+Shu S., …, Chaouki J.
+
+Renewable Energy • Volume 141 • 2019
+
+
+Show abstract
+
+
+
+
+This article presents a state-of-the-art review focusing on the current understanding of the multiscale multiphase phenomena inside Bubble Column Reactors (BCRs). Although many reviews are available on BCRs, little attention has been devoted to summarizing multiscale multiphase phenomena, which are common fundamental issues encountered in their applications. These issues range from the microscale of single bubble dynamics to the mesoscale of bubble swarms and up to the macroscale of the reactor. Understanding these phenomena in all relevant scales can help the rational design, scale-up and optimization of BCRs. The microscale bubble dynamics including the bubble shape and motion, the relevant forces involved and the single bubble mass transfer, is summarized. At the mesoscale, the hydrodynamics of a bubble swarm is influenced by the bubble-bubble or bubble-liquid interactions and hence the overall transport properties of a bubble swarm are not linearly related to that of a single bubble. The bubble swarm effect and the bubble breakage and coalescence mechanisms are discussed in detail. In the end, the macroscale or reactor scale dynamics is strongly governed by the interplay between microscale and mesoscale phenomena, but more research focusing on mesoscale phenomena will be particularly needed for improving our understanding of BCRs.
+
+- Research article
+
+
+
+[Drop deformation and breakup](https://www.sciencedirect.com/science/article/pii/S0301932214001141)
+
+Kékesi T., …, Prahl Wittberg L.
+
+International Journal of Multiphase Flow • Volume 66 • 2014
+
+
+Show abstract
+
+
+
+
+A Volume of Fluid (VOF) method is applied to investigate the deformation and breakup of an initially spherical drop in the bag- and shear breakup regimes, induced by steady disturbances. The onset of breakup is sought by studying steady-shape deformations while increasing the Weber number until breakup occurs. A parameter study is carried out applying different material properties and a wide range of drop Reynolds numbers in the steady wake regime. Density ratios of liquid to gas of 20, 40, and 80, viscosity ratios in the range 0.5–50, and Reynolds numbers between 20 and 200 are investigated for a constant Weber number of 20. The critical Weber number is found to be 12, in agreement with observations of earlier studies. For Weber number of 20 varying density, viscosity ratios and Reynolds numbers, interesting mixed breakup modes are discovered. Moreover, a new regime map including all modes observed is presented. A criterion for the transition between bag- and shear breakup is defined relating the competing inertial and shear forces appearing in the flow. Furthermore, results on breakup times and the time history of the drag coefficient are presented; the latter is concluded to be a potential parameter to indicate the occurrence of breakup.
+
+- [Bubbly and Buoyant Particle-Laden Turbulent Flows](http://www.scopus.com/scopus/inward/record.url?partnerID=10&rel=3.0.0&view=basic&eid=2-s2.0-85076702257&md5=d7b11e5357c81d821a935911e7ea86)
+
+Mathai V., …, Sun C.
+
+Annual Review of Condensed Matter Physics • Volume 11 • 2020
+
+- [On the deformation of gas bubbles in liquids](http://www.scopus.com/scopus/inward/record.url?partnerID=10&rel=3.0.0&view=basic&eid=2-s2.0-84860535471&md5=b7bfe4ef86cd7b5aab64a5e75f8fc7e)
+
+Legendre D., …, Velez-Cordero J.R.
+
+Physics of Fluids • Volume 24 • 2012 • Article 043303
+
+- [Terminal velocity and drag reduction measurements on superhydrophobic spheres](http://www.scopus.com/scopus/inward/record.url?partnerID=10&rel=3.0.0&view=basic&eid=2-s2.0-60349101431&md5=6f98a7bf9ad6f031ed928bcb5c5e29b4)
+
+McHale G., …, Newton M.I.
+
+Applied Physics Letters • Volume 94 • 2009 • Article 064104
+
+
+[View all citing articles on Scopus](http://www.scopus.com/scopus/inward/citedby.url?partnerID=10&rel=3.0.0&eid=2-s2.0-41849083000&md5=ebebd393d3d518d48780b3f75232d16c)
+
+Copyright © 2007 Elsevier Ltd. All rights reserved.
+
+Persistent link using digital object identifier (DOI)

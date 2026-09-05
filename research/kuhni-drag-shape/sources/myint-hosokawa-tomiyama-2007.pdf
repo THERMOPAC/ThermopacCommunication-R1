@@ -1,0 +1,984 @@
+Source: https://www.jstage.jst.go.jp/article/jfst/2/1/2_1_184/_pdf/-char/en
+Title: JSME-TJ
+Fetched: 2026-09-05T14:40:32.024Z
+
+# Shapes of Single Drops Rising Through ∗ Stagnant Liquids
+
+Win MYINT<sup>∗∗</sup>, Shigeo HOSOKAWA<sup>∗∗</sup> and Akio TOMIYAMA<sup>∗∗</sup>
+<sup>∗∗</sup>Kobe University, Graduate School of Science and Technology
+1-1 Rokkodai, Nada, Kobe 657–8501, Japan
+E-mail: tomiyama@mech.kobe-u.ac.jp
+
+## Abstract
+
+Shapes of single drops rising through infinite stagnant liquids under terminal conditions were measured using a high-speed camera for a wide range of fluid properties.
+Aspect ratios *E* and distortion factors γ of drops were evaluated from drop images.
+Effects of initial shape deformation, surfactants and viscosity ratio κ on *E* and γ were
+investigated. As a result, the following conclusions were obtained. (1) Initial shape
+deformation does not affect *E* and γ of single drops. (2) Addition of surfactants decreases *E* and breaks the fore-and-aft symmetry of a drop shape especially in systems
+of low Morton numbers *M*. (3) The Tadaki number *Ta*is the best dimensionless number among the Eotv ¨ os number ¨ *Eo*, the Weber number *We* and *Ta* for correlating *E*
+of drops, and an empirical correlation of *E* in terms of *Ta* was proposed for clean
+drops under the conditions of −11.6 ≤ log *M* ≤−0.9, 1.5 × 10<sup>−2</sup> ≤ *Re* ≤ 8.5 × 10<sup>2</sup>,
+1.7 × 10<sup>−2</sup> ≤ *Eo* ≤ 9.3, 7.4 × 10<sup>−3</sup> ≤ *Ta* ≤ 3.6and0.1 ≤ κ ≤ 100. (4) The viscosity
+ratio κ does not affect *E* so much but influences γ.Forκ>1, γ decreases with increasing the drop diameter, that is, the front part of a drop is flatter than the rear part. On the
+contrary, the rear part is flatter than the front part when κ<1. The fore-and-aft symmetry always holds for drops with κ ∼ 1.0. (5) Various drop shapes were presented as
+a database utilized for verification of numerical methods such as an interface tracking
+method and a boundary element method.
+
+$$
+M\leq-0.9,\;1.5\times10^{-2}\leq Re\leq8.5\times10^2
+$$
+
+$$
+1.7\times10^{-2}\leq E o\leq9.3,7.4\times10^{-3}\leq T a\leq3.6
+$$
+
+$$
+0.1\leq\kappa\leq100
+$$
+
+**_Key words_** : Drop, Shape, Aspect Ratio, Distortion Factor, Viscosity Ratio
+
+## 1. Introduction
+
+Shape of a fluid particle is of great importance in modeling particle motion and heat/mass
+transfer through its interface. Grace et al.<sup>(1)</sup> proposed a shape regime map for fluid particles
+rising or falling through stagnant liquids in terms of the Eotv ¨ os, Reynolds and Morton num-¨
+bers, *Eo*, *Re* and *M*, which are defined by
+
+$$
+E o=\frac{F_{b}}{F_{\sigma}}=\frac{g d^{2}\left|\rho_{c}-\rho_{d}\right|}{\sigma}
+$$
+
+(1)
+
+$$
+Re=\frac{F_{i}}{F_{v}}=\frac{\rho_{c}V_{T}d}{\mu_{c}}
+$$
+
+(2)
+
+$$
+M=\frac{g\mu_c^4\left|\rho_c-\rho_d\right|}{\rho_c^2\sigma^3}
+$$
+
+(3)
+
+where *F*<sub>b</sub>, *F*<sub>σ</sub>, *F*<sub>i</sub>, *F*<sub>v</sub>, g, *d*, ρ, µ, σ and *VT* are the buoyant force, the interfacial tension force,
+the inertial force, the viscous force, the gravitational acceleration, the sphere-volume equivalent diameter of a fluid particle, the density, the viscosity, the interfacial tension and the terminal velocity, respectively. The subscripts *c* and *d* denote the continuous and dispersed phases,
+respectively. Though their shape regime map provides qualitative information on shapes of
+fluid particles, quantitative information on shapes such as surface area, projected area, and
+
+$$
+F_{b},F_{\sigma},F_{i},F_{v},g,d,\rho,\mu,\sigma
+$$
+
+$$
+V_{T}
+$$
+
+<sup>∗</sup>Received 1 Dec., 2006 (No. 06-0235)
+[DOI: 10.1299/jfst.2.184]
+
+---
+
+interface curvature at the particle nose is required to model interfacial mass, momentum and
+heat transfers.
+
+As shown in Fig. 1, drop shapes in viscous and surface tension force dominant regimes
+can be represented by using two parameters, the aspect ratio *E* and the distortion factor γ,
+which are defined by
+
+$$
+E=\frac{b_{1}+b_{2}}{2a}
+$$
+
+(4)
+
+$$
+\gamma=\frac{2b_{2}}{b_{1}+b_{2}}
+$$
+
+(5)
+
+where *a* isahalfofthemajoraxis,*b₁* and *b₂* are the distances from the major axis to the
+bottom and the top of a drop, respectively.
+
+$$
+b_{1}
+$$
+
+$$
+b_{2}
+$$
+
+$ \gamma > 1 $ $ \gamma = 1 $ $ \gamma < 1 $
+
+Fig. 1 Shapes of fluid particles (C: center of gravity)
+
+Several empirical correlations have been proposed for *E*. Wellek et al.<sup>(3)</sup> proposed the
+following empirical correlation for non-oscillating drops in contaminated immiscible liquids:
+
+$$
+E=\frac{1}{1+0.091We^{0.95}}
+$$
+
+(6)
+
+where *We* is the Weber number which is defined as the ratio of inertial force *F*<sub>i</sub>to interfacial
+tension force *F*<sub>σ</sub>:
+
+$$
+We
+$$
+
+$$
+\boldsymbol{F}_{i}
+$$
+
+$$
+F_{\sigma}
+$$
+
+$$
+We=\frac{F_{i}}{F_{\sigma}}=\frac{\rho_{c}V_{T}^{2}d}{\sigma}
+$$
+
+(7)
+
+They also proposed the following correlation for low and moderate viscosity systems.
+
+$$
+E=\frac{1}{1+0.163E o^{0.757}}
+$$
+
+(8)
+
+The following correlations of *E* for drops falling through air are given in the textbook written
+by Clift et al.<sup>(2)</sup> :
+
+$$
+E=\frac{b_{1}+b_{2}}{2a}=\left\{\begin{array}{ll}1.0&Eo\leq0.4\\\frac{1.0}{1.0+0.18\left(Eo-0.4\right)^{0.8}}&0.4<Eo<8\end{array}\right.
+$$
+
+(9)
+
+Tadaki et al.<sup>(4)</sup> proposed the following correlations for shapes of single bubbles rising through
+various stagnant liquids ( 3.94 × 10<sup>−11</sup> < *M* < 2.52 × 10<sup>−4</sup>).
+
+
+$$
+(3.94\times10^{-11}<M<2.52\times10^{-4})
+$$
+
+$$
+\frac{d}{2a}=E^{1/3}=\left\{\begin{array}{ll}0.62&16.5<Ta\\1.36Ta^{-0.28}&6<Ta<16.5\\1.14Ta^{-0.176}&2<Ta<6\\1&Ta<2\end{array}\right.
+$$
+
+(10)
+
+where *Ta*is the Tadaki number defined by
+
+$$
+Ta=ReM^{0.23}
+$$
+
+(11)
+
+---
+
+Although these studies indicate that dimensionless numbers appropriate for correlating *E* may
+be either *Eo*, *We* or *Ta*, the most appropriate dimensionless number for representing *E* of
+drops in immiscible liquids has not been found out yet.
+
+$E o,\:W e$
+
+$$
+Ta,
+$$
+
+(1)
+Grace et al. pointed out that the viscosity ratio κ (=µ<sub>d</sub>/µ<sub>c</sub>)affects *E*, and proposed the
+following empirical correlation for fluid particles in water:
+
+$$
+\kappa\left(=\mu_{d}/\mu_{c}\right)
+$$
+
+$$
+E=\frac{1+0.15\kappa}{1+\kappa}E o
+$$
+
+(12)
+
+Tomiyama et al.<sup>(5)</sup> pointed out that initial shape deformation (*I*.*S*.*D*.: shape deformation just
+after the release of a fluid particle) affects *E* of single clean bubbles and a large *I*.*S*.*D*. results
+in a small *E*. However, there is little information on the effects of κ and *I*.*S*.*D*. on *E* of single
+drops.
+
+(2), (7) – (12)
+Experimental and numerical studies on the distortion factor γ or the fore-andaft symmetry of a drop shape have been also conducted. These researches have indicated the
+importance of not only external flow field but also internal circulation in a drop. This, in turn,
+implies that the viscosity ratio κ would affect γ. There is, however, few experimental data on
+γ, and therefore, the effects of κ, *I*.*S*.*D*. and surfactants on γ have not been clarified yet.
+
+In this study, shapes of single drops rising through infinite stagnant liquids under terminal
+conditions were measured by using a high-speed camera for a wide range of fluid properties.
+The aspect ratio *E* and distortion factor γ of a drop were evaluated from drop images. Effects
+of initial shape deformation, surfactants and viscosity ratio κ on *E* and γ were discussed.
+
+## 2. Experiment
+
+Experimental apparatus and instrumentations as shown in Fig. 2 were the same as those
+(13), (14)
+used in our previous experiments. Shapes of drops rising through stagnant liquids in
+a tank were recorded by using a high-speed video camera (Kodak Motion Corder Analyzer
+SR-1000, shutter speed = 1/5000 s, frame rate = 250 frame/s, 512×480 pixels). The size
+of the tank was 0.20, 0.20 and 0.69 m in width, depth and height, respectively. Silicon oil
+(Sinetsu Silicone, KF96-30 or KF96-100) was used for drops. Purified water or glycerolwater solutions were used for the continuous phase. Experiments were conducted at room
+temperature and atmospheric pressure. Experimental conditions are summarized in Table 1.
+A drop was released from a nozzle by pushing a cylinder of a syringe, which was connected
+to the nozzle as shown in Fig. 2. Various nozzles with different inner diameters (*DN* =
+1.2 − 8.0 mm) were used to release single drops of various sizes and to alter the degree of
+initial shape deformation (large initial shape deformation occurs when *d* is larger than *DN*).
+For experiments in contaminated systems, Triton X-100 (C₈H₁₇C₆H₄(OCH₂ CH₂)<sub>10</sub>OH) was
+used for surfactants, the concentration of which was 2.68×10<sup>−1</sup> mol/m³. Note that the addition
+of Triton X-100 decreases σ and increases *M*, e.g., the fluid system of σ = 49.6 × 10<sup>−3</sup> N/m
+and log *M* = −4.8 changed to that of σ = 28.8 × 10<sup>−3</sup> N/mandlog*M* = −4.1. Changes in σ
+and *M* were small in the case of a high *M* system (e.g., log *M* = −3.0).
+
+$$
+(D_{N}=
+D_{N})
+$$
+
+$$
+X-100\left(C_{8}H_{17}C_{6}H_{4}\left(OCH_{2}CH_{2}\right)_{10}OH\right)
+$$
+
+$$
+2.68\times10^{-1}mol/m^3
+$$
+
+$$
+\sigma=49.6\times10^{-3}N/m
+$$
+
+$$
+\sigma=28.8\times10^{-3}
+$$
+
+200 mm 200 mm
+690 mm
+Monitor & video recorder
+Terminal velocity
+Drop
+High speed video camera
+Nozzle
+H=400mm from nozzle tip
+Drop injector
+
+Fig. 2 Schematic of experimental apparatus
+
+---
+
+Since all the single drops in the present experiments rose rectilinearly without any shape
+oscillation and had axisymmetric shapes, sphere-volume equivalent diameters *d*, distortion
+factors γ and aspect ratios *E* were measured from images recorded by the single high-speed
+video camera. Images were taken at 400 mm above the nozzle tip, at which all drops reached
+terminal conditions. Spatial resolution of images ranged from 0.02 to 0.18 mm/pixel. Measurement uncertainties estimated at 95% confidence were 2.0, 3.0, 2.0, 0.81, 1.0 and 0.6% for
+ρ, µ, σ, *d*, *E* and γ, respectively. The details of experiments can be found in the previous
+paper<sup>(13)</sup>.
+
+$$
+\gamma,
+$$
+
+Table 1 Experimental condition
+
+| Fluid (continuous phase) | Fluid (drop) | log M | κ | ρ c (kg/m³ ) | ρ d (kg/m³ ) | µ c (m Pa·s) | µ d (m Pa·s) | σ (N/m) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Clean system |  |  |  |  |  |  |  |  |
+| Water* | KF-30 | -11.6 | 31.5 | 998 | 960 | 1.0 | 31.5 | 0.0546 |
+| Water* | KF-100 | -11.6 | 100 | 998 | 967 | 1.0 | 100 | 0.0508 |
+| GW solution** | KF-30 | -6.0 | 1.9 | 1178 | 960 | 17 | 31.5 | 0.0501 |
+| GW solution** | KF-30 | -4.8 | 0.9 | 1198 | 960 | 34 | 31.5 | 0.0496 |
+| GW solution** | KF-30 | -3.0 | 0.4 | 1221 | 960 | 87 | 31.5 | 0.0467 |
+| GW solution** | KF-100 | -3.0 | 1.1 | 1223 | 969 | 89 | 100 | 0.0466 |
+| GW solution** | KF-30 | -0.9 | 0.1 | 1246 | 960 | 280 | 31.5 | 0.0455 |
+| Contaminated system |  |  |  |  |  |  |  |  |
+| Water* | KF-30 | -10.6 | 31.5 | 998 | 960 | 1.0 | 31.5 | 0.0246 |
+| GW solution** | KF-30 | -4.1 | 0.9 | 1198 | 960 | 34 | 31.5 | 0.0288 |
+| GW solution** | KF-30 | -3.0 | 0.4 | 1221 | 960 | 87 | 31.5 | 0.0456 |
+
+$$
+\rho_{c}
+$$
+
+$$
+\rho_{d_{-}}
+$$
+
+$$
+\underline{\left(kg/m^3\right)}
+$$
+
+$$
+\mu_{c}
+$$
+
+$$
+\underline{(kg/m^3)}
+$$
+
+$$
+\mu_{d}
+$$
+
+$$
+\left[(m Pa\cdot s)\right]
+$$
+
+$$
+\left(mPa\cdot s\right)
+$$
+
+* Water was cleaned by a water purification system (Millipore Elix 3).
+
+** GW solution indicates glycerol-water solution.
+
+## 3. Results and discussions
+
+## 3.1. Effects of I.S.D., surfactants and viscosity ratio on drop shape
+
+The influence of initial shape deformation (*I*.*S*.*D*.) on drop shapes was examined using
+(13), (14)
+various nozzles with different inner diameters. In Fig. 3(a), measured aspect ratios *E*
+in clean and contaminated systems are plotted against *Eo*. For comparison, measured *E<sup>(14)</sup>*
+of single bubbles in the same Morton number system is shown in Fig. 3(b). There is a large
+scatter in *E* of bubbles in the clean system due to the difference in *I*.*S*.*D*., and the scatter
+is small in the contaminated system because of a large decay of shape oscillation caused by
+surfactants<sup>(5)</sup>. On the other hand, the scatter in *E* of drops is small not only in the contaminated
+system but also in the clean system. This might be because the viscous damping of shape
+oscillation for single drops is higher than that for single bubbles in clean systems. The effect
+of *I*.*S*.*D*. on γ is similar to that on *E* as shown in Fig. 4. That is, the scatter in γ is small
+for both clean and contaminated drops (Fig. 4(a)), whereas the scatter in γ of clean bubbles
+is large (Fig. 4(b)). These experimental data indicate that *I*.*S*.*D*. does not affect *E* and γ of
+single drops.
+
+$$
+E^{(14)}
+$$
+
+$ \kappa=0.4 $
+E
+Clean
+Contaminated
+Eo
+(a) Drop
+
+(a) Drop
+
+$E$
+$\kappa=0.0002$
+Clean
+Contaminated
+0.6
+0.7
+0.8
+0.9
+1.0
+1.1
+Eo
+(b) Bubble
+
+(b) Bubble
+
+Fig. 3 Measured aspect ratios in clean and contaminated systems
+
+---
+
+Figure 5 shows measured *E* of single drops in clean and contaminated systems under
+three different Morton number conditions. As shown in Fig. 5(a), surfactants do not affect
+*E* in the large *M* and small κ system. This is because the effect of surfactants on interfacial
+tension σ is negligible in the log *M* = −3.0 system. On the contrary, *E* of a contaminated drop
+in small *M* and large κ systems is smaller than that of a clean drop as shown in Fig. 5(b) and
+(c). Stone and Leal<sup>(6)</sup> also reported that the adsorption of surfactants on interface causes larger
+deformation. Figure 6 shows measured γ in clean and contaminated systems under the three
+conditions. Though the difference in γ between clean and contaminated systems is small in
+log *M* = −3.0 (Fig. 6(a)), the results in the lower *M* systems (Fig. 6(b) and (c)) indicate that
+γ of a clean drop takes a value closer to unity than that of a contaminated drop with the same
+diameter, that is, clean drops have better fore-and-aft symmetry than contaminated drops.
+This is due to the larger deformation (small *E*) caused by the surfactant-induced decrease in
+σ. Note that it depends on the fluid properties whether γ is larger than unity or not. These
+results indicate that the influences of surfactants on *E* and γ are mainly caused by the decrease
+in σ due to the adsorption of surfactants.
+
+$$
+\gamma
+$$
+
+κ=0.4
+γ
+Clean
+Contaminated
+Eo
+0 1 2 3 4
+0.6 0.8 1.0 1.2 1.4
+
+(a) Drop
+
+$\gamma$ κ=0.0002
+Clean Contaminated
+Eo 0 1 2 3 4
+
+(b) Bubble
+
+Fig. 4 Distortion factors in clean and contaminated systems
+
+(a) log *M*
+
+$E$
+$\kappa=0.4$
+Clean
+Contaminated
+d [mm]
+
+$E$
+$\kappa=0.9$
+Clean
+Contaminated
+d [mm]
+
+= −3.0(b)log *M*
+
+E κ=31.5
+Clean Contaminated
+d [mm]
+
+−4.8(c)log *M* −11.6
+
+Fig. 5 Measured *E* of clean and contaminated drops
+
+(a) log *M*
+
+κ=0.4
+γ
+Clean
+Contaminated
+d [mm]
+
+κ=0.9
+γ
+Clean
+Contaminated
+d [mm]
+
+= −3.0(b)log *M*
+
+κ=31.5
+γ
+Clean
+Contaminated
+d [mm]
+
+−4.8(c)log *M* −11.6
+
+Fig. 6 Measured γ of clean and contaminated drops
+
+---
+
+To examine the influence of κ on drop shapes, experiments were carried out for different
+κ systems under a constant *M* condition (log *M* = −3.0, κ = 0.4&1.1). Measured *E* and
+γ of clean drops are shown in Figs. 7 and 8, respectively. The aspect ratio decreases with
+increasing *Eo*, and there is little difference in *E* between the two κ conditions. On the contrary,
+γ for κ = 1.1 is lower than that for κ = 0.4 as shown in Fig. 8. That is, the viscosity ratio κ
+does not affect *E* but influences γ.
+
+$$
+\kappa=0.4
+$$
+
+$ \mu $ 1.0
+0.8
+0.6
+$\circ$ κ=0.4
+$\bullet$ κ=1.1
+Eo 0 1 2 3 4 5 6 7
+
+Fig. 7 *E* of clean drops in different κ systems
+(log *M* = −3.0)
+
+## 3.2. Aspect ratios in various systems
+
+$\gamma$ 1.0
+○ κ=0.4
+● κ=1.1
+Eo 0 1 2 3 4 5 6 7
+
+Fig. 8 γ of clean drops in different κ systems
+(log *M* = −3.0)
+
+Figure 9 shows all the measured aspect ratios in clean and contaminated systems together
+with Eq. (8) proposed by Wellek et al.<sup>(3)</sup> for contaminated drops rising or falling through
+stagnant liquids and with Eq. (9) proposed by Clift et al.<sup>(2)</sup> for drops falling in air. The
+measured *E* decreases with increasing *Eo* in all systems. Clean drops in small *M* systems are
+more deformed than those in large *M* systems at the same *Eo*.Since*E* depends not only on
+*Eo* but also fluid properties, Eqs. (8) and (9) are not applicable to clean systems.
+
+$ \varepsilon $ logM, κ
+-11.6, 100
+-11.6, 31.5
+-6.0, 1.9
+-4.8, 0.9
+-3.0, 1.1
+-3.0, 0.4
+-0.9, 0.1
+-----Eq. (8)
+-----Eq. (9)
+Eo 0 2 4 6 8
+
+(a) Clean systems
+
+E
+1.0
+0.8
+0.6
+0.4
+logM, κ
+○ -10.6, 31.5
+□ -4.1, 0.9
+△ -3.0, 0.4
+---Eq. (8)
+---Eq. (9)
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+Eo
+
+(b) Contaminated systems
+
+Fig. 9 Relation between measured *E* and *Eo*
+
+(a) Clean systems
+
+E
+logM, κ
+-11.6, 100
+-11.6, 31.5
+-6.0, 1.9
+-4.8, 0.9
+-3.0, 1.1
+-3.0, 0.4
+-0.9, 0.1
+Eq. (6)
+We
+
+E
+logM, κ
+-10.6, 31.5
+-4.1, 0.9
+-3.0, 0.4
+Eq. (6)
+We
+
+(b) Contaminated systems
+
+Fig. 10 Relation between measured *E* and *We*
+
+---
+
+Then the data are plotted against *We*in Fig. 10(a) and (b) together with Eq. (6) proposed
+by Wellek et al.<sup>(3)</sup>. The measured *E* monotonously decreases with increasing *We*,andthe
+scatter of data in Fig. 10 is small compared with that in Fig. 9. Therefore, *We* is one of
+appropriate dimensionless numbers for correlating *E*. Equation (6) overestimates *E* except
+for drops in the case of (log *M*,κ) = (−11.6, 100).
+
+$$
+M,\kappa)=(-11.6,100)
+$$
+
+Relations between *E* and *Ta*in clean and contaminated systems are shown in Fig. 11(a)
+and (b), respectively. Since the scatter of data in Fig. 11(a) is slightly smaller than that in
+Fig. 10(a), we can confirm that *Ta* is the more appropriate dimensionless number than *We*
+for correlating *E*. The broken curves in Fig. 11 correspond to Eq. (10) proposed by Tadaki et
+al. and the alternate long and short dash curves are drawn by using the following correlation
+proposed by Vakrushev & Efremov<sup>(15)</sup>.
+
+
+$$
+E=\left\{\begin{array}{ll}1&(Ta\leq1)\\\left[0.81+0.206\tanh\left\{2\left(0.8-\log_{10}Ta\right)\right\}\right]^3&(1\leq Ta\leq39.8)\\0.24&(Ta\geq39.8)\end{array}\right.
+$$
+
+ 1(
+(13)
+
+Since these correlations have been developed for bubbles, they cannot accurately evaluate *E*
+of drops. We therefore developed the following empirical correlation for single drops in clean
+systems:
+
+$$
+E=1-0.0487Ta-0.0289Ta^{2}
+$$
+
+(14)
+
+The above equation is applicable to clean drops under the conditions of −11.6 ≤ log *M* ≤
+−0.9, 1.5 × 10<sup>−2</sup> ≤ *Re* ≤ 8.5 × 10<sup>2</sup>,1.7 × 10<sup>−2</sup> ≤ *Eo* ≤ 9.3, 7.4 × 10<sup>−3</sup> ≤ *Ta* ≤ 3.6and
+0.1 ≤ κ ≤ 100.
+
+$$
+-11.6\leq
+$$
+
+$$
+M\leq
+$$
+
+$$
+-0.9,\:1.5\:\times\:10^{-2}\:\leq\:Re\:\leq\:8.5\:\times\:10^{2},\:1.7\:\times\:10^{-2}\:\leq\:Eo\:\leq\:9.3,\:7.4\:\times\:10^{-3}\:\leq\:Ta\:\leq\:3.6
+$$
+
+$$
+0.1\leq\kappa\leq100
+$$
+
+## 3.3. Distortion factors in various systems
+
+Distortion factors γ of single drops in clean and contaminated systems are plotted against
+*Eo* in Fig. 12 together with Clift’s correlation of γ for drops in air<sup>(2)</sup>.
+
+
+$$
+\frac{b_{2}}{b_{1}+b_{2}}=\frac{\gamma}{2}=\left\{\begin{array}{ll}0.5&E o\leq0.5\\ \frac{0.5}{1.0+0.12\left(E o-0.5\right)^{0.8}}&0.5<E o<8\end{array}\right.
+$$
+
+(15)
+
+The measured γ ranges from 0.85 to 1.2 whereas Eq. (15) gives a value lower than unity. The
+γ takes a larger value than unity for κ<1, whereas it tends to be less than unity for κ>1.
+When κ is close to unity, γ also takes a value close to unity, that is, when κ ∼ 1, a drop keeps
+the fore-and-aft symmetry irrespective of *Eo*. As shown in Fig. 12(a), under clean conditions
+with κ<1, γ can be approximately evaluated by
+
+$$
+\gamma=0.957+0.008Eo+0.002Eo^{2}
+$$
+
+(16)
+
+1.2
+Eq. (10)
+Eq. (13)
+Eq. (14)
+
+1.0
+0.8
+0.6
+logM, κ
+● -11.6, 100
+○ -11.6, 31.5
+◎ -6.0, 1.9
+□ -4.8, 0.9
+▲ -3.0, 1.1
+▲ -3.0, 0.4
+△ -0.9, 0.1
+
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+1.2
+Ta
+
+(a) Clean systems
+
+1.2
+Eq. (10)
+Eq. (13)
+Eq. (14)
+
+1.0
+E
+0.8
+0.6
+0.4
+logM, κ
+-10.6, 31.5
+-4.1, 0.9
+-3.0, 0.4
+
+0.0
+0
+1
+2
+3
+4
+Ta
+
+(b) Contaminated systems
+
+Fig. 11 Relation between *E* and *Ta*of drops in various systems
+
+---
+
+1.4
+Eq. (15)
+Eq. (16)
+
+1.2
+logM, κ
+● -11.6, 100
+○ -11.6, 31.5
+● - 6.0, 1.9
+□ - 4.8, 0.9
+▲ - 3.0, 1.1
+▲ - 3.0, 0.4
+△ - 0.9, 0.1
+
+0 2 4 6 8 10
+Eo
+
+(a) Clean systems
+
+1.4
+Eq. (15)
+Eq. (16)
+
+1.0
+logM, κ
+○ -10.6, 31.5
+□ -4.1, 0.9
+△ -3.0, 0.4
+
+0 2 4 6 8 10
+Eo
+
+(b) Contaminated systems
+
+Fig. 12 Relation between measured γ and *Eo*
+
+$$
+E o
+$$
+
+$y$
+logM, κ
+-11.6, 100
+-11.6, 31.5
+-6.0, 1.9
+-4.8, 0.9
+-3.0, 1.1
+-3.0, 0.4
+-0.9, 0.1
+
+We
+
+(a) Clean systems
+
+1.4
+1.2
+1.0
+0.8
+0.6
+0.4
+logM, κ
+-10.6, 31.5
+-4.1, 0.9
+-3.0, 0.4
+We
+
+(b) Contaminated systems
+
+Fig. 13 Relation between measured γ and *We*
+
+$$
+We
+$$
+
+Figure 13(a) shows the relation between γ and *We* in clean systems. The measured
+γ in systems of large *M* and small κ [(log *M*,κ)=(−3.0, 0.4), (−0.9, 0.1)] increases with *We*
+(γ>1). However, γ in systems of moderate *M* and κ [(log *M*,κ) = (−4.8, 0.9), (−3.0, 1.1)]
+keeps a value close to unity. That is, though drop shape changes from spherical to ellipsoidal,
+it keeps the fore-and-aft symmetry. On the contrary, γ in systems of small *M* and high κ
+[(log *M*,κ)=(−6.0, 1.9), (−11.6, 31.5), (−11.6, 100)] decreases as *We* increases. Namely, a
+spherical drop deforms and its front part becomes flat. This difference in dependence of γ
+on *We* between fluid systems would be caused by the difference in internal circulation in a
+(2), (7) – (12)
+drop. Since internal circulation is induced by viscous stress acting on interface, κ
+may play a more important role in the dependence of γ on *We* than *M*. As shown in Fig.
+13(b), γ of contaminated drops shows the same trend as that of clean drops. These results
+indicate that γ does not depend on *M* but on κ, and that it is smaller than unity for κ>1and
+larger than unity for κ<1.
+
+## 3.4. Summary of shapes on Grace diagram
+
+Figure 14 shows the relation between *Re* and *Eo* of clean drops together with representative drop shapes. Experimental data for drops with fluctuating motion are also included for
+reference. The solid and broken curves are drawn by using drag correlations for clean and
+contaminated bubbles proposed by Tomiyama et al.<sup>(16)</sup>. The alternate long and short dash
+curves correspond to an empirical correlation proposed by Win et al.<sup>(13)</sup>.The*Re* increases
+and drop shape deforms from spherical to ellipsoidal as *Eo* increases. Drop shapes obtained
+in the present study are also summarized in Appendix. These shape data can be utilized for
+verification of numerical methods such as interface tracking and boundary element methods.
+
+---
+
+$10^3$
+logM = -11.6, κ=31.5
+Clean drop[rectilinear motion]
+Clean drop[fluctuating motion]
+Clean drop[spherical-cap]
+
+$10^2$
+logM = -4.8, κ=0.9
+
+$10^1$
+logM = -3.0, κ=0.4
+
+$10^0$
+logM = -0.9, κ=0.1
+
+$10^{-1}$
+$10^{-2}$ $10^{-1}$ $10^{0}$ $10^{1}$ $10^{2}$ Eo
+
+Fig. 14 Shapes and terminal velocities of clean drops
+
+## 4. Conclusion
+
+Shapes of single drops rising through infinite stagnant liquids under terminal conditions
+were measured using a high-speed camera for a wide range of fluid properties. Aspect ratios
+*E* and distortion factors γ of drops were evaluated from drop images. Effects of initial shape
+deformation, surfactants and viscosity ratio κ on *E* and γ were investigated. As a result, the
+following conclusions were obtained.
+
+( 1 ) Initial shape deformation does not affect *E* and γ of single drops.
+
+( 2 ) Addition of surfactants decreases *E* and breaks the fore-and-aft symmetry of a drop
+shape especially in systems of low Morton numbers *M*.
+
+( 3 ) The Tadaki number *Ta*is the best dimensionless number among the Eotv ¨ os number ¨
+*Eo*, the Weber number *We* and *Ta*for correlating *E* of drops. An empirical correlation of *E*
+in terms of *Ta*was proposed for clean drops under the conditions of −11.6 ≤ log *M* ≤−0.9,
+1.5 × 10<sup>−2</sup> ≤ *Re* ≤ 8.5 × 10<sup>2</sup>,1.7 × 10<sup>−2</sup> ≤ *Eo* ≤ 9.3, 7.4 × 10<sup>−3</sup> ≤ *Ta* ≤ 3.6and0.1 ≤ κ ≤ 100.
+
+$$
+1.5\times10^{-2}\leq R e\leq8.5\times10^{2},1.7\times10^{-2}\leq E o\leq9.3,7.4\times10^{-3}\leq T a\leq3.6
+$$
+
+( 4 ) The viscosity ratio κ does not affect *E* so much but influences γ.Forκ>1, γ
+decreases with increasing the drop diameter, that is, the front part of a drop is flatter than
+the rear part. On the contrary, the rear part is flatter than the front part when κ<1. The
+fore-and-aft symmetry always holds for drops with κ ∼ 1.0.
+
+( 5 ) Various drop shapes were presented as a database utilized for verification of numerical methods.
+
+## Acknowledgements
+
+The authors gratefully acknowledge the financial support by Japan Society for the Promotion of Science (grant-in-aid for scientific research, No. 18206021).
+
+---
+
+( 1 ) Grace, J. R., Wairegi, T. and Nguyen, T.H., Shapes and velocities of single drops and
+bubbles moving freely through immiscible liquids, *Transactions of Institution of Chem-*
+*ical Engineers*, Vol. 54 (1976), pp. 167-173.
+( 2 ) Clift, R., Grace, J.R. and Weber, M.E., *Bubbles, Drops, and Particles* (1978), Academic
+Press.
+( 3 ) Wellek, R. M. and Agrawal, A. K. and Skelland, A. H. P., Shape of liquid drops moving
+in liquid media, *AIChE Journal*. Vol. 12, No. 5 (1966), pp. 854-862.
+( 4 ) Tadaki, T. and Maeda, S., On the shape and velocity of single air bubbles rising in
+various liquids, *Kagaku Kogaku*, Vol. 25 (1961), pp. 254-264.
+( 5 ) Tomiyama, A., Celata, G. P., Hosokawa, S. and Yoshida, S., Terminal velocity of single
+bubbles in surface tension force tension force dominant regime, *International Journal*
+*of Multiphase Flow*, Vol. 28, No. 9 (2002), pp. 1497-1519.
+( 6 ) Stone, H. A. and Leal, L. G., The effects of surfactants on drop deformation and breakup,
+*Journal of Fluid Mechanics*, Vol. 220 (1990), pp. 161-186.
+( 7 ) Elzinga, JR., E. R., and Banchero, J. T., Some observations on the mechanics of drops
+in liquid-liquid systems, *AIChE Journal*, Vol. 7, No. 3 (1961), pp. 394-399.
+( 8 ) Winnikow S. and Chao, B. T., Droplet motion in purified systems, *Physics of Fluids*,
+Vol. 9, No. 1 (1966), pp. 50-61.
+( 9 ) Helenbrook, B. T. and Edwards, C. F., Quasi-steady deformation and drag of uncontaminated liquid drops, *International Journal of Multiphase Flow*, Vol. 28, No. 10 (2002),
+pp. 1631-1657.
+(10) Oliver, D. L. R. and Chung, J. N., Steady flows inside and around a fluid sphere a low
+Reynolds number, *Journal of Fluid Mechanics*, Vol. 154 (1985), pp. 215-230.
+(11) Oliver, D. L. R. and Chung, J. N., Flow about a fluid sphere at low to moderate Reynolds
+number, *Journal of Fluid Mechanics*, Vol. 177 (1987), pp. 1-18.
+(12) Dandy, D. S. and Leal, L. G., Buoyancy-driven motion of a deformable drop through a
+quiescent liquid at intermediate Reynolds number, *Journal of Fluid Mechanics*, Vol. 208
+(1989), pp. 161-192.
+(13) Win Myint, Hosokawa, S. and Tomiyama, A., Terminal velocity of single drops in stagnant liquids, *Journal of Fluid Science and Technology*, Vol. 1, No. 2 (2006), pp. 72-81.
+(14) Win Myint, Tomiyama, A. and Hosokawa, S., Terminal velocities of single drops in stagnant liquids, *Annual Meeting of Japan Society of Fluid Mechanics* (2005), CD-ROM.
+(15) Vakrushev, I.A. and Efremov, G.I., Chem. Technol. Fuels Oils (USSR), 5/6, pp. 376-
+379 (1970), cited by Fan, L.S. and Tsuchiya, K., *Bubble Wake Dynamics in Liquids and*
+*Liquid-Solid Suspensions* (1990), Butterworth-Heinemann.
+(16) Tomiyama, A., Kataoka, I., Zun, I. & Sakaguchi, T., Drag coefficients of single bubbles
+under normal and micro gravity condition, *JSME International Journal, Ser. B*, Vol. 41,
+No. 2 (1998), pp. 472-479.
+
+## References
+
+---
+
+## Appendix
+
+Table A - 1 Shapes of clean drops with rectilinear motion
+
+| Condition d [mm], Eo , Re , | log M = −0.9, κ = 0.1 |  |  |  |
+| --- | --- | --- | --- | --- |
+| Condition d [mm], Eo , Re , | 1.72, 0.18, 0.02, | 2.74, 0.46, 0.06, | 6.87, 2.91, 1.03, | 10.6, 6.90, 3.43, |
+| E , γ | 1.00, 0.99 | 0.99, 0.99 | 0.96, 1.01 | 0.79, 1.12 |
+| Shape |  |  |  |  |
+| Condition log M = −3.0, κ = 0.4 |  |  |  |  |
+| d [mm], Eo , Re , 1.71, 0.16, 0.11, 4.11, 0.93, 1.57, 7.31, 2.93, 6.79, 10.5, 6.06, 14.8, |  |  |  |  |
+| E , γ 1.01, 0.97 1.00, 0.98 0.89, 1.04 0.65, 1.14 |  |  |  |  |
+| Shape |  |  |  |  |
+| Condition log M = −3.0, κ = 1.1 |  |  |  |  |
+| 4.08, 0.89, 1.25, 7.50, 3.00, 6.42, 10.0, 5.39, 12.2, d [mm], Eo , Re , 1.59, 0.14, 0.08, |  |  |  |  |
+| E , γ | 0.97, 0.95 | 0.97, 0.96 | 0.87, 0.94 | 0.69, 1.04 |
+| Shape |  |  |  |  |
+| Condition log M = −4.8, κ = 0.9 |  |  |  |  |
+| d [mm], Eo , Re , 3.32, 0.51, 4.35, 4.73, 1.04, 10.7, 7.08, 2.32, 25.3, 9.95, 4.60, 44.4, |  |  |  |  |
+| E , γ | 0.98, 0.99 | 0.94, 1.00 | 0.75, 0.99 | 0.47, 1.01 |
+| Shape |  |  |  |  |
+| Condition log M = −6.0, κ = 1.9 |  |  |  |  |
+| d [mm], Eo , Re , 1.69, 0.12, 2.00, 4.49, 0.86, 21.3, 5.14, 1.13, 29.4, 9.39, 3.77, 87.6, |  |  |  |  |
+| E , γ | 1.00, 0.97 | 0.91, 0.98 | 0.91, 0.97 | 0.47, 0.90 |
+| Shape |  |  |  |  |
+|  |  |  |  |  |
+| d [mm], Eo , Re , | 1.57, 0.02, 32.7, | 2.85, 0.06, 104, | 3.85, 0.10, 200, | 7.14, 0.35, 570, |
+| E , γ | 0.95, 0.95 | 0.97, 0.96 | 0.95, 0.95 | 0.90, 0.93 |
+| Shape |  |  |  |  |
+| Condition log M = −11.6, κ = 100 |  |  |  |  |
+| d [mm], Eo , Re , | 1.89, 0.02, 44.6, | 2.76, 0.05, 95.2, | 4.00, 0.10, 200, | 9.24, 0.54, 763, |
+| E , γ | 1.00, 0.96 | 0.99, 0.98 | 0.97, 0.96 | 0.88, 0.88 |
+| Shape |  |  |  |  |
+
+---
+
+Table A - 2 Shapes of contaminated drops with rectilinear motion
+
+| Condition | log M = −3.0, κ = 0.4 |  |  |  |
+| --- | --- | --- | --- | --- |
+| d [mm], Eo , Re , E , γ | 1.58, 0.14, 0.06, 0.97, 0.99 | 4.15, 0.99, 1.31, 0.99, 0.98 | 6.06, 2.11, 3.45, 0.91, 1.01 | 7.32, 3.08, 5.53, 0.85, 1.03 |
+| Shape |  |  |  |  |
+| Condition log M = −4.1, κ = 0.9 |  |  |  |  |
+| d [mm], Eo , Re , E , γ | 3.72, 1.10, 5.12, 0.94, 0.95 | 4.41, 1.55, 8.22, 0.90, 0.97 | 7.05, 3.96, 20.8, 0.69, 1.02 | 10.3, 8.39, 40.9, 0.43, 1.04 |
+| Shape |  |  |  |  |
+| Condition log M = −10.6, κ = 31.5 |  |  |  |  |
+| d [mm], Eo , Re , E , γ | 1.64, 0.04, 36.6, 0.95, 0.95 | 2.76, 0.11, 102, 0.92, 0.95 | 3.25, 0.15, 141, 0.90, 0.92 | 5.02, 0.37, 283, 0.82, 0.91 |
+| Shape |  |  |  |  |
+
+Table A - 3 Shapes of spherical-cap drops and oscillating drops for reference
+
+| logM, κ |  |
+| --- | --- |
+| logM, κ | -0.9, 0.1                 -3.0, 0.4                  -3.0, 0.4[Clean drop]              [Clean drop]           [Contaminated drop]12.3, 9.31, 4.78,           13.1, 9.49, 20.4,           12.1, 8.46, 17.1,0.68, 1.20                0.53, 1.16                0.56, 1.25-3.0, 1.1                 -4.8, 0.9                  -4.1, 0.9[Clean drop]              [Clean drop]           [Contaminated drop] |
+| d[mm],Eo,Re,E, γShape | -0.9, 0.1                 -3.0, 0.4                  -3.0, 0.4[Clean drop]              [Clean drop]           [Contaminated drop]12.3, 9.31, 4.78,           13.1, 9.49, 20.4,           12.1, 8.46, 17.1,0.68, 1.20                0.53, 1.16                0.56, 1.25-3.0, 1.1                 -4.8, 0.9                  -4.1, 0.9[Clean drop]              [Clean drop]           [Contaminated drop] |
+| logM, κ | -0.9, 0.1                 -3.0, 0.4                  -3.0, 0.4[Clean drop]              [Clean drop]           [Contaminated drop]12.3, 9.31, 4.78,           13.1, 9.49, 20.4,           12.1, 8.46, 17.1,0.68, 1.20                0.53, 1.16                0.56, 1.25-3.0, 1.1                 -4.8, 0.9                  -4.1, 0.9[Clean drop]              [Clean drop]           [Contaminated drop] |
+| d[mm],Eo,Re,E, γShape | 13.8, 10.2, 22.6,           12.1, 6.86, 55.4,           11.7, 10.95, 47.3,0.44, 1.30                0.40, 1.05                0.31, 1.07-6.0, 1.9          -1.6, 31.5          -0.6, 31.5          -1.6, 100[Clean drop]       [Clean drop]   [Contaminated drop]    [Clean drop]10.1, 4.32, 91.5,    8.73, 0.52, 802,     6.57, 0.66, 448,     8.57, 0.47, 710,0.43, 0.92         0.87, 0.90         0.74, 0.90         0.91, 0.93 |
+| logM, κ | 13.8, 10.2, 22.6,           12.1, 6.86, 55.4,           11.7, 10.95, 47.3,0.44, 1.30                0.40, 1.05                0.31, 1.07-6.0, 1.9          -1.6, 31.5          -0.6, 31.5          -1.6, 100[Clean drop]       [Clean drop]   [Contaminated drop]    [Clean drop]10.1, 4.32, 91.5,    8.73, 0.52, 802,     6.57, 0.66, 448,     8.57, 0.47, 710,0.43, 0.92         0.87, 0.90         0.74, 0.90         0.91, 0.93 |
+| d[mm],Eo,Re,E, γShape | 13.8, 10.2, 22.6,           12.1, 6.86, 55.4,           11.7, 10.95, 47.3,0.44, 1.30                0.40, 1.05                0.31, 1.07-6.0, 1.9          -1.6, 31.5          -0.6, 31.5          -1.6, 100[Clean drop]       [Clean drop]   [Contaminated drop]    [Clean drop]10.1, 4.32, 91.5,    8.73, 0.52, 802,     6.57, 0.66, 448,     8.57, 0.47, 710,0.43, 0.92         0.87, 0.90         0.74, 0.90         0.91, 0.93 |

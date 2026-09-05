@@ -1,0 +1,1556 @@
+Source: https://publikationen.bibliothek.kit.edu/1000161153/151144993
+Title: Microsoft Word - 2002_ETPFGM_Paper_W�rner.doc
+Fetched: 2026-09-05T14:39:17.400Z
+
+**Paper C 1**
+
+# Scaling of the velocity field induced by a bubble rising rectilinearly through liquid under variation of the gas-liquid density ratio
+
+M. Wörner
+
+*Forschungszentrum Karlsruhe GmbH, Institut für Reaktorsicherheit, Postfach 3640,*
+*76021 Karlsruhe Germany, E-mail: woerner@irs.fzk.de*
+
+## Abstract
+
+The present numerical study investigates the influence of the gas-liquid density ratio on 
+bubble shape and bubble Reynolds number (*ReB*) by 3D volume-of-fluid computations. For 
+-6
+fixed values of the Eötvös number (*Eö*<sub>B</sub> = 3.06) and the Morton number (*M* = 3.09·10) and 
+the unity viscosity ratio four cases are considered, where the liquid density is 2, 5, 10, and 50 
+times the gas density. All the simulations result in an oblate ellipsoidal bubble that rises 
+steadily on a rectilinear path. Due to the added mass force the density ratio has a notable 
+influence in the initial stage when the bubble accelerates from rest to its terminal velocity. 
+Once the bubble has reached its terminal velocity, the dependence of the bubble Reynolds 
+number and the ellipse aspect ratio on the density ratio are very weak. The computed value for 
+*ReB* agrees well with a relation derived from two-fluid wave theory that expresses *ReB* as 
+function of *EöB* and *M*. The local profile of liquid and gas velocity along a vertical line 
+through the bubbles centroid is found to be independent of the density ratio, when scaled by 
+the bubble rise velocity.
+
+$$
+(Re_{B})
+$$
+
+$$
+(E\ddot{o}_{B}=3.06)
+$$
+
+$$
+M=3.09\cdot10^{-6}
+$$
+
+$$
+Re_{B}
+$$
+
+$$
+Re_{B}
+$$
+
+$$
+E\ddot{o}_{B}
+$$
+
+## INTRODUCTION
+
+The contacting of liquid and gas bubbles is an efficient process for achieving high rates of 
+heat and/or mass transfer. As a consequence, the buoyancy-driven motion of bubbles or drops 
+is of considerable practical importance in many industrial branches, e.g. in chemical and 
+nuclear engineering. The buoyancy-driven motion of fluid particles is, however, also of great 
+scientific interest as the complex interaction of buoyancy forces, capillary forces, viscous 
+forces and inertia forces can result in various types of bubble motion (rectilinear, zig-zag, 
+spiral, irregular, ...) and bubble shapes (spherical, ellipsoidal, “wobbling”, cap-type, ...).
+
+Despite the enormous amount of research that has been devoted to the buoyancy-driven 
+motion of bubbles and drops in the past, there are still some aspects that are not fully clarified. 
+For example, the influence of the disperse-to-continuous phase density ratio as one of the 
+fundamental similarity parameters determining the shape and rise of fluid particles has 
+attracted rather little attention up to now. Associated with the development of advanced 
+methods for direct numerical simulation (DNS) of interfacial flows and the availability of 
+more and more powerful computers there is, however, an increased interest to quantify the 
+influence of the density ratio. This is because in two-phase flow a DNS is often not performed 
+for a density ratio of about 1/1000, as it is typical for air bubbles in water. Instead, in order to 
+avoid numerical problems and to minimize the computational costs, a density ratio larger than 
+1/100 is often chosen. Ye et al. [20], for example note that for a large density ratio the 
+disparity of the fluid property across the interface makes the computation stiff and often leads 
+to numerical instability. Bunner & Tryggvason [2] observe that their multi-grid solver fails to 
+converge in the solution of the pressure Poisson equation if the density ratio is very small.
+
+---
+
+They state that a SOR solver is more robust, but its use is impractical because it increases the 
+computational time required to achieve the same accuracy by one to two orders of magnitude. 
+Another drawback of density ratios substantially different from unity is the difference in 
+diffusive time scale of both phases. Wörner [18] reports that the maximum time step size 
+allowed for numerical stability of an explicit time integration scheme decreases almost linear 
+as the density ratio decreases. For all these reasons it appears favorable to perform 
+simulations with a density ratio of order 1/10 or 1/100 instead of 1/1000. This, however, 
+raises the important question to what extent results obtained from such simulations can be 
+transferred to gas-liquid systems of higher density ratio.
+
+Before we address this question by screening the relevant literature, we first recall some 
+results of similitude analysis to facilitate the understanding of what will follow. For a fluid 
+particle rising with its terminal velocity through an infinite liquid the physical quantities of 
+influence are included in the following equation [7]:
+
+$$
+F^{*}\left(g^{*},\rho_{c}^{*},\mu_{c}^{*},\sigma^{*},\rho_{d}^{*},\mu_{d}^{*},d_{V}^{*},U_{T}^{*}\right)=0.
+$$
+
+() (1)
+
+Here *ρ<sup>*</sup>* denotes the density, µ  the dynamic viscosity,<sup>*</sup> *g<sup>*</sup>* the acceleration of gravity, *σ<sup>*</sup>* is the 
+* *
+coefficient of surface tension, *d*<sub>V</sub> the volume-equivalent diameter of the fluid particle and *UT*
+is its terminal rise velocity. The indices *d* and *c* denote the dispersed and continuous phase, 
+respectively, and   is used to indicate a dimensional quantity. Similitude analysis shows that<sup>*</sup> 
+the above equation may be rewritten in terms of five independent dimensionless groups [4, 7]. 
+** * *
+For example, the bubble Reynolds number *Re* ≡ ρµ *d U*, which may be interpreted as 
+BlVTl
+non-dimensional bubble rise velocity, is a function of Morton number 
+****4*2*3 ****2*
+*Mg* ≡− ()() ρρ µ ρ σ, of bubble *Eö*tvös number Eö ≡− () ρρ*g d* σ, and of 
+lg l l BlgV
+* * * *
+the ratios of disperse-to-continuous density Γρ = *ρ*d */ρ*c an*d* vis*c*osity Γµ = µ*d /*µ*c*:
+
+$$
+\mu^{*}
+$$
+
+$$
+\rho^{*}
+$$
+
+$$
+g^{*}
+$$
+
+$$
+\sigma^{^*}
+$$
+
+$$
+d_{V}^{*}
+$$
+
+$$
+{U_{T}}^{*}
+$$
+
+$$
+Re_{B}\equiv\rho_{l}^{*}d_{V}^{*}U_{T}^{*}/\mu_{l}^{*}
+$$
+
+$$
+M\equiv(\rho_{l}^{*}-\rho_{g}^{*})g^{*}\mu_{l}^{*4}/(\rho_{l}^{*2}\sigma^{*3})
+$$
+
+$$
+E\ddot{o}_{B}\equiv\left(\rho_{l}^{*}-\rho_{g}^{*}\right)g^{*}d_{V}^{*2}/\sigma^{*}
+$$
+
+$$
+\Gamma_{\rho}=\rho_{d}^{*}/\rho_{c}^{*}
+$$
+
+$$
+\Gamma_{\mu}=\mu_{d}^{*}/\mu_{c}^{*}
+$$
+
+$$
+R e_{B}=f\left(M,E\ddot{o}_{B},\Gamma_{\rho},\Gamma_{\mu}\right).
+$$
+
+(2)
+
+Note that in Eq. (2) any of the non-dimensional groups *ReB*, *M*, *Eö*<u>B</u> can be replaced by the 
+** *2 * 2
+Weber number in virtue of the identity *We* ≡= ρσ d U Re M Eö. Here, we prefer 
+*BlVT* B B
+to use the non-dimensional groups according to Eq. (2) because in this case for all five groups 
+*
+there is only one group (*ReB*) that incorporates the rise velocity *UT* and only one group (*EöB*) 
+*
+that incorporates the equivalent diameter *d*<sub>V</sub>.
+
+$$
+Re_{B},
+$$
+
+$$
+E\ddot{o}_{B}
+$$
+
+$$
+W e_{B}\equiv\rho_{l}^{*}d_{V}^{*}U_{T}^{*2}/\sigma^{*}=R e_{B}^{2}\sqrt{M/E\ddot{o}_{B}}
+$$
+
+$$
+(Re_{B})
+$$
+
+$$
+{U_{T}}^{*}
+$$
+
+$$
+(E\ddot{o}_{B})
+$$
+
+$$
+d_{V}^{*}
+$$
+
+Experimental studies on the influence of the density ratio as a similarity parameter are 
+rare. The reason is that the density ratio is no parameter which can be easily varied in an 
+experiment, while at the same time all the other parameters are kept constant. In the course of 
+an experimental series, usually one specific continuous phase and various dispersed phases 
+are used, or vice versa. In general, by this approach together with the density ratio also the 
+viscosity ratio and the Morton number are varied. This procedure is therefore unsuited to 
+reveal the specific functional dependence of *Re*B on Γ*ρ* expressed by Eq. (2). Nevertheless, 
+Grace [7] notes that for bubbles rising in liquids Γ*ρ* and Γ*µ* tend to be very small so that the 
+density and viscosity of the dispersed phase become unimportant causing *ReB* = *f* (*M*, *EöB*).
+
+$$
+\Gamma_{\rho}
+$$
+
+$$
+Re_{B}
+$$
+
+$$
+\Gamma_{\rho}
+$$
+
+$$
+\Gamma_{\mu}
+$$
+
+$$
+Re_{B}=f(M,E\ddot{o}_{B})
+$$
+
+The specific influence of the density ratio can be investigated more easily by means of 
+numerical simulation. Dandy & Leal [6] study the steady axisymmetric motion and 
+deformation of a fluid particle in a streaming flow by a finite-difference scheme using the 
+stream function-vorticity formulation of the Navier-Stokes equation and a boundary-fitted 
+orthogonal coordinate system. The authors consider both the case of a bubble and a drop. For 
+the bubble the viscosity ratio is 1 and the values of the Reynolds and Weber number are fixed 
+to *Re*B=100, *We*B= 4, while two values of the density ratio are considered: Γ*ρ* = 0.1 and 0.01.
+
+$$
+Re_{B}=100,\;We_{B}=4
+$$
+
+$$
+\Gamma_{\rho}=0.1
+$$
+
+---
+
+For the drop they use *Re*B= 60, *We*<sub>B</sub>= 4, Γµ = 100 and the values of the density ratio are Γ*ρ* = 
+10, 100, and 1000. The authors find that the variation of the density ratio produces only a 
+slight change in shape and flow field. They state that “the only surprise is that the effect of 
+variation of the density ratio is so weak”. Recently, Ye et al. [20] developed a combined 
+Eulerian-Lagrangian method where the Navier-Stokes equation is solved on a fixed grid and 
+the interface is explicitly defined by geometric curves in the computational domain. They 
+compute the rise of an axisymmetric bubble for the same constant parameters as Dandy & 
+Leal (i.e. *Re*B= 100, *We*B= 4, Γµ = 1), but consider values of the density that span three orders 
+of magnitude: Γ*ρ* = 0.1, 0.01, 0.001. They confirm that the differences are small, but observe 
+that for the higher values of Γ*ρ* the bubble is slightly less deformed.
+
+$$
+\Gamma_{\rho}=
+Re_{B}=60,\;We_{B}=4,\;\Gamma_{\mu}=100
+$$
+
+$$
+Re_{B}=100,\;We_{B}=4,\;\Gamma_{\mu}=1
+$$
+
+$$
+\Gamma_{\rho}=0.1,0.01,0.001
+$$
+
+$$
+\Gamma_{\rho}
+$$
+
+Oka & Ishii [11] performed 3D simulations of a single bubble rising through a viscous 
+liquid in a square duct by a level-set method. They introduce the reduced Morton number 
+† †
+*MM* =−Γ (1)  and reduced Eötvös number *Eö* =−Γ *Eö* (1)  and perform simulations 
+ρ ρ
+†3 − †
+for fixed values *M* =⋅ 3.125 10, *Eö* = 20  for three different values of the density ratio Γ<sub>ρ</sub> = 
+0.02, 0.01, 0.001. They find that the effect of variation of the density ratio on the cap-type 
+bubble shape and the flow field is extremely weak when Γ<sub>ρ</sub> is smaller than 0.02. Additionally, 
+†3 −-3
+they perform a run with Γρ = 0.1 and *M* =⋅ 3.125 10 (1 − 0.1)  = 3.472·10 and 
+† † †
+Eö =−= 20 (1 0.1) 22.22. By this choice of *M* and *Eö* they take into account the effect of 
+the change of the density difference ∆*ρ<sup>*</sup>* that results from variation of the density ratio and 
+thus ensure that in all four runs the values of *M* and *Eö*<sub>B</sub> are (almost) identical. Oka & Ishii 
+[11] find that in the run with Γ<sub>ρ</sub> = 0.1 the rise velocity is about 5.5% less than in the run with 
+Γ<sub>ρ</sub> = 0.001.
+
+$$
+M^{\dagger}=M/(1-\Gamma_{\rho})
+$$
+
+$$
+E\ddot{o}^{\dagger}=E\ddot{o}/(1-\Gamma_{\rho})
+$$
+
+$$
+M^{\dagger}=3.125\cdot10^{-3},E\ddot{o}^{\dagger}=20
+$$
+
+$$
+\Gamma_{\rho}=
+0.02,0.01,0.001
+$$
+
+$$
+\Gamma_{\rho}
+$$
+
+$$
+\Gamma_{\rho}=0.1
+$$
+
+$$
+M^{\dagger}=3.125\cdot10^{-3}/(1-0.1)\quad=\quad3.472\cdot10^{-3}
+$$
+
+$$
+E\ddot{o}^{\dagger}=20/(1-0.1)=22.22
+$$
+
+$$
+M^{\dagger}
+$$
+
+$$
+E\ddot{o}^{\dagger}
+$$
+
+$$
+\Delta\rho^{*}
+$$
+
+$$
+E\ddot{o}_{B}
+$$
+
+$$
+\Gamma_{\rho}=0.1
+$$
+
+$$
+\Gamma_{\rho}=0.001
+$$
+
+Bunner & Tryggvason [2] perform simulations of 3D bubbly flow for *EöB* = 1 and *M* = 
+-6
+1.23·10 using Γ<sub>ρ</sub> = 0.02. They justify this choice by the observation that in 2D tests using 
+much smaller density ratios the effect of the density ratio and of the inertia of the fluid inside 
+the bubble is small for these values [16]. Though we note that there exist some further 
+numerical studies on the influence of the density ratio, e.g. those by Chen et al. [3] and Juncu 
+[8], we do not review these here because there together with the density ratio also the Eötvös 
+number and Morton number are varied.
+
+$$
+M=
+E\ddot{o}_{B}=1
+$$
+
+$$
+1.23\cdot10^{-6}
+$$
+
+$$
+\Gamma_{\rho}=0.02
+$$
+
+The present investigation is motivated by recent results of Sabisch [12] (see also [13]) 
+who performed 3D simulations of a single bubble rising through an initially quiescent liquid 
+within a vertical channel by the volume-of-fluid (VOF) method. For the density ratio he used 
+Γ<sub>ρ</sub> = 0.5 and for the viscosity ratio Γ<sub>µ</sub> = 1. He considered four different combinations of (*M,* 
+*EöB*) which were chosen so that from the diagram of Clift, Grace, and Weber (CGW) [5, p. 
+27] in which *ReB* is displayed as function of (*M, EöB*) a spherical, ellipsoidal, oblate spherical 
+cap, and a wobbling bubble shape should be expected. Despite the density ratio 0.5, the 
+Reynolds number, shape, rising path, and wake type of the bubble agreed qualitatively very 
+well with the diagram of CGW for all four different combinations of (*M, EöB*). Due to the 
+qualitative agreement of the bubble shape and Reynolds number computed for Γ<sub>ρ</sub> = 0.5 with 
+the diagram of CGW (deduced from experiments with Γρ≈ 0.001) for fixed values of (*M*, *EöB*) 
+one may conjecture that the dependence of the bubble Reynolds number on the density ratio is 
+weak in general, not only for Γ<sup>ρ</sup> < 0.02. In this paper results obtained by the same code as in 
+-6
+[12, 13] are presented for fixed parameters of the ellipsoidal bubble case, i.e. for *M*=3.09·10, 
+*EöB*=3.06, Γµ = 1, but for different values of the density ratio: Γρ = 0.5, 0.2, 0.1, 0.02. It will 
+be shown (see also [18]) that the density ratio is of relevance for the initial phase when the 
+bubble accelerates from rest to its terminal velocity. Once the bubble has attained its steady 
+rise velocity, both the bubble shape and bubble Reynolds number are not affected by the 
+density ratio. In broadening the analysis of [18], where we considered only the bubble rise 
+velocity as an integral quantity of the system, we now also investigate the scaling of the local 
+velocity field, both in the gas and liquid phase.
+
+$$
+\Gamma_{\rho}=0.5
+$$
+
+$$
+\Gamma_{\mu}=1
+$$
+
+$$
+E\ddot{o}_{B})
+$$
+
+$$
+Re_{B}
+$$
+
+$$
+(M,E\ddot{o}_B)
+$$
+
+$$
+(M,E\ddot{o}_B)
+$$
+
+$$
+\Gamma_{\rho}=0.5
+$$
+
+$$
+\Gamma_{\rho}\approx0.001
+$$
+
+$$
+(M,E\ddot{o}_B)
+$$
+
+$$
+\Gamma_{\rho}<0.02
+$$
+
+$$
+M=3.09\cdot10^{-6}
+$$
+
+$$
+E\ddot{o}_{B}=3.06,\Gamma_{\mu}=1
+$$
+
+$$
+\Gamma_{p}=0.5,0.2,0.1,0.02
+$$
+
+---
+
+# SIMULATION METHOD
+
+In this chapter we shortly present the governing equations and the numerical method, 
+followed by the specification of the computational configuration as well as the parameters of 
+the simulations.
+
+## Governing equations
+
+To obtain non-dimensional equations we adopt the following normalization 
+ x
+
+$$
+\vec{x}=\left(\begin{matrix}{x}\\ {y}\\ {z}\\ \end{matrix}\right)=\frac{\vec{x}^{*}}{L_{r e f}^{*}},\;\vec{u}=\frac{\vec{u}^{*}}{U_{r e f}^{*}},\;t=\frac{t^{*}U_{r e f}^{*}}{L_{r e f}^{*}},\;\rho=\frac{\rho^{*}}{\rho_{c}^{*}},\;\mu=\frac{\mu^{*}}{\mu_{c}^{*}},\;P=\frac{p^{*}-\rho_{c}^{*}\vec{g}^{*}\cdot\vec{x}^{*}}{\rho_{c}^{*}U_{r e f}^{*2}},
+$$
+
+* *
+Here, *L* and *U* are a *ref*erence length and *ref*erence velocity, respectively. Note that in 
+ref ref
+the non-dimensional pressure we account for hydrostatic effects so that the buoyancy force 
+appears in the momentum equation as a source term instead of the gravity force. In nondimensional form this results in the appearance of the Eötvös number instead of the Froude 
+number. In the context of Eq. (2) this is of certain advantage here. With the above 
+normalization, the non-dimensional volume-averaged continuity equation is given by 
+G
+∇ ⋅*u* = 0,
+
+$$
+L_{ref}^{*}
+$$
+
+$$
+\boldsymbol{U}_{ref}^{*}
+$$
+
+$$
+\nabla\cdot\vec{u}_{m}=0,
+$$
+
+(3)
+
+and the non-dimensional volume-averaged Navier-Stokes equation by 
+G
+∂ρ u G G 1 G G Eö
+()
+
+$$
+\frac{\partial\rho_{m}\vec{u}_{m}}{\partial t}+\nabla\cdot\rho_{m}\vec{u}_{m}\vec{u}_{m}=-\nabla P+\frac{1}{R e_{r e f}}\nabla\cdot\mu_{m}\left(\nabla\vec{u}_{m}+\left(\nabla\vec{u}_{m}\right)^{\mathrm{T}}\right)-\left(1-f\right)\frac{E\vec{u}_{r e f}}{W e_{r e f}}\frac{\vec{g}^{*}}{g^{*}}+\frac{\kappa\vec{n}a_{i n t}}{W e_{r e f}}.
+$$
+
+(4)
+
+G
+In the latter two equations *u*<sub>m</sub> is the non-dimensional center of mass velocity 
+GG
+
+$$
+\vec{u}_{m}
+$$
+
+$$
+\vec{u}_{m}\equiv\frac{1}{U_{r e f}^{*}}\frac{f\rho_{c}^{*}\vec{u}_{c}^{*}+(1-f)\rho_{d}^{*}\vec{u}_{d}^{*}}{f\rho_{c}^{*}+(1-f)\rho_{d}^{*}},
+$$
+
+where *f* is the volumetric fraction of the continuous (liquid) phase within the averaging 
+volume *V*, and *ρm* and *µ*m are the non-dimensional mixture density and viscosity, respectively, 
+<u>ff</u> <u>ρρ <sup>**</sup>+− (1)</u> <u>ff</u> <u>µµ <sup>**</sup>+− (1)</u>
+
+$$
+\rho_{m}
+$$
+
+$$
+\mu_{m}
+$$
+
+$$
+\rho_{_m}\equiv\frac{f\rho_{_c}^{^*}+(1-f)\rho_{_d}^{^*}}{\rho_{_c}^{^*}}=f+(1-f)\Gamma_{\rho},\quad\mu_{_m}\equiv\frac{f\mu_{_c}^{^*}+(1-f)\mu_{_d}^{^*}}{\mu_{_c}^{^*}}=f+(1-f)\Gamma_{\mu}.
+$$
+
+The last term in Eq. (4) expresses the effect of surface tension. There, *κ* is the interface 
+G
+curvature, *n* is the unit normal vector to the interface, and *a*<sub>int</sub> is the interfacial area 
+concentration within the mesh volume. The definitions of the reference Reynolds number 
+(*Reref*), reference Eötvös number (*Eöref*), and reference Weber number (*We*ref) appearing in Eq. 
+* *
+(4) are equivalent to those of *ReB*, *EöB*, and *We*<sub>B</sub> given above, but *UT* is replaced by *U* and 
+*ref*
+* *
+*d* is replaced by L. The set of equations is completed by the transport equation for the 
+*V ref*
+liquid volumetric fraction 
+∂ f G
+
+$$
+\vec{n}
+$$
+
+$$
+a_{int}
+$$
+
+$$
+(Re_{ref})
+$$
+
+$$
+(E\ddot{o}_{ref})
+$$
+
+$$
+(We_{ref})
+$$
+
+$$
+Re_{B},E\ddot{o}_{B}
+$$
+
+$$
+\mathit{We}_{B}
+$$
+
+$$
+\boldsymbol{U}_{T}^{*}
+$$
+
+$$
+\boldsymbol{U}_{ref}^{*}
+$$
+
+$$
+L_{\mathit{ref}}^{*}
+$$
+
+$$
+d_{V}^{*}
+$$
+
+$$
+\frac{\partial f}{\partial t}+\nabla\cdot\left(f\vec{u}_{m}\right)=0.
+$$
+
+(5)
+
+The derivation of the above set of volume-averaged volume-of-fluid equations is given in 
+[19]. The form of equations (3) and (4) already implies that within volume *V* both phases 
+share the same pressure and the same velocity. The latter assumption corresponds to a locally 
+homogeneous model. Equations (3) and (4) do not account for contamination of the interface 
+by surfactants. The results to be presented thus correspond to a “pure” system.
+
+## Numerical method
+
+For the solution of the *f*-equation (5) by the VOF method we have developed a new 
+algorithm called EPIRA (Exact Plane Interface Reconstruction Algorithm) [12, 13], which belongs to the class of PLIC (Piecewise Linear Interface Calculation) methods. EPIRA 
+reconstructs a plane 3D interface correctly, regardless of its orientation. The EPIRA algorithm 
+has been implemented in our in-house computer code TURBIT-VOF [12], which solves the 
+non-dimensional continuity and Navier-Stokes equations (3) and (4) together with the *f*-
+equation (5). TURBIT-VOF is designed to simulate flows in plane channels. It employs a 
+staggered grid, uniform in the *x-* and *y-*directions (parallel to the walls), but possibly nonuniform in *z-*direction (normal to the walls). A second order central difference scheme is used 
+to discretize the diffusive and non-linear convective terms in the Navier-Stokes equation. For 
+discretization of the surface tension term we refer to [13]. The solution algorithm in TURBIT-
+VOF is based on a projection method. Starting from the results at time level *n*, a predictor step 
+is performed by an explicit third order Runge-Kutta time integration scheme where the 
+pressure term is neglected. This yields an intermediate non-solenoidal velocity field. In the 
+corrector step this intermediate velocity field is projected to the divergence free velocity field 
+G<sub>n</sub><sub>+1</sub>
+*u* at the new time level *n*+1. As the pressure is treated implicitly, the corrector step 
+m
+requires the solution of the pressure Poisson equation. This is done by a conjugate gradient 
+method. For further details of the numerical method as well as for verification of the code by 
+several benchmark problems we refer to [12, 13].
+
+$$
+n,
+$$
+
+$$
+\vec{u}_{m}^{n+1}
+$$
+
+## Computational grid, boundary conditions, and initial conditions
+
+Figure 1 shows the coordinate system and a sketch of the computational domain. The *x*-, 
+*y*- and *z*-axes were assigned in vertical direction, in transverse direction, and in wall-normal 
+direction, respectively. The gravity vector points in negative *x*-direction. In *x*- and *y*-direction 
+we have periodic boundary conditions; at *z* = 0 and *z* = 1 we have rigid walls and no-slip 
+* * * * *
+boundary conditions. The size of the computational domain is *L*<sub>x</sub>× *L*<sub>y</sub>× *L*<sub>z</sub> = 2*L*<sub>ref</sub> × *L*<sub>ref</sub>× 
+*
+*L*<sub>ref</sub>. This domain is discretized by 128 × 64 × 64 uniform mesh cells resulting in ∆*x* = ∆*y* = 
+* *
+∆*z* = 0.015625. At time *t* = 0 a spherical bubble of diameter *d* = *L* 4  is positioned in the 
+V ref
+domain with its center located at (0.5, 0.5, 0.5). Thus, in terms of the bubble diameter the size 
+of the computational box is 8 × 4 × 4. The diameter of the bubble is resolved by 16 mesh 
+cells. The overall void fraction is about 0.4 %. Both, liquid and gas are initially at rest.
+
+$$
+L_{x}^{*}\times L_{y}^{*}\times L_{z}^{*}=2L_{ref}^{*}\times L_{ref}^{*}\times
+L_{\mathit{ref}}^{*}
+$$
+
+$$
+\Delta x=\Delta y=
+\Delta z=0.015625
+$$
+
+$$
+d_{V}^{*}=L_{ref}^{*}/4
+$$
+
+$$
+8\times4\times4.
+$$
+
+$g$
+x
+z
+y
+1/4
+1
+2
+
+Fig. 1: Sketch of coordinate system and computational domain.
+
+---
+
+Due to the lateral walls and because we use periodic boundary conditions in *x*- and *y*-
+direction, the physical quantities of influence given in Eq. (1) are no longer complete and do 
+not fully characterize the problem. While the only length scale in Eq. (1) is the bubble 
+diameter, we have now three additional length scales due to our finite computational domain, 
+* * *
+namely *L, L*, L. Thus, the non-dimensional groups as given b*y* Eq. (2), which only apply to 
+x y *z*
+* * * * * *
+a single bubble rising in an infinite fluid, should be extended by *d*V*L*<sub>x</sub>*,d*<sub>V</sub>*Ly,dVLz*. One 
+* * * *
+can, however, argue that with the hydraulic diameter *d* = 2*L* the ratio dVdh takes a 
+h *ref*
+value of 0.125 and thus the wall influence is alrea*d*y small [5, p. 233]. Furthermore, we will 
+restrict our analysis to the stage when the interaction with the “lea*d*ing” and “trailing” bubble 
+is small and thus stop the simulations when the bubble has risen a vertical distance of about 
+half of the height of the computational domain. The results should then be comparable to that 
+* * * * * *
+of a single bubble and altogether the influence of *d L,d L*,d L should be small. 
+V <sub>x</sub> <sub>V</sub> *y V z*
+
+$$
+L_{x}^{*},L_{y}^{*},L_{z}^{*}
+$$
+
+$$
+d_{V}^{*}/L_{x}^{*},d_{V}^{*}/L_{y}^{*},d_{V}^{*}/L_{z}^{*}
+$$
+
+$$
+d_{h}^{*}=2L_{ref}^{*}
+$$
+
+$$
+d_{V}^{*}/d_{h}^{*}
+$$
+
+$$
+d_{V}^{*}/L_{x}^{*},d_{V}^{*}/L_{y}^{*},d_{V}^{*}/L_{z}^{*}
+$$
+
+## Parameters of the simulations
+
+To set up the simulations we must specify the reference quantities *Reref*, *Eöref*, and *Weref* in 
+the Navier-Stokes equation (4). We proceed as follows. We consider fixed values for the 
+-6
+Morton number (*M* = 3.09·10), the bubble Eötvös number (*EöB* = 3.06), and the viscosity 
+* * −1 *-2
+ratio (Γµ = 1) and set *L* = 4 m, *U* = 1 ms, *g* = 9.81 ms. The only parameter we vary is 
+*ref* ref
+the density ratio Γ<sub>ρ</sub>. We then can successively compute 
+2 0.25
+
+$$
+Re_{ref},E\ddot{o}_{ref},
+$$
+
+$$
+We_{ref}
+$$
+
+$$
+M=3.09\cdot10^{-6}
+$$
+
+$$
+(E\ddot{o}_{B}=3.06)
+$$
+
+$$
+(\Gamma_{\mu}=1)
+$$
+
+$$
+L_{ref}^{*}=4m,U_{ref}^{*}=1ms^{-1},g^{*}=9.81ms^{-2}
+$$
+
+$$
+\Gamma_{\rho}.
+$$
+
+$$
+E \ddot {o} _ {r e f} = \left(\frac {L _ {r e f} ^ {*}}{d _ {V} ^ {*}}\right) ^ {2} E \ddot {o} _ {B}, \quad W e _ {r e f} = \frac {E \ddot {o} _ {r e f}}{1 - \Gamma_ {\rho}} \frac {U _ {r e f} ^ {* 2}}{g ^ {*} L _ {r e f} ^ {*}}, \quad R e _ {r e f} = \left(\frac {E \ddot {o} _ {r e f} W e _ {r e f} ^ {2}}{M}\right) ^ {0. 2 5}.
+$$
+
+In Table 1 we give the input values *Reref*, *Eöref*, and *Weref* for the different density ratios 
+considered in the present study. Additionally, we give the values of *Weref* and *Reref* for the 
+asymptotic case Γ<sub>ρ</sub>→ 0. It is important to note that in our simulations we do not specify any 
+* * * * *
+explicit values for the fluid properties  ρ*,*µ,σ,ρ,µ. From simi*l*itude analysis*,* however*,* 
+l l g g
+we know that the computed results are valid for any combination of fluid properties that 
+results in the values of *M*, *EöB*, Γρ*,* and Γµ used in the respective simulation run.
+
+$$
+Re_{ref},E\ddot{o}_{ref},
+$$
+
+$$
+We_{ref}
+$$
+
+$$
+We_{ref}
+$$
+
+$$
+Re_{ref}
+$$
+
+$$
+\Gamma_{\rho}\rightarrow0
+$$
+
+$$
+\rho_{l}^{*},\mu_{l}^{*},\sigma^{*},\rho_{g}^{*},\mu_{g}^{*}
+$$
+
+$$
+E\ddot{o}_{B},\Gamma_{\rho},
+$$
+
+$$
+\Gamma_{\mu}
+$$
+
+Table 1: Parameters of the simulations for different values of the density ratio (∆*t* is the 
+time step and *N*<sub>t</sub> is the number of time steps computed).
+
+$$
+N_{t}
+$$
+
+| Run | Γ ρ | 1 / Γ ρ | Eö ref | We ref | Re ref | t ∆ | N t |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| M2 | 0.5 | 2 | 49.05 | 2.5 | 100.0 | 0.0005 | 1,100 |
+| M5 | 0.2 | 5 | 49.05 | 1.5625 | 78.898685 | 0.0003 | 1,800 |
+| M10 | 0.1 | 10 | 49.05 | 1.3888 | 74.386394 | 0.00015 | 3,200 |
+| M50 0 | 0.02 | 50 | 49.05 | 1.2755 | 71.285586 | 0.00003 | 13,000 |
+| M50 0 |  | ∞ | 49.05 | 1.25 | 70.56913 |  |  |
+
+$$
+\underline{\Gamma_{\rho}}
+$$
+
+$$
+\underline{1\;/\;\Gamma_{\rho}}
+$$
+
+$$
+\underline{E}\ddot{o}_{\underline{ref}}
+$$
+
+$$
+\underline{We_{ref}}
+$$
+
+$$
+\underline{Re_{ref}}
+$$
+
+$$
+\Delta t
+$$
+
+$$
+\underline{N_{t}}
+$$
+
+## RESULTS
+
+To give a first impression on the computed flow field, we show in Figure 2 a visualization 
+of the bubble shape and the velocity field in plane *y* = 0.5 for simulation run M50. The 
+visualization is for time *t* = 0.381 where the vertical coordinate of the bubble center of mass is 
+*x*<sub>com</sub> = 1.5. Thus, the bubble has risen a vertical distance of four times its equivalent diameter. 
+From the left part of Figure 2 it can be seen that the bubble obeys a closed wake. From the 
+magnified detail in the right part of Figure 2 it becomes evident that the bubble has an oblate 
+ellipsoidal shape.
+
+$$
+y=0.5
+$$
+
+$$
+x_{com}=1.5
+$$
+
+---
+
+1.8
+
+Fig. 2: Instantaneous bubble surface and velocity vectors in plane *y* = 0.5 for run M50
+
+$$
+y=0.5
+$$
+
+## Bubble rise path
+
+In all the runs the bubbles rise along a vertical rectilinear path. The maximum lateral 
+*
+deviations from this rectilinear path are less than 0.1% of *L*. In Figure 3 the vertical 
+ref
+coordinate of the bubble’s center of mass, *x*<sub>com</sub>(*t*), is displayed for the different runs. It is 
+evident that for each density ratio two distinct temporal ranges do exist. In the initial range the 
+2
+bubble’s center of mass accelerates and *x*<sub>com</sub>(*t*)  ∝ *C₁t*. This initial range is followed by a 
+second range where the bubble rises steadily and *x*<sub>com</sub>(*t*) ∝ *C₂t*.
+
+$$
+L_{\mathit{ref}}^{*}
+$$
+
+$$
+x_{com}(t)
+$$
+
+$$
+x_{com}(t)\propto C_1t^2
+$$
+
+$$
+x_{com}(t)\propto C_2t
+$$
+
+$x_{com} [\cdot]$
+$\Gamma_p = 0.5$
+$\Gamma_p = 0.2$
+$\Gamma_p = 0.1$
+$\Gamma_p = 0.02$
+
+$t [-]$
+
+Fig. 3: Computed vertical position *x*<sub>com</sub>(*t*) of 
+bubble centroid for different density ratios.
+
+$Re_B$ []
+$\Gamma = 0.5$
+$\Gamma = 0.2$
+$\Gamma = 0.1$
+$\Gamma = 0.02$
+$t$ [-]
+
+$$
+x_{com}(t)
+$$
+
+Fig. 4: Temporal evolution of bubble 
+Reynolds number for different density ratios.
+
+Figure 3 shows that the lower Γρ the shorter the first range and the higher the coefficient 
+*C₁*. This observation can be explained by a balance between the sum of the unsteady and 
+inertial term and the buoyancy term which is assumed to hold in the first stage of bubble rise. 
+By this and some further assumptions, an ordinary differential equation of second order for
+
+$$
+C_{1}
+$$
+
+$$
+\Gamma_{\rho}
+$$ the temporal evolution of the bubble vertical position *x*<sub>com</sub>(*t*) was derived in [18]. Integrating 
+twice and setting the integration constants properly yields 
+**
+1 −Γ gL
+
+$$
+x_{com}(t)
+$$
+
+$$
+x _ {c o m} (t) = 0. 5 + \frac {1}{2} \frac {1 - \Gamma_ {\rho}}{C _ {A M} + \Gamma_ {\rho}} \frac {g ^ {*} L _ {r e f} ^ {*}}{U _ {r e f} ^ {* 2}} t ^ {2} = 0. 5 + C _ {1} (t) \cdot t ^ {2}.
+$$
+
+Here *CAM*  is the added mass coefficient. Using the theoretical value for a spherical bubble, 
+2
+*CAM* = 0.5, it is shown in [18] that the parabola *C₁*(Γρ) *t* is a good fit for the computed data of 
+*xcom*(*t*) in the initial stage of bubble rise (*t* ≤ 0*.*04) for all values of the density ratio.
+
+$$
+C_{AM}
+$$
+
+$$
+C_{1}(\Gamma_{\rho})t^{2}
+$$
+
+$$
+C_{AM}=0.5
+$$
+
+$$
+(t\leq0.04)
+$$
+
+$$
+x_{com}(t)
+$$
+
+## Bubble rise velocity
+
+We now consider the second range in Figure 3, where the dependence of *x*<sub>com</sub> on *t* is linear 
+and thus the bubble rise is steady. Obviously, the bubble rise velocity (the slope in Figure 3) 
+depends on the density ratio: the lower Γ<sub>ρ</sub> the higher the rise velocity. This result is consistent 
+with the observation of Oka & Ishii [11]. However, the curves displayed in Figure 3 suggest 
+that as Γ<sub>ρ</sub> approaches zero the slope will be constant and thus the bubble rise velocity 
+becomes independent from Γ<sub>ρ</sub>. Indeed, the last line in Table 1 proves that in the limit Γ<sub>ρ</sub>→ 0 
+the non-dimensional reference groups entering into the Navier-Stokes equations converge to 
+certain values. Thus, in the limit Γ<sub>ρ</sub>→ 0 the solution will become independent of Γ<sub>ρ</sub>.
+
+$$
+x_{com}
+$$
+
+$$
+\Gamma_{\rho}
+$$
+
+$$
+\Gamma_{\rho}
+$$
+
+$$
+\Gamma_{\rho}\rightarrow0
+$$
+
+$$
+\Gamma_{\rho}.
+$$
+
+We now investigate how the bubble Reynolds number depends on the density ratio. The 
+bubble Reynolds number can be evaluated via relation 
+* *
+d UB 1
+
+$$
+\Gamma_{\rho}\rightarrow0
+$$
+
+$$
+\Gamma_{\rho}.
+$$
+
+$$
+R e_{B}=\frac{d_{V}^{*}}{L_{r e f}^{*}}\frac{U_{B}^{*}}{U_{r e f}^{*}}R e_{r e f}=\frac{1}{4}U_{B}R e_{r e f},
+$$
+
+(6)
+
+where *UB* is the (non-dimensional) time derivative of *x*<sub>com</sub>(*t*). The temporal evolution of *Re*<sub>B</sub>
+for the different runs is displayed in Figure 4. We see that the curves for runs M5, M10, and 
+M50 almost coincide for *t* > 0.3. Also run M2 seems to approach the same value of *ReB* which 
+is about 56. In the inset graphic in Figure 4 it can be seen that for all runs *ReB* is still slightly 
+increasing and has not yet reached its saturation value. Nevertheless, it was decided not to 
+continue the simulations. Due to the periodic boundary conditions the results might otherwise 
+be no longer representative for the rise of a single bubble but for the rise of a train of 
+periodically released bubbles. Furthermore, due to the interaction of the bubble with the wake 
+of the leading bubble, instabilities may be triggered which may cause a non-rectilinear path. 
+Note that the rectilinear path as well as the value of *Re<sub>B</sub>* ≈ 56  computed here for a bubble 
+-6
+with *EöB* = 3.06 and *M* = 3.09·10 agree well with experimental observations for similar 
+values of (*EöB*, *M*) [5].
+
+$$
+U_{B}
+$$
+
+$$
+Re_{B}
+$$
+
+$$
+x_{com}(t)
+$$
+
+$$
+t>0.3
+$$
+
+$$
+Re_{B}
+$$
+
+$$
+Re_{B}
+$$
+
+$$
+Re_{B}\approx56
+$$
+
+$$
+E\ddot{o}_{B}=3.06
+$$
+
+$$
+M=3.09\cdot10^{-6}
+$$
+
+$$
+(E\ddot{o}_{B},M)
+$$
+
+We now compare the results obtained for the bubble Reynolds number with a semiempirical correlation. By analogy to two-fluid wave theory, which yields an expression for 
+the phase velocity of inviscid surface tension and gravity waves at a free surface, Mendelson 
+[10] proposed the following formula for the terminal rise velocity of a bubble in the surfacetension or buoyancy force dominated regime
+
+$$
+U_{T}^{*}=\sqrt{\frac{2\sigma^{*}}{\rho_{l}^{*}d_{V}^{*}}+\frac{g^{*}d_{V}^{*}}{2}}.
+$$
+
+(7)
+
+While Mendelson noted that the only justification for the above equation is how well it 
+correlates experimental data, Marrucci et al. [9] extended the formula for liquid-liquid 
+systems (i.e. a dispersed liquid drop rising in an immiscible continuous liquid) and proposed 
+* * * *
+2σ g d ∆ρ
+
+$$
+U_{T}^{*}=\sqrt{\frac{2\sigma^{*}}{\rho_{l}^{*}d_{V}^{*}}+\frac{g^{*}d_{V}^{*}\Delta\rho^{*}}{2\rho_{l}^{*}}}.
+$$
+
+(8)
+
+Here, ∆*ρ<sup>*</sup>* is the difference between the densities of the continuous and dispersed phase. From 
+Eq. (8) it is easy to show that the velocity becomes minimal when the equivalent diameter is
+
+$$
+\Delta\rho^{^*}
+$$
+
+---
+
+****
+exactly twice the Laplace length, i.e. for *dg* =Λ= 22 ( σ ∆ρ ). This condition 
+V
+corresponds to an Eötvös number of *EöB* = 4.
+
+$$
+d_{V}^{*}=2\Lambda=2\sqrt{\sigma^{*}/\left(g^{*}\Delta\rho^{*}\right)}
+$$
+
+$$
+E\ddot{o}_{B}=4
+$$
+
+Recently, Tomiyama et al. [15] gave a physical interpretation why Eq. (8) correlates 
+* * *
+experimental data so well and noted that multiplying Eq. (8) by  ρ *d* µ yields 
+*l* V l
+
+$$
+\rho_{l}^{*}d_{V}^{*}/\mu_{l}^{*}
+$$
+
+$$
+R e_{B}=\left(2+\frac{1}{2}E\ddot{o}_{B}\right)^{0.5}\left(\frac{E\ddot{o}_{B}}{M}\right)^{0.25}.
+$$
+
+(9)
+
+Thus, *ReB* is a function of *EöB* and *M* but does not depend on Γρ and Γµ. For the values *EöB* = 
+-6
+3.06 and *M* = 3.09·10 equation (9) gives *ReB* = 59.3. Thus, the value *Re* ≈ 56  obtained in 
+B
+our computational study agrees well with the above theory. Finally, we remark that from 
+equation (9) a rather simple expression for the drag coefficient results [15], which turns out to 
+be a function only of the bubble Eötvös number, namely
+
+$$
+Re_{B}
+$$
+
+$$
+E\ddot{o}_{B}
+$$
+
+$$
+\Gamma_{\rho}
+$$
+
+$$
+\Gamma_{\mu}
+$$
+
+$$
+M=3.09\cdot10^{-6}
+$$
+
+$$
+E\ddot{o}_{B}=
+Re_{B}=59.3
+$$
+
+$$
+Re_{B}\approx56
+$$
+
+$$
+C_{D}\equiv\frac{4}{3}\frac{d_{\nu}^{*}g^{*}\Delta\rho^{*}}{\rho_{l}^{*}U_{T}^{*2}}=\frac{4}{3}\frac{E\ddot{o}_{B}}{W e_{B}}=\frac{4}{3}\sqrt{\frac{E\ddot{o}_{B}^{3}}{M R e_{B}^{4}}}=\frac{8}{3}\frac{E\ddot{o}_{B}}{E\ddot{o}_{B}+4}.
+$$
+
+## Steady bubble shape
+
+In all the present simulations the steady bubble shape takes the form of an ellipsoid. There 
+is no strict fore-aft symmetry, but the bubble is slightly more flat at its top than at its rear. To 
+quantitatively compare the bubble shape for the runs with different density ratio, we evaluated 
+the three dimensions *a*x, *a*y, *a*z of the bubble at that instant in time when *xcom* = 1.5. We found 
+that in each case the ratio *a*<sub>z</sub>/*a*<sub>y</sub> takes a value between 0.99 and 1. Thus, the bubble is 
+rotationally symmetrical and the lateral walls are obviously sufficiently far away so that they 
+do not affect the bubble shape. The ratios *a*<sub>x</sub>/*a*<sub>y</sub> and *a*<sub>x</sub>/*a*<sub>z</sub> take values between 0.64 and 0.66 in 
+the different runs. With decreasing Γ<sub>ρ</sub> we observe a small tendency to higher values. This is in 
+agreement with the numerical findings of Ye et al. [20].
+
+$$
+a_{x},a_{y},a_{z}
+$$
+
+$$
+x_{com}=1.5
+$$
+
+$$
+a_{z}/a_{y}
+$$
+
+$$
+a_{x}/a_{y}
+$$
+
+$$
+a_{x}/a_{z}
+$$
+
+$$
+\Gamma_{\rho}
+$$
+
+Based on experiments for fifty-four dispersed-continuous phase systems Wellek et al. 
+[14] derived empirical relations for the height-to-width ratio (*E*) of non-oscillating bubbles 
+and drops, over a wide range of particle Reynolds numbers. They obtained the relation  
+()<sup>−1</sup>
+
+$$
+E=\left(1+0.163E\ddot{o}_{B}^{0.757}\right)^{-1}
+$$
+
+(10)
+
+−6-6
+which is valid for *Eö*B < 40 and *M* ≤ 10. Though the Morton number *M* = 3.09·10 used in 
+our numerical study is slightly out of the range for which the latter correlation was derived we 
+note that for *EöB* = 3.06 correlation (10) yields a value of 0.72. So, with a value of *E* ≈ 0*.*66
+the bubble in our computations is distinctively more oblate than relation (10) would suggest. 
+However, relation (10) was obtained for contaminated systems whereas our simulations 
+correspond to a pure system. It is well known [5, p. 182] that bubbles and drops in pure 
+systems are significantly more deformed than corresponding fluid particles in contaminated 
+systems.
+
+$$
+E\ddot{o}_{B}<40
+$$
+
+$$
+M\leq10^{-6}
+$$
+
+$$
+M=3.09\cdot10^{-6}
+$$
+
+$$
+E\ddot{o}_{B}=3.06
+$$
+
+$$
+E\approx0.66
+$$
+
+## Local velocity profiles
+
+For a reasonable comparison of the local velocity field obtained for the different density 
+ratios we first have to select a representative instant in time. Here, we consider that moment 
+when the vertical position of the bubble centroid is at *xcom*=1.5 and thus the bubble has moved 
+four times its initial diameter. As can be seen from Figure 3 this time level differs for the 
+different runs. We compare local velocity profiles along a certain line within our 3D flow 
+domain. In Figure 5 the vertical velocity component *u* is shown as function of the vertical coordinate *x* for fixed span-wise and wall-normal co-ordinates *y* = *z* = 0.5. Also shown in Figure 
+5 is the local profile of the liquid volumetric fraction *f*. In mesh cells filled with liquid the
+
+$$
+x_{com}=1.5
+$$
+
+$$
+y=z=0.5
+$$
+
+$$
+f.
+$$ value of *f* is 1, in cells filled with gas it is 0, while in cells that instantaneously contain both 
+phases it is 0 < *f* < 1. In Figure 5 the profile of *f* for the different runs almost collapse to a 
+single curve, while the profiles of *u* are of similar shape, but do not collapse. In Figure 6 we 
+normalize the velocity profiles by the instantaneous bubble rise velocity *UB*, which differs 
+from run to run. We now find that the normalized velocity profiles collapse to a single curve, 
+too. Thus, when scaled with the bubble rise velocity, the local velocities, both inside the 
+bubble and in the liquid are identical and are invariant with respect to a variation of the 
+density ratio.
+
+$$
+0<f<1
+$$
+
+$$
+u
+$$
+
+$$
+U_{B},
+$$
+
+$u, f [-\]$
+$\Gamma_p=0.5 : f \dots\dots , u$
+$\Gamma_p=0.2 : f \dots\dots , u$
+$\Gamma_p=0.1 : f \dots\dots , u$
+$\Gamma_p=0.02 : f \longrightarrow , u$
+
+$x [-]$
+
+Fig. 5: Vertical profile of local instantaneous vertical velocity, *u*, and liquid 
+volume fraction, *f*, for *y*=*z*=0.5.
+
+$u / U_B, f [-]$
+$\Gamma_p = 0.5 : f \dots , u / U_B$ ■
+$\Gamma_p = 0.2 : f \dots , u / U_B$ ▲
+$\Gamma_p = 0.1 : f \dots , u / U_B$ ●
+$\Gamma_p = 0.02 : f $ —————— , $ u / U_B$ ◆
+
+$x [-]$
+
+$$
+f_{,}
+$$
+
+$$
+y=z=0.5
+$$
+
+Fig. 6: Vertical profile of normalized local 
+instantaneous vertical velocity *u*/*UB* and liquid 
+volume fraction, *f*, for *y*=*z*=0.5.
+
+$$
+u/U_{B}
+$$
+
+$$
+f_{,}
+$$
+
+$$
+y=z=0.5
+$$
+
+## CONCLUSIONS
+
+A numerical study is presented in which the influence of the gas-liquid density ratio (Γ*ρ*) 
+on bubble shape, Reynolds number (*ReB*) and local velocity field is investigated. For fixed 
+-6
+values of the Morton number (*M* = 3.09·10) and the bubble Eötvös number (*Eö*<sub>B</sub> = 3.06) and 
+for a unity viscosity ratio we performed 3D volume-of-fluid computations for four different 
+cases, where the liquid density is 2, 5, 10, and 50 times the gas density. All the simulations 
+result in an oblate ellipsoidal bubble that rises steadily along a rectilinear path. The results 
+indicate that due to the added mass force the density ratio has a notable influence on how fast 
+the bubble accelerates from rest to its terminal velocity. Once the bubble reached its terminal 
+velocity, however, the functional dependence of both, the bubble Reynolds number and the 
+bubble’s height-to-width ratio on the density ratio appears to be very weak. For all the four 
+cases the value of *ReB* is about 56. This value agrees well with a relation derived by two-phase 
+wave theory. In this relation *ReB* depends on *EöB* and *M* but does not depend on Γ*ρ* and Γ*µ*. For 
+the values of *EöB* and *M* considered here this relation yields *ReB* = 59.3.
+
+$$
+(\Gamma_{\rho})
+$$
+
+$$
+(Re_{B})
+$$
+
+$$
+M=3.09\cdot10^{-6}
+$$
+
+$$
+(E\ddot{o}_{B}=3.06)
+$$
+
+$$
+Re_{B}
+$$
+
+$$
+E\ddot{o}_{B}
+$$
+
+$$
+\Gamma_{\rho}
+$$
+
+$$
+Re_{B}
+$$
+
+$$
+\Gamma_{\mu}.
+$$
+
+$$
+E\ddot{o}_{B}
+$$
+
+$$
+Re_{B}=59.3
+$$
+
+By the results obtained we conclude that for an ellipsoidal bubble rising steadily on a 
+rectilinear path the bubble shape and non-dimensional terminal rise velocity, expressed by the 
+bubble Reynolds number, are not notably affected by the gas-to-liquid density ratio as long as 
+there is similarity of *Eö*B, *M* and Γ*µ*. At present this result is demonstrated only for the specific 
+parameters of *EöB*, *M*, and Γ*µ* given above. However, the good agreement with two-phase 
+wave theory indicates that a similar conclusion may also hold for other values of *EöB* and *M*
+as long as the bubble is in the surface tension or buoyancy dominated regime (as opposed to 
+the viscous regime) and rises steadily on a rectilinear path. For this kind of bubbles then 
+rather universal relations for bubble Reynolds number and drag coefficient in terms of *Eö* and 
+*M* should exist. So, the correlations for the drag coefficient given in [15] which were verified
+
+$$
+E\ddot{o}_{B},
+$$
+
+$$
+\Gamma_{\mu}.
+$$
+
+$$
+E\ddot{o}_{B},
+$$
+
+$$
+E\ddot{o}_{B}
+$$
+
+$$
+\Gamma_{\mu}
+$$
+
+---
+
+$$
+\Gamma_{\rho}\approx0.001
+$$
+
+by experiments where Γ<sub>ρ</sub>≈ 0.001 may in fact be applicable to gas-liquid or liquid-liquid 
+systems of any density ratio.
+
+We showed that similarity holds not only for bubble shape and steady bubble Reynolds 
+number, but also for the exterior flow field, induced by the bubble motion within the liquid 
+phase. This might suggest that rather universal models for the turbulence induced by bubbles 
+rising almost steadily in dilute gas-liquid flows may be derived in terms of *Eö*<sub>B</sub> and *M*. 
+Furthermore, we conclude that for steady bubbles it is possible to perform computationally 
+efficient direct simulations with density ratio of order 0.1 while the results are of relevance for 
+gas-liquid systems with density ratio of order 0.001.
+
+$$
+E\ddot{o}_{B}
+$$
+
+The present findings are not directly verified by experiments yet. To verify them it would 
+be necessary to perform experiments with at least two sets of different gas-liquid or liquidliquid systems which obey the same Morton number but a significantly different density ratio. 
+If the Morton number of both systems is the same, then similarity in the Eötvös number can 
+easily be ensured by properly setting the bubble diameters. It may be more difficult to ensure 
+similarity of the viscosity ratio of the different gas-liquid or liquid-liquid systems. However, 
+there is experimental evidence that for a fixed Morton number the influence of the viscosity 
+ratio on the bubble Reynolds number is small: Clift et al. [5, p. 173] compare experimental 
+results obtained by different workers for *Re*B as a function of *EöB* for systems with essentially 
+-10
+the same Morton number (*M* ≈  2·10) but widely different values of Γ<sub>µ</sub> (0.35 to 20). Though 
+the data exhibit some scatter, it is evident that *Re*<sub>B</sub> does not vary systematically with Γ<sub>µ</sub>.
+
+$$
+Re_{B}
+$$
+
+$$
+E\ddot{o}_{B}
+$$
+
+$$
+M\approx2\cdot10^{-10}
+$$
+
+$$
+Re_{B}
+$$
+
+$$
+\Gamma_{\mu}
+$$
+
+$$
+\Gamma_{\mu}
+$$
+
+## REFERENCES
+
+[1] Brackbill, J.U., Kothe, D.B., Zemach, C.: A Continuum Method for Modelling Surface 
+Tension. J. Comput. Phys. 100 (1992) 335-354. 
+[2] Bunner, B., Tryggvason, G.: Dynamics of homogeneous bubbly flows. Part I: Motion of 
+the bubbles. Submitted to Journal of Fluid Mechanics. 
+[3] Chen, L., Garimella, S.V., Reizes, J.A., Leonardi, E.: The development of a bubble 
+rising in a viscous liquid. J. Fluid Mech. 387 (1999) 61-96. 
+[4] Churchill, S.W.: A Theoretical Structure and Correlating Equation for the Motion of 
+Single Bubbles. Chem. Eng. Process. 26 (1989) 269-279. 
+[5] Clift, R., Grace, J.R., Weber, M.E.: Bubbles, Drops, and Particles. Academic Press, 
+1978. 
+[6] Dandy, D.S., Leal, L.G.: Buoyancy-driven motion of a deformable drop through a 
+quiescent liquid at intermediate Reynolds number. J. Fluid Mech. 208 (1989) 161-192. 
+[7] Grace J.R.: Shapes and velocities of bubbles rising in infinite liquids. Trans. Instn. 
+Chem. Eng. 51 (1973) 116-120. 
+[8] Juncu, Gh.: A numerical study of steady viscous flow past a fluid sphere. Int. J. Heat 
+Fluid Flow 20 (1999) 414-421. 
+[9] Marrucci, G., Apuzzo, G., Astarita, G.: Motion of Liquid Drops in Non-Newtonian 
+Systems. AIChE Journal 16 (1970) 538-541. 
+[10] Mendelson, H.D.: The prediction of Bubble Terminal Velocities from Wave Theory. 
+AIChE Journal 13 (1967) 250-253. 
+[11] Oka, H., Ishii, K.: Numerical analysis on the motion of gas bubbles using level set 
+method. J. Physical Soc. Japan 68 (1999) 823-832. 
+[12] Sabisch, W.: Dreidimensionale numerische Simulation der Dynamik von aufsteigenden 
+Einzelblasen und Blasenschwärmen mit einer Volume-of-Fluid Methode. 
+Forschungszentrum Karlsruhe, Wissenschaftliche Berichte FZKA 6478, June 2000 
+(http://hikwww4.fzk.de/hbk/literatur/FZKA_Berichte/FZKA6478.pdf). 
+[13] Sabisch, W., Wörner, M., Grötzbach, G., Cacuci, D.G.: 3D volume-of-fluid simulation 
+of a wobbling bubble in a gas-liquid system of low Morton number. Proc. 4<sup>th</sup> Int. Conf.
+
+$$
+4^{th}
+$$ on Multiphase Flow (ICMF), New Orleans, LA, U.S.A., May 27 - June 1, 2001, CD-
+ROM, paper 244. 
+[14] Sussman, M., Puckett, E.G.: A Coupled Level Set and Volume-of-Fluid Method for 
+Computing 3D and Axisymmetric Incompressible Two-Phase Flows. J. Comput. Phys. 
+162 (2000) 301-337. 
+[15]  Tomiyama, A., Kataoka, I., Zun, I., Sakaguchi, T.: Drag Coefficients of Single Bubbles 
+under Normal and Micro Gravity Conditions. JSME International Journal Series B 41 
+(1998) 472-479. 
+[16] Tryggvason, G., Bunner, B., Ebrat, O., Tauber, W.: Computations of multiphase flows 
+by a finite difference/front tracking method. I. Multifluid flows. Von Karman lecture 
+notes , the von Karman Institute (1998). 
+[17]  Wellek, R.M., Agrawal, A.K., Skelland, A.H.P.: Shape of liquid drops moving in liquid 
+media. AIChE Journal 12 (1966) 854-862. 
+[18] Wörner, M.: The influence of gas-liquid density ratio on shape and rise velocity of an 
+ellipsoidal bubble: a numerical study by 3D volume-of-fluid computations. Proc. 1<sup>st</sup>
+Berlin Workshop on Transport Phenomena with moving Boundaries, October 11-12, 
+2001, Berlin, Germany. 
+[19] Wörner, M., Sabisch, W., Grötzbach, G., Cacuci, D.G.: Volume-averaged conservation 
+equations for volume-of-fluid interface tracking. Proc. 4<sup>th</sup> Int. Conf. on Multiphase Flow 
+(ICMF), New Orleans, LA, U.S.A., May 27 - June 1, 2001, CD-ROM, paper 245. 
+[20] Ye, T., Shyy, W., Chung, J.N.: A fixed-grid, sharp-interface method for bubble 
+dynamics and phase change. J. Comput. Phys. 174 (2001) 781-815.
+
+$$
+1^{\mathrm{st}}
+$$
+
+$$
+4^{th}
+$$

@@ -1,0 +1,6104 @@
+# Single-Drop Based Modelling of Solvent Extraction in High-Viscosity Systems
+
+# Von der Fakultät für Maschinenwesen der Rheinisch-Westfälischen
+
+# Technischen Hochschule Aachen zur Erlangung des akademischen
+
+# Grades eines Doktors der Ingenieurwissenschaften genehmigte Dissertation
+
+vorgelegt von 
+**Donni Adinata**
+
+Berichter:   Univ.-Prof. Dr.-Ing. Andreas Pfennig
+
+Univ.-Prof. Dr.rer.nat. Marcel Liauw
+
+Tag der mündlichen Prüfung: 19.07.2011
+
+Diese Dissertation ist auf den Internetseiten der Hochschulbibliothek online verfügbar
+
+---
+
+
+
+---
+
+## Preface and Dedications
+
+This thesis is the final work of my PhD study at the Institute of Thermal Process 
+Engineering at the RWTH Aachen University.
+
+First of all, I wish express my sincere gratitude and respect to my supervisor 
+Professor Dr.-Ing Andreas Pfennig for his creative ideas, patience, advice, and help 
+that give significant value for this dissertation. Secondly, I would like to express my 
+appreciation to Professor Dr. Marcel Liauw for being a member of the committee. 
+Professor Dr.-Ing. Burkhard Corves I thank for being the chairman of the PhD 
+committee.
+
+I would also like to express my deepest appreciation to all my colleagues at the 
+Institute of Thermal Process Engineering, RWTH Aachen University. Thank you all 
+for the pleasant working atmosphere.
+
+Last but not least, this thesis is dedicated to my beloved mother, father, sisters, 
+brother, and closest friends. Their love, understanding, patience and support have 
+given me the strength and spirit to the completion of this thesis.
+
+Aachen, July 2011
+
+Donni Adinata
+
+---
+
+## Table of Contents
+
+**1. Introduction**……………………………………………………………………….. 1 
+ 1.1 Motivation…………………………………………………………………….. 1 
+ 1.2 Research Objectives………………………………………………………… 2 
+  
+**2. Literature Review**…………………………………………………………………. 3 
+    
+**3. Sedimentation behaviour of drops**……………………………………………. 5 
+ 3.1 Introduction…………………………………………………………………… 5 
+ 3.2 Drop Behaviour………………………………………………………………. 6 
+ 3.3 Single-Drop Sedimentation Experiments …………................................. 14 
+  3.3.1 Material System……………………………………………………… 14 
+  3.3.2 Experimental Set-up………………………………………………… 17 
+  3.3.3 Experimental Procedure……………………………………………. 18 
+ 3.4 Experimental Results and Model Evaluation……………………………… 20 
+  3.4.1  Influence of Viscosity of Continuous Phase on Sedimentation 
+Velocity of Drops…………………………………………………….. 20 
+  3.4.2 Influence of Viscosity of Disperse Phase on Sedimentation 
+Velocity of Drops…………………………………………………….. 21 
+  3.4.3 Influence of Mass Transfer on Sedimentation Velocity of 
+Drops…………………………………………………………………. 22 
+  3.4.4 Modeling of Sedimentation Velocity of Drops in High Viscosity 
+System ………………………………………………….................... 23 
+  3.4.5 General Parameter of Sedimentation Velocity of Drops in High-
+Viscosity Systems……………………………………………………. 26 
+ 3.5 Conclusions…………………………………………………………………… 34 
+    
+**4. Mass Transfer of Single Drop**…………………………………………………... 37 
+ 4.1 Introduction……………………………………………………………………. 37 
+ 4.2 Theory and Mathematical Model of Mass Transfer in Single Drop……... 38 
+  4.2.1 Mass-Transfer Rate in Liquid-Liquid System…………………...... 38 
+  4.2.2 Mass Transfer Coefficient in Continuous Phase…………………. 39
+
+---
+
+4.2.3 Mass Transfer Coefficient in Single Drop…………………………. 40 
+ 4.3 Mass Transfer of Single Drop Experiments……………………………….. 43 
+  4.3.1 Experimental Set-up…………………………………………………. 44 
+  4.3.2 Experimental Procedure…………………………………………….. 45 
+  4.3.3 Analytical Methods…………………………………………………... 47 
+ 4.4 Experimental Results and Discussions……………………………………. 47 
+  4.4.1 Influence of the Viscosity of Continuous Phase on Mass 
+Transfer of Single Drop……………………………………………… 48 
+  4.4.2 Influence of the Viscosity of Disperse Phase on Mass Transfer 
+of Single Drop………………………………………………………… 49 
+  4.4.3 The Instability Constant, *CIP* ……………………………………….. 51 
+ 4.5 Conclusions…………………………………………………………………… 55 
+  
+**5. Extraction Column Behaviours**………………………………………………… 56 
+ 5.1 Introduction……………………………………………………………………. 56 
+ 5.2 Concept and Principle of ReDrop Algorithm…………………………........ 57 
+ 5.3 Extraction Column Behaviour: Experiments and Simulation…………….. 59 
+  5.3.1 Pilot-plant Experiments …………………………………………….. 59 
+   5.3.1.1     Materials System………………………………………… 60 
+   5.3.1.2     Experimental Set-up…………………………………….. 60 
+   5.3.1.3 Experimental Procedure………………………………… 62 
+   5.3.1.4 Analysis Methods………………………………………… 63 
+  5.3.2 Simulation of Extraction-Column Behaviour by Using ReDrop for 
+Viscous System…………………………………………………........ 64 
+ 5.4 Experimental Results and Comparison with ReDrop Simulation……….. 67 
+  5.4.1 Drop Size……………………………………………………………… 69 
+  5.4.2 Hold-up……………………………………………..…………………. 72 
+  5.4.3 Mass Transfer………………………………………………………… 74 
+  5.4.4 Extraction in high-viscosity systems …..……………..................... 76 
+ 5.5 Conclusions …………………………….…………………………………….. 77 
+    
+**6. Summary**……………………………………………………………………………. 79 
+**Appendix**………………………………………………………………………………… 81
+
+---
+
+Nomenclature 97
+References 101
+
+---
+
+## List of Figures
+
+3.1 Drop behaviour as a function of drop diameter ………………………... 6 
+3.2 Sedimentation velocities of drops (material system: water (c)  
++ tridecanol (d))…………………………………………………………..... 7 
+3.3 Force-balance a drop in the vertical direction………………………….. 9 
+3.4 Influence of mass transfer in a physical extraction system …………... 14
+3.5 Sketch of the sedimentation cell…………………………………………. 17
+3.6 Influence of viscosity of continuous phase on sedimentation velocity 
+of drops, system with variation of the viscosity of the continuous 
+phase ……………………………………………………………………….. 21
+3.7 Influence of viscosity of disperse phase on sedimentation velocity of 
+drops, system with variation of the viscosity of the continuous 
+phase……..…………………………………………………………………. 22
+3.8 Influence of mass transfer in systems with constant density of the 
+continuous phase…………………………………………………………... 23
+3.9 The fitting results of Henschke’s model (2003) with the experimental 
+results …………………………………………………………..….……….. 24
+3.10 Calculated values of *a₁₅* and *a₁₆* as function of *d*<sub>SW</sub>……………………. 27
+3.11 Minimum mean deviation between experimental and model results 
+as function of *a₁₅*…………………………………………………………… 28
+3.12 Mean deviation between experimental and model result as function 
+of *d*<sub>SW</sub>………………………………………………………………………... 30
+3.13 Minimum absolute deviation between experimental and model 
+results as function of *d*<sub>SW</sub> in the toluene with paraffin system..……….. 31
+3.14 Minimum absolute deviation between experimental and model 
+results as function of *d*<sub>SW</sub> for the toluene system………………………. 31
+3.15 Minimum absolute deviation between experimental and model 
+results as function of *a₁₆*...………………………………………………… 33
+3.16 the fitting results of Henschke’s model (2003) with experimental 
+results of sedimentation velocity by using the generalized values of 
+*d*<sub>SW</sub>, *a₁₅* and *a₁₆* for toluene and toluene with paraffin ………………… 34
+4.1 Concentration profiles at the interphase during mass-transfer for 
+single droplets……………………………………………………………… 39
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+d_{SW}.
+$$
+
+$$
+a_{15}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+d_{SW},a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+---
+
+4.2 Laboratory scale mass-transfer cell……………………………………… 44
+4.3 Flow diagram of mass-transfer cell in laboratory scale………………... 46
+4.4 The dimensionless concentration *y<sup>+</sup>* for low viscosity system……….. 48
+4.5 Influence of the viscosity of continuous phase on mass transfer of 
+single drop………………………………………………………………….. 49
+4.6 Influence of the viscosity of disperse phase on mass transfer of 
+single drop………………………………………………………………….. 50
+4.7 Influence of residence time and drop diameter on mass transfer rate 
+in high viscosity system…………………………………………………… 51
+4.8 The sensitivity of diffusion coefficient ………………………………… 54 
+5.1 Concept of interactions effects in an extraction column……………….. 57
+5.2 Schematic illustration of the ReDrop algorithm ………………………... 58
+5.3 Concept of design column………………………………………………… 59
+5.4 Schematic representation of the pilot-plant scale pulsed sieve-tray 
+column used in this work………………………………………………….. 61
+5.5 Comparison of experimental and calculated Sauter mean diameter… 71
+5.6 Drop-size distribution in a high-viscosity system……………………….. 72
+5.7 Comparison of experimental and calculated hold-up………………….. 73
+5.8 Influence of hole diameter of sieve tray on the extraction process for 
+high viscosity system ………...…………………………………………… 76
+
+---
+
+## List of Tables
+
+3.1 Correlations are used for predictions of the sedimentation velocity 
+of drops by Wagner (1999)…………………………………………….. 8 
+3.2 The systems and concentrations to investigate the sedimentation of 
+single drops in high-viscosity system…………………………………... 15 
+3.3 Physical properties of systems used to investigate the 
+sedimentation of single drops in high-viscosity systems …………..... 16 
+3.4 The fitting results of Henschke’s model (2003) with the 
+experimental results of sedimentation velocity of drops in high 
+viscosity………………………………………………………………….. 24 
+3.5 Experimental conditions and parameters fitted to the experimental 
+results of sedimentation velocity of drops in high-viscosity system 
+and low-viscosity system………………………………………………. 25 
+3.6 *d*<sub>SW</sub> and *a*<sub>16</sub> as function of *a*<sub>15</sub> for toluene with paraffin as disperse 
+phase....................................................................………………...………. 28 
+3.7 *d*<sub>SW</sub> and *a*<sub>16</sub> as function of *a*<sub>15</sub> for toluene as disperse phase ...…….. 29 
+3.8 *a₁₅* and *a₁₆* as function of *d*<sub>SW</sub> for toluene with paraffin as disperse 
+phase ……………………………………………………………..………. 32 
+3.9 *d*<sub>SW</sub> and *a₁₆* as function of *a₁₅* for toluene as disperse phase …….... 32 
+3.10 The general value of *d*<sub>SW</sub>, *a₁₅* and *a₁₆* for toluene and toluene with 
+paraffin……………………………………………………………..……... 33 
+4.1 Physical properties used for the calculation of *D<sub>d</sub>* …………………… 52 
+4.2 The coefficient diffusion *D<sub>d</sub>* used to calculate *CIP* …………………… 53 
+4.3 Individual value of the instability constant, *CIP* ……………………...... 55 
+5.1 Operation condition and experimental results of the extraction in 
+high-viscosity systems obtained from experiments in a pilot-plant 
+scale pulsed sieve-tray extraction column …………………………..... 68 
+5.2 Comparison of simulation results and experimental data of 
+hydrodynamics at different operation conditions……......................... 69 
+5.3 Influence of *D* and D on mass transfer in ReDrop……………….. 75 
+<sub>ax</sub>,*c* <sub>d</sub>
+
+$$
+a_{16}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+D_{d}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+C_{IP}
+$$
+
+$$
+D_{d}
+$$
+
+$$
+C_{IP}
+$$
+
+$$
+D_{ax,c}
+$$
+
+$$
+\bar{D}_{d}
+$$
+
+---
+
+## Introduction
+
+## 1.1 Motivation
+
+Extraction is a common separation process in the chemical industry. Until now, little 
+is known concerning extraction equipment especially regarding the limit of viscosity 
+up to which extraction columns can be operated. The knowledge in the area of 
+solvent extraction in high viscosity systems is limited. But the economic importance 
+of such systems has always been supposed, because the chemical industry is 
+consequently concerned with chemicals of high viscosities, such as extraction of 
+pharmaceuticals from fermentation broth (Job and Blass, 1994, Wagner, 1995, 
+Wagner, 1999 and Schügerl, 2004).
+
+In response to the petroleum crisis and increasing energy consumption in the future, 
+raw materials for chemicals as well as energy carriers will increasingly stem from 
+renewable biological origin. Generally, biomaterials form a complex matrix, which 
+consists of the primarily desired products like oils, lignin, and cellulose, which will be 
+converted in appropriate processes into chemicals. Furthermore, the biomaterials will 
+lead to a wide variety of valuable products, with especially various oxygen-containing 
+chemical functional groups which induce polarity or even hydrogen bonds between 
+the molecules. As a consequence, intermediates and products will have a relatively 
+high viscosity and low vapor pressure. Consequently, the separation and purification 
+of these components will be a challenging task. Because of these properties 
+extraction is the most suitable separation process as compared to distillation which is 
+generally preferred for conventional products (DECHEMA/GVC, 2006; Schladot and 
+Straub, 2006). In the extraction of bio-molecules the principle of aqueous two-phase 
+systems (ATPS) can also be applied, that also constitutes a high-viscosity system 
+which could be in principle operated in an extraction column.
+
+In order to apply extraction for bio-based components, the investigation of the 
+behavior and the development of basics to design extraction columns for high viscosity systems are essential and pose a challenge. In contrast to low viscosity 
+systems, which have been intensively and successfully investigated, developed, and 
+implemented (Henschke, 2003), for extraction columns, highly viscous systems need 
+additional investigation. Until now experimental data and literature for high viscosity 
+system are still limited in comparison with low viscosity systems (Wagner, 1995, 
+Wagner, 1999).
+
+Based on the experimental data in low viscosity system from laboratory-scale 
+experiments with single drops, the behavior and design of extraction column in low 
+viscosity systems can be predicted by using a simulation tool which is called ReDrop 
+(representative drops). For low viscosity systems, fluid-dynamic limits as well as the 
+efficiency of pilot plant extraction columns can be predicted with an accuracy of 10 % 
+of the actual column efficiency, when using ReDrop (Henschke, 2003; Altunok et al., 
+2006; Kalem et al., 2010). This simulation tool has not been applied to high-viscosity 
+systems until now. Neither the individual models describing single-drop behavior nor 
+the performance of the overall simulation have been validated.
+
+## 1.2 Research Objectives
+
+The goal of this research is to predict and simulate the behavior of extraction 
+columns based on single-drop measurements and modeling for high viscosity 
+systems. This will allow efficient column design for such systems in the future. 
+Simultaneously, the ReDrop algorithm will be validated for high viscosity systems. It 
+will be examined, if extraction at high viscosities can be used in extraction columns 
+sensibly.
+
+Since experimental data and literature on hydrodynamic behavior in high-viscosity 
+systems are limited, experiments of sedimentation behavior and mass transfer of 
+single drops in high viscosity systems on laboratory scale will be carried out. 
+Additionally, models describing single-drop phenomena will be validated for viscous 
+systems. The simulations of the performance of an extraction column for high 
+viscosity systems using the ReDrop algorithm will then be compared with the 
+experimental results for such systems, obtained from experiments on a pilot-plant 
+scale.
+
+---
+
+## Literature Review
+
+In recent decades there have been several systematic research works that are 
+related to the influence of viscosity on different types of separation methods 
+(Mahiout, 1984; Böcker and Ronge, 2004). Others investigated by liquid-liquid 
+extraction (Dexheimer and Fuchs, 1966; Hampe, 1978; Rückl and Marr, 1984; 
+Schügerl and Degener, 1989; Bart, 2002; Silva and Franco, 2000; Pfennig et al., 
+2006; Müller et al., 2008). In addition liquid-liquid extraction with mixer-settler (Künzi, 
+2004; Fatemeh, et al., 2009) and pilot-plant scale extraction columns (Eisenlohr, 
+1951; Nitsch and Winkelmann, 1969; Bauckhage et al., 1975; Berger et al., 1978; 
+Simon, 1979; Hirschmann and Blass, 1983; Bäcker et al., 1991; Attarakih and Bart, 
+2004; Bart, et al., 2006; Simon et al., 2002; Klinger et al., 2002) were investigated. 
+The intense research on liquid-liquid extraction and systems of different viscosities 
+indicated a great importance for this separation method.
+
+Several research works have also studied and investigated the single-drop 
+phenomena on liquid-liquid extraction in high-viscosity systems (Job and Blass, 
+1994; Wagner, 1999). Job and Blass (1994) studied the problem concerning liquidliquid extraction of extracellular products directly from fermentation broths. Wagner 
+(1999) investigated the sedimentation of single drop and the hydrodynamics of an 
+extraction column. The system used in his research is water (c) + 1-propanol (c → d) 
++ iso-nonanol (d) and water (c) + 1-propanol (c → d) + iso-tridecanol (d). He used the 
+high-viscosity disperse phase, whereas the continuous phase had a low viscosity. 
+However, the liquid-liquid extraction with a high-viscosity continuous phase has not 
+been researched previously.
+
+For systems of lower viscosity Henschke (2003) developed a model based on singledrop experiments, which can be used to predict the behaviour and design of 
+extraction columns (Henschke and Pfennig, 1999; Henschke and Pfennig, 2002; 
+Henschke, 2003; Altunok et al., 2006, Weber et al., 2005, Pfennig et al., 2006;
+
+---
+
+Waheed et al., 2002). This model is more powerful as compared to alternative 
+concepts (Attarakih and Bart, 2004).
+
+Due to the success of the Henschke model as applied to low-viscosity systems the 
+question arises if the applicability of the ReDrop model can be extended to highviscosity systems. In detailed questions are what influence the viscosity of the liquidliquid system process has on the performance of extraction columns and how it may 
+be described quantitatively?
+
+The literature on phenomenology, existing models and ReDrop will be discussed 
+more detailed in chapters three, four and five.
+
+---
+
+## Sedimentation Behaviour of Single Drops
+
+## 3.1 Introduction
+
+One of the determining aspects in liquid-liquid extraction is the sedimentation velocity 
+of single drops. A single drop moving unhindered in a continuum, for instance in an 
+extraction column without internals, attains a constant velocity after a rather short 
+distance. This velocity is often called the terminal velocity or sedimentation velocity. 
+Generally, the sedimentation velocity of a single drop depends on the physical 
+properties of the liquid-liquid system and the drop diameter. The sedimentation 
+velocity of the drop is, for example, influenced by impurities or contaminants. The 
+impurities accumulate at the interface and change the properties of the interface, 
+influence momentum transfer across the interface and then influence the internal 
+circulation of the drop. As a consequence, the sedimentation behaviour of drops is 
+closely related to the mass-transfer coefficient and stage efficiency (Wegener and 
+Kraume, 2010).
+
+In order to investigate the sedimentation behaviour of a drop, the European 
+Federation of Chemical Engineering (EFCE) recommend the following standard testsystems: toluene (d) + acetone (c → d) + water (c) and butyl acetate (d) + acetone (c 
+→ d) + water (c) (Misek et al., 1985), which have been investigated e.g. by Haverland 
+(1988), Hoting (1996), Henschke (2003), and Garthe (2006). All systems which have 
+been studied and investigated by the researchers mentioned above, have a low 
+viscosity. Concerning the sedimentation velocity of drops in a high-viscosity system, 
+experimental results were published for tridecanol + water by Wagner (1999). To 
+investigate the sedimentation velocity he used a disperse phase with a high viscosity. 
+In his research, the disperse phase used was nonanol and tridecanol, whereas the 
+continuous phase was water, and 1-propanol was used as mass-transfer component.
+
+Here, the goal of research is to investigate the influence of viscosity of disperse 
+phase and continuous phase, density of disperse phase and continuous phase and mass transfer on the sedimentation velocity of drops. The sedimentation velocity in 
+high-viscosity systems was investigated to validate the sedimentation model of 
+Henschke (2003). In addition, experimental and model results for high-viscosity 
+systems are compared to a low-viscosity system. First, the general sedimentation 
+behaviour is described in the following section.
+
+## 3.2 Drop Behaviour
+
+Fig. 3.1 shows the relationship between the drop behaviour with its diameter when 
+rising or falling in a continuous phase. Four areas can be distinguished. The smalldiameter drops behave like rigid spheres (I). The shear force at the interface 
+increases with increasing drop diameter and a circulation inside the drop is induced 
+which leads to an increased velocity as compared to a rigid drop (II). As the diameter 
+of the drop increases further, the drop starts to visibly loose its spherical shape (III). 
+Simultaneously, the drop starts to oscillate. Finally, (IV) the behaviour of deformed 
+drops is reached where drops move wobbling through a continuous phase.
+
+terminal velocity in mm/s
+
+Rigid drops I
+
+Circulating drops II
+
+Oscillating drops III
+
+Deformed drops IV
+
+0 2 4 6
+drop diameter in mm
+
+Figure 3.1: Drop behaviour as a function of drop diameter (Henschke, 2003)
+
+---
+
+Furthermore, Fig. 3.2 shows the experimental results of the sedimentation velocity of 
+tridecanol drops in water compared with different models. The sedimentation velocity 
+of tridecanol drops in water was investigated by Wagner (1999). Tab. 3.1 lists the 
+models for the sedimentation velocity which were compared to the experimental 
+results of the sedimentation velocity as shown in Fig. 3.2. The experimental results 
+and models of the sedimentation velocity of tridecanol investigated by Wagner (1999) 
+indicate that it increases continually with increasing drop diameter. For drop 
+diameters up to 2.5 mm all models correlate well with the experimental results of 
+sedimentation velocity. However, for drop diameters above 2.5 mm, the model of 
+Grace et al. (1976) as well as Hu and Kintner (1955) are better for prediction of the 
+sedimentation velocity of tridecanol drops in water as compared to other models.
+
+0.16
+T = 20°C rigid sphere
+0.14 symbols: experimental values
+Hu and Kintner (1955)
+Grace et al. (1976)
+0.12
+0.10
+0.08 Ishii and Zuber (1979)
+Mersmann (1980)
+0.06 Klee and Treybal (1956)
+0.04
+sedimentation velocity in m/s
+0.02
+0.00
+0.0 0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0
+drop diameter in mm
+
+Figure 3.2: Sedimentation velocities of single drops (material system: water (c) + 
+tridecanol (d)) (Wagner, 1999)
+
+---
+
+Table 3.1: Correlations used for the prediction of the sedimentation velocity of single 
+drops by Wagner (1999)
+
+| Model rigid sphere (Stokes) | Correlations for prediction of the sedimentation velocity |  |  |  |  |  |
+| --- | --- | --- | --- | --- | --- | --- |
+| Model rigid sphere (Stokes) | ⎞ ⎛ 4 d g Δρ ⎟ ⎜ ν = ⎜ 3 ρ ∞ c ⎠ ⎝ c w | ⎟        with | c | = Re w |  |  |
+| Hu and Kintner (1955) | 0.15 η P ⋅ c ν = ⋅ ∞ ρ d ⋅ c | 0.784 0.798 ⋅ Y |  | [] | − 0.75      and     2 &lt; | Y ≤ 70 |
+| Hu and Kintner (1955) | 0.15 η P ⋅ c ν = ∞ ρ d ⋅ c | 0.422 3.701⋅ Y |  | [] − 0.75 | and | Y &gt; 70 |
+| Hu and Kintner (1955) | 4 ⋅ Δρ ⋅ where Y = | 2 d ⋅ g ⋅ P 3 ⋅σ | 0.15 |  | P = η | 3 ρ² ⋅σ c 4 ⋅ Δρ ⋅ g c |
+| Klee and Treybal (1956) | −0.45 ν = 3.042 ⋅ ρ ∞ c −0.55 ν = 4.96 ⋅ ρ ∞ c | 0.58 ⋅ Δρ ⋅η c 0.28 0.1 ⋅ Δρ ⋅η c | −0.11 ⋅σ | 0.7 ⋅ d 0.18 |  | for small drops for large drops |
+| Grace et al. (1976) | 0.149 ( Re = K J ∞ f for circulating drops 0.757 = 0.94 J H for oscillating drops 0.441 = 3.42 J H 4 0.149 with H = K f 3 | ) − 0.857 for  2 ≤ H for  59.3 ≤ H −0.14 ⎛η ⎞ c ⎜ ⎟ C ⎝ ⎠ | ≤ 59.3 and | C | −4 = 9.10 | kg/m s |
+| Mersmann (1980) | Re = ∞ 0.645 1/ 3 1/ 2 Ar K f for oscillating drops   Re | 1 15 + KHR Ar ∞ | 11/ 12 | = 1.55 K f | 1/ 12 1/ 3 Ar |  |
+
+$$
+v_{\infty}=\left(\frac{4dg\Delta\rho}{3\rho_{c}c_{w}}\right)
+$$
+
+$$
+c_{w}=\frac{24}{\mathrm{Re}}
+$$
+
+$$
+\nu_{\mathrm{x}}=\frac{\eta_{c}\cdot P^{0.15}}{\rho_{c}\cdot d}\cdot\left[0.798\cdot Y^{0.784}-0.75\right]
+$$
+
+$$
+2<Y\leq70
+$$
+
+$$
+v_{\infty}=\frac{\eta_{c}\cdot P^{0.15}}{\rho_{c}\cdot d}\left[3.701\cdot Y^{0.422}-0.75\right]
+$$
+
+$$
+\boldsymbol{Y}=\frac{4\cdot\Delta\rho\cdot d^{2}\cdot g}{3\cdot\sigma}\cdot P^{0.15}
+$$
+
+$$
+P=\frac{\rho_{c}^{2}\cdot\sigma^{3}}{\eta_{c}^{4}\cdot\Delta\rho\cdot g}
+$$
+
+$$
+\nu_{\infty}=3.042\cdot\rho_{c}^{-0.45}\cdot\Delta\rho^{0.58}\cdot\eta_{c}^{-0.11}\cdot d^{0.7}
+$$
+
+$$
+\nu_{\infty}=4.96\cdot\rho_{c}^{-0.55}\cdot\Delta\rho^{0.28}\cdot\eta_{c}^{0.1}\cdot\sigma^{0.18}
+$$
+
+$$
+\mathrm{Re}_{\infty}=K_{f}^{0.149}(J-0.857)
+$$
+
+$$
+J=0.94H^{0.757}for2\leq H\leq59.3
+$$
+
+$$
+J=3.42H^{0.441}for59.3\leq H
+$$
+
+$$
+\mathrm{with}H=\frac{4}{3}K_{f}^{0.149}\left(\frac{\eta_{c}}{C}\right)^{-0.14}\mathrm{and}\quad C=9.10^{-4}\mathrm{kg/m}\mathrm{s}
+$$
+
+$$
+\mathrm{Re}_{\infty}=\frac{1}{\frac{0.645}{Ar^{1/3}K_{f}^{1/2}}+\frac{15}{K_{HR}Ar^{1/12}}}
+$$
+
+$$
+\mathrm{Re}_{\infty}=1.55K_{f}^{1/12}Ar^{1/3}
+$$
+
+---
+
+| Model | Correlations for prediction of the sedimentation velocity |
+| --- | --- |
+| Ishii and Zuber (1979) | [ ] 4/7 Re = 9.72 (1 + 0.01 ) − 1 Ar ∞ 1/ 12 1/ 3 = 2 K Ar for oscillating drops      Re ∞ f |
+|  |  |
+
+$$
+\mathrm{Re}_{\infty}=9.72\left[(1+0.01Ar)^{4/7}-1\right]
+$$
+
+$$
+\mathrm{Re}_{\infty}=\sqrt{2}K_{f}^{1/12}A r^{1/3}
+$$
+
+In addition to the models mentioned above, Henschke (2003) also developed a 
+model for the sedimentation velocity of single drops. The idea of Henschke in 
+developing his model is that he used different models for spherical, oscillating, and 
+deformed drops and combined them by appropriate crossover functions into a single 
+model which is applicable over the entire diameter range.
+
+The details of Henschke’s model (2003) are described in the following: In area (I) 
+shown in Fig. 3.1, the drop is regarded as rigid sphere. The sedimentation velocity of 
+a rigid sphere can be modelled by equilibrating forces of weight, resistance, and 
+buoyancy (*F<sub>w</sub>*, *F<sub>r</sub>*,*and FB*), as seen in Fig. 3.3.
+
+$$
+(F_{_{w}},F_{_{r}},a n d F_{_{B}})
+$$
+
+FB
+Fr
+op
+dr
+Fw
+
+Figure 3.3: Force-balance at a drop in the vertical direction (Modigell, 2003)
+
+As shown in Fig. 3.3, the stationary case accounts for the weight forces and the 
+forces balance can be formulated as
+
+$$
+F_{r}+F_{B}=F_{w}
+$$
+
+(3.1)
+
+---
+
+The weight and buoyancy force (*F* and FB), respectively, can be formulated as 
+*w*
+follows:
+
+$$
+(F_{w}
+$$
+
+$$
+F_{_B})
+$$
+
+$$
+F_{w}=m_{w}g=\frac{\pi}{6}d^{3}\rho_{d}g
+$$
+
+(3.2)
+
+$$
+F_{B}=\frac{\pi}{6}d^{3}\rho_{c}g
+$$
+
+(3.3)
+
+In Eq. 3.2 *m*w denotes the mass of the drop and *g* is the gravitational constant. If Eqs. 
+3.2 and 3.3 are used in Eq. 3.1, then the resistance force *F* can be calculated as: 
+*r*
+
+$$
+m_{w}
+$$
+
+$$
+F_{r}
+$$
+
+$$
+F_{r}=\frac{1}{6}\pi d^{3}g\left(\rho_{c}-\rho_{d}\right)
+$$
+
+(3.4)
+
+If a drop moves as rigid sphere in an infinite fluid, then *F* is defined as 
+*r*
+
+$$
+F_{r}
+$$
+
+$$
+F_{r}=c_{w}\rho_{c}\pi d^{2}\frac{V_{\infty}}{4}
+$$
+
+(3.5)
+
+where ν is the sedimentation velocity of the drop, and *c* is the drag coefficient of 
+∞ *w*
+the drop in the fluid. By combining Eqs. 3.4 and 3.5 the dimensionless form for the 
+equilibrium of forces can be calculated as follows:
+
+$$
+\nu_{\infty}
+$$
+
+$$
+C_{w}
+$$
+
+$$
+Ar=\frac{3}{4}Re_{\infty,rigid}^{2}c_{w}
+$$
+
+(3.6)
+
+where *Ar* and *Re* are the Archimedes number and the Reynolds number, 
+respectively, which can be determined by
+
+$$
+A r=\frac{\rho_{c}\Delta\rho g d^{3}}{\eta_{c}^{2}}
+$$
+
+(3.7)
+
+$$
+Re_{\infty,rigid}=\frac{\rho_c\nu_{\infty}d}{\eta_c}
+$$
+
+(3.8)
+
+---
+
+Henschke et al. (2003) found a function of the Archimedes number with the drag 
+coefficient *c* : 
+*w*
+
+$$
+C_{w}
+$$
+
+$$
+c_{w}=\frac{432}{Ar}+\frac{20}{Ar^{1/3}}+\frac{0.51Ar^{1/3}}{140+Ar^{1/3}}\qquad\text{for}\qquad0<Re<3\times10^{5}
+$$
+
+(3.9)
+
+To calculate the sedimentation velocity for drops with an ideally mobile interface,
+Henschke (2003) uses
+
+$$
+\mathrm{Re}_{\infty,ideally mobile}=\frac{Ar}{a_{DA}\left(0.065Ar+1\right)^{1/6}}
+$$
+
+(3.10)
+
+In Eq. 3.10 Henschke (2003) set the factor *a*DA to the constant value 12. The 
+Reynolds number of drop sedimentation between the two ideal cases of rigid sphere 
+and spherical drop with internal circulation can be expressed as
+
+$$
+a_{DA}
+$$
+
+$$
+\mathrm{Re}_{\mathrm{x},sphericcal}=\left(1-f_1^*\right)\mathrm{Re}_{\mathrm{x},rigid}+f_1^*\mathrm{Re}_{\mathrm{x},ideally\;mobile}\quad\mathrm{where}\quad0<f_1^*<1
+$$
+
+< 1 (3.11)
+
+where *f₁<sup>*</sup>* is the crossover factor which is calculated with a modified Hadamard-
+Rybczynski factor *KHR<sup>*</sup>* (Modigell, 1981):
+
+$$
+f_{1}^{^{*}}
+$$
+
+$$
+K_{HR}^{*}
+$$
+
+$$
+f_{1}^{*}=2(2K_{HR}^{*}-1)
+$$
+
+(3.12)
+
+with
+
+$$
+K_{HR}^{*}=\frac{3(\eta_{c}+\eta_{d}/f_{2})}{2\eta_{c}+3\eta_{d}/f_{2}}
+$$
+
+(3.13)
+
+and
+
+$$
+f_{2}=1-\frac{1}{1+\left(d/d_{s w}\right)^{\alpha_{s w}}}
+$$
+
+(3.14)
+
+---
+
+Henschke finds for the systems he investigated that the value of α<sub>sw</sub> which scales 
+the steepness of the crossover can be set constant to 10. The parameter *d*SW has to 
+be fitted to the experimental results of sedimentation velocity of drop. The ideal limits 
+of a rigid drop is obtained for *d*SW tending towards infinity, while *d*SW approaching zero 
+corresponds to the limiting case of an ideally mobile interface. The sedimentation 
+velocity of drops as a function of the Reynolds number for a spherical drop can be 
+calculated from:
+
+$$
+\alpha_{sw}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+\gamma_{\infty,spherical}=\frac{\mathrm{Re}_{\infty,spherical}\eta_{c}}{\rho_{c}d}
+$$
+
+(3.15)
+
+Henschke uses an empirical approach which is given by Clift et al. (1978) to calculate 
+the velocity of a deformed drop:
+
+$$
+\nu_{\infty,deformed}=\sqrt{\frac{\Delta\rho g d}{2\rho_c}}
+$$
+
+(3.16)
+
+The sedimentation velocity of oscillating drop is determined by Henschke (2003) with 
+a correlation which has been used by Maneri (1995):
+
+$$
+v_{\infty,osculating}=\sqrt{\frac{2a_{15}\sigma}{\rho_c d}}
+$$
+
+(3.17)
+
+The parameter *a₁₅* has to be fitted to experimental data of sedimentation velocity of   
+a drop. The parameter *a₁₅* describes the extent of oscillation and its effect on the 
+sedimentation velocity of the drop. The transition between oscillating and deformed 
+drops is realized by Henschke (2003) with:
+
+$$
+a_{15}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+\nu_{\infty,osculating\ or\ defromed}=\left(\nu_{\infty,osculating}^8+\nu_{\infty,defromed}^8\right)^{\frac{1}{8}}
+$$
+
+(3.18)
+
+The sedimentation velocity of single drops is determined with the help of a crossover 
+function between the sedimentation velocity of spherical drops and oscillating or deformed drops. The following final equation for the calculation of the sedimentation 
+velocity of a drop is then used:
+
+$$
+V_{\infty}=\frac{V_{\infty,osc\|ating\ or\ deformed}V_{\infty,spherical}}{\left(V_{\infty,osc\|ating\ or\ deformed}^{a_{16}}+V_{\infty,spherical}^{a_{16}}\right)^{a_{16}}}
+$$
+
+(3.19)
+
+where the final equation for the calculation of sedimentation velocity of drop contains 
+the last parameter of the model, *a₁₆*, which is used to adjust the smoothness of the 
+transition between the sedimentation velocities of spherical and non-spherical drops. 
+In summary, the sedimentation model of Henschke contains three adjustable 
+parameters which all have a clear physical interpretation:
+
+$$
+a_{16}
+$$
+
+• *d*SW – the drop diameter of transition between rigid and mobile interface
+
+$$
+d_{SW}
+$$
+
+• *a₁₅* – intensity and effect of oscillation
+
+• *a₁₆* – smoothness of transition
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+Henschke (2003) applied the sedimentation model, which he developed to correlate 
+his experimental results of the sedimentation velocity for the systems butyl-acetate 
+(d) + water (c) and butyl-acetate (d) + acetone (c → d) + water (c), as seen in 
+Fig. 3.4. In addition, the experimental results show that mass transfer has significant 
+influence on the sedimentation velocity. They also indicate that mass transfer 
+reduces the internal circulation of drops so that the sedimentation velocity decreases.
+
+---
+
+140
+T = 20 °C 
+120
+ideally mobile 
+interface
+100
+80
+rigid interface
+60
+40
+       drop of n-butylacetat in water
+ without mass transfer, (Hoting, 1996)
+sedimentation velocity in mm/s20 acetone, x0 = 3 wt.%, (Henschke, 2003)  
+ acetone, x0 = 5 wt.%, (Hoting, 1996)
+0
+01234567
+drop diameter in mm
+
+Figure 3.4: Influence of mass transfer in a physical extraction system 
+(Henschke, 2003)
+
+## 3.3 Single-Drop Sedimentation Experiments
+
+To investigate the sedimentation velocity of single drops in high-viscosity system,      
+a sedimentation measuring-cell on laboratory scale is used, which is described in this 
+section. The aims of the experiment of sedimentation velocity of drops in highviscosity system are to investigate the influence of viscosity of continuous phase, 
+viscosity of disperse phase and mass transfer on the sedimentation velocity of drops.
+
+## 3.3.1 Material System
+
+The systems, concentrations, and physical properties of systems used to investigate 
+the sedimentation velocity of single drops are presented in Tabs. 3.2 and 3.3, 
+respectively. The systems were chosen such that the viscosities were increased by 
+the addition of oligomers and polymers to a standard system of the EFCE. The 
+oligomers used were polyethyleneglycol (PEG) 600 and 4000, where the number 
+indicates the average molar mass in g/mole.
+
+---
+
+Table 3.2: The systems and concentrations to investigate the sedimentation of single 
+drops in high-viscosity system (W: Water; WP6: PEG 600 with water; 
+WP40: PEG 4000 with water; t: toluene; tp: toluene with paraffin; A: 
+acetone;  ρ: density of the continuous phase constant, η: viscosity of the 
+continuous phase constant).
+
+| No. | systems | weight fraction (c → d) |  |  |  |  |
+| --- | --- | --- | --- | --- | --- | --- |
+| No. | systems | continuous phase (c) |  | (c→d) | disperse phase (d) |  |
+| No. | systems | PEG | water | acetone | toluene | paraffin |
+| I. | Wt | - | 1.000 | 0 | 1.00 | - |
+| II. | WAt | - | 0.975 | 0.025 | 1.00 |  |
+| constant density of the continuous phase |  |  |  |  |  |  |
+| III. | ρWP6tp | 0.710 | 0.290 | 0 | 0.50 | 0.50 |
+| IV. | ρWP6Atp | 0.685 | 0.290 | 0.025 | 0.50 | 0.50 |
+| V. | ρWP6t | 0.710 | 0.290 | 0 | 1.00 | 0.00 |
+| VI. | ρWP6At | 0.685 | 0.290 | 0.025 | 1.00 | 0.00 |
+| VII. | ρWP40t | 0.510 | 0.490 | 0 | 1.00 | 0.00 |
+| VIII. | ρWP40tp | 0.510 | 0.490 | 0 | 0.50 | 0.50 |
+| IX. | ρWP40Atp | 0.485 | 0.490 | 0.025 | 0.50 | 0.50 |
+| X. | ρWP40At | 0.485 | 0.490 | 0.025 | 1.00 | 0.00 |
+| constant viscosity of the continuous phase |  |  |  |  |  |  |
+| XI. | ηWP6tp | 0.613 | 0.387 | 0 | 0.50 | 0.50 |
+| XII. | ηWP6Atp | 0.588 | 0.387 | 0.025 | 0.50 | 0.50 |
+| XIII. | ηWP6At | 0.588 | 0.387 | 0.025 | 1.00 | 0.00 |
+| XIV. | ηWP40tp | 0.414 | 0.586 | 0 | 0.50 | 0.50 |
+| XV. | ηWP40Atp | 0.389 | 0.586 | 0.025 | 0.50 | 0.50 |
+| XVI | ηWP40At | 0.389 | 0.586 | 0.025 | 1.00 | 0.00 |
+
+PEG 4000 with water and PEG 600 with water were used as the continuous phase. 
+To investigate molar-mass effects, two polymers with different molar mass have been 
+used. As a consequence two options occur for comparing the resulting two-phase 
+systems: Either the density or the viscosity can be kept constant. Here viscosities 
+between 50 and 100 mPas have been chosen as being high enough for this 
+investigation, significantly higher as compared to the low-viscosity systems. To 
+increase the viscosity of toluene as the dispersed phase, paraffin was added to toluene. Acetone was used as the mass-transfer component with a concentration of 
+2.5 wt%. Tab. 3.3: lists the properties of the systems used. The property that was 
+kept constant is indicated for each variation. The details of how these properties were 
+determined together with the specifications of the individual components are given in 
+the appendix. Additional experimental data of the sedimentation velocity for the 
+system water in toluene was obtained from Charfi (2010).
+
+Table 3.3: Physical properties of systems used to investigate the sedimentation of 
+single drops in high-viscosity systems. Symbols are identical to Tab. 3.2.
+
+| No. | systems | η c [mPa s] | η d [mPa s] | ρ c [kg/m ] | ρ d [kg/m ] | $\sigma$ [mN/m3] |
+| --- | --- | --- | --- | --- | --- | --- |
+| I. | Wt | 1.039 | 0.610 | 998 | 866.05 | 34.41 |
+| II. | WAt | 1.039 | 0.610 | 998 | 866.05 | 34.41 |
+| density of the continuous phase = constant |  |  |  |  |  |  |
+| III. | ρWP6tp | 95.19 | 64.96 | 1094.20 | 864.63 | 49.63 |
+| IV. | ρWP6Atp | 92.82 | 64.96 | 1086.60 | 864.63 | 43.37 |
+| V. | ρWP6t | 95.19 | 0.610 | 1094.20 | 866.05 | 40.69 |
+| VI. | ρWP6At | 92.82 | 0.610 | 1086.60 | 866.05 | 36.20 |
+| VII. | ρWP40t | 101.12 | 0.610 | 1094.20 | 866.05 | 41.12 |
+| VIII. | ρWP40tp | 101.12 | 64.96 | 1094.20 | 864.63 | 55.57 |
+| IX. | ρWP40Atp | 98.60 | 64.96 | 1086.60 | 864.63 | 47.98 |
+| X. | ρWP40At | 98.60 | 0.610 | 1086.60 | 866.05 | 39.34 |
+| viscosity of the continuous phase = constant |  |  |  |  |  |  |
+| XI. | ηWP6tp | 82.27 | 64.96 | 1080.69 | 864.63 | 46.70 |
+| XII. | ηWP6Atp | 80.22 | 64.96 | 1073.42 | 864.63 | 40.80 |
+| XIII. | ηWP6At | 80.22 | 0.610 | 1073.42 | 866.05 | 34.03 |
+| XIV. | ηWP40tp | 82.27 | 64.96 | 1074.40 | 864.63 | 45.35 |
+| XV. | ηWP40Atp | 80.22 | 64.96 | 1067.29 | 864.63 | 39.60 |
+| XVI. | ηWP40At | 80.22 | 0.610 | 1067.29 | 866.05 | 33.03 |
+
+$$
+\eta_{c}
+$$
+
+$$
+\mathsf{n_d}
+$$
+
+$$
+\rho_{0}
+$$
+
+$$
+\rho_{\mathsf{d}}
+$$
+
+$$
+[\mathrm{kg/m^3}]
+$$
+
+$$
+[\mathrm{kg/m^3}]
+$$
+
+$$
+[\mathsf{m}\mathsf{N}/\mathsf{m}^3]
+$$
+
+---
+
+## 3.3.2 Experimental Set-up
+
+The experiments of the sedimentation velocity of single drops in a high-viscosity 
+system were carried out in a laboratory cell. A glass column with a diameter of         
+200 mm and a total height of 900 mm was used. Fig. 3.5 shows the sketch of the 
+sedimentation cell.
+
+camera
+2800
+DN 200
+1350
+rising droplet
+nozzle for producing
+droplets
+50 50 50 50 100 100 100 100 100
+
+Figure 3.5: Sketch of the sedimentation cell (Henschke, 2003)
+
+The principle of measurement of sedimentation velocity is as follows: the drops are 
+created by using a nozzle, the drops then rise in a continuous phase from bottom to 
+top of sedimentation cell, are recorded with a video camera, and sedimentation 
+velocities of drops are then determined from the video by using the free software 
+VirtualDub. Above the nozzle, the velocity of the drops depends on the velocity with 
+which they were produced. To accurately determine the sedimentation velocity, the 
+first 50 mm of the cell are not considered, as this is regarded as the distance it takes 
+to reach the steady state of the sedimentation.
+
+To produce the drops a Hamilton precision syringe drive (type Microlab M, Hamilton, 
+Switzerland) is used. The operation of the syringe is controlled by a personal 
+computer with the software Visual Designer from Intelligent Instrumentation. The glass nozzles with internal diameter from 0.09 to 2.2 mm were used to create 
+different drop sizes. The rising of the drops is recorded with a video camera (F10 
+Mark II, Panasonic, Japan) and thus it is possible to determine the sedimentation 
+velocity in each section of the cell by evaluating the video on a frame-by-frame basis. 
+Type NB-S15/12 thermostat by Lauda has been used for temperature control. A 
+polytetrafluoroethylene (PTFE) capillary hose was used to connect the glass nozzle 
+with the syringe and the syringe with the sedimentation cell.
+
+## 3.3.3 Experimental Procedure
+
+Before the start of measurements for the sedimentation velocity, the cleanliness of 
+the system, the sedimentation cell, and the glass nozzle were checked. The 
+continuous phase used is saturated with the disperse phase without mass-transfer 
+component. Acetone is then added to the continuous phase where required. The 
+temperature in the cell is kept constant at 20 °C with the help of the temperature 
+jacket. Water was used as cooling medium for controlling the temperature of the 
+system.
+
+$$
+20\ ^{\circ}C
+$$
+
+The volume of the syringe used for the production of the drops is 2.5 ml. 2000 steps 
+of the step motor are required to fill the whole syringe and 12 s/stroke is the velocity 
+of liquid injection or suction.
+
+The diameter of the droplet can be calculated by using:
+
+$$
+V_{drop}=\frac{S\cdot V_s}{2000}
+$$
+
+(3.20)
+
+where *V*drop is the volume of a droplet, *S* is syringe step, and *V*S is the volume of 
+syringe. The droplet diameter *d* can be calculated from:
+
+$$
+V_{drop}
+$$
+
+$$
+V_{S}
+$$
+
+$$
+d=\left(\frac{6\cdot V_{drop}}{\pi}\right)^{\frac{1}{3}}=\left(\frac{6\cdot S\cdot V_s}{2000\cdot\pi}\right)
+$$
+
+(3.21)
+
+---
+
+To create a drop a suitable glass nozzle internal diameter was chosen. The Hamilton 
+syringe was filled by sucking dispersed phase from the dispersed phase storage 
+bottle with 2000 steps of the step motor (12 s/stroke) and 200 steps were injected 
+back to the dispersed phase storage bottle. To clean the capillary hose before 
+connecting a glass nozzle, 600 steps (3 s/stroke) of dispersed phase in syringe were 
+injected to the other side of the cleaned capillary hose which was installed with a 
+Teflon pin for the GL-screw connection (hose to glass nozzle). Then the Teflon pin of 
+the GL-screw connection was drawn downward a little bit and the dispersed phase 
+was sequentially filled into the glass nozzle with a slow speed (12 s/stroke) in 100 
+steps. At that time, the glass nozzle must be held vertically, until the capillary hose 
+under the glass nozzle was completely filled. The Teflon pin was pushed upward to 
+complete stop and the GL-screw connection (hose to glass nozzle) was now 
+hermetically locked. Next, the glass nozzle was filled until the dispersed phase level 
+in the glass nozzle was lifted up to the desired level which should be approximately 1 
+mm lower than the top of nozzle. Otherwise, the surface of the nozzle will be wetted 
+and correct drop generation will not be possible anymore.
+
+Therefore, the nozzle shall be filled with 100 steps, afterwards with 20 steps and 
+towards the end with single steps. The GL-screw connection between glass nozzle 
+and measuring cell was pushed onto the nozzle and the cap at the lower end the 
+measuring cell was removed. The nozzle was inserted 20 mm into the measuring 
+cell. Then the GL-screw connection to connect measuring cell and nozzle was closed 
+but not tightened; as the nozzle must first remain movable. The valve in the bottom 
+part of the measuring cell was opened and the glass nozzle is inserted into the 
+measuring cell. After that, the nozzle was pushed upward into the correct position. 
+The upper edge of the glass nozzle must be aligned to ensure that the nozzle axis is 
+positioned in the axis centre of the measuring cell. The GL-screw connection 
+between glass nozzle and measuring cell is then hermetically closed. Thereafter, the 
+measurement of sedimentation velocity of droplet is ready to start.
+
+To accurately record the sedimentation velocity of droplets, the distance between 
+camera and cell was about 2.8 m. For every section, at least 5 droplets have been 
+evaluated. Droplets colliding with the wall have been explicitly noted and are 
+excluded from the analysis. For the longer cell, the camera was positioned at three different vertical positions, in order to minimize the distortion in determining the 
+position of the droplets.
+
+## 3.4 Experimental Results and Model Evaluation
+
+The experiment results of the sedimentation velocity of a drop in a high-viscosity 
+system obtained from measurements with the laboratory cell are presented in this 
+part.
+
+## 3.4.1 Influence of the Viscosity of the Continuous Phase on the Sedimentation Velocity of Drops
+
+The viscosity of continuous phase is one of the most decisive physical properties 
+besides the density difference between the phases that determines the 
+sedimentation behaviour of a system. To investigate the influence of viscosity of 
+continuous phase on the sedimentation velocity, the experimental results of toluene 
+as drops in water with and without PEG 600 are compared, as shown in Fig. 3.6. To 
+simplify analysis of the influence of viscosity of continuous phase, the continuous 
+phase without mass transfer component was used as a comparison. In Fig. 3.6, the 
+symbols represent the experimental values. The experimental results indicate that 
+the sedimentation velocity is strongly affected by the viscosity of the continuous 
+phase. The sedimentation velocity of toluene drops in PEG 600 with water is slower 
+than the sedimentation velocity of toluene in water for a given drop diameter by a 
+factor of roughly five. Of course, the sedimentation velocity also depends on the 
+density difference between the continuous and disperse phase. But actually the 
+density effect decreases the observed influence, since the density difference is larger 
+for the PEG system.
+
+---
+
+130
+T = 20 °C  
+120
+lines:
+110
+Henschke model (2003)
+100
+90
+80
+70
+60
+50
+40
+30
+ water (c) + toluene (d),
+sedimentation velocity in mm/s
+20          (Charfi 2010)
+ρWP6t
+10
+0
+01234567
+drop diameter in mm
+
+Figure 3.6: Influence of viscosity of continuous phase on sedimentation velocity of 
+drops, system with variation of the viscosity of the continuous phase
+
+## 3.4.2 Influence of Viscosity of Disperse Phase on Sedimentation Velocity of Drops
+
+Fig. 3.7 shows the influence of viscosity of disperse phase on the sedimentation 
+velocity. The symbols and lines represent experimental values of toluene and toluene 
+in paraffin as drops in PEG 600 with water as well as the model of Henschke (2003), 
+respectively. The experimental results show that the viscosity of disperse phase has 
+a certain influence on sedimentation velocity. Toluene drops are faster than the drops 
+of toluene with paraffin, because the viscosity is increased by paraffin. The results 
+show that the influence of dispersed phase viscosity on sedimentation velocity of 
+drops is not as strong as the influence of continuous phase viscosity.
+
+---
+
+70
+T = 20 °C 
+         symbols: experimental values
+60
+ρWP6t
+ρWP6tp
+50
+         lines: Henschke model (2003) 
+40
+30
+20
+sedimentation velocity in mm/s
+10
+0
+01234567
+drop diameter in mm
+
+Figure 3.7: Influence of viscosity of disperse phase on sedimentation velocity of 
+drops, system with constant density of the continuous phase
+
+## 3.4.3 Influence of Mass Transfer on Sedimentation Velocity of Droplets
+
+The influence of mass transfer on sedimentation velocity was investigated. The 
+experimental results for a system with both phases increased in viscosity with and 
+without mass-transfer component acetone are compared, as can be seen in Fig. 3.8. 
+The limiting curves for a drop with a rigid and an ideally mobile interface are included. 
+Based on the experimental results, the mass transfer also in high-viscosity system 
+has been found to significantly influence the sedimentation velocity. The 
+sedimentation velocity without mass transfer is faster than the sedimentation velocity 
+with acetone present. As in systems with low viscosity, the sedimentation velocity 
+decreases due to mass transfer (Henschke, 2003).
+
+---
+
+80
+T = 20 °C 
+          symbols: experimental values
+70
+ρWP6t
+ρWP6At
+60
+         lines: Henschke model (2003)
+50 ideally mobile interface
+ rigid interface
+40
+30
+20
+sedimentation velocity in mm/s
+10
+0
+01234567
+drop diameter in mm
+
+Figure 3.8: Influence of mass transfer in systems with constant density of the 
+continuous phase
+
+## 3.4.4 Modeling of Sedimentation Velocity of Drops in High-Viscosity Systems
+
+After having experimentally determined the influence of the viscosity and the density 
+of the system on the sedimentation velocity, the model of Henschke (2003) is used to 
+describe the system behaviour. Therefore, experimental results in the system 
+ηWP6At were fitted using Henschke’s model. Fig. 3.9 shows the experimental 
+sedimentation velocity in the system as a function of the drop diameter and the fitting 
+results. Henschke used constant factors *a*DA and α. He set *a*DA = 12 and α = 10. 
+sw sw
+The resulting fit is shown as dashed line in Fig. 3.9. It is obvious, that the data are not 
+described very well. Especially for drop diameters above 2.5 mm, the calculated 
+sedimentation velocity is significantly lower than the experimental velocity. The 
+deviations of the model result from the experimental data are listed in Tab. 3.4. The 
+given error is calculated as mean relative deviation in percent. For the above 
+mentioned standard set of parameters, a mean relative deviation of 14 % is
+
+$$
+a_{DA}
+$$
+
+$$
+\alpha_{sw}
+$$
+
+$$
+a_{DA}=12
+$$
+
+$$
+\alpha_{sw}=10
+$$ calculated. To reduce the deviation, the factors *a*DA and α were varied as shown in 
+sw
+Fig. 3.9. By choosing *a*DA = 12 and α = 10 the mean relative deviation can be 
+sw
+significantly reduced to 3 %. Tab. 3.4 also lists the diameter *d*SW where internal 
+circulation starts. It can be seen that for Henschke’s standard parameter values 
+(*a*DA = 12 and  α = 10), internal circulation should start at a very small diameter of 
+sw
+0.02 mm which is unreasonably small. For the parameter set of *a*DA = 4 and α = 5, 
+sw
+the calculated diameter *d*SW is 7.86 mm, which appears to be reasonable. Thus the 
+latter set of coefficients was chosen for the following fitting.
+
+$$
+\alpha_{sw}
+$$
+
+$$
+a_{DA}
+$$
+
+$$
+a_{DA}=12
+$$
+
+$$
+\alpha_{sw}=10
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+a_{DA}=12
+$$
+
+$$
+\alpha_{sw}=10
+$$
+
+$$
+a_{DA}=4
+$$
+
+$$
+\alpha_{sw}=5
+$$
+
+$$
+d_{SW}
+$$
+
+60
+         symbols: experimental values
+ηWP6At
+50
+         lines: Henschke model (2003)
+T = 20 °C
+40
+30
+20
+a = 12,    α = 10
+DA SW
+a = 4,      α = 5
+DA SW
+sedimentation velocity in [mm/s]10
+a = 12,    α = 5
+DA SW
+a = 4,      α = 10
+DA SW
+0
+01234567
+drop diameter in mm
+
+Figure 3.9: The fitting results of Henschke’s model (2003) with the experimental 
+results
+
+Table 3.4: The fitting results of Henschke’s model (2003) with the experimental 
+results of sedimentation velocity of drops in high viscosity
+
+| $a_{\mathrm{DA}}$ | $\alpha_{sw}$ | $d_{sw}$ [mm] | $a_{15}$ | $a_{16}$ | mean r
+…[truncated]el. deviation[%] |
+| --- | --- | --- | --- | --- | --- |
+| 12 | 5 | 3.14 | 0.44 | 2.93 | 3.85 |
+| 4 | 5 | 7.86 | 0.13 | 0.86 | 2.73 |
+| 4 | 10 | 4.57 | 0.10 | 0.79 | 11.09 |
+| 12 | 10 | 0.02 | 0.45 | 2.90 | 13.55 |
+
+$$
+\alpha_{sw}
+$$
+
+$$
+d_{sw}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+---
+
+Tab. 3.5 then shows the individual parameters fitted to the experimental results of 
+sedimentation velocity of drops in high-viscosity system. The given error is calculated 
+as mean relative deviation in percent. The individual parameter fitting of Henschke’s 
+model (2003) to the experimental results yields a mean relative deviation smaller 
+than 4 %.
+
+Table 3.5: Experimental conditions and parameters fitted to the experimental results 
+of sedimentation velocity of drops in high-viscosity system and lowviscosity system
+
+| No. | Systems | a DA [-] | sw [-] | d [mm] | a15[-] | a16[-] | Mean rel deviation [%] |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| I. | Wt | 12 | 10 | 3.50 | 1.06 | 4.49 | 3.95 |
+| density of the continuous phase = constant |  |  |  |  |  |  |  |
+| III. | ρWP6tp | 4 | 5 | 2.91 | 0.07 | 1.26 | 2.74 |
+| IV. | ρWP6Atp | 4 | 5 | 3.20 | 0.09 | 1.11 | 3.45 |
+| V. | ρWP6t | 4 | 5 | 6.75 | 0.08 | 1.07 | 2.49 |
+| VI. | ρWP6At | 4 | 5 | 7.46 | 0.12 | 0.73 | 3.63 |
+| VII. | ρWP40t | 4 | 5 | 6.51 | 0.13 | 0.74 | 1.19 |
+| VIII. | ρWP40tp | 4 | 5 | 3.35 | 0.09 | 0.93 | 2.26 |
+| IX. | ρWP40Atp | 4 | 5 | 3.94 | 0.13 | 0.83 | 1.94 |
+| X. | ρWP40At | 4 | 5 | 10.78 | 0.27 | 0.62 | 2.55 |
+| viscosity of the continuous phase = constant |  |  |  |  |  |  |  |
+| XI. | ηWP6tp | 4 | 5 | 2.35 | 0.04 | 1.53 | 3.85 |
+| XII. | ηWP6Atp | 4 | 5 | 2.84 | 0.07 | 1.31 | 3.05 |
+| XIII. | ηWP6At | 4 | 5 | 7.86 | 0.13 | 0.86 | 2.73 |
+| XIV. | ηWP40tp | 4 | 5 | 2.49 | 0.05 | 1.43 | 2.79 |
+| XV. | ηWP40Atp | 4 | 5 | 2.90 | 0.08 | 1.24 | 2.75 |
+| XVI. | ηWP40At | 4 | 5 | 8.16 | 0.16 | 0.81 | 2.99 |
+
+$$
+\alpha_{sw}
+$$
+
+$$
+d_{sw}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+\boldsymbol{a}_{16}
+$$
+
+These results with Henschke’s model (2003) show that this model is not only able to 
+describe the sedimentation velocity of drops in low-viscosity systems, but it is also 
+accurate to describe the sedimentation velocity of drops in high-viscosity system. 
+This can also be seen in Figs. 3.6 to 3.9 where the Henschke model has already 
+been included.
+
+---
+
+The results of parameter fitting indicate that the parameter value of *d*SW changes with 
+the presence of acetone as mass-transfer component (Henschke, 2003). The value 
+of *d*SW with acetone present is higher than the value without acetone. From the 
+results in Tab. 3.5 it can be concluded that variations in viscosity and density have a 
+stronger effect than the presence of acetone. With increasing viscosity of continuous 
+phase and disperse phase respectively, the value of *d*SW also increases. Also, the 
+parameter values of *a₁₅* and *a₁₆* for high-viscosity systems differ from the values for 
+low-viscosity systems. The value of *a₁₅* decreases with increasing viscosity of 
+disperse phase, whereas the value of *a₁₆* increases with increasing viscosity of 
+disperse phase.
+
+$$
+d_{SW}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+## 3.4.5 General Parameter of Sedimentation Velocity of Drops in High-Viscosity Systems
+
+The results in Tab. 3.5 show a general correlation between the dispersed phase used 
+and the values of the parameters *d*SW, *a₁₅* and *a*16 that are obtained from the fitting 
+process. In addition, the fitted values of *d*SW, *a₁₅* and *a₁₆* are shown in Fig. 3.10. The 
+parameters *a₁₅* and *a₁₆* are shown as function of *d*SW in case the dispersed phase is 
+toluene and in case the dispersed phase is toluene with paraffin. The general 
+observations on the values of the parameters made in chapter 3.4.4 can also be 
+found in Fig. 3.10. To test if there is a general set of the above mentioned 
+parameters, further analysis and observation on the parameters *d*SW, *a₁₅* and *a₁₆* was 
+performed. The aim is to find a single set of parameters *d*SW, *a₁₅* and *a₁₆* for toluene 
+and a single set of these parameters for toluene with paraffin. To calculate the values 
+of the generalized parameters, the parameter values will be calculated stepwise, 
+starting with *a₁₅*.
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+d_{SW},a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+\boldsymbol{a}_{15}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+d_{SW},a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+a_{15}
+$$
+
+---
+
+4,5
+a₁₅ for toluene + paraffin
+4,0
+a₁₆ for toluene + paraffin
+3,5 a₁₅ for toluene
+a₁₆ for toluene
+3,0
+16
+a
+2,5
+ and 2,0
+15
+a
+1,5
+1,0
+0,5
+0,0
+2 3 4 5 6 7 8 9 10 11 12 13 14
+d
+sw in mm
+
+Figure 3.10: Calculated values of *a₁₅* and *a₁₆* as function of *d*<sub>SW</sub>
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+d_{SW}
+$$
+
+The value that is calculated for the generalized *a₁₅* should lead to a minimum 
+deviation between the experimental and the model results. Therefore, the value of *a₁₅*
+of the two systems – toluene and toluene + paraffin – is varied until a minimum mean 
+absolute error is obtained. For each calculation, the parameters *a₁₆* and *d*SW were 
+fitted individually. The minimum mean deviation from the calculated *a₁₆* and *d*SW as 
+function of *a₁₅* obtained is shown in Fig. 3.11. The optimum value of *a₁₅* for toluene 
+with paraffin and toluene as dispersed phase turns out to be identical, and is set to 
+0.085. The fitted values for *a₁₆* and *d*SW are listed in Tab. 3.6 for toluene + paraffin as 
+dispersed phase and in Tab. 3.7 for toluene as dispersed phase.
+
+$$
+a_{15}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+\alpha_{16}
+$$
+
+$$
+d_{SW}
+$$
+
+---
+
+80
+78
+76
+74
+72
+70
+68
+mean deviation in mm/s
+66
+64
+62
+0.00 0.02 0.04 0.06 0.08 0.10 0.12 0.14 0.16 0.18 0.20 0.22
+a
+15
+
+Figure 3.11: Minimum mean deviation between experimental and model results as 
+function of *a₁₅*
+
+$$
+a_{15}
+$$
+
+Table 3.6: *d*SW and *a*16 as function of *a*15 for toluene with paraffin as disperse phase
+
+$$
+d_{SW}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+a_{15}
+$$
+
+| systems | $d_{sw}$ in mm | $a_{15}$ | $a_{16}$ |
+| --- | --- | --- | --- |
+| density of the continuous phase = constant |  |  |  |
+| $\rho$WP40tp | 3.34 | 0.085 | 0.93 |
+| $\rho$WP40Atp | 3.80 | 0.085 | 0.82 |
+| $\rho$WP6tp | 2.95 | 0.085 | 1.26 |
+| $\rho$WP6Atp | 3.18 | 0.085 | 1.11 |
+| viscosity of the continuous phase = constant |  |  |  |
+| $\eta$WP40tp | 2.56 | 0.085 | 1.43 |
+| $\eta$WP40Atp | 2.91 | 0.085 | 1.24 |
+| $\eta$WP6tp | 2.44 | 0.085 | 1.53 |
+| $\eta$WP6Atp | 2.86 | 0.085 | 1.31 |
+
+$$
+d_{sw}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+---
+
+Table 3.7: *d*SW and *a*16 as function of *a*15 for toluene as disperse phase
+
+$$
+d_{SW}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+a_{15}
+$$
+
+| systems | $d_{sw}$ in mm | $a_{15}$ | $a_{16}$ |
+| --- | --- | --- | --- |
+| density of the continuous phase = constant |  |  |  |
+| $\rho$WP40At | 28.16 | 0.085 | 4.06 |
+| $\rho$WP6At | 7.30 | 0.085 | 0.72 |
+| $\rho$WP6t | 6.74 | 0.085 | 1.07 |
+| viscosity of the continuous phase = constant |  |  |  |
+| $\eta$WP40At | 7.82 | 0.085 | 0.80 |
+| $\eta$WP6At | 7.65 | 0.085 | 0.85 |
+
+$$
+d_{sw}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+The results of *a₁₆* and *d*SW as function of *a₁₅* show that the values are different for 
+every system. But, with WP40At being the only exception, the values of *d*SW lie in a 
+narrow range from 2.44 mm to 3.34 mm in case of toluene + paraffin as dispersed 
+phase and from 6.74 mm to 7.82 mm for toluene as disperse phase. Consequently, 
+the next step is to try to find a single constant value of *d*SW depending only on the 
+dispersed phase used. The method used for finding the general value of *d*SW is 
+described below.
+
+$$
+a_{16}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+d_{SW}
+$$
+
+First, the sensitivity of the model to variations of *d*SW is analysed. The value of *a₁₅* is 
+kept constant at 0.085 for both systems. The value of *d*SW resulting from the fit using 
+the aforementioned *a₁₅* is used as starting point. Then, *d*SW is varied from 0.90 times 
+*d*SW until 1.10 times *d*SW, *a₁₆* is fitted and the mean absolute error of the model fit is 
+calculated. The results are shown in Fig. 3.12. It can be seen in Fig. 3.12 that the 
+model deviations for the two different values of *d*SW lie in a narrow range. That 
+means, slight variation in *d*SW do not affect the quality of the model fit significantly.
+
+$$
+a_{15}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+d_{SW}
+$$
+
+---
+
+240
+d from a₁₅ = 0.085
+sw
+200 0.90 d from a₁₅ = 0.085
+sw
+ 0.95 d from a₁₅ = 0.085
+sw
+ 1.05 d from a₁₅ = 0.085
+sw
+160
+ 1.10 d from a₁₅ = 0.085
+sw
+120
+80
+mean deviation in mm/s
+40
+0
+0 1 2 3 4 5 6 7 8 9 10 11 12
+d
+sw in mm
+
+Figure 3.12: Mean deviation between experimental and model result as function of 
+*d*SW
+
+It should therefore be possible to find a single value of *d*SW for the different systems, 
+toluene as dispersed phase and toluene and paraffin as dispersed phase. To find 
+applicable values for *d*SW, *a₁₅* is kept constant at 0.085 for both systems and *a₁₆* is 
+fitted. The parameter *d*SW was systematically varied and the mean absolute deviation 
+was calculated. The results are shown in Fig. 3.13 for toluene + paraffin as disperse 
+phase and in Fig. 3.14 for toluene as disperse phase. In both figures, a distinct 
+minimum of the mean absolute deviation is visible. According to the graphs, *d*SW is 
+set to 2.95 mm for toluene + paraffin and to 7.55 for toluene.
+
+$$
+d_{SW}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+d_{SW},a_{15}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+d_{SW}
+$$
+
+---
+
+130
+d for toluene with paraffin
+SW
+120
+110
+100
+90
+80
+70
+2.4 2.5 2.6 2.7 2.8 2.9 3.0 3.1 3.2 3.3 3.4 3.5 3.6
+d
+sw in mm
+
+Figure 3.13: Minimum absolute deviation between experimental and model results as 
+function of *d*SW in the toluene with paraffin system
+
+$$
+d_{SW}
+$$
+
+104
+d for toluene
+SW
+100
+96
+92
+88
+84
+80
+6.9 7.0 7.1 7.2 7.3 7.4 7.5 7.6 7.7 7.8 7.9 8.0 8.1
+d
+sw in mm
+
+Figure 3.14: Minimum absolute deviation between experimental and model results as 
+function of *d*SW for the toluene system
+
+$$
+d_{SW}
+$$
+
+---
+
+To calculate the values for *a₁₆*, *d*SW was set to 2.95 mm and 7.55 mm respectively. A 
+constant value of *a₁₅* = 0.085 was used to fit the experimental results by adjusting 
+*a₁₆*. The corresponding values of *d*SW, *a₁₅* and *a₁₆* are listed in Tabs. 3.8 and 3.9.
+
+$$
+a_{16}
+$$
+
+$$
+a_{15}=0.085
+$$
+
+$$
+a_{16}
+$$
+
+$$
+d_{SW},a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+Table 3.8: *a₁₅* and *a₁₆* as function of *d*SW for toluene with paraffin as disperse phase
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+d_{sw}
+$$
+
+| systems | $d_{sw}$ in mm | $a_{15}$ | $a_{16}$ |
+| --- | --- | --- | --- |
+| density of the continuous phase = constant |  |  |  |
+| $\rho$WP40Atp | 2.95 | 0.085 | 0.91 |
+| $\rho$WP40Atp | 2.95 | 0.085 | 0.76 |
+| $\rho$WP6tp | 2.95 | 0.085 | 1.26 |
+| $\rho$WP6Atp | 2.95 | 0.085 | 1.08 |
+| viscosity of the continuous phase = constant |  |  |  |
+| $\eta$WP40tp | 2.95 | 0.085 | 1.47 |
+| $\eta$WP40Atp | 2.95 | 0.085 | 1.24 |
+| $\eta$WP6tp | 2.95 | 0.085 | 1.64 |
+| $\eta$WP6Atp | 2.95 | 0.085 | 1.32 |
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+Table 3.9: *d*SW and *a₁₆* as function of *a₁₅* for toluene as disperse phase
+
+$$
+d_{SW}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+| Systems | $d_{sw}$ in mm | $a_{15}$ | $a_{16}$ |
+| --- | --- | --- | --- |
+| density of the continuous phase = constant |  |  |  |
+| $\rho$WP40At | 7.55 | 0.085 | 0.55 |
+| $\rho$WP6At | 7.55 | 0.085 | 0.73 |
+| $\rho$WP6t | 7.55 | 0.085 | 1.12 |
+| viscosity of the continuous phase = constant |  |  |  |
+| $\eta$WP40At | 7.55 | 0.085 | 0.79 |
+| $\eta$WP6At | 7.55 | 0.085 | 0.85 |
+
+$$
+d_{sw} 鱼 mm
+$$
+
+$$
+\bar{a}_{15}
+$$
+
+$$
+\bar{a}_{16}
+$$
+
+The results presented in Tabs. 3.8 and 3.9 show that now the values of the 
+parameter *a₁₆* lie in a narrow range. In order to determine a single value of the two 
+different systems, the parameters *d*SW and *a₁₅* were set to the constant values given 
+in Tabs. 3.8 and 3.9, *a₁₆* was varied for the toluene system and for the toluene + 
+paraffin system and the mean absolute deviation between model calculation and 
+experimental results was evaluated. The results are shown in Fig. 3.15. It can be 
+seen that there is a narrow range for the values of *a₁₆* that leads to a minimum in the
+
+$$
+\bar{a}_{16}
+$$
+
+$$
+\bar{a}_{15}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+a_{16}
+$$ mean absolute deviation. The values of *a₁₆* obtained indicate that the value of *a₁₆* for 
+toluene and toluene with paraffin is different, namely 0.79 and 1.24, respectively, as 
+shown in Fig. 3.15.
+
+$$
+a_{16}
+$$
+
+$$
+a_{16}
+$$
+
+3000
+a₁₆ for toluene
+2500 a for toluene with paraffin
+16
+2000
+1500
+1000
+mean deviation in mm/s
+500
+0
+0.0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2
+a
+16
+
+Figure 3.15: Minimum absolute deviation between experimental and model results as 
+function of *a₁₆*
+
+$$
+a_{16}
+$$
+
+Based on the analysis of *d*SW, *a₁₅*, and *a₁₆*, the generalized values for toluene and 
+toluene with paraffin are listed in Tab. 3.10.
+
+$$
+d_{SW},a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+Table 3.10: the general value of *d*SW, *a₁₅* and *a₁₆* for toluene and toluene with paraffin
+
+$$
+d_{SW},a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+| continuous phase | disperse phase | dSWin mm | a₁₅ | a₁₆ |
+| --- | --- | --- | --- | --- |
+| PEG + water | toluene | 7.55 | 0.085 | 0.79 |
+| PEG + water | toluene with paraffin | 2.95 | 0.085 | 1.24 |
+
+$$
+d_{SW}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+\overline{PEG+water}
+$$
+
+$$
+\overline{PEG+water}
+$$
+
+Can the chosen parameters for *d*SW, *a₁₅* and *a₁₆* adequately describe the 
+experimental results in the different systems? Fig. 3.16 shows the sedimentation 
+velocity in three different systems used in this work. The velocity is given as function
+
+$$
+d_{SW},\ a_{15}
+$$
+
+$$
+a_{16}
+$$ of the drop diameter. The generalized parameters that were used for the calculation 
+are given in addition. From Fig. 3.16 it can bee seen that using the generalized 
+parameters as given in Tab. 3.10 leads to an excellent fit of the experimental results. 
+Even systems where mass transfer takes place can be described using the single set 
+of parameters. The values of the parameters depend only on the dispersed phase 
+used. Thus, the difference in viscosity of the two different dispersed phases is 
+represented by different values for the parameters.
+
+80
+T = 20 °C  
+symbols: experimental values
+70
+ρWP6tp
+         d = 2.95 mm, a₁₅ = 0.085, a₁₆ =1.24
+SW
+60
+ηWP40Atp
+         d = 2.95 mm, a₁₅ = 0.085, a₁₆ =1.24
+SW
+50
+ρWP6At
+         d = 7.55 mm, a₁₅ = 0.085, a₁₆ =0.79
+SW
+40
+lines: Henscke model 
+with parameters listed above 
+30
+20
+sedimentation velocity in mm/s10
+0
+01234567
+drop diameter in [mm]
+
+Figure 3.16: The fitting results of Henschke’s model (2003) with experimental results 
+of sedimentation velocity by using the generalized values of *d*SW, *a₁₅*
+and *a₁₆* for toluene and toluene with paraffin
+
+$$
+d_{SW}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+## 3.5 Conclusions
+
+In this research of extraction with a high-viscosity system, the sedimentation 
+behaviour of drops in the high-viscosity system has been investigated. Mass transfer, 
+the viscosity of continuous and dispersed phase influence the sedimentation velocity 
+of drops. The influence of continuous phase viscosity is stronger on the sedimentation velocity of drops than the influence of mass transfer and viscosity of 
+dispersed phase. The sedimentation behaviour of droplets in the high-viscosity 
+system was significantly different from a low-viscosity system. The sedimentation 
+velocity of drops in high viscosity is much slower than the sedimentation velocity of 
+drops in the low-viscosity system. Mass transfer decreases the sedimentation 
+velocity of droplets in high-viscosity systems.
+
+The model of Henschke (2003) was used to calculate the sedimentation velocity of 
+drops in high-viscosity systems. Henscke set the values for the parameters *a*DA to 12 
+and  α<sub>SW</sub> to 10. Using these values gave inacceptable large deviations between 
+experimental and model results. The influence of the two parameters on the fitting 
+result was systematically studied. As a result, the value of *a*DA was set to 4 and αSW
+to 5. Using these values, the model of Henschke (2003) was able to describe 
+systems with low and high viscosity. Thus, in this work the range of applicability of 
+Henschke’s model (2003) could be extended towards systems with higher viscosities 
+than the standard EFCE systems. The extended model could be validated using the 
+experimental results of this work.
+
+$$
+a_{DA}
+$$
+
+$$
+\alpha_{\mathrm{SW}}
+$$
+
+$$
+a_{DA}
+$$
+
+Apart from *a*DA and αSW Henschke’s model (2003) contains three more parameters: 
+*d*SW, *a₁₅* and *a₁₆*. The values of the latter three parameters are affected by the 
+viscosity of continuous phase, the viscosity of disperse phase, and mass transfer. 
+The value of *d* parameter increases with increasing viscosity of continuous phase, 
+*sw*
+the viscosity of disperse phase, and the presence of mass transfer in continuous 
+phase. It was found that fitting of the three parameters *d*SW, *a₁₅* and *a₁₆* yielded 
+values that lie in narrow ranges. Although a clear dependency on the type of system 
+used – toluene as disperse phase or toluene + paraffin as disperse phase – could be 
+determined.
+
+$$
+a_{DA}
+$$
+
+$$
+\alpha_{SW}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+d_{sw}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+The values of the three parameters were systematically varied and the impact on the 
+fitting results in terms of the mean absolute deviation was evaluated. It could be 
+found that the parameter *a₁₅* can be set to a constant value of 0.085 for all systems 
+used in this work. The values of *d*SW and *a₁₆* depend on the constituents of the 
+disperse phase. If toluene is used, different values for the two aforementioned 
+parameters were calculated than in the case the disperse phase consists of toluene +
+
+$$
+a_{15}
+$$
+
+$$
+d_{SW}
+$$
+
+$$
+a_{16}
+$$ paraffin. Using the generalized values of *d*SW, *a₁₅* and *a₁₆*, Henschke’s model (2003) 
+is able to describe the experimental sedimentation velocities with little deviation. This 
+holds even for the case, where acetone is present and mass transfer takes place.
+
+$$
+d_{SW},a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+Henschke’s model (2003) was successfully extended to systems with higher 
+viscosities in this work. The modified model was validated and significantly simplified 
+by introducing generalized parameters.
+
+---
+
+## Mass Transfer of Single Drops
+
+## 4.1 Introduction
+
+In order to study the behaviour of extraction columns for high-viscosity systems, in 
+addition to knowing the sedimentation behaviour of drops, knowledge of mass 
+transfer of drops in high viscosity systems is also required. The investigation of mass 
+transfer of drops in high viscosity systems can be used to study and analyze the 
+basics, the phenomena as well as the mechanisms of mass transfer of components 
+from the continuous phase that has a high viscosity to disperse phase which has also 
+a high or low viscosity.
+
+Experimental and theoretical studies on the mass transfer of single drops are 
+restricted mostly to low-viscosity systems (Garner and Skelland, 1955; Calderbank 
+and Korchinski, 1956; Horton et al., 1965; Henschke and Pfennig, 1999; Steiner et 
+al., 1990; Wolf, 1999; Schulze et al., 2003; Brodkorb et al., 2003; Javadi et al., 2006; 
+Wegener et al., 2007; Lu et al., 2010). The following publications describe the effects 
+of surfactants on mass transfer inside drops (Huang and Kintner, 1969; Liang and 
+Slater, 1990).
+
+Usually, the investigation and determination of mass transfer of single drops were 
+carried out on laboratory-scale with test cells, which are made of glass (Steiner et al. 
+1990; Schröter et al., 1998; Henschke and Pfennig, 1999; Wegener et al., 2007). In 
+addition, there are the mass transfer into drops during metal extraction (Mörters and 
+Bart, 2003), and the mass transfer for reactive extraction (Wachter et al., 1993; Bart 
+et al.,1994; Sainz-Diaz et al., 1996; Klocker et al.,1996; Mörters et al., 2000; 
+Jirapasertwong et al., 2008).
+
+Although the experimental and theoretical studies on the mass transfer of single 
+drops were studied by various researchers for many years, until now only few 
+publications mass transfer in system with high viscosity are available (Mahiout and
+
+---
+
+Vogelpohl, 1984; Wagner, 1995; Wagner, 1999; Wegener et al., 2007). Therefore, 
+the experimental data and literature review of mass transfer of single drops in high 
+viscosity systems is still limited and therefore, further research on this topic is 
+necessary.
+
+Thus, the goal of this research of extraction in high-viscosity systems in terms of 
+mass transfer of single drops is to investigate the influence of viscosity of the 
+continuous and of disperse phase on mass-transfer rate. After that, it is vital to 
+compare the experimental results between the mass transfer of single drops in high 
+viscosity systems with mass transfer of single drops in low viscosity systems. Until 
+now Henschke’s model (2003) has been validated with the experimental results of 
+mass transfer in low viscosity systems and is in good agreement with the 
+corresponding experimental results. Therefore, this model (Henschke, 2003) needs 
+to be validated with the experimental results of mass transfer of single drops in highviscosity systems.
+
+## 4.2 Theory and Mathematical Model of Mass Transfer in Single Drops
+
+A description of the theories and models describing mass transfer in single-drops are 
+given below.
+
+## 4.2.1 Mass-Transfer Rate in Liquid-Liquid Systems
+
+The concentration profiles assumed for interphase mass transfer and concentration 
+driving force between two liquid phases are illustrated in Fig. 4.1. The classical twofilm theory is usually used in the research of extraction to describe the mass transfer 
+across the interface at single drops. The theory assumes that the continuous and 
+disperse phase are in equilibrium at the interface, and consequently no resistance 
+exists to mass transfer directly at this point.
+
+---
+
+mass transfer concentration boundary layers disperse phase (y) continuous phase (x) distance through the phases, z solute concentration, c
+
+Figure 4.1: Concentration profiles at the interphase during mass transfer for single 
+droplets (Schweitzer, 1979 and Henschke, 2003)
+
+The overall molar flux may be described with:
+
+$$
+\dot{M}=K_{od}A(c_y^*-c_y)=K_{oc}A(c_x-c_x^*)
+$$
+
+(4.1)
+
+and
+
+$$
+\frac{1}{K_{oc}}=\frac{1}{K_{od}}=\frac{1}{k_c}+\frac{1}{mk_d}
+$$
+
+(4.2)
+
+Thus, the mass-transfer coefficients in both boundary layers *k<sub>c</sub>* and *k<sub>d</sub>* need to be 
+described, which is usually achieved by means of an appropriate Sherwood 
+correlation.
+
+$$
+k_{c}
+$$
+
+$$
+k_{d}
+$$
+
+## 4.2.2 Mass-Transfer Coefficient in Continuous Phase
+
+The mass transfer in the continuous phase can be regarded as a steady-state 
+process by assuming an infinite surrounding. Generally, the mass-transfer coefficient 
+in the continuous phase for rigid spheres is calculated by.
+
+---
+
+$$
+S h_{c}=\frac{\beta_{c}d}{D_{c}}=2+C_{1}\mathrm{Re}^{0.5}S c_{c}^{0.33}
+$$
+
+(4.3)
+
+$$
+\mathrm{with}\quad\mathrm{Sc}_{\mathrm{c}}=\frac{\eta_{\mathrm{c}}}{\rho_{\mathrm{c}}D_{\mathrm{c}}}
+$$
+
+(4.4)
+
+where *C₁* ranges from 0.55 to 0.95 (Frössling, 1938; Akselrud, 1953; Garner and 
+Suckling, 1958; Slater, 1996). *Sc<sub>c</sub>* and *Sh<sub>c</sub>* are the dimensionless Schmidt  and 
+Sherwood number of the continuous phase, respectively. Chift et al. (1978) 
+suggested that *Sh<sub>c</sub>* at highly circulating drops can be determined by:
+
+$$
+C_{1}
+$$
+
+$$
+S c_{c}
+$$
+
+$$
+Sh_{c}
+$$
+
+$$
+Sh_{c}
+$$
+
+$$
+Sh_{c}=1+0.724\mathrm{Re}^{0.48}\mathrm{~Sc}_{c}^{0.33}\quad\mathrm{for}\quad100<\mathrm{Re}<2000\mathrm{~and}\quad\mathrm{Sc}_{c}>200
+$$
+
+(4.5)
+
+Steiner (1986) calculated the mass-transfer coefficient data covering wide ranges of 
+Re  and *Sc<sub>c</sub>*. He described that *k<sub>c</sub>* changes gradually between limits appropriate to 
+stagnant drops at low Peclet numbers and to potential flow conditions at high Peclet 
+numbers. Therefore, Steiner (1986) writes:
+
+$$
+S c_{c}
+$$
+
+$$
+k_{c}
+$$
+
+$$
+\frac{Sh_{c}-Sh_{c,R}}{Sh_{c,crit}-Sh_{c,R}}=1-\exp(-0.00418Pe_{c}^{0.42})
+$$
+
+(4.6)
+
+3 6
+for 10 < Re < 1200, 241000 190 < *Sc* <, and 10 < *Pe* < 10. For rigid drop 
+c c
+conditions, Steiner (1986) recommends:
+
+$$
+10<Re<1200,\quad190<Sc_{c}<241000,\quad and\quad10^3<Pe_{c}<10^6
+$$
+
+$$
+Sh_{c,R}=2.43+0.773Re_{d}^{0.5}Sc_{c}^{0.33}+0.0103Re_{d}Sc_{c}^{0.33}
+$$
+
+(4.7)
+
+## 4.2.3 Mass-Transfer Coefficient in Single Drop
+
+Newman (1931) developed a model which can be used to calculate the bulk 
+concentration of the drop during mass transfer in a stationary continuous phase if no 
+circulations occur inside the drop and if the drop behaves like a rigid sphere:
+
+---
+
+$$
+\frac{y(r,t)-y^{*}}{y_{0}-y^{*}}=-\frac{2R}{\pi r}\sum_{n=1}^{\infty}-\frac{(-1)^{n}}{n}\sin\left(\frac{n\pi r}{R}\right)\exp(-n\pi)^{2}\pi o_{d}
+$$
+
+(4.8)
+
+where ) *y* (*r*,*t* is the bulk concentration of the drop during mass transfer, *y₀* is the 
+initial concentration of the drop, and the equilibrium concentration is *y<sup>*</sup>*. *R* and *r* are 
+the radius of the drop and the coordinate of radius, respectively. *Fo<sub>d</sub>* is the Fourier 
+number of disperse phase.
+
+$$
+y(r,t)
+$$
+
+$$
+\boldsymbol{y}_{0}
+$$
+
+$$
+y^{*}
+$$
+
+$$
+FO_{d}
+$$
+
+With increasing drop diameter, circulations are induced within a drop. Such 
+circulations improve the mixing of the drop interior and enhance the transfer rate of 
+the solute. The effect of circulations within a drop on mass transfer is taken into 
+account by Kronik and Brink (1950):
+
+$$
+\frac{y(r,t)-y^{*}}{y_{0}-y^{*}}=\frac{6}{\pi^{2}}\sum_{n=1}^{\infty}\frac{1}{n^{2}}\exp(-(n\pi)^{2}Fo_{d})\quad with\quad FO_{d}=\frac{4Dt}{d^{2}}
+$$
+
+(4.9)
+
+Here, *y₀* is the initial concentration of the drop, *y<sup>*</sup>* is the equilibrium concentration, 
+*Fo* is Fourier number of disperse phase, D<sub>d</sub> is diffusion coefficient, and *t* is time. An 
+d
+approximate solution of Eq. 4.9 for short and long contact times can be found in 
+Mersmann (1986):
+
+$$
+\boldsymbol{y}_{0}
+$$
+
+$$
+y^{*}
+$$
+
+$$
+FO_{d}
+$$
+
+$$
+D_{d}
+$$
+
+$$
+\frac {y (r , t) - y ^ {*}}{y _ {0} - y ^ {*}} = \left\{ \begin{array}{l l} 1 - \frac {6}{\sqrt {\pi}} \sqrt {F o _ {d}} + 2. 9 9 6 F o _ {d}; & \text {f o r} F o _ {d} < 0. 1 5 8 4 \\ \frac {6}{\pi^ {2}} \exp \left[ - \pi^ {2} F o _ {d} \right] & \text {f o r} F o _ {d} \geq 0. 1 5 8 4 \end{array} \right.
+$$
+
+(4.10)
+
+Kronig and Brink (1950) proposed an analytical extension of Newman’s equation to 
+drops with internal circulation. It was assumed that the effects of circulation were 
+comparable to those of diffusion and that the current line in the drop area at high 
+velocity was also similar to the creeping laminar circulation. Kronig and Brink (1950) 
+showed that Eq. 4.10 can still be used, when Fourier number with effective diffusion 
+coefficient, *D<sub>eff</sub>* is in the form:
+
+$$
+D_{\mathrm{eff}}
+$$
+
+---
+
+$$
+D_{eff}=ED_{d}\quad with E=2.5
+$$
+
+(4.11)
+
+Handlos and Baron (1957) described that the diffusion coefficient for the drop with an 
+internal circulation can be calculated with a correlation:
+
+$$
+D_{eff}=\frac{\nu_{\infty}d}{2048\left(1+\frac{\eta_{d}}{\eta_{c}}\right)}
+$$
+
+(4.12)
+
+Henschke (2003) has also developed a model to calculate the diffusion coefficient 
+that generalizes the general turbulence inside the drops by the instability constant 
+value,*CIP* by:
+
+$$
+C_{IP}
+$$
+
+$$
+D_{d,eff}=D_d+\frac{v_{\infty}d}{C_{IP}\left(1+\eta_d/\eta_c\right)}
+$$
+
+(4.13)
+
+where *CIP* characterizes the instabilities at the interface specific to the system and 
+accounts also for the influence of turbulent convections and eruptions at the 
+interphase, also known as Marangoni convections. In principle *CIP* can take any 
+positive value. The limiting case of purely diffusive mass transfer is obtained for *CIP*
+tending towards infinity while *CIP* approaching zero corresponds to the limiting case 
+of infinitely fast turbulent mixing (Henschke and Pfennig, 1999).
+
+$$
+C_{IP}
+$$
+
+$$
+C_{IP}
+$$
+
+$$
+C_{IP}
+$$
+
+$$
+C_{IP}
+$$
+
+The molecular diffusion coefficient *D<sub>d</sub>* in Eq. 4.13 can be calculated with the model of 
+Wilke and Chang (1955) and Perkins and Geankoplis (1969), which also includes the 
+influence of viscosity:
+
+$$
+D_{d}
+$$
+
+$$
+D_{d}=7.4\times10^{-10}\frac{T(\varphi M)^{1/2}}{\eta V^{0.6}}
+$$
+
+(4.14)
+
+with
+
+---
+
+$$
+\varphi M=\sum_{j=1\atop j\neq A}^{n}x_{j}\varphi_{j}M_{j}
+$$
+
+(4.15)
+
+and
+
+$$
+D_{d}\eta_{m}^{0.8}=\sum_{j=1\atop j\neq A}^{n}x_{j}D_{d,j}\eta_{j}^{0.8}
+$$
+
+(4.16)
+
+Here, *T* is temperature, *M* is solvent molecular weight, η is solution viscosity, *D i*s 
+d,i
+infinite dilution binary diffusion coefficient of solute A into the solvent *j*, η<sub>m</sub> is mixture 
+of viscosity, *x<sub>i</sub>* is mole fraction, η<sub>j</sub> is pure component viscosity, *V* is solute molar 
+volume at boiling point, and ϕ  is an association parameter for the solvent having a 
+value of 1.0 for unassociated liquids and values of e.g. 2.6, 1.9 and 1.5 for water, 
+methanol and ethanol, respectively. The molar volume of the solute at its boiling point 
+can be calculated and estimated by the atomic contributions of Le Bas for complex 
+molecules (Perry, 1950 and Arnold, 1930).
+
+$$
+D_{d,i}
+$$
+
+$$
+\eta_{m}
+$$
+
+$$
+\boldsymbol{x}_{i}
+$$
+
+$$
+\eta_{j}
+$$
+
+$$
+\varphi
+$$
+
+## 4.3 Mass transfer of single-drop experiments
+
+The test system, experimental procedure, and analytical methods used to investigate 
+the mass transfer of single drop in high viscosity system with a mass-transfer cell on 
+laboratory scale are explained in this section. The aim of the experimental 
+investigation is to quantify the influence of viscosity of continuous and dispersed 
+phase on mass-transfer rate in the systems. The experimental results of mass 
+transfer at high viscosity are compared with the results in low-viscosity systems. After 
+that, the model of Henschke is also validated with the experimental results in highviscosity systems obtained.
+
+To investigate the mass transfer of single drops in high viscosity system, PEG 4000 
+in water and PEG 600 in water were again chosen as the continuous phase. Toluene 
+and paraffin with toluene are used as disperse phase. The viscosity of continuous 
+and disperse phase is varied, respectively. The test systems, concentrations, and physical properties of systems used to investigate the mass transfer of single drops 
+in high viscosity system have already been presented in chapter 3.
+
+## 4.3.1 Experimental Set-up
+
+The experiments of mass transfer of single drops were carried out on laboratory 
+scale in a conical glass test cell is shown in Fig. 4.2.
+
+withdrawal of the disperse phase
+
+funnel for collecting drops
+
+inlet of the continuous phase
+
+thermocouple
+
+suspended drop
+
+thermostated water
+
+outlet of the continuous phase
+
+nozzle
+
+inlet of disperse phase
+
+Figure 4.2: Laboratory scale mass-transfer cell (Henschke, 2003 and Jirapasertwong, 
+2006)
+
+When a droplet detaches from the glass nozzle the countercurrent flow of the 
+continuous phase is started. The droplet then rises in the conical part of the cell until 
+the continuous flow matches its sedimentation velocity. The flow rate of the 
+continuous phase is adjusted. After a period, the pump is switched off and the drop is 
+collected by a funnel and analyzed with regard to the transfer component.
+
+All parts of the test cell that come into contact with the system were made of glass, 
+stainless steel, or PTFE. The continuous phase was pumped with a gearwheel pump 
+(Verder, type V108.05) with stepless speed control by a frequency converter (Lenze, 
+type 8201E). The flow rate was measured with a flow meter from Bopp & Reuther
+
+---
+
+(type BGN-120(1)-15-100-E2). The water temperature is controlled to ± 0.1°C by a 
+thermostat from Lauda (type NB-S15/12). The syringe lengths are divided into 2000 
+steps.
+
+$$
+\pm0.1^{\circ}C
+$$
+
+## 4.3.2 Experimental Procedure
+
+To measure the mass transfer of single-drops in high viscosity systems, the singledrop mass-transfer measuring cell is integrated into a setup as shown in Fig. 4.3. The 
+continuous phase used was saturated with disperse phase. To the continuous phase 
+acetone was added at 2.5 wt. % as mass-transfer component. For the generation of 
+different drop diameter, different glass nozzles were used.
+
+To prepare the mass-transfer measuring cell for start up, all pathways of the 
+continuous phase were rinsed with distilled water at temperature of 40°C. Three 
+rinsing processes of 60 minutes of duration are usually sufficient. For the dispersed 
+phase, the funnel, the glass nozzle, the two syringes, the capillary hoses of PTFE, 
+and the Hamilton Micro-Active 3-way-valve have to be cleaned separately with 
+suitable purifying agents. The temperature in the mass-transfer measuring cell was 
+kept constant at 20 °C with the temperature jacket. The cooling water of the masstransfer measuring cell was used to control the temperature of the system.
+
+$$
+40^{\circ}C
+$$
+
+$$
+20\ ^{\circ}C
+$$
+
+During the experiments of mass transfer of single drops the following cycle was 
+performed for each drop: the counter-current flow of the continuous phase is turned 
+off. A Hamilton precision-syringe drive (type Micro-lab M) pumps a previously 
+specified liquid volume into the drop-generation nozzle and a drop is formed. When 
+the drive stops, the drop detaches from the nozzle and starts to rise where the drop 
+has risen and suspended at the middle of conical section within the measuring cell, 
+the flow rate of continuous phase is turned on again and adjusted in such a way that 
+the drop is not flushed out of the test cell toward the bottom. After a predefined time 
+the counter current flow is turned off.  The drop coalesces quickly at a Teflon tip 
+(coalescence aid) and is withdrawn by a second precision-syringe drive. The first 
+200-350 drops (sample quantity approx. 3 ml), gone through this cycle, will be 
+disposed as waste. Then 3 ml of the real samples was collected for analysis.
+
+---
+
+vent valve 2
+overflow vessel
+vent valve 2
+cooler
+flow meter
+gear pump
+sedimentation vessel
+funnel
+intermediate valve
+measuring cell
+membrane valve
+three-way valve 1
+drop production nozzle
+Hamilton Dosing equipment
+collecting main container
+drain valve
+
+Figure 4.3: Flow diagram of mass-transfer cell in laboratory scale (Jirapasertwong, 
+2006)
+
+---
+
+## 4.3.3 Analytical Methods
+
+The driving concentration difference *y* <sup>+</sup>at the drop is then calculated with:
+
+$$
+y^{+}
+$$
+
+$$
+y^{+}=\frac{y(t)-y^{*}}{y_{0}-y^{*}}
+$$
+
+(4.17)
+
+where ) *y* (*t* is the bulk concentration of the drop during mass transfer. *y<sup>*</sup>* is the 
+concentration of acetone in the dispersed phase which is in equilibrium with the bulk 
+continuous phase. *y₀* is the initial concentration of acetone in the drop.
+
+$$
+y(t)
+$$
+
+$$
+y^{*}
+$$
+
+$$
+\boldsymbol{y}_{0}
+$$
+
+To determine the concentration of acetone in the drop gas chromatography (GC) 
+from Siemens-type Sichromat and a fused-silica capillary column from Macherey-
+Nagel, type Optima 1-DF-5 was used. The concentration of acetone in continuous 
+phase was determined with a two-beam UV/VIS spectrometer (lambda 2 from 
+PerkinElmer) and quartz-glass cells with 2-mm layer thickness (Hellma, type Suprasil 
+No.110-QS).
+
+## 4.4 Experimental Results and Discussions
+
+As already discussed in detail in chapter 4.1, mass transfer of single drops in highviscosity systems has until now not been investigated in single drops measuring 
+cells. Thus, the goal of this work is to investigate the influence of viscosity of both 
+phases on mass transfer. As a reference, the results of Henschke (2003) for a 
+system with low viscosity are shown in Fig. 4.4. Fig. 4.4 describes that the mass 
+transfer of acetone proceeds with increasing time. After 60 s equilibrium is practically 
+reached, except for very big drops.
+
+---
+
+dimensionless concentration
+
+time in s
+
+drop diameter in mm
+
+Figure 4.4: The dimensionless driving concentration difference for low viscosity 
+system (system: WAt) (Henschke, 2003)
+
+## 4.4.1 Influence of the Viscosity of Continuous Phase on Mass Transfer of Single Drop
+
+Fig. 4.5 shows the influence of the viscosity of continuous phase on mass transfer of 
+single drops. The viscosity of the continuous phase has a strong influence on the 
+mass- transfer rate of the solute. The mass-transfer rate of acetone in water is about 
+4 times faster than the mass-transfer rate of acetone in PEG 600 with water. The 
+experimental results obtained were fitted with Henschke’s model (2003). The model 
+of Henschke is in good agreement with the experimental results also for a high 
+viscosity continuous phase.
+
+---
+
+1.0
+T = 20 °C
+0.9
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+dimensionless concentrationlines: Henschke model
+0.2
+ρWP40At, d= 2.88 mm
+0.1
+ WAt, Henschke (2003), d= 2.88 mm
+0.0
+0 2 4 6 8 101214161820
+time in s
+
+Figure 4.5: Influence of the viscosity of continuous phase on mass transfer of single 
+drops
+
+## 4.4.2 Influence of the Viscosity of Disperse Phase on Mass Transfer of Single Drops
+
+Next, the influence of the viscosity of the disperse phase on mass transfer was 
+investigated, as shown in Fig. 4.6. Unfortunately the experimental error with the 
+system PEG4000 in water (c) + paraffin in toluene (d) + acetone (c→d) is relatively 
+high, since the dimensionless concentration is higher for a residence time of 19 s as 
+compared to 12 s. Thus, the conclusions that may be drawn from these results are 
+limited. However, it can be concluded that the viscosity of disperse phase has a 
+lower effect on the mass-transfer rate than the viscosity of the continuous phase.
+
+---
+
+1.0
+T = 20 °C
+0.9
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+dimensionless concentration
+0.2 exp.  model   
+ρWP40At, d= 2.88 mm
+0.1
+ ρWP40Atp, d= 2.88 mm
+0.0
+0 2 4 6 8 101214161820
+time in s
+
+Figure 4.6: Influence of the viscosity of the disperse phase on mass transfer of single 
+drops
+
+Fig. 4.7 shows the dependence of dimensionless driving concentration difference on 
+residence time and drop diameter for a system with high viscosity. The mesh grid in 
+Fig. 4.7 shows the results of Henschke’s model. The experimental results are 
+indicated by the points. The dimensionless driving concentration difference 
+decreases with increasing residence time at constant drop diameter and increases 
+with the drop diameter. This behaviour is similar to low-viscosity systems, as shown 
+in Fig. 4.4. Henschke’s model (2003) is able to fit the experimental results of mass 
+transfer in both high viscosity systems and low viscosity systems at different drop 
+diameters and residence times.
+
+---
+
+1.0
+n
+oit
+0.8
+a
+rt
+n
+e
+cn
+0.6
+o
+c
+s
+s
+el 0.4
+n
+io
+s
+ne
+0.2
+6
+im
+d 5 m
+4 m
+0.00
+in
+5 3 r
+10
+2 ete
+15 m
+time 20 1
+dia
+in s
+25 0
+op
+dr
+
+Figure 4.7: Influence of residence time and drop diameter on mass-transfer rate in 
+ high viscosity system (system: ρWP40At)
+
+## 4.4.3 The Instability Constant, CIP
+
+$$
+C_{IP}
+$$
+
+The instability constant, *CIP* (see eq. 4.13) is obtained by fitting Henschke’s model 
+(2003) to the experimental results of single-drop mass transfer experiments.
+
+$$
+C_{IP}
+$$
+
+Tab. 4.1 shows the physical properties used for the calculation of the diffusion 
+coefficient *D<sub>d</sub>* for the disperse phase.
+
+$$
+D_{d}
+$$
+
+---
+
+Table 4.1 Physical properties used for the calculation of *D<sub>d</sub>*
+
+$$
+D_{d}
+$$
+
+| physical properties | PEG 4000 | PEG 600 | water | acetone | toluene | paraffin |
+| --- | --- | --- | --- | --- | --- | --- |
+| viscosity (cP) | 202.29 | 135.08 | 1.0 | 0.32 | 0.59 | 129.33 |
+| molecular weigth[g/mol] | 4000 | 600 | 18.0153 | 58.09 | 92.14 | 851 |
+| 3 | density [g/cm ] 1.2077 1.1337 0.998 0.79 0.8669 0.851 |  |  |  |  |  |
+| 3 | molar volume [cm /mol] 4431 688.20 19.76 |  |  | 74 |  | 118.2 451.4 |
+| ϕ |  | 1 1 2.6 1 1 1 |  |  |  |  |
+
+$$
+[\mathrm{g/cm^{3}}]
+$$
+
+$$
+\overline{[\mathrm{cm}^3/\mathrm{mol}]}
+$$
+
+The diffusion coefficients *D<sub>d</sub>* used to calculate *CIP* are shown in Tab. 4.2. *D<sub>d</sub>* is 
+calculated using the equation of Wilke Chang (1955) and Perkins and Geankoplis 
+(see Eq. 4.14, 4.15 and 4.16). *D<sub>d</sub>* used to determine *CIP* is varied by reducing the 
+calculated value of *D<sub>d</sub>* by a factor of 2. The variation of *D<sub>d</sub>* has only a small influence 
+on the mean relative deviation (MRD), which is calculated by:
+
+$$
+D_{d}
+$$
+
+$$
+C_{IP}
+$$
+
+$$
+D_{d}
+$$
+
+$$
+D_{d}
+$$
+
+$$
+C_{IP}
+$$
+
+$$
+D_{d}
+$$
+
+$$
+D_{d}
+$$
+
+$$
+MRD=\frac{1}{N_{\mathrm{exp}}}\sum_{1}^{N_{\mathrm{exp}}}\frac{y_{sim}^{+}-y_{\mathrm{exp}}^{+}}{y_{\mathrm{exp}}^{+}}
+$$
+
+(4.18)
+
+For *D<sub>d</sub>* where no *CIP*- value is given, it was not possible to determine a *CIP*-value  >
+0, i.e. the value of *D<sub>d</sub>* was too high to describe the mass-transfer rate of the 
+respective single-drop experiment.
+
+$$
+D_{d}
+$$
+
+$$
+C_{IP}
+$$
+
+$$
+C_{IP}-value>
+$$
+
+$$
+D_{d}
+$$ coefficient diffusion of  Perkins and Geankoplis ( D) 
+d,2
+MRD [%]
+
+$$
+D_{d}
+$$
+
+$$
+C_{IP}
+$$
+
+| system | coefficient diffusion of Wilke Chang(Dd,1) |  |  |  |  |  | coefficient diffusion of Perkins and Geankoplis(Dd,2) |  |  |  |  |  |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| system | Dd,1 | CIP | MRD[%] | 0.5Dd,1 | CIP | MRD[%] | Dd,2 | CIP | MRD[%] | 0.5Dd,2 | CIP | MRD[%] |
+| ρWP6At | 2.67E-09 | 12738 | 34.60 | 1.34E-09 | 8417 | 38.00 | - | - | - | - | - | - |
+| ρWP6Atp | 3.25E-11 | 1262 | 53.04 | 1.63E-11 | 1261 | 51.56 | 2.33E-10 | 1275 | 49.26 | 1.165E-10 | 1268 | 49.19 |
+| ρWP40At | 2.67E-09 | - | - | 1.34E-09 | 26655 | 5.54 | - | - | - | - | - | - |
+| ρWP40Atp | 3.25E-11 | 7346 | 12.76 | 1.63E-11 | 7303 | 12.91 | 2.33E-10 | 7321 | 12.70 | 1.165E-10 | 7571 | 13.02 |
+
+$$
+(D_{d,1})
+$$
+
+$$
+(D_{_{d,2}})
+$$
+
+$$
+\bar{D}_{d,1}
+$$
+
+$$
+C_{IP}
+$$
+
+$$
+\bar{D}_{d,1}
+$$
+
+$$
+C_{IP}
+$$
+
+$$
+\bar{D}_{_{d,2}}
+$$
+
+$$
+C_{IP}
+$$
+
+$$
+0.5\ D_{_{d,2}}
+$$
+
+$$
+C_{IP}
+$$
+
+---
+
+Figure 4.8 shows the sensitivity of coefficient diffusion for the system PEG4000 in 
+water (c) + toluene (d) + acetone (c→d). As mentioned above the value of *D*<sub>d</sub> has a 
+very low influence on the mean relative deviation. In order to find the coefficient 
+diffusion that can be used in calculating mass transfer in high viscosity systems, the 
+sensitivity based on the diffusion coefficient has to be observed. The minimum error 
+2
+obtained in calculating *CIP* by using *D* is 5.50E-10 m /s. For system PEG4000 + 
+d,1
+2
+acetone + toluene a diffusion coefficient *D* = 2.67E-9 m /s was determined with the 
+d,1
+model of Wilke Chang, which may only be a rough estimate for the diffusion 
+coefficient. As already mentioned, the value of *D* is too big to describe the mass 
+d,1
+transfer kinetics properly. Therefore, the closes possible value, which is *D* = 2.4E-9 
+d,1
+m /s, was used.<sup>2</sup>
+
+$$
+D_{\mathrm{d}}
+$$
+
+$$
+D_{d,1}
+$$
+
+$$
+C_{IP}
+$$
+
+$$
+5.50E-10m^{2}/s
+$$
+
+$$
+D_{d,1}=2.67E-9m^{2}/s
+$$
+
+$$
+D_{d,1}
+$$
+
+$$
+D_{d,1}=2.4E-9
+$$
+
+$$
+m^{2}/s
+$$
+
+5.60
+ρWP40At
+5.59
+5.58
+5.57
+%
+5.56
+5.55
+MRD in 
+5.54
+5.53
+5.52
+5.51 D
+0.5 D d,1
+d,1
+5.50
+6.00E-010 1.20E-009 1.80E-009 2.40E-009 3.00E-009
+2
+diffusion coefficient in m /s
+
+Figure 4.8: The sensitivity of the diffusion coefficient
+
+The instability constant *CIP* is independent of drop diameter and contact time 
+between drop and continuous phase. Tab. 4.3 shows the instability constant, *CIP* for 
+high-viscosity and low-viscosity systems. The influence of viscosity of continuous 
+phase on the value of *CIP* is significant. The mean relative deviations between
+
+$$
+C_{IP}
+$$
+
+$$
+C_{IP}
+$$
+
+$$
+C_{IP}
+$$ experimental and model results for high viscosity systems except for the system 
+PEG4000 in water (c) + toluene (d) + acetone (c→d) obtained are relatively high 
+when compared to the mean relative deviation for the low viscosity systems. This is 
+due to the large errors from the experimental results for high viscosity systems, as 
+shown in Figure 4.2.
+
+Table 4.3: Individual value of the instability constant, *CIP*
+
+$$
+C_{IP}
+$$
+
+| No. | Systems | $d_{sw}$ [mm] | $a_{15}$ [-] | $a_{16}$ [-] | CIP [-] | MRD [%] |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1. | WAt | 3.50 | 1.06 | 4.49 | 9445 | 1.84 |
+| 2. | ρWP6Atp | 3.20 | 0.09 | 1.11 | 1261 | 51.56 |
+| 3. | ρWP6At | 7.46 | 0.12 | 0.73 | 8417 | 38.00 |
+| 4. | ρWP40Atp | 3.94 | 0.13 | 0.83 | 7303 | 12.91 |
+| 5. | ρWP40At | 10.78 | 0.27 | 0.62 | 26655 | 5.54 |
+
+$$
+d_{sw}
+$$
+
+$$
+a_{15}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+C_{IP}
+$$
+
+## 4.5 Conclusions
+
+From the experimental results on mass transfer of single drops in high-viscosity 
+systems and the results of Henschke’s model (2003), several conclusions can be 
+drawn. The mass-transfer rate is strongly influenced by the viscosity of continuous 
+phase, whereas the influence of viscosity of disperse phase on mass-transfer rate is 
+comparably lower. As usual mass transfer is also influenced by residence time and 
+drop diameter. Mass-transfer rate in high viscosity systems is slower as compared to 
+mass-transfer rate in low viscosity systems. Henschke’s model (2003) is in good 
+agreement with the experimental results of mass transfer of single drops also in highviscosity systems. *CIP* apparently depends on the viscosity of the continuous phase. 
+*D<sub>d</sub>* has only a small influence on the mean relative deviation between the 
+experimentally found and simulated mass-transfer rate. The model of Wilke Chang 
+may be used to obtain an estimate for the diffusion coefficient *D<sub>d</sub>* for high viscosity 
+systems. In principle the model of Henschke is able to describe mass-transfer 
+kinetics with good accuracy which was shown for the system PEG4000 in water (c) + 
+toluene (d) + acetone (c→d).
+
+$$
+C_{IP}
+$$
+
+$$
+D_{d}
+$$
+
+$$
+D_{d}
+$$
+
+---
+
+## Extraction-Column Behaviour
+
+## 5.1 Introduction
+
+Prediction of extraction-column behaviour based on laboratory-scale experiments 
+and appropriate models together with a simulation tool increase effectiveness in 
+terms of experimental time and cost for design of extraction column, as compared to 
+conventional design based on pilot-plant experiments. At AVT-Thermal Process 
+Engineering (AVT.TVT) a simulation tool and algorithm to simulate and predict the 
+behaviour of extraction columns, called ReDrop (Representative Drops) has been 
+developed. ReDrop was first developed and applied by Henschke (2003) for pulsed 
+sieve-tray columns. It has been extended for the simulation of extraction columns 
+with regular or random packings (Bart et al., 2005). Until now, ReDrop has been 
+successfully applied and used to predict the behaviour of extraction columns for 
+standard test systems and technical systems with low viscosity. Recent development 
+allows simulation of RDC extraction columns which was applied by Kalem et al. 
+(2010). Henschke (2003), Bart et al. (2005) and Weber et al. (2005) to estimate the 
+behaviour of technical systems. Kalem and Pfennig (2007) extended ReDrop to 
+simulate the behaviour of extraction columns for reactive systems. Fig. 5.1 shows the 
+concept of interaction effects in an extraction column. The different effects are 
+simulated and evaluated with ReDrop.
+
+Until now ReDrop has not been applied and validated for highly viscous systems. 
+Thus here ReDrop is applied to such systems for the first time. The goal is to validate 
+ReDrop with experimental results for high-viscosity systems in a pilot-plant scale 
+pulsed sieve-tray extraction column and to show for which operation conditions 
+extraction with high viscous systems in extraction columns is possible.
+
+---
+
+equilibrium
+mass transfer
+coalescence and splitting
+swarm behaviour
+sedimentation
+drop-size distribution
+hold up
+flooding
+
+Figure 5.1: Concept of interactions effects in an extraction column (Henschke, 2003)
+
+## 5.2 Concept and Principle of the ReDrop Algorithm
+
+The ReDrop algorithm is schematically illustrated in Fig. 5.2. To simulate and predict 
+the behaviour of an extraction column the ReDrop algorithm is based on the drop 
+population balance. The balance can be solved by a Monte-Carlo method in which 
+individual drops are followed and their behaviour modelled as they pass through the 
+column.
+
+First, initialisation and data input is required. The extraction column is then divided 
+into height elements and drops are fed to the bottom of the column. Then a time loop 
+is entered. For each drop depending on the height element sedimentation velocity, 
+reaction kinetic and mass transfer, the effects of coalescence and breakage, and 
+drops leaving the column are determined. Then for each height element the resulting 
+data are collected like the new concentration and hold-up. Backmixing can be 
+accounted for as well.
+
+---
+
+initialisation and data input
+devide column into height elements
+drop feeding
+for each drop: drop loop
+- determine height element
+- drop velocity
+- reaction kinetics and mass transfer
+- coalescence and breakage
+- handle drops leaving the column
+for each height element:
+- new concentration 
+- backmixing
+- new hold up
+next time step
+
+Figure 5.2: Schematic illustration of the ReDrop algorithm (Kalem and Pfennig, 2007)
+
+ReDrop can then be used to design extraction columns for a specific separation task. 
+The concept of this design procedure is shown in Fig. 5.3 (Kalem and Pfennig, 2007). 
+Starting point is the definition of the separation task and the properties of the system. 
+This includes data from laboratory experiments, data banks and from single-drop 
+laboratory cells. The data from laboratory cells are sedimentation velocity, mass 
+transfer, reaction kinetic, as well as splitting and coalescence behaviour. Based on 
+these input data the simulation of a pilot plant extraction column is performed. With 
+the help of these simulations the optimization of operating conditions and internals 
+geometry can be achieved. As a result optimal operating conditions and the optimal 
+column solving the 
+…[truncated]separation task are obtained.
+
+---
+
+input: material system, separation task
+
+data bank, laboratory experiment
+• physical data
+• equilibrium data
+
+laboratory cell
+• sedimentation
+• mass transfer, reactions kinetic
+• splitting, coalescence
+
+simulation of pilot-plant of extraction column
+• optimization of operating conditions
+• optimization of the internal geometry
+
+output: choosing the optimal column
+
+Figure 5.3: Concept of column design (Kalem and Pfennig, 2007)
+
+## 5.3 Extraction-Column Behaviour: Experiments and Simulation
+
+In this part experiments and simulations to determine the behaviour of extraction 
+columns with highly viscous systems are described.
+
+## 5.3.1 Pilot-plant Experiments
+
+To investigate the hydrodynamic behaviour and the separation capacity of extraction 
+columns for high-viscosity systems in an extraction column, experiments in a pilotplant scale extraction column were performed. One goal of the experiments in the 
+extraction column with high-viscosity systems was to investigate the influence of the 
+pulsation intensity, phase ratio of continuous and disperse phase, the mass transfer 
+component and diameter of sieve tray on the drop size, the drop-size distribution, the 
+hold-up of disperse phase and the flooding limit.
+
+---
+
+## 5.3.1.1 Materials System
+
+The test system chosen and used to investigate the hydrodynamic behaviour in high 
+viscosity system with an extraction column is as follows: PEG 4000 with water is 
+used as continuous phase.  Disperse phase is toluene. Mass-transfer component is 
+2.5 wt. % of acetone in the toluene phase. The physical properties of systems used 
+to investigate the hydrodynamic behaviour of extraction column with high-viscosity 
+systems were already introduced in chapter 3, systems Wt, ρWP40t and ρWP40At 
+are used.
+
+## 5.3.1.2 Experimental Set-up
+
+The schematic of the pilot-plant scale pulsed sieve-tray column used for the 
+investigation is shown in Fig. 5.4. The experiments were carried out in an extraction 
+column of borosilicate glass with a column diameter of 50 mm. The volume of the 
+extraction column used is 5.9 L. The internals consist of 48 trays with a distance of 
+50mm. The material of the trays is titanium, trays with holes of 8 mm (Φ=0.6) or 2 
+mm (Φ=0.22) were used. The volume of the feed tanks is 100 L.
+
+The continuous phase is taken from the feed tank and fed at the top of the extraction 
+column. Below the disperser the continuous phase is removed from the pulsed sievetray extraction column, lead through the interfacial control and stored into the output 
+tank for the continuous phase. Before feeding the continuous phase to the column 
+and after withdrawal it, samples can be taken for analysis. The disperse phase is fed 
+at the bottom of the column through a borosilicate glass disperser with 6 holes, the 
+holes have a diameter of 2.5 mm. At the dispenser drops are generated and the 
+disperse phase in form of drops is rising up in the column. At the top of the column 
+above the feeding point for the continuous phase, the disperse phase is directed to 
+the phase separator with a volume of 5490 ml. From there it can be recycled to the 
+column or removed to the output tank of disperse phase. At the outlet of the column a 
+sampling valve is installed to allow analysis of the disperse phase. The flow rates of 
+both phases are separately controlled by two identical dosing bellows pumps (QVF, 
+model DN110A-NP31). Both phases also can be directed to scales in order to 
+measure the mass flow. The volume flow is shown at the installed rotameters.
+
+---
+
+gearmotor (g)
+a pulsed sieve-tray of extraction column
+valve to air (va)
+separator (sp)
+valve to air (va)
+interfacial control (ic)
+valve for sampling (vs)
+valve (v)
+valve (v)
+scale (s)
+valve (v)
+the outflow of disperse phase to output tank
+Sieve-Hray extraction column DN 50
+2690 mm
+valve (v)
+rotameter (r)
+valve for sampling (vs)
+scale (s)
+valve (v)
+check valve (vc)
+rotameter (r)
+check valve (vc)
+the feed pump of continuous phase (pc)
+valve (v)
+valve for sampling (vs)
+the feed tank of continuous phase (fc)
+B8
+Inflow disperse phase from section re-extraction
+the output tank of continuous phase (oc)
+the feed pump of disperse phase (pd)
+check valve (vc)
+the feed pump of disperse phase (pd)
+check valve (vc)
+the feed tank of disperse phase (fd)
+valve (v)
+
+Figure 5.4: Schematic representation of the pilot-plant scale pulsed sieve-tray column 
+used in this work (Fischer, 2008)
+
+---
+
+The pulsation is realized by moving sieve-tray internals which are driven by a 
+gearmotor (P.I.V Antrieb Werner Reimers GmbH & Co KG, Type FKSC 21 B3). The 
+frequency of pulsation can be adjusted, while the amplitude is constant at 10 mm 
+(Fischer, 2008).
+
+The drop size, the drop-size distribution and hold-up of disperse phase in an 
+extraction column are determined by measuring the flow of continuous phase and 
+disperse phase, flooding limit, position of phase boundary and stationarity of system.
+
+The system floods when the extraction column is operated at the flooding limit. At the 
+flooding limit the rate of sedimentation velocity of disperse phase as drops in the 
+continuous phase is equal with the flow velocity of the continuous phase through the 
+extraction column. The disperse phase then has an absolute speed of zero, it stops 
+moving upward and the separation efficiency is lost.
+
+## 5.3.1.3 Experimental Procedure
+
+Before the start of the experiments the continuous phase and the disperse phase 
+were equilibrated. In the experiments with mass transfer, 2.5 wt % of acetone were 
+added and mixed into the continuous phase. The continuous phase was then fed 
+from the appropriate feed tank into the extraction column. After the extraction column 
+was filled with the continuous phase, the flow of disperse phase was started into the 
+extraction column, until the state occurs where the continuous phase flows from top 
+to bottom of column, while the disperse phase as drops rises from bottom to top of 
+column.
+
+To start the measurement of flooding limit, drop size, drop-size distribution and the 
+hold-up the flow rates of continuous phase and disperse phase were set to the 
+chosen values. Then, the pulsator was turned on with the appropriate values of *f*
+characterizing the pulsation intensity*af*. Next, the phase boundary at the top of the 
+extraction column was adjusted to lie within the separator. The flooding limit of the 
+column can then be determined by carefully observing the drop velocity. When the 
+drops stopped flowing upwards the flooding limit was reached, all settings were 
+recorded and the experiment stopped. Based on the flooding limit, the flow rates of 
+continuous phase and disperse phase were then varied in the range of 60 % and
+
+---
+
+80% of the flooding limit for the following experiments. It takes approximately 1 hour 
+to reach steady state for hydrodynamic measurements. Photos of the drops at the 
+top and middle of the extraction column were taken with a camera (DSLR, Nikon 
+D90, lense AFS Micro Nikkor 105mm) and evaluated to determine drop size and 
+drop-size distribution. Finally, the middle section of the extraction column was shut 
+off with the appropriate valves and all pumps turned off simultaneously so that all 
+drops rise to the phase boundary at the top of the extraction column to determine 
+hold-up. In some experiments acetone was added to the disperse phase to 
+determine the separation efficiency. In this case, the column was operated for 3 
+hours, however, it did not reach steady state condition. Samples of the stream 
+leaving the column were then taken for analysis.
+
+Definition of the flooding in extraction of high viscosity system is
+
+- Coalescence layer must not exceed a thickness of 35cm (increased from 5 to 35 cm because of higher viscosity), or
+
+- Coalescence layer needs to be stationary after 30 minutes; else it is assumed that coalescence layer will increase further more, thus, flooding
+
+## 5.3.1.4 Analysis Methods
+
+The hold-up of disperse phase φ<sub>d</sub> in the extraction column,
+
+$$
+\phi_{d}
+$$
+
+$$
+\phi_{d}=\frac{V_{disp}}{V_{coIumm}}
+$$
+
+(5.1)
+
+where *V<sub>disp</sub>* is the volume of disperse phase, can be calculated from the given 
+column diameter and the different heights of the phases after active part of the 
+extraction column has been shut off as described.
+
+$$
+V_{_{disp}}
+$$
+
+The drop size, the Sauter mean diameter *d₃₂* was determined from the photos taken, 
+with the program “AnalysisWork” program and calculated by (Modigell, 2004).
+
+$$
+d_{32}
+$$
+
+$$
+d_{32}=\frac{\sum_{i=1}^{n}d_{i}^{3}}{\sum_{i=1}^{n}d_{i}^{2}}
+$$
+
+(5.2)
+
+---
+
+Here, *d<sub>i</sub>* is the drop diameter of drop *i* and *n* the number of drops.
+
+$$
+d_{i}
+$$
+
+The concentration of the phases in case of experiments with mass transfer was 
+measured by gas chromatography. Sichromat from Siemens and a fused-silica 
+capillary column from Macherey-Negel, type Optima 1-DF-5 was used. Methyl ethyl 
+ketone was used as the internal standard.
+
+## 5.3.2 Simulation of Extraction-Column Behaviour by Using ReDrop for Viscous System
+
+To predict the behaviour of extraction columns for high-viscosity systems with 
+ReDrop some preparations are necessary. ReDrop has been used in the version 
+2008, which is written by Kalem who extended the previous version 2003 of 
+Henschke. The ReDrop programme code is written in C++.
+
+For the simulation of high viscosity systems, the following adjustments were made to 
+ReDrop (Buchbender, 2011):
+
+Henschke’s swarm velocity model is based on his single-drop model (Henschke, 
+2004). The adjustments of the single drop model (see chapter 3), however, caused 
+problems in the swarm velocity model. Therefore, instead of using Henschke’s 
+swarm velocity model, the swarm velocity correlation by Richardson and Zaki (1954)
+
+$$
+v_{rs}=(1-\phi_d)^n
+$$
+
+(5.3)
+
+with a swarm exponent *n* = 1 was used.
+
+Some of the pilot plant experiment to be simulated were performed at a pulsation 
+intensity of *af* = 0 cm/s. Since in ReDrop the modelling of the dense packed layers 
+underneath the sieve trays is not applicable for *af* = 0, the dense packed layers were 
+disabled in ReDrop. Photos taken of the PSE in operation did not show any distinct 
+dense packed layers underneath the sieve trays so that the made adjustment should 
+be justified.
+
+---
+
+It was found that the model of Henschke (2003) for the maximum stable diameter 
+*d*stab is apparently not applicable for liquid-liquid systems with a highly viscous 
+continuous phase. In the simulation only drops with a diameter bigger than *d*stab may 
+break. For the system PEG4000 in water (c) + toluene (d), *d*<sub>stab</sub> was determined to be 
+between 7 and 8 mm depending on *af.*<sub>.</sub> Pilot plant experiments, however, showed 
+Sauter mean diameters of 1.5 to 3.5 mm depending on *af*. Therefore, *d*<sub>stab</sub> was 
+manually adjusted to a value of 3.5 mm for *af* = 0 cm/s and a value of 2.5 mm for 
+*af* = 0.5 cm/s.
+
+$$
+d_{\mathrm{stab}}
+$$
+
+$$
+d_{\mathrm{stab}}
+$$
+
+$$
+d_{\mathrm{stab}}
+$$
+
+$$
+d_{\mathrm{stab}}
+$$
+
+$$
+af=0.5cm/s
+$$
+
+With the pilot-plant experiments, the samples for the determination of outlet 
+concentrations of acetone in both phases were drawn after 300 min. Steady state 
+conditions, however, had not been achieved by then. Therefore, the comparison of 
+experimental and simulation results were performed at a simulation time of 300 min, 
+when the column was not steady state in the simulation.
+
+By employing two different models for the axial dispersion coefficient the effect of 
+*D*ax,c on the number of theoretical equilibrium stages was investigated:
+
+$$
+D_{\mathrm{ax,o}}
+$$
+
+The following models for *D*<sub>ax,c</sub> were employed:
+
+$$
+D_{\mathrm{ax,o}}
+$$
+
+Model of Henschke (2003):
+
+$$
+D_{ax,c}=0.41H_{st}^{2/3}d_{column}^{1/3}(v_c+v_d)
+$$
+
+(5.4)
+
+Henschke (2003) developed a correlation of the axial mixing coefficient of continuous 
+phase in a pulsed sieve-tray of extraction column. Henschke Model’s shows that with 
+constant sieve-tray geometry, the axial mixing coefficient of continuous phase is 
+influenced by the velocity of continuous phase and disperse phase. The axial mixing 
+coefficient of continuous phase is small when the velocity of continuous phase or 
+disperse phase is low and vice versa
+
+---
+
+Model of Mar and Babb (1959):
+
+$$
+\frac{D_{axc}}{\nu_c d_L}=0.17\left(\frac{\eta_c}{\rho_c\nu_c h_s}\right)^{1.45}\left(\frac{h_{st}}{d_L}\right)^{0.7}\left(\frac{H_{st}}{h_{st}}\right)^{0.68}\left(\frac{\nu_c\rho_c h_{st}}{\eta_c}\right)^{0.3}\left(\frac{\sigma\rho_c h_{st}}{\eta_c^2}\right)^{0.42}\left(\frac{f\rho_c h_{st}^2}{h_c}\right)^{0.36}\left(\frac{a}{h_{st}}\right)^{0.07}
+$$
+
+(5.5)
+
+where *h<sub>st</sub>* and *H<sub>st</sub>* are the thickness and distance of a sieve-tray column, 
+respectively. Model of Mar and Babb (1959) shows that axial mixing coefficient of 
+continuous phase is influenced by velocity of continuous phase, length of pulsation 
+stroke, pulsation, and sieve-tray geometry namely: thickness and distance of a sievetray column as well as the hole diameter. In their model also the influence of the 
+physical properties of the system are regarded, namely: density of continuous phase, 
+interfacial tension, and viscosity of continuous phase, whereby the axial mixing 
+coefficient of the continuous phase increases with increasing viscosity of the 
+continuous phase. Mar and Babb (1959) investigated and determined the axial 
+mixing coefficient of continuous phase which was carried out by pulsed sieve-trays 
+columns with three systems, namely, water + hexane, water + benzene, and water + 
+carbon tetrachloride. Water and ferric nitrate solution, respectively, are used as the 
+continuous phase in all experiments and tracer in a borosilicate glass column.
+
+$$
+h_{st}
+$$
+
+$$
+H_{st}
+$$
+
+To use ReDrop, experimental results from laboratory-scale experiments as well as 
+the operation and geometry data of the pilot-plant scale extraction column used have 
+to be supplied. Based on the investigation of single-drop behaviour the specific 
+parameters of the system, namely*d,<sub>sw</sub>a,<sub>15</sub>a,<sub>16</sub>* and *CIP* are specified. These data are 
+stored in two files, namely input file and initialization file which are read by ReDrop. 
+Then ReDrop is ready to run and to simulate the behaviour of extraction columns.
+
+$$
+d_{sw},a_{15},a_{16}
+$$
+
+$$
+C_{IP}
+$$
+
+From the first run of ReDrop, the coalescence parameter for high-viscosity system is 
+determined. The coalescence parameter for high-viscosity system by using ReDrop 
+has been chosen to be 2500, which means that a typical hindrance of coalescence 
+occurs. The parameter was estimated by fitting it to the experimental results. This 
+coalescence parameter is used to run and simulate all of the hydrodynamic 
+behaviour and design of extraction column for high-viscosity systems. In the 
+simulation individual and general parameters for sedimentation can be used. The 
+results are compared in the following section.
+
+---
+
+## 5.4 Experimental Results and Comparison with ReDrop Simulation
+
+The experimental and simulation results of pilot-plant experiments and simulation 
+with ReDrop are presented and discussed in the following sections. An overview over 
+the operating conditions of the pilot-plant scale pulsed sieve-tray column used to 
+investigate the hydrodynamic behaviour in high-viscosity systems and the 
+corresponding results are given in Tab. 5.1.
+
+Additionally, the simulation results of the Sauter mean diameter, the hold-up, and the 
+number of stages of extraction column for high viscosity system obtained from 
+simulation by using ReDrop are presented and discussed in this part.
+
+An overview about comparison of simulation results and experimental data of 
+hydrodynamics at different operation conditions and its relative deviation to the 
+experimental results is given in Tab. 5.2.
+
+---
+
+ned from experiments in a 
+% of flooding 
+[-]
+
+| No. | systems | $\Phi$[-] | $d_{L}$[mm] | a[mm] | f[Hz] | $\dot{v}_{c}/\dot{v}_{d}$[-] | $\dot{v}_{c}$[l/h] | $\dot{v}_{d}$[l/h] | $d_{32}$[mm] | $\phi_{d}$[%] | % of flooding[-] |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1. | Wt | 0.22 | 2 | 10 | 0.5 | 1:1 | 39.05 | 35.68 | 2.50 | 7.50 | 60 |
+| 2. | ρWP40t | 0.60 | 8 | 0 | 0 | 1:1 | 2.65 | 2.73 | 3.18 | 1.70 | 60 |
+| 3. | ρWP40t | 0.60 | 8 | 0 | 0 | 1:1 | 3.22 | 3.26 | 3.31 | 2.50 | 80 |
+| 4. | ρWP40t | 0.60 | 8 | 0 | 0 | 1:2 | 2.45 | 4.87 | 2.23 | 4.00 | 60 |
+| 5. | ρWP40t | 0.60 | 8 | 0 | 0 | 1:2 | 3.27 | 6.38 | 2.26 | 4.70 | 80 |
+| 6. | ρWP40t | 0.60 | 8 | 10 | 0.5 | 1:2 | 1.24 | 2.63 | 1.52 | 3.50 | 60 |
+| 7. | ρWP40t | 0.60 | 8 | 10 | 0.5 | 1:2 | 1.76 | 3.35 | 1.46 | 3.70 | 80 |
+| 8. | ρWP40At | 0.60 | 8 | 10 | 0.5 | 1:2 | 0.87 | 1.85 | 1.68 | 3.00 | 60 |
+| 9. | ρWP40At | 0.60 | 8 | 10 | 0.5 | 1:2 | 0.63 | 1.46 | 1.70 | 3.30 | 80 |
+| 10. | ρWP40t | 0.22 | 2 | 10 | 0.5 | 1:9 | 0.16 | 3.30 | 4.89 | - | 100 |
+
+$$
+d_{L}
+$$
+
+$$
+\dot{v}_{c}/\dot{v}_{d}
+$$
+
+$$
+\dot{\boldsymbol{v}}_{c}
+$$
+
+$$
+\dot{\boldsymbol{v}}_{d}
+$$
+
+$$
+d_{32}
+$$
+
+$$
+\phi_{d}
+$$
+
+---
+
+Table 5.2: Comparison of simulation results and experimental data of hydrodynamics 
+at different operating conditions.
+
+| No. | systems | experiment results |  | simulation results |  |  |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| No. | systems | hold-up[%] | d₃₂[mm] | hold-up[%] | MRD[%] | d₃₂[mm] | MRD[%] |
+| 1. | Wt | 7.50 2 | .50 9.1 |  | 17.8 | 2.75 | 9.09 |
+| 2. | ρWP40t | 2.48 | 3.18 | 2.05 | 17.34 | 2.89 | 9.12 |
+| 3. | ρWP40t | 3.06 | 3.31 | 2.44 | 16.94 | 2.89 | 12.69 |
+| 4. | ρWP40t | 4.43 | 2.23 | 3.70 | 16.48 | 2.87 | 22.30 |
+| 5. | ρWP40t | 6.50 | 2.26 | 4.93 | 4.67 | 2.90 | 22.07 |
+| 6. | ρWP40t | 4.76 | 1.52 | 5.50 | 13.45 | 1.90 | 20.00 |
+| 7. | ρWP40t | 4.87 | 1.46 | 7.80 | 37.56 | 1.91 | 23.56 |
+| 8. | ρWP40At | 4.20 | 1.68 | 5.90 | 28.81 | 1.89 | 11.11 |
+| 9. | ρWP40At | 7.70 | 1.70 | 4.60 | 40.26 | 1.87 | 9.09 |
+| 10. | ρWP40t | - 4.8 | 9 | - - | - - |  |  |
+|  | Average |  |  | 21 | .94 | 16. | 24 |
+
+## 5.4.1 Drop Size
+
+In this part, the influence of the operating conditions on the drop size in high-viscosity 
+systems is discussed. The drop size is expressed by the means of the Sauter mean 
+diameter, see Eq. (5.2).
+
+The experiments to investigate the influence of phase ratio between the continuous 
+and disperse phase on drop size were performed with two different phase ratios 1:1 
+and 1:2, see Tab. 5.1, experiments no. 2-5. The pulsation intensity was kept constant 
+at *af* equal to zero. The experimental results show that the drop size in high viscosity 
+systems without mass transfer is bigger for the phase ratio between continuous and 
+disperse phase 1:1 than in the experiments with a phase ratio of 1:2. When varying 
+the total flow rate *v*&<sub>c</sub> + *v*&<sub>d</sub> the drop size remains constant.
+
+$$
+\dot{V}_{c}+\dot{V}_{d}
+$$
+
+Besides the phase ratio, the pulsation intensity is also influencing drop size. The 
+experimental results in Tab. 5.1, experiments no. 4-7, show that the drop size decreases with increasing pulsation intensity, when the phase ratio is kept constant 
+and there is no mass transfer. The experiments and simulations were performed for 
+pulsation intensity *af* equal to zero and 5 mm/s, while the phase ratio between 
+continuous and disperse phase is 1:2. Again, varying the total flow rate *v*&<sub>c</sub> + *v*&<sub>d</sub> the 
+drop size remains constant.
+
+$$
+\dot{V}_{c}+\dot{V}_{d}
+$$
+
+The experimental results of drop size obtained in experiments no. 6-9 indicate that 
+the mass transfer has effect on drop size in high viscosity system. The drop sizes 
+obtained from the system PEG 4000 (c) + acetone (c → d) + toluene (d) is bigger 
+than the drop size obtained from PEG 4000 in water (c) + toluene (d) without mass 
+transfer. The total flow rate of continuous phase with disperse phase has no effect on 
+the drop size in high viscosity. By varying the total flow rate of continuous phase with 
+disperse phase, the drop size obtained is relatively constant although the systems 
+used were with and without mass-transfer component.
+
+To compare the simulation results of the Sauter mean diameter by ReDrop to the 
+experimental results the experimental Sauter mean diameter is plotted with the 
+calculated Sauter mean diameter in Fig. 5.5. The simulations were carried out for the 
+according phase ratios, pulsation intensities and mass transfer that were investigated 
+in the experiments.
+
+---
+
+5.0
+T = 20 °C 
+4.5
+4.0
+3.5 + 20 %
+3.0
+- 20 %
+2.5
+2.0
+1.5
+1.0
+0.5
+calculated Sauter mean diameter in mm0.0
+0.0 0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0
+experimental sauter mean diameter in mm
+
+Figure 5.5: Comparison of experimental and calculated Sauter mean diameter
+
+The comparison of the simulation results with the experimental values of the Sauter 
+mean diameter indicates that the simulated Sauter mean diameter is in good 
+agreement with the experimental results from a pilot-plant scale pulsed sieve-tray 
+extraction column. The mean relative error is 16.24 %.
+
+In this section, the experimental results of drop-size distribution in high-viscosity 
+systems are presented. Fig. 5.6 shows the drop size distribution in the high-viscosity 
+system PEG4000 in water (c) + toluene (d) + acetone (c→d).
+
+---
+
+12000
+ T= 20 °C
+10000
+8000
+6000
+4000
+ρWP40At 
+ simulation results
+number of drops in column2000
+0
+0.0 0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 5.5 6.0
+drop size in mm
+
+Figure 5.6:  Drop-size distribution in a high-viscosity system
+
+The figures show the relationship of drop size with the number of drops. The vast 
+majority of drops have sizes between 0.5 and 2.5 mm. The mean relative deviation 
+between the simulated and experimentally found drop size distribution is 13.04 %.
+
+## 5.4.2 Hold-up
+
+Next the influence of phase ratio between the continuous and the disperse phase, 
+pulsation intensity and mass transfer on hold-up in high-viscosity systems is 
+investigated.
+
+The hold-up in high viscosity system increases with decreasing phase ratio between 
+continuous and disperse phase, see Tab. 5.1, experiments no. 2-5. The hold-up in 
+the high viscosity system obtained is affected by the total flow rate. By increasing the 
+total flow rate the hold-up also increases as expected.
+
+The experimental results of hold-up obtained indicate that the hold-up is increased 
+when pulsation intensity is increased, see Tab. 5.1 experiments no. 4-7.
+
+---
+
+To easily note the influence of mass transfer on hold up in high viscosity system the 
+experimental results of hold-up for system PEG 4000 with water (c) + acetone (c→d) 
++ toluene (d) (Tab. 5.1, experiments no. 8 & 9), is compared with the experimental 
+results of hold-up for system PEG 4000 with water + toluene (d) (Tab. 5.1, 
+experiments no. 6 & 7), i.e. the influence of presence of acetone is ascertained. The 
+phase ratios and the pulsation intensity used and compared is identical for the 
+experiments, namely 1:2 and 5 mm/s, respectively. The experimental results show 
+that the hold-up for system with mass transfer is less than the hold-up for system 
+without mass transfer. Other than that, the hold-up for system with mass transfer 
+increase with increasing total flow rate of continuous phase and disperse phase, 
+respectively.
+
+The comparison between experimental results of hold-up with the calculated results 
+with ReDrop at different phase ratios between continuous and disperse phase, 
+pulsation intensity as well as with and without mass transfer is shown in Fig. 5.7. It 
+can be seen that the simulation results of hold-up from simulation with ReDrop 
+agrees well with the experimental results. The mean relative deviation is 21.94%.
+
+9
+T = 20 °C 
+8
++ 20 %
+7
+6
+- 20 %
+5
+4
+3
+simulated hold-up in %2
+1
+0
+0123456789
+experimental hold-up in %
+
+Figure 5.7: Comparison of experimental and calculated hold-up
+
+---
+
+## 5.4.3 Mass Transfer
+
+The influence of the axial dispersion coefficient of the continuous phase *D*<sub>ax,c</sub>  and the 
+diffusion coefficient *D*<sub>d</sub>  on mass transfer in ReDrop was investigated. A value of 
+*D*<sub>ax,c</sub>=4.70E-04 was determined with the model of Mar and Babb (see eq. 5.5) 
+whereas 8.00E-06 was determined with the model of Henschke (see eq. 5.4). To 
+characterize the separation performance of a column, the number of theoretical 
+stages *N*th is the key parameter, hence *N*th,sim was chosen as a reference value. Table 
+5.3 shows the results of this investigation. There it can be seen that for both 
+investigated operating conditions, i.e. for 60% and 80% of the flooding load, *D*<sub>ax,c</sub> may 
+influence *N*<sub>th,sim</sub> quite strongly, i.e. the number of theoretical stages may differ by 
+more than a factor of 3 when using different models for *D*<sub>ax,c</sub>. In contrast to this the 
+effect of *D*<sub>d</sub> on *N*<sub>th,sim</sub> is rather small. Taking into account the big influence of *D*<sub>ax,c</sub> on 
+mass transfer and considering the fact that depending on the model for the axial 
+dispersion coefficient a value of *D*<sub>ax,c</sub> which may be by a factor of 100 bigger or 
+smaller, it is not surprising that there are rather big relative deviations between *N*<sub>th,sim</sub> 
+and *N*th,exp. At the same time it should be mentioned that the column had not reached 
+steady state conditions after 5 hours when the samples for the mass-transfer 
+analysis were drawn.
+
+$$
+D_{\mathrm{ax,c}}
+$$
+
+$$
+D_{d}
+$$
+
+$$
+D_{ax,c}=4.70E-04
+$$
+
+$$
+N_{th}
+$$
+
+$$
+N_{th,\mathrm{sim}}
+$$
+
+$$
+D_{\mathrm{ax,c}}
+$$
+
+$$
+N_{th,\mathrm{sim}}
+$$
+
+$$
+D_{\mathrm{ax,c}}
+$$
+
+$$
+D_{\mathrm{d}}
+$$
+
+$$
+N_{th,\mathrm{sim}}
+$$
+
+$$
+D_{\mathrm{ax,c}}
+$$
+
+$$
+D_{ax,c}
+$$
+
+$$
+N_{th,\mathrm{sim}}
+$$
+
+$$
+N_{th,\exp}
+$$ sim
+1.56 69.87 
+6.36 92.61 
+1.82 1.10 
+7.06 74.50
+
+$$
+D_{\mathrm{ax,c}}
+$$
+
+$$
+D_{d}
+$$
+
+| No. | systems | flooding[%] | Nth,exp | Dax,c[m2/s] | Dd,1[m2/s] | CIP | Nth,sim | mass different[%] | MRD[%] | 0.5Dd,1[m2/s] | CIP | mass different[%] | Nth,sim | MRD[%] |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1. | pWP40At | 60 | 0.47 | 4.70E-04 | 2.40E-09 | 1726433 | 1.56 | -31.90 | 69.87 | 1.34E-09 | 26654 | -31.00 | 1.56 | 69.87 |
+| 2. | pWP40At | 60 | 0.47 | 8.00E-06 | 2.40E-09 | 1726433 | 6.09 | -45.26 | 91.95 | 1.34E-09 | 26654 | -48.33 | 6.36 | 92.61 |
+| 3. | pWP40At | 80 | 1.80 | 4.70E-04 | 2.40E-09 | 1726433 | 2.20 | -18.23 | 18.18 | 1.34E-09 | 26654 | -16.90 | 1.82 | 1.10 |
+| 4. | pWP40At | 80 | 1.80 | 8.00E-06 | 2.40E-09 | 1726433 | 6.91 | -17.67 | 73.95 | 1.34E-09 | 26654 | -22.16 | 7.06 | 74.50 |
+
+$$
+D_{ax,c}
+$$
+
+$$
+N_{th,\exp}
+$$
+
+$$
+D_{d,1}
+$$
+
+$$
+C_{IP}
+$$
+
+$$
+0.5D_{d,1}
+$$
+
+$$
+N_{th,sim}
+$$
+
+$$
+[\mathrm{m}^2/\mathrm{s}]
+$$
+
+$$
+[\mathrm{m}^2/\mathrm{s}]
+$$
+
+$$
+C_{IP}
+$$
+
+$$
+[\mathsf{m}^2/\mathsf{s}]
+$$
+
+$$
+N_{th,sim}
+$$
+
+---
+
+## 5.4.4 Extraction in high-viscosity systems
+
+In this section, the behaviour of the extraction column with high-viscosity systems 
+with a pilot-plant scale pulsed sieve-tray column experiments is described.
+
+Fig. 5.8 shows the flow regimes in a pilot-plant scale pulsed sieve-tray column in high 
+viscosity system by using the hole diameters of sieve tray of 8 mm and 2 mm, 
+respectively. It can be seen that there are two different flow regimes obtained. Using 
+smaller holes leads to a mixer-settler regime while a dispersion regime is obtained 
+using the hole diameter of sieve tray of 8 mm. For the drops it is more difficult to rise 
+using the hole diameter of sieve tray of 2 mm compared to using the hole diameter of 
+sieve tray of 8 mm in high viscosity system. This contrasts the extraction in low 
+viscosity systems. There a better operation condition of the extraction column can be 
+achieved by using small hole diameters in sieve trays.
+
+A
+
+B
+
+Figure 5.8: Influence of hole diameter of sieve tray on the extraction process for high 
+viscosity system (A: the extraction column with hole diameter of sieve tray of 8 mm; 
+B: the extraction column with hole diameter of sieve tray of 2 mm)
+
+The flow rate of continuous and disperse phase in high-viscosity system at the 
+flooding limit obtained by using the hole diameter of sieve tray with 2 mm are 0.8 l/h 
+and 9.9 I/h, respectively, whereas by using the hole diameter of sieve tray with 8 mm, the flow rate of continuous and disperse phase at the flooding is 2.4 l/h and 4.4 l/h, 
+respectively. This indicates that at the flooding limit the flow rate of continuous phase 
+in high-viscosity system which is operated by using the hole diameter of sieve tray of 
+2 mm is smaller than the flow rate of continuous phase by using the hole diameter of 
+sieve tray of 8 mm at the flooding limit. By using trays with hole diameter of 2 mm the 
+ratio between continuous and disperse phase needs to be bigger than the phase 
+ratio by using the hole diameter of sieve tray of 8 mm. Besides that, the 
+experimentation of extraction in high-viscosity system by using the hole diameter of 
+sieve tray with 2 mm can only be operated without pulsation intensity, whereas 
+applying pulsation using the hole diameter of sieve tray with 8 mm is no problem.
+
+The load of the column in the experiments found is 0.32-2.00 m /m h while in low-<sup>3 2</sup> 
+viscosity systems the load is in the range of 20-40 m /m h (Pfennig et al., 2006).<sup>3 3</sup>
+
+$$
+0.32-2.00\ m^{3}/m^{2}
+$$
+
+$$
+20-40\ m^{3}/m^{3}h
+$$
+
+## 5.5 Conclusions
+
+From the experimental results of hydrodynamic behaviour in high viscosity obtained 
+from the hydrodynamic behaviour and its explanation above, some conclusions can 
+be derived. The extraction in a high-viscosity system can be operated with a pilotplant scale pulsed sieve-tray extraction column. The flooding limit of extraction 
+column in high-viscosity systems is about 20 times smaller than the flooding limit in 
+low-viscosity systems. The separation efficiency in high-viscosity systems is a factor 
+of roughly 7 lower than that in low-viscosity systems. Thus for the column design the 
+diameter of the extraction column is reduced while the height needs to be increased 
+for high-viscosity systems compared to the low-viscosity design.
+
+ReDrop can be used to simulate the hydrodynamic behaviour of extraction columns 
+for high-viscosity systems. The mean relative deviations obtained from comparison 
+between the experimental results and simulation is around 20 % on average for all 
+quantities evaluated, which roughly corresponds to the experimental uncertainty. 
+*D* has a strong influence on the number of theoretical stages Nth,sim in ReDrop, 
+ax,*c*
+whereas the influence of *D* on *N*<sub>th,sim</sub> is comparably smaller. The model of maximum 
+d
+stable diameter *d<sub>stab</sub>* must be adjusted for liquid-liquid systems with a highly viscous 
+continuous phase because the model of Henschke (2003) for the maximum stable
+
+$$
+D_{ax,c}
+$$
+
+$$
+N_{th,\mathrm{sim}}
+$$
+
+$$
+D_{d}
+$$
+
+$$
+N_{th,\mathrm{sim}}
+$$
+
+$$
+d_{stab}
+$$ diameter *d<sub>stab</sub>* is apparently not applicable for these systems. The drop size in highviscosity systems obtained is smaller. In addition, the hole diameter of sieve tray has 
+a significant influence on the extraction process in high-viscosity systems. In 
+extraction in high-viscosity systems better flow regimes are obtained by using the 
+hole diameter of 8 mm than holes of 2 mm. This is in contrast to extraction in lowviscosity systems, where it is better to use slightly smaller hole diameters in sieve 
+trays.
+
+$$
+d_{stab}
+$$
+
+---
+
+## Summary
+
+The knowledge in the area of solvent extraction is limited for high-viscosity systems 
+while the economic importance of such systems has always been known, because 
+the chemical industry concerns chemicals processed at high viscosities such as 
+extraction of pharmaceuticals from fermentation broth. In the future raw materials for 
+chemicals will increasingly stem from renewable biological origin. These chemicals 
+have often higher viscosities than conventional ones. Extraction may be more 
+suitable separation process for process as compared to distillation.
+
+In this work the influence of high viscosity on extraction was researched. The 
+extraction column behaviour for high-viscosity systems predicted and simulated by 
+using the ReDrop programme. The test system used to investigate the extraction in 
+high viscosity systems was polyethylene glycol (PEG) with water. PEG 4000 with 
+water and PEG 600 with water respectively were used as continuous phase. Toluene 
+and toluene with paraffin were used as disperse phase. Acetone was used as mass 
+transfer component.
+
+The sedimentation velocity and the mass transfer of single drops in high-viscosity 
+systems were investigated with laboratory scale experiments. Henschke’s model 
+(2003) was validated with the experimental results. To increase the accuracy of the 
+drop sedimentation velocity, Henschke’s model was modified by using a factor of 4 
+and  α<sub>um</sub> = 5. It was even possible to obtain the general parameters *d<sub>sw</sub>*, *a₁₅*, *a₁₆* by 
+fitting the experimental data with the results of Henschke’s model. For toluene the 
+parameters are *d<sub>sw</sub>* = 7.55 mm, *a₁₅* = 0.085, and *a₁₆* = 0.79, as well as for toluene 
+with paraffin *d<sub>sw</sub>* = 2.95 mm, *a₁₅* = 0.085, and *a₁₆* = 1.24.
+
+$$
+\alpha_{um}=5
+$$
+
+$$
+d_{sw},a_{15},a_{16}
+$$
+
+$$
+d_{sw}=7.55
+$$
+
+$$
+a_{15}=0.085
+$$
+
+$$
+a_{16}=0.79
+$$
+
+$$
+d_{sw}=2.95
+$$
+
+$$
+a_{15}=0.085
+$$
+
+$$
+a_{16}=1.24
+$$
+
+The sedimentation velocity and mass transfer of single drops is strongly influenced 
+by the viscosity of the continuous phase. The effect of viscosity on the disperse 
+phase is observable, but less significant. The viscosity of the continuous and the disperse phase affect the mass-transfer rate. The influence of viscosity in the 
+continuous phase on the mass-transfer rate is considerably higher. The effect of 
+viscosity in the disperse phase is observable, but less significant. Additionally, the 
+diffusion coefficient *D<sub>d</sub>* has only a small influence on the error. The model of Wilke 
+Chang may be applied to estimate *D<sub>d</sub>* in high viscosity systems.
+
+$$
+D_{d}
+$$
+
+$$
+D_{d}
+$$
+
+The behaviour of a pilot-plant scale pulsed sieve-tray extraction column was 
+investigated. The extraction column in high viscosity systems could be better 
+operated with a sieve-tray hole-diameter of 8 mm than with a diameter of 2 mm. The 
+flow rates are by a factor of 20 lower as compared to low-viscosity systems. The 
+separation performance *N*<sub>th</sub>*H* with high viscosity system is about 4 times lower 
+column
+compared to low viscosity systems
+
+$$
+N_{th}/H_{column}
+$$
+
+The experimental data gained at the pulsed sieve-tray extraction column were 
+compared with the simulation results of the ReDrop program. The extraction column 
+behaviour in high-viscosity systems can be predicted well by using ReDrop program. 
+A parameter study showed, that in contrast to *D*, *D* has a very strong influence 
+<sub>d</sub> <sub>ax</sub>,*c*
+on the number of theoretical stages *N*<sub>th,sim</sub>. Different models determine values for 
+*D*ax,c  that differ by factor of 100, thus, reliable results for the mass-transfer 
+performance in ReDrop are only able when employing sound models for *D*<sub>ax,c.</sub>
+The model of Henschke (2003) for the maximum stable diameter *d<sub>stab</sub>* cannot be 
+applied to liquid-liquid systems with a highly viscous continuous phase; therefore, the 
+model for maximum stable diameter *d<sub>stab</sub>* must be adjusted. In order to do so, more 
+experimental effort should be put into understanding drop breakage in the presence 
+of a high viscosity continuous phase. It was shown that in principle ReDrop may be 
+used to simulate extraction columns with a high viscosity continuous phase. The 
+mean relative deviation between experimentally found hydrodynamic parameters, 
+such as hold-up and Sauter mean diameter is about 20%.
+
+$$
+D_{d},D_{ax,c}
+$$
+
+$$
+N_{th,\mathrm{sim}}
+$$
+
+$$
+D_{\mathrm{ax,c}}
+$$
+
+$$
+D_{\mathrm{ax,c}}
+$$
+
+$$
+d_{stab}
+$$
+
+$$
+d_{stab}
+$$
+
+---
+
+## A. Experimental Results of the Sedimentation Velocity of Single Drops
+
+## A.1 Constant density in the continuous phase
+
+Table A.1: system no. III, ρWP6tp
+
+| din mm | ν  in mm/s∞ |
+| --- | --- |
+| 2.12 | 11.33 |
+| 2.43 | 12.25 |
+| 2.67 | 15.23 |
+| 2.88 | 16.45 |
+| 3.30 | 21.65 |
+| 3.63 | 26.16 |
+| 3.91 | 29.34 |
+| 4.15 | 32.74 |
+| 4.37 | 35.67 |
+| 4.57 | 37.80 |
+| 4.75 | 39.74 |
+| 4.92 | 40.93 |
+| 5.08 | 42.68 |
+| 5.32 | 43.92 |
+
+$$
+\nu_{\infty}
+$$
+
+---
+
+| din mm | ν  in mm/s∞ |
+| --- | --- |
+| 2.12 | 8.93 |
+| 2.43 | 11.90 |
+| 2.67 | 12.91 |
+| 2.88 | 15.30 |
+| 3.30 | 19.27 |
+| 3.63 | 22.58 |
+| 3.91 | 26.57 |
+| 4.15 | 29.64 |
+| 4.37 | 31.17 |
+| 4.57 | 34.11 |
+| 4.75 | 36.12 |
+| 4.92 | 37.47 |
+| 5.08 | 38.51 |
+
+$$
+\nu_{\infty}
+$$
+
+Table A.3: system no. V, ρWP6t
+
+| din mm | ν  in mm/s∞ |
+| --- | --- |
+| 2.43 | 16.16 |
+| 2.67 | 17.83 |
+| 2.88 | 20.73 |
+| 3.30 | 26.09 |
+| 3.63 | 29.88 |
+| 3.91 | 33.90 |
+| 4.15 | 38.12 |
+| 4.37 | 40.06 |
+| 4.61 | 43.90 |
+| 4.79 | 44.92 |
+
+$$
+V_{\infty}
+$$
+
+---
+
+Table A.4: system no. VI, ρWP6At
+
+| din mm | ν  in mm/s∞ |
+| --- | --- |
+| 2.12 | 7.75 |
+| 2.43 | 9.95 |
+| 2.67 | 11.80 |
+| 2.88 | 14.27 |
+| 3.30 | 17.57 |
+| 3.63 | 21.71 |
+| 3.91 | 25.01 |
+| 4.15 | 27.46 |
+| 4.37 | 27.95 |
+| 4.57 | 30.67 |
+| 4.75 | 31.87 |
+
+$$
+V_{\infty}
+$$
+
+Table A.5: system no. VII, ρWP40t
+
+| din mm | ν  in mm/s∞ |
+| --- | --- |
+| 3.30 | 21.54 |
+| 3.63 | 23.65 |
+| 3.91 | 25.40 |
+| 4.15 | 27.81 |
+| 4.37 | 30.18 |
+| 4.57 | 31.12 |
+| 4.75 | 33.08 |
+| 4.92 | 34.16 |
+
+$$
+V_{\infty}
+$$
+
+---
+
+Table A.6: system no. VIII, ρWP40tp
+
+| din mm | ν  in mm/s∞ |
+| --- | --- |
+| 2.43 | 10.08 |
+| 2.67 | 12.42 |
+| 2.88 | 13.35 |
+| 3.3 | 17.72 |
+| 3.63 | 20.56 |
+| 3.91 | 23.36 |
+| 4.15 | 25.76 |
+| 4.37 | 28.04 |
+| 4.57 | 29.88 |
+| 4.75 | 31.49 |
+| 4.92 | 33.12 |
+| 5.08 | 34.85 |
+
+$$
+V_{\infty}
+$$
+
+Table A.7: system no. IX, ρWP40Atp
+
+| din mm | ν  in mm/s∞ |
+| --- | --- |
+| 2.43 | 7.57 |
+| 2.67 | 9.14 |
+| 2.88 | 11.09 |
+| 3.37 | 15.02 |
+| 3.63 | 17.08 |
+| 3.91 | 19.62 |
+| 4.15 | 22.54 |
+| 4.37 | 24.57 |
+| 4.57 | 25.55 |
+| 4.75 | 27.29 |
+| 4.92 | 28.84 |
+
+$$
+\nu_{\infty}
+$$
+
+---
+
+| din mm | ν  in mm/s∞ |
+| --- | --- |
+| 2.12 | 4.58 |
+| 2.43 | 5.55 |
+| 2.67 | 7.51 |
+| 2.88 | 9.17 |
+| 3.30 | 11.44 |
+| 3.63 | 14.80 |
+| 3.91 | 17.52 |
+| 4.15 | 19.82 |
+| 4.37 | 20.70 |
+| 4.57 | 22.36 |
+| 4.75 | 24.93 |
+| 4.92 | 25.55 |
+
+$$
+\nu_{\infty}
+$$
+
+## A.2 Constant viscosity in the continuous phase
+
+Table A.9: system no. XI, ρWP6tp
+
+| din mm | ν  in mm/s∞ |
+| --- | --- |
+| 1.93 | 10.44 |
+| 2.12 | 11.02 |
+| 2.43 | 14.34 |
+| 2.67 | 17.70 |
+| 2.88 | 20.78 |
+| 3.33 | 27.44 |
+| 3.63 | 31.16 |
+| 3.91 | 34.31 |
+| 4.37 | 39.11 |
+| 4,75 43 | .68 |
+
+$$
+V_{\infty}
+$$
+
+---
+
+$$
+\nu_{\infty}
+$$
+
+| din mm | ν  in mm/s∞ |
+| --- | --- |
+| 1.93 | 9.87 |
+| 2.12 | 10.39 |
+| 2.67 | 14.87 |
+| 2.88 | 18.10 |
+| 3.30 | 22.32 |
+| 3.63 | 27.43 |
+| 3.91 | 29.45 |
+| 4.15 | 33.57 |
+| 4.37 | 35.49 |
+| 4.57 | 37.45 |
+| 4.75 | 39.24 |
+| 5.23 | 44.24 |
+
+Table A.11: system no. XIII, ηWP6At
+
+| din mm | ν  in mm/s∞ |
+| --- | --- |
+| 1.68 | 6.04 |
+| 2.21 | 8.91 |
+| 2.43 | 11.36 |
+| 2.67 | 12.35 |
+| 2.88 | 15.64 |
+| 3.33 | 21.20 |
+| 3.63 | 25.02 |
+| 3.91 | 27.37 |
+| 4.15 | 30.89 |
+| 4.37 | 33.17 |
+| 4.57 | 35.38 |
+| 4.92 | 38.35 |
+
+$$
+V_{\infty}
+$$
+
+---
+
+Table A.12: system no. XIV, ηWP40tp
+
+| din mm | ν  in mm/s∞ |
+| --- | --- |
+| 1.68 | 7.24 |
+| 2.12 | 10.92 |
+| 2.43 | 13.86 |
+| 2.67 | 16.41 |
+| 2.88 | 19.07 |
+| 3.06 | 22.50 |
+| 3.22 | 24.15 |
+| 3.37 | 26.25 |
+| 3.50 | 27.92 |
+| 3.63 | 28.99 |
+| 3.75 | 29.56 |
+| 3.91 | 31.85 |
+| 4.06 | 33.45 |
+| 4.24 | 36.44 |
+| 4.33 | 36.75 |
+| 4.41 | 37.65 |
+| 4.57 | 39.11 |
+| 4.65 | 39.77 |
+| 4.72 | 40.95 |
+| 4.79 | 41.46 |
+| 4.86 | 42.14 |
+| 4.92 | 43.44 |
+| 5.05 | 44.05 |
+| 5.14 | 45.63 |
+| 5.23 | 46.24 |
+
+$$
+\nu_{\infty}
+$$
+
+---
+
+Table A.13: system no. XV, ηWP40Atp
+
+| din mm | ν  in mm/s∞ |
+| --- | --- |
+| 2.12 | 8.41 |
+| 2.43 | 12.07 |
+| 2.67 | 13.99 |
+| 2.88 | 16.83 |
+| 3.30 | 22.47 |
+| 3.63 | 25.53 |
+| 3.91 | 29.26 |
+| 4.15 | 30.64 |
+| 4.37 | 33.53 |
+| 4.57 | 35.32 |
+| 4.92 | 38.74 |
+| 5.08 | 40.63 |
+| 5.23 | 41.89 |
+
+$$
+V_{\infty}
+$$
+
+Table A.14: system no. XVI, ηWP40At
+
+| din mm | ν  in mm/s∞ |
+| --- | --- |
+| 1.68 | 5.28 |
+| 2.21 | 7.73 |
+| 2.67 | 11.69 |
+| 2.88 | 14.85 |
+| 3.30 | 19.86 |
+| 3.63 | 21.82 |
+| 3.91 | 25.43 |
+| 4.15 | 27.70 |
+| 4.37 | 30.21 |
+| 4.57 | 32.54 |
+| 4.75 | 34.45 |
+| 4.92 | 35.21 |
+| 5.08 | 37.73 |
+| 5.23 | 39.67 |
+
+$$
+\nu_{\infty}
+$$
+
+---
+
+## B Experimental Results of Mass Transfer of Single Drops
+
+Table B.1: system no. IV, ρWP6Atp
+
+| din mm | tin s | x0 | y0 | y(t) | y+ |
+| --- | --- | --- | --- | --- | --- |
+| 2.88 | 11.87 | 0.025 | 0.0 | 0.02048 | 0.06909 |
+| 2.67 | 11.69 | 0.025 | 0.0 | 0.0147 | 0.33182 |
+
+$$
+\boldsymbol{X}_{0}
+$$
+
+$$
+y_{0}
+$$
+
+$$
+\boldsymbol{\gamma}^{+}
+$$
+
+Table B.2: system no. VI, ρWP6At
+
+| din mm | tin s | x0 | y0 | y(t) | y+ |
+| --- | --- | --- | --- | --- | --- |
+| 1.42 | 11.40 | 0.025 | 0.0 | 0.02493 | 0.41203 |
+| 1.42 | 15.35 | 0.025 | 0.0 | 0.0103 | 0.75708 |
+| 2.67 | 15.16 | 0.025 | 0.0 | 0.03992 | 0.05849 |
+| 2.88 | 15.07 | 0.025 | 0.0 | 0.0242 | 0.42925 |
+| 2.88 | 18.22 | 0.025 | 0.0 | 0.01458 | 0.65613 |
+
+$$
+\boldsymbol{X}_{0}
+$$
+
+$$
+\boldsymbol{\gamma}_{0}
+$$
+
+$$
+y^{+}
+$$
+
+Table B.3: system no. VIII, ρWP40tp
+
+| din mm | tin s | x0 | y0 | y(t) | y+ |
+| --- | --- | --- | --- | --- | --- |
+| 2.88 | 11.63 | 0.025 | 0.0 | 0.01026 | 0.51605 |
+| 2.97 | 16.00 | 0.025 | 0.0 | 0.01018 | 0.51471 |
+| 2.88 | 18.97 | 0.025 | 0.0 | 0.00871 | 0.58378 |
+| 3.06 | 18.97 | 0.025 | 0.0 | 0.00874 | 0.58775 |
+| 3.22 | 18.87 | 0.025 | 0.0 | 0.0081 | 0.61387 |
+
+$$
+X_{0}
+$$
+
+$$
+y_{0}
+$$
+
+$$
+\boldsymbol{y}^{+}
+$$
+
+Table B.4: system no. X, ρWP40At
+
+| din mm | tin s | x0 | y0 | y(t) | y+ |
+| --- | --- | --- | --- | --- | --- |
+| 2.88 | 11.59 | 0.025 | 0.0 | 0.0123 | 0.68762 |
+| 2.88 | 15.74 | 0.025 | 0.0 | 0.0176 | 0.55302 |
+| 2.88 | 19.09 | 0.025 | 0.0 | 0.0176 | 0.55302 |
+| 3.06 | 19.04 | 0.025 | 0.0 | 0.0151 | 0.61651 |
+| 3.22 | 18.95 | 0.025 | 0.0 | 0.0172 | 0.56317 |
+
+$$
+X_{0}
+$$
+
+$$
+\boldsymbol{y}_{0}
+$$
+
+$$
+\boldsymbol{y}^{+}
+$$
+
+---
+
+## C Experimental Results of Coefficient Distribution
+
+Figs. C.1 show the distribution coefficient in high viscosity system.
+
+2.0
+0
+T = 20  C
+1.8
+1.6
+1.4
+1.2
+1.0
+0.8
+0.6 ρWP40Atp
+distribution coefficient, k
+ρWP40At
+0.4
+ρWP60Atp
+0.2 ρWP60At
+0.0
+0.000 0.005 0.010 0.015 0.020 0.025 0.030 0.035 0.040
+weight fraction of acetone
+
+Figure C.1: distribution coefficient in high viscosity systems
+
+## D Materials and Characterizations of the Test Systems
+
+The materials and the characterizations of test system used in the research on 
+extraction in high viscosity system are described in this part.
+
+## D.1 Materials of the Test Systems
+
+The materials of test system used in the research on extraction in high viscosity 
+system are described in this section. For the experiments the following materials 
+were used: PEG 4000 (Charge Number: 09/18) and PEG 600 (Charge Number: 
+08/50) supplied by Sasol Germany GmbH, Brunsbüttel were used as continuous 
+phase. Toluene and toluene in paraffin were used as disperse phase. The toluene
+
+---
+
+(Charge Number: K38850425) and paraffin (Charge Number: K38713560) were 
+supplied by VWR International GmbH, Langenfeld. In addition, Acetone (Charge 
+Number: K38772914) supplied by VWR was used.  The specification of material of 
+the test systems used is described as below:
+
+## PEG 600
+
+Texture (20 °C): liquid solid
+
+$$
+(20\;^{\circ}C)
+$$
+
+Colour index APHA (25 % in H₂O):  max. 15 mg Pt/l
+
+Hydroxyl value: 178-197 mg KOH/g
+
+$$
+H_{2}O)
+$$
+
+Aver. Molar Weight:  570-630 g/mol
+
+PH-value (10 %  in VE Water): 4.5-7.5
+
+Density (20 °C): 1.126 g/cm³
+
+$$
+(20\;^{\circ}C)
+$$
+
+$$
+1.126\ g/cm^{3}
+$$
+
+°
+Solubility in water (20  C): unlimited g/l
+
+$$
+(20\;^{\circ}C)
+$$
+
+Cinder: ca. 0.05 wt.-%
+
+Acid value: max.0.2 mg KOH/g
+
+o
+Ignition temperature: ca. 380  C
+
+$$
+380^{\circ}C
+$$
+
+°
+Flash point: ca. 270  C
+
+$$
+270^{\circ}C
+$$
+
+## PEG 4000
+
+Texture (20 °C):  solid
+
+$$
+(20\;^{\circ}C)
+$$
+
+Colour index APHA (25 % in H₂O):  max. 15 mg Pt/l
+
+$$
+H_{2}O)
+$$
+
+Hydroxyl value: 26-31 mg KOH/g
+
+Aver. Molar Weight:  3600-4400 g/mol
+
+PH-value ( 10 %  in VE Water): 4.5-7.5
+
+Density (20 °C): 1.21 g/cm³
+
+$$
+(20\;^{\circ}C)
+$$
+
+$$
+1.21\ g/cm^{3}
+$$
+
+Solubility in water (bei 20<sup>o</sup> C): unlimited g/l
+
+$$
+20\ ^{\circ}C)
+$$
+
+Cinder: ca. 0.05 wt.-%
+
+---
+
+Acid value: max.0.2 mg KOH/g
+
+o
+Ignition temperature: ca. 420  C
+
+$$
+420^{\circ}C
+$$
+
+o
+Flash point: ca. 250  C
+
+$$
+250^{\circ}C
+$$
+
+**Acetone (pro analysis, AC, ISO, Reag. Ph. Eur)**
+
+Density (20 °C): 0.790-793 g/cm³
+
+$$
+(20\;^{\circ}C)
+$$
+
+Purity: % ≥ 99.8
+
+Solubility in H₂O:
+
+$$
+H_{2}O
+$$
+
+Colour:  ≤  10 Hazen
+
+**Toluene (pro analysi, ACS, ISO Reag. Ph Eur)**
+
+Purity: % ≥ 99.8
+
+0
+Density (20  C): 0.865-0.870 g/cm³
+
+$$
+(20^{\circ}C)
+$$
+
+Colour:  ≤  10 Hazen
+
+**Paraffin (viscous  Ph Eur, BP, USP)**
+
+Density: 0.845-0.890 g/cm³
+
+$$
+\mathrm{g/cm^{3}}
+$$
+
+Viscosity (20<sup>o</sup> C): 110-230 mPa s
+
+$$
+(20\ ^{\circ}C)
+$$
+
+Solubility in H₂O (20  C): insoluble in H₂<sup>0</sup>O
+
+$$
+\mathrm{H_{2}O~(20~^{\circ}C)};
+$$
+
+$$
+H_{2}O
+$$
+
+o
+Boiling temperature: 300-350  C
+
+$$
+300-350^{\circ}C
+$$
+
+## D.2 Materials and Characterizations of the Test Systems
+
+The characterizations of test system used in the research on extraction in high 
+viscosity system are described in this section.
+
+## Density
+
+The density of the continuous and disperse phase were measured by using an Anton 
+Paar Density Sound Analyser (DSA 48) from Paar Scientific Ltd., London. Before the measurement of the density of continuous phase and disperse phase, the continuous 
+phase and disperse phase were saturated. The mass-transfer component was added 
+into the continuous phase whenever required. In the measurement temperature was 
+20 ± 0.1 °C. The densities of the samples were measured from the period of 
+oscillation of an oscillating U-tube. The instrument was calibrated once using air and 
+distilled water. The samples were inserted into the measuring instrument using a 5 ml 
+syringe. With the help of a lamp in the instrument, the period during the 
+measurement of liquid in a U-tube could be monitored. On the measuring range, 
+there should be no bubbles that could affect the result of density of samples. After 
+the introduction of the samples, the lamp is turned off to eliminate the thermal effects 
+of light on the analysis of density of samples. The computer connected to the density 
+meter shows a constant value at the determined density of 5 digits after decimal point 
+in g/cm . The density meter after being used for the samples, are cleaned and dried<sup>3</sup> 
+with nitrogen. Density and sound velocity measurements were accurate to ± 1 x 10<sup>–4</sup>
+g/cm  and ± 1 m/s, respectively. From measurement of density, we found a<sup>3</sup> 
+correlation of specific volume for PEG 4000 with water, PEG 600 with water, and 
+toluene with paraffin, as follow:
+
+$$
+20\pm0.1^{\circ}C
+$$
+
+$$
+\mathrm{g/cm^{3}}
+$$
+
+$$
+\mathrm{to}\pm1\times10^{-4}
+$$
+
+$$
+\mathrm{g/cm^{3}\ and\ \pm\ 1\ m/s}
+$$
+
+$$
+\mathrm{specific\ volume\ of\ PEG}\ 4000\ \mathrm{with\ water:}\ v=\frac{1}{\rho}=-0.17\ x+1.00036
+$$
+
+$$
+\mathrm{specific\ volume\ of\ PEG\ 600\ with\ water:\ v=-0.11\ x+0.9938}
+$$
+
+$$
+\mathrm{specific\ volume\ of\ touluene\ with\ paraffin:v=0.0038y+1.15467}
+$$
+
+*x* is the weight fraction of PEG in water and *y* is the weight fraction of paraffin in 
+toluene.
+
+## Viscosity
+
+The viscosity of continuous phase and disperse phase was measured by using a 
+Haake Falling Ball Viscometer from HAAKE Mess-Technik GmbH & Co. KG, 
+Karlsruhe. It is based on the rolling and sliding movements of a ball through the 
+sample of continuous phase or disperse phase timed in an inclined cylindrical 
+measuring tube. The viscometer temperature was maintained at 20 ± 0.1 °C.
+
+$$
+20\pm0.1^{\circ}C
+$$
+
+---
+
+Furthermore, to measure the viscosity of continuous phase and disperse phase, the 
+continuous phase and disperse phase was saturated. The mass-transfer component 
+was added into the continuous phase, which was saturated with the disperse phase 
+whenever required. The continuous phase and disperse phase were separated, prior 
+to be used as the material system in the measurement of the viscosity. The drop 
+tube, ball, plugs, and sealing rings must be cleaned with suitable purifying agents. 
+Before the viscosity of continuous phase or disperse phase to be measured, the drop 
+tube, the ball, the plugs, and the sealing rings must be ensured completely dry and 
+free of grease or the liquid to be measured. From measurement of viscosity, we 
+found the correlation of viscosity of PEG 4000 with water, PEG 600 with water, and 
+toluene with paraffin, as follow:
+
+$$
+\mathrm{viscosity~of~PEG~600~with~water:~}\eta_{PEG~600~in~water}=132.65x+1.0042
+$$
+
+$$
+\mathrm{viscosity}\;\mathrm{of}\;\mathrm{PEG}\;4000\;\mathrm{with}\;\mathrm{water};\;\eta_{\mathrm{PEG}\;4000\;\mathrm{in}\;\mathrm{water}}=196.3\;\mathrm{x}+1.0042
+$$
+
+$$
+\mathrm{wiscosity~of~toluene~witth~paraflin}:\eta_{\mathrm{toluene~with~paraflin}}=128.7\mathrm{y}+0.61
+$$
+
+*x* is weight fraction of PEG in water and *y* is weight fraction of paraffin in toluene.
+
+## Interfacial tension
+
+Interfacial tension was measured by using a Stalagmometer from NORMAG Laborund Prozesstechnik GmbH, Ilmenau. In measurement of interfacial tension, the 
+Stalagmometer is a glass tube utilizing a capillary with a nozzle to create the drop. 
+The principle of measurement of interfacial tension is as follows: the continuous 
+phase in the form of drops from the top of a capillary nozzle falls into the disperse 
+phase or contrarily the disperse phase in the form of drops from the bottom of a 
+capillary nozzle rise into the top of continuous phase.
+
+Interfacial tension obtained from the two ways of measurement above is same.
+Before the measurement of interfacial tension, the continuous phase with the 
+disperse phase was saturated an
+…[truncated]d then both phases were separated. For the 
+measurement of interfacial tension with mass-transfer component, acetone was added into the continuous phase, which was saturated with disperse phase. In 
+measurement of the interfacial tension, the Stalagmometer used must be clean and 
+dry on the vertical stand, the drops created with constant time, the temperature in the 
+measurement of interfacial tension was maintained at 20 ± 0.1 °C and for every 
+measurement of interfacial tension, at least 3 drops have to be evaluated.
+
+$$
+20\pm0.1^{\circ}C
+$$
+
+## E
+
+## Hole-Diameter of Sieve Tray of Extraction Column Used
+
+Figs. E.1 and E.2 show the hole-diameter of extraction column sieve-tray.
+
+Figure E.1: 8 mm hole-diameter of sieve tray of extraction column
+
+Figure E.2: 2 mm hole-diameter of sieve tray of extraction column
+
+---
+
+## F
+
+## Input and output concentrations of acetone as mass transfer component from pilot-plant experiments
+
+Table F.1: input and output concentration of acetone as mass transfer component 
+from pilot-plant experiments
+
+| systems | % of flooding | x in | in | xout | yout |
+| --- | --- | --- | --- | --- | --- |
+| pWP40At | 60 | 0.025 | 0 | 0.0143 | 0.0196 |
+| pWP40At | 80 | 0.025 | 0 | 0.0109 | 0.0017 |
+
+$$
+\%
+$$
+
+$$
+\boldsymbol{X}_{in}
+$$
+
+$$
+\boldsymbol{y}_{in}
+$$
+
+$$
+\boldsymbol{X}_{out}
+$$
+
+$$
+\boldsymbol{y}_{out}
+$$
+
+## G Experimental results of the flooding limit in high-viscosity systems
+
+Table G.1: Experimental results of the flooding limit in high-viscosity systems 
+obtained from experiments in a pilot-plant scale pulsed sieve-tray 
+extraction column
+
+| No. | systems | $d_{L}$ [mm] | $\dot{v}_{c}/\dot{v}_{d}$ [-] | flooding limit |  |
+| --- | --- | --- | --- | --- | --- |
+| No. | systems | $d_{L}$ [mm] | $\dot{v}_{c}/\dot{v}_{d}$ [-] | $\dot{v}_{c}[\mathrm{l/h}]$ | $\dot{v}_{d}[\mathrm{l/h}]$ |
+| 1. | ρWP40t | 8 | 1:1 | 4.18 | 4.15 |
+| 2. | ρWP40t | 8 | 1:2 | 4.02 | 8.28 |
+| 3. | ρWP40t | 8 | 1:2 | 2.07 | 4.39 |
+| 4. | ρWP40At | 8 | 1:2 | 1.09 | 2.31 |
+| 5. | ρWP40t | 2 | 1:9 | 0.16 | 3.30 |
+
+$$
+d_{L}
+$$
+
+$$
+\dot{v}_{c}/\dot{v}_{d}
+$$
+
+$$
+\dot{\boldsymbol{v}}_{c}[1/h]
+$$
+
+$$
+\dot{V}_{d}
+$$
+
+---
+
+*a* amplitude of pulsation m 
+'
+*a* length of pulsation stroke (twice the wave amplitude) m 
+*a₁₅* model parameter 15 of sedimentation velocity of drop - 
+*a₁₆* model parameter 16 of sedimentation velocity of drop -
+
+*a* constant factor of donni adinata 
+D*A*
+A interface area 
+*f* frequency
+
+- 
+m<sup>2</sup>
+m/s
+
+*c<sub>x</sub>* solute concentration in continuous phase mol/l 
+*
+*c* equilibrium solute concentration in continuous phase mol/l 
+x
+*c* solute concentration in disperse phase mol/l 
+y
+*
+*c* equilibrium solute concentration in continuous phase mol/l 
+y
+
+*c<sub>w</sub>* drag coefficient  
+*C* constant parameter 
+*C₁* kinetic constant 
+*CIP* instability parameter 
+*d* drop diameter 
+*d₃₂* Sauter mean diameter or drop size 
+*d* maximum stable diameter 
+stab
+*d* column diameter 
+column
+*d* hole diameter of sieve tray  
+L
+*D* diffusion coefficient
+
+- 
+- 
+3/2 1/2
+m /mol
+- 
+m 
+m 
+m 
+m 
+m 
+m /s<sup>2</sup>
+
+2
+*D* axial mixing coefficient of continuous phase m /s 
+ax,c
+2
+*D* diffusion coefficient of continuous phase m /s 
+c
+2
+*D* diffusion coefficient of disperse phase m /s 
+d
+2
+*D* infinite  dilution binary diffusion coefficient of solute A into the m /s 
+d, j
+
+solvent *j*
+*E* enhancement factor 
+*f₁<sup>*</sup>* crossover function 
+*FB* buoyancy force
+
+- 
+- 
+N
+
+$$
+a^{'}
+$$
+
+$$
+\boldsymbol{a}_{15}
+$$
+
+$$
+a_{16}
+$$
+
+$$
+\boldsymbol{a}_{DA}
+$$
+
+$$
+\mathsf{m}^{2}
+$$
+
+$$
+C_{x}
+$$
+
+$$
+c_{x}^{^{\star}}
+$$
+
+$$
+C_{y}
+$$
+
+$$
+\boldsymbol{C}_{y}^{*}
+$$
+
+$$
+C_{w}
+$$
+
+$$
+C_{1}
+$$
+
+$$
+\mathrm{m}^{3/2}/\mathrm{mol}^{1/2}
+$$
+
+$$
+C_{IP}
+$$
+
+$$
+d_{32}
+$$
+
+$$
+d_{stab}
+$$
+
+$$
+d_{co l u m n}
+$$
+
+$$
+d_{L}
+$$
+
+$$
+m^{2}/s
+$$
+
+$$
+D_{ax,c}
+$$
+
+$$
+m^{2}/s
+$$
+
+$$
+D_{c}
+$$
+
+$$
+D_{d}
+$$
+
+$$
+m^{2}/s
+$$
+
+$$
+m^{2}/s
+$$
+
+$$
+D_{d,j}
+$$
+
+$$
+m^{2}/s
+$$
+
+$$
+E
+$$
+
+$$
+f_{1}^{^{\star}}
+$$
+
+$$
+F_{B}
+$$
+
+---
+
+$$
+F_{r}
+$$
+
+*F<sub>r</sub>* resistance force 
+*F* weight force 
+w
+*g* gravitation m
+*h* thickness of sieve-tray 
+st
+*H<sub>column</sub>* column high 
+*H* distance between sieve-trays 
+st
+
+N 
+N 
+<sup>2</sup>/s 
+m 
+m 
+m
+
+*k<sub>c</sub>* mass-transfer coefficient of continuous phase  m/s 
+*k* mass-transfer coefficient of disperse phase m/s 
+d
+
+*KHR<sup>*</sup>* Hadamard-Rybczynski factor
+
+-
+
+2
+*K* overall-mass-transfer coefficient of the continuous phase kg/m s 
+oc
+2
+*K* overall mass-transfer coefficient of the dispersed phase kg/m s 
+od
+*m* distribution coefficient for the mass-transfer component kg/kg
+
+*m<sub>w</sub>* mass kg 
+*M* solvent molecular weight 
+.
+overall molar flux of mass-transfer 
+*M*
+
+- 
+kg/s
+
+*n* swarm exponent, number of variable, number of drops - 
+*N<sub>th, exp</sub>* the number of theoretical stages with experiment - 
+*N* the number of theoretical stages with simulation - 
+th,sim
+
+*P* energy input per compartment 
+*r* coordinate of radius 
+*R* radius of the drop 
+*S* syringe step 
+*t* time s 
+*T* temperature 
+ν sedimentation velocity 
+ν superficial velocity of continuous phase 
+*c*
+ν superficial velocity of disperse phase 
+*d*
+ν swarm velocity 
+*s*
+V solute molar volume at boiling point 
+*V* volume of disperse phase 
+disp
+
+W 
+m 
+m 
+- 
+°C 
+m/s 
+m/s 
+m/s 
+m/s 
+m /kmol<sup>3</sup> 
+3
+m
+
+$$
+F_{w}
+$$
+
+$$
+g
+$$
+
+$$
+h_{st}
+$$
+
+$$
+m^{2}/s
+$$
+
+$$
+H_{column}
+$$
+
+$$
+H_{st}
+$$
+
+$$
+k_{c}
+$$
+
+$$
+k_{d}
+$$
+
+$$
+K_{HR}^{*}
+$$
+
+$$
+K_{oc}
+$$
+
+$$
+\mathrm{kg/m^{2}s}
+$$
+
+$$
+K_{od}
+$$
+
+$$
+\mathrm{kg/m^{2}s}
+$$
+
+$$
+m_{w}
+$$
+
+$$
+\dot{M}
+$$
+
+$$
+N_{th,\exp}
+$$
+
+$$
+N_{th,sim}
+$$
+
+$$
+^\circ\complement
+$$
+
+$$
+V_{\mathfrak{c}}
+$$
+
+$$
+V_{d}
+$$
+
+$$
+\nu_{s}
+$$
+
+$$
+\mathrm{m}^{3}/\mathrm{kmol}
+$$
+
+$$
+V_{_{disp}}
+$$
+
+$$
+\mathsf{m}^{3}
+$$
+
+---
+
+$$
+\dot{V}_{c}
+$$
+
+& flow rate of continuous phase 
+*V*
+c
+& flow arte of disperse phase 
+*V*
+d
+V volume of a droplet 
+drop
+*V* volume of column 
+column
+*V* volume of syringe 
+s
+
+kg/s 
+kg/s 
+m<sup>3</sup><sup>3</sup>
+m
+3
+m
+
+*x₀* initial solute concentration of the continuous phase kg/kg
+
+*x<sub>j</sub>* mole fraction of *j*
+
+-
+
+*x<sub>in</sub>* solute fraction in the continuous phase at the entry kg/kg 
+*x* solute fraction in the continuous phase at the exit kg/kg 
+out
+*y₀* initial solute concentration of the dispersed phase  kg/kg 
+*
+*y* solute concentration of the dispersed phase at the equilibrium kg/kg
+
+*y<sup>+</sup>* driving dimensionless concentration
+
+-
+
+*y* (*r*,*t*) the bulk concentration of the drop during mass transfer kg/kg 
+*y* (*t*) the bulk concentration of the drop during mass transfer 
+*y* solute fraction in the dispersed phase at the entry kg/kg 
+in
+*y* solute fraction in the dispersed phase at the exit kg/kg 
+out
+*Y* solute fraction in the dispersed phase (solute free bases) kg/kg
+
+**Greek symbols** 
+α exponent -
+
+β individual mass transfer coefficient of the continuous phase m/s 
+*c*
+
+η solution vis*c*osity 
+η viscosity of continuous phase 
+*c*
+η viscosity of disperse phase 
+*d*
+η pure component viscosity 
+*j*
+η mixture viscosity 
+*m*
+ρ density of continuous phase  
+*c*
+ρ density of disperse phase 
+*d*
+Δ difference -
+
+Pa s 
+Pa s 
+Pa s 
+Pa s 
+Pa s 
+kg/m<sup>3</sup><sup>3</sup>
+kg/m
+
+$$
+\dot{V}_{d}
+$$
+
+$$
+V_{_{drop}}
+$$
+
+$$
+\mathsf{m}^{3}
+$$
+
+$$
+V_{column}
+$$
+
+$$
+V_{s}
+$$
+
+$$
+\mathsf{m}^{3}
+$$
+
+$$
+\mathsf{m}^{3}
+$$
+
+$$
+\boldsymbol{X}_{0}
+$$
+
+$$
+X_{j}
+$$
+
+$$
+\boldsymbol{X}_{in}
+$$
+
+$$
+\boldsymbol{X}_{out}
+$$
+
+$$
+\boldsymbol{y}_{0}
+$$
+
+$$
+y^{*}
+$$
+
+$$
+\boldsymbol{y}^{+}
+$$
+
+$$
+\boldsymbol{y}_{in}
+$$
+
+$$
+\boldsymbol{y}_{out}
+$$
+
+$$
+\beta_{\mathrm{c}}
+$$
+
+$$
+\eta_{c}
+$$
+
+$$
+\eta_{d}
+$$
+
+$$
+\eta_{m}
+$$
+
+$$
+\rho_{c}
+$$
+
+$$
+\rho_{d}
+$$
+
+---
+
+$$
+\sigma
+$$
+
+| σ | interfacial tension | N/m |
+| --- | --- | --- |
+| ϕ | association parameter | - |
+| Φ | open area ratio of sieve tray | - |
+| φ d | hold-up of disperse phase | - |
+
+N/m
+
+$$
+\varphi
+$$
+
+$$
+\Phi
+$$
+
+$$
+\phi_{d}
+$$
+
+## Dimensionless numbers
+
+$$
+A r=\frac{\rho_{c}\Delta\rho g d^{3}}{\eta_{c}^{2}}
+$$
+
+Archimedes number
+
+$$
+FO=\frac{4Dt}{d^{2}}
+$$
+
+Fourier number
+
+$$
+K_{f}=\frac{\sigma^{3}\rho_{c}^{2}}{\Delta\rho g\eta_{c}^{4}}
+$$
+
+liquid number
+
+$$
+K_{HR}=3(\eta_c+\eta_d)/(2\eta_c+3\eta_c)
+$$
+
+Hadamard-Rybczynski factor
+
+$$
+S c=\frac{\eta}{\rho D}
+$$
+
+Schmidt number
+
+$$
+Sh=\frac{\beta d}{D}
+$$
+
+Sherwood number
+
+$$
+Pe=\frac{v_{\infty}d}{D}
+$$
+
+Peclet number
+
+$$
+\mathrm{Re}=\frac{\rho_{c}\nu_{\infty}d}{\eta_{c}}
+$$
+
+Reynolds number
+
+## Subscripts
+
+∞ in infinitely extended fluid
+
+crit critical
+
+eff effective value
+
+i number of variable
+
+sw passing from rigid to circulating drop
+
+---
+
+Akselrud, G.A., 1953: Diffusion from the Surface of a Sphere, Zh. Fiz. Khim., 27, No. 
+10, 1446-1465 (cited in Slater, M.J  in Godfrey, J.C., Slater, M.J., 1994: Liquid-
+Liquid Extraction Equipment, Wiley, New York, USA) 
+Altunok, M., Grömping, T. and Pfennig, A., 2006; ReDrop - an Efficient Simulation 
+Tool for Describing Solvent and Reactive Extraction Columns, Computer 
+Aided Chemical Engineering, 21, 665-670 
+Arnold., 1930; J.H. Arnold, Studies in Diffusion: I-Estimation of Diffusivities in 
+Gaseous Systems. Ind. Eng. Chem. 22, 1091-1095. 
+Attarakih, M.M.,  Bart, H.-J. and Faqir, N.M., 2004; Berechnung von Flüssig/Flüssig-
+Extraktionskolonnen, Chemie Ingenieur Technik, 76, 9, 1412-1413 
+Bäcker, W., Schäfer, J.P. and Schröter, J., 1991; Einsatz von geordneten Packungen 
+in der Flüssig/flüssig-Extraktion, Chemie Ingenieur Technik, 63, 10, 1008-1011 
+Bart, H.J., 2002; Reaktivextraktion - Ein Statusbericht zur Simulation gerührter 
+Kolonnen, Chemie Ingenieur Technik, 74, 3, 229-241 
+Bart, H.-J., Garthe, D., Grömping, T., Pfennig, A., Schmidt, S., Stichlmair, J., 2006; 
+Vom Einzeltropfen zur Extraktions-kolonne, Chemie Ingenieur Technik, 78, 5 
+Bart, H.J., Berger, R., Slater, M.J., Schröter, J., Wachter, B., 1994; Systems for 
+Liquid Extraction Studies, in: J.C. Godfrey, M.J. Slater (Eds.), Liquid-Liquid 
+Extraction Equipment, Wiley, Chichester, 14 
+Bart, H.-J., Garthe, D., Grömping, T., Pfennig, A., Schmidt, S., Stichlmair, J., 2005; 
+Vom Einzeltropfen zur Extraktionskolonne - Anforderungen und neue 
+Entwicklungen, final project report AiF 40 ZN 1+2+3, http://www.tvt.rwthaachen.de/frame3_5.htm, November 14, 2005
+
+---
+
+Bauckhage, K., Bauermann, H.D., Blaß, E., Sauer, H., Stölting, M., Tenhumberg, J., 
+Wagner, H., 1975; Zur Auslegung von Apparaten der Flüssig-Flüssig-
+Extraktion, Chem.-Ing.-Tech., 47, 5, 169 
+Berger, R., Leuckel, W. and Wolf, D., 1978; Investigations into the Operating 
+Characteristics of Pulsed Sieve Plate Columns, Chem. Ind., 760-64 
+Brodkorb, M.J., Bosse, D., von Reden, C., Gorak, A. Slater, M.J., 2003; Single Drop 
+Mass Transfer in Ternary and Quaternary Liquid-Liquid Extraction Systems. 
+Chemical Engineering and Processing, 42 (11), 825-84 
+Buschbender, F., 2011: Personal message to the author 
+Böcker, S. and Ronge, G., 2004; Distillation viskoser Systeme, Chemie Ingenieur 
+Technik, 76, 1-2 
+Chalderbank, P. H. and Korchinsky, I. J. O., 1956; Circulation in Liquid Drops: A Heat 
+Transfer Study, Chem. Eng.Sci., 6, 65 
+Charfi, A., 2010; Bestimmung des Verlangsamungsfaktors in einer 
+Schwingsiebbodenmesszelle, Bachelorarbeit, Fachhochschule Münster, 
+Münster 
+Clift, R., Grace, J.R. and Weber, M.E., 1978: Bubbles, Drops, and Particles, 
+Academic Press, New York, USA 
+DECHEMA/GVC, 2006; F&E Studie Integrierte Nutzung nachwachsender Rohstoffe, 
+DECHEMA, Frankfurt 
+Dexheimer, V.H. and Fuch, O., 1966; Zur Trennung von Polymergemischen durch 
+Extraktion. Die Makromolekulare Chemie 96, 172-178; 2204 
+Eisenlohr, H., 1951; Mehrstufige Gegenstromextraktion mit einem neuen Solvent-
+Zentrifugal-Extraktor,  Chemie Ingenieur Technik, 23, 1, 12-14
+
+---
+
+Fatemeh, S.G., Sayed Mohammad Ali, M. and Kamal, S., 2009; Hydrodynamic 
+Characterization of Mixer-Settler in Extraction of Zirconium with TBP, J. Chem. 
+Chem. Eng. 28, 1 
+Fischer, M., 2008; Aufbau und Inbetriebnahme einer Extraktionsanlage mit drei 
+Kolonnen, Studienarbeit, Lehrstuhl für Thermische Verfahrenstechnik, RWTH 
+Aachen, Germany 
+Frössling, N., 1938; Über die Verdünstung fallenden tropfen, (Evaporation of falling 
+drops), Gerlands Beitage zur Geophysik 52, pp. 170-216 (cited in Slater, M.J  
+in Godfrey, J.C., Slater, M.J., 1994: Liquid-liquid Extraction Equipment, Wiley, 
+New York, USA) 
+Garner, F.H. and Skelland, A.H.P., 1955; Some Factors Affecting Droplet Behaviour 
+in Liquid-Liquid Systems. Chemical Engineering Science, 4 (4), 149-158 
+Garner, F. and Suckling, R., 1958; Mass Transfer from a Soluble Solid Sphere, Am. 
+Inst. Chem. Eng. J., 4, p. 114-124 (cited in Slater, M.J  in Godfrey, J.C., Slater, 
+M.J., 1994: Liquid-Liquid Extraction Equipment, Wiley, New York, USA 
+Garthe, D., 2006; Fluid dynamics and Mass Transfer of Single Particles and Swarms 
+of Particles in Extraction Columns, Dissertation, TU München, München  
+Grace, J.R., Wairegi, T. and Nguyen, T.H., 1976; Shapes and Velocities of Single 
+Drops and Bubbles Moving Freely Through Immiscible Liquids. Trans. Inst. 
+Chem. Eng., 54, 167-173 
+Hampe, M., 1978; FIussig/flussig-Extraktion: Einsatzgebiete und Losungsmittel-
+Auswahl, Chem.-Ing.-Tech. 50, 9, 647-655 
+Handlos**_,_** A. E. and Baron, T., 1957; Mass and Heat Transfer from Drops in Liquid-
+Liquid Extraction, AIChE 3, 127-136
+
+---
+
+Haverland, H., 1988; Untersuchungen zur Tropfendispergierung in flüssigkeitspulsierten Siebboden-Extraktionskolonnen, Dissertation, Technical University 
+of Clausthal, Germany 
+Henschke, M., 2003; Auslegung pulsierter Siebboden-Extraktionskolonnen. Shaker 
+Verlag, Aachen (habilitation thesis) 
+Henschke, M. and Pfennig, A., 1999; Mass-Transfer Enhancement in Single-Drop 
+Extraction Experiments, AIChE J., 45, 10 
+Henschke, M. and Pfennig, A., 2002; Influence of sieve trays on the mass transfer of 
+single drops, AIChE Journal, 48, 2, 227-234 
+Hirschmann, K. and Blass, E., 1983; Die Eignung unpulsierter Siebbodenkolonnen 
+für die Flüssig/Flüssig-Extraktion von Stoffsystemen kleiner 
+Grenzflächenspannung, Chemie Ingenieur Technik, 55, 12, 990-991 
+Horton, T.J., Fritsch, T.R.  and Kintner, R.C., 1965; Experimental Determination of 
+Circulation Velocities Inside Drops, The Canadian Journal of Chemical 
+Engineering 43, 3,143-146 
+Hoting, B., 1996; Untersuchungen zur Fluiddynamik und Stoffübertragung in 
+Extraktionskolonnen mit strukturierten Packungen, Dissertation, Technical 
+University of Clausthal, Germany 
+Hu, S. and Kintner, R.C., 1955; The fall of single drops through water. AIChE J. 1 (1), 
+42-48 
+Huang, W.S. and Kintner, R.C., 1969; Effects of Surfactants on Mass Transfer Inside 
+Drops, AIChE J., 15 (5) 
+Ishii, M. and Zuber, N., 1979; Drag Coefficient and Relative Velocity in Bubble, 
+Droplet or Particulate Flows, AIChE 25, 5, 843-855
+
+---
+
+Javadi, A., Bastani, D. and Taeibi-Rahni, M., 2006; Mass transfer during drop 
+formation on the nozzle: new flow expansion model, AIChE J., 52 (3), 895-910 
+Jirapasertwong, Y., 2006; Investigation of reactive mass transfer at single droplets, a 
+student project, Department of Chemical and Process Engineering, The 
+Sirindhorn International Thai-German Graduate School of Engineering, RWTH 
+Aachen University 
+Jirapasertwong, Y., Kalem, M., Kangsadan, T., Pfennig, A., 2008; Experimental 
+Investigation of Reactive Mass Transfer at Single Droplets, Technology and 
+Innovation for Sustainable Development Conference (TISD2008), Faculty of 
+Engineering, Khon Kaen University, Thailand 
+Job, C. and Blass, E., 1994; Problems concerning liquid-liquid extraction of 
+extracellular products directly from fermenter broths. Chem. Eng. J. 56, B1-B8 
+Kalem, M., Buchbender, F. and Pfennig, A., 2010; Simulation of hydrodynamics in 
+RDC extraction columns using the simulation tool “ReDrop”, Chemical 
+Engineering Research and Design 89, 1, 1-9 
+Kalem, M. and Pfennig, A., 2007; ReDrop – A general method for solving drop 
+population balances with an arbitrary number of property variables, 17<sup>th</sup>
+European Symposium on Computer Aided Process Engineering-ESCAPE17, 
+Romania 
+Klee, A. and Treybal, R.E., 1956; Rate of rise or fall of liquid drops, AIChE 92, 4, 444-
+447 
+Klinger, S., Henschke, M. and Pfennig, A., 2002; Untersuchung von Spaltungs- und 
+Koaleszenzvorgängen in einer Messzelle mit pulsierten Füllkörpern. Chem. 
+Ing. Techn., 74, 256-260 
+Klocker, H., 1996; Multikomponentenstoffaustausch bei der Reaktivextraktion im 
+System Zinksulfat/Di(2-ethylhexyl)-phosphorsaüre; Ph.D. thesis, TU Graz
+
+---
+
+Kronik, R. and Brink, J. C., 1950; On the Theory of Extraction from Falling Droplets, 
+Appl. Sci. Res. A2, 142-154 
+Künzi, G., 2004; Kolonnen und Mixer-Settler für die Flüssig/Flüssig-Extraktion, 
+Chemie Ingenieur Technik, 76, 11 
+Liang, T.B. and Slater, M.J., 1990; Liquid-liquid extraction drop formation: Mass 
+transfer and the influence of surfactant, Chemical Engineering Science, 45 (1), 
+97-105 
+Lu, P., Wang, Z., Yang, C., Mao, Z.S., 2010; Experimental investigation and 
+numerical simulation of mass transfer during drop formation, Chemical 
+Engineering Science, 65 (20), 5517-5526 
+Mahiout, S., 1984; Zur Fluiddynamik und zum Stoffübergang hochviskoser Gemische 
+auf einem Siebboden, Dissertation, TU Clausthal 
+Mahiout, S. and Vogelpohl., 1984; Mass transfer in high viscosity media 
+Stoffübergang in Hochviskosen Gemischen, Chemical Engineering and 
+Process Intensification, 18 (4), 255-232  
+Maneri, C.C., 1995; New look at wave analogy for prediction of bubble terminal 
+velocities. AIChE J., 41, 481-487 
+Mersmann, A., 1980; Zum Flutpunkt in Flüssig/Flüssig-Gegenstromkolonnen, Chem.- 
+Ing. –Tech, 52, 933-942 
+Mersmann, A., 1986; Stoffübertragung, Springer-Verlag, Berlin, Heidelberg, New 
+York, Tokyo, p. 82 et seqq. 
+Misek, T., Berger, R. and Schröter, J., 1985; Standard Test Systems for Liquid 
+Extraction, Inst. Chem. Eng., 2th edition, Warwickshire
+
+---
+
+Modigell, M., 1981; Untersuchung der Stoffübertragung zwischen zwei Flüssigkeiten 
+unter Berücksichtigung von Grenzflächenphänomenen. PhD Thesis, RWTH 
+Aachen University, Germany 
+Modigell, M., 2004; Mechanische Verfahrenstechnik - Partikel - und 
+Separationstechnologie, Mechanische Verfahrenstechnik, RWTH Aachen 
+Mörters, M. and Bart, H.-J., 2000; Extraction equilibria of zinc with bis(2-ethylhexyl) 
+phosphoric Acid, J. Chem. Eng. Data, 45 (1), 82 
+Mörters, M. and Bart, H.-J., 2003; Mass transfer into droplets undergoing reactive 
+extraction, Chemical Engineering and Processing, 42, 801-/809 
+Müller, E., Berger, R., Blass, E., Sluyts, D., Pfennig, A., 2008; Liquid–Liquid 
+Extraction, Ullmann's Encyclopedia of Industrial Chemistry, 
+DOI: 10.1002/14356007.b03_06.pub2 
+Newman, A. B., 1931; The Drying of Porous Solids: Diffusion and Surface Emission 
+Equations, Trans. AIChE, 27, 203-220 
+Nitsch, W. and Winkelmann, R., 1969; Zur Berechnung von Sprüh- und 
+Siebbodenkolonnen zur Extraktion aus Stoffübergangsmessungen an 
+Einzeltropfen, Chemie Ingenieur Technik, 41, 24, 1287-1294 
+Perkins, L.R. and Geankoplis, C.J, Molecular diffusion in a ternary liquid system with 
+the diffusing component dilute, Chem. Eng. Sci., 1969, *24*,1035. 
+Perry, J. H., 1950; Chemical Engineers Handbook, McGraw-Hill Book Company, Inc., 
+New York 
+Pfennig, A., Pilhofer, T. and Schröter, J., 2006; Flüssig-Flüssig Extraktion. In: 
+Fluidverfahrenstechnik Band 2, Goedecke, R. (Hrsg.), Wiley-VCH, Weinheim. 
+DOI: 10.1002/9783527623631.ch10
+
+---
+
+Richardson, J. F. and  Zaki, W., 1954; Sedimentation and Fluidisation: Part I, Trans. 
+Institution of chemical Engineers 32, p. 35-53 
+Rückl, W. and Marr, R., 1984; Mehrkomponentige Flussig/Flussig-Extraktion. Chem.-
+Ing.-Tech. 56, 4, 336-337 
+Sainz-Diaz, C., Klocker, H., Marr, R., Bart, H.J., 1996; New approach in the 
+modelling of the extraction equilibrium of zinc with bis(2ethylhexyl)phosphoric 
+acid, Hydrometallurgy, 42, 1 
+Schladot, J.D. and Straub, R., 2006; Forschungsförderung der nachhaltigen 
+Bioproduktion, Chem. Ing. Tech. 78 (3), 177-180. 
+Schröter, J., Bäcker, W. and Hampe, M.J., 1998; Stoffaustauschmessungen an 
+Einzeltropfen und an Tropfenschwärmen in einer Gegenstrommesszelle, 
+Chem. Ing. Tech., 70, 279 
+Schügerl, K., 2004; Solvent Extraction in Biotechnology, Springer, Berlin 
+Schügerl, K., and Degener, W., 1989; Gewinnung niedermolekularer organischer 
+Verbindungen aus komplexen wäßrigen Gemischen durch Extraktion, Chem.-
+Ing.-Tech.  61, 10, 796-804 
+Schulze, K., Paschedag, A.R. and Kraume, M., 2003; Marangoni convection on 
+liquid–liquid interfaces. In: Second International Berlin Workshop – IBW2 on 
+Transport Phenomena with Moving Boundaries. 
+Schweitzer et al., 1979; Handbook of Separation Techniques for Chemical 
+Engineers, third edition, McGraw-Hill, New York, USA 
+Silva, M.E. and Franco, T.T., 2000; Liquid-liquid extraction of biomolecules in 
+downstream processing - a review paper, Braz. J. Chem. Eng. 17, 1
+
+---
+
+Simon, A.J.F., 1979; Extraktion von Cyclohexanonoxim und Cyclohexanon mit Toluol 
+in einer pulsierenden Füllkörper-Kolonne, Chemie Ingenieur Technik, 51, 1,  
+49 
+Simon, M., Schmidt, S. and Bart, H.-J., 2002; Bestimmung von Zerfalls- und 
+Koaleszenzparametern in Flüssig/Flüssig-Systemen auf der Grundlage von 
+Einzeltropfenexperimenten, Chemie Ingenieur Technik, 74, 3, 247-256 
+Slater, M.J., 1994; in Godfrey, J.C., Slater, M.J.: Liquid-Liquid Extraction Equipment, 
+Wiley, New York, USA 
+Steiner, L., 1986; Mass Transfer Rates from Single Drops and Drop Swarms. Chem. 
+Eng. Sci., 41, 8, 1979-1986 
+Steiner, L., Oezdemir, G. and Hartland, S., 1990; Single-Drop Mass Transfer in the 
+Water-Toluene-Acetone System, Ind. Eng. Chem. Res., 29, 1313-1318 
+Wachter, B., Bart, H.J., Moosbrugger, T., Marr, R., 1993; Reactive Liquid-Liquid Test 
+Systems. Zn(II)/di(2ethylhexyl)phosphoric acid/n-dodecane. Equilibrium and 
+kinetics, Chem. Eng. Technol., 16, 413 
+Wagner, G., 1995; Der Einfluss der Viskosität auf die Strömung in Apparaten für die 
+Flüssig-Flüssig-Extraktion. Dissertation, TU München, Hieronymus, München 
+Wagner, I., 1999; Der Einfluß der Viskosität auf den Stoffübergang in Flüssig-flüssig-
+Extraktionskolonnen, Dissertation, TU München, Hieronymus, München 
+Waheed, A., Henschke M. and Andreas, P., 2002; Mass transfer by free and forced 
+convection from single spherical liquid drops.  Int. J. Heat Mass Transfer, 
+2002, 45, 4507-4514. 
+Weber, M., Bäcker, W., Grömping, T., Pfennig, A., 2005; Anwendung der neuen 
+Auslegungsmethode für Extraktionskolonnen auf ein technisches Beispiel,
+
+---
+
+589. DECHEMA Kolloquium am 10.03.2005, DECHEMA-Haus, Frankfurt am 
+Main
+
+Wegener, M., Grünig, J., Stüber, J., Paschedag, A.R., Kraume, M., 2007; Transient 
+Rise Velocity and Mass Transfer of a Single Drop with Interfacial Instabilities 
+Experimental Investigations. Chem. Eng. Sci., 62 (11), 2967-2978
+
+Wegener, M., Kraume, M. and Paschedag, A.R., 2010; Terminal and Transient Drop 
+Rise Velocity of Single Toluene Droplets in Water, Fluid Mechanics and 
+Transport Phenomena, 56 (1), 2-10
+
+Wilke, C. R. and Chang, P., 1955; Correlation of Diffusion Coefficients in Dilute 
+Solutions, AIChE. J., 1, 264-270
+
+Wolf, S., 1999; Phasengrenzkonvektionen beim Stoffübergang in Flüssig-Flüssig 
+Systemen, Fortschritt-Berichte VDI, VDI Verlag, Düsseldorf.

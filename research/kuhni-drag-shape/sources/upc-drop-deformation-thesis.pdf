@@ -1,0 +1,5343 @@
+Source: https://upcommons.upc.edu/bitstreams/d7a13a97-0686-471f-aee5-50c965822b7a/download
+Title: Numerical study of the drag force, interfacial area and mass transfer in bubbles in a vertical pipe
+Fetched: 2026-09-05T14:40:14.388Z
+
+# Numerical study of the drag force, interfacial area and mass transfer in ✩ bubbles in a vertical pipe
+
+Néstor Balcázar-Arciniega<sup>∗</sup>, Joaquim Rigola, Carlos D. Pérez-Segarra, Assensi Oliva
+
+*Heat and Mass Transfer Technological Center, Heat Engines Department, Universitat Politècnica de Catalunya-BarcelonaTech, Colom 11, Terrassa*
+*(Barcelona), 08222, Spain*
+
+## A R T I C L E I N F O
+
+*Keywords:*
+Bubbles
+Drag force
+Mass transfer
+Unstructured conservative level-set method
+(UCLS)
+Unstructured flux-limiters
+Unstructured meshes
+Finite-volume method
+
+## A B S T R A C T
+
+A systematic numerical study of drag force and mass transfer in gravity-driven bubbles in a vertical pipe is
+performed at Re ∼ *𝑂*(100 − 1000). This research employs a parallel multi-marker unstructured conservative
+level set method for interface capturing, avoiding the numerical coalescence in bubble swarms. The finite
+volume method discretizes transport equations on 3D collocated unstructured meshes. Unstructured flux limiter
+schemes solve the convective term of transport equations, preserving the numerical stability at high Reynolds
+numbers and high-density ratios. Thermodynamic equilibrium is assumed at the interface for the concentration
+of chemical species. The hydrodynamics and mass transfer of bubbles are validated against classical correlations
+from the literature. Finally, direct simulations are executed to develop new correlations for the drag force,
+normalized bubble surface and Sherwood number for bubbles in a vertical pipe.
+
+$$
+\mathrm{Re}\sim O(100-1000)
+$$
+
+## 1. Introduction
+
+Gravity-driven bubbly flow [1] is frequent in nature and industry.
+Prominent applications can be found in thermal power plants and
+industrial chemical processes. For example, bubble columns are used as
+chemical or biochemical reactors [2] to synthesize chemical products
+or to perform separation processes in the so-called unit operations
+of chemical engineering. In many mass transfer devices, gas bubbles
+are created by a large number of nozzles or by a perforated plate.
+This subdivision of the gaseous phase into small bubbles aims to
+increase the interface area and promote relative motion between the
+phases. On the other hand, the design, optimization, and scale-up of
+industrial-scale multiphase systems rely on the prediction of pressure
+drop, heat and mass transfer rates, and chemical selectivity [3], which
+are strongly related to the bubble fraction, bubble shape, and bubble
+size distribution. Consequently, out of necessity or because of scientific
+interest, developing predictive models for drag force and mass transfer
+in bubbles becomes crucial.
+
+Hydrodynamics and mass transfer in bubbly flows have been researched by experimental measurements [4–7], analytical solutions
+of simplified mathematical models [8,9], and numerical and computational methods [7,10,11]. Analytical solutions are constrained to
+
+exceptional cases with substantial simplification of physics. Moreover,
+the multitude of spatial and temporal scales or limitations in optical
+access pose technical barriers to experimental measurements. Indeed,
+developing numerical and computational methods is well justified as
+a complementary approach to unravel the complexities of transport
+phenomena in bubbly flows.
+
+Concerning numerical and computational methods, three approaches
+are remarked [10–12]: Euler-Euler method (E-E) or two-fluid model [10,
+13], Euler–Lagrange method (E-L) [10] and Direct Numerical Simulation (DNS) [10,11]. The E-E method considers the continuous and
+dispersed phases fully interpenetrating, i.e., both phases occupy the
+same space with different volume fractions and velocities. The E-E
+method structure needs to know the closure relationships between
+fluid phases. The E-L method formulates the continuous fluid phase
+in the Eulerian framework, whereas the Lagrangian approach tracks
+the position and velocity of bubbles or droplets (dispersed phase).
+Moreover, the closure relations for the interaction forces between the
+phases must be given. On the other hand, advances in supercomputers
+have empowered DNS of two-phase flows, where fluid motion and
+interface structures are solved from first physical principles, as a
+
+✩ The principal author, N. Balcázar-Arciniega, as Serra-Hunter Lecturer (UPC-LE8027), acknowledges the financial support provided by the Catalan Government
+through this program. Simulations were conducted using computing resources allocated by the Spanish Supercomputing Network (RES) under the grants IM-2023-
+2-0009, IM-2023-1-0003, IM-2022-3-0018, IM-2022-2-0009, IM-2021-1-0013 and IM-2021-2-0020 on the supercomputer MareNostrum IV at the BSC, Barcelona,
+Spain. The authors acknowledge the financial support of the MCIN/AEI/ under the grant PID2020-115837RB-100, Spain.
+
+∗ Corresponding author.
+
+*E-mail addresses:* nestor.balcazar@upc.edu,nestorbalcazar@yahoo.es(N. Balcázar-Arciniega).
+
+https://doi.org/10.1016/j.cej.2024.153124
+Received 5 January 2024; Received in revised form 14 May 2024; Accepted 13 June 2024
+
+$YDLODEOH RQOLQH 19 -XQH 2024
+
+1385-8947/© 2024 The Author(s). Published by Elsevier B.V. This is an open access article under the CC BY-NC license (http://creativecommons.org/licenses/bync/4.0/).
+
+---
+
+practical approach to design non-invasive and controlled numerical
+experiments of bubbly flows [11,14–17].
+
+Multiple methods have been reported for DNS of two-phase flows,
+which can be categorized based on the underlying scheme used for
+the advection of the gas-liquid interface, for instance: front-tracking
+(FT) [10,11,14,18], level-set (LS) [19,20], Volume of Fluid (VoF) [21,
+22], coupled VoF-LS [23–26], and conservative level-set (CLS) [27–29].
+These methods solve two-phase flows in the framework of the so-called
+one-fluid formulation [10,11], where the density and viscosity are
+regularized across the interface, and surface tension is incorporated as
+a singular source term in Navier–Stokes equations. VoF, LS, and CLS are
+Eulerian methods in which the interface is captured using an implicit
+function, e.g., colour function (VoF), signed-distance function (LS), and
+regularized signed-distance function (CLS). On the other hand, FT is
+a Lagrangian approach, where the interface is tracked explicitly by
+connected marker points. Although these methods share a similar idea,
+their numerical implementations on structured or unstructured meshes
+are quite different [17,26,29].
+
+Further research efforts have extended these methods to address
+mass transfer in single bubbles. For instance, Davidson and Rudman
+[30], Bothe et al. [31], Alke et al. [32], Onea et al. [33], Gupta et al.
+[34] and Hayashi and Tomiyama [35] reported VoF simulations of
+mass transfer of chemical species at deformable fluid interfaces. Bothe
+et al. [36] and Francois and Carlson [37] reported VoF simulations
+of conjugate reactive mass transfer using a variable transformation
+technique to include concentration jumps at the interface into a single
+continuous variable. Hayashi et al. [38] reported numerical simulations
+of dissolving Taylor bubbles and experiments to validate the numerical method. A sub-grid-scale model for mass transfer in single rising
+bubbles at high Schmidt numbers has been introduced by Bothe and
+Fleckenstein [39] and Weiner and Bothe [40]. Claassen et al. [41]
+further assessed a subgrid-scale mass transfer model for bubbles using
+the front-tracking method. Marschall et al. [42] and Deising et al. [43]
+have presented a Continuous Species Transfer (CST) model for mass
+transfer in multiphase flow. Yang and Mao [44] and Wang et al. [45] introduced a level-set model for conjugate mass transfer in single bubbles
+or droplets. Darmana et al. [46] reported a front-tracking model for the
+computation of mass transfer coefficients in single-rising bubbles. An
+arbitrary Lagrangian-Eulerian (ALE) Interface-Tracking algorithm for
+reactive mass transfer in bubbles has been reported by Falcone et al.
+[47].
+
+Concerning experimental measurements of wall effects on the hydrodynamics or mass transfer in bubbles, Krishna et al. [48] reported
+the velocity of the rise of air bubbles in the size range *𝑑*<sub>𝑏</sub>= 3−80 mm in
+water using columns with inside diameters *𝐷𝛺* = 0*.*01 up to 0*.*63 m. Kurimoto et al. [49] researched terminal velocities and shapes of drops
+rising through vertical pipes in clean and fully contaminated systems.
+Mukundakrishnan et al. [50] reported a numerical study for the wall
+effects on buoyancy bubbles at low Reynolds numbers (Re *<* 70). Abe
+et al. [51] studied the dissolution of a carbon dioxide bubble in a
+vertical tube. Aoki et al. [52] researched the mass transfer from single
+carbon dioxide bubbles rising through contaminated water in a vertical
+pipe of 12*.*5 mm, including various bubble shapes such as spheroidal,
+wobbling, cap and Taylor bubbles. Hayashi et al. [38] researched the
+effects of shape oscillation on mass transfer from a Taylor bubble in
+a glycerol-water solution as well as validations of interface tracking
+simulations. Hosoda et al. [5] reported mass transfer measurements
+from single carbon dioxide bubbles in vertical pipes and developed a
+mass transfer correlation for a wide range of bubble diameters.
+
+$$
+d_{b}=3-80
+$$
+
+$$
+D_{\Omega}=0.01
+$$
+
+Few works on the DNS of mass transfer in bubble swarms can be
+found in the literature. In this context, a multiscale approach for mass
+transfer in bubbly flows that employs a boundary-layer approach close
+to the bubble and a coarse grid for the rest of the flow was introduced
+by Aboulhasanzadeh et al. [53,54],Aboulhasanzadeh and Tryggvason
+[55], in the framework of the Front-Tracking method. Roghair et al.
+[16] have reported a Front-Tracking method for mass transfer in dense
+
+bubbly flows. Koynov et al. [3,56] and Radl et al. [57] researched the
+impact of bubble swarm hydrodynamics on chemical reaction selectivity employing two-dimensional front-tracking simulations. Balcazar-
+Arciniega et al. [17] introduced a novel multiple marker level-set
+method for mass transfer in bubble swarms.
+
+Concerning experimental measurements, Colombet et al. [6] researched the liquid-side mass transfer coefficient in a dense bubble
+swarm for a wide range of gas volume fractions in an air–water system
+in a square column. Colombet et al. [58] studied the collective effect
+on bubble dynamics and mass transfer in a dense homogeneous bubble
+swarm at a large gas volume fraction. Risso [7] reported a review
+of numerical and experimental research on bubble dynamics and their
+influence on interfacial transfers.
+
+Although the previous works report remarkable findings on hydrodynamics and mass transfer in bubbles, multiple flow conditions and
+geometrical configurations, e.g., wobbling bubbles [8] in vertical pipes,
+still need to be explored. Additionally, it is worth noting that most of
+the existing interface-capturing or front-tracking methods for hydrodynamics and mass transfer in bubble swarms are designed for structured
+meshes, which limits their adaptability to complex geometries. To the
+authors’ knowledge, drag force, bubble shape and mass transfer in
+gravity-driven bubbly flow in a vertical pipe have yet to be researched
+through the multi-marker unstructured conservative level-set (UCLS)
+method [17]. Indeed, technical and scientific motivations arise because
+several interface transport processes that involve bubbles are not accessible with experimental methods or have not been computed with
+existing developed models. This research contributes to filling this gap
+by performing a systematic numerical study of the wall effects on the
+drag force, bubble shape and mass transfer in bubbles in a vertical pipe
+through the multi-marker UCLS method. Consistently with this research
+objective, novel correlations for the drag force coefficient, normalized
+area and Sherwood number are proposed, taking into account the effect
+of the confinement ratio.
+
+Some advantages of the multi-marker UCLS method [17] are remarked. First, the mass conservation issue inherent to standard level-set
+methods is circumvented [17], whereas the multiple-marker approach
+avoids the numerical coalescence of bubbles [17,59]. Second, accurate
+computation of surface tension forces on unstructured meshes without
+reconstructing distance functions as in coupled volume-of-fluid/levelset methods or explicit interface representation as in front-tracking
+methods. Moreover, most computational operations are local, which
+permits an efficient implementation on parallel computational platforms [17]. On the other hand, unstructured meshes are easily adaptable to complex domains, enabling an optimized grid distribution in
+regions where mesh refinement is necessary, e.g., close to the pipe wall.
+Concerning the discretization, unstructured flux-limiter schemes proposed by Balcazar-Arciniega et al. [17] and Balcázar et al. [29] are used
+to solve the convective term of transport equations. As a consequence,
+the appropriate selection of these schemes avoids numerical oscillations
+around discontinuities, whereas the so-called numerical diffusion is
+minimized. This is relevant, especially in bubbly flows with highdensity ratios and high Reynolds numbers. In this framework, from the
+numerical point of view this work contributes with the assessment of
+unstructured flux-limiters convective schemes as applied in simulations
+of mass transfer in bubbles at high Reynolds numbers. Finally, the
+finite-volume methodology is attractive due to the satisfaction of the
+integral forms of the conservation laws on the whole domain.
+
+This paper is organized as follows: The mathematical model is
+presented in Section2. Numerical methods are reviewed in Section3.
+Numerical experiments are presented in Section4. Finally, concluding
+remarks are discussed in Section5.
+
+## 2. Mathematical formulation
+
+## 2.1. Incompressible two-phase flow
+
+The Navier–Stokes equations for the dispersed fluid (*𝛺*<sub>𝑑</sub>) and continuous fluid (*𝛺*<sub>𝑐</sub>) follow the one-fluid formulation [10,11] in *𝛺* = *𝛺*<sub>𝑑</sub>∪*𝛺*<sub>𝑐</sub>,
+
+$$
+(\Omega_{d})
+$$
+
+$$
+\left(\varOmega_{c}\right)
+$$
+
+$$
+\Omega=\Omega_{d}\cup\Omega_{c}
+$$
+
+---
+
+$\Omega_{c}$ (continuous phase)
+$\Omega_{Nb}$ $\Omega_{i+1}$ $\Omega_{i}$ $\Omega_{1}$ $\Omega_{2}$ $\Omega_{Nb-1}$
+
+$\Omega_{d} = \Omega_{1} \cup ... \cup \Omega_{nd}$ (dispersed phase)
+
+Mass transfer
+
+mesh
+
+$\Omega_{i+1}$ $\phi_{i+1}$ $\Omega_{i}$ $\phi_{i}$
+
+**Fig. 1.** Multi-marker unstructured conservative level-set method.
+
+which incorporates the surface tension force as a singular source term
+at the interface (*𝛤*):
+𝜕 (∇) +(
+
+$$
+\frac{\partial}{\partial t}(\rho\mathbf{v})+\nabla\cdot(\rho\mathbf{vv})=-\nabla p+\nabla\cdot\mu\left(\nabla\mathbf{v}+\left(\nabla\mathbf{v}\right)^{T}\right)+(\rho-\rho_{0})\mathbf{g}+\mathbf{f}_{\sigma},
+$$
+
+(1)
+
+$$
+\nabla\cdot\mathbf{v}=0,
+$$
+
+(2)
+
+where **𝐯** is the velocity, *𝑝* is the pressure, **𝐠** is the gravitational acceleration, *𝜇* is the dynamic viscosity, *𝜌* is the fluid density, **𝐟**<sub>𝜎</sub>is the surface
+tension force per unit volume acting on the interface *𝛤*, subscripts *𝑐*
+and *𝑑* denote the continuous and dispersed phases, respectively.
+
+$$
+p
+$$
+
+$$
+\mathbf{f}_{\sigma}
+$$
+
+Physical properties are considered constant at each fluid phase,
+whereas a jump discontinuity is present at the interface: *𝜒* = *𝜒*<sub>𝑐</sub>*𝐻*<sub>𝑐</sub>+
+*𝜒*<sub>𝑑</sub>*𝐻*<sub>𝑑</sub>, *𝜒* = {*𝜌, 𝜇*}. Here *𝐻*<sub>𝑐</sub>refers to the Heaviside step function, which
+equals one in *𝛺*<sub>𝑐</sub>and zero elsewhere. Furthermore, *𝐻*<sub>𝑑</sub>= 1−*𝐻*<sub>𝑐</sub>. On the
+other hand, in case periodic boundary conditions are set in the vertical
+direction (parallel to **𝐠**), an additional force −*𝜌*<sub>0</sub>**𝐠** is included in Eq.(1)
+to avoid the acceleration of the flow field in the downward vertical
+()
+direction [17,60,61]. In that case, *𝜌* = *𝑉𝛺*<sub>−1</sub>∫ *𝜌 𝐻* + *𝜌 𝐻 𝑑𝑉*,
+0 𝛺 𝑑 𝑑 𝑐 𝑐
+otherwise if the referred periodic conditions are excluded *𝜌*<sub>0</sub>= 0.
+
+$$
+\chi=\chi_{c}H_{c}+
+\chi_{d}H_{d},\chi=\{\rho,\mu\}
+$$
+
+$$
+H_{c}
+$$
+
+$$
+\boldsymbol{\varOmega}_{c}
+$$
+
+$$
+H_{d}=1-H_{c}
+$$
+
+$$
+-\rho_{0}\mathbf{g}
+$$
+
+$$
+\rho_{0}=V_{\Omega}^{-1}\int_{\Omega}\left(\rho_{d}H_{d}+\rho_{c}H_{c}\right)d V,
+$$
+
+$$
+\rho_{0}=0
+$$
+
+## 2.2. Multiple marker UCLS method
+
+The unstructured conservative level-set (UCLS) method [17,29,59,
+62] performs interface capturing on 3D collocated unstructured meshes.
+Furthermore, the multiple marker UCLS approach (seeFig.1) proposed
+by Balcazar-Arciniega et al. [17] and Balcazar et al. [61] avoids the
+numerical coalescence of fluid particles (bubbles and droplets). In
+this framework, a regularized indicator function denotes an interface
+marker:
+( ())
+𝑑 (𝐱,𝑡)
+
+$$
+\phi_{i}(\mathbf{x},t)=\frac{1}{2}\left(\tanh\left(\frac{d_{i}(\mathbf{x},t)}{2\varepsilon}\right)+1\right),i=\{1,\ldots,N_{m}-1,N_{m}\}.
+$$
+
+(3)
+
+where *𝑑*<sub>𝑖</sub>(**𝐱***,𝑡*) = sgn(*𝑑*<sub>𝑖</sub>) min{‖**𝐱** − **𝐱**<sub>𝛤𝑖</sub>‖} is the signed distance function [19,20,63], **𝐱** ∈ *𝛺*, **𝐱**<sub>𝛤𝑖</sub>∈ *𝛤*<sub>𝑖</sub>(*𝑡*), *𝛤*<sub>𝑖</sub>(*𝑡*) = {**𝐱** ∶ *𝜙*<sub>𝑖</sub>(**𝐱***,𝑡*) = 0*.*5}, *𝜀* is
+a parameter that sets the thickness of the interface profile, and *𝑁*<sub>𝑚</sub>is
+the number of UCLS markers, here equivalent to the number of bubbles
+(*𝑁*<sub>𝑏</sub>), *𝑁*<sup>𝑚</sup>= *𝑁*<sup>𝑏</sup>. Note that Eq.(3)is the steady state analytical solution
+0 𝑑
+of Eq.(5)(for *𝜀* constant), in the direction **𝐧**𝑖, i.e.: (*𝜙*𝑖(1 − *𝜙*𝑖)) =
+()𝑑𝑑𝑖
+𝑑 𝑑𝜙𝑖
+*𝜀*.
+𝑑𝑑𝑖 𝑑𝑑𝑖
+
+$$
+d_{i}(\mathbf{x},t)=sgn(d_{i})
+$$
+
+$$
+-\mathbf{x}_{\varGamma_i}\parallel\}
+$$
+
+$$
+[19,20,63],\;\mathbf{x}\in\Omega,\;\mathbf{x}_{\Gamma_i}\in\Gamma_i(t),\;\Gamma_i(t)=\{\mathbf{x}:\phi_i(\mathbf{x},t)=0.5\},\;\varepsilon
+$$
+
+$$
+N_{m}
+$$
+
+$$
+\left(N_{b}\right),N_{m}=N_{b}.
+$$
+
+$$
+\mathbf{n}_{i}^{0},\mathrm{i.e.}:\frac{d}{d d_{i}}(\phi_{i}(1-\phi_{i}))=
+\frac{d}{d d_i}\left(\varepsilon\frac{d\phi_i}{d d_i}\right)
+$$
+
+Using the incompressibility constraint (Eq.(2)), the i*𝑡ℎ* interface
+transport equation can be written in a conservative form:
+
+$$
+\frac{\partial\phi_{i}}{\partial t}+\nabla\cdot\phi_{i}\mathbf{v}=0,i=\{1,\ldots,N_{m}-1,N_{m}\}.
+$$
+
+(4)
+
+At the discretized level, Eq.(4)is prone to the so-called numerical
+diffusion [64], which tends to distort the indicator function (Eq.(3)).
+This issue is circumvented by solving an unstructured re-initialization
+equation as proposed in [29,59,65], which keeps a constant thickness
+for the UCLS profile:
+𝜕𝜙
+
+$$
+\frac{\partial\phi_{i}}{\partial\tau}+\nabla\cdot\phi_{i}(1-\phi_{i})\mathbf{n}_{i}^{0}=\nabla\cdot\varepsilon\nabla\phi_{i},i=\{1,\dots,N_{m}-1,N_{m}\}.
+$$
+
+(5)
+
+Eq.(5)is advanced in pseudo-time *𝜏* up to the steady state. Here,
+**𝐧**<sup>0</sup>denotes the normal unit vector, perpendicular to the interface,
+𝑖
+evaluated at *𝜏* = 0. The compressive term, ∇ ⋅ *𝜙* (1 − *𝜙*)**𝐧**<sub>0</sub>, compress
+𝑖 𝑖 𝑖
+the UCLS function onto the interface along **𝐧**<sub>0</sub>. On the other hand, the
+diffusive term, ∇ ⋅*𝜀*∇*𝜙<sub>𝑖</sub>*<sub>𝑖</sub>, keeps the interface profile with a characteristic
+thickness *𝜀*. At the cell *𝛺*, *𝜀* = 0*.*5(*ℎ*)<sup>𝛼</sup>, with *𝛼* = 0*.*9 and *ℎ* =
+𝑃 𝑃 𝑃 𝑃
+−1∑*𝑁*<sub>𝑓</sub>
+<sub>𝑁</sub> ‖**𝐱**<sub>𝐹</sub>− **𝐱**<sub>𝑃</sub>‖ (local grid size) unless otherwise stated. Here,
+𝑓 𝐹=1
+sub-index *𝑃* denotes the local cell, sub-index *𝐹* = {1*,* …*,𝑁*<sub>𝑓</sub>−1*,𝑁*<sub>𝑓</sub>}
+denotes the neighbour cell, *𝑁*<sub>𝑓</sub>is the number of faces on *𝜕𝛺*<sub>𝑃</sub>defined
+as the surface of *𝛺*<sub>𝑃</sub>. This configuration corresponds to an interface
+thickness, with a distance between contours *𝜙* = 0*.*1 and *𝜙* = 0*.*9, of
+around three times the grid size (*ℎ*<sub>𝑃</sub>). In the framework of collocated
+unstructured meshes, Balcazar et al. [17,29,61] proposed to incorporate
+*𝜀* inside the divergence operator in the diffusive term of Eq.(5). Indeed,
+*𝜀*<sub>𝑓</sub>is linearly interpolated (Eq.(14)).
+
+$$
+\mathbf{n}_{i}^{0}
+$$
+
+$$
+\nabla\cdot\phi_{i}(1-\phi_{i})\mathbf{n}_{i}^{0}
+$$
+
+$$
+\mathbf{n}_{i}^{0}
+$$
+
+$$
+\nabla\cdot\varepsilon\nabla\phi_{i,}
+$$
+
+$$
+h_{P}=
+\alpha=0.9
+$$
+
+$$
+\Omega_{P},\varepsilon_{P}=0.5(h_{P})^{\alpha}
+$$
+
+$$
+N_{f}^{-1}\sum_{F=1}^{N_{f}}\|\mathbf{x}_{F}-\mathbf{x}_{P}\|
+$$
+
+$$
+F=\{1,\ldots,N_{f}-1,N_{f}\}
+$$
+
+$$
+\partial\varOmega_{P}
+$$
+
+$$
+\varOmega_{P}.
+$$
+
+$$
+N_{f}
+$$
+
+$$
+\phi=0.1
+$$
+
+$$
+\phi=0.9,
+$$
+
+$$
+\varepsilon_{f}
+$$
+
+Normal vectors **𝐧**<sub>𝑖</sub>and curvatures *𝜅*<sub>𝑖</sub>, are evaluated from the UCLS
+functions:
+
+$$
+\mathbf{n}_{i}
+$$
+
+$$
+\kappa_{i},
+$$
+
+$$
+\mathbf{n}_{i}(\phi_{i})=\frac{\nabla\phi_{i}}{\|\nabla\phi_{i}\|},\kappa_{i}(\phi_{i})=-\nabla\cdot\mathbf{n}_{i}(\phi_{i}).
+$$
+
+()<sub>−1</sub>
+At the discretized level, **𝐧** = (∇*𝜙*) ‖(∇*𝜙*) ‖ + *𝜁*, where *𝜁* ∼ 10<sup>−10</sup>
+𝑃 𝑃 𝑃
+avoids the division by zero. A volume-averaged curvature is integrated
+at *𝛺𝑃* [29]:
+∑
+
+(6)
+
+$$
+\mathbf{n}_{P}=(\nabla\phi)_{P}\left(\|(\nabla\phi)_{P}\|+\zeta\right)^{-1}
+$$
+
+$$
+\zeta\sim10^{-10}
+$$
+
+$$
+\Omega_{P}[29]
+$$
+
+$$
+\kappa_{i,P}=-\frac{1}{V_{P}}\int_{\varOmega_{P}}\nabla\cdot\mathbf{n}_{i}d V=-\frac{1}{V_{P}}\int_{\partial\varOmega_{P}}\mathbf{n}_{i}\cdot d\mathbf{A}=-\frac{1}{V_{P}}\sum_{f}\mathbf{n}_{i,f}\cdot\mathbf{A}_{f},
+$$
+
+(7)
+
+$$
+V_{P}
+$$
+
+*𝑉𝑃* is the volume of *𝛺𝑃*, **𝐀**<sub>𝑓</sub>= **𝐞**<sub>𝑓</sub>‖**𝐀**<sub>𝑓</sub>‖ is the face-area vector, **𝐞**<sub>𝑓</sub>is
+a unit vector pointing outside the surface *𝜕𝛺𝑃* and perpendicular to
+the face *𝑓*, subindex *𝑓* denotes the faces on *𝜕𝛺𝑃*, and **𝐧**<sub>𝑖,𝑓</sub>is linearly
+interpolated (Eq.(14)).
+
+$$
+\mathbf{e}_{f}
+$$
+
+$$
+\Omega_{P},\mathbf{A}_{f}=\mathfrak{e}_{f}\|\mathbf{A}_{f}\|
+$$
+
+$$
+\partial\varOmega_{P}
+$$
+
+$$
+f,
+$$
+
+$$
+\partial\varOmega_{P},
+$$
+
+$$
+\mathbf{n}_{i,f}
+$$
+
+## 2.3. Surface tension and regularization of physical properties
+
+Surface tension force is computed in the framework of the Continuous Surface Force (CSF) model [66], extended to the multiple marker
+UCLS method [17,60,61,67]:
+
+$$
+\mathbf{f}_{\sigma}=\sum_{i=1}^{N_{m}}\sigma\kappa_{i}\mathbf{n}_{i}\delta_{\varGamma,i}^{s}=\sum_{i=1}^{N_{m}}\sigma\kappa_{i}\mathbf{n}_{i}\|\nabla\phi_{i}\|=\sum_{i=1}^{N_{m}}\sigma\kappa_{i}\nabla\phi_{i}.
+$$
+
+(8)
+
+where *𝛿*<sup>𝑠</sup>= ‖∇*𝜙* ‖ is the regularized Dirac delta function concentrated
+𝛤,𝑖 𝑖
+at the interface [17,29,60], and *𝜎* is the surface tension coefficient. At
+∑𝑁𝑚
+the discretized level, ∫<sub>𝛺𝑃</sub>**𝐟**<sub>𝜎</sub>*𝑑𝑉* = **𝐟**<sub>𝜎,𝑃</sub>*𝑉* = *𝜎𝜅*<sub>𝑖</sub>,𝑃(∇*𝜙*<sub>𝑖</sub>)<sub>𝑃</sub>*𝑉𝑃* [17,29].
+𝑖=1
+
+$$
+\delta_{\varGamma,i}^{s}=\|\nabla\phi_{i}\|
+$$
+
+$$
+\int_{\Omega_{P}}\mathbf{f}_{\sigma}d V=\mathbf{f}_{\sigma,P}V_{P}=\sum_{i=1}^{N_{m}}\sigma\kappa_{i,P}(\nabla\phi_{i})_{P}V_{P}[17,29]
+$$
+
+$$
+\left(H_{c}^{s},H_{d}^{s}\right)
+$$
+
+Smoothed Heaviside functions (*𝐻*<sup>𝑠 𝑃</sup>, *𝐻*<sup>𝑠</sup>) regularize physical proper𝑐 𝑑
+ties across the interface to avoid numerical instabilities [17,26,60,61],
+
+$$
+\rho=\rho_{d}H_{d}^{s}+\rho_{c}H_{c}^{s},\mu=\mu_{d}H_{d}^{s}+\mu_{c}H_{c}^{s}.
+$$
+
+(9)
+
+Furthermore, the global level-set function (*𝜙*) completes such regularization in Eq.(9). For instance, if *𝐻*<sup>𝑠</sup>= *𝜙* and *𝐻*<sup>𝑠</sup>= 1 − *𝐻*<sup>𝑠</sup>, then:
+𝑐 𝑑 𝑐
+
+$$
+H_{_c}^{s}=\phi
+$$
+
+$$
+H_{d}^{s}=1-H_{c}^{s},
+$$
+
+---
+
+(a)
+
+(c)
+
+(a)
+
+(b)
+
+(c)
+
+**Fig. 2.** (a) Nodes stencil around *𝛺𝑃*, {**𝐱₁***,* …*,* **𝐱**𝑛−1*,* **𝐱**𝑛}, for computation of gradients ((∇*𝛹*)𝑃) at **𝐱**𝑃[29]. (b) Nodes stencil for the diffusive term [29,65]. (c) Nodes stencil for the
+convective term, *𝛹* = *𝛹* +(∇*𝛹*)<sup>0</sup>⋅ (**𝐱** − **𝐱**), *𝑘* = {*𝐷,𝐶,𝑈*} [29,65].
+𝑘𝑃𝑘 𝑘 𝑘𝑃𝑘
+
+$$
+\Omega_{P},\{\mathbf{x}_{1},\ldots,\mathbf{x}_{n-1},\mathbf{x}_{n}\},
+$$
+
+$$
+\left((\nabla\varPsi)_{P}\right)
+$$
+
+$$
+\Psi_{k_{p}}=\Psi_{k}+(\nabla\Psi)_{k}^{0}\cdot(x_{k_{p}}-x_{k}),\;k=\{D,C,U\}
+$$
+
+$$
+\phi=\min\{\phi_1,\ldots,\phi_{N_m-1},\phi_{N_m}\},
+$$
+
+(10)
+
+$$
+\varOmega_{c}
+$$
+
+with *𝛺* in 0*.*5 **⩽** *𝜙* **⩽** 1, *𝛺* in 0 **⩽** *𝜙 <* 0*.*5, *𝐻*<sup>𝑠</sup>= *𝜙* and
+𝑐 𝑖 𝑑 𝑖 𝑐,𝑖 𝑖
+*𝐻*<sub>𝑠</sub>= 1 − *𝐻𝑠*. On the other hand, if *𝐻* = *𝜙* and *𝐻* = 1 − *𝐻*,
+𝑑,𝑖 𝑐,𝑖 *𝑑𝑠* 𝑐𝑠 𝑑𝑠
+then *𝜙* = max{*𝜙*1*,* …*,𝜙𝑁𝑚*−1*,𝜙*<sub>𝑁𝑚</sub>} (Eq.(10)), *𝛺*𝑑in 0*.*5 **⩽** *𝜙*𝑖**⩽** 1, *𝛺*𝑐
+in 0 **⩽** *𝜙 <* 0*.*5, *𝐻*<sup>𝑠</sup>= 1− *𝜙* and *𝐻*<sup>𝑠</sup>= 1− *𝐻*<sup>𝑠</sup>[17,26,60,61].
+𝑖 𝑐,𝑖 𝑖 𝑑,𝑖 𝑐,𝑖
+
+$$
+0.5\leqslant\phi_{i}\leqslant1,\Omega_{d}
+$$
+
+$$
+0\leqslant\phi_{i}<0.5,\;H_{c,i}^{s}=\phi_{i}
+$$
+
+$$
+\mathbf{x}_{P}
+$$
+
+$$
+H_{d}^{s}\;=\;\phi
+$$
+
+$$
+H_{d,i}^s=1-H_{c,i}^s
+$$
+
+$$
+\hat{H_{c}^{s}}=1-H_{d}^{s},
+$$
+
+$$
+\phi=
+\phi_{1},\ldots,\phi_{N_{m}-1},\phi_{N_{m}}\}
+$$
+
+$$
+\Omega_{d}
+$$
+
+$$
+0.5\leqslant\phi_i\leqslant1,\bar{\Omega}
+$$
+
+$$
+0\leqslant\phi_{i}<0.5,H_{c,i}^{s}=1-\phi_{i}
+$$
+
+## 2.4. Mass transfer
+
+$$
+H_{d,i}^s=1-H_{c,i}^s\left[17,26,60,61\right]
+$$
+
+This research focuses on the external mass transfer of moderately soluble substances [8]. As a consequence, a convection–diffusionreaction equation solves the concentration of chemical species (*𝐶*) in
+*𝛺*<sub>𝑐</sub>:
+
+(11)
+
+$$
+\frac{\partial C}{\partial t}+\nabla\cdot(\mathbf{v}C)=\nabla\cdot(D\nabla C)+\dot{r}(C).
+$$
+
+$$
+\dot{r}(C)=-k_1C
+$$
+
+Here, *̇𝑟*(*𝐶*) = −*𝑘*<sub>1</sub>*𝐶* is the chemical reaction rate (first order), and *𝑘*<sub>1</sub>
+is the reaction rate constant. Furthermore,  = <sub>𝑐</sub>is the diffusivity in
+*𝛺*<sub>𝑐</sub>. Thermodynamic equilibrium is assumed at the interface. Therefore
+*𝐶*<sub>𝛤,𝑐</sub>= *𝐻𝐶*<sub>𝛤,𝑑</sub>, where *𝐻* is the Henry constant. For external mass transfer, a constant concentration of chemical species is assumed inside the
+bubble [16,17,53,68], whereas concentration at the interface-bubble
+(*𝐶*<sub>𝛤,𝑐</sub>) is imposed like a Dirichlet boundary condition. An unstructured linear interpolation method proposed by Balcazar et al. [17]
+approximates the concentration of chemical species at the interface
+cells.
+
+$$
+\varOmega_{c};
+$$
+
+$$
+k_{1}
+$$
+
+$$
+\varOmega_{c}
+$$
+
+$$
+\mathcal{D}=\mathcal{D}_c
+$$
+
+$$
+C_{\varGamma,c}=H C_{\varGamma,d},
+$$
+
+## 3. Numerical methods
+
+The finite-volume method approximates transport equations on 3D
+collocated unstructured meshes [17,29]. Hereafter, technical details
+are reviewed for the sake of completeness and numerical code development.Fig.2b depicts the points stencil to discretize diffusive
+term of transport equations by the central-difference scheme, including
+non-orthogonal correction [17,69–72]. Accordingly, at *𝛺𝑃*,
+()
+
+$$
+\varOmega_{P},
+$$
+
+$$
+\left(C_{\varGamma,c}\right)
+$$
+
+$$
+(\nabla\cdot\gamma\nabla\psi)_{P}=\frac{1}{V_{P}}\sum_{f}\gamma_{f}(\nabla\psi)_{f}\cdot\mathbf{A}_{f},(\nabla\psi)_{f}\cdot\mathbf{A}_{f}=\left(\frac{\psi_{F}-\psi_{P}}{d_{f}}+\eta_{f}\right)\|\mathbf{A}_{f}\|,
+$$
+
+where (*𝛾, 𝜓*) = {(*𝜇, 𝑣*<sub>𝑖</sub>)*,* (*, 𝐶*)*,* (*𝜀, 𝜙*<sup>𝑖</sup>)}, *𝑣*<sup>𝑖</sup>denotes the Cartesian
+intp
+components of **𝐯**. In this research, *𝑑*𝑓= ‖**𝐱***𝐹*− **𝐱**𝑃‖, *𝜂*𝑓= (∇*𝜓*) ⋅
+𝑓
+()intp
+**𝐞**𝑓− 𝐞𝑃𝐹[17,69]. Here, (∇*𝜓*) is linearly interpolated (Eq.(14)),
+𝑓
+**𝐞**<sub>𝑓</sub>is a unit-vector perpendicular to the face *𝑓* pointing outside *𝛺𝑃*,
+and **𝐞***𝑃𝐹*is a unit-vector pointing from **𝐱**<sub>𝑃</sub>to **𝐱**<sub>𝐹</sub>[17,69].
+
+(12)
+
+$$
+v_{i}
+$$
+
+$$
+(\gamma,\psi)=\{(\mu,v_{i}),(D,C),(\varepsilon,\phi_{i})\}
+$$
+
+$$
+d_{f}=\left\|\mathbf{x}_{F}-\mathbf{x}_{P}\right\|,\eta_{f}=\left(\nabla\psi\right)_{f}^{intp}
+$$
+
+$$
+(\nabla\psi)_{f}^{intp}
+$$
+
+$$
+\left(\mathbf{e}_{f}-\mathbf{e}_{PF}\right)[17,69]
+$$
+
+$$
+\varOmega_{P},
+$$
+
+$$
+\mathbf{X}_{P}
+$$
+
+The least-squares method [17,29,65,73,74] computes gradients
+(∇*𝜓*)<sub>𝑃</sub>at cell-centres (**𝐱**<sub>𝑃</sub>) unless otherwise stated, using the information of cell nodes around vertexes of *𝛺𝑃*, as depicted inFig.2a:
+
+$$
+\overline{\mathfrak{e}}_{PF}
+$$
+
+$$
+(\nabla\psi)_{P}
+$$
+
+$$
+f
+$$
+
+$$
+(\mathbf{x}_{P})
+$$
+
+$$
+\mathbf{x}_{F}
+$$
+
+$$
+\varOmega_{P},
+$$
+
+(13)
+
+$$
+(\nabla\psi)_{P}=(\mathbf{M}_{P}^{T}\mathbf{W}_{P}\mathbf{M}_{P})^{-1}\mathbf{M}_{P}^{T}\mathbf{W}_{P}\mathbf{Y}_{P},
+$$
+
+()<sub>𝑇</sub>
+**𝐌** = **𝐱** − **𝐱***,* …*,* 𝐱 − **𝐱**, 𝐘 = (*𝜓* − 𝜓*,* …,𝜓 − *𝜓*)<sup>𝑇</sup>[29].
+𝑃 1 𝑃 𝑛 𝑃 𝑃 1 𝑃 𝑛 𝑃
+The diagonal matrix **𝐖**𝑃= **𝐝𝐢𝐚𝐠**(*𝑤*𝑃,1*,* …*, 𝑤*𝑃,𝑛) has elements *𝑤*𝑃,𝑘=
+‖**𝐱** − **𝐱** ‖<sup>−</sup><sup>𝑎</sup>and *𝑎* = 2 [65]. Linear interpolation approximates the
+𝑃 𝑘
+cell-face values [17,29,69,70], e.g., for a general variable *𝛾*:
+
+$$
+\mathbf{M}_{P}\quad=\quad\big(\mathbf{x}_{1}-\mathbf{x}_{P},\ldots,\mathbf{x}_{n}-\mathbf{x}_{P}\big)^{T},\quad\mathbf{Y}_{P}\quad=\quad(\psi_{1}-\psi_{P},\ldots,\psi_{n}-\psi_{P})^{T}\quad[\mathtt{29}]
+$$
+
+$$
+W_{P}=\mathrm{diag}(w_{P,1},\ldots,w_{P,n})
+$$
+
+$$
+\|\mathbf{x}_P-\mathbf{x}_k\|^{-a}
+$$
+
+$$
+w_{P,k}=
+\gamma\cdot
+\gamma_{f}=w_{P}\gamma_{P}+w_{F}\gamma_{F},w_{F}=1-w_{P},w_{P}=\{0.5,d_{F f}(d_{P f}+d_{F f})^{-1}\},
+$$
+
+(14)
+
+$$
+d_{F f}=\|\mathbf{x}_{F}-\mathbf{x}_{f}\|,\;d_{P f}=\|\mathbf{x}_{P}-\mathbf{x}_{f}\|,\;w_{P}=d_{F f}(d_{P f}+d_{F f})^{-1}
+$$
+
+The convective term, (∇ ⋅ *𝛽𝜓***𝐯**)<sub>𝑃</sub>, of momentum equation (Eq.(1)),
+the concentration of chemical species transport equation (Eq.(2)), and
+interface transport equation (Eq.(4)), is explicitly calculated by approximating the fluxes at cell-faces by unstructured flux-limiter schemes
+proposed by Balcazar-Arciniega et al. [17] and Balcázar et al. [29].
+Thus, at the cell *𝛺*<sub>𝑃</sub>,
+∑ ()
+
+$$
+(\nabla\cdot\beta\psi\mathbf{v})_{P},
+$$
+
+$$
+(\nabla\cdot\beta\psi\mathbf{v})_{P}=\frac{1}{V_{P}}\sum_{f}\beta_{f}\psi_{f}\left(\mathbf{v}_{f}\cdot\mathbf{A}_{f}\right),\psi_{f}=\psi_{C_{P}}+\frac{1}{2}L(\theta_{f})(\psi_{D_{P}}-\psi_{C_{P}}),
+$$
+
+$$
+\varOmega_{P}
+$$
+
+(15)
+
+with (*𝛽, 𝜓*) = {(*𝜌, 𝑣*<sub>𝑖</sub>)*,* (1*, 𝐶*)*,* (1*, 𝜙*<sub>𝑖</sub>)}, consistently with Eqs.(1),(11)
+and(4), *𝛽*<sub>𝑓</sub>is linearly interpolated (Eq.(14), *𝑤*<sub>𝑃</sub>= 0*.*5), **𝐯**<sub>𝑓</sub>is the
+convective velocity interpolated by Eq.(24). Furthermore, *𝐿*(*𝜃*<sub>𝑓</sub>) is the
+flux-limiter function, *𝜃*<sub>𝑓</sub>= (*𝜓*<sub>𝐶𝑃</sub>− *𝜓*<sub>𝑈𝑃</sub>)∕(*𝜓*<sub>𝐷𝑃</sub>− *𝜓*<sub>𝐶𝑃</sub>) is a measure of the
+smoothness of the data near the face *𝑓*. Here, subindex *𝐶𝑃* denotes the
+upwind point, subindex *𝑈𝑃* denotes the far-upwind point, subindex *𝐷𝑃*
+denotes the downwind point (seeFig.2c), *𝜓*<sub>𝑘𝑃</sub>= *𝜓*<sub>𝑘</sub>+(∇*𝜓*)<sub>𝑘</sub>⋅ (**𝐱**<sub>𝑘𝑃</sub>− **𝐱**<sub>𝑘</sub>)
+with sub-index *𝑘* = {*𝐶,𝑈,𝐷*} [17]. Some of the flux-limiters (*𝐿*(*𝜃*<sub>𝑓</sub>)),
+implemented in the unstructured two-phase solver [17,61,75,76] are
+SUPERBEE [77–79], MINMOD [79], UPWIND [79], SMART [80,81],
+CD [79]:
+
+$$
+(\beta,\psi)=\{(\rho,v_{i}),(1,C),(1,\phi_{i})\}
+$$
+
+$$
+w_{P}\;=\;0.5),\;\mathbf{v}_{f}
+$$
+
+$$
+\beta_{f}
+$$
+
+$$
+L(\theta_{f})
+$$
+
+$$
+\theta_{f}=(\psi_{C_{P}}-\psi_{U_{P}})/(\psi_{D_{P}}-\psi_{C_{P}})
+$$
+
+$$
+C_{P}
+$$
+
+$$
+D_{P}
+$$
+
+$$
+U_{P}
+$$
+
+$$
+\psi_{k_{p}}=\psi_{k}+(\nabla\psi)_{k}\cdot(\mathbf{x}_{k_{p}}-\mathbf{x}_{k})
+$$
+
+$$
+k=\{C,U,D\}
+$$
+
+$$
+\left(L(\theta_{f})\right)_{i}
+$$
+
+$$
+\begin{aligned}&L(\theta_{f})\equiv\begin{cases}\max\{0,\min\{2\theta_{f},1\},\min\{2,\theta_{f}\}\}&SUPERBEE,\\ \min\bmod\{1,\theta_{f}\}&MINMOD,\\ 0&UPWIND,\\ \max\{0,\min\{4\theta_{f},0.75+0.25\theta_{f},2\}\}&SMART.\\ 1&CD.\end{cases}\\ \end{aligned}
+$$
+
+(16)
+
+This research employs a Total Variation Diminishing (TVD) [79] SU-
+PERBEE flux limiter (Eq.(16)) unless otherwise stated. Compressive
+term of the re-initialization equation (Eq.(5)) is discretized in *𝛺𝑃* as
+follows [17,29,65]:
+∑
+
+$$
+\varOmega_{P}
+$$
+
+$$
+(\nabla\cdot\phi_{i}(1-\phi_{i})\mathbf{n}_{i}^{0})_{P}=\frac{1}{V_{P}}\sum_{f}(\phi_{i}(1-\phi_{i}))_{f}\mathbf{n}_{i,f}^{0}\cdot\mathbf{A}_{f},
+$$
+
+(17)
+
+where **𝐧**<sup>0</sup>(**𝐧** at *𝜏* = 0, Eq.(5)) and (*𝜙* (1 − *𝜙*)) are linearly
+𝑖,𝑓 𝑖,𝑓 𝑖 𝑖 𝑓
+interpolated (Eq.(14)).
+
+$$
+\mathbf{n}_{i,f}^{0}\left(\mathbf{n}_{i,f}\right.
+\tau=0,
+$$
+
+$$
+(\phi_{i}(1-\phi_{i}))_{f}
+$$
+
+The UCLS advection equation (Eq.(4)), and re-initialization equation (Eq.(5)) are integrated in time by the explicit TVD Runge–Kutta
+method [82], as suggested by [29]. The Euler scheme is illustrated for
+simplicity,
+
+$$
+\frac{\phi_{i,P}-\phi_{i,P}^0}{At}=-C_{\phi_i,P}^0,
+$$
+
+(18)
+
+$$
+\frac{\phi_{i,P}-\phi_{i,P}^{0}}{A\tau}=-C_{\phi_{i}(1-\phi_{i}),P}^{0}+D_{\phi_{i},P}^{0},
+$$
+
+(19)
+
+---
+
+where the superindex 0 denotes the previous time-step, <sub>𝜙𝑖,𝑃</sub>= (∇⋅*𝜙*<sub>𝑖</sub>**𝐯**)<sub>𝑃</sub>
+is evaluated by Eq.(15),  = (∇ ⋅ 𝜙 (1 − *𝜙*)**𝐧**<sup>0</sup>) is evaluated
+*𝜙𝑖*(1−𝜙𝑖)*,𝑃* <sub>𝑖</sub> <sub>𝑖</sub> <sub>𝑖</sub> <sub>𝑃</sub>
+by Eq.(17), <sub>𝜙𝑖,𝑃</sub>= (∇ ⋅ *𝜀*∇*𝜙*<sub>𝑖</sub>)<sub>𝑃</sub>is evaluated by Eq.(12), *𝛥𝜏* =
+*𝐶* min{(*ℎ*<sup>2</sup>∕*𝜀*)}, and *𝐶* = 0*.*05 [17,29]. Two steps of Eq.(5)are
+𝜏 𝑃 𝑃 𝜏
+enough to conserve the UCLS profile (Eq.(3)).
+
+$$
+\mathcal{C}_{\phi_{i,P}}=(\nabla\cdot\phi_{i}\mathbf{v})_{P}
+$$
+
+$$
+\mathcal{C}_{\phi_{i}(1-\phi_{i}),P}=(\nabla\cdot\phi_{i}(1-\phi_{i})\mathbf{n}_{i}^{0})_{P}
+$$
+
+$$
+D_{\phi_{i},P}=(\nabla\cdot\varepsilon\nabla\phi_{i})_{P}
+$$
+
+$$
+(12),\Delta\tau=
+C_{\tau}=0.05\left[17,29\right]
+$$
+
+$$
+C_{\tau}\min\{(h_{P}^{2}/\varepsilon_{P})\}
+$$
+
+Time discretization of the chemical species transport equation
+(Eq.(11)) leads to:
+
+$$
+\frac{C_{P}-C_{P}^{0}}{A t}=-C_{C,P}^{0}+D_{C,P}^{0},
+$$
+
+(20)
+
+where <sub>𝐶,𝑃</sub>= (∇ ⋅ *𝐶***𝐯**)<sub>𝑃</sub>is evaluated by Eq.(15), <sub>𝐶,𝑃</sub>= (∇ ⋅ ∇*𝐶*)<sub>𝑃</sub>is
+evaluated by Eq.(12).
+
+$$
+\mathcal{C}_{C,P}=(\nabla\cdot C\mathbf{v})_P
+$$
+
+$$
+D_{C,P}=(\nabla\cdot D\nabla C)_P
+$$
+
+The fractional-step projection method [83–86] solves the pressurevelocity coupling in the momentum transport equation (Eq.(1)). First,
+the predictor step calculates **𝐯**<sup>∗</sup>,
+𝑃
+
+$$
+\mathbf{v}_{P}^{*},
+$$
+
+$$
+\frac{\rho_{P}\mathbf{v}_{P}^{*}-\rho_{P}^{0}\mathbf{v}_{P}^{0}}{\mathcal{A}t}=-C_{\rho\mathbf{v},P}^{0}+D_{\mathbf{v},P}^{0}+(\rho_{P}-\rho_{0})\mathbf{g}+\mathbf{f}_{\sigma,P},
+$$
+
+(21)
+
+where Eq.(15)approximates 𝜌𝐯*,𝑃*= (∇ ⋅ *𝜌***𝐯𝐯**)𝑃, 𝐯,𝑃= (∇ ⋅ *𝜇*∇**𝐯**)𝑃+
+(∇ ⋅ ∑*𝜇*(∇**𝐯**)<sup>𝑇</sup>), (∇ ⋅ *𝜇*∇**𝐯**) is evaluated by Eq.(12), (∇ ⋅ *𝜇*(∇**𝐯**)<sup>𝑇</sup>) =
+𝑃 𝑃 𝑃
+*𝑉𝑃*−1𝜇 ((∇𝐯)𝑇) ⋅ 𝐀, (∇𝐯)<sup>𝑇</sup>is computed by Eq.(13), and ((∇**𝐯**)<sup>𝑇</sup>) is
+*𝑓* 𝑓 𝑓 𝑓 𝑓
+linearly interpolated [29] (Eq.(14)). Combination of (∇ ⋅ **𝐯**)<sub>𝑃</sub>= 0 and
+the corrector step, Eq.(23), leads to the Poisson equation for *𝑝* at *𝛺𝑃*:
+( ())
+()
+
+$$
+C_{\rho\mathbf{v},P}=(\nabla\cdot\rho\mathbf{w})_{P},\quad D_{\mathbf{v},P}=(\nabla\cdot\mu\nabla\mathbf{v})_{P}+
+(\nabla\cdot\mu(\nabla\mathbf{v})^{T})_{P},\;(\nabla\cdot\mu\nabla\mathbf{v})_{P}
+$$
+
+$$
+(\nabla\cdot\mu(\nabla\mathbf{v})^T)_P=
+V_{P}^{-1}\sum_{f}\mu_{f}((\nabla\mathbf{v})^{T})_{f}\cdot\mathbf{A}_{f},(\nabla\mathbf{v})^{T}
+$$
+
+$$
+((\nabla\mathbf{v})^T)_f
+$$
+
+$$
+(\nabla\cdot\mathbf{v})_{P}=0
+$$
+
+$$
+\left(\nabla\cdot\left(\frac{\varDelta t}{\rho}\nabla p\right)\right)_{P}=\left(\nabla\cdot\mathbf{v}^{*}\right)_{P},\left.\mathbf{e}_{\partial\varOmega}\cdot\nabla p\right|_{\partial\varOmega}=0.
+$$
+
+$$
+\varOmega_{P}:
+$$
+
+(22)
+
+() ∑ ∑
+Here, ∇ ⋅ *𝜌*<sup>−1</sup>*𝛥𝑡*∇*𝑝* = *𝑉𝑃*<sup>−1</sup>*𝜌*<sup>−1</sup>𝛥𝑡 (∇*𝑝*) ⋅**𝐀**, (∇ ⋅**𝐯**<sup>∗</sup>) = *𝑉𝑃*<sup>−1</sup>**𝐯**<sup>∗</sup>⋅
+𝑃 𝑓 𝑓 𝑓 𝑓 𝑃 𝑓 𝑓
+𝐀. Furthermore, (∇*𝑝*) ⋅**𝐀** ≈ (*𝑝* −*𝑝*) *𝑑*<sub>−1</sub>‖**𝐀** ‖, {*𝜌*<sub>−1</sub>*,* **𝐯**<sup>∗</sup>} are linearly
+*𝑓* <sub>𝑓</sub> 𝑓 *𝐹* <sub>𝑃</sub> <sub>𝑓</sub> <sub>𝑓</sub> <sub>𝑓</sub> 𝑓
+interpolated (Eq.(14), *𝑤*<sub>𝑃</sub>= 0*.*5) [29]. Discretization of Eq.(22)leads
+to a linear system, which is solved by the preconditioned (Jacobi preconditioner) conjugate gradient method [87]. Here *𝜕𝛺* denotes the
+boundary of *𝛺*, excluding regions with periodic boundary conditions,
+where information of the corresponding periodic nodes is used [17,60,
+62,88]. In a further step, the updated velocity (**𝐯**<sub>𝑃</sub>) is computed:
+∗
+
+$$
+\left(\nabla\cdot\rho^{-1}\varDelta t\nabla p\right)_{P}=V_{P}^{-1}\sum_{f}\rho_{f}^{-1}\varDelta t(\nabla p)_{f}\cdot\mathbf{A}_{f},(\nabla\cdot\mathbf{v}^{*})_{P}=V_{P}^{-1}\sum_{f}\mathbf{v}_{f}^{*}
+$$
+
+$$
+\mathbf{A}_{f}
+$$
+
+$$
+(\nabla p)_{f}\cdot\mathbf{A}_{f}\approx(p_{F}-p_{P})d_{f}^{-1}\left\|\mathbf{A}_{f}\right\|,\left\{p_{f}^{-1},v_{f}^{*}\right\}
+$$
+
+$$
+w_{P}=0.5)
+$$
+
+$$
+\Omega,
+$$
+
+$$
+(\mathbf{v}_{P})
+$$
+
+$$
+\frac{\rho_{P}\mathbf{v}_{P}-\rho_{P}\mathbf{v}_{P}^{*}}{\varDelta t}=-(\nabla p)_{P},
+$$
+
+(23)
+
+<sup>−1</sup>∑
+where (∇*𝑝*)<sub>𝑃</sub>= *𝑉𝑃*<sub>𝑓</sub>*𝑝*<sub>𝑓</sub>**𝐀**<sub>𝑓</sub>, *𝑝*<sub>𝑓</sub>is linearly interpolated (Eq.(14),
+*𝑤*<sub>𝑝</sub>= 0*.*5) [29]. Finally, to avoid the pressure-velocity decoupling
+on collocated meshes [89,90], a cell-face convective velocity (**𝐯**<sub>𝑓</sub>) is
+interpolated [29,67]:
+()
+∑
+
+$$
+(\nabla p)_{P}=V_{P}^{-1}\sum_{f}p_{f}\mathbf{A}_{f},p_{f}
+$$
+
+$$
+w_{p}=0.5\left[29\right]
+$$
+
+$$
+(\mathbf{v}_{f})
+$$
+
+$$
+\mathbf{v}_{f}=\sum_{q\in\{P,F\}}w_{q}\left(\mathbf{v}_{q}+\frac{\varDelta t}{\rho_{q}}(\nabla p)_{q}\right)-\frac{\varDelta t}{\rho_{f}}(\nabla p)_{f},
+$$
+
+(24)
+
+where subindex *𝑃* denotes the current cell, and subindex *𝐹* denotes the
+adjacent cell, with common face *𝑓*, *𝑤*<sub>𝑞</sub>= 0*.*5. The origin of Eq.(24)
+is argued in Appendix B of [67]. Eq.(24)is used to evaluate the
+convective volume flux of Eq.(15), (**𝐯**𝑓⋅ 𝐀𝑓). In this context, (∇*𝑝*)𝑞=
+−1∑−1
+*𝑉*𝑞 𝑓*𝑝*𝑓**𝐀**𝑓, (∇*𝑝*)𝑓⋅ **𝐀**𝑓= (*𝑝*𝐹− *𝑝*𝑃)*𝑑* ‖**𝐀***𝑓*‖, {*𝑝*𝑓*, 𝜌*𝑓} are linearly
+𝑓
+interpolated (Eq.(14), *𝑤*<sub>𝑃</sub>= 0*.*5).
+
+$$
+f,\;w_q=0.5
+$$
+
+$$
+(\mathbf{v}_{f}\cdot\mathbf{A}_{f})
+$$
+
+$$
+\left(\nabla p\right)_{q}=
+V_{q}^{-1}\sum_{f}p_{f}\mathbf{A}_{f},(\nabla p)_{f}\cdot\mathbf{A}_{f}=(p_{F}-p_{P})d_{f}^{-1}\|\mathbf{A}_{f}\|,\{p_{f},\rho_{f}\}
+$$
+
+$$
+\left(\mathrm{Eq.(14)},w_{P}=0.5\right)
+$$
+
+The global algorithm for DNS of mass transfer in bubbles in a
+vertical pipe is outlined as follows: (**𝟏**) Initialization. (**𝟐**) Time-step: *𝛥𝑡* =
+2 1∕2 3∕2 −1 1∕2
+*𝐶*<sub>𝑡</sub>min{*ℎ*<sup>𝑃</sup>∕‖**𝐯**<sub>𝑃</sub>‖*, ℎ* ∕*𝜈*<sub>𝑃</sub>*,* (*ℎ*<sub>𝑃</sub>∕*𝑔*), *ℎ* ((*𝜌*<sup>𝑐</sup>+ *𝜌*<sup>𝑑</sup>)(4*𝜋𝜎*))} [17],
+𝑃 𝑃
+*𝜈*𝑃= {*𝜇*𝑃∕*𝜌𝑃,* 𝑃} with *𝐶*𝑡= [0*.*4*,*0*.*6] unless otherwise stated. (**𝟑**)
+Solve Advection equation, Eq.(18)→ *𝜙*<sub>𝑖,𝑃</sub>. (**𝟒**) Solve Re-initialization
+equation, Eq.(19)→ *𝜙*<sub>𝑖,𝑃</sub>. (**𝟓**) Update the global CLS function, Eq.(10)→
+*𝜙*<sub>𝑃</sub>. Update physical properties Eq.(9). Update geometrical properties
+Eq.(6)→ *𝜅*<sub>𝑖,𝑃</sub>. (**𝟔**) Solve Concentration equation, Eq.(20)→ *𝐶𝑃*. (**𝟕**)
+Fractional-step method: Eq.(21)→ **𝐯**<sup>∗</sup>, Eq.(22)→ *𝑝*, Eq.(23)→ **𝐯**.
+𝑃 𝑃 𝑃
+(**𝟖**) Calculate the convective volume flux (**𝐯**<sub>𝑓</sub>⋅ **𝐀**<sub>𝑓</sub>), where **𝐯**<sub>𝑓</sub>is the
+convective velocity Eq.(24). (**𝟗**) Repeat steps **2** → **8**.
+
+$$
+h_{P}/\|\mathbf{v}_{P}\|,\ h_{P}^{2}/\nu_{P},\ (h_{P}/g)^{1/2},\ h_{P}^{3/2}((\rho_{c}+\rho_{d})(4\pi\sigma)^{-1})^{1/2}\}
+$$
+
+$$
+C_{t}
+$$
+
+$$
+\varDelta t=
+\nu_{P}=\left\{\mu_{P}/\rho_{P},D_{P}\right\}
+$$
+
+$$
+C_{t}\;=\;[0.4,\dot{0.6}]
+$$
+
+$$
+(19)\to\phi_{i,P}.
+$$
+
+$$
+(1 8) \rightarrow \phi_ {i, P}. \tag {4}
+$$
+
+$$
+\phi_{P}.
+$$
+
+$$
+(6) \rightarrow \kappa_ {i, P}. \tag {6}
+$$
+
+$$
+(20)\to C_{P}.
+$$
+
+$$
+\mathrm{q}.(21)\rightarrow\mathrm{v}_{p}^{*},\mathrm{Eq}.(22)\rightarrow\mathrm{p}_{p},\mathrm{Eq}.(23)\rightarrow\mathrm{v}_{p}.
+$$
+
+$$
+(\mathbf{v}_{f}\cdot\mathbf{A}_{f})_{i}
+$$
+
+The unstructured multiphase solver [17] implements numerical
+methods on the in-house parallel platform, TermoFluids. This platform
+employs C++ for object-oriented design and MPI for parallel communications. Parallel scalability of the unstructured multiphase solver is
+reported in [17] for thousands of CPU cores.
+
+$$
+\mathbf{v}_{f}
+$$
+
+## 4. Numerical experiments
+
+Various experimental and numerical investigations [8,26,29,88,91]
+have been focused on unconfined bubbles within finite-dimensional
+containers. Indeed, wall effects have been a factor in these studies,
+even though experiments or simulations conducted in large-diameter
+containers have aimed to minimize these effects. On the other hand,
+few works have researched the hydrodynamics and mass transfer in
+bubbles in a vertical pipe, e.g., Hayashi et al. [38] and Clift et al. [8].
+Consequently, many flow conditions still need to be explored.
+
+In our previous work, Balcazar-Arciniega et al. [17] introduced,
+verified, and validated a novel multi-marker UCLS method for mass
+transfer in bubbly flows. Further developments and validations of
+the UCLS method include gravity-driven rising bubbles [29,61,68,92],
+binary droplet collision with bouncing outcome [59], drop collision
+against a fluid interface [59], thermocapillary motion of droplets [67].
+Building upon this robust foundation, the following numerical experiments research wall effects on interface area, drag force and Sherwood
+number in bubbles in a vertical pipe.
+
+## 4.1. Wall effects on single bubbles in a vertical pipe
+
+Bubble shape and terminal velocity of bubbles on unconfined domains is characterized by the Morton number (Mo), Eötvös number
+(Eo), density ratio (*𝜂*<sub>𝜌</sub>), viscosity ratio (*𝜂*<sub>𝜇</sub>) and Reynolds number
+(Re) [8]:
+
+$$
+(\eta_{\rho}),
+$$
+
+$$
+\left(\eta_{\mu}\right)
+$$
+
+$$
+\mathbf{Mo}=\frac{g\mu_{c}^{4}\left|\rho_{c}-\rho_{d}\right|}{\rho_{c}^{2}\sigma^{3}},\mathbf{Eo}=\frac{g d_{b}^{2}\left|\rho_{c}-\rho_{d}\right|}{\sigma},\eta_{\rho}=\frac{\rho_{c}}{\rho_{d}},\eta_{\mu}=\frac{\mu_{c}}{\mu_{d}}.
+$$
+
+(25)
+
+$$
+d_{b}
+$$
+
+Here, *𝑑*<sub>𝑏</sub>is the spherical equivalent diameter of bubbles, subscripts
+{*𝑑, 𝑐*} denote the dispersed and continuous fluid phase, respectively.
+Furthermore, the bubble volume fraction (*𝛼*) for bubble swarms, and
+the confinement ratio (CR) for bubbles in pipes, are defined:
+
+$$
+\{d,c\}
+$$
+
+$$
+\left(C_{R}\right)
+$$
+
+$$
+\mathrm{C}_{\mathrm{R}}=\frac{d_{b}}{D_{\Omega}},\alpha=\frac{V_{d}}{V_{\Omega}},
+$$
+
+(26)
+
+$$
+D_{\varOmega}
+$$
+
+where *𝐷*<sub>𝛺</sub>is the cylindrical domain diameter, {*𝑉*<sub>𝑑</sub>*, 𝑉*<sub>𝛺</sub>} are the volume
+of {*𝛺*<sub>𝑑</sub>*, 𝛺*}, respectively. The Reynolds number of a bubble is defined
+as:
+
+$$
+\{V_{d},V_{\Omega}\}
+$$
+
+$$
+\{\varOmega_{d},\varOmega\}
+$$
+
+$$
+\mathrm{Re}_{\mathrm{i}}(t)=\frac{\rho_{c}d_{b}\mathrm{U}_{\mathrm{r},\mathrm{i}}(t)}{\mu_{c}},\mathrm{for}i=\{1,\ldots,N_{b}-1,N_{b}\}.
+$$
+
+where U<sub>r</sub>*,*i(*𝑡*) will be calculated as the relative velocity of the bubble
+respect to the liquid velocity, unless otherwise stated. Indeed, U<sub>r</sub>*,*i(*𝑡*) =
+(**𝐯** (*𝑡*) − **𝐯** (*𝑡*)) ⋅ **𝐞**, **𝐞** = −**𝐠** ‖**𝐠**‖<sup>−1</sup>, **𝐯** (*𝑡*) = *𝑉*<sup>−1</sup>∫ **𝐯** *𝐻*<sup>𝑠</sup>*𝑑𝑉* is the
+𝑑,𝑖 𝑐 𝑔 𝑔 𝑑,𝑖 𝑑,𝑖 𝛺 𝑑,𝑖
+bubble velocity, *𝑉* = ∫ *𝐻*<sub>𝑠</sub>𝑑𝑉 is the bubble volume. On the other
+*𝑑,𝑖* 𝛺 𝑑,𝑖
+hand, **𝐯** (*𝑡*) = *𝑉*<sub>−1</sub>∫ **𝐯***𝑑𝑉* is the space-averaged velocity in *𝛺*, and
+𝛺 𝛺
+**𝐯** (*𝑡*) = *𝑉*−1∫ *𝐻𝑠𝛺***𝐯***𝑑𝑉* is the space-averaged velocity in *𝛺*, *𝑘* = {*𝑐,𝑑*}.
+*𝑘* 𝑘 𝛺 𝑘 𝑘
+Finally:
+
+(27)
+
+$$
+\mathrm{U_{r,i}(t)}
+$$
+
+$$
+\left(\mathbf{v}_{d,i}(t)-\mathbf{v}_{c}(t)\right)\cdot\mathbf{e}_{g},\mathbf{e}_{g}=-\mathbf{g}\|\mathbf{g}\|^{-1},\mathbf{v}_{d,i}(t)=V_{d,i}^{-1}\int_{\Omega}\mathbf{v}H_{d,i}^{s}d V
+$$
+
+$$
+\mathrm{U}_{\mathrm{r},\mathrm{i}}(t)=
+\stackrel{\circ}{V_{d,i}}=\int_{\varOmega}H_{d,i}^{s}d V
+$$
+
+$\mathbf{v}_{\varOmega}(t)\;=\;V_{\varOmega}^{-1}\int_{\varOmega}$
+
+$$
+\varOmega,
+$$
+
+$$
+\mathbf{v}_{k}(t)=V_{k}^{-1}\int_{\Omega}H_{k}^{\mathrm{s}}\mathbf{v}d\vec{V}
+$$
+
+$$
+\varOmega_{k},k=\{c,d\}
+$$
+
+$$
+\mathrm{Re}(\mathrm{t})=\frac{1}{N_{b}}\sum_{i=1}^{N_{b}}\mathrm{Re}_{\mathrm{i}}(\mathrm{t}),\mathrm{Re}=\frac{1}{T}\int_{t_{0}}^{t_{0}+T}\mathrm{Re}(t)d t.
+$$
+
+(28)
+
+−1 𝑡 +𝑇 <sup>−1</sup>∑𝑁<sup>𝑏</sup>
+Consistently, U<sub>r</sub><sub>,</sub>i= *𝑇* ∫<sub>𝑡₀₀</sub>U<sub>r</sub>*,*i(*𝑡*)*𝑑𝑡*, and Ur= *𝑁* Ur,i.
+<sub>𝑏</sub> <sub>𝑖</sub>=1
+
+$$
+\mathrm{U}_{\mathrm{r},\mathrm{i}}=T^{-1}\int_{t_{0}}^{t_{0}+T}\mathrm{U}_{\mathrm{r},\mathrm{i}}(t)d t,
+$$
+
+$$
+\mathrm{U}_{\mathrm{r}}=N_{b}^{-1}\sum_{i=1}^{N_{b}}\mathrm{U}_{\mathrm{r},\mathrm{i}}.
+$$
+
+Dimensionless form of chemical species concentration equation,
+Eq.(11), leads to:
+()
+
+$$
+\frac{\partial C^{*}}{\partial t^{**}}+\nabla^{*}\cdot\left(\mathbf{v}^{*}C^{*}\right)=\frac{1}{\operatorname{Re}\operatorname{Sc}}\nabla^{*2}C^{*}-\frac{\operatorname{Da}}{\operatorname{Re}\operatorname{Sc}}C^{*},\mathrm{in}\Omega_{c},
+$$
+
+(29)
+
+with dimensionless variables *𝑡*<sup>∗∗</sup>= U *𝑑*<sup>−1</sup>*𝑡*, *𝐶*<sup>∗</sup>= *𝐶𝐶*<sup>−1</sup>, ∇<sup>∗</sup>= *𝑑* ∇,
+r 𝑏 𝛤,𝑐 𝑏
+**𝐯**<sub>∗</sub>= **𝐯** U<sub>−1</sub>, Sc is the Schmidt number, Da is the Damköler number,
+r
+and Pe = ReSc is the Péclet number. Mass transfer is characterized by
+the Sherwood number Sh = Sh(Re*,*Sc*,*Da), defined as follows:
+
+$$
+t^{**}=\mathrm{U}_t d_b^{-1}t,\quad C^*=C C_{\Gamma,c}^{-1},\quad\nabla^*=d_b\nabla_t
+$$
+
+$$
+\mathbf{v}^{*}=\mathbf{v}\mathbf{U}_{\mathrm{r}}^{-1}
+$$
+
+$$
+\mathrm{Sc}=\frac{\mu_{c}}{\rho_{c}D_{c}},\mathrm{Pe}=\mathrm{Re}\mathrm{Sc},\mathrm{Da}=\frac{k_{1}d_{b}^{2}}{D_{c}},\mathrm{Sh}=\frac{k_{c}d_{b}}{D_{c}}.
+$$
+
+(30)
+
+---
+
+(a)
+
+(b)
+
+**Fig. 3.** Examples of mesh distribution: (a) Cubic domain discretized by tetrahedral cells. (b) Section of a vertical pipe discretized by triangular prisms cells. The grid size is *ℎ*<sub>𝑚𝑎𝑥</sub>
+around the centre of the tube and refined up to *ℎ*<sub>𝑚𝑖𝑛</sub>= 0*.*33*ℎ*<sub>𝑚𝑎𝑥</sub>on the wall.
+
+$$
+h_{min}=0.33h_{max}
+$$
+
+$$
+h_{_{max}}
+$$
+
+| 𝐿𝛺 is the cylinder height, (refinement at the wall). |  |  |  |  |  |  |  |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Mesh | 𝑁𝐶𝑉 | ℎ ,ℎ } | Cell geometry | 𝐷𝛺 | 𝐿𝛺 |  | CR |
+| 𝑀₁ | 12 . 13×10 | 𝑚𝑎𝑥 𝑚𝑖𝑛 { 𝑑 ∕35 ,ℎ ∕3} | Triangular-prism | 3 𝑑 | 12 𝑑 | 384 | 0.33 |
+| 𝑀₂ | 6 9 . 44×10 | 𝑏 𝑚𝑎𝑥 { 𝑑 ∕35 ,ℎ ∕3} | Triangular-prism | 𝑏 2 . 625 𝑑 | 𝑏 12 𝑑 | 336 | 0.38 |
+| 𝑀₃ | 6 1 . 25×10 | 𝑏 𝑚𝑎𝑥 { 𝑑 ∕20 ,ℎ ∕3} | Triangular-prism | 2 . 25 𝑑 | 𝑏 12 𝑑 | 96 | 0.44 |
+| , 0 𝑀₃ | 6 2 . 42×10 | 𝑏 𝑚𝑎𝑥 { 𝑑 ∕25 ,ℎ ∕3} | Triangular-prism | 𝑏 2 . 25 𝑑 | 𝑏 12 𝑑 | 96 | 0.44 |
+| , 1 𝑀₃ | 6 4 . 33×10 | 𝑏 𝑚𝑎𝑥 { 𝑑 ∕30 ,ℎ ∕3} | Triangular-prism | 𝑏 2 . 25 𝑑 | 𝑏 12 𝑑 | 192 | 0.44 |
+| , 2 𝑀₃ | 6 7 . 07×10 | 𝑏 𝑚𝑎𝑥 { 𝑑 ∕35 ,ℎ ∕3} | Triangular-prism | 𝑏 2 . 25 𝑑 | 𝑏 12 𝑑 | 192 | 0.44 |
+| , 3 𝑀₃ | 6 10 . 37×10 | 𝑏 𝑚𝑎𝑥 { 𝑑 ∕40 ,ℎ ∕3} | Triangular-prism | 𝑏 2 . 25 𝑑 | 𝑏 12 𝑑 | 288 | 0.44 |
+| , 4 𝑀₄ | 6 4 . 71×10 | 𝑏 𝑚𝑎𝑥 { 𝑑 ∕35 ,ℎ ∕3} | Triangular-prism | 𝑏 1 . 875 𝑑 | 𝑏 12 𝑑 | 192 | 0.53 |
+| 𝑀₅ | 6 4 . 71×10 | 𝑏 𝑚𝑎𝑥 { 𝑑 ∕40 ,ℎ ∕3} | Triangular-prism | 𝑏 1 . 67 𝑑 | 𝑏 10 . 67 𝑑 | 192 | 0.60 |
+| 𝑀₆ | 6 3 . 07×10 | 𝑏 𝑚𝑎𝑥 { 𝑑 ∕35 ,ℎ ∕3} | Triangular-prism | 𝑏 1 . 5 𝑑 | 12 𝑑 | 64 | 0.67 |
+| 𝑀₇ | 6 3 . 07×10 | 𝑏 𝑚𝑎𝑥 { 𝑑 ∕39 ,ℎ ∕3} | Triangular-prism | 𝑏 1 . 37 𝑑 | 𝑏 10 . 9 𝑑 | 64 | 0.73 |
+| 𝑀₈ | 6 3 . 07×10 | 𝑏 𝑚𝑎𝑥 { 𝑑 ∕43 ,ℎ ∕3} | Triangular-prism | 𝑏 1 . 25 𝑑 | 𝑏 10 𝑑 | 64 | 0.80 |
+| 𝑀₉ | 6 10 . 44×10 | 𝑏 𝑚𝑎𝑥 { 𝑑 ∕40 ,ℎ ∕3} 𝑏 𝑚𝑎𝑥 | Triangular-prism | 𝑏 4 𝑑 𝑏 | 𝑏 4 𝑑 𝑏 | 960 | 0.25 |
+
+$$
+D_{\mathcal{Q}}
+$$
+
+$$
+N_{CV}
+$$
+
+$$
+d_{b}
+$$
+
+$$
+h_{min}
+$$
+
+$$
+L_{\varOmega}
+$$
+
+$$
+h_{max}
+$$
+
+$$
+N_{CV}
+$$
+
+$$
+\{h_{max},h_{min}\}
+$$
+
+$$
+L_{\varOmega}
+$$
+
+$$
+D_{\varOmega}
+$$
+
+$$
+M_{1}
+$$
+
+$$
+12.13\times10^{6}
+$$
+
+$$
+\{d_{b}/35,h_{m a x}/3\}
+$$
+
+$$
+3d_{b}
+$$
+
+$$
+12d_{b}
+$$
+
+$$
+\mathrm{C}_{\mathbb{R}}
+$$
+
+$$
+M_{2}
+$$
+
+$$
+9.44\times10^{6}
+$$
+
+$$
+\{d_{b}/35,h_{m a x}/3\}
+$$
+
+$$
+M_{3,0}
+$$
+
+$$
+\{d_{b}/20,h_{m a x}/3\}
+$$
+
+$$
+1.25\times10^{0}
+$$
+
+$$
+M_{3,1}
+$$
+
+$$
+2.42\times10^{6}
+$$
+
+$$
+\{d_{b}/25,h_{m a x}/3\}
+$$
+
+$$
+M_{3,2}
+$$
+
+$$
+12\overset{*}{d_{b}}
+$$
+
+$$
+\{d_{b}/30,h_{m a x}/3\}
+$$
+
+$$
+4.33\times10^{6}
+$$
+
+$$
+M_{3,3}
+$$
+
+$$
+\frac{\cdots\cdots_{b}}{12d_{s}}
+$$
+
+$$
+\begin{aligned}&7.07\times10^{6}\\&10.27\times10^{6}\\ \end{aligned}
+$$
+
+$$
+\left\{d_{b}/35,h_{max}/3\right\}
+$$
+
+$$
+M_{3,4}
+$$
+
+$$
+12d_{b}
+$$
+
+$$
+\{d_{b}/40,h_{max}/3\}
+$$
+
+$$
+M_{4}^{ 实 ,+}
+$$
+
+$$
+4.71\times10^{6}
+$$
+
+$$
+\overset{ 一 }{M_{5}}
+$$
+
+$$
+\{d_{b}/35,h_{m a x}/3\}
+$$
+
+$$
+\left\{d_{b}/40,h_{max}/3\right\}
+$$
+
+$$
+\begin{aligned}&4.71\times10^{6}\\&2.07\times10^{6}\\ \end{aligned}
+$$
+
+$$
+M_{6}
+$$
+
+$$
+\overset{...}{\underset{M}{}}
+$$
+
+$$
+3.07\times10^{6}
+$$
+
+$$
+\{d_{b}/35,h_{max}/3\}
+$$
+
+$$
+M_{7}
+$$
+
+$$
+3.07\times10^{6}
+$$
+
+$$
+\{d_{b}/39,h_{max}/3\}
+$$
+
+$$
+M_{8}
+$$
+
+$$
+3.07\times10^{6}
+$$
+
+$$
+\{d_{b}/43,h_{max}/3\}
+$$
+
+$$
+M_{9}
+$$
+
+$$
+10.44\times10^{6}
+$$
+
+$$
+\{d_{b}/40,h_{m a x}/3\}
+$$
+
+Here, *𝑘*<sub>𝑐</sub>denotes the liquid-side (*𝛺*<sub>𝑐</sub>) mass transfer coefficient. If Da = 0,
+*𝑘*<sub>𝑐</sub>is calculated through a molar balance in *𝛺*<sub>𝑐</sub>:
+𝑑
+
+$$
+k_{c}
+$$
+
+$$
+\mathrm{If}\;\mathrm{Da}=0,
+$$
+
+$$
+k_{c}
+$$
+
+$$
+\varOmega_{c}
+$$
+
+$$
+(\Omega_{c})
+$$
+
+$$
+V_{c}\frac{d}{d t}C_{c}(t)=k_{c}(t)A(t)(C_{\varGamma,c}-C_{\infty}),
+$$
+
+(31)
+
+$$
+4d_{b}
+$$
+
+where *𝐶* (*𝑡*) = *𝑉*<sup>−1</sup>∫ *𝐶*(**𝐱***,𝑡*)*𝑑𝑉* is the space-average concentration
+𝑐 𝑐 𝛺𝑐
+∑𝑁𝑏
+of the chemical species, *𝐴*(*𝑡*) = *𝐴*<sub>𝑖</sub>(*𝑡*) is the interfacial area, *𝑉*<sub>𝑐</sub>
+𝑖=1
+is the volume of *𝛺*𝑐, *𝐶𝛤,𝑐*is the interface concentration of chemical
+species at *𝛺*<sub>𝑐</sub>, and *𝐶*<sub>∞</sub>= 0 is the concentration far from the bubble
+interface. Furthermore, the dimensionless time (*𝑡*<sup>∗</sup>) and dimensionless
+bubble surface (*𝐴*<sup>∗</sup>) are defined to report the numerical results:
+𝑖
+√
+
+$$
+4d_{b}
+$$
+
+$$
+\begin{array}{l}C_{c}(t)=V_{c}^{-1}\int_{\varOmega_{c}}\end{array}
+$$
+
+$$
+V_{c}
+$$
+
+$$
+A(t)\;=\;\sum_{i=1}^{N_b}A_i(t)
+$$
+
+$$
+\varOmega_{c},C_{\varGamma,c}
+$$
+
+$$
+C_{\infty}=0
+$$
+
+$$
+\varOmega_{c},
+$$
+
+$$
+t^{*}=\sqrt{\frac{\|\mathbf{g}\|}{d_{b}}}t\enspace,\enspace A_{i}^{*}(t)=\frac{A_{i}(t)}{A_{i}(0)},\;A^{*}(t)=\frac{1}{\sum_{i=1}^{N_{b}}A_{i}(0)}\sum_{i=1}^{N_{b}}A_{i}(t),
+$$
+
+(32)
+
+$$
+\left(A_{i}^{*}\right)
+$$
+
+𝑠 𝑠 ∗ −1 𝑡₀+𝑇 ∗
+where *𝐴*<sub>𝑖</sub>(*𝑡*) = ∫<sub>𝛺</sub>*𝛿 𝑑𝑉*, *𝛿* = ‖∇*𝜙*<sub>𝑖</sub>‖ [29,65], and *𝐴* = *𝑇* ∫<sub>𝑡₀</sub>*𝐴*
+𝛤,𝑖 𝛤,𝑖
+(*𝑡*)*𝑑𝑡*.
+
+$$
+\begin{array}{l}A^{*}=T^{-1}\int_{t_{0}}^{t_{0}+T}A^{*}\end{array}
+$$
+
+## 4.1.1. Grid convergence
+
+$$
+A_{i}(t)=\int_{\Omega}\delta_{\Gamma,i}^{s}d V,\delta_{\Gamma,i}^{s}=\|\nabla\phi_{i}\|[29,65]
+$$
+
+*𝛺* is a cylinder with height *𝐻𝛺* and diameter *𝐷𝛺*. Triangular prism
+control volumes discretize *𝛺*, as depicted inFig.3b. Due to the trajectory instability of bubbles as the Reynolds number increases, interactions between bubbles and the cylinder wall become significant. To
+capture the bouncing effect on bubbles near the wall as depicted in
+Fig.4andFig.5, the mesh has been refined in this region. Meshes
+have been generated by a constant step extrusion of a two-dimensional
+unstructured grid along the *𝑦*-axis, being the step size *𝐻𝛺*∕*𝑁*<sub>𝑝</sub>= *ℎ*<sub>𝑚𝑎𝑥</sub>,
+*𝑁*<sub>𝑝</sub>denotes the number of planes in which the *𝑦*-axis is divided. Close
+to the wall, *ℎ*<sub>𝑚𝑖𝑛</sub>∼ *ℎ*<sub>𝑚𝑎𝑥</sub>∕3 where *ℎ*<sub>𝑚𝑎𝑥</sub>is the grid size around the centre
+of the pipe, as outlined inTable1.
+
+$$
+D_{\varOmega}.
+$$
+
+$$
+H_{\varOmega}/N_{p}=h_{m a x},
+$$
+
+$$
+H_{\varOmega}
+$$
+
+$$
+\varOmega,
+$$
+
+$$
+h_{min}\sim h_{max}/3
+$$
+
+$$
+h_{max}
+$$
+
+The cylinder wall is subjected to a no-slip boundary condition
+for velocity, while a Neumann boundary condition is applied for the
+concentration of chemical species. Dirichlet condition is set for UCLS
+markers on the wall, i.e., *𝜙*<sub>𝑖</sub>= 0 if *𝜙*<sub>𝑖</sub>*<* 0*.*5 defines *𝛺*<sub>𝑑</sub>, or *𝜙*<sub>𝑖</sub>= 1
+if *𝜙*<sub>𝑖</sub>≥ 0*.*5 defines *𝛺*<sub>𝑑</sub>. The vertical pipe is periodic along the *𝑦*-axis
+
+$$
+N_{p}
+$$
+
+$$
+\phi_{i}\geq0.5
+$$
+
+$$
+\phi_{i}\;=\;1
+$$
+
+$$
+\phi_{i}=0if\phi_{i}<0.5
+$$
+
+$$
+\varOmega_{d},
+$$
+
+(parallel to **𝐠**), between the top and bottom planes of *𝛺*. As initial
+conditions, both the continuous phase and dispersed phase are initially
+quiescent, whereas C<sup>∗</sup> = 1 inside the bubbles and C<sup>∗</sup> = 0 elsewhere.
+The initial position of the bubble is **𝐱**<sub>0</sub>= (0*,*2*𝑑 ,*<sub>𝑏</sub>0).
+
+$$
+C^{*}=0
+$$
+
+$$
+\complement^{*}=1
+$$
+
+$$
+\mathbf{x}_{0}=(0,2d_{b},0)
+$$
+
+Grid convergence is researched for two extreme cases with Re ≈
+*𝑂*(10 ), using Eo = {3<sup>3</sup>*.*125*,* 4*.*5} and Mo = 10<sup>−11</sup>, *𝜂* = 100, *𝜂* = 100,
+𝜌 𝜇
+C<sub>R</sub>= 0*.*44, Sc = 1, Da = 0.Fig.6a shows the time evolution of the
+Sherwood number (Sh(t<sup>∗</sup>)), normalized interfacial area (A<sup>∗</sup>(t<sup>∗</sup>)), and
+Reynolds number (Re(t<sup>∗</sup>)), remarked with black lines. In contrast, their
+time-averaged values are remarked with red lines, which extend in the
+period averaging. Simulations were performed for the meshes *𝑀*3,4,
+*𝑀*3,<sub>3</sub><sub>,</sub> *𝑀*3,2, *𝑀*<sub>3</sub><sub>,</sub>1and *𝑀*<sub>3</sub><sub>,</sub>0(Table1), as depicted in the figure legend
+with grid resolutions *ℎ*<sub>𝑚𝑎𝑥</sub>≈ {*𝑑*<sub>𝑏</sub>∕40*, 𝑑*<sub>𝑏</sub>∕35*, 𝑑*<sub>𝑏</sub>∕30*, 𝑑*<sub>𝑏</sub>∕25*, 𝑑*<sub>𝑏</sub>∕20},
+respectively.
+
+$$
+O(10^{3})
+$$
+
+$$
+\left(\mathrm{A}^{*}\left(\mathfrak{t}^{*}\right)\right)
+$$
+
+$$
+M_{0}=10^{-11},\eta_{\rho}=100,\eta_{\mu}=100,
+$$
+
+$$
+C_{R}=0.44,\ \mathrm{Sc}=1
+$$
+
+$$
+M_{3,4},
+$$
+
+$$
+M_{3,3},M_{3,2},M_{3,1}
+$$
+
+$$
+M_{3,0}
+$$
+
+$$
+h_{m a x}\quad\approx\quad\{d_{b}/40,\quad d_{b}/35,\quad d_{b}/30,\quad d_{b}/25,\quad d_{b}/20\}
+$$
+
+On the other hand,Fig.6b shows the error (*𝐸*) for {Re*,* A<sup>∗</sup>*,*Sh},
+1
+taking the case with the finest mesh (*𝑀*3∗,4) as the reference solution,
+versus the normalized grid resolution (*ℎ*). The error is calculated as
+*𝐸* (*𝜁*) = |(*𝜁* − *𝜁*) *𝜁*<sup>−1</sup>|, where *𝜁* = {A<sup>∗</sup>*,* Sh*,* Re}. Furthermore,
+1 𝑀3,𝑖𝑀3,𝑖𝑀3,4 𝑀₃,4
+Fig.6b proves the grid convergence for {Re*,* A<sub>∗</sub>*,*Sh}. Concerning the
+case with Eo = 3*.*125, the errors between the two finest meshes {*𝑀*3,4,
+*𝑀*}, are *𝐸* (Re) = 0*.*49%, *𝐸* (AM₃<sup>∗</sup>) = 0*.*49% and *𝐸* (Sh) =
+4,4 1 M3,31,31 M3,3
+1*.*29%. For Eo = 4*.*5, the errors are *𝐸* (Re) = 0*.*47%, *𝐸* (A<sup>∗</sup>) =
+1 M3,31 M3,3
+0*.*18% and *𝐸*1(ShM3) = 1*.*7%. Consequently, following a compromise
+*,*3
+between computational cost and accuracy meshes with grid size *ℎ𝑚𝑎𝑥*≤
+*𝑑*<sub>𝑏</sub>∕35 are selected to perform simulations. As demonstrated with the
+validation cases,Figs.17,19,21, this constraint in *ℎ*<sub>𝑚𝑎𝑥</sub>yields to accurate simulations for {Re*,* CD*,* Sh*,* A<sup>∗</sup>}, as compared with correlations
+from the literature.
+
+$$
+(E_{1})
+$$
+
+$$
+\{\mathrm{Re},\mathrm{A}^*,\mathrm{Sh}\}
+$$
+
+$$
+\left(M_{3,4}\right)
+$$
+
+$$
+E_{1}(\zeta_{M_{3,i}})=|(\zeta_{M_{3,i}}-\zeta_{M_{3,4}})\zeta_{M_{3,4}}^{-1}|,
+$$
+
+$$
+E_{0}=3.125
+$$
+
+$$
+M_{4,4}\}.
+$$
+
+$$
+E_{1}(\mathrm{Sh}_{\mathrm{M}_{3,3}})
+$$
+
+$$
+E_{1}(Re_{M_{3}})=0.49\%
+$$
+
+$$
+E_{1}(A_{M_{2},2}^{*})=0.49\%
+$$
+
+$$
+1.29\%.
+$$
+
+$$
+E_{1}^{\mathrm{~S}}(\mathrm{Re}_{\mathrm{M}_{3,3}})=0.47\%,~E_{1}(\mathrm{A}_{\mathrm{M}_{3,3}}^{\mathrm{~*}})=
+=4.5,
+$$
+
+$$
+E_{1}(\mathrm{Sh}_{\mathrm{M}_{3,3}})=1.7\%
+$$
+
+$$
+d_{b}/35
+$$
+
+$$
+h_{max}\leq
+$$
+
+$$
+h_{max}
+$$
+
+$$
+\{Re,C_{D},Sh,A^*\}
+$$
+
+Fig.7a shows that bubble shapes converge at t<sup>∗</sup>= {1*.*54*,* 3*.*08},
+for Eo = 3*.*125. Nevertheless, oscillations in bubble shapes and path
+instabilities are triggered as the simulation advances, as evidenced at
+*𝑡*<sup>∗</sup>*>* 3*.*08, and the bubble behaviour is unsteady. In this sense, both the
+unstable shapes and complex paths of bubbles are characteristic of the
+so-called wobbling regime [8], as demonstrated inFig.7b–c, for the
+
+$$
+\mathrm{t}^{*}=\{1.54,3.08\},
+$$
+
+$$
+t^{*}>3.08,
+$$
+
+---
+
+(a)
+
+(b)
+
+(c)
+
+$\|\omega^*\|$
+13
+5.2
+
+$C^*$
+1
+0.01
+
+**Fig. 4.** Single bubble in a vertical pipe. Eo = 3*.*125, Mo = 10<sup>−11</sup>, Sc = 1, Da = 0, CR = 0*.*33. Mesh *𝑀₁* (Table1). Bubble shape at *𝑡*<sup>∗</sup>= {8*.*7*,* 9*.*2*,* 9*.*7*,* 10*.*2*,* 10*.*7*,* 11*.*2*,* 11*.*7*,* 12*.*2}.
+∗ ∗ ∗ 1∕2 ∗ −1∕2 1∕2 ∗ −1
+‖*𝜔* ‖ = (*𝜔* ⋅ *𝜔*), *𝜔* = *𝑔 𝑑*<sub>𝑏</sub>*𝜔*, *𝜔* = ∇× **𝐯**. C = CCΓ.
+
+$$
+Mo=10^{-11}
+$$
+
+$$
+\mathrm{Da}=0,\;\mathrm{C}_{\mathrm{R}}=0.33
+$$
+
+$$
+\|\omega^{*}\|=(\omega^{*}\cdot\omega^{*})^{1/2},\;\omega^{*}=g^{-1/2}d_{b}^{1/2}\omega,\;\omega=\nabla\times\mathbf{v}.\;\mathbf{C}^{*}=\mathbf{C}\mathbf{C}_{\Gamma}^{-1}
+$$
+
+$$
+M_{1}
+$$
+
+Eo=4.5, $C_R$=0.38
+
+Eo=3.125, $C_R$=0.38
+
+Eo=4.5, $C_R$=0.44
+
+Eo=3.125, $C_R$=0.44
+
+**Fig. 5.** Single bubble in a vertical pipe. Trajectories and bubble shapes, Mo = 10<sup>−11</sup>.
+
+$$
+M_{0}=10^{-11}
+$$
+
+instantaneous vorticity and concentration fields at t<sup>∗</sup>= 4*.*62 and the
+different grid resolutions.
+
+$$
+t^{*}\;=\;4.62
+$$
+
+## 4.1.2. Effect of convective schemes: Unstructured flux-limiters
+
+The convective scheme of transport equations is carefully designed
+to avoid numerical oscillations around discontinuities and minimize numerical diffusion [64]. This research employs unstructured flux-limiter
+convective schemes, Eq.(15), proposed by Balcazar-Arciniega et al.
+[17] and Balcázar et al. [29], to discretize the momentum transport
+equation (Eq.(1)), concentration equation (Eq.(20)) and interface
+advection equation (Eq.(18)). This assessment is particularly important
+for bubbly flows with a high-density ratio and high Reynolds number,
+where accuracy and numerical stability can be strongly affected by the
+convective scheme.
+
+Flux-limiter functions outlined in Eq.(16)are assessed, i.e., UP-
+WIND, MINMOD, SMART and SUPERBEE. CD limiter is excluded since
+numerical instabilities were observed. A single rising bubble is simulated on the mesh *𝑀* (Table1), with Eo = 3*.*125, Mo = 10<sup>−11</sup>,
+3,4
+CR = 0*.*44, Sc = 1, Da = 0, *𝜂*<sub>𝜌</sub>= 100, *𝜂*<sub>𝜇</sub>= 100.Fig.9a depict
+{Re(t<sup>∗</sup>)*,* A<sup>∗</sup>(t<sup>∗</sup>)*,* Sh(t<sup>∗</sup>)}, and their time-averaged values {Re*,* A<sup>∗</sup>*,* Sh}.
+
+$$
+M_{3,4}
+$$
+
+$$
+E_{0}=3.125,\;M_{0}=10^{-11}
+$$
+
+$$
+C_{R}=0.44,\ \mathrm{Sc}=1
+=0,\eta_{\rho}=100,\eta_{\mu}=100
+$$
+
+The computed Reynolds number are Re = {1042, 1012, 1023, 1031}
+for UPWIND, MINMOD, SMART, and SUPERBEE flux-limiter functions,
+respectively. Concerning the Sherwood number,Fig.9-a shows that
+the UPWIND scheme leads to a high Sh, which is promoted by the
+
+numerical diffusion. MINMOD, SMART, and SUPERBEE flux-limiters
+reduce the numerical diffusion, whereas the SUPERBEE scheme minimizes this effect.Fig.8a compares interface contours on the plane *𝑥* − *𝑦*
+of *𝛺*.Figs.8b–c show concentration contours and vorticity contours
+(*𝜔*<sub>𝑧</sub>= **𝐞**<sub>𝑧</sub>⋅ (∇×**𝐯**)) on the plane *𝑥* − *𝑦*. The numerical diffusion introduced
+by the UPWIND scheme tends to smooth out the concentration contours
+around the bubble. On the other hand, MINMOD, SMART and SUPER-
+BEE schemes reduce these effects. Concerning the vorticity contours, a
+similar observation applies.
+
+$$
+\left(\omega_{z}=\mathbf{e}_{z}\cdot(\nabla\times\mathbf{v})\right)
+$$
+
+Accordingly, the SUPERBEE flux-limiter scheme is selected to minimize the numerical diffusion. Nevertheless, note that the SMART
+limiter could be a second option. In contrast, the MINMOD limiter is
+the third recommendation, taking the minimization of the numerical
+diffusion effect as a selection criterion. These schemes preserve the
+multiphase solver’s numerical stability in bubbly flows with a high
+Reynolds number and high-density ratio.
+
+## 4.1.3. Effect of density and viscosity ratios
+
+The computational cost of simulations is strongly affected by the
+ratio of physical properties. Indeed, as the density ratio increases, so
+does the computational cost of solving Eq.(22). Consequently, the
+choice of liquid-gas property ratios involves striking a compromise
+between computational cost and their impact on the calculation of
+{Re*,* Sh*,* A<sup>∗</sup>}. For this assessment, dimensionless numbers are set to
+Eo = 3*.*125, Mo = 10<sup>−11</sup>, CR = 0*.*44, Sc = 1, Da = 0. The mesh *𝑀*
+3,3
+is used as described inTable1.
+
+$$
+\mathrm{Eo}=3.125,\;\mathrm{Mo}=10^{-11},\;\mathrm{C_R}=0.44,\;\mathrm{Sc}=1,\;\mathrm{Da}=0
+$$
+
+$$
+M_{3,3}
+$$
+
+Fig.9b shows {Re(t<sup>∗</sup>)*,* Sh(t<sup>∗</sup>)*,* A<sup>∗</sup>(t<sup>∗</sup>)} (black lines) and their timeaveraged values {Re*,* Sh*,* A<sup>∗</sup>} (red lines). Physical properties ratios are
+(*𝜂,𝜂*) = {(10*,*10), (10<sup>2</sup>*,*10<sup>2</sup>)*,* (10<sup>3</sup>*,*10<sup>3</sup>)}, whereas Re = {1044*,* 1041*,*
+𝜌 𝜇
+1042}, Sh = {37*.*9*,* 39*.*8*,* 41*.*3}, and A<sup>∗</sup>= {1*.*056*,* 1*.*060*,* 1*.*061}, respectively. Consequently, changing the physical properties ratios from
+(*𝜂,𝜂*) = (10<sup>2</sup>*,*10<sup>2</sup>) up to (*𝜂,𝜂*) = (10<sup>3</sup>*,*10<sup>3</sup>) changes {Re*,* Sh*,* A<sup>∗</sup>}
+𝜌 𝜇 𝜌 𝜇
+by about {0*.*3%*,* 3%*,* 0*.*38%}. Therefore, (*𝜂*<sub>𝜌</sub>*,𝜂*<sub>𝜇</sub>) = (100*,*100) is used for
+subsequent simulations, as higher ratios increase the computational
+costs of simulations without a significant change in results. The selected
+physical properties ratios are consistent with those used by Aboulhasanzadeh et al. [54] (*𝜂*<sub>𝜌</sub>= 50*, 𝜂*<sub>𝜇</sub>= 10), where a mass transfer model
+for bubbles was validated within the framework of the Front-Tracking
+method.
+
+$$
+(\eta_{\rho},\eta_{\mu})=\{(10,10),(10^{2},10^{2}),(10^{3},10^{3})\}
+$$
+
+$$
+\mathrm{A}^{*}=\{1.056,1.060,1.061\}
+$$
+
+$$
+(\eta_{\rho},\eta_{\mu})\;=\;(10^{2},10^{2})
+$$
+
+$$
+(\eta_{\rho},\eta_{\mu})\;=\;(10^{3},10^{3})
+$$
+
+$$
+(\eta_{\rho},\eta_{\mu})=(100,100)
+$$
+
+$$
+\left(\eta_{\rho}\;=\;50,\;\eta_{\mu}\;=\;10\right)
+$$
+
+## 4.1.4. Re and CD in bubbles in a vertical pipe
+
+The drag coefficient (CD) can be obtained from simulations of single
+bubbles using a steady-state force balance, (**𝐅**<sub>g</sub>+ **𝐅**<sub>D</sub>) ⋅ **𝐞**<sub>𝑔</sub>= 0, where **𝐅**<sub>g</sub>
+
+$$
+\left(\complement_{D}\right)
+$$
+
+$$
+(\mathbf{F}_{\mathrm{g}}+\mathbf{F}_{\mathrm{D}})\cdot\mathbf{e}_{\mathrm{g}}=0,
+$$
+
+$$
+\mathbf{F}_{\mathrm{g}}
+$$
+
+---
+
+(a) $A^{*}(t), A^{*}$ Eo=3.125 0 9 18
+
+Sh(t*), Sh
+Eo=3.125
+Re(t)* Re
+0 9 18
+
+$A^* (t), A^*$
+Eo=4.5
+Sh($t^*$), Sh
+0 9 18
+$t^*$
+
+Eo=4.5
+Re(t) Re
+0 9 18
+t*
+
+Re(t), Re Eo=4.5 t* 0 9 18
+
+(b) $E_1(A^*)$ $10^{-2}$ $10^{-3}$ p=2 p=1 $h^*$ 0.03 0.04 0.05
+
+$E_1(A^*)$ Eo=4.5 $p=2$
+$p=1$
+0.03 0.04 0.05 $h^*$
+
+$E_1(\mathrm{Sh})$
+$10^{-1}$
+$10^{-2}$
+p=2
+p=1
+$h^*$
+0.03 0.04 0.05
+
+**Fig. 6.** Grid convergence Eo = {3*.*125*,* 4*.*5}, Mo = 10<sup>−11</sup>, Sc = 1, Da =0, *𝜂* = *𝜂* = 100, CR = 0*.*44, meshes *𝑀₃* fromTable1. (a) {A<sup>∗</sup>(t<sup>∗</sup>)*,* Sh(t<sup>∗</sup>)*,* Re(t<sup>∗</sup>)} with black lines, time-averaged
+𝜌 𝜇,𝑖
+values {A<sup>∗</sup>*,* Sh*,* Re} with red lines. (b) Error, *𝐸₁*(*𝜁*)with*𝜁* = {A<sup>∗</sup>*,* Sh*,* Re}, versus normalized grid size (*ℎ*<sup>∗</sup>= *ℎ* ∕*𝑑*), with red symbols. Order of convergence *𝑝* = {1*,* 2} with black
+𝑚𝑎𝑥 𝑏
+lines.
+
+$$
+\mathrm{Eo}=\{3.125,4.5\}
+$$
+
+$$
+\mathrm{Mo}=10^{-11},\mathrm{Sc}=1,\mathrm{Da}=0,\eta_{\rho}=\eta_{\mu}=100,\mathrm{C}_{\mathrm{R}}=0.44,
+$$
+
+$$
+M_{3,i}
+$$
+
+$$
+E_{1}(\zeta)\mathrm{with}\zeta=\{\mathrm{A}^{*},
+$$
+
+$$
+\left(h^{*}=h_{m a x}/d_{b}\right)
+$$
+
+(a)
+y/D$_{\Omega}$
+2.5
+2
+1.5
+1
+0.5
+0
+-0.5 0 0.5
+x/D$_{\Omega}$
+
+(b)
+y/D$_{\Omega}$
+2.5
+2
+1.5
+1
+0.5
+0
+-0.5 0 0.5
+x/D$_{\Omega}$
+
+Interface
+-0.01
+0.30
+0.50
+0.70
+0.90
+
+h=d$_{b}$/40
+h=d$_{b}$/35
+h=d$_{b}$/30
+h=d$_{b}$/25
+
+(c)
+y/D$_{\Omega}$
+2.5
+2
+1.5
+1
+0.5
+0
+-0.5 0 0.5
+x/D$_{\Omega}$
+
+-20
+-10
+-5
+-1.2
++1.2
++5
++10
++20
+Interface
+
+h=d$_b$/40
+
+h=d$_b$/35
+
+h=d$_b$/30
+
+h=d$_b$/25
+
+**Fig. 7.** Effect of grid resolution, Eo =3*.*125, Mo = 10<sup>−11</sup>, Sc =1, Da = 0, *𝜂* = 100, *𝜂* = 100, *𝐶𝑅* = 0*.*44. Mesh *𝑀₃* (Table1). Contours on the plane *𝑥* − *𝑦* across the symmetry axis of
+𝜌 𝜇,𝑖
+the cylindrical pipe. (a) Bubble shape at *𝑡*<sup>∗</sup>= {1*.*54*,*3*.*08*,*4*.*62}. (b) Contours of concentration of chemical species at *𝑡*<sup>∗</sup>= 4*.*62. (c) Contours of vorticity (*𝜔* = **𝐞** ⋅ ∇× **𝐯**) at *𝑡*<sup>∗</sup>= 4*.*62.
+𝑧 𝑧
+
+$$
+\mathrm{Mo}=10^{-11}
+$$
+
+$$
+M_{3,i}
+$$
+
+$$
+t^{*}=\{1.54,3.08,4.62\}
+$$
+
+$$
+t^{*}=4.62.
+$$
+
+$$
+\left(\omega_{z}=\mathbf{e}_{z}\cdot\nabla\times\mathbf{v}\right)
+$$
+
+$$
+t^{*}=4.62
+$$
+
+---
+
+(a) $y/D_{\Omega}$
+
+- UPWIND
+- MINMOD
+- SMART
+- SUPERBEE
+
+$x/D_{\Omega}$
+
+(b) $y/D_{\Omega}$
+
+UPWIND
+
+MINMOD
+
+SMART
+
+SUPERBEE
+
+$x/D_{\Omega}$
+
+(c) $y/D_{\Omega}$
+
+UPWIND
+
+MINMOD
+
+SMART
+
+SUPERBEE
+
+$x/D_{\Omega}$
+
+**Fig. 8.** Effect of convective schemes: Eo = 3*.*125, Mo = 10<sup>−11</sup>, Sc =1, Da = 0, *𝜂* = 100, *𝜂* = 100, *𝐶𝑅* = 0*.*44. Mesh *𝑀₃* (Table1). Contours on the plane *𝑥* − *𝑦* of a cylindrical pipe.
+𝜌 𝜇,4
+(a) Bubble shape at *𝑡*<sup>∗</sup>= {1*.*54*,*3*.*08*,*4*.*62}. (b) Contours of concentration of chemical species at *𝑡*<sup>∗</sup>= 4*.*62. (c) Contours of vorticity (*𝜔* = **𝐞** ⋅ ∇× **𝐯**) at *𝑡*<sup>∗</sup>= 4*.*62.
+𝑧 𝑧
+
+$$
+M_{0}=10^{-11}
+$$
+
+$$
+C_{R}=0.44.
+$$
+
+$$
+M_{3,4}
+$$
+
+$$
+x-y
+$$
+
+$$
+t^{*}=4.62
+$$
+
+$$
+t^{*}=4.62
+$$
+
+$$
+\left(\omega_{z}=\mathbf{e}_{z}\cdot\nabla\times\mathbf{v}\right)
+$$
+
+is the buoyancy force and **𝐅**<sub>D</sub>is the drag force:
+()
+
+$$
+\mathbf{F}_{\mathrm{D}}
+$$
+
+$$
+C_{\mathrm{D}}=\frac{4d_{b}(\rho_{c}-\rho_{d})g}{3\rho_{c}{\bf U}_{\mathrm{r}}^{2}}=\frac{4}{3\mathrm{Re}^{2}}\left(\frac{\mathrm{Eo}^{3}}{\mathrm{Mo}}\right)^{1/2},
+$$
+
+(33)
+
+with *𝑔* = ‖**𝐠**‖. A drag correlation was proposed by Tomiyama et al. [93]
+for clean bubbles on unconfined domains:
+{ { ()}}
+
+$$
+g=\|\mathbf{g}\|.
+$$
+
+$$
+\mathrm{C_{D}}=\max\left\{\min\left\{\frac{16}{\mathrm{Re}}\left(1+0.15\mathrm{Re}^{0.687}\right),\frac{48}{\mathrm{Re}}\right\},\frac{8}{3}\frac{\mathrm{Re}}{\mathrm{Re}+4}\right\}
+$$
+
+(34)
+
+which takes into account the transition between the viscosity dominant
+regime (spherical shape bubbles) and the surface tension and gravity
+dominant regime (non-spherical bubbles) [93].
+
+Dijkhuizen et al. [94] proposed a drag closure for pure liquids,
+CD= CD(Re*,*Eo), valid for spherical and deformed bubbles rising in an
+unbounded domain, which has the form:
+√
+
+$$
+\mathrm{C_D}=\mathrm{C_D}(\mathrm{Re},\mathrm{Eo})
+$$
+
+(35)
+
+$$
+\begin{aligned}&\mathrm{C_{D}}=\sqrt{\mathrm{C_{D}(Re)}^{2}+\mathrm{C_{D}(Eo)}^{2}},\\&\mathrm{C_{D}(Re)}=\frac{16}{\mathrm{Re}}\left(1+\frac{2}{1+\frac{16}{\mathrm{Re}}+\frac{3.315}{\sqrt{\mathrm{Re}}}}\right),\mathrm{C_{D}(Eo)}=\frac{4\mathrm{Eo}}{9.5+\mathrm{Eo}}.\\ \end{aligned}
+$$
+
+(36)
+
+Clift et al. [8] reported an empirical correlation for the wall effect on
+CD:
+
+$$
+\mathrm{Re}>200,\;\mathrm{C_{D0}}
+$$
+
+$$
+\frac{\mathrm{C}_{\mathrm{D}}}{\mathrm{C}_{\mathrm{D}0}}=(1-\mathrm{C}_{\mathrm{R}}^{2})^{-3},
+$$
+
+$$
+C_{D}:
+$$
+
+$$
+C_{R}<0.6
+$$
+
+which is valid for CR *<* 0*.*6, Eo *<* 40 and Re *>* 200, C<sub>D0</sub>is the drag
+coefficient on the unconfined domain. Terminal velocity and terminal
+Reynolds number can be obtained by the combination ofEqs.(33)and
+(36):
+()
+
+$$
+<40
+$$
+
+$$
+\frac{\mathbf{U}_{\mathrm{r}}}{\mathbf{U}_{\mathrm{r}0}}=\frac{\mathbf{Re}}{\mathbf{Re}_{0}}=\left(\frac{\mathbf{C}_{\mathrm{D}}}{\mathbf{C}_{\mathrm{D}0}}\right)^{-1/2}=\left(1-\mathbf{C_{\mathrm{R}}}^{2}\right)^{3/2},
+$$
+
+(37)
+
+$$
+\mathrm{U_{r0}}
+$$
+
+where U<sub>r0</sub>and Re<sub>0</sub>are terminal velocity and terminal Reynolds number
+on the unconfined domain, respectively.
+
+$$
+\mathrm{Re}_0
+$$
+
+The effect of Mo on the vorticity, concentration and bubble shape
+is illustrated inFig.10, for 10<sup>−11</sup>≤ Mo ≤ 10<sup>−8</sup>, and Eo = {3*.*125*,*6}.
+The generation of vorticity structures, promoted by bubble and wall
+interactions and bubble shape oscillations, increases as Mo reduces,
+or equivalently for higher Re. Furthermore, this bubble-induced turbulence promotes the mixing of chemical species in the continuous phase.
+On the other hand,Fig.11shows the effect of the confinement ratio for
+CR *<* 0*.*8, Eo = 4*.*5 and Mo = 10<sup>−11</sup>. In this case, the more CR is reduced,
+the more generation of vorticity structures in the bubble’s wake, with
+a consequent mixing of chemical species. Further illustrative videos
+of these numerical experiments have been attached in the section on
+additional material for a wide range of confinement ratios.
+
+$$
+10^{-11}\leq M_0\leq10^{-8}
+$$
+
+$$
+\mathrm{Eo}=\{3.125,6\}
+$$
+
+$$
+\mathrm{Re}.
+$$
+
+$$
+C_{R}<0.8,\mathrm{Eo}=4.5
+$$
+
+$$
+\mathrm{C_R}
+$$
+
+$$
+\mathrm{Mo}=10^{-11}
+$$
+
+Figs.12–14present the simulations performed in this research for
+single bubbles in a vertical pipe, and depict the time evolution of
+Reynolds number, normalized interfacial area and Sherwood number,
+denoted respectively as {Re(t<sup>∗</sup>)*,* A (t<sup>∗</sup> <sup>∗</sup>)*,* Sh(t<sup>∗</sup>)}, for Eo = {3*.*125*,* 4*.*5*,*
+6*.*0}, 10<sup>−11</sup>≤ Mo ≤ 10<sup>−8</sup>, 0*.*33 ≤ CR ≤ 0*.*8, Sc = 1 and Da = 0,
+as computed by the UCLS method. In this framework, a decrement
+of Morton number or increment of Eötvös number leads to a higher
+Reynolds number, whereas the amplitude of oscillations in Re(t<sup>∗</sup>) tends
+to be attenuated as the Morton number increases or confinement ratio
+increases. The time evolution of the normalized bubble area (A )<sup>∗</sup>
+presents oscillations. If the Eötvös number increases or Morton number decreases, the interfacial area increases. On the other hand, an
+increment of the confinement ratio constrains the bubble deformation,
+whereas the normalized interfacial area tends to unite, approaching a
+spherical bubble. Note also that interfacial area oscillations tend to be
+attenuated at higher Morton numbers and confinement ratios. Although
+the hydrodynamics is not affected by the mass transfer, hydrodynamics
+
+$$
+\{\mathrm{Re}(\mathrm{t}^*),\mathrm{A}^*(\mathrm{t}^*),\mathrm{Sh}(\mathrm{t}^*)
+$$
+
+$$
+\mathrm{Eo}=\{3.125,4.5\}
+$$
+
+$$
+10^{-11}\leq Mo\leq10^{-8},0.33\leq C_{R}\leq0.8,Sc=1
+$$
+
+$$
+\mathrm{Da}=0,
+$$
+
+---
+
+(a) $Re(t), Re$ 1500 750 0 10 20 $t^*$
+
+$A^* (t), A^*$
+1.4
+1.2
+1
+0
+10
+20
+Sh($t^*$) Sh
+SUPERBEE
+SMART
+MINMOD
+UPWIND
+
+Sh(t*), Sh
+0 10 20
+t*
+
+UPWIND g
+
+MINMOD
+
+SMART g
+
+SUPERBEE
+
+(b) $Re(t), Re$
+
+$t^*$
+
+$A^*(t), A^*$
+
+$t^*$
+
+$Sh(t^*), Sh(t^*)$
+
+$\eta_p = 1000, \eta_\mu = 1000$
+
+$\eta_p = 100, \eta_\mu = 100$
+
+$\eta_p = 10, \eta_\mu = 10$
+
+$\eta_p = 10, \eta_\mu = 10$
+
+$\eta_p = 10, \eta_\mu = 10$
+
+**Fig. 9.** Single bubble in a vertical pipe. Eo = 3*.*125, Mo = 10<sup>−11</sup>, Sc = 1, Da = 0, CR = 0*.*44. {Re(t<sup>∗</sup>)*,* Sh(t<sup>∗</sup>)*,* A<sup>∗</sup>(t<sup>∗</sup>)} (black lines), and {Re*,* Sh*,* A<sup>∗</sup>} (red lines). Bubble shapes for
+0 ≤ *𝑡*<sup>∗</sup>≤. Mesh *𝑀₃* (Table1). (a) Effect of convective schemes. *𝜂* = 100, *𝜂* = 100. (b) Effect of density ratio and viscosity ratio. (*𝜂,𝜂*) ={(10*,*10)*,* (10<sup>2</sup>*,*10<sup>2</sup>)*,* (10<sup>3</sup>*,*10<sup>3</sup>)}.
+,3 𝜌 𝜇 𝜌 𝜇
+
+$$
+C_{R}=0.44.
+$$
+
+$$
+\mathrm{Mo}=10^{-11}
+$$
+
+$$
+0\leq t^{*}\leq.
+$$
+
+$$
+M_{3,3}
+$$
+
+$$
+\eta_{\rho}=100,\;\eta_{\mu}=100.
+$$
+
+$$
+(\eta_{\rho},\eta_{\mu})=\{(10,10),(10^{2},10^{2}),(10^{3},10^{3})
+$$
+
+Eo=6, Mo=1e-11, $C_R=0.8$
+
+Eo=6, Mo=1e-9, $C_R=0.8$
+
+Eo=6, Mo=1e-8, $C_R=0.8$
+
+Interface
+
+$C' = 1.0\text{e}-02$
+$C' = 1.0\text{e}-01$
+$C' = 3.0\text{e}-01$
+$C' = 5.0\text{e}-01$
+$C' = 7.0\text{e}-01$
+$C' = 9.0\text{e}-01$
+
+Eo=3.125, Mo=1e-11, $C_R=0.8$
+
+Eo=3.125, Mo=1e-9, $C_R=0.8$
+
+Eo=3.125, Mo=1e-8, $C_R=0.8$
+
+**Fig. 10.** Single bubble in a vertical pipe. Concentration (C<sup>∗</sup>), vorticity (z-component, *𝜔*), Sc =1, Da = 0.
+𝑧
+
+---
+
+Eo=4.5, Mo=1e-10, $C_R$=0.38
+
+y/D$_\Omega$
+x/D$_\Omega$
+
+Eo=4.5, Mo=1e-10, $C_R$=0.66
+
+y/D$_\Omega$
+x/D$_\Omega$
+
+Eo=4.5, Mo=1e-10, $C_R$=0.44
+
+y/D$_\Omega$
+x/D$_\Omega$
+
+Eo=4.5, Mo=1e-10, $C_R$=0.73
+
+**Fig. 11.** Single bubble in a vertical pipe. Concentration (C<sup>∗</sup>), vorticity (z-component, *𝜔*), Sc =1, Da = 0.
+𝑧
+
+Mo=1e-11
+Re(t*)
+2000
+1000
+0
+7.5
+15
+t*
+
+Mo=1e-11
+A*(t*)
+1.5
+0
+7.5
+15
+t*
+
+Mo=1e-11
+Sh(t*)
+150
+100
+50
+0
+7.5
+15
+t*
+C_R
+
+Mo=1e-10
+Re(t*)
+1200
+600
+0
+7.5
+15
+t*
+
+Mo=1e-10
+A*(t*)
+1.5
+0
+7.5
+15
+t*
+
+Mo=1e-10
+Sh(t*)
+60
+40
+20
+0
+7.5
+15
+t*
+C_R
+
+Mo=1e-9
+Re(t*)
+500
+250
+0
+7.5
+15
+t*
+
+Mo=1e-9
+A*(t*)
+1.5
+0
+7.5
+15
+t*
+
+Mo=1e-9
+Sh(t*)
+40
+30
+20
+0
+7.5
+15
+t*
+C_R
+
+Mo=1e-8
+Re(t*)
+300
+150
+0
+7.5
+15
+t*
+
+Mo=1e-8
+A*(t*)
+1.5
+0
+7.5
+15
+t*
+
+Mo=1e-8
+Sh(t*)
+20
+10
+0
+7.5
+15
+t*
+C_R
+
+**Fig. 12.** Single bubble in a vertical pipe. {Re(t<sup>∗</sup>)*,*A(t<sup>∗</sup>)*,*Sh(t<sup>∗</sup>)}, Eo = 3*.*125, Sc = 1, Da = 0, Mo = {10<sup>−11</sup>, 10<sup>−10</sup>, 10<sup>−9</sup>, 10<sup>−8</sup>}, 0*.*33 ≤ CR ≤ 0*.*8.
+
+and interfacial area affect the Sherwood number, and its analysis is
+presented in Section4.3.
+
+Hereafter, validations of the UCLS method for the bubble hydrodynamics {Re*,* CD} are presented, whereas validation of interfacial area
+and mass transfer are reported in Sections4.2and4.3, respectively.
+
+$$
+\{Re,C_{D}\}
+$$
+
+Fig.15depicts the time-averaged Reynolds numbers (Re) versus the
+confinement ratio (CR), for the cases outlined inFigs.12–14. The
+least-square fitting of DNS data to Eq.(37), Re = Re (1 − CR<sup>2</sup>)<sup>3∕2</sup>, is
+shown with black dashed lines, where Re<sub>0</sub><sub>0</sub>is the adjusted parameter.
+A close agreement between DNS data and Eq.(37)[8] is observed.
+
+$$
+\left(\mathrm{C}_{\mathbb{R}}\right)_{,}
+$$
+
+$$
+\mathrm{Re}=\mathrm{Re}_0\left(1-\mathrm{C_R}^2\right)^{3/2}
+$$
+
+$$
+\mathrm{Re}_0
+$$
+
+---
+
+Fig. 13. Single bubble in a vertical pipe. $\{\text{Re}(t^*), \text{A}(t^*), \text{Sh}(t^*)\}$, $Eo = 4.5$, $Sc = 1$, $Da = 0$, $Mo = \{10^{-11}, 10^{-10}, 10^{-9}, 10^{-8}\}$, $0.33 \leq C_R \leq 0.8$
+
+**Fig. 14.** Single bubble in a vertical pipe. {Re(t<sup>∗</sup>), A(t<sup>∗</sup>), Sh(t<sup>∗</sup>)}, Eo = 6, Sc = 1, Da =0, Mo ={10<sup>−11</sup>, 10<sup>−10</sup>, 10<sup>−9</sup>, 10<sup>−8</sup>}, 0*.*33 ≤ CR ≤ 0*.*8.
+
+Furthermore,Fig.15a includes the Reynolds number (Re<sup>corr</sup>) calculated
+by correlations of Tomiyama et al. [93] and Clift et al. [8], remarked
+with symbols (×).Fig.15b depicts the Reynolds number calculated with
+correlations of Dijkhuizen et al. [94] and Clift et al. [8], remarked
+with symbols (+). For computing correlations, {Eo*,* Mo} are input data,
+whereas Re<sup>corr</sup>= Re f(CR) and the associated drag force coefficient is
+0
+C<sub>corr</sub>= C g(CR). {Re*,* C} denote the Reynolds number and drag
+D D0 0 D0
+force coefficient on unconfined domain, as computed by combination
+ofEqs.(33)and(34)forFig.15a , orEqs.(33)and(35)forFig.15b.
+The confinement ratio effect {f(CR)*,* g(CR)} is calculated by correlations
+
+$$
+\{\mathrm{f}(\mathrm{C}_{\mathrm{R}}),\mathrm{g}(\mathrm{C}_{\mathrm{R}})\}
+$$
+
+$$
+\left(Re^{corr}\right)
+$$
+
+$$
+\mathrm{Re}^{\mathrm{corr}}=\mathrm{Re}_0\mathrm{f}(\mathrm{C}_{\mathrm{R}})
+$$
+
+$$
+\mathrm{C}_{\mathrm{D}}^{\mathrm{corr}}=\mathrm{C}_{\mathrm{D}0}\mathrm{~g}(\mathrm{C}_{\mathrm{R}}).\left\{\mathrm{Re}_{0},\mathrm{C}_{\mathrm{D}0}\right\}
+$$
+
+$$
+C_{\mathbb{R}}<0.6
+$$
+
+proposed by Clift et al. [8], i.e., Eq.(36)for the drag force, and Eq.(37)
+for the Reynolds number. As remarked by Clift et al. [8], Eq.(36)
+and(37)are experimentally validated for CR *<* 0*.*6. Consequently,
+numerical evidence presented inFig.15validates the UCLS method for
+Re in single bubbles in a vertical pipe.
+
+$$
+(C_{D})
+$$
+
+Fig.16depicts the time-averaged drag force coefficient (CD) versus the time-averaged Reynolds number (Re).Fig.16a includes DNS
+data and the drag force coefficient obtained by correlations CD*𝑐𝑜𝑟𝑟* =
+C<sub>D0</sub>g(CR), where C<sub>D0</sub>is calculated withEqs.(33)and(34)(Tomiyama
+et al. [93]), and g(CR) by Eq.(36)(Clift et al. [8]).Fig.16b includes
+
+$$
+\mathrm{C_{D0}g(C_R)}
+$$
+
+$$
+\mathrm{C}_{\mathrm{D}^{corr}}=
+\mathrm{C_{D0}}
+$$
+
+$$
+\mathrm{g}(\mathrm{C}_{\mathrm{R}})
+$$
+
+---
+
+*N. Balcázar-Arciniega et al.*
+
+log(Mo) = -11
+log(Mo) = -10
+log(Mo) = -9
+log(Mo) = -8
+
+log(Mo) = -10
+log(Mo) = -9
+log(Mo) = -8
+
+log(Mo) = -11
+log(Mo) = -10
+log(Mo) = -9
+log(Mo) = -8
+
+**Fig. 15.** Single bubble in a vertical pipe, Re =Re(Eo*,*Mo*,*CR). Re from UCLS method (DNS), least-squares regression of Eq.(37)(). (a) Re (×) from Eq.(33), Eq.(36)[8] and
+Eq.(34)([93]). (b) Re (+) from Eq.(33), Eq.(36)[8] and Eq.(34)([94]).
+
+$$
+\mathrm{C}_{\mathbb{R}})
+$$
+
+DNS data and the drag force coefficient calculated with Eq.(33)and
+correlations of Dijkhuizen et al. [94] (Eq.(35)) and Clift et al. [8]
+(Eq.(36)). Note that Re is obtained from simulations outlined in
+Figs.12–14, whereas Eo, Mo and CR are input data. As can be inferred
+fromFigs.16a-b, DNS data is in close agreement with the previously
+referred correlations [8,93,94], which validates the UCLS method for
+DNS of the drag force.
+
+$$
+\mathrm{C_R}
+$$
+
+Finally,Fig.17a depicts {ReRe<sub>0 −1</sub>} and {CD C<sub>D0 −1</sub>} versus CR,
+including DNS data (symbols) and correlations proposed by Clift et al.
+[8] (black lines), i.e., Eq.(37)for the Reynolds number and Eq.(36)
+for the drag force. Furthermore, least squares fitting of DNS data to
+ReRe = (1 − CR<sup>𝑎₁</sup>)<sup>𝑎₂</sup>, and its corresponding normalized drag force
+0 −1
+CD C = (1 − CR<sup>𝑎₁</sup>)<sup>−2</sup> <sup>𝑎₂</sup>, are shown with dashed black lines. For
+D0 −1
+the adjusted correlation {*𝑎*<sub>1</sub>*, 𝑎*<sub>2</sub>}<sub>DNS</sub>= {1*.*9164*,* 1*.*4001}, which are very
+close to {*𝑎*<sub>1</sub>*, 𝑎*<sub>2</sub>}<sub>Clift</sub>= {2*,* 1*.*5} reported by Clift et al. [8] in Eq.(37).
+Consequently, these results validate the UCLS method (DNS) for the
+hydrodynamics of bubbles in a vertical pipe with CR ≤ 0*.*6, whereas
+the proposed DNS based correlation for ReRe<sub>0 −1</sub>show a maximum
+deviation of 10% up to CR ≤ 0*.*8, as outlined inFig.17b.
+
+$$
+\{\mathrm{Re}\mathrm{Re}_0^{-1}\}
+$$
+
+$$
+\{\mathrm{C_D}\mathrm{C_{D0}}^{-1}\}
+$$
+
+$$
+\mathrm{C_R},
+$$
+
+$$
+\mathrm{Re}_{0}^{-1}=(1-\mathrm{C}_{\mathrm{R}}^{a_{1}})^{a_{2}}
+$$
+
+$$
+\mathrm {C} _ {\mathrm {D}} \mathrm {C} _ {\mathrm {D} 0} ^ {- 1} = \left(1 - \mathrm {C} _ {\mathrm {R}} ^ {a _ {1}}\right) ^ {- 2 a _ {2}}
+$$
+
+$$
+\{a_{1},a_{2}\}_{DNS}=\{1.9164,1.4001
+$$
+
+$$
+\{a_{1},a_{2}\}_{Clift}=\{2,1.5\}
+$$
+
+$$
+C_{R}\leq0.8
+$$
+
+## 4.2. Interfacial area of bubbles in a vertical pipe
+
+$$
+C_{R}\leq0.6
+$$
+
+$$
+\mathrm{Re_0}^{-1}
+$$
+
+$$
+\left(1/\mathrm{A}^{*}\right)
+$$
+
+(38)
+
+The shape of an ellipsoidal bubble is characterized by the aspect
+ratio (E), defined as the ratio of the maximum vertical dimension to
+the maximum horizontal dimension. The surface ratio of an equivalent
+sphere and the oblate ellipsoid (1∕A<sup>∗</sup>) can be expressed in terms of E:
+√
+
+$$
+\frac{1}{\mathrm{A}^{*}}=\frac{4\mathrm{E}^{2/3}\sqrt{1-\mathrm{E}^{2}}}{2\sqrt{1-\mathrm{E}^{2}}+\mathrm{E}^{2}\ln\left(\frac{2\sqrt{1-\mathrm{E}^{2}}-\mathrm{E}^{2}+2}{\mathrm{E}^{2}}\right)}.
+$$
+
+In a pioneering work Wellek et al. [96] have introduced an empirical
+relation for the prediction of E in drops with 6 ≤ Re ≤ 1354:
+
+$$
+6\leq Re\leq1354;
+$$
+
+$$
+\mathrm{E}=\frac{1}{1+0.163\mathrm{Eo}^{0.757}}.
+$$
+
+Aoyama et al. [98] proposed an empirical correlation for E in a wide
+range of fluid properties, 10<sup>−3</sup>≤ Re ≤ 130, −11 ≤ log(Mo) ≤ 0*.*63, and
+0*.*042 ≤ Eo ≤ 29:
+1
+
+(39)
+
+$$
+10^{-3}\leq\mathrm{Re}\leq130,-11\leq\log(\mathrm{M}_{0})\leq0.63
+$$
+
+$$
+0.042\leq\mathrm{Eo}\leq29;
+$$
+
+$$
+\mathrm{E}=\frac{1}{\left(1+0.016\mathrm{E}\mathrm{o}^{1.12}\mathrm{Re}\right)^{0.388}}.
+$$
+
+(40)
+
+Besagni and Deen [97] reported a correlation for the bubble shape
+based on an extensive experimental data-set for −10*.*8 ≤ log(Mo) ≤ 2*.*3:
+
+$$
+\mathrm{for}-10.8\leq\log(\mathrm{M}_0)\leq2.3;
+$$
+
+$$
+\mathrm{E}=\frac{1}{(1+0.45\left(\mathrm{E}\mathrm{o}\mathrm{Re}\right))^{0.08}}.
+$$
+
+(41)
+
+Liu et al. [95] proposed a correlation for E under bubble swarm
+condition:
+{
+
+$$
+\mathrm{E}=\begin{cases}\frac{1}{\left(1+0.0255\left(\mathrm{Eo}\mathrm{Re}\right)\right)^{0.1572}}&,\mathrm{Eo}\mathrm{Re}<2300\\ 0.5263&,\mathrm{Eo}\mathrm{Re}\geq2300.\end{cases}
+$$
+
+(42)
+
+Eqs.(39)–(42), lead to infer that E = E(Eo*,*Re) for ellipsoidal bubbles
+on unconfined domains. Furthermore, A<sup>∗</sup>= f(E) = g(Eo*,*Re) according
+to Eq.(38). Consequently, it is postulated that A<sup>∗</sup>= A<sup>∗</sup>(Eo*,*Re*,*CR)
+= g(Eo*,*Re)h(CR) for bubbles in a vertical pipe:
+
+$$
+\mathrm{A^*=f(E)=g(Eo,Re)}
+$$
+
+$$
+\mathrm{A^{*}\;=\;A^{*}(Eo,Re,C_{R})}
+$$
+
+$$
+\mathrm{=g(Eo,Re)h(C_R)}
+$$
+
+$$
+\mathrm{A}^{*}=(1+a_{1}\mathrm{E}\mathrm{o}^{a_{2}}\mathrm{Re}^{a_{3}})(1-\mathrm{C}_{\mathrm{R}}^{a_{4}})^{a_{5}}.
+$$
+
+(43)
+
+$$
+a_{i}
+$$
+
+Coefficients *𝑎*<sub>𝑖</sub>of Eq.(43)are adjusted by the least-squares method,
+using the DNS data outlined inFigs.18and19, for 3*.*125 ≤ Eo ≤
+
+$$
+3.125\leq Eo\leq
+$$
+
+---
+
+Ex-1.125, Min-1e-11
+Ex-3.125, Min-10
+Ex-1.125, Min-9
+Ex-3.125, Min-8
+Ex-1.125, Min-7
+Ex-3.125, Min-6
+Ex-1.125, Min-5
+Ex-3.125, Min-4
+Ex-1.125, Min-3
+Ex-3.125, Min-2
+Ex-1.125, Min-1
+Ex-3.125, Min-10
+Ex-1.125, Min-9
+Ex-3.125, Min-8
+Ex-1.125, Min-7
+Ex-3.125, Min-6
+Ex-1.125, Min-5
+Ex-3.125, Min-4
+Ex-1.125, Min-3
+Ex-3.125, Min-2
+Ex-1.125, Min-
+
+**Fig. 16.** Single bubble in a vertical pipe. CD = CD(Re*,*Eo*,*Mo) calculated by Eq.(33)using Re from UCLS method (DNS). Comparison against: (a) CD (×) by solving Eq.(33),
+Eq.(34)(Tomiyama et al. [93]), and Eq.(36)(Clift et al. [8]). (b) CD (+) by solving Eq.(33), Eq.(35)(Dijkhuizen et al. [94]), and Eq.(36)[8].
+
+$$
+\mathrm{C_D=C_D(Re,}
+$$
+
+$$
+\mathrm{C_D}
+$$
+
+$$
+\mathrm{C_D}
+$$
+
+(a)
+$Re Re^{-1}_{0}$
+$\frac{Re}{Re_{0}} = (1 - C_R^{a_1})^{a_2}$
+$a_1 = 1.9164$
+$a_2 = 1.4001$
+$Re / Re_{0} = (1 - C_R^2)^{3/2}$, Clift (1978)
+
+$C_{\mathrm{D}} C_{\mathrm{D0}}^{-1}$
+
+$-\frac{C_{\mathrm{D}}}{C_{\mathrm{d0}}} = \left( 1 - C_{\mathrm{R}}^{a_1} \right)^{-2 a_2}$
+
+$a_1 = 1.9164$
+$a_2 = 1.4001$
+
+$\frac{\mathrm{Re}}{\mathrm{Re}_0} = \left( 1 - C_{\mathrm{R}}^2 \right)^{-3}$, Clift (1978)
+
+$C_{\mathrm{D}}$
+
+(b) $ \frac{\mathrm{Re}}{\mathrm{Re}_{0}} = (1 - C_{\mathrm{R}}^{2})^{3 / 2} $ Clift(1978) Re Re $ _{0}^{-1} $ , Correlation Re Re $ _{0}^{-1} $ , DNS
+
+$Re_{Rn}^{1+}$ Correlations
+$Re_{Rn}^{1+}$ Concentration
+
+$Re_{Rn}^{1+}$ Correlations
+$Re_{Rn}^{1+}$ Concentration
+
+$Re_{Rn}^{1+}$ Concentration
+
+**Fig. 17.** Single bubbles in a vertical pipe. (a) {ReRe<sup>−1</sup>*,* CD C} computed by the UCLS method (DNS), correlations ReRe = f(CR) and CD C = g(CR) (Clift et al. [8]), and
+0 D0 −1 0 −1 D0 −1
+present correlations versus CR. (b) Comparison of {ReRe<sub>−1</sub>*,* CD C−1} computed by the UCLS method (DNS) against correlations ([8] and present).
+0 D0
+
+$$
+\{\mathrm{Re}\mathrm{Re}_{0}^{-1},\mathrm{C}_{\mathrm{D}}\mathrm{C}_{\mathrm{D}0}^{-1}\}
+$$
+
+$$
+\mathrm{C_R}.
+$$
+
+$$
+\mathrm{Re_0^{-1}}=\mathrm{f}(\mathrm{C_R})
+$$
+
+$$
+C_{\mathrm{D}}C_{\mathrm{D}0}^{-1}=\mathrm{g}(C_{\mathrm{R}})
+$$
+
+$$
+\{\operatorname{Re}\operatorname{Re}_0^{-1},\operatorname{C}_{\mathrm{D}}\operatorname{C}_{\mathrm{D}0}^{-1}\}
+$$
+
+---
+
+**Fig. 18.** Interfacial area of bubbles in a vertical pipe. Comparison of UCLS results (DNS) and the proposed correlation A<sup>∗</sup>= f(Eo*,*Re*,*CR). At CR = 0,Eqs.(38)and(42)(Liu et al.
+[95]),Eqs.(38)and(39)(Wellek et al. [96]),Eqs.(38)and(41)(Besagni and Deen [97]).
+
+$$
+\mathrm{A}^{*}=\mathrm{f}(\mathrm{E}0,\mathrm{Re},\mathrm{C}_{\mathrm{R}}).\ \mathrm{At}\ \mathrm{C}_{\mathrm{R}}=0,
+$$
+
+(a) $A^* = (1 + a_1 \text{Eo}^{a_2} \text{Re}^{a_3}) (1 - C_R^{a_4})^{a_5}$
+
+$10^2$ $10^3$ Re
+
+**Fig. 19.** Interfacial area of bubbles in a vertical pipe. (a) A<sup>∗</sup>versus Re, where A<sup>∗</sup>= f(Re*,* Eo*,* CR), Eo = {3*.*125*,*4*.*5*,*6}, Mo = {10<sup>−11</sup>*,*10<sup>−10</sup>*,*10<sup>−9</sup>*,*10<sup>−8</sup>*,*}, 0*.*33 ≤ CR ≤ 0*.*8. (b) Parity
+plot for A<sup>∗</sup>calculated by the proposed correlation (Eq.(43)) against DNS data fromFig.19a.
+
+$$
+\mathbf{A}^{*}
+$$
+
+$$
+\mathrm{Re},
+$$
+
+$$
+\mathrm{A}^{*}=\mathrm{f}(\mathrm{Re},\mathrm{Eo},\mathrm{C}_{\mathrm{R}}),\mathrm{Eo}=\{3.125,4.5,6\},\mathrm{Mo}=\{10^{-11},10^{-10},10^{-9},10^{-8},\},0.33\leq\mathrm{C}_{\mathrm{R}}\leq0.8.(\mathrm{b})
+$$
+
+$$
+\mathrm{A}^{*}
+$$
+
+6, 10<sup>−11</sup>≤ Mo ≤ 10<sup>−8</sup>, CR ≤ 0*.*8. Consequently, {*𝑎, 𝑎, 𝑎, 𝑎, 𝑎*}
+1 2 3 4 5
+= {0*.*0209*,* 0*.*5471*,* 0*.*0835*,* 1*.*6057*,* 0*.*0403} for the proposed correlation
+(Eq.(43)).
+
+$$
+6,10^{-11}\leq M_0\leq10^{-8},C_R\leq0.8
+$$
+
+$$
+\{a_{1},a_{2},a_{3},a_{4},a_{5}\}
+$$
+
+$$
+\left(\mathrm{Eq.(43)}\right)
+$$
+
+Fig.18shows the time-averaged normalized interfacial area (A<sup>∗</sup>)
+versus the confinement ratio (CR), for the cases outlined inFigs.12–14.
+DNS results are remarked with symbols (◦*,⊲,⊳*), which are labelled for
+Eo = {3*.*125*,*4*.*5*,*6} and Mo = {10<sup>−11</sup>*,*10<sup>−10</sup>*,*10<sup>−9</sup>*,*10<sup>−8</sup>}. Furthermore,
+the normalized interfacial area calculated with the novel correlation,
+Eq.(43), is included in this figure with symbols (+). Here, Eo and
+CR are input parameters, whereas Re = Re(Eo*,*Mo*,*CR). On the other
+hand, A<sup>∗</sup>calculated by Eq.(43)at CR = 0 is also included, for
+comparison against Eq.(38)with E obtained from correlations of Liu
+et al. [95], Besagni and Deen [97], Aoyama et al. [98] and Wellek
+et al. [96]. Consequently, it is evidenced that predictions of the novel
+correlation (Eq.(43)) at CR = 0, are consistent with correlations from
+the literature [95–98].
+
+$$
+(C_{\mathrm{R}}),
+$$
+
+$$
+\left(0,\triangleleft,\triangleright\right)
+$$
+
+$$
+\mathrm{Eo}=\{3.125,4.5,6\}
+$$
+
+$$
+\mathrm{M}_{0}=\left\{10^{-11},10^{-10},10^{-9},10^{-8}\right\}
+$$
+
+$$
+\mathrm{C_R=0}
+$$
+
+$$
+\mathrm{C_R}
+$$
+
+$$
+\mathrm{C}_{\mathrm{R}},
+$$
+
+$$
+\mathrm{Re}=\mathrm{Re}(\mathrm{E}_0,\mathrm{Mo},\mathrm{C}_{\mathrm{R}})
+$$
+
+$$
+A^{*}
+$$
+
+$$
+\mathrm{C}_{\mathrm{R}}=0,
+$$
+
+Fig.19a shows the time-averaged normalized interfacial area (A<sup>∗</sup>)
+versus the time-averaged Reynolds number (Re). DNS results extracted
+
+from cases summarized inFigs.12–14are depicted with symbols
+(◦*,⊲,⊳*), using the same legends as inFig.18. Furthermore, the predictions performed with the novel correlation, Eq.(43), using {Eo*,* CR*,* Re}
+from DNS data as input parameters, are shown with symbols (+). On
+the other hand,Fig.19b presents a parity plot for the normalized
+interfacial area calculated with the proposed correlation (Eq.(43)),
+against DNS data. Here, 96% of the data are within ±1% deviations,
+with a maximum deviation of 1*.*5%.
+
+$$
+\left(\circ,\triangleleft,\triangleright\right)
+$$
+
+$$
+\mathrm{A^{*}(t^{*})}
+$$
+
+Further simulations were performed with validation purposes, using
+a constant confinement ratio CR = 0*.*33.Fig.20depicts {Re(t<sup>∗</sup>)*,* A (t<sup>∗</sup> <sup>∗</sup>)*,*
+Sh (t<sup>∗ ∗</sup>)} remarked with black lines. Furthermore, their time-averaged
+values {Re*,* A<sup>∗</sup>*,*Sh} are depicted with red lines through the period of
+averaging. Simulation parameters are constrained to 0*.*6 ≤ Eo ≤ 4*.*5, and
+10<sup>−11</sup>≤ Mo ≤ 10<sup>−4</sup>, which include spherical bubbles up to ellipsoidal
+bubbles in the wobbling regime, with Re ≈ *𝑂*(10) up to Re ≈ *𝑂*(10<sup>3</sup>).
+Bubbles tend to the spherical shape at the lowest Eötvös numbers, as
+shown inFig.20a. On the other hand,Figs.20b–c show that oscillations
+
+$$
+C_{R}=0.33.
+$$
+
+$$
+\mathrm{Sh^*(t^*)}
+$$
+
+$$
+0.6\leq\mathrm{Eo}\leq4.5,
+$$
+
+$$
+10^{-11}\leq Mo\leq10^{-4}
+$$
+
+$$
+\mathrm{Re}\approx O(10)
+$$
+
+$$
+\approx O(10^{3})
+$$
+
+---
+
+(a) $0.6 \leq Eo \leq 1$
+
+(b) $Eo = 3.125$
+
+(c) $Eo = 4.5$
+
+$$A^* (t^*) , A^*$$
+
+$$Sh(t^*) , Sh(t^*)$$
+
+—Eo=0.6, Mo=1e-8
+—Eo=0.6, Mo=3.1623e-7
+—Eo=0.8, Mo=3.1623e-7
+—Eo=0.7, Mo=3.1623e-8
+—Eo=1.0, Mo=3.1623e-6$$
+
+$$Eo=3.125, Mo=1e-11$$
+$$Eo=3.125, Mo=1e-10$$
+$$Eo=3.125, Mo=1e-9$$
+$$Eo=3.125, Mo=1e-8$$
+$$Eo=3.125, Mo=1e-7$$
+$$Eo=3.125, Mo=1e-6$$
+$$Eo=3.125, Mo=1e-5$$
+$$Eo=3.125, Mo=1e-4$$
+
+$$Eo=4.5, Mo=1e-11$$
+$$Eo=4.5, Mo=1e-10$$
+$$Eo=4.5, Mo=1e-9$$
+$$Eo=4.5, Mo=1e-8$$
+$$Eo=4.5, Mo=1e-7$$
+$$Eo=4.5, Mo=1e-6$$
+$$Eo=4.5, Mo=1e-5$$
+$$Eo=4.5, Mo=1e-4$$
+
+**Fig. 20.** Single bubble in a vertical pipe. CR = 0*.*33, Sc =1, Da = 0. {Re(t<sup>∗</sup>)*,* A<sup>∗</sup>(t<sup>∗</sup>)*,* Sh(t<sup>∗</sup>)} and their time-averaged values {Re*,* A<sup>∗</sup>*,* Sh} remarked with red lines. (a) 0*.*6 ≤ Eo ≤ 1.
+(b) Eo = 3*.*125. (c) Eo = 4*.*5.
+
+$$
+C_{R}=0.33,\;Sc=1,\;D_{\bar{a}}=0.\;\{Re(t^{*}),\;A^{*}(t^{*})
+$$
+
+$$
+E_{0}=3.125
+$$
+
+Deng and Mukashima (2001)
+Kakushino and Yao (2004)
+Kakushino and Yao (2004)
+Kakushino et al. (2004)
+
+Kakushino et al. (2
+
+**Fig. 21.** Single bubble in a vertical pipe. CR = 0*.*33, Sc = 1, Da =0. (a) {Sh*,* ShPe<sup>−1∕2</sup>} versus Re. DNS and correlations from Feng and Michaelides [99], Winnikow [100], Cussler
+[101], Takemura and Yabe [102], Lochiel and Calderbank [103], Montes et al. [104] and Abe et al. [51]. (b) A<sup>∗</sup>versus Mo. DNS and correlations from Wellek et al. [96], Aoyama
+et al. [98], Besagni and Deen [97] and Liu et al. [95].
+
+$$
+C_{R}=0.33,\;Sc=1
+$$
+
+$$
+\mathrm{Sh}\mathrm{Pe}^{-1/2}\}
+$$
+
+in the bubble shape arise as the Eötvös number and Reynolds number
+increase.
+
+Fig.21b shows the time-averaged normalized interfacial area (A<sup>∗</sup>)
+versus the Morton number (Mo), including DNS data fromFig.20
+against predictions from correlations proposed by Wellek et al. [96],
+Aoyama et al. [98], Liu et al. [95], Besagni and Deen [97] and Eq.(38).
+This assessment demonstrates an excellent agreement between DNS
+data and correlations from the literature [95–98], whereas UCLS predictions are closer to correlations of Besagni and Deen [97] and Liu
+et al. [95]. Consequently, these results validate the UCLS method for
+the interfacial area of bubbles.
+
+## 4.3. Mass transfer in bubbles in a vertical pipe
+
+Concerning unconfined domains, multiple mass transfer correlations
+have been proposed for spherical and ellipsoidal bubbles, as outlined
+inTable2. Winnikow [100] reported a correlation ShPe<sup>−1∕2</sup>= f(Re)
+for spherical bubbles based on the boundary layer theory, valid for
+Re *>* 70. The gas dissolution process of a spherical rising gas bubble was
+investigated experimentally and numerically by Takemura and Yabe
+[102], leading to a correlation Sh = f(Re*,*Pe), valid for Pe *>* 1 and Re *<*
+100. Lochiel and Calderbank [103] introduced a correlation ShPe<sup>−1∕2</sup>=
+f(*𝜒*) for ellipsoidal bubbles at Re *≫* 1. Feng and Michaelides [99]
+
+$$
+\mathrm{ShPe^{-1/2}}=\mathrm{f(Re)}
+$$
+
+$$
+\mathrm{Pe}>1
+$$
+
+$$
+\mathrm{Pe}^{-1/2}=
+$$
+
+$$
+\mathrm{f}(\chi)
+$$
+
+$$
+\mathrm{Re}\gg1
+$$
+
+---
+
+**Table 2**
+
+Sherwood number correlations for mass transfer in bubbles on unconfined domain.
+
+| Reference | Correlation |
+| --- | --- |
+| Winnikow [100] | ( ) 2 . 89 −1∕2 ShPe = 1− . √2 1∕2 Re 𝜋 Constraints: spherical bubble, Re &gt; 70. |
+| Takemura and Yabe [102] | ( ) √ ( ) −3∕4 23 −1∕2 1∕2 2∕3 ShPe = Pe +2 . 5 1− 1+0 . 09Re . √2 𝜋 Constraints: Pe &gt; 1, Re &lt; 100. |
+| Lochiel and Calderbank [103] | 1∕2 1∕3 2 1∕2 2 𝜒 ( 𝜒 23 −1∕2 (1+k) , ShPe = (−1) ) √2 √ 𝜋 2 1∕2 2 𝜒 ( 𝜒 −1) +ln 𝜒 + 𝜒 −1 ) ( √ −1 2 major axis e 𝜒 − sin 1 , e = 1− . 𝜒 = , k = − −1 2 minor axis 𝜒 e− 𝜒𝜒 sin e e Constraints: Re ≫ 1. |
+| Feng and Michaelides [99] | ( ) ( ) . 0Re+21 61Re . 0Re+21 61Re 1∕2 Sh =0 . 651Pe 1 . 032+ + 1 . 60− Constraints: in-viscid spherical bubble at high Re. |
+| Montes et al. [104] | ( ) 2 𝑑 U 𝜌 −1∕2 1∕2 𝑏 𝑐 r ShPe = 1 . 1+0 . 027We , We = √2 𝜎 𝜋 Constraints: oscillating bubble. ( ) ( ) |
+| Cussler [101] | 2 𝜌 − 𝜌 𝜌 1∕3 1∕3 3 𝑐 𝑑 𝑐𝑐 𝑔 Sh =0 . 31Gr Sc , Gr = 𝑑 𝑏 𝜌 𝜇 𝑐 Constraints: gas bubbles ( 𝑑 &gt; 0 . 3 cm), unstirred tank. 𝑏 |
+
+$$
+\mathrm{ShPe}^{-1/2}=\frac{2}{\sqrt{\pi}}\left(1-\frac{2.89}{\mathrm{Re}^{1/2}}\right).
+$$
+
+$$
+\mathrm{Constraint}_{s}\mathrm{spherical\ bubble,\ Re}>70.
+$$
+
+$$
+\mathrm{Sh}\mathrm{Pe}^{-1/2}=\frac{2}{\sqrt{\pi}}\left(\mathrm{Pe}^{1/2}+2.5\right)\sqrt{1-\frac{2}{3}\left(1+0.09\mathrm{Re}^{2/3}\right)^{-3/4}}.
+$$
+
+$$
+\mathrm{Constraints:Re>1,Re<100.}
+$$
+
+$$
+\mathrm{ShPe}^{-1/2}=\frac{2}{\sqrt{\pi}}\left(\frac{2}{3}(1+\mathrm{k})\right)^{1/2}\frac{2\chi^{1/3}\left(\chi^{2}-1\right)^{1/2}}{\chi\left(\chi^{2}-1\right)^{1/2}+\ln\left(\chi+\sqrt{\chi^{2}-1}\right)},
+$$
+
+$$
+\chi=\frac{\mathrm{major}\mathrm{axis}}{\mathrm{minor}\mathrm{axis}},\mathrm{k}=-\left(\frac{\mathrm{e}\chi^2-\chi\sin^{-1}\mathrm{e}}{\mathrm{e}-\chi\sin^{-1}\mathrm{e}}\right),\mathrm{e}=\sqrt{1-\frac{1}{\chi^2}}.
+$$
+
+$$
+Sh=0.651\mathrm{Re}^{1/2}\left(1.032+\frac{0.61\mathrm{Re}}{\mathrm{Re}+21}\right)+\left(1.60-\frac{0.61\mathrm{Re}}{\mathrm{Re}+21}\right)
+$$
+
+$$
+Constraints:in-viscid spherical bubble at high Re.
+$$
+
+$$
+\mathrm{Constraint}:\mathrm{Re}\gg1.
+$$
+
+$$
+\mathrm{ShPe^{-1/2}}=\frac{2}{\sqrt{\pi}}\left(1.1+0.027\mathrm{We^{1/2}}\right),\mathrm{We}=\frac{d_b\mathrm{U_t^2}\rho_c}{\sigma}
+$$
+
+$$
+Sh=0.31\mathrm{Gr}^{1/3}\mathrm{Sc}^{1/3},\mathrm{Gr}=d_b^3g\left(\frac{\rho_c-\rho_d}{\rho_c}\right)\left(\frac{\rho_c}{\mu_c}\right)^2
+$$
+
+**Table 3**
+Sherwood number correlations for mass transfer in bubbles in a vertical pipe. Here,
+Eo ≡ (*𝜌* − *𝜌*)*𝑔𝐷𝛺*<sup>2</sup>*𝜎*<sup>−1</sup>[105].
+D 𝑐 𝑑
+
+$$
+\mathrm{Eo}_{\mathrm{D}}\equiv\left(\rho_{c}-\rho_{d}\right)g D_{\Omega}^{2}\sigma^{-1}[105]
+$$
+
+| Reference | Correlation |
+| --- | --- |
+| Abe et al. [51] | 1∕2 . 872 Sh = 0 . 0818Re⁰ Sc . Constraints: 0 . 2 &lt; CR &lt; 1, 1100 &lt; Re &lt; 4700. ( ) ⎧ |
+| Hosoda et al. [105] | 2 ∗ 2 , 𝑎 C + 𝑎₁ C +1 , 0 &lt; C &lt; C √ R R R R −1∕2 𝜋 ShPe = ⎪ ⎨( ) ∗ 22 , 𝑏₂ CR + 𝑏₁ CR + 𝑏₀ , CR ≤ CR ≤ 2 ⎪ ⎩ |
+| Hosoda et al. [105] | ∗ CR = 0 . 61, { 𝑎₁ , 𝑎₂ } ={0 . 396 , 1 . 021}, { 𝑏₀ , 𝑏₁ , 𝑏₂ } = {2 . 064 , −0 . 691 , 0 . 489}. 5 6 Constraints: 1000 &lt; Re &lt; 5000, 5 . 3×10 &lt; Pe &lt; 2 . 6×10 , 20 &lt; Eo &lt; 85. D |
+| Hosoda et al. [105] |  |
+
+$$
+(d_{b}>0.3cm),unstrred tanh.
+$$
+
+$$
+\mathrm{Sh}=0.0818\mathrm{Re}^{0.872}\mathrm{Sc}^{1/2}
+$$
+
+$$
+\mathrm{Constraints:0.2<C_R<1,1100<Re<4700.}
+$$
+
+$$
+\mathrm{Sh}\mathrm{Pe}^{-1/2}=\left\{\begin{aligned}&\frac{2}{\sqrt{\pi}}\left(a_{2}\mathrm{C}_{\mathrm{R}}^{2}+a_{1}\mathrm{C}_{\mathrm{R}}+1\right),0<\mathrm{C}_{\mathrm{R}}<\mathrm{C}_{\mathrm{R}}^{*},\\ &\left(b_{2}\mathrm{C}_{\mathrm{R}}^{2}+b_{1}\mathrm{C}_{\mathrm{R}}+b_{0}\right),\mathrm{C}_{\mathrm{R}}^{*}\leq\mathrm{C}_{\mathrm{R}}\leq2,\end{aligned}\right.
+{\bf C}_{\mathrm{R}}^{*}=0.61,\left\{a_{1},a_{2}\right\}=\left\{0.396,1.021\right\},
+$$
+
+$$
+\{b_{0},b_{1},b_{2}\}=\{2.064,-0.691,0.489\}.
+$$
+
+$$
+\mathrm{Constraints:1000<Re<5000,5.3\times10^5<Pe<2.6\times10^6},
+$$
+
+$$
+20<\mathrm{Eo_D}<85.
+$$
+
+proposed a correlation Sh = f(Re*,* Pe) for an in-viscid spherical bubble
+at high Re. A theoretical mass transfer correlation ShPe<sup>−1∕2</sup>= f(We) in
+oscillating bubbles was reported by Montes et al. [104]. Cussler [101]
+reported a correlation Sh = Sh(Gr*,*Sc) for pure gas bubbles (0.3 cm or
+larger) in an unstirred tank.
+
+$$
+\mathrm{Sh}=\mathrm{f}(\mathrm{Re},\mathrm{Pe})
+$$
+
+$$
+\mathrm{Pe}^{-1/2}=\mathrm{f}(\mathrm{We})
+$$
+
+$$
+\mathrm{Sh}=\mathrm{Sh}(\mathrm{Gr},\mathrm{Sc})
+$$
+
+Concerning the wall effect on mass transfer in bubbles, Clift et al.
+[8] remarked that CR does not influence the mass transfer if CR *<*
+0*.*5. Abe et al. [51] introduced an experimental correlation, Sh =
+Sh(Re*,*Sc), for small bubbles and Taylor bubbles in a vertical pipe,
+adjusted for 0*.*2 *<* CR *<* 1 and 1100 *<* Re *<* 4700. Furthermore, Hosoda
+et al. [105] proposed an empirical correlation for clean bubbles and
+Taylor bubbles in pipes. These correlations have been summarized in
+Table3.
+
+$$
+\mathrm{C_R}
+$$
+
+$$
+C_{R}<
+$$
+
+$$
+0.2<\mathrm{C_R}<1
+$$
+
+$$
+1100<Re<4700
+$$
+
+Fig.20shows further UCLS simulations for Sh validation purposes,
+with CR = 0*.*33. The time evolution of the Reynolds number, Sherwood
+number and normalized interfacial area are remarked with black lines,
+whereas their time-averaged values are remarked with red lines. At low
+Eötvös number, Sh(t<sup>∗</sup>) tends to a well-defined steady state value, as
+depicted inFig.20a. On the other hand, oscillations in the Sherwood
+number are observed as the Reynolds number or the Eötvös number
+increase, as depicted inFig.20b–c, which are induced by changes in
+the bubble shape, bubble-wall interactions and path instabilities in the
+wobbling regime [8].Fig.21a shows that {Sh*,* ShPe<sup>−1∕2</sup>} computed
+by the UCLS method align consistently and closely with correlations
+outlined inTables2and3, namely Feng and Michaelides [99], Winnikow [100], Takemura and Yabe [102], Lochiel and Calderbank
+[103], Montes et al. [104], Abe et al. [51], and Cussler [101] (for
+Re *>* 100). Consequently, these results validate the UCLS method for
+mass transfer in bubbles, when CR effect is neglected.
+
+$$
+C_{R}=0.33
+$$
+
+$$
+\mathrm{Sh}\mathrm{Pe}^{-1/2}\}
+$$
+
+$$
+\mathrm{C_R}
+$$
+
+$$
+\mathrm{C_R}
+$$
+
+The subsequent analysis delves into the impact of CR on Sh.
+Figs.12–14depict Sh(t<sup>∗</sup>) calculated by the UCLS method for Eo =
+{3*.*125*,* 4*.*5*,* 6} and 0*.*33 ≤ CR ≤ 0*.*8, whereasFig.22a depicts ShPe<sup>−1∕2</sup>
+
+$$
+\{3.125,4.5,6\}
+$$
+
+$$
+0.33\leq\mathrm{C}_{\mathbb{R}}\leq0.8;
+$$
+
+$$
+\mathrm{Eo}=
+\mathrm{Pe}^{-1/2}
+$$
+
+**Table 4**
+
+Mass transfer correlations, Eq.(44). Least-squares fitting of *𝑎*<sub>𝑖</sub>.
+
+|  | 𝑎₁ | 𝑎₂ | 𝑎₃ | 𝑎₄ | 𝑎₅ |
+| --- | --- | --- | --- | --- | --- |
+| Eq.(44), MTC1 | 2789.9886 | 9.1724 | −0.0583 | −0.5987 | 0.2458 |
+| Eq.(44), MTC2 | 0.0028614 | 5.9238 | 13.4506 | −3.464 | 0.1254 |
+| Eq.(44), MTC3 | 24.6274 | 6.4964 | −0.1325 | – | – |
+
+$$
+a_{i}.
+$$
+
+$$
+a_{1}
+$$
+
+$$
+a_{2}
+$$
+
+$$
+a_{3}
+$$
+
+$$
+a_{5}
+$$
+
+$$
+a_{4}
+$$
+
+$$
+9.1724
+$$
+
+$$
+-0.0583
+$$
+
+$$
+-0.5987
+$$
+
+versus CR. UCLS predictions are close to the correlation of Abe et al.
+[51] (Table3) in their range of validity, whereas the wall effect on
+the mass transfer is low for CR *<* 0*.*5, consistently with Clift et al. [8].
+Furthermore, the correlation proposed by Hosoda et al. [5] (Table3)
+is included for comparison. Note that correlation of Hosoda et al. [5]
+is valid for 5*.*3×10<sup>5</sup>*<* Pe *<* 2*.*6×10<sup>6</sup>, whereas Pe *<* 1700 and Sc = 1 for
+the present UCLS simulations. On the other hand, note that correlation
+√
+of Hosoda et al. [5] (Table3) assume lim ShPe<sub>−1∕2</sub>= 2∕ *𝜋*, which
+CR →0
+corresponds to the Boussinesq [106] model for spherical bubbles at
+high Reynolds number.
+
+$$
+\mathrm{C_R}.
+$$
+
+$$
+\mathrm{C_R}<0.5
+$$
+
+$$
+\mathrm{Pe}<1700
+$$
+
+$$
+5.3\times10^{5}<\mathrm{Pe}<2.6\times10^{6}
+$$
+
+$$
+\$\mathtt{c}=1
+$$
+
+$$
+\lim_{\mathrm{C}_{\mathrm{R}}\rightarrow0}\mathrm{ShPe}^{-1/2}=2/\sqrt{\pi}
+$$
+
+In this context, a correlation for ShPe<sup>−1∕2</sup>in ellipsoidal bubbles in a
+vertical pipe will be argued. According to Lochiel and Calderbank [103]
+ShPe<sup>−1∕2</sup>= f(*𝜒*) for ellipsoidal bubbles at Re *≫* 1 (Table2), whereas
+*𝜒*<sup>−1</sup>= E = f(Eo*,*Re) [95–98], on unconfined domain. Furthermore,
+Re = f(Eo*,*Mo*,*CR) [8] and E = f(Eo*,*Re*,*CR) (Eqs.(43),(38)) for bubbles
+in a vertical pipe. Consequently, a potential mass transfer correlation
+for ellipsoidal bubbles in a vertical pipe could be postulated as ShPe<sup>−1∕2</sup>
+= f(CR*,* Mo*,* Re) = (ShPe<sup>−1∕2</sup>) g(CR*,* Mo*,* Re), where lim ShPe<sup>−1∕2</sup>
+0 CR →0
+= (ShPe<sup>−1∕2</sup>). Alternatively, ShPe<sup>−1∕2</sup>= f(CR*,* Eo*,* Re), and ShPe<sup>−1∕2</sup>
+0
+= f(CR*,* Gr) with Gr = Eo<sup>3∕2</sup>Mo<sup>−1∕2</sup>, are also evaluated:
+⎧
+
+$$
+\mathrm{Sh}\mathrm{Pe}^{-1/2}
+$$
+
+$$
+\mathrm{ShPe}^{-1/2}=\mathrm{f}(\chi)
+$$
+
+$$
+\chi^{-1}=\mathrm{E}=\mathrm{f}(\mathrm{E}0,\mathrm{Re})[95-98]
+$$
+
+$$
+\mathrm{Re}=\mathrm{f}(\mathrm{Eo},\mathrm{Mo},\mathrm{C}_{\mathrm{R}})
+$$
+
+$$
+\mathrm{E}=\mathrm{f}(\mathrm{Eo},\mathrm{Re},\mathrm{C}_{\mathrm{R}})
+$$
+
+$$
+\mathrm{Sh}\mathrm{Pe}^{-1/2}
+=\mathrm{f}(\mathrm{C}_{\mathbb{R}},
+$$
+
+$$
+\mathrm{Re})=(\mathrm{ShPe}^{-1/2})_0\mathrm{g}(\mathrm{C}_{\mathrm{R}}
+$$
+
+$$
+\lim_{C_{\mathbb{R}}\to0}\operatorname{Sh}\operatorname{Pe}^{-1/2}
+=(\mathrm{Sh}\operatorname{Pe}^{-1/2})_0.
+$$
+
+$$
+\mathrm{Pe}^{-1/2}=\mathrm{f}(\mathrm{C}_{\mathbb{R}},
+$$
+
+$$
+\mathrm{Sh}\mathrm{Pe}^{-1/2}
+=\mathrm{f}(\mathrm{C_R},\mathrm{Gr})
+$$
+
+$$
+\mathrm{Gr}=\mathrm{Eo}^{3/2}\mathrm{Mo}^{-1/2}
+$$
+
+$$
+\frac{\mathrm{Sh}\mathrm{Pe}^{-1/2}}{(\mathrm{Sh}\mathrm{Pe}^{-1/2})_0}=\left\{\begin{aligned}&(1+a_1\mathrm{C}_{\mathrm{R}}{}^{a_2}\mathrm{Eo}^{a_3}\mathrm{Re}^{a_4})^{a_5},&\mathrm{MTC1},\\ &(1+a_1\mathrm{C}_{\mathrm{R}}{}^{a_2}\log(1/\mathrm{Mo})^{a_3}\mathrm{Re}^{a_4})^{a_5},&\mathrm{MTC2},\\ &(1+a_1\mathrm{C}_{\mathrm{R}}{}^{a_2}\mathrm{Gr}^{a_3}),&\mathrm{MTC3}.\end{aligned}\right.
+$$
+
+(44)
+
+Fig.22a shows ShPe<sup>−1∕2</sup>versus CR, including DNS data extracted
+from simulations outlined inFigs.12–14, and predictions from correlations reported by Abe et al. [51] and Hosoda et al. [105]. Note
+that the wall effect on ShPe<sup>−1∕2</sup>is very low for CR *<* 0*.*5, and
+consequently (ShPe<sup>−1∕2</sup>) ≈ (ShPe<sup>−1∕2</sup>)*.* Indeed, each series of
+0 CR =0.33
+data {(ShPe<sup>−1∕2</sup>)*,* C} with {Eo*,*Mo} constant, is fitted to ShPe<sup>−1∕2</sup>=
+i Ri∗ ∗
+−1∕2 𝑎₁ 𝑎₂
+(ShPe)<sub>0</sub>(1+CR) by the least-squares method, to calculate {(Sh
+Pe−1∕2), 𝑎∗, 𝑎∗}.
+0 1 2
+
+$$
+\mathrm{C_R},
+$$
+
+$$
+\mathrm{Pe}^{-1/2}
+$$
+
+$$
+12-14
+$$
+
+$$
+\mathrm{Pe}^{-1/2}
+$$
+
+$$
+C_{R}<0.5,
+$$
+
+$$
+(\mathrm{Sh}\mathrm{Pe}^{-1/2})_{\mathrm{i}},\mathrm{C}_{\mathrm{Ri}}\}
+$$
+
+$$
+(\mathrm{ShPe^{-1/2}})_0\approx(\mathrm{ShPe^{-1/2}})_{C_R=0.33}
+$$
+
+$$
+\mathrm{Sh}\mathrm{Pe}^{-1/2}=
+(\mathrm{ShPe}^{-1/2})_{0}\left(1+\mathrm{C_{R}}^{a_{1}^{*}}\right)^{a_{2}^{*}}
+$$
+
+$$
+\mathrm{Pe}^{-1/2})_0,a_1^*,a_2^*\}.
+$$
+
+Fig.22b shows (ShPe−<sup>1</sup>∕<sup>2</sup>)(ShPe<sup>−1∕2</sup>)<sup>−1</sup>versus CR, and (ShPe<sup>−1∕2</sup>)
+0
+(ShPe<sub>−1∕2</sub>)<sub>−1</sub>versus Re. Note that Re = f(Eo*,*Mo*,*CR). Therefore, {Eo*,*
+0
+Mo} are the input parameters used to label the DNS data. Furthermore,
+predictions of the novel correlations outlined in Eq.(44)are included
+
+$$
+\left(\mathrm{ShPe}^{-1/2}\right)\left(\mathrm{ShPe}^{-1/2}\right)_0^{-1}
+$$
+
+$$
+\mathrm{C_R},
+$$
+
+$$
+(\mathrm{Sh}\mathrm{Pe}^{-1/2})_0^{-1}
+$$
+
+$$
+(\mathrm{Sh}\mathrm{Pe}^{-1/2})
+$$
+
+$$
+\mathrm{Re}=\mathrm{f}(\mathrm{Eo},\mathrm{Mo},\mathrm{C}_{\mathrm{R}})
+$$
+
+---
+
+(a)
+$ShP_e^{-1/2}$
+Eo=3,125,Mo=1e-11
+Eo=3,125,Mo=1e-10
+Eo=3,125,Mo=1e-9
+Eo=3,125,Mo=1e-8
+Hosoda (2014), bubbles
+Abe (2008)
+0 0.2 0.4 0.6 0.8 $C_R$
+
+$ShPe^{-1/2}$ $C_R$
+Eo=4.5,Mo=1e-11
+Eo=4.5,Mo=1e-10
+Eo=4.5,Mo=1e-9
+Eo=4.5,Mo=1e-8
+Hosoda (2014), bubbles
++ Abe (2008)
+
+$ShPe^{-1/2}$
+Eo=6,Mo=1e-11
+Eo=6,Mo=1e-10
+Eo=6,Mo=1e-9
+Eo=6,Mo=1e-8
+Hosoda (2014), bubbles
++ Abe (2008)
+
+$+\frac{\mathrm{Sh} \mathrm{Pe}^{-1 / 2}}{(\mathrm{Sh} \mathrm{Pe}^{-1 / 2})_0} = (1 + a_1 \mathrm{C_R}^{a_2} \mathrm{Eo}^{a_3} \mathrm{Rc}^{a_4})^{a_0}$ $C_{\mathrm{R}}$
+
+$+\frac{\mathrm{ShPe}^{-1/2}}{(\mathrm{ShPe}^{-1/2})_0} = (1 + \mathrm{C_R}^{a_1}\log(1/\mathrm{Mo})^{a_2}\mathrm{Re}^{a_3})^{a_4}$ $C_D$
+
+$+\frac{\mathrm{ShPe}^{-1/2}}{(\mathrm{ShPw}^{-1/2})_0} = \left( 1 + a_1\mathrm{C_R}^{a_2}\mathrm{Gr}^{a_2} \right)$ $C_R$
+
+$+\frac{\mathrm{Sh}\mathrm{Pe}^{-1/2}}{(\mathrm{Sh}\mathrm{Pe}^{-1/2})_0} = (1 + a_1\mathrm{C}_R^{a_2}\mathrm{Eo}^{a_3}\mathrm{Re}^{a_4})^{a_5}$ $10^2$ $10^3$ Re
+
+$ (\mathrm{Sh}\mathrm{Pe}^{-1/2})(\mathrm{Sh}\mathrm{Pe}^{-1/2})^{-1}_{0} + \frac{\mathrm{Sh}\mathrm{Pe}^{-1/2}}{(\mathrm{Sh}\mathrm{Pe}^{-1/2})_{0}} = (1+a_{1}\mathrm{C_{R}}^{a_{2}}\log(1/\mathrm{Mo})^{a_{3}}\mathrm{Re}^{a_{4}})^{a_{5}} $ $ 10^{2} $ $ 10^{3} $
+
+$+\frac{\mathrm{ShPe}^{-1/2}}{(\mathrm{ShPe}^{-1/2})_0} = (1 + a_1\mathrm{C}_R^{a2}\mathrm{Gr}^{a3})$
+Re
+$Eo=3.125, Mo=1e-11 \triangleleft Eo=4.5,Mo=1e-11 \triangleright Eo=6,Mo=1e-11$
+$Eo=3.125,Mo=1e-10 \triangleleft Eo=4.5,Mo=1e-10 \triangleright Eo=6,Mo=1e-10$
+$Eo=3.125,Mo=1e-9 \triangleleft Eo=4.5,Mo=1e-9 \triangleright Eo=6,Mo=1e-9$
+$Eo=3.125,Mo=1e-8 \triangleleft Eo=4.5,Mo=1e-8 \triangleright Eo=6,Mo=
+
+(c) $ \frac{\mathrm{Sh} \mathrm{Pe}^{-1 / 2}} {(\mathrm{Sh} \mathrm{Pe}^{-1 / 2})_0}=\left(1+a_{1} \mathrm{C}_{\mathrm{R}}^{a_{2}} \mathrm{Eo}^{a_{3}} \mathrm{Re}^{a_{4}}\right)^{a_{5}} $
+Correlation
+$ a_{1}=2789.9886 $ +10%
+$ a_{2}=0.1724 $ -10%
+$ a_{3}=-0.088345 $ -
+$ a_{4}=-0.50873 $ -
+$ a_{5}=0.24581 $ -
+0.5 1 1.5 2 2.5 DNS
+
+$ \frac{\mathrm{Sh}\,\mathrm{Pe}^{-1/2}}{\left(\mathrm{Sh}\,\mathrm{Pe}^{-1/2}\right)_0}=\left(1+a_1\mathrm{C_R}^{a_2}\log\left(1/\mathrm{Mo}\right)^{a_3}\mathrm{Re}^{a_4}\right)^5 $ Correlation $ a_1=0.0092814 $ +10% $ a_2=5.9228 $ $ a_3=13.4506 $ -10% $ a_4=-3.464 $ $ a_5=0.12537 $ 0.5 1 1.5 2 2.5 DNS
+
+$a_1 = 24.6274$
+$a_2 = 6.4964$
+$a_3 = -0.13245$
++10%
+-10%
+Correlation
+DNS
+0.5
+1
+1.5
+2
+2.5
+
+**Fig. 22.** Single bubble in a verticle pipe. (a) ShPe<sup>−1∕2</sup>versus CR. DNS data and correlations from Hosoda et al. [105] and Abe et al. [51] (Table3). (b) (ShPe<sup>−1∕2</sup>)(ShPe<sup>−1∕2</sup>)<sup>−1</sup>
+0
+versus CR and Re. DNS data and the novel correlations, Eq.(44). (c) Parity plots for (ShPe<sub>−1∕2</sub>)(ShPe<sub>−1∕2</sub>)<sub>−1</sub>. DNS data and the novel correlations, Eq.(44).
+0
+
+$$
+\mathrm{Sh}\mathrm{Pe}^{-1/2}
+$$
+
+$$
+\mathrm{C}_{\mathbb{R}}.
+$$
+
+$$
+\mathrm{C_R}
+$$
+
+$$
+\mathtt{R e}.
+$$
+
+$$
+^{-1/2})(\mathrm{Sh}\mathrm{Pe}^{-1/2})_0^{-1}
+$$
+
+for comparison.Fig.22c shows a parity plot for (ShPe<sup>−1∕2</sup>)(ShPe<sup>−1∕2</sup>)<sup>−1</sup>
+0
+calculated by the UCLS method (DNS) against correlations in Eq.(44).
+Concerning Eq.(44)-MTC1, 95% of the data are within ±10% deviations, with a maximum deviation of 14%. For the second correlation,
+Eq.(44)-MTC2, 96% of the data are within ±10% deviations, with a
+maximum deviation of 14%. Finally, for Eq.(44)-MTC3 that include
+Gr = Eo<sup>3∕2</sup>Mo<sup>−1∕2</sup>, 93% of the data are within ±10% deviations, with
+a maximum deviation of 15%. Coefficients {*𝑎*<sub>𝑖</sub>} of Eq.(44)are fitted
+by the least squares method. Their numerical values are outlined in
+Fig.22b andTable4. Note that correlations in Eq.(44)are adjusted
+with DNS data in the range 3*.*125 ≤ Eo ≤ 6, 10<sup>−11</sup>≤ Mo ≤ 10<sup>−8</sup>,
+CR ≤ 0*.*8, 50 *<* Re *<* 1700, Sc = 1, and Da = 0.
+
+$$
+\mathrm{Pe}^{-1/2}\left(\mathrm{ShPe}^{-1/2}\right)_0^{-1}
+$$
+
+$$
+\mathrm{Gr}=\mathrm{Eo}^{3/2}\mathrm{Mo}^{-1/2}
+$$
+
+$$
+3.125\leq E_{0}\leq6,\quad10^{-11}\leq M_{0}\leq10^{-8}
+$$
+
+$$
+C_{R}\leq0.8,\quad50<Re<1700,\quad Sc=1
+$$
+
+$$
+\mathrm{Da}=0.
+$$
+
+## 4.4. Drag force and mass transfer in bubble swarms in a vertical pipe
+
+$$
+\mathrm{C_D}
+$$
+
+Once single bubbles in a vertical pipe have been researched, Direct
+Numerical Simulations (DNS) are conducted for drag force and reactive
+mass transfer in a swarm of bubbles rising in a full periodic cube
+and periodic pipe at Re = *𝑂*(100 − 1000). The multi-marker UCLS
+approach [17,59] is employed to prevent the numerical coalescence of
+bubbles [59]. The Reynolds number is calculated according toEqs.(27)
+and(28). Following the work of Simonnet et al. [107], Roghair et al.
+[15] and Gillissen et al. [108], when bubbles move in a swarm the
+magnitude of the buoyancy force is lower as compared with a single
+bubble, because of the effect of the mixture density. Therefore, the
+balance between gravity and drag forces has to account for this effect.
+Consequently, CD in bubble swarms is calculated as follows:
+
+(45)
+
+$$
+\frac{\mathrm{C}_{\mathrm{D}}}{1-\alpha}=\frac{4}{3}\frac{d_{b}\left(\rho_{c}-\rho_{d}\right)g}{\rho_{c}\mathrm{U_{r}}^{2}},
+$$
+
+$$
+\mathrm{Re}=O(100-1000)
+$$
+
+where the corrective term (1− *𝛼*) is added in the drag formulation as
+compared to the isolated bubble case (Eq.(33)).
+
+For simulations in a periodic pipe (Fig.23), *𝛺* is discretized by
+the mesh *𝑀*<sub>9</sub>as detailed inTable1, with grid size {*ℎ*<sub>𝑚𝑎𝑥</sub>*, ℎ*<sub>𝑚𝑖𝑛</sub>} =
+{*𝑑*<sub>𝑏</sub>∕40*, ℎ*<sub>𝑚𝑎𝑥</sub>∕3} (seeFig.3). For a full periodic cube (Fig.24), *𝛺* is
+discretized by the mesh *𝑀*<sub>5</sub>(Table5), comprising hexahedral control
+volumes with a uniform grid size of *ℎ* = *𝑑*<sub>𝑏</sub>∕40*.*65. Boundary conditions
+for the periodic pipe remain consistent with those used for bubbles in
+a pipe, as discussed in Section4.1.1. However, in the cube scenario, all
+boundaries are configured as periodic. The initial conditions involve a
+random distribution of *𝑁*<sub>𝑏</sub>bubbles in *𝛺*, whereas the fluid is quiescent.
+Since bubble coalescence is avoided [17,59] and the flow is incompressible, {*𝑁*<sub>𝑏</sub>*,𝛼*} are kept constant throughout simulations. Dimensionless
+parameters are Eo = 3*.*125, Mo = 10<sup>−11</sup>, *𝜂* = 100, *𝜂* = 100, Sc = 1,
+𝜌 𝜇
+Da = 400, 0 *< 𝛼 <* 0*.*23, for both the periodic cube (CR = 0) and the
+periodic pipe (C<sub>R</sub>= 0*.*25). A further illustrative video of these numerical
+experiments has been attached in the section on additional material for
+Eo = 3*.*125, Mo = 10<sup>−10</sup>.
+
+$$
+M_{9}
+$$
+
+$$
+\{h_{max},h_{min}\}=
+\{d_{b}/40,h_{m a x}/3\}
+$$
+
+$$
+M_{5}
+$$
+
+$$
+h=d_{b}/40.65
+$$
+
+$$
+N_{b}
+$$
+
+$$
+\Omega,
+$$
+
+$$
+\{N_b,\alpha\}
+$$
+
+$$
+\mathrm{Eo}=3.125,\quad\mathrm{Mo}=10^{-11},\quad\eta_{o}=100,\quad\eta_{u}=100,\quad\mathrm{Sc}=1
+$$
+
+$$
+\mathrm{Da}=400,\;0<\alpha<0.23,
+$$
+
+$$
+\left(\mathrm{C_{R}=0}\right)
+$$
+
+$$
+\left(\mathrm{C}_{\mathrm{R}}=0.25\right)
+$$
+
+The bubble swarm hydrodynamics predicted by the multi-marker
+UCLS method will be validated by comparison with correlations from
+the literature. In this framework, Roghair et al. [15] performed fronttracking simulations of bubble swarms in a full-periodic domain and
+proposed a correlation CD = CD(Eo*,𝛼*) in the range 1 ≤ Eo ≤ 5,
+4 × 10<sup>−12</sup>≤ Mo ≤ 2 × 10<sup>−9</sup>, with a maximum deviation of 21% and
+*𝛼* ≤ 45%:
+
+$$
+\mathrm{C_D}=\mathrm{C_D}(\mathrm{Eo},\alpha)
+$$
+
+$$
+1\leq\mathrm{Eo}\leq5,
+$$
+
+$$
+4\times10^{-12}\leq M_0\leq2\times10^{-9}
+$$
+
+$$
+\alpha\leq45\%
+$$
+
+$$
+\mathrm{C_D C_{D0}^{-1}(1-\alpha)^{-1}=1+18E o^{-1}\alpha}.
+$$
+
+(46)
+
+Further correlations in the form CDC (1 − *𝛼*)<sup>−1</sup>= *𝑓* (*𝛼*) have been
+D0 −1
+summarized by [15]. For instance, Rusche et al. [109] proposed the empirical correlation *𝑓* (*𝛼*) = (exp(3*.*64*𝛼*)+ *𝛼*<sup>0</sup><sup>.</sup><sup>864</sup>). Lockett and Kirkpatrick
+
+$$
+C_{D}C_{D0}^{-1}(1-\alpha)^{-1}=f(\alpha)
+$$
+
+$$
+f(\alpha)=\left(\exp(3.64\alpha)+\alpha^{0.864}\right)
+$$
+
+---
+
+(a)
+g
++4.8 $\omega_z^*$ -4.8
+1 $C_c^*$ 0
+
+(b)
++4.8 $\omega_z^*$ -4.8
+1 $C_c^*$ 0
+
+**Fig. 23.** Gravity-driven bubble swarms in a vertical pipe. Eo = 3*.*125, Mo = 10<sup>−11</sup>, Sc = 1, Da = 400, CR = 0*.*25. Normalized concentration (C<sup>∗</sup>) and normalized vorticity
+c
+∗ −1∕2 1∕2 ∗ ∗
+(*𝜔*<sub>𝑧</sub>= *𝑔 𝑑*<sub>𝑏</sub>(∇× **𝐯**) ⋅ **𝐞**<sub>𝑧</sub>), on the plane *𝑥* − *𝑦*. (a) *𝛼* = 0*.*125, *𝑁*<sub>𝑏</sub>= 12, *𝑡* = 12*.*5. (b) *𝛼* = 0*.*208, *𝑁*<sub>𝑏</sub>= 20, *𝑡* = 10.
+
+$$
+\left(\omega_{z}^{*}=g^{-1/2}d_{b}^{1/2}(\nabla\times\mathbf{v})\cdot\mathbf{e}_{z}\right)
+$$
+
+a)
+
+g
+
++5 $\omega_z^*$ -5
+
+(b)
+
+1 $C_c^*$ 0
+
+**Fig. 24.** Gravity-driven bubble swarms in a full periodic cube (8 cubes). Eo = 3*.*125, Mo = 10<sup>−11</sup>, Sc = 1, Da = 400, *𝛼* = 0*.*229, *𝑁* = 22, *𝑡*<sup>∗</sup>= 15*.*04. (a) Normalized vorticity
+𝑏
+∗ −1∕2 1∕2 ∗
+(*𝜔*𝑧= *𝑔 𝑑*𝑏(∇× **𝐯**) ⋅ **𝐞***𝑧*), on the plane *𝑥* − *𝑦*. (b) Normalized concentration (Cc).
+
+$$
+\mathrm{Mo}=10^{-11}
+$$
+
+$$
+\left(\omega_{z}^{*}=g^{-1/2}d_{b}^{1/2}(\nabla\times\mathbf{v})\cdot\mathbf{e}_{z}\right)
+$$
+
+$$
+(\mathrm{C}_{\mathrm{c}}^{*}).
+$$
+
+[110] proposed *𝑓* (*𝛼*) = ((1−*𝛼*)<sup>1</sup><sup>.</sup><sup>39</sup>(1+2*.*55*𝛼*<sup>3</sup>))<sup>−2</sup>with *𝛼* interpreted as
+𝑔 𝑔 𝑔
+the global gas fraction.
+
+$$
+f(\alpha)=\left((1-\alpha_{g})^{1.39}(1+2.55\alpha_{g}^{3})\right)^{-2}
+$$
+
+Fig.25shows the time evolution of Reynolds number Re(t<sup>∗</sup>), normalized interfacial area A<sup>∗</sup>(t<sup>∗</sup>), normalized concentration C<sup>∗</sup>(t<sup>∗</sup>), rec
+marked with black lines. On the other hand, their time-averaged values
+{Re*,* A<sup>∗</sup>*,* C<sup>∗</sup>} are remarked with red lines that extend through the period
+c
+of averaging. Configuration of bubble swarms include the volume
+fraction 0*.*167 ≤ *𝛼* ≤ 0*.*229 and number of bubbles 16 ≤ *𝑁*<sub>𝑏</sub>≤ 22 for
+the fully periodic domain (Fig.25a), whereas 0*.*125 ≤ *𝛼* ≤ 0*.*208 and
+12 ≤ *𝑁* ≤ 20 for the periodic vertical pipe (Fig.25b). Note that C<sup>∗</sup>(t<sup>∗</sup>)
+𝑏 c
+arrives to a steady state value, which indicates a balance between the
+consumption of chemical species by the chemical reaction in *𝛺*<sub>𝑐</sub>and
+the mass transfer from the bubble to *𝛺*<sub>𝑐</sub>.
+
+$$
+\alpha_{g}
+$$
+
+$$
+\mathrm{A^{*}(t^{*})}
+$$
+
+$$
+\mathrm{C_{c}^{*}(t^{*})},
+$$
+
+$$
+\{\mathrm{Re},\mathrm{A}^*,\mathrm{C}_{\mathrm{c}}^*\}
+$$
+
+$$
+16\leq N_{b}\leq22
+$$
+
+$$
+0.167\leq\alpha\leq0.229
+$$
+
+$$
+12\leq N_{b}\leq20
+$$
+
+$$
+0.125\leq\alpha\leq0.208
+$$
+
+$$
+C_{R}=0
+$$
+
+$$
+\mathrm{C_{c}^{*}(t^{*})}
+$$
+
+$$
+\mathrm{C_D C_{D0}}^{-1}(1-\alpha)^{-1}
+$$
+
+Fig.26-a depicts CDC (1 − *𝛼*)<sup>−1</sup>predicted by the multi-marker
+D0 −1
+UCLS method in a fully periodic cube (Fig.24), as compared with the
+correlation proposed by Roghair et al. [15] (Eq.(46)), and empirical
+correlations of Rusche et al. [109] and Lockett and Kirkpatrick [110].
+The drag coefficient for a single bubble at CR = 0, here denoted as
+C<sub>D0</sub>, is calculated by the correlation proposed by Dijkhuizen et al.
+[94] (Eq.(35)). Least squares fitting of the multi-marker UCLS data
+
+$$
+\varOmega_{c}
+$$
+
+$$
+\varOmega_{c}
+$$
+
+$$
+C_{D0},
+$$
+
+leads to CDC (1 − *𝛼*)<sup>−1</sup>= 1 + 5*.*9472*𝛼*, whereas Eq.(46)[15] for
+D0 −1
+Eo = 3*.*125 leads to CD C (1− *𝛼*)<sup>−1</sup>= 1+5*.*76*𝛼*. Consequently, DNS
+D0 −1
+data calculated with the multi-marker UCLS method, closely agree with
+the correlation proposed by Roghair et al. [15], which has been based
+on front-tracking simulations. The difference against empirical correlations of Rusche et al. [109] and Lockett and Kirkpatrick [110] could be
+attributed to the influence of uncontrolled contamination, coalescence
+and the breakup of bubbles in experiments, and that the computational
+domain is small as compared to the experimental domain.Fig.26-b
+shows CDC (1−*𝛼*)<sup>−1</sup>for simulations in a periodic vertical pipe, and
+D0 −1
+predictions of correlations. As expected, higher values of drag force
+coefficient are predicted in comparison with simulations performed in
+the fully periodic cube, as a consequence of the wall effect.
+
+$$
+C_{D}C_{D0}^{-1}(1-\alpha)^{-1}=1+5.9472\alpha;
+$$
+
+$$
+\mathrm{Eo}=3.125
+$$
+
+$$
+C_{D}C_{D0}^{-1}(1-\alpha)^{-1}=1+5.76\alpha
+$$
+
+$$
+\mathrm{C_D C_{D0}}^{-1}(1-\alpha)^{-1}
+$$
+
+Concerning the normalized interfacial area (A<sup>∗</sup>in Eq.(32)).Fig.26-
+a and b show a decrement of A<sup>∗</sup>as *𝛼* increases. DNS data for A<sup>∗</sup>has
+been extrapolated to *𝛼* = 0, and compared against correlations proposed
+by Liu et al. [95], Besagni and Deen [97], Wellek et al. [96], and the
+correlation given by Eq.(43)introduced in this research. Numerical
+results are in excellent agreement with Eq.(43)(A<sup>∗</sup>= *𝑓*(Eo*,*Re*,*CR)
+with *𝛼* = 0), for both periodic cube (CR = 0) and periodic vertical pipe
+
+$$
+A^{*}
+$$
+
+$$
+\alpha=0,
+$$
+
+$$
+\left(\mathrm{A^*}\right)=f(\mathrm{Eo},\mathrm{Re},\mathrm{C_R})
+$$
+
+$$
+\left(\mathrm{C}_{\mathbb{R}}=0\right)
+$$
+
+---
+
+(a) $Re(t^*), Re$ $t^*$ 0 7.5 15
+
+(b) $Re(t^*), Re$ 1500 750 0 6 12 $t^*$
+
+$A^* (t^*), A^*$
+0 7.5 15
+
+$C^*_c(t^*)$
+0.5 7.5 15
+$t^*$
+-- $\alpha=0.229, N_b=22$ ----$\alpha=0.156, N_b=15$
+---- $\alpha=0.208, N_b=20$ .....$\alpha=0.146, N_b=14$
+.....$\alpha=0.188, N_b=18$ ——$\alpha=0.135, N_b=13$
+—— $\alpha=0.177, N_b=17$ -- $\alpha=0.115, N_b=11$
+-- $\alpha=0.167, N_b=16$ --- $\alpha=0.073, N_b=7$
+
+$A^* (t^*), A^*$
+1.2
+1.1
+1
+0 6 12
+
+$C_{c}^{*} (t^{*})$
+0.5
+0
+0 6 12
+$t^{*}$
+-- $\alpha=0.208, N_{b}=20$ ---- $\alpha=0.104, N_{b}=10$
+---- $\alpha=0.188, N_{b}=18$ .... $\alpha=0.063, N_{b}=6$
+..... $\alpha=0.167, N_{b}=16$
+—— $\alpha=0.146, N_{b}=14$
+-- $\alpha=0.125, N_{b}=12$
+
+**Fig. 25.** Gravity-driven bubble swarms. {Re(t<sup>∗</sup>)*,* A<sup>∗</sup>(t<sup>∗</sup>)*,* C<sup>∗</sup>(t<sup>∗</sup>)} and {Re*,* A<sup>∗</sup>*,* C<sup>∗</sup>} (red line). Eo = 3*.*125, Mo = 10<sup>−11</sup>, Sc = 1, Da = 400. (a) Full periodic cube, CR = 0. (b) Vertical
+c c
+periodic pipe, CR = 0*.*25.
+
+$$
+\mathrm{t^*}),\mathrm{A^*(t^*)},\mathrm{C^*_c(t^*)}\}
+$$
+
+$$
+C_{R}=0.25
+$$
+
+$$
+\mathrm{,A^{*},C_{c}^{*}}\}
+$$
+
+$$
+C_{\mathbb{R}}=0.
+$$
+
+(CR = 0*.*25). Furthermore, as *𝛼* tends to zero, A<sup>∗</sup>is closer to correlations
+of Besagni and Deen [97] and Liu et al. [95].
+
+$$
+\mathrm{Mo}=10^{-11}
+$$
+
+$$
+A^{*}
+$$
+
+$$
+\left(C_{\mathrm{R}}=0.25\right)
+$$
+
+Hereafter, DNS of mass transfer in bubble swarms in periodic cube
+and periodic vertical pipe are discussed. Concerning the computational
+setup, note that the concentration will reach saturation (*𝐶*<sub>𝑐</sub>= *𝐶*<sub>𝛤,𝑐</sub>)
+without chemical species consumption in the continuous phase. This
+issue is circumvented by activating a first-order chemical reaction
+in Eq.(11)[16,17]. In this framework, *𝑘*<sub>𝑐</sub>is computed from the
+steady-state mass balance of the chemical species in *𝛺*<sub>𝑐</sub>:
+
+$$
+\left(C_{c}\;=\;C_{\Gamma,c}\right)
+$$
+
+$$
+\left[16,17\right]
+$$
+
+$$
+k_{c}
+$$
+
+$$
+\varOmega_{c};
+$$
+
+$$
+k_{c}(t)(C_{\varGamma,c}-C_{c}(t))A(t)-k_{1}C_{c}(t)V_{c}=V_{c}\frac{d}{d t}C_{c}(t),
+$$
+
+(47)
+
+∑𝑁<sup>𝑏</sup> 𝑑
+where *𝐴*(*𝑡*) = *𝐴*𝑖(*𝑡*). Once *𝐶*𝑐(*𝑡*) achieves the steady state, *𝐶*𝑐(*𝑡*) =
+𝑖=1 *𝑑𝑡*
+0, and *𝑘*<sub>𝑐</sub>is obtained from Eq.(47).
+
+$$
+A(t)=\sum_{i=1}^{N_{b}}A_{i}(t)
+$$
+
+$$
+0,
+$$
+
+$$
+C_{c}(t)
+$$
+
+$$
+\frac{d}{dt}C_{c}(t)=
+k_{c}
+$$
+
+Fig.25depicts C<sup>∗</sup>(t<sup>∗</sup>) for bubble swarms with Sc = 1 and Da =
+400. After initial transient effects, C<sub>c</sub><sub>c</sub>achieves the steady-state, which
+indicates an equilibrium between the mass transfer rate from bubbles to
+*𝛺*<sub>𝑐</sub>and the consumption of the chemical species. Furthermore,Fig.26
+shows that ShPe<sup>−1∕2</sup>increases as *𝛼* increases , according to the linear
+relation ShPe<sup>−1∕2</sup>= *𝑎* +*𝑎 𝛼*, depicted for the fully periodic domain and
+1 2
+the periodic vertical pipe. The Reynolds number in bubbles in a vertical
+pipe is reduced by the wall effect, in comparison with the unconfined
+scenario. Furthermore, ShPe<sup>−1∕2</sup>is smaller in the periodic vertical pipe
+as compared with the periodic cube.
+
+$$
+\S c=1
+$$
+
+$$
+\mathrm{C_{c}^{*}(t^{*})}
+$$
+
+$$
+\mathrm{Da}=
+\varOmega_{c}
+$$
+
+In addition,Fig.26depicts a parity plot {Cc*,* Cc,FM}, where Cc
+denotes DNS predictions, and Cc,FMrefers to results calculated with the
+film model as reported by Roghair et al. [16]. This theory assumes a
+stagnant film layer around the interface at a local steady-state, where
+diffusion and chemical reaction influence the mass transfer of chemical
+species. On the other hand, chemical species outside this film layer
+are assumed to be perfectly mixed by the turbulence. In the range of
+dimensionless numbers used in this research, DNS predictions are in
+close agreement with the film theory, as depicted inFig.26for both
+the periodic vertical pipe and the fully periodic cube.
+
+$$
+\mathrm{Pe}^{-1/2}=a_1+a_2\alpha,
+$$
+
+$$
+\mathrm{Pe}^{-1/2}
+$$
+
+$$
+\{\mathbf{C}_{\mathrm{c}},\mathbf{C}_{\mathrm{c,FM}}\}
+$$
+
+$$
+\mathrm{C_{c,FM}}
+$$
+
+$$
+\mathrm{Pe}^{-1/2}
+$$
+
+$$
+\mathbf{C}_{\mathrm{c}}
+$$
+
+## 5. Conclusions
+
+The UCLS method has undergone comprehensive validation for
+parameters Re, CD, Sh, and A ,<sup>∗</sup>in the context of bubbles within a
+vertical pipe. Upon this validation, an extensive series of 92 simulations
+was executed, encompassing a parameter range of 3*.*125 ≤ Eo ≤ 6,
+10<sup>−11</sup>≤ Mo ≤ 10<sup>−8</sup>, 0*.*33 ≤ C ≤ 0*.*8, with fixed Sc = 1 and Da = 0.
+R
+Concerning the normalized interfacial area of bubbles in a vertical pipe,
+a novel correlation A<sup>∗</sup>= f(Eo*,*Re*,*CR) was proposed, as presented in
+Eq.(43). Furthermore, novel correlations for mass transfer in bubbles
+in a vertical pipe were proposed, namely: ShPe<sup>−1∕2</sup>= f(Eo*,*Re*,*CR),
+ShPe<sup>−1∕2</sup>= f(Mo*,*Re*,*CR) and ShPe<sup>−1∕2</sup>= f(Gr*,*CR), as outlined in
+Eq.(44). Finally, UCLS data was fitted to the drag force correlation
+CD C = (1−CR<sup>𝑎</sup><sup>1</sup>)<sup>2</sup> <sup>𝑎</sup><sup>2</sup>, leading to {*𝑎,𝑎*} = {1*.*91*,*0*.*42}. These results
+D0 −1 1 2
+are in close agreement with the correlation proposed by Clift et al. [8]
+(Eq.(36)).
+
+$$
+C_{D},
+$$
+
+$$
+A^{*}
+$$
+
+$$
+10^{-11}\leq M_{0}\leq10^{-8},0.33\leq C_{R}\leq0.8
+$$
+
+$$
+3.125\leq\mathrm{E}0\leq6,
+$$
+
+$$
+\mathrm{Da}=0.
+$$
+
+$$
+\mathbb{S}\mathfrak{c}=1
+$$
+
+$$
+\mathrm{A^*}=\mathrm{f}(\mathrm{Eo},\mathrm{Re},\mathrm{C_R})
+$$
+
+$$
+\mathrm{ShPe^{-1/2}}=\mathrm{f}(\mathrm{Mo},\mathrm{Re},\mathrm{C}_{\mathrm{R}})
+$$
+
+$$
+\mathrm{Pe^{-1/2}}=\mathrm{f}(\mathrm{Eo},\mathrm{Re},\mathrm{C_R})
+$$
+
+$$
+\mathrm{ShPe^{-1/2}}=\mathrm{f(Gr,C_R)}
+$$
+
+$$
+\mathrm{C_D C_{D0}^{-1}=(1-C_R^{a_1})^{2a_2}}
+$$
+
+$$
+\{a_{1},a_{2}\}=\{1.91,0.42\}
+$$
+
+On the other hand, DNS of bubble swarms in a periodic vertical
+pipe and fully periodic cube have been performed in the framework of
+the multi-marker UCLS method [17]. DNS predictions of CD in a fully
+periodic cube are consistent with the correlation proposed by Roghair
+et al. [16]. Concerning the interfacial area of bubbles in a swarm, A<sup>∗</sup>
+decreases with *𝛼*. As *𝛼* tends to zero A<sup>∗</sup>is closer to results predicted by
+Eq.(43), as well as correlations of Liu et al. [95] and Besagni and Deen
+[97]. Concerning the mass transfer in bubbles in a swarm, ShPe<sup>−1∕2</sup>
+increases with *𝛼*, whereas the film-theory leads to accurate predictions
+for C<sub>c</sub>, within the range of conditions explored in this research.
+
+$$
+\mathrm{C_D}
+$$
+
+$$
+\alpha.
+$$
+
+$$
+A^{*}
+$$
+
+$$
+\alpha,
+$$
+
+$$
+\mathrm{C_{c}},
+$$
+
+$$
+\mathrm{Sh}\mathrm{Pe}^{-1/2}
+$$
+
+## CRediT authorship contribution statement
+
+**Néstor Balcázar-Arciniega:** Writing – review & editing, Writing – original draft, Visualization, Validation, Supervision, Software,
+Resources, Project administration, Methodology, Investigation, Funding acquisition, Formal analysis, Data curation, Conceptualization.
+**Joaquim Rigola:** Resources, Project administration, Funding acquisition. **Carlos D. Pérez-Segarra:** Resources, Project administration,
+Funding acquisition. **Assensi Oliva:** Resources, Project administration,
+Funding acquisition.
+
+---
+
+(a) $C_{\mathrm{D}} C_{\mathrm{D}0}^{-1}(1 - \alpha)^{-1}$
+--- Roghair et al.(2011)
+DNS
+Rusche and Issa (2000)
+$1 + 5.9472\alpha$
+Lockett et al.(1975)
+
+b) $C_{\mathrm{D}} C_{\mathrm{D}0}^{-1}(1 - \alpha)^{-1}$
+--- Roghair et al.(2011)
+Rusche and Issa (2000)
+$1 + 6.9292\alpha$
+Lockett et al.(1975)
+
+$A^*$ DNS $A^* = a_1(1 - \alpha^{a_1})^{a_1}$ $A^* = (1 + a_1\mathrm{Eo}^{0.2}\mathrm{R}_0^{a_0})(1 - \mathrm{C}_R^{a_1})^{a_0}, \mathrm{C_R} = 0$ Liu et al.(2021) Besagni and Deen (2020) Wellec et al.(1966)
+
+1.1
+DNS
+--- A* = a₁ (1 - α²)ᵃ²
+★ A* = (1 + a₁ Eo² Rc₀ᵃ²) (1 - C_Rᵄ¹)ᵃ¹, C_R = 0.25
+1.05
+1
+0 0.05 0.1 0.15 0.2
+
+$ \mathrm{Sh P e}^{-1/2} $ 3
+2.5
+2
+1.5
+0.05 0.1 0.15 0.2 0.25
+DNS -- $ \mathrm{Sh R e}^{-1/2}=1.581+4.808\alpha $
+
+$ \mathrm{Sh P e}^{-1/2} $ $ \bigcirc $ DNS $ -\mathrm{Sh R e}^{-1/2}=1.334+3.3722\alpha $ 0.05 0.1 0.15 0.2 0.25
+
+$C_{\mathrm{c,FM}} = C_{\Gamma ,\mathrm{c}} \left( \mathrm{Ha} \left( \mathrm{AL}-1\right) \sinh (\mathrm{Ha}) + \cosh (\mathrm{Ha}) \right)^{-1}$ $C_{\mathrm{c,FM}}$ 0.3 0.2 0.1 0 0.1 0.2 0.3 $C_{\mathrm{c}}$, (DNS)
+
+$C_{c,\mathrm{FM}} = C_{\Gamma,c} \left( \mathrm{Ha} \left( \mathrm{AL}-1 \right) \sinh (\mathrm{Ha}) + \cosh (\mathrm{Ha}) \right)^{-1}$ $C_{c,\mathrm{FM}}$ $0.2$ $0.1$ $0$ $0.1$ $0.2$ $C_{c}$, (DNS)
+
+**Fig. 26.** Gravity-driven bubble swarms. Eo = 3*.*125, Mo = 10<sup>−11</sup>, Sc =1, Da = 400. {CD*,* A<sup>∗</sup>*,*ShPe<sup>−1∕2</sup>} versus *𝛼*, and parity plot {C<sup>∗</sup>*,* C<sup>∗</sup>}. C<sup>∗</sup>is calculated by the film model [16],
+c c,FM c,FM
+()<sub>1∕2</sub> ◦
+𝑘<sub>1</sub><u></u>𝑐(1−𝛼),𝑘𝑐𝑉𝛺
+Ha =2is the Hatta number, AL = <sub>∑</sub><sub>𝑁</sub>𝑏is the Hinterland ratio. (a) Full periodic cube, CR = 0. (b) Periodic pipe, CR = 0*.*25.
+𝑘*𝑐* <sub>𝑐</sub> 𝑖=1𝐴𝑖
+
+$$
+M_{0}=10^{-11}
+$$
+
+$$
+\{\mathrm{C}_{\mathrm{D}},\mathrm{A}^{*},\mathrm{Sh}\mathrm{Pe}^{-1/2}\}
+$$
+
+$$
+\mathrm{AL}=\frac{(1-\alpha)^{\circ},k_{c}V_{\Omega}}{D_{c}\sum_{i=1}^{N_{b}}A_{i}}
+$$
+
+$$
+\mathrm{Ha}=\left(\frac{k_1D_c}{k_c^2}\right)^{1/2}
+$$
+
+## Declaration of competing interest
+
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to
+influence the work reported in this paper.
+
+Data will be made available on request.
+
+## Appendix A. Interface deformation
+
+The ability of UCLS method to capture extreme interface deformations is proven with the 3D deformation field proposed by LeVeque
+[79] and Enright et al. [111]. A sphere of *𝑑*<sub>𝑏</sub>= 0*.*3 is centred at
+(0*.*35, 0*.*35, 0*.*35). *𝛺* is a cubic domain of unit side length (Fig.3a).
+The convective term of the interface transport equation (Eq.(18)) is
+solved with unstructured flux-limiters, whereas two steps (*𝛥𝜏*) of the reinitialization equation (Eq.(19)) are applied. Momentum transport and
+mass transfer equation solvers are disconnected, whereas an external
+velocity field is applied:
+()
+𝜋𝑡
+
+$$
+d_{b}=0.3
+$$
+
+(48)
+
+## Data availability
+
+$$
+\begin{aligned}&v_{x}=2\sin^{2}(\pi x)\sin(2\pi y)\sin(2\pi z)\cos\left(\frac{\pi t}{T}\right),\\&v_{y}=-\sin(2\pi x)\sin^{2}(\pi y)\sin(2\pi z)\cos\left(\frac{\pi t}{T}\right),\\&v_{z}=-\sin(2\pi x)\sin(2\pi y)\sin^{2}(\pi z)\cos\left(\frac{\pi t}{T}\right),\\ \end{aligned}
+$$
+
+$$
+\mathrm{C}_{\mathbb{R}}=0.
+$$
+
+$$
+\{\mathrm{C}_{\mathrm{c}}^{*},\mathrm{C}_{\mathrm{c},\mathrm{FM}}^{*}\}.\mathrm{C}_{\mathrm{c},\mathrm{FM}}^{*}
+$$
+
+$$
+C_{R}=0.25.
+$$
+
+**Table 5**
+Mesh configuration for a cubic domain (Fig.3a). *𝑁𝐶𝑉* is the total number of control
+volumes, *𝐿*<sub>𝛺</sub>is the cube side length, *𝑑*<sub>𝑏</sub>is the spherical equivalent bubble diameter, *ℎ*
+is the characteristic grid size.
+
+$$
+L_{\varOmega}
+$$
+
+$$
+d_{b}
+$$
+
+$$
+N_{CV}
+$$
+
+| Mesh | 𝑁 𝐶𝑉 | ℎ | Cell geometry | 𝐿 𝛺 | CPUs |
+| --- | --- | --- | --- | --- | --- |
+| 𝑀₁ | 6 29 . 5×10 | 𝐿𝛺 ∕128 | Tetrahedron | 4 𝑑 𝑏 | 1440 |
+| 𝑀₂ | 6 12 . 35×10 | 𝐿𝛺 ∕96 | Tetrahedron | 4 𝑑 𝑏 | 480 |
+| 𝑀₃ | 6 3 . 60×10 | 𝐿𝛺 ∕64 | Tetrahedron | 4 𝑑 𝑏 | 192 |
+| 𝑀₄ | 6 0 . 48×10 | 𝐿𝛺 ∕32 | Tetrahedron | 4 𝑑 𝑏 | 24 |
+| 𝑀₅ | 6 3 . 375×10 | 𝐿𝛺 ∕150 | Hexahedron | 3 . 69 𝑑 𝑏 | 192 |
+
+$$
+M_{1}
+$$
+
+$$
+N_{CV}
+$$
+
+$$
+h
+$$
+
+$$
+M_{2}
+$$
+
+480 Data availability 𝑏
+
+$$
+29.5\times10^{6}
+$$
+
+$$
+L_{\varOmega}
+$$
+
+$$
+L_{\mathcal{Q}}/128
+$$
+
+$$
+12.35\times10^{6}
+$$
+
+$$
+M_{3}
+$$
+
+$$
+4d_{b}
+$$
+
+$$
+L_{\varOmega}/96
+$$
+
+$$
+4d_{b}
+$$
+
+$$
+3.60\times10^{6}
+$$
+
+$$
+M_{4}
+$$
+
+$$
+\overset{s_{2}r}{L_{\varOmega}/64}
+$$
+
+$$
+4d_{b}
+$$
+
+$$
+0.48\times10^{6}
+$$
+
+$$
+M_{5}
+$$
+
+$$
+L_{\varOmega}/32
+$$
+
+$$
+4d_{b}
+$$
+
+$$
+3.375\times10^{6}
+$$
+
+$$
+L_{\Omega}/150
+$$
+
+$$
+3.69d_{b}
+$$
+
+()
+The cos *𝜋𝑡𝑇*−1term permits the interface to return to its initial state
+at *𝑡* = *𝑇*. The interface is advected using a period *𝑇* = 3, resulting in
+the significant thinning of the sphere with a maximum deformation at
+*𝑡* = *𝑇*∕2 (Fig.27).
+
+$$
+\left(\pi t T^{-1}\right)
+$$
+
+$$
+t=T
+$$
+
+$$
+T=3,
+$$
+
+$$
+t=T/2(\mathrm{F i g.~27})
+$$
+
+The grid convergence of the interface shape is evaluated using the
+*𝐸*<sub>1</sub>error norm:
+
+$$
+E_{1}
+$$
+
+$$
+E_{1}(\Psi)=\frac{1}{N_{k}}\sum_{k=1}^{N_{k}}\mid\Psi_{k}-\Psi_{k}^{\mathrm{ref}}\mid,
+$$
+
+∣ ,(49)
+
+where *𝑁*<sub>𝑘</sub>is the number of sample points in the period of deformation,
+*𝑡* = [0*,𝑇*]. Here, *𝛹* = (*𝜋𝑑*<sup>2</sup>)∕*𝑆* is the sphericity evaluated at *𝑡*,
+𝑘 𝑘 𝑏 𝑘 𝑘
+*𝑆* = ∫ *𝛿*<sub>𝑠</sub>*𝑑𝑉*, and *𝛿*<sup>𝑠</sup>= ‖∇*𝜙* ‖. Furthermore, *𝛹*<sub>ref</sub>refers to the finest
+<sup>𝑘</sup> <sub>𝛺</sub> *𝛤,𝑖* 𝛤,*𝑖* 𝑖 <sub>𝑘</sub>
+mesh (*𝑀*<sub>1</sub>,Table5).
+
+$$
+N_{k}
+$$
+
+$$
+t_{k}\;=\;[0,T]
+$$
+
+$$
+\Psi_{k}\;=\;(\pi d_{b}^{2})/S_{k}
+$$
+
+$$
+t_{k},
+$$
+
+$$
+S_{k}=\int_{\varOmega}\delta_{\varGamma,i}^{s}d V
+$$
+
+$$
+\delta_{\varGamma,i}^{s}=\left\|\nabla\phi_{i}\right\|
+$$
+
+$$
+\varPsi_{k}^{\mathrm{ref}}
+$$
+
+$$
+\left(M_{1},\right.
+$$
+
+Fig.28a depict second-order convergence for *𝐸*<sub>1</sub>(*𝛹*).Figs.28b and
+27b illustrates the effect of *𝛼* on the sphericity.Fig.27b shows that
+
+$$
+E_{1}(\Psi)
+$$
+
+---
+
+(a) $h=1/32$
+
+(b) $\alpha=0.9$
+
+$\alpha=0.95$
+
+$\alpha=0.975$
+
+$\alpha=1$
+
+**Fig. 27.** Interface deformation at *𝑡* = 0*.*5*𝑇*. (a) Grid convergence of the interface shape. Grid size *ℎ* = {*𝐿𝛺*∕128*, 𝐿𝛺*∕96*, 𝐿𝛺*∕64*, 𝐿𝛺*∕32}, meshes {*𝑀₁, 𝑀₂, 𝑀₃, 𝑀₄*} (Table5),
+*𝛼* = 0*.*9. (b) Effect of interface thickness, *𝜀* = 0*.*5*ℎ*<sup>𝛼</sup>(see Eqs.(3),(5)). Grid size *ℎ* = *𝐿𝛺*∕128, mesh *𝑀₁* (Table5).
+𝑃 𝑃
+
+$$
+t=0.5T.
+$$
+
+$$
+h=\left\{L_{\Omega}/128,L_{\Omega}/96,L_{\Omega}/64,L_{\Omega}/32\right\}
+$$
+
+$$
+\alpha=0.9.
+$$
+
+$$
+\varepsilon_{P}=0.5h_{P}^{\alpha}
+$$
+
+$$
+\{M_{1},M_{2},M_{3},M_{4}\}
+$$
+
+$$
+h=L_{\varOmega}/128,
+$$
+
+$$
+M_{1}
+$$
+
+(a) $L_1(\Psi)$ for $2^\circ$ order and $1^\circ$ order
+
+(b) $\Psi$ vs $h/L_\Omega$ for different $\alpha$ values
+
+(c) $\Psi$ vs $t^*$ for different $\alpha$ values
+
+**Fig. 28.** Interface deformation. (a) Grid convergence of the sphericity (*𝛹* (*𝑡*)). Grid size *ℎ* = {*𝐿𝛺*∕128*, 𝐿𝛺*∕96*, 𝐿𝛺*∕64*, 𝐿𝛺*∕32}, meshes {*𝑀₁, 𝑀₂, 𝑀₃, 𝑀₄*} (Table5). (b) Effect of
+interface thickness, *𝜀* = 0*.*5*ℎ*<sup>𝛼</sup>(see Eqs.(3),(5)). *ℎ* = *𝐿𝛺*∕128, mesh *𝑀₁* (Table5). (c) Effect of flux-limiter schemes (Eq.(16)). *ℎ* = *𝐿𝛺*∕128, mesh *𝑀₁* (Table5).
+𝑃 𝑃
+
+$$
+h=\{L_{\Omega}/128,L_{\Omega}/96,L_{\Omega}/64,L_{\Omega}/32\}
+$$
+
+$$
+h=L_{\varOmega}/128,
+$$
+
+$$
+M_{1}
+$$
+
+$$
+\{M_{1},M_{2},M_{3},M_{4}\}
+$$
+
+$$
+\varepsilon_{P}=0.5h_{P}^{\alpha}
+$$
+
+$$
+h=L_{\varOmega}/128,
+$$
+
+*𝛼* = 1 leads to the minimum interface thickness, whereas the tiny
+lamella structure is captured at *𝑡* = 0*.*5*𝑇*. If *𝛼* = 0*.*9, the interface
+thickness increases. Furthermore, the interface breaks at *𝑡* = 0*.*5*𝑇*.
+Fig.28c shows the effect of the flux-limiter (SUPERBEE, MINMOD,
+SMART, UPWIND), setting *𝛼* = 1. The predicted sphericity at *𝑡* = *𝑇*
+using MINMOD and UPWIND limiters depart from results using SMART
+and SUPERBEE limiters due to the numerical diffusion. Results with
+SMART and SUPERBEE limiter better approximate the initial droplet
+sphericity (*𝛹* = 1).
+
+$$
+M_{1}
+$$
+
+$$
+\alpha=1
+$$
+
+$$
+\alpha=0.9
+$$
+
+$$
+t=0.5T
+$$
+
+$$
+t=0.5T.
+$$
+
+$$
+t=T
+$$
+
+$$
+\alpha=1
+$$
+
+## References
+
+## Appendix B. Supplementary data
+
+Supplementary material related to this article can be found online
+athttps://doi.org/10.1016/j.cej.2024.153124.
+
+[1]R.F. Mudde, Gravity-driven bubbly flows, Annu. Rev. Fluid Mech. 37 (1) (2005)
+393–423.
+[2]M.P. Dudukovic, F. Larachi, P.L. Mills, Multiphase reactors – revisited, Chem.
+Eng. Sci. 54 (13–14) (1999) 1975–1995.
+[3]A. Koynov, J.G. Khinast, G. Tryggvason, Mass transfer and chemical reactions in
+bubble swarms with dynamic interfaces, AIChE J. 51 (10) (2005) 2786–2800.
+[4]R. Zenit, D.L. Koch, A.S. Sangani, Measurements of the average properties of a
+suspension of bubbles rising in a vertical channel, J. Fluid Mech. 429 (2001)
+307–342.
+[5]S. Hosoda, S. Abe, S. Hosokawa, A. Tomiyama, Mass transfer from a bubble in
+a vertical pipe, Int. J. Heat Mass Transfer 69 (2014) 215–222.
+[6]D. Colombet, D. Legendre, A. Cockx, P. Guiraud, F. Risso, C. Daniel, S. Galinat,
+Experimental study of mass transfer in a dense bubble swarm, Chem. Eng. Sci.
+66 (14) (2011) 3432–3440.
+[7]F. Risso, Agitation, mixing, and transfers induced by bubbles, Annu. Rev. Fluid
+Mech. 50 (1) (2018) 25–48.
+[8]R. Clift, J. Grace, M. Weber, Bubbles, Drops, and Particles, Dover Publications,
+Inc, New York, 1978.
+
+[9]E.E. Michaelides, Particles, Bubbles and Drops, World Scientific, 2006.
+[10]A. Prosperetti, G. Tryggvason, in: A. Prosperetti, G. Tryggvason (Eds.), Computational Methods for Multiphase Flow, Cambridge University Press, Cambridge,
+2007.
+[11]G. Tryggvason, R. Scardovelli, S. Zaleski, Direct numerical simulations of
+gas-liquid multiphase flows, 2011.
+[12]Y. Ge, L.-S. Fan, 3-D direct numerical simulation of gas–liquid and gas–liquid–
+solid flow systems using the level-set and immersed-boundary methods, 2006,
+pp. 1–63.
+[13]D.Z. Zhang, A. Prosperetti, Averaged equations for inviscid disperse two-phase
+flow, J. Fluid Mech. 267 (1994) 185–219.
+[14]A. Esmaeeli, G. Tryggvason, Direct numerical simulations of bubbly flows part
+2. Moderate Reynolds number arrays, J. Fluid Mech. (1999).
+[15]I. Roghair, Y. Lau, N. Deen, H. Slagter, M. Baltussen, M. Van Sint Annaland,
+J. Kuipers, On the drag force of bubbles in bubble swarms at intermediate and
+high Reynolds numbers, Chem. Eng. Sci. 66 (14) (2011) 3204–3211.
+[16]I. Roghair, M. Van Sint Annaland, J. Kuipers, An improved front-tracking
+technique for the simulation of mass transfer in dense bubbly flows, Chem.
+Eng. Sci. 152 (2016) 351–369.
+[17]N. Balcazar-Arciniega, O. Antepara, J. Rigola, A. Oliva, A level-set model for
+mass transfer in bubbly flows, Int. J. Heat Mass Transfer 138 (2019) 335–356.
+[18]G. Tryggvason, B. Bunner, A. Esmaeeli, D. Juric, N. Al-Rawahi, W. Tauber,
+J. Han, S. Nas, Y.-J. Jan, A front-tracking method for the computations of
+multiphase flow, J. Comput. Phys. 169 (2) (2001) 708–759.
+[19]S. Osher, J.A. Sethian, Fronts propagating with curvature-dependent speed:
+Algorithms based on hamilton-Jacobi formulations, J. Comput. Phys. 79 (1)
+(1988) 12–49.
+[20]M. Sussman, P. Smereka, S. Osher, A level set approach for computing solutions
+to incompressible two-phase flow, J. Comput. Phys. 114 (1) (1994) 146–159.
+[21]C. Hirt, B. Nichols, Volume of fluid (VOF) method for the dynamics of free
+boundaries, J. Comput. Phys. 39 (1) (1981) 201–225.
+[22]W.J. Rider, D.B. Kothe, Reconstructing volume tracking, J. Comput. Phys. 141
+(2) (1998) 112–152.
+[23]M. Sussman, E.G. Puckett, A coupled level set and volume-of-fluid method for
+computing 3D and axisymmetric incompressible two-phase flows, J. Comput.
+Phys. 162 (2) (2000) 301–337.
+[24]Z. Wang, J. Yang, B. Koo, F. Stern, A coupled level set and volume-of-fluid
+method for sharp interface simulation of plunging breaking waves, Int. J.
+Multiph. Flow (2009).
+
+---
+
+[25]D. Sun, W. Tao, A coupled volume-of-fluid and level set (VOSET) method for
+computing incompressible two-phase flows, Int. J. Heat Mass Transfer 53 (4)
+(2010) 645–655.
+[26]N. Balcazar, O. Lehmkuhl, L. Jofre, J. Rigola, A. Oliva, A coupled volumeof-fluid/level-set method for simulation of two-phase flows on unstructured
+meshes, Comput. Fluids 124 (2016) 12–29.
+[27]E. Olsson, G. Kreiss, A conservative level set method for two phase flow, J.
+Comput. Phys. 210 (1) (2005) 225–246.
+[28]O. Desjardins, V. Moureau, H. Pitsch, An accurate conservative level set/ghost
+fluid method for simulating turbulent atomization, J. Comput. Phys. 227 (18)
+(2008) 8395–8416.
+[29]N. Balcázar, L. Jofre, O. Lehmkuhl, J. Castro, J. Rigola, A finite-volume/level-set
+method for simulating two-phase flows on unstructured grids, Int. J. Multiph.
+Flow 64 (2014) 55–72.
+[30]M.R. Davidson, M. Rudman, Volume-of-fluid calculation of heat or mass transfer
+across deforming interfaces in two-fluid flow, Numer. Heat Transfer B 41 (3–4)
+(2002) 291–308.
+[31]D. Bothe, M. Koebe, K. Wielage, H.-J. Warnecke, VOF-simulations of mass
+transfer from single bubbles and bubble chains rising in aqueous solutions,
+in: Volume 2: Symposia, Parts A, B, and C, ASMEDC, 2003, pp. 423–429.
+[32]A. Alke, D. Bothe, M. Kroeger, H.-J. Warnecke, VOF-based simulation of
+conjugate mass transfer from freely moving fluid particles, 2009, pp. 157–168.
+[33]A. Onea, M. Wörner, D.G. Cacuci, A qualitative computational study of
+mass transfer in upward bubble train flow through square and rectangular
+mini-channels, Chem. Eng. Sci. 64 (7) (2009) 1416–1435.
+[34]R. Gupta, D.F. Fletcher, B.S. Haynes, CFD modelling of flow and heat transfer
+in the Taylor flow regime, Chem. Eng. Sci. 65 (6) (2010) 2094–2107.
+[35]K. Hayashi, A. Tomiyama, Interface tracking simulation of mass transfer from
+a dissolving bubble, J. Comput. Multiph. Flows 3 (4) (2011) 247–261.
+[36]D. Bothe, M. Koebe, K. Wielage, J. Prüss, H.-J. Warnecke, Direct numerical
+simulation of mass transfer between rising gas bubbles and water, 2004, pp.
+159–174.
+[37]M.M. Francois, N.N. Carlson, The global embedded interface formulation for
+interfacial mass transfer within a volume tracking framework, Comput. & Fluids
+87 (2013) 102–114.
+[38]K. Hayashi, S. Hosoda, G. Tryggvason, A. Tomiyama, Effects of shape oscillation
+on mass transfer from a Taylor bubble, Int. J. Multiph. Flow 58 (2014) 236–245.
+[39]D. Bothe, S. Fleckenstein, A volume-of-fluid-based method for mass transfer
+processes at fluid particles, Chem. Eng. Sci. (2013).
+[40]A. Weiner, D. Bothe, Advanced subgrid-scale modeling for convectiondominated species transport at fluid interfaces with application to mass transfer
+from rising bubbles, J. Comput. Phys. 347 (2017) 261–289.
+[41]C.M.Y. Claassen, S. Islam, E.A.J.F.F. Peters, N.G. Deen, J.A.M.H. Kuipers, M.W.
+Baltussen, An improved subgrid scale model for front-tracking based simulations
+of mass transfer from bubbles, AIChE J. 66 (4) (2020).
+[42]H. Marschall, K. Hinterberger, C. Schüler, F. Habla, O. Hinrichsen, Numerical
+simulation of species transfer across fluid interfaces in free-surface flows using
+openfoam, Chem. Eng. Sci. 78 (2012) 111–127.
+[43]D. Deising, H. Marschall, D. Bothe, A unified single-field model framework
+for volume-of-fluid simulations of interfacial species transfer applied to bubbly
+flows, Chem. Eng. Sci. 139 (2016) 173–195.
+[44]C. Yang, Z.-S. Mao, Numerical simulation of interphase mass transfer with the
+level set approach, Chem. Eng. Sci. 60 (10) (2005) 2643–2660.
+[45]J. Wang, P. Lu, Z. Wang, C. Yang, Z.-S. Mao, Numerical simulation of unsteady
+mass transfer by the level set method, Chem. Eng. Sci. 63 (12) (2008)
+3141–3151.
+[46]D. Darmana, N.G. Deen, J.A.M. Kuipers, Detailed 3D modeling of mass transfer
+processes in two-phase flows with dynamic interfaces, Chem. Eng. Technol. 29
+(9) (2006) 1027–1033.
+[47]M. Falcone, D. Bothe, H. Marschall, 3D direct numerical simulations of reactive
+mass transfer from deformable single bubbles: An analysis of mass transfer
+coefficients and reaction selectivities, Chem. Eng. Sci. 177 (2018) 523–536.
+[48]R. Krishna, M. Urseanu, J. van Baten, J. Ellenberger, Wall effects on the rise of
+single gas bubbles in liquids, Int. Commun. Heat Mass Transfer 26 (6) (1999)
+781–790.
+[49]R. Kurimoto, K. Hayashi, A. Tomiyama, Terminal velocities of clean and
+fully-contaminated drops in vertical pipes, Int. J. Multiph. Flow 49 (2013) 8–23.
+[50]K. Mukundakrishnan, S. Quan, D.M. Eckmann, P.S. Ayyaswamy, Numerical
+study of wall effects on buoyant gas-bubble rise in a liquid-filled finite cylinder,
+Phys. Rev. E 76 (3) (2007) 036308.
+[51]S. Abe, H. Okawa, S. Hosokawa, A. Tomiyama, Dissolution of a carbon dioxide
+bubble in a vertical pipe, J. Fluid Sci. Technol. 3 (5) (2008) 667–677.
+[52]J. Aoki, K. Hayashi, S. Hosokawa, A. Tomiyama, Effects of surfactants on
+mass transfer from single carbon dioxide bubbles in vertical pipes, Chem. Eng.
+Technol. 38 (11) (2015) 1955–1964.
+[53]B. Aboulhasanzadeh, S. Thomas, M. Taeibi-Rahni, G. Tryggvason, Multiscale
+computations of mass transfer from buoyant bubbles, Chem. Eng. Sci. 75 (2012)
+456–467.
+
+[54]B. Aboulhasanzadeh, S. Hosoda, A. Tomiyama, G. Tryggvason, A validation
+of an embedded analytical description approach for the computations of high
+Schmidt number mass transfer from bubbles in liquids, Chem. Eng. Sci. 101
+(2013) 165–174.
+[55]B. Aboulhasanzadeh, G. Tryggvason, Effect of bubble interactions on mass
+transfer in bubbly flow, Int. J. Heat Mass Transfer 79 (2014) 390–396.
+[56]A. Koynov, G. Tryggvason, M. Schlüter, J.G. Khinast, Mass transfer and chemical
+reactions in reactive deformable bubble swarms, Appl. Phys. Lett. 88 (13)
+(2006) 134102.
+[57]S. Radl, A. Koynov, G. Tryggvason, J.G. Khinast, DNS-based prediction of the
+selectivity of fast multiphase reactions: Hydrogenation of nitroarenes, Chem.
+Eng. Sci. 63 (12) (2008) 3279–3291.
+[58]D. Colombet, D. Legendre, F. Risso, A. Cockx, P. Guiraud, Dynamics and mass
+transfer of rising bubbles in a homogenous swarm at large gas volume fraction,
+J. Fluid Mech. 763 (2015) 254–285.
+[59]N. Balcazar, O. Lehmkuhl, J. Rigola, A. Oliva, A multiple marker level-set
+method for simulation of deformable fluid particles, Int. J. Multiph. Flow 74
+(2015) 125–142.
+[60]N. Balcazar, J. Castro, J. Rigola, A. Oliva, DNS of the wall effect on the motion
+of bubble swarms, Procedia Comput. Sci. 108 (2017) 2008–2017.
+[61]N. Balcazar, O. Lehmkuhl, L. Jofre, A. Oliva, Level-set simulations of buoyancydriven motion of single and multiple bubbles, Int. J. Heat Fluid Flow 56
+(2015).
+[62]N. Balcazar, A. Oliva, J. Rigola, A level-set method for thermal motion of
+bubbles and droplets, J. Phys. Conf. Ser. 745 (2016) 032113.
+[63]M. Sussman, E. Fatemi, P. Smereka, S. Osher, An improved level set method for
+incompressible two-phase flows, Comput. & Fluids 27 (5–6) (1998) 663–680.
+[64]S.V. Patankar, Numerical Heat Transfer and Fluid Flow, Taylor & Francis, 1980.
+[65]N. Balcazar-Arciniega, J. Rigola, A. Oliva, DNS of mass transfer from bubbles
+rising in a vertical channel, in: Lecture Notes in Computer Science (Including Subseries Lecture Notes in Artificial Intelligence and Lecture Notes in
+Bioinformatics), in: LNCS, vol. 11539, 2019, pp. 596–610.
+[66]J.U. Brackbill, D.B. Kothe, C. Zemach, A continuum method for modeling
+surface tension, J. Comput. Phys. 100 (2) (1992) 335–354.
+[67]N. Balcazar, J. Rigola, J. Castro, A. Oliva, A level-set model for thermocapillary
+motion of deformable fluid particles, Int. J. Heat Fluid Flow 62 (2016) 324–343.
+[68]N. Balcazar, O. Antepara, J. Rigola, A. Oliva, DNS of drag-force and reactive
+mass transfer in gravity-driven bubbly flows, in: M. García-Villalba, H. Kuerten,
+M. Salvetti (Eds.), Direct and Large Eddy Simulation XII. DLES 2019, in:
+ERCOFTAC Series, vol 27, Springer, Cham, 2020, pp. 119–125.
+[69]H. Jasak, Error Analysis and Estimation in the Finite Volume Method with
+Applications to Fluid Flows (Ph.D. thesis), 1996, pp. 1–739.
+[70]J. Blazek, Computational Fluid Dynamics: Principles and Applications, Elsevier,
+2015.
+[71]C.D. Perez-Segarra, C. Farre, J. Cadafalch, A. Oliva, Analysis of different
+numerical schemes for the resolution of convection-diffusion equations using finite-volume methods on three-dimensional unstructured grids. Part I:
+Discretization schemes, Numer. Heat Transfer B 49 (4) (2006) 333–350.
+[72]F. Moukalled, L. Mangani, M. Darwish, The Finite Volume Method in
+Computational Fluid Dynamics, Springer, 2016, pp. 1–779.
+[73]D. Mavriplis, Revisiting the least-squares procedure for gradient reconstruction
+on unstructured meshes, in: 16th AIAA Computational Fluid Dynamics Conference, American Institute of Aeronautics and Astronautics, Reston, Virigina,
+2003.
+[74]A. Haselbacher, O.V. Vasilyev, Commutative discrete filtering on unstructured
+grids based on least-squares techniques, J. Comput. Phys. 187 (1) (2003)
+197–211.
+[75]N. Balcazar, A. Oliva, J. Rigola, A level-set method for thermal motion of
+bubbles and droplets, J. Phys. Conf. Ser. 745 (3) (2016) 032113.
+[76]N. Balcazar, J. Rigola, A. Oliva, Unstructured level-set method for saturated
+liquid-vapor phase change, in: WCCM-ECCOMAS 2020. Volume 600-Fluid
+Dynamics and Transport Phenomena, CIMNE, 2021, pp. 1–12.
+[77]P.K. Sweby, High resolution schemes using flux limiters for hyperbolic
+conservation laws, SIAM J. Numer. Anal. (1984).
+[78]P. Roe, Characteristic-based schemes for the Euler equations, Annu. Rev. Fluid
+Mech. 18 (1) (1986) 337–365.
+[79]R.J. LeVeque, Finite Volume Methods for Hyperbolic Problems, 2002.
+[80]P.H. Gaskell, A.K.C. Lau, Curvature-compensated convective transport: SMART,
+a new boundedness-preserving transport algorithm, Internat. J. Numer.
+Methods Fluids 8 (6) (1988) 617–641.
+[81]C. Guenther, M. Syamlal, The effect of numerical diffusion on simulation of
+isolated bubbles in a gas–solid fluidized bed, Powder Technol. 116 (2–3) (2001)
+142–154.
+[82]S. Gottlieb, C.-W. Shu, Total variation diminishing runge-kutta schemes, Math.
+Comput. Am. Math. Soc. 67 (221) (1998) 73–85.
+[83]A.J. Chorin, Numerical solution of the Navier–Stokes equations, Math. Comp.
+(1968).
+[84]A. Prosperetti, G. Tryggvason, in: A. Prosperetti, G. Tryggvason (Eds.), Computational Methods for Multiphase Flow, Cambridge University Press, Cambridge,
+2007.
+
+---
+
+[85]G. Tryggvason, R. Scardovelli, S. Zaleski, Direct Numerical Simulations of
+Gas-Liquid Multiphase Flows, Cambridge University Press, 2001.
+[86]G. Tryggvason, B. Bunner, A. Esmaeeli, D. Juric, N. Al-Rawahi, W. Tauber,
+J. Han, S. Nas, Y.-J. Jan, A front-tracking method for the computations of
+multiphase flow, J. Comput. Phys. 169 (2) (2001) 708–759.
+[87]G.E. Karniadakis, R.M. Kirby I.I., Parallel Scientific Computing in C++ and MPI,
+Cambridge University Press, 2003.
+[88]N. Balcazar, O. Lehmkuhl, J. Rigola, A. Oliva, A multiple marker level-set
+method for simulation of deformable fluid particles, Int. J. Multiph. Flow 74
+(2015) 125–142.
+[89]C.M. Rhie, W.L. Chow, Numerical study of the turbulent flow past an airfoil
+with trailing edge separation, AIAA J. 21 (11) (1983) 1525–1532.
+[90]F.N. Felten, T.S. Lund, Kinetic energy conservation issues associated with the
+collocated mesh scheme for incompressible flow, J. Comput. Phys. 215 (2)
+(2006) 465–484.
+[91]M. Van Sint Annaland, N.G. Deen, J.A. Kuipers, Numerical simulation of gasliquid-solid flows using a combined front tracking and discrete particle method,
+in: Chemical Engineering Science, 2005.
+[92]N. Balcazar, J. Castro, J. Chiva, A. Oliva, DNS of falling droplets in a vertical
+channel, Int. J. Comput. Methods Exp. Meas. 6 (2) (2017) 398–410.
+[93]A. Tomiyama, I. Kataoka, I. Zun, T. Sakaguchi, Drag coefficients of single
+bubbles under normal and micro gravity conditions, JSME Int. J. Ser. B 41
+(2) (1998) 472–479.
+[94]W. Dijkhuizen, I. Roghair, M.V.S. Annaland, J. Kuipers, DNS of gas bubbles
+behaviour using an improved 3D front tracking model—Model development,
+Chem. Eng. Sci. 65 (4) (2010) 1427–1437.
+[95]L. Liu, H. Zhang, H. Yan, T. Ziegenhein, H. Hessenkemper, P. Zhou, D. Lucas,
+Experimental studies on bubble aspect ratio and corresponding correlations
+under bubble swarm condition, Chem. Eng. Sci. 236 (2021) 116551.
+[96]R.M. Wellek, A.K. Agrawal, A.H.P. Skelland, Shape of liquid drops moving in
+liquid media, AIChE J. 12 (5) (1966) 854–862.
+[97]G. Besagni, N.G. Deen, Aspect ratio of bubbles in different liquid media: A
+novel correlation, Chem. Eng. Sci. 215 (2020) 115383.
+
+[98]S. Aoyama, K. Hayashi, S. Hosokawa, A. Tomiyama, Shapes of ellipsoidal
+bubbles in infinite stagnant liquids, Int. J. Multiph. Flow 79 (2016) 23–30.
+[99]Z.G. Feng, E.E. Michaelides, Heat and mass transfer coefficients of viscous
+spheres, Int. J. Heat Mass Transfer 44 (23) (2001) 4445–4454.
+[100]S. Winnikow, Letter to the editors, Chem. Eng. Sci. 22 (3) (1967) 477.
+[101]E.L. Cussler, Diffusion Mass Transfer in Fluid Systems, Cambridge University
+Press, 2009.
+[102]F. Takemura, A. Yabe, Gas dissolution process of spherical rising gas bubbles,
+Chem. Eng. Sci. 53 (15) (1998) 2691–2699.
+[103]A. Lochiel, P. Calderbank, Mass transfer in the continuous phase around
+axisymmetric bodies of revolution, Chem. Eng. Sci. 19 (7) (1964) 471–484.
+[104]F. Montes, M. Galan, R. Cerro, Mass transfer from oscillating bubbles in
+bioreactors, Chem. Eng. Sci. 54 (15–16) (1999) 3127–3136.
+[105]S. Hosoda, S. Abe, S. Hosokawa, A. Tomiyama, Mass transfer from a bubble in
+a vertical pipe, Int. J. Heat Mass Transfer 69 (2014) 215–222.
+[106]J. Boussinesq, Calcul du pouvoir refroidissant des fluides, J. Math. Pures Appl.
+(9) 1 (1905) 285–332.
+[107]M. Simonnet, C. Gentric, E. Olmos, N. Midoux, Experimental determination of
+the drag coefficient in a swarm of bubbles, Chem. Eng. Sci. 62 (3) (2007)
+858–866.
+[108]J.J.J. Gillissen, S. Sundaresan, H.E.A. Van den Akker, A lattice Boltzmann study
+on the drag force in bubble swarms, J. Fluid Mech. 679 (2011) 101–121.
+[109]H. Rusche, H. Rusche, R.I. Issa, The Effect of Voidage on the Drag Force on
+Particles in Dispersed Two-Phase Flow The Effect of Voidage on the Drag Force
+on Particles, Droplets and Bubbles in Dispersed Two-Phase Flow, Technical
+Report, 2000.
+[110]M. Lockett, R. Kirkpatrick, Ideal bubbly flow and actual flow in bubble column,
+Trans. Inst. Chem. Eng. 53 (1975) 267–273.
+[111]D. Enright, R. Fedkiw, J. Ferziger, I. Mitchell, A hybrid particle level set method
+for improved interface capturing, J. Comput. Phys. 183 (1) (2002) 83–116.
