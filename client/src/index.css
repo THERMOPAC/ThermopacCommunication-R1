@@ -2,6 +2,71 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ECR Pre-Pilot Stage 1: compact engineering console */
+@layer components {
+  .ecr-stage1-grid {
+    @apply grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start;
+  }
+
+  .ecr-stage1-grid > .ecr-stage-card {
+    @apply min-w-0;
+  }
+
+  .ecr-stage1-grid .ecr-section-header {
+    @apply px-3 py-2;
+  }
+
+  .ecr-stage1-grid .ecr-section-header > div {
+    @apply gap-2;
+  }
+
+  .ecr-stage1-grid .ecr-section-header [data-ecr-section-number] {
+    @apply h-5 w-5 text-[10px];
+  }
+
+  .ecr-stage1-grid .ecr-section-header h3 {
+    @apply text-[13px] leading-4;
+  }
+
+  .ecr-stage1-grid .ecr-section-header p {
+    @apply text-[10px] leading-[14px];
+  }
+
+  .ecr-stage1-grid .ecr-card-content {
+    @apply gap-2 px-3 py-2.5;
+  }
+
+  .ecr-stage1-grid .ecr-field {
+    @apply space-y-0.5;
+  }
+
+  .ecr-stage1-grid .ecr-field label {
+    @apply text-[11px] leading-4;
+  }
+
+  .ecr-stage1-grid .ecr-field input,
+  .ecr-stage1-grid .ecr-field button[role="combobox"] {
+    @apply h-7 px-2 text-xs;
+  }
+
+  .ecr-stage1-grid .ecr-field span {
+    @apply text-[10px];
+  }
+
+  .ecr-stage1-grid .ecr-field > p {
+    @apply text-[10px] leading-3;
+  }
+
+  .ecr-stage1-grid .ecr-compact-note {
+    @apply text-[10px] leading-[14px];
+  }
+
+  .ecr-stage1-grid .ecr-compact-table th,
+  .ecr-stage1-grid .ecr-compact-table td {
+    @apply px-2 py-1.5;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
