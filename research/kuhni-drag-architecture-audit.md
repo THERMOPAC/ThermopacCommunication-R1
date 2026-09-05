@@ -1,7 +1,7 @@
 # Project 236 Kühni/ECR Complete Drag Architecture Audit
 
 **Audit date:** 2026-09-05  
-**Status:** SOURCE AUDIT COMPLETE — GOVERNED IMPLEMENTATION HOLD  
+**Status:** QUALIFICATION COMPLETE — CLOSURE REJECTED / GOVERNED IMPLEMENTATION HOLD
 **Production impact:** None  
 **Optimizer impact:** None; the diameter optimizer was not rerun  
 
@@ -38,6 +38,10 @@ Therefore:
 > drag architecture remains on hold at the spherical-to-deformed transition.
 
 No arbitrary `Re`, `Eo`, or axis-ratio cutoff is introduced by this audit.
+
+This is a completed negative qualification, not an approved drag closure. The
+source search, fixed-grid reproduction, and Eq. 8.3 contract review establish
+that the available evidence cannot support a deformed-drop optimizer rerun.
 
 ## Final equipment boundary
 
@@ -401,6 +405,28 @@ The next defensible routes are:
 
 Until one route is completed, the optimizer must not cross the unresolved
 shape transition.
+
+## Independent review and disposition
+
+| Required gate | Evidence reviewed | Disposition |
+|---|---|---|
+| RRBO/NMP velocity and shape evidence, or a demonstrated primary model | Grace/Clift map, Wellek shape correlation, Barry, Henschke/ReDrop, and deformation-aware bubble/low-`X` alternatives | `NOT SATISFIED` — no RRBO/NMP data and no unfitted liquid-drop model demonstrated at `X=33.6`, `Mo=2.86e-9` |
+| Source-backed spherical/non-spherical decision | Local-state shape must come from qualified map placement plus phase-specific evidence; Wellek is continuous screening only | `NOT SATISFIED` — every requested diameter remains `UNCONFIRMED`; no arbitrary cutoff admitted |
+| Reynolds-dependent drag at terminal, characteristic, and swarm conditions | Barry supplies a curve only for confirmed steady spheres; Grace supplies one terminal point; Henschke requires fitting | `NOT SATISFIED` for any unconfirmed/deformed state |
+| Garthe/Stichlmair Eq. 8.3 compatibility | Eq. 8.3 requires the same applicable constitutive `Cd(Re)` at characteristic and every swarm root state | `DEPENDENCY_BLOCKED` — terminal-map substitution or frozen terminal shape is rejected |
+| Engineering approval before optimizer rerun | Complete evidence and equation audit | `NOT APPROVED`; optimizer status `HOLD` |
+
+**Review decision:** the spherical Barry research kernel is reproducible, but
+the requested deformed-drop closure is rejected for design use. Approval is
+withheld rather than manufactured from a finite equation. The generated CSV
+persists the shape-evidence, deformed-closure, Eq. 8.3, and optimizer-release
+statuses for every diameter so downstream review cannot mistake a sensitivity
+value for an approved state.
+
+The archived hydraulic sizing entry points now consume a process-basis-bound
+qualification record and fail closed by default. Their command-line calculation
+can run only with explicit `--audit-only`, which prints a
+`NOT_APPROVED_FOR_RESIZING` banner and does not change the approval state.
 
 ## Reproducibility
 

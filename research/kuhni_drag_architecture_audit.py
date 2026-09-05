@@ -26,6 +26,11 @@ MU_WATER_REFERENCE = 0.0009
 
 DIAMETERS_MM = (0.5, 1.0, 1.47, 1.75, 2.0, 2.5, 3.0, 4.0, 5.0)
 
+SHAPE_EVIDENCE_STATUS = "UNCONFIRMED"
+DEFORMED_DRAG_CLOSURE_STATUS = "UNAVAILABLE"
+GARTHE_EQ_8_3_STATUS = "DEPENDENCY_BLOCKED"
+OPTIMIZER_RELEASE_STATUS = "HOLD"
+
 VISCOSITY_RATIO = MU_D / MU_C
 DENSITY_RATIO = RHO_D / RHO_C
 MORTON = (
@@ -225,15 +230,40 @@ def row_for_diameter(diameter_mm: float) -> dict[str, object]:
         "grace_re": grace_re,
         "grace_cd_from_terminal_force_balance": grace_drag,
         "grace_velocity_m_s": grace_velocity,
+        "shape_evidence_status": SHAPE_EVIDENCE_STATUS,
+        "deformed_drag_closure_status": DEFORMED_DRAG_CLOSURE_STATUS,
+        "garthe_eq_8_3_status": GARTHE_EQ_8_3_STATUS,
+        "optimizer_release_status": OPTIMIZER_RELEASE_STATUS,
         "architecture_status": architecture_status,
     }
 
 
+def validate_qualification_gate(rows: list[dict[str, object]]) -> None:
+    """Fail if an unqualified shape state can be mistaken for optimizer-ready."""
+    if not rows:
+        raise ValueError("qualification grid is empty")
+    for row in rows:
+        if row["shape_evidence_status"] != "CONFIRMED_SPHERICAL":
+            if row["garthe_eq_8_3_status"] != GARTHE_EQ_8_3_STATUS:
+                raise ValueError("unconfirmed shape must block Garthe Eq. 8.3")
+            if row["optimizer_release_status"] != OPTIMIZER_RELEASE_STATUS:
+                raise ValueError("unconfirmed shape must hold optimizer release")
+        if (
+            float(row["barry_re"]) > 200.0
+            and "OUTSIDE_DEMONSTRATED_RANGE"
+            not in str(row["architecture_status"])
+        ):
+            raise ValueError("high-Re Barry result is missing its evidence warning")
+
+
 def write_results() -> Path:
     rows = [row_for_diameter(value) for value in DIAMETERS_MM]
+    validate_qualification_gate(rows)
     path = Path(__file__).with_name("kuhni_drag_architecture_results.csv")
     with path.open("w", newline="", encoding="utf-8") as output:
-        writer = csv.DictWriter(output, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(
+            output, fieldnames=list(rows[0]), lineterminator="\n"
+        )
         writer.writeheader()
         writer.writerows(rows)
     return path

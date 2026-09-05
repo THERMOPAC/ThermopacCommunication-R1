@@ -1,12 +1,15 @@
 # Predictive Kühni Hydraulic Screening Diameter
 
 **Audit date:** 2026-09-05  
-**Status:** Research calculation complete  
+**Status:** Historical research calculation superseded by drag-architecture hold
 **Production impact:** None. `KUHNI_PHASE1_V1.0.3` was not modified.
 
 ## Executive verdict
 
-**YES — a PRE-PILOT HYDRAULIC SCREENING DIAMETER can be calculated without new experimental data.**
+This historical screen reproduced finite mathematical roots, but its drag
+qualification is superseded by `research/kuhni-drag-architecture-audit.md`.
+It must not be used to resize the column or rerun the optimizer until the
+representative RRBO/NMP shape and deformed-drop drag closure are qualified.
 
 The result is not a unique validated equipment diameter. It is a scenario-controlled,
 `CALCULATED_EXTRAPOLATED` hydraulic screen. The governing choices must be visible:
@@ -107,10 +110,11 @@ Terminal velocity is the positive force-balance root:
 `Ar = rho_C (rho_C-rho_D) g d32^3 / mu_C^2`.
 
 The five screens give `Re_t=10.84, 2.31, 0.91, 0.47, 0.27` and
-`Eo=0.092, 0.026, 0.013, 0.0079, 0.0054`. The drops are spherical and all
-roots remain inside the audited equation branches. Grace/Clift deformation maps
-are useful checks but are not required in this small-Eötvös regime
-[@grace1976] [@clift1978].
+`Eo=0.092, 0.026, 0.013, 0.0079, 0.0054`. The roots remain inside the historical
+equation branches, but this does not prove that the representative drops are
+spherical, steady, or non-oscillating. Grace/Clift and phase-specific evidence
+are required to qualify the local shape state; no fixed small-`Eo` assertion is
+accepted as a substitute [@grace1976] [@clift1978].
 
 ### 4. Kühni characteristic velocity
 
@@ -198,21 +202,26 @@ check.
 - A source-validated coalescence model for actual RRBO contaminants.
 - A published RRBO/NMP-specific Kuhni flooding envelope.
 
-These unavailable validations do not prevent the pre-pilot calculation.
+These unavailable validations now prevent use of the calculation for optimizer
+release or column resizing. The numerical screen remains an archived
+sensitivity only.
+
+The script enforces this disposition at `hydraulic_capacity`,
+`solve_diameter`, and `solve_diameter_constant_power`. Running it normally
+returns `DEPENDENCY_BLOCKED`; `--audit-only` is required to reproduce the
+historical values and prints `NOT_APPROVED_FOR_RESIZING`.
 
 ## Final engineering interpretation
 
-The requested chain is closed:
+The historical numerical chain was:
 
 `viscosity-aware d32 -> fluid-sphere terminal velocity -> Kuhni characteristic
 velocity -> swarm/holdup -> turning-point capacity -> D_C`.
 
-No new experiment is required to execute it. The best current reporting basis is
-an agitation/flood-fraction envelope, not one selected diameter. At a 70% design
-fraction, the present model envelope is **2.01–8.04 m**. Lower agitation gives
-larger drops and greater hydraulic capacity; this screen deliberately does not
-claim adequate mass transfer, efficiency, stage count, or final mechanical
-sizing.
+At a 70% design fraction, it produced **2.01–8.04 m**, but the current
+qualification audit does not approve those values for resizing. Qualified
+RRBO/NMP shape/velocity evidence and a deformation-capable liquid-drop
+`Cd(Re)` closure compatible with Eq. 8.3 are required first.
 
 The model is suitable for a new, separately versioned pre-pilot hydraulic kernel.
 It must not overwrite or alter `KUHNI_PHASE1_V1.0.3`.

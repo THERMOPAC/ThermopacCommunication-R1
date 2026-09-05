@@ -7,6 +7,7 @@ the production engine.
 
 from __future__ import annotations
 
+import argparse
 import math
 
 
@@ -28,6 +29,48 @@ STATOR_FREE_FRACTION = 0.35
 SAVED_POWER_NUMBER = 1.20
 REFERENCE_COLUMN_DIAMETER = 0.15
 RPMS = (60.0, 120.0, 180.0, 240.0, 300.0)
+
+DRAG_QUALIFICATION = {
+    "basis": {
+        "rho_d_kg_m3": RHO_D,
+        "mu_d_pa_s": MU_D,
+        "rho_c_kg_m3": RHO_C,
+        "mu_c_pa_s": MU_C,
+        "sigma_n_m": SIGMA,
+        "viscosity_ratio": MU_D / MU_C,
+    },
+    "shape_evidence_status": "UNCONFIRMED",
+    "deformed_drag_closure_status": "UNAVAILABLE",
+    "garthe_eq_8_3_status": "DEPENDENCY_BLOCKED",
+    "optimizer_release_status": "HOLD",
+}
+
+
+def require_approved_drag_closure(*, audit_only: bool = False) -> None:
+    """Block resizing unless this exact process basis has an approved closure."""
+    expected_basis = {
+        "rho_d_kg_m3": RHO_D,
+        "mu_d_pa_s": MU_D,
+        "rho_c_kg_m3": RHO_C,
+        "mu_c_pa_s": MU_C,
+        "sigma_n_m": SIGMA,
+        "viscosity_ratio": MU_D / MU_C,
+    }
+    if DRAG_QUALIFICATION["basis"] != expected_basis:
+        raise RuntimeError("drag qualification is not bound to the active process basis")
+    approved = (
+        DRAG_QUALIFICATION["shape_evidence_status"] == "CONFIRMED"
+        and DRAG_QUALIFICATION["deformed_drag_closure_status"] == "APPROVED"
+        and DRAG_QUALIFICATION["garthe_eq_8_3_status"] == "COMPATIBLE"
+        and DRAG_QUALIFICATION["optimizer_release_status"] == "APPROVED"
+    )
+    if approved or audit_only:
+        return
+    raise RuntimeError(
+        "DEPENDENCY_BLOCKED: RRBO/NMP shape and deformation-capable Cd(Re) "
+        "are not approved for terminal, characteristic, and swarm states; "
+        "column resizing remains on HOLD"
+    )
 
 
 def bisect(func, low: float, high: float, *, iterations: int = 160) -> float:
@@ -174,7 +217,14 @@ def garthe_swarm_velocity(
     return bisect(residual, 1.0e-14, characteristic_velocity)
 
 
-def hydraulic_capacity(column_diameter_m: float, rpm: float, swarm_model: str) -> dict[str, float | str]:
+def hydraulic_capacity(
+    column_diameter_m: float,
+    rpm: float,
+    swarm_model: str,
+    *,
+    audit_only: bool = False,
+) -> dict[str, float | str]:
+    require_approved_drag_closure(audit_only=audit_only)
     drop = calabrese_d32(column_diameter_m, rpm)
     d32 = drop["d32"]
     terminal = terminal_velocity(d32)
@@ -231,9 +281,24 @@ def hydraulic_capacity(column_diameter_m: float, rpm: float, swarm_model: str) -
     }
 
 
-def solve_diameter(rpm: float, swarm_model: str, design_fraction: float) -> dict[str, float | str]:
+def solve_diameter(
+    rpm: float,
+    swarm_model: str,
+    design_fraction: float,
+    *,
+    audit_only: bool = False,
+) -> dict[str, float | str]:
+    require_approved_drag_closure(audit_only=audit_only)
+
     def residual(diameter: float) -> float:
-        return float(hydraulic_capacity(diameter, rpm, swarm_model)["actual_loading"]) - design_fraction
+        return (
+            float(
+                hydraulic_capacity(
+                    diameter, rpm, swarm_model, audit_only=audit_only
+                )["actual_loading"]
+            )
+            - design_fraction
+        )
 
     # The coupled fixed-RPM scale-up can require very large extrapolated roots.
     # The broad bracket is for diagnosis, not an assertion of feasible equipment.
@@ -251,7 +316,9 @@ def solve_diameter(rpm: float, swarm_model: str, design_fraction: float) -> dict
     if not brackets:
         raise ValueError("no positive diameter root in the audited equation domain")
     diameter = bisect(residual, *brackets[-1])
-    result = hydraulic_capacity(diameter, rpm, swarm_model)
+    result = hydraulic_capacity(
+        diameter, rpm, swarm_model, audit_only=audit_only
+    )
     result["design_fraction"] = design_fraction
     return result
 
@@ -262,11 +329,24 @@ def scaled_rpm(column_diameter_m: float, reference_rpm: float) -> float:
 
 
 def solve_diameter_constant_power(
-    reference_rpm: float, swarm_model: str, design_fraction: float
+    reference_rpm: float,
+    swarm_model: str,
+    design_fraction: float,
+    *,
+    audit_only: bool = False,
 ) -> dict[str, float | str]:
+    require_approved_drag_closure(audit_only=audit_only)
+
     def residual(diameter: float) -> float:
         rpm = scaled_rpm(diameter, reference_rpm)
-        return float(hydraulic_capacity(diameter, rpm, swarm_model)["actual_loading"]) - design_fraction
+        return (
+            float(
+                hydraulic_capacity(
+                    diameter, rpm, swarm_model, audit_only=audit_only
+                )["actual_loading"]
+            )
+            - design_fraction
+        )
 
     grid = [0.05 * (1.04**index) for index in range(175)]
     valid: list[tuple[float, float]] = []
@@ -283,7 +363,9 @@ def solve_diameter_constant_power(
         raise ValueError("no positive diameter root in the audited equation domain")
     diameter = bisect(residual, *brackets[-1])
     actual_rpm = scaled_rpm(diameter, reference_rpm)
-    result = hydraulic_capacity(diameter, actual_rpm, swarm_model)
+    result = hydraulic_capacity(
+        diameter, actual_rpm, swarm_model, audit_only=audit_only
+    )
     rotor_diameter = ROTOR_RATIO * diameter
     compartment_height = COMPARTMENT_RATIO * diameter
     shell_area = math.pi * diameter**2 / 4.0
@@ -303,7 +385,13 @@ def solve_diameter_constant_power(
     return result
 
 
-def print_results() -> None:
+def print_results(*, audit_only: bool = False) -> None:
+    require_approved_drag_closure(audit_only=audit_only)
+    if audit_only:
+        print(
+            "AUDIT_ONLY,NOT_APPROVED_FOR_RESIZING,"
+            f"{DRAG_QUALIFICATION['optimizer_release_status']}"
+        )
     print("Immutable Stage-1 and run-2 basis")
     print(
         f"QD={Q_D:.12g} m3/s QC={Q_C:.12g} m3/s "
@@ -319,7 +407,9 @@ def print_results() -> None:
         for rpm in RPMS:
             for fraction in (1.0, 0.8, 0.7, 0.6):
                 try:
-                    result = solve_diameter_constant_power(rpm, model, fraction)
+                    result = solve_diameter_constant_power(
+                        rpm, model, fraction, audit_only=audit_only
+                    )
                     print(
                         f"{model},{rpm:.0f}->{result['actual_rpm']:.3f},{fraction:.2f},"
                         f"{result['diameter']:.6f},{1000*float(result['d32']):.6f},"
@@ -334,4 +424,16 @@ def print_results() -> None:
 
 
 if __name__ == "__main__":
-    print_results()
+    parser = argparse.ArgumentParser(
+        description="Archived pre-pilot Kühni hydraulic sensitivity"
+    )
+    parser.add_argument(
+        "--audit-only",
+        action="store_true",
+        help="reproduce archived sensitivity values without releasing resizing",
+    )
+    arguments = parser.parse_args()
+    try:
+        print_results(audit_only=arguments.audit_only)
+    except RuntimeError as exc:
+        parser.exit(2, f"{exc}\n")
