@@ -17273,6 +17273,23 @@ export const ecrPrePilotKuhniHydrodynamicRuns = pgTable('ecr_pre_pilot_kuhni_hyd
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => ({ designIndex: index('ecr_pre_pilot_kuhni_runs_design_idx').on(table.designId, table.createdAt) }));
 
+export const ecrPrePilotKuhniGeometryResolverRuns = pgTable('ecr_pre_pilot_kuhni_geometry_resolver_runs', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  designId: integer('design_id').notNull().references(() => ecrPrePilotDesigns.id),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  stage1SnapshotHash: varchar('stage1_snapshot_hash', { length: 64 }).notNull(),
+  stage2JobId: uuid('stage2_job_id').references(() => ecrPrePilotPredictiveNtJobs.id),
+  stage2ResultHash: varchar('stage2_result_hash', { length: 64 }),
+  parentHydrodynamicRunId: bigint('parent_hydrodynamic_run_id', { mode: 'number' }).references(() => ecrPrePilotKuhniHydrodynamicRuns.id),
+  parentHydrodynamicRunHash: varchar('parent_hydrodynamic_run_hash', { length: 64 }),
+  processBasis: jsonb('process_basis').notNull(),
+  theoreticalStageAuthority: jsonb('theoretical_stage_authority').notNull(),
+  resultSnapshot: jsonb('result_snapshot').notNull(),
+  implementationHash: varchar('implementation_hash', { length: 64 }).notNull(),
+  immutableHash: varchar('immutable_hash', { length: 64 }).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({ designIndex: index('ecr_pre_pilot_kuhni_resolver_design_idx').on(table.designId, table.createdAt) }));
+
 // ── Zod insert schemas ────────────────────────────────────────────────────────
 export const insertDesignSoftwareDesignSchema = createInsertSchema(designSoftwareDesigns).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDesignSoftwareRevisionSchema = createInsertSchema(designSoftwareRevisions).omit({ id: true, createdAt: true, updatedAt: true });

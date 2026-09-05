@@ -3,8 +3,6 @@ import { ChevronDown, Info, Loader2, Play, RefreshCw, ShieldCheck } from "lucide
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 type KuhniRun = {
   id?: string | number;
@@ -33,21 +31,98 @@ export type Stage2ThermodynamicDependencySummary = {
   engineHash?: string;
 };
 
-const KUHNI_DEFAULTS = {
-  columnDiameterM: 0.15,
-  rotorToColumnRatio: 0.50,
-  compartmentHeightM: 0.075,
-  statorFreeAreaFraction: 0.35,
-  rotorSpeedRpmMin: 60,
-  rotorSpeedRpmMax: 300,
-  rotorSpeedRpmStep: 60,
-  powerNumber: 1.20,
-  directTurbulenceC: 0.42,
-};
-
 function kuNumber(value: unknown, digits = 3) {
   const number = Number(value);
   return Number.isFinite(number) ? number.toFixed(digits) : "—";
+}
+
+function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount: number }) {
+  const point = run.hydraulicDiagnosticPoint as Record<string, unknown> | undefined;
+  const authority = run.theoreticalStagesUsed as Record<string, unknown> | undefined;
+  const engine = run.engine as Record<string, unknown> | undefined;
+  const coupled = run.coupledSelection as Record<string, unknown> | undefined;
+  const trials = (run.hydraulicRpmEnvelope ?? []) as Array<Record<string, unknown>>;
+  const rpmValues = trials.map((trial) => Number(trial.rpm)).filter(Number.isFinite);
+  const rpmRange = rpmValues.length ? `${Math.min(...rpmValues)}–${Math.max(...rpmValues)} rpm` : "—";
+  const finalRpm = run.finalOperatingRpm;
+  const stageLabel = authority?.provenance === "PRE_PILOT_DESIGN_DEFAULT"
+    ? "PRE-PILOT DESIGN DEFAULT (Stage-2 calculated NT unavailable)"
+    : String(authority?.label ?? "—");
+  const summary: Array<[string, string]> = [
+    ["Calculated hydraulic diameter", `${kuNumber(run.hydraulicResolvedColumnDiameterM)} m`],
+    ["Rotor diameter", `${kuNumber(point?.rotorDiameterM)} m`],
+    ["Rotor / column", point ? kuNumber(Number(point.rotorDiameterM) / Number(point.columnDiameterM)) : "—"],
+    ["Final selected RPM", finalRpm == null ? "Pending coupled mass-transfer duty" : `${kuNumber(finalRpm, 1)} rpm`],
+    ["Hydraulic diagnostic RPM", point ? `${kuNumber(point.rpm, 1)} rpm` : "—"],
+    ["Hydraulic RPM range", rpmRange],
+    ["d32 at diagnostic", `${kuNumber(Number(point?.d32M) * 1000)} mm`],
+    ["Flood-point holdup", kuNumber(point?.floodHoldup)],
+    ["Calculated flooding load", `${kuNumber(Number(point?.actualLoading) * 100, 1)}%`],
+    ["Tip speed", `${kuNumber(point?.tipSpeedMS)} m/s`],
+    ["P/V", `${kuNumber(point?.powerVolumeWM3, 1)} W/m³`],
+    ["Theoretical stages used", `${authority?.value ?? "—"} — ${stageLabel}`],
+    ["Physical compartments", run.physicalCompartments == null ? "Pending compartment-efficiency model" : String(run.physicalCompartments)],
+    ["Active column height", run.activeHeightM == null ? "Pending compartment-efficiency model" : `${kuNumber(run.activeHeightM)} m`],
+  ];
+  return (
+    <section className="space-y-3 rounded-md border border-blue-200 bg-blue-50/30 p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-950">Automatic geometry resolver</h3>
+          <p className="mt-0.5 text-[10px] text-blue-800">
+            {String(engine?.version ?? "KUHNI_GEOMETRY_RESOLVER_V1.0.0")} · {runCount} immutable resolver run{runCount === 1 ? "" : "s"}
+          </p>
+        </div>
+        <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-amber-900">
+          Pre-pilot predictive · not vendor guaranteed
+        </span>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {summary.map(([label, value]) => (
+          <div key={label} className="rounded border border-blue-100 bg-white p-2">
+            <span className="text-[9px] uppercase tracking-wide text-slate-500">{label}</span>
+            <p className="mt-0.5 break-words font-mono text-[11px] font-semibold text-slate-900">{value}</p>
+          </div>
+        ))}
+      </div>
+      <div className="overflow-x-auto rounded border border-blue-100 bg-white">
+        <table className="w-full min-w-[840px] text-left text-[10px]">
+          <thead className="bg-slate-100 text-[9px] uppercase tracking-wide text-slate-600">
+            <tr>{["RPM", "Required D", "Rotor D", "d32", "Flood holdup", "Flooding load", "Tip speed", "P/V", "Myint states", "Status"].map((label) => <th key={label} className="px-2 py-2">{label}</th>)}</tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {trials.map((trial) => (
+              <tr key={String(trial.rpm)}>
+                <td className="px-2 py-2 font-mono font-semibold">{kuNumber(trial.rpm, 1)}</td>
+                <td className="px-2 py-2 font-mono">{kuNumber(trial.columnDiameterM)} m</td>
+                <td className="px-2 py-2 font-mono">{kuNumber(trial.rotorDiameterM)} m</td>
+                <td className="px-2 py-2 font-mono">{kuNumber(Number(trial.d32M) * 1000)} mm</td>
+                <td className="px-2 py-2 font-mono">{kuNumber(trial.floodHoldup)}</td>
+                <td className="px-2 py-2 font-mono">{kuNumber(Number(trial.actualLoading) * 100, 1)}%</td>
+                <td className="px-2 py-2 font-mono">{kuNumber(trial.tipSpeedMS)} m/s</td>
+                <td className="px-2 py-2 font-mono">{kuNumber(trial.powerVolumeWM3, 1)} W/m³</td>
+                <td className="px-2 py-2 font-mono">{kuNumber((trial.terminal as any)?.re, 1)} / {kuNumber(trial.characteristicRe, 1)} / {kuNumber(trial.swarmRe, 1)}</td>
+                <td className="px-2 py-2 font-semibold text-amber-800">{String(trial.status ?? "—")}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="grid gap-2 lg:grid-cols-2">
+        <div className="rounded border border-emerald-200 bg-emerald-50 p-3 text-[10px] text-emerald-950">
+          <strong>System-owned authority</strong>
+          <p className="mt-1">Column/rotor geometry, RPM trials, \(N_T\), d32, flooding, tip speed and P/V are calculated server-side. The request carries no geometry, RPM, or theoretical-stage input.</p>
+        </div>
+        <div className="rounded border border-amber-200 bg-amber-50 p-3 text-[10px] text-amber-950">
+          <strong>Coupled duty status: {String(coupled?.status ?? "DEPENDENCY_BLOCKED")}</strong>
+          <p className="mt-1">{String(coupled?.blocker ?? "Final RPM, physical compartments and active height require the approved mass-transfer/efficiency model.")}</p>
+        </div>
+      </div>
+      <p className="break-all font-mono text-[9px] text-slate-500">
+        Result hash: {String(run.calculationHash ?? "—")} · Immutable record: {String(run.immutableHash ?? "—")}
+      </p>
+    </section>
+  );
 }
 
 function flattenProcessBasis(value: unknown, prefix = ""): Array<[string, string]> {
@@ -222,11 +297,10 @@ export function KuhniHydrodynamicsCard({
   thermodynamicDependencyError?: string | null;
 }) {
   const { toast } = useToast();
-  const [inputs, setInputs] = useState<Record<keyof typeof KUHNI_DEFAULTS, string>>(
-    () => Object.fromEntries(Object.entries(KUHNI_DEFAULTS).map(([key, value]) => [key, String(value)])) as Record<keyof typeof KUHNI_DEFAULTS, string>,
-  );
   const [latest, setLatest] = useState<KuhniRun | null>(null);
   const [runs, setRuns] = useState<KuhniRun[]>([]);
+  const [resolverLatest, setResolverLatest] = useState<KuhniRun | null>(null);
+  const [resolverRuns, setResolverRuns] = useState<KuhniRun[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -236,19 +310,29 @@ export function KuhniHydrodynamicsCard({
     setLoading(true);
     setLoadingError(null);
     try {
-      const [latestResponse, runsResponse] = await Promise.all([
+      const [latestResponse, runsResponse, resolverLatestResponse, resolverRunsResponse] = await Promise.all([
         fetch(`/api/ecr-pre-pilot/designs/${designId}/kuhni-hydrodynamics/latest`, { credentials: "include" }),
         fetch(`/api/ecr-pre-pilot/designs/${designId}/kuhni-hydrodynamics/runs`, { credentials: "include" }),
+        fetch(`/api/ecr-pre-pilot/designs/${designId}/kuhni-geometry-resolver/latest`, { credentials: "include" }),
+        fetch(`/api/ecr-pre-pilot/designs/${designId}/kuhni-geometry-resolver/runs`, { credentials: "include" }),
       ]);
       if (!latestResponse.ok && latestResponse.status !== 404) throw new Error("Latest hydrodynamic run could not be loaded.");
       if (!runsResponse.ok) throw new Error("Hydrodynamic run history could not be loaded.");
+      if (!resolverLatestResponse.ok && resolverLatestResponse.status !== 404) throw new Error("Latest geometry resolver run could not be loaded.");
+      if (!resolverRunsResponse.ok) throw new Error("Geometry resolver history could not be loaded.");
       const latestPayload = latestResponse.status === 404 ? null : await latestResponse.json();
       const runsPayload = await runsResponse.json();
+      const resolverLatestPayload = resolverLatestResponse.status === 404 ? null : await resolverLatestResponse.json();
+      const resolverRunsPayload = await resolverRunsResponse.json();
       const latestResult = latestPayload?.result
         ? { ...latestPayload.result, id: latestPayload.id, createdAt: latestPayload.createdAt, immutableHash: latestPayload.immutableHash }
         : null;
       setLatest(latestResult as KuhniRun | null);
       setRuns((runsPayload?.runs ?? runsPayload ?? []) as KuhniRun[]);
+      setResolverLatest(resolverLatestPayload?.result
+        ? { ...resolverLatestPayload.result, id: resolverLatestPayload.id, createdAt: resolverLatestPayload.createdAt, immutableHash: resolverLatestPayload.immutableHash }
+        : null);
+      setResolverRuns((resolverRunsPayload?.runs ?? resolverRunsPayload ?? []) as KuhniRun[]);
     } catch (error: unknown) {
       setLoadingError(error instanceof Error ? error.message : "Hydrodynamic results could not be loaded.");
     } finally {
@@ -261,11 +345,10 @@ export function KuhniHydrodynamicsCard({
   }, [designId]);
 
   const handleRun = async () => {
-    if (!designId || !thermodynamicDependencyReady) {
+    if (!designId) {
       toast({
         title: "Stage 3 run blocked",
-        description: thermodynamicDependencyError
-          ?? "A completed persisted Stage 2 thermodynamic result is required.",
+        description: "Save Stage 1 before running the geometry resolver.",
         variant: "destructive",
       });
       return;
@@ -273,18 +356,15 @@ export function KuhniHydrodynamicsCard({
     setSubmitting(true);
     setLoadingError(null);
     try {
-      const body = Object.fromEntries(Object.entries(inputs).map(([key, value]) => [key, Number(value)]));
-      const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/kuhni-hydrodynamics/runs`, {
+      const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/kuhni-geometry-resolver/runs`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(body),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error ?? payload.message ?? "Hydrodynamic screening could not start.");
-      setLatest(payload as KuhniRun);
+      setResolverLatest(payload as KuhniRun);
       await loadRuns();
-      toast({ title: "Kuhni screening complete", description: "Trial matrix persisted as a Stage 3 screening result." });
+      toast({ title: "Kuhni resolver complete", description: "The automatic hydraulic envelope and theoretical-stage provenance were persisted immutably." });
     } catch (error: unknown) {
       setLoadingError(error instanceof Error ? error.message : "Hydrodynamic screening could not start.");
       toast({ title: "Kuhni screening failed", description: error instanceof Error ? error.message : "The run could not be completed.", variant: "destructive" });
@@ -300,21 +380,20 @@ export function KuhniHydrodynamicsCard({
           <div className="flex items-start gap-2.5">
             <div className="rounded-md bg-slate-900 p-2 text-white"><ShieldCheck className="h-4 w-4" /></div>
             <div>
-              <CardTitle className="text-[15px] text-slate-900">Stage 3 · Kuhni hydrodynamic screening</CardTitle>
+              <CardTitle className="text-[15px] text-slate-900">Stage 3 · Automatic Kuhni geometry resolution</CardTitle>
               <CardDescription className="mt-0.5 max-w-2xl text-[11px] leading-4">
-                A governed trial matrix using a system-resolved geometry and rotor-speed basis. Only controlled correlation parameters remain editable.
+                Server-owned geometry and RPM resolution from immutable Stage 1, with Stage-2 theoretical stages or the explicit pre-pilot default.
               </CardDescription>
             </div>
           </div>
           <Button
             type="button"
             onClick={handleRun}
-            disabled={!designId || !thermodynamicDependencyReady || submitting || loading}
-            title={thermodynamicDependencyReady ? undefined : "A completed persisted Stage 2 thermodynamic result is required."}
+            disabled={!designId || submitting || loading}
             className="h-8 gap-1.5 bg-slate-900 px-3 text-xs hover:bg-slate-700"
           >
             {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-            {submitting ? "Running matrix…" : "Run Stage 3 matrix"}
+            {submitting ? "Resolving geometry…" : "Run automatic resolver"}
           </Button>
         </div>
       </CardHeader>
@@ -325,7 +404,7 @@ export function KuhniHydrodynamicsCard({
               Read-only Stage 2 thermodynamic dependency
             </h3>
             <span className={`text-[10px] font-semibold ${thermodynamicDependencyReady ? "text-emerald-700" : "text-amber-800"}`}>
-              {thermodynamicDependencyReady ? "Stage 3 run enabled" : "Stage 3 run blocked"}
+              {thermodynamicDependencyReady ? "Stage-2 NT will be used" : "NT = 7 fallback will be used"}
             </span>
           </div>
           {thermodynamicDependencyError ? (
@@ -355,67 +434,19 @@ export function KuhniHydrodynamicsCard({
             <p className="mt-2 text-[11px] text-amber-900">No persisted Stage 2 Predictive N_T job exists for this saved design.</p>
           )}
           <p className="mt-2 border-t border-current/10 pt-2 text-[10px] text-slate-600">
-            Read-only persisted job data. Stage 3 does not reconstruct, edit, or duplicate Stage 2 inputs or results.
+            Read-only persisted job data. If no valid calculated \(N_T\) is available, this run remains enabled and records \(N_T=7\) as PRE-PILOT DESIGN DEFAULT.
           </p>
         </div>
         <div className="rounded-md border border-amber-200 bg-amber-50/70 p-3 text-[11px] leading-4 text-amber-950">
-          <strong>Screening boundary.</strong> This stage terminates before mass transfer, efficiency, physical stages, height, and final mechanical sizing. Mass transfer remains outside this workflow for future Stage 4. No candidate below is a final design decision.
+          <strong>Resolver boundary.</strong> Stage 3 now calculates the hydraulic diameter/RPM envelope. Final operating RPM, physical compartments and active height remain visibly dependency-blocked until the approved mass-transfer and compartment-efficiency model is available.
         </div>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Stage 3 screening inputs</h3>
-            <span className="font-mono text-[10px] text-slate-400">POST /kuhni-hydrodynamics/runs</span>
+        <div className="rounded-md border border-slate-200 bg-white p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Server-owned calculation authority</h3>
+            <span className="font-mono text-[10px] text-slate-400">POST /kuhni-geometry-resolver/runs · empty body</span>
           </div>
-          <section className="rounded-md border border-slate-200 bg-white p-3" aria-labelledby="kuhni-equipment-inputs">
-            <div className="mb-3">
-              <h4 id="kuhni-equipment-inputs" className="text-[11px] font-semibold text-slate-900">System-resolved geometry and operating basis</h4>
-              <p className="mt-0.5 text-[10px] leading-4 text-slate-500">Read-only Stage‑3 trial geometry and rotor-speed matrix. The system supplies and persists these values with each run; the user does not enter them.</p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {([
-                ["columnDiameterM", "Column diameter", "m"],
-                ["rotorToColumnRatio", "Rotor / column diameter", "—"],
-                ["compartmentHeightM", "Compartment height", "m"],
-                ["statorFreeAreaFraction", "Stator free-area fraction", "—"],
-                ["rotorSpeedRpmMin", "Rotor speed minimum", "rpm"],
-                ["rotorSpeedRpmMax", "Rotor speed maximum", "rpm"],
-                ["rotorSpeedRpmStep", "Rotor speed step", "rpm"],
-              ] as Array<[keyof typeof KUHNI_DEFAULTS, string, string]>).map(([key, label, unit]) => (
-                <div key={key} className="space-y-1">
-                  <Label htmlFor={`kuhni-${key}`} className="text-[11px] font-medium text-slate-700">{label}</Label>
-                  <div className="flex items-center gap-1.5">
-                    <Input id={`kuhni-${key}`} type="number" step="any" value={inputs[key]} readOnly aria-readonly="true" className="h-8 cursor-default border-slate-200 bg-slate-100 font-mono text-xs text-slate-700" />
-                    <span className="w-10 shrink-0 text-[10px] text-slate-500">{unit}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-          <section className="rounded-md border border-indigo-200 bg-indigo-50/40 p-3" aria-labelledby="kuhni-correlation-inputs">
-            <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <h4 id="kuhni-correlation-inputs" className="text-[11px] font-semibold text-indigo-950">Controlled correlation parameters</h4>
-                <p className="mt-0.5 text-[10px] leading-4 text-indigo-800">Provenance-sensitive model parameters retained as expert inputs; they are not calculated from the Stage‑1 process basis.</p>
-              </div>
-              <span className="rounded border border-indigo-200 bg-white px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-indigo-700">Expert input</span>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {([
-                ["powerNumber", "Power number", "—"],
-                ["directTurbulenceC", "Direct turbulence coefficient", "—"],
-              ] as Array<[keyof typeof KUHNI_DEFAULTS, string, string]>).map(([key, label, unit]) => (
-                <div key={key} className="space-y-1">
-                  <Label htmlFor={`kuhni-${key}`} className="text-[11px] font-medium text-indigo-950">{label}</Label>
-                  <div className="flex items-center gap-1.5">
-                    <Input id={`kuhni-${key}`} type="number" step="any" value={inputs[key]} onChange={(event) => setInputs((current) => ({ ...current, [key]: event.target.value }))} className="h-8 border-indigo-200 bg-white font-mono text-xs" />
-                    <span className="w-10 shrink-0 text-[10px] text-indigo-700">{unit}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-          <p className="max-w-4xl text-[10px] leading-4 text-slate-500">
-            The seeded geometry is inside the K&amp;H Table-1 geometric envelope only. Governed Stage 1 throughput and RRBO/NMP properties are evaluated independently and may place holdup, slip, V<sub>k</sub>, and area on diagnostic HOLD; the kernel never extrapolates through those violations.
+          <p className="mt-2 text-[11px] leading-4 text-slate-600">
+            Geometry, RPM, flooding design fraction and \(N_T\) are not user inputs. Every run snapshots the current Stage‑1 process basis and either the newest valid Stage‑2 calculated \(N_T\) or the explicit immutable \(N_T=7\) fallback.
           </p>
         </div>
         <div className="rounded-md border border-blue-200 bg-blue-50/50 p-3">
@@ -432,17 +463,23 @@ export function KuhniHydrodynamicsCard({
           <p className="mt-2 border-t border-blue-200 pt-2 text-[10px] text-blue-800">Read-only snapshot. This screen does not temperature-correct, look up, reconstruct, default, or accept re-entry of any Stage-1 property.</p>
         </div>
         <div className="border-t border-slate-200 pt-3">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">System-calculated hydraulic outputs</h3>
-          <p className="mt-1 text-[10px] leading-4 text-slate-500">The trial matrix derives rotor diameter, RPM trials, tip speed, P/V, phase velocities, Reynolds number, d32, slip, holdup, interfacial area, flooding status, applicability diagnostics, and blockers where the governed dependencies permit calculation.</p>
+          <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">System-calculated Stage-3 outputs</h3>
+          <p className="mt-1 text-[10px] leading-4 text-slate-500">Myint/Garthe local states, turning-point capacity and physical search bounds are replayed server-side and persisted in the immutable resolver record.</p>
         </div>
-        {loading && !latest ? (
+        {loading && !resolverLatest ? (
           <div className="space-y-2"><div className="h-8 animate-pulse rounded bg-slate-100" /><div className="h-20 animate-pulse rounded bg-slate-100" /></div>
         ) : loadingError ? (
           <div className="flex items-center justify-between rounded-md border border-red-200 bg-red-50 p-3 text-[11px] text-red-800"><span>{loadingError}</span><Button type="button" variant="outline" onClick={() => void loadRuns()} className="h-7 gap-1 px-2 text-[11px]"><RefreshCw className="h-3 w-3" /> Retry</Button></div>
-        ) : !latest ? (
-          <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-[11px] text-slate-500">No persisted Kuhni run yet. Set the screening inputs and run the Stage 3 matrix.</div>
+        ) : !resolverLatest ? (
+          <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-[11px] text-slate-500">No immutable geometry resolver run yet. Run the automatic resolver to calculate the hydraulic envelope.</div>
         ) : (
-          <KuhniResultPanel run={latest} runCount={runs.length} />
+          <KuhniResolverPanel run={resolverLatest} runCount={resolverRuns.length} />
+        )}
+        {latest && (
+          <details className="rounded-md border border-slate-200 bg-slate-50 p-3">
+            <summary className="cursor-pointer text-[11px] font-semibold text-slate-700">Historical KUHNI_PHASE1_V1.0.3 runs ({runs.length})</summary>
+            <div className="mt-3"><KuhniResultPanel run={latest} runCount={runs.length} /></div>
+          </details>
         )}
       </CardContent>
     </Card>

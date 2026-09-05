@@ -9,6 +9,11 @@ pre-pilot closure only. At the frozen 50 °C basis, the unsupported Re=50 cutoff
 is replaced by the published Myint drag gates, especially Re<200; the terminal
 diameter boundary is about 2.98 mm. Preserve Garthe's square-root Eq. 8.3.
 
+For the approved pre-pilot resolver, source-range exceedances at terminal,
+characteristic, or swarm state remain explicit extrapolation metadata and do
+not by themselves block numerical hydraulic calculation. They still prevent
+claiming source-range support or release/vendor qualification.
+
 Column resizing and release sizing still fail closed unless the exact
 process-property basis has qualified the nonterminal characteristic and
 swarm-slip use of the drag curve, demonstrated a consistent interface branch,
@@ -22,8 +27,9 @@ Myint viscosity/interface prefactor cancels if one interface branch is
 unchanged. However, both Myint studies validate isolated terminal drops, not
 forced characteristic or swarm-slip states in an agitated Kühni compartment.
 
-**How to apply:** For pre-pilot diagnostics, enforce every published Myint gate
-at terminal, characteristic, and swarm states; bracket clean and fully
-contaminated drag, never invent a shape multiplier, and fail closed outside
-range. Keep nonterminal use labelled extrapolated. Bind all approval to the
-active property snapshot and never transfer the 50 °C boundary unchanged.
+**How to apply:** Evaluate and persist every published Myint drag and shape gate
+at the appropriate local state; bracket interface sensitivity, never invent a
+shape multiplier, and label every out-of-range state extrapolated. Fail closed
+for nonphysical or missing dependencies, not solely for a documented pre-pilot
+extrapolation. Bind all values to the active property snapshot and never
+transfer the 50 °C boundary unchanged.

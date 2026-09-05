@@ -170,8 +170,8 @@ The recovered Kühni characteristic-velocity relation remains:
 with
 
 \[
-N_P=1.08+\frac{10.94}{Re_R}
-+\frac{257.37}{0.5Re_R^{1.5}},
+N_P=1.08+\frac{10.94}{Re_R^{0.5}}
++\frac{257.37}{Re_R^{1.5}},
 \qquad
 Re_R=\frac{n_Rd_A^2\rho_C}{\mu_C}.
 \]

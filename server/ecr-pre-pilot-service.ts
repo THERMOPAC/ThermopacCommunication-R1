@@ -11,6 +11,12 @@ import {
   evaluateKuhniHydrodynamics,
   kuhniRunHash,
 } from "./ecr-pre-pilot/kuhni-hydrodynamics";
+import {
+  KUHNI_GEOMETRY_RESOLVER_HASH,
+  PRE_PILOT_DEFAULT_THEORETICAL_STAGES,
+  resolveKuhniGeometry,
+  type TheoreticalStageAuthority,
+} from "./ecr-pre-pilot/kuhni-geometry-resolver";
 
 const COUNTER_ROW_ID = 1;
 const MAX_ALLOCATION_ATTEMPTS = 3;
@@ -249,6 +255,150 @@ export async function getKuhniHydrodynamicRuns(userId: number, designId: number,
       immutableHash: row.immutableHash,
       integrityStatus: 'VERIFIED' as const,
       result: row.result,
+    };
+  });
+  return latest ? verified[0] ?? null : verified;
+}
+
+const USABLE_THERMODYNAMIC_EXECUTION_STATUSES = new Set([
+  'COMPLETED_GOVERNED_SEQUENCE',
+  'COMPLETED_DIAGNOSTIC_SEQUENCE',
+  'COMPLETED_PRE_PILOT_MULTISTAGE_MATRIX',
+]);
+
+function resolveTheoreticalStageAuthority(
+  stage1Hash: string,
+  job: { id: string; status: string; result_snapshot: any } | undefined,
+): TheoreticalStageAuthority {
+  const result = job?.result_snapshot;
+  const candidate = Number(result?.establishedTheoreticalStages ?? result?.predictiveNt);
+  const valid = job?.status === 'completed'
+    && result
+    && result.status !== 'ENGINE_ERROR'
+    && USABLE_THERMODYNAMIC_EXECUTION_STATUSES.has(String(result.executionStatus ?? ''))
+    && result.stage1TargetGovernance?.stage1SnapshotHash === stage1Hash
+    && Number.isInteger(candidate)
+    && candidate > 0;
+  if (valid) {
+    return {
+      value: candidate,
+      provenance: 'STAGE_2_CALCULATED_NT',
+      label: 'STAGE-2 CALCULATED THEORETICAL STAGES',
+      stage2JobId: job!.id,
+      stage2ResultHash: kuhniRunHash(result),
+    };
+  }
+  return {
+    value: PRE_PILOT_DEFAULT_THEORETICAL_STAGES,
+    provenance: 'PRE_PILOT_DESIGN_DEFAULT',
+    label: 'PRE-PILOT DESIGN DEFAULT (Stage-2 calculated NT unavailable)',
+    stage2JobId: null,
+    stage2ResultHash: null,
+  };
+}
+
+export async function createKuhniGeometryResolverRun(userId: number, designId: number) {
+  const design = await pool.query<{ input_data: unknown }>(
+    `SELECT input_data FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2`,
+    [designId, userId],
+  );
+  if (!design.rows[0]) throw new Error('ECR_PRE_PILOT_DESIGN_NOT_FOUND');
+  const stage1 = validateStage1Snapshot(design.rows[0].input_data);
+  const basis = makeStage1HydrodynamicProcessBasis(stage1);
+  const stage2 = await pool.query<{ id: string; status: string; result_snapshot: unknown }>(
+    `SELECT id::text, status, result_snapshot
+       FROM ecr_pre_pilot_predictive_nt_jobs
+      WHERE design_id=$1
+        AND created_by=$2
+        AND status='completed'
+        AND result_snapshot IS NOT NULL
+        AND result_snapshot->>'status' IS DISTINCT FROM 'ENGINE_ERROR'
+        AND result_snapshot->>'executionStatus' = ANY($3::text[])
+        AND result_snapshot#>>'{stage1TargetGovernance,stage1SnapshotHash}'=$4
+        AND COALESCE(result_snapshot->>'establishedTheoreticalStages', result_snapshot->>'predictiveNt') ~ '^[1-9][0-9]*$'
+      ORDER BY created_at DESC LIMIT 1`,
+    [designId, userId, [...USABLE_THERMODYNAMIC_EXECUTION_STATUSES], stage1.immutableHash],
+  );
+  const theoreticalStages = resolveTheoreticalStageAuthority(stage1.immutableHash, stage2.rows[0] as any);
+  const parent = await pool.query<{ id: string; immutable_hash: string }>(
+    `SELECT id::text, immutable_hash
+       FROM ecr_pre_pilot_kuhni_hydrodynamic_runs
+      WHERE design_id=$1 AND created_by=$2
+      ORDER BY created_at DESC, id DESC LIMIT 1`,
+    [designId, userId],
+  );
+  const parentRun = parent.rows[0] ?? null;
+  const result = resolveKuhniGeometry(basis, theoreticalStages);
+  const immutableHash = kuhniRunHash({
+    basis,
+    theoreticalStages,
+    parentHydrodynamicRun: parentRun,
+    result,
+  });
+  const saved = await pool.query<{ id: string; created_at: string }>(
+    `INSERT INTO ecr_pre_pilot_kuhni_geometry_resolver_runs
+       (design_id, created_by, stage1_snapshot_hash, stage2_job_id, stage2_result_hash,
+        parent_hydrodynamic_run_id, parent_hydrodynamic_run_hash, process_basis,
+        theoretical_stage_authority, result_snapshot, implementation_hash, immutable_hash)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+     RETURNING id::text, created_at`,
+    [
+      designId, userId, stage1.immutableHash,
+      theoreticalStages.stage2JobId, theoreticalStages.stage2ResultHash,
+      parentRun?.id ?? null, parentRun?.immutable_hash ?? null,
+      basis, theoreticalStages, result, KUHNI_GEOMETRY_RESOLVER_HASH, immutableHash,
+    ],
+  );
+  return {
+    id: saved.rows[0].id,
+    createdAt: saved.rows[0].created_at,
+    immutableHash,
+    integrityStatus: 'VERIFIED' as const,
+    ...result,
+  };
+}
+
+export async function getKuhniGeometryResolverRuns(userId: number, designId: number, latest = false) {
+  const rows = await pool.query(
+    `SELECT id::text, created_at AS "createdAt",
+            stage1_snapshot_hash AS "stage1SnapshotHash",
+            stage2_job_id::text AS "stage2JobId",
+            stage2_result_hash AS "stage2ResultHash",
+            parent_hydrodynamic_run_id::text AS "parentHydrodynamicRunId",
+            parent_hydrodynamic_run_hash AS "parentHydrodynamicRunHash",
+            process_basis AS "processBasis",
+            theoretical_stage_authority AS "theoreticalStages",
+            result_snapshot AS result,
+            implementation_hash AS "implementationHash",
+            immutable_hash AS "immutableHash"
+       FROM ecr_pre_pilot_kuhni_geometry_resolver_runs
+      WHERE design_id=$1 AND created_by=$2
+      ORDER BY created_at DESC, id DESC ${latest ? 'LIMIT 1' : ''}`,
+    [designId, userId],
+  );
+  const verified = rows.rows.map((row: any) => {
+    const replayed = kuhniRunHash({
+      basis: row.processBasis,
+      theoreticalStages: row.theoreticalStages,
+      parentHydrodynamicRun: row.parentHydrodynamicRunId
+        ? { id: row.parentHydrodynamicRunId, immutable_hash: row.parentHydrodynamicRunHash }
+        : null,
+      result: row.result,
+    });
+    const { calculationHash, ...calculationPayload } = row.result ?? {};
+    const numericalReplay = resolveKuhniGeometry(row.processBasis, row.theoreticalStages);
+    if (
+      replayed !== row.immutableHash
+      || row.implementationHash !== row.result?.engine?.implementationHash
+      || row.stage1SnapshotHash !== row.processBasis?.stage1SnapshotHash
+      || kuhniRunHash(calculationPayload) !== calculationHash
+      || kuhniRunHash(numericalReplay) !== kuhniRunHash(row.result)
+    ) {
+      throw new Error('ECR_PRE_PILOT_KUHNI_RESOLVER_INTEGRITY_FAILURE');
+    }
+    return {
+      id: row.id, createdAt: row.createdAt, immutableHash: row.immutableHash,
+      integrityStatus: 'VERIFIED' as const, result: row.result,
     };
   });
   return latest ? verified[0] ?? null : verified;

@@ -5,6 +5,7 @@ import pg from 'pg';
 const migrationPaths = [
   'migrations/ecr_pre_pilot_predictive_nt_jobs.sql',
   'migrations/ecr_pre_pilot_kuhni_hydrodynamics.sql',
+  'migrations/ecr_pre_pilot_kuhni_geometry_resolver.sql',
 ].map((migrationPath) => path.resolve(process.cwd(), migrationPath));
 const migration = migrationPaths.map((migrationPath) => fs.readFileSync(migrationPath, 'utf8')).join('\n');
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });

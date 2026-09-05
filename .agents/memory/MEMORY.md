@@ -103,12 +103,12 @@
 - [Additive thermodynamic amendments](additive-thermodynamic-amendments.md) — a claimed native-plus amendment must retain native Gibbs everywhere; target wells and baseline cancellation are invalid.
 - [Pre-pilot 7C multistage roadmap](wet-7c-qualification-roadmap.md) — the simultaneous N_T=1–10 cascade is authoritative; isolated flash/TPD work is diagnostic and never replaces the matrix.
 - [Pre-pilot native-plus-RK result](prepilot-native-rk-multistage-result.md) — stable physical LLE returns across N_T=1–10, but total aromatics plateaus above target, so no Predictive N_T is assigned.
-- [ECR Pre-Pilot stage-count authority](ecr-prepilot-stage-count-authority.md) — saved Stage 1 exact N_T is sole run authority; current engine does not search a range.
+- [ECR Pre-Pilot stage-count authority](ecr-prepilot-stage-count-authority.md) — predictive jobs use Stage-1 exact N_T; geometry resolver uses valid Stage-2 N_T else immutable default 7.
 - [Pre-pilot Kühni Phase 1 boundary](prepilot-kuhni-phase1-boundary.md) — Stage-1-authoritative hydrodynamic screening runs without evidence approval or accepted N_T; no mass-transfer or final sizing.
 - [Oliveira short-Kühni boundary](oliveira-short-kuhni-boundary.md) — fixed 150-mm water/Exxsol regressions are diagnostic only; no diameter scaling or flooding basis.
 - [Shirvani 2016 Kühni boundary](shirvani-2016-kuhni-boundary.md) — Eq. 5 fails source replay; Eq. 7 scales via velocities but its near -10 viscosity exponent invalidates RRBO/NMP sizing.
 - [Garthe Kühni swarm boundary](garthe-kuhni-swarm-boundary.md) — useful characteristic-velocity/hold-up candidate; measured d32 and 23.5% error prevent governing flooding or diameter use.
 - [Pre-pilot Kühni hydraulic chain](prepilot-kuhni-hydraulic-chain.md) — diameter screening may execute as extrapolated physics; use constant-P/V geometric scale-up, never fixed-RPM scale-up.
-- [Project 236 bounded hydraulic search](project236-bounded-hydraulic-search.md) — resolver stays diagnostic pending drag closure; report RPM envelope, not a final hydraulic-only RPM.
-- [Project 236 deformed-drop gate](project236-deformed-drop-gate.md) — Myint permits pre-pilot Re<200 diagnostics; release still needs characteristic/swarm validation.
+- [Project 236 bounded hydraulic search](project236-bounded-hydraulic-search.md) — calculate a pre-pilot RPM/diameter envelope, but final RPM waits for coupled transfer/efficiency.
+- [Project 236 deformed-drop gate](project236-deformed-drop-gate.md) — persist Myint range exceedances as extrapolation; block nonphysical states, not documented extrapolation alone.
 - [ECR Pre-Pilot stage ownership](ecr-prepilot-stage-ownership.md) — Inputs → thermodynamics → hydrodynamics → future mass transfer; downstream stages consume upstream authority without duplicating ownership.
