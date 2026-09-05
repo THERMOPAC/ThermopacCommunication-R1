@@ -821,3 +821,17 @@ mtime_ms = 1788589665350
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/38103e6c-7bed-40d3-9b87-d3c631e7f7dc/29fddd54-f502-4774-8cb1-349bde48e4bf"
 storage_version_token = "1788589931407114"
 content_type = "text/csv"
+
+[[outputs]]
+id = "sqtwBSr_KMb02d-9FHGkR"
+uri = "file://research/kuhni-drag-architecture-audit.md"
+type = "text"
+title = "Kühni/ECR Drag Architecture Audit"
+description = "Source audit, nine-point Project 236 dimensionless grid, applicability findings, multistage-column compatibility assessment, and governed implementation decision."
+logical_id = "70c1471c-6b81-4646-ba5e-127954e0ea28"
+content_hash = "sha256:f2f3ea0d43597d48f965ea50cefd3c9fdaae93da92388aca3dfeaf2983be238e"
+size = 16667
+mtime_ms = 1788611248576
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/70c1471c-6b81-4646-ba5e-127954e0ea28/9551b322-80c9-42d6-9407-1df9b1f76ea7"
+storage_version_token = "1788611277391796"
+content_type = "text/markdown"

@@ -176,6 +176,41 @@
       "url": "https://www.sulzer.com/en/shared/products/kuehni-agitated-columns-ecr",
       "quality": "vendor technical context",
       "role": "equipment taxonomy only"
+    },
+    {
+      "key": "wegener2014",
+      "title": "Fluid Dynamics and Mass Transfer at Single Droplets in Liquid/Liquid Systems",
+      "url": "https://doi.org/10.1016/j.ijheatmasstransfer.2013.12.024",
+      "quality": "peer-reviewed review",
+      "role": "liquid-drop drag, deformation, oscillation, and interfacial-mobility limits"
+    },
+    {
+      "key": "wellek1966",
+      "title": "Shape of Liquid Drops Moving in Liquid Media",
+      "url": "https://doi.org/10.1002/aic.690120506",
+      "quality": "primary peer-reviewed",
+      "role": "continuous non-oscillating liquid-drop deformation check"
+    },
+    {
+      "key": "bozzano2001",
+      "title": "Shape and Terminal Velocity of Single Bubble Motion: A Novel Approach",
+      "url": "https://doi.org/10.1016/S0098-1354(01)00636-6",
+      "quality": "primary peer-reviewed",
+      "role": "rejected bubble-only deformation-aware drag comparator"
+    },
+    {
+      "key": "tomiyama1998",
+      "title": "Terminal Velocity of Single Bubbles in Surface Tension Force Dominant Regime",
+      "url": "https://doi.org/10.1299/jsmeb.41.472",
+      "quality": "primary peer-reviewed",
+      "role": "rejected bubble-only deformation transition comparator"
+    },
+    {
+      "key": "pacek1998",
+      "title": "On the Sauter Mean Diameter and Size Distributions in Turbulent Liquid/Liquid Dispersions",
+      "url": "https://doi.org/10.1016/S0009-2509(98)00068-2",
+      "quality": "primary peer-reviewed",
+      "role": "population-mean d32 interpretation boundary"
     }
   ]
 }
