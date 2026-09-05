@@ -1579,8 +1579,8 @@ export function validateSevenComponentPersistedResult(
         : null;
       if (
          value.predictiveNt !== selected
-         || value.establishedTheoreticalStages !== (preliminary ? null : selected)
-         || value.calibrationRequired !== preliminary
+         || value.establishedTheoreticalStages !== selected
+         || value.calibrationRequired !== false
         || accepted.some((trial: any) => (
           trial.numericalAcceptancePassed !== true
           || trial.allCalculableTargetsPass !== true
