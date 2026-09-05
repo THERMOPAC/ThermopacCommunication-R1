@@ -344,35 +344,62 @@ export function KuhniHydrodynamicsCard({
         <div className="rounded-md border border-amber-200 bg-amber-50/70 p-3 text-[11px] leading-4 text-amber-950">
           <strong>Screening boundary.</strong> This stage terminates before mass transfer, efficiency, physical stages, height, and final mechanical sizing. Mass transfer remains outside this workflow for future Stage 4. No candidate below is a final design decision.
         </div>
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Editable hydrodynamic variables</h3>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Stage 3 screening inputs</h3>
             <span className="font-mono text-[10px] text-slate-400">POST /kuhni-hydrodynamics/runs</span>
           </div>
-          <p className="mb-3 max-w-4xl text-[10px] leading-4 text-slate-500">
+          <section className="rounded-md border border-slate-200 bg-white p-3" aria-labelledby="kuhni-equipment-inputs">
+            <div className="mb-3">
+              <h4 id="kuhni-equipment-inputs" className="text-[11px] font-semibold text-slate-900">Equipment and operating inputs</h4>
+              <p className="mt-0.5 text-[10px] leading-4 text-slate-500">Engineer-specified trial geometry and rotor-speed envelope. These values cannot be inferred uniquely from Stage 1.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {([
+                ["columnDiameterM", "Column diameter", "m"],
+                ["rotorToColumnRatio", "Rotor / column diameter", "—"],
+                ["compartmentHeightM", "Compartment height", "m"],
+                ["statorFreeAreaFraction", "Stator free-area fraction", "—"],
+                ["rotorSpeedRpmMin", "Rotor speed minimum", "rpm"],
+                ["rotorSpeedRpmMax", "Rotor speed maximum", "rpm"],
+                ["rotorSpeedRpmStep", "Rotor speed step", "rpm"],
+              ] as Array<[keyof typeof KUHNI_DEFAULTS, string, string]>).map(([key, label, unit]) => (
+                <div key={key} className="space-y-1">
+                  <Label htmlFor={`kuhni-${key}`} className="text-[11px] font-medium text-slate-700">{label}</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Input id={`kuhni-${key}`} type="number" step="any" value={inputs[key]} onChange={(event) => setInputs((current) => ({ ...current, [key]: event.target.value }))} className="h-8 bg-white font-mono text-xs" />
+                    <span className="w-10 shrink-0 text-[10px] text-slate-500">{unit}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="rounded-md border border-indigo-200 bg-indigo-50/40 p-3" aria-labelledby="kuhni-correlation-inputs">
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h4 id="kuhni-correlation-inputs" className="text-[11px] font-semibold text-indigo-950">Controlled correlation parameters</h4>
+                <p className="mt-0.5 text-[10px] leading-4 text-indigo-800">Provenance-sensitive model parameters retained as expert inputs; they are not calculated from the Stage‑1 process basis.</p>
+              </div>
+              <span className="rounded border border-indigo-200 bg-white px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-indigo-700">Expert input</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {([
+                ["powerNumber", "Power number", "—"],
+                ["directTurbulenceC", "Direct turbulence coefficient", "—"],
+              ] as Array<[keyof typeof KUHNI_DEFAULTS, string, string]>).map(([key, label, unit]) => (
+                <div key={key} className="space-y-1">
+                  <Label htmlFor={`kuhni-${key}`} className="text-[11px] font-medium text-indigo-950">{label}</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Input id={`kuhni-${key}`} type="number" step="any" value={inputs[key]} onChange={(event) => setInputs((current) => ({ ...current, [key]: event.target.value }))} className="h-8 border-indigo-200 bg-white font-mono text-xs" />
+                    <span className="w-10 shrink-0 text-[10px] text-indigo-700">{unit}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+          <p className="max-w-4xl text-[10px] leading-4 text-slate-500">
             The seeded geometry is inside the K&amp;H Table-1 geometric envelope only. Governed Stage 1 throughput and RRBO/NMP properties are evaluated independently and may place holdup, slip, V<sub>k</sub>, and area on diagnostic HOLD; the kernel never extrapolates through those violations.
           </p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {([
-              ["columnDiameterM", "Column diameter", "m"],
-              ["rotorToColumnRatio", "Rotor / column diameter", "—"],
-              ["compartmentHeightM", "Compartment height", "m"],
-              ["statorFreeAreaFraction", "Stator free-area fraction", "—"],
-              ["rotorSpeedRpmMin", "Rotor speed minimum", "rpm"],
-              ["rotorSpeedRpmMax", "Rotor speed maximum", "rpm"],
-              ["rotorSpeedRpmStep", "Rotor speed step", "rpm"],
-              ["powerNumber", "Power number", "—"],
-              ["directTurbulenceC", "Direct turbulence coefficient", "—"],
-            ] as Array<[keyof typeof KUHNI_DEFAULTS, string, string]>).map(([key, label, unit]) => (
-              <div key={key} className="space-y-1">
-                <Label htmlFor={`kuhni-${key}`} className="text-[11px] font-medium text-slate-700">{label}</Label>
-                <div className="flex items-center gap-1.5">
-                  <Input id={`kuhni-${key}`} type="number" step="any" value={inputs[key]} onChange={(event) => setInputs((current) => ({ ...current, [key]: event.target.value }))} className="h-8 bg-white font-mono text-xs" />
-                  <span className="w-10 shrink-0 text-[10px] text-slate-500">{unit}</span>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
         <div className="rounded-md border border-blue-200 bg-blue-50/50 p-3">
           <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-blue-950"><Info className="h-3.5 w-3.5" />Authoritative Stage-1 process basis in the saved run</div>
@@ -386,6 +413,10 @@ export function KuhniHydrodynamicsCard({
             <p className="text-[11px] leading-4 text-blue-800">No persisted run process basis is available yet. Run the matrix after saving Stage 1; this panel will then show the exact temperature-resolved RRBO / wet-solvent properties captured with that run.</p>
           )}
           <p className="mt-2 border-t border-blue-200 pt-2 text-[10px] text-blue-800">Read-only snapshot. This screen does not temperature-correct, look up, reconstruct, default, or accept re-entry of any Stage-1 property.</p>
+        </div>
+        <div className="border-t border-slate-200 pt-3">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">System-calculated hydraulic outputs</h3>
+          <p className="mt-1 text-[10px] leading-4 text-slate-500">The trial matrix derives rotor diameter, RPM trials, tip speed, P/V, phase velocities, Reynolds number, d32, slip, holdup, interfacial area, flooding status, applicability diagnostics, and blockers where the governed dependencies permit calculation.</p>
         </div>
         {loading && !latest ? (
           <div className="space-y-2"><div className="h-8 animate-pulse rounded bg-slate-100" /><div className="h-20 animate-pulse rounded bg-slate-100" /></div>
