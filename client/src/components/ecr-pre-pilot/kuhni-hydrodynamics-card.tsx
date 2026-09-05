@@ -71,6 +71,8 @@ function KuhniResultPanel({ run, runCount }: { run: KuhniRun; runCount: number }
     const withoutTrialPrefix = blocker.replace(/^RPM[_\s-]*\d+(?:\.\d+)?[:_\s-]*/i, "");
     return withoutTrialPrefix.match(/^([A-Z0-9_]+)/)?.[1] ?? withoutTrialPrefix;
   })));
+  const persistedGeometry = trials[0]?.geometry as Record<string, unknown> | undefined;
+  const persistedRatios = persistedGeometry?.ratios as Record<string, unknown> | undefined;
   const read = (row: Record<string, unknown>, ...keys: string[]) => {
     for (const key of keys) if (row[key] !== undefined && row[key] !== null) return row[key];
     return undefined;
@@ -85,6 +87,21 @@ function KuhniResultPanel({ run, runCount }: { run: KuhniRun; runCount: number }
         </div>
         <span className="rounded-full border border-slate-300 bg-white px-2 py-1 font-mono text-[10px] text-slate-600">{run.status ?? "SCREENING_RESULT"}</span>
       </div>
+      {persistedGeometry && (
+        <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-[10px] sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            ["Column diameter", `${kuNumber(persistedGeometry.columnDiameterM)} m`],
+            ["Rotor diameter", `${kuNumber(persistedGeometry.rotorDiameterM)} m`],
+            ["Rotor / column", kuNumber(persistedRatios?.rotorToColumn)],
+            ["Compartment height", `${kuNumber(persistedGeometry.compartmentHeightM)} m`],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <span className="text-slate-500">{label}</span><br />
+              <strong className="font-mono text-slate-900">{value}</strong>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="overflow-x-auto rounded-md border border-slate-200">
         <table className="w-full min-w-[1120px] text-left text-[10px]">
           <thead className="bg-slate-100 text-[9px] uppercase tracking-wide text-slate-600"><tr>
@@ -285,7 +302,7 @@ export function KuhniHydrodynamicsCard({
             <div>
               <CardTitle className="text-[15px] text-slate-900">Stage 3 · Kuhni hydrodynamic screening</CardTitle>
               <CardDescription className="mt-0.5 max-w-2xl text-[11px] leading-4">
-                A governed trial matrix for rotor / stator screening. Inputs below are the only editable hydrodynamic variables.
+                A governed trial matrix using a system-resolved geometry and rotor-speed basis. Only controlled correlation parameters remain editable.
               </CardDescription>
             </div>
           </div>
@@ -351,8 +368,8 @@ export function KuhniHydrodynamicsCard({
           </div>
           <section className="rounded-md border border-slate-200 bg-white p-3" aria-labelledby="kuhni-equipment-inputs">
             <div className="mb-3">
-              <h4 id="kuhni-equipment-inputs" className="text-[11px] font-semibold text-slate-900">Equipment and operating inputs</h4>
-              <p className="mt-0.5 text-[10px] leading-4 text-slate-500">Engineer-specified trial geometry and rotor-speed envelope. These values cannot be inferred uniquely from Stage 1.</p>
+              <h4 id="kuhni-equipment-inputs" className="text-[11px] font-semibold text-slate-900">System-resolved geometry and operating basis</h4>
+              <p className="mt-0.5 text-[10px] leading-4 text-slate-500">Read-only Stage‑3 trial geometry and rotor-speed matrix. The system supplies and persists these values with each run; the user does not enter them.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {([
@@ -367,7 +384,7 @@ export function KuhniHydrodynamicsCard({
                 <div key={key} className="space-y-1">
                   <Label htmlFor={`kuhni-${key}`} className="text-[11px] font-medium text-slate-700">{label}</Label>
                   <div className="flex items-center gap-1.5">
-                    <Input id={`kuhni-${key}`} type="number" step="any" value={inputs[key]} onChange={(event) => setInputs((current) => ({ ...current, [key]: event.target.value }))} className="h-8 bg-white font-mono text-xs" />
+                    <Input id={`kuhni-${key}`} type="number" step="any" value={inputs[key]} readOnly aria-readonly="true" className="h-8 cursor-default border-slate-200 bg-slate-100 font-mono text-xs text-slate-700" />
                     <span className="w-10 shrink-0 text-[10px] text-slate-500">{unit}</span>
                   </div>
                 </div>
