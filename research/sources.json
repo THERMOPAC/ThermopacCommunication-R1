@@ -1,0 +1,181 @@
+{
+  "topic": "Predictive Kuhni hydraulic screening diameter",
+  "accessed": "2026-09-05",
+  "sources": [
+    {
+      "key": "calabrese1986",
+      "title": "Drop Breakup in Turbulent Stirred-Tank Contactors, Part I: Effect of Dispersed-Phase Viscosity",
+      "url": "https://drum.lib.umd.edu/bitstreams/4ebcb6f7-8c1a-4aac-9c51-287c4c30370e/download",
+      "quality": "primary full text",
+      "role": "governing viscosity-aware d32 candidate"
+    },
+    {
+      "key": "kumarHartland1996",
+      "title": "Unified Correlations for the Prediction of Drop Size in Liquid-Liquid Extraction Columns",
+      "url": "https://doi.org/10.1021/ie950674w",
+      "quality": "primary peer-reviewed",
+      "role": "extraction-column d32 comparison and Kuhni scope"
+    },
+    {
+      "key": "kumarHartland1999",
+      "title": "Computational Strategies for Sizing Liquid-Liquid Extractors",
+      "url": "https://doi.org/10.1021/ie980455l",
+      "quality": "primary peer-reviewed",
+      "role": "population-balance sizing comparison"
+    },
+    {
+      "key": "garthe2006",
+      "title": "Fluiddynamics and Mass Transfer of Single Particles and Swarms of Particles in Extraction Columns",
+      "url": "attached_assets/Paper_1788587264307.pdf",
+      "quality": "primary doctoral dissertation",
+      "role": "Kuhni characteristic velocity, swarm, holdup, and validation ranges"
+    },
+    {
+      "key": "barry2018",
+      "title": "Universal Expression for the Drag on a Fluid Sphere",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5901779/",
+      "quality": "primary peer-reviewed full text",
+      "role": "equation-level liquid-drop drag with viscosity ratio"
+    },
+    {
+      "key": "grace1976",
+      "title": "Shapes and Velocities of Single Drops and Bubbles Moving Freely through Immiscible Liquids",
+      "url": "https://www.semanticscholar.org/paper/Shapes-and-velocities-of-single-drops-and-bubbles-Grace-T./e5000b770a57b3455005f8f0f941266d129837a1",
+      "quality": "primary report/indexed copy",
+      "role": "deformation-aware terminal-velocity comparison"
+    },
+    {
+      "key": "clift1978",
+      "title": "Bubbles, Drops, and Particles",
+      "url": "https://books.google.com/books/about/Bubbles_Drops_and_Particles.html?id=UUrOmD8niUQC",
+      "quality": "authoritative monograph",
+      "role": "drop-shape and drag regime reference"
+    },
+    {
+      "key": "weber2019",
+      "title": "Performance Map for the Design of Liquid-Liquid Extraction Columns",
+      "url": "https://doi.org/10.1002/cite.201900057",
+      "quality": "primary peer-reviewed full text",
+      "role": "modern Kuhni model architecture and fitted-parameter boundary"
+    },
+    {
+      "key": "pilhofer1988",
+      "title": "Scale-up of Mechanically Agitated Extraction Columns",
+      "url": "https://doi.org/10.1002/ceat.270110135",
+      "quality": "primary peer-reviewed",
+      "role": "agitated-column scale-up context"
+    },
+    {
+      "key": "adinata2011",
+      "title": "Single-Drop Based Modelling of Solvent Extraction in High-Viscosity Systems",
+      "url": "https://d-nb.info/1018200606/34",
+      "quality": "primary doctoral dissertation",
+      "role": "high-viscosity single-drop model comparison"
+    },
+    {
+      "key": "asadollahzadeh2016",
+      "title": "Experimental Investigation of Flooding and Drop Size in a Kuhni Extraction Column",
+      "url": "https://www.ije.ir/article_72678.html",
+      "quality": "primary peer-reviewed",
+      "role": "direct Kuhni flooding and drop-size comparison"
+    },
+    {
+      "key": "asadollahzadeh2017",
+      "title": "Pilot Kühni Column Hydrodynamics Study",
+      "url": "https://ijcce.ac.ir/jufile?ar_sfile=344118",
+      "quality": "primary peer-reviewed full text",
+      "role": "Kuhni geometry and hydrodynamic comparison"
+    },
+    {
+      "key": "oliveira2008",
+      "title": "Drop Size Distributions in a Short Kühni Column",
+      "url": "attached_assets/A_STUDY_OF_THE_DROP_SIZE_DISTRIBUTIONS_1788585700948.pdf",
+      "quality": "primary peer-reviewed",
+      "role": "rejected fixed-apparatus regression comparison"
+    },
+    {
+      "key": "shirvani2016",
+      "title": "Kühni Flooding and Drop-Size Correlations",
+      "url": "attached_assets/Shirvani_2016_Kühni_flooding_drop-size_paper_1788586188612.pdf",
+      "quality": "primary peer-reviewed",
+      "role": "rejected high-viscosity flooding comparison"
+    },
+    {
+      "key": "thermopediaTerminal",
+      "title": "Terminal Velocity of Particles for Gravity Separation",
+      "url": "https://thermopedia.com/content/752",
+      "quality": "authoritative technical reference",
+      "role": "terminal-velocity definitions and force balance"
+    },
+    {
+      "key": "schillerNaumannReview",
+      "title": "Review of Drag Correlations for Spherical Particles",
+      "url": "https://doi.org/10.14356/kona.2015009",
+      "quality": "peer-reviewed review",
+      "role": "rigid-sphere drag sensitivity"
+    },
+    {
+      "key": "rao2007",
+      "title": "High-Viscosity Liquid-Liquid Dispersion Study",
+      "url": "https://www.sciencedirect.com/science/article/abs/pii/S0009250907006318",
+      "quality": "primary peer-reviewed",
+      "role": "high-viscosity breakup comparison"
+    },
+    {
+      "key": "viscousDropStudy",
+      "title": "Single-Drop Rising in a Low-Viscosity Continuous Phase",
+      "url": "https://scispace.com/pdf/an-experimental-study-on-single-drop-rising-in-a-low-1k1lhfes6c.pdf",
+      "quality": "primary full text",
+      "role": "terminal-drop comparison"
+    },
+    {
+      "key": "rwthSingleDrop",
+      "title": "RWTH Single-Drop Hydrodynamics Dissertation",
+      "url": "https://publications.rwth-aachen.de/record/64211/files/3738.pdf",
+      "quality": "primary doctoral dissertation",
+      "role": "single-drop and swarm comparison"
+    },
+    {
+      "key": "feng2001",
+      "title": "Drag Coefficients of Viscous Spheres at Intermediate and High Reynolds Numbers",
+      "url": "https://doi.org/10.1115/1.1412458",
+      "quality": "primary peer-reviewed",
+      "role": "viscous-sphere drag comparison"
+    },
+    {
+      "key": "saboni2002",
+      "title": "Numerical Study of the Drag on a Fluid Sphere",
+      "url": "https://doi.org/10.1002/aic.690481225",
+      "quality": "primary peer-reviewed",
+      "role": "fluid-sphere drag comparison"
+    },
+    {
+      "key": "holdUpUnified",
+      "title": "Unified Dispersed-Phase Holdup Correlation",
+      "url": "https://doi.org/10.1021/ie00038a032",
+      "quality": "primary peer-reviewed",
+      "role": "holdup comparison"
+    },
+    {
+      "key": "modernDropReview",
+      "title": "Review of Drop-Size Modelling in Liquid-Liquid Dispersions",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9757738/",
+      "quality": "peer-reviewed full-text review",
+      "role": "breakup/coalescence model triangulation"
+    },
+    {
+      "key": "modernDragReview",
+      "title": "Recent Review of Bubble and Drop Drag Models",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10853527/",
+      "quality": "peer-reviewed full-text review",
+      "role": "drag-model triangulation"
+    },
+    {
+      "key": "sulzerKuhni",
+      "title": "Kühni Agitated Columns ECR",
+      "url": "https://www.sulzer.com/en/shared/products/kuehni-agitated-columns-ecr",
+      "quality": "vendor technical context",
+      "role": "equipment taxonomy only"
+    }
+  ]
+}

@@ -108,3 +108,4 @@
 - [Oliveira short-Kühni boundary](oliveira-short-kuhni-boundary.md) — fixed 150-mm water/Exxsol regressions are diagnostic only; no diameter scaling or flooding basis.
 - [Shirvani 2016 Kühni boundary](shirvani-2016-kuhni-boundary.md) — Eq. 5 fails source replay; Eq. 7 scales via velocities but its near -10 viscosity exponent invalidates RRBO/NMP sizing.
 - [Garthe Kühni swarm boundary](garthe-kuhni-swarm-boundary.md) — useful characteristic-velocity/hold-up candidate; measured d32 and 23.5% error prevent governing flooding or diameter use.
+- [Pre-pilot Kühni hydraulic chain](prepilot-kuhni-hydraulic-chain.md) — diameter screening may execute as extrapolated physics; use constant-P/V geometric scale-up, never fixed-RPM scale-up.

@@ -785,3 +785,39 @@ mtime_ms = 1788491899898
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/8ca731e7-b19f-46d7-8794-fb6260bc6bbd/e5a6c842-82af-4569-9d28-e51fa04b7e72"
 storage_version_token = "1788492012763644"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "gVmVDVZilu5Uountgc-sS"
+uri = "file://research/kuhni-hydraulic-notes.md"
+type = "text"
+title = "Research Notes: Predictive Kühni Hydraulic Diameter"
+description = "Live research plan and evidence log for the d32-to-diameter model audit."
+logical_id = "38364f26-258f-478c-83bd-c88bb891e86b"
+
+[[outputs]]
+id = "mWQjyjS3ILvbaZ4-6r4t0"
+uri = "file://research/kuhni-hydraulic-audit.md"
+type = "text"
+title = "Predictive Kühni Hydraulic Diameter Audit"
+description = "Equation-level literature audit, applicability classifications, and final pre-pilot diameter verdict."
+logical_id = "f046a168-bee2-425f-9e0b-51f3307c502a"
+content_hash = "sha256:8e03d1b230f24ea6db7cbbefd3d929c3973cc0407a1eef1c755ccd6c3bcf5fec"
+size = 8406
+mtime_ms = 1788589750369
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/f046a168-bee2-425f-9e0b-51f3307c502a/9c5cbb61-fe8f-4f83-a483-2b58c02dc30e"
+storage_version_token = "1788589929710838"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "YPajtp3nuU28tD0PoatIP"
+uri = "file://research/kuhni_hydraulic_screen_results.csv"
+type = "table"
+title = "Kühni Hydraulic Screening Results"
+description = "Reproducible diameter sweep for both swarm models across the five saved agitation cases and four flood fractions."
+logical_id = "38103e6c-7bed-40d3-9b87-d3c631e7f7dc"
+content_hash = "sha256:ff86e3fe1c95ff0c22401e8c22517b1c36ecb53c940ca337fa0f62cf12ceb932"
+size = 6370
+mtime_ms = 1788589665350
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/38103e6c-7bed-40d3-9b87-d3c631e7f7dc/29fddd54-f502-4774-8cb1-349bde48e4bf"
+storage_version_token = "1788589931407114"
+content_type = "text/csv"
