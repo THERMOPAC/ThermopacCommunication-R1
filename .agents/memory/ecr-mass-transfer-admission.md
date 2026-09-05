@@ -23,6 +23,17 @@ Physical-height calculation requires all of the following:
 - governed ECR hardware compartment pitch and bounded height limits;
 - independently identified axial mixing/backflow.
 
+Solver qualification must re-evaluate every closure on the final state. Require
+independent constitutive residuals, both-phase mixing conservation, normalized
+equilibrium, and an enforced zero-sum diffusive molar-flux frame. A balance
+residual reconstructed from the solver's own transfer vector is tautological
+and cannot prove closure.
+
+The immutable result basis includes the complete duty-acceptance contract,
+closure and parent hashes, and the exact Stage-3 trial identity. Changing the
+duty target or tolerance must change the result hash even if the same design is
+selected.
+
 Documented correlation extrapolation and lack of pilot validation do not block
 pre-pilot predictive calculation. They must be visible as applicability,
 validation-state, provenance, and uncertainty flags. They still block release
@@ -38,7 +49,9 @@ active height.
 
 **Why:** Flood-point holdup cannot define operating interfacial area, assumed
 efficiency hides the rate physics, and pilot-validation status must not be
-confused with whether a documented predictive model can execute.
+confused with whether a documented predictive model can execute. Reconstructed
+balances can appear exact while the final constitutive state remains stale or
+unclosed, and an unhashed duty contract makes replay ambiguous.
 
 **How to apply:** Block only missing equations, required variables, or model
 closure. Otherwise calculate with flags and propagated uncertainty. Stage 3

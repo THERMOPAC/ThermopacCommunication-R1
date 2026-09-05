@@ -12,13 +12,18 @@ import {
   kuhniRunHash,
 } from "./ecr-pre-pilot/kuhni-hydrodynamics";
 import {
-  KUHNI_GEOMETRY_RESOLVER_HASH,
   KUHNI_GEOMETRY_RESOLVER_V100_VERSION,
+  KUHNI_GEOMETRY_RESOLVER_VERSION,
   PRE_PILOT_DEFAULT_THEORETICAL_STAGES,
   resolveKuhniGeometry,
   resolveKuhniGeometryV100,
   type TheoreticalStageAuthority,
 } from "./ecr-pre-pilot/kuhni-geometry-resolver";
+import {
+  KUHNI_GEOMETRY_RESOLVER_V110_HASH,
+  KUHNI_GEOMETRY_RESOLVER_V110_VERSION,
+  resolveKuhniGeometryV110,
+} from "./ecr-pre-pilot/kuhni-geometry-resolver-v110";
 
 const COUNTER_ROW_ID = 1;
 const MAX_ALLOCATION_ATTEMPTS = 3;
@@ -330,7 +335,7 @@ export async function createKuhniGeometryResolverRun(userId: number, designId: n
     [designId, userId],
   );
   const parentRun = parent.rows[0] ?? null;
-  const result = resolveKuhniGeometry(basis, theoreticalStages);
+  const result = resolveKuhniGeometryV110(basis, theoreticalStages);
   const immutableHash = kuhniRunHash({
     basis,
     theoreticalStages,
@@ -348,7 +353,7 @@ export async function createKuhniGeometryResolverRun(userId: number, designId: n
       designId, userId, stage1.immutableHash,
       theoreticalStages.stage2JobId, theoreticalStages.stage2ResultHash,
       parentRun?.id ?? null, parentRun?.immutable_hash ?? null,
-      basis, theoreticalStages, result, KUHNI_GEOMETRY_RESOLVER_HASH, immutableHash,
+      basis, theoreticalStages, result, KUHNI_GEOMETRY_RESOLVER_V110_HASH, immutableHash,
     ],
   );
   return {
@@ -388,9 +393,18 @@ export async function getKuhniGeometryResolverRuns(userId: number, designId: num
       result: row.result,
     });
     const { calculationHash, ...calculationPayload } = row.result ?? {};
-    const numericalReplay = row.result?.engine?.version === KUHNI_GEOMETRY_RESOLVER_V100_VERSION
-      ? resolveKuhniGeometryV100(row.processBasis, row.theoreticalStages)
-      : resolveKuhniGeometry(row.processBasis, row.theoreticalStages);
+    const numericalReplay = (() => {
+      switch (row.result?.engine?.version) {
+        case KUHNI_GEOMETRY_RESOLVER_V100_VERSION:
+          return resolveKuhniGeometryV100(row.processBasis, row.theoreticalStages);
+        case KUHNI_GEOMETRY_RESOLVER_VERSION:
+          return resolveKuhniGeometry(row.processBasis, row.theoreticalStages);
+        case KUHNI_GEOMETRY_RESOLVER_V110_VERSION:
+          return resolveKuhniGeometryV110(row.processBasis, row.theoreticalStages);
+        default:
+          throw new Error('ECR_PRE_PILOT_KUHNI_RESOLVER_UNKNOWN_ENGINE_VERSION');
+      }
+    })();
     if (
       replayed !== row.immutableHash
       || row.implementationHash !== row.result?.engine?.implementationHash
