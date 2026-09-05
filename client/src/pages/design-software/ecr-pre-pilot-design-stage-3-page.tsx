@@ -96,16 +96,12 @@ export default function EcrPrePilotDesignStage3Page() {
   }, []);
 
   const thermodynamicResult = thermodynamicJob?.result;
-  const establishedStages = thermodynamicResult?.establishedTheoreticalStages
-    ?? thermodynamicResult?.predictiveNt;
   const thermodynamicStage1SnapshotHash = thermodynamicResult?.stage1TargetGovernance?.stage1SnapshotHash;
   const thermodynamicReady = Boolean(
     thermodynamicJob?.status === "completed"
     && thermodynamicResult
     && thermodynamicResult.status !== "ENGINE_ERROR"
     && USABLE_THERMODYNAMIC_EXECUTION_STATUSES.has(thermodynamicResult.executionStatus ?? "")
-    && Number.isInteger(establishedStages)
-    && Number(establishedStages) > 0
     && stage1SnapshotHash
     && thermodynamicStage1SnapshotHash === stage1SnapshotHash,
   );
