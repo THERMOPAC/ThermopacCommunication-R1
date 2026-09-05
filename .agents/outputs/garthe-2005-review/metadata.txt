@@ -1,0 +1,2 @@
+pages=272
+metadata={'format': 'PDF 1.2', 'title': 'Dissertation Garthe 2005.book', 'author': '', 'subject': '', 'keywords': '', 'creator': 'PScript5.dll Version 5.2', 'producer': 'AFPL Ghostscript 8.14', 'creationDate': 'D:20060509145044', 'modDate': 'D:20060509145044', 'trapped': '', 'encryption': None}

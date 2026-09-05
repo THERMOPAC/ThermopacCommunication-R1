@@ -1,0 +1,1534 @@
+8:                   Swarms of Particles in Extraction Columns
+28:Prüfer der Dissertation:     1. Univ.-Prof. Dr.-Ing. Dr.-Ing. habil. J. Stichlmair
+43:der Technischen Universität München. Mein Dank gilt Herrn Prof. Dr.-Ing. J. Stichlmair für das
+88:preliminary tests in pilot plant columns using the original fluids. The disadvantage of this
+90:Furthermore, experiments in pilot plant columns are expensive and time-consuming, and thus
+94:gations involve studies of the velocities, the breakage mechanisms and the mass transfer rates
+98:drops in a swarm have to be studied. By understanding the basic principles of the motion of drop
+99:swarms, a more reliable dimensioning technique can be established. Single drop experiments
+100:combined with computer simulations of drop size distributions, hold-up distributions and
+105:behaviour of single particles and swarms of particles. Sieve trays, structured packings, rotating
+106:disc agitators and Kühni blade agitators are used as internals in pulsed or agitated extraction
+108:single particles and the modelling of the hold-up influence on the motion of a swarm. To
+109:develop models for the characteristic velocity and the swarm velocity, rigid polypropylene
+111:can be carried out in absence of breakage and coalescence effects, which are typical for drops.
+113:The breakage of single drops is investigated to give information about the effects of energy
+114:input and drop size on the breakage probability, the number of generated drops and their size
+115:distribution. In addition, the influence of column internals, energy input and drop size on mass
+116:transfer can be seen from experiments with single drops and swarms of drops. Two different
+153:Siebboden- und geordneten Packungskolonnen als auch in gerührten RDC- und Kühni-
+201:4.3   Rigid Sphere Swarm Extractor. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 58
+202:4.4   Drop Swarm Extractor . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 60
+208:5.1   Terminal Velocity . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 67
+212:5.5   Characteristic Velocity in Agitated Columns with Kühni Blade Agitators . . . . . . . . 83
+217:6     Single Drop Breakage . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 88
+219:6.1   Breakage Probability of Single Drops in Pulsed Columns . . . . . . . . . . . . . . . . . . . . 89
+220:6.2   Breakage Probability of Single Drops in Agitated Columns . . . . . . . . . . . . . . . . . . . 97
+221:6.3   Number of Daughter Drops Produced by the Breakage of a Mother Drop . . . . . . . 104
+232:8     Swarm Influence in Extraction Columns . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 125
+234:8.1   Modelling the Swarm Influence on the Basis of Single Particle Experiments . . . . 125
+235:8.2   Simplification of the New Swarm Model . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 130
+236:8.3   Validation of the New Swarm Model . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 133
+246:10    Summary. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 149
+268:for wastewater treatments, see Stichlmair and Steude 1990, Rydberg et al. 1992, etc. In recent
+303:is affected by many parameters. A very important factor is the drop size and drop size distri-
+304:bution of the dispersed phase along the column height. The drop size distribution is governed
+305:by breakage and coalescence mechanisms and can be relatively narrow or wide, depending on
+306:column internals and operating conditions. The drop size has great impact on the drop velocity.
+308:and the energy input. Furthermore, the velocity of a swarm of drops can significantly differ from
+309:the velocity of single drops. The influence of drop concentration (i. e. hold-up) on the velocity
+310:of a swarm, which is the so-called swarm influence, is not satisfactorily understood to this day.
+317:breakage and coalescence behaviour will change along the column height and different drop
+318:sizes and velocities will appear. Thus, the development of scale-up methods based on
+322:groups, there still exists no reliable method for modelling the mass transfer rates in swarms of
+335:experiments, models can be developed for predicting the performance of pilot plant columns
+341:and scale-up methods can be used. The disadvantage of this approach is that large amounts of
+342:liquids are needed and that experiments in pilot plant columns are time-consuming.
+344:Nowadays, the aim of novel scale-up methods is to reduce the experimental effort of the
+346:phenomena typically studied during experiments with single drops are the breakage
+357:drop size classes in different column sections along the column axis. Using this procedure, the
+358:efficiency of pilot plant extractors can be predicted with an accuracy of 20 % of the actual
+359:column efficiency, see Hoting 1996, Modes 1999, Henschke 2003, etc.
+366:and drops) and swarms of particles in extraction columns with different internals. The
+367:dependence of drop velocity, breakage and mass transfer on drop size, energy input and
+370:and swarms of drops, hold-up distributions, drop size distributions and mass transfer rates can
+376:breakage and coalescence. Furthermore, single drops are analysed to obtain information about
+377:velocity, breakage and mass transfer rates in compartments with different internals.
+382:Swarms of rigid spheres and drops are also studied. A new swarm model for predicting the
+387:discs or Kühni blade agitators.
+398:drops and swarms of drops, the other groups involved were mainly concerned with the
+401:information about the accuracy of the new scale-up method. Parameters such as drop size distri-
+402:butions, hold-up distributions and concentration profiles obtained from experiments in different
+403:pilot plant extractors were compared with calculated parameters of the project partners. Exact
+416:single drops and swarms of drops. In addition, the fluiddynamic and mass transfer models in the
+417:literature used to predict parameters such as drop size, hold-up and mass transfer rates in liquid/
+428:such as average drop size, total hold-up of dispersed phase, axial dispersion coefficients of both
+439:models the characteristic features of the dispersed phase, such as drop velocities, breakage
+440:behaviour and mass transfer mechanisms, are determined as a function of drop size distribution.
+441:Hence, the characteristic features of the dispersed phase are obtained for all drop size classes.
+551:dispersed character of the drops. As a result of the breakage and coalescence mechanisms,
+552:relatively wide drop size distributions often exist in extraction columns, see figure (2.2). The
+553:drop size distribution can significantly alter along the column height until equilibrium between
+554:breakage and coalescence is reached.
+561:                                                                       swarms of drops
+575:Figure 2.2: Scheme of an extraction column and characteristic drop size distribution
+578:The influence of drop size distribution on residence time distribution of the dispersed phase
+579:strongly affects the mass transfer of single drop size classes. Many authors have demonstrated
+582:interrelationship by considering all drop size classes.
+590:According to Casamatta and Vogelpohl 1985, volume balances of a certain drop size class and
+643:Here, the basic parameter P ( t, z, d i ) is a drop size distribution function that represents the
+645:the volume balance for a certain drop size class is governed by convective transport (term 2),
+647:diameter of di due to breakage SB and coalescence SC (term 4), see equation (2.5). The factors
+652:phase and depends on the hold-up h d ( t, z ) :
+658:While the equations above allow the determination of drop size and hold-up profiles,
+675:considered drop size class di and the continuous phase. The parameter Ty accounts for the
+676:mixing effects due to breakage and coalescence for the average concentration of the drop class
+713:of extractors. For example, Toutain et al. 1998 and Henschke 2003 evaluated the operating
+718:extractor with blade agitators (Kühni) were investigated by Zamponi 1996 and Steiner et al.
+731:Fluiddynamics in extractors are controlled by different parameters such as drop breakage and
+735:literature as well as a presentation of correlations to predict characteristic features of swarms of
+736:drops like hold-up, axial back mixing and maximum throughput of extraction columns.
+740:2.2.1         Drop Size
+742:Drop size and drop size distribution have a significant influence on throughput and mass
+743:transfer in extractors. The drop size determines the velocity as well as the mass transfer rate of
+744:the drops. Swarms of drops can be characterised by average values of the drop size, for example
+745:by the sauter diameter. The sauter diameter is defined as the diameter of drops in a mono-
+746:dispersed swarm that has the same interfacial area per volume as the actual poly-dispersion:
+751:To model the sauter diameter the theory of isotropic turbulence by Kolmogorov 1958 is often
+752:used as a basis for the description of the average drop size of swarms, see Fischer 1973,
+754:correlations can be found in the literature which evaluate the drop size by a set of dimensionless
+757:In contrast to the description of swarms of drops by an average drop diameter, a more detailed
+762:relatively narrow drop size distributions are desired to enhance mass transfer. Because of the
+763:width of the drop size distributions, average diameters like the sauter diameter do not
+765:change of the entire drop size distribution along the column height through breakage and
+770:coalescence expressions for each drop size class. This leads to a more realistic description of the
+775:• Drop breakage
+777:Breakage of drops with diameter di and production of drops with diameter di by the breakage of
+787:where g ( t, z, d i ) represents a breakage frequency. The breakage frequency is defined by the
+796:generated by the breakage of a mother drop d M . Hence, the volumetric density distribution in
+800:There are numerous approaches for the evaluation of breakage frequencies in liquid/liquid-
+802:breakage if the kinetic energy of the eddies is larger than the surface energy of the drop. In these
+804:the drop, see Narsimhan 1979, Tsouris and Tavlarides 1994, etc. The breakage frequency is also
+805:often determined as a function of the breakage probability pB:
+811:The breakage probability pB can be experimentally obtained by the fraction of breaking drops
+813:right side of equation (2.15) considers the time for breakage in a compartment height hc .
+819:Haverland 1988, Leu 1995 and Hoting 1996 determine the breakage probability in single
+853:Figure 2.3: Characteristic diameters dstab and d100 for the breakage of single drops in pulsed
+857:difference in the values for d100. Hence, breakage is higher in the structured packing than in a
+860:Following Haverland 1988 and Leu 1995, the breakage probability for drop diameters d i in
+867:where the exponent C is a function of the pulsation intensity. The breakage probability pB in
+868:different pulsed compartments is illustrated in figure (2.4). This figure reveals that breakage in
+880:                breakage probability pB
+901:Figure 2.4: Breakage probability in pulsed compartments with single sieve trays and a single
+905:In agitated columns the breakage probability can be determined as a function of the critical
+907:speed nR,crit is the maximum rotational speed where no drop breakage appears for a drop of
+908:diameter d i . Fang et al. investigated drop breakage in Kühni-compartments and found that the
+909:breakage probability is well described by:
+918:Plots of the breakage probability against the rotational speed were made in order to determine
+919:the critical rotational speed nR,crit . Subsequently, the critical rotational speed in the Kühni-
+920:compartments was determined by an extrapolation of the breakage probability to zero for a
+921:certain mother drop diameter. Modes determined the breakage probability in compartments
+940:Figure (2.5) presents a plot of breakage probabilities in single agitated compartments which
+941:shows that the use of Kühni blade agitators results in much larger numbers of breakage events
+943:times higher than in the Kühni-compartment, breakage probabilities are still higher for the blade
+951:                 breakage probability pB
+956:                                                           Kühni - blade agitator
+970:Figure 2.5: Breakage probability in a single compartment with different agitators
+972:To model the drop breakage in extraction columns by DPBMs, the drop size density
+973:distributions q3 of the daughter drops must be known. Drop size density distributions can be
+1013:Here, ndd is the average number of daughter drops per breakage and dcrit is given by a
+1016:Henschke used a different approach to evaluate drop size profiles in pulsed sieve tray columns.
+1017:The author considered all parameters that influence the stable drop diameter, the breakage
+1018:probability, the number of daughter drops per breakage and daughter drop distributions.
+1019:Detailed information about this model is given in Henschke 2003.
+1021:To simplify the modelling of drop breakage, some groups assumed that drops just split in two
+1025:drop breakage in a pulsed sieve tray compartment, which shows that more than two daughter
+1028:very sensitively to the number of daughter drops produced by breakage, all generated daughter
+1041:        number of daughter drops per breakage ndd
+1064:Figure 2.6: Number of daughter drops produced by breakage in a single pulsed sieve tray
+1068:• Drop coalescence
+1070:Although the rate of coalescence is normally suppressed in technical applications through the
+1071:choice of the mass transfer direction, coalescence must not be neglected, see Henschke 2003.
+1072:However, the determination of the influence of coalescence in liquid/liquid-systems, especially
+1077:Investigations of coalescence phenomena make clear that drop/drop-coalescence strongly
+1079:(DPBMs) allow a realistic description of the coalescence mechanisms in poly-dispersed swarms
+1080:of drops. In DPBMs normally only binary coalescence is considered, which is described in
+1081:terms of the number of drops with diameters of d1 and d2 which coalesce with a certain rate
+1082:w ( d1, d 2 ) . The number of coalescence events per unit volume and time is given by
+1095:due to binary drop coalescence is given by:
+1106:drop-coalescence is characterised by a single parameter, the coalescence rate. The coalescence
+1107:rate is often described by the product of collision frequency h ( d 1, d 2 ) and coalescence
+1114:collision frequency, the coalescence efficiency accounts for the time of contact between two
+1115:drops and the time of coalescence. After a collision the contact time must exceed the
+1116:coalescence time, which is given by the drainage time of the liquid film between the drops, see
+1118:and Tavlarides evaluated the collision frequency and the coalescence efficiency as follows:
+1130:Here, φ is the energy dissipation. Sovova 1981 describes the coalescence efficiency based on the
+1133:than the surface energy, coalescence efficiency is described by:
+1154:To gain reliable results for the coalescence effects in liquid/liquid-systems, the constants in
+1156:gations. The experimental investigation of coalescence phenomena is complicated and results
+1157:have to be treated carefully. Often coalescence effects are examined in stirred vessels, see Tobin
+1158:and Ramkrishna 1999. Drop size distributions are detected before and after switching off the
+1159:agitator. The change of drop size distribution gives information about the coalescence effects
+1160:and, in turn, the constants in the equations above. The determination of coalescence in this way
+1162:further drop breakage events.
+1164:A better way to gain reliable results for the coalescence rate is to carry out experiments in
+1165:columns where no drop breakage occurs. Simon et al. 2003 investigated drop/drop-coalescence
+1168:swarm of mono-dispersed drops remains at a constant position in the tube due to their terminal
+1169:velocity. After the formation of a swarm of drops with diameter d1, single drops of diameter
+1170:d2 > d1 are formed. If a single drop coalesces with a drop in the swarm, the generated drop
+1172:high-resolution camera. Using this experimental set-up, drop/drop-coalescence can be
+1173:determined as a function of drop size and hold-up in the column. Thus, the coalescence rate
+1174:w ( d1, d 2 ) is derived from the experimentally determined coalescence probability pc and the
+1175:residence time tres of the drops in a volume VComp where coalescence occurs:
+1183:Figure (2.7) illustrates the coalescence probability pc as a function of drop size and hold-up. The
+1184:coalescence probability increases with the hold-up. In addition, swarms with drop diameters d1
+1189:of 2.0 mm show higher coalescence probabilities than swarms with drop diameters d1 of
+1190:1.5 mm. For drops larger than 2.0 mm in the swarm, constant or lower coalescence probabilities
+1194:a coalescence event. Although the experimental approach of Simon et al. 2003 is promising, the
+1195:experimental data only give information about the coalescence behaviour of single drops for a
+1196:maximum hold-up of 12.5 %. Since the hold-up in extraction columns is often higher, the
+1197:coalescence behaviour of single drops needs further investigation.
+1204:        coalescence probability pc
+1222:                                                                    hold-up hd
+1224:Figure 2.7: Coalescence probability of drops in mono-dispersed swarms with different drop
+1225:            diameters d1 with respect to hold-up
+1227:It should be noted that reliable results for drop breakage as well as for coalescence are only
+1241:Although the velocity of drops in a swarm differs significantly from that of single drops,
+1242:numerous investigations prove that the so-called swarm velocity can be modelled on the basis
+1247:• Terminal velocity
+1251:terminal velocity. The distance that a drop needs to reach its terminal velocity is approximately
+1252:as short as 2 to 4 times of its own diameter, see Stichlmair 2001. The terminal velocity of single
+1263:exposed to the oncoming flow. The terminal velocity of oscillating drops decreases, and
+1271:qualitatively described. This is surprising considering that the terminal velocity of single drops
+1287:                      terminal velocity vo
+1302:Figure (2.9) illustrates the terminal velocity of single butyl acetate drops in water. The drops
+1303:achieve a higher terminal velocity in the diameter range from 2.0 to 3.5 mm than rigid spheres
+1308:A comparison of the experimental results of Henschke 2003 with several models reveals that
+1311:general model for the terminal velocity of rigid spheres, drops and bubbles. Although this model
+1315:The following section presents the application to liquid drops. According to Henschke 2003, the
+1316:terminal velocity of single drops is determined by a transfer function between the velocity of
+1335:                                     0.15                                                                  Henschke 2003
+1337:              terminal velocity vo
+1355:            experimental results and model from Henschke 2003 with other models
+1356:The terminal velocity of a spherical drop is obtained from the velocity of a spherical rigid sphere
+1407:demonstrates that the model of Henschke accurately describes the velocity of single butyl
+1418:lower than the terminal velocity. For instance, drops in pulsed columns collide with the sieve
+1424:The characteristic velocity is often determined by measuring the velocity of swarms of drops
+1425:for different hold-up values and extrapolating the so-called swarm velocity to a hold-up of zero.
+1427:can act differently in swarms due to the different fluiddynamic conditions compared to single
+1432:prediction of the terminal velocity as well as for the characteristic velocity in different extractors
+1457:velocity. However, no conclusions can be drawn about the impact of energy input on drop
+1462:than on the drop breakage, see Leu 1995 and Hoting 1996. In contrast, the energy input in
+1473:drops in RDC-compartments. Because of the much higher energy input in Kühni-compartments
+1480:        char. velocity / terminal velocity vchar,o / vo   1.0
+1508:velocity more strongly in Kühni-extractors than in RDC-extractors. This fact is confirmed by
+1520:           = pulsed extractor with random packings, RDC = rotating disc contactor, Kühni =
+1523:Literature source,    Correlations for the terminal velocity v o and the characteristic velocity
+1631:      Kühni          v char, o = 15.73 ⋅ exp ( – 1.18 ⋅ n R ) ⋅ d
+1635:     Kühni                           ( 1 – ϕ s ) ⋅  7.18 ⋅ 10 ⋅ --------- 
+1651:2.2.3       Swarm Velocity and Hold-up
+1653:The velocity of particles in a swarm significantly depends on the size of the particles and the
+1654:volume fraction of the dispersed phase, i. e. the hold-up h d : h d = Vd ⁄ ( Vd + Vc ) . The relative
+1656:swarm velocity or slip velocity. The relative swarm velocity vrs is given by both effective phase
+1670:By combining equation (2.38) with other models to predict the swarm velocity vs in dependence
+1671:of the hold-up, the swarm velocity and the hold-up can be iteratively determined. Many models
+1672:for the prediction of swarm velocities in columns with and without internals exist: Logsdail et
+1676:indicate that the velocity of particles in a swarm is normally lower than the velocity of a single
+1677:particle. In addition, the velocity of particles in a swarm is reduced with an increase of the hold-
+1678:up. Consequently, the swarm velocity can be determined subject to the velocity of a single
+1679:particle v o and the hold-up h d . A widely used model which accounts for this interrelationship
+1680:is that of Richardson and Zaki 1954 who evaluated the swarm velocity for packed and fluidised
+1687:Here, n is the so-called swarm exponent which indicates the extent of the hold-up influence, i. e.
+1688:the swarm influence. Thus, the essential influencing variables on the ratio of the velocities
+1689:v s ⁄ v o are the hold-up h d and the Reynolds number of a single particle Re o . Richardson and
+1695:dependence of the swarm exponent n on the Reynolds number Re o is shown in figure (2.11) by
+1704:            swarm exponent n
+1729:Figure 2.11: Swarm exponent n of rigid particle systems in dependence of the Reynolds
+1734:The swarm velocity can be better described when the influence of the swarm is related to the
+1736:Stichlmair et al. 1989 the drag coefficient of a swarm of particles c d,s is given by:
+1742:Again, there exists a dependence on hold-up h d and Reynolds number Re o of a single particle.
+1743:However, the influence of the hold-up is now independent of the Reynolds number and is given
+1746:The swarm influence description via the ratio of the drag coefficients c d,s ⁄ c d,o has significant
+1759:Equation (2.41) reveals that the influence of the hold-up h d on the swarm velocity is now
+1762:the Reynolds number of a particle in the swarm Res. By examining the two limiting cases for
+1774:swarm exponent in rigid particle systems, see figure (2.11). To compare both models for all
+1775:relevant Reynolds numbers, swarm exponents according to Richardson and Zaki are obtained
+1783:Using the model of Stichlmair et al. 1989 in combination with a correlation for the drag
+1784:coefficient of a rigid sphere, e. g. the correlation of Kaskas 1971, allows the swarm exponent n
+1787:Reynolds number. However, the hold-up has some influence on the swarm exponent of
+1790:In contrast to Richardson and Zaki, the model of Stichlmair et al. allows the prediction of the
+1791:swarm influence only from knowledge of the drag coefficient function of a single particle:
+1792:c d,o = f ( Re o ) . This offers a promising approach for the prediction of the swarm influence in
+1795:As mentioned before, the combination of a model for the swarm velocity with equation (2.37)
+1796:or equation (2.38) offers the possibility to evaluate the hold-up in an extraction column:
+1814:The hold-up can only be iteratively determined from equation (2.45) and equation (2.46). This
+1815:is due to the implicit form of these equations since the swarm velocity (vrs and vs) depends on
+1816:the hold-up. In contrast, there exist many correlations in the literature to predict the hold-up
+1817:independent of the swarm velocity, see Bell and Babb 1969, Hafez et al. 1974, Niebuhr 1982,
+1819:consist of several dimensionless numbers whose effects on the hold-up are determined by
+1822:Hartland 1995 developed a correlation to predict the hold-up in extraction columns using more
+1824:deviations between his experimental hold-up data in a sieve tray column and the calculated
+1826:of the viscosity of the dispersed phase.
+1836:2.2.4          Flooding Capacity
+1839:flooding capacity. Flooding occurs if the counter current flow of the two phases breaks down.
+1840:The flooding capacity of a column is reached if a slight increase of the flow rate of any phase
+1841:causes an infinite increase of the dispersed phase hold-up:
+1851:To ensure that a column is operated with a sufficient safety margin, the flooding capacity must
+1852:be known. Models for the flooding capacity are often derived by combining equation (2.38)
+1853:with a model for the swarm velocity and by determining the first derivations according to
+1855:at flooding v c, f can then be determined using the model of Richardson and Zaki 1954:
+1862:Because the evaluation of the flooding velocities of both phases cannot be solved explicitly by
+1871:flooding velocities of both phases can be easily determined from the terminal velocity of a
+1872:single particle vo and the corresponding swarm exponent n.
+1894:              flooding velocity of cont. phase
+1911:                                                           flooding velocity of disp. phase           or
+1914:Figure 2.12: Flooding diagram according to Mersmann 1980
+1926:swarm velocity in packed extractors:
+1931:To evaluate the flooding velocities of both phases, Mackowiak used the same procedure as
+1932:Mersmann and made a comparison with experimental data. His results show that the swarm
+1934:and Zaki. Godfrey and Slater 1991 also found values of the swarm exponent n in different types
+1937:Further models to predict the flooding capacity of extraction columns are given in Seibert 1986,
+1940:with models for the swarm velocity. Others present empirical equations like the one of
+1943:Drop population balance models (DPBMs) also allow the determination of the flooding capacity
+1944:from knowledge of swarm velocities. Different criteria for the flooding capacity are often used.
+1946:the compartments due to the counter current flow of the continuous phase. Thus, flooding
+1949:the column. Thus, flooding capacity can also be predicted when the calculated value of
+2067:drop residence time distribution, which is determined by the drop size and drop velocity
+2068:distribution, as is reported by Henschke 2003. For the prediction of axial mixing of the
+2070:used. Henschke applied the following equation to predict the axial dispersion coefficient of the
+2102:In contrast to Henschke, Modes also used the axial dispersion model to predict axial mixing of
+2122:the continuous phase vc. Considering that axial mixing is very important for the scale-up of
+2167:The individual mass transfer coefficients mainly depend on drop size and flow conditions inside
+2370:• Mass transfer coefficients in swarms of drops
+2372:Since the hold-up changes the fluiddynamic conditions around drops, the influence of hold-up
+2373:in the prediction of mass transfer rates in swarms of drops should be taken into consideration.
+2374:An interesting approach to determine the mass transfer coefficients βc and βd in swarms of
+2377:swarms of drops in different extraction columns. Another possibility to predict the individual
+2378:mass transfer coefficient βc in swarms of drops was introduced by Nishimura and Ishii 1980:
+2392:A summary of correlations for the prediction of mass transfer coefficients in swarms of drops
+2394:the mass transfer in swarms of drops are only possible if oversimplifying assumptions are made.
+2403:drop size and energy input, appropriate laboratory scale columns and mini plants have been
+2421:transfer coefficients. This can be attributed to the high viscosity of these organic phases
+2465:drop size and energy input, internals have to be installed inside a laboratory scale column. A
+2472:The investigations of Henschke 2003 of single toluene and butyl acetate drops in a pulsed
+2511:The experimental approach of Henschke differs from that of Qi. Qi and the authors mentioned
+2512:above measured the mass transfer in a stationary aqueous fluid. In Henschke’s experiments, the
+2517:who used Henschke’s method. In this diagram, the dimensionless drop concentration is plotted
+2522:According to Henschke, the experimental data can be used to evaluate an effective diffusion
+2567:             of Henschke 2003 (dashed line)
+2573:The evaluation of the effective diffusion coefficient D d, eff for a certain drop size di allows the
+2581:Based on the single drop experiments, the concentration of drops with diameter di in a swarm
+2582:and of the continuous phase can be predicted from Henschke’s drop population balance model
+2591:concentration of each single drop in the swarm is determined. Simultaneously, the lifetime of
+2592:each drop due to breakage or coalescence is considered. Although this procedure is relatively
+2616:mass transfer coefficients with time for single drops and drops within a swarm. His experiments
+2621:more, the overall mass transfer coefficients of swarms βod, s are always higher than of single
+2648:particle experiments represents a promising approach. Compared to tests in pilot plant columns,
+2651:in this work. Furthermore, experiments with swarms of particles were carried out to determine
+2652:the influence of hold-up on the fluiddynamics and to obtain information about the mass transfer
+2656:is the absence of breakage and coalescence. In addition, mono-dispersed particle swarms can be
+2665:velocity of swarms. The rigid spheres for these investigations were made of polypropylene (pp).
+2685:The behaviour of mono-dispersed particle swarms in extraction columns was determined with
+2692:pp-spheres and the pp-spheres for the mono-dispersed swarms are given in table (3.1) and
+2706:Table 3.2: Particle size and density properties of pp-spheres for mono-dispersed swarms
+2721:breakage mechanisms and mass transfer rates. Furthermore, experiments with poly-dispersed
+2722:drop swarms were performed. The aim of these investigations was to determine whether or not
+2723:the developed correlations for swarms of rigid particles can be transferred to liquid/liquid-
+2744: viscosity ηa                  [ 10-3 Pa ⋅ s ]   1.029         1.134        1.022          1.163
+2745: viscosity ηo                  [ 10-3 Pa ⋅ s ]   0.596         0.566        0.738          0.709
+2775:by Henschke 2003. His empirical correlation agrees very well with the experimental data of this
+2787:                                                Henschke 2003
+2828:checked to see whether coalescence behaviour had changed. If differences in the settling time
+2836:swarms of drops in different pilot plant extractors were conducted with toluene and butyl acetate
+2837:of the quality technically pure. Constant liquid purity was provided for the pilot plant
+2838:experiments with swarms of drops through the regeneration of the process liquids in a
+2883:The experimental investigations of single rigid spheres and drops as well as of swarms of rigid
+2886:with single drops and swarms of drops were performed to obtain information about
+2893:The terminal velocity and characteristic velocity of single rigid spheres were determined in a
+2985:averaging at least 50 single measurements for each drop size and operating mode.
+3051:In contrast, the investigation of single drop breakage was carried out in columns with only a
+3085:Figure 4.3: Photoelectrical suction probe to determine drop size distributions
+3087:For each experiment, the size of 1000 drops was measured to gain reliable results for drop size
+3088:distribution and average daughter drop size. Furthermore, to obtain precise results for the drop
+3097:stainless steel capillary, was measured for each drop size before internals were installed inside
+3103:To correctly determine the drop concentration, it is important that the height of the coalesced
+3104:drops in the glass funnel is as small as possible. The coalescence height was minimised by
+3105:ensuring that the drops coalesced rapidly. For this purpose, a funnel was built that significantly
+3110:reduced the coalescence time by the use of a porous teflon filter. A technical sketch of the funnel
+3111:is shown in figure (4.4). After coalescence, the organic phase was evenly distributed along the
+3150:4.3      Rigid Sphere Swarm Extractor
+3160:                                                            4.3 Rigid Sphere Swarm Extractor
+3218:Figure 4.5: Pilot plant for the investigation of swarms of rigid spheres to determine the
+3239:The hold-up of rigid spheres within the active part of the column was determined using two slide
+3242:beneath the upper valve H pb , the hold-up h d within the active part of the column was
+3254:the appendix illustrates the various closing plates used to determine the hold-up, see chapter A.
+3257:the drop swarm extractor, which will be introduced in the following section, only teflon, glass
+3262:4.4            Drop Swarm Extractor
+3264:The influence of hold-up on fluiddynamics and mass transfer of drop swarms was investigated
+3270:                                                                                         4.4 Drop Swarm Extractor
+3275:phase left the column at the top after the drops coalesced at the principal interface in the upper
+3354:Figure 4.6: Pilot plant extractor for the investigation of drop swarms to evaluate the
+3366:to determine the size distribution, see chapter 4.2. The hold-up was determined by a similar
+3367:procedure as in the rigid sphere swarm extractor, using three pairs of stainless steel slide valves
+3369:permitted the simultaneous measuring of the hold-up in three different column sections, each
+3381:                       glas tube                    hold-up
+3390:Figure 4.7: Slide valves for the determination of the hold-up within a measuring section of
+3394:After simultaneously closing all valves, the rising drops coalesce underneath the upper valve.
+3395:Measuring the height of coalescence H coal allows the determination of the hold-up, see
+3396:figure (4.7). The hold-up within a certain column section is then given by:
+3423:instance, in Kühni-extractors with high rotational speeds.
+3444:In the mini plants and the swarm extractors, four different types of internals were installed. For
+3447:agitators: rotating discs and Kühni blade agitators. The agitated compartments (height = 50 mm,
+3462:            second row (from left to right): RDC-compartment, Kühni-compartment
+3492:the dispersed and continuous phase in the drop swarm extractor was evaluated with two samples
+3552:swarm velocity and the effective phase velocity. Consequently, it allows the prediction of the
+3553:hold-up, the residence time of both phases and the mass transfer rates.
+3557:5.1       Terminal Velocity
+3560:terminal velocity, is well known, the prediction of the terminal velocity of drops is still
+3568:The experimental results for the terminal velocity of rigid spheres and drops are illustrated in
+3579:butyl acetate drops lose their form stability at smaller drop sizes than toluene drops. Thus, butyl
+3580:acetate drops reach their maximum terminal velocity at a drop size of πd = 36 (i. e. d = 3.5 mm)
+3589:while toluene drops reach their maximum terminal velocity at a drop size of πd = 64 (i. e.
+3592:Although the prediction of the terminal velocity with published correlations is associated with
+3593:deviations, particularly for butyl acetate drops, the model of Henschke 2003 (see chapter 2.2)
+3640:                                                                                                          Henschke 2003
+3648:Figure 5.1: Terminal velocity of single rigid pp-spheres, toluene and butyl acetate drops
+3656:observed. The Marangoni convections caused a distinct reduction of the terminal velocity of
+3658:2. It should be noted that also the dynamic viscosity of the drops influences the terminal velocities. The higher the
+3659:   dynamic viscosity is the more the drops behave like rigid spheres due to the suppression of circulations within
+3660:   the drops. Since the liquid/liquid-systems used have a similar dynamic viscosity, the influence on terminal
+3661:   velocities could not be determined. Information about the influence of the dynamic viscosity on the terminal
+3665:                                                                                               5.1 Terminal Velocity
+3677:        terminal velocity vo
+3691:                                         Henschke 2003                                 own exp. data
+3697:Figure 5.2: Influence of mass transfer on the terminal velocity of single toluene drops and
+3711:Although experimental results of different groups (Thorsen et al. 1968, Hoting 1996, Henschke
+3712:2003, etc.) prove that mass transfer reduces the terminal velocity, a quantitative prediction of
+3723:                                m/s               bu-ac (d)/a/w, c    d               Henschke 2003
+3725:         terminal velocity vo
+3746:Figure 5.3: Influence of mass transfer and mass transfer direction on the terminal velocity of
+3765:the terminal velocity. This reduction is attributed to the steady change of flow around the
+3771:                                                                                                                                 5.1 Terminal Velocity
+3774:a drop is reduced to 95 % of the terminal velocity for a drop diameter of d = 3 mm for pulsation
+3776:pulsed liquid v o, pulsed to its terminal velocity v o is well described by Haverland’s
+3790:          velocity during pulsation / terminal velocity
+3857:velocity of a single particle in pulsed sieve tray compartments to its terminal velocity
+3901:              char. velocity / terminal velocity vchar,o / vo
+3928:            reference to their terminal velocity
+3943:         char. velocity / terminal velocity vchar,o / vo
+3973:mass transfer. However, since the terminal velocity vo is lower in presence of mass transfer,
+3989:          char. velocity / terminal velocity vchar,o / vo                                                with mass transfer
+4022:predicts values of the characteristic velocity that are too high, particularly for larger drop sizes.
+4048:conditions and a wide range of pulsation intensities and drop sizes. The comparison of
+4158:         char. velocity / terminal velocity vchar,o / vo   1.0
+4210:          char. velocity / terminal velocity vchar,o / vo
+4234:of this correlation is that it shows a strong decrease of the characteristic velocity for drop sizes
+4355:the averaged characteristic velocity to the terminal velocity of the particles is depicted in
+4370:               char. velocity / terminal velocity vchar,o / vo   1.0
+4420:                                                            5.5 Characteristic Velocity in Agitated Columns with Kühni Blade Agitators
+4472:5.5                                               Characteristic Velocity in Agitated Columns with Kühni Blade Agitators
+4474:The energy input of Kühni blade agitators is much higher than of rotating discs. Even for low
+4492:                 Kühni blade agitator
+4497:Figure 5.17: Symmetrical circulating cells in a Kühni-compartment
+4508:To predict the characteristic velocity in Kühni-columns the geometry of the compartments has
+4520:vchar,o ⁄ vo in Kühni-columns is given by:
+4525:                                                                 5.5 Characteristic Velocity in Agitated Columns with Kühni Blade Agitators
+4545:                                                                     Kühni, dA = 45 mm                         nR = 100 1/min
+4551:Figure 5.18: Influence of the rotational speed and drop size on the characteristic velocity in
+4552:             Kühni-compartments
+4556:            char. velocity / terminal velocity vchar,o / vo
+4575:                                                                           nR = 150 1/min                      Kühni, dA = 45 mm
+4581:Figure 5.19: Velocity reduction in Kühni-compartments for single toluene and butyl acetate
+4616:                                                    Kühni
+4637:             from equation (5.6) for Kühni-compartments
+4640:lower in Kühni-columns than in RDC-columns. However, this statement has to be put into
+4641:perspective. Fang et al. used Kühni-compartments with a height of 70 mm. In contrast, Wagner
+4648:conclusion can be drawn about the influence of the compartment height on the characteristic
+4649:velocity. For this reason, the influence of compartment height in Kühni-columns should be
+4663:from 50 to 200 1/min in Kühni-columns, values for vchar,o ⁄ vo from 0.8 to 0.3 are observed.
+4664:Thus, the characteristic velocities in Kühni-columns cover the whole range of characteristic
+4669:        char. velocity / terminal velocity vchar,o / vo
+4697:6        Single Drop Breakage
+4700:The drop size is one of the most important parameter for the performance of an extractor
+4701:because it determines the velocity and the mass transfer rate of drops in a swarm. Breakage and
+4702:coalescence control the drop size and the drop size distribution in a column. Because
+4703:coalescence is normally reduced by the choice of the mass transfer direction, breakage mainly
+4704:affects the drop size profiles. To determine drop size profiles along the column height by
+4705:DPBMs, it is necessary to quantitatively describe the drop breakage with parameters such as the
+4706:breakage probability of single mother drops and the volumetric density distribution of daughter
+4709:The breakage probability p B of single drops can be experimentally determined by the number
+4712:mother drop size and of energy input on the breakage probability. These experiments were
+4720:breakage.
+4731:                                   6.1 Breakage Probability of Single Drops in Pulsed Columns
+4747:6.1      Breakage Probability of Single Drops in Pulsed Columns
+4749:The breakage of single drops in pulsed extraction columns depends on the geometry of the
+4750:internals and the energy input. In pulsed sieve tray columns drop breakage is basically governed
+4756:• Breakage probabilities in pulsed sieve tray columns
+4763:Because larger drops are less stable, breakage probabilities of large drops are higher than of
+4765:diameter d M larger than the hole diameter d h showed significantly higher breakage
+4768:The experiments make clear that in pulsed sieve tray columns the breakage probability pB
+4770:In addition, the pulsation intensity has a large impact on the drop breakage. An increase of the
+4771:pulsation intensity results in a significant increase of the breakage probability. This is due to
+4775:6 Single Drop Breakage
+4785:        breakage probability pB
+4806:Figure 6.1: Toluene (d)/water: Breakage probability of single toluene drops in single sieve
+4814:        breakage probability pB
+4837:Figure 6.2: Butyl acetate(d)/water: Breakage probability of single butyl acetate drops in
+4844:                                                    6.1 Breakage Probability of Single Drops in Pulsed Columns
+4846:The use of sieve trays with small holes results in significantly higher breakage rates than the use
+4858:free system. The influence of the interfacial tension on the breakage probability is shown in
+4859:figure (6.3) and figure (6.4). As expected, the breakage probability increases with decreasing
+4860:interfacial tension. Subsequently, the breakage probability is higher in the ternary toluene and
+4868:         breakage probability pB
+4891:Figure 6.3: Influence of the interfacial tension σ on the breakage probability in a pulsed
+4898:6 Single Drop Breakage
+4906:                 breakage probability pB
+4926:Figure 6.4: Influence of the interfacial tension σ on the breakage probability in a pulsed
+4930:mother drop diameter and the pulsation intensity leads to higher breakage probabilities. In
+4931:addition, higher breakage probabilities result for smaller sieve tray holes and lower interfacial
+4934:The breakage probability in pulsed sieve tray compartments can be predicted by a simple
+4955:                                         6.1 Breakage Probability of Single Drops in Pulsed Columns
+4959:breakage probability: π af = a ⋅ f ⋅ ( ρ c2 ⁄ ( η c ⋅ ∆ ρ ⋅ g ) )          . The new correlation describes the
+4960:breakage in a sieve tray compartment for a wide range of pulsation intensities with only one set
+4964:Table 6.2: Constant factors Ci of equation (6.2) for determining the breakage probability in
+4979:To predict the breakage probability in sieve tray compartments with equation (6.2), the
+4981:pulsation intensity. According to the definition, dstab is determined by a drop with a breakage
+4983:breakage probability somewhere between 0.97 ≤ pB < 1 . The data for the characteristic drop
+4985:chapter A.3 The breakage probabilities calculated from equation (6.2) are plotted as dashed and
+4987:applicable to determine the breakage probability in pulsed sieve tray compartments. In addition,
+4996:   were determined by an extrapolation of the measured breakage probability values.
+4999:6 Single Drop Breakage
+5001:• Breakage probabilities in pulsed columns with structured packings
+5003:Breakage of single drops in a pulsed column with structured packings was investigated in detail
+5005:adjacent corrugated sheets as possible places where breakage occurs. Accordingly, packings
+5006:with a high volumetric surface area possess more breakage places and result in a higher
+5007:breakage performance. In addition, perforation of the corrugated sheets leads to significantly
+5008:higher levels of drop breakage. The “Montz-Pak B1-350“ packing has perforated corrugated
+5009:sheets and a high volumetric surface area of aP = 350 m2/m3. The level of breakage of single
+5016:         breakage probability pB
+5039:Figure 6.5: Toluene (d)/water: Influence of drop size and energy input on the breakage of
+5044:breakage probability. Comparing the results for both binary systems, the large influence of the
+5045:interfacial tension on the drop breakage is obvious. The large difference in the breakage
+5049:the higher the breakage probability, see figure (6.7).
+5052:                                                       6.1 Breakage Probability of Single Drops in Pulsed Columns
+5060:         breakage probability pB
+5078:Figure 6.6: Butyl acetate (d)/water: Influence of drop size and energy input on the breakage
+5088:        breakage probability pB
+5111:Figure 6.7: Influence of the interfacial tension σ on the breakage of single drops in a
+5117:6 Single Drop Breakage
+5120:pulsation intensity determine the breakage in structured packings. For this reason, these
+5121:parameters have to be considered in modelling the breakage probability. The characteristic
+5124:breakage probability in pulsed packings. The constant parameters Ci in equation (6.2) are listed
+5129:Due to the complex mechanisms that influence the breakage of single drops in pulsed
+5131:dstab and d100 together with the breakage probability pB . However, the new correlation allows
+5132:the determination of the breakage probability in a wide range of pulsation intensities just from
+5136:Table 6.3: Constant factors Ci of equation (6.2) for determining the breakage probability of
+5150:                                                       6.2 Breakage Probability of Single Drops in Agitated Columns
+5152:6.2          Breakage Probability of Single Drops in Agitated Columns
+5154:Drop breakage in agitated columns results from the shear stresses caused by the velocity
+5157:breakage of single drops.
+5161:• Breakage probabilities in agitated columns with rotating discs
+5166:speeds than in compartments with Kühni blade agitators. For this reason, the investigation of
+5167:the single drop breakage in a single RDC-compartment has to be carried out with relatively high
+5168:rotational speeds (nR = 300 - 1200 1/min). The strong dependence of the breakage probability
+5177:        breakage probability pB
+5202:Figure 6.8: Influence of the mother drop size and rotational speed on the breakage
+5207:6 Single Drop Breakage
+5216:                breakage probability pB
+5239:Figure 6.9: Influence of the mother drop size and rotational speed on the breakage
+5243:At constant mother drop size, an increase of the rotational speed causes a strong increase of the
+5244:breakage probability. Analogously, an increase of the mother drop diameter at a constant
+5245:rotational speed leads to an increase of the breakage probability. As in pulsed compartments,
+5246:the interfacial tension significantly influences the drop breakage in agitated RDC-
+5247:compartments. The lower the interfacial tension, the higher the values of the breakage
+5250:The breakage probability in a RDC-compartment can be determined by a correlation which was
+5267:                                                                 6.2 Breakage Probability of Single Drops in Agitated Columns
+5276:                breakage probability pB
+5296:Figure 6.10: Impact of the interfacial tension σ on the single drop breakage in a compartment
+5329:6 Single Drop Breakage
+5332:           breakage probability in agitated compartments
+5337: Kühni - blade agitator      1.63 ⋅ 10-3       0.48          3.05            0.13   1.21 ⋅ 10-2
+5340:The breakage probabilities calculated from equation (6.3) are shown in figure (6.8), figure (6.9)
+5342:prove that equation (6.3) represents a good correlation to determine the breakage probability in
+5347:• Breakage probabilities in agitated columns with Kühni blade agitators
+5349:Kühni blade agitators accelerate the liquid in radial direction, producing a characteristic flow
+5351:drops are split at low rotational speeds. For this reason, the breakage of drops in a Kühni-
+5354:Kühni-compartment for a long time. In addition, drops were often pulled back into the
+5356:250 1/min are generally of no practical interest. The breakage of single drops for rotational
+5359:Similar to the RDC-compartment, the breakage probability in the Kühni-compartment increases
+5360:with increasing rotational speed and mother drop size. The breakage probability of the butyl
+5362:addition of some acetone to the binary mixtures results in a significant increase of the breakage
+5369:                                                        6.2 Breakage Probability of Single Drops in Agitated Columns
+5377:        breakage probability pB
+5389:                                  0.2                                                     Kühni, dA = 45 mm
+5399:Figure 6.11: Breakage probability of single toluene and butyl acetate drops in an agitated
+5400:             Kühni-compartment; influence of drop size, energy input and interfacial tension
+5407:        breakage probability pB
+5422:                                  0.2                                                     Kühni, dA = 45 mm
+5432:             the breakage mechanisms in an agitated Kühni-compartment
+5438:6 Single Drop Breakage
+5440:Almost the same correlation as for RDC-compartments can be used to predict the breakage
+5441:probability in Kühni-compartments. The parameters Ci in equation (6.3), which were
+5444:and figure (6.12). Hence, the breakage probability in agitated RDC- and Kühni-compartments
+5446:simplification if the new correlation is used to determine drop size profiles in extraction
+5451:• Comparison of the breakage probability in columns with different internals
+5453:The breakage probabilities of butyl acetate drops in pulsed compartments for a pulsation
+5454:intensity of 2.0 cm/s are shown in figure (6.13). The comparison of the breakage probabilities
+5455:of both investigated types of sieve trays reveals that breakage is significantly higher for sieve
+5456:trays with smaller holes. The structured packing demonstrates a significantly higher breakage
+5457:performance than the sieve tray with 4 mm holes but results in lower breakage probabilities than
+5465:         breakage probability pB
+5471:                                         2 Kühni, dA = 45 mm
+5487:Figure 6.13: Comparison of the breakage probability in compartments with different internals
+5492:                                             6.2 Breakage Probability of Single Drops in Agitated Columns
+5494:The influence of the agitator geometry on the breakage rates was previously discussed. Kühni
+5495:blade agitators have a high energy input and thus drop breakage occurs for much lower
+5496:rotational speeds than for rotating discs, see figure (6.14). While in the Kühni-compartment
+5497:breakage probabilities of about 90 % are recorded at a rotational speed of 175 1/min, breakage
+5505:        breakage probability pB
+5510:                                                  1 Kühni
+5517:                                                                            Kühni, dM = 2 mm
+5518:                                                                            Kühni, dM = 3 mm
+5519:                                                                            Kühni, dM = 4 mm
+5529:Figure 6.14: Comparison of the influence of the geometry of a rotating disc and a Kühni blade
+5530:             agitator on the breakage probability of single drops (a single rotating disc and a
+5531:             single Kühni blade agitator were installed inside the agitated column)
+5534:To compare the breakage rates of all internals used in the experiments, additional tests were
+5538:in figure (6.13). The use of two rotating discs yields very low breakage probabilities for
+5539:rotational speeds as high as 400 1/min. The use of two Kühni blade agitators results in high
+5540:breakage probabilities for rotational speeds as low as 150 1/min. The breakage in the Kühni-
+5548:6 Single Drop Breakage
+5550:6.3              Number of Daughter Drops Produced by the Breakage of a Mother Drop
+5552:During the breakage of a single mother drop more than two daughter drops are often produced.
+5568:        number of daughter drops per breakage ndd
+5593:Figure 6.15: Number of daughter drops as a function of mother drop size and pulsation
+5602:                                                        6.3 Number of Daughter Drops Produced by the Breakage of a Mother Drop
+5608:The averaged number of daughter drops per breakage in pulsed compartments can thus be
+5622:         number of daughter drops per breakage ndd
+5655:6 Single Drop Breakage
+5658:           number produced during the breakage of a mother drop in different compartments
+5666:                                                           Kühni - blade agitator           0.03           2.45
+5671:breakage of mother drops results in lower numbers of daughter drops than in the sieve tray
+5677:        number of daughter drops per breakage ndd
+5709:                                                        6.3 Number of Daughter Drops Produced by the Breakage of a Mother Drop
+5713:The breakage behaviour and the number of daughter drops produced in agitated columns
+5714:depends on the same parameters as in pulsed columns. An increase of mother drop size and of
+5721:daughter drops are produced by the Kühni blade agitator. However, drop breakage occurs at
+5726:          number of daughter drops per breakage ndd
+5752:Figure 6.18: Impact of the mother drop size and the rotational speed on the averaged number
+5753:             of daughter drops produced during breakage in the RDC-compartment
+5756:drops in both the RDC-compartment and the Kühni-compartment, see figure (6.19). The
+5764:6 Single Drop Breakage
+5768:                                                                  Kühni - own exp. data              RDC - own exp. data
+5772:           number of daughter drops per breakage ndd
+5796:             production in an agitated RDC-compartment or Kühni-compartment
+5798:It has to be mentioned that equation (6.5) was developed for predicting the breakage probability
+5803:compartment and in the Kühni-compartment, see figure (6.19). The parameters that are
+5820:predicting the drop breakage in extraction columns by DPBMs. As previously mentioned, there
+5841:6 Single Drop Breakage
+5911:                                          Kühni, dA = 45 mm                                                                Kühni, dA = 45 mm
+5962:mass transfer coefficient β od is considerably increased by an increase of the drop size, see
+6078:used, see also Henschke 2003, which is given by:
+6097:According to Henschke 2003, further information about the limiting mass transfer resistance is
+6152:transfer resistance lies inside the drop. Considerations of other drop sizes for both systems
+6153:confirm this result. Thus, for all investigated drop sizes and systems it is assumed that the mass
+6200:“c to d“. At higher drop sizes the circulations within the drops increase the mass transfer. The
+6254:of Qi 1992, Wagner 1999 and Henschke 2003, the mass transfer into a single drop in pulsed
+6343:investigate since often too many breakage events occur. The determined overall mass transfer
+6344:coefficient cannot be attributed to a certain drop size when several drops of different sizes are
+6345:produced by breakage. For these reasons, only few experiments could be carried out with this
+6390:7. There was a longer time interval between the investigations of mass transfer and of single drop breakage. The
+6392:   different breakage behaviour. Therefore, care was taken to insure that only mass transfer experiments where no
+6393:   breakage or where less than 10 of 100 drops were broken were used for analysis.
+6418:Hoting also carried out mass transfer experiments with swarms of drops in a pilot plant extractor
+6423:experiments. Since drop size profiles and hold-up profiles in the pilot plant column were
+6509:compartments and four Kühni-compartments.
+6516:figure (7.8) and figure (7.9). These figures show that drop size and rotational speed have a great
+6589:• Mass transfer in agitated columns with Kühni blade agitators
+6591:Because of the high breakage rates in agitated Kühni-columns only a few experiments for
+6605:Kühni-compartments. For instance, a butyl acetate drop with a diameter of 2.5 mm shows an
+6615:                                                              Kühni, dA = 45 mm, c           d, x o = 0.03, yo = 0.0
+6646:Figure 7.10: Impact of the rotational speed nR on mass transfer rates of single drops in Kühni-
+6651:swarms of drops in columns with Kühni agitators, see also Kumar 1985. However, it also has
+6657:• General conclusion
+6661:for both test systems mass transfer rates are enhanced by an increase of drop size and energy
+6664:with higher numbers of breakage events and, in turn, smaller drops. Such small drops can lead
+6665:to flooding of the column even at low flow rates. The energy input in extraction columns is
+6669:8        Swarm Influence in Extraction Columns
+6672:The interaction of particles (rigid spheres or drops) within a swarm causes a significant
+6673:reduction of the velocity of the swarm particles compared to the velocity of a single particle. For
+6674:this reason, the influence of hold-up on the effective velocity of particles, which means the
+6675:swarm influence, has to be considered. The effect of hold-up h d on the effective particle
+6682:According to equation (8.1), the effective particle velocity v d,e is determined from the swarm
+6683:velocity vs , the superficial velocity of the continuous phase vc and the hold-up h d . A model for
+6684:the prediction of the swarm velocity vs that is often used is given by Richardson and Zaki 1954.
+6692:The exponent n indicates the degree of swarm influence. Richardson and Zaki give several
+6693:correlations for the so-called swarm exponent n in wide ranges of the Reynolds number, see
+6694:chapter 2.2. However, this model is only validated for swarms of rigid spheres in columns
+6697:this model to drop swarms in extractors is thus questionable. In addition, the evaluation of the
+6698:swarm exponent n according to Richardson and Zaki for swarms of drops is difficult. Extensive
+6699:investigations must be carried out in pilot plant columns. Against this background, a new
+6700:approach will be introduced to determine the swarm velocity vs on the basis of single particle
+6705:8.1 Modelling the Swarm Influence on the Basis of Single Particle Experiments
+6707:An elegant solution for describing the swarm influence in particle flows is achieved by the use
+6708:of the model of Stichlmair et al. 1989, see also chapter 2.2. With this model, the influence of
+6709:hold-up on the swarm velocity vs is predicted from knowledge of the dependence of the drag
+6711:8 Swarm Influence in Extraction Columns
+6719:Since the Reynolds numbers of a single particle Reo and a swarm of particles Res are different,
+6722:unhindered flow is well-known, see Kaskas 1971, Bauer 1976, Clift et al. 1978, Henschke 2003,
+6723:etc. The use of one of these correlations in combination with the new swarm model
+6724:(equation 8.3) allows the swarm exponent n to be determined according to Richardson and
+6733:chapter 2.2, demonstrates the validity of the new swarm model for rigid spheres in an
+6734:unhindered flow. To determine the swarm influence in drop systems in unhindered as well as in
+6743:The dependence of the terminal velocity on the diameter of a single rigid sphere and a toluene
+6752:8. The model of Henschke 2003 was fitted to the experimental terminal velocities of rigid pp-spheres and toluene
+6759:                                                  8.1 Modelling the Swarm Influence on the Basis of Single Particle Experiments
+6775:                                                            terminal velocity
+6783:                                                                                            terminal velocity
+6800:Figure 8.1: Terminal velocity (unhindered flow) of single particles and characteristic velocity
+6846:8 Swarm Influence in Extraction Columns
+6848:Using equation (8.4) to determine the swarm exponent n results in slightly higher values for an
+6849:unhindered flow of drop swarms than of rigid sphere swarms for Reynolds numbers from
+6852:significantly larger than that of rigid spheres, the swarm exponent n falls to values significantly
+6863:         swarm exponent n
+6886:Figure 8.3: Comparison of the swarm exponent n of Richardson and Zaki (solid line) with the
+6887:            swarm exponents for drops in an unhindered and hindered flow calculated by
+6890:Large deviations in the velocities, drag coefficients and swarm exponents between rigid spheres
+6897:packed columns result in low values of the swarm exponent n, see figure (8.3). The swarm
+6902:                                                 8.1 Modelling the Swarm Influence on the Basis of Single Particle Experiments
+6904:That the swarm exponents in columns with structured packings are actually lower than those of
+6906:Mackowiak 1993 and Hoting 1996. Figure (8.4) shows a flooding diagram according to
+6918:Figure (8.4) proves that flooding in packed columns is only correctly predicted by swarm
+6920:described by swarm exponents that are significantly lower than the minimum value of
+6921:Richardson and Zaki of 2.39. Many researchers observed that the swarm exponent and therefore
+6922:the swarm influence in extraction columns is lower than predicted by Richardson and Zaki, see
+6924:time, explanations for the deviations are given by the new swarm model.
+6934:                                                                                                      flooding diagram
+6937:              flooding velocity of cont. phase
+6954:                                                               flooding velocity of disp. phase        or
+6958:Figure 8.4: Flooding diagram according to Mersmann 1980 (Mackowiak 1993 presented
+6959:            flooding data for columns with structured packings and with random packings,
+6960:            but in the figure above only flooding data for columns with structured packings
+6964:8 Swarm Influence in Extraction Columns
+6966:8.2 Simplification of the New Swarm Model
+6968:The prediction of the swarm influence plays a decisive role in the determination of the effective
+6969:drop velocity vd,e. It is also important in the determination of the hold-up in extractors by the
+6976:The new swarm model offers a good approach to predict the swarm velocity and the hold-up in
+6978:large computational effort. The procedure for the simultaneous determination of the swarm
+6979:velocity and the hold-up with the new swarm model and equation (8.7) is depicted in
+6981:derived from the characteristic velocity data of single drops. Second, the hold-up in the extractor
+6982:is estimated. Subsequently, the swarm velocity is determined by an iterative approach (see inner
+6983:iteration circle). Finally, the hold-up is calculated by equation (8.7) and compared with the
+6986:Since the swarm velocity of each drop size in each height element has to be determined by the
+6988:The following sections describe how the application of the new swarm model can be simplified
+6989:to predict the swarm velocity of rigid spheres in columns without internals. The described
+6990:procedure can be easily transferred to drop swarms in columns with internals if the correct
+7000:Using the model of Stichlmair et al. 1989 to determine the drag coefficient of a swarm of
+7003:swarm velocity (see also chapter 2.2):
+7013:                                                     8.2 Simplification of the New Swarm Model
+7069:           Final result/Output: swarm velocity vs,2, hold-up hd,2
+7072:Figure 8.5: Schematic for the simultaneous determination of the swarm velocity and the hold-
+7073:            up using the new swarm model (equation 8.3) and equation (8.7)
+7076:8 Swarm Influence in Extraction Columns
+7078:Prediction of the swarm velocity can be simplified by determining the swarm velocity as a
+7080:swarm of particles:
+7086:Since the velocity of a single particle is different from the velocity of the particles in the swarm,
+7088:different size than the actual size of the particles in the swarm. The particle which is subjected
+7092:Considering the swarm velocity for the actual particles with diameter d by equation (8.9) and
+7100:d v to be determined as a function of the particle diameter d and the hold-up hd . In addition, the
+7101:swarm velocity v s can be evaluated from the velocity of the virtual particle v o,v :
+7106:Thus, starting from the known diameter of the particles in the swarm d, the diameter of the
+7107:virtual particle dv , the velocity of the virtual particle v o,v and finally the desired swarm velocity
+7108:is determined for a certain value of hold-up. Without evaluating the dependence of the drag
+7110:the swarm velocity is derived in 3 steps. Figure (8.6) illustrates this simplified approach to
+7111:determine the swarm velocity of rigid spheres for an unhindered flow. The three steps of the
+7119:                                                                                   8.3 Validation of the New Swarm Model
+7177:Figure 8.6: Illustration of the simplified procedure to determine the swarm velocity (thick
+7179:            8.1 (dashed line). The velocity of a single rigid sphere and the swarm velocity
+7183:8.3 Validation of the New Swarm Model
+7185:As shown previously, the new swarm model predicts the swarm influence of rigid spheres in an
+7187:of the internals. For this reason, the validity of extending the new swarm model to rigid spheres
+7188:in extraction columns with different internals was tested. The use of mono-dispersed swarms of
+7189:rigid spheres permits experiments to be carried out in absence of breakage and coalescence.
+7193:• Swarms of rigid polypropylene (pp)-spheres in extractors with different internals
+7195:The hold-up in extraction columns can be determined with the help of the new swarm model
+7196:and equation (8.7). The comparison of the predicted and measured values of the hold-up
+7197:provides confirmation of the accuracy of the new swarm model. Comparison of the theoretically
+7200:8 Swarm Influence in Extraction Columns
+7202:and experimentally derived hold-up data is advantageous since the hold-up is easier to measure
+7203:than the swarm velocity of the particles. The hold-up in the rigid sphere swarm extractor was
+7205:chapter 4.3. To predict the swarm velocity and the hold-up, the measured terminal and
+7207:combination with the new swarm model.
+7209:The comparison of theoretical and experimental hold-up values reveals that the new swarm
+7210:model predicts the hold-up of rigid spheres in extraction columns without internals very well,
+7211:see figure (8.7). The good agreement of predicted and measured hold-up values was expected
+7212:since the new swarm model was derived for this purpose and already validated by the
+7217:                             rigid pp-spheres                             Rigid sphere swarm extractor:
+7222: theoretical hold-up hd
+7229:                                                                            with Kühni blade agitators
+7242:                                          experimental hold-up hd
+7245:Figure 8.7: Comparison of the measured hold-up of swarms of pp-spheres and predicted
+7246:            values from the new swarm model, see equation (8.3), in different extractors
+7248:In addition, a good agreement of hold-up data in columns with different internals is seen in wide
+7252:(sieve tray - dh = 4 mm) flooding occurred in the column.
+7256:                                                         8.3 Validation of the New Swarm Model
+7258:• Swarms of drops in extractors with different internals
+7260:To test the validity of the new swarm model for predicting the swarm velocity and the hold-up
+7266:the experiments, the sauter diameter and the hold-up were measured in three column sections,
+7270:To predict the swarm velocity and the hold-up, the measured sauter diameters were averaged.
+7271:These averaged sauter diameters were used to determine the terminal velocities of single drops
+7273:chapter 5. Finally, the predicted hold-up values from the new swarm model were compared to
+7274:the measured overall hold-up values.
+7277:the new swarm model in large ranges of operating conditions in extractors. To compare hold-
+7278:up data from the literature with values predicted from the new swarm model, single drop
+7286:• Swarm influence in pulsed sieve tray extractors
+7290:predicted and measured values for the hold-up in the pulsed sieve tray column is shown in
+7291:figure (8.8). For both liquid/liquid-systems used, the predicted values of the hold-up match the
+7298:8 Swarm Influence in Extraction Columns
+7313: theoretical hold-up hd
+7334:                                             experimental hold-up hd            hst = 5 - 10 cm, V d / Vc = 0.6 - 10
+7337:Figure 8.8: Analysis of the suitability of the new swarm model, see equation (8.3), for
+7338:            predicting the hold-up of drop swarms in pulsed sieve tray columns
+7340:In contrast, larger deviations between theoretical and experimental hold-up values were
+7342:coalescence events which are associated with this mass transfer direction, relatively large drops
+7347:significant reason for the deviations that occur in predicting the hold-up for this mass transfer
+7348:direction. Because in technical processes coalescence is normally suppressed by the appropriate
+7349:choice of the mass transfer direction, optimisation of the new swarm model for a mass transfer
+7355:                                                                               8.3 Validation of the New Swarm Model
+7357:• Swarm influence in pulsed extractors with structured packings
+7359:The swarm influence in pulsed packed extractors is significantly lower than in columns without
+7361:Zaki’s model is not advised. In contrast, the use of the new swarm model turns out to be superior
+7362:for predicting the swarm influence and the hold-up. This is confirmed by the analysis of the
+7364:extractors, the hold-up is satisfactorily predicted for pulsation intensities of 1.0 and 2.0 cm/s,
+7375:theoretical hold-up hd
+7397:                                            experimental hold-up hd              a f = 0.0 - 2.0 cm/s, V d / Vc = 0.2 - 5
+7400:Figure 8.9: Control of the validity of equation (8.3) for predicting the hold-up in columns
+7405:packings the new swarm model results in good agreement with the experimental hold-up. For a
+7414:8 Swarm Influence in Extraction Columns
+7416:• Swarm influence in extractors with rotating discs
+7418:The swarm influence in agitated columns differs from the swarm influence in pulsed columns,
+7420:The new swarm model takes these differences into account by considering the characteristic
+7422:is required to correctly predict the swarm influence in agitated columns such as RDC-extractors.
+7424:The new swarm model was tested for RDC-extractors by comparing the hold-up in the own
+7426:from the literature was used. The hold-up of these experiments is well predicted, see
+7429:up to 900 1/min. Small deviations of the hold-up are observed for their experiments. This is
+7442:theoretical hold-up hd
+7461:                                            experimental hold-up hd            nR = 140 - 900 1/min, js = 35 - 45%
+7464:Figure 8.10: Applicability test of the new swarm model, see equation (8.3), to predict the hold-
+7470:                                                                               8.3 Validation of the New Swarm Model
+7472:In general, for swarms of drops with a sauter diameter smaller than 4.5 mm, minor deviations
+7473:between theoretical and experimental hold-up values of RDC-extractors are observed. For
+7474:swarms of drops with larger sauter diameters, the hold-up cannot be satisfactorily predicted.
+7480:• Swarm influence in extractors with Kühni blade agitators
+7482:The comparison of predicted and measured hold-up in the own Kühni-extractor9 is illustrated
+7483:in figure (8.11). In addition, the comparison with hold-up data from Bailes et al. 1986 and
+7485:hold-up values are 23.5 %. Larger deviations exist for a few experiments from Goldmann with
+7493:                            Kühni
+7497:theoretical hold-up hd
+7516:                                            experimental hold-up hd
+7518:Figure 8.11: Comparison of the predicted hold-up using the new swarm model, see
+7519:             equation (8.3), and the experimental hold-up in agitated Kühni-extractors
+7523:   since for higher rotational speeds flooding of the Kühni-extractor appeared even for very low total throughputs.
+7526:8 Swarm Influence in Extraction Columns
+7528:• General conclusion
+7530:The comparison of hold-up data confirms that the new swarm model accurately predicts the
+7531:hold-up in different extraction columns. The most important advantage of the new swarm model
+7532:is that the swarm influence is determined from the velocity of single drops only. Consequently,
+7539:The application of the new swarm model in combination with drop population balance models
+7542:partners. The derived correlations for the characteristic velocities of single drops and swarms of
+7556:physical properties of the liquid/liquid-system, drop size and velocities of the drops within a
+7557:swarm. Previous investigations also reveal that an increase of the energy input significantly
+7563:dispersed phase. The total throughput was increased in steps up to a value close to the flooding
+7564:capacity of the column. During each experiment drop size distributions, hold-up distribution
+7567:pulsed packed column, in the agitated RDC-extractor and in the Kühni-extractor is given in the
+7596:10. The appendix also includes examples for the initial drop size distribution immediately after the distributor.
+7605:drop breakage, as was already shown in chapter 6.1. The larger interfacial area and the longer
+7667:rates increase with an increase of the total throughput up to the flooding capacity, see
+7669:optimal throughput in a pulsed sieve tray column is near the flooding point, good knowledge of
+7670:the flooding capacity is important.
+7681:the scale-up of such columns less difficult, see Godfrey and Slater 1994. In addition, pulsed
+7692:breakage performance of the structured packings in combination with the low interfacial tension
+7740:mass transfer rates in RDC-extractors and in Kühni-extractors are different at similar rotational
+7747:Due to the low breakage rates in RDC-extractors, the initial drop size distribution is very
+7749:rates are achieved by the generation of small drops with a narrow drop size distribution at the
+7756:under the stators caused by coalescence and low breakage of larger drops, as was seen during
+7798:• Mass transfer performance of Kühni-extractors
+7800:In a Kühni-extractor, the production of liquid films under the stators is prevented by the
+7805:The investigations in the extractor with Kühni blade agitators show a strong influence of the
+7810:For both test systems, mass transfer rates in the Kühni-extractor are higher than in all other
+7812:decrease for a total throughput close to the flooding point. This is confirmed by the experiments
+7813:with a rotational speed of 150 1/min. A further disadvantage of Kühni-extractors is the
+7819:and their low characteristic velocities. Thus, Kühni-extractors are associated with very high
+7851:Figure 9.4: Influence of the rotational speed on the mass transfer rates of an agitated Kühni-
+7861:systems, see figure (9.5). It should be mentioned that the conclusions from figure (9.5) are only
+7870:that mass transfer performance of the Kühni-extractor is significantly better than of the RDC-
+7875:extractor. This is also confirmed by the investigations of Stichlmair 1980. However, the higher
+7876:mass transfer rates in the Kühni-extractor are associated with a reduction of the maximum
+7879:The analysis of all experimental data shows that the mass transfer rates of the Kühni-extractor
+7899:                A                                  Kühni
+7906:                           Kühni
+7921:                B                                          Kühni
+7928:                          Kühni
+7939:            Kühni-extractor (Kühni), the RDC-extractor (RDC), the pulsed sieve tray
+7944:10       Summary
+7958:acetate drops show how characteristic velocities, drop breakage and mass transfer rates are
+7961:Kühni blade agitators reveal that the characteristic velocity is mainly influenced by the particle
+7962:size and the geometry of the column internals. Particularly in columns with Kühni blade
+7964:addition to drop size and energy input, breakage and mass transfer rates of single drops are
+7968:predict the characteristic velocity of single particles as well as the breakage of single drops.
+7970:data and with data from the literature. The derived correlations for predicting the breakage
+7971:probability, the number of generated daughter drops and their drop size distribution agree very
+7973:the derived correlations allow the breakage of single drops to be precisely described through a
+7974:small number of experiments only. For agitated RDC- and Kühni-columns, these correlations
+7975:also permit the single drop breakage to be accurately determined.
+7981:10 Summary
+7983:The experiments with swarms of rigid spheres and drops give information about the influence
+7984:of hold-up on swarm velocities, i. e. about the swarm influence. Based on these investigations,
+7985:a novel model for predicting the swarm influence was developed. With this model the swarm
+7987:of the new swarm model for drops in different extractors was verified through numerous
+7988:experiments in a pilot plant extractor as well as by data from the literature. Thus, the swarm
+7991:The investigation of the swarm influence in different pilot plant extractors was carried out under
+7995:column, which is due to the low energy input of the rotating discs and the low breakage rates.
+8003:systems and extensive investigations of coalescence behaviour and axial mixing are
+8004:recommended. The prediction of coalescence rates in liquid/liquid-systems is still uncertain
+8006:coalescence behaviour. The investigation of axial mixing is difficult due to the large
+8009:can surely be achieved by a more accurate description of coalescence and axial mixing.
+8032:cd,o(Res)      drag coefficient of a single particle within a particle swarm with Res -
+8033:cd,s           drag coefficient of a swarm of particles                               -
+8035:d1,2           sauter diameter, also referred to as d3,2                              m
+8036:d100           characteristic drop diameter due to a breakage probability of 100 %    m
+8056:dmax       maximum diameter of a drop size distribution                          m
+8064:g(t,z,d)   breakage frequency for drops with diameter d at height z and time t   1/s
+8069:Hcoal      height of volume of coalesced dispersed phase                         m
+8070:hd         hold-up (volume fraction of dispersed phase)                          m3/m3
+8071:hd,f       hold-up at the flooding point                                         m3/m3
+8085:n          swarm exponent                                                        -
+8087:ncoal      number of coalescence events                                          -
+8094:ndd        averaged number of daughter drops per breakage                          -
+8100:P(t,z,d)   volumetric drop size density distribution for drops
+8102:pB         breakage probability of single drops                                    -
+8103:pc         coalescence probability                                                 -
+8107:SB         source term characterising the breakage of drops                        1/(m ⋅ s)
+8108:SC         source term characterising the coalescence of drops                     1/(m ⋅ s)
+8109:SF,d       source term characterising the feed and drop size distribution
+8115:Ty         mixing term due to breakage and coalescence during mass transfer        1/(m ⋅ s)
+8121:vc,f       superficial velocity of the continuous phase at flooding                m/s
+8126:vd,f       superficial velocity of the dispersed phase at flooding                 m/s
+8132:Vi,coal    volume of a drop with diameter d produced by coalescence               m3
+8133:vo         terminal velocity of single particles (in columns without internals)   m/s
+8134:vrs        relative swarm velocity                                                m/s
+8135:vs         superficial swarm velocity                                             m/s
+8136:Vtotal     volume of all swarm drops in a volume VComp                            m3
+8137:w(d1,d2)   coalescence rate for drops with a diameter of d1 and d2                m3/s
+8173:βod,s             overall dispersed phase mass transfer coefficient of a drop swarm       m/s
+8174:ηc                dynamic viscosity of the continuous phase                               Pa ⋅ s
+8175:ηd                dynamic viscosity of the dispersed phase                                Pa ⋅ s
+8179:λ(d1,d2)          coalescence efficiency of two collided drops                            -
+8216:Re s = v s ⋅ d ⋅ ρ c ⁄ η c                      Reynolds number of a swarm of particles
+8252:Kühni            extractor with Kühni blade agitators
+8271:1985               Drop Size Distribution and Discrete Drop Mass Transfer Models to
+8299:Bahmanyar and      Bahmanyar, H.; Slater, M. J.: Studies of Breakage in Liquid-Liquid
+8311:1986               Behaviour of Packed, Rotating Disc and Kühni Liquid/Liquid Extraction
+8320:Bell and Babb      Bell, R. L.; Babb, A. L.: Holdup and Axial Distribution of Holdup in a
+8324:Blaß 1990          Blaß, E.: Formation and Coalescence of Bubbles and Droplets, Int. Chem.
+8367:Coulaloglou         Coulaloglou, C. A.; Tavlarides, L. L.: Drop Size Distribution and
+8368:and Tavlarides      Coalescence Frequencies of Liquid/Liquid Dispersions in Flow Vessels,
+8381:Korchinsky          Influence of Drop Size Distribution on Liquid-Liquid Extraction Column
+8384:Cruz-Pinto and      Cruz-Pinto, J. J. C.; Korchinsky, W. J.: Drop Breakage in Counter Current
+8395:Delplancq and      Delplancq, E.; Delvosalle, C.: Hold-up and Flooding in Stagewise Multi-
+8396:Delvosalle         Agitated Liquid Extractors: Pilot-Plant Experimentation and Scale-up
+8411:                   Liquid Drop Breakage Probabilities and Characteristic Velocities in
+8412:                   Kühni Columns, Chem. Eng. Technol. 18, p. 41-48
+8424:1953               IV: A Further Study of Holdup in Packed Columns, Trans. Inst. Chem.
+8427:Godfrey and        Godfrey, J. C.; Slater, M. J.: Slip Velocity Relationships for Liquid-Liquid
+8457:Hafez et al.     Hafez, M. M.; Nemecek, N.; Prochazka, J.: Holdup and Flooding in a
+8488:Henschke 2003     Henschke, M.: Auslegung pulsierter Siebboden-Extraktionskolonnen,
+8502:Ingham et al.     Ingham, J.; Bourne, J. R.; Mogli, A.: Backmixing in a Kühni Liquid-
+8523:Kirou et al.     Kirou, V. I.; Tavlarides, L. L.; Bonnet, J. C.: Flooding, Holdup, and Drop
+8536:al. 1986         (Rotating Disc Contactor) - Model Parameters from Drop Size
+8566:Kumar 1985      Kumar, A.: Hydrodynamics and Mass Transfer in Kühni Extractor,
+8569:Kumar and       Kumar, A.; Hartland, S.: Independent Prediction of Slip Velocity and Dis-
+8570:Hartland 1989   persed Phase Hold-up in Liquid/Liquid Extraction Columns, Can. J.
+8578:Hartland 1995   persed-Phase Hold-up in Liquid-Liquid Extraction Columns, Ind. Eng.
+8613:1957               Part XII: Flooding Rates and Performance Data for a Rotary Disc
+8624:                   and Breakage Mechanism in Sections of Structured Packings, Chem. Eng.
+8630:McAllister et      McAllister, R. A.; Groenier, W. S.; Ryon, A. D.: Correlation of Flooding
+8651:Mersmann et     Mermann, A.; Kind, M.; Stichlmair, J.: Thermische Verfahrenstechnik -
+8670:1979            Breakage Probability of Droplets in Agitated Liquid-Liquid Dispersions,
+8706:2005             Stichlmair, J.: Vom Einzeltropfen zur Extraktionskolonne, Chem. Ing.
+8793:2003            Model - Estimation of Breakage and Coalescence, Chem. Eng. Technol.
+8807:Sovova 1981     Sovova, H.: Breakage and Coalescence of Drops in a batch stirred Vessel-
+8812:                Prediction of Sauter Mean Drop Diameter, Collect. Czech. Chem.
+8815:Sovova and      Sovova, H.; Prochazka, J.: Breakage and Coalescence of Drops in a Batch
+8828:Steiner 1986        Steiner, L.: Mass-transfer Rates from Single Drops and Drop Swarms,
+8838:Stichlmair 1980     Stichlmair, J.: Leistungs- und Kostenvergleich verschiedener
+8842:Stichlmair 2001     Stichlmair, J.: Scale-up Engineering, Begell House Verlag, New York
+8844:Stichlmair 2005     Stichlmair, J.: Extraktion, in: Thermische Verfahrenstechnik - Grundlagen
+8848:Stichlmair et al.   Stichlmair, J.; Bravo, J. L., Fair, J. R.: General Model for Prediction of
+8852:Stichlmair and      Stichlmair, J.; Steude, H. E.: Abtrennen und Rückgewinnung von Stofffen
+8871:Thorsen et al.    Thorsen, G.; Stordalen, R. M.; Terjesen, S. G.: On the Terminal Velocity of
+8875:Ramkrishna        Coalescence in Turbulent Liquid-Liquid Dispersions, Can. J. Chem. Eng.
+8887:Tsouris and       Tsouris, C.; Tavlarides, L. L.: Breakage and Coalescence Models for
+8899:Blaß 1999         Sieve-Tray Extractors with Regard to Viscosity, Chem. Eng. Technol. 21
+8944:1985             Extraction Column Performance - The Influence of Drop Size
+8953:Experiments with single particles and swarms of particles were performed with rigid poly-
+9184:A schematic of the entire extraction plant, used for the investigations of drop swarms, including
+9283:During the experiments in the drop swarm extractor and the rigid sphere swarm extractor, the
+9284:hold-up was determined with slide valves, see chapter 4. After the entire cross-section of the
+9286:slide valves, the hold-up was determined by measuring the height of the rigid particle bed or the
+9287:height of coalescence beneath the closing plates. In figure (A.4) photos of the closing plates for
+9288:both the rigid sphere swarm extractor (top row) and the drop swarm extractor (second row) are
+9290:construction materials for the slide valves and closing plates of the rigid sphere swarm extractor.
+9291:The slide valves of the drop swarm extractor were made of stainless steel and the closing plates
+9298:            pulsed (right) rigid sphere swarm extractor, second row = teflon closing plates
+9299:            for the agitated (left) and pulsed (right) drop swarm extractor
+9308:Kühni blade agitators were used as internals in the pulsed and agitated columns. Sketches of the
+9315:           Kühni blade agitator) were installed inside the active part of the columns.
+9338:                           Rotating disc               Kühni - 6 blade agitator
+9363:The following sections show the results of the experiments with single particles and swarms of
+9372:surface mobility and form oscillations on the terminal velocity of single drops. The terminal
+9378:Table A.2: Terminal velocity vo of single particles in an extraction column without internals
+9382:single rigid spheres -           particle/drop-diameter dp /d        terminal velocity vo
+9412:Table A.2: Terminal velocity vo of single particles in an extraction column without internals
+9416:single rigid spheres -          particle/drop-diameter dp /d         terminal velocity vo
+9801:Kühni-compartment       pp-spheres                     1.9             100           3.9
+9802:Kühni-compartment       pp-spheres                     2.0             100           4.5
+9803:Kühni-compartment       pp-spheres                     2.5             100           6.1
+9804:Kühni-compartment       pp-spheres                     3.0             100           6.7
+9805:Kühni-compartment       pp-spheres                     3.4             100           7.1
+9806:Kühni-compartment       pp-spheres                     4.0             100           6.7
+9807:Kühni-compartment       pp-spheres                     1.9             200           3.4
+9808:Kühni-compartment       pp-spheres                     2.0             200           3.8
+9809:Kühni-compartment       pp-spheres                     2.5             200           5.4
+9810:Kühni-compartment       pp-spheres                     3.0             200           6.4
+9811:Kühni-compartment       pp-spheres                     3.4             200           6.6
+9812:Kühni-compartment       pp-spheres                     4.0             200           6.1
+9813:Kühni-compartment       pp-spheres                     1.9             300           2.3
+9814:Kühni-compartment       pp-spheres                     2.0             300           2.9
+9815:Kühni-compartment       pp-spheres                     2.5             300           4.6
+9816:Kühni-compartment       pp-spheres                     3.0             300           4.3
+9817:Kühni-compartment       pp-spheres                     3.4             300           5.7
+9818:Kühni-compartment       pp-spheres                     4.0             300           4.8
+9819:Kühni-compartment       pp-spheres                     1.9             400           2.9
+9820:Kühni-compartment       pp-spheres                     2.0             400           2.4
+9821:Kühni-compartment       pp-spheres                     2.5             400           4.2
+9822:Kühni-compartment       pp-spheres                     3.0             400           4.0
+9823:Kühni-compartment       pp-spheres                     3.4             400           4.0
+9824:Kühni-compartment       pp-spheres                     4.0             400           3.1
+9827:Kühni-compartment       toluene drops, charge A        1.5              50           4.1
+9828:Kühni-compartment       toluene drops, charge A        2.0              50           4.9
+9829:Kühni-compartment       toluene drops, charge A        2.5              50           5.8
+9830:Kühni-compartment       toluene drops, charge A        3.0              50           6.8
+9831:Kühni-compartment       toluene drops, charge A        3.5              50           7.8
+9845:Kühni-compartment       toluene drops, charge A        4.0            50             7.9
+9846:Kühni-compartment       toluene drops, charge A        1.5            100            3.3
+9847:Kühni-compartment       toluene drops, charge A        2.0            100            4.0
+9848:Kühni-compartment       toluene drops, charge A        2.5            100            4.9
+9849:Kühni-compartment       toluene drops, charge A        3.0            100            5.7
+9850:Kühni-compartment       toluene drops, charge A        3.5            100            6.0
+9851:Kühni-compartment       toluene drops, charge A        4.0            100            6.5
+9852:Kühni-compartment       toluene drops, charge A        1.5            150            2.9
+9853:Kühni-compartment       toluene drops, charge A        2.0            150            3.4
+9854:Kühni-compartment       toluene drops, charge A        2.5            150            3.8
+9855:Kühni-compartment       toluene drops, charge A        3.0            150            4.9
+9856:Kühni-compartment       toluene drops, charge A        3.5            150            5.0
+9857:Kühni-compartment       toluene drops, charge A        4.0            150            5.3
+9858:Kühni-compartment       toluene drops, charge A        1.5            200            3.0
+9859:Kühni-compartment       toluene drops, charge A        2.0            200            3.0
+9860:Kühni-compartment       toluene drops, charge A        2.5            200            4.1
+9861:Kühni-compartment       toluene drops, charge A        3.0            200            3.9
+9862:Kühni-compartment       toluene drops, charge A        3.5            200            4.7
+9863:Kühni-compartment       toluene drops, charge A        4.0            200            5.0
+9864:Kühni-compartment       toluene drops, charge A        1.5            250            2.6
+9865:Kühni-compartment       toluene drops, charge A        2.0            250            3.2
+9868:Kühni-compartment       butyl acetate drops            1.5            50             3.9
+9869:Kühni-compartment       butyl acetate drops            2.0            50             5.1
+9870:Kühni-compartment       butyl acetate drops            2.5            50             6.9
+9871:Kühni-compartment       butyl acetate drops            3.0            50             7.2
+9872:Kühni-compartment       butyl acetate drops            3.5            50             8.5
+9873:Kühni-compartment       butyl acetate drops            4.0            50             8.5
+9874:Kühni-compartment       butyl acetate drops            1.5            100            4.2
+9875:Kühni-compartment       butyl acetate drops            2.0            100            4.3
+9876:Kühni-compartment       butyl acetate drops            2.5            100            5.4
+9877:Kühni-compartment       butyl acetate drops            3.0            100            6.4
+9878:Kühni-compartment       butyl acetate drops            3.5            100            6.8
+9879:Kühni-compartment       butyl acetate drops            4.0            100            7.1
+9880:Kühni-compartment       butyl acetate drops            1.5            150            3.5
+9894:Kühni-compartment                         butyl acetate drops       2.0              150           3.6
+9895:Kühni-compartment                         butyl acetate drops       2.5              150           4.9
+9896:Kühni-compartment                         butyl acetate drops       3.0              150           5.0
+9897:Kühni-compartment                         butyl acetate drops       3.5              150           6.2
+9898:Kühni-compartment                         butyl acetate drops       4.0              150           6.3
+9899:Kühni-compartment                         butyl acetate drops       1.5              200           3.4
+9900:Kühni-compartment                         butyl acetate drops       2.0              200           4.2
+9968:Table A.5: Terminal velocity vo and mass transfer data of single drops in extraction columns
+9992:Table A.5: Terminal velocity vo and mass transfer data of single drops in extraction columns
+10247:Kühni-compartment     t (d)/a/w, c to d            2.0     50      4.7      1.17   1.75   3.08
+10248:Kühni-compartment     t (d)/a/w, c to d            2.5     50      6.1      1.05   1.63   3.08
+10249:Kühni-compartment     t (d)/a/w, c to d            3.0     50      7.0      0.86   1.59   3.12
+10250:Kühni-compartment     t (d)/a/w, c to d            3.5     50      7.2      0.95   1.50   3.08
+10251:Kühni-compartment     t (d)/a/w, c to d            4.0     50      7.7      0.75   1.50   3.12
+10252:Kühni-compartment     t (d)/a/w, c to d            2.0     100     3.9      1.17   1.88   3.08
+10253:Kühni-compartment     t (d)/a/w, c to d            2.5     100     4.8      1.05   1.87   3.08
+10254:Kühni-compartment     t (d)/a/w, c to d            3.0     100     5.3      0.86   1.77   3.12
+10255:Kühni-compartment     t (d)/a/w, c to d            3.5     100     6.0      0.95   1.71   3.12
+10256:Kühni-compartment     t (d)/a/w, c to d            4.0     100     6.2      0.75   1.73   3.12
+10257:Kühni-compartment     t (d)/a/w, c to d            2.0     150     2.9      1.17   2.05   3.08
+10258:Kühni-compartment     t (d)/a/w, c to d            2.5     150     3.7      1.05   2.09   3.08
+10261:Kühni-compartment     bu-ac (d)/a/w, c to d        2.0     50      5.1      1.79   2.64   3.01
+10262:Kühni-compartment     bu-ac (d)/a/w, c to d        2.5     50      6.2      1.54   2.55   3.01
+10263:Kühni-compartment     bu-ac (d)/a/w, c to d        3.0     50      7.1      1.33   2.38   3.01
+10264:Kühni-compartment     bu-ac (d)/a/w, c to d        3.5     50      7.4      1.17   2.36   3.01
+10265:Kühni-compartment     bu-ac (d)/a/w, c to d        4.0     50      7.4      0.98   2.19   3.01
+10266:Kühni-compartment     bu-ac (d)/a/w, c to d        2.0     100     3.9      1.79   2.71   3.01
+10267:Kühni-compartment     bu-ac (d)/a/w, c to d        2.5     100     4.9      1.54   2.66   3.01
+10268:Kühni-compartment     bu-ac (d)/a/w, c to d        3.0     100     5.6      1.33   2.52   3.01
+10276:A.3.3 Single Drop Breakage
+10278:The breakage behaviour of single mother drops was determined using two mutually saturated
+10285:dM . The investigation of the drop breakage was always carried out in absence of mass transfer.
+10287:The results of the single drop breakage experiments are listed in the following tables. The
+10289:breakage probability pB in pulsed compartments by the correlations presented in chapter 6.1,
+10290:are listed in table (A.8). Table (A.9) and table (A.10) show the breakage probability of mother
+10292:breakage of a mother drop in single pulsed and agitated compartments.
+10295:Table A.8: Characteristic drop diameter dstab and d100 for the determination of the breakage
+10322:Table A.8: Characteristic drop diameter dstab and d100 for the determination of the breakage
+10366:Table A.9: Breakage probability pB of single mother drops and average number of daughter
+10367:           drops ndd produced from breakage of mother drops in a single pulsed compartment
+10415:Table A.9: Breakage probability pB of single mother drops and average number of daughter
+10416:           drops ndd produced from breakage of mother drops in a single pulsed compartment
+10464:Table A.9: Breakage probability pB of single mother drops and average number of daughter
+10465:           drops ndd produced from breakage of mother drops in a single pulsed compartment
+10514:Table A.9: Breakage probability pB of single mother drops and average number of daughter
+10515:           drops ndd produced from breakage of mother drops in a single pulsed compartment
+10563:Table A.9: Breakage probability pB of single mother drops and average number of daughter
+10564:           drops ndd produced from breakage of mother drops in a single pulsed compartment
+10613:Table A.9: Breakage probability pB of single mother drops and average number of daughter
+10614:           drops ndd produced from breakage of mother drops in a single pulsed compartment
+10662:Table A.9: Breakage probability pB of single mother drops and average number of daughter
+10663:           drops ndd produced from breakage of mother drops in a single pulsed compartment
+10711:Table A.9: Breakage probability pB of single mother drops and average number of daughter
+10712:           drops ndd produced from breakage of mother drops in a single pulsed compartment
+10760:Table A.9: Breakage probability pB of single mother drops and average number of daughter
+10761:           drops ndd produced from breakage of mother drops in a single pulsed compartment
+10796:Table A.10:Breakage probability pB of single mother drops and average number of daughter
+10797:           drops ndd produced from breakage of mother drops in a single agitated
+10845:Table A.10:Breakage probability pB of single mother drops and average number of daughter
+10846:           drops ndd produced from breakage of mother drops in a single agitated
+10887:Kühni-compartment    t (d)/w                    175        2.0        0.08        2.3
+10888:Kühni-compartment    t (d)/w                    200        2.0        0.28        2.5
+10894:Table A.10:Breakage probability pB of single mother drops and average number of daughter
+10895:           drops ndd produced from breakage of mother drops in a single agitated
+10902:Kühni-compartment    t (d)/w                    225        2.0        0.46        2.6
+10903:Kühni-compartment    t (d)/w                    250        2.0        0.60        3.4
+10904:Kühni-compartment    t (d)/w                    125        3.0        0.04        2.0
+10905:Kühni-compartment    t (d)/w                    150        3.0        0.24        2.5
+10906:Kühni-compartment    t (d)/w                    175        3.0        0.39        3.1
+10907:Kühni-compartment    t (d)/w                    200        3.0        0.50        3.3
+10908:Kühni-compartment    t (d)/w                    225        3.0        0.65        4.0
+10909:Kühni-compartment    t (d)/w                    250        3.0        0.81        5.3
+10910:Kühni-compartment    t (d)/w                    100        4.0        0.03        2.0
+10911:Kühni-compartment    t (d)/w                    125        4.0        0.16        2.6
+10912:Kühni-compartment    t (d)/w                    150        4.0        0.38        2.8
+10913:Kühni-compartment    t (d)/w                    175        4.0        0.49        3.4
+10914:Kühni-compartment    t (d)/w                    200        4.0        0.69        4.2
+10915:Kühni-compartment    t (d)/w                    225        4.0        0.85        5.2
+10918:Kühni-compartment    bu-ac (d)/w                100        2.0        0.07        2.1
+10919:Kühni-compartment    bu-ac (d)/w                125        2.0        0.27        2.2
+10920:Kühni-compartment    bu-ac (d)/w                150        2.0        0.49        3.2
+10921:Kühni-compartment    bu-ac (d)/w                175        2.0        0.72        3.6
+10922:Kühni-compartment    bu-ac (d)/w                200        2.0        0.85        4.8
+10923:Kühni-compartment    bu-ac (d)/w                 75        3.0        0.06        2.0
+10924:Kühni-compartment    bu-ac (d)/w                100        3.0        0.27        2.7
+10925:Kühni-compartment    bu-ac (d)/w                125        3.0        0.52        3.9
+10926:Kühni-compartment    bu-ac (d)/w                150        3.0        0.68        5.3
+10927:Kühni-compartment    bu-ac (d)/w                175        3.0        0.87        7.4
+10928:Kühni-compartment    bu-ac (d)/w                 50        4.0        0.05        2.0
+10929:Kühni-compartment    bu-ac (d)/w                 75        4.0        0.21        2.8
+10930:Kühni-compartment    bu-ac (d)/w                100        4.0        0.41        3.0
+10931:Kühni-compartment    bu-ac (d)/w                125        4.0        0.69        6.1
+10932:Kühni-compartment    bu-ac (d)/w                150        4.0        0.91        7.1
+10937:Kühni-compartment    t (d)/a/w                  125        2.0        0.05        2.2
+10938:Kühni-compartment    t (d)/a/w                  150        2.0        0.22        2.3
+10939:Kühni-compartment    t (d)/a/w                  175        2.0        0.51        2.7
+10945:Table A.10:Breakage probability pB of single mother drops and average number of daughter
+10946:           drops ndd produced from breakage of mother drops in a single agitated
+10953:Kühni-compartment    t (d)/a/w                  200        2.0        0.69        4.0
+10954:Kühni-compartment    t (d)/a/w                  225        2.0        0.87        4.7
+10955:Kühni-compartment    t (d)/a/w                  100        3.0        0.10        2.4
+10956:Kühni-compartment    t (d)/a/w                  125        3.0        0.36        3.1
+10957:Kühni-compartment    t (d)/a/w                  150        3.0        0.61        4.6
+10958:Kühni-compartment    t (d)/a/w                  175        3.0        0.73        5.5
+10959:Kühni-compartment    t (d)/a/w                  200        3.0        0.85        7.5
+10960:Kühni-compartment    t (d)/a/w                   75        4.0        0.02        2.0
+10961:Kühni-compartment    t (d)/a/w                  100        4.0        0.30        2.9
+10962:Kühni-compartment    t (d)/a/w                  125        4.0        0.54        4.6
+10963:Kühni-compartment    t (d)/a/w                  150        4.0        0.74        6.2
+10964:Kühni-compartment    t (d)/a/w                  175        4.0        0.84        5.9
+10967:Kühni-compartment    bu-ac (d)/a/w               75        2.0        0.02        2.0
+10968:Kühni-compartment    bu-ac (d)/a/w              100        2.0        0.20        2.9
+10969:Kühni-compartment    bu-ac (d)/a/w              125        2.0        0.37        2.9
+10970:Kühni-compartment    bu-ac (d)/a/w              150        2.0        0.61        4.6
+10971:Kühni-compartment    bu-ac (d)/a/w              175        2.0        0.87        5.6
+10972:Kühni-compartment    bu-ac (d)/a/w               50        3.0        0.04        2.0
+10973:Kühni-compartment    bu-ac (d)/a/w               75        3.0        0.19        2.2
+10974:Kühni-compartment    bu-ac (d)/a/w              100        3.0        0.41        3.9
+10975:Kühni-compartment    bu-ac (d)/a/w              125        3.0        0.56        5.6
+10976:Kühni-compartment    bu-ac (d)/a/w              150        3.0        0.82        7.2
+10977:Kühni-compartment    bu-ac (d)/a/w              175        3.0        0.90        8.8
+10978:Kühni-compartment    bu-ac (d)/a/w               25        4.0        0.06        2.0
+10979:Kühni-compartment    bu-ac (d)/a/w               50        4.0        0.17        2.1
+10980:Kühni-compartment    bu-ac (d)/a/w               75        4.0        0.40        3.0
+10981:Kühni-compartment    bu-ac (d)/a/w              100        4.0        0.58        6.6
+10982:Kühni-compartment    bu-ac (d)/a/w              125        4.0        0.87        8.4
+10992:The swarm influence on the fluiddynamic behaviour and the mass transfer rates of drop swarms
+10995:at the outlet. In addition, concentration profiles of both phases, hold-up distribution along the
+10996:column height and drop size distribution within the extraction column were recorded during
+11034:            determination of the concentration profiles, hold-up profiles and drop size
+11035:            distributions along the column active height in the drop swarm extractor
+11040:Table (A.11) and table (A.12) show several examples of the initial drop size distribution of the
+11042:figure (A.6). No significant change of the initial drop size distribution was found during the
+11043:experiments. Narrow drop size distributions were generated by the distributor with a sauter
+11048:Table A.11: Examples for the initial drop size volume density distribution (∆d = 0.2 mm) of the
+11089:Table A.12:Examples for the initial drop size volume density distribution (∆d = 0.2 mm) of the
+11126:All experiments in the pilot plant extractor were carried out for a mass transfer direction from
+11130:concentration profiles of both phases, the hold-up distribution along the column height and the
+11131:sauter diameter profiles are shown.
+11138:Table A.13:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+11142:column type:                concentration profile             hold-up profile
+11151:volume flow Vc [l/h]:                                         sauter diameter profile
+11160:column type:                concentration profile             hold-up profile
+11168:               ·                                              sauter diameter profile
+11178:column type:                concentration profile             hold-up profile
+11186:               ·                                              sauter diameter profile
+11199:Table A.13:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+11203:column type:                concentration profile             hold-up profile
+11212:volume flow Vc [l/h]:                                         sauter diameter profile
+11221:column type:                concentration profile             hold-up profile
+11229:               ·                                              sauter diameter profile
+11239:column type:                concentration profile             hold-up profile
+11247:               ·                                              sauter diameter profile
+11260:Table A.13:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+11264:column type:                concentration profile             hold-up profile
+11273:volume flow Vc [l/h]:                                         sauter diameter profile
+11282:column type:                concentration profile             hold-up profile
+11290:               ·                                              sauter diameter profile
+11300:column type:                concentration profile             hold-up profile
+11308:               ·                                              sauter diameter profile
+11321:Table A.13:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+11325:column type:                concentration profile             hold-up profile
+11334:volume flow Vc [l/h]:                                         sauter diameter profile
+11343:column type:                concentration profile             hold-up profile
+11351:               ·                                              sauter diameter profile
+11361:column type:                concentration profile             hold-up profile
+11369:               ·                                              sauter diameter profile
+11382:Table A.13:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+11386:column type:                concentration profile             hold-up profile
+11395:volume flow Vc [l/h]:                                         sauter diameter profile
+11404:column type:                concentration profile             hold-up profile
+11412:               ·                                              sauter diameter profile
+11422:column type:                concentration profile             hold-up profile
+11430:               ·                                              sauter diameter profile
+11443:Table A.13:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+11447:column type:                concentration profile             hold-up profile
+11456:volume flow Vc [l/h]:                                         sauter diameter profile
+11465:column type:                concentration profile             hold-up profile
+11473:               ·                                              sauter diameter profile
+11489:Table A.14:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+11493:column type:                concentration profile             hold-up profile
+11502:volume flow Vc [l/h]:                                         sauter diameter profile
+11511:column type:                concentration profile             hold-up profile
+11519:               ·                                              sauter diameter profile
+11529:column type:                concentration profile             hold-up profile
+11537:               ·                                              sauter diameter profile
+11550:Table A.14:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+11554:column type:                concentration profile             hold-up profile
+11563:volume flow Vc [l/h]:                                         sauter diameter profile
+11572:column type:                concentration profile             hold-up profile
+11580:               ·                                              sauter diameter profile
+11590:column type:                concentration profile             hold-up profile
+11598:               ·                                              sauter diameter profile
+11611:Table A.14:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+11615:column type:                concentration profile             hold-up profile
+11624:volume flow Vc [l/h]:                                         sauter diameter profile
+11633:column type:                concentration profile             hold-up profile
+11641:               ·                                              sauter diameter profile
+11651:column type:                concentration profile             hold-up profile
+11659:               ·                                              sauter diameter profile
+11672:Table A.14:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+11676:column type:                concentration profile             hold-up profile
+11685:volume flow Vc [l/h]:                                         sauter diameter profile
+11694:column type:                concentration profile             hold-up profile
+11702:               ·                                              sauter diameter profile
+11712:column type:                concentration profile             hold-up profile
+11720:               ·                                              sauter diameter profile
+11733:Table A.14:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+11737:column type:                concentration profile             hold-up profile
+11746:volume flow Vc [l/h]:                                         sauter diameter profile
+11761:Table A.15:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+11765:column type:               concentration profile           hold-up profile
+11774:volume flow Vc [l/h]:                                      sauter diameter profile
+11783:column type:               concentration profile           hold-up profile
+11791:               ·                                           sauter diameter profile
+11801:column type:               concentration profile           hold-up profile
+11809:               ·                                           sauter diameter profile
+11822:Table A.15:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+11826:column type:               concentration profile           hold-up profile
+11835:volume flow Vc [l/h]:                                      sauter diameter profile
+11844:column type:               concentration profile           hold-up profile
+11852:               ·                                           sauter diameter profile
+11862:column type:               concentration profile           hold-up profile
+11870:               ·                                           sauter diameter profile
+11883:Table A.15:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+11887:column type:               concentration profile           hold-up profile
+11896:volume flow Vc [l/h]:                                      sauter diameter profile
+11905:column type:               concentration profile           hold-up profile
+11913:               ·                                           sauter diameter profile
+11923:column type:               concentration profile           hold-up profile
+11931:               ·                                           sauter diameter profile
+11944:Table A.15:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+11948:column type:               concentration profile           hold-up profile
+11957:volume flow Vc [l/h]:                                      sauter diameter profile
+11966:column type:               concentration profile           hold-up profile
+11974:               ·                                           sauter diameter profile
+11984:column type:               concentration profile           hold-up profile
+11992:               ·                                           sauter diameter profile
+12005:Table A.15:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+12009:column type:               concentration profile           hold-up profile
+12018:volume flow Vc [l/h]:                                      sauter diameter profile
+12027:column type:               concentration profile           hold-up profile
+12035:               ·                                           sauter diameter profile
+12045:column type:               concentration profile           hold-up profile
+12053:               ·                                           sauter diameter profile
+12066:Table A.15:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+12070:column type:               concentration profile           hold-up profile
+12079:volume flow Vc [l/h]:                                      sauter diameter profile
+12088:column type:               concentration profile           hold-up profile
+12096:               ·                                           sauter diameter profile
+12112:Table A.16:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+12116:column type:               concentration profile           hold-up profile
+12125:volume flow Vc [l/h]:                                      sauter diameter profile
+12134:column type:               concentration profile           hold-up profile
+12142:               ·                                           sauter diameter profile
+12152:column type:               concentration profile           hold-up profile
+12160:               ·                                           sauter diameter profile
+12173:Table A.16:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+12177:column type:               concentration profile           hold-up profile
+12186:volume flow Vc [l/h]:                                      sauter diameter profile
+12195:column type:               concentration profile           hold-up profile
+12203:               ·                                           sauter diameter profile
+12213:column type:               concentration profile           hold-up profile
+12221:               ·                                           sauter diameter profile
+12234:Table A.16:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+12238:column type:               concentration profile           hold-up profile
+12247:volume flow Vc [l/h]:                                      sauter diameter profile
+12256:column type:               concentration profile           hold-up profile
+12264:               ·                                           sauter diameter profile
+12274:column type:               concentration profile           hold-up profile
+12282:               ·                                           sauter diameter profile
+12295:Table A.16:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+12299:column type:               concentration profile           hold-up profile
+12308:volume flow Vc [l/h]:                                      sauter diameter profile
+12317:column type:               concentration profile           hold-up profile
+12325:               ·                                           sauter diameter profile
+12335:column type:               concentration profile           hold-up profile
+12343:               ·                                           sauter diameter profile
+12356:Table A.16:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+12360:column type:               concentration profile           hold-up profile
+12369:volume flow Vc [l/h]:                                      sauter diameter profile
+12378:column type:               concentration profile           hold-up profile
+12386:               ·                                           sauter diameter profile
+12396:column type:               concentration profile           hold-up profile
+12404:               ·                                           sauter diameter profile
+12417:Table A.16:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+12421:column type:               concentration profile           hold-up profile
+12430:volume flow Vc [l/h]:                                      sauter diameter profile
+12439:column type:               concentration profile           hold-up profile
+12447:               ·                                           sauter diameter profile
+12457:column type:               concentration profile           hold-up profile
+12465:               ·                                           sauter diameter profile
+12478:Table A.16:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in a
+12482:column type:               concentration profile           hold-up profile
+12491:volume flow Vc [l/h]:                                      sauter diameter profile
+12506:Table A.17:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+12510:column type:               concentration profile           hold-up profile
+12519:volume flow Vc [l/h]:                                      sauter diameter profile
+12528:column type:               concentration profile           hold-up profile
+12536:               ·                                           sauter diameter profile
+12546:column type:               concentration profile           hold-up profile
+12554:               ·                                           sauter diameter profile
+12567:Table A.17:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+12571:column type:               concentration profile           hold-up profile
+12580:volume flow Vc [l/h]:                                      sauter diameter profile
+12589:column type:               concentration profile           hold-up profile
+12597:               ·                                           sauter diameter profile
+12607:column type:               concentration profile           hold-up profile
+12615:               ·                                           sauter diameter profile
+12628:Table A.17:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+12632:column type:               concentration profile           hold-up profile
+12641:volume flow Vc [l/h]:                                      sauter diameter profile
+12650:column type:               concentration profile           hold-up profile
+12658:               ·                                           sauter diameter profile
+12668:column type:               concentration profile           hold-up profile
+12676:               ·                                           sauter diameter profile
+12689:Table A.17:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+12693:column type:               concentration profile           hold-up profile
+12702:volume flow Vc [l/h]:                                      sauter diameter profile
+12711:column type:               concentration profile           hold-up profile
+12719:               ·                                           sauter diameter profile
+12729:column type:               concentration profile           hold-up profile
+12737:               ·                                           sauter diameter profile
+12750:Table A.17:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+12754:column type:               concentration profile           hold-up profile
+12763:volume flow Vc [l/h]:                                      sauter diameter profile
+12772:column type:               concentration profile           hold-up profile
+12780:               ·                                           sauter diameter profile
+12790:column type:               concentration profile           hold-up profile
+12798:               ·                                           sauter diameter profile
+12811:Table A.17:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+12815:column type:               concentration profile           hold-up profile
+12824:volume flow Vc [l/h]:                                      sauter diameter profile
+12839:Table A.18:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+12843:column type:               concentration profile           hold-up profile
+12852:volume flow Vc [l/h]:                                      sauter diameter profile
+12861:column type:               concentration profile           hold-up profile
+12869:               ·                                           sauter diameter profile
+12879:column type:               concentration profile           hold-up profile
+12887:               ·                                           sauter diameter profile
+12900:Table A.18:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+12904:column type:               concentration profile           hold-up profile
+12913:volume flow Vc [l/h]:                                      sauter diameter profile
+12922:column type:               concentration profile           hold-up profile
+12930:               ·                                           sauter diameter profile
+12940:column type:               concentration profile           hold-up profile
+12948:               ·                                           sauter diameter profile
+12961:Table A.18:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+12965:column type:               concentration profile           hold-up profile
+12974:volume flow Vc [l/h]:                                      sauter diameter profile
+12983:column type:               concentration profile           hold-up profile
+12991:               ·                                           sauter diameter profile
+13001:column type:               concentration profile           hold-up profile
+13009:               ·                                           sauter diameter profile
+13022:Table A.18:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+13026:column type:               concentration profile           hold-up profile
+13035:volume flow Vc [l/h]:                                      sauter diameter profile
+13044:column type:               concentration profile           hold-up profile
+13052:               ·                                           sauter diameter profile
+13062:column type:               concentration profile           hold-up profile
+13070:               ·                                           sauter diameter profile
+13083:Table A.18:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+13087:column type:               concentration profile           hold-up profile
+13096:volume flow Vc [l/h]:                                      sauter diameter profile
+13105:column type:               concentration profile           hold-up profile
+13113:               ·                                           sauter diameter profile
+13123:column type:               concentration profile           hold-up profile
+13131:               ·                                           sauter diameter profile
+13144:Table A.18:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+13148:column type:               concentration profile           hold-up profile
+13157:volume flow Vc [l/h]:                                      sauter diameter profile
+13172:Table A.19:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+13173:           agitated extractor with Kühni blade agitators “Kühni-extractor“; liquid/liquid-
+13176:column type:               concentration profile           hold-up profile
+13177:Kühni-extractor
+13185:volume flow Vc [l/h]:                                      sauter diameter profile
+13194:column type:               concentration profile           hold-up profile
+13195:Kühni-extractor
+13202:               ·                                           sauter diameter profile
+13212:column type:               concentration profile           hold-up profile
+13213:Kühni-extractor
+13220:               ·                                           sauter diameter profile
+13233:Table A.19:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+13234:           agitated extractor with Kühni blade agitators “Kühni-extractor“; liquid/liquid-
+13237:column type:               concentration profile           hold-up profile
+13238:Kühni-extractor
+13246:volume flow Vc [l/h]:                                      sauter diameter profile
+13255:column type:               concentration profile           hold-up profile
+13256:Kühni-extractor
+13263:               ·                                           sauter diameter profile
+13273:column type:               concentration profile           hold-up profile
+13274:Kühni-extractor
+13281:               ·                                           sauter diameter profile
+13294:Table A.19:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+13295:           agitated extractor with Kühni blade agitators “Kühni-extractor“; liquid/liquid-
+13298:column type:               concentration profile           hold-up profile
+13299:Kühni-extractor
+13307:volume flow Vc [l/h]:                                      sauter diameter profile
+13316:column type:               concentration profile           hold-up profile
+13317:Kühni-extractor
+13324:               ·                                           sauter diameter profile
+13334:column type:               concentration profile           hold-up profile
+13335:Kühni-extractor
+13342:               ·                                           sauter diameter profile
+13355:Table A.19:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+13356:           agitated extractor with Kühni blade agitators “Kühni-extractor“; liquid/liquid-
+13359:column type:               concentration profile           hold-up profile
+13360:Kühni-extractor
+13368:volume flow Vc [l/h]:                                      sauter diameter profile
+13377:column type:               concentration profile           hold-up profile
+13378:Kühni-extractor
+13385:               ·                                           sauter diameter profile
+13395:column type:               concentration profile           hold-up profile
+13396:Kühni-extractor
+13403:               ·                                           sauter diameter profile
+13416:Table A.20:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+13417:           agitated extractor with Kühni blade agitators “Kühni-extractor“; liquid/liquid-
+13420:column type:               concentration profile           hold-up profile
+13421:Kühni-extractor
+13429:volume flow Vc [l/h]:                                      sauter diameter profile
+13438:column type:               concentration profile           hold-up profile
+13439:Kühni-extractor
+13446:               ·                                           sauter diameter profile
+13456:column type:               concentration profile           hold-up profile
+13457:Kühni-extractor
+13464:               ·                                           sauter diameter profile
+13477:Table A.20:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+13478:           agitated extractor with Kühni blade agitators “Kühni-extractor“; liquid/liquid-
+13481:column type:               concentration profile           hold-up profile
+13482:Kühni-extractor
+13490:volume flow Vc [l/h]:                                      sauter diameter profile
+13499:column type:               concentration profile           hold-up profile
+13500:Kühni-extractor
+13507:               ·                                           sauter diameter profile
+13517:column type:               concentration profile           hold-up profile
+13518:Kühni-extractor
+13525:               ·                                           sauter diameter profile
+13538:Table A.20:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+13539:           agitated extractor with Kühni blade agitators “Kühni-extractor“; liquid/liquid-
+13542:column type:               concentration profile           hold-up profile
+13543:Kühni-extractor
+13551:volume flow Vc [l/h]:                                      sauter diameter profile
+13560:column type:               concentration profile           hold-up profile
+13561:Kühni-extractor
+13568:               ·                                           sauter diameter profile
+13578:column type:               concentration profile           hold-up profile
+13579:Kühni-extractor
+13586:               ·                                           sauter diameter profile
+13599:Table A.20:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+13600:           agitated extractor with Kühni blade agitators “Kühni-extractor“; liquid/liquid-
+13603:column type:               concentration profile           hold-up profile
+13604:Kühni-extractor
+13612:volume flow Vc [l/h]:                                      sauter diameter profile
+13621:column type:               concentration profile           hold-up profile
+13622:Kühni-extractor
+13629:               ·                                           sauter diameter profile
+13639:column type:               concentration profile           hold-up profile
+13640:Kühni-extractor
+13647:               ·                                           sauter diameter profile
+13660:Table A.20:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+13661:           agitated extractor with Kühni blade agitators “Kühni-extractor“; liquid/liquid-
+13664:column type:               concentration profile           hold-up profile
+13665:Kühni-extractor
+13673:volume flow Vc [l/h]:                                      sauter diameter profile
+13682:column type:               concentration profile           hold-up profile
+13683:Kühni-extractor
+13690:               ·                                           sauter diameter profile
+13700:column type:               concentration profile           hold-up profile
+13701:Kühni-extractor
+13708:               ·                                           sauter diameter profile
+13721:Table A.20:Drop swarm extractor: fluiddynamics and mass transfer of drop swarms in an
+13722:           agitated extractor with Kühni blade agitators “Kühni-extractor“; liquid/liquid-
+13725:column type:               concentration profile           hold-up profile
+13726:Kühni-extractor
+13734:volume flow Vc [l/h]:                                      sauter diameter profile
+13743:column type:               concentration profile           hold-up profile
+13744:Kühni-extractor
+13751:               ·                                           sauter diameter profile
