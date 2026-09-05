@@ -624,7 +624,14 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
         })),
       })),
     };
-    expect(validateSevenComponentPersistedResult(result, { input: seven })).toBeNull();
+    const contract12Input = {
+      ...seven,
+      engineContractVersion: '7C-1.2.0' as const,
+    };
+    expect(validateSevenComponentPersistedResult(
+      result,
+      { input: contract12Input },
+    )).toBeNull();
     const historicalInput = {
       ...seven,
       engineContractVersion: '7C-1.1.0' as const,
@@ -647,7 +654,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     };
     expect(validateSevenComponentPersistedResult(
       intermediate,
-      { input: seven, intermediate: true },
+      { input: contract12Input, intermediate: true },
     )).toBeNull();
     const unresolvedPhaseTopology = {
       ...result,
@@ -667,12 +674,12 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     };
     expect(validateSevenComponentPersistedResult(
       unresolvedPhaseTopology,
-      { input: seven },
+      { input: contract12Input },
     )).toBeNull();
     expect(validateSevenComponentPersistedResult({
       ...unresolvedPhaseTopology,
       blockingCode: 'SEVEN_COMPONENT_NO_LIQUID_SPLIT',
-    }, { input: seven })).toBe('PREDICTIVE_NT_7C_BLOCKED_RESULT_INVALID');
+    }, { input: contract12Input })).toBe('PREDICTIVE_NT_7C_BLOCKED_RESULT_INVALID');
     const rescaled = {
       ...result,
       wetSolventConstruction: {
@@ -683,7 +690,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
         waterMass: 1.5,
       },
     };
-    expect(validateSevenComponentPersistedResult(rescaled, { input: seven }))
+    expect(validateSevenComponentPersistedResult(rescaled, { input: contract12Input }))
       .toBe('PREDICTIVE_NT_7C_WET_SOLVENT_AUTHORITY_MISMATCH');
   });
 
@@ -692,6 +699,10 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
       209,
     );
+    const contract12Input = {
+      ...seven,
+      engineContractVersion: '7C-1.2.0' as const,
+    };
     expect(validateSevenComponentPersistedResult({
       engineContractVersion: '7C-1.2.0',
       componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
@@ -700,7 +711,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       predictiveNt: null,
       establishedTheoreticalStages: null,
       error: 'RuntimeError: SEVEN_COMPONENT_STAGE_FLASH_UNRESOLVED:1',
-    }, { input: seven })).toBeNull();
+    }, { input: contract12Input })).toBeNull();
   });
 
   it('rejects the deprecated molar recovery gate', () => {

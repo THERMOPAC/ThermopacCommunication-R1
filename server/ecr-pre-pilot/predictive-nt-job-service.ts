@@ -1592,6 +1592,84 @@ export function validateSevenComponentPersistedResult(
   return null;
 }
 
+export type TrustedCompletedSevenComponentNtForStage4 = {
+  readonly jobId: string;
+  readonly designId: number;
+  readonly engineHash: string;
+  readonly theoreticalStages: number;
+  readonly resultSnapshotHash: string;
+  readonly selectedTrial: Readonly<Record<string, unknown>>;
+};
+
+/**
+ * Server-owned Stage-2 resolver. Nothing supplied by an adapter caller is
+ * accepted as result evidence: ownership, design, immutable hashes, Stage-1
+ * authority, and the complete persisted result are all re-established here.
+ */
+export async function loadValidatedCompletedSevenComponentNtForStage4(
+  jobId: string,
+  userId: number,
+  designId: number,
+): Promise<TrustedCompletedSevenComponentNtForStage4> {
+  if (
+    typeof jobId !== 'string' || !jobId
+    || !Number.isInteger(userId) || userId < 1
+    || !Number.isInteger(designId) || designId < 1
+  ) throw new Error('STAGE4_STAGE2_JOB_REFERENCE_INVALID');
+  const found = await pool.query(
+    `SELECT id, design_id, created_by, input_snapshot, model_hash, engine_hash,
+            status, result_snapshot
+       FROM ecr_pre_pilot_predictive_nt_jobs
+      WHERE id = $1 AND created_by = $2 AND design_id = $3`,
+    [jobId, userId, designId],
+  );
+  const row = found.rows[0];
+  if (!row || row.status !== 'completed' || !row.result_snapshot) {
+    throw new Error('STAGE4_COMPLETED_STAGE2_JOB_NOT_FOUND');
+  }
+  const input = row.input_snapshot as PredictiveNtJobInput;
+  if (
+    input?.engineContractVersion !== '7C-1.5.0'
+    || row.model_hash !== PRE_PILOT_MULTISTAGE_MODEL.modelHash
+    || input.modelHash !== PRE_PILOT_MULTISTAGE_MODEL.modelHash
+  ) throw new Error('STAGE4_STAGE2_MODEL_IDENTITY_INVALID');
+  validatePredictiveNtJobInput(input);
+  const currentEngineHash = currentPredictiveNtEngineHash(input);
+  if (
+    typeof row.engine_hash !== 'string'
+    || row.engine_hash !== currentEngineHash
+  ) throw new Error('STAGE4_STAGE2_ENGINE_IDENTITY_INVALID');
+  const validationError = validateSevenComponentPersistedResult(
+    row.result_snapshot,
+    { input },
+  );
+  if (validationError) throw new Error(validationError);
+  const result = row.result_snapshot as Record<string, any>;
+  const theoreticalStages = result.predictiveNt;
+  if (
+    !Number.isInteger(theoreticalStages) || theoreticalStages < 1
+    || result.establishedTheoreticalStages !== theoreticalStages
+  ) throw new Error('STAGE4_STAGE2_CALCULATED_NT_UNAVAILABLE');
+  const matching = (result.trials as any[]).filter(
+    trial => trial?.stageCount === theoreticalStages && trial?.accepted === true,
+  );
+  if (
+    matching.length !== 1
+    || !Array.isArray(matching[0].stages)
+    || matching[0].stages.length !== theoreticalStages
+    || !matching[0].boundaryStreams
+  ) throw new Error('STAGE4_STAGE2_SELECTED_TRIAL_INCONSISTENT');
+  return Object.freeze({
+    jobId: row.id,
+    designId: Number(row.design_id),
+    engineHash: row.engine_hash,
+    theoreticalStages,
+    resultSnapshotHash: createHash('sha256')
+      .update(canonicalJson(row.result_snapshot)).digest('hex'),
+    selectedTrial: Object.freeze(matching[0] as Record<string, unknown>),
+  });
+}
+
 export function attachStage1ResultGovernance(
   pythonResult: unknown,
   input: PredictiveNtJobInput,

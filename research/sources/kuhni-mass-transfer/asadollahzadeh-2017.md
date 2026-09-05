@@ -1,6 +1,37 @@
-Source: https://www.ijcce.ac.ir/article_26471_73b33dd0fbb7a616c8563e5ff6be32a5.pdf
-Title: Micro-Model Experimental Study of Fracture Geometrical Effect on Breakthrough Time in Miscible Displacement Process
+Source: https://ijcce.ac.ir/jufile?ar_sfile=344118
+Title: Experimental Determination of Continuous Phase Overall Mass Transfer Coefficients — Case Study: Kühni Extraction Column
 Fetched: 2026-09-05T15:58:43.142Z
+
+## Governed equation verification
+
+The primary PDF was visually checked page by page on 2026-09-05. The study is
+for dilute (about 3.5 wt%) acetone transfer in toluene/acetone/water at ambient
+temperature in a 113 mm ID, 10-compartment pilot Kühni column. It is not an
+RRBO/NMP multicomponent dataset.
+
+- Eq. (2), p. 152: \(a=6\phi/d_{32}\), using spherical-drop specific area.
+- Eq. (3)-(4), p. 152: scalar continuous/dispersed axial-diffusion balances.
+- Eq. (5)-(6), p. 152: \(Pe_c=HV_c/E_c\) and \(Pe_d=HV_d/E_d\).
+- Eq. (9), p. 153: a Kumar-Hartland continuous-phase axial-dispersion
+  correlation. The paper explicitly assumes dispersed-phase axial dispersion
+  is negligible; this is an experimental-model assumption, not a governed
+  RRBO/NMP default.
+- Eq. (27), p. 158, dispersed-to-continuous acetone transfer:
+  \(Sh_{oc}=4.89+2.19\,Re(1-\phi)^{-0.65}\).
+- Eq. (28), p. 158, continuous-to-dispersed acetone transfer:
+  \(Sh_{oc}=-5.19+5.39\,Re^{0.78}(1-\phi)^{-0.46}\).
+
+Eqs. (27)-(28) are scalar overall continuous-phase Sherwood fits. They do not
+provide seven component-specific \(k_c\)/\(k_d\) values, a multicomponent
+diffusive-flux/reference-frame closure, an interfacial composition solve, or a
+seven-component thermodynamic-factor/diffusivity matrix.
+
+**Admission verdict:** useful as direct preliminary single-solute Kühni
+evidence and for dimensional/model-structure checks. It cannot be used as the
+governed Stage-4 seven-component mass-transfer closure. Acetone-to-RRBO/NMP
+transfer is an applicability uncertainty; the absent componentwise transport
+mathematics is a calculation blocker and must not be filled by assumed
+distribution coefficients or fixed K-values.
 
 # Experimental Determination of Continuous Phase
 
