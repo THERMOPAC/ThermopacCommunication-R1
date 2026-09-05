@@ -105,3 +105,4 @@
 - [Pre-pilot native-plus-RK result](prepilot-native-rk-multistage-result.md) — stable physical LLE returns across N_T=1–10, but total aromatics plateaus above target, so no Predictive N_T is assigned.
 - [ECR Pre-Pilot stage-count authority](ecr-prepilot-stage-count-authority.md) — saved Stage 1 exact N_T is sole run authority; current engine does not search a range.
 - [Pre-pilot Kühni Phase 1 boundary](prepilot-kuhni-phase1-boundary.md) — Stage-1-authoritative hydrodynamic screening runs without evidence approval or accepted N_T; no mass-transfer or final sizing.
+- [Oliveira short-Kühni boundary](oliveira-short-kuhni-boundary.md) — fixed 150-mm water/Exxsol regressions are diagnostic only; no diameter scaling or flooding basis.
