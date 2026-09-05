@@ -17,6 +17,7 @@ and swarm-slip states, and Wellek does not provide a binary state boundary.
 
 **How to apply:** Never introduce a fixed Reynolds, Eötvös, Weber, or axis-ratio
 shape cutoff. Qualify shape/interface state at each local condition and bind
-approval to the active physical-property basis. Keep historical numerical
-screens reproducible only through an explicit audit-only path that is visibly
-not approved for resizing.
+approval to the active physical-property basis. Project 236 has no separate
+research system: diagnostic and held screens are part of the production
+workflow, while remaining visibly unapproved for resizing until their gates
+pass.
