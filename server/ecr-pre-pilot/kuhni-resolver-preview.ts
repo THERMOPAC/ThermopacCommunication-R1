@@ -100,7 +100,7 @@ function renderPreviewPage(): string {
     [
       ["Hydraulic column diameter",number(result.hydraulicResolvedColumnDiameterM)+" m"],
       ["Rotor diameter",number(point.rotorDiameterM)+" m"],
-      ["Hydraulic diagnostic RPM",number(point.rpm,1)+" rpm"],
+      ["Minimum in-range hydraulic RPM",number(point.rpm,1)+" rpm"],
       ["Hydraulic RPM range",rpm.length?Math.min(...rpm)+"–"+Math.max(...rpm)+" rpm":"—"],
       ["d32 at diagnostic",number(Number(point.d32M)*1000)+" mm"],
       ["Flood-point holdup",number(point.floodHoldup)],
@@ -108,7 +108,7 @@ function renderPreviewPage(): string {
       ["Tip speed",number(point.tipSpeedMS)+" m/s"],
       ["P/V",number(point.powerVolumeWM3,1)+" W/m³"],
       ["Theoretical stages",String(authority.value??"—")+" — "+String(authority.label??"—")],
-      ["Final selected RPM",result.finalOperatingRpm==null?"DEPENDENCY BLOCKED":number(result.finalOperatingRpm,1)+" rpm"],
+      ["Final operating RPM",result.finalOperatingRpm==null?"PENDING COUPLED MASS-TRANSFER DUTY":number(result.finalOperatingRpm,1)+" rpm"],
       ["Physical compartments / height",result.physicalCompartments==null?"DEPENDENCY BLOCKED":String(result.physicalCompartments)+" / "+number(result.activeHeightM)+" m"],
       ["Calculation hash",String(result.calculationHash??"—")],
       ["Implementation hash",String(result.engine?.implementationHash??"—")]

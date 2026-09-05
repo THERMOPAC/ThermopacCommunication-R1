@@ -20,6 +20,7 @@ The final equipment is a multistage counter-current Kühni/ECR column. Isolated-
 
 - The Myint/Garthe closure may calculate the pre-pilot hydraulic envelope; every source-range exceedance remains explicit extrapolation metadata.
 - Stage 3 reports the hydraulically admissible RPM envelope and may identify a clearly labelled hydraulic diagnostic point; it must not establish “lowest acceptable RPM” or any other hydraulic-only point as the final operating RPM.
+- Label the first admitted point “Minimum in-range hydraulic RPM”; keep “Final operating RPM” separately pending until coupled mass-transfer and compartment-efficiency duty passes.
 - Final RPM selection belongs to the later coupled assessment that includes mass transfer and compartment efficiency for the multistage Kühni/ECR.
 - Column-diameter bounds must be physically or mechanically derived wherever possible; arbitrary bounds must not be introduced.
 - Existing Stage-1 and Stage-2 authority, historical Stage-3 results, hashes, and APIs remain unchanged.
