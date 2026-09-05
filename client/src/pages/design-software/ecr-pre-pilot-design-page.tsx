@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Layout from "@/components/layout";
-import { AlertCircle, ArrowRight, CheckCircle2, Download, FlaskConical, Info, Loader2, Play, Save, Square } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2, ChevronDown, Download, FlaskConical, Info, Loader2, Play, Save, Square } from "lucide-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -837,25 +837,40 @@ function SectionHeading({
   title,
   description,
   tone,
+  expanded,
+  summary,
+  onToggle,
 }: {
   number: string;
   title: string;
   description: string;
   tone: keyof typeof SECTION_TONES;
+  expanded: boolean;
+  summary: string;
+  onToggle: () => void;
 }) {
   const styles = SECTION_TONES[tone];
 
   return (
     <CardHeader className={`border-b px-4 py-2.5 ${styles.header}`}>
-      <div className="flex items-start gap-2.5">
-        <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${styles.number}`}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-controls={`stage1-section-${number}`}
+        className="flex w-full items-start gap-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+      >
+        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${styles.number}`}>
           {number}
-        </div>
-        <div>
+        </span>
+        <span className="min-w-0 flex-1">
           <CardTitle className="text-[15px] font-semibold text-slate-900">{title}</CardTitle>
-          <CardDescription className="mt-0.5 text-[11px] leading-4 text-slate-500">{description}</CardDescription>
-        </div>
-      </div>
+          <CardDescription className="mt-0.5 text-[11px] leading-4 text-slate-500">
+            {expanded ? description : summary}
+          </CardDescription>
+        </span>
+        <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-slate-500 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden="true" />
+      </button>
     </CardHeader>
   );
 }
@@ -1016,6 +1031,9 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
   const [predictiveStopping, setPredictiveStopping] = useState(false);
   const [predictivePollingPaused, setPredictivePollingPaused] = useState(false);
   const [predictivePollingError, setPredictivePollingError] = useState<string | null>(null);
+  const [expandedSection, setExpandedSection] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
+  const [molecularDetailsOpen, setMolecularDetailsOpen] = useState(false);
+  const [sulfurDetailsOpen, setSulfurDetailsOpen] = useState(false);
   useEffect(() => {
     let cancelled = false;
     const initializeDesign = async () => {
@@ -1269,6 +1287,9 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
     };
   }, [form]);
 
+  const liveValidationErrors = useMemo(() => validateForm(form), [form]);
+  const sectionHasIssues = (...keys: Array<keyof ValidationErrors>) => keys.some((key) => Boolean(liveValidationErrors[key]));
+
   const designFeedRateIsValid = isAllowedOption(form.designFeedRateLph, FEED_RATE_OPTIONS);
 
   const validateBeforeAction = () => {
@@ -1463,8 +1484,11 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
               title="Project / Design Basis"
               description="Define the project reference and the operating basis for this input case."
               tone="blue"
+              expanded={expandedSection === 1}
+              summary={`${form.projectReference || "Project pending"} · ${form.rrboGrade || "RRBO grade pending"} · ${form.operatingTemperatureC || "—"} °C · ${sectionHasIssues("projectReference", "rrboGrade", "designFeedRateLph", "operatingTemperatureC", "operatingPressure", "phaseConfiguration", "satIdentity", "monoIdentity", "maximumStages") ? "Needs review" : "Valid"}`}
+              onToggle={() => setExpandedSection(1)}
             />
-            <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2">
+            <CardContent id="stage1-section-1" hidden={expandedSection !== 1} className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2">
               <div className="space-y-1 md:col-span-2">
                 <Label htmlFor="project-reference" className={`text-[13px] font-medium ${validationErrors.projectReference ? "text-red-700" : "text-slate-700"}`}>
                   Project Number <span className="text-red-600">*</span>{" "}
@@ -1555,10 +1579,19 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                 {predictiveBasisError ? (
                   <p className="text-[11px] font-medium text-red-600">{predictiveBasisError}</p>
                 ) : predictiveBasis ? (
-                  <div className="space-y-3.5">
-                    <div className="space-y-1.5">
+                    <div className="space-y-3.5">
+                      <div className="space-y-1.5">
                       <p className="text-[11px] font-semibold text-blue-900">Seven-component molecular basis</p>
-                      <div className="overflow-x-auto rounded-md border border-blue-200 bg-white">
+                        <button
+                          type="button"
+                          onClick={() => setMolecularDetailsOpen((open) => !open)}
+                          aria-expanded={molecularDetailsOpen}
+                          aria-controls="molecular-basis-details"
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-800 underline underline-offset-2"
+                        >
+                          View details <ChevronDown className={`h-3.5 w-3.5 transition-transform ${molecularDetailsOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+                        </button>
+                        <div id="molecular-basis-details" hidden={!molecularDetailsOpen} className="overflow-x-auto rounded-md border border-blue-200 bg-white">
                         <table className="w-full min-w-[680px] text-left text-[11px]">
                           <thead className="bg-blue-100/70 text-blue-950">
                             <tr>
@@ -1650,8 +1683,11 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
               title="RRBO Feed Composition"
               description="Preliminary screening defaults — user editable. Replace them with project-specific feed data when available."
               tone="emerald"
+              expanded={expandedSection === 2}
+              summary={`Total ${compositionStatus.populatedCount ? `${compositionStatus.total.toFixed(2)} wt%` : "not entered"} · ${compositionStatus.valid ? "Valid" : "Needs review"}`}
+              onToggle={() => setExpandedSection(2)}
             />
-            <CardContent className="px-4 py-3.5">
+            <CardContent id="stage1-section-2" hidden={expandedSection !== 2} className="px-4 py-3.5">
               <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3">
                 {COMPOSITION_FIELDS.map(({ key, label }) => (
                   <NumericField
@@ -1721,8 +1757,11 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
               title="RRBO Feed Physical Properties"
               description="The selected RRBO grade and authoritative operating temperature determine these Stage-1 values."
               tone="indigo"
+              expanded={expandedSection === 3}
+              summary={`${form.rrboDensityKgM3 || "—"} kg/m³ · ${form.rrboDynamicViscosityCp || "—"} cP · ${sectionHasIssues("rrboDensityKgM3", "rrboDynamicViscosityCp", "rrboInterfacialTensionMnM") ? "Needs review" : "Valid"}`}
+              onToggle={() => setExpandedSection(3)}
             />
-            <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-3">
+            <CardContent id="stage1-section-3" hidden={expandedSection !== 3} className="grid gap-3.5 px-4 py-3.5 md:grid-cols-3">
               <NumericField
                 id="rrbo-density"
                 label="Density"
@@ -1763,8 +1802,11 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
               title="NMP Solvent"
               description="NMP temperature follows the authoritative operating temperature; solvent properties update automatically."
               tone="cyan"
+              expanded={expandedSection === 4}
+              summary={`${form.nmpPurityWt || "—"} wt% purity · ${form.nmpWaterWt || "—"} wt% water · ${sectionHasIssues("nmpPurityWt", "nmpWaterWt", "nmpDensityKgM3", "nmpDynamicViscosityCp") ? "Needs review" : "Valid"}`}
+              onToggle={() => setExpandedSection(4)}
             />
-            <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2 xl:grid-cols-3">
+            <CardContent id="stage1-section-4" hidden={expandedSection !== 4} className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2 xl:grid-cols-3">
               <SelectField
                 id="nmp-purity"
                 label="NMP purity"
@@ -1827,8 +1869,11 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
               title="Extraction Process Targets"
               description="Define the product-quality and recovery targets that will govern later design stages."
               tone="violet"
+              expanded={expandedSection === 5}
+              summary={`S/O ${form.solventOilRatio || "—"} · S ${form.targetRaffinateSulfurPpm || "—"} ppm · Recovery ${form.minimumRecoveryPct || "—"}% · ${sectionHasIssues("solventOilRatio", "targetRaffinateSulfurPpm", "minimumRaffinateSaturatesWt", "targetRaffinateTotalAromaticsWt", "targetRaffinatePolarAromaticsWt", "minimumRecoveryPct", "maximumNmpRaffinateWt") ? "Needs review" : "Valid"}`}
+              onToggle={() => setExpandedSection(5)}
             />
-            <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2 xl:grid-cols-3">
+            <CardContent id="stage1-section-5" hidden={expandedSection !== 5} className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2 xl:grid-cols-3">
               <SelectField
                 id="solvent-oil-ratio"
                 label="Solvent / Oil ratio"
@@ -1910,8 +1955,11 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
               title="Feed Sulfur"
               description="Allocate total feed sulfur across the user-entered Stage-1 RRBO composition on a 100 kg feed basis."
               tone="amber"
+              expanded={expandedSection === 6}
+              summary={`${form.feedSulfurPpm || "—"} ppm · Allocation ${sulfurDistribution.populatedCount ? `${sulfurDistribution.totalAllocationPct.toFixed(2)}%` : "not entered"} · ${sulfurDistribution.valid && !sectionHasIssues("feedSulfurPpm", "sulfurAllocationSatPct", "sulfurAllocationMonoPct", "sulfurAllocationDiPct", "sulfurAllocationPolyPct", "sulfurAllocationPaPct", "sulfurAllocationTotal") ? "Valid" : "Needs review"}`}
+              onToggle={() => setExpandedSection(6)}
             />
-            <CardContent className="px-4 py-3.5">
+            <CardContent id="stage1-section-6" hidden={expandedSection !== 6} className="px-4 py-3.5">
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                 <div className="flex items-start gap-2">
                   <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
@@ -1977,7 +2025,16 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                   </p>
                 </div>
               </div>
-              <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setSulfurDetailsOpen((open) => !open)}
+                aria-expanded={sulfurDetailsOpen}
+                aria-controls="sulfur-details"
+                className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-amber-800 underline underline-offset-2"
+              >
+                View details <ChevronDown className={`h-3.5 w-3.5 transition-transform ${sulfurDetailsOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+              </button>
+              <div id="sulfur-details" hidden={!sulfurDetailsOpen} className="mt-2 overflow-x-auto rounded-lg border border-slate-200">
                 <table className="w-full min-w-[720px] text-left text-xs">
                   <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
                     <tr>
