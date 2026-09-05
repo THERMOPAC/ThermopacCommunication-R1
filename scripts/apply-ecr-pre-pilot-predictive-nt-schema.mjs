@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import pg from 'pg';
 
-const migrationPath = path.resolve(
-  process.cwd(),
+const migrationPaths = [
   'migrations/ecr_pre_pilot_predictive_nt_jobs.sql',
-);
-const migration = fs.readFileSync(migrationPath, 'utf8');
+  'migrations/ecr_pre_pilot_kuhni_hydrodynamics.sql',
+].map((migrationPath) => path.resolve(process.cwd(), migrationPath));
+const migration = migrationPaths.map((migrationPath) => fs.readFileSync(migrationPath, 'utf8')).join('\n');
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
 try {
@@ -26,9 +26,9 @@ try {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
-  console.log('Predictive N_T persistence schema is current.');
+  console.log('ECR Pre-Pilot persistence schema is current.');
 } catch (error) {
-  console.error('Predictive N_T persistence migration failed:', error);
+  console.error('ECR Pre-Pilot persistence migration failed:', error);
   process.exitCode = 1;
 } finally {
   await pool.end();

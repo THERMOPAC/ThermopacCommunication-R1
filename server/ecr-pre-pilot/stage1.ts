@@ -123,6 +123,89 @@ export interface EcrPrePilotStage1Snapshot {
   immutableHash: string;
 }
 
+export interface EcrPrePilotHydrodynamicProcessBasis {
+  schemaVersion: 'ECR_PRE_PILOT_HYDRODYNAMIC_PROCESS_BASIS_V1';
+  stage1SnapshotHash: string;
+  operatingTemperatureC: number;
+  temperatureK: number;
+  operatingPressure: string;
+  phaseConfiguration: string;
+  composition: {
+    rrboGrade: string;
+    rrboFeedWt: Record<'saturates' | 'monoAromatics' | 'diAromatics' | 'polyAromatics' | 'polarAromatics' | 'nmp', number>;
+    wetSolventWt: { nmp: number; water: number };
+  };
+  rrboFeed: {
+    identity: 'RRBO_FEED';
+    valueLph: number;
+    conversion: 'L/h * 1e-3 m3/L / 3600 s/h';
+    flowM3S: number;
+    densityKgM3: number;
+    dynamicViscosityPaS: number;
+  };
+  wetSolventPhase: {
+    identity: 'WET_NMP_SOLVENT_PHASE';
+    solventOilMassRatio: number;
+    conversion: '(RRBO m3/s * RRBO kg/m3 * S/O) / wet-solvent kg/m3';
+    flowM3S: number;
+    densityKgM3: number;
+    dynamicViscosityPaS: number;
+  };
+  interfacialTensionNM: number;
+}
+
+/**
+ * Stage 1 owns this exact, additive projection of its saved values. Downstream
+ * hydrodynamics must consume it unchanged and must not reconstruct properties.
+ */
+export function makeStage1HydrodynamicProcessBasis(
+  snapshot: EcrPrePilotStage1Snapshot,
+): EcrPrePilotHydrodynamicProcessBasis {
+  const s = snapshot.stage1;
+  const requiredPhysicalValues = [
+    s.operatingTemperatureC, s.temperatureK, s.designFeedRateLph,
+    s.rrboDensityKgM3, s.rrboDynamicViscosityCp,
+    s.nmpDensityKgM3, s.nmpDynamicViscosityCp,
+    s.rrboInterfacialTensionMnM, s.solventOilRatio,
+  ];
+  if (!requiredPhysicalValues.every((value) => Number.isFinite(value) && value > 0)) {
+    throw new Error('STAGE1_HYDRODYNAMIC_PROCESS_BASIS_INCOMPLETE');
+  }
+  const rrboFlowM3S = s.designFeedRateLph * 1e-3 / 3600;
+  const wetSolventFlowM3S =
+    rrboFlowM3S * s.rrboDensityKgM3 * s.solventOilRatio / s.nmpDensityKgM3;
+  return {
+    schemaVersion: 'ECR_PRE_PILOT_HYDRODYNAMIC_PROCESS_BASIS_V1',
+    stage1SnapshotHash: snapshot.immutableHash,
+    operatingTemperatureC: s.operatingTemperatureC,
+    temperatureK: s.temperatureK,
+    operatingPressure: s.operatingPressure,
+    phaseConfiguration: s.phaseConfiguration,
+    composition: {
+      rrboGrade: s.rrboGrade,
+      rrboFeedWt: {
+        saturates: s.saturatesWt, monoAromatics: s.monoAromaticsWt,
+        diAromatics: s.diAromaticsWt, polyAromatics: s.polyAromaticsWt,
+        polarAromatics: s.polarAromaticsWt, nmp: s.nmpInFeedWt,
+      },
+      wetSolventWt: { nmp: s.nmpPurityWt, water: s.nmpWaterWt },
+    },
+    rrboFeed: {
+      identity: 'RRBO_FEED', valueLph: s.designFeedRateLph,
+      conversion: 'L/h * 1e-3 m3/L / 3600 s/h', flowM3S: rrboFlowM3S,
+      densityKgM3: s.rrboDensityKgM3,
+      dynamicViscosityPaS: s.rrboDynamicViscosityCp * 1e-3,
+    },
+    wetSolventPhase: {
+      identity: 'WET_NMP_SOLVENT_PHASE', solventOilMassRatio: s.solventOilRatio,
+      conversion: '(RRBO m3/s * RRBO kg/m3 * S/O) / wet-solvent kg/m3',
+      flowM3S: wetSolventFlowM3S, densityKgM3: s.nmpDensityKgM3,
+      dynamicViscosityPaS: s.nmpDynamicViscosityCp * 1e-3,
+    },
+    interfacialTensionNM: s.rrboInterfacialTensionMnM * 1e-3,
+  };
+}
+
 const RRBO_GRADES = new Set(['SN150', 'SN300', 'SN500']);
 const FEED_RATES = new Set(Array.from({ length: 15 }, (_, index) => (index + 1) * 1000));
 const TEMPERATURES = new Set([25, 30, ...Array.from({ length: 7 }, (_, index) => (index + 4) * 10)]);

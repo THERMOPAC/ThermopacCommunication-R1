@@ -2,8 +2,15 @@ import { pool } from "./db";
 import {
   canonicalizeStage1Input,
   makeStage1Snapshot,
+  validateStage1Snapshot,
+  makeStage1HydrodynamicProcessBasis,
   type EcrPrePilotStage1Snapshot,
 } from "./ecr-pre-pilot/stage1";
+import {
+  canonicalizeKuhniHydrodynamicInput,
+  evaluateKuhniHydrodynamics,
+  kuhniRunHash,
+} from "./ecr-pre-pilot/kuhni-hydrodynamics";
 
 const COUNTER_ROW_ID = 1;
 const MAX_ALLOCATION_ATTEMPTS = 3;
@@ -191,4 +198,58 @@ export async function saveEcrPrePilotStage1(
   );
   if (!updated.rows[0]) throw new Error("ECR_PRE_PILOT_DESIGN_NOT_FOUND");
   return snapshot;
+}
+
+export async function createKuhniHydrodynamicRun(userId: number, designId: number, rawInput: unknown) {
+  const design = await pool.query<{ input_data: unknown }>(
+    `SELECT input_data FROM ecr_pre_pilot_designs WHERE id = $1 AND created_by = $2`, [designId, userId],
+  );
+  if (!design.rows[0]) throw new Error('ECR_PRE_PILOT_DESIGN_NOT_FOUND');
+  const stage1 = validateStage1Snapshot(design.rows[0].input_data);
+  const input = canonicalizeKuhniHydrodynamicInput(rawInput);
+  const basis = makeStage1HydrodynamicProcessBasis(stage1);
+  const result = evaluateKuhniHydrodynamics(input, basis);
+  const immutableHash = kuhniRunHash({ input, basis, result });
+  const saved = await pool.query<{ id: number; created_at: string }>(
+    `INSERT INTO ecr_pre_pilot_kuhni_hydrodynamic_runs
+       (design_id, created_by, stage1_snapshot_hash, process_basis, input_snapshot, result_snapshot, implementation_hash, immutable_hash)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, created_at`,
+    [designId, userId, stage1.immutableHash, basis, input, result, result.engine.implementationHash, immutableHash],
+  );
+  return { id: Number(saved.rows[0].id), createdAt: saved.rows[0].created_at, immutableHash, ...result };
+}
+
+export async function getKuhniHydrodynamicRuns(userId: number, designId: number, latest = false) {
+  const result = await pool.query(
+    `SELECT id, created_at AS "createdAt",
+            stage1_snapshot_hash AS "stage1SnapshotHash",
+            process_basis AS "processBasis",
+            input_snapshot AS "inputSnapshot",
+            result_snapshot AS result,
+            implementation_hash AS "implementationHash",
+            immutable_hash AS "immutableHash"
+       FROM ecr_pre_pilot_kuhni_hydrodynamic_runs
+      WHERE design_id=$1 AND created_by=$2 ORDER BY created_at DESC, id DESC ${latest ? 'LIMIT 1' : ''}`,
+    [designId, userId],
+  );
+  const verified = result.rows.map((row) => {
+    const replayedHash = kuhniRunHash({
+      input: row.inputSnapshot,
+      basis: row.processBasis,
+      result: row.result,
+    });
+    const stage1HashMatches = row.stage1SnapshotHash === row.processBasis?.stage1SnapshotHash;
+    const implementationHashMatches = row.implementationHash === row.result?.engine?.implementationHash;
+    if (replayedHash !== row.immutableHash || !stage1HashMatches || !implementationHashMatches) {
+      throw new Error('ECR_PRE_PILOT_KUHNI_INTEGRITY_FAILURE');
+    }
+    return {
+      id: Number(row.id),
+      createdAt: row.createdAt,
+      immutableHash: row.immutableHash,
+      integrityStatus: 'VERIFIED' as const,
+      result: row.result,
+    };
+  });
+  return latest ? verified[0] ?? null : verified;
 }

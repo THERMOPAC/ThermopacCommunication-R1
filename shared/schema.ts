@@ -17260,6 +17260,19 @@ export const ecrPrePilotPredictiveNtJobHistory = pgTable('ecr_pre_pilot_predicti
   statusCheck: check('ecr_pre_pilot_predictive_nt_job_history_status_chk', sql`status IN ('pending', 'running', 'completed', 'failed')`),
 }));
 
+export const ecrPrePilotKuhniHydrodynamicRuns = pgTable('ecr_pre_pilot_kuhni_hydrodynamic_runs', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  designId: integer('design_id').notNull().references(() => ecrPrePilotDesigns.id),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  stage1SnapshotHash: varchar('stage1_snapshot_hash', { length: 64 }).notNull(),
+  processBasis: jsonb('process_basis').notNull(),
+  inputSnapshot: jsonb('input_snapshot').notNull(),
+  resultSnapshot: jsonb('result_snapshot').notNull(),
+  implementationHash: varchar('implementation_hash', { length: 64 }).notNull(),
+  immutableHash: varchar('immutable_hash', { length: 64 }).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({ designIndex: index('ecr_pre_pilot_kuhni_runs_design_idx').on(table.designId, table.createdAt) }));
+
 // ── Zod insert schemas ────────────────────────────────────────────────────────
 export const insertDesignSoftwareDesignSchema = createInsertSchema(designSoftwareDesigns).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDesignSoftwareRevisionSchema = createInsertSchema(designSoftwareRevisions).omit({ id: true, createdAt: true, updatedAt: true });
@@ -17282,3 +17295,4 @@ export type DesignSoftwareApproval = typeof designSoftwareApprovals.$inferSelect
 export type EcrPrePilotDesign = typeof ecrPrePilotDesigns.$inferSelect;
 export type EcrPrePilotPredictiveNtJob = typeof ecrPrePilotPredictiveNtJobs.$inferSelect;
 export type EcrPrePilotPredictiveNtJobHistory = typeof ecrPrePilotPredictiveNtJobHistory.$inferSelect;
+export type EcrPrePilotKuhniHydrodynamicRun = typeof ecrPrePilotKuhniHydrodynamicRuns.$inferSelect;

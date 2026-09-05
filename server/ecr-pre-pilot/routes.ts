@@ -4,6 +4,8 @@ import {
   allocateEcrPrePilotDesign,
   getLatestSavedEcrPrePilotDesign,
   saveEcrPrePilotStage1,
+  createKuhniHydrodynamicRun,
+  getKuhniHydrodynamicRuns,
 } from '../ecr-pre-pilot-service';
 import {
   enqueuePredictiveNtJobFromSavedStage1,
@@ -120,6 +122,48 @@ export function setupEcrPrePilotRoutes(app: Express): void {
     }
   });
 
+  app.post(
+    '/api/ecr-pre-pilot/designs/:id/kuhni-hydrodynamics/runs',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      try {
+        return res.status(201).json(await createKuhniHydrodynamicRun(Number((req.user as any).id), designId, req.body));
+      } catch (error: any) {
+        return res.status(error.message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404 : 422).json({ error: error.message });
+      }
+    },
+  );
+  app.get(
+    '/api/ecr-pre-pilot/designs/:id/kuhni-hydrodynamics/latest',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      try {
+        const run = await getKuhniHydrodynamicRuns(Number((req.user as any).id), designId, true);
+        return run ? res.json(run) : res.status(404).json({ error: 'Kuhni hydrodynamic run not found' });
+      } catch (error: any) {
+        const status = error.message === 'ECR_PRE_PILOT_KUHNI_INTEGRITY_FAILURE' ? 409 : 500;
+        return res.status(status).json({ error: error.message });
+      }
+    },
+  );
+  app.get(
+    '/api/ecr-pre-pilot/designs/:id/kuhni-hydrodynamics/runs',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      try {
+        return res.json(await getKuhniHydrodynamicRuns(Number((req.user as any).id), designId));
+      } catch (error: any) {
+        const status = error.message === 'ECR_PRE_PILOT_KUHNI_INTEGRITY_FAILURE' ? 409 : 500;
+        return res.status(status).json({ error: error.message });
+      }
+    },
+  );
   app.post(
     '/api/ecr-pre-pilot/designs/:id/predictive-nt/jobs',
     ensureAuthenticated,
