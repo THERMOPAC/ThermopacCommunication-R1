@@ -983,9 +983,10 @@ function SelectField({
   );
 }
 
-export default function EcrPrePilotDesignPage() {
+export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) {
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const isThermodynamicsStage = stage === 2;
   const [form, setForm] = useState<FormState>(() => {
     const rrboProperties = getStandardRrboProperties(EMPTY_FORM.rrboGrade, EMPTY_FORM.operatingTemperatureC);
     const nmpProperties = getStandardNmpProperties(EMPTY_FORM.operatingTemperatureC);
@@ -1023,7 +1024,7 @@ export default function EcrPrePilotDesignPage() {
           credentials: "include",
         });
         let payload = await response.json().catch(() => ({}));
-        if (response.status === 404) {
+        if (response.status === 404 && !isThermodynamicsStage) {
           const storageKey = "ecr-pre-pilot-allocation-key";
           const existingKey = window.sessionStorage.getItem(storageKey);
           const allocationKey = existingKey ?? window.crypto.randomUUID();
@@ -1036,6 +1037,9 @@ export default function EcrPrePilotDesignPage() {
             credentials: "include",
           });
           payload = await response.json().catch(() => ({}));
+        }
+        if (response.status === 404 && isThermodynamicsStage) {
+          throw new Error("Save Stage 1 Inputs before opening Stage 2 Thermodynamics.");
         }
         if (!response.ok) {
           throw new Error(payload.message ?? "Project number could not be loaded.");
@@ -1061,7 +1065,7 @@ export default function EcrPrePilotDesignPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isThermodynamicsStage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1087,7 +1091,7 @@ export default function EcrPrePilotDesignPage() {
   }, []);
 
   useEffect(() => {
-    if (!designId) return;
+    if (!isThermodynamicsStage || !designId) return;
     let cancelled = false;
     const restoreLatestJob = async () => {
       try {
@@ -1115,10 +1119,10 @@ export default function EcrPrePilotDesignPage() {
     };
     void restoreLatestJob();
     return () => { cancelled = true; };
-  }, [designId]);
+  }, [designId, isThermodynamicsStage]);
 
   useEffect(() => {
-    if (!designId || !predictiveJob || predictivePollingPaused || !["pending", "running"].includes(predictiveJob.status)) return;
+    if (!isThermodynamicsStage || !designId || !predictiveJob || predictivePollingPaused || !["pending", "running"].includes(predictiveJob.status)) return;
     let cancelled = false;
     const poll = async () => {
       try {
@@ -1151,7 +1155,7 @@ export default function EcrPrePilotDesignPage() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [designId, predictiveJob?.id, predictiveJob?.status, predictivePollingPaused, toast]);
+  }, [designId, isThermodynamicsStage, predictiveJob?.id, predictiveJob?.status, predictivePollingPaused, toast]);
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     const nextForm = { ...form, [key]: value };
@@ -1418,16 +1422,17 @@ export default function EcrPrePilotDesignPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl font-semibold tracking-tight text-slate-900">ECR Pre-Pilot Design</h1>
                 <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
-                  Input data only
+                  {isThermodynamicsStage ? "Stage 2 · Thermodynamics" : "Stage 1 · Inputs"}
                 </span>
               </div>
               <p className="mt-0.5 max-w-2xl text-xs leading-5 text-slate-500">
-                Greenfield process and feed characterization for an ECR pre-pilot design basis.
-                Enter only values supported by your project data.
+                {isThermodynamicsStage
+                  ? `Predictive N_T thermodynamic evaluation from the latest server-saved Stage 1 snapshot${form.projectReference ? ` · ${form.projectReference}` : ""}.`
+                  : "Greenfield process and feed characterization for an ECR pre-pilot design basis. Enter only values supported by your project data."}
               </p>
             </div>
           </div>
-          {saveState !== "unsaved" && (
+          {!isThermodynamicsStage && saveState !== "unsaved" && (
             <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
               {saveState === "saved" ? (
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
@@ -1440,6 +1445,18 @@ export default function EcrPrePilotDesignPage() {
         </header>
 
         <div className="space-y-3">
+          {isThermodynamicsStage && projectNumberLoading && (
+            <div className="flex items-center justify-center rounded-md border border-slate-200 py-16 text-sm text-slate-500">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading saved Stage 1 snapshot…
+            </div>
+          )}
+          {isThermodynamicsStage && projectNumberLoadError && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              {projectNumberLoadError}
+            </div>
+          )}
+          {!isThermodynamicsStage && (
+          <>
           <Card className={`overflow-hidden shadow-sm ${SECTION_TONES.blue.card}`}>
             <SectionHeading
               number="1"
@@ -2011,14 +2028,17 @@ export default function EcrPrePilotDesignPage() {
               </p>
             </CardContent>
           </Card>
+          </>
+          )}
 
+          {isThermodynamicsStage && !projectNumberLoading && !projectNumberLoadError && (
           <Card className="overflow-hidden border-slate-300 shadow-sm">
             <CardHeader className="border-b bg-slate-50 px-4 py-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle className="text-[15px]">Predictive N_T screening</CardTitle>
+                  <CardTitle className="text-[15px]">Stage 2 · Predictive N_T thermodynamics</CardTitle>
                   <CardDescription className="mt-0.5 text-[11px]">
-                    Runs the exact six-component SAT/MONO/DI/POLY/PA/NMP COSMO-SAC research-diagnostic cascade from the saved Stage 1 authority.
+                    Runs the governed SAT/MONO/DI/POLY/PA/NMP/H₂O thermodynamic cascade from the saved Stage 1 authority.
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2082,7 +2102,7 @@ export default function EcrPrePilotDesignPage() {
                     {predictiveBasis.molecularRegistry.polarAromatics.representative.formula},{" "}
                     {predictiveBasis.molecularRegistry.polarAromatics.representative.molecularWeightGmol.toFixed(2)} g/mol)
                     is the bounded non-sulfur molecular anchor in the six-component COSMO-SAC profile basis.
-                    Numerical results remain research diagnostics and cannot establish release-ready N_T.
+                    Numerical results remain pre-pilot diagnostics and cannot establish release-ready N_T.
                   </p>
                   <p className="mt-1 font-semibold">PA transfer must never be interpreted as sulfur removal.</p>
                 </div>
@@ -2225,7 +2245,7 @@ export default function EcrPrePilotDesignPage() {
                         ? "The seven-component native-plus-RK model is the PRE-PILOT MULTISTAGE PREDICTIVE MODEL. N_T is assigned only from a fully accepted simultaneous counter-current trial and is never release-eligible."
                         : String(predictiveJob.result.engineContractVersion).startsWith("7C-")
                           ? "The historical seven-component cCOSMO production implementation includes H2O under its immutable qualification-pending contract."
-                        : "This historical six-component COSMO-SAC result remains readable under its original research-diagnostic contract."}
+                        : "This historical six-component COSMO-SAC result remains readable under its original diagnostic contract."}
                       {" "}Sulfur prediction remains NOT_CALCULABLE, and PA transfer must never be interpreted as sulfur removal.
                     </p>
                     {predictiveJob.result.wetSolventConstruction && (
@@ -2424,7 +2444,7 @@ export default function EcrPrePilotDesignPage() {
                       return (
                         <details key={trial.stageCount} className="rounded-md border bg-white" open={trial.numericalAcceptancePassed}>
                           <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800">
-                            Trial {trial.stageCount}: {["7C-1.4.0", "7C-1.5.0"].includes(predictiveJob.result?.engineContractVersion ?? "") ? "PRE-PILOT MULTISTAGE PREDICTIVE MODEL" : String(predictiveJob.result?.engineContractVersion ?? "").startsWith("7C-") ? "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING" : "RESEARCH DIAGNOSTIC"} — NOT ACCEPTED · numerical gates {trial.numericalAcceptancePassed ? "PASS" : "FAIL"} · max balance residual {trial.maximumOverallComponentBalanceResidualMol.toExponential(3)}
+                            Trial {trial.stageCount}: {["7C-1.4.0", "7C-1.5.0"].includes(predictiveJob.result?.engineContractVersion ?? "") ? "PRE-PILOT MULTISTAGE PREDICTIVE MODEL" : String(predictiveJob.result?.engineContractVersion ?? "").startsWith("7C-") ? "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING" : "PRE-PILOT DIAGNOSTIC"} — NOT ACCEPTED · numerical gates {trial.numericalAcceptancePassed ? "PASS" : "FAIL"} · max balance residual {trial.maximumOverallComponentBalanceResidualMol.toExponential(3)}
                           </summary>
                           <div className="space-y-3 border-t px-3 py-3 text-[11px]">
                             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -2576,13 +2596,39 @@ export default function EcrPrePilotDesignPage() {
               )}
             </CardContent>
           </Card>
+          )}
         </div>
 
         <div className="mt-4 flex flex-col gap-2.5 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[11px] leading-4 text-slate-500">
-            Save the authoritative Stage 1 process basis before continuing to Stage 2 hydrodynamic screening.
+            {isThermodynamicsStage
+              ? "Thermodynamic jobs use only the latest server-owned saved Stage 1 snapshot."
+              : "Save the authoritative Stage 1 process basis before continuing to Stage 2 thermodynamics."}
           </p>
           <div className="flex flex-col-reverse gap-1.5 sm:flex-row">
+            {isThermodynamicsStage ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate("/design-software/ecr-pre-pilot-design")}
+                  className="h-8 gap-1.5 px-3 text-xs"
+                >
+                  Back to Stage 1
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => navigate("/design-software/ecr-pre-pilot-design/stage-3")}
+                  disabled={!designId || projectNumberLoading || Boolean(projectNumberLoadError)}
+                  title={projectNumberLoadError ? "A saved Stage 1 snapshot is required before continuing." : undefined}
+                  className="h-8 gap-1.5 px-3 text-xs"
+                >
+                  Next: Stage 3 Hydrodynamics
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </Button>
+              </>
+            ) : (
+            <>
             <Button
               type="button"
               variant="outline"
@@ -2605,12 +2651,18 @@ export default function EcrPrePilotDesignPage() {
               title={saveState === "saved" ? undefined : "Save Stage 1 before continuing."}
               className="h-8 gap-1.5 px-3 text-xs"
             >
-              Next: Stage 2 Hydrodynamics
+              Next: Stage 2 Thermodynamics
               <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
+            </>
+            )}
           </div>
         </div>
       </main>
     </Layout>
   );
+}
+
+export default function EcrPrePilotDesignPage() {
+  return <EcrPrePilotDesignWorkflowPage stage={1} />;
 }

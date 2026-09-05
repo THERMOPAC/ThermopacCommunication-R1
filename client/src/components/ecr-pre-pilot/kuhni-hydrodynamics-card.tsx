@@ -19,6 +19,20 @@ type KuhniRun = {
   [key: string]: unknown;
 };
 
+export type Stage2ThermodynamicDependencySummary = {
+  jobId: string;
+  jobStatus: string;
+  resultStatus?: string;
+  executionStatus?: string;
+  predictiveNt?: number | null;
+  establishedTheoreticalStages?: number | null;
+  engineContractVersion?: string;
+  stage1SnapshotHash?: string;
+  currentStage1SnapshotHash?: string;
+  modelHash?: string;
+  engineHash?: string;
+};
+
 const KUHNI_DEFAULTS = {
   columnDiameterM: 0.15,
   rotorToColumnRatio: 0.50,
@@ -98,7 +112,7 @@ function KuhniResultPanel({ run, runCount }: { run: KuhniRun; runCount: number }
         <div className="rounded-md border border-slate-200 bg-white p-3">
           <h4 className="text-[11px] font-semibold text-slate-800">Screening disposition</h4>
           <p className="mt-1 text-[11px] text-slate-600"><strong>No final selection.</strong> All persisted trial states are shown for engineering review.</p>
-          <p className="text-[10px] leading-4 text-slate-500">This Stage-2 result does not nominate a physical stage, height, efficiency, or mechanical design.</p>
+          <p className="text-[10px] leading-4 text-slate-500">This Stage 3 result does not nominate a physical stage, height, efficiency, or mechanical design.</p>
         </div>
         <div className="rounded-md border border-slate-200 bg-white p-3">
           <h4 className="text-[11px] font-semibold text-slate-800">Empirical correlation provenance / applicability</h4>
@@ -119,7 +133,17 @@ function KuhniResultPanel({ run, runCount }: { run: KuhniRun; runCount: number }
   );
 }
 
-export function KuhniHydrodynamicsCard({ designId }: { designId: number | null }) {
+export function KuhniHydrodynamicsCard({
+  designId,
+  thermodynamicDependency,
+  thermodynamicDependencyReady,
+  thermodynamicDependencyError,
+}: {
+  designId: number | null;
+  thermodynamicDependency: Stage2ThermodynamicDependencySummary | null;
+  thermodynamicDependencyReady: boolean;
+  thermodynamicDependencyError?: string | null;
+}) {
   const { toast } = useToast();
   const [inputs, setInputs] = useState<Record<keyof typeof KUHNI_DEFAULTS, string>>(
     () => Object.fromEntries(Object.entries(KUHNI_DEFAULTS).map(([key, value]) => [key, String(value)])) as Record<keyof typeof KUHNI_DEFAULTS, string>,
@@ -160,7 +184,15 @@ export function KuhniHydrodynamicsCard({ designId }: { designId: number | null }
   }, [designId]);
 
   const handleRun = async () => {
-    if (!designId) return;
+    if (!designId || !thermodynamicDependencyReady) {
+      toast({
+        title: "Stage 3 run blocked",
+        description: thermodynamicDependencyError
+          ?? "A completed persisted Stage 2 thermodynamic result is required.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSubmitting(true);
     setLoadingError(null);
     try {
@@ -175,7 +207,7 @@ export function KuhniHydrodynamicsCard({ designId }: { designId: number | null }
       if (!response.ok) throw new Error(payload.error ?? payload.message ?? "Hydrodynamic screening could not start.");
       setLatest(payload as KuhniRun);
       await loadRuns();
-      toast({ title: "Kuhni screening complete", description: "Trial matrix persisted as a Stage-2 screening result." });
+      toast({ title: "Kuhni screening complete", description: "Trial matrix persisted as a Stage 3 screening result." });
     } catch (error: unknown) {
       setLoadingError(error instanceof Error ? error.message : "Hydrodynamic screening could not start.");
       toast({ title: "Kuhni screening failed", description: error instanceof Error ? error.message : "The run could not be completed.", variant: "destructive" });
@@ -191,21 +223,66 @@ export function KuhniHydrodynamicsCard({ designId }: { designId: number | null }
           <div className="flex items-start gap-2.5">
             <div className="rounded-md bg-slate-900 p-2 text-white"><ShieldCheck className="h-4 w-4" /></div>
             <div>
-              <CardTitle className="text-[15px] text-slate-900">Stage 2 · Kuhni hydrodynamic screening</CardTitle>
+              <CardTitle className="text-[15px] text-slate-900">Stage 3 · Kuhni hydrodynamic screening</CardTitle>
               <CardDescription className="mt-0.5 max-w-2xl text-[11px] leading-4">
                 A governed trial matrix for rotor / stator screening. Inputs below are the only editable hydrodynamic variables.
               </CardDescription>
             </div>
           </div>
-          <Button type="button" onClick={handleRun} disabled={!designId || submitting || loading} className="h-8 gap-1.5 bg-slate-900 px-3 text-xs hover:bg-slate-700">
+          <Button
+            type="button"
+            onClick={handleRun}
+            disabled={!designId || !thermodynamicDependencyReady || submitting || loading}
+            title={thermodynamicDependencyReady ? undefined : "A completed persisted Stage 2 thermodynamic result is required."}
+            className="h-8 gap-1.5 bg-slate-900 px-3 text-xs hover:bg-slate-700"
+          >
             {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-            {submitting ? "Running matrix…" : "Run Stage-2 matrix"}
+            {submitting ? "Running matrix…" : "Run Stage 3 matrix"}
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4 px-4 py-4">
+        <div className={`rounded-md border p-3 ${thermodynamicDependencyReady ? "border-emerald-200 bg-emerald-50/60" : "border-amber-200 bg-amber-50/70"}`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className={`text-xs font-semibold ${thermodynamicDependencyReady ? "text-emerald-950" : "text-amber-950"}`}>
+              Read-only Stage 2 thermodynamic dependency
+            </h3>
+            <span className={`text-[10px] font-semibold ${thermodynamicDependencyReady ? "text-emerald-700" : "text-amber-800"}`}>
+              {thermodynamicDependencyReady ? "Stage 3 run enabled" : "Stage 3 run blocked"}
+            </span>
+          </div>
+          {thermodynamicDependencyError ? (
+            <p className="mt-2 text-[11px] text-red-800">{thermodynamicDependencyError}</p>
+          ) : thermodynamicDependency ? (
+            <div className="mt-2 grid gap-x-5 gap-y-2 text-[10px] text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                ["Job", thermodynamicDependency.jobId],
+                ["Job status", thermodynamicDependency.jobStatus],
+                ["Result status", thermodynamicDependency.resultStatus],
+                ["Execution status", thermodynamicDependency.executionStatus],
+                ["Predictive N_T", thermodynamicDependency.predictiveNt],
+                ["Established stages", thermodynamicDependency.establishedTheoreticalStages],
+                ["Engine contract", thermodynamicDependency.engineContractVersion],
+                ["Job Stage 1 snapshot hash", thermodynamicDependency.stage1SnapshotHash],
+                ["Current Stage 1 snapshot hash", thermodynamicDependency.currentStage1SnapshotHash],
+                ["Model hash", thermodynamicDependency.modelHash],
+                ["Engine hash", thermodynamicDependency.engineHash],
+              ].map(([label, value]) => (
+                <div key={String(label)} className="min-w-0 break-words">
+                  <span className="text-slate-500">{label}</span><br />
+                  <strong className="font-mono">{value === null || value === undefined || value === "" ? "—" : String(value)}</strong>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-[11px] text-amber-900">No persisted Stage 2 Predictive N_T job exists for this saved design.</p>
+          )}
+          <p className="mt-2 border-t border-current/10 pt-2 text-[10px] text-slate-600">
+            Read-only persisted job data. Stage 3 does not reconstruct, edit, or duplicate Stage 2 inputs or results.
+          </p>
+        </div>
         <div className="rounded-md border border-amber-200 bg-amber-50/70 p-3 text-[11px] leading-4 text-amber-950">
-          <strong>Screening boundary.</strong> This stage terminates before mass transfer, efficiency, physical stages, height, and final mechanical sizing. No candidate below is a final design decision.
+          <strong>Screening boundary.</strong> This stage terminates before mass transfer, efficiency, physical stages, height, and final mechanical sizing. Mass transfer remains outside this workflow for future Stage 4. No candidate below is a final design decision.
         </div>
         <div>
           <div className="mb-2 flex items-center justify-between">
@@ -213,7 +290,7 @@ export function KuhniHydrodynamicsCard({ designId }: { designId: number | null }
             <span className="font-mono text-[10px] text-slate-400">POST /kuhni-hydrodynamics/runs</span>
           </div>
           <p className="mb-3 max-w-4xl text-[10px] leading-4 text-slate-500">
-            The seeded geometry is inside the K&amp;H Table-1 geometric envelope only. Governed Stage-1 throughput and RRBO/NMP properties are evaluated independently and may place holdup, slip, V<sub>k</sub>, and area on diagnostic HOLD; the kernel never extrapolates through those violations.
+            The seeded geometry is inside the K&amp;H Table-1 geometric envelope only. Governed Stage 1 throughput and RRBO/NMP properties are evaluated independently and may place holdup, slip, V<sub>k</sub>, and area on diagnostic HOLD; the kernel never extrapolates through those violations.
           </p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {([
@@ -255,7 +332,7 @@ export function KuhniHydrodynamicsCard({ designId }: { designId: number | null }
         ) : loadingError ? (
           <div className="flex items-center justify-between rounded-md border border-red-200 bg-red-50 p-3 text-[11px] text-red-800"><span>{loadingError}</span><Button type="button" variant="outline" onClick={() => void loadRuns()} className="h-7 gap-1 px-2 text-[11px]"><RefreshCw className="h-3 w-3" /> Retry</Button></div>
         ) : !latest ? (
-          <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-[11px] text-slate-500">No persisted Kuhni run yet. Set the screening inputs and run the Stage-2 matrix.</div>
+          <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-[11px] text-slate-500">No persisted Kuhni run yet. Set the screening inputs and run the Stage 3 matrix.</div>
         ) : (
           <KuhniResultPanel run={latest} runCount={runs.length} />
         )}
