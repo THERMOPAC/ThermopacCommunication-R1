@@ -1034,6 +1034,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
   const [expandedSection, setExpandedSection] = useState<1 | 2 | 3 | 4 | 5 | 6 | null>(1);
   const [molecularDetailsOpen, setMolecularDetailsOpen] = useState(false);
   const [sulfurDetailsOpen, setSulfurDetailsOpen] = useState(false);
+  const [stage2TechnicalDetailsOpen, setStage2TechnicalDetailsOpen] = useState(false);
   useEffect(() => {
     let cancelled = false;
     const initializeDesign = async () => {
@@ -2093,9 +2094,14 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
             <CardHeader className="border-b bg-slate-50 px-4 py-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <CardTitle className="text-[15px]">Stage 2 · Predictive N_T thermodynamics</CardTitle>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CardTitle className="text-[15px]">Stage 2 · Predictive N_T thermodynamics</CardTitle>
+                    <span className="rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-indigo-800">
+                      Pre-pilot simulator
+                    </span>
+                  </div>
                   <CardDescription className="mt-0.5 text-[11px]">
-                    Runs the governed SAT/MONO/DI/POLY/PA/NMP/H₂O thermodynamic cascade from the saved Stage 1 authority.
+                    Predictive results only. Runs the governed SAT/MONO/DI/POLY/PA/NMP/H₂O thermodynamic cascade from the saved Stage 1 authority.
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2131,45 +2137,15 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
               </div>
             </CardHeader>
             <CardContent className="space-y-4 px-4 py-4">
-              <div className={`rounded-md border p-3 text-[11px] leading-5 ${
+              <div className={`rounded-md border px-3 py-2 text-[11px] leading-5 ${
                 saveState === "saved"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-950"
                   : "border-amber-300 bg-amber-50 text-amber-950"
               }`}>
-                <p className="font-semibold">
-                  Stage 1 authority: {saveState === "saved" ? "SAVED" : "UNSAVED / STALE"}
-                </p>
-                <p>
-                  The server derives the complete molecular solver request from the saved owner-controlled Stage 1 snapshot.
-                  Browser-calculated fractions are not accepted by the job endpoint.
-                </p>
-                <p className="mt-1 font-semibold">
-                  Sulfur prediction: NOT_CALCULABLE · CALIBRATION_REQUIRED
-                </p>
-                <p>
-                  The sulfur basis is retained in Stage 1 for audit only and is never passed into the frozen Python thermodynamic solver.
-                </p>
+                <p><span className="font-semibold">Input authority:</span> {saveState === "saved" ? "Saved Stage-1 snapshot" : "Unsaved / stale Stage-1 snapshot"}</p>
+                <p><span className="font-semibold">Sulfur removal:</span> Not calculable — calibration required</p>
+                <p>This N_T run does not predict sulfur removal.</p>
               </div>
-              {Number(form.polarAromaticsWt) > 0 && predictiveBasis && (
-                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-[11px] leading-5 text-blue-950">
-                  <p className="font-semibold">PA included as the sixth thermodynamic family</p>
-                  <p>
-                    {predictiveBasis.molecularRegistry.polarAromatics.representative.commonName} (CAS{" "}
-                    {predictiveBasis.molecularRegistry.polarAromatics.representative.cas},{" "}
-                    {predictiveBasis.molecularRegistry.polarAromatics.representative.formula},{" "}
-                    {predictiveBasis.molecularRegistry.polarAromatics.representative.molecularWeightGmol.toFixed(2)} g/mol)
-                    is the bounded non-sulfur molecular anchor in the six-component COSMO-SAC profile basis.
-                    Numerical results remain pre-pilot diagnostics and cannot establish release-ready N_T.
-                  </p>
-                  <p className="mt-1 font-semibold">PA transfer must never be interpreted as sulfur removal.</p>
-                </div>
-              )}
-              {Number(form.nmpInFeedWt) > 0 && (
-                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-[11px] leading-5 text-blue-950">
-                  <p className="font-semibold">Feed NMP retained independently</p>
-                  <p>The saved RRBO-feed NMP fraction remains in the six-component feed vector; the fresh counter-current NMP inlet is modeled separately.</p>
-                </div>
-              )}
               <div className="grid gap-3 sm:grid-cols-4">
                 <div className="rounded-md border bg-white p-3">
                   <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Queue status</p>
@@ -2290,44 +2266,73 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                       <p className="mt-1 text-xs font-semibold text-slate-900">{predictiveJob.result.monotonicSequence ? "PASS" : "FAIL"}</p>
                     </div>
                     <div className="rounded-md border p-3">
-                      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Runtime verification</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-900">{predictiveJob.result.model?.runtimeVerification ?? "—"}</p>
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Trial acceptance</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-900">{predictiveJob.result.accepted ? "ACCEPTED" : "REJECTED"}</p>
                     </div>
                   </div>
                   <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
-                    <p className="font-semibold">Predictive-only limitations</p>
-                    <p>Calibration required: {predictiveJob.result.calibrationRequired ? "Yes" : "No"} · Pilot validated: {predictiveJob.result.pilotValidated ? "Yes" : "No"} · Release eligible: {predictiveJob.result.releaseEligible ? "Yes" : "No"}</p>
-                    <p>
-                      {["7C-1.4.0", "7C-1.5.0"].includes(predictiveJob.result.engineContractVersion ?? "")
-                        ? "The seven-component native-plus-RK model is the PRE-PILOT MULTISTAGE PREDICTIVE MODEL. N_T is assigned only from a fully accepted simultaneous counter-current trial and is never release-eligible."
-                        : String(predictiveJob.result.engineContractVersion).startsWith("7C-")
-                          ? "The historical seven-component cCOSMO production implementation includes H2O under its immutable qualification-pending contract."
-                        : "This historical six-component COSMO-SAC result remains readable under its original diagnostic contract."}
-                      {" "}Sulfur prediction remains NOT_CALCULABLE, and PA transfer must never be interpreted as sulfur removal.
-                    </p>
+                    <p className="font-semibold">Simulator result basis</p>
+                    <p>Sulfur prediction: <strong>{predictiveJob.result.sulfurPrediction?.status ?? "NOT RECORDED"}</strong>{predictiveJob.result.sulfurPrediction?.reason ? ` — ${predictiveJob.result.sulfurPrediction.reason}` : ""}</p>
                     {predictiveJob.result.wetSolventConstruction && (
                       <p>
                         Wet solvent: <strong>{predictiveJob.result.wetSolventConstruction.dryNmpMass ?? "—"} NMP + {predictiveJob.result.wetSolventConstruction.waterMass ?? "—"} H2O</strong>
                         {" · "}H2O {predictiveJob.result.wetSolventConstruction.waterWeightPercentOfWetSolvent ?? "—"} wt%
-                        {" · "}closure {Number(predictiveJob.result.wetSolventConstruction.massClosureResidual ?? NaN).toExponential(3)}
                       </p>
                     )}
-                    {predictiveJob.result.stage1TargetGovernance && (
-                      <>
-                        <p>
-                          N_T numerical authority: <strong>{predictiveJob.result.stage1TargetGovernance.predictiveNtAuthority}</strong>
-                        </p>
-                        <p>
-                          Minimum mass recovery target: <strong>{predictiveJob.result.stage1TargetGovernance.minimumMassRecovery?.targetPercent ?? "—"}%</strong>
-                          {" · "}
-                          <strong>{predictiveJob.result.stage1TargetGovernance.minimumMassRecovery?.status ?? "NOT_CALCULABLE"}</strong>
-                        </p>
-                        <p>
-                          Overall ECR product acceptance: <strong>{predictiveJob.result.stage1TargetGovernance.overallEcrProductAcceptanceStatus}</strong>
-                        </p>
-                      </>
+                    {predictiveJob.result.blockingMessage && (
+                      <p>Active blocker: <strong>{predictiveJob.result.blockingCode ?? "UNSPECIFIED"}</strong> — {predictiveJob.result.blockingMessage}</p>
                     )}
                   </div>
+                  <div className="grid gap-2 text-[11px] md:grid-cols-2">
+                    <div className="rounded-md border bg-slate-50 p-3">
+                      <p className="font-semibold text-slate-700">Model hash</p>
+                      <p className="mt-1 break-all font-mono text-[10px] text-slate-600">{predictiveJob.result.model?.modelHash ?? predictiveJob.modelHash}</p>
+                    </div>
+                    <div className="rounded-md border bg-slate-50 p-3">
+                      <p className="font-semibold text-slate-700">Engine hash</p>
+                      <p className="mt-1 break-all font-mono text-[10px] text-slate-600">{predictiveJob.result.engine?.engineHash ?? predictiveJob.engineHash}</p>
+                      <p className="mt-1 text-slate-500">{predictiveJob.result.engine?.engineId} {predictiveJob.result.engine?.engineVersion}</p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 text-xs"
+                    aria-expanded={stage2TechnicalDetailsOpen}
+                    aria-controls="stage2-technical-details"
+                    onClick={() => setStage2TechnicalDetailsOpen((open) => !open)}
+                  >
+                    {stage2TechnicalDetailsOpen ? "Hide technical details" : "View technical details"}
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${stage2TechnicalDetailsOpen ? "rotate-180" : ""}`} />
+                  </Button>
+                  <div id="stage2-technical-details" className="space-y-3" hidden={!stage2TechnicalDetailsOpen}>
+                      {Number(form.polarAromaticsWt) > 0 && predictiveBasis && (
+                        <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-[11px] leading-5 text-blue-950">
+                          <p className="font-semibold">PA molecular basis and sulfur boundary</p>
+                          <p>{predictiveBasis.molecularRegistry.polarAromatics.representative.commonName} (CAS {predictiveBasis.molecularRegistry.polarAromatics.representative.cas}, {predictiveBasis.molecularRegistry.polarAromatics.representative.formula}, {predictiveBasis.molecularRegistry.polarAromatics.representative.molecularWeightGmol.toFixed(2)} g/mol) is the bounded non-sulfur molecular anchor in the six-component COSMO-SAC profile basis.</p>
+                          <p className="mt-1 font-semibold">PA transfer must never be interpreted as sulfur removal.</p>
+                        </div>
+                      )}
+                      {Number(form.nmpInFeedWt) > 0 && (
+                        <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-[11px] leading-5 text-blue-950">
+                          <p className="font-semibold">Feed NMP retained independently</p>
+                          <p>The saved RRBO-feed NMP fraction remains in the six-component feed vector; the fresh counter-current NMP inlet is modeled separately.</p>
+                        </div>
+                      )}
+                      <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
+                        <p className="font-semibold">Governance and numerical authority</p>
+                        <p>{["7C-1.4.0", "7C-1.5.0"].includes(predictiveJob.result.engineContractVersion ?? "") ? "The seven-component native-plus-RK model is the PRE-PILOT MULTISTAGE PREDICTIVE MODEL. N_T is assigned only from a fully accepted simultaneous counter-current trial and is never release-eligible." : String(predictiveJob.result.engineContractVersion).startsWith("7C-") ? "The historical seven-component cCOSMO production implementation includes H2O under its immutable qualification-pending contract." : "This historical six-component COSMO-SAC result remains readable under its original diagnostic contract."}</p>
+                        <p>Runtime verification: <strong>{predictiveJob.result.model?.runtimeVerification ?? "—"}</strong></p>
+                        {predictiveJob.result.wetSolventConstruction && <p>Wet-solvent mass closure: <strong className="font-mono">{Number(predictiveJob.result.wetSolventConstruction.massClosureResidual ?? NaN).toExponential(3)}</strong></p>}
+                        {predictiveJob.result.stage1TargetGovernance && (
+                          <>
+                            <p>N_T numerical authority: <strong>{predictiveJob.result.stage1TargetGovernance.predictiveNtAuthority}</strong></p>
+                            {predictiveJob.result.stage1TargetGovernance.minimumMassRecovery?.targetPercent !== undefined && <p>Minimum mass recovery target: <strong>{predictiveJob.result.stage1TargetGovernance.minimumMassRecovery.targetPercent}% · {predictiveJob.result.stage1TargetGovernance.minimumMassRecovery.status ?? "NOT_CALCULABLE"}</strong></p>}
+                            <p>Overall ECR product acceptance: <strong>{predictiveJob.result.stage1TargetGovernance.overallEcrProductAcceptanceStatus}</strong></p>
+                          </>
+                        )}
+                      </div>
                   {predictiveJob.result.globalStabilityQualification && (
                     <div className="rounded-md border border-red-300 bg-red-50 p-3 text-[11px] leading-5 text-red-950">
                       <p className="font-semibold">Frozen global TPD qualification</p>
@@ -2374,7 +2379,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                         Evidence results SHA-256:{" "}
                         {predictiveJob.result.globalStabilityQualification.evidenceArtifacts?.resultsSha256 ?? "—"}
                       </p>
-                    </div>
+                  </div>
                   )}
                   {predictiveJob.result.task218CandidateGeneratedStability && (
                     <div className="rounded-md border border-red-300 bg-red-50 p-3 text-[11px] leading-5 text-red-950">
@@ -2396,17 +2401,6 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                       </p>
                     </div>
                   )}
-                  <div className="grid gap-2 text-[11px] md:grid-cols-2">
-                    <div className="rounded-md border bg-slate-50 p-3">
-                      <p className="font-semibold text-slate-700">Model hash</p>
-                      <p className="mt-1 break-all font-mono text-[10px] text-slate-600">{predictiveJob.result.model?.modelHash ?? predictiveJob.modelHash}</p>
-                    </div>
-                    <div className="rounded-md border bg-slate-50 p-3">
-                      <p className="font-semibold text-slate-700">Engine hash</p>
-                      <p className="mt-1 break-all font-mono text-[10px] text-slate-600">{predictiveJob.result.engine?.engineHash ?? predictiveJob.engineHash}</p>
-                      <p className="mt-1 text-slate-500">{predictiveJob.result.engine?.engineId} {predictiveJob.result.engine?.engineVersion}</p>
-                    </div>
-                  </div>
                   {predictiveJob.result.researchOnlyReplacementModel && (() => {
                     const candidate = predictiveJob.result.researchOnlyReplacementModel;
                     const candidateOrder = candidate.componentOrder;
@@ -2648,6 +2642,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                         </details>
                       );
                     })}
+                  </div>
                   </div>
                 </>
               )}
