@@ -1,0 +1,656 @@
+                                       IJE TRANSACTIONS C: Aspects Vol. 29, No. 3, (March2016) 288-296
+
+
+
+
+                                    International Journal of Engineering
+                                           Journal Homepage: www.ije.ir
+
+
+Experimental Investigation of Flooding and Drop Size in a Kuhni Extraction Column
+A.R. Shirvani,a A. Ghaemi * a, M. Torab-Mostaedi b
+a Department of Chemical Engineering, Iran University of Science and Technology
+b Nuclear Fuel Cycle Research School, Nuclear Science and Technology Research Institute
+
+
+
+
+PAPER INFO                                   A B S T R A C T
+
+Paper history:                               In this work, the hydrodynamic behavior of a Kuhni extraction column has been investigated
+Received 18 October 2015                     experimentally. The experiments were carried out in the absence of mass transfer for two different
+Received in revised form 20February 2016     standard chemical systems. In the experiments operating variables including agitation speed, flow rate
+Accepted 03March 2016
+                                             of both liquid phases and interfacial tension have been studied. Sauter-mean drop diameter, flooding
+                                             velocity and holdup at flooding have been measured in the Kuhni column. The results showed that
+Keywords:                                    Sauter-mean diameter are strongly affected by agitation speed and interfacial tension whereas the
+Kuhni Column                                 effects of continuous phase and dispersed phase flow rates are negligible. Two rigorous empirical
+Flood Point                                  correlations are proposed for predicting flooding velocities and Sauter-mean drop diameterwith mean
+Holdup                                       deviation of 5.7% and 7.2%, respectively. The mean drop size correlation is a function of column
+Sauter-Mean Drop Diameter                    geometry, operating conditions and physical properties of liquid systems. Good agreement between
+                                             predictions and experiments is found for all operating conditions investigated.
+
+
+                                                                                                             doi: 10.5829/idosi.ije.2016.29.03c.02
+
+
+
+1. INTRODUCTION1                                                             shaft used and steps separated by a leaky static plate.
+                                                                             Blades create a vortex flow pattern which is somewhat
+                                                                             similar to RDC column [7]. Also, perforated plates used
+The liquid-liquid extraction as one of the important                         between stages make it possible to creating axial flow in
+processes of mass and energy exchange with the                               column but completely separated steps than RDC and
+extensive application in the petroleum and                                   MIXCO columns. This topic caused reduction reverse
+petrochemical     industries,    nuclear     industries,                     flow especially for the dispersed phase, but collects and
+pharmaceutical industries, metallurgy [1-4]. The                             unlocks the column for cleaning and maintenance
+operations consist in separation of one or several                           makes it more difficult. Kühni columns in the range of
+components (solute) from a liquid phase mixture by                           sizes laboratory scale by 60 mm diameter to industrial
+addition of another non-miscible or partially miscible                       scale by 2 m diameter and with similar applications to
+liquid phase, in which the solute is preferentially                          RDC are existence [8].
+dissolved. This operation process is often operated in                           For the design, optimization and exploitation of
+counter-current contactors [5]. Two immiscible liquid                        extraction column require both mass transfer and
+phases flow counter-currently, one being dispersed into                      hydrodynamic parameters, such as holdup, flooding
+the other. Each extraction equipment attempts to                             velocities and drop size distribution. Holdup, flooding
+produce larger interfacial area often by applying                            velocities and drop size, are key parameters in order to
+mechanical agitation to better disperse the phase [6].                       determine the column capacity and the column diameter
+Kühni column is representatives of this type of                              [9]. Knowledge of drop size and distribution are
+equipment. In this column, worn blades on a central                          necessary parameters for measuring mass transfer
+                                                                             coefficients [10]. It influences the dispersed phase
+                                                                             holdup and residence time and the maximum capacity of
+                                : aghaemi@iust.ac.ir (A. Ghaemi)             the column [9, 11]. Thus, for the purpose of establishing
+
+Please cite this article as:A.R. Shirvani, A. Ghaemi, M. Torab-Mostaedi,Experimental Investigation of Flooding and Drop Size in a Kuhni
+Extraction Column, International Journal of Engineering (IJE), TRANSACTIONS C: Aspects Vol. 29, No. 3, (March 2016) 288-296
+289                     A.R. Shirvani et al./ IJE TRANSACTIONS C: Aspects Vol. 28, No. 3, (March 2015) 288-296
+
+
+suitable design procedures for Kühni columns, there is a               TABLE 1. Technical parameters of Kuhni extraction column.
+need for valid correlations which estimate Sauter-mean
+                                                                      Parameter               Value      Parameter                     Value
+drop diameter and flooding conditions.
+                                                                      Column diameter (m)     0.117      Settler diameter(m)           0.1775
+    In this work, the hydrodynamic behavior of a Kühni
+column was investigated by measuring the Sauter-mean                                                     Active volume of the
+                                                                      Tray number              10                                      0.0075
+                                                                                                         column(m3)
+drop diameter and flood point characteristics using two
+                                                                      Number of holes          27        Impeller diameter (m)          0.05
+different liquid systems. The effects of operating
+                                                                      Tray perforation
+variables on mean drop size and flood point are                                              0.0075      Plate thickness(m)            0.002
+                                                                      diameter (m)
+examined. In addition, experiential correlations for
+                                                                      Column height(m)         0.7       Compartment height(m)         0.055
+mean drop size and flooding velocities as a function of
+operating conditions, physical properties of the liquid
+systems and column geometry were proposed.
+                                                                              TABLE 2. Physical properties of liquid systems
+                                                                      Physical property      Toluene water           n-Butyl acetate water
+2. EXPERIMENTS                                                                3
+                                                                       c (kg/m )                     998.2                     997.6
+                                                                             3
+                                                                       d(kg/m )                      865.2                     880.9
+2.1. Description of Experimental Setup A pilot
+scale Kühni extraction column with ten stages that made               µc (m Pas)                     0.963                     1.027
+of 2 mm perforated stainless steel sheet was used in the              µd (m Pas)                     0.584                     0.734
+experiments. The active part of the column consisted of                      -1
+                                                                                  )                   36.0                     14.1
+a 0.75 m long glass tube with 0.117 m internal diameter.
+Two settlers with 0.1775 m diameter were employed at
+both ends of the column to separate the two liquid
+phases. There are two pumps, one for the dispersed                    2. 2. Liquid Liquid Systems Two liquid-liquid
+phase and one for the continuous phase. The interface                 system to cover a wide range of interfacial tension
+level was controlled automatically by an optical sensor.              values were chosen according to the recommendations
+A solenoid valve was provided at the outlet stream of                 of the European Federation of Chemical Engineering
+the heavy phase. This valve received electronic signals               [12]. The liquid liquid systems that studied were
+from the sensor. When the interface location was going                toluene water (high interfacial tension), n-butyl
+to change, the optical sensor sent a signal to the                    acetate water (medium interfacial tension). The
+solenoid valve and the aqueous phase was allowed to                   technical grade, solvents at least 99.5 wt % purity were
+leave the column by opening the diaphragm of the                      used as the dispersed phase. All experiments were
+solenoid valve. The organic phase was allowed to leave                carried out at the 20±2 C. The physical properties of the
+the column via overflow. Other geometrical                            liquid liquid systems used in the experiments are shown
+characteristics of the column are presented in Table 1.               in Table 2.
+The schematic diagram of Kuhni extraction column is
+shown in Figure 1.
+                                                                      3. FLOOD POINT AND HOLDUP MEASUREMENTS
+
+                                                                      In the design of an extraction column, the
+                                                                      hydrodynamic parameters including holdup and
+                                                                      flooding velocities are key parameters in order to
+                                                                      determine the column capacity and the column diameter
+                                                                      required. The Number of correlations to predict flooding
+                                                                      velocities in different columns is presented in Table 3. It
+                                                                      shows that flooding velocity correlations are presented
+                                                                      as a function of operating conditions, physical
+                                                                      properties of the liquid systems and column geometry
+                                                                      are proposed [13-15].
+                                                                          In present work, every liquid phase was first
+                                                                      saturated with the other as this is specially necessary
+                                                                      when the organic phase and aqueous phase have
+                                                                      significant reciprocal solubility, and the impeller speed
+      Figure 1. A schematic diagram of the Kuhni column               were equaled to the desired values.
+                       A.R. Shirvani et al. / IJE TRANSACTIONS C: Aspects Vol. 29, No. 3, (March 2016) 288-296                                                                                                                 290
+
+
+
+
+                              TABLE 3. Number of correlations to predict flooding in different columns
+Extraction column type          Correlation                                                                                                                                                                           Reference
+                                                                                                   0.256                     0.051                                0.252                 0283                   0.11
+                                  Vc0.5     Vd0.5       c
+                                                                                                                2                                 3       2
+Pulsed packed                                                 0.5303e0.05                                       d
+                                                                                                                    2
+                                                                                                                     T                                    c
+                                                                                                                                                                                2
+                                                                                                                                                                                    c                      c
+                                                                                                                                                                                                                        [14]
+                                          a c                                              c                                                                                    c                      c
+
+
+                                                                                               0.256                     0.051                            0.252                 0283                  0.11
+                                  Vc0.5     Vd0.5   c
+                                                                                                           2                          3       2
+Pulsed packed                                                0.5303e0.05                                   d
+                                                                                                               2
+                                                                                                                T                             c
+                                                                                                                                                                        2
+                                                                                                                                                                            c                  c
+                                                                                                                                                                                                                        [14]
+                                          a c                                      c                                                                                    c                      c
+
+
+                                                                                           0.484                     1.407                            0.17                  13.07
+                                  Vcf      Vdf µc                                                      da c                               5
+                                                                                                                                                                                                   0.283
+Pulsed disc and doughnut                                    10.80*103                                                                     c                         c
+                                                                                                                                                                                        1 R                             [15]
+                                                                               c                         µc2                      c
+                                                                                                                                           4
+                                                                                                                                                                    a
+
+
+                                                                     0.124                     0.336
+                                                            Af 4 c                                                  0.511
+Pulsed disc and doughnut        Vdf       2.11*103                                                      1 R                                                                                                             [13]
+                                                             g                         c
+
+
+                                          0.25                          0.23                       0.40              0.20
+                                 Vdf      c                      g                                             d                               0.32
+Hanson Mixer-Settler                                1.48                                                                     1 L                                                                                        [13]
+                                 g 0.25    0.25
+                                                               N2D                         c                   c
+
+
+
+
+    The continuous phase was first set at the desired                                                           experimental condition. For elliptical drops, both the
+flow rate. The dispersed phase was then slowly entered,                                                         minor and major axes, d1 and d2, were measured and the
+and its flow rate was slowly increased until the flooding                                                       equivalent diameter, de, calculated from the following
+point, as revealed by the first appearance of a thin layer                                                      equation:
+of the dispersed phase under the each step or by the                                                                                                  1
+rejection of the dispersed phase in the form of a dense                                                             de           d12 d 2 3                                                                                     (1)
+layer of small droplets, was reached. The reliability of
+flooding rates was within ±5 %. When the flooding                                                               After the determination of the drop sizes, the Sauter-
+happened, input and output of the column were shut                                                              mean drop diameter, d32, was calculated at experimental
+down suddenly and allowed to the dispersed phase to go                                                          conditions used as follows:
+to the interface at the top of the column.                                                                                                n
+                                                                                                                                          i 1 i
+                                                                                                                                                  n d i3
+                                                                                                                    d32                   n
+                                                                                                                                                                                                                               (2)
+                                                                                                                                          i 1 i
+                                                                                                                                                  n d i2
+4. DROPLET SIZE MEASUREMENTS                                                                                    where, ni is the number of droplets of mean diameter n i
+                                                                                                                within a narrow size range i.
+According to the importance of droplet size, many
+researchers studied the effect of column operating
+variables on drop size and developed correlations for
+predicting the mean drop size [16-24]. Drop size affects                                                        5. NUMERICAL METHODS
+almost all the parameters that influence hydrodynamics
+and mass transfer in an extraction column [9]. The drop
+size developed for different extractors are presented in                                                        Numerical solutions including Genetic Algorithms (GA)
+Table 4. It shows that drop size depend on column                                                               and Particle Swarm Optimization (PSO) were used to
+geometry, phases properties and flow rates and agitation                                                        obtain optimum values of flooding velocities and drop
+speed. In this work, to measure the drop diameter a                                                             size correlations parameters. GA is a search method to
+photographic technique was used. By taking a digital                                                            find an approximate solution optimization problem
+photo of the column by a Nikon D3100 digital camera                                                             using the concepts of biology such as inheritance and
+and comparing the drop dimensions with the known size                                                           mutations [25-29]. In this algorithm based on Darwin's
+of column as a reference droplet size were obtained. For                                                        theory of evolution, the problem variables by using
+this comparison two characteristic lengths of the                                                               appropriate binary strings are coded. Then, by
+internals were used, being the tray thickness and                                                               simulation of struggle for survival rules, regularly more
+spacing, hc. The recorded photos were analyzed with                                                             appropriate disciplines (that in fact, represents the
+image processing software to determine the size of the                                                          improved solutions) are obtained. Like other
+drops. At least 300 drops were analyzed for each                                                                optimization techniques, GA is an optimization method
+291                         A.R. Shirvani et al./ IJE TRANSACTIONS C: Aspects Vol. 28, No. 3, (March 2015) 288-296
+
+
+based on probabilities, namely to ensure obtaining the                                                                                     with evolutionary computation techniques such as GA.
+general optimal solution, in any given optimization                                                                                        The system is initialized with a population of random
+problem this algorithm is run several times and compare                                                                                    solutions and searches for optima by updating
+the results [27-29]. Also, the probability of finding                                                                                      generations. However, unlike GA, PSO has no evolution
+global optimum solution by GA is very high. To solve                                                                                       operators such as crossover and mutation. In PSO, the
+the minimization problems before applying GA should                                                                                        potential solutions, called particles, fly through the
+be convert the problem to a maximization problem [25].                                                                                     problem space by following the current optimum
+The most common way is to define a fitness function,                                                                                       particles [25].
+the contrast is a linear combination of the cost function.                                                                                 Each particle keeps track of its coordinates in the
+For example, if the goal of the optimization is to find                                                                                    problem space which are associated with the best
+the minimum of the function, f(x) and this function will                                                                                   solution (fitness) it has achieved so far (The fitness
+return the value of all slopes greater than -1 then it can                                                                                 value is also stored). This value is called pbest. Another
+be used to define the fitness function.                                                                                                    "best" value that is tracked by the particle swarm
+                                                                                                                                           optimizer is the best value, obtained so far by any
+             1
+F ( x)                                                                                               (3)                                   particle in the neighbors of the particle. This location is
+         1   f ( x)
+                                                                                                                                           called lbest. When a particle takes all the population as
+PSO is a population based stochastic optimization                                                                                          its topological neighbors, the best value is a global best
+technique, inspired by social behavior of bird flocking                                                                                    and is called gbest.
+or fish schooling [25, 26]. PSO shares many similarities
+
+                              TABLE 4. Number of correlations to predict droplet size in different columns
+  Extraction column type           Correlation                                                                                                                                                                                     Reference
+                                                                       0.5                                                                         2           0.5                2   0.23
+                                     1                         g                                     1                     fA c                    c   ap                     a   p
+  Pulsed packed                                 0.72                                 6700                                                                                                                                          [16]
+                                    d32                                                                                        c     p                 c
+
+
+                                                                                     0.18
+                                                                                                                               0.14                0.06
+                                                                                                         0.25                                                                                      2
+  Pulsed perforated-plate              d 32
+                                                   1.35 0.40
+                                                                         1                            dg                                                           0.23       exp     29.66
+                                                                                                                                                                                              Af
+                                                                                                                                                                                                                                   [17]
+                                                                                                     0.25 0.75                               w                                                g
+                                                                             w                       w    w
+                                            g                                wg
+
+                                                                                                                                     1    1
+                                                                                    1                                                 3d   3 3
+  Stirred Tank                     d              C      0.4 (       )0.6 [1 C ( c ) 2                                     d            32 ] 5                                                                                     [18]
+                                    32             2                          3
+                                                                   c             d
+
+                                                                                          1                                                  1                        1
+                                   d              (1 1.78 ) [                                                                                                        ] 2
+  Wirz                              32                                                                                                                                                                                             [19]
+                                                                   [0.98(                         )0.5 ]2         [0.27                   0.4 (        ) 0.6 ]2
+                                                                                              g
+                                                                                                                                                   c
+                                    d 32                                                                               d 32
+  Single drop                                     0.081 1 4.47                       we .06                   ,                           0.053 1 4.42V i w0.6e .06                                                                [13]
+                                    Dl                                                 l                               Dl                                      l
+                                                                 0.5                          C2                       C3
+                                                                                                             Vd
+  Pulsed Packed                    d 32         C1                                                    1                                                                                                                            [30]
+                                                           g                 Af       c                      Vc
+                                                                                       Af
+  Pulsed packed                    d               0.33 4.375 exp                                                                                                                                                                  [14]
+                                       32                                            0.042
+                                                                                                   0.283                           0.29                     .013
+                                       d32                                   Af 4 c                          da c                                  4
+
+                                                       33.53*10 3                                                                             c                                2.86           0.085           0.734
+  Pulsed disc and doughnut                                                    g                               µ    2
+                                                                                                                                                  µc                                    µd             hc                   0.34   [15]
+                                                                                                                   c                                                                                                  1 R
+                                              g                                                                                                                           c             µc             da
+                                                                                                                  1.14                                                                                 1.27
+  Hanson Mixer-Settler             d              0.23 1 2.24                            0.6           d                        d            0197 1 3.04                                0.6        d                               [13]
+                                       32                                                                                           32
+                                                                                                         c                                                                                         c
+                                                                                 4                 0.2304                             0.0514                         0.0321
+                                                                                                                   4
+                                                                       af                 c                                g                                Qc
+                                   d32          8.26*10 5                                                          c
+                                                                                                                            3
+                                                                                                                                                   1
+                                                                                 g                                                                          Qd
+  Pulsed packed                                                                               0.239
+                                                                                                                                                                                                                                   [30]
+                                                                             4                                4                    0.0473                   0.1645
+                                                           5
+                                                                   af                c                        c   g                              h
+                                   d 32         7.1*10                                                                 3
+                                                                             g                                                                   H0
+                   A.R. Shirvani et al. / IJE TRANSACTIONS C: Aspects Vol. 29, No. 3, (March 2016) 288-296                                292
+
+
+
+   The PSO concept consists of, at each time step,                      up. Although the decrease in Sauter-mean diameter at a
+changing the velocity of each particle toward its pbest                 higher rotor speeds is smooth. Coalescence of droplets at
+and lbest locations [25]. Acceleration is weighted by a                 high rotor speeds is increased by increasing the
+random term, with separate random numbers being                         probability of droplet collision. So, at the high rotor
+generated for acceleration toward pbest and lbest                       speeds, the increased rate of coalescence dominance the
+locations. The calculation flowchart is shown in Figure                 increased sentiment for droplet breakage and the drop
+2.                                                                      size apparently stabilized. Figure 3 also shows that an
+                                                                        increase in the interfacial tension results in an increase in
+                                                                        drop diameter. The effect of dispersed phase velocity on
+                                                                        the mean drop size is shown in Figures 4 and 5. As
+6. RESULTS AND DISCUSSION                                               shown in Figure 4, increasing the dispersed phase flow
+                                                                        rate tends to increase the mean drop size. Increasing in
+6.1. Sauter-Mean Drop Diameter             Agitation speed              dispersed phase velocity cause to a larger drop formation
+and phase flow rates are the most important parameters                  diameter and a higher coalescence frequency.
+that have effect on droplet size.The effect of agitation                    Figures 6 and 7 also show that the effect of dispersed
+speed on Sauter-mean drop diameter is shown in Figure                   phase velocity grows in importance as the interfacial
+3. It shows that smaller drops are observed at higher                   tension of the system increases.
+rotor speeds, that is a result of increased droplet break-
+
+
+
+
+                                    Figure 2. Calculation flowchart of drop size and flooding point
+
+
+
+          4                                                                   3.5
+                                       n-Butylacetate-Water
+   3.5                                                                             3
+                                       Toluen-Water
+          3
+                                                                              2.5
+   2.5
+                                                                                   2
+d32(mm)
+
+
+
+
+                                                                         d32(mm)
+
+
+
+
+          2
+                                                                              1.5
+   1.5
+                                                                                   1
+          1                                                                                                                   N=90 rpm
+                                                                              0.5
+   0.5                                                                                                                        N=150 rpm
+                                                                                   0
+          0                                                                            0.45   0.55   0.65    0.75      0.85     0.95      1.05
+              80     130              180             230
+                             N(rpm)                                                                         Vd(mm/s)
+
+Figure 3. Effect of rotor speed on mean drop size Qd=QC=24              Figure 4. Effect of dispersed phase velocity on mean drop size
+lit/hr                                                                  QC= 24 lit/hr, n-butyl acetate-water
+293                                      A.R. Shirvani et al./ IJE TRANSACTIONS C: Aspects Vol. 28, No. 3, (March 2015) 288-296
+
+
+       4                                                                                                    To fit the experimental data and to obtain the parameters
+      3.5                                                                                                   and minimize the relative absolute error, the following
+       3                                                                                                    objective function was minimized.
+      2.5                                                                                                                            exp
+                                                                                                                                    d32         cal
+                                                                                                                                               d32
+                                                                                                            ARD% 100                                                                               (6)
+       2                                                                                                                                d   exp
+                                                                                                                                            32
+
+      1.5
+                                                                                                            Numerical solutions including GA and PSO were used to
+       1                                                                   N=120 rpm
+                                                                                                            obtain optimum values of Equation (5) parameters. The
+      0.5                                                                  N=180 rpm
+                                                                                                            results of this optimization were presented in Table 6.
+       0
+            0.4              0.6                 0.8                         1                 1.2
+                                                                                                            6. 3. Flood PointThe results of flooding and holdup at
+                                             Vd(mm/s)
+                                                                                                            different rotor speeds are shown in Figures 6 to 7. As
+Figure 5. Effect of dispersed phase velocity on mean drop
+size QC= 24 lit/hr, Toluene-water                                                                           shown in these figures, with increase in continuous phase
+                                                                                                            velocity the allowable dispersed phase velocity is
+                                                                                                            decreases. The slip velocity between the phases is
+6.2. Prediction of Sauter-mean Drop Diameter One                                                            reduced by increasing the continuous phase velocity.
+of the main objectives of this study is to propose a new                                                    Therefore, the dispersed phase holdup increases with
+correlation for prediction of mean drop size. Since a                                                       increase in continuous phase velocity and consequently
+correlation for the mean drop size, d32, in Kuhni column                                                    the column becomes unstable at lower dispersed phase
+is not available, Kumar and Hartland [11] Used Equation                                                     velocities. The drop size is decrease with increasing rotor
+(4) to predict the Sauter-mean drop diameter. This                                                          speed, which results in an increasing hold-up such that
+correlation is proposed for predicting mean drop size in                                                    the critical hold-up is reached at a lower total throughput.
+Kuhni column. The parameters of this correlation for                                                        From Figures 9 and 10, it can be concluded that by
+Kuhni column are shown in Table 5. Equation (4)                                                             increasing rotor speeds, the maximum throughput of the
+reproduces the experimental results with an average                                                         column decreases.
+relative deviation (ARE) of 26.8%.
+                                                                                                            6.4. Predictive         Correlation for Flooding
+                                                                                 1
+d       C en      [
+                             1                               1
+                                                                                ] 2                         VelocitiesIn this work an empirical correlation to
+ 32                                                                                                  (4)
+                      [C (         )0.5 ]2    [C         0.4 (        )0.6 ]2                               represent the flooding velocities in Kuhni columns was
+                               g
+                                                                  c                                         derived. This correlation is mainly based on the
+To obtain the sound correlation for predicting the mean                                                     operating variables and the system physical properties.
+drop size, dimensional analysis with considering an                                                         This correlation could be used to predict maximum
+influencing parameters such as the geometry of column,                                                      throughput for existing Kuhni columns
+operating conditions and physical properties of liquid                                                                       n2         n3              n4            n5           n6
+                                                                                                                         d          c                          cg           cN                           (7)
+systems was used. The following equation for the mean                                                       Vdf     n1
+                                                                                                                                                               VC3           VC2
+                                                                                                                                                                                     VC
+                                                                                                                         c                       Vc c
+drop size was obtained using the Buckingham theorem.
+In order to consider the column geometry effect on
+Sauter-mean drop diameter and also to increase the total
+number of data points, the experimental results are taken                                                   TABLE 5. Parameters of Equation (4) For Kuhni column[8]
+from Oliveira et al. [31] for water-Exxsol D-80 system.                                                                      No.           C            C
+                                                                                                            Column
+                                 n3                                                                          type             of                                     C        C            n       ARD%
+                  n2                                    n4                      n5                                           data       c d             d c
+             Vc         dN            Vd      D cu           Vd       D im
+d 32 n1
+             Vd        V2
+                        d                    d                        d                                      Kuhni           704             1          3.05         2.49     0.52        0.57      26.8
+                                                                                                 (5)
+       n6         n7             n8              n9
+  c           c                         dg                   d
+  d                     dV d          V 3d                   Vd
+
+
+
+
+                                                                      TABLE 6. optimum parameters values of Equation (5)
+             Num.Method                            n1                 n2               n3            n4     n5               n6                  n7            n8            n9            ARD%
+                      GA                         2.062            0.234               -1.097     1.579     -0.762        2.257              -2.022           -0.371         0.591           5.70
+                      PSO                        2.062            0.234               -1.094     1.579     -0.759        2.257              -2.022           -0.372         0.591           5.70
+                                         A.R. Shirvani et al. / IJE TRANSACTIONS C: Aspects Vol. 29, No. 3, (March 2016) 288-296                                         294
+
+
+                                                                                             7. COMPARISON OF PREVIOUS MODELS WITH
+        2
+                                                                                             THE EXPERIMENTAL RESULTS
+   1.5                                                                                       Various correlations for predicting flooding velocities
+                                                                                             are available in the literature. The relative absolute
+ Vdf(mm/s)
+
+
+
+
+        1                                                                                    error, (ARD%) of the calculated values of flooding
+                                                                                             velocities obtained by applying the previous correlations
+   0.5                                                                                       to the experimental results are listed in Table 8. The
+                                   N=150 (rpm)                  N=180 (rpm)                  results show that the previous models do not practically
+                                   N=210 (rpm)                  N=240 (rpm)                  have accurate results. The results show that the
+        0
+                                                                                             presented correlation has good accuracy.
+             0.45                0.65                0.85       1.05            1.25
+                                                   Vcf(mm/s)
+Figure 6. Experimental variation in Vdfwith Vcf (n-butyl
+acetate Water).
+                                                                                                               2.5
+
+        2.5                                                                                                     2
+
+
+
+
+                                                                                             Vdf(mm/s)(Cal.)
+                                                                N=180(rpm)
+              2                                                 N=210(rpm)                                     1.5
+                                                                N=240(rpm)
+        1.5                                                     N=270(rpm)                                      1
+ Vdf(mm/s)
+
+
+
+
+              1                                                                                                0.5
+                                                                                                                                                       PSO   GA
+        0.5                                                                                                     0
+                                                                                                                     0   0.5     1          1.5          2         2.5
+              0
+                                                                                                                               Vdf(mm/s)(Exp.)
+                  0.42             0.62              0.82       1.02           1.22
+                                                   Vcf(mm/s)                                 Figure 8. Comparison between experimental data and the
+                                                                                             predictions of Equation (7).
+Figure 7. Experimental variation in Vdf with Vcf (Toluene
+Water).
+                                                                                                  TABLE 8. ARD for different models of flooding velocities
+                                                                                             Investigator                            Column type                  ARD(%)
+             TABLE 7. Optimum parameters values of Equation 7
+Method                   n1         n2         n3        n4    n5       n6      ARD%         Gholam Samani et al. [30]               pulsed packed                8.80
+
+GA                       2.89     -9.93       -3.60    -1.97   2.27    -1.18    11.56        Gholam Samani et al. [30]               pulsed packed                7.80
+
+PSO                      2.82     -9.97       -3.59    -1.98   2.28    -1.18    11.54        Ousmane[22]                             pulsed packed                10.00
+                                                                                             Torab-Mostaedi[13]                      Hanson Mixer-Settler         7.08
+                                                                                                                                     pulsed disc and
+                                                                                             Torab-Mostaedi[15]                                                   7.32
+                                                                                                                                     doughnut
+    In order to reduce error and increase the accuracy,
+the numerical methods including GA and POS were                                              This work                               Kuhni column                 5.70
+used to obtain the optimum parameters of Equation (7).
+The methods were used to fit the experimental data and
+to obtain the parameters and minimize the relative                                           8. CONCLUSIONS
+absolute error. The results are presented in Table 7. The
+relative absolute error (ARD%) the following objective                                       In this work, an experimental study of mean drop size
+function was minimized.                                                                      and flooding velocity in a Kühni extraction column was
+                                                                                             presented. The effects of agitation speed, dispersed
+                                V fExp. V fCal .
+ARD% 100                                                                               (8)   phase and continuous phase flow rates, on drop sizes
+                                    V fExp.                                                  and flooding velocity were introduced. The results
+                                                                                             showed that Sauter-mean drop diameter is strongly
+The comparison of the experimental data with those                                           affected by agitation speed as well as interfacial tension
+calculated by Equation (7) is shown in Figure 8. This                                        whereas volumetric flow rates of the dispersed and
+figure shows that the experimental results are in good                                       continuous phase have almost no significant effect.
+agreement with calculated values obtained by Equation                                        Sauter-mean drop diameter decreases with both
+(7). This correlation reproduces the experimental results                                    increases in rotor speed and decrease in interfacial
+with an average relative deviation of 7.2 %.
+295                          A.R. Shirvani et al. / IJE TRANSACTIONS C: Aspects Vol. 29, No. 3, (March 2016) 288-296
+
+
+tension. Two rigorous empirical correlations for                           13. TORAB, M.M., SAFDARI, J. and ASADOLLAHZADEH, M.,
+                                                                               "Mean drop size and drop size distribution in a hanson mixer-
+predictions of flooding velocity and drop size diameter
+                                                                               settler extraction column", (2012).
+in Kuhni columns were presented. The correlations are
+                                                                           14. Godfrey, J.C. and Slater, M.J., "Liquid-liquid extraction
+functions of operating variables, the physical properties                      equipment, Wiley Chichester, UK, and New York, (1994).
+of liquid systems and column geometry. The results                         15. Torab-Mostaedi, M., Ghaemi, A. and Asadollahzadeh, M.,
+showed that the maximum throughput decreases with                              "Flooding and drop size in a pulsed disc and doughnut extraction
+the increase in agitation speed and flow ratio, while it                       column", Chemical Engineering Research and Design, Vol.
+increases with the increase in interfacial tension. The                        89, No. 12, (2011), 2742-2751.
+predictive correlations can be used for prediction of                      16. Spaay, N., Simons, A. and Ten Brink, G., "Design and operation
+                                                                               of a pulsed packed column for liquid-liquid extraction", in Proc.
+maximum capacity of existing Kühni columns and final                           Internal. Solvent Extraction Conf., ISEC. Vol. 71, (1971), 19-23.
+sizing of the column diameter.
+                                                                           17. Kumar, A. and Hartland, S., "Gravity settling in liquid/liquid
+                                                                               dispersions", The Canadian Journal of Chemical Engineering,
+                                                                               Vol. 63, No. 3, (1985), 368-376.
+9. REFERENCES                                                              18. Calabrese, R.V., Chang, T. and Dang, P., "Drop breakup in
+                                                                               turbulent stirred tank contactors. Part i: Effect of dispersed
+                                                                               phase viscosity", AIChE Journal, Vol. 32, No. 4, (1986), 657-
+1.    Ozawa, M., Suzuki, S. and Takeshita, K., "Advanced
+                                                                               666.
+      hydrometallurgical separation of actinides and rare metals in
+      nuclear fuel cycle", Solvent Extraction Research and                 19. Rinconrubio, L., Kumar, A. and Hartland, S., "Drop-size
+      Development, Japan, Vol. 17, No. 0, (2010), 19-34.                       distribution and average drop size in a wirz extraction column",
+                                                                               Chemical engineering research & design, Vol. 72, No. 4,
+2.    Habaki, H., Yoshimura, Y. and Egashira, R., "Liquid-liquid
+                                                                               (1994), 493-502.
+      equilibrium extraction of aromatic compounds from model
+      hydrocarbon mixtures for separation of cracked oils", Solvent        20. Kumar, A. and Hartland, S., "Correlations for prediction of mass
+      Extraction Research and Development, Japan, Vol. 20, No. 0,              transfer coefficients in single drop systems and liquid liquid
+      (2013), 169-174.                                                         extraction columns", Chemical Engineering Research and
+                                                                               Design, Vol. 77, No. 5, (1999), 372-384.
+3.    Habaki, H., Shimada, Y. and Egashira, R., "Separation of coal
+      tar absorption oil by an ionic liquid supported liquid membrane",    21. Torab-Mostaedi, M., Safdari, J. and Torabi-Hokmabadi, F.,
+      Solvent Extraction Research and Development, Japan, Vol.                 "Prediction of mean drop size in pulsed packed extraction
+      20, No. 0, (2013), 175-181.                                              columns", Iranian Journal of Chemical Engineering, Vol. 8,
+                                                                               No. 4, (2011).
+4.    Sadrnezhaad, S. and Alamdari, E.K., "Thermodynamics of
+      extraction of zn2+ from sulfuric acid media with a mixture of        22. Ousmane, S., Isabelle, M., Mario, M.-S., Mamadou, T. and
+      dehpa and mehpa", International Journal Of Engineering                   Jacques, A., "Study of mass transfer and determination of drop
+      Transactions B, Vol. 17, (2004), 191-200.                                size distribution in a pulsed extraction column", Chemical
+                                                                               Engineering Research and Design, Vol. 89, No. 1, (2011), 60-
+5.    Hosseinzadeha, M., Alizadeh, M., Ranjbara, M. and Pazoukib,
+                                                                               68.
+      M., "Improvement of the solvent extraction of rhenium from
+      molybdenite roasting dust leaching solution using counter-           23. Asadollahzadeh, M., Torab-Mostaedi, M., Shahhosseini, S. and
+      current extraction by a mixer-settler extractor", International          Ghaemi, A., "Experimental investigation of dispersed phase
+      Journal of Engineering-Transactions A: Basics, Vol. 27, No.              holdup and flooding characteristics in a multistage column
+      4, (2013), 651-658.                                                      extractor", Chemical Engineering Research and Design, Vol.
+                                                                               105, (2016), 177-187.
+6.    Nabli, M.A., Guiraud, P. and Gourdon, C., "Cfd contribution to
+      a design procedure for discs and doughnuts extraction columns",      24. Hemmati, A., Shirvani, M., Torab-Mostaedi, M. and Ghaemi,
+      Chemical Engineering Research and Design, Vol. 76, No. 8,                A., "Hold-up and flooding characteristics in a perforated rotating
+      (1998), 951-960.                                                         disc contactor (prdc)", RSC Advances, Vol. 5, No. 77, (2015),
+                                                                               63025-63033.
+7.    Bastani, D., "Stagewise modeling of liquid-liquid extraction
+      column (rdc)", International Journal Of Engineering                  25. Kennedy, J., Particle swarm optimization, in Encyclopedia of
+      Transactions B, Vol. 17, No. 1, (2004), 7-17.                            machine learning. 2011, Springer.760-766.
+8.    Nii, S., Suzuki, J., Tani, K. and Takahashi, K., "Mass transfer      26. Engelbrecht, A.P., "Fundamentals of computational swarm
+      coefficients in mixer-settler extraction column", Journal of             intelligence, John Wiley & Sons, (2006).
+      chemical engineering of Japan, Vol. 30, No. 6, (1997), 1083-         27. Holland, J.H., "Adaptation in natural and artificial systems. An
+      1089.                                                                    introductory analysis with application to biology, control, and
+9.    Pietzsch, W. and Pilhofer, T., "Calculation of the drop size in          artificial intelligence", Ann Arbor, MI: University of Michigan
+      pulsed sieve-plate extraction columns", Chemical engineering             Press, (1975).
+      science, Vol. 39, No. 6, (1984), 961-965.                            28. Goldberg, D.E., "Genetic algorithms in search optimization and
+10. Yaparpalvi, R., Das, P., Mukherjee, A. and Kumar, R., "Drop                machine learning, Addison-wesley Reading Menlo Park, Vol.
+    formation under pulsed conditions", Chemical engineering                   412, (1989).
+    science, Vol. 41, No. 10, (1986), 2547-2553.                           29. Grefenstette, J.J. and Baker, J.E., "How genetic algorithms
+11. Kumar, A. and Hartland, S., "Unified correlations for the                  work: A critical look at implicit parallelism", in Proceedings of
+    prediction of drop size in liquid-liquid extraction columns",              the third international conference on Genetic algorithms,
+    Industrial & engineering chemistry research, Vol. 35, No. 8,               Morgan Kaufmann Publishers Inc. (1989), 20-27.
+    (1996), 2682-2695.                                                     30. Samani, M.G., Asl, A.H., Safdari, J. and Torab-Mostaedi, M.,
+12. Misek, T., Berger, R. and Schröter, J., "Standard test systems for         "Drop size distribution and mean drop size in a pulsed packed
+    liquid extraction studies", EFCE Publ. Ser, Vol. 46, No. 1,                extraction column", Chemical Engineering Research and
+    (1985).                                                                    Design, Vol. 90, No. 12, (2012), 2148-2154.
+                        A.R. Shirvani et al. / IJE TRANSACTIONS C: Aspects Vol. 29, No. 3, (March 2016) 288-296   296
+
+
+
+
+Experimental Investigation of Flooding and Drop Size in a Kuhni Extraction Column
+A.R. Shirvani,a A. Ghaemi a, M. Torab-Mostaedi b
+a Department of Chemical Engineering, Iran University of Science and Technology
+b Nuclear Fuel Cycle Research School, Nuclear Science and Technology Research Institute
+
+
+
+
+PAPER INFO
+
+Paper history:
+Received 18October 2015
+Received in revised form 20February 2016
+Accepted 03March 2016
+
+
+Keywords:
+Kuhni Column
+Flood Point
+Holdup
+Sauter-Mean Drop Diameter
+
+
+
+
+                                            doi: 10.5829/idosi.ije.2016.29.03c.02
+
