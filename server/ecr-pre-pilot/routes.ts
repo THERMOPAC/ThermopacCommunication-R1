@@ -23,9 +23,11 @@ import {
   SIX_COMPONENT_COSMO_SAC_BASIS,
   SIX_COMPONENT_COSMO_SAC_BASIS_MANIFEST_SHA256,
 } from './six-component-cosmo-sac-basis';
+import { setupKuhniResolverPreview } from './kuhni-resolver-preview';
 
 export function setupEcrPrePilotRoutes(app: Express): void {
   startPredictiveNtWorker();
+  setupKuhniResolverPreview(app);
   app.get('/api/ecr-pre-pilot/predictive-nt/basis', ensureAuthenticated, (_req: Request, res: Response) => {
     return res.json({
       model: PRE_PILOT_MULTISTAGE_MODEL,

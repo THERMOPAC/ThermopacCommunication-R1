@@ -877,3 +877,17 @@ mtime_ms = 1788619884493
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/996151df-f758-4da0-9833-fd88c5248c03/a47668be-247b-4f7c-9b13-ed21c0a3951d"
 storage_version_token = "1788620104511860"
 content_type = "text/csv"
+
+[[outputs]]
+id = "f-jI-TmqfbqX7G-RGaO6x"
+uri = "file://screenshots/kuhni-resolver-preview-calculated.jpg"
+type = "image"
+title = "Kühni resolver test preview"
+description = "Verified development preview showing calculated hydraulic diameter, RPM envelope, d32, holdup, flooding load, tip speed, P/V, N_T provenance, and hashes."
+logical_id = "20d09ef8-c6df-43ae-b6c5-92205eae504b"
+content_hash = "sha256:82effaa26050b1ecdc4bd678d367f27e52b07d9fcca424f8316540efae6f010f"
+size = 94083
+mtime_ms = 1788622104904
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/20d09ef8-c6df-43ae-b6c5-92205eae504b/dd2f2b8c-3091-43fc-8f90-0def55d08d22"
+storage_version_token = "1788622116241704"
+content_type = "image/jpeg"
