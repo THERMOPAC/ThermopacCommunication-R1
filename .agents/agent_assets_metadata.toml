@@ -891,3 +891,17 @@ mtime_ms = 1788622104904
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/20d09ef8-c6df-43ae-b6c5-92205eae504b/dd2f2b8c-3091-43fc-8f90-0def55d08d22"
 storage_version_token = "1788622116241704"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "h1LjO9baQrz6CSnXldRoB"
+uri = "file://screenshots/kuhni-resolver-in-range-only.jpg"
+type = "image"
+title = "In-range-only Kühni resolver"
+description = "Verified V1.0.1 preview: only CALCULATED_IN_RANGE trials determine the displayed hydraulic diameter and RPM envelope; extrapolated trials are retained audit-only."
+logical_id = "dc2d2693-9fe1-441f-9b03-d2ab87a861da"
+content_hash = "sha256:d61c32cf4f5af9fe17bf8cf7f4b6cd48a82d143f828f9c443053d1f4434d8bd5"
+size = 93927
+mtime_ms = 1788622585852
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/dc2d2693-9fe1-441f-9b03-d2ab87a861da/5826c79b-384d-45c0-acac-45e762ba2b41"
+storage_version_token = "1788622600554445"
+content_type = "image/jpeg"

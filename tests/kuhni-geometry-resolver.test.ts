@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PRE_PILOT_DEFAULT_THEORETICAL_STAGES,
   resolveKuhniGeometry,
+  resolveKuhniGeometryV100,
 } from '../server/ecr-pre-pilot/kuhni-geometry-resolver';
 import type { HydrodynamicProcessBasis } from '../server/ecr-pre-pilot/kuhni-hydrodynamics';
 
@@ -30,6 +31,8 @@ describe('immutable Kuhni geometry resolver', () => {
     expect(first.calculationHash).toBe(second.calculationHash);
     expect(first.theoreticalStagesUsed).toEqual(authority);
     expect(first.hydraulicRpmEnvelope.length).toBeGreaterThan(0);
+    expect(first.hydraulicRpmEnvelope.every((trial) => trial.status === 'CALCULATED_IN_RANGE')).toBe(true);
+    expect(first.excludedExtrapolatedTrialCount).toBeGreaterThan(0);
   });
 
   it('binds a changed Stage-2 NT and provenance into a new hash', () => {
@@ -76,5 +79,22 @@ describe('immutable Kuhni geometry resolver', () => {
       taylor: expect.any(Number),
       aspectRatio: expect.any(Number),
     });
+  });
+
+  it('replays the immutable V1.0.0 envelope while V1.0.1 admits only in-range results', () => {
+    const authority = {
+      value: 7, provenance: 'PRE_PILOT_DESIGN_DEFAULT' as const,
+      label: 'PRE-PILOT DESIGN DEFAULT (Stage-2 calculated NT unavailable)',
+      stage2JobId: null, stage2ResultHash: null,
+    };
+    const historical = resolveKuhniGeometryV100(basis, authority);
+    const current = resolveKuhniGeometry(basis, authority);
+    expect(historical.engine.version).toBe('KUHNI_GEOMETRY_RESOLVER_V1.0.0');
+    expect(historical.hydraulicRpmEnvelope.some((trial) => trial.status === 'CALCULATED_EXTRAPOLATED')).toBe(true);
+    expect(current.engine.version).toBe('KUHNI_GEOMETRY_RESOLVER_V1.0.1');
+    expect(current.hydraulicRpmEnvelope.every((trial) => trial.status === 'CALCULATED_IN_RANGE')).toBe(true);
+    expect(current.hydraulicDiagnosticPoint?.columnDiameterM).toBeGreaterThan(
+      historical.hydraulicDiagnosticPoint?.columnDiameterM ?? 0,
+    );
   });
 });

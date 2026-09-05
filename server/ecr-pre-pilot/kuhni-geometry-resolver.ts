@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto';
 import type { HydrodynamicProcessBasis } from './kuhni-hydrodynamics';
 import { kuhniRunHash } from './kuhni-hydrodynamics';
 
-export const KUHNI_GEOMETRY_RESOLVER_VERSION = 'KUHNI_GEOMETRY_RESOLVER_V1.0.0';
+export const KUHNI_GEOMETRY_RESOLVER_V100_VERSION = 'KUHNI_GEOMETRY_RESOLVER_V1.0.0';
+export const KUHNI_GEOMETRY_RESOLVER_VERSION = 'KUHNI_GEOMETRY_RESOLVER_V1.0.1';
 export const KUHNI_DRAG_MODEL_VERSION = 'MYINT_GARTHE_PREPILOT_CLOSURE_V1.0.0';
 export const PRE_PILOT_DEFAULT_THEORETICAL_STAGES = 7;
 
@@ -21,14 +22,27 @@ const MAX_TIP_SPEED_MS = 4.5;
 const MIN_ROTOR_DIAMETER_M = 0.05;
 const MIN_COMPARTMENT_HEIGHT_M = 0.05;
 
-export const KUHNI_GEOMETRY_RESOLVER_HASH = createHash('sha256').update([
-  KUHNI_GEOMETRY_RESOLVER_VERSION,
+function implementationHash(version: string, resultAdmissionRule: string) {
+  const descriptors = [
+  version,
   KUHNI_DRAG_MODEL_VERSION,
   'stage1-authority|stage2-nt-or-system-default-7',
   'Myint2006-Cd|Myint2007-shape|Garthe5.6-5.7|Garthe8.3-square-root',
   'turning-point-capacity|70%-flood|rpm:5..60|tip<=4.5',
   'ratios:Dr/Dc=.5,Hc/Dc=.5|Np=1.2|C=.42',
-].join('|')).digest('hex');
+  ];
+  if (resultAdmissionRule) descriptors.push(resultAdmissionRule);
+  return createHash('sha256').update(descriptors.join('|')).digest('hex');
+}
+
+export const KUHNI_GEOMETRY_RESOLVER_V100_HASH = implementationHash(
+  KUHNI_GEOMETRY_RESOLVER_V100_VERSION,
+  '',
+);
+export const KUHNI_GEOMETRY_RESOLVER_HASH = implementationHash(
+  KUHNI_GEOMETRY_RESOLVER_VERSION,
+  'visible-envelope-and-diagnostic:CALCULATED_IN_RANGE-only|extrapolated:audit-only',
+);
 
 export type TheoreticalStageAuthority = {
   value: number;
@@ -209,16 +223,21 @@ function diameterForRpm(rpm: number, basis: HydrodynamicProcessBasis) {
   };
 }
 
-export function resolveKuhniGeometry(
+function resolveKuhniGeometryCore(
   basis: HydrodynamicProcessBasis,
   theoreticalStages: TheoreticalStageAuthority,
+  inRangeOnly: boolean,
 ) {
-  const trials: Array<ReturnType<typeof diameterForRpm>> = [];
+  const calculatedTrials: Array<ReturnType<typeof diameterForRpm>> = [];
   const rejected: Array<{ rpm: number; reason: string }> = [];
   for (let rpm = MIN_RPM; rpm <= MAX_RPM; rpm += RPM_STEP) {
-    try { trials.push(diameterForRpm(rpm, basis)); }
+    try { calculatedTrials.push(diameterForRpm(rpm, basis)); }
     catch (error) { rejected.push({ rpm, reason: error instanceof Error ? error.message : 'UNRESOLVED' }); }
   }
+  const extrapolatedTrials = calculatedTrials.filter((trial) => trial.status !== 'CALCULATED_IN_RANGE');
+  const trials = inRangeOnly
+    ? calculatedTrials.filter((trial) => trial.status === 'CALCULATED_IN_RANGE')
+    : calculatedTrials;
   const diagnosticPoint = [...trials].sort((a, b) =>
     a.columnDiameterM - b.columnDiameterM || a.rpm - b.rpm)[0] ?? null;
   const massTransferBlocker =
@@ -228,8 +247,8 @@ export function resolveKuhniGeometry(
     classification: 'PRE_PILOT_PREDICTIVE_NOT_VENDOR_GUARANTEED' as const,
     engine: {
       id: 'kuhni_geometry_resolver',
-      version: KUHNI_GEOMETRY_RESOLVER_VERSION,
-      implementationHash: KUHNI_GEOMETRY_RESOLVER_HASH,
+      version: inRangeOnly ? KUHNI_GEOMETRY_RESOLVER_VERSION : KUHNI_GEOMETRY_RESOLVER_V100_VERSION,
+      implementationHash: inRangeOnly ? KUHNI_GEOMETRY_RESOLVER_HASH : KUHNI_GEOMETRY_RESOLVER_V100_HASH,
       dragModel: KUHNI_DRAG_MODEL_VERSION,
     },
     theoreticalStagesUsed: theoreticalStages,
@@ -241,6 +260,11 @@ export function resolveKuhniGeometry(
     },
     processBasis: basis,
     hydraulicRpmEnvelope: trials,
+    ...(inRangeOnly ? {
+      excludedExtrapolatedTrialCount: extrapolatedTrials.length,
+      excludedExtrapolatedTrials: extrapolatedTrials,
+      resultAdmissionRule: 'ONLY_CALCULATED_IN_RANGE_TRIALS_ARE_DISPLAYED_OR_USED_FOR_THE_HYDRAULIC_DIAGNOSTIC',
+    } : {}),
     rejectedRpmTrials: rejected,
     hydraulicDiagnosticPoint: diagnosticPoint,
     hydraulicResolvedColumnDiameterM: diagnosticPoint?.columnDiameterM ?? null,
@@ -259,7 +283,7 @@ export function resolveKuhniGeometry(
       extrapolationRule: 'Documented pre-pilot extrapolation is retained as applicability metadata and is not, by itself, an execution blocker.',
     },
     calculationReport: {
-      title: `${KUHNI_GEOMETRY_RESOLVER_VERSION} calculation report`,
+      title: `${inRangeOnly ? KUHNI_GEOMETRY_RESOLVER_VERSION : KUHNI_GEOMETRY_RESOLVER_V100_VERSION} calculation report`,
       theoreticalStagesUsed: theoreticalStages,
       hydraulicResolvedColumnDiameterM: diagnosticPoint?.columnDiameterM ?? null,
       hydraulicDiagnosticRpm: diagnosticPoint?.rpm ?? null,
@@ -271,4 +295,18 @@ export function resolveKuhniGeometry(
     },
   };
   return { ...result, calculationHash: kuhniRunHash(result) };
+}
+
+export function resolveKuhniGeometryV100(
+  basis: HydrodynamicProcessBasis,
+  theoreticalStages: TheoreticalStageAuthority,
+) {
+  return resolveKuhniGeometryCore(basis, theoreticalStages, false);
+}
+
+export function resolveKuhniGeometry(
+  basis: HydrodynamicProcessBasis,
+  theoreticalStages: TheoreticalStageAuthority,
+) {
+  return resolveKuhniGeometryCore(basis, theoreticalStages, true);
 }

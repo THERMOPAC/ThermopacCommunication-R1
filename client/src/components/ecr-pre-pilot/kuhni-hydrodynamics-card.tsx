@@ -37,11 +37,16 @@ function kuNumber(value: unknown, digits = 3) {
 }
 
 function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount: number }) {
-  const point = run.hydraulicDiagnosticPoint as Record<string, unknown> | undefined;
   const authority = run.theoreticalStagesUsed as Record<string, unknown> | undefined;
   const engine = run.engine as Record<string, unknown> | undefined;
   const coupled = run.coupledSelection as Record<string, unknown> | undefined;
-  const trials = (run.hydraulicRpmEnvelope ?? []) as Array<Record<string, unknown>>;
+  const recordedTrials = (run.hydraulicRpmEnvelope ?? []) as Array<Record<string, unknown>>;
+  const trials = recordedTrials.filter((trial) => trial.status === "CALCULATED_IN_RANGE");
+  const point = [...trials].sort((a, b) =>
+    Number(a.columnDiameterM) - Number(b.columnDiameterM) || Number(a.rpm) - Number(b.rpm)
+  )[0];
+  const hiddenExtrapolatedCount = recordedTrials.length - trials.length
+    + Number(run.excludedExtrapolatedTrialCount ?? 0);
   const rpmValues = trials.map((trial) => Number(trial.rpm)).filter(Number.isFinite);
   const rpmRange = rpmValues.length ? `${Math.min(...rpmValues)}–${Math.max(...rpmValues)} rpm` : "—";
   const finalRpm = run.finalOperatingRpm;
@@ -49,7 +54,7 @@ function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount: number
     ? "PRE-PILOT DESIGN DEFAULT (Stage-2 calculated NT unavailable)"
     : String(authority?.label ?? "—");
   const summary: Array<[string, string]> = [
-    ["Calculated hydraulic diameter", `${kuNumber(run.hydraulicResolvedColumnDiameterM)} m`],
+    ["Calculated in-range hydraulic diameter", point ? `${kuNumber(point.columnDiameterM)} m` : "No in-range result"],
     ["Rotor diameter", `${kuNumber(point?.rotorDiameterM)} m`],
     ["Rotor / column", point ? kuNumber(Number(point.rotorDiameterM) / Number(point.columnDiameterM)) : "—"],
     ["Final selected RPM", finalRpm == null ? "Pending coupled mass-transfer duty" : `${kuNumber(finalRpm, 1)} rpm`],
@@ -70,13 +75,18 @@ function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount: number
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-950">Automatic geometry resolver</h3>
           <p className="mt-0.5 text-[10px] text-blue-800">
-            {String(engine?.version ?? "KUHNI_GEOMETRY_RESOLVER_V1.0.0")} · {runCount} immutable resolver run{runCount === 1 ? "" : "s"}
+            {String(engine?.version ?? "KUHNI_GEOMETRY_RESOLVER")} · {runCount} immutable resolver run{runCount === 1 ? "" : "s"} · only calculated-in-range results shown
           </p>
         </div>
         <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-amber-900">
           Pre-pilot predictive · not vendor guaranteed
         </span>
       </div>
+      {hiddenExtrapolatedCount > 0 && (
+        <p className="rounded border border-amber-200 bg-amber-50 p-2 text-[10px] font-medium text-amber-900">
+          {hiddenExtrapolatedCount} extrapolated hydraulic trial{hiddenExtrapolatedCount === 1 ? "" : "s"} excluded from display and diagnostic selection.
+        </p>
+      )}
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {summary.map(([label, value]) => (
           <div key={label} className="rounded border border-blue-100 bg-white p-2">

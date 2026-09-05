@@ -13,8 +13,10 @@ import {
 } from "./ecr-pre-pilot/kuhni-hydrodynamics";
 import {
   KUHNI_GEOMETRY_RESOLVER_HASH,
+  KUHNI_GEOMETRY_RESOLVER_V100_VERSION,
   PRE_PILOT_DEFAULT_THEORETICAL_STAGES,
   resolveKuhniGeometry,
+  resolveKuhniGeometryV100,
   type TheoreticalStageAuthority,
 } from "./ecr-pre-pilot/kuhni-geometry-resolver";
 
@@ -386,7 +388,9 @@ export async function getKuhniGeometryResolverRuns(userId: number, designId: num
       result: row.result,
     });
     const { calculationHash, ...calculationPayload } = row.result ?? {};
-    const numericalReplay = resolveKuhniGeometry(row.processBasis, row.theoreticalStages);
+    const numericalReplay = row.result?.engine?.version === KUHNI_GEOMETRY_RESOLVER_V100_VERSION
+      ? resolveKuhniGeometryV100(row.processBasis, row.theoreticalStages)
+      : resolveKuhniGeometry(row.processBasis, row.theoreticalStages);
     if (
       replayed !== row.immutableHash
       || row.implementationHash !== row.result?.engine?.implementationHash
