@@ -76,6 +76,7 @@ def engine_evidence():
 def wet_charge(stage1):
     global stage1_authority
     stage1_authority = stage1
+    parent.stage1_authority = stage1
     feed_mass = [float(stage1[key]) for key in (
         "saturatesWt", "monoAromaticsWt", "diAromaticsWt",
         "polyAromaticsWt", "polarAromaticsWt", "nmpInFeedWt",
