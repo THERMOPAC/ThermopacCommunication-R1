@@ -183,19 +183,24 @@ operating-point handoff containing, by physical compartment:
 The present Stage‑3 flood-point quantities remain useful for capacity screening
 but are prohibited as operating mass-transfer inputs. Stage 3 must calculate
 operating holdup from the actual-load branch of its frozen slip/swarm model at
-every RPM/load. For the current characteristic-velocity form, this means
-solving the actual-load relation:
+every RPM/load. Use the Stage‑3 residual formulation:
 
 \[
-u_d=
-\frac{v_{\mathrm{char}}(1-\phi_d)^n}
-{\frac{1}{\phi_d}+\frac{u_c/u_d}{1-\phi_d}}
+F(\phi_d)=v_{\mathrm{char}}(\phi_d)
+-\left(
+\frac{j_D}{\phi_d}
++\frac{j_C}{1-\phi_d}
+\right)=0
 \]
 
-for the stable low-holdup operating root below the turning-point holdup. No
-root, a root at/above the turning point, or invalid phase continuity makes that
-RPM/load hydraulically infeasible. The exact sign and velocity conventions
-must be frozen with the Stage‑3 kernel.
+Calculate \(v_{\mathrm{char}}(\phi_d)\) using the same frozen Stage‑3
+characteristic-velocity/swarm model; do not introduce a new holdup
+correlation. For each actual RPM and local phase load, solve for the stable
+low-holdup operating root below the flooding turning point. `floodHoldup`
+remains prohibited as operating holdup and as the Stage‑4 interfacial-area
+input. If no valid operating root exists below the flooding turning point,
+classify that RPM/load as hydraulically infeasible. The exact sign and velocity
+conventions must remain frozen with the Stage‑3 kernel.
 
 During the Stage‑4 axial solve, local phase flows and properties change with
 transfer. Stage 4 must call the same versioned Stage‑3 operating-holdup kernel
