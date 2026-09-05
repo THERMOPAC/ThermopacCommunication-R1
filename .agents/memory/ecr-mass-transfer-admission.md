@@ -45,3 +45,7 @@ closure. Otherwise calculate with flags and propagated uncertainty. Stage 3
 calculates operating holdup at every RPM/local load. Search integer
 compartments with hydraulic revalidation, then apply the governed final-RPM
 selection.
+
+The approved operating-holdup basis is the frozen Stage‑3 residual
+\(F(\phi_d)=v_{\mathrm{char}}(\phi_d)-[j_D/\phi_d+j_C/(1-\phi_d)]=0\).
+Use the stable low-holdup root below flooding; never substitute flood holdup.
