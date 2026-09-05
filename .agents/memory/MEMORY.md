@@ -109,6 +109,6 @@
 - [Shirvani 2016 Kühni boundary](shirvani-2016-kuhni-boundary.md) — Eq. 5 fails source replay; Eq. 7 scales via velocities but its near -10 viscosity exponent invalidates RRBO/NMP sizing.
 - [Garthe Kühni swarm boundary](garthe-kuhni-swarm-boundary.md) — useful characteristic-velocity/hold-up candidate; measured d32 and 23.5% error prevent governing flooding or diameter use.
 - [Pre-pilot Kühni hydraulic chain](prepilot-kuhni-hydraulic-chain.md) — diameter screening may execute as extrapolated physics; use constant-P/V geometric scale-up, never fixed-RPM scale-up.
-- [Project 236 bounded hydraulic search](project236-bounded-hydraulic-search.md) — actual-speed optimization uses approved diagnostic geometry/RPM bounds and a tip-speed-derived diameter ceiling only.
+- [Project 236 bounded hydraulic search](project236-bounded-hydraulic-search.md) — resolver stays diagnostic pending drag closure; report RPM envelope, not a final hydraulic-only RPM.
 - [Project 236 deformed-drop gate](project236-deformed-drop-gate.md) — resizing stays blocked until local shape and liquid-drop drag are qualified; archived screens require explicit audit-only execution.
 - [ECR Pre-Pilot stage ownership](ecr-prepilot-stage-ownership.md) — Inputs → thermodynamics → hydrodynamics → future mass transfer; downstream stages consume upstream authority without duplicating ownership.
