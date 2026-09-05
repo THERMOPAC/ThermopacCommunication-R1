@@ -437,10 +437,6 @@ const NMP_WATER_OPTIONS = [
   "2.0",
   "2.5",
   "3.0",
-  "3.5",
-  "4.0",
-  "4.5",
-  "5.0",
 ];
 const NMP_PURITY_OPTIONS = NMP_WATER_OPTIONS.map((water) => (100 - Number(water)).toFixed(1)).reverse();
 const TARGET_RAFFINATE_SULFUR_OPTIONS = ["750", "1000", "1500", "2000", "2500"];
@@ -719,7 +715,7 @@ function validateForm(form: FormState): ValidationErrors {
   numeric("rrboDynamicViscosityCp", "RRBO dynamic viscosity", { min: 0.001 });
   numeric("rrboInterfacialTensionMnM", "RRBO interfacial tension", { min: 0.001 });
   const nmpPurity = numeric("nmpPurityWt", "NMP purity", { min: 0, max: 100 });
-  const nmpWater = numeric("nmpWaterWt", "Water in NMP", { min: 0, max: 100 });
+  const nmpWater = numeric("nmpWaterWt", "Water in NMP", { min: 0.5, max: 3 });
   if (nmpPurity !== null && nmpWater !== null && Math.abs(nmpPurity + nmpWater - 100) > 1e-9) {
     errors.nmpWaterWt = "NMP purity and water must total exactly 100 wt%.";
   }

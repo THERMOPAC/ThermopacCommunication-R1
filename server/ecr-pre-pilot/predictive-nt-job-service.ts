@@ -889,7 +889,11 @@ export function derivePredictiveNtInputFromStage1(
   const waterFraction = legacy.solventSpecificationAudit.nmpWaterMassPercent / 100;
   const nmpFraction = legacy.solventSpecificationAudit.nmpPurityMassPercent / 100;
   const wet = legacy.sourceSolventOilMassRatio;
-  if (Math.abs(waterFraction + nmpFraction - 1) > 1e-9) {
+  if (
+    waterFraction < 0.005
+    || waterFraction > 0.03
+    || Math.abs(waterFraction + nmpFraction - 1) > 1e-9
+  ) {
     throw new Error('STAGE1_INVALID_WET_SOLVENT_COMPOSITION');
   }
   const stage1 = legacy.stage1Authority!.source.stage1;
