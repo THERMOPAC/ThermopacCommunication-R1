@@ -4,29 +4,44 @@ description: Fail-closed prerequisites for calculating physical Kühni compartme
 ---
 
 Never derive physical compartments by dividing theoretical stages by an
-assumed efficiency. Stage 2 defines the separation duty; a rate-based
-compartment solve determines the integer physical count, and efficiency is
-reported only afterward.
+assumed efficiency. A rate-based compartment solve determines the integer
+physical count, and local/overall efficiencies are reported only afterward.
+
+Use a valid calculated Stage-2 theoretical stage count whenever available.
+Only when it is unavailable, use exactly \(N_T=7\) with
+`PRE_PILOT_DESIGN_DEFAULT` provenance and generate the corresponding ideal
+seven-stage duty with the pinned Stage-2 thermodynamic engine.
 
 Physical-height calculation requires all of the following:
 
-- a calculated, matching Stage-2 result with a qualified local interfacial
-  equilibrium contract and explicit per-target calculability;
+- a matching local interfacial-equilibrium contract; theoretical-stage
+  authority may be calculated Stage 2 or the explicit fallback above;
 - operating-point hydrodynamics, including operating holdup and contact-time
   information, distinct from flood-point capacity quantities;
-- a closed multicomponent diffusion/reference-frame contract and conserved
-  component mapping;
+- a documented multicomponent diffusion/reference-frame contract and
+  conserved component mapping;
 - governed ECR hardware compartment pitch and bounded height limits;
 - independently identified axial mixing/backflow.
 
-Sulfur duty remains independently blocked until species-resolved sulfur
-equilibrium and transfer evidence exists. Aromatic transfer cannot proxy it.
+Documented correlation extrapolation and lack of pilot validation do not block
+pre-pilot predictive calculation. They must be visible as applicability,
+validation-state, provenance, and uncertainty flags. They still block release
+qualification where the release standard requires validation.
 
-**Why:** Flood-point holdup cannot define operating interfacial area, hydraulic
-fallback stages cannot define a separation duty, independent scalar Fick
-coefficients do not close a concentrated multicomponent flux model, and a
-hydraulic geometry ratio is not evidence for physical hardware height.
+Sulfur may calculate from a species-resolved predictive route even when
+extrapolated or unvalidated. Aromatic transfer cannot proxy sulfur duty.
 
-**How to apply:** Keep Stage-4 results dependency-blocked until every parent and
-evidence package is admitted. Search integer compartments with full hydraulic
-revalidation and return no-feasible-height explicitly when bounds are exhausted.
+The final RPM is selected without user discretion from the feasible grid using
+the frozen governed ordering: minimum active volume, then shaft power, then
+lower RPM, then trial ordinal. That trial fixes physical compartments and
+active height.
+
+**Why:** Flood-point holdup cannot define operating interfacial area, assumed
+efficiency hides the rate physics, and pilot-validation status must not be
+confused with whether a documented predictive model can execute.
+
+**How to apply:** Block only missing equations, required variables, or model
+closure. Otherwise calculate with flags and propagated uncertainty. Stage 3
+calculates operating holdup at every RPM/local load. Search integer
+compartments with hydraulic revalidation, then apply the governed final-RPM
+selection.
