@@ -3,7 +3,11 @@ import { appendFileSync, copyFileSync, cpSync, mkdtempSync, rmSync } from 'node:
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { PRE_PILOT_MODEL } from '../server/ecr-pre-pilot/model';
+import {
+  PRE_PILOT_MODEL,
+  PRE_PILOT_MULTISTAGE_MODEL,
+  PRE_PILOT_MULTISTAGE_MODEL_1_4,
+} from '../server/ecr-pre-pilot/model';
 import {
   enqueuePredictiveNtRuntimeTestJob,
   derivePredictiveNtInputFromStage1,
@@ -430,11 +434,12 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
       209,
     );
-    expect(seven.engineContractVersion).toBe('7C-1.2.0');
+    expect(seven.engineContractVersion).toBe('7C-1.5.0');
+    expect(seven.modelHash).toBe(PRE_PILOT_MULTISTAGE_MODEL.modelHash);
     expect(seven.engineComponentContract).toMatchObject({
       componentCount: 7,
       families: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
-      thermodynamicModel: 'COSMO_SAC_2010_PROJECT_NMP_LLE_RESIDUAL_H2O_EXTENSION',
+      thermodynamicModel: 'NATIVE_SEVEN_COMPONENT_COSMO_SAC_2010_ADDITIVE_RK_H2O',
     });
     expect(seven.feedMoleFractions).toHaveLength(7);
     expect(seven.solventSpecificationAudit).toEqual({
@@ -453,6 +458,36 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       ...seven,
       feedMoleFractions: [...seven.feedMoleFractions.slice(0, 6), 0.2],
     })).toThrow('PREDICTIVE_NT_SEVEN_COMPONENT_CONTRACT_REQUIRED');
+  });
+
+  it.each([3.5, 4.0, 4.5, 5.0])(
+    'admits %s wt%% H2O through immutable 7C-1.5 derivation and validation',
+    (waterWt) => {
+      const stage1 = canonicalizeStage1Input({
+        ...validStage1(209),
+        nmpPurityWt: String(100 - waterWt),
+        nmpWaterWt: String(waterWt),
+      }, 209);
+      const input = derivePredictiveNtInputFromStage1(makeStage1Snapshot(stage1), 209);
+      expect(input.engineContractVersion).toBe('7C-1.5.0');
+      expect(input.solventSpecificationAudit.nmpWaterMassPercent).toBe(waterWt);
+      expect(input.wetSolventConstruction?.waterMassPerUnitFeedMass)
+        .toBeCloseTo(1.5 * waterWt / 100, 12);
+      expect(() => validatePredictiveNtJobInput(input)).not.toThrow();
+    },
+  );
+
+  it('preserves exact 7C-1.4 model reconstruction for historical replay', () => {
+    const current = derivePredictiveNtInputFromStage1(
+      makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
+      209,
+    );
+    const historical = {
+      ...current,
+      engineContractVersion: '7C-1.4.0' as const,
+      modelHash: PRE_PILOT_MULTISTAGE_MODEL_1_4.modelHash,
+    };
+    expect(() => validatePredictiveNtJobInput(historical)).not.toThrow();
   });
 
   it('rejects a 7C input reconstructed under another engine contract', () => {
@@ -475,7 +510,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     expect(validatePredictiveNtCheckpointContract(
       seven,
       'ACK_V3_ENGINE_CONTRACT',
-      '7C-1.2.0',
+      '7C-1.5.0',
     )).toBe('ACK_V3_ENGINE_CONTRACT');
     expect(() => validatePredictiveNtCheckpointContract(
       seven,

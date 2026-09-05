@@ -22,7 +22,7 @@ export const PRE_PILOT_MODEL = {
   },
 } as const;
 
-export const PRE_PILOT_MULTISTAGE_MODEL = {
+export const PRE_PILOT_MULTISTAGE_MODEL_1_4 = {
   ...PRE_PILOT_MODEL,
   packageId: 'PRE_PILOT_MULTISTAGE_MODEL',
   packageVersion: '7C-1.4.0',
@@ -45,6 +45,14 @@ export const PRE_PILOT_MULTISTAGE_MODEL = {
   },
 } as const;
 
+export const PRE_PILOT_MULTISTAGE_MODEL = {
+  ...PRE_PILOT_MULTISTAGE_MODEL_1_4,
+  packageVersion: '7C-1.5.0',
+  // SHA-256 of the immutable 7C-1.5 identity tuple: the historical 7C-1.4
+  // model hash, the 7C-1.5 contract version, and the supported H2O grid.
+  modelHash: 'f165f0d23eeae810e40341f1cc86a2b97514bc21b74838d4a08eab1760e6e1af',
+} as const;
+
 export type PrePilotNtStartStatus =
   | 'READY_FOR_PREDICTIVE_NT'
   | 'MODEL_HASH_MISMATCH'
@@ -56,7 +64,8 @@ export type PrePilotNtStartStatus =
 export interface PrePilotNtStartResult {
   status: PrePilotNtStartStatus;
   executionMode: 'ECR_PRE_PILOT_PREDICTIVE' | 'GOVERNED_RELEASE';
-  model: typeof PRE_PILOT_MODEL | typeof PRE_PILOT_MULTISTAGE_MODEL;
+  model: typeof PRE_PILOT_MODEL | typeof PRE_PILOT_MULTISTAGE_MODEL
+    | typeof PRE_PILOT_MULTISTAGE_MODEL_1_4;
   establishedTheoreticalStages: number | null;
   mayRunPredictiveNt: boolean;
   mayWriteEstablishedTheoreticalStages: false;
@@ -77,9 +86,15 @@ export function startPrePilotNt(input: {
   sulfurObjectiveRequested: boolean;
 }): PrePilotNtStartResult {
   const requestedMultistage = input.requestedModelHash === PRE_PILOT_MULTISTAGE_MODEL.modelHash;
+  const requestedHistoricalMultistage =
+    input.requestedModelHash === PRE_PILOT_MULTISTAGE_MODEL_1_4.modelHash;
   const common = {
     executionMode: input.executionMode,
-    model: requestedMultistage ? PRE_PILOT_MULTISTAGE_MODEL : PRE_PILOT_MODEL,
+    model: requestedMultistage
+      ? PRE_PILOT_MULTISTAGE_MODEL
+      : requestedHistoricalMultistage
+        ? PRE_PILOT_MULTISTAGE_MODEL_1_4
+        : PRE_PILOT_MODEL,
     establishedTheoreticalStages: null,
     mayWriteEstablishedTheoreticalStages: false as const,
     calibrationRequired: true as const,
@@ -87,6 +102,7 @@ export function startPrePilotNt(input: {
   if (
     input.requestedModelHash !== PRE_PILOT_MODEL.modelHash
     && !requestedMultistage
+    && !requestedHistoricalMultistage
   ) {
     return {
       ...common,
@@ -138,10 +154,10 @@ export function startPrePilotNt(input: {
     status: 'READY_FOR_PREDICTIVE_NT',
     mayRunPredictiveNt: true,
     diagnostics: [
-      requestedMultistage
-        ? 'N_T lineage is bound to the immutable 7C-1.4 native-plus-RK simultaneous counter-current model and Stage 1 evidence.'
+      requestedMultistage || requestedHistoricalMultistage
+        ? `N_T lineage is bound to the immutable ${requestedMultistage ? '7C-1.5' : '7C-1.4'} native-plus-RK simultaneous counter-current model and Stage 1 evidence.`
         : 'N_T lineage is bound to the frozen exact-profile six-family COSMO-SAC research engine and Stage 1 evidence.',
-      requestedMultistage
+      requestedMultistage || requestedHistoricalMultistage
         ? 'A Predictive N_T requires full simultaneous closure, stable physical LLE, explicit MONO-rich audit acceptance, and Stage-1 target acceptance.'
         : 'Any result is a research diagnostic, calibration-required, not pilot validated, and never release eligible.',
       'Sulfur remains NOT_CALCULABLE; governed-release use and write-through to established theoretical stages remain fail-closed.',

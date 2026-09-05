@@ -163,7 +163,7 @@ export async function generatePredictiveNtReport(
   if (!o || !Array.isArray(o.trials)) throw new Error('PREDICTIVE_NT_REPORT_RESULT_MISSING');
   const projectRef = projectReference(r, s);
   const controlledNegative = o.releaseEligible === false && o.predictiveNt == null;
-  const prePilotMultistage = o.engineContractVersion === '7C-1.4.0';
+  const prePilotMultistage = ['7C-1.4.0', '7C-1.5.0'].includes(o.engineContractVersion);
 
   const doc = new PDFDocument({
     autoFirstPage: false,

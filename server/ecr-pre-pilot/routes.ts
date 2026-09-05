@@ -27,7 +27,7 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       model: PRE_PILOT_MULTISTAGE_MODEL,
       molecularRegistry: PREDICTIVE_NT_MOLECULAR_REGISTRY,
       predictiveEngineComponentContract: {
-        engineContractVersion: '7C-1.4.0',
+        engineContractVersion: '7C-1.5.0',
         componentCount: 7,
         families: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
         thermodynamicModel: 'NATIVE_SEVEN_COMPONENT_COSMO_SAC_2010_ADDITIVE_RK_H2O',
@@ -37,6 +37,11 @@ export function setupEcrPrePilotRoutes(app: Express): void {
         implementationStatus: 'IMPLEMENTED',
         predictiveQualification: 'PRE_PILOT_MULTISTAGE',
         governanceStatus: 'PRE-PILOT MULTISTAGE PREDICTIVE MODEL',
+        supportedWaterWeightPercentRange: { minimum: 0.5, maximum: 5.0 },
+        computationalQualificationWaterWeightPercent:
+          [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5],
+        directWaterBearingLleValidated: false,
+        experimentalOrDesignQualificationClaimed: false,
         releaseEligible: false,
       },
       historicalSixComponentContract: {

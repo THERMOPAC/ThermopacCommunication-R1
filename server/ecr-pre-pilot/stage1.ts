@@ -221,7 +221,7 @@ export function canonicalizeStage1Input(
     rrboDynamicViscosityCp: numberValue(source, 'rrboDynamicViscosityCp', 0.001),
     rrboInterfacialTensionMnM: numberValue(source, 'rrboInterfacialTensionMnM', 0.001),
     nmpPurityWt: numberValue(source, 'nmpPurityWt', 0, 100),
-    nmpWaterWt: numberValue(source, 'nmpWaterWt', 0.5, 3),
+    nmpWaterWt: numberValue(source, 'nmpWaterWt', 0.5, 5),
     nmpDensityKgM3: numberValue(source, 'nmpDensityKgM3', 0.001),
     nmpDynamicViscosityCp: numberValue(source, 'nmpDynamicViscosityCp', 0.001),
     solventOilRatio: requireOption(numberValue(source, 'solventOilRatio', 0.01), SOLVENT_RATIOS, 'solventOilRatio'),

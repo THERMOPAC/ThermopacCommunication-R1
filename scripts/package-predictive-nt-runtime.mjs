@@ -288,3 +288,44 @@ await writeFile(
 console.log(
   `Packaged Predictive N_T 7C-1.4 runtime (${sevenFourteenRecords.length} hashed files)`,
 );
+
+// 7C-1.5.0 preserves the complete 7C-1.4 closure and adds only the versioned
+// worker that extends the governed wet-solvent range through 5.0 wt% H2O.
+const sevenFifteenBundleRoot = path.join(root, 'dist', 'predictive-nt-runtime-7c-1-5');
+await rm(sevenFifteenBundleRoot, { recursive: true, force: true });
+await cp(sevenFourteenBundleRoot, sevenFifteenBundleRoot, { recursive: true });
+for (const relativePath of [
+  'server/ecr-pre-pilot/predictive-nt-seven-component-v1-5',
+]) {
+  const source = path.join(root, relativePath);
+  const destination = path.join(sevenFifteenBundleRoot, relativePath);
+  await mkdir(path.dirname(destination), { recursive: true });
+  await cp(source, destination, { recursive: true });
+}
+const sevenFifteenPackagedFiles = (await bundledFiles(sevenFifteenBundleRoot)).sort();
+const sevenFifteenRecords = [];
+for (const absolute of sevenFifteenPackagedFiles) {
+  const content = await readFile(absolute);
+  const metadata = await stat(absolute);
+  sevenFifteenRecords.push({
+    path: path.relative(sevenFifteenBundleRoot, absolute).split(path.sep).join('/'),
+    bytes: metadata.size,
+    sha256: createHash('sha256').update(content).digest('hex'),
+  });
+}
+await writeFile(
+  path.join(sevenFifteenBundleRoot, 'predictive-nt-runtime-manifest.json'),
+  `${JSON.stringify({
+    schemaVersion: 'PREDICTIVE_NT_RUNTIME_MANIFEST_V1',
+    hashAlgorithm: 'sha256',
+    fileCount: sevenFifteenRecords.length,
+    aggregateSha256: createHash('sha256').update(
+      sevenFifteenRecords.map((record) =>
+        `${record.path}:${record.bytes}:${record.sha256}`).join('\n'),
+    ).digest('hex'),
+    files: sevenFifteenRecords,
+  }, null, 2)}\n`,
+);
+console.log(
+  `Packaged Predictive N_T 7C-1.5 runtime (${sevenFifteenRecords.length} hashed files)`,
+);

@@ -77,10 +77,13 @@ type PredictiveNtBasis = {
     };
   };
   predictiveEngineComponentContract: {
-    componentCount: 6;
+    engineContractVersion?: string;
+    componentCount: 6 | 7;
     families: string[];
     thermodynamicModel: string;
-    sixComponentCosmoSacGate: string;
+    sixComponentCosmoSacGate?: string;
+    supportedWaterWeightPercentRange?: { minimum: number; maximum: number };
+    computationalQualificationWaterWeightPercent?: number[];
   };
   sixComponentCosmoSacBasisManifestSha256: string;
   maximumStages: number;
@@ -437,6 +440,10 @@ const NMP_WATER_OPTIONS = [
   "2.0",
   "2.5",
   "3.0",
+  "3.5",
+  "4.0",
+  "4.5",
+  "5.0",
 ];
 const NMP_PURITY_OPTIONS = NMP_WATER_OPTIONS.map((water) => (100 - Number(water)).toFixed(1)).reverse();
 const TARGET_RAFFINATE_SULFUR_OPTIONS = ["750", "1000", "1500", "2000", "2500"];
@@ -715,7 +722,7 @@ function validateForm(form: FormState): ValidationErrors {
   numeric("rrboDynamicViscosityCp", "RRBO dynamic viscosity", { min: 0.001 });
   numeric("rrboInterfacialTensionMnM", "RRBO interfacial tension", { min: 0.001 });
   const nmpPurity = numeric("nmpPurityWt", "NMP purity", { min: 0, max: 100 });
-  const nmpWater = numeric("nmpWaterWt", "Water in NMP", { min: 0.5, max: 3 });
+  const nmpWater = numeric("nmpWaterWt", "Water in NMP", { min: 0.5, max: 5 });
   if (nmpPurity !== null && nmpWater !== null && Math.abs(nmpPurity + nmpWater - 100) > 1e-9) {
     errors.nmpWaterWt = "NMP purity and water must total exactly 100 wt%.";
   }
@@ -2213,8 +2220,8 @@ export default function EcrPrePilotDesignPage() {
                     <p className="font-semibold">Predictive-only limitations</p>
                     <p>Calibration required: {predictiveJob.result.calibrationRequired ? "Yes" : "No"} · Pilot validated: {predictiveJob.result.pilotValidated ? "Yes" : "No"} · Release eligible: {predictiveJob.result.releaseEligible ? "Yes" : "No"}</p>
                     <p>
-                      {predictiveJob.result.engineContractVersion === "7C-1.4.0"
-                        ? "The seven-component native-plus-RK model is the PRE-PILOT MULTISTAGE PREDICTIVE MODEL. N_T is assigned only from a fully accepted simultaneous counter-current trial; absent experimental wet LLE is not an execution blocker."
+                      {["7C-1.4.0", "7C-1.5.0"].includes(predictiveJob.result.engineContractVersion ?? "")
+                        ? "The seven-component native-plus-RK model is the PRE-PILOT MULTISTAGE PREDICTIVE MODEL. N_T is assigned only from a fully accepted simultaneous counter-current trial and is never release-eligible."
                         : String(predictiveJob.result.engineContractVersion).startsWith("7C-")
                           ? "The historical seven-component cCOSMO production implementation includes H2O under its immutable qualification-pending contract."
                         : "This historical six-component COSMO-SAC result remains readable under its original research-diagnostic contract."}
@@ -2416,7 +2423,7 @@ export default function EcrPrePilotDesignPage() {
                       return (
                         <details key={trial.stageCount} className="rounded-md border bg-white" open={trial.numericalAcceptancePassed}>
                           <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800">
-                            Trial {trial.stageCount}: {predictiveJob.result?.engineContractVersion === "7C-1.4.0" ? "PRE-PILOT MULTISTAGE PREDICTIVE MODEL" : String(predictiveJob.result?.engineContractVersion ?? "").startsWith("7C-") ? "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING" : "RESEARCH DIAGNOSTIC"} — NOT ACCEPTED · numerical gates {trial.numericalAcceptancePassed ? "PASS" : "FAIL"} · max balance residual {trial.maximumOverallComponentBalanceResidualMol.toExponential(3)}
+                            Trial {trial.stageCount}: {["7C-1.4.0", "7C-1.5.0"].includes(predictiveJob.result?.engineContractVersion ?? "") ? "PRE-PILOT MULTISTAGE PREDICTIVE MODEL" : String(predictiveJob.result?.engineContractVersion ?? "").startsWith("7C-") ? "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING" : "RESEARCH DIAGNOSTIC"} — NOT ACCEPTED · numerical gates {trial.numericalAcceptancePassed ? "PASS" : "FAIL"} · max balance residual {trial.maximumOverallComponentBalanceResidualMol.toExponential(3)}
                           </summary>
                           <div className="space-y-3 border-t px-3 py-3 text-[11px]">
                             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -2432,7 +2439,7 @@ export default function EcrPrePilotDesignPage() {
                                 </strong>
                               </p>
                             </div>
-                            {predictiveJob.result?.engineContractVersion === "7C-1.4.0" && (
+                            {["7C-1.4.0", "7C-1.5.0"].includes(predictiveJob.result?.engineContractVersion ?? "") && (
                               <div className="rounded border border-violet-200 bg-violet-50 p-2 text-violet-950">
                                 <p className="font-semibold">Governed sulfur post-processing</p>
                                 {trial.sulfurPrediction?.status === "CALCULABLE" ? (
