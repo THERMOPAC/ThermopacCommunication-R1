@@ -846,9 +846,9 @@ function SectionHeading({
   const styles = SECTION_TONES[tone];
 
   return (
-    <CardHeader className={`ecr-section-header border-b px-4 py-2.5 ${styles.header}`}>
+    <CardHeader className={`border-b px-4 py-2.5 ${styles.header}`}>
       <div className="flex items-start gap-2.5">
-        <div data-ecr-section-number className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${styles.number}`}>
+        <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${styles.number}`}>
           {number}
         </div>
         <div>
@@ -890,7 +890,7 @@ function NumericField({
   readOnly?: boolean;
 }) {
   return (
-    <div className="ecr-field space-y-1">
+    <div className="space-y-1">
       <Label htmlFor={id} className="text-[13px] font-medium text-slate-700">
         {label}{required && <span className="text-red-600"> *</span>}
       </Label>
@@ -945,7 +945,7 @@ function SelectField({
   error?: string;
 }) {
   return (
-    <div className="ecr-field space-y-1">
+    <div className="space-y-1">
       <Label htmlFor={id} className="text-[13px] font-medium text-slate-700">
         {label}{required && <span className="text-red-600"> *</span>}
       </Label>
@@ -1444,7 +1444,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
           )}
         </header>
 
-        <div className={isThermodynamicsStage ? "space-y-3" : "ecr-stage1-grid"}>
+        <div className="space-y-3">
           {isThermodynamicsStage && projectNumberLoading && (
             <div className="flex items-center justify-center rounded-md border border-slate-200 py-16 text-sm text-slate-500">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading saved Stage 1 snapshot…
@@ -1457,15 +1457,15 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
           )}
           {!isThermodynamicsStage && (
           <>
-          <Card className={`ecr-stage-card overflow-hidden shadow-sm ${SECTION_TONES.blue.card}`}>
+          <Card className={`overflow-hidden shadow-sm ${SECTION_TONES.blue.card}`}>
             <SectionHeading
               number="1"
               title="Project / Design Basis"
               description="Define the project reference and the operating basis for this input case."
               tone="blue"
             />
-            <CardContent className="ecr-card-content grid gap-3.5 px-4 py-3.5 md:grid-cols-2">
-              <div className="ecr-field space-y-1 md:col-span-2">
+            <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2">
+              <div className="space-y-1 md:col-span-2">
                 <Label htmlFor="project-reference" className={`text-[13px] font-medium ${validationErrors.projectReference ? "text-red-700" : "text-slate-700"}`}>
                   Project Number <span className="text-red-600">*</span>{" "}
                   <span className="font-normal text-slate-400">(generated automatically)</span>
@@ -1490,7 +1490,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                     {validationErrors.projectReference}
                   </p>
                 ) : (
-                  <p className="ecr-compact-note text-[11px] leading-4 text-slate-400">
+                  <p className="text-[11px] leading-4 text-slate-400">
                     {projectNumberLoading ? "Allocating a permanent project number…" : "Server-generated and read-only."}
                   </p>
                 )}
@@ -1547,19 +1547,19 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                 options={PHASE_OPTIONS}
                 error={validationErrors.phaseConfiguration}
               />
-              <div className="md:col-span-2 rounded-lg border border-blue-200 bg-blue-50/60 p-2.5">
+              <div className="md:col-span-2 rounded-lg border border-blue-200 bg-blue-50/60 p-3">
                 <p className="text-[12px] font-semibold text-blue-900">Predictive molecular component basis</p>
-                <p className="ecr-compact-note mb-2 mt-0.5 text-[11px] leading-4 text-blue-800">
+                <p className="mb-3 mt-0.5 text-[11px] leading-4 text-blue-800">
                   Select the admitted SAT and MONO representatives. DI, POLY, PA, NMP, and H₂O identities are fixed by the active seven-component predictive model contract.
                 </p>
                 {predictiveBasisError ? (
                   <p className="text-[11px] font-medium text-red-600">{predictiveBasisError}</p>
                 ) : predictiveBasis ? (
-                  <div className="space-y-2">
-                    <div className="space-y-1">
+                  <div className="space-y-3.5">
+                    <div className="space-y-1.5">
                       <p className="text-[11px] font-semibold text-blue-900">Seven-component molecular basis</p>
                       <div className="overflow-x-auto rounded-md border border-blue-200 bg-white">
-                        <table className="ecr-compact-table w-full min-w-[500px] text-left text-[10px]">
+                        <table className="w-full min-w-[680px] text-left text-[11px]">
                           <thead className="bg-blue-100/70 text-blue-950">
                             <tr>
                               <th className="px-3 py-2 font-semibold">Component</th>
@@ -1637,22 +1637,22 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                   required
                   error={validationErrors.maximumStages}
                 />
-                <p className="ecr-compact-note text-[11px] leading-4 text-slate-500">
+                <p className="text-[11px] leading-4 text-slate-500">
                   Authoritative Stage 1 value. The predictive engine solves exactly this theoretical-stage count; it does not search from 1 through N_T.
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className={`ecr-stage-card overflow-hidden shadow-sm ${SECTION_TONES.emerald.card}`}>
+          <Card className={`overflow-hidden shadow-sm ${SECTION_TONES.emerald.card}`}>
             <SectionHeading
               number="2"
               title="RRBO Feed Composition"
               description="Preliminary screening defaults — user editable. Replace them with project-specific feed data when available."
               tone="emerald"
             />
-            <CardContent className="ecr-card-content px-4 py-3.5">
-              <div className="grid gap-3.5 md:grid-cols-2">
+            <CardContent className="px-4 py-3.5">
+              <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3">
                 {COMPOSITION_FIELDS.map(({ key, label }) => (
                   <NumericField
                     key={key}
@@ -1666,12 +1666,12 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                   />
                 ))}
               </div>
-              <p className="ecr-compact-note mt-2 text-[11px] leading-4 text-slate-400">
+              <p className="mt-3 text-[11px] leading-4 text-slate-400">
                 Fresh RRBO screening basis: NMP in feed is 0.0 wt%. This gives 13.0 wt% conventional aromatics and 15.0 wt% aromatics including polar aromatics.
                 Adjust the NMP value if the feed is recycled or contains residual NMP.
               </p>
               <div
-                className={`mt-2 flex flex-col gap-2 rounded-lg border p-2.5 sm:flex-row sm:items-center sm:justify-between ${
+                className={`mt-4 flex flex-col gap-2.5 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between ${
                   compositionStatus.valid
                     ? "border-emerald-200 bg-emerald-50"
                     : compositionStatus.populatedCount === 0
@@ -1715,14 +1715,14 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
             </CardContent>
           </Card>
 
-          <Card className={`ecr-stage-card overflow-hidden shadow-sm ${SECTION_TONES.indigo.card}`}>
+          <Card className={`overflow-hidden shadow-sm ${SECTION_TONES.indigo.card}`}>
             <SectionHeading
               number="3"
               title="RRBO Feed Physical Properties"
               description="The selected RRBO grade and authoritative operating temperature determine these Stage-1 values."
               tone="indigo"
             />
-            <CardContent className="ecr-card-content grid gap-3.5 px-4 py-3.5 md:grid-cols-3">
+            <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-3">
               <NumericField
                 id="rrbo-density"
                 label="Density"
@@ -1750,21 +1750,21 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                 error={validationErrors.rrboInterfacialTensionMnM}
                 readOnly
               />
-              <p className="ecr-compact-note text-[11px] leading-4 text-slate-400 md:col-span-3">
+              <p className="text-[11px] leading-4 text-slate-400 md:col-span-3">
                 Auto-populated screening basis: grade-specific density and viscosity plus preliminary RRBO/NMP interfacial tension at the selected operating temperature (25–100 °C).
                 The 80–100 °C extension is preliminary. These values are recalculated whenever the operating temperature changes.
               </p>
             </CardContent>
           </Card>
 
-          <Card className={`ecr-stage-card overflow-hidden shadow-sm ${SECTION_TONES.cyan.card}`}>
+          <Card className={`overflow-hidden shadow-sm ${SECTION_TONES.cyan.card}`}>
             <SectionHeading
               number="4"
               title="NMP Solvent"
               description="NMP temperature follows the authoritative operating temperature; solvent properties update automatically."
               tone="cyan"
             />
-            <CardContent className="ecr-card-content grid gap-3.5 px-4 py-3.5 md:grid-cols-2">
+            <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2 xl:grid-cols-3">
               <SelectField
                 id="nmp-purity"
                 label="NMP purity"
@@ -1814,21 +1814,21 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                 error={validationErrors.nmpDynamicViscosityCp}
                 readOnly
               />
-              <p className="ecr-compact-note text-[11px] leading-4 text-slate-400 md:col-span-2">
+              <p className="text-[11px] leading-4 text-slate-400 md:col-span-3">
                 Auto-populated basis: NMP purity 99.5 wt% and water 0.05 wt% with temperature-dependent density and viscosity from 25–100 °C.
                 The 80–100 °C extension is preliminary. Density and viscosity are recalculated from the operating temperature.
               </p>
             </CardContent>
           </Card>
 
-          <Card className={`ecr-stage-card overflow-hidden shadow-sm ${SECTION_TONES.violet.card}`}>
+          <Card className={`overflow-hidden shadow-sm ${SECTION_TONES.violet.card}`}>
             <SectionHeading
               number="5"
               title="Extraction Process Targets"
               description="Define the product-quality and recovery targets that will govern later design stages."
               tone="violet"
             />
-            <CardContent className="ecr-card-content grid gap-3.5 px-4 py-3.5 md:grid-cols-2">
+            <CardContent className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2 xl:grid-cols-3">
               <SelectField
                 id="solvent-oil-ratio"
                 label="Solvent / Oil ratio"
@@ -1904,24 +1904,24 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
             </CardContent>
           </Card>
 
-          <Card className={`ecr-stage-card overflow-hidden shadow-sm ${SECTION_TONES.amber.card}`}>
+          <Card className={`overflow-hidden shadow-sm ${SECTION_TONES.amber.card}`}>
             <SectionHeading
               number="6"
               title="Feed Sulfur"
               description="Allocate total feed sulfur across the user-entered Stage-1 RRBO composition on a 100 kg feed basis."
               tone="amber"
             />
-            <CardContent className="ecr-card-content px-4 py-3.5">
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5">
+            <CardContent className="px-4 py-3.5">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                 <div className="flex items-start gap-2">
                   <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
-                  <p className="text-[11px] leading-4 text-amber-900">
+                  <p className="text-[13px] leading-5 text-amber-900">
                     <span className="font-semibold">Literature-informed pre-pilot assumption:</span>{" "}
                     SAT / MONO / DI / POLY / PA = 0 / 5 / 25 / 35 / 35% of total feed sulfur. These starting values are user-editable and are saved with Stage 1.
                   </p>
                 </div>
               </div>
-              <div className="mt-2 max-w-md">
+              <div className="mt-3.5 max-w-md">
                 <NumericField
                   id="feed-sulfur"
                   label="Feed sulfur"
@@ -1934,7 +1934,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                   error={validationErrors.feedSulfurPpm}
                 />
               </div>
-              <div className="mt-2 grid gap-3 grid-cols-2 sm:grid-cols-5">
+              <div className="mt-4 grid gap-3 md:grid-cols-5">
                 {SULFUR_ALLOCATION_FIELDS.map(({ key, label }) => (
                   <NumericField
                     key={key}
@@ -1951,7 +1951,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                 ))}
               </div>
               <div
-                className={`mt-2 flex items-center justify-between rounded-lg border p-2.5 ${
+                className={`mt-4 flex items-center justify-between rounded-lg border p-3 ${
                   sulfurDistribution.valid ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"
                 }`}
                 aria-live="polite"
@@ -1977,8 +1977,8 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                   </p>
                 </div>
               </div>
-              <div className="mt-2 overflow-x-auto rounded-lg border border-slate-200">
-                <table className="ecr-compact-table w-full min-w-[600px] text-left text-[11px]">
+              <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full min-w-[720px] text-left text-xs">
                   <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
                     <tr>
                       <th className="px-3 py-2 font-semibold">Component</th>
@@ -2023,7 +2023,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                   </tfoot>
                 </table>
               </div>
-              <p className="ecr-compact-note mt-2 text-[11px] leading-4 text-slate-500">
+              <p className="mt-3 text-[11px] leading-4 text-slate-500">
                 Component feed mass is taken directly from the Stage-1 SAT / MONO / DI / POLY / PA feed wt%. No RRBO composition or component sulfur concentration is fixed in the calculation.
               </p>
             </CardContent>
