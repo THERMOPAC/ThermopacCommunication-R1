@@ -1488,7 +1488,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
               summary={`${form.projectReference || "Project pending"} · ${form.rrboGrade || "RRBO grade pending"} · ${form.operatingTemperatureC || "—"} °C · ${sectionHasIssues("projectReference", "rrboGrade", "designFeedRateLph", "operatingTemperatureC", "operatingPressure", "phaseConfiguration", "satIdentity", "monoIdentity", "maximumStages") ? "Needs review" : "Valid"}`}
               onToggle={() => setExpandedSection((current) => current === 1 ? null : 1)}
             />
-            <CardContent id="stage1-section-1" hidden={expandedSection !== 1} className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2">
+            <CardContent id="stage1-section-1" className={expandedSection === 1 ? "grid gap-3.5 px-4 py-3.5 md:grid-cols-2" : "hidden"}>
               <div className="space-y-1 md:col-span-2">
                 <Label htmlFor="project-reference" className={`text-[13px] font-medium ${validationErrors.projectReference ? "text-red-700" : "text-slate-700"}`}>
                   Project Number <span className="text-red-600">*</span>{" "}
@@ -1687,7 +1687,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
               summary={`Total ${compositionStatus.populatedCount ? `${compositionStatus.total.toFixed(2)} wt%` : "not entered"} · ${compositionStatus.valid ? "Valid" : "Needs review"}`}
               onToggle={() => setExpandedSection((current) => current === 2 ? null : 2)}
             />
-            <CardContent id="stage1-section-2" hidden={expandedSection !== 2} className="px-4 py-3.5">
+            <CardContent id="stage1-section-2" className={expandedSection === 2 ? "px-4 py-3.5" : "hidden"}>
               <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3">
                 {COMPOSITION_FIELDS.map(({ key, label }) => (
                   <NumericField
@@ -1761,7 +1761,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
               summary={`${form.rrboDensityKgM3 || "—"} kg/m³ · ${form.rrboDynamicViscosityCp || "—"} cP · ${sectionHasIssues("rrboDensityKgM3", "rrboDynamicViscosityCp", "rrboInterfacialTensionMnM") ? "Needs review" : "Valid"}`}
               onToggle={() => setExpandedSection((current) => current === 3 ? null : 3)}
             />
-            <CardContent id="stage1-section-3" hidden={expandedSection !== 3} className="grid gap-3.5 px-4 py-3.5 md:grid-cols-3">
+            <CardContent id="stage1-section-3" className={expandedSection === 3 ? "grid gap-3.5 px-4 py-3.5 md:grid-cols-3" : "hidden"}>
               <NumericField
                 id="rrbo-density"
                 label="Density"
@@ -1806,7 +1806,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
               summary={`${form.nmpPurityWt || "—"} wt% purity · ${form.nmpWaterWt || "—"} wt% water · ${sectionHasIssues("nmpPurityWt", "nmpWaterWt", "nmpDensityKgM3", "nmpDynamicViscosityCp") ? "Needs review" : "Valid"}`}
               onToggle={() => setExpandedSection((current) => current === 4 ? null : 4)}
             />
-            <CardContent id="stage1-section-4" hidden={expandedSection !== 4} className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2 xl:grid-cols-3">
+            <CardContent id="stage1-section-4" className={expandedSection === 4 ? "grid gap-3.5 px-4 py-3.5 md:grid-cols-2 xl:grid-cols-3" : "hidden"}>
               <SelectField
                 id="nmp-purity"
                 label="NMP purity"
@@ -1873,7 +1873,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
               summary={`S/O ${form.solventOilRatio || "—"} · S ${form.targetRaffinateSulfurPpm || "—"} ppm · Recovery ${form.minimumRecoveryPct || "—"}% · ${sectionHasIssues("solventOilRatio", "targetRaffinateSulfurPpm", "minimumRaffinateSaturatesWt", "targetRaffinateTotalAromaticsWt", "targetRaffinatePolarAromaticsWt", "minimumRecoveryPct", "maximumNmpRaffinateWt") ? "Needs review" : "Valid"}`}
               onToggle={() => setExpandedSection((current) => current === 5 ? null : 5)}
             />
-            <CardContent id="stage1-section-5" hidden={expandedSection !== 5} className="grid gap-3.5 px-4 py-3.5 md:grid-cols-2 xl:grid-cols-3">
+            <CardContent id="stage1-section-5" className={expandedSection === 5 ? "grid gap-3.5 px-4 py-3.5 md:grid-cols-2 xl:grid-cols-3" : "hidden"}>
               <SelectField
                 id="solvent-oil-ratio"
                 label="Solvent / Oil ratio"
@@ -1959,7 +1959,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
               summary={`${form.feedSulfurPpm || "—"} ppm · Allocation ${sulfurDistribution.populatedCount ? `${sulfurDistribution.totalAllocationPct.toFixed(2)}%` : "not entered"} · ${sulfurDistribution.valid && !sectionHasIssues("feedSulfurPpm", "sulfurAllocationSatPct", "sulfurAllocationMonoPct", "sulfurAllocationDiPct", "sulfurAllocationPolyPct", "sulfurAllocationPaPct", "sulfurAllocationTotal") ? "Valid" : "Needs review"}`}
               onToggle={() => setExpandedSection((current) => current === 6 ? null : 6)}
             />
-            <CardContent id="stage1-section-6" hidden={expandedSection !== 6} className="px-4 py-3.5">
+            <CardContent id="stage1-section-6" className={expandedSection === 6 ? "px-4 py-3.5" : "hidden"}>
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                 <div className="flex items-start gap-2">
                   <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
