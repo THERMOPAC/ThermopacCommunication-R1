@@ -61,10 +61,16 @@ function flattenProcessBasis(value: unknown, prefix = ""): Array<[string, string
 
 function KuhniResultPanel({ run, runCount }: { run: KuhniRun; runCount: number }) {
   const [sourceDetailsOpen, setSourceDetailsOpen] = useState(false);
+  const [blockerDetailsOpen, setBlockerDetailsOpen] = useState(false);
   const trials = run.records ?? [];
   const empiricalRecords = run.empiricalRecords ?? [];
   const applicabilityDiagnostics = Array.isArray(run.applicabilityDiagnostics) ? run.applicabilityDiagnostics : [];
   const primaryCorrelation = empiricalRecords[0];
+  const blockers = run.blockers ?? [];
+  const blockerCategories = Array.from(new Set(blockers.map((blocker) => {
+    const withoutTrialPrefix = blocker.replace(/^RPM[_\s-]*\d+(?:\.\d+)?[:_\s-]*/i, "");
+    return withoutTrialPrefix.match(/^([A-Z0-9_]+)/)?.[1] ?? withoutTrialPrefix;
+  })));
   const read = (row: Record<string, unknown>, ...keys: string[]) => {
     for (const key of keys) if (row[key] !== undefined && row[key] !== null) return row[key];
     return undefined;
@@ -142,8 +148,36 @@ function KuhniResultPanel({ run, runCount }: { run: KuhniRun; runCount: number }
         </div>
         <div className="rounded-md border border-red-200 bg-red-50/50 p-3">
           <h4 className="text-[11px] font-semibold text-red-900">Blockers and limitations</h4>
-          {(run.blockers ?? []).length ? <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[10px] text-red-800">{(run.blockers ?? []).map((blocker, index) => <li key={index}>{blocker}</li>)}</ul> : <p className="mt-1 text-[10px] text-red-800">No numerical blockers were returned.</p>}
+          {blockers.length ? (
+            <>
+              <p className="mt-1 text-[10px] leading-4 text-red-800">
+                <strong>{blockers.length}</strong> blocker record{blockers.length === 1 ? "" : "s"} across <strong>{blockerCategories.length}</strong> categor{blockerCategories.length === 1 ? "y" : "ies"}.
+              </p>
+              <p className="mt-0.5 line-clamp-2 text-[9px] leading-4 text-red-700">
+                {blockerCategories.slice(0, 3).join(" · ")}{blockerCategories.length > 3 ? ` · +${blockerCategories.length - 3} more` : ""}
+              </p>
+              <button
+                type="button"
+                onClick={() => setBlockerDetailsOpen((open) => !open)}
+                aria-expanded={blockerDetailsOpen}
+                aria-controls="kuhni-blocker-details"
+                className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-red-800 underline underline-offset-2"
+              >
+                View blocker details
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${blockerDetailsOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+              </button>
+            </>
+          ) : <p className="mt-1 text-[10px] text-red-800">No numerical blockers were returned.</p>}
         </div>
+      </div>
+      <div id="kuhni-blocker-details" className={blockerDetailsOpen && blockers.length ? "rounded-md border border-red-200 bg-red-50/50 p-3" : "hidden"}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h4 className="text-[11px] font-semibold text-red-900">Complete per-trial blocker record</h4>
+          <span className="text-[9px] font-medium uppercase tracking-wide text-red-700">{blockers.length} records</span>
+        </div>
+        <ul className="mt-2 grid gap-x-6 gap-y-1 pl-4 text-[10px] text-red-800 md:grid-cols-2">
+          {blockers.map((blocker, index) => <li key={index} className="list-disc break-words">{blocker}</li>)}
+        </ul>
       </div>
       <div id="kuhni-source-details" className={sourceDetailsOpen ? "grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-[10px]" : "hidden"}>
         <div>
