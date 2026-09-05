@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Info, Loader2, Play, RefreshCw, ShieldCheck } from "lucide-react";
+import { ChevronDown, Info, Loader2, Play, RefreshCw, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,8 +60,11 @@ function flattenProcessBasis(value: unknown, prefix = ""): Array<[string, string
 }
 
 function KuhniResultPanel({ run, runCount }: { run: KuhniRun; runCount: number }) {
+  const [sourceDetailsOpen, setSourceDetailsOpen] = useState(false);
   const trials = run.records ?? [];
   const empiricalRecords = run.empiricalRecords ?? [];
+  const applicabilityDiagnostics = Array.isArray(run.applicabilityDiagnostics) ? run.applicabilityDiagnostics : [];
+  const primaryCorrelation = empiricalRecords[0];
   const read = (row: Record<string, unknown>, ...keys: string[]) => {
     for (const key of keys) if (row[key] !== undefined && row[key] !== null) return row[key];
     return undefined;
@@ -115,20 +118,43 @@ function KuhniResultPanel({ run, runCount }: { run: KuhniRun; runCount: number }
           <p className="text-[10px] leading-4 text-slate-500">This Stage 3 result does not nominate a physical stage, height, efficiency, or mechanical design.</p>
         </div>
         <div className="rounded-md border border-slate-200 bg-white p-3">
-          <h4 className="text-[11px] font-semibold text-slate-800">Empirical correlation provenance / applicability</h4>
-          {empiricalRecords.length ? <div className="mt-1 space-y-2 text-[10px]">{empiricalRecords.map((item, index) => <div key={index} className="border-l-2 border-slate-300 pl-2"><strong>{String(read(item, "id") ?? "Correlation")}</strong> · v{String(read(item, "version") ?? "—")} · {String(read(item, "source") ?? "source not stated")}<br /><span className="text-slate-500">Equation: {String(read(item, "equation") ?? "—")} · Units: {String(read(item, "units") ?? "—")}</span><pre className="mt-1 whitespace-pre-wrap break-words font-mono text-[9px] text-slate-500">{JSON.stringify({ ranges: item.ranges, assumptions: item.assumptions, applicabilityDiagnostics: item.applicabilityDiagnostics, implementationHash: item.implementationHash }, null, 2)}</pre></div>)}</div> : <p className="mt-1 text-[10px] text-slate-500">No empirical correlation records were returned by this run.</p>}
+          <h4 className="text-[11px] font-semibold text-slate-800">Source</h4>
+          {primaryCorrelation ? (
+            <div className="mt-1 text-[10px] leading-4 text-slate-600">
+              <p><strong className="text-slate-800">{String(read(primaryCorrelation, "id") ?? "Correlation")}</strong> · v{String(read(primaryCorrelation, "version") ?? "—")}</p>
+              <p>{String(read(primaryCorrelation, "source") ?? "Source not stated")}</p>
+              <p className={applicabilityDiagnostics.length ? "font-semibold text-amber-700" : "font-semibold text-emerald-700"}>
+                Applicability: {applicabilityDiagnostics.length ? `Review required · ${applicabilityDiagnostics.length} diagnostic${applicabilityDiagnostics.length === 1 ? "" : "s"}` : "No global diagnostic returned"}
+              </p>
+              {empiricalRecords.length > 1 && <p className="text-slate-500">{empiricalRecords.length} correlation records retained.</p>}
+            </div>
+          ) : <p className="mt-1 text-[10px] text-slate-500">No empirical correlation records were returned by this run.</p>}
+          <button
+            type="button"
+            onClick={() => setSourceDetailsOpen((open) => !open)}
+            aria-expanded={sourceDetailsOpen}
+            aria-controls="kuhni-source-details"
+            className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700 underline underline-offset-2"
+          >
+            View source details
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${sourceDetailsOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+          </button>
         </div>
         <div className="rounded-md border border-red-200 bg-red-50/50 p-3">
           <h4 className="text-[11px] font-semibold text-red-900">Blockers and limitations</h4>
           {(run.blockers ?? []).length ? <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[10px] text-red-800">{(run.blockers ?? []).map((blocker, index) => <li key={index}>{blocker}</li>)}</ul> : <p className="mt-1 text-[10px] text-red-800">No numerical blockers were returned.</p>}
         </div>
       </div>
-      <div className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-[10px]">
-        <div><strong className="text-slate-700">Source</strong><pre className="mt-1 whitespace-pre-wrap break-words font-mono text-slate-500">{JSON.stringify(run.source ?? {}, null, 2)}</pre></div>
-        <div><strong className="text-slate-700">Global applicability diagnostics</strong><pre className="mt-1 whitespace-pre-wrap break-words font-mono text-slate-500">{JSON.stringify(run.applicabilityDiagnostics ?? [], null, 2)}</pre></div>
+      <div id="kuhni-source-details" className={sourceDetailsOpen ? "grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-[10px]" : "hidden"}>
+        <div>
+          <strong className="text-slate-700">Empirical correlation provenance / applicability</strong>
+          {empiricalRecords.length ? <div className="mt-1 space-y-2">{empiricalRecords.map((item, index) => <div key={index} className="border-l-2 border-slate-300 pl-2"><strong>{String(read(item, "id") ?? "Correlation")}</strong> · v{String(read(item, "version") ?? "—")} · {String(read(item, "source") ?? "source not stated")}<br /><span className="text-slate-500">Equation: {String(read(item, "equation") ?? "—")} · Units: {String(read(item, "units") ?? "—")}</span><pre className="mt-1 whitespace-pre-wrap break-words font-mono text-[9px] text-slate-500">{JSON.stringify({ ranges: item.ranges, assumptions: item.assumptions, applicabilityDiagnostics: item.applicabilityDiagnostics, implementationHash: item.implementationHash }, null, 2)}</pre></div>)}</div> : <p className="mt-1 text-slate-500">No empirical correlation records were returned by this run.</p>}
+        </div>
+        <div><strong className="text-slate-700">Source record</strong><pre className="mt-1 whitespace-pre-wrap break-words font-mono text-slate-500">{JSON.stringify(run.source ?? {}, null, 2)}</pre></div>
+        <div><strong className="text-slate-700">Global applicability diagnostics</strong><pre className="mt-1 whitespace-pre-wrap break-words font-mono text-slate-500">{JSON.stringify(applicabilityDiagnostics, null, 2)}</pre></div>
         <div><strong className="text-slate-700">Chemical-system qualification</strong><pre className="mt-1 whitespace-pre-wrap break-words font-mono text-slate-500">{JSON.stringify((run.source?.chemicalSystemQualification as Record<string, unknown> | undefined) ?? {}, null, 2)}</pre></div>
+        {run.provenance && <p className="break-all font-mono text-[9px] text-slate-400">Provenance: {JSON.stringify(run.provenance)}</p>}
       </div>
-      {run.provenance && <p className="break-all font-mono text-[9px] text-slate-400">Provenance: {JSON.stringify(run.provenance)}</p>}
     </div>
   );
 }
