@@ -4,6 +4,7 @@ import pg from 'pg';
 
 const migrationPaths = [
   'migrations/ecr_pre_pilot_predictive_nt_jobs.sql',
+  'migrations/ecr_pre_pilot_job_c_jobs.sql',
   'migrations/ecr_pre_pilot_kuhni_hydrodynamics.sql',
   'migrations/ecr_pre_pilot_kuhni_geometry_resolver.sql',
 ].map((migrationPath) => path.resolve(process.cwd(), migrationPath));

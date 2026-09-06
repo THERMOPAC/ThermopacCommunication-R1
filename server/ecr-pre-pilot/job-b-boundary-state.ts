@@ -306,6 +306,73 @@ export function extractJobBBoundaryState(args: {
 }
 
 /**
+ * Job-C-only global column boundaries. This deliberately leaves Job B's
+ * feed-end local interface state unchanged: for N>1 extractIncoming is an
+ * internally loaded stream, while freshWetSolvent is the column inlet.
+ */
+export function extractJobCGlobalBoundaryState(args: {
+  row: JobBBoundarySourceRow;
+  currentStage1: unknown;
+  requestedNT: number;
+  currentEngineHash: string;
+  expectedProvenance: {
+    stage2JobId: string; resultSnapshotHash: string; engineHash: string;
+    modelHash: string; stage1ImmutableHash: string; sourceStageCount: number;
+  };
+}) {
+  const local = extractJobBBoundaryState(args);
+  const expected = args.expectedProvenance;
+  if (local.provenance.stage2JobId !== expected.stage2JobId
+    || local.provenance.resultSnapshotHash !== expected.resultSnapshotHash
+    || local.provenance.engineHash !== expected.engineHash
+    || local.provenance.modelHash !== expected.modelHash
+    || local.provenance.stage1ImmutableHash !== expected.stage1ImmutableHash
+    || local.sourceStageCount !== expected.sourceStageCount) {
+    throw new JobBBoundaryStateError('JOB_C_GLOBAL_BOUNDARY_LINEAGE_MISMATCH', {
+      expected, actual: local.provenance,
+    });
+  }
+  const result = args.row.result_snapshot as JsonRecord;
+  const matches = result.trials.filter((trial: JsonRecord) =>
+    trial?.stageCount === local.sourceStageCount);
+  if (matches.length !== 1) {
+    throw new JobBBoundaryStateError('JOB_C_GLOBAL_BOUNDARY_TRIAL_NOT_UNIQUE', {
+      sourceStageCount: local.sourceStageCount, matches: matches.length,
+    });
+  }
+  const trial = matches[0];
+  const oilPath = `result_snapshot.trials[stageCount=${trial.stageCount}].boundaryStreams.oilFeed`;
+  const solventPath =
+    `result_snapshot.trials[stageCount=${trial.stageCount}].boundaryStreams.freshWetSolvent`;
+  assertBoundaryStream(trial.boundaryStreams?.oilFeed, oilPath);
+  assertBoundaryStream(trial.boundaryStreams?.freshWetSolvent, solventPath);
+  return Object.freeze({
+    status: 'JOB_C_GLOBAL_COLUMN_BOUNDARIES_VALIDATED' as const,
+    componentOrder: [...JOB_B_BOUNDARY_COMPONENT_ORDER],
+    oilFeed: Object.freeze({
+      role: 'GLOBAL_RRBO_COLUMN_INLET' as const,
+      source: 'PINNED_STAGE2_TRIAL_BOUNDARY_STREAM' as const,
+      propertyPath: oilPath,
+      stream: Object.freeze(trial.boundaryStreams.oilFeed),
+    }),
+    freshWetSolvent: Object.freeze({
+      role: 'GLOBAL_FRESH_WET_SOLVENT_COLUMN_INLET' as const,
+      source: 'PINNED_STAGE2_TRIAL_BOUNDARY_STREAM' as const,
+      propertyPath: solventPath,
+      stream: Object.freeze(trial.boundaryStreams.freshWetSolvent),
+    }),
+    jobBLocalInterfaceState: Object.freeze({
+      extractIncoming: local.extractIncoming,
+      raffinateIncoming: local.raffinateIncoming,
+    }),
+    provenance: Object.freeze({
+      ...local.provenance,
+      boundaryRole: 'GLOBAL_COLUMN_INLETS_NOT_JOB_B_LOCAL_INTERFACE_BULKS',
+    }),
+  });
+}
+
+/**
  * Resolves the hash of the deployed 7C-1.5 worker. The extraction API accepts
  * this value explicitly so its validator remains deterministic and unit
  * testable.
@@ -429,5 +496,43 @@ export async function loadJobBBoundaryState(
     currentStage1,
     requestedNT,
     currentEngineHash: dependencies.currentEngineHash(),
+  });
+}
+
+export async function loadJobCGlobalBoundaryState(
+  userId: number,
+  designId: number,
+  requestedNT: number,
+  expectedProvenance: Parameters<typeof extractJobCGlobalBoundaryState>[0]['expectedProvenance'],
+  dependencies: BoundaryLoaderDependencies = {
+    query: pool.query.bind(pool),
+    currentEngineHash: currentJobBBoundaryStage2EngineHash,
+  },
+) {
+  if (!Number.isInteger(userId) || userId < 1 || !Number.isInteger(designId) || designId < 1) {
+    throw new JobBBoundaryStateError('OWNER_OR_DESIGN_INVALID', { userId, designId });
+  }
+  const found = await dependencies.query(
+    `SELECT d.input_data AS current_stage1,
+            j.id, j.design_id, j.created_by, j.input_snapshot,
+            j.result_snapshot, j.engine_hash, j.model_hash, j.completed_at
+       FROM ecr_pre_pilot_designs d
+       JOIN ecr_pre_pilot_predictive_nt_jobs j
+         ON j.id = $3 AND j.design_id = d.id AND j.created_by = $1
+      WHERE d.id = $2 AND d.created_by = $1 AND j.status = 'completed'`,
+    [userId, designId, expectedProvenance.stage2JobId],
+  );
+  const row = found.rows[0] as (JobBBoundarySourceRow & { current_stage1: unknown }) | undefined;
+  if (!row) {
+    throw new JobBBoundaryStateError('JOB_C_PINNED_STAGE2_SOURCE_NOT_FOUND', {
+      designId, stage2JobId: expectedProvenance.stage2JobId,
+    });
+  }
+  return extractJobCGlobalBoundaryState({
+    row,
+    currentStage1: row.current_stage1,
+    requestedNT,
+    currentEngineHash: dependencies.currentEngineHash(),
+    expectedProvenance,
   });
 }

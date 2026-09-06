@@ -35,6 +35,15 @@ import {
   assertJobBStage3ParentMatchesJobA,
 } from "./ecr-pre-pilot/job-b";
 import { evaluateJobBSimultaneous } from "./ecr-pre-pilot/job-b-simultaneous";
+import { preflightSevenComponentTwoFilmInterface } from "./ecr-pre-pilot/job-b-interface";
+import { loadJobCGlobalBoundaryState } from "./ecr-pre-pilot/job-b-boundary-state";
+import {
+  JOB_C_COMPONENT_ORDER,
+  JOB_C_PRELIMINARY_SENSITIVITY_BASIS,
+  JobCError,
+  jobCResultHash,
+  runJobCWorker,
+} from "./ecr-pre-pilot/job-c";
 
 const COUNTER_ROW_ID = 1;
 const MAX_ALLOCATION_ATTEMPTS = 3;
@@ -585,4 +594,331 @@ export async function evaluateEcrPrePilotJobB(userId: number, designId: number) 
   const operatingHoldup = trial.operatingHydraulics.operatingHoldup;
   return evaluateJobBSimultaneous(userId, designId, jobA, operatingHoldup,
     (stage3.result as any).processBasis?.phaseConfiguration);
+}
+
+/**
+ * Body-free Job C evaluation. All physical and duty inputs are reloaded from
+ * the authenticated design's verified Job A/B/Stage 1/Stage 3 lineage.
+ */
+export async function prepareEcrPrePilotJobC(userId: number, designId: number) {
+  const jobA = await evaluateEcrPrePilotJobA(userId, designId);
+  const jobB = await evaluateEcrPrePilotJobB(userId, designId);
+  let jobBPreflight: Record<string, any>;
+  try {
+    jobBPreflight = await preflightSevenComponentTwoFilmInterface({ timeoutMs: 120_000 });
+  } catch {
+    throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:JOB_B_RUNTIME_PREFLIGHT_FAILED');
+  }
+  if (jobBPreflight.status !== 'PASS'
+    || jobBPreflight.engineHash !== jobA.dependencies.stage2EngineHash
+    || !/^[a-f0-9]{64}$/.test(jobBPreflight.jobBInterfaceArtifactSha256 ?? '')
+    || !/^[a-f0-9]{64}$/.test(jobBPreflight.workerSha256 ?? '')) {
+    throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:JOB_B_RUNTIME_PIN_NOT_ACCEPTED', {
+      status: jobBPreflight.status ?? null,
+      engineHash: jobBPreflight.engineHash ?? null,
+      jobBInterfaceArtifactSha256: jobBPreflight.jobBInterfaceArtifactSha256 ?? null,
+      workerSha256: jobBPreflight.workerSha256 ?? null,
+    });
+  }
+  if (jobB.dependencies?.jobAResultSha256 !== jobA.resultSha256
+    || jobB.dependencies?.stage1SnapshotHash !== jobA.dependencies.stage1SnapshotHash
+    || jobB.dependencies?.stage3ImmutableHash !== jobA.dependencies.stage3ImmutableHash) {
+    throw new Error('JOB_C_DEPENDENCY_BLOCKED:JOB_A_B_LINEAGE_MISMATCH');
+  }
+  const interfaceResult = jobB.interfaceResult?.interface;
+  if (!interfaceResult
+    || !Array.isArray(interfaceResult.continuousComponentFluxMolM2S)
+    || !Array.isArray(interfaceResult.dispersedComponentFluxMolM2S)) {
+    throw new Error('JOB_C_DEPENDENCY_BLOCKED:SIMULTANEOUS_JOB_B_REQUIRED');
+  }
+  for (let index = 0; index < JOB_C_COMPONENT_ORDER.length; index++) {
+    const continuous = interfaceResult.continuousComponentFluxMolM2S[index];
+    const dispersed = interfaceResult.dispersedComponentFluxMolM2S[index];
+    const scale = Math.max(Math.abs(continuous), Math.abs(dispersed), 1e-12);
+    if (!Number.isFinite(continuous) || !Number.isFinite(dispersed)
+      || (Math.abs(continuous - dispersed) > 1e-12
+        && Math.abs(continuous - dispersed) / scale > 1e-8)) {
+      throw new Error(`JOB_C_DEPENDENCY_BLOCKED:JOB_B_LOCAL_FILMS_DISAGREE:${JOB_C_COMPONENT_ORDER[index]}`);
+    }
+  }
+  const found = await pool.query<{ input_data: unknown }>(
+    `SELECT input_data FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2`,
+    [designId, userId],
+  );
+  if (!found.rows[0]) throw new Error('ECR_PRE_PILOT_DESIGN_NOT_FOUND');
+  const stage1 = validateStage1Snapshot(found.rows[0].input_data);
+  if (stage1.immutableHash !== jobA.dependencies.stage1SnapshotHash) {
+    throw new Error('JOB_C_DEPENDENCY_BLOCKED:STAGE1_CHANGED');
+  }
+  const stage3 = await getKuhniGeometryResolverRuns(userId, designId, true);
+  assertJobBStage3ParentMatchesJobA(jobA, stage3);
+  const envelope = (stage3!.result as any).hydraulicRpmEnvelope as any[];
+  const trial = envelope.find((candidate, ordinal) =>
+    `rpm:${candidate.rpm}:diameterM:${candidate.columnDiameterM}`
+      === jobA.dependencies.selectedTrialId
+    && ordinal === jobA.dependencies.selectedTrialOrdinal);
+  if (!trial || trial.d32M !== jobA.localHydraulics.d32M
+    || trial.operatingHydraulics?.operatingHoldup !== jobB.frozenLocalHydraulics?.operatingHoldup) {
+    throw new Error('JOB_C_DEPENDENCY_BLOCKED:STAGE3_SELECTED_TRIAL_MISMATCH');
+  }
+  const audit = jobB.inputAudit;
+  const sourceProvenance = audit.stage2Provenance;
+  const globalBoundary = await loadJobCGlobalBoundaryState(
+    userId,
+    designId,
+    jobA.dependencies.theoreticalStages,
+    {
+      stage2JobId: sourceProvenance.stage2JobId,
+      resultSnapshotHash: sourceProvenance.resultSnapshotHash,
+      engineHash: sourceProvenance.engineHash,
+      modelHash: sourceProvenance.modelHash,
+      stage1ImmutableHash: sourceProvenance.stage1ImmutableHash,
+      sourceStageCount: sourceProvenance.sourceStageCount,
+    },
+    {
+      query: pool.query.bind(pool),
+      currentEngineHash: () => jobA.dependencies.stage2EngineHash,
+    },
+  );
+  const processBasis = (stage3!.result as any)?.processBasis;
+  const rrbo = processBasis?.rrboFeed;
+  const solvent = processBasis?.wetSolventPhase;
+  const composition = processBasis?.composition;
+  if (processBasis?.stage1SnapshotHash !== stage1.immutableHash
+    || !rrbo || !solvent || !composition?.rrboFeedWt || !composition?.wetSolventWt
+    || rrbo.conversion !== 'L/h * 1e-3 m3/L / 3600 s/h'
+    || solvent.conversion !== '(RRBO m3/s * RRBO kg/m3 * S/O) / wet-solvent kg/m3') {
+    throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:INLET_FLOW_TIME_BASIS_NOT_GOVERNED', {
+      required: 'Exact frozen Stage-3 processBasis volumetric-flow, density, composition, conversion, and Stage-1 hash authorities',
+      stage3ProcessBasisPresent: Boolean(processBasis),
+      processBasisStage1SnapshotHash: processBasis?.stage1SnapshotHash ?? null,
+    });
+  }
+  const finitePositive = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isFinite(value) && value > 0;
+  if (![rrbo.flowM3S, rrbo.densityKgM3, solvent.flowM3S, solvent.densityKgM3,
+    solvent.solventOilMassRatio].every(finitePositive)) {
+    throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:INVALID_STAGE3_INLET_FLOW_AUTHORITY');
+  }
+  // Exact 7C-1.5 stream-basis MW vector. MONO's engine value (120.194)
+  // intentionally remains distinct from Job A's transport-data display value.
+  const molecularWeights = [
+    170.3348, 120.194, 142.1971, 202.2506, 405.58, 99.1311, 18.01528,
+  ];
+  const molecularWeightProvenance = {
+    componentOrder: [...JOB_C_COMPONENT_ORDER],
+    valuesGmol: molecularWeights,
+    identities: JOB_C_COMPONENT_ORDER.map(component => ({
+      component, identity: JOB_A_MOLECULAR_DATA[component].identity,
+      cas: JOB_A_MOLECULAR_DATA[component].cas,
+    })),
+    authority: 'FROZEN_7C_1_5_STREAM_BASIS_REPRESENTATIVE_MOLECULAR_IDENTITIES',
+  };
+  const derive = (identity: string, flowM3S: number, densityKgM3: number,
+    weights: number[]) => {
+    if (weights.length !== 7 || weights.some(value => !Number.isFinite(value) || value < 0)) {
+      throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:INVALID_STAGE3_INLET_COMPOSITION', { identity });
+    }
+    const weightTotalPct = weights.reduce((sum, value) => sum + value, 0);
+    if (Math.abs(weightTotalPct - 100) > 1e-10) {
+      throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:STAGE3_INLET_MASS_FRACTION_CLOSURE_FAILED',
+        { identity, weightTotalPct });
+    }
+    const massFlowKgS = flowM3S * densityKgM3;
+    const componentMassFlowKgS = weights.map(weight => massFlowKgS * weight / 100);
+    const componentMolarFlowMolS = componentMassFlowKgS.map((mass, index) =>
+      mass / (molecularWeights[index] / 1000));
+    const totalMolarFlowMolS = componentMolarFlowMolS.reduce((sum, value) => sum + value, 0);
+    const moleFractions = componentMolarFlowMolS.map(value => value / totalMolarFlowMolS);
+    const massClosureResidualKgS = componentMassFlowKgS.reduce((sum, value) => sum + value, 0)
+      - massFlowKgS;
+    if (!finitePositive(massFlowKgS) || !finitePositive(totalMolarFlowMolS)
+      || componentMolarFlowMolS.some(value => !Number.isFinite(value) || value < 0)
+      || Math.abs(massClosureResidualKgS) > 1e-12 * Math.max(1, massFlowKgS)) {
+      throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:STAGE3_INLET_FLOW_CONVERSION_FAILED',
+        { identity, massClosureResidualKgS });
+    }
+    return {
+      identity, flowM3S, densityKgM3, massFlowKgS, weightsPct: weights,
+      componentMassFlowKgS, componentMolarFlowMolS, totalMolarFlowMolS,
+      moleFractions, weightTotalPct, massClosureResidualKgS,
+      equations: {
+        phaseMassFlow: 'massFlowKgS = flowM3S * densityKgM3',
+        componentMassFlow: 'componentMassFlowKgS_i = massFlowKgS * massFraction_i',
+        componentMolarFlow: 'componentMolarFlowMolS_i = componentMassFlowKgS_i / molecularWeightKgMol_i',
+      },
+    };
+  };
+  const rrboDerived = derive('RRBO_FEED', rrbo.flowM3S, rrbo.densityKgM3, [
+    composition.rrboFeedWt.saturates, composition.rrboFeedWt.monoAromatics,
+    composition.rrboFeedWt.diAromatics, composition.rrboFeedWt.polyAromatics,
+    composition.rrboFeedWt.polarAromatics, composition.rrboFeedWt.nmp, 0,
+  ]);
+  const solventDerived = derive('WET_NMP_SOLVENT_PHASE', solvent.flowM3S,
+    solvent.densityKgM3, [0, 0, 0, 0, 0,
+      composition.wetSolventWt.nmp, composition.wetSolventWt.water]);
+  const solventRatioClosureResidual = solventDerived.massFlowKgS / rrboDerived.massFlowKgS
+    - solvent.solventOilMassRatio;
+  if (Math.abs(solventRatioClosureResidual) > 1e-10) {
+    throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:STAGE3_SOLVENT_RATIO_CLOSURE_FAILED',
+      { solventRatioClosureResidual });
+  }
+  const nmpContinuous = processBasis.phaseConfiguration === 'nmp-continuous-rrbo-dispersed';
+  if (!nmpContinuous
+    && processBasis.phaseConfiguration !== 'rrbo-continuous-nmp-dispersed') {
+    throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:INVALID_STAGE3_PHASE_CONFIGURATION');
+  }
+  const continuousDerived = nmpContinuous ? solventDerived : rrboDerived;
+  const dispersedDerived = nmpContinuous ? rrboDerived : solventDerived;
+  const continuousGlobalBoundary = nmpContinuous
+    ? globalBoundary.freshWetSolvent : globalBoundary.oilFeed;
+  const dispersedGlobalBoundary = nmpContinuous
+    ? globalBoundary.oilFeed : globalBoundary.freshWetSolvent;
+  const flowConversionAudit = {
+    authority: 'FROZEN_STAGE3_PROCESS_BASIS_CONVERTED_TO_COMPONENT_MOLAR_FLOW_RATE',
+    stage3ProcessBasisHash: jobCResultHash(processBasis),
+    molecularWeightProvenance,
+    molecularWeightProvenanceSha256: jobCResultHash(molecularWeightProvenance),
+    rrbo: rrboDerived, wetSolvent: solventDerived,
+    phaseConfiguration: processBasis.phaseConfiguration,
+    continuousPhysicalStream: continuousDerived.identity,
+    dispersedPhysicalStream: dispersedDerived.identity,
+    globalColumnBoundaryProvenance: globalBoundary.provenance,
+    globalColumnBoundaries: {
+      continuous: continuousGlobalBoundary,
+      dispersed: dispersedGlobalBoundary,
+    },
+    jobBLocalInterfaceStateProvenance: {
+      qualification: 'LOCAL_FEED_END_BULKS_NOT_GLOBAL_COLUMN_INLETS',
+      stage2Provenance: audit.stage2Provenance,
+      continuous: audit.bulkContinuousProvenance,
+      dispersed: audit.bulkDispersedProvenance,
+    },
+    solventRatioClosureResidual,
+    stage2ComponentMolesUsedAsMolarFlowRate: false,
+  };
+  const maximumBoundaryMoleFractionResidual = Math.max(
+    ...continuousDerived.moleFractions.map((value, index) =>
+      Math.abs(value - continuousGlobalBoundary.stream.moleFractions[index])),
+    ...dispersedDerived.moleFractions.map((value, index) =>
+      Math.abs(value - dispersedGlobalBoundary.stream.moleFractions[index])),
+  );
+  if (!Number.isFinite(maximumBoundaryMoleFractionResidual)
+    || maximumBoundaryMoleFractionResidual > 1e-10) {
+    throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:STAGE3_STAGE2_INLET_COMPOSITION_MISMATCH', {
+      maximumBoundaryMoleFractionResidual,
+      tolerance: 1e-10,
+      inputAudit: flowConversionAudit,
+    });
+  }
+  const continuousFeedMolS = [...continuousDerived.componentMolarFlowMolS];
+  const dispersedFeedMolS = [...dispersedDerived.componentMolarFlowMolS];
+  const continuousGlobalCtMolM3 =
+    continuousDerived.totalMolarFlowMolS / continuousDerived.flowM3S;
+  const dispersedGlobalCtMolM3 =
+    dispersedDerived.totalMolarFlowMolS / dispersedDerived.flowM3S;
+  const jobCInputAudit = {
+    ...flowConversionAudit,
+    globalBoundaryStateSha256: jobCResultHash(globalBoundary),
+    globalBoundaryProvenanceSha256: jobCResultHash(globalBoundary.provenance),
+    correctedStage2BoundaryMoleFractionTolerance: 1e-10,
+    maximumBoundaryMoleFractionResidual,
+    stage2ComponentMolesUsedAsMolarFlowRate: false,
+    fixedTotalConcentrationClosure: {
+      continuousMolM3: continuousGlobalCtMolM3,
+      dispersedMolM3: dispersedGlobalCtMolM3,
+      source: 'FROZEN_STAGE3_GLOBAL_INLET_TOTAL_MOLAR_FLOW_DIVIDED_BY_VOLUMETRIC_FLOW',
+      localVolumeFlowEquation: 'localPhaseVolumeFlowM3S = localTotalMolarFlowMolS / fixedCtMolM3',
+      mixtureDensityRecomputed: false,
+      qualification: 'PRELIMINARY_FIXED_CT_NO_LOCAL_MIXTURE_DENSITY_CLOSURE',
+    },
+  };
+  const request = audit.exactInterfaceEquilibriumRequest;
+  const workerRequest = {
+    componentOrder: [...JOB_C_COMPONENT_ORDER],
+    temperatureK: request.T,
+    continuousFeedMolS,
+    dispersedFeedMolS,
+    continuousTotalConcentrationMolM3: continuousGlobalCtMolM3,
+    dispersedTotalConcentrationMolM3: dispersedGlobalCtMolM3,
+    kc: [...request.kc],
+    kd: [...request.kd],
+    phaseConfiguration: request.phase_config,
+    compartments: jobA.dependencies.theoreticalStages,
+    columnDiameterM: trial.columnDiameterM,
+    rpm: trial.rpm,
+    operatingHoldup: trial.operatingHydraulics.operatingHoldup,
+    d32M: trial.d32M,
+    minimumRecoveryPct: stage1.stage1.minimumRecoveryPct,
+  };
+  const responseBasis = {
+    schemaVersion: 'ECR_PRE_PILOT_JOB_C_V1' as const,
+    labels: ['PRELIMINARY', 'PRE_PILOT_PREDICTIVE', 'NOT_PILOT_VALIDATED',
+      'NOT_RELEASE_ELIGIBLE', 'NOT_FINAL_DESIGN'],
+    componentOrder: [...JOB_C_COMPONENT_ORDER],
+    preliminarySensitivityBasis: JOB_C_PRELIMINARY_SENSITIVITY_BASIS,
+    theoreticalCompartmentAuthority: {
+      compartments: jobA.dependencies.theoreticalStages,
+      source: jobA.dependencies.theoreticalStageProvenance,
+      fallbackValue: 7,
+      fallbackUsed: jobA.dependencies.theoreticalStageProvenance === 'PRE_PILOT_DESIGN_DEFAULT',
+    },
+    target: {
+      minimumRecoveryPct: stage1.stage1.minimumRecoveryPct,
+      basis: 'NMP_FREE_RRBO_HYDROCARBON_MASS_SAT_MONO_DI_POLY_PA',
+      aromaticsAndSulfurTargetsUsedInHeightSolve: false,
+    },
+    selectedStage3State: {
+      runId: stage3!.id, immutableHash: stage3!.immutableHash,
+      trialId: jobA.dependencies.selectedTrialId, columnDiameterM: trial.columnDiameterM,
+      rpm: trial.rpm, d32M: trial.d32M,
+      operatingHoldup: trial.operatingHydraulics.operatingHoldup,
+      status: 'INPUT_STATE_ONLY_NOT_FINAL_RPM_SELECTION',
+    },
+    dependencies: {
+      stage1SnapshotHash: stage1.immutableHash,
+      jobAResultSha256: jobA.resultSha256,
+      jobBResultSha256: jobB.resultSha256,
+      stage2BoundaryResultSha256: jobB.dependencies.stage2BoundaryResultSha256,
+      globalBoundaryStateSha256: jobCResultHash(globalBoundary),
+      globalBoundaryProvenanceSha256: jobCResultHash(globalBoundary.provenance),
+      stage2EngineHash: jobA.dependencies.stage2EngineHash,
+      jobBInterfaceArtifactSha256: jobBPreflight.jobBInterfaceArtifactSha256,
+      jobBInterfaceWorkerSha256: jobBPreflight.workerSha256,
+      stage3ImmutableHash: stage3!.immutableHash,
+    },
+    model: {
+      flow: 'STEADY_STATE_COUNTERCURRENT_PER_COMPONENT',
+      axialDispersion: 'FINITE_VOLUME_BACKMIXING',
+      inletBoundary: 'DANCKWERTS_TYPE',
+      outletBoundary: 'ZERO_GRADIENT',
+      interphaseSource: 'EQUAL_AND_OPPOSITE_FROM_CONTINUOUS_FILM_NO_AVERAGING',
+      localInterfaces: 'RECOMPUTED_FOR_CONVERGED_LOCAL_STATES',
+      globalPartitionCoefficientUsed: false,
+      efficiencyCalculated: false,
+    },
+    inputAudit: jobCInputAudit,
+    exclusions: {
+      finalRpmSelected: false, jobDPerformed: false, releaseEligible: false,
+      userEditableConstantsPersisted: false,
+    },
+  };
+  return { workerRequest, responseBasis };
+}
+
+export async function executePreparedEcrPrePilotJobC(
+  prepared: Awaited<ReturnType<typeof prepareEcrPrePilotJobC>>,
+  options: Parameters<typeof runJobCWorker>[1] = {},
+) {
+  const workerResult = await runJobCWorker(prepared.workerRequest, options);
+  const body = {
+    ...prepared.responseBasis,
+    status: workerResult.status,
+    workerResult,
+  };
+  return { ...body, resultSha256: jobCResultHash(body) };
+}
+
+export async function evaluateEcrPrePilotJobC(userId: number, designId: number) {
+  return executePreparedEcrPrePilotJobC(await prepareEcrPrePilotJobC(userId, designId));
 }

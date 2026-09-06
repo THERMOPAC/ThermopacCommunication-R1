@@ -25,7 +25,9 @@ import { PRE_PILOT_MULTISTAGE_MODEL } from '../server/ecr-pre-pilot/model';
 import {
   JOB_B_BOUNDARY_COMPONENT_ORDER,
   JobBBoundaryStateError,
+  extractJobCGlobalBoundaryState,
   extractJobBBoundaryState,
+  jobBBoundarySourceResultHash,
   loadJobBBoundaryState,
 } from '../server/ecr-pre-pilot/job-b-boundary-state';
 import { evaluateJobA, jobAResultHash, type JobAEvaluationInput } from '../server/ecr-pre-pilot/job-a';
@@ -123,6 +125,34 @@ beforeEach(() => {
 });
 
 describe('Job B governed Stage-2 incoming boundary loader', () => {
+  it('keeps an N>1 loaded Job-B extract local while Job C uses fresh solvent globally', () => {
+    const row = sourceRow() as any;
+    const trial = row.result_snapshot.trials[0];
+    trial.stageCount = 10;
+    const loadedExtract = stream([.03, .02, .01, .01, .01, .87, .05]);
+    trial.stages[0].extractIncoming = loadedExtract;
+    const result = extractJobCGlobalBoundaryState({
+      row,
+      currentStage1: currentStage1(),
+      requestedNT: 10,
+      currentEngineHash: engineHash,
+      expectedProvenance: {
+        stage2JobId: row.id,
+        resultSnapshotHash: jobBBoundarySourceResultHash(row.result_snapshot),
+        engineHash,
+        modelHash: PRE_PILOT_MULTISTAGE_MODEL.modelHash,
+        stage1ImmutableHash: stage1Hash,
+        sourceStageCount: 10,
+      },
+    });
+    expect(result.freshWetSolvent.stream).toEqual(trial.boundaryStreams.freshWetSolvent);
+    expect(result.jobBLocalInterfaceState.extractIncoming.stream).toEqual(loadedExtract);
+    expect(result.jobBLocalInterfaceState.extractIncoming.stream)
+      .not.toEqual(result.freshWetSolvent.stream);
+    expect(result.provenance.boundaryRole)
+      .toBe('GLOBAL_COLUMN_INLETS_NOT_JOB_B_LOCAL_INTERFACE_BULKS');
+  });
+
   it('retains requested N_T=7 while explicitly selecting the only recorded N=1 trial', () => {
     const result = extract();
     expect(result).toMatchObject({

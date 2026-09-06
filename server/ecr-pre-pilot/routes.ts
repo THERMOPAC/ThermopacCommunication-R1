@@ -10,6 +10,7 @@ import {
   getKuhniGeometryResolverRuns,
   evaluateEcrPrePilotJobA,
   evaluateEcrPrePilotJobB,
+  evaluateEcrPrePilotJobC,
 } from '../ecr-pre-pilot-service';
 import {
   enqueuePredictiveNtJobFromSavedStage1,
@@ -26,9 +27,17 @@ import {
   SIX_COMPONENT_COSMO_SAC_BASIS_MANIFEST_SHA256,
 } from './six-component-cosmo-sac-basis';
 import { setupKuhniResolverPreview } from './kuhni-resolver-preview';
+import {
+  cancelJobC,
+  enqueueJobC,
+  getJobC,
+  getLatestJobC,
+  startJobCWorker,
+} from './job-c-job-service';
 
 export function setupEcrPrePilotRoutes(app: Express): void {
   startPredictiveNtWorker();
+  startJobCWorker();
   setupKuhniResolverPreview(app);
   app.get('/api/ecr-pre-pilot/predictive-nt/basis', ensureAuthenticated, (_req: Request, res: Response) => {
     return res.json({
@@ -226,6 +235,88 @@ export function setupEcrPrePilotRoutes(app: Express): void {
     '/api/ecr-pre-pilot/designs/:id/job-b/evaluate',
     ensureAuthenticated,
     jobBHandler,
+  );
+  app.post(
+    '/api/ecr-pre-pilot/designs/:id/job-c/jobs',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
+        || Object.keys(req.body).length)) {
+        return res.status(400).json({ error: 'JOB_C_ENQUEUE_BODY_PROHIBITED' });
+      }
+      try {
+        return res.status(202).json(await enqueueJobC(Number((req.user as any).id), designId));
+      } catch (error: any) {
+        const message = error?.message ?? 'JOB_C_ENQUEUE_FAILED';
+        const status = message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404
+          : message.includes('DEPENDENCY_BLOCKED:')
+            || message.startsWith('JOB_B_BOUNDARY_STATE_BLOCKED:') ? 409 : 422;
+        return res.status(status).json({ error: message, ...(error?.details ? { details: error.details } : {}) });
+      }
+    },
+  );
+  app.get(
+    '/api/ecr-pre-pilot/designs/:id/job-c/jobs/latest',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const job = await getLatestJobC(Number((req.user as any).id), Number(req.params.id));
+      return job ? res.json(job) : res.status(404).json({ error: 'JOB_C_JOB_NOT_FOUND' });
+    },
+  );
+  app.get(
+    '/api/ecr-pre-pilot/designs/:id/job-c/jobs/:jobId',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const job = await getJobC(req.params.jobId, Number((req.user as any).id), Number(req.params.id));
+      return job ? res.json(job) : res.status(404).json({ error: 'JOB_C_JOB_NOT_FOUND' });
+    },
+  );
+  app.post(
+    '/api/ecr-pre-pilot/designs/:id/job-c/jobs/:jobId/cancel',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
+        || Object.keys(req.body).length)) {
+        return res.status(400).json({ error: 'JOB_C_CANCEL_BODY_PROHIBITED' });
+      }
+      const job = await cancelJobC(req.params.jobId, Number((req.user as any).id), Number(req.params.id));
+      return job ? res.json(job) : res.status(404).json({ error: 'JOB_C_JOB_NOT_FOUND' });
+    },
+  );
+  app.post(
+    '/api/ecr-pre-pilot/designs/:id/job-c/evaluate',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
+        || Object.keys(req.body).length)) {
+        return res.status(400).json({ error: 'JOB_C_CLIENT_PHYSICAL_INPUT_PROHIBITED' });
+      }
+      try {
+        return res.json(await evaluateEcrPrePilotJobC(
+          Number((req.user as any).id), designId,
+        ));
+      } catch (error: any) {
+        const message = error?.message ?? 'JOB_C_EVALUATION_FAILED';
+        const status = message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404
+          : message.startsWith('JOB_C_DEPENDENCY_BLOCKED:')
+            || message.startsWith('JOB_A_DEPENDENCY_BLOCKED:')
+            || message.startsWith('JOB_B_DEPENDENCY_BLOCKED:')
+            || message.startsWith('JOB_B_BOUNDARY_STATE_BLOCKED:') ? 409 : 422;
+        return res.status(status).json({
+          error: message,
+          ...(error?.details && typeof error.details === 'object'
+            ? { details: error.details } : {}),
+        });
+      }
+    },
   );
   app.get(
     '/api/ecr-pre-pilot/designs/:id/job-a/latest',

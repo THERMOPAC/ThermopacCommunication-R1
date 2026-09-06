@@ -1,5 +1,6 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type StateValue = unknown;
@@ -60,6 +61,7 @@ vi.mock("lucide-react", () => {
     Play: Icon,
     RefreshCw: Icon,
     ShieldAlert: Icon,
+    Square: Icon,
   };
 });
 
@@ -119,6 +121,56 @@ function jobBResponse() {
       })),
       resultSha256: "job-b-result-hash",
       implementationSha256: "job-b-implementation-hash",
+    },
+  };
+}
+
+function jobCResponse() {
+  return {
+    status: "CALCULATED_PRELIMINARY_JOB_C",
+    componentOrder: componentIds,
+    preliminarySensitivityBasis: {
+      axialDispersionContinuousM2S: { nominal: 0.01, minimum: 0.003, maximum: 0.03 },
+      axialDispersionDispersedM2S: { nominal: 0.001, minimum: 0.0003, maximum: 0.003 },
+      activeHeightSearchM: { minimum: 2, maximum: 20, use: "NUMERICAL_SEARCH_ONLY" },
+    },
+    theoreticalCompartmentAuthority: {
+      compartments: 7,
+      source: "VALIDATED_STAGE_2_NT",
+      fallbackValue: 7,
+      fallbackUsed: false,
+    },
+    workerResult: {
+      status: "CALCULATED_PRELIMINARY_JOB_C",
+      sensitivityCases: [{
+        name: "NOMINAL",
+        status: "CALCULATED_PRELIMINARY_SENSITIVITY",
+        daxContinuousM2S: 0.01,
+        daxDispersedM2S: 0.001,
+        selected: {
+          heightM: 2.4,
+          cells: [{
+            compartment: 1,
+            continuousInMolS: componentIds.map((_, index) => 1 + index / 10),
+            continuousOutMolS: componentIds.map((_, index) => 0.9 + index / 10),
+            dispersedInMolS: componentIds.map((_, index) => 0.5 + index / 10),
+            dispersedOutMolS: componentIds.map((_, index) => 0.6 + index / 10),
+            transferContinuousToDispersedMolS: componentIds.map(() => 0.1),
+            continuousResidualMolS: componentIds.map(() => 1e-12),
+            dispersedResidualMolS: componentIds.map(() => 2e-12),
+            localInterface: { maximumFilmFluxAbsoluteDisagreementMolM2S: 3e-12 },
+          }],
+          globalComponentBalanceResidualMolS: componentIds.map(() => 4e-12),
+          residualDiagnostics: {
+            maxContinuousCellResidualMolS: 1e-12,
+            maxDispersedCellResidualMolS: 2e-12,
+            maxGlobalComponentBalanceResidualMolS: 4e-12,
+            minimumLocalComponentFlowMolS: 0.5,
+            maximumInterfaceFluxDisagreementMolM2S: 3e-12,
+            solverFunctionEvaluations: 18,
+          },
+        },
+      }],
     },
   };
 }
@@ -318,5 +370,137 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
     expect(text).toContain("Retained dependency hashes");
     expect(text).not.toContain("m = Cd*/Cc*");
     expect(text).not.toContain("Kc [m/s]");
+  });
+
+  it("gates Job C on Job B and renders only the server-returned preliminary result", () => {
+    const gatedMarkup = renderWithStates([design, null, null, false, null, null, null, null, null]);
+    expect(gatedMarkup).toMatch(/<button[^>]*disabled=""[^>]*>[^<]*(?:<span[^>]*><\/span>)?Start Job C/);
+
+    const markup = renderWithStates([
+      design,
+      null,
+      jobBResponse(),
+      false,
+      null,
+      null,
+      null,
+      jobCResponse(),
+      null,
+    ]);
+    const text = visibleText(markup);
+
+    expect(text).toContain("Re-run Job C");
+    expect(text).toContain("CALCULATED_PRELIMINARY_JOB_C");
+    expect(text).toContain("Project-controlled Dax");
+    expect(text).toContain("Continuous phase Dax: 0.010 m²/s Range: 0.003 to 0.030 m²/s");
+    expect(text).toContain("Dispersed phase Dax: 0.001 m²/s Range: 0.0003 to 0.003 m²/s");
+    expect(text).not.toContain("Dax: —");
+    expect(text).not.toContain("Range: —");
+    expect(text).toContain("Active-height search bounds");
+    expect(text).toContain("VALIDATED_STAGE_2_NT");
+    expect(text).toContain("Calculated active height");
+    expect(text).toContain("2.4 m");
+    expect(text).toContain("Per-compartment seven-component phase profile");
+    for (const componentId of componentIds) expect(text).toContain(componentId);
+    expect(text).toContain("Continuous residual [mol/s]");
+    expect(text).toContain("Dispersed residual [mol/s]");
+    expect(text).toContain("Selected-case component balance and conservation");
+    expect(text).toContain("Global max component balance residual [mol/s]");
+    expect(text).toContain("Maximum interface flux disagreement [mol/m²/s]");
+    expect(text).toContain("Component balance/conservation diagnostics");
+    expect(text).toContain("No efficiency calculation.");
+    expect(text).toContain("No global m.");
+    expect(text).toContain("No sulfur prediction or sulfur-removal claim.");
+    expect(text).toContain("No release decision.");
+    expect(text).toContain("No final RPM selection.");
+    expect(text).toContain("No Job D.");
+  });
+
+  it("preserves a structured 409 Job C result without displaying height", () => {
+    const markup = renderWithStates([
+      design,
+      null,
+      jobBResponse(),
+      false,
+      null,
+      "JOB_C_DEPENDENCY_BLOCKED:SIMULTANEOUS_JOB_B_REQUIRED",
+      null,
+      null,
+      {
+        error: "JOB_C_DEPENDENCY_BLOCKED:SIMULTANEOUS_JOB_B_REQUIRED",
+        details: {
+          workerStatus: "BLOCKED_PRELIMINARY_JOB_C",
+          inputAudit: { jobBResultSha256: "rejected-job-b-hash" },
+        },
+      },
+    ]);
+    const text = visibleText(markup);
+
+    expect(text).toContain("Job C · blocked result");
+    expect(text).toContain("Job-C calculation blocked");
+    expect(text).toContain("JOB_C_DEPENDENCY_BLOCKED:SIMULTANEOUS_JOB_B_REQUIRED");
+    expect(text).toContain("No active height is shown");
+    expect(text).toContain("Job-C error details and input audit");
+    expect(markup).toContain("BLOCKED_PRELIMINARY_JOB_C");
+    expect(markup).toContain("rejected-job-b-hash");
+    expect(text).not.toContain("Calculated active height");
+    expect(text).not.toContain("2.4 m");
+  });
+
+  it("renders retained background progress and an available Stop action", () => {
+    const markup = renderWithStates([
+      design,
+      null,
+      jobBResponse(),
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        jobId: "job-c-47",
+        status: "running",
+        progress: {
+          phase: "HEIGHT_SEARCH",
+          message: "Evaluating height candidate 4 of 10",
+          completed: 4,
+          total: 10,
+        },
+        result: null,
+        error: null,
+      },
+      "Temporary network failure",
+      false,
+      false,
+    ]);
+    const text = visibleText(markup);
+
+    expect(text).toContain("Re-run Job C");
+    expect(text).toContain("Stop");
+    expect(text).toContain("Job C: running");
+    expect(text).toContain("Job ID: job-c-47");
+    expect(text).toContain("HEIGHT_SEARCH · Evaluating height candidate 4 of 10");
+    expect(text).toContain("4 / 10");
+    expect(text).toContain("Candidate qualification → Height qualification → Exact qualification");
+    expect(text).toContain("do not indicate Stage 4 or downstream acceptance");
+    expect(text).toContain("last running state is retained and polling will continue");
+    expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>[\s\S]*Re-run Job C<\/button>/);
+  });
+
+  it("uses only the dedicated Job C background-job client contract", () => {
+    const source = readFileSync(
+      "client/src/pages/design-software/ecr-pre-pilot-design-stage-4-page.tsx",
+      "utf8",
+    );
+
+    expect(source).toContain("/job-c/jobs`");
+    expect(source).toContain("/job-c/jobs/latest");
+    expect(source).toContain("/job-c/jobs/${jobCJob.jobId}");
+    expect(source).toContain("/job-c/jobs/${jobCJob.jobId}/cancel");
+    expect(source).toContain("window.setInterval(() => void poll(), 1_500)");
+    expect(source).toContain('read(payload, "result_snapshot", "result")');
+    expect(source).not.toContain("/job-c/evaluate");
+    expect(source).not.toMatch(/job-c\/jobs`,\s*\{[^}]*body:/s);
   });
 });
