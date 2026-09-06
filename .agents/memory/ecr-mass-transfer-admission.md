@@ -40,13 +40,14 @@ validation-state, provenance, and uncertainty flags. They still block release
 qualification where the release standard requires validation.
 
 Single-solute overall Sherwood correlations cannot be promoted to the
-seven-component Stage-4 closure. Admission requires componentwise two-film
-coefficients (or an explicitly approved overall-coefficient formulation), a
-declared diffusive reference frame with its zero-net-flux correction, and a
-complete admitted seven-component diffusivity/thermodynamic-factor route.
+seven-component Stage-4 closure. Pre-pilot admission allows a documented
+diagonal generalized-Fick/two-film approximation with componentwise
+diffusivities, an explicit reference frame, and exact zero-net-flux correction;
+full Maxwell-Stefan cross-diffusion and a thermodynamic-factor matrix are later
+release-qualification improvements, not automatic predictive blockers.
 Wilke–Chang provenance text alone is not an implemented or approved estimator.
-Acetone-to-RRBO/NMP applicability is an uncertainty flag; absent multicomponent
-transport mathematics or data is a calculation blocker.
+Acetone-to-RRBO/NMP applicability is an uncertainty flag; absent predictive
+transport equations or required molecular inputs is a calculation blocker.
 
 Sulfur may calculate from a species-resolved predictive route even when
 extrapolated or unvalidated. Aromatic transfer cannot proxy sulfur duty.
