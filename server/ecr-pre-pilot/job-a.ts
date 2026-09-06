@@ -65,9 +65,12 @@ export interface JobAPhaseInput {
 }
 export interface JobAEvaluationInput {
   stage1SnapshotHash: string;
-  stage2JobId: string;
-  stage2ResultHash: string;
+  theoreticalStages: number;
+  theoreticalStageProvenance: 'STAGE_2_CALCULATED_NT' | 'PRE_PILOT_DESIGN_DEFAULT';
+  stage2JobId: string | null;
+  stage2ResultHash: string | null;
   stage2EngineHash: string;
+  thermodynamicAdapterPreflightHash: string;
   stage3RunId: string;
   stage3ImmutableHash: string;
   stage3ImplementationHash: string;
@@ -108,9 +111,13 @@ export function jobAResultHash(value: unknown): string {
 
 export function evaluateJobA(raw: JobAEvaluationInput) {
   if (!/^[a-f0-9]{64}$/.test(raw.stage1SnapshotHash)
-    || !raw.stage2JobId
-    || !/^[a-f0-9]{64}$/.test(raw.stage2ResultHash)
+    || !Number.isInteger(raw.theoreticalStages) || raw.theoreticalStages < 1
+    || !['STAGE_2_CALCULATED_NT', 'PRE_PILOT_DESIGN_DEFAULT'].includes(raw.theoreticalStageProvenance)
+    || (raw.theoreticalStageProvenance === 'STAGE_2_CALCULATED_NT'
+      && (!raw.stage2JobId || !raw.stage2ResultHash))
+    || (raw.stage2ResultHash !== null && !/^[a-f0-9]{64}$/.test(raw.stage2ResultHash))
     || !/^[a-f0-9]{64}$/.test(raw.stage2EngineHash)
+    || !/^[a-f0-9]{64}$/.test(raw.thermodynamicAdapterPreflightHash)
     || !/^[a-f0-9]{64}$/.test(raw.stage3ImmutableHash)
     || !/^[a-f0-9]{64}$/.test(raw.stage3ImplementationHash)
     || !raw.stage3RunId || !raw.selectedTrialId || !Number.isInteger(raw.selectedTrialOrdinal)) {
@@ -203,6 +210,10 @@ export function evaluateJobA(raw: JobAEvaluationInput) {
       jobId: raw.stage2JobId,
       resultHash: raw.stage2ResultHash,
       engineHash: raw.stage2EngineHash,
+      adapterPreflightHash: raw.thermodynamicAdapterPreflightHash,
+      adapterPreflightStatus: 'PASS',
+      referenceDutyOperation: 'REFERENCE_DUTY',
+      referenceDutyExecution: 'NOT_EXECUTED_BY_JOB_A',
       componentOrder: JOB_A_COMPONENT_ORDER,
     },
     implementationSha256: JOB_A_IMPLEMENTATION_SHA256,
@@ -211,9 +222,12 @@ export function evaluateJobA(raw: JobAEvaluationInput) {
     inputSha256,
     dependencies: {
       stage1SnapshotHash: raw.stage1SnapshotHash,
+      theoreticalStages: raw.theoreticalStages,
+      theoreticalStageProvenance: raw.theoreticalStageProvenance,
       stage2JobId: raw.stage2JobId,
       stage2ResultHash: raw.stage2ResultHash,
       stage2EngineHash: raw.stage2EngineHash,
+      thermodynamicAdapterPreflightHash: raw.thermodynamicAdapterPreflightHash,
       stage3RunId: raw.stage3RunId,
       stage3ImmutableHash: raw.stage3ImmutableHash, stage3ImplementationHash: raw.stage3ImplementationHash,
       selectedTrialId: raw.selectedTrialId, selectedTrialOrdinal: raw.selectedTrialOrdinal,

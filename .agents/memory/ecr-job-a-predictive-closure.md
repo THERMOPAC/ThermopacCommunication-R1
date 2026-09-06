@@ -31,13 +31,14 @@ seven components in both phases, dimensional closure, deterministic
 hashes/provenance, and affirmative proof that no legacy five-component
 calculation path was invoked.
 
-Any Job-A result that names the seven-component Stage-2 authority must resolve
-and verify the exact persisted 7C-1.5.0 job referenced by Stage 3; never
-hard-code that authority onto default-stage or older-engine ancestry.
+Theoretical-stage authority and thermodynamic-engine authority are independent:
+use valid calculated Stage-2 \(N_T\), otherwise \(N_T=7\); in both branches,
+Stage-4 equilibrium/reference duty must run through verified 7C-1.5.0.
 
-**Why:** A Stage-3 resolver may legitimately use the pre-pilot default stage
-count, which is not proof that a governed 7C-1.5.0 Stage-2 result exists.
+**Why:** The governed fallback \(N_T=7\) must remain usable even when Stage 2
+cannot assign an accepted \(N_T\); it does not relax Stage-4 thermodynamic
+engine provenance.
 
-**How to apply:** Fail closed unless ownership, design, Stage-1 snapshot,
-engine/model hashes, accepted result, and the Stage-2↔Stage-3 result hash all
-match.
+**How to apply:** Validate calculated-\(N_T\) lineage only when that branch is
+used. Job A may preflight the 7C-1.5.0 adapter; actual Stage-4 reference duty
+uses that adapter with calculated \(N_T\) or the default seven-stage branch.

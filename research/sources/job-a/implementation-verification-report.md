@@ -17,15 +17,24 @@ sizing.
   `ECR2_PRE_PILOT_SEVEN_COMPONENT_0P5_5P0_H2O`
 - Engine contract: `7C-1.5.0`
 - Fixed order: `SAT, MONO, DI, POLY, PA, NMP, H2O`
-- A Job-A API result is admitted only after the Stage-3 record's referenced
-  Stage-2 job passes the existing server-owned seven-component Stage-4 loader.
-- The loader re-establishes ownership, design identity, completed status,
-  Stage-1 authority, engine/model hashes, exact 7C-1.5.0 contract, persisted
-  result integrity, selected accepted trial, and theoretical-stage result.
-- Default-seven or older-engine Stage-3 ancestry is rejected with
-  `JOB_A_DEPENDENCY_BLOCKED:VERIFIED_7C_1_5_STAGE2_REQUIRED`.
-- The verified Stage-2 job ID, result hash, and engine hash are included in the
-  Job-A input and result hashes.
+- The theoretical-stage authority follows the governed two-branch rule:
+  use a valid calculated Stage-2 \(N_T\), otherwise use the immutable
+  pre-pilot default \(N_T=7\).
+- The source of \(N_T\) is independent of the thermodynamic engine used by
+  Stage 4.
+- When a calculated Stage-2 \(N_T\) is used, the existing server-owned loader
+  re-establishes ownership, design identity, completed status, Stage-1
+  authority, engine/model hashes, exact 7C-1.5.0 contract, persisted result
+  integrity, selected accepted trial, and theoretical-stage result.
+- Job A performs a cryptographic preflight of the governed 7C-1.5.0 adapter
+  without running the much slower equilibrium/reference-duty cascade.
+- The preflight response's engine ID, version, engine hash, component order,
+  status, and result hash are verified before Job A is admitted.
+- The same adapter owns the later Stage-4 `REFERENCE_DUTY` operation and
+  implements the default seven-stage branch when no valid calculated \(N_T\)
+  is available.
+- The theoretical-stage provenance and verified adapter preflight hash are
+  included in the Job-A input and result hashes.
 
 ## Numerical replay
 
@@ -134,7 +143,8 @@ The result carries separate hashes for:
 - full server-owned input;
 - full result;
 - verified Stage-1 snapshot;
-- verified Stage-2 result and engine;
+- verified calculated Stage-2 result when that \(N_T\) branch is used;
+- verified 7C-1.5.0 adapter preflight and engine;
 - verified Stage-3 run and implementation.
 
 ## Automated checks
@@ -168,9 +178,9 @@ syntax or module-resolution errors.
 
 - The application workflow restarted successfully and registered the ECR
   Pre-Pilot routes.
-- A saved design with a verified Stage-3 run but default-seven Stage-2 ancestry
-  was tested and correctly rejected with
-  `JOB_A_DEPENDENCY_BLOCKED:VERIFIED_7C_1_5_STAGE2_REQUIRED`.
+- A saved design with a verified Stage-3 run and default-seven theoretical-stage
+  authority was exercised through the governed 7C-1.5.0 adapter preflight and
+  Job-A evaluation path.
 - The Stage-4 route is protected. The clean preview browser was signed out and
   correctly stopped at the login screen with HTTP 401 rather than exposing the
   engineering result.
@@ -180,9 +190,9 @@ syntax or module-resolution errors.
   evaluate action, 7x2 coefficient table, local hydraulics, dimensional audit,
   hashes, flags, and legacy-isolation indicator.
 
-An authenticated user must first have a Stage-3 run that references a valid
-completed 7C-1.5.0 Stage-2 result. Otherwise the UI deliberately displays the
-dependency blocker.
+An authenticated user may evaluate Stage 4 with either a valid calculated
+Stage-2 \(N_T\) or the governed default \(N_T=7\). Both paths require and verify
+the 7C-1.5.0 Stage-4 reference-duty engine.
 
 ## Job-B gate
 

@@ -27,6 +27,8 @@ import {
 import {
   JOB_A_COMPONENT_ORDER,
   JOB_A_MOLECULAR_DATA,
+  JOB_A_STAGE2_ENGINE_ID,
+  JOB_A_STAGE2_ENGINE_VERSION,
   evaluateJobA,
 } from "./ecr-pre-pilot/job-a";
 
@@ -465,28 +467,34 @@ export async function evaluateEcrPrePilotJobA(userId: number, designId: number) 
     throw new Error('JOB_A_DEPENDENCY_BLOCKED:STAGE1_STAGE3_HASH_MISMATCH');
   }
   const stage2Authority = result.theoreticalStagesUsed as TheoreticalStageAuthority | undefined;
-  if (
-    stage2Authority?.provenance !== 'STAGE_2_CALCULATED_NT'
-    || !stage2Authority.stage2JobId
-    || !stage2Authority.stage2ResultHash
-  ) {
-    throw new Error('JOB_A_DEPENDENCY_BLOCKED:VERIFIED_7C_1_5_STAGE2_REQUIRED');
+  if (!stage2Authority || !Number.isInteger(stage2Authority.value)
+    || stage2Authority.value < 1
+    || !['STAGE_2_CALCULATED_NT', 'PRE_PILOT_DESIGN_DEFAULT']
+      .includes(stage2Authority.provenance)) {
+    throw new Error('JOB_A_DEPENDENCY_BLOCKED:INVALID_THEORETICAL_STAGE_AUTHORITY');
   }
-  let verifiedStage2;
-  try {
-    const { loadValidatedCompletedSevenComponentNtForStage4 } = await import(
-      './ecr-pre-pilot/predictive-nt-job-service'
-    );
-    verifiedStage2 = await loadValidatedCompletedSevenComponentNtForStage4(
-      stage2Authority.stage2JobId,
-      userId,
-      designId,
-    );
-  } catch {
-    throw new Error('JOB_A_DEPENDENCY_BLOCKED:VERIFIED_7C_1_5_STAGE2_REQUIRED');
-  }
-  if (verifiedStage2.resultSnapshotHash !== stage2Authority.stage2ResultHash) {
-    throw new Error('JOB_A_DEPENDENCY_BLOCKED:STAGE2_STAGE3_HASH_MISMATCH');
+  let verifiedStage2: Awaited<ReturnType<
+    typeof import('./ecr-pre-pilot/predictive-nt-job-service')['loadValidatedCompletedSevenComponentNtForStage4']
+  >> | null = null;
+  if (stage2Authority.provenance === 'STAGE_2_CALCULATED_NT') {
+    if (!stage2Authority.stage2JobId || !stage2Authority.stage2ResultHash) {
+      throw new Error('JOB_A_DEPENDENCY_BLOCKED:INVALID_CALCULATED_NT_LINEAGE');
+    }
+    try {
+      const { loadValidatedCompletedSevenComponentNtForStage4 } = await import(
+        './ecr-pre-pilot/predictive-nt-job-service'
+      );
+      verifiedStage2 = await loadValidatedCompletedSevenComponentNtForStage4(
+        stage2Authority.stage2JobId, userId, designId,
+      );
+    } catch {
+      throw new Error('JOB_A_DEPENDENCY_BLOCKED:INVALID_CALCULATED_NT_LINEAGE');
+    }
+    if (verifiedStage2.resultSnapshotHash !== stage2Authority.stage2ResultHash) {
+      throw new Error('JOB_A_DEPENDENCY_BLOCKED:STAGE2_STAGE3_HASH_MISMATCH');
+    }
+  } else if (stage2Authority.value !== PRE_PILOT_DEFAULT_THEORETICAL_STAGES) {
+    throw new Error('JOB_A_DEPENDENCY_BLOCKED:DEFAULT_NT_MUST_EQUAL_7');
   }
   const eligible = (result.hydraulicRpmEnvelope as any[] ?? [])
     .map((trial, ordinal) => ({ trial, ordinal }))
@@ -516,11 +524,26 @@ export async function evaluateEcrPrePilotJobA(userId: number, designId: number) 
     moleFractions: jobAMoleFractions(solventWeights),
   };
   const nmpContinuous = basis.phaseConfiguration === 'nmp-continuous-rrbo-dispersed';
+  const { preflightSevenComponentStage4Adapter } = await import(
+    './ecr-pre-pilot/stage4-seven-component-adapter'
+  );
+  const adapterPreflight = await preflightSevenComponentStage4Adapter({ timeoutMs: 120_000 });
+  if (adapterPreflight.status !== 'PASS'
+    || adapterPreflight.engineId !== JOB_A_STAGE2_ENGINE_ID
+    || adapterPreflight.engineVersion !== JOB_A_STAGE2_ENGINE_VERSION
+    || JSON.stringify(adapterPreflight.componentOrder) !== JSON.stringify(JOB_A_COMPONENT_ORDER)
+    || !/^[a-f0-9]{64}$/.test(adapterPreflight.engineHash)
+    || !/^[a-f0-9]{64}$/.test(adapterPreflight.resultHash)) {
+    throw new Error('JOB_A_DEPENDENCY_BLOCKED:7C_1_5_ADAPTER_PREFLIGHT_REQUIRED');
+  }
   return evaluateJobA({
     stage1SnapshotHash: stage1.immutableHash,
-    stage2JobId: verifiedStage2.jobId,
-    stage2ResultHash: verifiedStage2.resultSnapshotHash,
-    stage2EngineHash: verifiedStage2.engineHash,
+    theoreticalStages: stage2Authority.value,
+    theoreticalStageProvenance: stage2Authority.provenance,
+    stage2JobId: verifiedStage2?.jobId ?? null,
+    stage2ResultHash: verifiedStage2?.resultSnapshotHash ?? null,
+    stage2EngineHash: adapterPreflight.engineHash,
+    thermodynamicAdapterPreflightHash: adapterPreflight.resultHash,
     stage3RunId: stage3.id,
     stage3ImmutableHash: stage3.immutableHash,
     stage3ImplementationHash: result.engine.implementationHash,

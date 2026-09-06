@@ -15,9 +15,12 @@ import {
 const hash = 'a'.repeat(64);
 const input = (): JobAEvaluationInput => ({
   stage1SnapshotHash: hash,
-  stage2JobId: 'stage2-1',
-  stage2ResultHash: 'd'.repeat(64),
+  theoreticalStages: 7,
+  theoreticalStageProvenance: 'PRE_PILOT_DESIGN_DEFAULT',
+  stage2JobId: null,
+  stage2ResultHash: null,
   stage2EngineHash: 'e'.repeat(64),
+  thermodynamicAdapterPreflightHash: 'd'.repeat(64),
   stage3RunId: 'stage3-1',
   stage3ImmutableHash: 'b'.repeat(64),
   stage3ImplementationHash: 'c'.repeat(64),
@@ -116,9 +119,13 @@ describe('ECR pre-pilot Job A K&H base closure', () => {
       thermodynamicAuthority: {
         engineId: JOB_A_STAGE2_ENGINE_ID,
         engineVersion: JOB_A_STAGE2_ENGINE_VERSION,
-        jobId: 'stage2-1',
-        resultHash: 'd'.repeat(64),
+        jobId: null,
+        resultHash: null,
         engineHash: 'e'.repeat(64),
+        adapterPreflightHash: 'd'.repeat(64),
+        adapterPreflightStatus: 'PASS',
+        referenceDutyOperation: 'REFERENCE_DUTY',
+        referenceDutyExecution: 'NOT_EXECUTED_BY_JOB_A',
         componentOrder: JOB_A_COMPONENT_ORDER,
       },
       localHydraulics: {
@@ -171,7 +178,8 @@ describe('ECR pre-pilot Job A K&H base closure', () => {
     expect(source).not.toMatch(/from ['"][^'"]*(llx-ecr2-counter-current-bvp|local-property-closure|five-component|diffusivity)[^'"]*['"]/);
     expect(source).not.toContain('legacyPathInvoked: true');
     expect(source).toContain('loadValidatedCompletedSevenComponentNtForStage4');
-    expect(source).toContain('JOB_A_DEPENDENCY_BLOCKED:VERIFIED_7C_1_5_STAGE2_REQUIRED');
+    expect(source).toContain('PRE_PILOT_DESIGN_DEFAULT');
+    expect(source).toContain('preflightSevenComponentStage4Adapter');
     expect(source).toContain('JOB_A_DEPENDENCY_BLOCKED:STAGE2_STAGE3_HASH_MISMATCH');
     expect(evaluateJobA(input()).legacyPathInvoked).toBe(false);
   });
