@@ -24,6 +24,11 @@ import {
   KUHNI_GEOMETRY_RESOLVER_V110_VERSION,
   resolveKuhniGeometryV110,
 } from "./ecr-pre-pilot/kuhni-geometry-resolver-v110";
+import {
+  JOB_A_COMPONENT_ORDER,
+  JOB_A_MOLECULAR_DATA,
+  evaluateJobA,
+} from "./ecr-pre-pilot/job-a";
 
 const COUNTER_ROW_ID = 1;
 const MAX_ALLOCATION_ATTEMPTS = 3;
@@ -420,4 +425,112 @@ export async function getKuhniGeometryResolverRuns(userId: number, designId: num
     };
   });
   return latest ? verified[0] ?? null : verified;
+}
+
+function jobAMoleFractions(weights: readonly number[]): number[] {
+  const moles = weights.map((weight, index) =>
+    weight / JOB_A_MOLECULAR_DATA[JOB_A_COMPONENT_ORDER[index]].molecularWeightGmol);
+  const total = moles.reduce((sum, value) => sum + value, 0);
+  if (!(total > 0) || moles.some(value => !Number.isFinite(value) || value < 0)) {
+    throw new Error('JOB_A_DEPENDENCY_BLOCKED:INVALID_STAGE1_PHASE_COMPOSITION');
+  }
+  return moles.map(value => value / total);
+}
+
+/**
+ * Job A is intentionally recomputed from verified immutable dependencies. No
+ * request body is accepted as physical authority and no Job-A persistence is
+ * required.
+ */
+export async function evaluateEcrPrePilotJobA(userId: number, designId: number) {
+  const design = await pool.query<{ input_data: unknown }>(
+    `SELECT input_data FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2`,
+    [designId, userId],
+  );
+  if (!design.rows[0]) throw new Error('ECR_PRE_PILOT_DESIGN_NOT_FOUND');
+  let stage1: EcrPrePilotStage1Snapshot;
+  try {
+    stage1 = validateStage1Snapshot(design.rows[0].input_data);
+  } catch {
+    throw new Error('JOB_A_DEPENDENCY_BLOCKED:LATEST_SAVED_STAGE1_REQUIRED');
+  }
+  const stage3 = await getKuhniGeometryResolverRuns(userId, designId, true);
+  if (!stage3) throw new Error('JOB_A_DEPENDENCY_BLOCKED:LATEST_VERIFIED_STAGE3_REQUIRED');
+  const result = stage3.result as any;
+  if (result?.engine?.version !== KUHNI_GEOMETRY_RESOLVER_V110_VERSION
+    || result?.engine?.implementationHash !== KUHNI_GEOMETRY_RESOLVER_V110_HASH) {
+    throw new Error('JOB_A_DEPENDENCY_BLOCKED:LATEST_STAGE3_V110_REQUIRED');
+  }
+  if (result.processBasis?.stage1SnapshotHash !== stage1.immutableHash) {
+    throw new Error('JOB_A_DEPENDENCY_BLOCKED:STAGE1_STAGE3_HASH_MISMATCH');
+  }
+  const stage2Authority = result.theoreticalStagesUsed as TheoreticalStageAuthority | undefined;
+  if (
+    stage2Authority?.provenance !== 'STAGE_2_CALCULATED_NT'
+    || !stage2Authority.stage2JobId
+    || !stage2Authority.stage2ResultHash
+  ) {
+    throw new Error('JOB_A_DEPENDENCY_BLOCKED:VERIFIED_7C_1_5_STAGE2_REQUIRED');
+  }
+  let verifiedStage2;
+  try {
+    const { loadValidatedCompletedSevenComponentNtForStage4 } = await import(
+      './ecr-pre-pilot/predictive-nt-job-service'
+    );
+    verifiedStage2 = await loadValidatedCompletedSevenComponentNtForStage4(
+      stage2Authority.stage2JobId,
+      userId,
+      designId,
+    );
+  } catch {
+    throw new Error('JOB_A_DEPENDENCY_BLOCKED:VERIFIED_7C_1_5_STAGE2_REQUIRED');
+  }
+  if (verifiedStage2.resultSnapshotHash !== stage2Authority.stage2ResultHash) {
+    throw new Error('JOB_A_DEPENDENCY_BLOCKED:STAGE2_STAGE3_HASH_MISMATCH');
+  }
+  const eligible = (result.hydraulicRpmEnvelope as any[] ?? [])
+    .map((trial, ordinal) => ({ trial, ordinal }))
+    .filter(({ trial }) => trial.status === 'CALCULATED_IN_RANGE'
+      && trial.operatingHydraulics?.status === 'OPERATING_HOLDUP_CALCULATED')
+    .sort((a, b) => a.trial.columnDiameterM - b.trial.columnDiameterM
+      || a.trial.rpm - b.trial.rpm || a.ordinal - b.ordinal);
+  if (!eligible.length) {
+    throw new Error('JOB_A_DEPENDENCY_BLOCKED:NO_CALCULATED_IN_RANGE_STAGE3_TRIAL');
+  }
+  const { trial, ordinal } = eligible[0];
+  const basis = result.processBasis;
+  const rrboWeights = [
+    stage1.stage1.saturatesWt, stage1.stage1.monoAromaticsWt,
+    stage1.stage1.diAromaticsWt, stage1.stage1.polyAromaticsWt,
+    stage1.stage1.polarAromaticsWt, stage1.stage1.nmpInFeedWt, 0,
+  ];
+  const solventWeights = [0, 0, 0, 0, 0, stage1.stage1.nmpPurityWt, stage1.stage1.nmpWaterWt];
+  const rrbo = {
+    densityKgM3: basis.rrboFeed.densityKgM3,
+    dynamicViscosityPaS: basis.rrboFeed.dynamicViscosityPaS,
+    moleFractions: jobAMoleFractions(rrboWeights),
+  };
+  const solvent = {
+    densityKgM3: basis.wetSolventPhase.densityKgM3,
+    dynamicViscosityPaS: basis.wetSolventPhase.dynamicViscosityPaS,
+    moleFractions: jobAMoleFractions(solventWeights),
+  };
+  const nmpContinuous = basis.phaseConfiguration === 'nmp-continuous-rrbo-dispersed';
+  return evaluateJobA({
+    stage1SnapshotHash: stage1.immutableHash,
+    stage2JobId: verifiedStage2.jobId,
+    stage2ResultHash: verifiedStage2.resultSnapshotHash,
+    stage2EngineHash: verifiedStage2.engineHash,
+    stage3RunId: stage3.id,
+    stage3ImmutableHash: stage3.immutableHash,
+    stage3ImplementationHash: result.engine.implementationHash,
+    selectedTrialId: `rpm:${trial.rpm}:diameterM:${trial.columnDiameterM}`,
+    selectedTrialOrdinal: ordinal,
+    temperatureK: basis.temperatureK,
+    interfacialTensionNM: basis.interfacialTensionNM,
+    d32M: trial.d32M,
+    slipVelocityMS: trial.operatingHydraulics.operatingSwarmVelocityMS,
+    continuous: nmpContinuous ? solvent : rrbo,
+    dispersed: nmpContinuous ? rrbo : solvent,
+  });
 }

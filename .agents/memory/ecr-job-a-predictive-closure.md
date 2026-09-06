@@ -30,3 +30,14 @@ Job-A implementation verification report covering numerical replay for all
 seven components in both phases, dimensional closure, deterministic
 hashes/provenance, and affirmative proof that no legacy five-component
 calculation path was invoked.
+
+Any Job-A result that names the seven-component Stage-2 authority must resolve
+and verify the exact persisted 7C-1.5.0 job referenced by Stage 3; never
+hard-code that authority onto default-stage or older-engine ancestry.
+
+**Why:** A Stage-3 resolver may legitimately use the pre-pilot default stage
+count, which is not proof that a governed 7C-1.5.0 Stage-2 result exists.
+
+**How to apply:** Fail closed unless ownership, design, Stage-1 snapshot,
+engine/model hashes, accepted result, and the Stage-2↔Stage-3 result hash all
+match.

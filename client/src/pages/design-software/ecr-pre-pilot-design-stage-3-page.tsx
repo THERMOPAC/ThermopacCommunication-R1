@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, FlaskConical, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, FlaskConical, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import Layout from "@/components/layout";
 import { KuhniHydrodynamicsCard } from "@/components/ecr-pre-pilot/kuhni-hydrodynamics-card";
@@ -129,6 +129,15 @@ export default function EcrPrePilotDesignStage3Page() {
           >
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
             Back to Stage 2
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate("/design-software/ecr-pre-pilot-design/stage-4")}
+            className="h-8 gap-1.5 px-3 text-xs"
+          >
+            Stage 4 Job-A
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
           </Button>
         </header>
 
