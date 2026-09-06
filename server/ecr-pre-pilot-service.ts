@@ -31,6 +31,11 @@ import {
   JOB_A_STAGE2_ENGINE_VERSION,
   evaluateJobA,
 } from "./ecr-pre-pilot/job-a";
+import {
+  assertJobBStage3ParentMatchesJobA,
+  evaluateJobB,
+  makeJobBLocalEquilibriumInventory,
+} from "./ecr-pre-pilot/job-b";
 
 const COUNTER_ROW_ID = 1;
 const MAX_ALLOCATION_ATTEMPTS = 3;
@@ -555,5 +560,43 @@ export async function evaluateEcrPrePilotJobA(userId: number, designId: number) 
     slipVelocityMS: trial.operatingHydraulics.operatingSwarmVelocityMS,
     continuous: nmpContinuous ? solvent : rrbo,
     dispersed: nmpContinuous ? rrbo : solvent,
+  });
+}
+
+/**
+ * Job B is a server-owned local diagnostic. It consumes the already governed
+ * Job-A coefficients and the exact Stage-3 trial selected by Job A, then runs
+ * an actual frozen-adapter local equilibrium. It deliberately does not size a
+ * column.
+ */
+export async function evaluateEcrPrePilotJobB(userId: number, designId: number) {
+  const jobA = await evaluateEcrPrePilotJobA(userId, designId);
+  const stage3 = await getKuhniGeometryResolverRuns(userId, designId, true);
+  assertJobBStage3ParentMatchesJobA(jobA, stage3);
+  const envelope = (stage3.result as any)?.hydraulicRpmEnvelope as any[] ?? [];
+  const trial = envelope.find((candidate, ordinal) =>
+    `rpm:${candidate.rpm}:diameterM:${candidate.columnDiameterM}`
+      === jobA.dependencies.selectedTrialId
+    && ordinal === jobA.dependencies.selectedTrialOrdinal);
+  if (!trial || trial.operatingHydraulics?.status !== 'OPERATING_HOLDUP_CALCULATED'
+    || trial.d32M !== jobA.localHydraulics.d32M) {
+    throw new Error('JOB_B_DEPENDENCY_BLOCKED:FROZEN_STAGE3_TRIAL_MISMATCH');
+  }
+  const operatingHoldup = trial.operatingHydraulics.operatingHoldup;
+  const componentMolarInventory = makeJobBLocalEquilibriumInventory(jobA, operatingHoldup);
+  const { evaluateSevenComponentLocalEquilibrium } = await import(
+    './ecr-pre-pilot/stage4-seven-component-adapter'
+  );
+  const equilibrium = await evaluateSevenComponentLocalEquilibrium({
+    temperatureK: jobA.input.temperatureK,
+    componentOrder: [...JOB_A_COMPONENT_ORDER],
+    componentMolarInventory,
+  }, { timeoutMs: 300_000 });
+  return evaluateJobB({
+    jobA,
+    operatingHoldup,
+    stage3OperatingHydraulicsStatus: trial.operatingHydraulics.status,
+    phaseConfiguration: (stage3.result as any).processBasis?.phaseConfiguration,
+    equilibrium,
   });
 }

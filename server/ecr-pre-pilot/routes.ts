@@ -9,6 +9,7 @@ import {
   createKuhniGeometryResolverRun,
   getKuhniGeometryResolverRuns,
   evaluateEcrPrePilotJobA,
+  evaluateEcrPrePilotJobB,
 } from '../ecr-pre-pilot-service';
 import {
   enqueuePredictiveNtJobFromSavedStage1,
@@ -194,6 +195,36 @@ export function setupEcrPrePilotRoutes(app: Express): void {
     '/api/ecr-pre-pilot/designs/:id/job-a/evaluate',
     ensureAuthenticated,
     jobAHandler,
+  );
+  const jobBHandler = async (req: Request, res: Response) => {
+    const designId = Number(req.params.id);
+    if (!Number.isInteger(designId) || designId <= 0) {
+      return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+    }
+    if (req.method === 'POST' && req.body && Object.keys(req.body).length) {
+      return res.status(400).json({ error: 'JOB_B_CLIENT_PHYSICAL_INPUT_PROHIBITED' });
+    }
+    try {
+      return res.json(await evaluateEcrPrePilotJobB(
+        Number((req.user as any).id),
+        designId,
+      ));
+    } catch (error: any) {
+      const message = error?.message ?? 'JOB_B_EVALUATION_FAILED';
+      const status = message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404
+        : message.startsWith('JOB_B_DEPENDENCY_BLOCKED:')
+          || message.startsWith('JOB_A_DEPENDENCY_BLOCKED:') ? 409 : 422;
+      return res.status(status).json({
+        error: message,
+        ...(error?.details && typeof error.details === 'object'
+          ? { details: error.details } : {}),
+      });
+    }
+  };
+  app.post(
+    '/api/ecr-pre-pilot/designs/:id/job-b/evaluate',
+    ensureAuthenticated,
+    jobBHandler,
   );
   app.get(
     '/api/ecr-pre-pilot/designs/:id/job-a/latest',
