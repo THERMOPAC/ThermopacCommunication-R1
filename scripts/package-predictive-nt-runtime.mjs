@@ -326,6 +326,17 @@ await writeFile(
     files: sevenFifteenRecords,
   }, null, 2)}\n`,
 );
+// Operational progress observation is deliberately outside the immutable
+// scientific manifest consumed by Job B. It delegates preflight and all
+// calculations to the frozen 7C-1.5 worker.
+await cp(
+  path.join(root, 'server/ecr-pre-pilot/predictive-nt-seven-component-v1-5-progress'),
+  path.join(
+    sevenFifteenBundleRoot,
+    'server/ecr-pre-pilot/predictive-nt-seven-component-v1-5-progress',
+  ),
+  { recursive: true },
+);
 console.log(
   `Packaged Predictive N_T 7C-1.5 runtime (${sevenFifteenRecords.length} hashed files)`,
 );

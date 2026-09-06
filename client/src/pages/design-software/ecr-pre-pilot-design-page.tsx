@@ -331,6 +331,10 @@ type PredictiveNtJob = {
   id: string;
   status: "pending" | "running" | "completed" | "failed";
   progress: { completedStageTrials: number; maximumStages: number };
+  internalProgress: {
+    completedInternalStages: number;
+    maximumInternalStages: number;
+  } | null;
   modelHash: string;
   engineHash: string;
   input?: { ntTest?: number };
@@ -2168,17 +2172,43 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                   <p className="mt-1 text-sm font-semibold text-slate-900">—</p>
                 </div>
               </div>
-              {predictiveJob && ["pending", "running"].includes(predictiveJob.status) && (
+              {predictiveJob && (
+                ["pending", "running"].includes(predictiveJob.status)
+                || (predictiveJob.status === "completed" && predictiveJob.internalProgress !== null)
+              ) && (
                 <div aria-live="polite">
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                  {(() => {
+                    const exactNt = predictiveJob.input?.ntTest;
+                    const internal = Number.isInteger(exactNt)
+                      && predictiveJob.progress.maximumStages === 1
+                      ? predictiveJob.internalProgress
+                      : null;
+                    const completed = internal?.completedInternalStages
+                      ?? predictiveJob.progress.completedStageTrials;
+                    const maximum = internal?.maximumInternalStages
+                      ?? predictiveJob.progress.maximumStages;
+                    return <>
+                  <div className={`h-2 overflow-hidden rounded-full bg-slate-200 ${
+                    predictiveJob.status === "running" && internal && completed === 0
+                      ? "animate-pulse bg-blue-100"
+                      : ""
+                  }`}>
                     <div
                       className="h-full rounded-full bg-blue-600 transition-all"
-                      style={{ width: `${Math.min(100, (predictiveJob.progress.completedStageTrials / predictiveJob.progress.maximumStages) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (completed / maximum) * 100)}%` }}
                     />
                   </div>
                   <p className="mt-1.5 text-[11px] text-slate-500">
-                    {predictiveJob.status === "pending" ? "Waiting for an available solver worker…" : "Evaluating every configured stage trial…"}
+                    {predictiveJob.status === "pending"
+                      ? "Waiting for an available solver worker…"
+                      : internal
+                        ? completed === 0 && predictiveJob.status === "running"
+                          ? `Solving coupled N_T=${exactNt} system · stage audits ${completed}/${maximum}`
+                          : `Auditing assembled N_T=${exactNt} stages · ${completed}/${maximum}`
+                        : "Evaluating every configured stage trial…"}
                   </p>
+                    </>;
+                  })()}
                 </div>
               )}
               {predictivePollingPaused && predictiveJob && (

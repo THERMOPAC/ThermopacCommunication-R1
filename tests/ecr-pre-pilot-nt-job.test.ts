@@ -16,6 +16,7 @@ import {
   expectedTask216GlobalStabilityEvidence,
   expectedTask218CandidateGeneratedStabilityEvidence,
   getPredictiveNtJob,
+  internalProgressForJobRow,
   preflightPredictiveNtRuntime,
   predictiveNtCheckpointProtocol,
   validateTask216GlobalStabilityEvidence,
@@ -524,6 +525,100 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       '7C-1.2.0',
     )).toThrow('PREDICTIVE_NT_CROSS_ENGINE_CHECKPOINT_FORBIDDEN');
   });
+
+  it('maps exact-N_T internal progress separately from the single governed trial', () => {
+    const base = {
+      input_snapshot: { engineContractVersion: '7C-1.5.0', ntTest: 10 },
+      maximum_stages: 1,
+      completed_trials: 0,
+      status: 'running',
+      result_snapshot: {
+        trials: [],
+        internalProgress: {
+          completedInternalStages: 6,
+          maximumInternalStages: 10,
+        },
+      },
+    };
+    expect(internalProgressForJobRow(base)).toEqual({
+      completedInternalStages: 6,
+      maximumInternalStages: 10,
+    });
+    expect(base.completed_trials).toBe(0);
+    expect(base.maximum_stages).toBe(1);
+    expect(internalProgressForJobRow({
+      ...base,
+      status: 'completed',
+      completed_trials: 1,
+      result_snapshot: { trials: [{}] },
+    })).toEqual({
+      completedInternalStages: 10,
+      maximumInternalStages: 10,
+    });
+  });
+
+  it('rejects malformed internal progress and leaves non-exact jobs unchanged', () => {
+    const malformed = {
+      input_snapshot: { engineContractVersion: '7C-1.5.0', ntTest: 10 },
+      maximum_stages: 1,
+      status: 'running',
+      result_snapshot: {
+        internalProgress: {
+          completedInternalStages: 11,
+          maximumInternalStages: 10,
+        },
+      },
+    };
+    expect(internalProgressForJobRow(malformed)).toBeNull();
+    expect(internalProgressForJobRow({
+      ...malformed,
+      input_snapshot: { engineContractVersion: '7C-1.4.0', ntTest: 10 },
+    })).toBeNull();
+  });
+
+  it('traces assembled stages once per solve without mutating methods', () => {
+    const wrapper = path.resolve(
+      'server/ecr-pre-pilot/predictive-nt-seven-component-v1-5-progress/worker.py',
+    );
+    const output = execFileSync('python3.12', ['-c', `
+import importlib.util, json, sys
+spec = importlib.util.spec_from_file_location("progress_wrapper_test", ${JSON.stringify(wrapper)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+class Fake:
+    def solve_cascade(self, count, fail=False):
+        stages = []
+        for index in range(count):
+            self.unrelated_helper(index)
+            stages.append({"stage": index + 1})
+        if fail:
+            raise RuntimeError("expected test failure")
+        return stages
+    def unrelated_helper(self, index):
+        return index * 2
+fake = Fake()
+events = []
+original_method = fake.solve_cascade
+prior_trace = sys.gettrace()
+assert module.observe_stage_assembly(
+    fake.solve_cascade, 3, lambda done, maximum: events.append([done, maximum]), 3
+) == [{"stage": 1}, {"stage": 2}, {"stage": 3}]
+assert fake.solve_cascade.__func__ is original_method.__func__
+assert sys.gettrace() is prior_trace
+assert module.observe_stage_assembly(
+    fake.solve_cascade, 2, lambda done, maximum: events.append([done, maximum]), 2
+) == [{"stage": 1}, {"stage": 2}]
+try:
+    module.observe_stage_assembly(fake.solve_cascade, 2, lambda *_: None, 2, True)
+except RuntimeError:
+    pass
+else:
+    raise AssertionError("exception was not propagated")
+assert sys.gettrace() is prior_trace
+print(json.dumps(events))
+`], { encoding: 'utf8' });
+    expect(JSON.parse(output)).toEqual([[0, 3], [1, 3], [2, 3], [3, 3], [0, 2], [1, 2], [2, 2]]);
+  }, 30_000);
 
   it('keeps historical 7C-1.1 checkpoints exact-contract resumable only', () => {
     const current = derivePredictiveNtInputFromStage1(

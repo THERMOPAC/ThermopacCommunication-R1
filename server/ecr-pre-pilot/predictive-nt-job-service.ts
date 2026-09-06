@@ -108,6 +108,10 @@ type PredictiveNtJob = {
   completedAt: string | null;
   input: PredictiveNtJobInput;
   progress: { completedStageTrials: number; maximumStages: number };
+  internalProgress: {
+    completedInternalStages: number;
+    maximumInternalStages: number;
+  } | null;
   result: unknown;
   report: {
     available: boolean;
@@ -622,7 +626,7 @@ function workerScript(input?: PredictiveNtJobInput) {
   return path.join(
     runtimeRoot(input),
     input?.engineContractVersion === '7C-1.5.0'
-      ? 'server/ecr-pre-pilot/predictive-nt-seven-component-v1-5/worker.py'
+      ? 'server/ecr-pre-pilot/predictive-nt-seven-component-v1-5-progress/worker.py'
       : input?.engineContractVersion === '7C-1.4.0'
       ? 'server/ecr-pre-pilot/predictive-nt-seven-component-v1-4/worker.py'
       : input?.engineContractVersion === '7C-1.3.0'
@@ -1918,6 +1922,7 @@ function mapJob(row: any): PredictiveNtJob {
       completedStageTrials: Number(row.completed_trials),
       maximumStages: Number(row.maximum_stages),
     },
+    internalProgress: internalProgressForJobRow(row),
     result,
     report: {
       available: Boolean(row.report_generated_at && row.report_filename),
@@ -1931,6 +1936,34 @@ function mapJob(row: any): PredictiveNtJob {
         : null,
     },
     error: row.error,
+  };
+}
+
+export function internalProgressForJobRow(row: any): PredictiveNtJob['internalProgress'] {
+  const ntTest = Number(row?.input_snapshot?.ntTest);
+  if (
+    row?.input_snapshot?.engineContractVersion !== '7C-1.5.0'
+    || !Number.isInteger(ntTest) || ntTest < 1 || ntTest > 10
+    || Number(row?.maximum_stages) !== 1
+  ) return null;
+  const persisted = row?.result_snapshot?.internalProgress;
+  if (persisted !== undefined) {
+    const completed = persisted?.completedInternalStages;
+    const maximum = persisted?.maximumInternalStages;
+    if (
+      Number.isInteger(completed) && Number.isInteger(maximum)
+      && maximum === ntTest && completed >= 0 && completed <= maximum
+    ) {
+      return {
+        completedInternalStages: completed,
+        maximumInternalStages: maximum,
+      };
+    }
+    return null;
+  }
+  return {
+    completedInternalStages: row?.status === 'completed' ? ntTest : 0,
+    maximumInternalStages: ntTest,
   };
 }
 
@@ -2012,6 +2045,54 @@ async function updateProgress(jobId: string, claimToken: string, completed: numb
     [jobId, claimToken, completed, maximum, LEASE_MS],
   );
   if (updated.rows[0]) await recordHistory(pool, updated.rows[0], { event: 'progress' });
+}
+
+async function persistInternalProgress(
+  jobId: string,
+  claimToken: string,
+  completed: number,
+  maximum: number,
+) {
+  if (
+    !Number.isInteger(completed) || !Number.isInteger(maximum)
+    || maximum < 1 || maximum > 10 || completed < 0 || completed > maximum
+  ) throw new Error('PREDICTIVE_NT_INTERNAL_PROGRESS_BOUNDS_INVALID');
+  const updated = await pool.query(
+    `UPDATE ecr_pre_pilot_predictive_nt_jobs
+        SET result_snapshot = jsonb_set(
+              COALESCE(result_snapshot, '{}'::jsonb),
+              '{internalProgress}',
+              jsonb_build_object(
+                'completedInternalStages',
+                GREATEST(
+                  CASE
+                    WHEN jsonb_typeof(result_snapshot->'internalProgress'->'completedInternalStages') = 'number'
+                      AND (result_snapshot->'internalProgress'->>'completedInternalStages') ~ '^[0-9]+$'
+                    THEN (result_snapshot->'internalProgress'->>'completedInternalStages')::int
+                    ELSE 0
+                  END,
+                  $3::int
+                ),
+                'maximumInternalStages', $4::int
+              ),
+              true
+            ),
+            lease_expires_at = NOW() + ($5 * INTERVAL '1 millisecond'),
+            updated_at = NOW()
+      WHERE id = $1 AND status = 'running' AND claim_token = $2
+        AND input_snapshot->>'engineContractVersion' = '7C-1.5.0'
+        AND (input_snapshot->>'ntTest') ~ '^[0-9]+$'
+        AND (input_snapshot->>'ntTest')::int = $4
+        AND maximum_stages = 1
+      RETURNING *`,
+    [jobId, claimToken, completed, maximum, LEASE_MS],
+  );
+  if (!updated.rows[0]) throw new Error('PREDICTIVE_NT_INTERNAL_PROGRESS_STALE_OWNER');
+  await recordHistory(pool, updated.rows[0], {
+    event: 'internal_stage_progress',
+    completedInternalStages: completed,
+    maximumInternalStages: maximum,
+  });
 }
 
 function canonicalJson(value: unknown): string {
@@ -2116,6 +2197,7 @@ async function persistTrialCheckpoint(
     const existingPayloadCanonicals = Array.isArray(existingResult.checkpoint?.payloadCanonicals)
       ? [...existingResult.checkpoint.payloadCanonicals]
       : [];
+    const existingInternalProgress = internalProgressForJobRow(row);
     const completed = Number(row.completed_trials);
     const singleTestStage = Number(row.input_snapshot?.ntTest);
     const checkpointOrdinal = Number.isInteger(singleTestStage) ? 1 : stageCount;
@@ -2143,6 +2225,7 @@ async function persistTrialCheckpoint(
       releaseEligible: false,
       calibrationRequired: true,
       trials: existingTrials,
+      ...(existingInternalProgress ? { internalProgress: existingInternalProgress } : {}),
       checkpoint: {
         protocol: expectedProtocol,
         engineContractVersion: sevenComponent
@@ -2369,6 +2452,9 @@ async function finishJob(
           ? (result as any).trials
           : checkpointTrials,
         checkpoint: current.result_snapshot?.checkpoint,
+        ...(internalProgressForJobRow(current)
+          ? { internalProgress: internalProgressForJobRow(current) }
+          : {}),
       }
       : current.result_snapshot;
     try {
@@ -2571,6 +2657,24 @@ function execute(job: PredictiveNtJob, claimToken: string) {
               }
             }
           })
+          .catch((error) => {
+            checkpointFailure = error instanceof Error ? error : new Error(String(error));
+            child.kill('SIGKILL');
+          });
+        continue;
+      }
+      const internalProgress =
+        /^PREDICTIVE_NT_INTERNAL_PROGRESS\s+(\d+)\s+(\d+)$/.exec(line);
+      if (internalProgress) {
+        const completed = Number(internalProgress[1]);
+        const maximum = Number(internalProgress[2]);
+        checkpointQueue = checkpointQueue
+          .then(() => persistInternalProgress(
+            job.id,
+            claimToken,
+            completed,
+            maximum,
+          ))
           .catch((error) => {
             checkpointFailure = error instanceof Error ? error : new Error(String(error));
             child.kill('SIGKILL');
