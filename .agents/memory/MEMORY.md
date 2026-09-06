@@ -113,4 +113,5 @@
 - [Project 236 deformed-drop gate](project236-deformed-drop-gate.md) — persist extrapolated trials for audit only; show/select only CALCULATED_IN_RANGE results.
 - [ECR Pre-Pilot stage ownership](ecr-prepilot-stage-ownership.md) — Inputs → thermodynamics → hydrodynamics → future mass transfer; downstream stages consume upstream authority without duplicating ownership.
 - [ECR mass-transfer admission](ecr-mass-transfer-admission.md) — use valid Stage-2 N_T else 7; extrapolation still calculates; Stage 3 owns operating holdup; final design is deterministic.
+- [ECR Job-A predictive closure](ecr-job-a-predictive-closure.md) — Laitinen K&H base route plus exact-identity Joback volumes closes 7C diffusivity/film inputs without inventing Kühni C2.
 - [Stage-2 local adapter authority](ecr-stage2-local-adapter-authority.md) — reuse the frozen 7C engine in a separate artifact; calculated duty is admitted only from a validated owned DB job.

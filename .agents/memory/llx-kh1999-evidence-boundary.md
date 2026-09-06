@@ -32,10 +32,9 @@ Sh_d and its descendants; missing partition approval blocks only the overall,
 Koa, driving-force, and rate layer. Never substitute missing inputs or broaden
 these scopes silently.
 
-For the new seven-component Stage-4 path, the existing secondary transcription
-is evidence only, not a frozen implementation basis. The accessible primary
-publisher record does not expose the equations. Secondary sources conflict on
-the continuous-side Reynolds exponent, do not establish a Kühni dispersed-side
-\(C_2\), and do not primary-verify the Kühni \(\psi\) definition. Job-A remains
-blocked until those exact symbols and regime rules are verified without
-inference.
+For the new seven-component Stage-4 path, do not use this column-enhanced local
+kernel. Laitinen et al. 2019 provides an equation-level actual-Kühni
+base/single-drop route with the continuous exponent and dispersed density term
+resolved. That route omits both \(C_1\psi\) and \(C_2\psi\), so the missing
+Kühni \(C_2\) is an optional future enhancement rather than a pre-pilot blocker.
+The legacy preliminary column-enhanced boundary above remains unchanged.
