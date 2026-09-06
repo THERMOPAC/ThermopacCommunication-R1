@@ -24,3 +24,9 @@ volumes without fabricating a \(C_2\) or substituting representative identities.
 **How to apply:** Keep the production implementation separate from the legacy
 five-component BVP. Consume frozen Stage-3 hydrodynamics rather than
 recalculating power, drop size, holdup, or slip velocity in Stage 4.
+
+Job B must not start immediately after implementation. First produce and pass a
+Job-A implementation verification report covering numerical replay for all
+seven components in both phases, dimensional closure, deterministic
+hashes/provenance, and affirmative proof that no legacy five-component
+calculation path was invoked.
