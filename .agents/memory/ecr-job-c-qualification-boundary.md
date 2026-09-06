@@ -31,3 +31,20 @@ zero-transfer baseline does not establish nonzero-transfer viability. If
 continuation, exact local replay, positivity, recovery, or balance gates fail,
 persist a scientific `blocked` outcome with diagnostics and emit no height,
 efficiency, final RPM, Job D, sulfur-removal claim, or release eligibility.
+
+The current nominal formulation is a square monolithic system over the FV mesh:
+two phases × seven components × seven cells for local flows, plus thirteen
+unchanged interface unknowns per cell. The equation set is the corresponding
+original conservative FV balances plus frozen Job-B interface equations.
+
+**Why:** Nested interface/transport iteration hid the coupled residual structure.
+The monolithic benchmark showed that log-flow coordinates also lock components
+that start absent from one phase because their transformed sensitivity vanishes
+near zero.
+
+**How to apply:** Use directly bounded positive molar-flow coordinates for
+components that may enter an initially absent phase; retain simplex-safe
+interface coordinates. Numerical predictors, scaling, damping, sparsity, and
+continuation are initialization/solution aids only. Judge acceptance on the
+unmodified equations, and report ranked equation blocks if the bounded solve
+does not converge.

@@ -32,208 +32,305 @@ class JobCBlocked(RuntimeError):
         super().__init__(code)
         self.code, self.diagnostics = code, diagnostics
 
-def candidate_interface(r, c, d, context, cache, budget, solver):
-    full={"compartment":context["compartment"],
-          "continuous":[format(float(x),".17g") for x in c],
-          "dispersed":[format(float(x),".17g") for x in d]}
-    key=hashlib.sha256(canonical(full).encode()).hexdigest()
-    if (time.monotonic()-budget["started"]) > budget["maximumSeconds"]:
-        raise JobCBlocked("JOB_C_RUNTIME_BUDGET_EXHAUSTED",
-                          {**context,"interfaceCalls":budget["calls"],
-                           "maximumCalls":budget["maximumCalls"],
-                           "maximumSeconds":budget["maximumSeconds"],
-                           "compositionHash":key})
-    if key in cache: return cache[key]
-    if budget["calls"] >= budget["maximumCalls"]:
-        raise JobCBlocked("JOB_C_INTERFACE_CALL_BUDGET_EXHAUSTED",
-                          {**context,"interfaceCalls":budget["calls"],
-                           "maximumCalls":budget["maximumCalls"],
-                           "maximumSeconds":budget["maximumSeconds"],
-                           "compositionHash":key})
-    budget["calls"]+=1
-    try: out=solver.solve(c,d)
-    except CandidateFailure as error:
-        raise JobCBlocked("JOB_C_CANDIDATE_INTERFACE_FAILED",
-          {**context,"xc":list(c),"xd":list(d),"error":str(error),"compositionHash":key})
-    nc=[float(x) for x in out["continuousComponentFluxMolM2S"]]
-    answer=(nc,{"candidateOnly":True,"qualification":"UNQUALIFIED_NO_STABILITY_CLAIM",
-               "candidateResultSha256":digest(out),"candidate":out})
-    cache[key]=answer
-    return answer
-
 def case(r, name, dc, dd, solvers):
     m=r["compartments"]; A=math.pi*r["columnDiameterM"]**2/4
     feedc=[float(x) for x in r["continuousFeedMolS"]]; feedd=[float(x) for x in r["dispersedFeedMolS"]]
     if m<1 or min(sum(feedc),sum(feedd))<=0 or any(len(x)!=7 for x in [feedc,feedd,r["kc"],r["kd"]]):
         raise ValueError("JOB_C_INVALID_GOVERNED_FLOW_INPUT")
-    cache={}; budget={"calls":0,"maximumCalls":1200,"started":time.monotonic(),"maximumSeconds":600}
+    budget={"calls":0,"residualCalls":0,"started":time.monotonic(),
+            "maximumSeconds":720}
     accepted_by_height={}
 
-    def evaluate(h, lam, state, iteration):
-        c,d=state; dz=h/m; av=6*r["operatingHoldup"]/r["d32M"]
-        cc=[[x/sum(row)*r["continuousTotalConcentrationMolM3"] for x in row] for row in c]
-        cd=[[x/sum(row)*r["dispersedTotalConcentrationMolM3"] for x in row] for row in d]
-        fc=[[0.0]*7 for _ in range(m+1)]; fd=[[0.0]*7 for _ in range(m+1)]
-        fc[0]=feedc[:]; fd[m]=[-x for x in feedd]
-        for j in range(1,m):
-            fc[j]=[(c[j-1][i]+c[j][i])/2-dc*A*(cc[j][i]-cc[j-1][i])/dz for i in range(7)]
-            fd[j]=[-(d[j-1][i]+d[j][i])/2-dd*A*(cd[j][i]-cd[j-1][i])/dz for i in range(7)]
-        fc[m]=c[m-1][:]; fd[0]=[-x for x in d[0]]
-        tr=[]; gates=[]
-        for j in range(m):
-            context={"compartment":j+1,"iteration":iteration,"heightM":h,"lambda":lam}
-            flux,gate=candidate_interface(r,[x/sum(c[j]) for x in c[j]],
-                                      [x/sum(d[j]) for x in d[j]],context,cache,budget,solvers[j])
-            tr.append([lam*x*av*A*dz for x in flux]); gates.append(gate)
-        rc=[[fc[j][i]-fc[j+1][i]-tr[j][i] for i in range(7)] for j in range(m)]
-        rd=[[fd[j][i]-fd[j+1][i]+tr[j][i] for i in range(7)] for j in range(m)]
-        scale_floor=(sum(feedc)+sum(feedd))*1e-7
-        scale=[max(feedc[i]+feedd[i],scale_floor) for i in range(7)]
-        raw=max(abs(x) for row in rc+rd for x in row)
-        scaled=max(abs(rc[j][i]/scale[i]) for j in range(m) for i in range(7))
-        scaled=max(scaled,max(abs(rd[j][i]/scale[i]) for j in range(m) for i in range(7)))
-        return {"c":c,"d":d,"cc":cc,"cd":cd,"fc":fc,"fd":fd,"tr":tr,"gates":gates,
-                "rc":rc,"rd":rd,"raw":raw,"scaled":scaled}
-
     def solve_height(h, warm=None):
+        """Solve all 98 FV and 91 frozen Job-B equations simultaneously."""
         np,scipy=solvers[0].np,solvers[0].scipy
-        state=([[x for x in feedc] for _ in range(m)],[[x for x in feedd] for _ in range(m)]) if warm is None else (
-            [row[:] for row in warm[0]],[row[:] for row in warm[1]])
+        if m != 7:
+            raise JobCBlocked("JOB_C_REQUIRES_SEVEN_NUMERICAL_FV_CELLS",
+              {"numericalCells":m,"qualification":"NUMERICAL_FV_DISCRETIZATION_NOT_PHYSICAL_STAGE_COUNT"})
         total_flow=sum(feedc)+sum(feedd)
-        balance_tolerance=1e-7
-        scale=[max(feedc[i]+feedd[i],total_flow*balance_tolerance) for i in range(7)]
-        epsilon=max(total_flow*balance_tolerance*1e-6,1e-20)
-        def encode(s):
-            return np.log(np.maximum(np.asarray(s[0]+s[1]).reshape(-1),epsilon))
-        def decode(y):
-            upper=math.log(max(total_flow*10,epsilon*10))
-            rows=np.exp(np.clip(y,math.log(epsilon),upper)).reshape(2*m,7).tolist()
-            return rows[:m],rows[m:]
-        def frozen_residual(y,tr):
-            c,d=decode(y); dz=h/m
-            cc=[[x/sum(row)*r["continuousTotalConcentrationMolM3"] for x in row] for row in c]
-            cd=[[x/sum(row)*r["dispersedTotalConcentrationMolM3"] for x in row] for row in d]
-            fc=[feedc[:]]+[[0.0]*7 for _ in range(m)]
-            fd=[[0.0]*7 for _ in range(m)]+[[-x for x in feedd]]
-            for j in range(1,m):
-                fc[j]=[(c[j-1][i]+c[j][i])/2-dc*A*(cc[j][i]-cc[j-1][i])/dz for i in range(7)]
-                fd[j]=[-(d[j-1][i]+d[j][i])/2-dd*A*(cd[j][i]-cd[j-1][i])/dz for i in range(7)]
-            fc[m]=c[m-1][:]; fd[0]=[-x for x in d[0]]
-            values=[]
-            for j in range(m):
-                values.extend((fc[j][i]-fc[j+1][i]-tr[j][i])/scale[i] for i in range(7))
-                values.extend((fd[j][i]-fd[j+1][i]+tr[j][i])/scale[i] for i in range(7))
-            return np.asarray(values)
-        # Exact lambda-zero transport baseline: no constitutive source is
-        # evaluated or hidden in this acceptance.
-        zero=[[0.0]*7 for _ in range(m)]
-        baseline_fit=scipy.optimize.least_squares(frozen_residual,encode(state),args=(zero,),
-          method="trf",jac="2-point",x_scale="jac",max_nfev=80,
-          xtol=1e-11,ftol=1e-11,gtol=1e-11)
-        state=decode(baseline_fit.x)
-        baseline_vector=frozen_residual(baseline_fit.x,zero)
-        baseline_raw=max(abs(baseline_vector[k])*scale[(k%14)%7] for k in range(len(baseline_vector)))
-        baseline_scaled=float(np.max(np.abs(baseline_vector)))
-        if not baseline_fit.success or baseline_raw>balance_tolerance or baseline_scaled>balance_tolerance:
-            raise JobCBlocked("JOB_C_LAMBDA_ZERO_BASELINE_FAILED",
-              {"heightM":h,"optimizerStatus":int(baseline_fit.status),
-               "functionEvaluations":int(baseline_fit.nfev),
-               "rawResidualMolS":baseline_raw,"scaledResidual":baseline_scaled})
-        lam=0.0; step=.01; minimum_step=.00125
-        history=[{"lambda":0.0,"rawResidualMolS":baseline_raw,
-          "scaledResidual":baseline_scaled,"optimizerStatus":int(baseline_fit.status),
-          "functionEvaluations":int(baseline_fit.nfev)}]
-        first_failure=None
-        while lam < 1-1e-15:
-            target=min(1.0,lam+step)
-            checkpoint=([x[:] for x in state[0]],[x[:] for x in state[1]])
-            warm_checkpoint=[None if s.warm is None else s.warm.copy() for s in solvers]
+        scale=np.asarray([max(feedc[i]+feedd[i],total_flow*1e-7) for i in range(7)])
+        epsilon=max(total_flow*1e-13,1e-20)
+        upper_flow=max(total_flow*10,epsilon*10)
+        dz=h/m; av=6*r["operatingHoldup"]/r["d32M"]
+
+        def initial():
+            if warm is not None:
+                return np.asarray(warm).copy()
+            # At lambda zero the exact conservative FV state is constant.
+            # Solve its one repeated interface state once for initialization;
+            # this solve is never called from the monolithic residual.
+            xc=np.asarray(feedc)/sum(feedc); xd=np.asarray(feedd)/sum(feedd)
             try:
-                ev=evaluate(h,target,state,0); ev["height"]=h
-                def coupled(logflows):
-                    dynamic=decode(logflows)
-                    root_warm=[None if s.warm is None else s.warm.copy() for s in solvers]
+                seed=solvers[0].solve(xc,xd)
+            except CandidateFailure as error:
+                raise JobCBlocked("JOB_C_LAMBDA_ZERO_INTERFACE_INITIALIZATION_FAILED",
+                  {"error":str(error),"numericalCellTemplate":"GLOBAL_INLET"})
+            interface_u=np.asarray(seed["unknowns"])
+            seed_residual=solvers[0].residual(interface_u,xc,xd)
+            if float(np.max(np.abs(seed_residual)))>1e-7:
+                raise JobCBlocked("JOB_C_LAMBDA_ZERO_INTERFACE_INITIALIZATION_FAILED",
+                  {"maximumOriginalJobBEquationResidual":
+                   float(np.max(np.abs(seed_residual)))})
+            flows=np.asarray([[feedc]*m,[feedd]*m],dtype=float).reshape(-1)
+            return np.r_[np.maximum(flows,epsilon),np.tile(interface_u,m)]
+
+        def unpack(x):
+            # Direct bound-constrained molar-flow coordinates avoid the
+            # zero-feed dF/dlog(F)=F lock while preserving strict positivity.
+            flows=x[:14*m].reshape(2,m,7)
+            return flows[0],flows[1],x[14*m:].reshape(m,13)
+
+        def raw_evaluate(x,lam):
+            c,d,u=unpack(x)
+            cc=c/c.sum(axis=1)[:,None]*r["continuousTotalConcentrationMolM3"]
+            cd=d/d.sum(axis=1)[:,None]*r["dispersedTotalConcentrationMolM3"]
+            fc=np.zeros((m+1,7)); fd=np.zeros((m+1,7))
+            fc[0]=feedc; fd[m]=-np.asarray(feedd)
+            for j in range(1,m):
+                fc[j]=(c[j-1]+c[j])/2-dc*A*(cc[j]-cc[j-1])/dz
+                fd[j]=-(d[j-1]+d[j])/2-dd*A*(cd[j]-cd[j-1])/dz
+            fc[m]=c[m-1]; fd[0]=-d[0]
+            interface=[]; nc=[]; details=[]
+            for j in range(m):
+                values=solvers[j].equations(u[j],c[j]/c[j].sum(),d[j]/d[j].sum())
+                interface.extend(values[0]); nc.append(values[4]); details.append(values)
+            nc=np.asarray(nc)
+            tr=lam*nc*av*A*dz
+            rc=fc[:-1]-fc[1:]-tr
+            rd=fd[:-1]-fd[1:]+tr
+            fv=np.asarray([v for j in range(m) for v in np.r_[rc[j],rd[j]]])
+            return {"c":c,"d":d,"u":u,"fc":fc,"fd":fd,"tr":tr,"rc":rc,"rd":rd,
+                    "fv":fv,"interface":np.asarray(interface),"details":details}
+
+        def frozen_flow_evaluate(flow_vector,lam,nc):
+            c,d=flow_vector.reshape(2,m,7)
+            cc=c/c.sum(axis=1)[:,None]*r["continuousTotalConcentrationMolM3"]
+            cd=d/d.sum(axis=1)[:,None]*r["dispersedTotalConcentrationMolM3"]
+            fc=np.zeros((m+1,7)); fd=np.zeros((m+1,7))
+            fc[0]=feedc; fd[m]=-np.asarray(feedd)
+            for j in range(1,m):
+                fc[j]=(c[j-1]+c[j])/2-dc*A*(cc[j]-cc[j-1])/dz
+                fd[j]=-(d[j-1]+d[j])/2-dd*A*(cd[j]-cd[j-1])/dz
+            fc[m]=c[m-1]; fd[0]=-d[0]
+            transfer=lam*np.asarray(nc)*av*A*dz
+            rc=fc[:-1]-fc[1:]-transfer
+            rd=fd[:-1]-fd[1:]+transfer
+            return np.asarray([v for j in range(m) for v in np.r_[rc[j],rd[j]]])
+
+        def residual(x,lam):
+            budget["residualCalls"]+=1
+            if time.monotonic()-budget["started"] > budget["maximumSeconds"]:
+                raise TimeoutError("JOB_C_MONOLITHIC_INTERNAL_RUNTIME_BUDGET")
+            ev=raw_evaluate(x,lam)
+            scaled_fv=np.asarray([v/scale[i%7] for i,v in enumerate(ev["fv"])])
+            return np.r_[scaled_fv,ev["interface"]]
+
+        # Explicit block sparsity: FV rows see adjacent phase flow blocks and
+        # their local interface; interface rows see local bulk and interface.
+        sparsity=scipy.sparse.lil_matrix((27*m,27*m),dtype=int)
+        for j in range(m):
+            neighboring={j}
+            if j>0: neighboring.add(j-1)
+            if j<m-1: neighboring.add(j+1)
+            for row in range(14*j,14*j+7):
+                for k in neighboring:
+                    sparsity[row,7*k:7*k+7]=1
+                sparsity[row,14*m+13*j:14*m+13*j+13]=1
+            for row in range(14*j+7,14*j+14):
+                for k in neighboring:
+                    sparsity[row,7*m+7*k:7*m+7*k+7]=1
+                sparsity[row,14*m+13*j:14*m+13*j+13]=1
+            for row in range(14*m+13*j,14*m+13*j+13):
+                sparsity[row,7*j:7*j+7]=1
+                sparsity[row,7*m+7*j:7*m+7*j+7]=1
+                sparsity[row,14*m+13*j:14*m+13*j+13]=1
+        sparsity=sparsity.tocsr()
+        flow_sparsity=sparsity[:14*m,:14*m]
+        lower=np.r_[np.full(14*m,epsilon),np.full(13*m,-35.0)]
+        upper=np.r_[np.full(14*m,upper_flow),np.full(13*m,35.0)]
+        variable_scale=np.r_[np.tile(scale,2*m),np.ones(13*m)]
+        flow_scale=np.tile(scale,2*m)
+
+        def diagnostic_rows(ev):
+            rows=[]
+            for j in range(m):
+                for phase,values in (("continuousFV",ev["rc"][j]),("dispersedFV",ev["rd"][j])):
+                    rows.extend({"numericalCell":j+1,"type":phase,"component":COMPONENTS[i],
+                                 "rawValue":float(values[i])} for i in range(7))
+                eq,_,_,_,_,_,delta=ev["details"][j]
+                rows.extend({"numericalCell":j+1,"type":"isoactivity","component":COMPONENTS[i],
+                             "rawValue":float(eq[i])} for i in range(7))
+                rows.extend({"numericalCell":j+1,"type":"filmFluxEquality","component":COMPONENTS[i],
+                             "rawValue":float(delta[i])} for i in range(6))
+            return sorted(rows,key=lambda row:abs(row["rawValue"]),reverse=True)
+
+        def diagnostics(ev):
+            return diagnostic_rows(ev)[:20]
+
+        def dominant_blocks(ev):
+            rows=diagnostic_rows(ev); blocks={}
+            for row in rows:
+                key=(row["numericalCell"],row["type"])
+                if key not in blocks or abs(row["rawValue"])>abs(blocks[key]["rawValue"]):
+                    blocks[key]=row
+            return sorted(blocks.values(),key=lambda row:abs(row["rawValue"]),reverse=True)
+
+        x=initial(); history=[]; started=time.monotonic()
+        # Lambda zero provides the exact no-transfer FV baseline while retaining
+        # all 91 interface equations; every subsequent call remains 189 square.
+        for lam in (0.0,.00125,.0025,.005,.01,.025,.05,.1,.25,.5,.75,1.0):
+            progress(f"monolithic lambda {lam:g}")
+            calls_before=budget["residualCalls"]
+            predictor=None
+            if lam>0.0:
+                predictor_started=time.monotonic()
+                previous=raw_evaluate(x,lam)
+                frozen_nc=np.asarray([values[4] for values in previous["details"]])
+                def frozen_scaled(flow_vector):
+                    values=frozen_flow_evaluate(flow_vector,lam,frozen_nc)
+                    return np.asarray([v/scale[i%7] for i,v in enumerate(values)])
+                predictor_fit=scipy.optimize.least_squares(frozen_scaled,x[:14*m],
+                  bounds=(lower[:14*m],upper[:14*m]),method="trf",jac="2-point",
+                  jac_sparsity=flow_sparsity,x_scale=flow_scale,max_nfev=80,
+                  xtol=1e-11,ftol=1e-11,gtol=1e-11)
+                predicted_flows=predictor_fit.x
+                frozen_fv=frozen_flow_evaluate(predicted_flows,lam,frozen_nc)
+                before_refresh=np.r_[predicted_flows,x[14*m:]]
+                before_ev=raw_evaluate(before_refresh,lam)
+                refreshed=[]
+                for j in range(m):
+                    c,d=predicted_flows.reshape(2,m,7)[:,j,:]
+                    solvers[j].warm=x[14*m+13*j:14*m+13*j+13].copy()
                     try:
-                        current=evaluate(h,target,dynamic,-1)
-                    except JobCBlocked:
-                        return np.full(14*m,1e3)
-                    finally:
-                        for root_solver,root_state in zip(solvers,root_warm):
-                            root_solver.warm=None if root_state is None else root_state.copy()
-                    values=[]
-                    for j in range(m):
-                        values.extend(current["rc"][j][i]/scale[i] for i in range(7))
-                        values.extend(current["rd"][j][i]/scale[i] for i in range(7))
-                    return np.asarray(values)
-                coupled_fit=scipy.optimize.root(coupled,encode(state),method="anderson",
-                  options={"maxiter":8,"fatol":1e-8,"line_search":None})
-                coupled_state=decode(coupled_fit.x)
-                old_merit=sum((x/scale[i])**2 for row in ev["rc"]+ev["rd"]
-                              for i,x in enumerate(row))
-                try:
-                    coupled_ev=evaluate(h,target,coupled_state,0); coupled_ev["height"]=h
-                    coupled_merit=sum((x/scale[i])**2 for row in coupled_ev["rc"]+coupled_ev["rd"]
-                                      for i,x in enumerate(row))
-                    if coupled_merit<old_merit:
-                        state,ev=coupled_state,coupled_ev
-                except JobCBlocked:
-                    pass
-                for iteration in range(6):
-                    if ev["raw"]<=1e-7 and ev["scaled"]<=1e-7: break
-                    fit=scipy.optimize.least_squares(frozen_residual,encode(state),args=(ev["tr"],),
-                      method="trf",jac="2-point",x_scale="jac",max_nfev=60,
-                      xtol=1e-10,ftol=1e-10,gtol=1e-10)
-                    old_y,new_y=encode(state),fit.x
-                    old_merit=sum((x/scale[i])**2 for row in ev["rc"]+ev["rd"]
-                                  for i,x in enumerate(row))
-                    accepted=False; damping=1.0
-                    while damping>=1/128:
-                        trial=decode(old_y+damping*(new_y-old_y))
-                        tested=evaluate(h,target,trial,iteration+1); tested["height"]=h
-                        merit=sum((x/scale[i])**2 for row in tested["rc"]+tested["rd"]
-                                  for i,x in enumerate(row))
-                        if merit<old_merit:
-                            state,ev,accepted=trial,tested,True; break
-                        damping/=2
-                    if not accepted: raise JobCBlocked("JOB_C_BACKTRACKING_EXHAUSTED",
-                        {"heightM":h,"lambda":target,"iteration":iteration,
-                         "rawResidualMolS":ev["raw"],"scaledResidual":ev["scaled"],
-                         "transportOptimizerStatus":int(fit.status),
-                         "transportFunctionEvaluations":int(fit.nfev)})
-                if ev["raw"]>1e-7 or ev["scaled"]>1e-7:
-                    raise JobCBlocked("JOB_C_HOMOTOPY_RESIDUAL_NOT_CONVERGED",
-                        {"heightM":h,"lambda":target,"rawResidualMolS":ev["raw"],
-                         "scaledResidual":ev["scaled"]})
-                lam=target; history.append({"lambda":lam,"step":step,
-                  "rawResidualMolS":ev["raw"],"scaledResidual":ev["scaled"],
-                  "coupledRootSuccess":bool(coupled_fit.success),
-                  "coupledRootEvaluations":int(coupled_fit.nfev),
-                  "candidateWarmFallbackCount":sum(s.fallback_count for s in solvers)})
-                if step<.08: step=min(.08,step*2)
-            except JobCBlocked as error:
-                if first_failure is None:
-                    first_failure={"code":error.code,"diagnostics":error.diagnostics}
-                state=checkpoint; step/=2
-                for solver,warm_state in zip(solvers,warm_checkpoint):
-                    solver.warm=None if warm_state is None else warm_state.copy()
-                if step<minimum_step:
-                    raise JobCBlocked("JOB_C_HOMOTOPY_MINIMUM_STEP_EXHAUSTED",
-                      {"heightM":h,"lastAcceptedLambda":lam,"attemptedLambda":target,
-                       "minimumStep":minimum_step,"firstExhaustedGate":
-                       first_failure,"lastAttemptGate":
-                       {"code":error.code,"diagnostics":error.diagnostics},
-                       "lambdaZeroBaseline":history[0],
-                       "interfaceCalls":budget["calls"]})
-        final=evaluate(h,1.0,state,25); final["height"]=h
-        global_balance=[feedc[i]+feedd[i]-final["fc"][m][i]+final["fd"][0][i] for i in range(7)]
-        positive=min(x for phase in state for row in phase for x in row)
-        if max(final["raw"],max(abs(x) for x in global_balance))>1e-7 or positive<=0:
+                        local=solvers[j].solve(c/c.sum(),d/d.sum())
+                    except CandidateFailure as error:
+                        raise JobCBlocked("JOB_C_MONOLITHIC_PREDICTOR_INTERFACE_FAILED",
+                          {"heightM":h,"lambda":lam,"numericalCell":j+1,
+                           "error":str(error)})
+                    refreshed.extend(local["unknowns"])
+                x=np.r_[predicted_flows,refreshed]
+                after_ev=raw_evaluate(x,lam)
+                before_gate=max(max(float(np.max(np.abs(v[0][:7]))),
+                  float(np.max(np.abs(v[6])/solvers[j].scale)))
+                  for j,v in enumerate(before_ev["details"]))
+                after_gate=max(max(float(np.max(np.abs(v[0][:7]))),
+                  float(np.max(np.abs(v[6])/solvers[j].scale)))
+                  for j,v in enumerate(after_ev["details"]))
+                predictor={"functionEvaluations":int(predictor_fit.nfev),
+                  "optimizerSuccess":bool(predictor_fit.success),
+                  "frozenFluxRawFvResidualMolS":float(np.max(np.abs(frozen_fv))),
+                  "frozenFluxScaledFvResidual":float(np.max(np.abs(frozen_scaled(predicted_flows)))),
+                  "beforeInterfaceRefreshRawFvResidualMolS":
+                    float(np.max(np.abs(before_ev["fv"]))),
+                  "beforeInterfaceRefreshScaledFvResidual":float(np.max(np.abs(
+                    [v/scale[i%7] for i,v in enumerate(before_ev["fv"])]))),
+                  "afterInterfaceRefreshRawFvResidualMolS":
+                    float(np.max(np.abs(after_ev["fv"]))),
+                  "afterInterfaceRefreshScaledFvResidual":float(np.max(np.abs(
+                    [v/scale[i%7] for i,v in enumerate(after_ev["fv"])]))),
+                  "beforeInterfaceRefreshMaximumJobBGateResidual":before_gate,
+                  "afterInterfaceRefreshMaximumJobBGateResidual":after_gate,
+                  "runtimeSeconds":time.monotonic()-predictor_started,
+                  "qualification":"PREDICTOR_ONLY_NOT_ACCEPTANCE"}
+            ev=raw_evaluate(x,lam)
+            skipped=False
+            fit=None
+            try:
+                assembled=residual(x,lam)
+                starting_norm=float(np.linalg.norm(assembled))
+                skipped=(lam==0.0 and float(np.max(np.abs(assembled)))<=1e-7)
+                if not skipped:
+                    fit=scipy.optimize.least_squares(lambda q:residual(q,lam),x,
+                      bounds=(lower,upper),method="trf",jac="2-point",
+                      jac_sparsity=sparsity,x_scale=variable_scale,max_nfev=80,
+                      xtol=1e-11,ftol=1e-11,gtol=1e-11)
+                    x=fit.x
+                    first_norm=float(np.linalg.norm(residual(x,lam)))
+                    retry=(first_norm<starting_norm and fit.nfev>=80 and
+                      time.monotonic()-budget["started"]<budget["maximumSeconds"]-60)
+                    if retry:
+                        retry_fit=scipy.optimize.least_squares(lambda q:residual(q,lam),x,
+                          bounds=(lower,upper),method="trf",jac="2-point",
+                          jac_sparsity=sparsity,x_scale=variable_scale,max_nfev=160,
+                          xtol=1e-11,ftol=1e-11,gtol=1e-11)
+                        if np.linalg.norm(residual(retry_fit.x,lam))<first_norm:
+                            x=retry_fit.x
+                ev=raw_evaluate(x,lam)
+            except TimeoutError:
+                raise JobCBlocked("JOB_C_MONOLITHIC_LAMBDA_NONCONVERGENCE",
+                  {"heightM":h,"lambda":lam,"reason":"INTERNAL_RUNTIME_BUDGET",
+                   "maximumSeconds":budget["maximumSeconds"],
+                   "residualCallCount":budget["residualCalls"],
+                   "lambdaResidualCallCount":budget["residualCalls"]-calls_before,
+                   "dominantResidualRows":diagnostics(ev),
+                   "dominantResidualBlocks":dominant_blocks(ev),
+                   "boundedAttempts":history,
+                   "runtimeSeconds":time.monotonic()-budget["started"]})
+            fv_raw=float(np.max(np.abs(ev["fv"])))
+            fv_scaled=float(np.max(np.abs(
+              [v/scale[i%7] for i,v in enumerate(ev["fv"])])))
+            iface=float(np.max(np.abs(ev["interface"])))
+            interface_gate=max(max(float(np.max(np.abs(v[0][:7]))),
+              float(np.max(np.abs(v[6])/solvers[j].scale))) for j,v in enumerate(ev["details"]))
+            history.append({"lambda":lam,"unknownCount":27*m,"residualCount":27*m,
+              "jacobianNonzeros":int(sparsity.nnz),
+              "optimizerStatus":1 if skipped else int(fit.status),
+              "optimizerSuccess":True if skipped else bool(fit.success),
+              "functionEvaluations":0 if skipped else int(fit.nfev),
+              "residualCallCount":budget["residualCalls"]-calls_before,
+              "lambdaRuntimeSeconds":time.monotonic()-started-sum(
+                row["lambdaRuntimeSeconds"] for row in history),
+              "lambdaZeroAnalyticInitialization":skipped,
+              "predictor":predictor,
+              "retryFunctionEvaluations":0 if skipped or not retry else int(retry_fit.nfev),
+              "rawFvResidualMolS":fv_raw,"scaledFvResidual":fv_scaled,
+              "maximumOriginalJobBEquationResidual":iface,
+              "maximumOriginalJobBGateResidual":interface_gate})
+            if fv_raw>1e-7 or fv_scaled>1e-7 or interface_gate>1e-7:
+                raise JobCBlocked("JOB_C_MONOLITHIC_LAMBDA_NONCONVERGENCE",
+                  {"heightM":h,"lambda":lam,"unknownCount":27*m,"residualCount":27*m,
+                   "optimizerStatus":1 if skipped else int(fit.status),
+                   "functionEvaluations":0 if skipped else int(fit.nfev),
+                   "residualCallCount":budget["residualCalls"],
+                   "lambdaResidualCallCount":budget["residualCalls"]-calls_before,
+                   "rawFvResidualMolS":fv_raw,"scaledFvResidual":fv_scaled,
+                   "maximumOriginalJobBEquationResidual":iface,
+                   "maximumOriginalJobBGateResidual":interface_gate,
+                   "dominantResidualRows":diagnostics(ev),
+                   "dominantResidualBlocks":dominant_blocks(ev),
+                   "boundedAttempts":history,
+                   "runtimeSeconds":time.monotonic()-started})
+
+        c,d,u=unpack(x); gates=[]
+        for j,values in enumerate(ev["details"]):
+            eq,xi_c,xi_d,n,nc,nd,delta=values
+            gates.append({"candidateOnly":True,"qualification":"UNQUALIFIED_NO_STABILITY_CLAIM",
+              "candidate":{"version":CANDIDATE_VERSION,"unknowns":u[j].tolist(),
+                "interfaceContinuousMoleFractions":xi_c.tolist(),
+                "interfaceDispersedMoleFractions":xi_d.tolist(),
+                "continuousComponentFluxMolM2S":nc.tolist(),
+                "dispersedComponentFluxMolM2S":nd.tolist(),
+                "maximumEquationResidual":float(np.max(np.abs(eq))),
+                "maximumIsoactivityResidual":float(np.max(np.abs(eq[:7]))),
+                "maximumScaledFluxEqualityResidual":float(np.max(np.abs(delta)/solvers[j].scale)),
+                "qualification":"CANDIDATE_ONLY_NO_STABILITY_CLAIM"}})
+        global_balance=[feedc[i]+feedd[i]-ev["fc"][m][i]+ev["fd"][0][i] for i in range(7)]
+        positive=float(min(np.min(c),np.min(d)))
+        final={"height":h,"state":[c.tolist(),d.tolist()],"solution":x.tolist(),
+          "fc":ev["fc"].tolist(),"fd":ev["fd"].tolist(),"tr":ev["tr"].tolist(),
+          "rc":ev["rc"].tolist(),"rd":ev["rd"].tolist(),"gates":gates,
+          "raw":float(np.max(np.abs(ev["fv"]))),
+          "scaled":float(np.max(np.abs(
+            [v/scale[i%7] for i,v in enumerate(ev["fv"])]))),
+          "global":global_balance,"positive":positive,"homotopyHistory":history,
+          "interfaceCalls":0,"monolithicRuntimeSeconds":time.monotonic()-started,
+          "jacobianNonzeros":int(sparsity.nnz)}
+        if max(final["raw"],final["scaled"],max(abs(x) for x in global_balance))>1e-7 or positive<=0:
             raise JobCBlocked("JOB_C_FINAL_UNDAMPED_ACCEPTANCE_GATE_FAILED",
-                {"heightM":h,"rawResidualMolS":final["raw"],
-                 "globalBalanceResidualMolS":global_balance,"minimumFlowMolS":positive})
-        final.update({"state":state,"global":global_balance,"positive":positive,
-                      "homotopyHistory":history,"interfaceCalls":budget["calls"]})
-        accepted_by_height[h]=state
+              {"heightM":h,"rawResidualMolS":final["raw"],"scaledResidual":final["scaled"],
+               "globalBalanceResidualMolS":global_balance,"minimumFlowMolS":positive,
+               "dominantResidualRows":diagnostics(ev)})
+        accepted_by_height[h]=final["solution"]
         return final
 
     def recovery(ev):
@@ -242,10 +339,57 @@ def case(r, name, dc, dd, solvers):
         mw=[170.3348,120.194,142.1971,202.2506,405.58]
         return 100*sum(outlet[i]*mw[i] for i in range(5))/sum(incoming[i]*mw[i] for i in range(5))
 
+    def qualify_h2(ev):
+        """Fail closed at H=2 m before authorizing any height search."""
+        dz=2.0/m; area_per_cell=6*r["operatingHoldup"]/r["d32M"]*A*dz
+        flux_tolerance=1e-7/area_per_cell; evidence=[]
+        total_flow=sum(feedc)+sum(feedd)
+        fv_scale=[max(feedc[i]+feedd[i],total_flow*1e-7) for i in range(7)]
+        exact_rc=[]; exact_rd=[]
+        for j in range(m):
+            c,d=ev["state"][0][j],ev["state"][1][j]
+            q={"protocol":"ECR_JOB_B_INTERFACE_V1","operation":"SOLVE_INTERFACE",
+              "componentOrder":list(COMPONENTS),"T":r["temperatureK"],
+              "x_bulk_continuous":[x/sum(c) for x in c],
+              "x_bulk_dispersed":[x/sum(d) for x in d],"kc":r["kc"],"kd":r["kd"],
+              "CtC":r["continuousTotalConcentrationMolM3"],
+              "CtD":r["dispersedTotalConcentrationMolM3"],
+              "phase_config":r["phaseConfiguration"]}
+            out=job_b.solve(q)
+            if out.get("status")!="CALCULATED_PRELIMINARY_INTERFACE":
+                raise JobCBlocked("JOB_C_H2_EXACT_JOB_B_QUALIFICATION_FAILED",
+                  {"heightM":2.0,"lambda":1.0,"numericalCell":j+1,
+                   "jobBStatus":out.get("status"),"jobBError":out.get("error")})
+            nc=[float(x) for x in out["interface"]["continuousComponentFluxMolM2S"]]
+            candidate=ev["gates"][j]["candidate"]["continuousComponentFluxMolM2S"]
+            flux_error=max(abs(nc[i]-candidate[i]) for i in range(7))
+            rc=[ev["fc"][j][i]-ev["fc"][j+1][i]-nc[i]*area_per_cell for i in range(7)]
+            rd=[ev["fd"][j][i]-ev["fd"][j+1][i]+nc[i]*area_per_cell for i in range(7)]
+            exact_rc.extend(rc); exact_rd.extend(rd)
+            if flux_error>flux_tolerance:
+                raise JobCBlocked("JOB_C_H2_EXACT_JOB_B_QUALIFICATION_FAILED",
+                  {"heightM":2.0,"lambda":1.0,"numericalCell":j+1,
+                   "gate":"EXACT_FLUX_SUBSTITUTION","maximumFluxErrorMolM2S":flux_error,
+                   "toleranceMolM2S":flux_tolerance})
+            full={**job_b.identity(),**out}; full["resultHash"]=job_b.digest(full)
+            evidence.append({"numericalCell":j+1,"status":"QUALIFIED_UNCHANGED_JOB_B",
+              "fullResponseSha256":full["resultHash"],"maximumFluxErrorMolM2S":flux_error})
+        raw=max(abs(x) for x in exact_rc+exact_rd)
+        scaled=max(abs(x/fv_scale[i%7]) for i,x in enumerate(exact_rc+exact_rd))
+        if raw>1e-7 or scaled>1e-7:
+            raise JobCBlocked("JOB_C_H2_EXACT_FV_RECONSTRUCTION_FAILED",
+              {"heightM":2.0,"lambda":1.0,"rawFvResidualMolS":raw,
+               "scaledFvResidual":scaled})
+        return {"status":"H2_LAMBDA1_EXACT_JOB_B_7_OF_7_QUALIFIED",
+          "heightM":2.0,"lambda":1.0,"rawFvResidualMolS":raw,
+          "scaledFvResidual":scaled,"numericalCells":evidence,
+          "monolithicRuntimeSeconds":ev["monolithicRuntimeSeconds"]}
+
     progress("candidate 2m")
     low=solve_height(2.0)
+    h2_benchmark=qualify_h2(low)
     progress("candidate20m")
-    high=solve_height(20.0,low["state"])
+    high=solve_height(20.0,low["solution"])
     progress("height search")
     flo,fhi=recovery(low)-r["minimumRecoveryPct"],recovery(high)-r["minimumRecoveryPct"]
     if flo*fhi>0: return {"name":name,"status":"BLOCKED_NO_HEIGHT_BRACKET",
@@ -255,6 +399,8 @@ def case(r, name, dc, dd, solvers):
         "minimumRecoveryPct":r["minimumRecoveryPct"],
         "residualAt2M":flo,"residualAt20M":fhi,
         "bothBoundaryStatesPassedOriginalFvClosure":True,
+        "h2Benchmark":h2_benchmark,
+        "gridIndependenceStatus":"PENDING_NOT_IMPLEMENTED",
         "interfaceCalls":budget["calls"]}}
     lo,hi=2.,20.; selected=low
     for _ in range(10):
@@ -271,9 +417,9 @@ def case(r, name, dc, dd, solvers):
     selected=solve_height(final_height,accepted_by_height[nearest])
     if selected["height"] != final_height:
         raise RuntimeError("JOB_C_PROFILE_HEIGHT_INTERNAL_MISMATCH")
-    cells=[]
+    numerical_cells=[]
     for j in range(m):
-        cells.append({"compartment":j+1,"continuousLocalComponentMolarFlowMolS":selected["state"][0][j],
+        numerical_cells.append({"numericalCell":j+1,"continuousLocalComponentMolarFlowMolS":selected["state"][0][j],
           "dispersedLocalComponentMolarFlowMolS":selected["state"][1][j],
           "continuousInMolS":selected["fc"][j],"continuousOutMolS":selected["fc"][j+1],
           "dispersedInMolS":[-x for x in selected["fd"][j+1]],"dispersedOutMolS":[-x for x in selected["fd"][j]],
@@ -282,7 +428,10 @@ def case(r, name, dc, dd, solvers):
     out={"heightM":final_height,"profileSolvedHeightM":selected["height"],
          "profileStateSha256":digest([selected["state"][0],selected["state"][1]]),
          "recoveryPctNmpFreeRrboHydrocarbonMassBasis":recovery(selected),
-         "cells":cells,"globalComponentBalanceResidualMolS":selected["global"],
+          "numericalCells":numerical_cells,
+          "qualification":"NUMERICAL_FV_DISCRETIZATION_NOT_PHYSICAL_STAGE_COUNT",
+          "gridIndependenceStatus":"PENDING_NOT_IMPLEMENTED",
+          "globalComponentBalanceResidualMolS":selected["global"],
          "residualDiagnostics":{"maxCellResidualMolS":selected["raw"],
           "maxScaledCellResidual":selected["scaled"],
           "maxGlobalComponentBalanceResidualMolS":max(abs(x) for x in selected["global"]),
@@ -290,6 +439,7 @@ def case(r, name, dc, dd, solvers):
           "interfaceCalls":selected["interfaceCalls"],
           "runtimeSeconds":time.monotonic()-budget["started"]},
          "homotopyHistory":selected["homotopyHistory"],
+          "h2Benchmark":h2_benchmark,
          "boundaryConditions":{"continuousInlet":"DANCKWERTS_TOTAL_COMPONENT_FACE_FLUX_EQUALS_GOVERNED_INLET_MOL_S",
           "dispersedInlet":"DANCKWERTS_TOTAL_COMPONENT_FACE_FLUX_EQUALS_NEGATIVE_GOVERNED_INLET_MOL_S",
           "outlets":"ZERO_DISPERSIVE_GRADIENT"}}
@@ -298,7 +448,7 @@ def case(r, name, dc, dd, solvers):
 
 def exact_qualify(r, nominal):
     if nominal.get("status")!="CALCULATED_PRELIMINARY_SENSITIVITY": return nominal
-    selected=nominal["selected"]; cells=selected["cells"]; height=selected["heightM"]
+    selected=nominal["selected"]; cells=selected["numericalCells"]; height=selected["heightM"]
     if selected.get("profileSolvedHeightM") != height:
         raise JobCBlocked("BLOCKED_PROFILE_HEIGHT_MISMATCH",
           {"heightM":height,"profileSolvedHeightM":selected.get("profileSolvedHeightM")})
@@ -313,6 +463,16 @@ def exact_qualify(r, nominal):
     aV=6*r["operatingHoldup"]/r["d32M"]*A*dz
     balance_tolerance=1e-7
     flux_tolerance=balance_tolerance/aV
+    boundary_error=max(
+      max(abs(cells[0]["continuousInMolS"][i]-r["continuousFeedMolS"][i]) for i in range(7)),
+      max(abs(cells[-1]["dispersedInMolS"][i]-r["dispersedFeedMolS"][i]) for i in range(7)),
+      max(abs(cells[-1]["continuousOutMolS"][i]-
+              cells[-1]["continuousLocalComponentMolarFlowMolS"][i]) for i in range(7)),
+      max(abs(cells[0]["dispersedOutMolS"][i]-
+              cells[0]["dispersedLocalComponentMolarFlowMolS"][i]) for i in range(7)))
+    if boundary_error != 0.0:
+        raise JobCBlocked("BLOCKED_EXACT_BOUNDARY_CONDITIONS_FAILED",
+          {"maximumBoundaryConditionErrorMolS":boundary_error})
     exact=[]
     for exact_index,cell in enumerate(cells):
         progress(f"exact qualification {exact_index}/{len(cells)}",exact_index,len(cells))
@@ -329,7 +489,7 @@ def exact_qualify(r, nominal):
         full={**job_b.identity(),**out}; full["resultHash"]=job_b.digest(full)
         if out.get("status")!="CALCULATED_PRELIMINARY_INTERFACE":
             raise JobCBlocked("BLOCKED_EXACT_QUALIFICATION_FAILED",
-              {"compartment":cell["compartment"],"jobBStatus":out.get("status"),
+               {"numericalCell":cell["numericalCell"],"jobBStatus":out.get("status"),
                "jobBError":out.get("error"),"startDiagnostics":out.get("startDiagnostics"),
                "endpointAssessments":out.get("endpointAssessments"),
                "candidateRetainedForDiagnostics":cell["localInterface"]})
@@ -340,13 +500,13 @@ def exact_qualify(r, nominal):
         film=max(abs(nc[i]-nd[i]) for i in range(7))
         if error>flux_tolerance:
             raise JobCBlocked("BLOCKED_EXACT_QUALIFICATION_FAILED",
-              {"compartment":cell["compartment"],"gate":"CANDIDATE_EXACT_FLUX_ERROR",
+               {"numericalCell":cell["numericalCell"],"gate":"CANDIDATE_EXACT_FLUX_ERROR",
                "maximumFluxErrorMolM2S":error,"toleranceMolM2S":flux_tolerance,
                "toleranceDerivation":"FV_BALANCE_TOLERANCE_MOL_S_DIVIDED_BY_CELL_INTERFACIAL_AREA_M2",
                "candidateRetainedForDiagnostics":cell["localInterface"]})
         if film>1e-12 and film/max(*(abs(x) for x in nc+nd),1e-12)>1e-8:
             raise JobCBlocked("BLOCKED_EXACT_QUALIFICATION_FAILED",
-              {"compartment":cell["compartment"],"gate":"EXACT_FILMS_DISAGREE"})
+               {"numericalCell":cell["numericalCell"],"gate":"EXACT_FILMS_DISAGREE"})
         transfer=[x*aV for x in nc]
         rc=[cell["continuousInMolS"][i]-cell["continuousOutMolS"][i]-transfer[i] for i in range(7)]
         rd=[cell["dispersedInMolS"][i]-cell["dispersedOutMolS"][i]+transfer[i] for i in range(7)]

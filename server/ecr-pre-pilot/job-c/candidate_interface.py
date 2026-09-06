@@ -24,19 +24,33 @@ class CandidateInterfaceSolver:
         safe=self.np.maximum(self.np.asarray(x),1e-14); safe/=self.np.sum(safe)
         return self.np.log(safe[:-1]/safe[-1])
 
+    def transform(self, u):
+        """Map 13 unconstrained coordinates to the exact Job-B unknowns."""
+        u=self.np.asarray(u)
+        return self.softmax(u[:6]),self.softmax(u[6:12]),self.bound*self.np.tanh(u[12])
+
+    def inverse_transform(self, xi_c, xi_d, n):
+        ratio=self.np.clip(float(n)/self.bound,-1+1e-14,1-1e-14)
+        return self.np.r_[self.logits(xi_c),self.logits(xi_d),self.np.arctanh(ratio)]
+
+    def residual(self, u, xb_c, xb_d):
+        """The unchanged 7 isoactivity + 6 scaled two-film equations."""
+        return self.equations(u,xb_c,xb_d)[0]
+
     def equations(self, u, xb_c, xb_d):
-        xi_c,xi_d,n=self.softmax(u[:6]),self.softmax(u[6:12]),float(u[12])
+        xi_c,xi_d,n=self.transform(u)
         mu=self.engine.mu(xi_c,self.temperature)-self.engine.mu(xi_d,self.temperature)
         raw_c=self.kcct*(xb_c-xi_c); raw_d=self.kdct*(xi_d-xb_d)
         jc=raw_c-xi_c*self.np.sum(raw_c); jd=raw_d-xi_d*self.np.sum(raw_d)
         nc=jc+xi_c*n; nd=jd+xi_d*n; delta=nc-nd
-        return self.np.r_[mu,delta[:6]/self.scale[:6]],xi_c,xi_d,n,nc,nd,delta
+        return (self.np.r_[mu,delta[:6]/self.scale[:6]],
+                xi_c,xi_d,n,nc,nd,delta)
 
     def solve(self, xc, xd):
         xb_c,xb_d=self.np.asarray(xc),self.np.asarray(xd)
         def run(label,x0,maximum):
             fit=self.scipy.optimize.least_squares(
-                lambda u:self.equations(u,xb_c,xb_d)[0],x0,bounds=(lower,upper),
+                lambda u:self.residual(u,xb_c,xb_d),x0,bounds=(lower,upper),
                 method="trf",jac="2-point",max_nfev=maximum,xtol=1e-10,ftol=1e-10,
                 gtol=1e-10,x_scale="jac")
             values=self.equations(fit.x,xb_c,xb_d)
@@ -46,8 +60,8 @@ class CandidateInterfaceSolver:
             accepted=(fit.success and float(self.np.max(self.np.abs(mu_try)))<=1e-7
                       and scaled_try<=1e-7)
             return fit,values,accepted
-        lower=self.np.r_[self.np.full(12,-35.0),-self.bound]
-        upper=self.np.r_[self.np.full(12,35.0),self.bound]
+        lower=self.np.full(13,-35.0)
+        upper=self.np.full(13,35.0)
         if self.warm is not None:
             fit,values,accepted=run("WARM_CONTINUATION",self.warm,120)
             if accepted:
@@ -60,7 +74,7 @@ class CandidateInterfaceSolver:
         rrbo=self.np.asarray((.72,.12,.06,.025,.015,.05,.01))
         oriented=(nmp,rrbo) if self.phase_config=="nmp-continuous-rrbo-dispersed" else (rrbo,nmp)
         seeds.append(("ORIENTED_PHASE_TEMPLATE",
-            self.np.r_[self.logits(oriented[0]),self.logits(oriented[1]),0.0]))
+            self.inverse_transform(oriented[0],oriented[1],0.0)))
         seeds.append(("CURRENT_BULKS",self.np.r_[self.logits(xb_c),self.logits(xb_d),0.0]))
         best=None
         for label,x0 in seeds:
