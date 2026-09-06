@@ -73,6 +73,39 @@ function HashLine({ label, value }: { label: string; value: unknown }) {
   return <div className="min-w-0 border-l border-cyan-900/20 pl-3"><dt className="text-[9px] uppercase tracking-[0.14em] text-slate-500">{label}</dt><dd className="mt-0.5 break-all font-mono text-[10px] text-slate-700">{stringValue(value)}</dd></div>;
 }
 
+function JobBStateAudit({ inputAudit }: { inputAudit: RecordValue }) {
+  const stage2Provenance = read(inputAudit, "stage2Provenance");
+  const sourceStageCount = read(inputAudit, "sourceStageCount");
+  const requestedNT = read(inputAudit, "requestedNT");
+  const auditFields: Array<[string, unknown]> = [
+    ["x_bulk_continuous", read(inputAudit, "x_bulk_continuous")],
+    ["x_bulk_dispersed", read(inputAudit, "x_bulk_dispersed")],
+    ["bulkContinuousProvenance", read(inputAudit, "bulkContinuousProvenance")],
+    ["bulkDispersedProvenance", read(inputAudit, "bulkDispersedProvenance")],
+    ["stage2Provenance", stage2Provenance],
+    ["sourceStageCount", sourceStageCount],
+    ["requestedNT", requestedNT],
+    ["phi_d_operating", read(inputAudit, "phi_d_operating")],
+    ["d32_m", read(inputAudit, "d32_m")],
+    ["kc [m/s]", read(inputAudit, "kc")],
+    ["kd [m/s]", read(inputAudit, "kd")],
+    ["exactInterfaceEquilibriumRequest", read(inputAudit, "exactInterfaceEquilibriumRequest")],
+    ["holdupDefinesThermodynamicComposition", read(inputAudit, "holdupDefinesThermodynamicComposition")],
+  ];
+  return <section className="border-t border-indigo-200 bg-indigo-50/40 p-3">
+    <h3 className="text-xs font-semibold text-slate-900">Exact Job-B state audit</h3>
+    <p className="mt-1 text-[10px] leading-4 text-slate-600">The values below are the server-returned boundary state and coefficient inputs; the browser does not reconstruct them.</p>
+    <dl className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      {auditFields.map(([label, value]) => <div key={label} className="min-w-0 rounded border border-indigo-200 bg-white p-2"><dt className="text-[9px] font-semibold text-slate-500">{label}</dt><dd className="mt-1 break-words font-mono text-[10px] text-slate-900">{typeof value === "object" ? JSON.stringify(value) : stringValue(value)}</dd></div>)}
+    </dl>
+    <div className="mt-3 space-y-1 text-[10px] leading-4 text-slate-700">
+      <p>Stage-2 stage/trial records establish inlet-state provenance only. An accepted:false trial is retained as provenance; rejected Stage-2 outlets are not used as Job-B bulk boundaries.</p>
+      <p>Source N<sub>T</sub>={scalarValue(sourceStageCount)} and requested N<sub>T</sub>={scalarValue(requestedNT)} are reported separately. The source stage count identifies the source record; it does not override the requested N<sub>T</sub>.</p>
+      <p>Operating holdup does not define thermodynamic composition: holdupDefinesThermodynamicComposition = {stringValue(read(inputAudit, "holdupDefinesThermodynamicComposition"))}.</p>
+    </div>
+  </section>;
+}
+
 export default function EcrPrePilotDesignStage4Page() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -177,6 +210,14 @@ export default function EcrPrePilotDesignStage4Page() {
   const jobBResult = useMemo(() => resultOf(jobBEvaluation), [jobBEvaluation]);
   const jobBRows = Array.isArray(read(jobBResult, "rows")) ? (read(jobBResult, "rows") as unknown[]).map(object) : [];
   const jobBHydraulics = object(read(jobBResult, "frozenLocalHydraulics"));
+  const jobBInputAudit = object(read(jobBResult, "inputAudit"));
+  const failedJobBInputAudit = object(read(jobBDiagnostic ?? {}, "inputAudit"));
+  const diagnosticStatus = stringValue(read(jobBDiagnostic ?? {}, "adapterStatus", "status"));
+  const genericAdapterBlock = /MODULE|DEPENDENCY|UNAVAILABLE|ERROR/i.test(diagnosticStatus);
+  const interfaceStateNotAccepted = !genericAdapterBlock && (
+    /INTERFACE.*NOT_ACCEPTED|NOT_ACCEPTED.*INTERFACE/i.test(diagnosticStatus)
+    || read(object(read(jobBDiagnostic ?? {}, "interfaceDiagnostics")), "accepted") === false
+  );
 
   return (
     <Layout>
@@ -202,12 +243,13 @@ export default function EcrPrePilotDesignStage4Page() {
           <section className="rounded-md border border-red-200 bg-red-50 p-5"><div className="flex gap-3 text-red-900"><ShieldAlert className="h-5 w-5 shrink-0" /><div><h2 className="text-sm font-semibold">Design prerequisite unavailable</h2><p className="mt-1 text-xs">{error}</p><Button type="button" variant="outline" onClick={() => void loadDesign()} className="mt-3 h-8 text-xs">Retry design load</Button></div></div></section>
         ) : (
           <div className="space-y-4">
-            {activeJob === "B" && <div role="status" className="flex items-start gap-2 rounded-md border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-950"><Loader2 className="h-4 w-4 shrink-0 animate-spin" /><p>Evaluating Job-A dependencies and solving local equilibrium with 7C-1.5.0 before calculating fluxes. This may take several minutes. No compartment count, height, efficiency, or final RPM is being calculated.</p></div>}
+            {activeJob === "B" && <div role="status" className="flex items-start gap-2 rounded-md border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-950"><Loader2 className="h-4 w-4 shrink-0 animate-spin" /><p>Evaluating Job-A dependencies and solving the simultaneous interface chemical-potential and two-film equations before calculating fluxes. This may take several minutes. No sizing is performed.</p></div>}
             {error && <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div>}
             {jobBDiagnostic && <section role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-950">
-              <h2 className="text-sm font-semibold">Job-B local equilibrium not accepted</h2>
-              <p className="mt-1 text-xs leading-5">The pinned thermodynamic engine returned {stringValue(read(jobBDiagnostic, "adapterStatus"))}. No interfacial fluxes are shown for this state. This is separate from the valid N<sub>T</sub>=7 fallback and does not change the Job-A verdict.</p>
-              <details className="mt-2"><summary className="cursor-pointer text-xs font-semibold">Thermodynamic gate details</summary><pre className="mt-2 max-h-64 overflow-auto rounded bg-white p-3 text-[10px]">{JSON.stringify(jobBDiagnostic, null, 2)}</pre></details>
+              <h2 className="text-sm font-semibold">{interfaceStateNotAccepted ? "Job-B interface state not accepted" : "Job-B calculation blocked"}</h2>
+              <p className="mt-1 text-xs leading-5">{interfaceStateNotAccepted ? <>The simultaneous solver did not return an accepted interface state.</> : <>A required Job-B module or dependency blocked the calculation.</>} Adapter status: {diagnosticStatus}. No interfacial fluxes are shown. This does not change the Job-A verdict.</p>
+              <details className="mt-2"><summary className="cursor-pointer text-xs font-semibold">Interface and adapter diagnostics</summary><pre className="mt-2 max-h-64 overflow-auto rounded bg-white p-3 text-[10px]">{JSON.stringify({ interfaceDiagnostics: read(jobBDiagnostic, "interfaceDiagnostics"), adapterStatus: read(jobBDiagnostic, "adapterStatus") }, null, 2)}</pre></details>
+              <div className="-mx-4 -mb-4 mt-4 text-slate-900"><JobBStateAudit inputAudit={failedJobBInputAudit} /></div>
             </section>}
             <section className="grid gap-3 lg:grid-cols-[1.35fr_.65fr]">
               <Card className="border-slate-300 shadow-none"><CardContent className="p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Release disposition</p><h2 className="mt-1 text-sm font-semibold text-slate-950">Pre-pilot calculation only</h2><p className="mt-1 max-w-2xl text-xs leading-5 text-slate-600">This screen provides predictive coefficient evidence for review. It is not release-qualified and does not establish a vendor, pilot, or construction acceptance basis.</p></div><span className="rounded-sm border border-amber-300 bg-amber-50 px-2 py-1 font-mono text-[10px] font-semibold text-amber-900">NOT RELEASE-QUALIFIED</span></div></CardContent></Card>
@@ -289,13 +331,14 @@ export default function EcrPrePilotDesignStage4Page() {
                 <div className="rounded border p-2"><p className="text-[9px] uppercase text-slate-500">a [m²/m³]</p><p className="font-mono text-xs">{scalarValue(read(jobBHydraulics, "interfacialAreaM2M3"))}</p></div>
                 <div className="rounded border p-2"><p className="text-[9px] uppercase text-slate-500">Hydrodynamic recompute</p><p className="font-mono text-xs">{read(jobBHydraulics, "hydrodynamicsRecomputed") === false ? "NO · PASS" : "INVALID"}</p></div>
               </div>
-              <div className="m-3 rounded border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-950">Analytic two-film approximation: m is calculated from the solved pinned flash tie-line; interface concentrations are solved algebraically, not copied from flash endpoints. Bulk C<sub>t</sub>=ρ/MW is preliminary and the result is not release-qualified.</div>
+              <div className="m-3 rounded border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-950">Simultaneous separate-bulk-boundary chemical-potential/film solve: interface mole fractions and flux are solved together. The mixture-averaged molar-density closure is preliminary and the result is not release-qualified.</div>
               <div className="mx-3 mb-3 text-xs leading-5 text-slate-700">
-                <p>Positive flux: continuous → dispersed; component source terms are equal and opposite. N<sub>T</sub>: {scalarValue(read(object(read(jobBResult, "theoreticalStageAuthority")), "theoreticalStages"))} · {stringValue(read(object(read(jobBResult, "theoreticalStageAuthority")), "provenance"))}.</p>
-                <p>Local test only: no compartment count, height, efficiency, or final RPM. Results are held in this review, not saved as a final design.</p>
+                <p>Positive flux: continuous → dispersed; component source terms are equal and opposite.</p>
+                <p>Local test only. No sizing is performed. Results are held in this review, not saved as a final design.</p>
               </div>
-              <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-left text-[10px]"><thead className="bg-indigo-950 text-white"><tr><th className="px-3 py-2">Component</th><th className="px-3 py-2">m = Cd*/Cc*</th><th className="px-3 py-2">kc [m/s]</th><th className="px-3 py-2">kd [m/s]</th><th className="px-3 py-2">Kc [m/s]</th><th className="px-3 py-2">N [mol/m²/s]</th><th className="px-3 py-2">aN [mol/m³/s]</th><th className="px-3 py-2">Film residuals</th></tr></thead><tbody className="divide-y">{jobBRows.map(row => <tr key={stringValue(read(row, "componentId"))}><td className="px-3 py-2 font-semibold">{stringValue(read(row, "componentId"))}{read(row, "inactiveZeroInventory") === true ? " · inactive" : ""}</td><td className="px-3 py-2 font-mono">{read(row, "partitionM") === null ? "—" : numberValue(read(row, "partitionM"))}</td><td className="px-3 py-2 font-mono">{numberValue(read(row, "kcMS"))}</td><td className="px-3 py-2 font-mono">{numberValue(read(row, "kdMS"))}</td><td className="px-3 py-2 font-mono">{numberValue(read(row, "overallKcMS"))}</td><td className="px-3 py-2 font-mono font-semibold">{numberValue(read(row, "fluxMolM2S"))}</td><td className="px-3 py-2 font-mono font-semibold">{numberValue(read(row, "volumetricTransferMolM3S"))}</td><td className="px-3 py-2 font-mono">{numberValue(read(row, "continuousFilmResidualMolM2S"))} / {numberValue(read(row, "dispersedFilmResidualMolM2S"))}</td></tr>)}</tbody></table></div>
-              <dl className="grid gap-3 border-t bg-slate-50 p-3 sm:grid-cols-3"><HashLine label="Job-B result SHA-256" value={read(jobBResult, "resultSha256")} /><HashLine label="Implementation SHA-256" value={read(jobBResult, "implementationSha256")} /><HashLine label="Solved equilibrium hash" value={read(object(read(jobBResult, "equilibriumAuthority")), "resultHash")} /></dl>
+              <div className="overflow-x-auto"><table className="w-full min-w-[1250px] text-left text-[10px]"><thead className="bg-indigo-950 text-white"><tr><th className="px-3 py-2">Component</th><th className="px-3 py-2">kc [m/s]</th><th className="px-3 py-2">kd [m/s]</th><th className="px-3 py-2">x interface, continuous [mol/mol]</th><th className="px-3 py-2">x interface, dispersed [mol/mol]</th><th className="px-3 py-2">N [mol/m²/s]</th><th className="px-3 py-2">aN [mol/m³/s]</th><th className="px-3 py-2">Continuous-film residual [mol/m²/s]</th><th className="px-3 py-2">Dispersed-film residual [mol/m²/s]</th></tr></thead><tbody className="divide-y">{jobBRows.map(row => <tr key={stringValue(read(row, "componentId"))}><td className="px-3 py-2 font-semibold">{stringValue(read(row, "componentId"))}</td><td className="px-3 py-2 font-mono">{numberValue(read(row, "kcMS"))}</td><td className="px-3 py-2 font-mono">{numberValue(read(row, "kdMS"))}</td><td className="px-3 py-2 font-mono">{numberValue(read(row, "interfaceContinuousMoleFraction"))}</td><td className="px-3 py-2 font-mono">{numberValue(read(row, "interfaceDispersedMoleFraction"))}</td><td className="px-3 py-2 font-mono font-semibold">{numberValue(read(row, "fluxMolM2S"))}</td><td className="px-3 py-2 font-mono font-semibold">{numberValue(read(row, "volumetricTransferMolM3S"))}</td><td className="px-3 py-2 font-mono">{numberValue(read(row, "continuousFilmResidualMolM2S"))}</td><td className="px-3 py-2 font-mono">{numberValue(read(row, "dispersedFilmResidualMolM2S"))}</td></tr>)}</tbody></table></div>
+              <JobBStateAudit inputAudit={jobBInputAudit} />
+              <dl className="grid gap-3 border-t bg-slate-50 p-3 sm:grid-cols-3"><HashLine label="Job-B result SHA-256" value={read(jobBResult, "resultSha256")} /><HashLine label="Implementation SHA-256" value={read(jobBResult, "implementationSha256")} /><HashLine label="Retained dependency hashes" value={JSON.stringify(read(jobBResult, "dependencies"))} /></dl>
               <details className="border-t p-3"><summary className="cursor-pointer text-xs font-semibold text-slate-800">Job-B numerical audit, phase sources &amp; provenance</summary><pre className="mt-3 max-h-80 overflow-auto rounded bg-slate-950 p-3 text-[10px] text-cyan-50">{JSON.stringify(jobBResult, null, 2)}</pre></details>
             </section>}
           </div>

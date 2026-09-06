@@ -33,9 +33,8 @@ import {
 } from "./ecr-pre-pilot/job-a";
 import {
   assertJobBStage3ParentMatchesJobA,
-  evaluateJobB,
-  makeJobBLocalEquilibriumInventory,
 } from "./ecr-pre-pilot/job-b";
+import { evaluateJobBSimultaneous } from "./ecr-pre-pilot/job-b-simultaneous";
 
 const COUNTER_ROW_ID = 1;
 const MAX_ALLOCATION_ATTEMPTS = 3;
@@ -566,8 +565,9 @@ export async function evaluateEcrPrePilotJobA(userId: number, designId: number) 
 /**
  * Job B is a server-owned local diagnostic. It consumes the already governed
  * Job-A coefficients and the exact Stage-3 trial selected by Job A, then runs
- * an actual frozen-adapter local equilibrium. It deliberately does not size a
- * column.
+ * a simultaneous interface solve using separate Stage-2 incoming boundaries.
+ * Stage-3 holdup enters interfacial area only, never thermodynamic composition.
+ * It deliberately does not size a column.
  */
 export async function evaluateEcrPrePilotJobB(userId: number, designId: number) {
   const jobA = await evaluateEcrPrePilotJobA(userId, designId);
@@ -583,20 +583,6 @@ export async function evaluateEcrPrePilotJobB(userId: number, designId: number) 
     throw new Error('JOB_B_DEPENDENCY_BLOCKED:FROZEN_STAGE3_TRIAL_MISMATCH');
   }
   const operatingHoldup = trial.operatingHydraulics.operatingHoldup;
-  const componentMolarInventory = makeJobBLocalEquilibriumInventory(jobA, operatingHoldup);
-  const { evaluateSevenComponentLocalEquilibrium } = await import(
-    './ecr-pre-pilot/stage4-seven-component-adapter'
-  );
-  const equilibrium = await evaluateSevenComponentLocalEquilibrium({
-    temperatureK: jobA.input.temperatureK,
-    componentOrder: [...JOB_A_COMPONENT_ORDER],
-    componentMolarInventory,
-  }, { timeoutMs: 300_000 });
-  return evaluateJobB({
-    jobA,
-    operatingHoldup,
-    stage3OperatingHydraulicsStatus: trial.operatingHydraulics.status,
-    phaseConfiguration: (stage3.result as any).processBasis?.phaseConfiguration,
-    equilibrium,
-  });
+  return evaluateJobBSimultaneous(userId, designId, jobA, operatingHoldup,
+    (stage3.result as any).processBasis?.phaseConfiguration);
 }

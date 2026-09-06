@@ -213,6 +213,7 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       const message = error?.message ?? 'JOB_B_EVALUATION_FAILED';
       const status = message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404
         : message.startsWith('JOB_B_DEPENDENCY_BLOCKED:')
+          || message.startsWith('JOB_B_BOUNDARY_STATE_BLOCKED:')
           || message.startsWith('JOB_A_DEPENDENCY_BLOCKED:') ? 409 : 422;
       return res.status(status).json({
         error: message,

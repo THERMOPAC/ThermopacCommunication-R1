@@ -90,6 +90,7 @@ function phaseMolarConcentrations(jobA: RecordValue, phase: 'continuous' | 'disp
   };
 }
 
+/** Historical diagnostic only. Not a permitted thermodynamic state for active Job B. */
 export function makeJobBLocalEquilibriumInventory(jobA: RecordValue, operatingHoldup: number) {
   if (!finite(operatingHoldup) || !(operatingHoldup > 0 && operatingHoldup < 1)) {
     throw new Error('JOB_B_INVALID_FROZEN_OPERATING_HOLDUP');
@@ -101,6 +102,7 @@ export function makeJobBLocalEquilibriumInventory(jobA: RecordValue, operatingHo
     + operatingHoldup * dispersed.componentMolarConcentrationMolM3[index]);
 }
 
+/** Historical algebraic diagnostic, superseded by job-b-simultaneous. No application route calls this. */
 export function evaluateJobB(input: JobBInput) {
   const { jobA, equilibrium } = input;
   if (jobA?.status !== 'JOB_A_CLOSED_FOR_PRE_PILOT_IMPLEMENTATION'

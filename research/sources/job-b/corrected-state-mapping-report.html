@@ -1,0 +1,580 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Job B — corrected state-mapping verification</title><style>body{font:15px/1.6 system-ui,sans-serif;color:#172638;max-width:1100px;margin:40px auto;padding:24px}h1,h2{color:#123c50}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccd6dc;padding:8px;text-align:left}th{background:#e8f1f5}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f6f8;padding:18px;font-size:12px}.note{border-left:4px solid #16856b;background:#eef8f4;padding:14px}small{color:#506474}</style></head><body><h1>Job B — corrected state-mapping verification</h1><p>Saved design 269 / project 236. Real server-service rerun completed in 46.058 s.</p><div class="note"><strong>PRE_PILOT_SIMULTANEOUS_TWO_FILM_FLUX_CALCULATED</strong><br>Seven-component interface solution accepted for this bounded pre-pilot model. Not a release-qualified or measured RRBO/NMP transfer prediction. No Job C, compartment count, height, efficiency, or final RPM work.</div><h2>Correction and original inventory origin</h2><p>The old Job-B implementation formed n_i=(1−φd)ρc xci/MWc + φd ρd xdi/MWd and normalized this pooled inventory. With φd=0.08546889696683643 it produced 88.33 mol% NMP, 7.40 mol% H₂O and 4.27 mol% hydrocarbons. This was a Job-B construction, not a governed Stage-2 bulk state. Its rejected flash does not classify the RRBO/NMP system as single-phase.</p><p>The corrected active service never calls that pooled-inventory path. Holdup and d32 enter interfacial area only. The interface solver receives separate Stage-2 incoming boundary compositions and Job-A film coefficients; no assumed/global m is supplied.</p><h2>Stage-2 boundary provenance</h2><p>Owned completed Stage-2 job: 0a4312dc-9488-4e9d-b51c-af9a3b6f9ca3. Source recorded trial has N=1, stage-from-feed-end=1. Continuous boundary: extractIncoming (wet-solvent inlet); dispersed boundary: raffinateIncoming (oil inlet). These are recorded incoming boundary conditions, not accepted outgoing equilibrium. The source trial/outlets were not accepted and are not reused as equilibrium endpoints. Requested design N_T remains default 7; no seven-stage reference duty is claimed.</p><pre>{
+  "stage2JobId": "0a4312dc-9488-4e9d-b51c-af9a3b6f9ca3",
+  "resultSnapshotHash": "df55b714cee7b3c32967ccb4a4ec75a2039602692e633b53f550419179ee64da",
+  "engineHash": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac",
+  "modelHash": "f165f0d23eeae810e40341f1cc86a2b97514bc21b74838d4a08eab1760e6e1af",
+  "engineContractVersion": "7C-1.5.0",
+  "stage1ImmutableHash": "8b4db0dc1665331d7f6be527b47466da60755526b00016537f91b5471cf3e5c0",
+  "temperatureK": 323.15,
+  "componentOrder": [
+    "SAT",
+    "MONO",
+    "DI",
+    "POLY",
+    "PA",
+    "NMP",
+    "H2O"
+  ],
+  "stageFromFeedEnd": 1,
+  "sourceStageCount": 1,
+  "requestedNT": 7,
+  "requestedNtWasDirectlyRecorded": false
+}</pre><h2>Hydrodynamics and Job-A transport</h2><p>φd=0.08546889696683643; d32=0.0027349418012614494 m; a=6φd/d32=187.50431236397475 m²/m³.</p><table><tr><th>Component</th><th>kc [m/s]</th><th>kd [m/s]</th><th>N [mol/m²/s]</th><th>aN [mol/m³/s]</th></tr><tr><td>SAT</td><td>0.000017835367475287034</td><td>9.457298237796933e-7</td><td>-0.0058458557161181176</td><td>-1.0961231562297389</td></tr><tr><td>MONO</td><td>0.000021768855308325022</td><td>0.000001169106458380823</td><td>-0.0005893530496075874</td><td>-0.11050623830628217</td></tr><tr><td>DI</td><td>0.00002126689485317444</td><td>0.0000011404507115591059</td><td>-0.00027803038709325347</td><td>-0.05213189654821021</td></tr><tr><td>POLY</td><td>0.000018767986536383633</td><td>9.984427222895074e-7</td><td>-0.00008586700254309591</td><td>-0.01610043326659887</td></tr><tr><td>PA</td><td>0.000013960951176404964</td><td>7.285260322276342e-7</td><td>-0.00003128691980318735</td><td>-0.005866432383683468</td></tr><tr><td>NMP</td><td>0.00002248373601907477</td><td>0.0000012099904788066892</td><td>-0.00005150527703600235</td><td>-0.00965746155375164</td></tr><tr><td>H2O</td><td>0.00002801735558276663</td><td>0.0000015292372726966164</td><td>0.00007463157411902345</td><td>0.013993741985828506</td></tr></table><p>Positive N is continuous → dispersed. Total molar flux is an unknown, not forced to zero. Phase sources are equal/opposite within the independently checked film-closure tolerance.</p><h2>Exact state passed to 7C-1.5.0 interface-equilibrium calculation</h2><pre>{
+  "componentOrder": [
+    "SAT",
+    "MONO",
+    "DI",
+    "POLY",
+    "PA",
+    "NMP",
+    "H2O"
+  ],
+  "T": 323.15,
+  "x_bulk_continuous": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0.9226827598579583,
+    0.07731724014204168
+  ],
+  "x_bulk_dispersed": [
+    0.8314095020619517,
+    0.09703193550453776,
+    0.04686716619208694,
+    0.016475538558928395,
+    0.008215857682495201,
+    0,
+    0
+  ],
+  "kc": [
+    0.000017835367475287034,
+    0.000021768855308325022,
+    0.00002126689485317444,
+    0.000018767986536383633,
+    0.000013960951176404964,
+    0.00002248373601907477,
+    0.00002801735558276663
+  ],
+  "kd": [
+    9.457298237796933e-7,
+    0.000001169106458380823,
+    0.0000011404507115591059,
+    9.984427222895074e-7,
+    7.285260322276342e-7,
+    0.0000012099904788066892,
+    0.0000015292372726966164
+  ],
+  "CtC": 10833.57713678892,
+  "CtD": 5173.785626563525,
+  "phase_config": "nmp-continuous-rrbo-dispersed"
+}</pre><h2>Interface and acceptance</h2><p>The transport closure is a preliminary effective mixture-averaged Fickian correction-velocity model with fixed bulk total molar concentrations. It is not a full Maxwell–Stefan model or a calibrated liquid-mixture transport closure. It solves both normalized interface compositions and total molar flux simultaneously with frozen chemical-potential equality and film-flux matching.</p><p>Frozen 7C-1.5.0 scientific files and prior Stage-2/Stage-3 artifacts remain unchanged. Applicable endpoint TPD, explicit mono-rich basin, local-curvature and composition-separation thresholds are retained. No artificial mixed-feed flash is constructed for the interface-boundary problem. Independent multistart reproduction and full rank 13 are required.</p><pre>{
+  "interface": {
+    "continuousComponentFluxMolM2S": [
+      -0.005845855716118119,
+      -0.0005893530496075877,
+      -0.00027803038709325347,
+      -0.00008586700254309591,
+      -0.00003128691980318736,
+      -0.00005150527703600121,
+      0.00007463157411902394
+    ],
+    "continuousDiffusiveFluxMolM2S": [
+      -0.005648557643667256,
+      -0.0005729317732256011,
+      -0.00027010720414525583,
+      -0.00008310723033533471,
+      -0.00002995349252678829,
+      0.006019632336992681,
+      0.0005850250069075553
+    ],
+    "continuousMoleFractions": [
+      0.028983449434671217,
+      0.002412315679306005,
+      0.0011639301361757119,
+      0.00040541560919090286,
+      0.00019588291745703114,
+      0.8918612729526482,
+      0.07497773327055093
+    ],
+    "dispersedComponentFluxMolM2S": [
+      -0.005845855716118116,
+      -0.0005893530496075871,
+      -0.0002780303870932535,
+      -0.00008586700254309592,
+      -0.000031286919803187336,
+      -0.00005150527703600349,
+      0.00007463157411902296
+    ],
+    "dispersedDiffusiveFluxMolM2S": [
+      -0.00009983906263614291,
+      -0.0005719096533894637,
+      -0.00026877900188230125,
+      -0.00008304945705096444,
+      -0.00003061375206479825,
+      0.00042301071244276063,
+      0.0006311802145809101
+    ],
+    "dispersedMoleFractions": [
+      0.8441004063455804,
+      0.0025624669616720387,
+      0.0013590454895553007,
+      0.0004139026108398312,
+      0.00009888957790761593,
+      0.06970727091328235,
+      0.08175801810116232
+    ],
+    "fluxEqualityResidualMolM2S": [
+      -3.469446951953614e-18,
+      -6.505213034913027e-19,
+      5.421010862427522e-20,
+      1.3552527156068805e-20,
+      -2.710505431213761e-20,
+      2.2768245622195593e-18,
+      9.75781955236954e-19
+    ],
+    "totalMolarFluxMolM2S": -0.006807266778082221
+  },
+  "selectedStartClass": "ORIENTED_PHASE_TEMPLATE",
+  "reproduction": 2.3592239273284576e-16,
+  "gateEvidence": {
+    "endpointStabilityAccepted": true,
+    "localStability": {
+      "continuous": {
+        "coordinate": "six independent log mole-fraction ratios ln(x_i/x_H2O)",
+        "dimension": 6,
+        "eigenvalues": [
+          0.0001954680884064093,
+          0.00040323785410743894,
+          0.0011441814351374501,
+          0.0023365434810728677,
+          0.01595061286467654,
+          0.10145430897412916
+        ],
+        "minimumEigenvalue": 0.0001954680884064093,
+        "stepSizeConverged": true
+      },
+      "dispersed": {
+        "coordinate": "six independent log mole-fraction ratios ln(x_i/x_H2O)",
+        "dimension": 6,
+        "eigenvalues": [
+          0.00009838180859736942,
+          0.00041163621188285187,
+          0.0013348139957141511,
+          0.0024870757400146377,
+          0.023534647637237355,
+          0.16793485490306787
+        ],
+        "minimumEigenvalue": 0.00009838180859736942,
+        "stepSizeConverged": true
+      }
+    },
+    "numericalAccepted": true,
+    "phaseOrientationAccepted": true,
+    "phaseSeparationAccepted": true,
+    "postInterfaceTpd": {
+      "continuous": {
+        "allRefinementsAccepted": true,
+        "ambiguityTriggered": false,
+        "classification": "ROUTINE_STABLE",
+        "escalationUsed": false,
+        "explicitMonoRichBasinSearch": {
+          "acceptanceFailure": null,
+          "allRequiredSearchesAccepted": true,
+          "historicalFalseBasinSeedIncluded": true,
+          "minimizingComposition": [
+            0.31268812428931475,
+            0.4999999999993499,
+            0.0008572675727907859,
+            0.00027962354666958265,
+            0.00009398509189500598,
+            0.1675182004956332,
+            0.01856279900434689
+          ],
+          "minimum": 2.1972287825481294,
+          "negativeBasinFound": false,
+          "postSplitTpdThreshold": -1e-8,
+          "region": "x_MONO &gt;= 0.5",
+          "searches": [
+            {
+              "composition": [
+                0.3126881213648044,
+                0.5000000000002437,
+                0.0008572745947830881,
+                0.00027961566487789486,
+                0.00009398720163995328,
+                0.16751822354944862,
+                0.018562777624202335
+              ],
+              "minimum": 2.1972287825536956,
+              "optimizerSuccess": true,
+              "region": "x_MONO &gt;= 0.5",
+              "replayMaximumCompositionDifference": 0,
+              "replayMinimum": 2.1972287825536956,
+              "replayOptimizerSuccess": true
+            },
+            {
+              "composition": [
+                0.31268812428931475,
+                0.4999999999993499,
+                0.0008572675727907859,
+                0.00027962354666958265,
+                0.00009398509189500598,
+                0.1675182004956332,
+                0.01856279900434689
+              ],
+              "minimum": 2.1972287825481294,
+              "optimizerSuccess": true,
+              "region": "x_MONO &gt;= 0.5",
+              "replayMaximumCompositionDifference": 0,
+              "replayMinimum": 2.1972287825481294,
+              "replayOptimizerSuccess": true
+            },
+            {
+              "composition": [
+                0.3126883567203805,
+                0.5000000000000134,
+                0.0008572621499986756,
+                0.00027962373965870863,
+                0.00009397978200155004,
+                0.16751797021176967,
+                0.018562807396177446
+              ],
+              "minimum": 2.1972287825524353,
+              "optimizerSuccess": true,
+              "region": "x_MONO &gt;= 0.5",
+              "replayMaximumCompositionDifference": 0,
+              "replayMinimum": 2.1972287825524353,
+              "replayOptimizerSuccess": true
+            }
+          ],
+          "seedCount": 3
+        },
+        "minimum": 0
+      },
+      "dispersed": {
+        "allRefinementsAccepted": true,
+        "ambiguityTriggered": false,
+        "classification": "ROUTINE_STABLE",
+        "escalationUsed": false,
+        "explicitMonoRichBasinSearch": {
+          "acceptanceFailure": null,
+          "allRequiredSearchesAccepted": true,
+          "historicalFalseBasinSeedIncluded": true,
+          "minimizingComposition": [
+            0.312688123513952,
+            0.49999999999921724,
+            0.0008572740384781107,
+            0.0002796155794520443,
+            0.00009398688392014704,
+            0.16751823146725972,
+            0.0185627685177208
+          ],
+          "minimum": 2.1972287825476804,
+          "negativeBasinFound": false,
+          "postSplitTpdThreshold": -1e-8,
+          "region": "x_MONO &gt;= 0.5",
+          "searches": [
+            {
+              "composition": [
+                0.312688123513952,
+                0.49999999999921724,
+                0.0008572740384781107,
+                0.0002796155794520443,
+                0.00009398688392014704,
+                0.16751823146725972,
+                0.0185627685177208
+              ],
+              "minimum": 2.1972287825476804,
+              "optimizerSuccess": true,
+              "region": "x_MONO &gt;= 0.5",
+              "replayMaximumCompositionDifference": 0,
+              "replayMinimum": 2.1972287825476804,
+              "replayOptimizerSuccess": true
+            },
+            {
+              "composition": [
+                0.3126885176876062,
+                0.5000000000011657,
+                0.0008573551434884133,
+                0.00027953372351557807,
+                0.00009400322835817136,
+                0.16751772224167874,
+                0.018562867974187068
+              ],
+              "minimum": 2.1972287825800683,
+              "optimizerSuccess": true,
+              "region": "x_MONO &gt;= 0.5",
+              "replayMaximumCompositionDifference": 0,
+              "replayMinimum": 2.1972287825800683,
+              "replayOptimizerSuccess": true
+            },
+            {
+              "composition": [
+                0.3126887930309606,
+                0.5000000000000046,
+                0.0008572592417277884,
+                0.00027962572552645123,
+                0.00009397889977613969,
+                0.16751753004425166,
+                0.018562813057752866
+              ],
+              "minimum": 2.1972287825527452,
+              "optimizerSuccess": true,
+              "region": "x_MONO &gt;= 0.5",
+              "replayMaximumCompositionDifference": 0,
+              "replayMinimum": 2.1972287825527452,
+              "replayOptimizerSuccess": true
+            }
+          ],
+          "seedCount": 3
+        },
+        "minimum": 0
+      }
+    },
+    "startClass": "ORIENTED_PHASE_TEMPLATE"
+  }
+}</pre><h2>Full input provenance</h2><pre>{
+  "componentOrder": [
+    "SAT",
+    "MONO",
+    "DI",
+    "POLY",
+    "PA",
+    "NMP",
+    "H2O"
+  ],
+  "x_bulk_continuous": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0.9226827598579583,
+    0.07731724014204168
+  ],
+  "x_bulk_dispersed": [
+    0.8314095020619517,
+    0.09703193550453776,
+    0.04686716619208694,
+    0.016475538558928395,
+    0.008215857682495201,
+    0,
+    0
+  ],
+  "bulkContinuousProvenance": {
+    "role": "extractIncoming",
+    "phaseIdentity": "EXTRACT_PHASE_BULK",
+    "source": "GOVERNED_STAGE2_RECORDED_INCOMING_BOUNDARY",
+    "propertyPath": "result_snapshot.trials[stageCount=1].stages[stageFromFeedEnd=1].extractIncoming",
+    "normalizedAsSaved": true,
+    "stageAccepted": false,
+    "trialAccepted": false,
+    "qualification": {
+      "basis": "RECORDED_STAGE2_INCOMING_BOUNDARY_BULK",
+      "inletBoundaryKnown": true,
+      "equilibriumOutletClaimed": false,
+      "acceptedLleClaimed": false,
+      "mayBeUsedWhenRecordedOutputsFailed": true
+    },
+    "stream": {
+      "mass": 50,
+      "flowMol": 0.5384481678324512,
+      "componentMass": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        49.25,
+        0.7500000000000001
+      ],
+      "massFractions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.985,
+        0.015000000000000003
+      ],
+      "moleFractions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.9226827598579583,
+        0.07731724014204168
+      ],
+      "componentMoles": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.4968168415361072,
+        0.041631326296343994
+      ]
+    }
+  },
+  "bulkDispersedProvenance": {
+    "role": "raffinateIncoming",
+    "phaseIdentity": "RAFFINATE_PHASE_BULK",
+    "source": "GOVERNED_STAGE2_RECORDED_INCOMING_BOUNDARY",
+    "propertyPath": "result_snapshot.trials[stageCount=1].stages[stageFromFeedEnd=1].raffinateIncoming",
+    "normalizedAsSaved": true,
+    "stageAccepted": false,
+    "trialAccepted": false,
+    "qualification": {
+      "basis": "RECORDED_STAGE2_INCOMING_BOUNDARY_BULK",
+      "inletBoundaryKnown": true,
+      "equilibriumOutletClaimed": false,
+      "acceptedLleClaimed": false,
+      "mayBeUsedWhenRecordedOutputsFailed": true
+    },
+    "stream": {
+      "mass": 100,
+      "flowMol": 0.6002063103195764,
+      "componentMass": [
+        85,
+        7,
+        4,
+        2,
+        2,
+        0,
+        0
+      ],
+      "massFractions": [
+        0.85,
+        0.07,
+        0.04,
+        0.02,
+        0.02,
+        0,
+        0
+      ],
+      "moleFractions": [
+        0.8314095020619517,
+        0.09703193550453776,
+        0.04686716619208694,
+        0.016475538558928395,
+        0.008215857682495201,
+        0,
+        0
+      ],
+      "componentMoles": [
+        0.49901722959724026,
+        0.05823917999234571,
+        0.02812996889528689,
+        0.009888722208982322,
+        0.00493120962572119,
+        0,
+        0
+      ]
+    }
+  },
+  "stage2Provenance": {
+    "stage2JobId": "0a4312dc-9488-4e9d-b51c-af9a3b6f9ca3",
+    "resultSnapshotHash": "df55b714cee7b3c32967ccb4a4ec75a2039602692e633b53f550419179ee64da",
+    "engineHash": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac",
+    "modelHash": "f165f0d23eeae810e40341f1cc86a2b97514bc21b74838d4a08eab1760e6e1af",
+    "engineContractVersion": "7C-1.5.0",
+    "stage1ImmutableHash": "8b4db0dc1665331d7f6be527b47466da60755526b00016537f91b5471cf3e5c0",
+    "temperatureK": 323.15,
+    "componentOrder": [
+      "SAT",
+      "MONO",
+      "DI",
+      "POLY",
+      "PA",
+      "NMP",
+      "H2O"
+    ],
+    "stageFromFeedEnd": 1,
+    "sourceStageCount": 1,
+    "requestedNT": 7,
+    "requestedNtWasDirectlyRecorded": false
+  },
+  "sourceStageCount": 1,
+  "requestedNT": 7,
+  "phi_d_operating": 0.08546889696683643,
+  "d32_m": 0.0027349418012614494,
+  "kc": [
+    0.000017835367475287034,
+    0.000021768855308325022,
+    0.00002126689485317444,
+    0.000018767986536383633,
+    0.000013960951176404964,
+    0.00002248373601907477,
+    0.00002801735558276663
+  ],
+  "kd": [
+    9.457298237796933e-7,
+    0.000001169106458380823,
+    0.0000011404507115591059,
+    9.984427222895074e-7,
+    7.285260322276342e-7,
+    0.0000012099904788066892,
+    0.0000015292372726966164
+  ],
+  "jobAResultSha256": "452b7a20af1c11000515cd93b45cc437c7468395d1104e9d1a85d648cf98607b",
+  "stage3RunId": "2",
+  "stage3ImmutableHash": "97d9c8036d0aa89e5038a4af4ec40d5852e097d306eac18f6846ad39044e4098",
+  "selectedStage3TrialId": "rpm:30:diameterM:0.9150961274795255",
+  "exactInterfaceEquilibriumRequest": {
+    "componentOrder": [
+      "SAT",
+      "MONO",
+      "DI",
+      "POLY",
+      "PA",
+      "NMP",
+      "H2O"
+    ],
+    "T": 323.15,
+    "x_bulk_continuous": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0.9226827598579583,
+      0.07731724014204168
+    ],
+    "x_bulk_dispersed": [
+      0.8314095020619517,
+      0.09703193550453776,
+      0.04686716619208694,
+      0.016475538558928395,
+      0.008215857682495201,
+      0,
+      0
+    ],
+    "kc": [
+      0.000017835367475287034,
+      0.000021768855308325022,
+      0.00002126689485317444,
+      0.000018767986536383633,
+      0.000013960951176404964,
+      0.00002248373601907477,
+      0.00002801735558276663
+    ],
+    "kd": [
+      9.457298237796933e-7,
+      0.000001169106458380823,
+      0.0000011404507115591059,
+      9.984427222895074e-7,
+      7.285260322276342e-7,
+      0.0000012099904788066892,
+      0.0000015292372726966164
+    ],
+    "CtC": 10833.57713678892,
+    "CtD": 5173.785626563525,
+    "phase_config": "nmp-continuous-rrbo-dispersed"
+  },
+  "holdupDefinesThermodynamicComposition": false,
+  "concentrationClosure": "PRELIMINARY_FIXED_BULK_DENSITY_OVER_PHASE_AVERAGE_MW",
+  "sourceQualification": "RECORDED_STAGE2_INCOMING_BOUNDARIES_NOT_REJECTED_OUTLET_LLE"
+}</pre><h2>Verification</h2><ul><li>Real owned saved-design service evaluation: calculated, seven rows.</li><li>37 focused Job-A, Job-B, boundary-mapping, UI and Stage-3 tests passed.</li><li>Targeted frontend/backend bundles passed. Independent implementation review passed.</li><li>App restarted. UI tests are fixture-based server rendering, not authenticated end-to-end browser interaction.</li></ul><p>Result SHA-256: <small>c053282602e1cc03c6441b6bd16b9127bdc9fc0eba902067366ab1e30b7ed85d</small></p></body></html>

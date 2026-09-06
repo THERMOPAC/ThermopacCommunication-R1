@@ -1,3 +1,12 @@
+# Superseded implementation record
+
+The historical algebraic/pooled-inventory route below is no longer used by
+the active Job-B service. Its rejected constructed-state flash does **not**
+classify RRBO/NMP as single-phase. The corrected separate-boundary simultaneous
+interface run is documented in `corrected-state-mapping-report.html` and
+`corrected-saved-design-result.json`. That real saved-design rerun returned
+seven fluxes with accepted interface gates; it remains preliminary.
+
 # Job B implementation verification report
 
 ## Verdict

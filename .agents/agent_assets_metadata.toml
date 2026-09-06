@@ -933,3 +933,17 @@ mtime_ms = 1788624986868
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/06fc5c08-b84d-4638-b89a-4c55337e3500/88c25313-ad66-4eea-b847-d1cf39b137a7"
 storage_version_token = "1788625001979694"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "g1-jgsL9-4XyqJYERscIv"
+uri = "file://research/sources/job-b/corrected-state-mapping-report.html"
+type = "text"
+title = "Job B — corrected state mapping and real-run report"
+description = "Exact phase boundaries, provenance, kc/kd, hydraulics, interface request, fluxes and frozen-engine gate evidence."
+logical_id = "f93af060-16fc-448d-9c76-a30fa03e9800"
+content_hash = "sha256:da659ac416bfad5812c0292d83fb7490b35af92efd090922dc82c963949454a3"
+size = 21181
+mtime_ms = 1788683201646
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/f93af060-16fc-448d-9c76-a30fa03e9800/2e10ab57-8b39-4524-b854-ad0e2bcaf3a7"
+storage_version_token = "1788683205127638"
+content_type = "text/html"

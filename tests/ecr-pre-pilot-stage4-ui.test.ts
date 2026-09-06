@@ -79,32 +79,46 @@ const componentIds = [
 function jobBResponse() {
   return {
     result: {
-      status: "COMPLETED_LOCAL_TEST",
+      status: "PRE_PILOT_SIMULTANEOUS_TWO_FILM_FLUX_CALCULATED",
       frozenLocalHydraulics: {
         operatingHoldup: 0.16,
         d32M: 0.0012,
         interfacialAreaM2M3: 800,
         hydrodynamicsRecomputed: false,
       },
-      theoreticalStageAuthority: {
-        theoreticalStages: 7,
-        provenance: "governed Stage-4 fallback",
+      dependencies: {
+        stage1SnapshotHash: "stage-1-hash",
+        stage2ResultHash: "stage-2-hash",
+        stage3ImmutableHash: "stage-3-hash",
+      },
+      inputAudit: {
+        x_bulk_continuous: [0.1, 0.2, 0.1, 0.1, 0.1, 0.3, 0.1],
+        x_bulk_dispersed: [0.3, 0.1, 0.1, 0.1, 0.1, 0.2, 0.1],
+        bulkContinuousProvenance: "STAGE_2_INLET_CONTINUOUS",
+        bulkDispersedProvenance: "STAGE_2_INLET_DISPERSED",
+        stage2Provenance: { stage: 2, trial: "trial-1", accepted: false },
+        sourceStageCount: 1,
+        requestedNT: 7,
+        phi_d_operating: 0.16,
+        d32_m: 0.0012,
+        kc: componentIds.map(() => 0.0001),
+        kd: componentIds.map(() => 0.0002),
+        exactInterfaceEquilibriumRequest: true,
+        holdupDefinesThermodynamicComposition: false,
       },
       rows: componentIds.map((componentId, index) => ({
         componentId,
-        partitionM: index === 0 ? null : 0.5 + index / 10,
         kcMS: 0.0001,
         kdMS: 0.0002,
-        overallKcMS: 0.00008,
+        interfaceContinuousMoleFraction: 0.1 + index / 100,
+        interfaceDispersedMoleFraction: 0.2 + index / 100,
         fluxMolM2S: index / 1000,
         volumetricTransferMolM3S: index / 100,
         continuousFilmResidualMolM2S: 0,
         dispersedFilmResidualMolM2S: 0,
-        inactiveZeroInventory: index === 0,
       })),
       resultSha256: "job-b-result-hash",
       implementationSha256: "job-b-implementation-hash",
-      equilibriumAuthority: { resultHash: "equilibrium-result-hash" },
     },
   };
 }
@@ -148,7 +162,7 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
     expect(text).toContain("No Job-A record loaded in this review");
     expect(text).toContain("Job B · bounded local coupling only");
     expect(text).toContain("Seven-component interfacial flux closure test");
-    expect(text).toContain("COMPLETED_LOCAL_TEST");
+    expect(text).toContain("PRE_PILOT_SIMULTANEOUS_TWO_FILM_FLUX_CALCULATED");
     expect(text).not.toContain("Coefficient matrix");
   });
 
@@ -184,12 +198,26 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
 
   it("renders a structured blocked-equilibrium diagnostic without a flux table", () => {
     const diagnostic = {
-      adapterStatus: "BLOCKED_EQUILIBRIUM_NOT_ACCEPTED",
-      equilibriumGate: {
-        accepted: false,
-        reasonCode: "TIE_LINE_RESIDUAL_OUT_OF_BOUNDS",
+      adapterStatus: "INTERFACE_STATE_NOT_ACCEPTED",
+      inputAudit: {
+        x_bulk_continuous: [0.1, 0.2],
+        x_bulk_dispersed: [0.3, 0.4],
+        bulkContinuousProvenance: "STAGE_2_INLET_CONTINUOUS",
+        bulkDispersedProvenance: "STAGE_2_INLET_DISPERSED",
+        stage2Provenance: { stage: 2, trial: "rejected-trial", accepted: false },
+        sourceStageCount: 1,
+        requestedNT: 7,
+        phi_d_operating: 0.16,
+        d32_m: 0.0012,
+        kc: [0.0001, 0.0001],
+        kd: [0.0002, 0.0002],
+        exactInterfaceEquilibriumRequest: true,
+        holdupDefinesThermodynamicComposition: false,
       },
-      evidenceIds: ["lle-gate-47"],
+      interfaceDiagnostics: {
+        accepted: false,
+        reasonCode: "CHEMICAL_POTENTIAL_RESIDUAL_OUT_OF_BOUNDS",
+      },
     };
     const markup = renderWithStates([
       design,
@@ -202,14 +230,42 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
     ]);
     const text = visibleText(markup);
 
-    expect(text).toContain("Job-B local equilibrium not accepted");
-    expect(text).toContain("BLOCKED_EQUILIBRIUM_NOT_ACCEPTED");
-    expect(text).toContain("Thermodynamic gate details");
-    expect(markup).toContain("TIE_LINE_RESIDUAL_OUT_OF_BOUNDS");
-    expect(markup).toContain("lle-gate-47");
-    expect(text).toContain("No interfacial fluxes are shown for this state");
+    expect(text).toContain("Job-B interface state not accepted");
+    expect(text).toContain("INTERFACE_STATE_NOT_ACCEPTED");
+    expect(text).toContain("Interface and adapter diagnostics");
+    expect(markup).toContain("CHEMICAL_POTENTIAL_RESIDUAL_OUT_OF_BOUNDS");
+    expect(text).toContain("No interfacial fluxes are shown");
+    expect(text).toContain("Exact Job-B state audit");
+    expect(text).toContain("rejected Stage-2 outlets are not used");
+    expect(text).not.toMatch(/single.?phase/i);
     expect(text).not.toContain("Seven-component interfacial flux closure test");
     expect(markup).not.toContain("<table");
+  });
+
+  it("uses a generic blocked diagnostic for a module failure", () => {
+    const markup = renderWithStates([
+      design,
+      null,
+      null,
+      false,
+      null,
+      "Interface adapter module unavailable.",
+      {
+        adapterStatus: "MODULE_UNAVAILABLE",
+        inputAudit: {
+          sourceStageCount: 1,
+          requestedNT: 7,
+          holdupDefinesThermodynamicComposition: false,
+        },
+        interfaceDiagnostics: { accepted: false },
+      },
+    ]);
+    const text = visibleText(markup);
+
+    expect(text).toContain("Job-B calculation blocked");
+    expect(text).toContain("A required Job-B module or dependency blocked the calculation.");
+    expect(text).not.toContain("Job-B interface state not accepted");
+    expect(text).not.toMatch(/single.?phase/i);
   });
 
   it("shows all seven Job-B component rows, dimensional units, and local-only scope", () => {
@@ -234,10 +290,33 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
     expect(text).toContain("a [m²/m³]");
     expect(text).toContain("kc [m/s]");
     expect(text).toContain("kd [m/s]");
-    expect(text).toContain("Kc [m/s]");
+    expect(text).toContain("x interface, continuous [mol/mol]");
+    expect(text).toContain("x interface, dispersed [mol/mol]");
     expect(text).toContain("N [mol/m²/s]");
     expect(text).toContain("aN [mol/m³/s]");
-    expect(text).toContain("Local test only: no compartment count, height, efficiency, or final RPM.");
+    expect(text).toContain("Continuous-film residual [mol/m²/s]");
+    expect(text).toContain("Dispersed-film residual [mol/m²/s]");
+    expect(text).toContain("No sizing is performed.");
     expect(text).toContain("not release-qualified");
+    expect(text).toContain("Simultaneous separate-bulk-boundary chemical-potential/film solve");
+    expect(text).toContain("source stage count identifies the source record; it does not override the requested");
+    expect(text).toContain("holdupDefinesThermodynamicComposition = false");
+    for (const auditField of [
+      "x_bulk_continuous",
+      "x_bulk_dispersed",
+      "bulkContinuousProvenance",
+      "bulkDispersedProvenance",
+      "stage2Provenance",
+      "sourceStageCount",
+      "requestedNT",
+      "phi_d_operating",
+      "d32_m",
+      "exactInterfaceEquilibriumRequest",
+    ]) {
+      expect(text).toContain(auditField);
+    }
+    expect(text).toContain("Retained dependency hashes");
+    expect(text).not.toContain("m = Cd*/Cc*");
+    expect(text).not.toContain("Kc [m/s]");
   });
 });

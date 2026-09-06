@@ -1,6 +1,6 @@
 ---
-name: ECR Job-B local flux boundary
-description: Scalar local two-film flux is distinct from a full molar-average multicomponent column solver.
+name: ECR Job-B state ownership
+description: Stage-2 supplies separate bulk states; Stage-3 holdup never defines thermodynamic composition.
 ---
 
 Job B is bounded to seven-component interfacial flux and frozen local Stage-3
@@ -10,20 +10,21 @@ authorization.
 **Why:** The user explicitly separated local transfer validation from column
 sizing. A broader existing solver is not authority to expand that scope.
 
-**How to apply:** Use Job-A transport values and solved pinned seven-component
-local equilibrium. A preflight is not a tie-line. Preserve NT=calculated-or-7
-independently of the equilibrium engine identity.
+**How to apply:** Preserve NT=calculated-or-7 independently of equilibrium
+engine authority. Keep 7C-1.5.0 and its acceptance thresholds frozen.
 
-The componentwise algebraic two-film approximation requires matching film
-rates and equal/opposite phase sources, not an imposed cross-component
-zero-sum flux. Do not import full Maxwell–Stefan or multicompartment
-molar-average constraints as prerequisites for this local approximation.
+The user explicitly requires separate continuous/dispersed bulk compositions
+from governed Stage-2 state as simultaneous two-film interface boundary states.
+Do not form thermodynamic composition by mixing bulk concentrations with
+Stage-3 holdup. Do not supply an assumed/global partition ratio.
 
-**Why:** The local Laitinen/Fells two-film route closes with a defined
-concentration partition. With m=Cd*/Cc*, the continuous-basis resistance is
-1/Kc=1/kc+1/(m*kd); using m/kd instead reverses the convention.
+**Why:** The earlier pooled inventory was a Job-B construction, not Stage-2
+authority. A failed flash on that constructed state does not classify the
+RRBO/NMP system as single-phase.
 
-**How to apply:** Declare the fixed bulk concentration closure as preliminary,
-validate both film residuals, and retain the actual local equilibrium gates.
-A coincident-phase local solution blocks flux for that state without implying
-whole-process infeasibility or invalidating the NT fallback.
+**How to apply:** Report both seven-component bulk vectors and provenance,
+Stage-3 operating holdup and d32, Job-A kc/kd, and the exact separate-boundary
+interface request. Use holdup only for phase volumes/interfacial area.
+Distinguish recorded Stage-2 incoming boundary streams from accepted
+equilibrium outlets; never promote rejected outlet states or target failure
+into an assertion about the real fluid system.
