@@ -24,6 +24,13 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(hash).toMatch(/^[a-f0-9]{64}$/);
     expect(jobCResultHash({ ...body, resultSha256: 'ignored' })).toBe(hash);
     expect(jobCResultHash({ ...body, value: 2.1 })).not.toBe(hash);
+    // Python's governed worker uses bytewise lexicographic key ordering.
+    // localeCompare orders case variants differently and breaks cross-runtime
+    // integrity for fields such as initialRaw... and initialization.
+    expect(jobCResultHash({
+      initialization: 'x',
+      initialRawFvResidualMolS: 1,
+    })).toBe('d92549e1649402c7b8e02b769cf4498ee923af8b8dde5ea7d041eaecfa162819');
   });
 
   it('pins the candidate equations and exact Job-B fail-closed qualification', () => {
@@ -110,6 +117,17 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
 
     const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
     expect(worker).toContain('frozen_flow_evaluate');
+    expect(worker).toContain('frozen_conservative_seed');
+    expect(worker).toContain('audit_frozen_flow_sparsity');
+    expect(worker).toContain('JOB_C_FROZEN_FV_JACOBIAN_SPARSITY_MISMATCH');
+    expect(worker).toContain('JOB_C_FROZEN_FV_SUBSYSTEM_NONCONVERGENCE');
+    expect(worker).toContain('tr_solver="exact"');
+    expect(worker).toContain('method="lm"');
+    expect(worker).toContain('"missingDependencyCount":0');
+    expect(worker).toContain('UNBOUNDED_DIAGNOSTIC_ONLY_NOT_PHYSICAL_ACCEPTANCE');
+    expect(worker).toContain('NO_PHYSICAL_INFEASIBILITY_CLAIM');
+    expect(worker).not.toContain('predicted_flows=unconstrained_fit.x');
+    expect(worker).toContain('DENSE_EXACT_TRF_FINITE_DIFFERENCE_JACOBIAN');
     expect(worker).toContain('"qualification":"PREDICTOR_ONLY_NOT_ACCEPTANCE"');
     expect(worker).toContain('previous["details"]');
     expect(worker).toContain('solvers[j].warm=x[');

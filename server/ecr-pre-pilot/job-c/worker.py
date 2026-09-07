@@ -151,6 +151,46 @@ def case(r, name, dc, dd, solvers):
         variable_scale=np.r_[np.tile(scale,2*m),np.ones(13*m)]
         flow_scale=np.tile(scale,2*m)
 
+        def frozen_conservative_seed(base_flows,lam,nc):
+            """Plug-flow balance seed only; dispersion is closed by the solver."""
+            c,d=np.asarray(base_flows).reshape(2,m,7).copy()
+            transfer=lam*np.asarray(nc)*av*A*dz
+            for j in range(m):
+                c[j]=np.asarray(feedc)-np.sum(transfer[:j+1],axis=0)
+                d[j]=np.asarray(feedd)+np.sum(transfer[j:],axis=0)
+            candidate=np.r_[c.reshape(-1),d.reshape(-1)]
+            return np.minimum(np.maximum(candidate,lower[:14*m]*10),upper[:14*m])
+
+        def audit_frozen_flow_sparsity(flow_vector,lam,nc):
+            """Prove the declared 98x98 mask covers numerical dependencies."""
+            baseline=frozen_flow_evaluate(flow_vector,lam,nc)
+            declared=flow_sparsity.toarray().astype(bool)
+            missing=[]; actual_nonzeros=0
+            for column in range(14*m):
+                component=column%7
+                step=max(abs(float(flow_vector[column]))*1e-7,
+                  float(scale[component])*1e-8,epsilon*10)
+                perturbed=np.asarray(flow_vector).copy()
+                if perturbed[column]+step>upper[column]:
+                    step=-step
+                perturbed[column]+=step
+                derivative=(frozen_flow_evaluate(perturbed,lam,nc)-baseline)/step
+                threshold=max(1e-10,float(np.max(np.abs(derivative)))*1e-9)
+                rows=np.flatnonzero(np.abs(derivative)>threshold)
+                actual_nonzeros+=len(rows)
+                for row in rows:
+                    if not declared[row,column]:
+                        missing.append({"row":int(row),"column":int(column),
+                          "derivative":float(derivative[row])})
+            if missing:
+                raise JobCBlocked("JOB_C_FROZEN_FV_JACOBIAN_SPARSITY_MISMATCH",
+                  {"heightM":h,"lambda":lam,"missingDependencyCount":len(missing),
+                   "missingDependencies":missing[:20]})
+            return {"declaredNonzeros":int(flow_sparsity.nnz),
+              "finiteDifferenceNonzeros":int(actual_nonzeros),
+              "missingDependencyCount":0,
+              "qualification":"NUMERICAL_JACOBIAN_COVERAGE_AUDIT"}
+
         def diagnostic_rows(ev):
             rows=[]
             for j in range(m):
@@ -186,15 +226,84 @@ def case(r, name, dc, dd, solvers):
                 predictor_started=time.monotonic()
                 previous=raw_evaluate(x,lam)
                 frozen_nc=np.asarray([values[4] for values in previous["details"]])
+                predictor_start=frozen_conservative_seed(x[:14*m],lam,frozen_nc)
+                sparsity_audit=audit_frozen_flow_sparsity(
+                  predictor_start,lam,frozen_nc)
                 def frozen_scaled(flow_vector):
                     values=frozen_flow_evaluate(flow_vector,lam,frozen_nc)
                     return np.asarray([v/scale[i%7] for i,v in enumerate(values)])
-                predictor_fit=scipy.optimize.least_squares(frozen_scaled,x[:14*m],
-                  bounds=(lower[:14*m],upper[:14*m]),method="trf",jac="2-point",
-                  jac_sparsity=flow_sparsity,x_scale=flow_scale,max_nfev=80,
-                  xtol=1e-11,ftol=1e-11,gtol=1e-11)
+                predictor_starts=[
+                  ("CONSERVATIVE_CUMULATIVE_TRANSFER_PROFILE",predictor_start),
+                  ("PREVIOUS_ACCEPTED_CONSTANT_FLOW_PROFILE",x[:14*m].copy()),
+                ]
+                predictor_attempts=[]
+                predictor_fits=[]
+                for initialization,start_vector in predictor_starts:
+                    start_values=frozen_flow_evaluate(start_vector,lam,frozen_nc)
+                    candidate_fit=scipy.optimize.least_squares(
+                      frozen_scaled,start_vector,
+                      bounds=(lower[:14*m],upper[:14*m]),method="trf",
+                      jac="2-point",tr_solver="exact",x_scale=flow_scale,
+                      max_nfev=160,xtol=1e-11,ftol=1e-11,gtol=1e-11)
+                    candidate_values=frozen_flow_evaluate(
+                      candidate_fit.x,lam,frozen_nc)
+                    predictor_fits.append(candidate_fit)
+                    predictor_attempts.append({
+                      "initialization":initialization,
+                      "initialRawFvResidualMolS":
+                        float(np.max(np.abs(start_values))),
+                      "finalRawFvResidualMolS":
+                        float(np.max(np.abs(candidate_values))),
+                      "finalScaledFvResidual":
+                        float(np.max(np.abs(frozen_scaled(candidate_fit.x)))),
+                      "minimumFlowMolS":float(np.min(candidate_fit.x)),
+                      "functionEvaluations":int(candidate_fit.nfev),
+                      "optimizerSuccess":bool(candidate_fit.success)})
+                predictor_fit=min(predictor_fits,
+                  key=lambda fit:np.linalg.norm(frozen_scaled(fit.x)))
                 predicted_flows=predictor_fit.x
                 frozen_fv=frozen_flow_evaluate(predicted_flows,lam,frozen_nc)
+                frozen_scaled_max=float(np.max(np.abs(
+                  frozen_scaled(predicted_flows))))
+                frozen_raw_max=float(np.max(np.abs(frozen_fv)))
+                unconstrained=None
+                if max(frozen_raw_max,frozen_scaled_max)>1e-7:
+                    unconstrained_fit=scipy.optimize.least_squares(
+                      frozen_scaled,predicted_flows,method="lm",jac="2-point",
+                      x_scale=flow_scale,max_nfev=1000,
+                      xtol=1e-12,ftol=1e-12,gtol=1e-12)
+                    unconstrained_values=frozen_flow_evaluate(
+                      unconstrained_fit.x,lam,frozen_nc)
+                    nonpositive=[]
+                    for index,value in enumerate(unconstrained_fit.x):
+                        if value<=0:
+                            phase_index,rem=divmod(index,m*7)
+                            cell_index,component_index=divmod(rem,7)
+                            nonpositive.append({
+                              "phase":"continuous" if phase_index==0 else "dispersed",
+                              "numericalCell":cell_index+1,
+                              "component":COMPONENTS[component_index],
+                              "flowMolS":float(value)})
+                    unconstrained={"functionEvaluations":int(unconstrained_fit.nfev),
+                      "optimizerSuccess":bool(unconstrained_fit.success),
+                      "rawFvResidualMolS":
+                        float(np.max(np.abs(unconstrained_values))),
+                      "scaledFvResidual":
+                        float(np.max(np.abs(frozen_scaled(unconstrained_fit.x)))),
+                      "minimumFlowMolS":float(np.min(unconstrained_fit.x)),
+                      "nonpositiveFlowCount":len(nonpositive),
+                      "nonpositiveFlows":sorted(nonpositive,
+                        key=lambda row:row["flowMolS"])[:20],
+                      "qualification":
+                        "UNBOUNDED_DIAGNOSTIC_ONLY_NOT_PHYSICAL_ACCEPTANCE"}
+                    raise JobCBlocked(
+                      "JOB_C_FROZEN_FV_SUBSYSTEM_NONCONVERGENCE",
+                      {"heightM":h,"lambda":lam,
+                       "sparsityAudit":sparsity_audit,
+                       "boundedAttempts":predictor_attempts,
+                       "unconstrainedDiagnostic":unconstrained,
+                       "qualification":
+                         "FROZEN_FLUX_DIAGNOSTIC_ONLY_NO_PHYSICAL_INFEASIBILITY_CLAIM"})
                 before_refresh=np.r_[predicted_flows,x[14*m:]]
                 before_ev=raw_evaluate(before_refresh,lam)
                 refreshed=[]
@@ -218,8 +327,12 @@ def case(r, name, dc, dd, solvers):
                   for j,v in enumerate(after_ev["details"]))
                 predictor={"functionEvaluations":int(predictor_fit.nfev),
                   "optimizerSuccess":bool(predictor_fit.success),
-                  "frozenFluxRawFvResidualMolS":float(np.max(np.abs(frozen_fv))),
-                  "frozenFluxScaledFvResidual":float(np.max(np.abs(frozen_scaled(predicted_flows)))),
+                  "solver":"DENSE_EXACT_TRF_FINITE_DIFFERENCE_JACOBIAN",
+                  "boundedAttempts":predictor_attempts,
+                  "unconstrainedDiagnostic":unconstrained,
+                  "sparsityAudit":sparsity_audit,
+                  "frozenFluxRawFvResidualMolS":frozen_raw_max,
+                  "frozenFluxScaledFvResidual":frozen_scaled_max,
                   "beforeInterfaceRefreshRawFvResidualMolS":
                     float(np.max(np.abs(before_ev["fv"]))),
                   "beforeInterfaceRefreshScaledFvResidual":float(np.max(np.abs(

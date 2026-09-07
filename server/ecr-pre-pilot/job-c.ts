@@ -15,7 +15,8 @@ export const JOB_C_PRELIMINARY_SENSITIVITY_BASIS = Object.freeze({
 const canonical = (value: unknown): string => Array.isArray(value)
   ? `[${value.map(canonical).join(',')}]`
   : value && typeof value === 'object'
-    ? `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))
+    ? `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+      a < b ? -1 : a > b ? 1 : 0)
       .map(([key, child]) => `${JSON.stringify(key)}:${canonical(child)}`).join(',')}}`
     : JSON.stringify(value);
 const hashValue = (value: unknown): unknown => {

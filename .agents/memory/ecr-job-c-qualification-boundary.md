@@ -48,3 +48,28 @@ interface coordinates. Numerical predictors, scaling, damping, sparsity, and
 continuation are initialization/solution aids only. Judge acceptance on the
 unmodified equations, and report ranked equation blocks if the bounded solve
 does not converge.
+
+Before coupling the interface equations, require the positive bounded
+frozen-flux FV subsystem to close. An unconstrained root may be calculated only
+to identify which phase/component flows violate positivity; it must never seed
+or qualify the coupled solve even when its residual closes.
+
+**Why:** A nominal inlet-flux benchmark closed the frozen FV equations only by
+making components absent from the dispersed inlet negative. Promoting that root
+would hide a boundary/source-direction problem behind excellent residuals.
+
+**How to apply:** Persist the bounded attempts, finite-difference sparsity audit,
+and unconstrained negative-flow list as diagnostic evidence, then stop before
+interface refresh. Do not call this physical infeasibility until the Job-B flux
+orientation and counter-current boundary ownership are independently resolved.
+
+Job-C response hashing is shared between Python and TypeScript and therefore
+uses bytewise lexicographic key ordering, not locale-aware comparison.
+
+**Why:** Locale-aware ordering diverged from Python when diagnostic keys shared
+the same lowercase prefix but differed by an uppercase character, invalidating
+an otherwise correct worker response.
+
+**How to apply:** Any new cross-runtime canonical hashing must use the same
+ASCII/Unicode code-point ordering on both sides and include a mixed-case key
+regression vector.
