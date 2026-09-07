@@ -212,6 +212,7 @@ async function execute(row: any, token: string) {
     const immutable = jobCResultHash(snapshot) === row.input_hash
       && artifacts.implementationHash === row.implementation_hash
       && artifacts.candidateHash === row.candidate_hash
+      && artifacts.boundaryQualifierHash === deps?.jobCBoundaryInterfaceQualifierSha256
       && deps?.jobBInterfaceWorkerSha256 === row.job_b_engine_hash
       && deps?.stage1SnapshotHash === currentStage1Hash
       && deps?.stage3ImmutableHash === design.rows[0]?.stage3_hash;

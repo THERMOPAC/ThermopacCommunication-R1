@@ -38,21 +38,6 @@ const equilibrium = () => ({
 });
 
 describe('ECR pre-pilot Job B bounded local flux coupling', () => {
-  it('documents positive flux as continuous-to-dispersed at an absent-component boundary', () => {
-    const worker = fs.readFileSync(
-      'server/ecr-pre-pilot/job-b-interface/worker.py', 'utf8',
-    );
-    expect(worker).toContain(
-      'POSITIVE_REMOVES_FROM_CONTINUOUS_AND_ADDS_TO_DISPERSED',
-    );
-    expect(worker).toContain('flux >= 0.0');
-    expect(worker).toContain(
-      'FAIL_CLOSED_SELECT_ONLY_REPRODUCED_BOUNDARY_COMPATIBLE_ROOT',
-    );
-    expect(worker).toContain('"candidateRoot"');
-    expect(worker).toContain('"dispersedInletBoundaryCompatibility"');
-  });
-
   it('consumes 14 Job-A cells, solved equilibrium, and frozen Stage-3 area exactly once', () => {
     const result = evaluateJobB({
       jobA: evaluateJobA(jobAInput()),

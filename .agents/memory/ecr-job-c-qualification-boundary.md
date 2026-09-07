@@ -55,41 +55,27 @@ to identify which phase/component flows violate positivity; it must never seed
 or qualify the coupled solve even when its residual closes.
 
 The signed counter-current balances use positive flux for
-continuous-to-dispersed transfer. Their integrated outlets are
-continuous feed minus total transfer and dispersed feed plus total transfer.
-Replaying the pinned Job-B model at the global inlet produced a frozen root that
-would make the dispersed solvent-component outlets negative. Reversing the
-source sign instead makes the zero-feed continuous hydrocarbon outlets negative,
-so neither source signs nor counter-current boundary ownership are the defect.
+continuous-to-dispersed transfer. Their integrated outlets are continuous feed
+minus total transfer and dispersed feed plus total transfer. The recorded
+Stage-2 feed-end local contact and the two opposite global column inlets are
+different states and must never be treated as one interchangeable interface
+boundary.
 
-**Why:** Repeating one global-inlet Job-B flux across every cell is incompatible
-with the component-accessible inlet boundaries in either sign. This diagnoses
-the fixed-global-inlet frozen-flux approximation, not physical infeasibility of
-the full local-state transport problem.
+**Why:** The Stage-2 local contact has an independently reproduced, stable branch
+with positive NMP and H₂O transfer into fresh zero-solvent RRBO. Continuing that
+branch to the current zero-transfer initialization—which artificially pairs
+fresh wet NMP with fresh RRBO as one repeated local contact—converges to negative
+NMP and H₂O transfer. The global feeds enter opposite ends of the column, so this
+is a homotopy incompatibility, not a physical infeasibility verdict.
 
-**How to apply:** Before interface refresh or the square coupled solve, replay
-the pinned inlet Job-B result, tabulate both signed film fluxes, and evaluate the
-integrated outlet positivity condition in both the recorded and sign-reversed
-directions. Stop with diagnostic-only evidence if either phase has a nonpositive
-implied outlet. Resume continuation only from a positive, closed local-flux
-state without changing the original raw/scaled acceptance tolerances.
-
-The selected Job-B root remains boundary-incompatible under cell-local Picard
-continuation at the 2 m lower height. The positive branch stops near
-\(\lambda=6.92\times10^{-5}\); an exact unconstrained FV root requires all seven
-dispersed NMP and all seven dispersed H₂O cell flows to be negative.
-
-**Why:** This independently rules out runtime budget and premature bounded
-optimizer termination: the bounded solve converges normally, while the
-diagnostic unbounded system closes to machine precision only with fourteen
-negative solvent flows.
-
-**How to apply:** Do not retry this selected interface root with more solver
-iterations, sign changes, clipping, or wider residual gates. Any next Job-C
-attempt must first qualify a distinct boundary-compatible Job-B interface
-branch or revise the physical inlet-phase representation under governed
-evidence. This is a root/boundary incompatibility, not proof that every possible
-local-state transport model is physically infeasible.
+**How to apply:** Qualify the Stage-2 local-contact branch with the separately
+versioned Job-C qualifier. Keep the frozen Job-B worker and artifact as pinned
+engine lineage only; never call its solver or consume its flux in Job C. Preserve
+literal zero NMP/H₂O in the external dispersed feed and stop before any internal
+epsilon coordinates if the branch cannot continue to the numerical baseline.
+Any future continuation must avoid pairing opposite global inlets as a physical
+local interface and must retain the unchanged raw/scaled, stability, TPD, and
+exact-zero tangent-cone gates.
 
 Job-C response hashing is shared between Python and TypeScript and therefore
 uses bytewise lexicographic key ordering, not locale-aware comparison.

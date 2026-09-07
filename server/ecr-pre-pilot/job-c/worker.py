@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib, importlib.util, json, math, os, sys, time
 from pathlib import Path
 from candidate_interface import CandidateInterfaceSolver, CandidateFailure, VERSION as CANDIDATE_VERSION
+from boundary_interface_qualifier import qualify as qualify_boundary, VERSION as QUALIFIER_VERSION
 
 sys.dont_write_bytecode = True
 PROTOCOL = "ECR_PRE_PILOT_JOB_C_V1"
@@ -26,6 +27,17 @@ root=Path(os.environ["JOB_B_INTERFACE_RUNTIME_ROOT"]).resolve()
 spec=importlib.util.spec_from_file_location("job_c_verified_job_b",root/"server/ecr-pre-pilot/job-b-interface/worker.py")
 if spec is None or spec.loader is None: raise RuntimeError("JOB_C_JOB_B_IMPORT_FAILED")
 job_b=importlib.util.module_from_spec(spec); spec.loader.exec_module(job_b)
+
+def qualified_interface(request, branch_reference_state=None):
+    """Replay through Job-C's versioned qualifier, never Job-B solve."""
+    temporary,engine,_,_=job_b.scientific.build_engine(request["T"],0.0)
+    try:
+        return qualify_boundary(engine,request["T"],request["kc"],request["kd"],
+          request["CtC"],request["CtD"],request["phase_config"],
+          request["x_bulk_continuous"],request["x_bulk_dispersed"],
+          branch_reference_state)
+    finally:
+        temporary.cleanup()
 
 class JobCBlocked(RuntimeError):
     def __init__(self, code, diagnostics):
@@ -86,7 +98,7 @@ def frozen_boundary_audit(np, feedc, feedd, nc, nd, transfer):
       "signAndBoundaryOrientationConclusion":
         "B_TO_C_SOURCE_SIGNS_AND_COUNTERCURRENT_BOUNDARIES_ANALYTICALLY_CONSERVATIVE",
       "negativeFlowOrigin":
-        "FIXED_GLOBAL_INLET_FLUX_APPROXIMATION_REPEATS_A_BOUNDARY_INCOMPATIBLE_JOB_B_ROOT",
+         "FIXED_GLOBAL_INLET_FLUX_APPROXIMATION_DIAGNOSTIC_ONLY",
       "physicalInfeasibilityClaimed":False}
 
 def require_positive_frozen_solution(np, flow_vector, raw_max, scaled_max):
@@ -97,6 +109,32 @@ def require_positive_frozen_solution(np, flow_vector, raw_max, scaled_max):
       "maximumAllowedRawFvResidualMolS":1e-7,
       "maximumAllowedScaledFvResidual":1e-7,
       "requiredBefore":"INTERFACE_REFRESH_OR_189_EQUATION_SOLVE"}
+
+def validate_branch_request(r):
+    branch=r.get("boundaryBranchQualificationRequest")
+    if not isinstance(branch,dict):
+        raise ValueError("JOB_C_BOUNDARY_BRANCH_SOURCE_INVALID")
+    def normalized_vector(value):
+        return (isinstance(value,list) and len(value)==7
+          and all(not isinstance(x,bool) and math.isfinite(float(x)) and float(x)>=0 for x in value)
+          and abs(sum(float(x) for x in value)-1.0)<=1e-10)
+    valid=(branch.get("componentOrder")==list(COMPONENTS)
+      and branch.get("T")==r.get("temperatureK")
+      and branch.get("kc")==r.get("kc") and branch.get("kd")==r.get("kd")
+      and branch.get("phase_config")==r.get("phaseConfiguration")
+      and normalized_vector(branch.get("x_bulk_continuous"))
+      and normalized_vector(branch.get("x_bulk_dispersed"))
+      and branch["x_bulk_dispersed"][5]==0.0
+      and branch["x_bulk_dispersed"][6]==0.0
+      and isinstance(branch.get("CtC"),(int,float)) and not isinstance(branch["CtC"],bool)
+      and math.isfinite(float(branch["CtC"])) and float(branch["CtC"])>0
+      and isinstance(branch.get("CtD"),(int,float)) and not isinstance(branch["CtD"],bool)
+      and math.isfinite(float(branch["CtD"])) and float(branch["CtD"])>0
+      and branch.get("provenance",{}).get("qualification")
+        =="RECORDED_STAGE2_FEED_END_LOCAL_CONTACT_STATE")
+    source={k:v for k,v in branch.items() if k!="sourceStateSha256"}
+    if (not valid or branch.get("sourceStateSha256")!=digest(source)):
+        raise ValueError("JOB_C_BOUNDARY_BRANCH_SOURCE_INVALID")
 
 def case(r, name, dc, dd, solvers):
     np=solvers[0].np
@@ -109,31 +147,64 @@ def case(r, name, dc, dd, solvers):
     accepted_by_height={}
     inlet_xc=np.asarray(feedc)/sum(feedc)
     inlet_xd=np.asarray(feedd)/sum(feedd)
+    if feedd[5] != 0.0 or feedd[6] != 0.0:
+        raise JobCBlocked("JOB_C_REQUIRES_EXACT_FRESH_DISPERSED_NMP_H2O_ZERO",
+          {"dispersedFeedMolS":feedd,"requiredExactZeroComponents":["NMP","H2O"]})
     # These are authoritative physical inlet compositions.  In particular,
     # fresh dispersed RRBO NMP/H2O zeros are never epsilon-seeded or clipped.
     if any((feedd[i] == 0.0 and inlet_xd[i] != 0.0) for i in range(7)):
         raise JobCBlocked("JOB_C_PHYSICAL_DISPERSED_INLET_ZERO_NOT_PRESERVED",
           {"dispersedFeedMolS":feedd,"dispersedInletMoleFractions":inlet_xd.tolist()})
-    inlet_request={"protocol":"ECR_JOB_B_INTERFACE_V1","operation":"SOLVE_INTERFACE",
-      "componentOrder":list(COMPONENTS),"T":r["temperatureK"],
-      "x_bulk_continuous":inlet_xc.tolist(),
-      "x_bulk_dispersed":inlet_xd.tolist(),"kc":r["kc"],"kd":r["kd"],
-      "CtC":r["continuousTotalConcentrationMolM3"],
-      "CtD":r["dispersedTotalConcentrationMolM3"],
-      "phase_config":r["phaseConfiguration"]}
-    inlet_job_b=job_b.solve(inlet_request)
-    if inlet_job_b.get("status")!="CALCULATED_PRELIMINARY_INTERFACE":
-        raise JobCBlocked("JOB_C_GLOBAL_INLET_JOB_B_REPRODUCTION_FAILED",
-          {"jobBStatus":inlet_job_b.get("status"),
-           "jobBError":inlet_job_b.get("error"),
-           "boundaryQualification":inlet_job_b.get("boundaryQualification"),
-           "rootClassReproduction":inlet_job_b.get("rootClassReproduction"),
-           "startDiagnostics":inlet_job_b.get("startDiagnostics"),
-           "endpointAssessments":inlet_job_b.get("endpointAssessments")})
-    inlet_nc=np.asarray(
-      inlet_job_b["interface"]["continuousComponentFluxMolM2S"])
-    inlet_nd=np.asarray(
-      inlet_job_b["interface"]["dispersedComponentFluxMolM2S"])
+    branch=r["boundaryBranchQualificationRequest"]
+    if (branch.get("componentOrder")!=list(COMPONENTS)
+      or branch.get("T")!=r["temperatureK"]
+      or branch.get("kc")!=r["kc"] or branch.get("kd")!=r["kd"]
+      or branch.get("phase_config")!=r["phaseConfiguration"]
+      or branch.get("x_bulk_dispersed",[None]*7)[5]!=0.0
+      or branch.get("x_bulk_dispersed",[None]*7)[6]!=0.0):
+        raise JobCBlocked("JOB_C_BOUNDARY_BRANCH_SOURCE_INVALID",
+          {"sourceStateSha256":branch.get("sourceStateSha256")})
+    source_for_hash={k:v for k,v in branch.items() if k!="sourceStateSha256"}
+    if branch.get("sourceStateSha256")!=digest(source_for_hash):
+        raise JobCBlocked("JOB_C_BOUNDARY_BRANCH_SOURCE_HASH_INVALID",{})
+    inlet_qualifier=qualify_boundary(solvers[0].engine,branch["T"],branch["kc"],branch["kd"],
+      branch["CtC"],branch["CtD"],branch["phase_config"],
+      branch["x_bulk_continuous"],branch["x_bulk_dispersed"])
+    if inlet_qualifier.get("status") != "QUALIFIED_JOB_C_BOUNDARY_BRANCH":
+        raise JobCBlocked("JOB_C_BOUNDARY_INTERFACE_QUALIFIER_FAILED",
+          {"qualifier":inlet_qualifier,
+           "jobBProvenanceClassification":
+             "PINNED_ENGINE_LINEAGE_ONLY_NO_JOB_B_FLUX_CONSUMED"})
+    inlet_nc=np.asarray(inlet_qualifier["interface"]["continuousComponentFluxMolM2S"])
+    inlet_nd=np.asarray(inlet_qualifier["interface"]["dispersedComponentFluxMolM2S"])
+    inlet_qi=inlet_qualifier["interface"]
+    qualified_candidate_seed=solvers[0].inverse_transform(
+      inlet_qi["continuousMoleFractions"],inlet_qi["dispersedMoleFractions"],
+      inlet_qi["totalMolarFluxMolM2S"])
+    if inlet_nc[5] < 0.0 or inlet_nc[6] < 0.0:
+        raise JobCBlocked("JOB_C_BOUNDARY_INTERFACE_QUALIFIER_FAILED",
+          {"gate":"EXACT_ZERO_SOLVENT_TANGENT_CONE","qualifier":inlet_qualifier})
+    # The global countercurrent boundary streams are not a local contact pair.
+    # Before creating any positive internal FV coordinates, explicitly test
+    # whether the qualified Stage-2 branch can continue to that lambda-zero
+    # initialization required by the present homotopy.
+    probe_solver=CandidateInterfaceSolver(solvers[0].engine,r["temperatureK"],r["kc"],r["kd"],
+      r["continuousTotalConcentrationMolM3"],r["dispersedTotalConcentrationMolM3"],
+      r["phaseConfiguration"])
+    global_pair_probe=probe_solver.solve(inlet_xc,inlet_xd,qualified_candidate_seed)
+    probe_nc=global_pair_probe["continuousComponentFluxMolM2S"]
+    if probe_nc[5] < 0.0 or probe_nc[6] < 0.0:
+        raise JobCBlocked("JOB_C_BOUNDARY_BRANCH_CANNOT_CONTINUE_TO_LAMBDA_ZERO_GLOBAL_PAIR",
+          {"qualifiedStage2LocalContact":{"source":"RECORDED_STAGE2_FEED_END_LOCAL_CONTACT_STATE",
+             "sourceStateSha256":branch["sourceStateSha256"],
+             "qualifier":inlet_qualifier},
+           "artificialGlobalPairCandidate":{"classification":
+             "BOUNDARY_INCOMPATIBLE_LOCAL_INITIALIZATION_NOT_OPERATIONAL",
+             "candidate":global_pair_probe},
+           "globalColumnBoundaryStreamsAreLocalContactPair":False,
+           "globalDispersedInletExactZeros":{"NMP":feedd[5],"H2O":feedd[6]},
+           "incomingPhysicalFlowsRegularized":False,
+           "physicalInfeasibilityClaimed":False})
 
     def solve_height(h, warm=None):
         """Solve all 98 FV and 91 frozen Job-B equations simultaneously."""
@@ -158,7 +229,7 @@ def case(r, name, dc, dd, solvers):
             # this solve is never called from the monolithic residual.
             xc=np.asarray(feedc)/sum(feedc); xd=np.asarray(feedd)/sum(feedd)
             try:
-                seed=solvers[0].solve(xc,xd)
+                seed=solvers[0].solve(xc,xd,qualified_candidate_seed)
             except CandidateFailure as error:
                 raise JobCBlocked("JOB_C_LAMBDA_ZERO_INTERFACE_INITIALIZATION_FAILED",
                   {"error":str(error),"numericalCellTemplate":"GLOBAL_INLET"})
@@ -355,22 +426,25 @@ def case(r, name, dc, dd, solvers):
         zero_feed_seed_rows=[
           {"phase":"continuous" if phase==0 else "dispersed",
            "numericalCell":cell+1,"component":COMPONENTS[component],
-           "governedInletFlowMolS":0.0,"positiveBoundSeedMolS":epsilon}
+            "governedInletFlowMolS":0.0,"positiveBoundSeedMolS":epsilon,
+            "coordinateClassification":"INTERNAL_NUMERICAL_COORDINATE_NOT_FEED_REGULARIZATION"}
           for phase in range(2) for cell in range(m) for component in range(7)
           if (feedc if phase==0 else feedd)[component]==0.0]
         global_inlet_full_scale_audit=frozen_boundary_audit(
           np,feedc,feedd,inlet_nc,inlet_nd,
           np.tile(inlet_nc,(m,1))*av*A*dz)
         global_inlet_full_scale_audit.update({
-          "heightM":h,"lambda":1.0,"jobBStatus":inlet_job_b["status"],
-          "jobBSelectedStartClass":inlet_job_b.get("selectedStartClass"),
-          "jobBIndependentReproductionStartClass":
-            inlet_job_b.get("independentReproductionStartClass"),
+          "heightM":h,"lambda":1.0,
            "physicalDispersedInletMoleFractions":inlet_xd.tolist(),
            "physicalDispersedInletZerosPreservedExactly":
              all(feedd[i] != 0.0 or inlet_xd[i] == 0.0 for i in range(7)),
            "incomingPhysicalFlowsRegularized":False,
-          "qualification":"GLOBAL_INLET_FULL_SCALE_FROZEN_FLUX_DIAGNOSTIC_ONLY"})
+           "qualifiedCandidateSeedTransformed":qualified_candidate_seed.tolist(),
+           "frozenJobBProvenance":{"workerSha256":"70229d3eacfde61d906f39bc3dec8a29387cabfc96944493ffb5318653e02f2d",
+             "artifactSha256":"71c21d480c81e5971754fa664f42259ab9dd117f77ff37a8361a0e2d89de12db",
+             "classification":"PINNED_ENGINE_LINEAGE_ONLY_NO_JOB_B_FLUX_CONSUMED"},
+           "qualification":"GLOBAL_INLET_FULL_SCALE_FROZEN_FLUX_DIAGNOSTIC_ONLY;"
+             "FLUX_SOURCE=QUALIFIED_JOB_C_BOUNDARY_BRANCH"})
         # Intermediate lambda points use deterministic local-flux Picard
         # continuation: seven independent candidate interface solves followed
         # by one bounded dense 98-equation FV solve.  The 189-equation system is
@@ -639,11 +713,15 @@ def case(r, name, dc, dd, solvers):
               "CtC":r["continuousTotalConcentrationMolM3"],
               "CtD":r["dispersedTotalConcentrationMolM3"],
               "phase_config":r["phaseConfiguration"]}
-            out=job_b.solve(q)
-            if out.get("status")!="CALCULATED_PRELIMINARY_INTERFACE":
-                raise JobCBlocked("JOB_C_H2_EXACT_JOB_B_QUALIFICATION_FAILED",
-                  {"heightM":2.0,"lambda":1.0,"numericalCell":j+1,
-                   "jobBStatus":out.get("status"),"jobBError":out.get("error")})
+            candidate_state=ev["gates"][j]["candidate"]
+            reference=(candidate_state["interfaceContinuousMoleFractions"]+
+              candidate_state["interfaceDispersedMoleFractions"]+
+              [candidate_state.get("totalMolarFluxMolM2S",0.0)])
+            out=qualified_interface(q,reference)
+            if out.get("status")!="QUALIFIED_JOB_C_BOUNDARY_BRANCH":
+                raise JobCBlocked("JOB_C_H2_BOUNDARY_QUALIFIER_FAILED",
+                   {"heightM":2.0,"lambda":1.0,"numericalCell":j+1,
+                    "qualifierStatus":out.get("status"),"qualifierError":out.get("error")})
             nc=[float(x) for x in out["interface"]["continuousComponentFluxMolM2S"]]
             candidate=ev["gates"][j]["candidate"]["continuousComponentFluxMolM2S"]
             flux_error=max(abs(nc[i]-candidate[i]) for i in range(7))
@@ -651,12 +729,12 @@ def case(r, name, dc, dd, solvers):
             rd=[ev["fd"][j][i]-ev["fd"][j+1][i]+nc[i]*area_per_cell for i in range(7)]
             exact_rc.extend(rc); exact_rd.extend(rd)
             if flux_error>flux_tolerance:
-                raise JobCBlocked("JOB_C_H2_EXACT_JOB_B_QUALIFICATION_FAILED",
+                raise JobCBlocked("JOB_C_H2_BOUNDARY_QUALIFIER_FAILED",
                   {"heightM":2.0,"lambda":1.0,"numericalCell":j+1,
                    "gate":"EXACT_FLUX_SUBSTITUTION","maximumFluxErrorMolM2S":flux_error,
                    "toleranceMolM2S":flux_tolerance})
-            full={**job_b.identity(),**out}; full["resultHash"]=job_b.digest(full)
-            evidence.append({"numericalCell":j+1,"status":"QUALIFIED_UNCHANGED_JOB_B",
+            full=out
+            evidence.append({"numericalCell":j+1,"status":"QUALIFIED_JOB_C_BOUNDARY_BRANCH",
               "fullResponseSha256":full["resultHash"],"maximumFluxErrorMolM2S":flux_error})
         raw=max(abs(x) for x in exact_rc+exact_rd)
         scaled=max(abs(x/fv_scale[i%7]) for i,x in enumerate(exact_rc+exact_rd))
@@ -664,7 +742,7 @@ def case(r, name, dc, dd, solvers):
             raise JobCBlocked("JOB_C_H2_EXACT_FV_RECONSTRUCTION_FAILED",
               {"heightM":2.0,"lambda":1.0,"rawFvResidualMolS":raw,
                "scaledFvResidual":scaled})
-        return {"status":"H2_LAMBDA1_EXACT_JOB_B_7_OF_7_QUALIFIED",
+        return {"status":"H2_LAMBDA1_QUALIFIED_JOB_C_BOUNDARY_BRANCH_7_OF_7",
           "heightM":2.0,"lambda":1.0,"rawFvResidualMolS":raw,
           "scaledFvResidual":scaled,"numericalCells":evidence,
           "monolithicRuntimeSeconds":ev["monolithicRuntimeSeconds"]}
@@ -769,12 +847,16 @@ def exact_qualify(r, nominal):
            "CtC":r["continuousTotalConcentrationMolM3"],
            "CtD":r["dispersedTotalConcentrationMolM3"],
            "phase_config":r["phaseConfiguration"]}
-        out=job_b.solve(q)
-        full={**job_b.identity(),**out}; full["resultHash"]=job_b.digest(full)
-        if out.get("status")!="CALCULATED_PRELIMINARY_INTERFACE":
+        candidate_state=cell["localInterface"]["candidate"]
+        reference=(candidate_state["interfaceContinuousMoleFractions"]+
+          candidate_state["interfaceDispersedMoleFractions"]+
+          [candidate_state.get("totalMolarFluxMolM2S",0.0)])
+        out=qualified_interface(q,reference)
+        full=out
+        if out.get("status")!="QUALIFIED_JOB_C_BOUNDARY_BRANCH":
             raise JobCBlocked("BLOCKED_EXACT_QUALIFICATION_FAILED",
-               {"numericalCell":cell["numericalCell"],"jobBStatus":out.get("status"),
-               "jobBError":out.get("error"),"startDiagnostics":out.get("startDiagnostics"),
+                {"numericalCell":cell["numericalCell"],"qualifierStatus":out.get("status"),
+                "qualifierError":out.get("error"),"startDiagnostics":out.get("startDiagnostics"),
                "endpointAssessments":out.get("endpointAssessments"),
                "candidateRetainedForDiagnostics":cell["localInterface"]})
         nc=[float(x) for x in out["interface"]["continuousComponentFluxMolM2S"]]
@@ -796,7 +878,7 @@ def exact_qualify(r, nominal):
         rd=[cell["dispersedInMolS"][i]-cell["dispersedOutMolS"][i]+transfer[i] for i in range(7)]
         cell.update({"transferContinuousToDispersedMolS":transfer,
           "continuousResidualMolS":rc,"dispersedResidualMolS":rd,
-          "exactJobBQualification":{"status":"QUALIFIED_UNCHANGED_JOB_B",
+          "exactBoundaryQualifier":{"status":"QUALIFIED_JOB_C_BOUNDARY_BRANCH",
             "fullResponse":full,"fullResponseSha256":full["resultHash"],
             "candidateExactMaximumFluxErrorMolM2S":error,
             "candidateExactFluxToleranceMolM2S":flux_tolerance}})
@@ -831,7 +913,7 @@ def exact_qualify(r, nominal):
       "maximumExactScaledCellResidual":scaled,
       "maximumExactGlobalBalanceResidualMolS":max(abs(x) for x in global_balance),
       "exactQualifiedCellCount":len(cells)})
-    selected["exactQualificationStatus"]=f"EXACT_JOB_B_{len(cells)}_OF_{len(cells)}_QUALIFIED"
+    selected["exactQualificationStatus"]=f"QUALIFIED_JOB_C_BOUNDARY_BRANCH_{len(cells)}_OF_{len(cells)}_REPLAYED"
     progress(f"exact qualification {len(cells)}/{len(cells)}",len(cells),len(cells))
     return nominal
 
@@ -839,6 +921,7 @@ for line in sys.stdin:
  try:
     r=json.loads(line)
     if r.get("protocol")!=PROTOCOL or r.get("operation")!="SOLVE_HEIGHT" or r.get("componentOrder")!=list(COMPONENTS): raise ValueError("JOB_C_PROTOCOL_OR_COMPONENT_ORDER_INVALID")
+    validate_branch_request(r)
     temporary,engine,_,_=job_b.scientific.build_engine(r["temperatureK"],0.0)
     try:
        solvers=[CandidateInterfaceSolver(engine,r["temperatureK"],r["kc"],r["kd"],
@@ -852,7 +935,10 @@ for line in sys.stdin:
           "candidateInterfaceImplementation":{"version":CANDIDATE_VERSION,
             "sha256":hashlib.sha256((Path(__file__).parent/"candidate_interface.py").read_bytes()).hexdigest(),
             "qualification":"CANDIDATE_ONLY_NO_STABILITY_CLAIM"},
-          "finalQualificationRequirement":"UNCHANGED_PINNED_JOB_B_EVERY_LOCAL_STATE",
+           "boundaryInterfaceQualifier":{"version":QUALIFIER_VERSION,
+             "sha256":hashlib.sha256((Path(__file__).parent/"boundary_interface_qualifier.py").read_bytes()).hexdigest(),
+             "qualification":"QUALIFIED_JOB_C_BOUNDARY_BRANCH"},
+           "finalQualificationRequirement":"VERSIONED_JOB_C_BOUNDARY_QUALIFIER_EVERY_LOCAL_STATE",
           "sensitivityCases":cases}
  except JobCBlocked as e:
     body={"protocol":PROTOCOL,"status":"BLOCKED_PRELIMINARY_JOB_C",

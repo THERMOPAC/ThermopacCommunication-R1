@@ -1,4 +1,4 @@
-"""Unqualified Job-C candidate interface equations; qualification stays in Job B."""
+"""Unqualified local continuation equations seeded by a qualified Job-C branch."""
 VERSION = "ECR_JOB_C_CANDIDATE_INTERFACE_V1"
 
 class CandidateFailure(RuntimeError):
@@ -47,21 +47,7 @@ class CandidateInterfaceSolver:
         return (self.np.r_[mu,delta[:6]/self.scale[:6]],
                 xi_c,xi_d,n,nc,nd,delta)
 
-    def boundary_compatibility(self, xb_d, nc):
-        """Gate exact-zero dispersed inventory using the physical tangent cone."""
-        rows=[]
-        for i,name in enumerate(("SAT","MONO","DI","POLY","PA","NMP","H2O")):
-            if float(xb_d[i]) == 0.0:
-                flux=float(nc[i])
-                rows.append({"component":name,
-                    "continuousToDispersedFluxMolM2S":flux,
-                    "accepted":flux >= 0.0})
-        return {"accepted":all(row["accepted"] for row in rows),
-                "signConvention":
-                    "POSITIVE_REMOVES_FROM_CONTINUOUS_AND_ADDS_TO_DISPERSED",
-                "absentDispersedComponents":rows}
-
-    def solve(self, xc, xd):
+    def solve(self, xc, xd, qualified_seed=None):
         xb_c,xb_d=self.np.asarray(xc),self.np.asarray(xd)
         self.last_boundary_assessments=[]
         def run(label,x0,maximum):
@@ -75,11 +61,10 @@ class CandidateInterfaceSolver:
             scaled_try=float(self.np.max(self.np.abs(delta_try)/self.scale))
             numerical=(fit.success and float(self.np.max(self.np.abs(mu_try)))<=1e-7
                       and scaled_try<=1e-7)
-            boundary=self.boundary_compatibility(xb_d,nc_try)
             self.last_boundary_assessments.append({
                 "startClass":label,"numericalAccepted":bool(numerical),
-                "boundaryCompatibility":boundary})
-            return fit,values,numerical and boundary["accepted"]
+                "qualification":"UNQUALIFIED_LOCAL_CONTINUATION"})
+            return fit,values,numerical
         lower=self.np.full(13,-35.0)
         upper=self.np.full(13,35.0)
         if self.warm is not None:
@@ -90,6 +75,9 @@ class CandidateInterfaceSolver:
                 return self._response(best,xb_c,xb_d)
             self.fallback_count+=1
         seeds=[]
+        if qualified_seed is not None:
+            seeds.append(("QUALIFIED_JOB_C_BOUNDARY_BRANCH_REFERENCE",
+              self.np.asarray(qualified_seed)))
         nmp=self.np.asarray((.01,.01,.01,.005,.005,.88,.08))
         rrbo=self.np.asarray((.72,.12,.06,.025,.015,.05,.01))
         oriented=(nmp,rrbo) if self.phase_config=="nmp-continuous-rrbo-dispersed" else (rrbo,nmp)
@@ -113,21 +101,18 @@ class CandidateInterfaceSolver:
         scaled=float(self.np.max(self.np.abs(delta)/self.scale))
         if not fit.success or float(self.np.max(self.np.abs(mu)))>1e-7 or scaled>1e-7:
             raise CandidateFailure("JOB_C_CANDIDATE_INTERFACE_NONCONVERGENCE")
-        boundary=self.boundary_compatibility(xb_d,nc)
-        if not boundary["accepted"]:
-            raise CandidateFailure(
-                "JOB_C_CANDIDATE_INTERFACE_BOUNDARY_INCOMPATIBLE")
         self.warm=fit.x.copy()
         return {
             "version":VERSION,"qualification":"CANDIDATE_ONLY_NO_STABILITY_CLAIM",
             "unknowns":fit.x.tolist(),"interfaceContinuousMoleFractions":xi_c.tolist(),
             "interfaceDispersedMoleFractions":xi_d.tolist(),
+            "totalMolarFluxMolM2S":float(n),
             "continuousComponentFluxMolM2S":nc.tolist(),
             "dispersedComponentFluxMolM2S":nd.tolist(),
             "maximumEquationResidual":metric,
             "maximumIsoactivityResidual":float(self.np.max(self.np.abs(mu))),
             "maximumScaledFluxEqualityResidual":scaled,
-            "dispersedInletBoundaryCompatibility":boundary,
+            "qualificationReference":"QUALIFIED_JOB_C_BOUNDARY_BRANCH_REQUIRED_AT_INLET",
             "functionEvaluations":int(fit.nfev),"startClass":label,
             "warmFastPathUsed":label=="WARM_FAST_PATH",
             "fallbackCount":self.fallback_count,

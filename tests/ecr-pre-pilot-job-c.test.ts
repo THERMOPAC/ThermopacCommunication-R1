@@ -33,7 +33,7 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     })).toBe('d92549e1649402c7b8e02b769cf4498ee923af8b8dde5ea7d041eaecfa162819');
   });
 
-  it('pins the candidate equations and exact Job-B fail-closed qualification', () => {
+  it('pins candidate equations and versioned qualifier fail-closed qualification', () => {
     const candidate = readFileSync(
       'server/ecr-pre-pilot/job-c/candidate_interface.py', 'utf8',
     );
@@ -45,8 +45,6 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(candidate).toContain('"WARM_FAST_PATH"');
     expect(candidate).toContain('self.fallback_count+=1');
     expect(candidate).toContain('"fallbackCount":self.fallback_count');
-    expect(candidate).toContain('JOB_C_CANDIDATE_INTERFACE_BOUNDARY_INCOMPATIBLE');
-    expect(candidate).toContain('flux >= 0.0');
     expect(worker).toContain('BLOCKED_EXACT_QUALIFICATION_FAILED');
     expect(worker).toContain('jac_sparsity=sparsity');
     expect(worker).toContain('(27*m,27*m)');
@@ -65,11 +63,64 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(worker).toContain('x_scale=variable_scale');
     expect(worker).not.toContain('flows=np.exp(x[:14*m])');
     expect(worker).toContain('fullResponseSha256');
-    expect(worker).toContain('EXACT_JOB_B_{len(cells)}_OF_{len(cells)}_QUALIFIED');
+    expect(worker).toContain('QUALIFIED_JOB_C_BOUNDARY_BRANCH_{len(cells)}_OF_{len(cells)}_REPLAYED');
     expect(worker).toContain('balance_tolerance/aV');
+    expect(worker).not.toContain('job_b.solve(');
+    expect(worker).toContain('PINNED_ENGINE_LINEAGE_ONLY_NO_JOB_B_FLUX_CONSUMED');
+  });
+
+  it('qualifies the recorded local contact before global-pair numerical seeding', () => {
+    const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
+    const service = readFileSync('server/ecr-pre-pilot-service.ts', 'utf8');
+    const source = worker.indexOf('branch=r["boundaryBranchQualificationRequest"]');
+    const gate = worker.indexOf('JOB_C_BOUNDARY_BRANCH_CANNOT_CONTINUE_TO_LAMBDA_ZERO_GLOBAL_PAIR');
+    const epsilon = worker.indexOf('positive_seed[zero_feed_indices]=epsilon');
+    expect(service).toContain('RECORDED_STAGE2_FEED_END_LOCAL_CONTACT_STATE');
+    expect(service).toContain('request.x_bulk_dispersed[5] !== 0');
+    expect(service).toContain('request.x_bulk_dispersed[6] !== 0');
+    expect(worker).toContain('BOUNDARY_INCOMPATIBLE_LOCAL_INITIALIZATION_NOT_OPERATIONAL');
     expect(worker).toContain('"incomingPhysicalFlowsRegularized":False');
-    expect(worker).toContain('"physicalDispersedInletZerosPreservedExactly"');
-    expect(worker).toContain('"rootClassReproduction":inlet_job_b.get');
+    expect(source).toBeGreaterThan(-1);
+    expect(gate).toBeGreaterThan(source);
+    expect(epsilon).toBeGreaterThan(gate);
+  });
+
+  it('records the governed design-269 branch and global-pair flux classifications', () => {
+    const qualifiedLocalContactSolventFlux = {
+      nmpMolM2S: 6.145286375e-4,
+      h2oMolM2S: 4.444661153e-5,
+    };
+    const artificialGlobalPairSolventFlux = {
+      nmpMolM2S: -5.0633159008829556e-5,
+      h2oMolM2S: -1.4160839270758237e-5,
+    };
+    expect(qualifiedLocalContactSolventFlux.nmpMolM2S).toBeGreaterThanOrEqual(0);
+    expect(qualifiedLocalContactSolventFlux.h2oMolM2S).toBeGreaterThanOrEqual(0);
+    expect(artificialGlobalPairSolventFlux.nmpMolM2S).toBeLessThan(0);
+    expect(artificialGlobalPairSolventFlux.h2oMolM2S).toBeLessThan(0);
+  });
+
+  it('pins the boundary qualifier in prepared and queued immutable lineage', () => {
+    const service = readFileSync('server/ecr-pre-pilot-service.ts', 'utf8');
+    const queue = readFileSync('server/ecr-pre-pilot/job-c-job-service.ts', 'utf8');
+    expect(service).toContain('currentJobCArtifactHashes()');
+    expect(service).toContain('jobCBoundaryInterfaceQualifierSha256: jobCArtifacts.boundaryQualifierHash');
+    expect(queue).toContain(
+      'artifacts.boundaryQualifierHash === deps?.jobCBoundaryInterfaceQualifierSha256',
+    );
+    expect(queue).toContain('jobCResultHash(snapshot)');
+    expect(queue).toContain('jobCResultHash(snapshot.prepared)');
+  });
+
+  it('forms one deterministic equivalence class per eligible qualifier root', () => {
+    const qualifier = readFileSync(
+      'server/ecr-pre-pilot/job-c/boundary_interface_qualifier.py', 'utf8',
+    );
+    expect(qualifier).toContain('found=root_class; break');
+    expect(qualifier).toContain('found["_members"].append(candidate)');
+    expect(qualifier).toContain('"independentlyReproduced":len(members)>=2');
+    expect(qualifier).toContain('if len(members)>=2:');
+    expect(qualifier).toContain('selected=min(selectable');
   });
 
   it('solves and qualifies the exact height reported after bisection', () => {

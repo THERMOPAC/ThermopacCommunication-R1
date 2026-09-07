@@ -41,6 +41,7 @@ import {
   JOB_C_COMPONENT_ORDER,
   JOB_C_PRELIMINARY_SENSITIVITY_BASIS,
   JobCError,
+  currentJobCArtifactHashes,
   jobCResultHash,
   runJobCWorker,
 } from "./ecr-pre-pilot/job-c";
@@ -601,6 +602,7 @@ export async function evaluateEcrPrePilotJobB(userId: number, designId: number) 
  * the authenticated design's verified Job A/B/Stage 1/Stage 3 lineage.
  */
 export async function prepareEcrPrePilotJobC(userId: number, designId: number) {
+  const jobCArtifacts = currentJobCArtifactHashes();
   const jobA = await evaluateEcrPrePilotJobA(userId, designId);
   const jobB = await evaluateEcrPrePilotJobB(userId, designId);
   let jobBPreflight: Record<string, any>;
@@ -834,6 +836,38 @@ export async function prepareEcrPrePilotJobC(userId: number, designId: number) {
     },
   };
   const request = audit.exactInterfaceEquilibriumRequest;
+  const normalizedSeven = (value: unknown) => Array.isArray(value) && value.length === 7
+    && value.every(item => typeof item === 'number' && Number.isFinite(item) && item >= 0)
+    && Math.abs(value.reduce((sum, item) => sum + item, 0) - 1) <= 1e-10;
+  if (request.phase_config !== processBasis.phaseConfiguration
+    || JSON.stringify(request.componentOrder) !== JSON.stringify(JOB_C_COMPONENT_ORDER)
+    || JSON.stringify(request.kc) !== JSON.stringify(jobB.inputAudit.kc)
+    || JSON.stringify(request.kd) !== JSON.stringify(jobB.inputAudit.kd)
+    || !normalizedSeven(request.x_bulk_continuous)
+    || !normalizedSeven(request.x_bulk_dispersed)
+    || !finitePositive(request.CtC) || !finitePositive(request.CtD)
+    || request.x_bulk_dispersed[5] !== 0
+    || request.x_bulk_dispersed[6] !== 0) {
+    throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:BOUNDARY_BRANCH_SOURCE_INVALID');
+  }
+  const boundaryBranchSource = {
+    componentOrder: [...request.componentOrder],
+    T: request.T,
+    x_bulk_continuous: [...request.x_bulk_continuous],
+    x_bulk_dispersed: [...request.x_bulk_dispersed],
+    kc: [...request.kc], kd: [...request.kd],
+    CtC: request.CtC, CtD: request.CtD, phase_config: request.phase_config,
+    provenance: {
+      qualification: 'RECORDED_STAGE2_FEED_END_LOCAL_CONTACT_STATE',
+      stage2Provenance: audit.stage2Provenance,
+      continuous: audit.bulkContinuousProvenance,
+      dispersed: audit.bulkDispersedProvenance,
+    },
+  };
+  const boundaryBranchQualificationRequest = {
+    ...boundaryBranchSource,
+    sourceStateSha256: jobCResultHash(boundaryBranchSource),
+  };
   const workerRequest = {
     componentOrder: [...JOB_C_COMPONENT_ORDER],
     temperatureK: request.T,
@@ -850,6 +884,7 @@ export async function prepareEcrPrePilotJobC(userId: number, designId: number) {
     operatingHoldup: trial.operatingHydraulics.operatingHoldup,
     d32M: trial.d32M,
     minimumRecoveryPct: stage1.stage1.minimumRecoveryPct,
+    boundaryBranchQualificationRequest,
   };
   const responseBasis = {
     schemaVersion: 'ECR_PRE_PILOT_JOB_C_V1' as const,
@@ -886,6 +921,8 @@ export async function prepareEcrPrePilotJobC(userId: number, designId: number) {
       jobBInterfaceArtifactSha256: jobBPreflight.jobBInterfaceArtifactSha256,
       jobBInterfaceWorkerSha256: jobBPreflight.workerSha256,
       stage3ImmutableHash: stage3!.immutableHash,
+      boundaryBranchSourceStateSha256: boundaryBranchQualificationRequest.sourceStateSha256,
+      jobCBoundaryInterfaceQualifierSha256: jobCArtifacts.boundaryQualifierHash,
     },
     model: {
       flow: 'STEADY_STATE_COUNTERCURRENT_PER_COMPONENT',
@@ -898,6 +935,7 @@ export async function prepareEcrPrePilotJobC(userId: number, designId: number) {
       efficiencyCalculated: false,
     },
     inputAudit: jobCInputAudit,
+    boundaryBranchQualificationSource: boundaryBranchQualificationRequest,
     exclusions: {
       finalRpmSelected: false, jobDPerformed: false, releaseEligible: false,
       userEditableConstantsPersisted: false,

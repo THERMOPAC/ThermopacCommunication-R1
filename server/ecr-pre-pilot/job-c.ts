@@ -47,6 +47,7 @@ export function currentJobCArtifactHashes() {
   return {
     implementationHash: digest('server/ecr-pre-pilot/job-c/worker.py'),
     candidateHash: digest('server/ecr-pre-pilot/job-c/candidate_interface.py'),
+    boundaryQualifierHash: digest('server/ecr-pre-pilot/job-c/boundary_interface_qualifier.py'),
   };
 }
 export class JobCError extends Error {
@@ -62,6 +63,12 @@ export interface JobCWorkerRequest extends Record<string, unknown> {
   kc: number[]; kd: number[]; phaseConfiguration: string; compartments: number;
   columnDiameterM: number; rpm: number; operatingHoldup: number; d32M: number;
   minimumRecoveryPct: number;
+  boundaryBranchQualificationRequest: {
+    componentOrder: string[]; T: number;
+    x_bulk_continuous: number[]; x_bulk_dispersed: number[];
+    kc: number[]; kd: number[]; CtC: number; CtD: number; phase_config: string;
+    provenance: Record<string, unknown>; sourceStateSha256: string;
+  };
 }
 
 export async function runJobCWorker(request: JobCWorkerRequest, options: {
@@ -81,6 +88,8 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
       const workerBytes = fs.readFileSync(worker);
       const candidate = path.resolve(workerRoot, 'server/ecr-pre-pilot/job-c/candidate_interface.py');
       const candidateBytes = fs.readFileSync(candidate);
+      const qualifier = path.resolve(workerRoot, 'server/ecr-pre-pilot/job-c/boundary_interface_qualifier.py');
+      const qualifierBytes = fs.readFileSync(qualifier);
       if (manifest.schemaVersion !== 'ECR_PRE_PILOT_JOB_C_RUNTIME_MANIFEST_V1'
         || manifest.protocol !== JOB_C_PROTOCOL
         || manifest.worker?.path !== 'server/ecr-pre-pilot/job-c/worker.py'
@@ -89,7 +98,11 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
         || manifest.candidateInterface?.version !== 'ECR_JOB_C_CANDIDATE_INTERFACE_V1'
         || manifest.candidateInterface?.bytes !== candidateBytes.length
         || manifest.candidateInterface?.sha256
-          !== createHash('sha256').update(candidateBytes).digest('hex')) {
+          !== createHash('sha256').update(candidateBytes).digest('hex')
+        || manifest.boundaryInterfaceQualifier?.version !== 'ECR_JOB_C_BOUNDARY_INTERFACE_QUALIFIER_V1'
+        || manifest.boundaryInterfaceQualifier?.bytes !== qualifierBytes.length
+        || manifest.boundaryInterfaceQualifier?.sha256
+          !== createHash('sha256').update(qualifierBytes).digest('hex')) {
         throw new Error();
       }
     } catch {
