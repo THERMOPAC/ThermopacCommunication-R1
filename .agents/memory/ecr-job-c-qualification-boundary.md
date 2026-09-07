@@ -70,12 +70,12 @@ is a homotopy incompatibility, not a physical infeasibility verdict.
 
 **How to apply:** Qualify the Stage-2 local-contact branch with the separately
 versioned Job-C qualifier. Keep the frozen Job-B worker and artifact as pinned
-engine lineage only; never call its solver or consume its flux in Job C. Preserve
-literal zero NMP/H₂O in the external dispersed feed and stop before any internal
-epsilon coordinates if the branch cannot continue to the numerical baseline.
-Any future continuation must avoid pairing opposite global inlets as a physical
-local interface and must retain the unchanged raw/scaled, stability, TPD, and
-exact-zero tangent-cone gates.
+engine lineage only; never call its solver or consume its flux in Job C. Consume
+the governed NMP/H₂O inlet inventory literally: exact zeros remain exact zeros,
+while approved traces must not be rejected or replaced. Any continuation must
+avoid pairing opposite global inlets as a physical local interface and must
+retain unchanged raw/scaled, stability, TPD, and exact-zero tangent-cone gates
+for components that are literally absent.
 
 A seven-cell auxiliary profile rebinned from all accepted local states of the
 pinned axial Stage-2 record also has no admissible positive continuation scale
@@ -94,6 +94,20 @@ general physical no-solution claim. Before implementing another homotopy,
 establish the governed inlet solvent inventory and independently qualify a
 spatially varying profile whose cumulative hydrocarbon prefixes and solvent
 suffixes all admit a strictly positive interval.
+
+Job C uses exactly seven numerical FV cells. A pinned Stage-2 axial record may be
+rebinned only when it has at least seven complete ordered contacts; each source
+contact must appear exactly once in contiguous axial bins. Never repeat sparse
+contacts to manufacture a seven-cell profile.
+
+**Why:** The one-stage Stage-2 fallback is a valid thermodynamic boundary source,
+but it contains no governed axial information. Repeating it seven times would
+invent a spatial profile and could create a false continuation or height claim.
+
+**How to apply:** Bind the complete mapped profile and its authority metadata to
+one canonical hash. Validate phase/component identity, source ordinal coverage,
+mapping rule, and hash before any expensive qualification. If fewer than seven
+contacts exist, dependency-block profile preparation with no height claim.
 
 Boundary compatibility must be qualified at the last positive local
 continuation state, not inferred solely from a global inlet root or frozen-flux

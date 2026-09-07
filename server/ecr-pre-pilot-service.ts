@@ -845,9 +845,7 @@ export async function prepareEcrPrePilotJobC(userId: number, designId: number) {
     || JSON.stringify(request.kd) !== JSON.stringify(jobB.inputAudit.kd)
     || !normalizedSeven(request.x_bulk_continuous)
     || !normalizedSeven(request.x_bulk_dispersed)
-    || !finitePositive(request.CtC) || !finitePositive(request.CtD)
-    || request.x_bulk_dispersed[5] !== 0
-    || request.x_bulk_dispersed[6] !== 0) {
+    || !finitePositive(request.CtC) || !finitePositive(request.CtD)) {
     throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:BOUNDARY_BRANCH_SOURCE_INVALID');
   }
   const boundaryBranchSource = {
@@ -868,6 +866,61 @@ export async function prepareEcrPrePilotJobC(userId: number, designId: number) {
     ...boundaryBranchSource,
     sourceStateSha256: jobCResultHash(boundaryBranchSource),
   };
+  const sourceContacts = globalBoundary.axialLocalContacts;
+  const targetCells = 7;
+  if (!globalBoundary.axialLocalContactProfileComplete
+    || !Array.isArray(sourceContacts) || sourceContacts.length < targetCells) {
+    throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_UNAVAILABLE', {
+      requiredRecordedContacts: targetCells,
+      recordedContacts: Array.isArray(sourceContacts) ? sourceContacts.length : 0,
+      repeatedOrInventedContactsPermitted: false,
+      heightClaimed: false,
+    });
+  }
+  const axialLocalContactProfile = Array.from({ length: targetCells }, (_, index) => {
+    const first = Math.floor(index * sourceContacts.length / targetCells);
+    const exclusiveLast = Math.floor((index + 1) * sourceContacts.length / targetCells);
+    const bin = sourceContacts.slice(first, Math.max(first + 1, exclusiveLast));
+    const continuousRows = bin.map(contact =>
+      nmpContinuous ? contact.extractIncoming.moleFractions
+        : contact.raffinateIncoming.moleFractions);
+    const dispersedRows = bin.map(contact =>
+      nmpContinuous ? contact.raffinateIncoming.moleFractions
+        : contact.extractIncoming.moleFractions);
+    if (continuousRows.some(value => !normalizedSeven(value))
+      || dispersedRows.some(value => !normalizedSeven(value))) {
+      throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_INVALID', {
+        numericalCell: index + 1,
+      });
+    }
+    const average = (rows: number[][]) => JOB_C_COMPONENT_ORDER.map((_, component) =>
+      rows.reduce((sum, row) => sum + row[component], 0) / rows.length);
+    return {
+      numericalCell: index + 1,
+      x_bulk_continuous: average(continuousRows),
+      x_bulk_dispersed: average(dispersedRows),
+      provenance: {
+        source: 'PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS',
+        sourceStageFromFeedEnd: bin.map(contact => contact.stageFromFeedEnd),
+        propertyPaths: bin.map(contact => contact.propertyPath),
+        stage2ResultSnapshotHash: globalBoundary.provenance.resultSnapshotHash,
+        mapping: 'CONTIGUOUS_EQUAL_AXIAL_BINS_ARITHMETIC_COMPOSITION_MEAN',
+      },
+    };
+  });
+  const axialLocalContactProfileAuthority = {
+    qualification: 'GOVERNED_PINNED_STAGE2_AXIAL_LOCAL_CONTACT_PROFILE',
+    componentOrder: [...JOB_C_COMPONENT_ORDER],
+    phaseConfiguration: processBasis.phaseConfiguration,
+    sourceStageCount: sourceContacts.length,
+    targetNumericalCells: targetCells,
+    mapping: 'CONTIGUOUS_EQUAL_AXIAL_BINS_ARITHMETIC_COMPOSITION_MEAN',
+    stage2ResultSnapshotHash: globalBoundary.provenance.resultSnapshotHash,
+  };
+  const axialLocalContactProfileSha256 = jobCResultHash({
+    authority: axialLocalContactProfileAuthority,
+    profile: axialLocalContactProfile,
+  });
   const workerRequest = {
     componentOrder: [...JOB_C_COMPONENT_ORDER],
     temperatureK: request.T,
@@ -878,13 +931,16 @@ export async function prepareEcrPrePilotJobC(userId: number, designId: number) {
     kc: [...request.kc],
     kd: [...request.kd],
     phaseConfiguration: request.phase_config,
-    compartments: jobA.dependencies.theoreticalStages,
+    compartments: targetCells,
     columnDiameterM: trial.columnDiameterM,
     rpm: trial.rpm,
     operatingHoldup: trial.operatingHydraulics.operatingHoldup,
     d32M: trial.d32M,
     minimumRecoveryPct: stage1.stage1.minimumRecoveryPct,
     boundaryBranchQualificationRequest,
+    axialLocalContactProfile,
+    axialLocalContactProfileAuthority,
+    axialLocalContactProfileSha256,
   };
   const responseBasis = {
     schemaVersion: 'ECR_PRE_PILOT_JOB_C_V1' as const,
@@ -893,10 +949,13 @@ export async function prepareEcrPrePilotJobC(userId: number, designId: number) {
     componentOrder: [...JOB_C_COMPONENT_ORDER],
     preliminarySensitivityBasis: JOB_C_PRELIMINARY_SENSITIVITY_BASIS,
     theoreticalCompartmentAuthority: {
-      compartments: jobA.dependencies.theoreticalStages,
-      source: jobA.dependencies.theoreticalStageProvenance,
+      compartments: targetCells,
+      source: 'FIXED_JOB_C_NUMERICAL_FV_DISCRETIZATION',
+      stage2TheoreticalStages: jobA.dependencies.theoreticalStages,
+      stage2TheoreticalStageSource: jobA.dependencies.theoreticalStageProvenance,
       fallbackValue: 7,
-      fallbackUsed: jobA.dependencies.theoreticalStageProvenance === 'PRE_PILOT_DESIGN_DEFAULT',
+      fallbackUsed: false,
+      qualification: 'NUMERICAL_FV_DISCRETIZATION_NOT_PHYSICAL_STAGE_COUNT',
     },
     target: {
       minimumRecoveryPct: stage1.stage1.minimumRecoveryPct,

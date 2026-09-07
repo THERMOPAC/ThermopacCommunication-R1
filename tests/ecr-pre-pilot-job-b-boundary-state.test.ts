@@ -151,6 +151,8 @@ describe('Job B governed Stage-2 incoming boundary loader', () => {
       .not.toEqual(result.freshWetSolvent.stream);
     expect(result.provenance.boundaryRole)
       .toBe('GLOBAL_COLUMN_INLETS_NOT_JOB_B_LOCAL_INTERFACE_BULKS');
+    expect(result.axialLocalContactProfileComplete).toBe(false);
+    expect(result.axialLocalContacts).toHaveLength(1);
   });
 
   it('retains requested N_T=7 while explicitly selecting the only recorded N=1 trial', () => {
@@ -212,7 +214,7 @@ describe('Job B governed Stage-2 incoming boundary loader', () => {
     expect(() => extract(malformed)).toThrow(/RECORDED_INCOMING_STREAM_CLOSURE_FAILED/);
   });
 
-  it('rejects any NMP or water seeded into the authoritative fresh RRBO inlet', () => {
+  it('preserves governed trace solvent inventory in the authoritative RRBO inlet', () => {
     const seeded = sourceRow();
     const rrbo = (seeded.result_snapshot as any).trials[0].boundaryStreams.oilFeed;
     for (const field of [
@@ -221,8 +223,9 @@ describe('Job B governed Stage-2 incoming boundary loader', () => {
       rrbo[field][4] -= .01;
       rrbo[field][5] += .01;
     }
-    expect(() => extract(seeded))
-      .toThrow(/FRESH_RRBO_SOLVENT_COMPONENT_NOT_EXACT_ZERO/);
+    const result = extract(seeded);
+    expect(result.raffinateIncoming.stream).toEqual(rrbo);
+    expect(result.raffinateIncoming.stream.moleFractions[5]).toBe(.01);
   });
 
   it('rejects stale Stage-1 authority, stale engine, temperature, order, and invalid input', () => {

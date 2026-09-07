@@ -69,6 +69,22 @@ export interface JobCWorkerRequest extends Record<string, unknown> {
     kc: number[]; kd: number[]; CtC: number; CtD: number; phase_config: string;
     provenance: Record<string, unknown>; sourceStateSha256: string;
   };
+  axialLocalContactProfile: Array<{
+    numericalCell: number;
+    x_bulk_continuous: number[];
+    x_bulk_dispersed: number[];
+    provenance: Record<string, unknown>;
+  }>;
+  axialLocalContactProfileAuthority: {
+    qualification: string;
+    componentOrder: string[];
+    phaseConfiguration: string;
+    sourceStageCount: number;
+    targetNumericalCells: number;
+    mapping: string;
+    stage2ResultSnapshotHash: string;
+  };
+  axialLocalContactProfileSha256: string;
 }
 
 export async function runJobCWorker(request: JobCWorkerRequest, options: {

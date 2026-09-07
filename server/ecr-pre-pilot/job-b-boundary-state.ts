@@ -122,25 +122,6 @@ function assertSameStream(
   }
 }
 
-function assertFreshRrboSolventZeros(stream: JsonRecord, propertyPath: string) {
-  const solventIndexes = [5, 6] as const;
-  const fields = ['componentMoles', 'moleFractions', 'componentMass', 'massFractions'] as const;
-  const violations = fields.flatMap(field => solventIndexes
-    .filter(index => stream[field][index] !== 0)
-    .map(index => ({
-      field,
-      component: JOB_B_BOUNDARY_COMPONENT_ORDER[index],
-      value: stream[field][index],
-    })));
-  if (violations.length > 0) {
-    throw new JobBBoundaryStateError('FRESH_RRBO_SOLVENT_COMPONENT_NOT_EXACT_ZERO', {
-      propertyPath,
-      violations,
-      requirement: 'FRESH_DISPERSED_RRBO_HAS_EXACTLY_ZERO_NMP_AND_H2O',
-    });
-  }
-}
-
 /**
  * Pure validation/extraction boundary. In particular, this does not calculate
  * equilibrium, N_T, phase properties, or a replacement composition.
@@ -250,7 +231,6 @@ export function extractJobBBoundaryState(args: {
     + '.stages[stageFromFeedEnd=1].raffinateIncoming';
   assertBoundaryStream(stage.extractIncoming, extractPath);
   assertBoundaryStream(stage.raffinateIncoming, raffinatePath);
-  assertFreshRrboSolventZeros(stage.raffinateIncoming, raffinatePath);
   assertSameStream(
     stage.raffinateIncoming,
     trial.boundaryStreams?.oilFeed,
@@ -366,6 +346,26 @@ export function extractJobCGlobalBoundaryState(args: {
     `result_snapshot.trials[stageCount=${trial.stageCount}].boundaryStreams.freshWetSolvent`;
   assertBoundaryStream(trial.boundaryStreams?.oilFeed, oilPath);
   assertBoundaryStream(trial.boundaryStreams?.freshWetSolvent, solventPath);
+  const orderedStages = [...trial.stages].sort(
+    (left: JsonRecord, right: JsonRecord) =>
+      Number(left.stageFromFeedEnd) - Number(right.stageFromFeedEnd),
+  );
+  const axialLocalContactProfileComplete = orderedStages.length === trial.stageCount
+    && orderedStages.every((candidate: JsonRecord, index: number) =>
+      candidate.stageFromFeedEnd === index + 1);
+  const axialLocalContacts = orderedStages.map((candidate: JsonRecord, index: number) => {
+    const base = `result_snapshot.trials[stageCount=${trial.stageCount}]`
+      + `.stages[stageFromFeedEnd=${index + 1}]`;
+    assertBoundaryStream(candidate.extractIncoming, `${base}.extractIncoming`);
+    assertBoundaryStream(candidate.raffinateIncoming, `${base}.raffinateIncoming`);
+    return Object.freeze({
+      stageFromFeedEnd: index + 1,
+      source: 'PINNED_STAGE2_RECORDED_LOCAL_INCOMING_CONTACT' as const,
+      extractIncoming: Object.freeze(candidate.extractIncoming),
+      raffinateIncoming: Object.freeze(candidate.raffinateIncoming),
+      propertyPath: base,
+    });
+  });
   return Object.freeze({
     status: 'JOB_C_GLOBAL_COLUMN_BOUNDARIES_VALIDATED' as const,
     componentOrder: [...JOB_B_BOUNDARY_COMPONENT_ORDER],
@@ -385,6 +385,8 @@ export function extractJobCGlobalBoundaryState(args: {
       extractIncoming: local.extractIncoming,
       raffinateIncoming: local.raffinateIncoming,
     }),
+    axialLocalContacts: Object.freeze(axialLocalContacts),
+    axialLocalContactProfileComplete,
     provenance: Object.freeze({
       ...local.provenance,
       boundaryRole: 'GLOBAL_COLUMN_INLETS_NOT_JOB_B_LOCAL_INTERFACE_BULKS',

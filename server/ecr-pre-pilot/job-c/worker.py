@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bounded, conservative finite-volume countercurrent Job-C kernel."""
 from __future__ import annotations
-import hashlib, importlib.util, json, math, os, sys, time
+import hashlib, importlib.util, json, math, multiprocessing, os, signal, sys, time
 from pathlib import Path
 from candidate_interface import CandidateInterfaceSolver, CandidateFailure, VERSION as CANDIDATE_VERSION
 from boundary_interface_qualifier import qualify as qualify_boundary, VERSION as QUALIFIER_VERSION
@@ -28,6 +28,19 @@ spec=importlib.util.spec_from_file_location("job_c_verified_job_b",root/"server/
 if spec is None or spec.loader is None: raise RuntimeError("JOB_C_JOB_B_IMPORT_FAILED")
 job_b=importlib.util.module_from_spec(spec); spec.loader.exec_module(job_b)
 
+_profile_qualification_context=None
+_active_qualification_pool=None
+
+def terminate_descendants(signum, frame):
+    """A cancelled lease must also terminate and reap forked qualifiers."""
+    pool=_active_qualification_pool
+    if pool is not None:
+        pool.terminate()
+        pool.join()
+    raise SystemExit(128+signum)
+
+signal.signal(signal.SIGTERM,terminate_descendants)
+
 def qualified_interface(request, branch_reference_state=None):
     """Replay through Job-C's versioned qualifier, never Job-B solve."""
     temporary,engine,_,_=job_b.scientific.build_engine(request["T"],0.0)
@@ -43,6 +56,23 @@ class JobCBlocked(RuntimeError):
     def __init__(self, code, diagnostics):
         super().__init__(code)
         self.code, self.diagnostics = code, diagnostics
+
+def qualify_profile_contact(index):
+    """Fork-only independent contact qualification; results are reordered by index."""
+    r,engine,branch=_profile_qualification_context
+    contact=r["axialLocalContactProfile"][index]
+    out=qualify_boundary(engine,r["temperatureK"],r["kc"],r["kd"],
+      branch["CtC"],branch["CtD"],
+      r["phaseConfiguration"],contact["x_bulk_continuous"],
+      contact["x_bulk_dispersed"],None)
+    evidence={"numericalCell":index+1,
+      "provenance":contact["provenance"],"qualifier":out}
+    if out.get("status")!="QUALIFIED_JOB_C_BOUNDARY_BRANCH":
+        return {"index":index,"evidence":evidence}
+    return {"index":index,"evidence":evidence,
+      "flux":[float(x) for x in
+        out["interface"]["continuousComponentFluxMolM2S"]],
+      "unknowns":[float(x) for x in out["unknowns"]]}
 
 def flux_direction(value, tolerance=1e-15):
     if value > tolerance: return "CONTINUOUS_TO_DISPERSED"
@@ -124,8 +154,6 @@ def validate_branch_request(r):
       and branch.get("phase_config")==r.get("phaseConfiguration")
       and normalized_vector(branch.get("x_bulk_continuous"))
       and normalized_vector(branch.get("x_bulk_dispersed"))
-      and branch["x_bulk_dispersed"][5]==0.0
-      and branch["x_bulk_dispersed"][6]==0.0
       and isinstance(branch.get("CtC"),(int,float)) and not isinstance(branch["CtC"],bool)
       and math.isfinite(float(branch["CtC"])) and float(branch["CtC"])>0
       and isinstance(branch.get("CtD"),(int,float)) and not isinstance(branch["CtD"],bool)
@@ -135,6 +163,36 @@ def validate_branch_request(r):
     source={k:v for k,v in branch.items() if k!="sourceStateSha256"}
     if (not valid or branch.get("sourceStateSha256")!=digest(source)):
         raise ValueError("JOB_C_BOUNDARY_BRANCH_SOURCE_INVALID")
+    profile=r.get("axialLocalContactProfile")
+    authority=r.get("axialLocalContactProfileAuthority")
+    coverage=[] if not isinstance(profile,list) else [
+      ordinal for row in profile if isinstance(row,dict)
+      for ordinal in row.get("provenance",{}).get("sourceStageFromFeedEnd",[])]
+    profile_source={"authority":authority,"profile":profile}
+    authority_valid=(isinstance(authority,dict)
+      and authority.get("qualification")==
+        "GOVERNED_PINNED_STAGE2_AXIAL_LOCAL_CONTACT_PROFILE"
+      and authority.get("componentOrder")==list(COMPONENTS)
+      and authority.get("phaseConfiguration")==r.get("phaseConfiguration")
+      and authority.get("targetNumericalCells")==7
+      and authority.get("sourceStageCount")==len(coverage)
+      and authority.get("mapping")==
+        "CONTIGUOUS_EQUAL_AXIAL_BINS_ARITHMETIC_COMPOSITION_MEAN"
+      and isinstance(authority.get("stage2ResultSnapshotHash"),str)
+      and len(authority["stage2ResultSnapshotHash"])==64
+      and coverage==list(range(1,len(coverage)+1)))
+    if (not isinstance(profile,list) or r.get("compartments")!=7
+      or len(profile)!=r.get("compartments")
+      or any(not isinstance(row,dict) or row.get("numericalCell")!=index+1
+        or not normalized_vector(row.get("x_bulk_continuous"))
+        or not normalized_vector(row.get("x_bulk_dispersed"))
+        or row.get("provenance",{}).get("source")!=
+          "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS"
+        for index,row in enumerate(profile))):
+        raise ValueError("JOB_C_AXIAL_LOCAL_CONTACT_PROFILE_INVALID")
+    if (not authority_valid
+      or r.get("axialLocalContactProfileSha256")!=digest(profile_source)):
+        raise ValueError("JOB_C_AXIAL_LOCAL_CONTACT_PROFILE_AUTHORITY_INVALID")
 
 def case(r, name, dc, dd, solvers):
     np=solvers[0].np
@@ -147,11 +205,8 @@ def case(r, name, dc, dd, solvers):
     accepted_by_height={}
     inlet_xc=np.asarray(feedc)/sum(feedc)
     inlet_xd=np.asarray(feedd)/sum(feedd)
-    if feedd[5] != 0.0 or feedd[6] != 0.0:
-        raise JobCBlocked("JOB_C_REQUIRES_EXACT_FRESH_DISPERSED_NMP_H2O_ZERO",
-          {"dispersedFeedMolS":feedd,"requiredExactZeroComponents":["NMP","H2O"]})
-    # These are authoritative physical inlet compositions.  In particular,
-    # fresh dispersed RRBO NMP/H2O zeros are never epsilon-seeded or clipped.
+    # These are authoritative physical inlet compositions. They are consumed
+    # literally; absent components are never epsilon-seeded at a feed face.
     if any((feedd[i] == 0.0 and inlet_xd[i] != 0.0) for i in range(7)):
         raise JobCBlocked("JOB_C_PHYSICAL_DISPERSED_INLET_ZERO_NOT_PRESERVED",
           {"dispersedFeedMolS":feedd,"dispersedInletMoleFractions":inlet_xd.tolist()})
@@ -160,8 +215,7 @@ def case(r, name, dc, dd, solvers):
       or branch.get("T")!=r["temperatureK"]
       or branch.get("kc")!=r["kc"] or branch.get("kd")!=r["kd"]
       or branch.get("phase_config")!=r["phaseConfiguration"]
-      or branch.get("x_bulk_dispersed",[None]*7)[5]!=0.0
-      or branch.get("x_bulk_dispersed",[None]*7)[6]!=0.0):
+      ):
         raise JobCBlocked("JOB_C_BOUNDARY_BRANCH_SOURCE_INVALID",
           {"sourceStateSha256":branch.get("sourceStateSha256")})
     source_for_hash={k:v for k,v in branch.items() if k!="sourceStateSha256"}
@@ -181,30 +235,87 @@ def case(r, name, dc, dd, solvers):
     qualified_candidate_seed=solvers[0].inverse_transform(
       inlet_qi["continuousMoleFractions"],inlet_qi["dispersedMoleFractions"],
       inlet_qi["totalMolarFluxMolM2S"])
-    if inlet_nc[5] < 0.0 or inlet_nc[6] < 0.0:
+    if any(branch["x_bulk_dispersed"][i]==0.0 and inlet_nc[i]<0.0
+      for i in (5,6)):
         raise JobCBlocked("JOB_C_BOUNDARY_INTERFACE_QUALIFIER_FAILED",
           {"gate":"EXACT_ZERO_SOLVENT_TANGENT_CONE","qualifier":inlet_qualifier})
-    # The global countercurrent boundary streams are not a local contact pair.
-    # Before creating any positive internal FV coordinates, explicitly test
-    # whether the qualified Stage-2 branch can continue to that lambda-zero
-    # initialization required by the present homotopy.
-    probe_solver=CandidateInterfaceSolver(solvers[0].engine,r["temperatureK"],r["kc"],r["kd"],
-      r["continuousTotalConcentrationMolM3"],r["dispersedTotalConcentrationMolM3"],
-      r["phaseConfiguration"])
-    global_pair_probe=probe_solver.solve(inlet_xc,inlet_xd,qualified_candidate_seed)
-    probe_nc=global_pair_probe["continuousComponentFluxMolM2S"]
-    if probe_nc[5] < 0.0 or probe_nc[6] < 0.0:
-        raise JobCBlocked("JOB_C_BOUNDARY_BRANCH_CANNOT_CONTINUE_TO_LAMBDA_ZERO_GLOBAL_PAIR",
-          {"qualifiedStage2LocalContact":{"source":"RECORDED_STAGE2_FEED_END_LOCAL_CONTACT_STATE",
-             "sourceStateSha256":branch["sourceStateSha256"],
-             "qualifier":inlet_qualifier},
-           "artificialGlobalPairCandidate":{"classification":
-             "BOUNDARY_INCOMPATIBLE_LOCAL_INITIALIZATION_NOT_OPERATIONAL",
-             "candidate":global_pair_probe},
-           "globalColumnBoundaryStreamsAreLocalContactPair":False,
-           "globalDispersedInletExactZeros":{"NMP":feedd[5],"H2O":feedd[6]},
-           "incomingPhysicalFlowsRegularized":False,
-           "physicalInfeasibilityClaimed":False})
+    # Qualify the recorded spatial contacts independently before constructing
+    # any positive internal FV coordinate or attempting continuation.
+    global _profile_qualification_context,_active_qualification_pool
+    _profile_qualification_context=(r,solvers[0].engine,branch)
+    context=multiprocessing.get_context("fork")
+    pool=context.Pool(processes=min(3,m))
+    _active_qualification_pool=pool
+    jobs=[pool.apply_async(qualify_profile_contact,(index,)) for index in range(m)]
+    try:
+        completed=-1
+        while completed<m:
+            completed=sum(job.ready() for job in jobs)
+            progress("axial contact qualification",completed,m)
+            if completed<m: time.sleep(1)
+        qualified=[job.get() for job in jobs]
+        pool.close(); pool.join()
+    except BaseException:
+        pool.terminate(); pool.join()
+        raise
+    finally:
+        _active_qualification_pool=None
+        _profile_qualification_context=None
+    qualified.sort(key=lambda value:value["index"])
+    profile_evidence=[]; profile_flux=[]; profile_unknowns=[]
+    for value in qualified:
+        profile_evidence.append(value["evidence"])
+        if "flux" not in value:
+            raise JobCBlocked("JOB_C_AXIAL_CONTACT_QUALIFICATION_FAILED",
+              {"numericalCell":value["index"]+1,
+               "qualifier":value["evidence"]["qualifier"],
+               "qualifiedLocalContacts":profile_evidence,
+               "profileHeightClaimed":False})
+        profile_flux.append(value["flux"])
+        profile_unknowns.append(value["unknowns"])
+    profile_flux=np.asarray(profile_flux,dtype=float)
+    # At H=2 m, B is positive. Therefore existence/nonexistence of a positive
+    # lambda interval has the same sign result at every positive height.
+    B=6*r["operatingHoldup"]/r["d32M"]*A*(2.0/m)
+    constraints=[]; upper=math.inf
+    for j in range(m):
+        prefix=np.sum(profile_flux[:j+1],axis=0)*B
+        suffix=np.sum(profile_flux[j:],axis=0)*B
+        for phase,available,coefficient in (
+          ("continuous",np.asarray(feedc),-prefix),
+          ("dispersed",np.asarray(feedd),suffix)):
+            for i in range(7):
+                admitted=True; local_upper=math.inf
+                if available[i]==0.0:
+                    admitted=coefficient[i]>0.0
+                elif coefficient[i]<0.0:
+                    local_upper=available[i]/(-coefficient[i])
+                    upper=min(upper,local_upper)
+                constraints.append({"numericalCell":j+1,"phase":phase,
+                  "component":COMPONENTS[i],"governedInletMolS":float(available[i]),
+                  "lambdaCoefficientMolS":float(coefficient[i]),
+                  "strictPositiveIntervalAdmitted":bool(admitted),
+                  "lambdaUpperBound":None if math.isinf(local_upper) else float(local_upper)})
+    violations=[row for row in constraints if not row["strictPositiveIntervalAdmitted"]]
+    interval_exists=(not violations and upper>0.0)
+    profile_audit={"status":"STRICTLY_POSITIVE_CONTINUATION_INTERVAL_PROVED"
+        if interval_exists else "BLOCKED_NO_STRICTLY_POSITIVE_CONTINUATION_INTERVAL",
+      "referenceHeightM":2.0,"geometricFactorPerCellM2":B,
+      "lambdaInterval":{"lowerExclusive":0.0,
+        "upperExclusive":None if math.isinf(upper) else float(upper)},
+      "allHydrocarbonPrefixesAndSolventSuffixesAdmitted":interval_exists,
+      "constraints":constraints,"violations":violations,
+      "qualifiedLocalContacts":profile_evidence,
+      "governedInletInventory":{"continuousFeedMolS":feedc,
+        "dispersedFeedMolS":feedd},"numericalTraceAdded":False,
+      "literalPhysicalFeedFacesPreserved":True,"profileHeightClaimed":False}
+    if not interval_exists:
+        raise JobCBlocked("JOB_C_AXIAL_PROFILE_NO_POSITIVE_CONTINUATION_INTERVAL",
+          profile_audit)
+    initial_lambda=min(1e-5,upper*.25) if math.isfinite(upper) else 1e-5
+    if not initial_lambda>0.0:
+        raise JobCBlocked("JOB_C_AXIAL_PROFILE_NO_POSITIVE_CONTINUATION_INTERVAL",
+          profile_audit)
 
     def solve_height(h, warm=None):
         """Solve all 98 FV and 91 frozen Job-B equations simultaneously."""
@@ -221,29 +332,18 @@ def case(r, name, dc, dd, solvers):
         def initial():
             if warm is not None:
                 return np.asarray(warm).copy()
-            # Lambda zero has no transfer source.  Zero-feed coordinates cannot
-            # be passed to the direct positive-coordinate solver, so they are
-            # explicitly seeded at epsilon (and reported below); this is a
-            # bounded numerical baseline, not an exact zero-feed FV root.
-            # Solve its one repeated interface state once for initialization;
-            # this solve is never called from the monolithic residual.
-            xc=np.asarray(feedc)/sum(feedc); xd=np.asarray(feedd)/sum(feedd)
-            try:
-                seed=solvers[0].solve(xc,xd,qualified_candidate_seed)
-            except CandidateFailure as error:
-                raise JobCBlocked("JOB_C_LAMBDA_ZERO_INTERFACE_INITIALIZATION_FAILED",
-                  {"error":str(error),"numericalCellTemplate":"GLOBAL_INLET"})
-            interface_u=np.asarray(seed["unknowns"])
-            seed_residual=solvers[0].residual(interface_u,xc,xd)
-            if float(np.max(np.abs(seed_residual)))>1e-7:
-                raise JobCBlocked("JOB_C_LAMBDA_ZERO_INTERFACE_INITIALIZATION_FAILED",
-                  {"maximumOriginalJobBEquationResidual":
-                   float(np.max(np.abs(seed_residual)))})
-            flows=np.asarray([[feedc]*m,[feedd]*m],dtype=float).reshape(-1)
-            zero_feed_indices=np.flatnonzero(flows==0.0)
-            positive_seed=flows.copy()
-            positive_seed[zero_feed_indices]=epsilon
-            return np.r_[positive_seed,np.tile(interface_u,m)]
+            transfer=initial_lambda*profile_flux*av*A*dz
+            c=np.asarray([np.asarray(feedc)-np.sum(transfer[:j+1],axis=0)
+              for j in range(m)])
+            d=np.asarray([np.asarray(feedd)+np.sum(transfer[j:],axis=0)
+              for j in range(m)])
+            flows=np.r_[c.reshape(-1),d.reshape(-1)]
+            if (np.min(flows)<=epsilon or np.any(flows>upper[:14*m])):
+                raise JobCBlocked("JOB_C_BOUNDARY_AWARE_INITIAL_PROFILE_INVALID",
+                  {"heightM":h,"lambda":initial_lambda,
+                   "minimumFlowMolS":float(np.min(flows)),
+                   "profileIntervalQualification":profile_audit})
+            return np.r_[flows,np.asarray(profile_unknowns).reshape(-1)]
 
         def unpack(x):
             # Direct bound-constrained molar-flow coordinates avoid the
@@ -423,13 +523,6 @@ def case(r, name, dc, dd, solvers):
             return np.asarray(unknowns),np.asarray(fluxes),maximum_gate
 
         x=initial(); history=[]; started=time.monotonic()
-        zero_feed_seed_rows=[
-          {"phase":"continuous" if phase==0 else "dispersed",
-           "numericalCell":cell+1,"component":COMPONENTS[component],
-            "governedInletFlowMolS":0.0,"positiveBoundSeedMolS":epsilon,
-            "coordinateClassification":"INTERNAL_NUMERICAL_COORDINATE_NOT_FEED_REGULARIZATION"}
-          for phase in range(2) for cell in range(m) for component in range(7)
-          if (feedc if phase==0 else feedd)[component]==0.0]
         global_inlet_full_scale_audit=frozen_boundary_audit(
           np,feedc,feedd,inlet_nc,inlet_nd,
           np.tile(inlet_nc,(m,1))*av*A*dz)
@@ -449,15 +542,16 @@ def case(r, name, dc, dd, solvers):
         # continuation: seven independent candidate interface solves followed
         # by one bounded dense 98-equation FV solve.  The 189-equation system is
         # reserved for one limited lambda-one polish after Picard acceptance.
-        lambda_targets=[0.0,.00001,.00003,.0001,.0003,.001,.0025,.005,.01,
-                        .025,.05,.1,.25,.5,.75,1.0]
+        lambda_targets=sorted(set([initial_lambda,.00003,.0001,.0003,.001,
+          .0025,.005,.01,.025,.05,.1,.25,.5,.75,1.0]))
+        lambda_targets=[value for value in lambda_targets if value>=initial_lambda]
         lambda_index=0
         minimum_lambda_interval=1e-8
         maximum_outer_iterations=24
         while lambda_index<len(lambda_targets):
             lam=lambda_targets[lambda_index]
             accepted_x=x.copy()
-            previous_lambda=history[-1]["lambda"] if history else 0.0
+            previous_lambda=history[-1]["lambda"] if history else initial_lambda
             progress(f"local flux Picard lambda {lam:g}")
             lambda_started=time.monotonic()
             outer_rows=[]; step_accepted=False; step_error=None
@@ -615,13 +709,10 @@ def case(r, name, dc, dd, solvers):
                 outer_rows[-1]["integratedSourceMismatchScaled"],
               "minimumFlowMolS":outer_rows[-1]["minimumFlowMolS"],
               "lambdaRuntimeSeconds":time.monotonic()-lambda_started,
-              "lambdaZeroCharacterization":(
-                "ZERO_TRANSFER_POSITIVE_BOUND_SEED_NOT_EXACT_ZERO_FEED_FV_ROOT"
-                if lam==0.0 else None),
-              "zeroFeedPositiveBoundSeeds":
-                zero_feed_seed_rows if lam==0.0 else [],
+              "boundaryAwareInitialProfile":profile_audit
+                if len(history)==0 else None,
               "globalInletFluxAudit":
-                global_inlet_full_scale_audit if lam==0.0 else None})
+                global_inlet_full_scale_audit if len(history)==0 else None})
             lambda_index+=1
 
         # Picard has established a positive, locally consistent lambda-one

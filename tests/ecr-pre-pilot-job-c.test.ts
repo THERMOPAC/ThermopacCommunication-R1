@@ -52,8 +52,8 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(worker).toContain('JOB_C_LOCAL_FLUX_PICARD_NONCONVERGENCE');
     expect(worker).toContain('JOB_C_LAMBDA1_MONOLITHIC_POLISH_FAILED');
     expect(worker).toContain('"dominantResidualRows":diagnostics(ev)');
-    expect(worker).toContain('np.tile(interface_u,m)');
-    expect(worker).toContain('ZERO_TRANSFER_POSITIVE_BOUND_SEED_NOT_EXACT_ZERO_FEED_FV_ROOT');
+    expect(worker).toContain('np.asarray(profile_unknowns).reshape(-1)');
+    expect(worker).toContain('JOB_C_BOUNDARY_AWARE_INITIAL_PROFILE_INVALID');
     expect(worker).toContain('max_nfev=40');
     expect(worker).toContain('progress(f"local flux Picard lambda {lam:g}")');
     expect(worker).toContain('progress("lambda 1 monolithic polish")');
@@ -69,20 +69,21 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(worker).toContain('PINNED_ENGINE_LINEAGE_ONLY_NO_JOB_B_FLUX_CONSUMED');
   });
 
-  it('qualifies the recorded local contact before global-pair numerical seeding', () => {
+  it('qualifies every mapped local contact before boundary-aware numerical seeding', () => {
     const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
     const service = readFileSync('server/ecr-pre-pilot-service.ts', 'utf8');
     const source = worker.indexOf('branch=r["boundaryBranchQualificationRequest"]');
-    const gate = worker.indexOf('JOB_C_BOUNDARY_BRANCH_CANNOT_CONTINUE_TO_LAMBDA_ZERO_GLOBAL_PAIR');
-    const epsilon = worker.indexOf('positive_seed[zero_feed_indices]=epsilon');
+    const gate = worker.indexOf('JOB_C_AXIAL_PROFILE_NO_POSITIVE_CONTINUATION_INTERVAL');
+    const profileSeed = worker.indexOf('transfer=initial_lambda*profile_flux*av*A*dz');
     expect(service).toContain('RECORDED_STAGE2_FEED_END_LOCAL_CONTACT_STATE');
-    expect(service).toContain('request.x_bulk_dispersed[5] !== 0');
-    expect(service).toContain('request.x_bulk_dispersed[6] !== 0');
-    expect(worker).toContain('BOUNDARY_INCOMPATIBLE_LOCAL_INITIALIZATION_NOT_OPERATIONAL');
-    expect(worker).toContain('"incomingPhysicalFlowsRegularized":False');
+    expect(service).toContain('PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS');
+    expect(service).not.toContain('request.x_bulk_dispersed[5] !== 0');
+    expect(service).not.toContain('request.x_bulk_dispersed[6] !== 0');
+    expect(worker).toContain('qualifiedLocalContacts');
+    expect(worker).toContain('"numericalTraceAdded":False');
     expect(source).toBeGreaterThan(-1);
     expect(gate).toBeGreaterThan(source);
-    expect(epsilon).toBeGreaterThan(gate);
+    expect(profileSeed).toBeGreaterThan(gate);
   });
 
   it('records the governed design-269 branch and global-pair flux classifications', () => {
@@ -292,7 +293,7 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(continuousOutlet.slice(0, 5).every(flow => flow > 0)).toBe(true);
   });
 
-  it('uses the global-inlet failure only as evidence and tries local continuation', () => {
+  it('qualifies an axial profile before a boundary-aware positive continuation', () => {
     const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
     expect(worker).toContain('positiveGlobalOutletNecessaryConditionPassed');
     expect(worker).toContain('sourceSignReversalWouldResolveAllBoundaries');
@@ -307,10 +308,16 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(worker).toContain('minimum_flow<=0');
     expect(worker).toContain('c[j]/c[j].sum()');
     expect(worker).toContain('d[j]/d[j].sum()');
-    expect(worker).toContain('lambda_targets=[0.0,.00001,.00003,.0001,.0003,.001');
+    expect(worker).toContain('JOB_C_AXIAL_PROFILE_NO_POSITIVE_CONTINUATION_INTERVAL');
+    expect(worker).toContain('allHydrocarbonPrefixesAndSolventSuffixesAdmitted');
+    expect(worker).toContain('qualifiedLocalContacts');
+    expect(worker).toContain('initial_lambda=min(1e-5,upper*.25)');
+    expect(worker).toContain('transfer=initial_lambda*profile_flux*av*A*dz');
+    expect(worker).toContain('lambda_targets=sorted(set([initial_lambda');
     expect(worker).toContain('lambda_targets.insert(');
     expect(worker).toContain('minimum_lambda_interval=1e-8');
-    expect(worker).toContain('ZERO_TRANSFER_POSITIVE_BOUND_SEED_NOT_EXACT_ZERO_FEED_FV_ROOT');
-    expect(worker).toContain('zeroFeedPositiveBoundSeeds');
+    expect(worker).toContain('"literalPhysicalFeedFacesPreserved":True');
+    expect(worker).not.toContain('ZERO_TRANSFER_POSITIVE_BOUND_SEED_NOT_EXACT_ZERO_FEED_FV_ROOT');
+    expect(worker).not.toContain('zeroFeedPositiveBoundSeeds');
   });
 });
