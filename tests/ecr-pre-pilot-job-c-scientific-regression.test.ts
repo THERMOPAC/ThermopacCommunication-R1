@@ -102,6 +102,13 @@ describe('Job-C packaged design269 scientific regression', () => {
       signAndBoundaryOrientationConclusion:
         'B_TO_C_SOURCE_SIGNS_AND_COUNTERCURRENT_BOUNDARIES_ANALYTICALLY_CONSERVATIVE',
     });
+    expect(diagnostics.runtimeBudgets).toMatchObject({
+      qualification: {
+        budgetSeconds: 600,
+        cacheStatus: expect.stringMatching(/^(HIT_FULL_HASH_MATCH|MISS_QUALIFIED_AND_STORED)$/),
+      },
+      nonlinearSolver: { budgetSeconds: 720 },
+    });
     expect(result).not.toHaveProperty('sensitivityCases');
     const manifest = JSON.parse(fs.readFileSync(
       'dist/job-c-runtime/job-c-runtime-manifest.json', 'utf8',

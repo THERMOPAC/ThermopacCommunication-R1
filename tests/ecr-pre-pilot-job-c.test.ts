@@ -263,15 +263,22 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
 
   it('turns solver budget expiry and unavailable refresh evidence into governed diagnostics', () => {
     const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
+    const controller = readFileSync('server/ecr-pre-pilot/job-c.ts', 'utf8');
     const controlledClock = JSON.parse(execFileSync('python3', ['-c', `
-import ast, json
+import ast, json, signal, time
 source = open("server/ecr-pre-pilot/job-c/worker.py").read()
 tree = ast.parse(source)
-function = next(node for node in tree.body
-                if isinstance(node, ast.FunctionDef)
-                and node.name == "require_runtime_budget")
-namespace = {}
-exec(compile(ast.Module(body=[function], type_ignores=[]),
+selected = []
+for node in tree.body:
+    if isinstance(node, ast.ClassDef) and node.name == "JobCBlocked":
+        selected.append(node)
+    if isinstance(node, ast.FunctionDef) and node.name in (
+        "require_runtime_budget", "terminate_descendants",
+        "qualification_budget_block", "run_with_qualification_budget"):
+        selected.append(node)
+namespace = {"_active_qualification_pool": None, "time": time, "signal": signal,
+  "NONLINEAR_SOLVER_BUDGET_SECONDS": 720}
+exec(compile(ast.Module(body=selected, type_ignores=[]),
              "runtime-budget-test", "exec"), namespace)
 budget = {"started": 10.0, "maximumSeconds": 5.0}
 at_limit = namespace["require_runtime_budget"](budget, 15.0)
@@ -280,9 +287,50 @@ try:
     namespace["require_runtime_budget"](budget, 15.000001)
 except TimeoutError:
     expired = True
-print(json.dumps({"atLimit": at_limit, "expired": expired}))
+actions = []
+class Pool:
+    def terminate(self): actions.append("terminate")
+    def join(self): actions.append("join")
+namespace["_active_qualification_pool"] = Pool()
+exit_code = None
+try:
+    namespace["terminate_descendants"](15, None)
+except SystemExit as error:
+    exit_code = error.code
+qualification_code = None
+solver_status = None
+qualification_budget = {"started": time.monotonic(), "maximumSeconds": 0.02}
+try:
+    namespace["run_with_qualification_budget"](
+      qualification_budget, lambda: time.sleep(0.1), "NOT_CHECKED")
+except namespace["JobCBlocked"] as error:
+    qualification_code = error.code
+    solver_status = error.diagnostics["runtimeBudgets"]["nonlinearSolver"]["status"]
+print(json.dumps({"atLimit": at_limit, "expired": expired,
+  "cancelActions": actions, "exitCode": exit_code,
+  "qualificationCode": qualification_code, "solverStatus": solver_status}))
 `], { encoding: 'utf8' }));
-    expect(controlledClock).toEqual({ atLimit: 5, expired: true });
+    expect(controlledClock).toEqual({
+      atLimit: 5,
+      expired: true,
+      cancelActions: ['terminate', 'join'],
+      exitCode: 143,
+      qualificationCode: 'JOB_C_QUALIFICATION_RUNTIME_BUDGET',
+      solverStatus: 'NOT_STARTED',
+    });
+    expect(worker).toContain('QUALIFICATION_BUDGET_SECONDS=600');
+    expect(worker).toContain('NONLINEAR_SOLVER_BUDGET_SECONDS=720');
+    expect(worker).toContain('"cacheStatus":"HIT_FULL_HASH_MATCH"');
+    expect(worker).toContain('budget["started"]=time.monotonic()');
+    expect(worker).toContain('run_with_qualification_budget(qualification_budget,');
+    expect(worker).toContain('signal.setitimer(signal.ITIMER_REAL,max(remaining,1e-6))');
+    expect(worker).toContain('"jobBManifestSha256":file_sha256(job_b_manifest_path)');
+    expect(worker).toContain('"thermodynamicInputSha256":digest(thermodynamic_input)');
+    expect(worker).toContain('"qualificationRequestsSha256":digest(qualification_requests)');
+    expect(worker).toContain('"branchCtC":branch["CtC"],"branchCtD":branch["CtD"]');
+    expect(worker).toContain('"profileSha256":r["axialLocalContactProfileSha256"]');
+    expect(worker).toContain('"sha256":file_sha256(qualifier_path)');
+    expect(worker).toContain('"error":"JOB_C_INTERNAL_RUNTIME_BUDGET"');
     const coupledStart = worker.indexOf(
       'coupled_starts=[("LAST_ACCEPTED_COUPLED_STATE",accepted_x)]',
     );
@@ -311,6 +359,89 @@ print(json.dumps({"atLimit": at_limit, "expired": expired}))
     );
     expect(worker).toContain('"error":"JOB_C_INTERNAL_RUNTIME_BUDGET"');
     expect(worker).toContain('"classification":"NUMERICAL_RUNTIME_BUDGET_EXHAUSTED"');
+    expect(controller).toContain('const JOB_C_QUALIFICATION_BUDGET_MS = 600_000;');
+    expect(controller).toContain('const JOB_C_NONLINEAR_SOLVER_BUDGET_MS = 720_000;');
+    expect(controller).toContain('JOB_C_QUALIFICATION_CACHE_DIR:');
+  });
+
+  it('reuses only intact contact evidence with an exact scientific cache identity', () => {
+    const observed = JSON.parse(execFileSync('python3', ['-c', `
+import ast, json, os, stat, tempfile
+from pathlib import Path
+source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
+tree = ast.parse(source)
+names = {"canonical","hashed","digest","file_sha256","qualification_cache_identity",
+  "qualification_cache_path","finite_vector","load_qualification_cache",
+  "store_qualification_cache"}
+nodes = [node for node in tree.body if isinstance(node, ast.FunctionDef)
+         and node.name in names]
+namespace = {
+  "hashlib": __import__("hashlib"), "json": json, "math": __import__("math"),
+  "os": os, "tempfile": tempfile, "Path": Path,
+  "root": Path("dist/job-b-interface-runtime").resolve(),
+  "QUALIFIER_VERSION": "ECR_JOB_C_BOUNDARY_INTERFACE_QUALIFIER_V1",
+  "__file__": str(Path("server/ecr-pre-pilot/job-c/worker.py").resolve()),
+}
+exec(compile(ast.Module(body=nodes, type_ignores=[]), "cache-test", "exec"), namespace)
+request = json.loads(Path("tests/fixtures/design269-job-c-worker-request.json").read_text())
+digest = namespace["digest"]
+branch = request["boundaryBranchQualificationRequest"]
+branch["sourceStateSha256"] = digest({k:v for k,v in branch.items()
+                                     if k != "sourceStateSha256"})
+request["axialLocalContactProfileSha256"] = digest({
+  "authority": request["axialLocalContactProfileAuthority"],
+  "profile": request["axialLocalContactProfile"],
+})
+cache_dir = tempfile.mkdtemp(prefix="job-c-cache-test-")
+os.environ["JOB_C_QUALIFICATION_CACHE_DIR"] = cache_dir
+qualified = []
+for index, contact in enumerate(request["axialLocalContactProfile"]):
+  response = {
+    "status": "QUALIFIED_JOB_C_BOUNDARY_BRANCH",
+    "unknowns": [float(index)] * 13,
+    "interface": {
+      "continuousComponentFluxMolM2S": [float(index)] * 7,
+      "dispersedComponentFluxMolM2S": [float(index)] * 7,
+    },
+  }
+  response["resultHash"] = digest(response)
+  qualified.append({
+    "index": index,
+    "evidence": {"numericalCell": index + 1,
+      "provenance": contact["provenance"], "qualifier": response},
+    "flux": response["interface"]["continuousComponentFluxMolM2S"],
+    "unknowns": response["unknowns"],
+  })
+identity, key = namespace["qualification_cache_identity"](request)
+namespace["store_qualification_cache"](identity, key, qualified)
+hit, _, hit_key = namespace["load_qualification_cache"](request)
+mode = stat.S_IMODE(os.stat(namespace["qualification_cache_path"](key)).st_mode)
+changed = json.loads(json.dumps(request))
+changed_branch = changed["boundaryBranchQualificationRequest"]
+changed_branch["CtC"] += 1
+changed_branch["sourceStateSha256"] = digest({
+  k:v for k,v in changed_branch.items() if k != "sourceStateSha256"
+})
+miss, _, changed_key = namespace["load_qualification_cache"](changed)
+cache_path = namespace["qualification_cache_path"](key)
+envelope = json.loads(cache_path.read_text())
+envelope["qualifiedContacts"][0]["flux"] = [0.0] * 6
+body = {k:v for k,v in envelope.items() if k != "cacheEnvelopeSha256"}
+envelope["cacheEnvelopeSha256"] = digest(body)
+cache_path.write_text(namespace["canonical"](envelope))
+tampered, _, _ = namespace["load_qualification_cache"](request)
+print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
+  "privateMode": mode, "changedMiss": miss is None,
+  "changedKey": changed_key != key, "tamperedMiss": tampered is None}))
+`], { encoding: 'utf8' }));
+    expect(observed).toEqual({
+      hit: true,
+      sameKey: true,
+      privateMode: 0o600,
+      changedMiss: true,
+      changedKey: true,
+      tamperedMiss: true,
+    });
   });
 
   it('reproduces the signed design-269 inlet flux and rejects either invalid source sign', () => {

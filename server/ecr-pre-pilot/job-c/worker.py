@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bounded, conservative finite-volume countercurrent Job-C kernel."""
 from __future__ import annotations
-import hashlib, importlib.util, json, math, multiprocessing, os, signal, sys, time
+import hashlib, importlib.util, json, math, multiprocessing, os, signal, sys, tempfile, time
 from pathlib import Path
 from candidate_interface import CandidateInterfaceSolver, CandidateFailure, VERSION as CANDIDATE_VERSION
 from boundary_interface_qualifier import qualify as qualify_boundary, VERSION as QUALIFIER_VERSION
@@ -38,6 +38,9 @@ job_b=importlib.util.module_from_spec(spec); spec.loader.exec_module(job_b)
 
 _profile_qualification_context=None
 _active_qualification_pool=None
+_active_runtime_budgets=None
+QUALIFICATION_BUDGET_SECONDS=600
+NONLINEAR_SOLVER_BUDGET_SECONDS=720
 
 def terminate_descendants(signum, frame):
     """A cancelled lease must also terminate and reap forked qualifiers."""
@@ -48,6 +51,29 @@ def terminate_descendants(signum, frame):
     raise SystemExit(128+signum)
 
 signal.signal(signal.SIGTERM,terminate_descendants)
+
+def active_runtime_budget_report():
+    state=_active_runtime_budgets
+    if state is None: return None
+    now=time.monotonic()
+    qualification=state["qualification"]
+    solver=state["nonlinearSolver"]
+    qualification_elapsed=(
+      qualification.get("ended",now)-qualification["started"])
+    report={"qualification":{
+      "budgetSeconds":qualification["maximumSeconds"],
+      "elapsedSeconds":qualification_elapsed,
+      "cacheStatus":qualification.get("cacheStatus","IN_PROGRESS")}}
+    if qualification.get("cacheKeySha256") is not None:
+        report["qualification"]["cacheKeySha256"]=qualification["cacheKeySha256"]
+    if solver["started"] is None:
+        report["nonlinearSolver"]={"budgetSeconds":solver["maximumSeconds"],
+          "elapsedSeconds":0.0,"status":"NOT_STARTED"}
+    else:
+        report["nonlinearSolver"]={"budgetSeconds":solver["maximumSeconds"],
+          "elapsedSeconds":now-solver["started"],"status":"STARTED"}
+    report["totalElapsedSeconds"]=now-state["caseStarted"]
+    return report
 
 def qualified_interface(request, branch_reference_state=None):
     """Replay through Job-C's versioned qualifier, never Job-B solve."""
@@ -65,6 +91,38 @@ class JobCBlocked(RuntimeError):
         super().__init__(code)
         self.code, self.diagnostics = code, diagnostics
 
+def qualification_budget_block(budget, cache_status):
+    elapsed=time.monotonic()-budget["started"]
+    return JobCBlocked("JOB_C_QUALIFICATION_RUNTIME_BUDGET",
+      {"classification":"QUALIFICATION_RUNTIME_BUDGET_EXHAUSTED",
+       "physicalInfeasibilityClaimed":False,
+       "runtimeBudgets":{"qualification":{
+         "budgetSeconds":budget["maximumSeconds"],
+         "elapsedSeconds":elapsed,"cacheStatus":cache_status},
+         "nonlinearSolver":{"budgetSeconds":NONLINEAR_SOLVER_BUDGET_SECONDS,
+           "elapsedSeconds":0.0,"status":"NOT_STARTED"}},
+       "claimsEmitted":{"height":False,"efficiency":False,
+         "finalRpm":False,"jobD":False,"release":False}})
+
+def run_with_qualification_budget(budget, operation, cache_status):
+    """Interrupt a main-process qualifier at its independent deadline."""
+    elapsed=require_runtime_budget(budget)
+    remaining=budget["maximumSeconds"]-elapsed
+    previous_handler=signal.getsignal(signal.SIGALRM)
+    def deadline(signum,frame):
+        raise TimeoutError("JOB_C_QUALIFICATION_INTERNAL_RUNTIME_BUDGET")
+    signal.signal(signal.SIGALRM,deadline)
+    signal.setitimer(signal.ITIMER_REAL,max(remaining,1e-6))
+    try:
+        result=operation()
+        require_runtime_budget(budget)
+        return result
+    except TimeoutError:
+        raise qualification_budget_block(budget,cache_status)
+    finally:
+        signal.setitimer(signal.ITIMER_REAL,0.0)
+        signal.signal(signal.SIGALRM,previous_handler)
+
 def qualify_profile_contact(index):
     """Fork-only independent contact qualification; results are reordered by index."""
     r,engine,branch=_profile_qualification_context
@@ -81,6 +139,108 @@ def qualify_profile_contact(index):
       "flux":[float(x) for x in
         out["interface"]["continuousComponentFluxMolM2S"]],
       "unknowns":[float(x) for x in out["unknowns"]]}
+
+def file_sha256(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+def qualification_cache_identity(r):
+    """Bind reusable contact evidence to every scientific input and artifact."""
+    job_b_manifest_path=root/"job-b-interface-manifest.json"
+    job_b_manifest=json.loads(job_b_manifest_path.read_text())
+    qualifier_path=Path(__file__).parent/"boundary_interface_qualifier.py"
+    branch=r["boundaryBranchQualificationRequest"]
+    thermodynamic_input={
+      "temperatureK":r["temperatureK"],"kc":r["kc"],"kd":r["kd"],
+      "branchCtC":branch["CtC"],"branchCtD":branch["CtD"],
+      "phaseConfiguration":r["phaseConfiguration"]}
+    qualification_requests=[{
+      **thermodynamic_input,
+      "xBulkContinuous":contact["x_bulk_continuous"],
+      "xBulkDispersed":contact["x_bulk_dispersed"]}
+      for contact in r["axialLocalContactProfile"]]
+    identity={
+      "schemaVersion":"ECR_JOB_C_AXIAL_CONTACT_QUALIFICATION_CACHE_V1",
+      "engine":{
+        "jobBManifestSha256":file_sha256(job_b_manifest_path),
+        "jobBArtifactSha256":job_b_manifest.get("artifactSha256"),
+        "stage4AdapterManifestSha256":
+          job_b_manifest.get("stage4Adapter",{}).get("manifestSha256"),
+        "stage4AdapterArtifactSha256":
+          job_b_manifest.get("stage4Adapter",{}).get("artifactSha256")},
+      "thermodynamicInputSha256":digest(thermodynamic_input),
+      "qualificationRequestsSha256":digest(qualification_requests),
+      "boundaryBranchSourceSha256":branch["sourceStateSha256"],
+      "profileSha256":r["axialLocalContactProfileSha256"],
+      "qualifier":{"version":QUALIFIER_VERSION,
+        "sha256":file_sha256(qualifier_path)}}
+    return identity,digest(identity)
+
+def qualification_cache_path(cache_key):
+    cache_root=Path(os.environ.get("JOB_C_QUALIFICATION_CACHE_DIR",
+      Path(tempfile.gettempdir())/"ecr-job-c-qualification-cache-v1"))
+    return cache_root/f"{cache_key}.json"
+
+def finite_vector(value,length):
+    return (isinstance(value,list) and len(value)==length
+      and all(not isinstance(x,bool) and isinstance(x,(int,float))
+        and math.isfinite(float(x)) for x in value))
+
+def load_qualification_cache(r):
+    identity,key=qualification_cache_identity(r)
+    path=qualification_cache_path(key)
+    try:
+        envelope=json.loads(path.read_text())
+        body={k:v for k,v in envelope.items() if k!="cacheEnvelopeSha256"}
+        qualified=envelope["qualifiedContacts"]
+        valid=(envelope.get("schemaVersion")==identity["schemaVersion"]
+          and envelope.get("identity")==identity
+          and envelope.get("cacheKeySha256")==key
+          and envelope.get("cacheEnvelopeSha256")==digest(body)
+          and isinstance(qualified,list) and len(qualified)==7)
+        if not valid: return None,identity,key
+        for index,value in enumerate(qualified):
+            evidence=value.get("evidence",{})
+            qualifier=evidence.get("qualifier",{})
+            response={k:v for k,v in qualifier.items() if k!="resultHash"}
+            if (value.get("index")!=index or "flux" not in value
+              or "unknowns" not in value
+              or evidence.get("numericalCell")!=index+1
+              or evidence.get("provenance")!=
+                r["axialLocalContactProfile"][index]["provenance"]
+              or not finite_vector(value.get("flux"),7)
+              or not finite_vector(value.get("unknowns"),13)
+              or qualifier.get("status")!="QUALIFIED_JOB_C_BOUNDARY_BRANCH"
+              or not finite_vector(qualifier.get("unknowns"),13)
+              or not finite_vector(qualifier.get("interface",{}).get(
+                "continuousComponentFluxMolM2S"),7)
+              or not finite_vector(qualifier.get("interface",{}).get(
+                "dispersedComponentFluxMolM2S"),7)
+              or value["flux"]!=qualifier["interface"][
+                "continuousComponentFluxMolM2S"]
+              or value["unknowns"]!=qualifier["unknowns"]
+              or qualifier.get("resultHash")!=digest(response)):
+                return None,identity,key
+        return qualified,identity,key
+    except (OSError,ValueError,KeyError,TypeError,json.JSONDecodeError):
+        return None,identity,key
+
+def store_qualification_cache(identity,key,qualified):
+    path=qualification_cache_path(key)
+    path.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
+    os.chmod(path.parent,0o700)
+    body={"schemaVersion":identity["schemaVersion"],"identity":identity,
+      "cacheKeySha256":key,"qualifiedContacts":qualified}
+    envelope={**body,"cacheEnvelopeSha256":digest(body)}
+    temporary=path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    descriptor=os.open(temporary,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+    try:
+        with os.fdopen(descriptor,"w") as handle:
+            handle.write(canonical(envelope))
+    except BaseException:
+        try: temporary.unlink()
+        except OSError: pass
+        raise
+    os.replace(temporary,path)
 
 def flux_direction(value, tolerance=1e-15):
     if value > tolerance: return "CONTINUOUS_TO_DISPERSED"
@@ -232,8 +392,14 @@ def case(r, name, dc, dd, solvers):
     feedc=[float(x) for x in r["continuousFeedMolS"]]; feedd=[float(x) for x in r["dispersedFeedMolS"]]
     if m<1 or min(sum(feedc),sum(feedd))<=0 or any(len(x)!=7 for x in [feedc,feedd,r["kc"],r["kd"]]):
         raise ValueError("JOB_C_INVALID_GOVERNED_FLOW_INPUT")
-    budget={"calls":0,"residualCalls":0,"started":time.monotonic(),
-            "maximumSeconds":720}
+    case_started=time.monotonic()
+    qualification_budget={"started":case_started,
+      "maximumSeconds":QUALIFICATION_BUDGET_SECONDS}
+    budget={"calls":0,"residualCalls":0,"started":None,
+            "maximumSeconds":NONLINEAR_SOLVER_BUDGET_SECONDS}
+    global _active_runtime_budgets
+    _active_runtime_budgets={"caseStarted":case_started,
+      "qualification":qualification_budget,"nonlinearSolver":budget}
     accepted_by_height={}
     inlet_xc=np.asarray(feedc)/sum(feedc)
     inlet_xd=np.asarray(feedd)/sum(feedd)
@@ -253,9 +419,11 @@ def case(r, name, dc, dd, solvers):
     source_for_hash={k:v for k,v in branch.items() if k!="sourceStateSha256"}
     if branch.get("sourceStateSha256")!=digest(source_for_hash):
         raise JobCBlocked("JOB_C_BOUNDARY_BRANCH_SOURCE_HASH_INVALID",{})
-    inlet_qualifier=qualify_boundary(solvers[0].engine,branch["T"],branch["kc"],branch["kd"],
-      branch["CtC"],branch["CtD"],branch["phase_config"],
-      branch["x_bulk_continuous"],branch["x_bulk_dispersed"])
+    inlet_qualifier=run_with_qualification_budget(qualification_budget,
+      lambda:qualify_boundary(solvers[0].engine,branch["T"],branch["kc"],branch["kd"],
+        branch["CtC"],branch["CtD"],branch["phase_config"],
+        branch["x_bulk_continuous"],branch["x_bulk_dispersed"]),
+      "NOT_CHECKED")
     if inlet_qualifier.get("status") != "QUALIFIED_JOB_C_BOUNDARY_BRANCH":
         raise JobCBlocked("JOB_C_BOUNDARY_INTERFACE_QUALIFIER_FAILED",
           {"qualifier":inlet_qualifier,
@@ -271,28 +439,37 @@ def case(r, name, dc, dd, solvers):
       for i in (5,6)):
         raise JobCBlocked("JOB_C_BOUNDARY_INTERFACE_QUALIFIER_FAILED",
           {"gate":"EXACT_ZERO_SOLVENT_TANGENT_CONE","qualifier":inlet_qualifier})
-    # Qualify the recorded spatial contacts independently before constructing
-    # any positive internal FV coordinate or attempting continuation.
-    global _profile_qualification_context,_active_qualification_pool
-    _profile_qualification_context=(r,solvers[0].engine,branch)
-    context=multiprocessing.get_context("fork")
-    pool=context.Pool(processes=min(3,m))
-    _active_qualification_pool=pool
-    jobs=[pool.apply_async(qualify_profile_contact,(index,)) for index in range(m)]
-    try:
-        completed=-1
-        while completed<m:
-            completed=sum(job.ready() for job in jobs)
-            progress("axial contact qualification",completed,m)
-            if completed<m: time.sleep(1)
-        qualified=[job.get() for job in jobs]
-        pool.close(); pool.join()
-    except BaseException:
-        pool.terminate(); pool.join()
-        raise
-    finally:
-        _active_qualification_pool=None
-        _profile_qualification_context=None
+    # Reuse only a complete, hash-bound qualification set. Cache misses retain
+    # the forked process tree so lease cancellation terminates every descendant.
+    qualified,cache_identity,cache_key=load_qualification_cache(r)
+    cache_hit=qualified is not None
+    if cache_hit:
+        progress("axial contact qualification cache",m,m)
+    else:
+        global _profile_qualification_context,_active_qualification_pool
+        _profile_qualification_context=(r,solvers[0].engine,branch)
+        context=multiprocessing.get_context("fork")
+        pool=context.Pool(processes=min(3,m))
+        _active_qualification_pool=pool
+        jobs=[pool.apply_async(qualify_profile_contact,(index,)) for index in range(m)]
+        try:
+            completed=-1
+            while completed<m:
+                require_runtime_budget(qualification_budget)
+                completed=sum(job.ready() for job in jobs)
+                progress("axial contact qualification",completed,m)
+                if completed<m: time.sleep(1)
+            qualified=[job.get() for job in jobs]
+            pool.close(); pool.join()
+        except TimeoutError:
+            pool.terminate(); pool.join()
+            raise qualification_budget_block(qualification_budget,"MISS")
+        except BaseException:
+            pool.terminate(); pool.join()
+            raise
+        finally:
+            _active_qualification_pool=None
+            _profile_qualification_context=None
     qualified.sort(key=lambda value:value["index"])
     profile_evidence=[]; profile_flux=[]; profile_unknowns=[]
     for value in qualified:
@@ -305,6 +482,22 @@ def case(r, name, dc, dd, solvers):
                "profileHeightClaimed":False})
         profile_flux.append(value["flux"])
         profile_unknowns.append(value["unknowns"])
+    if not cache_hit:
+        store_qualification_cache(cache_identity,cache_key,qualified)
+    qualification_seconds=time.monotonic()-qualification_budget["started"]
+    qualification_runtime={"budgetSeconds":qualification_budget["maximumSeconds"],
+      "elapsedSeconds":qualification_seconds,
+      "cacheStatus":"HIT_FULL_HASH_MATCH" if cache_hit else "MISS_QUALIFIED_AND_STORED",
+      "cacheKeySha256":cache_key}
+    try:
+        require_runtime_budget(qualification_budget)
+    except TimeoutError:
+        raise qualification_budget_block(qualification_budget,
+          qualification_runtime["cacheStatus"])
+    qualification_budget.update({"ended":time.monotonic(),
+      "cacheStatus":qualification_runtime["cacheStatus"],
+      "cacheKeySha256":cache_key})
+    budget["started"]=time.monotonic()
     profile_flux=np.asarray(profile_flux,dtype=float)
     # At H=2 m, B is positive. Therefore existence/nonexistence of a positive
     # lambda interval has the same sign result at every positive height.
@@ -928,7 +1121,10 @@ def case(r, name, dc, dd, solvers):
                    "globalInletFluxAudit":global_inlet_full_scale_audit,
                     "claimsEmitted":{"height":False,"efficiency":False,
                       "finalRpm":False,"jobD":False,"release":False},
-                   "runtimeSeconds":time.monotonic()-started})
+                   "runtimeSeconds":time.monotonic()-started,
+                   "runtimeBudgets":{"qualification":qualification_runtime,
+                     "nonlinearSolver":{"budgetSeconds":budget["maximumSeconds"],
+                       "elapsedSeconds":time.monotonic()-budget["started"]}}})
             history.append({"lambda":lam,
               "solver":"LOCAL_FLUX_PICARD_BOUNDED_DENSE_98_FV",
               "outerIterationCount":len(outer_rows),
@@ -1124,12 +1320,16 @@ def case(r, name, dc, dd, solvers):
           "qualification":"NUMERICAL_FV_DISCRETIZATION_NOT_PHYSICAL_STAGE_COUNT",
           "gridIndependenceStatus":"PENDING_NOT_IMPLEMENTED",
           "globalComponentBalanceResidualMolS":selected["global"],
-         "residualDiagnostics":{"maxCellResidualMolS":selected["raw"],
+          "residualDiagnostics":{"maxCellResidualMolS":selected["raw"],
           "maxScaledCellResidual":selected["scaled"],
           "maxGlobalComponentBalanceResidualMolS":max(abs(x) for x in selected["global"]),
           "minimumLocalComponentFlowMolS":selected["positive"],
           "interfaceCalls":selected["interfaceCalls"],
-          "runtimeSeconds":time.monotonic()-budget["started"]},
+           "runtimeSeconds":time.monotonic()-budget["started"],
+           "runtimeBudgets":{"qualification":qualification_runtime,
+             "nonlinearSolver":{"budgetSeconds":budget["maximumSeconds"],
+               "elapsedSeconds":time.monotonic()-budget["started"]},
+             "totalElapsedSeconds":time.monotonic()-case_started}},
          "homotopyHistory":selected["homotopyHistory"],
           "h2Benchmark":h2_benchmark,
          "boundaryConditions":{"continuousInlet":"DANCKWERTS_TOTAL_COMPONENT_FACE_FLUX_EQUALS_GOVERNED_INLET_MOL_S",
@@ -1249,6 +1449,7 @@ def exact_qualify(r, nominal):
 
 for line in sys.stdin:
  try:
+    _active_runtime_budgets=None
     r=json.loads(line)
     if r.get("protocol")!=PROTOCOL or r.get("operation")!="SOLVE_HEIGHT" or r.get("componentOrder")!=list(COMPONENTS): raise ValueError("JOB_C_PROTOCOL_OR_COMPONENT_ORDER_INVALID")
     validate_branch_request(r)
@@ -1271,13 +1472,19 @@ for line in sys.stdin:
            "finalQualificationRequirement":"VERSIONED_JOB_C_BOUNDARY_QUALIFIER_EVERY_LOCAL_STATE",
           "sensitivityCases":cases}
  except JobCBlocked as e:
+    diagnostics=dict(e.diagnostics)
+    runtime_budgets=active_runtime_budget_report()
+    if runtime_budgets is not None:
+        diagnostics.setdefault("runtimeBudgets",runtime_budgets)
     body={"protocol":PROTOCOL,"status":"BLOCKED_PRELIMINARY_JOB_C",
-          "error":e.code,"diagnostics":e.diagnostics}
+          "error":e.code,"diagnostics":diagnostics}
  except TimeoutError:
+    runtime_budgets=active_runtime_budget_report()
     body={"protocol":PROTOCOL,"status":"BLOCKED_PRELIMINARY_JOB_C",
           "error":"JOB_C_INTERNAL_RUNTIME_BUDGET",
           "diagnostics":{"classification":"NUMERICAL_RUNTIME_BUDGET_EXHAUSTED",
             "physicalInfeasibilityClaimed":False,
+             "runtimeBudgets":runtime_budgets,
             "claimsEmitted":{"height":False,"efficiency":False,
               "finalRpm":False,"jobD":False,"release":False}}}
  except (ValueError,RuntimeError,KeyError,TypeError) as e:

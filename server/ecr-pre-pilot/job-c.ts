@@ -11,6 +11,9 @@ export const JOB_C_PRELIMINARY_SENSITIVITY_BASIS = Object.freeze({
   axialDispersionDispersedM2S: { nominal: 0.0010, minimum: 0.0003, maximum: 0.0030 },
   activeHeightSearchM: { minimum: 2, maximum: 20, use: 'NUMERICAL_SEARCH_ONLY' },
 });
+const JOB_C_QUALIFICATION_BUDGET_MS = 600_000;
+const JOB_C_NONLINEAR_SOLVER_BUDGET_MS = 720_000;
+const JOB_C_TERMINATION_GRACE_MS = 30_000;
 
 const canonical = (value: unknown): string => Array.isArray(value)
   ? `[${value.map(canonical).join(',')}]`
@@ -137,6 +140,9 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
     PYTHONDONTWRITEBYTECODE: '1', PYTHONUNBUFFERED: '1',
     JOB_B_INTERFACE_PROTOCOL: 'ECR_JOB_B_INTERFACE_V1',
     JOB_B_INTERFACE_RUNTIME_ROOT: jobBRoot,
+    JOB_C_QUALIFICATION_CACHE_DIR:
+      process.env.JOB_C_QUALIFICATION_CACHE_DIR
+      ?? path.resolve(workerRoot, '.cache/qualification'),
     STAGE4_EQUILIBRIUM_ADAPTER_PROTOCOL: 'ECR_STAGE4_SEVEN_COMPONENT_ADAPTER_V1',
     STAGE4_EQUILIBRIUM_ADAPTER_RUNTIME_ROOT:
       process.env.STAGE4_EQUILIBRIUM_ADAPTER_RUNTIME_ROOT
@@ -167,7 +173,12 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
     options.signal?.addEventListener('abort', abort, { once: true });
     const timer = setTimeout(() => {
       terminate(); finish(new JobCError('JOB_C_TIMEOUT'));
-    }, Math.max(options.timeoutMs ?? 900_000, 600_000));
+    }, Math.max(
+      options.timeoutMs ?? 0,
+      JOB_C_QUALIFICATION_BUDGET_MS
+        + JOB_C_NONLINEAR_SOLVER_BUDGET_MS
+        + JOB_C_TERMINATION_GRACE_MS,
+    ));
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', chunk => {
       const text = String(chunk);
