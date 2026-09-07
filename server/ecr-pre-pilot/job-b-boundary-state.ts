@@ -122,6 +122,25 @@ function assertSameStream(
   }
 }
 
+function assertFreshRrboSolventZeros(stream: JsonRecord, propertyPath: string) {
+  const solventIndexes = [5, 6] as const;
+  const fields = ['componentMoles', 'moleFractions', 'componentMass', 'massFractions'] as const;
+  const violations = fields.flatMap(field => solventIndexes
+    .filter(index => stream[field][index] !== 0)
+    .map(index => ({
+      field,
+      component: JOB_B_BOUNDARY_COMPONENT_ORDER[index],
+      value: stream[field][index],
+    })));
+  if (violations.length > 0) {
+    throw new JobBBoundaryStateError('FRESH_RRBO_SOLVENT_COMPONENT_NOT_EXACT_ZERO', {
+      propertyPath,
+      violations,
+      requirement: 'FRESH_DISPERSED_RRBO_HAS_EXACTLY_ZERO_NMP_AND_H2O',
+    });
+  }
+}
+
 /**
  * Pure validation/extraction boundary. In particular, this does not calculate
  * equilibrium, N_T, phase properties, or a replacement composition.
@@ -231,6 +250,7 @@ export function extractJobBBoundaryState(args: {
     + '.stages[stageFromFeedEnd=1].raffinateIncoming';
   assertBoundaryStream(stage.extractIncoming, extractPath);
   assertBoundaryStream(stage.raffinateIncoming, raffinatePath);
+  assertFreshRrboSolventZeros(stage.raffinateIncoming, raffinatePath);
   assertSameStream(
     stage.raffinateIncoming,
     trial.boundaryStreams?.oilFeed,

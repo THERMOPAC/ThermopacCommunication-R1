@@ -109,6 +109,11 @@ def case(r, name, dc, dd, solvers):
     accepted_by_height={}
     inlet_xc=np.asarray(feedc)/sum(feedc)
     inlet_xd=np.asarray(feedd)/sum(feedd)
+    # These are authoritative physical inlet compositions.  In particular,
+    # fresh dispersed RRBO NMP/H2O zeros are never epsilon-seeded or clipped.
+    if any((feedd[i] == 0.0 and inlet_xd[i] != 0.0) for i in range(7)):
+        raise JobCBlocked("JOB_C_PHYSICAL_DISPERSED_INLET_ZERO_NOT_PRESERVED",
+          {"dispersedFeedMolS":feedd,"dispersedInletMoleFractions":inlet_xd.tolist()})
     inlet_request={"protocol":"ECR_JOB_B_INTERFACE_V1","operation":"SOLVE_INTERFACE",
       "componentOrder":list(COMPONENTS),"T":r["temperatureK"],
       "x_bulk_continuous":inlet_xc.tolist(),
@@ -121,6 +126,8 @@ def case(r, name, dc, dd, solvers):
         raise JobCBlocked("JOB_C_GLOBAL_INLET_JOB_B_REPRODUCTION_FAILED",
           {"jobBStatus":inlet_job_b.get("status"),
            "jobBError":inlet_job_b.get("error"),
+           "boundaryQualification":inlet_job_b.get("boundaryQualification"),
+           "rootClassReproduction":inlet_job_b.get("rootClassReproduction"),
            "startDiagnostics":inlet_job_b.get("startDiagnostics"),
            "endpointAssessments":inlet_job_b.get("endpointAssessments")})
     inlet_nc=np.asarray(
@@ -359,6 +366,10 @@ def case(r, name, dc, dd, solvers):
           "jobBSelectedStartClass":inlet_job_b.get("selectedStartClass"),
           "jobBIndependentReproductionStartClass":
             inlet_job_b.get("independentReproductionStartClass"),
+           "physicalDispersedInletMoleFractions":inlet_xd.tolist(),
+           "physicalDispersedInletZerosPreservedExactly":
+             all(feedd[i] != 0.0 or inlet_xd[i] == 0.0 for i in range(7)),
+           "incomingPhysicalFlowsRegularized":False,
           "qualification":"GLOBAL_INLET_FULL_SCALE_FROZEN_FLUX_DIAGNOSTIC_ONLY"})
         # Intermediate lambda points use deterministic local-flux Picard
         # continuation: seven independent candidate interface solves followed

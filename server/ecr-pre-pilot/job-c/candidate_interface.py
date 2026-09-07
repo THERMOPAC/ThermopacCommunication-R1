@@ -15,6 +15,7 @@ class CandidateInterfaceSolver:
         self.phase_config = phase_config
         self.warm = None
         self.fallback_count = 0
+        self.last_boundary_assessments = []
 
     def softmax(self, z):
         y=self.np.r_[z,0.0]; y-=self.np.max(y); e=self.np.exp(y)
@@ -46,20 +47,39 @@ class CandidateInterfaceSolver:
         return (self.np.r_[mu,delta[:6]/self.scale[:6]],
                 xi_c,xi_d,n,nc,nd,delta)
 
+    def boundary_compatibility(self, xb_d, nc):
+        """Gate exact-zero dispersed inventory using the physical tangent cone."""
+        rows=[]
+        for i,name in enumerate(("SAT","MONO","DI","POLY","PA","NMP","H2O")):
+            if float(xb_d[i]) == 0.0:
+                flux=float(nc[i])
+                rows.append({"component":name,
+                    "continuousToDispersedFluxMolM2S":flux,
+                    "accepted":flux >= 0.0})
+        return {"accepted":all(row["accepted"] for row in rows),
+                "signConvention":
+                    "POSITIVE_REMOVES_FROM_CONTINUOUS_AND_ADDS_TO_DISPERSED",
+                "absentDispersedComponents":rows}
+
     def solve(self, xc, xd):
         xb_c,xb_d=self.np.asarray(xc),self.np.asarray(xd)
+        self.last_boundary_assessments=[]
         def run(label,x0,maximum):
             fit=self.scipy.optimize.least_squares(
                 lambda u:self.residual(u,xb_c,xb_d),x0,bounds=(lower,upper),
                 method="trf",jac="2-point",max_nfev=maximum,xtol=1e-10,ftol=1e-10,
                 gtol=1e-10,x_scale="jac")
             values=self.equations(fit.x,xb_c,xb_d)
-            _,xi_c_try,xi_d_try,_,_,_,delta_try=values
+            _,xi_c_try,xi_d_try,_,nc_try,_,delta_try=values
             mu_try=self.engine.mu(xi_c_try,self.temperature)-self.engine.mu(xi_d_try,self.temperature)
             scaled_try=float(self.np.max(self.np.abs(delta_try)/self.scale))
-            accepted=(fit.success and float(self.np.max(self.np.abs(mu_try)))<=1e-7
+            numerical=(fit.success and float(self.np.max(self.np.abs(mu_try)))<=1e-7
                       and scaled_try<=1e-7)
-            return fit,values,accepted
+            boundary=self.boundary_compatibility(xb_d,nc_try)
+            self.last_boundary_assessments.append({
+                "startClass":label,"numericalAccepted":bool(numerical),
+                "boundaryCompatibility":boundary})
+            return fit,values,numerical and boundary["accepted"]
         lower=self.np.full(13,-35.0)
         upper=self.np.full(13,35.0)
         if self.warm is not None:
@@ -93,6 +113,10 @@ class CandidateInterfaceSolver:
         scaled=float(self.np.max(self.np.abs(delta)/self.scale))
         if not fit.success or float(self.np.max(self.np.abs(mu)))>1e-7 or scaled>1e-7:
             raise CandidateFailure("JOB_C_CANDIDATE_INTERFACE_NONCONVERGENCE")
+        boundary=self.boundary_compatibility(xb_d,nc)
+        if not boundary["accepted"]:
+            raise CandidateFailure(
+                "JOB_C_CANDIDATE_INTERFACE_BOUNDARY_INCOMPATIBLE")
         self.warm=fit.x.copy()
         return {
             "version":VERSION,"qualification":"CANDIDATE_ONLY_NO_STABILITY_CLAIM",
@@ -103,6 +127,7 @@ class CandidateInterfaceSolver:
             "maximumEquationResidual":metric,
             "maximumIsoactivityResidual":float(self.np.max(self.np.abs(mu))),
             "maximumScaledFluxEqualityResidual":scaled,
+            "dispersedInletBoundaryCompatibility":boundary,
             "functionEvaluations":int(fit.nfev),"startClass":label,
             "warmFastPathUsed":label=="WARM_FAST_PATH",
             "fallbackCount":self.fallback_count,

@@ -170,6 +170,45 @@ def compact_tpd(value):
     }
 
 
+def flux_direction(value):
+    if value > ABSOLUTE_FLUX_TOLERANCE:
+        return "CONTINUOUS_TO_DISPERSED"
+    if value < -ABSOLUTE_FLUX_TOLERANCE:
+        return "DISPERSED_TO_CONTINUOUS"
+    return "ZERO_WITHIN_TOLERANCE"
+
+
+def dispersed_inlet_boundary_assessment(xb_d, component_flux):
+    """Apply the tangent cone at an exact-zero dispersed inlet inventory.
+
+    The two-film equations define positive component flux as continuous to
+    dispersed.  Consequently a negative flux for a component absent from the
+    incoming dispersed bulk points outside its nonnegative inventory cone.
+    """
+    rows = []
+    for index, component in enumerate(COMPONENTS):
+        if float(xb_d[index]) != 0.0:
+            continue
+        flux = float(component_flux[index])
+        rows.append({
+            "component": component,
+            "governedDispersedInletMoleFraction": 0.0,
+            "continuousToDispersedFluxMolM2S": flux,
+            "fluxDirection": flux_direction(flux),
+            "tangentConeAccepted": flux >= 0.0,
+        })
+    return {
+        "condition":
+            "EXACT_ZERO_DISPERSED_INLET_REQUIRES_NONNEGATIVE_"
+            "CONTINUOUS_TO_DISPERSED_FLUX",
+        "signConvention":
+            "POSITIVE_REMOVES_FROM_CONTINUOUS_AND_ADDS_TO_DISPERSED",
+        "tangentConeToleranceMolM2S": 0.0,
+        "absentDispersedComponents": rows,
+        "accepted": all(row["tangentConeAccepted"] for row in rows),
+    }
+
+
 def solve(request):
     allowed = {
         "protocol", "operation", "componentOrder", "T",
@@ -309,6 +348,29 @@ def solve(request):
             ), result, values, row))
 
         ordered_candidates = sorted(candidates, key=lambda item: item[0])
+        root_classes = []
+        for _, _, values, row in ordered_candidates:
+            state = np.r_[values[1], values[2], values[3]]
+            root_class = None
+            for known in root_classes:
+                difference = float(np.max(
+                    np.abs(state - known["state"])
+                    / np.maximum(np.maximum(
+                        np.abs(state), np.abs(known["state"])
+                    ), 1.0)
+                ))
+                if difference <= gates["multistartProductRelativeTolerance"]:
+                    root_class = known
+                    break
+            if root_class is None:
+                root_class = {
+                    "rootClass": f"ROOT_{len(root_classes) + 1}",
+                    "state": state,
+                    "startClasses": [],
+                }
+                root_classes.append(root_class)
+            root_class["startClasses"].append(row["startClass"])
+            row["rootClass"] = root_class["rootClass"]
         eligible = []
         assessed = []
         for _, result, values, row in ordered_candidates:
@@ -332,12 +394,22 @@ def solve(request):
             )
             assessment = {
                 "startClass": row["startClass"],
+                "rootClass": row["rootClass"],
                 "numericalAccepted": numerical,
                 "phaseSeparationAccepted": separated,
                 "phaseOrientationAccepted": bool(orientation),
+                "candidateRoot": {
+                    "continuousMoleFractions": xi_c.tolist(),
+                    "dispersedMoleFractions": xi_d.tolist(),
+                    "continuousComponentFluxMolM2S": n_c.tolist(),
+                    "dispersedComponentFluxMolM2S": n_d.tolist(),
+                },
+                "dispersedInletBoundaryCompatibility":
+                    dispersed_inlet_boundary_assessment(xb_d_np, n_c),
             }
             assessed.append(assessment)
-            if numerical and separated and orientation:
+            if (numerical and separated and orientation
+                    and assessment["dispersedInletBoundaryCompatibility"]["accepted"]):
                 eligible.append((result, values, row, assessment))
 
         reproduction_tolerance = gates["multistartProductRelativeTolerance"]
@@ -451,7 +523,20 @@ def solve(request):
                 "holdupWeightedGibbsFeedTest": "NOT_APPLICABLE_INTERFACE_BOUNDARY_SOLVE",
                 "mixedFeedTpdTest": "NOT_APPLICABLE_NO_ARTIFICIAL_MIXED_FEED_CREATED",
             },
+            "boundaryQualification": {
+                "scope": "FRESH_DISPERSED_INLET_EXACT_ZERO_COMPONENT_TANGENT_CONE",
+                "signConvention":
+                    "POSITIVE_COMPONENT_FLUX_IS_CONTINUOUS_TO_DISPERSED",
+                "selectionPolicy":
+                    "FAIL_CLOSED_SELECT_ONLY_REPRODUCED_BOUNDARY_COMPATIBLE_ROOT",
+                "incomingPhysicalFlowsRegularized": False,
+            },
             "startDiagnostics": diagnostics,
+            "rootClassReproduction": [{
+                "rootClass": root["rootClass"],
+                "startClasses": root["startClasses"],
+                "independentStartCount": len(root["startClasses"]),
+            } for root in root_classes],
             "endpointAssessments": assessed,
             "scientificIntegrity": integrity,
             "scientificRuntime": runtime,

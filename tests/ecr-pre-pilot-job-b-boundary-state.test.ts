@@ -51,7 +51,7 @@ const stream = (fractions: number[]) => ({
   massFractions: [...fractions],
 });
 
-const rrboIncoming = () => stream([.7, .1, .08, .04, .03, .04, .01]);
+const rrboIncoming = () => stream([.73, .1, .08, .04, .05, 0, 0]);
 const extractIncoming = () => stream([.01, .01, .01, .01, .01, .9, .05]);
 
 function sourceRow(overrides: Record<string, unknown> = {}) {
@@ -210,6 +210,19 @@ describe('Job B governed Stage-2 incoming boundary loader', () => {
     (malformed.result_snapshot as any).trials[0].stages[0]
       .extractIncoming.moleFractions[0] += .1;
     expect(() => extract(malformed)).toThrow(/RECORDED_INCOMING_STREAM_CLOSURE_FAILED/);
+  });
+
+  it('rejects any NMP or water seeded into the authoritative fresh RRBO inlet', () => {
+    const seeded = sourceRow();
+    const rrbo = (seeded.result_snapshot as any).trials[0].boundaryStreams.oilFeed;
+    for (const field of [
+      'componentMoles', 'moleFractions', 'componentMass', 'massFractions',
+    ]) {
+      rrbo[field][4] -= .01;
+      rrbo[field][5] += .01;
+    }
+    expect(() => extract(seeded))
+      .toThrow(/FRESH_RRBO_SOLVENT_COMPONENT_NOT_EXACT_ZERO/);
   });
 
   it('rejects stale Stage-1 authority, stale engine, temperature, order, and invalid input', () => {

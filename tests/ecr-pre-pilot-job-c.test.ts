@@ -45,6 +45,8 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(candidate).toContain('"WARM_FAST_PATH"');
     expect(candidate).toContain('self.fallback_count+=1');
     expect(candidate).toContain('"fallbackCount":self.fallback_count');
+    expect(candidate).toContain('JOB_C_CANDIDATE_INTERFACE_BOUNDARY_INCOMPATIBLE');
+    expect(candidate).toContain('flux >= 0.0');
     expect(worker).toContain('BLOCKED_EXACT_QUALIFICATION_FAILED');
     expect(worker).toContain('jac_sparsity=sparsity');
     expect(worker).toContain('(27*m,27*m)');
@@ -65,6 +67,9 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(worker).toContain('fullResponseSha256');
     expect(worker).toContain('EXACT_JOB_B_{len(cells)}_OF_{len(cells)}_QUALIFIED');
     expect(worker).toContain('balance_tolerance/aV');
+    expect(worker).toContain('"incomingPhysicalFlowsRegularized":False');
+    expect(worker).toContain('"physicalDispersedInletZerosPreservedExactly"');
+    expect(worker).toContain('"rootClassReproduction":inlet_job_b.get');
   });
 
   it('solves and qualifies the exact height reported after bisection', () => {
