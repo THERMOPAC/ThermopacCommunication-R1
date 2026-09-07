@@ -116,4 +116,4 @@
 - [ECR Job-A predictive closure](ecr-job-a-predictive-closure.md) — Laitinen K&H base route plus exact-identity Joback volumes closes 7C diffusivity/film inputs without inventing Kühni C2.
 - [Stage-2 local adapter authority](ecr-stage2-local-adapter-authority.md) — reuse the frozen 7C engine in a separate artifact; calculated duty is admitted only from a validated owned DB job.
 - [Job-B state ownership](ecr-job-b-local-flux-boundary.md) — separate Stage-2 bulk boundaries drive simultaneous interface solve; Stage-3 holdup is never thermodynamic composition.
-- [Job-C qualification boundary](ecr-job-c-qualification-boundary.md) — fixed global-inlet flux must pass analytical outlet positivity before local refresh; source-sign reversal is not a repair.
+- [Job-C qualification boundary](ecr-job-c-qualification-boundary.md) — Stage-2 feed-end bins reverse into FV worker cells; ten-to-seven mapping is exactly [9,10]…[1].

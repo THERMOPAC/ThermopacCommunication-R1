@@ -77,28 +77,29 @@ avoid pairing opposite global inlets as a physical local interface and must
 retain unchanged raw/scaled, stability, TPD, and exact-zero tangent-cone gates
 for components that are literally absent.
 
-A seven-cell auxiliary profile rebinned from all accepted local states of the
-pinned axial Stage-2 record also has no admissible positive continuation scale
-under the exact-zero dispersed NMP boundary. Every mapped local root reproduces
-and passes stability gates, but their integrated NMP flux is negative.
+A seven-cell profile rebinned from Stage-2 feed-end coordinates must be reversed
+at the bin level before assignment to Job-C numerical cells. Stage-2 position 1
+is the dispersed RRBO inlet, while Job-C cell 1 is the continuous NMP inlet
+because its finite-volume faces are anchored by \(f_c[0]\) and \(f_d[m]\).
 
-**Why:** For positive geometric factor \(B\) and continuation scale \(\lambda\),
-the dispersed NMP outlet is
-\(G_{d,\mathrm{out}}=\lambda B\sum_j n_{\mathrm{NMP},j}\) when its physical
-inlet is exactly zero. A negative summed flux makes that outlet negative for
-every \(\lambda>0\); no nonlinear solver or smaller step can cross this necessary
-balance condition.
+**Why:** Assigning ascending Stage-2 positions directly to ascending Job-C cells
+put every qualified contact at the opposite end of the column. That mapping
+falsely produced a no-positive-continuation result. With the corrected axial
+orientation, the same design passes the positivity interval gate and proceeds
+to a later fail-closed local-flux Picard nonconvergence at the 2 m candidate.
 
-**How to apply:** Treat this as a block for the frozen rebinned profile, not a
-general physical no-solution claim. Before implementing another homotopy,
-establish the governed inlet solvent inventory and independently qualify a
-spatially varying profile whose cumulative hydrocarbon prefixes and solvent
-suffixes all admit a strictly positive interval.
+**How to apply:** Form deterministic equal contiguous bins in ascending
+Stage-2 feed-end order, then reverse only the bin sequence for worker cells.
+For ten source positions and seven numerical cells, require exactly
+\([9,10],[8],[6,7],[5],[3,4],[2],[1]\). Bind this orientation rule, the exact
+partition, the profile, and the source snapshot to the immutable hash. Never
+reuse an earlier no-positive-interval result produced from ascending cell
+assignment as scientific evidence.
 
 Job C uses exactly seven numerical FV cells. A pinned Stage-2 axial record may be
 rebinned only when it has at least seven complete ordered contacts; each source
-contact must appear exactly once in contiguous axial bins. Never repeat sparse
-contacts to manufacture a seven-cell profile.
+contact must appear exactly once in the governed equal contiguous bins. Never
+repeat sparse contacts or alter bin widths to manufacture a seven-cell profile.
 
 **Why:** The one-stage Stage-2 fallback is a valid thermodynamic boundary source,
 but it contains no governed axial information. Repeating it seven times would

@@ -165,9 +165,31 @@ def validate_branch_request(r):
         raise ValueError("JOB_C_BOUNDARY_BRANCH_SOURCE_INVALID")
     profile=r.get("axialLocalContactProfile")
     authority=r.get("axialLocalContactProfileAuthority")
-    coverage=[] if not isinstance(profile,list) else [
-      ordinal for row in profile if isinstance(row,dict)
-      for ordinal in row.get("provenance",{}).get("sourceStageFromFeedEnd",[])]
+    source_bins=[] if not isinstance(profile,list) else [
+      row.get("provenance",{}).get("sourceStageFromFeedEnd",[])
+      for row in profile if isinstance(row,dict)]
+    coverage=[ordinal for source_bin in source_bins
+      if isinstance(source_bin,list) for ordinal in source_bin]
+    source_stage_count=authority.get("sourceStageCount") if isinstance(authority,dict) else None
+    expected_ascending_bins=[]
+    if (isinstance(source_stage_count,int) and not isinstance(source_stage_count,bool)
+        and source_stage_count>=7):
+      for index in range(7):
+        first=math.floor(index*source_stage_count/7)
+        exclusive_last=math.floor((index+1)*source_stage_count/7)
+        last=max(first+1,exclusive_last)
+        expected_ascending_bins.append(list(range(first+1,last+1)))
+    expected_source_bins=list(reversed(expected_ascending_bins))
+    bins_valid=(len(source_bins)==7
+      and all(isinstance(source_bin,list) and len(source_bin)>0
+        and all(isinstance(ordinal,int) and not isinstance(ordinal,bool)
+          and ordinal>0 for ordinal in source_bin)
+        and source_bin==sorted(source_bin)
+        and source_bin==list(range(source_bin[0],source_bin[-1]+1))
+        for source_bin in source_bins)
+      and all(max(source_bins[index+1])<min(source_bins[index])
+        for index in range(len(source_bins)-1))
+      and source_bins==expected_source_bins)
     profile_source={"authority":authority,"profile":profile}
     authority_valid=(isinstance(authority,dict)
       and authority.get("qualification")==
@@ -177,10 +199,12 @@ def validate_branch_request(r):
       and authority.get("targetNumericalCells")==7
       and authority.get("sourceStageCount")==len(coverage)
       and authority.get("mapping")==
-        "CONTIGUOUS_EQUAL_AXIAL_BINS_ARITHMETIC_COMPOSITION_MEAN"
+        "STAGE2_FEED_END_ASCENDING_EQUAL_BINS_REVERSED_TO_CONTINUOUS_INLET_FV_ORDER_V1"
       and isinstance(authority.get("stage2ResultSnapshotHash"),str)
       and len(authority["stage2ResultSnapshotHash"])==64
-      and coverage==list(range(1,len(coverage)+1)))
+      and bins_valid
+      and sorted(coverage)==list(range(1,len(coverage)+1))
+      and len(set(coverage))==len(coverage))
     if (not isinstance(profile,list) or r.get("compartments")!=7
       or len(profile)!=r.get("compartments")
       or any(not isinstance(row,dict) or row.get("numericalCell")!=index+1

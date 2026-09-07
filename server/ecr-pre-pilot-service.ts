@@ -668,10 +668,15 @@ export function prepareJobCAxialLocalContactProfile(
   const normalizedSeven = (value: unknown) => Array.isArray(value) && value.length === 7
     && value.every(item => typeof item === 'number' && Number.isFinite(item) && item >= 0)
     && Math.abs(value.reduce((sum, item) => sum + item, 0) - 1) <= 1e-10;
-  const profile = Array.from({ length: targetCells }, (_, index) => {
-    const first = Math.floor(index * contacts.length / targetCells);
-    const exclusiveLast = Math.floor((index + 1) * contacts.length / targetCells);
-    const bin = contacts.slice(first, Math.max(first + 1, exclusiveLast));
+  const orderedContacts = [...contacts].sort((left, right) =>
+    left.stageFromFeedEnd - right.stageFromFeedEnd);
+  const ascendingStage2Bins = Array.from({ length: targetCells }, (_, index) => {
+    const first = Math.floor(index * orderedContacts.length / targetCells);
+    const exclusiveLast = Math.floor((index + 1) * orderedContacts.length / targetCells);
+    return orderedContacts.slice(first, Math.max(first + 1, exclusiveLast));
+  });
+  const workerOrderedBins = [...ascendingStage2Bins].reverse();
+  const profile = workerOrderedBins.map((bin, index) => {
     const continuousRows = bin.map(contact =>
       nmpContinuous ? contact.extractIncoming.moleFractions
         : contact.raffinateIncoming.moleFractions);
@@ -695,7 +700,7 @@ export function prepareJobCAxialLocalContactProfile(
         sourceStageFromFeedEnd: bin.map(contact => contact.stageFromFeedEnd),
         propertyPaths: bin.map(contact => contact.propertyPath),
         stage2ResultSnapshotHash,
-        mapping: 'CONTIGUOUS_EQUAL_AXIAL_BINS_ARITHMETIC_COMPOSITION_MEAN',
+        mapping: 'STAGE2_FEED_END_ASCENDING_EQUAL_BINS_REVERSED_TO_CONTINUOUS_INLET_FV_ORDER_V1',
       },
     };
   });
@@ -985,7 +990,7 @@ export async function prepareEcrPrePilotJobC(userId: number, designId: number) {
     phaseConfiguration: processBasis.phaseConfiguration,
     sourceStageCount: sourceContacts.length,
     targetNumericalCells: targetCells,
-    mapping: 'CONTIGUOUS_EQUAL_AXIAL_BINS_ARITHMETIC_COMPOSITION_MEAN',
+    mapping: 'STAGE2_FEED_END_ASCENDING_EQUAL_BINS_REVERSED_TO_CONTINUOUS_INLET_FV_ORDER_V1',
     stage2ResultSnapshotHash: globalBoundary.provenance.resultSnapshotHash,
   };
   const axialLocalContactProfileSha256 = jobCResultHash({

@@ -81,6 +81,12 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(service).not.toContain('request.x_bulk_dispersed[6] !== 0');
     expect(worker).toContain('qualifiedLocalContacts');
     expect(worker).toContain('"numericalTraceAdded":False');
+    expect(service).toContain('const orderedContacts = [...contacts].sort');
+    expect(service).toContain('const workerOrderedBins = [...ascendingStage2Bins].reverse()');
+    expect(worker).toContain('source_bins==expected_source_bins');
+    expect(worker).toContain(
+      '"STAGE2_FEED_END_ASCENDING_EQUAL_BINS_REVERSED_TO_CONTINUOUS_INLET_FV_ORDER_V1"',
+    );
     expect(source).toBeGreaterThan(-1);
     expect(gate).toBeGreaterThan(source);
     expect(profileSeed).toBeGreaterThan(gate);

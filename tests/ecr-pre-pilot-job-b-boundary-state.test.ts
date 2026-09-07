@@ -543,16 +543,23 @@ describe('Job C axial local-contact profile preparation', () => {
 
   it('retains deterministic contiguous-bin mapping for more than seven contacts', () => {
     const contacts = Array.from({ length: 10 }, (_, index) => contact(index + 1));
-    const prepared = prepareJobCAxialLocalContactProfile(contacts, true, true, h('9'));
+    const shuffled = [
+      contacts[4], contacts[0], contacts[8], contacts[2], contacts[6],
+      contacts[1], contacts[9], contacts[5], contacts[3], contacts[7],
+    ];
+    const prepared = prepareJobCAxialLocalContactProfile(shuffled, true, true, h('9'));
     expect(prepared.profile).toHaveLength(7);
     expect(prepared.profile.map(cell => cell.provenance.sourceStageFromFeedEnd)).toEqual([
-      [1], [2], [3, 4], [5], [6, 7], [8], [9, 10],
+      [9, 10], [8], [6, 7], [5], [3, 4], [2], [1],
     ]);
     expect(prepared.profile.flatMap(cell => cell.provenance.sourceStageFromFeedEnd))
-      .toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+      .toEqual([9, 10, 8, 6, 7, 5, 3, 4, 2, 1]);
     expect(prepared.profile.every(cell =>
-      cell.provenance.mapping === 'CONTIGUOUS_EQUAL_AXIAL_BINS_ARITHMETIC_COMPOSITION_MEAN'))
+      cell.provenance.mapping
+        === 'STAGE2_FEED_END_ASCENDING_EQUAL_BINS_REVERSED_TO_CONTINUOUS_INLET_FV_ORDER_V1'))
       .toBe(true);
+    expect(prepared.profile[0].provenance.sourceStageFromFeedEnd).toEqual([9, 10]);
+    expect(prepared.profile[6].provenance.sourceStageFromFeedEnd).toEqual([1]);
   });
 
   it.each([
