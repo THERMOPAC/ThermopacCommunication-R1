@@ -95,6 +95,20 @@ establish the governed inlet solvent inventory and independently qualify a
 spatially varying profile whose cumulative hydrocarbon prefixes and solvent
 suffixes all admit a strictly positive interval.
 
+Boundary compatibility must be qualified at the last positive local
+continuation state, not inferred solely from a global inlet root or frozen-flux
+outlet audit.
+
+**Why:** A finite frozen-flux diagnostic can establish incompatibility of one
+root/boundary pairing, but cannot prove that all local-state transport branches
+are physically infeasible.
+
+**How to apply:** Replay accepted roots and inlet-derived exploratory basins at
+every local cell with unchanged rank, stability, TPD, reproduction, and residual
+gates. If none yields a distinct credible branch, keep Job C blocked until
+evidence changes the phase-resolved inlet representation and its immutable
+Stage-2 boundary hash.
+
 Job-C response hashing is shared between Python and TypeScript and therefore
 uses bytewise lexicographic key ordering, not locale-aware comparison.
 

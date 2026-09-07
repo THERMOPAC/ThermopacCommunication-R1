@@ -1,0 +1,283 @@
+{
+  "schemaVersion": "ECR_JOB_B_H2_CONTINUATION_DIAGNOSTIC_V1",
+  "componentOrder": [
+    "SAT",
+    "MONO",
+    "DI",
+    "POLY",
+    "PA",
+    "NMP",
+    "H2O"
+  ],
+  "inputHash": "d964718287c844e77a885aebf6a251d26860f68f49599fa989eb3543a2b642d3",
+  "resultHash": "042b4d22e5dc97d5b72c806e46a9d067c93baab9e2e8579cd1310eda109ebc4e",
+  "heightM": 2,
+  "terminalLambda": 6.923828125000002e-05,
+  "reason": "BOUNDED_FROZEN_FV_NONCONVERGENCE",
+  "maximumOuterIterations": 24,
+  "unconstrainedTerminalDiagnostic": {
+    "qualification": "UNBOUNDED_TERMINAL_DIAGNOSTIC_ONLY_NOT_ACCEPTANCE",
+    "minimumFlowMolS": -6.998436664072421e-07,
+    "optimizerStatus": 3,
+    "nonpositiveFlows": [
+      {
+        "phase": "dispersed",
+        "flowMolS": -6.998436664072421e-07,
+        "component": "NMP",
+        "numericalCell": 1
+      },
+      {
+        "phase": "dispersed",
+        "flowMolS": -6.576030523274506e-07,
+        "component": "NMP",
+        "numericalCell": 2
+      },
+      {
+        "phase": "dispersed",
+        "flowMolS": -5.909666202267025e-07,
+        "component": "NMP",
+        "numericalCell": 3
+      },
+      {
+        "phase": "dispersed",
+        "flowMolS": -5.102444331542133e-07,
+        "component": "NMP",
+        "numericalCell": 4
+      },
+      {
+        "phase": "dispersed",
+        "flowMolS": -4.213863677270399e-07,
+        "component": "NMP",
+        "numericalCell": 5
+      },
+      {
+        "phase": "dispersed",
+        "flowMolS": -3.27831979792948e-07,
+        "component": "NMP",
+        "numericalCell": 6
+      },
+      {
+        "phase": "dispersed",
+        "flowMolS": -2.3156448334155124e-07,
+        "component": "NMP",
+        "numericalCell": 7
+      },
+      {
+        "phase": "dispersed",
+        "flowMolS": -1.9465809441782594e-07,
+        "component": "H2O",
+        "numericalCell": 1
+      },
+      {
+        "phase": "dispersed",
+        "flowMolS": -1.8290638778605953e-07,
+        "component": "H2O",
+        "numericalCell": 2
+      },
+      {
+        "phase": "dispersed",
+        "flowMolS": -1.6436877228318127e-07,
+        "component": "H2O",
+        "numericalCell": 3
+      },
+      {
+        "phase": "dispersed",
+        "flowMolS": -1.4191411186035698e-07,
+        "component": "H2O",
+        "numericalCell": 4
+      },
+      {
+        "phase": "dispersed",
+        "flowMolS": -1.1719781667149598e-07,
+        "component": "H2O",
+        "numericalCell": 5
+      },
+      {
+        "phase": "dispersed",
+        "flowMolS": -9.117666032322733e-08,
+        "component": "H2O",
+        "numericalCell": 6
+      },
+      {
+        "phase": "dispersed",
+        "flowMolS": -6.44021044895811e-08,
+        "component": "H2O",
+        "numericalCell": 7
+      }
+    ],
+    "optimizerSuccess": true,
+    "scaledFvResidual": 1.465275606911908e-14,
+    "rawFvResidualMolS": 7.101786888079553e-14,
+    "functionEvaluations": 397,
+    "optimizerOptimality": 2.564531428404713e-12,
+    "nonpositiveFlowCount": 14
+  },
+  "globalInletFluxAudit": {
+    "lambda": 1,
+    "heightM": 2,
+    "jobBStatus": "CALCULATED_PRELIMINARY_INTERFACE",
+    "qualification": "GLOBAL_INLET_FULL_SCALE_FROZEN_FLUX_DIAGNOSTIC_ONLY",
+    "componentFluxTable": [
+      {
+        "component": "SAT",
+        "governedDispersedInletMolS": 4.868190306515299,
+        "impliedDispersedOutletMolS": 4.2933644690544455,
+        "governedContinuousInletMolS": 0,
+        "impliedContinuousOutletMolS": 0.5748258374608534,
+        "dispersedComponentFluxMolM2S": -0.00287527744560435,
+        "continuousComponentFluxMolM2S": -0.0028752774456043506,
+        "filmFluxEqualityResidualMolM2S": -4.336808689942018e-19,
+        "frozenTransferAcrossSevenCellsMolS": -0.5748258374608534,
+        "continuousToDispersedSignConvention": "DISPERSED_TO_CONTINUOUS"
+      },
+      {
+        "component": "MONO",
+        "governedDispersedInletMolS": 0.5681555559253281,
+        "impliedDispersedOutletMolS": 0.5198630709909984,
+        "governedContinuousInletMolS": 0,
+        "impliedContinuousOutletMolS": 0.048292484934329735,
+        "dispersedComponentFluxMolM2S": -0.00024155889258078512,
+        "continuousComponentFluxMolM2S": -0.00024155889258078522,
+        "filmFluxEqualityResidualMolM2S": -1.0842021724855044e-19,
+        "frozenTransferAcrossSevenCellsMolS": -0.048292484934329735,
+        "continuousToDispersedSignConvention": "DISPERSED_TO_CONTINUOUS"
+      },
+      {
+        "component": "DI",
+        "governedDispersedInletMolS": 0.27442347433402103,
+        "impliedDispersedOutletMolS": 0.25166190322756105,
+        "governedContinuousInletMolS": 0,
+        "impliedContinuousOutletMolS": 0.022761571106459974,
+        "dispersedComponentFluxMolM2S": -0.00011385332350058303,
+        "continuousComponentFluxMolM2S": -0.00011385332350058288,
+        "filmFluxEqualityResidualMolM2S": 1.4907779871675686e-19,
+        "frozenTransferAcrossSevenCellsMolS": -0.022761571106459974,
+        "continuousToDispersedSignConvention": "DISPERSED_TO_CONTINUOUS"
+      },
+      {
+        "component": "POLY",
+        "governedDispersedInletMolS": 0.0964699788831831,
+        "impliedDispersedOutletMolS": 0.08944557425039676,
+        "governedContinuousInletMolS": 0,
+        "impliedContinuousOutletMolS": 0.00702440463278634,
+        "dispersedComponentFluxMolM2S": -3.513605494607701e-05,
+        "continuousComponentFluxMolM2S": -3.5136054946076996e-05,
+        "filmFluxEqualityResidualMolM2S": 1.3552527156068805e-20,
+        "frozenTransferAcrossSevenCellsMolS": -0.00702440463278634,
+        "continuousToDispersedSignConvention": "DISPERSED_TO_CONTINUOUS"
+      },
+      {
+        "component": "PA",
+        "governedDispersedInletMolS": 0.04810668945981338,
+        "impliedDispersedOutletMolS": 0.0455483777318309,
+        "governedContinuousInletMolS": 0,
+        "impliedContinuousOutletMolS": 0.002558311727982483,
+        "dispersedComponentFluxMolM2S": -1.279666906203406e-05,
+        "continuousComponentFluxMolM2S": -1.2796669062034065e-05,
+        "filmFluxEqualityResidualMolM2S": -5.082197683525802e-21,
+        "frozenTransferAcrossSevenCellsMolS": -0.002558311727982483,
+        "continuousToDispersedSignConvention": "DISPERSED_TO_CONTINUOUS"
+      },
+      {
+        "component": "NMP",
+        "governedDispersedInletMolS": 0,
+        "impliedDispersedOutletMolS": -0.010122587674114497,
+        "governedContinuousInletMolS": 4.846724298541135,
+        "impliedContinuousOutletMolS": 4.85684688621525,
+        "dispersedComponentFluxMolM2S": -5.063315900882134e-05,
+        "continuousComponentFluxMolM2S": -5.063315900882088e-05,
+        "filmFluxEqualityResidualMolM2S": 4.607859233063394e-19,
+        "frozenTransferAcrossSevenCellsMolS": -0.010122587674114497,
+        "continuousToDispersedSignConvention": "DISPERSED_TO_CONTINUOUS"
+      },
+      {
+        "component": "H2O",
+        "governedDispersedInletMolS": 0,
+        "impliedDispersedOutletMolS": -0.002831036811909971,
+        "governedContinuousInletMolS": 0.4061367165354447,
+        "impliedContinuousOutletMolS": 0.4089677533473547,
+        "dispersedComponentFluxMolM2S": -1.4160839270754117e-05,
+        "continuousComponentFluxMolM2S": -1.4160839270755174e-05,
+        "filmFluxEqualityResidualMolM2S": -1.0570971181733668e-18,
+        "frozenTransferAcrossSevenCellsMolS": -0.002831036811909971,
+        "continuousToDispersedSignConvention": "DISPERSED_TO_CONTINUOUS"
+      }
+    ],
+    "negativeFlowOrigin": "FIXED_GLOBAL_INLET_FLUX_APPROXIMATION_REPEATS_A_BOUNDARY_INCOMPATIBLE_JOB_B_ROOT",
+    "jobBSelectedStartClass": "ORIENTED_PHASE_TEMPLATE_PERTURB_MINUS",
+    "nonpositiveImpliedOutlets": [
+      {
+        "phase": "dispersed",
+        "component": "NMP",
+        "impliedOutletMolS": -0.010122587674114497
+      },
+      {
+        "phase": "dispersed",
+        "component": "H2O",
+        "impliedOutletMolS": -0.002831036811909971
+      }
+    ],
+    "impliedDispersedOutletMolS": [
+      4.2933644690544455,
+      0.5198630709909984,
+      0.25166190322756105,
+      0.08944557425039676,
+      0.0455483777318309,
+      -0.010122587674114497,
+      -0.002831036811909971
+    ],
+    "impliedContinuousOutletMolS": [
+      0.5748258374608534,
+      0.048292484934329735,
+      0.022761571106459974,
+      0.00702440463278634,
+      0.002558311727982483,
+      4.85684688621525,
+      0.4089677533473547
+    ],
+    "physicalInfeasibilityClaimed": false,
+    "counterCurrentBoundaryOrientation": {
+      "dispersedCellBalance": "fd[j] - fd[j+1] + transfer[j] = 0",
+      "continuousCellBalance": "fc[j] - fc[j+1] - transfer[j] = 0",
+      "integratedDispersedOutlet": "dispersedFeedMolS + sum(transfer)",
+      "integratedContinuousOutlet": "continuousFeedMolS - sum(transfer)",
+      "dispersedSignedInletFaceFlux": "fd[m] = -dispersedFeedMolS",
+      "continuousSignedInletFaceFlux": "fc[0] = +continuousFeedMolS"
+    },
+    "continuousToDispersedSignConvention": "POSITIVE_NC_REMOVES_FROM_CONTINUOUS_AND_ADDS_TO_DISPERSED",
+    "signAndBoundaryOrientationConclusion": "B_TO_C_SOURCE_SIGNS_AND_COUNTERCURRENT_BOUNDARIES_ANALYTICALLY_CONSERVATIVE",
+    "jobBIndependentReproductionStartClass": "ORIENTED_TEMPLATE_BULK_C",
+    "sourceSignReversalNonpositiveImpliedOutlets": [
+      {
+        "phase": "continuous",
+        "component": "SAT",
+        "impliedOutletMolS": -0.5748258374608534
+      },
+      {
+        "phase": "continuous",
+        "component": "MONO",
+        "impliedOutletMolS": -0.048292484934329735
+      },
+      {
+        "phase": "continuous",
+        "component": "DI",
+        "impliedOutletMolS": -0.022761571106459974
+      },
+      {
+        "phase": "continuous",
+        "component": "POLY",
+        "impliedOutletMolS": -0.00702440463278634
+      },
+      {
+        "phase": "continuous",
+        "component": "PA",
+        "impliedOutletMolS": -0.002558311727982483
+      }
+    ],
+    "sourceSignReversalWouldResolveAllBoundaries": false,
+    "positiveGlobalOutletNecessaryConditionPassed": false
+  },
+  "unknownFlowCount": 98,
+  "solver": "LOCAL_FLUX_PICARD_BOUNDED_DENSE_98_FV",
+  "evidenceSha256": "dc0228d843973c7f371302e2134897aef90d253a15f5729c5b726f21d34a8f39"
+}

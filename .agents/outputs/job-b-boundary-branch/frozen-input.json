@@ -1,0 +1,580 @@
+{
+  "jobId": "294203ce-3414-41a2-a074-9cc4f5ac1dae",
+  "designId": 269,
+  "inputHash": "d964718287c844e77a885aebf6a251d26860f68f49599fa989eb3543a2b642d3",
+  "workerRequest": {
+    "kc": [
+      0.000013090402625397442,
+      0.000015994147859384844,
+      0.00001562366824163388,
+      0.000013778989130267606,
+      0.000010229095057651185,
+      0.000016521738447017964,
+      0.000020604076983454237
+    ],
+    "kd": [
+      3.798760017014385e-7,
+      4.6916459268006717e-7,
+      4.577202255511733e-7,
+      4.009627584594375e-7,
+      2.928789183205082e-7,
+      4.854876385518509e-7,
+      6.127524343577262e-7
+    ],
+    "rpm": 30,
+    "d32M": 0.003031929110308221,
+    "compartments": 7,
+    "temperatureK": 298.15,
+    "componentOrder": [
+      "SAT",
+      "MONO",
+      "DI",
+      "POLY",
+      "PA",
+      "NMP",
+      "H2O"
+    ],
+    "columnDiameterM": 0.8686867763858619,
+    "operatingHoldup": 0.08522716012839626,
+    "dispersedFeedMolS": [
+      4.868190306515299,
+      0.5681555559253281,
+      0.27442347433402103,
+      0.0964699788831831,
+      0.04810668945981338,
+      0,
+      0
+    ],
+    "continuousFeedMolS": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      4.846724298541135,
+      0.4061367165354447
+    ],
+    "minimumRecoveryPct": 83,
+    "phaseConfiguration": "nmp-continuous-rrbo-dispersed",
+    "dispersedTotalConcentrationMolM3": 5269.811404605881,
+    "continuousTotalConcentrationMolM3": 11070.494330635198
+  },
+  "responseBasis": {
+    "model": {
+      "flow": "STEADY_STATE_COUNTERCURRENT_PER_COMPONENT",
+      "inletBoundary": "DANCKWERTS_TYPE",
+      "outletBoundary": "ZERO_GRADIENT",
+      "axialDispersion": "FINITE_VOLUME_BACKMIXING",
+      "localInterfaces": "RECOMPUTED_FOR_CONVERGED_LOCAL_STATES",
+      "interphaseSource": "EQUAL_AND_OPPOSITE_FROM_CONTINUOUS_FILM_NO_AVERAGING",
+      "efficiencyCalculated": false,
+      "globalPartitionCoefficientUsed": false
+    },
+    "labels": [
+      "PRELIMINARY",
+      "PRE_PILOT_PREDICTIVE",
+      "NOT_PILOT_VALIDATED",
+      "NOT_RELEASE_ELIGIBLE",
+      "NOT_FINAL_DESIGN"
+    ],
+    "target": {
+      "basis": "NMP_FREE_RRBO_HYDROCARBON_MASS_SAT_MONO_DI_POLY_PA",
+      "minimumRecoveryPct": 83,
+      "aromaticsAndSulfurTargetsUsedInHeightSolve": false
+    },
+    "exclusions": {
+      "jobDPerformed": false,
+      "releaseEligible": false,
+      "finalRpmSelected": false,
+      "userEditableConstantsPersisted": false
+    },
+    "inputAudit": {
+      "rrbo": {
+        "flowM3S": 0.0011111111111111111,
+        "identity": "RRBO_FEED",
+        "equations": {
+          "phaseMassFlow": "massFlowKgS = flowM3S * densityKgM3",
+          "componentMassFlow": "componentMassFlowKgS_i = massFlowKgS * massFraction_i",
+          "componentMolarFlow": "componentMolarFlowMolS_i = componentMassFlowKgS_i / molecularWeightKgMol_i"
+        },
+        "weightsPct": [
+          85,
+          7,
+          4,
+          2,
+          2,
+          0,
+          0
+        ],
+        "densityKgM3": 878,
+        "massFlowKgS": 0.9755555555555555,
+        "moleFractions": [
+          0.8314095020619516,
+          0.09703193550453774,
+          0.046867166192086945,
+          0.016475538558928395,
+          0.008215857682495201,
+          0,
+          0
+        ],
+        "weightTotalPct": 100,
+        "totalMolarFlowMolS": 5.855346005117645,
+        "componentMassFlowKgS": [
+          0.8292222222222222,
+          0.06828888888888889,
+          0.03902222222222222,
+          0.01951111111111111,
+          0.01951111111111111,
+          0,
+          0
+        ],
+        "componentMolarFlowMolS": [
+          4.868190306515299,
+          0.5681555559253281,
+          0.27442347433402103,
+          0.0964699788831831,
+          0.04810668945981338,
+          0,
+          0
+        ],
+        "massClosureResidualKgS": 0
+      },
+      "authority": "FROZEN_STAGE3_PROCESS_BASIS_CONVERTED_TO_COMPONENT_MOLAR_FLOW_RATE",
+      "wetSolvent": {
+        "flowM3S": 0.0004744920017293558,
+        "identity": "WET_NMP_SOLVENT_PHASE",
+        "equations": {
+          "phaseMassFlow": "massFlowKgS = flowM3S * densityKgM3",
+          "componentMassFlow": "componentMassFlowKgS_i = massFlowKgS * massFraction_i",
+          "componentMolarFlow": "componentMolarFlowMolS_i = componentMassFlowKgS_i / molecularWeightKgMol_i"
+        },
+        "weightsPct": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          98.5,
+          1.5
+        ],
+        "densityKgM3": 1028,
+        "massFlowKgS": 0.48777777777777775,
+        "moleFractions": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0.9226827598579583,
+          0.07731724014204168
+        ],
+        "weightTotalPct": 100,
+        "totalMolarFlowMolS": 5.252861015076579,
+        "componentMassFlowKgS": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0.4804611111111111,
+          0.007316666666666667
+        ],
+        "componentMolarFlowMolS": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          4.846724298541135,
+          0.4061367165354447
+        ],
+        "massClosureResidualKgS": 5.551115123125783e-17
+      },
+      "phaseConfiguration": "nmp-continuous-rrbo-dispersed",
+      "globalColumnBoundaries": {
+        "dispersed": {
+          "role": "GLOBAL_RRBO_COLUMN_INLET",
+          "source": "PINNED_STAGE2_TRIAL_BOUNDARY_STREAM",
+          "stream": {
+            "mass": 100,
+            "flowMol": 0.6002063103195764,
+            "componentMass": [
+              85,
+              7,
+              4,
+              2,
+              2,
+              0,
+              0
+            ],
+            "massFractions": [
+              0.85,
+              0.07,
+              0.04,
+              0.02,
+              0.02,
+              0,
+              0
+            ],
+            "moleFractions": [
+              0.8314095020619517,
+              0.09703193550453776,
+              0.04686716619208694,
+              0.016475538558928395,
+              0.008215857682495201,
+              0,
+              0
+            ],
+            "componentMoles": [
+              0.49901722959724026,
+              0.05823917999234571,
+              0.02812996889528689,
+              0.009888722208982322,
+              0.00493120962572119,
+              0,
+              0
+            ]
+          },
+          "propertyPath": "result_snapshot.trials[stageCount=10].boundaryStreams.oilFeed"
+        },
+        "continuous": {
+          "role": "GLOBAL_FRESH_WET_SOLVENT_COLUMN_INLET",
+          "source": "PINNED_STAGE2_TRIAL_BOUNDARY_STREAM",
+          "stream": {
+            "mass": 50,
+            "flowMol": 0.5384481678324512,
+            "componentMass": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              49.25,
+              0.7500000000000001
+            ],
+            "massFractions": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.985,
+              0.015000000000000003
+            ],
+            "moleFractions": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.9226827598579583,
+              0.07731724014204168
+            ],
+            "componentMoles": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.4968168415361072,
+              0.041631326296343994
+            ]
+          },
+          "propertyPath": "result_snapshot.trials[stageCount=10].boundaryStreams.freshWetSolvent"
+        }
+      },
+      "stage3ProcessBasisHash": "9e5152821b921c54d9a03c48a4edc9c861185a4ec011886f5dbb1eb55edcb1fc",
+      "dispersedPhysicalStream": "RRBO_FEED",
+      "continuousPhysicalStream": "WET_NMP_SOLVENT_PHASE",
+      "globalBoundaryStateSha256": "bb08ac56db73c1c400e3d7e074ec8919b60f38a0bfca7a552ae83f4e81afbceb",
+      "molecularWeightProvenance": {
+        "authority": "FROZEN_7C_1_5_STREAM_BASIS_REPRESENTATIVE_MOLECULAR_IDENTITIES",
+        "identities": [
+          {
+            "cas": "112-40-3",
+            "identity": "n-dodecane",
+            "component": "SAT"
+          },
+          {
+            "cas": "103-65-1",
+            "identity": "n-propylbenzene",
+            "component": "MONO"
+          },
+          {
+            "cas": "90-12-0",
+            "identity": "1-methylnaphthalene",
+            "component": "DI"
+          },
+          {
+            "cas": "129-00-0",
+            "identity": "pyrene",
+            "component": "POLY"
+          },
+          {
+            "cas": "10081-67-1",
+            "identity": "4,4'-bis(alpha,alpha-dimethylbenzyl)diphenylamine",
+            "component": "PA"
+          },
+          {
+            "cas": "872-50-4",
+            "identity": "N-methyl-2-pyrrolidone",
+            "component": "NMP"
+          },
+          {
+            "cas": "7732-18-5",
+            "identity": "water",
+            "component": "H2O"
+          }
+        ],
+        "valuesGmol": [
+          170.3348,
+          120.194,
+          142.1971,
+          202.2506,
+          405.58,
+          99.1311,
+          18.01528
+        ],
+        "componentOrder": [
+          "SAT",
+          "MONO",
+          "DI",
+          "POLY",
+          "PA",
+          "NMP",
+          "H2O"
+        ]
+      },
+      "solventRatioClosureResidual": 0,
+      "fixedTotalConcentrationClosure": {
+        "source": "FROZEN_STAGE3_GLOBAL_INLET_TOTAL_MOLAR_FLOW_DIVIDED_BY_VOLUMETRIC_FLOW",
+        "qualification": "PRELIMINARY_FIXED_CT_NO_LOCAL_MIXTURE_DENSITY_CLOSURE",
+        "dispersedMolM3": 5269.811404605881,
+        "continuousMolM3": 11070.494330635198,
+        "localVolumeFlowEquation": "localPhaseVolumeFlowM3S = localTotalMolarFlowMolS / fixedCtMolM3",
+        "mixtureDensityRecomputed": false
+      },
+      "globalBoundaryProvenanceSha256": "4828843dd5b2db14002a41215b2a0892a5f861a8ba67c35a6c5004c84430e5c8",
+      "globalColumnBoundaryProvenance": {
+        "modelHash": "f165f0d23eeae810e40341f1cc86a2b97514bc21b74838d4a08eab1760e6e1af",
+        "engineHash": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac",
+        "requestedNT": 7,
+        "stage2JobId": "a8e15406-ec37-47cc-9529-6d66266681ef",
+        "boundaryRole": "GLOBAL_COLUMN_INLETS_NOT_JOB_B_LOCAL_INTERFACE_BULKS",
+        "temperatureK": 298.15,
+        "componentOrder": [
+          "SAT",
+          "MONO",
+          "DI",
+          "POLY",
+          "PA",
+          "NMP",
+          "H2O"
+        ],
+        "sourceStageCount": 10,
+        "stageFromFeedEnd": 1,
+        "resultSnapshotHash": "ef0194e8d2f4e4496cf987a175ae1ffa9c88bcff703a88a336a7263815963492",
+        "stage1ImmutableHash": "a717f993f983648c72bbbe82c1edcf7a3b3d0f8ec334301aaff24a20a426d3f3",
+        "engineContractVersion": "7C-1.5.0",
+        "requestedNtWasDirectlyRecorded": false
+      },
+      "molecularWeightProvenanceSha256": "a8b510b2bcc14df7d90b4343ea243dc2adc2d8640e38d5c03ac6b498c8473592",
+      "jobBLocalInterfaceStateProvenance": {
+        "dispersed": {
+          "role": "raffinateIncoming",
+          "source": "GOVERNED_STAGE2_RECORDED_INCOMING_BOUNDARY",
+          "stream": {
+            "mass": 100,
+            "flowMol": 0.6002063103195764,
+            "componentMass": [
+              85,
+              7,
+              4,
+              2,
+              2,
+              0,
+              0
+            ],
+            "massFractions": [
+              0.85,
+              0.07,
+              0.04,
+              0.02,
+              0.02,
+              0,
+              0
+            ],
+            "moleFractions": [
+              0.8314095020619517,
+              0.09703193550453776,
+              0.04686716619208694,
+              0.016475538558928395,
+              0.008215857682495201,
+              0,
+              0
+            ],
+            "componentMoles": [
+              0.49901722959724026,
+              0.05823917999234571,
+              0.02812996889528689,
+              0.009888722208982322,
+              0.00493120962572119,
+              0,
+              0
+            ]
+          },
+          "propertyPath": "result_snapshot.trials[stageCount=10].stages[stageFromFeedEnd=1].raffinateIncoming",
+          "phaseIdentity": "RAFFINATE_PHASE_BULK",
+          "qualification": {
+            "basis": "RECORDED_STAGE2_INCOMING_BOUNDARY_BULK",
+            "acceptedLleClaimed": false,
+            "inletBoundaryKnown": true,
+            "equilibriumOutletClaimed": false,
+            "mayBeUsedWhenRecordedOutputsFailed": true
+          },
+          "stageAccepted": true,
+          "trialAccepted": false,
+          "normalizedAsSaved": true
+        },
+        "continuous": {
+          "role": "extractIncoming",
+          "source": "GOVERNED_STAGE2_RECORDED_INCOMING_BOUNDARY",
+          "stream": {
+            "mass": 74.16283697375825,
+            "flowMol": 0.6949625818426035,
+            "componentMass": [
+              4.111797816914968,
+              4.759019404243172,
+              2.7645959335541965,
+              1.5659286879079288,
+              2.3227546723639487,
+              58.48925169341411,
+              0.14948876535992445
+            ],
+            "massFractions": [
+              0.05544283342841759,
+              0.06416986726016295,
+              0.03727737565557828,
+              0.0211147355172243,
+              0.03131965775777741,
+              0.788659847439627,
+              0.00201568294121245
+            ],
+            "moleFractions": [
+              0.034734971330409856,
+              0.0569735479110105,
+              0.02797560604368237,
+              0.011140911898264449,
+              0.008240724391363054,
+              0.848994189217947,
+              0.011940049207322858
+            ],
+            "componentMoles": [
+              0.024139505356010445,
+              0.03959448395296913,
+              0.019441999404729043,
+              0.007742516896898842,
+              0.005726995099274986,
+              0.5900191937082723,
+              0.008297887424448825
+            ]
+          },
+          "propertyPath": "result_snapshot.trials[stageCount=10].stages[stageFromFeedEnd=1].extractIncoming",
+          "phaseIdentity": "EXTRACT_PHASE_BULK",
+          "qualification": {
+            "basis": "RECORDED_STAGE2_INCOMING_BOUNDARY_BULK",
+            "acceptedLleClaimed": false,
+            "inletBoundaryKnown": true,
+            "equilibriumOutletClaimed": false,
+            "mayBeUsedWhenRecordedOutputsFailed": true
+          },
+          "stageAccepted": true,
+          "trialAccepted": false,
+          "normalizedAsSaved": true
+        },
+        "qualification": "LOCAL_FEED_END_BULKS_NOT_GLOBAL_COLUMN_INLETS",
+        "stage2Provenance": {
+          "modelHash": "f165f0d23eeae810e40341f1cc86a2b97514bc21b74838d4a08eab1760e6e1af",
+          "engineHash": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac",
+          "requestedNT": 7,
+          "stage2JobId": "a8e15406-ec37-47cc-9529-6d66266681ef",
+          "temperatureK": 298.15,
+          "componentOrder": [
+            "SAT",
+            "MONO",
+            "DI",
+            "POLY",
+            "PA",
+            "NMP",
+            "H2O"
+          ],
+          "sourceStageCount": 10,
+          "stageFromFeedEnd": 1,
+          "resultSnapshotHash": "ef0194e8d2f4e4496cf987a175ae1ffa9c88bcff703a88a336a7263815963492",
+          "stage1ImmutableHash": "a717f993f983648c72bbbe82c1edcf7a3b3d0f8ec334301aaff24a20a426d3f3",
+          "engineContractVersion": "7C-1.5.0",
+          "requestedNtWasDirectlyRecorded": false
+        }
+      },
+      "maximumBoundaryMoleFractionResidual": 1.1102230246251565e-16,
+      "stage2ComponentMolesUsedAsMolarFlowRate": false,
+      "correctedStage2BoundaryMoleFractionTolerance": 1e-10
+    },
+    "dependencies": {
+      "jobAResultSha256": "e545047a32d649d4d7328e48ccba694ad67bd6a014dc6663c619d98e986b309a",
+      "jobBResultSha256": "0053f057634e0caeea83505f851ae137eddc46aa3cf572de8575c45473f0f9d6",
+      "stage2EngineHash": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac",
+      "stage1SnapshotHash": "a717f993f983648c72bbbe82c1edcf7a3b3d0f8ec334301aaff24a20a426d3f3",
+      "stage3ImmutableHash": "8b0ac056c1e14884942a837da89be3929bc0b1e3985508743fda8ece8b7fb654",
+      "globalBoundaryStateSha256": "bb08ac56db73c1c400e3d7e074ec8919b60f38a0bfca7a552ae83f4e81afbceb",
+      "jobBInterfaceWorkerSha256": "70229d3eacfde61d906f39bc3dec8a29387cabfc96944493ffb5318653e02f2d",
+      "stage2BoundaryResultSha256": "ef0194e8d2f4e4496cf987a175ae1ffa9c88bcff703a88a336a7263815963492",
+      "jobBInterfaceArtifactSha256": "71c21d480c81e5971754fa664f42259ab9dd117f77ff37a8361a0e2d89de12db",
+      "globalBoundaryProvenanceSha256": "4828843dd5b2db14002a41215b2a0892a5f861a8ba67c35a6c5004c84430e5c8"
+    },
+    "schemaVersion": "ECR_PRE_PILOT_JOB_C_V1",
+    "componentOrder": [
+      "SAT",
+      "MONO",
+      "DI",
+      "POLY",
+      "PA",
+      "NMP",
+      "H2O"
+    ],
+    "selectedStage3State": {
+      "rpm": 30,
+      "d32M": 0.003031929110308221,
+      "runId": "4",
+      "status": "INPUT_STATE_ONLY_NOT_FINAL_RPM_SELECTION",
+      "trialId": "rpm:30:diameterM:0.8686867763858619",
+      "immutableHash": "8b0ac056c1e14884942a837da89be3929bc0b1e3985508743fda8ece8b7fb654",
+      "columnDiameterM": 0.8686867763858619,
+      "operatingHoldup": 0.08522716012839626
+    },
+    "preliminarySensitivityBasis": {
+      "authorization": "USER_AUTHORIZED_PROJECT_CONTROLLED_PRELIMINARY_SENSITIVITY_BASIS",
+      "activeHeightSearchM": {
+        "use": "NUMERICAL_SEARCH_ONLY",
+        "maximum": 20,
+        "minimum": 2
+      },
+      "axialDispersionDispersedM2S": {
+        "maximum": 0.003,
+        "minimum": 0.0003,
+        "nominal": 0.001
+      },
+      "axialDispersionContinuousM2S": {
+        "maximum": 0.03,
+        "minimum": 0.003,
+        "nominal": 0.01
+      }
+    },
+    "theoreticalCompartmentAuthority": {
+      "source": "PRE_PILOT_DESIGN_DEFAULT",
+      "compartments": 7,
+      "fallbackUsed": true,
+      "fallbackValue": 7
+    }
+  }
+}

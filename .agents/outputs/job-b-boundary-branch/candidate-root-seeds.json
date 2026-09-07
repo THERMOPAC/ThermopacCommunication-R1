@@ -1,0 +1,227 @@
+{
+  "schemaVersion": "ECR_JOB_B_BOUNDARY_CANDIDATE_SEED_CATALOG_V1",
+  "qualification": "DETERMINISTIC_INLET_BASIN_SEEDS_ONLY_NOT_ACCEPTED_ROOTS",
+  "description": "Conservative basin seed catalog generated directly from the deterministic inlet multistart. Every local replay must independently re-solve and pass the unchanged strict gates.",
+  "source": {
+    "kind": "DETERMINISTIC_INLET_MULTISTART",
+    "frozenInputHash": "d964718287c844e77a885aebf6a251d26860f68f49599fa989eb3543a2b642d3",
+    "startCount": 13,
+    "exploratoryCandidateIsoactivityGate": 1e-07,
+    "exploratoryCandidateScaledTwoFilmGate": 1e-07,
+    "strictScaledTwoFilmGate": 1e-08,
+    "requiredNumericalJacobianRank": 13
+  },
+  "candidates": [
+    {
+      "candidateId": "R1",
+      "continuousInterfaceMoleFractions": [
+        0.019286582371315857,
+        0.0013329031163163522,
+        0.0006427806267920617,
+        0.0002242181974941054,
+        0.00010899533300646845,
+        0.9024126313005987,
+        0.07599188905447651
+      ],
+      "dispersedInterfaceMoleFractions": [
+        0.8596328724545053,
+        0.0017655761829384019,
+        0.0008063567259608963,
+        0.0002491504849831657,
+        6.222403826988653e-05,
+        0.05942365488386946,
+        0.07806016522947268
+      ],
+      "totalMolarFluxMolM2S": -0.003343416383973523,
+      "seedSource": "DETERMINISTIC_INLET_MULTISTART",
+      "sourceStarts": [
+        "oriented"
+      ],
+      "numericalJacobianRank": 13,
+      "maximumIsoactivityLogResidual": 1.9345636204093353e-14,
+      "maximumScaledFluxEqualityResidual": 1.6004837934993846e-17,
+      "strictNumericalAccepted": true
+    },
+    {
+      "candidateId": "R2",
+      "continuousInterfaceMoleFractions": [
+        0.8669953370950781,
+        0.0014435973802655797,
+        0.0006668978749866406,
+        0.00020807837687768062,
+        4.5269753586860025e-05,
+        0.059859473082491794,
+        0.07078134643671323
+      ],
+      "dispersedInterfaceMoleFractions": [
+        0.01881219056071454,
+        0.001078382725308255,
+        0.0005255626280751468,
+        0.00018509932279891855,
+        7.83950306539914e-05,
+        0.9143032214050105,
+        0.06501714832743859
+      ],
+      "totalMolarFluxMolM2S": 0.18019350431893702,
+      "seedSource": "DETERMINISTIC_INLET_MULTISTART",
+      "sourceStarts": [
+        "swapped"
+      ],
+      "numericalJacobianRank": 13,
+      "maximumIsoactivityLogResidual": 7.105427357601002e-14,
+      "maximumScaledFluxEqualityResidual": 3.201382833619805e-14,
+      "strictNumericalAccepted": true
+    },
+    {
+      "candidateId": "R3",
+      "continuousInterfaceMoleFractions": [
+        0.011330886247657917,
+        0.0013364675601309536,
+        0.0006447252444130737,
+        0.00022514664783431242,
+        0.00011050148968684861,
+        0.9101042451005907,
+        0.07624802770968601
+      ],
+      "dispersedInterfaceMoleFractions": [
+        0.011330886247657669,
+        0.001336467560130947,
+        0.000644725244413074,
+        0.00022514664783431087,
+        0.00011050148968684787,
+        0.9101042451005912,
+        0.07624802770968597
+      ],
+      "totalMolarFluxMolM2S": 0.838912719680028,
+      "seedSource": "DETERMINISTIC_INLET_MULTISTART",
+      "sourceStarts": [
+        "uniform"
+      ],
+      "numericalJacobianRank": 12,
+      "maximumIsoactivityLogResidual": 3.907985046680551e-14,
+      "maximumScaledFluxEqualityResidual": 2.7364814430312903e-15,
+      "strictNumericalAccepted": false
+    },
+    {
+      "candidateId": "R4",
+      "continuousInterfaceMoleFractions": [
+        0.011330886247650341,
+        0.0013364675601336235,
+        0.0006447252444130728,
+        0.00022514664783390248,
+        0.000110501489686321,
+        0.9101042451005957,
+        0.076248027709687
+      ],
+      "dispersedInterfaceMoleFractions": [
+        0.011330886247650357,
+        0.0013364675601336244,
+        0.0006447252444130715,
+        0.00022514664783390202,
+        0.00011050148968632097,
+        0.9101042451005955,
+        0.07624802770968701
+      ],
+      "totalMolarFluxMolM2S": -1.147396745451911,
+      "seedSource": "DETERMINISTIC_INLET_MULTISTART",
+      "sourceStarts": [
+        "dirichlet-001"
+      ],
+      "numericalJacobianRank": 13,
+      "maximumIsoactivityLogResidual": 1.7763568394002505e-15,
+      "maximumScaledFluxEqualityResidual": 6.452068992291521e-15,
+      "strictNumericalAccepted": true
+    },
+    {
+      "candidateId": "R5",
+      "continuousInterfaceMoleFractions": [
+        0.011330886247656484,
+        0.0013364675601336136,
+        0.0006447252444130445,
+        0.00022514664783390538,
+        0.00011050148968630437,
+        0.910104245100593,
+        0.07624802770968361
+      ],
+      "dispersedInterfaceMoleFractions": [
+        0.011330886247656633,
+        0.0013364675601336298,
+        0.0006447252444130524,
+        0.00022514664783390736,
+        0.0001105014896863069,
+        0.9101042451005928,
+        0.0762480277096836
+      ],
+      "totalMolarFluxMolM2S": 0.0790563799864702,
+      "seedSource": "DETERMINISTIC_INLET_MULTISTART",
+      "sourceStarts": [
+        "dirichlet-002"
+      ],
+      "numericalJacobianRank": 12,
+      "maximumIsoactivityLogResidual": 2.1316282072803006e-14,
+      "maximumScaledFluxEqualityResidual": 7.587478724737823e-17,
+      "strictNumericalAccepted": false
+    },
+    {
+      "candidateId": "R6",
+      "continuousInterfaceMoleFractions": [
+        0.011330886247656902,
+        0.0013364675601336342,
+        0.0006447252444130888,
+        0.00022514664783390974,
+        0.00011050148968632689,
+        0.9101042451005926,
+        0.07624802770968354
+      ],
+      "dispersedInterfaceMoleFractions": [
+        0.011330886247656744,
+        0.001336467560133625,
+        0.0006447252444130844,
+        0.00022514664783390776,
+        0.00011050148968632477,
+        0.9101042451005928,
+        0.07624802770968354
+      ],
+      "totalMolarFluxMolM2S": 0.30739283322085137,
+      "seedSource": "DETERMINISTIC_INLET_MULTISTART",
+      "sourceStarts": [
+        "dirichlet-004"
+      ],
+      "numericalJacobianRank": 12,
+      "maximumIsoactivityLogResidual": 5.329070518200751e-15,
+      "maximumScaledFluxEqualityResidual": 3.034991489895129e-16,
+      "strictNumericalAccepted": false
+    },
+    {
+      "candidateId": "R7",
+      "continuousInterfaceMoleFractions": [
+        0.011330886247658397,
+        0.0013364675601255298,
+        0.0006447252444131303,
+        0.00022514664783155453,
+        0.00011050148968635247,
+        0.910104245100593,
+        0.07624802770969216
+      ],
+      "dispersedInterfaceMoleFractions": [
+        0.011330886247658664,
+        0.0013364675601255434,
+        0.0006447252444131392,
+        0.00022514664783155727,
+        0.00011050148968635477,
+        0.9101042451005926,
+        0.07624802770969215
+      ],
+      "totalMolarFluxMolM2S": -0.9893935232042929,
+      "seedSource": "DETERMINISTIC_INLET_MULTISTART",
+      "sourceStarts": [
+        "dirichlet-007"
+      ],
+      "numericalJacobianRank": 12,
+      "maximumIsoactivityLogResidual": 3.375077994860476e-14,
+      "maximumScaledFluxEqualityResidual": 8.28476033211308e-15,
+      "strictNumericalAccepted": false
+    }
+  ],
+  "catalogSha256": "2992f0968ad5b96ec071c8516a44a3ee0f8bb4c09a391ab9c2462be28f93a975"
+}
