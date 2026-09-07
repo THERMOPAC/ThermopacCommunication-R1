@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import {
   JOB_C_COMPONENT_ORDER,
@@ -49,7 +50,7 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(worker).toContain('jac_sparsity=sparsity');
     expect(worker).toContain('(27*m,27*m)');
     expect(worker).toContain('LOCAL_FLUX_PICARD_BOUNDED_DENSE_98_FV');
-    expect(worker).toContain('JOB_C_LOCAL_FLUX_PICARD_NONCONVERGENCE');
+    expect(worker).toContain('JOB_C_COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED');
     expect(worker).toContain('JOB_C_LAMBDA1_MONOLITHIC_POLISH_FAILED');
     expect(worker).toContain('"dominantResidualRows":diagnostics(ev)');
     expect(worker).toContain('np.asarray(profile_unknowns).reshape(-1)');
@@ -173,7 +174,7 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(Math.abs(fvResidual(transferSource))).toBeLessThan(1e-15);
   });
 
-  it('uses bounded dense frozen-FV solves within local-flux Picard iteration', () => {
+  it('uses bounded Picard predictors and a coupled continuation fallback', () => {
     const donorFeed = 2e-3;
     const receivingFeed = 0;
     const lambda = 0.00125;
@@ -205,6 +206,9 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(worker).toContain('dominantFrozenFvResidualRows');
     expect(worker).toContain('max_nfev=160');
     expect(worker).toContain('return np.r_[scaled_fv,ev["interface"]]');
+    expect(worker).toContain('COUPLED_BOUNDED_SPARSE_189_CONTINUATION');
+    expect(worker).toContain('COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED');
+    expect(worker).toContain('"physicalInfeasibilityClaimed":False');
   });
 
   it('orders Picard sources correctly and computes pure source-mismatch metrics', () => {
@@ -228,7 +232,7 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(frozenFv).toBeGreaterThan(preInterface);
     expect(refreshedInterface).toBeGreaterThan(frozenFv);
     expect(refreshedFv).toBeGreaterThan(refreshedInterface);
-    expect(worker).not.toContain('lambda q:residual(q,lam)');
+    expect(worker.match(/lambda q:residual\(q,lam\)/g)).toHaveLength(1);
     expect(worker.match(/lambda q:residual\(q,1\.0\)/g)).toHaveLength(1);
 
     const metric = (
@@ -255,6 +259,58 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     const nonzero = metric([1, -2], [1.1, -1.8], 0.5, 3, [2, 4]);
     expect(nonzero.raw).toBeCloseTo(0.3, 14);
     expect(nonzero.scaled).toBeCloseTo(0.075, 14);
+  });
+
+  it('turns solver budget expiry and unavailable refresh evidence into governed diagnostics', () => {
+    const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
+    const controlledClock = JSON.parse(execFileSync('python3', ['-c', `
+import ast, json
+source = open("server/ecr-pre-pilot/job-c/worker.py").read()
+tree = ast.parse(source)
+function = next(node for node in tree.body
+                if isinstance(node, ast.FunctionDef)
+                and node.name == "require_runtime_budget")
+namespace = {}
+exec(compile(ast.Module(body=[function], type_ignores=[]),
+             "runtime-budget-test", "exec"), namespace)
+budget = {"started": 10.0, "maximumSeconds": 5.0}
+at_limit = namespace["require_runtime_budget"](budget, 15.0)
+expired = False
+try:
+    namespace["require_runtime_budget"](budget, 15.000001)
+except TimeoutError:
+    expired = True
+print(json.dumps({"atLimit": at_limit, "expired": expired}))
+`], { encoding: 'utf8' }));
+    expect(controlledClock).toEqual({ atLimit: 5, expired: true });
+    const coupledStart = worker.indexOf(
+      'coupled_starts=[("LAST_ACCEPTED_COUPLED_STATE",accepted_x)]',
+    );
+    const coupledEnd = worker.indexOf(
+      'unconstrained=None',
+      coupledStart,
+    );
+    const coupled = worker.slice(coupledStart, coupledEnd);
+    expect(coupled).toContain('except TimeoutError:');
+    expect(coupled).toContain('"terminatedBy":"INTERNAL_RUNTIME_BUDGET"');
+    expect(coupled).toContain('coupled_budget_exhausted=True');
+    expect(worker).toContain('"qualification":"NOT_RUN_INTERNAL_RUNTIME_BUDGET"');
+    expect(worker).toContain(
+      '"status":"NOT_COMPUTED_FROZEN_FV_DID_NOT_CLOSE"',
+    );
+    expect(worker).toContain('def frozen_scaled(flow_vector):\n'
+      + '                    require_runtime_budget(budget)');
+    expect(worker).toContain('"phase":"BOUNDED_FROZEN_FV_SOLVE"');
+    expect(worker).toContain('"phase":"UNBOUNDED_TERMINAL_DIAGNOSTIC"');
+    expect(worker).toContain('"qualification":"TERMINATED_INTERNAL_RUNTIME_BUDGET"');
+    expect(worker).toContain(
+      '"rejectedStepSourceRefreshMismatch":',
+    );
+    expect(worker).not.toContain(
+      'last_accepted.get("integratedSourceMismatchRawMolS",0.0)',
+    );
+    expect(worker).toContain('"error":"JOB_C_INTERNAL_RUNTIME_BUDGET"');
+    expect(worker).toContain('"classification":"NUMERICAL_RUNTIME_BUDGET_EXHAUSTED"');
   });
 
   it('reproduces the signed design-269 inlet flux and rejects either invalid source sign', () => {

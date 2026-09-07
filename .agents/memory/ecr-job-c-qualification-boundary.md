@@ -54,6 +54,20 @@ frozen-flux FV subsystem to close. An unconstrained root may be calculated only
 to identify which phase/component flows violate positivity; it must never seed
 or qualify the coupled solve even when its residual closes.
 
+A terminal frozen-source Picard boundary must be probed with the original
+bounded coupled FV/interface equations before it is persisted. Failure of that
+probe remains numerical positive-feasibility uncertainty, not process
+infeasibility.
+
+**Why:** A frozen source field can require negative solvent flow even though a
+joint solution is free to move all bulk states and local interface fluxes
+together. Treating the frozen root as decisive would overstate the evidence.
+
+**How to apply:** Preserve the last accepted and first rejected continuation
+values, source-refresh mismatch, bounded coupled residual blocks, and the
+unconstrained frozen-flow diagnostic. Keep every original acceptance gate and
+emit no design or release claim when coupled positive feasibility is unresolved.
+
 The signed counter-current balances use positive flux for
 continuous-to-dispersed transfer. Their integrated outlets are continuous feed
 minus total transfer and dispersed feed plus total transfer. The recorded

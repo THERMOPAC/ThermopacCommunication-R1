@@ -23,6 +23,14 @@ def progress(phase, completed=0, total=None):
     if total is not None: body["total"]=total
     print("JOB_C_PROGRESS "+json.dumps(body,separators=(",",":")),flush=True)
 
+def require_runtime_budget(budget, now=None):
+    """Raise at every expensive residual boundary once the budget is spent."""
+    current=time.monotonic() if now is None else float(now)
+    elapsed=current-budget["started"]
+    if elapsed>budget["maximumSeconds"]:
+        raise TimeoutError("JOB_C_MONOLITHIC_INTERNAL_RUNTIME_BUDGET")
+    return elapsed
+
 root=Path(os.environ["JOB_B_INTERFACE_RUNTIME_ROOT"]).resolve()
 spec=importlib.util.spec_from_file_location("job_c_verified_job_b",root/"server/ecr-pre-pilot/job-b-interface/worker.py")
 if spec is None or spec.loader is None: raise RuntimeError("JOB_C_JOB_B_IMPORT_FAILED")
@@ -414,8 +422,7 @@ def case(r, name, dc, dd, solvers):
 
         def residual(x,lam):
             budget["residualCalls"]+=1
-            if time.monotonic()-budget["started"] > budget["maximumSeconds"]:
-                raise TimeoutError("JOB_C_MONOLITHIC_INTERNAL_RUNTIME_BUDGET")
+            require_runtime_budget(budget)
             ev=raw_evaluate(x,lam)
             scaled_fv=np.asarray([v/scale[i%7] for i,v in enumerate(ev["fv"])])
             return np.r_[scaled_fv,ev["interface"]]
@@ -572,6 +579,7 @@ def case(r, name, dc, dd, solvers):
         lambda_index=0
         minimum_lambda_interval=1e-8
         maximum_outer_iterations=24
+        maximum_coupled_function_evaluations=24
         while lambda_index<len(lambda_targets):
             lam=lambda_targets[lambda_index]
             accepted_x=x.copy()
@@ -598,18 +606,30 @@ def case(r, name, dc, dd, solvers):
                     np.all(conservative<=upper[:14*m])):
                     starts.append(("UNCLIPPED_CONSERVATIVE_PROFILE",conservative))
                 def frozen_scaled(flow_vector):
+                    require_runtime_budget(budget)
                     values=frozen_flow_evaluate(flow_vector,lam,frozen_nc)
                     return np.asarray(
                       [v/scale[i%7] for i,v in enumerate(values)])
                 fits=[]
                 for initialization,start_vector in starts:
-                    fit=scipy.optimize.least_squares(
-                      frozen_scaled,start_vector,
-                      bounds=(lower[:14*m],upper[:14*m]),method="trf",
-                      jac="2-point",tr_solver="exact",x_scale=flow_scale,
-                      max_nfev=160,xtol=1e-11,ftol=1e-11,gtol=1e-11)
+                    try:
+                        fit=scipy.optimize.least_squares(
+                          frozen_scaled,start_vector,
+                          bounds=(lower[:14*m],upper[:14*m]),method="trf",
+                          jac="2-point",tr_solver="exact",x_scale=flow_scale,
+                          max_nfev=160,xtol=1e-11,ftol=1e-11,gtol=1e-11)
+                    except TimeoutError:
+                        outer_rows.append({"outerIteration":outer,
+                          "flowInitialization":initialization,
+                          "sourceRefreshMismatch":{"status":
+                            "NOT_COMPUTED_INTERNAL_RUNTIME_BUDGET"},
+                          "accepted":False})
+                        step_error="INTERNAL_RUNTIME_BUDGET"
+                        break
                     fits.append((np.linalg.norm(frozen_scaled(fit.x)),
                       initialization,fit))
+                if step_error=="INTERNAL_RUNTIME_BUDGET":
+                    break
                 _,initialization,flow_fit=min(fits,key=lambda row:row[0])
                 solved_flows=flow_fit.x
                 frozen_values=frozen_flow_evaluate(
@@ -631,6 +651,8 @@ def case(r, name, dc, dd, solvers):
                       "frozenFvAcceptance":frozen_acceptance,
                       "activePositiveLowerBoundFlows":active_bound,
                       "dominantFrozenFvResidualRows":ranked_frozen,
+                      "sourceRefreshMismatch":{
+                        "status":"NOT_COMPUTED_FROZEN_FV_DID_NOT_CLOSE"},
                       "accepted":False})
                     step_error="BOUNDED_FROZEN_FV_NONCONVERGENCE"
                     break
@@ -676,50 +698,236 @@ def case(r, name, dc, dd, solvers):
                     break
             if not step_accepted:
                 x=accepted_x
+                if step_error=="INTERNAL_RUNTIME_BUDGET":
+                    raise JobCBlocked("JOB_C_INTERNAL_RUNTIME_BUDGET",
+                      {"heightM":h,"lambda":lam,
+                       "phase":"BOUNDED_FROZEN_FV_SOLVE",
+                       "classification":"NUMERICAL_RUNTIME_BUDGET_EXHAUSTED",
+                       "physicalInfeasibilityClaimed":False,
+                       "outerIterations":outer_rows,
+                       "claimsEmitted":{"height":False,"efficiency":False,
+                         "finalRpm":False,"jobD":False,"release":False}})
                 if lam>0.0 and lam-previous_lambda>minimum_lambda_interval:
                     lambda_targets.insert(
                       lambda_index,(previous_lambda+lam)/2)
                     continue
-                unconstrained=None
-                if step_error=="BOUNDED_FROZEN_FV_NONCONVERGENCE":
-                    unconstrained_fit=scipy.optimize.least_squares(
-                      frozen_scaled,solved_flows,method="lm",jac="2-point",
-                      x_scale=flow_scale,max_nfev=1000,
-                      xtol=1e-12,ftol=1e-12,gtol=1e-12)
-                    unconstrained_values=frozen_flow_evaluate(
-                      unconstrained_fit.x,lam,frozen_nc)
-                    nonpositive=[]
-                    for index,value in enumerate(unconstrained_fit.x):
-                        if value<=0:
-                            phase_index,rem=divmod(index,m*7)
-                            cell_index,component_index=divmod(rem,7)
-                            nonpositive.append({
-                              "phase":"continuous" if phase_index==0 else "dispersed",
-                              "numericalCell":cell_index+1,
-                              "component":COMPONENTS[component_index],
-                              "flowMolS":float(value)})
-                    unconstrained={
-                      "functionEvaluations":int(unconstrained_fit.nfev),
-                      "optimizerStatus":int(unconstrained_fit.status),
-                      "optimizerSuccess":bool(unconstrained_fit.success),
-                      "optimizerOptimality":float(unconstrained_fit.optimality),
+                # A frozen-source FV failure is not a feasibility result for the
+                # original coupled equations.  Give the bounded 189-equation
+                # system a jointly consistent attempt at the terminal adaptive
+                # bracket before issuing a governed block.
+                coupled_starts=[("LAST_ACCEPTED_COUPLED_STATE",accepted_x)]
+                current_joint=np.r_[current_flows,current_interfaces]
+                if (np.all(current_joint>=lower) and np.all(current_joint<=upper)
+                    and not np.array_equal(current_joint,accepted_x)):
+                    coupled_starts.append(("LAST_PICARD_ITERATE",current_joint))
+                coupled_fits=[]; coupled_attempts=[]
+                coupled_budget_exhausted=False
+                for coupled_initialization,coupled_start in coupled_starts:
+                    try:
+                        coupled_fit=scipy.optimize.least_squares(
+                          lambda q:residual(q,lam),coupled_start,
+                          bounds=(lower,upper),method="trf",jac="2-point",
+                          jac_sparsity=sparsity,tr_solver="lsmr",
+                          x_scale=variable_scale,
+                          max_nfev=maximum_coupled_function_evaluations,
+                          xtol=1e-11,ftol=1e-11,gtol=1e-11)
+                    except TimeoutError:
+                        coupled_budget_exhausted=True
+                        coupled_attempts.append({
+                          "initialization":coupled_initialization,
+                          "terminatedBy":"INTERNAL_RUNTIME_BUDGET",
+                          "accepted":False})
+                        break
+                    coupled_ev=raw_evaluate(coupled_fit.x,lam)
+                    coupled_raw=float(np.max(np.abs(coupled_ev["fv"])))
+                    coupled_scaled=float(np.max(np.abs(
+                      [v/scale[i%7] for i,v in enumerate(coupled_ev["fv"])])))
+                    coupled_interface=max(
+                      max(float(np.max(np.abs(values[0][:7]))),
+                        float(np.max(np.abs(values[6])/solvers[j].scale)))
+                      for j,values in enumerate(coupled_ev["details"]))
+                    coupled_minimum=float(min(
+                      np.min(coupled_ev["c"]),np.min(coupled_ev["d"])))
+                    coupled_accepted=(coupled_minimum>0
+                      and coupled_raw<=1e-7 and coupled_scaled<=1e-7
+                      and coupled_interface<=1e-7)
+                    coupled_fits.append({
+                      "initialization":coupled_initialization,
+                      "fit":coupled_fit,"evaluation":coupled_ev,
+                      "rawFvResidualMolS":coupled_raw,
+                      "scaledFvResidual":coupled_scaled,
+                      "maximumOriginalJobBGateResidual":coupled_interface,
+                      "minimumFlowMolS":coupled_minimum,
+                      "accepted":coupled_accepted})
+                    coupled_attempts.append({
+                      "initialization":coupled_initialization,
+                      "functionEvaluations":int(coupled_fit.nfev),
+                      "optimizerStatus":int(coupled_fit.status),
+                      "optimizerSuccess":bool(coupled_fit.success),
+                      "optimizerOptimality":float(coupled_fit.optimality),
+                      "rawFvResidualMolS":coupled_raw,
+                      "scaledFvResidual":coupled_scaled,
+                      "maximumOriginalJobBGateResidual":coupled_interface,
+                      "minimumFlowMolS":coupled_minimum,
+                      "accepted":coupled_accepted})
+                if coupled_fits:
+                    coupled_best=min(coupled_fits,key=lambda row:max(
+                      row["rawFvResidualMolS"],row["scaledFvResidual"],
+                      row["maximumOriginalJobBGateResidual"]))
+                else:
+                    coupled_ev=raw_evaluate(accepted_x,lam)
+                    coupled_best={"initialization":"LAST_ACCEPTED_COUPLED_STATE",
+                      "fit":None,"evaluation":coupled_ev,
                       "rawFvResidualMolS":
-                        float(np.max(np.abs(unconstrained_values))),
-                      "scaledFvResidual":
-                        float(np.max(np.abs(frozen_scaled(unconstrained_fit.x)))),
-                      "minimumFlowMolS":float(np.min(unconstrained_fit.x)),
-                      "nonpositiveFlowCount":len(nonpositive),
-                      "nonpositiveFlows":sorted(nonpositive,
-                        key=lambda row:row["flowMolS"])[:20],
-                      "qualification":
-                        "UNBOUNDED_TERMINAL_DIAGNOSTIC_ONLY_NOT_ACCEPTANCE"}
-                raise JobCBlocked("JOB_C_LOCAL_FLUX_PICARD_NONCONVERGENCE",
-                  {"heightM":h,"lambda":lam,"reason":step_error or
-                    "OUTER_ITERATION_LIMIT",
+                        float(np.max(np.abs(coupled_ev["fv"]))),
+                      "scaledFvResidual":float(np.max(np.abs(
+                        [v/scale[i%7] for i,v in enumerate(coupled_ev["fv"])]))),
+                      "maximumOriginalJobBGateResidual":max(
+                        max(float(np.max(np.abs(values[0][:7]))),
+                          float(np.max(np.abs(values[6])/solvers[j].scale)))
+                        for j,values in enumerate(coupled_ev["details"])),
+                      "minimumFlowMolS":float(min(
+                        np.min(coupled_ev["c"]),np.min(coupled_ev["d"]))),
+                      "accepted":False}
+                if coupled_best["accepted"]:
+                    x=coupled_best["fit"].x
+                    history.append({"lambda":lam,
+                      "solver":"COUPLED_BOUNDED_SPARSE_189_CONTINUATION",
+                      "picardFailureReason":step_error or "OUTER_ITERATION_LIMIT",
+                      "picardOuterIterations":outer_rows,
+                      "coupledAttempts":coupled_attempts,
+                      "rawFvResidualMolS":coupled_best["rawFvResidualMolS"],
+                      "scaledFvResidual":coupled_best["scaledFvResidual"],
+                      "maximumOriginalJobBGateResidual":
+                        coupled_best["maximumOriginalJobBGateResidual"],
+                      "minimumFlowMolS":coupled_best["minimumFlowMolS"],
+                      "lambdaRuntimeSeconds":time.monotonic()-lambda_started,
+                      "boundaryAwareInitialProfile":profile_audit
+                        if len(history)==0 else None,
+                      "globalInletFluxAudit":
+                        global_inlet_full_scale_audit if len(history)==0 else None})
+                    lambda_index+=1
+                    continue
+                unconstrained=None
+                unbounded_budget_exhausted=False
+                if coupled_budget_exhausted:
+                    unconstrained={
+                      "qualification":"NOT_RUN_INTERNAL_RUNTIME_BUDGET",
+                      "accepted":False}
+                elif step_error=="BOUNDED_FROZEN_FV_NONCONVERGENCE":
+                    try:
+                        unconstrained_fit=scipy.optimize.least_squares(
+                          frozen_scaled,solved_flows,method="lm",jac="2-point",
+                          x_scale=flow_scale,max_nfev=1000,
+                          xtol=1e-12,ftol=1e-12,gtol=1e-12)
+                        unconstrained_values=frozen_flow_evaluate(
+                          unconstrained_fit.x,lam,frozen_nc)
+                        nonpositive=[]
+                        for index,value in enumerate(unconstrained_fit.x):
+                            if value<=0:
+                                phase_index,rem=divmod(index,m*7)
+                                cell_index,component_index=divmod(rem,7)
+                                nonpositive.append({
+                                  "phase":"continuous" if phase_index==0 else "dispersed",
+                                  "numericalCell":cell_index+1,
+                                  "component":COMPONENTS[component_index],
+                                  "flowMolS":float(value)})
+                        unconstrained={
+                          "functionEvaluations":int(unconstrained_fit.nfev),
+                          "optimizerStatus":int(unconstrained_fit.status),
+                          "optimizerSuccess":bool(unconstrained_fit.success),
+                          "optimizerOptimality":float(unconstrained_fit.optimality),
+                          "rawFvResidualMolS":
+                            float(np.max(np.abs(unconstrained_values))),
+                          "scaledFvResidual":
+                            float(np.max(np.abs(frozen_scaled(unconstrained_fit.x)))),
+                          "minimumFlowMolS":float(np.min(unconstrained_fit.x)),
+                          "nonpositiveFlowCount":len(nonpositive),
+                          "nonpositiveFlows":sorted(nonpositive,
+                            key=lambda row:row["flowMolS"])[:20],
+                          "qualification":
+                            "UNBOUNDED_TERMINAL_DIAGNOSTIC_ONLY_NOT_ACCEPTANCE"}
+                    except TimeoutError:
+                        unbounded_budget_exhausted=True
+                        unconstrained={
+                          "qualification":"TERMINATED_INTERNAL_RUNTIME_BUDGET",
+                          "accepted":False}
+                if unbounded_budget_exhausted:
+                    raise JobCBlocked("JOB_C_INTERNAL_RUNTIME_BUDGET",
+                      {"heightM":h,"lambda":lam,
+                       "phase":"UNBOUNDED_TERMINAL_DIAGNOSTIC",
+                       "classification":"NUMERICAL_RUNTIME_BUDGET_EXHAUSTED",
+                       "physicalInfeasibilityClaimed":False,
+                       "outerIterations":outer_rows,
+                       "coupledAttempts":coupled_attempts,
+                       "unconstrainedTerminalDiagnostic":unconstrained,
+                       "claimsEmitted":{"height":False,"efficiency":False,
+                         "finalRpm":False,"jobD":False,"release":False}})
+                last_accepted=history[-1] if history else None
+                last_accepted_compact=None
+                if last_accepted is not None:
+                    if "integratedSourceMismatchRawMolS" in last_accepted:
+                        accepted_source_refresh={"status":"MEASURED",
+                          "rawMolS":
+                            last_accepted["integratedSourceMismatchRawMolS"],
+                          "scaled":
+                            last_accepted["integratedSourceMismatchScaled"]}
+                    else:
+                        accepted_source_refresh={"status":
+                          "NOT_APPLICABLE_JOINT_COUPLED_ACCEPTANCE"}
+                    last_accepted_compact={
+                      "lambda":last_accepted["lambda"],
+                      "solver":last_accepted["solver"],
+                      "rawFvResidualMolS":last_accepted["rawFvResidualMolS"],
+                      "scaledFvResidual":last_accepted["scaledFvResidual"],
+                      "sourceRefreshMismatch":accepted_source_refresh,
+                      "minimumFlowMolS":last_accepted["minimumFlowMolS"]}
+                if (outer_rows and
+                    "integratedSourceMismatchRawMolS" in outer_rows[-1]):
+                    rejected_source_refresh={"status":"MEASURED",
+                      "rawMolS":
+                        outer_rows[-1]["integratedSourceMismatchRawMolS"],
+                      "scaled":
+                        outer_rows[-1]["integratedSourceMismatchScaled"]}
+                elif outer_rows and "sourceRefreshMismatch" in outer_rows[-1]:
+                    rejected_source_refresh=outer_rows[-1][
+                      "sourceRefreshMismatch"]
+                else:
+                    rejected_source_refresh={
+                      "status":"NOT_COMPUTED_PICARD_TERMINATED_BEFORE_REFRESH"}
+                raise JobCBlocked("JOB_C_COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED",
+                   {"heightM":h,"lambda":lam,
+                    "classification":
+                      "NUMERICAL_NONCONVERGENCE_NOT_PROCESS_INFEASIBILITY",
+                    "physicalInfeasibilityClaimed":False,
+                    "reason":step_error or "OUTER_ITERATION_LIMIT",
                    "maximumOuterIterations":maximum_outer_iterations,
                    "outerIterations":outer_rows,
+                    "adaptiveLambdaBracket":{
+                      "lowerAccepted":previous_lambda,
+                      "upperRejected":lam,
+                      "width":lam-previous_lambda,
+                      "minimumInterval":minimum_lambda_interval},
+                    "lastAcceptedContinuation":last_accepted_compact,
+                    "coupledContinuation":{
+                      "solver":"COUPLED_BOUNDED_SPARSE_189_CONTINUATION",
+                      "maximumFunctionEvaluations":
+                        maximum_coupled_function_evaluations,
+                      "attempts":coupled_attempts,
+                      "runtimeBudgetExhausted":coupled_budget_exhausted,
+                      "dominantResidualRows":
+                        diagnostics(coupled_best["evaluation"]),
+                      "dominantResidualBlocks":
+                        dominant_blocks(coupled_best["evaluation"]),
+                      "classification":
+                        "COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED",
+                      "physicalInfeasibilityClaimed":False},
+                    "rejectedStepSourceRefreshMismatch":
+                      rejected_source_refresh,
                     "unconstrainedTerminalDiagnostic":unconstrained,
                    "globalInletFluxAudit":global_inlet_full_scale_audit,
+                    "claimsEmitted":{"height":False,"efficiency":False,
+                      "finalRpm":False,"jobD":False,"release":False},
                    "runtimeSeconds":time.monotonic()-started})
             history.append({"lambda":lam,
               "solver":"LOCAL_FLUX_PICARD_BOUNDED_DENSE_98_FV",
@@ -743,11 +951,18 @@ def case(r, name, dc, dd, solvers):
         # state.  Run the square system once, only now, as limited verification.
         progress("lambda 1 monolithic polish")
         polish_start=x.copy()
-        polish_fit=scipy.optimize.least_squares(
-          lambda q:residual(q,1.0),polish_start,
-          bounds=(lower,upper),method="trf",jac="2-point",
-          jac_sparsity=sparsity,x_scale=variable_scale,max_nfev=40,
-          xtol=1e-11,ftol=1e-11,gtol=1e-11)
+        try:
+            polish_fit=scipy.optimize.least_squares(
+              lambda q:residual(q,1.0),polish_start,
+              bounds=(lower,upper),method="trf",jac="2-point",
+              jac_sparsity=sparsity,x_scale=variable_scale,max_nfev=40,
+              xtol=1e-11,ftol=1e-11,gtol=1e-11)
+        except TimeoutError:
+            raise JobCBlocked("JOB_C_LAMBDA1_MONOLITHIC_POLISH_FAILED",
+              {"heightM":h,"reason":"INTERNAL_RUNTIME_BUDGET",
+               "physicalInfeasibilityClaimed":False,
+               "claimsEmitted":{"height":False,"efficiency":False,
+                 "finalRpm":False,"jobD":False,"release":False}})
         x=polish_fit.x
         ev=raw_evaluate(x,1.0)
         fv_raw=float(np.max(np.abs(ev["fv"])))
@@ -1058,6 +1273,13 @@ for line in sys.stdin:
  except JobCBlocked as e:
     body={"protocol":PROTOCOL,"status":"BLOCKED_PRELIMINARY_JOB_C",
           "error":e.code,"diagnostics":e.diagnostics}
+ except TimeoutError:
+    body={"protocol":PROTOCOL,"status":"BLOCKED_PRELIMINARY_JOB_C",
+          "error":"JOB_C_INTERNAL_RUNTIME_BUDGET",
+          "diagnostics":{"classification":"NUMERICAL_RUNTIME_BUDGET_EXHAUSTED",
+            "physicalInfeasibilityClaimed":False,
+            "claimsEmitted":{"height":False,"efficiency":False,
+              "finalRpm":False,"jobD":False,"release":False}}}
  except (ValueError,RuntimeError,KeyError,TypeError) as e:
     body={"protocol":PROTOCOL,"status":"FAILURE_INVALID_REQUEST","error":str(e)}
  body["resultSha256"]=digest(body)

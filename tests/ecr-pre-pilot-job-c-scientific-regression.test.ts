@@ -9,7 +9,7 @@ import {
 } from '../server/ecr-pre-pilot/job-c';
 
 describe('Job-C packaged design269 scientific regression', () => {
-  it('uses corrected axial orientation and fails closed on local-flux Picard nonconvergence', async () => {
+  it('uses corrected orientation and distinguishes unresolved coupled feasibility', async () => {
     const fixture = JSON.parse(fs.readFileSync(
       'tests/fixtures/design269-job-c-worker-request.json', 'utf8',
     )) as JobCWorkerRequest;
@@ -35,26 +35,73 @@ describe('Job-C packaged design269 scientific regression', () => {
     ]);
     const result = await runJobCWorker(fixture, { timeoutMs: 900_000 });
     expect(result.status).toBe('BLOCKED_PRELIMINARY_JOB_C');
-    expect(result.error).toBe('JOB_C_LOCAL_FLUX_PICARD_NONCONVERGENCE');
+    expect(result.error).toBe('JOB_C_COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED');
     const diagnostics = result.diagnostics;
     expect(diagnostics.heightM).toBe(2);
-    expect(diagnostics.lambda).toBeGreaterThan(0);
-    expect(diagnostics.lambda).toBeLessThanOrEqual(1);
-    expect(typeof diagnostics.reason).toBe('string');
-    expect(diagnostics.reason.length).toBeGreaterThan(0);
+    expect(diagnostics.lambda).toBeCloseTo(6.923828125e-5, 12);
+    expect(diagnostics.reason).toBe('BOUNDED_FROZEN_FV_NONCONVERGENCE');
+    expect(diagnostics.classification)
+      .toBe('NUMERICAL_NONCONVERGENCE_NOT_PROCESS_INFEASIBILITY');
+    expect(diagnostics.physicalInfeasibilityClaimed).toBe(false);
     expect(diagnostics.maximumOuterIterations).toBe(24);
-    expect(Array.isArray(diagnostics.outerIterations)).toBe(true);
+    expect(diagnostics.outerIterations.length).toBeGreaterThan(0);
+    const terminalPicard = diagnostics.outerIterations.at(-1);
+    expect(terminalPicard.frozenFvAcceptance.accepted).toBe(false);
+    expect(terminalPicard.dominantFrozenFvResidualRows.length).toBeGreaterThan(0);
+    expect(diagnostics.adaptiveLambdaBracket).toMatchObject({
+      upperRejected: diagnostics.lambda,
+      minimumInterval: 1e-8,
+    });
+    expect(diagnostics.adaptiveLambdaBracket.lowerAccepted)
+      .toBeLessThan(diagnostics.lambda);
+    expect(diagnostics.adaptiveLambdaBracket.width).toBeLessThanOrEqual(1e-8);
+    expect(diagnostics.lastAcceptedContinuation.sourceRefreshMismatch.status)
+      .toBe('MEASURED');
+    expect(diagnostics.lastAcceptedContinuation.sourceRefreshMismatch.rawMolS)
+      .toBeLessThanOrEqual(1e-7);
+    expect(diagnostics.lastAcceptedContinuation.sourceRefreshMismatch.scaled)
+      .toBeLessThanOrEqual(1e-7);
+    expect(diagnostics.rejectedStepSourceRefreshMismatch).toEqual({
+      status: 'NOT_COMPUTED_FROZEN_FV_DID_NOT_CLOSE',
+    });
+    expect(diagnostics.coupledContinuation).toMatchObject({
+      solver: 'COUPLED_BOUNDED_SPARSE_189_CONTINUATION',
+      maximumFunctionEvaluations: 24,
+      classification: 'COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED',
+      physicalInfeasibilityClaimed: false,
+      runtimeBudgetExhausted: false,
+    });
+    expect(diagnostics.coupledContinuation.attempts.length).toBeGreaterThan(0);
+    expect(diagnostics.coupledContinuation.attempts.every(
+      (attempt: any) => attempt.accepted === false,
+    )).toBe(true);
+    expect(diagnostics.coupledContinuation.dominantResidualRows.length)
+      .toBeGreaterThan(0);
+    expect(diagnostics.unconstrainedTerminalDiagnostic).toMatchObject({
+      qualification: 'UNBOUNDED_TERMINAL_DIAGNOSTIC_ONLY_NOT_ACCEPTANCE',
+      optimizerSuccess: true,
+      nonpositiveFlowCount: 14,
+    });
+    expect(diagnostics.unconstrainedTerminalDiagnostic.rawFvResidualMolS)
+      .toBeLessThanOrEqual(1e-7);
+    expect(diagnostics.unconstrainedTerminalDiagnostic.scaledFvResidual)
+      .toBeLessThanOrEqual(1e-7);
+    expect(new Set(diagnostics.unconstrainedTerminalDiagnostic.nonpositiveFlows.map(
+      (row: any) => row.component,
+    ))).toEqual(new Set(['NMP', 'H2O']));
+    expect(diagnostics.claimsEmitted).toEqual({
+      height: false,
+      efficiency: false,
+      finalRpm: false,
+      jobD: false,
+      release: false,
+    });
     expect(diagnostics.globalInletFluxAudit).toMatchObject({
       continuousToDispersedSignConvention:
         'POSITIVE_NC_REMOVES_FROM_CONTINUOUS_AND_ADDS_TO_DISPERSED',
       signAndBoundaryOrientationConclusion:
         'B_TO_C_SOURCE_SIGNS_AND_COUNTERCURRENT_BOUNDARIES_ANALYTICALLY_CONSERVATIVE',
     });
-    if (diagnostics.unconstrainedTerminalDiagnostic) {
-      expect(diagnostics.unconstrainedTerminalDiagnostic.qualification).toBe(
-        'UNBOUNDED_TERMINAL_DIAGNOSTIC_ONLY_NOT_ACCEPTANCE',
-      );
-    }
     expect(result).not.toHaveProperty('sensitivityCases');
     const manifest = JSON.parse(fs.readFileSync(
       'dist/job-c-runtime/job-c-runtime-manifest.json', 'utf8',
