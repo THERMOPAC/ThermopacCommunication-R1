@@ -604,8 +604,11 @@ export function prepareJobCAxialLocalContactProfile(
   stage2ResultSnapshotHash: string,
 ) {
   const targetCells = 7;
+  const axialPositionsComplete = Array.isArray(sourceContacts)
+    && sourceContacts.every((contact, index) => contact?.stageFromFeedEnd === index + 1);
   if (!axialLocalContactProfileComplete
-    || !Array.isArray(sourceContacts) || sourceContacts.length < targetCells) {
+    || !Array.isArray(sourceContacts) || sourceContacts.length < targetCells
+    || !axialPositionsComplete) {
     throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_UNAVAILABLE', {
       requiredRecordedContacts: targetCells,
       recordedContacts: Array.isArray(sourceContacts) ? sourceContacts.length : 0,

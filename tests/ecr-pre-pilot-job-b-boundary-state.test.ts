@@ -438,4 +438,41 @@ describe('Job C axial local-contact profile preparation', () => {
       cell.provenance.mapping === 'CONTIGUOUS_EQUAL_AXIAL_BINS_ARITHMETIC_COMPOSITION_MEAN'))
       .toBe(true);
   });
+
+  it.each([
+    ['duplicate', [1, 2, 3, 4, 5, 6, 6]],
+    ['gap', [1, 2, 3, 4, 5, 6, 8]],
+  ])('rejects a full-length profile with a %s axial position before mapping', (_, positions) => {
+    let profileMappingEntered = false;
+    const contacts = positions.map(stageFromFeedEnd => ({
+      stageFromFeedEnd,
+      propertyPath: `stage-${stageFromFeedEnd}`,
+      get extractIncoming() {
+        profileMappingEntered = true;
+        throw new Error('profile mapping must not read malformed contacts');
+      },
+      get raffinateIncoming() {
+        profileMappingEntered = true;
+        throw new Error('profile mapping must not read malformed contacts');
+      },
+    }));
+    let workerRequestCreated = false;
+    try {
+      const prepared = prepareJobCAxialLocalContactProfile(contacts, true, true, h('9'));
+      workerRequestCreated = Boolean(prepared);
+      throw new Error('expected malformed profile dependency block');
+    } catch (error) {
+      expect(error).toMatchObject({
+        message: 'JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_UNAVAILABLE',
+        details: {
+          requiredRecordedContacts: 7,
+          recordedContacts: 7,
+          repeatedOrInventedContactsPermitted: false,
+          heightClaimed: false,
+        },
+      });
+    }
+    expect(profileMappingEntered).toBe(false);
+    expect(workerRequestCreated).toBe(false);
+  });
 });
