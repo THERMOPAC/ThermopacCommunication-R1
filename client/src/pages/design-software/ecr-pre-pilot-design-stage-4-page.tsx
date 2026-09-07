@@ -359,7 +359,14 @@ export default function EcrPrePilotDesignStage4Page() {
     try {
       const response = await fetch(`/api/ecr-pre-pilot/designs/${id}/job-c/jobs`, { method: "POST", credentials: "include" });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(stringValue(read(object(payload), "message", "error"), "Job C could not be started."));
+      if (!response.ok) {
+        const blockedPayload = object(payload);
+        const message = stringValue(read(blockedPayload, "message", "error"), "Job C could not be started.");
+        if (read(blockedPayload, "details")) {
+          setJobCDiagnostic({ error: message, details: object(read(blockedPayload, "details")) });
+        }
+        throw new Error(message);
+      }
       applyJobCJob(payload);
       toast({ title: "Job C queued", description: "Scientific calculation progress will update here while the background worker runs." });
     } catch (cause: unknown) {
@@ -463,6 +470,31 @@ export default function EcrPrePilotDesignStage4Page() {
     ? Math.max(0, Math.min(100, (jobCJob.progress.completed / jobCJob.progress.total) * 100))
     : 0;
   const hasPriorJobC = Boolean(jobCJob || jobCEvaluation || jobCDiagnostic);
+  const jobCDiagnosticDetails = object(read(jobCDiagnostic ?? {}, "details"));
+  const jobCScientificDiagnostics = object(read(jobCDiagnostic ?? {}, "scientificDiagnostics", "diagnostics"));
+  const nestedJobCCauseDetails = object(
+    read(jobCScientificDiagnostics, "causeDetails")
+      ?? read(jobCDiagnosticDetails, "causeDetails"),
+  );
+  const jobCAxialPositionDetails = Object.keys(nestedJobCCauseDetails).length
+    ? nestedJobCCauseDetails
+    : jobCDiagnosticDetails;
+  const diagnosticPositionList = (field: string) => {
+    const value = read(jobCAxialPositionDetails, field);
+    return Array.isArray(value)
+      ? value.filter(item => typeof item === "number" && Number.isInteger(item)) as number[]
+      : [];
+  };
+  const duplicateJobCAxialPositions = diagnosticPositionList("duplicateStageFromFeedEndPositions");
+  const missingJobCAxialPositions = diagnosticPositionList("missingStageFromFeedEndPositions");
+  const unexpectedJobCAxialPositions = diagnosticPositionList("unexpectedStageFromFeedEndPositions");
+  const invalidJobCAxialContactIndexes = diagnosticPositionList("invalidStageFromFeedEndContactIndexes");
+  const hasJobCAxialPositionDiagnostics = [
+    duplicateJobCAxialPositions,
+    missingJobCAxialPositions,
+    unexpectedJobCAxialPositions,
+    invalidJobCAxialContactIndexes,
+  ].some(values => values.length > 0);
 
   return (
     <Layout>
@@ -530,6 +562,14 @@ export default function EcrPrePilotDesignStage4Page() {
               <h2 className="mt-1 text-sm font-semibold">Job-C calculation blocked</h2>
               <p className="mt-1 font-mono text-[10px]">{stringValue(read(jobCDiagnostic, "error", "message", "status"))}</p>
               <p className="mt-1 text-xs">The server did not return a calculated compartment result. No active height is shown.</p>
+              {hasJobCAxialPositionDiagnostics && <div className="mt-3 rounded border border-violet-300 bg-white p-3 text-xs leading-5">
+                <p className="font-semibold">Stage-2 axial contact positions requiring attention</p>
+                {duplicateJobCAxialPositions.length > 0 && <p>Duplicate positions: <span className="font-mono">{duplicateJobCAxialPositions.join(", ")}</span></p>}
+                {missingJobCAxialPositions.length > 0 && <p>Missing positions: <span className="font-mono">{missingJobCAxialPositions.join(", ")}</span></p>}
+                {unexpectedJobCAxialPositions.length > 0 && <p>Unexpected positions: <span className="font-mono">{unexpectedJobCAxialPositions.join(", ")}</span></p>}
+                {invalidJobCAxialContactIndexes.length > 0 && <p>Invalid position values at contact rows: <span className="font-mono">{invalidJobCAxialContactIndexes.join(", ")}</span></p>}
+                <p className="mt-1 text-[10px] text-violet-800">Repair or investigate the pinned Stage-2 source record. Job C will not invent or repeat contacts.</p>
+              </div>}
               <details className="mt-2" open><summary className="cursor-pointer text-xs font-semibold">Job-C error details and input audit · scientific diagnostics</summary><pre className="mt-2 max-h-72 overflow-auto rounded bg-white p-3 text-[10px]">{JSON.stringify({ error: read(jobCDiagnostic, "error", "message"), scientificDiagnostics: read(jobCDiagnostic, "scientificDiagnostics", "diagnostics"), details: read(jobCDiagnostic, "details"), inputAudit: read(object(read(jobCDiagnostic, "details")), "inputAudit") ?? read(jobCDiagnostic, "inputAudit"), result: jobCDiagnostic }, null, 2)}</pre></details>
             </section>}
             <section className="grid gap-3 lg:grid-cols-[1.35fr_.65fr]">

@@ -447,6 +447,56 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
     expect(text).not.toContain("2.4 m");
   });
 
+  it("shows the exact malformed Stage-2 axial positions in a blocked Job C result", () => {
+    const markup = renderWithStates([
+      design,
+      null,
+      jobBResponse(),
+      false,
+      null,
+      null,
+      null,
+      null,
+      {
+        diagnostics: {
+          cause: "JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_UNAVAILABLE",
+          causeDetails: {
+            duplicateStageFromFeedEndPositions: [6],
+            missingStageFromFeedEndPositions: [7],
+            unexpectedStageFromFeedEndPositions: [8],
+            invalidStageFromFeedEndContactIndexes: [],
+          },
+        },
+        error: "JOB_C_DEPENDENCY_BLOCKED:STALE_OR_INVALID_LINEAGE",
+      },
+      {
+        jobId: "job-c-axial-block",
+        status: "blocked",
+        progress: { phase: "terminal", completed: 1, total: 1 },
+        result: {
+          diagnostics: {
+            cause: "JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_UNAVAILABLE",
+            causeDetails: {
+              duplicateStageFromFeedEndPositions: [6],
+              missingStageFromFeedEndPositions: [7],
+              unexpectedStageFromFeedEndPositions: [8],
+              invalidStageFromFeedEndContactIndexes: [],
+            },
+          },
+        },
+        error: "JOB_C_DEPENDENCY_BLOCKED:STALE_OR_INVALID_LINEAGE",
+      },
+    ]);
+    const text = visibleText(markup);
+
+    expect(text).toContain("Stage-2 axial contact positions requiring attention");
+    expect(text).toContain("Duplicate positions: 6");
+    expect(text).toContain("Missing positions: 7");
+    expect(text).toContain("Unexpected positions: 8");
+    expect(text).toContain("Job C will not invent or repeat contacts");
+    expect(text).not.toContain("Calculated active height");
+  });
+
   it("renders retained background progress and an available Stop action", () => {
     const markup = renderWithStates([
       design,

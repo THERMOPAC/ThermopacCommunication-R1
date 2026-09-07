@@ -156,6 +156,110 @@ describe('Job B governed Stage-2 incoming boundary loader', () => {
     expect(result.axialLocalContacts).toHaveLength(1);
   });
 
+  it.each([
+    ['duplicate', [1, 2, 3, 4, 5, 6, 6], [6], [7], []],
+    ['gap', [1, 2, 3, 4, 5, 6, 8], [], [7], [8]],
+  ])('preserves exact %s positions and blocks before validating malformed contact payloads', (
+    _,
+    positions,
+    duplicatePositions,
+    missingPositions,
+    unexpectedPositions,
+  ) => {
+    const row = sourceRow() as any;
+    const trial = row.result_snapshot.trials[0];
+    trial.stageCount = 7;
+    trial.stages = positions.map((stageFromFeedEnd, index) => index === 0
+      ? { ...trial.stages[0], stageFromFeedEnd }
+      : {
+        stageFromFeedEnd,
+        accepted: true,
+        extractIncoming: null,
+        raffinateIncoming: null,
+      });
+    const boundary = extractJobCGlobalBoundaryState({
+      row,
+      currentStage1: currentStage1(),
+      requestedNT: 7,
+      currentEngineHash: engineHash,
+      expectedProvenance: {
+        stage2JobId: row.id,
+        resultSnapshotHash: jobBBoundarySourceResultHash(row.result_snapshot),
+        engineHash,
+        modelHash: PRE_PILOT_MULTISTAGE_MODEL.modelHash,
+        stage1ImmutableHash: stage1Hash,
+        sourceStageCount: 7,
+      },
+    });
+    expect(boundary.axialLocalContactProfileComplete).toBe(false);
+    expect(boundary.axialLocalContacts.map(contact => contact.stageFromFeedEnd))
+      .toEqual(positions);
+    expect(() => prepareJobCAxialLocalContactProfile(
+      boundary.axialLocalContacts,
+      boundary.axialLocalContactProfileComplete,
+      true,
+      h('9'),
+    )).toThrowError(expect.objectContaining({
+      message: 'JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_UNAVAILABLE',
+      details: expect.objectContaining({
+        recordedStageFromFeedEndPositions: positions,
+        duplicateStageFromFeedEndPositions: duplicatePositions,
+        missingStageFromFeedEndPositions: missingPositions,
+        unexpectedStageFromFeedEndPositions: unexpectedPositions,
+      }),
+    }));
+  });
+
+  it('reports an invalid axial value at its original Stage-2 source row', () => {
+    const row = sourceRow() as any;
+    const trial = row.result_snapshot.trials[0];
+    const validStageOne = trial.stages[0];
+    const positions = [undefined, 1, 2, 3, 4, 5, 6];
+    trial.stageCount = 7;
+    trial.stages = positions.map(stageFromFeedEnd => stageFromFeedEnd === 1
+      ? { ...validStageOne, stageFromFeedEnd }
+      : {
+        stageFromFeedEnd,
+        accepted: true,
+        extractIncoming: null,
+        raffinateIncoming: null,
+      });
+    const boundary = extractJobCGlobalBoundaryState({
+      row,
+      currentStage1: currentStage1(),
+      requestedNT: 7,
+      currentEngineHash: engineHash,
+      expectedProvenance: {
+        stage2JobId: row.id,
+        resultSnapshotHash: jobBBoundarySourceResultHash(row.result_snapshot),
+        engineHash,
+        modelHash: PRE_PILOT_MULTISTAGE_MODEL.modelHash,
+        stage1ImmutableHash: stage1Hash,
+        sourceStageCount: 7,
+      },
+    });
+    expect(boundary.axialLocalContacts.map(contact => contact.sourceRowIndex))
+      .toEqual([2, 3, 4, 5, 6, 7, 1]);
+    try {
+      prepareJobCAxialLocalContactProfile(
+        boundary.axialLocalContacts,
+        boundary.axialLocalContactProfileComplete,
+        true,
+        h('9'),
+      );
+      throw new Error('expected invalid axial position dependency block');
+    } catch (error) {
+      expect(error).toMatchObject({
+        message: 'JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_UNAVAILABLE',
+        details: {
+          recordedStageFromFeedEndPositions: positions,
+          missingStageFromFeedEndPositions: [7],
+          invalidStageFromFeedEndContactIndexes: [1],
+        },
+      });
+    }
+  });
+
   it('retains requested N_T=7 while explicitly selecting the only recorded N=1 trial', () => {
     const result = extract();
     expect(result).toMatchObject({
@@ -414,6 +518,18 @@ describe('Job C axial local-contact profile preparation', () => {
           details: {
             requiredRecordedContacts: 7,
             recordedContacts,
+            expectedStageFromFeedEndPositions: [1, 2, 3, 4, 5, 6, 7],
+            recordedStageFromFeedEndPositions: Array.from(
+              { length: recordedContacts },
+              (_, index) => index + 1,
+            ),
+            duplicateStageFromFeedEndPositions: [],
+            missingStageFromFeedEndPositions: Array.from(
+              { length: 7 - recordedContacts },
+              (_, index) => recordedContacts + index + 1,
+            ),
+            unexpectedStageFromFeedEndPositions: [],
+            invalidStageFromFeedEndContactIndexes: [],
             repeatedOrInventedContactsPermitted: false,
             heightClaimed: false,
           },
@@ -440,9 +556,15 @@ describe('Job C axial local-contact profile preparation', () => {
   });
 
   it.each([
-    ['duplicate', [1, 2, 3, 4, 5, 6, 6]],
-    ['gap', [1, 2, 3, 4, 5, 6, 8]],
-  ])('rejects a full-length profile with a %s axial position before mapping', (_, positions) => {
+    ['duplicate', [1, 2, 3, 4, 5, 6, 6], [6], [7], []],
+    ['gap', [1, 2, 3, 4, 5, 6, 8], [], [7], [8]],
+  ])('rejects a full-length profile with a %s axial position before mapping', (
+    _,
+    positions,
+    duplicatePositions,
+    missingPositions,
+    unexpectedPositions,
+  ) => {
     let profileMappingEntered = false;
     const contacts = positions.map(stageFromFeedEnd => ({
       stageFromFeedEnd,
@@ -467,6 +589,12 @@ describe('Job C axial local-contact profile preparation', () => {
         details: {
           requiredRecordedContacts: 7,
           recordedContacts: 7,
+            expectedStageFromFeedEndPositions: [1, 2, 3, 4, 5, 6, 7],
+            recordedStageFromFeedEndPositions: positions,
+            duplicateStageFromFeedEndPositions: duplicatePositions,
+            missingStageFromFeedEndPositions: missingPositions,
+            unexpectedStageFromFeedEndPositions: unexpectedPositions,
+            invalidStageFromFeedEndContactIndexes: [],
           repeatedOrInventedContactsPermitted: false,
           heightClaimed: false,
         },

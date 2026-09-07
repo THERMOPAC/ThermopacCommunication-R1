@@ -604,14 +604,63 @@ export function prepareJobCAxialLocalContactProfile(
   stage2ResultSnapshotHash: string,
 ) {
   const targetCells = 7;
-  const axialPositionsComplete = Array.isArray(sourceContacts)
-    && sourceContacts.every((contact, index) => contact?.stageFromFeedEnd === index + 1);
+  const contacts = Array.isArray(sourceContacts) ? sourceContacts : [];
+  const diagnosticContacts = contacts.map((contact, index) => ({
+    contact,
+    sourceRowIndex: Number.isInteger(contact?.sourceRowIndex)
+      && Number(contact.sourceRowIndex) > 0
+      ? Number(contact.sourceRowIndex)
+      : index + 1,
+  })).sort((left, right) => left.sourceRowIndex - right.sourceRowIndex);
+  const requiredAxialPositions = Math.max(targetCells, contacts.length);
+  const expectedStageFromFeedEndPositions = Array.from(
+    { length: requiredAxialPositions },
+    (_, index) => index + 1,
+  );
+  const recordedStageFromFeedEndPositions = diagnosticContacts.map(({ contact }) =>
+    contact?.stageFromFeedEnd);
+  const validRecordedPositions = recordedStageFromFeedEndPositions.filter(
+    (position): position is number =>
+      Number.isInteger(position) && position > 0,
+  );
+  const positionCounts = new Map<number, number>();
+  for (const position of validRecordedPositions) {
+    positionCounts.set(position, (positionCounts.get(position) ?? 0) + 1);
+  }
+  const duplicateStageFromFeedEndPositions = [...positionCounts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([position]) => position)
+    .sort((a, b) => a - b);
+  const expectedPositionSet = new Set(expectedStageFromFeedEndPositions);
+  const recordedPositionSet = new Set(validRecordedPositions);
+  const missingStageFromFeedEndPositions = expectedStageFromFeedEndPositions
+    .filter(position => !recordedPositionSet.has(position));
+  const unexpectedStageFromFeedEndPositions = [...recordedPositionSet]
+    .filter(position => !expectedPositionSet.has(position))
+    .sort((a, b) => a - b);
+  const invalidStageFromFeedEndContactIndexes = diagnosticContacts
+    .map(({ contact, sourceRowIndex }) =>
+      Number.isInteger(contact?.stageFromFeedEnd) && Number(contact.stageFromFeedEnd) > 0
+        ? null
+        : sourceRowIndex)
+    .filter((index): index is number => index !== null);
+  const axialPositionsComplete = contacts.length >= targetCells
+    && missingStageFromFeedEndPositions.length === 0
+    && duplicateStageFromFeedEndPositions.length === 0
+    && unexpectedStageFromFeedEndPositions.length === 0
+    && invalidStageFromFeedEndContactIndexes.length === 0;
   if (!axialLocalContactProfileComplete
-    || !Array.isArray(sourceContacts) || sourceContacts.length < targetCells
+    || !Array.isArray(sourceContacts) || contacts.length < targetCells
     || !axialPositionsComplete) {
     throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_UNAVAILABLE', {
       requiredRecordedContacts: targetCells,
-      recordedContacts: Array.isArray(sourceContacts) ? sourceContacts.length : 0,
+      recordedContacts: contacts.length,
+      expectedStageFromFeedEndPositions,
+      recordedStageFromFeedEndPositions,
+      duplicateStageFromFeedEndPositions,
+      missingStageFromFeedEndPositions,
+      unexpectedStageFromFeedEndPositions,
+      invalidStageFromFeedEndContactIndexes,
       repeatedOrInventedContactsPermitted: false,
       heightClaimed: false,
     });
@@ -620,9 +669,9 @@ export function prepareJobCAxialLocalContactProfile(
     && value.every(item => typeof item === 'number' && Number.isFinite(item) && item >= 0)
     && Math.abs(value.reduce((sum, item) => sum + item, 0) - 1) <= 1e-10;
   const profile = Array.from({ length: targetCells }, (_, index) => {
-    const first = Math.floor(index * sourceContacts.length / targetCells);
-    const exclusiveLast = Math.floor((index + 1) * sourceContacts.length / targetCells);
-    const bin = sourceContacts.slice(first, Math.max(first + 1, exclusiveLast));
+    const first = Math.floor(index * contacts.length / targetCells);
+    const exclusiveLast = Math.floor((index + 1) * contacts.length / targetCells);
+    const bin = contacts.slice(first, Math.max(first + 1, exclusiveLast));
     const continuousRows = bin.map(contact =>
       nmpContinuous ? contact.extractIncoming.moleFractions
         : contact.raffinateIncoming.moleFractions);

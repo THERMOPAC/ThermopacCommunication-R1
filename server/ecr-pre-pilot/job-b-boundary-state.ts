@@ -346,20 +346,40 @@ export function extractJobCGlobalBoundaryState(args: {
     `result_snapshot.trials[stageCount=${trial.stageCount}].boundaryStreams.freshWetSolvent`;
   assertBoundaryStream(trial.boundaryStreams?.oilFeed, oilPath);
   assertBoundaryStream(trial.boundaryStreams?.freshWetSolvent, solventPath);
-  const orderedStages = [...trial.stages].sort(
-    (left: JsonRecord, right: JsonRecord) =>
-      Number(left.stageFromFeedEnd) - Number(right.stageFromFeedEnd),
-  );
+  const indexedStages = (Array.isArray(trial.stages) ? trial.stages : [])
+    .map((candidate: JsonRecord, sourceIndex: number) => ({ candidate, sourceIndex }));
+  const orderedStages = indexedStages.sort((left, right) => {
+    const leftPosition = left.candidate?.stageFromFeedEnd;
+    const rightPosition = right.candidate?.stageFromFeedEnd;
+    const leftValid = Number.isInteger(leftPosition) && Number(leftPosition) > 0;
+    const rightValid = Number.isInteger(rightPosition) && Number(rightPosition) > 0;
+    if (leftValid && rightValid) {
+      return Number(leftPosition) - Number(rightPosition)
+        || left.sourceIndex - right.sourceIndex;
+    }
+    if (leftValid !== rightValid) return leftValid ? -1 : 1;
+    return left.sourceIndex - right.sourceIndex;
+  });
   const axialLocalContactProfileComplete = orderedStages.length === trial.stageCount
-    && orderedStages.every((candidate: JsonRecord, index: number) =>
+    && orderedStages.every(({ candidate }, index: number) =>
       candidate.stageFromFeedEnd === index + 1);
-  const axialLocalContacts = orderedStages.map((candidate: JsonRecord, index: number) => {
+  const axialLocalContacts = orderedStages.map(({ candidate, sourceIndex }) => {
+    const recordedPosition = candidate?.stageFromFeedEnd;
     const base = `result_snapshot.trials[stageCount=${trial.stageCount}]`
-      + `.stages[stageFromFeedEnd=${index + 1}]`;
+      + `.stages[sourceIndex=${sourceIndex + 1},stageFromFeedEnd=${String(recordedPosition)}]`;
+    if (!axialLocalContactProfileComplete) {
+      return Object.freeze({
+        stageFromFeedEnd: recordedPosition,
+        sourceRowIndex: sourceIndex + 1,
+        source: 'PINNED_STAGE2_RECORDED_LOCAL_INCOMING_CONTACT' as const,
+        propertyPath: base,
+      });
+    }
     assertBoundaryStream(candidate.extractIncoming, `${base}.extractIncoming`);
     assertBoundaryStream(candidate.raffinateIncoming, `${base}.raffinateIncoming`);
     return Object.freeze({
-      stageFromFeedEnd: index + 1,
+      stageFromFeedEnd: recordedPosition,
+      sourceRowIndex: sourceIndex + 1,
       source: 'PINNED_STAGE2_RECORDED_LOCAL_INCOMING_CONTACT' as const,
       extractIncoming: Object.freeze(candidate.extractIncoming),
       raffinateIncoming: Object.freeze(candidate.raffinateIncoming),
