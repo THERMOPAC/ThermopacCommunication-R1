@@ -18,7 +18,13 @@ const TIMEOUT_MS = Math.max(Number(process.env.JOB_C_TIMEOUT_MS ?? 900_000), 600
 let started = false;
 let busy = false;
 
-function publicJob(row: any) {
+type EnqueueReuse = {
+  reused: boolean;
+  reason: 'UNCHANGED_TERMINAL_BLOCKED_JOB_C' | 'NEW_JOB_ENQUEUED';
+  evidence: Record<string, string>;
+};
+
+function publicJob(row: any, reuse?: EnqueueReuse) {
   return {
     id: row.id,
     designId: Number(row.design_id),
@@ -42,6 +48,7 @@ function publicJob(row: any) {
     createdAt: new Date(row.created_at).toISOString(),
     startedAt: row.started_at ? new Date(row.started_at).toISOString() : null,
     completedAt: row.completed_at ? new Date(row.completed_at).toISOString() : null,
+    ...(reuse ? { reuse } : {}),
   };
 }
 
@@ -68,21 +75,124 @@ export async function enqueueJobC(userId: number, designId: number) {
     prepared,
   };
   const inputHash = jobCResultHash(snapshot) as string;
+  const preparedInputHash = jobCResultHash(prepared) as string;
   const artifacts = currentJobCArtifactHashes();
-  const jobBEngineHash = String((prepared.responseBasis as any).dependencies
+  const dependencies = (prepared.responseBasis as any).dependencies;
+  const jobBEngineHash = String(dependencies
     ?.jobBInterfaceWorkerSha256 ?? '');
   if (!/^[a-f0-9]{64}$/.test(jobBEngineHash)) {
     throw new Error('JOB_C_DEPENDENCY_BLOCKED:JOB_B_ENGINE_HASH_MISSING');
   }
+  const boundaryQualifierHash = String(
+    dependencies?.jobCBoundaryInterfaceQualifierSha256 ?? '',
+  );
+  const boundarySourceStateHash = String(
+    dependencies?.boundaryBranchSourceStateSha256 ?? '',
+  );
+  if (boundaryQualifierHash !== artifacts.boundaryQualifierHash
+    || !/^[a-f0-9]{64}$/.test(boundarySourceStateHash)) {
+    throw new Error('JOB_C_DEPENDENCY_BLOCKED:BOUNDARY_LINEAGE_HASH_MISSING');
+  }
+  const frozenDependencyLineageHash = jobCResultHash(dependencies) as string;
+  const evidence = {
+    inputHash,
+    preparedInputHash,
+    implementationHash: artifacts.implementationHash,
+    candidateHash: artifacts.candidateHash,
+    jobBInterfaceWorkerHash: jobBEngineHash,
+    boundaryQualifierHash,
+    boundarySourceStateHash,
+    frozenDependencyLineageHash,
+  };
   const id = randomUUID();
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    // Serialize reuse decisions in the authenticated design scope. In
+    // particular, simultaneous retries cannot both miss the same blocked row
+    // and append duplicate work. This requires no mutable deduplication column
+    // or uniqueness constraint and leaves every historical job immutable.
+    await client.query(
+      `SELECT pg_advisory_xact_lock(
+         hashtextextended('ecr-pre-pilot-job-c:' || $1::text || ':' || $2::text, 0)
+       )`,
+      [userId, designId],
+    );
     const design = await client.query(
       'SELECT id FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2 FOR SHARE',
       [designId, userId],
     );
     if (!design.rows[0]) throw new Error('ECR_PRE_PILOT_DESIGN_NOT_FOUND');
+    const reusable = await client.query(
+      `SELECT * FROM ecr_pre_pilot_job_c_jobs
+        WHERE created_by=$1 AND design_id=$2
+          AND status='blocked' AND completed_at IS NOT NULL
+          AND result_snapshot IS NOT NULL
+          AND result_hash ~ '^[a-f0-9]{64}$'
+          AND input_hash=$3 AND implementation_hash=$4
+          AND candidate_hash=$5 AND job_b_engine_hash=$6
+          AND input_snapshot#>>'{prepared,responseBasis,dependencies,jobCBoundaryInterfaceQualifierSha256}'=$7
+          AND input_snapshot#>>'{prepared,responseBasis,dependencies,boundaryBranchSourceStateSha256}'=$8
+        ORDER BY created_at DESC,id DESC LIMIT 1
+        FOR UPDATE`,
+      [
+        userId, designId, inputHash, artifacts.implementationHash,
+        artifacts.candidateHash, jobBEngineHash, boundaryQualifierHash,
+        boundarySourceStateHash,
+      ],
+    );
+    const reusableRow = reusable.rows[0];
+    const storedResultHashValid = reusableRow
+      && reusableRow.result_snapshot != null
+      && typeof reusableRow.result_hash === 'string'
+      && /^[a-f0-9]{64}$/.test(reusableRow.result_hash)
+      && jobCResultHash(reusableRow.result_snapshot) === reusableRow.result_hash;
+    if (reusableRow
+      && jobCResultHash(reusableRow.input_snapshot) === reusableRow.input_hash
+      && jobCResultHash(reusableRow.input_snapshot.prepared) === preparedInputHash
+      && jobCResultHash(
+        reusableRow.input_snapshot.prepared.responseBasis.dependencies,
+      ) === frozenDependencyLineageHash
+      && storedResultHashValid) {
+      const reuse: EnqueueReuse = {
+        reused: true,
+        reason: 'UNCHANGED_TERMINAL_BLOCKED_JOB_C',
+        evidence,
+      };
+      await history(client, reusableRow, {
+        event: 'enqueue_reused',
+        reason: reuse.reason,
+        evidence,
+      });
+      await client.query('COMMIT');
+      return publicJob(reusableRow, reuse);
+    }
+    // An active job is deliberately not returned as a reusable result. Reject
+    // the colliding enqueue instead, so concurrent first-time requests cannot
+    // duplicate execution while preserving the pending/running job semantics.
+    const active = await client.query(
+      `SELECT id,status FROM ecr_pre_pilot_job_c_jobs
+        WHERE created_by=$1 AND design_id=$2
+          AND status IN ('pending','running')
+          AND input_hash=$3 AND implementation_hash=$4
+          AND candidate_hash=$5 AND job_b_engine_hash=$6
+          AND input_snapshot#>>'{prepared,responseBasis,dependencies,jobCBoundaryInterfaceQualifierSha256}'=$7
+          AND input_snapshot#>>'{prepared,responseBasis,dependencies,boundaryBranchSourceStateSha256}'=$8
+        ORDER BY created_at DESC,id DESC LIMIT 1
+        FOR UPDATE`,
+      [
+        userId, designId, inputHash, artifacts.implementationHash,
+        artifacts.candidateHash, jobBEngineHash, boundaryQualifierHash,
+        boundarySourceStateHash,
+      ],
+    );
+    if (active.rows[0]) {
+      throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:IDENTICAL_JOB_ALREADY_ACTIVE', {
+        activeJobId: active.rows[0].id,
+        activeJobStatus: active.rows[0].status,
+        evidence,
+      });
+    }
     const inserted = await client.query(
       `INSERT INTO ecr_pre_pilot_job_c_jobs
        (id,design_id,created_by,input_snapshot,input_hash,implementation_hash,
@@ -94,7 +204,11 @@ export async function enqueueJobC(userId: number, designId: number) {
     await history(client, inserted.rows[0], { event: 'enqueued' });
     await client.query('COMMIT');
     startJobCWorker();
-    return publicJob(inserted.rows[0]);
+    return publicJob(inserted.rows[0], {
+      reused: false,
+      reason: 'NEW_JOB_ENQUEUED',
+      evidence,
+    });
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

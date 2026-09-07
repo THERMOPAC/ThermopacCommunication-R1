@@ -77,6 +77,24 @@ Any future continuation must avoid pairing opposite global inlets as a physical
 local interface and must retain the unchanged raw/scaled, stability, TPD, and
 exact-zero tangent-cone gates.
 
+A seven-cell auxiliary profile rebinned from all accepted local states of the
+pinned axial Stage-2 record also has no admissible positive continuation scale
+under the exact-zero dispersed NMP boundary. Every mapped local root reproduces
+and passes stability gates, but their integrated NMP flux is negative.
+
+**Why:** For positive geometric factor \(B\) and continuation scale \(\lambda\),
+the dispersed NMP outlet is
+\(G_{d,\mathrm{out}}=\lambda B\sum_j n_{\mathrm{NMP},j}\) when its physical
+inlet is exactly zero. A negative summed flux makes that outlet negative for
+every \(\lambda>0\); no nonlinear solver or smaller step can cross this necessary
+balance condition.
+
+**How to apply:** Treat this as a block for the frozen rebinned profile, not a
+general physical no-solution claim. Before implementing another homotopy,
+establish the governed inlet solvent inventory and independently qualify a
+spatially varying profile whose cumulative hydrocarbon prefixes and solvent
+suffixes all admit a strictly positive interval.
+
 Job-C response hashing is shared between Python and TypeScript and therefore
 uses bytewise lexicographic key ordering, not locale-aware comparison.
 

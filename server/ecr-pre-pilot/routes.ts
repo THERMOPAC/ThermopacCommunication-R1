@@ -249,7 +249,9 @@ export function setupEcrPrePilotRoutes(app: Express): void {
         return res.status(400).json({ error: 'JOB_C_ENQUEUE_BODY_PROHIBITED' });
       }
       try {
-        return res.status(202).json(await enqueueJobC(Number((req.user as any).id), designId));
+        const job = await enqueueJobC(Number((req.user as any).id), designId);
+        res.setHeader('X-Job-C-Reused', job.reuse.reused ? 'true' : 'false');
+        return res.status(202).json(job);
       } catch (error: any) {
         const message = error?.message ?? 'JOB_C_ENQUEUE_FAILED';
         const status = message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404
