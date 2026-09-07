@@ -2,9 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const state = vi.hoisted(() => ({
   prepared: {} as any,
+  prepareError: null as any,
   reusableRow: null as any,
   activeRow: null as any,
   insertedRow: null as any,
+  claimedRow: null as any,
+  terminalRow: null as any,
   queries: [] as Array<{ sql: string; values: unknown[] }>,
 }));
 
@@ -40,6 +43,33 @@ vi.mock('../server/db', () => {
     if (sql.includes('INSERT INTO ecr_pre_pilot_job_c_jobs')) {
       return { rows: [state.insertedRow] };
     }
+    if (sql.includes('WITH candidate AS (')) {
+      const row = state.claimedRow;
+      state.claimedRow = null;
+      return { rows: row ? [row] : [] };
+    }
+    if (sql.includes('SELECT d.input_data,')) {
+      return {
+        rows: [{
+          input_data: {},
+          stage3_hash: state.insertedRow.input_snapshot.prepared.responseBasis
+            .dependencies.stage3ImmutableHash,
+        }],
+      };
+    }
+    if (sql.includes('UPDATE ecr_pre_pilot_job_c_jobs SET')
+      && sql.includes("progress_phase='terminal'")) {
+      state.terminalRow = {
+        ...state.insertedRow,
+        status: values[2],
+        error: values[3],
+        result_snapshot: values[4],
+        result_hash: values[5],
+        progress_phase: 'terminal',
+        completed_at: new Date('2026-01-01T00:00:03Z'),
+      };
+      return { rows: [state.terminalRow] };
+    }
     // The immediate queue poll after a new insert finds no work in this unit
     // test; worker execution itself is outside the queue reuse contract.
     return { rows: [] };
@@ -54,12 +84,17 @@ vi.mock('../server/db', () => {
 });
 
 vi.mock('../server/ecr-pre-pilot-service', () => ({
-  prepareEcrPrePilotJobC: vi.fn(async () => state.prepared),
+  prepareEcrPrePilotJobC: vi.fn(async () => {
+    if (state.prepareError) throw state.prepareError;
+    return state.prepared;
+  }),
   executePreparedEcrPrePilotJobC: vi.fn(),
 }));
 
 vi.mock('../server/ecr-pre-pilot/stage1', () => ({
-  validateStage1Snapshot: vi.fn(),
+  validateStage1Snapshot: vi.fn(() => ({
+    immutableHash: state.prepared.responseBasis.dependencies.stage1SnapshotHash,
+  })),
 }));
 
 vi.mock('../server/ecr-pre-pilot/job-c', async (importOriginal) => {
@@ -75,7 +110,11 @@ vi.mock('../server/ecr-pre-pilot/job-c', async (importOriginal) => {
 });
 
 import { enqueueJobC } from '../server/ecr-pre-pilot/job-c-job-service';
-import { jobCResultHash } from '../server/ecr-pre-pilot/job-c';
+import { JobCError, jobCResultHash } from '../server/ecr-pre-pilot/job-c';
+import {
+  executePreparedEcrPrePilotJobC,
+  prepareEcrPrePilotJobC,
+} from '../server/ecr-pre-pilot-service';
 
 const makePrepared = (sourceStateHash = '4'.repeat(64)) => ({
   workerRequest: { inlet: 'unchanged' },
@@ -128,9 +167,14 @@ describe('Job C queue blocked-result reuse', () => {
   beforeEach(() => {
     state.queries.length = 0;
     state.prepared = makePrepared();
+    state.prepareError = null;
     state.reusableRow = makeRow(state.prepared);
     state.activeRow = null;
     state.insertedRow = makeRow(state.prepared, 'pending');
+    state.claimedRow = null;
+    state.terminalRow = null;
+    vi.mocked(prepareEcrPrePilotJobC).mockClear();
+    vi.mocked(executePreparedEcrPrePilotJobC).mockClear();
   });
 
   it('returns the unchanged latest terminal blocked row without inserting', async () => {
@@ -157,6 +201,68 @@ describe('Job C queue blocked-result reuse', () => {
     expect(state.queries.some(({ sql, values }) =>
       sql.includes('ecr_pre_pilot_job_c_job_history')
       && (values[16] as any)?.event === 'enqueue_reused')).toBe(true);
+  });
+
+  it('persists a sparse axial-profile block without creating a worker request', async () => {
+    state.reusableRow = null;
+    state.claimedRow = {
+      ...state.insertedRow,
+      status: 'running',
+      previous_status: 'pending',
+      claim_token: 'claim-sparse-profile',
+      worker_owner: 'test-owner',
+      attempt_count: 1,
+    };
+    const sparseBlock = new JobCError(
+      'JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_UNAVAILABLE',
+      {
+        requiredRecordedContacts: 7,
+        recordedContacts: 6,
+        repeatedOrInventedContactsPermitted: false,
+        heightClaimed: false,
+      },
+    );
+    vi.mocked(prepareEcrPrePilotJobC)
+      .mockResolvedValueOnce(state.prepared)
+      .mockRejectedValueOnce(sparseBlock);
+
+    const response = await enqueueJobC(11, 22);
+
+    expect(response).toMatchObject({
+      id: state.insertedRow.id,
+      designId: 22,
+      createdBy: 11,
+      status: 'pending',
+      progress: { phase: 'terminal', completed: 1, total: 1 },
+      reuse: {
+        reused: false,
+        reason: 'NEW_JOB_ENQUEUED',
+      },
+    });
+    await vi.waitFor(() => expect(state.terminalRow).not.toBeNull());
+    expect(state.terminalRow).toMatchObject({
+      status: 'blocked',
+      error: 'JOB_C_DEPENDENCY_BLOCKED:STALE_OR_INVALID_LINEAGE',
+      result_snapshot: {
+        diagnostics: {
+          reason: 'CURRENT_PINNED_DEPENDENCY_REVALIDATION_FAILED',
+          cause: 'JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_UNAVAILABLE',
+          causeDetails: {
+            requiredRecordedContacts: 7,
+            recordedContacts: 6,
+            repeatedOrInventedContactsPermitted: false,
+            heightClaimed: false,
+          },
+        },
+      },
+    });
+    expect(executePreparedEcrPrePilotJobC).not.toHaveBeenCalled();
+    expect(state.queries.some(({ sql, values }) =>
+      sql.includes('ecr_pre_pilot_job_c_job_history')
+      && (values[16] as any)?.event === 'blocked'
+      && (values[16] as any)?.diagnostics?.cause
+        === 'JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_UNAVAILABLE'))
+      .toBe(true);
   });
 
   it('does not reuse when frozen boundary/dependency input changes', async () => {
