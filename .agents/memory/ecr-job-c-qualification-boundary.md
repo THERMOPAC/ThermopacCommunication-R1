@@ -54,14 +54,25 @@ frozen-flux FV subsystem to close. An unconstrained root may be calculated only
 to identify which phase/component flows violate positivity; it must never seed
 or qualify the coupled solve even when its residual closes.
 
-**Why:** A nominal inlet-flux benchmark closed the frozen FV equations only by
-making components absent from the dispersed inlet negative. Promoting that root
-would hide a boundary/source-direction problem behind excellent residuals.
+The signed counter-current balances use positive flux for
+continuous-to-dispersed transfer. Their integrated outlets are
+continuous feed minus total transfer and dispersed feed plus total transfer.
+Replaying the pinned Job-B model at the global inlet produced a frozen root that
+would make the dispersed solvent-component outlets negative. Reversing the
+source sign instead makes the zero-feed continuous hydrocarbon outlets negative,
+so neither source signs nor counter-current boundary ownership are the defect.
 
-**How to apply:** Persist the bounded attempts, finite-difference sparsity audit,
-and unconstrained negative-flow list as diagnostic evidence, then stop before
-interface refresh. Do not call this physical infeasibility until the Job-B flux
-orientation and counter-current boundary ownership are independently resolved.
+**Why:** Repeating one global-inlet Job-B flux across every cell is incompatible
+with the component-accessible inlet boundaries in either sign. This diagnoses
+the fixed-global-inlet frozen-flux approximation, not physical infeasibility of
+the full local-state transport problem.
+
+**How to apply:** Before interface refresh or the square coupled solve, replay
+the pinned inlet Job-B result, tabulate both signed film fluxes, and evaluate the
+integrated outlet positivity condition in both the recorded and sign-reversed
+directions. Stop with diagnostic-only evidence if either phase has a nonpositive
+implied outlet. Resume continuation only from a positive, closed local-flux
+state without changing the original raw/scaled acceptance tolerances.
 
 Job-C response hashing is shared between Python and TypeScript and therefore
 uses bytewise lexicographic key ordering, not locale-aware comparison.

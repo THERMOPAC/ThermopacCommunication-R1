@@ -134,4 +134,67 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(worker).toContain('max_nfev=160');
     expect(worker).toContain('return np.r_[scaled_fv,ev["interface"]]');
   });
+
+  it('reproduces the signed design-269 inlet flux and rejects either invalid source sign', () => {
+    const components = ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'];
+    const continuousToDispersedFluxMolM2S = [
+      -2.8752774456044256e-3,
+      -2.4155889258078503e-4,
+      -1.13853323500583e-4,
+      -3.513605494607725e-5,
+      -1.2796669062034185e-5,
+      -5.0633159008829556e-5,
+      -1.4160839270758237e-5,
+    ];
+    const continuousFeedMolS = [0, 0, 0, 0, 0, 4.846724298541135, 0.4061367165354447];
+    const dispersedFeedMolS = [
+      4.868190306515299, 0.5681555559253281, 0.27442347433402103,
+      0.0964699788831831, 0.04810668945981338, 0, 0,
+    ];
+    const heightM = 2;
+    const lambda = 0.00125;
+    const diameterM = 0.8686867763858619;
+    const holdup = 0.08522716012839626;
+    const d32M = 0.003031929110308221;
+    const interfacialAreaAcrossColumnM2 = (
+      6 * holdup / d32M
+      * Math.PI * diameterM ** 2 / 4
+      * heightM
+    );
+    const transfer = continuousToDispersedFluxMolM2S.map(
+      flux => lambda * flux * interfacialAreaAcrossColumnM2,
+    );
+    const continuousOutlet = continuousFeedMolS.map((flow, index) => flow - transfer[index]);
+    const dispersedOutlet = dispersedFeedMolS.map((flow, index) => flow + transfer[index]);
+    expect(dispersedOutlet[components.indexOf('NMP')]).toBeLessThan(0);
+    expect(dispersedOutlet[components.indexOf('H2O')]).toBeLessThan(0);
+    // Flipping the B→C source sign is not a repair: it makes all five
+    // zero-feed continuous hydrocarbon outlets negative instead.
+    const reversedContinuousOutlet = continuousFeedMolS.map(
+      (flow, index) => flow + transfer[index],
+    );
+    expect(reversedContinuousOutlet.slice(0, 5).every(flow => flow < 0)).toBe(true);
+    expect(continuousOutlet.slice(0, 5).every(flow => flow > 0)).toBe(true);
+  });
+
+  it('requires positive closed frozen FV flows before refresh or the 189-equation solve', () => {
+    const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
+    expect(worker).toContain('JOB_C_FROZEN_FV_POSITIVITY_GATE_FAILED');
+    expect(worker).toContain('positiveGlobalOutletNecessaryConditionPassed');
+    expect(worker).toContain('sourceSignReversalWouldResolveAllBoundaries');
+    expect(worker).toContain('"physicalInfeasibilityClaimed":False');
+    expect(worker).toContain('frozen_acceptance=require_positive_frozen_solution(');
+    const acceptance = worker.indexOf(
+      'frozen_acceptance=require_positive_frozen_solution(',
+    );
+    const refresh = worker.indexOf(
+      'before_refresh=np.r_[predicted_flows,x[14*m:]]',
+    );
+    const monolithic = worker.indexOf(
+      'fit=scipy.optimize.least_squares(lambda q:residual(q,lam),x,',
+    );
+    expect(acceptance).toBeGreaterThan(-1);
+    expect(acceptance).toBeLessThan(refresh);
+    expect(acceptance).toBeLessThan(monolithic);
+  });
 });

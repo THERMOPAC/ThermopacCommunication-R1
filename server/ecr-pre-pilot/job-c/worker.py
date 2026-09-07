@@ -32,7 +32,74 @@ class JobCBlocked(RuntimeError):
         super().__init__(code)
         self.code, self.diagnostics = code, diagnostics
 
+def flux_direction(value, tolerance=1e-15):
+    if value > tolerance: return "CONTINUOUS_TO_DISPERSED"
+    if value < -tolerance: return "DISPERSED_TO_CONTINUOUS"
+    return "ZERO_WITHIN_TOLERANCE"
+
+def frozen_boundary_audit(np, feedc, feedd, nc, nd, transfer):
+    """Necessary global outlet positivity implied by the signed FV balances."""
+    nc,nd=np.asarray(nc),np.asarray(nd)
+    transfer=np.asarray(transfer)
+    continuous_out=np.asarray(feedc)-np.sum(transfer,axis=0)
+    dispersed_out=np.asarray(feedd)+np.sum(transfer,axis=0)
+    reversed_transfer=-transfer
+    reversed_continuous_out=np.asarray(feedc)-np.sum(reversed_transfer,axis=0)
+    reversed_dispersed_out=np.asarray(feedd)+np.sum(reversed_transfer,axis=0)
+    rows=[]
+    for i,component in enumerate(COMPONENTS):
+        rows.append({"component":component,
+          "continuousComponentFluxMolM2S":float(nc[i]),
+          "dispersedComponentFluxMolM2S":float(nd[i]),
+          "continuousToDispersedSignConvention":flux_direction(float(nc[i])),
+          "filmFluxEqualityResidualMolM2S":float(nc[i]-nd[i]),
+          "frozenTransferAcrossSevenCellsMolS":float(np.sum(transfer[:,i])),
+          "governedContinuousInletMolS":float(feedc[i]),
+          "governedDispersedInletMolS":float(feedd[i]),
+          "impliedContinuousOutletMolS":float(continuous_out[i]),
+          "impliedDispersedOutletMolS":float(dispersed_out[i])})
+    violations=[
+      {"phase":phase,"component":COMPONENTS[i],"impliedOutletMolS":float(value)}
+      for phase,values in (("continuous",continuous_out),("dispersed",dispersed_out))
+      for i,value in enumerate(values) if value<=0]
+    reversed_violations=[
+      {"phase":phase,"component":COMPONENTS[i],"impliedOutletMolS":float(value)}
+      for phase,values in (
+        ("continuous",reversed_continuous_out),("dispersed",reversed_dispersed_out))
+      for i,value in enumerate(values) if value<=0]
+    return {"componentFluxTable":rows,
+      "continuousToDispersedSignConvention":
+        "POSITIVE_NC_REMOVES_FROM_CONTINUOUS_AND_ADDS_TO_DISPERSED",
+      "counterCurrentBoundaryOrientation":{
+        "continuousSignedInletFaceFlux":"fc[0] = +continuousFeedMolS",
+        "dispersedSignedInletFaceFlux":"fd[m] = -dispersedFeedMolS",
+        "continuousCellBalance":"fc[j] - fc[j+1] - transfer[j] = 0",
+        "dispersedCellBalance":"fd[j] - fd[j+1] + transfer[j] = 0",
+        "integratedContinuousOutlet":"continuousFeedMolS - sum(transfer)",
+        "integratedDispersedOutlet":"dispersedFeedMolS + sum(transfer)"},
+      "impliedContinuousOutletMolS":continuous_out.tolist(),
+      "impliedDispersedOutletMolS":dispersed_out.tolist(),
+      "nonpositiveImpliedOutlets":violations,
+      "sourceSignReversalNonpositiveImpliedOutlets":reversed_violations,
+      "sourceSignReversalWouldResolveAllBoundaries":len(reversed_violations)==0,
+      "positiveGlobalOutletNecessaryConditionPassed":len(violations)==0,
+      "signAndBoundaryOrientationConclusion":
+        "B_TO_C_SOURCE_SIGNS_AND_COUNTERCURRENT_BOUNDARIES_ANALYTICALLY_CONSERVATIVE",
+      "negativeFlowOrigin":
+        "FIXED_GLOBAL_INLET_FLUX_APPROXIMATION_REPEATS_A_BOUNDARY_INCOMPATIBLE_JOB_B_ROOT",
+      "physicalInfeasibilityClaimed":False}
+
+def require_positive_frozen_solution(np, flow_vector, raw_max, scaled_max):
+    minimum=float(np.min(flow_vector))
+    accepted=(minimum>0 and raw_max<=1e-7 and scaled_max<=1e-7)
+    return {"accepted":accepted,"minimumFlowMolS":minimum,
+      "rawFvResidualMolS":raw_max,"scaledFvResidual":scaled_max,
+      "maximumAllowedRawFvResidualMolS":1e-7,
+      "maximumAllowedScaledFvResidual":1e-7,
+      "requiredBefore":"INTERFACE_REFRESH_OR_189_EQUATION_SOLVE"}
+
 def case(r, name, dc, dd, solvers):
+    np=solvers[0].np
     m=r["compartments"]; A=math.pi*r["columnDiameterM"]**2/4
     feedc=[float(x) for x in r["continuousFeedMolS"]]; feedd=[float(x) for x in r["dispersedFeedMolS"]]
     if m<1 or min(sum(feedc),sum(feedd))<=0 or any(len(x)!=7 for x in [feedc,feedd,r["kc"],r["kd"]]):
@@ -40,6 +107,26 @@ def case(r, name, dc, dd, solvers):
     budget={"calls":0,"residualCalls":0,"started":time.monotonic(),
             "maximumSeconds":720}
     accepted_by_height={}
+    inlet_xc=np.asarray(feedc)/sum(feedc)
+    inlet_xd=np.asarray(feedd)/sum(feedd)
+    inlet_request={"protocol":"ECR_JOB_B_INTERFACE_V1","operation":"SOLVE_INTERFACE",
+      "componentOrder":list(COMPONENTS),"T":r["temperatureK"],
+      "x_bulk_continuous":inlet_xc.tolist(),
+      "x_bulk_dispersed":inlet_xd.tolist(),"kc":r["kc"],"kd":r["kd"],
+      "CtC":r["continuousTotalConcentrationMolM3"],
+      "CtD":r["dispersedTotalConcentrationMolM3"],
+      "phase_config":r["phaseConfiguration"]}
+    inlet_job_b=job_b.solve(inlet_request)
+    if inlet_job_b.get("status")!="CALCULATED_PRELIMINARY_INTERFACE":
+        raise JobCBlocked("JOB_C_GLOBAL_INLET_JOB_B_REPRODUCTION_FAILED",
+          {"jobBStatus":inlet_job_b.get("status"),
+           "jobBError":inlet_job_b.get("error"),
+           "startDiagnostics":inlet_job_b.get("startDiagnostics"),
+           "endpointAssessments":inlet_job_b.get("endpointAssessments")})
+    inlet_nc=np.asarray(
+      inlet_job_b["interface"]["continuousComponentFluxMolM2S"])
+    inlet_nd=np.asarray(
+      inlet_job_b["interface"]["dispersedComponentFluxMolM2S"])
 
     def solve_height(h, warm=None):
         """Solve all 98 FV and 91 frozen Job-B equations simultaneously."""
@@ -226,6 +313,39 @@ def case(r, name, dc, dd, solvers):
                 predictor_started=time.monotonic()
                 previous=raw_evaluate(x,lam)
                 frozen_nc=np.asarray([values[4] for values in previous["details"]])
+                if history[-1]["lambda"]==0.0:
+                    candidate_inlet_nc=frozen_nc.copy()
+                    candidate_inlet_error=float(np.max(np.abs(
+                      candidate_inlet_nc-np.tile(inlet_nc,(m,1)))))
+                    inlet_flux_tolerance=max(1e-12,float(np.max(np.abs(inlet_nc)))*1e-8)
+                    if candidate_inlet_error>inlet_flux_tolerance:
+                        raise JobCBlocked("JOB_C_GLOBAL_INLET_CANDIDATE_JOB_B_MISMATCH",
+                          {"heightM":h,"lambda":lam,
+                           "maximumFluxErrorMolM2S":candidate_inlet_error,
+                           "toleranceMolM2S":inlet_flux_tolerance})
+                    frozen_nc=np.tile(inlet_nc,(m,1))
+                    inlet_transfer=lam*frozen_nc*av*A*dz
+                    inlet_flux_audit=frozen_boundary_audit(
+                      np,feedc,feedd,inlet_nc,inlet_nd,inlet_transfer)
+                    inlet_flux_audit.update({
+                      "heightM":h,"lambda":lam,
+                      "jobBStatus":inlet_job_b["status"],
+                      "jobBSelectedStartClass":
+                        inlet_job_b.get("selectedStartClass"),
+                      "jobBIndependentReproductionStartClass":
+                        inlet_job_b.get("independentReproductionStartClass"),
+                      "candidateJobBMaximumFluxErrorMolM2S":
+                        candidate_inlet_error,
+                      "qualification":
+                        "GOVERNING_JOB_B_GLOBAL_INLET_FROZEN_FLUX_BOUNDARY_AUDIT"})
+                    if not inlet_flux_audit[
+                      "positiveGlobalOutletNecessaryConditionPassed"]:
+                        raise JobCBlocked(
+                          "JOB_C_FROZEN_FV_POSITIVITY_GATE_FAILED",
+                          {"heightM":h,"lambda":lam,
+                           "inletFluxAudit":inlet_flux_audit,
+                           "qualification":
+                             "FROZEN_FLUX_BOUNDARY_DIAGNOSTIC_ONLY_NO_PHYSICAL_INFEASIBILITY_CLAIM"})
                 predictor_start=frozen_conservative_seed(x[:14*m],lam,frozen_nc)
                 sparsity_audit=audit_frozen_flow_sparsity(
                   predictor_start,lam,frozen_nc)
@@ -266,8 +386,10 @@ def case(r, name, dc, dd, solvers):
                 frozen_scaled_max=float(np.max(np.abs(
                   frozen_scaled(predicted_flows))))
                 frozen_raw_max=float(np.max(np.abs(frozen_fv)))
+                frozen_acceptance=require_positive_frozen_solution(
+                  np,predicted_flows,frozen_raw_max,frozen_scaled_max)
                 unconstrained=None
-                if max(frozen_raw_max,frozen_scaled_max)>1e-7:
+                if not frozen_acceptance["accepted"]:
                     unconstrained_fit=scipy.optimize.least_squares(
                       frozen_scaled,predicted_flows,method="lm",jac="2-point",
                       x_scale=flow_scale,max_nfev=1000,
@@ -301,6 +423,7 @@ def case(r, name, dc, dd, solvers):
                       {"heightM":h,"lambda":lam,
                        "sparsityAudit":sparsity_audit,
                        "boundedAttempts":predictor_attempts,
+                        "frozenFvAcceptance":frozen_acceptance,
                        "unconstrainedDiagnostic":unconstrained,
                        "qualification":
                          "FROZEN_FLUX_DIAGNOSTIC_ONLY_NO_PHYSICAL_INFEASIBILITY_CLAIM"})
@@ -329,6 +452,7 @@ def case(r, name, dc, dd, solvers):
                   "optimizerSuccess":bool(predictor_fit.success),
                   "solver":"DENSE_EXACT_TRF_FINITE_DIFFERENCE_JACOBIAN",
                   "boundedAttempts":predictor_attempts,
+                  "frozenFvAcceptance":frozen_acceptance,
                   "unconstrainedDiagnostic":unconstrained,
                   "sparsityAudit":sparsity_audit,
                   "frozenFluxRawFvResidualMolS":frozen_raw_max,
