@@ -597,6 +597,59 @@ export async function evaluateEcrPrePilotJobB(userId: number, designId: number) 
     (stage3.result as any).processBasis?.phaseConfiguration);
 }
 
+export function prepareJobCAxialLocalContactProfile(
+  sourceContacts: readonly any[],
+  axialLocalContactProfileComplete: boolean,
+  nmpContinuous: boolean,
+  stage2ResultSnapshotHash: string,
+) {
+  const targetCells = 7;
+  if (!axialLocalContactProfileComplete
+    || !Array.isArray(sourceContacts) || sourceContacts.length < targetCells) {
+    throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_UNAVAILABLE', {
+      requiredRecordedContacts: targetCells,
+      recordedContacts: Array.isArray(sourceContacts) ? sourceContacts.length : 0,
+      repeatedOrInventedContactsPermitted: false,
+      heightClaimed: false,
+    });
+  }
+  const normalizedSeven = (value: unknown) => Array.isArray(value) && value.length === 7
+    && value.every(item => typeof item === 'number' && Number.isFinite(item) && item >= 0)
+    && Math.abs(value.reduce((sum, item) => sum + item, 0) - 1) <= 1e-10;
+  const profile = Array.from({ length: targetCells }, (_, index) => {
+    const first = Math.floor(index * sourceContacts.length / targetCells);
+    const exclusiveLast = Math.floor((index + 1) * sourceContacts.length / targetCells);
+    const bin = sourceContacts.slice(first, Math.max(first + 1, exclusiveLast));
+    const continuousRows = bin.map(contact =>
+      nmpContinuous ? contact.extractIncoming.moleFractions
+        : contact.raffinateIncoming.moleFractions);
+    const dispersedRows = bin.map(contact =>
+      nmpContinuous ? contact.raffinateIncoming.moleFractions
+        : contact.extractIncoming.moleFractions);
+    if (continuousRows.some(value => !normalizedSeven(value))
+      || dispersedRows.some(value => !normalizedSeven(value))) {
+      throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_INVALID', {
+        numericalCell: index + 1,
+      });
+    }
+    const average = (rows: number[][]) => JOB_C_COMPONENT_ORDER.map((_, component) =>
+      rows.reduce((sum, row) => sum + row[component], 0) / rows.length);
+    return {
+      numericalCell: index + 1,
+      x_bulk_continuous: average(continuousRows),
+      x_bulk_dispersed: average(dispersedRows),
+      provenance: {
+        source: 'PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS',
+        sourceStageFromFeedEnd: bin.map(contact => contact.stageFromFeedEnd),
+        propertyPaths: bin.map(contact => contact.propertyPath),
+        stage2ResultSnapshotHash,
+        mapping: 'CONTIGUOUS_EQUAL_AXIAL_BINS_ARITHMETIC_COMPOSITION_MEAN',
+      },
+    };
+  });
+  return { targetCells, profile };
+}
+
 /**
  * Body-free Job C evaluation. All physical and duty inputs are reloaded from
  * the authenticated design's verified Job A/B/Stage 1/Stage 3 lineage.
@@ -867,47 +920,13 @@ export async function prepareEcrPrePilotJobC(userId: number, designId: number) {
     sourceStateSha256: jobCResultHash(boundaryBranchSource),
   };
   const sourceContacts = globalBoundary.axialLocalContacts;
-  const targetCells = 7;
-  if (!globalBoundary.axialLocalContactProfileComplete
-    || !Array.isArray(sourceContacts) || sourceContacts.length < targetCells) {
-    throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_UNAVAILABLE', {
-      requiredRecordedContacts: targetCells,
-      recordedContacts: Array.isArray(sourceContacts) ? sourceContacts.length : 0,
-      repeatedOrInventedContactsPermitted: false,
-      heightClaimed: false,
-    });
-  }
-  const axialLocalContactProfile = Array.from({ length: targetCells }, (_, index) => {
-    const first = Math.floor(index * sourceContacts.length / targetCells);
-    const exclusiveLast = Math.floor((index + 1) * sourceContacts.length / targetCells);
-    const bin = sourceContacts.slice(first, Math.max(first + 1, exclusiveLast));
-    const continuousRows = bin.map(contact =>
-      nmpContinuous ? contact.extractIncoming.moleFractions
-        : contact.raffinateIncoming.moleFractions);
-    const dispersedRows = bin.map(contact =>
-      nmpContinuous ? contact.raffinateIncoming.moleFractions
-        : contact.extractIncoming.moleFractions);
-    if (continuousRows.some(value => !normalizedSeven(value))
-      || dispersedRows.some(value => !normalizedSeven(value))) {
-      throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_INVALID', {
-        numericalCell: index + 1,
-      });
-    }
-    const average = (rows: number[][]) => JOB_C_COMPONENT_ORDER.map((_, component) =>
-      rows.reduce((sum, row) => sum + row[component], 0) / rows.length);
-    return {
-      numericalCell: index + 1,
-      x_bulk_continuous: average(continuousRows),
-      x_bulk_dispersed: average(dispersedRows),
-      provenance: {
-        source: 'PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS',
-        sourceStageFromFeedEnd: bin.map(contact => contact.stageFromFeedEnd),
-        propertyPaths: bin.map(contact => contact.propertyPath),
-        stage2ResultSnapshotHash: globalBoundary.provenance.resultSnapshotHash,
-        mapping: 'CONTIGUOUS_EQUAL_AXIAL_BINS_ARITHMETIC_COMPOSITION_MEAN',
-      },
-    };
-  });
+  const { targetCells, profile: axialLocalContactProfile } =
+    prepareJobCAxialLocalContactProfile(
+      sourceContacts,
+      globalBoundary.axialLocalContactProfileComplete,
+      nmpContinuous,
+      globalBoundary.provenance.resultSnapshotHash,
+    );
   const axialLocalContactProfileAuthority = {
     qualification: 'GOVERNED_PINNED_STAGE2_AXIAL_LOCAL_CONTACT_PROFILE',
     componentOrder: [...JOB_C_COMPONENT_ORDER],

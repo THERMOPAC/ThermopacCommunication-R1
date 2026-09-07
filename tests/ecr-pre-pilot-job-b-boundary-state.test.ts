@@ -32,6 +32,7 @@ import {
 } from '../server/ecr-pre-pilot/job-b-boundary-state';
 import { evaluateJobA, jobAResultHash, type JobAEvaluationInput } from '../server/ecr-pre-pilot/job-a';
 import { makeJobBInterfaceRequest } from '../server/ecr-pre-pilot/job-b-simultaneous';
+import { prepareJobCAxialLocalContactProfile } from '../server/ecr-pre-pilot-service';
 
 const h = (character: string) => character.repeat(64);
 const stage1Hash = h('a');
@@ -378,5 +379,63 @@ describe('Job B simultaneous interface request boundary use', () => {
       'nmp-continuous-rrbo-dispersed',
     );
     expect(second.request).toEqual(first.request);
+  });
+});
+
+describe('Job C axial local-contact profile preparation', () => {
+  const contact = (stageFromFeedEnd: number) => ({
+    stageFromFeedEnd,
+    propertyPath: `stage-${stageFromFeedEnd}`,
+    extractIncoming: extractIncoming(),
+    raffinateIncoming: rrboIncoming(),
+  });
+
+  it.each([1, 2, 3, 4, 5, 6])(
+    'fails closed for a complete ordered Stage-2 record with %i contacts',
+    (recordedContacts) => {
+      const contacts = Array.from(
+        { length: recordedContacts },
+        (_, index) => contact(index + 1),
+      );
+      let workerRequestCreated = false;
+      try {
+        const prepared = prepareJobCAxialLocalContactProfile(
+          contacts,
+          true,
+          true,
+          h('9'),
+        );
+        workerRequestCreated = Boolean(prepared);
+        throw new Error('expected sparse profile dependency block');
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error);
+        expect(error).toMatchObject({
+          message: 'JOB_C_DEPENDENCY_BLOCKED:AXIAL_LOCAL_CONTACT_PROFILE_UNAVAILABLE',
+          details: {
+            requiredRecordedContacts: 7,
+            recordedContacts,
+            repeatedOrInventedContactsPermitted: false,
+            heightClaimed: false,
+          },
+        });
+      }
+      expect(workerRequestCreated).toBe(false);
+      expect(contacts.map(item => item.stageFromFeedEnd))
+        .toEqual(Array.from({ length: recordedContacts }, (_, index) => index + 1));
+    },
+  );
+
+  it('retains deterministic contiguous-bin mapping for more than seven contacts', () => {
+    const contacts = Array.from({ length: 10 }, (_, index) => contact(index + 1));
+    const prepared = prepareJobCAxialLocalContactProfile(contacts, true, true, h('9'));
+    expect(prepared.profile).toHaveLength(7);
+    expect(prepared.profile.map(cell => cell.provenance.sourceStageFromFeedEnd)).toEqual([
+      [1], [2], [3, 4], [5], [6, 7], [8], [9, 10],
+    ]);
+    expect(prepared.profile.flatMap(cell => cell.provenance.sourceStageFromFeedEnd))
+      .toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(prepared.profile.every(cell =>
+      cell.provenance.mapping === 'CONTIGUOUS_EQUAL_AXIAL_BINS_ARITHMETIC_COMPOSITION_MEAN'))
+      .toBe(true);
   });
 });
