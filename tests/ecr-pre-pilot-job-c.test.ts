@@ -48,15 +48,15 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(worker).toContain('BLOCKED_EXACT_QUALIFICATION_FAILED');
     expect(worker).toContain('jac_sparsity=sparsity');
     expect(worker).toContain('(27*m,27*m)');
-    expect(worker).toContain('"unknownCount":27*m');
-    expect(worker).toContain('"residualCount":27*m');
-    expect(worker).toContain('JOB_C_MONOLITHIC_LAMBDA_NONCONVERGENCE');
+    expect(worker).toContain('LOCAL_FLUX_PICARD_BOUNDED_DENSE_98_FV');
+    expect(worker).toContain('JOB_C_LOCAL_FLUX_PICARD_NONCONVERGENCE');
+    expect(worker).toContain('JOB_C_LAMBDA1_MONOLITHIC_POLISH_FAILED');
     expect(worker).toContain('"dominantResidualRows":diagnostics(ev)');
     expect(worker).toContain('np.tile(interface_u,m)');
-    expect(worker).toContain('lambdaZeroAnalyticInitialization');
-    expect(worker).toContain('max_nfev=80');
-    expect(worker).toContain('"residualCallCount"');
-    expect(worker).toContain('progress(f"monolithic lambda {lam:g}")');
+    expect(worker).toContain('ZERO_TRANSFER_POSITIVE_BOUND_SEED_NOT_EXACT_ZERO_FEED_FV_ROOT');
+    expect(worker).toContain('max_nfev=40');
+    expect(worker).toContain('progress(f"local flux Picard lambda {lam:g}")');
+    expect(worker).toContain('progress("lambda 1 monolithic polish")');
     expect(worker).toContain('flows=x[:14*m].reshape(2,m,7)');
     expect(worker).toContain('np.full(14*m,epsilon)');
     expect(worker).toContain('np.tile(scale,2*m)');
@@ -69,6 +69,12 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
 
   it('solves and qualifies the exact height reported after bisection', () => {
     const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
+    const h2Solve = worker.indexOf('low=solve_height(2.0)');
+    const h2Replay = worker.indexOf('h2_benchmark=qualify_h2(low)');
+    const heightSearchBoundary = worker.indexOf('high=solve_height(20.0,low["solution"])');
+    expect(h2Solve).toBeGreaterThan(-1);
+    expect(h2Replay).toBeGreaterThan(h2Solve);
+    expect(h2Replay).toBeLessThan(heightSearchBoundary);
     expect(worker).toContain('final_height=(lo+hi)/2');
     expect(worker).toContain('selected=solve_height(final_height,accepted_by_height[nearest])');
     expect(worker).toContain('"profileSolvedHeightM":selected["height"]');
@@ -76,6 +82,7 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(worker).toContain('"profileStateSha256":digest([selected["state"][0],selected["state"][1]])');
     expect(worker).toContain('digest(qualified_state) != selected.get("profileStateSha256")');
     expect(worker).toContain('dz=height/r["compartments"]');
+    expect(worker).toContain('"maximumExactScaledCellResidual":scaled');
   });
 
   it('keeps the seven-cell model numerical and defers grid independence', () => {
@@ -103,7 +110,7 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(Math.abs(fvResidual(transferSource))).toBeLessThan(1e-15);
   });
 
-  it('uses a conservative target-lambda frozen-flux predictor', () => {
+  it('uses bounded dense frozen-FV solves within local-flux Picard iteration', () => {
     const donorFeed = 2e-3;
     const receivingFeed = 0;
     const lambda = 0.00125;
@@ -120,19 +127,71 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(worker).toContain('frozen_conservative_seed');
     expect(worker).toContain('audit_frozen_flow_sparsity');
     expect(worker).toContain('JOB_C_FROZEN_FV_JACOBIAN_SPARSITY_MISMATCH');
-    expect(worker).toContain('JOB_C_FROZEN_FV_SUBSYSTEM_NONCONVERGENCE');
+    expect(worker).toContain('frozenFvAcceptance');
     expect(worker).toContain('tr_solver="exact"');
-    expect(worker).toContain('method="lm"');
     expect(worker).toContain('"missingDependencyCount":0');
-    expect(worker).toContain('UNBOUNDED_DIAGNOSTIC_ONLY_NOT_PHYSICAL_ACCEPTANCE');
-    expect(worker).toContain('NO_PHYSICAL_INFEASIBILITY_CLAIM');
+    expect(worker).toContain('GLOBAL_INLET_FULL_SCALE_FROZEN_FLUX_DIAGNOSTIC_ONLY');
+    expect(worker).toContain('UNBOUNDED_TERMINAL_DIAGNOSTIC_ONLY_NOT_ACCEPTANCE');
+    expect(worker).toContain('"unconstrainedTerminalDiagnostic":unconstrained');
     expect(worker).not.toContain('predicted_flows=unconstrained_fit.x');
-    expect(worker).toContain('DENSE_EXACT_TRF_FINITE_DIFFERENCE_JACOBIAN');
-    expect(worker).toContain('"qualification":"PREDICTOR_ONLY_NOT_ACCEPTANCE"');
-    expect(worker).toContain('previous["details"]');
-    expect(worker).toContain('solvers[j].warm=x[');
+    expect(worker).not.toContain('predicted_flows=unconstrained_fit.x');
+    expect(worker).toContain('UNCLIPPED_CONSERVATIVE_PROFILE');
+    expect(worker).toContain('refreshedRawFvResidualMolS');
+    expect(worker).toContain('integratedSourceMismatchRawMolS');
+    expect(worker).toContain('activePositiveLowerBoundFlows');
+    expect(worker).toContain('dominantFrozenFvResidualRows');
     expect(worker).toContain('max_nfev=160');
     expect(worker).toContain('return np.r_[scaled_fv,ev["interface"]]');
+  });
+
+  it('orders Picard sources correctly and computes pure source-mismatch metrics', () => {
+    const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
+    const preInterface = worker.indexOf(
+      'local_u,frozen_nc,pre_gate=solve_local_interfaces(',
+    );
+    const frozenFv = worker.indexOf(
+      'fit=scipy.optimize.least_squares(',
+      preInterface,
+    );
+    const refreshedInterface = worker.indexOf(
+      'solve_local_interfaces(solved_flows,local_u)',
+      frozenFv,
+    );
+    const refreshedFv = worker.indexOf(
+      'physical_fv=frozen_flow_evaluate(',
+      refreshedInterface,
+    );
+    expect(preInterface).toBeGreaterThan(-1);
+    expect(frozenFv).toBeGreaterThan(preInterface);
+    expect(refreshedInterface).toBeGreaterThan(frozenFv);
+    expect(refreshedFv).toBeGreaterThan(refreshedInterface);
+    expect(worker).not.toContain('lambda q:residual(q,lam)');
+    expect(worker.match(/lambda q:residual\(q,1\.0\)/g)).toHaveLength(1);
+
+    const metric = (
+      frozen: number[],
+      refreshed: number[],
+      lambda: number,
+      area: number,
+      scales: number[],
+    ) => {
+      const integrated = refreshed.map(
+        (flux, index) => lambda * (flux - frozen[index]) * area,
+      );
+      return {
+        raw: Math.max(...integrated.map(Math.abs)),
+        scaled: Math.max(...integrated.map(
+          (value, index) => Math.abs(value / scales[index]),
+        )),
+      };
+    };
+    expect(metric([1, -2], [1.1, -1.8], 0, 3, [2, 4])).toEqual({
+      raw: 0,
+      scaled: 0,
+    });
+    const nonzero = metric([1, -2], [1.1, -1.8], 0.5, 3, [2, 4]);
+    expect(nonzero.raw).toBeCloseTo(0.3, 14);
+    expect(nonzero.scaled).toBeCloseTo(0.075, 14);
   });
 
   it('reproduces the signed design-269 inlet flux and rejects either invalid source sign', () => {
@@ -177,24 +236,25 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
     expect(continuousOutlet.slice(0, 5).every(flow => flow > 0)).toBe(true);
   });
 
-  it('requires positive closed frozen FV flows before refresh or the 189-equation solve', () => {
+  it('uses the global-inlet failure only as evidence and tries local continuation', () => {
     const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
-    expect(worker).toContain('JOB_C_FROZEN_FV_POSITIVITY_GATE_FAILED');
     expect(worker).toContain('positiveGlobalOutletNecessaryConditionPassed');
     expect(worker).toContain('sourceSignReversalWouldResolveAllBoundaries');
     expect(worker).toContain('"physicalInfeasibilityClaimed":False');
     expect(worker).toContain('frozen_acceptance=require_positive_frozen_solution(');
-    const acceptance = worker.indexOf(
-      'frozen_acceptance=require_positive_frozen_solution(',
+    expect(worker).toContain('GLOBAL_INLET_FULL_SCALE_FROZEN_FLUX_DIAGNOSTIC_ONLY');
+    expect(worker).toContain('LOCAL_FLUX_PICARD_BOUNDED_DENSE_98_FV');
+    expect(worker).toContain('current_flows=x[:14*m].copy()');
+    expect(worker).not.toContain(
+      'if not inlet_flux_audit[\n                      "positiveGlobalOutletNecessaryConditionPassed"]',
     );
-    const refresh = worker.indexOf(
-      'before_refresh=np.r_[predicted_flows,x[14*m:]]',
-    );
-    const monolithic = worker.indexOf(
-      'fit=scipy.optimize.least_squares(lambda q:residual(q,lam),x,',
-    );
-    expect(acceptance).toBeGreaterThan(-1);
-    expect(acceptance).toBeLessThan(refresh);
-    expect(acceptance).toBeLessThan(monolithic);
+    expect(worker).toContain('minimum_flow<=0');
+    expect(worker).toContain('c[j]/c[j].sum()');
+    expect(worker).toContain('d[j]/d[j].sum()');
+    expect(worker).toContain('lambda_targets=[0.0,.00001,.00003,.0001,.0003,.001');
+    expect(worker).toContain('lambda_targets.insert(');
+    expect(worker).toContain('minimum_lambda_interval=1e-8');
+    expect(worker).toContain('ZERO_TRANSFER_POSITIVE_BOUND_SEED_NOT_EXACT_ZERO_FEED_FV_ROOT');
+    expect(worker).toContain('zeroFeedPositiveBoundSeeds');
   });
 });

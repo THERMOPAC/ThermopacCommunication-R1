@@ -74,6 +74,23 @@ directions. Stop with diagnostic-only evidence if either phase has a nonpositive
 implied outlet. Resume continuation only from a positive, closed local-flux
 state without changing the original raw/scaled acceptance tolerances.
 
+The selected Job-B root remains boundary-incompatible under cell-local Picard
+continuation at the 2 m lower height. The positive branch stops near
+\(\lambda=6.92\times10^{-5}\); an exact unconstrained FV root requires all seven
+dispersed NMP and all seven dispersed H₂O cell flows to be negative.
+
+**Why:** This independently rules out runtime budget and premature bounded
+optimizer termination: the bounded solve converges normally, while the
+diagnostic unbounded system closes to machine precision only with fourteen
+negative solvent flows.
+
+**How to apply:** Do not retry this selected interface root with more solver
+iterations, sign changes, clipping, or wider residual gates. Any next Job-C
+attempt must first qualify a distinct boundary-compatible Job-B interface
+branch or revise the physical inlet-phase representation under governed
+evidence. This is a root/boundary incompatibility, not proof that every possible
+local-state transport model is physically infeasible.
+
 Job-C response hashing is shared between Python and TypeScript and therefore
 uses bytewise lexicographic key ordering, not locale-aware comparison.
 
