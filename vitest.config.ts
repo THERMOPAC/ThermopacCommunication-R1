@@ -7,7 +7,8 @@ export default defineConfig({
     name: 'stage4-ui-test-tsx-transform',
     enforce: 'pre',
     transform(code, id) {
-      if (!id.endsWith('/ecr-pre-pilot-design-stage-4-page.tsx')) return;
+      if (!id.endsWith('/ecr-pre-pilot-design-stage-4-page.tsx')
+        && !id.endsWith('/components/ecr-pre-pilot/predictive-nt-progress.tsx')) return;
       return ts.transpileModule(code, {
         compilerOptions: {
           jsx: ts.JsxEmit.ReactJSX,

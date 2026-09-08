@@ -1,0 +1,16 @@
+@keyframes predictive-nt-indeterminate {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}
+
+.predictive-nt-indeterminate {
+  width: 33.333%;
+  animation: predictive-nt-indeterminate 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .predictive-nt-indeterminate {
+    animation: none;
+    transform: translateX(100%);
+  }
+}

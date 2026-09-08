@@ -23,13 +23,44 @@ def load(path, name):
 frozen = load(FROZEN_WORKER, "frozen_production_7c_1_5_with_progress")
 
 
+def stage_assembly_code(original_solve):
+    """Find the implementation which owns the cascade ``stages`` local.
+
+    The production 7C-1.5 engine overrides ``solve_cascade`` only to add its
+    final acceptance audit.  Its parent performs the coupled solves and builds
+    the stage records, so tracing the bound method's code observes the wrong
+    frame.  Looking through the bound instance's MRO retains the proxy's
+    transparency and does not alter either engine class.
+    """
+    method_name = getattr(original_solve, "__name__", None)
+    instance = getattr(original_solve, "__self__", None)
+    if method_name and instance is not None:
+        for owner in type(instance).__mro__:
+            implementation = owner.__dict__.get(method_name)
+            implementation = getattr(implementation, "__func__", implementation)
+            code = getattr(implementation, "__code__", None)
+            if code is not None and "stages" in code.co_varnames:
+                return code
+    code = getattr(getattr(original_solve, "__func__", original_solve), "__code__", None)
+    if code is not None and "stages" in code.co_varnames:
+        return code
+    raise RuntimeError("PREDICTIVE_NT_INTERNAL_PROGRESS_ASSEMBLY_FRAME_INVALID")
+
+
 def observe_stage_assembly(original_solve, maximum, callback=None, *args, **kwargs):
-    """Observe appended cascade stages in one solve frame without mutating it."""
+    """Emit 0/N then each *audited, assembled* cascade stage, if any.
+
+    ``sys.monitoring`` does not expose the observed Python frame's locals, so
+    its code-event callbacks cannot safely identify the list append.  This
+    deliberately uses a scoped ``settrace`` fallback: only the inherited
+    assembly frame receives line events; all thermodynamic child frames remain
+    untraced.  A pre-existing tracer is chained and restored unchanged.
+    """
     if not isinstance(maximum, int) or maximum < 1 or maximum > 10:
         raise ValueError("PREDICTIVE_NT_INTERNAL_PROGRESS_MAXIMUM_INVALID")
     if callback is None:
         return original_solve(*args, **kwargs)
-    code = original_solve.__func__.__code__
+    code = stage_assembly_code(original_solve)
     previous_trace = sys.gettrace()
     stages = None
     emitted = 0
@@ -47,15 +78,25 @@ def observe_stage_assembly(original_solve, maximum, callback=None, *args, **kwar
             emitted += 1
             callback(emitted, maximum)
 
-    def local_trace(frame, event, arg):
+    def local_trace(frame, event, arg, previous_local=None):
+        if previous_local is not None:
+            previous_local = previous_local(frame, event, arg)
         if event in ("line", "return", "exception"):
             observe(frame)
-        return local_trace
+        return lambda next_frame, next_event, next_arg: local_trace(
+            next_frame, next_event, next_arg, previous_local
+        )
 
     def global_trace(frame, event, arg):
+        previous_local = (
+            previous_trace(frame, event, arg)
+            if previous_trace is not None else None
+        )
         if event == "call" and frame.f_code is code:
-            return local_trace
-        return None
+            return lambda next_frame, next_event, next_arg: local_trace(
+                next_frame, next_event, next_arg, previous_local
+            )
+        return previous_local
 
     callback(0, maximum)
     sys.settrace(global_trace)
@@ -63,8 +104,9 @@ def observe_stage_assembly(original_solve, maximum, callback=None, *args, **kwar
         return original_solve(*args, **kwargs)
     finally:
         try:
-            # A return/exception trace normally catches the final append. Retain
-            # a direct catch-up for interpreters that omit the final line event.
+            # Catch an append immediately followed by a return or exception.
+            # This reports only records already assembled by the parent frame;
+            # it never fills in unassembled/trial stages.
             if isinstance(stages, list):
                 assembled = len(stages)
                 if assembled > maximum:

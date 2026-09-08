@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PredictiveNtProgress } from "@/components/ecr-pre-pilot/predictive-nt-progress";
 
 type FormState = {
   projectReference: string;
@@ -2173,43 +2174,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                 </div>
               </div>
               {predictiveJob && (
-                ["pending", "running"].includes(predictiveJob.status)
-                || (predictiveJob.status === "completed" && predictiveJob.internalProgress !== null)
-              ) && (
-                <div aria-live="polite">
-                  {(() => {
-                    const exactNt = predictiveJob.input?.ntTest;
-                    const internal = Number.isInteger(exactNt)
-                      && predictiveJob.progress.maximumStages === 1
-                      ? predictiveJob.internalProgress
-                      : null;
-                    const completed = internal?.completedInternalStages
-                      ?? predictiveJob.progress.completedStageTrials;
-                    const maximum = internal?.maximumInternalStages
-                      ?? predictiveJob.progress.maximumStages;
-                    return <>
-                  <div className={`h-2 overflow-hidden rounded-full bg-slate-200 ${
-                    predictiveJob.status === "running" && internal && completed === 0
-                      ? "animate-pulse bg-blue-100"
-                      : ""
-                  }`}>
-                    <div
-                      className="h-full rounded-full bg-blue-600 transition-all"
-                      style={{ width: `${Math.min(100, (completed / maximum) * 100)}%` }}
-                    />
-                  </div>
-                  <p className="mt-1.5 text-[11px] text-slate-500">
-                    {predictiveJob.status === "pending"
-                      ? "Waiting for an available solver worker…"
-                      : internal
-                        ? completed === 0 && predictiveJob.status === "running"
-                          ? `Solving coupled N_T=${exactNt} system · stage audits ${completed}/${maximum}`
-                          : `Auditing assembled N_T=${exactNt} stages · ${completed}/${maximum}`
-                        : "Evaluating every configured stage trial…"}
-                  </p>
-                    </>;
-                  })()}
-                </div>
+                <PredictiveNtProgress job={predictiveJob} monitoringPaused={predictivePollingPaused} />
               )}
               {predictivePollingPaused && predictiveJob && (
                 <div className="flex flex-col gap-2 rounded-md border border-red-200 bg-red-50 p-3 sm:flex-row sm:items-center sm:justify-between">

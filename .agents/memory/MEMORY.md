@@ -119,3 +119,4 @@
 - [Job-C qualification boundary](ecr-job-c-qualification-boundary.md) — Stage-2 feed-end bins reverse into FV worker cells; ten-to-seven mapping is exactly [9,10]…[1].
 - [Job-C positive-branch qualification](ecr-job-c-positive-branch.md) — pseudo-arclength candidates need two-start dense fixed-λ confirmation; Picard epsilon is not the strict-positive domain.
 - [Offline scientific execution](offline-scientific-execution.md) — use managed background tasks; stale RUNNING files and vanished processes do not prove resource exhaustion or scientific failure.
+- [Predictive N_T progress](predictive-nt-progress-semantics.md) — coupled-solve activity, recorded stage audits, calculation completion, and scientific acceptance remain distinct.
