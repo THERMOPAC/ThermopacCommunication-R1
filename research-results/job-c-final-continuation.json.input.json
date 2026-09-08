@@ -1,0 +1,333 @@
+{
+  "input": {
+    "componentOrder": [
+      "SAT",
+      "MONO",
+      "DI",
+      "POLY",
+      "PA",
+      "NMP",
+      "H2O"
+    ],
+    "temperatureK": 298.15,
+    "continuousFeedMolS": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      4.846724298541135,
+      0.4061367165354447
+    ],
+    "dispersedFeedMolS": [
+      4.868190306515299,
+      0.5681555559253281,
+      0.27442347433402103,
+      0.0964699788831831,
+      0.04810668945981338,
+      0,
+      0
+    ],
+    "continuousTotalConcentrationMolM3": 11070.494330635198,
+    "dispersedTotalConcentrationMolM3": 5269.811404605881,
+    "kc": [
+      0.000013090402625397442,
+      0.000015994147859384844,
+      0.00001562366824163388,
+      0.000013778989130267606,
+      0.000010229095057651185,
+      0.000016521738447017964,
+      0.000020604076983454237
+    ],
+    "kd": [
+      3.798760017014385e-7,
+      4.6916459268006717e-7,
+      4.577202255511733e-7,
+      4.009627584594375e-7,
+      2.928789183205082e-7,
+      4.854876385518509e-7,
+      6.127524343577262e-7
+    ],
+    "phaseConfiguration": "nmp-continuous-rrbo-dispersed",
+    "compartments": 7,
+    "columnDiameterM": 0.8686867763858619,
+    "rpm": 30,
+    "operatingHoldup": 0.08522716012839626,
+    "d32M": 0.003031929110308221,
+    "minimumRecoveryPct": 83,
+    "boundaryBranchQualificationRequest": {
+      "componentOrder": [
+        "SAT",
+        "MONO",
+        "DI",
+        "POLY",
+        "PA",
+        "NMP",
+        "H2O"
+      ],
+      "T": 298.15,
+      "x_bulk_continuous": [
+        0.034734971330409856,
+        0.0569735479110105,
+        0.02797560604368237,
+        0.011140911898264449,
+        0.008240724391363054,
+        0.848994189217947,
+        0.011940049207322858
+      ],
+      "x_bulk_dispersed": [
+        0.8314095020619517,
+        0.09703193550453776,
+        0.04686716619208694,
+        0.016475538558928395,
+        0.008215857682495201,
+        0,
+        0
+      ],
+      "kc": [
+        0.000013090402625397442,
+        0.000015994147859384844,
+        0.00001562366824163388,
+        0.000013778989130267606,
+        0.000010229095057651185,
+        0.000016521738447017964,
+        0.000020604076983454237
+      ],
+      "kd": [
+        3.798760017014385e-7,
+        4.6916459268006717e-7,
+        4.577202255511733e-7,
+        4.009627584594375e-7,
+        2.928789183205082e-7,
+        4.854876385518509e-7,
+        6.127524343577262e-7
+      ],
+      "CtC": 9633.159661825677,
+      "CtD": 5269.818770444053,
+      "phase_config": "nmp-continuous-rrbo-dispersed",
+      "provenance": {
+        "qualification": "RECORDED_STAGE2_FEED_END_LOCAL_CONTACT_STATE",
+        "fixture": "GOVERNED_DESIGN_269_NO_DB_SCIENTIFIC_REGRESSION"
+      },
+      "sourceStateSha256": "60650a5004f0338f372b8b16dcc7324c17944f78fde7d84c2215e9a480d94cdf"
+    },
+    "axialLocalContactProfile": [
+      {
+        "numericalCell": 1,
+        "x_bulk_continuous": [
+          0.013765272440793104,
+          0.01671535400302334,
+          0.008367771804176556,
+          0.0028804288024579104,
+          0.0004091493574781391,
+          0.8877882714219243,
+          0.07007375217014676
+        ],
+        "x_bulk_dispersed": [
+          0.6842739599886924,
+          0.07673380553043291,
+          0.03759727744302469,
+          0.012379202774684059,
+          0.0015453661877550431,
+          0.14083243583416644,
+          0.04663795224124452
+        ],
+        "provenance": {
+          "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+          "sourceStageFromFeedEnd": [
+            9,
+            10
+          ]
+        }
+      },
+      {
+        "numericalCell": 2,
+        "x_bulk_continuous": [
+          0.0325588498021826,
+          0.0485731205610219,
+          0.024510870094975167,
+          0.00881579349631814,
+          0.0016596110551503618,
+          0.8298182116694616,
+          0.05406354332089037
+        ],
+        "x_bulk_dispersed": [
+          0.6502044486765252,
+          0.08732626996852358,
+          0.043103248740310594,
+          0.014839642946607924,
+          0.0026673128022614975,
+          0.16413784053871264,
+          0.03772123632705873
+        ],
+        "provenance": {
+          "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+          "sourceStageFromFeedEnd": [
+            8
+          ]
+        }
+      },
+      {
+        "numericalCell": 3,
+        "x_bulk_continuous": [
+          0.035631211718378464,
+          0.05690393281443934,
+          0.02873465065635591,
+          0.010833185273688883,
+          0.0029911547417862164,
+          0.8202861073171432,
+          0.0446197574782079
+        ],
+        "x_bulk_dispersed": [
+          0.6409751832887611,
+          0.08984716118207256,
+          0.044299082546539574,
+          0.015648302955500376,
+          0.003896047991920091,
+          0.17512623463754717,
+          0.030207987397659126
+        ],
+        "provenance": {
+          "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+          "sourceStageFromFeedEnd": [
+            6,
+            7
+          ]
+        }
+      },
+      {
+        "numericalCell": 4,
+        "x_bulk_continuous": [
+          0.036451217747806575,
+          0.05940377961113782,
+          0.029860680305499366,
+          0.011606413962139473,
+          0.004404527380135697,
+          0.8223066456133242,
+          0.03596673537995686
+        ],
+        "x_bulk_dispersed": [
+          0.6389186594986418,
+          0.09022886750292189,
+          0.04431798574765089,
+          0.01587743524174424,
+          0.0051889009502722,
+          0.18299156510669182,
+          0.022476585952077355
+        ],
+        "provenance": {
+          "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+          "sourceStageFromFeedEnd": [
+            5
+          ]
+        }
+      },
+      {
+        "numericalCell": 5,
+        "x_bulk_continuous": [
+          0.03609658958825063,
+          0.059180222471180974,
+          0.029520414083005722,
+          0.011658421023576154,
+          0.005884037168614174,
+          0.8306369817604309,
+          0.027023333904941625
+        ],
+        "x_bulk_dispersed": [
+          0.6403167335424083,
+          0.08949086506976092,
+          0.04372000559734188,
+          0.01573118818279437,
+          0.006488158664996956,
+          0.18986572012306968,
+          0.014387328819627888
+        ],
+        "provenance": {
+          "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+          "sourceStageFromFeedEnd": [
+            3,
+            4
+          ]
+        }
+      },
+      {
+        "numericalCell": 6,
+        "x_bulk_continuous": [
+          0.03535433817456938,
+          0.05805892398359006,
+          0.02869816423850851,
+          0.0114186939397459,
+          0.007341718763122389,
+          0.8412494430899482,
+          0.017878717810515598
+        ],
+        "x_bulk_dispersed": [
+          0.6427150485127144,
+          0.08831531149688376,
+          0.04289064826918774,
+          0.015420270156518381,
+          0.007705192416681125,
+          0.19654201380740713,
+          0.006411515340607403
+        ],
+        "provenance": {
+          "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+          "sourceStageFromFeedEnd": [
+            2
+          ]
+        }
+      },
+      {
+        "numericalCell": 7,
+        "x_bulk_continuous": [
+          0.034734971330409856,
+          0.0569735479110105,
+          0.02797560604368237,
+          0.011140911898264449,
+          0.008240724391363054,
+          0.848994189217947,
+          0.011940049207322858
+        ],
+        "x_bulk_dispersed": [
+          0.8314095020619517,
+          0.09703193550453776,
+          0.04686716619208694,
+          0.016475538558928395,
+          0.008215857682495201,
+          0,
+          0
+        ],
+        "provenance": {
+          "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+          "sourceStageFromFeedEnd": [
+            1
+          ]
+        }
+      }
+    ],
+    "axialLocalContactProfileAuthority": {
+      "qualification": "GOVERNED_PINNED_STAGE2_AXIAL_LOCAL_CONTACT_PROFILE",
+      "componentOrder": [
+        "SAT",
+        "MONO",
+        "DI",
+        "POLY",
+        "PA",
+        "NMP",
+        "H2O"
+      ],
+      "phaseConfiguration": "nmp-continuous-rrbo-dispersed",
+      "sourceStageCount": 10,
+      "targetNumericalCells": 7,
+      "mapping": "STAGE2_FEED_END_ASCENDING_EQUAL_BINS_REVERSED_TO_CONTINUOUS_INLET_FV_ORDER_V1",
+      "stage2ResultSnapshotHash": "ef0194e8d2f4e4496cf987a175ae1ffa9c88bcff703a88a336a7263815963492"
+    },
+    "axialLocalContactProfileSha256": "5804ecb5cc5e2076734559be215988193be5beffc39ee14b7fe09c42ba19746f"
+  },
+  "implementation": {
+    "implementationHash": "5bc4cb8ef54fbddc6f0bb8a9aca1852f3b80045cb77c311ce63cd828bf4b36e3",
+    "candidateHash": "7bf6abb0eb16c703b1a62997a28f0b784e45dbed6104b5736fdd3ced5711d983",
+    "boundaryQualifierHash": "67273dbaaf6821a3336a71e79fabd07315c18bdc432f1ec8c85d04c6986be374",
+    "branchContinuationHash": "9a4a64cedd7a1361ee3135bd6e0c20260205777cd3471d374436932206593a66"
+  }
+}

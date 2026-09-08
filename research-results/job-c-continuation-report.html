@@ -1,0 +1,66 @@
+<!doctype html><html lang="en"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Job C — audited continuation findings</title>
+<style>body{font:15px/1.55 system-ui,sans-serif;color:#182838;background:#f4f6f8;margin:0}
+main{max-width:1120px;margin:32px auto;padding:32px;background:white}h1{font-size:27px}
+h2{margin-top:28px;font-size:20px}.warning{border-left:5px solid #ad6a14;background:#fff5e4;padding:16px}
+table{border-collapse:collapse;width:100%;font-size:13px;margin:16px 0}
+td,th{border:1px solid #dbe2e8;padding:9px;text-align:left}td{font-family:ui-monospace,monospace}
+small{color:#526374}.scroll{overflow-x:auto}code{overflow-wrap:anywhere}
+@media print{body{background:white}main{margin:0;padding:10px}}</style><main>
+<small>8 September 2026 · Frozen 2 m Job-C replay · Research / preliminary</small>
+<h1>Job C: full coupling not established</h1>
+<div class="warning"><strong>The true terminal boundary remains unresolved.</strong>
+The measured interval ends at failed independent confirmation—not a proven original-gate rejection.
+No accepted active height, physical-stage count, efficiency, final RPM/diameter, Job D or release result is claimed.</div>
+<h2>What the calculation establishes</h2>
+<p>Two materially separated starts at λ = 6.924682617188e-05 close the unchanged coupled
+equations tightly only with cell-1 dispersed NMP flow around −6.99926639608×10<sup>−7</sup> mol/s.
+Both signed roots are rejected as operating states. The tiny positive flow in the earlier point
+is tolerance-accepted, not a resolved positive inventory.</p>
+<p>RRBO inlet NMP and H₂O remain exactly zero. The frozen Stage-2, Job-A, Job-B and Stage-3 authorities
+and physical equations are retained. This replay does not rerun Jobs A or B.</p>
+<h2>Continuation and uncertainty</h2><table><tr><th>Last independently qualified, tolerance-accepted λ</th><td>6.924682617188e-05</td></tr><tr><th>First failed independent-confirmation λ</th><td>6.924767147005e-05</td></tr><tr><th>Sampling interval width</th><td>8.452981710454e-10</td></tr><tr><th>Flow error estimate at the tolerance-accepted point [mol/s]</th><td>6.999283596026e-06</td></tr><tr><th>Cell residual arithmetic-roundoff estimate [mol/s]</th><td>3.552925802971e-22</td></tr><tr><th>Two-FD flow-correction spread [mol/s]</th><td>1.196434037997e-20</td></tr></table>
+<p>The upper endpoint has 1 start passing the original gates, while
+1 start reaches its 12-evaluation cap. The lower endpoint was inherited from
+the earlier two-start qualification, not re-confirmed by this bracketing procedure.
+All 14 new two-start probes failed confirmation. Interval narrowing therefore
+does <strong>not</strong> establish a resolved gate-usability or physical boundary.</p>
+<p>Uncertainty is a local, non-certified a posteriori estimate: two finite-difference Jacobians,
+residual correction and arithmetic roundoff, with a factor of ten. It is not an experimental
+confidence interval. The estimated flow correction itself is
+-6.999266396080e-07 mol/s;
+the positive inventory margin is unresolved.</p>
+<h2>Complete dispersed cell-1 NMP balance</h2>
+<p>Signed equation: convection + axial backmixing + interphase transfer = residual.
+Negative transfer removes NMP from the dispersed phase. The outlet backmixing face is zero by
+the unchanged boundary condition.</p>
+<div class="scroll"><table><tr><th>Quantity</th><th>Last qualified numerical point</th>
+<th>Upper candidate: failed two-start confirmation</th><th>Tightly closed signed root, start 2 — NOT accepted</th>
+</tr><tr><th>Cell-1 NMP flow [mol/s]</th><td>1.006552499501e-27</td><td>3.446812288281e-36</td><td>-6.999266396075e-07</td></tr><tr><th>Cell-2 NMP flow [mol/s]</th><td>4.178975961818e-12</td><td>2.434233338464e-12</td><td>-6.576810975158e-07</td></tr><tr><th>Convection [mol/s]</th><td>2.089487980909e-12</td><td>1.217116669232e-12</td><td>2.112277104588e-08</td></tr><tr><th>Axial backmixing [mol/s]</th><td>7.801877607709e-12</td><td>4.544556070706e-12</td><td>7.887265128339e-08</td></tr><tr><th>Interphase transfer [mol/s]</th><td>-9.999607939900e-08</td><td>-9.999729833839e-08</td><td>-9.999542232910e-08</td></tr><tr><th>Residual [mol/s]</th><td>-9.998618803341e-08</td><td>-9.999153666565e-08</td><td>1.798886221731e-19</td></tr><tr><th>Independent FV reconstruction difference [mol/s]</th><td>0.000000000000e+00</td><td>0.000000000000e+00</td><td>5.293955920339e-23</td></tr></table></div>
+<h3>Signed face terms at the last qualified numerical point</h3><table><tr><th>leftBackmixingMolS</th><td>0.000000000000e+00</td></tr><tr><th>leftConvectionMolS</th><td>-1.006552499501e-27</td></tr><tr><th>rightBackmixingMolS</th><td>-7.801877607709e-12</td></tr><tr><th>rightConvectionMolS</th><td>-2.089487980909e-12</td></tr></table>
+<h2>Independent reproduction and zero-active diagnostic</h2>
+<p>Signed-root scaled state difference across starts:
+6.135237595581e-13. Maximum raw FV residuals:
+1.080755370959e-12 and
+3.758804232876e-14 mol/s.</p>
+<p>The reduced zero-active diagnostic gives λ = -8.027794290916e-14,
+with a non-certified absolute λ estimate of
+1.701347371437e-09.
+It has 43 nonpositive coordinates.
+This is a local signed multi-inventory root near zero coupling, not an accepted state, a unique
+physical NMP limiter, or proof of global process infeasibility.</p>
+<h2>Downstream engineering result</h2>
+<p>λ = 1 was not independently accepted. Consequently the full-coupling 2 m outlet duty and
+the governed 2–20 m height search were not authorized. No numerical-cell count is converted into
+physical stages or efficiency.</p>
+<h2>Evidence and audit note</h2>
+<p>The raw snapshot is preserved unchanged at <code>research-results/job-c-final-continuation.json</code>. Its original
+<code>terminalBracket.resolved=true</code> flag is a reporting defect and is superseded by this audit:
+the endpoint evidence above does not support it. The implementation now explicitly prevents
+this classification when a start passes the gates or independent confirmation is iteration-limited.</p>
+<p>Input and response hashes were independently recomputed successfully. Runtime source bytes
+are archived alongside the snapshot. Verified replay elapsed time: 421.582 s.</p>
+<p><small>Input SHA-256: <code>0dbc7d01a56bcc565886828d4d4099c32c5e2ca16f7acda7294322b2386b594d</code><br>
+Response SHA-256: <code>8b8becf718b037471f1e65cb48694cd76f1d9f40bb5cf5cac282eb3076ba1d16</code></small></p>
+</main></html>

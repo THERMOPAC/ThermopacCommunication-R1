@@ -51,6 +51,7 @@ export function currentJobCArtifactHashes() {
     implementationHash: digest('server/ecr-pre-pilot/job-c/worker.py'),
     candidateHash: digest('server/ecr-pre-pilot/job-c/candidate_interface.py'),
     boundaryQualifierHash: digest('server/ecr-pre-pilot/job-c/boundary_interface_qualifier.py'),
+    branchContinuationHash: digest('server/ecr-pre-pilot/job-c/branch_continuation.py'),
   };
 }
 export class JobCError extends Error {
@@ -93,6 +94,8 @@ export interface JobCWorkerRequest extends Record<string, unknown> {
 export async function runJobCWorker(request: JobCWorkerRequest, options: {
   timeoutMs?: number; signal?: AbortSignal;
   onProgress?: (phase: string, completed?: number, total?: number) => void | Promise<void>;
+  /** Research capture only; never bypasses the response integrity check. */
+  onRawResponse?: (raw: string) => void;
 } = {}) {
   const workerRoot = process.env.JOB_C_RUNTIME_ROOT
     ? path.resolve(process.env.JOB_C_RUNTIME_ROOT)
@@ -109,6 +112,10 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
       const candidateBytes = fs.readFileSync(candidate);
       const qualifier = path.resolve(workerRoot, 'server/ecr-pre-pilot/job-c/boundary_interface_qualifier.py');
       const qualifierBytes = fs.readFileSync(qualifier);
+      const branchContinuation = path.resolve(
+        workerRoot, 'server/ecr-pre-pilot/job-c/branch_continuation.py',
+      );
+      const branchContinuationBytes = fs.readFileSync(branchContinuation);
       if (manifest.schemaVersion !== 'ECR_PRE_PILOT_JOB_C_RUNTIME_MANIFEST_V1'
         || manifest.protocol !== JOB_C_PROTOCOL
         || manifest.worker?.path !== 'server/ecr-pre-pilot/job-c/worker.py'
@@ -121,7 +128,13 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
         || manifest.boundaryInterfaceQualifier?.version !== 'ECR_JOB_C_BOUNDARY_INTERFACE_QUALIFIER_V1'
         || manifest.boundaryInterfaceQualifier?.bytes !== qualifierBytes.length
         || manifest.boundaryInterfaceQualifier?.sha256
-          !== createHash('sha256').update(qualifierBytes).digest('hex')) {
+          !== createHash('sha256').update(qualifierBytes).digest('hex')
+        || manifest.branchContinuation?.version !== 'ECR_JOB_C_BRANCH_CONTINUATION_V1'
+        || manifest.branchContinuation?.path
+          !== 'server/ecr-pre-pilot/job-c/branch_continuation.py'
+        || manifest.branchContinuation?.bytes !== branchContinuationBytes.length
+        || manifest.branchContinuation?.sha256
+          !== createHash('sha256').update(branchContinuationBytes).digest('hex')) {
         throw new Error();
       }
     } catch {
@@ -211,6 +224,7 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
       try {
         const lines = stdout.trim().split(/\r?\n/).filter(Boolean);
         const finalLines = lines.filter(line => !line.startsWith('JOB_C_PROGRESS '));
+        options.onRawResponse?.(finalLines.join('\n'));
         if (finalLines.length !== 1) throw new Error();
         const response = JSON.parse(finalLines[0]);
         if (response.protocol !== JOB_C_PROTOCOL

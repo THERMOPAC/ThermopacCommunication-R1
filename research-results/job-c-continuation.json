@@ -1,0 +1,1165 @@
+{
+  "input": {
+    "componentOrder": [
+      "SAT",
+      "MONO",
+      "DI",
+      "POLY",
+      "PA",
+      "NMP",
+      "H2O"
+    ],
+    "temperatureK": 298.15,
+    "continuousFeedMolS": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      4.846724298541135,
+      0.4061367165354447
+    ],
+    "dispersedFeedMolS": [
+      4.868190306515299,
+      0.5681555559253281,
+      0.27442347433402103,
+      0.0964699788831831,
+      0.04810668945981338,
+      0,
+      0
+    ],
+    "continuousTotalConcentrationMolM3": 11070.494330635198,
+    "dispersedTotalConcentrationMolM3": 5269.811404605881,
+    "kc": [
+      0.000013090402625397442,
+      0.000015994147859384844,
+      0.00001562366824163388,
+      0.000013778989130267606,
+      0.000010229095057651185,
+      0.000016521738447017964,
+      0.000020604076983454237
+    ],
+    "kd": [
+      3.798760017014385e-7,
+      4.6916459268006717e-7,
+      4.577202255511733e-7,
+      4.009627584594375e-7,
+      2.928789183205082e-7,
+      4.854876385518509e-7,
+      6.127524343577262e-7
+    ],
+    "phaseConfiguration": "nmp-continuous-rrbo-dispersed",
+    "compartments": 7,
+    "columnDiameterM": 0.8686867763858619,
+    "rpm": 30,
+    "operatingHoldup": 0.08522716012839626,
+    "d32M": 0.003031929110308221,
+    "minimumRecoveryPct": 83,
+    "boundaryBranchQualificationRequest": {
+      "componentOrder": [
+        "SAT",
+        "MONO",
+        "DI",
+        "POLY",
+        "PA",
+        "NMP",
+        "H2O"
+      ],
+      "T": 298.15,
+      "x_bulk_continuous": [
+        0.034734971330409856,
+        0.0569735479110105,
+        0.02797560604368237,
+        0.011140911898264449,
+        0.008240724391363054,
+        0.848994189217947,
+        0.011940049207322858
+      ],
+      "x_bulk_dispersed": [
+        0.8314095020619517,
+        0.09703193550453776,
+        0.04686716619208694,
+        0.016475538558928395,
+        0.008215857682495201,
+        0,
+        0
+      ],
+      "kc": [
+        0.000013090402625397442,
+        0.000015994147859384844,
+        0.00001562366824163388,
+        0.000013778989130267606,
+        0.000010229095057651185,
+        0.000016521738447017964,
+        0.000020604076983454237
+      ],
+      "kd": [
+        3.798760017014385e-7,
+        4.6916459268006717e-7,
+        4.577202255511733e-7,
+        4.009627584594375e-7,
+        2.928789183205082e-7,
+        4.854876385518509e-7,
+        6.127524343577262e-7
+      ],
+      "CtC": 9633.159661825677,
+      "CtD": 5269.818770444053,
+      "phase_config": "nmp-continuous-rrbo-dispersed",
+      "provenance": {
+        "qualification": "RECORDED_STAGE2_FEED_END_LOCAL_CONTACT_STATE",
+        "fixture": "GOVERNED_DESIGN_269_NO_DB_SCIENTIFIC_REGRESSION"
+      },
+      "sourceStateSha256": "60650a5004f0338f372b8b16dcc7324c17944f78fde7d84c2215e9a480d94cdf"
+    },
+    "axialLocalContactProfile": [
+      {
+        "numericalCell": 1,
+        "x_bulk_continuous": [
+          0.013765272440793104,
+          0.01671535400302334,
+          0.008367771804176556,
+          0.0028804288024579104,
+          0.0004091493574781391,
+          0.8877882714219243,
+          0.07007375217014676
+        ],
+        "x_bulk_dispersed": [
+          0.6842739599886924,
+          0.07673380553043291,
+          0.03759727744302469,
+          0.012379202774684059,
+          0.0015453661877550431,
+          0.14083243583416644,
+          0.04663795224124452
+        ],
+        "provenance": {
+          "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+          "sourceStageFromFeedEnd": [
+            9,
+            10
+          ]
+        }
+      },
+      {
+        "numericalCell": 2,
+        "x_bulk_continuous": [
+          0.0325588498021826,
+          0.0485731205610219,
+          0.024510870094975167,
+          0.00881579349631814,
+          0.0016596110551503618,
+          0.8298182116694616,
+          0.05406354332089037
+        ],
+        "x_bulk_dispersed": [
+          0.6502044486765252,
+          0.08732626996852358,
+          0.043103248740310594,
+          0.014839642946607924,
+          0.0026673128022614975,
+          0.16413784053871264,
+          0.03772123632705873
+        ],
+        "provenance": {
+          "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+          "sourceStageFromFeedEnd": [
+            8
+          ]
+        }
+      },
+      {
+        "numericalCell": 3,
+        "x_bulk_continuous": [
+          0.035631211718378464,
+          0.05690393281443934,
+          0.02873465065635591,
+          0.010833185273688883,
+          0.0029911547417862164,
+          0.8202861073171432,
+          0.0446197574782079
+        ],
+        "x_bulk_dispersed": [
+          0.6409751832887611,
+          0.08984716118207256,
+          0.044299082546539574,
+          0.015648302955500376,
+          0.003896047991920091,
+          0.17512623463754717,
+          0.030207987397659126
+        ],
+        "provenance": {
+          "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+          "sourceStageFromFeedEnd": [
+            6,
+            7
+          ]
+        }
+      },
+      {
+        "numericalCell": 4,
+        "x_bulk_continuous": [
+          0.036451217747806575,
+          0.05940377961113782,
+          0.029860680305499366,
+          0.011606413962139473,
+          0.004404527380135697,
+          0.8223066456133242,
+          0.03596673537995686
+        ],
+        "x_bulk_dispersed": [
+          0.6389186594986418,
+          0.09022886750292189,
+          0.04431798574765089,
+          0.01587743524174424,
+          0.0051889009502722,
+          0.18299156510669182,
+          0.022476585952077355
+        ],
+        "provenance": {
+          "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+          "sourceStageFromFeedEnd": [
+            5
+          ]
+        }
+      },
+      {
+        "numericalCell": 5,
+        "x_bulk_continuous": [
+          0.03609658958825063,
+          0.059180222471180974,
+          0.029520414083005722,
+          0.011658421023576154,
+          0.005884037168614174,
+          0.8306369817604309,
+          0.027023333904941625
+        ],
+        "x_bulk_dispersed": [
+          0.6403167335424083,
+          0.08949086506976092,
+          0.04372000559734188,
+          0.01573118818279437,
+          0.006488158664996956,
+          0.18986572012306968,
+          0.014387328819627888
+        ],
+        "provenance": {
+          "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+          "sourceStageFromFeedEnd": [
+            3,
+            4
+          ]
+        }
+      },
+      {
+        "numericalCell": 6,
+        "x_bulk_continuous": [
+          0.03535433817456938,
+          0.05805892398359006,
+          0.02869816423850851,
+          0.0114186939397459,
+          0.007341718763122389,
+          0.8412494430899482,
+          0.017878717810515598
+        ],
+        "x_bulk_dispersed": [
+          0.6427150485127144,
+          0.08831531149688376,
+          0.04289064826918774,
+          0.015420270156518381,
+          0.007705192416681125,
+          0.19654201380740713,
+          0.006411515340607403
+        ],
+        "provenance": {
+          "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+          "sourceStageFromFeedEnd": [
+            2
+          ]
+        }
+      },
+      {
+        "numericalCell": 7,
+        "x_bulk_continuous": [
+          0.034734971330409856,
+          0.0569735479110105,
+          0.02797560604368237,
+          0.011140911898264449,
+          0.008240724391363054,
+          0.848994189217947,
+          0.011940049207322858
+        ],
+        "x_bulk_dispersed": [
+          0.8314095020619517,
+          0.09703193550453776,
+          0.04686716619208694,
+          0.016475538558928395,
+          0.008215857682495201,
+          0,
+          0
+        ],
+        "provenance": {
+          "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+          "sourceStageFromFeedEnd": [
+            1
+          ]
+        }
+      }
+    ],
+    "axialLocalContactProfileAuthority": {
+      "qualification": "GOVERNED_PINNED_STAGE2_AXIAL_LOCAL_CONTACT_PROFILE",
+      "componentOrder": [
+        "SAT",
+        "MONO",
+        "DI",
+        "POLY",
+        "PA",
+        "NMP",
+        "H2O"
+      ],
+      "phaseConfiguration": "nmp-continuous-rrbo-dispersed",
+      "sourceStageCount": 10,
+      "targetNumericalCells": 7,
+      "mapping": "STAGE2_FEED_END_ASCENDING_EQUAL_BINS_REVERSED_TO_CONTINUOUS_INLET_FV_ORDER_V1",
+      "stage2ResultSnapshotHash": "ef0194e8d2f4e4496cf987a175ae1ffa9c88bcff703a88a336a7263815963492"
+    },
+    "axialLocalContactProfileSha256": "5804ecb5cc5e2076734559be215988193be5beffc39ee14b7fe09c42ba19746f"
+  },
+  "inputSha256": "0dbc7d01a56bcc565886828d4d4099c32c5e2ca16f7acda7294322b2386b594d",
+  "implementation": {
+    "implementationHash": "30e257b97332f19f97733bd7e52d3e34aff735b9f433859492e7b8120ef1c1f4",
+    "candidateHash": "7bf6abb0eb16c703b1a62997a28f0b784e45dbed6104b5736fdd3ced5711d983",
+    "boundaryQualifierHash": "67273dbaaf6821a3336a71e79fabd07315c18bdc432f1ec8c85d04c6986be374",
+    "branchContinuationHash": "841365a6061f49740ccd9467129bf9d6adafc16e6bc09e9715b8beb755375cde"
+  },
+  "result": {
+    "diagnostics": {
+      "acceptedBranch": {
+        "accepted": true,
+        "maximumOriginalJobBGateResidual": 2.2235211860138084e-10,
+        "minimumFlowMolS": 1.204858865240222e-37,
+        "rawFvResidualMolS": 9.999166512930968e-8,
+        "scaledFvResidual": 6.848081329443736e-8
+      },
+      "adaptiveLambdaBracket": {
+        "lowerAccepted": 0.00006922973632812502,
+        "minimumInterval": 1e-8,
+        "upperRejected": 0.00006923828125000002,
+        "width": 8.54492187500177e-9
+      },
+      "branchContinuation": {
+        "attempts": [
+          {
+            "accepted": false,
+            "attempts": [
+              {
+                "accepted": true,
+                "cell1NmpBalance": {
+                  "axialBackmixingMolS": 7.80653542960784e-12,
+                  "component": "NMP",
+                  "convectionMolS": 2.090735432274407e-12,
+                  "decompositionDifferenceMolS": 0,
+                  "equation": "fd_conv[0]-fd_conv[1]+fd_ax[0]-fd_ax[1]+lambda*Nc*a*A*dz=0",
+                  "flowMolS": 2.059845199568788e-33,
+                  "interphaseTransferMolS": -9.99960793990015e-8,
+                  "neighborCell2FlowMolS": 4.181470864548814e-12,
+                  "numericalCell": 1,
+                  "numericalUncertainty": {
+                    "residualRoundoffEstimateMolS": 3.5529260127682743e-22
+                  },
+                  "originalFvResidualMolS": -9.998618212813961e-8,
+                  "phase": "dispersed",
+                  "residualMolS": -9.998618212813961e-8,
+                  "signedFaces": {
+                    "leftBackmixingMolS": 0,
+                    "leftConvectionMolS": -2.059845199568788e-33,
+                    "rightBackmixingMolS": -7.80653542960784e-12,
+                    "rightConvectionMolS": -2.090735432274407e-12
+                  }
+                },
+                "diagnosticTarget": 1e-11,
+                "iterations": 1,
+                "lambda": 0.00006924682617187502,
+                "lineSearchEvaluations": 0,
+                "maximumEquationResidual": 6.848081329442284e-8,
+                "maximumOriginalJobBGateResidual": 2.2235213167280142e-10,
+                "minimumFlowMolS": 1.204858865240222e-37,
+                "operatingStateEligible": true,
+                "rawFvResidualMolS": 9.99916651293148e-8,
+                "scaledFvResidual": 6.848081329442284e-8,
+                "tightDiagnosticClosure": false
+              },
+              {
+                "accepted": false,
+                "cell1NmpBalance": {
+                  "axialBackmixingMolS": 7.876008273394058e-12,
+                  "component": "NMP",
+                  "convectionMolS": 2.101189109435779e-12,
+                  "decompositionDifferenceMolS": 0,
+                  "equation": "fd_conv[0]-fd_conv[1]+fd_ax[0]-fd_ax[1]+lambda*Nc*a*A*dz=0",
+                  "flowMolS": 2.0495459735709436e-33,
+                  "interphaseTransferMolS": -0.00002120848676182704,
+                  "neighborCell2FlowMolS": 4.202378218871558e-12,
+                  "numericalCell": 1,
+                  "numericalUncertainty": {
+                    "residualRoundoffEstimateMolS": 7.534771647152789e-20
+                  },
+                  "originalFvResidualMolS": -0.000021208476784629658,
+                  "phase": "dispersed",
+                  "residualMolS": -0.000021208476784629658,
+                  "signedFaces": {
+                    "leftBackmixingMolS": 0,
+                    "leftConvectionMolS": -2.0495459735709436e-33,
+                    "rightBackmixingMolS": -7.876008273394058e-12,
+                    "rightConvectionMolS": -2.101189109435779e-12
+                  }
+                },
+                "diagnosticTarget": 1e-11,
+                "iterations": 1,
+                "lambda": 0.00006924682617187502,
+                "lineSearchEvaluations": 0,
+                "maximumEquationResidual": 1.6135045797147956,
+                "maximumOriginalJobBGateResidual": 0.06915036803712726,
+                "minimumFlowMolS": 1.210883159566423e-37,
+                "operatingStateEligible": false,
+                "rawFvResidualMolS": 0.6553461659729969,
+                "scaledFvResidual": 1.6135045797147956,
+                "tightDiagnosticClosure": false
+              }
+            ],
+            "independentlyConfirmed": false,
+            "initialScaledSeparation": 0.005000003989808112,
+            "lambda": 0.00006924682617187502,
+            "maximumScaledStateDifferenceAcrossStarts": 0.005000003989808112,
+            "signedDiagnosticOnly": false
+          },
+          {
+            "accepted": false,
+            "attempts": [
+              {
+                "accepted": false,
+                "cell1NmpBalance": {
+                  "axialBackmixingMolS": 7.80653542960784e-12,
+                  "component": "NMP",
+                  "convectionMolS": 2.090735432274407e-12,
+                  "decompositionDifferenceMolS": 0,
+                  "equation": "fd_conv[0]-fd_conv[1]+fd_ax[0]-fd_ax[1]+lambda*Nc*a*A*dz=0",
+                  "flowMolS": 2.059845199568788e-33,
+                  "interphaseTransferMolS": -1.0999568733890166e-7,
+                  "neighborCell2FlowMolS": 4.181470864548814e-12,
+                  "numericalCell": 1,
+                  "numericalUncertainty": {
+                    "residualRoundoffEstimateMolS": 3.908183451875528e-22
+                  },
+                  "originalFvResidualMolS": -1.0998579006803977e-7,
+                  "phase": "dispersed",
+                  "residualMolS": -1.0998579006803977e-7,
+                  "signedFaces": {
+                    "leftBackmixingMolS": 0,
+                    "leftConvectionMolS": -2.059845199568788e-33,
+                    "rightBackmixingMolS": -7.80653542960784e-12,
+                    "rightConvectionMolS": -2.090735432274407e-12
+                  }
+                },
+                "diagnosticTarget": 1e-11,
+                "iterations": 1,
+                "lambda": 0.00007617150878906252,
+                "lineSearchEvaluations": 0,
+                "maximumEquationResidual": 1.1676533634226053e-7,
+                "maximumOriginalJobBGateResidual": 2.2235213167280142e-10,
+                "minimumFlowMolS": 1.204858865240222e-37,
+                "operatingStateEligible": false,
+                "rawFvResidualMolS": 5.684358785183912e-7,
+                "scaledFvResidual": 1.1676533634226053e-7,
+                "tightDiagnosticClosure": false
+              },
+              {
+                "accepted": false,
+                "cell1NmpBalance": {
+                  "axialBackmixingMolS": 7.876008273394058e-12,
+                  "component": "NMP",
+                  "convectionMolS": 2.101189109435779e-12,
+                  "decompositionDifferenceMolS": 0,
+                  "equation": "fd_conv[0]-fd_conv[1]+fd_ax[0]-fd_ax[1]+lambda*Nc*a*A*dz=0",
+                  "flowMolS": 2.0495459735709436e-33,
+                  "interphaseTransferMolS": -0.000023329335438009746,
+                  "neighborCell2FlowMolS": 4.202378218871558e-12,
+                  "numericalCell": 1,
+                  "numericalUncertainty": {
+                    "residualRoundoffEstimateMolS": 8.288248457406812e-20
+                  },
+                  "originalFvResidualMolS": -0.000023329325460812363,
+                  "phase": "dispersed",
+                  "residualMolS": -0.000023329325460812363,
+                  "signedFaces": {
+                    "leftBackmixingMolS": 0,
+                    "leftConvectionMolS": -2.0495459735709436e-33,
+                    "rightBackmixingMolS": -7.876008273394058e-12,
+                    "rightConvectionMolS": -2.101189109435779e-12
+                  }
+                },
+                "diagnosticTarget": 1e-11,
+                "iterations": 1,
+                "lambda": 0.00007617150878906252,
+                "lineSearchEvaluations": 0,
+                "maximumEquationResidual": 1.6135050550596948,
+                "maximumOriginalJobBGateResidual": 0.06915036803712726,
+                "minimumFlowMolS": 1.210883159566423e-37,
+                "operatingStateEligible": false,
+                "rawFvResidualMolS": 0.6553440677095074,
+                "scaledFvResidual": 1.6135050550596948,
+                "tightDiagnosticClosure": false
+              }
+            ],
+            "independentlyConfirmed": false,
+            "initialScaledSeparation": 0.005000003989808112,
+            "lambda": 0.00007617150878906252,
+            "maximumScaledStateDifferenceAcrossStarts": 0.005000003989808112,
+            "signedDiagnosticOnly": false
+          },
+          {
+            "accepted": false,
+            "attempts": [
+              {
+                "accepted": true,
+                "cell1NmpBalance": {
+                  "axialBackmixingMolS": 7.80653542960784e-12,
+                  "component": "NMP",
+                  "convectionMolS": 2.090735432274407e-12,
+                  "decompositionDifferenceMolS": 0,
+                  "equation": "fd_conv[0]-fd_conv[1]+fd_ax[0]-fd_ax[1]+lambda*Nc*a*A*dz=0",
+                  "flowMolS": 2.059845199568788e-33,
+                  "interphaseTransferMolS": -9.99960793990015e-8,
+                  "neighborCell2FlowMolS": 4.181470864548814e-12,
+                  "numericalCell": 1,
+                  "numericalUncertainty": {
+                    "residualRoundoffEstimateMolS": 3.5529260127682743e-22
+                  },
+                  "originalFvResidualMolS": -9.998618212813961e-8,
+                  "phase": "dispersed",
+                  "residualMolS": -9.998618212813961e-8,
+                  "signedFaces": {
+                    "leftBackmixingMolS": 0,
+                    "leftConvectionMolS": -2.059845199568788e-33,
+                    "rightBackmixingMolS": -7.80653542960784e-12,
+                    "rightConvectionMolS": -2.090735432274407e-12
+                  }
+                },
+                "diagnosticTarget": 1e-11,
+                "iterations": 1,
+                "lambda": 0.00006924682617187502,
+                "lineSearchEvaluations": 0,
+                "maximumEquationResidual": 6.848081329442284e-8,
+                "maximumOriginalJobBGateResidual": 2.2235213167280142e-10,
+                "minimumFlowMolS": 1.204858865240222e-37,
+                "operatingStateEligible": false,
+                "rawFvResidualMolS": 9.99916651293148e-8,
+                "scaledFvResidual": 6.848081329442284e-8,
+                "tightDiagnosticClosure": false
+              },
+              {
+                "accepted": false,
+                "cell1NmpBalance": {
+                  "axialBackmixingMolS": 7.876008273394058e-12,
+                  "component": "NMP",
+                  "convectionMolS": 2.101189109435779e-12,
+                  "decompositionDifferenceMolS": 0,
+                  "equation": "fd_conv[0]-fd_conv[1]+fd_ax[0]-fd_ax[1]+lambda*Nc*a*A*dz=0",
+                  "flowMolS": 2.0495459735709436e-33,
+                  "interphaseTransferMolS": -0.00002120848676182704,
+                  "neighborCell2FlowMolS": 4.202378218871558e-12,
+                  "numericalCell": 1,
+                  "numericalUncertainty": {
+                    "residualRoundoffEstimateMolS": 7.534771647152789e-20
+                  },
+                  "originalFvResidualMolS": -0.000021208476784629658,
+                  "phase": "dispersed",
+                  "residualMolS": -0.000021208476784629658,
+                  "signedFaces": {
+                    "leftBackmixingMolS": 0,
+                    "leftConvectionMolS": -2.0495459735709436e-33,
+                    "rightBackmixingMolS": -7.876008273394058e-12,
+                    "rightConvectionMolS": -2.101189109435779e-12
+                  }
+                },
+                "diagnosticTarget": 1e-11,
+                "iterations": 1,
+                "lambda": 0.00006924682617187502,
+                "lineSearchEvaluations": 0,
+                "maximumEquationResidual": 1.6135045797147956,
+                "maximumOriginalJobBGateResidual": 0.06915036803712726,
+                "minimumFlowMolS": 1.210883159566423e-37,
+                "operatingStateEligible": false,
+                "rawFvResidualMolS": 0.6553461659729969,
+                "scaledFvResidual": 1.6135045797147956,
+                "tightDiagnosticClosure": false
+              }
+            ],
+            "independentlyConfirmed": false,
+            "initialScaledSeparation": 0.005000003989808112,
+            "lambda": 0.00006924682617187502,
+            "maximumScaledStateDifferenceAcrossStarts": 0.005000003989808112,
+            "signedDiagnosticOnly": true
+          }
+        ],
+        "diagnosticClosureTarget": 1e-11,
+        "firstRejectedLambda": 0.00007617150878906252,
+        "fullCouplingAccepted": false,
+        "lastAcceptedLambda": null,
+        "limiting": {
+          "component": "NMP",
+          "numericalCell": 1,
+          "phase": "dispersed"
+        },
+        "physicalInfeasibilityClaimed": false,
+        "previousGateAcceptedLambda": 0.00006924682617187502,
+        "signedStartingRootDiagnostic": {
+          "accepted": false,
+          "attempts": [
+            {
+              "accepted": true,
+              "cell1NmpBalance": {
+                "axialBackmixingMolS": 7.80653542960784e-12,
+                "component": "NMP",
+                "convectionMolS": 2.090735432274407e-12,
+                "decompositionDifferenceMolS": 0,
+                "equation": "fd_conv[0]-fd_conv[1]+fd_ax[0]-fd_ax[1]+lambda*Nc*a*A*dz=0",
+                "flowMolS": 2.059845199568788e-33,
+                "interphaseTransferMolS": -9.99960793990015e-8,
+                "neighborCell2FlowMolS": 4.181470864548814e-12,
+                "numericalCell": 1,
+                "numericalUncertainty": {
+                  "residualRoundoffEstimateMolS": 3.5529260127682743e-22
+                },
+                "originalFvResidualMolS": -9.998618212813961e-8,
+                "phase": "dispersed",
+                "residualMolS": -9.998618212813961e-8,
+                "signedFaces": {
+                  "leftBackmixingMolS": 0,
+                  "leftConvectionMolS": -2.059845199568788e-33,
+                  "rightBackmixingMolS": -7.80653542960784e-12,
+                  "rightConvectionMolS": -2.090735432274407e-12
+                }
+              },
+              "diagnosticTarget": 1e-11,
+              "iterations": 1,
+              "lambda": 0.00006924682617187502,
+              "lineSearchEvaluations": 0,
+              "maximumEquationResidual": 6.848081329442284e-8,
+              "maximumOriginalJobBGateResidual": 2.2235213167280142e-10,
+              "minimumFlowMolS": 1.204858865240222e-37,
+              "operatingStateEligible": false,
+              "rawFvResidualMolS": 9.99916651293148e-8,
+              "scaledFvResidual": 6.848081329442284e-8,
+              "tightDiagnosticClosure": false
+            },
+            {
+              "accepted": false,
+              "cell1NmpBalance": {
+                "axialBackmixingMolS": 7.876008273394058e-12,
+                "component": "NMP",
+                "convectionMolS": 2.101189109435779e-12,
+                "decompositionDifferenceMolS": 0,
+                "equation": "fd_conv[0]-fd_conv[1]+fd_ax[0]-fd_ax[1]+lambda*Nc*a*A*dz=0",
+                "flowMolS": 2.0495459735709436e-33,
+                "interphaseTransferMolS": -0.00002120848676182704,
+                "neighborCell2FlowMolS": 4.202378218871558e-12,
+                "numericalCell": 1,
+                "numericalUncertainty": {
+                  "residualRoundoffEstimateMolS": 7.534771647152789e-20
+                },
+                "originalFvResidualMolS": -0.000021208476784629658,
+                "phase": "dispersed",
+                "residualMolS": -0.000021208476784629658,
+                "signedFaces": {
+                  "leftBackmixingMolS": 0,
+                  "leftConvectionMolS": -2.0495459735709436e-33,
+                  "rightBackmixingMolS": -7.876008273394058e-12,
+                  "rightConvectionMolS": -2.101189109435779e-12
+                }
+              },
+              "diagnosticTarget": 1e-11,
+              "iterations": 1,
+              "lambda": 0.00006924682617187502,
+              "lineSearchEvaluations": 0,
+              "maximumEquationResidual": 1.6135045797147956,
+              "maximumOriginalJobBGateResidual": 0.06915036803712726,
+              "minimumFlowMolS": 1.210883159566423e-37,
+              "operatingStateEligible": false,
+              "rawFvResidualMolS": 0.6553461659729969,
+              "scaledFvResidual": 1.6135045797147956,
+              "tightDiagnosticClosure": false
+            }
+          ],
+          "independentlyConfirmed": false,
+          "initialScaledSeparation": 0.005000003989808112,
+          "lambda": 0.00006924682617187502,
+          "maximumScaledStateDifferenceAcrossStarts": 0.005000003989808112,
+          "signedDiagnosticOnly": true
+        },
+        "startingCell1NmpBalance": {
+          "axialBackmixingMolS": 7.80653542960784e-12,
+          "component": "NMP",
+          "convectionMolS": 2.090735432274407e-12,
+          "decompositionDifferenceMolS": 0,
+          "equation": "fd_conv[0]-fd_conv[1]+fd_ax[0]-fd_ax[1]+lambda*Nc*a*A*dz=0",
+          "flowMolS": 2.059845199568788e-33,
+          "interphaseTransferMolS": -9.99960793990015e-8,
+          "neighborCell2FlowMolS": 4.181470864548814e-12,
+          "numericalCell": 1,
+          "numericalUncertainty": {
+            "certifiedInterval": false,
+            "finiteDifferenceChecks": [
+              {
+                "dFlowDlambda": -0.010092879513622094,
+                "finiteDifferenceStep": 0.000002,
+                "flowCorrectionMolS": -6.99926639607999e-7,
+                "flowRoundoffEstimateMolS": 1.7199946374198534e-12,
+                "maximumStateCorrectionScaled": 4.793472351513978e-7
+              },
+              {
+                "dFlowDlambda": -0.010092879513726793,
+                "finiteDifferenceStep": 0.000001,
+                "flowCorrectionMolS": -6.999266396080582e-7,
+                "flowRoundoffEstimateMolS": 1.7199946374211746e-12,
+                "maximumStateCorrectionScaled": 4.793472351521398e-7
+              }
+            ],
+            "finiteDifferenceCorrectionSpreadMolS": 5.918642718939424e-20,
+            "flowAbsoluteEstimateMolS": 0.000006999283596027548,
+            "method": "TWO_FD_JACOBIANS_RESIDUAL_CORRECTION_PLUS_ROUNDOFF_X10_LOCAL_ESTIMATE",
+            "positiveMarginResolved": false,
+            "residualRoundoffEstimateMolS": 3.5529260127682743e-22,
+            "signResolved": false
+          },
+          "originalFvResidualMolS": -9.998618212813961e-8,
+          "phase": "dispersed",
+          "residualMolS": -9.998618212813961e-8,
+          "signedFaces": {
+            "leftBackmixingMolS": 0,
+            "leftConvectionMolS": -2.059845199568788e-33,
+            "rightBackmixingMolS": -7.80653542960784e-12,
+            "rightConvectionMolS": -2.090735432274407e-12
+          }
+        },
+        "startingGateMetrics": {
+          "accepted": true,
+          "maximumOriginalJobBGateResidual": 2.2235211860138084e-10,
+          "minimumFlowMolS": 1.204858865240222e-37,
+          "rawFvResidualMolS": 9.999166512930968e-8,
+          "scaledFvResidual": 6.848081329443736e-8
+        },
+        "startingLambda": 0.00006924682617187502,
+        "status": "CONTINUATION_BUDGET_WITH_QUANTIFIED_BALANCES",
+        "unchangedAcceptanceTolerance": 1e-7,
+        "version": "ECR_JOB_C_BRANCH_CONTINUATION_V1"
+      },
+      "claimsEmitted": {
+        "efficiency": false,
+        "finalRpm": false,
+        "height": false,
+        "jobD": false,
+        "release": false
+      },
+      "classification": "CONTINUATION_BUDGET_WITH_QUANTIFIED_BALANCES",
+      "globalInletFluxAudit": {
+        "componentFluxTable": [
+          {
+            "component": "SAT",
+            "continuousComponentFluxMolM2S": 0.000024786389982186256,
+            "continuousToDispersedSignConvention": "CONTINUOUS_TO_DISPERSED",
+            "dispersedComponentFluxMolM2S": 0.00002478638998218625,
+            "filmFluxEqualityResidualMolM2S": 6.776263578034403e-21,
+            "frozenTransferAcrossSevenCellsMolS": 0.004955298279448918,
+            "governedContinuousInletMolS": 0,
+            "governedDispersedInletMolS": 4.868190306515299,
+            "impliedContinuousOutletMolS": -0.004955298279448918,
+            "impliedDispersedOutletMolS": 4.873145604794748
+          },
+          {
+            "component": "MONO",
+            "continuousComponentFluxMolM2S": 0.0000373346255629402,
+            "continuousToDispersedSignConvention": "CONTINUOUS_TO_DISPERSED",
+            "dispersedComponentFluxMolM2S": 0.00003733462556294069,
+            "filmFluxEqualityResidualMolM2S": -4.87890977618477e-19,
+            "frozenTransferAcrossSevenCellsMolS": 0.007463943153838375,
+            "governedContinuousInletMolS": 0,
+            "governedDispersedInletMolS": 0.5681555559253281,
+            "impliedContinuousOutletMolS": -0.007463943153838375,
+            "impliedDispersedOutletMolS": 0.5756194990791664
+          },
+          {
+            "component": "DI",
+            "continuousComponentFluxMolM2S": 0.000019492754067465637,
+            "continuousToDispersedSignConvention": "CONTINUOUS_TO_DISPERSED",
+            "dispersedComponentFluxMolM2S": 0.000019492754067467108,
+            "filmFluxEqualityResidualMolM2S": -1.4704491964334654e-18,
+            "frozenTransferAcrossSevenCellsMolS": 0.0038969939051896408,
+            "governedContinuousInletMolS": 0,
+            "governedDispersedInletMolS": 0.27442347433402103,
+            "impliedContinuousOutletMolS": -0.0038969939051896408,
+            "impliedDispersedOutletMolS": 0.2783204682392107
+          },
+          {
+            "component": "POLY",
+            "continuousComponentFluxMolM2S": 0.000008206223842424332,
+            "continuousToDispersedSignConvention": "CONTINUOUS_TO_DISPERSED",
+            "dispersedComponentFluxMolM2S": 0.000008206223842424747,
+            "filmFluxEqualityResidualMolM2S": -4.1504614415460717e-19,
+            "frozenTransferAcrossSevenCellsMolS": 0.0016405893281096213,
+            "governedContinuousInletMolS": 0,
+            "governedDispersedInletMolS": 0.0964699788831831,
+            "impliedContinuousOutletMolS": -0.0016405893281096213,
+            "impliedDispersedOutletMolS": 0.09811056821129271
+          },
+          {
+            "component": "PA",
+            "continuousComponentFluxMolM2S": 0.0000024550351139489895,
+            "continuousToDispersedSignConvention": "CONTINUOUS_TO_DISPERSED",
+            "dispersedComponentFluxMolM2S": 0.0000024550351139493503,
+            "filmFluxEqualityResidualMolM2S": -3.6083603553033194e-19,
+            "frozenTransferAcrossSevenCellsMolS": 0.000490810936359885,
+            "governedContinuousInletMolS": 0,
+            "governedDispersedInletMolS": 0.04810668945981338,
+            "impliedContinuousOutletMolS": -0.000490810936359885,
+            "impliedDispersedOutletMolS": 0.04859750039617327
+          },
+          {
+            "component": "NMP",
+            "continuousComponentFluxMolM2S": 0.0006145286375122846,
+            "continuousToDispersedSignConvention": "CONTINUOUS_TO_DISPERSED",
+            "dispersedComponentFluxMolM2S": 0.0006145286375122813,
+            "filmFluxEqualityResidualMolM2S": 3.3610267347050637e-18,
+            "frozenTransferAcrossSevenCellsMolS": 0.12285664440546806,
+            "governedContinuousInletMolS": 4.846724298541135,
+            "governedDispersedInletMolS": 0,
+            "impliedContinuousOutletMolS": 4.723867654135667,
+            "impliedDispersedOutletMolS": 0.12285664440546806
+          },
+          {
+            "component": "H2O",
+            "continuousComponentFluxMolM2S": 0.000044446611532866014,
+            "continuousToDispersedSignConvention": "CONTINUOUS_TO_DISPERSED",
+            "dispersedComponentFluxMolM2S": 0.000044446611532866664,
+            "filmFluxEqualityResidualMolM2S": -6.505213034913027e-19,
+            "frozenTransferAcrossSevenCellsMolS": 0.008885772305464182,
+            "governedContinuousInletMolS": 0.4061367165354447,
+            "governedDispersedInletMolS": 0,
+            "impliedContinuousOutletMolS": 0.39725094422998053,
+            "impliedDispersedOutletMolS": 0.008885772305464182
+          }
+        ],
+        "continuousToDispersedSignConvention": "POSITIVE_NC_REMOVES_FROM_CONTINUOUS_AND_ADDS_TO_DISPERSED",
+        "counterCurrentBoundaryOrientation": {
+          "continuousCellBalance": "fc[j] - fc[j+1] - transfer[j] = 0",
+          "continuousSignedInletFaceFlux": "fc[0] = +continuousFeedMolS",
+          "dispersedCellBalance": "fd[j] - fd[j+1] + transfer[j] = 0",
+          "dispersedSignedInletFaceFlux": "fd[m] = -dispersedFeedMolS",
+          "integratedContinuousOutlet": "continuousFeedMolS - sum(transfer)",
+          "integratedDispersedOutlet": "dispersedFeedMolS + sum(transfer)"
+        },
+        "frozenJobBProvenance": {
+          "artifactSha256": "71c21d480c81e5971754fa664f42259ab9dd117f77ff37a8361a0e2d89de12db",
+          "classification": "PINNED_ENGINE_LINEAGE_ONLY_NO_JOB_B_FLUX_CONSUMED",
+          "workerSha256": "70229d3eacfde61d906f39bc3dec8a29387cabfc96944493ffb5318653e02f2d"
+        },
+        "heightM": 2,
+        "impliedContinuousOutletMolS": [
+          -0.004955298279448918,
+          -0.007463943153838375,
+          -0.0038969939051896408,
+          -0.0016405893281096213,
+          -0.000490810936359885,
+          4.723867654135667,
+          0.39725094422998053
+        ],
+        "impliedDispersedOutletMolS": [
+          4.873145604794748,
+          0.5756194990791664,
+          0.2783204682392107,
+          0.09811056821129271,
+          0.04859750039617327,
+          0.12285664440546806,
+          0.008885772305464182
+        ],
+        "incomingPhysicalFlowsRegularized": false,
+        "lambda": 1,
+        "negativeFlowOrigin": "FIXED_GLOBAL_INLET_FLUX_APPROXIMATION_DIAGNOSTIC_ONLY",
+        "nonpositiveImpliedOutlets": [
+          {
+            "component": "SAT",
+            "impliedOutletMolS": -0.004955298279448918,
+            "phase": "continuous"
+          },
+          {
+            "component": "MONO",
+            "impliedOutletMolS": -0.007463943153838375,
+            "phase": "continuous"
+          },
+          {
+            "component": "DI",
+            "impliedOutletMolS": -0.0038969939051896408,
+            "phase": "continuous"
+          },
+          {
+            "component": "POLY",
+            "impliedOutletMolS": -0.0016405893281096213,
+            "phase": "continuous"
+          },
+          {
+            "component": "PA",
+            "impliedOutletMolS": -0.000490810936359885,
+            "phase": "continuous"
+          }
+        ],
+        "physicalDispersedInletMoleFractions": [
+          0.8314095020619517,
+          0.09703193550453776,
+          0.04686716619208695,
+          0.016475538558928398,
+          0.008215857682495201,
+          0,
+          0
+        ],
+        "physicalDispersedInletZerosPreservedExactly": true,
+        "physicalInfeasibilityClaimed": false,
+        "positiveGlobalOutletNecessaryConditionPassed": false,
+        "qualification": "GLOBAL_INLET_FULL_SCALE_FROZEN_FLUX_DIAGNOSTIC_ONLY;FLUX_SOURCE=QUALIFIED_JOB_C_BOUNDARY_BRANCH",
+        "qualifiedCandidateSeedTransformed": [
+          1.0832611173222078,
+          1.5784407333331576,
+          0.8669230937861102,
+          -0.05404716036512612,
+          -0.3510949688285576,
+          4.279455499747856,
+          4.019884265039992,
+          2.048549608379721,
+          1.330169918354491,
+          0.30825221017341065,
+          -0.5040305037075037,
+          2.8172208352242865,
+          0.0003161681799684104
+        ],
+        "signAndBoundaryOrientationConclusion": "B_TO_C_SOURCE_SIGNS_AND_COUNTERCURRENT_BOUNDARIES_ANALYTICALLY_CONSERVATIVE",
+        "sourceSignReversalNonpositiveImpliedOutlets": [
+          {
+            "component": "NMP",
+            "impliedOutletMolS": -0.12285664440546806,
+            "phase": "dispersed"
+          },
+          {
+            "component": "H2O",
+            "impliedOutletMolS": -0.008885772305464182,
+            "phase": "dispersed"
+          }
+        ],
+        "sourceSignReversalWouldResolveAllBoundaries": false
+      },
+      "governingInputsChanged": false,
+      "heightM": 2,
+      "incomingPhysicalFeedsUnchanged": true,
+      "lambda": 0.00006924682617187502,
+      "numericalTraceAdded": false,
+      "physicalInfeasibilityClaimed": false,
+      "pseudoArclengthQualification": {
+        "acceptanceGatesUnchanged": true,
+        "acceptedLambda": 0.00006924682617187502,
+        "acceptedStateSha256": "406e774d47a080eb175dc1909de21f355d9fba5b0992b4b895b4cc7d33fc4201",
+        "attempts": [
+          {
+            "accepted": true,
+            "arcConstraintResidual": 1.0180048695428156e-11,
+            "arcLengthStep": 2e-8,
+            "functionEvaluations": 7,
+            "lambda": 0.00006138598904929739,
+            "maximumOriginalJobBGateResidual": 2.313511185171325e-8,
+            "minimumFlowMolS": 9.387971262251831e-24,
+            "optimizerSuccess": true,
+            "rawFvResidualMolS": 8.866504366609667e-8,
+            "scaledFvResidual": 6.073285128536424e-8,
+            "step": 1
+          },
+          {
+            "accepted": true,
+            "arcConstraintResidual": 1.018012855151682e-11,
+            "arcLengthStep": 3.0000000000000004e-8,
+            "functionEvaluations": 4,
+            "lambda": 0.0000613865774242693,
+            "maximumOriginalJobBGateResidual": 2.3135369173916756e-8,
+            "minimumFlowMolS": 4.123282227140953e-22,
+            "optimizerSuccess": true,
+            "rawFvResidualMolS": 8.872272955821929e-8,
+            "scaledFvResidual": 6.074126973251012e-8,
+            "step": 2
+          },
+          {
+            "accepted": true,
+            "arcConstraintResidual": 1.0180335954818239e-11,
+            "arcLengthStep": 4.5000000000000006e-8,
+            "functionEvaluations": 4,
+            "lambda": 0.00006138746989305634,
+            "maximumOriginalJobBGateResidual": 2.3135711119546587e-8,
+            "minimumFlowMolS": 1.0888096825358873e-30,
+            "optimizerSuccess": true,
+            "rawFvResidualMolS": 8.8707772112812e-8,
+            "scaledFvResidual": 6.073918258365113e-8,
+            "step": 3
+          },
+          {
+            "accepted": true,
+            "arcConstraintResidual": 1.0180439621476668e-11,
+            "arcLengthStep": 6.750000000000002e-8,
+            "functionEvaluations": 4,
+            "lambda": 0.0000613888066552325,
+            "maximumOriginalJobBGateResidual": 2.3136206561561403e-8,
+            "minimumFlowMolS": 5.7268886290623214e-30,
+            "optimizerSuccess": true,
+            "rawFvResidualMolS": 8.871050237281223e-8,
+            "scaledFvResidual": 6.074049340115821e-8,
+            "step": 4
+          }
+        ],
+        "baseLambda": 0.00006922973632812502,
+        "baseStateSha256": "e07c537cbb738a7f9b7ac9edf9dbcd40efbbdfcf5b467d16c819dcc15c4a20af",
+        "classification": "ACCEPTED_POSITIVE_BRANCH_BEYOND_BRACKET",
+        "complementarityQualification": {
+          "attempts": [
+            {
+              "accepted": true,
+              "confirmationStartSha256": "1b0ea9c40fef5bacaed8c5631d6c9f37fdf74280df6e5986410c0880b67b7dc5",
+              "frozenJacobianConfirmationInitialMaximumResidual": 1.3248852810964045e-7,
+              "frozenJacobianConfirmationIterations": 6,
+              "frozenJacobianConfirmationMaximumResidual": 6.84984576599885e-8,
+              "frozenJacobianConfirmationSuccess": true,
+              "functionEvaluations": 6,
+              "initialization": "PSEUDO_ARCLENGTH_CORRECTED_STATE",
+              "maximumOriginalJobBGateResidual": 2.2235211860138084e-10,
+              "minimumFlowMolS": 1.204858865240222e-37,
+              "optimizerOptimality": 8.073829019130285e-10,
+              "optimizerStatus": 0,
+              "optimizerSuccess": false,
+              "rawFvResidualMolS": 9.999166512930968e-8,
+              "scaledFvResidual": 6.848081329443736e-8,
+              "stateSha256": "406e774d47a080eb175dc1909de21f355d9fba5b0992b4b895b4cc7d33fc4201"
+            },
+            {
+              "accepted": true,
+              "confirmationStartSha256": "7e986d408b7a5e6d6b02f1de568381316b7d4a2c85a6dfa76e95ffcc1e51c6de",
+              "frozenJacobianConfirmationInitialMaximumResidual": 1.613504586427711,
+              "frozenJacobianConfirmationIterations": 2,
+              "frozenJacobianConfirmationMaximumResidual": 6.848957439034753e-8,
+              "frozenJacobianConfirmationSuccess": true,
+              "functionEvaluations": 6,
+              "initialization": "DETERMINISTIC_PERTURBED_REJECTED_PICARD_RESTART",
+              "maximumOriginalJobBGateResidual": 2.2235192039111207e-10,
+              "minimumFlowMolS": 6.179973395285888e-33,
+              "optimizerOptimality": 8.648134898258103e-10,
+              "optimizerStatus": 0,
+              "optimizerSuccess": false,
+              "rawFvResidualMolS": 9.999061648330911e-8,
+              "scaledFvResidual": 6.848080175399655e-8,
+              "stateSha256": "7ef14650159c7f8b779a13ae9c203cf3b8675146568a3fe921350f49ba2780c7"
+            }
+          ],
+          "beyondRejectedBoundaryMargin": 8.54492187500177e-9,
+          "confirmationStartScaledStateSeparation": 0.00513207286684203,
+          "confirmationStartStateSha256": [
+            "1b0ea9c40fef5bacaed8c5631d6c9f37fdf74280df6e5986410c0880b67b7dc5",
+            "7e986d408b7a5e6d6b02f1de568381316b7d4a2c85a6dfa76e95ffcc1e51c6de"
+          ],
+          "independentStartMinimumScaledSeparation": 0.002,
+          "initializations": [
+            "PSEUDO_ARCLENGTH_CORRECTED_STATE",
+            "DETERMINISTIC_PERTURBED_REJECTED_PICARD_RESTART"
+          ],
+          "lambda": 0.00006924682617187502,
+          "mathematicalFlowLowerBoundMolS": 0,
+          "maximumScaledStateDifferenceAcrossStarts": 6.719069745031447e-12,
+          "minimumRequiredBeyondBoundaryMargin": 8.54492187500177e-9,
+          "optimizerSuccessIsAcceptanceGate": false,
+          "pseudoArclengthRestartLambda": 0.0000613888066552325,
+          "scaledStateAgreementTolerance": 0.001,
+          "solver": "TWO_DISTINCT_START_DENSE_FROZEN_JACOBIAN_NEWTON_PLUS_DENSE_POLISH_189_FIXED_LAMBDA",
+          "strictPositiveFinalAcceptanceRequired": true
+        },
+        "finiteDifferenceQualifications": [
+          {
+            "declaredJacobianNonzeros": 6279,
+            "finiteDifferenceJacobianNonzeros": 3098,
+            "fixedLambdaJacobianRank": 189,
+            "fixedLambdaSmallestSingularValue": 0.00007897846224710473,
+            "largestSingularValue": 309.27216822794645,
+            "maximumTangentEquationResidual": 7.210181616253836e-16,
+            "rank": 189,
+            "rankThreshold": 1.3047721117611616e-11,
+            "relativeFiniteDifferenceStep": 0.000002,
+            "requiredFixedLambdaJacobianRank": 189,
+            "requiredRank": 189,
+            "smallestNonzeroSingularValue": 0.0000791547077203061,
+            "tangentLambdaComponent": 0.022320488708635424,
+            "undeclaredJacobianDependencyCount": 0
+          },
+          {
+            "declaredJacobianNonzeros": 6279,
+            "finiteDifferenceJacobianNonzeros": 3096,
+            "fixedLambdaJacobianRank": 189,
+            "fixedLambdaSmallestSingularValue": 0.00007897846292735659,
+            "largestSingularValue": 309.2723376431343,
+            "maximumTangentEquationResidual": 1.0124720343802213e-15,
+            "rank": 189,
+            "rankThreshold": 1.3047728264980021e-11,
+            "relativeFiniteDifferenceStep": 0.000001,
+            "requiredFixedLambdaJacobianRank": 189,
+            "requiredRank": 189,
+            "smallestNonzeroSingularValue": 0.00007915470779770538,
+            "tangentLambdaComponent": 0.02231977663128676,
+            "undeclaredJacobianDependencyCount": 0
+          }
+        ],
+        "fixedLambdaDerivativeAlignmentAcrossStepSizes": 0.9999999762334667,
+        "limitingPositiveFlow": {
+          "baseFlowMolS": 1.1108775597151172e-12,
+          "component": "NMP",
+          "dFlowDlambda": [
+            -0.010092886338827295,
+            -0.010092933883518713
+          ],
+          "numericalCell": 1,
+          "phase": "dispersed",
+          "predictedBoundaryLambda": [
+            0.0000692298463935238,
+            0.00006922984639300531
+          ],
+          "variableIndex": 54
+        },
+        "method": "SCALED_PSEUDO_ARCLENGTH_ORIGINAL_189_EQUATIONS",
+        "physicalInfeasibilityClaimed": false,
+        "positiveLowerBoundMolS": 1.1108207020194224e-12,
+        "stableFullRowRankTangent": true,
+        "strictPositiveFlowConstraintPreserved": true,
+        "tangentAlignmentAcrossStepSizes": 0.9999999934972985,
+        "targetRejectedLambda": 0.00006923828125000002,
+        "variableScaleSha256": "e8a2e218a703bd76ee590b5f0e7e6189b4e4bdf4a780b9f4ab9d253842f2d7f9"
+      },
+      "runtimeBudgets": {
+        "nonlinearSolver": {
+          "budgetSeconds": 720,
+          "elapsedSeconds": 720.031904638
+        },
+        "qualification": {
+          "budgetSeconds": 600,
+          "cacheKeySha256": "3d378684b83a4dd834c3409a90b65499ae249d966e3404c9853991998746c8fb",
+          "cacheStatus": "MISS_QUALIFIED_AND_STORED",
+          "elapsedSeconds": 516.5879741809995
+        }
+      },
+      "runtimeSeconds": 719.7081602729995,
+      "sourceSignReversed": false,
+      "strictPositiveFlowsAccepted": true
+    },
+    "error": "JOB_C_BRANCH_CONTINUATION_TERMINATED",
+    "protocol": "ECR_PRE_PILOT_JOB_C_V1",
+    "resultSha256": "c7508836064d0bbabf74afa5214d23d138570be715b8e3f1671f5d8d3e89b5ba",
+    "status": "BLOCKED_PRELIMINARY_JOB_C"
+  },
+  "elapsedSeconds": 1253.724
+}

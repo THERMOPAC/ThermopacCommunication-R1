@@ -9,7 +9,7 @@ import {
 } from '../server/ecr-pre-pilot/job-c';
 
 describe('Job-C packaged design269 scientific regression', () => {
-  it('qualifies a reproducible positive branch beyond the solvent boundary', async () => {
+  it('quantifies signed NMP roots without claiming an established terminal boundary', async () => {
     const fixture = JSON.parse(fs.readFileSync(
       'tests/fixtures/design269-job-c-worker-request.json', 'utf8',
     )) as JobCWorkerRequest;
@@ -33,16 +33,28 @@ describe('Job-C packaged design269 scientific regression', () => {
       contact.provenance.sourceStageFromFeedEnd)).toEqual([
       [9, 10], [8], [6, 7], [5], [3, 4], [2], [1],
     ]);
-    const result = await runJobCWorker(fixture, { timeoutMs: 900_000 });
+    const result = await runJobCWorker(fixture, { timeoutMs: 1_400_000 });
     expect(result.status).toBe('BLOCKED_PRELIMINARY_JOB_C');
     expect(result.error)
-      .toBe('JOB_C_POSITIVE_BRANCH_BEYOND_SOLVENT_BOUNDARY_QUALIFIED');
+      .toBe('JOB_C_BRANCH_CONTINUATION_TERMINATED');
     const diagnostics = result.diagnostics;
     expect(diagnostics.heightM).toBe(2);
     expect(diagnostics.lambda)
       .toBeGreaterThan(diagnostics.adaptiveLambdaBracket.upperRejected);
     expect(diagnostics.classification)
-      .toBe('REPRODUCIBLE_ACCEPTED_POSITIVE_BRANCH_BEYOND_SOLVENT_BOUNDARY');
+      .toBe('LOCAL_SIGNED_MULTI_INVENTORY_ROOT_NEAR_ZERO_COUPLING');
+    const continuation = diagnostics.branchContinuation;
+    expect(continuation.fullCouplingAccepted).toBe(false);
+    expect(continuation.positiveIntervalExistenceClaimed).toBe(false);
+    expect(continuation.terminalBracket.resolved).toBe(false);
+    expect(continuation.signedStartingRootDiagnostic.independentlyConfirmed).toBe(true);
+    expect(continuation.signedStartingRootDiagnostic.accepted).toBe(false);
+    for (const attempt of continuation.signedStartingRootDiagnostic.attempts) {
+      expect(attempt.tightDiagnosticClosure).toBe(true);
+      expect(attempt.cell1NmpBalance.flowMolS).toBeLessThan(0);
+      expect(attempt.operatingStateEligible).toBe(false);
+    }
+    expect(continuation.physicalBoundary.uniquePhysicalLimiterResolved).toBe(false);
     expect(diagnostics.physicalInfeasibilityClaimed).toBe(false);
     expect(diagnostics.adaptiveLambdaBracket).toMatchObject({
       minimumInterval: 1e-8,
@@ -164,5 +176,7 @@ describe('Job-C packaged design269 scientific regression', () => {
     ));
     expect(currentJobCArtifactHashes().boundaryQualifierHash)
       .toBe(manifest.boundaryInterfaceQualifier.sha256);
-  }, 900_000);
+    expect(currentJobCArtifactHashes().branchContinuationHash)
+      .toBe(manifest.branchContinuation.sha256);
+  }, 1_420_000);
 });

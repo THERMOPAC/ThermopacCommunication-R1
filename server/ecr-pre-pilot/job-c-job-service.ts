@@ -93,6 +93,12 @@ export async function enqueueJobC(userId: number, designId: number) {
     || !/^[a-f0-9]{64}$/.test(boundarySourceStateHash)) {
     throw new Error('JOB_C_DEPENDENCY_BLOCKED:BOUNDARY_LINEAGE_HASH_MISSING');
   }
+  const branchContinuationHash = String(
+    dependencies?.jobCBranchContinuationSha256 ?? '',
+  );
+  if (branchContinuationHash !== artifacts.branchContinuationHash) {
+    throw new Error('JOB_C_DEPENDENCY_BLOCKED:BRANCH_CONTINUATION_LINEAGE_HASH_MISSING');
+  }
   const frozenDependencyLineageHash = jobCResultHash(dependencies) as string;
   const evidence = {
     inputHash,
@@ -102,6 +108,7 @@ export async function enqueueJobC(userId: number, designId: number) {
     jobBInterfaceWorkerHash: jobBEngineHash,
     boundaryQualifierHash,
     boundarySourceStateHash,
+    branchContinuationHash,
     frozenDependencyLineageHash,
   };
   const id = randomUUID();
@@ -327,6 +334,7 @@ async function execute(row: any, token: string) {
       && artifacts.implementationHash === row.implementation_hash
       && artifacts.candidateHash === row.candidate_hash
       && artifacts.boundaryQualifierHash === deps?.jobCBoundaryInterfaceQualifierSha256
+      && artifacts.branchContinuationHash === deps?.jobCBranchContinuationSha256
       && deps?.jobBInterfaceWorkerSha256 === row.job_b_engine_hash
       && deps?.stage1SnapshotHash === currentStage1Hash
       && deps?.stage3ImmutableHash === design.rows[0]?.stage3_hash;

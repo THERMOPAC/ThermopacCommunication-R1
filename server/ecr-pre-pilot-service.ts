@@ -1058,6 +1058,7 @@ export async function prepareEcrPrePilotJobC(userId: number, designId: number) {
       stage3ImmutableHash: stage3!.immutableHash,
       boundaryBranchSourceStateSha256: boundaryBranchQualificationRequest.sourceStateSha256,
       jobCBoundaryInterfaceQualifierSha256: jobCArtifacts.boundaryQualifierHash,
+      jobCBranchContinuationSha256: jobCArtifacts.branchContinuationHash,
     },
     model: {
       flow: 'STEADY_STATE_COUNTERCURRENT_PER_COMPONENT',

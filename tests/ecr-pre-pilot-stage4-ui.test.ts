@@ -553,4 +553,19 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
     expect(source).not.toContain("/job-c/evaluate");
     expect(source).not.toMatch(/job-c\/jobs`,\s*\{[^}]*body:/s);
   });
+
+  it("renders server-owned Job C branch-continuation diagnostics without reconstruction", () => {
+    const source = readFileSync(
+      "client/src/pages/design-software/ecr-pre-pilot-design-stage-4-page.tsx",
+      "utf8",
+    );
+
+    expect(source).toContain('"branchContinuation"');
+    expect(source).toContain('"lastAcceptedLambda"');
+    expect(source).toContain('"firstRejectedLambda"');
+    expect(source).toContain('"terminalBracket"');
+    expect(source).toContain('"cell1NmpBalance"');
+    expect(source).toContain('"physicalBoundary"');
+    expect(source).toContain("the client performs no numerical reconstruction");
+  });
 });

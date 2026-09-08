@@ -6,6 +6,7 @@ const root = process.cwd();
 const relative = 'server/ecr-pre-pilot/job-c/worker.py';
 const candidateRelative = 'server/ecr-pre-pilot/job-c/candidate_interface.py';
 const qualifierRelative = 'server/ecr-pre-pilot/job-c/boundary_interface_qualifier.py';
+const branchContinuationRelative = 'server/ecr-pre-pilot/job-c/branch_continuation.py';
 const output = path.join(root, 'dist/job-c-runtime');
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 await rm(output, { recursive: true, force: true });
@@ -13,9 +14,11 @@ await mkdir(path.dirname(path.join(output, relative)), { recursive: true });
 await cp(path.join(root, relative), path.join(output, relative));
 await cp(path.join(root, candidateRelative), path.join(output, candidateRelative));
 await cp(path.join(root, qualifierRelative), path.join(output, qualifierRelative));
+await cp(path.join(root, branchContinuationRelative), path.join(output, branchContinuationRelative));
 const bytes = await readFile(path.join(output, relative));
 const candidateBytes = await readFile(path.join(output, candidateRelative));
 const qualifierBytes = await readFile(path.join(output, qualifierRelative));
+const branchContinuationBytes = await readFile(path.join(output, branchContinuationRelative));
 const manifest = {
   schemaVersion: 'ECR_PRE_PILOT_JOB_C_RUNTIME_MANIFEST_V1',
   protocol: 'ECR_PRE_PILOT_JOB_C_V1',
@@ -32,6 +35,12 @@ const manifest = {
     path: qualifierRelative,
     bytes: qualifierBytes.length,
     sha256: sha256(qualifierBytes),
+  },
+  branchContinuation: {
+    version: 'ECR_JOB_C_BRANCH_CONTINUATION_V1',
+    path: branchContinuationRelative,
+    bytes: branchContinuationBytes.length,
+    sha256: sha256(branchContinuationBytes),
   },
   jobBInterfaceRuntime: '../job-b-interface-runtime',
   qualification: 'PRELIMINARY_NOT_RELEASE_ELIGIBLE',

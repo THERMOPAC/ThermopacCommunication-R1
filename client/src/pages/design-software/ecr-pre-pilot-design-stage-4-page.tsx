@@ -443,6 +443,23 @@ export default function EcrPrePilotDesignStage4Page() {
   const jobCNT = object(read(jobCResult, "theoreticalCompartmentAuthority", "theoreticalStageAuthority", "ntBasis", "compartmentBasis", "numericalCompartmentBasis"));
   const selectedJobCDesign = object(read(jobCResult, "selectedDesign", "calculatedDesign"));
   const jobCWorker = object(read(jobCResult, "workerResult"));
+  const queuedJobCWorker = object(read(object(jobCJob?.result), "workerResult"));
+  const jobCBranchContinuation = object(
+    read(object(read(queuedJobCWorker, "diagnostics")), "branchContinuation")
+      ?? read(object(read(jobCWorker, "diagnostics")), "branchContinuation"),
+  );
+  const branchTerminalBracket = object(read(jobCBranchContinuation, "terminalBracket"));
+  const branchLimiting = object(read(jobCBranchContinuation, "limiting"));
+  const branchCell1Balance = object(read(jobCBranchContinuation, "lastAcceptedCell1NmpBalance", "startingCell1NmpBalance", "cell1NmpBalance"));
+  const branchCell1Uncertainty = object(read(branchCell1Balance, "numericalUncertainty"));
+  const branchRejectedBalance = object(read(jobCBranchContinuation, "firstRejectedCell1NmpBalance"));
+  const branchRejectedUncertainty = object(read(branchRejectedBalance, "numericalUncertainty"));
+  const branchPhysicalBoundary = object(read(jobCBranchContinuation, "physicalBoundary"));
+  const branchPhysicalBalance = object(read(branchPhysicalBoundary, "cell1NmpBalance"));
+  const branchPhysicalUncertainty = {
+    ...object(read(branchPhysicalBalance, "numericalUncertainty")),
+    ...object(read(branchPhysicalBoundary, "numericalUncertainty")),
+  };
   const jobCNominalCase = records(read(jobCWorker, "sensitivityCases"))
     .find((item) => stringValue(read(item, "name"), "").toUpperCase() === "NOMINAL") ?? {};
   const jobCNominalSelection = object(read(jobCNominalCase, "selected"));
@@ -548,6 +565,47 @@ export default function EcrPrePilotDesignStage4Page() {
               {jobCJob.error && <p className="mt-2 font-mono text-[10px] text-red-800">{jobCJob.error}</p>}
               <p className="mt-2 text-[10px] font-semibold">Candidate qualification → Height qualification → Exact qualification</p>
               <p className="mt-1 text-[10px]">These labels report scientific calculation progress only; they do not indicate Stage 4 or downstream acceptance.</p>
+            </section>}
+            {Object.keys(jobCBranchContinuation).length > 0 && <section className="rounded-md border border-violet-300 bg-white p-3 text-violet-950">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-xs font-semibold">Branch-continuation numerical diagnostics</h2>
+                <span className="rounded border border-violet-200 bg-violet-50 px-2 py-1 font-mono text-[10px]">{stringValue(read(jobCBranchContinuation, "status"))}</span>
+              </div>
+              <dl className="mt-3 grid gap-2 text-[10px] sm:grid-cols-2 lg:grid-cols-4">
+                <div><dt className="text-slate-500">Last accepted λ</dt><dd className="font-mono">{numberValue(read(jobCBranchContinuation, "lastAcceptedLambda"))}</dd></div>
+                <div><dt className="text-slate-500">First failed two-start λ</dt><dd className="font-mono">{numberValue(read(jobCBranchContinuation, "firstRejectedLambda"))}</dd></div>
+                <div><dt className="text-slate-500">Terminal bracket [lower, upper]</dt><dd className="font-mono">[{numberValue(read(branchTerminalBracket, "lower"))}, {numberValue(read(branchTerminalBracket, "upper"))}]</dd></div>
+                <div><dt className="text-slate-500">Bracket width</dt><dd className="font-mono">{numberValue(read(branchTerminalBracket, "width"))}</dd></div>
+                <div><dt className="text-slate-500">Bracket resolved?</dt><dd className="font-mono">{stringValue(read(branchTerminalBracket, "resolved"))}</dd></div>
+                <div><dt className="text-slate-500">Limiting phase / component</dt><dd className="font-mono">{stringValue(read(branchLimiting, "phase"))} / {stringValue(read(branchLimiting, "component"))}</dd></div>
+                <div><dt className="text-slate-500">Limiting numerical cell</dt><dd className="font-mono">{scalarValue(read(branchLimiting, "numericalCell"))}</dd></div>
+                <div><dt className="text-slate-500">Zero-active diagnostic λ</dt><dd className="font-mono">{numberValue(read(branchPhysicalBoundary, "lambda"))}</dd></div>
+                <div><dt className="text-slate-500">Diagnostic λ uncertainty (not certified)</dt><dd className="font-mono">{numberValue(read(branchPhysicalUncertainty, "lambdaAbsoluteEstimate"))}</dd></div>
+              </dl>
+              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                {[
+                  ["Last gate-accepted cell 1 NMP balance", branchCell1Balance, branchCell1Uncertainty],
+                  ["First rejected cell 1 NMP balance", branchRejectedBalance, branchRejectedUncertainty],
+                  ["Zero-active diagnostic cell 1 NMP balance", branchPhysicalBalance, branchPhysicalUncertainty],
+                ].map(([label, balanceValue, uncertaintyValue]) => {
+                  const balance = balanceValue as RecordValue;
+                  const uncertainty = uncertaintyValue as RecordValue;
+                  return <div key={label as string} className="rounded border border-violet-200 bg-violet-50/50 p-2">
+                    <h3 className="text-[10px] font-semibold">{label as string}</h3>
+                    <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[9px]">
+                      <div><dt className="text-slate-500">Convection [mol/s]</dt><dd className="font-mono">{numberValue(read(balance, "convectionMolS"))}</dd></div>
+                      <div><dt className="text-slate-500">Axial backmixing [mol/s]</dt><dd className="font-mono">{numberValue(read(balance, "axialBackmixingMolS"))}</dd></div>
+                      <div><dt className="text-slate-500">Interphase transfer [mol/s]</dt><dd className="font-mono">{numberValue(read(balance, "interphaseTransferMolS"))}</dd></div>
+                      <div><dt className="text-slate-500">Residual [mol/s]</dt><dd className="font-mono">{numberValue(read(balance, "residualMolS"))}</dd></div>
+                      <div><dt className="text-slate-500">Flow [mol/s]</dt><dd className="font-mono">{numberValue(read(balance, "flowMolS"))}</dd></div>
+                      <div><dt className="text-slate-500">Flow absolute estimate [mol/s]</dt><dd className="font-mono">{numberValue(read(uncertainty, "flowAbsoluteEstimateMolS"))}</dd></div>
+                      <div><dt className="text-slate-500">Residual roundoff estimate [mol/s]</dt><dd className="font-mono">{numberValue(read(uncertainty, "residualRoundoffEstimateMolS"))}</dd></div>
+                      <div><dt className="text-slate-500">Sign resolved / method</dt><dd className="font-mono">{stringValue(read(uncertainty, "signResolved"))} / {stringValue(read(uncertainty, "method"))}</dd></div>
+                    </dl>
+                  </div>;
+                })}
+              </div>
+              <p className="mt-2 text-[9px] text-slate-500">A tolerance-accepted tiny positive flow does not establish a resolved positive inventory. Signed roots are diagnostic only, not operating states or proof of global infeasibility. Values are rendered directly from the server worker diagnostics; the client performs no numerical reconstruction.</p>
             </section>}
             {jobCPollError && <div role="alert" className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-semibold">Job C monitoring temporarily interrupted</p><p>{jobCPollError}</p>{jobCRunning && <p>The last {jobCJob?.status} state is retained and polling will continue.</p>}</div></div>}
             {error && <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div>}

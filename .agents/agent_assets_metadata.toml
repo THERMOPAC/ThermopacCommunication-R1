@@ -947,3 +947,17 @@ mtime_ms = 1788683201646
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/f93af060-16fc-448d-9c76-a30fa03e9800/2e10ab57-8b39-4524-b854-ad0e2bcaf3a7"
 storage_version_token = "1788683205127638"
 content_type = "text/html"
+
+[[outputs]]
+id = "PUwFUOVdD9YVCpB6j19y9"
+uri = "file://research-results/job-c-continuation-report.html"
+type = "text"
+title = "Job C — audited numerical findings"
+description = "Verified balances, signed-root reproduction, uncertainty estimates and the unresolved continuation interval. No full-coupling or final-design claim."
+logical_id = "86a102e0-1161-4e5a-9d14-c0c57ccff92e"
+content_hash = "sha256:17548a113851df2ffbac3d29707c87a88fc9b91b2ae5312a25a9945507b35545"
+size = 6485
+mtime_ms = 1788846781241
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/86a102e0-1161-4e5a-9d14-c0c57ccff92e/6189aed3-b007-4540-8d93-adad9be976b3"
+storage_version_token = "1788846930387921"
+content_type = "text/html"

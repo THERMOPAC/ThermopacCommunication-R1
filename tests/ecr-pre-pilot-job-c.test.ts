@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import {
+  mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   JOB_C_COMPONENT_ORDER,
   JOB_C_PRELIMINARY_SENSITIVITY_BASIS,
   jobCResultHash,
+  runJobCWorker,
 } from '../server/ecr-pre-pilot/job-c';
 
 describe('ECR pre-pilot Job C governed numerical basis', () => {
@@ -63,6 +68,80 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
       initialization: 'x',
       initialRawFvResidualMolS: 1,
     })).toBe('d92549e1649402c7b8e02b769cf4498ee923af8b8dde5ea7d041eaecfa162819');
+  });
+
+  it('normalizes signed zero identically across Python and JS without rounding tiny positives', () => {
+    const observed = JSON.parse(execFileSync('python3', ['-c', `
+import ast, json
+from pathlib import Path
+source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
+tree = ast.parse(source)
+nodes = [node for node in tree.body if isinstance(node, ast.FunctionDef)
+         and node.name in {"canonical", "hashed", "digest"}]
+namespace = {"hashlib": __import__("hashlib"), "json": json}
+exec(compile(ast.Module(body=nodes, type_ignores=[]), "signed-zero-test", "exec"), namespace)
+negative = json.loads('{"outer":[-0.0,{"map":{"negative":-0.0,"positive":0.0}},[0.0,-0.0]],"tiny":[5e-324,{"value":1e-300}]}')
+positive = json.loads('{"outer":[0.0,{"map":{"negative":0.0,"positive":0.0}},[0.0,0.0]],"tiny":[5e-324,{"value":1e-300}]}')
+zeroed_tiny = json.loads('{"outer":[0.0,{"map":{"negative":0.0,"positive":0.0}},[0.0,0.0]],"tiny":[0.0,{"value":0.0}]}')
+print(json.dumps({
+  "negativeCanonical": namespace["canonical"](namespace["hashed"](negative)),
+  "positiveCanonical": namespace["canonical"](namespace["hashed"](positive)),
+  "negativeDigest": namespace["digest"](negative),
+  "positiveDigest": namespace["digest"](positive),
+  "zeroedTinyDigest": namespace["digest"](zeroed_tiny),
+}))
+`], { encoding: 'utf8' }));
+    const negative = {
+      outer: [-0, { map: { negative: -0, positive: 0 } }, [0, -0]],
+      tiny: [5e-324, { value: 1e-300 }],
+    };
+    const positive = {
+      outer: [0, { map: { negative: 0, positive: 0 } }, [0, 0]],
+      tiny: [5e-324, { value: 1e-300 }],
+    };
+    expect(observed.negativeCanonical).toBe(observed.positiveCanonical);
+    expect(observed.negativeCanonical).toContain('4.9406564584124654e-324');
+    expect(observed.negativeCanonical).toContain('1.0000000000000000e-300');
+    expect(observed.negativeDigest).toBe(observed.positiveDigest);
+    expect(observed.negativeDigest).toBe(jobCResultHash(negative));
+    expect(observed.positiveDigest).toBe(jobCResultHash(positive));
+    expect(observed.zeroedTinyDigest).not.toBe(observed.positiveDigest);
+  });
+
+  it('captures raw worker text before rejecting a bad result hash', async () => {
+    const runtime = readFileSync('server/ecr-pre-pilot/job-c.ts', 'utf8');
+    const captureAt = runtime.indexOf('options.onRawResponse?.(finalLines.join');
+    const parseAt = runtime.indexOf('const response = JSON.parse(finalLines[0])');
+    const integrityAt = runtime.indexOf(
+      'response.resultSha256 !== jobCResultHash(response)',
+    );
+    expect(captureAt).toBeGreaterThan(-1);
+    expect(captureAt).toBeLessThan(parseAt);
+    expect(parseAt).toBeLessThan(integrityAt);
+    expect(runtime).toContain('Research capture only; never bypasses the response integrity check.');
+
+    const root = mkdtempSync(join(tmpdir(), 'job-c-bad-hash-'));
+    const workerDir = join(root, 'server/ecr-pre-pilot/job-c');
+    mkdirSync(workerDir, { recursive: true });
+    const raw = '{"protocol":"ECR_PRE_PILOT_JOB_C_V1", "resultSha256":"bad"}';
+    writeFileSync(join(workerDir, 'worker.py'), `import sys\nsys.stdin.readline()\nprint('${raw}')\n`);
+    const previousRoot = process.env.JOB_C_RUNTIME_ROOT;
+    const previousPython = process.env.JOB_C_PYTHON;
+    process.env.JOB_C_RUNTIME_ROOT = root;
+    process.env.JOB_C_PYTHON = 'python3';
+    let captured: string | undefined;
+    try {
+      await expect(runJobCWorker({} as any, {
+        onRawResponse: value => { captured = value; },
+      })).rejects.toThrow('JOB_C_WORKER_RESPONSE_INTEGRITY_INVALID');
+      expect(captured).toBe(raw);
+    } finally {
+      if (previousRoot === undefined) delete process.env.JOB_C_RUNTIME_ROOT;
+      else process.env.JOB_C_RUNTIME_ROOT = previousRoot;
+      if (previousPython === undefined) delete process.env.JOB_C_PYTHON;
+      else process.env.JOB_C_PYTHON = previousPython;
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('pins candidate equations and versioned qualifier fail-closed qualification', () => {
@@ -142,13 +221,27 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
   it('pins the boundary qualifier in prepared and queued immutable lineage', () => {
     const service = readFileSync('server/ecr-pre-pilot-service.ts', 'utf8');
     const queue = readFileSync('server/ecr-pre-pilot/job-c-job-service.ts', 'utf8');
+    const runtime = readFileSync('server/ecr-pre-pilot/job-c.ts', 'utf8');
+    const packager = readFileSync('scripts/package-job-c-runtime.mjs', 'utf8');
     expect(service).toContain('currentJobCArtifactHashes()');
     expect(service).toContain('jobCBoundaryInterfaceQualifierSha256: jobCArtifacts.boundaryQualifierHash');
+    expect(service).toContain('jobCBranchContinuationSha256: jobCArtifacts.branchContinuationHash');
     expect(queue).toContain(
       'artifacts.boundaryQualifierHash === deps?.jobCBoundaryInterfaceQualifierSha256',
     );
+    expect(queue).toContain(
+      'artifacts.branchContinuationHash === deps?.jobCBranchContinuationSha256',
+    );
     expect(queue).toContain('jobCResultHash(snapshot)');
     expect(queue).toContain('jobCResultHash(snapshot.prepared)');
+    expect(packager).toContain("version: 'ECR_JOB_C_BRANCH_CONTINUATION_V1'");
+    expect(packager).toContain('branchContinuation: {');
+    expect(runtime).toContain(
+      "digest('server/ecr-pre-pilot/job-c/branch_continuation.py')",
+    );
+    expect(runtime).toContain(
+      "manifest.branchContinuation?.version !== 'ECR_JOB_C_BRANCH_CONTINUATION_V1'",
+    );
   });
 
   it('forms one deterministic equivalence class per eligible qualifier root', () => {

@@ -105,6 +105,7 @@ vi.mock('../server/ecr-pre-pilot/job-c', async (importOriginal) => {
       implementationHash: '1'.repeat(64),
       candidateHash: '2'.repeat(64),
       boundaryQualifierHash: '3'.repeat(64),
+      branchContinuationHash: 'a'.repeat(64),
     }),
   };
 });
@@ -126,6 +127,7 @@ const makePrepared = (sourceStateHash = '4'.repeat(64)) => ({
       jobBResultSha256: '8'.repeat(64),
       jobBInterfaceWorkerSha256: '9'.repeat(64),
       jobCBoundaryInterfaceQualifierSha256: '3'.repeat(64),
+      jobCBranchContinuationSha256: 'a'.repeat(64),
       boundaryBranchSourceStateSha256: sourceStateHash,
     },
   },
@@ -192,6 +194,7 @@ describe('Job C queue blocked-result reuse', () => {
         jobBInterfaceWorkerHash: '9'.repeat(64),
         boundaryQualifierHash: '3'.repeat(64),
         boundarySourceStateHash: '4'.repeat(64),
+        branchContinuationHash: 'a'.repeat(64),
       },
     });
     expect(state.queries.some(({ sql }) =>
