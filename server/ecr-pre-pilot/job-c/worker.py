@@ -91,6 +91,30 @@ class JobCBlocked(RuntimeError):
         super().__init__(code)
         self.code, self.diagnostics = code, diagnostics
 
+def budgeted_least_squares(budget, phase, optimizer, residual, *args, **kwargs):
+    """Guard optimizer entry, callbacks, and return with one fail-closed contract.
+
+    Tests replace the clock and optimizer in-process; no request or environment
+    switch can enable fault injection in the packaged worker.
+    """
+    def guarded_residual(*values, **options):
+        require_runtime_budget(budget)
+        result=residual(*values, **options)
+        require_runtime_budget(budget)
+        return result
+    try:
+        require_runtime_budget(budget)
+        result=optimizer(guarded_residual, *args, **kwargs)
+        require_runtime_budget(budget)
+        return result
+    except TimeoutError:
+        raise JobCBlocked("JOB_C_INTERNAL_RUNTIME_BUDGET", {
+          "classification":"NUMERICAL_RUNTIME_BUDGET_EXHAUSTED",
+          "phase":phase,
+          "physicalInfeasibilityClaimed":False,
+          "claimsEmitted":{"height":False,"efficiency":False,
+            "finalRpm":False,"jobD":False,"release":False}})
+
 def qualification_budget_block(budget, cache_status):
     elapsed=time.monotonic()-budget["started"]
     return JobCBlocked("JOB_C_QUALIFICATION_RUNTIME_BUDGET",
@@ -1216,7 +1240,8 @@ def case(r, name, dc, dd, solvers):
                 fits=[]
                 for initialization,start_vector in starts:
                     try:
-                        fit=scipy.optimize.least_squares(
+                        fit=budgeted_least_squares(
+                          budget,"BOUNDED_FROZEN",scipy.optimize.least_squares,
                           frozen_scaled,start_vector,
                           bounds=(lower[:14*m],upper[:14*m]),method="trf",
                           jac="2-point",tr_solver="exact",x_scale=flow_scale,
@@ -1327,7 +1352,8 @@ def case(r, name, dc, dd, solvers):
                 coupled_budget_exhausted=False
                 for coupled_initialization,coupled_start in coupled_starts:
                     try:
-                        coupled_fit=scipy.optimize.least_squares(
+                        coupled_fit=budgeted_least_squares(
+                          budget,"COUPLED",scipy.optimize.least_squares,
                           lambda q:residual(q,lam),coupled_start,
                           bounds=(lower,upper),method="trf",jac="2-point",
                           jac_sparsity=sparsity,tr_solver="lsmr",
@@ -1419,7 +1445,8 @@ def case(r, name, dc, dd, solvers):
                       "accepted":False}
                 elif step_error=="BOUNDED_FROZEN_FV_NONCONVERGENCE":
                     try:
-                        unconstrained_fit=scipy.optimize.least_squares(
+                        unconstrained_fit=budgeted_least_squares(
+                          budget,"UNBOUNDED_DIAGNOSTIC",scipy.optimize.least_squares,
                           frozen_scaled,solved_flows,method="lm",jac="2-point",
                           x_scale=flow_scale,max_nfev=1000,
                           xtol=1e-12,ftol=1e-12,gtol=1e-12)
@@ -1594,7 +1621,8 @@ def case(r, name, dc, dd, solvers):
         progress("lambda 1 monolithic polish")
         polish_start=x.copy()
         try:
-            polish_fit=scipy.optimize.least_squares(
+            polish_fit=budgeted_least_squares(
+              budget,"LAMBDA_ONE_POLISH",scipy.optimize.least_squares,
               lambda q:residual(q,1.0),polish_start,
               bounds=(lower,upper),method="trf",jac="2-point",
               jac_sparsity=sparsity,x_scale=variable_scale,max_nfev=40,

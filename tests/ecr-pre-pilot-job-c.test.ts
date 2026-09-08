@@ -8,6 +8,37 @@ import {
 } from '../server/ecr-pre-pilot/job-c';
 
 describe('ECR pre-pilot Job C governed numerical basis', () => {
+  it('fault-injects every optimizer timeout into a hashed, phase-classified block without a solve', () => {
+    const rows = JSON.parse(execFileSync('python3',
+      ['tests/job-c-timeout-injection.py'], { encoding: 'utf8', timeout: 10_000 }));
+    expect(rows).toHaveLength(20);
+    const phases: Record<string, string> = {
+      fit: 'BOUNDED_FROZEN',
+      coupled_fit: 'COUPLED',
+      unconstrained_fit: 'UNBOUNDED_DIAGNOSTIC',
+      polish_fit: 'LAMBDA_ONE_POLISH',
+    };
+    for (const { route, response, counts } of rows) {
+      expect(response).toMatchObject({
+        protocol: 'ECR_PRE_PILOT_JOB_C_V1',
+        status: 'BLOCKED_PRELIMINARY_JOB_C',
+        error: 'JOB_C_INTERNAL_RUNTIME_BUDGET',
+        diagnostics: {
+          classification: 'NUMERICAL_RUNTIME_BUDGET_EXHAUSTED',
+          phase: phases[route],
+          physicalInfeasibilityClaimed: false,
+          claimsEmitted: {
+            height: false, efficiency: false, finalRpm: false,
+            jobD: false, release: false,
+          },
+        },
+      });
+      expect(response.resultSha256).toBe(jobCResultHash(response));
+      expect(counts.after).toBe(0);
+      expect(response.sensitivityCases).toBeUndefined();
+    }
+  });
+
   it('pins component order, sensitivity values, and numerical-only height bounds', () => {
     expect(JOB_C_COMPONENT_ORDER).toEqual(
       ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
@@ -217,7 +248,7 @@ describe('ECR pre-pilot Job C governed numerical basis', () => {
       'local_u,frozen_nc,pre_gate=solve_local_interfaces(',
     );
     const frozenFv = worker.indexOf(
-      'fit=scipy.optimize.least_squares(',
+      'fit=budgeted_least_squares(',
       preInterface,
     );
     const refreshedInterface = worker.indexOf(

@@ -148,3 +148,15 @@ an otherwise correct worker response.
 **How to apply:** Any new cross-runtime canonical hashing must use the same
 ASCII/Unicode code-point ordering on both sides and include a mixed-case key
 regression vector.
+
+Deadline regression evidence is separate from thermodynamic qualification.
+Fast fault injection may isolate optimizer routing and terminal serialization,
+but must never be treated as evidence that a physical branch converges.
+
+**Why:** A real scientific replay may stop at an earlier governed boundary and
+never exercise a later timeout path, regardless of how long the replay runs.
+
+**How to apply:** Use controlled test-process clocks and optimizer doubles for
+deadline coverage, retaining the real worker routing, exception handling, and
+cross-language response hash. Keep scientific replay as separate evidence and
+do not add request-controlled fault switches to governed job inputs.
