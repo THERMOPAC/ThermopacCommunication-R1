@@ -1003,3 +1003,17 @@ mtime_ms = 1788860928758
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/09340a90-e81c-4b70-9b28-7d3ac37fa071/c5218d09-9fc2-4444-8d50-5f417a70b7a2"
 storage_version_token = "1788860959210413"
 content_type = "text/html"
+
+[[outputs]]
+id = "UHGi2BqhRpdlG3iUVaYVG"
+uri = "file://research-results/finite-film-boundary-and-cell1-report.pdf"
+type = "pdf"
+title = "Final Report — PDF"
+description = "Formatted, readable five-page report. Same findings and evidence as the HTML version; no calculations were rerun."
+logical_id = "7aa0825f-8bb6-4836-bcfa-5d3267be0512"
+content_hash = "sha256:bcce565c1f4ac14387f2deb7cf6120db3e1cb638130aaa5e1fda00268079bf1a"
+size = 96962
+mtime_ms = 1788861225416
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/7aa0825f-8bb6-4836-bcfa-5d3267be0512/4ccd7b9b-2cd6-4378-bff2-3df0da65770f"
+storage_version_token = "1788861237636104"
+content_type = "application/pdf"
